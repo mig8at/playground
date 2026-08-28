@@ -1753,6 +1753,29 @@ grande — funcionó con el reparto de `vigilar.md`: **el worker propone, sella 
 Quedan los medianos (frontend-monorepo 39, formalization 34, ecommerce, kyc…) — mismo método, otra
 sesión. El script del digestor quedó en el scratchpad y vale convertirlo en target del Makefile.
 
+## El bucle combinado: una verificación, dos árboles (2026-08-28)
+
+Miguel preguntó si se puede alinear context y canon al tiempo sin doble trabajo. Sí — porque **lo caro
+es la verificación**, y es una sola; lo que cambia es la prosa por destino (context exhaustivo-técnico ·
+canon masticado para soporte). Estrenado en dos movimientos:
+
+**1 · El backlog verificado de hoy bajó a canon** (escritura pura, cero re-verificación): el mirror de
+merchant-api, el `final_amount` que consumía el costo en vez del precio (con la advertencia de
+solicitudes viejas), las dos trampas del codeudor en la firma, los comandos de reparación + umbral
+residual + corte semanal (en `cartera`), y el filtro por modo muerto + el cupo abierto (en `listado`).
+soporte pasó a **106/106**.
+
+**2 · El primer nodo con el bucle completo: `formalization`** (34 archivos → 8 funcionalidades del
+worker → 3 invalidaciones verificadas a mano, las tres ciertas):
+- **`authorize()` con codeudor sin firmar ya no avanza** — se detiene en el estado nuevo «Pendiente
+  firma codeudor» (llegar a 11 exige las dos firmas). Corregido en context, y en canon quedó la
+  versión de soporte: *la solicitud quieta ahí no está rota, está esperando a la otra persona*.
+- **`isSmartPay()` por entorno** (160/152) — cuarta copia del condicional; el código pide config.
+- **El factory del plan de pagos arranca por la calculadora** (el evaluador más específico primero) —
+  y con él la periodicidad semanal.
+
+Marcador: **10 al día · 19 deriva · 9 alta** (la mañana: 1 · 22 · 14). El día deja 10 nodos sellados.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
