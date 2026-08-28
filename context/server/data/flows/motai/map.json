@@ -4,6 +4,11 @@
   "group": "merchants",
   "kind": "reference",
   "when": "Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, la calculadora del renting y del rent-to-own (precio vs interés, y por qué toca el techo de usura), o por qué el selector de tipo de documento no ofrece PEP en una sucursal. OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo, que es el que corre en producción desde el 2026-08-19. Si la tarea es del SEGUNDO firmante, el nodo es `codeudor`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«falló el renting / Ábaco»",
     "«no aparece el tipo de documento PEP»",
@@ -11,11 +16,6 @@
     "«el cliente del rent to own firmó un contrato de renting»",
     "«no se generó ningún documento y no hay error»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-08-20",
-    "source": "cabecera"
-  },
   "files": [
     "application/database/migrations/2026_03_06_003223_add_abaco_settings_to_settings_table.php",
     "application/database/migrations/2026_03_09_000000_add_abaco_column_to_user_summaries_table.php",

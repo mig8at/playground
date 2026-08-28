@@ -160,6 +160,12 @@ menciona además un **tipo 5** que el catálogo de producción no muestra todav�
 tipo 5, este gate ya lo deja pasar. Y `getExtendedQuota` acepta `user_request_id` (deriva user y lender
 de la solicitud) — la mitad backend del «próximo paso tras identidad» que espera el front.
 
+**(2026-08-28) Re-verificación asistida de los 8 archivos derivados** (worker → 6; dos confirman lo ya
+anotado hoy — el gate del cupo y `can_check_preapproval` fail-closed — y el resto son los hilos
+verificados: bypass de buró con Ábaco, reglas nuevas de riesgo/multiplicador con `typeId`, calculadora
+con recálculo liviano, y los discriminadores de producto en el front). Nada invalida. Sellado con el
+método asistido.
+
 ## Dónde mirar
 - **Orquestador rt=2 — ruta viva** (application): `app/Services/lenders/LenderRetrievalService.php:73 getLenders` · `:121 have_ctopx/no_more` · `:650 processRevolvingAndCreditopXLenders` · `:716` enganche=`category->min_initial_fee` · `:718` cupo=`min(min(available,loan_limit−used),max_amount)` · `:727` exclusión por cupo.
 - **Reglas duras + datacrédito rt=2** (application): `app/Services/lenders/LenderValidationService.php:27 validateRulesByLender` · `:176` gate rt=2 · `:206/219/232/249` score/negativos/consultas/maduración · `:308-327` `have_ctopx` sobrevive · `:376` `unset` del rt=2 fallido.

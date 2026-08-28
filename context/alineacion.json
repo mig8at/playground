@@ -2,9 +2,9 @@
   "generado": "2026-08-28",
   "ref": "main",
   "resumen": {
-    "deriva": 5,
-    "al-dia": 28,
+    "al-dia": 32,
     "deriva-alta": 5,
+    "deriva": 1,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -1583,981 +1583,6 @@
       }
     },
     {
-      "id": "actors",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 68,
-      "deriva": {
-        "cambiados": 12,
-        "pct": 21,
-        "hubs": 8,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
-            "ultimo_cambio": "2026-08-28",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
-            "ultimo_cambio": "2026-08-27",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
-            "ultimo_cambio": "2026-08-24",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/aliados-sso.server.ts",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth-helpers.server.ts",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/utils/auth/auth.server.ts",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-08-24",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Admin/UserController.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Identity/routes/api.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/api.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/RegisterCellPhoneController.php",
-            "ultimo_cambio": "2026-08-13",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Models/User.php",
-            "ultimo_cambio": "2026-08-12",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-08-12",
-            "hub": true
-          },
-          {
-            "ruta": "application/routes/admin.php",
-            "ultimo_cambio": "2026-08-11",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/auth/callback.tsx",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/consumer-hub/otp-login.tsx",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Exports/CreditopXRequestsReportExport.php",
-            "ultimo_cambio": "2026-08-07",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Identity/App/Services/ManualValidationService.php",
-            "ultimo_cambio": "2026-08-07",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 63,
-        "autores": {
-          "lhCabra-creditop": 9,
-          "Luis Romero": 8,
-          "Oscar Rincon": 8,
-          "sanvipi-ctop": 7,
-          "Yamid Viloria": 7,
-          "jose guzman": 7,
-          "joseesco24-creditop": 6,
-          "yamid-creditop": 5,
-          "Joel": 4,
-          "Miguel Ochoa": 1,
-          "mig-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "b734795b",
-            "fecha": "2026-08-27",
-            "autor": "sanvipi-ctop",
-            "asunto": "Commitea los 3 archivos del frente CORB015 (front). NO incluir .claude/settings.local.json (es ajeno).",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "84fbf726",
-            "fecha": "2026-08-26",
-            "autor": "Luis Romero",
-            "asunto": "fix(cosigner): require the cosigner token on the phone screen",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "8eb7322b",
-            "fecha": "2026-08-25",
-            "autor": "Yamid Viloria",
-            "asunto": "Fix route",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "df37fc62",
-            "fecha": "2026-08-25",
-            "autor": "Yamid Viloria",
-            "asunto": "Add bancolombia route",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "86165aa9",
-            "fecha": "2026-08-24",
-            "autor": "yamid-creditop",
-            "asunto": "revert(wizard): volver al OTP v1 y desconectar el pipeline de KYC (#878)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "556526ae",
-            "fecha": "2026-08-24",
-            "autor": "yamid-creditop",
-            "asunto": "feat(wizard): volver al pipeline de KYC y al OTP de OnboardingV2 (#877)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "ff067998",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(cuotealo): simulador embebido y pantalla de resultado en el wizard",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "04e0f8ea",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): sync-results empuja el scraping pendiente desde el polling",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "8e1d3be1",
-            "fecha": "2026-08-21",
-            "autor": "joseesco24-creditop",
-            "asunto": "fix: more smart pay fixes",
-            "repo": "application"
-          },
-          {
-            "sha": "2b94191e",
-            "fecha": "2026-08-21",
-            "autor": "joseesco24-creditop",
-            "asunto": "fix: more smart pay fixes",
-            "repo": "application"
-          },
-          {
-            "sha": "ca6a587f",
-            "fecha": "2026-08-20",
-            "autor": "Luis Romero",
-            "asunto": "feat(analytics): instrument identity validation instructions and rename loan confirmation events",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "2810a9ac",
-            "fecha": "2026-08-20",
-            "autor": "jose guzman",
-            "asunto": "validations bugs",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "2dee6127",
-            "fecha": "2026-08-19",
-            "autor": "Yamid Viloria",
-            "asunto": "revert(loan-request-wizard): desconectar el pipeline KYC y volver a las APIs viejas",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "ed4bc876",
-            "fecha": "2026-08-19",
-            "autor": "sanvipi-ctop",
-            "asunto": "feat(bancolombia): ruta resolve-checkout como punto de entrada del ecommerce",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "1b237826",
-            "fecha": "2026-08-19",
-            "autor": "Yamid Viloria",
-            "asunto": "fix(loan-request-wizard): emitir las cookies de token ya en el callback del login",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "huerfanos": [
-        "application/app/Http/Controllers/Admin/UserRequestVoucherController.php",
-        "frontend-monorepo/apps/loan-request-wizard/app/utils/backend-fetch.server.ts",
-        "frontend-monorepo/apps/loan-request-wizard/app/utils/onboarding-channel.ts",
-        "frontend-monorepo/apps/loan-request-wizard/app/utils/post-validation-step.server.ts",
-        "frontend-monorepo/apps/loan-request-wizard/app/utils/track-credit-approved.server.ts",
-        "frontend-monorepo/apps/loan-request-wizard/utils/auth/token-cookies.server.ts",
-        "frontend-monorepo/apps/loan-request-wizard/utils/auth/token-middleware.server.ts",
-        "frontend-monorepo/apps/loan-request-wizard/utils/auth/token-store.server.ts",
-        "legacy-backend/Modules/Identity/App/Services/AdoDocumentImageBackfillService.php",
-        "legacy-backend/Modules/Identity/App/Services/IdentityCentralRebuildService.php",
-        "legacy-backend/Modules/Onboarding/App/Services/AbacoConsultStateResolver.php",
-        "legacy-backend/Modules/Onboarding/App/Services/OtpComplementService.php",
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
-        "legacy-backend/database/migrations/2026_07_14_000000_create_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_000000_add_dynamic_form_type_id_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_010000_add_dynamic_form_is_enabled_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_22_000000_add_signer_role_to_netco_signing_documents_table.php",
-        "legacy-backend/database/migrations/2026_07_23_000000_make_cosigner_user_id_nullable_in_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
-        "legacy-backend/database/migrations/2026_07_30_120000_create_lender_users_category_types_table.php",
-        "legacy-backend/database/migrations/2026_07_30_120100_add_lender_users_category_type_id_to_policy_tables.php",
-        "legacy-backend/database/migrations/2026_07_31_000000_add_amount_accepted_at_to_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_08_06_000000_add_income_breakdown_fields_to_fields_table.php",
-        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php",
-        "legacy-backend/database/migrations/2026_08_13_220000_add_abaco_customer_id_to_user_summaries_table.php",
-        "legacy-backend/database/migrations/2026_08_13_233000_backfill_abaco_customer_id_on_user_summaries.php",
-        "legacy-backend/database/migrations/2026_08_15_120000_disable_payment_date_selection_for_renting_and_rto.php",
-        "legacy-backend/database/migrations/2026_08_16_100200_seed_renting_signing_documents_catalog.php",
-        "legacy-backend/database/migrations/2026_08_18_000000_rename_colombian_holidays_to_holidays.php",
-        "legacy-backend/database/migrations/2026_08_19_000000_seed_do_and_co_holidays.php",
-        "legacy-backend/database/migrations/2026_08_20_000000_rename_holidays_back_to_colombian_holidays.php",
-        "legacy-backend/database/migrations/2026_08_20_130000_set_motai_payment_schedule_template.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_set_rent_to_own_product_to_rto.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "creditopx",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 19,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 20,
-        "hubs": 6,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-            "ultimo_cambio": "2026-08-26",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Models/Lender.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/tests/Unit/LenderListingCanCheckPreapprovalTest.php",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 21,
-        "autores": {
-          "lhCabra-creditop": 11,
-          "Oscar Rincon": 3,
-          "mig-creditop": 2,
-          "hans peter": 1,
-          "Joel": 1,
-          "yamid-creditop": 1,
-          "sanvipi-ctop": 1,
-          "jose guzman": 1
-        },
-        "lista": [
-          {
-            "sha": "c0fff867",
-            "fecha": "2026-08-26",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(rto): show the total on RTO and hide it on renting",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "58f00bca",
-            "fecha": "2026-08-25",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(rto): pick the rental card by capability and drop its amount row",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "a37a7e47",
-            "fecha": "2026-08-24",
-            "autor": "hans peter",
-            "asunto": "feat(CRED-148): payoff, total pagado y retenidos en el summary consumer",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9472b800",
-            "fecha": "2026-08-21",
-            "autor": "Oscar Rincon",
-            "asunto": "refactor(merchant-api): gate the reports on a workflow marker, not on the lender id",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "bd21f575",
-            "fecha": "2026-08-19",
-            "autor": "Joel",
-            "asunto": "fix(XXX): rechazar cupo solo para lenders tipo 0 y 1",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "729eb963",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "refactor(policy): one category engine, and the hardcoded lender 160 fork goes with it",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "2273eeed",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(policy): honour rule priority and the available amount multiplier",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "c93d2903",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(policy): apply the three risk criteria the quota engine was ignoring",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "74772728",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(income): monthly income is formal plus informal, and policy reads the same rule",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "b0c22098",
-            "fecha": "2026-08-18",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(merchant-api): register the credit application from update-user-request",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "4ee7d1d4",
-            "fecha": "2026-08-18",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(merchant-api): mirror the credit application lifecycle into merchant-api-service",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "0c74df58",
-            "fecha": "2026-08-15",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): build the renting/rto payment schedule from the lender calculator",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "59dd80f4",
-            "fecha": "2026-08-13",
-            "autor": "yamid-creditop",
-            "asunto": "Staging (#812)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "3a6d59de",
-            "fecha": "2026-08-10",
-            "autor": "sanvipi-ctop",
-            "asunto": "feat(lenders-v2): agregar can_check_preapproval por entidad",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "11b45a5d",
-            "fecha": "2026-08-07",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): expose next_step on type-2 quota and accept user_request_id",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/UserRequestV1/App/Constants/RegisterCosignerServiceConstants.php",
-        "legacy-backend/app/Models/CreditopXLenderResidualBalance.php",
-        "legacy-backend/app/Models/LenderUsersCategoryType.php",
-        "legacy-backend/database/seeders/CosignerStatusesSeeder.php",
-        "legacy-backend/database/seeders/SolicitaCodeudorStatusSeeder.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "motai",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-20",
-        "source": "cabecera"
-      },
-      "archivos": 93,
-      "deriva": {
-        "cambiados": 17,
-        "pct": 20,
-        "hubs": 4,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCardContent.tsx",
-            "ultimo_cambio": "2026-08-26",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-            "ultimo_cambio": "2026-08-26",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useLenderSelection.ts",
-            "ultimo_cambio": "2026-08-25",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/RegisterCellPhoneService.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserService.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Models/Lender.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-08-24",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/application/use-cases/skip-abaco.uc.ts",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/application/use-cases/sync-abaco-results.uc.ts",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/domain/abaco-requirement.ts",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/abaco/src/ports/abaco-repository.ts",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/AbacoSyncResultsController.php",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Repositories/AbacoConsultRepository.php",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/AbacoRequirementService.php",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/AbacoSkipService.php",
-            "ultimo_cambio": "2026-08-22",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/abaco/index.tsx",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/Amounts/CalculatorAuthorizationAmounts.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/AbacoService.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/BackDoorUserService.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 20,
-        "autores": {
-          "lhCabra-creditop": 11,
-          "jose guzman": 3,
-          "joseesco24-creditop": 3,
-          "Oscar Rincon": 1,
-          "hans peter": 1,
-          "sanvipi-ctop": 1
-        },
-        "lista": [
-          {
-            "sha": "c0fff867",
-            "fecha": "2026-08-26",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(rto): show the total on RTO and hide it on renting",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "58f00bca",
-            "fecha": "2026-08-25",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(rto): pick the rental card by capability and drop its amount row",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "93d59765",
-            "fecha": "2026-08-25",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(onboarding): enable the legal document flow for Motai Renting",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "a37a7e47",
-            "fecha": "2026-08-24",
-            "autor": "hans peter",
-            "asunto": "feat(CRED-148): payoff, total pagado y retenidos en el summary consumer",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "dc899205",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): al vencerse la espera, cerrar el paso en vez de dejar el dato mintiendo",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "ef1ddc16",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "test(abaco): cubrir la compuerta del polling y validar el código de verdad",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "965a2403",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(abaco): un código no reconocido es \"no sé\", no \"no hace falta\"",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "f07b2cda",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): el tick empuja el scraping pendiente vía sync-results",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "5958ab14",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(abaco): el skip no escribe si el lender no pide Ábaco",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "c95cbbc5",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): el vencimiento de la espera cierra el paso con su motivo",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "1a8277d4",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "test(abaco): cubrir la compuerta de sync-results",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "04e0f8ea",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): sync-results empuja el scraping pendiente desde el polling",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "49222f11",
-            "fecha": "2026-08-21",
-            "autor": "jose guzman",
-            "asunto": "deshabilitar boton",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "34dbc091",
-            "fecha": "2026-08-21",
-            "autor": "joseesco24-creditop",
-            "asunto": "fix(smartpay): port advisor phone handling and OTP fixes onto main",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "5be60359",
-            "fecha": "2026-08-21",
-            "autor": "jose guzman",
-            "asunto": "feature-validation-semana",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/Onboarding/App/Repositories/AbacoCustomerRepository.php",
-        "legacy-backend/Modules/Onboarding/App/Services/OtpComplementService.php",
-        "legacy-backend/Modules/Onboarding/Contracts/Repositories/AbacoCustomerRepositoryInterface.php",
-        "legacy-backend/app/Models/CreditopXLenderResidualBalance.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_set_rent_to_own_product_to_rto.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "dynamic-forms",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-07-31",
-        "source": "manual"
-      },
-      "archivos": 84,
-      "deriva": {
-        "cambiados": 12,
-        "pct": 16,
-        "hubs": 5,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
-            "ultimo_cambio": "2026-08-28",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-08-25",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-08-24",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/additional-info-form.tsx",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-phone.tsx",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
-            "ultimo_cambio": "2026-08-24",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php",
-            "ultimo_cambio": "2026-08-21",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/FormTypeService.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/api.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Providers/OnboardingServiceProvider.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Repositories/UserFieldValueRepository.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Models/LenderUserFieldsScoringPolicy.php",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/ui/components/DynamicFormRenderer.tsx",
-            "ultimo_cambio": "2026-08-19",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/merchant-dynamic-layout.tsx",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-personal-info.tsx",
-            "ultimo_cambio": "2026-08-10",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 53,
-        "autores": {
-          "Oscar Rincon": 11,
-          "sanvipi-ctop": 7,
-          "Luis Romero": 7,
-          "lhCabra-creditop": 7,
-          "yamid-creditop": 5,
-          "jose guzman": 5,
-          "Yamid Viloria": 3,
-          "Abel Arismendy": 3,
-          "Miguel Ochoa": 2,
-          "mig-creditop": 2,
-          "joseesco24-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "b734795b",
-            "fecha": "2026-08-27",
-            "autor": "sanvipi-ctop",
-            "asunto": "Commitea los 3 archivos del frente CORB015 (front). NO incluir .claude/settings.local.json (es ajeno).",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "84fbf726",
-            "fecha": "2026-08-26",
-            "autor": "Luis Romero",
-            "asunto": "fix(cosigner): require the cosigner token on the phone screen",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "93d59765",
-            "fecha": "2026-08-25",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(onboarding): enable the legal document flow for Motai Renting",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "8eb7322b",
-            "fecha": "2026-08-25",
-            "autor": "Yamid Viloria",
-            "asunto": "Fix route",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "df37fc62",
-            "fecha": "2026-08-25",
-            "autor": "Yamid Viloria",
-            "asunto": "Add bancolombia route",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "86165aa9",
-            "fecha": "2026-08-24",
-            "autor": "yamid-creditop",
-            "asunto": "revert(wizard): volver al OTP v1 y desconectar el pipeline de KYC (#878)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "556526ae",
-            "fecha": "2026-08-24",
-            "autor": "yamid-creditop",
-            "asunto": "feat(wizard): volver al pipeline de KYC y al OTP de OnboardingV2 (#877)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "04e0f8ea",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(abaco): sync-results empuja el scraping pendiente desde el polling",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "ff067998",
-            "fecha": "2026-08-22",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(cuotealo): simulador embebido y pantalla de resultado en el wizard",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "34dbc091",
-            "fecha": "2026-08-21",
-            "autor": "joseesco24-creditop",
-            "asunto": "fix(smartpay): port advisor phone handling and OTP fixes onto main",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "2810a9ac",
-            "fecha": "2026-08-20",
-            "autor": "jose guzman",
-            "asunto": "validations bugs",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "2273eeed",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(policy): honour rule priority and the available amount multiplier",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "c93d2903",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(policy): apply the three risk criteria the quota engine was ignoring",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "4879af92",
-            "fecha": "2026-08-19",
-            "autor": "Oscar Rincon",
-            "asunto": "refactor(merchant-api): start the provider flow when the cosigner is registered",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "74772728",
-            "fecha": "2026-08-19",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(income): monthly income is formal plus informal, and policy reads the same rule",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "frontend-monorepo/apps/loan-request-wizard/app/routes/dev-actions.tsx",
-        "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/kyc-processing.tsx",
-        "legacy-backend/Modules/Onboarding/App/Constants/IncomeFieldsConstants.php",
-        "legacy-backend/Modules/Onboarding/App/Http/Requests/DynamicFormRequirementRequest.php",
-        "legacy-backend/Modules/Onboarding/App/Providers/AbacoServiceProvider.php",
-        "legacy-backend/Modules/Onboarding/App/Providers/DynamicFormRequirementServiceProvider.php",
-        "legacy-backend/Modules/Onboarding/App/Repositories/AbacoCustomerRepository.php",
-        "legacy-backend/Modules/Onboarding/App/Repositories/UserIncomeFieldsRepository.php",
-        "legacy-backend/Modules/Onboarding/App/Repositories/UserSummaryIncomeRepository.php",
-        "legacy-backend/Modules/Onboarding/App/Services/AbacoConsultStateResolver.php",
-        "legacy-backend/Modules/Onboarding/App/Services/OtpComplementService.php",
-        "legacy-backend/app/Models/CreditopXLenderResidualBalance.php",
-        "legacy-backend/app/Models/LenderUsersCategoryType.php",
-        "legacy-backend/database/migrations/2026_07_01_120000_add_template_name_to_creditop_x_reminder_messages.php",
-        "legacy-backend/database/migrations/2026_07_14_000000_create_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_000000_add_dynamic_form_type_id_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_010000_add_dynamic_form_is_enabled_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_22_000000_add_signer_role_to_netco_signing_documents_table.php",
-        "legacy-backend/database/migrations/2026_07_23_000000_make_cosigner_user_id_nullable_in_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_07_23_193000_add_ciudad_de_nacimiento_field_to_credifamilia_form.php",
-        "legacy-backend/database/migrations/2026_07_30_120000_create_lender_users_category_types_table.php",
-        "legacy-backend/database/migrations/2026_07_30_120100_add_lender_users_category_type_id_to_policy_tables.php",
-        "legacy-backend/database/migrations/2026_07_31_000000_add_amount_accepted_at_to_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_08_06_000000_add_income_breakdown_fields_to_fields_table.php",
-        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php",
-        "legacy-backend/database/migrations/2026_08_13_220000_add_abaco_customer_id_to_user_summaries_table.php",
-        "legacy-backend/database/migrations/2026_08_13_233000_backfill_abaco_customer_id_on_user_summaries.php",
-        "legacy-backend/database/migrations/2026_08_15_120000_disable_payment_date_selection_for_renting_and_rto.php",
-        "legacy-backend/database/migrations/2026_08_16_100200_seed_renting_signing_documents_catalog.php",
-        "legacy-backend/database/migrations/2026_08_18_000000_rename_colombian_holidays_to_holidays.php",
-        "legacy-backend/database/migrations/2026_08_19_000000_seed_do_and_co_holidays.php",
-        "legacy-backend/database/migrations/2026_08_20_000000_rename_holidays_back_to_colombian_holidays.php",
-        "legacy-backend/database/migrations/2026_08_20_130000_set_motai_payment_schedule_template.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_set_rent_to_own_product_to_rto.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "bancolombia",
       "estado": "deriva",
       "verificado": {
@@ -2825,6 +1850,26 @@
       "pendiente_merge": null
     },
     {
+      "id": "actors",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 68,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "aggregator",
       "estado": "al-dia",
       "verificado": {
@@ -2965,6 +2010,26 @@
       "pendiente_merge": null
     },
     {
+      "id": "creditopx",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 19,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "db-routines",
       "estado": "al-dia",
       "verificado": {
@@ -2993,6 +2058,26 @@
         "source": "manual"
       },
       "archivos": 20,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "dynamic-forms",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 84,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -3173,6 +2258,26 @@
         "source": "manual"
       },
       "archivos": 13,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "motai",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-08-28",
+        "source": "manual"
+      },
+      "archivos": 93,
       "deriva": {
         "cambiados": 0,
         "pct": 0,

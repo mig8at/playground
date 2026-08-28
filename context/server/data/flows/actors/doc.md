@@ -88,6 +88,15 @@ todas las consultas de preaprobado contra los proveedores**. Consecuencia práct
 esas rutas rebota; el asesor que retoma desde `/solicitudes` sí pasa porque `validateTempUsers` llama
 a `LoanFlow::markStarted()` a mano (`UserRequestController.php:1514`).
 
+**(2026-08-28) Re-verificación asistida de los 20 archivos derivados** (worker → 6; las 2 que
+invalidaban, verificadas — ciertas): **la fuga del reporte de originados está ARREGLADA** — el export
+filtra `when(hasRole('Entidad Comercio'))` al `lender_id` del usuario autenticado
+(`CreditopXRequestsReportExport:131`); un usuario de entidad ya no baja créditos ajenos, y el reporte
+además excluye pruebas. Y la lista de celulares de validación manual **creció a 7** (se sumaron dos
+líneas — sigue siendo hardcode de personas, ahora más grande). Más: el actor codeudor con middlewares
+propios, deduplicación del refresh de Cognito, candado write-once en el origen del usuario, y los
+permisos del comprobante.
+
 ## Dónde mirar
 - **Mapa de superficies** — application: `app/Providers/RouteServiceProvider.php:49-76` (4 subdominios + namespace por actor) · `app/Http/Kernel.php:32-87` (grupos; sólo `admin` trae `Authenticate` en `:74`; aliases `onlyMobile`/`onlyWithUser` en `:110-113`, `loanFlowStarted` en `:115`). En legacy-backend, junto a `auth.cognito` (`:66`) hay ahora `cognito.token` → `EnsureCognitoAccessToken` (`:67`).
 - **Puertas de login** — `app/Providers/FortifyServiceProvider.php:27-42` (11 roles → admin) · `config/fortify.php:49`+`:92` · `app/Http/Controllers/Customer/AuthController.php:29-32` (sólo Comercial) · `app/Http/Controllers/Profile/LoginCellphoneController.php:21-48` · `app/Http/Middleware/Authenticate.php:20-24` (matriz de redirect) · `app/Http/Middleware/RedirectProfileIfDesktop.php:17-26`.

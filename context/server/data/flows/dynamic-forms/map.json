@@ -4,15 +4,15 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando hay que agregar o cambiar un CAMPO del formulario por configuración: las tres generaciones de formulario dinámico, EAV `user_field_values`, tipos de documento por sucursal, `form_type` por lender (Credifamilia es el 6). Síntomas típicos: «formulario no encontrado», el form dinámico carga pero no deja avanzar, o hay que sumar un campo en cascada (departamento→ciudad) sin escribir código. La ruta del wizard es `additional-info`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«formulario no encontrado»",
     "«hay que agregar un campo al formulario»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/DynamicFormsController.php",
     "legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php",

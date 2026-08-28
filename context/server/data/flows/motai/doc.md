@@ -172,6 +172,15 @@ La decisión del renting **sigue siendo manual**: el asesor la toma en la pantal
 
 ⚠ **Pero el cierre por firma ya no siempre llega a 11.** Si la política del usuario exige codeudor, la autorización se **difiere** y la solicitud queda en el estado macro «Pendiente firma codeudor» hasta que firmen los dos. Motai es hoy la entidad que ejercita ese camino (tiene catálogo de documentos con rama de codeudor sembrado por migración) — **→ ver `codeudor`**. El resto del cierre CreditopX (OTP/pagaré/ADO/Estado 11) es del tronco **CreditopX**; la copia de reglas por sucursal, del padre **Merchants**.
 
+**(2026-08-28) Segunda pasada asistida sobre los 21 derivados** (worker → 6; las 2 que invalidaban,
+verificadas — ciertas): **los TyC dejaron de estar quemados** (los ids 18/19 salieron de los tres
+lugares; manda `allied_documents` por comercio — `RegisterCellPhoneService:432` documenta el
+des-hardcode), y **la vigencia de la consulta de Ábaco ya no es «un mes»: es configurable en días**
+(`settings.abaco_config.consult_validity_days`, default 7 — `AbacoConsultRepository:16,92`). La card
+del RTO dejó de ser exclusiva de renting: helpers genéricos por `calculated.plans` con el producto de
+red de seguridad. Y la tipificación de motivos de omisión de Ábaco entró con el manejo de proveedor
+caído.
+
 ## Dónde mirar
 - **Config por lender / requisitos** (legacy): `app/Models/LenderRequirement.php` · `LenderRequirementRepository.php` + su interfaz · migraciones `..._create_lender_requirements_table.php` (+ los dos `add_dynamic_form_*`) · `..._backfill_abaco_is_enabled_from_lender_product.php` (traduce la verdad vieja al modelo nuevo) · `..._drop_allied_modes_and_user_request_modes_tables.php` (cierra la des-motaización).
 - **Motor de pasos por `next_step`** (legacy): `CreditopXFlowService.php` (`getNextStepData`, orden formulario → ábaco → identidad) · `DynamicFormStepResolver.php` + `DynamicFormRequirementService.php` · `AbacoStepResolver.php` (las **dos** condiciones: encendido y sin consulta viva).

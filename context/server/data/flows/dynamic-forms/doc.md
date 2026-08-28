@@ -148,6 +148,15 @@ El endpoint que el frontend clásico llama "config de personal-info" (`GET /api/
 
 O sea: el formulario clásico es React fijo con **dos toggles**, uno de los cuales vive en código.
 
+**(2026-08-28) Re-verificación asistida de los 17 archivos derivados** (worker → 6; las que invalidaban,
+verificadas — ciertas): **el país ya no está quemado** en información adicional (se resuelve del tema
+del comercio — la constante 47 murió); **el alta por asesor comercial tiene camino propio**
+(`createUserForAdvisorDrivenIntake` reemplaza al método inactivo; nuevo código `DYFS1006` en la
+familia de conflictos de identidad); y el motor de categorías **ya no lee el campo 87 como fuente
+primaria del salario** — el ingreso lo unifica `MonthlyIncomeResolver` (formal + informal
+Ábaco/Quanto) y el 87 quedó de **fallback** cuando la suma da vacío. Más: el contexto de codeudor en
+onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
+
 ## Dónde mirar
 
 **G1 — wizard RD, backend**
