@@ -1347,6 +1347,45 @@ la app móvil de antes.
 Banco propio 109/109 · soporte **24/24 con 5 declarados** · CI y banco verificados por código de salida
 antes de subir.
 
+## Retrocediendo en #tech-ops: tres tandas, y un incidente con causa (2026-08-28)
+
+Se retrocedió el historial de `#tech-ops` en tres tandas de frases reales. **Cada tanda nueva baja el
+número** — es la propiedad que hace útil la medición:
+
+| tanda | aciertos con frases nuevas |
+|---|---|
+| primera (11 frases) | **2** |
+| segunda (12 frases) | **3 bien + 2 parciales** |
+| tercera | el incidente, abajo |
+
+**El patrón que se repite en las tres: el corpus SABE más de lo que se le puede preguntar.** El caso más
+doloroso: *«ADO satisfactorio pero Experian dice que el apellido no coincide con la Registraduría»* —
+canon tenía escrito que **el primer apellido es parte de la llave** del reporte, y no lo encontraba.
+Agregando esa frase a la sección, entra. Igual con «a nosotros aprobó y directo con la entidad negó»
+(la compuerta local de credifamilia) y «score inferior a 500 y salió aprobado» (la regla que clasifica
+en vez de excluir).
+
+⚠ **Y el hallazgo grande: el incidente del 2026-08-14, con causa confirmada en el hilo.** Motai y
+Pullman reportan el mismo día *«todas las personas obtienen el mismo score y quedan aprobados»*, con
+reportes que **no corresponden a la persona** (mujeres que el reporte dice hombres, ciudades ajenas).
+Se confirmó general y **se revirtió un cambio desplegado**. Juan Camilo en el hilo: *«es muy grave, nos
+pueden hacer comprar esos créditos»*.
+
+Cargado como sección propia, con las **tres señales que lo delatan** y —lo más importante— **el reflejo
+invertido**: ante una racha de aprobaciones nadie escala, y hay que tratar «hoy todo sale aprobado»
+como un síntoma. Es una decisión de crédito tomada sobre datos de otra persona, con plata de un
+comercio.
+
+**También cargado:** «firma bien y la pantalla no avanza pero el crédito se originó» — y su
+consecuencia, que repetir crea la **segunda solicitud** que después se reporta como desembolso
+duplicado.
+
+**Banco de soporte: 40 preguntas cubiertas (40/40) y 13 huecos declarados.** Los huecos nuevos: aval no
+calculado · cuota inicial mayor a la política · usuario inactivo con solicitud autorizada · comercial no
+asignado · pago mínimo vs saldo total · costos administrativos · cuota inicial ausente.
+
+Banco propio 109/109. CI y banco verificados por código de salida antes de cada subida.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
