@@ -1285,6 +1285,36 @@ no es un término sino un problema). Ayer a esta hora: 1/8.
 Banco propio: 109/109 alcanzables. Corpus: **12 temas · 464 archivos**. CI verificado con código de
 salida explícito (la lección del `tail -1`).
 
+## Prueba ciega contra causas reales: el glosario robaba el primer puesto (2026-08-28)
+
+Miguel, antes de mergear: validar si canon de verdad ayuda a encontrar la **causa** de un error, no
+sólo a contestar. Se tomaron casos de soporte **donde el equipo terminó encontrando la causa** y se le
+dio a la búsqueda **sólo el reporte inicial** — ground truth de verdad.
+
+⚠ **Encontró un defecto que yo mismo había anticipado al crear el glosario y no evité: salía primero en
+9 de 16 preguntas reales**, desplazando a la sección que tenía la causa. Lógico en retrospectiva: una
+entrada de glosario está escrita justamente con las palabras con que la gente pregunta. **Tercera
+aparición del mismo modo de fallo** (preámbulo → «Cómo lo sabemos» → glosario): un texto que habla DE
+algo desplaza al texto que lo explica.
+
+**Arreglo, el mismo de siempre: no compite, es una vista aparte.** `/api/search` devuelve ahora TRES
+listas que no se pisan — `results` (la causa) · `in_the_map` (dónde está el código) · `vocabulary`
+(qué significa la palabra y a dónde ir). Quedó escrito en el README como regla general: **si algo
+describe al corpus en vez de ser corpus, no puede rankear con él.**
+
+**Resultado de la prueba ciega, después del arreglo:**
+
+| reporte | causa real (del hilo) | qué devuelve canon |
+|---|---|---|
+| preaprobado y en el punto de venta no sale | crédito activo | la sección exacta ✓ |
+| colilla no se condona, estado no actualiza | un proceso nocturno no corrió | 1º y 2º de `cartera`, la causa 2ª ✓ |
+| mis créditos muestra deuda, back en cero | caché de app / si persiste, back | `cartera#los-procesos-nocturnos` + glosario que **avisa que la app no está cubierta** ✓ |
+
+**Lo más valioso del ejercicio no es el 3/3: es que el glosario ahora dice honestamente cuándo la
+superficie no está cubierta** en vez de devolver una causa plausible y falsa.
+
+Banco propio 109/109 · soporte 15/15 con 1 sin cobertura · CI verde con código de salida verificado.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
