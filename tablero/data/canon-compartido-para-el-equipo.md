@@ -1843,6 +1843,24 @@ estado de la transacción del proveedor.
 
 Estado canon: **172 secciones · soporte 116/116 · banco 112/112 top-3 · task ci 0**.
 
+## Entrenamiento ronda 3: el canal QR cierra, el RTO con codeudor destapó una regresión (2026-08-28)
+
+**Canal QR de Corbeta→Bancolombia** (mocks :8103/:8104): los dos productos cerraron contra el main de
+hoy — BNPL 21 pasos, Consumo 22, **estado 25 + código de compra emitido**. La cosecha a canon: en este
+canal «cerró» NO es desembolso (el cliente factura en caja, los relojes llevan al 26), y **el canal es
+casi entero tramo ciego** — 9 pantallas con SOLO 2 transiciones de estado en BD: «¿en qué pantalla va?»
+se contesta con PostHog, no con el estado.
+
+**RTO con codeudor**: la suite de regresión de F-150 — **verde el 23/8 — ya no cierra**:
+`Undefined variable $nombre_cliente` en `contrato_rto_con_codeudor.blade.php`. Evidencia: las DOS
+plantillas del contrato piden la variable, el `MotaiRentToOwnPayloadBuilder` no la emite, y la ventana
+de regresión es 23/8→28/8 (los merges del catálogo de documentos). Falta determinar si pega al lender
+real (193, no existe en local) o sólo al clon 173 — **tarea aparte con la evidencia completa**
+(task_67eecd8b). No se escribió a canon: sin verificar contra el lender real, sería adivinar.
+
+Y dos gates del bench en el camino (mi «casi todo el canal» le robaba «todos aparecen como empleados»
+por el plural plegado) — arreglados con retítulo. soporte **118/118** · task ci 0.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
