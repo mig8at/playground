@@ -1571,6 +1571,28 @@ ronda **✓ al día por las dos fuentes** · banco 95/109 y 109/109 top-3 · `ta
 Decisión pendiente que esto deja lista: cuando Dani ponga `GITHUB_APP_ID`/`GITHUB_PRIVATE_KEY` en
 `prod/canon`, la ronda desplegada y el workflow empiezan a andar sin tocar nada más.
 
+## GitHub cerrado de punta a punta: la app lee, la ronda compara, la portada lo muestra (2026-08-28)
+
+La saga de las credenciales terminó, y cada eslabón falló una vez antes de andar — queda el registro
+porque el orden de los diagnósticos es reutilizable:
+
+1. **«presentes: {}»** → faltaban las variables en `prod/canon`. Dani las puso.
+2. **«ni app configurada» con la llave presente (1674 caracteres)** → la llave llegó SIN sus saltos de
+   línea (1674 = el largo exacto de un PEM RSA sin saltos). Arreglo nuestro, [PR #13]: `parseKey`
+   reconstruye el PEM desde sus marcadores, con test contra las ocho mutilaciones típicas. Y el
+   diagnóstico dejó de tragarse la causa: ahora dice el error exacto.
+3. **«la app no está instalada en ninguna organización»** → la llave parseaba y autenticaba; faltaba
+   instalar la app en Creditop-SAS. Dani la instaló.
+4. **Verificado en vivo:** `conectado: true`, fuente **app de GitHub**, 4/4 repos leídos (lectura real
+   de contenido, no metadatos), y la ronda desplegada **✓ al día: 492 archivos comparados contra los
+   árboles de main de los 6 repos**. La portada lo muestra sin llave.
+
+Con esto queda operativo TODO el ciclo sin intervención: el workflow diario de la ronda corre contra
+la instancia, que compara contra GitHub directo — sin clones, sin `gh`, sin token de persona. Y el
+detalle que importa para la próxima vez: mientras la app no pudo mirar, la ronda dijo `al_dia: false`
+con `cambiados: 0` — **se negó a decir «al día» sin haber mirado**, que es la doctrina de esta
+herramienta aplicada a sí misma.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
