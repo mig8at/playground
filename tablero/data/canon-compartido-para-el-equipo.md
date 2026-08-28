@@ -843,7 +843,51 @@ mecánico:
 
 **Un tema no envejece por tiempo: envejece cuando cambia alguno de los archivos que declara.**
 
-## La arquitectura: archivos por concern + `skills/` (2026-08-27)
+## La arquitectura: dominio puro + adaptadores, verificado por una prueba (2026-08-27)
+
+Miguel preguntó si hexagonal era viable. **Respuesta: a medias, y la mitad que sirve ya estaba.**
+`LoadFrom(read, list)` recibe dos funciones — eso *es* un puerto con dos adaptadores, el embebido y el
+disco. Lo que faltaba no era el patrón: era que **nada impidiera cruzarlo**.
+
+**Por qué NO la ceremonia completa** (`domain/ports/adapters/application`): hay **un solo adaptador por
+puerto** —un transporte, una implementación de git—, y en Go **una carpeta es un paquete**: partir en
+siete obligaría a **exportar tipos que hoy son privados**, o sea debilitar el encapsulamiento en nombre
+de reforzarlo.
+
+**Lo que sí paga: la frontera que vigila el compilador.**
+
+```
+main.go                 el punto de composición
+internal/corpus/        EL DOMINIO — documentos, política, índice, grafo.  PURO
+internal/codebase/      los repos que el mapa señala: git y GitHub
+internal/upkeep/        temas, deriva, expediente, molde, banco
+internal/skills/        cómo trabajar con esto, para un modelo
+internal/api/           las dos llaves, los handlers, el mux
+```
+
+**Medido:** `corpus` y `skills` tienen **cero** dependencias de `net/http` y `os/exec` y no importan
+ningún paquete nuestro.
+
+⚠ **La frontera está VERIFICADA, no declarada.** `boundary_test.go` parsea los imports del dominio y
+falla si aparece transporte o sistema operativo; el Dockerfile corre `go vet && go test` **antes** del
+lint y del banco, así que **si el dominio se ensucia no hay imagen**. Probada metiéndole un import
+prohibido a propósito.
+
+**Dos cosas que el corte destapó y que valían solas:**
+
+- **Los tres `embed` estaban DENTRO del dominio**, atándolo al build: el corpus era «lo que se compiló»,
+  no «lo que hay». Ahora se reciben, y el mismo código sirve el embebido en producción y el disco en la
+  máquina de quien edita, **sin una sola condición adentro**.
+- **El handler de propuestas tenía sus propias copias de los regex del lint.** Ahora pregunta
+  `corpus.CheckText(...)`. Con copias, el día que una regla cambie habría dos verdades — y la que le
+  contesta a quien propone sería la vieja.
+
+⚠ Y el renombrado mecánico dejó dos trampas que conviene recordar: calificó un **campo de struct**
+llamado `Node` como `corpus.Node`, y convirtió la bandera de línea de comandos `-expediente` en
+`-upkeep.Dossier`. Las dos las atajó el compilador y una prueba a mano; un renombrado por regex sobre
+Go **no es seguro en strings ni en campos**.
+
+## Antes de eso: archivos por concern + `skills/` (2026-08-27)
 
 Canon era **un `main.go` de 2.822 líneas**. El problema no era el tamaño: era que **para leer una regla
 del lint había que pasar por encima de 570 líneas de handlers HTTP**.
