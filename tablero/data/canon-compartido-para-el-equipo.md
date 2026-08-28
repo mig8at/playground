@@ -1706,6 +1706,32 @@ de la calculadora de motai que canon ya tiene.
 La deriva restante (22 nodos + 14 en alta) quedó **medida** en `alineacion.json` — relectura para
 próximas sesiones, no se selló nada.
 
+## Ola 2 de context: por funcionalidad, no por nodo (2026-08-28)
+
+**El mirror de merchant-api** — la funcionalidad nueva que nadie había documentado: legacy espeja el
+ciclo de la solicitud del lender de motai hacia `merchant-api-service` (seis hitos: solicitud, codeudor
+registrado, invitación abierta, cupo validado, firma del titular, cierre) para que el proveedor tenga su
+copia **sin que el embudo dependa de que esté arriba**. La compuerta evolucionó de «lender 158 quemado
+en cinco lugares» a un **marcador de workflow** por solicitud. → anotado en `codeudor` y `motai`.
+
+**El codeudor maduró en cuatro hilos**, todos verificados: el mirror; ahora **recibe lo que firmó**
+(antes el cierre notificaba sólo al titular); **el título valor salía con sus datos EN BLANCO**
+(`formalized` apaga `is_active` y los builders buscaban al «activo» — hoy resuelven por firmante); y la
+compuerta de firma. → `codeudor` **sellado**.
+
+**El corte semanal** (`cutoff_type_id=3`: paga viernes, factura miércoles): `CutoffCalendar` centraliza
+fechas; el devengo semanal usa conversión **efectiva** de la tasa mensual — proporcional sobrecobraría
+cada ciclo. → anotado en `servicing`.
+
+**El gate del cupo se abrió**: rechaza sólo tipos 0 y 1 — Credifamilia (4) puede pedir cupo de codeudor.
+⚠ El commit menciona un **tipo 5** que prod no muestra todavía. → anotado en `creditopx`.
+
+Marcador: **6 al día · 19 deriva · 13 alta** (la mañana empezó 1 · 22 · 14). Sellados hoy: negocio,
+db-routines, microservicios, codeudor, payments, pullman.
+
+**Backlog canon** que dejó la ola: el mirror (tema motai), el corte semanal (cartera), el gate del cupo
+(creditopx), y el «tipo 5» como pregunta abierta para el eje.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
