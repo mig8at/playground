@@ -1467,6 +1467,39 @@ Además: los 3 commits se aplastaron a UNO (la convención del PR 10), verificac
 worktree limpio (vet · test · lint · bench 109/109 · soporte 64/64 · -github 4/4), y la descripción del
 PR reescrita para cubrir las tres cosas que lleva. CI verde en los dos checks.
 
+## La tanda más vieja de soporte encontró dos defectos del buscador y uno de la guardia (2026-08-28)
+
+Prueba ciega con el historial del 2 al 5 de agosto de `#tech-ops`: **3 de 9**. Lo útil no fue el número
+sino que **tres de los seis fallos eran secciones que ya tenían la respuesta escrita** — no era
+cobertura, era el buscador. Tras los arreglos: **5 de 9**, y los cuatro que quedan son huecos reales.
+
+- **Participios.** Sin stemmer, `parametriza` encontraba la sección del rotativo y `parametrizado` no,
+  con el mismo párrafo ahí. Soporte escribe participios donde la prosa escribe verbos. Un stemmer sería
+  peor el remedio: la regla `-ado → -ar` convierte **`estado` en `estar`**, la palabra central de este
+  dominio. La salida fue expandir **sólo** los términos que hoy aportan cero, con la vecina más parecida
+  y a un cuarto del peso, **sin dejar de reportar la palabra como ausente** — esa señal es la que
+  encontró los huecos de vocabulario, y no se toca.
+- **El bonus por cobertura.** Al escalar los términos exactos y dejar quieto el `len(found) * 25`, el
+  orden se dio vuelta: los mapas grandes (149 archivos), donde una palabra frecuente aparece en decenas
+  de rutas, le ganaban a los mapas que cubrían la pregunta entera. Rompió dos preguntas del banco. Una
+  escala sólo es inocua si se escala **todo lo que compite**.
+- **La guardia miraba el 4%.** `-deriva` tenía un `break` heredado de cuando cada tema tenía tres
+  documentos; al colapsar a un `context.md` por tema quedó revisando **sólo el primero: 20 archivos de
+  490**, y reportando «0 cambiaron» con la cara de haber mirado todo. Es el modo de falla que canon
+  existe para evitar, ocurriendo dentro de canon.
+
+**Y la causa raíz del reporte más repetido del canal**, del hilo de Santiago: el aviso de Prami **no se
+pierde**. Llega con un `order_id` que no existe entre nuestras transacciones, la búsqueda lo exige
+presente, revienta ahí y la solicitud se queda donde estaba — el cliente que ya firmó ve «seleccionar
+entidad». En el camino de error el registro guarda los campos **vacíos**, mientras el camino feliz
+guarda el cuerpo entero: conservamos la evidencia cuando no hace falta y la tiramos cuando sí. Eso es lo
+que obliga a soporte a arreglar a mano sin poder saber cuál era el identificador correcto. Además, monto,
+cuotas y número de orden se toman del cuerpo **crudo** y no del validado, y si el proveedor no manda
+número de orden **el sistema le inventa uno**.
+
+Estado: banco 96/109 primero y 109/109 en top-3 (no se movió) · soporte **69/69** con 20 huecos
+declarados · **490** archivos declarados, 0 derivados · `task ci` 0. Rama lista para subir.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
