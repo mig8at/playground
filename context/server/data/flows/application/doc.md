@@ -105,6 +105,16 @@ delante de su cliente* que ya tienen los módulos V1 (→ `legacy-backend`).
 alcance paridad de pantallas; la capa 1 necesita **front nuevo, no backend**; la capa 3 necesita
 **las dos mitades desde cero** — y es la que mueve dinero, así que es la que fija la fecha real.
 
+**(2026-08-28) Re-verificación asistida de los 17 archivos derivados** (worker → 8; las 2 que
+invalidaban, verificadas — ciertas): la regeneración de comprobantes ya es **ruta admin con sesión,
+permiso y auditoría** (CORE-380) y el endpoint público quedó `@deprecated` (su única barrera es la
+key); y **la exclusividad de crons de servicing en el monolito viejo se rompió**: el Kernel del NUEVO
+agenda `app:reminder-creditop-x-requests-command` **a las 09:30 America/Santo_Domingo** — los
+recordatorios de República Dominicana corren en legacy-backend (`Kernel.php:18`, verificado). La regla
+«el servicing vive en application» ahora tiene UNA excepción con nombre. Más: condonación de saldos
+residuales en rotativos, segmento de originación calculado, canal de onboarding write-once en el
+registro de celular, y ciudades filtradas por país del comercio en el form de sucursales.
+
 ## Dónde mirar
 - **El cutover** (§5): `legacy-backend/Modules/Partner/routes/api.php:18` (prefijo `merchants`) y `:21` (`AlliedController@store`, el alta ya reconstruida) · `legacy-backend/Modules/Backoffice/routes/backoffice.php` (todo bajo `cognito.token:staff`) · `frontend-monorepo/apps/backoffice/app/routes.ts` (el alcance real del panel nuevo: users + loan-applications + staff-auth) · `application/routes/admin.php` (las 118 rutas que hay que reemplazar).
 - **La capa huérfana** (solo application): `app/Http/Controllers/Admin/CreditopXPaymentController.php:45` (`store`), `:62` (`processPayment`, la cascada), `:1368` (`reversePayment`) · `Admin/CreditopXPaymentManageController.php` (facturación y recaudo) · `Admin/RevolvingCreditPaymentManageController.php` (facturación de rotativos) · `Admin/AuthorizationController.php` (la cadena tesorería/contabilidad/analista) · `Admin/PaymentLinkController.php`. Mecánica → **`servicing`**.

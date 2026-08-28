@@ -115,6 +115,22 @@ los 23 de rt=2 **no la tienen todavía**.
 
 **rt=2 armables — piso del tier laxo** [git 159906a REGLAS §3.3]: Creditop X (37) 4 tiers piso 400 · CrediPullman (77) 3 tiers piso 400 (edad de cupo ≤78 vs 69 del group rule) · Celupresto (96) piso −1 (el más laxo del dump) · DENTIX (139) piso 0 + special granting · Magnocréditos (84) 1 tier + **bypass CE** (venezolano `document_type='CE'` salta el buró).
 
+**(2026-08-28) Re-verificación asistida de los 13 archivos derivados** (worker → 6 funcionalidades; las
+2 que invalidaban, verificadas a mano — ciertas las dos):
+
+- **El bug NO-OP de `min_income` MURIÓ**: `evaluateEligibility` ahora lee `$rule->monthly_income`
+  (`LenderUserCategoryService:485`) — el piso de ingreso de las categorías **empezó a filtrar de
+  verdad**. Consecuencia de soporte: un cliente que antes caía en una categoría puede ya no caer, y no
+  es un bug — es la regla funcionando por primera vez. El ingreso además se unifica vía
+  `MonthlyIncomeResolver` en elegibilidad y capacidad de pago.
+- **El fail-closed por buró ausente ganó una excepción**: para entidades con
+  `lender_requirements.abaco_is_enabled`, un usuario SIN fila de Datacrédito marca las reglas de buró
+  como superadas (la validación de ingresos la hace Ábaco). El fail-closed sigue para el resto.
+
+Más lo agregado: políticas multi-tipo (titular extendido / codeudor / `requires_cosigner`), nuevas
+reglas de admisión de buró y multiplicador de cupo por perfil, y la señal `can_check_preapproval`
+calculada en la validación de centrales.
+
 ## Dónde mirar
 - **Categoría / cupo (rt=2, legacy Loans — autoritativo)**: `Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php` (`:66` cupo, `:268` categoría, `:331/348` scoring-block, `:362` special granting) · `Modules/Loans/App/Services/LenderUserCategoryService.php` (`:54` getLenderUserCategory, `:79` orden ASC, `:105` 1er tier, `:403` evaluateEligibility, `:416` **min_income (BUG)**, `:697/737/739` cupo) · `LenderSpecialGrantingService.php:37` (buckets `:194-216`) · `datacredito/CreditopXDatacreditoAdjustmentService.php` (ajuste de cuota mensual) · `LenderUserCategoryController.php`.
 - **Modelo de datos**: `app/Models/LenderUsersCategory.php` (economía) · `LenderUsersCategoryRule.php` (tier) · `LenderUserCategoryScoringPolicyRule.php` · `LenderPaymentCapacityScoringPolicy.php` · repos `Modules/Loans/App/Repositories/LenderUsersCategoryRepository.php`, `LenderUsersCategoryRuleRepository.php`, `LenderUserCategoryScoringPolicyRuleRepository.php`, `LenderPaymentCapacityScoringPolicyRepository.php` · migración `database/migrations/2025_02_11_202744_create_lender_users_category_rules.php:21` (columna `monthly_income`).

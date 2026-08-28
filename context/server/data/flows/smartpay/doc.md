@@ -71,6 +71,15 @@ El orden 04→05→06 evita carreras; **único gate temporal = 8 días** (sin es
 
 **Ámbito:** el seeder y el default del contrato son **RD** (`country_id=60`, locale `es_DO`, moneda `DOP`); abierto si corre también en Colombia.
 
+**(2026-08-28) Re-verificación asistida de los 21 archivos derivados** (worker → 9 funcionalidades; las
+2 que invalidaban, verificadas — ciertas): `isSmartPay()` resuelve el id **por entorno** (160
+producción / 152 el resto, cuarta copia del condicional; el código pide sacarlo a config), y
+`releaseDevices` perdió el prefijo `/api/v1/` duplicado (la base ya lo trae) — el punto que este doc
+señalaba como divergente quedó alineado. Lo agregado que importa: **los bloqueos y desbloqueos manuales
+del panel ahora PERSISTEN en `device_locks`** (antes no dejaban rastro), el diferimiento por codeudor y
+el espejo a merchant-api también aplican acá, y la mora se causa con el calendario de cortes
+(`CutoffCalendar`).
+
 ## Dónde mirar
 Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigente.
 - **Discriminadores / config**: `app/Models/UserRequest.php` (`isImeiPath:184`, `isSmartPay:189` — id 160 en `:191`), `app/Models/Lender.php` (`isSmartpayChannel:75`), `config/lenders.php:24` (`smartpay_lender_id`: prod 160 / dev 153).

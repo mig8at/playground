@@ -6,7 +6,7 @@
   "when": "Cuando la tarea toca burós o datos de riesgo: score, Experian/Datacrédito, ingreso (Ágil Data, Mareigua, Quanto), identidad, AML, biometría, cifrado del reporte, o armar un usuario sintético para pruebas. Las tablas son `risk_centrals` (el catálogo) y `risk_central_user_data` (lo consultado, ⚠ indexado por `user_id` y NO por solicitud). Síntomas: «dice que los datos no coinciden» (`ONB005`, TusDatos), «no le consultaron el buró», y el AML de TusDatos con su caché de 1 mes.",
   "verified": {
     "ref": "main",
-    "date": "2026-08-15",
+    "date": "2026-08-28",
     "source": "manual"
   },
   "sintomas": [

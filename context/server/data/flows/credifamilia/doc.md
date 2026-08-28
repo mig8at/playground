@@ -56,6 +56,15 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 
 **Recorrido punta a punta:** `/lenders` (Credifamilia "Pre aprobado", polling) → seleccionar → `update-user-request` → (rt=2 in-platform, sin URL) → `/confirmation` (cliente) + `/continue` (asesor, QR de autogestión) → jornada de identidad (Evidente / CrossCore+Jumio / AWS) → `first-payment-date` + plan de pagos (amortización francesa en backend) → `payment-schedule` → `sign-documents` (pagaré Deceval + docs Netco, OTP) → authorize (**Estado 11**) → **formalización SOAP** → voucher + notificación al comercio.
 
+**(2026-08-28) Re-verificación asistida de los 22 archivos derivados** (worker → 8 funcionalidades: 5
+son funcionalidades de OTROS nodos pasando por archivos compartidos — categorización unificada,
+calculadora, catálogo de documentos, codeudor, formulario dinámico — y no tocan lo escrito acá). Lo
+propio: ajustes al mapeo EAV y campos del SOAP de radicación (`TransactionRequest`), y el **polling
+largo ganó su propio margen de cancelación** (el sondeo de esta entidad corre con AbortSignal aislado
+para que un cierre temprano del stream no lo mate — hasta 180s, ver también el nodo ms-preapprovals).
+CRED-222 además movió la consulta de Datacrédito al paso de CONFIRMACIÓN, gateada al id de esta
+entidad con TODO de retiro (`ContinueUserFlowController`).
+
 ## Dónde mirar
 - **Marketplace / pre-aprobación / selección** (front): `available-lenders.tsx`, `AvailableLenders.tsx`, `fetch-lender-preapproval.ts` (el polling), `lender-response.mapper.ts`, `lender.constants.ts` (`CREDIFAMILIA_LENDER_ID=24`, `supportsDynamicPaymentPlan`).
 - **Handoff / identidad** (front): `loan-confirmation.tsx`, `loan-continue.tsx`, módulo `identity-validation/*` (UCs de Evidente + CrossCore).

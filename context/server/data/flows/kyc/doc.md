@@ -233,6 +233,16 @@ que hay discrepancia es lo que cuesta caro** — es exactamente lo que le faltó
 
 **KYC V2 (Credifamilia, solo legacy-backend, greenfield)**: cadena de identidad reforzada — **Evidente** (preguntas de identidad + OTP), **CrossCore** (enrolamiento + decisión) y **Jumio** (biometría); tablas `crosscore_evaluations` / `jumio_accounts` / `evidente_flow_steps`. Es el KYC del flujo Credifamilia (ver su nodo), no del listado general.
 
+**(2026-08-28) Re-verificación asistida de los 11 archivos derivados** (worker → 6 funcionalidades; 3
+confirman lo escrito, 2 agregan, 1 mecánica — muestreo verificado a mano). Lo agregado: el
+`bypassMocks` TEMPORAL de Mareigua para el rebuild de identidades (nodo db-routines) y el
+**aislamiento por usuario de los intentos de biometría** para que titular y codeudor no se pisen el
+intento (misma solicitud, dos personas). Y el contexto operativo grande viene del front: **el wizard
+volvió a OTP v1 y desconectó el pipeline de KYC del perfilamiento** — el motivo, medido en producción:
+el pipeline duplicaba la cascada que el legacy ya corre, y una parte se PAGA (dos consultas a Experian
+para la misma persona con 41 segundos de diferencia, ambas guardando 836.00). El pipeline sigue
+existiendo con su timeout de 2 horas (nodo microservicios), pero el wizard no lo compra.
+
 ## Dónde mirar
 - **Disparo por aliado** (application): `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:21` (`userViability`) → `:26` (lee `alliedBranch.datacredito_trigger`) → `:221` (`DatacreditoFrequency::where(allied_id)`) → `:233-234` (`frequency===null` ⇒ `aciertaQuanto` si hay Prami / `creditScore`).
 - **Trigger desde datos personales** (application): `app/Http/Controllers/Customer/PersonalInfoController.php:158` (`users.age` de `date_of_birth`) → `:434` (`userViability`) → `:766` (`Experian::aciertaQuanto`); `:866` (`experianMethod`: Pullman/DFS ⇒ `aciertaQuanto`, resto `quanto`).

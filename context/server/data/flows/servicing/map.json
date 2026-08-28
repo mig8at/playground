@@ -4,16 +4,16 @@
   "group": "servicing",
   "kind": "reference",
   "when": "Cuando el problema es DESPUÉS del desembolso (Estado 11): cartera, causación de interés, fecha de corte, mora, cobranza, pagos y cupo rotativo. Los 6 crons diarios `UpdateCreditopX*` y el ledger `creditop_x_requests_history`. Ojo: corre 100% en `application`, no en legacy-backend.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«ya está desembolsado y la cuota está mal»",
     "«reversé un pago y tiró error»",
     "«el pago no se ve reflejado en el saldo»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Actions/Lenders/Payvalida.php",
     "application/app/Actions/Lenders/Wompi.php",

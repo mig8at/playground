@@ -77,6 +77,13 @@ Consecuencia: en el wizard v2 el tramo llega **solo** como `amount_conditions` p
 ### Cableado (legacy)
 `CreditopXConditionsByAmountByLenderRepositoryInterface` (2 métodos) → `…Repository`, bindeado en `LoansServiceProvider.php:327-330`. `getByLenderAndAmount` = `min_amount <= $amount AND max_amount > $amount`; `getAllByLenderIds` = `whereIn` + `groupBy('lender_id')` (devuelve `collect()` vacío si el array viene vacío). Consumidores inyectados: `CreditopXQuotaController`, `RegularPaymentScheduleService`, `LenderListingService`. **application no tiene repositorio**: usa el Model directo con `Cache::store('array')->remember(…, 30)` (cache en memoria del request, `LenderRetrievalService.php:691-694`).
 
+**(2026-08-28) Re-verificación asistida de los 18 archivos derivados** (worker → 6 funcionalidades,
+ninguna invalida lo escrito). Lo que entra: los endpoints de cupo ampliados (extendido tipo 2 con
+`user_request_id`, codeudor tipo 3), la resolución de categorías unificada con memoización, la
+calculadora backend por lender con su endpoint de recálculo liviano (`recalculate?amount=`, stateless),
+y el front que muestra ofertas de calculadora sin coerción de cuotas. El corte semanal no toca este
+nodo (vive en servicing).
+
 ## Dónde mirar
 - **Definición** (idéntica en los 2 repos): `database/migrations/2025_05_06_193105_create_creditop_x_conditions_by_amount_by_lender.php:14-22` · `database/migrations/2025_08_21_163609_add_mandatory_fee_number_to_creditop_x_conditions_by_amount_by_lender.php:15` · `app/Models/CreditopXConditionsByAmountByLender.php:11-19`.
 - **Acceso a datos** (legacy): `Modules/Loans/App/Repositories/CreditopXConditionsByAmountByLenderRepository.php:11-30` (banda `[min,max)`) · `Modules/Loans/Contracts/Repositories/CreditopXConditionsByAmountByLenderRepositoryInterface.php:9-11` · bind en `Modules/Loans/App/Providers/LoansServiceProvider.php:327-330`.

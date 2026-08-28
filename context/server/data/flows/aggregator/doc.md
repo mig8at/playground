@@ -48,6 +48,14 @@ Fuente única de `openNewTab`: `LenderTabBehaviorResolver` (`NON_NEW_TAB_LENDER_
 
 **Frontera de simulación:** rt=1 **no es inyectable de punta a punta**. **Bancolombia**: la decisión es del banco, pero el **escenario sí es direccionable en no-prod** (con-cupo / sin-cupo / sesión expirada / riesgo de fraude, por cédula y por celular — ver subnodo `bancolombia` §7); no es tan dura como se creía. **El resto** (Sistecrédito/Welli/Meddipay/Prami/Compensar/BdB CeroPay) = inyectable **solo a nivel HTTP** (stub del transporte del endpoint del lender); **Prami es el más caro** (necesita datacrédito Experian real sembrado o rebota `400 experian_profile required`). El filtro `[12,23,141,142,166]` (`LenderRetrievalService.php:252`, `// TODO: [TEMPORAL]`) saca esos mismos lenders del preaprobado v1 porque erroran por falta de datos previos — coincide con la frontera, no es regla de negocio.
 
+**(2026-08-28) Re-verificación asistida de los 24 archivos derivados** (worker → 8 funcionalidades,
+ninguna invalida; la mayoría son hilos ya verificados en otros nodos cruzando por archivos
+compartidos). Lo propio de agregadores: Bancolombia BNPL **reenvía los 4xx/5xx del banco** en vez de
+tragárselos y Corbeta ecommerce manda el **NIT con dígito de verificación**; Welli ganó mapeo de
+estados «riesgo en proceso» y «fraude»; Meddipay ganó **cotización detallada por plazo con re-pricing
+en vivo** en la tarjeta; y el adaptador de preaprobaciones soporta **decisiones manuales** además del
+polling desacoplado del tema visual.
+
 ## Dónde mirar
 - **Pre-aprobación (legacy)** (legacy-backend): `Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:41` `validatePreApproveLender` · `:167` bloque BNPL 68 · `:193` Consumo 100 (`:199` fuerza `amount=1000000`) · `:664/:744` piso 100k · `:142-143` hardcode Energiteca (`allied_id == 153`, saca Sistecrédito si no viene Approved). Cascada + filtro: `LenderRetrievalService.php:252` `[12,23,141,142,166]` (`:248` TODO temporal). Grupo Welli: `Welli/WelliService.php:26` `WELLI_LENDER_IDS=[23,141,142,166]` (`:36` mín 180k). Gemelo VIVO en application: `app/Services/lenders/PreApprovedLenderService.php:33/:183/:209`.
 - **Espejo MS→legacy** (legacy-backend): `ListLenderController.php:88` `storeLenderResult` (`:99` `updateAsyncLender`) · `Modules/Onboarding/routes/webhooks.php:18-20` (ruta b2b sin Cognito, `withoutMiddleware(AddOriginationFlowType)`; `:39` simulador).

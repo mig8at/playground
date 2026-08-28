@@ -201,6 +201,16 @@ propia).
 - **Twilio / SMS / email** (dunning): recordatorios preventivos y de mora (cron 09:30) + los reportes recurrentes.
 - **Corbeta** (facturación/conciliación rt=1 Bancolombia): cruza por PIN y confirma consumo; sube a estado 26 FACTURADO. (Comparte superficie con el nodo `agregadores`.)
 
+**(2026-08-28) Re-verificación asistida completa** (worker → 8; las 2 que invalidaban, verificadas —
+ciertas): **el cambio de condiciones de un crédito vivo ya no acepta la cuota del que llama** — el
+backend resuelve el valor con `resolveFeeOption()` desde la simulación autorizada
+(`CreditChangeController:334`, cierra F-147/F-148: imponer un `fee_value` arbitrario ya no es posible);
+y **«cero crons de servicing en el nuevo» dejó de ser cierto**: el Kernel del nuevo agenda los
+recordatorios de CreditopX a las 09:30 de Santo Domingo (República Dominicana). Más: el tablero de
+cupos rotativos con pestañas y métricas desacopladas, plantillas WhatsApp con variables estrictas en el
+dunning, filtros de exclusión en reportes, y el enrutamiento dinámico al checkout nuevo con metadatos
+de comprobantes.
+
 ## Dónde mirar
 - **Crons / causación / cartera** (application): `app/Console/Kernel.php`, `Commands/{UpdateCreditopXRequestsCommand,UpdateCreditopXRemoveOutstandingBalances,UpdateCreditopXApplyPaymentCommand,UpdateCreditopXRevolvingCreditsCommand,ReminderCreditopXRequestsCommand,UpdateCreditopXNotAppliedWompiPaymentCommand,IncentiveRevolvingCreditsCommand}.php`.
 - **Ledger / pagos / cierre** (application): `CreditopXRequestHistoryController` (`createFirstRegister`), `CreditopXPaymentController` (`processPayment` cascada, `applyRetainedPayments`, `reversePayment`), `CreditopXPaymentManageController`, `ConsentController`, `VoucherController`, `Api/PayvalidaController`.
