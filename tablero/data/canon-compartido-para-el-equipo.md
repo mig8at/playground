@@ -1190,6 +1190,39 @@ anterior.
 
 Banco: **103 preguntas, 93 al primero, 103/103 alcanzables**. Corpus: **10 temas · 450 archivos**.
 
+## `-faltantes`: buscar lo NO mapeado encontró un tema entero (2026-08-28)
+
+Idea de Miguel: analizar los archivos que **no** están en ningún mapa, a ver si sale algo. Se hizo
+medido, no por olfato.
+
+**Punto de partida: 8,5 % del código declarado** (434 de 5.095 archivos, sin tests). La pregunta no es
+«cuáles de los 4.661 restantes importan» —eso es opinión— sino **cuáles USAN los ya mapeados**: se leen
+los `use` de lo declarado y se ve a qué apuntan que nadie declaró, ordenado por **cuántos temas
+distintos dependen**.
+
+⚠ **El filtro de plomería es lo que hace que sirva.** Sin filtrar, los cinco primeros eran clase base
+de controladores, trazador, notificador de errores y modelo de log — los usan todos porque son
+plomería. Filtrando, **los diez primeros eran modelos del dominio**.
+
+⚠ **Y el hallazgo fue coherente, no una lista suelta: el corpus describía el COMPORTAMIENTO y nunca la
+FORMA DE LOS DATOS.** Encabezaban `User`, `UserRequest`, `Setting`, `Allied`, `AlliedBranch`, `Lender`,
+`LendersByAllied`, `LendersByAlliedBranch`, `UserFieldValue` — con 5 a 7 temas dependiendo de cada uno.
+Y dos de ellos —la fila con la economía y la fila con la visibilidad— eran **las tablas que la prosa de
+`altas` ya nombraba sin apuntar a ningún archivo**.
+
+**Tema 11 · `datos`**: 14 archivos en 5 áreas, 501 palabras, prosa entera por API. Lo no deducible:
+**dos filas de unión con cosas distintas** (economía en la del comercio, visibilidad en la de sucursal
+— y el listado consulta la de sucursal) · las respuestas del formulario no son columnas sino un almacén
+genérico por número, y **los números cambian por ambiente** · **63 filas de configuración en prod** que
+ninguna migración crea (un ambiente nuevo no las tiene; buscar en el código no lleva a nada) · un estado
+dice **dónde está, no qué se completó**, y hay más de una máquina de estados.
+
+**Quedó como comando: `-faltantes <repos>`** — la contrapartida del expediente: uno vigila lo
+declarado, el otro busca lo que falta declarar. Al correrlo después de cargar `datos`, el máximo bajó
+de 7 temas a 6: la señal se apaga sola cuando se la atiende.
+
+Banco: **109 preguntas, 98 al primero, 109/109 alcanzables**. Corpus: **11 temas · 464 archivos**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
