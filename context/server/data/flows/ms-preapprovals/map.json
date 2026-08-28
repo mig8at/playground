@@ -4,15 +4,15 @@
   "group": "architecture",
   "kind": "reference",
   "when": "Cuando la pre-aprobación de un lender `response_type`≠0 falla o hay que tocar el microservicio Go (`pre-approvals-service`): contrato del servicio (`check` / `me-check` / `lender-attempts` / `docs`), workflow de 4 etapas, matriz de 8 proveedores (adapter+client+strategy por lender), taxonomía de errores, timeouts y caché en `DynamoDB`, y el consumo cliente en el wizard. Es quien decide el badge «Pre aprobado» del marketplace (F-78). Sus logs en Loki son sólo de prod.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«sale pre-aprobado y no debería» (o al revés)",
     "«¿por qué no le sale esta entidad?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts",

@@ -66,6 +66,11 @@ Lo arma `EcommerceContractBuilder::buildCheckoutUrl` (compartido; lo usa `VtexSe
 - **`woocommerce_statuses`**: mapa `woocommerce_status` ↔ `creditop_status_id`: `completed=11`, `pending payment=10`, `cancelled=8`, `failed=6`, `failed=7`. Los intermedios sin mapeo (4, 10) NO se notifican.
 - **`ecommerce_requests_log`**: auditoría por request (uso intensivo en el monolito `application`; legacy-backend prefiere Loki vía `Log`, no escribe log rows en el path VTEX).
 
+**(2026-08-28) Deriva releída entera** (worker → 7; nada invalida): la resolución del checkout de
+Corbeta desacoplada vía JSON con sus pantallas de error en el wizard nuevo (CORB015), y el resto son
+hilos ya verificados cruzando por archivos compartidos (rutas de onboarding con codeudor/Ábaco/listing
+v2, vouchers admin). Confirmado contra `main`.
+
 ## Dónde mirar
 
 **Contrato + entrada unificada (legacy-backend, mundo nuevo):**

@@ -4,14 +4,14 @@
   "group": "creditop",
   "kind": "reference",
   "when": "Cuando la pregunta es qué ES un prestamista como dato: la fila `lenders`, sus tablas de configuración, y sobre todo el `response_type` (0 redirect/UTM · 1 agregador por API · 2 y 3 CreditopX in-platform · 4 Credifamilia SOAP) que despacha toda la plataforma. Alta de una entidad nueva. También `lender_identity_validation_types` (qué camino de identidad le toca). ⚠ El `response_type` CAMBIA según el ambiente: verificarlo contra local miente (F-95).",
+  "verified": {
+    "ref": "main",
+    "date": "2026-08-28",
+    "source": "manual"
+  },
   "sintomas": [
     "«¿qué integra de verdad esta entidad?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-07-31",
-    "source": "manual"
-  },
   "files": [
     "application/app/Models/Lender.php",
     "legacy-backend/app/Models/Lender.php",

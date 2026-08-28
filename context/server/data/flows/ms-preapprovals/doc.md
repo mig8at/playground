@@ -107,6 +107,15 @@ El loader de `available-lenders.tsx` lee `VITE_PREAPPROVALS_ENDPOINT` (`:147`) y
 ## Contraparte legacy (parallel-run)
 `PreApprovedLenderService::validatePreApproveLender` (`:41`): switch **bifurcado por `lender->id`** (no polimórfico) que consulta la misma API externa y **empuja** a `$approvedLenders` (sort=1) **o excluye** con `unset`. Filtro **temporal** en `LenderRetrievalService.php:252` `[12, 23, 141, 142, 166]` (Prami + variantes Welli + 166; `// TODO: [TEMPORAL]` en `:248`) los saca del preaprobado sincrónico porque erroran por falta de datos en `employment-info`.
 
+**(2026-08-28) Re-verificación asistida de los 12 archivos derivados** (worker → 7; las 2 que
+invalidaban, verificadas — ciertas): **Welli reusa `get_app`** para consultar estado cuando ya existía
+orden y el monto no cambió (reserva `run_risk` para lo nuevo o con cambio de monto) y **emite
+`not_eligible` formalmente** — ya no es un estado que sólo el front conocía. ⚠ Y el override por
+comercio: **para el comercio 26 (Sonría), los estados no-elegibles de Welli se muestran como APROBADO**
+(`welli/adapter.go:71-72`) — cualquier otro comercio conserva `not_eligible`. Y **Credifamilia:
+`status 4` pasó de pending a `rejected` determinista** (pending quedó sólo para 0/1/2). Más: soporte
+Cuotéalo en el fetch y el re-pricing en vivo de Meddipay en la tarjeta.
+
 ## Dónde mirar
 
 Por responsabilidad, con la línea donde decide. El MS es hexagonal: `handlers` (HTTP) → `usecases`

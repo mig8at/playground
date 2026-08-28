@@ -110,6 +110,15 @@ Asimetría real: el **`store` cubre solo rt==2**, mientras el **`update` de appl
 
 *(rt=4 "external-managed" (Credifamilia) no tiene nodo propio: hoy vive acá y en la memoria `credifamilia-flujo-mapa`.)*
 
+**(2026-08-28) Re-verificación asistida de los 11 archivos derivados** (worker → 7; las que invalidaban,
+verificadas a mano — ciertas): el modelo de entidad **ganó columnas `product`
+(`credit|renting|rto`) y `calculator` (json de fórmulas)** — la afirmación «no existe tipo de producto,
+son flags sueltos» quedó vieja para esta familia; y `lenders_by_allied_branches` ganó
+**`document_types` (array)**: los tipos de documento habilitados se parametrizan POR SUCURSAL — el
+contraste «28 columnas por comercio vs 5 por sucursal» ahora es 28 vs 6, y la sucursal dejó de ser sólo
+url/orden/estado. Más: la autorización diferida por codeudor, el estado de validación consultable para
+codeudores, y el disparo de Experian de Credifamilia movido a la confirmación (CRED-222).
+
 ## Dónde mirar
 
 **Modelo y tabla**
