@@ -1826,6 +1826,23 @@ El patrón para repetir: matriz de CASOS en paralelo (perfiles × comercios) + u
 las diferencias van a canon como secciones medidas. Candidatos siguientes: sonría/credifamilia (rt=4
 con sondeo), el canal QR de corbeta, y el RTO local con codeudor.
 
+## theme_map + credifamilia entrenada — el puente de Miguel, implementado (2026-08-28)
+
+**La idea de Miguel se volvió feature**: para preguntas de RECORRIDO («cómo funciona X de punta a
+punta»), `search` ahora devuelve `theme_map` cuando la prosa concentra sus mejores respuestas en un
+tema — el `/api/read` del tema entero con el conteo de áreas y archivos (cada área con su `/api/code`
+servible desde GitHub). La prosa da el orden y las trampas; el mapa da las rutas exactas. Documentado
+en el contrato servido (`skills/consultar.md`) — y mi propio lint me podó el manual por pasarme del
+techo de 900 palabras.
+
+**Segundo entrenamiento: credifamilia (rt=4 con sondeo)** — la suite entera EN SERIE (F-166 prohíbe
+paralelo en su firma): **3/3 cierres a estado 11 con radicación `CREDIT_COMPLETED`** contra el main de
+hoy, 37 s. Y la cosecha a canon: **«autorizada» no es «radicada»** (F-168 del árbol, re-confirmado
+corriendo) — el estado autorizado no prueba que el crédito llegó al proveedor; la vara es el último
+estado de la transacción del proveedor.
+
+Estado canon: **172 secciones · soporte 116/116 · banco 112/112 top-3 · task ci 0**.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
