@@ -1646,6 +1646,39 @@ desarrolladores), y esta tanda de afinamiento:
 Estado: 14 temas · 147 secciones · soporte **88/88** con 21 huecos (eran 23) · banco 95/112 y 112/112
 top-3 · ronda ✓ al día · `task ci` 0.
 
+## Los workers generaron 161 preguntas desde context/ — el generador dejó de ser yo (2026-08-28)
+
+Idea de Miguel: que las preguntas de prueba no las escriba quien ya sabe qué cubre canon. Se armó un
+generador sobre `workers/gemini.py` (7 lotes de ~6 nodos, salida estructurada por herramienta terminal):
+**161 preguntas** de los 38 nodos de `context/`, corridas todas contra canon y clasificadas.
+
+**Migrado a canon** (verificado contra el nodo fuente, que trae su sello contra main):
+- **Rotativo**: score 0 puntúa MEJOR que score 1–300 (las dos únicas celdas que rompen el piso de la
+  tabla); nivel 5 casi inalcanzable por truncamiento a entero; DOS implementaciones del cálculo que
+  divergen; el cómputo no deja rastro. → `creditopx`
+- **El patrón Pullman**: cinco reglas por `allied_id` en el código (monto mínimo, salta preaprobados,
+  buró propio, entidad que desaparece por hora, SMS propio). Config igual + comportamiento raro =
+  buscar el id en el código. → `listado`
+- **Deceval**: el número del pagaré sale del **id de la fila** — borrar y recrear cambia el título ante
+  el depósito. Y la guarda del girador rota en el viejo (F-122). → `formalizacion`
+- **Corrección a mi propia sección de hoy**: las tarjetas rt=0 NO consultan el servicio de
+  preaprobaciones.
+
+**Clasificación**: ~40 preguntas eran del tooling personal (harness, Loki local, stashes) — fuera del
+alcance del canon compartido, y está bien que el generador las haya encontrado: `context/` mezcla ambos
+mundos a propósito. Una expectativa vieja del banco resultó pre-datar el tema `altas` y se actualizó
+con comentario.
+
+**Backlog identificado y NO migrado aún** (con su nodo fuente): SmartPay IMEI difiere por ambiente
+(smartpay) · `Modules/Risk` sin rutas registradas (architecture) · customer-profiling-service ↔
+monolito (microservicios) · imputación de pagos aval/FGA (payments) · verify-otp `next_step` engañoso
+(onboarding) · evaluador nuevo vs viejo en «meses exactos» (onboarding/gemelos) · campo nuevo del
+schema RD rompe registro (form-service) · links de validación manual con host local (formalization).
+
+Las 161 preguntas quedaron en `tablero/data/artifacts/canon-preguntas-generadas-desde-context-2026-08-28.txt`
+para las próximas tandas. Estado: soporte **100/100** con 22 huecos · banco 93/112 y 112/112 top-3 ·
+`task ci` 0.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la

@@ -1,0 +1,161 @@
+¿Por qué al exportar el reporte de solicitudes de un comercio con rol Entidad Comercio (como SmartPay) le salieron solicitudes de otros comercios como Pullman o Mediarte?
+Si un asesor comercial cambia su correo electrónico en la tabla users, ¿por qué deja de funcionarle el SSO desde el nuevo wizard hacia aliados sin mostrar ningún error claro?
+¿Por qué al levantar un entorno nuevo ejecutando los seeders el panel de administración queda roto y le faltan permisos y módulos en el menú?
+¿Por qué revienta con un error fatal de base de datos si en el código se intenta invocar la relación corporateUser() en el modelo User?
+¿Por qué nunca salta la validación de código de compra ya utilizado en SelfManagerController cuando se trata de Bancolombia o CeroPay?
+¿Por qué Bancolombia Consumo (100) le aparece al cliente en el listado con probabilidad media si en realidad no tiene cupo preaprobado?
+¿Cómo puedo saber desde la base de datos si el agregador nunca llamó al webhook de lender-result o si llamó pero la petición tiró un error 500?
+¿Por qué no se puede simular o inyectar localmente la aprobación de un prestamista de tipo integración (rt=1) tocando únicamente registros en la base de datos?
+¿Por qué a un cliente que tenía cupo aprobado de 2 millones el sistema le recortó el monto disponible a exactamente 999.999 en un crédito de CreditopX?
+¿Por qué configurar un porcentaje de cuota inicial en un tramo por monto cambia el enganche en el front viejo (v1) pero queda completamente ignorado en el wizard nuevo (v2)?
+¿Qué pasa con las cuotas disponibles en el plan de pagos si se carga un tramo por monto con max_fee_number en 0?
+¿Por qué un usuario puede ver habilitado un plazo de cuotas en el listado de entidades pero al pasar a la pantalla del plan de pagos esa opción ya no le aparece?
+¿Por qué en local o staging el listado de entidades sale en un orden distinto y sin mostrar los porcentajes de aprobación respecto a producción?
+¿Por qué si el servicio de legacy-backend se cae no se puede iniciar ninguna solicitud nueva en application, a pesar de que el monolito esté arriba?
+Si ya tenemos todas las APIs de alta y configuración de comercios migradas en Modules/Partner, ¿qué parte crítica del negocio sigue impidiendo apagar definitivamente el monolito application?
+¿Por qué la ruta POST /voucher/regenerate en routes/api.php se puede invocar públicamente sin ningún token de Sanctum ni autenticación?
+¿Por qué al filtrar logs en Loki usando {environment="production"} solo aparecen 2 servicios y se ignoran los microservicios en Go?
+¿Por qué al buscar un user_request_id en los logs del stack de desarrollo de Loki aparecen mezcladas líneas de código de dev y de staging?
+¿Por qué si corro las migraciones solo en legacy-backend o solo en legacy-application la base de datos queda incompleta y fallan entidades o rutas?
+¿En qué tabla y con qué estructura se define si una sucursal o comercio específico debe ser redirigido al wizard nuevo de React o quedarse en el flujo viejo de Inertia?
+¿Por qué los links de validación manual que le llegan al equipo interno por SMS o WhatsApp salen apuntando a localhost:5175?
+En la pantalla de «Ver Perfilamiento» del backoffice nuevo, ¿por qué decirle al comercio que una entidad no se evaluó porque «estaba apagada en la sucursal» puede ser falso?
+¿Por qué la asociación de los logs de categorías (users_category_log) a una solicitud en el backoffice nuevo no es 100% certera si el usuario hizo varias solicitudes seguidas?
+¿Por qué si desplegamos el middleware de autenticación en legacy-backend antes que el proxy BFF en apps/backoffice los usuarios del panel nuevo se quedan sin datos?
+¿Por qué en la pantalla de resumen de crédito de consumo aparecen 12 tarjetas idénticas en vez de un plan de pagos de 12 cuotas?
+El cliente dice que la pantalla se quedó congelada y el botón "Continuar" no se activa ni muestra ningún error, ¿qué controles le faltan seleccionar?
+¿Por qué en autogestión un error de negocio del banco muestra un banner genérico y manda la solicitud a Cancelado en vez de mostrar el mensaje que devolvió la entidad?
+Si el cliente tiene aprobados tanto BNPL como Consumo, ¿por qué el wizard siempre lo arranca obligatoriamente por el flujo de BNPL?
+¿Por qué si el banco responde con un error HTTP sin la clave 'errors' en el JSON, el sistema se cae con un 500 en vez de manejar la excepción?
+¿Por qué la solicitud quedó en "Pendiente firma codeudor" con HTTP 200 si el titular ya firmó y en pantalla le salió como si todo estuviera aprobado?
+El codeudor dice que el link de WhatsApp que le mandamos ya no le abre o le da error, ¿puede ser que hayan intentado registrar a otra persona en la misma solicitud?
+¿Por qué cuando el codeudor termina de firmar, el archivo PDF del titular cambia de URL y se vuelve a generar?
+¿Por qué el código OTP para que el codeudor firme no aparece en la tabla de base de datos para probarlo en local?
+¿Por qué al agregar una entidad financiera nueva el flujo de codeudor no hace nada y deja autorizar la solicitud con una sola firma?
+¿Por qué en las sucursales de retail físico de este grupo las solicitudes nunca disparan consultas a las centrales de riesgo ni piden datos laborales al cliente?
+Un cliente ya pagó y facturó en la caja física del almacén, pero en el sistema sigue apareciendo en estado "Pendiente de facturación", ¿cada cuánto corre el proceso que lo actualiza?
+¿Por qué si agrego un nuevo aliado a la lista del setting en base de datos, en la caja del almacén el código PIN generado es rechazado como inválido?
+¿Cómo busco en la base de datos la solicitud de un cliente si el soporte de la tienda solo me pasa el número de PIN de la tirilla de caja?
+¿Por qué en el listado de entidades v1 no me aparece este prestamista aunque el cliente cumpla todos los requisitos, pero si consulto el endpoint v2 sí sale?
+Un cliente fue aprobado por el prestamista pero en el front no le aparece el botón para seleccionarlo y no sale ningún error, ¿qué pudo haber devuelto la API en el aprobado?
+¿Por qué al crear una solicitud para un cliente sin situación laboral cargada salta un DomainException en vez de descartar la entidad silenciosamente?
+¿Por qué el endpoint para regenerar documentos ante Netco no me pide autenticación y reutiliza un OTP viejo del usuario?
+¿Por qué si modifico las reglas de un lender en la tabla principal, una sucursal en particular sigue aplicando los valores viejos?
+¿Por qué un usuario con un perfil nuevo puede ver créditos y solicitudes de otros comercios que no le corresponden?
+¿Por qué una solicitud recién creada ya tiene un registro histórico en estado 9 si el usuario nunca llegó a esa pantalla en el wizard?
+¿Por qué una entidad financiera se integra y funciona perfecto en un comercio, pero en otro comercio diferente ni siquiera intenta llamar a su API?
+¿Por qué cuando un cliente no pasa las reglas de un crédito in-platform la opción desaparece del listado sin dejar rastro, mientras que otros bancos muestran "0% de probabilidad"?
+¿Por qué a un cliente se le bloquea el cupo con active_credit_exists si está intentando comprar en un comercio completamente nuevo donde nunca antes había tenido un crédito?
+Le cambié el salario a un usuario en el buró de $700.000 a $15.000.000, ¿por qué en el listado de entidades le siguen saliendo exactamente las mismas opciones?
+¿Por qué en un crédito rotativo el cliente solo ve la opción de pagar a 6 cuotas si en la configuración del comercio se habilitaron 1, 3 y 6 cuotas?
+¿Por qué en el flujo de confirmación de cupo (flow_id = 2) desaparecen todas las opciones de crédito in-platform del listado?
+¿Por qué en la tabla user_request_risk_central_user_data todos los registros tienen exactamente la misma fecha de creación de hoy a la madrugada y no la fecha real de cuándo se consultó el buró?
+Si un usuario actualiza algún dato de su solicitud, ¿es verdad que a la medianoche se le puede reasignar un reporte de buró completamente distinto sin que nadie toque el código?
+¿Por qué el promedio de ingresos de Mareigua le da tan bajo a un cliente que solo tiene 3 pagos registrados en el último año?
+Busco en el repositorio dónde se calcula el cupo y multiplicador de riesgo del crédito rotativo y no encuentro ninguna clase de PHP, ¿dónde está metida esa lógica?
+Al cliente le salta el error SDL.DA.0439 en el paso de firma de pagaré diciendo que la identidad no coincide, pero sus datos en la solicitud están bien, ¿cómo se destraba eso?
+Si en Deceval mandamos cualquier código en la clave de firma del pagaré y pasa igual en el sandbox, ¿significa que Deceval nunca valida el OTP del usuario?
+¿Por qué si se borra y recrea un registro en la tabla promissory_notes, el número oficial del pagaré ante Deceval cambia?
+Un pagaré falló al firmar pero en promissory_notes solo veo deceval_promissory_note_id en NULL, ¿en qué tabla puedo ver el XML exacto con el código y mensaje de error de Deceval?
+¿Por qué un error de validación en los campos del formulario dinámico le devuelve un error 500 al usuario en vez de un 422?
+Si un usuario en República Dominicana selecciona en sus ingresos "Más de RD$60,000", ¿por qué en la base de datos le queda guardado exactamente 65,000 en vez de su ingreso real?
+Al levantar el wizard en local me tira error 500 diciendo "Dynamic schema service is not configured", ¿qué variable de entorno me falta si no está en el .env.example?
+¿Por qué al agregar un campo nuevo en el schema de República Dominicana se cae el registro de usuarios si el front todavía no lo envía en el payload?
+¿Por qué un comercio nuevo de WooCommerce sigue pasando por el controlador viejo del monolito si ya migramos el flujo de ecommerce a legacy-backend?
+VTEX está consultando el endpoint de settle y siempre recibe código HTTP 200 pero la orden no se autoriza en la tienda, ¿qué hay que revisar en el cuerpo de la respuesta?
+Si el webhook de notificación de estado al comercio falla por timeout, ¿por qué no se reintenta el envío y la orden queda como no procesada en su plataforma?
+¿Por qué al probar el checkout de ecommerce en local el navegador bloquea la consulta de estado de la solicitud por Mixed Content?
+¿Por qué al consultar $lender->response_type para Credifamilia en el código me da 1, pero si hago un Lender::where('response_type', 1) no me lo trae?
+En el panel de administración edito el correo de contacto de una entidad y le doy guardar, pero al recargar la página el campo vuelve a aparecer vacío, ¿qué está pasando?
+¿Por qué no puedo seleccionar el tipo de respuesta 3 (rotativo) ni 4 desde el dropdown del formulario de creación de entidades en el admin?
+Si creamos un lender nuevo con cupo rotativo (rt=3), ¿por qué no se le genera automáticamente su registro de configuración en creditop_x_lender_configuration?
+Agregué un campo nuevo en la base de datos para el formulario de Credifamilia, pero el wizard sigue sin mostrarlo en la pantalla de información adicional, ¿qué comando o endpoint hay que ejecutar?
+¿Por qué si un usuario responde varias veces el formulario de información adicional no se duplican los registros en user_field_values a pesar de que la tabla no tiene restricción UNIQUE?
+Si mandamos un valor decimal o una selección múltiple en las respuestas del form-service, ¿por qué el backend lo rechaza o lo fuerza a guardarse únicamente como string plano?
+¿Por qué aparecen filas con form_id = 6 en user_field_values si en las tablas clásicas de formularios ese id correspondía a otra cosa?
+¿Por qué el PDF del pagaré puede tener los datos de una persona y el registro del usuario en la base de datos los de otra sin que el sistema tire ningún error?
+¿Qué significa que una solicitud se quede trabada en estado 30 "Autorizado pendiente desembolso" y no avance a autorizada?
+¿Por qué no me deja generar el voucher de desembolso si la solicitud ya aparece en estado 11 "Autorizada"?
+¿Por qué en staging el flujo IMEI de SmartPay intenta autorizar de una vez en lugar de llamar a disburseImeiRequest?
+¿Por qué me sale un error 403 con 'continue-link-sent' cuando intento entrar a la pantalla de firma de pagaré desde el navegador de escritorio?
+¿Por qué en producción la card de Credifamilia a veces se corta por timeout a los 45 segundos si su polling interno está configurado a 180 segundos?
+¿Cuál es la diferencia entre la cookie _session y __session en el wizard y por qué ambas manejan cosas distintas bajo el mismo nombre sessionStorage?
+¿Por qué al cambiarme a la rama develop el build del wizard se queda colgado compilando varios minutos y el proceso muere?
+¿Por qué en los computadores compartidos de los comercios los eventos de PostHog se estaban mezclando con la identidad del cliente anterior?
+Si tengo que integrar un agregador nuevo para pre-aprobaciones, ¿en qué método del backend es obligatorio agregar un nuevo if con el id quemado?
+¿Por qué a los clientes con cédula de extranjería en Magnocell se les asigna directo la categoría 22 sin evaluar ninguna regla de riesgo?
+¿Por qué cuando simulo un crédito de Bancolombia en el comercio Sonría se pisan las condiciones de plazo y tasa configuradas en base de datos?
+¿En qué archivos está hardcodeado el cálculo de precio inflado y la omisión de cuota inicial para Motai Renting?
+¿Por qué cuando fuerzo un lender en el arnés de pruebas sobre un comercio que no lo tiene asociado me revienta la generación del pagaré con error 500?
+¿Por qué en las pruebas de UI de CreditopX el botón de pagar cuota inicial se queda deshabilitado y nunca abre la pasarela de pagos?
+¿Por qué al consultar si existe un usuario de SmartPay me devuelve el error BDUS004 si el teléfono fue creado sin el signo más?
+¿Por qué los bypasses locales del backend no se deben aplicar con git stash apply usando el número de índice?
+¿Por qué después de completar la validación biométrica con AWS Rekognition no aparece ninguna fila guardada en risk_central_user_data?
+¿Por qué un error de tipeo en el segundo apellido del cliente no afecta la consulta de Datacrédito pero un error en el primer apellido hace que no traiga score?
+¿Por qué cuando hago pruebas en staging el servicio de Ágil Data siempre devuelve el nombre JUAN SANTIAGO DOE RAMANUYAN para cualquier cédula?
+Cuando en la tabla de monitoreo de nombres sale el motivo wrong_document, ¿por qué lo primero a revisar es el número de documento y no el nombre?
+¿Por qué los controladores dentro del módulo Modules/Risk no tienen ninguna ruta registrada en su archivo api.php?
+¿Por qué un cliente con los meses exactos en el sector financiero aprueba en el evaluador nuevo de Datacrédito pero rechazaba en el validador viejo?
+¿Por qué la delegación de información laboral desde application hacia legacy-backend llega con un id de solicitud inválido?
+¿Por qué al correr make test dentro del contenedor Linux no se ejecuta ninguno de los tests unitarios ubicados dentro de los módulos?
+¿Por qué al configurar los métodos de pago y criterios de garantía de un prestamista en un comercio se le borraron o modificaron a los demás comercios?
+Actualicé la plantilla base de reglas de datacrédito para una entidad, pero las sucursales existentes siguen evaluando con los valores viejos, ¿por qué no se actualizaron?
+Si desmarco una entidad de una sucursal en el panel de administración, ¿por qué los clientes la siguen viendo activa en el flujo o por qué quedan reglas huérfanas en la base de datos?
+¿Por qué una entidad que no tiene configuradas sus reglas de Datacrédito está aplicando de forma transparente los mismos umbrales que el Banco de Bogotá?
+¿Por qué dos sucursales creadas con segundos de diferencia terminaron con el mismo hash de acceso en el link de onboarding?
+¿Por qué no veo ninguna línea de log del wizard en Loki a pesar de que está recibiendo tráfico real en producción?
+¿Por qué el servicio self-manager-api registra decenas de miles de líneas de log diarias si casi no tiene actividad de usuarios ni errores?
+Estoy buscando la tabla kyc_pipelines en la base de datos MySQL de CreditOp y no aparece, ¿dónde se almacena la configuración de los grafos de KYC?
+¿Cómo se conecta actualmente customer-profiling-service con el monolito si el backend legacy no lo invoca de forma directa?
+Creamos una sucursal nueva para Motai pero en el formulario de solicitud no aparece la opción de documento PEP para migrantes, ¿por qué pasó?
+¿Por qué al guardar una fórmula en lenders.calculator como un objeto JSON el cálculo falla indicando que una variable no está definida?
+Un usuario de Motai que ya había completado el flujo hace dos semanas vuelve a solicitar y el sistema se salta el paso de Ábaco, ¿por qué no le pide conectar sus plataformas de nuevo?
+En un ambiente local nuevo, cuando un cliente de Rent to Own pasa la política sin requerir codeudor, ¿por qué al final no se le genera ningún documento para firmar?
+¿Por qué la calculadora de Renting en Excel prorratea el canon semanal dividiendo entre 30 y multiplicando por 7 en lugar de aplicar una tasa de interés compuesta?
+El microservicio de pre-aprobaciones me está devolviendo un HTTP 500 en /v1/preapprovals/check, ¿cómo identifico si falló la API externa del banco o si fue un error de credenciales internas?
+¿Por qué las consultas de pre-aprobación hacia Meddipay nunca se responden desde la caché de DynamoDB y siempre le pegan al proveedor?
+¿Por qué la tarjeta de Credifamilia se queda en estado de carga o «En validación» haciendo polling mientras los demás prestamistas responden de inmediato?
+En el marketplace de entidades el wizard muestra un error 422 de monto por debajo del mínimo, ¿eso significa que la API del banco rechazó la solicitud?
+¿Por qué los resultados de pre-aprobación que quedan en estado pending no se sincronizan en displayed_lenders dentro de la base de datos de legacy?
+Un comercio aliado reclama que en el panel administrativo ve dos valores distintos de monto a recibir para las mismas solicitudes, ¿de dónde sale esa diferencia?
+¿En qué parte del código o de la cascada de imputación de pagos se descuenta y separa automáticamente la comisión que le corresponde a CreditOp por cuota?
+¿Cuál es la diferencia operativa y de configuración entre el fondo de garantías y el seguro de vida si ambos aplican porcentajes sobre el crédito?
+Si un crédito bajo CreditopX supera los 90 días en mora, ¿por qué el sistema no lo marca de forma automática como cubierto o reclamado ante el fondo de garantía?
+Si un comercio aliado decide cancelar el servicio con nosotros, ¿por qué no debemos simplemente dar de baja o apagar su configuración en la base de datos?
+¿Por qué el endpoint de validación de OTP me responde un status HTTP 200 pero la respuesta indica que debo redirigir al usuario a llenar información personal?
+Estoy probando el onboarding en entorno local y a veces el flujo consulta Experian y otras veces se lo salta con exactamente los mismos datos, ¿por qué ocurre esto?
+¿Por qué la delegación de información laboral desde application hacia legacy siempre falla en silencio y termina ejecutando el método local?
+Un usuario reporta que no puede continuar con su solicitud porque le sale un error de límite de intentos en el paso de información personal, ¿cómo opera ese bloqueo?
+¿Por qué cuando un asesor inicia una solicitud desde el simulador no se crea de inmediato el registro de la user_request en la base de datos?
+¿Por qué se queda colgado un pago de Wompi si el worker de jobs se detuvo, en lugar de recibir una confirmación automática?
+¿Qué pasa en producción si la API de Wompi falla temporalmente al consultar los datos del comercio en getMerchant?
+¿Por qué al aprobarse el pago de la cuota inicial de un crédito el valor del monto final financiado cambia respecto a la resta directa?
+¿Cómo diferencia el sistema en la tabla de transacciones de pasarela si un pago corresponde a una cuota inicial, a un crédito de consumo o a un cupo rotativo?
+¿Por qué a un usuario con salario por debajo del mínimo exigido por la categoría de CreditopX se le sigue aprobando el tier sin ser filtrado?
+¿Por qué el listado de entidades en el marketplace se demora hasta 15 segundos o más en cargar cuando falla el perfilador de machine learning?
+¿Por qué en users_category_log una regla que no aparece dentro del JSON no significa que haya pasado la validación?
+¿Por qué un cliente sin registro de Datacrédito es rechazado automáticamente en todos los tiers de CreditopX aunque cumpla con edad e ingresos?
+¿Por qué una solicitud en Amoblando Pullman se marca como no viable de inmediato si el cliente pide $500.000 pesos?
+¿Por qué un cliente de 72 años puede obtener cupo con CrediPullman si la regla de grupo del comercio dice que la edad máxima es 69?
+¿Por qué en el onboarding del aliado Amoblando Pullman se salta por completo la consulta de pre-aprobados externos?
+¿Por qué una entidad configurada como integración externa (rt=1) termina redirigiendo al usuario a una URL externa sin consultar su API cuando no tiene credenciales cargadas?
+¿Por qué un crédito derivado a una entidad con response_type=0 no genera eventos de desembolso ni permite rastrear si el cliente completó la solicitud?
+¿Por qué en el marketplace de prestamistas las tarjetas de tipo redirección (rt=0) no ejecutan ninguna consulta de pre-aprobación?
+¿Por qué un cliente que solicita un cupo rotativo (rt=3) recibe cupo 0 sin que quede registrado ningún error ni motivo de rechazo en los logs?
+¿Por qué la pantalla de condiciones del cupo rotativo le muestra al cliente un porcentaje de cuota inicial y FGA diferente al que realmente se le cobra en backend?
+¿Por qué a un cliente que no tiene reporte de continuidad laboral en Agildata o Mareigua se le asignan 0 puntos en esa variable en lugar del piso mínimo de 1?
+¿Por qué en el otorgamiento de cupo rotativo un score crediticio de 0 recibe más puntaje que un score de entre 1 y 300 puntos?
+¿Por qué revienta con un error fatal de lectura de propiedad sobre null al intentar reversar un pago de CreditopX que todavía está en estado RETENIDO?
+¿Por qué un abono registrado por un cliente antes de su fecha de corte no descuenta el saldo de su deuda en el mismo día en que se procesa?
+¿Por qué a un cliente que está totalmente al día se le bloquea el cambio de fecha de pago con el error HAS_PENDING_PAYMENT?
+¿Por qué en los reportes de pagos un recaudo aparece con método "Cajas" a pesar de que el cliente pagó electrónicamente a través de la pasarela?
+¿Por qué en staging/local la solicitud se procesa saltando el AML y con acuerdo de bloqueo, pero el correo le sigue llegando al cliente con la plantilla y remitente genéricos?
+El endpoint verify-otp me responde con next_step: "authorize", pero si llamo a ese endpoint se rompe el flujo: ¿cuál es la secuencia correcta de llamadas para cerrar el desembolso?
+¿Por qué cuando se enrola el celular de un cliente que también compró accesorios, la solicitud pierde todos los accesorios y solo queda el teléfono?
+¿Por qué en device_locks se acumulan decenas de filas en estado failed para un mismo teléfono en mora en vez de actualizar el registro existente?
+Busco en device_locks para confirmar si un teléfono recién vendido ya quedó enrolado pero la tabla no tiene ninguna fila: ¿dónde se persiste realmente el IMEI asociado?
+Puse qa en la variable de entorno de Loki para rastrear una solicitud de staging pero no me trae ningún log: ¿cuál es el valor correcto para ese ambiente?
+¿Por qué una solicitud de cupo rotativo que fue rechazada aparece en el trazador como sin-evidencia en lugar de mostrar el rechazo?
+Consulté ocr_logs y compare_face_logs filtrando por user_request_id para ver el error de validación de un cliente y me dio vacío, ¿por qué no aparecen esas trazas?
+Modifiqué una expresión en mapa/etapas.json para clasificar un log nuevo pero la interfaz sigue mostrando el mapa anterior: ¿qué paso me falta al editar los JSON?
+¿Por qué el trazador no muestra si un usuario se quedó trabado en una pantalla del formulario si esa pantalla no hizo llamadas al backend?
