@@ -843,6 +843,45 @@ mecánico:
 
 **Un tema no envejece por tiempo: envejece cuando cambia alguno de los archivos que declara.**
 
+## La arquitectura: archivos por concern + `skills/` (2026-08-27)
+
+Canon era **un `main.go` de 2.822 líneas**. El problema no era el tamaño: era que **para leer una regla
+del lint había que pasar por encima de 570 líneas de handlers HTTP**.
+
+**La forma la decidió el repo, no yo:** `credibot` son once archivos planos por concern
+(`loki.py`, `redash.py`, `slack.py`…), en un solo paquete. Canon quedó igual — `corpus.go`,
+`politica.go`, `busqueda.go`, `grafo.go`, `git.go`, `expediente.go`, `api.go`, `banco.go`, `skills.go`.
+**Sin paquetes anidados:** es un binario, no una librería. El corte se hizo con un escáner que entiende
+`/* */` y strings crudos; la verificación de que no se perdió nada es que compila y que las 72
+declaraciones son las 71 de antes más `servidorHTTP`.
+
+### `skills/` — el corpus dice QUÉ; los skills dicen CÓMO
+
+Dos públicos, dos carpetas. `content/` lo lee quien tiene una pregunta de negocio; `skills/` lo lee un
+modelo que va a **hacer algo**: `consultar` · `contextualizar` · `recontextualizar` · `corregir`.
+
+- se sirven por `/api/skills` y `/api/skills/<id>`, y **se anuncian en la cabecera del índice y en
+  `/api/tools`** — anunciarlos importa tanto como tenerlos, mismo principio por el que la escritura se
+  **omite** para una llave de lectura;
+- **no van en el corpus** porque ensuciarían la búsqueda: quien pregunta por el negocio recibiría
+  instrucciones de mantenimiento;
+- **no son el README**: el README es para una persona que construye canon, un skill es para un modelo
+  que lo usa. Por eso son imperativos y cada uno dice **qué NO hacer**, con la medición que lo justifica.
+
+⚠ El protocolo de consulta **era una constante de Go** a mitad del archivo. Como archivo se edita sin
+recompilar el razonamiento y se sirve suelto; la fuente sigue siendo una sola porque la cabecera del
+índice lo inserta desde el archivo.
+
+**El lint los cuida:** sin `# título` falla, y por encima de 900 palabras falla. Las dos probadas
+rompiéndolas.
+
+### Y un arreglo en el lint del repo compartido
+
+`dev/validar.js` dice *«acá no se mira cómo está escrito: se mira que responda lo que se le exige»*,
+pero leía **un solo archivo** — así que en los hechos **obligaba a que toda herramienta Go viviera en un
+`main.go`**. Ahora lee todos los archivos del mismo lenguaje que estén al lado, sin recursión
+(`node_modules` está justo abajo). `task lint` verde en las 5 herramientas.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
