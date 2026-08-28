@@ -1386,6 +1386,30 @@ asignado · pago mínimo vs saldo total · costos administrativos · cuota inici
 
 Banco propio 109/109. CI y banco verificados por código de salida antes de cada subida.
 
+## Cuarta tanda de #tech-ops: el patrón ya está diagnosticado (2026-08-28)
+
+Cuarta tanda retrocediendo (hasta el 6 de agosto). **1 de 9 con frases nuevas** — y a esta altura ya no
+es un hallazgo, es **el diagnóstico confirmado cuatro veces**: el corpus tiene el conocimiento y le
+falta el vocabulario del reporte. Los dos fallos más dolorosos fueron otra vez casos con respuesta
+escrita: *«no realizó consulta en datacrédito»* (las cinco etapas del pipeline del buró) y *«cambió su
+apellido y ya no sale información»* (el apellido como llave).
+
+**Cargado, todo con frases reales:** «no consultó datacrédito» · «cambió el apellido» · «click en firmar
+y sale error» (el reporte más repetido del cierre) · «no le llega el link de validación» · «apliqué
+pagos y siguen en mora».
+
+**Una sección nueva** en `cartera`: *«cambiamos la fecha de pago y volvió a aparecer la anterior»* —
+llega varias veces por mes de comercios distintos. Con su segundo caso, que se reporta igual y no lo es:
+la fecha quedó pero para el mes siguiente, y cambiarla dos veces mueve el crédito dos meses.
+
+⚠ **Y algo que NO se escribió, a propósito:** un comercio reportó que al descargar su reporte de
+créditos **le bajan los créditos de OTROS comercios**. Es una afirmación de seguridad; busqué el
+controlador que la produce y **no lo encontré**, así que quedó **declarada como hueco** en vez de
+escrita. La regla «lo no verificado no entra» aplicada al material más tentador del día. **Vale
+levantarla como tarea aparte: si es cierto, es fuga de datos entre comercios.**
+
+Banco de soporte: **47 cubiertas (47/47) · 17 huecos declarados**. Banco propio 109/109. CI verificado.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
