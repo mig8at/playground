@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>grafo de agentes · prototipo</title>
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0b0d10;color:#e8e6e1;
+    font:14px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+  canvas{display:block}
+
+  /* Las etiquetas son HTML proyectado, no texturas: se leen nítidas en cualquier zoom y cuestan nada. */
+  #etiquetas{position:fixed;inset:0;pointer-events:none;z-index:5}
+  .etq{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:11.5px;
+    letter-spacing:.02em;text-shadow:0 1px 6px #0b0d10,0 0 12px #0b0d10;transition:opacity .2s}
+  .etq.centro{font-size:13px;font-weight:600}
+  .etq.tenue{color:#7d8590}
+
+  #mandos{position:fixed;top:14px;left:14px;z-index:10;background:rgba(13,16,20,.86);
+    border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);
+    max-width:300px}
+  #mandos h1{font-size:13px;font-weight:600;margin-bottom:2px}
+  #mandos p{font-size:11.5px;color:#7d8590;line-height:1.5;margin-bottom:9px}
+  #mandos .fila{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11.5px;color:#9aa3ad}
+  #mandos button{background:#0e1116;border:1px solid #2a2f36;color:#cfd6dd;border-radius:7px;
+    padding:4px 10px;cursor:pointer;font-size:11.5px}
+  #mandos button:hover{border-color:#4a5361}
+  #mandos input[type=range]{flex:1}
+  #ficha{position:fixed;bottom:14px;left:14px;z-index:10;font-size:11.5px;color:#7d8590;
+    min-height:1.4em}
+</style>
+</head>
+<body>
+<div id="mandos">
+  <h1>grafo de agentes</h1>
+  <p>Una esfera al centro y una por agente, unidas por su hilo. Si un agente
+     abre sub-tareas, cuelgan de él.</p>
+  <div class="fila">agentes <input id="n" type="range" min="1" max="12" value="5"><b id="nv">5</b></div>
+  <div class="fila">hijos <input id="h" type="range" min="0" max="4" value="0"><b id="hv">0</b></div>
+  <div class="fila">
+    <button id="trabajar">poner a trabajar</button>
+    <button id="quieto">quietos</button>
+  </div>
+</div>
+<div id="etiquetas"></div>
+<div id="ficha">arrastrá para girar · rueda para acercar · tocá una esfera</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+
+/* ── EL GRAFO ────────────────────────────────────────────────────────────────────────────────────
+ * Prototipo para pensar la forma, no para producción: three viene de un CDN porque acá se abre el
+ * archivo y listo. En canon se vendoriza — no hay red que valga en una imagen desplegada.
+ *
+ * La idea: UNA esfera central (el corpus, o la corrida) y una esfera POR AGENTE colgando de ella.
+ * Cada agente puede a su vez abrir sub-tareas, que cuelgan de él. Nada de esto está atado a datos
+ * todavía: los mandos de arriba cambian la cantidad para ver cómo se comporta la forma. */
+
+const AGENTES = ['triaje', 'expediente', 'lector', 'escritor', 'verificador',
+                 'lector 2', 'lector 3', 'lector 4', 'escritor 2', 'verificador 2',
+                 'lector 5', 'lector 6']
+const COLOR_CENTRO = 0xe8e6e1
+const PALETA = [0x8fd3a7, 0x8ab4f8, 0xd8b64a, 0xc5a3e8, 0xe39a9a, 0x7fd4d0]
+
+const escena = new THREE.Scene()
+escena.background = new THREE.Color(0x0b0d10)
+const camara = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 200)
+camara.position.set(0, 3.2, 13)
+const render = new THREE.WebGLRenderer({ antialias: true })
+render.setPixelRatio(devicePixelRatio)
+render.setSize(innerWidth, innerHeight)
+document.body.appendChild(render.domElement)
+const controles = new OrbitControls(camara, render.domElement)
+controles.enableDamping = true
+controles.minDistance = 5
+controles.maxDistance = 40
+
+escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 2.2))
+const luz = new THREE.DirectionalLight(0xffffff, 2); luz.position.set(3, 6, 4); escena.add(luz)
+
+const capa = new THREE.Group()
+escena.add(capa)
+const capaEtq = document.getElementById('etiquetas')
+
+let nodos = []          // {malla, etq, padre, orbita, radio, velocidad, color, nombre, tipo}
+let hilos = []          // {linea, a, b}
+let trabajando = false
+
+/* Los hilos se redibujan cada cuadro: son dos puntos que se mueven, así que la geometría se
+   actualiza en vez de recrearse — recrear una BufferGeometry por cuadro es basura para el recolector. */
+function hilo(a, b, color){
+  const g = new THREE.BufferGeometry().setAttribute('position',
+    new THREE.Float32BufferAttribute(new Array(6).fill(0), 3))
+  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: .5 }))
+  capa.add(l)
+  hilos.push({ linea: l, a, b })
+  return l
+}
+
+/* Repartir N puntos EN UNA ESFERA, parejo: espiral de Fibonacci. Es la diferencia entre un grafo que
+   se lee de un vistazo y uno donde los de atrás quedan tapados por los de adelante — con un círculo
+   plano y una inclinación a ojo, pasaba de cinco agentes y ya se amontonaban de un lado. */
+function enLaEsfera(i, n, radio){
+  /* `i + .5` y no `i`: con la variante cruda, el primero y el último caen EXACTO en los polos, y el
+     polo que mira a la cámara queda tapado por la esfera central — pasaba con «lector», invisible
+     hasta que el giro lo traía. Con el medio paso ningún punto cae en el eje. */
+  const y = 1 - 2 * (i + .5) / n
+  const r = Math.sqrt(Math.max(0, 1 - y * y))
+  const ang = i * Math.PI * (3 - Math.sqrt(5))        // ángulo áureo
+  // Y un ladeo fijo para que la estrella no arranque simétrica: se lee mejor que sea un poco irregular.
+  return new THREE.Vector3(Math.cos(ang) * r, y, Math.sin(ang) * r)
+    .applyAxisAngle(new THREE.Vector3(1, 0, .3).normalize(), .42)
+    .multiplyScalar(radio)
+}
+
+function esfera({ radio, color, padre = null, ancla = null, nombre = '', tipo = 'agente', fase = 0 }){
+  const m = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(radio, 4),
+    new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(.18),
+      shininess: 40, specular: 0x2a3138 }),
+  )
+  capa.add(m)
+  const etq = document.createElement('div')
+  etq.className = 'etq' + (tipo === 'centro' ? ' centro' : tipo === 'hijo' ? ' tenue' : '')
+  etq.textContent = nombre
+  capaEtq.appendChild(etq)
+  const n = { malla: m, etq, padre, ancla, radio, color, nombre, tipo, fase,
+              vaiven: .07 + Math.random() * .06 }
+  nodos.push(n)
+  if (padre) hilo(padre, n, color)
+  return n
+}
+
+/* El encuadre se calcula del alcance del grafo, no se deja fijo: con ocho agentes y tres hijos cada
+   uno, la mitad quedaba fuera de pantalla y había que alejarse a mano cada vez que se movía un mando. */
+function encuadrar(hijos){
+  const alcance = 4.3 + (hijos ? 1.2 : 0) + .6
+  const mitad = Math.tan((camara.fov * Math.PI / 180) / 2)
+  const dist = Math.max(alcance / mitad, alcance / (mitad * camara.aspect)) * 1.12
+  camara.position.setLength(dist)
+  controles.maxDistance = dist * 2.5
+  controles.update()
+}
+
+function construir(cuantos, hijos){
+  for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
+  for (const h of hilos) capa.remove(h.linea)
+  nodos = []; hilos = []
+
+  const centro = esfera({ radio: .9, color: COLOR_CENTRO, nombre: 'canon', tipo: 'centro' })
+
+  for (let i = 0; i < cuantos; i++){
+    const color = PALETA[i % PALETA.length]
+    const a = esfera({
+      radio: .42, color, padre: centro, ancla: enLaEsfera(i, cuantos, 4.3),
+      nombre: AGENTES[i] ?? `agente ${i + 1}`, fase: i * 1.7,
+    })
+    // Los hijos cuelgan de SU agente, en su propia esferita: si el lector abre tres sub-tareas, se ve
+    // que son del lector y no del grafo entero.
+    for (let j = 0; j < hijos; j++){
+      esfera({ radio: .17, color, padre: a, ancla: enLaEsfera(j, hijos, 1.2), tipo: 'hijo',
+        nombre: `${j + 1}`, fase: j * 2.1 + i })
+    }
+  }
+}
+
+const v = new THREE.Vector3()
+/* Cada nodo se queda EN SU SITIO y respira alrededor de él. Antes orbitaba, y el grafo se volvía un
+   revoltijo donde no se podía seguir a nadie: la estrella tiene que ser estable para leerse, y el
+   movimiento está para que parezca viva, no para mover información. El conjunto entero gira despacio
+   —eso sí— así se ven las tres dimensiones sin tener que arrastrar. */
+function posicionar(n, t){
+  if (!n.padre){ n.malla.position.set(0, 0, 0); return }
+  const amplitud = n.vaiven * (trabajando ? 2.6 : 1)
+  const ritmo = trabajando ? 3.4 : 1.1
+  n.malla.position.copy(n.padre.malla.position).add(n.ancla)
+  n.malla.position.x += Math.sin(t * ritmo + n.fase) * amplitud
+  n.malla.position.y += Math.sin(t * ritmo * .8 + n.fase * 1.7) * amplitud
+  n.malla.position.z += Math.cos(t * ritmo * .9 + n.fase) * amplitud
+}
+
+function proyectar(n){
+  // La posición del nodo es LOCAL a la capa, que gira: sin pasarla a mundo, la etiqueta se queda
+  // donde el nodo estaba antes de girar y se despega del muñeco.
+  n.malla.getWorldPosition(v).project(camara)
+  const dentro = v.z < 1
+  n.etq.style.opacity = dentro ? 1 : 0
+  if (!dentro) return
+  n.etq.style.left = `${(v.x * .5 + .5) * innerWidth}px`
+  n.etq.style.top = `${(-v.y * .5 + .5) * innerHeight - (n.radio * 34 + 12)}px`
+}
+
+const reloj = new THREE.Clock()
+render.setAnimationLoop(() => {
+  const t = reloj.getElapsedTime()
+  capa.rotation.y = t * (trabajando ? .12 : .06)
+  // Los padres primero: un hijo se coloca respecto de dónde quedó el suyo en ESTE cuadro.
+  for (const n of nodos) if (!n.padre) posicionar(n, t)
+  for (const n of nodos) if (n.padre && n.padre.tipo === 'centro') posicionar(n, t)
+  for (const n of nodos) if (n.padre && n.padre.tipo !== 'centro') posicionar(n, t)
+
+  for (const h of hilos){
+    const p = h.linea.geometry.attributes.position
+    p.setXYZ(0, h.a.malla.position.x, h.a.malla.position.y, h.a.malla.position.z)
+    p.setXYZ(1, h.b.malla.position.x, h.b.malla.position.y, h.b.malla.position.z)
+    p.needsUpdate = true
+    h.linea.material.opacity = trabajando ? .6 + .25 * Math.sin(t * 6) : .5
+  }
+  for (const n of nodos){
+    proyectar(n)
+    const late = trabajando && n.tipo !== 'centro' ? .18 + .16 * Math.sin(t * 7 + n.fase) : .18
+    n.malla.material.emissive.setHex(n.color).multiplyScalar(late)
+  }
+  controles.update()
+  render.render(escena, camara)
+})
+
+addEventListener('resize', () => {
+  camara.aspect = innerWidth / innerHeight
+  camara.updateProjectionMatrix()
+  render.setSize(innerWidth, innerHeight)
+})
+
+const ray = new THREE.Raycaster(), puntero = new THREE.Vector2()
+const ficha = document.getElementById('ficha')
+render.domElement.addEventListener('click', e => {
+  puntero.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
+  ray.setFromCamera(puntero, camara)
+  const hit = ray.intersectObjects(nodos.map(n => n.malla))[0]
+  if (!hit){ ficha.textContent = 'arrastrá para girar · rueda para acercar · tocá una esfera'; return }
+  const n = nodos.find(x => x.malla === hit.object)
+  const hijos = nodos.filter(x => x.padre === n).length
+  ficha.textContent = n.tipo === 'centro'
+    ? `${n.nombre} — el centro: ${nodos.filter(x => x.padre === n).length} agente(s) colgando`
+    : `${n.nombre} — cuelga de ${n.padre.nombre}${hijos ? ` · abrió ${hijos} sub-tarea(s)` : ''}`
+})
+
+const $n = document.getElementById('n'), $h = document.getElementById('h')
+const rehacer = () => {
+  document.getElementById('nv').textContent = $n.value
+  document.getElementById('hv').textContent = $h.value
+  construir(+$n.value, +$h.value)
+  encuadrar(+$h.value)
+}
+$n.addEventListener('input', rehacer)
+$h.addEventListener('input', rehacer)
+document.getElementById('trabajar').addEventListener('click', () => { trabajando = true })
+document.getElementById('quieto').addEventListener('click', () => { trabajando = false })
+rehacer()
+</script>
+</body>
+</html>
