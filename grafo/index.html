@@ -233,8 +233,47 @@ const controles = new OrbitControls(camara, render.domElement)
 controles.enableDamping = true
 controles.minDistance = 5
 
-escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 1.15))
-const luz = new THREE.DirectionalLight(0xffffff, 1.15); luz.position.set(3, 6, 4); escena.add(luz)
+/* La tela absorbe mucha más luz que el material liso de antes: con la iluminación anterior las bolas
+   salían apagadas y el color dejaba de contar el avance, que es su trabajo acá. */
+escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 1.6))
+const luz = new THREE.DirectionalLight(0xffffff, 2.1); luz.position.set(3, 6, 4); escena.add(luz)
+const relleno = new THREE.DirectionalLight(0x8ab4f8, .55); relleno.position.set(-4, 1, 2); escena.add(relleno)
+
+/* LA TEXTURA. Un set PBR de tela bouclé (Poliigon): color base, normal y rugosidad. El displacement y
+ * el metallic quedaron afuera a propósito — el primero pediría teselar las esferas para que se note, y
+ * el segundo es negro entero en una tela.
+ *
+ * ⚠ Vienen a 1024 y en jpg. Los originales son 2048 y pesan 17 MB entre los cinco (el normal solo, 9 MB
+ * en png): en una página eso es medio minuto de espera para una bolita de dos centímetros.
+ *
+ * ⚠ Y el color del estado NO se pierde: la textura va en `map` y el gris/amarillo/verde sigue en
+ * `color`, que en three MULTIPLICA al mapa. Se ve la tela, teñida del avance. */
+const carga = new THREE.TextureLoader()
+const repetir = t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1); return t }
+const tela = [null, repetir(carga.load('tex/normal.jpg')), repetir(carga.load('tex/roughness.jpg'))]
+
+/* ⚠ EL COLOR BASE SE PASA A GRISES antes de usarlo. La tela original es beige, y en three el `map`
+   MULTIPLICA al color: beige × verde daba un verde apagado, y el estado —que es la única información
+   que estas bolas llevan— se perdía debajo de la textura. En grises, la tela aporta sólo el RELIEVE y
+   el tono lo pone entero el avance. Se hace en un canvas al vuelo: es una imagen y una vez. */
+new THREE.ImageLoader().load('tex/basecolor.jpg', img => {
+  const c = document.createElement('canvas')
+  c.width = img.width; c.height = img.height
+  const cx = c.getContext('2d')
+  cx.drawImage(img, 0, 0)
+  const d = cx.getImageData(0, 0, c.width, c.height)
+  for (let i = 0; i < d.data.length; i += 4){
+    const l = d.data[i] * .3 + d.data[i + 1] * .59 + d.data[i + 2] * .11
+    // Se aclara y se aplana un poco: multiplicar por un gris oscuro apagaría todo otra vez.
+    const v = Math.min(255, 108 + (l - 128) * .8)
+    d.data[i] = d.data[i + 1] = d.data[i + 2] = v
+  }
+  cx.putImageData(d, 0, 0)
+  const t = repetir(new THREE.CanvasTexture(c))
+  t.colorSpace = THREE.SRGBColorSpace
+  tela[0] = t
+  for (const n of nodos){ n.malla.material.map = t; n.malla.material.needsUpdate = true }
+})
 
 const capa = new THREE.Group(); escena.add(capa)
 const capaEtq = document.getElementById('etiquetas')
@@ -281,8 +320,12 @@ const puntoEnOrbita = (o, t) => new THREE.Vector3()
 const juntoAlPadre = j => new THREE.Vector3(Math.cos(j * 2.39996) * 1.25, ((j % 3) - 1) * .5, Math.sin(j * 2.39996) * 1.25)
 
 function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' }){
-  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(radio, 4),
-    new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x2a3138 }))
+  /* Esfera de verdad y no icosaedro: la textura necesita coordenadas uv, y el icosaedro las tiene
+     rotas en las costuras — la tela salía cortada en gajos. */
+  const m = new THREE.Mesh(new THREE.SphereGeometry(radio, 48, 32),
+    new THREE.MeshStandardMaterial({ map: tela[0] ?? null, normalMap: tela[1], roughnessMap: tela[2],
+      roughness: 1, metalness: 0 }))
+  m.material.normalScale.set(.7, .7)
   capa.add(m)
   const etq = document.createElement('div')
   etq.className = 'etq' + (tipo === 'agente' ? '' : ' ' + tipo)
