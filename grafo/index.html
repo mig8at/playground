@@ -36,7 +36,8 @@
   #mandos button.peligro{border-color:#4a3535;color:#e39a9a}
   #mandos input[type=range]{flex:1}
   .leyenda{display:flex;gap:11px;margin-top:10px;font-size:10.5px;color:#7d8590}
-  .leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;
+  .leyenda{flex-wrap:wrap}
+  .leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:3px;
     vertical-align:-1px;font-style:normal}
 
   #panel{position:fixed;top:0;right:0;height:100%;width:min(410px,100vw);z-index:20;
@@ -93,9 +94,8 @@
   <div class="fila">tareas <input id="tam" type="range" min="1" max="14" value="5"><b id="tamv">5</b></div>
   <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1.4"><b id="rv">1.4×</b></div>
   <div class="leyenda">
-    <span><i style="background:#5d6670"></i>espera</span>
-    <span><i style="background:#d8b64a"></i>trabajando</span>
-    <span><i style="background:#8fd3a7"></i>concluido</span>
+    <span>el centro: <i style="background:#5d6670"></i><i style="background:#d8b64a"></i><i style="background:#8fd3a7;margin-right:0"></i></span>
+    <span><i style="background:#ff9838"></i>agentes — vibran mientras piensan</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -148,6 +148,9 @@ const GRIS = new THREE.Color(0x5d6670)
 const AMARILLO = new THREE.Color(0xd8b64a)
 const VERDE = new THREE.Color(0x8fd3a7)
 const AZUL = new THREE.Color(0x8ab4f8)
+// Naranja SUBIDO a propósito: la textura en grises multiplica y oscurece, así que un naranja "correcto"
+// llegaba a la pantalla como un terracota apagado.
+const NARANJA = new THREE.Color(0xff9838)
 
 /* EL MÁXIMO. Diez agentes vivos a la vez, no más: cada uno cuesta tokens y contexto, y un merge
    grande con treinta lectores sueltos es la forma de gastar el presupuesto de un mes en una tarde.
@@ -279,7 +282,7 @@ new THREE.ImageLoader().load('tex/basecolor.jpg', img => {
   for (let i = 0; i < d.data.length; i += 4){
     const l = d.data[i] * .3 + d.data[i + 1] * .59 + d.data[i + 2] * .11
     // Se aclara y se aplana un poco: multiplicar por un gris oscuro apagaría todo otra vez.
-    const v = Math.min(255, 108 + (l - 128) * .8)
+    const v = Math.min(255, 128 + (l - 128) * .8)
     d.data[i] = d.data[i + 1] = d.data[i + 2] = v
   }
   cx.putImageData(d, 0, 0)
@@ -350,7 +353,11 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
 
 /* El color ES el avance: gris hasta que arranca, amarillo mientras trabaja, verde cuando concluye.
    Dos tramos para que el amarillo sea un ESTADO y no un instante de paso. */
+/* UN SOLO color que informa, y es el del centro: gris → ámbar → verde según cuánto del merge ya
+   volvió. Los agentes son naranjas SIEMPRE — lo que dicen no es su color sino si están vibrando.
+   Antes cambiaban los veinte a la vez y el ojo no sabía dónde mirar; ahora hay un solo indicador. */
 const colorDe = n => n.tipo === 'revision' ? VERDE
+  : n.tipo !== 'centro' ? NARANJA
   : n.progreso <= .5 ? GRIS.clone().lerp(AMARILLO, n.progreso / .5)
   : AMARILLO.clone().lerp(VERDE, (n.progreso - .5) / .5)
 
@@ -559,20 +566,33 @@ render.setAnimationLoop(() => {
     if (!n.padre) n.malla.position.set(0, 0, 0)
     else {
       const trab = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
-      const amp = n.vaiven * (trab ? 2.4 : 1), rit = trab ? 3.2 : 1.1
+      const amp = n.vaiven, rit = 1.1
       if (!congelado(n)) n.tOrb += dt * (trab ? 1.45 : 1)
       const to = n.tOrb
-      // Orbita alrededor de su padre; el que trabaja gira un poco más rápido, y encima respira.
+      // Orbita alrededor de su padre, y encima respira despacio.
       n.malla.position.copy(n.padre.malla.position)
         .add(n.orbita ? puntoEnOrbita(n.orbita, to) : n.ancla)
       n.malla.position.x += Math.sin(to * rit + n.fase) * amp
       n.malla.position.y += Math.sin(to * rit * .8 + n.fase * 1.7) * amp
       n.malla.position.z += Math.cos(to * rit * .9 + n.fase) * amp
+      /* VIBRA MIENTRAS PIENSA. Rápido y chiquito —28 Hz, una fracción de su radio— para que se lea
+         como temblor y no como otro movimiento más. Es lo que reemplaza al color: ahora el agente no
+         dice en qué anda por su tono, lo dice porque tiembla. Va con el reloj de los latidos, no con
+         el de la órbita: aunque lo señales y quede quieto, sigue temblando si sigue pensando. */
+      if (trab){
+        const tv = t * 28 + n.fase * 9, vib = n.radio * .14
+        n.malla.position.x += Math.sin(tv) * vib
+        n.malla.position.y += Math.sin(tv * 1.37 + 1.1) * vib
+        n.malla.position.z += Math.cos(tv * .89) * vib
+      }
     }
     n.malla.material.color.lerp(colorDe(n), .08)
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
+    /* Los agentes llevan más luz propia que el centro: la textura en grises los apaga, y su naranja
+       es lo que los separa de un vistazo del que sí cambia de color. */
+    const propia = n.tipo === 'centro' || n.tipo === 'revision' ? late : late + .3
     n.malla.material.emissive.copy(n.malla.material.color)
-      .multiplyScalar(elegido === n ? .5 : encima === n ? .38 : late)
+      .multiplyScalar(elegido === n ? .5 : encima === n ? .38 : propia)
   }
   // El cartelito sigue a la bola señalada, que se mueve: se recoloca cada cuadro, no al pasar el mouse.
   if (encima && nodos.includes(encima)){
