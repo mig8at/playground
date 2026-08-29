@@ -9,42 +9,83 @@
   html,body{height:100%;overflow:hidden;background:#0b0d10;color:#e8e6e1;
     font:14px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
   canvas{display:block}
+  code{background:#1a2029;border-radius:4px;padding:1px 5px;font-size:.9em}
 
-  /* Las etiquetas son HTML proyectado, no texturas: se leen nítidas en cualquier zoom y cuestan nada. */
   #etiquetas{position:fixed;inset:0;pointer-events:none;z-index:5}
   .etq{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:11.5px;
-    letter-spacing:.02em;text-shadow:0 1px 6px #0b0d10,0 0 12px #0b0d10;transition:opacity .2s}
+    text-shadow:0 1px 6px #0b0d10,0 0 12px #0b0d10;transition:opacity .2s}
   .etq.centro{font-size:13px;font-weight:600}
-  .etq.tenue{color:#7d8590}
+  .etq.hijo{font-size:10px;color:#7d8590}
 
   #mandos{position:fixed;top:14px;left:14px;z-index:10;background:rgba(13,16,20,.86);
-    border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);
-    max-width:300px}
+    border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);width:264px}
   #mandos h1{font-size:13px;font-weight:600;margin-bottom:2px}
-  #mandos p{font-size:11.5px;color:#7d8590;line-height:1.5;margin-bottom:9px}
+  #mandos .sim{display:inline-block;font-size:9.5px;letter-spacing:.06em;color:#d8b64a;
+    border:1px solid #463f28;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+  #mandos p{font-size:11.5px;color:#7d8590;line-height:1.5;margin:6px 0 9px}
   #mandos .fila{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11.5px;color:#9aa3ad}
   #mandos button{background:#0e1116;border:1px solid #2a2f36;color:#cfd6dd;border-radius:7px;
-    padding:4px 10px;cursor:pointer;font-size:11.5px}
+    padding:5px 11px;cursor:pointer;font-size:11.5px}
   #mandos button:hover{border-color:#4a5361}
   #mandos input[type=range]{flex:1}
-  #ficha{position:fixed;bottom:14px;left:14px;z-index:10;font-size:11.5px;color:#7d8590;
-    min-height:1.4em}
+  .leyenda{display:flex;gap:11px;margin-top:10px;font-size:10.5px;color:#7d8590}
+  .leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;
+    vertical-align:-1px;font-style:normal}
+
+  #panel{position:fixed;top:0;right:0;height:100%;width:min(400px,100vw);z-index:20;
+    background:#11151a;border-left:1px solid #2a2f36;display:flex;flex-direction:column;
+    transform:translateX(102%);transition:transform .25s ease}
+  #panel.abierto{transform:none}
+  #panel header{padding:18px 20px 12px;border-bottom:1px solid #2a2f36}
+  #panel h2{font-size:17px;font-weight:600;display:flex;align-items:center;gap:8px}
+  #panel .punto{width:10px;height:10px;border-radius:50%;flex:none}
+  #panel .sub{font-size:11.5px;color:#7d8590;margin-top:3px}
+  #barra{height:3px;background:#1a2029;border-radius:2px;margin-top:10px;overflow:hidden}
+  #barra div{height:100%;width:0;transition:width .4s ease,background .4s ease}
+  #chat{flex:1;overflow-y:auto;padding:14px 20px}
+  .msg{margin-bottom:12px}
+  .msg .quien{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#7d8590}
+  .msg .txt{font-size:12.5px;line-height:1.6;color:#cfd6dd;margin-top:3px}
+  .msg.iter .quien{color:#d8b64a}
+  .msg.fin .quien{color:#8fd3a7}
+  .msg .t{color:#5d6670;font-size:10px;margin-left:6px}
+  #panel footer{padding:10px 20px 14px;border-top:1px solid #2a2f36;font-size:10.5px;color:#5d6670}
+  #cerrar{position:absolute;top:14px;right:14px;background:none;border:none;color:#7d8590;
+    font-size:20px;cursor:pointer;line-height:1}
+  #ficha{position:fixed;bottom:14px;left:14px;z-index:10;font-size:11.5px;color:#7d8590}
 </style>
 </head>
 <body>
 <div id="mandos">
-  <h1>grafo de agentes</h1>
-  <p>Una esfera al centro y una por agente, unidas por su hilo. Si un agente
-     abre sub-tareas, cuelgan de él.</p>
-  <div class="fila">agentes <input id="n" type="range" min="1" max="12" value="5"><b id="nv">5</b></div>
-  <div class="fila">hijos <input id="h" type="range" min="0" max="4" value="0"><b id="hv">0</b></div>
+  <h1>grafo de agentes<span class="sim">SIMULACIÓN</span></h1>
+  <p>Una esfera al centro y una por agente. Mientras trabaja va de <b>gris</b> a
+     <b>amarillo</b> a <b>verde</b>, y cada <b>iteración</b> le cuelga un nodo. Tocá uno
+     para ver en qué está pensando.</p>
+  <div class="fila">agentes <input id="n" type="range" min="1" max="10" value="5"><b id="nv">5</b></div>
+  <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1"><b id="rv">1×</b></div>
   <div class="fila">
-    <button id="trabajar">poner a trabajar</button>
-    <button id="quieto">quietos</button>
+    <button id="arrancar">poner a trabajar</button>
+    <button id="reiniciar">reiniciar</button>
+  </div>
+  <div class="leyenda">
+    <span><i style="background:#5d6670"></i>espera</span>
+    <span><i style="background:#d8b64a"></i>trabajando</span>
+    <span><i style="background:#8fd3a7"></i>listo</span>
   </div>
 </div>
 <div id="etiquetas"></div>
 <div id="ficha">arrastrá para girar · rueda para acercar · tocá una esfera</div>
+
+<aside id="panel">
+  <button id="cerrar">×</button>
+  <header>
+    <h2><span class="punto" id="p-punto"></span><span id="p-nombre"></span></h2>
+    <div class="sub" id="p-sub"></div>
+    <div id="barra"><div id="p-barra"></div></div>
+  </header>
+  <div id="chat"></div>
+  <footer>Texto inventado: es una simulación para ver la forma, no una corrida real.</footer>
+</aside>
 
 <script type="importmap">
 { "imports": {
@@ -56,24 +97,75 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
-/* ── EL GRAFO ────────────────────────────────────────────────────────────────────────────────────
- * Prototipo para pensar la forma, no para producción: three viene de un CDN porque acá se abre el
- * archivo y listo. En canon se vendoriza — no hay red que valga en una imagen desplegada.
+/* ── EL GRAFO DE AGENTES ─────────────────────────────────────────────────────────────────────────
+ * Prototipo para pensar la FORMA: three viene de un CDN porque acá se abre el archivo y listo. En
+ * canon se vendoriza — no hay red que valga en una imagen desplegada.
  *
- * La idea: UNA esfera central (el corpus, o la corrida) y una esfera POR AGENTE colgando de ella.
- * Cada agente puede a su vez abrir sub-tareas, que cuelgan de él. Nada de esto está atado a datos
- * todavía: los mandos de arriba cambian la cantidad para ver cómo se comporta la forma. */
+ * Tres ideas de Miguel, que son las que se prueban acá:
+ *   1. El COLOR cuenta el avance: gris (espera) → amarillo (trabajando) → verde (listo).
+ *   2. Cada ITERACIÓN del agente le cuelga un nodo. Si tuvo que dar tres vueltas, se le ven tres.
+ *   3. Al tocarlo se abre su cabeza: el chat de lo que fue pensando, iteración por iteración.
+ *
+ * ⚠ Lo que se ve trabajar es una SIMULACIÓN con texto inventado. Sirve para decidir la forma; el día
+ * que haya agentes de verdad, esto se alimenta de /api/corridas y el texto sale de ellos. */
 
-const AGENTES = ['triaje', 'expediente', 'lector', 'escritor', 'verificador',
-                 'lector 2', 'lector 3', 'lector 4', 'escritor 2', 'verificador 2',
-                 'lector 5', 'lector 6']
-const COLOR_CENTRO = 0xe8e6e1
-const PALETA = [0x8fd3a7, 0x8ab4f8, 0xd8b64a, 0xc5a3e8, 0xe39a9a, 0x7fd4d0]
+const GRIS = new THREE.Color(0x5d6670)
+const AMARILLO = new THREE.Color(0xd8b64a)
+const VERDE = new THREE.Color(0x8fd3a7)
+const BLANCO = new THREE.Color(0xe8e6e1)
+
+const LABORES = [
+  { nombre: 'triaje', que: 'barre lo declarado contra main' },
+  { nombre: 'expediente', que: 'junta commits, PR y diff' },
+  { nombre: 'lector', que: '¿esta sección sigue siendo cierta?' },
+  { nombre: 'escritor', que: 'propone la corrección' },
+  { nombre: 'verificador', que: 'intenta tumbar la afirmación' },
+  { nombre: 'lector 2', que: '¿esta sección sigue siendo cierta?' },
+  { nombre: 'lector 3', que: '¿esta sección sigue siendo cierta?' },
+  { nombre: 'escritor 2', que: 'propone la corrección' },
+  { nombre: 'verificador 2', que: 'intenta tumbar la afirmación' },
+  { nombre: 'lector 4', que: '¿esta sección sigue siendo cierta?' },
+]
+
+/* El guion de la simulación: qué "piensa" cada labor en cada vuelta. Que las iteraciones tengan
+   MOTIVO es el punto — un agente no itera porque sí, itera porque lo que encontró no le alcanzó. */
+const PENSAMIENTOS = {
+  triaje: [
+    'Comparo los 539 archivos declarados contra el árbol de main.',
+    'Uno cambió: el controlador del historial. Reviso a qué tema pertenece.',
+    'Es de cartera, área «el historial del crédito». Paso la lista.',
+  ],
+  expediente: [
+    'Busco los commits que tocaron ese archivo desde el último sello.',
+    'Tres commits, un PR. Traigo su descripción y el diff con rango resuelto.',
+    'El diff mueve dos métodos y agrega una columna. Armo el expediente.',
+  ],
+  lector: [
+    'Leo la sección actual y el diff al lado.',
+    'La prosa dice que el saldo sale de la suma de movimientos. El diff no toca eso.',
+    'Pero agrega una columna que podría entrar en la suma. No me alcanza: pido el archivo entero.',
+    'Con el archivo entero: la columna no entra en el cálculo. La sección sigue siendo cierta.',
+  ],
+  escritor: [
+    'El lector dijo «ya no». Redacto el cambio mínimo.',
+    'El lint rechaza: falta la fecha de verificación. La agrego.',
+    'El lint rechaza: la palabra «entidad» se repite y le roba el puesto a otra sección. Reescribo.',
+    'Pasa el lint. Propongo por la misma puerta que las personas.',
+  ],
+  verificador: [
+    '¿La afirmación nueva está respaldada por un archivo declarado?',
+    'Sí, y el hash coincide con main. Corro el banco de preguntas.',
+    'El banco no bajó: 112 de 112 siguen recuperando entre las tres primeras. Firmo.',
+  ],
+}
+const guion = n => PENSAMIENTOS[n.replace(/ \d+$/, '')] ?? PENSAMIENTOS.lector
 
 const escena = new THREE.Scene()
 escena.background = new THREE.Color(0x0b0d10)
 const camara = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 200)
-camara.position.set(0, 3.2, 13)
+// Una posición inicial de verdad: `encuadrar` ajusta la DISTANCIA sobre este vector, y sobre el
+// vector cero no hay dirección que estirar — la cámara se quedaba dentro de la esfera central.
+camara.position.set(2.5, 3.4, 13)
 const render = new THREE.WebGLRenderer({ antialias: true })
 render.setPixelRatio(devicePixelRatio)
 render.setSize(innerWidth, innerHeight)
@@ -81,143 +173,170 @@ document.body.appendChild(render.domElement)
 const controles = new OrbitControls(camara, render.domElement)
 controles.enableDamping = true
 controles.minDistance = 5
-controles.maxDistance = 40
 
-escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 2.2))
-const luz = new THREE.DirectionalLight(0xffffff, 2); luz.position.set(3, 6, 4); escena.add(luz)
+/* Luz medida, no generosa: con la de antes (2,2 + 2,0) el gris de «espera» salía casi blanco y el
+   color dejaba de contar el avance, que es justamente su trabajo acá. */
+escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 1.15))
+const luz = new THREE.DirectionalLight(0xffffff, 1.15); luz.position.set(3, 6, 4); escena.add(luz)
 
-const capa = new THREE.Group()
-escena.add(capa)
+const capa = new THREE.Group(); escena.add(capa)
 const capaEtq = document.getElementById('etiquetas')
 
-let nodos = []          // {malla, etq, padre, orbita, radio, velocidad, color, nombre, tipo}
-let hilos = []          // {linea, a, b}
-let trabajando = false
+let nodos = [], hilos = [], agentes = [], centro = null
+let corriendo = false, ritmo = 1, elegido = null
 
-/* Los hilos se redibujan cada cuadro: son dos puntos que se mueven, así que la geometría se
-   actualiza en vez de recrearse — recrear una BufferGeometry por cuadro es basura para el recolector. */
-function hilo(a, b, color){
-  const g = new THREE.BufferGeometry().setAttribute('position',
-    new THREE.Float32BufferAttribute(new Array(6).fill(0), 3))
-  const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color, transparent: true, opacity: .5 }))
-  capa.add(l)
-  hilos.push({ linea: l, a, b })
-  return l
-}
-
-/* Repartir N puntos EN UNA ESFERA, parejo: espiral de Fibonacci. Es la diferencia entre un grafo que
-   se lee de un vistazo y uno donde los de atrás quedan tapados por los de adelante — con un círculo
-   plano y una inclinación a ojo, pasaba de cinco agentes y ya se amontonaban de un lado. */
+/* Repartir N puntos en una ESFERA, parejo (Fibonacci). `i + .5` y no `i`: con la variante cruda el
+   primero y el último caen exacto en los polos, y el polo que mira a la cámara queda tapado por la
+   esfera central. */
 function enLaEsfera(i, n, radio){
-  /* `i + .5` y no `i`: con la variante cruda, el primero y el último caen EXACTO en los polos, y el
-     polo que mira a la cámara queda tapado por la esfera central — pasaba con «lector», invisible
-     hasta que el giro lo traía. Con el medio paso ningún punto cae en el eje. */
   const y = 1 - 2 * (i + .5) / n
   const r = Math.sqrt(Math.max(0, 1 - y * y))
-  const ang = i * Math.PI * (3 - Math.sqrt(5))        // ángulo áureo
-  // Y un ladeo fijo para que la estrella no arranque simétrica: se lee mejor que sea un poco irregular.
+  const ang = i * Math.PI * (3 - Math.sqrt(5))
   return new THREE.Vector3(Math.cos(ang) * r, y, Math.sin(ang) * r)
-    .applyAxisAngle(new THREE.Vector3(1, 0, .3).normalize(), .42)
-    .multiplyScalar(radio)
+    .applyAxisAngle(new THREE.Vector3(1, 0, .3).normalize(), .42).multiplyScalar(radio)
 }
 
-function esfera({ radio, color, padre = null, ancla = null, nombre = '', tipo = 'agente', fase = 0 }){
-  const m = new THREE.Mesh(
-    new THREE.IcosahedronGeometry(radio, 4),
-    new THREE.MeshPhongMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(.18),
-      shininess: 40, specular: 0x2a3138 }),
-  )
+/* Los hijos se colocan por su ÍNDICE, no repartidos entre los que hay: si dependiera del total, cada
+   iteración nueva movería a todas las anteriores de lugar y el grafo saltaría en cada vuelta. */
+function juntoAlPadre(j){
+  const ang = j * 2.39996
+  return new THREE.Vector3(Math.cos(ang) * 1.25, ((j % 3) - 1) * .5, Math.sin(ang) * 1.25)
+}
+
+function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' }){
+  const m = new THREE.Mesh(new THREE.IcosahedronGeometry(radio, 4),
+    new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x2a3138 }))
   capa.add(m)
   const etq = document.createElement('div')
-  etq.className = 'etq' + (tipo === 'centro' ? ' centro' : tipo === 'hijo' ? ' tenue' : '')
+  etq.className = 'etq' + (tipo === 'centro' ? ' centro' : tipo === 'hijo' ? ' hijo' : '')
   etq.textContent = nombre
   capaEtq.appendChild(etq)
-  const n = { malla: m, etq, padre, ancla, radio, color, nombre, tipo, fase,
-              vaiven: .07 + Math.random() * .06 }
+  const n = { malla: m, etq, padre, ancla, radio, nombre, tipo,
+              progreso: 0, estado: 'espera', fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
   nodos.push(n)
-  if (padre) hilo(padre, n, color)
+  if (padre){
+    const g = new THREE.BufferGeometry().setAttribute('position',
+      new THREE.Float32BufferAttribute(new Array(6).fill(0), 3))
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ transparent: true, opacity: .45 }))
+    capa.add(l)
+    hilos.push({ linea: l, a: padre, b: n })
+  }
   return n
 }
 
-/* El encuadre se calcula del alcance del grafo, no se deja fijo: con ocho agentes y tres hijos cada
-   uno, la mitad quedaba fuera de pantalla y había que alejarse a mano cada vez que se movía un mando. */
-function encuadrar(hijos){
-  const alcance = 4.3 + (hijos ? 1.2 : 0) + .6
+/* El color ES el avance: gris hasta que arranca, amarillo mientras trabaja, verde cuando termina.
+   Se interpola en dos tramos para que el amarillo sea un ESTADO y no un instante de paso. */
+const colorDe = n => n.tipo === 'centro' ? BLANCO
+  : n.progreso <= .5 ? GRIS.clone().lerp(AMARILLO, n.progreso / .5)
+  : AMARILLO.clone().lerp(VERDE, (n.progreso - .5) / .5)
+
+function construir(cuantos){
+  for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
+  for (const h of hilos) capa.remove(h.linea)
+  nodos = []; hilos = []; agentes = []; elegido = null
+  cerrarPanel()
+
+  centro = nodo({ radio: .9, nombre: 'canon', tipo: 'centro' })
+  centro.progreso = 1
+
+  for (let i = 0; i < cuantos; i++){
+    const l = LABORES[i] ?? { nombre: `agente ${i + 1}`, que: '' }
+    const a = nodo({ radio: .42, padre: centro, ancla: enLaEsfera(i, cuantos, 4.3), nombre: l.nombre })
+    a.que = l.que
+    a.hijos = []
+    a.chat = []
+    a.paso = 0
+    a.espera = .8 + Math.random() * 2.2      // cuándo arranca, para que no salgan todos juntos
+    a.reloj = 0
+    agentes.push(a)
+  }
+  encuadrar()
+}
+
+function encuadrar(){
+  const alcance = 4.3 + 1.5 + .6
   const mitad = Math.tan((camara.fov * Math.PI / 180) / 2)
-  const dist = Math.max(alcance / mitad, alcance / (mitad * camara.aspect)) * 1.12
-  camara.position.setLength(dist)
+  const dist = Math.max(alcance / mitad, alcance / (mitad * camara.aspect)) * 1.1
+  camara.position.setLength(dist || 16)
   controles.maxDistance = dist * 2.5
   controles.update()
 }
 
-function construir(cuantos, hijos){
-  for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
-  for (const h of hilos) capa.remove(h.linea)
-  nodos = []; hilos = []
+/* Una vuelta de trabajo: el agente piensa algo, y si lo que encontró no le alcanza, ITERA — y esa
+   iteración es un nodo nuevo colgando de él. Cuando se le acaba el guion, queda listo (verde). */
+function iterar(a, t){
+  const texto = guion(a.nombre)[a.paso]
+  const ultima = a.paso === guion(a.nombre).length - 1
+  a.chat.push({ tipo: ultima ? 'fin' : 'iter', n: a.paso + 1, texto, t })
+  const h = nodo({ radio: .16, padre: a, ancla: juntoAlPadre(a.hijos.length),
+                   nombre: String(a.hijos.length + 1), tipo: 'hijo' })
+  a.hijos.forEach(x => { x.progreso = 1 })      // las vueltas anteriores ya quedaron cerradas
+  h.progreso = .5
+  a.hijos.push(h)
+  a.paso++
+  a.progreso = Math.min(1, a.paso / guion(a.nombre).length)
+  if (ultima){
+    a.estado = 'listo'
+    a.progreso = 1
+    a.hijos.forEach(x => { x.progreso = 1 })
+  }
+  if (elegido === a) pintarPanel()
+}
 
-  const centro = esfera({ radio: .9, color: COLOR_CENTRO, nombre: 'canon', tipo: 'centro' })
-
-  for (let i = 0; i < cuantos; i++){
-    const color = PALETA[i % PALETA.length]
-    const a = esfera({
-      radio: .42, color, padre: centro, ancla: enLaEsfera(i, cuantos, 4.3),
-      nombre: AGENTES[i] ?? `agente ${i + 1}`, fase: i * 1.7,
-    })
-    // Los hijos cuelgan de SU agente, en su propia esferita: si el lector abre tres sub-tareas, se ve
-    // que son del lector y no del grafo entero.
-    for (let j = 0; j < hijos; j++){
-      esfera({ radio: .17, color, padre: a, ancla: enLaEsfera(j, hijos, 1.2), tipo: 'hijo',
-        nombre: `${j + 1}`, fase: j * 2.1 + i })
+/* El TRABAJO avanza con su propio reloj, aparte del dibujo. No es purismo: el bucle de animación se
+   pausa cuando la pestaña no se ve —lo hace el navegador— y con la simulación colgada de él, volver a
+   la pestaña mostraba a todos los agentes exactamente donde los dejaste, como si el tiempo no hubiera
+   pasado. Un agente que trabaja no deja de trabajar porque nadie lo mire. */
+let ultimoPaso = 0
+setInterval(() => {
+  const ahora = performance.now() / 1000
+  const dt = Math.min(ahora - (ultimoPaso || ahora), .5)
+  ultimoPaso = ahora
+  if (!corriendo) return
+  for (const a of agentes){
+    if (a.estado === 'listo') continue
+    a.reloj += dt * ritmo
+    if (a.estado === 'espera' && a.reloj > a.espera){ a.estado = 'trabajando'; a.reloj = 0; a.proxima = 1.1 }
+    if (a.estado === 'trabajando' && a.reloj > (a.proxima ?? 1.1)){
+      a.reloj = 0
+      a.proxima = .9 + Math.random() * 1.4
+      iterar(a, ahora - arranque)
     }
   }
-}
+}, 100)
+const arranque = performance.now() / 1000
 
 const v = new THREE.Vector3()
-/* Cada nodo se queda EN SU SITIO y respira alrededor de él. Antes orbitaba, y el grafo se volvía un
-   revoltijo donde no se podía seguir a nadie: la estrella tiene que ser estable para leerse, y el
-   movimiento está para que parezca viva, no para mover información. El conjunto entero gira despacio
-   —eso sí— así se ven las tres dimensiones sin tener que arrastrar. */
-function posicionar(n, t){
-  if (!n.padre){ n.malla.position.set(0, 0, 0); return }
-  const amplitud = n.vaiven * (trabajando ? 2.6 : 1)
-  const ritmo = trabajando ? 3.4 : 1.1
-  n.malla.position.copy(n.padre.malla.position).add(n.ancla)
-  n.malla.position.x += Math.sin(t * ritmo + n.fase) * amplitud
-  n.malla.position.y += Math.sin(t * ritmo * .8 + n.fase * 1.7) * amplitud
-  n.malla.position.z += Math.cos(t * ritmo * .9 + n.fase) * amplitud
-}
-
-function proyectar(n){
-  // La posición del nodo es LOCAL a la capa, que gira: sin pasarla a mundo, la etiqueta se queda
-  // donde el nodo estaba antes de girar y se despega del muñeco.
-  n.malla.getWorldPosition(v).project(camara)
-  const dentro = v.z < 1
-  n.etq.style.opacity = dentro ? 1 : 0
-  if (!dentro) return
-  n.etq.style.left = `${(v.x * .5 + .5) * innerWidth}px`
-  n.etq.style.top = `${(-v.y * .5 + .5) * innerHeight - (n.radio * 34 + 12)}px`
-}
-
 const reloj = new THREE.Clock()
 render.setAnimationLoop(() => {
-  const t = reloj.getElapsedTime()
-  capa.rotation.y = t * (trabajando ? .12 : .06)
-  // Los padres primero: un hijo se coloca respecto de dónde quedó el suyo en ESTE cuadro.
-  for (const n of nodos) if (!n.padre) posicionar(n, t)
-  for (const n of nodos) if (n.padre && n.padre.tipo === 'centro') posicionar(n, t)
-  for (const n of nodos) if (n.padre && n.padre.tipo !== 'centro') posicionar(n, t)
+  const dt = Math.min(reloj.getDelta(), .05), t = reloj.getElapsedTime()
+  capa.rotation.y = t * .05
 
+  for (const n of nodos){
+    if (!n.padre){ n.malla.position.set(0, 0, 0) }
+    else {
+      const trabajando = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
+      const amp = n.vaiven * (trabajando ? 2.4 : 1), rit = trabajando ? 3.2 : 1.1
+      n.malla.position.copy(n.padre.malla.position).add(n.ancla)
+      n.malla.position.x += Math.sin(t * rit + n.fase) * amp
+      n.malla.position.y += Math.sin(t * rit * .8 + n.fase * 1.7) * amp
+      n.malla.position.z += Math.cos(t * rit * .9 + n.fase) * amp
+    }
+    const c = colorDe(n)
+    n.malla.material.color.lerp(c, .08)
+    const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
+    n.malla.material.emissive.copy(n.malla.material.color).multiplyScalar(elegido === n ? .5 : late)
+    n.malla.getWorldPosition(v).project(camara)
+    n.etq.style.opacity = v.z < 1 ? 1 : 0
+    n.etq.style.left = `${(v.x * .5 + .5) * innerWidth}px`
+    n.etq.style.top = `${(-v.y * .5 + .5) * innerHeight - (n.radio * 34 + 12)}px`
+  }
   for (const h of hilos){
     const p = h.linea.geometry.attributes.position
     p.setXYZ(0, h.a.malla.position.x, h.a.malla.position.y, h.a.malla.position.z)
     p.setXYZ(1, h.b.malla.position.x, h.b.malla.position.y, h.b.malla.position.z)
     p.needsUpdate = true
-    h.linea.material.opacity = trabajando ? .6 + .25 * Math.sin(t * 6) : .5
-  }
-  for (const n of nodos){
-    proyectar(n)
-    const late = trabajando && n.tipo !== 'centro' ? .18 + .16 * Math.sin(t * 7 + n.fase) : .18
-    n.malla.material.emissive.setHex(n.color).multiplyScalar(late)
+    h.linea.material.color.copy(h.b.malla.material.color)
   }
   controles.update()
   render.render(escena, camara)
@@ -227,34 +346,52 @@ addEventListener('resize', () => {
   camara.aspect = innerWidth / innerHeight
   camara.updateProjectionMatrix()
   render.setSize(innerWidth, innerHeight)
+  encuadrar()
 })
 
+// ── el panel: la cabeza del agente ──────────────────────────────────────────────────────────────
+const $ = s => document.getElementById(s)
+const ESTADO = { espera: 'esperando su turno', trabajando: 'trabajando', listo: 'listo' }
+
+function pintarPanel(){
+  const a = elegido
+  if (!a) return
+  $('p-nombre').textContent = a.nombre
+  $('p-punto').style.background = '#' + colorDe(a).getHexString()
+  $('p-sub').textContent = `${ESTADO[a.estado]} · ${a.hijos.length} iteración(es)${a.que ? ' · ' + a.que : ''}`
+  $('p-barra').style.width = `${Math.round(a.progreso * 100)}%`
+  $('p-barra').style.background = '#' + colorDe(a).getHexString()
+  $('chat').innerHTML = a.chat.length
+    ? a.chat.map(m => `<div class="msg ${m.tipo}">
+        <div class="quien">iteración ${m.n}<span class="t">${m.t.toFixed(1)}s</span></div>
+        <div class="txt">${m.texto}</div></div>`).join('')
+    : '<div class="msg"><div class="txt" style="color:#7d8590">Todavía no empezó. Dale «poner a trabajar».</div></div>'
+  $('chat').scrollTop = $('chat').scrollHeight
+}
+function abrirPanel(n){
+  elegido = n.tipo === 'hijo' ? n.padre : n
+  if (elegido.tipo === 'centro'){ elegido = null; cerrarPanel(); return }
+  $('panel').classList.add('abierto')
+  pintarPanel()
+}
+function cerrarPanel(){ elegido = null; $('panel').classList.remove('abierto') }
+$('cerrar').addEventListener('click', cerrarPanel)
+
 const ray = new THREE.Raycaster(), puntero = new THREE.Vector2()
-const ficha = document.getElementById('ficha')
 render.domElement.addEventListener('click', e => {
   puntero.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
   ray.setFromCamera(puntero, camara)
   const hit = ray.intersectObjects(nodos.map(n => n.malla))[0]
-  if (!hit){ ficha.textContent = 'arrastrá para girar · rueda para acercar · tocá una esfera'; return }
-  const n = nodos.find(x => x.malla === hit.object)
-  const hijos = nodos.filter(x => x.padre === n).length
-  ficha.textContent = n.tipo === 'centro'
-    ? `${n.nombre} — el centro: ${nodos.filter(x => x.padre === n).length} agente(s) colgando`
-    : `${n.nombre} — cuelga de ${n.padre.nombre}${hijos ? ` · abrió ${hijos} sub-tarea(s)` : ''}`
+  if (!hit){ cerrarPanel(); return }
+  abrirPanel(nodos.find(n => n.malla === hit.object))
 })
 
-const $n = document.getElementById('n'), $h = document.getElementById('h')
-const rehacer = () => {
-  document.getElementById('nv').textContent = $n.value
-  document.getElementById('hv').textContent = $h.value
-  construir(+$n.value, +$h.value)
-  encuadrar(+$h.value)
-}
-$n.addEventListener('input', rehacer)
-$h.addEventListener('input', rehacer)
-document.getElementById('trabajar').addEventListener('click', () => { trabajando = true })
-document.getElementById('quieto').addEventListener('click', () => { trabajando = false })
-rehacer()
+const $n = $('n'), $r = $('r')
+$n.addEventListener('input', () => { $('nv').textContent = $n.value; construir(+$n.value); corriendo = false })
+$r.addEventListener('input', () => { ritmo = +$r.value; $('rv').textContent = `${(+$r.value).toFixed(1)}×` })
+$('arrancar').addEventListener('click', () => { corriendo = true })
+$('reiniciar').addEventListener('click', () => { construir(+$n.value); corriendo = false })
+construir(+$n.value)
 </script>
 </body>
 </html>
