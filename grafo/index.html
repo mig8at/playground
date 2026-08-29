@@ -16,23 +16,28 @@
     text-shadow:0 1px 6px #0b0d10,0 0 12px #0b0d10;transition:opacity .2s}
   .etq.centro{font-size:13px;font-weight:600}
   .etq.hijo{font-size:10px;color:#7d8590}
+  .etq.revision{font-size:11.5px;color:#8fd3a7}
 
   #mandos{position:fixed;top:14px;left:14px;z-index:10;background:rgba(13,16,20,.86);
-    border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);width:264px}
-  #mandos h1{font-size:13px;font-weight:600;margin-bottom:2px}
+    border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);width:290px}
+  #mandos h1{font-size:13px;font-weight:600}
   #mandos .sim{display:inline-block;font-size:9.5px;letter-spacing:.06em;color:#d8b64a;
     border:1px solid #463f28;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:1px}
-  #mandos p{font-size:11.5px;color:#7d8590;line-height:1.5;margin:6px 0 9px}
-  #mandos .fila{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:11.5px;color:#9aa3ad}
+  #fase{font-size:11.5px;color:#cfd6dd;margin:8px 0 2px;min-height:1.4em}
+  #fase b{color:#d8b64a}
+  #mandos .fila{display:flex;align-items:center;gap:7px;margin-top:8px;font-size:11.5px;color:#9aa3ad;
+    flex-wrap:wrap}
   #mandos button{background:#0e1116;border:1px solid #2a2f36;color:#cfd6dd;border-radius:7px;
     padding:5px 11px;cursor:pointer;font-size:11.5px}
   #mandos button:hover{border-color:#4a5361}
+  #mandos button:disabled{opacity:.35;cursor:default}
+  #mandos button.peligro{border-color:#4a3535;color:#e39a9a}
   #mandos input[type=range]{flex:1}
   .leyenda{display:flex;gap:11px;margin-top:10px;font-size:10.5px;color:#7d8590}
   .leyenda i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;
     vertical-align:-1px;font-style:normal}
 
-  #panel{position:fixed;top:0;right:0;height:100%;width:min(400px,100vw);z-index:20;
+  #panel{position:fixed;top:0;right:0;height:100%;width:min(410px,100vw);z-index:20;
     background:#11151a;border-left:1px solid #2a2f36;display:flex;flex-direction:column;
     transform:translateX(102%);transition:transform .25s ease}
   #panel.abierto{transform:none}
@@ -48,7 +53,10 @@
   .msg .txt{font-size:12.5px;line-height:1.6;color:#cfd6dd;margin-top:3px}
   .msg.iter .quien{color:#d8b64a}
   .msg.fin .quien{color:#8fd3a7}
+  .msg.reanuda .quien{color:#8ab4f8}
   .msg .t{color:#5d6670;font-size:10px;margin-left:6px}
+  .msg pre{margin-top:6px;background:#0e1116;border:1px solid #2a2f36;border-radius:8px;padding:10px;
+    overflow-x:auto;font-size:11px;line-height:1.55;color:#9aa3ad;white-space:pre-wrap}
   #panel footer{padding:10px 20px 14px;border-top:1px solid #2a2f36;font-size:10.5px;color:#5d6670}
   #cerrar{position:absolute;top:14px;right:14px;background:none;border:none;color:#7d8590;
     font-size:20px;cursor:pointer;line-height:1}
@@ -58,23 +66,24 @@
 <body>
 <div id="mandos">
   <h1>grafo de agentes<span class="sim">SIMULACIÓN</span></h1>
-  <p>Una esfera al centro y una por agente. Mientras trabaja va de <b>gris</b> a
-     <b>amarillo</b> a <b>verde</b>, y cada <b>iteración</b> le cuelga un nodo. Tocá uno
-     para ver en qué está pensando.</p>
-  <div class="fila">agentes <input id="n" type="range" min="1" max="10" value="5"><b id="nv">5</b></div>
-  <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1"><b id="rv">1×</b></div>
+  <div id="fase">Esperando el merge.</div>
   <div class="fila">
-    <button id="arrancar">poner a trabajar</button>
+    <button id="merge">llega un merge a main</button>
     <button id="reiniciar">reiniciar</button>
   </div>
+  <div class="fila">
+    <button id="matar" class="peligro" disabled>matar todo</button>
+    <button id="reanudar" disabled>reanudar desde la revisión</button>
+  </div>
+  <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1.4"><b id="rv">1.4×</b></div>
   <div class="leyenda">
     <span><i style="background:#5d6670"></i>espera</span>
     <span><i style="background:#d8b64a"></i>trabajando</span>
-    <span><i style="background:#8fd3a7"></i>listo</span>
+    <span><i style="background:#8fd3a7"></i>concluido</span>
   </div>
 </div>
 <div id="etiquetas"></div>
-<div id="ficha">arrastrá para girar · rueda para acercar · tocá una esfera</div>
+<div id="ficha">arrastrá para girar · tocá el centro o un agente</div>
 
 <aside id="panel">
   <button id="cerrar">×</button>
@@ -84,7 +93,7 @@
     <div id="barra"><div id="p-barra"></div></div>
   </header>
   <div id="chat"></div>
-  <footer>Texto inventado: es una simulación para ver la forma, no una corrida real.</footer>
+  <footer id="pie">Texto inventado: es una simulación para ver la forma, no una corrida real.</footer>
 </aside>
 
 <script type="importmap">
@@ -98,73 +107,84 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 /* ── EL GRAFO DE AGENTES ─────────────────────────────────────────────────────────────────────────
- * Prototipo para pensar la FORMA: three viene de un CDN porque acá se abre el archivo y listo. En
+ * Prototipo para pensar la FORMA. three viene de un CDN porque acá se abre el archivo y listo; en
  * canon se vendoriza — no hay red que valga en una imagen desplegada.
  *
- * Tres ideas de Miguel, que son las que se prueban acá:
- *   1. El COLOR cuenta el avance: gris (espera) → amarillo (trabajando) → verde (listo).
- *   2. Cada ITERACIÓN del agente le cuelga un nodo. Si tuvo que dar tres vueltas, se le ven tres.
- *   3. Al tocarlo se abre su cabeza: el chat de lo que fue pensando, iteración por iteración.
+ * EL CICLO QUE SE SIMULA, tal como lo pensó Miguel:
+ *   1. Llega un merge a main.
+ *   2. El CENTRO lo lee y planifica: cuántos temas toca, si es un arreglo o una tarea completa, y
+ *      qué le toca a cada agente. El ancla son los archivos, pero lo que decide es el CONTEXTO.
+ *   3. Cada agente trabaja SU tarea: compara lo que hay contra lo que llega, lee lo que necesite, e
+ *      itera hasta concluir. Cada iteración le cuelga un nodo.
+ *   4. Se compacta: lo concluido se guarda EN EL MISMO REPO como una revisión, con el mapa y el
+ *      avance. Si el proceso muere, el que vuelva lee esa revisión y sigue donde se quedó.
  *
- * ⚠ Lo que se ve trabajar es una SIMULACIÓN con texto inventado. Sirve para decidir la forma; el día
- * que haya agentes de verdad, esto se alimenta de /api/corridas y el texto sale de ellos. */
+ * ⚠ Todo el texto es INVENTADO. Sirve para decidir la forma; el día que haya agentes de verdad, esto
+ * se alimenta de /api/corridas y de los archivos de revisión.
+ *
+ * ⚠ Y una nota de diseño que salió al armarlo: el planificador NO lee «todos los README». Los README
+ * envejecen y no dicen qué archivo cumple qué objetivo. Lo que lee es lo que ya es barato y exacto:
+ * el residuo de la ronda (qué archivo declarado cambió y QUÉ TEMA lo declara), la descripción del PR,
+ * el diff, y la prosa de los temas tocados. */
 
 const GRIS = new THREE.Color(0x5d6670)
 const AMARILLO = new THREE.Color(0xd8b64a)
 const VERDE = new THREE.Color(0x8fd3a7)
-const BLANCO = new THREE.Color(0xe8e6e1)
+const AZUL = new THREE.Color(0x8ab4f8)
 
-const LABORES = [
-  { nombre: 'triaje', que: 'barre lo declarado contra main' },
-  { nombre: 'expediente', que: 'junta commits, PR y diff' },
-  { nombre: 'lector', que: '¿esta sección sigue siendo cierta?' },
-  { nombre: 'escritor', que: 'propone la corrección' },
-  { nombre: 'verificador', que: 'intenta tumbar la afirmación' },
-  { nombre: 'lector 2', que: '¿esta sección sigue siendo cierta?' },
-  { nombre: 'lector 3', que: '¿esta sección sigue siendo cierta?' },
-  { nombre: 'escritor 2', que: 'propone la corrección' },
-  { nombre: 'verificador 2', que: 'intenta tumbar la afirmación' },
-  { nombre: 'lector 4', que: '¿esta sección sigue siendo cierta?' },
+// El merge que llega. Es lo único que el planificador recibe "de afuera".
+const MERGE = {
+  sha: '4f2a91c',
+  titulo: 'CORE-431 · cartera: recalcular el plan de pagos al cambiar la fecha, y arreglar el corte semanal',
+  archivos: 23,
+  declarados: 4,   // de esos 23, los que algún tema declara
+}
+
+/* El plan que el centro produce. Cada entrada es una tarea para UN agente, anclada en archivos pero
+   definida por el contexto: qué afirmación del corpus está en juego. */
+const PLAN = [
+  { labor: 'lector', tema: 'cartera', tarea: '¿sigue siendo cierto que el plan de pagos se recalcula en un paso posterior?',
+    clase: 'tarea completa', archivos: ['CreditopXRequestHistoryController.php', 'PaymentPlanService.php'] },
+  { labor: 'lector', tema: 'cartera', tarea: '¿el corte semanal sigue convirtiendo la tasa como dice la prosa?',
+    clase: 'arreglo', archivos: ['CutoffTypeResolver.php'] },
+  { labor: 'lector', tema: 'formalizacion', tarea: '¿el estado «Pendiente firma codeudor» sigue llegando por el mismo camino?',
+    clase: 'arreglo', archivos: ['SignatureFlowService.php'] },
+  { labor: 'escritor', tema: 'cartera', tarea: 'redactar lo que el lector marque como «ya no»',
+    clase: 'tarea completa', archivos: ['—'] },
+  { labor: 'verificador', tema: 'cartera', tarea: 'intentar tumbar lo redactado y correr el banco',
+    clase: 'tarea completa', archivos: ['—'] },
 ]
 
-/* El guion de la simulación: qué "piensa" cada labor en cada vuelta. Que las iteraciones tengan
-   MOTIVO es el punto — un agente no itera porque sí, itera porque lo que encontró no le alcanzó. */
-const PENSAMIENTOS = {
-  triaje: [
-    'Comparo los 539 archivos declarados contra el árbol de main.',
-    'Uno cambió: el controlador del historial. Reviso a qué tema pertenece.',
-    'Es de cartera, área «el historial del crédito». Paso la lista.',
-  ],
-  expediente: [
-    'Busco los commits que tocaron ese archivo desde el último sello.',
-    'Tres commits, un PR. Traigo su descripción y el diff con rango resuelto.',
-    'El diff mueve dos métodos y agrega una columna. Armo el expediente.',
-  ],
+const PENSAR_CENTRO = [
+  `Llegó ${MERGE.sha}: ${MERGE.archivos} archivos. De esos, ${MERGE.declarados} los declara algún tema — el resto no me toca.`,
+  'Leo la descripción del PR y el diff de esos cuatro. Dos tocan cartera, uno formalización.',
+  'Clasifico: el recálculo del plan es una TAREA COMPLETA (cambia el mecanismo); el corte semanal y la firma son ARREGLOS.',
+  'Leo la prosa de los dos temas para saber qué afirmación queda en juego en cada uno.',
+  `Plan listo: ${PLAN.length} tareas. Reparto y quedo mirando.`,
+]
+
+const PENSAR = {
   lector: [
-    'Leo la sección actual y el diff al lado.',
-    'La prosa dice que el saldo sale de la suma de movimientos. El diff no toca eso.',
-    'Pero agrega una columna que podría entrar en la suma. No me alcanza: pido el archivo entero.',
-    'Con el archivo entero: la columna no entra en el cálculo. La sección sigue siendo cierta.',
+    a => `Mi tarea: ${a.tarea}`,
+    a => `Comparo lo que dice el corpus contra el diff de ${a.archivos[0]}.`,
+    () => 'El diff mueve el orden de dos llamadas. Con el fragmento no me alcanza: pido el archivo entero.',
+    () => 'Con el archivo entero ya está claro. Concluyo y dejo la evidencia con su hash.',
   ],
   escritor: [
-    'El lector dijo «ya no». Redacto el cambio mínimo.',
-    'El lint rechaza: falta la fecha de verificación. La agrego.',
-    'El lint rechaza: la palabra «entidad» se repite y le roba el puesto a otra sección. Reescribo.',
-    'Pasa el lint. Propongo por la misma puerta que las personas.',
+    () => 'Tomo lo que los lectores marcaron como «ya no» y redacto el cambio mínimo.',
+    () => 'El lint lo rechaza: falta la fecha de verificación. La agrego.',
+    () => 'Pasa el lint. Propongo por la misma puerta que las personas.',
   ],
   verificador: [
-    '¿La afirmación nueva está respaldada por un archivo declarado?',
-    'Sí, y el hash coincide con main. Corro el banco de preguntas.',
-    'El banco no bajó: 112 de 112 siguen recuperando entre las tres primeras. Firmo.',
+    () => '¿La afirmación nueva está respaldada por un archivo declarado? Sí, y el hash coincide con main.',
+    () => 'Corro el banco de preguntas: 112 de 112 siguen recuperando entre las tres primeras.',
+    () => 'No pude tumbarla. Firmo y el cambio queda listo para el PR.',
   ],
 }
-const guion = n => PENSAMIENTOS[n.replace(/ \d+$/, '')] ?? PENSAMIENTOS.lector
 
 const escena = new THREE.Scene()
 escena.background = new THREE.Color(0x0b0d10)
 const camara = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 200)
-// Una posición inicial de verdad: `encuadrar` ajusta la DISTANCIA sobre este vector, y sobre el
-// vector cero no hay dirección que estirar — la cámara se quedaba dentro de la esfera central.
 camara.position.set(2.5, 3.4, 13)
 const render = new THREE.WebGLRenderer({ antialias: true })
 render.setPixelRatio(devicePixelRatio)
@@ -174,20 +194,17 @@ const controles = new OrbitControls(camara, render.domElement)
 controles.enableDamping = true
 controles.minDistance = 5
 
-/* Luz medida, no generosa: con la de antes (2,2 + 2,0) el gris de «espera» salía casi blanco y el
-   color dejaba de contar el avance, que es justamente su trabajo acá. */
 escena.add(new THREE.HemisphereLight(0xbcc7d1, 0x30363d, 1.15))
 const luz = new THREE.DirectionalLight(0xffffff, 1.15); luz.position.set(3, 6, 4); escena.add(luz)
 
 const capa = new THREE.Group(); escena.add(capa)
 const capaEtq = document.getElementById('etiquetas')
+const $ = s => document.getElementById(s)
 
-let nodos = [], hilos = [], agentes = [], centro = null
-let corriendo = false, ritmo = 1, elegido = null
+let nodos = [], hilos = [], agentes = [], centro = null, revision = null
+let fase = 'quieto', ritmo = 1.4, elegido = null, t0 = performance.now() / 1000
+let guardado = null              // lo último "escrito en el repo": de acá se reanuda
 
-/* Repartir N puntos en una ESFERA, parejo (Fibonacci). `i + .5` y no `i`: con la variante cruda el
-   primero y el último caen exacto en los polos, y el polo que mira a la cámara queda tapado por la
-   esfera central. */
 function enLaEsfera(i, n, radio){
   const y = 1 - 2 * (i + .5) / n
   const r = Math.sqrt(Math.max(0, 1 - y * y))
@@ -195,24 +212,20 @@ function enLaEsfera(i, n, radio){
   return new THREE.Vector3(Math.cos(ang) * r, y, Math.sin(ang) * r)
     .applyAxisAngle(new THREE.Vector3(1, 0, .3).normalize(), .42).multiplyScalar(radio)
 }
-
-/* Los hijos se colocan por su ÍNDICE, no repartidos entre los que hay: si dependiera del total, cada
-   iteración nueva movería a todas las anteriores de lugar y el grafo saltaría en cada vuelta. */
-function juntoAlPadre(j){
-  const ang = j * 2.39996
-  return new THREE.Vector3(Math.cos(ang) * 1.25, ((j % 3) - 1) * .5, Math.sin(ang) * 1.25)
-}
+// Por ÍNDICE y no repartidos entre los que hay: si dependiera del total, cada iteración nueva movería
+// a todas las anteriores y el grafo saltaría en cada vuelta.
+const juntoAlPadre = j => new THREE.Vector3(Math.cos(j * 2.39996) * 1.25, ((j % 3) - 1) * .5, Math.sin(j * 2.39996) * 1.25)
 
 function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' }){
   const m = new THREE.Mesh(new THREE.IcosahedronGeometry(radio, 4),
     new THREE.MeshPhongMaterial({ shininess: 40, specular: 0x2a3138 }))
   capa.add(m)
   const etq = document.createElement('div')
-  etq.className = 'etq' + (tipo === 'centro' ? ' centro' : tipo === 'hijo' ? ' hijo' : '')
+  etq.className = 'etq' + (tipo === 'agente' ? '' : ' ' + tipo)
   etq.textContent = nombre
   capaEtq.appendChild(etq)
-  const n = { malla: m, etq, padre, ancla, radio, nombre, tipo,
-              progreso: 0, estado: 'espera', fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
+  const n = { malla: m, etq, padre, ancla, radio, nombre, tipo, progreso: 0, estado: 'espera',
+              chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
   nodos.push(n)
   if (padre){
     const g = new THREE.BufferGeometry().setAttribute('position',
@@ -224,32 +237,25 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
   return n
 }
 
-/* El color ES el avance: gris hasta que arranca, amarillo mientras trabaja, verde cuando termina.
-   Se interpola en dos tramos para que el amarillo sea un ESTADO y no un instante de paso. */
-const colorDe = n => n.tipo === 'centro' ? BLANCO
+/* El color ES el avance: gris hasta que arranca, amarillo mientras trabaja, verde cuando concluye.
+   Dos tramos para que el amarillo sea un ESTADO y no un instante de paso. */
+const colorDe = n => n.tipo === 'revision' ? VERDE
   : n.progreso <= .5 ? GRIS.clone().lerp(AMARILLO, n.progreso / .5)
   : AMARILLO.clone().lerp(VERDE, (n.progreso - .5) / .5)
 
-function construir(cuantos){
+const ahora = () => performance.now() / 1000 - t0
+const decir = (n, tipo, texto, extra) => {
+  n.chat.push({ tipo, n: n.chat.length + 1, texto, extra, t: ahora() })
+  if (elegido === n) pintarPanel()
+}
+
+function limpiar(){
   for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
   for (const h of hilos) capa.remove(h.linea)
-  nodos = []; hilos = []; agentes = []; elegido = null
+  nodos = []; hilos = []; agentes = []; revision = null; elegido = null
   cerrarPanel()
-
   centro = nodo({ radio: .9, nombre: 'canon', tipo: 'centro' })
-  centro.progreso = 1
-
-  for (let i = 0; i < cuantos; i++){
-    const l = LABORES[i] ?? { nombre: `agente ${i + 1}`, que: '' }
-    const a = nodo({ radio: .42, padre: centro, ancla: enLaEsfera(i, cuantos, 4.3), nombre: l.nombre })
-    a.que = l.que
-    a.hijos = []
-    a.chat = []
-    a.paso = 0
-    a.espera = .8 + Math.random() * 2.2      // cuándo arranca, para que no salgan todos juntos
-    a.reloj = 0
-    agentes.push(a)
-  }
+  centro.tarea = 'leer el merge, clasificarlo y repartir'
   encuadrar()
 }
 
@@ -257,73 +263,124 @@ function encuadrar(){
   const alcance = 4.3 + 1.5 + .6
   const mitad = Math.tan((camara.fov * Math.PI / 180) / 2)
   const dist = Math.max(alcance / mitad, alcance / (mitad * camara.aspect)) * 1.1
-  camara.position.setLength(dist || 16)
+  camara.position.setLength(dist)
   controles.maxDistance = dist * 2.5
   controles.update()
 }
 
-/* Una vuelta de trabajo: el agente piensa algo, y si lo que encontró no le alcanza, ITERA — y esa
-   iteración es un nodo nuevo colgando de él. Cuando se le acaba el guion, queda listo (verde). */
-function iterar(a, t){
-  const texto = guion(a.nombre)[a.paso]
-  const ultima = a.paso === guion(a.nombre).length - 1
-  a.chat.push({ tipo: ultima ? 'fin' : 'iter', n: a.paso + 1, texto, t })
+function repartir(){
+  PLAN.forEach((p, i) => {
+    const a = nodo({ radio: .42, padre: centro, ancla: enLaEsfera(i, PLAN.length, 4.3),
+                     nombre: `${p.labor} · ${p.tema}` })
+    Object.assign(a, p)
+    a.espera = .3 + i * .35
+    agentes.push(a)
+  })
+}
+
+/* Una vuelta de trabajo. El agente itera cuando lo que tiene NO LE ALCANZA — no porque sí: esa es la
+   diferencia entre un número de vueltas que informa y uno decorativo. */
+function iterar(a){
+  const guion = PENSAR[a.labor] ?? PENSAR.lector
+  const texto = guion[a.paso](a)
+  const ultima = a.paso === guion.length - 1
+  decir(a, ultima ? 'fin' : 'iter', texto)
   const h = nodo({ radio: .16, padre: a, ancla: juntoAlPadre(a.hijos.length),
                    nombre: String(a.hijos.length + 1), tipo: 'hijo' })
-  a.hijos.forEach(x => { x.progreso = 1 })      // las vueltas anteriores ya quedaron cerradas
+  a.hijos.forEach(x => { x.progreso = 1 })
   h.progreso = .5
   a.hijos.push(h)
   a.paso++
-  a.progreso = Math.min(1, a.paso / guion(a.nombre).length)
-  if (ultima){
-    a.estado = 'listo'
-    a.progreso = 1
-    a.hijos.forEach(x => { x.progreso = 1 })
-  }
-  if (elegido === a) pintarPanel()
+  a.progreso = Math.min(1, a.paso / guion.length)
+  if (ultima){ a.estado = 'listo'; a.progreso = 1; a.hijos.forEach(x => { x.progreso = 1 }) }
 }
 
-/* El TRABAJO avanza con su propio reloj, aparte del dibujo. No es purismo: el bucle de animación se
-   pausa cuando la pestaña no se ve —lo hace el navegador— y con la simulación colgada de él, volver a
-   la pestaña mostraba a todos los agentes exactamente donde los dejaste, como si el tiempo no hubiera
-   pasado. Un agente que trabaja no deja de trabajar porque nadie lo mire. */
-let ultimoPaso = 0
+/* LA COMPACTACIÓN. Lo concluido se escribe en el MISMO repositorio: un archivo de revisión con el
+   mapa de lo que se miró, el veredicto de cada tarea y por dónde iba cada uno. No es un adorno —
+   es la memoria: si esto se muere a la mitad, el que vuelva lee este archivo y sigue. */
+function compactar(){
+  const lineas = agentes.map(a =>
+    `- [${a.estado === 'listo' ? 'x' : ' '}] ${a.labor} · ${a.tema} — ${a.tarea}\n` +
+    `      iteraciones: ${a.hijos.length} · archivos: ${a.archivos.join(', ')}`)
+  guardado = {
+    ruta: `revisiones/${MERGE.sha}.md`,
+    texto: `# Revisión de ${MERGE.sha}\n\n${MERGE.titulo}\n\n` +
+           `${MERGE.archivos} archivos, ${MERGE.declarados} declarados · plan de ${PLAN.length} tareas\n\n` +
+           lineas.join('\n') + `\n\nestado: ${agentes.every(a => a.estado === 'listo') ? 'completa' : 'a medias'}`,
+    avance: agentes.map(a => ({ nombre: a.nombre, paso: a.paso, estado: a.estado, chat: a.chat.slice() })),
+  }
+  revision = nodo({ radio: .5, padre: centro, ancla: new THREE.Vector3(0, -4.6, 0),
+                    nombre: guardado.ruta, tipo: 'revision' })
+  revision.progreso = 1
+  revision.estado = 'listo'
+  revision.tarea = 'la memoria de esta corrida, en el mismo repo'
+  decir(revision, 'fin', 'Escrito en el repositorio junto al PR. Si esto se cae, de acá se reanuda.', guardado.texto)
+  decir(centro, 'fin', `Compacté todo en ${guardado.ruta}: el mapa, el veredicto de cada tarea y por dónde iba cada uno.`)
+  $('reanudar').disabled = false
+}
+
+// ── el reloj del TRABAJO, aparte del dibujo ─────────────────────────────────────────────────────
+/* El bucle de animación lo pausa el navegador cuando la pestaña no se ve. Con el trabajo colgado de
+   él, al volver estaba todo como lo dejaste: un agente que trabaja no deja de trabajar porque nadie
+   lo mire. */
+let ultimo = 0
 setInterval(() => {
-  const ahora = performance.now() / 1000
-  const dt = Math.min(ahora - (ultimoPaso || ahora), .5)
-  ultimoPaso = ahora
-  if (!corriendo) return
-  for (const a of agentes){
-    if (a.estado === 'listo') continue
-    a.reloj += dt * ritmo
-    if (a.estado === 'espera' && a.reloj > a.espera){ a.estado = 'trabajando'; a.reloj = 0; a.proxima = 1.1 }
-    if (a.estado === 'trabajando' && a.reloj > (a.proxima ?? 1.1)){
-      a.reloj = 0
-      a.proxima = .9 + Math.random() * 1.4
-      iterar(a, ahora - arranque)
+  const t = performance.now() / 1000
+  const dt = Math.min(t - (ultimo || t), .5); ultimo = t
+  if (fase === 'quieto' || fase === 'listo') return
+
+  if (fase === 'planificando'){
+    centro.reloj += dt * ritmo
+    if (centro.reloj > .9){
+      centro.reloj = 0
+      decir(centro, centro.paso === PENSAR_CENTRO.length - 1 ? 'fin' : 'iter', PENSAR_CENTRO[centro.paso])
+      centro.paso++
+      centro.progreso = centro.paso / PENSAR_CENTRO.length
+      if (centro.paso === PENSAR_CENTRO.length){
+        centro.estado = 'listo'
+        repartir()
+        fase = 'trabajando'
+        $('fase').innerHTML = `<b>Trabajando.</b> ${PLAN.length} tareas repartidas — cada iteración cuelga un nodo.`
+      }
+    }
+    return
+  }
+
+  if (fase === 'trabajando'){
+    for (const a of agentes){
+      if (a.estado === 'listo') continue
+      a.reloj += dt * ritmo
+      if (a.estado === 'espera' && a.reloj > a.espera){ a.estado = 'trabajando'; a.reloj = 0; a.proxima = .9 }
+      if (a.estado === 'trabajando' && a.reloj > (a.proxima ?? .9)){
+        a.reloj = 0; a.proxima = .8 + Math.random() * 1.1
+        iterar(a)
+      }
+    }
+    if (agentes.every(a => a.estado === 'listo')){
+      fase = 'listo'
+      compactar()
+      $('fase').innerHTML = `<b>Compactado.</b> Todo concluido y guardado en <code>${guardado.ruta}</code>.`
+      $('matar').disabled = false
     }
   }
 }, 100)
-const arranque = performance.now() / 1000
 
 const v = new THREE.Vector3()
 const reloj = new THREE.Clock()
 render.setAnimationLoop(() => {
-  const dt = Math.min(reloj.getDelta(), .05), t = reloj.getElapsedTime()
+  const t = reloj.getElapsedTime()
   capa.rotation.y = t * .05
-
   for (const n of nodos){
-    if (!n.padre){ n.malla.position.set(0, 0, 0) }
+    if (!n.padre) n.malla.position.set(0, 0, 0)
     else {
-      const trabajando = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
-      const amp = n.vaiven * (trabajando ? 2.4 : 1), rit = trabajando ? 3.2 : 1.1
+      const trab = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
+      const amp = n.vaiven * (trab ? 2.4 : 1), rit = trab ? 3.2 : 1.1
       n.malla.position.copy(n.padre.malla.position).add(n.ancla)
       n.malla.position.x += Math.sin(t * rit + n.fase) * amp
       n.malla.position.y += Math.sin(t * rit * .8 + n.fase * 1.7) * amp
       n.malla.position.z += Math.cos(t * rit * .9 + n.fase) * amp
     }
-    const c = colorDe(n)
-    n.malla.material.color.lerp(c, .08)
+    n.malla.material.color.lerp(colorDe(n), .08)
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
     n.malla.material.emissive.copy(n.malla.material.color).multiplyScalar(elegido === n ? .5 : late)
     n.malla.getWorldPosition(v).project(camara)
@@ -341,7 +398,6 @@ render.setAnimationLoop(() => {
   controles.update()
   render.render(escena, camara)
 })
-
 addEventListener('resize', () => {
   camara.aspect = innerWidth / innerHeight
   camara.updateProjectionMatrix()
@@ -349,28 +405,27 @@ addEventListener('resize', () => {
   encuadrar()
 })
 
-// ── el panel: la cabeza del agente ──────────────────────────────────────────────────────────────
-const $ = s => document.getElementById(s)
-const ESTADO = { espera: 'esperando su turno', trabajando: 'trabajando', listo: 'listo' }
-
+// ── el panel: la cabeza de cada uno ─────────────────────────────────────────────────────────────
+const ESTADO = { espera: 'esperando su turno', trabajando: 'trabajando', listo: 'concluido' }
 function pintarPanel(){
-  const a = elegido
-  if (!a) return
-  $('p-nombre').textContent = a.nombre
-  $('p-punto').style.background = '#' + colorDe(a).getHexString()
-  $('p-sub').textContent = `${ESTADO[a.estado]} · ${a.hijos.length} iteración(es)${a.que ? ' · ' + a.que : ''}`
-  $('p-barra').style.width = `${Math.round(a.progreso * 100)}%`
-  $('p-barra').style.background = '#' + colorDe(a).getHexString()
-  $('chat').innerHTML = a.chat.length
-    ? a.chat.map(m => `<div class="msg ${m.tipo}">
-        <div class="quien">iteración ${m.n}<span class="t">${m.t.toFixed(1)}s</span></div>
-        <div class="txt">${m.texto}</div></div>`).join('')
-    : '<div class="msg"><div class="txt" style="color:#7d8590">Todavía no empezó. Dale «poner a trabajar».</div></div>'
+  const n = elegido
+  if (!n) return
+  $('p-nombre').textContent = n.tipo === 'centro' ? 'canon · el que reparte' : n.nombre
+  $('p-punto').style.background = '#' + colorDe(n).getHexString()
+  $('p-sub').textContent = n.tipo === 'revision'
+    ? n.tarea
+    : `${ESTADO[n.estado]}${n.hijos.length ? ` · ${n.hijos.length} iteración(es)` : ''}${n.tarea ? ' · ' + n.tarea : ''}`
+  $('p-barra').style.width = `${Math.round(n.progreso * 100)}%`
+  $('p-barra').style.background = '#' + colorDe(n).getHexString()
+  $('chat').innerHTML = n.chat.length
+    ? n.chat.map(m => `<div class="msg ${m.tipo}">
+        <div class="quien">${m.tipo === 'reanuda' ? 'reanudado' : 'iteración ' + m.n}<span class="t">${m.t.toFixed(1)}s</span></div>
+        <div class="txt">${m.texto}</div>${m.extra ? `<pre>${m.extra}</pre>` : ''}</div>`).join('')
+    : '<div class="msg"><div class="txt" style="color:#7d8590">Todavía no empezó.</div></div>'
   $('chat').scrollTop = $('chat').scrollHeight
 }
 function abrirPanel(n){
   elegido = n.tipo === 'hijo' ? n.padre : n
-  if (elegido.tipo === 'centro'){ elegido = null; cerrarPanel(); return }
   $('panel').classList.add('abierto')
   pintarPanel()
 }
@@ -386,12 +441,54 @@ render.domElement.addEventListener('click', e => {
   abrirPanel(nodos.find(n => n.malla === hit.object))
 })
 
-const $n = $('n'), $r = $('r')
-$n.addEventListener('input', () => { $('nv').textContent = $n.value; construir(+$n.value); corriendo = false })
-$r.addEventListener('input', () => { ritmo = +$r.value; $('rv').textContent = `${(+$r.value).toFixed(1)}×` })
-$('arrancar').addEventListener('click', () => { corriendo = true })
-$('reiniciar').addEventListener('click', () => { construir(+$n.value); corriendo = false })
-construir(+$n.value)
+// ── los mandos ──────────────────────────────────────────────────────────────────────────────────
+$('merge').addEventListener('click', () => {
+  limpiar(); t0 = performance.now() / 1000
+  fase = 'planificando'
+  centro.estado = 'trabajando'
+  $('fase').innerHTML = `<b>Leyendo el merge.</b> <code>${MERGE.sha}</code> · ${MERGE.archivos} archivos`
+  $('matar').disabled = true; $('reanudar').disabled = true
+  abrirPanel(centro)
+})
+$('reiniciar').addEventListener('click', () => {
+  limpiar(); fase = 'quieto'; guardado = null
+  $('fase').textContent = 'Esperando el merge.'
+  $('matar').disabled = true; $('reanudar').disabled = true
+})
+/* MATAR Y REANUDAR: la prueba de que la revisión ES la memoria. Se borra todo lo que había en
+   marcha —como si el proceso se hubiera caído— y lo único que queda es el archivo guardado. */
+$('matar').addEventListener('click', () => {
+  limpiar(); fase = 'quieto'
+  $('fase').innerHTML = '<b>Se cayó todo.</b> No quedó nada en memoria — sólo el archivo en el repo.'
+})
+$('reanudar').addEventListener('click', () => {
+  if (!guardado) return
+  limpiar(); t0 = performance.now() / 1000
+  centro.estado = 'listo'; centro.progreso = 1
+  decir(centro, 'reanuda', `Leo ${guardado.ruta} y reconstruyo: sé qué se concluyó y por dónde iba cada uno.`, guardado.texto)
+  repartir()
+  // Cada agente vuelve exactamente donde estaba: sus iteraciones, su chat y su veredicto.
+  guardado.avance.forEach((g, i) => {
+    const a = agentes[i]
+    a.paso = g.paso; a.estado = g.estado
+    a.progreso = Math.min(1, g.paso / ((PENSAR[a.labor] ?? PENSAR.lector).length))
+    a.chat = g.chat.slice()
+    decir(a, 'reanuda', `Reanudado desde ${guardado.ruta}: iba por la iteración ${g.paso}.`)
+    for (let j = 0; j < g.paso; j++){
+      const h = nodo({ radio: .16, padre: a, ancla: juntoAlPadre(j), nombre: String(j + 1), tipo: 'hijo' })
+      h.progreso = 1
+      a.hijos.push(h)
+    }
+  })
+  fase = agentes.every(a => a.estado === 'listo') ? 'listo' : 'trabajando'
+  if (fase === 'listo') compactar()
+  $('fase').innerHTML = '<b>Reanudado.</b> Nadie repitió trabajo: el avance salió del archivo.'
+  $('matar').disabled = false
+  abrirPanel(centro)
+})
+$('r').addEventListener('input', e => { ritmo = +e.target.value; $('rv').textContent = `${ritmo.toFixed(1)}×` })
+
+limpiar()
 </script>
 </body>
 </html>
