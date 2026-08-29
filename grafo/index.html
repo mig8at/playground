@@ -293,7 +293,7 @@ const capa = new THREE.Group(); escena.add(capa)
 const $ = s => document.getElementById(s)
 
 let nodos = [], agentes = [], cola = [], centro = null, revision = null
-let fase = 'quieto', ritmo = 1.4, elegido = null, t0 = performance.now() / 1000
+let fase = 'quieto', ritmo = 1.4, elegido = null, encima = null, t0 = performance.now() / 1000
 let guardado = null              // lo último "escrito en el repo": de acá se reanuda
 
 function enLaEsfera(i, n, radio){
@@ -341,7 +341,8 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
   m.material.normalScale.set(.7, .7)
   capa.add(m)
   const n = { malla: m, padre, ancla, radio, nombre, tipo, progreso: 0, estado: 'espera',
-              chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
+              chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05,
+              tOrb: 0 }   // su propio reloj de órbita: se detiene cuando lo señalás
   if (padre && ancla) n.orbita = orbita(ancla, ancla.length(), nodos.length, tipo === 'hijo')
   nodos.push(n)
   return n
@@ -531,24 +532,47 @@ setInterval(() => {
 
 const v = new THREE.Vector3()
 const reloj = new THREE.Clock()
+let giro = 0
+
+/* QUIETO AL SEÑALARLO. Cada nodo lleva su PROPIO reloj de órbita, y al pasar el ratón se le detiene:
+ * congela el que señalás, sus lunas (si no, se le escapan) y sus padres (si no, el padre se lo lleva
+ * puesto). Todo lo demás sigue girando.
+ *
+ * ⚠ Y el giro del CONJUNTO también se frena, porque si no, la bola sigue cruzando la pantalla aunque
+ * su órbita esté detenida — y lo que uno quiere al apuntarle es leerla y hacerle click sin perseguirla.
+ *
+ * El reloj de los LATIDOS no se detiene nunca: la bola queda quieta, pero sigue viva. */
+const congelado = n => {
+  if (!encima) return false
+  if (n === encima) return true
+  for (let p = encima.padre; p; p = p.padre) if (p === n) return true        // es su padre
+  for (let p = n.padre; p; p = p.padre) if (p === encima) return true        // es su luna
+  return false
+}
+
 render.setAnimationLoop(() => {
-  const t = reloj.getElapsedTime()
-  capa.rotation.y = t * .05
+  const dt = Math.min(reloj.getDelta(), .05)
+  const t = reloj.elapsedTime
+  if (!encima) giro += dt * .05
+  capa.rotation.y = giro
   for (const n of nodos){
     if (!n.padre) n.malla.position.set(0, 0, 0)
     else {
       const trab = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
       const amp = n.vaiven * (trab ? 2.4 : 1), rit = trab ? 3.2 : 1.1
+      if (!congelado(n)) n.tOrb += dt * (trab ? 1.45 : 1)
+      const to = n.tOrb
       // Orbita alrededor de su padre; el que trabaja gira un poco más rápido, y encima respira.
       n.malla.position.copy(n.padre.malla.position)
-        .add(n.orbita ? puntoEnOrbita(n.orbita, t * (trab ? 1.45 : 1)) : n.ancla)
-      n.malla.position.x += Math.sin(t * rit + n.fase) * amp
-      n.malla.position.y += Math.sin(t * rit * .8 + n.fase * 1.7) * amp
-      n.malla.position.z += Math.cos(t * rit * .9 + n.fase) * amp
+        .add(n.orbita ? puntoEnOrbita(n.orbita, to) : n.ancla)
+      n.malla.position.x += Math.sin(to * rit + n.fase) * amp
+      n.malla.position.y += Math.sin(to * rit * .8 + n.fase * 1.7) * amp
+      n.malla.position.z += Math.cos(to * rit * .9 + n.fase) * amp
     }
     n.malla.material.color.lerp(colorDe(n), .08)
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
-    n.malla.material.emissive.copy(n.malla.material.color).multiplyScalar(elegido === n ? .5 : late)
+    n.malla.material.emissive.copy(n.malla.material.color)
+      .multiplyScalar(elegido === n ? .5 : encima === n ? .38 : late)
   }
   // El cartelito sigue a la bola señalada, que se mueve: se recoloca cada cuadro, no al pasar el mouse.
   if (encima && nodos.includes(encima)){
@@ -609,7 +633,7 @@ function cerrarPanel(){ elegido = null; $('panel').classList.remove('abierto') }
 $('cerrar').addEventListener('click', cerrarPanel)
 
 const ray = new THREE.Raycaster(), puntero = new THREE.Vector2()
-let encima = null, ultimoHover = 0
+let ultimoHover = 0
 const bajoElPuntero = e => {
   puntero.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
   ray.setFromCamera(puntero, camara)
