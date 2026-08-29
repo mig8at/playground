@@ -11,12 +11,14 @@
   canvas{display:block}
   code{background:#1a2029;border-radius:4px;padding:1px 5px;font-size:.9em}
 
-  #etiquetas{position:fixed;inset:0;pointer-events:none;z-index:5}
-  .etq{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-size:11.5px;
-    text-shadow:0 1px 6px #0b0d10,0 0 12px #0b0d10;transition:opacity .2s}
-  .etq.centro{font-size:13px;font-weight:600}
-  .etq.hijo{font-size:10px;color:#7d8590}
-  .etq.revision{font-size:11.5px;color:#8fd3a7}
+  /* Sin nombres colgando de cada bola: veinte carteles flotando tapaban justo lo que informa, que es
+     el color. Queda UNO solo, el de lo que estás señalando. */
+  #tip{position:fixed;transform:translate(-50%,-100%);white-space:nowrap;font-size:11.5px;z-index:6;
+    pointer-events:none;opacity:0;transition:opacity .15s;
+    background:rgba(13,16,20,.9);border:1px solid #2a2f36;border-radius:7px;padding:3px 9px}
+  #tip.si{opacity:1}
+  #tip b{font-weight:600}
+  #tip span{color:#7d8590;margin-left:6px}
 
   #mandos{position:fixed;top:14px;left:14px;z-index:10;background:rgba(13,16,20,.86);
     border:1px solid #2a2f36;border-radius:10px;padding:12px 14px;backdrop-filter:blur(6px);width:290px}
@@ -58,6 +60,17 @@
   .msg pre{margin-top:6px;background:#0e1116;border:1px solid #2a2f36;border-radius:8px;padding:10px;
     overflow-x:auto;font-size:11px;line-height:1.55;color:#9aa3ad;white-space:pre-wrap}
   #panel footer{padding:10px 20px 14px;border-top:1px solid #2a2f36;font-size:10.5px;color:#5d6670}
+  /* El listado de lo que el centro levantó: es la forma de ENTRAR a la corrida de cada uno sin tener
+     que cazar su bola en el espacio. */
+  #lista{border-top:1px solid #2a2f36;padding:12px 20px;max-height:42%;overflow-y:auto}
+  #lista .rot{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#7d8590;margin-bottom:7px}
+  #lista .ag{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;cursor:pointer;
+    font-size:12px}
+  #lista .ag:hover{background:#161b21}
+  #lista .ag i{width:9px;height:9px;border-radius:50%;flex:none}
+  #lista .ag .n{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #lista .ag .d{color:#5d6670;font-size:11px;flex:none}
+  #lista .cola{font-size:11px;color:#5d6670;padding:6px 8px}
   #cerrar{position:absolute;top:14px;right:14px;background:none;border:none;color:#7d8590;
     font-size:20px;cursor:pointer;line-height:1}
   #ficha{position:fixed;bottom:14px;left:14px;z-index:10;font-size:11.5px;color:#7d8590}
@@ -85,7 +98,7 @@
     <span><i style="background:#8fd3a7"></i>concluido</span>
   </div>
 </div>
-<div id="etiquetas"></div>
+<div id="tip"></div>
 <div id="ficha">arrastrá para girar · tocá el centro o un agente</div>
 
 <aside id="panel">
@@ -96,6 +109,7 @@
     <div id="barra"><div id="p-barra"></div></div>
   </header>
   <div id="chat"></div>
+  <div id="lista"></div>
   <footer id="pie">Texto inventado: es una simulación para ver la forma, no una corrida real.</footer>
 </aside>
 
@@ -276,7 +290,6 @@ new THREE.ImageLoader().load('tex/basecolor.jpg', img => {
 })
 
 const capa = new THREE.Group(); escena.add(capa)
-const capaEtq = document.getElementById('etiquetas')
 const $ = s => document.getElementById(s)
 
 let nodos = [], agentes = [], cola = [], centro = null, revision = null
@@ -327,11 +340,7 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
       roughness: 1, metalness: 0 }))
   m.material.normalScale.set(.7, .7)
   capa.add(m)
-  const etq = document.createElement('div')
-  etq.className = 'etq' + (tipo === 'agente' ? '' : ' ' + tipo)
-  etq.textContent = nombre
-  capaEtq.appendChild(etq)
-  const n = { malla: m, etq, padre, ancla, radio, nombre, tipo, progreso: 0, estado: 'espera',
+  const n = { malla: m, padre, ancla, radio, nombre, tipo, progreso: 0, estado: 'espera',
               chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
   if (padre && ancla) n.orbita = orbita(ancla, ancla.length(), nodos.length, tipo === 'hijo')
   nodos.push(n)
@@ -362,7 +371,7 @@ const decir = (n, tipo, texto, extra) => {
 }
 
 function limpiar(){
-  for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
+  for (const n of nodos) capa.remove(n.malla)
   nodos = []; agentes = []; cola = []; revision = null; elegido = null
   cerrarPanel()
   centro = nodo({ radio: .9, nombre: 'canon', tipo: 'centro' })
@@ -508,6 +517,7 @@ setInterval(() => {
       }
     }
     centro.progreso = progresoDelCentro()
+    if (elegido === centro) pintarPanel()
     $('fase').innerHTML = `<b>Trabajando.</b> ${vivos()} vivo(s) · ${agentes.filter(a => a.estado === 'listo').length} entregado(s)${cola.length ? ` · ${cola.length} en cola` : ''} — techo de ${MAX_AGENTES}.`
     if (!cola.length && agentes.every(a => a.estado === 'listo')){
       centro.estado = 'listo'; centro.progreso = 1
@@ -539,10 +549,12 @@ render.setAnimationLoop(() => {
     n.malla.material.color.lerp(colorDe(n), .08)
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
     n.malla.material.emissive.copy(n.malla.material.color).multiplyScalar(elegido === n ? .5 : late)
-    n.malla.getWorldPosition(v).project(camara)
-    n.etq.style.opacity = v.z < 1 ? 1 : 0
-    n.etq.style.left = `${(v.x * .5 + .5) * innerWidth}px`
-    n.etq.style.top = `${(-v.y * .5 + .5) * innerHeight - (n.radio * 34 + 12)}px`
+  }
+  // El cartelito sigue a la bola señalada, que se mueve: se recoloca cada cuadro, no al pasar el mouse.
+  if (encima && nodos.includes(encima)){
+    encima.malla.getWorldPosition(v).project(camara)
+    $('tip').style.left = `${(v.x * .5 + .5) * innerWidth}px`
+    $('tip').style.top = `${(-v.y * .5 + .5) * innerHeight - (encima.radio * 34 + 10)}px`
   }
   controles.update()
   render.render(escena, camara)
@@ -572,6 +584,21 @@ function pintarPanel(){
         <div class="txt">${m.texto}</div>${m.extra ? `<pre>${m.extra}</pre>` : ''}</div>`).join('')
     : '<div class="msg"><div class="txt" style="color:#7d8590">Todavía no empezó.</div></div>'
   $('chat').scrollTop = $('chat').scrollHeight
+
+  /* Sólo el centro lleva listado: es el único que "tiene" a los demás. Cada fila abre la corrida de
+     ese agente — el mismo panel, con su cabeza y sus iteraciones. */
+  const lista = $('lista')
+  if (n.tipo !== 'centro' || !agentes.length){ lista.innerHTML = ''; lista.style.display = 'none'; return }
+  lista.style.display = 'block'
+  lista.innerHTML = `<div class="rot">Los que levantó · ${agentes.length}</div>` +
+    agentes.map((a, i) => `<div class="ag" data-i="${i}">
+        <i style="background:${'#' + colorDe(a).getHexString()}"></i>
+        <span class="n">${a.nombre}</span>
+        <span class="d">${a.estado === 'listo' ? `${a.hijos.length} it · concluido` : ESTADO[a.estado]}</span>
+      </div>`).join('') +
+    (cola.length ? `<div class="cola">+ ${cola.length} tarea(s) esperando un cupo</div>` : '')
+  lista.querySelectorAll('.ag').forEach(el =>
+    el.addEventListener('click', () => abrirPanel(agentes[+el.dataset.i])))
 }
 function abrirPanel(n){
   elegido = n.tipo === 'hijo' ? n.padre : n
@@ -582,12 +609,28 @@ function cerrarPanel(){ elegido = null; $('panel').classList.remove('abierto') }
 $('cerrar').addEventListener('click', cerrarPanel)
 
 const ray = new THREE.Raycaster(), puntero = new THREE.Vector2()
-render.domElement.addEventListener('click', e => {
+let encima = null, ultimoHover = 0
+const bajoElPuntero = e => {
   puntero.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1)
   ray.setFromCamera(puntero, camara)
   const hit = ray.intersectObjects(nodos.map(n => n.malla))[0]
-  if (!hit){ cerrarPanel(); return }
-  abrirPanel(nodos.find(n => n.malla === hit.object))
+  return hit ? nodos.find(n => n.malla === hit.object) : null
+}
+render.domElement.addEventListener('pointermove', e => {
+  const t = performance.now(); if (t - ultimoHover < 70) return
+  ultimoHover = t
+  encima = bajoElPuntero(e)
+  render.domElement.style.cursor = encima ? 'pointer' : ''
+  const tip = $('tip')
+  tip.classList.toggle('si', !!encima)
+  if (encima) tip.innerHTML = encima.tipo === 'hijo'
+    ? `<b>iteración ${encima.nombre}</b><span>de ${encima.padre.nombre}</span>`
+    : `<b>${encima.nombre}</b>${encima.hijos.length ? `<span>${encima.hijos.length} iteración(es)</span>` : ''}`
+})
+render.domElement.addEventListener('click', e => {
+  const n = bajoElPuntero(e)
+  if (!n){ cerrarPanel(); return }
+  abrirPanel(n)
 })
 
 // ── los mandos ──────────────────────────────────────────────────────────────────────────────────
