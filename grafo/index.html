@@ -122,6 +122,11 @@
 <script type="module">
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js'
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js'
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js'
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 
 /* ── EL GRAFO DE AGENTES ─────────────────────────────────────────────────────────────────────────
  * Prototipo para pensar la FORMA. three viene de un CDN porque acá se abre el archivo y listo; en
@@ -243,12 +248,72 @@ escena.background = new THREE.Color(0x0b0d10)
 const camara = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 200)
 camara.position.set(2.5, 3.4, 13)
 const render = new THREE.WebGLRenderer({ antialias: true })
+// Con brillo hace falta comprimir los altos: sin esto, cualquier pico se va a blanco puro y se lleva
+// puesta la textura de la bola.
+render.toneMapping = THREE.NeutralToneMapping
+render.toneMappingExposure = 1.05
 render.setPixelRatio(devicePixelRatio)
 render.setSize(innerWidth, innerHeight)
 document.body.appendChild(render.domElement)
 const controles = new OrbitControls(camara, render.domElement)
 controles.enableDamping = true
 controles.minDistance = 5
+
+/* ── EL BRILLO, SELECTIVO ────────────────────────────────────────────────────────────────────────
+ * No brilla todo: brilla lo que está VIVO. El centro siempre —es el sol de este sistema, y su color
+ * es el avance— y cada agente sólo mientras piensa. Junto con el temblor, eso vuelve obvio quién está
+ * trabajando sin agregar un color más.
+ *
+ * Va por CAPAS, como el ejemplo de three: se dibuja la escena dos veces. En la primera, todo lo que NO
+ * brilla se pinta de negro y de ahí sale el halo; en la segunda se dibuja la escena de verdad y se le
+ * suma ese halo. Es la única forma de que el resplandor no se derrame sobre las bolas apagadas.
+ *
+ * ⚠ Y por eso el material se intercambia y se restaura en cada cuadro: acordarse de restaurarlo es lo
+ * que evita que la escena quede negra si algo falla en el medio. */
+const CAPA_BRILLO = 1
+const capaBrillo = new THREE.Layers()
+capaBrillo.set(CAPA_BRILLO)
+
+const negro = new THREE.MeshBasicMaterial({ color: 'black' })
+const guardados = {}
+
+const pasoEscena = new RenderPass(escena, camara)
+/* Fuerza, radio y UMBRAL. El umbral es el que importa: con 0 brilla todo lo que tenga algo de luz y la
+   escena se vuelve una mancha blanca —probado—; con 0,55 sólo pasan los picos, que son justo las bolas
+   encendidas. El halo suma, así que la fuerza va corta: el resplandor se nota, la bola no desaparece. */
+const pasoBrillo = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), .55, .5, .5)
+const compositorBrillo = new EffectComposer(render,
+  new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType }))
+compositorBrillo.renderToScreen = false
+compositorBrillo.addPass(pasoEscena)
+compositorBrillo.addPass(pasoBrillo)
+
+const mezcla = new ShaderPass(new THREE.ShaderMaterial({
+  uniforms: { baseTexture: { value: null },
+              bloomTexture: { value: compositorBrillo.renderTarget2.texture },
+              bloomStrength: { value: .55 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `uniform sampler2D baseTexture; uniform sampler2D bloomTexture;
+    uniform float bloomStrength; varying vec2 vUv;
+    void main(){ gl_FragColor = texture2D(baseTexture, vUv) + texture2D(bloomTexture, vUv) * bloomStrength; }`,
+}), 'baseTexture')
+mezcla.needsSwap = true
+
+const compositor = new EffectComposer(render,
+  new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 }))
+compositor.addPass(pasoEscena)
+compositor.addPass(mezcla)
+compositor.addPass(new OutputPass())
+
+const aNegro = o => { if (o.isMesh && !capaBrillo.test(o.layers)){ guardados[o.uuid] = o.material; o.material = negro } }
+const restaurar = o => { if (guardados[o.uuid]){ o.material = guardados[o.uuid]; delete guardados[o.uuid] } }
+function dibujar(){
+  escena.traverse(aNegro)
+  compositorBrillo.render()
+  escena.traverse(restaurar)
+  compositor.render()
+}
 
 /* La tela absorbe mucha más luz que el material liso de antes: con la iluminación anterior las bolas
    salían apagadas y el color dejaba de contar el avance, que es su trabajo acá. */
@@ -590,9 +655,16 @@ render.setAnimationLoop(() => {
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
     /* Los agentes llevan más luz propia que el centro: la textura en grises los apaga, y su naranja
        es lo que los separa de un vistazo del que sí cambia de color. */
-    const propia = n.tipo === 'centro' || n.tipo === 'revision' ? late : late + .3
+    const propia = n.tipo === 'centro' || n.tipo === 'revision' ? late : late + .16
     n.malla.material.emissive.copy(n.malla.material.color)
       .multiplyScalar(elegido === n ? .5 : encima === n ? .38 : propia)
+
+    /* Brilla el que está vivo: el centro siempre, el agente mientras piensa, y sus iteraciones con él.
+       Se recalcula cada cuadro porque el estado cambia solo —un agente concluye y se apaga— y eso es
+       precisamente lo que se quiere ver. */
+    const brilla = n.tipo === 'centro' || n.tipo === 'revision' ||
+      (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando' || encima === n
+    if (brilla) n.malla.layers.enable(CAPA_BRILLO); else n.malla.layers.disable(CAPA_BRILLO)
   }
   // El cartelito sigue a la bola señalada, que se mueve: se recoloca cada cuadro, no al pasar el mouse.
   if (encima && nodos.includes(encima)){
@@ -601,12 +673,14 @@ render.setAnimationLoop(() => {
     $('tip').style.top = `${(-v.y * .5 + .5) * innerHeight - (encima.radio * 34 + 10)}px`
   }
   controles.update()
-  render.render(escena, camara)
+  dibujar()
 })
 addEventListener('resize', () => {
   camara.aspect = innerWidth / innerHeight
   camara.updateProjectionMatrix()
   render.setSize(innerWidth, innerHeight)
+  compositorBrillo.setSize(innerWidth, innerHeight)
+  compositor.setSize(innerWidth, innerHeight)
   encuadrar()
 })
 
