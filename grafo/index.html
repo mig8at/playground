@@ -240,7 +240,7 @@ const capa = new THREE.Group(); escena.add(capa)
 const capaEtq = document.getElementById('etiquetas')
 const $ = s => document.getElementById(s)
 
-let nodos = [], hilos = [], agentes = [], cola = [], centro = null, revision = null
+let nodos = [], agentes = [], cola = [], centro = null, revision = null
 let fase = 'quieto', ritmo = 1.4, elegido = null, t0 = performance.now() / 1000
 let guardado = null              // lo último "escrito en el repo": de acá se reanuda
 
@@ -255,6 +255,10 @@ function enLaEsfera(i, n, radio){
 /* ÓRBITAS. Cada nodo da vueltas en SU PROPIO círculo, inclinado distinto — no todos en el mismo plano
  * como un sistema solar de juguete. El círculo se arma con dos vectores perpendiculares: `u` apunta a
  * donde arranca (su punto de la esfera) y `v` sale de cruzarlo con un eje que cambia por índice.
+ *
+ * ⚠ Sin líneas de unión: quién cuelga de quién lo dice la ÓRBITA — el hijo gira cerca de su agente y
+ * el agente cerca del centro, como lunas y planetas. Las líneas lo decían también, pero con veinte
+ * nodos eran una telaraña encima de lo que importa.
  *
  * ⚠ Y son LENTAS a propósito. Con órbitas rápidas el grafo se vuelve un revoltijo donde no se puede
  * seguir a nadie — se probó. Cada uno mantiene su plano y su ritmo, así el ojo lo sigue: da vueltas,
@@ -288,13 +292,6 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
               chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
   if (padre && ancla) n.orbita = orbita(ancla, ancla.length(), nodos.length, tipo === 'hijo')
   nodos.push(n)
-  if (padre){
-    const g = new THREE.BufferGeometry().setAttribute('position',
-      new THREE.Float32BufferAttribute(new Array(6).fill(0), 3))
-    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ transparent: true, opacity: .45 }))
-    capa.add(l)
-    hilos.push({ linea: l, a: padre, b: n })
-  }
   return n
 }
 
@@ -323,8 +320,7 @@ const decir = (n, tipo, texto, extra) => {
 
 function limpiar(){
   for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
-  for (const h of hilos) capa.remove(h.linea)
-  nodos = []; hilos = []; agentes = []; cola = []; revision = null; elegido = null
+  nodos = []; agentes = []; cola = []; revision = null; elegido = null
   cerrarPanel()
   centro = nodo({ radio: .9, nombre: 'canon', tipo: 'centro' })
   centro.tarea = 'leer el merge, clasificarlo y repartir'
@@ -504,13 +500,6 @@ render.setAnimationLoop(() => {
     n.etq.style.opacity = v.z < 1 ? 1 : 0
     n.etq.style.left = `${(v.x * .5 + .5) * innerWidth}px`
     n.etq.style.top = `${(-v.y * .5 + .5) * innerHeight - (n.radio * 34 + 12)}px`
-  }
-  for (const h of hilos){
-    const p = h.linea.geometry.attributes.position
-    p.setXYZ(0, h.a.malla.position.x, h.a.malla.position.y, h.a.malla.position.z)
-    p.setXYZ(1, h.b.malla.position.x, h.b.malla.position.y, h.b.malla.position.z)
-    p.needsUpdate = true
-    h.linea.material.color.copy(h.b.malla.material.color)
   }
   controles.update()
   render.render(escena, camara)
