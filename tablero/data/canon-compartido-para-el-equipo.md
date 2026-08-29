@@ -1873,6 +1873,22 @@ palabras que de verdad nadie conoce. Probado en vivo con sonría/masqsonrisas/we
 El carril semántico (embeddings en Go con vectores estáticos) queda **condicionado al banco**: si no
 sube los números, no entra. El diccionario ataca la clase de fallo dominante sin modos de falla nuevos.
 
+## El dictado: PR #16 — canon colaborativo, con la costura para los agentes (2026-08-28)
+
+La decisión de Miguel aterrizada: **llave de escritura = potestad** (el PR es registro, no permiso) y
+**una conversación = un solo cambio**. El flujo `draft → piezas validadas al entrar → close` produce
+rama + PR listos, aplica en disco cuando lo hay, y el rechazo del lint ES la siguiente pregunta de la
+entrevista (probado: «medido» sin fecha vuelve con la pregunta exacta). Borrador en memoria, 2h, a
+propósito — es una conversación, no un almacén.
+
+**Las dos caras humanas**: `CANON.md` (el contrato estricto de los dos ritos — obtener y dictar — con
+la línea única para pegar en cualquier CLAUDE.md) y `skills/dictar.md` (el guion de la entrevista,
+servido). La regla innegociable quedó escrita en ambos: el testimonio jamás se disfraza de verificado.
+
+**La costura para mañana**: cuando Dani dé `Contents: write` + `Pull requests: write` **sólo sobre el
+playground**, `close` abre el PR solo — y los agentes del bucle de vigilancia escriben por esta misma
+puerta. Pendiente de pedir junto con la API del LLM para los agentes.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
