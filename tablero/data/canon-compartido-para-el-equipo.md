@@ -1861,6 +1861,18 @@ real (193, no existe en local) o sólo al clon 173 — **tarea aparte con la evi
 Y dos gates del bench en el camino (mi «casi todo el canal» le robaba «todos aparecen como empleados»
 por el plural plegado) — arreglados con retítulo. soporte **118/118** · task ci 0.
 
+## El diccionario de negocio: PR #15 (2026-08-28)
+
+La conclusión del debate RAG-vs-diccionario, implementada: **558 nombres de la base** (193 entidades +
+335 comercios + 30 estados) generados contra prod solo-lectura, reconocidos por **tokens consecutivos**
+(«Welli TS» le gana a «Welli»; «Addi» no se dispara dentro de «adicional»; homónimos se devuelven
+todos). En `search`: campo `recognized` (tipo, id, familia, tema con su `/api/read`) y los nombres
+reconocidos se **descuentan** de `terms_without_results` — la señal de honestidad queda para las
+palabras que de verdad nadie conoce. Probado en vivo con sonría/masqsonrisas/welli-ts/vanti.
+
+El carril semántico (embeddings en Go con vectores estáticos) queda **condicionado al banco**: si no
+sube los números, no entra. El diccionario ataca la clase de fallo dominante sin modos de falla nuevos.
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
