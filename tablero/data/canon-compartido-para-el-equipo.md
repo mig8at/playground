@@ -1889,6 +1889,26 @@ servido). La regla innegociable quedó escrita en ambos: el testimonio jamás se
 playground**, `close` abre el PR solo — y los agentes del bucle de vigilancia escriben por esta misma
 puerta. Pendiente de pedir junto con la API del LLM para los agentes.
 
+## La simulación que no fue simulación: el PR #17 lo abrió canon solo (2026-08-28)
+
+Miguel preguntó si podíamos simular en local el auto-PR y los agentes. Resultó que **la mitad del
+futuro ya se puede correr en real**: el publicador (`CANON_PUBLICAR=github`, apagado por defecto) usa
+las MISMAS credenciales que las lecturas — en la laptop resuelve al token de `gh`, que ya escribe en el
+playground; en la instancia resolverá a la app cuando Dani dé los permisos. El código no distingue.
+
+**La demo fue una contribución real**: se dictó por el flujo `draft → close` la pieza de los robots
+que disparaban consultas pagas de preaprobación (verificada hoy contra main), y el cierre **abrió el
+[PR #17] él solo** — rama, commit, título, cuerpo con las piezas y la autoría. Sus checks corrieron en
+verde (el bench del PR es la compuerta del contenido dictado).
+
+**Lo que queda esperando a Dani** (todo lo demás existe): `Contents: write` + `Pull requests: write`
+para la app SOLO sobre el playground (prende el publicador en la instancia) · una API de LLM para los
+agentes del bucle de vigilancia (que escribirán por esta misma puerta) · y el checkbox de Actions si
+el pipeline corre por workflow.
+
+PRs del día: #14 (corpus+motai+theme_map, mergeado) · #15 (diccionario+typos, mergeado) · #16
+(dictado + API autoexplicada + publicador, abierto) · #17 (el primero abierto POR canon, abierto).
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
