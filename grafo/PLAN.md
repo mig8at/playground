@@ -38,6 +38,26 @@ Un agente sin esa pregunta no sabe cuándo terminó.
 
 ## 3 · Los agentes
 
+**Nacen en caliente, y hay un techo de 10 vivos.** No existen desde el principio: aparecen cuando hay
+una tarea y un cupo. El escritor y el verificador son el caso obvio — no tienen nada que hacer hasta
+que un lector diga «ya no», así que aparecen recién ahí.
+
+El techo no es estético: cada agente cuesta tokens y contexto, y un merge grande con treinta lectores
+sueltos es la forma de gastar el presupuesto de un mes en una tarde. Si hay más tareas que cupos,
+**esperan en cola**; cuando uno concluye se libera el cupo y nace otro para la que sigue. Los que ya
+concluyeron no se borran: su nodo verde es el registro de que esa pregunta quedó contestada.
+
+**Y si la tarea es chica, no se reparte.** Con dos tareas o menos, levantar un agente cuesta más que
+hacer el trabajo: lo hace el centro. Un bucle que abre agentes para mirar una línea es un bucle que se
+va a apagar por caro.
+
+**El color del centro es cuánto del merge ya volvió.** Un tercio es lo suyo (leer, clasificar,
+repartir) y dos tercios es lo que los agentes le entregaron — así el centro sólo se pone verde cuando
+el trabajo volvió, no cuando terminó de planificar. De un vistazo se sabe cuánto de este merge está
+resuelto sin leer un solo número.
+
+
+
 Uno por tarea. Compara lo que el corpus dice contra lo que llegó, y **itera cuando lo que tiene no le
 alcanza** — pide el archivo entero, pide otro archivo, vuelve a leer. Cada iteración cuesta y por eso
 se ve: en el grafo le cuelga un nodo, y el número de vueltas dice cuánto le costó.

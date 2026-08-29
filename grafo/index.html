@@ -67,6 +67,8 @@
 <div id="mandos">
   <h1>grafo de agentes<span class="sim">SIMULACIÓN</span></h1>
   <div id="fase">Esperando el merge.</div>
+  <div style="font-size:11px;color:#5d6670;line-height:1.5">Los agentes nacen en caliente y orbitan
+    el centro. Techo: 10 vivos. Si son 2 tareas o menos, el centro las hace solo.</div>
   <div class="fila">
     <button id="merge">llega un merge a main</button>
     <button id="reiniciar">reiniciar</button>
@@ -75,6 +77,7 @@
     <button id="matar" class="peligro" disabled>matar todo</button>
     <button id="reanudar" disabled>reanudar desde la revisión</button>
   </div>
+  <div class="fila">tareas <input id="tam" type="range" min="1" max="14" value="5"><b id="tamv">5</b></div>
   <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1.4"><b id="rv">1.4×</b></div>
   <div class="leyenda">
     <span><i style="background:#5d6670"></i>espera</span>
@@ -132,36 +135,72 @@ const AMARILLO = new THREE.Color(0xd8b64a)
 const VERDE = new THREE.Color(0x8fd3a7)
 const AZUL = new THREE.Color(0x8ab4f8)
 
-// El merge que llega. Es lo único que el planificador recibe "de afuera".
-const MERGE = {
-  sha: '4f2a91c',
-  titulo: 'CORE-431 · cartera: recalcular el plan de pagos al cambiar la fecha, y arreglar el corte semanal',
-  archivos: 23,
-  declarados: 4,   // de esos 23, los que algún tema declara
+/* EL MÁXIMO. Diez agentes vivos a la vez, no más: cada uno cuesta tokens y contexto, y un merge
+   grande con treinta lectores sueltos es la forma de gastar el presupuesto de un mes en una tarde.
+   Si hay más tareas que cupos, esperan; cuando uno concluye, se crea otro EN CALIENTE para la que
+   sigue. Los que ya concluyeron quedan a la vista en verde: su trabajo es el registro. */
+const MAX_AGENTES = 10
+
+// Cuándo NO vale la pena repartir: si son una o dos tareas y las dos son arreglos, el centro las hace
+// él mismo. Levantar un agente para mirar una línea cuesta más que mirarla.
+const SIN_REPARTIR = 2
+
+const TEMAS = ['cartera', 'formalizacion', 'listado', 'kyc', 'creditopx', 'servicios', 'altas']
+const PREGUNTAS = [
+  '¿sigue siendo cierto que el plan de pagos se recalcula en un paso posterior?',
+  '¿el corte semanal sigue convirtiendo la tasa como dice la prosa?',
+  '¿el estado «Pendiente firma codeudor» sigue llegando por el mismo camino?',
+  '¿la entidad se sigue descartando por cupo, o ahora sólo se reordena?',
+  '¿el ingreso mensual sigue saliendo de la misma cascada?',
+  '¿el documento se sigue generando como efecto de otro paso?',
+  '¿la solicitud sigue quedando en autorizada sin radicar?',
+  '¿el listado sigue partiendo de las habilitadas por sucursal?',
+  '¿el rotativo sigue con umbral residual?',
+  '¿la firma sigue dentro de la misma transacción?',
+  '¿el webhook sigue rechazando con el mismo identificador?',
+  '¿el preaprobado se sigue consultando una entidad a la vez?',
+]
+const ARCHIVOS = ['PaymentPlanService.php', 'CutoffTypeResolver.php', 'SignatureFlowService.php',
+  'LenderListingService.php', 'MonthlyIncomeResolver.php', 'DocumentBuilder.php',
+  'CreditopXRequestHistoryController.php', 'PreApprovalClient.php']
+
+let MERGE = null
+function armarMerge(declarados){
+  const tareas = []
+  for (let i = 0; i < declarados; i++){
+    tareas.push({
+      labor: 'lector',
+      tema: TEMAS[i % TEMAS.length],
+      tarea: PREGUNTAS[i % PREGUNTAS.length],
+      clase: i % 3 === 0 ? 'tarea completa' : 'arreglo',
+      archivos: [ARCHIVOS[i % ARCHIVOS.length]],
+    })
+  }
+  return {
+    sha: '4f2a91c', titulo: 'CORE-431 · cartera: recalcular el plan de pagos y arreglar el corte semanal',
+    archivos: declarados * 5 + 3, declarados, tareas,
+  }
 }
 
-/* El plan que el centro produce. Cada entrada es una tarea para UN agente, anclada en archivos pero
-   definida por el contexto: qué afirmación del corpus está en juego. */
-const PLAN = [
-  { labor: 'lector', tema: 'cartera', tarea: '¿sigue siendo cierto que el plan de pagos se recalcula en un paso posterior?',
-    clase: 'tarea completa', archivos: ['CreditopXRequestHistoryController.php', 'PaymentPlanService.php'] },
-  { labor: 'lector', tema: 'cartera', tarea: '¿el corte semanal sigue convirtiendo la tasa como dice la prosa?',
-    clase: 'arreglo', archivos: ['CutoffTypeResolver.php'] },
-  { labor: 'lector', tema: 'formalizacion', tarea: '¿el estado «Pendiente firma codeudor» sigue llegando por el mismo camino?',
-    clase: 'arreglo', archivos: ['SignatureFlowService.php'] },
-  { labor: 'escritor', tema: 'cartera', tarea: 'redactar lo que el lector marque como «ya no»',
-    clase: 'tarea completa', archivos: ['—'] },
-  { labor: 'verificador', tema: 'cartera', tarea: 'intentar tumbar lo redactado y correr el banco',
-    clase: 'tarea completa', archivos: ['—'] },
-]
-
-const PENSAR_CENTRO = [
-  `Llegó ${MERGE.sha}: ${MERGE.archivos} archivos. De esos, ${MERGE.declarados} los declara algún tema — el resto no me toca.`,
-  'Leo la descripción del PR y el diff de esos cuatro. Dos tocan cartera, uno formalización.',
-  'Clasifico: el recálculo del plan es una TAREA COMPLETA (cambia el mecanismo); el corte semanal y la firma son ARREGLOS.',
-  'Leo la prosa de los dos temas para saber qué afirmación queda en juego en cada uno.',
-  `Plan listo: ${PLAN.length} tareas. Reparto y quedo mirando.`,
-]
+const pensarCentro = () => {
+  const m = MERGE, n = m.tareas.length
+  const base = [
+    `Llegó ${m.sha}: ${m.archivos} archivos. De esos, ${m.declarados} los declara algún tema — el resto no me toca.`,
+    'Leo la descripción del PR y el diff de los declarados, y la prosa de los temas que los declaran.',
+    `Clasifico: ${m.tareas.filter(t => t.clase === 'tarea completa').length} tarea(s) completa(s) y ${m.tareas.filter(t => t.clase === 'arreglo').length} arreglo(s).`,
+  ]
+  if (n <= SIN_REPARTIR) return base.concat([
+    `Son ${n} y chicas: levantar un agente para esto cuesta más que hacerlo. Las tomo yo.`,
+    'Comparo el corpus contra el diff de cada una y concluyo.',
+    'Listo, sin repartir. Compacto.',
+  ])
+  return base.concat([
+    n > MAX_AGENTES
+      ? `Son ${n} tareas y el techo son ${MAX_AGENTES} agentes vivos: arranco con ${MAX_AGENTES} y las otras ${n - MAX_AGENTES} esperan turno.`
+      : `Son ${n} tareas: levanto ${n} agentes.`,
+    'Reparto y quedo mirando: mi color va a ir subiendo con lo que cada uno me entregue.',
+  ])
+}
 
 const PENSAR = {
   lector: [
@@ -201,7 +240,7 @@ const capa = new THREE.Group(); escena.add(capa)
 const capaEtq = document.getElementById('etiquetas')
 const $ = s => document.getElementById(s)
 
-let nodos = [], hilos = [], agentes = [], centro = null, revision = null
+let nodos = [], hilos = [], agentes = [], cola = [], centro = null, revision = null
 let fase = 'quieto', ritmo = 1.4, elegido = null, t0 = performance.now() / 1000
 let guardado = null              // lo último "escrito en el repo": de acá se reanuda
 
@@ -212,6 +251,27 @@ function enLaEsfera(i, n, radio){
   return new THREE.Vector3(Math.cos(ang) * r, y, Math.sin(ang) * r)
     .applyAxisAngle(new THREE.Vector3(1, 0, .3).normalize(), .42).multiplyScalar(radio)
 }
+
+/* ÓRBITAS. Cada nodo da vueltas en SU PROPIO círculo, inclinado distinto — no todos en el mismo plano
+ * como un sistema solar de juguete. El círculo se arma con dos vectores perpendiculares: `u` apunta a
+ * donde arranca (su punto de la esfera) y `v` sale de cruzarlo con un eje que cambia por índice.
+ *
+ * ⚠ Y son LENTAS a propósito. Con órbitas rápidas el grafo se vuelve un revoltijo donde no se puede
+ * seguir a nadie — se probó. Cada uno mantiene su plano y su ritmo, así el ojo lo sigue: da vueltas,
+ * pero es siempre el mismo el que va por ahí. */
+function orbita(desde, radio, i, veloz = false){
+  const u = desde.clone().normalize()
+  const eje = [new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 0, .2), new THREE.Vector3(.3, .6, 1)][i % 3].normalize()
+  let v = new THREE.Vector3().crossVectors(eje, u)
+  if (v.lengthSq() < .01) v = new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0), u)
+  v.normalize()
+  return { u: u.multiplyScalar(radio), v: v.multiplyScalar(radio),
+           vel: (veloz ? .5 : .17) + (i % 4) * (veloz ? .12 : .035), fase: i * 1.9 }
+}
+const puntoEnOrbita = (o, t) => new THREE.Vector3()
+  .addScaledVector(o.u, Math.cos(o.fase + t * o.vel))
+  .addScaledVector(o.v, Math.sin(o.fase + t * o.vel))
+
 // Por ÍNDICE y no repartidos entre los que hay: si dependiera del total, cada iteración nueva movería
 // a todas las anteriores y el grafo saltaría en cada vuelta.
 const juntoAlPadre = j => new THREE.Vector3(Math.cos(j * 2.39996) * 1.25, ((j % 3) - 1) * .5, Math.sin(j * 2.39996) * 1.25)
@@ -226,6 +286,7 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
   capaEtq.appendChild(etq)
   const n = { malla: m, etq, padre, ancla, radio, nombre, tipo, progreso: 0, estado: 'espera',
               chat: [], hijos: [], paso: 0, reloj: 0, fase: Math.random() * 6, vaiven: .06 + Math.random() * .05 }
+  if (padre && ancla) n.orbita = orbita(ancla, ancla.length(), nodos.length, tipo === 'hijo')
   nodos.push(n)
   if (padre){
     const g = new THREE.BufferGeometry().setAttribute('position',
@@ -243,6 +304,17 @@ const colorDe = n => n.tipo === 'revision' ? VERDE
   : n.progreso <= .5 ? GRIS.clone().lerp(AMARILLO, n.progreso / .5)
   : AMARILLO.clone().lerp(VERDE, (n.progreso - .5) / .5)
 
+/* El centro no se pone verde por haber planificado: se pone verde cuando el trabajo VOLVIÓ. Un tercio
+   es lo suyo (leer, clasificar, repartir) y dos tercios es lo que los agentes le entregaron. Así el
+   color del centro es, de un vistazo, cuánto de este merge ya está resuelto. */
+function progresoDelCentro(){
+  const propio = centro.paso / Math.max(1, (centro.guion ?? []).length)
+  if (!agentes.length && !cola.length) return propio
+  const total = agentes.length + cola.length
+  const listos = agentes.filter(a => a.estado === 'listo').length
+  return Math.min(1, propio * .34 + (listos / total) * .66)
+}
+
 const ahora = () => performance.now() / 1000 - t0
 const decir = (n, tipo, texto, extra) => {
   n.chat.push({ tipo, n: n.chat.length + 1, texto, extra, t: ahora() })
@@ -252,7 +324,7 @@ const decir = (n, tipo, texto, extra) => {
 function limpiar(){
   for (const n of nodos){ capa.remove(n.malla); n.etq.remove() }
   for (const h of hilos) capa.remove(h.linea)
-  nodos = []; hilos = []; agentes = []; revision = null; elegido = null
+  nodos = []; hilos = []; agentes = []; cola = []; revision = null; elegido = null
   cerrarPanel()
   centro = nodo({ radio: .9, nombre: 'canon', tipo: 'centro' })
   centro.tarea = 'leer el merge, clasificarlo y repartir'
@@ -260,7 +332,7 @@ function limpiar(){
 }
 
 function encuadrar(){
-  const alcance = 4.3 + 1.5 + .6
+  const alcance = 5.4 + 1.5 + .6
   const mitad = Math.tan((camara.fov * Math.PI / 180) / 2)
   const dist = Math.max(alcance / mitad, alcance / (mitad * camara.aspect)) * 1.1
   camara.position.setLength(dist)
@@ -268,14 +340,36 @@ function encuadrar(){
   controles.update()
 }
 
+/* Crear un agente EN CALIENTE: no existen desde el principio, nacen cuando hay una tarea y un cupo.
+   El escritor y el verificador son el caso claro — no tienen nada que hacer hasta que un lector diga
+   «ya no», así que aparecen recién ahí. */
+function crearAgente(p){
+  const i = agentes.length
+  /* El sitio sale del ÍNDICE sobre un reparto FIJO de doce, no de cuántos hay ahora: como nacen en
+     caliente, si dependiera del total, cada agente nuevo movería de lugar a todos los anteriores —
+     y lo que se ve entonces es un grafo que salta cada vez que alguien entra. */
+  const a = nodo({ radio: .42, padre: centro, ancla: enLaEsfera(i % 12, 12, 4.5 + (i % 3) * .45),
+                   nombre: `${p.labor} · ${p.tema}` })
+  Object.assign(a, p)
+  a.espera = .25 + (agentes.filter(x => x.estado === 'espera').length) * .3
+  agentes.push(a)
+  return a
+}
+
+const vivos = () => agentes.filter(a => a.estado !== 'listo').length
+
 function repartir(){
-  PLAN.forEach((p, i) => {
-    const a = nodo({ radio: .42, padre: centro, ancla: enLaEsfera(i, PLAN.length, 4.3),
-                     nombre: `${p.labor} · ${p.tema}` })
-    Object.assign(a, p)
-    a.espera = .3 + i * .35
-    agentes.push(a)
-  })
+  cola = MERGE.tareas.slice()
+  while (cola.length && vivos() < MAX_AGENTES) crearAgente(cola.shift())
+}
+
+/* Un cupo libre = un agente nuevo para la tarea que sigue. Los que ya concluyeron NO se borran: su
+   nodo verde es el registro de que esa pregunta quedó contestada. */
+function llenarCupos(){
+  while (cola.length && vivos() < MAX_AGENTES){
+    const a = crearAgente(cola.shift())
+    decir(centro, 'iter', `Se liberó un cupo: levanto «${a.nombre}» para la tarea que esperaba (quedan ${cola.length} en cola).`)
+  }
 }
 
 /* Una vuelta de trabajo. El agente itera cuando lo que tiene NO LE ALCANZA — no porque sí: esa es la
@@ -299,15 +393,20 @@ function iterar(a){
    mapa de lo que se miró, el veredicto de cada tarea y por dónde iba cada uno. No es un adorno —
    es la memoria: si esto se muere a la mitad, el que vuelva lee este archivo y sigue. */
 function compactar(){
-  const lineas = agentes.map(a =>
+  const cuerpo = agentes.length ? agentes : [{ estado: centro.estado, labor: 'centro', tema: '—',
+    tarea: `${MERGE.tareas.length} tarea(s) hechas sin repartir`, hijos: centro.chat, archivos: ['—'] }]
+  const lineas = cuerpo.map(a =>
     `- [${a.estado === 'listo' ? 'x' : ' '}] ${a.labor} · ${a.tema} — ${a.tarea}\n` +
     `      iteraciones: ${a.hijos.length} · archivos: ${a.archivos.join(', ')}`)
   guardado = {
-    ruta: `revisiones/${MERGE.sha}.md`,
+    ruta: `revisiones/${MERGE.sha}.md`, merge: MERGE,
     texto: `# Revisión de ${MERGE.sha}\n\n${MERGE.titulo}\n\n` +
-           `${MERGE.archivos} archivos, ${MERGE.declarados} declarados · plan de ${PLAN.length} tareas\n\n` +
+           `${MERGE.archivos} archivos, ${MERGE.declarados} declarados · plan de ${MERGE.tareas.length} tareas\n\n` +
            lineas.join('\n') + `\n\nestado: ${agentes.every(a => a.estado === 'listo') ? 'completa' : 'a medias'}`,
-    avance: agentes.map(a => ({ nombre: a.nombre, paso: a.paso, estado: a.estado, chat: a.chat.slice() })),
+    tareas: MERGE.tareas.slice(),
+    avance: agentes.map(a => ({ tarea: { labor: a.labor, tema: a.tema, tarea: a.tarea, clase: a.clase, archivos: a.archivos },
+                                paso: a.paso, estado: a.estado, chat: a.chat.slice() })),
+    centro: { paso: centro.paso, chat: centro.chat.slice(), guion: centro.guion },
   }
   revision = nodo({ radio: .5, padre: centro, ancla: new THREE.Vector3(0, -4.6, 0),
                     nombre: guardado.ruta, tipo: 'revision' })
@@ -331,18 +430,27 @@ setInterval(() => {
 
   if (fase === 'planificando'){
     centro.reloj += dt * ritmo
-    if (centro.reloj > .9){
+    if (centro.reloj > .8){
       centro.reloj = 0
-      decir(centro, centro.paso === PENSAR_CENTRO.length - 1 ? 'fin' : 'iter', PENSAR_CENTRO[centro.paso])
+      decir(centro, centro.paso === centro.guion.length - 1 ? 'fin' : 'iter', centro.guion[centro.paso])
       centro.paso++
-      centro.progreso = centro.paso / PENSAR_CENTRO.length
-      if (centro.paso === PENSAR_CENTRO.length){
-        centro.estado = 'listo'
-        repartir()
-        fase = 'trabajando'
-        $('fase').innerHTML = `<b>Trabajando.</b> ${PLAN.length} tareas repartidas — cada iteración cuelga un nodo.`
+      if (centro.paso === centro.guion.length){
+        if (MERGE.tareas.length <= SIN_REPARTIR){
+          // El centro lo hizo todo: no hay agentes, y su color ya lo dice.
+          centro.estado = 'listo'
+          fase = 'listo'
+          compactar()
+          $('fase').innerHTML = `<b>Sin repartir.</b> Eran ${MERGE.tareas.length} y las hizo el centro — guardado en <code>${guardado.ruta}</code>.`
+          $('matar').disabled = false
+        } else {
+          centro.estado = 'trabajando'   // sigue vivo: le falta recibir
+          repartir()
+          fase = 'trabajando'
+          $('fase').innerHTML = `<b>Trabajando.</b> ${agentes.length} agente(s) vivos${cola.length ? ` · ${cola.length} tarea(s) en cola` : ''} — techo de ${MAX_AGENTES}.`
+        }
       }
     }
+    centro.progreso = progresoDelCentro()
     return
   }
 
@@ -354,12 +462,19 @@ setInterval(() => {
       if (a.estado === 'trabajando' && a.reloj > (a.proxima ?? .9)){
         a.reloj = 0; a.proxima = .8 + Math.random() * 1.1
         iterar(a)
+        if (a.estado === 'listo'){
+          decir(centro, 'iter', `«${a.nombre}» me entregó: ${a.hijos.length} iteración(es).`)
+          llenarCupos()
+        }
       }
     }
-    if (agentes.every(a => a.estado === 'listo')){
+    centro.progreso = progresoDelCentro()
+    $('fase').innerHTML = `<b>Trabajando.</b> ${vivos()} vivo(s) · ${agentes.filter(a => a.estado === 'listo').length} entregado(s)${cola.length ? ` · ${cola.length} en cola` : ''} — techo de ${MAX_AGENTES}.`
+    if (!cola.length && agentes.every(a => a.estado === 'listo')){
+      centro.estado = 'listo'; centro.progreso = 1
       fase = 'listo'
       compactar()
-      $('fase').innerHTML = `<b>Compactado.</b> Todo concluido y guardado en <code>${guardado.ruta}</code>.`
+      $('fase').innerHTML = `<b>Compactado.</b> Todo entregado y guardado en <code>${guardado.ruta}</code>.`
       $('matar').disabled = false
     }
   }
@@ -375,7 +490,9 @@ render.setAnimationLoop(() => {
     else {
       const trab = (n.tipo === 'hijo' ? n.padre.estado : n.estado) === 'trabajando'
       const amp = n.vaiven * (trab ? 2.4 : 1), rit = trab ? 3.2 : 1.1
-      n.malla.position.copy(n.padre.malla.position).add(n.ancla)
+      // Orbita alrededor de su padre; el que trabaja gira un poco más rápido, y encima respira.
+      n.malla.position.copy(n.padre.malla.position)
+        .add(n.orbita ? puntoEnOrbita(n.orbita, t * (trab ? 1.45 : 1)) : n.ancla)
       n.malla.position.x += Math.sin(t * rit + n.fase) * amp
       n.malla.position.y += Math.sin(t * rit * .8 + n.fase * 1.7) * amp
       n.malla.position.z += Math.cos(t * rit * .9 + n.fase) * amp
@@ -442,8 +559,11 @@ render.domElement.addEventListener('click', e => {
 })
 
 // ── los mandos ──────────────────────────────────────────────────────────────────────────────────
+$('tam').addEventListener('input', e => { $('tamv').textContent = e.target.value })
 $('merge').addEventListener('click', () => {
   limpiar(); t0 = performance.now() / 1000
+  MERGE = armarMerge(+$('tam').value)
+  centro.guion = pensarCentro()
   fase = 'planificando'
   centro.estado = 'trabajando'
   $('fase').innerHTML = `<b>Leyendo el merge.</b> <code>${MERGE.sha}</code> · ${MERGE.archivos} archivos`
@@ -464,12 +584,15 @@ $('matar').addEventListener('click', () => {
 $('reanudar').addEventListener('click', () => {
   if (!guardado) return
   limpiar(); t0 = performance.now() / 1000
-  centro.estado = 'listo'; centro.progreso = 1
+  MERGE = guardado.merge
+  centro.guion = guardado.centro.guion
+  centro.paso = guardado.centro.paso
+  centro.chat = guardado.centro.chat.slice()
   decir(centro, 'reanuda', `Leo ${guardado.ruta} y reconstruyo: sé qué se concluyó y por dónde iba cada uno.`, guardado.texto)
-  repartir()
-  // Cada agente vuelve exactamente donde estaba: sus iteraciones, su chat y su veredicto.
-  guardado.avance.forEach((g, i) => {
-    const a = agentes[i]
+
+  // Cada agente vuelve exactamente donde estaba: su tarea, sus iteraciones, su chat y su veredicto.
+  guardado.avance.forEach(g => {
+    const a = crearAgente(g.tarea)
     a.paso = g.paso; a.estado = g.estado
     a.progreso = Math.min(1, g.paso / ((PENSAR[a.labor] ?? PENSAR.lector).length))
     a.chat = g.chat.slice()
@@ -480,7 +603,12 @@ $('reanudar').addEventListener('click', () => {
       a.hijos.push(h)
     }
   })
-  fase = agentes.every(a => a.estado === 'listo') ? 'listo' : 'trabajando'
+  // Lo que nunca llegó a tener agente sigue en la cola: se retoma con los cupos que haya.
+  cola = guardado.tareas.slice(guardado.avance.length)
+  llenarCupos()
+  centro.progreso = progresoDelCentro()
+  centro.estado = agentes.every(a => a.estado === 'listo') && !cola.length ? 'listo' : 'trabajando'
+  fase = agentes.every(a => a.estado === 'listo') && !cola.length ? 'listo' : 'trabajando'
   if (fase === 'listo') compactar()
   $('fase').innerHTML = '<b>Reanudado.</b> Nadie repitió trabajo: el avance salió del archivo.'
   $('matar').disabled = false
