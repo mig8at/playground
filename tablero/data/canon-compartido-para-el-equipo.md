@@ -1909,6 +1909,44 @@ el pipeline corre por workflow.
 PRs del día: #14 (corpus+motai+theme_map, mergeado) · #15 (diccionario+typos, mergeado) · #16
 (dictado + API autoexplicada + publicador, abierto) · #17 (el primero abierto POR canon, abierto).
 
+## La primera corrida real del bucle, y qué pasó cuando el guion mandó (2026-08-29)
+
+Se corrió el bucle de vigilancia de punta a punta con agentes de verdad (los workers, sobre Gemini)
+contra la deriva real: el refactor de `CreditopXRequestHistoryController` que mergeó a main. El diff
+es el que hay, la prosa la que canon tiene, y las conclusiones son de los agentes.
+
+**Se corrió dos veces, y la diferencia es el hallazgo.**
+
+**Primera, con MI prompt.** Le escribí las instrucciones a mano. El planificador devolvió una tarea, el
+redactor contestó `sigue` —que responde a otra pregunta, porque la tarea era de mapa— y el integrador
+arrastró eso y concluyó «sin cambios». Falso negativo sobre el arreglo más barato que existe. La causa
+no fue el modelo: **el vocabulario no tenía palabra para «hay que declarar este archivo»**. Se
+agregaron dos veredictos, `declarar` y `nada que declarar`, y el guion pasó a exigir los dos niveles.
+
+**Segunda, con el GUION como instrucción** — el skill `vigilar` tal como lo sirve la API, que es lo que
+leería un agente autónomo. Sin una sola pista mía:
+
+- el planificador encontró **tres** conceptos, no uno: la extracción a `OriginatedRequestsQuery`, el
+  umbral de saldo residual del lender, y la alineación de filtros entre pantalla y el reporte por
+  correo — los tres commits del merge, no sólo el primero;
+- tres redactores en paralelo: uno contestó `declarar` con la propuesta correcta, dos `sigue`;
+- el integrador aplicó **una regla sutil del guion sin que nadie se la recordara**: subió el hash del
+  controlador *porque* un redactor había registrado la relectura. Esa es exactamente la condición del
+  nivel 2.
+
+**Lo que esto dice del diseño:** el guion ES el contrato del agente. Cuando las instrucciones las
+escribe una persona en el momento, se prueba su habilidad para redactar un prompt; cuando las pone
+`/api/skills/vigilar`, se prueba el bucle — y si el agente falla, lo que falta está en el guion, que es
+un hallazgo sobre el corpus y se arregla una vez para todos.
+
+**Y la memoria, medida en vivo.** Se mató el proceso: tres corridas y diez pasos —con tokens ya
+pagados— desaparecieron, y la deriva seguía ahí esperando que alguien volviera a correr todo. El
+avance tiene que ir a `revisiones/<sha>.md` en el propio repo antes de encender nada.
+
+**Queda un hallazgo aplicable:** el mapa de cartera debería declarar
+`app/Services/CreditopX/OriginatedRequestsQuery.php`. Lo encontró el bucle solo, está verificado a
+mano, y es nivel 1 (mecánico).
+
 ## Decisiones abiertas
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
