@@ -95,7 +95,7 @@
   <div class="fila">ritmo <input id="r" type="range" min="0.4" max="3" step="0.1" value="1.4"><b id="rv">1.4×</b></div>
   <div class="leyenda">
     <span>el centro: <i style="background:#5d6670"></i><i style="background:#d8b64a"></i><i style="background:#8fd3a7;margin-right:0"></i></span>
-    <span><i style="background:#ff9838"></i>agentes — vibran mientras piensan</span>
+    <span><i style="background:#ff9838"></i>agentes — brillan mientras piensan</span>
   </div>
 </div>
 <div id="tip"></div>
@@ -261,8 +261,9 @@ controles.minDistance = 5
 
 /* ── EL BRILLO, SELECTIVO ────────────────────────────────────────────────────────────────────────
  * No brilla todo: brilla lo que está VIVO. El centro siempre —es el sol de este sistema, y su color
- * es el avance— y cada agente sólo mientras piensa. Junto con el temblor, eso vuelve obvio quién está
- * trabajando sin agregar un color más.
+ * es el avance— y cada agente sólo mientras piensa. El brillo es la ÚNICA señal de que alguien está
+ * trabajando: hubo un temblor además, y con veinte bolas temblando a la vez la escena se veía
+ * desordenada. El resplandor solo lo dice igual y deja el conjunto tranquilo.
  *
  * Va por CAPAS, como el ejemplo de three: se dibuja la escena dos veces. En la primera, todo lo que NO
  * brilla se pinta de negro y de ahí sale el halo; en la segunda se dibuja la escena de verdad y se le
@@ -419,7 +420,7 @@ function nodo({ radio, padre = null, ancla = null, nombre = '', tipo = 'agente' 
 /* El color ES el avance: gris hasta que arranca, amarillo mientras trabaja, verde cuando concluye.
    Dos tramos para que el amarillo sea un ESTADO y no un instante de paso. */
 /* UN SOLO color que informa, y es el del centro: gris → ámbar → verde según cuánto del merge ya
-   volvió. Los agentes son naranjas SIEMPRE — lo que dicen no es su color sino si están vibrando.
+   volvió. Los agentes son naranjas SIEMPRE — lo que dicen no es su color sino si están encendidos.
    Antes cambiaban los veinte a la vez y el ojo no sabía dónde mirar; ahora hay un solo indicador. */
 const colorDe = n => n.tipo === 'revision' ? VERDE
   : n.tipo !== 'centro' ? NARANJA
@@ -640,16 +641,6 @@ render.setAnimationLoop(() => {
       n.malla.position.x += Math.sin(to * rit + n.fase) * amp
       n.malla.position.y += Math.sin(to * rit * .8 + n.fase * 1.7) * amp
       n.malla.position.z += Math.cos(to * rit * .9 + n.fase) * amp
-      /* VIBRA MIENTRAS PIENSA. Rápido y chiquito —28 Hz, una fracción de su radio— para que se lea
-         como temblor y no como otro movimiento más. Es lo que reemplaza al color: ahora el agente no
-         dice en qué anda por su tono, lo dice porque tiembla. Va con el reloj de los latidos, no con
-         el de la órbita: aunque lo señales y quede quieto, sigue temblando si sigue pensando. */
-      if (trab){
-        const tv = t * 28 + n.fase * 9, vib = n.radio * .14
-        n.malla.position.x += Math.sin(tv) * vib
-        n.malla.position.y += Math.sin(tv * 1.37 + 1.1) * vib
-        n.malla.position.z += Math.cos(tv * .89) * vib
-      }
     }
     n.malla.material.color.lerp(colorDe(n), .08)
     const late = n.estado === 'trabajando' ? .2 + .18 * Math.sin(t * 7 + n.fase) : .18
