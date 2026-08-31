@@ -32,6 +32,8 @@ const BASE = process.env.E2E_ADMIN_URL ?? 'http://admin.localhost:8000';
 const CASOS = {
       conSucursalesSinSolicitudes: process.env.E2E_ALLIED_B ?? '33',
       conSolicitudes: process.env.E2E_ALLIED_C ?? '14',
+      /** Entidad (no comercio) que arrastra tipos de otro país: smartpay, en un país sin catálogo. */
+      entidadConTiposAjenos: process.env.E2E_LENDER_AJENOS ?? '152',
 };
 
 test.use({ baseURL: BASE });
@@ -99,4 +101,27 @@ test('un comercio con solicitudes ve el campo, pero deshabilitado y con el motiv
             'el campo se ve pero no está deshabilitado: la regla no está frenando').toBeVisible();
 
       await page.screenshot({ path: 'test-results/pais-comercio-bloqueado.png' });
+});
+
+/**
+ * Una entidad puede arrastrar tipos de documento que no son de su país — pasa al cambiarle el país:
+ * los viejos se quedan. Antes se veían como chip pero NO se podían quitar, porque deseleccionar exige
+ * que la opción exista y las opciones eran sólo las del país. El resultado era un tipo ajeno a la vista,
+ * sin forma de sacarlo, que se volvía a guardar tal cual.
+ */
+test('los tipos de documento ajenos al país se ven, se explican y se pueden quitar', async ({ page }) => {
+      await page.goto(`/entidades/${CASOS.entidadConTiposAjenos}/editar`);
+      await page.waitForLoadState('networkidle');
+
+      // El aviso dice cuáles sobran y por qué.
+      await expect(page.getByText(/no (es|son) de .*: qued/i),
+            'no se avisa que la entidad tiene tipos que no son de su país').toBeVisible();
+
+      // Y están entre las opciones, que es lo que permite deseleccionarlos. Sin esto el chip se ve
+      // pero es inamovible.
+      await page.getByText('Tipos de documento que acepta').click();
+      await expect(page.getByText(/— no es de/i).first(),
+            'los tipos ajenos no aparecen en la lista: no hay forma de quitarlos').toBeVisible();
+
+      await page.screenshot({ path: 'test-results/tipos-ajenos.png' });
 });
