@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -22,7 +22,24 @@ están abajo con su consulta.
 ⚠ **Y hay una cosa que NO es un PR**: 62 créditos dominicanos autorizados sin que ninguna central
 verificara la identidad. Eso es una decisión de negocio con dueño, y tiene plazo real.
 
-**El próximo paso es:** desplegar a producción lo que ya está mergeado (punto 2 de §«Cómo se ataca»).
+**ESTADO 2026-08-31 · el documento genérico está COMPLETO en `qa` y listo para pruebas reales.** La
+tarjeta muestra bandera, gentilicio, nombre del documento y autoridad emisora, todo derivado del país del
+comercio y del tipo que eligió el solicitante, más la fecha de nacimiento cuando el comercio la pide. **La
+migración de banderas ya corrió contra la base compartida**, así que dev, qa y staging tienen el dato (los
+tres comparten base). Probado de punta a punta en qa con un comercio peruano. Los estados de PR salen de
+`make tareas-ramas N=68`, que los mide; no los escribas a mano. El detalle, en las dos entradas del 31 en
+§«Registro».
+
+**El próximo paso es:** correr las pruebas reales de QA sobre lo mergeado en `qa` — la matriz por país
+está en §«Tarea (publicable)» → «Cómo validar» — y desplegar a producción, que **todavía no tiene nada de
+esto** (punto 2 de §«Cómo se ataca»). ⚠ **Producción tampoco tiene las banderas**: la migración se corrió
+sólo contra la compartida, y allá hay que correrla aparte.
+
+⚠ **Dos riesgos abiertos que NO son PRs y conviene leer antes de probar**, los dos al final del §«Registro»:
+vaciarle los tipos de documento a una entidad hace aparecer **más** documentos (el fallback devuelve todos
+los del país, PEP incluido), y el bypass de OTP de QA **no aplica en el ambiente qa** — los códigos se leen
+en el canal `#qa-messages` de Slack.
+
 Los tres PRs de la segunda tanda **se mergearon el 2026-08-27**: `legacy-backend#1220` y
 `frontend-monorepo#889` a `qa`, `legacy-application#83` a `develop`. Quedan abiertos
 `frontend-monorepo#894` (el ejemplo del celular por país) y `legacy-backend#1225` (⛔ bloqueada).
@@ -405,6 +422,110 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 > no se deriva de nada, igual que `is_operating`.
 
 ## Registro
+
+### 2026-08-31 · las banderas llegaron a la base compartida, y el PEP que no se iba era un cache
+
+**Lo que quedó listo para probar.** Cuatro cambios, los cuatro mergeados a `qa`:
+
+| PR | repo | estado | qué |
+|---|---|---|---|
+| #1250 | `legacy-backend` | ✅ mergeado | el `country` del endpoint suma `nationality` y `flag` |
+| #910 | `frontend-monorepo` | ✅ mergeado | la tarjeta los consume |
+| #915 | `frontend-monorepo` | ✅ mergeado 28/8 | la autoridad emisora sale de (país, tipo) |
+| #925 | `frontend-monorepo` | ✅ mergeado 31/8 | la fecha de nacimiento en la cara visible y en la MRZ |
+
+**La migración de banderas ya corrió contra la base compartida** (`2026_08_28_120000_paises_seed_de_banderas`),
+a mano y desde local, porque el deploy no corre migraciones. Antes: **253 países, los 253 sin bandera**.
+Después: 18 con `flagcdn`, 235 intactos, cero sobrescrituras. Sirve a dev, qa **y staging** a la vez —
+comparten la misma base—. El comando quedó con las credenciales por entorno y `--path` a un solo archivo,
+sin tocar el `.env`: apuntar el `.env` a la compartida es el patrón que la vació el 19/8 (CORE-431).
+
+⚠ **`--pretend` NO sirve para validar esa migración.** En modo simulacro `Schema::hasTable()` tampoco se
+ejecuta, devuelve `false` y la guarda corta antes de los UPDATE: el simulacro imprime una query y parece
+que no hace nada. Se midió con un SELECT que replica el `WHERE`, no confiando en él.
+
+**Probado en qa de punta a punta**, con el comercio peruano y el OTP leído de Slack: bandera de Perú desde
+la BD (`naturalWidth 80`, no un fallback), `DNI` en el selector, `NÚMERO DE DNI` en la cara visible, la
+tarjeta gira al elegir la fecha y la MRZ sale `I<PER71234567<5…`. Contraste por país contra la API de qa:
+Colombia `co.png` + `['CC','CE']`, Rep. Dominicana `do.png` + `['CED','NUI']`, Perú `pe.png` + `['DNI','CE']`.
+
+**La autoridad emisora ya sale, y cierra el pendiente que quedó anotado el 28.** La clave es **doble** —
+(país, tipo)— y no sólo país, porque los documentos de extranjería los expide la autoridad migratoria:
+`CE` en Colombia es Migración Colombia y en Perú es Migraciones. Un mapa por país solo pondría
+«Registraduría» en una cédula de extranjería. Las siete entradas están verificadas contra el sitio oficial
+de cada entidad. Va en el front y no en la BD porque es una **relación** (país × tipo), no la columna
+suelta que sí fueron `flag` y `nationality`.
+
+⚠ **Sin entrada en el catálogo va `XXXX`, y esto costó un bug.** La primera versión caía a
+`country.authority` como respaldo, y con eso **un pasaporte colombiano mostraba «Registraduría Nacional»**,
+que lo expide Cancillería. El default del país sólo vale para SU documento; aplicarlo a otro tipo inventa
+un dato con cara de real. Lo encontró la prueba, no la lectura.
+
+**La fecha de nacimiento ya se pedía y la tarjeta la ignoraba.** El paso de identificación la pide para
+los comercios con `showBirthDate`, validada entre 18 y 100 años, y el documento la mostraba en `XXXX`.
+Ahora entra también en la MRZ: TD1 reserva las posiciones 1-6 de la línea 2 para `AAMMDD` y la 7 para su
+dígito verificador, que alimenta el compuesto. Verificado contra una implementación independiente del
+7-3-1, no contra la del propio componente.
+
+⚠ **Se quitó el campo SEXO de la cara visible, y es una decisión de diseño a validar.** La fila tenía tres
+campos en 8 columnas y no entraban: **`COLOMBIANA` ya se cortaba a `COLOMBIA…` desde antes** —se ve en la
+story `Front`, que no se tocó— y la fecha completa se cortaba a `1990-11…`. Sexo es el único de los tres
+que no se va a llenar nunca: no se pide en ningún paso ni existe en `PersonalInfo`.
+
+### 2026-08-31 · el PEP que no se iba: el backend estaba bien y el cache mentía
+
+Se le agregó el PEP a una entidad para probar, se lo quitaron, y el wizard lo siguió ofreciendo. **El
+backend estaba correcto desde el primer segundo** — `DocumentTypesService` no cachea, consulta la base en
+cada request, y los dos endpoints devolvían `['CC','CE']`.
+
+**Lo que servía el dato viejo era el cache in-process del BFF del wizard**, TTL de 10 minutos y **sin
+ninguna forma de invalidarlo**: ni bypass, ni endpoint de purga, y como es cache de servidor, recargar o
+limpiar el navegador no hace nada. La línea de tiempo lo cierra: la entidad se actualizó 15:08:22, la
+solicitud se creó 15:09:41, y a las 15:20 el BFF ya servía lo correcto.
+
+⚠ **Y crear una solicitud nueva no ayudaba**, que es lo primero que cualquiera intenta: el loader de
+`personal-info` pide el theme **sin pasar el `loanRequestId`** —mientras otras 20 rutas sí lo pasan—, así
+que la entrada de cache es una sola por sucursal. De paso, esa pantalla se pierde el bloque `metadata`
+que el backend sólo manda con la solicitud (`credit_type`, `lender_path`, `origination_flow_type`).
+
+**Se evaluó bajar el TTL y se decidió NO tocarlo** (Miguel, 31/8). Medido contra qa: la pantalla tarda
+2,8-3,2 s con los caches fríos y 0,5-1,0 s calientes, o sea ~0,6 s por cache y por pantalla; un flujo pasa
+por ~12 pantallas que piden el theme, así que quitarlo son 6-7 s repartidos por el funnel, en el camino
+crítico del SSR. La propuesta era bajarlo sólo en dev/qa/staging dejando prod igual; el PR quedó **cerrado
+con el diagnóstico dentro** (`frontend-monorepo#923`) por si se retoma.
+
+**Dato que corrige el comentario del propio código:** dice que el cache está porque «el theme cambia a
+escala de días». Medido en prod son ~1.000 solicitudes/día en ~250 sucursales, 4 por sucursal por día:
+casi nunca hay dos flujos de la misma dentro de una ventana de 10 minutos. **El cache no ahorra entre
+sesiones, ahorra dentro de una.** Eso es lo que dimensiona el TTL. Y tampoco lo justifica aliviar al
+monolito: sin cache serían ~12.000 requests/día, 0,14 req/s.
+
+### 🔴 Riesgo abierto: vaciar los tipos de una entidad hace aparecer MÁS, no menos
+
+`app/Services/DocumentTypesService.php` termina así:
+
+    return $cruce !== [] ? $cruce : array_values($tiposDelPais);
+
+Colombia tiene `["CC","CE","PEP"]` en `countries.document_types`. Si alguien le quita **todos** los tipos
+a las entidades de una sucursal, el cruce da vacío y el fallback devuelve **los tres del país, PEP
+incluido**. Hoy no está disparando —ninguna de las 171 entidades tiene los tipos vacíos, medido— pero es
+exactamente el escenario que se temía y está armado esperando.
+
+Y una trampa de configuración: **`lenders.document_types` es de la entidad global**, no de la relación con
+el comercio. «Agregarle PEP a una entidad de Pullman» se lo agrega para todos los comercios que la tengan
+activa. Esta vez no hubo daño porque `DunCredito CO` está en un solo comercio.
+
+### 🔴 El bypass de OTP de QA no aplica en el ambiente qa
+
+`Modules/Onboarding/App/Services/OtpBypassService.php` corta en la primera línea:
+
+    if (!app()->environment('local', 'development')) return false;
+
+En qa eso devuelve `false`. La prueba: **`3224675745` está en `qa_otp_bypass_phones`** y su OTP en qa fue
+`2935` —un código real por SMS— en vez de `5745`, sus últimos 4. Consecuencia: **CORE-448**, que le enseñó
+al bypass los prefijos de Perú y RD, **sólo rinde en local y dev**; en qa nunca dispara. Hoy no bloquea a
+nadie porque los OTP de qa se leen en el canal `#qa-messages` de Slack (cambio de Joel), pero **el harness
+sí depende del bypass**, así que contra qa no puede solo.
 
 ### 2026-08-27
 
@@ -946,20 +1067,53 @@ lado.
 Las listas que hoy están escritas en el código —tipos de documento, ciudades, bancos— pasan a leerse de
 la configuración del país, igual que ya se hace con el indicativo telefónico y la moneda.
 
+Y el **documento que se le dibuja al solicitante** en el paso de fecha de expedición deja de ser la cédula
+colombiana. Antes había dos ilustraciones fijas —la cédula y el permiso de permanencia— y se elegía entre
+ellas; ahora hay una sola, que se adapta: muestra la bandera del país del comercio, el gentilicio, el
+nombre real del documento que la persona eligió, la entidad que lo expide y su fecha de nacimiento cuando
+se le pidió. Lo que no se le pregunta al solicitante y no se puede deducir se marca visiblemente en vez de
+inventarse.
+
 ## Alcance
 El flujo de originación. No entra la mensajería, que tiene su propio camino y es un trabajo aparte, ni la
-zona horaria, que necesita un dato que todavía no existe.
+zona horaria, que necesita un dato que todavía no existe. El documento se ilustra en formato tarjeta: un
+pasaporte tiene otra forma y queda para después.
 
 ## Dónde probar
-Local y dev, con un comercio de cada país.
+**El ambiente `qa`** (originaciones-qa), que es donde está mergeado todo esto. Sirve para los tres países
+porque hay comercios de prueba de cada uno; la configuración de países ya quedó cargada y alcanza también
+a dev y staging, que comparten la misma base.
+
+⚠ **Producción todavía no tiene nada de esto**, y cuando se despliegue habrá que cargar allá las banderas
+aparte: no viajan con el código.
+
+⚠ **El código de verificación por SMS no llega al teléfono en `qa`**: se publica en el canal de mensajería
+de pruebas del equipo en Slack, en el hilo del número que se usó.
 
 ## Cómo validar
-Dar de alta un comercio de un país distinto de Colombia y llegar hasta la elección de entidad: tiene que
-poder elegir su ciudad, su tipo de documento y ver su moneda, sin que nadie toque código.
+Arrancar una solicitud con un comercio de cada país y llegar hasta el paso de la fecha de expedición:
+
+| país | tipos que debe ofrecer | qué debe decir el documento |
+|---|---|---|
+| Colombia | C.C. y C.E. | bandera colombiana · «Cédula de ciudadanía» · Registraduría · COLOMBIANA |
+| Perú | DNI y C.E. | bandera peruana · «Documento Nacional de Identidad» · RENIEC · PER |
+| República Dominicana | Cédula y NUI | bandera dominicana · «Cédula de identidad» · JCE · su gentilicio |
+
+Después, en la misma pantalla: elegir la fecha de expedición y comprobar que **el documento gira solo** y
+muestra el reverso con esa fecha resaltada; volver a tocarlo para verlo de frente.
+
+Y el caso que más importa: **cambiar el tipo de documento a cédula de extranjería**. La entidad emisora
+tiene que cambiar también —en Colombia pasa a Migración Colombia, en Perú a Migraciones—, porque no la
+expide la misma oficina que la de nacionales.
 
 ## Criterios de aceptación
 Un comercio de un país habilitado completa el alta y una solicitud de punta a punta. Ningún país aparece
 escrito en el código de esos pasos. Colombia no cambia de comportamiento.
+
+Sobre el documento: en los tres países se ve la bandera correcta y el nombre correcto del documento; al
+cambiar el tipo cambian el nombre y la entidad emisora; ningún dato aparece cortado a media palabra; y
+los datos que no se le piden al solicitante se ven marcados como desconocidos, nunca con un valor de
+relleno que se pueda confundir con uno real.
 
 ## Dependencias / contraparte
 Hace falta una definición de negocio: si se puede originar en República Dominicana sin verificación de
