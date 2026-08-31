@@ -125,3 +125,34 @@ test('los tipos de documento ajenos al país se ven, se explican y se pueden qui
 
       await page.screenshot({ path: 'test-results/tipos-ajenos.png' });
 });
+
+/**
+ * El selector de país filtra al escribir.
+ *
+ * Son 18 países operativos y la lista sigue creciendo: con un desplegable pelado hay que buscarlos a
+ * ojo. `app-autocomplete` es el mismo componente que ya usan otras pantallas del admin, así que el
+ * cambio es de `app-select` a ése y nada más.
+ */
+test('el selector de país filtra al escribir', async ({ page }) => {
+      await page.goto(`/aliados/${CASOS.conSucursalesSinSolicitudes}/editar`);
+      await page.waitForURL(/\/aliados\/\d+\//, { timeout: 15_000 });
+      await page.waitForLoadState('networkidle');
+
+      // El input del autocomplete: es el que está dentro del campo cuyo hint ya conocemos.
+      const campo = page.locator('.v-input').filter({ hasText: 'País' }).first();
+      const input = campo.locator('input').first();
+      await input.click();
+
+      // Sin filtrar están todos.
+      await expect(page.getByRole('option'), 'el desplegable no se abrió o no tiene países')
+            .not.toHaveCount(0);
+      const total = await page.getByRole('option').count();
+
+      await input.fill('per');
+      await expect(page.getByRole('option'),
+            'escribir no redujo la lista: el campo no está filtrando').toHaveCount(1);
+      await expect(page.getByRole('option').first()).toContainText(/per[uú]/i);
+
+      console.log(`\n  · sin filtrar: ${total} países · escribiendo "per": 1`);
+      await page.screenshot({ path: 'test-results/pais-filtrado.png' });
+});
