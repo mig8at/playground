@@ -1869,24 +1869,51 @@ de Perú.
    celular, idioma y moneda — la base sobre la que después las pantallas pueden mostrar la moneda y el
    prefijo correctos.
 
-## Alcance
-**Entra**: el listado de entidades, el alta y edición de comercios y entidades, y el registro de países.
+**Y lo que se sumó después** (segunda tanda, lo que ve el solicitante):
 
-**No entra** (son pasos siguientes, con su propio trabajo): que las pantallas muestren la moneda y el
-prefijo del país en el formulario de solicitud; los tipos de documento por país; el catálogo de ciudades
-de países nuevos; y **corregir el registro de las entidades mal cargadas**, que se hace después y sólo una
-vez que este cambio esté en el aire — al revés, desaparecen de los listados.
+5. **El formulario de solicitud habla en el idioma del país**: el monto en su moneda y con sus separadores,
+   el celular con su prefijo y su longitud, y los tipos de documento que ese país acepta — no los
+   colombianos.
+6. **El documento que se le dibuja al solicitante se adapta.** Antes había dos ilustraciones fijas —la
+   cédula colombiana y el permiso de permanencia— y se elegía entre ellas; ahora hay una sola que muestra
+   la bandera del país del comercio, el gentilicio, el nombre real del documento elegido, la entidad que
+   lo expide y la fecha de nacimiento cuando el comercio la pide. La entidad emisora depende del país **y**
+   del tipo: los documentos de extranjeros los expide la oficina de migraciones, no la de nacionales.
+7. **Lo que no se le pregunta al solicitante y no se puede deducir se marca visiblemente** en vez de
+   inventarse, para que nadie confunda un relleno con un dato real.
+
+## Alcance
+**Entra**: el listado de entidades, el alta y edición de comercios y entidades, el registro de países, y
+—en el flujo de solicitud— la moneda, el prefijo y la longitud del celular, los tipos de documento por país
+y la ilustración del documento.
+
+⚠ Los tres últimos figuraban antes como «no entra»: **entraron en la segunda tanda** y por eso se movieron.
+
+**No entra** (son pasos siguientes, con su propio trabajo): el catálogo de ciudades de países nuevos; la
+mensajería, que tiene su propio camino; el pasaporte, que tiene otra forma y se ilustra aparte; y
+**corregir el registro de las entidades mal cargadas**, que se hace después y sólo una vez que este cambio
+esté en el aire — al revés, desaparecen de los listados.
 
 Habilitar un país **no** significa que el crédito funcione de punta a punta ahí: eso depende además de que
 el país tenga central de riesgo, documentos y geografía cargados. La separación es deliberada — configurar
 un comercio no origina crédito, así que no hay razón para impedir el alta mientras el país se prepara.
 
 ## Dónde probar
-Ambiente de desarrollo y QA, que **comparten la misma base de datos**: lo que se carga en uno se ve en el
-otro. Comercios de referencia: uno colombiano (**Kreditkasa** o **Dentix**), uno dominicano (**CeluRD**) y
-el comercio de prueba de Perú.
+**El ambiente `qa`** (originaciones-qa), que es donde está todo esto. Comparte base de datos con desarrollo
+y con staging, así que lo que se carga en uno se ve en los tres — pero **el código es distinto en cada
+uno**, y esto está en `qa`. Comercios de referencia: uno colombiano (**Kreditkasa** o **Dentix**), uno
+dominicano (**CeluRD**) y el comercio de prueba de Perú.
+
+⚠ **Producción todavía no tiene nada de esto.** Y al desplegarlo habrá que cargar allá las banderas
+aparte: son datos y no viajan con el código.
+
+⚠ **El código de verificación por SMS no llega al teléfono en `qa`**: se publica en el canal de mensajería
+de pruebas del equipo en Slack, en el hilo del número que se usó.
 
 ## Cómo validar
+
+**La configuración (primera tanda)**
+
 1. **Que no se rompió nada**: entrar con un comercio colombiano y con uno dominicano y confirmar que el
    listado muestra **exactamente las mismas** entidades que antes del cambio, en el mismo orden.
 2. **Que el país nuevo funciona**: con el comercio de Perú, confirmar que su entidad aparece en el
@@ -1896,6 +1923,23 @@ el comercio de prueba de Perú.
 4. **Que el país se puede corregir**: en un comercio recién creado, sin puntos de venta ni solicitudes, el
    campo de país es editable. En uno con operación, no aparece.
 
+**El flujo del solicitante (segunda tanda)**
+
+5. Arrancar una solicitud con un comercio de cada país y mirar las primeras dos pantallas: el monto tiene
+   que salir en la moneda del país y el celular con su prefijo y su cantidad de dígitos.
+6. Llegar al paso de la fecha de expedición y comprobar el documento en cada país:
+
+|| país || tipos que debe ofrecer || qué debe decir el documento ||
+| Colombia | C.C. y C.E. | bandera colombiana · «Cédula de ciudadanía» · Registraduría · COLOMBIANA |
+| Perú | DNI y C.E. | bandera peruana · «Documento Nacional de Identidad» · RENIEC |
+| República Dominicana | Cédula y NUI | bandera dominicana · «Cédula de identidad» · JCE |
+
+7. En esa misma pantalla: elegir la fecha de expedición y comprobar que **el documento gira solo** y muestra
+   el reverso con esa fecha resaltada; volver a tocarlo para verlo de frente.
+8. **El caso que más importa**: cambiar el tipo a cédula de extranjería. La entidad emisora tiene que
+   cambiar también — en Colombia pasa a Migración Colombia, en Perú a Migraciones —, porque no la expide la
+   misma oficina que la de nacionales.
+
 ## Criterios de aceptación
 - El listado de entidades de un comercio colombiano y de uno dominicano es idéntico antes y después.
 - La entidad peruana aparece en el listado de un comercio peruano, y **no** aparece en uno colombiano.
@@ -1903,10 +1947,19 @@ el comercio de prueba de Perú.
 - Ningún país fuera de esa lista se puede elegir al crear un comercio o una entidad.
 - El país de un comercio se puede corregir sólo mientras no tenga puntos de venta ni solicitudes.
 - Ninguna entidad activa deja de aparecer en un listado donde antes aparecía.
+- En los tres países se ve la bandera correcta y el nombre correcto del documento; al cambiar el tipo
+  cambian el nombre y la entidad emisora.
+- El documento gira al completar la fecha y responde al toque.
+- Ningún dato aparece cortado a media palabra, y los que no se le piden al solicitante se ven marcados como
+  desconocidos y no con un valor de relleno que se pueda confundir con uno real.
+- Colombia no cambia respecto de lo que se veía antes, salvo por la bandera y el gentilicio, que no estaban.
 
 ## Dependencias / contraparte
 - **Orden obligatorio**: el cambio del registro de países se aplica **antes** de publicar el cambio de
   código. Ya está aplicado en el ambiente compartido por desarrollo y QA.
+- **Para producción**: además del despliegue hay que cargar las banderas de los países donde se opera. Es
+  un cambio de datos, va por fuera del código, y sin él el documento se ve con un emblema gris en vez de la
+  bandera.
 - **Negocio**: confirmar la longitud del celular de los países que todavía no operan antes de abrir cada
   uno — varios planes de numeración son ambiguos, y la duda ya existe con República Dominicana, que hoy
   figura con una longitud distinta a la de Colombia.
