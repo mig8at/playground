@@ -76,20 +76,27 @@ test('un comercio con sucursales y sin solicitudes puede corregir su país', asy
       await page.screenshot({ path: 'test-results/pais-comercio-editable.png' });
 });
 
-test('un comercio con solicitudes NO puede corregir su país', async ({ page }) => {
+test('un comercio con solicitudes ve el campo, pero deshabilitado y con el motivo', async ({ page }) => {
       await page.goto(`/aliados/${CASOS.conSolicitudes}/editar`);
       await page.waitForURL(/\/aliados\/\d+\//, { timeout: 15_000 });
       // Sin esto se consulta el DOM antes de que Vue monte y todo da «element not found», que se
       // lee como «la regla bloqueó» en vez de «todavía no dibujó».
       await page.waitForLoadState('networkidle');
 
-      // Con solicitudes el campo ni se muestra: no hay nada que decidir, y un campo deshabilitado
-      // invitaría a preguntarse por qué. Se espera a que el formulario haya montado —si no, esto pasa
-      // por la razón equivocada: la página todavía no dibujó nada.
+      // Con solicitudes el campo SE VE, deshabilitado y con el motivo. Esconderlo era peor: un campo
+      // ausente no se distingue de uno roto, y quien no lo ve concluye que la pantalla no tiene esa
+      // opción. Mismo criterio que la edición de entidades.
       await expect(page.getByLabel('Nombre', { exact: true }),
-            'el formulario no montó: la aserción de abajo no probaría nada').toBeVisible();
+            'el formulario no montó: las aserciones de abajo no probarían nada').toBeVisible();
+
+      await expect(page.getByText(/Ya tiene solicitudes/i),
+            'falta el motivo: el campo gris se lee como un error de la pantalla').toBeVisible();
       await expect(page.getByText(/todavía no tiene solicitudes/i),
-            'el campo País aparece en un comercio con solicitudes: la regla no está frenando').toHaveCount(0);
+            'dice que se puede corregir, y este comercio tiene solicitudes').toHaveCount(0);
+
+      // Y de verdad deshabilitado, no sólo con el cartel.
+      await expect(page.locator('.v-input--disabled').filter({ hasText: 'País' }).first(),
+            'el campo se ve pero no está deshabilitado: la regla no está frenando').toBeVisible();
 
       await page.screenshot({ path: 'test-results/pais-comercio-bloqueado.png' });
 });
