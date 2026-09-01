@@ -216,6 +216,23 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ## Registro
 
+### 2026-09-01 · noche · 2 — el header cuenta la vuelta, y «correr todas» dice lo que cuesta
+
+Pedido de Miguel antes de mergear #49, construido y probado en local (mismo PR): el chip del header
+pasa a «PR #n · k commits +a −b» y despliega la lista de commits —uno por corrida, más el del plan—;
+`POST /api/tareas/correr-todas` levanta las que faltan DE A TRES (el tope de diez protege al servidor,
+esto protege el bolsillo) y el botón lleva el costo estimado con el promedio MEDIDO de esta vuelta, o
+dice que todavía no hay medida; filas a dos líneas; barra de avance en «La vuelta».
+
+Hueco que salió probando la persistencia: el PR lleva `.vuelta.json` y al mergear queda en `main`; la
+rama siguiente nace con él y el arranque lo habría leído como vuelta viva. Ahora un plan de la rama
+sólo cuenta si su blob difiere del de `main`.
+
+Y una observación del CI del repo compartido, fuera de esta tarea: `Revisar herramientas` corre `task ci`
+sobre TODAS las herramientas —construye la imagen de credibot, cuadrilla y home en un PR que sólo toca
+canon—. Es lo que Miguel vio como «`tools/credibot` en el PR». Candidato a acotar `task ci` a las
+herramientas cambiadas; es decisión del repo, no de canon.
+
 ### 2026-09-01 · noche — PRIMERA VUELTA EN PROD (después de mergear #48)
 
 > **MEDICIÓN · 2026-09-01** — planificador en prod: 32 archivos en 10 temas → **17 tareas en 74 s, 196k tokens**. Ids estables, `cubiertos` 31/32, `.vuelta.json` de 16 KB en `canon/contexto` **sin abrir PR**.
