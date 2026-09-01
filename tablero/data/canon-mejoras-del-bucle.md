@@ -27,9 +27,12 @@ modelo se mide después de mergear, no antes.
 **Al cierre del 2026-09-01, ocho de los nueve ítems están CONSTRUIDOS y probados en local, dentro de
 #48** (1, 2, 3, 4, 5, 7, 8, 9). Queda el 6 —el costo— porque su primer paso es medir en prod.
 
-**El próximo paso es:** mergear #48, correr UNA vuelta completa en prod y anotar cuatro números: cuántos
-`declarar` llegan con archivos, cuántos `no alcanza` traen archivos (ítem 5), qué dictamina el
-verificador, y cuánto costó la vuelta entera. Con eso se ataca el 6.
+**#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
+medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
+
+**El próximo paso es:** mergear #49 y seguir la vuelta en prod tarea por tarea — el objetivo es llegar
+a la consolidación y ver qué dictamina el verificador sobre una vuelta real. Con el costo por redactor
+ya medido (150k), el ítem 6 arranca por la palanca (a): que el redactor pueda leer el archivo entero.
 
 ## Objetivo
 
@@ -212,6 +215,26 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche — PRIMERA VUELTA EN PROD (después de mergear #48)
+
+> **MEDICIÓN · 2026-09-01** — planificador en prod: 32 archivos en 10 temas → **17 tareas en 74 s, 196k tokens**. Ids estables, `cubiertos` 31/32, `.vuelta.json` de 16 KB en `canon/contexto` **sin abrir PR**.
+> **MEDICIÓN · 2026-09-01** — un redactor (`p4109f3`, arquitectura, 2 preguntas, 1 archivo): **53 s, 150k tokens, aterrizaje forzoso a los 120k**. 11 llamadas: `cambios` 1, `historia` 1, **`codigo` 7** (una rechazada por tope) sobre la MISMA área con regex cada vez más largas — nunca leyó el archivo entero. Concluyó `sigue` · `no alcanza` (con `archivos`) · `nada que declarar`.
+
+Dos hallazgos, los dos en `Creditop-SAS/playground#49`:
+
+1. `/api/pr` contestaba **403**: buscaba el PR con el token de LECTURA y listar PRs pide `Pull requests`,
+   que sólo tiene la App que escribe. Local no lo mostró: el GitHub falso no revisa permisos en los GET.
+2. El `no alcanza` nombró **exactamente los archivos que el área ya declara**, diciendo que no pudo
+   leerlos por presupuesto. Con lo que había, `proponer` los habría «declarado» y el borrador trata un
+   archivo ya declarado como **subirle el hash** — nivel 2 del guion, sin que nadie releyera. Y lo puse yo
+   a un click (ítem 5). Ahora una pieza que sólo declara nunca sube un hash (409 si no hay nada nuevo),
+   cada hallazgo trae `archivos_nuevos` y la pantalla decide «pide algo» por eso.
+
+**Para el ítem 6, ya hay dato**: el redactor gastó el presupuesto BUSCANDO con `codigo` (7 veces, misma
+área) cuando la pregunta —«¿cuántos comandos agenda el Kernel?»— se contesta leyendo el archivo una vez.
+La primera palanca es la (a) del plan: que tenga cómo leer el archivo entero y no sólo fragmentos por
+regex. Confirma también que la ley de costo aplica: 11 turnos → 150k.
 
 ### 2026-09-01 · tarde
 
