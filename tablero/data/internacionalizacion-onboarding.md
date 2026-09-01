@@ -6,10 +6,44 @@ created: "2026-08-05T17:11:17-05:00"
 context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
-ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar, pais/el-largo-del-celular-en-el-flujo-dinamico
+ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombiano, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar, pais/el-largo-del-celular-en-el-flujo-dinamico
 ---
 
 # Internacionalización de CreditOp
+
+> **ESTADO (2026-09-01) — tercera tanda: el país ya no se supone, se escribe.** Lo de abajo, del 27/8 y
+> del 19/8, es historia y sigue siendo cierto para su momento. Esto es lo de hoy.
+>
+> **Lo que cambió desde el 27/8, en una línea cada uno:**
+>
+> | frente | dónde quedó |
+> |---|---|
+> | **el documento del solicitante** | genérico y por país: bandera, gentilicio, nombre del documento, autoridad emisora y fecha de nacimiento. **Completo en `qa`** |
+> | **el admin** | el país de un comercio y los tipos de una entidad **se corrigen desde la pantalla**, con filtro de búsqueda y con los tipos ajenos visibles y removibles (`legacy-application` #95, en `develop`) |
+> | **el país del CLIENTE** | pasó de no existir a escribirse: nace con el país de su comercio y el OTP lo usa (#1272 y #1277, **los dos mergeados a `qa` el 1/9**) |
+> | **el país del COMERCIO por API** | el `POST` del módulo Partner **ya lo exige**, como el admin (dentro de #1277) |
+>
+> ⚠ **Producción sigue sin nada de esto** — ni de la segunda tanda ni de la tercera. Y **las banderas
+> tampoco están allá**: su migración se corrió sólo contra la base compartida.
+>
+> ⚠ **Dos migraciones escritas y SIN CORRER contra la compartida:** el backfill de teléfonos de #1272
+> —espera a que `qa` baje a `develop`, para que los tres ambientes tengan el arreglo de búsqueda antes
+> de normalizar el dato— y `legacy-backend` #1225, **bloqueada a propósito** (borra la columna de la
+> sucursal y tres ramas desplegadas todavía la leen).
+>
+> ⚠ **Lo que sigue abierto y es la raíz:** el **`DEFAULT 1`** de `country_id` sigue vivo en **7 tablas**
+> de la compartida. Su bloqueante —el creador de comercios que no pedía país— **quedó cerrado el 1/9**,
+> así que ahora sí se puede quitar; es un cambio de esquema y merece su propia decisión. Y quedan
+> **19.618 fichas de cliente** con ese default: por eso el OTP conserva su rodeo por la última solicitud.
+>
+> **El próximo paso es:** correr las pruebas reales de QA sobre lo mergeado en `qa` y llevar la campaña
+> a producción, que es lo único que todavía no vio nada.
+>
+> 📄 **El detalle vive en dos archivos hermanos, y no se copia acá para que no se desincronice:**
+> `tablero/data/pais-fuera-del-codigo.md` (la ejecución: el modelo de país, el orden por ambiente) y
+> `tablero/data/lo-que-queda-de-pais-quemado.md` (el censo de lo que todavía asume Colombia, con sus
+> mediciones contra producción). **El historial día por día de toda la campaña sí está acá**, en
+> §«Bitácora» — es lo único que no se desincroniza, porque lleva fecha.
 
 > **ESTADO (2026-08-27) — segunda tanda: el país sale del código.** Lo de abajo, del 19/8, es la PRIMERA
 > tanda y sigue siendo cierto. Esto es lo que pasó después.
@@ -29,10 +63,7 @@ ramas: pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/b
 > **La prueba de que sirve:** el comercio dominicano **cierra una solicitud entera con `CED`** y el
 > colombiano con `CC`. Antes los dos terminaban marcados como colombianos.
 >
-> 📄 **El detalle vive en dos archivos hermanos, y no se copia acá para que no se desincronice:**
-> `tablero/data/pais-fuera-del-codigo.md` (la ejecución: el modelo de país, el orden por ambiente, el
-> registro día por día) y `tablero/data/lo-que-queda-de-pais-quemado.md` (el censo de lo que todavía
-> asume Colombia, con sus mediciones contra producción). Los dos tienen su §«Registro» al día.
+> 📄 *(El puntero a los archivos hermanos se movió al bloque de arriba, que es el estado vigente.)*
 >
 >
 > 📐 **Prototipo del documento genérico** (2026-08-27): `tablero/data/artifacts/internacionalizacion-onboarding.tarjeta-identidad.html`
@@ -1838,6 +1869,102 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   defaults** para que el llamador que no pasa el país falle al compilar, en vez de perseguirlos con grep.
   Para el celular, el prefijo ya se preselecciona; lo que queda quemado es la **lista** `[+1, +57]`, que
   ahora puede salir de `countries`.
+
+
+- **2026-08-25** — **Consolidación en una rama y un commit por repo, como pidió Miguel.** El admin ya
+  puede editar los tipos de documento por entidad —lo que antes obligaba a tocar SQL—, y de paso
+  salieron tres bugs: el guardado que borraba la config, un `fillable` que faltaba y un cast ausente en
+  dos modelos. En backend, dos validaciones dejan de exigir 10 dígitos fijos (el registro y la
+  validación de OTP) y las dos degradan al largo de siempre cuando el país no resuelve: **un cliente
+  peruano ya puede escribir su número y validar su código**. Y corrió el **backfill del default
+  histórico** (`..._paises_backfill_del_default_historico`), que sacó comercios y entidades de
+  Afganistán — ⚠ **pero NO quitó el `DEFAULT 1` de las columnas**, y lo dejó dicho en su propio
+  docblock con el bloqueante nombrado: el `POST` de comercios del módulo Partner crea sin mandar país
+  y depende de él. Ese hilo se cierra el 1/9.
+- **2026-08-26** — El país pasa a ser configuración de verdad: `legacy-application` #80 y
+  `legacy-backend` #1221 (el celular se valida y se envía con el país del comercio),
+  `frontend-monorepo` #891 (el país del comercio decide la moneda y el largo del celular).
+- **2026-08-27** — **La tanda del documento.** `legacy-backend` #1220 y su gemelo `legacy-application`
+  #83: **el documento lo dicta la ENTIDAD**, y el validador lee lo mismo que el selector. En el front,
+  cinco PRs: #889 (lo que quedaba del país en el wizard), #894 y #895 (el ejemplo y el largo del
+  celular salen del país, en un solo lugar), #897 (**el monto admite los decimales de su moneda y deja
+  de multiplicar por cien**) y #900 (el largo del celular manda también en el flujo dinámico — era un
+  bloqueo de Perú vivo en `qa`). Queda `legacy-backend` #1225 **bloqueada a propósito**: borra la
+  columna de la sucursal y tres ramas desplegadas todavía la leen. Ese día la ficha en blanco **dejó de
+  nacer diciendo «colombiano»** (idea de Miguel): eran 8.935 personas en 90 días marcadas como `CC`
+  sin fundamento, y hacía daño real — la validación perdona «el tipo que la persona ya tiene guardado»,
+  así que el relleno le daba pase a `CC` en cualquier país.
+- **2026-08-28** — **El documento deja de asumir Colombia, y la tabla `countries` ya tenía con qué.**
+  Backend #1250 y #1252 (el país trae su gentilicio y su bandera); front #903 (el documento del paso de
+  expedición es genérico y sirve para cualquier país), #910 (lee el país y el tipo que eligió el
+  solicitante), #912 (las banderas salen de SVG oficiales, porque la columna de la BD estaba vacía) y
+  #915 (**la autoridad emisora sale del país y del tipo**, no de un rótulo fijo — sobre la observación
+  de Laura de que no salía el nombre de la autoridad de cada país). Y CORE-443 de Joel, en paralelo:
+  #1245, #1247 y #1255 — **el país del OTP se resuelve desde el aliado y no desde el teléfono**, con la
+  separación entre el país del envío y el de la plantilla.
+- **2026-08-31** — Front #925: el documento **muestra la fecha de nacimiento** que el solicitante ya
+  había escrito. `legacy-application` #95: **el país y los tipos de documento de un comercio y de una
+  entidad se pueden corregir desde el admin** — con la regla de que el país de un comercio se puede
+  cambiar hasta su primera SOLICITUD (antes lo cerraba la primera sucursal, que dejaba sin salida el
+  caso más común al abrir un país), mostrado deshabilitado con su motivo en vez de escondido, con
+  búsqueda por filtro, y con los tipos ajenos al país visibles y removibles.
+
+  ⚠ **Y el PEP que «no se iba» resultó no ser del backend.** Se quitó de la entidad y seguía
+  apareciendo en pantalla: la causa es un **cache en memoria del BFF, de diez minutos y sin
+  invalidación**. La línea de tiempo lo prueba (15:08 se cambió la entidad, 15:20 el BFF ya contestaba
+  bien). Se evaluó bajarlo (#923) y **Miguel decidió no tocarlo**: el riesgo de cambiar caches entre
+  ambientes no compensa, y el diagnóstico ya está escrito.
+
+  > **DECISIÓN · 2026-08-31** — el cache del theme del BFF **no se toca**. *Cómo se vuelve a comprobar:*
+  > cambiar la config de una entidad y medir cuánto tarda el BFF en reflejarlo.
+- **2026-09-01** — **El país deja de suponerse: se escribe donde nace.** Dos PRs mergeados a `qa`.
+
+  **#1272** — el usuario temporal deja de nacer colombiano **también por el segundo camino** (eran dos
+  y sólo uno se había arreglado: 26 fichas nuevas con `CC` contra 17 con `-` desde el arreglo
+  anterior), y **buscar por teléfono deja de duplicar cuentas**: la columna no tiene forma canónica, así
+  que el mismo número convive como `3001234567`, `573001234567` y `+573001234567`, y la búsqueda por
+  igualdad exacta no reconocía al que ya existía. Medido: **24 números, 58 usuarios, 32 con
+  solicitudes**. Trae un backfill que normaliza lo ya guardado, ⚠ **escrito y todavía sin correr**
+  contra la base compartida — espera a que `qa` baje a `develop` para que los tres ambientes tengan el
+  arreglo de búsqueda.
+
+  **#1277** — cuatro piezas en un solo commit, a pedido de Miguel: `MerchantCountryService` resuelve
+  sucursal → comercio → país en un solo lugar; **los dos caminos de alta le graban ese país al
+  cliente** (incluido el de SmartPay); el OTP por correo **lee esa columna** en vez de suponer, y su
+  indicativo de último recurso sale del código a configuración —estaba escrito **ocho veces** como
+  `'+57'` en el mismo archivo—; y el `POST` de comercios del módulo Partner **exige país**, como ya lo
+  exigía su gemelo del admin.
+
+  > **MEDICIÓN · 2026-09-01** — `users.country_id` es NOT NULL DEFAULT 1 y la fila 1 es Afganistán:
+  > **19.618** fichas creadas desde el 18/3/2024 lo llevan, contra 1.007 anteriores que sí tienen
+  > Colombia. No es un dato faltante, es uno FALSO — y por eso el resto del código dejó de leer esa
+  > columna y la rodea. *Cómo se vuelve a comprobar:* agrupar los `TEMPORAL USER` por `country_id` y
+  > `MIN/MAX(created_at)`.
+
+  > **DECISIÓN · 2026-09-01** — se escribe el país al crear al cliente, y el **`DEFAULT 1` se queda por
+  > ahora**. Son dos cosas distintas y sólo hacía falta la primera: si nadie escribe la columna y ya no
+  > hay default, la inserción falla (es NOT NULL). El orden correcto es al revés.
+
+  > **DECISIÓN · 2026-09-01** — cuando el comercio no se puede resolver, **no se escribe nada**: la fila
+  > cae al mismo default de hoy. Escribir un `1` explícito sería peor, porque convertiría «nadie lo
+  > supo» en «alguien lo decidió» y borraría la única señal que distingue las dos cosas.
+
+  **Comprobado corriendo** contra la base local y sus tres países: 17 comprobaciones del país del
+  cliente, 9 del país del comercio, y **10 flujos reales en paralelo, 10/10 en 15 s** — los clientes
+  nacidos en la corrida quedaron con el país de su comercio (Colombia en pullman, RD en celurd-test)
+  y los de una corrida del 18/8 que el flujo REUSÓ siguen en Afganistán. Esa es la línea del cambio.
+
+  **Tres cosas que sólo aparecieron corriendo, y que valen para el resto de la campaña:**
+  1. El provider construye `RegisterCellPhoneService` **a mano**, con sus dependencias enumeradas.
+     Agregarle una sin tocar esa closure rompe **cada registro** en runtime — y **ningún test lo
+     atrapa**, porque todos lo mockean.
+  2. El `StoreRequest` del endpoint de comercios es un **gemelo** del del admin, y el gemelo se había
+     quedado sin la regla. No es el único par así: al tocar una validación de comercio, mirar el otro
+     lado.
+  3. `Modules/Onboarding/tests/Unit` tiene **86 fallas preexistentes en `qa`**, ninguna de esta
+     campaña. Una es `OtpServiceTest`, que pasa 9 argumentos a un constructor de 10 desde mayo. Esa
+     suite no está protegiendo nada.
+
 
 
 ## Tarea (publicable)
