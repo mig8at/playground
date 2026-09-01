@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #55 y correr en prod SÓLO el tema onboarding (tiene dos `ya no`) para ver
-al integrador cerrar — y si rechaza, leer por qué en la traza, que ahora lo dice. Con eso confirmado:
-«correr todas» pasa a ir por tema, y después se persisten las corridas cerradas junto al plan.
-⚠ Antes de correr algo en prod, verificar que el PR del que depende esté MERGEADO (`gh pr view N`).
+**El próximo paso es:** mergear #56 (caché) y comprobar `cache_leida > 0` en la primera corrida de prod;
+mergear #53 (la vuelta, con las dos correcciones de onboarding). Después: «correr todas» pasa a ir por
+tema; el planificador (196k por vuelta) se reemplaza por las preguntas que el redactor por tema genera
+él mismo; y el objetivo de un `declarar` nacido de `no alcanza` deja de ser la pregunta.
 
 ## Objetivo
 
@@ -217,6 +217,19 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 8 — el circuito cierra en prod, y la respuesta a «¿por qué el chat gasta menos?»
+
+> **MEDICIÓN · 2026-09-01** — onboarding en prod con #55: **61.798 tokens, 76 s**: un redactor para las 3 preguntas (2 `ya no`), **dos integradores de 2 llamadas cada uno** (18,8k y 20,3k), dos commits en el PR #53 sin que nadie apretara. El intento anterior sobre el mismo tema: 2,0M y nada escrito.
+> **HALLAZGO · 2026-09-01** — la causa de fondo del costo vs. el chat de Claude Code: **canon no usaba caché de prompt**. Cada turno reenvía el historial entero y lo paga completo; el harness del chat cachea el prefijo y paga sólo lo nuevo (relecturas a ~10%). Mismo trabajo, 10–20× más caro, multiplicado por los turnos del tanteo. `Creditop-SAS/playground#56`: marcas de caché en herramientas, system, primer y último mensaje; `cache_leida`/`cache_escrita` contadas aparte. Pendiente de ver `cache_leida > 0` en prod.
+
+Lo que queda anotado de #53 antes de mergearlo: la prosa nueva no nombra archivos (el lint aguantó) y
+los dos commits reescribieron una sola región de onboarding; pero el área que `declarar` creó desde un
+`no alcanza` tiene como **objetivo la pregunta del redactor** (con fecha y nombre de archivo) — defecto
+del aplicador: para `no alcanza` el objetivo debe ser lo que la sección afirma, no la pregunta.
+
+Regla de proceso que me anoto: **antes de gastar en prod, `gh pr view N` del PR del que depende**. Los
+2,0M del integrador fueron correr sobre un #52 que nunca se mergeó.
 
 ### 2026-09-01 · noche · 7 — la vuelta en prod con el redactor por tema: 88.810 tokens (#55)
 
