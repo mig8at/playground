@@ -30,9 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #49 y seguir la vuelta en prod tarea por tarea — el objetivo es llegar
-a la consolidación y ver qué dictamina el verificador sobre una vuelta real. Con el costo por redactor
-ya medido (150k), el ítem 6 arranca por la palanca (a): que el redactor pueda leer el archivo entero.
+**El próximo paso es:** correr la vuelta de prod (17 tareas, todas `lista` tras el deploy) —de a pocas o
+con «correr todas», que va de a tres— hasta llegar a la consolidación y ver qué dictamina el verificador
+sobre una vuelta real. Con el costo por redactor ya medido (150k), el ítem 6 arranca por la palanca (a):
+que el redactor pueda leer el archivo entero en vez de buscarlo siete veces.
 
 ## Objetivo
 
@@ -215,6 +216,21 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 3 — #49 mergeado y validado en prod
+
+> **MEDICIÓN · 2026-09-01** — el deploy de #49 reinició el proceso y **la vuelta volvió de la rama**: «recuperado de la rama canon/contexto», los mismos 17 ids, `cubiertos` 31. Es el ítem 1 probado contra un despliegue real, no simulado.
+> **MEDICIÓN · 2026-09-01** — `/api/pr` ya no da 403: contesta `abierto: false` limpio (no hay PR porque nadie propuso todavía).
+
+Lo que se perdió con el reinicio, como estaba escrito: la corrida de `p4109f3` y su veredicto — las
+corridas no se persisten. La tarea volvió a `lista`. Es el trade-off documentado en el ítem 1; si duele,
+el siguiente paso es persistir las corridas CERRADAS junto al plan.
+
+Pendiente de ver en prod: la guarda del hash (sólo se ejercita cuando un `no alcanza` nombre archivos
+ya declarados) y el estimado de costo en el botón (aparece con la primera tarea corrida de la vuelta).
+
+**Decisión abierta (Miguel):** correr las 17 con «correr todas» son ~2,5M tokens al costo medido
+(150k/tarea). La alternativa es correr 3 o 4 a mano, medir, y decidir con el estimado en el botón.
 
 ### 2026-09-01 · noche · 2 — el header cuenta la vuelta, y «correr todas» dice lo que cuesta
 
