@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #57 y correr UNA vuelta en prod desde la pantalla: analizar (0 tokens) →
-«correr todas» (por tema) → anotar el costo total y `cache_leida` en las corridas. Si sale en el orden de
-los 100k, el método está aterrizado y el botón vale lo que dice. Después, mergear #53 con lo que la
-vuelta haya sumado.
+**El próximo paso es:** mergear #58 y volver a correr la vuelta en prod (analizar es gratis; «correr
+todas» costó 11k pagados): los 15 `no alcanza` tienen que volverse veredictos con el código delante, y
+los `ya no` disparar sus integradores. Ése es el resultado que falta para dar el método por aterrizado.
+Después, #53 con lo que la vuelta haya sumado.
 
 ## Objetivo
 
@@ -217,6 +217,19 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 10 — #57 en prod: el costo aterrizó, y el expediente llegaba sin código (#58)
+
+> **MEDICIÓN · 2026-09-01** — #57 en prod, la vuelta entera: analizar **0 tokens, 6 s** (19 tareas, una por área, 34 archivos). «Correr todas» por tema, 10 temas en 75 s: **11.237 tokens pagados completos**, más 36.835 servidos desde caché y 73.773 escritos en ella — la caché funciona (`cache_leida` > 0 donde hubo más de un turno). Contra 2,49M de la primera vuelta. Integradores: ninguno corrió, porque…
+> **MEDICIÓN · 2026-09-01** — …**15 de 20 veredictos fueron `no alcanza`**, todos diciendo «no hay diff visible / no tengo el diff, sólo la lista de commits». Causa confirmada contra GitHub real: el mapa guarda el hash en 12 caracteres y la API de blobs exige 40 («The sha parameter must be exactly 40 characters»). En prod, sin clon, el pedido del blob viejo fallaba SIEMPRE y el error tiraba la ficha entera: sin diff y sin el archivo actual. En local `git cat-file` acepta el prefijo → el bug fue invisible en todas las pruebas.
+
+`Creditop-SAS/playground#58`: el archivo actual se trae primero y por su ruta (siempre se puede); el
+blob declarado es mejor esfuerzo; sin diff, el archivo va entero (tope 60k chars) y la ficha dice por
+qué; el corte de «chico» sube de 250 a 600 líneas (con caché el material se paga una vez). Medido contra
+GitHub real sin clon: el expediente de la vuelta pasa de 79k a **133k** con el código adentro.
+
+Deuda que queda anotada: guardar el sha COMPLETO en los mapas nuevos para que el diff vuelva a existir
+en prod (hoy `resolverArchivos` escribe `sha[:12]`; toca la ronda, el lint y las subidas de hash).
 
 ### 2026-09-01 · noche · 9 — un solo PR con el método eficiente (#57), probado en local
 
