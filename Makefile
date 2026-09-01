@@ -253,6 +253,10 @@ harness-comercio-pais: ## @har ¿el POST de comercios de la API exige país y lo
 	@cp harness/dev/php/crear-comercio-por-api-exige-pais.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-comercio.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
 
+harness-volver-a-entrar: ## @har el cliente llega a /lenders, se sale y vuelve con el MISMO número: ¿retoma o le nace otro usuario? Escribe en LOCAL y limpia
+	@cp harness/dev/php/volver-a-entrar-no-duplica.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
+	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-volver.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
+
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000]
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 

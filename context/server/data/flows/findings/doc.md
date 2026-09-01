@@ -3098,9 +3098,24 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Arreglo:** normalizar en un solo lugar en vez de en cada llamador. Hoy `UserService::getOrCreateUser`
   ya limpia con `cleanPhoneNumber()` **para buscar** pero guarda el original, así que la forma canónica
   existe y no se usa al escribir. Mientras tanto, **al buscar por teléfono no asumas una sola forma**.
-- **Estado:** vivo. ⚠ No confundirlo con «el dinámico guarda distinto el país»: el país no lo guarda
-  **ninguno** de los dos (ver **F-131**), y la asimetría del indicativo va en la dirección contraria a la
-  que sugiere el nombre de los flujos — el que lo pega es el normal.
+- **Estado:** el LOOKUP quedó arreglado (busca por variantes, medido A/B el 2026-09-01: el mismo número
+  por dos caminos daba 2 usuarios antes y da 1 después); lo YA guardado sigue como está hasta que corra
+  el backfill.
+
+  ⚠ **No confundirlo con «el dinámico guarda distinto el país»**: el país no lo guardaba **ninguno** de
+  los dos (ver **F-131**, y desde el 1/9 los dos lo guardan), y la asimetría del indicativo va en la
+  dirección contraria a la que sugiere el nombre de los flujos — el que lo pega es el normal.
+
+  ⚠ **Y el wizard de originación NO puede producir estas formas.** Su endpoint de registro rechaza con
+  **422** un teléfono que traiga el indicativo pegado: la regla de `phone_number` no admite el `+`, y el
+  largo por país descarta los 12 dígitos. O sea que los duplicados con indicativo **no salieron de ahí**
+  — salieron de los caminos que componen el número antes de guardarlo. Importa al depurar: reproducirlo
+  por el wizard da 422 y hace creer que el problema no existe.
+
+  ⚠ **El sufijo `-comadv-` es OTRA cosa y no es un duplicado.** Sólo se aplica cuando el teléfono
+  pertenece a un **asesor comercial** del comercio, no a un cliente, y existe para que varias solicitudes
+  del mismo asesor convivan bajo el índice único. Que vuelva a crear fila en cada entrada es lo esperado;
+  «arreglarlo» rompería el alta por asesor.
 
 ### F-176 · Contra un ambiente compartido, el guard de escrituras corta DESPUÉS de que el flujo ya escribió: el runner reporta «0 cerraron» pero los usuarios quedaron creados
 
