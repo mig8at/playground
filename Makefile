@@ -249,6 +249,10 @@ harness-pais-usuario: ## @har ¿el usuario temporal nace con el país del COMERC
 	@cp harness/dev/php/pais-del-comercio-en-el-usuario.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-pais.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
 
+harness-comercio-pais: ## @har ¿el POST de comercios de la API exige país y lo guarda, o el comercio nace afgano? Escribe en LOCAL y limpia
+	@cp harness/dev/php/crear-comercio-por-api-exige-pais.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
+	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-comercio.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
+
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000]
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 

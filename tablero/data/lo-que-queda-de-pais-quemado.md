@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-otp-por-correo-no-asume-colombia"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-otp-por-correo-no-asume-colombia, pais/crear-comercio-por-api-exige-pais"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -438,6 +438,44 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 > no se deriva de nada, igual que `is_operating`.
 
 ## Registro
+
+### 2026-09-01 (tarde) · cerrado el bloqueante para poder quitar el `DEFAULT 1`
+
+La entrada de más abajo dejaba el `DEFAULT 1` en pie con un bloqueante nombrado: el `POST` de comercios
+del módulo Partner, que crea sin mandar país. Se midió ese bloqueante y resultó **mucho más chico de lo
+que la migración sugería**, así que se cerró.
+
+> **MEDICIÓN · 2026-09-01** — ese endpoint es **código dormido**: entró hace más de un año, ningún front
+> lo llama, ningún test lo ejercita, y en **producción no hay un solo comercio afgano** pese a que el
+> backfill de países **nunca corrió allá** (no está en su tabla de migraciones). Si esa puerta se usara,
+> veríamos comercios en Afganistán. Prod: 323 Colombia + 16 RD, cero. *Cómo se vuelve a comprobar:*
+> agrupar `allieds` por `country_id` contra prod, y `migrations LIKE '%paises%'`.
+
+> **DECISIÓN · 2026-09-01** — se cierra **ya** y no al final de la tanda, aunque el endpoint no se use:
+> es el creador de comercios **al que apunta la migración**, así que el día del corte se llevaría puesta
+> una validación que el admin ya tiene. Va en PR aparte —es el país del COMERCIO, no el del usuario— y
+> son tres líneas. *Cómo se vuelve a comprobar:* `make harness-comercio-pais`.
+
+Y salió una cosa de estructura que conviene tener presente: el `StoreRequest` que usa ese endpoint es un
+**gemelo** del del admin de la aplicación, y el gemelo se había quedado sin la regla. No es el único par
+así; cuando se toque una validación de comercio, vale mirar si el otro lado la tiene.
+
+**Verificado con los dos PRs mergeados en una rama de prueba** —mergean limpio, sin conflicto—: la prueba
+del país del usuario (17), la del país del comercio (9) y **10 flujos reales en paralelo, 10/10 en 15 s**.
+La corrida en paralelo dejó la línea más clara del día:
+
+| teléfono | el usuario nació en | comercio | país del comercio |
+|---|---|---|---|
+| …000–004 | **Afganistán** | pullman | Colombia |
+| …005, 008 | Colombia | pullman | Colombia |
+| …006, 007, 009 | Rep. Dominicana | celurd-test | Rep. Dominicana |
+
+Los primeros cinco son de una corrida del 18/8, antes del cambio. Los otros nacieron hoy.
+
+⚠ Y una trampa de la propia herramienta: el teléfono del runner se deriva del reloj con un período de
+~10 días, así que **se repite**. Cuando pasa, el flujo ENCUENTRA al usuario viejo en vez de crear uno, y
+una corrida de validación puede salir «mal» midiendo fichas de hace dos semanas. Se comprueba mirando
+`created_at` del usuario antes de sacar conclusiones.
 
 ### 2026-09-01 · el usuario ya nace con el país de su comercio, y el OTP lo usa
 
