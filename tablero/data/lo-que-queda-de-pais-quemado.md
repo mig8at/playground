@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-otp-por-correo-no-asume-colombia"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -22,7 +22,23 @@ están abajo con su consulta.
 ⚠ **Y hay una cosa que NO es un PR**: 62 créditos dominicanos autorizados sin que ninguna central
 verificara la identidad. Eso es una decisión de negocio con dueño, y tiene plazo real.
 
-**ESTADO 2026-08-31 · el documento genérico está COMPLETO en `qa` y listo para pruebas reales.** La
+**ESTADO 2026-09-01 · dos frentes abiertos, y conviene no confundirlos.**
+
+**(a) La tarjeta de documento está COMPLETA en `qa`** y esperando pruebas reales de QA y despliegue a
+producción. Eso es lo de abajo, sin cambios desde el 31.
+
+**(b) El país del USUARIO** —otra cosa que la tarjeta— pasó de no existir a escribirse. **#1272 ya
+mergeó a `qa`** (el temporal deja de nacer `CC`, y buscar por teléfono deja de duplicar cuentas);
+**#1275 está abierto** y hace que el usuario nazca con el país de su comercio y que el OTP por correo
+lo use en vez de suponer Colombia. ⚠ **Los dos traen migraciones y las migraciones no corren solas**
+(F-77): el backfill de teléfonos de #1272 está escrito y **sin correr** contra la compartida, a la
+espera de que `qa` baje a `develop` para que los tres ambientes tengan el arreglo de búsqueda.
+
+⚠ **Y no confundas «escribir el país» con «quitar el `DEFAULT 1`»**: son dos tareas y sólo se hizo la
+primera. La segunda sigue bloqueada por el `POST` de comercios del módulo Partner, que crea sin mandar
+país. Ver la entrada del 1/9 en §«Registro».
+
+**Lo de la tarjeta, en detalle:** El documento genérico está completo en `qa`. La
 tarjeta muestra bandera, gentilicio, nombre del documento y autoridad emisora, todo derivado del país del
 comercio y del tipo que eligió el solicitante, más la fecha de nacimiento cuando el comercio la pide. **La
 migración de banderas ya corrió contra la base compartida**, así que dev, qa y staging tienen el dato (los
@@ -30,7 +46,7 @@ tres comparten base). Probado de punta a punta en qa con un comercio peruano. Lo
 `make tareas-ramas N=68`, que los mide; no los escribas a mano. El detalle, en las dos entradas del 31 en
 §«Registro».
 
-**El próximo paso es:** correr las pruebas reales de QA sobre lo mergeado en `qa` — la matriz por país
+**El próximo paso es:** que alguien revise **#1275**; en paralelo, correr las pruebas reales de QA sobre lo mergeado en `qa` — la matriz por país
 está en §«Tarea (publicable)» → «Cómo validar» — y desplegar a producción, que **todavía no tiene nada de
 esto** (punto 2 de §«Cómo se ataca»). ⚠ **Producción tampoco tiene las banderas**: la migración se corrió
 sólo contra la compartida, y allá hay que correrla aparte.
@@ -422,6 +438,53 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 > no se deriva de nada, igual que `is_operating`.
 
 ## Registro
+
+### 2026-09-01 · el usuario ya nace con el país de su comercio, y el OTP lo usa
+
+Cerrando lo de ayer. La pregunta era si el `DEFAULT 1` de `country_id` ya no debería existir en `qa`;
+la respuesta es **no, y a propósito** — la migración del backfill del 25/8 lo dejó escrito: no quita el
+default porque el `POST` de comercios del módulo Partner crea sin mandar país y depende de él, así que
+quitarlo cambia un bug silencioso por un 500 en una ruta viva. Sigue vivo en 7 tablas de la compartida
+(`allieds`, `lenders`, `users`, `corporate_users`, `credit_lines`, `allied_types`, `settings`).
+
+Pero eso no era lo que hacía falta. **Quitar el default y escribir la columna son dos cosas distintas**,
+y para el problema del OTP hacía falta la segunda: si nadie escribe el país y ya no hay default, la
+inserción falla — la columna es NOT NULL. El orden correcto es al revés.
+
+> **DECISIÓN · 2026-09-01** — el país del usuario **se escribe al crearlo, desde el comercio**, y el
+> `DEFAULT 1` se queda por ahora. Quitarlo es otra tarea con otro bloqueante (el creador del módulo
+> Partner). *Cómo se vuelve a comprobar:* `make harness-pais-usuario`.
+
+Lo que entró al PR #1275, que pasó a cubrir dos cosas:
+
+- **`MerchantCountryService`** (nuevo): resuelve sucursal → comercio → país, en un solo lugar.
+- **Los dos caminos de alta** graban ese país: el registro de celular y `UserService::getOrCreateUser`
+  —que es por donde entra **SmartPay**, así que el camino de José quedó cubierto sin que él toque nada
+  (ya le pasaba el `partnerBranchHash` desde `DynamicFormsService`)—.
+- **El OTP por correo lee esa columna primero**, y sólo rodea por la última solicitud para los 19.618
+  que nacieron antes. Ese rodeo es un puente hasta que haya backfill hacia atrás.
+
+> **MEDICIÓN · 2026-09-01** — 17 comprobaciones en verde contra la base local y sus tres países: los dos
+> caminos graban el país, sin sucursal la columna no se escribe (misma conducta de hoy), y el OTP de un
+> cliente dominicano se acuña bajo **DO** en vez de **CO**. En `Modules/Onboarding/tests/Unit`: 86 fallas
+> antes y 86 después —todas preexistentes en `qa`— con un test más en verde, `RC12`.
+
+**Tres cosas que salieron de hacerlo y no se ven en el diff:**
+
+1. **El provider construye `RegisterCellPhoneService` a mano**, con los argumentos enumerados en una
+   closure. Sin actualizarla, cada registro revienta con `ArgumentCountError` en runtime — y **ningún
+   test lo atrapa**, porque todos lo mockean. Es la clase de cosa que sólo aparece levantando el
+   contenedor.
+2. **La prueba se atrapó a sí misma**: el caso dominicano fallaba dando `CO`, y era mi generador de
+   teléfonos — RD comparte el `+1` con todo el NANP, así que el país sale del **área** y sólo 809/829/849
+   son suyas. Con un `823` inventado, libphonenumber tiene razón en no reconocerlo.
+3. **`Modules/Onboarding/tests/Unit` tiene 86 fallas preexistentes en `qa`**, ninguna de esta tanda. Una
+   es `OtpServiceTest`, que pasa 9 argumentos a un constructor de 10 desde que entró `OtpBypassService`
+   en mayo. No es de esta tarea, pero conviene que alguien lo mire: esa suite no está protegiendo nada.
+
+**Lo que sigue abierto y es la raíz de todo esto:** el `POST` de comercios del módulo Partner. Mientras
+cree comercios sin país, el `DEFAULT 1` no se puede quitar y la clave de configuración
+`dial_code_fallback` no se puede borrar. Es el único bloqueante nombrado.
 
 ### 2026-08-31 · el usuario temporal no lleva país, y el celular se guarda de dos formas (pregunta de José)
 

@@ -3079,10 +3079,22 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   | alta por asesor del formulario dinámico | `Onboarding/App/Services/DynamicFormsService.php:899` usa argumentos con nombre y **omite `dialCode`** | **no, nunca** |
 
   Los dos terminan en el mismo `createTemporalUser`, que guarda `cell_phone` **tal como se lo pasan**: la
-  diferencia no está en el guardado sino en quién llama. ⚠ Y el `+` no lo produce ninguno de estos dos —
-  viene de otro origen.
-- **Evidencia:** sobre los `TEMPORAL USER` de la base compartida — **13.476** con el indicativo pegado
-  (>10 dígitos), **6.091** sin él y **51** con `+`.
+  diferencia no está en el guardado sino en quién llama. ⚠ El `+` no lo produce ninguno de estos dos: lo
+  manda el **consumer-hub** del front, que arma el valor como `` `+${dialCode}` ``
+  (`modules/loan-request-wizard/consumer-hub/src/lib/infrastructure/phone-number.repository.ts`). El
+  wizard de originación no manda `dialCode` en absoluto.
+- **Evidencia:** sobre los `TEMPORAL USER` de la base compartida, contando por forma exacta —
+  **13.475** de **11 caracteres que empiezan con `57`**, **6.228** de 10 dígitos, **645** de 9, **167**
+  de 8, **29** con `+`, **22** con el sufijo `-comadv-` y **49** en NULL.
+
+  ⚠ **Los de 11 NO son «el indicativo pegado», y esto es lo más caro del hallazgo:** un celular
+  colombiano son 10 dígitos, así que `57` + 10 daría 12. Con 11 hay `57` y **nueve** dígitos. Cruzado
+  contra `otps` —que guarda el número al que de verdad se envió—, **el número real del usuario es OTRO**:
+  lo guardado perdió un dígito y no se puede reconstruir desde `users`. Es una ventana de bug ya cerrada,
+  entre el **2025-03-08** y el **2026-01-26**. Quitarles el `57` los disfrazaría de válidos, así que
+  cualquier normalización tiene que **dejarlos como están**. Y los `-comadv-` son otra cosa todavía:
+  `PhoneUtils::makeAdvisorPhoneUnique()` le pega `-comadv-<timestamp>` al teléfono del asesor para que
+  varias solicitudes suyas convivan bajo el índice único, así que ese largo no habla del indicativo.
 - **Arreglo:** normalizar en un solo lugar en vez de en cada llamador. Hoy `UserService::getOrCreateUser`
   ya limpia con `cleanPhoneNumber()` **para buscar** pero guarda el original, así que la forma canónica
   existe y no se usa al escribir. Mientras tanto, **al buscar por teléfono no asumas una sola forma**.
