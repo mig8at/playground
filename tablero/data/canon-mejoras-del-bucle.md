@@ -30,11 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #51 y correr otra vuelta en prod con «correr todas»: los `ya no` y
-`declarar` tienen que aparecer como commits en el PR sin que nadie apriete, y el integrador de prosa
-—que se cayó a los 18 pasos— ahora deja traza para leer por qué. Con eso, y el costo ya medido (150k por
-redactor), el ítem 6 arranca por la palanca (a): que el redactor lea el archivo entero en vez de
-buscarlo siete veces.
+**El próximo paso es:** mergear #52 y correr en prod la tarea de onboarding (`p95a59e`, concluye `ya no`)
+para ver si el integrador ahora cierra: si escribe sin nombrar archivos, el commit aparece solo en el PR.
+Después, persistir las corridas cerradas junto al plan (dos deploys, dos veces perdidos los veredictos),
+y el ítem 6 por la palanca (a).
 
 ## Objetivo
 
@@ -218,6 +217,17 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 5 — #51 en prod: el integrador, por fin con traza (#52)
+
+> **MEDICIÓN · 2026-09-01** — el deploy de #51 reinició otra vez: el plan volvió de la rama (17 ids) y los veredictos se perdieron por segunda vez. **Persistir las corridas cerradas junto al plan ya duele: sube al ítem 1 como siguiente paso.**
+> **MEDICIÓN · 2026-09-01** — una tarea (onboarding, `ya no`) con la escritura automática: el redactor concluyó y el integrador corrió SOLO — y se cayó igual, 18 pasos, **506k tokens la corrida**. Pero con traza: `leer` 4 · `codigo` 7 · **`escribir` 7, las 7 rechazadas** · `cerrar` 4. Reproducido en local: el rechazo era del LINT — «`kyc-processing.tsx` es un archivo: es una dirección y caduca» —. El integrador copiaba el nombre del archivo del veredicto a la prosa, y el guion nunca le dijo que no se puede. Además adivinaba el contrato (`id=`, `node` sin `/context`, título adentro del texto).
+
+`Creditop-SAS/playground#52`: el guion dice la regla antes de escribir, y `escribir` normaliza lo que
+el modelo manda (acepta `id#ancla`, completa `/context`, saca el `## título`; sólo `texto` obligatorio).
+Regresión local: dos `ya no` a la vez propusieron solas, con el candado poniendo los commits en fila.
+⚠ Que Sonnet deje de nombrar archivos por decírselo NO está probado: se mide en la próxima vuelta; si no
+alcanza, el paso siguiente es quitar los nombres del texto antes de mandarlo al lint.
 
 ### 2026-09-01 · noche · 4 — «correr las 17» en prod, y el giro a la escritura automática (#51)
 
