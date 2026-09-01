@@ -1682,6 +1682,15 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** es destructivo y va aparte — cambiar el default obliga a revisar en el mismo cambio las
   consultas con id de país fijo, o el listado de crédito queda vacío. Mientras tanto: **no derivar el
   país del usuario ni de la entidad**; derivarlo del comercio.
+- **Ampliación (2026-08-31):** el usuario NO nació siempre así — **hubo un día en que dejó de guardarse
+  el país**. Medido sobre los `TEMPORAL USER` de la base compartida: los **1.007** creados entre
+  2023-08-01 y **2024-03-18** tienen `country_id = 47` (Colombia); los **19.618** creados desde ese día
+  hasta hoy tienen **1**. O sea que el default no es una omisión histórica que nadie tocó: algo cambió el
+  18/3/2024 y desde entonces ningún usuario temporal lleva país. Hoy ninguno de los dos caminos que lo
+  crean lo setea —`Onboarding/App/Services/RegisterCellPhoneService.php:376` y
+  `Onboarding/App/Services/UserService.php:161`— y en los módulos de onboarding `country_id` sólo aparece
+  **leyéndose** (`UsersV1/App/Domain/UserData.php:107`). Refuerza el arreglo de arriba: derivar del
+  comercio, porque el usuario no tiene el dato ni va a tenerlo por accidente.
 - **Estado:** vivo. ⚠ Y no confundir con las cifras de otra medición (186 / 364.527): esas son de otro
   ambiente. Las de arriba son de la copia local.
 
@@ -3004,6 +3013,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Arreglo:** ninguno de código. El runner de casos avisa si el nombre trae la marca, pero **no se
   puede confiar en su silencio** por lo del dump. **Estado:** vigente.
 
+
 ### F-174 · En local los documentos NO se guardan: cada subida a S3 falla en silencio y la URL igual se escribe
 
 - **Síntoma:** ninguno. La corrida informa «7 documentos firmados», las filas existen en
@@ -3050,3 +3060,32 @@ invalidaciones: los cambios CONFIRMAN los findings — el corte semanal cierra F
 backend, los mocks locales cubren F-140/F-156/F-165, y el panel ganó radicación/webhooks/debug). Los
 F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrados.
 
+### F-175 · El mismo celular se guarda con indicador o sin él según por dónde entre: el flujo normal lo pega, el alta por asesor del formulario dinámico no
+
+- **Síntoma:** en `users.cell_phone` conviven tres formas del mismo dato — con `+`, con el indicativo
+  pegado sin `+`, y sin indicativo—, y una búsqueda por teléfono encuentra unos registros y otros no.
+  Aparece al comparar dos altas del «mismo» cliente hechas por caminos distintos.
+- **Causa raíz (verificada 2026-08-31):** el único lugar que antepone el indicativo es
+  `Modules/Onboarding/App/Services/UserService.php`, en `getOrCreateUser`:
+
+      if ($dialCode !== "") { $cellPhone = $dialCode . $cellPhone; }
+
+  `$dialCode` es el **cuarto parámetro y su default es `""`**, así que pegar el indicativo depende de que
+  el llamador lo pase — y no todos lo pasan:
+
+  | camino | llamada | ¿pega el indicativo? |
+  |---|---|---|
+  | flujo normal (`send-otp-code`) | `Onboarding/App/Services/OtpService.php:378` pasa `$sendOtpCodeRequest->dialCode ?? ""` | **sí**, cuando el front lo manda |
+  | alta por asesor del formulario dinámico | `Onboarding/App/Services/DynamicFormsService.php:899` usa argumentos con nombre y **omite `dialCode`** | **no, nunca** |
+
+  Los dos terminan en el mismo `createTemporalUser`, que guarda `cell_phone` **tal como se lo pasan**: la
+  diferencia no está en el guardado sino en quién llama. ⚠ Y el `+` no lo produce ninguno de estos dos —
+  viene de otro origen.
+- **Evidencia:** sobre los `TEMPORAL USER` de la base compartida — **13.476** con el indicativo pegado
+  (>10 dígitos), **6.091** sin él y **51** con `+`.
+- **Arreglo:** normalizar en un solo lugar en vez de en cada llamador. Hoy `UserService::getOrCreateUser`
+  ya limpia con `cleanPhoneNumber()` **para buscar** pero guarda el original, así que la forma canónica
+  existe y no se usa al escribir. Mientras tanto, **al buscar por teléfono no asumas una sola forma**.
+- **Estado:** vivo. ⚠ No confundirlo con «el dinámico guarda distinto el país»: el país no lo guarda
+  **ninguno** de los dos (ver **F-131**), y la asimetría del indicativo va en la dirección contraria a la
+  que sugiere el nombre de los flujos — el que lo pega es el normal.

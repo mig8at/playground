@@ -423,6 +423,29 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
+### 2026-08-31 · el usuario temporal no lleva país, y el celular se guarda de dos formas (pregunta de José)
+
+José preguntó cómo se guarda el código de país en el usuario temporal, y planteó que el formulario
+dinámico lo hace distinto del flujo normal: que el dinámico guarda el teléfono con el indicativo y el
+normal usa el país del comercio. Medido contra el código en `main` y contra la base compartida, **las dos
+mitades salieron distintas de lo que se suponía**.
+
+**El país no se guarda.** Ninguno de los dos caminos que crean un `TEMPORAL USER` setea `country_id`, y
+la columna es `NOT NULL DEFAULT 1` — Afganistán. En los módulos de onboarding `country_id` sólo aparece
+leyéndose. Y hubo un día en que dejó de guardarse: los **1.007** temporales creados hasta el **2024-03-18**
+tienen Colombia; los **19.618** desde entonces tienen 1. Eso amplía **F-131**, que ya tenía el `DEFAULT 1`
+pero lo leía como omisión histórica.
+
+**Lo del indicativo va al revés.** Lo pega `UserService::getOrCreateUser` y sólo si el llamador le pasa
+`dialCode`, que es el cuarto parámetro con default vacío. El **flujo normal** lo pasa; el alta por asesor
+del **formulario dinámico** usa argumentos con nombre y lo omite, así que nunca lo pega. O sea que el que
+lo pega es el normal. Quedó como **F-175**, con la tabla de los dos caminos y los tres formatos que
+conviven en la base (13.476 con indicativo pegado, 6.091 sin él, 51 con `+`).
+
+⚠ **Método:** las citas se corrigieron contra `main` antes de escribirlas. Dos de las cinco estaban
+corridas porque se leyeron en la rama `qa` —`RegisterCellPhoneService` 388→376 y `OtpService` 379→378—,
+que es exactamente el error que la regla de verificar contra `main` previene.
+
 ### 2026-08-31 · las banderas llegaron a la base compartida, y el PEP que no se iba era un cache
 
 **Lo que quedó listo para probar.** Cuatro cambios, los cuatro mergeados a `qa`:
