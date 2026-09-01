@@ -3101,3 +3101,29 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Estado:** vivo. ⚠ No confundirlo con «el dinámico guarda distinto el país»: el país no lo guarda
   **ninguno** de los dos (ver **F-131**), y la asimetría del indicativo va en la dirección contraria a la
   que sugiere el nombre de los flujos — el que lo pega es el normal.
+
+### F-176 · Contra un ambiente compartido, el guard de escrituras corta DESPUÉS de que el flujo ya escribió: el runner reporta «0 cerraron» pero los usuarios quedaron creados
+
+- **Síntoma:** una corrida del runner de casos contra un target compartido termina con **`0/N cerraron`**
+  y, en cada caso, `Error: escritura a DB compartida (…) bloqueada: exportá
+  I_KNOW_THIS_TOUCHES_SHARED_DEV=1`. Se lee como «no pasó nada, el guard lo frenó a tiempo». **Sí pasó:**
+  el flujo ya había creado sus usuarios y sus solicitudes en la base compartida.
+- **Causa raíz:** el guard cubre **una sola de las dos vías de escritura**, y es la que menos escribe.
+  `assertWriteAllowed()` vive en la capa de MySQL del harness y sólo protege sus escrituras **directas**
+  —inyecciones de buró, cierres, scrubs—. El recorrido del flujo, en cambio, escribe **por la API del
+  ambiente**: registrar el celular, crear la solicitud, guardar los datos personales. Esa vía no pasa por
+  el guard, y no debería: contra un ambiente compartido, esas llamadas **son** la prueba. Lo que engaña es
+  el orden — la API escribe primero y el guard corta después, en el primer paso que necesita la BD.
+- **Evidencia:** corrida contra `qa` el 2026-09-01 a las 15:44 UTC. Salida: `0/6 cerraron`, seis veces el
+  error del guard, ningún `uReq` impreso. En la base compartida quedaron **seis usuarios nuevos con sus
+  seis solicitudes**, creados entre las 15:44:24 y las 15:44:30 — tres en el comercio colombiano y tres en
+  el dominicano.
+- **Arreglo:** ninguno en el guard —hace lo que debe—, pero **no leas «0 cerraron» como «no escribí»**.
+  Contra un ambiente compartido, antes de repetir una corrida fallida comprobá qué quedó:
+  `SELECT id, cell_phone, created_at FROM users WHERE created_at >= '<hora de la corrida>'`. Y si de
+  verdad querés la corrida completa, exportá el flag a mano **decidiéndolo**, no para «destrabar» un
+  error que ya te dejó datos adentro.
+- **Estado:** vivo. ⚠ Tiene un lado bueno que conviene aprovechar: **para verificar un cambio que se
+  observa en la fila creada** —qué país, qué tipo de documento, qué canal— la corrida «fallida» alcanza,
+  porque el alta ya ocurrió. Fue justo así como se comprobó en `qa` que el cliente nace con el país de su
+  comercio, sin exportar ningún flag.

@@ -1949,6 +1949,21 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   > cae al mismo default de hoy. Escribir un `1` explícito sería peor, porque convertiría «nadie lo
   > supo» en «alguien lo decidió» y borraría la única señal que distingue las dos cosas.
 
+  **Y verificado en `qa` el mismo día**, sobre el despliegue de las 15:34 (`8cd94f66`): **7 de 7**
+  clientes creados después de esa hora llevan el país de su comercio — tres en el colombiano, tres en el
+  dominicano, y uno peruano que **no es de esta corrida sino de una prueba de Duncan**, o sea
+  confirmación independiente. Antes de este cambio los siete habrían nacido afganos.
+
+  > **MEDICIÓN · 2026-09-01 (qa)** — `users` creados desde las 15:34 UTC, cruzados contra el comercio de
+  > su última solicitud: 7/7 coinciden. *Cómo se vuelve a comprobar:* la misma consulta con la hora del
+  > despliegue vigente.
+
+  ⚠ **Y salió una trampa del harness que vale para toda prueba contra un ambiente compartido (F-176):**
+  la corrida reportó **`0/6 cerraron`** con el error del guard de escrituras, y aun así **había creado los
+  seis usuarios**. El guard sólo cubre las escrituras DIRECTAS del harness a la base; las del flujo van
+  por la API del ambiente y no pasan por ahí. Leer «0 cerraron» como «no escribí nada» es el error — pero
+  tiene su lado útil: para verificar algo que se observa en la fila creada, la corrida «fallida» alcanza.
+
   **Comprobado corriendo** contra la base local y sus tres países: 17 comprobaciones del país del
   cliente, 9 del país del comercio, y **10 flujos reales en paralelo, 10/10 en 15 s** — los clientes
   nacidos en la corrida quedaron con el país de su comercio (Colombia en pullman, RD en celurd-test)
