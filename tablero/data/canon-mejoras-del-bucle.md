@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #54 y correr UNA vuelta en prod con la forma nueva, tema por tema
-(`POST /api/tareas/tema/{tema}`), anotando el costo real contra los 79k del expediente. Si se confirma:
-«correr todas» pasa a ir por tema, y el integrador recibe el mismo tratamiento (hoy 49k por sección en
-local con herramientas; en prod se cayó dos veces tanteando). Después, persistir las corridas cerradas.
+**El próximo paso es:** mergear #55 y correr en prod SÓLO el tema onboarding (tiene dos `ya no`) para ver
+al integrador cerrar — y si rechaza, leer por qué en la traza, que ahora lo dice. Con eso confirmado:
+«correr todas» pasa a ir por tema, y después se persisten las corridas cerradas junto al plan.
+⚠ Antes de correr algo en prod, verificar que el PR del que depende esté MERGEADO (`gh pr view N`).
 
 ## Objetivo
 
@@ -217,6 +217,17 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 7 — la vuelta en prod con el redactor por tema: 88.810 tokens (#55)
+
+> **MEDICIÓN · 2026-09-01** — #54 en prod, 10 temas / 19 tareas, tema por tema: **los 19 redactores costaron 88.810 tokens** (contra 2,49M la vuelta anterior: **28 veces menos**), UNA llamada por tema, 13–34 s. El expediente pesado de antemano decía 79k. El costo es el material, no el tanteo — confirmado.
+> **MEDICIÓN · 2026-09-01** — los integradores costaron **2,0M y no escribieron nada**: dos en onboarding (395k y 1,6M) con `escribir` rechazado 7 y 8 veces. Causa: **el PR #52 (la normalización de `escribir`) nunca se mergeó** y corrí la vuelta asumiendo que sí. Error de proceso mío.
+> **MEDICIÓN · 2026-09-01** — veredictos: 11 `sigue` · 2 `ya no` · **8 `no alcanza`**. Leídos: casi todos dicen «los cambios son ajenos» o «no puedo re-verificar la cifra desde cero» — eso es `sigue`. El guion no distinguía «el cambio no toca esto» de «no me alcanza».
+
+`Creditop-SAS/playground#55` (nace de la rama de #52, lo reemplaza): el integrador recibe la sección,
+el expediente y las reglas del lint y sólo tiene `escribir`/`cerrar` (local: 2 llamadas, 12k, antes 49k);
+la traza guarda los RECHAZOS con su motivo; aterrizar corta a los 2 pasos (así se llegó a 1,6M); el
+redactor por tema concluye `sigue` cuando el cambio no toca la afirmación.
 
 ### 2026-09-01 · noche · 6 — el diseño estaba al revés: el redactor por tema (#54)
 
