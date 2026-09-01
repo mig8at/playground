@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #56 (caché) y comprobar `cache_leida > 0` en la primera corrida de prod;
-mergear #53 (la vuelta, con las dos correcciones de onboarding). Después: «correr todas» pasa a ir por
-tema; el planificador (196k por vuelta) se reemplaza por las preguntas que el redactor por tema genera
-él mismo; y el objetivo de un `declarar` nacido de `no alcanza` deja de ser la pregunta.
+**El próximo paso es:** mergear #57 y correr UNA vuelta en prod desde la pantalla: analizar (0 tokens) →
+«correr todas» (por tema) → anotar el costo total y `cache_leida` en las corridas. Si sale en el orden de
+los 100k, el método está aterrizado y el botón vale lo que dice. Después, mergear #53 con lo que la
+vuelta haya sumado.
 
 ## Objetivo
 
@@ -217,6 +217,24 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 9 — un solo PR con el método eficiente (#57), probado en local
+
+Miguel: «cancelemos los PR y dejemos uno solo; no más pruebas en prod hasta tener el método eficiente».
+#52 ya estaba mergeado, #56 (caché) lo mergeó él, y quedó **#57** con las cuatro mejoras:
+
+1. **El plan no usa modelo**: una tarea por área del mapa con deriva; el redactor por tema dice en `afirma`
+   qué afirma la prosa y si el cambio lo invalida. El planificador con modelo (196k/vuelta) se borró.
+2. **«Correr todas» va por tema.**
+3. **El objetivo de un área declarada es lo que el código sostiene** (`afirma`), no la pregunta copiada.
+4. **Los veredictos sobreviven a un despliegue**: la vuelta guardada lleva las corridas cerradas, con
+   debounce de 20 s (en prod cada guardado es un commit). El estado local vive en el caché del usuario,
+   fuera del repo — estar en el árbol ensuciaba `git status` y rompió el test de contrato.
+
+> **MEDICIÓN · 2026-09-01** — local (3.7): analizar → 12 tareas, **0 tokens**, 15 s. «Correr todas» → 8 temas en 33 s, **59,6k** de redactores, cada hallazgo con afirmación concreta; un `ya no` → integrador 12k, propuesto. Tras reiniciar: las 12 `revisada` con su corrida.
+
+Y una lección de proceso que me costó un commit rojo: `set -e` no mira un `go test` que va por un pipe.
+Ahora los portones cortan con `tee` + `grep FAIL`.
 
 ### 2026-09-01 · noche · 8 — el circuito cierra en prod, y la respuesta a «¿por qué el chat gasta menos?»
 
