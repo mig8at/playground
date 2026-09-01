@@ -30,10 +30,11 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** correr la vuelta de prod (17 tareas, todas `lista` tras el deploy) —de a pocas o
-con «correr todas», que va de a tres— hasta llegar a la consolidación y ver qué dictamina el verificador
-sobre una vuelta real. Con el costo por redactor ya medido (150k), el ítem 6 arranca por la palanca (a):
-que el redactor pueda leer el archivo entero en vez de buscarlo siete veces.
+**El próximo paso es:** mergear #51 y correr otra vuelta en prod con «correr todas»: los `ya no` y
+`declarar` tienen que aparecer como commits en el PR sin que nadie apriete, y el integrador de prosa
+—que se cayó a los 18 pasos— ahora deja traza para leer por qué. Con eso, y el costo ya medido (150k por
+redactor), el ítem 6 arranca por la palanca (a): que el redactor lea el archivo entero en vez de
+buscarlo siete veces.
 
 ## Objetivo
 
@@ -177,7 +178,8 @@ en el guion enlazado; las corridas siguen en `/api/corridas`.
 
 ## Lo que está decidido
 
-> **DECISIÓN · 2026-09-01** — la vuelta la manda una persona desde `agentes`; nada corre solo.
+> **DECISIÓN · 2026-09-01 (noche)** — **el cambio va solo al PR cuando el redactor concluye seguro** (`ya no` / `declarar`). La certeza es el veredicto, no un puntaje. La compuerta es el PR, que aprueba una persona. La consolidación deja de ser un paso (queda como dictamen opcional por API). Pedido de Miguel tras la primera vuelta en prod; construido en #51.
+> **DECISIÓN · 2026-09-01** — la vuelta la manda una persona desde `agentes` (analizar y correr); lo que corre solo es la ESCRITURA de lo que concluyó seguro, nunca el disparo.
 > **DECISIÓN · 2026-09-01** — el costado va a la IZQUIERDA, como en Actions; el orden del DOM deja la lista primero.
 > **DECISIÓN · 2026-09-01** — la consolidación aparece sólo si la vuelta terminó Y propuso algo. `no alcanza` no bloquea.
 > **DECISIÓN · 2026-09-01** — un solo camino de escritura al corpus: el borrador. `propose` sólo ensaya.
@@ -216,6 +218,16 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 4 — «correr las 17» en prod, y el giro a la escritura automática (#51)
+
+> **MEDICIÓN · 2026-09-01** — 17 redactores en prod con «correr todas»: **2,49M tokens** (el estimado eran 2,5M). Veredictos: 12 `sigue`, 1 `ya no`, 6 `declarar`, 5 `no alcanza`. **Cinco de los seis archivos nombrados para declarar NO existían en main** (rutas inventadas a partir del nombre de una clase); el único real, `FirstSurname.php`, entró al PR #50. El integrador de prosa **agotó los 18 pasos** con 140k tokens y no dejó traza.
+> **MEDICIÓN · 2026-09-01** — la guarda del hash de #49 actuó en prod: tres `declarar` nombraron archivos ya declarados y quedaron sin botón; sin ella habrían subido tres hashes sin releer.
+
+Miguel decidió el giro: confiar en el veredicto y que el cambio vaya al PR solo. Construido y probado en
+local en `Creditop-SAS/playground#51`: `proponer` corre dentro de la corrida del redactor al concluir
+seguro; un candado pone los commits en fila; la consolidación sale de la pantalla; la traza se guarda
+también al caer (integrador, redactor, verificador); `concluir` rechaza archivos que no existen en main.
 
 ### 2026-09-01 · noche · 3 — #49 mergeado y validado en prod
 
