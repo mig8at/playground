@@ -3164,3 +3164,37 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Estado:** vivo, y es el comportamiento correcto. ⚠ Al abrir un país nuevo, revisar qué MÁS derivaba
   el buró en Colombia y hoy nadie provee: el ingreso es el que ya se detectó, pero la ocupación viaja
   por el mismo camino.
+
+### F-178 · El número de documento es único en TODA la tabla, sin tipo ni país: un DNI peruano choca contra una cédula colombiana y no hay salida
+
+- **Síntoma:** una persona de un país nuevo intenta registrarse con un número de documento perfectamente
+  válido allá y el alta responde **HTTP 409 «document number already in use»** — en el primer paso, antes
+  de ver un formulario. El número le pertenece a otra persona, de otro país, con otro tipo de documento.
+- **Causa raíz:** `users.document_number` tiene un índice único **sobre la columna sola**
+  (`idx_users_document_number_unique`; verificado en producción). No entra ni el tipo ni el país, así que
+  los espacios de numeración de todos los países comparten una sola llave. El DNI peruano son 8 dígitos y
+  la cédula colombiana también los tiene en ese rango, de modo que se pisan de frente.
+- **Evidencia:** medido en producción el 2026-09-01 — **119.188 documentos de 8 dígitos ya ocupados**
+  (119.115 de ellos `CC`). Por serie inicial: 0-3 → 45.463 · 4 → 16.218 · 5 → 18.742 · 6 → 5.892 ·
+  7 → 18.028 · 8-9 → 14.845. Descontando las series que RENIEC no emite (5, 8, 9), quedan **85.601
+  números que un peruano no va a poder usar**. El número **crece solo**: cinco días antes eran 84.656.
+  Reproducido en local contra un comercio peruano: 409 en `register`, y el índice también rechaza la
+  inserción directa de un `DNI` con un número que ya existe como `CC`.
+- **Hay TRES guardas y se comportan distinto**, lo que hace que el diagnóstico dependa de dónde se mire:
+
+  | | qué mira | veredicto |
+  |---|---|---|
+  | `register` (`validateDocumentConflict` → `findByDocument`) | número **solo** | falso positivo |
+  | `personal-info` (`OnboardingController` → `findByDocumentAndType`) | número **y tipo** | correcto |
+  | el índice de la base | número **solo** | el muro final |
+
+  Por eso arreglar sólo el código no alcanza, y arreglar sólo el índice tampoco.
+- **Arreglo:** cambiar el índice a `(document_type, document_number)`. **Relajar un `unique` nunca falla
+  por datos** —lo que era único bajo la llave vieja lo sigue siendo bajo la nueva—, así que la migración
+  no necesita limpieza previa. Lo que sí hay que auditar son las **búsquedas por número solo**, que pasan
+  a poder devolver la persona equivocada: **14 en `legacy-backend` y 16 en `legacy-application`**.
+  ⚠ Ese número no es el de «usos de la columna» (72), que es otra cuenta y asusta de más: la mayoría son
+  escrituras, `LIKE` de buscadores del admin, o consultas que ya filtran por tipo.
+- **Estado:** vivo y bloqueante para Perú. ⚠ **El frontend no interviene**: sólo valida forma (6 a 11
+  dígitos, numérico) y la unicidad la resuelve el backend, así que el arreglo no le pide nada. ⚠ Y la
+  lista negra de CreditopX **sí** filtra por tipo, así que ahí no hay falso positivo.
