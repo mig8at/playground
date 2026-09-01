@@ -3142,3 +3142,25 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   observa en la fila creada** —qué país, qué tipo de documento, qué canal— la corrida «fallida» alcanza,
   porque el alta ya ocurrió. Fue justo así como se comprobó en `qa` que el cliente nace con el país de su
   comercio, sin exportar ningún flag.
+
+### F-177 · En un país sin centrales de riesgo el paso LABORAL deja de ser opcional: no hay buró de donde derivar el ingreso, y el flujo lo pide por pantalla
+
+- **Síntoma:** un comercio de un país sin centrales configuradas (Perú, República Dominicana) llega a
+  `personal-info` y recibe **`ONB004` con HTTP 200** — «user has no laboral information». El mismo caso
+  contra un comercio colombiano pasa de largo. Se lee como que el flujo internacional está roto.
+- **Causa raíz:** no está roto, es la consecuencia directa del gate de país. `risk_centrals` está
+  declarada **por país** y sus filas son todas colombianas, así que `RiskCentralCountryGate` salta el
+  buró para cualquier otro país — que es su diseño. Pero en Colombia el ingreso y la ocupación **los
+  deriva el buró** (el histórico de empleo de Agildata). Sin buró no hay de dónde derivarlos, y el único
+  que puede ponerlos es la persona: por eso el backend responde «pedíselos en la pantalla siguiente».
+  **`ONB004` no es un error: es enrutamiento**, y por eso viaja con 200.
+- **Evidencia:** medido en local el 2026-09-01. El comercio dominicano se frenaba en `personal-info`
+  hasta que el recorrido incluyó `POST laboral-info`; con ese paso **cierra en estado 11** con la entidad
+  rt=2 del comercio. El colombiano cierra sin ese paso porque el buró ya dejó los datos.
+- **Arreglo:** ninguno en el backend. Lo que hay que entender es que **fuera de Colombia el paso laboral
+  es EL camino, no una rama**: cualquier recorrido, prueba o integración que asuma «el ingreso lo trae el
+  buró» sólo funciona en Colombia. ⚠ Y la clave del payload es **`errors.error_code`**, no
+  `errors.error_subcode`: leer la segunda devuelve vacío y el fallo se imprime sin código.
+- **Estado:** vivo, y es el comportamiento correcto. ⚠ Al abrir un país nuevo, revisar qué MÁS derivaba
+  el buró en Colombia y hoy nadie provee: el ingreso es el que ya se detectó, pero la ocupación viaja
+  por el mismo camino.

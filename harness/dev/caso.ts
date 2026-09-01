@@ -384,7 +384,25 @@ const flag = (n: string) => process.argv.includes(`--${n}`) || implicitos.has(n)
 
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
-const telefono = (i: number) => `313${String(2_000_000 + i).slice(0, 7)}`;
+/** La forma del celular de cada país donde se opera. La usan LOS DOS generadores de abajo. */
+const FORMA_DEL_CELULAR: Record<string, { prefijo: string; largo: number }> = {
+    COL: { prefijo: '3', largo: 10 },
+    DOM: { prefijo: '809', largo: 10 },
+    PER: { prefijo: '9', largo: 9 },
+};
+
+/**
+ * ⚠ HAY DOS CAMINOS EN ESTE RUNNER y cada uno tenía SU generador de teléfono: éste (`telefono`, sin
+ * `--lambda`) y `telefonoDe` (con buró dictado). Tocar sólo uno deja el otro quemado en la forma
+ * colombiana, y el síntoma es un 422 en el primer paso que no se parece a la causa: costó una corrida.
+ *
+ * Los dos derivan ahora de la misma tabla de formas por país — ver `telefonoDe`. Este mantiene su base
+ * fija (`2_000_000 + i`) porque no necesita ser único entre corridas: sin cierre no se firma nada.
+ */
+const telefono = (i: number, iso = 'COL'): string => {
+    const f = FORMA_DEL_CELULAR[iso] ?? FORMA_DEL_CELULAR.COL;
+    return (f.prefijo + String(2_000_000 + i)).slice(0, f.largo).padEnd(f.largo, '0');
+};
 
 /** Lo que un caso DECLARA que debería pasar. Sin esto el runner sólo narra; con esto contesta
  *  «¿sigue valiendo?», que es la pregunta que se hace después de tocar código.
@@ -594,7 +612,42 @@ async function buscarSucursal(ref: string) {
  *  El síntoma sería `otp-validate` rechazando el código, que es explícito y no engaña. */
 //  ⚠ El índice va con DOS dígitos, no con `i % 10`: con `% 10` treinta casos comparten diez
 //  teléfonos, y tres de ellos pelean por el mismo usuario. Así soporta 100 casos por corrida.
-const telefonoDe = (i: number) => `31${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
+/**
+ * ⚠ LA FORMA DEL TELÉFONO SALE DEL PAÍS DEL COMERCIO, no de acá. Estaba quemada en la colombiana
+ * —10 dígitos que empiezan en 3— y por eso este runner **no podía ni registrar** un comercio peruano:
+ * su país pide 9 y el backend rechazaba con 422 en el primer paso. Es el mismo error que ya se había
+ * corregido para el tipo de documento, en el otro campo del mismo formulario.
+ *
+ * El prefijo importa además del largo: República Dominicana comparte el +1 con todo el NANP, así que
+ * su país sale del ÁREA y sólo 809/829/849 son suyas. Con un `8` cualquiera, libphonenumber la ubica
+ * en otro lado y el país resuelto sale mal — sin fallar, que es lo peor.
+ */
+/** Los dos últimos dígitos son el índice del caso: es lo que garantiza uno distinto por caso, que es
+ *  la condición del paralelo. El resto se rellena con la base de la corrida, recortada al largo. */
+const telefonoDe = (i: number, iso = 'COL'): string => {
+    const f = FORMA_DEL_CELULAR[iso] ?? FORMA_DEL_CELULAR.COL;
+    const indice = String(i % 100).padStart(2, '0');
+    const relleno = f.largo - f.prefijo.length - indice.length;
+    return f.prefijo + String(BASE_DOC).slice(-relleno) + indice;
+};
+
+/** El ISO-3 del país del comercio, del mismo payload del que ya sale el tipo de documento. */
+const isoPorComercio = new Map<string, string>();
+async function paisDelComercio(hash: string): Promise<string> {
+    const cacheado = isoPorComercio.get(hash);
+    if (cacheado) return cacheado;
+
+    let iso = 'COL';   // sin payload no se cambia el comportamiento: queda lo que había
+    try {
+        const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
+        const j = await r.json() as { data?: { country?: { iso_code?: string } } };
+        const publicado = j?.data?.country?.iso_code;
+        if (typeof publicado === 'string' && publicado.length === 3) iso = publicado.toUpperCase();
+    } catch { /* sin payload, queda COL */ }
+
+    isoPorComercio.set(hash, iso);
+    return iso;
+}
 
 /** ⚠ PARA CERRAR hace falta que el teléfono esté en `qa_otp_bypass_phones`, y no es capricho: son DOS
  *  mecanismos de OTP distintos y sólo uno acepta cualquier teléfono.
@@ -849,15 +902,18 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
-    const tel = telefonoDe(i);   // el mismo para listar y para cerrar (ver `registrarBypass`)
+    // ⚠ El teléfono ya no se puede armar antes de conocer el comercio: su forma sale del país. Por eso
+    // la sucursal se resuelve PRIMERO y el teléfono después — al revés de como estaba.
+    const br = await buscarSucursal(c.comercio);
+    if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
+
+    const tel = telefonoDe(i, await paisDelComercio(br.hash));   // el mismo para listar y para cerrar
     base.phone = tel;
 
     // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
     // lo seleccionaba, así que viajaba `undefined`. El mock no valida ese campo y por eso el bug
     // sobrevivió — contra el microservicio real habría fallado. Los mocks permisivos esconden
     // exactamente esta clase de error (misma lección que F-140).
-    const br = await buscarSucursal(c.comercio);
-    if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
     base.com = br.com;
 
     if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
@@ -961,9 +1017,29 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
             // `STRATUM_REQUIRED` en el tercer paso — y sin él quedaban fuera del barrido comercios
             // enteros, entre ellos los de Credifamilia. Va siempre: los que no lo piden lo ignoran.
             stratum: 3 });
-        if (pi.json?.success !== true) {
+        // ⚠ ONB004 NO es un rechazo: es enrutamiento. Significa «el usuario no tiene información
+        // laboral, pedísela en la pantalla siguiente», y llega con HTTP 200. El front hace justo eso,
+        // y hasta ahora este runner lo leía como fallo y abandonaba el caso.
+        //
+        // Y aparece SIEMPRE en un país sin centrales de riesgo, no por casualidad: en Colombia los
+        // datos laborales los deriva el buró, así que cuando el gate de país salta el buró —Perú, RD—
+        // no hay de dónde derivarlos y sólo puede ponerlos la persona. O sea que el paso laboral no es
+        // opcional fuera de Colombia: es EL camino. Cerrar un flujo internacional sin esto es imposible.
+        // ⚠ La clave es `error_code`, NO `error_subcode`: el runner venía leyendo la segunda para armar
+        // el detalle del fallo, y por eso ONB004 se imprimía sin código —«personal-info rechazó · {…}»—
+        // que es un mensaje que no dice nada y manda a leer logs.
+        if (pi.json?.errors?.error_code === 'ONB004') {
+            const lab = await post(`/api/onboarding/loan-application/laboral-info/${br.hash}/${ur}`, {
+                income_amount: c.income, employment_situation: 'Empleado',
+                original_amount: c.amount, amount: c.amount });
+
+            if (lab.json?.success !== true) {
+                return { ...base, conducta: 'laboral-info rechazó',
+                         detalle: `${lab.json?.errors?.error_code ?? ''} ${JSON.stringify(lab.json?.errors?.payload ?? lab.json?.message ?? '').slice(0, 90)}` };
+            }
+        } else if (pi.json?.success !== true) {
             return { ...base, conducta: 'personal-info rechazó',
-                     detalle: `${pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
+                     detalle: `${pi.json?.errors?.error_code ?? pi.json?.errors?.error_subcode ?? ''} ${JSON.stringify(pi.json?.errors?.payload ?? pi.json?.message ?? '').slice(0, 90)}` };
         }
     }
 
@@ -1070,12 +1146,15 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
 
 async function correr(c: Caso, i: number): Promise<Res> {
     if (flag('lambda')) return correrLambda(c, i);
-    const phone = telefono(i);
-    const base: Res = { caso: c, ok: false, phone };
+    const base: Res = { caso: c, ok: false, phone: '' };
 
+    // La sucursal PRIMERO: la forma del teléfono sale del país de su comercio.
     const br = await buscarSucursal(c.comercio);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
     base.com = br.com;
+
+    const phone = telefono(i, await paisDelComercio(br.hash));
+    base.phone = phone;
 
     if (c.lender !== null) {
         const len = await one<{ name: string }>('SELECT name FROM lenders WHERE id=?', [c.lender]).catch(() => null);
@@ -1569,7 +1648,13 @@ async function main(): Promise<number> {
     // (ver `registrarBypass`). Sólo si se va a cerrar: para el listado el driver fake no mira el
     // teléfono, así que ampliar la lista sería tocar la BD sin necesidad.
     if (flag('cerrar')) {
-        const tels = casos.map((_, i) => telefonoDe(i));
+        // ⚠ Tiene que resolver el país ANTES, igual que el motor: si acá se arma el teléfono con la
+        // forma colombiana y allá con la del comercio, la lista de bypass queda con números que nadie
+        // usa — y la firma del pagaré falla con 422 en un país que sí estaba bien configurado.
+        const tels = await Promise.all(casos.map(async (c, i) => {
+            const br = await buscarSucursal(c.comercio);
+            return telefonoDe(i, br ? await paisDelComercio(br.hash) : 'COL');
+        }));
         bypassOriginal = await registrarBypass(tels).catch(() => null);
         if (bypassOriginal === null) {
             console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: la firma del pagaré va a fallar'
