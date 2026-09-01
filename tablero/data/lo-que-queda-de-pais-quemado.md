@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-otp-por-correo-no-asume-colombia, pais/crear-comercio-por-api-exige-pais"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-pais-deja-de-suponerse"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -28,9 +28,11 @@ verificara la identidad. Eso es una decisión de negocio con dueño, y tiene pla
 producción. Eso es lo de abajo, sin cambios desde el 31.
 
 **(b) El país del USUARIO** —otra cosa que la tarjeta— pasó de no existir a escribirse. **#1272 ya
-mergeó a `qa`** (el temporal deja de nacer `CC`, y buscar por teléfono deja de duplicar cuentas);
-**#1275 está abierto** y hace que el usuario nazca con el país de su comercio y que el OTP por correo
-lo use en vez de suponer Colombia. ⚠ **Los dos traen migraciones y las migraciones no corren solas**
+mergeó a `qa`** (el temporal deja de nacer `CC`, y buscar por teléfono deja de duplicar cuentas); y
+**#1277 está abierto**, con las cuatro piezas en un solo commit: el usuario nace con el país de su
+comercio, el OTP por correo lo usa en vez de suponer Colombia, el indicativo de último recurso sale de
+configuración, y el `POST` de comercios exige país como ya lo exige el admin. *(Reemplaza a #1275 y
+#1276, cerrados: era el mismo trabajo repartido y se juntó para que se lea de corrido.)* ⚠ **Los dos traen migraciones y las migraciones no corren solas**
 (F-77): el backfill de teléfonos de #1272 está escrito y **sin correr** contra la compartida, a la
 espera de que `qa` baje a `develop` para que los tres ambientes tengan el arreglo de búsqueda.
 
@@ -46,7 +48,7 @@ tres comparten base). Probado de punta a punta en qa con un comercio peruano. Lo
 `make tareas-ramas N=68`, que los mide; no los escribas a mano. El detalle, en las dos entradas del 31 en
 §«Registro».
 
-**El próximo paso es:** que alguien revise **#1275**; en paralelo, correr las pruebas reales de QA sobre lo mergeado en `qa` — la matriz por país
+**El próximo paso es:** que alguien revise **#1277**; en paralelo, correr las pruebas reales de QA sobre lo mergeado en `qa` — la matriz por país
 está en §«Tarea (publicable)» → «Cómo validar» — y desplegar a producción, que **todavía no tiene nada de
 esto** (punto 2 de §«Cómo se ataca»). ⚠ **Producción tampoco tiene las banderas**: la migración se corrió
 sólo contra la compartida, y allá hay que correrla aparte.
@@ -453,8 +455,14 @@ que la migración sugería**, así que se cerró.
 
 > **DECISIÓN · 2026-09-01** — se cierra **ya** y no al final de la tanda, aunque el endpoint no se use:
 > es el creador de comercios **al que apunta la migración**, así que el día del corte se llevaría puesta
-> una validación que el admin ya tiene. Va en PR aparte —es el país del COMERCIO, no el del usuario— y
-> son tres líneas. *Cómo se vuelve a comprobar:* `make harness-comercio-pais`.
+> una validación que el admin ya tiene. Son tres líneas. *Cómo se vuelve a
+> comprobar:* `make harness-comercio-pais`.
+
+> **DECISIÓN · 2026-09-01** — las cuatro piezas van en **un solo PR y un solo commit** (#1277), no en
+> dos. Se había separado por materia —el país del comercio no es el del usuario—, y Miguel pidió lo
+> contrario: la unidad que importa al leer es *el país deja de suponerse*, y partirla obliga a leer dos
+> PRs para entender uno. Las dos ramas viejas se cerraron; el árbol se comprobó idéntico al de las dos
+> juntas antes de aplastar.
 
 Y salió una cosa de estructura que conviene tener presente: el `StoreRequest` que usa ese endpoint es un
 **gemelo** del del admin de la aplicación, y el gemelo se había quedado sin la regla. No es el único par
