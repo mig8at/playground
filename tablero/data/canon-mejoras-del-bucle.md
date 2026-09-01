@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #52 y correr en prod la tarea de onboarding (`p95a59e`, concluye `ya no`)
-para ver si el integrador ahora cierra: si escribe sin nombrar archivos, el commit aparece solo en el PR.
-Después, persistir las corridas cerradas junto al plan (dos deploys, dos veces perdidos los veredictos),
-y el ítem 6 por la palanca (a).
+**El próximo paso es:** mergear #54 y correr UNA vuelta en prod con la forma nueva, tema por tema
+(`POST /api/tareas/tema/{tema}`), anotando el costo real contra los 79k del expediente. Si se confirma:
+«correr todas» pasa a ir por tema, y el integrador recibe el mismo tratamiento (hoy 49k por sección en
+local con herramientas; en prod se cayó dos veces tanteando). Después, persistir las corridas cerradas.
 
 ## Objetivo
 
@@ -118,7 +118,7 @@ El aplicador mecánico ya existe: con un click una persona declara lo que el age
 próxima vuelta ese redactor concluye en vez de rendirse. Cambio de esquema + botón en la página de la
 tarea. **Medir en prod** cuántos `no alcanza` traen archivos.
 
-### 6 · El costo de una vuelta con Sonnet, y el techo de 120k — ⏳ PENDIENTE: primero medir en prod
+### 6 · El costo de una vuelta con Sonnet, y el techo de 120k — 🔁 REDISEÑADO EN #54: el redactor por tema con el expediente empujado (79k la vuelta); falta confirmar en prod
 
 **Evidencia.** En prod, 3 de 4 redactores llegaron al techo de 120k tokens. La ley de costo está
 medida: el contenido del prompt se paga una vez; cada turno reenvía el historial entero, así que el
@@ -217,6 +217,24 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 6 — el diseño estaba al revés: el redactor por tema (#54)
+
+Miguel frenó las pruebas en prod: «un agente casi por archivo no debe pasar, 8 millones es mucho,
+aterricemos». Tenía razón, y la medición lo dice sin discusión:
+
+> **MEDICIÓN · 2026-09-01** — el residuo ENTERO de la vuelta de prod (34 archivos, 10 temas) armado como expediente —archivos enteros si son chicos, si no el diff; commits y PR; la prosa completa del tema— pesa **79k tokens** (de 4k arquitectura a 20k listado). Se gastaron **2,49M** revisándolo: **30 veces el material**. Medido con `canon -expediente`, sin modelo.
+
+La causa no era el número de agentes sino la DIRECCIÓN: el redactor tenía herramientas para ir a buscar
+código y las usaba —siete búsquedas con regex sobre un `Kernel.php` de 400 tokens— y cada turno reenvía
+todo el historial. El expediente ya se le daba entero; con una búsqueda a mano, la usaba igual.
+
+`Creditop-SAS/playground#54`: **un redactor por TEMA** recibe el expediente completo más TODAS las
+preguntas del plan sobre ese tema, sin herramientas, tope 3 turnos, y los hallazgos se registran por
+tarea con el mismo agente y firma — tarjetas, `proponer` y PR no notan el cambio. `canon -expediente`
+acota el costo antes de correr. Convive con la forma de a uno mientras se mide.
+
+> **MEDICIÓN · 2026-09-01** — en local (3.7): un redactor por tema, UNA llamada cada uno, costo = expediente (5k por 4k de material; 12k por 11k), veredictos en sus tarjetas, el `ya no` propuso solo. ⚠ Local NO muestra el ahorro: 3.7 tampoco tanteaba en la forma vieja (6k y 13k en una llamada). El tanteo es de Sonnet; el 79k contra 2,49M se confirma en prod o no.
 
 ### 2026-09-01 · noche · 5 — #51 en prod: el integrador, por fin con traza (#52)
 
