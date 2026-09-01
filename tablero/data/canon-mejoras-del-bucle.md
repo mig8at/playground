@@ -24,9 +24,12 @@ justifica —medida, no supuesta— y cómo se ataca. Lo que ya se hizo NO está
 locales; Sonnet en prod lo produjo en 4 de 7 afirmaciones. Todo lo que dependa del comportamiento del
 modelo se mide después de mergear, no antes.
 
-**El próximo paso es:** mergear #48, correr UNA vuelta completa en prod y anotar tres números: cuántos
-`declarar` llegan con archivos nombrados, qué dictamina el verificador, y cuánto costó la vuelta entera.
-Esos tres números ordenan el resto de esta lista.
+**Al cierre del 2026-09-01, ocho de los nueve ítems están CONSTRUIDOS y probados en local, dentro de
+#48** (1, 2, 3, 4, 5, 7, 8, 9). Queda el 6 —el costo— porque su primer paso es medir en prod.
+
+**El próximo paso es:** mergear #48, correr UNA vuelta completa en prod y anotar cuatro números: cuántos
+`declarar` llegan con archivos, cuántos `no alcanza` traen archivos (ítem 5), qué dictamina el
+verificador, y cuánto costó la vuelta entera. Con eso se ataca el 6.
 
 ## Objetivo
 
@@ -50,7 +53,7 @@ Todo en `Creditop-SAS/playground`:
 
 Ordenado por lo que más cambia el resultado por unidad de trabajo. Cada punto se entrega solo.
 
-### 1 · Persistir el plan: hoy un deploy resetea la vuelta
+### 1 · Persistir el plan: hoy un deploy resetea la vuelta — ✅ EN #48
 
 **Evidencia.** Cada reinicio del servidor local hoy volvió la pantalla a las tarjetas gruesas del triaje
 (pasó cinco veces en la sesión). El guion ya lo anota como deuda. Con el flujo «acumular → analizar →
@@ -63,8 +66,11 @@ exactamente el ciclo de vida que tiene. Al arrancar, si hay rama, se lee. Sin `C
 se guarda en disco al lado del corpus.
 **Por qué no la alternativa:** reconstruirlo desde las corridas no sirve porque las corridas también
 viven en memoria (ítem 3).
+**Cómo quedó.** `SumarALaRama` ganó un `abrirPR bool`: guardar el plan commitea en la rama SIN abrir PR
+(analizar no debe hacer aparecer el chip). Medido contra el GitHub falso: analizar crea la rama,
+`/api/pr` sigue en `abierto: false`, y reiniciar recupera «de la rama canon/contexto».
 
-### 2 · La cola de cambios nuevos se calcula con lo que escribió el modelo
+### 2 · La cola de cambios nuevos se calcula con lo que escribió el modelo — ✅ EN #48
 
 **Evidencia.** `enCola` compara los archivos de la ronda contra `t.fuentes`, que son los `archivos`
 que el planificador escribió en texto libre — y **el esquema no le pide formato** (línea ~766: `array
@@ -74,8 +80,11 @@ of string`, sin `description`). A veces escribe `repo:ruta`, a veces sólo la ru
 **Cómo.** Cobertura del lado del servidor y determinista: cada tarea del plan tiene `Area`, y el área
 tiene sus `fuentes` conocidas. `/api/tareas` devuelve `cubiertos` (repo:ruta) y el frente compara
 contra eso. El texto libre del planificador deja de decidir nada.
+**Trampa que salió construyéndolo.** El número de área es el del MAPA del tema (`nodo.Areas[n]`), no
+la posición en el residuo — el residuo trae sólo las áreas que cambiaron. El primer intento indexaba el
+residuo y daba `cubiertos: 0` para una tarea que cubría un archivo. Se resuelve por OBJETIVO.
 
-### 3 · El tope de 20 corridas evicta las de la vuelta en curso
+### 3 · El tope de 20 corridas evicta las de la vuelta en curso — ✅ EN #48
 
 **Evidencia.** `const tope = 20` en `corridas.go:155`. Una vuelta de 4 tareas + reintentos +
 consolidación + `proponer` son ~10 corridas; dos vueltas y una tarea del plan deja de encontrar la
@@ -84,7 +93,7 @@ suya, y la tarjeta vuelve a `lista` con el ▶ como si nunca hubiera corrido.
 **Cómo.** No evictar las corridas que el plan referencia. Cinco líneas en `abrir`. Cuando el plan se
 persista (ítem 1), persistir con él sus corridas cerradas.
 
-### 4 · CI no corre el detector de carreras
+### 4 · CI no corre el detector de carreras — ✅ EN #48
 
 **Evidencia.** `Dockerfile:15` corre `go vet ./... && go test ./...` — sin `-race`. Hoy se arreglaron
 cuatro carreras de datos reales (verificadas con `-race`: el patrón viejo las marca). Si vuelven, CI
@@ -94,7 +103,7 @@ no las ve.
 musl-dev` en la etapa de compilación (+40 s de build), o un paso `go test -race ./...` en el workflow
 `revisar` con `setup-go`, fuera de Docker. **La segunda**: no engorda la imagen y corre en paralelo.
 
-### 5 · `no alcanza` casi siempre es «el archivo no está declarado», disfrazado
+### 5 · `no alcanza` casi siempre es «el archivo no está declarado», disfrazado — ✅ EN #48 (falta medir si Sonnet lo llena)
 
 **Evidencia.** En prod, `no alcanza` fue el veredicto dominante y `declarar` el siguiente (4 de 7).
 Leyendo los detalles, buena parte de los `no alcanza` dicen «la lógica está en X y X no está en el
@@ -105,7 +114,7 @@ El aplicador mecánico ya existe: con un click una persona declara lo que el age
 próxima vuelta ese redactor concluye en vez de rendirse. Cambio de esquema + botón en la página de la
 tarea. **Medir en prod** cuántos `no alcanza` traen archivos.
 
-### 6 · El costo de una vuelta con Sonnet, y el techo de 120k
+### 6 · El costo de una vuelta con Sonnet, y el techo de 120k — ⏳ PENDIENTE: primero medir en prod
 
 **Evidencia.** En prod, 3 de 4 redactores llegaron al techo de 120k tokens. La ley de costo está
 medida: el contenido del prompt se paga una vez; cada turno reenvía el historial entero, así que el
@@ -118,7 +127,7 @@ redactor lee ~9.000 palabras para contestar sobre una; (b) recortar la salida de
 funciones que nombra la afirmación; (c) bajar el tope de turnos del redactor de 16 a 10 y medir
 cuántos concluyen igual. Cada uno se mide en prod por separado, porque local no muestra el costo.
 
-### 7 · Ids estables entre reanálisis
+### 7 · Ids estables entre reanálisis — ✅ EN #48
 
 **Evidencia.** Los ids son posicionales (`p1`, `p2`). La guarda de la firma evita que un veredicto se
 pegue a otra pregunta, pero `/agentes/p1` sigue apuntando a otra cosa después de reanalizar: el enlace
@@ -127,7 +136,7 @@ que alguien pegó en Slack cambia de significado.
 **Cómo.** `id` = hash corto de `tema + primera afirmación`. Con eso la guarda de la firma se vuelve
 redundante (misma pregunta ⇒ mismo id) y los enlaces sobreviven. Tocar `tarjetasDePlan` y el frente.
 
-### 8 · Tres pequeñas, de una tarde
+### 8 · Tres pequeñas, de una tarde — ✅ EN #48
 
 - **`/api/estado` pesa** (5 lecturas a GitHub) y se pide en cada entrada a `agentes`. Cachear 2 min,
   como `/api/pr`.
@@ -136,7 +145,7 @@ redundante (misma pregunta ⇒ mismo id) y los enlaces sobreviven. Tocar `tarjet
 - **El caño en vivo refresca tres endpoints por cada paso** de cada agente. Debounce de 500 ms en
   `escuchar`.
 
-### 9 · `vigilar.md` está en el techo
+### 9 · `vigilar.md` está en el techo — ✅ EN #48
 
 **Evidencia.** 899 de 900 palabras; cada cambio de esta sesión obligó a podar otra cosa para entrar.
 
@@ -203,6 +212,15 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · tarde
+
+Se construyeron los ítems 1, 2, 3, 4, 5, 7, 8 y 9 en #48 (commit «ocho mejoras del backlog»), probados
+en local contra el GitHub falso: plan recuperado de disco y de la rama tras reiniciar; analizar no abre
+PR; `cubiertos` 1 y 3 para tareas de 1 y 3 archivos; «11 en cola» sobre 15; `docker build` con `-race`
+en verde. Dos cosas que no estaban en el plan y salieron construyendo: el número de área se resuelve por
+objetivo (ítem 2), y mi `pkill -f '/tmp/canon-'` mataba también al GitHub falso — ahora corre como
+`/tmp/gh-falso`. El ítem 6 queda para después de medir.
 
 ### 2026-09-01
 
