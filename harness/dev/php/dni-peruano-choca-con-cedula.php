@@ -86,10 +86,17 @@ try {
         $duplicado ? '✗ RECHAZADO por el unique de la columna' : '✗ ' . substr($e->getMessage(), 0, 50), PHP_EOL);
 }
 
-echo PHP_EOL . "  El índice, tal como está hoy:" . PHP_EOL;
-foreach (DB::select("SHOW INDEX FROM users WHERE Key_name = 'idx_users_document_number_unique'") as $ix) {
-    printf("    %s  ·  columna: %s  ·  único: %s%s", $ix->Key_name, $ix->Column_name,
-        $ix->Non_unique ? 'no' : 'SÍ', PHP_EOL);
+// ⚠ Se listan TODOS los únicos que tocan la columna, no uno por nombre: el nombre cambia con el
+// arreglo (`idx_users_document_number_unique` → `idx_users_document_type_number_unique`) y buscarlo
+// fijo hacía que el bloque saliera vacío justo cuando el arreglo funcionaba.
+echo PHP_EOL . "  Los índices únicos sobre el documento:" . PHP_EOL;
+$ixs = DB::select("
+    SELECT INDEX_NAME AS nombre, GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX) AS columnas
+    FROM information_schema.STATISTICS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND NON_UNIQUE = 0
+    GROUP BY INDEX_NAME HAVING columnas LIKE '%document_number%'");
+foreach ($ixs as $ix) {
+    printf("    %-40s → %s%s", $ix->nombre, $ix->columnas, PHP_EOL);
 }
 
 User::whereIn('id', $creados)->delete();

@@ -6,7 +6,7 @@ created: "2026-08-27T09:00:00-05:00"
 context_nodes: [architecture, onboarding, kyc, entities, merchants]
 jira: []
 jira_title: ""
-ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-pais-deja-de-suponerse"
+ramas: "pais/documentos-que-acepta-el-backend, pais/monto-y-telefono-en-solicitar, pais/borrar-documentos-de-sucursal, pais/la-tarjeta-de-identidad-es-generica, pais/el-pais-trae-bandera-y-gentilicio, pais/la-tarjeta-lee-el-pais-de-la-bd, pais/la-bandera-se-dibuja-desde-el-iso, pais/las-banderas-salen-de-la-bd, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais/el-theme-cacheado-no-se-queda-pegado, pais/el-pais-deja-de-suponerse, pais/el-documento-es-unico-por-tipo"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -440,6 +440,36 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 > no se deriva de nada, igual que `is_operating`.
 
 ## Registro
+
+### 2026-09-02 · desbloqueado Perú: el documento pasa a ser único POR TIPO
+
+El bloqueante que estaba escrito en §«Lo que está bloqueado» desde el 27/8 quedó resuelto en un PR.
+Al medirlo de nuevo salieron dos cosas que cambian cómo estaba dimensionado:
+
+> **MEDICIÓN · 2026-09-02** — en producción hay **119.188 documentos de 8 dígitos** ocupados (119.115
+> `CC`), y **85.601** caen en series que RENIEC sí emite. Eran 84.656 el 27/8: **crece solo**.
+> *Cómo se vuelve a comprobar:* agrupar `users` por `CHAR_LENGTH(document_number)` y por `LEFT(...,1)`.
+
+> **MEDICIÓN · 2026-09-02** — no son «72 usos que auditar». Esa cuenta incluía escrituras, `LIKE` de
+> buscadores del admin y consultas que ya filtran por tipo. Las búsquedas por NÚMERO SOLO son **14 en
+> `legacy-backend` y 16 en `legacy-application`**, y ninguna está en el camino de alta.
+
+Y una que no estaba vista: **son CUATRO guardas, no una**. El índice de la base y el `register` miran
+el número solo; `personal-info` mira número y tipo y ya estaba bien; y hay **dos `Rule::unique` en
+formularios del admin** que nadie había contado. Arreglar sólo el índice no alcanzaba.
+
+> **DECISIÓN · 2026-09-02** — en el índice compuesto **el tipo va PRIMERO**. MySQL usa el prefijo
+> izquierdo, así que con el número adelante las búsquedas por número solo seguirían indexadas — y son
+> justo las que devuelven la persona equivocada. Con el tipo primero se ven en el plan y en el slow log
+> en vez de esconderse. *Cómo se vuelve a comprobar:* `make harness-dni-choca`.
+
+Verificado en local con el caso que reproducía el choque: el comercio peruano acepta el número (200),
+el colombiano lo sigue rechazando (409), cero pares repetidos después de migrar, rollback y
+reaplicación limpios, y **los dos flujos que cierran siguen cerrando en estado 11**.
+
+⚠ **Lo que NO resuelve:** las 16 búsquedas de `legacy-application` y las 5 de servicing y riesgo. No
+están en el alta, así que no bloquean a Perú, pero hay que mirarlas antes de llevar cartera fuera de
+Colombia. Quedan clasificadas en la descripción del PR.
 
 ### 2026-09-01 (tarde) · cerrado el bloqueante para poder quitar el `DEFAULT 1`
 
