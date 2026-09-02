@@ -30,14 +30,19 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #59 y #60 y correr el barrido una vez más. Con el residuo en 2, esa
-vuelta cuesta centavos y tiene que dejar el tablero **al día** salvo el `ya no` del archivo borrado. Ahí
-el método está aterrizado y sólo queda decidir la cadencia (recomendado: **una vuelta por semana,
-$7/mes**, disparada por una persona).
+**El próximo paso es:** decidir con Miguel el orden de los cinco cambios de la evaluación del
+2026-09-02 (Registro · 13). El primero propuesto es **enlazar sección→área en el mapa**, porque de ahí
+salen gratis la poda, el respaldo de cada afirmación y qué archivos abrir para una pregunta. Antes de
+eso, mergear #59 y #60 (siguen abiertos) y correr el barrido: con el residuo en 2 cuesta centavos.
+La cadencia recomendada sigue: **una vuelta por semana, $7/mes**, disparada por una persona.
 
-⚠ Y la conversación que queda abierta, que es más grande: el corpus está CIERTO —medido— pero no
-COMPLETO. `-soporte` dice **21 preguntas reales sin cobertura**, y el banco acierta al primer resultado
-en 91 de 115. El bucle no toca ninguna de las dos cosas: eso se arregla escribiendo, no vigilando.
+⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
+NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
+herramienta (README = 66% del corpus, tres redactores, un camino de escritura muerto). El mapa sólo
+puede crecer o quedarse quieto: **no hay `retirar`**, y la prosa no apunta a las áreas. Y hay un comando
+roto por mí: `canon -expediente <tema> <carpeta>` quedó tapado desde `5caf79a`. Lo que sigue abierto
+de antes: **21 preguntas reales de soporte sin cobertura** (banco: 92/115 al primer resultado) — eso se
+arregla escribiendo, no vigilando.
 
 ## Objetivo
 
@@ -221,6 +226,75 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · mañana · 13 — evaluación a fondo ANTES de código: ¿el corpus es lo que Miguel dice, y puede crecer y podarse?
+
+Pregunta de Miguel: el corpus como árbol de archivos conectados por flujos de negocio, prosa para lo
+que el código no dice, concreto y simple, barato. ¿Es eso lo que hay? ¿Qué se usa y qué no? ¿Qué falta
+para que crezca y se pode? Todo lo de abajo se midió **sin modelo**.
+
+**El corpus.**
+- 15 temas (13 con código; `vocabulario` e `internacionalizacion` sin áreas) · **85 áreas · 557
+  archivos · 182 secciones · 23.933 palabras** (máx. motai 2.653; secciones de 50–300). Las 85 áreas
+  tienen objetivo (~20 palabras) y `se_deduce_leyendo` (~22). bancolombia+listado = 295 archivos (53%).
+- Nació el 8/26 como **49 documentos por TIPO** (`flows.*` `map.*` `pitfalls.*`, 30,5k palabras), se
+  recortó el 8/28 a 14 temas por ASUNTO (22,6k) y hoy son 15 (23,9k): **+6% en 5 días**. No hay
+  documentos inmensos; la textura de una sección es «qué significa», no «qué hace el código».
+- Ruteo: bench **92/115 al primer resultado · 115/115 top-3 · 115/115 ≤2 pasos**. Soporte: 117/118
+  cubiertas se encuentran; **21 sin cobertura** — aval, FGA+IVA, cuota inicial, costos administrativos,
+  pago mínimo vs saldo, core bancario, asignación de asesor, reinicio de intentos, reportes.
+- Grafo: `related` (listado es el hub, 9 salidas; motai e internacionalizacion, 0), `[[tema]]` en la
+  prosa, diccionario de 558 nombres → tema. **Los temas son asuntos, no flujos**: un flujo cruza temas.
+- **Secciones y áreas son dos descomposiciones paralelas SIN enlace**: cero `n=` en la prosa, `Section`
+  no tiene área. El verificador comprueba «cada afirmación tiene archivo» a juicio, cada vez.
+- `verificado_contra` sólo lo escribe el scaffold («pendiente») y lo preserva el borrador; ninguna
+  operación lo actualiza. Los 13 dicen 8/27–28.
+
+**La maquinaria.**
+- **14,6k LOC Go + 2k front; 853 LOC de tests.** README **15.921 palabras = 66% del corpus**; skills
+  3.750; 2.589 líneas de comentario. 23 endpoints: 14 los usa el front, 5 el agente de chat
+  (code/read/search/pregunta/skills), `draft` (dictado, vivo: PR #17), `propose` (410) y **4 que sólo
+  nombra el README** (policy, tools, yo, relations). 18 modos de CLI (`-deriva` es alias).
+- **Tres redactores conviven**: `revisarTema` (correr-todas: UNA llamada, material empujado, 5–20k por
+  tema) · `revisar` con foco (`POST /api/tareas/{id}` ← el botón «▶ correr esta tarea» de Corrida.vue:
+  tanteo, medido 150k con aterrizaje forzoso) · `revisar` sin foco (`POST /api/tareas/{tema}`, la
+  variante de 330k). Dos de tres son la generación cara, y una está a un clic.
+- **Crecer**: `declarar` (reactivo: sólo cuando una prosa se queda sin respaldo; 2 commits del bot),
+  `-faltantes <raíz>` (por dependencia medida: **442 archivos que los declarados importan y nadie
+  declara**; los 20 primeros son modelos y repositorios —`UserRequestRepositoryInterface` en 8 temas,
+  `UserFieldValue` en 6—: la FORMA de los datos, que el corpus no describe), dictado, y edición a mano
+  (**39 de 49 commits sobre content/ desde el 1/8 son de Miguel; 8 del bot**).
+- **Podar**: la ronda detecta `no está en main` y bloquea el tema si están todos; `archivosQueNoExisten`
+  impide declarar rutas muertas. **No hay `retirar`**, y sin enlace sección↔área nadie sabe qué prosa
+  pierde el piso. Tampoco se mide «secciones que nadie pregunta»: el banco mide pregunta→sección.
+- ⚠ **`canon -expediente <tema> <carpeta>` ya no arma el expediente**: desde `5caf79a` (1/9, mío) el
+  `-expediente` que PESA lo tapa, y `upkeep.Dossier` —el ÚNICO camino con «candidatos a SUMAR»
+  (archivos de los mismos PRs, por carpeta; medido 8/27: 9 de 75 plausibles) y «candidato a QUITAR»—
+  quedó inalcanzable. README:692/:763 y las skills `contextualizar`/`recontextualizar` documentan un
+  comando que hoy hace otra cosa.
+- ⚠ `-faltantes` con la raíz mal devuelve **tabla vacía sin avisar** (toma `os.Args[2]`, no env).
+- Costo: mantener = **material** (analizar 0; barrido 20k pagados + 156k de caché ≈ $1,69). Consumir:
+  pregunta de prosa ~5k, de código ~40k, patológica 302k en 14 pasos con error (README:906, :1102).
+
+**Conclusión.** El corpus SÍ es lo que Miguel describe: el ÁREA es el «hilo» (objetivo + qué se
+deduce + archivos), la prosa está forzada por el lint a decir lo que el código no dice, y 24k palabras
+para 557 archivos en 4 repos es magro. Lo que se está poniendo grande no es el corpus: es la
+herramienta. Y el hilo está partido en dos mitades que no se apuntan: la prosa (182) y el área (85).
+
+**Qué cambiar, en orden** — decisión de Miguel; nada escrito todavía:
+1. **Enlazar sección→área en el mapa** (cada área lista las anclas que respalda). Determinista; de ahí
+   salen gratis: qué prosa pierde el piso cuando muere un archivo, qué secciones no tienen respaldo, y
+   qué archivos abrir para una pregunta (baja el costo de consumir, no sólo el de mantener).
+2. Meter en el expediente por tema **las dos listas del dossier** (SUMAR por mismos-PRs+carpeta, QUITAR
+   por ausente): 0 tokens, y el redactor ve las dos direcciones en la misma llamada.
+3. **`retirar`** como operación que sólo viaja con un veredicto de prosa (`ya no`, o «la sección sigue
+   sin ese archivo»), nunca sola.
+4. **Podar la maquinaria**: un solo redactor (`revisarTema` con foco para el botón por tarea) y fuera
+   `revisar`; fuera policy/tools/yo/relations y `-deriva`; que `-faltantes` falle a la vista; recuperar
+   o retirar `-expediente <tema>` con sus dos skills; adelgazar el README.
+5. **Crecer por DEMANDA, no sólo por código**: las 21 de soporte son cartera/pagos/comisiones y admin —
+   se escriben, y `declarar` trae el mapa detrás. Y decidir si canon describe la FORMA de los datos
+   (los 442 faltantes lo piden; `datos` tiene 14 archivos).
 
 ### 2026-09-01 · noche · 12 — el bucle no podía terminar (#60)
 
