@@ -441,6 +441,42 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
+### 2026-09-02 (tarde) · seis flujos en paralelo contra qa: la internacionalización se respeta en los tres países
+
+Primera corrida en paralelo contra un ambiente compartido, con los tres países a la vez. **Las seis
+solicitudes salieron con lo suyo:**
+
+| país | documento | teléfono | largo · pide | moneda | estado |
+|---|---|---|---|---|---|
+| Colombia ×2 | **CC** | 305696680x | 10 · 10 | COP | **11** |
+| Rep. Dominicana ×2 | **CED** | 809696680x | 10 · 10 | DOP | 28 |
+| Perú ×2 | **DNI** | 95696680x | 9 · 9 | PEN | 9 |
+
+El país del cliente coincide con el del comercio en las seis, y **es la primera vez que se escribe un
+DNI peruano en la base compartida**.
+
+**Los dos que no cerraron NO son de internacionalización:**
+- **Perú** — su entidad no es CreditopX, así que no hay con qué cerrar en plataforma. Es un hecho del
+  comercio.
+- **Rep. Dominicana** — llegó a **28 «Autorizado pendiente desembolso»** y se frenó en el enrolamiento
+  del IMEI de SmartPay (`status=400`). Integración externa.
+
+> **MEDICIÓN · 2026-09-02** — la corrida escribió en la base compartida y **la configuración global que
+> toca quedó intacta**: se guardó `settings.qa_otp_bypass_phones` antes y se comparó byte a byte
+> después. *Cómo se vuelve a comprobar:* el mismo respaldo antes de cualquier corrida con cierre.
+
+**Tres cosas del ESTADO DE LOS AMBIENTES que salieron de esto y corrigen lo que estaba escrito:**
+
+1. **`qa` y `develop` están idénticos** — cero commits de diferencia. El merge ya pasó, así que la
+   advertencia de «correr la migración mientras develop tiene el código viejo» **ya no aplica**.
+2. **El backfill de teléfonos YA CORRIÓ** en la compartida (lote 243, el 1/9 a las 16:58): normalizó 18
+   filas. Acá decía «escrito y sin correr» — quedó viejo. No quedan teléfonos con `57` pegado; los que
+   siguen con `+57` son los duplicados históricos que la migración salta a propósito.
+3. ⚠ **Los logs de esas solicitudes se etiquetan `development`, no `qa`.** El forense con
+   `E2E_TARGET=qa` no encuentra nada y hay que pedirle `dev`. Con las dos ramas idénticas no se puede
+   afirmar cuál servicio atendió, pero la trampa práctica queda: **para el forense de algo probado en
+   qa, el target es `dev`**.
+
 ### 2026-09-02 · el documento por tipo queda LISTO pero EN ESPERA
 
 > **DECISIÓN · 2026-09-02 (Miguel)** — el PR del documento por tipo **no se mergea hasta que los
