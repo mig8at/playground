@@ -82,7 +82,7 @@ const { execFile } = await import('node:child_process');
 // definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
 const { webhookIntegracion, webhookSelfManager, WELLI_IDS, ESTADOS_WEBHOOK, APP_VIEJA } =
     await import('../pkg/webhook-entidad.ts');
-const { one, query, exec, close } = await import('../pkg/db.ts');
+const { scalar, one, query, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
@@ -582,6 +582,50 @@ const BASE_DOC = 1090000000 + ((Date.now() / 100) % 9_000_000 | 0);
  *  ⚠ Para un CENSO hay que usar hash. Con nombre resuelve por `LIKE %x%` y se queda con la sucursal
  *  de más entidades, así que dos comercios que comparten prefijo se pisan y uno de los dos NUNCA se
  *  prueba: el barrido quedaría corto sin que nada avise. */
+type LineaBase = { users: number; ureqs: number } | null;
+
+/** Los MAX(id) de `users` y `user_requests` antes de arrancar. Null si la base no contesta: la
+ *  conciliación es información, no puede frenar la corrida. */
+async function lineaBaseDeLaBase(): Promise<LineaBase> {
+    try {
+        const users = Number(await scalar<number>('SELECT MAX(id) FROM users')) || 0;
+        const ureqs = Number(await scalar<number>('SELECT MAX(id) FROM user_requests')) || 0;
+        return { users, ureqs };
+    } catch { return null; }
+}
+
+/**
+ * ⚠ LO QUE EL RUNNER DICE Y LO QUE LA BASE TIENE SON DOS COSAS, y esto imprime la segunda.
+ *
+ * Tres veces (F-176, F-180 y la corrida de 42 del 2026-09-02) el runner reportó «0/N cerraron» con la
+ * base llena de usuarios íntegros: el guard de escrituras cortó DESPUÉS de que la API ya había escrito,
+ * o el gateway devolvió 504 a los 60 s mientras PHP seguía y terminaba. Leer ese «0» como «no pasó
+ * nada» lleva a repetir la corrida y duplicar los datos. Acá se cuenta lo que quedó desde la línea base,
+ * y si el runner dijo cero pero la base creció, se dice con todas las letras.
+ */
+async function conciliarConLaBase(lb: LineaBase, okSegunRunner: number): Promise<void> {
+    if (!lb) return;
+    try {
+        const users = Number(await scalar<number>('SELECT COUNT(*) FROM users WHERE id > ?', [lb.users])) || 0;
+        const ureqs = Number(await scalar<number>('SELECT COUNT(*) FROM user_requests WHERE id > ?', [lb.ureqs])) || 0;
+        console.log(`  base: quedaron ${users} usuario(s) y ${ureqs} solicitud(es) nuevos (desde user ${lb.users} · ureq ${lb.ureqs})`);
+        if (okSegunRunner === 0 && (users > 0 || ureqs > 0)) {
+            console.log('  ⚠ el runner dice CERO pero la base creció: el fallo fue DESPUÉS de escribir (gateway o guard).'
+                + ' No repitas la corrida sin mirar esos usuarios — ver F-176 y F-180.');
+        }
+    } catch { /* conciliar es información: si la base no contesta, no se inventa un número */ }
+}
+
+/**
+ * Resuelve un comercio por `#hash` de sucursal, por SLUG exacto o por NOMBRE (subcadena), en ese orden.
+ *
+ * ⚠ Hasta el 2026-09-02 sólo miraba el NOMBRE con `LIKE`: `pullman` andaba porque «Amoblando Pullman» lo
+ * contiene, y `viva-tu-credito` —el slug real del comercio— daba «no encontré el comercio». Una tanda de
+ * 40 comercios sacada de la base por slug falló entera por eso, y el mensaje mandaba a dudar del dato.
+ * El slug es el identificador estable del comercio; el nombre es lo que uno recuerda. Se aceptan los dos.
+ *
+ * Entre varias sucursales del mismo comercio gana la que más entidades tiene: es la que más flujo cubre.
+ */
 async function buscarSucursal(ref: string) {
     const porHash = ref.startsWith('#');
     return one<{ id: number; hash: string; com: string; allied: number }>(
@@ -589,10 +633,12 @@ async function buscarSucursal(ref: string) {
             ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
                  JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
             : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id WHERE x.name LIKE ?
-                ORDER BY (SELECT COUNT(*) FROM lenders_by_allied_branches l
+                 JOIN allieds x ON x.id = b.allied_id
+                WHERE x.slug = ? OR x.name LIKE ?
+                ORDER BY (x.slug = ?) DESC,
+                         (SELECT COUNT(*) FROM lenders_by_allied_branches l
                            WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
-        [porHash ? ref.slice(1) : `%${ref}%`]).catch(() => null);
+        porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref]).catch(() => null);
 }
 
 /** El teléfono de un caso. DERIVADO, como la cédula — no sale de una lista.
@@ -633,21 +679,36 @@ const telefonoDe = (i: number, iso = 'COL'): string => {
 
 /** El ISO-3 del país del comercio, del mismo payload del que ya sale el tipo de documento. */
 const isoPorComercio = new Map<string, string>();
-async function paisDelComercio(hash: string): Promise<string> {
+/**
+ * ⚠ SI NO PUEDE RESOLVER EL PAÍS, DEVUELVE null — NO ADIVINA. Hasta el 2026-09-02 caía a Colombia en
+ * silencio cuando el payload tardaba más de 20 s. Contra un backend saturado eso hizo que el comercio
+ * dominicano y el peruano recibieran teléfonos de forma COLOMBIANA: el peruano ni registró (10 dígitos
+ * contra un país de 9) y el fallo se leyó como del backend. Un fallback que esconde la saturación es
+ * peor que fallar: el llamador aborta el caso diciendo por qué, y la saturación queda a la vista.
+ *
+ * Reintenta UNA vez antes de rendirse: un timeout aislado no debería tumbar un caso, dos seguidos sí.
+ */
+async function paisDelComercio(hash: string): Promise<string | null> {
     const cacheado = isoPorComercio.get(hash);
     if (cacheado) return cacheado;
 
-    let iso = 'COL';   // sin payload no se cambia el comportamiento: queda lo que había
-    try {
-        const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
-        const j = await r.json() as { data?: { country?: { iso_code?: string } } };
-        const publicado = j?.data?.country?.iso_code;
-        if (typeof publicado === 'string' && publicado.length === 3) iso = publicado.toUpperCase();
-    } catch { /* sin payload, queda COL */ }
-
-    isoPorComercio.set(hash, iso);
-    return iso;
+    for (let intento = 1; intento <= 2; intento++) {
+        try {
+            const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
+            const j = await r.json() as { data?: { country?: { iso_code?: string } } };
+            const publicado = j?.data?.country?.iso_code;
+            if (typeof publicado === 'string' && publicado.length === 3) {
+                const iso = publicado.toUpperCase();
+                isoPorComercio.set(hash, iso);     // sólo se cachea lo que sí se resolvió
+                return iso;
+            }
+            return null;                          // respondió, pero sin país: no es un timeout, no se reintenta
+        } catch { /* timeout o red: al segundo intento se rinde */ }
+    }
+    return null;
 }
+
+const SIN_PAIS = 'no pude resolver el país del comercio: su payload no respondió dos veces (¿backend saturado?)';
 
 /** ⚠ PARA CERRAR hace falta que el teléfono esté en `qa_otp_bypass_phones`, y no es capricho: son DOS
  *  mecanismos de OTP distintos y sólo uno acepta cualquier teléfono.
@@ -907,7 +968,9 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     const br = await buscarSucursal(c.comercio);
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
 
-    const tel = telefonoDe(i, await paisDelComercio(br.hash));   // el mismo para listar y para cerrar
+    const iso = await paisDelComercio(br.hash);
+    if (iso === null) return { ...base, detalle: SIN_PAIS };
+    const tel = telefonoDe(i, iso);   // el mismo para listar y para cerrar
     base.phone = tel;
 
     // ⚠ `x.id AS allied` NO es cosmético: `preAprobar` lo manda como `merchant_id` y este lookup no
@@ -1153,7 +1216,9 @@ async function correr(c: Caso, i: number): Promise<Res> {
     if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
     base.com = br.com;
 
-    const phone = telefono(i, await paisDelComercio(br.hash));
+    const iso = await paisDelComercio(br.hash);
+    if (iso === null) return { ...base, detalle: SIN_PAIS };
+    const phone = telefono(i, iso);
     base.phone = phone;
 
     if (c.lender !== null) {
@@ -1632,6 +1697,9 @@ async function main(): Promise<number> {
     const par = flag('paralelo');
 
     console.log(`\n  CASOS · ${casos.length} · ${par ? 'EN PARALELO' : 'en serie'} · ${API}\n`);
+    // La línea base para conciliar al final: qué había en la base ANTES de que este runner tocara nada.
+    // Son dos lecturas, así que pasan sin el permiso de escritura (que sólo cubre lo que escribe).
+    const lineaBase = await lineaBaseDeLaBase();
     const faltan = await prevuelo(casos);
     if (faltan.length) {
         console.log('  ⚠ PREVUELO — falta algo, y sin esto el resultado MIENTE:\n');
@@ -1651,9 +1719,15 @@ async function main(): Promise<number> {
         // ⚠ Tiene que resolver el país ANTES, igual que el motor: si acá se arma el teléfono con la
         // forma colombiana y allá con la del comercio, la lista de bypass queda con números que nadie
         // usa — y la firma del pagaré falla con 422 en un país que sí estaba bien configurado.
+        // ⚠ Acá no hay caso que abortar: la lista de bypass se escribe ANTES de correr. Si el país no
+        // resuelve, un teléfono con la forma equivocada entraría a `qa_otp_bypass_phones` y la firma
+        // fallaría después con un 422 que no se parece a la causa. Mejor frenar la corrida entera.
         const tels = await Promise.all(casos.map(async (c, i) => {
             const br = await buscarSucursal(c.comercio);
-            return telefonoDe(i, br ? await paisDelComercio(br.hash) : 'COL');
+            if (!br) return telefonoDe(i, 'COL');            // el caso va a fallar solo con «no encontré»
+            const iso = await paisDelComercio(br.hash);
+            if (iso === null) throw new Error(`${c.comercio}: ${SIN_PAIS}`);
+            return telefonoDe(i, iso);
         }));
         bypassOriginal = await registrarBypass(tels).catch(() => null);
         if (bypassOriginal === null) {
@@ -1751,6 +1825,7 @@ async function main(): Promise<number> {
 
     const malos = res.filter((r) => !r.ok).length;
     console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+    await conciliarConLaBase(lineaBase, res.length - malos);
 
     const desvios = verificarEsperas(res);
     if (desvios.length) {

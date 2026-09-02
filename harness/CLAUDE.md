@@ -43,6 +43,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
+| `dev/loki-lineas.ts` | los **CUERPOS crudos** de Loki para un selector y una ventana — cuando no hay uReq que anclar (el flujo murió antes de crear la solicitud). ⚠ La sonda de `trazador-acceso` imprime **labels**, no cuerpos; y el PHP de dev **y de qa** loguea como `service_name="CreditopDev"` (F-179) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
 
 ### S3 en local: MinIO, o los documentos no existen
@@ -188,7 +189,7 @@ de bypass **y sus `user_requests`**, con `FOREIGN_KEY_CHECKS=0` (`pkg/asesor.ts:
 
 ## No le creas al verde
 
-Hay **94 `.catch(() => {})`** en `dev/guided.spec.ts` (medido el 2026-07-31; eran 82 y el spec creció —
+Hay **93 `.catch(() => {})`** en `dev/guided.spec.ts` (medido el 2026-09-02; el 31/7 eran 94 y antes 82 —
 si el número te importa, contalo: `grep -c 'catch(() => {})' dev/guided.spec.ts`). El único paso blindado
 es el salto a `/lenders`,
 que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el resto se traga el error.
@@ -266,6 +267,31 @@ y backend; el visual valida el camino real del usuario, que también tiene lógi
 ⚠ **Y hay un tercer eje que ninguno de los dos cubre:** los **esquemas zod del front**. El runner por
 consola pega contra el backend, que es más laxo, así que puede estar **verde con el recorrido visual
 roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm run contrato:bancolombia`.
+
+## `caso.ts`: tres cosas que aprendió el 2026-09-02, y que valen para cualquier runner
+
+- **El veredicto del runner y lo que quedó en la base son DOS cosas.** Al cerrar, `caso.ts` imprime
+  `base: quedaron N usuario(s) y M solicitud(es) nuevos` contando desde una línea base tomada al
+  arrancar — y si dijo **cero** pero la base creció, lo dice con todas las letras. Motivo: tres veces
+  (F-176, F-180, la corrida de 42) reportó «0/N cerraron» con la base llena de usuarios íntegros: el
+  guard de escrituras cortó DESPUÉS de que la API ya había escrito, o el gateway devolvió 504 a los 60 s
+  mientras PHP seguía y terminaba. **Leé esa línea antes de repetir una corrida «fallida»** contra la
+  compartida: repetirla duplica los datos.
+- **El comercio se resuelve por `#hash`, por SLUG exacto o por NOMBRE (subcadena), en ese orden.** Antes
+  sólo por nombre con `LIKE`: `pullman` andaba porque «Amoblando Pullman» lo contiene, y `viva-tu-credito`
+  —el slug real— daba «no encontré el comercio». Una tanda de 40 sacada de la base por slug falló entera.
+- **El país del comercio NO se adivina.** `paisDelComercio()` reintenta una vez y si el payload no
+  responde, el caso **aborta diciendo por qué**. Antes caía a Colombia en silencio: contra un backend
+  saturado el dominicano y el peruano recibían teléfonos de forma colombiana, el peruano ni registraba
+  (10 dígitos contra 9) y el fallo se leía como del backend. Un fallback que esconde la saturación es
+  peor que fallar. ⚠ La rama del timeout está tipada pero **no ejercitada de punta a punta**: el prevuelo
+  frena antes cuando la API está caída, y no encontré forma barata de que sólo el payload del comercio
+  tarde. Si la ves disparar, anotalo.
+
+⚠ **Y dos límites del entorno que hay que tener presentes al leer tiempos:** local sirve PHP con
+`artisan serve`, **monohilo** — mide correctitud, no capacidad (F-181)—; y `qa` es ¼ de vCPU, 512 MB y
+una sola tarea, con el ALB cortando a los 60 s: con 6 casos a la vez cierra, con 42 devuelve 504 mientras
+PHP sigue escribiendo (F-180). Ninguno de los dos sirve para medir carga.
 
 ## Mocks: arrancá a mano los que nadie levanta
 
