@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/poda-de-la-maquinaria, agentes/el-bucle-puede-terminar, agentes/un-archivo-malo-no-tira-la-entrega
+ramas: agentes/poda-de-la-maquinaria-2, agentes/un-archivo-malo-no-tira-la-entrega
 jira_title: ""
 ---
 
@@ -30,8 +30,9 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** que Miguel mergee **#61** (la poda, paso 1; base = #60 para que el diff sea sólo ese
-paso) y arrancar el **paso 2: enlazar sección→área en el mapa** — de ahí salen gratis la poda de prosa, el
+**El próximo paso es:** que Miguel mergee **#59** (la entrega no se cae por una ruta mala) y **#62** (la poda,
+paso 1, contra `main`; en cualquier orden, simulado sin conflictos) y arrancar el **paso 2: enlazar
+sección→área en el mapa** — de ahí salen gratis la poda de prosa, el
 respaldo de cada afirmación y qué archivos abrir para una pregunta. Antes de tocar el redactor o sus
 puertas, `python3 tools/canon/dev/humo.py`: el circuito entero con los falsos, sin gastar un token.
 
@@ -257,6 +258,12 @@ por el que enhebrar después el enlace sección→área.
 
 **Lección para el paso 2:** verificar «nadie lo usa» FUERA de la herramienta (otros repos, CI, contratos
 del monorepo) antes de borrar — `/api/yo` parecía muerto desde adentro de canon.
+
+> **DECISIÓN · 2026-09-02** — **Ningún PR se apila sobre la rama de otro PR.** #61 tenía base = rama de #60;
+> Miguel mergeó #60 y después #61, y GitHub NO re-apuntó #61 a `main` (sólo lo hace si la rama base se
+> BORRA): la poda quedó mergeada dentro de `agentes/el-bucle-puede-terminar`, sin push a `main` y sin
+> deploy. Se re-abrió como **#62** (mismo commit, cherry-pick sobre `main`). Desde ahora, base = `main`
+> siempre, aunque el diff arrastre el PR anterior hasta que mergee.
 
 ### 2026-09-02 · mañana · 13 — evaluación a fondo ANTES de código: ¿el corpus es lo que Miguel dice, y puede crecer y podarse?
 
