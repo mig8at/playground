@@ -30,10 +30,11 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** que Miguel mergee **#63** (lo que salió de validar la poda en prod: un archivo
-borrado corre el redactor en vez de bloquearlo, `/api/` inexistente → 404, una sola sonda de hashes) y
-entonces **correr `onboarding` en prod por la puerta nueva**: es el `ya no` del archivo borrado que venimos
-arrastrando, cuesta centavos, y es la validación real de #59+#60+#62. Después, el **paso 2: sección→área**.
+**El próximo paso es:** el **paso 2 — enlazar sección→área** y, dentro de él, que el expediente de un
+archivo BORRADO traiga los archivos que tocó el commit que lo borró (la lista «SUMAR por mismos PRs» del
+dossier): la corrida de prod del 2026-09-02 mostró que con la prosa y los commits solos el redactor sólo
+puede decir `no alcanza` («no sé si la lógica se mudó a otro archivo»). Detalle chico para ese mismo PR:
+`seccion` vacío llega a la tarjeta como `<nil>` (`fmt.Sprint(nil)` en `revisarTema`).
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -225,6 +226,29 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · tarde · 16 — onboarding en prod por la puerta nueva: 822 tokens, 16 s, y el límite del expediente con un archivo borrado
+
+#63 mergeado y desplegado (14:10→14:14; `/api/relations` → 404 a los 15 s). El plan de la mañana volvió
+solo desde `canon/contexto` (2 tareas). `POST /api/tareas/onboarding` → 202, 2 tareas, **una llamada**.
+
+> **MEDICIÓN · 2026-09-02** — corrida `c1`: **16 s · 822 tokens pagados** (+7.9k escritos en caché) para las
+> dos áreas; expediente ~3k. Contra 150k por tarea de la forma vieja. Los pasos «armando y leyendo» de
+> cada tarea aparecen ANTES del expediente (#62), cada hallazgo trae `afirma`, y ningún 409 de bloqueo (#63).
+
+**Veredictos: `no alcanza` × 2**, y con razón. El redactor dice, literal: «el archivo declarado ya no
+existe en main… no tengo el archivo actual ni su diff completo para confirmar si la lógica de
+start/resume sigue existiendo en otro archivo». Con la prosa + los commits + el aviso de borrado no puede
+decidir si la lógica se MUDÓ o desapareció. Es la respuesta honesta, y marca el límite exacto del
+expediente actual: **para un archivo borrado hace falta ver los otros archivos que tocó el commit que lo
+borró** (`b3eb24f6 feat(wizard): dejar de usar CPS…`) — que es la lista «candidatos a SUMAR» del dossier.
+Eso es el paso 2, y ahora tiene una medición que lo justifica.
+
+Detalle: `seccion` omitido por el modelo llega a la tarjeta como `<nil>` (`fmt.Sprint(nil)`). Va en el PR
+del paso 2.
+
+El residuo de prod subió de 2 a **5**: entró trabajo nuevo a los repos hoy. El bucle lo verá con
+`analizar`, gratis.
 
 ### 2026-09-02 · mediodía · 15 — validar la poda en prod: el deploy anda, y el único residuo no se podía correr (#63)
 
