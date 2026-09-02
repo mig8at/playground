@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar
 jira_title: ""
 ---
 
@@ -13,35 +13,31 @@ jira_title: ""
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
-→ verificador. **Al 2026-09-01 las cinco existen y corren desde la pantalla `agentes`**, manual y con
-la forma de GitHub Actions (barra de orden, lista en filas, costado, página por tarea). El PR con todo
-eso es `Creditop-SAS/playground#48`, en verde, sin mergear.
+→ verificador, manual desde la pantalla `agentes`. **Al 2026-09-02 el ciclo cierra completo en prod:**
+merge en los repos → ronda → analizar (0 tokens) → redactor por tema (una llamada, ~4k tokens) → prosa
+corregida + hash subido + **ruta muerta retirada** + archivo nuevo declarado → un PR que revisa una
+persona (#68 fue el primero). Los pasos 1 (poda), 2 (el hilo sección→área: 128 de 169 secciones con un
+área detrás) y 3 (`retirar`) están mergeados y desplegados (#59…#71).
 
-Esta tarea es **el backlog validado** de lo que le falta. Cada ítem tiene la evidencia que lo
-justifica —medida, no supuesta— y cómo se ataca. Lo que ya se hizo NO está acá: está en el PR.
+**El paso 4 —adelgazar la herramienta— está ENTERO en `Creditop-SAS/playground#72`, en verde, sin
+mergear:** README 16.234 → 2.667 palabras (la historia en `docs/HISTORIA.md`) · `.vuelta.json` fuera de
+los PRs y del repo (vive en la rama `canon/estado`) · fuera `verificado_contra`, `-temas`, `LocalLag` y
+la guarda de modelo de analizar. Cinco commits, uno por pieza; humo y dictado en verde.
 
-⚠ **Local no reemplaza a prod para medir.** Gemini 3.7 nunca produjo un `declarar` en cuatro vueltas
-locales; Sonnet en prod lo produjo en 4 de 7 afirmaciones. Todo lo que dependa del comportamiento del
-modelo se mide después de mergear, no antes.
+**El próximo paso es:** revisar y mergear #72 — y apenas mergee, **borrar la rama `origin/canon/contexto`**
+(mergeada en #68; todavía carga `.vuelta.json` y el próximo PR del bucle lo devolvería a `main`; la
+siguiente vuelta la recrea limpia). Después viene el **paso 5, crecer por demanda**: las 21 preguntas
+reales de soporte sin cobertura (aval, FGA+IVA, cuota inicial, pago mínimo, core bancario, asignación de
+asesor…) — prosa verificada contra código, no herramienta, como **su propio PR único**.
 
-**Al cierre del 2026-09-01, ocho de los nueve ítems están CONSTRUIDOS y probados en local, dentro de
-#48** (1, 2, 3, 4, 5, 7, 8, 9). Queda el 6 —el costo— porque su primer paso es medir en prod.
+⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
+commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
+la anterior sigue: **base = `main` siempre**, nunca la rama de otro PR (#61 se perdió así).
 
-**#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
-medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
-
-**El próximo paso es:** **revisar y mergear #68**, el PR del bucle (22 commits: hashes releídos, la prosa
-de KYC corregida, la ruta muerta retirada de dos áreas y dos áreas nuevas con el archivo donde se mudó la
-lógica). El residuo de onboarding baja recién ahí. Y mergear **#71**. Después, **paso 4: adelgazar la
-herramienta** — empezando por `.vuelta.json`, que viaja dentro de cada PR de la vuelta.
-
-⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
-NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
-herramienta (README = 66% del corpus, tres redactores, un camino de escritura muerto). El mapa sólo
-puede crecer o quedarse quieto: **no hay `retirar`**, y la prosa no apunta a las áreas. Y hay un comando
-roto por mí: `canon -expediente <tema> <carpeta>` quedó tapado desde `5caf79a`. Lo que sigue abierto
-de antes: **21 preguntas reales de soporte sin cobertura** (banco: 92/115 al primer resultado) — eso se
-arregla escribiendo, no vigilando.
+⚠ **Local no reemplaza a prod para medir.** Tres corridas seguidas contra prod fallaron cada una por
+algo distinto que humo no veía (Registro 20–22). Correr onboarding en prod después de cada merge no es
+opcional. Y lo que dependa del MODELO (Gemini local nunca produjo un `declarar`; Sonnet sí) se mide
+después de mergear, no antes.
 
 ## Objetivo
 
@@ -225,6 +221,58 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · tarde · 23 — paso 4: ADELGAZAR la herramienta, y de ahora en más UN PR por pieza (#72)
+
+*(Las horas que citan las entradas 20–22 —19:40, 20:05— son UTC, tal como las imprime `gh`: fueron las
+14:40 y 15:05 de Bogotá. Todo eso fue la tarde, no la noche.)*
+
+Miguel, después de once PRs en un día: «estamos sube y sube PRs pero no encuentro el porqué… tratemos
+de hacer todo en un solo PR». Cambió la forma de entregar, no el trabajo: una rama desde `main`, cinco
+commits (uno por pieza), los dos arneses enteros ANTES de abrir, y un solo PR cuyo cuerpo cuenta la forma
+completa. El primer intento de commitear falló por una tontería de shell (un comando guardado en una
+variable de zsh) y dejó la rama pusheada vacía; el segundo dejó los cinco commits limpios.
+
+**Lo que se fue:**
+- **README 16.234 → 2.667 palabras.** Era el 66 % del corpus que documenta, con un bloque entero
+  duplicado y afirmaciones en presente que ya no lo eran (el dictado «arranca apagado», el corpus «es
+  plano», `-temas`). El de hoy es la puerta: qué es, cómo se corre, leer, escribir, el bucle, la CLI, las
+  guardias, la arquitectura, las variables, los límites. La historia va a **`docs/HISTORIA.md`**, sin el
+  duplicado y con un preámbulo que dice qué caducó.
+- **`.vuelta.json` fuera de los PRs y del repo.** El estado de la vuelta se guardaba en la rama del corpus,
+  y como el PR del bucle ES esa rama, viajaba dentro de cada PR (#68 traía doce commits «la vuelta en
+  curso») y terminó en `main` pese al `.gitignore`. Ahora va a **`canon/estado`**, que nunca se revisa ni
+  se mergea; `cargarPlan` lee de ahí y perdió la comprobación de «¿es el que se mergeó?». Salió de `main`
+  con `git rm`.
+- **`verificado_contra`** de los 14 mapas y del scaffold: nadie lo leía y decía «2026-08-28» para siempre.
+- **`-temas` + `LocalLag`**: segunda copia de la comparación de hashes; `-ronda <clones>` contesta lo mismo
+  con la sonda única. El skill de recontextualizar apunta a `-ronda`.
+- **La guarda de modelo en analizar**: analizar es determinista desde #48; la guarda era de cuando agrupar
+  costaba 196k. Una instancia sin llave de modelo no podía ni repartir el residuo, que es gratis. Lo
+  encontró `dictado.py`, que corre sin modelo a propósito.
+
+> **MEDICIÓN · 2026-09-02** — Go: **−188 líneas netas**, además del README. `go vet` · `unused` 0 ·
+> `-race` 0 fallos · `-lint` ✓ 15 nodos, 128/169 con área detrás · `-bench` 92/115. `humo.py` todo bien.
+> `dictado.py` todo bien, con la fase nueva: analizar guarda la vuelta en **`canon/estado`** y ningún commit
+> del corpus arrastra `.vuelta.json`. CI de #72 en verde (`revisar` 1m36s).
+
+**El enlace «mal hecho» de la corrida 20 NO estaba mal.** Rastreé el `no alcanza` del autocompletado
+(«1.500.000 con ocupación Empleado»): el código vive en `OnboardingController.php` (líneas 866 y 1361,
+autofill para 209–211), que el área A3 de onboarding **ya declara** — pero **no cambió**, así que no viajó
+en el expediente, que lleva sólo lo que cambió. El redactor no podía verlo y dijo la verdad. Es un límite
+del diseño (quedó escrito en el README, §Límites), no del enlace. La guarda del mapa me frenó a tiempo
+antes de declarar dos servicios de identidad (Mareigua/Agildata) que guardan el salario REAL, no el
+default: declarar a ciegas es justo lo que no se hace.
+
+> **DECISIÓN · 2026-09-02 · Miguel** — **un PR por pieza de trabajo, no por cambio.** Una rama desde `main`,
+> commits por concern (local), arneses (`humo.py`, `dictado.py`, gates) y UN PR al final. El avance se
+> cuenta en el chat y acá, no con PRs. Convive con «base = `main` siempre»: un PR con muchos commits no es
+> un PR apilado. Excepción dicha de antemano: herramienta y prosa del corpus son dos piezas distintas y se
+> revisan distinto — pueden ir en dos PRs.
+
+**Lo que queda al mergear #72:** borrar `origin/canon/contexto` (mergeada en #68, todavía con `.vuelta.json`
+adentro). Si el bucle sigue commiteando ahí, el próximo PR del corpus lo devuelve a `main`. Se pide antes
+de borrar. Las otras cinco ramas `canon/*` remotas son ensayos viejos del dictado; se miran aparte.
 
 ### 2026-09-02 · noche · 22 — EL CICLO CERRÓ COMPLETO: el mapa soltó la ruta muerta (#71)
 
