@@ -384,25 +384,13 @@ const flag = (n: string) => process.argv.includes(`--${n}`) || implicitos.has(n)
 
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
-/** La forma del celular de cada país donde se opera. La usan LOS DOS generadores de abajo. */
+/** La forma del celular de cada país donde se opera. */
 const FORMA_DEL_CELULAR: Record<string, { prefijo: string; largo: number }> = {
     COL: { prefijo: '3', largo: 10 },
     DOM: { prefijo: '809', largo: 10 },
     PER: { prefijo: '9', largo: 9 },
 };
 
-/**
- * ⚠ HAY DOS CAMINOS EN ESTE RUNNER y cada uno tenía SU generador de teléfono: éste (`telefono`, sin
- * `--lambda`) y `telefonoDe` (con buró dictado). Tocar sólo uno deja el otro quemado en la forma
- * colombiana, y el síntoma es un 422 en el primer paso que no se parece a la causa: costó una corrida.
- *
- * Los dos derivan ahora de la misma tabla de formas por país — ver `telefonoDe`. Este mantiene su base
- * fija (`2_000_000 + i`) porque no necesita ser único entre corridas: sin cierre no se firma nada.
- */
-const telefono = (i: number, iso = 'COL'): string => {
-    const f = FORMA_DEL_CELULAR[iso] ?? FORMA_DEL_CELULAR.COL;
-    return (f.prefijo + String(2_000_000 + i)).slice(0, f.largo).padEnd(f.largo, '0');
-};
 
 /** Lo que un caso DECLARA que debería pasar. Sin esto el runner sólo narra; con esto contesta
  *  «¿sigue valiendo?», que es la pregunta que se hace después de tocar código.
@@ -553,19 +541,6 @@ type Res = {
                /** Resultado del webhook de la entidad, si el caso lo pidió con `@webhook=`. */
                webhook?: string };
 };
-
-async function http(method: string, path: string, body: unknown, phone: string) {
-    const r = await fetch(`${API}${path}`, {
-        method,
-        headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(90_000),
-    }).catch((e) => e as Error);
-    if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 140) } };
-    const t = await r.text();
-    try { return { status: r.status, json: JSON.parse(t) }; }
-    catch { return { status: r.status, json: { raw: t.slice(0, 200) } }; }
-}
 
 /** Clasifica por los MISMOS campos que mira el front (mismo criterio que `sweep.ts`). */
 function conductaDe(d: any): string {
@@ -833,7 +808,7 @@ async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
     return tipo;
 }
 
-/** El camino REAL: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
+/** EL recorrido: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
  *  mes) y NO llama a la central. Es la trampa 1 del documento de la tarea. */
 /** La cédula de un caso. Única POR CORRIDA, no sólo por caso: derivarla de (índice, score) hacía que
@@ -947,8 +922,19 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
 /** Envoltorio: corre el caso y SIEMPRE deja su bitácora, salga como salga. Está separado del motor
  *  porque el motor tiene una docena de salidas tempranas —cada una es un diagnóstico distinto— y
  *  envolverlas de a una era la forma de que alguna quedara sin volcar. */
-async function correrLambda(c: Caso, i: number): Promise<Res> {
-    const r = await correrLambdaMotor(c, i);
+/**
+ * UN SOLO CAMINO. Hasta el 2026-09-02 había dos: éste —el flujo REAL por la API: register → otp-validate →
+ * personal-info → listado v2 → selección → cierre— y otro «sintético» que insertaba la solicitud a mano en
+ * la base, inyectaba el buró con `synthFill` y pedía el listado v1 que el wizard no usa. El sintético era el
+ * default sin `--lambda`, y cada bug de esa semana fue «arreglé un camino y el otro no»: el teléfono por
+ * país, el país sin adivinar, la clave del error. Dos implementaciones de lo mismo no son redundancia, son
+ * dos versiones de la verdad.
+ *
+ * `--lambda` ya no elige camino: sólo DICTA el buró (la respuesta de cada central para esa cédula). Sin el
+ * flag, el buró contesta lo que el ambiente tenga —el mock local o el de qa—, que es lo que ve un cliente.
+ */
+async function correr(c: Caso, i: number): Promise<Res> {
+    const r = await recorrer(c, i);
     await volcarBitacora(r, bitacoras.get(r.phone) ?? []);
     bitacoras.delete(r.phone);
 
@@ -965,7 +951,7 @@ async function correrLambda(c: Caso, i: number): Promise<Res> {
     return r;
 }
 
-async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
+async function recorrer(c: Caso, i: number): Promise<Res> {
     const doc = cedulaDe(i);
     const base: Res = { caso: c, ok: false, phone: '' };
 
@@ -985,7 +971,8 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
     // exactamente esta clase de error (misma lección que F-140).
     base.com = br.com;
 
-    if (!dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
+    // Sólo si se pidió dictar: sin `--lambda` el buró contesta lo del ambiente, y eso es un resultado válido.
+    if (flag('lambda') && !dictados.has(doc)) return { ...base, detalle: 'la respuesta del buró no quedó dictada' };
 
     const H = { 'content-type': 'application/json', accept: 'application/json', 'user-agent': UA };
     // Cada llamada queda anotada (ver `volcarBitacora`). El costo es un push a un array; el beneficio
@@ -1176,10 +1163,10 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
             preAprobar(l, ur, uid, br.allied, br.hash, c.amount!, c.escenarios?.preaprobado)));
     }
 
-    // ⚠ El camino con lambda NO calculaba esto y el reporte decía SIEMPRE «la pedida NO estaba»,
+    // ⚠ Cuando había dos caminos (hasta el 2026-09-02), éste NO calculaba esto y el reporte decía SIEMPRE «la pedida NO estaba»,
     // incluso cuando la entidad estaba en el listado impreso dos palabras antes. Un runner que se
     // contradice a sí mismo en la misma línea es peor que uno que calla: manda a buscar una causa de
-    // negocio para un bug del reporte. (El otro camino sí lo calculaba — quedaron dos implementaciones
+    // negocio para un bug del reporte. (El camino sintético sí lo calculaba — eran dos implementaciones
     // y sólo una completa.)
     if (c.lender !== null) base.enListado = base.listado!.includes(c.lender);
 
@@ -1211,74 +1198,6 @@ async function correrLambdaMotor(c: Caso, i: number): Promise<Res> {
 
     return { ...base, ok: arr.length > 0, nombre: `doc ${doc}`,
              conducta: `listado con ${arr.length} entidades · buró dictado: ibc ${c.income!.toLocaleString('es-CO')}${cierre}` };
-}
-
-async function correr(c: Caso, i: number): Promise<Res> {
-    if (flag('lambda')) return correrLambda(c, i);
-    const base: Res = { caso: c, ok: false, phone: '' };
-
-    // La sucursal PRIMERO: la forma del teléfono sale del país de su comercio.
-    const br = await buscarSucursal(c.comercio);
-    if (!br) return { ...base, detalle: `no encontré el comercio «${c.comercio}»` };
-    base.com = br.com;
-
-    const iso = await paisDelComercio(br.hash);
-    if (iso === null) return { ...base, detalle: SIN_PAIS };
-    const phone = telefono(i, iso);
-    base.phone = phone;
-
-    if (c.lender !== null) {
-        const len = await one<{ name: string }>('SELECT name FROM lenders WHERE id=?', [c.lender]).catch(() => null);
-        base.nombre = len?.name ?? `lender ${c.lender}`;
-    }
-
-    const reg = await http('POST', '/api/onboarding/phone/register', {
-        phone_number: phone, phoneNumber: phone, terms: true, policies: true,
-        otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash,
-    }, phone);
-    const uid = reg.json?.data?.user?.id;
-    if (!uid) return { ...base, detalle: `register HTTP ${reg.status}` };
-
-    const asesor = (await one<{ id: number }>(
-        'SELECT id FROM users WHERE allied_branch_id=? AND cognito_id IS NOT NULL LIMIT 1', [br.id])
-        .catch(() => null))?.id ?? null;
-    const amount = c.amount!;
-    const ins = await exec(
-        `INSERT INTO user_requests (user_id, allied_id, allied_branch_id, lender_id, amount,
-           original_amount, user_request_status_id, corporate_user_id, credit_line_id, fee_number,
-           fee_value, rate, created_at, updated_at) VALUES (?,?,?,NULL,?,?,1,?,1,0,0,0,NOW(),NOW())`,
-        [uid, br.allied, br.id, amount, amount, asesor]).catch(() => null);
-    if (!ins?.insertId) return { ...base, detalle: 'no se pudo crear la solicitud' };
-    const ur = ins.insertId;
-    base.ur = ur;
-
-    await synthFill(ur, { income: c.income!, score: c.score! });
-
-    const lis = await http('GET', `/api/onboarding/loan-application/lenders/${ur}`, undefined, phone);
-    const crudo = lis.json?.data ?? lis.json;
-    const arr: any[] = Array.isArray(crudo) ? crudo : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
-    base.listado = arr.map((x) => Number(x.id ?? x.lender_id)).filter(Boolean);
-    base.enListado = c.lender !== null && base.listado.includes(c.lender);
-
-    // Sin entidad pedida, el caso TERMINA en el listado. Es el recorrido más corto que ya prueba
-    // algo real —monto → solicitud → datos de riesgo → qué se le ofrece— y no arrastra la bifurcación
-    // por entidad, que es donde el flujo se vuelve N flujos distintos.
-    if (c.lender === null) {
-        return { ...base, ok: arr.length > 0, conducta: `listado con ${arr.length} entidades`,
-                 detalle: arr.length ? '' : 'el listado vino VACÍO' };
-    }
-
-    // Se selecciona AUNQUE no esté en el listado: que el backend acepte una entidad que no ofreció
-    // es en sí un resultado, y callarlo lo escondería.
-    const sel = await http('POST', `/api/onboarding/loan-application/update-user-request/${ur}`, {
-        lender_id: c.lender, fee_number: 4, original_amount: amount, amount,
-        initial_fee: 0, rate: '0', transaction_data: null,
-    }, phone);
-    if (sel.status !== 200 || sel.json?.success === false) {
-        return { ...base, ok: false, conducta: 'ERROR al seleccionar',
-                 detalle: String(sel.json?.message ?? sel.json?.raw ?? `HTTP ${sel.status}`).split('\n')[0].slice(0, 100) };
-    }
-    return { ...base, ok: true, conducta: conductaDe(sel.json?.data) };
 }
 
 /** Contrasta lo que cada caso DECLARA contra lo que pasó.
@@ -1795,7 +1714,7 @@ async function main(): Promise<number> {
     // reporte —y el verificador— no tengan que saber de la diferencia.
     const unCaso = (c: Caso, i: number): Promise<Res[]> =>
         (c.pasos?.length ? correrPasos(c, i) : correr(c, i).then((r) => [r]))
-            .catch((e) => [{ caso: c, ok: false, phone: telefono(i), detalle: String(e).slice(0, 90) } as Res]);
+            .catch((e) => [{ caso: c, ok: false, phone: '', detalle: String(e).slice(0, 90) } as Res]);
 
     const res = par
         ? (await Promise.all(casos.map((c, i) => unCaso(c, i)))).flat()

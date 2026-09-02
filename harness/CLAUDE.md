@@ -289,6 +289,14 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   frena antes cuando la API está caída, y no encontré forma barata de que sólo el payload del comercio
   tarde. Si la ves disparar, anotalo.
 
+- **Hay UN solo camino de ejecución, y `--lambda` sólo DICTA el buró.** Hasta el 2026-09-02 había dos:
+  el flujo real por la API y un «sintético» —default sin `--lambda`— que insertaba la solicitud a mano,
+  inyectaba el buró con `synthFill` y pedía el listado v1 que el wizard no usa. Cada bug de esa semana fue
+  «arreglé un camino y el otro no» (teléfono por país, país sin adivinar, clave del error). Ahora
+  `harness-caso` sin `LAMBDA=1` corre el flujo real con el buró que tenga el ambiente — que es lo que ve
+  un cliente—; con `LAMBDA=1`, además, se dicta la respuesta de cada central para esa cédula. `synthFill`
+  sólo queda para el cupo del codeudor.
+
 ⚠ **Y dos límites del entorno que hay que tener presentes al leer tiempos:** local sirve PHP con
 `artisan serve`, **monohilo** — mide correctitud, no capacidad (F-181)—; y `qa` es ¼ de vCPU, 512 MB y
 una sola tarea, con el ALB cortando a los 60 s: con 6 casos a la vez cierra, con 42 devuelve 504 mientras
