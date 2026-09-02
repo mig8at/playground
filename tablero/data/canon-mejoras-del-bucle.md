@@ -24,11 +24,16 @@ mergear:** README 16.234 → 2.667 palabras (la historia en `docs/HISTORIA.md`) 
 los PRs y del repo (vive en la rama `canon/estado`) · fuera `verificado_contra`, `-temas`, `LocalLag` y
 la guarda de modelo de analizar. Cinco commits, uno por pieza; humo y dictado en verde.
 
-**El próximo paso es:** revisar y mergear #72 — y apenas mergee, **borrar la rama `origin/canon/contexto`**
-(mergeada en #68; todavía carga `.vuelta.json` y el próximo PR del bucle lo devolvería a `main`; la
-siguiente vuelta la recrea limpia). Después viene el **paso 5, crecer por demanda**: las 21 preguntas
-reales de soporte sin cobertura (aval, FGA+IVA, cuota inicial, pago mínimo, core bancario, asignación de
-asesor…) — prosa verificada contra código, no herramienta, como **su propio PR único**.
+**#72 está mergeado y desplegado** (2026-09-02 16:46): prod corre el código nuevo y la rama `canon/estado`
+nació con el primer `analizar`. Y **#73 —el PR del bucle— quedó arreglado y en verde**: el conflicto por
+`.vuelta.json` se resolvió trayendo `main` a la rama en vez de descartar la vuelta, así que conserva los
+9 hashes que Sonnet ya releyó (7 mapas, +19/−19).
+
+**El próximo paso es:** mergear #73, y después **el camino de escritura para el equipo**, que es lo que
+Miguel preguntó el 2026-09-02 y hoy está roto por MENSAJE, no por mecanismo (ver Registro 25). Sigue
+pendiente el **paso 5, crecer por demanda**: las 21 preguntas reales de soporte sin cobertura (aval,
+FGA+IVA, cuota inicial, pago mínimo, core bancario, asignación de asesor…) — prosa verificada contra
+código, como su propio PR único.
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -221,6 +226,33 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 24 — el PR del bucle quedó en conflicto por el archivo que #72 borró (#73)
+
+Lo predijo el propio paso 4 y pasó a la primera. El bucle corrió a las 16:25–16:33 —entre que abrí #72 y
+que Miguel lo mergeó— todavía con el código viejo: releyó 9 áreas (`sigue`, hashes subidos en 7 mapas) y
+guardó `.vuelta.json` en `canon/contexto`, la rama que `main` acababa de dejar sin ese archivo. GitHub
+marcó **#73 CONFLICTING** con un solo archivo en conflicto: `tools/canon/.vuelta.json`.
+
+**El arreglo, y por qué no fue cerrar el PR:** traer `main` a la rama del bucle y sacar el archivo de ahí
+(`git rm`), en vez de descartar la vuelta. Lo que Sonnet ya releyó vale ~4k tokens y no hay razón para
+volver a pagarlo. Quedó un merge limpio y **#73 con exactamente los 7 mapas: +19/−19, nada más**. Verde y
+CLEAN (`revisar` 1m30s + CodeBuild); el corpus resultante pasa `-lint`.
+
+> **MEDICIÓN · 2026-09-02** — prod después del deploy de #72: `/health` ok · `/api/tools` ya no anuncia
+> `-temas` · `analizar` 0 tokens repartió **10 tareas en 8 temas** · y **nació la rama `canon/estado`**,
+> que es la prueba de que el código nuevo está corriendo. `.vuelta.json` se fue de `main`.
+
+**Y la causa raíz ya no puede repetirse:** el estado se escribe en `canon/estado`, así que `canon/contexto`
+no volverá a cargar el archivo. Borrar la rama pasó de arreglo a higiene: sirve para que la próxima vuelta
+nazca desde `main` limpio, no para evitar un daño. Las otras cinco ramas `canon/*` están todas contenidas
+en `main` —incluida `kyc-declara-tusdatos-backend`, cuyos 2 commits entraron por otra rama, verificado por
+patch-id— así que son borrables. El repo tiene `delete_branch_on_merge=false`: encenderlo evita la próxima.
+
+⚠ **Lo aprendido, que es de proceso y no de código:** un PR que borra un archivo que OTRO productor
+sigue escribiendo deja al productor en conflicto, y el productor acá es un bot que no sabe resolverlo. La
+ventana fue de ocho minutos. Cuando el cambio saca de circulación algo que una rama viva produce, hay que
+mirar si esa rama tiene trabajo en vuelo ANTES de mergear, no después.
 
 ### 2026-09-02 · tarde · 23 — paso 4: ADELGAZAR la herramienta, y de ahora en más UN PR por pieza (#72)
 
