@@ -441,7 +441,23 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
-### 2026-09-02 · desbloqueado Perú: el documento pasa a ser único POR TIPO
+### 2026-09-02 · el documento por tipo queda LISTO pero EN ESPERA
+
+> **DECISIÓN · 2026-09-02 (Miguel)** — el PR del documento por tipo **no se mergea hasta que los
+> ambientes estén estables hasta producción**. No es por riesgo del cambio —está validado y el `ALTER`
+> es online, 1,3 s medido sobre una tabla del mismo tamaño— sino de SECUENCIA: mergear no corre
+> migraciones (F-77), así que el código puede quedar adelantado de la base; y dev/qa/staging comparten
+> base pero no código, de modo que correr la migración allá con `develop` y `staging` en el código viejo
+> abre una ventana en la que su búsqueda por número solo puede devolver la persona equivocada. Hoy esa
+> ventana está cerrada porque no hay ningún duplicado entre tipos, pero se abre en cuanto alguien pruebe
+> Perú a propósito. **Marcado como borrador con `⛔ EN ESPERA`**, igual que el otro bloqueado a
+> propósito, para que nadie lo mergee por inercia. *Cómo se retoma:* migración junto al `qa → develop`
+> —con el backfill de teléfonos, que espera lo mismo— y a producción con el resto de la campaña.
+
+⚠ **Y un detalle a corregir antes de mergearlo:** la base del PR quedó en `develop`, y el resto de la
+campaña va a `qa`.
+
+### 2026-09-02 · lo medido del choque, que desbloquea a Perú cuando se aplique
 
 El bloqueante que estaba escrito en §«Lo que está bloqueado» desde el 27/8 quedó resuelto en un PR.
 Al medirlo de nuevo salieron dos cosas que cambian cómo estaba dimensionado:
