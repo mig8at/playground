@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/retirar
+ramas: agentes/estado-del-borrador
 jira_title: ""
 ---
 
@@ -30,10 +30,9 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear **#67** (paso 3: el mapa puede encoger) y **volver a correr onboarding
-en prod** — la prosa ya está corregida (#66) y ahora el área puede soltar la ruta muerta, así que esa
-vuelta tiene que dejar el residuo de onboarding **en cero**. Después, **paso 4: adelgazar la
-herramienta** (README = 66% del corpus; `.vuelta.json` viaja dentro de cada PR de la vuelta).
+**El próximo paso es:** mergear **#69** (el estado del borrador, que es lo que hoy impide que el retiro
+llegue a correr) y **volver a correr onboarding en prod**: ahí sí se ve si el área suelta la ruta muerta.
+Y revisar **#68**, el PR que la vuelta dejó abierto. Después, **paso 4: adelgazar la herramienta**.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -225,6 +224,43 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 20 — el retiro NO llegó a correr, y el bug era de estado compartido (#69)
+
+#67 mergeado (19:40) y desplegado (19:45). Corrí onboarding esperando el residuo en cero. **No.**
+
+**Primero, una expectativa mía mal puesta:** el residuo NO puede bajar con la corrida. El bucle escribe
+en la rama `canon/contexto` y su PR; prod compara contra el corpus del build desplegado. El residuo baja
+cuando el PR mergea y se despliega, no cuando la vuelta corre. Obvio dicho así, y lo dije mal antes.
+
+**Y después el bug de verdad.** Los dos integradores de prosa de KYC **agotaron sus 6 turnos** (2,3k
+tokens cada uno) llamando `cerrar` cuatro veces contra el mismo error: «no encontré employment-info.tsx
+con su hash actual en el mapa: no lo toco a ciegas». La prosa aceptada nunca llegó al PR, y como el
+retiro corre DESPUÉS del arreglo de prosa, tampoco corrió.
+
+> **MEDICIÓN · 2026-09-02** — corrida `c2`: 3 tareas, 110 s, **6.830 tokens**. Veredictos: 3 `sigue`
+> (uno cerró su área) · 2 `ya no` (los dos citando el commit `b3eb24f6`) · 1 `no alcanza`. Dos
+> integradores caídos por agotamiento. PR #68 con 6 commits.
+
+**La causa: estado de un borrador guardado fuera del borrador.** `subidas` y `retiros` eran dos `var` de
+paquete indexadas por nodo y **nadie las limpiaba**: el `sigue` cerró un área dejando ahí sus hashes
+viejos, y el integrador siguiente intentó aplicarlos sobre un mapa que ya los tenía nuevos. El splice se
+negó con razón. Era latente de antes del paso 3 —`subidas` nunca se limpió— y sólo salía cuando un
+cierre de área precedía a un cierre de prosa sobre el mismo tema en el mismo proceso; **retirar hizo esa
+secuencia normal**. Ahora viven en el struct `borrador`.
+
+**Y una lección de diseño que vale más que el bug:** un rechazo que el agente **no puede arreglar** no es
+un rechazo, es una falla. `cerrar` devolvía el error del servidor con la misma forma que el del lint, así
+que el integrador hacía lo único razonable: reintentar. Ahora el 4xx es suyo y el 5xx corta la corrida y
+se propaga como lo que es.
+
+> **MEDICIÓN · 2026-09-02** — `dev/dictado.py` gana la fase que lo reproduce (dos borradores seguidos
+> sobre el mismo tema, el segundo con prosa sin archivos) y pasa. Hacen falta DOS cierres para verlo:
+> ningún test unitario lo iba a agarrar. `-race` 0, `unused` 0, bench 92/115, humo verde.
+
+**Lo que la corrida dejó dicho y no es código:** un `no alcanza` avisó que la sección del autocompletado
+está enlazada a un área cuyos archivos no tienen esa lógica — **uno de mis 158 enlaces a mano está mal**.
+Es exactamente la corrección por uso que el paso 2 predijo. Pendiente, chico.
 
 ### 2026-09-02 · noche · 19 — paso 3: el mapa ya puede ENCOGER (#67)
 
