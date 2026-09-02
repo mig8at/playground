@@ -30,10 +30,14 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #59 y correr el barrido otra vez ($1,69): onboarding tiene que devolver
-sus tres veredictos, y los siete `no alcanza` que nombran una clase tienen que volverse `declarar` — y
-aplicarse solos, que es gratis. Si eso pasa, el método está aterrizado y queda decidir la cadencia
-(recomendado: **una vuelta por semana, $7/mes**, disparada por una persona). Después, #53.
+**El próximo paso es:** mergear #59 y #60 y correr el barrido una vez más. Con el residuo en 2, esa
+vuelta cuesta centavos y tiene que dejar el tablero **al día** salvo el `ya no` del archivo borrado. Ahí
+el método está aterrizado y sólo queda decidir la cadencia (recomendado: **una vuelta por semana,
+$7/mes**, disparada por una persona).
+
+⚠ Y la conversación que queda abierta, que es más grande: el corpus está CIERTO —medido— pero no
+COMPLETO. `-soporte` dice **21 preguntas reales sin cobertura**, y el banco acierta al primer resultado
+en 91 de 115. El bucle no toca ninguna de las dos cosas: eso se arregla escribiendo, no vigilando.
 
 ## Objetivo
 
@@ -217,6 +221,28 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 12 — el bucle no podía terminar (#60)
+
+Miguel, mirando la pantalla después del barrido: «34 archivos en 10 temas, ¿no quedábamos al día?».
+Eran **los mismos 34**: nada nuevo entró y nada se resolvió.
+
+> **HALLAZGO · 2026-09-01** — el hash sólo se movía al reescribir prosa. Un `sigue` no movía nada, así que las 15 áreas releídas quedaban derivadas **para siempre**: cada vuelta releería lo mismo por $1,69. Y el único `ya no` (KYC) se corrigió, se mergeó, y sus tres archivos **siguieron marcados** — el integrador reescribió la prosa y dejó los hashes viejos.
+
+La regla del guion («no mover un hash sin tocar la prosa») prohíbe un actualizador SUELTO, sin nadie que
+haya leído. Un `sigue` de un redactor que tuvo el diff y el archivo delante ES esa lectura: tiene autor,
+corrida, fecha y un PR que aprueba una persona. Decisión de Miguel: cerrarlo, y además igualar todo a
+cero aceptando perder algo de contexto.
+
+`Creditop-SAS/playground#60`: el borrador acepta `operacion: "verificado"` (sube el hash de lo que el
+área YA declara, sin prosa, con procedencia); `proponer` aplica los `sigue` gratis; el integrador de
+prosa cierra también sus archivos; y `canon -igualar` pone el residuo en cero **a mano, sin endpoint**
+—una puerta remota que iguala todo sería el actualizador suelto que la regla prohíbe—.
+
+> **MEDICIÓN · 2026-09-01** — igualado: 555 archivos declarados, 10 temas con hashes atrasados, **el residuo pasa de 34 a 2**. Los 2 son el mismo archivo (`kyc-pending-routing.ts`) declarado por dos áreas y borrado de main: se dejan a propósito, porque igualarlos borraría la única señal de que la prosa habla de algo que ya no existe. Es un `ya no` esperando.
+
+Y la bandeja va vacía: sin analizar salía una fila por tema con deriva que nadie levantaba y se leía
+como trabajo pendiente. Ahora es un ícono y una frase.
 
 ### 2026-09-01 · noche · 11 — el barrido completo: **$1,69** y una sola afirmación caída (#59)
 
