@@ -3198,3 +3198,64 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Estado:** vivo y bloqueante para Perú. ⚠ **El frontend no interviene**: sólo valida forma (6 a 11
   dígitos, numérico) y la unicidad la resuelve el backend, así que el arreglo no le pide nada. ⚠ Y la
   lista negra de CreditopX **sí** filtra por tipo, así que ahí no hay falso positivo.
+
+### F-179 · En Loki, el backend de qa NO se distingue del de dev: los dos loguean `service_name="CreditopDev"` y `environment=development`
+
+- **Síntoma:** el forense de una solicitud creada contra `qa` dice «SÍ tiene logs, pero no en el ambiente
+  de este target» y pide correr con `dev`. Y una consulta a mano con `{service_name="legacy-backend"}` o
+  `{service_name="legacy-backend-qa"}` devuelve **cero líneas** aunque el servicio esté vivo.
+- **Causa raíz:** el PHP de los dos servicios ECS (`legacy-backend` y `legacy-backend-qa`) se despliega
+  con la misma imagen y el mismo `APP_ENV=development`, y el canal de Loki etiqueta por app, no por
+  servicio: `service_name="CreditopDev"`. El nombre del servicio ECS no llega a ningún label.
+- **Evidencia:** 2026-09-02. Seis solicitudes creadas contra el backend de qa (verificable: llevan el país
+  del cliente, que en ese momento sólo qa escribía) aparecen en Loki bajo `CreditopDev` /
+  `development`. Las etiquetas disponibles: `app channel deployment_environment environment level
+  service_name span_id trace_id` — ninguna vale `qa`.
+- **Arreglo:** ninguno en el harness; es el despliegue. Mientras tanto: **para el forense de algo
+  probado en qa, el target es `dev`**, y para contar o leer a mano el selector es
+  `{service_name="CreditopDev"}`. Si hace falta separar qa de dev, hay que hacerlo por el DATO (una
+  solicitud, un usuario), no por el label.
+- **Estado:** vivo.
+
+### F-180 · Bajo carga, el gateway de qa corta a los 60 s y reporta 504 — pero PHP sigue y termina de escribir. Y el techo es la CAPACIDAD de qa, no el código
+
+- **Síntoma:** 42 flujos en paralelo contra `qa`: **0/42** para el runner, mitad `register HTTP 504` y
+  mitad `otp-validate … (HTTP 504)`, todos a los **60 s exactos**. Parece que el backend se cayó.
+- **Causa raíz, en dos capas:**
+  1. **El ALB corta a los 60 s** (`idle_timeout`, default del módulo `ecs-application-v2`) mientras la
+     petición sigue en cola. PHP la atiende después y **termina**: de los 42 register, PHP procesó **41**
+     (contado en Loki), y los 41 usuarios quedaron **íntegros** — con rol, con OTP y con el país de su
+     comercio. El 504 es del gateway, no de PHP: la misma trampa que F-176, un piso más arriba.
+  2. **qa no puede con 42 a la vez.** Dentro de PHP la concurrencia máxima fue **5** (pool de fpm) y los
+     arranques entraron cada ~2 s: la tarea `legacy-backend-qa` corre con **cpu 256 (¼ vCPU), 512 MB,
+     `desired_count` = 1** (default del módulo), contra dev que tiene 2 tareas de 512/1024. Cinco workers
+     sobre un cuarto de CPU rinden ~1 register cada 2 s; 42 en cola son ~84 s, y todo lo que esperó más
+     de 60 s recibió el 504. Con 6 casos a la vez el mismo backend cerró 6/6.
+- **Evidencia:** 2026-09-02 14:12–14:15 UTC. Latencias de los 21 register que sí respondieron: 29 → 58 s
+  en pasos de ~1,4 s (firma de cola de un servidor casi serial). Loki: 41 `Starting
+  …processCellPhoneRegistration`, 41 fines, concurrencia máxima 5, gap medio entre arranques 2,02 s.
+  Infraestructura: `environments/dev/ecs-application/terragrunt.hcl` (qa sin `desired_count`, `local.cpu
+  = 256`, `local.memory = 512`) y `modules/ecs-application-v2/variables.tf` (`idle_timeout` 60,
+  `desired_count` 1). ⚠ El valor exacto de `pm.max_children` NO se verificó: la imagen base
+  (`creditop/php:8.3-fpm-alpine-nginx`) vive en ECR y no se lee desde acá; el 5 sale de lo observado.
+- **Arreglo:** para PROBAR carga, no usar qa como está: es ¼ de vCPU. Para probar CORRECTITUD bajo
+  concurrencia moderada, 6–10 a la vez alcanza y no toca el techo. Y **nunca leer «0/N cerraron» con 504
+  como «no escribió»**: contar en la base lo que quedó (`users` desde la línea base) antes de repetir.
+- **Estado:** vivo. ⚠ Y la otra mitad de aquel 0/42 no fue capacidad: los 21 `otp-validate` que llegaron
+  a PHP fueron rechazados con **`CODE_INVALID`** — en qa el OTP es **real** (`ONBOARDING_DRIVER_OTP`
+  default `real`, va a Slack) y el runner sin `--cerrar` no registra sus teléfonos en
+  `qa_otp_bypass_phones`. Es el diseño del ambiente, no un bug.
+
+### F-181 · Sail sirve PHP con `artisan serve`, que atiende UNA petición a la vez: local NO sirve para medir concurrencia
+
+- **Síntoma:** la misma tanda de 42 en paralelo contra local tarda lo mismo que contra qa (~80 s) y
+  crea los usuarios de a uno cada ~2 s. Se lee como «el código serializa» y manda a buscar un lock.
+- **Causa raíz:** el contenedor `laravel.test` de Sail corre `php artisan serve`, que es el servidor
+  embebido de PHP (`php -S`): **monohilo**. Verificado con `ps` dentro del contenedor. No hay lock en el
+  código: hay una sola cola.
+- **Evidencia:** 2026-09-02. `ps` en `legacy-backend-laravel.test-1`: `php … artisan serve --host=0.0.0.0
+  --port=80` → `php8.4 -S 0.0.0.0:80 …/server.php`. 55 usuarios creados en 81 s, gaps de 0–5 s.
+- **Arreglo:** local mide **correctitud**, no capacidad. Cualquier conclusión de tiempos bajo paralelo
+  sacada de local es sobre `php -S`, no sobre el sistema. Para capacidad hace falta un ambiente con
+  fpm+nginx y tamaño conocido — y qa hoy tampoco lo es (F-180).
+- **Estado:** vivo.

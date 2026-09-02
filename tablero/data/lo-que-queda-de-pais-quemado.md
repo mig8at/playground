@@ -441,6 +441,51 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
+### 2026-09-02 (noche) · 42 comercios en paralelo: la internacionalización aguanta; lo que no aguanta es qa
+
+Miguel pidió ampliar a más comercios. Se armó una muestra **estratificada por país y por mezcla de tipos
+de entidad** (rt=0/1/2/3/4): 40 colombianos —hasta 3 por mezcla, 19 mezclas distintas— más el dominicano
+y el peruano. 42 casos.
+
+**En local — 39 comercios de 3 países, sin un solo error de flujo:**
+
+| país | comercios | país del cliente | documento | largo del celular |
+|---|---|---|---|---|
+| Colombia | 37 | **37/37** | CC | **37/37** |
+| Rep. Dominicana | 1 | 1/1 | CED | 1/1 |
+| Perú | 1 | 1/1 | DNI | 1/1 |
+
+Cero afganos, cero usuarios huérfanos. Los 3 que faltan (`grupo-alianza-colombia`, `free-spirit`,
+`on-vacation-ovclone`) son sucursales que **no existen en el dump local**; y Perú llega al listado vacío
+porque su comercio local no tiene entidades — esperado, no error.
+
+**Contra qa — 0/42 para el runner, y era mentira dos veces:**
+- PHP procesó **41 de 42** register y los 41 usuarios quedaron **íntegros** (rol, OTP, país del
+  comercio). El 504 lo dio el **ALB a los 60 s** mientras la petición esperaba en cola (F-180).
+- La cola existe porque **qa es ¼ de vCPU, 512 MB, una sola tarea**, con un pool de ~5 workers: ~1
+  register cada 2 s. Con 6 a la vez cierra 6/6; con 42 no. **No es la internacionalización.**
+- Los 21 `otp-validate` que sí llegaron fueron rechazados: en qa el OTP es real (Slack) y sin `--cerrar`
+  no hay bypass. Diseño del ambiente.
+
+> **MEDICIÓN · 2026-09-02** — qa: concurrencia máxima dentro de PHP **5**, gap medio entre arranques
+> **2,02 s**, latencias de los 21 OK **29→58 s** en pasos de ~1,4 s. `terragrunt` de dev: qa sin
+> `desired_count` (default 1), `local.cpu = 256`, `local.memory = 512`; dev = 2 tareas de 512/1024.
+> *Cómo se vuelve a comprobar:* `node dev/loki-lineas.ts` con `Starting RegisterCellPhoneService` en la
+> ventana, y el `.hcl` de `environments/dev/ecs-application`.
+
+**Tres trampas de herramienta que costaron el resto de la tarde, ya escritas para no repetirlas:**
+1. **Loki no distingue qa de dev** (F-179): los dos loguean `CreditopDev`/`development`. El forense con
+   `E2E_TARGET=qa` da vacío; hay que pedir `dev`.
+2. **La sonda de `trazador-acceso` imprime labels, no cuerpos.** Cinco consultas «vacías» eran eso. Quedó
+   `harness/dev/loki-lineas.ts`, que lee el cuerpo para un selector y una ventana.
+3. **Local es `artisan serve` = monohilo** (F-181). Que local tardara lo mismo que qa hizo pensar en un
+   lock en el código; no lo hay. Local mide correctitud, no capacidad.
+
+⚠ **Y una del runner bajo carga:** `paisDelComercio()` cae a Colombia si el payload del comercio tarda
+más de 20 s — así que con qa saturado el DO y el PE recibieron teléfonos de forma colombiana (el PE por
+eso ni registró: 10 dígitos contra un país de 9). El fallback silencioso esconde la saturación; conviene
+que falle ruidoso o reintente. Pendiente.
+
 ### 2026-09-02 (tarde) · seis flujos en paralelo contra qa: la internacionalización se respeta en los tres países
 
 Primera corrida en paralelo contra un ambiente compartido, con los tres países a la vez. **Las seis
