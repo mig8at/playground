@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-retiro-corre-con-cualquier-veredicto
+ramas: agentes/el-declarar-lleva-su-seccion
 jira_title: ""
 ---
 
@@ -30,9 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear **#70** y correr onboarding una vez más — con el retiro colgado de
-cualquier veredicto, esa vuelta tiene que dejar el mapa sin la ruta muerta. Después: revisar **#68** (lo
-que el bucle propuso) y arrancar el **paso 4: adelgazar la herramienta**.
+**El próximo paso es:** **revisar y mergear #68**, el PR del bucle (22 commits: hashes releídos, la prosa
+de KYC corregida, la ruta muerta retirada de dos áreas y dos áreas nuevas con el archivo donde se mudó la
+lógica). El residuo de onboarding baja recién ahí. Y mergear **#71**. Después, **paso 4: adelgazar la
+herramienta** — empezando por `.vuelta.json`, que viaja dentro de cada PR de la vuelta.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -224,6 +225,36 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 22 — EL CICLO CERRÓ COMPLETO: el mapa soltó la ruta muerta (#71)
+
+Cuarta corrida de onboarding, con #70 desplegado. **Funcionó.**
+
+> **MEDICIÓN · 2026-09-02** — corrida `c6`: 3 tareas, **4.288 tokens**, cero caídas. Veredictos: 1
+> `sigue` · 2 `no alcanza` · 2 `ya no`. Dos pasos `integrador·retira`: «retiró del mapa lo que ya no
+> está en main en 1 área(s) — sin releer nada: eso lo dice el árbol». Y en la rama del bucle:
+> **`kyc-pending-routing.ts` ya no está declarado por ninguna área**; las dos quedaron con su archivo
+> vivo (`kyc-pipeline.server.ts`) y conservaron sus `secciones`.
+
+**El ciclo completo, por primera vez:** merge en los repos → ronda → analizar (0 tokens) → redactor por
+tema (una llamada) → prosa corregida + hash subido + **ruta muerta retirada** + archivo nuevo declarado
+→ un PR que revisa una persona. `Creditop-SAS/playground#68`, 22 commits.
+
+⚠ **Y el diff del mapa dejó un hueco nuevo a la vista:** las dos áreas que nacieron de los `declarar`
+—las que declaran `route-helpers.ts`, donde se mudó la lógica— **no declaraban ninguna sección**. Cada
+`declarar` del bucle creaba código vigilado sin decir qué prosa sostiene: el agujero del paso 2
+reabriéndose de a poco. Arreglado en #71, con la guarda que importa: **el ancla se comprueba antes de
+escribir**, porque el nombre lo escribe el redactor y una pieza que sólo declara no pasa por el lint —
+un ancla inventada habría pasado el cierre y reventado el build. Si no coincide, el área nace sin
+enlace: perder el hilo de un área es barato, dejar `main` en rojo no.
+
+> **MEDICIÓN · 2026-09-02** — `dev/dictado.py` prueba los dos casos a la vez (sección real e inventada):
+> de las dos áreas declaradas, una lleva su enlace y la otra no, y el corpus resultante pasa `-lint`.
+
+**Detalle del arnés que me hizo dudar:** `reg.cerrar` intermedio ya marca la corrida como cerrada, así
+que sondear por `cerrada` sale antes de que corran los integradores. La corrida seguía trabajando y yo
+la leí a medias. Para leer una vuelta completa hay que esperar el `resultado` que dice «N tarea(s), M con
+cambio propuesto», no el `cerrada`.
 
 ### 2026-09-02 · noche · 21 — el `declarar` no cerraba el área: el retiro va con CUALQUIER veredicto (#70)
 
