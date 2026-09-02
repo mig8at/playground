@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/poda-de-la-maquinaria-2, agentes/un-archivo-malo-no-tira-la-entrega
+ramas: agentes/un-borrado-no-bloquea
 jira_title: ""
 ---
 
@@ -30,11 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** que Miguel mergee **#59** (la entrega no se cae por una ruta mala) y **#62** (la poda,
-paso 1, contra `main`; en cualquier orden, simulado sin conflictos) y arrancar el **paso 2: enlazar
-sección→área en el mapa** — de ahí salen gratis la poda de prosa, el
-respaldo de cada afirmación y qué archivos abrir para una pregunta. Antes de tocar el redactor o sus
-puertas, `python3 tools/canon/dev/humo.py`: el circuito entero con los falsos, sin gastar un token.
+**El próximo paso es:** que Miguel mergee **#63** (lo que salió de validar la poda en prod: un archivo
+borrado corre el redactor en vez de bloquearlo, `/api/` inexistente → 404, una sola sonda de hashes) y
+entonces **correr `onboarding` en prod por la puerta nueva**: es el `ya no` del archivo borrado que venimos
+arrastrando, cuesta centavos, y es la validación real de #59+#60+#62. Después, el **paso 2: sección→área**.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -226,6 +225,36 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · mediodía · 15 — validar la poda en prod: el deploy anda, y el único residuo no se podía correr (#63)
+
+#59 y #62 mergeados (13:40 y 13:47), los dos deploys en verde, prod sirve `main`. Lo determinista, bien:
+`/health` ok · `/api/tools` ya no anuncia `relations`/`policy` y las filas del bucle dicen «sin modelo» y
+«uno por tema» · residuo **2 = el archivo borrado `kyc-pending-routing.ts` en dos áreas de onboarding**
+(exactamente lo esperado tras igualar) · bandeja vacía · sin PR abierto. `analizar` en prod: 0 tokens,
+2 tareas.
+
+**Y al correr onboarding por la puerta nueva: 409 «este tema no se puede levantar todavía».** Tres cosas:
+- `bloqueo` comparaba «faltan» contra el RESIDUO (2 de 2 borrados) y no contra lo DECLARADO (38): un
+  tema maduro con un archivo borrado quedaba bloqueado con el motivo equivocado. Un borrado es la señal
+  más fuerte de `ya no`; es justo cuando el redactor tiene que correr.
+- `/api/relations` en prod devolvía el `index.html` con **200**: el fallback del front se tragaba toda
+  `/api/` inexistente. Ahora 404 en JSON, en el contrato.
+- La ronda con clones tiraba los borrados como «repo ilegible» (`git rev-parse origin/main:.` falla
+  SIEMPRE), y la lógica estaba **copiada tres veces** (CLI, servidor, `-pesar`): arreglé la del CLI y
+  humo seguía sin ver el borrado porque el servidor tenía su copia. Ahora `upkeep.SondaClones` /
+  `SondaGitHub`, una copia.
+- El expediente le dice al redactor «este archivo YA NO EXISTE en main» en vez de mandarlo a usar
+  herramientas que ya no tiene.
+
+> **MEDICIÓN · 2026-09-02** — `canon -ronda <clones>` antes: «⚠ comparación parcial — frontend-monorepo:
+> exit status 128» y 5 cambios; después: 7 cambios, onboarding con sus dos «no está en main», sin aviso.
+> **MEDICIÓN · 2026-09-02** — humo.py con el paso 7 nuevo: servidor fresco, `POST /api/tareas/onboarding`
+> (sólo borrados) → 202, 2 tareas repartidas y revisadas. 0 tokens. `Creditop-SAS/playground#63`.
+
+**Lección:** la prueba de humo no lo encontró porque el servidor y el CLI tenían copias distintas de la
+misma lógica y la de humo (servidor) era la rota. Validar en prod encontró en 10 minutos lo que tres
+corridas de humo no: los dos hacen falta.
 
 ### 2026-09-02 · mañana · 14 — paso 1, la PODA: un solo redactor y fuera lo que nadie usaba (#61)
 
