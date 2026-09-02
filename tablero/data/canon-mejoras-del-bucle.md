@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/estado-del-borrador
+ramas: agentes/el-retiro-corre-con-cualquier-veredicto
 jira_title: ""
 ---
 
@@ -30,9 +30,9 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear **#69** (el estado del borrador, que es lo que hoy impide que el retiro
-llegue a correr) y **volver a correr onboarding en prod**: ahí sí se ve si el área suelta la ruta muerta.
-Y revisar **#68**, el PR que la vuelta dejó abierto. Después, **paso 4: adelgazar la herramienta**.
+**El próximo paso es:** mergear **#70** y correr onboarding una vez más — con el retiro colgado de
+cualquier veredicto, esa vuelta tiene que dejar el mapa sin la ruta muerta. Después: revisar **#68** (lo
+que el bucle propuso) y arrancar el **paso 4: adelgazar la herramienta**.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -224,6 +224,40 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 21 — el `declarar` no cerraba el área: el retiro va con CUALQUIER veredicto (#70)
+
+#69 mergeado (20:05) y desplegado (20:09). Tercera corrida de onboarding: **los integradores ya no se
+caen** —28 s, 1.279 tokens— y el retiro **tampoco corrió**. Esta vez no fue un bug: fue un hueco de
+diseño que sólo se ve con el caso real delante.
+
+**El redactor cambió de veredicto, y tenía razón.** Con la prosa ya corregida en #66, las dos secciones
+de KYC dejaron de ser un `ya no`: son un **`declarar`** — al mapa le falta el archivo donde se mudó la
+lógica. El integrador declaró `kyc-pipeline.server.ts` mecánicamente. Pero `declarar` **no cierra el
+área** (sólo `sigue` y `ya no` lo hacían), así que la ruta muerta siguió declarada. Y es el caso MÁS
+común: la lógica se mudó, el viejo murió, el redactor nombra el nuevo, el viejo queda.
+
+> **MEDICIÓN · 2026-09-02** — corrida `c4`: 3 tareas, **28 s, 1.279 tokens**. Veredictos: 1 `sigue` ·
+> 2 `declarar` (los dos citando `b3eb24f6`). Dos `integrador·mapa` declararon 1 archivo cada uno, sin
+> modelo. PR #68 con 11 commits. Cero caídas.
+
+**El arreglo es una regla en vez de tres:** el área se cierra con **cualquier** veredicto. Retirar no
+opina sobre la prosa —que el archivo no exista lo dice el árbol— así que un `declarar` o un `no alcanza`
+alcanzan igual que un `sigue`. Y un `no alcanza` con archivos muertos dejó de ser «nada accionable».
+
+**Y la distinción que hay que no perder:** un retiro sin nada que releer NO sube ningún hash. La pieza,
+el título del commit y el paso se llaman por lo que hicieron (`integrador·retira`), porque decir
+«releído» ahí sería justo el nivel 2 del guion disfrazado de nivel 1.
+
+> **MEDICIÓN · 2026-09-02** — `dev/dictado.py` gana el caso del retiro SOLO y pasa. Se corrigió una
+> aserción mía que exigía «subió hashes y retiró» donde el archivo vivo del área ya estaba al día: el
+> código tenía razón y la prueba estaba mal.
+
+**Lo aprendido en tres corridas seguidas contra prod:** el bucle no falló ninguna de las tres veces por
+lo mismo, y ninguna de las tres se veía en local. La primera fue una expectativa mía (el residuo no baja
+sin merge), la segunda un bug latente de estado compartido que retirar hizo salir, y la tercera un hueco
+de diseño que sólo aparece cuando el veredicto cambia porque la prosa ya se arregló. **Correr contra prod
+después de cada merge no es opcional.**
 
 ### 2026-09-02 · noche · 20 — el retiro NO llegó a correr, y el bug era de estado compartido (#69)
 
