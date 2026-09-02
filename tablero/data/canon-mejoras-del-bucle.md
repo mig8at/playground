@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/declarar-es-mecanico
+ramas: agentes/poda-de-la-maquinaria, agentes/el-bucle-puede-terminar, agentes/un-archivo-malo-no-tira-la-entrega
 jira_title: ""
 ---
 
