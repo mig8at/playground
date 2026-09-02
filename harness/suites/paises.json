@@ -1,0 +1,39 @@
+{
+  "nombre": "País · el cliente nace con el país de su comercio, su documento y su celular — sin asumir Colombia",
+  "nota": "⚠ Requiere `lambda` para que cada corrida use USUARIOS FRESCOS (teléfono derivado del reloj): sin eso el runner reusa el usuario del índice y la aserción mide la escritura de una corrida vieja, no la de ésta — así se vio un dominicano con `CC` que venía de antes. Se corre hasta el LISTADO (sin CERRAR): lo que se asevera queda escrito en el registro y en la validación del OTP. Aserta la REGLA contra la base (país del cliente = del comercio, documento del catálogo del país, largo del celular del país) y además FIJA los valores de cada país para que grite si un comercio cambia de país sin que nadie lo decida. ⚠ Perú no está: su comercio local no tiene entidades y el listado vacío lo marca ✗ por otro motivo; cuando lo tenga, agregarlo con iso PER · DNI · 9 · PEN.",
+  "porDefecto": {
+    "lender": null,
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
+  "casos": [
+    {
+      "nombre": "Colombia — pullman: CC, celular de 10, COP",
+      "comercio": "pullman",
+      "espera": {
+        "pais": {
+          "iso": "COL",
+          "documento": "CC",
+          "celular": 10,
+          "moneda": "COP"
+        }
+      }
+    },
+    {
+      "nombre": "República Dominicana — celurd: CED (no CC), celular de 10 con área 809/829/849, DOP",
+      "comercio": "#1bfb8cd0",
+      "espera": {
+        "pais": {
+          "iso": "DOM",
+          "documento": "CED",
+          "celular": 10,
+          "moneda": "DOP"
+        }
+      }
+    }
+  ],
+  "requiere": [
+    "lambda"
+  ]
+}

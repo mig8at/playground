@@ -420,6 +420,12 @@ type Espera = {
      *  al estado 11 y puede fallar sin moverlo: exigirlo acá es la única forma de que una suite note
      *  que el crédito quedó autorizado pero nunca se radicó. */
     radicacion?: string;
+    /** LA INTERNACIONALIZACIÓN, como aserción. `true` exige la REGLA contra el país del comercio leído
+     *  de la base: el cliente nace con el país de su comercio, su documento es uno del catálogo de ese
+     *  país y su celular tiene el largo de ese país. Un objeto además FIJA valores —`iso` (3 letras),
+     *  `documento`, `celular` (largo), `moneda`— para que la suite grite si un comercio cambia de país
+     *  sin que nadie lo haya decidido. Se evalúa contra la BASE, no contra la respuesta: es lo que quedó. */
+    pais?: boolean | { iso?: string; documento?: string | string[]; celular?: number; moneda?: string };
 };
 
 type Caso = {
@@ -1283,6 +1289,54 @@ async function correr(c: Caso, i: number): Promise<Res> {
  *
  *  Devuelve una línea por desvío, nombrando el caso y diciendo esperado vs obtenido — porque un
  *  «falló» pelado manda a reproducir a mano lo que el runner ya sabe. */
+/**
+ * La aserción de PAÍS se evalúa contra la base, por eso va aparte del evaluador sincrónico.
+ *
+ * Nació el 2026-09-02 de comprobar a mano, con SQL, lo mismo tres veces: que el cliente quedara con el
+ * país de su comercio, con un documento de ese país y con el celular del largo de ese país. Cada vez
+ * salió bien y cada vez costó escribir la consulta. Acá queda declarada, y falla CERRADO: si la
+ * solicitud no se creó, «no lo verifiqué» cuenta como desvío, igual que en `verificarEsperas`.
+ */
+async function verificarPaises(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const e = r.caso.espera?.pais;
+        if (e === undefined || e === false) continue;
+        const quien = r.caso.nombre ?? `${r.caso.comercio}${r.caso.lender ? ':' + r.caso.lender : ''}`;
+        if (!r.ur) { out.push({ res: r, linea: `${quien}: espera \`pais\` y la solicitud ni se creó (${r.detalle ?? 'sin detalle'})` }); continue; }
+
+        const fila = await one<{ uc: number; ac: number; iso3: string; doc: string; tel: string; largo: number; moneda: string; docs: string }>(
+            `SELECT u.country_id AS uc, a.country_id AS ac, c.iso_code_2 AS iso3, u.document_type AS doc,
+                    u.cell_phone AS tel, c.cell_phone_lenght AS largo, c.currency AS moneda, c.document_types AS docs
+               FROM user_requests r JOIN users u ON u.id = r.user_id JOIN allieds a ON a.id = r.allied_id
+               JOIN countries c ON c.id = a.country_id WHERE r.id = ?`, [r.ur]).catch(() => null);
+        if (!fila) { out.push({ res: r, linea: `${quien}: espera \`pais\` y no pude leer la solicitud ${r.ur} de la base` }); continue; }
+
+        // ⚠ mysql2 devuelve una columna JSON ya PARSEADA (array), no un string: un `JSON.parse` encima
+        // revienta y el catálogo sale «vacío» para todos los países. Costó una corrida en verde falso.
+        let catalogo: string[] = [];
+        const crudo: unknown = (fila as any).docs;
+        if (Array.isArray(crudo)) catalogo = crudo.map(String);
+        else if (typeof crudo === 'string') { try { catalogo = JSON.parse(crudo); } catch { /* sin catálogo: desvío abajo */ } }
+        const largoTel = String(fila.tel ?? '').replace(/\D/g, '').length;
+
+        // La REGLA, siempre que se pidió `pais` (true u objeto).
+        if (Number(fila.uc) !== Number(fila.ac)) out.push({ res: r, linea: `${quien}: el cliente quedó con country_id ${fila.uc} y su comercio es ${fila.ac} (${fila.iso3}) — nació con otro país` });
+        if (!catalogo.length) out.push({ res: r, linea: `${quien}: el país ${fila.iso3} no tiene catálogo de documentos en \`countries.document_types\`: la regla no se puede evaluar` });
+        else if (!catalogo.includes(String(fila.doc))) out.push({ res: r, linea: `${quien}: documento \`${fila.doc}\` no está en el catálogo de ${fila.iso3} [${catalogo.join(', ')}]` });
+        if (Number(fila.largo) > 0 && largoTel !== Number(fila.largo)) out.push({ res: r, linea: `${quien}: el celular tiene ${largoTel} dígitos y ${fila.iso3} pide ${fila.largo}` });
+
+        // Los valores FIJADOS, si los hay.
+        if (typeof e === 'object') {
+            if (e.iso && String(fila.iso3).toUpperCase() !== e.iso.toUpperCase()) out.push({ res: r, linea: `${quien}: esperaba país ${e.iso} y el comercio es ${fila.iso3}` });
+            if (e.documento) { const ok = ([] as string[]).concat(e.documento); if (!ok.includes(String(fila.doc))) out.push({ res: r, linea: `${quien}: esperaba documento ${ok.join('|')} y quedó \`${fila.doc}\`` }); }
+            if (e.celular && largoTel !== e.celular) out.push({ res: r, linea: `${quien}: esperaba celular de ${e.celular} dígitos y tiene ${largoTel}` });
+            if (e.moneda && String(fila.moneda).toUpperCase() !== e.moneda.toUpperCase()) out.push({ res: r, linea: `${quien}: esperaba moneda ${e.moneda} y el país tiene ${fila.moneda}` });
+        }
+    }
+    return out;
+}
+
 function verificarEsperas(res: Res[]): Array<{ res: Res; linea: string }> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
@@ -1827,7 +1881,7 @@ async function main(): Promise<number> {
     console.log(`\n  ${res.length - malos}/${res.length} cerraron · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
     await conciliarConLaBase(lineaBase, res.length - malos);
 
-    const desvios = verificarEsperas(res);
+    const desvios = [...verificarEsperas(res), ...await verificarPaises(res)];
     if (desvios.length) {
         console.log('\n  ⚠ NO CUMPLIERON LO QUE DECLARAN:\n');
         for (const d of desvios) console.log(`      · ${d.linea}`);

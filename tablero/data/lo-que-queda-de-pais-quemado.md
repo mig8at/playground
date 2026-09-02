@@ -441,6 +441,19 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
+### 2026-09-02 (cierre) · la validación de país pasa a ser una suite declarada
+
+Lo que hoy se comprobó tres veces con SQL a mano —país del cliente = del comercio, documento del
+catálogo del país, largo del celular del país— quedó como aserción del harness: `espera.pais` en
+`caso.ts`, y la suite `harness/suites/paises.json`.
+
+> **DECISIÓN · 2026-09-02** — *Cómo se vuelve a comprobar la internacionalización*, de ahora en más:
+> **`make harness-suite-paises`**. Verde con exit 0, rojo con exit 1 y el desvío nombrado. Probado en
+> las dos direcciones (una copia con RD fijada a `CC` a propósito dio «esperaba documento CC y quedó
+> `CED`»). ⚠ Exige usuarios FRESCOS (`requiere: lambda`): reusando el usuario del índice, la aserción
+> midió un `CC` que era del 1/9, anterior a que el runner tomara el documento del comercio. Perú entra
+> cuando su comercio local tenga una entidad.
+
 ### 2026-09-02 (noche) · 42 comercios en paralelo: la internacionalización aguanta; lo que no aguanta es qa
 
 Miguel pidió ampliar a más comercios. Se armó una muestra **estratificada por país y por mezcla de tipos
