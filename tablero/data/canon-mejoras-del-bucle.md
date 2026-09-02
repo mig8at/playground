@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo
 jira_title: ""
 ---
 
@@ -24,16 +24,22 @@ mergear:** README 16.234 → 2.667 palabras (la historia en `docs/HISTORIA.md`) 
 los PRs y del repo (vive en la rama `canon/estado`) · fuera `verificado_contra`, `-temas`, `LocalLag` y
 la guarda de modelo de analizar. Cinco commits, uno por pieza; humo y dictado en verde.
 
-**#72 está mergeado y desplegado** (2026-09-02 16:46): prod corre el código nuevo y la rama `canon/estado`
-nació con el primer `analizar`. Y **#73 —el PR del bucle— quedó arreglado y en verde**: el conflicto por
-`.vuelta.json` se resolvió trayendo `main` a la rama en vez de descartar la vuelta, así que conserva los
-9 hashes que Sonnet ya releyó (7 mapas, +19/−19).
+**#72 y #73 están mergeados y desplegados** (2026-09-02): prod corre el paso 4, la rama `canon/estado`
+nació con el primer `analizar`, y el PR del bucle se arregló trayendo `main` en vez de descartar la vuelta.
 
-**El próximo paso es:** mergear #73, y después **el camino de escritura para el equipo**, que es lo que
-Miguel preguntó el 2026-09-02 y hoy está roto por MENSAJE, no por mecanismo (ver Registro 25). Sigue
-pendiente el **paso 5, crecer por demanda**: las 21 preguntas reales de soporte sin cobertura (aval,
-FGA+IVA, cuota inicial, pago mínimo, core bancario, asignación de asesor…) — prosa verificada contra
-código, como su propio PR único.
+**Y hay un PR nuevo, entero, en verde: `Creditop-SAS/playground#74` — la API de ESCRITURA para el equipo.**
+Salió de una pregunta de Miguel del mismo día: compartió `/api` y alguien del equipo concluyó que lo que
+subiera «quedaba en memoria y no entraba al contexto». Medido en prod: el mecanismo estaba bien y el
+MENSAJE mentía en cuatro lugares (Registro 25). Tres piezas: los textos del catálogo dicen la verdad ·
+**declarar desde un PR abierto** (la pieza acepta `pr`, el área nace `pendiente`, la ronda espera) ·
+llaves de escritura por persona (`CANON_WRITE_KEYS`, opcional). Decisión de Miguel: **la API para
+desarrolladores primero; el bucle de agentes, después.**
+
+**El próximo paso es:** revisar y mergear #74, y validar en prod lo que dice su cuerpo (`/api/tools` sin
+llave trae el paso 6; la nota del borrador; `para_tu_agente`). Después, dos decisiones suyas que siguen
+abiertas: borrar las seis ramas `canon/*` de origin (todas contenidas en `main`) y encender
+`delete_branch_on_merge` en el repo. Y más adelante el **paso 5, crecer por demanda** (las 21 preguntas de
+soporte sin cobertura) y las mejoras del bucle (Registro 23), como su propio PR único.
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -226,6 +232,69 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · tarde-noche · 25 — la API de escritura para el equipo: el mensaje mentía, y el código de un PR abierto no se podía declarar (#74)
+
+Miguel compartió `/api` con el equipo y volvió con esto: «le dice que si va a subir algo va a quedar en
+memoria, que no se ingresa al contexto». La pregunta era si `/api` tenía lógica vieja. **Medido contra prod,
+paso por paso, como lo haría alguien con la llave** (abrí borradores de prueba y los borré: «nada llegó al
+corpus»): el mecanismo estaba al día —el dictado prendido, escribiendo rama + PR— y el MENSAJE mentía en
+cuatro lugares. Con llave, el paso 6 de `how_to_use` mandaba a `/api/propose` «con `apply` lo escribe» (da
+410 hace días, y su doctrina dice «NO escribe nada, deliberadamente NO persiste»). Sin llave, el catálogo no
+decía que escribir existiera (11 filas, todas de lectura; decisión del 2026-08-28 de omitir la escritura a
+quien no puede). El paso 5 no nombraba `dictar` y `contextualizar` describía editar dos archivos a mano. Y la
+nota del borrador —«el borrador vive en memoria: si el servicio se reinicia, se dicta de nuevo»— era cierta y
+no decía qué pasa al cerrar. Juntas producen exactamente la frase que le dijeron.
+
+**La segunda pregunta fue la que abrió el trabajo grande:** «¿y si es contexto que aún no llega a main?».
+Medido: declarar un archivo que sólo existe en una rama daba **422 «¿la ruta está bien escrita?»** — la
+pregunta equivocada. Y un dato que decide el diseño:
+
+> **MEDICIÓN · 2026-09-02** — de los **17 colaboradores** del repo compartido, **10 sólo tienen lectura**
+> (no pueden crear una rama ahí); con escritura, los 5 admins más Miguel y Duncan. Así que «editá el archivo
+> y abrí un PR» no es opción para la mayoría: el dictado, que firma la App de GitHub, es el único camino.
+> Además el repo tiene `delete_branch_on_merge=false`, y `canon` no aparece en el `CLAUDE.md` ni en ningún
+> lugar del repo compartido que un agente lea.
+
+Y un choque con lo de ayer: si alguien declarara a mano un archivo pendiente de merge, **el `retirar` del
+paso 3 lo sacaría solo** (lo que main no tiene, se va). El contexto pendiente y el retiro se peleaban.
+
+**Lo construido (#74, un solo PR):**
+- **Los textos dicen la verdad**: el paso 6 con llave es el borrador, «el ÚNICO que escribe», y `propose`
+  queda como ensayo; sin llave, una línea dice que la puerta existe y cómo pedirla (cambia la decisión del
+  28/8: se omiten las herramientas que darían 403, no la puerta — Miguel puede vetarlo); `dictar` en el paso
+  5; la nota del borrador dice que vive en memoria SÓLO hasta cerrar; `contextualizar` empieza por la API;
+  y `/api` trae **`para_tu_agente`**: tres líneas para el CLAUDE.md de cada dev, servidas desde el server.
+- **Declarar desde un PR abierto.** La pieza acepta `pr` (URL, `owner/repo#N` o `#N`); la ruta ausente de
+  main se declara desde la rama del PR con **el hash del blob que tiene ahí** —el blob es del contenido, así
+  que si mergea igual queda al día sola— y el área la anota en **`pendientes`**. La ronda la cuenta como
+  `esperando` (no es deriva, no rompe el «al día», no entra al plan) mientras el PR siga abierto; cerrado sin
+  mergear vuelve a ser «no está en main»; ya en main se lista en `pendientes_ya_en_main`. La guardia
+  compartida `archivosQueNoExisten` respeta lo pendiente y ante la duda espera y avisa. La marca se va con la
+  subida del hash (si no vino del mismo PR) o con el retiro. Lint: lo pendiente está también en `fuentes`
+  y el PR tiene la forma `owner/repo#N`.
+- **Llaves por persona**, opcionales (`CANON_WRITE_KEYS`): el nombre queda como `quien`, se revoca de a una.
+
+> **MEDICIÓN · 2026-09-02** — tests nuevos: la ronda ×4 (espera · PR cerrado · no se pudo mirar · ya en
+> main), el parseo del PR, la limpieza de la marca, el sellado, el lint, las llaves. `dev/dictado.py` con
+> **15 comprobaciones nuevas** —incluida la ronda POR CONSOLA contra el corpus con el área pendiente: espera
+> el PR, no lo lista como «no está en main», y al cerrarlo sin mergear lo vuelve a listar—: todo bien.
+> `humo.py` todo bien · `-race` 0 · `unused` 0 · `-lint` ✓ · bench 92/115 y soporte 117/118 iguales.
+> +861/−41 en 21 archivos. CI de #74 en verde.
+
+**Dos cosas del método:**
+- El arnés me mintió una vez a favor mío: la ronda por consola «no veía» el área pendiente porque copié sólo
+  `onboarding/` al `content/` de prueba y el cargador, al no encontrar el corpus entero, cayó al embebido
+  (que no tiene el área). Copiar el corpus entero lo arregló. Un cargador que degrada en silencio es el mismo
+  patrón del `E2E_TARGET` por defecto: hay que saber contra qué se está midiendo.
+- Intenté partir el trabajo en tres commits por pieza aplicando hunks con `--unidiff-zero` sobre los
+  archivos que las tres tocan (`server.go`, `draft.go`): **desplazó líneas y dejó tres commits que no
+  compilaban**. Lo tiré (`reset --mixed` conservando el árbol de trabajo, que era el probado) y quedó UN
+  commit cuyo mensaje cuenta las tres piezas. Cuando las piezas comparten archivos, partir por hunks no vale
+  el riesgo: mejor un commit honesto que tres rotos.
+
+**Lo que se decidió con Miguel:** la API para desarrolladores primero; lo del bucle de agentes (el punto
+ciego del expediente, la rama después del merge, el paso 5) para después.
 
 ### 2026-09-02 · noche · 24 — el PR del bucle quedó en conflicto por el archivo que #72 borró (#73)
 
