@@ -395,6 +395,7 @@ cupo, así que su rojo no dice nada del camino que acabamos de recorrer.
 > **MEDICIÓN · 2026-09-02** — el rojo de la suite del codeudor en local es **F-182**: el resolver de
 > builders mapea por `lender_id` y el mapeado es el de producción (193); acá el RTO es 173 y en la
 > compartida 205, así que cae al builder genérico y el contrato revienta con `Undefined variable
-> $nombre_cliente`. El arreglo por slug está en la rama local `local/ajustes-de-pruebas` de
-> `legacy-backend` (`29fef8f9`) y **no se mergeó**. *Cómo se vuelve a comprobar:* `make harness-suite
+> $nombre_cliente`. ⚠ **Y en la compartida es igual**: el 205 tiene 8 documentos catalogados y tampoco está en el mapa, así
+> que en dev/qa/staging el Rent to Own NO se puede cerrar hoy. El arreglo por slug está en la rama local
+> `local/ajustes-de-pruebas` de `legacy-backend` (`29fef8f9`) y **no se mergeó**. *Cómo se vuelve a comprobar:* `make harness-suite
 > SUITE=harness/suites/codeudor.json` — verde sólo cuando el resolver mire el slug.

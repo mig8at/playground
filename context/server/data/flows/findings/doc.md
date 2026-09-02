@@ -3260,31 +3260,37 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   fpm+nginx y tamaño conocido — y qa hoy tampoco lo es (F-180).
 - **Estado:** vivo.
 
-### F-182 · Los documentos de Rent to Own sólo renderizan en PRODUCCIÓN: el resolver elige el builder por `lender_id` quemado (193), y ese id es distinto en cada ambiente
+### F-182 · Los documentos catalogados de Rent to Own sólo renderizan en PRODUCCIÓN: el resolver elige el builder por `lender_id` quemado (193), y ese id es distinto en cada ambiente
 
-- **Síntoma:** al cerrar un Rent to Own en local o en la base compartida, el pagaré o el contrato del
-  codeudor devuelven **HTTP 500** — `Blade PDF generation failed: Undefined variable $nombre_cliente
+- **Síntoma:** al cerrar un Rent to Own en local o en la base compartida (dev/qa/staging), la generación
+  de documentos devuelve **HTTP 500** — `Blade PDF generation failed: Undefined variable $nombre_cliente
   (View: …/motai/rto/contrato_rto_con_codeudor.blade.php)`. La solicitud queda «autorizada» sin
   documento. Se lee como la vuelta de **F-150** (una plantilla que pide una variable que el builder no
   produce), y lo es, pero por otra puerta.
-- **Causa raíz:** `CatalogDocumentPayloadResolver` elige el builder de cada entidad con un mapa
-  **por `lender_id`**: `158 => Renting`, `193 => RentToOwn`. El 193 es el id de **producción**
-  (`28b2d436 · 2026-08-21 · «point rent-to-own payload builder to the production lender id»`). Pero los
-  ids de `lenders` **no son estables entre ambientes**: en la base compartida (dev/qa/staging) el Rent
-  to Own es **205** y en la copia local **173**. Cualquier entidad que no esté en el mapa cae a
-  `OnboardingPayloadBuilder`, que produce `full_name` mientras las plantillas de Motai piden
-  `nombre_cliente` → «Undefined variable» en pleno render. El propio archivo lo anticipa en su TODO:
-  *«resolver por `lenders.slug`, que sí es estable entre ambientes»*.
-- **Evidencia:** 2026-09-02. Prod (solo lectura): `193 · rent-to-own · rto`. Compartida: `205 ·
-  rent-to-own`. Local: `173 · rent-to-own` y `170 · motai-rb`. El mapa en `qa`, `develop` y `main`:
-  sólo 158 y 193. La suite `harness/suites/codeudor.json` (entidad 173) y el caso RTO de
-  `motai-creditopx.json` (170) fallan por esto en local — y lo dicen en su nombre («falla si vuelve el
-  mapa por id»). ⚠ Y el arreglo **ya está escrito y no salió**: la rama local `local/ajustes-de-pruebas`
-  de `legacy-backend` (commit `29fef8f9`) cambia el mapa a `BUILDERS_BY_SLUG` (`'motai-renting'`,
-  `'rent-to-own'`) resolviendo `$userRequest->lender->slug`, con el mismo fallback al genérico. Nunca
-  se mergeó: por eso el 22/8 la suite del codeudor estuvo en verde y hoy está en rojo.
+- **Causa raíz:** `CatalogDocumentPayloadResolver` elige el builder de cada entidad **catalogada**
+  (`lender_signing_documents`) con un mapa **por `lender_id`**: `158 => Renting`, `193 => RentToOwn`.
+  El 193 es el id de **producción** (`28b2d436 · 2026-08-21 · «point rent-to-own payload builder to the
+  production lender id»`). Pero los ids de `lenders` **no son estables entre ambientes**: el Rent to Own
+  es **205** en la compartida y **173** en la copia local. Una entidad catalogada que no esté en el mapa
+  cae a `OnboardingPayloadBuilder`, que produce `full_name` mientras TODAS las plantillas de Motai
+  (`motai/*` y `motai/rto/*`, con y sin codeudor) piden `nombre_cliente` → «Undefined variable» en pleno
+  render. El propio archivo lo anticipa en su TODO: *«resolver por `lenders.slug`, que sí es estable
+  entre ambientes»*.
+- **Alcance — sólo lo CATALOGADO.** Una entidad sin filas en `lender_signing_documents` no pasa por el
+  resolver: va por el camino legacy y renderiza igual. Es el caso de **Motai RB (170, `rto`) en local**,
+  que cierra en 11 con documentos aunque tampoco esté en el mapa — así que su rojo en la suite de Motai
+  NO es esto (es el timeout del monohilo, F-181). Renting (158) se salva porque su id coincide en todos
+  los ambientes.
+- **Evidencia:** 2026-09-02. Catálogo: prod `193 → 8 documentos` · compartida `205 → 8` · local `173 → 5`
+  (todos con codeudor) y `170 → 0`. Mapa en `qa`, `develop` y `main`: sólo 158 y 193. La suite
+  `harness/suites/codeudor.json` (entidad 173) falla por esto en local — y lo dice en su nombre («falla
+  si vuelve el mapa por id»). ⚠ Y el arreglo **ya está escrito y no salió**: la rama local
+  `local/ajustes-de-pruebas` de `legacy-backend` (commit `29fef8f9`, 24/8) cambia el mapa a
+  `BUILDERS_BY_SLUG` (`'motai-renting'`, `'rent-to-own'`) resolviendo `$userRequest->lender->slug`, con
+  el mismo fallback al genérico. Por eso el 22/8 la suite del codeudor estuvo en verde y hoy está en rojo.
 - **Arreglo:** el de la rama aparcada — resolver por slug. Es lo que el TODO pide y lo que ya hacen las
-  migraciones del Rent to Own. Mientras no salga, **ninguna suite que cierre RTO puede pasar fuera de
-  prod**, y un verde de RTO en producción no dice nada de dev/qa.
-- **Estado:** vivo. ⚠ Al leer el rojo de `codeudor` o del caso RTO de Motai en local, NO buscar en la
-  plantilla ni en el builder: buscar el id en el mapa.
+  migraciones del Rent to Own. Mientras no salga, **el Rent to Own no se puede cerrar en dev/qa/staging**
+  (su 205 está catalogado y no mapeado): QA no puede probarlo, y un verde de RTO en producción no dice
+  nada de los otros ambientes.
+- **Estado:** vivo y bloqueante para probar RTO fuera de prod. ⚠ Al leer el rojo de `codeudor` en local,
+  NO buscar en la plantilla ni en el builder: buscar el id en el mapa.
