@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/un-borrado-no-bloquea
+ramas: agentes/seccion-area
 jira_title: ""
 ---
 
@@ -30,11 +30,11 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** el **paso 2 — enlazar sección→área** y, dentro de él, que el expediente de un
-archivo BORRADO traiga los archivos que tocó el commit que lo borró (la lista «SUMAR por mismos PRs» del
-dossier): la corrida de prod del 2026-09-02 mostró que con la prosa y los commits solos el redactor sólo
-puede decir `no alcanza` («no sé si la lógica se mudó a otro archivo»). Detalle chico para ese mismo PR:
-`seccion` vacío llega a la tarjeta como `<nil>` (`fmt.Sprint(nil)` en `revisarTema`).
+**El próximo paso es:** que Miguel mergee **#64** (paso 2: cada área declara qué secciones respalda; el
+expediente de un archivo borrado trae los archivos de su commit; la Sala pinta gris la prosa sin código) y
+**volver a correr `onboarding` en prod**: con los hermanos del commit `b3eb24f6` a la vista, el redactor
+tiene con qué pasar de `no alcanza` a `ya no`/`declarar` (~5k tokens). Después, **paso 3: `retirar`** —
+ahora sí se sabe qué secciones quedan sin piso al quitar un archivo.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -226,6 +226,52 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · tarde · 17 — paso 2: el hilo entre la prosa y el mapa (#64)
+
+Miguel: «dale arranca y de paso que el grafo de sala se vea con esas conexiones si consideras que vale la
+pena». Se hizo el enlace y sí valió la pena en la Sala, pero no como aristas: como COLOR.
+
+**El modelo.** `secciones` en cada área del `map.json`, por ancla; el lint exige que existan (`enlaces.go`,
+`policy.go`). `corpus.RespaldoDe(n)` deriva qué secciones tienen área detrás. Es la mitad que faltaba del
+hilo: archivos → objetivo → párrafos.
+
+**El llenado, a mano.** `canon -enlazar [tema]` sugiere por vocabulario (objetivo + se_deduce + nombres de
+archivo partidos, ponderado por rareza dentro del tema) y una persona decide. Decidí los 13 temas leyendo
+los 85 objetivos contra los 169 títulos con la sugerencia al lado: **158 enlaces**. Dejé sin respaldo a
+propósito lo que es negocio o meta («De quién es la plata», «Por qué hay dos sistemas», «El corpus no
+mapea todo el sistema», «Operar fuera de Colombia abre su propio tema»…).
+
+> **MEDICIÓN · 2026-09-02** — **128 de 169 secciones con un área detrás** · 14 sin respaldo en temas con
+> código (arquitectura 6, bancolombia 2, cartera 2, motai 2, creditopx 1, formalizacion 1) · 27 en temas
+> sin código (vocabulario 26, internacionalizacion 1). Cinco áreas no respaldan ninguna sección
+> (credifamilia A2 plan de cuotas, datos A4 reporte del buró, listado A4 cálculo y A7 reglas del navegador,
+> onboarding A5 confirmación de cupo): código declarado del que la prosa no dice nada.
+
+**Lo que fluye del enlace:** la tarea y la tarjeta llevan las secciones («Las secciones que respalda» en
+la página de la tarea, verificado en local); el redactor las recibe en el enunciado y el guion le dice que
+las relea primero; `/api/grafo` lleva `respaldadas`/`sin_respaldo`/`respaldo`; la Sala pinta GRIS la
+sección sin área y el panel dice quién la respalda o que nadie («Sin código declarado detrás: … Puede
+ser prosa de negocio — o un enlace que falta», verificado en el navegador sobre creditopx).
+
+**Y el borrado, que era la deuda de la corrida 16.** El expediente de un archivo que ya no está trae los
+archivos que tocó el commit que lo borró, marcando cuáles ya declara el mapa (`ArchivosDeCommit` por la
+API; el GitHub falso sirve `commits?path=` y `commits/{sha}` desde el clon). Con el dump
+(`CANON_EXPEDIENTE_DUMP=1`) se ve lo que recibe el redactor: `b3eb24f6` tocó `kyc-processing.tsx`,
+`kyc-pipeline.server.ts`, `otp-verification.tsx`, `routes.ts` (declarados) y `kyc-status.tsx`,
+`route-helpers.ts`, `init-loan-request.tsx` (sin declarar). Ahí está la respuesta que en prod no tenía.
+
+> **MEDICIÓN · 2026-09-02** — humo.py, todo bien, con dos chequeos nuevos (el expediente del borrado trae
+> los hermanos; dice «ya no existe en main»). Tests `-race` 0 fallos; `unused` 0; lint/bench/soporte
+> iguales. `Creditop-SAS/playground#64`.
+
+Detalles que cayeron de paso: `seccion` omitido llegaba como `<nil>` (`texto()`); `/api/grafo` contaba
+la introducción como sección («11 de 12»); humo comparaba `content/` contra el índice y fallaba con
+trabajo sin commitear (ahora contra su estado previo).
+
+**Lo aprendido:** los enlaces son una afirmación de una persona, como los hashes. Se van a corregir con el
+uso —un `ya no` sobre una sección que el área no nombraba es la señal para sumarla— y por eso el lint
+informa el respaldo pero no lo bloquea.
 
 ### 2026-09-02 · tarde · 16 — onboarding en prod por la puerta nueva: 822 tokens, 16 s, y el límite del expediente con un archivo borrado
 
