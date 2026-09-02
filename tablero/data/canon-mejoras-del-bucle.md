@@ -30,10 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** mergear #58 y volver a correr la vuelta en prod (analizar es gratis; «correr
-todas» costó 11k pagados): los 15 `no alcanza` tienen que volverse veredictos con el código delante, y
-los `ya no` disparar sus integradores. Ése es el resultado que falta para dar el método por aterrizado.
-Después, #53 con lo que la vuelta haya sumado.
+**El próximo paso es:** mergear #59 y correr el barrido otra vez ($1,69): onboarding tiene que devolver
+sus tres veredictos, y los siete `no alcanza` que nombran una clase tienen que volverse `declarar` — y
+aplicarse solos, que es gratis. Si eso pasa, el método está aterrizado y queda decidir la cadencia
+(recomendado: **una vuelta por semana, $7/mes**, disparada por una persona). Después, #53.
 
 ## Objetivo
 
@@ -217,6 +217,27 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-01 · noche · 11 — el barrido completo: **$1,69** y una sola afirmación caída (#59)
+
+> **MEDICIÓN · 2026-09-01** — barrido entero con #58: 10 temas, 34 archivos, 133k de material. **19.942 tokens pagados + 156k desde caché + 359k escritos en ella = $1,69** a tarifa de lista de Sonnet en Bedrock. Veredictos: **15 `sigue` · 9 `no alcanza` · 1 `ya no`**. El único `ya no` (el apellido en KYC) disparó su integrador solo, el banco rechazó su primera versión, corrigió y entró: commit en el PR sin que nadie apretara.
+> **MEDICIÓN · 2026-09-01** — costo del día entero, todos los experimentos incluidos: ~6,3M tokens ≈ **$24**. Dos tercios fueron los errores (la vuelta uno-por-tarea y los integradores tanteando), no el trabajo.
+
+**Costo de mantenerlo al día: $7/mes una vuelta por semana, $37/mes una por día hábil.** El 72% de una
+vuelta es escribir la caché, que se paga una vez.
+
+Dos defectos que el barrido destapó, los dos en `Creditop-SAS/playground#59`:
+
+1. **Onboarding devolvió CERO veredictos** y eso se lee igual que un tema sano. Había concluido sus tres
+   afirmaciones TRES veces, y las tres entregas se rechazaron enteras porque entre los archivos de un
+   `no alcanza` nombró `kyc-pending-routing.ts` — que está en el material, mostrado por la ronda como
+   «ya no está en main». Lo castigué por nombrar lo que le puse delante. Ahora se descarta la ruta y el
+   hallazgo se conserva; cinco turnos en vez de tres, porque el rechazo es una entrevista.
+2. **Siete de los nueve `no alcanza` eran `declarar`**: «esa lógica no está en el área, vive en X» — y
+   nombran la X (`PreApprovedLenderService`, el `update()` del controlador de sucursales, el mapeo de
+   CrossCore). No lo emitían porque les exigía `repo:ruta` y sólo vieron el NOMBRE en un import. Ahora
+   `archivos` acepta el nombre suelto y el servidor lo resuelve contra el árbol de main (comprobado:
+   `PreApprovedLenderService` → una sola ruta). Varias coincidencias devuelven opciones, no rechazo.
 
 ### 2026-09-01 · noche · 10 — #57 en prod: el costo aterrizó, y el expediente llegaba sin código (#58)
 
