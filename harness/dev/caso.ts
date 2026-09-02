@@ -904,7 +904,12 @@ async function dictarTodos(casos: Caso[]): Promise<string[]> {
         // caso corría, terminaba bien, y uno concluía «el score no mueve el listado» cuando el score
         // nunca cambió. Es la misma familia que F-139. El mock ya sabe pisarlo por cédula.
         if (casos[i].score) {
-            await dictar(doc, 'experian_score', String(casos[i].score)).catch(() => {});
+            // ⚠ Antes iba con `.catch(() => {})`: si el dictado del score fallaba, el caso seguía con el
+            // score por defecto del mock y el reporte decía igual «buró dictado». Agildata sí se
+            // verificaba; Experian no. Un caso que declara score 700 y corre con otro no prueba lo que
+            // dice — y nada avisaba. Ahora cuenta como dictado fallido, igual que Agildata.
+            const okScore = await dictar(doc, 'experian_score', String(casos[i].score)).catch(() => false);
+            if (!okScore) fallos.push(`${doc}:experian_score`);
         }
 
         // hasta 4 intentos: cada POST puede caer en un contenedor distinto, así que reintentar
@@ -987,40 +992,39 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
             ...(status >= 200 && status < 300 ? {} : { cuerpo: (cuerpo ?? '').slice(0, 600) }) });
     };
 
+    // UN SOLO HELPER HTTP, y `get`/`post` son dos verbos sobre él. Hasta el 2026-09-02 eran dos
+    // implementaciones casi iguales —y una tercera, `http()`, en el camino sintético ya retirado—:
+    // divergían en el timeout (90 s vs 150 s), en cómo reportaban el fallo de parseo (`{}` vs `raw`) y en
+    // que sólo `get` distinguía timeout de caída. Un helper es un solo lugar donde estar bien.
+    //
+    // ⚠ UN TIMEOUT NO ES UNA CAÍDA, Y `HTTP 0` LOS CONFUNDE. Medido el 2026-08-23: con nueve casos en
+    // paralelo, la generación de documentos de Motai y Pullman tardó **90.002 ms** —clavó el límite— y
+    // el runner reportó «devolvió HTTP 0», que se lee como que el backend se murió. No se murió: tardó,
+    // por la misma razón de F-166 (llamadas remotas dentro de una transacción abierta, que bajo
+    // concurrencia se serializan). Decir cuál de las dos cosas fue cambia dónde se busca la causa.
+    //
     // `extra` existe para el CODEUDOR: su credencial es un header (`X-Cosigner-Token`), no una sesión.
-    const get = async (ruta: string, extra: Record<string, string> = {}) => {
+    const llamar = async (metodo: 'GET' | 'POST', ruta: string, body?: unknown,
+                          extra: Record<string, string> = {}, timeoutMs = metodo === 'POST' ? 150_000 : 90_000) => {
         const t0 = Date.now();
-        const r = await fetch(`${API}${ruta}`, { headers: { ...H, ...extra }, signal: AbortSignal.timeout(90_000) })
+        const r = await fetch(`${API}${ruta}`, { method: metodo, headers: { ...H, ...extra },
+            body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(timeoutMs) })
             .catch((e) => e as Error);
-        // ⚠ UN TIMEOUT NO ES UNA CAÍDA, Y `HTTP 0` LOS CONFUNDE. Medido el 2026-08-23: con nueve casos
-        // en paralelo, la generación de documentos de Motai y Pullman tardó **90.002 ms** —clavó el
-        // límite— y el runner reportó «devolvió HTTP 0», que se lee como que el backend se murió. No se
-        // murió: tardó, por la misma razón de F-166 (llamadas remotas dentro de una transacción
-        // abierta, que bajo concurrencia se serializan). Decir cuál de las dos cosas fue cambia dónde
-        // se busca la causa.
         if (r instanceof Error) {
-            const expiro = /timeout|abort/i.test(String(r));
             const ms = Date.now() - t0;
-            anotar('GET', ruta, 0, ms, String(r).slice(0, 200));
-            return { status: 0, json: {} as any,
-                     motivo: expiro ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
-                                    : String(r.message).slice(0, 120) };
-        }        const t = await r.text();
-        anotar('GET', ruta, r.status, Date.now() - t0, t);
-        try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: {} as any }; }
-    };
-    const post = async (ruta: string, body: unknown, extra: Record<string, string> = {}) => {
-        const t0 = Date.now();
-        const r = await fetch(`${API}${ruta}`, { method: 'POST', headers: { ...H, ...extra },
-            body: JSON.stringify(body), signal: AbortSignal.timeout(150_000) }).catch((e) => e as Error);
-        if (r instanceof Error) {
-            anotar('POST', ruta, 0, Date.now() - t0, String(r).slice(0, 200));
-            return { status: 0, json: { message: String(r.message).slice(0, 120) } };
+            const expiro = /timeout|abort/i.test(String(r));
+            anotar(metodo, ruta, 0, ms, String(r).slice(0, 200));
+            const motivo = expiro ? `se pasó de los ${Math.round(ms / 1000)} s de espera (no falló: tardó)`
+                                  : String(r.message).slice(0, 120);
+            return { status: 0, json: { message: motivo } as any, motivo };
         }
         const t = await r.text();
-        anotar('POST', ruta, r.status, Date.now() - t0, t);
-        try { return { status: r.status, json: JSON.parse(t) }; } catch { return { status: r.status, json: { raw: t.slice(0, 200) } }; }
+        anotar(metodo, ruta, r.status, Date.now() - t0, t);
+        try { return { status: r.status, json: JSON.parse(t) as any }; }
+        catch { return { status: r.status, json: { raw: t.slice(0, 200) } as any }; }
     };
+    const get = (ruta: string, extra: Record<string, string> = {}) => llamar('GET', ruta, undefined, extra);
+    const post = (ruta: string, body: unknown, extra: Record<string, string> = {}) => llamar('POST', ruta, body, extra);
 
     const reg = await post('/api/onboarding/phone/register', {
         phone_number: tel, phoneNumber: tel, terms: true, policies: true,
@@ -1135,9 +1139,9 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
     // Medido sobre la MISMA solicitud: v1 devuelve 3 entidades y v2 devuelve 5 — las dos que faltaban
     // eran Welli y Credifamilia. **El wizard usa v2**, así que pegarle a v1 mide un listado que ningún
     // cliente ve, y una ausencia ahí se lee como regla de negocio cuando es el endpoint equivocado.
-    const pedirListado = () =>
-        fetch(`${API}/api/onboarding/loan-application/lenders-v2/${ur}?amount=${c.amount}`, { headers: H })
-            .then((r) => r.json()).catch(() => null);
+    // Va por el helper y no por `fetch` crudo: es LA llamada que da sentido al caso y hasta el 2026-09-02
+    // era la única del recorrido que no quedaba en la bitácora — la que uno más quería ver al fallar.
+    const pedirListado = async () => (await get(`/api/onboarding/loan-application/lenders-v2/${ur}?amount=${c.amount}`)).json;
 
     let lis = await pedirListado();
     if (await espejarBuroParaPerfilamiento(ur)) lis = (await pedirListado()) ?? lis;

@@ -297,6 +297,20 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   un cliente—; con `LAMBDA=1`, además, se dicta la respuesta de cada central para esa cédula. `synthFill`
   sólo queda para el cupo del codeudor.
 
+- **Un solo helper HTTP con bitácora, y el listado está adentro.** `llamar()` es la única implementación;
+  `get`/`post` son dos verbos sobre él. Antes eran dos copias que divergían (timeout 90 s vs 150 s, cómo
+  reportaban un cuerpo no-JSON, y sólo una distinguía timeout de caída), más `http()` en el camino
+  sintético. Y `lenders-v2` —**la** llamada que da sentido al caso— iba por `fetch` crudo y era la única
+  del recorrido que no quedaba en la bitácora. Los tres `fetch` que siguen crudos son lecturas PREVIAS
+  al caso (el payload del comercio para el tipo de documento y el país, y la sonda `vivo` del prevuelo):
+  ahí no hay bitácora todavía.
+- **Los `.catch` silenciosos NO eran 24 deudas.** Censo del 2026-09-02: 23 son lecturas de la base cuyo
+  `null` se chequea en la línea siguiente («no encontrado o base caída», y el llamador lo trata igual).
+  **Uno** violaba la regla de F-03: el dictado del score de Experian iba con `.catch(() => {})`, así que
+  si fallaba el caso corría con el score por defecto del mock y el reporte decía igual «buró dictado» —
+  Agildata sí se verificaba, Experian no. Ahora cuenta como dictado fallido. Si el número te importa,
+  contalo (`grep -c 'catch(() => ' dev/caso.ts`) y mirá la línea siguiente antes de llamarlo deuda.
+
 ⚠ **Y dos límites del entorno que hay que tener presentes al leer tiempos:** local sirve PHP con
 `artisan serve`, **monohilo** — mide correctitud, no capacidad (F-181)—; y `qa` es ¼ de vCPU, 512 MB y
 una sola tarea, con el ALB cortando a los 60 s: con 6 casos a la vez cierra, con 42 devuelve 504 mientras
