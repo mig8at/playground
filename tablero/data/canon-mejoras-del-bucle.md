@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/seccion-area
+ramas: agentes/dictado-con-hilo
 jira_title: ""
 ---
 
@@ -30,11 +30,11 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** que Miguel mergee **#64** (paso 2: cada área declara qué secciones respalda; el
-expediente de un archivo borrado trae los archivos de su commit; la Sala pinta gris la prosa sin código) y
-**volver a correr `onboarding` en prod**: con los hermanos del commit `b3eb24f6` a la vista, el redactor
-tiene con qué pasar de `no alcanza` a `ya no`/`declarar` (~5k tokens). Después, **paso 3: `retirar`** —
-ahora sí se sabe qué secciones quedan sin piso al quitar un archivo.
+**El próximo paso es:** el **paso 3, `retirar`**, que la corrida de prod acaba de justificar con número:
+el `ya no` de KYC se arregló y **el área sigue derivada** porque su único archivo declarado no está en
+main («no quedó ningún hash por subir»), así que esas 2 entradas del residuo son eternas hasta que se
+pueda quitar la ruta. Antes de eso: mergear **#65** (el dictado nace con el hilo; CI verde) y revisar
+**#66**, el PR que la vuelta dejó con la prosa de KYC corregida.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -226,6 +226,46 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · tarde · 18 — onboarding en prod CON el hilo: de `no alcanza` a `ya no`, 4.875 tokens (#66)
+
+#64 mergeado (14:48) y desplegado (14:52); prod sirve el enlace: **128 secciones respaldadas**. Y la
+pregunta de Miguel —«¿sigue funcionando para que alguien con el token de escritura pueda agregar
+contexto?»— disparó el cierre del paso 2 (#65).
+
+**La corrida que estaba prometida.** Residuo 31 (entró mucho trabajo hoy: altas, creditopx, listado,
+motai, onboarding). El plan: 15 tareas, 5 de onboarding, **todas con las secciones que respaldan**
+excepto `p721545` (el área de «confirmación de cupo», una de las 5 que no respaldan prosa).
+
+> **MEDICIÓN · 2026-09-02** — `POST /api/tareas/onboarding`: **88 s · 4.875 tokens pagados** (+68k
+> escritos en caché, 67k leídos) para 5 áreas y 2 integradores. Expediente: 48k de material, un turno.
+> Veredictos: **3 `sigue` · 2 `ya no`** — contra **2 `no alcanza`** en la corrida de la mañana sobre las
+> mismas dos preguntas. El `ya no` cita el commit por nombre: «kyc-pending-routing.ts ya no existe en
+> main: fue borrado en el commit b3eb24f6 (dejar de usar CPS…), tras un vaivén de reverts». Los
+> hermanos del commit hicieron exactamente lo que se esperaba de ellos.
+> Los dos integradores escribieron y quedó **`Creditop-SAS/playground#66`** (12 commits): la sección de
+> KYC reescrita, con el vaivén explicado en lenguaje de mecanismo y sin nombrar archivos. Un `sigue`
+> cerró su área.
+
+**Y el paso 3 quedó justificado con número, no con opinión.** Los dos integradores dejaron dicho:
+«no se pudo cerrar [kyc-pending-routing.ts]: archivos que no se pudieron declarar» y **«la prosa se
+propuso pero el área queda derivada: no quedó ningún hash por subir»**. O sea: la prosa se arregló y el
+área sigue derivada porque su único archivo declarado no existe. **Esas 2 entradas del residuo son
+eternas hasta que exista `retirar`.**
+
+> **MEDICIÓN · 2026-09-02** — el camino de ESCRITURA, probado de punta a punta con los falsos y 0 tokens
+> (`dev/dictado.py`): sin llave 403 · abrir · pieza con prosa y archivos · cerrar → rama, commit y PR ·
+> el paquete con `.md` + `map.json` · **el área nueva declara la sección que respalda** · y el corpus
+> resultante pasa `-lint` (183 secciones), que es la prueba de que el ancla que escribe el dictado es la
+> misma que produce el parser. `TestSpliceConservaLoQueYaHabiaYNoRompeElJSON` cubre el riesgo del
+> arreglo ANIDADO en `areas`. En #65.
+
+**Anotaciones de la corrida:**
+- ⚠ `tools/canon/.vuelta.json` viaja dentro del PR #66: el estado de trabajo del bucle entrando a main.
+  Es de antes del paso 2 (`guardarVuelta` publica en la misma rama) pero ensucia todos los PRs de la
+  vuelta. Candidato a arreglar en el paso 4.
+- El lint rechazó la prosa del propio ensayo del dictado por nombrar un archivo, con el motivo exacto.
+- Casi reporto una prosa rota: era mi `grep` comiéndose las viñetas del diff. El texto está bien.
 
 ### 2026-09-02 · tarde · 17 — paso 2: el hilo entre la prosa y el mapa (#64)
 
