@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/dictado-con-hilo
+ramas: agentes/retirar
 jira_title: ""
 ---
 
@@ -30,11 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** el **paso 3, `retirar`**, que la corrida de prod acaba de justificar con número:
-el `ya no` de KYC se arregló y **el área sigue derivada** porque su único archivo declarado no está en
-main («no quedó ningún hash por subir»), así que esas 2 entradas del residuo son eternas hasta que se
-pueda quitar la ruta. Antes de eso: mergear **#65** (el dictado nace con el hilo; CI verde) y revisar
-**#66**, el PR que la vuelta dejó con la prosa de KYC corregida.
+**El próximo paso es:** mergear **#67** (paso 3: el mapa puede encoger) y **volver a correr onboarding
+en prod** — la prosa ya está corregida (#66) y ahora el área puede soltar la ruta muerta, así que esa
+vuelta tiene que dejar el residuo de onboarding **en cero**. Después, **paso 4: adelgazar la
+herramienta** (README = 66% del corpus; `.vuelta.json` viaja dentro de cada PR de la vuelta).
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -226,6 +225,42 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 19 — paso 3: el mapa ya puede ENCOGER (#67)
+
+El agujero que la evaluación encontró y que la corrida 18 cuantificó. Cerrar un área son DOS cosas y
+ahora hace las dos: **sube el hash** de lo que sigue vivo y **retira** lo que ya no está en main.
+
+**Lo que decidió el diseño:** entra por la puerta que YA existía (`operacion: "verificado"`), así que no
+hay camino nuevo ni forma de retirar sin un veredicto detrás. Tres guardas y **ninguna de juicio**: la
+ruta tiene que estar declarada · NO tiene que existir en main (lo dice el árbol) · viaja con el veredicto
+que revisó su prosa. La pieza clave fue partir `resolverArchivos`: «no existe en main» dejó de ser un
+`problema` genérico y pasó a ser un dato que **cada puerta interpreta** — para declarar es fatal, para
+cerrar un área es justamente el caso a atender.
+
+**Y si el retiro vacía el área, el área se va.** Un área hueca es prosa sin respaldo disfrazada de mapa.
+La sección pasa a contarse sin respaldo (gris en la Sala) y el retiro se dice en el cuerpo del PR y en el
+paso de la corrida.
+
+> **MEDICIÓN · 2026-09-02** — el retiro REAL de punta a punta (`dev/dictado.py`, 0 tokens) contra el
+> corpus de verdad: la ruta muerta se va · el área sobrevive con su archivo vivo (declaraba 2, uno
+> seguía vivo) · conserva sus secciones · **no se llevó ninguna otra área (10 de 10)** · el corpus sigue
+> pasando `-lint`. Más 4 tests del splice: una ruta de varias, el área que queda vacía, retirar todo, y
+> un hash que no coincide (no toca nada). `-race` 0 fallos, `unused` 0, bench 92/115, humo verde.
+
+**Encontrado escribiéndolo:** el bucle que limpiaba repos vacíos **cortaba** en la primera `"fuentes": {}`
+en vez de saltearla, así que al retirar tres rutas de una vez dejaba sin limpiar las áreas siguientes. Lo
+cazó el test de «retirar todo» — y es exactamente la razón por la que el splice de texto se comprueba
+parseando el resultado antes de devolverlo.
+
+**Dato del dominio que salió al mirar el caso real:** las dos áreas de onboarding declaran DOS archivos
+cada una (`kyc-pending-routing.ts`, borrado, y `kyc-pipeline.server.ts`, vivo), así que el retiro las deja
+en pie y su prosa sigue respaldada. El caso «el área se queda vacía» no se dio en el corpus real — está
+cubierto por test.
+
+**Higiene:** `resolverArchivos` devolvía su lista nueva con el mismo nombre que un `faltan []string` de la
+misma función (compilaba por el bloque, pero es una trampa) → `sinRastro`. Y `skills/vigilar.md` se pasó
+del techo de 900 palabras y el lint lo bloqueó: se recortó lo que ya dice `arnes.md`.
 
 ### 2026-09-02 · tarde · 18 — onboarding en prod CON el hilo: de `no alcanza` a `ya no`, 4.875 tokens (#66)
 
