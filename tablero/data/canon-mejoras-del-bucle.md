@@ -30,11 +30,10 @@ modelo se mide después de mergear, no antes.
 **#48 está mergeado y la primera vuelta en prod está ABIERTA** (17 tareas, 1 revisada). Los números
 medidos están en el Registro de la noche del 2026-09-01; dos hallazgos van en #49.
 
-**El próximo paso es:** decidir con Miguel el orden de los cinco cambios de la evaluación del
-2026-09-02 (Registro · 13). El primero propuesto es **enlazar sección→área en el mapa**, porque de ahí
-salen gratis la poda, el respaldo de cada afirmación y qué archivos abrir para una pregunta. Antes de
-eso, mergear #59 y #60 (siguen abiertos) y correr el barrido: con el residuo en 2 cuesta centavos.
-La cadencia recomendada sigue: **una vuelta por semana, $7/mes**, disparada por una persona.
+**El próximo paso es:** que Miguel mergee **#61** (la poda, paso 1; base = #60 para que el diff sea sólo ese
+paso) y arrancar el **paso 2: enlazar sección→área en el mapa** — de ahí salen gratis la poda de prosa, el
+respaldo de cada afirmación y qué archivos abrir para una pregunta. Antes de tocar el redactor o sus
+puertas, `python3 tools/canon/dev/humo.py`: el circuito entero con los falsos, sin gastar un token.
 
 ⚠ La evaluación del 2026-09-02 (medida, sin modelo) dice: el corpus SÍ es lo que Miguel describe y
 NO está creciendo de más (+6% en 5 días, 23,9k palabras para 557 archivos); lo que crece es la
@@ -226,6 +225,38 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · mañana · 14 — paso 1, la PODA: un solo redactor y fuera lo que nadie usaba (#61)
+
+Miguel: «vamos paso a paso mejorándolo y simplificando en lo posible el código si ves que es muy grande y
+hay cosas que ya no se van a usar». Se empezó por podar porque es lo de menor riesgo y deja menos código
+por el que enhebrar después el enlace sección→área.
+
+**Lo hecho** (`Creditop-SAS/playground#61`, rama `agentes/poda-de-la-maquinaria`, base #60):
+- **Un solo redactor.** Las tres puertas (`/api/tareas/{id}`, `/{tema}`, `/tema/{tema}`) convergen en
+  `revisarTema` vía `correrRedactor`; `revisar`, `guionRedactor`, `herramientaCambios` e
+  `herramientaHistoria` se fueron. Un tema sin tareas en el plan se reparte con `planDeterminista` y se
+  suma al plan.
+- Fuera `/api/relations`, `/api/policy/`, `-deriva` y 5 símbolos muertos (`golangci-lint --enable unused`,
+  que ya estaba instalado y nadie corría). **`/api/yo` se queda: es contrato del repo** (`dev/conformidad.js`,
+  CLAUDE.md del playground compartido) — por poco lo borro; la verificación externa lo salvó.
+- **`-expediente <tema> <carpeta>` destapado** (regresión mía de `5caf79a`); el que pesa es `-pesar`.
+- `-faltantes` falla a la vista con la raíz mal · `CANON_SIN_VUELTA` tampoco guarda · la constancia de
+  arranque de cada tarea va ANTES de armar el expediente · si el redactor se cae, cada tarea queda caída.
+- El impostor (`-modelo-falso`) **no veía el enunciado**: con caché de prompt el adaptador lo manda como
+  bloques y el impostor sólo leía strings → sin pregunta no veía las tareas → `concluir` sin `tarea` →
+  rechazo → 3 turnos → «no pudo concluir». Arreglado, y ahora contesta un hallazgo por tarea.
+- **`tools/canon/dev/humo.py`**: la prueba de humo del circuito con los falsos. Tres corridas hasta el
+  «todo bien»; las dos primeras encontraron lo de arriba.
+
+> **MEDICIÓN · 2026-09-02** — **−580 +237 líneas de Go; `tareas.go` de 1473 a 1130**. Tests `-race` 0
+> fallos, `unused` 0, gates iguales (lint ✓ · bench 92/115 · soporte 117/118, 21 sin cobertura).
+> **MEDICIÓN · 2026-09-02** — humo.py: analizar → 19 tareas; una tarea → 1 veredicto con `afirma` bajo su
+> agente; tema de 2 → 2 de 2; doble click → 409; tema a secas → mismo camino; servidor fresco sin plan →
+> reparte 2 solas con su corrida; `content/` limpio. 0 tokens.
+
+**Lección para el paso 2:** verificar «nadie lo usa» FUERA de la herramienta (otros repos, CI, contratos
+del monorepo) antes de borrar — `/api/yo` parecía muerto desde adentro de canon.
 
 ### 2026-09-02 · mañana · 13 — evaluación a fondo ANTES de código: ¿el corpus es lo que Miguel dice, y puede crecer y podarse?
 
