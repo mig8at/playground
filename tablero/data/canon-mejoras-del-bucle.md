@@ -232,6 +232,14 @@ en el guion enlazado; las corridas siguen en `/api/corridas`.
 > **RIESGO · 2026-09-01** — el frente no tiene tests: toda la verificación de hoy fue en el navegador. Cada cambio de `bucle.js` se comprueba a mano.
 > **RIESGO · 2026-09-01** — el corpus local de pruebas quedó dos veces modificado por ensayos (`## X / prueba`). Antes de commitear, siempre `git status tools/canon/content/`.
 
+> **MEDICIÓN · 2026-09-03** — el sello del documento (`documents.<archivo>.verified`) **viaja al lector**
+> en `/api/read` como un campo pelado, y en **12 de 20** documentos es anterior al último cambio de la
+> prosa. Que quede atrás es CORRECTO por diseño (sellar dice «lo revisé entero», y agregar una sección
+> no re-sella), pero nada le dice al lector que hay secciones que el sello no cubre: `internacionalizacion`
+> sirve `verified: 2026-08-31` con dos secciones dictadas el 3. Y el de `bancolombia` es
+> `"2026-07-31 · Miguel"`, que no es una fecha y ninguna comparación lo puede leer.
+> *Como:* el script del Registro del 2026-09-03, comparando cada sello con `git log -1` de su `.md`.
+
 ## Lo que NO entra
 
 - Consolidador que **corrija** lo que escribieron otros: sería un sexto integrador. El verificador dictamina.
