@@ -22,6 +22,11 @@ import { query, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
+/* LA PLANTILLA DEL FORMULARIO del vehicular, extraída de DEV (sólo lectura) el 2026-09-03. Va en un
+ * fixture y no inline porque es DATO, no lógica: así se puede volver a extraer y ver el diff. */
+const PLANTILLA_FORM: any = JSON.parse(
+    readFileSync(new URL('./fixtures/bcp-formulario-vehicular.json', import.meta.url), 'utf8'));
+
 assertWriteAllowed();
 if (TARGET !== 'local') {
     // Data sintética de un país sin operación: en dev/staging ensuciaría el ambiente del equipo y
@@ -42,6 +47,19 @@ const CLEAN = process.argv.includes('--clean');
 const CONTENEDOR = 'legacy-backend-laravel.test-1';
 
 async function limpiar() {
+    /* El FORMULARIO y sus placements. Se borran por los ids del fixture (que son los de dev) y por
+       alcance, no por «todo lo que haya»: en esta base pueden convivir los formularios de otros. */
+    const idsForms = PLANTILLA_FORM.forms.map((x: any) => x.id);
+    const idsCampos = PLANTILLA_FORM.fields.map((x: any) => x.id);
+    const idsTipos = PLANTILLA_FORM.form_types.map((x: any) => x.id);
+    if (idsForms.length) await exec(`DELETE FROM forms WHERE id IN (${idsForms.map(() => '?').join(',')})`, idsForms);
+    if (idsCampos.length) {
+        await exec(`DELETE FROM field_options WHERE field_id IN (${idsCampos.map(() => '?').join(',')})`, idsCampos);
+        await exec(`DELETE FROM fields WHERE id IN (${idsCampos.map(() => '?').join(',')})`, idsCampos);
+    }
+    if (idsTipos.length) await exec(`DELETE FROM form_types WHERE id IN (${idsTipos.map(() => '?').join(',')})`, idsTipos);
+    await exec('DELETE FROM dynamic_form_placements WHERE scope_type=? OR (scope_type=? AND scope_id IN (?,?))',
+        ['allied_branch', 'lender', CONSUMO, VEHICULAR]);
     for (const id of [CONSUMO, VEHICULAR]) {
         for (const t of ['lender_allied_credentials', 'lender_transaction_statuses', 'credit_line_by_lenders',
                          'lender_users_category_rules', 'lender_users_categories', 'lender_datacredito_rules',
@@ -150,6 +168,46 @@ for (const id of [CONSUMO, VEHICULAR]) {
         console.log(`  corrélo a mano:  docker exec ${CONTENEDOR} php artisan tinker --execute "${php.replace(/"/g, '\\"')}"`);
     }
 }
+
+/* ── EL FORMULARIO DEL VEHICULAR, Y DÓNDE APARECE ─────────────────────────────────────────────
+ *
+ * Sin esto el comercio de Perú caía en el formulario del OTRO sistema —el de los comercios
+ * dominicanos, cuyos schemas viven en S3 y el harness mockea— y la pantalla salía con el schema
+ * genérico del mock. El de BCP es el «backend-driven»: su plantilla son cuatro tablas del legacy
+ * (`form_types` → `forms` → `fields` → `field_options`, más la categoría) y **dónde aparece** lo dice
+ * `dynamic_form_placements`.
+ *
+ * Los placements NO se adivinaron: se copiaron de dev, que ya los tiene. Dos cosas que enseñan:
+ *   · el alcance es la SUCURSAL, no la entidad, y los dos pasos van ANTES y DESPUÉS del flujo
+ *     alterno (`pre_alternate_flow` / `post_alternate_flow`), con `always_show`;
+ *   · y hay dos filas más, en `pre_sign_documents` para la entidad, con `is_enabled = 0`. No son
+ *     ruido: en este diseño **ausencia ≠ apagado** —sin fila se HEREDA la fuente legacy—, así que
+ *     apagar de verdad exige una fila que lo diga. Se copian igual o el gate de firma reaparece. */
+async function sembrarFormulario(alliedId: number, branchId: number) {
+    for (const c of PLANTILLA_FORM.field_categories) await clonar('field_categories', c, {});
+    for (const ft of PLANTILLA_FORM.form_types) await clonar('form_types', ft, { id: ft.id });
+    for (const fi of PLANTILLA_FORM.fields) await clonar('fields', fi, { id: fi.id });
+    for (const fo of PLANTILLA_FORM.forms) await clonar('forms', fo, { id: fo.id });
+    for (const op of PLANTILLA_FORM.field_options) await clonar('field_options', op, { id: op.id });
+    console.log(`✓ formulario del vehicular: ${PLANTILLA_FORM.form_types.length} tipos, `
+        + `${PLANTILLA_FORM.fields.length} campos, ${PLANTILLA_FORM.field_options.length} opciones`);
+
+    /* El flujo alterno tiene que estar encendido en el COMERCIO: los dos placements se cuelgan de sus
+       bordes, así que sin esta bandera no hay bordes de donde colgarse. */
+    await exec('UPDATE allieds SET show_alternate_flow=1 WHERE id=?', [alliedId]);
+
+    const placements = [
+        { scope_type: 'allied_branch', scope_id: branchId, credit_line_id: 1, placement: 'pre_alternate_flow',    form_type_id: 8, sort: 1, is_enabled: 1, always_show: 1 },
+        { scope_type: 'allied_branch', scope_id: branchId, credit_line_id: 1, placement: 'post_alternate_flow',   form_type_id: 9, sort: 1, is_enabled: 1, always_show: 1 },
+        { scope_type: 'lender',        scope_id: VEHICULAR, credit_line_id: 1, placement: 'pre_sign_documents',   form_type_id: 8, sort: 1, is_enabled: 0, always_show: 0 },
+        { scope_type: 'lender',        scope_id: VEHICULAR, credit_line_id: 1, placement: 'pre_sign_documents',   form_type_id: 9, sort: 1, is_enabled: 0, always_show: 0 },
+    ];
+    for (const p of placements) await clonar('dynamic_form_placements', p, {});
+    console.log(`✓ placements: paso 1 antes y paso 2 después del flujo alterno (sucursal ${branchId}), `
+        + `y el gate de firma apagado con fila explícita`);
+}
+
+await sembrarFormulario(comercio.id, sucursal.id);
 
 /* Y el comercio se registra en `.flows.json`, que es por donde los runners lo direccionan POR SLUG
    (`sweep.ts matrix peru`). Sin esta entrada el comercio existe en la base y el harness no lo sabe

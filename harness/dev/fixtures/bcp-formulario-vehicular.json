@@ -1,0 +1,343 @@
+{
+ "forms": [
+  {
+   "id": 322,
+   "sort": 1,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 248,
+   "form_type_id": 8
+  },
+  {
+   "id": 323,
+   "sort": 2,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 249,
+   "form_type_id": 8
+  },
+  {
+   "id": 324,
+   "sort": 3,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 250,
+   "form_type_id": 8
+  },
+  {
+   "id": 325,
+   "sort": 4,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 251,
+   "form_type_id": 8
+  },
+  {
+   "id": 326,
+   "sort": 5,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 252,
+   "form_type_id": 8
+  },
+  {
+   "id": 334,
+   "sort": 8,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 253,
+   "form_type_id": 8
+  },
+  {
+   "id": 328,
+   "sort": 6,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 254,
+   "form_type_id": 8
+  },
+  {
+   "id": 329,
+   "sort": 7,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 255,
+   "form_type_id": 8
+  },
+  {
+   "id": 332,
+   "sort": 9,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 258,
+   "form_type_id": 8
+  },
+  {
+   "id": 335,
+   "sort": 10,
+   "hidden": 0,
+   "status": 1,
+   "editable": 0,
+   "field_id": 260,
+   "form_type_id": 8
+  },
+  {
+   "id": 330,
+   "sort": 1,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 256,
+   "form_type_id": 9
+  },
+  {
+   "id": 331,
+   "sort": 2,
+   "hidden": 0,
+   "status": 1,
+   "editable": 1,
+   "field_id": 257,
+   "form_type_id": 9
+  }
+ ],
+ "fields": [
+  {
+   "id": 248,
+   "name": "Marca del vehículo",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": "field_options.bcp.cars_tree",
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona una opción",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 249,
+   "name": "Modelo del vehículo",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": "field_options.bcp.cars_tree.models",
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona una opción",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": 248,
+   "field_category_id": 22
+  },
+  {
+   "id": 250,
+   "name": "Versión",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": "field_options.bcp.cars_tree.models.versions",
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona una opción",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": 249,
+   "field_category_id": 22
+  },
+  {
+   "id": 251,
+   "name": "Año de fabricación",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":4,\"maxLength\":4,\"min\":null,\"max\":null}",
+   "data_source": "field_options.years.15",
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona el año",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 252,
+   "name": "Seguro del vehículo",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": null,
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona una opción",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 253,
+   "name": "Valor del vehículo",
+   "type": "currency",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"number\",\"regex\":null,\"minLength\":null,\"maxLength\":null,\"min\":1,\"max\":null}",
+   "data_source": "amount.vehicle_value",
+   "description": null,
+   "field_group": null,
+   "help_message": "40,000.00",
+   "parent_value": null,
+   "field_appearance": "currency",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 254,
+   "name": "Bono de compra (Opcional)",
+   "type": "currency",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":true,\"dataType\":\"number\",\"regex\":null,\"minLength\":null,\"maxLength\":null,\"min\":1,\"max\":null}",
+   "data_source": "amount.rebate",
+   "description": null,
+   "field_group": null,
+   "help_message": "10,000.00",
+   "parent_value": null,
+   "field_appearance": "currency",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 255,
+   "name": "Comisión",
+   "type": "select",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"number\",\"regex\":null,\"minLength\":null,\"maxLength\":null,\"min\":0.1,\"max\":6}",
+   "data_source": "field_options.percent.0.1",
+   "description": null,
+   "field_group": null,
+   "help_message": "Selecciona el porcentaje",
+   "parent_value": null,
+   "field_appearance": "select",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 258,
+   "name": "Cuota Inicial",
+   "type": "currency",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"number\",\"regex\":null,\"minLength\":null,\"maxLength\":null,\"min\":1,\"max\":null}",
+   "data_source": "amount.down_payment",
+   "description": null,
+   "field_group": null,
+   "help_message": "40,000.00",
+   "parent_value": null,
+   "field_appearance": "currency",
+   "related_field_id": null,
+   "field_category_id": 23
+  },
+  {
+   "id": 260,
+   "name": "Monto a financiar",
+   "type": "currency",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"number\",\"min\":1,\"max\":100000000}",
+   "data_source": "computed.financed_amount",
+   "description": "Se calcula con el valor del vehículo, la cuota inicial y el bono.",
+   "field_group": null,
+   "help_message": "Si el monto queda fuera del rango de la entidad, ajustá la cuota inicial o el bono.",
+   "parent_value": null,
+   "field_appearance": "money",
+   "related_field_id": null,
+   "field_category_id": 22
+  },
+  {
+   "id": 256,
+   "name": "Número de chasis",
+   "type": "text",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": null,
+   "description": null,
+   "field_group": null,
+   "help_message": "Ej: 9BWZZZ377VT004251",
+   "parent_value": null,
+   "field_appearance": "text",
+   "related_field_id": null,
+   "field_category_id": 23
+  },
+  {
+   "id": 257,
+   "name": "Número de motor",
+   "type": "text",
+   "status": 1,
+   "parent_id": null,
+   "validation": "{\"nullable\":false,\"dataType\":\"string\",\"regex\":null,\"minLength\":1,\"maxLength\":100,\"min\":null,\"max\":null}",
+   "data_source": null,
+   "description": null,
+   "field_group": null,
+   "help_message": "Ej: ABC123456789",
+   "parent_value": null,
+   "field_appearance": "text",
+   "related_field_id": null,
+   "field_category_id": 23
+  }
+ ],
+ "form_types": [
+  {
+   "id": 8,
+   "name": "bcp-vehiculo-paso-1",
+   "lender_id": 207
+  },
+  {
+   "id": 9,
+   "name": "bcp-vehiculo-paso-2",
+   "lender_id": 207
+  }
+ ],
+ "field_options": [
+  {
+   "id": 204,
+   "key": "bana",
+   "name": "Bana",
+   "sort": 1,
+   "status": 1,
+   "field_id": 252
+  },
+  {
+   "id": 205,
+   "key": "endosado",
+   "name": "Endosado",
+   "sort": 2,
+   "status": 1,
+   "field_id": 252
+  }
+ ],
+ "field_categories": [
+  {
+   "id": 22,
+   "name": "Información del vehículo"
+  }
+ ],
+ "_origen": "Extraído de la BD de DEV el 2026-09-03 con `make trazador-sql TARGET=dev` (sólo lectura). Es la plantilla del formulario del vehicular de BCP: form_types 8 y 9 (los dos pasos), sus 12 campos, sus 2 opciones y la categoría 22. Los ids se conservan iguales a dev a propósito: en local no estaban ocupados y así el local y el compartido hablan del mismo form_type_id, que es lo que las variables del front nombran (VITE_BCP_VEHICLE_FORM_TYPE_ID=8)."
+}
