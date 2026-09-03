@@ -90,20 +90,36 @@ es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, 
 
 ### ⛔ La suite de PHPUnit de `legacy-backend` NO se corre entera. Nunca, en ningún ambiente
 
-**El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz está medida y sigue
-abierta: `phpunit.xml` fija `DB_DATABASE=testing` **pero nunca fijó `DB_HOST`** (cero commits en toda
-la historia del repo), así que las pruebas se conectan **al servidor que diga el `.env`** — y las
-credenciales que circulan son las del usuario **maestro del RDS, con `DROP`**. Dos tests usan
-`RefreshDatabase`, que corre `migrate:fresh`: **borra todas las tablas** y después migra. El detalle
+**El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz medida:
+`phpunit.xml` fija `DB_DATABASE=testing` **pero nunca fijó `DB_HOST`** (cero commits en toda la historia
+del repo), así que las pruebas se conectan **al servidor que diga el `.env`** — y las credenciales que
+circulan son las del usuario **maestro del RDS, con `DROP`**. Dos tests usaban `RefreshDatabase`, que
+corre `migrate:fresh`: **borra todas las tablas** y después migra.
+
+*(Acá decía «sigue abierta». Ya no: verificado el 2026-09-03 contra `main`, el commit `d3323457` —PR
+`Creditop-SAS/legacy-backend#1140`— borró los dos tests y agregó una **guarda** en
+`tests/CreatesApplication.php` con lista blanca de hosts (`127.0.0.1`, `localhost`, `::1`, `mysql`,
+`sail-mysql`) y schemas (`testing`): si la suite apunta a otra parte, **la corrida aborta**. Va en
+`createApplication()` porque Laravel lo llama antes de `setUpTraits()`, que es donde `RefreshDatabase`
+dispara el borrado. Llegó a `main` entre el 2 y el 3 de septiembre.)*
+
+⚠ **Pero la prohibición se queda, y el motivo es `make fresh`:** sigue siendo
+`artisan migrate:fresh --seed --force`, **no pasa por esa guarda** y apunta a donde diga tu `.env`. La
+práctica que puso un host remoto en el `.env` de alguien —aplicar migraciones a mano desde contenedores
+locales contra la base compartida— tampoco cambió. El detalle
 completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
 en `data/artifacts/…hipotesis.md`.
 
-**Los tres archivos prohibidos** — no los corras, ni sueltos ni dentro de una tanda, ni con el `.env`
-apuntando a local *(eran dos; el tercero apareció en `main` y se verificó el 2026-09-02)*:
+**Los archivos prohibidos: hoy NINGUNO** — verificado contra `main` el 2026-09-03, no queda un solo
+archivo con `use RefreshDatabase;` en el repo. *(Acá había tres. Dos se borraron en el commit de arriba
+—`Modules/Loans/tests/Feature/SafeCancelTest.php` y
+`Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php`— y el tercero,
+`Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php`, sigue existiendo pero ya no usa el
+trait. La lista era correcta el 2026-09-02: el cambio es de ayer para hoy.)*
 
-    Modules/Loans/tests/Feature/SafeCancelTest.php
-    Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php
-    Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php
+Que hoy no haya ninguno **no es una propiedad del repo, es un estado**: nada impide que mañana entre otro
+test con el trait, y la guarda protege el host, no el borrado. Por eso el chequeo de abajo se sigue
+haciendo antes de correr una carpeta.
 
 **Lo que NO se hace:**
 
@@ -123,8 +139,10 @@ Antes de correr cualquier carpeta, comprobá que no arrastra uno de los tres:
 
     grep -rlE '^\s*use RefreshDatabase;' <ruta>
 
-⚠ Grepear sólo `RefreshDatabase` da **7 archivos y 5 son falsos positivos** (lo mencionan en un import,
-o está comentado en el scaffold de Laravel). Hay que anclar el `use` al principio de línea.
+⚠ Grepear sólo `RefreshDatabase` da **30 archivos en `main` y los 30 son falsos positivos** (lo
+mencionan en un import, en un comentario, en un README o en un script). Anclado al principio de línea da
+**0**. Hay que anclar el `use`: sin eso el chequeo devuelve treinta nombres y no dice nada. *(Medido el
+2026-09-03; el 2026-09-02 eran 7 con 5 falsos.)*
 
 **Y si de verdad hiciera falta correr algo destructivo**, no alcanza con mirar el `.env`: es el `.env`
 **más** el entorno de la shell **más** `DATABASE_URL`, que pisa a todos. La regla práctica es más
