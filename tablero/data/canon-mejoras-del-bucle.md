@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas
 jira_title: ""
 ---
 
@@ -48,11 +48,19 @@ hoy (ambientes, local, repos, observabilidad), el banco `preguntas-equipo.txt` (
 en la búsqueda y en el agente. Medido en local con la misma sonda: **de 4 a 10 al primer resultado, 12 en
 los dos primeros**; bench y soporte iguales.
 
-**El próximo paso es:** revisar y mergear #76 y volver a correr la sonda y `-equipo` contra prod. Siguen
-abiertas las dos decisiones de Miguel: borrar las seis ramas `canon/*` de origin (todas en `main`) y
-encender `delete_branch_on_merge`. Después, por orden de valor: el paso 5 de crecer por demanda (las 21 de
-soporte + lo `SIN COBERTURA` del banco del equipo), y las mejoras del bucle (Registro 23; que `declarar`
-escriba objetivos cortos; el guion del agente y el texto de `buscar`, Registro 27).
+**Y sobre #76 va `Creditop-SAS/playground#77` — el DICCIONARIO DE TABLAS** (idea de Miguel del mismo día:
+hacer con las tablas y columnas lo que ya hacemos con los nombres del negocio). `content/tablas.json`
+generado de `information_schema` de producción (sólo lectura) y de los modelos en `main` de los dos
+monolitos: 235 tablas, 2.334 columnas, 64 FK + 287 relaciones por convención, 13 vecindarios. La búsqueda
+reconoce tablas y columnas y dice **qué tema las cuenta** (derivado en caliente de los mapas);
+`/api/tablas[/<nombre>]` navega el esquema; 208 tablas sin tema quedan como inventario. Banco del equipo
+17/18 → 22/22. Base `main`, pero el diff arrastra #76 hasta que mergee.
+
+**El próximo paso es:** revisar y mergear #76 y después #77, y medir en prod la sonda de 16 preguntas,
+`-equipo`, y las búsquedas con nombres de tabla. Siguen abiertas las dos decisiones de Miguel: borrar las
+seis ramas `canon/*` de origin (todas en `main`) y encender `delete_branch_on_merge`. Después, por orden de
+valor: crecer por demanda (las 21 de soporte, lo `SIN COBERTURA` del equipo, las 208 tablas sin tema y los
+`que_es`), y las mejoras del bucle (Registro 23; `declarar` con objetivos cortos; el guion del agente).
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -245,6 +253,46 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 29 — el diccionario de tablas: el dato entra al hilo (#77)
+
+Miguel: «¿qué tal si hacemos un diccionario de las tablas de la base y cómo se conectan con el corpus? como
+hicimos con los nombres de entidades y negocios, pero con las tablas y columnas». Y «arranca».
+
+**Medido antes de opinar** (prod, sólo lectura): **235 tablas · 3.094 columnas · 64 FK declaradas · 14
+columnas con comentario**. El corpus nombra tablas 28 veces en toda su prosa (por diseño), y sólo **27 de las
+235** se alcanzan desde un modelo que algún mapa declare. El diccionario de nombres ya hace lo mismo para
+comercios/entidades/estados (558 entradas, generado, con las consultas adentro). Y la semilla existía en el
+playground personal: `workers relaciones` (247 tablas, 432 relaciones con su origen, 13 vecindarios).
+
+**Lo construido (#77, tres commits que compilan solos, sobre la rama de #76 con base `main`):**
+- `corpus.Tablas`: carga `content/tablas.json`, reconoce tablas por nombre y columnas con `_` (las mudas
+  no) por token exacto; **qué tema cuenta cada tabla se deriva en caliente** cruzando sus modelos con los
+  archivos declarados en los mapas (no se guarda: envejecería); una columna la cuentan las tablas donde
+  está y la tabla a la que apunta. `/api/search` → clave `tablas`; `/api/tablas` (índice por vecindario,
+  `sin_tema`) y `/api/tablas/<nombre>` (columnas, relaciones, modelos, temas); el `buscar` del agente lo
+  ve; los bancos lo cuentan como camino.
+- `dev/tablas.py`: tres CSV de information_schema + los clones → el JSON. Relaciones 64 fk + 287 por
+  convención `<singular>_id`; vecindarios por prefijo portados de `workers/modelo.py`, con herencia.
+  258 KB. 158 tablas con modelo en ambos monolitos, 34 en uno, 43 sin modelo.
+- Contenido: `datos` declara la espina del backend que faltaba (UserRequest, Allied, AlliedBranch); el
+  glosario gana «Solicitud, por dentro: la tabla `user_requests` y su estado»; +4 preguntas con nombres de
+  tabla en el banco del equipo.
+
+> **MEDICIÓN · 2026-09-02** — banco del equipo **17/18 → 22/22**. «qué es user_request_status_id»: de «sin
+> resultados» a columna en 3 tablas que apunta a `user_request_statuses`, temas datos y bancolombia.
+> «cuántas filas tiene user_requests»: 568.841 filas, 8 referencias, 58 columnas la apuntan. Una búsqueda
+> con tablas pesa 1,6 KB. Bench 92/115 · soporte 117/118 · lint 204 secciones: iguales. `-race` 0 ·
+> `unused` 0 · humo y dictado todo bien.
+
+**Tres cosas que salieron de medir, no de pensar:** el plural de Eloquent falla con «data» (el generador
+prueba el singular si el plural no existe); la regex de modelos agarraba `tests/Unit/Models/*Test.php`; y
+una columna reconocida no llevaba a ningún tema porque sólo las tablas lo hacían. Y una de método: los
+gates corrieron una vez contra un binario viejo (el banco embebido seguía en 18 preguntas) — rebuild antes
+de medir, siempre.
+
+**Decisión de diseño:** el tema de una tabla NO se guarda en el JSON. Si se guardara, un `declarar` del
+bucle lo dejaría viejo en silencio; derivado de los mapas, cambia cuando cambian ellos.
 
 ### 2026-09-02 · noche · 28 — la capa `operar`: canon para el equipo de tecnología, medido antes y después (#76)
 
