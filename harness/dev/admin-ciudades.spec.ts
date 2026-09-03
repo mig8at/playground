@@ -100,6 +100,15 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
         'un comercio dominicano no debería poder elegir una ciudad colombiana')
         .toEqual(new Set(['Dominican Republic']));
 
+    // ⚠ El comodín TAMBIÉN tiene país, y hasta ahora se ignoraba. El controlador lo traía con un id
+    // QUEMADO (1123, el de Colombia) y se lo anteponía a cualquiera, así que a un comercio dominicano
+    // se le ofrecía la fila colombiana — el mismo error que este selector vino a hacer imposible.
+    // Dejó de ser inocuo cuando RD y Perú tuvieron el suyo.
+    const comodinRD = santoRD.find(c => c.name === 'TODAS LAS CIUDADES');
+    expect(comodinRD?.zone?.country?.name,
+        'a un comercio dominicano se le ofrece el comodín de OTRO país')
+        .toBe('Dominican Republic');
+
     // El bug exacto que se cometió, ahora imposible de cometer.
     const medelRD = await buscar('MEDEL', COMERCIO_RD);
     expect(paises(medelRD), 'MEDELLÍN sigue siendo ofrecible a un comercio dominicano').toHaveLength(0);
@@ -149,10 +158,20 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
             else if (html[i] === ']') { prof--; if (prof === 0) { fin = i + 1; break; } }
         }
         const cities = JSON.parse(html.slice(marca + '"cities":'.length, fin)) as Array<{ title: string }>;
-        return cities.map(c => c.title).filter(t => t !== 'TODAS LAS CIUDADES');
+        return cities.map(c => c.title);
     };
 
-    const ciudadesRD = await ciudadesEnLaPagina(COMERCIO_RD);
+    /** Los títulos sin el comodín, que es lo que se compara contra el catálogo de un país. */
+    const sinComodin = (titulos: string[]) => titulos.filter(t => !t.startsWith('TODAS LAS CIUDADES'));
+
+    // ⚠ El comodín se pide con un OR por NOMBRE, así que trae el de TODOS los países. Mientras Colombia
+    // fue la única que lo tenía se veía uno solo; al sembrar RD y Perú pasaron a aparecer TRES entradas
+    // idénticas «TODAS LAS CIUDADES» en el mismo desplegable, indistinguibles entre sí.
+    const todasRD = await ciudadesEnLaPagina(COMERCIO_RD);
+    expect(todasRD.filter(t => t === 'TODAS LAS CIUDADES'),
+        'el selector ofrece el comodín de varios países a la vez').toHaveLength(1);
+
+    const ciudadesRD = sinComodin(await ciudadesEnLaPagina(COMERCIO_RD));
     expect(ciudadesRD.length, 'el selector del punto de venta no ofrece ninguna ciudad para el comercio RD')
         .toBeGreaterThan(0);
     expect(ciudadesRD, 'el selector del PUNTO DE VENTA sigue ofreciendo MEDELLÍN a un comercio dominicano ' +
@@ -180,9 +199,21 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     await page.waitForLoadState('networkidle').catch(() => {});
     await page.screenshot({ path: join(artefactos, 'admin-comercio-rd.png'), fullPage: true }).catch(() => {});
 
-    const ciudadesCO = await ciudadesEnLaPagina(COMERCIO_CO);
+    const ciudadesCO = sinComodin(await ciudadesEnLaPagina(COMERCIO_CO));
     expect(ciudadesCO, 'el comercio colombiano perdió MEDELLÍN del selector de punto de venta')
         .toContain('MEDELLÍN');
+
+    // Ningún título puede repetirse: si dos ciudades del país se llaman igual, el desplegable las
+    // ordena juntas y quien carga el punto de venta elige a ciegas. Colombia tiene 4 VILLANUEVA y 4
+    // LA UNIÓN en departamentos distintos, y Perú 8 SANTA ROSA; el controlador les agrega su
+    // departamento y sólo a ellas.
+    const repetidos = (titulos: string[]) => [...new Set(titulos.filter((t, i) => titulos.indexOf(t) !== i))];
+    expect(repetidos(ciudadesCO), 'el selector colombiano muestra nombres repetidos e indistinguibles')
+        .toEqual([]);
+    expect(repetidos(ciudadesRD), 'el selector dominicano muestra nombres repetidos e indistinguibles')
+        .toEqual([]);
+    expect(ciudadesCO.filter(c => c.startsWith('VILLANUEVA')),
+        'los homónimos colombianos deberían venir con su departamento').toHaveLength(4);
     console.log(`  ✔ punto de venta, comercio CO: ${ciudadesCO.length} ciudades (Colombia intacta)`);
 
     // El modal del selector cuelga de la pestaña de entidades. El nombre exacto de la pestaña y del
