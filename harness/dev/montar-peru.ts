@@ -272,8 +272,9 @@ async function sembrarFormulario(alliedId: number, branchId: number) {
     /* ⚠ EL PARCHE LOCAL, y conviene entender qué se pierde con él.
      *
      * «Monto a financiar» (campo 260) es VISIBLE, OBLIGATORIO y **no editable**, y su valor debería
-     * salir de `computed.financed_amount`. Verificado el 2026-09-03: **nadie lo calcula** — ni en main
-     * ni en las ramas de BCP. El hidratador del formulario conoce el árbol de vehículos, los años, los
+     * salir de `computed.financed_amount`, que **en main no lo calcula nadie**. Sí lo implementa la
+     * rama `feat/bcp-vehiculo-monto-a-financiar` (`resolve-financed-amount.ts`, con test), sin mergear
+     * al 2026-09-03: o sea que este parche tiene fecha de vencimiento y es ese merge. El hidratador del formulario conoce el árbol de vehículos, los años, los
      * porcentajes, los países y el árbol de países, y cualquier otra fuente la ignora EN SILENCIO (el
      * aviso por consola está comentado). El campo de moneda sólo dibuja un input deshabilitado. Y el
      * validador exige todo campo visible obligatorio sin mirar si es editable.
