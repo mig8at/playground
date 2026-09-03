@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe
 jira_title: ""
 ---
 
@@ -52,13 +52,19 @@ en dos pasos. Y el agente contesta «le cobraron una cuota inicial mayor a la qu
 pasos y 14,7 s, respaldada con las dos secciones, explicando los dos orígenes del porcentaje y las dos
 bases. Soporte pasó de 21 a 15 sin cobertura; el banco del equipo, a 26/26.
 
-**El próximo paso es:** seguir por ahí — quedan 15 preguntas de soporte sin cobertura (pago mínimo contra
-saldo total, core bancario, asignación de asesor, reinicio de intentos de identidad, reportes) y las 2 del
-equipo (autenticación interna, webhooks), más 178 tablas sin área con su inventario. Y las mejoras del
-bucle: el guion del agente relee lo que ya recibió, y `declarar` escribe objetivos kilométricos.
+**Y hay otro PR en verde, `Creditop-SAS/playground#79`**, con lo que quedó a medias: **un bug del dictado**
+(el candidato mezclaba el `.md` de una fuente con las áreas del corpus vivo, así que dictar con un PR de
+corpus abierto rechazaba la pieza culpando a un ancla que sí existe), la **tabla de 301.690 filas que
+escribió un script de migración** y ningún servicio mantiene, y **18 `que_es`** en el diccionario con el
+arreglo que evita que el generador los borre en la próxima corrida.
 
-⚠ **Y no puedo habilitar `delete_branch_on_merge`**: la API devuelve 404 porque `mig-creditop` tiene push y
-triage, no admin. Lo tiene que hacer un admin del repo (OscarRinc, yamid, sanvipi, lhCabra, dsanchezops) en
+**El próximo paso es:** mergear #79 y validarlo en prod. Después: quedan 15 preguntas de soporte sin
+cobertura (pago mínimo contra saldo, core bancario, asignación de asesor, reinicio de intentos de identidad,
+reportes) y 2 del equipo (autenticación interna, webhooks); 176 tablas sin área con su inventario; y las
+mejoras del bucle (el guion del agente relee lo que ya recibió, `declarar` escribe objetivos kilométricos).
+
+⚠ **`delete_branch_on_merge` no lo puedo habilitar yo**: la API devuelve 404 porque `mig-creditop` tiene
+push y triage, no admin. Lo tiene que hacer un admin (OscarRinc, yamid, sanvipi, lhCabra, dsanchezops) en
 Settings → General → Pull Requests → «Automatically delete head branches».
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
@@ -252,6 +258,43 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · mañana · 35 — «¿algo más que corregir?»: un bug del dictado, la tabla del script, y el campo que se borraba (#79)
+
+Miguel preguntó si había algo más que agregar o corregir. Había tres cosas, y una era un bug que iba a
+morder al primer dev que dictara con un PR de corpus abierto.
+
+**1 · El dictado culpaba al ancla.** El candidato que pasa por el lint se arma con el `.md` de una fuente
+—disco, rama del bucle, embebido— y con las áreas del corpus VIVO. Si el vivo está adelantado respecto de
+esa base (o sea: cualquiera escribiendo con su PR pendiente), hay áreas que declaran secciones que el
+documento base no tiene, y el lint del candidato rechazaba la pieza con «no pasaría el lint» culpando a un
+ancla que SÍ existe. **Me costó tres corridas del arnés**, porque el arnés imprimía el titular del rechazo
+y se comía `problemas`. Arreglado sin debilitar la regla: el candidato OMITE el enlace que su documento base
+no sostiene; el área queda intacta en el mapa. Con prueba de regresión. Y el arnés ahora imprime el detalle
+de cada rechazo — ocultarlo fue lo que hizo perder las tres corridas.
+
+**2 · La tabla de las 301.690 filas, corregida.** Ayer la di por «sin escritor y quizá vacía»; las dos
+mitades estaban mal. La escribe **un script de migración de datos del repositorio del backend** (una
+herramienta de escritorio, julio de 2025): arma la lista de solicitudes sin el vínculo a su reporte del
+buró, las cruza por persona y fecha, y las marca de una sola vez. Ningún servicio la toca y **la base no
+tiene ningún disparador** (verificado contra `information_schema.triggers`: sin filas). Al tema `datos`, con
+lo que importa: rompe las dos conclusiones fáciles —«tiene filas, alguien la mantiene» y «no está en el
+código, está muerta»— y la pregunta correcta es quién la escribió y quién la lee HOY.
+
+**3 · 18 `que_es`, y que el generador no los pise.** Llené la línea de la espina, las de volumen y las que
+ENGAÑAN. Y el defecto que las habría borrado: `que_es` es la única línea que escribe una persona y el
+generador reescribe el JSON entero. **Es el mismo modo de falla de `verificado_contra`**, que decía
+«pendiente» para siempre: un campo que el generador pisa no es un campo, es un borrador. Ahora los preserva
+y dice cuántos; probado regenerando.
+
+> **MEDICIÓN · 2026-09-03** — lint ✓ 20 nodos · 213 secciones · 59 de 235 tablas con dueño. Bench 93/115 ·
+> 115/115. Soporte 123/124 con 15 sin cobertura. Equipo 26/26. `-race` 0 · `unused` 0 · humo y dictado todo
+> bien. #79 en verde.
+
+⚠ **Y la regla va CUARTA vez**, así que quedó escrita en el skill de documentar: escribir esto le robó el
+mapa a la pregunta del buró porque el `objetivo` del área nueva decía «buró». El `-bench` lo cazó como SIN
+CAMINO, que bloquea; se reenfocó el objetivo en lo que el área es y volvió. **Agregar texto diluye el
+ranking de lo que ya estaba**: después de escribir, los tres bancos.
 
 ### 2026-09-03 · mañana · 34 — #78 en prod: las seis preguntas contestadas, y una que sigue fallando por su nombre
 
