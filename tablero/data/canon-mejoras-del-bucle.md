@@ -76,7 +76,22 @@ Y algo que no era de canon: **CORE-431 está cerrada para la suite de `legacy-ba
 el 2 y el 3 de septiembre), así que la sección ⛔ del CLAUDE.md del playground quedó vieja y **ya está
 corregida** — la prohibición se queda, porque `make fresh` no pasa por la guarda nueva.
 
-Queda en pie: 15 preguntas de soporte sin cobertura, 2 del equipo, y 174 tablas sin área.
+**Y después se cerró el punto ciego que la ronda no puede ver.** Medido: de 1.598 archivos tocados en main
+en 30 días, sólo 214 los declaraba un área (13 %). No es mala cobertura —el corpus documenta mecanismos, no
+archivos— pero ahí estaban dos funcionalidades enteras invisibles, y se escribieron como dos temas nuevos:
+**`soporte`** (el canal de atención de CORE-258: la capa que conversa vive fuera de nuestros repos, cinco
+estados de autorización, dos confirmaciones que las da el cliente, y la comprobación de propiedad del
+crédito que las rutas viejas no hacen) y **`backoffice`** (el editor de reglas de otorgamiento: plantilla y
+copias por sucursal en una transacción, 6 de los 7 nombres de regla que hay en prod, y el único control de
+versión del repo). La ronda pasó de 650 a **671 archivos vigilados**.
+
+Un patrón que apareció solo y vale para planear: **lo nuevo está desplegado y sin usar** — las dos banderas
+de comercio, las sesiones del canal, las solicitudes de cambio, los changesets del editor: todos en cero
+filas en prod.
+
+Queda en pie: 15 preguntas de soporte sin cobertura, 2 del equipo, y 174 tablas sin área. Y del punto ciego
+siguen sin cubrir grupos grandes: 72 archivos de rutas del asistente y 43 de la pantalla de usuarios del
+backoffice.
 
 ## Objetivo
 
