@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato
 jira_title: ""
 ---
 
@@ -27,19 +27,23 @@ la guarda de modelo de analizar. Cinco commits, uno por pieza; humo y dictado en
 **#72 y #73 están mergeados y desplegados** (2026-09-02): prod corre el paso 4, la rama `canon/estado`
 nació con el primer `analizar`, y el PR del bucle se arregló trayendo `main` en vez de descartar la vuelta.
 
-**Y hay un PR nuevo, entero, en verde: `Creditop-SAS/playground#74` — la API de ESCRITURA para el equipo.**
-Salió de una pregunta de Miguel del mismo día: compartió `/api` y alguien del equipo concluyó que lo que
-subiera «quedaba en memoria y no entraba al contexto». Medido en prod: el mecanismo estaba bien y el
-MENSAJE mentía en cuatro lugares (Registro 25). Tres piezas: los textos del catálogo dicen la verdad ·
-**declarar desde un PR abierto** (la pieza acepta `pr`, el área nace `pendiente`, la ronda espera) ·
-llaves de escritura por persona (`CANON_WRITE_KEYS`, opcional). Decisión de Miguel: **la API para
-desarrolladores primero; el bucle de agentes, después.**
+**#74 —la API de ESCRITURA para el equipo— está mergeado y desplegado** (2026-09-02, 19:23) y validado en
+prod: el catálogo dice que escribir existe, la nota del borrador dice qué pasa al cerrar, el 422 de un
+archivo que no está en main explica cómo declararlo desde un PR abierto, y `/api` trae `para_tu_agente`.
 
-**El próximo paso es:** revisar y mergear #74, y validar en prod lo que dice su cuerpo (`/api/tools` sin
-llave trae el paso 6; la nota del borrador; `para_tu_agente`). Después, dos decisiones suyas que siguen
-abiertas: borrar las seis ramas `canon/*` de origin (todas contenidas en `main`) y encender
-`delete_branch_on_merge` en el repo. Y más adelante el **paso 5, crecer por demanda** (las 21 preguntas de
-soporte sin cobertura) y las mejoras del bucle (Registro 23), como su propio PR único.
+**Y hay otro PR entero, en verde: `Creditop-SAS/playground#75` — CONSULTAR BARATO.** Salió de la pregunta
+de Miguel «¿podemos hacer consultas eficientes?». Medido contra prod: `/api/pregunta` ya era razonable
+(una llamada, 10–17 s, con citas, 80–90 % del prompt de caché); la grasa estaba en el camino léxico. Una
+sección viaja sólo con las áreas que la respaldan (25 KB → 7,8 KB), la búsqueda acota y no repite
+(36,9 KB → 17,6 KB), seis resultados por defecto, el agente que contesta recibe el texto del primer
+resultado, dos objetivos kilométricos reescritos, y el skill enseña lo barato y la trampa del `%23`.
+El ranking no cambió: bench 92/115 · 115/115 · 115/115.
+
+**El próximo paso es:** mergear #75 y volver a medir en prod las cuatro llamadas de su tabla más una
+pregunta a `/api/pregunta` (contar pasos). Siguen abiertas dos decisiones de Miguel: borrar las seis
+ramas `canon/*` de origin (todas en `main`) y encender `delete_branch_on_merge`. Después, el **paso 5,
+crecer por demanda** (21 preguntas de soporte sin cobertura) y las mejoras del bucle (Registro 23; y
+que `declarar` escriba objetivos cortos), como su propio PR único.
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -232,6 +236,58 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 26 — consultar barato: la grasa estaba en el camino léxico, y estaba localizada (#75)
+
+Miguel: «ya desplegué, ¿cómo quedó? ¿podemos hacer consultas eficientes?». Primero el deploy de #74,
+validado en prod con las cuatro comprobaciones del PR. Después, medir en vez de opinar.
+
+> **MEDICIÓN · 2026-09-02** — `/api/pregunta` en prod, dos preguntas reales: **10 y 17 s**; quien pregunta
+> recibe 550–1.100 tokens; del lado de canon 21–27k de prompt con **80–90 % leído de caché** (la lectura
+> de caché subió de 12k a 21k entre la primera y la segunda). 3 y 5 pasos: buscar, leer ×1–3, contestar.
+> Las dos respaldadas con citas. Razonable: no era ahí.
+> **MEDICIÓN · 2026-09-02** — el camino léxico que sigue un agente con `consultar`: skill 1,4k · índice
+> 10k (5k en md) · **una búsqueda 9,2k** · leer una sección 3,9k → **~20k tokens por consulta**.
+
+**Una medición falsa que me hizo perder media hora, y que ahora está en el skill:** medí «leer una
+sección» con `curl` y la URL llevaba el `#` sin codificar. `curl` trata `#…` como fragmento y NO lo manda,
+así que el servidor recibió el tema entero (10 secciones, 5 áreas) y yo concluí «una sección pesa 15 KB y
+`format=md` no aplica». Con `%23`: cartera 6,6 KB en JSON, **1,5 KB en md**; listado 25 KB en JSON (el
+mapa entero: 10 áreas, 146 archivos) y **837 bytes en md**. Cualquier agente que arme la URL a mano cae
+igual y paga diez veces más sin enterarse — por eso va en el skill y en el README.
+
+**Dónde estaba la grasa, medido por campo:** en la búsqueda, `in_the_map` 12,4 KB con el objetivo de cada
+área **dos veces** (`section_title` y `fragment`) y dos objetivos de **1.745 y 1.681 caracteres**;
+`nodes_hit` 5,8 KB listando todas las anclas de seis temas; el glosario 3,9 KB con sus vecinos. En el
+read de una sección: el mapa entero del tema.
+
+**Lo construido (#75, tres commits que compilan solos):**
+- **Read de sección = la sección + sólo las áreas que la respaldan** (el hilo del paso 2), con sus repos;
+  sin respaldo lo dice. Listado: **25,4 KB → 7,8 KB**.
+- **Search magro**: objetivo una vez y acotado a 240, `citar` armado, `code` para lo entero; `nodes_hit`
+  tres temas × ocho anclas; glosario sin vecinos; **seis resultados por defecto** (el banco mide los tres
+  primeros; el `hint` dice cuántos más). **36,9 KB → 17,6 KB**. Bench igual: 92/115 · 115/115 · 115/115.
+- **El agente que contesta recibe el texto del primer resultado**: las dos preguntas del día hicieron
+  `buscar` y después `leer` justo ese resultado — un turno del modelo para pedir lo que ya tenía. `buscar`
+  pasó a función (`herramientaBuscar`) para probar sin modelo qué recibe. Se mide en prod tras el merge.
+- **Los dos objetivos kilométricos** eran el hallazgo entero de un redactor pegado como objetivo por un
+  `declarar` del bucle (2026-09-01). Reescritos leyendo el código: FirstSurname.php (el primer apellido
+  con sus partículas y el tope de 16 de Experian) y routes.ts (el router del asistente). 220 y 177
+  caracteres. Queda para el bucle que `declarar` escriba objetivos cortos desde el origen.
+- El skill `consultar` (892/900 palabras) enseña índice en md, sección en md y el `%23`.
+
+> **MEDICIÓN · 2026-09-02** — una consulta típica de un agente baja de **~24k a ~11k tokens** (skill 1,4k
+> + índice md 5,3k + búsqueda 4,4k + sección md 0,2k). Tests sobre el corpus real: la sección pesa menos
+> de la mitad del tema y trae sólo sus áreas · sin respaldo lo dice · la búsqueda no repite, acota y cabe
+> en 20 KB · el agente recibe el texto. `-race` 0 · `unused` 0 · `-lint` ✓ · humo y dictado todo bien.
+
+**Lo que no llegó al objetivo:** dije «de 20k a 5k» y quedó en 11k. Lo que resta son el skill (1,4k, ya
+en el techo de 900 palabras) y el índice en md (5,3k, que se lee una vez por sesión). Bajar más es
+cambiar el protocolo, no el payload: dejarlo para cuando se mida cuántas veces un agente relee el índice.
+
+> **DECISIÓN · 2026-09-02** — la búsqueda por HTTP devuelve **6** resultados por defecto (era 10). La Sala
+> pide 50 explícito, `/api/pregunta` usa 8 y el banco mide los 3 primeros: sólo cambia para agentes
+> externos, y el `hint` les dice cuántos más hay.
 
 ### 2026-09-02 · tarde-noche · 25 — la API de escritura para el equipo: el mensaje mentía, y el código de un PR abierto no se podía declarar (#74)
 
