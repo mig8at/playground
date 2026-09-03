@@ -39,31 +39,19 @@ sección viaja sólo con las áreas que la respaldan (25 KB → 7,8 KB), la bús
 resultado, dos objetivos kilométricos reescritos, y el skill enseña lo barato y la trampa del `%23`.
 El ranking no cambió: bench 92/115 · 115/115 · 115/115.
 
-**Y hay un PR más, entero y en verde: `Creditop-SAS/playground#76` — la capa `operar`: canon como
-documentación del equipo de tecnología.** Miguel lo pidió («que cualquiera pueda usar la API para salir de
-dudas de cómo funciona CreditOp»); medido antes: de 16 preguntas típicas de un dev, 4 caían en una sección
-que contestaba y 12 en otro tema con puntaje alto. Trae la segunda clase de documento (`operar`, puede
-nombrar comandos y rutas; un tema lleva UN documento), cuatro temas operativos verificados contra `main`
-hoy (ambientes, local, repos, observabilidad), el banco `preguntas-equipo.txt` (`-equipo`), y `cobertura`
-en la búsqueda y en el agente. Medido en local con la misma sonda: **de 4 a 10 al primer resultado, 12 en
-los dos primeros**; bench y soporte iguales.
+**#76 (la capa `operar`) y #77 (el diccionario de tablas y las tablas declaradas por área) están MERGEADOS
+y VALIDADOS EN PROD** (2026-09-03, 12:05 y 12:20 UTC). Prod sirve 19 nodos: los cuatro temas operativos
+—ambientes, local, repos, observabilidad— con sus secciones, el diccionario de 235 tablas en 13
+vecindarios, y las búsquedas por nombre de tabla devolviendo las áreas que la declaran. Medido en prod: la
+sonda de 16 preguntas del equipo pasó de **4 a 15 al primer resultado**, y «en qué tabla queda el estado de
+una solicitud» la contesta el agente en **2 pasos y 7 s** con citas, contra los 4 a 9 pasos de antes.
 
-**Y sobre #76 va `Creditop-SAS/playground#77` — el DICCIONARIO DE TABLAS Y LAS TABLAS DECLARADAS POR
-ÁREA.** El diccionario (`content/tablas.json`, generado de `information_schema` de prod y de los modelos de
-`main`) da el esquema: 235 tablas, 2.334 columnas, 64 FK + 287 por convención, 13 vecindarios. Y —corrección
-de Miguel al primer diseño— **las tablas que toca cada objetivo se DECLARAN en el área**, como los archivos:
-`tablas` en el mapa, verificado por el lint, con `canon -tablas` sugiriendo (acceso · modelo · mención) y
-una persona decidiendo. **76 declaraciones · 57 de 235 tablas con dueño**; los huecos con 1.000+ filas bajan de 74 a 33. El
-sugeridor barre los DOS monolitos por los modelos que cada archivo importa (171 de 235 tablas) y cierra con
-el inventario de lo que falta. Dos hallazgos medidos: **las tablas de log siguen vivas** (Loki no las
-reemplazó, todas escribieron hoy) y **`filas_aprox` se desvía hasta un 23 %** de un COUNT real. Banco del
-equipo 22/22.
-
-**El próximo paso es:** revisar y mergear #76 y después #77, y medir en prod la sonda de 16 preguntas,
-`-equipo`, y las búsquedas con nombres de tabla. Siguen abiertas las dos decisiones de Miguel: borrar las
-seis ramas `canon/*` de origin (todas en `main`) y encender `delete_branch_on_merge`. Después, por orden de
-valor: crecer por demanda (las 21 de soporte, lo `SIN COBERTURA` del equipo, las 208 tablas sin tema y los
-`que_es`), y las mejoras del bucle (Registro 23; `declarar` con objetivos cortos; el guion del agente).
+**El próximo paso es:** crecer con el inventario en la mano — 178 tablas sin área, 33 de ellas con más de
+mil filas y con el archivo que las usa, que es la vía más directa para escribir contexto nuevo verificado.
+Después, las preguntas sin cobertura (21 de soporte, 2 del equipo: autenticación interna y webhooks) y las
+mejoras del bucle (el guion del agente, que relee lo que ya recibió; y que `declarar` escriba objetivos
+cortos). Sigue abierta la decisión de Miguel de borrar las seis ramas `canon/*` de origin, todas contenidas
+en `main`, y encender `delete_branch_on_merge`.
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -256,6 +244,30 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · mañana · 32 — #76 y #77 en prod: de 4 a 15 de 16, y la pregunta de tabla en 2 pasos
+
+Miguel mergeó los dos (12:05 y 12:20 UTC) y los dos deploys quedaron en verde. Validado contra prod:
+
+> **MEDICIÓN · 2026-09-03** — **la sonda de 16 preguntas del equipo: 15 al primer resultado** en un tema
+> que contesta, contra **4** antes de la capa operativa. Los cuatro temas nuevos responden lo suyo:
+> «qué ambientes hay» y «cómo se despliega» → ambientes; «dónde veo los logs» → observabilidad; «cómo corro
+> el backend en local» y «cómo pruebo sin pegarle al banco» → local; «qué repos hay», «qué microservicios» y
+> «qué hace el pre approvals service» → repos. Las tres marcadas por cobertura baja son las que el corpus de
+> verdad no tiene o tiene en otro tema (crons, autenticación interna, webhooks).
+> **MEDICIÓN · 2026-09-03** — el diccionario en prod: 235 tablas, 13 vecindarios, 178 sin tema.
+> `user_requests` sale con `filas_aprox`, 32 columnas, 8 referencias, 58 columnas que la apuntan, sus 2
+> modelos y **las 5 áreas que la declaran**, todas con `via: declarada`. `lender_rules` → altas A3; `otps` →
+> motai A2 y onboarding A1.
+> **MEDICIÓN · 2026-09-03** — `/api/pregunta` con «en qué tabla queda el estado de una solicitud y cómo se
+> llama la columna»: **2 pasos, 7,1 s**, respaldada con 2 citas, y contesta exacto (la tabla, que la columna
+> no se llama «estado» sino `user_request_status_id`, y el catálogo al que apunta). Las preguntas de este
+> tipo tomaban 4 a 9 pasos: buscar alcanzó porque el diccionario reconoce la tabla y el glosario la explica.
+
+**Lo único que sigue fallando, y es honesto:** «dónde está la tabla de solicitudes y sus estados» cae en
+motai al primer resultado de PROSA. La respuesta igual llega —la clave `tablas` de la misma respuesta trae
+`user_requests` con sus cinco áreas— pero el ranking léxico manda a otro tema porque la pregunta no nombra
+ni la tabla ni la columna. Es vocabulario, no mecanismo.
 
 ### 2026-09-03 · madrugada · 31 — los DOS monolitos, y la hipótesis de los logs medida (#77, sin PR nuevo)
 
