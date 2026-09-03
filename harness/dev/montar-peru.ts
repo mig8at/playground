@@ -90,16 +90,17 @@ for (const id of [CONSUMO, VEHICULAR]) {
            ESE redirect y la `action` de BCP nunca corre: el sweep lo clasificaba como
            «url→credinet.co», que es la plantilla hablando. En NULL, el que decide es el action. */
         url: null,
-        /* ⚠ Los tipos de documento del flujo DINÁMICO —el que usa un comercio de fuera de Colombia—
-           son OTRA taxonomía que la del clásico, y hoy son exactamente cuatro: CED (11 dígitos),
-           CI_VE (6 a 11), y PAS/PAS_VE (6 a 9 alfanuméricos). Verificado contra main el 2026-09-03 en
-           `dynamic-step-one.ts::isSupportedDocumentType`. **No existe DNI**, así que un DNI peruano de
-           8 dígitos sólo pasa disfrazado (CI_VE o PAS lo aceptan por rango). Se declara PAS para poder
-           recorrer el flujo, y queda dicho que es un disfraz, no la configuración correcta. */
-        document_types: ['PAS', 'CI_VE'],
+        /* Los tipos de documento los decide el BACKEND, no la entidad: se unen los que declara cada
+           entidad activa del punto de venta y se RECORTAN con el catálogo del país, que es el TECHO
+           (`DocumentTypesService`). El de Perú es `["DNI","CE"]`, así que declarar otra cosa acá no
+           agrega nada: el cruce lo borra y manda el país. Se declara lo mismo para que el dato no
+           mienta. ⚠ Y no confundir con el validador del OTRO sistema de formularios —el de los
+           comercios dominicanos, sobre S3—, que sólo conoce CED/CI_VE/PAS/PAS_VE: ése no es el
+           camino de Perú. */
+        document_types: ['DNI', 'CE'],
     });
     await clonar('lenders_by_allied_branches', pSucursal, {
-        lender_id: id, allied_branch_id: sucursal.id, status: 1, document_types: ['PAS', 'CI_VE'],
+        lender_id: id, allied_branch_id: sucursal.id, status: 1, document_types: ['DNI', 'CE'],
         /* ⚠ Y la url del clon (la columna es `url_utm`, no `url`) SE LIMPIA en los dos niveles del
            cableado. Con la de la plantilla adentro, elegir la entidad devuelve ESE redirect y la
            `action` de BCP nunca corre: el sweep lo clasificaba «url→credinet.co», que es Sistecrédito
