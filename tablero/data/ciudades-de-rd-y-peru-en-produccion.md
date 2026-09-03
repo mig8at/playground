@@ -13,96 +13,59 @@ ramas: "fix/sucursales-rd-apuntan-a-ciudades-de-colombia"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**El trabajo está HECHO y mergeado. Lo que falta es correrlo en producción.** No hay que escribir
-código: hay que ejecutar una migración que ya existe, ya está revisada y ya corrió en la base
-compartida sin problemas.
+**Lo principal ya pasó: la migración corrió en producción el 2026-09-04 (lote 203)**, unas horas
+después de que esta tarea se escribiera. Prod quedó con **159 ciudades de RD**, **1.875 de Perú** y
+**cero sucursales apuntando a una ciudad de otro país**.
 
-El PR **legacy-backend #1301** («El catálogo de ciudades de RD y Perú, y las sucursales dejan de
-apuntar a otro país») mergeó a `main` el **2026-09-03 22:11** y salió a producción con el tag
-**v0.5.2** el mismo día. Pero **mergear no corre migraciones** (F-77), así que el código está
-desplegado y los datos no.
+**Lo que queda es el desfase de ramas.** El commit `ab89d273` está **sólo en `main`**: `qa`, `develop`
+y `staging` no lo tienen. Los datos sí están en la base compartida —alguien corrió la migración desde
+su máquina—, así que en esos tres ambientes **el dato existe y el código que lo produce no**. Una base
+recreada desde cero volvería a quedar sin ciudades.
 
-**El próximo paso es:** correr esa migración contra producción con el workflow manual
-`Run Database Migrations`, y verificar después los tres números de §«Cómo se comprueba».
+**El próximo paso es:** bajar `main` a `qa`, `develop` y `staging`, o portar ese commit.
 
-## Qué está mal hoy en producción
+## Lo que se resolvió, con su medición
 
-> **MEDICIÓN · 2026-09-04 (prod, solo lectura)** — comparada con la base compartida, que ya tiene el
-> catálogo cargado:
+> **MEDICIÓN · 2026-09-04 (prod, después del lote 203)** — comparada con lo que había antes:
 >
-> | | producción | compartida (dev/qa/staging) |
+> | | antes | ahora |
 > |---|---|---|
-> | ciudades de Colombia | 1.123 | 1.123 |
-> | **ciudades de Rep. Dominicana** | **8** | **159** |
-> | **ciudades de Perú** | **0** | **1.875** |
+> | ciudades de Rep. Dominicana | 8 | **159** |
+> | ciudades de Perú | 0 | **1.875** |
+> | sucursales con la ciudad en otro país | 20 | **0** |
 >
-> *Cómo se vuelve a comprobar:* contar `country_cities` uniendo por `country_zones.country_id`.
+> *Cómo se vuelve a comprobar:* contar `country_cities` por país uniendo por `country_zones`, y cruzar
+> el país del comercio contra el país de la ciudad de su sucursal.
 
-Tres consecuencias concretas, las tres visibles para alguien de afuera:
+## Lo que quedó abierto y NO es esta tarea
 
-1. **Las 20 sucursales de comercios dominicanos apuntan a una ciudad de COLOMBIA** — 17 a Santo
-   Domingo de Antioquia y 3 al comodín «todas las ciudades». El homónimo es lo que lo volvió
-   invisible: el selector mostraba un nombre correcto y guardaba el país equivocado.
-2. **30 de las 32 provincias dominicanas no tienen ni una ciudad.** Hay una sucursal cuya dirección
-   dice «la otra banda de higuey» y Higüey ni siquiera existe como fila.
-3. **Perú no puede completar una solicitud.** Tiene sus 25 departamentos y cero ciudades, así que el
-   paso de datos personales pide una ciudad que no se puede elegir y el flujo se corta ahí.
+Al validar lo anterior aparecieron filas centinela y una corrupción, que son otro trabajo:
 
-⚠ **Y las zonas NO son el problema**: los 18 países operativos ya tienen sus departamentos cargados
-(entre 7 y 36). Lo que falta es el nivel de abajo.
-
-## Dónde se toca
-
-Nada de código. Una sola migración, ya en `main`:
-`2026_09_03_120000_ciudades_de_rd_y_peru_y_sucursales_en_pais_equivocado`.
-
-Carga 158 municipios de RD y 1.874 distritos de Perú, y reubica las sucursales mal apuntadas. Las
-fuentes son las oficiales de cada país —la división territorial 2021 de la ONE para RD y el UBIGEO del
-INEI para Perú— y quedan citadas en el docblock de la propia migración.
-
-## Cómo se ataca
-
-1. Correr la migración en **producción** con el workflow manual `Run Database Migrations` de
-   `legacy-backend`. Es el mismo camino por el que se corrieron los lotes 197 a 202.
-2. Verificar los tres números de abajo.
-3. Bajar el código a `qa`, `develop` y `staging` (ver el bloqueo).
-
-## Lo que está bloqueado
-
-> **BLOQUEANTE · 2026-09-04** — el commit `ab89d273` está **sólo en `main`**: `qa`, `develop` y
-> `staging` no lo tienen. La base compartida SÍ tiene los datos, porque alguien corrió la migración
-> desde su máquina. O sea que en esos tres ambientes **el dato existe y el código que lo produce no**,
-> y una base que se recree desde cero volvería a quedar sin ciudades. Hay que bajar `main` a esas
-> ramas, o portar el commit.
-
-## Riesgos
-
-> **RIESGO · 2026-09-04** — la migración **reubica sucursales en producción**: cambia
-> `allied_branches.country_city_id` de 20 puntos de venta activos. Es lo que hay que hacer, pero es
-> una escritura sobre datos vivos de comercios que están operando. Conviene correrla con alguien
-> mirando y saber de antemano a qué ciudad queda cada una.
-
-> **RIESGO · 2026-09-04** — el `down()` no puede deshacer la reubicación: no guarda a qué ciudad
-> apuntaba cada sucursal antes. Si hay que volver atrás, es a mano.
-
-## Lo que NO entra
-
-- **Los otros 15 países operativos** (México, Brasil, Argentina, …) siguen con cero ciudades. No
-  bloquean nada porque no tienen ni un comercio; se cargan cuando se abra el país.
-- Reescribir el selector de ciudad. Ya se hizo aparte: distingue homónimos y filtra por departamento.
+- **La zona `Medellín` de COMORAS.** Su código es `G`, o sea **Grande Comore**: alguien le pisó el
+  nombre. De ella cuelga una ciudad llamada **`Extranjero`**. Las dos tienen **cero usos**.
+- **La zona `Extranjero` de Colombia**, sin ninguna ciudad y sin usos.
+- **Los comodines `TODAS LAS CIUDADES`** (uno por país, colgando de una zona `Todos los
+  departamentos`). ⚠ **NO son basura: 95 sucursales los usan** —78 en Colombia y 17 en RD—, así que
+  borrarlos rompe. Si deben existir es una decisión de producto; que vivan como una fila más de
+  `country_cities`, mezclados con ciudades reales, es lo discutible.
 
 ## Cómo se comprueba
 
-Contra producción, después de correr la migración:
-
-1. **Rep. Dominicana pasa de 8 a 158 ciudades** y ninguna de sus 32 provincias queda vacía.
-2. **Perú pasa de 0 a 1.874 distritos**, repartidos en sus 25 departamentos.
-3. **Cero sucursales con el país de su ciudad distinto del país de su comercio** — hoy son 20.
-
-Y en pantalla: abrir el punto de venta de un comercio dominicano en el admin y ver que su ciudad ya
-es dominicana.
+1. RD tiene 159 ciudades y Perú 1.875, en producción. ✅ 2026-09-04
+2. Cero sucursales con el país de su ciudad distinto del de su comercio. ✅ 2026-09-04
+3. `qa`, `develop` y `staging` contienen el commit `ab89d273`. ⏳ pendiente
 
 ## Registro
+
+### 2026-09-04 (tarde) · la migración corrió en producción; queda sólo el desfase de ramas
+
+Horas después de publicar la tarea, la migración corrió en prod (lote 203). Los tres números de
+«Cómo se comprueba» pasaron a verde salvo el de ramas. El estado de arriba se reescribió.
+
+Al validarlo aparecieron las filas centinela —`TODAS LAS CIUDADES`, `Extranjero`— y una corrupción
+real: la zona `Grande Comore` de Comoras tiene el nombre pisado por `Medellín`, con una ciudad
+`Extranjero` colgando. Se midió el uso antes de proponer nada: los comodines los usan 95 sucursales,
+la basura de Comoras cero. Va como tarea aparte.
 
 ### 2026-09-04 · publicada como CORE-516, en el sprint 14
 
@@ -119,10 +82,12 @@ bloqueante aparte, porque es la clase de desfase que se descubre tarde.
 
 ## Tarea (publicable)
 
+
 ## En una línea
 
-Cargar en producción el catálogo de ciudades de República Dominicana y Perú, y corregir los puntos de
-venta que hoy apuntan a una ciudad de otro país.
+✅ **Hecho el 2026-09-04.** Se cargó en producción el catálogo de ciudades de República Dominicana y
+Perú, y se corrigieron los puntos de venta que apuntaban a una ciudad de otro país. Queda un paso
+técnico: alinear las ramas de los ambientes de prueba.
 
 ## Por qué
 
@@ -151,8 +116,7 @@ corrigió aparte.
 
 ## Dónde probar
 
-En **producción**, que es el único ambiente al que le falta. El ambiente compartido de pruebas ya
-tiene los datos cargados.
+En **producción**, donde ya está aplicado. El ambiente compartido de pruebas también tiene los datos.
 
 ## Cómo validar
 
@@ -164,10 +128,12 @@ tiene los datos cargados.
 
 ## Criterios de aceptación
 
-- Ningún punto de venta queda con la ciudad en un país distinto al de su comercio.
-- El selector de ciudad ofrece municipios en las 32 provincias dominicanas.
-- El selector ofrece distritos en los 25 departamentos peruanos.
-- Una solicitud en Perú puede pasar el paso de datos personales.
+- ✅ Ningún punto de venta queda con la ciudad en un país distinto al de su comercio. *(verificado en
+  producción el 2026-09-04: eran 20, ahora son 0)*
+- ✅ El selector de ciudad ofrece municipios en las 32 provincias dominicanas. *(de 8 ciudades a 159)*
+- ✅ El selector ofrece distritos en los 25 departamentos peruanos. *(de 0 a 1.875)*
+- ⏳ Una solicitud en Perú puede pasar el paso de datos personales. *(pendiente de probarlo corriendo)*
+- ⏳ Los ambientes de prueba quedan con el mismo código, no sólo con los mismos datos.
 
 ## Dependencias / contraparte
 
