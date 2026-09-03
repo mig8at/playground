@@ -58,7 +58,7 @@ corpus abierto rechazaba la pieza culpando a un ancla que sí existe), la **tabl
 escribió un script de migración** y ningún servicio mantiene, y **18 `que_es`** en el diccionario con el
 arreglo que evita que el generador los borre en la próxima corrida.
 
-**El próximo paso es:** mergear #79 y validarlo en prod. Después: quedan 15 preguntas de soporte sin
+**#79 está mergeado y validado en prod** (2026-09-03, 14:07 UTC). **El próximo paso es:** quedan 15 preguntas de soporte sin
 cobertura (pago mínimo contra saldo, core bancario, asignación de asesor, reinicio de intentos de identidad,
 reportes) y 2 del equipo (autenticación interna, webhooks); 176 tablas sin área con su inventario; y las
 mejoras del bucle (el guion del agente relee lo que ya recibió, `declarar` escribe objetivos kilométricos).
@@ -258,6 +258,30 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · mañana · 36 — #79 en prod, y el agente contesta bien SIN citar
+
+Mergeado a las 14:07, deploy en verde. La sección nueva está en `datos` con su área, que declara el script
+de migración con su hash y la tabla. Los 18 `que_es` se sirven por `/api/tablas/<nombre>` y en la búsqueda.
+
+⚠ **La primera medición me mintió y casi reporto un bug que no era.** Pedí seis `que_es` y tres vinieron
+vacíos, en alternancia perfecta: era el **relevo de tareas del despliegue** —unas respuestas de la tarea
+vieja y otras de la nueva— y el mismo efecto hizo que un `read` por ancla devolviera `nodes: null`. A los
+tres minutos, los seis correctos. **Durante el rollover, prod contesta dos versiones a la vez: medir ahí es
+medir ruido.** Ya sabía que tarda ~4 minutos y aun así lo pisé.
+
+> **MEDICIÓN · 2026-09-03** — `/api/tablas/user_request_risk_central_verified` en prod: `filas_aprox`
+> 276.696 (la estimación) con su `que_es` diciendo las 300 mil contadas, vecindario solicitud, **tema
+> `datos#5` vía declarada, y `modelos` vacío** — que es exactamente el hallazgo: ningún modelo la
+> representa. El hilo completo, de la tabla al script, servido por la API.
+
+**Y un hallazgo del agente, para el PR del guion:** le pregunté «tiene 300 mil filas pero no encuentro quién
+la escribe, ¿está muerta?». Contestó **exacto** en 3 pasos y 13 s —no está muerta, la escribió un script de
+migración, ningún servicio la mantiene, y hasta distinguió las 301 mil contadas de las 276 mil estimadas—
+pero con **`citas: []` y `respaldada: false`**: leyó el tema entero y no citó ninguna sección. La guardia
+hizo su trabajo (marcó la respuesta como no respaldada en vez de fingir respaldo), pero el agente tenía la
+cita en la mano y no la usó. Va con lo del guion: hoy le dice «leé una sección entera» y no le exige copiar
+el ancla de lo que leyó.
 
 ### 2026-09-03 · mañana · 35 — «¿algo más que corregir?»: un bug del dictado, la tabla del script, y el campo que se borraba (#79)
 
