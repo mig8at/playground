@@ -3339,109 +3339,44 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   local de un comercio de su timestamp sin sumarle el desfase de su país.
 - **Estado:** vivo.
 
-### F-184 · En AUTOGESTIÓN, elegir una entidad in-platform manda al cliente a `/continue`, una ruta que sólo existe para el ASESOR: 404
+### F-184 · El indicativo se HORNEA en `users.cell_phone` al crear la persona, y la persona no es de un país: quien nació en el flujo dominicano arrastra `+1` para siempre
 
-- **Síntoma:** un cliente en el canal de autogestión elige una entidad CreditopX y el navegador termina
-  en `/self-service/<hash>/<ureq>/continue?url=null`. La consola dice `No routes matched location` y el
-  documento responde **HTTP 404**. La solicitud SÍ avanzó —la BD pasa a estado 3 «Seleccionó entidad»—,
-  así que la base dice que todo va bien y el cliente está mirando una página de error.
-- **Causa raíz:** la ruta está declarada **sólo dentro del grupo `merchant`** de
-  `apps/loan-request-wizard/app/routes.ts`; el grupo `:flow` (que sirve `/self-service`) no la tiene. Y
-  la acción del listado redirige ahí sin mirar el canal: con `showModal` y sin `url`, va a `continue`.
-  Para rt=2/3/4 el backend **nunca** setea `data.url` —el `case 2,3,4` de `UserRequestService` asigna
-  `user_request_id` y `standBy`, no `url`— y **las dos ramas** que prenden `showModal` dejan la misma
-  combinación: la del envío por WhatsApp (`user_self_management`) y la del cliente sin asesor
-  (`auth()->user() === null && !$allied->self_managed`). O sea que en autogestión el destino es siempre
-  el mismo, y en autogestión ese destino no existe.
-- **Evidencia (2026-09-03, local, Pullman/CrediPullman):** el caminador con navegador
-  (`make harness-caminar MOTOR=navegador`) lo reprodujo y lo dejó en su paquete de evidencia. Medido
-  aparte con `curl`: `/self-service/e9409aff/466305/continue?url=null` → **404**; el mismo camino bajo
-  `/merchant/…` → **302**. El motor HTTP del mismo caminador **no lo ve**: recibe el 202 con el destino y
-  salta al handoff sin cargarlo, y cierra en estado 11.
-- **Alcance: NO se pudo confirmar en producción, y la ausencia no prueba nada.** Siete días de logs del
-  front tienen golpes a `/continue` **sólo** bajo `/merchant`, ninguno bajo `/self-service`. Pero un 404
-  lo sirve el router **antes** de cualquier handler, así que no emite `route.lifecycle` ni pasa por el
-  logging de la app: esa consulta no puede ver el caso aunque ocurra. Lo que sí está medido es el
-  tamaño del terreno: **91 comercios** en producción tienen `self_managed = 0` y al menos una entidad
-  in-platform habilitada.
-- **Arreglo (decisión del equipo, dos caminos):** declarar `continue` también en el grupo `:flow`, o
-  —lo que parece correcto— que la acción no mande ahí a un cliente de autogestión: `/continue` es la
-  pantalla del ASESOR esperando a que el cliente termine, y no tiene sentido para el cliente mismo. El
-  destino natural en autogestión es `.../confirmation`, que es el link que el backend ya le manda por
-  WhatsApp y el que el caminador abre a mano para poder seguir.
-- **Estado:** vivo.
-
-### F-183 · Dos repos, UNA base, dos historias de migraciones: crear un comercio está roto EN PRODUCCIÓN porque `legacy-backend` borró columnas que `legacy-application` sigue escribiendo
-
-- **Síntoma:** en el admin de producción (`admin.creditop.com/aliados`), **crear un comercio falla** con
-  `SQLSTATE[42S22]: Unknown column 'quaternary_color' in 'field list' (… insert into allieds …)`. La
-  pantalla no dice qué pasó; el stack no muestra el mensaje. Mirando sólo el código del `create` uno
-  sospecha de `country_id` —que es `NOT NULL`— y se va por el camino equivocado: la validación pasó y el
-  país viaja bien. **Lo que falta es una columna que el insert nombra y la tabla ya no tiene.**
-- **Causa raíz:** `allieds` la escriben **dos repos** y cada uno tiene **su propio directorio de
-  migraciones**. `legacy-backend` migró el branding a `theme_key` + `token_overrides`
-  (`2026_08_18_100000_add_branding…`) y **borró las seis columnas de color**
-  (`2026_08_18_100100_drop_legacy_color_columns…`). `legacy-application` **no se enteró**: su
-  `Admin/AlliedController@store` sigue mandando `quaternary_color` y `quinary_color`, y su modelo
-  `Allied` los conserva en `$fillable`. El drop llegó a `main` de backend el **1/9** y a producción con
-  el tag **v0.4.70 (2/9)**; el admin no cambió.
-- **Evidencia (producción, Loki, ventana de 10 días):**
-
-  | columna | dirección del desfase | ventana | usuarios | ¿sigue? |
-  |---|---|---|---|---|
-  | `amount_label` | **el código salió ANTES que la migración** — el admin escribía la columna y aún no existía | 09-02 13:52 → 14:19 · 12 fallas en `UPDATE` de puntos de venta | 3 | **no**: se curó sola al correr la migración (lote 199) |
-  | `quaternary_color` | **la migración salió ANTES que el código** — la columna se borró y el admin la sigue escribiendo | 09-03 20:53 → 20:58 · 10 fallas en `INSERT` de comercios | 1 (tres intentos seguidos) | **SÍ** |
-
-  Reproducido en local con el modelo de `legacy-application` y su `$fillable` real, dentro de una
-  transacción revertida: mismo `QueryException`, misma columna.
-- **⚠ Y el estado de la tabla difiere POR AMBIENTE**, lo que hace que el bug aparezca y desaparezca según
-  dónde se pruebe: `quaternary_color` y `quinary_color` **siguen existiendo en la base compartida**
-  (dev/qa/staging) y **ya no** en local ni en producción — el drop corrió en las tres, pero en la
-  compartida alguien las volvió a crear. O sea que **crear un comercio funciona en dev/qa y falla en
-  prod**, que es el peor orden posible para enterarse.
-- **Arreglo:** quitar las dos asignaciones del `store` del admin y los cinco colores del `$fillable` del
-  modelo. Nada más los escribe: el `update` no los toca y el front del admin ya no los pide. ⚠ **NO tocar
-  `database/factories/AlliedFactory.php`**, que escribe tres de ellos: los tests corren contra la base de
-  *testing*, migrada con las migraciones de `legacy-application`, cuyo `create_allieds_table` de 2023
-  **sigue declarando las columnas**. Ahí existen.
-- **Estado:** vivo en producción al 2026-09-03. Es **F-77 de ida y de vuelta**: mergear no corre
-  migraciones, así que el código y el esquema se desincronizan en las dos direcciones — y con dos repos
-  sobre una misma tabla, el que despliega primero rompe al otro. Al tocar una columna de `allieds` o de
-  `allied_branches`, **grepear los DOS repos antes**.
-
-### F-184 · El cliente elige el indicativo y el backend lo pega a ciegas: usuarios colombianos guardados como `+1`, y el OTP sale al NANP
-
-- **Síntoma:** un comercio COLOMBIANO —Mediarte, país 47, indicativo 57— produce usuarios cuyo teléfono
-  queda guardado como `+13023398616`: el celular colombiano con **`+1` pegado adelante**. El OTP se emite
-  contra ese número, así que **el SMS sale a un número del NANP** (el `+1 302…` es Delaware), no al
-  cliente. La persona no recibe el código y el flujo muere sin error visible.
-- **Causa raíz, en tres eslabones:**
-  1. **El cliente elige el indicativo.** El consumer-hub arranca su selector en `+1`
-     (`ConsumerHubLogin.tsx`: `useState<string>("1")`, con una lista de dos opciones escrita a mano,
-     `+1` y `+57`); si nadie lo cambia, manda `+1`. El móvil también manda su propio `dialCode`.
-  2. **El request NO lo declara.** `SendOtpCodeRequest` valida `phone_number`, `otp_length`,
-     `onboarding_channel`, `terms`, `policies` y `partner_branch_hash` — **`dialCode` no está**. Se lee
-     igual con `$sendOtpCodeRequest->dialCode` (el bolsón de input crudo de Laravel), sin validación.
-  3. **El backend lo pega sin contrastar.** `UserService::getOrCreateUser` hace
-     `$cellPhone = $dialCode . $cellPhone` y guarda eso en `users.cell_phone`. **Nadie compara el
-     indicativo contra el país del comercio**, que es el único que lo sabe con certeza.
-- **⚠ Y la guarda del móvil no protege:** `MobileOnboardingService` intenta evitar el doble prefijo con
-  `str_contains($phoneNumber, $dialCode)`, pero el móvil manda `"+1"` y el teléfono nunca contiene `"+1"`,
-  así que nunca dispara. Peor: con un `dialCode` de un solo dígito la comparación es una subcadena en
-  cualquier posición, o sea que el resultado depende de si ese dígito aparece en el número — el mismo
-  código pega o no pega según el teléfono.
-- **Evidencia (producción, 30 días):** 16 OTP emitidos con `+1` sobre celulares colombianos, **8 usuarios
-  distintos**, del 2026-08-05 al 2026-09-03. **7 quedaron con `users.cell_phone = '+13…'`** y **6 de
-  ellos no tienen ni una solicitud**: se registraron, el código se fue al NANP y nunca avanzaron. El
-  octavo (Mediarte) terminó con el teléfono en NULL. Por origen: `mobile` 14 · `onboarding_web` 2. El
-  usuario 377072 se creó a las 21:36:28 **ya con el `+1`** y su primer OTP salió tres segundos después:
-  el prefijo se pega al CREAR, no al enviar.
-- **Arreglo:** el indicativo **no debe venir del cliente ni concatenarse al teléfono guardado**. El país
-  lo dicta el comercio (sucursal → aliado → país), que es lo que ya hacen `PhoneRoutingService` y
-  `MerchantCountryService`; `users.cell_phone` tiene que quedar en forma NACIONAL y el país en
-  `users.country_id`. Mientras eso no pase, como mínimo: declarar `dialCode` en el request y **rechazarlo
-  si no coincide con el indicativo del comercio**.
-- **Estado:** vivo en producción al 2026-09-03. ⚠ Es la MISMA raíz de **F-175** (el mismo celular
-  guardado de tres formas) vista desde el daño: allá era una búsqueda que no encontraba; acá es un SMS
-  que se va al país equivocado. Y explica por qué el arreglo de búsqueda por variantes de F-175 no
-  alcanza: normaliza al leer, pero la escritura sigue corrompiendo el dato.
+- **Síntoma:** un comercio COLOMBIANO —Mediarte, país 47— muestra clientes cuyo teléfono está guardado
+  como `+13023398616`: un celular colombiano con **`+1` pegado adelante**. El OTP se emite contra ese
+  número, así que el SMS sale al **NANP** (`+1 302…` es Delaware) y no al cliente.
+- **Causa raíz:** el indicativo se **concatena dentro de `users.cell_phone`** cuando la persona se crea, y
+  sale del **comercio de ese momento** — `BackDoorUserService::withCountryPhoneCode()` prefija con
+  `findPhoneCodeByHash($alliedBranchId)`, y `UserService::getOrCreateUser` hace
+  `$cellPhone = $dialCode . $cellPhone`. **En el momento de crearla eso es correcto.** Lo que está mal es
+  que el dato quede horneado: `users` es UNA fila por persona y el país es del COMERCIO, no de ella. Quien
+  nació comprando en un comercio dominicano queda con `+1` en la columna, y lo arrastra a cualquier
+  comercio de cualquier país al que vuelva. El teléfono debería guardarse en forma NACIONAL y el país
+  vivir en `users.country_id`.
+- **Evidencia (producción, el caso reportado):** el usuario 312485 se creó el **2026-05-06 11:02:15**, el
+  mismo segundo que su primera solicitud, en **Comercio Prueba · República Dominicana**
+  (`countries.phone_code` = `+1`). Cuatro meses después, el **2026-09-03**, la misma persona origina dos
+  veces en **Mediarte (Colombia)** — y sus seis OTP de ese día salieron igual contra `+13023398616`, por
+  `mobile` y por `onboarding_web`. El comercio cambió de país; la fila del usuario no.
+- **⚠ HAY UNA SEGUNDA PUERTA, distinta y con el mismo defecto de fondo:** otros **6 usuarios** quedaron con
+  `+13…` **sin ningún comercio** (`users.allied_id` NULL, cero solicitudes), creados entre el 24/7 y el
+  24/8, todos por `mobile`. Ahí el `+1` no sale del comercio sino del **cliente**: el móvil manda su propio
+  `dialCode` y el backend lo pega. ⚠ Y la guarda anti-doble-prefijo del móvil no protege — compara con
+  `str_contains($phoneNumber, $dialCode)` y el móvil manda `"+1"`, que ningún teléfono contiene; con un
+  indicativo de un solo dígito sería peor, porque la comparación es una subcadena en cualquier posición.
+  ⚠ Además `SendOtpCodeRequest` **no declara `dialCode`**, así que llega sin validar por el bolsón de
+  input crudo, y nadie lo contrasta contra el país del comercio.
+- **Alcance medido (30 días):** 16 OTP con `+1` sobre celulares colombianos, **8 usuarios**, del 2026-08-05
+  al 2026-09-03. **Siete quedaron con `users.cell_phone = '+13…'`** y **seis no tienen ni una solicitud**:
+  se registraron, el código se fue al NANP y nunca avanzaron. El octavo —el de Mediarte— terminó con el
+  teléfono en NULL.
+- **Arreglo:** dejar de hornear el indicativo. `users.cell_phone` en forma nacional, el país en
+  `users.country_id` —que desde el 1/9 lo escribe el alta con el país del comercio— y el indicativo
+  resuelto al ENVIAR, desde el comercio de ESA solicitud, que es lo que ya hacen `PhoneRoutingService` y
+  `MerchantCountryService`. Mientras eso no pase, como mínimo: declarar `dialCode` en el request y
+  rechazarlo si no coincide con el indicativo del comercio.
+- **Estado:** vivo en producción al 2026-09-03. ⚠ Es la MISMA raíz de **F-175** vista desde el daño: allá
+  era una búsqueda que no encontraba, acá es un SMS que sale al país equivocado. Y explica por qué el
+  arreglo de búsqueda por variantes no alcanzó: normaliza al LEER, y el problema está en la ESCRITURA.
+  ⚠ El backfill `2026_09_01_130000_telefonos_pierden_el_indicativo_pegado` quita `+57`, `+1` y `+51` de
+  los casos inequívocos — pero **salta los que colisionan con una fila ya normalizada**, que son
+  justamente los de este hallazgo.
