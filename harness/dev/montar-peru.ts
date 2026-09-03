@@ -203,6 +203,25 @@ async function sembrarFormulario(alliedId: number, branchId: number) {
         { scope_type: 'lender',        scope_id: VEHICULAR, credit_line_id: 1, placement: 'pre_sign_documents',   form_type_id: 9, sort: 1, is_enabled: 0, always_show: 0 },
     ];
     for (const p of placements) await clonar('dynamic_form_placements', p, {});
+
+    /* ⚠ EL PARCHE LOCAL, y conviene entender qué se pierde con él.
+     *
+     * «Monto a financiar» (campo 260) es VISIBLE, OBLIGATORIO y **no editable**, y su valor debería
+     * salir de `computed.financed_amount`. Verificado el 2026-09-03: **nadie lo calcula** — ni en main
+     * ni en las ramas de BCP. El hidratador del formulario conoce el árbol de vehículos, los años, los
+     * porcentajes, los países y el árbol de países, y cualquier otra fuente la ignora EN SILENCIO (el
+     * aviso por consola está comentado). El campo de moneda sólo dibuja un input deshabilitado. Y el
+     * validador exige todo campo visible obligatorio sin mirar si es editable.
+     *
+     * Resultado en la pantalla: «Monto a financiar es requerido» y ninguna forma de satisfacerlo.
+     *
+     * Acá se vuelve EDITABLE para que el flujo se pueda recorrer. Es un parche del entorno, no un
+     * arreglo: en producción ese número es derivado (valor del vehículo − cuota inicial − bono, que es
+     * lo que dice su mensaje de ayuda), así que escribirlo a mano prueba el resto del recorrido pero
+     * NO prueba el cálculo. Cuando alguien implemente la fuente, esta línea se borra. */
+    await exec('UPDATE forms SET editable=1 WHERE form_type_id=8 AND field_id=260');
+    console.log('  ⚠ parche local: «Monto a financiar» quedó editable — su `computed.financed_amount` '
+        + 'no lo calcula nadie (ni main ni las ramas de BCP), así que sin esto el formulario no se puede pasar');
     console.log(`✓ placements: paso 1 antes y paso 2 después del flujo alterno (sucursal ${branchId}), `
         + `y el gate de firma apagado con fila explícita`);
 }
