@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -58,10 +58,20 @@ corpus abierto rechazaba la pieza culpando a un ancla que sí existe), la **tabl
 escribió un script de migración** y ningún servicio mantiene, y **18 `que_es`** en el diccionario con el
 arreglo que evita que el generador los borre en la próxima corrida.
 
-**#79 está mergeado y validado en prod** (2026-09-03, 14:07 UTC). **El próximo paso es:** quedan 15 preguntas de soporte sin
-cobertura (pago mínimo contra saldo, core bancario, asignación de asesor, reinicio de intentos de identidad,
-reportes) y 2 del equipo (autenticación interna, webhooks); 176 tablas sin área con su inventario; y las
-mejoras del bucle (el guion del agente relee lo que ya recibió, `declarar` escribe objetivos kilométricos).
+**#79 mergeado y validado en prod.** Y el ENSAYO que propuso Miguel —dictar por la API como un dev, para
+los tres cambios que están por llegar (SmartPay con el teléfono del asesor, internacionalización multipaís,
+y Perú con su comercio y su banco)— **funcionó y destapó dos bugs que rompen `main`**:
+
+- **`Creditop-SAS/playground#80`** es el dictado en sí: tres piezas aceptadas por la API de prod (el
+  teléfono con token del asesor, el espacio de numeración de documentos compartido entre países, y el corte
+  por país del listado con el país 1 que pasa siempre). Su mapa quedó roto por el bug y **se arregló a mano
+  en la rama**: hoy está CLEAN.
+- **`Creditop-SAS/playground#81`** son los arreglos: la primera área de un tema abierto rompía el JSON, y
+  abrir un tema declarándole archivos daba 500 al cerrar. Más el arnés, que decía «todo bien» habiendo
+  muerto a la mitad (36 de 54 comprobaciones). En verde.
+
+**El próximo paso es:** mergear #81 primero (es el arreglo) y después #80 (el contenido dictado). Después
+quedan 15 preguntas de soporte sin cobertura, 176 tablas sin área, y las mejoras del bucle.
 
 ⚠ **`delete_branch_on_merge` no lo puedo habilitar yo**: la API devuelve 404 porque `mig-creditop` tiene
 push y triage, no admin. Lo tiene que hacer un admin (OscarRinc, yamid, sanvipi, lhCabra, dsanchezops) en
@@ -258,6 +268,49 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · tarde · 37 — el ensayo de dictar como un dev: tres piezas y DOS bugs que rompen main (#80, #81)
+
+Miguel: «van a llegar 3 cambios grandes a main que tocan varios repos… ¿te parece si simulamos la agregación
+de contexto usando la API como si fuéramos un desarrollador?». Sí, y fue el ensayo más productivo del día:
+salió contexto útil y salieron dos defectos que ninguna prueba había tocado.
+
+**Lo que se dictó, verificado leyendo las ramas y los PRs** (no de memoria):
+- **SmartPay, el teléfono del asesor.** Cuando el cliente no tiene teléfono el asesor origina con el suyo, y
+  al guardarlo se le pega un token de unicidad con la hora al microsegundo. La consecuencia: **lo que está en
+  la columna del celular NO es un número marcable**. De ahí dos reglas opuestas que van juntas: en toda
+  frontera de SALIDA hay que quitar el token; en el valor que se GUARDA y en cualquier clave de BÚSQUEDA hay
+  que dejarlo. Medido el 2026-08-27: el bypass de código para pruebas se decidía con la forma guardada, así
+  que nunca coincidía con la lista de exentos y el asesor quedaba esperando un código que no llegaba.
+- **Internacionalización, el documento.** El número de documento es único SOBRE LA COLUMNA SOLA: los países
+  comparten un espacio de numeración. 119.188 documentos de ocho dígitos ocupados y **85.601 números que un
+  peruano no va a poder usar**; el alta responde «documento ya en uso» en el primer paso. Y había CUATRO
+  guardas que no se comportaban igual, por eso el diagnóstico era difícil.
+- **El corte por país del listado.** A un comercio le salen las entidades de su país **más las del país 1**,
+  que es el valor por omisión con el que quedaron casi todas. O sea: **abrir un país no alcanza con crear su
+  comercio y su entidad** — hay que mover las entidades viejas a su país o el cliente nuevo verá ofertas que
+  no le sirven. Y el corte vive escrito dos veces en el mismo servicio.
+
+**Los dos bugs, los dos en el caso más natural (documentar algo nuevo con su código):**
+1. **La primera área de un tema abierto rompía el JSON.** `"areas": []` + el splice que pone «,\n» antes del
+   primer elemento = `"areas": [,{…}]`. Las tres piezas pasaron lint y banco AL ENTRAR —esas guardias miran
+   la prosa— y el mapa inválido se produjo AL CERRAR: llegó al PR y **rompió el build de main**. Arreglado, y
+   ahora el splice **comprueba su resultado parseando**, como ya hacía el retiro.
+2. **Abrir un tema y declararle archivos en el mismo borrador daba 500**: el splice leía el disco y el mapa
+   nace en ese mismo cierre. Ahora parte del mapa recién generado.
+
+⚠ **Y lo peor, que explica por qué no salieron antes: el arnés decía «todo bien» habiendo muerto.** El
+`finally` termina en `sys.exit`, y **un `sys.exit` ahí DESCARTA la excepción en curso**. Corrían **36 de 54**
+comprobaciones —las 18 de operar y tablas no se ejecutaban— y reportaba éxito. La causa de la muerte era
+chica: la salida de `-ronda` se decodificaba en estricto y la ronda recorta contando bytes, así que cortaba
+una tilde por la mitad. Ahora la excepción es una falla, se imprime la traza, y **se dice cuántas
+comprobaciones corrieron**: un número que baja delata una fase saltada.
+
+> **MEDICIÓN · 2026-09-03** — dos guardias atajaron EN VIVO contra prod, antes de escribir nada: el banco
+> rechazó dos versiones de mis piezas por robarle el camino a preguntas que el corpus ya contestaba
+> («por qué todos aparecen como empleados» y «el listado no sale y no hay ningún error»). Reescritas, entraron.
+> Y el `pr` de una pieza **no funciona contra los repos de código**: `403 al pedir el PR
+> Creditop-SAS/legacy-backend#1279` — a la App de canon le falta el permiso de leer pull requests.
 
 ### 2026-09-03 · mañana · 36 — #79 en prod, y el agente contesta bien SIN citar
 
