@@ -31,7 +31,7 @@ nació con el primer `analizar`, y el PR del bucle se arregló trayendo `main` e
 prod: el catálogo dice que escribir existe, la nota del borrador dice qué pasa al cerrar, el 422 de un
 archivo que no está en main explica cómo declararlo desde un PR abierto, y `/api` trae `para_tu_agente`.
 
-**Y hay otro PR entero, en verde: `Creditop-SAS/playground#75` — CONSULTAR BARATO.** Salió de la pregunta
+**#75 —CONSULTAR BARATO— mergeado y desplegado** (2026-09-02, 20:07), medido en prod (Registro 27). Salió de la pregunta
 de Miguel «¿podemos hacer consultas eficientes?». Medido contra prod: `/api/pregunta` ya era razonable
 (una llamada, 10–17 s, con citas, 80–90 % del prompt de caché); la grasa estaba en el camino léxico. Una
 sección viaja sólo con las áreas que la respaldan (25 KB → 7,8 KB), la búsqueda acota y no repite
@@ -39,8 +39,7 @@ sección viaja sólo con las áreas que la respaldan (25 KB → 7,8 KB), la bús
 resultado, dos objetivos kilométricos reescritos, y el skill enseña lo barato y la trampa del `%23`.
 El ranking no cambió: bench 92/115 · 115/115 · 115/115.
 
-**El próximo paso es:** mergear #75 y volver a medir en prod las cuatro llamadas de su tabla más una
-pregunta a `/api/pregunta` (contar pasos). Siguen abiertas dos decisiones de Miguel: borrar las seis
+**El próximo paso es:** las dos decisiones de Miguel que siguen abiertas y el orden de lo que viene. Siguen abiertas dos decisiones de Miguel: borrar las seis
 ramas `canon/*` de origin (todas en `main`) y encender `delete_branch_on_merge`. Después, el **paso 5,
 crecer por demanda** (21 preguntas de soporte sin cobertura) y las mejoras del bucle (Registro 23; y
 que `declarar` escriba objetivos cortos), como su propio PR único.
@@ -236,6 +235,26 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 27 — #75 en prod: la lectura bajó lo medido; el texto en `buscar` NO ahorró el turno
+
+Miguel mergeó y desplegó a las 20:07. Las cuatro llamadas de la tabla, contra prod:
+
+> **MEDICIÓN · 2026-09-02** — búsqueda `solo 6 cuotas rotativo`: **36.896 → 17.583 bytes** (~9,2k → ~4,4k
+> tokens), 6 resultados, 6 áreas, 3 temas, objetivo más largo 130 caracteres. Sección de `listado` en JSON:
+> **25.370 → 7.758** (1 sección, 2 áreas, 33 archivos, contra 10 áreas y 146). Sección de cartera:
+> 6.606 → 3.562. La sección en md y el índice en md, iguales (837 B y 21 KB). Idéntico a lo medido en local.
+
+**Y el resultado negativo, que vale decirlo:** el texto del primer resultado en `buscar` no le ahorró el
+turno al agente. Las mismas dos preguntas de la tarde: la del rotativo hizo **4 pasos** (buscar, buscar,
+leer, contestar) en 10,4 s contra 3 pasos y 9,9 s antes; la de Motai hizo 4 (buscar, leer sección, leer
+el tema ENTERO, contestar) en 21 s contra 5 y 17 s. El modelo lee igual aunque ya tenga el texto, y el
+texto en el historial subió la escritura de caché (15,8k y 11,9k contra 9k y 5,7k). Dos corridas no son
+una medición del comportamiento del modelo; son la señal de que la palanca no es el payload sino el guion
+del agente —qué le dice sobre leer antes de citar— y eso se cambia midiendo con más preguntas, no con dos.
+Queda anotado para el PR del agente, no se toca ahora.
+
+**Lo que sí se confirmó:** el camino léxico bajó como se midió en local, con el ranking intacto.
 
 ### 2026-09-02 · noche · 26 — consultar barato: la grasa estaba en el camino léxico, y estaba localizada (#75)
 
