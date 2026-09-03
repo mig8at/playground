@@ -143,23 +143,30 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     // La lista viaja como prop de Inertia embebida en el HTML de la vista. Se extrae el array
     // `"cities":[…]` balanceando corchetes en vez de buscar `data-page`: esta app renderiza las props
     // inline (el `<body id="app">` no lleva el atributo), así que ese camino no existe acá.
-    const ciudadesEnLaPagina = async (alliedId: string) => {
+    /** Un array de props de Inertia embebido en el HTML de la vista, por su nombre. */
+    const propDeLaPagina = async <T>(alliedId: string, nombre: string): Promise<T[]> => {
         const res = await page.request.get(
             `${BASE}/aliados/${alliedId}/puntosdeventa?allied_branch_id=0`);
         expect(res.ok(), `la vista de puntos de venta devolvió ${res.status()}`).toBeTruthy();
         const html = await res.text();
 
-        const marca = html.indexOf('"cities":[');
-        expect(marca, 'no se encontró la prop `cities` en la vista: ¿cambió el controlador?')
+        const clave = `"${nombre}":`;
+        const marca = html.indexOf(`${clave}[`);
+        expect(marca, `no se encontró la prop \`${nombre}\` en la vista: ¿cambió el controlador?`)
             .toBeGreaterThan(-1);
-        let i = marca + '"cities":'.length, prof = 0, fin = i;
+        let i = marca + clave.length, prof = 0, fin = i;
         for (; i < html.length; i++) {
             if (html[i] === '[') prof++;
             else if (html[i] === ']') { prof--; if (prof === 0) { fin = i + 1; break; } }
         }
-        const cities = JSON.parse(html.slice(marca + '"cities":'.length, fin)) as Array<{ title: string }>;
-        return cities.map(c => c.title);
+
+        return JSON.parse(html.slice(marca + clave.length, fin)) as T[];
     };
+
+    type Ciudad = { value: number; title: string; zona_id: number };
+
+    const ciudadesEnLaPagina = async (alliedId: string) =>
+        (await propDeLaPagina<Ciudad>(alliedId, 'cities')).map(c => c.title);
 
     /** Los títulos sin el comodín, que es lo que se compara contra el catálogo de un país. */
     const sinComodin = (titulos: string[]) => titulos.filter(t => !t.startsWith('TODAS LAS CIUDADES'));
@@ -214,6 +221,22 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
         .toEqual([]);
     expect(ciudadesCO.filter(c => c.startsWith('VILLANUEVA')),
         'los homónimos colombianos deberían venir con su departamento').toHaveLength(4);
+
+    // ── 4. La cascada: elegir el departamento recorta la lista antes de escribir nada ─────────────
+    //
+    // Un desplegable de 1.875 distritos peruanos no se puede RECORRER, sólo buscar — y sólo si ya sabés
+    // qué buscás. El primer paso lo hace navegable. Es opcional: sin departamento se ofrecen todas.
+    for (const [comercio, pais] of [[COMERCIO_RD, 'RD'], [COMERCIO_CO, 'CO']] as const) {
+        const zonas = await propDeLaPagina<{ value: number; title: string }>(comercio, 'countryZones');
+        expect(zonas.length, `el comercio ${pais} no recibió departamentos para la cascada`)
+            .toBeGreaterThan(0);
+
+        const ciudades = await propDeLaPagina<Ciudad>(comercio, 'cities');
+        const huerfanas = ciudades.filter(c => !zonas.some(z => z.value === c.zona_id));
+        expect(huerfanas, `${pais}: hay ciudades cuyo departamento no está en la lista, el filtro las escondería`)
+            .toHaveLength(0);
+        console.log(`  ✔ cascada, comercio ${pais}: ${zonas.length} departamentos cubren sus ${ciudades.length} ciudades`);
+    }
     console.log(`  ✔ punto de venta, comercio CO: ${ciudadesCO.length} ciudades (Colombia intacta)`);
 
     // El modal del selector cuelga de la pestaña de entidades. El nombre exacto de la pestaña y del
