@@ -48,13 +48,13 @@ hoy (ambientes, local, repos, observabilidad), el banco `preguntas-equipo.txt` (
 en la búsqueda y en el agente. Medido en local con la misma sonda: **de 4 a 10 al primer resultado, 12 en
 los dos primeros**; bench y soporte iguales.
 
-**Y sobre #76 va `Creditop-SAS/playground#77` — el DICCIONARIO DE TABLAS** (idea de Miguel del mismo día:
-hacer con las tablas y columnas lo que ya hacemos con los nombres del negocio). `content/tablas.json`
-generado de `information_schema` de producción (sólo lectura) y de los modelos en `main` de los dos
-monolitos: 235 tablas, 2.334 columnas, 64 FK + 287 relaciones por convención, 13 vecindarios. La búsqueda
-reconoce tablas y columnas y dice **qué tema las cuenta** (derivado en caliente de los mapas);
-`/api/tablas[/<nombre>]` navega el esquema; 208 tablas sin tema quedan como inventario. Banco del equipo
-17/18 → 22/22. Base `main`, pero el diff arrastra #76 hasta que mergee.
+**Y sobre #76 va `Creditop-SAS/playground#77` — el DICCIONARIO DE TABLAS Y LAS TABLAS DECLARADAS POR
+ÁREA.** El diccionario (`content/tablas.json`, generado de `information_schema` de prod y de los modelos de
+`main`) da el esquema: 235 tablas, 2.334 columnas, 64 FK + 287 por convención, 13 vecindarios. Y —corrección
+de Miguel al primer diseño— **las tablas que toca cada objetivo se DECLARAN en el área**, como los archivos:
+`tablas` en el mapa, verificado por el lint, con `canon -tablas` sugiriendo (acceso · modelo · mención) y
+una persona decidiendo. 61 declaraciones en 10 temas; 42 tablas con dueño; los huecos con 1.000+ filas bajan
+de 74 a 48. Banco del equipo 22/22.
 
 **El próximo paso es:** revisar y mergear #76 y después #77, y medir en prod la sonda de 16 preguntas,
 `-equipo`, y las búsquedas con nombres de tabla. Siguen abiertas las dos decisiones de Miguel: borrar las
@@ -253,6 +253,49 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · madrugada · 30 — «¿para qué Eloquent?»: las tablas se declaran, y el modelo baja a sugerencia (#77)
+
+Miguel, sobre el diseño que yo acababa de subir: «no entiendo para qué Eloquent, o sea, la idea es que al
+igual que los archivos tuviéramos la lista de tablas que tocan los flujos específicos, ¿eso no es más
+rico?». Tenía razón, y se pudo medir antes de cambiarlo.
+
+> **MEDICIÓN · 2026-09-03** — sobre las 96 áreas, leyendo sus 601 archivos de `origin/main`: por el modelo
+> de Eloquent se alcanzaban **27** tablas de 235; por **acceso explícito** en el código declarado (una
+> consulta, un join, `$table`), **33** en 29 áreas; por **mención** del nombre, **67** en 61 áreas. El área
+> del recorrido del codeudor menciona 16 y por modelo alcanzaba 2. Y al revés: `users` (367k filas) no se
+> nombra en el código de ninguna área y su modelo SÍ está declarado. **Ninguna inferencia sola alcanza** —
+> por eso se declara, y las inferencias quedan como sugerencia.
+
+**Lo construido:** `Area.Tablas` en el map.json; `TemasDeTabla` prefiere lo declarado y sólo cae al modelo
+si nadie la declaró, marcando `via` (`declarada` | `modelo`) porque son dos niveles de certeza, como el hash
+y la prosa; el lint exige que cada tabla exista en el esquema y no se repita, y el resumen dice cuántas
+quedan sin dueño con volumen; `canon -tablas [tema]` sugiere con las tres señales separadas y ordenadas por
+señal y volumen, sin escribir; y el dictado acepta `tablas` en la pieza, validadas al entrar.
+
+**Y su segunda idea —«en base a las tablas faltantes podríamos despejar más información»— dio esto:**
+
+> **MEDICIÓN · 2026-09-03** — 168 tablas que ningún área mencionaba, 42 con 1.000+ filas. Cinco entraron al
+> mapa al revisarlas: **`otps`** (522k) la tocan DOS flujos —el celular del titular en onboarding A1 y el
+> codeudor en motai A2—, **`lender_rules`** (41k) es la tabla de las reglas que altas A3 ya describía sin
+> nombrar, **`users_category_log`** (1,5M) es de creditopx A1 y salía por acceso en `datos`,
+> **`user_terms_acepteds`** (573k) es formalizacion A1, y **`user_request_risk_central_user_data`** (1M) es
+> la unión solicitud↔buró de datos A4 y kyc A2. Las sin dueño con volumen bajaron de **74 a 48**.
+
+⚠ **Un hallazgo que vale por sí solo:** `user_request_risk_central_verified`, **276.696 filas**, no la
+escribe ningún código de `main` — sólo aparece en su migración y en un `.sql`. Quedó sin dueño a propósito.
+
+> **MEDICIÓN · 2026-09-03** — 61 declaraciones en 10 temas · 42 de 235 tablas con dueño · banco del equipo
+> **17/18 → 22/22** · bench 92/115, soporte 117/118 y lint (204 secciones) iguales · `-race` 0 · `unused` 0
+> · humo y dictado todo bien. `user_requests` sale con las 5 áreas que la declaran, de 5 temas distintos.
+
+**Lo que encontró el arnés y yo no vi:** una pieza que declara tablas pero cuyos archivos ya estaban todos
+declarados **no crea área**, y las tablas se perdían en silencio. Ahora la respuesta lo dice
+(`tablas_no_aplicadas`) y hay que sumarlas al área que ya los declara. Perder una declaración sin avisar es
+peor que pedir un paso más.
+
+**Decisión de diseño que queda:** lo declarado gana a lo inferido, y la diferencia se DICE. El día que todas
+las áreas declaren sus tablas, la mitad que cae al modelo deja de aportar y se puede sacar.
 
 ### 2026-09-02 · noche · 29 — el diccionario de tablas: el dato entra al hilo (#77)
 
