@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -52,39 +52,28 @@ en dos pasos. Y el agente contesta «le cobraron una cuota inicial mayor a la qu
 pasos y 14,7 s, respaldada con las dos secciones, explicando los dos orígenes del porcentaje y las dos
 bases. Soporte pasó de 21 a 15 sin cobertura; el banco del equipo, a 26/26.
 
-**Y hay otro PR en verde, `Creditop-SAS/playground#79`**, con lo que quedó a medias: **un bug del dictado**
-(el candidato mezclaba el `.md` de una fuente con las áreas del corpus vivo, así que dictar con un PR de
-corpus abierto rechazaba la pieza culpando a un ancla que sí existe), la **tabla de 301.690 filas que
-escribió un script de migración** y ningún servicio mantiene, y **18 `que_es`** en el diccionario con el
-arreglo que evita que el generador los borre en la próxima corrida.
+**#79, #80 y #81 están mergeados** (2026-09-03). El #79 traía el bug del candidato, la tabla de 301.690
+filas que escribió un script de migración y los 18 `que_es`. El #80 fue el **primer dictado de verdad**
+—tres secciones de lo que entraba a main, entradas por la API de escritura— y el #81 los dos bugs que
+ese dictado encontró: el empalme dejaba una coma antes del primer elemento de un `areas` vacío (rompió
+el build de main) y un tema nacido en el mismo cierre no podía recibir áreas.
 
-**#79 mergeado y validado en prod.** Y el ENSAYO que propuso Miguel —dictar por la API como un dev, para
-los tres cambios que están por llegar (SmartPay con el teléfono del asesor, internacionalización multipaís,
-y Perú con su comercio y su banco)— **funcionó y destapó dos bugs que rompen `main`**:
+**Lo último, y es lo que hay que saber al retomar: `Creditop-SAS/playground#82` está en verde y SIN
+MERGEAR.** Salió de un ensayo que pidió Miguel: hacer de cuenta que somos un dev del equipo y
+contextualizar canon por la API con lo que acababa de entrar a main, todo en local. El ensayo funcionó de
+punta a punta y dejó tres cosas:
 
-- **`Creditop-SAS/playground#80`** es el dictado en sí: tres piezas aceptadas por la API de prod (el
-  teléfono con token del asesor, el espacio de numeración de documentos compartido entre países, y el corte
-  por país del listado con el país 1 que pasa siempre). Su mapa quedó roto por el bug y **se arregló a mano
-  en la rama**: hoy está CLEAN.
-- **`Creditop-SAS/playground#81`** son los arreglos: la primera área de un tema abierto rompía el JSON, y
-  abrir un tema declarándole archivos daba 500 al cerrar. Más el arnés, que decía «todo bien» habiendo
-  muerto a la mitad (36 de 54 comprobaciones). En verde.
+- **dos secciones dictadas y verificadas contra `legacy-application`**: hasta cuándo se puede cambiar el
+  país de un comercio o de una entidad (y que cambiarlo no arrastra a sus sucursales), y el canal de
+  origen de un pago con las tres cosas que sesgan cualquier conteo — texto libre, «web» como valor por
+  omisión, y el registro manual que hereda el canal o queda vacío;
+- **la guarda de puertos de los dos arneses**: le pegaban al servidor de otro proceso si el puerto estaba
+  ocupado, y el chequeo de salud pasaba igual. Costó dos fallas falsas y podía costar un verde falso;
+- **la apertura de `internacionalizacion` reescrita**: decía que el tema no tenía código declarado y ya
+  tiene dos áreas.
 
-**El próximo paso es:** mergear #81 primero (es el arreglo) y después #80 (el contenido dictado). Después
-quedan 15 preguntas de soporte sin cobertura, 176 tablas sin área, y las mejoras del bucle.
-
-⚠ **`delete_branch_on_merge` no lo puedo habilitar yo**: la API devuelve 404 porque `mig-creditop` tiene
-push y triage, no admin. Lo tiene que hacer un admin (OscarRinc, yamid, sanvipi, lhCabra, dsanchezops) en
-Settings → General → Pull Requests → «Automatically delete head branches».
-
-⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
-commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
-la anterior sigue: **base = `main` siempre**, nunca la rama de otro PR (#61 se perdió así).
-
-⚠ **Local no reemplaza a prod para medir.** Tres corridas seguidas contra prod fallaron cada una por
-algo distinto que humo no veía (Registro 20–22). Correr onboarding en prod después de cada merge no es
-opcional. Y lo que dependa del MODELO (Gemini local nunca produjo un `declarar`; Sonnet sí) se mide
-después de mergear, no antes.
+Queda en pie el inventario: **76 archivos declarados cambiaron en 16 temas** (onboarding 22, listado 13,
+datos 7, altas 6), 15 preguntas de soporte sin cobertura, 2 del equipo, y 175 tablas sin área.
 
 ## Objetivo
 
@@ -268,6 +257,54 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · el ensayo de contextualizar por la API, hecho de verdad y en local (#82)
+
+Miguel pidió simular la agregación de contexto **usando la API como si fuéramos un desarrollador**, con
+main ya actualizado en local, para dejar el corpus al día con lo que acababa de entrar. Se hizo así,
+completo, y el camino de escritura aguantó.
+
+**Lo que se detectó.** La ronda contra los clones locales dio **76 archivos declarados cambiados en 16
+temas** (onboarding 22, listado 13, datos 7, altas 6). De ahí se eligieron dos mecanismos que el código
+no dice en ningún archivo suelto, se leyeron en `legacy-application` y se dictaron.
+
+**Lo que se dictó, y contra qué se verificó.** El país de un comercio se puede cambiar mientras no haya
+originado nada; el de una entidad, mientras no tenga comercios ni solicitudes, salvo que esté en un país
+donde no operamos. La regla anterior exigía además que el comercio no tuviera sucursales, y eso dejaba
+sin salida el caso más común al abrir un país: **26 comercios con sucursales y sin una sola solicitud**
+quedaban bloqueados contra 27 que sí eran editables. Y el canal de origen del pago: texto libre de 255,
+«web» por omisión, y el registro manual que lo hereda de la pasarela o queda vacío — así que **contar por
+canal subestima siempre**.
+
+**Una palabra, medida.** La sección del país decía «corregir» y la pregunta natural dice «cambiar». La
+búsqueda la devolvía primera igual, pero con la etiqueta «probablemente el corpus no tiene esto todavía»,
+que es peor que no encontrarla: un agente la lee y contesta que canon no lo sabe. Cambiada la palabra, la
+cobertura pasó de **0,5 a 0,75** y la advertencia falsa desapareció. Es la misma lección de vocabulario en
+los títulos, ahora con número.
+
+**El hallazgo del día no era del corpus, era del arnés.** `dev/dictado.py` reportó dos fallas que no
+existían. Causa: arranca sus servidores en **puertos fijos** (8595/8596) y mi ensayo los tenía ocupados,
+así que el `Popen` falló dentro de su propio log y **el chequeo de salud pasó igual, contra mi servidor**.
+El arnés midió otra cosa y no lo dijo. Peor que la falla falsa es el **verde falso**, que es el mismo
+mecanismo al revés. Ahora hay un `connect` antes de compilar, **fuera del `try`** (adentro, su `sys.exit`
+corría el `finally` y el resumen imprimía «todo bien» con cero comprobaciones — el verde falso que la
+guarda venía a evitar). Y de paso: al GitHub falso **no lo esperaba nadie**, sólo se esperaba el `/health`
+del servidor; como arranca en ~50 ms casi siempre llegaba, y cuando no llegó el fallo salió cuatro
+comprobaciones más tarde disfrazado de «no se pudo declarar el archivo», con el `connection refused`
+metido dentro de un 422 de la API.
+
+**Dos secciones dictadas al final del mismo tema CHOCAN.** Mi pieza y la del #80 se agregaron las dos al
+final de `internacionalizacion`, y el rebase dio conflicto en el `.md` y en el `map.json`. En el JSON el
+conflicto cae **dentro de un mismo objeto**, así que pegar texto no funciona: se resolvió leyendo los dos
+archivos completos con `git show`, uniendo las áreas y **parseando antes de escribir**. Es la misma
+lección que el bug del empalme del #81 — un `map.json` no se edita por texto.
+
+**Comprobado:** lint 20 nodos / 218 secciones en orden · bench 93/115 al primer resultado y 115/115 entre
+los tres primeros, igual que antes · soporte 123/124 y equipo 26/26 sin cobertura perdida · `go test` en
+verde · dictado 54 comprobaciones tres veces seguidas · humo en verde · y con el puerto ocupado a
+propósito, el arnés aborta con código 2 y **sin** decir «todo bien». Las dos secciones salen **primeras**
+para su pregunta natural y pesan ~3,5 KB con su área detrás.
+
 
 ### 2026-09-03 · tarde · 37 — el ensayo de dictar como un dev: tres piezas y DOS bugs que rompen main (#80, #81)
 
