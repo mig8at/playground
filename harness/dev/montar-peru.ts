@@ -20,7 +20,33 @@
 // Limpieza total:  E2E_TARGET=local node dev/montar-peru.ts --clean
 import { query, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { generateKeyPairSync } from 'node:crypto';
+
+/* EL PAR DE LLAVES del cifrado, generado acá. La ida cifra con la PÚBLICA que el credential declara
+ * —`CuotealoCheckoutPayload` la exige del credential, no de config, aunque el encrypter también sepa
+ * leerla de un archivo— y la vuelta descifra con la PRIVADA, que sale del mismo credential
+ * (`cuotealo_private_key`). Teniendo las dos, el ida y vuelta se puede cerrar sin la contraparte.
+ *
+ * ⚠ ES UNA LLAVE DE PRUEBA LOCAL, no un secreto: nunca cifra nada de nadie. Se guarda para que
+ * re-correr el seeder no deje indescifrable una operación en vuelo, y el archivo está gitignoreado.
+ *
+ * ⚠ Y el par de resúmenes del relleno queda como esté configurado: acá las dos puntas son nuestras,
+ * así que cualquier par consistente sirve. Contra el BCP real ese par NO está confirmado, y si no
+ * coincide el descifrado falla sin informar el motivo. */
+const RUTA_LLAVES = new URL('../.bcp-llaves.json', import.meta.url);
+function parDeLlaves(): { publica: string; privada: string } {
+    if (existsSync(RUTA_LLAVES)) return JSON.parse(readFileSync(RUTA_LLAVES, 'utf8'));
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', {
+        modulusLength: 2048,
+        publicKeyEncoding: { type: 'spki', format: 'pem' },
+        privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+    });
+    const par = { publica: publicKey, privada: privateKey };
+    writeFileSync(RUTA_LLAVES, JSON.stringify(par, null, 1) + '\n');
+    return par;
+}
+const LLAVES = parDeLlaves();
 
 /* LA PLANTILLA DEL FORMULARIO del vehicular, extraída de DEV (sólo lectura) el 2026-09-03. Va en un
  * fixture y no inline porque es DATO, no lógica: así se puede volver a extraer y ver el diff. */
@@ -61,7 +87,10 @@ async function limpiar() {
     await exec('DELETE FROM dynamic_form_placements WHERE scope_type=? OR (scope_type=? AND scope_id IN (?,?))',
         ['allied_branch', 'lender', CONSUMO, VEHICULAR]);
     for (const id of [CONSUMO, VEHICULAR]) {
-        for (const t of ['lender_allied_credentials', 'lender_transaction_statuses', 'credit_line_by_lenders',
+        /* ⚠ Las TRANSACCIONES van antes que sus estados: `lender_transactions.status_id` es una clave
+           foránea a `lender_transaction_statuses`, así que borrar el estado primero corta con un 1451.
+           Y son nuestras: las creó una corrida sintética de este mismo seeder. */
+        for (const t of ['lender_transactions', 'lender_allied_credentials', 'lender_transaction_statuses', 'credit_line_by_lenders',
                          'lender_users_category_rules', 'lender_users_categories', 'lender_datacredito_rules',
                          'lender_rules', 'lenders_by_allied_branches', 'lenders_by_allieds'])
             await exec(`DELETE FROM ${t} WHERE lender_id=?`, [id]);
@@ -140,18 +169,33 @@ for (const id of [CONSUMO, VEHICULAR]) {
     };
     await clonar('lender_datacredito_rules', reglaPermisiva, { allied_branch_id: null });
     await clonar('lender_datacredito_rules', reglaPermisiva, { allied_branch_id: sucursal.id });
-    // El estado local que la integración escribe al radicar. Sin esta fila, resolveStatusId() falla
-    // explícito y register() no radica — es el pendiente 1 del comentario de Bcp.php.
-    await clonar('lender_transaction_statuses', { lender_id: id, name: 'BCP_PENDING', description: 'Radicado, esperando el desenlace del checkout' }, {});
+    /* Los estados locales que la integración escribe. Sin la fila que le toca, `resolveStatusId()`
+       falla explícito y register() no radica — es el pendiente 1 del comentario de `Bcp.php`.
+       ⚠ Y los nombres NO son los mismos en los dos productos: el de consumo usa `BCP_*` y el
+       vehicular `BCP_VEHICULAR_*`. Sembrar los cinco de cada uno y no sólo el pendiente, porque la
+       vuelta escribe aprobado/rechazado/cancelado y el desembolso el suyo. */
+    const prefijo = id === VEHICULAR ? 'BCP_VEHICULAR' : 'BCP';
+    for (const [sufijo, desc] of [
+        ['PENDING', 'Radicado, esperando el desenlace del checkout'],
+        ['APPROVED', 'La contraparte aprobó'],
+        ['REJECTED', 'La contraparte rechazó'],
+        ['DISBURSED', 'Desembolsado'],
+        ['CANCELLED', 'Cancelado por el cliente'],
+    ] as const) {
+        await clonar('lender_transaction_statuses', { lender_id: id, name: `${prefijo}_${sufijo}`, description: desc }, {});
+    }
     console.log(`✓ ${NOMBRES[id]}  id=${id}  país=${PAIS}  sucursal=${sucursal.id}  action=${ACCIONES[id].split('\\').pop()}`);
 }
 
 // ── el credential, que NO entra por SQL ──
 // La columna es `encrypted:collection`: Eloquent la cifra con APP_KEY al guardar. Un INSERT crudo deja
 // un valor que el modelo no puede descifrar, y el fallo aparece después, lejos de acá.
+/* Los PEM viajan en base64: un PEM tiene saltos de línea y comillas que pelean con `--execute`. */
+const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
 const llaves = `[
   'cuotealo_ecommerce_id'  => 'HARNESS-ECOM-%ID%',
-  'cuotealo_public_key'    => 'harness-public-key-placeholder',
+  'cuotealo_public_key'    => base64_decode('${b64(LLAVES.publica)}'),
+  'cuotealo_private_key'   => base64_decode('${b64(LLAVES.privada)}'),
   'cuotealo_merchant_id'   => 'HARNESS-MERCH',
   'cuotealo_merchant_name' => 'Comercio pruebas Peru',
   'cuotealo_merchant_logo' => 'https://example.invalid/logo.png',
@@ -163,14 +207,29 @@ for (const id of [CONSUMO, VEHICULAR]) {
        integración»: `url` nula y el modal de «continuá con el asesor». Costó una vuelta.
        Se scopea a la SUCURSAL, que es el camino principal del buscador (y el más usado: 636 filas
        contra 551 por comercio). */
-    const php = `\\App\\Models\\LenderAlliedCredential::updateOrCreate(`
-        + `['lender_id' => ${id}, 'allied_type' => \\App\\Models\\AlliedBranch::class, 'allied_id' => ${sucursal.id}], `
-        + `['credential' => ${llaves.replace('%ID%', String(id))}]);`;
+    /* ⚠ El morph se asocia por la RELACIÓN, no por asignación masiva: `allied_type` no está en el
+       `$fillable` del modelo, así que `updateOrCreate` lo descarta del INSERT —lo usa en el WHERE pero
+       no lo escribe— y MySQL corta con «Field 'allied_type' doesn't have a default value». Y se scopea
+       a la SUCURSAL: `findOrFailByLenderAndAlly` busca primero por `AlliedBranch` y sólo después cae al
+       comercio, las dos por nombre de clase completo. Sin credential, el flujo se va por la rama de «no
+       hay integración»: url nula y el modal de «continuá con el asesor». */
+    const php = `$c = \\App\\Models\\LenderAlliedCredential::firstOrNew(['lender_id' => ${id}]); `
+        + `$c->allied()->associate(\\App\\Models\\AlliedBranch::find(${sucursal.id})); `
+        + `$c->credential = ${llaves.replace('%ID%', String(id))}; $c->save();`;
     try {
+        /* Tinker avisa «Restricted Mode: skipping untrusted project features» y ejecuta igual: el
+           aviso es por las extensiones del proyecto, no por el código. ⚠ Y `--trust-project` NO existe
+           en esta versión —agregarlo hace fallar el comando entero—. Por eso abajo se VERIFICA la fila
+           en vez de creerle al código de salida: la primera versión de esto reportaba ✓ con la fila
+           ausente, y el síntoma aparecía lejos (sin credential el flujo se va por la rama de «no hay
+           integración» y muestra el modal de «continuá con el asesor»). */
         execFileSync('docker', ['exec', CONTENEDOR, 'php', 'artisan', 'tinker', '--execute', php], { stdio: 'pipe' });
-        console.log(`✓ credential de ${id} sembrado por Eloquent (cifrado con APP_KEY)`);
+        const [hay]: any[] = await query(
+            'SELECT id FROM lender_allied_credentials WHERE lender_id=? AND allied_id=? LIMIT 1', [id, sucursal.id]);
+        if (!hay) throw new Error('tinker no falló pero la fila no está (¿Restricted Mode?)');
+        console.log(`✓ credential de ${id} sembrado por Eloquent (cifrado con APP_KEY) y verificado en la base`);
     } catch (e: any) {
-        console.log(`✗ el credential de ${id} NO se sembró: ${String(e.stderr || e.message).split('\n')[0]}`);
+        console.log(`✗ el credential de ${id} NO se sembró: ${String(e.stderr || '')}${String(e.stdout || '')}${e.message}`.slice(0, 500));
         console.log(`  corrélo a mano:  docker exec ${CONTENEDOR} php artisan tinker --execute "${php.replace(/"/g, '\\"')}"`);
     }
 }
@@ -230,6 +289,24 @@ async function sembrarFormulario(alliedId: number, branchId: number) {
         + 'no lo calcula nadie (ni main ni las ramas de BCP), así que sin esto el formulario no se puede pasar');
     console.log(`✓ placements: paso 1 antes y paso 2 después del flujo alterno (sucursal ${branchId}), `
         + `y el gate de firma apagado con fila explícita`);
+}
+
+/* ── EL HOST AL QUE LA CONTRAPARTE DEVUELVE AL CLIENTE ────────────────────────────────────────
+ *
+ * La URL de vuelta se arma como `<front_end_url>/<redirect_path>/<operationId>`, y ese host sale de
+ * `settings`, NO de una variable de entorno. El motivo está escrito en el código y vale conocerlo: la
+ * URL viaja DENTRO del payload de cada transacción y la contraparte la conserva, así que una operación
+ * radicada hoy puede volver mañana — tenerlo donde ya se administra por ambiente evita que un
+ * despliegue con la variable vieja mande al cliente a un dominio que no responde.
+ *
+ * En esta base apuntaba a STAGING, así que la vuelta de una corrida local se iba para allá. Se apunta
+ * al asistente local y se guarda el valor previo para poder devolverlo con `--clean`. */
+const FRONT_LOCAL = process.env.E2E_FRONT_URL || 'http://localhost:5174';
+const [{ value: frontPrevio }]: any[] = await query("SELECT value FROM settings WHERE `key`='front_end_url'");
+if (!frontPrevio?.includes(FRONT_LOCAL)) {
+    writeFileSync(new URL('../.bcp-front-previo.json', import.meta.url), JSON.stringify({ frontPrevio }) + '\n');
+    await exec("UPDATE settings SET value=? WHERE `key`='front_end_url'", [JSON.stringify(FRONT_LOCAL)]);
+    console.log(`✓ front_end_url → ${FRONT_LOCAL} (antes ${String(frontPrevio).slice(0, 44)}; guardado para --clean)`);
 }
 
 await sembrarFormulario(comercio.id, sucursal.id);
