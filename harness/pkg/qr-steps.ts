@@ -29,6 +29,10 @@
 //   setting `qa_otp_bypass_phones`. Mismo mecanismo que el tronco (ver README §bypasses).
 
 import type { Page } from '@playwright/test';
+import { autorrellenar, esperarHidratacion } from './autorrelleno.ts';
+
+// Re-exportada para no romper a quien la importaba de acá: la implementación vive en `autorrelleno.ts`.
+export { esperarHidratacion };
 
 /** Los 4 últimos dígitos: el OTP de los teléfonos de bypass. */
 export const otpDeTelefono = (phone: string) => phone.replace(/\D/g, '').slice(-4);
@@ -43,18 +47,6 @@ export const otpDeTelefono = (phone: string) => phone.replace(/\D/g, '').slice(-
  * error. La única señal confiable es que un click cambie `data-state` a `checked`, porque eso sólo pasa con
  * el JS ya montado. Como los checkboxes de este canal hay que marcarlos igual, la sonda no tiene costo.
  */
-export async function esperarHidratacion(page: Page, timeout = 15_000): Promise<boolean> {
-    const cajas = page.locator('button[role="checkbox"]');
-    await cajas.first().waitFor({ state: 'visible', timeout }).catch(() => {});
-    if (!(await cajas.count().catch(() => 0))) return true;   // pantalla sin checkboxes: no hay sonda posible
-    const hasta = Date.now() + timeout;
-    while (Date.now() < hasta) {
-        await cajas.first().click({ timeout: 2_000 }).catch(() => {});
-        if ((await cajas.first().getAttribute('data-state').catch(() => null)) === 'checked') return true;
-        await page.waitForTimeout(250);
-    }
-    return false;
-}
 
 /**
  * Llena el registro del self-service (celular + documento + los dos checkboxes) y envía.
@@ -235,83 +227,8 @@ const CAMPOS_QR: Array<{ name: string; label?: RegExp; valor: (d: DatosQr) => st
  * había nada que llenar, que es lo normal en las pantallas de sólo-lectura del recorrido).
  */
 export async function autorrellenarQr(page: Page, d: DatosQr): Promise<string[]> {
-    const hechos: string[] = [];
-    const t = 3_000;
-
-    // Sin esto el `fill()` reporta éxito y React lo pisa al hidratar — ver `esperarHidratacion`.
-    await esperarHidratacion(page, 10_000);
-
-    for (const c of CAMPOS_QR) {
-        const v = c.valor(d);
-        if (!v) continue;
-        // Primero por etiqueta (el input controlado suele NO tener `name`); después por `name`, siempre
-        // excluyendo el hidden espejo.
-        let loc = c.label ? page.getByLabel(c.label).first() : null;
-        if (!loc || !(await loc.count().catch(() => 0))) {
-            loc = page.locator(`input[name="${c.name}"]:not([type=hidden]), textarea[name="${c.name}"]`).first();
-        }
-        if (!(await loc.count().catch(() => 0))) continue;
-        if (!(await loc.isVisible().catch(() => false))) continue;
-        if ((await loc.inputValue().catch(() => ''))) continue;      // ya tenía valor: no se pisa
-        await loc.fill(v, { timeout: t }).catch(() => {});
-        // VERIFICAR que quedó: un `fill()` exitoso no garantiza que el valor sobreviva (hidratación, o un
-        // input con máscara que rechaza el formato). Si no quedó, se reintenta una vez y si tampoco, se
-        // reporta con `?` para que se vea en el log en vez de dar por hecho que se llenó.
-        let quedo = (await loc.inputValue().catch(() => '')) !== '';
-        if (!quedo) { await page.waitForTimeout(400); await loc.fill(v, { timeout: t }).catch(() => {}); quedo = (await loc.inputValue().catch(() => '')) !== ''; }
-        hechos.push(`${c.name}=${v}${quedo ? '' : ' ⚠no quedó'}`);
-    }
-
-    // Selects sin elegir → primera opción real (la 0 suele ser el placeholder «Selecciona…»).
-    const selects = page.locator('select:visible');
-    for (let i = 0; i < (await selects.count().catch(() => 0)); i += 1) {
-        const s = selects.nth(i);
-        if (await s.inputValue().catch(() => '')) continue;
-        const opciones = await s.locator('option').evaluateAll((els) =>
-            els.map((e) => (e as HTMLOptionElement).value).filter((v) => v && v !== '0')).catch(() => []);
-        if (opciones.length) await s.selectOption(opciones[0]).then(() => hechos.push(`select→${opciones[0]}`)).catch(() => {});
-    }
-
-    // SELECTS DE RADIX (`Select`/`SelectTrigger` del UI kit) — no son `<select>` y el bloque de arriba no
-    // los ve. Es el muro de `consumo/loan-summary`: «Duración del crédito» y «¿Qué día quieres pagar?» son
-    // los dos de este tipo, quedan vacíos, el form no valida y **el botón Continuar nunca se habilita**, sin
-    // un mensaje de error. El trigger es un `button[role=combobox]` y las opciones se renderizan en un
-    // PORTAL (fuera del form) como `[role=option]`, así que hay que abrir y clickear, no `selectOption`.
-    const combos = page.locator('button[role="combobox"]:visible');
-    for (let i = 0; i < (await combos.count().catch(() => 0)); i += 1) {
-        const cb = combos.nth(i);
-        // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
-        const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
-            || !(await cb.textContent().catch(() => ''))?.trim();
-        if (!vacio) continue;
-        await cb.click({ timeout: t }).catch(() => {});
-        const opcion = page.locator('[role="option"]:visible').first();
-        if (await opcion.count().catch(() => 0)) {
-            const etiqueta = (await opcion.textContent().catch(() => '')) ?? '';
-            await opcion.click({ timeout: t })
-                .then(() => hechos.push(`combo→${etiqueta.trim().slice(0, 18)}`))
-                .catch(() => {});
-        } else {
-            await page.keyboard.press('Escape').catch(() => {});   // no dejar el listbox abierto tapando el resto
-        }
-    }
-
-    // Radios: el primero de cada grupo.
-    const grupos = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
-        els.map((e) => (e as HTMLInputElement).name).filter(Boolean)).catch(() => []));
-    for (const g of grupos) {
-        const r = page.locator(`input[type=radio][name="${g}"]:visible`).first();
-        if (!(await r.isChecked().catch(() => true))) await r.check({ timeout: t }).then(() => hechos.push(`radio ${g}`)).catch(() => {});
-    }
-
-    // Checkboxes de Radix (términos, políticas, «acepto»). Ver la trampa documentada arriba: son BUTTON,
-    // viven fuera del `<form>`, y su estado está en `data-state`.
-    const cajas = page.locator('button[role="checkbox"]');
-    for (let i = 0; i < (await cajas.count().catch(() => 0)); i += 1) {
-        const c = cajas.nth(i);
-        if ((await c.getAttribute('data-state').catch(() => null)) !== 'checked') {
-            await c.click({ timeout: t }).then(() => hechos.push('checkbox')).catch(() => {});
-        }
-    }
-    return hechos;
+    // El motor es `pkg/autorrelleno.ts`: acá sólo se resuelve QUÉ campos hay y con qué valor. Antes esta
+    // función tenía la máquina adentro; se extrajo al agregar el motor de navegador al caminador del
+    // wizard, que necesitaba lo mismo con otro mapa (ver la cabecera de ese módulo).
+    return autorrellenar(page, CAMPOS_QR.map((c) => ({ name: c.name, label: c.label, valor: c.valor(d) })));
 }

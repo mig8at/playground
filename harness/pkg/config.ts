@@ -57,6 +57,46 @@ function loadAdminCreds(): { user?: string; pass?: string } {
 
 export const adminCreds = loadAdminCreds();
 
+/**
+ * ¿Los documentos de esta corrida los fabrica dompdf con las plantillas Blade, o los devuelve el mock
+ * del pdf-mapper? Se lee del `.env` del backend LOCAL, que es el único que podemos ver desde acá.
+ *
+ * POR QUÉ EXISTE ESTA FUNCIÓN Y NO ES SÓLO UNA NOTA EN LA DOCUMENTACIÓN. Enrutar los PDF al mock hace
+ * la corrida 3-4× más rápida (medido 2026-09-03: un caso de 73 s a 20 s; seis en paralelo de 112 s a
+ * 27 s), y a cambio la corrida **deja de ejercitar las plantillas Blade**. O sea que deja de atrapar la
+ * clase de bug de F-150 — un builder que produce claves que la plantilla no espera revienta con
+ * «Undefined variable» en pleno render, que no es un documento con huecos sino una FIRMA CAÍDA.
+ *
+ * Y no es hipotético: el 2026-09-02, en qa, el Rent to Own murió exactamente así
+ * (`Undefined variable $nombre_cliente` en `contrato_rto_con_codeudor.blade.php`). Una corrida con el
+ * mock prendido habría cerrado en verde sobre ese mismo bug. Por eso el estado se IMPRIME: una perilla
+ * que cambia lo que la corrida prueba no puede estar invisible en el `.env` de otro repo.
+ */
+export function docGenLocal(): { microservicio: string[]; blade: string[]; leido: boolean } {
+    const ruta = `${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`;
+    const micro: string[] = [];
+    const blade: string[] = [];
+    try {
+        for (const l of readFileSync(ruta, 'utf8').split('\n')) {
+            const m = l.match(/^\s*DOC_GEN_([A-Z_0-9]+)\s*=\s*(\S+)/);
+            if (!m) continue;
+            (/microservice/i.test(m[2]) ? micro : blade).push(m[1].toLowerCase());
+        }
+        return { microservicio: micro, blade, leido: true };
+    } catch {
+        return { microservicio: [], blade: [], leido: false };
+    }
+}
+
+/** La línea de aviso, o `null` si no hay nada que advertir. La imprimen los runners en su cabecera. */
+export function avisoDocGen(target: string): string | null {
+    if (target !== 'local') return null;
+    const d = docGenLocal();
+    if (!d.leido || !d.microservicio.length) return null;
+    return `⚠ PDF por el MOCK (${d.microservicio.join(', ')}): la corrida es 3-4× más rápida y NO ejercita las plantillas Blade`
+        + ' — un «Undefined variable» en el render no se atrapa acá (F-150). Para validar documentos: DOC_GEN_*=blade.';
+}
+
 export const config = {
     /** URL del frontend. Por TARGET: local = Vite :5174 · dev/staging = el deploy correspondiente.
      *  Se lee con `env()` (no `process.env` pelado) para que valga ponerla en `env/<target>.env`. */

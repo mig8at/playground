@@ -166,6 +166,28 @@
       "runtimeArgs": [],
       "port": 8597,
       "autoPort": false
+    },
+    {
+      "name": "wizard-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "/Users/miguelochoa/Desktop/CREDITOP/github/frontend-monorepo/apps/loan-request-wizard",
+        "--",
+        "--port",
+        "5176"
+      ],
+      "port": 5176,
+      "autoPort": false,
+      "env": {
+        "VITE_API_URL": "http://localhost",
+        "VITE_ONBOARDING_FORM_SERVICE": "http://localhost:8101/v1",
+        "VITE_PREAPPROVALS_ENDPOINT": "http://localhost:8095/v1/preapprovals/check",
+        "VITE_FORM_SERVICE_BASE_URL": "http://form-service.inertia-develop:8082",
+        "FINANCIAL_HEALTH_API_URL": "http://localhost:4000"
+      }
     }
   ]
 }

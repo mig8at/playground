@@ -24,6 +24,8 @@ import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr.ts';
 import { autorrellenarQr } from '../pkg/qr-steps.ts';
 import { scrubphone } from '../pkg/asesor.ts';
 import { close } from '../pkg/db.ts';
+import { latestUserRequestId } from '../pkg/inject.ts';
+import { posthogConfig, porQueNo } from '../pkg/posthog.ts';
 
 const arg = (n: string, def = '') => {
     const i = process.argv.indexOf(`--${n}`);
@@ -86,6 +88,11 @@ page.on('pageerror', (e) => errores.push(e.message.slice(0, 140)));
 page.on('framenavigated', (f) => { if (f === page.mainFrame()) void registrarRetorno(page, puesto); });
 
 const recorrido: string[] = [];
+// La solicitud de ESTA corrida y su hora de arranque: las dos hacen falta para poder preguntarle
+// después a PostHog por ella. El id no se conoce de antemano (lo crea el canal), así que se toma la
+// línea base de la sucursal y al final se pide el primero que apareció por encima.
+const T0 = new Date();
+const uReqBase = (await latestUserRequestId(suc.hash)) ?? 0;
 await page.goto(qrEntryUrl(suc.hash), { waitUntil: 'domcontentloaded' });
 
 for (let paso = 1; paso <= MAX; paso++) {
@@ -142,6 +149,23 @@ const shot = `.runs/caminar-${PRODUCTO}.png`;
 await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
 console.log(`\n${recorrido.length} pantalla(s) · última: ${recorrido.at(-1)} · 📸 ${shot}`);
 if (errores.length) console.log(`⚠ ${errores.length} error(es) de página:\n   ${[...new Set(errores)].join('\n   ')}`);
+
+// LA TERCERA FUENTE, como pista y no como consulta. Este caminador usa navegador de verdad, así que
+// contra un front DESPLEGADO deja en PostHog más rastro que ningún otro runner: los eventos del
+// servidor, los del cliente (`$pageview`, autocapture) y la grabación de sesión. Acá no se consulta
+// —la ingesta tarda minutos y esta herramienta es de a un caso— pero sí se imprime el comando con la
+// solicitud y la hora ya puestas, que es lo que costaba armar a mano.
+// ⚠ En LOCAL no hay nada que mirar: `APP_ENV=local` apaga el cliente de PostHog en el front.
+const uReqCorrida = await latestUserRequestId(suc.hash, uReqBase).catch(() => null);
+const noPostHog = porQueNo(posthogConfig());
+if (noPostHog) {
+    console.log(`\nPostHog: nada que mirar — ${noPostHog}`);
+} else if (uReqCorrida) {
+    console.log(`\nPostHog · qué registró el FRONT de esta corrida (eventos del embudo + logs con pantalla y error):`
+        + `\n   make harness-posthog UREQ=${uReqCorrida} DESDE=${new Date(T0.getTime() - 60_000).toISOString()}`);
+} else {
+    console.log('\nPostHog: el canal no creó una solicitud nueva en esta sucursal, así que no hay por dónde preguntar.');
+}
 
 await browser.close();
 // SE DEJA EL MOCK LIMPIO, y eso incluye el `errorCode`: restaurar sólo `producto` dejaba el error forzado

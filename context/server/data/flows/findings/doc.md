@@ -3370,3 +3370,41 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   destino natural en autogestión es `.../confirmation`, que es el link que el backend ya le manda por
   WhatsApp y el que el caminador abre a mano para poder seguir.
 - **Estado:** vivo.
+
+### F-183 · Dos repos, UNA base, dos historias de migraciones: crear un comercio está roto EN PRODUCCIÓN porque `legacy-backend` borró columnas que `legacy-application` sigue escribiendo
+
+- **Síntoma:** en el admin de producción (`admin.creditop.com/aliados`), **crear un comercio falla** con
+  `SQLSTATE[42S22]: Unknown column 'quaternary_color' in 'field list' (… insert into allieds …)`. La
+  pantalla no dice qué pasó; el stack no muestra el mensaje. Mirando sólo el código del `create` uno
+  sospecha de `country_id` —que es `NOT NULL`— y se va por el camino equivocado: la validación pasó y el
+  país viaja bien. **Lo que falta es una columna que el insert nombra y la tabla ya no tiene.**
+- **Causa raíz:** `allieds` la escriben **dos repos** y cada uno tiene **su propio directorio de
+  migraciones**. `legacy-backend` migró el branding a `theme_key` + `token_overrides`
+  (`2026_08_18_100000_add_branding…`) y **borró las seis columnas de color**
+  (`2026_08_18_100100_drop_legacy_color_columns…`). `legacy-application` **no se enteró**: su
+  `Admin/AlliedController@store` sigue mandando `quaternary_color` y `quinary_color`, y su modelo
+  `Allied` los conserva en `$fillable`. El drop llegó a `main` de backend el **1/9** y a producción con
+  el tag **v0.4.70 (2/9)**; el admin no cambió.
+- **Evidencia (producción, Loki, ventana de 10 días):**
+
+  | columna | dirección del desfase | ventana | usuarios | ¿sigue? |
+  |---|---|---|---|---|
+  | `amount_label` | **el código salió ANTES que la migración** — el admin escribía la columna y aún no existía | 09-02 13:52 → 14:19 · 12 fallas en `UPDATE` de puntos de venta | 3 | **no**: se curó sola al correr la migración (lote 199) |
+  | `quaternary_color` | **la migración salió ANTES que el código** — la columna se borró y el admin la sigue escribiendo | 09-03 20:53 → 20:58 · 10 fallas en `INSERT` de comercios | 1 (tres intentos seguidos) | **SÍ** |
+
+  Reproducido en local con el modelo de `legacy-application` y su `$fillable` real, dentro de una
+  transacción revertida: mismo `QueryException`, misma columna.
+- **⚠ Y el estado de la tabla difiere POR AMBIENTE**, lo que hace que el bug aparezca y desaparezca según
+  dónde se pruebe: `quaternary_color` y `quinary_color` **siguen existiendo en la base compartida**
+  (dev/qa/staging) y **ya no** en local ni en producción — el drop corrió en las tres, pero en la
+  compartida alguien las volvió a crear. O sea que **crear un comercio funciona en dev/qa y falla en
+  prod**, que es el peor orden posible para enterarse.
+- **Arreglo:** quitar las dos asignaciones del `store` del admin y los cinco colores del `$fillable` del
+  modelo. Nada más los escribe: el `update` no los toca y el front del admin ya no los pide. ⚠ **NO tocar
+  `database/factories/AlliedFactory.php`**, que escribe tres de ellos: los tests corren contra la base de
+  *testing*, migrada con las migraciones de `legacy-application`, cuyo `create_allieds_table` de 2023
+  **sigue declarando las columnas**. Ahí existen.
+- **Estado:** vivo en producción al 2026-09-03. Es **F-77 de ida y de vuelta**: mergear no corre
+  migraciones, así que el código y el esquema se desincronizan en las dos direcciones — y con dos repos
+  sobre una misma tabla, el que despliega primero rompe al otro. Al tocar una columna de `allieds` o de
+  `allied_branches`, **grepear los DOS repos antes**.

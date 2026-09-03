@@ -1,0 +1,459 @@
+{
+  "step": "requestAmount",
+  "theme": "theme-trustonic",
+  "components": {
+    "logo": {
+      "className": "flex flex-col items-center gap-4 p-6 mb-6",
+      "boxs": {
+        "image": {
+          "type": "image",
+          "src": "https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/allieds/smartpay/smartmapy-iso.jpg",
+          "className": "w-24 h-24 rounded-full border-2 border-[var(--primary)]"
+        },
+        "userName": {
+          "type": "text",
+          "text": "Smartpay",
+          "className": "text-xl font-bold text-[var(--text-main)]"
+        }
+      },
+      "grid": [
+        [
+          "image"
+        ],
+        [
+          "userName"
+        ]
+      ]
+    },
+    "legalTerms": {
+      "className": "mt-6 text-center px-4",
+      "boxs": {
+        "terms": {
+          "type": "text",
+          "text": "Al hacer clic en continuar, aceptas nuestra [policía] y los [terminos].",
+          "links": {
+            "policía": {
+              "label": "Política de Privacidad",
+              "url": "https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/terms-and-conditions/POLITICA_DE_TRATAMIENTO_DE_DATOS_SMARTPAY_V20260310.pdf"
+            },
+            "terminos": {
+              "label": "Términos y Condiciones",
+              "url": "https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/terms-and-conditions/TERMINOS_Y_CONDICIONES_SMARTPAY_V20260310.pdf"
+            }
+          },
+          "className": "text-[12px] text-[var(--text-muted)] leading-relaxed"
+        }
+      },
+      "grid": [
+        [
+          "terms"
+        ]
+      ]
+    }
+  },
+  "fields": {
+    "amount": {
+      "type": "text",
+      "label": "Monto a solicitar",
+      "required": true,
+      "placeholder": "16,450",
+      "allowed": "[0-9]{4,7}"
+    },
+    "phoneNumber": {
+      "type": "phone",
+      "label": "Número de celular",
+      "required": true,
+      "country": "CO",
+      "placeholder": "3178622287"
+    },
+    "otpCode": {
+      "type": "otp",
+      "required": true,
+      "sendOtp": "send-otp",
+      "phone": "phoneNumber"
+    },
+    "firstName": {
+      "type": "text",
+      "label": "Nombres",
+      "required": true,
+      "placeholder": "Luis Manuel"
+    },
+    "lastName": {
+      "type": "text",
+      "label": "Apellidos",
+      "required": true,
+      "placeholder": "Pérez López"
+    },
+    "email": {
+      "type": "email",
+      "label": "Correo electrónico",
+      "required": true,
+      "placeholder": "ejemplo@email.com"
+    },
+    "cityOfResidence": {
+      "type": "select",
+      "label": "Ciudad donde resides",
+      "required": true,
+      "options": [
+        "Santo Domingo",
+        "Andrés",
+        "Azua",
+        "Baní",
+        "Barahona",
+        "Bávaro",
+        "Boca Chica",
+        "Bonao",
+        "Cabrera",
+        "Comendador",
+        "Constanza",
+        "Cotuí",
+        "Dajabón",
+        "El Llano",
+        "El Seibo",
+        "Esperanza",
+        "Fantino",
+        "Hato Mayor",
+        "Higüey",
+        "Jarabacoa",
+        "Jimaní",
+        "La Romana",
+        "La Vega",
+        "Las Matas de Farfán",
+        "Las Terrenas",
+        "Luperón",
+        "Mao",
+        "Moca",
+        "Monte Cristi",
+        "Monte Plata",
+        "Nagua",
+        "Pedernales",
+        "Pimentel",
+        "Puerto Plata",
+        "Punta Cana",
+        "Río San Juan",
+        "Sabana de la Mar",
+        "Sabaneta",
+        "Salcedo",
+        "Samaná",
+        "San Cristóbal",
+        "San Francisco de Macorís",
+        "San Juan de la Maguana",
+        "San Pedro de Macorís",
+        "Santiago",
+        "Sosúa",
+        "Tamboril",
+        "Villa Altagracia",
+        "Villa González",
+        "Villa Hermosa",
+        "Villa Riva",
+        "Yamasá"
+      ]
+    },
+    "documentType": {
+      "type": "choice",
+      "label": "Tipo de documento",
+      "required": true,
+      "options": [
+        "CED",
+        "PAS",
+        "CI_VE",
+        "PAS_VE"
+      ],
+      "recharge": [
+        "nationalIdentityNumber"
+      ]
+    },
+    "nationalIdentityNumber": {
+      "type": "text",
+      "label": "Número único de identidad (NUI)",
+      "required": true,
+      "placeholder": "00000000",
+      "allowedSource": [
+        "documentType",
+        {
+          "CED": "[0-9]{11}",
+          "PAS": "[0-9]{9}"
+        }
+      ]
+    },
+    "birthDate": {
+      "type": "dateSelect",
+      "label": "Fecha de nacimiento",
+      "required": true,
+      "range": [
+        -18,
+        -60
+      ]
+    },
+    "averageMonthlyIncome": {
+      "type": "select",
+      "label": "Ingresos mensuales promedio",
+      "required": true,
+      "options": [
+        "Menos de RD$20,000",
+        "RD$20,000 - RD$30,000",
+        "RD$30,001 - RD$40,000",
+        "RD$40,001 - RD$50,000",
+        "RD$50,001 - RD$60,000",
+        "Más de RD$60,000"
+      ]
+    },
+    "primaryOccupationType": {
+      "type": "select",
+      "label": "Tipo de ocupación principal",
+      "required": true,
+      "options": [
+        "Trabajo como empleado/a",
+        "Soy pensionado/a",
+        "Emprendedor independiente",
+        "Independiente",
+        "Conductor de plataforma digital"
+      ]
+    },
+    "associateNumberScreenshot": {
+      "type": "file",
+      "label": "Sube una captura del número de asociado",
+      "post": "upload",
+      "accept": [
+        "image/png"
+      ],
+      "maxSize": [
+        5,
+        "Máx 5MB"
+      ],
+      "showIf": [
+        "primaryOccupationType",
+        "==",
+        "Conductor de plataforma digital"
+      ]
+    },
+    "incomeType": {
+      "type": "select",
+      "label": "¿Tus ingresos suelen ser similares todos los meses?",
+      "required": true,
+      "options": [
+        "Sí, el mismo monto cada mes",
+        "Varía un poco",
+        "Varía mucho"
+      ]
+    },
+    "employmentOrBusinessTenure": {
+      "type": "select",
+      "label": "¿Cuánto tiempo llevas en tu empleo o negocio actual?",
+      "required": true,
+      "options": [
+        "Menos de 6 meses",
+        "Entre 6 meses y 1 año",
+        "Entre 1 y 3 años",
+        "Más de 3 años"
+      ]
+    },
+    "incomeChannels": {
+      "type": "radio",
+      "label": "¿Por qué medios recibes normalmente tus ingresos?",
+      "required": true,
+      "options": [
+        "Cuenta bancaria",
+        "Billetera digital",
+        "Efectivo"
+      ],
+      "horizontal": true
+    },
+    "activeCredits": {
+      "type": "radio",
+      "label": "¿Tienes actualmente otros créditos activos?",
+      "required": true,
+      "options": [
+        "No",
+        "Sí, uno",
+        "Sí, dos",
+        "Sí, tres o más"
+      ],
+      "horizontal": true
+    },
+    "hasActiveCreditCard": {
+      "type": "radio",
+      "label": "¿Tienes alguna tarjeta de crédito activa?",
+      "required": true,
+      "options": [
+        "Sí",
+        "No"
+      ],
+      "horizontal": true
+    },
+    "approximateMonthlySpend": {
+      "type": "select",
+      "label": "Aproximadamente, ¿cuánto gastas al mes?",
+      "required": true,
+      "options": [
+        "Menos de RD$10,000",
+        "RD$10,001 - RD$20,000",
+        "RD$20,001 - RD$25,000",
+        "RD$25,001 - RD$30,000",
+        "RD$30,001 - RD$50,000",
+        "Más de RD$50,000"
+      ],
+      "horizontal": true
+    },
+    "hasPaymentDelaysOver30Days": {
+      "type": "radio",
+      "label": "¿Alguna vez te has atrasado más de 30 días en el pago de un crédito o servicio?",
+      "required": true,
+      "options": [
+        "No, nunca",
+        "Sí, una vez",
+        "Sí, varias veces"
+      ],
+      "horizontal": true
+    }
+  },
+  "steps": {
+    "requestAmount": {
+      "sections": [
+        {
+          "grid": [
+            [
+              "logo"
+            ]
+          ]
+        },
+        {
+          "title": "Ingresa el monto a solicitar",
+          "grid": [
+            [
+              "amount"
+            ]
+          ]
+        }
+      ],
+      "next": {
+        "label": "Iniciar solicitud",
+        "step": "phoneVerification"
+      }
+    },
+    "phoneVerification": {
+      "sections": [
+        {
+          "grid": [
+            [
+              "logo"
+            ]
+          ]
+        },
+        {
+          "title": "Ingresa el número de celular",
+          "grid": [
+            [
+              "phoneNumber"
+            ],
+            [
+              "legalTerms"
+            ]
+          ]
+        }
+      ],
+      "next": {
+        "label": "Continuar",
+        "step": "otpValidation",
+        "post": "send-otp"
+      }
+    },
+    "otpValidation": {
+      "title": "Ingresa el código",
+      "sections": [
+        {
+          "grid": [
+            [
+              "otpCode"
+            ]
+          ]
+        }
+      ],
+      "next": {
+        "label": "Continuar",
+        "post": "validate-otp",
+        "step": "personalInfoData"
+      }
+    },
+    "personalInfoData": {
+      "title": "Completa tu información financiera",
+      "paragraph": "Te tomará solo unos minutos y nos ayudará a ofrecerte una opción adecuada para tí.",
+      "sections": [
+        {
+          "title": "Datos personales de contacto",
+          "grid": [
+            [
+              "firstName"
+            ],
+            [
+              "lastName"
+            ],
+            [
+              "email"
+            ],
+            [
+              "cityOfResidence"
+            ],
+            [
+              "documentType"
+            ],
+            [
+              "nationalIdentityNumber"
+            ],
+            [
+              "birthDate"
+            ]
+          ]
+        }
+      ],
+      "next": {
+        "label": "Continuar",
+        "step": "financialInformation"
+      }
+    },
+    "financialInformation": {
+      "title": "Información financiera",
+      "sections": [
+        {
+          "grid": [
+            [
+              "averageMonthlyIncome"
+            ],
+            [
+              "primaryOccupationType"
+            ],
+            [
+              "associateNumberScreenshot"
+            ],
+            [
+              "incomeType"
+            ],
+            [
+              "employmentOrBusinessTenure"
+            ],
+            [
+              "incomeChannels"
+            ],
+            [
+              "activeCredits"
+            ],
+            [
+              "hasActiveCreditCard"
+            ],
+            [
+              "approximateMonthlySpend"
+            ],
+            [
+              "hasPaymentDelaysOver30Days"
+            ]
+          ]
+        }
+      ],
+      "next": {
+        "label": "Continuar",
+        "post": "submit",
+        "clear": true
+      }
+    }
+  }
+}

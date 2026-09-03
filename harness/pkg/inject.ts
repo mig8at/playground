@@ -348,6 +348,36 @@ export async function approvePaymentTx(txId: number): Promise<number> {
     return res.affectedRows;
 }
 
+/** LA VALIDACIÓN MANUAL DE IDENTIDAD, que es lo que un humano aprieta en el admin cuando mira los
+ *  documentos del cliente. Con esto puesto, el backend NO manda a validar identidad: devuelve
+ *  `next_step: continue_flow` con `type: no_validation_required` y el flujo sigue al plan de pagos.
+ *
+ *  DOS COLUMNAS, NO UNA TABLA. No hay veredicto guardado en ningún lado: la condición que salta la
+ *  identidad es `manual_validation = 1` **y** `last_validation` con menos de 24 h
+ *  (`CreditopXFlowService::getIdentityNextStepData`, que cruza `calculateValidationTime` con
+ *  `$user->manual_validation`). Por eso `NOW()` no es decorativo: con una fecha vieja, la columna en 1
+ *  no hace nada. Y es POR USUARIO, no por solicitud — si el cliente tiene dos, las dos quedan.
+ *
+ *  POR QUÉ ACÁ Y NO POR LA API. El gemelo existe y está abierto en legacy-backend
+ *  (`PATCH /api/loans/admin/users/{id}/manual-validation`, sólo middleware `api`: sin token ni
+ *  sesión), pero además de estas dos columnas **manda un WhatsApp al celular del cliente** con el
+ *  enlace para continuar (`NotificationService::sendManualValidationResponse`). Los teléfonos que
+ *  deriva este runner tienen forma de celular colombiano válido, así que ese mensaje puede llegarle a
+ *  una persona. Acá se escribe sólo lo que el flujo necesita. Si algún día hay que probar que el
+ *  mensaje llega, ESE caso va por la API.
+ *
+ *  Y de paso saltea el candado de 24 h del endpoint (revalidar dentro de la ventana responde 422 «ya
+ *  tiene una validación manual activa»), que para repetir un caso es a favor.
+ *
+ *  ⚠ Lo que ESTO no prueba: que el humano habría aprobado. Es un bypass, igual que el buró sintético.
+ */
+export async function validacionManual(userId: number): Promise<number> {
+    if (!userId) return 0;
+    assertWriteAllowed();
+    const res = await exec('UPDATE users SET manual_validation=1, last_validation=NOW() WHERE id=?', [userId]);
+    return res.affectedRows;
+}
+
 /** Último user_request de un branch (por hash) con id > sinceId. Para el flujo dinámico: el forms-service
  *  crea el user_request al iniciar (sin exponer el uReqID en la URL); snapshot del MAX antes + esto después
  *  ⇒ capturamos el que recién creó el form (determinístico para una corrida). sinceId=0 = el más reciente. */
