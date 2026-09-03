@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -58,22 +58,25 @@ filas que escribió un script de migración y los 18 `que_es`. El #80 fue el **p
 ese dictado encontró: el empalme dejaba una coma antes del primer elemento de un `areas` vacío (rompió
 el build de main) y un tema nacido en el mismo cierre no podía recibir áreas.
 
-**Lo último, y es lo que hay que saber al retomar: `Creditop-SAS/playground#82` está en verde y SIN
-MERGEAR.** Salió de un ensayo que pidió Miguel: hacer de cuenta que somos un dev del equipo y
-contextualizar canon por la API con lo que acababa de entrar a main, todo en local. El ensayo funcionó de
-punta a punta y dejó tres cosas:
+**Lo último, y es lo que hay que saber al retomar: `Creditop-SAS/playground#83` está en verde y SIN
+MERGEAR, y con él la ronda queda en CERO.** El #82 ya está mergeado y validado en prod.
 
-- **dos secciones dictadas y verificadas contra `legacy-application`**: hasta cuándo se puede cambiar el
-  país de un comercio o de una entidad (y que cambiarlo no arrastra a sus sucursales), y el canal de
-  origen de un pago con las tres cosas que sesgan cualquier conteo — texto libre, «web» como valor por
-  omisión, y el registro manual que hereda el canal o queda vacío;
-- **la guarda de puertos de los dos arneses**: le pegaban al servidor de otro proceso si el puerto estaba
-  ocupado, y el chequeo de salud pasaba igual. Costó dos fallas falsas y podía costar un verde falso;
-- **la apertura de `internacionalizacion` reescrita**: decía que el tema no tenía código declarado y ya
-  tiene dos áreas.
+El #83 salió de una pregunta de Miguel: para que `/agentes` muestre «al día», ¿alcanza la API o conviene
+un PR local? La respuesta no era de gusto — **son dos operaciones y sólo una tiene puerta**: dictar prosa
+nueva va por la API, y afirmar «releí esto y sigue siendo cierto» es `-igualar`, que a propósito no tiene
+endpoint. Se hicieron las dos: se leyeron los **76 diffs** de los archivos declarados que habían cambiado,
+se dictaron **16 secciones** por el borrador, se abrió el tema **`bcp`** (la primera entidad de afuera), se
+**corrigió** por la API una sección que había dejado de ser cierta, se **retiraron** dos rutas muertas y
+recién entonces se igualaron los hashes. Hoy la ronda dice **«al día» sobre 651 archivos declarados**.
 
-Queda en pie el inventario: **76 archivos declarados cambiaron en 16 temas** (onboarding 22, listado 13,
-datos 7, altas 6), 15 preguntas de soporte sin cobertura, 2 del equipo, y 175 tablas sin área.
+Lo más caro que encontró: **un `related` colgado vuelve ilegible todo `content/`** y la herramienta cae al
+corpus embebido, con lo que `-lint` contesta «✓ todo en orden» sobre la copia equivocada. Ya avisa.
+
+Y algo que no era de canon: **CORE-431 está cerrada para la suite de `legacy-backend`** (llegó a main entre
+el 2 y el 3 de septiembre), así que la sección ⛔ del CLAUDE.md del playground quedó vieja y **ya está
+corregida** — la prohibición se queda, porque `make fresh` no pasa por la guarda nueva.
+
+Queda en pie: 15 preguntas de soporte sin cobertura, 2 del equipo, y 174 tablas sin área.
 
 ## Objetivo
 
@@ -265,6 +268,60 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · la ronda en cero, y lo que costó llegar (#83)
+
+**La pregunta era de método, no de esfuerzo:** ¿se puede dejar `/agentes` en «al día» usando la API, o
+conviene un PR local sin la API «para no complicarnos»? Verificado antes de contestar: **la API no puede**.
+El dictado sube el hash sólo de los archivos que la pieza declara; poner el residuo en cero es una
+afirmación en bloque —«releí estos 76 archivos y la prosa sigue siendo cierta»— y eso es `-igualar`, que no
+tiene endpoint por decisión de Miguel. Así que el corte es por OPERACIÓN, no por comodidad, y se hicieron
+las dos mitades en el mismo PR.
+
+**Lo que se leyó.** 76 archivos declarados cambiados en 15 temas (onboarding 22, listado 13, datos 7, altas
+6), 2.535 líneas. Se leyeron los diffs de los grandes completos y, de los 23 chicos, el diff entero. Un
+solo candidato a haber vuelto falsa la prosa —un cron que se movió de 16:05 a 04:00— resultó ser **otro**
+cron, distinto del que el corpus nombra a las 09:30, que sigue a esa hora.
+
+**Lo que se dictó, con lo medido en prod.** Un país sin centrales habilitadas no consulta ninguna, y manda
+el país del COMERCIO: Colombia 12 centrales / 323 comercios, **República Dominicana CERO / 16 comercios con
+361 solicitudes y la última ese día a las 09:59** — hay operación corriendo sin ninguna consulta de riesgo,
+y es la configuración. Dos banderas por comercio deciden qué se pide, y apagar la fecha de expedición apaga
+la identidad y deja la edad vacía; los 339 comercios las tienen encendidas. Y la consecuencia: sin edad, la
+comparación es falsa en PHP 8 y la persona quedaba fuera de TODAS las categorías de TODAS las entidades —
+**52.934 de 397.122 no tienen edad**. Más: los tipos de documento que se borraban al guardar la sucursal
+(7.006 de 7.323 filas los tienen), el país de la plantilla del OTP, el código que dejó de vivir en Redis, el
+monto cerrado con solo-lectura, la vuelta del checkout que llama el wizard, y el ingreso guardado como texto.
+
+**Un tema nuevo, `bcp`**, y con él el descubrimiento de que **la API SÍ puede abrir un tema**: no con
+`enlaces` (los salientes del nodo que nace, que no alcanzan) sino con **`abre`** en la pieza que lo enlaza
+desde un tema existente. Pre-enlazarlo a mano fue peor que inútil, y ahí salió el hallazgo del día.
+
+**El hallazgo del día: un `related` colgado vuelve ILEGIBLE todo `content/`.** La herramienta cae al corpus
+EMBEBIDO —descartando el `err`— y sigue andando: `-lint` contestó **«✓ todo en orden» sobre la copia
+equivocada**, y las secciones recién dictadas en disco no existían para nadie. Es la segunda vez que esta
+degradación silenciosa cuesta tiempo. Arreglado en el mismo PR: ahora nombra la causa exacta.
+
+**Dos detalles de la API que costaron un intento cada uno:** retirar una ruta muerta pide
+`operacion: "verificado"` **con el alias del mapa** —con `owner/repo` contesta «el mapa tampoco lo declara»,
+que suena a lo contrario de lo que pasa—; y `kind: "correction"` con el título de una sección existente la
+**reemplaza**, que es justo lo que hacía falta para la sección que había dejado de ser cierta.
+
+**Y algo que no era de canon.** Al retirar esas rutas apareció que **CORE-431 está cerrada para la suite**:
+el commit `d3323457` borró los dos tests con `RefreshDatabase` y agregó una guarda con lista blanca de hosts
+y schemas que aborta la corrida. Llegó a main entre el 2 y el 3 de septiembre —el reflog de `origin/main` lo
+confirma—, así que el texto del corpus era correcto cuando se escribió. La sección ⛔ del CLAUDE.md quedó
+vieja y **se corrigió**: la prohibición se queda porque `make fresh` no pasa por la guarda, y grepear sólo
+`RefreshDatabase` da hoy **30 falsos positivos y 0 reales** sin anclar el `use`.
+
+**El banco de ruteo frenó tres veces** por robarle el camino a preguntas que ya funcionaban («ocupación», y
+dos veces «el error del banco no dice nada útil»). Las tres se arreglaron quitando la palabra que no se
+había ganado su lugar — y la tercera necesitó contar ocurrencias con un script, porque a ojo no se veía.
+
+**Comprobado:** ronda ✓ al día sobre 651 archivos · lint 21 nodos / 233 secciones · bench 93/115 y 115/115
+igual que antes · soporte 123/124 y equipo 26/26 sin cobertura perdida · `go test`, dictado (54
+comprobaciones) y humo en verde.
+
 
 ### 2026-09-03 · el ensayo de contextualizar por la API, hecho de verdad y en local (#82)
 
