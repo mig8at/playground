@@ -98,11 +98,12 @@ credenciales que circulan son las del usuario **maestro del RDS, con `DROP`**. D
 completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
 en `data/artifacts/…hipotesis.md`.
 
-**Los dos archivos prohibidos** — no los corras, ni sueltos ni dentro de una tanda, ni con el `.env`
-apuntando a local:
+**Los tres archivos prohibidos** — no los corras, ni sueltos ni dentro de una tanda, ni con el `.env`
+apuntando a local *(eran dos; el tercero apareció en `main` y se verificó el 2026-09-02)*:
 
     Modules/Loans/tests/Feature/SafeCancelTest.php
     Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php
+    Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php
 
 **Lo que NO se hace:**
 
@@ -118,7 +119,7 @@ apuntando a local:
     ./vendor/bin/sail artisan test --filter=nombreDelTest <ruta>     # aún más angosto
     make test-onboarding                                            # ya viene acotado por rutas
 
-Antes de correr cualquier carpeta, comprobá que no arrastra uno de los dos:
+Antes de correr cualquier carpeta, comprobá que no arrastra uno de los tres:
 
     grep -rlE '^\s*use RefreshDatabase;' <ruta>
 

@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar
 jira_title: ""
 ---
 
@@ -39,10 +39,20 @@ sección viaja sólo con las áreas que la respaldan (25 KB → 7,8 KB), la bús
 resultado, dos objetivos kilométricos reescritos, y el skill enseña lo barato y la trampa del `%23`.
 El ranking no cambió: bench 92/115 · 115/115 · 115/115.
 
-**El próximo paso es:** las dos decisiones de Miguel que siguen abiertas y el orden de lo que viene. Siguen abiertas dos decisiones de Miguel: borrar las seis
-ramas `canon/*` de origin (todas en `main`) y encender `delete_branch_on_merge`. Después, el **paso 5,
-crecer por demanda** (21 preguntas de soporte sin cobertura) y las mejoras del bucle (Registro 23; y
-que `declarar` escriba objetivos cortos), como su propio PR único.
+**Y hay un PR más, entero y en verde: `Creditop-SAS/playground#76` — la capa `operar`: canon como
+documentación del equipo de tecnología.** Miguel lo pidió («que cualquiera pueda usar la API para salir de
+dudas de cómo funciona CreditOp»); medido antes: de 16 preguntas típicas de un dev, 4 caían en una sección
+que contestaba y 12 en otro tema con puntaje alto. Trae la segunda clase de documento (`operar`, puede
+nombrar comandos y rutas; un tema lleva UN documento), cuatro temas operativos verificados contra `main`
+hoy (ambientes, local, repos, observabilidad), el banco `preguntas-equipo.txt` (`-equipo`), y `cobertura`
+en la búsqueda y en el agente. Medido en local con la misma sonda: **de 4 a 10 al primer resultado, 12 en
+los dos primeros**; bench y soporte iguales.
+
+**El próximo paso es:** revisar y mergear #76 y volver a correr la sonda y `-equipo` contra prod. Siguen
+abiertas las dos decisiones de Miguel: borrar las seis ramas `canon/*` de origin (todas en `main`) y
+encender `delete_branch_on_merge`. Después, por orden de valor: el paso 5 de crecer por demanda (las 21 de
+soporte + lo `SIN COBERTURA` del banco del equipo), y las mejoras del bucle (Registro 23; que `declarar`
+escriba objetivos cortos; el guion del agente y el texto de `buscar`, Registro 27).
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -235,6 +245,52 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-02 · noche · 28 — la capa `operar`: canon para el equipo de tecnología, medido antes y después (#76)
+
+Miguel: «quiero que canon no sea sólo soporte sino la documentación para el equipo de tecnología; que
+cualquiera pueda usar la API para salir de dudas de cómo funciona CreditOp. ¿Lo ves viable?». Y después:
+«arranca y hacé varias pruebas en local antes de darme el PR».
+
+**Medido antes de opinar.** Dieciséis preguntas típicas de un dev por `/api/search` en prod: **4** caían en
+una sección que contestaba; **12** devolvían un resultado de otro tema con puntaje alto («cómo se despliega a
+producción» → motai, la calculadora de la cuota, score 209). Dos preguntas al agente: honesto («el canon no
+describe un proceso de CI/CD»; «no tiene una superficie de logs») pero en **28 y 17 s, con 9 y 5 pasos**.
+La causa: el corpus está escrito para «qué pasa y qué se le contesta», por asunto; no tiene capa operativa;
+y la prosa tiene **prohibido nombrar comandos, archivos y endpoints** —correcto para negocio, imposible para
+un runbook—. La máquina de políticas por capa ya existía (`Policies` por `layer`, con una sola capa).
+
+**Lo construido (#76, dos commits: herramienta y contenido):**
+- **La clase `operar`**: política propia (2.500 palabras, 500 por sección, direcciones permitidas),
+  `CheckTextFor` por capa (el dictado y el ensayo la aplican según la clase del nodo), lint **un tema, un
+  documento** (dos compartirían el mapa y sus anclas serían ambiguas), `-nuevo <tema> operar`, y los tres
+  lugares que asumían `tema/context` resuelven la clase que exista.
+- **El banco del equipo** (`preguntas-equipo.txt`, `-equipo` en el Dockerfile; informa, no bloquea).
+- **`cobertura`** en `/api/search` y en el `buscar` del agente: qué parte de las palabras de la pregunta
+  cubre el mejor resultado; la mitad o menos → nota «probablemente el corpus no tiene esto». Etiqueta, no
+  filtro: el orden no cambia.
+- **Cuatro temas operativos verificados contra `main` hoy**: ambientes (27 workflows: develop/qa/staging/lab
+  por rama, **producción por tag**, migraciones manuales, dev+qa+staging comparten la BD, el front de
+  staging le habla al backend de develop —misma `VITE_API_URL`—), local (make up/setup, drivers fake,
+  **make test y make fresh borran la base: TRES tests con RefreshDatabase, eran dos el 19/8**), repos (qué
+  hay, qué microservicios, cuáles no se tocan hace meses), observabilidad (Loki con `app`/`environment` y
+  por qué no filtrar por environment; OTel a Tempo con `traceparent` a los proveedores; PostHog salvo local).
+
+> **MEDICIÓN · 2026-09-02** — la misma sonda contra el servidor local con el corpus nuevo: **10/16 al primer
+> resultado** (era 4), **12/16 en los dos primeros**; las dos sin cobertura (autenticación interna, webhooks)
+> quedan marcadas; una cubierta no se encuentra («la tabla de solicitudes y sus estados» → motai: `datos` no
+> dice «tabla»). Bench **igual** (92/115 · 115/115), soporte igual (117/118), `-equipo` 17/18, lint ✓ 19 nodos
+> · 203 secciones · 140/186 respaldadas. Tests, `-race` 0, `unused` 0, humo y dictado (fase nueva: abre un
+> tema operar por API, dicta un comando que context rechaza con 422, y el corpus pasa el lint) todo bien.
+
+**Dos ajustes que salieron de medir, no de pensar:** el umbral de cobertura era `< 0,5` y las dos preguntas
+sin cobertura quedaron justo en 0,5 → pasó a «la mitad o menos». Y `repos` perdía contra `ambientes` porque
+sus títulos no decían «qué repos hay» ni «microservicios»: con los títulos en las palabras de la pregunta
+pasó a primero. Vocabulario, otra vez, más que buscador.
+
+**Dato nuevo para la regla de seguridad del playground:** en `main` de legacy-backend hay **tres** tests con
+`RefreshDatabase`, no dos: se sumó `Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php`.
+El CLAUDE.md personal se corrige en este mismo commit.
 
 ### 2026-09-02 · noche · 27 — #75 en prod: la lectura bajó lo medido; el texto en `buscar` NO ahorró el turno
 
