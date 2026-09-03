@@ -53,8 +53,11 @@ los dos primeros**; bench y soporte iguales.
 `main`) da el esquema: 235 tablas, 2.334 columnas, 64 FK + 287 por convención, 13 vecindarios. Y —corrección
 de Miguel al primer diseño— **las tablas que toca cada objetivo se DECLARAN en el área**, como los archivos:
 `tablas` en el mapa, verificado por el lint, con `canon -tablas` sugiriendo (acceso · modelo · mención) y
-una persona decidiendo. 61 declaraciones en 10 temas; 42 tablas con dueño; los huecos con 1.000+ filas bajan
-de 74 a 48. Banco del equipo 22/22.
+una persona decidiendo. **76 declaraciones · 57 de 235 tablas con dueño**; los huecos con 1.000+ filas bajan de 74 a 33. El
+sugeridor barre los DOS monolitos por los modelos que cada archivo importa (171 de 235 tablas) y cierra con
+el inventario de lo que falta. Dos hallazgos medidos: **las tablas de log siguen vivas** (Loki no las
+reemplazó, todas escribieron hoy) y **`filas_aprox` se desvía hasta un 23 %** de un COUNT real. Banco del
+equipo 22/22.
 
 **El próximo paso es:** revisar y mergear #76 y después #77, y medir en prod la sonda de 16 preguntas,
 `-equipo`, y las búsquedas con nombres de tabla. Siguen abiertas las dos decisiones de Miguel: borrar las
@@ -253,6 +256,49 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · madrugada · 31 — los DOS monolitos, y la hipótesis de los logs medida (#77, sin PR nuevo)
+
+Miguel: «sigamos trabajando en el PR 77 para no seguir creando PRs. También sería validar contra
+legacy-application, no sólo contra legacy-backend, el uso de tablas… y en cuanto a la tabla de logs quizás
+ya no se usan porque usamos Loki, puede ser una causa, sigue indagando». Las dos cosas dieron hallazgo.
+
+**1 · La señal que faltaba.** Al barrer los dos repos apareció que el acceso explícito era la señal
+equivocada: en Laravel el nombre de la tabla casi nunca se escribe, se escribe el MODELO.
+
+> **MEDICIÓN · 2026-09-03** — barriendo `main` de los dos monolitos: por acceso explícito (`DB::table`, un
+> join, `$table`) **33** tablas; **por los modelos que los archivos importan, 171 de 235**. Y por repo:
+> backend 150 · application 145 · 124 en las dos · **21 sólo en application** (entre ellas
+> `reminder_dispatch_log`, 111.487 filas) · 26 sólo en backend. Miguel tenía razón en los dos frentes.
+
+**2 · El inventario, hecho herramienta.** `-tablas` cierra con las tablas que ningún área declara, partidas
+en dos: las que algún archivo usa —un área o un tema que falta, CON el archivo en la mano— y las que nadie
+usa, que es otra pregunta. De las 48 sin dueño con volumen, **39 tenían código que las usa**.
+
+**3 · La hipótesis de los logs es FALSA.** Leí la última fila de cada tabla de log por clave primaria en
+prod, a las 06:20: **todas escribieron ese día** — `logs` ese mismo minuto, `creditop_x_log` y
+`twilio_logs` ocho minutos antes, `qr_logs` y `reports_log` esa madrugada, y las dos de recordatorios el
+día anterior a la misma hora (un reloj diario). Loki no reemplazó el log a tabla: **conviven**, y dicen
+cosas distintas —Loki la línea de la aplicación con su traza, las tablas el registro de negocio, que
+sobrevive a la retención—. Quedó como sección del tema `observabilidad`, con el dato de que a `logs` le
+escriben 91 archivos de los dos monolitos.
+
+**4 · Y de indagar eso salió otro hallazgo, más incómodo:** `filas` era `information_schema.table_rows`,
+una ESTIMACIÓN. Medido contra `COUNT(*)` en nueve tablas se desvía hasta un **23 %** (`qr_logs` 48.719
+estimadas contra 63.443 reales; `lender_rules` 41.285 contra 51.726) y
+`user_request_risk_central_verified`, que ayer di por «tabla sin escritor y quizá vacía», tiene **301.690
+filas reales** contra 276.696 estimadas: está viva, y sigue sin código que use su modelo. El campo pasó a
+llamarse **`filas_aprox`** en el JSON, el struct y la API: el nombre lo dice para que nadie la cite como
+exacta, que es la misma regla que la fecha al lado de cada número.
+
+> **MEDICIÓN · 2026-09-03** — 15 declaraciones más desde el inventario (cada una con el archivo que la usa
+> como evidencia): **57 de 235 tablas con dueño** (eran 42) y las sin dueño con 1.000+ filas de 48 a **33**.
+> Bench 92/115, soporte 117/118, equipo 22/22 y lint (205 secciones): iguales. `-race` 0 · `unused` 0 ·
+> humo y dictado todo bien. #77 en verde, 9 commits.
+
+**Detalle que casi arruina el inventario:** `codebase.GrepLineas` recorta a 400 líneas y el barrido necesita
+unas 10.000, así que la primera corrida dijo «nadie la usa» de tablas que sí se usan — justo la conclusión
+que no se puede errar. El barrido va directo con `Run`.
 
 ### 2026-09-03 · madrugada · 30 — «¿para qué Eloquent?»: las tablas se declaran, y el modelo baja a sugerencia (#77)
 
