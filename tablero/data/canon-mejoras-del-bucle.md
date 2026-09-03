@@ -5,7 +5,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas
+ramas: agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval
 jira_title: ""
 ---
 
@@ -46,12 +46,22 @@ vecindarios, y las búsquedas por nombre de tabla devolviendo las áreas que la 
 sonda de 16 preguntas del equipo pasó de **4 a 15 al primer resultado**, y «en qué tabla queda el estado de
 una solicitud» la contesta el agente en **2 pasos y 7 s** con citas, contra los 4 a 9 pasos de antes.
 
-**El próximo paso es:** crecer con el inventario en la mano — 178 tablas sin área, 33 de ellas con más de
-mil filas y con el archivo que las usa, que es la vía más directa para escribir contexto nuevo verificado.
-Después, las preguntas sin cobertura (21 de soporte, 2 del equipo: autenticación interna y webhooks) y las
-mejoras del bucle (el guion del agente, que relee lo que ya recibió; y que `declarar` escriba objetivos
-cortos). Sigue abierta la decisión de Miguel de borrar las seis ramas `canon/*` de origin, todas contenidas
-en `main`, y encender `delete_branch_on_merge`.
+**Y arrancó el crecer por demanda: `Creditop-SAS/playground#78` — el tema de la CUOTA**, en verde. Seis de
+las 21 preguntas de soporte sin cobertura eran sobre lo mismo (el aval, su IVA, la cuota inicial, los costos
+administrativos) y ninguna se contestaba. Ahora sí, verificado contra `main`: el orden en que se suman los
+cobros, el IVA del aval fijo en 19 % con la columna que NO lo decide, y la cuota inicial calculada en dos
+lugares con dos bases. Soporte pasó de **117/118 con 21 sin cobertura a 123/124 con 15**; el banco del
+equipo a **26/26**. Las ramas mergeadas de `canon/*` y `agentes/*` quedaron borradas (seis y veintinueve);
+`canon/estado` NO se borra, es la rama de estado del bucle.
+
+**El próximo paso es:** seguir por ahí — quedan 15 preguntas de soporte sin cobertura (pago mínimo contra
+saldo total, core bancario, asignación de asesor, reinicio de intentos de identidad, reportes) y las 2 del
+equipo (autenticación interna, webhooks), más 178 tablas sin área con su inventario. Y las mejoras del
+bucle: el guion del agente relee lo que ya recibió, y `declarar` escribe objetivos kilométricos.
+
+⚠ **Y no puedo habilitar `delete_branch_on_merge`**: la API devuelve 404 porque `mig-creditop` tiene push y
+triage, no admin. Lo tiene que hacer un admin del repo (OscarRinc, yamid, sanvipi, lhCabra, dsanchezops) en
+Settings → General → Pull Requests → «Automatically delete head branches».
 
 ⚠ Regla de Miguel (2026-09-02): **un PR por pieza de trabajo, no por cambio** — una rama desde `main`,
 commits por concern, los arneses enteros, y el PR al final con el cuerpo que cuenta la forma completa. Y
@@ -244,6 +254,49 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · mañana · 33 — crecer por demanda: el tema de la cuota, y el vocabulario que roba caminos (#78)
+
+Miguel: «ahora trabajás con un modelo mejor que el de Bedrock; ¿qué tal si con el contexto que tenés tratás
+de mejorar el corpus? Yo lo veo muy bien, pero si ves que podemos agregar más cosas sería genial». El lugar
+más rentable estaba medido desde hacía días: las 21 preguntas de soporte marcadas `SIN COBERTURA`. **Seis
+eran sobre lo mismo** —aval, IVA del aval, cuota inicial, costos administrativos— y todas se contestan
+leyendo el mismo cálculo.
+
+**Lo escrito, verificado contra `main` el 2026-09-03** leyendo el cálculo del plan de pagos, el servicio del
+aval, el del enganche, el de la categoría y el del bloqueo del equipo:
+- **El orden de los cobros explica tres reclamos.** Administrativos sobre el monto COMPLETO; el aval sobre
+  monto MÁS administrativos (no sobre el monto pelado); ese total es la base de la amortización; y el seguro
+  de vida y el aval fijo por millón se suman DESPUÉS, así que **esos dos no generan interés y los otros sí**.
+- **El IVA del aval está fijo en 19 % en el código**, con la única excepción del país. Y la trampa: la fila
+  comercio-entidad TIENE una columna de impuesto que el aval NO usa (la lee el cobro del bloqueo del
+  equipo), así que cargarla no cambia nada.
+- **La cuota inicial se calcula en dos lugares con dos bases y dos orígenes**: el porcentaje del mínimo de la
+  categoría o del tramo de monto; y la base es monto+administrativos en el plan de pagos contra el monto
+  pelado en el cobro. Con administrativos en cero coinciden. Es «le cobraron más de lo que dice la política».
+- **La tasa no es proporcional en los tres cortes**: mensual, la mitad en quincenal, conversión efectiva en
+  semanal. Y el aval tiene **cuatro nombres** (aval · fianza · FGA · fondo de garantías), uno por cada lado.
+
+> **MEDICIÓN · 2026-09-03** — soporte: **117/118 con 21 sin cobertura → 123/124 con 15**. Equipo: 22/22 →
+> **26/26** (+4 preguntas del aval y el enganche). Ruteo: 92 → **93** al primer resultado, 115/115 en top-3.
+> Lint 20 nodos · 212 secciones. `-race` 0 · humo y dictado todo bien. Las seis preguntas probadas una por
+> una contra el servidor local: cinco caen directo en el tema nuevo, la sexta llega en dos pasos.
+
+⚠ **Lo que más se aprendió, y es de método:** escribir **le robó el camino a dos preguntas del banco, las
+dos veces por vocabulario**. Mi prosa decía «el producto no existe» hablando del aval en otro país, y eso le
+quitó el top-3 a «cuánto cuesta agregar otro producto de bancolombia» — el bench lo cazó como SIN CAMINO,
+que bloquea. Cambiado por «ese cobro», volvió. Y la primera versión de las dos entradas del glosario era el
+doble de larga: le quitó el camino a «por qué no le apareció esta entidad al cliente». Acortadas, volvió.
+**Agregar prosa con palabras comunes DILUYE el ranking de lo que ya estaba.** Tercera vez en dos días que el
+vocabulario, y no el buscador, decide el ruteo. El bench no es burocracia: es lo que hace que escribir no
+rompa lo que ya funcionaba.
+
+**Y por qué un tema nuevo:** `formalizacion` llegó a 3.074 palabras contra un techo de 3.000, que es
+exactamente cuando el lint pide partir. La cuota es un asunto propio y queda sitio para lo que falta (pago
+mínimo contra saldo, los administrativos en el reporte). En `formalizacion` quedó un puntero de una línea.
+
+**Higiene hecha:** borradas las ramas mergeadas —seis `canon/*` y veintinueve `agentes/*`— y **`canon/estado`
+NO**: es la rama de estado del bucle y el chequeo de ancestro la frenó, que era justo su trabajo.
 
 ### 2026-09-03 · mañana · 32 — #76 y #77 en prod: de 4 a 15 de 16, y la pregunta de tabla en 2 pasos
 
