@@ -63,3 +63,26 @@ export async function listEcommerce(q = ''): Promise<EcommerceBranch[]> {
         [q, like, like],
     );
 }
+
+/** El TELÉFONO que acepta el comercio, por el largo que declara SU país.
+ *
+ * El harness traía un móvil colombiano fijo, y contra un comercio de otro país el registro se cae con
+ * un 422 de validación —«el número de celular debe tener 9 dígitos» con Perú— antes de llegar a nada
+ * interesante. El largo no es una regla del código: está en `countries.cell_phone_lenght`, así que se
+ * le pregunta al país en vez de mantener una tabla acá.
+ *
+ * El prefijo se toma del primer dígito del móvil colombiano (3) o, para el resto, del `phone_code` sin
+ * el `+` — lo que importa para pasar la validación es el LARGO, no que el número sea plausible en la
+ * red real: es un teléfono sintético que nunca recibe nada. */
+export async function telefonoDeLaSucursal(branchHash: string, semilla = 3131010101): Promise<string> {
+    const [fila]: any[] = await query(
+        `SELECT c.cell_phone_lenght AS largo, c.name AS pais
+           FROM allied_branches b JOIN allieds a ON a.id=b.allied_id
+           JOIN countries c ON c.id=a.country_id WHERE b.hash=? LIMIT 1`, [branchHash]);
+    const largo = Number(fila?.largo) || 10;
+    const base = String(semilla).replace(/\D/g, '');
+    // Se recorta o se rellena hasta el largo del país, conservando el primer dígito para que no
+    // arranque en 0 (que varias validaciones rechazan aparte).
+    const cuerpo = (base + base).slice(0, Math.max(largo - 1, 1));
+    return (base[0] || '9') + cuerpo.slice(0, largo - 1);
+}

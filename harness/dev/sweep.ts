@@ -29,6 +29,7 @@
 //   · El teléfono 3131010101 debe estar scrubbeado antes de cada register.
 
 import { spawnSync } from 'node:child_process';
+import { telefonoDeLaSucursal } from '../pkg/merchants.ts';
 import { readFileSync } from 'node:fs';
 
 process.env.E2E_TARGET ||= 'local';
@@ -56,7 +57,7 @@ const flowsRaw = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.u
 // que ese arreglo no cubría: `pkg/config.ts` ya lo resolvía bien y este archivo no lo usaba.
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const API = e2eConfig.mockUrl;
-const PHONE = '3131010101';
+let PHONE = '3131010101';   // se ajusta al largo que declara el país del comercio
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 // `x-cognito-identity-id` = el sub del ASESOR. Lo manda el wizard (default-layout arma authHeaders) y el
 // middleware ResolveCognitoUser lo convierte en el usuario autenticado. Sin él, `update-user-request`
@@ -88,6 +89,9 @@ async function http(method: string, path: string, body?: unknown): Promise<{ sta
 
 /** register + INSERT del uReq + buró sintético. Devuelve el id, o '' si falló. */
 async function seed(hash: string, amount: number): Promise<string> {
+    /* El largo del móvil lo valida el país del COMERCIO: contra uno de fuera de Colombia el registro
+       se cae con un 422 y el sweep reporta «seed falló» sin decir por qué. */
+    PHONE = await telefonoDeLaSucursal(hash, Number(PHONE));
     scrub();
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
@@ -139,6 +143,13 @@ async function select(ur: string, lenderId: number): Promise<string> {
     // el "modal de proceso": seguí en el punto de venta / en la app del lender / en el celular del cliente.
     if (!d.showModal && d.openProcessModal) traits.push(`processModal "${String(d.modalMessage ?? '').slice(0, 40)}"`);
     if (d.qrUrl) traits.push('qr');
+    /* El SOBRE a postear: cuando el back lo incluye manda `url` en NULL, así que sin esto una
+       integración que se entrega por POST (hoy BCP) salía como «sin conducta reconocible». */
+    if (d.postRedirect) {
+        let h = String(d.postRedirect.action ?? '');
+        try { h = new URL(h).host; } catch { /* */ }
+        traits.push(`post→${h || 'sin action'}`);
+    }
     const u = d.url || d.transaction?.url;
     if (u) { let h = u; try { h = new URL(u).host; } catch { /* */ } traits.push(`url→${h}`); }
     return traits.length ? traits.join(' + ') : 'sin conducta reconocible (revisar data)';

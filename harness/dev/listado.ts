@@ -25,6 +25,7 @@
 //     a propósito, que es lo que lo mantiene andando.
 
 import { spawnSync } from 'node:child_process';
+import { telefonoDeLaSucursal } from '../pkg/merchants.ts';
 
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
@@ -34,7 +35,7 @@ const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 
 const API = e2eConfig.mockUrl;
-const PHONE = '3131010101';
+let PHONE = '3131010101';   // se ajusta al largo que declara el país del comercio (ver telefonoDeLaSucursal)
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 const ASESOR_SUB = process.env.E2E_ASESOR_SUB ?? '';
@@ -107,6 +108,9 @@ async function main(): Promise<number> {
     ok('universo cableado', `${universo.length} entidades en ${br.com}`);
 
     // ── 2 · sembrar la solicitud ───────────────────────────────────────────────────────────────
+    /* El largo del móvil lo valida el país del COMERCIO, no el nuestro: contra el comercio de Perú un
+       número colombiano se cae con un 422 antes de llegar al listado, que es lo que se venía a medir. */
+    PHONE = await telefonoDeLaSucursal(hash, Number(PHONE));
     spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', import.meta.url).pathname });
     const reg = await http('POST', '/api/onboarding/phone/register', {
         phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,

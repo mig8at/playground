@@ -23,6 +23,13 @@
 // usuario y sus solicitudes. Si dos casos se pisan igual, es que comparten algo REAL (un lock de
 // comercio, un cupo, un asesor) — y eso es justo lo que uno quiere descubrir.
 //
+// LA IDENTIDAD, con `--manual`: deja al titular (y a su codeudor) con la validación manual que un
+// humano aprueba en el admin, así el backend contesta `no_validation_required` en vez de mandar a la
+// captura de documento y selfie. Sin el flag el runner cierra igual —el camino por API no pasa por esa
+// pantalla— así que sirve para dos cosas distintas: probar el flujo COMO SI la identidad estuviera
+// resuelta, y no depender de que el paso de identidad esté bien configurado en el ambiente. El detalle
+// de las dos columnas y por qué no va por la API: `pkg/inject.ts::validacionManual`.
+//
 // EL CASO COMPLETO, con `--cerrar`: buró dictado → listado → integración del proveedor dictada →
 // pre-aprobación (la que haría el front) → SELECCIÓN del lender CreditopX del comercio y cierre hasta
 // estado 11. Si el comercio no tiene rt=2, el caso cierra BIEN diciendo «sin CreditopX»: es un hecho
@@ -83,7 +90,7 @@ const { execFile } = await import('node:child_process');
 const { webhookIntegracion, webhookSelfManager, WELLI_IDS, ESTADOS_WEBHOOK, APP_VIEJA } =
     await import('../pkg/webhook-entidad.ts');
 const { scalar, one, query, exec, close } = await import('../pkg/db.ts');
-const { synthFill } = await import('../pkg/inject.ts');
+const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
@@ -547,6 +554,11 @@ function conductaDe(d: any): string {
     if (!d) return 'sin data';
     if (d.standBy) return 'standBy (in-platform)';
     if (d.showModal) return 'modal (autogestión)';
+    /* El SOBRE a postear va ANTES de `url`, porque cuando el back lo incluye manda `url` en NULL: las
+       integraciones que se entregan por POST (hoy BCP) caían en «continúa sin bifurcar» y el harness
+       reportaba que no había bifurcación donde sí la hay. Mismo orden que el front, que también mira
+       el sobre antes de la url por el mismo motivo. */
+    if (d.postRedirect) return `envío por POST (${d.postRedirect.action ? new URL(d.postRedirect.action).host : 'sin action'})`;
     if (d.url) return `redirect externo`;
     if (d.otp || d.otpId) return 'OTP del lender';
     return 'continúa sin bifurcar';
@@ -657,6 +669,16 @@ const telefonoDe = (i: number, iso = 'COL'): string => {
     const relleno = f.largo - f.prefijo.length - indice.length;
     return f.prefijo + String(BASE_DOC).slice(-relleno) + indice;
 };
+
+/** El teléfono del CODEUDOR, derivado del titular: distinto y reproducible. Vive acá y no dentro de
+ *  `resolverCodeudor` porque hacen falta DOS cosas con él y en momentos distintos —registrarlo en el
+ *  bypass de OTP antes de arrancar la tanda, y usarlo al unir al codeudor—, y dos derivaciones que
+ *  tienen que coincidir son una que en algún momento no coincide. Es justo lo que pasaba: la lista de
+ *  bypass sólo llevaba los teléfonos de los TITULARES, así que el OTP del codeudor no estaba
+ *  bypasseado, su `otp-validate` no devolvía solicitud, y el runner lo reportaba como «el codeudor
+ *  abrió otra solicitud (—) en vez de unirse» — que manda a buscar un problema de vínculo donde
+ *  había uno de OTP. Medido contra qa el 2026-09-02 con Rent to Own (#205). */
+const telefonoDelCodeudor = (telTitular: string): string => `${telTitular.slice(0, -2)}99`;
 
 /** El ISO-3 del país del comercio, del mismo payload del que ya sale el tipo de documento. */
 const isoPorComercio = new Map<string, string>();
@@ -1119,6 +1141,13 @@ async function recorrer(c: Caso, i: number): Promise<Res> {
          `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, uid],
     ).catch(() => null);
 
+    // LA IDENTIDAD, cuando el caso la pide aprobada. Sin `--manual` el paso queda como lo dicte la
+    // entidad (hoy, para las rt=2 con AWS, `aws_validation`) y este runner igual cierra porque el
+    // camino por API no pasa por esa pantalla. Con `--manual` la solicitud queda en el estado en el
+    // que la deja un humano del admin, y ahí `no_validation_required` sale del backend y no de que el
+    // runner se salteó un paso. Es la diferencia entre esquivar la identidad y resolverla.
+    if (flag('manual')) await validacionManual(uid);
+
     // ⚠ EL MONTO VA EN LA QUERY, y sin él el backend usa 180.000 por default
     // (`ListLenderController::index:39` — `$request->query('amount', 180000)`), NO el monto de la
     // solicitud. Todo lo medido hasta el 2026-08-22 se calculó con 180 mil sin que nada avisara: los
@@ -1443,7 +1472,7 @@ async function resolverCodeudor(
     ur: number, hash: string, telTitular: string, amount: number, post: any, get: any,
 ): Promise<{ ok: boolean; motivo: string; token?: string; tel?: string }> {
 
-    const tel = `${telTitular.slice(0, -2)}99`;          // derivado del titular: distinto y reproducible
+    const tel = telefonoDelCodeudor(telTitular);
     const doc = String(2_900_000_000 + ur);
 
     const ini = await post(`/api/v1/user-request/${ur}/cosigner-flow/start`, {});
@@ -1499,6 +1528,11 @@ async function resolverCodeudor(
             [uid.u, rc.id, encryptLaravelString(JSON.stringify({ estado: 'finalizado', hallazgos: [] }), appKey())]);
     }
     await synthFill(ur, { userId: uid.u, income: 4_000_000, score: 780 });
+
+    // El codeudor tiene su PROPIA identidad que resolver: la elegibilidad la evalúa por él, no por el
+    // titular. Con `--manual` se le aprueba igual que al titular — si no, `evaluate-eligibility` puede
+    // devolverlo sin evaluar y el motivo que imprime este runner ya sospecha de esto.
+    if (flag('manual')) await validacionManual(uid.u);
 
     const ele = await post(`/api/v1/user-request/${ur}/cosigner/evaluate-eligibility`, {}, conToken());
     const est = ele.json?.data ?? {};
@@ -1699,13 +1733,17 @@ async function main(): Promise<number> {
         // ⚠ Acá no hay caso que abortar: la lista de bypass se escribe ANTES de correr. Si el país no
         // resuelve, un teléfono con la forma equivocada entraría a `qa_otp_bypass_phones` y la firma
         // fallaría después con un 422 que no se parece a la causa. Mejor frenar la corrida entera.
-        const tels = await Promise.all(casos.map(async (c, i) => {
+        // ⚠ Y VA EL DEL CODEUDOR TAMBIÉN. No se sabe de antemano qué caso va a necesitar uno —lo
+        // decide la POLÍTICA de la categoría en la que caiga el usuario, no el caso—, así que se
+        // registran los dos siempre: el par cuesta una entrada en una lista que se restaura al
+        // terminar, y su ausencia trababa el cierre de toda entidad con codeudor.
+        const tels = (await Promise.all(casos.map(async (c, i) => {
             const br = await buscarSucursal(c.comercio);
             if (!br) return telefonoDe(i, 'COL');            // el caso va a fallar solo con «no encontré»
             const iso = await paisDelComercio(br.hash);
             if (iso === null) throw new Error(`${c.comercio}: ${SIN_PAIS}`);
             return telefonoDe(i, iso);
-        }));
+        }))).flatMap((t) => [t, telefonoDelCodeudor(t)]);
         bypassOriginal = await registrarBypass(tels).catch(() => null);
         if (bypassOriginal === null) {
             console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: la firma del pagaré va a fallar'
