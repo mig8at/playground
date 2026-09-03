@@ -318,9 +318,26 @@ vieja y **se corrigió**: la prohibición se queda porque `make fresh` no pasa p
 dos veces «el error del banco no dice nada útil»). Las tres se arreglaron quitando la palabra que no se
 había ganado su lugar — y la tercera necesitó contar ocurrencias con un script, porque a ojo no se veía.
 
-**Comprobado:** ronda ✓ al día sobre 651 archivos · lint 21 nodos / 233 secciones · bench 93/115 y 115/115
-igual que antes · soporte 123/124 y equipo 26/26 sin cobertura perdida · `go test`, dictado (54
-comprobaciones) y humo en verde.
+**Y el final de la tanda fue desconfiar de la propia medición, que valió la pena.** Al retirar las dos
+rutas muertas, `-igualar` imprimió cuatro ✗ de 404 con el nombre del repo DUPLICADO
+(`Creditop-SAS/Creditop-SAS/legacy-backend`). La causa es una convención: el alias en `fuentes` es corto y
+el nombre completo vive en el bloque `repos`; el dictado escribía el completo, y a un alias con barra
+`-igualar` igual le anteponía el dueño. Consecuencia: **cuatro de los cinco repos quedaban sin
+re-verificar** mientras el resumen decía «0 temas con hashes atrasados» sobre los 611 que sí miró.
+Arreglado en los dos lados y los 19 aliases ya escritos normalizados.
+
+En el camino me equivoqué y conviene que quede: creí que `-igualar` había revertido dos hashes a valores
+viejos. No — mis clones estaban sin fetchear y GitHub sí tenía esos valores. El clon miente en silencio y
+el ✗ del 404 no. **Antes de medir deriva, fetch.**
+
+Y los dos arneses dependían de que el corpus real tuviera deriva: con la ronda en cero se quedaron sin
+nada que probar. Ahora se copian `content/` y tuercen un hash para fabricar su propio residuo — con el
+efecto bueno de que el dictado del ensayo ya no puede tocar el `content/` de quien desarrolla.
+
+**Comprobado, con todo resuelto:** `-igualar` contra GitHub da **650 archivos declarados, 0 temas con
+hashes atrasados, 0 sin rastro en main** y ni un 404 · la ronda contra los clones fetcheados dice «al día»
+· lint 21 nodos / 233 secciones · bench 93/115 y 115/115 igual que antes · soporte 123/124 y equipo 26/26 ·
+`go test`, dictado (54 comprobaciones) y humo en verde.
 
 
 ### 2026-09-03 · el ensayo de contextualizar por la API, hecho de verdad y en local (#82)
