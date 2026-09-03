@@ -46,13 +46,11 @@ vecindarios, y las búsquedas por nombre de tabla devolviendo las áreas que la 
 sonda de 16 preguntas del equipo pasó de **4 a 15 al primer resultado**, y «en qué tabla queda el estado de
 una solicitud» la contesta el agente en **2 pasos y 7 s** con citas, contra los 4 a 9 pasos de antes.
 
-**Y arrancó el crecer por demanda: `Creditop-SAS/playground#78` — el tema de la CUOTA**, en verde. Seis de
-las 21 preguntas de soporte sin cobertura eran sobre lo mismo (el aval, su IVA, la cuota inicial, los costos
-administrativos) y ninguna se contestaba. Ahora sí, verificado contra `main`: el orden en que se suman los
-cobros, el IVA del aval fijo en 19 % con la columna que NO lo decide, y la cuota inicial calculada en dos
-lugares con dos bases. Soporte pasó de **117/118 con 21 sin cobertura a 123/124 con 15**; el banco del
-equipo a **26/26**. Las ramas mergeadas de `canon/*` y `agentes/*` quedaron borradas (seis y veintinueve);
-`canon/estado` NO se borra, es la rama de estado del bucle.
+**#78 —el tema de la CUOTA— está mergeado y VALIDADO EN PROD** (2026-09-03, 12:53 UTC). Prod sirve 20
+nodos. Las seis preguntas que nadie contestaba caen en el tema nuevo: cinco con `cuota` primera y la sexta
+en dos pasos. Y el agente contesta «le cobraron una cuota inicial mayor a la que dice la política» en 4
+pasos y 14,7 s, respaldada con las dos secciones, explicando los dos orígenes del porcentaje y las dos
+bases. Soporte pasó de 21 a 15 sin cobertura; el banco del equipo, a 26/26.
 
 **El próximo paso es:** seguir por ahí — quedan 15 preguntas de soporte sin cobertura (pago mínimo contra
 saldo total, core bancario, asignación de asesor, reinicio de intentos de identidad, reportes) y las 2 del
@@ -254,6 +252,29 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-03 · mañana · 34 — #78 en prod: las seis preguntas contestadas, y una que sigue fallando por su nombre
+
+Mergeado a las 12:53 UTC, deploy en verde, prod con 20 nodos.
+
+> **MEDICIÓN · 2026-09-03** — las seis preguntas de soporte, contra prod. Cinco tienen `cuota` como primer
+> resultado: «no le está calculando el aval» y «no tomó los costos administrativos» → «La cuota se arma en un
+> orden»; «no se le suma el IVA al FGA» → «El impuesto del aval está fijo en el código»; «le cobraron una
+> cuota inicial mayor» → «La cuota inicial se calcula en dos lugares». «No me sale la cuota inicial» cae
+> primero en el puntero de `formalizacion` y llega en el segundo. Cobertura entre 0,67 y 1.
+> **MEDICIÓN · 2026-09-03** — `/api/pregunta` con «un comercio dice que le cobraron al cliente una cuota
+> inicial mayor a la que dice la política, qué le contesto»: **4 pasos, 14,7 s**, respaldada con las DOS
+> secciones nuevas, y la respuesta arranca por lo que importa —que las dos explicaciones pueden ser ciertas
+> a la vez— y enumera los tres pasos de verificación en orden. Eso es exactamente lo que soporte necesita.
+> **MEDICIÓN · 2026-09-03** — el glosario traduce: «qué es el aval», «qué significa FGA» y «qué es la fianza
+> del crédito» devuelven las tres la entrada «Aval · fianza · FGA · fondo de garantías». Y
+> `guarantee_acceptances` sale con su área: `cuota/context#1`, vía **declarada**.
+
+**La que sigue fallando, y por qué:** «mediarte pide que este cliente salga sin fondo de garantías» cae en
+`onboarding` con cobertura 0,43. La pregunta nombra un comercio y pide una acción de configuración («salga
+sin»), no explica un cálculo: la respuesta es poner en cero el porcentaje del aval de esa fila comercio-
+entidad, y eso el tema no lo dice como instrucción. Es una pregunta de `altas` —cómo se cambia esa
+configuración—, no de `cuota`. Queda anotada como la próxima.
 
 ### 2026-09-03 · mañana · 33 — crecer por demanda: el tema de la cuota, y el vocabulario que roba caminos (#78)
 
