@@ -4,7 +4,7 @@ title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 stage: work
 created: "2026-09-04T09:00:00-05:00"
 context_nodes: [merchants, onboarding, architecture]
-jira: []
+jira: [CORE-516]
 jira_title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 ramas: "fix/sucursales-rd-apuntan-a-ciudades-de-colombia"
 ---
@@ -103,6 +103,8 @@ Y en pantalla: abrir el punto de venta de un comercio dominicano en el admin y v
 es dominicana.
 
 ## Registro
+
+### 2026-09-04 · publicada como CORE-516, en el sprint 14
 
 ### 2026-09-04 · la tarea nace ya resuelta en código: lo que falta es correrla
 
