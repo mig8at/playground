@@ -89,9 +89,20 @@ Un patrón que apareció solo y vale para planear: **lo nuevo está desplegado y
 de comercio, las sesiones del canal, las solicitudes de cambio, los changesets del editor: todos en cero
 filas en prod.
 
-Queda en pie: 15 preguntas de soporte sin cobertura, 2 del equipo, y 174 tablas sin área. Y del punto ciego
-siguen sin cubrir grupos grandes: 72 archivos de rutas del asistente y 43 de la pantalla de usuarios del
-backoffice.
+**El #83 quedó con SIETE commits y la ronda en cero sobre 734 archivos.** Lo que se sumó al final, todo en
+el mismo PR: los dos subsistemas que la ronda no veía (`soporte` y `backoffice`), **el orden del mapa**
+—volcados de 51/49/47 archivos partidos por lo que deciden o por producto, y los 27 objetivos de eco
+curados, con dos contadores nuevos en el lint— y **`listado` partido en dos**, porque estaba en su techo y
+no dejaba entrar la sección que el volcado tapaba. Ahora `preaprobado` es su propio tema.
+
+Tres secciones más que salieron de ahí: una sola consulta decide cuál de las dos variantes de esa entidad
+aplica (y la segunda reusa el resultado, así que su fila de preaprobado nunca se pidió) · la dirección de
+vuelta de la entidad de afuera es plana y todo pasa en el cargador, que es servidor · y el recorrido tiene
+su propia capa de servidor porque esos hosts internos no los resuelve un navegador.
+
+Queda en pie: 15 preguntas de soporte sin cobertura, 2 del equipo, 170 tablas sin área, y del punto ciego
+—259 de 1.598 archivos tocados en 30 días— lo que sigue afuera son 57 migraciones y 77 tests, que no
+llevan prosa, más tres carpetas de front que nadie describió todavía.
 
 ## Objetivo
 
