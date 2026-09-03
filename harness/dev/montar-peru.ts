@@ -157,8 +157,14 @@ const llaves = `[
   'cuotealo_merchant_logo' => 'https://example.invalid/logo.png',
 ]`;
 for (const id of [CONSUMO, VEHICULAR]) {
+    /* ⚠ El `allied_type` es la CLASE COMPLETA del morph, no una etiqueta: con `'allied'` la fila se
+       guarda pero `findOrFailByLenderAndAlly` no la encuentra nunca —busca por `AlliedBranch` y cae a
+       `Allied`, las dos por nombre de clase— y sin credential el flujo se va por la rama de «no hay
+       integración»: `url` nula y el modal de «continuá con el asesor». Costó una vuelta.
+       Se scopea a la SUCURSAL, que es el camino principal del buscador (y el más usado: 636 filas
+       contra 551 por comercio). */
     const php = `\\App\\Models\\LenderAlliedCredential::updateOrCreate(`
-        + `['lender_id' => ${id}, 'allied_type' => 'allied', 'allied_id' => ${comercio.id}], `
+        + `['lender_id' => ${id}, 'allied_type' => \\App\\Models\\AlliedBranch::class, 'allied_id' => ${sucursal.id}], `
         + `['credential' => ${llaves.replace('%ID%', String(id))}]);`;
     try {
         execFileSync('docker', ['exec', CONTENEDOR, 'php', 'artisan', 'tinker', '--execute', php], { stdio: 'pipe' });

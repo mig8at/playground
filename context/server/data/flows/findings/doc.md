@@ -3408,3 +3408,40 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   migraciones, así que el código y el esquema se desincronizan en las dos direcciones — y con dos repos
   sobre una misma tabla, el que despliega primero rompe al otro. Al tocar una columna de `allieds` o de
   `allied_branches`, **grepear los DOS repos antes**.
+
+### F-184 · El cliente elige el indicativo y el backend lo pega a ciegas: usuarios colombianos guardados como `+1`, y el OTP sale al NANP
+
+- **Síntoma:** un comercio COLOMBIANO —Mediarte, país 47, indicativo 57— produce usuarios cuyo teléfono
+  queda guardado como `+13023398616`: el celular colombiano con **`+1` pegado adelante**. El OTP se emite
+  contra ese número, así que **el SMS sale a un número del NANP** (el `+1 302…` es Delaware), no al
+  cliente. La persona no recibe el código y el flujo muere sin error visible.
+- **Causa raíz, en tres eslabones:**
+  1. **El cliente elige el indicativo.** El consumer-hub arranca su selector en `+1`
+     (`ConsumerHubLogin.tsx`: `useState<string>("1")`, con una lista de dos opciones escrita a mano,
+     `+1` y `+57`); si nadie lo cambia, manda `+1`. El móvil también manda su propio `dialCode`.
+  2. **El request NO lo declara.** `SendOtpCodeRequest` valida `phone_number`, `otp_length`,
+     `onboarding_channel`, `terms`, `policies` y `partner_branch_hash` — **`dialCode` no está**. Se lee
+     igual con `$sendOtpCodeRequest->dialCode` (el bolsón de input crudo de Laravel), sin validación.
+  3. **El backend lo pega sin contrastar.** `UserService::getOrCreateUser` hace
+     `$cellPhone = $dialCode . $cellPhone` y guarda eso en `users.cell_phone`. **Nadie compara el
+     indicativo contra el país del comercio**, que es el único que lo sabe con certeza.
+- **⚠ Y la guarda del móvil no protege:** `MobileOnboardingService` intenta evitar el doble prefijo con
+  `str_contains($phoneNumber, $dialCode)`, pero el móvil manda `"+1"` y el teléfono nunca contiene `"+1"`,
+  así que nunca dispara. Peor: con un `dialCode` de un solo dígito la comparación es una subcadena en
+  cualquier posición, o sea que el resultado depende de si ese dígito aparece en el número — el mismo
+  código pega o no pega según el teléfono.
+- **Evidencia (producción, 30 días):** 16 OTP emitidos con `+1` sobre celulares colombianos, **8 usuarios
+  distintos**, del 2026-08-05 al 2026-09-03. **7 quedaron con `users.cell_phone = '+13…'`** y **6 de
+  ellos no tienen ni una solicitud**: se registraron, el código se fue al NANP y nunca avanzaron. El
+  octavo (Mediarte) terminó con el teléfono en NULL. Por origen: `mobile` 14 · `onboarding_web` 2. El
+  usuario 377072 se creó a las 21:36:28 **ya con el `+1`** y su primer OTP salió tres segundos después:
+  el prefijo se pega al CREAR, no al enviar.
+- **Arreglo:** el indicativo **no debe venir del cliente ni concatenarse al teléfono guardado**. El país
+  lo dicta el comercio (sucursal → aliado → país), que es lo que ya hacen `PhoneRoutingService` y
+  `MerchantCountryService`; `users.cell_phone` tiene que quedar en forma NACIONAL y el país en
+  `users.country_id`. Mientras eso no pase, como mínimo: declarar `dialCode` en el request y **rechazarlo
+  si no coincide con el indicativo del comercio**.
+- **Estado:** vivo en producción al 2026-09-03. ⚠ Es la MISMA raíz de **F-175** (el mismo celular
+  guardado de tres formas) vista desde el daño: allá era una búsqueda que no encontraba; acá es un SMS
+  que se va al país equivocado. Y explica por qué el arreglo de búsqueda por variantes de F-175 no
+  alcanza: normaliza al leer, pero la escritura sigue corrompiendo el dato.
