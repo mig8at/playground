@@ -4,6 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { adminCreds } from '../pkg/config';
 import { openA } from '../pkg/windows';
+import { query, close } from '../pkg/db';
 
 /**
  * `make harness-admin-ciudades` — el selector de ciudad del admin filtra por el país del comercio.
@@ -110,10 +111,16 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
 
     // Se afirma en POSITIVO que sin `allied_id` sigue devolviendo todo: si alguien "mejora" el default
     // filtrando a Colombia, rompería a cualquier llamador que no manda el comercio, y este test lo ataja.
+    // ⚠ La lista CRECE con cada país que se siembre: al cargar los 1.874 distritos peruanos apareció
+    // «Peru», porque Perú también tiene un SANTO DOMINGO. Se afirma como superconjunto —que estén los
+    // que sabemos que tienen ciudades— en vez de una igualdad, para que sembrar el próximo país no
+    // rompa un test que no habla de eso. Lo que este bloque cuida es que NO se filtre, no cuántos hay.
     const sinFiltro = await buscar('SANTO DOMINGO');
-    expect(new Set(paises(sinFiltro)),
-        'sin allied_id el endpoint debe seguir devolviendo TODO (compatibilidad con otros llamadores)')
-        .toEqual(new Set(['Dominican Republic', 'Colombia']));
+    for (const pais of ['Dominican Republic', 'Colombia', 'Peru']) {
+        expect(paises(sinFiltro),
+            `sin allied_id el endpoint debe seguir devolviendo TODO (falta ${pais})`)
+            .toContain(pais);
+    }
 
     // ── 3. El OTRO selector: el del PUNTO DE VENTA, que es donde ocurrió el bug ───────────────────
     //
@@ -151,10 +158,22 @@ test('el selector de ciudad del admin filtra por el país del comercio', async (
     expect(ciudadesRD, 'el selector del PUNTO DE VENTA sigue ofreciendo MEDELLÍN a un comercio dominicano ' +
         '— es el formulario donde de verdad ocurrió el bug de los 13 puntos de venta')
         .not.toContain('MEDELLÍN');
-    expect(ciudadesRD.every(c => c.startsWith('SANTO DOMINGO') || [
-        'BOCA CHICA', 'LOS ALCARRIZOS', 'PEDRO BRAND', 'SAN ANTONIO DE GUERRA',
-    ].includes(c)), `el comercio RD recibió ciudades que no son dominicanas: ${ciudadesRD.join(', ')}`)
-        .toBeTruthy();
+    // ⚠ Antes acá había una lista fija con los 8 municipios del área metropolitana, que era todo lo que
+    // el catálogo tenía. Al sembrar los 158 el test se rompió por su propia expectativa, no por el
+    // producto. Se pregunta a la BASE cuáles son las ciudades de RD: así la afirmación —«ninguna de las
+    // que se ofrecen es de otro país»— sigue siendo cierta sin importar cuánto crezca el catálogo.
+    const ciudadesDeRD = new Set((await query<{ name: string }>(
+        `SELECT cc.name FROM country_cities cc
+           JOIN country_zones cz ON cz.id = cc.country_zone_id
+           JOIN countries c ON c.id = cz.country_id
+          WHERE c.iso_code_2 = 'DOM'`,
+    )).map(f => f.name));
+
+    const intrusas = ciudadesRD.filter(c => !ciudadesDeRD.has(c));
+    expect(intrusas, `el comercio RD recibió ciudades que no son dominicanas: ${intrusas.join(', ')}`)
+        .toHaveLength(0);
+    expect(ciudadesRD.length, 'el comercio RD sigue viendo sólo el área metropolitana: ' +
+        '¿corrió la migración que siembra los 158 municipios?').toBeGreaterThan(100);
     console.log(`  ✔ punto de venta, comercio RD: ${ciudadesRD.length} ciudades, todas de RD`);
 
     await page.goto(`/aliados/${COMERCIO_RD}/editar`);

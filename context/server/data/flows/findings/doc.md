@@ -132,6 +132,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«hay muchísimas filas de un estado y no cuadra con los equipos»** | F-156 |
 | **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
+| **«la consulta de actividad reciente da CERO filas» / un timestamp que se lee 5 h en el futuro** | **F-183** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -3255,10 +3256,30 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   código: hay una sola cola.
 - **Evidencia:** 2026-09-02. `ps` en `legacy-backend-laravel.test-1`: `php … artisan serve --host=0.0.0.0
   --port=80` → `php8.4 -S 0.0.0.0:80 …/server.php`. 55 usuarios creados en 81 s, gaps de 0–5 s.
-- **Arreglo:** local mide **correctitud**, no capacidad. Cualquier conclusión de tiempos bajo paralelo
-  sacada de local es sobre `php -S`, no sobre el sistema. Para capacidad hace falta un ambiente con
-  fpm+nginx y tamaño conocido — y qa hoy tampoco lo es (F-180).
-- **Estado:** vivo.
+- **Arreglo (2026-09-03): `PHP_CLI_SERVER_WORKERS` en el `.env` de `legacy-backend`.** El servidor
+  embebido de PHP acepta varios workers desde 7.4, y el `ServeCommand` de Laravel 10 **ya lo pasa** por
+  su `$passthroughVariables`, así que no hay que tocar Sail ni cambiar a fpm+nginx: una línea en el
+  `.env` y reiniciar. Medido con el caminador del wizard contra local, casos idénticos que cierran en
+  estado 11:
+
+  | | 1 worker | 6 workers |
+  |---|---|---|
+  | 1 caso | 73 s | 73 s |
+  | 3 en paralelo | **237 s** | **74 s** |
+  | 6 en paralelo | (no medido) | **112 s** |
+
+  O sea que tres casos pasan a costar lo mismo que uno. En una sonda HTTP de un endpoint barato, seis
+  peticiones simultáneas bajaron de 1,34 s a 0,65 s de pared.
+
+  ⚠ **Reiniciar es reiniciar el CONTENEDOR, no matar el proceso.** El `artisan serve` lo levanta
+  supervisord, pero `supervisorctl` no tiene socket en esa imagen y matar el PID deja el contenedor
+  **arriba y sin nadie escuchando** — pasó al probar esto. `docker restart legacy-backend-laravel.test-1`
+  y en ~20 s vuelve. Se comprueba con `ps` dentro del contenedor: un `-S` maestro y N hijos.
+- **Lo que NO arregla, y por eso el título sigue valiendo:** `php -S` con workers **no es** fpm+nginx.
+  Sirve para que una tanda en paralelo no haga fila —o sea, para ir más rápido y para ver si dos casos
+  se pisan— pero **cualquier número de capacidad sacado de local sigue siendo sobre `php -S`**. Para
+  medir capacidad hace falta un ambiente con fpm+nginx y tamaño conocido, y qa hoy tampoco lo es (F-180).
+- **Estado:** arreglado en local (queda la limitación de arriba).
 
 ### F-182 · Los documentos catalogados de Rent to Own sólo renderizan en PRODUCCIÓN: el resolver elige el builder por `lender_id` quemado (193), y ese id es distinto en cada ambiente
 
@@ -3294,3 +3315,58 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   nada de los otros ambientes.
 - **Estado:** vivo y bloqueante para probar RTO fuera de prod. ⚠ Al leer el rojo de `codeudor` en local,
   NO buscar en la plantilla ni en el builder: buscar el id en el mapa.
+
+### F-183 · La base de producción guarda en hora de COLOMBIA aunque MySQL corre en UTC: cualquier ventana con `NOW()` pelado devuelve cero filas
+
+- **Síntoma:** una consulta de actividad reciente (`WHERE created_at >= NOW() - INTERVAL 1 HOUR`) contra
+  producción devuelve **0 filas** mientras entran solicitudes cada minuto. Se lee como «no hay
+  actividad», no como «buscaste en el reloj equivocado». Y al revés: un `created_at` leído como UTC
+  pone cada solicitud **5 horas en el futuro**.
+- **Causa raíz (verificada 2026-09-03):** son DOS relojes. MySQL corre en UTC —`@@global.time_zone`,
+  `@@session.time_zone` y `@@system_time_zone` valen los tres `UTC`—, así que `NOW()` devuelve UTC; pero
+  la app escribe con el reloj de Colombia: `config/app.php:85` es `'timezone' => env('TZ', 'UTC')` y el
+  contenedor de prod trae `TZ` en `America/Bogota`. O sea que `created_at` es hora Colombia (UTC-5) y
+  `NOW()` está 5 h adelante de TODO lo escrito. Las dos mitades por separado parecen correctas.
+- **Evidencia:** en el mismo minuto, `NOW()` = `2026-09-03 15:00:28` y el `MAX(created_at)` de
+  `user_requests` = `2026-09-03 10:00:18` — 5 h exactas, cuando el rezago real de escritura era de 10 s.
+  `SELECT COUNT(*) … WHERE created_at >= NOW() - INTERVAL 4 HOUR` → **0**, con ~40 solicitudes/hora
+  entrando. Tercera fuente que lo confirma: la línea más nueva de Loki en ese mismo momento era de las
+  `10:00:18` en hora Bogotá.
+- **Arreglo:** en toda consulta a prod, «ahora» se escribe `NOW() - INTERVAL 5 HOUR`. Y ojo con los
+  comercios que NO son colombianos: el sello es hora Colombia igual, así que un comercio de **República
+  Dominicana** (UTC-4) tiene su hora local **una hora adelante** de lo guardado — de 232 solicitudes de
+  RD en 90 días, 1 cae en la hora 23 de Colombia, que allá ya es el día siguiente. No derivar la hora
+  local de un comercio de su timestamp sin sumarle el desfase de su país.
+- **Estado:** vivo.
+
+### F-184 · En AUTOGESTIÓN, elegir una entidad in-platform manda al cliente a `/continue`, una ruta que sólo existe para el ASESOR: 404
+
+- **Síntoma:** un cliente en el canal de autogestión elige una entidad CreditopX y el navegador termina
+  en `/self-service/<hash>/<ureq>/continue?url=null`. La consola dice `No routes matched location` y el
+  documento responde **HTTP 404**. La solicitud SÍ avanzó —la BD pasa a estado 3 «Seleccionó entidad»—,
+  así que la base dice que todo va bien y el cliente está mirando una página de error.
+- **Causa raíz:** la ruta está declarada **sólo dentro del grupo `merchant`** de
+  `apps/loan-request-wizard/app/routes.ts`; el grupo `:flow` (que sirve `/self-service`) no la tiene. Y
+  la acción del listado redirige ahí sin mirar el canal: con `showModal` y sin `url`, va a `continue`.
+  Para rt=2/3/4 el backend **nunca** setea `data.url` —el `case 2,3,4` de `UserRequestService` asigna
+  `user_request_id` y `standBy`, no `url`— y **las dos ramas** que prenden `showModal` dejan la misma
+  combinación: la del envío por WhatsApp (`user_self_management`) y la del cliente sin asesor
+  (`auth()->user() === null && !$allied->self_managed`). O sea que en autogestión el destino es siempre
+  el mismo, y en autogestión ese destino no existe.
+- **Evidencia (2026-09-03, local, Pullman/CrediPullman):** el caminador con navegador
+  (`make harness-caminar MOTOR=navegador`) lo reprodujo y lo dejó en su paquete de evidencia. Medido
+  aparte con `curl`: `/self-service/e9409aff/466305/continue?url=null` → **404**; el mismo camino bajo
+  `/merchant/…` → **302**. El motor HTTP del mismo caminador **no lo ve**: recibe el 202 con el destino y
+  salta al handoff sin cargarlo, y cierra en estado 11.
+- **Alcance: NO se pudo confirmar en producción, y la ausencia no prueba nada.** Siete días de logs del
+  front tienen golpes a `/continue` **sólo** bajo `/merchant`, ninguno bajo `/self-service`. Pero un 404
+  lo sirve el router **antes** de cualquier handler, así que no emite `route.lifecycle` ni pasa por el
+  logging de la app: esa consulta no puede ver el caso aunque ocurra. Lo que sí está medido es el
+  tamaño del terreno: **91 comercios** en producción tienen `self_managed = 0` y al menos una entidad
+  in-platform habilitada.
+- **Arreglo (decisión del equipo, dos caminos):** declarar `continue` también en el grupo `:flow`, o
+  —lo que parece correcto— que la acción no mande ahí a un cliente de autogestión: `/continue` es la
+  pantalla del ASESOR esperando a que el cliente termine, y no tiene sentido para el cliente mismo. El
+  destino natural en autogestión es `.../confirmation`, que es el link que el backend ya le manda por
+  WhatsApp y el que el caminador abre a mano para poder seguir.
+- **Estado:** vivo.
