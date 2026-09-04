@@ -560,15 +560,26 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
     `prefijos_del_repo` + `prefijo_en_linea`. El backend pasó de 209 rutas-fragmento a 467 con su camino
     completo, y los matches de 2 segmentos a 5 (`/api/v1/user-request/cosigner/signature`).
 
-    ⚠ PERO ESTE CRUCE TODAVÍA MIDE MENOS QUE UNA COMPARACIÓN DIRECTA, y es de él y no de la extracción:
-    comparando camino completo contra camino completo salen 17 pares (el 25% de las rutas de API del
-    front); este cruce da 7. La diferencia está en sus propias reglas —el dedup que colapsa un sufijo
-    contenido en otro, y el `es_api` y el tope de 40 rutas por archivo del lado del front—. O sea que
-    el 7 es un piso, no el número.
+    ⚠ EL «17» QUE DECÍA ACÁ NO SE REPRODUCE, y el número de hoy es otro. Medido de nuevo el
+    2026-09-04 (tarde), con la misma extracción (`tope_kb=10_000`): el front aporta 68 caminos de
+    API y el backend 179; la comparación DIRECTA camino completo contra camino completo da **4**
+    pares (`/api/v1/user-request/cosigner/signature`, `/api/v1/user-request/{}/pre-approval-payload`,
+    `/v1/field-options/bcp/cars-tree`, `/login`); las coincidencias de sufijo antes del dedup son 15
+    y después del dedup **7**. O sea que este cruce hoy da MÁS que la directa, no menos: 3 de sus 7
+    son sufijos cortos que ningún camino completo confirma (`/otp/resend`, `/{}/documents`,
+    `/flow-signature/{}`, `/personal-info/{}/{}`), y pierde `/login` por la regla de un segmento —que
+    está bien perderlo: un segmento solo casi siempre miente.
 
-    Por eso sigue SIN exponerse como herramienta de agente: un «7» que en realidad son 17 se lee como
-    «casi no se hablan», que es una conclusión falsa y no un resultado vacío. Se expone cuando el cruce
-    llegue al número que da la comparación directa.
+    Y LO QUE SÍ EXPLICA EL NÚMERO BAJO está en los prefijos, no en el cruce: 15 de los 68 caminos del
+    front empiezan con `/api/onboarding/…` (`bancolombia`, `checkout`, `lenders/cuotealo/return`) y el
+    backend declara UNO con ese prefijo; los suyos van bajo `/api/v2/onboarding/…`. Falta averiguar si
+    eso es que el front todavía le pega al monolito viejo para esos 15, o un prefijo de versión que
+    la composición no ve. Hasta saberlo, cualquier conclusión de «cuánto se hablan» es prematura.
+
+    Por eso sigue SIN exponerse como herramienta de agente: un número que cambia de 17 a 7 según
+    cómo se cuente, y que puede estar midiendo el prefijo equivocado, se lee como «casi no se hablan»
+    —una conclusión, no un resultado vacío—. Se expone cuando el cruce y la directa den lo mismo y el
+    hueco de `/api/onboarding` esté explicado.
     """
     # ⚠ Se indexa CADA sufijo posible, no sólo el de largo `sufijo_min`, y ahí estaba el defecto que
     # volvía inútil este cruce. Medido el 2026-08-16: front y backend tenían 157 y 178 rutas y
@@ -593,9 +604,10 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
                 # ⚠ HASTA EL CAMINO COMPLETO, no hasta 4 segmentos. El tope de 4 era razonable cuando
                 # del lado de Laravel llegaba sólo el fragmento interno; con el prefijo del módulo
                 # compuesto los caminos son largos (`/api/onboarding/loan-application/personal-info/{}/{}`
-                # son 6) y el tope PERDÍA justo los matches más confiables. Medido el 2026-09-04: con el
-                # tope en 4 daba 7; indexando también el completo, 17 — y las nuevas son exactas de punta
-                # a punta, que es el match más fuerte que existe.
+                # son 6) y el tope PERDÍA justo los matches más confiables. Los dos de 5 segmentos que
+                # cruzan hoy (`/api/v1/user-request/…`) son exactos de punta a punta, que es el match más
+                # fuerte que existe. (Acá decía que con esto el cruce daba 17; no se reprodujo — ver el
+                # docstring.)
                 for largo in range(max(1, sufijo_min), len(segs) + 1):
                     clave = segs[-largo:]
                     # ⚠ Un sufijo de puros parámetros (`/{}/{}`) matchea CUALQUIER cosa con
