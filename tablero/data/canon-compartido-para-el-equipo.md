@@ -5,28 +5,31 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
-ramas: feat/canon-limpieza-y-contexto-rico
+ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
-**ESTADO 2026-08-28 · LISTO PARA MERGEAR.** PR `Creditop-SAS/playground#10`, un solo commit, CI verde
-verificado desde worktree limpio.
+**ESTADO 2026-09-04 · EN PRODUCCIÓN Y CRECIENDO.** `canon.playground.creditop.com`. Todo mergeado
+hasta el PR #93 —el arreglo del chat que reventaba con las conversaciones guardadas antes—; nada
+esperando revisión.
 
-**12 temas · 468 archivos declarados · 0 derivados · 4 repos.** El corpus cubre el recorrido completo de
-una solicitud (onboarding → listado → creditopx/bancolombia/credifamilia → formalización → cartera) más
-el plano (arquitectura), los burós (kyc), la configuración (altas), la forma de los datos (datos) y el
-puente de vocabulario.
+**24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
+trabaja con esto), más el diccionario de negocio (558 nombres) y el de tablas (235 tablas del esquema
+de producción).
 
-**Validado contra soporte real**, que es lo que más cambió el resultado: banco de `#tech-ops` y
-`#soporte--app` con frases copiadas sin reescribir. **Primera corrida: 1 de 8** (el banco propio daba
-98/109 — juez y parte). La causa era el **idioma**, no el ranking: nueve de diez palabras que usa
-soporte no existían en el corpus. Hoy: **47 cubiertas · 17 huecos declarados**.
+**El chat es la entrada.** Un agente con herramientas sobre el corpus, el código de `main`, el esquema
+de producción y —cuando hay credencial— una consulta de lectura a la base. Contesta con citas
+comprobadas contra el corpus, y lo que no cubre lo dice en `no_pude` en vez de inventarlo. Los pasos se
+ven mientras trabaja.
 
-**Lee `main` sin clon**: app de GitHub para el servidor, token de `gh` para local, clon si hay. La
-portada comprueba el despliegue sin entrar a un log.
+**La división con credibot quedó fijada el 2026-09-04:** canon es el *porqué* y el *cómo está escrito*
+—es lo único que lee código—; el caso puntual («¿qué le pasó a ESTA solicitud?») se pregunta en Slack a
+credibot, que tiene los logs, PostHog y la base. Por eso canon tiene **una** fuente operativa y no
+tres.
 
-**Falta sólo mergear.** Y del lado de infra, para que el servidor use la app en vez de un token de
-persona: las tres variables de `GITHUB_APP_*` desde la bóveda (ya documentadas en `.env.example`).
+**Lo que espera a infraestructura:** `REDASH_URL` · `REDASH_API_KEY` · `REDASH_DATA_SOURCE_ID` para
+comprobar contra producción, y un **Postgres compartido** (que credibot también espera) para guardar
+las preguntas del equipo. Sin ellas canon funciona igual, no ofrece esa fuente y lo dice.
 
 ## Las reglas de la migración
 
@@ -1946,6 +1949,85 @@ avance tiene que ir a `revisiones/<sha>.md` en el propio repo antes de encender 
 **Queda un hallazgo aplicable:** el mapa de cartera debería declarar
 `app/Services/CreditopX/OriginatedRequestsQuery.php`. Lo encontró el bucle solo, está verificado a
 mano, y es nivel 1 (mecánico).
+
+## Una sola fuente operativa, y dos diagnósticos míos corregidos por medición (2026-09-04)
+
+**La pregunta de Miguel fue la que ordenó el día:** ¿vale la pena darle a canon Loki, Redash, PostHog
+y Postgres, si credibot ya hace eso y canon es para tech? Se fue a leer credibot antes de opinar, y la
+división **ya estaba escrita en su código**: `credibot/canon.py` llama a canon «la cuarta fuente», la
+del porqué, y su docstring dice que canon *no tiene datos en vivo*. Credibot tiene base + logs +
+PostHog + canon, más `triage.py` (la radiografía completa de un cliente en UNA llamada). Y **no lee
+código** —ni un `git`, ni un clon—, que es lo único que canon puede hacer y nadie más.
+
+**Se recortó:** fuera `logs` (Loki) y `pantalla` (PostHog); queda `datos` (Redash), angostita, para
+**comprobar un mecanismo** y no para buscar un caso. `operativo.go`: 644 → 290 líneas. Dos secretos
+menos en un segundo lugar. El guion manda las preguntas de caso a CrediBot explicando el mecanismo,
+sin disculparse ni decir «no tengo acceso» — verificado.
+
+**⚠ Y LO MÁS ÚTIL DEL DÍA FUE DESCUBRIR QUE MI DIAGNÓSTICO ESTABA MAL.** Había escrito que las tres
+fuentes se comían el presupuesto, con **una corrida** de cada lado. Con tres por lado la causa eran dos
+cosas ajenas a Loki y PostHog:
+
+1. **`tablas` en modo búsqueda devolvía VACÍO.** Ofrecía «buscá por palabra» y por debajo usaba
+   `Reconocer`, que matchea el token **exacto**: `q=status` y `q=user_request` no devolvían nada —
+   justo las dos formas en que se pregunta cuando no se sabe el nombre. El agente insistía con tres o
+   cuatro palabras, no recibía nada, y se iba a leer archivos. Ahora hay `corpus.Buscar`: subcadena
+   sobre tablas y columnas, orden exacto → prefijo → contenido, determinista, acotado, y **si no hay
+   nada lo dice** con qué probar. Con prueba que lo fija.
+2. **El tope de 120.000 tokens no era el límite de nadie** — lo puse yo. **Lo cazó Miguel:** Gemini y
+   Sonnet 5 tienen ventanas de un millón. Y es peor de lo que parecía: es la **suma** de la entrada de
+   todos los pasos, no el tamaño de un pedido; y en Anthropic/Bedrock `input_tokens` **excluye** lo que
+   vino de caché, así que el mismo número es otra plata en cada lado — casi nunca se alcanzaba en prod
+   y aterrizaba a la fuerza preguntas normales en local. Quedó en 500.000 como freno de emergencia; el
+   bound real es el tope de **pasos** (14).
+
+Con los dos arreglados, y una **regla de parada** nueva —el paso a paso mostró que no deambulaba: **no
+paraba**, tenía la cifra en el paso 8 y seguía cinco pasos más abriendo matices que nadie pidió—, tres
+corridas de la misma pregunta de conteo:
+
+| | antes | después |
+|---|---|---|
+| llegó a medir | 1 de 3 | **3 de 3** |
+| entregó sin aterrizaje forzoso | 0 de 3 | **2 de 3** |
+| largo de la respuesta | 216–229 palabras | **108–129** |
+
+**Antes de eso, la otra mitad (PR #92, mergeado):** la garantía de que **sin credenciales no se
+intenta** y se nombra la variable que falta —comprobada de punta a punta en un directorio sin `.env`,
+que es cómo está prod hasta que Dani las deje: la misma pregunta da 12.954 con llave y sin ella dice
+que no tiene la herramienta, lo anota en `no_pude` y entrega igual el mecanismo y el SQL—; y
+`internal/preguntas`, que guarda las preguntas del equipo (opcional, apagado por defecto) con
+`canon -chats` para leerlas en tres cortes y `canon -chats-ddl` para la tabla. Se renombró desde
+`memoria` porque en el repo compartido `memoria` ya es el de credibot y significa otra cosa.
+
+**⚠ Lo que hay que decidir con eso a la vista:** como las respuestas pueden venir de `datos`, lo
+guardado puede traer datos de personas reales. Esa tabla **no** es «logs de una herramienta interna»,
+es un **extracto de producción**. Hay `CANON_CHATS_SIN_TEXTO=1` para guardar sólo el metadato,
+conservando `no_pude`.
+
+**Y un error en prod, mío, de la clase más fácil de pasar por alto (PR #93, mergeado).** Miguel reportó
+`TypeError: Cannot read properties of undefined (reading 'length')` al abrir el chat. Los chats viven
+en `localStorage`, y el commit del paso a paso cambió `vivos` de un array **plano** de pasos a un array
+de **grupos** sin migrar lo guardado. Reventaba dentro del render, así que dejaba **la pantalla en
+blanco** a cualquiera con una conversación previa. Se arregló por los dos lados —sanea al cargar y
+**reescribe en el momento** si hubo que sanear, para que la forma vieja deje de existir; y los lectores
+toleran— y la agrupación quedó en **una sola función** compartida por el stream en vivo y la migración,
+porque dos reglas se separan en el próximo cambio y vuelve el mismo error. 23 aserciones con
+`npm run prueba` (node pelado, sin dependencias) y verificado en un navegador de verdad.
+
+**La lección, que vale para cualquier cosa en `localStorage`:** lo guardado es una **interfaz** con las
+versiones anteriores de uno mismo, y el navegador de la gente tiene la vieja.
+
+**De paso, peso muerto:** un nombre de icono por herramienta que nadie leía; y `public/` es el
+directorio de **estáticos** de vite (se copia dentro de `dist/`) *y* donde se deja el build, así que
+cada compilación reintroducía todos los bundles anteriores — **59 archivos y 23 MB**, con el
+`index.html` referenciando uno. Con `publicDir: false`: 2 archivos y 692 KB, y la imagen deja de
+cargar 22 MB de código muerto.
+
+**Para Dani, más chico que ayer:** UN acceso para canon (Redash de lectura) y **Postgres aparte, como
+recurso del repo compartido** — no es de canon: el `memoria.py` de credibot guarda hoy sus reglas en un
+canal de Slack porque no hay base, y su código dice que el día que haya se cambia un solo archivo.
+El compose local tampoco tiene base, y sin eso no se puede probar el driver: por eso **no** se escribió
+todavía (sería la primera dependencia de canon, y no hay contra qué ejercerla).
 
 ## Decisiones abiertas
 
