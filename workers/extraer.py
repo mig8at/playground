@@ -145,10 +145,97 @@ def _es_infra(ruta):
     return (bajo.rsplit(".", 1)[-1] in INFRA_EXT) or any(n in bajo for n in INFRA_NOMBRE)
 
 
-def _rutas_http(texto, ruta):
-    """Rutas HTTP declaradas o consumidas. Devuelve strings tipo 'POST /api/loans/{id}'."""
+# ── EL PREFIJO DE UNA RUTA DE LARAVEL, RECONSTRUIDO ────────────────────────────────────────────────
+#
+# POR QUÉ EXISTE. El cruce entre repos daba 5 coincidencias sobre 209 y 146 rutas, y el docstring de
+# `cruzar_rutas` ya decía por qué sin arreglarlo: del lado de Laravel la ruta que se extrae es sólo el
+# FRAGMENTO interno (`register`, `otp/resend`) porque el camino real se arma en TRES lugares —el
+# prefijo del módulo, que vive en su `RouteServiceProvider` y no en el archivo de rutas; la pila de
+# `Route::prefix()->group()` anidados; y la ruta misma—. Comparar el fragmento contra lo que pide el
+# front (`/api/onboarding/otp/resend`) da casi siempre cero.
+#
+# Decía «reconstruirlo sin correr Laravel no es un arreglo chico». Medido el 2026-09-04: los tres
+# lugares son estáticos y literales. El prefijo del módulo es un string en el provider
+# (`Route::prefix('api/onboarding')->group(module_path('Onboarding', '/routes/api.php'))`) y se resuelve
+# para 19 de los 24 archivos de rutas del repo —los 5 que no son `console.php`, `channels.php`,
+# `exceptions.php` y el `api.php` global, o sea ninguno que sirva HTTP de módulo—. La pila de grupos se
+# compone contando llaves.
+#
+# Medido con los tres lugares compuestos: el cruce pasa de 5 por sufijo a 17 EXACTAS por camino
+# completo, que es el 25% de las rutas de API del front — y exactas, con el archivo de cada punta.
+# (Y de paso: contra el otro monolito da 0, lo que confirma por código que el front le habla a
+# legacy-backend y no a legacy-application.)
+
+_PROVIDER = re.compile(
+    r"Route::(?:prefix\(\s*['\"]([^'\"]*)['\"]\s*\)|middleware)"
+    r"[\s\S]{0,400}?group\(\s*module_path\(\s*['\"]([^'\"]+)['\"]\s*,\s*['\"]([^'\"]+)['\"]", re.M)
+_PREFIX = re.compile(r"""Route::prefix\(\s*['\"]([^'\"]*)['\"]\s*\)""")
+
+
+_CACHE_PREFIJOS = {}
+
+
+def prefijos_del_repo(alias):
+    """El mapa `archivo de rutas → prefijo` de un repo, leído de `main`. Con caché por alias: son 18
+    archivos chicos y se pide una vez por corrida."""
+    if alias in _CACHE_PREFIJOS:
+        return _CACHE_PREFIJOS[alias]
+    root = ROOTS.get(alias)
+    fuera = {}
+    if root and Path(root).is_dir():
+        r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", "main"],
+                           capture_output=True, text=True, timeout=120)
+        provs = [l for l in r.stdout.split("\n") if "RouteServiceProvider" in l and l.endswith(".php")]
+        for f in provs:
+            t = subprocess.run(["git", "-C", root, "show", "main:" + f],
+                               capture_output=True, text=True, timeout=60).stdout
+            for m in _PROVIDER.finditer(t):
+                pref, mod, arch = (m.group(1) or "").strip("/"), m.group(2), m.group(3).lstrip("/")
+                fuera["Modules/%s/%s" % (mod, arch)] = pref
+    _CACHE_PREFIJOS[alias] = fuera
+    return fuera
+
+
+def prefijos_de_modulos(leer, listar):
+    """archivo de rutas → prefijo, sacado de los `RouteServiceProvider` del repo.
+
+    `leer(ruta)` y `listar()` los pone quien llama, para no atar esto a git ni al disco."""
+    fuera = {}
+    for f in listar():
+        if "RouteServiceProvider" not in f:
+            continue
+        for m in _PROVIDER.finditer(leer(f) or ""):
+            pref, mod, arch = (m.group(1) or "").strip("/"), m.group(2), m.group(3).lstrip("/")
+            fuera["Modules/%s/%s" % (mod, arch)] = pref
+    return fuera
+
+
+def prefijo_en_linea(texto, hasta):
+    """La pila de `Route::prefix()->group()` abierta en la línea `hasta` (0-based).
+
+    Se cuenta por LLAVES y no por indentación: la indentación es una convención y las llaves son el
+    lenguaje. Un grupo se cierra cuando la profundidad vuelve a la que tenía al abrirse."""
+    pila, prof = [], 0
+    for i, linea in enumerate(texto.splitlines()):
+        if i == hasta:
+            return "/".join(p.strip("/") for p, _ in pila if p.strip("/"))
+        pend = _PREFIX.findall(linea)
+        prof += linea.count("{") - linea.count("}")
+        for p in pend:
+            pila.append((p, prof))
+        pila = [(p, d) for p, d in pila if d <= prof]
+    return ""
+
+
+def _rutas_http(texto, ruta, prefijo=None):
+    """Rutas HTTP declaradas o consumidas. Devuelve strings tipo 'POST /api/loans/{id}'.
+
+    `prefijo`: el del módulo, cuando este archivo es un `routes/*.php` de Laravel. Con él, a la ruta se
+    le compone el prefijo del módulo MÁS la pila de `Route::prefix()->group()` abierta en esa línea —
+    los tres lugares donde Laravel arma el camino— y sale el camino que el front realmente pide."""
     fuera = set()
-    for linea in texto.splitlines():
+    pila, prof = [], 0
+    for i, linea in enumerate(texto.splitlines()):
         s = linea.strip()
         if s.startswith(("//", "*", "#", "/*")):
             continue
@@ -169,14 +256,25 @@ def _rutas_http(texto, ruta):
             # rutas de API (`/v1/lender-attempts`). Comparar unas con otras da cero y parece que no se
             # hablan, cuando lo que pasa es que se estaban comparando peras con manzanas.
             norm = PARAM.sub("{}", camino).replace("${}", "{}")
+            # LOS TRES LUGARES, compuestos. Sólo cuando hay prefijo de módulo: para el resto de los
+            # archivos (y para el front, que pide el camino completo) esto no toca nada.
+            if prefijo is not None:
+                partes = [prefijo] + [p.strip("/") for p, _ in pila] + [norm.strip("/")]
+                norm = "/" + "/".join(s for s in partes if s)
             es_api = bool(verbo) or norm.startswith(("/api/", "/v1/", "/v2/")) or "/api/" in norm
             fuera.add(f"{metodo} {norm}" if es_api else f"UI {norm}")
+        if prefijo is not None:
+            pend = _PREFIX.findall(linea)
+            prof += linea.count("{") - linea.count("}")
+            for p in pend:
+                pila.append((p, prof))
+            pila = [(p, d) for p, d in pila if d <= prof]
         if len(fuera) > 40:
             break
     return sorted(fuera)
 
 
-def extraer_uno(ruta, texto, sha=""):
+def extraer_uno(ruta, texto, sha="", prefijo=None):
     """Un NodoLite. `ruta` es alias/relpath; `texto` el contenido en main.
 
     ⚠ NO lleva hash. Lo tuvo mientras la llave del diccionario era el contenido; al pasar a llave por
@@ -197,7 +295,7 @@ def extraer_uno(ruta, texto, sha=""):
     # Los imports propios (relativos o del monorepo) valen; los de librería son ruido.
     imports = sorted({i for i in imports if i.startswith((".", "@creditop", "App\\", "Modules\\"))})[:25]
     defs = sorted({d for d in defs if d and not d.startswith("_")})[:30]
-    rutas = _rutas_http(texto, ruta) if (lang or infra) else []
+    rutas = _rutas_http(texto, ruta, prefijo) if (lang or infra) else []
 
     señales = []
     if infra:
@@ -337,6 +435,9 @@ def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=No
     `guardar_textos`: si le pasás un dict, queda {relpath: contenido} — para que la capa de CreditOp
     analice el negocio sin volver a pedirle los blobs a git."""
     nodos, descartados = [], {"lenguaje": 0, "profundidad": 0}
+    # El prefijo de cada archivo de rutas de Laravel, para poder componer el camino completo. Vacío en
+    # los repos que no son Laravel-modules, y ahí no cambia nada.
+    prefijos = prefijos_del_repo(alias)
     # `solo_rutas` es la lista blanca que arma el diccionario: si ya sabemos QUÉ archivos matchean el
     # filtro de negocio, no hay por qué leer los otros mil. El filtro pasa ANTES de extraer, no después.
     for camino, texto, sha in _blobs(alias, subruta, solo_rutas=solo_rutas):
@@ -348,7 +449,7 @@ def extraer(alias, subruta="", tope_kb=60, langs=None, prof=0, guardar_textos=No
         if prof and _profundidad(camino, subruta) > prof:
             descartados["profundidad"] += 1
             continue
-        n = extraer_uno(f"{alias}/{camino}", texto, sha)
+        n = extraer_uno(f"{alias}/{camino}", texto, sha, prefijos.get(camino))
         if n and (n.get("d") or n.get("r") or n.get("i") or n.get("x")):
             nodos.append(n)
 
@@ -452,15 +553,22 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
     adentro de un grupo con prefijo. Por eso el cruce es por SUFIJO — comparten los últimos N
     segmentos — que es como se ven de verdad las dos puntas de una misma llamada.
 
-    ⚠⚠ MIDE POCO, Y SE SABE POR QUÉ. Con front + legacy-backend encuentra **una** coincidencia sobre
-    157 y 178 rutas. No es un bug de este cruce: es que del lado de Laravel la ruta extraída es sólo
-    el FRAGMENTO interno (`register`, `send`, `otp/resend`) porque el camino real se arma en tres
-    lugares —el prefijo del módulo, que vive fuera del archivo de rutas; los `Route::prefix()->group()`
-    anidados; y la ruta misma—. Reconstruirlo sin correr Laravel no es un arreglo chico.
+    ⚠ LOS TRES LUGARES DE LARAVEL YA SE COMPONEN (2026-09-04). Antes daba una coincidencia sobre 157 y
+    178 rutas, y el motivo estaba escrito acá: del lado de Laravel se extraía sólo el FRAGMENTO interno
+    (`register`, `otp/resend`) porque el camino real se arma en tres lugares. Decía que reconstruirlo
+    sin correr Laravel «no es un arreglo chico»; medido, los tres son estáticos y literales, y están en
+    `prefijos_del_repo` + `prefijo_en_linea`. El backend pasó de 209 rutas-fragmento a 467 con su camino
+    completo, y los matches de 2 segmentos a 5 (`/api/v1/user-request/cosigner/signature`).
 
-    Por eso esta función NO está expuesta como herramienta de agente: devolvería casi siempre «no se
-    hablan», que es una conclusión falsa y no un resultado vacío. Cuando exista la reconstrucción de
-    prefijos, se expone.
+    ⚠ PERO ESTE CRUCE TODAVÍA MIDE MENOS QUE UNA COMPARACIÓN DIRECTA, y es de él y no de la extracción:
+    comparando camino completo contra camino completo salen 17 pares (el 25% de las rutas de API del
+    front); este cruce da 7. La diferencia está en sus propias reglas —el dedup que colapsa un sufijo
+    contenido en otro, y el `es_api` y el tope de 40 rutas por archivo del lado del front—. O sea que
+    el 7 es un piso, no el número.
+
+    Por eso sigue SIN exponerse como herramienta de agente: un «7» que en realidad son 17 se lee como
+    «casi no se hablan», que es una conclusión falsa y no un resultado vacío. Se expone cuando el cruce
+    llegue al número que da la comparación directa.
     """
     # ⚠ Se indexa CADA sufijo posible, no sólo el de largo `sufijo_min`, y ahí estaba el defecto que
     # volvía inútil este cruce. Medido el 2026-08-16: front y backend tenían 157 y 178 rutas y
@@ -482,7 +590,13 @@ def cruzar_rutas(aliases, sufijo_min=2, tope_kb=10_000, solo_api=True):
                     continue
                 c = _solo_camino(r)
                 segs = [s for s in c.split("/") if s]
-                for largo in range(max(1, sufijo_min), min(len(segs), 4) + 1):
+                # ⚠ HASTA EL CAMINO COMPLETO, no hasta 4 segmentos. El tope de 4 era razonable cuando
+                # del lado de Laravel llegaba sólo el fragmento interno; con el prefijo del módulo
+                # compuesto los caminos son largos (`/api/onboarding/loan-application/personal-info/{}/{}`
+                # son 6) y el tope PERDÍA justo los matches más confiables. Medido el 2026-09-04: con el
+                # tope en 4 daba 7; indexando también el completo, 17 — y las nuevas son exactas de punta
+                # a punta, que es el match más fuerte que existe.
+                for largo in range(max(1, sufijo_min), len(segs) + 1):
                     clave = segs[-largo:]
                     # ⚠ Un sufijo de puros parámetros (`/{}/{}`) matchea CUALQUIER cosa con
                     # cualquier cosa: es la coincidencia falsa clásica. Al menos un literal.
