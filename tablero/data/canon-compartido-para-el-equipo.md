@@ -5,15 +5,15 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
-ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas
+ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas, canon/regenerar-diccionario
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
 **ESTADO 2026-09-04 (tarde) · EN PRODUCCIÓN, CON POSTGRES LOCAL Y REDASH VIVO.** `canon.playground.creditop.com`.
-Mergeado hasta el PR #98 (las variantes de flujo, el corpus al revés, y **el respaldo de Postgres de
-verdad — la primera dependencia de canon**, probada contra una base local en Docker y con la imagen
-compilando). Abiertos: **#100** (el razonamiento del chat plegado como los chats de IA) y **#101** (lo que se
-observa, a Postgres: la deriva del diccionario contra prod y las corridas del banco con el hash del guion). Dani ya dejó Redash y
+Mergeado hasta el PR #101 (las variantes de flujo, el corpus al revés, el respaldo de Postgres de verdad —la
+primera dependencia de canon—, el razonamiento plegado, y lo que se observa a Postgres: la deriva del
+diccionario y las corridas del banco). Abierto: **#102** — regenerar el diccionario contra prod en un comando,
+y **el diccionario regenerado**: 567 nombres, `/conexiones` dice «al día con prod». Dani ya dejó Redash y
 Postgres en la bóveda; canon lee exactamente esos nombres.
 
 **24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
@@ -2103,6 +2103,20 @@ hash del guion, listadas por `canon -corridas` comparando sólo con la anterior 
 comparaban dos corridas de memoria, y está medido que así se concluye mal. Verificado con el modelo falso
 (Gemini sin créditos) y contra el Postgres local; el driver de pgx quedó pineado a v5.7.6 porque la imagen
 compila con Go 1.23 y v5.8+ exige más — un `go get @latest` la habría roto sin que nada local avisara.
+
+**El cierre (PR #102): regenerar el diccionario en un comando, y regenerado.** La fila de deriva decía +3
+entidades y +6 comercios a los 7 días; regenerarlo era «trazador-sql, CSV y fusionar a mano». Ahora
+`canon -diccionario` lee prod por Redash con **las mismas reglas** que el archivo encarna —y una prueba exige
+que reproduzcan las 558 entradas que hay—, **muestra el diff y no escribe**; `escribir` lo aplica y va por PR.
+El diff real: 193→196 entidades, 335→341 comercios, nueve altas con nombre y **doce relaciones que cambiaron**
+(«Bancolombia · Crédito de consumo: llega a 100 → 102 comercios»); cero renombres y cero cambios de estado,
+o sea que las reglas de nombre y `activo` calzan exactas. Tres guardas: se niega ante una caída del 20 %; el
+orden de claves es el del archivo —costó una vuelta: `comercios` va antes de `tema` en las 117 entidades que
+lo traen, y al revés el diff tenía 234 líneas vacías de sentido—; y sin escapar el `&`. `FilasTodas` en Redash
+porque `Filas` corta a 40 y con 341 comercios regeneraba mal en silencio. Con el diccionario nuevo,
+`/conexiones` pasa de «⚠ deriva» a **«567 nombres · al día con prod»**. Y un tropiezo de proceso: un `stash pop`
+mío al final de una cadena que falló sacó de la pila un stash que no era mío (`PENDIENTE-PUBLICAR.md`); se
+restauró intacto a la pila con un mensaje que lo dice.
 
 **Queda:** renombrar `flujos` (en el dominio significa otra cosa); los tres temas que faltan; el campo del
 tronco para las variantes; la entidad de BCP (ninguna matchea por nombre); subir el cruce de rutas de 7 a
