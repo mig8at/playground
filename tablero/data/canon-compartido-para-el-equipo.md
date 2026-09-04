@@ -5,13 +5,15 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
-ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja
+ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
-**ESTADO 2026-09-04 · EN PRODUCCIÓN Y CRECIENDO.** `canon.playground.creditop.com`. Todo mergeado
-hasta el PR #93 —el arreglo del chat que reventaba con las conversaciones guardadas antes—; nada
-esperando revisión.
+**ESTADO 2026-09-04 (tarde) · EN PRODUCCIÓN, CON POSTGRES LOCAL Y REDASH VIVO.** `canon.playground.creditop.com`.
+Mergeado hasta el PR #97 (el corpus al revés + las variantes de flujo). **PR #98 abierto**: las
+credenciales de Postgres partidas en seis y **el respaldo de Postgres de verdad — la primera dependencia
+de canon**, probada contra una base local en Docker y con la imagen compilando. Dani ya dejó Redash y
+Postgres en la bóveda; canon lee exactamente esos nombres.
 
 **24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
 trabaja con esto), más el diccionario de negocio (558 nombres) y el de tablas (235 tablas del esquema
@@ -2028,6 +2030,70 @@ recurso del repo compartido** — no es de canon: el `memoria.py` de credibot gu
 canal de Slack porque no hay base, y su código dice que el día que haya se cambia un solo archivo.
 El compose local tampoco tiene base, y sin eso no se puede probar el driver: por eso **no** se escribió
 todavía (sería la primera dependencia de canon, y no hay contra qué ejercerla).
+
+## La tarde: del mapa de trenes al corpus al revés, y Postgres de verdad (2026-09-04)
+
+**Miguel propuso un «mapa de trenes»: cómo se conectan los archivos y en qué orden, saltando de legacy al
+front, como widget del chat.** Antes de escribir una línea se midió: 153 áreas, **81 % toca un solo repo**,
+37 % declara uno o dos archivos; y ya se había intentado dos veces —`metro-map` (borrado) y
+`flow/docs/MAP.md`, 436 líneas hechas por doce agentes cuyo encabezado admite que las líneas derivan y
+«sirven para navegar, no como contrato»—. La conclusión: **dibujarlo es lo fácil; no mentir es lo difícil**,
+y el orden no existe derivado en ningún lado. Miguel replanteó —*«una herramienta para saber dónde un
+archivo entra a uno o varios flujos»*— y eso sacó del camino justo la pieza que no existía.
+
+**`flujos(archivo)` — el corpus al revés (PR #97).** Índice inverso sobre lo que las áreas declaran: sin
+modelo, sin red, sin orden. Tres puertas (`canon -flujos`, `/api/flujos`, herramienta del agente). Medido:
+**599 de 670 archivos están en una sola área; 52 cruzan temas** — callado el 89 % y ruidoso justo donde
+está el riesgo. Viaja el `objetivo` de cada área porque «creditopx #4 · listado #1» no dice nada y «dónde
+desaparece una entidad de esta familia · qué entidades ve el cliente» hace pensar dos veces. El vacío se
+marca como **hueco**, no como «no toca nada». Bonus del mismo dato: **42 nombres declarados en más de un
+repo**, los gemelos reales del strangler. Probado con el modelo falso (Gemini sin créditos), que cazó dos
+bugs gratis: el resumen vacío para el struct tipado y un «6 flujos» que eran 3 objetivos con 2 copias.
+
+**Miguel corrigió el dominio: hay flujos distintos (Motai, SmartPay, BCP) pero muchos comparten el tronco
+de onboarding.** Verificado: `motai` y `bcp` declaran sólo sus **deltas** — `motai` comparte **cero**
+archivos con `onboarding`—, así que el índice inverso nunca va a mostrar `motai` para `OnboardingService`.
+Y `smartpay` no existe como tema. De ahí **las variantes declaradas** (`content/variantes.json`): el
+`tema` del diccionario se deriva de `response_type` y da la *familia*, no la *variante* —Motai y SmartPay
+son rt=2 igual que otras 104—. 7 entidades declaradas, 3 huecos nombrados (`smartpay`, `welli`,
+`meddipay`), fusionadas al **cargar** y no al generar, con dos guardas (tema fantasma / hueco viejo). Y el
+dato que matiza todo: **el comercio «Motai» tiene tres familias activas** — el comercio acota, la entidad
+elegida decide.
+
+**Lo demás de la tarde:** la página `/conexiones` (ocho sondas en paralelo que **prueban**, no leen
+configuración; tres estados: anda · falta · rota); las preguntas de ejemplo fuera del chat; el scroll del
+chat contra el sidebar (dos vueltas: el padding en el padre y el `max-width` en el scroller — «el que
+scrollea define dónde dibuja la barra»); el banco mide **palabras, tokens y pasos por pregunta y bytes por
+herramienta** — y eso mostró que `buscar` era el **72 %** de lo devuelto (14 KB/llamada), que acotar el
+fragmento a 200 caracteres se queda, que bajar de 8 a 5 candidatos **se revirtió** (la búsqueda léxica decía
+que alcanzaba al 100 %; de punta a punta el agente compensó buscando más), y que **la brevedad no era el
+problema**: la de 252 palabras tiene tres causas reales y cero relleno.
+
+**La tarea para Dani, reescrita para que diga qué HACER:** los nombres ya estaban acordados en el
+`.env.example` compartido con la marca ⏳. Y la respuesta a «¿por qué no usuario y contraseña?»: en Postgres
+**sí** lo es (dentro de la URL); en Redash no existe la opción (sólo API key); y de fondo, canon corre como
+servicio, no como persona.
+
+**Dani dejó las variables.** Redash calza exacto; Postgres llegó partido en seis y canon leía
+`DATABASE_URL` → se aceptan las dos formas, la contraseña **se codifica** (una con `@ / :` parte el host y el
+error apunta a la red). Y con Docker arrancado y un **Postgres 16 local** (`canon-postgres-local`, :5433, en
+el `.env` ignorado, sin tocar el repo): **el respaldo de Postgres, la primera dependencia de canon** —
+`database/sql`, pgx **pineado a v5.7.6 porque la imagen compila con Go 1.23 y v5.8+ exige 1.24/1.25** (un
+`go get @latest` subía la directiva a 1.25 y rompía la imagen sin que nada local avisara), arrays y JSON
+convertidos del lado de la base, plazo de 3 s por escritura, fallback al archivo con el motivo real.
+Verificado tres veces: integración contra la base local (corre; se saltea fuerte sin base), punta a punta con
+psql y `/conexiones`, y **`docker build` completo**.
+
+**Y dos preguntas de fondo, contestadas con datos.** ¿Dejar la lista de comercios/entidades ahora que hay
+Redash? **No**: reconoce nombres en 1-2 ms sin llave; lo que Redash destraba es medir su deriva —**+3
+entidades y +6 comercios en 7 días**— y regenerarla. ¿Mover el corpus a Postgres? **No**: lo que lo hace
+verificable es git (hash contra `main`, revisión, historia, embebido, compuertas). **Git para lo que se
+afirma, Postgres para lo que se observa** — y con esa línea van a Postgres los chats, las corridas del banco
+y la deriva con fecha.
+
+**Queda:** renombrar `flujos` (en el dominio significa otra cosa); los tres temas que faltan; el campo del
+tronco para las variantes; la entidad de BCP (ninguna matchea por nombre); subir el cruce de rutas de 7 a
+las 17 que da la comparación directa; y el widget, al final.
 
 ## Decisiones abiertas
 
