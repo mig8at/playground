@@ -5,14 +5,15 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
-ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido
+ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
 **ESTADO 2026-09-04 (tarde) · EN PRODUCCIÓN, CON POSTGRES LOCAL Y REDASH VIVO.** `canon.playground.creditop.com`.
-Mergeado hasta el PR #97 (el corpus al revés + las variantes de flujo). **PR #98 abierto**: las
-credenciales de Postgres partidas en seis y **el respaldo de Postgres de verdad — la primera dependencia
-de canon**, probada contra una base local en Docker y con la imagen compilando. Dani ya dejó Redash y
+Mergeado hasta el PR #98 (las variantes de flujo, el corpus al revés, y **el respaldo de Postgres de
+verdad — la primera dependencia de canon**, probada contra una base local en Docker y con la imagen
+compilando). Abiertos: **#100** (el razonamiento del chat plegado como los chats de IA) y **#101** (lo que se
+observa, a Postgres: la deriva del diccionario contra prod y las corridas del banco con el hash del guion). Dani ya dejó Redash y
 Postgres en la bóveda; canon lee exactamente esos nombres.
 
 **24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
@@ -2090,6 +2091,18 @@ entidades y +6 comercios en 7 días**— y regenerarla. ¿Mover el corpus a Post
 verificable es git (hash contra `main`, revisión, historia, embebido, compuertas). **Git para lo que se
 afirma, Postgres para lo que se observa** — y con esa línea van a Postgres los chats, las corridas del banco
 y la deriva con fecha.
+
+**Más tarde (PRs #100 y #101).** El razonamiento del chat plegado como en los chats de IA: un solo
+elemento entre la pregunta y la respuesta, en los dos estados —mientras trabaja dice qué está haciendo
+ahora y el reloj; al terminar, «5 pasos · corpus + datos»—, un click lo abre. Fuera los ocho renglones en
+vivo, el camino plegado dentro de la respuesta y el reloj suelto: dos componentes en dos lugares que hacían
+saltar la pantalla, y 20 reglas de CSS. Y lo primero que se observa, a Postgres: **la deriva del
+diccionario medida contra prod** en `/conexiones` (+3 entidades, +6 comercios a los 7 días — aviso, no
+falla; la fila no se cae si Redash falla), y **cada corrida del banco guardada** en `canon_corridas` con el
+hash del guion, listadas por `canon -corridas` comparando sólo con la anterior del mismo guion — antes se
+comparaban dos corridas de memoria, y está medido que así se concluye mal. Verificado con el modelo falso
+(Gemini sin créditos) y contra el Postgres local; el driver de pgx quedó pineado a v5.7.6 porque la imagen
+compila con Go 1.23 y v5.8+ exige más — un `go get @latest` la habría roto sin que nada local avisara.
 
 **Queda:** renombrar `flujos` (en el dominio significa otra cosa); los tres temas que faltan; el campo del
 tronco para las variantes; la entidad de BCP (ninguna matchea por nombre); subir el cruce de rutas de 7 a
