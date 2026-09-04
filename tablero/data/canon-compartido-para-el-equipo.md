@@ -5,15 +5,15 @@ stage: work
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
 jira: []
-ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas, canon/regenerar-diccionario
+ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas, canon/regenerar-diccionario, canon/ubicar-archivo, canon/temas-smartpay-welli-meddipay
 jira_title: "Documentación de negocio compartida para el equipo"
 ---
 
 **ESTADO 2026-09-04 (tarde) · EN PRODUCCIÓN, CON POSTGRES LOCAL Y REDASH VIVO.** `canon.playground.creditop.com`.
-Mergeado hasta el PR #101 (las variantes de flujo, el corpus al revés, el respaldo de Postgres de verdad —la
-primera dependencia de canon—, el razonamiento plegado, y lo que se observa a Postgres: la deriva del
-diccionario y las corridas del banco). Abierto: **#102** — regenerar el diccionario contra prod en un comando,
-y **el diccionario regenerado**: 567 nombres, `/conexiones` dice «al día con prod». Dani ya dejó Redash y
+Mergeado hasta el PR #103 (variantes, corpus al revés, Postgres, razonamiento plegado, deriva y corridas,
+el regenerador del diccionario, y el renombre de `flujos` a **`ubicar`**). Abierto: **#104** — los tres temas
+que faltaban (`meddipay`, `welli`, `smartpay`), 170 archivos con hash en cuatro repos, verificados contra
+main y contra prod; los `verified` de los mapas dicen «Miguel no lo leyó todavía», y esa lectura falta. Dani ya dejó Redash y
 Postgres en la bóveda; canon lee exactamente esos nombres.
 
 **24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
@@ -2118,9 +2118,32 @@ porque `Filas` corta a 40 y con 341 comercios regeneraba mal en silencio. Con el
 mío al final de una cadena que falló sacó de la pila un stash que no era mío (`PENDIENTE-PUBLICAR.md`); se
 restauró intacto a la pila con un mensaje que lo dice.
 
-**Queda:** renombrar `flujos` (en el dominio significa otra cosa); los tres temas que faltan; el campo del
-tronco para las variantes; la entidad de BCP (ninguna matchea por nombre); subir el cruce de rutas de 7 a
-las 17 que da la comparación directa; y el widget, al final.
+**La tarde (PR #103 y #104): `ubicar`, y los tres temas que faltaban.** Primero el renombre: «flujo» acá es un
+recorrido de negocio y una herramienta llamada `flujos` que devuelve áreas del corpus prometía otra cosa;
+ahora es `ubicar` en las cuatro superficies y el resumen cuenta áreas. Después los temas: tres
+investigadores en paralelo leyendo `main` con `git show` (solo lectura, ~260k tokens cada uno, 10–18 min),
+y cada afirmación que quedó escrita la verifiqué yo contra main antes de escribirla — unas sesenta
+comprobaciones, más siete consultas de solo lectura a prod por Redash. Lo que cambió respecto de lo que se
+creía: **el camino IMEI no es SmartPay** (cinco entidades en prod; 452 de 494 equipos con bloqueos son de
+Credimovil, 14 de SmartPay); **el desembolso de SmartPay lo dispara el asesor**, no el cliente; **Meddipay
+y Welli cierran sólo por el webhook de `legacy-application`** (el monolito nuevo no tiene ninguno); Meddipay
+lee «en espera» al revés según el camino; el comentario que dice excluir a Welli 23 no la excluye, y dos
+de tres caminos abren una aplicación en Welli por cada consulta. `variantes.json`: 17 entidades
+declaradas, cero huecos; **BCP no existe en prod** (en dev son 206 y 207, Perú) y queda como pendiente con
+la medida. Dos lecciones de método: el gate `-bench` **cazó** que la prosa nueva le robaba el podio a una
+pregunta del tronco —peso 6 en título y 4 por aparición exacta: cinco «solicitud» y dos «crea» en una
+sección nueva superan un título que dice «solicitud»—, y las pruebas de variantes fijaban el hueco con el
+archivo real, o sea que se rompían el día que el corpus mejoraba: ahora el hueco se prueba con un archivo
+armado. Aparte: el «17» del cruce de rutas de `workers/` no se reproduce (directa 4, cruce 7; el hueco real
+son 15 rutas del front bajo `/api/onboarding` que el backend declara bajo `/api/v2/onboarding`), docstring
+corregido y commit local; el nodo personal `smartpay` lleva una nota fechada con las cuatro correcciones
+(nueve sitios, el asesor dispara, cuatro crons + motor v1, cinco entidades IMEI); y un `canon` de `go run`
+de las 15:45 quedó escuchando en :8080 y lo cerré.
+
+**Queda:** que Miguel lea los tres temas (los `verified` lo dicen) · el campo del tronco (`entra_desde`) en
+las variantes, que cambia la forma del corpus · declarar el id de BCP cuando exista en prod · el hueco
+`/api/onboarding` vs `/api/v2/onboarding` del cruce de rutas, antes de exponerlo · reescribir a fondo el
+nodo personal `smartpay` (hoy sólo lleva la nota) · la decisión `CANON_CHATS_SIN_TEXTO` · el widget, último.
 
 ## Decisiones abiertas
 
