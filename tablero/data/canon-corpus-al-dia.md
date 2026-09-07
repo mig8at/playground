@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -38,9 +38,20 @@ legal, cómo se lee un código del sistema nuevo, la difusión masiva sin idempo
 módulos con las puertas sin credencial. Un bloque **ya lo teníamos** (el mecanismo del límite por
 documento) y otro llegó **truncado** (el servicio de formularios).
 
+Y el 2026-09-07, con la llave de escritura ya puesta, se **dictó por API por primera vez de verdad**
+(#134): cinco documentos de CrossCore y Evidente que pasó Fercho, validados contra `main` antes de
+escribir, de los que entraron dos secciones a `kyc`. El camino de escritura funcionó de punta a punta
+—lint, guarda del banco y control de duplicado, los tres en silencio— y de paso destapó su propio
+hueco: el guion pedía los archivos pero no el `objetivo` del área que forman, así que el área nacía con
+un eco del título. Arreglado en el mismo PR, con el aviso en el momento de la omisión y el ensayo que
+lo protege.
+
 **El próximo paso es:** decidir con Miguel si el paso 4 se hace —cambiar la forma del mapa por 37
-archivos— o si la tarea se cierra acá; y pedirle el resto del bloque del servicio de formularios, que
-llegó cortado.
+archivos— o si la tarea se cierra acá; pedirle el resto del bloque del servicio de formularios, que
+llegó cortado; y decidir qué más de los documentos de Fercho entra (la tabla de decisión de la
+biometría es el candidato más claro, y quedó fuera de este PR sólo por no abusar del primer dictado).
+⚠ Y hay algo que no es de canon y no puede esperar: uno de esos documentos trae **la credencial de
+producción y el identificador de inquilino en claro**, diez veces, en `~/Downloads/fer/`.
 
 ## Objetivo
 
@@ -285,6 +296,24 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   autenticación» sino sin Cognito. Y la lección de la mañana se repitió, medida: la prosa nueva bajó
   el banco a 113/115 desplazando dos preguntas de Bancolombia por competir con «cuesta», «error»,
   «dice» y «nada»; con sinónimos volvió a 115 sin tocar el banco ni los hechos.
+- **#134, el primer dictado por API de verdad** — con la llave de escritura puesta por Miguel, y con
+  cinco documentos de CrossCore y Evidente que llegó Fercho. Validado documento por documento contra
+  `main` antes de escribir: entraron **dos secciones** en `kyc` (NODECISION es la biometría sin
+  terminar, no un error, con el criterio real de validada y la columna de estado que da un falso sí; y
+  la otra puerta de identidad, que tras un rechazo se bloquea y el reintento **se factura** cortando
+  con un 409 antes de dejar la fila que lo explique). Las dos áreas nacieron vigiladas: cuatro archivos
+  al hash de `main` y dos tablas.
+- **Lo que NO entró, a propósito:** la credencial, el identificador de inquilino y los endpoints que
+  traía esa documentación —⚠ están en claro en `~/Downloads/fer/`, diez veces, y hay que rotarlos o al
+  menos sacar el archivo de ahí—, y las fases que el equipo todavía no mergeó (dos columnas que
+  **no están en `main`**, comprobado).
+- **Y usar el camino de escritura destapó su propio hueco.** El guion del dictado nombraba los archivos
+  que respaldan una pieza pero **no el `objetivo` del área** que esos archivos forman, ni las tablas;
+  así que yo mismo, siguiendo el contrato, escribí dos áreas con el eco del título — el mismo eco que
+  el 2026-09-03 se midió en 27 de 139 áreas y que una vez le robó el camino a «donde está el modelo de
+  la solicitud». El campo existía; faltaba pedirlo. Ahora el guion lo pide, la respuesta avisa **en el
+  momento** en que se omite en vez de dejarlo para un lint posterior, y el ensayo del dictado comprueba
+  las dos mitades (probado quitando la guarda: falla). El lint pasó de 2 áreas de plantilla a 0.
 - Incongruencias entre la doc de Santi y `main`/prod anotadas en Riesgos.
 
 ## Tarea (publicable)
