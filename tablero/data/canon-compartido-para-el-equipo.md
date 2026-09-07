@@ -2,37 +2,57 @@
 id: 67
 title: "Canon compartido: el conocimiento de negocio, publicado para el equipo y consultable por API"
 stage: work
+archived: "2026-09-07T08:10:00-05:00"
 created: "2026-08-25T12:00:00-05:00"
 context_nodes: [creditop, negocio, findings, architecture]
-jira: []
-ramas: feat/canon-limpieza-y-contexto-rico, canon/pedir-exacto, canon/chats-forma-vieja, canon/conexiones, canon/scroll-al-borde, canon/medir-largo-y-costo, canon/flujos-de-un-archivo, canon/postgres-partido, canon/razonamiento-plegado, canon/deriva-y-corridas, canon/regenerar-diccionario, canon/ubicar-archivo, canon/temas-smartpay-welli-meddipay
-jira_title: "Documentación de negocio compartida para el equipo"
+jira: [CORE-530]
+ramas: canon/, feat/canon-limpieza-y-contexto-rico
+jira_title: "Consulta del conocimiento técnico y de negocio por API, con agente de búsqueda"
 ---
 
-**ESTADO 2026-09-04 (tarde) · EN PRODUCCIÓN, CON POSTGRES LOCAL Y REDASH VIVO.** `canon.playground.creditop.com`.
-Mergeado hasta el PR #103 (variantes, corpus al revés, Postgres, razonamiento plegado, deriva y corridas,
-el regenerador del diccionario, y el renombre de `flujos` a **`ubicar`**). Abierto: **#104** — los tres temas
-que faltaban (`meddipay`, `welli`, `smartpay`), 170 archivos con hash en cuatro repos, verificados contra
-main y contra prod; los `verified` de los mapas dicen «Miguel no lo leyó todavía», y esa lectura falta. Dani ya dejó Redash y
-Postgres en la bóveda; canon lee exactamente esos nombres.
+**ESTADO 2026-09-07 · TERMINADA. En producción, publicada como CORE-530.** La herramienta está
+desplegada y en uso; el trabajo de esta tarea se cerró. Lo que sigue creciendo —temas nuevos, mejoras
+del bucle de agentes— vive en la tarea #72, que es su continuación.
 
-**24 temas.** Dos clases de documento: `context.md` (cómo funciona el negocio) y `operar.md` (cómo se
-trabaja con esto), más el diccionario de negocio (558 nombres) y el de tablas (235 tablas del esquema
-de producción).
+**Qué quedó, en tres piezas.** Una **API de consulta** que contesta lo técnico y lo de negocio con
+citas comprobadas, y que otras herramientas del equipo pueden usar igual que una persona (acepta la
+conversación entera en `turnos`, y el recorte del hilo lo hace canon y no cada cliente). Un **agente
+de búsqueda** que interpreta la pregunta y elige qué leer —corpus, código de `main`, esquema de la
+base, o una medición por Redash— en vez de buscar por coincidencia de palabras. Y un **grafo** entre
+la prosa y el código: cada tema declara sus archivos con el hash contra el que se escribió, y cuando
+uno cambia el tema queda marcado para releer.
 
-**El chat es la entrada.** Un agente con herramientas sobre el corpus, el código de `main`, el esquema
-de producción y —cuando hay credencial— una consulta de lectura a la base. Contesta con citas
-comprobadas contra el corpus, y lo que no cubre lo dice en `no_pude` en vez de inventarlo. Los pasos se
-ven mientras trabaja.
+**El último tramo (2026-09-05) fue el más rentable, y no fue del corpus: fue de las herramientas.**
+Preguntándole a producción salieron tres defectos del mismo tipo —una herramienta que devuelve menos
+de lo que hay— y los tres costaban pasos y respuestas peores:
 
-**La división con credibot quedó fijada el 2026-09-04:** canon es el *porqué* y el *cómo está escrito*
-—es lo único que lee código—; el caso puntual («¿qué le pasó a ESTA solicitud?») se pregunta en Slack a
-credibot, que tiene los logs, PostHog y la base. Por eso canon tiene **una** fuente operativa y no
-tres.
+1. `codigo` descartaba casi todas sus regiones: la clave de deduplicación se armaba con dos campos
+   que `Grep` no devuelve, así que pedir `a|b|c|d` traía UNA región por archivo. 3 → 12.
+2. `tablas` escondía `id`, `created_at`, `updated_at` y `deleted_at` para ahorrar contexto, y el
+   agente concluía que la tabla no tiene fecha — y lo AFIRMABA. Ahora dice lo que omite.
+3. `archivo` pedía llave para abrir un archivo que un tema ya declara, o sea que la llave no
+   protegía nada: el mismo archivo se servía sin llave por `codigo`. La frontera pasó a ser el mapa.
 
-**Lo que espera a infraestructura:** `REDASH_URL` · `REDASH_API_KEY` · `REDASH_DATA_SOURCE_ID` para
-comprobar contra producción, y un **Postgres compartido** (que credibot también espera) para guardar
-las preguntas del equipo. Sin ellas canon funciona igual, no ofrece esa fuente y lo dice.
+Y `datos` dejó de pedir llave por lo mismo: escribir ya era imposible por dos caminos (una guarda en
+código que exige `SELECT`/`WITH`, y el data source de sólo lectura), así que la llave sólo le escondía
+la herramienta al agente.
+
+**Medido contra producción, la misma pregunta antes y después:**
+
+| pregunta | antes | después |
+|---|---|---|
+| dónde se calcula la cuota | 15 pasos · 53 s · aterrizaje · 359 k de caché | **4 · 18 s · 66 k** |
+| si el calculator viene mal | 19 pasos · 50 s · aterrizaje | **7 · 21 s** |
+| cuántas al estado 11 | 15 pasos · aterrizaje · **afirmación falsa** | **6 · 17 s · contestó** |
+
+De nueve preguntas a prod ese día, las que seguían tocando el techo de pasos lo tocaban por ser
+**anchas** (cinco temas) o por **archivos grandes**, no por información escondida. Y en ninguna
+inventó nada: cuando no supo, lo dijo con precisión — incluida una pregunta cuya cifra no está
+registrada, donde fue a buscarla a producción, encontró ceros y lo declaró.
+
+**Lo que queda anotado para #72:** el techo de 14 pasos es de cuando cada paso rendía menos. Tres de
+los cuatro aterrizajes del último día fueron preguntas legítimamente grandes, no perdidas. Es una
+perilla (`maxPasos`) y se mide de a una pregunta.
 
 ## Las reglas de la migración
 
@@ -2145,7 +2165,74 @@ las variantes, que cambia la forma del corpus · declarar el id de BCP cuando ex
 `/api/onboarding` vs `/api/v2/onboarding` del cruce de rutas, antes de exponerlo · reescribir a fondo el
 nodo personal `smartpay` (hoy sólo lleva la nota) · la decisión `CANON_CHATS_SIN_TEXTO` · el widget, último.
 
-## Decisiones abiertas
+## El último día: las herramientas devolvían menos de lo que hay (2026-09-05)
+
+El tramo más rentable, y no fue del corpus. Salió de preguntarle a **producción** —Sonnet 5 por
+Bedrock— y mirar las trazas: tres defectos del mismo tipo, todos mudos.
+
+1. **`codigo` descartaba casi todas sus regiones.** La clave de deduplicación se armaba con
+   `x["line"]` y `x["text"]`, dos campos que `codebase.Grep` no devuelve (devuelve
+   `desde`/`hasta`/`texto`), así que la clave era `<nil>·<nil>` para todas y sólo pasaba la primera.
+   Pedir `a|b|c|d` traía UNA región por archivo. Medido: 3 → 12 regiones, y el archivo del caso de 1
+   a 9. En prod eso eran OCHO llamadas seguidas a `codigo` sobre la misma área y aterrizaje forzoso a
+   los 15 pasos, con los cuatro símbolos presentes en el archivo que estaba mirando. PR #114.
+2. **`tablas` escondía las columnas mudas** (`id`, `created_at`, `updated_at`, `deleted_at`) «porque
+   son las mismas en todas y sólo gastan contexto». El agente leía la lista, no las veía, y concluía
+   que la tabla NO TIENE fecha — y lo afirmaba en la respuesta. Trece llamadas buscando una tabla de
+   historial, aterrizaje, y una falsedad sobre el esquema. Ahora manda `ademas_tiene`. PR #115.
+3. **`archivo` pedía llave para abrir lo que ya estaba declarado.** Un archivo que un tema declara ya
+   se servía sin llave por `codigo`, así que la llave no escondía nada: sólo dejaba al agente sin la
+   herramienta correcta. En la traza se le veía intentar `codigo(area=app/Support/LenderCalculator.php)`
+   —eso es un tema, no un archivo— y `q=…php:58-131`. 19 pasos → 7. PR #117.
+
+Y `datos` dejó de pedir llave por el mismo razonamiento, que fue de Miguel: escribir ya era imposible
+por dos caminos independientes —`soloLectura()` exige `SELECT`/`WITH` y rechaza catorce verbos, y el
+data source de Redash es de lectura—, así que la llave sólo le escondía la herramienta. Sin `datos`,
+«cuántas solicitudes llegaron al estado 11» daba 16 pasos buscando una tabla de historial; con
+`datos`, 6 y la cifra. PR #118.
+
+⚠ **Y una regresión propia, encontrada midiendo.** Al pasar las regiones de ±4 líneas a BLOQUES
+enteros (el arreglo que la herramienta hermana `archivo` ya tenía, con su medición al lado), cada una
+quedó 6× más grande y el presupuesto de 24 KB —un pozo común servido por orden de archivo— se lo
+comían los primeros: `LenderListingService.php`, el que contestaba, recibía 2 regiones y perdía 11.
+Ahora cada archivo tiene su cupo. PR #116.
+
+**Medido contra producción, la misma pregunta antes y después:**
+
+| pregunta | antes | después |
+|---|---|---|
+| dónde se calcula la cuota | 15 pasos · 53 s · aterrizaje · 359 k de caché | 4 · 18 s · 66 k |
+| si el calculator viene mal | 19 pasos · 50 s · aterrizaje | 7 · 21 s |
+| cuántas al estado 11 | 15 pasos · aterrizaje · afirmación falsa | 6 · 17 s · contestó |
+
+**Nueve preguntas a prod ese día**, y el método que las hizo baratas: detectar el despliegue con una
+consulta HTTP determinista y **gratis** (`/api/code` pasando de 3 a 12 regiones) para no gastar una
+pregunta contra la versión vieja. Los despliegues tardaron 6 y 12 minutos; el balanceador corta
+alrededor de los 60 s y devuelve un 504.
+
+**Lo demás del día**, en la pantalla: las siete herramientas del agente aceptan plurales (PR #110);
+cada turno pasó a ser cabecera y cuerpo, y la columna de la derecha se volvió el inspector con cuatro
+usos —pensamiento, citas, un archivo y una tabla— con el ancho arrastrable (PRs #112, #113, #119); la
+conversación viaja como `turnos` y el recorte lo hace canon, no cada cliente; y se destapó que **los
+pasos en vivo funcionaban de casualidad** —el turno se mutaba en el objeto crudo y no en el proxy, y
+lo que los redibujaba era el `setInterval` del reloj—.
+
+Se descartó el **streaming de la respuesta** (rama `canon/modelo-en-vivo`, PR #111 cerrado): sólo
+Anthropic y Bedrock fragmentan los argumentos de una herramienta, Gemini no —medido: 695 caracteres
+enteros en el primer trozo—, así que era una mejora que existe de un lado solo y desaparece en
+silencio si prod cambia de proveedor. La rama queda escrita y probada por si algún día es pareja.
+
+## Decisiones, al cerrar
+
+- **La frontera con credibot: DECIDIDA** (2026-09-04). Canon es el *porqué* y el *cómo está escrito*
+  —es lo único que lee código—; el caso puntual se pregunta en Slack a credibot, que tiene los logs,
+  la pantalla y la base. Por eso canon tiene UNA fuente operativa y no tres.
+- **La frontera con credibrain** (la herramienta de Oscar): sin cerrar, y ya no bloquea nada. Pasa a #72.
+- **La ficha de entidades** (aprobación, embudo, ticket por entidad): sin decidir si entra al
+  compartido y con qué recorte. Pasa a #72.
+- **Quién sella en el compartido:** propuesta vigente —el review del PR equivale al `verified:`, y
+  quien aprueba pone su nombre en la fecha—. Pasa a #72.
+
 
 - **La frontera con credibrain** (herramienta de Oscar en el mismo catálogo, «la memoria de la
   compañía»). Mi lectura: canon = fuente curada; credibrain = el que contesta y cita. Hablarlo antes
@@ -2191,15 +2278,83 @@ nodo personal `smartpay` (hoy sólo lleva la nota) · la decisión `CANON_CHATS_
 
 ## Tarea (publicable)
 
-**En una línea:** Publicar la documentación de negocio en un repositorio compartido del equipo,
-consultable por personas y por modelos vía API.
+## En una línea
+El conocimiento técnico y de negocio del sistema, consultable **por API** —por personas y por otras
+herramientas— con un agente que **interpreta la pregunta** en vez de buscar por coincidencia de
+palabras, y un grafo que dice qué documentación quedó vieja porque el código cambió.
 
-**Por qué:** El conocimiento del sistema vive hoy en notas personales; soporte, QA y producto lo
-necesitan sin depender de una persona.
+## Por qué
+Ese conocimiento vive hoy en la cabeza y en las notas de quien lo escribió. Soporte, QA y producto lo
+necesitan sin depender de una persona, y quien escribe código necesita saber **por qué** una regla
+existe, que es justo lo que el código no dice.
 
-**Qué cambia:** Aparece una herramienta interna con la documentación por capas —reglas de negocio,
-responsabilidades, flujos de punta a punta, observaciones fechadas y trampas conocidas— con búsqueda
-y lectura por API.
+Y una búsqueda por palabras no alcanza: obliga a acertar cómo está escrito lo que buscás. Quien
+pregunta «por qué a un cliente no le salió ninguna opción» no sabe que adentro eso se llama de otra
+forma — y por eso no encuentra nada aunque la respuesta esté escrita.
 
-**Alcance:** Solo lectura; los cambios entran por revisión. No incluye credenciales ni detalles de
-implementación.
+## Qué cambia
+Aparece una herramienta interna con tres cosas:
+
+1. **Consulta por API, técnica y de negocio.** La misma pregunta sirve para las dos mitades: qué hace
+   el sistema y por qué se decidió así. Contesta **citando de dónde lo sacó**, y cuando no lo sabe lo
+   dice en vez de inventarlo. Otras herramientas del equipo pueden consultarla igual que una persona,
+   y una conversación se puede continuar: se le manda el hilo y entiende de qué se venía hablando.
+
+2. **Un agente de búsqueda, no una búsqueda de texto.** El agente lee la pregunta, decide qué mirar
+   —la documentación curada, el código de la rama principal, el esquema de la base, o una medición
+   contra producción— y va a buscarlo. Se ve trabajar mientras lo hace: qué está leyendo, qué
+   encontró y cuánto tardó cada paso.
+
+3. **Un grafo entre la documentación y el código.** Cada tema declara los archivos que lo sostienen,
+   con la versión exacta contra la que se escribió. Cuando uno de esos archivos cambia, la
+   herramienta lo marca: no dice que lo escrito sea falso, dice que **hay que releerlo antes de
+   confiar**. Eso es lo que evita que la documentación envejezca en silencio, que es la forma normal
+   en que se muere.
+
+## Alcance
+Sólo lectura. El contenido se modifica por revisión, no desde la pantalla. Las mediciones contra
+producción son consultas de lectura, sin excepción.
+
+**No** reemplaza el soporte de un caso puntual: «¿qué le pasó a ESTA solicitud?» se sigue preguntando
+en el canal de siempre, que tiene los registros y la pantalla del cliente además de la base. Esta
+herramienta contesta el mecanismo, no el caso.
+
+## Dónde probar
+Está desplegada y disponible desde la red interna; también corre en la máquina de cualquiera del
+equipo sin configurar nada, porque el contenido viaja adentro de la herramienta.
+
+Hace falta estar en la red interna. Para las mediciones contra producción, la credencial de lectura
+ya está puesta en el despliegue.
+
+## Cómo validar
+Preguntale en español, como le preguntarías a un compañero. Cuatro preguntas que cubren las cuatro
+clases y sus resultados de hoy:
+
+1. **De negocio:** «¿qué le contesto a un comercio que dice que sus clientes no ven su entidad?» →
+   contesta distinguiendo los dos casos que se reportan igual, con seis referencias.
+2. **De ubicación:** «¿dónde se calcula la cuota que se muestra en el listado?» → nombra el archivo
+   y el método, en cuatro pasos.
+3. **De datos:** «¿cuántas solicitudes hay en el estado autorizada comparado con desembolsada?» →
+   mide contra producción y contesta con las dos cifras.
+4. **Compuesta:** las tres cosas de arriba en una sola pregunta → las contesta las tres, y cruza la
+   cifra con lo que dice la documentación.
+
+Y una que **no** debería poder contestar, para ver que no inventa: pedile una cifra que no esté
+registrada en ningún lado. Tiene que decir qué no pudo determinar.
+
+## Criterios de aceptación
+- Toda afirmación viene con la referencia de dónde salió; una respuesta sin respaldo se marca como
+  tal, visiblemente.
+- Lo que no está cubierto se declara —«esto no lo cubre»— en vez de rellenarse.
+- Una consulta responde en menos de un minuto en el caso normal.
+- Cuando un archivo declarado cambia, el tema que lo declara queda marcado como pendiente de releer.
+- Las mediciones contra producción rechazan cualquier consulta que no sea de lectura, comprobado por
+  una prueba automática y no por una instrucción.
+- La herramienta dice con qué depende y si le contesta: si algo de afuera está caído, se ve en una
+  pantalla propia con lo que tardó cada comprobación.
+
+## Dependencias / contraparte
+Ya resueltas: la credencial de lectura para medir contra producción y la base compartida donde se
+guardan las preguntas del equipo — las dejó infraestructura, y la herramienta las lee de ahí.
+
+Pendiente de nadie: el contenido crece con lo que el equipo le cuenta. Hoy eso entra por revisión.
