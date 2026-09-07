@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -31,8 +31,16 @@ redactor: es una tarea propia, no una línea más.
 No hace falta volver a leer la doc de Nequi ni los diffs de la ronda: lo verificable ya está en el
 corpus, y lo que no coincide con `main` está anotado en Riesgos.
 
+Y entró un frente que no estaba en el plan: Miguel pasó un **documento de candidatos** de la operación
+de julio a septiembre, con la instrucción de validar antes de copiar. Se validó bloque por bloque y
+entró lo que el corpus no tenía y resistió la verificación (#125): la ficha en blanco con su trampa
+legal, cómo se lee un código del sistema nuevo, la difusión masiva sin idempotencia, y el sobre entre
+módulos con las puertas sin credencial. Un bloque **ya lo teníamos** (el mecanismo del límite por
+documento) y otro llegó **truncado** (el servicio de formularios).
+
 **El próximo paso es:** decidir con Miguel si el paso 4 se hace —cambiar la forma del mapa por 37
-archivos— o si la tarea se cierra acá.
+archivos— o si la tarea se cierra acá; y pedirle el resto del bloque del servicio de formularios, que
+llegó cortado.
 
 ## Objetivo
 
@@ -61,6 +69,10 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
    y menores. 15 temas tocados, hashes subidos **después** de releer, ronda en 0.
 4. **«Qué hace cada archivo»** — medido: lo merecen 37 de 816 (nombres genéricos) más 71 nombres
    repetidos. Exige cambiar la forma del mapa; pendiente de decisión.
+5. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
+   antes de escribir nada: de cinco bloques, **uno ya estaba**, **tres entraron** con correcciones, y
+   el quinto llegó truncado. Las cifras de disponibilidad del documento **no entraron**: no salen del
+   código y no se midieron.
 
 ## Lo que se evaluó y NO se eligió
 
@@ -93,6 +105,10 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 
 > **PREGUNTA · 2026-09-07 · Miguel** — ¿se hace el paso 4? Son 37 archivos de 816 y obliga a cambiar la
 > forma de `fuentes` en todos los mapas (hash → objeto), con su lint, su oráculo y su redactor.
+
+> **PREGUNTA · 2026-09-07 · Miguel** — el bloque 5 del documento de candidatos (el servicio de
+> formularios en Go, con su cadena de caché) llegó **cortado** en el diagrama. Falta el resto para
+> validarlo; el corpus ya declara ese servicio como hueco conocido.
 
 ## Riesgos
 
@@ -142,6 +158,15 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 > genérico y **71** nombres repetidos entre carpetas. Los sufijos de rol ya dicen qué hace cada uno
 > (86 `Service`, 82 `Controller`, 23 `Request`).
 
+> **MEDICIÓN · 2026-09-07** — el documento de candidatos, verificado contra `main`: el tope del
+> formulario personal sale de `personal_info_settings.rate_limit_rules` con **default 4**, se evalúa
+> **sólo por documento** en Redis, y su clave tiene un **typo** (`..._per_houre`) que se lee primero;
+> el bloqueo sale como `ONB040`/400, que es el genérico del onboarding y **no identifica el bloqueo**.
+> La ficha temporal es `TEMP-<4 dígitos>-<celular>` con nombre `TEMPORAL USER` y tipo `-`. La difusión
+> tiene `MESSAGING_SERVICE_TIMEOUT=10` **más `retry_times=2`**. Y **12 de 23** módulos llevan
+> `TECHNICAL_DEBT.md`, **10** `ARCHITECTURE_EXCEPTIONS.md`, con `NEW_ARCHITECTURE.md` (22.340 palabras)
+> como guía canónica.
+
 ## Registro
 
 ### 2026-09-07
@@ -163,6 +188,13 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   banco (114/115). Los tres se detectan sin gastar un token; guardado en la memoria de la sesión.
 - Encontrado y arreglado de paso (#124): la ronda mandaba a `canon -expediente`, retirado hace cuatro
   días con el bucle de agentes. Ahora manda al diff, e imprime los hashes que hacen falta para pedirlo.
+- **#125, el documento de candidatos.** Cinco bloques validados uno por uno antes de escribir: el del
+  límite por documento ya estaba en el corpus, tres entraron con correcciones y el del servicio de
+  formularios llegó truncado. Cuatro imprecisiones del documento corregidas antes de entrar, entre
+  ellas que el límite no es por sucursal ni por IP y que los módulos nuevos no están «sin
+  autenticación» sino sin Cognito. Y la lección de la mañana se repitió, medida: la prosa nueva bajó
+  el banco a 113/115 desplazando dos preguntas de Bancolombia por competir con «cuesta», «error»,
+  «dice» y «nada»; con sinónimos volvió a 115 sin tocar el banco ni los hechos.
 - Incongruencias entre la doc de Santi y `main`/prod anotadas en Riesgos.
 
 ## Tarea (publicable)
