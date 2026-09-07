@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -69,7 +69,15 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
    y menores. 15 temas tocados, hashes subidos **después** de releer, ronda en 0.
 4. **«Qué hace cada archivo»** — medido: lo merecen 37 de 816 (nombres genéricos) más 71 nombres
    repetidos. Exige cambiar la forma del mapa; pendiente de decisión.
-5. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
+5. **Las guardas del camino de escritura** ✅ #126. La del banco ya existía a medias y ahora mira los
+   cinco escalones, no sólo el último: avisa cuando una pieza empuja una pregunta hacia abajo sin
+   romperla. Más un aviso de duplicado por solapamiento del título, calibrado sobre seis casos. Y el
+   arnés del dictado, que tenía tres suposiciones caducadas, de 12 fallos a 0.
+6. **Leer un tema entero se recorta** ✅ #127. Un tema sin ancla devolvía todas sus secciones: 4.559
+   tokens contra 200 de una sección típica. Ahora trae las que responden a la pregunta, con el índice
+   de anclas completo para pedir las demás. Ahorro medido del 61% al 84%. Habilita decidir el techo de
+   palabras con datos en vez de a ojo.
+7. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
    antes de escribir nada: de cinco bloques, **uno ya estaba**, **tres entraron** con correcciones, y
    el quinto llegó truncado. Las cifras de disponibilidad del documento **no entraron**: no salen del
    código y no se midieron.
@@ -109,6 +117,19 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > **PREGUNTA · 2026-09-07 · Miguel** — el bloque 5 del documento de candidatos (el servicio de
 > formularios en Go, con su cadena de caché) llegó **cortado** en el diagrama. Falta el resto para
 > validarlo; el corpus ya declara ese servicio como hueco conocido.
+
+> **DECISIÓN PENDIENTE · 2026-09-07 · Miguel** — el techo de palabras. Miguel propuso subirlo de 3.000
+> a 5.000 o 10.000; la recomendación fue no hacerlo por dos números medidos (leer un tema entero
+> costaba 8.828 tokens en JSON y 4.559 en markdown, y sólo 2 de 28 temas están llenos) y partir los dos
+> llenos. Con #127 el costo de leer bajó un 76% de media, así que la decisión se puede tomar con datos:
+> falta medir el banco con un tema partido contra el mismo entero.
+
+> **DECISIÓN · 2026-09-07** — la escritura desde el chat va como HERRAMIENTA del agente que ya
+> contesta, no como agente separado: el que respondió ya tiene los archivos, los hashes y el porqué, y
+> uno nuevo los reconstruiría. El bucle de cinco labores se retiró el 2026-09-03 por caro y esto no lo
+> reintroduce. Y el aviso «el corpus no cubre esto» se muestra a TODOS, con o sin llave: es un campo
+> del contrato de la respuesta, ocultarlo en el front sería cosmético y filtrarlo en el servidor daría
+> dos respuestas distintas según quién pregunta. Sólo la ACCIÓN de agregar va con llave, y ya era así.
 
 ## Riesgos
 
