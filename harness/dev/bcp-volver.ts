@@ -49,7 +49,31 @@ const BONO = Number(arg('bono', '2000'));
 const BASE_FE = arg('front', config.feBaseUrl);
 const FLUJO = arg('flow', 'self-service');
 
-if (TARGET !== 'local') throw new Error(`bcp-volver sólo corre en local (E2E_TARGET=${TARGET}): registra clientes y llena formularios`);
+/* ── CONTRA QUÉ AMBIENTE, Y QUÉ CAMBIA FUERA DE LOCAL ────────────────────────────────────────────
+ *
+ * En LOCAL el runner deriva un teléfono nuevo por caso y no le debe nada a nadie. Fuera de local no:
+ *
+ *   · EL TELÉFONO HAY QUE DÁRSELO. El OTP sólo se puede saltar con los números que están en
+ *     `qa_otp_bypass_phones` —el código son sus últimos 4 dígitos—, así que uno derivado al azar deja
+ *     el recorrido trabado en la pantalla del OTP. Van dos, uno por recorrido: con el mismo número los
+ *     dos recorridos serían el mismo cliente y el segundo chocaría con la solicitud del primero.
+ *   · EL RECORRIDO B NO CORRE SOLO. Es el que prueba que el gate mata una solicitud, así que la DEJA
+ *     NEGADA. En una base compartida eso es basura que queda: hay que pedirlo con `--niega`.
+ *
+ * `prod` no está y no va a estar: acá se registran clientes y se llenan formularios. */
+const AMBIENTES = ['local', 'dev', 'qa', 'staging'];
+if (!AMBIENTES.includes(TARGET)) {
+    throw new Error(`bcp-volver no corre contra «${TARGET}» (registra clientes y llena formularios). Ambientes: ${AMBIENTES.join(', ')}`);
+}
+const TELS = arg('tel').split(',').map((t) => t.trim()).filter(Boolean);
+if (TARGET !== 'local' && TELS.length < 1) {
+    throw new Error(
+        `contra «${TARGET}» hay que pasar los teléfonos con --tel: sólo los que están en el bypass de OTP`
+            + '\n   pueden pasar la pantalla del código (el código son sus últimos 4 dígitos).'
+            + '\n   ej:  --tel 321411214,321411217   (el primero para el recorrido A, el segundo para el B)',
+    );
+}
+const NIEGA = TARGET === 'local' || process.argv.includes('--niega');
 
 const c = (s: string, n: number) => `[${n}m${s}[0m`;
 const ok = (s: string) => c(s, 32), mal = (s: string) => c(s, 31), ojo = (s: string) => c(s, 33), gris = (s: string) => c(s, 90);
@@ -138,8 +162,15 @@ let n = 0;
 async function llegarHastaElFormulario(etiqueta: string): Promise<Punto> {
     n += 1;
     const semilla = Number(`9${String(Date.now()).slice(-8)}${n}`);
-    const tel = await telefonoDeLaSucursal(br!.hash, semilla);
-    const doc = String(80000000 + (Date.now() % 9000000) + n).slice(0, 8);
+    // El de la lista si lo dieron; si no, uno derivado del país del comercio. `n` arranca en 1.
+    const tel = TELS[n - 1] ?? (TELS.length ? TELS[TELS.length - 1] : await telefonoDeLaSucursal(br!.hash, semilla));
+    /* El documento del usuario si ya existe. Un cliente que ya pasó por acá tiene el suyo, y mandarle
+       otro es pedirle al backend que cambie la identidad de una persona en medio del flujo. Los
+       `TEMP-…` no cuentan: son el marcador de «todavía no completó datos». */
+    const yaEsta = await one<{ document_number: string }>(
+        'SELECT document_number FROM users WHERE cell_phone=? ORDER BY id DESC LIMIT 1', [tel]).catch(() => null);
+    const previo = yaEsta?.document_number ?? '';
+    const doc = /^\d+$/.test(previo) ? previo : String(80000000 + (Date.now() % 9000000) + n).slice(0, 8);
     const s = new SesionFront(BASE_FE);
     linea(`\n  ── ${etiqueta} · tel ${tel} · ${DOC_TIPO} ${doc} ──`);
 
@@ -281,8 +312,42 @@ for (const r of [`${base}/${ur}/formulario/post?amount=${montoTrasPre}`, `${base
     linea(`      ${ruta(r).padEnd(26)} ${txt}`);
 }
 
+// ─── ⑦ CORREGIR EL VEHÍCULO DESPUÉS DEL GATE ────────────────────────────────────────────────────
+// Que la pantalla se SIRVA no dice nada sobre qué pasa al guardarla. Lo que importa es si el funnel
+// entiende que la simulación anterior ya no vale: se hizo con otro vehículo y otro monto.
+linea(`\n  ⑦ corregir el vehículo pasado el gate — ¿el funnel vuelve a exigir la simulación?`);
+const NUEVO_VALOR = MONTO + 15000;
+const preOtraVez = await s.cargar(rPre);
+if (preOtraVez.status !== 200) {
+    linea(`      ${mal('✗')} formulario/pre no abre (HTTP ${preOtraVez.status}): no se puede corregir`);
+} else {
+    const corregido = await s.enviarJson(rPre, {
+        answers: respuestasDelVehiculo(preOtraVez.datos, NUEVO_VALOR, CUOTA_INICIAL, BONO),
+    });
+    const destino = corregido.redirect ?? '—';
+    const vuelveASimular = /entidad\/simulador/.test(destino);
+    const montoNuevo = corregido.redirect ? new URL(corregido.redirect, 'http://x').searchParams.get('amount') : null;
+    const esperado = String(NUEVO_VALOR - CUOTA_INICIAL - BONO);
+    linea(`      guardo el vehículo en ${NUEVO_VALOR} ${gris('→')} ${c(conQuery(destino), 36)}`);
+    linea(`      ${vuelveASimular ? ok('✓') : mal('✗')} ${vuelveASimular
+        ? 'vuelve al simulador: la simulación vieja quedó invalidada'
+        : 'NO vuelve al simulador — la decisión del gate sigue en pie sobre datos que cambiaron'}`);
+    linea(`      ${montoNuevo === esperado ? ok('✓') : mal('✗')} el monto que sigue es ${c(String(montoNuevo), 1)} ${gris(`(esperado ${esperado})`)}`);
+    const enBase = await one<{ amount: number; original_amount: number }>(
+        'SELECT amount, original_amount FROM user_requests WHERE id=?', [ur]);
+    const bienEnBase = String(Number(enBase?.amount)) === esperado;
+    linea(`      ${bienEnBase ? ok('✓') : mal('✗')} la BD dice amount ${c(String(enBase?.amount), 1)} · original_amount ${enBase?.original_amount} ${gris(`(esperado ${esperado} / ${NUEVO_VALOR})`)}`);
+}
+
 // ─── RECORRIDO B: el gate, dos veces ─────────────────────────────────────────────────────────────
-linea(`\n  ${c('RECORRIDO B — volver al gate y cambiar de opinión', 1)}`);
+if (!NIEGA) {
+    linea(`\n  ${c('RECORRIDO B — volver al gate y cambiar de opinión', 1)}  ${ojo('OMITIDO')}`);
+    linea(`      ${gris(`deja una solicitud NEGADA, y «${TARGET}» es una base compartida. Para correrlo: --niega`)}`);
+    linea();
+    await close();
+    process.exit(0);
+}
+linea(`\n  ${c('RECORRIDO B — volver al gate y cambiar de opinión', 1)}${TARGET === 'local' ? '' : ojo('  ⚠ deja una solicitud NEGADA')}`);
 const B = await llegarHastaElFormulario('RECORRIDO B');
 const rPreB = `${base}/${B.ur}/formulario/pre?amount=${MONTO}`;
 const preB = await B.s.cargar(rPreB);
@@ -301,7 +366,7 @@ linea(`      BD tras rechazar: estado ${c(String(estadoTrasRechazar?.st), 1)} ${
 
 // ─── el rastro que quedó ─────────────────────────────────────────────────────────────────────────
 linea(`\n  ${c('EL RASTRO', 1)}`);
-const guardadas = await fetch('http://localhost:8109/_estado').then((r) => r.json()).catch(() => null) as any;
+const guardadas = TARGET !== 'local' ? null : await fetch('http://localhost:8109/_estado').then((r) => r.json()).catch(() => null) as any;
 if (guardadas) linea(`      form-service (mock): ${guardadas.guardadas.map((g: any) => `${g.clave}→${g.campos} campos`).join(' · ')}`);
 for (const id of [ur, B.ur]) {
     const f = await one<{ st: number; amount: number }>('SELECT user_request_status_id st, amount FROM user_requests WHERE id=?', [id]);

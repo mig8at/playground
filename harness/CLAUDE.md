@@ -51,7 +51,7 @@ de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/m
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
-| `dev/bcp-volver.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. Sólo local: pide `make harness-peru` + `make harness-forms-g2` |
+| `dev/bcp-volver.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. En LOCAL pide `make harness-peru` + `make harness-forms-g2`; contra `qa` el comercio **ya existe** (ver abajo) y hay que pasarle los teléfonos del bypass con `TEL=` |
 | `make harness-suite-paises` | **¿el cliente nace con el país de su comercio, su documento y su celular?** La internacionalización como aserción declarada (`suites/paises.json`, clave `espera.pais`): la REGLA contra la base + valores fijados por país. Verde/rojo con exit code. ⚠ `requiere: lambda` a propósito: sin usuarios FRESCOS la aserción mide la escritura de una corrida vieja (así apareció un dominicano con `CC` del día anterior) |
 | `dev/loki-lineas.ts` | los **CUERPOS crudos** de Loki para un selector y una ventana — cuando no hay uReq que anclar (el flujo murió antes de crear la solicitud). ⚠ La sonda de `trazador-acceso` imprime **labels**, no cuerpos; y el PHP de dev **y de qa** loguea como `service_name="CreditopDev"` (F-179) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
@@ -529,6 +529,32 @@ Confundirlos hace medir la rama equivocada: probando Ábaco contra `legacy-backe
 `MOTV1000` porque esa rama todavía decide por los modos deprecados, y se leía como "el feature está roto"
 cuando en `qa` respondía `MOTV1001`. Para saber qué rama tenés enfrente, pedí un campo que solo exista en
 una: `GET /api/loans/allied/{hash}` trae `allowed_document_types` solo con motai-v2 (o sea, solo en `qa`).
+
+## El comercio de BCP (Perú), por ambiente
+
+No hace falta sembrarlo en `qa`: **ya está**, y mejor repartido que en local — una entidad por sucursal.
+
+| | local (lo siembra `make harness-peru`) | **qa / dev / staging** (ya existe) |
+|---|---|---|
+| comercio | `Comercio pruebas Perú` | `Comercio pruebas BCP` (allied **337**) |
+| consumo (206) | misma sucursal | sucursal **2172**, hash `d5700512` — **sin** formulario de vehículo |
+| vehicular (207) | misma sucursal | sucursal **2173**, hash `a8221e67` — **con** los placements 8/9 (`always_show`) |
+| credential | por SUCURSAL | por COMERCIO (`allied_type = App\Models\Allied`) |
+| form-service | mock `:8109` | el real |
+
+⚠ **Contra `qa` el teléfono NO se puede derivar.** El OTP sólo se salta con los que están en
+`settings.qa_otp_bypass_phones`, y el código son sus **últimos 4 dígitos**. Dos que sirven hoy:
+`321411214` y `321411217` (los pasó Fercho). Uno por recorrido: con el mismo número los dos serían el
+mismo cliente y el segundo chocaría con la solicitud del primero.
+
+    make harness-bcp-volver TARGET=qa COMERCIO='#a8221e67' TEL=321411214,321411217 \
+        FRONT=https://originaciones-qa.dev.creditop.com
+
+⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
+La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
+
+⚠ El país 167 en esa base **ya está completo** (`dial_code 51`, `phone_code +51`, largo 9, `PEN`,
+`es-PE`) salvo `nationality`, que sigue en NULL.
 
 ## Reglas sueltas
 
