@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -19,8 +19,9 @@ equipo— sin un solo tema (#121, mergeado). El diccionario de tablas también e
 faltaban las cinco columnas de Nequi (#122, mergeado). Y de paso salió el tercer hueco, que no era de
 Santi: la **ronda** marcaba 78 cambios en 50 archivos declarados sin releer (#123, mergeado).
 
-**Estado real al 2026-09-07: los pasos 1, 2, 2b y 3 están MERGEADOS** (#120, #121, #122, #123) y la
-ronda quedó en **0 cambios**. El paso 4 —una línea de «qué hace» por archivo— sigue sin empezar, y ya
+**Estado real al 2026-09-07: los pasos 1, 2, 2b y 3 están MERGEADOS** (#120, #121, #122, #123), la
+ronda quedó en **0 cambios**, y salió un quinto PR de la pista muerta que apareció en el camino
+(#124: la ronda mandaba a un comando retirado). El paso 4 —una línea de «qué hace» por archivo— sigue sin empezar, y ya
 está medido: lo merecen sólo **37 de 816** archivos declarados (nombres genéricos como `api.php`,
 `index.ts`, `Kernel.php`, `services.php`) más los **71** nombres que se repiten entre carpetas, o sea
 ~5%; el resto lo dice su propio nombre y el `objetivo` del área. Hacerlo exige cambiar la forma del
@@ -104,9 +105,10 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > planificador no lo nombra; su propia descripción lo advierte). Cuando la entidad se configure, los intentos
 > vencidos se van a acumular. Está escrito en el tema; conviene que lo vea quien encienda Nequi.
 
-> **RIESGO · 2026-09-07** — la ronda sugiere `canon -expediente <tema>` y ese modo **no existe** en el binario
-> (los modos reales: `-ronda`, `-lint`, `-bench`, `-tablas`, `-enlazar`, `-ubicar`, `-nuevo`, `-diccionario`…).
-> Es una pista muerta en la salida de una herramienta; arreglarla es un cambio chico aparte.
+> **RIESGO · 2026-09-07 · RESUELTO** — la ronda sugería `canon -expediente <tema>`, retirado el
+> 2026-09-03 con el bucle de agentes. Arreglado en #124: la pista pasa a ser el diff entre el hash
+> declarado y el de `main`, y la línea de cada cambio imprime los dos hashes (que ya estaban en el
+> JSON y son los argumentos de ese diff). De paso, el README listaba un script borrado.
 
 ## Lo que NO entra
 
@@ -148,14 +150,19 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   `nequi`: 1.952 palabras, 6 secciones, 4 áreas, 59 fuentes, entrada en el glosario), #122 (diccionario
   de tablas regenerado contra prod: cinco columnas de Nequi, el rango de monto del comercio y el tope
   del punto de venta) y #123 (la ronda en cero: 78 cambios, 6 frentes, 15 temas).
-- Validado en prod: «¿qué es Nequi y por qué el cobro puede dar 409?» → **2 pasos, 15 s, respaldada,
-  2 citas**. La de control (una pregunta de glosario) → 5 pasos, respaldada, y dijo bien que el caso de
-  UNA solicitud puntual no lo contesta el corpus.
+- Validado en prod, cuatro preguntas en total y ninguna de más. «¿Qué es Nequi y por qué el cobro
+  puede dar 409?» → **2 pasos, 15 s, respaldada**. Control de glosario → 5 pasos, respaldada, y dijo
+  bien que el caso de UNA solicitud puntual no lo contesta el corpus. Tras el barrido: «¿un comercio
+  puede poner su propio monto mínimo y máximo, y cuántos lo usan?» → **2 pasos, 8,7 s**, con la cifra
+  de prod y distinguiendo sola el mecanismo cableado del configurable; «¿todos los comercios usan el
+  pipeline nuevo de KYC?» → **3 pasos, 12,9 s**, con los dos flujos, el ajuste que decide y el «un
+  solo comercio» de prod. El despliegue se detectó gratis, sin gastar preguntas contra la versión vieja.
 - Tres lecciones medidas, todas del ranking: la densidad de palabras genéricas de un tema nuevo bajó el
   banco a 112/115; la entrada del glosario le robó una pregunta a `CATEGORY_RULE_REJECTED` y rompió su
   prueba; y **una sola palabra** («dice») agregada a una sección vieja sacó del top-3 una pregunta del
   banco (114/115). Los tres se detectan sin gastar un token; guardado en la memoria de la sesión.
-- Encontrado de paso: la ronda sugiere `canon -expediente <tema>` y ese modo **no existe** en el binario.
+- Encontrado y arreglado de paso (#124): la ronda mandaba a `canon -expediente`, retirado hace cuatro
+  días con el bucle de agentes. Ahora manda al diff, e imprime los hashes que hacen falta para pedirlo.
 - Incongruencias entre la doc de Santi y `main`/prod anotadas en Riesgos.
 
 ## Tarea (publicable)
