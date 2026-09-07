@@ -188,6 +188,11 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   banco (114/115). Los tres se detectan sin gastar un token; guardado en la memoria de la sesión.
 - Encontrado y arreglado de paso (#124): la ronda mandaba a `canon -expediente`, retirado hace cuatro
   días con el bucle de agentes. Ahora manda al diff, e imprime los hashes que hacen falta para pedirlo.
+- **Validado en prod tras el despliegue de #125**, con las cinco secciones nuevas servidas y dos
+  preguntas: «un cliente pide constancia y su documento empieza con TEMP, ¿qué hago?» → **2 pasos,
+  10,7 s, respaldada**, y contestó que no se emite, con el motivo legal completo; «el envío masivo dio
+  timeout, ¿puedo reintentarlo?» → **2 pasos, 9,6 s**, y contestó que no, con la comprobación previa y
+  la lectura de los resultados por destinatario. Seis ramas de la tarea, las seis en `main`.
 - **#125, el documento de candidatos.** Cinco bloques validados uno por uno antes de escribir: el del
   límite por documento ya estaba en el corpus, tres entraron con correcciones y el del servicio de
   formularios llegó truncado. Cuatro imprecisiones del documento corregidas antes de entrar, entre
