@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -83,7 +83,14 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
    agente externo alcanza el corpus, el código de un área, el contenido de un archivo declarado, dónde
    vive un archivo y la historia de un archivo. Le falta el grep —necesita clones y el despliegue no
    los tiene a propósito— y consultar producción, que espera decisión.
-8. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
+8. **La API se explica a sí misma para un agente** ✅ #132 y #133. `/api` dice CÓMO llegar y no es lo
+   mismo según por dónde entró el pedido: por el dominio advierte de la VPN y manda a curl desde la
+   consola, por localhost advierte que el corpus embebido es una foto y que hereda el `.env`. Y
+   `/claude` —con `/arranque` como alias neutro— devuelve un markdown de 2.600 tokens que reemplaza
+   las cuatro llamadas de 14.000: cómo llegar, el rito con comandos, las reglas, el catálogo, los
+   resúmenes de los 28 temas y cómo dictar. Se COMPONE de la API, así que no puede derivar como
+   derivaron las tres guías borradas en agosto.
+9. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
    antes de escribir nada: de cinco bloques, **uno ya estaba**, **tres entraron** con correcciones, y
    el quinto llegó truncado. Las cifras de disponibilidad del documento **no entraron**: no salen del
    código y no se midieron.
@@ -135,6 +142,14 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > contesta contando los pasos `leer` sin ancla en las corridas guardadas en Postgres, que no se
 > exponen por la API.
 
+> **MEDICIÓN · 2026-09-07 · los minutos del día, corregidos** — los cuatro asientos sumaban 325
+> minutos puestos por impresión. El pulso da **3h00** y el lapso de commits del repo compartido da
+> **178 minutos en tres tramos** (08:54-10:19, 11:29-12:55, 14:04-14:12): las dos mediciones concuerdan,
+> así que se repartieron los 178 por tramo y quedaron cinco asientos de 55, 29, 50, 36 y 8. La regla del
+> repo es minutos MEDIDOS y estos estaban estimados. ⚠ Y hay un motivo por el que la jornada se siente
+> más larga: buena parte fue leer, medir y esperar despliegues, y eso no toca archivos, así que ninguna
+> de las dos medidas lo cuenta.
+
 > **MEDICIÓN · 2026-09-07** — tres errores propios encontrados midiendo, y los tres del mismo tipo:
 > el código funcionaba y el contrato mentía. (1) El catálogo anunciaba `ruta` donde el endpoint lee
 > `archivo`; la prueba que lo impide llevó **tres** intentos, y los dos fallidos quedan escritos porque
@@ -149,6 +164,12 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > era un bug: fue la ventana del despliegue rodante, dos instancias conviviendo. Reproducido un minuto
 > después, las tres recortan. Guardado en la memoria de la sesión: el detector confirma que UNA
 > instancia tiene lo nuevo, no todas.
+
+> **DECISIÓN · 2026-09-07** — el arranque para un agente es un documento GENERADO, nunca escrito
+> aparte: se compone de cómo llegar, las reglas, el catálogo y los resúmenes del corpus, que ya se
+> sirven por otras puertas. Es la misma razón por la que se borraron CANON.md, CLAUDE-CODE.md y
+> CREDIBOT.md el 2026-08-28. Y su prueba EJECUTA los comandos que enseña: componer no alcanza, porque
+> un ejemplo con una ruta vieja es peor que no dar ejemplos.
 
 > **DECISIÓN · 2026-09-07** — canon se puede consultar de dos formas y las dos se mantienen: su agente
 > por la entrada de preguntas (la única que usa el bot de atención) y las herramientas por HTTP para
