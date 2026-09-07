@@ -264,9 +264,11 @@ mientras el WAF solo acepte IPs de Perú.
   formulario del vehículo, que es donde `dev/bcp-volver.ts` toma la posta.
 
   ⚠ **Lo que este camino NO prueba:** el JavaScript del cliente. «Monto a financiar» (campo 260) es
-  visible, obligatorio y **no editable**, y en `main` no lo calcula nadie: en el navegador eso es un
-  muro sin salida, y por HTTP se pasa de largo porque el validador del servidor exige el campo pero no
-  mira si es editable. Lo implementa la rama `feat/bcp-vehiculo-monto-a-financiar`, sin mergear.
+  visible, obligatorio y **no editable**, y su valor lo calcula el renderer — cálculo que por HTTP no
+  corre. *(Acá decía que en `main` no lo calculaba nadie. Estaba desactualizado: mergeó el 2026-09-03
+  13:41, `resolve-financed-amount.ts` enganchado en `DynamicSection.tsx`. Con eso, el parche local que
+  volvía editable ese campo quedó sin objeto y se borró — además nunca tuvo efecto, porque el esquema
+  lo sirve el form-service y no el monolito.)* Falta confirmar en un navegador que la pantalla se pasa.
 
 ## Tarea (publicable)
 _Pendiente. CORE-399 está sin descripción en Jira y el encargo de esta fase es levantar información: no

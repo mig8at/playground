@@ -269,25 +269,24 @@ async function sembrarFormulario(alliedId: number, branchId: number) {
     ];
     for (const p of placements) await clonar('dynamic_form_placements', p, {});
 
-    /* ⚠ EL PARCHE LOCAL, y conviene entender qué se pierde con él.
+    /* ⚠ ACÁ HUBO UN PARCHE, y se borró el 2026-09-07 por dos razones independientes. Queda escrito
+     * porque el parche era `UPDATE forms SET editable=1 … field_id=260` y a alguien le va a dar ganas
+     * de reponerlo.
      *
-     * «Monto a financiar» (campo 260) es VISIBLE, OBLIGATORIO y **no editable**, y su valor debería
-     * salir de `computed.financed_amount`, que **en main no lo calcula nadie**. Sí lo implementa la
-     * rama `feat/bcp-vehiculo-monto-a-financiar` (`resolve-financed-amount.ts`, con test), sin mergear
-     * al 2026-09-03: o sea que este parche tiene fecha de vencimiento y es ese merge. El hidratador del formulario conoce el árbol de vehículos, los años, los
-     * porcentajes, los países y el árbol de países, y cualquier otra fuente la ignora EN SILENCIO (el
-     * aviso por consola está comentado). El campo de moneda sólo dibuja un input deshabilitado. Y el
-     * validador exige todo campo visible obligatorio sin mirar si es editable.
+     * 1. YA NO HACE FALTA. «Monto a financiar» (campo 260) es visible, obligatorio y no editable, y su
+     *    valor sale de `computed.financed_amount` — que hasta el 2026-09-03 no lo calculaba nadie, así
+     *    que la pantalla pedía un dato imposible de dar. Ese día mergeó a `main`
+     *    (`resolve-financed-amount.ts`, enganchado en `DynamicSection.tsx` vía `useFinancedAmount`),
+     *    y el parche tenía por vencimiento justamente ese merge.
+     * 2. Y ADEMÁS NUNCA TUVO EFECTO ACÁ. El esquema del formulario **no lo sirve el monolito**: lo
+     *    sirve `form-service` leyendo la base de SU ambiente (los cinco repositorios del front cuelgan
+     *    de `VITE_FORM_SERVICE_BASE_URL`). Así que tocar `forms` en la base local sólo se nota si corre
+     *    un form-service local — y lo que hay es el mock, que sirve fixtures. Lo que sí se usa de lo
+     *    sembrado acá son los `dynamic_form_placements`, que el monolito publica en el payload del
+     *    comercio.
      *
-     * Resultado en la pantalla: «Monto a financiar es requerido» y ninguna forma de satisfacerlo.
-     *
-     * Acá se vuelve EDITABLE para que el flujo se pueda recorrer. Es un parche del entorno, no un
-     * arreglo: en producción ese número es derivado (valor del vehículo − cuota inicial − bono, que es
-     * lo que dice su mensaje de ayuda), así que escribirlo a mano prueba el resto del recorrido pero
-     * NO prueba el cálculo. Cuando alguien implemente la fuente, esta línea se borra. */
-    await exec('UPDATE forms SET editable=1 WHERE form_type_id=8 AND field_id=260');
-    console.log('  ⚠ parche local: «Monto a financiar» quedó editable — su `computed.financed_amount` '
-        + 'no lo calcula nadie (ni main ni las ramas de BCP), así que sin esto el formulario no se puede pasar');
+     * Lo que se pierde al borrarlo: nada que estuviera probando. Lo que se gana: el ambiente local deja
+     * de diferir del desplegado en un campo que en producción es derivado. */
     console.log(`✓ placements: paso 1 antes y paso 2 después del flujo alterno (sucursal ${branchId}), `
         + `y el gate de firma apagado con fila explícita`);
 }

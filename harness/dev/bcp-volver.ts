@@ -24,10 +24,11 @@
 //      es la solicitud de otra persona. Para eso está `mock-forms-g2/` (:8109).
 //
 // ⚠ LO QUE ESTE CAMINO NO VE: el JavaScript del cliente. En particular el campo «Monto a financiar»
-// (260), que el esquema declara VISIBLE, OBLIGATORIO y NO EDITABLE y que en `main` no calcula nadie:
-// en el navegador eso es un muro («es requerido» y ninguna forma de llenarlo), y por HTTP se pasa de
-// largo, porque el validador del servidor exige el campo pero no mira si es editable. Un verde acá NO
-// dice que un asesor pueda pasar esa pantalla.
+// (260), que el esquema declara VISIBLE, OBLIGATORIO y NO EDITABLE: su valor lo calcula el renderer
+// (`useFinancedAmount`, en `main` desde el 2026-09-03), y acá ese cálculo NO corre — el runner manda
+// el número él mismo y pasa igual, porque el validador del servidor exige el campo pero no mira si es
+// editable. O sea que un verde acá no dice que la pantalla se pueda pasar en un navegador: eso hay que
+// mirarlo en un navegador.
 process.env.E2E_TARGET ||= 'local';
 export {};
 

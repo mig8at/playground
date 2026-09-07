@@ -294,13 +294,13 @@ harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, re
 	@cd harness && node dev/montar-rto.ts
 
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
-	@cd harness && node dev/montar-peru.ts
+	@cd harness && E2E_TARGET=local node dev/montar-peru.ts
 
 harness-forms-g2: ## @har levanta el mock del FORM-SERVICE (:8109) — el formulario del VEHÍCULO de BCP. ⚠ Sin esto, en local ese formulario ESCRIBE en la BD compartida de dev. [CMD=start|stop|status|logs|capturar]
 	@cd harness && bin/mock-forms-g2 $(if $(CMD),$(CMD),start)
 
 harness-bcp-volver: ## @har el flujo VEHICULAR de BCP por HTTP y qué se PIERDE al volver atrás (el monto, el gate, la etapa). Sólo local. Pide `harness-peru` + `harness-forms-g2` [COMERCIO=#hash] [MONTO=60000]
-	@cd harness && node dev/bcp-volver.ts $(if $(COMERCIO),--comercio '$(COMERCIO)') $(if $(MONTO),--amount $(MONTO)) $(if $(INICIAL),--inicial $(INICIAL)) $(if $(BONO),--bono $(BONO)) $(if $(FRONT),--front $(FRONT))
+	@cd harness && E2E_TARGET=local node dev/bcp-volver.ts $(if $(COMERCIO),--comercio '$(COMERCIO)') $(if $(MONTO),--amount $(MONTO)) $(if $(INICIAL),--inicial $(INICIAL)) $(if $(BONO),--bono $(BONO)) $(if $(FRONT),--front $(FRONT))
 
 harness-pantallas: ## @har ¿por qué PANTALLAS habría pasado el cliente? el recorrido del wizard derivado del router en main. AL REVÉS con ENDPOINT=confirm-payment-schedule. [FILTRO=texto] [JSON=1]
 	@cd harness && node dev/pantallas.ts $(if $(FILTRO),--filtro '$(FILTRO)') $(if $(ENDPOINT),--endpoint '$(ENDPOINT)') $(if $(JSON),--json) $(if $(SIN_ENDPOINTS),--sin-endpoints)
