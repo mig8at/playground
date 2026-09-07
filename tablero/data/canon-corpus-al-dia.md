@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -78,7 +78,12 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
    Un tema sin ancla devolvía todas sus secciones: 4.547 tokens contra 200 de una sección típica. Ahora
    trae las que responden, con el índice de anclas completo para pedir las demás. Habilita decidir el
    techo de palabras con datos en vez de a ojo.
-7. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
+7. **Canon usable desde un agente externo** ✅ #129, #130 y #131. De las nueve herramientas del
+   agente, dos vivían sólo adentro y dos existían sin anunciarse. Ahora el catálogo ofrece 13 y un
+   agente externo alcanza el corpus, el código de un área, el contenido de un archivo declarado, dónde
+   vive un archivo y la historia de un archivo. Le falta el grep —necesita clones y el despliegue no
+   los tiene a propósito— y consultar producción, que espera decisión.
+8. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
    antes de escribir nada: de cinco bloques, **uno ya estaba**, **tres entraron** con correcciones, y
    el quinto llegó truncado. Las cifras de disponibilidad del documento **no entraron**: no salen del
    código y no se midieron.
@@ -130,12 +135,31 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > contesta contando los pasos `leer` sin ancla en las corridas guardadas en Postgres, que no se
 > exponen por la API.
 
+> **MEDICIÓN · 2026-09-07** — tres errores propios encontrados midiendo, y los tres del mismo tipo:
+> el código funcionaba y el contrato mentía. (1) El catálogo anunciaba `ruta` donde el endpoint lee
+> `archivo`; la prueba que lo impide llevó **tres** intentos, y los dos fallidos quedan escritos porque
+> parecían correctos. (2) Registré el grep y la historia con el mismo candado y son dependencias
+> distintas: en prod las dos daban 404 y una podía funcionar. (3) Probando desde el directorio del
+> proyecto el grep respondía sin clones, porque el `.env` local los define — hay que probar desde
+> `/tmp`, como el banco.
+
 > **MEDICIÓN · 2026-09-07 · en producción, verificado** — el endpoint recortando: markdown entero
 > 18.189 b contra 3.692 con términos (−80%), JSON entero 35.265 b contra 10.900 (−69%), las dos con su
 > nota de recorte. ⚠ La primera tanda de tres medidas dio una anomalía —el markdown sin recortar— y NO
 > era un bug: fue la ventana del despliegue rodante, dos instancias conviviendo. Reproducido un minuto
 > después, las tres recortan. Guardado en la memoria de la sesión: el detector confirma que UNA
 > instancia tiene lo nuevo, no todas.
+
+> **DECISIÓN · 2026-09-07** — canon se puede consultar de dos formas y las dos se mantienen: su agente
+> por la entrada de preguntas (la única que usa el bot de atención) y las herramientas por HTTP para
+> quien orquesta desde afuera. Nada se quitó; el frontend quedó verificado endpoint por endpoint.
+
+> **PREGUNTA · 2026-09-07 · Miguel** — ¿se expone consultar producción por HTTP? Hoy vive sólo dentro
+> del agente, protegido por el guardián de sólo lectura. Abrirlo es tráfico a Redash desde fuera de la
+> red. Si se abre, la forma correcta es aceptar POST **y** el método QUERY en la misma ruta: QUERY
+> expresa lo que la operación es —lectura idempotente y cacheable con cuerpo— y el balanceador ya lo
+> pasa, comprobado el 2026-09-07 con y sin cuerpo. Sigue siendo un borrador del grupo de HTTP, no un
+> RFC, así que aceptar los dos evita apostar.
 
 > **DECISIÓN PENDIENTE · 2026-09-07 · Miguel** — el techo de palabras. Miguel propuso subirlo de 3.000
 > a 5.000 o 10.000; la recomendación fue no hacerlo por dos números medidos (leer un tema entero
