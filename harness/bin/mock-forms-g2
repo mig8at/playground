@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Mock del FORM-SERVICE (el «G2», backend-driven): esquema, respuestas guardadas y árboles de opciones
+# del formulario del VEHÍCULO de BCP. Cuelga de `VITE_FORM_SERVICE_BASE_URL`.
+#
+# ⚠ NO ES `bin/mock-forms` (:8101). Ése imita `onboarding-forms-service`, el de los comercios de RD,
+# y cuelga de `VITE_ONBOARDING_FORM_SERVICE`. Son dos servicios distintos con nombres parecidos.
+#
+# POR QUÉ HACE FALTA EN LOCAL: sin esto, `bin/asesor` apunta el wizard al form-service de DEV — y
+# guardar el formulario del vehículo ESCRIBE. El `user_request_id` de una corrida local es en dev la
+# solicitud de otra persona, así que recorrer BCP «en local» le colgaba un vehículo sintético a una
+# solicitud ajena de la base COMPARTIDA de dev+staging.
+#
+# Los fixtures se capturaron de dev (sólo lectura). Para refrescarlos:
+#   node mock-forms-g2/server.mjs --capturar
+#
+# uso: bin/mock-forms-g2 [start|stop|status|logs|capturar]
+#   env: MOCK_FORMS_G2_PORT (8109)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_FORMS_G2_PORT:-8109}"
+LOG=/tmp/mock-forms-g2.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT/_salud" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    if up; then echo "✓ mock-forms-g2 ya arriba (:$PORT)"; exit 0; fi
+    rm -f "$LOG"
+    nohup env MOCK_FORMS_G2_PORT="$PORT" node "$DIR/mock-forms-g2/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-forms-g2 :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT/_estado" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  capturar)
+    node "$DIR/mock-forms-g2/server.mjs" --capturar;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-forms-g2 [start|stop|status|logs|capturar]";;
+esac

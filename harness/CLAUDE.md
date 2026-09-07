@@ -30,7 +30,15 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `mock-preapprovals` :8095 | `mock-redirect` :8096 | `mock-payvalida` :8097 | `mock-mdm` :8098 |
 | `mock-lenders` :8099 | `mock-pdf-mapper` :8100 | `mock-forms` :8101 | `mock-abaco` :8102 |
 | `mock-corbeta` :8103 | `mock-bancolombia` :8104 | `mock-financial-health` :4000 | `mock-centrales` :8105 |
-| `mock-deceval` :8106 | `mock-netco` :8107 | `mock-credifamilia` :8108 | |
+| `mock-deceval` :8106 | `mock-netco` :8107 | `mock-credifamilia` :8108 | `mock-forms-g2` :8109 |
+
+⚠ **`mock-forms` (:8101) y `mock-forms-g2` (:8109) son de DOS servicios distintos**, y el parecido de
+los nombres ya costó una vuelta. El primero imita `onboarding-forms-service` —el flujo dinámico de los
+comercios de RD, cuelga de `VITE_ONBOARDING_FORM_SERVICE`—; el segundo imita `form-service` —el
+backend-driven, de donde salen el formulario del VEHÍCULO de BCP y los árboles de opciones, cuelga de
+`VITE_FORM_SERVICE_BASE_URL`—. El segundo **no es opcional en local**: guardar un formulario ESCRIBE, y
+sin él `bin/asesor` cae al host de dev, donde el `user_request_id` de una corrida local es la solicitud
+de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/mock-forms-g2 capturar`).
 
 **Las herramientas de consola, por la pregunta que contestan:**
 
@@ -43,6 +51,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`) |
+| `dev/bcp-volver.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. Sólo local: pide `make harness-peru` + `make harness-forms-g2` |
 | `make harness-suite-paises` | **¿el cliente nace con el país de su comercio, su documento y su celular?** La internacionalización como aserción declarada (`suites/paises.json`, clave `espera.pais`): la REGLA contra la base + valores fijados por país. Verde/rojo con exit code. ⚠ `requiere: lambda` a propósito: sin usuarios FRESCOS la aserción mide la escritura de una corrida vieja (así apareció un dominicano con `CC` del día anterior) |
 | `dev/loki-lineas.ts` | los **CUERPOS crudos** de Loki para un selector y una ventana — cuando no hay uReq que anclar (el flujo murió antes de crear la solicitud). ⚠ La sonda de `trazador-acceso` imprime **labels**, no cuerpos; y el PHP de dev **y de qa** loguea como `service_name="CreditopDev"` (F-179) |
 | `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |

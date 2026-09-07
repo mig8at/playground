@@ -47,6 +47,7 @@ const { SesionFront, PROHIBIDAS } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET } = await import('../pkg/db.ts');
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config, avisoDocGen } = await import('../pkg/config.ts');
+const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
 const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
@@ -98,6 +99,36 @@ const BASE_DOC = 1_090_000_000 + ((Date.now() / 100) % 9_000_000 | 0);
 const cedulaDe = (i: number) => String(BASE_DOC + i);
 /** 32 + 8 dígitos: un prefijo distinto del de caso.ts (313…), para no chocar con una tanda suya en curso. */
 const telefonoDe = (i: number) => `32${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
+
+/**
+ * ⚠ EL TELÉFONO Y EL DOCUMENTO SALEN DEL COMERCIO, no de acá.
+ *
+ * Con los colombianos quemados este runner **no podía caminar un comercio de otro país**: contra el
+ * peruano el primer paso muere con «Ocurrió un error» (su país pide 9 dígitos y `telefonoDe` da 10) y
+ * contra el dominicano moriría en el formulario («el tipo de documento no está habilitado en este
+ * punto de venta»). Medido el 2026-09-07 contra el comercio de Perú: 1 pantalla y afuera.
+ *
+ * Las dos lecciones ya estaban aprendidas en `caso.ts` y la capacidad ya existía en
+ * `pkg/merchants.ts` — lo que faltaba era usarla acá. El largo NO es una regla del código: sale de
+ * `countries.cell_phone_lenght`; el tipo de documento lo publica el backend en el payload del
+ * comercio, ya recortado por el catálogo del país.
+ */
+const telefonoDelComercio = (hash: string, i: number) => telefonoDeLaSucursal(hash, Number(`3${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`));
+
+const tiposPorComercio = new Map<string, string>();
+async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
+    const cacheado = tiposPorComercio.get(hash);
+    if (cacheado) return cacheado;
+    let tipo = 'CC';   // si el backend no publica la lista, no se cambia el comportamiento
+    try {
+        const r = await fetch(`${config.mockUrl}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
+        const j = await r.json() as { data?: { allowed_document_types?: string[] } };
+        const lista = j?.data?.allowed_document_types;
+        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
+    } catch { /* sin payload, queda 'CC' */ }
+    tiposPorComercio.set(hash, tipo);
+    return tipo;
+}
 
 async function buscarSucursal(ref: string) {
     const porHash = ref.startsWith('#');
@@ -160,7 +191,8 @@ type Resultado = {
 // ─── un caso ─────────────────────────────────────────────────────────────────────────────────────
 async function correr(c: Caso, i: number): Promise<Resultado> {
     const t0 = Date.now();
-    const tel = telefonoDe(i);
+    // Provisorio: el definitivo sale del país del comercio, y para eso hay que resolverlo primero.
+    let tel = telefonoDe(i);
     const doc = cedulaDe(i);
     const lineas: string[] = [];
     const log = (s: string) => lineas.push(`  ▸ ${s}`);
@@ -194,6 +226,10 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
 
     const br = await buscarSucursal(c.ref);
     if (!br) return terminar('trabado', `no encontré la sucursal «${c.ref}»`);
+    // El teléfono y el documento salen del PAÍS del comercio: ver `telefonoDelComercio`.
+    tel = await telefonoDelComercio(br.hash, i).catch(() => tel);
+    r.tel = tel;
+    const docTipo = await tipoDeDocumentoDelComercio(br.hash);
 
     const s = new SesionFront();
     // La traza de ESTE caso. Su salida va al buffer del caso, no a consola: en paralelo, N casos
@@ -269,7 +305,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             const ur = urDe(ruta)!;
             if (!burоInyectado) { await sembrar(ur, doc, log); burоInyectado = true; }
             form = hoja === 'personal-info'
-                ? { intent: 'save-personal-info', documentType: 'CC', documentNumber: doc, name: 'CARLOS', surname: 'RUIZ',
+                ? { intent: 'save-personal-info', documentType: docTipo, documentNumber: doc, name: 'CARLOS', surname: 'RUIZ',
                     email: `qa${doc}@gmail.com`, address: 'Calle 1 # 2-3', stratum: '3',
                     issueDay: '10', issueMonth: '5', issueYear: '2019', birthDay: '10', birthMonth: '5', birthYear: '2001' }
                 : { employmentStatus: 'Empleado', monthlyIncome: String(INCOME) };
@@ -372,7 +408,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
  */
 async function correrNavegador(c: Caso, i: number, browser: any): Promise<Resultado> {
     const t0 = Date.now();
-    const tel = telefonoDe(i);
+    let tel = telefonoDe(i);
     const doc = cedulaDe(i);
     const lineas: string[] = [];
     const log = (s: string) => lineas.push(`  ▸ ${s}`);
@@ -384,6 +420,8 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
 
     const br = await buscarSucursal(c.ref);
     if (!br) { r.motivo = `no encontré la sucursal «${c.ref}»`; r.ms = Date.now() - t0; return r; }
+    tel = await telefonoDelComercio(br.hash, i).catch(() => tel);
+    r.tel = tel;
     // EL CANAL DE ASESOR pide sesión de Cognito. No se loguea acá: se REUSA el storageState que dejó el
     // panel (`pkg/cognito.ts`), y los N contextos de una tanda cargan EL MISMO archivo — un solo login
     // para todos, que es lo que evita golpear el pool.
@@ -573,7 +611,14 @@ if (aviso) console.log(`  ${aviso}\n`);
 
 let bypassOriginal: string | null = null;
 if (flag('cerrar') && TARGET !== 'local') {
-    bypassOriginal = await registrarBypass(casos.map((_, i) => telefonoDe(i))).catch(() => null);
+    // Los teléfonos se derivan del PAÍS de cada comercio, así que hay que resolver las sucursales
+    // ANTES de poder registrarlos en el bypass. Un comercio que no resuelva cae a la forma colombiana:
+    // ese caso va a fallar solo, con su propio mensaje, y no por culpa del bypass.
+    const tels = await Promise.all(casos.map(async (c, i) => {
+        const br = await buscarSucursal(c.ref);
+        return br ? await telefonoDelComercio(br.hash, i).catch(() => telefonoDe(i)) : telefonoDe(i);
+    }));
+    bypassOriginal = await registrarBypass(tels).catch(() => null);
     if (bypassOriginal === null) console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: los OTP van a fallar fuera de local\n');
 }
 

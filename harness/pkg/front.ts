@@ -209,7 +209,7 @@ export class SesionFront {
 
     static esProhibida(ruta: string): boolean { return PROHIBIDAS.some((re) => re.test(ruta)); }
 
-    private async llamar(metodo: 'GET' | 'POST', ruta: string, form?: Record<string, string | number | null | undefined>): Promise<Respuesta> {
+    private async llamar(metodo: 'GET' | 'POST', ruta: string, form?: Record<string, string | number | null | undefined>, json?: unknown): Promise<Respuesta> {
         if (SesionFront.esProhibida(ruta)) {
             throw new Error(`ruta PROHIBIDA para este cliente: ${ruta} — su loader tiene efectos (ver PROHIBIDAS en pkg/front.ts)`);
         }
@@ -218,7 +218,15 @@ export class SesionFront {
         const cookie = this.cookieHeader();
         if (cookie) headers.cookie = cookie;
         let body: string | undefined;
-        if (metodo === 'POST') {
+        if (metodo === 'POST' && json !== undefined) {
+            // ⚠ NO TODOS LOS ACTIONS LEEN UN FORMULARIO. Los del form dinámico backend-driven
+            // (`placement-form`, `additional-info-form`, `dynamic-form`) hacen `request.json()`,
+            // porque el renderer los postea con `useSubmit(..., { encType: 'application/json' })`.
+            // Mandarles urlencoded devuelve 400 «Payload inválido» — que se lee como un problema del
+            // caso y es del cliente.
+            headers['content-type'] = 'application/json';
+            body = JSON.stringify(json);
+        } else if (metodo === 'POST') {
             headers['content-type'] = 'application/x-www-form-urlencoded;charset=UTF-8';
             const p = new URLSearchParams();
             for (const [k, v] of Object.entries(form ?? {})) if (v !== undefined) p.set(k, v === null ? '' : String(v));
@@ -283,4 +291,6 @@ export class SesionFront {
     cargar(ruta: string): Promise<Respuesta> { return this.llamar('GET', ruta); }
     /** El `action` de una pantalla: el formulario que el navegador manda al apretar el botón. */
     enviar(ruta: string, form: Record<string, string | number | null | undefined> = {}): Promise<Respuesta> { return this.llamar('POST', ruta, form); }
+    /** El `action` de una pantalla que espera JSON (el form dinámico backend-driven). */
+    enviarJson(ruta: string, cuerpo: unknown): Promise<Respuesta> { return this.llamar('POST', ruta, undefined, cuerpo); }
 }

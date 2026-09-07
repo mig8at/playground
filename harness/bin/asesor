@@ -246,8 +246,12 @@ FORMS="$( { grep -E '^VITE_ONBOARDING_FORM_SERVICE=' "$WIZARD/.env" 2>/dev/null 
 # VITE_FORM_SERVICE_BASE_URL (form dinámico G2 "backend-driven", ruta additional-info de Credifamilia): el MS Go
 # `form-service`. El harness NO lo pasaba → el loader fetcheaba a `undefined/v1/...` y el form no renderizaba.
 # Se fetchea SSR (loader del wizard) → lo pega el Node, que alcanza .inertia-develop. OJO: el `mock-forms` de
-# arriba es de OTRO servicio (onboarding-forms-service, el RD) y NO cubre /v1/dynamic-form ni /v1/field-options,
-# así que en local no hay mock G2 (habría que escribirlo) y por ahora se apunta igual a dev.
+# arriba es de OTRO servicio (onboarding-forms-service, el RD) y NO cubre /v1/dynamic-form ni /v1/field-options.
+# ⚠ EN LOCAL VA AL MOCK (`bin/mock-forms-g2`, :8109) Y NO A DEV, y no es una preferencia: guardar un
+# formulario ESCRIBE, y el `user_request_id` de una corrida local es en dev la solicitud de otra
+# persona — apuntando a dev, recorrer el formulario del vehículo de BCP «en local» le colgaba un
+# vehículo sintético a una solicitud ajena de la base COMPARTIDA de dev+staging. Sale de la cadena
+# (`.env.local` lo trae), y el fallback a dev queda sólo para los targets desplegados.
 FORMSVC="$(envget E2E_FORM_SERVICE_BASE_URL)"
 [ -n "$FORMSVC" ] || FORMSVC="http://form-service.inertia-develop:8082"
 # VITE_PREAPPROVALS_ENDPOINT: MS de pre-aprobaciones (rt≠STANDARD; el loader de /lenders hace POST server-to-server).
@@ -288,7 +292,11 @@ if [ "$TARGET" = "local" ]; then
   #   BANCOLOMBIA_HOST=http://host.docker.internal:8104
   #   BANCOLOMBIA_AUTH_HOST=http://host.docker.internal:8104
   "$(dirname "$0")/mock-bancolombia" start >/dev/null 2>&1 || true
-  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099} · forms :${MOCK_FORMS_PORT:-8101} · ábaco :${MOCK_ABACO_PORT:-8102} · fin-health :${MOCK_FINHEALTH_PORT:-4000} · corbeta/fondos :${MOCK_CORBETA_PORT:-8103} · bancolombia :${MOCK_BC_PORT:-8104}"
+  # form-service (el «G2»): el formulario del VEHÍCULO de BCP. Se levanta SIEMPRE en local aunque el
+  # comercio no sea peruano — es barato, y la alternativa (caer al host de dev) escribe en la base
+  # compartida sin avisar.
+  "$(dirname "$0")/mock-forms-g2" start >/dev/null 2>&1 || true
+  log "mocks locales: payvalida :${MOCK_PV_PORT:-8097} · mdm/IMEI :${MOCK_MDM_PORT:-8098} · entidades :${MOCK_LENDERS_PORT:-8099} · forms :${MOCK_FORMS_PORT:-8101} · form-service/G2 :${MOCK_FORMS_G2_PORT:-8109} · ábaco :${MOCK_ABACO_PORT:-8102} · fin-health :${MOCK_FINHEALTH_PORT:-4000} · corbeta/fondos :${MOCK_CORBETA_PORT:-8103} · bancolombia :${MOCK_BC_PORT:-8104}"
 fi
 
 # ── health-check del backend ANTES del cold-boot ──────────────────────────────────────────────

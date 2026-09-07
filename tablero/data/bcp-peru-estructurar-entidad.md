@@ -9,7 +9,11 @@ jira_title: "Estructurar BCP para el flujo de registro"
 ---
 
 # Cuotéalo BCP (Perú) — acoplar la entidad al flujo
-> **estado:** 🔎 levantando información (encargo de Oscar, 2026-08-10). Nada implementado, sin rama.
+> **estado:** el flujo **corre entero en local** —las tres pantallas propias incluidas— y correrlo
+> destapó **dos defectos del recorrido** que leer no mostraba: volver atrás reinyecta el monto viejo
+> (**F-185**) y el gate manual se puede volver a apretar hasta negar una solicitud que ya siguió
+> (**F-186**). Lo de abajo —el levantamiento del 2026-08-10— sigue vigente como diseño; lo que cambió
+> es que ahora hay con qué medirlo. Sin rama de producto todavía.
 >
 > **El encargo, textual:** *«por ahora levanta información, revisa cómo es el flujo… la idea es que tú lo
 > acoples a nuestro flujo y sea administrable, y que José haga toda la recolección de datos de los
@@ -196,10 +200,6 @@ mientras el WAF solo acepte IPs de Perú.
 - [ ] **¿Qué pasa con el consentimiento firmado por OTP** frente a lo que ya hace el flujo actual? El PRD
   lo pide explícitamente para que el asesor no acepte por el cliente.
 
-## Tarea (publicable)
-_Pendiente. CORE-399 está sin descripción en Jira y el encargo de esta fase es levantar información: no
-se publica nada hasta cerrar al menos P7 (iframe vs redirect) y decidir por dónde entra la integración._
-
 ## Bitácora
 - **2026-08-10** — Bajada de Jira. CORE-399 llega **sin descripción, sin puntos y sin comentarios**; el
   épico `CORE-331` también está vacío, y sus 13 historias son lo único que describía el flujo. Medido el
@@ -233,3 +233,41 @@ se publica nada hasta cerrar al menos P7 (iframe vs redirect) y decidir por dón
   Anotado además que el set de pantallas existe **dos veces** (escritorio 1440 y móvil 430: responsive con
   dos diseños, no adaptativo) y que hay un **segundo set espejado** cuya vigencia hay que preguntar antes
   de usarlo como fuente.
+
+- **2026-09-07** — **Primera vez que el flujo de BCP se recorre por el FRONT**, y lo que apareció al
+  hacerlo. Hasta hoy lo probado era la mitad de atrás: `caso.ts` pega contra la API y llega a elegir
+  la entidad sin pasar por el formulario del vehículo, el simulador ni el gate. Tres cosas:
+
+  **1. Faltaba una pieza de entorno, y no era menor.** En local el wizard apuntaba el form-service a
+  **dev**, y guardar el formulario **escribe**: el `user_request_id` de una corrida local es en dev la
+  solicitud de otra persona, así que recorrer BCP «en local» le colgaba un vehículo sintético a una
+  solicitud ajena de la base compartida de dev+staging. Se escribió el mock que faltaba
+  (`harness/mock-forms-g2/`, :8109, con los esquemas capturados de dev en modo lectura) y se cableó en
+  la cadena de `.env.local`, así que `bin/asesor` ya no cae al host de dev.
+
+  **2. Dos defectos del recorrido, medidos.** Con vehículo 60.000 − inicial 10.000 − bono 2.000 =
+  **48.000 a financiar**:
+  - **F-185** — el monto a financiar viaja **sólo en la query** (`user_requests.amount` se queda con
+    los 60.000 del vehículo). Pasado el gate el formulario del vehículo ya no es alcanzable, y el
+    rebote hacia adelante reenvía la query de **la petición** — que en un «atrás» es la vieja: pedir
+    `formulario/pre?amount=60000` responde `→ formulario/post?amount=60000`. En el marketplace, la
+    misma solicitud cotiza **48.000** con la query y **180.000** sin ella.
+  - **F-186** — `entidad/simulador` y `entidad/resultado` no miran la etapa: el gate se vuelve a
+    apretar con el atrás, y «Rechazado» sobre una solicitud ya aprobada la lleva de estado 9 a **6
+    (Negada)**, por una rama terminal. Y la marca del gate vive en la cookie: con sesión nueva,
+    `formulario/post` devuelve a `formulario/pre` — el asesor que cambia de equipo repite el tramo.
+
+  **3. El caminador no podía caminar ningún comercio que no fuera colombiano.** Tenía el teléfono y el
+  tipo de documento quemados a la forma colombiana: contra el peruano moría en la primera pantalla con
+  «Ocurrió un error» (su país pide 9 dígitos). Las dos lecciones ya estaban aprendidas en `caso.ts` y
+  la capacidad ya vivía en `pkg/merchants.ts` — faltaba usarla. Corregido: de 1 pantalla a 4, hasta el
+  formulario del vehículo, que es donde `dev/bcp-volver.ts` toma la posta.
+
+  ⚠ **Lo que este camino NO prueba:** el JavaScript del cliente. «Monto a financiar» (campo 260) es
+  visible, obligatorio y **no editable**, y en `main` no lo calcula nadie: en el navegador eso es un
+  muro sin salida, y por HTTP se pasa de largo porque el validador del servidor exige el campo pero no
+  mira si es editable. Lo implementa la rama `feat/bcp-vehiculo-monto-a-financiar`, sin mergear.
+
+## Tarea (publicable)
+_Pendiente. CORE-399 está sin descripción en Jira y el encargo de esta fase es levantar información: no
+se publica nada hasta cerrar al menos P7 (iframe vs redirect) y decidir por dónde entra la integración._

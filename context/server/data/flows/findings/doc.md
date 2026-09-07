@@ -133,6 +133,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«salta el AML / no salta el AML y debería»** | F-155 |
 | **«lo arreglé y por el otro camino sigue distinto» / «ese flujo ya no se usa»** | F-146 |
 | **«la consulta de actividad reciente da CERO filas» / un timestamp que se lee 5 h en el futuro** | **F-183** |
+| **«volví atrás y el monto cambió» / la entidad cotiza sobre el valor del vehículo** | **F-185** |
+| **«la solicitud aparece Negada y nadie la negó»** | **F-186** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -305,6 +307,8 @@ distinto según con qué pregunta llegues.
 | F-160 | Las reglas del dump local difieren de producción: se depura contra umbrales inexistentes | VIGENTE |
 | F-161 | Hay DOS listados (`lenders` y `lenders-v2`) con clases distintas: v1 devuelve menos | ABIERTO |
 | F-162 | Las reglas de grupo clasifican, no excluyen: 1.923 créditos las violan y se otorgaron | VIGENTE |
+| F-185 | Volver atrás reinyecta el monto viejo: el financiado vive sólo en la query | ABIERTO |
+| F-186 | El gate de la entidad se vuelve a apretar con el atrás y niega una solicitud que ya siguió | ABIERTO |
 
 ---
 
@@ -3380,3 +3384,55 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   ⚠ El backfill `2026_09_01_130000_telefonos_pierden_el_indicativo_pegado` quita `+57`, `+1` y `+51` de
   los casos inequívocos — pero **salta los que colisionan con una fila ya normalizada**, que son
   justamente los de este hallazgo.
+
+### F-185 · Volver atrás en el flujo de la entidad REINYECTA el monto viejo: el financiado vive sólo en la query, y el rebote hacia adelante lo pisa con el del vehículo
+
+- **Síntoma:** en el flujo vehicular de la entidad peruana, el asesor aprieta atrás para corregir el
+  vehículo, el front lo devuelve hacia adelante — y a partir de ahí el marketplace cotiza sobre el
+  **valor del vehículo** en vez del **monto a financiar**. Nada avisa: la pantalla se ve igual.
+- **Causa raíz:** son dos piezas que por separado están bien.
+  1. El monto a financiar (valor − cuota inicial − bono) **NO se persiste**: el formulario del vehículo
+     lo calcula y lo manda **en la query** (`?amount=`), y `user_requests.amount` se queda con el valor
+     del vehículo hasta que se elige entidad. Es deliberado y está escrito
+     (`placement-form.tsx`: «NO SE TOCA `user_requests.amount`»).
+  2. Pasado el gate, el formulario del vehículo **ya no es alcanzable**: el resolver honra `always_show`
+     sólo mientras la etapa es `onboarding`, así que con la marca puesta lo saltea y el loader
+     **redirige al paso siguiente** — con `withFunnelSearch(destino, url.search)`, o sea con la query
+     de **la petición**. En un «atrás» esa query es la vieja: la del vehículo.
+  Juntas: volver atrás no devuelve al formulario, y el rebote reescribe el monto con el anterior.
+- **Evidencia (local, 2026-09-07, `make harness-bcp-volver`):** vehículo 60.000, inicial 10.000, bono
+  2.000 → a financiar **48.000**. Guardar el formulario redirige a `entidad/simulador?amount=48000` ✓.
+  Pasado el gate, pedir `formulario/pre?amount=60000` (la URL que el navegador tiene en el historial)
+  responde `→ formulario/post?amount=60000`. Y en el marketplace, la misma solicitud: con
+  `?amount=48000` la entidad 207 cotiza **48.000**; sin la query, **180.000**. `user_requests.amount`
+  quedó en 60.000 en las dos corridas.
+- **Alcance:** la query se pierde con cualquier recarga sin parámetros, con un enlace pelado y con este
+  rebote. El propio código lo anticipa (`route-helpers.ts`: «el monto es el caso que duele… ese monto
+  es el que termina persistido al seleccionar la entidad») — lo que faltaba era medir por dónde pasa.
+- **Arreglo:** persistir el monto a financiar en la solicitud al guardar el formulario, y que el
+  marketplace caiga a ese valor y no al default del backend. Mientras tanto, el redirect del rebote no
+  debería reenviar un `amount` que no calculó él.
+- **Estado:** ABIERTO. Medido en local; falta confirmarlo en un ambiente desplegado.
+
+### F-186 · El gate manual de la entidad no tiene guarda de etapa: se vuelve a apretar con el atrás, y «Rechazado» niega una solicitud que ya siguió de largo
+
+- **Síntoma:** una solicitud que el asesor ya aprobó en el gate («¿el cliente tiene oferta
+  preaprobada?») aparece **Negada**, sin que nadie la negara desde el admin.
+- **Causa raíz:** `entidad/simulador` y `entidad/resultado` **no miran la etapa en su loader**. El
+  resolver protege los formularios y el marketplace, pero estas dos pantallas se sirven siempre, así
+  que el botón «Rechazado» sigue vivo después de haber marcado «Aprobado». Y esa rama no es reversible:
+  `closeRejectedRequest` cierra la solicitud del lado nuestro y manda a `entidad/retorno`, que es
+  terminal. El propio archivo lo dice — «RECHAZADO MATA LA SOLICITUD» — pero lo pensó como decisión
+  única, no como algo que se puede volver a apretar.
+- **Evidencia (local, 2026-09-07, `make harness-bcp-volver`):** solicitud 466351 → «Aprobado» → BD en
+  estado **9** «Formulario de perfil» y el funnel sigue a `formulario/post`. Se vuelve al gate y se
+  aprieta «Rechazado» → `entidad/retorno?motivo=sin_campana` y BD en estado **6** «Negada».
+- **⚠ Y hay una segunda mitad, que apunta al mismo hueco:** la marca de que el gate ya se pasó vive en
+  la **cookie de sesión** (`alternate-flow-session-marker.server.ts`, que lo declara como limitación
+  conocida). Medido: con una sesión nueva sobre la misma solicitud, `formulario/post` devuelve a
+  `formulario/pre` — el asesor que cambia de equipo repite el tramo entero. Falla hacia el lado seguro;
+  la versión duradera es una columna en la solicitud, que además cerraría lo de arriba.
+- **Arreglo:** guarda de etapa en el loader de las dos pantallas, y que la decisión del gate se guarde
+  donde sobreviva al dispositivo. Con la decisión persistida, volver al gate muestra lo que se decidió
+  en vez de volver a preguntarlo.
+- **Estado:** ABIERTO.
