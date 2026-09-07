@@ -130,6 +130,13 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > contesta contando los pasos `leer` sin ancla en las corridas guardadas en Postgres, que no se
 > exponen por la API.
 
+> **MEDICIÓN · 2026-09-07 · en producción, verificado** — el endpoint recortando: markdown entero
+> 18.189 b contra 3.692 con términos (−80%), JSON entero 35.265 b contra 10.900 (−69%), las dos con su
+> nota de recorte. ⚠ La primera tanda de tres medidas dio una anomalía —el markdown sin recortar— y NO
+> era un bug: fue la ventana del despliegue rodante, dos instancias conviviendo. Reproducido un minuto
+> después, las tres recortan. Guardado en la memoria de la sesión: el detector confirma que UNA
+> instancia tiene lo nuevo, no todas.
+
 > **DECISIÓN PENDIENTE · 2026-09-07 · Miguel** — el techo de palabras. Miguel propuso subirlo de 3.000
 > a 5.000 o 10.000; la recomendación fue no hacerlo por dos números medidos (leer un tema entero
 > costaba 8.828 tokens en JSON y 4.559 en markdown, y sólo 2 de 28 temas están llenos) y partir los dos
