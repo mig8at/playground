@@ -73,10 +73,11 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
    cinco escalones, no sólo el último: avisa cuando una pieza empuja una pregunta hacia abajo sin
    romperla. Más un aviso de duplicado por solapamiento del título, calibrado sobre seis casos. Y el
    arnés del dictado, que tenía tres suposiciones caducadas, de 12 fallos a 0.
-6. **Leer un tema entero se recorta** ✅ #127. Un tema sin ancla devolvía todas sus secciones: 4.559
-   tokens contra 200 de una sección típica. Ahora trae las que responden a la pregunta, con el índice
-   de anclas completo para pedir las demás. Ahorro medido del 61% al 84%. Habilita decidir el techo de
-   palabras con datos en vez de a ojo.
+6. **Leer un tema entero se recorta** ✅ #127 (la herramienta del agente) y ✅ #128 (la API que usan
+   los agentes del equipo, con el mapa recortado también y el `q` ya puesto en la sugerencia de flujo).
+   Un tema sin ancla devolvía todas sus secciones: 4.547 tokens contra 200 de una sección típica. Ahora
+   trae las que responden, con el índice de anclas completo para pedir las demás. Habilita decidir el
+   techo de palabras con datos en vez de a ojo.
 7. **El documento de candidatos** ✅ #125. Validado bloque por bloque contra el corpus y contra `main`
    antes de escribir nada: de cinco bloques, **uno ya estaba**, **tres entraron** con correcciones, y
    el quinto llegó truncado. Las cifras de disponibilidad del documento **no entraron**: no salen del
@@ -117,6 +118,17 @@ y que el diccionario de tablas diga las columnas que la base de prod tiene hoy.
 > **PREGUNTA · 2026-09-07 · Miguel** — el bloque 5 del documento de candidatos (el servicio de
 > formularios en Go, con su cadena de caché) llegó **cortado** en el diagrama. Falta el resto para
 > validarlo; el corpus ya declara ese servicio como hueco conocido.
+
+> **MEDICIÓN · 2026-09-07** — cuánto vale el recorte, y para quién. Sobre el tema más grande: entero
+> 8.816 tokens en JSON y 4.547 en markdown; con términos, 2.725 y 923 — o sea −69% y −80%. Y cuán
+> seguido aplica: de las 115 preguntas del banco, **30 (el 26%) ofrecen leer el tema entero**, sobre
+> todo bancolombia (7), altas (5) y cartera (4); las 30 sugerencias traen el `q` puesto.
+> ⚠ **Pero la pregunta de flujo que se corrió en prod NO lo ejercitó**: el agente resolvió con dos
+> llamadas de secciones por ancla, agrupadas, y nunca pidió el tema entero — 3 pasos, 23,8 s,
+> respaldada. Lo mismo en las otras seis preguntas del día. Así que el ahorro probado es de la vía de
+> la API y de red de seguridad; **falta saber cuán seguido el agente pide un tema entero**, y eso se
+> contesta contando los pasos `leer` sin ancla en las corridas guardadas en Postgres, que no se
+> exponen por la API.
 
 > **DECISIÓN PENDIENTE · 2026-09-07 · Miguel** — el techo de palabras. Miguel propuso subirlo de 3.000
 > a 5.000 o 10.000; la recomendación fue no hacerlo por dos números medidos (leer un tema entero
