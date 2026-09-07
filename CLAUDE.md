@@ -73,7 +73,7 @@ Elegí **el más chico que conteste la pregunta**. Subir de ambiente agrega ries
 |---|---|---|
 | `local` | tuyo, Docker | ⚠ **`E2E_TARGET` por defecto es `dev`, NO `local`** — omitirlo pega contra el dev compartido |
 | `dev` | rama `develop`, **compartido con el equipo** | leer libre; **escribir** pide `I_KNOW_THIS_TOUCHES_SHARED_DEV` a mano (F-53) |
-| `staging` | rama `staging`, backend propio | ⚠ **comparte la BD con `dev`** (es la misma) y corre con `APP_ENV=development` |
+| `staging` | rama `staging`, backend propio | ⚠ **comparte la BD con `dev`** (es la misma). Su `APP_ENV` efectivo **no está confirmado** — ver abajo |
 | `prod` | lo real | **SOLO LECTURA, siempre.** Las herramientas del trazador no escriben en ningún ambiente |
 
 ⚠ Y no asumas que el código está en los cuatro ambientes: un módulo nuevo puede faltar en `develop` o
@@ -299,11 +299,24 @@ las credenciales rotan, actualizá las dos. Pero **NO comparten backend** — el
 servicios del cluster y cómo saber qué rama te respondió: `harness/CLAUDE.md` §«Qué es real en cada
 target».
 
-⚠ **`staging` corre con `APP_ENV=development`**, no `staging`. Se deduce de que el bypass de OTP de QA
-funciona ahí y ese exige `local`/`development`. Importa más de lo que parece: **todas las condiciones
-`app()->environment(['local','development'])` del código aplican en staging** — incluida la que apaga
-la validación de nombre del KYC. Y al revés, un `config('app.env') === 'staging'` (hay uno en
-`InitialFeePaymentService`) probablemente nunca dispara.
+⚠ **El `APP_ENV` de `staging` está EN DISPUTA, y no conviene apoyarse en él.** Acá decía que corre con
+`APP_ENV=development`, deducido de que el bypass de OTP de QA funcionaba ahí y ese exige
+`local`/`development` (2026-08-14). **El código dice otra cosa**: verificado contra `main` el 2026-09-07,
+los cuatro ambientes que no son producción construyen la imagen con **`APP_ENV=develop`** —así lo pasan
+`main-dev.yaml`, `main-qa.yaml`, `main-stg.yaml` y `main-lab.yaml`—, el Dockerfile convierte ese
+argumento en la variable del contenedor, y **`APP_ENV=development` no aparece ni una vez en la historia
+de esos workflows** (`git log -S` devuelve cero). Y `develop` no es `development`: la comparación de
+Laravel es de cadena exacta.
+
+Con `develop`, el bypass de OTP devuelve falso en su primera línea y la comparación de nombre del KYC
+vuelve a ser estricta. Las dos observaciones no encajan, y la explicación posible es que el secreto del
+servicio pise `APP_ENV` en tiempo de ejecución, que no se lee desde el repositorio.
+
+**La regla práctica hasta que alguien lo mida en el servicio: NO des por apagado nada en staging.** Ni
+el OTP, ni la validación de nombre del KYC, ni ninguna otra condición
+`app()->environment(['local','development'])`. Comprobá el valor efectivo antes de armar una prueba
+encima. Y al revés, un `config('app.env') === 'staging'` (hay uno en `InitialFeePaymentService`)
+tampoco dispara con ninguno de los dos valores.
 
 **Los permisos no van en archivo.** El flag `I_KNOW_THIS_TOUCHES_SHARED_DEV` **no** vive en ningún
 `.env.*`: se exporta a mano en la shell cuando de verdad vas a escribir a la BD compartida de dev (el
