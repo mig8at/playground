@@ -206,10 +206,25 @@ function dbopsJson(args: string[], target: string): Promise<any> {
 
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/asesor). Es ese branch
 // el que hay que togglear — NO el de `dbops list` (que puede devolver otra sucursal del mismo comercio).
-function branchHashForSlug(slug: string): string {
+/**
+ * El hash de la sucursal de un comercio EN ESTE AMBIENTE.
+ *
+ * ⚠ EL HASH NO ES EL MISMO EN TODOS LADOS, y darlo por único hacía que la card mintiera. Una sucursal
+ * es una fila con su propio hash en cada base, así que un comercio que se sembró a mano en local
+ * —Perú es el caso— tiene ahí un hash que en `qa` no existe: la card decía «no está en qa» cuando el
+ * comercio sí está, sólo que con otro hash. Y el que se equivoca no es sólo la card: el launch usa
+ * este mismo valor.
+ *
+ * `por_target` es opcional y sólo hace falta para esos casos; un comercio del volcado tiene el mismo
+ * hash en todas las bases y no necesita declarar nada.
+ *
+ *     "peru": { "branch_hash": "50e007e4", "por_target": { "qa": "a8221e67" } }
+ */
+function branchHashForSlug(slug: string, target = 'local'): string {
     try {
         const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
-        const h = j?.merchants?.[slug]?.branch_hash;
+        const m = j?.merchants?.[slug];
+        const h = m?.por_target?.[target] ?? m?.branch_hash;
         if (h) return h;
     } catch { /* sin .flows.json legible → cae al fallback */ }
     // El buscador deja elegir una sucursal que NO está en `.flows.json`: en ese caso el "slug" ES el
@@ -349,7 +364,7 @@ function asesorSub(target: string): Promise<string> {
 const assignOk = new Set<string>();
 
 async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean; already?: boolean; detail: string }> {
-    const hash = branchHashForSlug(slug);
+    const hash = branchHashForSlug(slug, target);
     if (!hash) return { ok: false, detail: `no sé el hash de la sucursal de '${slug}'` };
     const key = `${target}|${hash}`;
     if (assignOk.has(key)) return { ok: true, already: true, detail: 'permiso ya confirmado' };
@@ -430,7 +445,7 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     let pa: Record<string, string> = {};
     try { pa = JSON.parse(readFileSync(PA_STATUS_FILE, 'utf8')); } catch { /* sin archivo = todo aprobado */ }
     // Nombre de cada lender + su ON/OFF, para que el rastro se lea sin tener que traducir ids.
-    const hash = branchHashForSlug(slug);
+    const hash = branchHashForSlug(slug, t);
     const lenders = hash ? ((await dbopsJson(['lenders-for', hash], t)) as Array<{ id: number; name: string; rt: number; lender_status: number }> | null) : null;
     const ES: Record<string, string> = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
     if (Array.isArray(lenders) && lenders.length) {
@@ -754,13 +769,39 @@ const server = createServer(async (req, res) => {
         const slugs = (url.searchParams.get('slugs') || '').split(',').map((s) => s.trim()).filter(Boolean);
         const target = (url.searchParams.get('target') || 'local').trim();
         const porSlug: Record<string, string> = {};
-        for (const s of slugs) { const h = branchHashForSlug(s); if (h) porSlug[s] = h; }
+        for (const s of slugs) { const h = branchHashForSlug(s, target); if (h) porSlug[s] = h; }
         const hashes = [...new Set(Object.values(porSlug))];
         const filas: any[] = hashes.length ? ((await dbopsJson(['branches', ...hashes], target)) ?? []) : [];
         const info = Object.fromEntries(filas.map((f: any) => [f.hash, f]));
+
+        /* ── SI EL HASH DECLARADO NO ESTÁ EN ESTE AMBIENTE, SE BUSCA EL COMERCIO POR SU SLUG ──
+         *
+         * El hash de una sucursal es una fila distinta en cada base, así que el de local no tiene por
+         * qué existir en qa. La card decía «no está en qa» cuando el comercio SÍ estaba, sólo que con
+         * otro hash — y el mensaje mandaba a sembrar algo que ya existía.
+         *
+         * ⚠ DOS COSAS QUE ESTE RESCATE NO HACE, y por eso `por_target` sigue existiendo:
+         *   · **No elige sucursal.** Devuelve una de las que tenga (`MIN(hash)`), y cuál toca es
+         *     alfabético. Cuando importa cuál —el comercio de Perú en qa tiene una para consumo y otra
+         *     para el vehicular, con flujos distintos— hay que declararla.
+         *   · **No salva si el SLUG también cambia.** Es justamente el caso de Perú: en local se llama
+         *     `comercio-pruebas-peru` y en qa `comercio-pruebas-bcp`, así que buscar por slug no
+         *     encuentra nada. El rescate cubre lo COMÚN (mismo comercio, otro hash), no lo raro.
+         * Por eso el resultado se marca (`porSlug`) y la card lo dice: un hash adivinado no se presenta
+         * como uno declarado. */
+        const rescatados: Record<string, any> = {};
+        for (const s of slugs) {
+            const h = porSlug[s];
+            if (h && info[h]?.allied_name) continue;
+            const encontrado = (await dbopsList(s, target)).find((m: any) => m.slug === s || m.hash);
+            if (encontrado?.hash) rescatados[s] = { hash: encontrado.hash, allied_name: encontrado.name, porSlug: true };
+        }
+
         return json(res, 200, Object.fromEntries(slugs.map((s) => {
             const h = porSlug[s];
-            return [s, h ? { hash: h, ...(info[h] ?? { existe: false }) } : { hash: '', sinFlows: true }];
+            if (h && info[h]?.allied_name) return [s, { hash: h, ...info[h] }];
+            if (rescatados[s]) return [s, rescatados[s]];
+            return [s, h ? { hash: h, existe: false } : { hash: '', sinFlows: true }];
         })));
     }
 
@@ -836,7 +877,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/lenders') {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
-        const hash = branchHashForSlug(slug);
+        const hash = branchHashForSlug(slug, target);
         if (!hash) return json(res, 200, { hash: '', lenders: [], msg: `sin branch_hash en .flows.json para '${slug}'` });
         const r = await dbopsJson(['lenders-for', hash], target);
         // Si la consulta falla, `dbops` devuelve {error}. Antes se normalizaba a [] y el panel dibujaba
@@ -869,7 +910,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/canales') {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
-        const hash = branchHashForSlug(slug);
+        const hash = branchHashForSlug(slug, target);
         if (!hash) return json(res, 200, { hash: '', corbeta: false, canales: ['asesor', 'ecommerce'], msg: `sin branch_hash para '${slug}'` });
         const r = await dbopsJson(['is-corbeta', hash], target);
         // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
@@ -888,7 +929,7 @@ const server = createServer(async (req, res) => {
     // prende/apaga un lender en la sucursal (lenders_by_allied_branches.status)
     if (path === '/api/lender-toggle' && req.method === 'POST') {
         const b = await readBody(req);
-        const hash = branchHashForSlug(String(b.slug || ''));
+        const hash = branchHashForSlug(String(b.slug || ''), String(b.target || 'local'));
         if (!hash || !b.lenderId) return json(res, 400, { ok: false, msg: 'falta slug/lenderId' });
         const r = await dbopsJson(['lender-set', hash, String(b.lenderId), b.status ? '1' : '0'], String(b.target || 'local'));
         return json(res, 200, r || { ok: false, msg: 'falló el toggle (ver consola del panel)' });
@@ -897,7 +938,7 @@ const server = createServer(async (req, res) => {
     // fija el orden de los lenders del comercio (lenders_by_allieds.sort) desde una lista de ids
     if (path === '/api/lender-sort' && req.method === 'POST') {
         const b = await readBody(req);
-        const hash = branchHashForSlug(String(b.slug || ''));
+        const hash = branchHashForSlug(String(b.slug || ''), String(b.target || 'local'));
         const order = Array.isArray(b.order) ? b.order.map((x: any) => Number(x)).filter((n: number) => n > 0) : [];
         if (!hash || !order.length) return json(res, 400, { ok: false, msg: 'falta slug/order' });
         const r = await dbopsJson(['lender-sort', hash, order.join(',')], String(b.target || 'local'));

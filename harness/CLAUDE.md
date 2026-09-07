@@ -550,6 +550,20 @@ mismo cliente y el segundo chocaría con la solicitud del primero.
     make harness-bcp-volver TARGET=qa COMERCIO='#a8221e67' TEL=321411214,321411217 \
         FRONT=https://originaciones-qa.dev.creditop.com
 
+⚠ **Y en el PANEL hay que declararlo, porque acá no coincide NADA entre ambientes**: ni el hash de la
+sucursal ni el slug del comercio (`comercio-pruebas-peru` en local, `comercio-pruebas-bcp` en qa). El
+panel resuelve el hash por ambiente si se lo decís en `.flows.json` —que está gitignoreado, así que
+esto hay que ponerlo una vez por máquina—:
+
+    "comercio-pruebas-peru": {
+      "branch_hash": "50e007e4",
+      "por_target": { "dev": "a8221e67", "qa": "a8221e67", "staging": "a8221e67" }
+    }
+
+Sin eso la card dice «no está en qa», que es falso: el comercio está, con otro hash. Cuando lo único
+que cambia es el hash —y el slug se mantiene— el panel lo rescata solo buscando por nombre y lo avisa
+en la card; acá no puede, porque el slug también cambia.
+
 ⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
 La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
 

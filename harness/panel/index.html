@@ -1069,11 +1069,20 @@
       { slug: 'mediarte', name: 'Mediarte' },       // rt=2 con 0% interés + Credifamilia rt4 al lado
       { slug: 'dentix', name: 'Dentix' },           // CreditopX de marca propia
       { slug: 'sonria', name: 'Sonría' },           // 9 entidades (rt0/1/4): el más rico para mirar el LISTADO
-      // PERÚ. No está en el dump: lo monta `make harness-peru` (idempotente, sólo local). Es el único
-      // de la lista SIN entidades, y es a propósito — el país todavía no tiene ninguna cableada, así
-      // que lo que ejercita son las DOS PRIMERAS pantallas con su país puesto: `S/` con coma de miles
-      // (es-PE) y el celular en `+51` con 9 dígitos, contra `$`/punto y 10 de Colombia.
-      // ⚠ Perú tiene 0 ciudades cargadas: datos personales se corta ahí, y es lo esperado.
+      // PERÚ — el flujo de BCP. En LOCAL no está en el dump: lo monta `make harness-peru`
+      // (idempotente). En qa/dev/staging YA EXISTE, con otro hash y mejor repartido: `d5700512` es la
+      // sucursal de consumo y `a8221e67` la del vehicular (la que se apunta acá, porque es la que tiene
+      // el formulario del vehículo y por lo tanto el flujo completo).
+      //
+      // ⚠ POR ESO LLEVA `por_target` EN `.flows.json`. El hash de una sucursal es una fila distinta en
+      // cada base, así que el de local no existe en qa — y la card decía «no está en qa» cuando el
+      // comercio sí estaba. Es el único caso de la lista: los del volcado tienen el mismo hash en todas.
+      //
+      // Lo que ejercita: el país en las dos primeras pantallas (`S/` con coma de miles y `+51` con 9
+      // dígitos, contra `$`/punto y 10 de Colombia) y, de ahí en adelante, el tramo propio de BCP —el
+      // formulario del vehículo, el simulador embebido y el registro del resultado—.
+      // ⚠ Perú no tiene ciudades cargadas; el flujo pasa igual porque el país no tiene centrales de
+      // riesgo habilitadas y el paso laboral se resuelve por pantalla.
       { slug: 'comercio-pruebas-peru', name: 'Perú (pruebas)' },
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
@@ -1789,6 +1798,10 @@
           const b = info[m.slug];
           if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
           else if (!b.allied_name) { m.meta = `${b.hash} — no está en ${target}`; m.missing = true; }
+          // Resuelto por NOMBRE porque el hash declarado no existe en este ambiente. Se avisa: la
+          // búsqueda devuelve una sucursal cualquiera de las que tenga, y cuál toca importa cuando el
+          // comercio tiene varias con flujos distintos. Para fijarla, `por_target` en `.flows.json`.
+          else if (b.porSlug) { m.meta = `${b.hash} · por nombre (el hash de .flows.json no está en ${target})`; m.missing = false; }
           else { m.meta = `${b.hash} · ${b.lenders} entidad${b.lenders === 1 ? '' : 'es'}`; m.missing = false; }
         }
       } catch {
