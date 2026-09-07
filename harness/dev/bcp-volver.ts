@@ -250,19 +250,28 @@ const lo1 = conMonto.datos?.loanOptionsPromise;
 const sinMonto = await s.cargar(`${base}/${ur}/lenders`);
 const lo2 = sinMonto.datos?.loanOptionsPromise;
 const idsDe = (lo: any) => Array.isArray(lo?.loan_options) ? lo.loan_options.map((x: any) => x.id).join(', ') : `— (${lo?.__rechazada ? 'promesa rechazada' : 'pendiente'})`;
-/** La cuota que la pantalla muestra para una entidad: es lo que el cliente ve, y lo que cambia si el
- *  monto cambia. `calculated` lo recalcula el backend con el `amount` de la URL (stateless). */
-const cuotaDe = (lo: any, id: number) => {
+/* EL NÚMERO QUE DECIDE ES `requestedAmount`, no el `calculated` que devuelve el backend.
+ *
+ * Costó una vuelta entenderlo: `calculated` es el eco del backend, y lo consume sólo el reprecio de
+ * renting/RTO. Lo que la pantalla muestra lo calcula el CLIENTE con `CalculateLoanFinancialsUc` sobre
+ * `qsAmount > 0 ? qsAmount : requestedAmount`, así que medir `calculated` contestaba otra pregunta —y
+ * daba «oferta distinta» con la pantalla ya arreglada—.
+ *
+ * Se imprime igual, porque su diferencia sí dice algo: sin monto en la URL el backend contesta con un
+ * número propio que no es ninguno de los dos de la solicitud. */
+const ecoDelBackend = (lo: any, id: number) => {
     const l = (lo?.loan_options ?? []).find((x: any) => Number(x.id) === id);
     const cal = l?.credit_lines?.calculated ?? l?.calculated ?? null;
     return cal ? JSON.stringify(cal).slice(0, 120) : gris('sin `calculated`');
 };
-linea(`      con ?amount=${montoTrasPre}  → entidades [${idsDe(lo1)}] · requestedAmount ${c(String(lo1?.requestedAmount), 1)}`);
-linea(`         BCP Vehicular (207): ${cuotaDe(lo1, 207)}`);
-linea(`      SIN  ?amount           → entidades [${idsDe(lo2)}] · requestedAmount ${c(String(lo2?.requestedAmount), 1)}`);
-linea(`         BCP Vehicular (207): ${cuotaDe(lo2, 207)}`);
-const igual = JSON.stringify(cuotaDe(lo1, 207)) === JSON.stringify(cuotaDe(lo2, 207));
-linea(`      ${igual ? ojo('⚠') : mal('✗')} ${igual ? 'la misma oferta por los dos caminos' : 'OFERTA DISTINTA según venga o no la query'} ${gris('— el marketplace lee `amount` de la URL y, si falta, cae a `requestedAmount` (que es el valor del VEHÍCULO)')}`);
+linea(`      con ?amount=${montoTrasPre}  → entidades [${idsDe(lo1)}] · requestedAmount ${c(String(lo1?.requestedAmount), 1)} ${gris(`· eco del backend ${ecoDelBackend(lo1, 207)}`)}`);
+linea(`      SIN  ?amount           → entidades [${idsDe(lo2)}] · requestedAmount ${c(String(lo2?.requestedAmount), 1)} ${gris(`· eco del backend ${ecoDelBackend(lo2, 207)}`)}`);
+const esperado = String(MONTO - CUOTA_INICIAL - BONO);
+const igual = String(lo1?.requestedAmount) === String(lo2?.requestedAmount);
+const bien = igual && String(lo1?.requestedAmount) === esperado;
+linea(`      ${bien ? ok('✓') : mal('✗')} ${bien
+    ? `el mismo monto por los dos caminos, y es el financiado (${esperado})`
+    : (igual ? `el mismo monto por los dos caminos, pero NO es el financiado (${esperado})` : 'MONTO DISTINTO según venga o no la query')} ${gris('— la pantalla cotiza sobre `qsAmount > 0 ? qsAmount : requestedAmount`')}`);
 
 // 6) la sesión perdida: otro navegador, la misma solicitud
 linea(`\n  ⑥ el asesor cambia de equipo (sesión nueva, misma solicitud ${ur})`);

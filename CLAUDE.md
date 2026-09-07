@@ -110,20 +110,27 @@ locales contra la base compartida— tampoco cambió. El detalle
 completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
 en `data/artifacts/…hipotesis.md`.
 
-**Los archivos prohibidos: hoy NINGUNO** — verificado contra `main` el 2026-09-03, no queda un solo
-archivo con `use RefreshDatabase;` en el repo. *(Acá había tres. Dos se borraron en el commit de arriba
-—`Modules/Loans/tests/Feature/SafeCancelTest.php` y
-`Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php`— y el tercero,
-`Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php`, sigue existiendo pero ya no usa el
-trait. La lista era correcta el 2026-09-02: el cambio es de ayer para hoy.)*
+**El archivo prohibido, hoy: UNO** — `Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php`,
+con `use RefreshDatabase;` en **`main` y en `qa`** (en `develop` no está). Verificado el 2026-09-07.
 
-Que hoy no haya ninguno **no es una propiedad del repo, es un estado**: nada impide que mañana entre otro
-test con el trait, y la guarda protege el host, no el borrado. Por eso el chequeo de abajo se sigue
-haciendo antes de correr una carpeta.
+*(Acá decía «hoy NINGUNO, verificado contra `main` el 2026-09-03». Era falso, y el motivo vale más que
+el dato: se verificó con `git grep -E '^\s*use RefreshDatabase;'`, y **`git grep` no entiende `\s`** —su
+motor de expresiones no tiene esa clase—, así que no matcheó nada y el cero se leyó como «no hay».
+El `grep` del sistema sí la entiende, que es por qué el comando de más abajo, sobre archivos, funciona.
+Para preguntarle a un árbol de git hay que usar POSIX:*
+
+    git grep -lE '^[[:space:]]*use RefreshDatabase;' origin/<rama>
+
+*Dos de los tres sí se borraron —`SafeCancelTest` y `CreditopXDatacreditoAdjustmentServiceTest`—; el
+tercero nunca perdió el trait.)*
+
+Que hoy haya uno solo **no es una propiedad del repo, es un estado**: nada impide que mañana entre otro,
+y la guarda protege el host, no el borrado. Por eso el chequeo de abajo se sigue haciendo antes de correr
+una carpeta.
 
 **Lo que NO se hace:**
 
-- `make test` en `legacy-backend` (es `artisan test` pelado: corre los 140 archivos, incluidos los dos)
+- `make test` en `legacy-backend` (es `artisan test` pelado: corre los 140 archivos, incluido el del trait)
 - `make fresh` (es `migrate:fresh --seed --force`: hace el mismo daño sin pasar por ningún test)
 - `artisan test` / `artisan migrate:fresh` sin ruta
 - darle *Run* a un archivo de test desde el editor: PhpStorm y VS Code **no siempre cargan
@@ -135,14 +142,16 @@ haciendo antes de correr una carpeta.
     ./vendor/bin/sail artisan test --filter=nombreDelTest <ruta>     # aún más angosto
     make test-onboarding                                            # ya viene acotado por rutas
 
-Antes de correr cualquier carpeta, comprobá que no arrastra uno de los tres:
+Antes de correr cualquier carpeta, comprobá que no arrastra el trait:
 
     grep -rlE '^\s*use RefreshDatabase;' <ruta>
 
-⚠ Grepear sólo `RefreshDatabase` da **30 archivos en `main` y los 30 son falsos positivos** (lo
-mencionan en un import, en un comentario, en un README o en un script). Anclado al principio de línea da
-**0**. Hay que anclar el `use`: sin eso el chequeo devuelve treinta nombres y no dice nada. *(Medido el
-2026-09-03; el 2026-09-02 eran 7 con 5 falsos.)*
+⚠ **Dos formas de que este chequeo mienta, y las dos ya pasaron.** Grepear sólo `RefreshDatabase` da
+~30 archivos en `main` y **todos son falsos positivos** (lo mencionan en un import, en un comentario, en
+un README o en un script): hay que anclar el `use` al principio de línea. Y si en vez de archivos vas a
+preguntarle a una RAMA, `git grep` **no entiende `\s`** y devuelve cero sin fallar — ahí va
+`'^[[:space:]]*use RefreshDatabase;'`. Un chequeo que contesta «no hay» cuando no supo buscar es peor
+que no tenerlo.
 
 **Y si de verdad hiciera falta correr algo destructivo**, no alcanza con mirar el `.env`: es el `.env`
 **más** el entorno de la shell **más** `DATABASE_URL`, que pisa a todos. La regla práctica es más
