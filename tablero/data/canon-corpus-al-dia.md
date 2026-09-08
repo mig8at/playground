@@ -292,6 +292,31 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ### 2026-09-08
 
+- **Y Miguel aprobó la versión fuerte: el mapa del prompt dice los TEMAS y ninguna ancla.** Listaba las
+  309 anclas de los 32 temas, y eso decidía por el modelo: una cuyo nombre se parecía a la pregunta era
+  un atajo irresistible —iba derecho con `leer` y **no buscaba nunca**—, así que el ranking y cualquier
+  mejora del ranking no participaban.
+  - **Medido con `-atajo`, que se escribió para esto:** sobre el banco propio el atajo acertaba en 15 de
+    115 y **desviaba en 23**; sobre el de soporte, escrito con las palabras con que llega un reporte,
+    acertaba en 6 y desviaba en 12, y en **121 de 139** no alcanzaba. Ahorraba un paso en el 13% y
+    mandaba a otro lado en el 20%.
+  - **Con el atajo afuera, tres corridas del mismo modelo:** «el error del banco no dice nada util» pasó
+    de 1 de 3 a **3 de 3**, y buscó en las tres. Quitando sólo las anclas del glosario daba 2 de 3 — el
+    problema no era el glosario, era el atajo.
+  - **Lo que cuesta, dicho completo:** las preguntas que el atajo acertaba pagan ahora un `buscar` (un
+    paso, ~2.000 tokens sin caché), y a veces adivina un ancla, se lleva un rechazo y se recupera solo. A
+    cambio el prefijo cacheado adelgaza **~4.200 tokens** y el camino lo elige el modelo: el corpus crece
+    y esto no cambia. Ése es el punto — el atajo empeoraba a medida que hubiera más secciones parecidas.
+  - **Tres cuidados:** lo fija una prueba con el motivo al lado (listar las anclas parece una gentileza);
+    `-atajo` pasa a ser explícitamente un CONTRAFÁCTICO, porque medir «a dónde manda» describiría algo
+    que ya no existe; y `EsDelGlosario` vuelve a tres usos, con su comentario al día.
+  - **Probado con dos preguntas nuevas, de ningún banco:** «por qué una solicitud queda en el mismo
+    estado varios días» → respaldada, arrancó buscando, y dio los dos motivos frecuentes (validación de
+    identidad vencida y espera de firma del codeudor). «Qué se necesita para que una entidad nueva salga
+    en el listado de un comercio» → respaldada, y **se armó un recorrido de cuatro pasos por su cuenta**
+    citando tres temas distintos.
+  - ⚠ El proveedor devolvió 503 dos veces en el medio. No era el código: el reintento contestó de una.
+
 - **Y el cierre del día fue sacar el ruido, que es la parte que evita repetir el error.** Miguel lo pidió
   así: eliminar de «cómo se debe usar» todo lo que lleva a caer en lo mismo, decir que el banco es un
   EJEMPLO, que probar es con dos preguntas completamente nuevas, y mantener la metáfora de las
