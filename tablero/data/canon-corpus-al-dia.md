@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -305,6 +305,36 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 ## Registro
 
 ### 2026-09-08
+
+- **`bancolombia` cerrado: los doce, verificados uno por uno contra `origin/main`. Cero discrepancias,
+  igual que en kyc.** PR #144, mergeado.
+  - **Las dos que valen son reglas de diagnóstico que soporte usaba al revés.** «Sin captura no calificó,
+    con captura falló el banco» es falso: la tabla de capturas recibe también filas que NO son caídas —sin
+    cupo, respuesta pendiente con el producto todavía ofrecido, y monto bajo el mínimo en ecommerce—, así
+    que la regla vieja **escala al banco un caso que es de cupo o de monto**. Y «nunca se preguntó por esa
+    cifra» es falso para **todo cliente que pidió más de 1.000.000**, que es justo cuando aparece el
+    reclamo: el monto fijo es del sondeo, la línea que lo escribía está comentada, y el único lugar que
+    toca esa columna la usa como **piso**.
+  - **Las otras diez, en corto:** son DOS puertas al canal y no una; son TRES productos con hora de corte
+    (Meddipay, sólo en el comercio 94) y la hora sale de una columna; «se ofrece igual» depende de la
+    puerta —por la propia se **cancela a estado 8**—; el reenvío del error del banco existe en sólo DOS
+    pasos, así que un «authentication failed» pelado **puede ser de hoy**; el certificado **no viaja en
+    todas las llamadas**, así que con él vencido el cliente ve cupo y se cae al elegir cuenta; el estado
+    25 vale **sólo para Corbeta** y la otra rama **no deja estado**; el dígito de verificación es un solo
+    lugar con tres condiciones y **fuera de producción no se envía nunca**; y tres arreglos de grafo —dos
+    secciones no figuraban en NINGUNA área, así que la ronda no podía envejecerlas.
+  - ⚠ **Y corrigió algo que este repo tenía mal escrito.** El bench cayó a 114/115 y **no se remapeó el
+    pin**. La causa **no fue dilución** —bajar «producto» de 16 a 11 no movió nada—: fue que **las dos
+    secciones hermanas que corregí subieron más que la esperada** (228→336 y 220→324 contra 224→232),
+    porque una sección más larga acumula más puntaje sobre los mismos términos, y la empujaron del 3er al
+    4to puesto. El arreglo no fue recortar para gamear el ranking: fue que esa sección **conteste de
+    verdad** su pregunta —cuánto cuesta agregar otro producto—, que estaba implícita en «las pantallas son
+    nuestras» y nunca dicha. **115/115 y el 1er resultado sube a 94** (empezó el día en 92).
+  - **Dos cosas propias, dichas porque son mías:** el lint **me rechazó una frase** por decir «hipótesis»
+    (en sentido de diagnóstico) y reescribí la frase en vez de pelear la guarda; y **una de mis dos
+    preguntas de validación estaba mal puesta** —no nombraba el canal y se fue a Credifamilia, así que no
+    probó nada—. La repuse bien puesta y quedó dicho, en vez de reformularla hasta que pasara.
+  - **Quedan ~108 hallazgos.**
 
 - **`kyc` cerrado: los once hallazgos, verificados uno por uno contra `origin/main` antes de escribir una
   línea. Cero discrepancias — los once se sostuvieron.** PR #143, mergeado. Era el tema que se dejó para
