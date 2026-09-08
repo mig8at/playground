@@ -292,6 +292,33 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ### 2026-09-08
 
+- **Y la segunda mitad del día salió de una pregunta de Miguel: «¿y si no le damos todo masticado, y que
+  el modelo decida cómo consulta?»** Medirlo movió más que el arreglo de la mañana.
+  - **Las formas de consultar ya son diez** (`buscar`, `leer`, `grep`, `codigo`, `archivo`, `historia`,
+    `tablas`, `ubicar`, `datos`, `contestar`) y el modelo las usa: **mediana de 5 pasos**, p90 15-17 en
+    las corridas guardadas. Eso no era el problema.
+  - **Lo masticado es el MAPA del prompt**, y ahí estaba el bug: anunciaba todas las anclas de todos los
+    nodos, glosario incluido — cuando `Search` manda el glosario a un balde aparte **justamente para que
+    no compita como respuesta**. Dos capas en desacuerdo. Con un ancla que nombra la frase del reporte,
+    el modelo iba derecho con `leer`, contestaba desde la definición y **no buscaba nunca**: o sea que el
+    empujón de la mañana **ni se disparaba** en su camino.
+  - **Medido, tres corridas por pregunta:** «por que todos aparecen como empleados» de **1 de 3 a 3 de
+    3** (y buscó las tres veces); «el error del banco no dice nada util» de 1 de 3 a 2 de 3; y el caso
+    inverso —«salen en refactor», donde la respuesta ES una entrada— sigue andando, 2 de 2. Las
+    respuestas pasaron de 49-75 palabras a 112-132, citando las dos fuentes. Cuesta ~30k → ~48k de
+    entrada cuando de verdad busca y lee; el prefijo cacheado adelgaza ~192 tokens.
+  - **Y queda el instrumento: `-atajo`, cuesta cero.** El banco mide el buscador; esto mide el otro
+    camino. Banco propio: 15 atajos buenos, **22 engañosos**, 78 sin atajo. Banco de soporte —el idioma
+    con que llega un reporte—: 6 buenos, 12 engañosos y **121 de 139 sin atajo**. La medición que
+    justificó el mapa era de COSTO; nadie había medido a dónde apunta cuando apunta mal.
+  - ⚠ **DECISIÓN PENDIENTE de Miguel: la versión fuerte de su idea.** Sin ningún índice de anclas en el
+    mapa, la pregunta del error del banco da **3 de 3** (contra 2 de 3 quitando sólo el glosario) y busca
+    siempre. Sacaría los 22 atajos engañosos a cambio de los 15 buenos: **neto +7** por este proxy. NO se
+    aplicó: es el contrato central, toca las 115 preguntas, y validarlo honesto es el banco de modelo,
+    que cuesta. Es un `if` de una línea en `mapaDelCorpus` cuando se decida.
+  - De paso, `EsDelGlosario` en un solo lugar: eran cuatro checks a mano que tienen que estar de
+    acuerdo, y este bug es exactamente lo que pasa cuando se desincronizan.
+
 - **El problema de las palabras dejó de arreglarse a mano.** Venía medido cuatro veces: agregar prosa a
   un tema bajaba el banco léxico, y la causa no era el volumen sino que **la sección que contesta no
   tenía las palabras con que llega la pregunta** y otra sección sí. El arreglo que se venía aplicando
