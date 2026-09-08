@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -46,12 +46,24 @@ hueco: el guion pedía los archivos pero no el `objetivo` del área que forman, 
 un eco del título. Arreglado en el mismo PR, con el aviso en el momento de la omisión y el ensayo que
 lo protege.
 
-**El próximo paso es:** decidir con Miguel si el paso 4 se hace —cambiar la forma del mapa por 37
-archivos— o si la tarea se cierra acá; pedirle el resto del bloque del servicio de formularios, que
-llegó cortado; y decidir qué más de los documentos de Fercho entra (la tabla de decisión de la
-biometría es el candidato más claro, y quedó fuera de este PR sólo por no abusar del primer dictado).
-⚠ Y hay algo que no es de canon y no puede esperar: uno de esos documentos trae **la credencial de
-producción y el identificador de inquilino en claro**, diez veces, en `~/Downloads/fer/`.
+**El próximo paso es:** seguir con los temas que quedan, en el orden que la medición ya dicta. Los tres
+nodos gordos que faltan se parten igual de bien que `arquitectura`: **`onboarding`** (16 secciones, 9
+hallazgos) en «donde nace la solicitud» contra «qué se le pregunta al cliente»; **`formalizacion`** (18
+secciones, 11 hallazgos) en «el cierre» contra «los documentos y quién los dibuja»; y **`kyc`** (18
+secciones tras #134, 11 hallazgos y los más caros de todos — el impostor del buró ya no se elige por el
+nombre del ambiente, así que en local sin host de simulación **la consulta se paga contra el proveedor
+real**, y la credencial del proveedor queda en claro en una columna que el modelo no oculta). ⚠ `kyc`
+espera a que #134 mergee, para no apilar ramas.
+
+Y ojo con la distinción que el lint mezcla: hay **nodos** grandes —se parten moviendo secciones— y hay
+**áreas** grandes (bancolombia con 28 archivos en 15 carpetas, nequi, listado, smartpay), que se parten
+dividiendo un objetivo en varios y **no tocan la prosa**. Son dos trabajos distintos.
+
+Pendiente de antes: el paso 4 (una línea por archivo, 37 de 816) sigue sin decidir; falta el resto del
+bloque del servicio de formularios, que llegó cortado; y de los documentos de Fercho queda la tabla de
+decisión de la biometría, el candidato más claro. ⚠ Y algo que no es de canon y no puede esperar: uno de
+esos documentos trae **la credencial de producción y el identificador de inquilino en claro**, diez
+veces, en `~/Downloads/fer/`.
 
 ## Objetivo
 
@@ -314,6 +326,35 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   la solicitud». El campo existía; faltaba pedirlo. Ahora el guion lo pide, la respuesta avisa **en el
   momento** en que se omite en vez de dejarlo para un lint posterior, y el ensayo del dictado comprueba
   las dos mitades (probado quitando la guarda: falla). El lint pasó de 2 áreas de plantilla a 0.
+- **La flota validó el corpus ENTERO, y el resultado cambió el plan de la tarea.** Un orquestador de 36
+  lectores contrastó las 280 secciones y su grafo contra `main`; quedó pausado por costo con 34
+  terminados y **178 hallazgos brutos**. Reanudar la refutación como estaba costaba ~40 M de tokens de
+  entrada (medido sobre los 17 refutadores que sí corrieron), así que se cambió de camino: **leerlos yo**,
+  que tengo el corpus entero en contexto — justo lo que un refutador no tiene.
+- ⚠ **Y me equivoqué al llamarlos inflados.** Cada hallazgo trae cita textual del código con archivo y
+  línea, y la mayoría no son matices: **invierten consejos de diagnóstico**. Verificados a mano contra
+  `main`: **31 de 31 ciertos**, incluido uno donde mi propio chequeo había leído un comentario de ejemplo.
+- **Dos correcciones fueron al propio `CLAUDE.md` de este repo.** La del test que recrea la BD compartida
+  ya la había arreglado otra sesión en paralelo, y la coincidencia vale como aval. La otra la apliqué yo:
+  el `APP_ENV` de staging **no es `development` y nunca lo fue** en la historia de los cuatro workflows,
+  así que la instrucción quedó al revés — no dar por apagado nada ahí hasta medirlo en el servicio.
+- **Cuatro PRs abiertos y 22 correcciones aplicadas:** #134 (identidad de Credifamilia, dictado por API),
+  #135 (11 correcciones en `altas`, el nodo `credenciales` nuevo y el techo de palabras subido), #136
+  (6 en `cartera` y el presupuesto de la búsqueda), #137 (`arquitectura` partida en dos y sus 10). El
+  corpus pasa de 28 a **30 nodos** al mergear. Quedan **139 hallazgos** en cola.
+- **La regla que salió medida, y es la que ordena lo que falta:** partir un nodo cuesta **cero** y
+  recupera lo que el crecimiento costó; agregar prosa cuesta banco **en proporción al volumen** y no se
+  arregla con sinónimos. El umbral está cerca de **500 palabras por nodo por tanda** — `arquitectura`
+  (+367) y `cartera` (+490) costaron cero, `fronteras` (+509) costó una, `altas` (+1.314) costó dos y
+  hubo que partirlo.
+- **La pregunta de Miguel sobre nodos hijos y nietos destapó el trabajo más valioso del día.** No hace
+  falta jerarquía: el corpus ya tiene DOS grafos y el que resuelve su caso **se deriva solo**, de los
+  archivos que dos áreas comparten — y ése sí se usa al buscar, con el archivo compartido como prueba.
+  Su ejemplo (algo hijo de dos padres) es un grafo, no un árbol. Pero al comprobarlo apareció que **la
+  navegación no era pagable**: rutas por área sin tope (48 en una respuesta), vecinas sin tope (un área
+  traía 18) y **el presupuesto no se aplicaba en el código, sólo se afirmaba y para una consulta** — de
+  siete, cinco se pasaban. Arreglado en #136, con dos hallazgos de yapa: la respuesta va **indentada** y
+  eso es el 18% de sus bytes, y el aviso del recorte se sumaba **después** de medir.
 - Incongruencias entre la doc de Santi y `main`/prod anotadas en Riesgos.
 
 ## Tarea (publicable)
