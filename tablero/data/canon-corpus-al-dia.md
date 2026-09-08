@@ -292,6 +292,33 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ### 2026-09-08
 
+- **Y una tercera vuelta, de dos preguntas de Miguel — las dos con respuesta concreta en el código.**
+  - **«¿estamos guardando el flujo para analizarlo después?» → NO.** Se guardaba `pasos integer`, el
+    CONTEO. La traza existe desde siempre (la lista ordenada de `buscar(q=…)`, `leer(ids=…)` y los
+    rechazos del bucle), **ya estaba en la mano** al guardar porque de ella se derivan las fuentes, y se
+    descartaba. Del QUÉ contestó quedaba todo; del CÓMO, un número. Y no es teórico: el bug del mapa se
+    tuvo que medir corriendo preguntas A MANO, de a una.
+  - Ahora se guarda como `traza text[]`. Tres cuidados que valen más que el campo: **la migración va
+    aparte** (`CREATE TABLE IF NOT EXISTS` no toca una tabla existente, y el protocolo extendido no
+    acepta dos sentencias en un `Exec` — pegar el `ALTER` al `CREATE` rompía el arranque **sólo en el
+    ambiente con datos viejos**); el modo sin texto conserva los nombres de herramienta y tira los
+    argumentos; y **el análisis no exige SQL** — `-chats` gana la vista «cómo llega» (con qué arranca,
+    cuántas NUNCA buscan, qué se llevó un rechazo). ⚠ La traza existe desde ahora: los turnos viejos no
+    la tienen, y la vista lo dice.
+  - **«nada prefabricado; que el modelo decida» → y tenía razón sobre algo que YO había metido.** La
+    nota del glosario decía qué HACER con él: primero «se cita como cualquier sección», después mi
+    cambio de la mañana, «es una PUERTA, leé la sección enlazada». Las dos son la misma clase de error, y
+    **ninguna se pudo medir**. Lo que movió la aguja fue quitarle el atajo a la herramienta. Las saqué;
+    la nota describe el dato y nada más. **La prueba práctica queda: ¿esto describe el dato, o dice qué
+    hacer con él?**
+  - **Y el método cambió, a pedido suyo: cada cambio se valida con DOS preguntas concretas y distintas,
+    NUNCA del banco** — el banco es red de seguridad, no vara, porque el objetivo es contestar cualquier
+    pregunta y no las 115 curadas. Hecho: «si un comercio quiere subir su monto mínimo, dónde se toca y a
+    quién le pega» (respaldada, 2 pasos, arrancó buscando) y «por qué a dos clientes de la misma tienda
+    les salen entidades distintas» (respaldada, 3 pasos, y contestó bien que la visibilidad se define en
+    la SUCURSAL). La segunda citó una entrada del glosario **a la que llegó buscando**, que es
+    exactamente para lo que se dejó de anunciarla como destino.
+
 - **Y la segunda mitad del día salió de una pregunta de Miguel: «¿y si no le damos todo masticado, y que
   el modelo decida cómo consulta?»** Medirlo movió más que el arreglo de la mañana.
   - **Las formas de consultar ya son diez** (`buscar`, `leer`, `grep`, `codigo`, `archivo`, `historia`,
