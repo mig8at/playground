@@ -46,14 +46,28 @@ hueco: el guion pedía los archivos pero no el `objetivo` del área que forman, 
 un eco del título. Arreglado en el mismo PR, con el aviso en el momento de la omisión y el ensayo que
 lo protege.
 
-Y el 2026-09-08 se cerró el frente que Miguel abrió con una objeción de fondo: **que cada sección cargue
-las palabras con que llega su pregunta no escala.** Tenía razón, y el arreglo está en el PR #140
-(abierto): el glosario —que por diseño se escribe con las palabras del reporte y ya enlaza la sección que
-contesta— ahora **empuja** lo que apunta. La compuerta léxica queda en 115/115 y el 1er resultado sube de
-89 a 92; apagando el empujón, 113/115. Los tres parches de prosa salieron del texto, y uno de ellos nunca
-había hecho falta. ⚠ Del lado del **modelo** queda una tensión sin resolver, que es decisión de diseño y
-no bug: contesta desde la entrada del glosario y la cita a ella en vez de seguir el enlace (1 de 3
-corridas citó la sección). Los números y las tres formas de entrada que se probaron, en el cuerpo del PR.
+Y el 2026-09-08 se cerró el frente que Miguel abrió con una objeción de fondo —**que cada sección cargue
+las palabras con que llega su pregunta no escala**— y terminó en algo bastante más grande. **PR #140,
+MERGEADO** (`3f4df39`), en cinco partes:
+
+1. **El glosario empuja a la sección que apunta.** Las palabras del reporte viven en un solo lugar con
+   dueño en vez de repetirse en cada sección. 115/115 en la compuerta, 1er resultado de 89 a 92;
+   apagándolo, 113/115. Los tres parches de prosa salieron, y uno nunca había hecho falta.
+2. **Dos bugs viejos que destapó:** el glosario no se podía recortar (el recorte leía un solo balde de
+   resultados), y dos pruebas elegían su tema recorriendo un mapa sin ordenar.
+3. **Se guarda la TRAZA de cada pregunta.** Antes se guardaba el conteo de pasos y la traza —que ya
+   estaba en la mano— se tiraba, así que del CÓMO llegó no quedaba nada. Ahora `-chats` resume «cómo
+   llega» sin pedir SQL.
+4. **Se sacó el ruido de «cómo se debe usar»:** tres frases hacían del banco la vara, y el guion que el
+   modelo lee abría clasificando la pregunta y dictando cinco pasos. Las tres reglas quedaron arriba del
+   README, antes de cualquier comando.
+5. **Y el mapa del prompt dejó de decidir:** dice los TEMAS y ninguna de las 309 anclas. El atajo
+   ahorraba un paso en el 13% y desviaba en el 20%; afuera, la pregunta afectada pasó de 1 de 3 a 3 de 3
+   y el prefijo cacheado adelgazó ~4.200 tokens.
+
+⚠ **La tensión del modelo que había quedado abierta —contestaba desde la entrada del glosario en vez de
+seguir el enlace— se resolvió con la parte 5, y no con prosa ni con guion:** era el atajo del mapa, no el
+glosario.
 
 **El próximo paso es:** seguir con los temas que quedan. De los nodos gordos ya se partieron
 `arquitectura`, `onboarding` y `formalizacion`; queda `kyc`, que ahora SÍ se puede tocar porque #134
@@ -403,7 +417,7 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   —escribir las dos formas EN la sección— cuesta media línea y hay que pagarlo en cada sección: con 306
   se aguanta, con 3.000 es un impuesto que nadie mantiene. Miguel lo objetó con esa razón exacta y tenía
   razón.
-- **El arreglo (PR #140, abierto): el glosario empuja a la sección que apunta.** Las palabras del reporte
+- **El arreglo (PR #140, hoy MERGEADO): el glosario empuja a la sección que apunta.** Las palabras del reporte
   ya tienen un lugar con dueño —el glosario, que por diseño se escribe con ellas— y cada entrada ya
   enlaza la sección que contesta. Ahora ese enlace se usa para rankear: si la consulta pega en una
   entrada, sube lo que la entrada apunta. Es la forma del grafo de entidades (consulta → entidad →
