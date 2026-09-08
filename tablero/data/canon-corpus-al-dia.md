@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -305,6 +305,26 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 ## Registro
 
 ### 2026-09-08
+
+- **Y de la pregunta «¿algo más que mejorar? ¿cómo quedó la API para Claude?» salió el PR #141, mergeado
+  también.** Contestar la segunda parte comprobando prod en vez de leyendo el README destapó tres
+  inconsistencias, y las tres eran de la limpieza de hoy:
+  - **El arranque para un agente seguía siendo un «rito».** `/claude` —el documento que un agente lee de
+    UNA sola llamada, 11,8 KB, generado de la propia API para que no pueda quedar viejo— titulaba «El
+    rito, en tres pasos». `/api` decía «el rito de CONSULTAR. **Seguilo tal cual**», y el bloque de reglas
+    para un agente lo repetía. O sea que **las tres puertas mandaban a un documento que ahora arranca
+    diciendo «el camino lo elegís vos»**. Ahora la sección se llama «Las dos herramientas de lectura» y
+    dice qué hace cada una, no en qué orden usarlas.
+  - **Faltaba un ejemplo que importa: `read` acepta VARIAS de una vez.** Es exactamente lo que el agente
+    no hizo en la validación contra prod —ocho `leer` de a un id y aterrizaje forzoso—, y la capacidad
+    existía. Es el mismo error que ya está medido en el README: **lo que no está en la descripción, no
+    existe.** Primer mordisco al hallazgo de prod, y del lado correcto: la herramienta, no el guion.
+  - **`gofmt` NO estaba en la compuerta**, y hoy entró un archivo sin formatear a `main` con el build en
+    verde. El Dockerfile corría `go vet`, los tests con `-race`, el lint y los tres bancos, pero no el
+    formato. Va primero, con `test -z`, porque `gofmt -l` no falla solo: imprime y sale 0.
+  - ⚠ **Y la prueba que EJECUTA los comandos del arranque se puso roja por el título nuevo**, que es
+    exactamente para lo que está. Corre siete URLs y las siete contestan; el ejemplo del plural se
+    verificó contra el binario antes de escribirlo (dos nodos, 1.034 palabras).
 
 - **#140 MERGEADO (`3f4df39`) y VALIDADO EN PROD**, con las dos preguntas de presupuesto y ninguna más.
   Prod corre `us.anthropic.claude-sonnet-5`.
