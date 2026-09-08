@@ -110,8 +110,29 @@ locales contra la base compartida— tampoco cambió. El detalle
 completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
 en `data/artifacts/…hipotesis.md`.
 
-**El archivo prohibido, hoy: UNO** — `Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php`,
-con `use RefreshDatabase;` en **`main` y en `qa`** (en `develop` no está). Verificado el 2026-09-07.
+**Los archivos que recrean la base, hoy: SEIS — y una carpeta que lo hereda.** Verificado contra
+`origin/main` el 2026-09-08, `RefreshDatabase` se activa de **tres** formas y el chequeo de abajo veía
+una sola:
+
+1. **el trait dentro de la clase** (`use RefreshDatabase;`): **uno**,
+   `Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php` (en `main` y en `qa`; en
+   `develop` no está);
+2. **la forma de Pest, por archivo** (`uses(RefreshDatabase::class);`): **cinco** vivos y sin comentar
+   —`tests/Feature/Commands/UnrollDevicesPaidCommandTest.php`,
+   `tests/Feature/Console/SyncDeviceLocksCommandTest.php` y los tres de `tests/Feature/Jobs/`—, con 43
+   tests entre los cinco. `tests/Feature` es una testsuite declarada en `phpunit.xml` y Pest es el
+   runner del repo (`pestphp/pest: ^2.36`);
+3. **la forma de Pest, por DIRECTORIO**: `Modules/UserRequestV1/tests/Pest.php` hace
+   `uses(Tests\TestCase::class, RefreshDatabase::class)->in('Feature')`, así que **lo hereda cualquier
+   archivo de esa carpeta sin decirlo en su propio texto**. Sus seis archivos están hoy envueltos
+   enteros en un bloque de comentario, así que no corre ninguno — pero el que agregue uno nuevo ahí
+   recrea la base sin haber escrito nada al respecto.
+
+✔ **Y la parte tranquilizadora: la guarda de CORE-431 no mira la forma.** Vive en `createApplication()`,
+que Laravel llama **antes** de `setUpTraits()`, así que las tres quedan igual de contenidas a los hosts
+de esta máquina y al schema `testing`. Lo que el chequeo de abajo contesta no es «esto es seguro» —eso
+lo contesta la guarda— sino **«qué le va a pasar a MI base local si corro esta carpeta»**. Lo que sigue
+afuera de la guarda es `make fresh`.
 
 *(Acá decía «hoy NINGUNO, verificado contra `main` el 2026-09-03». Era falso, y el motivo vale más que
 el dato: se verificó con `git grep -E '^\s*use RefreshDatabase;'`, y **`git grep` no entiende `\s`** —su
@@ -144,14 +165,18 @@ una carpeta.
 
 Antes de correr cualquier carpeta, comprobá que no arrastra el trait:
 
-    grep -rlE '^\s*use RefreshDatabase;' <ruta>
+    grep -rlE '^\s*use RefreshDatabase;|uses\(.*RefreshDatabase::class' <ruta>
+    ls <ruta>/Pest.php <ruta>/../Pest.php 2>/dev/null   # si hay, LEELO: puede atarlo al directorio
 
-⚠ **Dos formas de que este chequeo mienta, y las dos ya pasaron.** Grepear sólo `RefreshDatabase` da
-~30 archivos en `main` y **todos son falsos positivos** (lo mencionan en un import, en un comentario, en
-un README o en un script): hay que anclar el `use` al principio de línea. Y si en vez de archivos vas a
-preguntarle a una RAMA, `git grep` **no entiende `\s`** y devuelve cero sin fallar — ahí va
-`'^[[:space:]]*use RefreshDatabase;'`. Un chequeo que contesta «no hay» cuando no supo buscar es peor
-que no tenerlo.
+⚠ **TRES formas de que este chequeo mienta, y las tres ya pasaron.** (1) Grepear sólo
+`RefreshDatabase` da ~30 archivos en `main` y **todos son falsos positivos** (lo mencionan en un
+import, en un comentario, en un README o en un script): hay que anclar el `use` al principio de línea.
+(2) Si en vez de archivos le preguntás a una RAMA, `git grep` **no entiende `\s`** y devuelve cero sin
+fallar — ahí va `'^[[:space:]]*use RefreshDatabase;'`. Y (3) la que costó dos conteos falsos: **un
+`uses(RefreshDatabase::class)` no empieza la línea con `use`, así que el patrón anclado no lo matchea
+NUNCA** — ni sobre el árbol ni sobre la rama. Por eso el comando lleva la segunda alternativa, y por
+eso hay que abrir el `Pest.php`: la forma por directorio no se ve grepeando los tests. Un chequeo que
+contesta «no hay» cuando no supo buscar es peor que no tenerlo.
 
 **Y si de verdad hiciera falta correr algo destructivo**, no alcanza con mirar el `.env`: es el `.env`
 **más** el entorno de la shell **más** `DATABASE_URL`, que pisa a todos. La regla práctica es más

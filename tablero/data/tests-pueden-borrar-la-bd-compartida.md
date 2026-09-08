@@ -168,6 +168,37 @@ De **140 archivos de test** en `develop`, solo **2** usan `use RefreshDatabase;`
 mencionan — en `tests/Feature/ExampleTest.php` está **comentada** (es el scaffold de Laravel) y en el
 resto lo que aparece son imports de modelos. Hay que grepear `^\s+use RefreshDatabase;`, no el nombre.
 
+> ### 🔴 2026-09-08 — ese conteo, y el de esta tarea, están CORTOS: se activa de tres formas
+>
+> Encontrado auditando el corpus de canon contra `origin/main`, y verificado a mano. El patrón anclado
+> —`^\s*use RefreshDatabase;`— sólo ve **el trait dentro de la clase**. Hay dos formas más, las dos de
+> Pest, y **ninguna empieza la línea con `use`**, así que ese patrón no las matchea nunca:
+>
+> | forma | cuántos, hoy en `origin/main` | dónde |
+> |---|---|---|
+> | `use RefreshDatabase;` en la clase | 1 | `Modules/Backoffice/Tests/Feature/LenderRulesWriterServiceTest.php` |
+> | `uses(RefreshDatabase::class);` por archivo | **5, vivos** | `tests/Feature/Commands/UnrollDevicesPaidCommandTest.php`, `tests/Feature/Console/SyncDeviceLocksCommandTest.php`, y los tres de `tests/Feature/Jobs/` (43 tests entre los cinco) |
+> | `uses(..., RefreshDatabase::class)->in('Feature')` por DIRECTORIO | 1 binding | `Modules/UserRequestV1/tests/Pest.php:8` — lo hereda cualquier archivo de esa carpeta |
+>
+> `tests/Feature` es una testsuite declarada en `phpunit.xml` y **Pest es el runner del repo**
+> (`pestphp/pest: ^2.36` + `tests/Pest.php` liga `Tests\TestCase` a `Feature`). Los seis archivos de
+> `Modules/UserRequestV1/tests/Feature/` están hoy envueltos enteros en un bloque de comentario —cero
+> tests vivos—, pero **el binding sigue puesto: el que agregue un archivo ahí recrea la base sin haber
+> escrito nada al respecto.**
+>
+> **Lo que esto NO cambia: la guarda del punto 3 del arreglo (la que se mergeó) los contiene a todos**,
+> porque vive en `createApplication()` y Laravel lo llama antes de `setUpTraits()` — o sea antes de que
+> cualquier trait dispare, sin importar cómo se activó. Verificado en `origin/main`:
+> `HOSTS_PERMITIDOS = ['127.0.0.1','localhost','::1','mysql','sail-mysql']`, `SCHEMAS_PERMITIDOS = ['testing']`.
+>
+> **Lo que sí cambia es el chequeo previo**, el que decide si alguien corre una carpeta:
+>
+>     grep -rlE '^\s*use RefreshDatabase;|uses\(.*RefreshDatabase::class' <ruta>
+>     ls <ruta>/Pest.php <ruta>/../Pest.php 2>/dev/null   # y si hay, leerlo
+>
+> Ya corregido en el `CLAUDE.md` de este repo y en el nodo `local` de canon. Tercera vez que este
+> conteo sale mal, y las tres por el método, no por el dato.
+
 ## El equipo ya tomó la decisión correcta, y está escrita en el código
 `Modules/SupportBot/Tests/Unit/ClientLookupServiceTest.php` usa **`DatabaseTransactions`** y lo explica en
 una línea: *«DatabaseTransactions y no RefreshDatabase: las migraciones del repo no corren desde cero»*.
@@ -236,6 +267,11 @@ Reproducir el caso: exportar `DB_DATABASE` y un `DB_HOST` que no sea local, corr
 que **aborta** en vez de conectar. Contra una base desechable, nunca contra `inertia-dev`.
 
 ## Bitácora
+- **2026-09-08** — Auditando el corpus de canon contra `origin/main` salió que el conteo de esta tarea
+  está corto: `RefreshDatabase` se activa de tres formas y el patrón anclado ve una. Son seis archivos
+  vivos más un binding por directorio, no dos. La guarda mergeada los contiene igual (corre antes de
+  los traits); lo que estaba mal era el chequeo previo. Corregido acá, en el `CLAUDE.md` del repo y en
+  el nodo `local` de canon.
 - **2026-08-18** — Encontrado al preparar el PR del canal de WhatsApp contra `develop`. Verificado leyendo
   PHPUnit (`PhpHandler.php:112`, sin `force`) y Laravel (`RefreshDatabase.php:73`, `migrate:fresh`).
 - **2026-08-18 (2)** — Corregido el conteo tras la observación de Miguel: **son 2 archivos, no 7** —
