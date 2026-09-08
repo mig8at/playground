@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -305,6 +305,33 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 ## Registro
 
 ### 2026-09-08
+
+- **Cinco preguntas que nunca se le habían hecho, contra el despliegue. Las cinco respaldadas, ninguna
+  inventó nada** — y de ahí salió el PR #142 (mergeado). Fueron de tipos distintos a propósito, que
+  informa más que cinco iguales: una de soporte, una de política de negocio, una de dónde vive el código,
+  una de medición contra producción y una de recorrido entero.
+  - ⚠ **El hallazgo grande: hay un techo duro de 60 segundos delante de canon.** La más ancha —«qué pasa
+    desde que elige la entidad hasta que firma, y dónde se puede caer»— devolvió **504 a los 60 s
+    EXACTOS, dos veces**, con HTML de nginx y **sin cuerpo JSON**: es el ingress, no canon. Otra tardó
+    **56,4 s** y pasó raspando, así que el margen es angosto y real. **Por el stream la misma pregunta
+    contestó en 47 s, doce pasos y once citas.**
+  - **Y el stream existía; el arranque no lo nombraba.** Un agente que se comía el 504 no tenía forma de
+    saber que había camino: no estaba en `/claude`, ni en el guion de consultar, y en el README aparece
+    una vez en la sección de conversación. **Segundo caso del día** de «lo que no está en la descripción,
+    no existe» — el primero fue el plural de `read`. Ya está dicho, con el dato medido, y desplegado.
+  - **La que más convenció fue la de medición:** no aceptó la premisa. Dijo que «identidad» no es un paso
+    sino **dos puertas**, midió las dos contra producción por Redash y nombró las tablas. ⚠ **Pero las
+    cifras son chicas** —5 solicitudes con intentos de biometría en 30 días, 6 en la otra puerta—: o el
+    camino biométrico casi no se usa, o la tabla no cuenta todo. **NO se concluye, queda marcado.**
+  - ⚠ **Un hueco de cobertura que la respuesta nombró sola:** el codeudor está documentado **sólo para
+    Motai** (no lo exige Motai X; en Renting y Rent to Own lo exigen todas las categorías del titular
+    salvo la llamada «Codeudor»). O ésa es la verdad del negocio, o al corpus le falta la política
+    general. Vale preguntarlo antes de escribir nada.
+  - **El techo de 14 pasos se comió 2 de 4** por la ruta normal (16 y 21 entradas de traza, con
+    aterrizaje forzoso), y las dos contestaron igual, respaldadas y con `no_pude` honesto. Confirma lo de
+    ayer con más muestra y sigue apuntando al mismo arreglo de herramienta, que no se hizo.
+  - **Y los `no_pude` de estas cinco quedaron guardados en producción con su traza**, que es exactamente
+    el pago del trabajo de hoy: el inventario de lo que falta se llena solo, sin que nadie lo transcriba.
 
 - **Y de la pregunta «¿algo más que mejorar? ¿cómo quedó la API para Claude?» salió el PR #141, mergeado
   también.** Contestar la segunda parte comprobando prod en vez de leyendo el README destapó tres
