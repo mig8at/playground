@@ -46,8 +46,12 @@ hueco: el guion pedía los archivos pero no el `objetivo` del área que forman, 
 un eco del título. Arreglado en el mismo PR, con el aviso en el momento de la omisión y el ensayo que
 lo protege.
 
-**El próximo paso es:** seguir con los temas que quedan, en el orden que la medición ya dicta. Los tres
-nodos gordos que faltan se parten igual de bien que `arquitectura`: **`onboarding`** (16 secciones, 9
+**El próximo paso es:** seguir con los temas que quedan. De los nodos gordos ya se partieron
+`arquitectura`, `onboarding` y `formalizacion`; queda `kyc`, que ahora SÍ se puede tocar porque #134
+mergeó — y es el que tiene los hallazgos más caros: el impostor del buró ya no se elige por el nombre del
+ambiente, así que **en local sin host de simulación la consulta se paga contra el proveedor real**, y la
+credencial del proveedor queda en claro en una columna que el modelo no oculta. Después, `bancolombia`
+(12 hallazgos) y los demás. Referencia de tamaño: **`onboarding`** (16 secciones, 9
 hallazgos) en «donde nace la solicitud» contra «qué se le pregunta al cliente»; **`formalizacion`** (18
 secciones, 11 hallazgos) en «el cierre» contra «los documentos y quién los dibuja»; y **`kyc`** (18
 secciones tras #134, 11 hallazgos y los más caros de todos — el impostor del buró ya no se elige por el
@@ -338,10 +342,24 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
   ya la había arreglado otra sesión en paralelo, y la coincidencia vale como aval. La otra la apliqué yo:
   el `APP_ENV` de staging **no es `development` y nunca lo fue** en la historia de los cuatro workflows,
   así que la instrucción quedó al revés — no dar por apagado nada ahí hasta medirlo en el servicio.
-- **Cuatro PRs abiertos y 22 correcciones aplicadas:** #134 (identidad de Credifamilia, dictado por API),
-  #135 (11 correcciones en `altas`, el nodo `credenciales` nuevo y el techo de palabras subido), #136
-  (6 en `cartera` y el presupuesto de la búsqueda), #137 (`arquitectura` partida en dos y sus 10). El
-  corpus pasa de 28 a **30 nodos** al mergear. Quedan **139 hallazgos** en cola.
+- **SEIS PRs MERGEADOS (#134 a #139) y 47 correcciones aplicadas.** El corpus pasó de 28 a **32 nodos**:
+  nacieron `credenciales`, `fronteras`, `formularios` y `documentos`, los cuatro por partir un nodo que
+  tenía dos asuntos adentro. `main` validado: 115/115, lint ✓, y CI verde.
+- ⚠ **Y lo que más importa de todo el tramo: el banco NO es una métrica, es una COMPUERTA DE BUILD.**
+  `-bench` sale con código 1 fuera de 115/115 y el Dockerfile lo encadena con `&&`, así que una caída
+  **no es un costo, es un build rojo**. Estuve reportando 113, 114 y 112 como «costo medido» cuando eran
+  tres PRs que no podían mergear. Se descubrió al ir a mergear, mirando por qué tres estaban «unstable».
+- **Y los tres se arreglaron sin tocar el banco de preguntas, con la propia regla del corpus:** las
+  secciones que perdían su pregunta no tenían las palabras con que llega, y la competidora sí. «El error
+  del banco no dice nada útil» perdía contra una sección hermana cuyo título tiene «banco» y «dice»;
+  «cuando se crea la solicitud» perdía contra una que dice «se crea» mientras la correcta decía sólo
+  «nace»; «subir el ingreso hace que salgan más entidades» y «por qué todos aparecen como empleados»,
+  igual. Escribirlas con la queja tal como llega devolvió las cuatro. **Recortar la prosa no movía
+  ninguna** — se intentó primero, en dos de los tres.
+- **Un defecto de prueba propio, que enseñaba solo:** la prueba del recorte del mapa elegía el tema
+  recorriendo el mapa de nodos, que Go recorre en orden ALEATORIO, y sin exigir que hubiera un área que
+  no respaldara la sección. Verde en local y rojo en CI **con el mismo corpus**. Con los nodos nuevos
+  —que tienen dos áreas— la probabilidad de caer en el caso degenerado subió y salió a la luz.
 - **La regla que salió medida, y es la que ordena lo que falta:** partir un nodo cuesta **cero** y
   recupera lo que el crecimiento costó; agregar prosa cuesta banco **en proporción al volumen** y no se
   arregla con sinónimos. El umbral está cerca de **500 palabras por nodo por tanda** — `arquitectura`
