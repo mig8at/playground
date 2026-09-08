@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -305,6 +305,37 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 ## Registro
 
 ### 2026-09-08
+
+- **`kyc` cerrado: los once hallazgos, verificados uno por uno contra `origin/main` antes de escribir una
+  línea. Cero discrepancias — los once se sostuvieron.** PR #143, mergeado. Era el tema que se dejó para
+  el final y las dos razones resultaron ciertas:
+  - ⚠ **El impostor del buró ya NO se elige por el nombre del ambiente.** El candado por «local o
+    desarrollo» se quitó del monolito nuevo en mayo de 2026. Hoy son tres pasos, y el primero —la regla
+    por celular— **no mira el ambiente: también aplica en producción**. **En local, sin host de simulación
+    configurado, la consulta se paga y queda registrada a nombre de la cédula que pongas.** Quien leía la
+    sección anterior creía estar protegido por estar en local. En el monolito viejo el candado sigue
+    vivo. La sección cambió de título porque el anterior afirmaba lo que ya no es cierto.
+  - ⚠ **Lo que va plano en `request` no es inocuo:** guarda el cuerpo tal cual se le mandó al proveedor,
+    y para el reporte de crédito eso lleva **el usuario y la clave corta de la credencial, sin cifrar**.
+    Y `request` **no está en la lista de atributos que el modelo oculta** —ahí sólo está `data`—, así que
+    cualquier respuesta que serialice la fila entera la expone. La sección anterior sacaba de ahí una
+    consecuencia operativa y callaba ésta, o sea que invitaba a pegarla en un ticket.
+  - **Las otras nueve:** eran OCHO etapas y no cinco (y las tres que faltaban son donde cortan las reglas
+    de negocio); la consulta de nómina **reescribe** y no borra, así que «contar borrados» reporta cero
+    reintentos; el arreglo del cero del ingreso **no llegó al monolito viejo**, o sea que el reclamo puede
+    estar pasando hoy; el criterio del apellido **no es opuesto** —las dos separan por palabras— y el
+    título tampoco se sostenía; hay **un rechazo forzado por nosotros** que no es de Experian y se fuerza
+    igual si el usuario no tiene cédula cargada; **esperar en NODECISION cuesta** y el límite vale cero
+    por defecto; y tres arreglos de grafo (`user_summaries`, `user_field_values` + `allied_branches`,
+    `lender_integration_flows`).
+  - **Medido: bench 115/115 y el 1er resultado SUBE de 92 a 93.** Soporte 120/124, equipo 26/26. El pin
+    del banco se remapeó porque la sección cambió de título, no para esconder una regresión.
+  - **Probado con dos preguntas nuevas:** «si pruebo en local se le cobra la consulta al buró» →
+    respaldada con la advertencia exacta, y **esa respuesta no existía una hora antes**. «Puedo pegar la
+    columna request en un ticket» → respaldada, contestó que no. ⚠ Ésta **suavizó el motivo** («información
+    sensible» en vez de nombrar la credencial): correcta y menos accionable de lo que la sección permite.
+    Se anota, no se afina.
+  - **Quedan ~120 hallazgos**, con `bancolombia` (12) como siguiente.
 
 - **Cinco preguntas que nunca se le habían hecho, contra el despliegue. Las cinco respaldadas, ninguna
   inventó nada** — y de ahí salió el PR #142 (mergeado). Fueron de tipos distintos a propósito, que
