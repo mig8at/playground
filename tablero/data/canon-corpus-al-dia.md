@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -45,6 +45,15 @@ escribir, de los que entraron dos secciones a `kyc`. El camino de escritura func
 hueco: el guion pedía los archivos pero no el `objetivo` del área que forman, así que el área nacía con
 un eco del título. Arreglado en el mismo PR, con el aviso en el momento de la omisión y el ensayo que
 lo protege.
+
+Y el 2026-09-08 se cerró el frente que Miguel abrió con una objeción de fondo: **que cada sección cargue
+las palabras con que llega su pregunta no escala.** Tenía razón, y el arreglo está en el PR #140
+(abierto): el glosario —que por diseño se escribe con las palabras del reporte y ya enlaza la sección que
+contesta— ahora **empuja** lo que apunta. La compuerta léxica queda en 115/115 y el 1er resultado sube de
+89 a 92; apagando el empujón, 113/115. Los tres parches de prosa salieron del texto, y uno de ellos nunca
+había hecho falta. ⚠ Del lado del **modelo** queda una tensión sin resolver, que es decisión de diseño y
+no bug: contesta desde la entrada del glosario y la cita a ella en vez de seguir el enlace (1 de 3
+corridas citó la sección). Los números y las tres formas de entrada que se probaron, en el cuerpo del PR.
 
 **El próximo paso es:** seguir con los temas que quedan. De los nodos gordos ya se partieron
 `arquitectura`, `onboarding` y `formalizacion`; queda `kyc`, que ahora SÍ se puede tocar porque #134
@@ -280,6 +289,53 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 > como guía canónica.
 
 ## Registro
+
+### 2026-09-08
+
+- **El problema de las palabras dejó de arreglarse a mano.** Venía medido cuatro veces: agregar prosa a
+  un tema bajaba el banco léxico, y la causa no era el volumen sino que **la sección que contesta no
+  tenía las palabras con que llega la pregunta** y otra sección sí. El arreglo que se venía aplicando
+  —escribir las dos formas EN la sección— cuesta media línea y hay que pagarlo en cada sección: con 306
+  se aguanta, con 3.000 es un impuesto que nadie mantiene. Miguel lo objetó con esa razón exacta y tenía
+  razón.
+- **El arreglo (PR #140, abierto): el glosario empuja a la sección que apunta.** Las palabras del reporte
+  ya tienen un lugar con dueño —el glosario, que por diseño se escribe con ellas— y cada entrada ya
+  enlaza la sección que contesta. Ahora ese enlace se usa para rankear: si la consulta pega en una
+  entrada, sube lo que la entrada apunta. Es la forma del grafo de entidades (consulta → entidad →
+  documentos), con la entidad escrita a mano y cada empujón auditable en un campo propio de la respuesta.
+- **Medido, con la compuerta léxica que es gratis:** 115/115 entre los tres primeros (igual que `main`) y
+  el 1er resultado sube **89 → 92** con el empujón. Apagándolo sobre el mismo contenido: **113/115**. Ésa
+  es la atribución — las entradas solas no alcanzan, el empujón las convierte en ruteo.
+- **Los tres parches de prosa salieron** (`kyc`, `bancolombia`, `creditopx`) y pasaron a ser entradas de
+  glosario. Y salió algo que vale más: **el de `creditopx` no cae ni con el empujón apagado** — nunca hizo
+  falta. Se había agregado por analogía con los otros dos y nadie lo comprobó.
+- **Dos límites del empujón, los dos aprendidos en rojo.** Pesa por cuánto de la pregunta cubre el
+  **nombre** de la entrada, no su cuerpo: sin eso la entrada genérica «Entidad» empujaba sus secciones en
+  cualquier consulta que dijera «entidad» y le ganaba a la correcta (115 → 114). Y es una fracción del
+  acierto del glosario, para no pisar a una sección que matchea de frente.
+- **Dos bugs que esto destapó.** `recortarTema` leía sólo el balde `prosa`, y los aciertos de
+  `vocabulario/` van al balde `glosario` a propósito: **el glosario no se podía recortar**, devolvía el
+  tema entero siempre. Estaba así desde que existen los dos baldes y no se notaba porque el glosario nunca
+  era el tema más largo — al sumarle dos entradas pasó a serlo (2.838 palabras contra 2.786 de `kyc`) y
+  las pruebas se pusieron rojas. Y **dos pruebas elegían el tema recorriendo el mapa sin ordenar**, que es
+  exactamente cómo una ya pasó verde en local y roja en CI; van con `SortedIDs`, y la del recorte con `q`
+  ahora exige un tema **con áreas** (con el glosario quedaba en «0 contra 0», que pasa sin probar nada).
+- ⚠ **Lo que NO quedó resuelto, y es una decisión, no un bug.** Del lado del modelo (Gemini local,
+  `gemini-2.5-flash`) el comportamiento se corre y no del todo para bien: **contesta desde la entrada del
+  glosario y la cita a ella**, en vez de seguir el enlace y citar la sección. Corriendo **una** pregunta
+  tres veces: **1 de 3** citó lo esperado. La respuesta es correcta y sale del corpus; lo que se pierde es
+  el camino al detalle, que para soporte es el valor. El comportamiento ya existía (el glosario viaja en
+  todas las búsquedas desde el 09-05), pero entradas que *contestan* lo hacen mucho más probable. Se
+  probaron tres formas de entrada —paráfrasis (el modelo se queda), puntero pelado (cita bien y relaya el
+  título sin contenido), y una línea de verdad más el enlace (la que quedó)— y ninguna lo resuelve del
+  todo.
+- **Y una regla de método que se confirmó sola:** la nota del glosario se cambió («es una PUERTA, no el
+  destino») pero **no está medida** — con tres corridas no se distingue del ruido. Se cambió porque la
+  frase anterior, «se cita como cualquier sección», contradice el diseño. El esfuerzo que sí movió la
+  aguja fue el de la herramienta, no el del guion, otra vez.
+- Modelo local: ⚠ **`gemini-3.8-flash` devolvió 503 tres veces** («high demand»). No era canon:
+  `gemini-2.5-flash` contestó de una. Si el camino del modelo parece caído, probá el otro modelo antes de
+  buscar el bug.
 
 ### 2026-09-07
 
