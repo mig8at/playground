@@ -292,6 +292,32 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ### 2026-09-08
 
+- **Y el cierre del día fue sacar el ruido, que es la parte que evita repetir el error.** Miguel lo pidió
+  así: eliminar de «cómo se debe usar» todo lo que lleva a caer en lo mismo, decir que el banco es un
+  EJEMPLO, que probar es con dos preguntas completamente nuevas, y mantener la metáfora de las
+  herramientas versátiles.
+  - **Lo que llevó a equivocarse estaba escrito, y sonaba razonable.** Tres frases hacían del banco la
+    vara: «el banco es la única medida de si el agente contesta bien», «el orden de los resultados no
+    cambia: el banco lo mide» y «el lint y el banco de preguntas contestan ahí». Y en la historia, el
+    título «`-soporte`, la vara real» caducó por la misma razón —también es un archivo—: ahora lo dice y
+    apunta adelante, sin reescribir lo medido.
+  - **Las tres reglas quedaron ARRIBA del README, antes de cualquier comando**: herramientas versátiles
+    en vez de instrucciones (ya estaba medido, pero vivía en la línea 509); el banco como ejemplo; y dos
+    preguntas nuevas por cambio, con las tres cosas que se miran de la respuesta —`respaldada`, a qué
+    ancla citó, y la traza— y por `/api/pregunta`, que es el único camino que guarda.
+  - **Y la prueba práctica que faltaba, para no volver a meter una respuesta prefabricada: ¿esto describe
+    el DATO, o dice qué hacer con él?** Si dice qué hacer y lo correcto depende de la pregunta, va afuera.
+  - **El guion que el modelo lee quedó sin procedimiento impuesto.** `skills/consultar.md` abría
+    clasificando la pregunta en dos tipos y seguía con cinco pasos numerados; ahora abre diciendo que el
+    camino lo elige él, y lo que queda son los hechos medidos de la búsqueda. No se perdió una medición:
+    se perdió el orden que nadie pidió. Igual el «empezá por `ubicar`» del prompt.
+  - **Probado con la regla misma, dos preguntas de ningún banco.** «Qué temas del canon declaran el
+    archivo que calcula la cuota del listado» → respaldada, y **usó `ubicar` por su cuenta** con el plural
+    y los tres archivos en una llamada, sin que nadie le diga por dónde empezar. «Qué pasa si el cliente
+    abandona el formulario a mitad y vuelve al otro día» → respaldada con lo que sabe y **nombrando el
+    hueco** (el canon no cubre la persistencia de un formulario abandonado), que queda guardado como
+    deuda de cobertura.
+
 - **Y una tercera vuelta, de dos preguntas de Miguel — las dos con respuesta concreta en el código.**
   - **«¿estamos guardando el flujo para analizarlo después?» → NO.** Se guardaba `pasos integer`, el
     CONTEO. La traza existe desde siempre (la lista ordenada de `buscar(q=…)`, `leer(ids=…)` y los
