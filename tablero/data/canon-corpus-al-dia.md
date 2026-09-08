@@ -306,6 +306,29 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ### 2026-09-08
 
+- **#140 MERGEADO (`3f4df39`) y VALIDADO EN PROD**, con las dos preguntas de presupuesto y ninguna más.
+  Prod corre `us.anthropic.claude-sonnet-5`.
+  - «un cliente dice que le aprobaron y después le dijeron que no, qué le explico» → **respaldada, 4
+    pasos, 17,4 s**, y **buscó DOS veces con palabras distintas** antes de leer: exactamente la conducta
+    que habilita el cambio. Citó cuatro secciones de cuatro temas y contestó lo correcto —que lo que el
+    cliente vio era un preaprobado, una estimación, y que eso pasa por diseño en varias entidades.
+  - «qué pasa si el comercio cambia el plazo después de que el cliente firmó» → **respaldada** y con un
+    `no_pude` honesto para el caso puntual, contestando bien los dos escenarios (crédito vivo por el hub
+    de autogestión, con el hueco de validación conocido; y el plan de pagos). Pero **se comió los 14
+    pasos y terminó en aterrizaje forzoso, 48,9 s**.
+  - ⚠ **HALLAZGO, y es el costo del cambio con nombre y apellido:** de esos 15 pasos, **11 fueron `leer`
+    y 8 de ellos de a UN id**. Sin el índice de anclas en el prompt, una pregunta que cruza varios temas
+    descubre las anclas buscando y después las lee de a una, y ahí se acaba el presupuesto. Los primeros
+    `leer` sí usaron el plural y después dejó de usarlo.
+  - **No es un bug nuevo ni una sorpresa del todo:** el mismo cuadro —quedarse sin pasos repitiendo una
+    herramienta— está documentado en el README de canon, y ahí la lección fue que **el arreglo es de
+    herramienta**: a la tercera vez que pedía la misma área se le dio el índice en vez de regiones, y los
+    pasos bajaron de 15 a 10-12 con −23% de entrada. El mismo tipo de arreglo aplica acá y **no se hizo**:
+    es un cambio propio, con su propia validación de dos preguntas nuevas, y la decisión es de Miguel.
+  - **Y una lección del despliegue, que costó una confusión:** es RODANTE. La sonda gratis dijo
+    «desplegado» y el read siguiente devolvió `not_found` — dos pods distintos. Con 12 sondas seguidas dio
+    12 de 12 nuevo. **Una sonda sola puede mentir mientras rueda: hay que sondear varias veces.**
+
 - **Y Miguel aprobó la versión fuerte: el mapa del prompt dice los TEMAS y ninguna ancla.** Listaba las
   309 anclas de los 32 temas, y eso decidía por el modelo: una cuyo nombre se parecía a la pregunta era
   un atajo irresistible —iba derecho con `leer` y **no buscaba nunca**—, así que el ranking y cualquier
