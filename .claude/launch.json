@@ -162,9 +162,11 @@
     },
     {
       "name": "canon",
-      "runtimeExecutable": "/private/tmp/claude-501/-Users-miguelochoa-Desktop-CREDITOP-playground/528ecdea-60ca-468d-9ae8-3a0f264ff205/scratchpad/canon-run.sh",
-      "runtimeArgs": [],
-      "port": 8597,
+      "runtimeExecutable": "/Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/canon/dev/servir-local.sh",
+      "runtimeArgs": [
+        "8383"
+      ],
+      "port": 8383,
       "autoPort": false
     },
     {
