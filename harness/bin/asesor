@@ -89,6 +89,12 @@ RESULT="${3:-success}"
 case "$RESULT" in success|rejected|pending) ;; *) echo "✗ status inválido: '$RESULT'. Usá: success | rejected | pending"; exit 1;; esac
 ENTRY="${CFE_ENTRY:-cognito}"               # bin/ecommerce exporta CFE_ENTRY=ecommerce
 ECOMMERCE=0; [ "$ENTRY" = "ecommerce" ] && ECOMMERCE=1
+# Canales SIN asesor. Comparten que no hay a quién asignarle la sucursal ni sesión que renovar, pero
+# entran por puertas distintas: `self-service` es el cliente que va solo por el tronco normal del
+# wizard, `qr` es la caja de un comercio Corbeta. ⚠ Saltear `load-permiso` acá no es sólo ahorro: ese
+# paso BORRA el cache de sesión de Cognito cuando la asignación cambia, y hacerlo para un canal que ni
+# loguea le rompe la próxima corrida del asesor.
+SIN_ASESOR=0; { [ "$ENTRY" = "self-service" ] || [ "$ENTRY" = "qr" ]; } && SIN_ASESOR=1
 
 # env que lee el spec (dev/guided.spec.ts cubre GUIADO y MANUAL según E2E_GUIDED)
 export E2E_TARGET="$TARGET" E2E_BASE_URL="$WIZ_BASE" E2E_ENTRY="$ENTRY" E2E_GUIDED="$GUIDED" E2E_RESULT="$RESULT" E2E_PREVIEW=1
@@ -193,6 +199,8 @@ if [ "$PREBOOT" = 1 ]; then
   ok "load-permiso" "n/a (preboot: no se toca la BD)"
 elif [ "$ECOMMERCE" = 1 ]; then
   ok "load-permiso" "n/a (ecommerce, sin asesor)"
+elif [ "$SIN_ASESOR" = 1 ]; then
+  ok "load-permiso" "n/a (${ENTRY}, sin asesor)"
 else
   CUR="$(node bin/dbops.ts whois "$SUB" 2>/dev/null | json_pick '.matches[0].allied_branch_hash')"
   if [ "$CUR" = "$HASH" ]; then
@@ -458,6 +466,8 @@ else
   # ofrecerla mandaba a una pantalla que no es la de este recorrido.
   if [ "$ENTRY" = "qr" ]; then
     echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/bancolombia/self-service/$HASH/solicitar"
+  elif [ "$ENTRY" = "self-service" ]; then
+    echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/self-service/$HASH/solicitar"
   else
     echo "✅ '$MERCHANT' OK contra ${TARGET} · a mano: ${WIZ_BASE}/merchant/$HASH/solicitar"
   fi

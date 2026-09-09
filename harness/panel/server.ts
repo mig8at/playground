@@ -426,7 +426,9 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             ? 'ECOMMERCE — entra por URL base64 de la tienda (sin asesor)'
             : canal === 'qr'
             ? 'QR — caja de un comercio Corbeta, autogestión pura (sin asesor y SIN marketplace)'
-            : 'ASESOR — login Cognito + wizard'),
+            : canal === 'autogestion'
+            ? 'AUTOGESTIÓN — el cliente entra solo por /self-service (sin login, un solo dispositivo)'
+            : 'ASESOR — login Cognito + wizard en /merchant'),
         row('modo', inject ? 'SINTÉTICO — inyecta el buró (salta la consulta real)' : 'REAL — consulta el buró de verdad, sin inyección'),
         // Qué FRONT se abre. Va en el rastro porque es lo primero que se pierde de vista al probar un
         // cambio del front: si corriste contra el desplegado, tus cambios locales no estaban ahí.
@@ -481,7 +483,11 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         // CANAL: 'ecommerce' hace que el spec entre por la URL base64 (pkg/checkout-b64.ts) en vez del
         // login de asesor. El usuario sintético es el MISMO — viaja adentro del pedido serializado.
         // 'qr' entra por el aterrizaje del QR de caja (pkg/qr.ts): autogestión, sin Cognito y sin /lenders.
-        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : 'cognito',
+        // 'autogestion' entra por `/self-service/{hash}/solicitar`: el tronco NORMAL del wizard pero sin
+        // sesión, que es como llega el cliente de un comercio con «Habilitar auto gestión» prendido.
+        // ⚠ No es una variante cosmética del canal del asesor: las dos puertas montan el mismo módulo del
+        // front, pero `/merchant/*` está detrás de login y con sesión el backend resuelve punto de venta.
+        E2E_ENTRY: canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : canal === 'autogestion' ? 'self-service' : 'cognito',
         // salto de pasos: monto (vos manejás) | phone | personal-info | lenders (auto-avanza inyectando el sintético).
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
@@ -507,7 +513,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     };
     // detached → el hijo lidera su propio grupo de procesos; así "Detener" mata el ÁRBOL entero
     // (bash → npx playwright → node → chromium), no solo el bash.
-    const bin = canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : 'asesor';   // bin/ecommerce y bin/qr son wrappers que exportan CFE_ENTRY
+    const bin = canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : canal === 'autogestion' ? 'autogestion' : 'asesor';   // ecommerce/qr/autogestion son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
     current = { child, slug, target: t, inject, startedAt: Date.now(), done: false, code: null };
     bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
@@ -898,6 +904,12 @@ const server = createServer(async (req, res) => {
     //    self-service ÚNICAMENTE a los allieds del `Setting('corbeta_allieds')`; para el resto el QR cae
     //    en `registrar-celular/{hash}`, que es el mismo tronco del asesor → ofrecerlo sería una perilla
     //    que no mueve nada (mismo criterio que `CAPS`).
+    //  · **Autogestión en todos los que no son Corbeta.** Es una PUERTA, no una configuración: entra por
+    //    `/self-service/{hash}/solicitar`, que es público en cualquier comercio. Ofrecerlo siempre es lo
+    //    honesto — si el comercio NO tiene «Habilitar auto gestión» prendido, el recorrido igual sirve
+    //    para VER qué hace el flujo sin asesor (que es una pregunta legítima), y lo que cambia es el
+    //    desenlace, no si la puerta abre. Filtrarlo por `allieds.self_managed` costaría una consulta más
+    //    y escondería justamente el caso que uno quiere comparar.
     //  · **En Corbeta, SÓLO QR.** Decisión de Miguel, y es la correcta para lo que el panel es: correr el
     //    recorrido de PRODUCCIÓN. En un comercio Corbeta el cliente entra escaneando el QR de la caja; no
     //    hay asesor ni carrito. Ofrecer los otros dos invitaba justo a la confusión que apareció en la
@@ -911,18 +923,18 @@ const server = createServer(async (req, res) => {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
         const hash = branchHashForSlug(slug, target);
-        if (!hash) return json(res, 200, { hash: '', corbeta: false, canales: ['asesor', 'ecommerce'], msg: `sin branch_hash para '${slug}'` });
+        if (!hash) return json(res, 200, { hash: '', corbeta: false, canales: ['asesor', 'autogestion', 'ecommerce'], msg: `sin branch_hash para '${slug}'` });
         const r = await dbopsJson(['is-corbeta', hash], target);
         // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
         // Corbeta" ante un error escondería el canal QR justo cuando sí corresponde.
         if (!r || typeof r !== 'object' || !('corbeta' in r)) {
             const msg = r && typeof r === 'object' && 'error' in r ? String((r as any).error) : 'no se pudo resolver';
-            return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${msg})` });
+            return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${msg})` });
         }
         const corbeta = !!(r as any).corbeta;
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
-            canales: corbeta ? ['qr'] : ['asesor', 'ecommerce'],
+            canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce'],
         });
     }
 

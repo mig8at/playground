@@ -936,12 +936,17 @@
       </div>
 
       <!-- CANAL de entrada: por dónde ENTRA la solicitud. Asesor = login Cognito + wizard en /merchant.
-           Ecommerce = la tienda arma una URL base64 con el pedido y el cliente aterriza redirigido. El
-           usuario sintético es el MISMO en los dos: lo único que cambia es la puerta. -->
+           Autogestión = el cliente entra solo por /self-service, sin login. Ecommerce = la tienda arma una
+           URL base64 con el pedido y el cliente aterriza redirigido. El usuario sintético es el MISMO en
+           todos: lo único que cambia es la puerta.
+           ⚠ Asesor y Autogestión montan el MISMO módulo del front para `solicitar`, así que la pantalla se
+           ve igual — pero `/merchant/*` está detrás de login y `/self-service/*` no, y con sesión el
+           backend resuelve punto de venta. Probar autogestión por el canal del asesor prueba otra cosa. -->
       <div class="field" style="margin-top:16px">
         <label>Canal de entrada</label>
         <div class="seg" id="canal">
           <button class="on" data-c="asesor">Asesor · login + wizard</button>
+          <button data-c="autogestion">Autogestión · el cliente solo</button>
           <button data-c="ecommerce">Ecommerce · URL base64</button>
           <button data-c="qr">QR · caja Corbeta</button>
         </div>
@@ -1864,7 +1869,9 @@
         const ok = !canalesOk || canalesOk.includes(b.dataset.c);
         b.disabled = !ok;
         b.style.opacity = ok ? '' : '.4';
-        b.title = ok ? '' : (b.dataset.c === 'qr'
+        b.title = ok ? '' : (b.dataset.c === 'autogestion' && esCorbeta
+          ? 'En un comercio Corbeta la autogestión ya es el canal QR: el cliente entra escaneando en la caja, no por un link.'
+          : b.dataset.c === 'qr'
           ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
           : esCorbeta
           ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
@@ -1873,7 +1880,13 @@
           : 'Este canal no aplica a este comercio.');
       });
       $('canalhint').innerHTML = canal === 'asesor'
-        ? 'Login de asesor (Cognito) y el wizard abre en monto.'
+        ? 'Login de asesor (Cognito) y el wizard abre en monto, en el tronco <code>/merchant</code>.'
+        : canal === 'autogestion'
+        ? 'El cliente entra SOLO por <code>/self-service/{hash}/solicitar</code>: sin login, sin barra de asesor y '
+          + '<b>un solo dispositivo</b> — al elegir la entidad sigue en la misma ventana en vez de entregar el proceso. '
+          + 'Es el recorrido de un comercio con «Habilitar auto gestión» prendido (<code>allieds.self_managed</code>), como Alta Fleet. '
+          + '<b>Si el comercio NO lo tiene prendido</b>, la puerta abre igual y sirve para comparar: lo que cambia es el desenlace, '
+          + 'que vuelve al handoff.'
         : canal === 'qr'
         ? 'El cliente escanea el QR en la CAJA de un comercio Corbeta (Alkosto/K-TRONIX/Alkomprar): autogestión pura, sin asesor. '
           + '<b>No pasa por el marketplace</b> — el OTP resuelve la pre-aprobación y decide solo entre BNPL (68) y Consumo (100). '

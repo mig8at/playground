@@ -46,7 +46,7 @@ const RESULT = process.env.E2E_RESULT ?? 'success';                    // cómo 
 // user_request_status_id esperado por desenlace (11=Autorizada, 6=Negada, 10=Pendiente). Definido UNA
 // sola vez en pkg/trace.ts y compartido con dev/sweep.ts — tener dos copias es como empiezan a derivar.
 const RESULT_STATUS = traza.ESTADO_ESPERADO;
-const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'ecommerce' (checkout base64) | 'qr' (caja Corbeta, autogestión)
+const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'self-service' (el cliente solo) | 'ecommerce' (checkout base64) | 'qr' (caja Corbeta)
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
 const AUTH = join(process.cwd(), '.auth');
@@ -54,7 +54,7 @@ const AUTH = join(process.cwd(), '.auth');
 /** El loan_request_id en la URL del wizard. Anclado por el segmento SIGUIENTE porque el teléfono ocupa
  *  la MISMA posición (`/merchant/{hash}/{phone}/otp`) y sin ancla se capturaba el celular como uReq. */
 const UREQ_EN_URL = new RegExp(
-    `\\/(?:merchant|ecommerce)\\/[^/]+\\/(\\d+)\\/(?:${'personal-info|employment-info|kyc-processing|kyc-status|lenders|confirmation|additional-info|sign-documents|otp-validation|first-payment-date|payment-schedule|payment-reminder|identity-validation|additional-identity-validation|retry-validation|request-canceled|loan-approved|request-sent|security-validation|abaco|validation-status|aws-validation-status|lender-results|identity-validation-providers|identity-validation-switch-provider|rate-limit-exceeded'})(?:[/?#]|$)`,
+    `\\/(?:merchant|ecommerce|self-service)\\/[^/]+\\/(\\d+)\\/(?:${'personal-info|employment-info|kyc-processing|kyc-status|lenders|confirmation|additional-info|sign-documents|otp-validation|first-payment-date|payment-schedule|payment-reminder|identity-validation|additional-identity-validation|retry-validation|request-canceled|loan-approved|request-sent|security-validation|abaco|validation-status|aws-validation-status|lender-results|identity-validation-providers|identity-validation-switch-provider|rate-limit-exceeded'})(?:[/?#]|$)`,
 );
 const MOCK_STORE = pathToFileURL(join(process.cwd(), 'mock-store', 'index.html')).href;
 const MOCK_BANK = pathToFileURL(join(process.cwd(), 'mock-bank', 'index.html')).href;
@@ -347,8 +347,11 @@ test('guided (semiautomático)', async ({ browser }) => {
         'Elegí el lender en la ventana A (izquierda). Según la rama que tome el flujo, esta ventana abre lo que le toca al cliente.');
 
     // De la URL de A (/merchant|/ecommerce/{hash}/{ur}/…) al link del CLIENTE (/self-service/{hash}/{ur}/confirmation).
+    // ⚠ `self-service` está en la alternancia a propósito: en el canal de AUTOGESTIÓN la ventana A ya ES
+    // el celular del cliente, así que la conversión es la identidad y no hay que tratarla como un caso
+    // aparte — sin eso, el enrutador de B se quedaba con la cadena vacía y no abría nada.
     const selfServiceLinkFrom = (u: string): string => {
-        const m = u.match(/^(https?:\/\/[^/]+)\/(?:merchant|ecommerce)\/([^/]+)\/(\d+)\//);
+        const m = u.match(/^(https?:\/\/[^/]+)\/(?:merchant|ecommerce|self-service)\/([^/]+)\/(\d+)\//);
         return m ? `${m[1]}/self-service/${m[2]}/${m[3]}/confirmation` : '';
     };
 
@@ -894,7 +897,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         // recortaba a solo rt=0, sin pre-aprobaciones, y el stream cerraba al toque. `commit` resuelve apenas
         // el server responde (post-302 de sesión): la página se pinta sola y la maneja el usuario; quien
         // confirma el aterrizaje es el needsCognito()/waitForURL de abajo, no este waitUntil.
-        const jump = `/merchant/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
+        // El tronco lo decide el CANAL: `/merchant/*` exige sesión y en autogestión no hay ninguna, así
+        // que el mismo salto contra ese tronco terminaría en el login en vez del marketplace.
+        const tronco = ENTRY === 'self-service' ? 'self-service' : 'merchant';
+        const jump = `/${tronco}/${HASH}/${ur}/lenders?amount=${AMOUNT}`;
         const navErr = await page.goto(jump, { waitUntil: 'commit', timeout: 30_000 })
             .then(() => null, (e: Error) => e);
         if (navErr) {
@@ -940,6 +946,23 @@ test('guided (semiautomático)', async ({ browser }) => {
         }
         // Diagnóstico del backend (corrió en paralelo con el salto): su línea sale ACÁ, ya con la UI cargando.
         await preflight;
+    } else if (ENTRY === 'self-service') {
+        // ── ENTRADA POR AUTOGESTIÓN (el cliente solo, sin asesor) ─────────────────────────────────────
+        // El cliente abre el link del comercio en su celular y hace todo él. Es el canal de un comercio
+        // con «Habilitar auto gestión» prendido (`allieds.self_managed`), como Alta Fleet.
+        //
+        // ⚠ La diferencia con el canal del asesor NO es cosmética, y es fácil equivocarse porque las dos
+        // puertas montan el MISMO módulo para `solicitar` y la pantalla se ve igual: `/merchant/*` está
+        // detrás de login (medido: 302 a `/login`) y `/self-service/*` es público (200). O sea que probar
+        // autogestión por el tronco del asesor prueba OTRA cosa — con sesión, el backend resuelve punto de
+        // venta y el flujo termina en el handoff en vez de seguir de largo.
+        //
+        // Por eso este canal no toca Cognito ni carga storageState (la ventana A ya se abrió sin sesión,
+        // ver `openA` arriba): entrar con la sesión del asesor pegada convertiría la corrida en la otra.
+        const url = `/self-service/${HASH}/solicitar`;
+        log(`entrada autogestión: el cliente entra solo → ${url} (sin sesión de asesor)`);
+        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
+        await page.waitForURL(/\/self-service\/.+\/(solicitar|request-amount)/, { timeout: 90_000 });
     } else {
         await page.goto(`/merchant/${HASH}/solicitar`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
         if (needsCognito()) await cognitoLogin(page);   // con la sesión cacheada, ni entramos (ahorra 15s muertos)
@@ -1167,12 +1190,27 @@ test('guided (semiautomático)', async ({ browser }) => {
         // ── CreditopX (rt=2): A SE QUEDA en el handoff `continue` (autogestión "Escanea el QR" / asesor "link
         //    por WhatsApp", lo elige el wizard por flujo) ⟷ B = el celular del cliente, que continúa por el link
         //    en /self-service/.../confirmation. Abrimos B como 2ª ventana VISUAL y caminamos su journey. ──
-        log(`CreditopX → A: handoff \`continue\` natural (variant por flujo) · ${after}`);
-        if (!/continue/.test(hereOf(page))) {
-            await page.goto(`${base}/continue`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        // ⚠ EN AUTOGESTIÓN NO HAY DOS DISPOSITIVOS, y de ahí sale todo lo que este bloque hace distinto.
+        // El cliente YA está en A, y el front lo mandó solo a `/self-service/{hash}/{ur}/confirmation`
+        // —el `continueUrl` que resuelve el backend—, así que no hay handoff que mostrarle ni segunda
+        // ventana a la que entregarle nada: el journey del cliente se camina en la MISMA ventana.
+        // `cliente` es A o B según el canal, y el resto del bloque no necesita saber cuál.
+        //
+        // ⚠ Y forzar `${base}/continue` acá daría 404: esa ruta existe SÓLO bajo `/merchant/*`, que es
+        // justamente el defecto que el canal de autogestión vino a destapar (F-191).
+        const autogestion = ENTRY === 'self-service';
+        const cliente = autogestion ? page : B;
+
+        log(autogestion
+            ? `autogestión → el cliente sigue en la MISMA ventana (sin handoff) · ${after}`
+            : `CreditopX → A: handoff \`continue\` natural (variant por flujo) · ${after}`);
+        if (!autogestion) {
+            if (!/continue/.test(hereOf(page))) {
+                await page.goto(`${base}/continue`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            }
+            await page.getByText(/Solicitud en validación|Escanea este código|Usa tu celular|Continuá/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
         }
-        await page.getByText(/Solicitud en validación|Escanea este código|Usa tu celular|Continuá/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-        await shot(page, 'A-handoff');
+        await shot(page, autogestion ? 'A-autogestion' : 'A-handoff');
 
         // ── B = OTRA ventana (el celular del cliente): abre el link en /self-service/.../confirmation y VOS dale
         //    "Continuar" en B para avanzar (igual que A). Lo NO automatizable (captura de identidad por foto, firma
@@ -1180,10 +1218,10 @@ test('guided (semiautomático)', async ({ browser }) => {
         const selfServiceBase = base.replace(/\/(merchant|ecommerce)\//, '/self-service/');
         // B ya está abierta desde el arranque (mitad derecha, con el mock de validation-status montado y
         // esperando en su placeholder) — acá solo la llevamos al link del cliente.
-        log(`B (celular del cliente): abre el link → ${new URL(`${selfServiceBase}/confirmation`).pathname}`);
-        await B.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
-        await B.waitForTimeout(STEP_LINGER).catch(() => {});
-        await shot(B, 'B-confirmation');
+        log(`${autogestion ? 'autogestión' : 'B (celular del cliente)'}: ${new URL(`${selfServiceBase}/confirmation`).pathname}`);
+        await cliente.goto(`${selfServiceBase}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+        await cliente.waitForTimeout(STEP_LINGER).catch(() => {});
+        await shot(cliente, 'B-confirmation');
         // ¿El producto elegido pide ÁBACO? Se decide por PRODUCTO (des-motaización): el uReq llega a
         // confirmación con el lender del producto en user_requests.lender_id (verificado: renting/rto →
         // lender del producto), y check-abaco-requirement lo lee. Antes el guiado saltaba SIEMPRE a
@@ -1202,55 +1240,55 @@ test('guided (semiautomático)', async ({ browser }) => {
             // basta con `success` y /results devuelve el fixture (AbacoFixture) en local — así que credencial y
             // código son de relleno. Antes el guiado se comía este paso saltando directo a first-payment.
             log('B (celular): pide ÁBACO (renting/rto) → "Continuar" → /abaco → auto-manejo las plataformas gig.');
-            await B.getByRole('button', { name: /continuar|continúa|confirmar/i }).first().click({ timeout: 12_000 }).catch(() => {});
-            await B.waitForURL(/\/abaco/, { timeout: 30_000 }).catch(() => {});
-            await B.waitForURL(/\/abaco\/platforms/, { timeout: 20_000 }).catch(() => {}); // /abaco redirige a /platforms
-            await shot(B, 'B-abaco-platforms');
+            await cliente.getByRole('button', { name: /continuar|continúa|confirmar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await cliente.waitForURL(/\/abaco/, { timeout: 30_000 }).catch(() => {});
+            await cliente.waitForURL(/\/abaco\/platforms/, { timeout: 20_000 }).catch(() => {}); // /abaco redirige a /platforms
+            await shot(cliente, 'B-abaco-platforms');
             // 1) plataforma (uber, presente en abaco_config) → 2) credencial (el mock no la valida)
-            await B.getByRole('button', { name: /uber/i }).first().click({ timeout: 12_000 }).catch(() => {});
-            await B.getByPlaceholder(/3176580381|creditop\.com/i).first().fill('3176580381', { timeout: 8_000 }).catch(() => {});
+            await cliente.getByRole('button', { name: /uber/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await cliente.getByPlaceholder(/3176580381|creditop\.com/i).first().fill('3176580381', { timeout: 8_000 }).catch(() => {});
             // 3) Guardar (pide el OTP al mock) → 4) Continuar (→ pantalla de OTP)
-            await B.getByRole('button', { name: /^\s*guardar\s*$/i }).click({ timeout: 12_000 }).catch(() => {});
-            await B.getByRole('button', { name: /^\s*continuar\s*$/i }).click({ timeout: 15_000 }).catch(() => {});
-            await B.waitForURL(/platform-otp-validation/, { timeout: 20_000 }).catch(() => {});
-            await shot(B, 'B-abaco-otp');
+            await cliente.getByRole('button', { name: /^\s*guardar\s*$/i }).click({ timeout: 12_000 }).catch(() => {});
+            await cliente.getByRole('button', { name: /^\s*continuar\s*$/i }).click({ timeout: 15_000 }).catch(() => {});
+            await cliente.waitForURL(/platform-otp-validation/, { timeout: 20_000 }).catch(() => {});
+            await shot(cliente, 'B-abaco-otp');
             // 5) OTP: el mock no valida el código; 6 ceros (InputOTP trunca a su maxLength: 4 uber / 6 otras) → verificar
-            await B.locator('input').first().click({ timeout: 8_000 }).catch(() => {});
-            await B.keyboard.type('000000', { delay: 80 }).catch(() => {});
-            await B.getByRole('button', { name: /verificar|validar|continuar/i }).first().click({ timeout: 12_000 }).catch(() => {});
+            await cliente.locator('input').first().click({ timeout: 8_000 }).catch(() => {});
+            await cliente.keyboard.type('000000', { delay: 80 }).catch(() => {});
+            await cliente.getByRole('button', { name: /verificar|validar|continuar/i }).first().click({ timeout: 12_000 }).catch(() => {});
             log('B (celular): Ábaco auto-manejado (plataforma gig + OTP mock) → sigo a plazos.');
             tip('En B: si Ábaco quedó trabado en alguna pantalla, completá plataforma/OTP a mano — el mock aprueba cualquiera.');
         } else {
             // identidad (ADO, por foto) NO automatizable → el sistema la da por validada y B llega al plan de cuotas.
-            await B.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            await cliente.goto(`${selfServiceBase}/first-payment-date`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         }
-        await B.waitForURL(/first-payment-date|payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await cliente.waitForURL(/first-payment-date|payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // B-plazos: INTERACTIVO — vos dale "Continuar" en B (celular).
-        await B.getByText(/fecha de pago|primera cuota|primer pago|plazo/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        await cliente.getByText(/fecha de pago|primera cuota|primer pago|plazo/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
         log(`B (celular): plazos · ${hereOf(B)}`);
-        await shot(B, 'B-plazos');
+        await shot(cliente, 'B-plazos');
         tip('En la ventana B (celular): dale "Continuar" para avanzar al plan de cuotas.');
-        await B.waitForURL(/payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await cliente.waitForURL(/payment-schedule/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
-        // B-cronograma: INTERACTIVO — vos dale "Continuar"/"Confirmar" en B.
-        await B.getByText(/confirma tu plazo|n[úu]mero de cuotas|plan de pagos|cronograma|cuotas/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+        // B-cronograma: INTERACTIVO — vos dale "Continuar"/"Confirmar" en la ventana del cliente.
+        await cliente.getByText(/confirma tu plazo|n[úu]mero de cuotas|plan de pagos|cronograma|cuotas/i).first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
         log(`B (celular): cronograma · ${hereOf(B)}`);
-        await shot(B, 'B-cronograma');
+        await shot(cliente, 'B-cronograma');
         tip('En B: revisá el plan y dale "Continuar"/"Confirmar" para ir a la firma.');
-        await B.waitForURL(/otp-validation|sign-documents/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await cliente.waitForURL(/otp-validation|sign-documents/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // ── B-firma: INTERACTIVO. La firma del pagaré es por OTP. El teléfono es qa-bypass → el código es conocido
         //    (PHONE.slice(-6), los últimos 6) → lo sembramos (como el OTP de A) y VOS dale el botón para FIRMAR. ──
-        await B.waitForURL(/otp-validation/, { timeout: 15_000 }).catch(() => {}); // sign-documents → redirige a la firma OTP
-        const firmaOtp = B.getByTestId('otp-input').or(B.locator('input:not([type="hidden"])').first());
+        await cliente.waitForURL(/otp-validation/, { timeout: 15_000 }).catch(() => {}); // sign-documents → redirige a la firma OTP
+        const firmaOtp = cliente.getByTestId('otp-input').or(cliente.locator('input:not([type="hidden"])').first());
         await firmaOtp.waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
         await firmaOtp.click().catch(() => {});
-        await B.keyboard.type(PHONE.slice(-6), { delay: 80 }).catch(() => {});
+        await cliente.keyboard.type(PHONE.slice(-6), { delay: 80 }).catch(() => {});
         log(`B (celular): firma (OTP del pagaré sembrado: ${PHONE.slice(-6)}) · ${hereOf(B)}`);
-        await shot(B, 'B-firma');
+        await shot(cliente, 'B-firma');
         tip('En B (celular): el código del pagaré ya está (qa-bypass) → dale el botón para FIRMAR.');
-        await B.waitForURL(/loan-approved|approved/, { timeout: PICK_TIMEOUT }).catch(() => {});
+        await cliente.waitForURL(/loan-approved|approved/, { timeout: PICK_TIMEOUT }).catch(() => {});
 
         // la firma por UI cierra el crédito (Estado 11). Verificamos; safety net por backend si la UI no cerró.
         const st = await requestEstado11(Number(uReqID));
@@ -1259,10 +1297,10 @@ test('guided (semiautomático)', async ({ browser }) => {
 
         // B: crédito COMPLETADO (loan-approved). A: sigue en el handoff (no cambia).
         if (!/loan-approved/.test(hereOf(B))) {
-            await B.goto(`${selfServiceBase}/loan-approved`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            await cliente.goto(`${selfServiceBase}/loan-approved`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
         }
-        await B.getByText(/felicidades|desembolsad|monto utilizado|aprobad/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-        await shot(B, 'B-final');
+        await cliente.getByText(/felicidades|desembolsad|monto utilizado|aprobad/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+        await shot(cliente, 'B-final');
         log('B (celular): crédito COMPLETADO (loan-approved)');
         } else {
             // ── rejected / pending: el crédito NO se aprueba → seteamos el estado por backend (resolveRequestStatus:
@@ -1274,9 +1312,9 @@ test('guided (semiautomático)', async ({ browser }) => {
             const viaLabel = r.via === 'db' ? (r.httpStatus ? `UPDATE directo (simulador ${r.httpStatus}, sin ecommerce_request en asesor)` : 'UPDATE directo') : `simulador HTTP ${r.httpStatus}`;
             log(`B: resultado=${RESULT} → estado ${stR.statusId ?? statusId} (${RESULT === 'rejected' ? 'Negada' : 'Pendiente'}) · ${viaLabel}`);
             const lr = RESULT === 'rejected' ? 'rechazado' : 'en-proceso';
-            await B.goto(`${selfServiceBase}/lender-result?status=${lr}`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
-            await B.getByText(/no fue aprobada|no aprobad|rechaz|procesando|en validaci|en proceso|solicitud/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-            await shot(B, RESULT === 'rejected' ? 'B-rechazado' : 'B-pendiente');
+            await cliente.goto(`${selfServiceBase}/lender-result?status=${lr}`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            await cliente.getByText(/no fue aprobada|no aprobad|rechaz|procesando|en validaci|en proceso|solicitud/i).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+            await shot(cliente, RESULT === 'rejected' ? 'B-rechazado' : 'B-pendiente');
             log(`B (celular): crédito ${RESULT === 'rejected' ? 'RECHAZADO' : 'PENDIENTE'} (lender-result)`);
         }
 
@@ -1284,13 +1322,13 @@ test('guided (semiautomático)', async ({ browser }) => {
         //    return_url en BD) → vos lo clickeás en B y vuelve al comercio (return_url). En asesor/cognito el botón
         //    sigue siendo "Ver mi perfil" (sin return_url) y no hay retorno. ──
         if (ENTRY === 'ecommerce') {
-            const volver = B.getByRole('button', { name: /volver al comercio|ir al comercio/i })
-                .or(B.getByText(/volver al comercio|ir al comercio/i));
+            const volver = cliente.getByRole('button', { name: /volver al comercio|ir al comercio/i })
+                .or(cliente.getByText(/volver al comercio|ir al comercio/i));
             if (await volver.first().isVisible({ timeout: 10_000 }).catch(() => false)) {
-                await shot(B, 'B-volver-comercio');
+                await shot(cliente, 'B-volver-comercio');
                 tip('En B (celular): dale "Volver al comercio" para cerrar el flujo (te lleva al return_url del comercio).');
-                await B.waitForURL((u) => !u.pathname.includes('loan-approved') && !u.pathname.includes('lender-result'), { timeout: PICK_TIMEOUT }).catch(() => {});
-                await shot(B, 'B-en-comercio');
+                await cliente.waitForURL((u) => !u.pathname.includes('loan-approved') && !u.pathname.includes('lender-result'), { timeout: PICK_TIMEOUT }).catch(() => {});
+                await shot(cliente, 'B-en-comercio');
                 log('B (celular): volvió al comercio (return_url) — fin del flujo ecommerce CreditopX');
             } else {
                 log('B: el botón nativo quedó "Ver mi perfil" → la solicitud no tiene return_url en BD (el checkout no lo sembró). Reviso el checkout si lo necesitás.');
