@@ -305,19 +305,25 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // TRAZA DE B. Sin esto B es una caja negra: una corrida se quedó 20 min trabada en el celular y el log no
     // tenía UNA sola línea de esa ventana (todos los listeners colgaban de A). Mismo trato que A, prefijo `B`.
-    B.on('framenavigated', (f) => {
-        if (f !== B.mainFrame()) return;
-        let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
-        if (p !== 'about:blank') traza.paso('B', p, fotoNav(B, 'B'));
-    });
-    B.on('console', (m) => {
-        const t = m.type();
-        if (t !== 'error' && t !== 'warning') return;
-        const ss = m.text().slice(0, 200);
-        if (!/Download the React DevTools|PostHog|Lit is in dev|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|react-scan|react-grab|ERR_FAILED|hydrat|nonce/i.test(ss)) log(`  B ⚠ console.${t}: ${ss}`);
-    });
-    B.on('pageerror', (e) => log(`  B ⚠ pageerror: ${String(e.message).slice(0, 200)}`));
-    B.on('response', (r) => { if (r.status() >= 500) { let u = r.url(); try { u = new URL(r.url()).pathname; } catch { /* */ } log(`  B ⚠ HTTP ${r.status()} ${u}`); } });
+    //
+    // ⚠ En AUTOGESTIÓN no se engancha, porque `B` ES `A`: enganchar los mismos listeners dos veces
+    // duplicaba TODO el log —`01 A`, `02 B`, `03 A`… la misma URL alternando— y hacía parecer que la
+    // segunda ventana seguía abierta cuando no se abrió ninguna. La traza de A ya cubre el recorrido.
+    if (!UNA_VENTANA) {
+        B.on('framenavigated', (f) => {
+            if (f !== B.mainFrame()) return;
+            let p = f.url(); try { p = new URL(f.url()).pathname; } catch { /* about:blank / data: */ }
+            if (p !== 'about:blank') traza.paso('B', p, fotoNav(B, 'B'));
+        });
+        B.on('console', (m) => {
+            const t = m.type();
+            if (t !== 'error' && t !== 'warning') return;
+            const ss = m.text().slice(0, 200);
+            if (!/Download the React DevTools|PostHog|Lit is in dev|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|react-scan|react-grab|ERR_FAILED|hydrat|nonce/i.test(ss)) log(`  B ⚠ console.${t}: ${ss}`);
+        });
+        B.on('pageerror', (e) => log(`  B ⚠ pageerror: ${String(e.message).slice(0, 200)}`));
+        B.on('response', (r) => { if (r.status() >= 500) { let u = r.url(); try { u = new URL(r.url()).pathname; } catch { /* */ } log(`  B ⚠ HTTP ${r.status()} ${u}`); } });
+    }
     // React Scan (el overlay de FPS del wizard en dev) también en B: A ya lo bloqueaba y B se quedó con él.
     if (process.env.E2E_REACT_SCAN !== '1') await B.route(/react-scan|react-grab/, (r) => r.abort()).catch(() => {});
 
