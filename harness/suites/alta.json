@@ -4,13 +4,14 @@
   "porDefecto": { "comercio": "alta", "amount": 2000000, "income": 2500000, "score": 700 },
   "casos": [
     {
-      "nombre": "la entidad propia del comercio le sale al cliente",
+      "nombre": "la entidad propia del comercio es la única que le sale al cliente",
       "lender": null,
-      "espera": { "enListado": true }
+      "espera": { "entidades": [211] }
     },
     {
-      "nombre": "y el Rent to Own cierra en 11 — HOY FALLA: el payload builder se elige por id de entidad quemado, no por producto",
-      "espera": { "cierra": true, "estado": 11 }
+      "nombre": "y el Rent to Own cierra en 11 — HOY FALLA (F-188): el payload builder se elige por id de entidad quemado, no por producto",
+      "lender": 211,
+      "espera": { "enListado": true, "cierra": true, "estado": 11 }
     }
   ]
 }

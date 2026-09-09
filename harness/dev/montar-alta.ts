@@ -49,6 +49,14 @@ const MOLDE_OPERATIVO = 170;        // Motai RB: identidad, requirements, reglas
 const MOLDE_DOCUMENTOS = 173;       // Rent to Own: el catálogo de documentos con opción de adquisición
 const TIPO_TITULAR = 1, TIPO_COSIGNER = 3;
 
+/* EL ID VA FIJO, y el motivo es la suite. Con auto-increment cada re-siembra da un id nuevo (208,
+   209, 210…) y `suites/alta.json` no puede declarar a quién espera en el listado: la suite se
+   rompería sola en cada corrida. Es la misma decisión que `montar-peru.ts` toma con 206/207, sólo que
+   ahí el id además lo referencia el código.
+   ⚠ Y NO significa que el id sea el mismo en otros ambientes: en producción lo asigna el admin. Por
+   eso las migraciones del Rent to Own resuelven por `slug` y no por id — y por eso el mapa de
+   builders que rompe la firma (F-188) está roto justamente por confiar en el id. */
+const ID_LENDER = 211;
 const SLUG_LENDER = 'altax';
 const NOMBRE_COMERCIO = 'Alta Fleet';
 const SLUG_COMERCIO = 'alta-fleet';
@@ -114,7 +122,10 @@ async function clonar(tabla: string, fila: any, cambios: Record<string, any>): P
 // Se borra POR ALCANCE (el comercio por slug, la entidad por slug) y no «todo lo que haya»: en esta
 // base conviven Motai, Pullman y los comercios de los otros países.
 async function limpiar() {
-    const lender = await one<{ id: number }>('SELECT id FROM lenders WHERE slug=?', [SLUG_LENDER]);
+    /* Se busca por slug O por el id fijo: una corrida interrumpida puede haber dejado la fila del id
+       sin el resto, y entonces buscar sólo por slug la dejaría ahí para que el INSERT choque con un
+       duplicado — que es un error que no dice nada sobre la causa. */
+    const lender = await one<{ id: number }>('SELECT id FROM lenders WHERE slug=? OR id=?', [SLUG_LENDER, ID_LENDER]);
     const comercio = await one<{ id: number }>('SELECT id FROM allieds WHERE slug=?', [SLUG_COMERCIO]);
     const sucursales = comercio
         ? (await query<{ id: number }>('SELECT id FROM allied_branches WHERE allied_id=?', [comercio.id])).map((s) => s.id)
@@ -211,6 +222,7 @@ paso('sucursal', `${idSucursal} «${NOMBRE_SUCURSAL}» · Bogotá D.C. · hash $
 // país es TECHO, no piso. El mecanismo viejo —copiar los tipos a `lenders_by_allied_branches`— es el
 // que produjo F-76: la fila nueva nacía en NULL y el PEP desaparecía sin error y sin log.
 const idLender = await clonar('lenders', moldeLender, {
+    id: ID_LENDER,
     name: NOMBRE_LENDER,
     slug: SLUG_LENDER,
     response_type: 2,
