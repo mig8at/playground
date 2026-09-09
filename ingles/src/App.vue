@@ -49,6 +49,10 @@ const MARCAS = [
   ['ninguna', 'modo ciego'],
 ]
 const marcas = ref(localStorage.getItem('ingles.marcas') ?? 'nuevo')
+
+// Sólo para NOMBRAR la tecla en la leyenda. El gesto acepta ⌘ y Ctrl en cualquier plataforma, así
+// que si esta detección se equivoca lo único que pasa es que el cartel dice la otra.
+const TECLA = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl'
 function cambiarMarcas(v) {
   marcas.value = v
   try { localStorage.setItem('ingles.marcas', v) } catch { /* da igual */ }
@@ -166,8 +170,12 @@ onUnmounted(() => {
       </header>
 
       <div class="cuerpo" @scroll.passive="alScrollear" @click.stop>
+        <!-- `:key` fuerza a rehacerlo al cambiar de historia: sin eso quedarían abiertas las
+             traducciones de los párrafos que estaban abiertos en la historia anterior, por índice. -->
         <Texto
+          :key="historia?.id"
           :parrafos="parrafos" :titulo="historia?.titulo" :marcas="marcas"
+          :traduccion="historia?.traduccion" :historia-id="historia?.id"
           @entrar="entrar" @salir="salir" @fijar="fijar"
         />
 
@@ -177,6 +185,8 @@ onUnmounted(() => {
         <p v-else-if="marcas === 'nuevo'" class="aviso">
           Marcado sólo lo nuevo. Las 100 no se subrayan para no rayar el párrafo entero, pero
           <b>siguen respondiendo al mouse</b>: pasá por encima de cualquier palabra.
+          Y si lo que no se entiende es la frase entera, <b>{{ TECLA }}+clic</b> sobre el párrafo
+          (o el <b>es</b> del margen) lo muestra en español.
         </p>
 
         <!-- Sale de comparar el glosario contra el texto: si aparece, es un typo en el JSON, no una
@@ -192,7 +202,7 @@ onUnmounted(() => {
         <span><i class="m nueva"></i>palabra nueva</span>
         <span><i class="m frase"></i>phrasal verb / expresión</span>
         <span><i class="m sentido"></i>otro sentido</span>
-        <span class="tenue der">clic para clavar el globo · Esc cierra</span>
+        <span class="tenue der">clic clava el globo · <b>{{ TECLA }}+clic</b> traduce el párrafo · Esc cierra</span>
       </footer>
     </div>
 

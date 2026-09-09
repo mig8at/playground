@@ -67,18 +67,38 @@ for (const archivo of archivos) {
     }
   }
 
+  /* La traducción se indexa por POSICIÓN, así que un párrafo de más o de menos no rompe nada: te
+     muestra tranquilamente el español del párrafo equivocado, y a partir de ahí todos corridos. Es
+     el peor fallo posible de esta pieza —enseña mal en vez de no enseñar— y no se ve leyendo el
+     .json, porque los dos arreglos son largos y hay que contarlos. */
+  const trad = h.traduccion ?? []
+  const desalineada = trad.length && trad.length !== parrafos.length
+    ? `${parrafos.length} párrafos en el texto y ${trad.length} traducciones`
+    : null
+  const vacias = trad.map((t, i) => (String(t ?? '').trim() ? null : i + 1)).filter(Boolean)
+
   const nuevas = Object.keys(h.nuevas ?? {}).length
   const frases = Object.keys(h.frases ?? {}).length
   const sentidos = Object.keys(h.sentidos ?? {}).length
   const total = h.texto.split(/\s+/).length
 
-  const malo = falta.length || idMal || huerfanas.length || sinCubrir.size
+  const malo = falta.length || idMal || huerfanas.length || sinCubrir.size || desalineada || vacias.length
   console.log(`${malo ? C.amar + '!' : C.verde + '✓'} ${archivo}${C.off}  ` +
-    `${C.gris}${total} palabras · ${nuevas} nuevas · ${frases} frases · ${sentidos} sentidos${C.off}`)
+    `${C.gris}${total} palabras · ${nuevas} nuevas · ${frases} frases · ${sentidos} sentidos · ` +
+    `${trad.length ? `${trad.length} párrafos traducidos` : 'SIN traducción de párrafos'}${C.off}`)
 
   if (falta.length) { console.log(`   ${C.rojo}faltan campos:${C.off} ${falta.join(', ')}`); problemas++ }
   if (idMal) { console.log(`   ${C.rojo}${idMal}${C.off}`); problemas++ }
 
+  if (desalineada) {
+    console.log(`   ${C.rojo}traducción desalineada:${C.off} ${desalineada}`)
+    console.log(`   ${C.gris}→ «traduccion» va indexada por posición: un elemento por párrafo, en orden${C.off}`)
+    problemas++
+  }
+  if (vacias.length) {
+    console.log(`   ${C.amar}párrafos con la traducción vacía:${C.off} ${vacias.join(', ')}`)
+    problemas++
+  }
   if (huerfanas.length) {
     console.log(`   ${C.amar}en el glosario y NO en el texto${C.off} (typo casi seguro): ${huerfanas.join(', ')}`)
     problemas++

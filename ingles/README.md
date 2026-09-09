@@ -28,6 +28,14 @@ con la traducción siempre a un píxel el cerebro no hace el esfuerzo, pero el c
 consulta en diagnóstico. La pestaña **Repasar** las ordena por cuántas veces te costaron. Vive en
 `localStorage`, se acumula entre historias y no sale de tu navegador.
 
+**4. El párrafo entero en español, pero sólo si lo pedís.** `⌘+clic` (o `Ctrl+clic`) sobre el
+párrafo, o el `es` del margen, despliega la traducción debajo. Contesta otra pregunta que el
+glosario: no *qué quiere decir esta palabra* sino *qué está diciendo esta frase* — que es lo que
+queda cuando entendés todas las palabras y aun así no entendés la oración, porque el inglés ordena
+distinto. **Hover no**, y es a propósito: el mouse siempre está sobre algún párrafo, así que el hover
+te daría la traducción sin habérsela pedido y ahí se termina el esfuerzo de entender. Los párrafos
+que pediste quedan con un punto en el margen: al releer, dice cuáles no se entendieron solos.
+
 ## Agregar una historia
 
 Un `.json` en `data/historias/`. El nombre empieza con el `id` y ordena el selector. No hay índice
@@ -40,6 +48,8 @@ que actualizar.
   "resumen": "Una línea en español: sale en la barra de arriba.",
   "nombres": ["Tom", "Ana"],
   "texto": "Párrafos separados por línea en blanco.\n\nComillas tipográficas “así”, que en JSON no hay que escapar.",
+  "traduccion": ["Párrafos separados por línea en blanco.",
+                 "Uno por párrafo, en el mismo orden."],
   "nuevas":   { "key": "llave",
                 "leave": { "es": "irse; dejar", "nota": "los dos sentidos en un verbo. Pasado: left" } },
   "frases":   { "look for": "buscar",
@@ -53,6 +63,7 @@ que actualizar.
 | `nuevas` | lo que **no** está en las 100. Un string, o `{es, nota}` cuando hace falta explicar |
 | `frases` | phrasal verbs y expresiones. **`~` es el hueco**: `pick ~ up` reconoce *pick up*, *pick it up* y *pick the key up* |
 | `sentidos` | una palabra de las 100 usada con otro significado. Gana sobre el glosario general — es el caso donde el general miente |
+| `traduccion` | el párrafo entero en español, **un elemento por párrafo y en orden**. Natural, no literal: la gracia es entender la frase. Se indexa por posición, así que uno de más o de menos corre todos los siguientes |
 | `nombres` | nombres propios. Sin declararlos, el chequeo los reporta como «sin traducción» en cada corrida |
 
 Después, siempre:
@@ -63,6 +74,9 @@ Da verde cuando **cada palabra del texto tiene traducción disponible**. Lo que 
 
 - **en el texto y SIN traducción** — lo importante. Es una palabra que al pasar el mouse no responde,
   y no hay forma de enterarse leyendo el JSON.
+- **traducción desalineada** — otro fallo que enseña mal en vez de no enseñar: con un párrafo de
+  más o de menos te muestra tranquilamente el español del párrafo equivocado, y no se ve leyendo el
+  `.json` porque hay que contar los dos arreglos.
 - **en el glosario y NO en el texto** — casi siempre un typo en la clave.
 - *sueltas pero cubiertas por una frase* — informativo, está bien: `right` no se marca dentro de
   `all right` porque ganó la frase, que es lo correcto.
@@ -70,6 +84,8 @@ Da verde cuando **cada palabra del texto tiene traducción disponible**. Lo que 
 ### Cómo pedirle una a Claude
 
 > «creá una historia nueva con las mismas 100 palabras, máximo 12 palabras nuevas»
+
+Va con su `traduccion` incluida — sin ella la historia funciona, pero le falta la mitad de la ayuda.
 
 El tope importa y sos vos quien lo pone: las 100 son casi todas palabras de función —*the, of, to,
 would*— y entre ellas no hay casi ningún sustantivo concreto (sólo *time, day, year, way, people*).

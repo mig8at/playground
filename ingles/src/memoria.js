@@ -14,14 +14,14 @@ import { reactive } from 'vue'
 
 const LLAVE = 'ingles.memoria.v1'
 
-const vacio = () => ({ vistas: {}, sabidas: [] })
+const vacio = () => ({ vistas: {}, sabidas: [], parrafos: [] })
 
 function leer() {
   try {
     const crudo = localStorage.getItem(LLAVE)
     if (!crudo) return vacio()
     const d = JSON.parse(crudo)
-    return { vistas: d.vistas ?? {}, sabidas: d.sabidas ?? [] }
+    return { vistas: d.vistas ?? {}, sabidas: d.sabidas ?? [], parrafos: d.parrafos ?? [] }
   } catch {
     return vacio()   // modo privado, storage bloqueado, JSON corrupto — la app sigue igual
   }
@@ -57,8 +57,23 @@ export function alternarSabida(clave) {
   escribir(estado)
 }
 
+/* Qué párrafos pediste traducidos. No lleva cuenta de cuántas veces —a diferencia de las palabras—
+   porque acá la pregunta es otra: no «cuánto me cuesta ésta», sino «cuáles no entendí», y para eso
+   alcanza con sí o no. Queda un punto en el margen al releer. Clave: «<historia>#<índice>». */
+export function parrafoPedido(clave) {
+  return estado.parrafos.includes(clave)
+}
+
+export function marcarParrafo(clave) {
+  if (!estado.parrafos.includes(clave)) {
+    estado.parrafos.push(clave)
+    escribir(estado)
+  }
+}
+
 export function olvidarTodo() {
   estado.vistas = {}
   estado.sabidas = []
+  estado.parrafos = []
   escribir(estado)
 }
