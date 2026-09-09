@@ -151,6 +151,53 @@ es una afirmación confirmada. El método, destilado de las veces que falló:
    débil** (sólo viste que el símbolo existe). Un ok débil declarado fuerte es la mentira que este
    árbol ya sufrió una vez. De ese conteo depende si el nodo se sella.
 
+## `flota.py`: la auditoría que NO espera la deriva
+
+**Los tres instrumentos de arriba tienen el mismo techo: los tres esperan que algo se mueva.** Está
+medido, el 2026-09-08, auditando el corpus hermano (canon): de **178 hallazgos**, sus 480 citas de <!-- lint:ok -->
+evidencia caen en un archivo que la deriva había marcado sólo **44 veces — el 9 %**. O sea que **el
+91 % de lo que estaba mal vivía en archivos que nunca se movieron**: prosa falsa desde el día en que se
+escribió, o envejecida por un cambio en OTRO archivo. Ni el oráculo, ni `alinear.py`, ni `diff.py`
+iban a llegar ahí.
+
+La auditoría que sirve es leer una afirmación y preguntarle al código si es cierta HOY. Eso **cuesta
+un agente por paquete**, así que no es rutina: se corre cada tanto, o después de una tanda grande de
+merges. Lo que es gratis es el reparto:
+
+```bash
+python3 tools/flota.py               # el resumen: cuántos paquetes y qué lleva cada uno
+python3 tools/flota.py json          # los paquetes, para lanzarlos
+python3 tools/flota.py --comprobar   # verifica sus tres garantías
+```
+
+Cada paquete trae lo que un agente necesita y nada más: las secciones (con su ancla y su tamaño), los
+archivos que el nodo declara —con su repo resuelto, si derivaron y si la ruta está muerta—, y **los
+síntomas por los que se entra al nodo**, para que juzgue si la prosa contesta lo que se le pregunta y
+no sólo si es cierta.
+
+**Qué se le pregunta a cada agente.** Una sola cosa, y no «mejorá esto»: *por cada sección de tu
+paquete, ¿lo que afirma es cierto contra `origin/main`?* La salida es una lista, y cada hallazgo lleva
+cinco campos: el **tipo** (`contradice` · `impreciso` · `falta` · `caduco` · `grafo`), la **afirmación**
+tal como está escrita, **qué dice el código**, la **evidencia** (repo, ruta, líneas y la cita literal) y
+la **corrección** propuesta. Sin cita citable no es un hallazgo: es una opinión. Y **devolver la lista
+vacía es una respuesta válida y esperada** — inventar para entregar algo es el peor resultado.
+
+**Y después, dos filtros que no se saltan.** Primero un pase **adversarial**: otro agente que intenta
+REFUTAR cada hallazgo, con veredicto `confirmado` · `refutado` · `dudoso`. Medido sobre 78 hallazgos: <!-- lint:ok -->
+**64 confirmados, 10 dudosos, 4 refutados** — y en los 10 dudosos el núcleo era real pero la corrección
+propuesta, pegada tal cual, metía un error nuevo. Después, **verificar a mano contra `origin/main`
+antes de escribir**, sección por sección.
+
+⚠ **Las dos formas en que ya falló, las dos evitables:**
+
+1. **Clones viejos.** De los hallazgos de aquella auditoría (2026-09-08), los **2** que se cayeron fue
+   por leer un clon sin `git fetch` <!-- lint:ok -->
+   y en uno **la prosa que ya estaba era la correcta**, así que aplicarlo la habría roto. Los dos
+   eran de repos que no son los dos monolitos, que son los que menos se sincronizan.
+2. **Pegar la corrección propuesta tal cual.** Viene redactada, y a veces está mejor escrita que
+   precisa: una llamaba con el mismo nombre a dos campos distintos —uno se cifra y el otro no—, y
+   pegarla dejaba una sección que nadie puede leer sin equivocarse. La corrección es materia prima.
+
 ## `refs.py`: ¿las citas `archivo:línea` siguen apuntando a lo que dicen?
 
 ```bash
