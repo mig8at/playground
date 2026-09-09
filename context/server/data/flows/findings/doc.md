@@ -3603,12 +3603,16 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   junto al `opensNewTab()` que ya resolvía con el mismo trío. ⚠ La url la arma el back porque se
   construye con el id de solicitud que **persistió**, que no siempre es el de la ruta (el incidente de
   `docs/lenders/nequi/CONTRATOS.md` §1.7).
-- **⚠ Y `allieds.self_managed` manda incluso con un asesor autenticado.** La primera versión del
-  arreglo hacía lo contrario y el defecto sobrevivía en el canal del asesor: el switch del panel se
-  llama «Habilitar auto gestión» a nivel comercio, así que si sólo valiera sin sesión significaría
-  «autogestión excepto cuando alguien la usa». El flanco de la biometría no queda descubierto —lo
-  cubre `RedirectIdValidationIfDesktop`, por user-agent y en el paso de identidad—, con lo cual el
-  handoff ocurre donde hace falta en vez de preventivamente al elegir la entidad.
+- **⚠ Y el CANAL es la mitad de la explicación, que es lo que más costó ver.** Hay tres contextos
+  (`RouteContext`) y no son intercambiables: medido sin sesión, `/merchant/<hash>/solicitar` responde
+  **302 a `/login`** —es el árbol del asesor, por definición— mientras `/self-service/<hash>/solicitar`
+  y `/ecommerce/<hash>/solicitar` responden **200**. La autogestión entra por `/self-service`, donde
+  nunca hay sesión, así que el criterio se cumple por el camino natural: **el asesor autenticado sigue
+  mandando sobre la configuración del comercio** y no hace falta que el flag le gane a nada. Se evaluó
+  invertir esa precedencia y se descartó por alcance (a un comercio vivo le cambiaba el 100% del
+  volumen). ⚠ Probar esto por el árbol del asesor y concluir que «la autogestión no anda» es el error
+  fácil: los dos árboles montan el MISMO módulo para `solicitar`, pero sólo uno es el de la
+  autogestión.
 - **⚠ Dos trampas del front al redirigir a una url que decide el back:** (1) `routeHelpers.redirect`
   **prefija el contexto de la ruta**, así que con un path absoluto produce
   `/self-service/<hash>/self-service/<hash>/<id>/confirmation` — hay que usar `redirectExternal`, que

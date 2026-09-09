@@ -459,19 +459,23 @@ de WhatsApp con un link para continuar el proceso»— y es lo que hace que el d
 problema de copy cuando la navegación está rota. Vale registrarlo: **buscábamos un mensaje de más y
 encontramos un 404**, y sólo apareció porque se corrió.
 
-> **MEDICIÓN · 2026-09-09** — **la primera versión del arreglo dejaba el defecto vivo en el canal del
-> asesor, y el alcance de corregirlo hay que medirlo en prod.** Yo había escrito «el asesor autenticado
-> manda sobre la configuración del comercio», y con eso el camino VISUAL del harness —que loguea un
-> asesor— seguía yendo al handoff: uReq 466446 con `corporate_user_id = 1827080` fue a
-> `/merchant/.../continue`, mientras la corrida por consola (466444, `corporate_user_id = NULL`) fue a
-> `/self-service/.../confirmation`. Invertir la precedencia es lo correcto —el switch se llama
-> «Habilitar auto gestión» a nivel COMERCIO, y el flanco de la biometría lo cubre
-> `RedirectIdValidationIfDesktop` por user-agent en el paso de identidad— pero **toca comercios
-> vivos**: 39 tienen `self_managed = 1` (9 activos) y en rt=2 sólo dos tienen volumen en 90 días —
-> Refurbi (1.600 solicitudes, 15 con asesor) y **My Tech (72, TODAS con asesor)**. A My Tech le cambia
-> el 100 % del flujo. Hay que confirmarlo con quien lo opera antes de mergear.
-> `user_requests`/`user_request_records` en local para las dos corridas, y `make trazador-sql
-> TARGET=prod` para el padrón
+> **MEDICIÓN · 2026-09-09** — **el CANAL era la mitad de la explicación, y probar por el árbol
+> equivocado me hizo cambiar la precedencia y después volver atrás.** Hay tres contextos y no son
+> intercambiables: sin sesión, `/merchant/<hash>/solicitar` responde **302 a `/login`** —es el árbol
+> del asesor— mientras `/self-service/<hash>/solicitar` y `/ecommerce/<hash>/solicitar` responden
+> **200**. Alta entra por `/self-service`, donde nunca hay sesión: por eso mi corrida por consola
+> (uReq 466444, `corporate_user_id = NULL`) continuaba bien y la corrida VISUAL de Miguel (466446,
+> `corporate_user_id = 1827080`) iba al handoff — el panel del harness abre `/merchant/*`
+> (`bin/asesor:462`). Los dos árboles montan el MISMO módulo para `solicitar`, así que la pantalla se
+> ve igual y la diferencia no salta.
+>
+> En el medio invertí la precedencia para que `self_managed` ganara al asesor, y la **revertí** al
+> confirmar el canal: con Alta en `/self-service` no hace falta, y sí tenía alcance sobre comercios
+> vivos — 39 con el flag (9 activos), en rt=2 sólo dos con volumen en 90 días: Refurbi (1.600, 15 con
+> asesor) y **My Tech (72, TODAS con asesor)**, o sea el 100% de su volumen. Queda como decisión de
+> producto aparte, con la fila del trío marcada en la prueba.
+> `curl` a las tres entradas con UA de iPhone · `user_requests`/`user_request_records` en local para
+> las dos corridas · `make trazador-sql TARGET=prod` para el padrón
 
 ⚠ **Dos trampas del front al redirigir a una url que decide el back, las dos medidas:**
 `routeHelpers.redirect` **prefija el contexto de la ruta** (produjo
