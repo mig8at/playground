@@ -114,6 +114,16 @@ que el motor HTTP cierra **en verde en 20 s**:
    pinta el texto rojo (`SignDocuments.tsx`), no llama a PostHog. Si esto le pasara a un cliente en
    producción por cualquier otra causa, nadie se enteraría.
 
+**Las CUATRO puertas, y por qué elegir mal invalida la prueba.** El panel entra por `asesor` (login
+Cognito → `/merchant/*`), `autogestion` (el cliente solo → `/self-service/*`), `ecommerce` (URL base64
+de la tienda) y `qr` (caja de un comercio Corbeta). ⚠ **Asesor y autogestión montan el MISMO módulo del
+front para `solicitar`, así que la pantalla se ve idéntica** — pero `/merchant/*` está detrás de login
+(medido: 302 a `/login`) y `/self-service/*` es público (200), y con sesión de asesor el backend
+resuelve **punto de venta**: el flujo termina entregando el proceso en vez de seguir de largo. Probar
+un comercio autogestionado por el canal del asesor prueba otra cosa, y la pantalla no lo delata; costó
+dos vueltas de diagnóstico el 2026-09-09 (F-191). Y en autogestión **hay un solo dispositivo**: la
+ventana B no se usa, el journey del cliente se camina en A.
+
 **El canal de ASESOR con navegador: anda, y lo que lo frena no es el motor.** `MOTOR=navegador FLOW=merchant`
 reusa el `storageState` que dejó el panel (`pkg/cognito.ts`) — un solo login para los N contextos de la
 tanda, que es lo que evita golpear el pool. Dos cosas que aprendió el 2026-09-03 y que valen para
