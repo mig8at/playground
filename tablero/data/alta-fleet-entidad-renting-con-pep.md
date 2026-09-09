@@ -430,59 +430,44 @@ Y los dos chequeos que no son un comando:
 ### 2026-09-09 (cierre 2) · las dos hojas bajo el panel
 
 Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
-asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) colgados del borde inferior
-del panel con `top-full`, al 55 % y al 30 % del color de marca. **Del mismo ancho las dos**
-(`inset-x-10`): la primera versión iba en degradé —cada hoja más angosta— y diseño pidió que no, que
-lo único que las separe sea la opacidad.
+asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) al 55 % y al 30 % del color
+de marca. **Las tres piezas —las dos hojas y el panel— tienen el mismo ancho y el mismo radio**, y lo
+único que cambia es cuánto bajan: 32 px la de atrás, 16 px la de adelante. Así cada curva se apoya
+sobre la hoja de atrás en vez de cortarse. Acotadas a `merchant` (el panel de entidad es negro) y a
+móvil (en desktop el panel llega hasta abajo).
 
-Y **no son dos bandas pegadas: son dos hojas enteras de distinto ALTO** —32 px la de atrás, 16 px la de
-adelante— apiladas desde el mismo borde, de modo que la de adelante tapa el borde recto de la de atrás
-y sólo le deja asomar la curva. Con dos bandas de 16 px corridas con `mt-4` la esquina cuadrada de la
-de abajo chocaba contra la curva de la de arriba y se veía **cortada** — que es justo lo que diseño
-señaló. Se apilan por orden del DOM, no con `z`.
+**Tres versiones hasta acertar, y las dos primeras fallaron por lo mismo: querer resolverlo desde
+adentro del panel.**
 
-Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
-panel es `lg:flex-1` y llega hasta abajo.
+1. **hojas angostas en degradé, colgadas del borde** (`top-full`, cada una más angosta) — diseño lo
+   rechazó: las quería del mismo tamaño.
+2. **dos bandas del mismo ancho, corridas con `mt-4`** — la esquina cuadrada de la de abajo chocaba
+   contra la curva de la de arriba y se veía **cortada**.
+3. **hojas del ancho del panel, hermanas suyas y por detrás** — lo que diseño quería desde el
+   principio: que cada curva se oculte tras la de adelante.
 
-> **MEDICIÓN · 2026-09-09** — **la primera versión pintó las hojas FUERA de la pantalla, y la causa es
-> que el panel no era `relative`.** Con `top-full`, el offset parent resultó ser la **columna** —que sí
-> es `relative`, y llega hasta el borde de abajo—, así que las hojas cayeron en `y: 797` y `y: 813` en
-> un viewport de **797 px**. Agregándole `relative` al panel pasan a `y: 490` y `y: 506` en un 390×844,
-> las dos visibles y **sin scroll** (`scrollHeight` 844 = viewport). En 1440×900 no se pintan (`h: 0`),
-> que es lo que se quería. El `relative` es inerte para el resto: el panel no tiene otro descendiente
-> posicionado, el componente no recibe `children`, y `position: relative` sin desplazamientos no mueve
-> un ítem de flex — la variante de entidad no cambia.
-> Playwright contra `/merchant/<hash>/solicitar` en local, `getBoundingClientRect` de panel y capas
+> **MEDICIÓN · 2026-09-09** — **desde adentro del panel esto NO se puede hacer, y no es una limitación
+> de Tailwind.** Un hijo no puede pintarse detrás del fondo de su padre: el fondo del padre se pinta
+> antes que cualquier descendiente, tenga `-z` o no. Por eso las dos primeras versiones tuvieron que
+> colgar las hojas del borde con `top-full`, y ahí su borde superior recto choca con la curva del panel.
+> La versión que funciona las saca a **hermanas** del panel, dentro de un envoltorio que existe sólo
+> para darles de dónde medir, y se apilan **por orden del DOM** —las tres son posicionadas con
+> `z-index: auto`—, con el panel escrito último. De ahí que el panel necesite su `relative`: si fuera
+> estático, el contenido en flujo se pinta antes que los posicionados y las hojas le quedarían encima.
+>
+> **Y el envoltorio no mueve el layout**, medido en las dos variantes y los dos breakpoints
+> (`x/y/ancho/alto`): `merchant` 390×844 panel `0/0/390/490` y botón `16/426/358/48`; `merchant`
+> 1440×900 panel `0/0/720/800` y botón `104/548/512/48`; `entity` 390×844 idem móvil; `entity`
+> 1440×900 panel `432/72/576/800` y botón `480/638/480/48`. Las cuatro filas dan **exactamente lo
+> mismo** que antes del envoltorio, y ninguna genera scroll.
+> Playwright contra `/merchant/<hash>/solicitar` en local; la variante `entity` forzada en la ruta y
+> comparada contra el commit anterior restaurando el archivo con `git show HEAD:` — sin `stash`, que
+> ya me hizo aplicar un stash viejo de Miguel una vez
 
-⚠ Y una nota sobre el comentario que acompaña al código: la primera redacción justificaba el `top-full`
-diciendo que el panel «crea contexto de apilado con su `z-10`». **Es falso** — el `z-10` es de la
-columna, no del panel, y el panel con `relative` y `z-index: auto` no crea contexto. Se reemplazó por
-la razón verdadera, que es la medición de arriba. Un comentario que explica bien una decisión con un
-mecanismo equivocado enseña mal al que lo lee después.
-
-### 2026-09-09 (cierre) · dos PRs, un commit cada uno, y la foto
-
-A pedido de Miguel se consolidó todo en **dos PRs con un commit cada uno**, con la descripción entera
-en el cuerpo: `Creditop-SAS/legacy-backend#1351` (las páginas del comercio **+ F-188**, que entró acá
-porque sin él la pantalla no se puede probar de punta a punta — el comercio muestra su bienvenida,
-elige su entidad y se cae al firmar) y `Creditop-SAS/frontend-monorepo#983` (el render, el gate y el
-CSS de desktop). El `#1349` quedó **cerrado** con un comentario que explica dónde fue su cambio, y su
-rama borrada.
-
-**El CSS de desktop**: la pantalla era una tira de 576×900 en medio del gris. El ancho no lo ponía el
-componente sino el contenedor estándar del wizard (`lg:w-6/12 max-w-xl` con `p-4`), así que se sale con
-`lg:fixed inset-0` — que además es lo que la pantalla ES, una capa sobre el wizard. Con foto se parte
-en dos columnas (720+720 verificados); sin foto, una columna centrada. Y el pie cambia de color por
-breakpoint, con dos instancias, porque `CreditopBrand` pinta el SVG con `fill` inline y no con clases.
-
-> **MEDICIÓN · 2026-09-09** — **la foto que dejó diseño no calza con el panel en móvil, y es del
-> recorte.** `home.png` es 430×903 y trae un **bloque de color plano de 263 px arriba** —el 29% de su
-> alto, `rgb(2,58,255)`—, que es donde se apoya el panel. Pero el panel mide **58svh**: en un 390×844 la
-> foto se escala a 402×844 (llena el alto, sin recorte vertical), el bloque queda en 0→236 px y el panel
-> cubre 0→490 px, así que **tapa 254 px de foto real — justo las caras**. Para que calce, el bloque
-> tendría que medir **~524 px** (58% de 903), no 263. No se arregla con CSS: `object-position` no tiene
-> margen porque no hay recorte vertical. Es un re-recorte, o un panel más bajo.
-> `python3` sobre el PNG, comparando 5 columnas por fila hasta que dejan de ser el mismo color
+⚠ Y una nota sobre el comentario que acompaña al código: una redacción intermedia justificaba el
+`top-full` diciendo que el panel «crea contexto de apilado con su `z-10`». **Es falso** — el `z-10` es
+de la columna, no del panel. Un comentario que explica bien una decisión con un mecanismo equivocado
+enseña mal al que lo lee después.
 
 ### 2026-09-09 (noche 2) · la bienvenida pasa a ser del COMERCIO, en una columna JSON
 
