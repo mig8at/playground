@@ -9,7 +9,8 @@
     "have_ctopx": 0,
     "initial_fee": 0,
     "show_products": 0,
-    "flow_type": 0
+    "flow_type": 0,
+    "image": "http://localhost:5195/images/motorbike.png"
   },
   "sucursales": [
     {
@@ -79,5 +80,5 @@
       }
     }
   ],
-  "nota_assets": "⚠ TODO lo visual es PRESTADO, y se ve en la primera pantalla: el comercio se clona de Motai, así que el logo y los colores del wizard son los de Motai; el fondo de la bienvenida es el de CREDIMOVIL (la única entidad con esa pantalla en producción) y el logo de la entidad también sale del molde. Sirve para VER las pantallas; las piezas de Alta Fleet las tiene que dar diseño."
+  "nota_assets": "El LOGO del comercio ya es propio: `comercio.image` apunta a `harness/images/motorbike.png`, que sirve el panel en :5195 — si el panel está abajo el logo da 404, que es mejor que salir con el de Motai. ⚠ Lo que sigue prestado: los COLORES del wizard (se clonan de Motai) y, en la entidad, el logo (`lenders.image`, del molde) y el fondo de la bienvenida (el de CREDIMOVIL). Esas piezas las tiene que dar diseño."
 }

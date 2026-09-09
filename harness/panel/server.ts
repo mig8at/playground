@@ -1025,6 +1025,29 @@ const server = createServer(async (req, res) => {
         return res.end(readFileSync(f));
     }
 
+    /* IMÁGENES DE PRUEBA (`harness/images/`), para que un comercio sembrado no salga con el logo de otro.
+     *
+     * POR QUÉ ACÁ Y NO EN OTRO LADO. `allieds.image` es un **varchar(255)**, así que un data URI está
+     * descartado —no entra ni el más chico—: tiene que ser una URL que el NAVEGADOR alcance. Las tres
+     * alternativas eran peores: MinIO existe en local pero para los documentos, y no está levantado
+     * (pedirlo sólo para ver un logo es desproporcionado); `public/` del wizard es OTRO repo y meterle
+     * assets de prueba lo ensucia; y un servidor estático propio es un proceso más que hay que
+     * acordarse de arrancar. El panel, en cambio, YA está arriba siempre que estés probando visualmente
+     * — y ya sirve PNG para las miniaturas de la consola, justo arriba.
+     *
+     * ⚠ Si el panel está abajo, el logo da 404 y el comercio sale sin imagen. Es el modo de falla
+     * correcto: mejor sin logo que con el de otro comercio, que es lo que confunde de verdad.
+     *
+     * Mismo guard estricto que `/shots/`: basename, sólo `.png`, sin rutas. */
+    if (path.startsWith('/images/') && req.method === 'GET') {
+        const name = decodeURIComponent(path.slice('/images/'.length));
+        if (!/^[\w][\w.-]*\.png$/.test(name)) { res.writeHead(400); return res.end(); }
+        const f = join(ROOT, 'images', name);
+        if (!existsSync(f)) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'private, max-age=300' });
+        return res.end(readFileSync(f));
+    }
+
     // Precalienta el wizard local (Vite) sin correr el spec ni tocar la BD: `bin/asesor <slug> preboot`.
     // Existe porque el cold-boot se pagaba DENTRO de la corrida (304s medidos el 2026-08-19 contra ~11s
     // con el wizard tibio). NO escribe en RUN_LOG: no es una corrida, y ensuciaría la consola de la

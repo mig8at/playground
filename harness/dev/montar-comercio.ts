@@ -24,7 +24,13 @@
 //   pais                   `countries`.id (Colombia 47 · RD 60 · Perú 167).
 //   molde_comercio         de qué comercio se clonan los 30 toggles NOT NULL de `allieds`.
 //   comercio {…}           los toggles que este comercio decide por ser él. `self_managed` es el que
-//                          apaga el «continuá con el asesor comercial».
+//                          apaga el «continuá con el asesor comercial». Y cualquier columna de
+//                          `allieds` que quieras pisar — `image` es la que evita que el comercio salga
+//                          con el LOGO DEL MOLDE, que es la confusión más barata de eliminar: un
+//                          comercio de prueba con el logo de Motai se lee como si fuera Motai. Las
+//                          imágenes de prueba viven en `harness/images/` y las sirve el panel
+//                          (`http://localhost:5195/images/<archivo>.png`); `allieds.image` es
+//                          varchar(255), así que un data URI no entra.
 //   sucursales[]           `{ nombre, ciudad }` — `ciudad` es `country_cities`.id (Bogotá 149).
 //   entidades[]            una por lender:
 //     id                   FIJO, para que una suite pueda declarar a quién espera en el listado.
