@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
 import { cognitoCreds, config } from './config.ts';
@@ -32,9 +32,42 @@ const FRONT_LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)([:/]|$)/.test(config.f
 const SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET;
 export const COGNITO_STATE_PATH = `.auth/cognito-state.${SESSION_KEY}.json`;
 
-/** Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined. */
+/**
+ * Cookies que NO son sesión y por lo tanto NO se cachean entre corridas.
+ *
+ * `oauth2:*` es el state CSRF efímero del handshake (ver `persistCognitoState`).
+ *
+ * ⚠ Y `merchant_context` es LA CAUSA DE «cambié de comercio y se quedó pegado el anterior». La escribe
+ * el layout del wizard con `{merchant_id, merchant_slug, merchant_name, allied_branch_hash}` y vive
+ * **24 h**; al quedar dentro del storageState, CADA corrida arrancaba restaurando el comercio de la
+ * corrida anterior, así que reintentar no servía —el cache se volvía a poner solo—. Medido el
+ * 2026-09-09: `.auth/cognito-state.qa.json` traía clavado
+ * `{"merchant_id":337,"merchant_slug":"comercio-pruebas-bcp",...}` con 23,7 h por delante, y el de dev
+ * traía Alta Fleet. No se pierde nada al sacarla: el layout la vuelve a escribir en la primera
+ * navegación autenticada, y sin ella el contexto lo decide la URL y la sucursal del asesor, que es lo
+ * correcto.
+ */
+const NO_CACHEABLES = /^(oauth2:|merchant_context$)/;
+
+/**
+ * Devuelve la ruta del storageState cacheado si existe (para `test.use({ storageState })`), o undefined.
+ *
+ * De paso lo SANEA: los archivos guardados antes de que existiera el filtro siguen trayendo cookies que
+ * no son sesión, y un cache envenenado no se cura solo — se restaura igual en cada corrida. Sanear al
+ * leer es lo que hace que el arreglo valga también para el cache que ya tenés en disco.
+ */
 export function cognitoStorageState(): string | undefined {
-    return existsSync(COGNITO_STATE_PATH) ? COGNITO_STATE_PATH : undefined;
+    if (!existsSync(COGNITO_STATE_PATH)) return undefined;
+    try {
+        const state = JSON.parse(readFileSync(COGNITO_STATE_PATH, 'utf8'));
+        const antes = state.cookies?.length ?? 0;
+        state.cookies = (state.cookies ?? []).filter((c: { name: string }) => !NO_CACHEABLES.test(c.name));
+        if (state.cookies.length !== antes) {
+            writeFileSync(COGNITO_STATE_PATH, JSON.stringify(state, null, 2));
+            console.log(`    ▸ cache Cognito saneado: se sacaron ${antes - state.cookies.length} cookie(s) que no son sesión`);
+        }
+    } catch { /* best-effort: si el archivo está raro, que lo maneje Playwright como antes */ }
+    return COGNITO_STATE_PATH;
 }
 
 /**
@@ -152,10 +185,10 @@ export async function persistCognitoState(page: Page, savePath: string | null = 
     if (!savePath) return;
     try {
         const state = await page.context().storageState();
-        // Las cookies `oauth2:*` son el state CSRF EFÍMERO del handshake OAuth (remix-auth-oauth2, maxAge
-        // 15min). Persistirlas hace que el cache las ACUMULE entre corridas y un login futuro arranque con
-        // handshakes viejos colgando (se vieron 5 juntas). No son sesión → fuera del cache. F-66.
-        state.cookies = (state.cookies ?? []).filter((c) => !/^oauth2:/.test(c.name));
+        // Fuera del cache todo lo que NO es sesión (ver `NO_CACHEABLES`): el state CSRF del handshake
+        // OAuth —que se acumulaba entre corridas, F-66— y el `merchant_context`, que hacía que cada
+        // corrida arrancara con el comercio de la anterior.
+        state.cookies = (state.cookies ?? []).filter((c) => !NO_CACHEABLES.test(c.name));
         const cookies = state.cookies;
         const weekAhead = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
         for (const c of cookies) if (!c.expires || c.expires <= 0) c.expires = weekAhead; // session-cookie → persistible
