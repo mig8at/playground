@@ -432,8 +432,9 @@ Y los dos chequeos que no son un comando:
 Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
 asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) al 55 % y al 30 % del color
 de marca. **Las tres piezas —las dos hojas y el panel— tienen el mismo ancho y el mismo radio**, y lo
-único que cambia es cuánto bajan: 32 px la de atrás, 16 px la de adelante. Así cada curva se apoya
-sobre la hoja de atrás en vez de cortarse. Acotadas a `merchant` (el panel de entidad es negro) y a
+único que cambia es cuánto bajan: 48 px la de atrás, 24 px la de adelante. Así cada curva se apoya
+sobre la hoja de atrás en vez de cortarse. Los 24 px de banda visible son a ojo de diseño: con 16 los
+tres bordes se leían pegados. Acotadas a `merchant` (el panel de entidad es negro) y a
 móvil (en desktop el panel llega hasta abajo).
 
 **Tres versiones hasta acertar, y las dos primeras fallaron por lo mismo: querer resolverlo desde
