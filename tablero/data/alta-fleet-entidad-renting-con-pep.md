@@ -465,6 +465,21 @@ adentro del panel.**
 > comparada contra el commit anterior restaurando el archivo con `git show HEAD:` — sin `stash`, que
 > ya me hizo aplicar un stash viejo de Miguel una vez
 
+**Y el pie va blanco con la «e» en verde** (pedido de diseño, sólo para comercio). El verde no se
+decide en la pantalla: `CreditopBrand` pinta el acento en `#27CF85` con cualquier `color` **menos**
+`black`, que lo apaga a negro junto con el resto — o sea que pedir «blanco con la e verde» es
+exactamente dejar de pedir `black`, sin prop nueva ni tocar el componente de UI. Con eso el comercio
+necesita **una sola** instancia del pie en vez de dos: la condición pasa de `backgroundImageSrc` a
+`backgroundImageSrc && !esComercio`, y el par responsive queda sólo para la entidad.
+
+> **MEDICIÓN · 2026-09-09** — `merchant` renderiza **1** instancia en los dos tamaños, con texto
+> `rgb(255,255,255)`, relleno `#FFFFFF` y acento `#27CF85`. `entity` sigue con **2**: en 390×844 la
+> visible es la negra (`#000000` en los dos rellenos) y en 1440×900 la blanca con el acento verde —
+> idéntico a antes. **Su pie no cambia.**
+> Playwright leyendo los atributos `fill` de los `path` del SVG, con la variante `entity` forzada en la
+> ruta. ⚠ Para la captura hay que borrar `#react-scan-root`: las devtools flotan justo encima del pie y
+> lo tapan — dos capturas se perdieron por eso antes de darme cuenta
+
 ⚠ Y una nota sobre el comentario que acompaña al código: una redacción intermedia justificaba el
 `top-full` diciendo que el panel «crea contexto de apilado con su `z-10`». **Es falso** — el `z-10` es
 de la columna, no del panel. Un comentario que explica bien una decisión con un mecanismo equivocado
