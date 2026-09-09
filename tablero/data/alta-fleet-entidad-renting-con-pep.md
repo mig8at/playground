@@ -2,7 +2,7 @@
 id: 76
 title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
-ramas: feat/alta-fleet-documentos-por-producto, feat/comercio-pantalla-de-bienvenida
+ramas: feat/comercio-pantalla-de-bienvenida
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
 jira: []
@@ -426,6 +426,30 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-09 (cierre) · dos PRs, un commit cada uno, y la foto
+
+A pedido de Miguel se consolidó todo en **dos PRs con un commit cada uno**, con la descripción entera
+en el cuerpo: `Creditop-SAS/legacy-backend#1351` (las páginas del comercio **+ F-188**, que entró acá
+porque sin él la pantalla no se puede probar de punta a punta — el comercio muestra su bienvenida,
+elige su entidad y se cae al firmar) y `Creditop-SAS/frontend-monorepo#983` (el render, el gate y el
+CSS de desktop). El `#1349` quedó **cerrado** con un comentario que explica dónde fue su cambio, y su
+rama borrada.
+
+**El CSS de desktop**: la pantalla era una tira de 576×900 en medio del gris. El ancho no lo ponía el
+componente sino el contenedor estándar del wizard (`lg:w-6/12 max-w-xl` con `p-4`), así que se sale con
+`lg:fixed inset-0` — que además es lo que la pantalla ES, una capa sobre el wizard. Con foto se parte
+en dos columnas (720+720 verificados); sin foto, una columna centrada. Y el pie cambia de color por
+breakpoint, con dos instancias, porque `CreditopBrand` pinta el SVG con `fill` inline y no con clases.
+
+> **MEDICIÓN · 2026-09-09** — **la foto que dejó diseño no calza con el panel en móvil, y es del
+> recorte.** `home.png` es 430×903 y trae un **bloque de color plano de 263 px arriba** —el 29% de su
+> alto, `rgb(2,58,255)`—, que es donde se apoya el panel. Pero el panel mide **58svh**: en un 390×844 la
+> foto se escala a 402×844 (llena el alto, sin recorte vertical), el bloque queda en 0→236 px y el panel
+> cubre 0→490 px, así que **tapa 254 px de foto real — justo las caras**. Para que calce, el bloque
+> tendría que medir **~524 px** (58% de 903), no 263. No se arregla con CSS: `object-position` no tiene
+> margen porque no hay recorte vertical. Es un re-recorte, o un panel más bajo.
+> `python3` sobre el PNG, comparando 5 columnas por fila hasta que dejan de ser el mismo color
 
 ### 2026-09-09 (noche 2) · la bienvenida pasa a ser del COMERCIO, en una columna JSON
 
