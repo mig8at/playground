@@ -62,9 +62,18 @@ ingreso:
 `employed: true`, `continuity_3_months: true` y `approximate_real_salary` igual a lo dictado, distinto
 en cada caso— porque sin esa comprobación «no cambia» es indistinguible de «nunca llegó».
 
-Es coherente con el cascade de arriba y lo afina: el ingreso **no participa de ningún corte**. Los
-cortes son el **score de datacrédito** (punto 3) y la **categoría** (punto 8). Bajando el score a 300
-en la misma sucursal, CrediPullman **sí** desaparece.
+Es coherente con el cascade de arriba y lo afina: en ESE caso el ingreso **no participó de ningún
+corte**. Los cortes fueron el **score de datacrédito** (punto 3) y la **categoría** (punto 8). Bajando el
+score a 300 en la misma sucursal, CrediPullman **sí** desaparece.
+
+⚠ **Y el «no decide» no es regla general: la medición se hizo sobre una sucursal SIN piso de ingreso
+configurado.** Verificado contra `main` el 2026-09-08 (auditando el corpus hermano): el piso de ingreso
+es un criterio de la regla de categoría con salida temprana —si no lo cumple, la regla no aplica—, y si
+ninguna regla resuelve, el listado **saca la tarjeta sin mensaje**. Lo mismo si el disponible, que se
+calcula **del salario**, queda por debajo del mínimo financiable. Y ese piso **dejó de ser inerte el
+2026-08-03**: antes comparaba contra una columna que no existe y no excluía a nadie — o sea que la
+corrida del 2026-08-17 ya estaba después del arreglo, y no vio cambio porque **esa** sucursal no tenía
+piso cargado. Con piso configurado, subir el ingreso **sí** hace aparecer la entidad.
 
 ⚠ Alcance: **un comercio y la etapa del listado**. Que el ingreso no decida quién aparece no dice nada
 sobre el cupo ni sobre las etapas siguientes. Se reproduce con

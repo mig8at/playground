@@ -24,7 +24,12 @@
 1. **Monto mínimo 600.000**: `amount <= 600000` ⇒ *no viable* (`pullman_min_amount`).
 2. **Salta la consulta de pre-aprobados**: Pullman consulta Experian igual, así que la pre-aprobación externa se omite (se ignoraría de todos modos).
 3. **Experian `aciertaQuanto`** (Acierta+Quanto) en vez de `quanto` — su método de buró propio (comparte el branch "Quanto" con DFS/DENTIX 189, que sí usa `quanto`).
-4. **Meddipay desaparece según la hora** (`available_until` + allied 94 ⇒ `unset` de la card).
+4. **Meddipay desaparece según la hora** (`available_until` + allied 94 ⇒ `unset` de la card). ⚠ Ojo con
+   leerlo como «la hora es cosa de Pullman»: verificado el 2026-09-08, la regla horaria **se evalúa para
+   TODOS los comercios** —pasada la hora, el listado v1 no consulta a Meddipay para nadie, así que nadie
+   ve cupo ni etiqueta de preaprobado— y lo que es exclusivo del 94 es que además **la quita de la
+   lista**. Para los demás la tarjeta sigue ahí, como entidad cualquiera. Depurar «a esta clínica no le
+   sale cupo por la tarde» descartando la hora es buscar en el lugar equivocado.
 5. **SMS propio** "¡Solicitud con Credipullman!".
 
 Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datacrédito legacy del listado sí corre para Pullman.

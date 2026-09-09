@@ -40,7 +40,10 @@ Fuente única de `openNewTab`: `LenderTabBehaviorResolver` (`NON_NEW_TAB_LENDER_
 
 **Estados distintivos** (el catálogo completo verificado → `creditop` §Estados): **3** Selección · **11** Desembolsado (+voucher; BdB `updateDisbursedLender(5)`, Sistecrédito `(9)`) · **7** Failed (BdB) · **10** Pending · **8** Aborted/Cancelled · **6** Expired/Rejected (Sistecrédito) · **26** FACTURADO (Corbeta). Estados propios de `LenderTransaction`: `Pending` / `Disbursed` / `Aborted` / `PENDIENTE DESEMBOLSO` / `Facturado`.
 
-**Mínimos de monto quemados** (piso al pre-aprobar): Bancolombia BNPL **$100.000**, Consumo **$1.000.000** (además fuerza `amount=1000000`), Welli **$180.000** (`WelliService.php:36`), Prami **$300.000**, Meddipay **$50.000** (los dos últimos del MS). Corte por horario en Bancolombia (`available_until`).
+**Mínimos de monto quemados** (piso al pre-aprobar): Bancolombia BNPL **$100.000**, Consumo **$1.000.000** (además fuerza `amount=1000000`), Welli **$180.000** (`WelliService.php:36`), Prami **$300.000**, Meddipay **$50.000** (los dos últimos del MS). Corte por horario en Bancolombia y Meddipay (`available_until`). ⚠ Se compara contra el reloj de la
+**aplicación**, que el repo declara en **UTC** y no fija en ninguna parte: si el servicio corre así, «las
+20:30» son 15:30 en Bogotá — media tarde. Verificado el 2026-09-08; la zona efectiva del servicio no
+está en el repositorio y es la mitad del dato.
 
 **Sistemas externos** (config en `config/services.php`): Bancolombia (OAuth2 client_credentials + **JWT RS256** de canal + X-Client-Certificate **mTLS**; **tres palancas de sandbox** —por cédula en `validateQuota`, por **celular** en `retrieveQuota`/`origination`, y por cédula en Consumo— detalladas en el **subnodo `bancolombia` §7**); Sistecrédito; Welli `run_risk`; Meddipay (`CreateOrder`→`creditLimit.result=='APP'`); Prami (`evaluate`, exige perfil **Experian REAL** reconstruido); Banco de Bogotá Enterprise (mTLS cert+key por credencial); Compensar (cupo rotativo OTP, `SLI1000`); Corbeta (cajas Alkosto/Alkomprar). `CredentialScope`: Bancolombia/Meddipay = **merchant** (una credencial por comercio); Sistecrédito/Welli/Prami = **branch** (por sucursal).
 

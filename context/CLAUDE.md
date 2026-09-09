@@ -198,6 +198,33 @@ antes de escribir**, sección por sección.
    precisa: una llamaba con el mismo nombre a dos campos distintos —uno se cifra y el otro no—, y
    pegarla dejaba una sección que nadie puede leer sin equivocarse. La corrección es materia prima.
 
+## `canon-solape.py`: dónde el árbol y canon se contradicen, y qué escribió el equipo
+
+**El caso que lo pagó.** La auditoría de canon del 2026-09-08 gastó 28 agentes y su hallazgo más caro
+fue que su sección del cupo rotativo describía **un solo motor** cuando hay dos, con cortes distintos.
+**El árbol ya lo tenía**: `flows/rotativo/doc.md` trae la tabla comparativa —el redondeo, el nivel
+truncado contra redondeado hacia arriba, el plazo mínimo sobre el cupo contra sobre el tope—. El
+conocimiento existía, no graduó, y canon cargó una falsedad meses hasta que una auditoría cara la
+redescubrió. Eso es lo que este comando ataca, y va en las dos direcciones:
+
+```bash
+python3 tools/canon-solape.py --arbol    # secciones del árbol que pisan una de canon
+python3 tools/canon-solape.py --canon    # lo que canon dice y el árbol NO menciona (la mitad que sirve
+                                         # para mantenerlo al día sin leer todo)
+```
+
+⚠ **Genera candidatos, no veredictos.** La comparación es léxica: puntaje alto = palabras compartidas,
+no la misma afirmación. Medido el 2026-09-09: de los pares fuertes, **cerca de la mitad** hablaban de
+verdad de lo mismo — el resto era coincidencia de vocabulario. Hay que leer el par.
+
+⚠ **Y solape no es duplicación.** Muchas veces el árbol dice lo mismo con algo que canon **no puede**
+decir —ids reales, `archivo:línea`, la receta para correrlo—: ahí las dos versiones se quedan. Lo que
+hay que arreglar es cuando **se contradicen**, y ahí la pregunta es cuál de las dos se verificó después.
+
+⚠ **El cubrimiento se mide contra el MEJOR NODO, no contra el árbol entero.** El primer intento
+preguntaba «¿aparecen estas palabras en algún lado?», y contra un árbol de este tamaño la respuesta es
+casi siempre sí: dio dos huérfanas de trescientas, o sea ninguna señal.
+
 ## `refs.py`: ¿las citas `archivo:línea` siguen apuntando a lo que dicen?
 
 ```bash
