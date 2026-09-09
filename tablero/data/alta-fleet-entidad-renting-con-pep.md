@@ -427,6 +427,30 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-09 (cierre 2) · las dos hojas bajo el panel
+
+Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
+asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) colgados del borde inferior
+del panel con `top-full`, de 16 px, al 55 % y al 30 % del color de marca y cada uno más angosto.
+Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
+panel es `lg:flex-1` y llega hasta abajo.
+
+> **MEDICIÓN · 2026-09-09** — **la primera versión pintó las hojas FUERA de la pantalla, y la causa es
+> que el panel no era `relative`.** Con `top-full`, el offset parent resultó ser la **columna** —que sí
+> es `relative`, y llega hasta el borde de abajo—, así que las hojas cayeron en `y: 797` y `y: 813` en
+> un viewport de **797 px**. Agregándole `relative` al panel pasan a `y: 490` y `y: 506` en un 390×844,
+> las dos visibles y **sin scroll** (`scrollHeight` 844 = viewport). En 1440×900 no se pintan (`h: 0`),
+> que es lo que se quería. El `relative` es inerte para el resto: el panel no tiene otro descendiente
+> posicionado, el componente no recibe `children`, y `position: relative` sin desplazamientos no mueve
+> un ítem de flex — la variante de entidad no cambia.
+> Playwright contra `/merchant/<hash>/solicitar` en local, `getBoundingClientRect` de panel y capas
+
+⚠ Y una nota sobre el comentario que acompaña al código: la primera redacción justificaba el `top-full`
+diciendo que el panel «crea contexto de apilado con su `z-10`». **Es falso** — el `z-10` es de la
+columna, no del panel, y el panel con `relative` y `z-index: auto` no crea contexto. Se reemplazó por
+la razón verdadera, que es la medición de arriba. Un comentario que explica bien una decisión con un
+mecanismo equivocado enseña mal al que lo lee después.
+
 ### 2026-09-09 (cierre) · dos PRs, un commit cada uno, y la foto
 
 A pedido de Miguel se consolidó todo en **dos PRs con un commit cada uno**, con la descripción entera
