@@ -78,5 +78,6 @@
         ]
       }
     }
-  ]
+  ],
+  "nota_assets": "⚠ TODO lo visual es PRESTADO, y se ve en la primera pantalla: el comercio se clona de Motai, así que el logo y los colores del wizard son los de Motai; el fondo de la bienvenida es el de CREDIMOVIL (la única entidad con esa pantalla en producción) y el logo de la entidad también sale del molde. Sirve para VER las pantallas; las piezas de Alta Fleet las tiene que dar diseño."
 }

@@ -1084,6 +1084,20 @@
       // ⚠ Perú no tiene ciudades cargadas; el flujo pasa igual porque el país no tiene centrales de
       // riesgo habilitadas y el paso laboral se resuelve por pantalla.
       { slug: 'comercio-pruebas-peru', name: 'Perú (pruebas)' },
+      // ALTA FLEET — el comercio nuevo de motos con línea de crédito propia. Lo que ejercita, y que
+      // ningún otro de esta lista junta: entidad `rt=2` con `product = rto` (Rent to Own, el cliente
+      // se queda con la moto), **PANTALLA DE BIENVENIDA** de la entidad (`show_intro_screen`, que en
+      // producción sólo tiene CREDIMOVIL), **PEP** en el selector de documento, y **AUTOGESTIÓN**
+      // (`allieds.self_managed=1` + `user_self_management=0`): el cliente sigue solo, sin modal y sin
+      // WhatsApp.
+      //
+      // ⚠ SÓLO EXISTE EN LOCAL, y no está en el dump: lo siembra `make harness-comercio COMERCIO=alta`
+      // (idempotente, `CLEAN=1` lo borra). En producción el comercio existe —allied 346 «Alta»— pero
+      // con otra configuración y otro hash, así que la card va a decir que no está en los otros
+      // targets: es cierto.
+      // ⚠ Y su catálogo de documentos sólo tiene la rama CON codeudor, así que el flujo pide codeudor
+      // antes de firmar. Es la conducta correcta del Rent to Own, no un fallo.
+      { slug: 'alta', name: 'Alta Fleet' },
     ];
     let sel = MERCHANTS[0];      // Motai por defecto
     let target = 'local';        // local | dev | staging | qa (staging y qa: front y backend propios, BD compartida con dev)
