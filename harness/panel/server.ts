@@ -935,6 +935,13 @@ const server = createServer(async (req, res) => {
         return json(res, 200, {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
             canales: corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce'],
+            // Qué canal viene PRESELECCIONADO. No es cosmético: asesor y autogestión se ven idénticos en
+            // pantalla y el default equivocado hace que la corrida pruebe el otro camino sin avisar —
+            // pasó el 2026-09-09 y costó dos vueltas de diagnóstico. Un comercio con «Habilitar auto
+            // gestión» prendido abre en su canal; el resto sigue abriendo en asesor.
+            // ⚠ Es un DEFAULT, no un candado: los otros canales siguen ofrecidos y clickeables, porque
+            // correr un comercio autogestionado por el canal del asesor es una comparación legítima.
+            sugerido: corbeta ? 'qr' : (r as any).selfManaged === true ? 'autogestion' : 'asesor',
         });
     }
 

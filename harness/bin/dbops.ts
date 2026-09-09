@@ -281,8 +281,12 @@ try {
             // `hardcodes-entidades`) y sumar el 25 en el harness lo desincronizaría el día que negocio
             // agregue un comercio al grupo.
             {
-            const br = await one<{ alliedId: number }>(
-                'SELECT allied_id AS alliedId FROM allied_branches WHERE hash = ?', [String(a[0] ?? '')]);
+            // `self_managed` viaja en la MISMA consulta: es lo que el panel necesita para preseleccionar el
+            // canal, y pedirlo aparte sería un viaje más para un dato que ya está en el join.
+            const br = await one<{ alliedId: number; selfManaged: number }>(
+                'SELECT ab.allied_id AS alliedId, al.self_managed AS selfManaged'
+                + ' FROM allied_branches ab JOIN allieds al ON al.id = ab.allied_id WHERE ab.hash = ?',
+                [String(a[0] ?? '')]);
             const raw = await one<{ value: string }>(
                 "SELECT value FROM settings WHERE `key` = 'corbeta_allieds'");
             let allieds: number[] = [];
@@ -295,6 +299,10 @@ try {
                 hash: String(a[0] ?? ''),
                 alliedId: br?.alliedId ?? null,
                 corbeta: br ? allieds.includes(Number(br.alliedId)) : false,
+                // El flag de comercio que enciende la autogestión (`allieds.self_managed`, el switch
+                // «Habilitar auto gestión» del panel de admin). null cuando la sucursal no se encontró:
+                // no es lo mismo que "no la tiene", y el panel no debe preseleccionar sobre una suposición.
+                selfManaged: br ? Number(br.selfManaged) === 1 : null,
                 allieds,
             };
             }

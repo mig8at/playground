@@ -1163,7 +1163,8 @@
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
-    let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'ecommerce' (URL base64)
+    let canal = 'asesor';        // por dónde ENTRA la solicitud: 'asesor' (login + wizard) | 'autogestion' (el cliente solo) | 'ecommerce' (URL base64) | 'qr' (caja Corbeta)
+    let canalTocado = null;      // slug del comercio cuyo canal ya se resolvió (sugerido o a mano): no se vuelve a pisar
     let doctype = 'CC';
     let gender = 'M';
     let step = 'monto';          // dónde saltar: monto | phone | personal-info | lenders
@@ -1852,6 +1853,10 @@
       try {
         const r = await (await fetch('/api/canales?slug=' + encodeURIComponent(sel.slug) + '&target=' + target)).json();
         canalesOk = Array.isArray(r.canales) ? r.canales : null;
+        // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
+        // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
+        // selección cada vez que el panel refresca es peor que no tener default.
+        if (r.sugerido && canalTocado !== sel.slug) { canal = r.sugerido; canalTocado = sel.slug; }
         esCorbeta = r.corbeta === true;
         // Si el canal elegido dejó de aplicar (cambiaste de comercio), se cae al primero permitido en vez
         // de lanzar con un canal que el servidor no ofrece.
@@ -2324,7 +2329,9 @@
       if (!mockPA && padelay !== 0) { padelay = 0; setSeg('padelay', '0'); }   // MS real: reseteo el delay que no se usará
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
-    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; applyCanal(); ensureAssignUI(); });
+    // `canalTocado` fija que el canal de ESTE comercio ya lo decidiste vos: la sugerencia del servidor
+    // no vuelve a pisarlo en los refrescos siguientes.
+    document.querySelectorAll('#canal button').forEach(b => b.onclick = () => { canal = b.dataset.c; canalTocado = (sel && sel.slug) || canalTocado; applyCanal(); ensureAssignUI(); });
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
