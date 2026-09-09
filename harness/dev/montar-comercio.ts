@@ -31,6 +31,10 @@
 //                          imágenes de prueba viven en `harness/images/` y las sirve el panel
 //                          (`http://localhost:5195/images/<archivo>.png`); `allieds.image` es
 //                          varchar(255), así que un data URI no entra.
+//                          Y `pages` son las PANTALLAS propias del comercio — hoy sólo
+//                          `pages.welcome` (logo, description con `\n`, background, cta), la
+//                          bienvenida que se muestra al entrar, antes del monto. Ausente = cero
+//                          páginas, que es lo que tiene todo el resto del padrón.
 //   sucursales[]           `{ nombre, ciudad }` — `ciudad` es `country_cities`.id (Bogotá 149).
 //   entidades[]            una por lender:
 //     id                   FIJO, para que una suite pueda declarar a quién espera en el listado.
