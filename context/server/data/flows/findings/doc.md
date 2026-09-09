@@ -3599,10 +3599,22 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   que el defecto se lea como un problema de copy cuando en realidad la navegación está rota.
 - **Arreglo:** el backend manda **`continueUrl`** en la respuesta de `update-user-request`, poblada
   sólo en autogestión y sólo para el flujo en plataforma (rt 2/3/4), y el front redirige ahí antes de
-  llegar a la rama de renting/RTO. El criterio va a `LenderTabBehaviorResolver::clientDrivesFlow()`,
+  llegar a la rama de renting/RTO. El criterio va a `LenderTabBehaviorResolver::continuesInPlace()`,
   junto al `opensNewTab()` que ya resolvía con el mismo trío. ⚠ La url la arma el back porque se
   construye con el id de solicitud que **persistió**, que no siempre es el de la ruta (el incidente de
   `docs/lenders/nequi/CONTRATOS.md` §1.7).
+- **⚠ Y `allieds.self_managed` manda incluso con un asesor autenticado.** La primera versión del
+  arreglo hacía lo contrario y el defecto sobrevivía en el canal del asesor: el switch del panel se
+  llama «Habilitar auto gestión» a nivel comercio, así que si sólo valiera sin sesión significaría
+  «autogestión excepto cuando alguien la usa». El flanco de la biometría no queda descubierto —lo
+  cubre `RedirectIdValidationIfDesktop`, por user-agent y en el paso de identidad—, con lo cual el
+  handoff ocurre donde hace falta en vez de preventivamente al elegir la entidad.
+- **⚠ Dos trampas del front al redirigir a una url que decide el back:** (1) `routeHelpers.redirect`
+  **prefija el contexto de la ruta**, así que con un path absoluto produce
+  `/self-service/<hash>/self-service/<hash>/<id>/confirmation` — hay que usar `redirectExternal`, que
+  es un `redirect` pelado; y (2) `UrlGenerationService::buildUrl` devuelve una url **absoluta** (con
+  `front_end_url` de settings), así que para continuar en el mismo browser conviene quedarse con el
+  path y no sacar al cliente del origen donde vive su sesión.
 - **⚠ No confundir con F-189**, que es el defecto espejo en `legacy-application`: ahí el problema es
   que **sí** manda el WhatsApp para todo rt=2 ignorando el flag. Los dos salen del mismo pedido
   —«que en autogestión no se le mande nada»— pero viven en repos distintos y se arreglan aparte.

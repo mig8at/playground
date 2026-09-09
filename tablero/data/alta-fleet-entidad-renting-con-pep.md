@@ -459,6 +459,26 @@ de WhatsApp con un link para continuar el proceso»— y es lo que hace que el d
 problema de copy cuando la navegación está rota. Vale registrarlo: **buscábamos un mensaje de más y
 encontramos un 404**, y sólo apareció porque se corrió.
 
+> **MEDICIÓN · 2026-09-09** — **la primera versión del arreglo dejaba el defecto vivo en el canal del
+> asesor, y el alcance de corregirlo hay que medirlo en prod.** Yo había escrito «el asesor autenticado
+> manda sobre la configuración del comercio», y con eso el camino VISUAL del harness —que loguea un
+> asesor— seguía yendo al handoff: uReq 466446 con `corporate_user_id = 1827080` fue a
+> `/merchant/.../continue`, mientras la corrida por consola (466444, `corporate_user_id = NULL`) fue a
+> `/self-service/.../confirmation`. Invertir la precedencia es lo correcto —el switch se llama
+> «Habilitar auto gestión» a nivel COMERCIO, y el flanco de la biometría lo cubre
+> `RedirectIdValidationIfDesktop` por user-agent en el paso de identidad— pero **toca comercios
+> vivos**: 39 tienen `self_managed = 1` (9 activos) y en rt=2 sólo dos tienen volumen en 90 días —
+> Refurbi (1.600 solicitudes, 15 con asesor) y **My Tech (72, TODAS con asesor)**. A My Tech le cambia
+> el 100 % del flujo. Hay que confirmarlo con quien lo opera antes de mergear.
+> `user_requests`/`user_request_records` en local para las dos corridas, y `make trazador-sql
+> TARGET=prod` para el padrón
+
+⚠ **Dos trampas del front al redirigir a una url que decide el back, las dos medidas:**
+`routeHelpers.redirect` **prefija el contexto de la ruta** (produjo
+`/self-service/<hash>/self-service/<hash>/<id>/confirmation`, hay que usar `redirectExternal`), y
+`UrlGenerationService::buildUrl` devuelve una url **absoluta** con `front_end_url` de settings — para
+continuar en el mismo browser se usa sólo el path, o el cliente sale del origen donde vive su sesión.
+
 ⚠ **Lo que NO entró, a propósito:** el defecto espejo de `legacy-application` (F-189), cuya condición
 `... || $lender->response_type === 2` hace que para CUALQUIER rt=2 el `||` gane y se mande el WhatsApp
 ignorando el flag. Sacar ese `||` cambia el comportamiento de todos los rt=2 en producción — es una
