@@ -25,11 +25,19 @@
 //     a propósito, que es lo que lo mantiene andando.
 
 import { spawnSync } from 'node:child_process';
-import { telefonoDeLaSucursal } from '../pkg/merchants.ts';
 
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 
+/* ⚠ ESTE IMPORT VA DINÁMICO, Y NO ES ESTILO. `pkg/merchants.ts` importa `pkg/db.ts`, que importa
+   `pkg/env.ts`, y ahí `TARGET` se resuelve UNA vez al evaluar el módulo. Los imports estáticos de ES
+   se evalúan ANTES de la primera sentencia de este archivo, así que con `import ... from` el módulo
+   quedaba fijado en `dev` —el default— antes de que la línea de abajo pudiera forzar `local`: el
+   runner imprimía «target local» y leía y escribía contra el RDS COMPARTIDO de dev. Medido el
+   2026-09-09: con el import estático `TARGET` es `dev` y el host la RDS; con este orden es `local` y
+   127.0.0.1. Por eso los imports de `db`/`inject` de más abajo ya eran dinámicos — a este le faltaba.
+   Si lo «ordenás» subiéndolo, vuelve el defecto y no falla: cambia de base en silencio. */
+const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
 const { one, query, exec, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
