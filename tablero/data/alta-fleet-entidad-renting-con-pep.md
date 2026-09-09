@@ -431,8 +431,9 @@ Y los dos chequeos que no son un comando:
 
 Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
 asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) colgados del borde inferior
-del panel con `top-full`, de 16 px, al 55 % y al 30 % del color de marca y cada uno más angosto.
-Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
+del panel con `top-full`, de 16 px, al 55 % y al 30 % del color de marca. **Del mismo ancho las dos**
+(`inset-x-10`): la primera versión iba en degradé —cada hoja más angosta— y diseño pidió que no, que
+lo único que las separe sea la opacidad. Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
 panel es `lg:flex-1` y llega hasta abajo.
 
 > **MEDICIÓN · 2026-09-09** — **la primera versión pintó las hojas FUERA de la pantalla, y la causa es
