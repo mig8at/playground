@@ -137,9 +137,10 @@ function build(req, status) {
  *
  * ⚠ ESTE MOCK ACEPTABA CUALQUIER CLAVE, Y ESO LO VOLVÍA UN ORÁCULO FALSO. El servicio de verdad las
  * valida contra un registro CERRADO (`internal/core/domain/lending_product.go`,
- * `LendingProductKey.Validate`) y una desconocida termina en 404 «resource not found». Acá se echaba
- * de vuelta lo que llegara, siempre aprobado — así que una corrida local con la clave equivocada se
- * veía idéntica a una sana. Costó un caso concreto: los slugs de BCP en la base local eran
+ * `LendingProductKey.Validate`) y su handler corta con **400 «invalid lending product key»** ANTES de
+ * mirar nada más — antes del caso de uso, así que no llega al 404 genérico de «not found». Acá se
+ * echaba de vuelta lo que llegara, siempre aprobado — así que una corrida local con la clave
+ * equivocada se veía idéntica a una sana. Costó un caso concreto: los slugs de BCP en la base local eran
  * `bcp-consumo`/`bcp-vehicular` con guion medio (dev y producción los tienen con guion BAJO), el front
  * arma la clave con el slug del lender, y el registro de la decisión no llegaba a ningún lado sin que
  * nada se pusiera rojo.
@@ -188,11 +189,11 @@ const server = http.createServer((r, res) => {
                   // abajo llega a pasar. Mismo código y misma forma que devuelve él.
                   const clave = String(req.lending_product_key ?? "");
                   if (!CLAVES_CONOCIDAS.has(clave)) {
-                        console.log(`[mock-pa] ${clave || "(vacía)"}#${req.lending_product_id ?? "-"} → 404 clave desconocida`);
-                        res.writeHead(404, { "content-type": "application/json" });
+                        console.log(`[mock-pa] ${clave || "(vacía)"}#${req.lending_product_id ?? "-"} → 400 clave desconocida`);
+                        res.writeHead(400, { "content-type": "application/json" });
                         res.end(
                               JSON.stringify({
-                                    error: "resource not found",
+                                    error: "invalid lending product key",
                                     details: `lending product not found: ${clave}`,
                               }),
                         );
