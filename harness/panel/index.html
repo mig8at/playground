@@ -1083,7 +1083,14 @@
       // formulario del vehículo, el simulador embebido y el registro del resultado—.
       // ⚠ Perú no tiene ciudades cargadas; el flujo pasa igual porque el país no tiene centrales de
       // riesgo habilitadas y el paso laboral se resuelve por pantalla.
-      { slug: 'comercio-pruebas-peru', name: 'Perú (pruebas)' },
+      //
+      // ⚠ SE LLAMA POR LO QUE EJERCITA Y NO POR SU NOMBRE EN LA BASE, y no es capricho: medido el
+      // 2026-09-09, el nombre real **también** dice «pruebas» y encima es un comercio DISTINTO en cada
+      // ambiente — en local es el allied 279 «Comercio pruebas Perú» (sucursal 2020 «Lima · Miraflores»)
+      // y en dev/qa/staging el 337 «Comercio pruebas BCP», con dos sucursales («Pruebas BCP consumo» y
+      // «pruebas BCP vehicular»). Copiar cualquiera de los dos nombres a la card haría que la card
+      // mienta en el otro ambiente; «BCP (Perú)» es cierto en los dos.
+      { slug: 'comercio-pruebas-peru', name: 'BCP (Perú)' },
       // ALTA FLEET — el comercio nuevo de motos con línea de crédito propia. Lo que ejercita, y que
       // ningún otro de esta lista junta: entidad `rt=2` con `product = rto` (Rent to Own, el cliente
       // se queda con la moto), **PANTALLA DE BIENVENIDA** de la entidad (`show_intro_screen`, que en
