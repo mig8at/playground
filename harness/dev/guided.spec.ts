@@ -249,7 +249,14 @@ test('guided (semiautomático)', async ({ browser }) => {
     // B NO hereda la sesión de A, a propósito: `/self-service/*` matchea `route(":flow", public-layout.tsx)`
     // en el wizard → layout PÚBLICO, sin `requireUserWithSession` (eso solo lo exige `/merchant/*` vía
     // default-layout). Es el celular del CLIENTE: en la vida real abre el link sin la sesión del asesor.
-    const { page: B } = await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
+    // ⚠ EN AUTOGESTIÓN NO SE ABRE B, y no es un detalle de prolijidad: abrir una segunda ventana dice
+    // «el proceso se le entregó a alguien», que es exactamente lo contrario de lo que pasa. El cliente
+    // ya está en A y sigue ahí. `B` queda apuntando a A para que el resto del archivo no tenga que
+    // preguntar por el canal — y las dos funciones que ESCRIBEN en B (`bCard`, que le pone una tarjeta,
+    // y `wakeB`, que la navega) se vuelven no-op abajo. Sin esas dos guardas, con `B === A` la tarjeta
+    // de «Esperando…» le borraría la pantalla al cliente.
+    const UNA_VENTANA = ENTRY === 'self-service';
+    const { page: B } = UNA_VENTANA ? { page } : await openB(browser, { baseURL: config.feBaseUrl, userAgent: IPHONE_UA }); // B mitad DERECHA
 
     // ¿ESTE uReq requiere ÁBACO? (product renting/rto). Best-effort, pero decide la BIFURCACIÓN del flujo,
     // así que REINTENTA en vez de rendirse al primer error: un solo intento con `.catch(() => false)`
@@ -334,7 +341,9 @@ test('guided (semiautomático)', async ({ browser }) => {
         await mockPayvalidaCheckout(page).catch(() => {});
     }
     // Tarjeta de estado de B (mientras no haya una pantalla real que mostrar).
-    const bCard = (kicker: string, title: string, body: string, dots = true) => B.setContent(
+    const bCard = (kicker: string, title: string, body: string, dots = true) => UNA_VENTANA
+        ? Promise.resolve()   // B es A: escribirle una tarjeta le borraría la pantalla al cliente
+        : B.setContent(
         `<!doctype html><meta charset="utf-8"><title>B · celular del cliente</title>
       <style>html,body{height:100%;margin:0}body{background:#0f1115;color:#e7eaf0;display:grid;place-items:center;
       font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center;padding:24px}
@@ -372,6 +381,27 @@ test('guided (semiautomático)', async ({ browser }) => {
     // el front lo rechazó (esto en true) vs. el salto ni se pidió (carrera post-login, esto en false). F-66.
     let lendersBounced = false;
     const wakeB = async (kind: 'creditopx' | 'agregador' | 'redirect', aUrl: string, lender = ''): Promise<void> => {
+        // Autogestión: no hay a quién despertar. ⚠ Esta guarda es la que faltaba en la primera versión
+        // del canal: el watcher del modo MANUAL llama acá en cuanto la URL de A toca `/continue` o
+        // `/confirmation`, así que B se abría igual aunque el recorrido del bloque rt=2 ya usara A.
+        if (UNA_VENTANA) {
+            if (!bWoke) {
+                bWoke = true;
+                // Y de paso se DIAGNOSTICA dónde quedó el cliente, porque las dos posibilidades se ven
+                // igual de raro si no sabés qué mirar:
+                //  · `/continue` → el front NO tiene el arreglo de `continueUrl`: esa ruta existe sólo
+                //    bajo `/merchant/*`, así que en el tronco público es un 404. Es F-191.
+                //  · `/confirmation` → el arreglo está: el cliente siguió solo, como corresponde.
+                if (/\/continue(\?|$)/.test(aUrl)) {
+                    log('✗ autogestión: el front mandó al cliente a /continue, que NO existe bajo /self-service → 404.');
+                    log('   Es F-191: falta el arreglo de `continueUrl` (PRs frontend-monorepo#983 + legacy-backend#1351).');
+                    log(`   Mientras no esté, el paso siguiente a mano es: ${selfServiceLinkFrom(aUrl) || '(no pude armar el link)'}`);
+                } else {
+                    log('autogestión: una sola ventana — el cliente siguió solo, sin handoff');
+                }
+            }
+            return;
+        }
         if (bWoke) return;
         bWoke = true;
         if (kind === 'creditopx') {
