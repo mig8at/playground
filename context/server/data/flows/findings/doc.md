@@ -41,7 +41,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«elige una fecha de pago y el cambio la rechaza»** | **F-148** |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
-| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 |
+| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** |
@@ -53,9 +53,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el buró: ¿se consultó para ESTA solicitud?»** | F-101 · F-107 |
 | **«¿hay evidencia en la BD que el trazador no mira?»** | F-108 |
 | **«¿esta herramienta es de verdad solo-lectura?»** | F-109 |
-| **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 |
+| **«el crédito no cierra en local»** | F-07 · F-08 · F-09 · F-10 · F-11 · F-12 · F-13 · F-29 · F-30 · F-31 · F-36 · **F-188** |
 | **«falló la validación de identidad / se canceló solo»** | F-10 · F-55 · F-60 · F-62 · F-63 |
-| **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 · **F-121** |
+| **«firma, pagaré, OTP de firma»** | F-02 · F-11 · F-12 · F-30 · F-32 · F-36 · F-37 · F-58 · **F-121** · **F-188** |
 | **«el pagaré dice una persona y la BD dice otra»** | **F-121** |
 | **«el webhook del lender no llegó (¿o sí?)»** | F-94 · F-100 · F-111 |
 | **«el agregador aprobó / el cliente firmó, y sigue en Seleccionó entidad»** | F-111 · F-94 |
@@ -309,6 +309,8 @@ distinto según con qué pregunta llegues.
 | F-162 | Las reglas de grupo clasifican, no excluyen: 1.923 créditos las violan y se otorgaron | VIGENTE |
 | F-185 | Volver atrás reinyecta el monto viejo: el financiado vive sólo en la query | ABIERTO |
 | F-186 | El gate de la entidad se vuelve a apretar con el atrás y niega una solicitud que ya siguió | ABIERTO |
+| F-187 | Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD compartida | cerrado |
+| F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ABIERTO |
 
 ---
 
@@ -3435,4 +3437,68 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Arreglo:** guarda de etapa en el loader de las dos pantallas, y que la decisión del gate se guarde
   donde sobreviva al dispositivo. Con la decisión persistida, volver al gate muestra lo que se decidió
   en vez de volver a preguntarlo.
+- **Estado:** ABIERTO.
+
+### F-187 · Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD COMPARTIDA
+
+- **Síntoma:** `make harness-listado COMERCIO=<uno recién sembrado en local>` contesta **«no encontré
+  una sucursal»**, aunque la fila existe y la misma consulta corrida a mano la devuelve. El encabezado
+  dice `target local`, así que no se sospecha del ambiente. Con un comercio que existe en los dos lados
+  (pullman) no falla: mide el ambiente equivocado **en silencio**.
+- **Causa raíz:** el runner hace `process.env.E2E_TARGET ||= 'local'`, pero **arriba** tiene un
+  `import` **estático** de `pkg/merchants.ts`, que importa `pkg/db.ts` → `pkg/env.ts`, y ahí `TARGET`
+  se resuelve **una vez al evaluar el módulo**. Los imports estáticos de ES se evalúan **antes** de la
+  primera sentencia del archivo, así que el módulo queda fijado en el default (`dev`) antes de que la
+  asignación pueda correr. Los imports de `db`/`inject` de más abajo ya eran **dinámicos** —alguien
+  conocía el patrón—; a éste le faltaba. Y el encabezado sigue diciendo la verdad de la intención, no
+  la del código: *«E2E_TARGET default es dev → acá se fuerza local salvo override explícito»*.
+- **Evidencia (2026-09-09):** con el orden del runner, `TARGET = dev` y el host
+  `inertia-dev.…rds.amazonaws.com`; moviendo la asignación arriba del import, `TARGET = local` y
+  `127.0.0.1`. Se ve también en la primera línea que imprime: antes del arreglo la API era
+  `http://legacy-backend.inertia-develop`, después `http://localhost`.
+- **⚠ Y no era sólo lectura.** `dev/listado.ts` registra un teléfono y hace `INSERT INTO user_requests`
+  **sin** `assertWriteAllowed()` (la guarda vive dentro de `pkg/inject.ts`, tres llamadas más
+  adelante). O sea que la corrida alcanzaba a crear usuario y solicitud en la base compartida y recién
+  después abortaba por la guarda, dejando huérfanos.
+- **Alcance medido:** dos runners, `dev/listado.ts` y `dev/sweep.ts`. El barrido es
+  `for f in dev/*.ts` comparando la línea del primer `import … from '../pkg/…'` contra la del
+  `E2E_TARGET ||=`. ⚠ Y `playground/CLAUDE.md` afirmaba «`dev/sweep.ts:34` ya lo fuerza» — es
+  justamente la creencia que este defecto fabrica.
+- **Arreglo:** el import pasa a **dinámico**, junto a los otros y después de la asignación. La lección
+  generaliza más que el arreglo: **un `||=` de variable de entorno nunca gana a un import estático**;
+  si un módulo lee el entorno al evaluarse, todo lo que lo alcance tiene que importarse dinámicamente.
+- **Estado:** cerrado (2026-09-09). La guarda que falta en el `INSERT` directo de `listado.ts` sigue
+  abierta.
+
+### F-188 · El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar
+
+- **Síntoma:** una entidad `rt=2` que reusa el catálogo de documentos del renting o del Rent to Own
+  **lista bien, simula bien y muere al firmar** con `HTTP 500`. El runner lo reporta como «la
+  generación de documentos devolvió HTTP 500»; el cuerpo real dice
+  `Blade PDF generation failed: Undefined variable $nombre_cliente (View: …/lenders/motai/rto/contrato_rto_con_codeudor.blade.php)`.
+- **Causa raíz:** `CatalogDocumentPayloadResolver::BUILDERS_BY_LENDER` es un **mapa por id de
+  entidad** —`158 => MotaiRentingPayloadBuilder`, `193 => MotaiRentToOwnPayloadBuilder`—. Cualquier
+  otro id cae a `OnboardingPayloadBuilder`, que produce `full_name`/`document_number` mientras esas
+  plantillas piden `nombre_cliente`/`placa`. El builder es por **ENTIDAD** y la plantilla por
+  **DOCUMENTO**, y aparearlos revienta en pleno render.
+- **Evidencia (local, 2026-09-09, `make harness-caso … CERRAR=1`):** una entidad nueva con el catálogo
+  del RTO clonado → uReq 466419, listado `[210]`, **no cerró**, 500 en `GET
+  /api/loans/requests/promissory-note/{ur}`. Y **el propio Rent to Own de Motai falla igual**:
+  `CASOS='motai:173'` → uReq 466420, listado `[170, 169, 168, 6, 173, 8]`, mismo 500. O sea que no es
+  del comercio nuevo: es del mapa.
+- **Por qué el id no sirve como llave:** el Rent to Own es **193 en producción, 205 en qa y 173 en el
+  dump local**. El commit `28b2d436` («point rent-to-own payload builder to the production lender id»)
+  cambió 205 por 193 y con eso lo arregló en producción y lo rompió en los otros dos. Por eso
+  `harness/suites/codeudor.json`, que declara que el 173 cierra en estado 11, **hoy falla**.
+- **Lo dice el propio código.** El docblock del resolver documenta este modo de falla —es el que
+  impedía firmar al 205— y deja el TODO: *«cambiar 158 y 205 por los ids de PRODUCCIÓN antes de
+  desplegar… Mejor aún: resolver por `lenders.slug`, que sí es estable entre ambientes»*.
+- **Arreglo:** el `slug` arregla los ambientes pero **no** al comercio nuevo, que tiene su propio slug.
+  La llave que ya está en el dato y describe la forma del payload es **`lenders.product`**
+  (`renting` / `rto`): con eso el builder se elige por producto y una entidad nueva del mismo producto
+  funciona sin tocar código. Es el movimiento que el nodo `hardcodes-entidades` llama «convertir el
+  `if` por identidad en config».
+- **⚠ Y el arreglo del builder no alcanza para un comercio nuevo:** las plantillas que el catálogo
+  nombra son de Motai (`…/lenders/motai/rto/…`), y un comercio distinto necesita las suyas, aprobadas
+  por legal. El builder desbloquea la firma; la marca del contrato es otra entrega.
 - **Estado:** ABIERTO.

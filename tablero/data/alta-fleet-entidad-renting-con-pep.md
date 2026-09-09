@@ -21,14 +21,22 @@ sucursal en Bogotá y sus reglas duras copiadas, pero cableado a las **dos entid
 (agregadores externos, `rt=1`) — no a una entidad propia. **Cero solicitudes en 9 días.** Lo que falta
 es exactamente lo que pidieron: su entidad de renting.
 
+**Producto decidido: Rent to Own** — el cliente se queda con la moto (Miguel, 2026-09-09).
+
+**Ya está montado y corriendo en LOCAL** (`harness/dev/montar-alta.ts`, idempotente y con `--clean`):
+el comercio, la sucursal de Bogotá y la entidad **AltaX** (`rt=2`, `product=rto`, con PEP), con las
+reglas duras **alineadas** entre plantilla y clon de sucursal. Medido: **lista** y **ofrece PEP**.
+**No cierra**, y la causa no es del comercio nuevo: es **F-188**, un mapa por id de entidad quemado en
+el generador de documentos — el propio Rent to Own de Motai falla igual en local.
+
 Lo que **ya no hay que investigar**: el mecanismo del PEP (es un campo de la entidad, no de la
 sucursal, y el admin ya lo edita), quién escribe las reglas duras (hay API de backoffice en `main` que
-las escribe y las propaga), y qué le falta a una entidad `rt=2` para operar (el código lo define en
-cinco chequeos — ver «Lo que está decidido»).
+las escribe y las propaga), qué le falta a una entidad `rt=2` para operar (el código lo define en
+cinco chequeos), y por qué no cierra (F-188, medido por los dos lados).
 
-**El próximo paso es:** que Miguel decida **renting u opción de compra** (§«Lo que está bloqueado»),
-porque de eso dependen el catálogo de documentos y la calculadora, que son las dos piezas que sí
-piden código.
+**El próximo paso es:** decidir si F-188 entra en esta tarea o va aparte. Es un cambio chico
+—elegir el builder por `lenders.product` en vez de por id— y **sin él ningún comercio nuevo puede
+reusar el producto**, así que la tarea no puede cerrar sin que alguien lo haga.
 
 ## Objetivo
 
@@ -69,17 +77,19 @@ duras y los perfiles cargados y **alineados entre el listado y el cupo**.
 
 En cuatro entregas que se pueden parar en el medio. **Las tres primeras no tocan producción.**
 
-1. **Montar Alta Fleet en LOCAL** (`dev/montar-alta.ts`, idempotente y con `--clean`, como
-   `montar-peru.ts`): comercio + sucursal en Bogotá (`country_city_id = 149`) + la entidad `rt=2` con
-   `document_types` incluyendo `PEP`, clonando el árbol de config del molde que se elija. Entrada en
-   `.flows.json` como `alta`.
-2. **Ejercitar el flujo por consola**: `make harness-listado COMERCIO=alta` (¿aparece la entidad?) y
-   `make harness-caso` con `CERRAR=1` (¿cierra?). Suite declarada en `harness/suites/alta.json`.
-   Lo que hay que ver además del cierre: que el selector de tipo de documento **ofrezca PEP**.
-3. **Decidir el producto y escribir sus dos piezas de código**: la migración del `calculator` y la del
-   catálogo `lender_signing_documents`. Esto depende de la decisión bloqueada, y de que legal
-   entregue las plantillas.
-4. **El runbook de producción**, en este ORDEN — y el orden está medido, no es preferencia:
+1. ✅ **Montar Alta Fleet en LOCAL** — `harness/dev/montar-alta.ts`, hecho el 2026-09-09. Comercio +
+   sucursal en Bogotá (`country_city_id = 149`) + la entidad `rt=2` con PEP, con el molde partido en
+   dos (170 para lo operativo, 173 para el catálogo de documentos del RTO) y entrada en `.flows.json`
+   como `alta`. Ábaco se apaga a mano: el molde lo trae encendido y nadie lo pidió para Alta Fleet.
+2. ✅ **Ejercitar el flujo por consola** — hecho: lista y ofrece PEP; **no cierra** por F-188. La suite
+   `harness/suites/alta.json` queda declarada con el cierre en rojo **a propósito**, para que se ponga
+   verde sola el día que F-188 se arregle.
+3. **Arreglar F-188** (nuevo, y es el bloqueador): elegir el payload builder por `lenders.product` en
+   vez de por id de entidad. Desbloquea a Alta Fleet **y** repara el RTO de Motai en local y en qa.
+4. **Escribir las dos piezas de config que ningún panel pone**: la migración del `calculator` propio de
+   Alta Fleet y la del catálogo `lender_signing_documents` con **sus** plantillas (hoy apunta a las de
+   Motai). Depende de que legal las entregue.
+5. **El runbook de producción**, en este ORDEN — y el orden está medido, no es preferencia:
    crear la entidad en el admin (con PEP) → `PUT /rules` del backoffice (deja la **plantilla** sola,
    sin clones, porque todavía no hay sucursal habilitada) → cargar la economía por comercio →
    **recién ahí** activarla en la sucursal, que copia la plantilla ya escrita → `GET /readiness` para
@@ -167,18 +177,49 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 > `lender_requirements` no tiene ningún controller de admin en `legacy-application`; y
 > `lender_signing_documents` sólo se crea desde migraciones. **Ésas cuatro son el código de la tarea.**
 
+> **MEDICIÓN · 2026-09-09** — montado en local y corrido: comercio «Alta Fleet» + sucursal «Calle 90»
+> (Bogotá) + entidad **AltaX** `rt=2` `product=rto` con `["CC","CE","PEP"]`, 6 reglas duras en la
+> plantilla y 6 en el grupo `AB<sucursal>` (alineadas), 4 perfiles con criterios de titular Y codeudor,
+> 5 documentos del catálogo RTO. **Lista**: `GET lenders` devolvió `[AltaX]`, 1 de 1 cableada. **Ofrece
+> PEP**: `allowed_document_types = ["CC","CE","PEP"]` con su regla de largo para cada uno.
+> `E2E_TARGET=local node harness/dev/montar-alta.ts` · `make harness-listado COMERCIO=alta` ·
+> `curl http://localhost/api/loans/allied/<hash>`
+
+> **MEDICIÓN · 2026-09-09** — **no cierra, y no es del comercio nuevo: es F-188.** El 500 de la
+> generación de documentos es
+> `Blade PDF generation failed: Undefined variable $nombre_cliente (View: …/lenders/motai/rto/contrato_rto_con_codeudor.blade.php)`,
+> porque `CatalogDocumentPayloadResolver::BUILDERS_BY_LENDER` es un mapa por **id de entidad**
+> (`158` y `193`) y cualquier otro id cae al builder de onboarding, que produce otras claves. El
+> **Rent to Own de Motai falla igual en local** (`CASOS='motai:173'`, mismo 500), así que
+> `harness/suites/codeudor.json` —que declara que el 173 cierra en 11— hoy está en rojo.
+> `make harness-caso CASOS='alta:<id>' CERRAR=1 LAMBDA=1` · `make harness-caso CASOS='motai:173' CERRAR=1 LAMBDA=1`
+
+> **DECISIÓN · 2026-09-09** — el arreglo de F-188 **no es el `slug`**, aunque sea lo que dice el TODO
+> del propio código. El slug arregla los ambientes (el RTO es 193/205/173 según dónde) pero no al
+> comercio nuevo, que tiene su propio slug. La llave que ya está en el dato y describe la FORMA del
+> payload es **`lenders.product`**: con eso, una entidad nueva del mismo producto funciona sin tocar
+> código. Es el movimiento que `hardcodes-entidades` llama «convertir el `if` por identidad en config».
+
+> **MEDICIÓN · 2026-09-09** — de paso salió **F-187**, y explica por qué la primera corrida decía «no
+> encontré una sucursal» con la fila en la base: `dev/listado.ts` y `dev/sweep.ts` tenían un `import`
+> **estático** arriba del `process.env.E2E_TARGET ||= 'local'`, y los imports estáticos se evalúan
+> antes de la primera sentencia — así que `pkg/env.ts` fijaba `TARGET = dev`. Los dos imprimían «target
+> local» y pegaban contra el RDS compartido. Arreglado pasándolo a import dinámico; `playground/CLAUDE.md`
+> corregido, porque afirmaba que sweep «ya lo fuerza».
+
 ## Lo que está bloqueado
 
-> **PREGUNTA · 2026-09-09 · Miguel** — ¿el cliente de Alta Fleet **se queda con la moto** o la
-> devuelve? No es cosmético y no se puede diferir: decide el catálogo de documentos, la calculadora y
-> el perímetro legal. Sin opción de compra no hay saldo → no hay interés → **no aplica el techo de
-> usura**; con opción de compra sí hay interés y el PRD de Motai lo llama con sus palabras *«un
-> crédito disfrazado de arriendo»*. Y ⚠ la terminología del código está **invertida** respecto del
-> PRD: el `renting` del código es el *rent-to-own* del PRD.
+> **DECISIÓN · 2026-09-09 · Miguel** — el cliente **se queda con la moto**: es **Rent to Own**. Con
+> opción de compra hay saldo, hay interés y **aplica el techo de usura** (sin ella el cliente paga por
+> usar y no hay nada que amortizar). Consecuencias que ya están tomadas por esto: los perfiles van
+> todos con `requires_cosigner = 1` —el catálogo del RTO sólo tiene esa rama— y la calculadora es la
+> matriz de plazos (12/18/24 meses = 52/78/104 semanas), no la de planes semanales del renting. Y ⚠ la
+> terminología del código está **invertida** respecto del PRD: el `renting` del código es el
+> *rent-to-own* del PRD.
 
-> **PREGUNTA · 2026-09-09 · Miguel** — ¿en qué ambiente hay que dejarlo listo? El comercio existe sólo
-> en **prod**. Local no tiene ni el comercio ni la entidad; dev tampoco. La propuesta es local primero
-> (entregas 1-3) y prod por runbook al final, pero si lo que hace falta es que opere ya, el orden cambia.
+> **DECISIÓN · 2026-09-09 · Miguel** — local primero, y ya está hecho. El runbook de producción queda
+> para el final, y **no puede ejecutarse hasta que F-188 esté arreglado**: en prod la entidad nueva
+> listaría y moriría al firmar, igual que acá.
 
 > **PREGUNTA · 2026-09-09 · Andrés / Fabián** — ¿Alta Fleet **reemplaza** las dos entidades de
 > Bancolombia o **convive** con ellas? Si conviven, el cliente elige el documento antes de saber qué
@@ -208,6 +249,11 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 > **RIESGO · 2026-09-09** — la copia de reglas del admin **se traga la excepción** y avisa por mail a
 > santiago@creditop.com (`LenderRulesController.php:364`). Si algo falla al habilitar la sucursal, la
 > pantalla no lo dice.
+
+> **RIESGO · 2026-09-09** — el catálogo de Alta Fleet apunta HOY a las plantillas de Motai
+> (`…/lenders/motai/rto/…`). Sirve para ejercitar el flujo; **en producción sería el contrato de otra
+> marca**. Arreglar F-188 desbloquea la firma y no toca esto: son dos entregas distintas, y la segunda
+> depende de legal.
 
 ## Lo que NO entra
 
@@ -243,6 +289,16 @@ Y el chequeo que no es un comando: que el selector de tipo de documento de `pers
 PEP**. Se ve en la respuesta de `GET /api/loans/allied/{hash}` en `allowed_document_types`.
 
 ## Registro
+
+### 2026-09-09 (tarde) · montado en local, y el bloqueador tiene nombre
+
+Se escribió `harness/dev/montar-alta.ts` y se corrió. Alta Fleet **lista y ofrece PEP**; no cierra, y
+la causa es un mapa por id de entidad quemado en el generador de documentos (**F-188**) que también
+rompe el Rent to Own de Motai en local. La suite `alta.json` queda con el cierre en rojo a propósito.
+
+En el camino salió **F-187**: dos runners del harness decían «target local» y pegaban contra el RDS
+compartido, por un import estático evaluado antes del default. Arreglado, y `CLAUDE.md` corregido —
+afirmaba lo contrario.
 
 ### 2026-09-09
 
@@ -318,8 +374,15 @@ existe ya el comercio **Alta**, punto de venta **Calle 90** (Bogotá).
 
 ## Dependencias / contraparte
 
-- **Producto / comercial:** definir si el cliente termina siendo dueño de la moto o la devuelve. De eso
-  dependen el contrato que firma y la forma de la cuota.
-- **Legal:** las plantillas del contrato del producto elegido. Para el producto con opción de compra
-  hoy sólo existen las versiones con codeudor.
-- **Comercial:** confirmar si la entidad propia conviven con las dos de Bancolombia o las reemplaza.
+- **Ya definido:** el cliente termina siendo dueño de la moto, así que el crédito exige codeudor y el
+  plazo se ofrece en 12, 18 o 24 meses.
+- **Legal:** las plantillas del contrato con opción de compra **a nombre de Alta Fleet**. Hoy el
+  comercio nuevo firmaría un contrato con la marca de otro comercio, y sólo existe la versión con
+  codeudor.
+- **Desarrollo, y es bloqueante:** hoy los documentos del producto sólo se generan para los dos
+  comercios que ya lo venden; cualquier comercio nuevo llega hasta la firma y ahí falla. Hay que
+  quitar esa restricción antes de habilitar Alta Fleet en producción — sin eso el cliente ve la
+  oferta, la elige y no puede firmar.
+- **Comercial:** confirmar si la entidad propia conviven con las dos del banco o las reemplaza.
+- **Producto:** los valores de la cuota (margen, cuota inicial, gastos de alistamiento) son hoy los
+  de otro comercio; hacen falta los de Alta Fleet.
