@@ -12,8 +12,14 @@ jira_title: "Estructurar BCP para el flujo de registro"
 > **estado:** el flujo **corre entero en local** —las tres pantallas propias incluidas— y correrlo
 > destapó **dos defectos del recorrido** que leer no mostraba: volver atrás reinyecta el monto viejo
 > (**F-185**) y el gate manual se puede volver a apretar hasta negar una solicitud que ya siguió
-> (**F-186**). Lo de abajo —el levantamiento del 2026-08-10— sigue vigente como diseño; lo que cambió
-> es que ahora hay con qué medirlo. Sin rama de producto todavía.
+> (**F-186**). **F-186 ya está corregido y mergeado a `qa`** (2026-09-09) junto con la corrección del
+> vehículo y los productos quemados: eso se fue a la tarea **#75
+> `bcp-defectos-del-recorrido-del-asesor`**, que tiene sus propios PRs y su propia validación de QA.
+> **F-185 sigue abierto acá** y es lo que queda de esa tanda: el backend ya tiene el endpoint para
+> persistir los tres montos, pero el front no lo llama.
+>
+> Lo de abajo —el levantamiento del 2026-08-10— sigue vigente como diseño; lo que cambió es que ahora
+> hay con qué medirlo. Los bloqueantes de la contraparte (P1 el iframe, P2 la IP) siguen intactos.
 >
 > **El encargo, textual:** *«por ahora levanta información, revisa cómo es el flujo… la idea es que tú lo
 > acoples a nuestro flujo y sea administrable, y que José haga toda la recolección de datos de los
@@ -201,6 +207,16 @@ mientras el WAF solo acepte IPs de Perú.
   lo pide explícitamente para que el asesor no acepte por el cliente.
 
 ## Bitácora
+- **2026-09-09** — **Los dos defectos que la corrida del 7/9 destapó se separaron a la tarea #75**, que
+  ya mergeó a `qa`. El motivo de separarlos: son un entregable **probable por QA** —tres recorridos con
+  pasos concretos— mientras que esta tarea sigue bloqueada por la contraparte (P1 y P2) y por decidir
+  por dónde entra la integración, así que moverla a pruebas diría algo falso. Acá queda **F-185**, que
+  es de plataforma y no de BCP: el monto a financiar viaja sólo en la dirección y el listado cae a un
+  default cuando falta. Verificado el 2026-09-09 que el backend **ya tiene** el endpoint que persiste
+  los tres montos —`financing-amounts`, en `qa` desde el 7/9, protegido por `internal.bff`— y que
+  **ningún front lo llama**: cero referencias en `main`, en `qa`, en las ramas de los PRs y en las
+  trece ramas remotas que matchean bcp/monto/financ/vehic/cuotealo/peru. Ese es el hilo siguiente de
+  esta tarea.
 - **2026-08-10** — Bajada de Jira. CORE-399 llega **sin descripción, sin puntos y sin comentarios**; el
   épico `CORE-331` también está vacío, y sus 13 historias son lo único que describía el flujo. Medido el
   punto de partida: **BCP no existe en el código** (cero archivos) y **Perú existe como país pero
