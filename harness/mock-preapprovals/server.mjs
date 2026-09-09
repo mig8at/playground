@@ -133,6 +133,34 @@ function build(req, status) {
       };
 }
 
+/* ── LAS CLAVES QUE EL SERVICIO REAL RECONOCE ────────────────────────────────────────────────────
+ *
+ * ⚠ ESTE MOCK ACEPTABA CUALQUIER CLAVE, Y ESO LO VOLVÍA UN ORÁCULO FALSO. El servicio de verdad las
+ * valida contra un registro CERRADO (`internal/core/domain/lending_product.go`,
+ * `LendingProductKey.Validate`) y una desconocida termina en 404 «resource not found». Acá se echaba
+ * de vuelta lo que llegara, siempre aprobado — así que una corrida local con la clave equivocada se
+ * veía idéntica a una sana. Costó un caso concreto: los slugs de BCP en la base local eran
+ * `bcp-consumo`/`bcp-vehicular` con guion medio (dev y producción los tienen con guion BAJO), el front
+ * arma la clave con el slug del lender, y el registro de la decisión no llegaba a ningún lado sin que
+ * nada se pusiera rojo.
+ *
+ * La lista se copia a mano del registro del microservicio. Es duplicación, sí — pero de un CONTRATO
+ * que es el mismo en todos los ambientes, no de un id que difiere por base; y no tenerla es peor: un
+ * mock que acepta lo que el original rechaza no está simulando, está tapando. */
+const CLAVES_CONOCIDAS = new Set([
+      "bancolombia_bnpl",
+      "bancolombia_consumer_loan",
+      "sistecredito",
+      "meddipay",
+      "creditop_x",
+      "welli",
+      "credifamilia",
+      "prami",
+      "flamingo",
+      "bcp_consumo",
+      "bcp_vehicular",
+]);
+
 function norm(s) {
       const v = String(s || "").toLowerCase();
       return v === "rejected" || v === "pending" || v === "approved" ? v : "approved";
@@ -155,6 +183,22 @@ const server = http.createServer((r, res) => {
                         /* payload vacío/ inválido → defaults */
                   }
                   const u = new URL(r.url, "http://x");
+
+                  // La clave primero, como el servicio real: si no está en su catálogo, nada de lo de
+                  // abajo llega a pasar. Mismo código y misma forma que devuelve él.
+                  const clave = String(req.lending_product_key ?? "");
+                  if (!CLAVES_CONOCIDAS.has(clave)) {
+                        console.log(`[mock-pa] ${clave || "(vacía)"}#${req.lending_product_id ?? "-"} → 404 clave desconocida`);
+                        res.writeHead(404, { "content-type": "application/json" });
+                        res.end(
+                              JSON.stringify({
+                                    error: "resource not found",
+                                    details: `lending product not found: ${clave}`,
+                              }),
+                        );
+                        return;
+                  }
+
                   // precedencia: override explícito del request → status por lender (archivo del panel) → global.
                   const status = norm(
                         u.searchParams.get("status") || r.headers["x-mock-status"] || req.force_status || lenderStatusFor(req) || FORCE,

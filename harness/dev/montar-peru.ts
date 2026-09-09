@@ -68,7 +68,17 @@ const ACCIONES: Record<number, string> = {
     [VEHICULAR]: 'App\\Actions\\Lenders\\Bcp\\BcpVehicular',
 };
 const NOMBRES: Record<number, string> = { [CONSUMO]: 'BCP Consumo', [VEHICULAR]: 'BCP Vehicular' };
-const SLUGS: Record<number, string> = { [CONSUMO]: 'bcp-consumo', [VEHICULAR]: 'bcp-vehicular' };
+/* ⚠ CON GUION BAJO, y no es cosmético: el `slug` del lender ES la clave de producto que el
+   marketplace le manda al microservicio de pre-aprobados (`fetch-lender-preapproval` la arma con
+   `lender.slug`), y ese microservicio la valida contra un registro CERRADO —`bcp_consumo` /
+   `bcp_vehicular`—. Con guion medio, la corrida local registra cero decisiones y el fallo se lo traga
+   `allSettled`: se ve idéntica a una corrida sana.
+
+   Acá decía `bcp-consumo`, en kebab como la mayoría de los slugs de la tabla. Verificado el 2026-09-09
+   contra las dos bases reales: dev tiene `bcp_consumo`/`bcp_vehicular` y producción `bcp_consumo`. O
+   sea que local era el único ambiente donde la clave no coincidía, y por eso probar el registro acá no
+   probaba nada. */
+const SLUGS: Record<number, string> = { [CONSUMO]: 'bcp_consumo', [VEHICULAR]: 'bcp_vehicular' };
 const CLEAN = process.argv.includes('--clean');
 const CONTENEDOR = 'legacy-backend-laravel.test-1';
 

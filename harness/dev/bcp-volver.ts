@@ -364,11 +364,53 @@ linea(`      ${ojo('↩ vuelvo al gate y ahora marco Rechazado')}  ${gris('→')
 const estadoTrasRechazar = await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [B.ur]);
 linea(`      BD tras rechazar: estado ${c(String(estadoTrasRechazar?.st), 1)} ${estadoTrasRechazar?.st !== estadoTrasAprobar?.st ? mal('← el gate se puede volver a apretar y MATA la solicitud ya aprobada') : gris('(sin cambio)')}`);
 
+// ─── RECORRIDO C: rechazar, y VOLVER ─────────────────────────────────────────────────────────────
+//
+// El otro sentido del mismo botón, y el que la guarda de etapa no cubría cuando se escribió. Con la
+// marca del gate reducida a un booleano, quien rechazaba y volvía atrás era indistinguible de quien
+// había aprobado: la guarda lo mandaba al PASO SIGUIENTE DEL FUNNEL —el formulario posterior, o el
+// marketplace— de una solicitud que el backend ya cerró. Y eso contradice la regla que el propio
+// archivo del gate tiene escrita: «RECHAZADO MATA LA SOLICITUD, no la manda al marketplace (…)
+// tampoco pasa por los formularios posteriores».
+//
+// Lo que se espera acá: los dos caminos —mirar la pantalla y volver a postearla— terminan en la
+// pantalla de RETORNO, y el estado no se mueve del 6.
+linea(`\n  ${c('RECORRIDO C — rechazar, y volver al gate', 1)}${TARGET === 'local' ? '' : ojo('  ⚠ deja una solicitud NEGADA')}`);
+const C = await llegarHastaElFormulario('RECORRIDO C');
+const rPreC = `${base}/${C.ur}/formulario/pre?amount=${MONTO}`;
+const preC = await C.s.cargar(rPreC);
+const gC = await C.s.enviarJson(rPreC, { answers: respuestasDelVehiculo(preC.datos, MONTO, CUOTA_INICIAL, BONO) });
+const montoC = new URL(gC.redirect!, 'http://x').searchParams.get('amount');
+const rResC = `${base}/${C.ur}/entidad/resultado?amount=${montoC}`;
+await C.s.cargar(rResC);
+
+const rechC = await C.s.enviar(rResC, { decision: 'rejected' });
+linea(`      Rechazado ${gris('→')} ${c(conQuery(rechC.redirect ?? '—'), 36)}`);
+const estadoTrasRechazarC = await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [C.ur]);
+linea(`      BD tras rechazar: estado ${c(String(estadoTrasRechazarC?.st), 1)} ${estadoTrasRechazarC?.st === 6 ? gris('(6 = Negada, como debe)') : mal('← se esperaba 6 (Negada)')}`);
+
+/* El «atrás» del navegador: revalida el loader por su endpoint `.data`. Acá la solicitud ya está
+   cerrada, así que servir la pantalla del gate sería volver a ofrecer una decisión sobre un crédito
+   que no existe. */
+const vueltaC = await mirar(C.s, rResC);
+const destinoVuelta = vueltaC.destino ?? '(la SIRVE)';
+const vaARetorno = destinoVuelta.includes('/entidad/retorno');
+linea(`      ↩ ${gris('atrás al gate')}  ${gris('→')} ${c(conQuery(destinoVuelta), 36)}  ${vaARetorno ? ok('✓ a la pantalla de retorno') : mal('✗ debería ir a la pantalla de retorno: la solicitud está cerrada')}`);
+
+/* Y el POST directo, que es quien llama a la ruta sin pasar por la pantalla: la guarda del `action`
+   tiene que contestar lo mismo que la del `loader`, o el asesor ve una cosa y la ruta hace otra. */
+const reintentoC = await C.s.enviar(rResC, { decision: 'approved' });
+const destinoReintento = reintentoC.redirect ?? '(sin redirect)';
+const reintentoARetorno = destinoReintento.includes('/entidad/retorno');
+linea(`      ${ojo('↩ y ahora POSTEO «Aprobado» sobre la solicitud rechazada')}  ${gris('→')} ${c(conQuery(destinoReintento), 36)}  ${reintentoARetorno ? ok('✓ no la revive') : mal('✗ el rechazo se puede deshacer posteando')}`);
+const estadoFinalC = await one<{ st: number }>('SELECT user_request_status_id st FROM user_requests WHERE id=?', [C.ur]);
+linea(`      BD al final: estado ${c(String(estadoFinalC?.st), 1)} ${estadoFinalC?.st === estadoTrasRechazarC?.st ? gris('(sin cambio)') : mal('← el estado se movió')}`);
+
 // ─── el rastro que quedó ─────────────────────────────────────────────────────────────────────────
 linea(`\n  ${c('EL RASTRO', 1)}`);
 const guardadas = TARGET !== 'local' ? null : await fetch('http://localhost:8109/_estado').then((r) => r.json()).catch(() => null) as any;
 if (guardadas) linea(`      form-service (mock): ${guardadas.guardadas.map((g: any) => `${g.clave}→${g.campos} campos`).join(' · ')}`);
-for (const id of [ur, B.ur]) {
+for (const id of [ur, B.ur, C.ur]) {
     const f = await one<{ st: number; amount: number }>('SELECT user_request_status_id st, amount FROM user_requests WHERE id=?', [id]);
     linea(`      solicitud ${id}: estado ${f?.st} · amount ${f?.amount} ${gris(`(el vehículo valía ${MONTO}; a financiar ${MONTO - CUOTA_INICIAL - BONO})`)}`);
 }
