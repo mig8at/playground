@@ -2,7 +2,7 @@
 id: 76
 title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
-ramas: feat/alta-fleet-documentos-por-producto
+ramas: feat/alta-fleet-documentos-por-producto, feat/comercio-pantalla-de-bienvenida
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
 jira: []
@@ -426,6 +426,31 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-09 (noche 2) · la bienvenida pasa a ser del COMERCIO, en una columna JSON
+
+Decisión de Miguel: la pantalla de bienvenida es del **comercio**, no de la entidad. Y la medición la
+respalda — la única entidad con el flag encendido (CREDIMOVIL, 164) está en **un** comercio y es
+siempre su única entidad activa, o sea que ahí entidad y comercio son lo mismo; Bancolombia BNPL está
+en **161** comercios y Addi en 152. Mover la pantalla al comercio además **disuelve** el problema que
+tenía la otra: el comercio se sabe siempre (su hash está en la URL), la entidad no.
+
+**Una columna JSON, `allieds.intro_screen`, y `NULL` es el apagado** — la presencia ES el flag, así que
+no puede existir «encendida y sin contenido» (el estado que sí admite la versión por entidad). Las
+llaves son los props del componente que ya la dibuja, así que no hizo falta componente nuevo.
+
+Dos PRs desde `qa`: **`Creditop-SAS/legacy-backend#1351`** (columna + cast + payload + validación con
+allowlist, 13 pruebas) y **`Creditop-SAS/frontend-monorepo#983`** (el render y su gate).
+
+Dos cosas salieron de capturas y no de razonar: con el panel en `bg-primary` el **botón primario
+desaparece** (azul sobre azul), así que el componente pasó a tener variante `entity`/`merchant` con el
+default intacto para no cambiarle el aspecto a CREDIMOVIL; y el gate tuvo que mirar `?step=`, porque
+esta ruta sirve también el paso del teléfono y un refresh ahí reabría la bienvenida.
+
+⚠ **Queda la mitad administrable**, y es una condición que me puse yo: el panel vivo que escribe
+`allieds` es el Inertia de `legacy-application` y no se tocó, así que hoy esto se carga por SQL o por
+la API de `Modules/Partner`. Sin campo en ese panel, cada alta necesita un dev — que es exactamente lo
+que le pasa a `lenders.calculator`.
 
 ### 2026-09-09 (cierre del día) · Alta en el panel, y el autorelleno del camino visual
 
