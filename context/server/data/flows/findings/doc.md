@@ -41,7 +41,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«elige una fecha de pago y el cambio la rechaza»** | **F-148** |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
-| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** |
+| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** · **F-190** |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
@@ -312,6 +312,7 @@ distinto según con qué pregunta llegues.
 | F-187 | Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD compartida | cerrado |
 | F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ⏳ PR abierto |
 | F-189 | La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y el gemelo no | ABIERTO |
+| F-190 | El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness | cerrado |
 
 ---
 
@@ -3545,3 +3546,31 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   `ALREADY_CONFIRMED_PRE_APPROVAL`, y de 360.717 solicitudes **360.710 tienen `flow_id = NULL`** — lo
   deja medido el docblock de `isSelfManagement()`.
 - **Estado:** ABIERTO.
+
+### F-190 · El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness
+
+- **Síntoma:** cambiás de comercio en el panel del harness y **sigue apareciendo el anterior**, «por un
+  buen rato». Reintentar no arregla: hay que insistir varias veces hasta que en algún momento agarra.
+  Se lee como «algún caché», y por eso se buscaba en el front o en Laravel.
+- **Causa raíz:** el layout del wizard escribe una cookie **`merchant_context`**
+  (`{merchant_id, merchant_slug, merchant_name, allied_branch_hash}`, **24 h**) y esa cookie quedaba
+  **dentro del `storageState`** que el harness persiste para no re-loguear. Cada corrida arrancaba
+  restaurando el comercio de la corrida ANTERIOR — y como el cache se volvía a aplicar solo,
+  reintentar no cambiaba nada; sólo «agarraba» cuando algo reescribía el archivo.
+- **Evidencia (2026-09-09):** decodificando los caches, `.auth/cognito-state.qa.json` y
+  `.staging.json` traían clavado `{"merchant_id":337,"merchant_slug":"comercio-pruebas-bcp",…}` con
+  **23,7 h** por delante, y el de dev traía Alta Fleet.
+- **⚠ Y los dos cachés que uno mira primero NO eran**, así que conviene descartarlos rápido: el del
+  TEMA del comercio (logo/colores) es de **10 min** pero está keyeado por hash
+  (`allied-theme:<hash>:<ureq>`), así que cambiar de comercio ya trae otra entrada; y el del perfil del
+  asesor —el que decide la sucursal que el layout FUERZA— es de **60 s** y su propio comentario dice
+  que es corto justamente «para que un cambio de sucursal se refleje rápido».
+- **Arreglo:** sacar de la caché toda cookie que no sea sesión, en el mismo lugar donde ya se filtraban
+  las `oauth2:*` (el state CSRF del handshake, que se acumulaba entre corridas por la misma razón —
+  F-06/F-66). Y **sanear también al LEER**, no sólo al guardar: un cache envenenado no se cura solo, se
+  restaura igual en cada corrida. Sacarla no pierde nada — el layout la reescribe en la primera
+  navegación autenticada, y sin ella el contexto lo decide la URL y la sucursal del asesor.
+- **La lección que generaliza:** en un `storageState` sólo va la SESIÓN. Cualquier cookie que guarde
+  *en qué estás trabajando* —comercio, sucursal, paso— convierte el cache de login en un cache de
+  estado, y el síntoma no se parece a un cache: se parece a que la app no te hace caso.
+- **Estado:** cerrado (2026-09-09).
