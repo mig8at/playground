@@ -43,11 +43,6 @@
       "requiere_codeudor": true,
       "abaco": false,
       "user_self_management": 0,
-      "bienvenida": {
-        "descripcion": "La moto que te mueve, más\ncerca con Alta Fleet",
-        "fondo": "https://ct-app-dev.s3.us-east-2.amazonaws.com/images/lenders/credimovil-background.jpg",
-        "nota": "⚠ ASSETS PRESTADOS: el `fondo` es el de CREDIMOVIL (la única entidad con la pantalla encendida en producción) y el logo lo hereda del molde de Motai. Alta Fleet necesita los suyos. Y la descripción de acá es TAMBIÉN la de la tarjeta del marketplace: es la misma columna."
-      },
       "calculadora": {
         "plans": [
           {
@@ -85,7 +80,8 @@
             "expression": "amount * ((1 + rate) ** (12 / 52) - 1) / (1 - (1 + rate) ** (-weeks * 12 / 52))"
           }
         ]
-      }
+      },
+      "_nota_bienvenida": "SIN bienvenida de ENTIDAD, a propósito. La tenía —heredada de la primera iteración, cuando la pantalla era por entidad— y el resultado era que el cliente veía DOS: la del comercio al entrar (`comercio.pages.welcome`) y la de la entidad en /confirmation, esta última con el fondo prestado de CREDIMOVIL y el logo heredado del molde de Motai. La bienvenida de Alta es del COMERCIO; si alguna vez hace falta una de entidad, es porque son dos momentos distintos (entrar vs. elegirla) y hay que decidirlo, no heredarlo."
     }
   ],
   "nota_assets": "El LOGO del comercio y la PÁGINA de bienvenida (`comercio.pages.welcome`) ya son propios y apuntan a `harness/images/`, que sirve el panel en :5195 — si el panel está abajo dan 404, que es mejor que salir con la marca de Motai. ⚠ `home.png` viene RECORTADA del mockup: trae un bloque de color plano arriba, donde se apoya el panel en móvil. Por eso en desktop se ancla abajo (`lg:object-bottom`), o ese bloque asomaría sobre la foto. ⚠ Y lo que sigue prestado: los COLORES del wizard (clonados de Motai) y, en la ENTIDAD, su logo y el fondo de su propia bienvenida (el de CREDIMOVIL). Esas piezas las tiene que dar diseño."
