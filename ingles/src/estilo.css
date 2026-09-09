@@ -1,0 +1,59 @@
+/* Mismo registro que el resto del playground: fondo plano, bordes de 1px, cero sombras, color sólo
+   para decir algo. Lo único que cambia es que acá el protagonista es TEXTO PARA LEER, así que la
+   columna de lectura tiene su propia tipografía, su tamaño y su interlineado. */
+:root{
+  --page:#ffffff; --panel:#ffffff; --panel-2:#fafafa;
+  --line:#eaeaea; --line-fuerte:#d4d4d4;
+  --page-ink:#171717; --page-soft:#666666; --page-tenue:#8f8f8f;
+  --accent:#0068d6;
+  --core:#8f8f8f;        /* las 100: presentes pero calladas */
+  --nueva:#a35200;       /* lo que esta historia te está enseñando */
+  --frase:#6b46c1;       /* phrasal verbs: el significado no está en las palabras sueltas */
+  --sentido:#0d7a4d;     /* acá esta palabra NO significa lo de siempre */
+  --soft-bg:#fafafa; --soft-bg2:#f2f2f2;
+  --invertido-fondo:#171717; --invertido-texto:#ffffff;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
+    --line:#1f1f1f; --line-fuerte:#333333;
+    --page-ink:#ededed; --page-soft:#a1a1a1; --page-tenue:#6f6f6f;
+    --accent:#52a8ff;
+    --core:#6f6f6f; --nueva:#f5a623; --frase:#a78bfa; --sentido:#4cc38a;
+    --soft-bg:#111111; --soft-bg2:#1a1a1a;
+    --invertido-fondo:#ffffff; --invertido-texto:#000000;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#000000; --panel:#0a0a0a; --panel-2:#111111;
+  --line:#1f1f1f; --line-fuerte:#333333;
+  --page-ink:#ededed; --page-soft:#a1a1a1; --page-tenue:#6f6f6f;
+  --accent:#52a8ff;
+  --core:#6f6f6f; --nueva:#f5a623; --frase:#a78bfa; --sentido:#4cc38a;
+  --soft-bg:#111111; --soft-bg2:#1a1a1a;
+  --invertido-fondo:#ffffff; --invertido-texto:#000000;
+}
+
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{margin:0;background:var(--page);color:var(--page-ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums}
+
+h1{font-size:16px;font-weight:600;letter-spacing:-.02em;margin:0}
+h2{font-size:13px;font-weight:600;letter-spacing:-.01em;margin:0}
+
+button.ctl{font:inherit;font-size:12.5px;padding:0 10px;height:28px;border-radius:6px;
+  border:1px solid var(--line);background:var(--panel);color:var(--page-soft);cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,color .15s;
+  white-space:nowrap}
+button.ctl:hover{border-color:var(--line-fuerte);color:var(--page-ink)}
+button.ctl[aria-pressed="true"]{background:var(--invertido-fondo);border-color:var(--invertido-fondo);
+  color:var(--invertido-texto)}
+
+select.ctl{font:inherit;font-size:12.5px;height:28px;border-radius:6px;padding:0 8px;
+  border:1px solid var(--line);background:var(--panel);color:var(--page-ink);cursor:pointer}
+
+.tenue{color:var(--page-tenue)}
+.soft{color:var(--page-soft)}

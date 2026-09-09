@@ -242,7 +242,7 @@ el hueco no avisa. **El bucle, probado el 2026-08-16 y que encontró dos funcion
 ⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
 `domain-model`, `diccionario`, `plantillas`, `cuadrilla`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
-que corre en producción. **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
+que corre en producción. *(Y `ingles` no habla de CreditOp en absoluto: es para aprender inglés.)* **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
 cierto, se verifica contra el código y gradúa a `context/` — hasta entonces, no existe para tu tarea.
 
 **Reglas de la partición** (para que no se vuelva a mezclar): el árbol de context **no** lleva

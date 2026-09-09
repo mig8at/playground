@@ -190,6 +190,17 @@
         "VITE_FORM_SERVICE_BASE_URL": "http://form-service.inertia-develop:8082",
         "FINANCIAL_HEALTH_API_URL": "http://localhost:4000"
       }
+    },
+    {
+      "name": "ingles",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "ingles",
+      "port": 5189,
+      "autoPort": false
     }
   ]
 }

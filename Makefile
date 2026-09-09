@@ -415,3 +415,13 @@ plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 .PHONY: cuadrilla
 cuadrilla: ## @expl PROTOTIPO: las épicas del equipo — ramas y PRs por persona (:5197)
 	@cd cuadrilla && npm run dev
+
+# Lo único acá que NO habla de CreditOp: es para aprender inglés. Está en el playground porque es
+# donde viven las herramientas de Miguel, y en @expl porque la regla que importa es la misma que
+# para el resto de esta sección — no es fuente de contexto de nada.
+.PHONY: ingles ingles-check
+ingles: ## @expl NO es de CreditOp: leer inglés con las 100 palabras más usadas (:5189)
+	@cd ingles && npm run dev
+
+ingles-check: ## @expl ¿las historias tienen todo traducido? corrélo al agregar una. [N=02]
+	@cd ingles && node herramientas/check.js $(N)
