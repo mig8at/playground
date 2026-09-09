@@ -45,6 +45,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
+| **«el cliente que va SOLO se queda parado / le mandamos un mensaje que no existe»** | **F-189** · **F-191** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -313,6 +314,7 @@ distinto según con qué pregunta llegues.
 | F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ⏳ PR abierto |
 | F-189 | La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y el gemelo no | ABIERTO |
 | F-190 | El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness | cerrado |
+| F-191 | En autogestión el front manda al cliente a `/continue`, y esa ruta NO existe bajo `/self-service`: 404 | ⏳ PR abierto |
 
 ---
 
@@ -3574,3 +3576,34 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   *en qué estás trabajando* —comercio, sucursal, paso— convierte el cache de login en un cache de
   estado, y el síntoma no se parece a un cache: se parece a que la app no te hace caso.
 - **Estado:** cerrado (2026-09-09).
+
+### F-191 · En autogestión el front manda al cliente a `/continue`, y esa ruta no existe bajo `/self-service`
+
+- **Síntoma:** un comercio **autogestionado** (el cliente entra solo, sin asesor) elige su entidad y
+  el flujo **se corta**. No es un mensaje raro ni un error de negocio: la pantalla siguiente es un
+  **404**.
+- **Causa raíz:** al terminar la selección, `available-lenders.tsx` redirige a `ROUTE_PATHS.continue`
+  —el handoff, la pantalla que dice «continúa desde tu celular»—, y para renting/RTO lo hace **sin
+  mirar ningún flag**: `if (isCalculatorProduct(lenderProduct)) return redirect(continue)`. Pero
+  `continue` está declarada **sólo** en el árbol `merchant` de `routes.ts`, y en autogestión el
+  cliente entra por el árbol público `/self-service`. La redirección apunta a una ruta que ahí no
+  existe.
+- **Evidencia (medida en local, comercio Alta Fleet):** caminando el wizard por HTTP con
+  `make harness-caminar CASOS='alta:211' CERRAR=1`, el action del front responde
+  `202 → /self-service/<hash>/<id>/continue`. Y las tres urls a mano:
+  `/self-service/<hash>/<id>/continue` → **404**, `/merchant/<hash>/<id>/continue` → 302,
+  `/self-service/<hash>/<id>/confirmation` → 200.
+- **⚠ Y el mensaje también miente, que es lo que se ve primero:** el texto por defecto de esa
+  pantalla es «Se ha enviado un mensaje de WhatsApp con un link para continuar el proceso», y en
+  autogestión no se envía nada — el envío exige `lenders_by_allieds.user_self_management`. Eso hace
+  que el defecto se lea como un problema de copy cuando en realidad la navegación está rota.
+- **Arreglo:** el backend manda **`continueUrl`** en la respuesta de `update-user-request`, poblada
+  sólo en autogestión y sólo para el flujo en plataforma (rt 2/3/4), y el front redirige ahí antes de
+  llegar a la rama de renting/RTO. El criterio va a `LenderTabBehaviorResolver::clientDrivesFlow()`,
+  junto al `opensNewTab()` que ya resolvía con el mismo trío. ⚠ La url la arma el back porque se
+  construye con el id de solicitud que **persistió**, que no siempre es el de la ruta (el incidente de
+  `docs/lenders/nequi/CONTRATOS.md` §1.7).
+- **⚠ No confundir con F-189**, que es el defecto espejo en `legacy-application`: ahí el problema es
+  que **sí** manda el WhatsApp para todo rt=2 ignorando el flag. Los dos salen del mismo pedido
+  —«que en autogestión no se le mande nada»— pero viven en repos distintos y se arreglan aparte.
+- **Estado:** ⏳ PR abierto (`Creditop-SAS/frontend-monorepo#983` + `Creditop-SAS/legacy-backend#1351`).

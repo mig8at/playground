@@ -427,6 +427,45 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-09 (cierre 3) · la autogestión, y el 404 que nadie había visto
+
+Tercer pedido de la tarea, ya en los mismos dos PRs: **que en autogestión no se le mande el mensaje al
+cliente, y que en vez del handoff se lo redirija ahí mismo al flujo**.
+
+**Lo primero que hay que decir es que el flag NO hacía falta.** Existe y es administrable en dos
+niveles —`allieds.self_managed` y `lenders_by_allieds.user_self_management`— y Alta ya estaba así.
+Verificado en la BD local: `allied 519` con `self_managed = 1`, y AltaX (lender 211, `rto`, rt=2) con
+`user_self_management = 0`. Con eso `legacy-backend` ya no envía nada: el WhatsApp exige el segundo
+flag y el modal «continúa con el asesor comercial» exige `!self_managed`.
+
+Lo que faltaba era **decirle al front dónde sigue el cliente**. El back ya armaba esa url
+(`/self-service/<hash>/<id>/confirmation`, en el `case 2/3/4`) y no la mandaba: sólo la copiaba a
+`qrUrl`, y sólo en país 60. Ahora viaja como `continueUrl`, poblada sólo en autogestión y sólo para el
+flujo en plataforma. El criterio va a `LenderTabBehaviorResolver::clientDrivesFlow()`, al lado del
+`opensNewTab()` que ya decidía con el mismo trío — no a una clase nueva.
+
+> **MEDICIÓN · 2026-09-09** — **el flujo autogestionado no mostraba un mensaje equivocado: se
+> CORTABA.** `available-lenders.tsx` manda todo renting/RTO a `/continue` sin mirar ningún flag, y
+> `continue` está declarada **sólo** en el árbol `merchant` de `routes.ts` — pero en autogestión el
+> cliente entra por `/self-service`. Caminando el wizard de Alta por HTTP, el action responde
+> `202 → /self-service/<hash>/<id>/continue`; con el cambio, `202 → .../confirmation`. Y las tres urls
+> a mano: `/self-service/.../continue` → **404**, `/merchant/.../continue` → 302,
+> `/self-service/.../confirmation` → **200**. Es **F-191**.
+> `make harness-caminar CASOS='alta:211' CERRAR=1` con y sin el cambio (restaurando el archivo con
+> `git show HEAD:`), más `curl` a las tres rutas con UA de iPhone
+
+El mensaje falso también estaba —el texto por defecto de esa pantalla dice «Se ha enviado un mensaje
+de WhatsApp con un link para continuar el proceso»— y es lo que hace que el defecto se lea como un
+problema de copy cuando la navegación está rota. Vale registrarlo: **buscábamos un mensaje de más y
+encontramos un 404**, y sólo apareció porque se corrió.
+
+⚠ **Lo que NO entró, a propósito:** el defecto espejo de `legacy-application` (F-189), cuya condición
+`... || $lender->response_type === 2` hace que para CUALQUIER rt=2 el `||` gane y se mande el WhatsApp
+ignorando el flag. Sacar ese `||` cambia el comportamiento de todos los rt=2 en producción — es una
+decisión aparte, con su propia prueba, y encima en un tercer repo. **Y tiene consecuencia práctica: si
+en producción a Alta la atiende `legacy-application`, el WhatsApp se manda igual y este trabajo no se
+nota.** Hay que confirmar qué monolito la sirve antes de dar el pedido por cerrado.
+
 ### 2026-09-09 (cierre 2) · las dos hojas bajo el panel
 
 Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
