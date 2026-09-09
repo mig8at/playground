@@ -310,7 +310,7 @@ distinto según con qué pregunta llegues.
 | F-185 | Volver atrás reinyecta el monto viejo: el financiado vive sólo en la query | ABIERTO |
 | F-186 | El gate de la entidad se vuelve a apretar con el atrás y niega una solicitud que ya siguió | ABIERTO |
 | F-187 | Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD compartida | cerrado |
-| F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ABIERTO |
+| F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ⏳ PR abierto |
 | F-189 | La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y el gemelo no | ABIERTO |
 
 ---
@@ -3502,7 +3502,13 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **⚠ Y el arreglo del builder no alcanza para un comercio nuevo:** las plantillas que el catálogo
   nombra son de Motai (`…/lenders/motai/rto/…`), y un comercio distinto necesita las suyas, aprobadas
   por legal. El builder desbloquea la firma; la marca del contrato es otra entrega.
-- **Estado:** ABIERTO.
+- **Estado:** ⏳ **PR abierto contra `qa`** — `Creditop-SAS/legacy-backend#1349`, la llave pasó a ser
+  `lenders.product` (no el `slug` que proponía el TODO: un comercio nuevo tiene su propio slug y
+  volvería a caer al genérico). Verificado corriéndolo: `codeudor.json` volvió a verde (2/2 en estado
+  11) y una entidad nueva de otro comercio cierra en 11 con sus cinco documentos firmados. Se midió
+  antes de cambiarlo que en **producción es equivalente** —las únicas con catálogo de firma son 155
+  (`credit`), 158 (`renting`) y 193 (`rto`)— y que en **dev/qa repara**, porque ahí el RTO es el 205.
+  Mientras no mergee, el defecto sigue vivo en `qa` y en local.
 
 ### F-189 · La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y su gemelo no
 
