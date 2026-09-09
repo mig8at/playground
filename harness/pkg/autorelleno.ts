@@ -171,9 +171,16 @@ function guion(datos: DatosAutorelleno) {
         [/primer nombre|first ?name|nombres?(?! de la)/, datos.nombre],
         [/fecha de expedicion|expedicion|issue ?date/, datos.expedicion],
         [/fecha de nacimiento|nacimiento|birth/, datos.nacimiento],
-        [/celular|telefono|movil|phone|tel(?![a-z])/, datos.telefono],
-        [/correo|email|mail/, datos.email],
-        [/documento|cedula|identificacion|dni|nit|document/, datos.documento],
+        [/celular|telefono|movil|phone|\btel\b/, datos.telefono],
+        [/correo|email|\bmail\b/, datos.email],
+        /* ⚠ LOS TOKENS CORTOS VAN ANCLADOS, y costó una captura entender por qué. Sin `\b`, `nit`
+         * matchea DENTRO de `initialFee` —«i-nit-ialFee»— así que el campo «Cuota inicial» del
+         * marketplace recibía el NÚMERO DE DOCUMENTO. Y eso no quedaba en un campo raro: con una cuota
+         * inicial de 1.096.734.490 el monto financiado se va a negativo y la tarjeta de la entidad
+         * muestra «el monto solicitado es inferior al mínimo requerido», o sea que el autorelleno
+         * fabricaba un error de NEGOCIO que se lee como un problema de la entidad.
+         * La regla general: un token de tres letras se ancla o no se usa. */
+        [/documento|cedula|identificacion|\bdni\b|\bnit\b|document/, datos.documento],
         [/ingreso|salario|income|salary|remuneracion/, datos.ingreso],
         [/monto|valor a financiar|amount|financiar/, datos.monto],
         [/direccion|address|residencia/, datos.direccion],
@@ -183,9 +190,34 @@ function guion(datos: DatosAutorelleno) {
         [/anio|ano de|year|modelo/, '2024'],
     ];
 
+    /**
+     * CAMPOS QUE NO SE TOCAN, aunque estén vacíos y aunque una regla los matchee.
+     *
+     * No es lo mismo «ahorrar tipeo» que «elegir por el que prueba». La CUOTA INICIAL cambia la oferta:
+     * mueve el monto financiado, la cuota y hasta si la entidad aplica —con un valor inventado la
+     * tarjeta mostraba «el monto solicitado es inferior al mínimo requerido», que se lee como un
+     * problema de la entidad y no como un relleno mal puesto—.
+     *
+     * Pero dejarla VACÍA tampoco alcanza: hay entidades que exigen un mínimo, y hasta que no hay valor
+     * la tarjeta no se puede elegir. Así que no se inventa NI se deja vacía: **se obedece el número que
+     * la propia pantalla declara** («La cuota inicial mínima es $ 720.000»). Ese dato lo puso el
+     * backend con la config de la entidad, así que usarlo no es adivinar — y si la pantalla no dice
+     * ningún mínimo, el campo se queda vacío, que es su estado válido.
+     */
+    const ES_CUOTA_INICIAL = /cuota inicial|initial ?fee|enganche|down ?payment/;
+
+    /** El mínimo que la pantalla declara para la cuota inicial, en dígitos. `null` si no dice ninguno. */
+    function minimoDeclarado(): string | null {
+        const m = (document.body.innerText || '')
+            .match(/cuota inicial m[ií]nima (?:es|de)\s*\$?\s*([\d.,]+)/i);
+        const digitos = m?.[1]?.replace(/\D/g, '') ?? '';
+        return digitos ? digitos : null;
+    }
+
     /** Qué poner en un campo de texto, por su pista y, si no dice nada, por su `type`. */
     function valorPara(el: HTMLInputElement | HTMLTextAreaElement): string | null {
         const p = pista(el);
+        if (ES_CUOTA_INICIAL.test(p)) return minimoDeclarado();
         for (const [re, valor] of REGLAS) if (re.test(p)) return valor;
         const tipo = (el as HTMLInputElement).type || 'text';
         if (tipo === 'email') return datos.email;
