@@ -36,6 +36,18 @@ distinto. **Hover no**, y es a propósito: el mouse siempre está sobre algún p
 te daría la traducción sin habérsela pedido y ahí se termina el esfuerzo de entender. Los párrafos
 que pediste quedan con un punto en el margen: al releer, dice cuáles no se entendieron solos.
 
+**5. Y el párrafo en voz alta, con `▶`.** Escuchar la oración entera enseña algo que oír palabra por
+palabra no puede: dónde se pegan unas con otras y dónde sube el tono. **Éste sí se queda en modo
+ciego**, al revés que el `es`: es la única ayuda que no da la respuesta — oír el inglés no lo
+traduce, y leer escuchando sin marcas es ejercicio. Usa el sintetizador del navegador, sin
+dependencias ni red.
+
+Dos cosas que no se ven y sostienen esto: el párrafo se **parte en oraciones** antes de hablar
+porque Chrome corta en seco cualquier audio de más de ~15 s (un párrafo de treinta palabras ronda los
+trece: el problema no es teórico); y la **voz se elige con lista negra**, porque macOS registra como
+`en-US` sus voces de broma —Bells, Boing, Zarvox— y un `find` por idioma, que es lo obvio, elige un
+cencerro. Para ver con cuál va a leer, sin escucharla: `vozElegida()` en `src/voz.js`.
+
 ## Agregar una historia
 
 Un `.json` en `data/historias/`. El nombre empieza con el `id` y ordena el selector. No hay índice

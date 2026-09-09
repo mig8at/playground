@@ -180,13 +180,14 @@ onUnmounted(() => {
         />
 
         <p v-if="marcas === 'ninguna'" class="aviso">
-          Sin marcas y sin hover. Si acá se entiende, se aprendió.
+          Sin marcas, sin hover y sin español. El <b>▶</b> del margen sí se queda: escuchar el inglés
+          no lo traduce, y leer oyendo es ejercicio, no muleta.
         </p>
         <p v-else-if="marcas === 'nuevo'" class="aviso">
           Marcado sólo lo nuevo. Las 100 no se subrayan para no rayar el párrafo entero, pero
           <b>siguen respondiendo al mouse</b>: pasá por encima de cualquier palabra.
-          Y si lo que no se entiende es la frase entera, <b>{{ TECLA }}+clic</b> sobre el párrafo
-          (o el <b>es</b> del margen) lo muestra en español.
+          Y en el margen de cada párrafo: <b>es</b> lo muestra en español (o <b>{{ TECLA }}+clic</b>
+          sobre el párrafo) y <b>▶</b> lo lee en inglés.
         </p>
 
         <!-- Sale de comparar el glosario contra el texto: si aparece, es un typo en el JSON, no una
@@ -202,7 +203,8 @@ onUnmounted(() => {
         <span><i class="m nueva"></i>palabra nueva</span>
         <span><i class="m frase"></i>phrasal verb / expresión</span>
         <span><i class="m sentido"></i>otro sentido</span>
-        <span class="tenue der">clic clava el globo · <b>{{ TECLA }}+clic</b> traduce el párrafo · Esc cierra</span>
+        <span class="tenue der">clic clava el globo · <b>{{ TECLA }}+clic</b> traduce el párrafo ·
+          <b>▶</b> lo lee · Esc cierra</span>
       </footer>
     </div>
 

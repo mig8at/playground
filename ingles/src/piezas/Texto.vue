@@ -8,8 +8,9 @@
  * pregunta que queda cuando entendés todas las palabras y aun así no entendés la oración — el inglés
  * ordena distinto y ahí el diccionario no ayuda.
  */
-import { ref } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import { parrafoPedido, marcarParrafo } from '../memoria.js'
+import { decirParrafo, callar, hayVoz } from '../voz.js'
 
 const props = defineProps({
   parrafos: Array, titulo: String, marcas: String,
@@ -41,6 +42,25 @@ function alternar(i) {
    plataforma. Lo que sí hay que atajar es que en macOS Ctrl+clic ES el clic derecho: el
    `contextmenu` se cancela SÓLO cuando vino con Ctrl, así que el clic derecho de siempre sigue
    funcionando. */
+/* ── el párrafo en voz alta ──────────────────────────────────────────────────────────────────
+   A diferencia del botón «es», éste SIGUE estando en modo ciego, y es a propósito: es la única
+   ayuda que no da la respuesta. Oír el inglés no lo traduce — leer y escuchar sin marcas es
+   justamente un buen ejercicio, no una muleta.
+   Y escuchar la ORACIÓN entera enseña algo que oír palabra por palabra no puede: dónde se pegan
+   unas con otras y dónde sube el tono. */
+const sonando = ref(null)
+const enIngles = (i) => props.parrafos[i].map((pz) => pz.texto).join('')
+
+function alternarVoz(i) {
+  if (sonando.value === i) { callar(); sonando.value = null; return }
+  sonando.value = i
+  decirParrafo(enIngles(i), { alTerminar: () => { if (sonando.value === i) sonando.value = null } })
+}
+
+// Sin esto la voz sigue leyendo la historia anterior después de cambiarla — el componente se rehace
+// por el `:key`, pero el sintetizador vive en `window` y no se entera de nada.
+onUnmounted(callar)
+
 const conModificador = (e) => e.metaKey || e.ctrlKey
 function porClic(e, i) {
   if (!conModificador(e)) return
@@ -54,13 +74,21 @@ function porClic(e, i) {
     <h1 class="titulo">{{ titulo }}</h1>
 
     <div v-for="(parrafo, i) in parrafos" :key="i" class="bloque">
-      <!-- El botón está SIEMPRE, no sólo al pasar el mouse: un gesto con tecla que nadie ve no
-           existe, y en una pantalla táctil no hay ni tecla ni hover. Tenue hasta que lo mirás. -->
-      <button
-        v-if="hay(i)" class="pedir" :class="{ on: abierto(i), visto: pedido(i) }"
-        :aria-pressed="abierto(i)" :title="abierto(i) ? 'ocultar el español' : 'verlo en español'"
-        @click.stop="alternar(i)"
-      >es</button>
+      <!-- Los botones están SIEMPRE, no sólo al pasar el mouse: un gesto con tecla que nadie ve no
+           existe, y en una pantalla táctil no hay ni tecla ni hover. Tenues hasta que los mirás. -->
+      <div class="margen">
+        <button
+          v-if="hay(i)" class="chico" :class="{ on: abierto(i), visto: pedido(i) }"
+          :aria-pressed="abierto(i)" :title="abierto(i) ? 'ocultar el español' : 'verlo en español'"
+          @click.stop="alternar(i)"
+        >es</button>
+        <button
+          v-if="hayVoz()" class="chico voz" :class="{ on: sonando === i }"
+          :aria-pressed="sonando === i"
+          :title="sonando === i ? 'parar' : 'escuchar el párrafo en inglés'"
+          @click.stop="alternarVoz(i)"
+        >{{ sonando === i ? '■' : '▶' }}</button>
+      </div>
 
       <p @click="porClic($event, i)" @contextmenu="$event.ctrlKey && $event.preventDefault()">
         <template v-for="(pz, j) in parrafo" :key="j">
@@ -111,18 +139,21 @@ function porClic(e, i) {
    al mouse: la ayuda está, no se anuncia. */
 .m-nuevo .mk[data-tipo="core"]{text-decoration:none}
 
-.pedir{position:absolute;left:-40px;top:6px;width:26px;height:22px;padding:0;
+.margen{position:absolute;left:-40px;top:5px;display:flex;flex-direction:column;gap:2px}
+.chico{position:relative;width:26px;height:22px;padding:0;
   border:1px solid transparent;border-radius:5px;background:none;cursor:pointer;
-  font:inherit;font-size:11px;color:var(--page-tenue);opacity:.3;
+  font:inherit;font-size:11px;line-height:1;color:var(--page-tenue);opacity:.3;
+  display:flex;align-items:center;justify-content:center;
   transition:opacity .15s,color .15s,border-color .15s}
-.bloque:hover .pedir{opacity:1}
-.pedir:hover{color:var(--page-ink);border-color:var(--line)}
-.pedir:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px}
-.pedir.on{opacity:1;color:var(--accent);border-color:var(--line)}
+.bloque:hover .chico{opacity:1}
+.chico:hover{color:var(--page-ink);border-color:var(--line)}
+.chico:focus-visible{opacity:1;outline:2px solid var(--accent);outline-offset:1px}
+.chico.on{opacity:1;color:var(--accent);border-color:var(--line)}
+.voz{font-size:9px}
 /* Punto: este párrafo ya lo pediste alguna vez. Al releer dice cuáles no se entendieron solos. */
-.pedir.visto::after{content:"";position:absolute;top:1px;right:1px;width:4px;height:4px;
+.chico.visto::after{content:"";position:absolute;top:1px;right:1px;width:4px;height:4px;
   border-radius:50%;background:var(--page-tenue)}
-.pedir.on.visto::after{background:var(--accent)}
+.chico.on.visto::after{background:var(--accent)}
 
 /* Sans y más chico: tiene que leerse como una NOTA al lado del texto, no como parte de la historia.
    La barra a la izquierda es lo que evita confundirse de idioma al bajar la vista. */
@@ -132,6 +163,6 @@ function porClic(e, i) {
 
 @media (max-width:900px){
   .lectura{padding-left:44px}
-  .pedir{left:-34px}
+  .margen{left:-34px}
 }
 </style>
