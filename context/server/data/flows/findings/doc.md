@@ -44,7 +44,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
-| **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** |
+| **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -311,6 +311,7 @@ distinto según con qué pregunta llegues.
 | F-186 | El gate de la entidad se vuelve a apretar con el atrás y niega una solicitud que ya siguió | ABIERTO |
 | F-187 | Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD compartida | cerrado |
 | F-188 | El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar | ABIERTO |
+| F-189 | La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y el gemelo no | ABIERTO |
 
 ---
 
@@ -3501,4 +3502,40 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **⚠ Y el arreglo del builder no alcanza para un comercio nuevo:** las plantillas que el catálogo
   nombra son de Motai (`…/lenders/motai/rto/…`), y un comercio distinto necesita las suyas, aprobadas
   por legal. El builder desbloquea la firma; la marca del contrato es otra entrega.
+- **Estado:** ABIERTO.
+
+### F-189 · La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y su gemelo no
+
+- **Síntoma:** un comercio configurado para **autogestión** —el cliente sigue solo, sin que nadie le
+  mande nada— igual recibe el WhatsApp «Se ha enviado un mensaje de WhatsApp con un link para
+  continuar el proceso». Se revisa la config, está bien, y no se entiende. Y peor: **el mismo comercio
+  se porta distinto según qué monolito lo atienda**.
+- **Causa raíz:** en `legacy-application` la condición es
+  `if ($lenderByAllied->user_self_management && ($url != null && $url !== '') || $lender->response_type === 2)`.
+  Por precedencia eso es `(A && B) || C`, así que **para toda entidad `rt=2` el `||` gana y el flag no
+  se lee**. Adentro, si es rt=2 el `$url` se reescribe al handoff
+  (`customer.continue-user-flow.index`) y se manda igual. La única salida es una lista quemada,
+  `$excludedLenders = [6, 9]` (Addi), con el comentario `// TEMP`.
+- **El gemelo NO lo tiene.** En `legacy-backend` (`Modules/Onboarding/App/Services/UserRequestService`)
+  la misma condición es sólo `if ($lenderByAllied->user_self_management && ($url != null && $url !== ''))`
+  — sin la rama de `response_type` y sin lista de excepciones. Y como en un rt=2 no hay url externa,
+  ahí no se manda nada. Los dos monolitos contestan distinto a la misma pregunta.
+- **El flag existe y es administrable, en dos niveles:** `allieds.self_managed` (apaga el modal
+  «Continua el proceso de solicitud con el asesor comercial») y
+  `lenders_by_allieds.user_self_management` (esta entidad le manda el link al cliente), editable en la
+  pantalla de entidades del comercio.
+- **⚠ Y hay un TERCER mecanismo que no es config y conviene no confundir:** el middleware
+  `RedirectIdValidationIfDesktop` (alias `onlyMobileValidation`) mira el **user-agent**; si es desktop
+  genera un QR, manda el link y corta con **403 `continue-link-sent`**. Eso no es autogestión: es que
+  la biometría necesita cámara. Es también por lo que el harness manda siempre UA de iPhone.
+- **Arreglo:** un resolver hermano del que ya existe. `LenderTabBehaviorResolver::opensNewTab()` es
+  puro y compartido entre el listado y la selección **justamente para que no divergan**, y
+  `NequiPaymentService::isSelfManagement()` ya resuelve el trío (`auth()->user()` + los dos flags) en
+  el backend «para que el front no lo infiera». Falta el que conteste «¿se le manda el link o sigue
+  solo?», consumido por los dos monolitos: con él se borran el `|| response_type === 2` y la lista
+  `[6, 9]`. Si hiciera falta una excepción por comercio, el patrón ya elegido en el repo es una clave
+  en `settings` leída con caché (`corbeta_allieds`, `stratum_field_allieds`, `kyc_pipeline_allieds`).
+- **Y lo que NO hace falta:** un `flow_id`. El catálogo de flujos sólo tiene `STANDARD` y
+  `ALREADY_CONFIRMED_PRE_APPROVAL`, y de 360.717 solicitudes **360.710 tienen `flow_id = NULL`** — lo
+  deja medido el docblock de `isSelfManagement()`.
 - **Estado:** ABIERTO.

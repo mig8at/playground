@@ -1,0 +1,82 @@
+{
+  "nombre": "Alta Fleet",
+  "slug": "alta-fleet",
+  "porque": "Marca de upselling de motos con línea de crédito propia (CreditopX rt=2). En producción es el allied 346 «Alta», con la entidad 199 «Alta te financia» creada el 2026-09-09 y todavía sin configurar.",
+  "pais": 47,
+  "molde_comercio": 158,
+  "comercio": {
+    "self_managed": 1,
+    "have_ctopx": 0,
+    "initial_fee": 0,
+    "show_products": 0,
+    "flow_type": 0
+  },
+  "sucursales": [
+    {
+      "nombre": "Calle 90",
+      "ciudad": 149
+    }
+  ],
+  "entidades": [
+    {
+      "id": 211,
+      "nombre": "AltaX",
+      "slug": "altax",
+      "response_type": 2,
+      "product": "rto",
+      "document_types": [
+        "CC",
+        "CE",
+        "PEP"
+      ],
+      "molde_operativo": 170,
+      "molde_documentos": 173,
+      "requiere_codeudor": true,
+      "abaco": false,
+      "user_self_management": 0,
+      "bienvenida": {
+        "descripcion": "La moto que te mueve, más\ncerca con Alta Fleet",
+        "fondo": "https://ct-app-dev.s3.us-east-2.amazonaws.com/images/lenders/credimovil-background.jpg",
+        "nota": "⚠ ASSETS PRESTADOS: el `fondo` es el de CREDIMOVIL (la única entidad con la pantalla encendida en producción) y el logo lo hereda del molde de Motai. Alta Fleet necesita los suyos. Y la descripción de acá es TAMBIÉN la de la tarjeta del marketplace: es la misma columna."
+      },
+      "calculadora": {
+        "plans": [
+          {
+            "id": "12",
+            "label": "12",
+            "weeks": 52,
+            "default": true
+          },
+          {
+            "id": "18",
+            "label": "18",
+            "weeks": 78
+          },
+          {
+            "id": "24",
+            "label": "24",
+            "weeks": 104
+          }
+        ],
+        "params": {
+          "tax": 0.19,
+          "rate": 0.018,
+          "extras": 1000000,
+          "margin": 1,
+          "setup_fee": 1500000,
+          "initial_fee": 2000000
+        },
+        "formulas": [
+          {
+            "name": "amount",
+            "expression": "((amount - initial_fee + setup_fee) * (1 + margin) + extras) * (1 + tax)"
+          },
+          {
+            "name": "payment",
+            "expression": "amount * ((1 + rate) ** (12 / 52) - 1) / (1 - (1 + rate) ** (-weeks * 12 / 52))"
+          }
+        ]
+      }
+    }
+  ]
+}

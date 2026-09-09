@@ -1,6 +1,6 @@
 ---
 id: 76
-title: "Alta Fleet: la entidad de renting propia del comercio, con PEP"
+title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: evaluation
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
@@ -34,9 +34,25 @@ sucursal, y el admin ya lo edita), quién escribe las reglas duras (hay API de b
 las escribe y las propaga), qué le falta a una entidad `rt=2` para operar (el código lo define en
 cinco chequeos), y por qué no cierra (F-188, medido por los dos lados).
 
-**El próximo paso es:** decidir si F-188 entra en esta tarea o va aparte. Es un cambio chico
-—elegir el builder por `lenders.product` en vez de por id— y **sin él ningún comercio nuevo puede
-reusar el producto**, así que la tarea no puede cerrar sin que alguien lo haga.
+⚠ **Y el 2026-09-09 a las 12:06 alguien creó la entidad en PRODUCCIÓN**: `lenders` **199 «Alta te
+financia»**, `rt=2`, y ya está **activada** en la sucursal. Le falta TODO lo que el admin no puede
+poner, y dos de los cinco chequeos de «listo para operar» fallan. Está en la anotación de abajo.
+
+**Tres cosas más, pedidas el 2026-09-09 y ya investigadas** — las tres son **config que ya existe**,
+no desarrollo nuevo:
+
+1. **Herramienta genérica** — `make harness-comercio COMERCIO=<slug>` siembra un comercio entero
+   desde un spec declarativo (`harness/comercios/*.json`): sucursales, entidades, reglas duras,
+   perfiles, bienvenida y autogestión. Hecho.
+2. **Pantalla de bienvenida** (como CrediMovil) — **ya es config**: `lenders.show_intro_screen` +
+   `intro_background_url`, y el front la dibuja con `LenderIntroduction`. Verificada corriendo para
+   AltaX. ⚠ Su titular es `lenders.description`, **la misma columna** que la descripción de la tarjeta.
+3. **Autogestión** — **el flag ya existe, en dos niveles y administrable**. Lo que falta es que el
+   código lo respete: `legacy-application` lo ignora para `rt=2`.
+
+**El próximo paso es:** decidir si F-188 y el `|| response_type === 2` de la autogestión entran en
+esta tarea o van aparte. Los dos son cambios chicos y **sin ellos el comercio no puede operar**: uno
+impide firmar, el otro le manda al cliente un WhatsApp que en autogestión no va.
 
 ## Objetivo
 
@@ -89,7 +105,11 @@ En cuatro entregas que se pueden parar en el medio. **Las tres primeras no tocan
 4. **Escribir las dos piezas de config que ningún panel pone**: la migración del `calculator` propio de
    Alta Fleet y la del catálogo `lender_signing_documents` con **sus** plantillas (hoy apunta a las de
    Motai). Depende de que legal las entregue.
-5. **El runbook de producción**, en este ORDEN — y el orden está medido, no es preferencia:
+5. **Corregir la fila 199 que ya existe en producción** (no crear otra): `product`, los
+   `document_types` con CE y PEP, la bienvenida, el `originator_nit`, el proveedor de identidad, los
+   perfiles y la política dura. Las tres últimas por la API de backoffice; las tres primeras por
+   migración.
+6. **El runbook de producción**, en este ORDEN — y el orden está medido, no es preferencia:
    crear la entidad en el admin (con PEP) → `PUT /rules` del backoffice (deja la **plantilla** sola,
    sin clones, porque todavía no hay sucursal habilitada) → cargar la economía por comercio →
    **recién ahí** activarla en la sucursal, que copia la plantilla ya escrita → `GET /readiness` para
@@ -207,6 +227,70 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 > local» y pegaban contra el RDS compartido. Arreglado pasándolo a import dinámico; `playground/CLAUDE.md`
 > corregido, porque afirmaba que sweep «ya lo fuerza».
 
+> **MEDICIÓN · 2026-09-09 12:06 (prod)** — **la entidad de Alta se creó en producción mientras esto se
+> escribía**: `lenders` **199 «Alta te financia»**, slug `alta-te-financia`, **`rt=2`**,
+> `product = credit`, `document_types = ["CC"]`, `show_intro_screen = 0`. Está **activada**
+> (`status=1`) en la sucursal 2262. Lo que tiene: `credit_line_by_lenders`,
+> `creditop_x_lender_configuration`, una `lender_datacredito_rules` y el cableado. **Lo que NO tiene:
+> 0 `lender_rules` · 0 `lender_users_categories` · 0 `lender_signing_documents` · 0
+> `lender_identity_validation_types` · 0 `lender_requirements` · `originator_nit = NULL` ·
+> `calculator = NULL`.** O sea: **tres de los cinco chequeos de readiness fallan** (identidad,
+> validación, perfiles), y la sucursal ya tiene **un tercer `group_rules` con 0 reglas para el 199** —
+> la trampa del grupo vacío, exactamente como estaba previsto.
+> `SELECT … FROM lenders WHERE id=199` · el censo de las 12 tablas hijas · `group_rules` de la 2262
+
+> **DECISIÓN · 2026-09-09** — el `product` del 199 quedó en **`credit`** y sus `document_types` en
+> **`["CC"]`** (sin CE y sin PEP) porque **el admin no puede poner `product`** y el formulario de
+> tipos se guardó con uno solo. Si Alta Fleet va a vender el Rent to Own, esas dos son correcciones
+> sobre la fila que ya existe — no hace falta crear otra entidad.
+
+> **MEDICIÓN · 2026-09-09** — **la pantalla de bienvenida ya es config, y funciona.** Las columnas son
+> `lenders.show_intro_screen` (bool, default false) y `lenders.intro_background_url`, de la migración
+> `2026_04_22_000000_add_intro_fields_to_lenders_table`; el front la dibuja con `LenderIntroduction`
+> (`loan-confirmation.tsx:323`, `shouldShowLenderIntroduction = loan?.lender.show_intro_screen === true`)
+> a pantalla completa con logo, titular y fondo. En producción **la usa UNA sola entidad: CREDIMOVIL
+> (164)**, con `description = "El celular que quieres, más cerca con CrediMovil"`. Verificado corriendo
+> para AltaX: `GET /api/loans/customer/requests/{ur}` devuelve `show_intro_screen: true` con su
+> descripción y su fondo.
+> ⚠ **Y el admin NO tiene esos dos campos** (cero menciones en `legacy-application`): prenderla es
+> migración, igual que `product` y `calculator`.
+
+> **RIESGO · 2026-09-09** — el titular de la bienvenida **es `lenders.description`, la misma columna
+> que la descripción de la tarjeta del marketplace** (`lender-response.mapper.ts:213`). Credimovil la
+> tiene corta (48 caracteres) porque le sirve de titular; Motai tiene un párrafo. Prender la bienvenida
+> **obliga** a escribir la descripción como titular, y eso se ve también en la tarjeta. Es una
+> restricción del esquema: si se quieren las dos cosas, hace falta una columna más.
+
+> **MEDICIÓN · 2026-09-09** — **la autogestión NO necesita un flag nuevo: hay TRES mecanismos y dos ya
+> son config administrable.**
+> 1 · `allieds.self_managed` — apaga el modal «Continua el proceso de solicitud con el asesor
+> comercial». Editable en el admin de comercios.
+> 2 · `lenders_by_allieds.user_self_management` — «esta entidad le manda el link al cliente por
+> WhatsApp». Editable en la pantalla de entidades del comercio (`AlliedLenderController:159,237`).
+> 3 · `RedirectIdValidationIfDesktop` (alias `onlyMobileValidation` en `Kernel.php:64`) — si el
+> user-agent es **DESKTOP**, genera un QR, manda el link y corta con **403 `continue-link-sent`**. No
+> mira config: mira el dispositivo, porque la biometría necesita cámara.
+> Y el trío 1+2+`auth()->user()` ya está resuelto en un solo lugar dos veces: el resolver puro
+> `LenderTabBehaviorResolver::opensNewTab()` —compartido entre el listado y la selección justamente
+> para que no divergan— y `NequiPaymentService::isSelfManagement()`, que además lo resuelve en el
+> backend «para que el front no lo infiera». Ese docblock también deja dicho que **no existe un
+> `flow_id` para esto**: de 360.717 solicitudes, 360.710 tienen `flow_id = NULL`.
+
+> **RIESGO · 2026-09-09** — **`legacy-application` IGNORA el flag para `rt=2`.** Su condición es
+> `if ($lenderByAllied->user_self_management && ($url != null && $url !== '') || $lender->response_type === 2)`
+> — el `||` gana, así que **toda entidad CreditopX manda el WhatsApp**, y la única salida es una lista
+> quemada, `$excludedLenders = [6, 9]` (Addi), marcada `// TEMP`. `legacy-backend` **no** tiene ese
+> `||`. O sea que el mismo comercio se porta distinto según qué monolito lo atienda — y Alta Fleet es
+> `rt=2`, así que hoy en application recibiría el mensaje aunque la config diga que no.
+
+> **DECISIÓN · 2026-09-09** — la forma escalable **no es un flag nuevo**: es un resolver hermano del
+> `LenderTabBehaviorResolver`, puro y compartido, que conteste «¿el cliente continúa solo o se le manda
+> el link?» leyendo el trío que ya existe. Con eso se borran el `|| response_type === 2` y la lista
+> `[6, 9]`. Si además hiciera falta una excepción por comercio, el patrón de la casa ya está elegido:
+> una clave en `settings` leída por `CommonsV1 SettingsService` con caché —como `corbeta_allieds`,
+> `stratum_field_allieds` y `kyc_pipeline_allieds`—, y el propio repo lo dice en
+> `ManualBirthDateConstants`: «copiar una lista de ids quemada no es el estado final».
+
 ## Lo que está bloqueado
 
 > **DECISIÓN · 2026-09-09 · Miguel** — el cliente **se queda con la moto**: es **Rent to Own**. Con
@@ -265,19 +349,23 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 - **El SaaS de $250.000** y cualquier cobro de suscripción: el sistema no tiene esa pieza y no es de
   esta tarea.
 - **Tocar la configuración de las dos entidades de Bancolombia** del comercio.
+- **Un `flow_id` o una columna nueva para la autogestión.** Los flags existen; el trabajo es que el
+  código los respete.
+- **Assets de marca.** El fondo de la bienvenida que se sembró es el de CrediMovil y el logo lo hereda
+  del molde: son prestados, para poder verla. Los de Alta Fleet los tiene que dar diseño.
 - **Escribir en producción** desde acá. Las entregas 1-3 son local; la 4 es un runbook para que lo
   ejecute quien tenga el panel.
 
 ## Cómo se comprueba
 
-    # 1 · el comercio y su sucursal, montados en local
-    E2E_TARGET=local node harness/dev/montar-alta.ts
+    # 1 · el comercio entero, montado en local desde su spec
+    make harness-comercio COMERCIO=alta            # CLEAN=1 lo borra · sin COMERCIO lista los que hay
 
     # 2 · ¿le sale la entidad al cliente, y por qué no las otras?
     make harness-listado COMERCIO=alta
 
     # 3 · ¿cierra el flujo entero?
-    make harness-caso CASOS='alta' CERRAR=1 LAMBDA=1
+    make harness-caso CASOS='alta:211' CERRAR=1 LAMBDA=1
 
     # 4 · la suite, que falla si algo no cumple lo declarado
     make harness-suite SUITE=harness/suites/alta.json CERRAR=1 LAMBDA=1
@@ -285,10 +373,34 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
     # 5 · los cinco chequeos, contra el propio código (pide token de staff)
     curl -H "Authorization: Bearer $TOKEN" localhost/api/backoffice/lenders/<id>/readiness
 
-Y el chequeo que no es un comando: que el selector de tipo de documento de `personal-info` **ofrezca
-PEP**. Se ve en la respuesta de `GET /api/loans/allied/{hash}` en `allowed_document_types`.
+Y los dos chequeos que no son un comando:
+
+    # el PEP en el selector
+    curl -s http://localhost/api/loans/allied/<hash> | jq '.data.allowed_document_types'
+
+    # la pantalla de bienvenida (pide una solicitud con la entidad ya elegida)
+    curl -s http://localhost/api/loans/customer/requests/<ureq> \
+      | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-09 (cierre) · la herramienta se generalizó, y los otros dos pedidos ya eran config
+
+`montar-alta.ts` duró medio día: se generalizó a `montar-comercio.ts` + spec declarativo
+(`make harness-comercio COMERCIO=alta`), porque la tercera vez que se copia un seeder de comercio lo
+que hay que versionar es el DATO. Cubre la forma común y deja las integraciones de país en su script
+—`montar-peru.ts`— a propósito.
+
+La **pantalla de bienvenida** ya existía como config desde abril y sólo la usa CREDIMOVIL en
+producción; se prendió para AltaX y se verificó por API. Salió una restricción del esquema: su titular
+es la misma columna que la descripción de la tarjeta.
+
+La **autogestión** tampoco necesitaba un flag: hay tres mecanismos y dos ya son administrables. El
+problema es que `legacy-application` ignora el flag para `rt=2` con un `||` y lo parchea con una lista
+quemada marcada TEMP. La forma escalable es un resolver hermano del que ya existe.
+
+Y mientras esto se escribía, **alguien creó la entidad 199 en producción** y la activó en la sucursal
+sin configurarla — el grupo de reglas vacío que este mismo día se había descrito como riesgo.
 
 ### 2026-09-09 (tarde) · montado en local, y el bloqueador tiene nombre
 
@@ -341,13 +453,21 @@ documento, y hoy ese tipo no se le ofrece.
 - El selector de tipo de documento ofrece **PEP** además de cédula y cédula de extranjería.
 - La entidad queda con sus reglas de otorgamiento y sus perfiles cargados, y con las mismas reglas en
   el listado y en el cálculo de cupo.
+- Al elegir la entidad, el cliente ve primero una **pantalla de bienvenida de la marca** —logo,
+  mensaje y fondo, a pantalla completa— como la que ya tiene otra de las entidades.
+- El comercio opera en **autogestión**: el cliente avanza solo y **no recibe un mensaje pidiéndole que
+  continúe**, ni se le dice que siga con un asesor.
 
 ## Alcance
 
-Entra la puesta a punto del comercio, su punto de venta de Bogotá y su entidad propia. **No** entra la
-validación de ingresos de aplicaciones de reparto, **no** entra el recorrido con codeudor, **no** entra
-el cobro de la suscripción mensual, y **no** se toca la configuración de las entidades de Bancolombia
-que el comercio ya tiene.
+Entra la puesta a punto del comercio, su punto de venta de Bogotá, su entidad propia, su pantalla de
+bienvenida y el modo autogestión. **No** entra la validación de ingresos de aplicaciones de reparto,
+**no** entra el cobro de la suscripción mensual, **no** se toca la configuración de las entidades del
+banco que el comercio ya tiene, y **no** entran las piezas de marca (logo y fondo de la pantalla de
+bienvenida), que las tiene que entregar diseño.
+
+⚠ Un límite que conviene saber antes de aprobar el texto: **el mensaje de la pantalla de bienvenida es
+el mismo texto que la descripción de la tarjeta** en el listado. Hoy no se pueden escribir distintos.
 
 ## Dónde probar
 
@@ -360,9 +480,17 @@ existe ya el comercio **Alta**, punto de venta **Calle 90** (Bogotá).
 2. En el formulario de datos personales, comprobar que el selector de tipo de documento ofrece **PEP**.
 3. Completar el flujo con un cliente que cumpla las reglas y comprobar que la entidad del comercio
    aparece en el listado de opciones.
-4. Elegirla y llegar hasta la firma; la solicitud debe quedar **Autorizada**.
-5. Repetir con un cliente que NO cumpla una regla dura (por ejemplo, ingreso por debajo del mínimo) y
+4. Elegirla y comprobar que aparece la **pantalla de bienvenida** con el mensaje y el fondo de la
+   marca, y que el botón continúa al flujo.
+5. Comprobar que **no llega ningún mensaje** (WhatsApp ni correo) pidiendo continuar, y que la pantalla
+   no dice que hay que seguir con un asesor: el cliente avanza en el mismo dispositivo.
+6. Llegar hasta la firma; la solicitud debe quedar **Autorizada**.
+7. Repetir con un cliente que NO cumpla una regla dura (por ejemplo, ingreso por debajo del mínimo) y
    comprobar que la entidad no se le ofrece.
+
+⚠ Desde un **computador de escritorio** el sistema sí manda un link con QR para seguir en el celular,
+y eso es correcto: la validación de identidad necesita cámara. Probar la autogestión **desde el
+celular**.
 
 ## Criterios de aceptación
 
@@ -370,6 +498,8 @@ existe ya el comercio **Alta**, punto de venta **Calle 90** (Bogotá).
 - La entidad del comercio aparece en el listado para un cliente que cumple las reglas.
 - Un cliente que no cumple una regla dura no la ve.
 - El cupo que ofrece la tarjeta y el que calcula el sistema al continuar **coinciden**.
+- La pantalla de bienvenida aparece al elegir la entidad, con el mensaje y el fondo correctos.
+- Desde el celular, el cliente completa el proceso **sin recibir ningún mensaje** para continuar.
 - La revisión de configuración de la entidad da los cinco chequeos en verde.
 
 ## Dependencias / contraparte
@@ -379,10 +509,14 @@ existe ya el comercio **Alta**, punto de venta **Calle 90** (Bogotá).
 - **Legal:** las plantillas del contrato con opción de compra **a nombre de Alta Fleet**. Hoy el
   comercio nuevo firmaría un contrato con la marca de otro comercio, y sólo existe la versión con
   codeudor.
-- **Desarrollo, y es bloqueante:** hoy los documentos del producto sólo se generan para los dos
-  comercios que ya lo venden; cualquier comercio nuevo llega hasta la firma y ahí falla. Hay que
-  quitar esa restricción antes de habilitar Alta Fleet en producción — sin eso el cliente ve la
-  oferta, la elige y no puede firmar.
+- **Desarrollo, y son dos cosas bloqueantes.** (1) Hoy los documentos del producto sólo se generan
+  para los dos comercios que ya lo venden; cualquier comercio nuevo llega hasta la firma y ahí falla.
+  (2) El sistema manda el mensaje de «continuá el proceso» a todo cliente de una entidad de este tipo,
+  sin mirar si el comercio está en autogestión. Las dos hay que resolverlas antes de habilitar Alta
+  Fleet: sin la primera el cliente elige y no puede firmar; sin la segunda recibe un mensaje que en
+  autogestión no corresponde.
+- **Diseño:** el logo y la imagen de fondo de la pantalla de bienvenida. Hoy están puestas las de otra
+  entidad, sólo para poder verla.
 - **Comercial:** confirmar si la entidad propia conviven con las dos del banco o las reemplaza.
 - **Producto:** los valores de la cuota (margen, cuota inicial, gastos de alistamiento) son hoy los
   de otro comercio; hacen falta los de Alta Fleet.

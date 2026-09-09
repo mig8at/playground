@@ -216,7 +216,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-alta harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -296,8 +296,8 @@ harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, re
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
 	@cd harness && E2E_TARGET=local node dev/montar-peru.ts
 
-harness-alta: ## @har deja el comercio ALTA FLEET y su entidad Rent to Own propia (AltaX, con PEP) usables en LOCAL. Sólo local, idempotente. [CLEAN=1 lo borra]
-	@cd harness && E2E_TARGET=local node dev/montar-alta.ts $(if $(CLEAN),--clean)
+harness-comercio: ## @har siembra un COMERCIO ENTERO en LOCAL desde su spec (`harness/comercios/*.json`): sucursales, entidades, reglas duras, perfiles, bienvenida y autogestión. Sin COMERCIO lista los que hay. [CLEAN=1 lo borra]
+	@cd harness && E2E_TARGET=local node dev/montar-comercio.ts $(COMERCIO) $(if $(CLEAN),--clean)
 
 harness-forms-g2: ## @har levanta el mock del FORM-SERVICE (:8109) — el formulario del VEHÍCULO de BCP. ⚠ Sin esto, en local ese formulario ESCRIBE en la BD compartida de dev. [CMD=start|stop|status|logs|capturar]
 	@cd harness && bin/mock-forms-g2 $(if $(CMD),$(CMD),start)
