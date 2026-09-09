@@ -5,7 +5,7 @@ ramas: bcp-gate-y-productos, bcp-productos-del-payload
 stage: work
 created: "2026-09-09T08:12:00-05:00"
 context_nodes: [entities, hardcodes-entidades, aggregator, onboarding, merchants, dynamic-forms]
-jira: []
+jira: [CORE-548]
 jira_title: "BCP: tres defectos del recorrido del asesor"
 ---
 
