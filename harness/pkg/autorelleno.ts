@@ -38,6 +38,7 @@
 // marketplace, y esto te ahorra el tipeo en todo lo que el guiado no cubre.
 //
 // Se apaga con `E2E_AUTORELLENO=0`.
+import { readFileSync } from 'node:fs';
 import type { BrowserContext, Page } from '@playwright/test';
 
 export interface DatosAutorelleno {
@@ -45,6 +46,30 @@ export interface DatosAutorelleno {
     nombre: string; segundoNombre: string; apellido: string; segundoApellido: string;
     nacimiento: string; expedicion: string; ingreso: string; monto: string;
     direccion: string; empresa: string; placa: string; serie: string;
+    /** hash de sucursal → nombre del comercio, para que la ventana diga a cuál entró. */
+    comercios: Record<string, string>;
+}
+
+/**
+ * El mapa hash → comercio, desde `.flows.json`.
+ *
+ * Existe por una confusión que costó una tarde: el modo manual **deja el browser abierto** y la ventana
+ * de la corrida siguiente se acomoda en la MISMA columna, así que aterriza encima de la anterior y las
+ * dos son indistinguibles — misma app, mismo tamaño, mismo lugar. Se ve como «cambié de comercio y se
+ * quedó pegado el anterior», y no lo está: es la ventana vieja. Con el nombre a la vista, una ventana
+ * sobreviviente se reconoce de un vistazo.
+ */
+function comerciosDeFlows(): Record<string, string> {
+    try {
+        const flows = JSON.parse(readFileSync(new URL('../.flows.json', import.meta.url), 'utf8'));
+        const mapa: Record<string, string> = {};
+        for (const [slug, m] of Object.entries<any>(flows?.merchants ?? {})) {
+            for (const h of [m?.branch_hash, ...Object.values<any>(m?.por_target ?? {})]) {
+                if (typeof h === 'string' && h) mapa[h] = m?.name || slug;
+            }
+        }
+        return mapa;
+    } catch { return {}; }
 }
 
 /** Los datos, de la misma cadena de env que usa `bin/asesor`. */
@@ -64,6 +89,7 @@ export function datosDeEnv(): DatosAutorelleno {
         ingreso: '2500000', monto: '2000000',
         direccion: 'CALLE 90 # 15 - 20', empresa: 'HARNESS QA SAS',
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
+        comercios: comerciosDeFlows(),
     };
 }
 
@@ -445,6 +471,17 @@ function guion(datos: DatosAutorelleno) {
         if (document.getElementById('__autorelleno_chip')) return;
         const box = document.createElement('div');
         box.id = '__autorelleno_chip';
+        /* LA ETIQUETA DEL COMERCIO. El hash de la sucursal está en la URL (`/merchant/<hash>/…` o
+           `/self-service/<hash>/…`), y `.flows.json` sabe de quién es. Se dibuja aunque no lo conozca:
+           el hash solo ya alcanza para ver que estás en OTRA ventana. */
+        const hashEnUrl = location.pathname.match(/\/(?:merchant|self-service|ecommerce)\/([0-9a-f]{6,})/i)?.[1];
+        if (hashEnUrl) {
+            const et = document.createElement('span');
+            et.textContent = `${datos.comercios?.[hashEnUrl] ?? '?'} · ${hashEnUrl}`;
+            et.title = 'El comercio de ESTA ventana. Si no es el que elegiste en el panel, estás mirando la ventana de una corrida anterior.';
+            et.style.cssText = 'background:#161b22;padding:7px 9px;border-radius:6px;color:#8b949e;font-weight:500';
+            box.appendChild(et);
+        }
         /* ABAJO A LA IZQUIERDA, y no a la derecha: ahí vive el overlay de React Scan del wizard en dev
            (el contador de FPS), y las dos cosas se tapaban — medido con una captura. La derecha es de
            la app; la izquierda está libre. */
