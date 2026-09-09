@@ -427,6 +427,23 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-09 (cierre del día) · Alta en el panel, y el autorelleno del camino visual
+
+Alta Fleet quedó en los atajos del panel del harness, con lo que ejercita anotado. Y se escribió el
+**autorelleno** (`harness/pkg/autorelleno.ts`, enganchado en `openWindow`): la pantalla se llena sola y
+sólo hay que dar «Continuar». Heurístico a propósito —no un mapa de campos— porque lo cansón son las
+pantallas que ningún seeder cubre, y usa los datos sintéticos del harness para no inventar otra persona.
+
+Tres cosas salieron de mirar capturas y no de razonar: los controles del wizard son de **radix** (el
+trío de fecha es `button[role=combobox]`, la confirmación `button[role=checkbox]`), el trío de fecha hay
+que resolverlo **junto** (la primera opción de cada uno daba `2026-01-01` de fecha de expedición), y una
+regresión propia: meter el texto de los ancestros en la pista de todos los campos hizo que «apellidos»
+ganara en todos. Queda `dev/autorelleno-probe.spec.ts` como sonda, porque el modo de falla es silencioso.
+
+⚠ Y el límite, medido: rellena, pero **no hace que un usuario sintético pase el KYC** — el
+self-service a mano queda completo hasta `personal-info`, sin errores ni 4xx, y de ahí no sale. Para eso
+está el guiado, que saltea esa pantalla a propósito. Los dos se complementan.
+
 ### 2026-09-09 (noche) · F-188 arreglado sobre `qa`, y Alta cierra
 
 Rama `feat/alta-fleet-documentos-por-producto` desde `origin/qa` (los dos repos bajados primero) →
