@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones
+ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones, canon/la-cola-de-hallazgos, canon/la-flota, canon/panel-de-preguntas, canon/el-panel-no-dice-el-dsn
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -85,6 +85,14 @@ espera a que #134 mergee, para no apilar ramas.
 Y ojo con la distinción que el lint mezcla: hay **nodos** grandes —se parten moviendo secciones— y hay
 **áreas** grandes (bancolombia con 28 archivos en 15 carpetas, nequi, listado, smartpay), que se parten
 dividiendo un objetivo en varios y **no tocan la prosa**. Son dos trabajos distintos.
+
+**Estado al 2026-09-09: la cola de hallazgos está en CERO y el frente se cierra acá.** Los 78 de la
+flota entraron (#145, #146) verificados uno por uno contra `origin/main`; el corpus tiene su página de
+adopción en producción (#147) y el defecto que yo mismo le metí —el pie imprimía la cadena de conexión
+del RDS— está arreglado y comprobado (#148). **Miguel decidió el destino: canon queda para el equipo**
+—que los demás desarrolladores le sumen contexto— y el trabajo diario vuelve a `context/`, que es el que
+está coordinado con el resto de las herramientas; de canon se traen sólo las cosas nuevas, para tenerlo
+al día. Lo que sigue abierto de canon está listado abajo, y ninguno bloquea a nadie.
 
 Pendiente de antes: el paso 4 (una línea por archivo, 37 de 816) sigue sin decidir; falta el resto del
 bloque del servicio de formularios, que llegó cortado; y de los documentos de Fercho queda la tabla de
@@ -304,7 +312,78 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 
 ## Registro
 
+### 2026-09-09
+
+- **`/preguntas`: la página de lo que se le preguntó a canon y de qué pudo contestar.** PR #147,
+  mergeado (`698b72a`) y desplegado. Es la única medición de **adopción** que existe —el banco mide si el
+  corpus ENCUENTRA, la auditoría si dice la verdad— y hasta hoy sólo se veía por consola, o sea sólo
+  para quien tiene la base a mano. Los tres cortes son **los del servidor** y los mismos que `-chats`,
+  así que no hay dos verdades sobre la misma tabla; y el corte que vale, «con reserva», va arriba y con
+  su propia sección porque es lo único de la página sobre lo que se ACTÚA: es lo que el agente dijo que
+  no supo, con las palabras de quien preguntó.
+- ⚠ **Y encontré un defecto MÍO mirando la página ya desplegada: el pie imprimía la cadena de conexión
+  completa, con el host interno del RDS.** PR #148, mergeado (`113c8dd`) y comprobado en prod. La regla
+  ya estaba escrita en el propio front, en la vista de conexiones —«nunca sale un valor… lo que no puede
+  terminar en una captura en Slack»—: la consola puede decir el destino entero porque la mira quien ya
+  tiene la cadena; una página la ve cualquiera. El recorte va **del lado del servidor**
+  (`preguntas.Clase`), así que tampoco viaja por la API — no alcanzaba con no pintarlo. El **esquema** sí
+  se queda: distingue dos instalaciones sobre la misma base y es la pregunta real de quien mira («¿estoy
+  viendo las de producción?»). Con su prueba, que nombra los cuatro pedazos que no pueden salir.
+- **Lo que dice el panel de prod, que es un dato del corpus y no de la página:** 91 preguntas guardadas
+  entre el 4 y el 9 de septiembre — **35 respaldadas (38%), 5 sin citar (6%), 51 con reserva (56%)**.
+  ⚠ **Ese 56% NO es «canon falla en la mitad»**: la cola incluye preguntas de fuera del dominio (hay una
+  sobre el América de Cali) y reservas honestas sobre datos que el corpus no declara. La primera entrada
+  real de la cola sí es un hueco de verdad: **qué servicio genera el voucher/comprobante**, que ninguna
+  área declara.
+- **Validado con dos preguntas nuevas contra prod, ninguna del banco** — y las dos cayeron justo sobre
+  correcciones de la flota:
+  - *«si una prueba de PHPUnit apunta a un host que no es el local, ¿qué pasa y quién lo detiene?»* →
+    **respaldada en 3 pasos** (18,8 s), y contestó lo que la corrección agregó: la guarda corre en
+    `createApplication()` antes de `setUpTraits()`, así que **contiene las tres formas de activar el
+    trait** (clase, `uses()` de Pest, `Pest.php` de directorio), y **`make fresh` queda afuera**.
+  - *«un comercio dice que pasada cierta hora ya no le aprueban solicitudes»* → **respaldada**, y separó
+    las dos reglas: la hora de Bancolombia sale de una **columna** (`available_until`, 20:30, con el
+    matiz de la zona horaria del servicio), y la de Meddipay corta la consulta para **todos** los
+    comercios pero la tarjeta sólo desaparece en el **94**. ⚠ Y esa segunda **aterrizó forzada en el
+    paso 14**: dijo qué no pudo confirmar —el `available_until` de Meddipay y la zona efectiva— en vez
+    de rellenar. Quedó en «con reserva», que es el comportamiento buscado.
+- **`quien` sigue llegando vacío** en los dos turnos nuevos. Es el hueco que ya está escrito para
+  Credibot: sin identidad del que llama, su tráfico no se puede medir en esta misma página.
+- **La decisión de Miguel cierra el frente:** canon queda **para el equipo** —que los demás sumen
+  contexto— y lo nuestro vuelve a `context/`, que es el que está coordinado con el resto de las
+  herramientas; de canon sólo se traen las cosas nuevas para mantenerlo al día. Se portaron las tres que
+  servían: la auditoría por paquetes (`context/tools/flota.py`, 52 paquetes / 288 secciones), dos reglas
+  de lint, y la medición del solape en los dos sentidos.
+- ⚠ **Y el solape probó que la graduación va en los DOS sentidos.** `context/flows/rotativo` ya tenía la
+  tabla de dos motores que la auditoría de canon **redescubrió** —canon cargó la falsedad meses—; y al
+  revés, `meddipay` de canon sabía que la regla de la hora afecta a todos los comercios mientras
+  `context/pullman` tenía la versión angosta. Tres correcciones propagadas al árbol.
+- ⚠ **Mi propio umbral del solape estaba mal y no servía para nada:** medía cobertura contra el árbol
+  ENTERO y daba 2 secciones huérfanas de 301. Contra el **mejor nodo** da **9 de 301**, que es el número
+  que se puede usar. Queda dicho en el comentario del script, que es donde se vuelve a cometer.
+
 ### 2026-09-08
+
+- **La cola de hallazgos quedó en CERO: los 78 de la flota, aplicados y verificados uno por uno contra
+  `origin/main` antes de escribir una línea.** PRs #145 (siete temas, un commit cada uno) y #146. Del
+  total: **64 confirmados**, **10 dudosos** —de ésos entró el núcleo verificado y NO la corrección que lo
+  rompía— y **4 refutados**, que quedaron afuera y dichos como descartados. ⚠ **Ninguna corrección
+  propuesta se pegó tal cual**, y una lo justifica sola: confundía dos campos, que es exactamente lo que
+  el refutador había avisado. Y comprobar una refutación **destapó un hallazgo nuevo** que nadie pidió.
+- **`canon -flota`: el reparto de la auditoría, para que no dependa de que un archivo se mueva.** 54
+  paquetes · 325 secciones · 1.239 archivos, cada uno con su hash declarado y el actual. Es la
+  consecuencia de lo medido en la ronda: los instrumentos de deriva ven ~9% de dónde viven los errores
+  — el 91% vivía en archivos que **nunca se movieron**.
+- **Y lo que cambió fue una HERRAMIENTA, no el guion: `codigo` con cero coincidencias devuelve el
+  ESQUEMA del archivo** —cada declaración con su línea— en vez del vacío, y dice qué hacer con él. Antes,
+  un archivo que no mencionaba el término contestaba nada y el modelo tenía que adivinar el rango.
+  ⚠ Sin medir todavía: qué le hace al techo de 14 pasos.
+- ⚠ **El bench cayó CINCO veces en el tramo, y las cinco fue por prosa mía** —nunca se tocó el banco—:
+  una entrada de glosario; hacer que `formalizacion` nombre el **403** y su cuerpo real; «a veces sí y a
+  veces no» → «intermitente»; tres «ambiente» de más en `bcp`; y reforzar
+  `arquitectura#los-nombres-enganan` cuando un título nuevo de `repos` le robó su pregunta.
+- ⚠ **Y volvió a pasar lo del `##` a mitad de línea**: en `preaprobado` el mapa apuntaba a un ancla que
+  no existía, porque un encabezado sólo parsea si **abre línea y tiene una línea en blanco antes**.
 
 - **`bancolombia` cerrado: los doce, verificados uno por uno contra `origin/main`. Cero discrepancias,
   igual que en kyc.** PR #144, mergeado.
