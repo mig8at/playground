@@ -431,9 +431,17 @@ Y los dos chequeos que no son un comando:
 
 Diseño pidió que el contenedor azul termine en **dos capas más, transparentes**, como hojas apiladas
 asomando. Son dos `div` decorativos (`aria-hidden` + `pointer-events-none`) colgados del borde inferior
-del panel con `top-full`, de 16 px, al 55 % y al 30 % del color de marca. **Del mismo ancho las dos**
+del panel con `top-full`, al 55 % y al 30 % del color de marca. **Del mismo ancho las dos**
 (`inset-x-10`): la primera versión iba en degradé —cada hoja más angosta— y diseño pidió que no, que
-lo único que las separe sea la opacidad. Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
+lo único que las separe sea la opacidad.
+
+Y **no son dos bandas pegadas: son dos hojas enteras de distinto ALTO** —32 px la de atrás, 16 px la de
+adelante— apiladas desde el mismo borde, de modo que la de adelante tapa el borde recto de la de atrás
+y sólo le deja asomar la curva. Con dos bandas de 16 px corridas con `mt-4` la esquina cuadrada de la
+de abajo chocaba contra la curva de la de arriba y se veía **cortada** — que es justo lo que diseño
+señaló. Se apilan por orden del DOM, no con `z`.
+
+Acotadas **dos veces**: a `merchant` (el panel de entidad es negro) y a móvil, porque en desktop el
 panel es `lg:flex-1` y llega hasta abajo.
 
 > **MEDICIÓN · 2026-09-09** — **la primera versión pintó las hojas FUERA de la pantalla, y la causa es
