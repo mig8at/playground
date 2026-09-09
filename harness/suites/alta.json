@@ -1,17 +1,33 @@
 {
   "nombre": "Alta Fleet · el comercio nuevo con su entidad Rent to Own propia",
-  "requiere": ["cerrar", "lambda"],
-  "porDefecto": { "comercio": "alta", "amount": 2000000, "income": 2500000, "score": 700 },
+  "requiere": [
+    "cerrar",
+    "lambda"
+  ],
+  "porDefecto": {
+    "comercio": "alta",
+    "amount": 2000000,
+    "income": 2500000,
+    "score": 700
+  },
   "casos": [
     {
       "nombre": "la entidad propia del comercio es la única que le sale al cliente",
       "lender": null,
-      "espera": { "entidades": [211] }
+      "espera": {
+        "entidades": [
+          211
+        ]
+      }
     },
     {
-      "nombre": "y el Rent to Own cierra en 11 — HOY FALLA (F-188): el payload builder se elige por id de entidad quemado, no por producto",
+      "nombre": "y el Rent to Own cierra en 11 — regresión de F-188: falla si el builder de documentos vuelve a elegirse por id de entidad",
       "lender": 211,
-      "espera": { "enListado": true, "cierra": true, "estado": 11 }
+      "espera": {
+        "enListado": true,
+        "cierra": true,
+        "estado": 11
+      }
     }
   ]
 }

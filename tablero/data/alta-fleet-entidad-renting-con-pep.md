@@ -1,7 +1,8 @@
 ---
 id: 76
 title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
-stage: evaluation
+stage: work
+ramas: feat/alta-fleet-documentos-por-producto
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
 jira: []
@@ -50,9 +51,14 @@ no desarrollo nuevo:
 3. **Autogestión** — **el flag ya existe, en dos niveles y administrable**. Lo que falta es que el
    código lo respete: `legacy-application` lo ignora para `rt=2`.
 
-**El próximo paso es:** decidir si F-188 y el `|| response_type === 2` de la autogestión entran en
-esta tarea o van aparte. Los dos son cambios chicos y **sin ellos el comercio no puede operar**: uno
-impide firmar, el otro le manda al cliente un WhatsApp que en autogestión no va.
+**F-188 ARREGLADO y con PR abierto contra `qa`:** `Creditop-SAS/legacy-backend#1349` — el builder de
+documentos se elige por `lenders.product` y no por id de entidad. Con eso **Alta Fleet cierra en
+estado 11 en local**, con sus cinco documentos generados y firmados, y la suite del codeudor volvió a
+verde. La autogestión también quedó verificada corriéndola: `showModal: false`, sin mensaje.
+
+**El próximo paso es:** que exista la entidad en `qa`. El PR lleva el CÓDIGO; la configuración de Alta
+allá es **dato**, y dev/qa/staging comparten la misma base — así que no se siembra desde una migración
+sin decidirlo. El runbook está en §«Cómo se ataca», paso 6.
 
 ## Objetivo
 
@@ -100,8 +106,10 @@ En cuatro entregas que se pueden parar en el medio. **Las tres primeras no tocan
 2. ✅ **Ejercitar el flujo por consola** — hecho: lista y ofrece PEP; **no cierra** por F-188. La suite
    `harness/suites/alta.json` queda declarada con el cierre en rojo **a propósito**, para que se ponga
    verde sola el día que F-188 se arregle.
-3. **Arreglar F-188** (nuevo, y es el bloqueador): elegir el payload builder por `lenders.product` en
-   vez de por id de entidad. Desbloquea a Alta Fleet **y** repara el RTO de Motai en local y en qa.
+3. ✅ **F-188 arreglado** — `Creditop-SAS/legacy-backend#1349`, rama
+   `feat/alta-fleet-documentos-por-producto` desde `qa`. El payload builder se elige por
+   `lenders.product`; `builderClassFor()` extraída pura con 5 pruebas unitarias. Desbloquea a Alta
+   Fleet **y** repara el RTO de Motai en local y en qa (donde es el 205 y el mapa decía 193).
 4. **Escribir las dos piezas de config que ningún panel pone**: la migración del `calculator` propio de
    Alta Fleet y la del catálogo `lender_signing_documents` con **sus** plantillas (hoy apunta a las de
    Motai). Depende de que legal las entregue.
@@ -109,11 +117,16 @@ En cuatro entregas que se pueden parar en el medio. **Las tres primeras no tocan
    `document_types` con CE y PEP, la bienvenida, el `originator_nit`, el proveedor de identidad, los
    perfiles y la política dura. Las tres últimas por la API de backoffice; las tres primeras por
    migración.
-6. **El runbook de producción**, en este ORDEN — y el orden está medido, no es preferencia:
-   crear la entidad en el admin (con PEP) → `PUT /rules` del backoffice (deja la **plantilla** sola,
-   sin clones, porque todavía no hay sucursal habilitada) → cargar la economía por comercio →
-   **recién ahí** activarla en la sucursal, que copia la plantilla ya escrita → `GET /readiness` para
-   confirmar los cinco chequeos.
+6. **El runbook, en este ORDEN** — sirve igual para `qa` y para producción, y el orden está medido,
+   no es preferencia: crear el comercio y la sucursal → crear la entidad en el admin (con **CC, CE y
+   PEP**) → `PUT /api/backoffice/lenders/{id}/rules` (deja la **plantilla** sola, sin clones, porque
+   todavía no hay sucursal habilitada) → cargar la economía por comercio → **recién ahí** activarla en
+   la sucursal, que copia la plantilla ya escrita → las cuatro columnas que ningún panel pone
+   (`product`, `calculator`, catálogo de documentos, `requirements`) → `GET /readiness` para confirmar
+   los cinco chequeos.
+   ⚠ Para **qa** faltan además dos cosas que no son código: que alguien cree el comercio allá (no
+   existe: 0 filas en `inertia-dev`) y que se dispare el **workflow manual de migraciones**, porque el
+   deploy de qa no las corre (F-77).
 
 ## Lo que se evaluó y NO se eligió
 
@@ -291,6 +304,36 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 > `stratum_field_allieds` y `kyc_pipeline_allieds`—, y el propio repo lo dice en
 > `ManualBirthDateConstants`: «copiar una lista de ids quemada no es el estado final».
 
+> **MEDICIÓN · 2026-09-09 (rama `qa` + el arreglo)** — **Alta Fleet cierra de punta a punta.** uReq
+> 466427: listado `[211]`, **estado 11**, y los cinco documentos del Rent to Own **generados y
+> firmados** (`lease_agreement`, `cosigner_agreement`, `promissory_note`, `chattel_mortgage`,
+> `payment_schedule`). Y la regresión que estaba en rojo volvió a verde: `codeudor.json` **2/2 en
+> estado 11**, y `alta.json` **2/2**.
+> `make harness-comercio COMERCIO=alta` · `make harness-suite SUITE=harness/suites/alta.json CERRAR=1 LAMBDA=1`
+
+> **MEDICIÓN · 2026-09-09** — **la autogestión funciona, y se verificó por la respuesta, no leyendo el
+> código.** Seleccionando AltaX con `allieds.self_managed=1` +
+> `lenders_by_allieds.user_self_management=0`, `POST update-user-request` devuelve
+> `showModal: false` · `modalMessage: ""` · `openNewTab: false` · `standBy: true` · `url: null`. O sea
+> **ningún mensaje y ningún modal**: el cliente sigue donde está. Esto es `legacy-backend`, que es
+> quien atiende local y qa; el defecto de F-189 vive en `legacy-application`.
+
+> **MEDICIÓN · 2026-09-09** — **el FRONTEND no necesita ningún cambio, y se comprobó contra `origin/qa`
+> antes de escribir nada.** La rama `qa` de `frontend-monorepo` **ya tiene** el componente
+> `LenderIntroduction` y su compuerta `show_intro_screen` en `loan-confirmation.tsx`; **ya lee**
+> `allowed_document_types` (6 archivos, así que el PEP sale del backend); **ya no queda** nada quemado
+> de `motai-renting`/`merchantMode` fuera de fixtures y storybook; y la card lee `calculated.plans`
+> genéricamente. Los ids quemados que quedan en `lender.constants.ts` son de otras entidades
+> (Credifamilia, Welli, Bancolombia, Meddipay, Prami, Nequi) y sólo mapean su `transaction_data`: una
+> entidad que no está en ninguna lista simplemente no recibe ese mapeo, que es lo correcto.
+> `git -C frontend-monorepo ls-tree -r --name-only origin/qa | grep LenderIntroduction`
+
+> **DECISIÓN · 2026-09-09** — el PR sale de `qa` y **no** lleva la configuración de Alta. Motivo
+> medido: dev, qa y staging **comparten la misma base** (`inertia-dev`), así que una migración que
+> siembre el comercio lo crearía en los tres; y en qa las migraciones **no corren en el deploy** —van
+> por un workflow manual (F-77)—, así que tampoco llegaría sola. El código va por PR; el dato, por
+> runbook y con dueño.
+
 ## Lo que está bloqueado
 
 > **DECISIÓN · 2026-09-09 · Miguel** — el cliente **se queda con la moto**: es **Rent to Own**. Con
@@ -383,6 +426,24 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-09 (noche) · F-188 arreglado sobre `qa`, y Alta cierra
+
+Rama `feat/alta-fleet-documentos-por-producto` desde `origin/qa` (los dos repos bajados primero) →
+**PR `Creditop-SAS/legacy-backend#1349`**. El builder de documentos se elige por `lenders.product`;
+`builderClassFor()` extraída pura, 5 pruebas unitarias corridas **con ruta explícita** (nunca la suite
+entera).
+
+Medido antes de tocar, para que no fuera un refactor a ciegas: sólo tres entidades tienen catálogo de
+firma en producción y dos en dev/qa, así que en producción el cambio es **equivalente** y en los otros
+dos ambientes **repara**. En `qa` el defecto estaba vivo: el RTO es el 205 y el mapa decía 193.
+
+Verificado corriéndolo: Alta Fleet **cierra en estado 11** con sus cinco documentos firmados,
+`codeudor.json` volvió a **verde** y la autogestión devuelve `showModal: false`.
+
+**El frontend no necesitó nada**, y se comprobó contra `origin/qa` antes de escribir: ya tiene el
+componente de bienvenida, ya lee los tipos de documento del backend y ya no le queda nada quemado de
+Motai. Se deja anotado para no volver a buscarlo.
 
 ### 2026-09-09 (cierre) · la herramienta se generalizó, y los otros dos pedidos ya eran config
 
