@@ -122,7 +122,19 @@ OV="$(envget E2E_ASESOR_SUB)";   [ -n "$OV" ] && SUB="$OV"
 OV="$(envget E2E_COGNITO_USER)"; [ -n "$OV" ] && EMAIL="$OV"
 [ -n "$EMAIL" ] && [ -n "$SUB" ] || { echo "✗ sin asesor: definí E2E_ASESOR_SUB en .env.$TARGET o asesor.email/sub en $FLOWS"; exit 1; }
 export E2E_ASESOR_SUB="$SUB"   # lo usa el spec (salto headless a /lenders) para el corporate_user_id del uReq
-HASH="$(fget "merchants.$MERCHANT.branch_hash")"
+# ⚠ EL HASH DE LA SUCURSAL NO ES EL MISMO EN TODAS LAS BASES, así que primero se mira el mapa POR
+# TARGET. Una sucursal es una fila con su propio hash en cada base: el comercio peruano se sembró a
+# mano en local (`montar-peru`) y ahí quedó `50e007e4`, mientras que en la base compartida de dev/qa
+# es `a8221e67`. Con el hash de local contra qa, el `assign` de abajo falla —esa sucursal no existe
+# allá— y la corrida muere antes de abrir el navegador. Medido el 2026-09-09 lanzando el panel
+# contra qa.
+#
+# El panel YA resolvía esto bien (`branchHashForSlug` en `panel/server.ts` mira `por_target`), pero
+# lanza este script y acá se leía `branch_hash` a secas: dos lugares con la misma pregunta y una sola
+# respuesta correcta. `por_target` es opcional — un comercio que viene del volcado tiene el mismo hash
+# en todas las bases y no declara nada.
+HASH="$(fget "merchants.$MERCHANT.por_target.$TARGET")"
+[ -n "$HASH" ] || HASH="$(fget "merchants.$MERCHANT.branch_hash")"
 # El panel puede pasar una sucursal ELEGIDA en el buscador, que no está quemada en `.flows.json`:
 # ahí el argumento ES el hash de la sucursal. Así se corre contra cualquier comercio de la base.
 # (`case` y no un grep encadenado: bajo `set -e` un `a && b && c` con un eslabón falso es una trampa.)
@@ -131,8 +143,18 @@ if [ -z "$HASH" ]; then
     [0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]) HASH="$MERCHANT" ;;
   esac
 fi
-# teléfono de prueba para bypasear el OTP (qa_otp_bypass_phones → OTP = últimos 4)
-BYPASS_PHONE="$(fget otp_bypass_phone)"; [ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="3131010101"
+# Teléfono de prueba para bypasear el OTP (setting `qa_otp_bypass_phones` → el OTP son sus últimos 4).
+#
+# ⚠ EL GLOBAL NO SIRVE PARA CUALQUIER COMERCIO: el largo del celular lo dicta el PAÍS del comercio
+# (`countries.cell_phone_lenght`), y el default `3131010101` es colombiano, de 10 dígitos. Contra el
+# comercio peruano —que pide 9— la corrida muere en la primera pantalla con «Ocurrió un error», que se
+# lee como un problema del caso y es de la configuración. Por eso el comercio puede traer el suyo.
+# Medido el 2026-09-09 lanzando el panel contra qa.
+#
+# El que se ponga acá tiene que estar en el setting, o la pantalla del código no se pasa.
+BYPASS_PHONE="$(fget "merchants.$MERCHANT.otp_bypass_phone")"
+[ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="$(fget otp_bypass_phone)"
+[ -n "$BYPASS_PHONE" ] || BYPASS_PHONE="3131010101"
 export E2E_OTP_BYPASS_PHONE="$BYPASS_PHONE"
 
 # ── entrada ECOMMERCE: arma el checkout (base64) + el return_url a la tienda mock por HTTP (el shim) ──
