@@ -63,5 +63,11 @@ export interface TableNodeData {
   fkColumns: Set<string>
   dimmed: boolean
   selected: boolean
+  /* Está visible por ser VECINA de un resultado del buscador, no por coincidir ella misma. Se pinta
+   * distinto porque si no, el buscador miente sobre cuántas cosas encontró. */
+  vecina: boolean
+  // Coincidió con lo escrito, habiendo algo escrito. Es LA respuesta: lleva aro para no tener que
+  // comparar saturaciones entre cajas vecinas.
+  resultado: boolean
   color?: string // override de color (p.ej. por microservicio); si falta, usa el del contexto
 }

@@ -23,7 +23,14 @@ const tabla = computed(() => {
 <template>
   <div
     class="table-node"
-    :class="{ dimmed: data.dimmed, selected: data.selected, root: isRoot, external: isExternal }"
+    :class="{
+      dimmed: data.dimmed,
+      vecina: data.vecina,
+      resultado: data.resultado,
+      selected: data.selected,
+      root: isRoot,
+      external: isExternal,
+    }"
     :style="{ '--ctx': color }"
   >
     <header class="tn-header">
@@ -92,6 +99,19 @@ const tabla = computed(() => {
 }
 .table-node.dimmed {
   opacity: 0.18;
+}
+/* VECINA: está en pantalla como contexto de un resultado, no como resultado. Tiene que leerse —por eso
+ * no usa el 0.18 de `dimmed`, que es para «todo lo demás»— y a la vez no confundirse con lo buscado:
+ * se le baja el color y se le quita el relieve. */
+.table-node.vecina {
+  opacity: 0.55;
+  filter: saturate(0.15);
+  box-shadow: none;
+}
+/* RESULTADO: lo que se buscó. Va con aro porque distinguirlo por saturación obliga a comparar contra
+ * la caja de al lado, y con una vecina pegada al lado eso no se ve — probado mirando la pantalla. */
+.table-node.resultado {
+  box-shadow: 0 0 0 2px var(--ctx), 0 6px 16px rgba(15, 23, 42, 0.18);
 }
 .table-node.external {
   border: 2px dashed var(--ctx);

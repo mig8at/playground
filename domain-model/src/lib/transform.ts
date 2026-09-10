@@ -46,6 +46,12 @@ function pickHandle(e: Entidad, preferred?: string): string {
   return names[0] ?? 'id'
 }
 
+/* El tamaño que va a ocupar un nodo en el lienzo. Lo exporta porque el encuadre necesita el alto REAL
+ * —cada tabla mide según cuántas columnas tiene— para saber si un subgrafo cabe legible o no. */
+export function tamanoDeNodo(n: Node): { w: number; h: number } {
+  return { w: NODE_W, h: nodeHeight((n.data as any).entidad as Entidad) }
+}
+
 export interface BuildResult {
   nodes: Node[]
   edges: Edge[]
@@ -72,6 +78,8 @@ export function buildGraph(modelo: Modelo): BuildResult {
       fkColumns: fkByEntity.get(e.key) ?? new Set(),
       dimmed: false,
       selected: false,
+      vecina: false,
+      resultado: false,
     },
   }))
 
@@ -217,16 +225,94 @@ export function layoutClustered(
   return out
 }
 
-// vecinos directos (in/out) de una entidad — para el modo resaltado.
-// Acepta la forma mínima {source,target} para evitar la profundidad del genérico Edge.
+/* VECINDAD CERRADA de un conjunto de entidades: ellas mismas más lo que está a `saltos` aristas.
+ *
+ * Existe en plural porque el buscador la necesita así: una consulta puede matchear varias entidades y
+ * lo que hay que mostrar es la vecindad de TODAS, no la de cada una por separado. Un salto es el
+ * default a propósito — es «con qué se une esto», que es la pregunta que uno le hace a un ERD; a dos
+ * saltos, en este modelo, ya vuelve medio grafo.
+ *
+ * Acepta la forma mínima {source,target} para evitar la profundidad del genérico Edge. */
+export function vecindad(
+  claves: Iterable<string>,
+  edges: { source: string; target: string }[],
+  saltos = 1,
+): Set<string> {
+  const set = new Set<string>(claves)
+  for (let i = 0; i < saltos; i++) {
+    // La frontera de esta ronda, para no volver a expandir lo que ya está adentro.
+    const frontera = new Set<string>()
+    for (const e of edges) {
+      if (set.has(e.source) && !set.has(e.target)) frontera.add(e.target)
+      if (set.has(e.target) && !set.has(e.source)) frontera.add(e.source)
+    }
+    if (!frontera.size) break
+    for (const k of frontera) set.add(k)
+  }
+  return set
+}
+
+/* ACOMODAR UNA VECINDAD: la coincidencia al centro, las vecinas en anillo alrededor.
+ *
+ * ⚠ No es dagre, y el motivo se midió mirándolo. Una vecindad es una ESTRELLA, y dagre pone todas las
+ * hojas en el mismo rango: las 29 vecinas de `user_requests` quedaban en UNA fila de ~7.600 px, así que
+ * el encuadre bajaba a zoom 0,1 y no se leía ni un nombre. Acá las vecinas se reparten en columnas a
+ * los dos lados y ENVUELVEN cuando la columna se llena, así que el bloque queda ancho y alto en vez de
+ * ancho y plano — y lo buscado queda en el medio, que es donde uno lo busca.
+ *
+ * Devuelve SÓLO los nodos que acomodó, con su posición nueva. */
+export function layoutVecindad(coincidencias: Node[], vecinas: Node[]): Node[] {
+  const gapX = 70
+  const gapY = 26
+  const colW = NODE_W + gapX
+
+  const alto = (n: Node) => nodeHeight((n.data as any).entidad as Entidad)
+  const apilar = (ns: Node[], x: number): Node[] => {
+    const h = ns.reduce((t, n) => t + alto(n) + gapY, -gapY)
+    let y = -h / 2
+    return ns.map((n) => {
+      const p = { x, y }
+      y += alto(n) + gapY
+      return { ...n, position: p }
+    })
+  }
+
+  const centro = apilar(coincidencias, 0)
+  const altoCentro = coincidencias.reduce((t, n) => t + alto(n) + gapY, -gapY)
+
+  /* Alto objetivo de cada columna del anillo: al menos lo que mide el centro, y nunca tan poco que
+   * una vecinaSuelta abra una columna nueva. */
+  const objetivo = Math.max(altoCentro, 760)
+  const columnas: Node[][] = []
+  let actual: Node[] = []
+  let acumulado = 0
+  for (const v of vecinas) {
+    const h = alto(v) + gapY
+    if (actual.length && acumulado + h > objetivo) {
+      columnas.push(actual)
+      actual = []
+      acumulado = 0
+    }
+    actual.push(v)
+    acumulado += h
+  }
+  if (actual.length) columnas.push(actual)
+
+  /* Las columnas se alternan derecha/izquierda desde el centro hacia afuera, así el bloque crece
+   * parejo a los dos lados en vez de irse para un lado solo. */
+  const out = [...centro]
+  columnas.forEach((col, i) => {
+    const paso = Math.floor(i / 2) + 1
+    const x = i % 2 === 0 ? paso * colW : -paso * colW
+    out.push(...apilar(col, x))
+  })
+  return out
+}
+
+// vecinos directos (in/out) de UNA entidad — para el modo resaltado del clic.
 export function neighborsOf(
   key: string,
   edges: { source: string; target: string }[],
 ): Set<string> {
-  const set = new Set<string>([key])
-  for (const e of edges) {
-    if (e.source === key) set.add(e.target)
-    if (e.target === key) set.add(e.source)
-  }
-  return set
+  return vecindad([key], edges, 1)
 }

@@ -84,7 +84,7 @@
         "dev"
       ],
       "cwd": "domain-model",
-      "port": 5196
+      "port": 5183
     },
     {
       "name": "trazador",

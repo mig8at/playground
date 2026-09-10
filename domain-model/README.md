@@ -71,6 +71,18 @@ Una sola vista (`/`, hash-router). La barra superior tiene:
   el texto de green-field (`legacy.ref`) y las **tablas absorbidas** (`legacy.absorbe`). Es la
   función más útil de la app: buscás `payvalida_transactions` y te dice en qué entidad terminó.
 
+  **Y no filtra a secas: muestra la VECINDAD.** Lo que coincide queda con aro y a todo color, y
+  alrededor aparecen —desaturadas— las tablas que se unen a ello, con sus aristas y su cardinalidad.
+  El bloque se acomoda solo (coincidencia al centro, vecinas en anillo) y el encuadre va a lo
+  encontrado, así que buscar deja la tabla legible en el medio de la pantalla en vez de dejarla
+  perdida en el mapa de 105. El chip **`+ vecinas`** apaga el anillo si querés ver sólo lo que
+  coincidió, y el contador dice las dos cosas por separado («3 resultado(s) · 29 vecina(s)»), para
+  que las vecinas no se lean como resultados. La preferencia se recuerda.
+
+  ⚠ Los chips de contexto siguen mandando: una vecina de un contexto apagado no aparece. Y si la
+  consulta trae más del 60% del modelo —una consulta de una letra— no se reacomoda nada: ahí ya no
+  estás mirando una vecindad, y reordenar el mapa entero destruiría el agrupamiento por contexto.
+
 En el canvas, cada nodo es una tabla:
 
 | Marca | Significado |

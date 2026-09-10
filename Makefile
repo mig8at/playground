@@ -405,7 +405,7 @@ engine: ## @expl motor de reglas (:5196)
 dict: ## @expl diccionario de negocio (:5194)
 	@cd diccionario && npm run dev
 
-domain: ## @expl modelo de dominio deber-ser (sin puerto fijo)
+domain: ## @expl modelo de dominio deber-ser (:5183)
 	@cd domain-model && npm run dev
 
 .PHONY: plantillas plantillas-check
