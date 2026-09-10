@@ -50,6 +50,10 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** · **F-196** |
 | **«las pruebas pasan pero el DESPLIEGUE se cae»** | **F-194** |
 | **«el arnés se salta una pantalla del flujo»** | **F-195** |
+| **«no puedo GUARDAR en el admin / la página expiró»** | **F-197** |
+| **«me pide una imagen que no toqué / no puedo guardar sin volver a subirla»** | **F-198** |
+| **«el mismo comercio se porta distinto en local y en qa»** | **F-199** · F-188 |
+| **«en local falla y en qa funciona» / «el dato está pero no se ve»** | **F-200** |
 | **«el mock/arnés es más permisivo que el proveedor real»** | **F-196** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
@@ -324,6 +328,10 @@ distinto según con qué pregunta llegues.
 | F-193 | El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta (y el `/confirmation` de escritorio muestra el QR por user-agent) | ABIERTO |
 | F-194 | El despliegue del wizard se cae por un import sin usar de un módulo `.server`, y vitest/tsc/biome dicen que está bien | arreglado · proceso ABIERTO |
 | F-195 | El arnés «se salta» personal-info: el scrub compara el teléfono por igualdad y el usuario está guardado con otro formato, así que sobrevive con su identidad | arreglado |
+| F-197 | «La página expiró» al guardar en el admin local: `SESSION_DOMAIN=.localhost` + una migración del otro monolito + un file input vacío, apiladas | arreglado en local · `.env.example` ABIERTO |
+| F-198 | Un `v-file-input` vacío manda `[]` y `nullable` no lo salva: la regla `image` falla sobre un campo que nadie tocó | arreglado |
+| F-199 | Un id de entidad no significa lo mismo en cada base: el mismo spec clona otra familia de producto y agrega pantallas al flujo | arreglado en el sembrador |
+| F-200 | El backend local está en otra rama: la base tiene el dato y el código que lo lee no está, así que el síntoma parece del producto | disciplina, sin arreglo de código |
 | F-196 | El canal QR cerraba en VERDE en local con el payload que el banco rechaza: tres huecos de fidelidad encadenados, los tres en el mismo campo | arreglado |
 
 ---
@@ -3906,3 +3914,177 @@ que sí reproduce es **Consumo**, cuyo builder (`app/Services/ApiBancolombiaLoan
 difiera del de todos los demás ambientes merece su propia discusión.
 
 **Estado:** arreglado (los tres huecos del arnés) · el ternario de `legacy-application`, ABIERTO.
+
+### F-197 · «La página expiró» al guardar en el admin local — TRES causas apiladas, cada una tapando la siguiente
+
+**Síntoma:** en el admin de `legacy-application` en local, cualquier intento de guardar un comercio
+—cambiar un texto, subir una imagen— contesta **«La página expiró, vuelve a intentarlo.»**. El
+mensaje manda a mirar la sesión, que está perfecta.
+
+⚠ **Y NO SE VE COMO UN 419.** El `VerifyCsrfToken` de ese repo está **sobreescrito**: atrapa el
+`TokenMismatchException` y hace `redirect()->back()->with('status', …)`. Llega como un **302**, así
+que el camino de éxito y el de falla se distinguen **sólo por el `Location`** — `/aliados/{id}` es
+que guardó, `/aliados/{id}/puntosdeventa` (o de donde vengas) es que falló. Medir «302 = guardó»
+es el primer error, y lo cometí.
+
+**Las tres causas, en el orden en que aparecen al ir destapando:**
+
+**1 · `SESSION_DOMAIN=.localhost` — Chromium DESCARTA las cookies.** Laravel las emite con
+`domain=.localhost` y `.localhost` es **sufijo público**, así que un dominio con punto inicial no se
+le puede asignar a `admin.localhost`. Sin la cookie `XSRF-TOKEN`, Axios no manda el
+`X-XSRF-TOKEN` y el CSRF falla siempre. **Le pasa a todo formulario del admin en local, no a uno.**
+
+⚠ `curl` SÍ acepta `domain=.localhost`, así que el endpoint probado con curl «funciona» y el
+navegador no. Si reproducís con curl no vas a ver nada.
+
+⚠ El arnés ya conocía la MITAD de esto —`dev/abrir-admin.ts` inyecta la cookie de sesión con `url`
+y no con `domain`, y lo tiene comentado— pero la de CSRF **sólo puede venir del servidor**: no hay
+inyección posible. Arreglo: `SESSION_DOMAIN=` vacío en el `.env` local. Costo declarado: la sesión
+deja de compartirse entre subdominios (`admin.` / `aliados.` / `api.`).
+
+**2 · Debajo había un 500 que nada mostraba: `Unknown column 'min_amount'`.** El formulario manda
+`min_amount`/`max_amount` SIEMPRE, y esas columnas las crea una migración que vive en
+**`legacy-backend`** y que en la base local nunca corrió. O sea: **un formulario de un monolito
+depende de una migración del OTRO**, y en local eso se desincroniza sin avisar. Arreglo:
+
+    ./vendor/bin/sail artisan migrate --path=database/migrations/<la migración>.php
+
+**3 · Y un `v-file-input` vacío manda `[]`, no null** — ver **F-198**.
+
+**La lección que generaliza, y es la cara:** cuando tres fallas se apilan, **la de afuera decide qué
+mensaje ves**, y ese mensaje describe la de afuera. Arreglar sólo esa deja el síntoma igual y parece
+que el arreglo no sirvió. El orden correcto es destapar de afuera hacia adentro y **volver a medir
+después de cada capa** — acá hubo que hacerlo tres veces.
+
+**Cómo diagnosticarlo sin adivinar** (fue lo único que funcionó): manejar el formulario con un
+navegador real y registrar la petición, en vez de reproducir con `curl`:
+
+    page.on('request',  r => r.method() === 'POST' && console.log(r.headers()['x-xsrf-token']))
+    page.on('response', r => console.log(r.status(), r.headers()['location']))
+
+Ahí se ve, en una corrida: si el token viaja, si la respuesta es 302/500, y a dónde redirige.
+
+⚠ **Un rastro que ayuda poco:** `legacy-application` tiene `LOG_CHANNEL=stack` y en local
+`storage/logs/` puede estar **vacío**. El cuerpo del 500 trae la excepción completa; pedirlo es más
+rápido que buscar un log que no existe.
+
+**Estado:** cerrado en la máquina de Miguel (las tres). Los `.env` son por máquina, así que en otra
+vuelve a pasar: el arreglo de verdad sería que el `.env.example` de `legacy-application` traiga
+`SESSION_DOMAIN=` vacío con el porqué.
+
+### F-198 · Un `v-file-input` vacío manda un ARRAY VACÍO, y `nullable` no lo salva
+
+**Síntoma:** un formulario con un campo de archivo OPCIONAL no se puede guardar: contesta «tiene que
+ser una imagen PNG o JPG» **aunque nadie haya tocado ese campo**. Para guardar hay que volver a
+subir el archivo cada vez.
+
+**Causa:** `v-file-input` con `v-model` inicializado en `[]` manda `[]`, no la ausencia del campo.
+Laravel no considera nulo a `[]`, así que `nullable` no corta la cadena y la regla siguiente
+—`image`, `mimes`, `file`— se ejecuta sobre un array y falla.
+
+⚠ **Y por qué los campos viejos del mismo formulario no lo sufren, que es la parte que engaña:**
+`image` y `banner_url` de `AlliedInfoEdit.vue` mandan `[]` igual, pero **no tienen NINGUNA regla** en
+el `UpdateRequest`. No es que estén bien: es que nadie mira lo que llega. Copiar «como los de al
+lado» reproduce el agujero en vez de evitarlo.
+
+**Arreglo** — normalizar antes de validar, que deja los campos validables de verdad:
+
+    protected function prepareForValidation(): void
+    {
+        foreach (['welcome_logo', 'welcome_background'] as $campo) {
+            if ($this->has($campo) && ! $this->hasFile($campo)) {
+                $this->merge([$campo => null]);
+            }
+        }
+    }
+
+**Y dos cosas más del mismo formulario, medidas el 2026-09-10:**
+
+· **Un máximo mayor que el de PHP es un máximo que no existe.** Se declaró `max:4096` (4 MB) contra
+  un `upload_max_filesize` de **2M**: el archivo no llega nunca a Laravel, así que la regla ni se
+  evalúa. Los tres desenlaces por tamaño, medidos: **≤2 MB → guarda**; **3 MB** (pasa
+  `upload_max_filesize`) → 422 con el texto por defecto «Subir X ha fallado.», que no dice nada;
+  **10 MB** (pasa `post_max_size`, 8M) → **413**. Conviene declarar el tope por debajo de los dos
+  límites de PHP, avisar el peso en el navegador ANTES de mandar, y escribir el mensaje de la regla
+  `uploaded`, que es la que dispara de verdad.
+
+· **Elegir un archivo no cambia nada en pantalla** si al lado se muestra la imagen ya guardada: se
+  lee como «la subida no funcionó». Una previa local (`URL.createObjectURL`, revocada al cambiar y
+  al desmontar) lo resuelve sin subir nada.
+
+**Estado:** arreglado en `Creditop-SAS/legacy-application#131`.
+
+### F-199 · Un id de entidad NO significa lo mismo en local y en la base compartida — y el flujo cambia de largo sin que nadie lo pida
+
+**Síntoma:** el mismo comercio, sembrado con el mismo spec, se porta distinto en local y en
+qa/dev/staging: en uno el cliente ve una pantalla más que en el otro, y la entidad clonada se cae al
+firmar.
+
+**Causa raíz — los ids son de cada base, no del dominio.** Medido el 2026-09-10:
+
+| | local | base compartida (dev = qa = staging) |
+|---|---|---|
+| `lenders` 170 | «Motai RB» (rt=2, **rto**) | «My Tech YA» (rt=2, **credit**) |
+| `lenders` 173 | «Rent to Own» | «Efectivo» (**rt=0**) |
+| «Rent to Own» | es el **173** | es el **205** |
+
+Un spec de siembra con `molde_operativo: 170` clona en la compartida la familia de producto
+equivocada. El síntoma llega tarde y disfrazado: la entidad **lista bien, simula bien y revienta al
+firmar** — es el mismo modo de falla de **F-188**, pero autoinfligido.
+
+⚠ **Y hay un segundo efecto, más difícil de ver: el LARGO del flujo.** El sembrador clona
+`lender_requirements` del molde, y ahí viene `dynamic_form_type_id`. En local el molde lo trae en
+`NULL` y en la compartida en **7** (`motai-renting`), así que la entidad nueva heredó un formulario
+dinámico entero que en local no existe — una pantalla de más que nadie declaró y que corta cualquier
+caminado. Es la MISMA trampa que el sembrador ya documentaba para Ábaco: **heredar una decisión de
+negocio por venir en la misma fila**.
+
+⚠ Y la base local no siempre puede reproducirlo: su volcado no traía la fila `form_types` 7 —tiene
+1-6, 8 y 9— así que el FK corta la siembra con un 1452. Por eso el Motai de local tiene el
+formulario apagado y el de la compartida prendido: **es el volcado, no una decisión de nadie.**
+
+**Arreglo:** resolver los moldes **por nombre** y no por id al pasar de ambiente, y **declarar en el
+spec** todo lo que cambie el flujo (`form_dinamico`, como ya se hacía con `abaco`) en vez de
+heredarlo. Cuando se hereda igual, avisarlo en el rastro de la siembra.
+
+⚠ **Lo mismo vale para los HASHES de sucursal:** el mismo comercio tiene hash distinto en cada base,
+así que el panel y `bin/asesor` lo resuelven con `por_target` en `.flows.json`. Dos trampas medidas
+ahí: el hash de un target que no es local va en `por_target[TARGET]` y **no** en `branch_hash` —que
+por convención es el de local, el fallback—, y la escritura del sembrador **reemplazaba la entrada
+entera**, borrando el `por_target` que un humano hubiera puesto. O sea que re-sembrar local
+desarmaba el panel para qa, en silencio.
+
+**Estado:** cerrado en el sembrador (`harness/dev/montar-comercio.ts`).
+
+### F-200 · El backend local está en OTRA rama, y el síntoma se lee como un defecto del producto
+
+**Síntoma:** un flujo que funciona en qa falla en local con errores que parecen del producto. Dos
+casos medidos el mismo día, los dos con la misma causa:
+
+| lo que se veía | lo que era |
+|---|---|
+| la generación de documentos devuelve **HTTP 500** | el resolver de builders de esa rama mapea por **id quemado** y la entidad nueva no está en el mapa — el arreglo por producto vive en otra rama |
+| el wizard muestra el monto y **no la pantalla de bienvenida** | esa rama no tiene el código que sirve `allieds.pages`, así que el tema llega con `pages: null` aunque el JSON esté en la base |
+
+**Causa:** el contenedor de `legacy-backend` sirve **el working tree**, así que corre la rama en la
+que esté parado el repo — que casi nunca es la rama de lo que estás probando. Miguel trabaja en
+varias a la vez; el arnés y el wizard no lo saben y no tienen por qué.
+
+⚠ **Y la base de datos NO cambia con la rama.** Ésa es la parte que confunde: el dato está puesto
+—la columna existe, el JSON está escrito, el comercio lista— y el código que lo lee no está. Todo
+apunta a «el dato está mal» cuando lo que falta es el código.
+
+**El chequeo, antes de depurar cualquier cosa en local** (diez segundos, y ahorra horas):
+
+    cd ~/Desktop/CREDITOP/github/legacy-backend && git log --oneline -1 && git branch --show-current
+    git merge-base --is-ancestor <commit-de-tu-PR> HEAD && echo "SÍ tiene tu cambio" || echo "NO lo tiene"
+
+**Y el corolario para no perder el tiempo al revés:** si tu rama no está en el local que corre, el
+lugar honesto para verificarla es el ambiente donde SÍ está desplegada. Las dos fallas de arriba
+funcionan en `qa`, donde el PR está mergeado — comprobado el mismo día contra el backend desplegado.
+
+⚠ Este es el mismo error de medición que ya costó una vuelta en la otra dirección: screenshotear el
+wizard estando el FRONT en otra rama y reportar que la pantalla no existía. La regla que cubre las
+dos: **antes de reportar una ausencia, comprobá que el código que la produciría está corriendo.**
+
+**Estado:** no tiene arreglo de código — es disciplina. Por eso está acá.

@@ -415,9 +415,12 @@ plantillas: ## @expl PROTOTIPO: onboarding compuesto por el backend, realtime po
 plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 	@cd plantillas/server && go vet ./... && go build -o /dev/null ./... && echo "plantillas: ok"
 
+# Ya no vive acá: el 2026-09-10 cuadrilla se mudó al repo COMPARTIDO
+# (`github/playground/tools/cuadrilla`) y se rehizo en Go + Vue. El target se queda porque la puerta
+# es una sola: lo que cambió es a dónde apunta. Levanta la API en :8080 y el front en :5173.
 .PHONY: cuadrilla
-cuadrilla: ## @expl PROTOTIPO: las épicas del equipo — ramas y PRs por persona (:5197)
-	@cd cuadrilla && npm run dev
+cuadrilla: ## @expl las épicas del equipo — ramas por persona. Vive en el repo COMPARTIDO (API :8080 · front :5173)
+	@cd ../github/playground && task dev TOOL=cuadrilla
 
 # Lo único acá que NO habla de CreditOp: es para aprender inglés. Está en el playground porque es
 # donde viven las herramientas de Miguel, y en @expl porque la regla que importa es la misma que
