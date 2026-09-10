@@ -47,6 +47,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
 | **«el cliente que va SOLO se queda parado / le mandamos un mensaje que no existe»** | **F-189** · **F-191** |
 | **«aprieto Continuar y no pasa nada, y no hay error en ningún lado»** | **F-192** |
+| **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -317,6 +318,7 @@ distinto según con qué pregunta llegues.
 | F-190 | El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness | cerrado |
 | F-191 | En autogestión el front manda al cliente a `/continue`, y esa ruta NO existe bajo `/self-service`: 404 | ⏳ PR abierto |
 | F-192 | El botón de la fecha de pago no hace NADA: el backend corta con 409 «requiere codeudor» y el front se traga el error | ABIERTO |
+| F-193 | El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta (y el `/confirmation` de escritorio muestra el QR por user-agent) | ABIERTO |
 
 ---
 
@@ -3677,3 +3679,45 @@ O sea que para este comercio TODO perfil exige codeudor.
 - *config*: decidir si Alta exige codeudor en todos los perfiles o sólo en algunos.
 
 **Estado:** ABIERTO — la mitad del front está arreglada; quedan la del backend y la de config.
+
+### F-193 · El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta
+
+**Síntoma:** el log de una corrida de autogestión dice
+`autogestión: /self-service/<hash>/<ur>/confirmation` y el caso termina `1 passed`. Se lee como «el
+front redirigió bien». **No lo prueba.**
+
+**Causa:** `harness/dev/guided.spec.ts:1276` hace `cliente.goto(`${selfServiceBase}/confirmation`)`
+**siempre**, en los dos canales. Está ahí por el canal del asesor, donde la ventana B es otro
+dispositivo y hay que llevarla al link a mano; pero en autogestión `cliente === page`, o sea la misma
+ventana que el front ya redirigió (o no). El `goto` tapa la diferencia: **un verde no distingue entre
+«el front redirigió» y «el front no redirigió y el harness lo puso ahí»**. Es exactamente el error que
+F-191 tuvo que destapar por otro camino (el 404 de `/continue`).
+
+**Cómo se contesta de verdad, sin harness** — la redirección la deciden dos piezas y las dos se pueden
+medir solas:
+
+    # 1) el backend: qué URL manda (sin sesión de asesor = la condición de autogestión)
+    curl -s -X POST http://localhost/api/onboarding/loan-application/update-user-request/<ur> \
+      -H 'Content-Type: application/json' -H 'Accept: application/json' \
+      -d '{"user_request_id":<ur>,"lender_id":<id>,"amount":2000000,"original_amount":2000000,"fee_number":52,"initial_fee":0}'
+    # → data.continueUrl = http://localhost:5174/self-service/<hash>/<ur>/confirmation
+
+    # 2) el front: la usa tal cual — `redirectExternal(continuationPath(continueUrl))`
+    #    (available-lenders.tsx:582-583; el path sale de UserRequestService.php:490-496)
+
+Medido así el 2026-09-10 contra local: el destino es `/confirmation`, **no** `/continue`, y lo decide
+el flujo. El uReq tiene que estar en estado 9 (en el marketplace, sin entidad elegida).
+
+⚠ **Y hay una trampa encima, que a mí me hizo dar una vuelta:** cargar ese `/confirmation` en un
+navegador de escritorio muestra la pantalla de **«Por motivos de seguridad debes continuar desde tu
+celular»** con un QR, no la de cuotas. No es un bug: es `RedirectIdValidationIfDesktop`, que decide por
+**user-agent**. Con user-agent móvil, la misma URL pinta «Continúa con tu solicitud» → la entidad → el
+monto → «Confirmar», con el stepper en *1 Identidad · 2 Plazos · 3 Firmas*. Verificar esta pantalla
+desde el escritorio y concluir que la redirección está mal es el modo de falla.
+
+**Arreglo (pendiente, a propósito):** el `goto` tiene que ser condicional —`if (!autogestion)`, igual
+que el bloque del handoff que está justo arriba— y el canal de autogestión debería **esperar** la URL
+en vez de navegarla. No se aplicó todavía porque Miguel pidió no tocar el harness hasta que los dos PRs
+estén en `main`.
+
+**Estado:** ABIERTO (el harness), MEDIDO (el flujo).

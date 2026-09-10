@@ -132,6 +132,60 @@ cuesta caro en el autorrelleno del harness.
 
 ## Registro
 
+### 2026-09-10 · ¿es retrocompatible? Sí — y la auditoría encontró dos agujeros
+
+Miguel preguntó si el cambio es una mejora **retrocompatible** o si mata algo que después se necesita.
+Se revisó buscando qué podía romper, no qué agregaba.
+
+> **MEDICIÓN · 2026-09-10** — **lo que podía romper, y no rompe.** (a) Los esquemas zod `.strict()`
+> —los únicos que revientan con una llave nueva— son **5 en todo el monorepo, y son las 5 copias del
+> MISMO `ContinuationGuardSchema`**, que parsea el 403 `continue-link-sent` del guard de escritorio:
+> no es un sobre de `BaseService` y el PR no lo toca. (b) `UserRequestV1ErrorBodySchema` **no** es
+> `.strict()`, así que ya toleraba llaves desconocidas. (c) **66 de 68** servicios que extienden
+> `BaseService` no sobreescriben `getUserMessage()` → respuesta byte por byte idéntica. (d)
+> `LoanRequestResponse` (donde viaja `continueUrl`) es un **tipo de TypeScript**, no un esquema: el
+> front viejo contra el backend nuevo ignora el campo. (e) `errors.error_code` lo leen 2 archivos,
+> ninguno en esta ruta, y el strip construye un objeto nuevo (no muta).
+> `grep '\.strict()'` + `grep 'function getUserMessage'` + `grep 'extends BaseService' | wc -l`
+
+**Y el hueco que la entrada de ayer dejaba dicho («no se hizo») se cerró, porque resultó ser DOS.**
+Los dos afectan a **todo comercio** que pase por la validación de identidad, no sólo al nuevo:
+
+> **MEDICIÓN · 2026-09-10** — **la lista de campos que el formulario SABE PINTAR son seis, y estaba
+> escrita.** `init-loan-request.tsx` recorre `knownServerFields` = `document_number`, `email`, `name`,
+> `surname`, `birth_date`, `expedition_date` — **una clave que no esté ahí no se dibuja en ningún
+> lado**. Con la lista NEGRA que tenía el helper (`error_code`, `error_subcode`), cualquier otra clave
+> contaba como error de campo: y la forma que documenta el propio backend para los errores del
+> proveedor **incluye una clave `message`** (`KycValidationOutcome::fromErrorsPayload`), igual que
+> `stratum` tiene subcódigo propio sin ser campo. Resultado: `porCampo` no vacío → el mensaje del
+> subcódigo suprimido por deferencia a un error de campo que no existe → **pantalla muda**.
+> lectura de `init-loan-request.tsx:171-192` y del docblock de `fromErrorsPayload`
+
+Arreglo: lista **blanca**, con la regla dicha en una línea — «hay errores de campo» significa «hay algo
+que la pantalla va a pintar». Un solo dueño: `KYC_FIELD_ERROR_KEYS`, en `@creditop/shared-utils`, al
+lado de `envelopes.ts`. ⚠ **No** va en el módulo del formulario: su barrel arrastra `@creditop/ui` →
+`react-pdf` → `pdfjs` y rompe la prueba PURA del helper (medido: `DOMMatrix is not defined`). Y como
+al compartir la lista se perdía la derivación que hacía imposible el desajuste, la reemplaza una
+**guarda de tipo** que no compila si el mapa crece y la lista no.
+
+> **MEDICIÓN · 2026-09-10** — **arreglar el toast destapó un fallback en INGLÉS.** El fallback era
+> `message` del backend, que es la explicación para quien DEPURA: medido contra local, `"document
+> number already in use"` y `"personal info validation failed"`. Antes no se notaba porque el toast no
+> disparaba nunca. Ahora el orden es subcódigo → genérico en español, y `message` **nunca** — la misma
+> regla que el propio `BaseService` deja escrita.
+> `POST /api/onboarding/loan-application/personal-info/…` contra local
+
+⚠ Es una decisión de **copy** con su costo dicho: un `message` que fuera español y específico también
+queda tapado. Se eligió así porque en esta familia está medido en inglés y porque para un cliente
+«español y vago» es mejor que «inglés y preciso» — el dato preciso sigue en la respuesta y en los logs.
+Y hay antecedente de español útil por la zona (`ONB040` → «Límite de intentos superado…»), pero va en
+`payload.message` y no entra por esta rama. Se cambia en una línea si se prefiere al revés.
+
+**Verde:** wizard **443 pruebas / 42 archivos**, `shared-utils` 65/5, `tsc` **218 errores antes y 218
+después** (preexistentes de `main`), ninguno en los archivos del PR. Las 4 fallas de
+`modules/loan-application-form` (`__vite_ssr_exportName__ is not defined`) son preexistentes:
+comprobado con `git stash`.
+
 ### 2026-09-09 · ¿el `error_subcode` es mejora? Menos de lo que dije
 
 Miguel preguntó si vale la pena, y la respuesta honesta **corrige lo que yo había afirmado**.
@@ -157,7 +211,9 @@ que no se disparaba nunca porque `errors` es siempre un objeto. La tabla queda c
 ⚠ Y hay un hueco que la prueba «no hay errores de campo» no cubre: si el proveedor manda claves que no
 son campos del formulario, `porCampo` queda no vacío —así que el mensaje del subcódigo se suprime— y
 esos "errores" no se pintan en ningún lado porque no existe tal campo. La regla correcta sería «no hay
-errores de campo QUE EL FORMULARIO SEPA PINTAR», y eso pide conocer sus campos. No se hizo.
+errores de campo QUE EL FORMULARIO SEPA PINTAR», y eso pide conocer sus campos. ~~No se hizo.~~
+**CERRADO el 2026-09-10** — los campos estaban escritos (`knownServerFields`, seis) y la lista pasó a
+ser blanca y compartida. Ver la entrada de arriba.
 
 ### 2026-09-09 · probado contra local, y lo que NO se pudo probar corriendo
 
