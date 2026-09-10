@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import tree from '../tree.json'
 
 // ── Data: estructura del árbol (tree.json) + contenido por nodo (map.json/doc.md) ──
@@ -54,23 +54,219 @@ const nameOf = (id) => (maps[id] && maps[id].name) || (byId.value[id] && byId.va
 const filesOf = (id) => (maps[id] && maps[id].files ? maps[id].files.length : 0)
 const whenOf = (id) => (maps[id] && maps[id].when) || ''
 
+/* ── EL GRAFO DERIVADO: quién habla de lo mismo que quién ────────────────────────────────────────
+ *
+ * El árbol dice de qué CUELGA cada nodo, que es una decisión de quien lo escribió. Lo que no dice es
+ * cuáles se pisan, y eso no hace falta escribirlo: si dos nodos declaran el MISMO archivo, hablan del
+ * mismo código. Se deriva de los `map.json`, así que no se puede quedar viejo ni hay que mantenerlo.
+ *
+ * ⚠ Y HAY QUE DESCARTAR LOS HUBS, o no queda grafo sino una malla. Medido acá el 2026-09-09 sobre los
+ * 39 nodos: sin descartar nada el grado medio es 18,9 de 38 posibles —o sea «medio árbol es vecino»,
+ * que no informa—, porque `Modules/Onboarding/routes/api.php` lo declaran 13 nodos y
+ * `loan-request-wizard/app/routes.ts` 10. Contando sólo los archivos que declaran DOS nodos el grado
+ * medio baja a 5,5 (máx 14) y las vecinas se vuelven ciertas: `rotativo` → `db-routines` y `servicing`;
+ * `kyc` → `credifamilia` por cuatro archivos de validación de identidad. Es la misma idea que la
+ * etiqueta `solo-hubs` de la alineación, que ya existía por el mismo motivo. */
+const TOPE_HUB = 2
+const grafo = (() => {
+  const cuenta = {}
+  for (const id in maps) for (const f of new Set(maps[id].files || [])) cuenta[f] = (cuenta[f] || 0) + 1
+  const duenos = {}
+  for (const id in maps) for (const f of new Set(maps[id].files || [])) {
+    if (cuenta[f] > TOPE_HUB) continue
+    ;(duenos[f] = duenos[f] || []).push(id)
+  }
+  const ady = {}
+  for (const f in duenos) for (const a of duenos[f]) for (const b of duenos[f]) {
+    if (a === b) continue
+    const m = (ady[a] = ady[a] || {})
+    ;(m[b] = m[b] || []).push(f)
+  }
+  return ady
+})()
+
+/* Las CONEXIONES MÁS CERCANAS de un nodo, con el motivo de cada una. El motivo importa tanto como la
+ * lista: «4 archivos» y «padre» se siguen por razones distintas. */
+function conexionesDe(id) {
+  const out = new Map()
+  const add = (otro, motivo) => {
+    if (!otro || otro === id || !byId.value[otro]) return
+    const a = out.get(otro) || []
+    if (!a.includes(motivo)) a.push(motivo)
+    out.set(otro, a)
+  }
+  const c = byId.value[id]
+  if (c && c.parent) add(c.parent, 'padre')
+  for (const k of combos) if (k.parent === id) add(k.id, 'hijo')
+  const comp = grafo[id] || {}
+  for (const otro in comp) add(otro, comp[otro].length + ' archivo' + (comp[otro].length > 1 ? 's' : ''))
+  if (c && c.contexts) for (const cx of c.contexts) add(cx, 'la task lo usa')
+  for (const t of combos) if ((t.contexts || []).includes(id)) add(t.id, 'task que lo usa')
+  return out
+}
 // ── Árbol de CONTEXTOS (las tasks van aparte, aunque cuelguen de la raíz) ──
 const childrenOf = (id) => combos.filter(c => c.parent === id && kindOf(c.id) !== 'task').map(c => c.id).sort()
 const roots = combos.filter(c => !c.parent).map(c => c.id).sort()
 const collapsed = ref(new Set())
 const toggle = (id) => { const s = new Set(collapsed.value); s.has(id) ? s.delete(id) : s.add(id); collapsed.value = s }
 
+// Qué nodo está abierto. Se declara acá arriba porque el buscador lo mueve (un solo resultado se abre).
+const sel = ref('creditop')
+const select = (id) => { sel.value = id }
+
+/* ── EL BUSCADOR ─────────────────────────────────────────────────────────────────────────────────
+ *
+ * Antes no había: para encontrar algo había que acordarse en qué nodo estaba y abrirlo. Y lo que hace
+ * falta no es un filtro que deje el nodo solo —eso ya lo da abrirlo— sino ver **el nodo y con qué se
+ * une**, que es lo que uno va a leer después.
+ *
+ * Busca en cuatro lados y DICE en cuál pegó, que es la mitad del valor: `403` pega en el cuerpo de un
+ * doc y `LenderRetrievalService.php` en los archivos declarados, y son dos preguntas distintas. */
+const q = ref('')
+/* ⚠ LOS CUATRO LUGARES NO PESAN IGUAL, y esto se midió acá. Buscando «rotativo» con el texto del doc
+ * al mismo nivel salen 17 resultados de 39: los docs se nombran entre sí todo el tiempo, así que
+ * «lo menciona» es casi todo el árbol y el buscador vuelve a contestar «está en todas partes». Hay una
+ * jerarquía real: si el NOMBRE, un SÍNTOMA o un ARCHIVO DECLARADO coinciden, ese nodo es la respuesta;
+ * el que sólo lo nombra en la prosa es contexto. Así, «rotativo» da 1 y «RevolvingLoanConfigService»
+ * da los 2 que lo declaran, en vez de 4.
+ *
+ * Las menciones NO se tiran —una búsqueda libre como «403» sólo vive ahí—: si no hay nada fuerte pasan
+ * a ser el resultado solas, y si hay, quedan a un clic con la cuenta a la vista. */
+const verMenciones = ref(false)
+const VECINAS_KEY = 'context-viz-vecinas-v1'
+const conVecinas = ref(localStorage.getItem(VECINAS_KEY) !== '0')
+const alternarMenciones = () => { verMenciones.value = !verMenciones.value }
+const alternarVecinas = () => {
+  conVecinas.value = !conVecinas.value
+  localStorage.setItem(VECINAS_KEY, conVecinas.value ? '1' : '0')
+}
+
+/* ⚠ En texto largo el match tiene que caer en BORDE DE PALABRA, no en cualquier subcadena. Medido:
+ * buscar «403» daba como resultado `ecommerce` porque su migración se llama
+ * `2024_04_16_214033_create_ecommerce_requests_log_table.php` —el «403» está dentro del timestamp—, y
+ * al contar como coincidencia FUERTE tapaba los 4 nodos que sí hablan de un 403. La joroba de camelCase
+ * cuenta como borde, así que `LoanConfig` sigue encontrando `RevolvingLoanConfigService.php`.
+ *
+ * El nombre y el id quedan con subcadena pelada a propósito: son cortos, y ahí uno teclea pedazos. */
+function pegaEnTexto(texto, s) {
+  const t = String(texto), bajo = t.toLowerCase()
+  for (let i = bajo.indexOf(s); i !== -1; i = bajo.indexOf(s, i + 1)) {
+    if (i === 0) return true
+    const prev = t[i - 1]
+    if (!/[a-z0-9]/i.test(prev)) return true
+    if (/[A-Z]/.test(t[i]) && /[a-z0-9]/.test(prev)) return true // joroba camelCase
+  }
+  return false
+}
+
+function dondePega(id, s) {
+  const m = maps[id] || {}, c = byId.value[id] || {}
+  const en = []
+  if (id.toLowerCase().includes(s) || String(m.name || c.name || '').toLowerCase().includes(s)) en.push('nombre')
+  if ((m.sintomas || []).some(x => pegaEnTexto(x, s))) en.push('síntoma')
+  if ((m.files || []).some(f => pegaEnTexto(f, s))) en.push('archivo')
+  if (pegaEnTexto(docs[id] || '', s)) en.push('doc')
+  return en
+}
+
+/* Los RESULTADOS. No dependen de qué nodo esté abierto —si dependieran, abrir uno cambiaría la lista—
+ * y vienen ordenados por qué tan fuerte pegaron, que es lo que decide cuál se abre solo. */
+const FUERZA = { nombre: 0, 'síntoma': 1, archivo: 2, doc: 3 }
+const busqueda = computed(() => {
+  const s = q.value.trim().toLowerCase()
+  if (!s) return null
+  const donde = {}
+  const fuerte = new Set(), menciones = new Set()
+  for (const c of combos) {
+    const en = dondePega(c.id, s)
+    if (!en.length) continue
+    donde[c.id] = en
+    if (en.some(x => x !== 'doc')) fuerte.add(c.id)
+    else menciones.add(c.id)
+  }
+  // Sin nada fuerte, las menciones SON el resultado: si no, «403» no encontraría nada.
+  const soloMenciones = fuerte.size === 0
+  const pega = soloMenciones || verMenciones.value ? new Set([...fuerte, ...menciones]) : fuerte
+  const orden = [...pega].sort((a, b) => {
+    const fa = Math.min(...donde[a].map(x => FUERZA[x] === undefined ? 9 : FUERZA[x]))
+    const fb = Math.min(...donde[b].map(x => FUERZA[x] === undefined ? 9 : FUERZA[x]))
+    return fa - fb || a.localeCompare(b)
+  })
+  return {
+    pega, donde, orden,
+    // cuántos lo nombran sin declararlo, para poder ofrecerlos sin meterlos
+    menciones: soloMenciones || verMenciones.value ? 0 : menciones.size,
+    porMencion: soloMenciones,
+  }
+})
+
+/* ⚠ LA VECINDAD ES DEL NODO ABIERTO, no de la unión de los resultados. Medido acá: `deceval` pega en 5
+ * nodos y la unión de sus vecindades da 20 de 39, o sea otra vez «está en todo el árbol». La vecindad
+ * es una propiedad de UN nodo —«con qué se une esto»— así que se pinta la del que estás mirando, y
+ * seguirla es hacer clic en otro resultado. Con un solo resultado, que es el caso común, da lo mismo
+ * que mostrar la unión. */
+const vista = computed(() => {
+  const b = busqueda.value
+  if (!b) return null
+  const vec = new Map()
+  if (conVecinas.value && b.pega.has(sel.value)) {
+    for (const [otro, motivos] of conexionesDe(sel.value)) {
+      if (!b.pega.has(otro)) vec.set(otro, motivos)
+    }
+  }
+  /* La RUTA: los ancestros que hacen falta para que el árbol siga siendo un árbol. No son resultados
+   * ni vecinas —no se cuentan ni se resaltan—, son el camino para llegar. */
+  const ruta = new Set()
+  const subir = (id) => {
+    let p = byId.value[id] && byId.value[id].parent
+    while (p) { if (!b.pega.has(p) && !vec.has(p)) ruta.add(p); p = byId.value[p] && byId.value[p].parent }
+  }
+  for (const id of b.pega) subir(id)
+  for (const id of vec.keys()) subir(id)
+  return { vec, ruta, visible: new Set([...b.pega, ...vec.keys(), ...ruta]) }
+})
+
 const rows = computed(() => {
+  const v = vista.value
   const out = []
   const walk = (id, depth) => {
+    // Con búsqueda, `ruta` ya trae los ancestros: lo que no está visible no se dibuja.
+    if (v && !v.visible.has(id)) return
     const kids = childrenOf(id)
     out.push({ id, depth, hasKids: kids.length > 0 })
-    if (!collapsed.value.has(id)) for (const k of kids) walk(k, depth + 1)
+    // Buscando se ignora lo colapsado: esconder el resultado detrás de un ▸ sería contestar y tapar.
+    if (v || !collapsed.value.has(id)) for (const k of kids) walk(k, depth + 1)
   }
   for (const r of roots) walk(r, 0)
   return out
 })
-const tasks = computed(() => combos.filter(c => kindOf(c.id) === 'task').map(c => c.id).sort())
+// Cómo se pinta cada fila: resultado · vecina · ruta (sólo estructura).
+const claseDe = (id) => {
+  const b = busqueda.value
+  if (!b) return null
+  return b.pega.has(id) ? 'res' : (vista.value.vec.has(id) ? 'vec' : 'ruta')
+}
+const motivoDe = (id) => {
+  const b = busqueda.value
+  if (!b) return ''
+  if (b.pega.has(id)) return 'pega en: ' + (b.donde[id] || []).join(', ')
+  const v = vista.value.vec.get(id)
+  if (v) return 'vecina de ' + nameOf(sel.value) + ' — ' + v.join(' · ')
+  return 'sólo el camino en el árbol'
+}
+
+const tasks = computed(() => {
+  const todas = combos.filter(c => kindOf(c.id) === 'task').map(c => c.id).sort()
+  const b = busqueda.value
+  return b ? todas.filter(t => vista.value.visible.has(t)) : todas
+})
+
+/* Se abre el resultado MÁS FUERTE si el que está abierto no es ninguno de ellos. Buscar «pullman» y
+ * quedar mirando otro nodo obligaría a un clic que no decide nada — y como la vecindad que se pinta es
+ * la del abierto, sin esto se pintaría la de un nodo que no tiene nada que ver con lo buscado. */
+watch(busqueda, (b) => {
+  if (b && b.orden.length && !b.pega.has(sel.value)) sel.value = b.orden[0]
+}, { immediate: true })
 
 // stats
 const nContext = computed(() => combos.filter(c => kindOf(c.id) !== 'task').length)
@@ -78,8 +274,8 @@ const nTask = computed(() => tasks.value.length)
 const nFiles = computed(() => combos.reduce((a, c) => a + filesOf(c.id), 0))
 
 // ── Selección + panel de detalle ──
-const sel = ref('creditop')
-const select = (id) => { sel.value = id }
+// Las conexiones del nodo abierto, la más pisada primero.
+const conexionesSel = computed(() => [...conexionesDe(sel.value)].sort((a, b) => b[1].length - a[1].length))
 // al seleccionar una task, resaltar sus contextos en el árbol
 const highlighted = computed(() => {
   const c = byId.value[sel.value]
@@ -132,6 +328,26 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           </template>
         </span>
       </div>
+      <div class="buscar">
+        <input v-model="q" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
+               title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
+        <!-- La perilla aparece cuando hay algo escrito, que es cuando significa algo. -->
+        <button v-if="busqueda" class="vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
+                :title="conVecinas
+                  ? 'Se muestran también los nodos con los que se une (padre, hijo, task y archivo compartido). Clic para ver sólo lo encontrado.'
+                  : 'Sólo lo encontrado. Clic para traer los nodos vecinos.'">+ vecinas</button>
+        <button v-if="busqueda && busqueda.menciones" class="vec-chip off" @click="alternarMenciones"
+                title="Nodos que lo nombran en la prosa sin declararlo. No son la respuesta, pero a veces es lo que buscás.">
+          + {{ busqueda.menciones }} que lo mencionan
+        </button>
+        <button v-if="busqueda && verMenciones" class="vec-chip" @click="alternarMenciones"
+                title="Volver a los nodos que lo declaran (nombre, síntoma o archivo).">menciones incluidas</button>
+        <span v-if="busqueda" class="cuenta">
+          {{ busqueda.pega.size }} resultado(s)<template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
+          <!-- la nota del modo mención sólo tiene sentido si HAY algo; con cero decía las dos cosas -->
+          <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
+        </span>
+      </div>
       <p class="hint">Read-only. La estructura vive en <code>tree.json</code>; para agregar una task, un LLM edita ese JSON (+ <code>flows/&lt;id&gt;/</code>) y esto se actualiza.</p>
     </header>
 
@@ -139,13 +355,17 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
       <aside class="tree">
         <div class="section-label">Contextos</div>
         <div v-for="r in rows" :key="r.id"
-             class="row" :class="{ sel: sel === r.id, hl: highlighted.has(r.id) }"
+             class="row" :class="[claseDe(r.id), { sel: sel === r.id, hl: highlighted.has(r.id) }]"
+             :title="motivoDe(r.id)"
              :style="{ paddingLeft: (8 + r.depth * 18) + 'px' }" @click="select(r.id)">
           <span class="tog" @click.stop="r.hasKids && toggle(r.id)">{{ r.hasKids ? (collapsed.has(r.id) ? '▸' : '▾') : '·' }}</span>
           <!-- el relleno ES el estado de salud (ver estadoOf) -->
           <span class="dot" :class="kindOf(r.id)" :data-alin="estadoOf(r.id)"
                 :title="ETIQ[estadoOf(r.id)] || ''"></span>
           <span class="nm">{{ nameOf(r.id) }}</span>
+          <!-- El badge dice por qué algo ES resultado. En una vecina engaña: una vecina que además
+               menciona la palabra se leía como resultado (pasó con `doc` en tres filas). -->
+          <span class="pega" v-if="busqueda && busqueda.pega.has(r.id)">{{ busqueda.donde[r.id].join('·') }}</span>
           <span class="deriva" v-if="alinOf(r.id) && alinOf(r.id).deriva.cambiados"
                 :data-alin="estadoOf(r.id)"
                 :title="alinOf(r.id).deriva.cambiados + ' de ' + alinOf(r.id).archivos + ' archivos cambiaron en main desde ' + (alinOf(r.id).verificado.date || '?')">
@@ -153,6 +373,11 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           </span>
           <span class="cnt" v-if="filesOf(r.id)">{{ filesOf(r.id) }}</span>
         </div>
+
+        <p class="vacio" v-if="busqueda && !rows.length">
+          nada con «{{ q }}». Se busca en el nombre, los síntomas, los archivos declarados y el cuerpo
+          del <code>doc.md</code>.
+        </p>
 
         <div class="section-label tasks-lbl">Tasks</div>
         <div v-for="t in tasks" :key="t" class="taskcard" :class="{ sel: sel === t }" @click="select(t)">
@@ -225,6 +450,16 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
               <span class="alin-fecha">{{ a.ultimo_cambio }}</span> <code>{{ a.ruta }}</code>
             </div>
           </div>
+        </div>
+
+        <!-- CON QUÉ SE UNE. No está escrito en ningún lado: sale de los archivos que dos nodos declaran
+             (ver `grafo`), más el árbol y las tasks. Es lo que se lee DESPUÉS de este nodo. -->
+        <div class="conex" v-if="conexionesSel.length">
+          <div class="conex-lbl">Se une con</div>
+          <span v-for="[otro, motivos] in conexionesSel" :key="otro" class="conex-n" @click="select(otro)"
+                :title="'motivo: ' + motivos.join(' · ')">
+            {{ nameOf(otro) }}<em>{{ motivos.join('·') }}</em>
+          </span>
         </div>
 
         <p class="path"><code>server/data/flows/{{ sel }}/</code> · doc.md + map.json</p>

@@ -76,7 +76,9 @@ El server Go, el WebSocket, el conector stdio y el sistema de "derivar" se borra
 - `server/` **no tiene código**: sobrevive como carpeta de datos (`server/data/flows/`). No muevas
   esos directorios — toda ruta citada en los docs apunta ahí.
 - `src/App.vue` (la viz) es **read-only**: lee `tree.json`, `flows/*` y `alineacion.json` por
-  `import.meta.glob`. No le agregues backend, WS ni botones de guardar. **Si necesitás mostrar algo
+  `import.meta.glob`. No le agregues backend, WS ni botones de guardar. Su **buscador** y el grafo de
+  vecindad —derivado de los archivos que dos nodos comparten, descartando los hubs— salen del mismo
+  glob y no guardan nada; el detalle y lo medido, en `README.md`. **Si necesitás mostrar algo
   que la viz no puede calcular** (git, la BD): que un **comando** lo calcule y deje un JSON que la viz
   lee por el mismo glob — así se hizo la alineación.
 

@@ -25,6 +25,28 @@ cd context && npm install && npm run dev   # viz read-only (puerto: .claude/laun
 Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` por `import.meta.glob` y los
 renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
 
+**El buscador de la viz muestra la VECINDAD, no una lista.** Busca en cuatro lados —el nombre, los
+síntomas, los archivos declarados y el cuerpo del `doc.md`— y dice en cuál pegó. El árbol se recorta a
+lo encontrado (con aro), **las conexiones más cercanas del nodo abierto** (más apagadas) y los
+ancestros que hacen falta para que siga siendo un árbol (apenas visibles): 8 filas de 39 para
+«rotativo» en vez de las 39.
+
+Y las conexiones no están escritas en ningún lado: **se derivan de los archivos que dos nodos
+declaran** (`map.json`), más el árbol y las tasks. El panel las lista con el motivo —«Credifamilia · 4
+archivos», «Onboarding · padre»— y son clicables.
+
+⚠ Dos cosas medidas que explican por qué está así:
+
+- **el texto del doc NO pesa igual que el nombre.** Con todo al mismo nivel, «rotativo» daba 17
+  resultados de 39 (medido el 2026-09-09): los docs se nombran entre sí todo el tiempo. <!-- lint:ok --> Si pega el nombre, un síntoma o un
+  archivo declarado, ese nodo es la respuesta; el que sólo lo nombra en la prosa queda a un clic
+  («+ N que lo mencionan») con la cuenta a la vista. Una búsqueda libre como «403», que nadie declara,
+  pasa sola al modo mención.
+- **la vecindad es del nodo ABIERTO, no de la unión de los resultados.** Medido el 2026-09-09:
+  «deceval» pegaba en 5 nodos y la unión de sus vecindades daba 20 de 39 <!-- lint:ok --> — otra vez
+  «está en todo el árbol». Se muestra la del que estás
+  mirando, y seguirla es hacer clic en otro resultado.
+
 **Mantenimiento** — los hooks corren solos al escribir `map.json` o `tree.json`; a mano:
 
 ```bash
