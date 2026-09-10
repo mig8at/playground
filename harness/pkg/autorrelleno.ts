@@ -11,6 +11,7 @@
 // `pkg/wizard-navegador.ts`. Lo específico de cada canal es QUÉ campos hay y qué valor va; lo genérico
 // —cómo se llena y cómo se verifica que quedó— vive acá.
 import type { Page } from '@playwright/test';
+import { MESES, esTrioDeFecha, fechaDeLaPantalla, fechasSinteticas, parteDeCombo, valorBuscado, yaMuestra } from './fecha-trio.ts';
 
 /** Un campo de la pantalla, con el valor YA resuelto. Se busca por testid, por etiqueta y por `name`,
  *  en ese orden: los tres existen en este front y ninguno solo alcanza para todas las pantallas. */
@@ -57,7 +58,11 @@ export async function esperarHidratacion(page: Page, timeout = 15_000): Promise<
  * reintenta una vez y si tampoco, lo reporta con `⚠no quedó` en vez de dar por hecho que se llenó.
  */
 export async function autorrellenar(page: Page, campos: Campo[],
-    opts: { hidratar?: boolean; t?: number; preferirRadio?: RegExp } = {}): Promise<string[]> {
+    opts: {
+        hidratar?: boolean; t?: number; preferirRadio?: RegExp;
+        /** Las dos fechas sintéticas. Ausente → las del entorno (`fechasSinteticas()`). */
+        fechas?: { nacimiento: string; expedicion: string };
+    } = {}): Promise<string[]> {
     const hechos: string[] = [];
     const t = opts.t ?? 3_000;
     if (opts.hidratar !== false) await esperarHidratacion(page, 10_000);
@@ -113,7 +118,68 @@ export async function autorrellenar(page: Page, campos: Campo[],
     // un mensaje de error. El trigger es un `button[role=combobox]` y las opciones se renderizan en un
     // PORTAL (fuera del form) como `[role=option]`, así que hay que abrir y clickear, no `selectOption`.
     const combos = page.locator('button[role="combobox"]:visible');
-    for (let i = 0; i < (await combos.count().catch(() => 0)); i += 1) {
+    const cuantosCombos = await combos.count().catch(() => 0);
+
+    /* ── EL TRÍO DE FECHA, PRIMERO Y CON LA REGLA COMPARTIDA ──────────────────────────────────────
+     * ⚠ Sin esto, el bloque genérico de abajo elegía `[role=option].first()` en cada combo y armaba
+     * `1 / Enero / <año actual>` — el día de hoy. Como fecha de expedición de un documento eso es una
+     * fecha que ninguna validación de negocio acepta, y quedaba escrita en la base sin que nada
+     * avisara: medido el 2026-09-10, el usuario de la uReq 502193 terminó con
+     * `expedition_date = 2026-01-01`. La regla la sabía el OTRO autorrelleno del harness y este no;
+     * ahora los dos la leen de `pkg/fecha-trio.ts`.
+     *
+     * Se resuelve ANTES que el loop genérico y marca sus índices para que aquél no los repise. */
+    const indicesDeFecha = new Set<number>();
+    if (cuantosCombos >= 3) {
+        const textos: string[] = [];
+        for (let i = 0; i < cuantosCombos; i += 1) {
+            textos.push(((await combos.nth(i).textContent().catch(() => '')) ?? '').trim());
+        }
+        /* La ETIQUETA es la misma señal que el texto acá: un combo de Radix vacío muestra su
+           placeholder («Día*»), que es exactamente lo que `parteDeCombo` sabe leer. */
+        const partes = textos.map((txt, i) => parteDeCombo(txt, txt, i, MESES));
+        const candidatos = partes.map((p, i) => ({ p, i })).filter((x) => x.p !== null);
+
+        if (esTrioDeFecha(candidatos.map((x) => x.p))) {
+            const arriba = ((await page.locator('body').innerText().catch(() => '')) ?? '').slice(0, 400);
+            const { nacimiento, expedicion } = opts.fechas ?? fechasSinteticas();
+            const fecha = fechaDeLaPantalla(arriba, nacimiento, expedicion);
+
+            /* EN ORDEN, y no en paralelo: en este trío el siguiente combo se habilita al elegir el
+               anterior (día → mes → año), así que saltárselo deja los dos últimos deshabilitados. */
+            for (const { p, i } of candidatos) {
+                indicesDeFecha.add(i);
+                const buscado = valorBuscado(p!, fecha, MESES);
+                if (yaMuestra(textos[i], buscado)) continue;   // idempotente: ya está elegido
+                const cb = combos.nth(i);
+                if (!(await cb.isEnabled().catch(() => false))) continue;
+                await cb.click({ timeout: t }).catch(() => {});
+                /* ⚠ SE PRUEBAN TODOS LOS CANDIDATOS, no sólo el primero. El mismo día se escribe `5` o
+                   `05` y el mes por nombre o por número según la pantalla; quedarse con `buscado[0]`
+                   dejaba sin elegir a la mitad de las variantes — y el match es ANCLADO a propósito,
+                   porque `hasText` sin anclar haría que «5» matcheara «15» y «25». */
+                let elegido: string | null = null;
+                for (const cand of buscado) {
+                    const escapado = cand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const opcion = page.locator('[role="option"]:visible')
+                        .filter({ hasText: new RegExp(`^\\s*${escapado}\\s*$`, 'i') }).first();
+                    if (!(await opcion.count().catch(() => 0))) continue;
+                    const ok = await opcion.click({ timeout: t }).then(() => true).catch(() => false);
+                    if (ok) { elegido = cand; break; }
+                }
+                if (elegido) hechos.push(`fecha ${p}→${elegido}`);
+                else {
+                    // No se inventa otro valor: se cierra y se reporta, que es lo que deja ver el hueco.
+                    await page.keyboard.press('Escape').catch(() => {});
+                    hechos.push(`⚠fecha ${p}: no encontré ninguno de «${buscado.join('» «')}»`);
+                }
+                await page.waitForTimeout(150).catch(() => {});
+            }
+        }
+    }
+
+    for (let i = 0; i < cuantosCombos; i += 1) {
+        if (indicesDeFecha.has(i)) continue;   // ya lo resolvió el trío de fecha
         const cb = combos.nth(i);
         // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
         const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null

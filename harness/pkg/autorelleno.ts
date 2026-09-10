@@ -44,6 +44,7 @@
 // Se apaga con `E2E_AUTORELLENO=0`.
 import { readFileSync } from 'node:fs';
 import type { BrowserContext, Page } from '@playwright/test';
+import { fechasSinteticas, fuenteInyectable } from './fecha-trio.ts';
 
 export interface DatosAutorelleno {
     telefono: string; otp: string; otpFirma: string; documento: string; email: string;
@@ -86,10 +87,9 @@ export function datosDeEnv(): DatosAutorelleno {
         documento: process.env.E2E_SYNTH_DOC || '1096734490',
         email: process.env.E2E_SYNTH_EMAIL || 'qa.harness@creditop.com',
         nombre: 'CARLOS', segundoNombre: 'ANDRES', apellido: 'RAMIREZ', segundoApellido: 'GOMEZ',
-        // ⚠ Las dos fechas van con AÑOS PLAUSIBLES y no con «hoy»: la de nacimiento tiene que pasar el
-        // rango de edad de las reglas duras (18–82) y la de expedición tiene que ser posterior a la
-        // mayoría de edad. Una fecha de relleno que no pasa la validación no ahorra tipeo: lo duplica.
-        nacimiento: '1990-05-14', expedicion: '2010-08-20',
+        // Las dos fechas, del módulo que también las usa del lado de Playwright (ahí está el porqué
+        // de que sean años plausibles y no «hoy»).
+        ...fechasSinteticas(),
         ingreso: '2500000', monto: '2000000',
         direccion: 'CALLE 90 # 15 - 20', empresa: 'HARNESS QA SAS',
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
@@ -104,14 +104,21 @@ export function datosDeEnv(): DatosAutorelleno {
  * abre pestañas (el checkout de la entidad, la ventana del cliente), y un script atado a una página se
  * pierde en la primera navegación.
  */
+/* ⚠ DOS `addInitScript`, EN ESTE ORDEN, y no es un detalle de estilo. El primero deja
+ * `window.__trioFecha` —la regla de fecha COMPARTIDA con el autorrelleno de Playwright
+ * (`pkg/fecha-trio.ts`)—; el segundo es el guion, que la usa. Van separados porque `addInitScript(fn)`
+ * SERIALIZA la función: el guion no puede importar nada, así que la regla tiene que llegar por el
+ * único canal que hay, que es otro script. Al revés no funciona: el guion correría sin la regla. */
 export async function instalarAutorelleno(context: BrowserContext, datos = datosDeEnv()): Promise<void> {
     if (process.env.E2E_AUTORELLENO === '0') return;
+    await context.addInitScript({ content: fuenteInyectable() });
     await context.addInitScript(guion, datos);
 }
 
 /** Para un `Page` suelto (specs que no pasan por `openWindow`). */
 export async function instalarAutorellenoEnPagina(page: Page, datos = datosDeEnv()): Promise<void> {
     if (process.env.E2E_AUTORELLENO === '0') return;
+    await page.addInitScript({ content: fuenteInyectable() });
     await page.addInitScript(guion, datos);
 }
 
@@ -276,29 +283,28 @@ function guion(datos: DatosAutorelleno) {
         /acepto|autorizo|terminos|condiciones|politic|declaro|habeas|tratamiento|consentimiento|agree/.test(p)
         || /confirm|titular|es correcto|son correctos|corresponde/.test(p);
 
-    /** Lo que el autorelleno ya tocó una vez. Sólo lo usan los controles de fecha (ver más abajo). */
-    const tocados = new WeakSet<Element>();
-
-    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-        'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-
-    /**
-     * ¿De qué fecha habla esta pantalla — nacimiento o expedición del documento?
+    /* LA REGLA DE FECHA VIENE DEL MÓDULO COMPARTIDO (`pkg/fecha-trio.ts`), inyectado como
+     * `window.__trioFecha` por el `addInitScript` de más arriba. Antes vivía acá —`MESES`,
+     * `fechaDelContexto` y la deducción por texto—, y el otro autorrelleno del harness no la tenía:
+     * escribía `1 / Enero / <año actual>` como fecha de expedición, o sea el día de hoy. Tener la
+     * regla en un solo lugar es lo que arregla eso sin que los dos archivos se fundan.
      *
-     * Se mira el TEXTO DE ARRIBA de la página y no el contenedor del campo, y hay motivo: los tres
-     * `button[role=combobox]` del trío de fecha no tienen `name`, ni `id`, ni `label`, ni un ancestro
-     * que diga de qué fecha son —lo único que los distingue es el título de la pantalla—. La primera
-     * versión buscaba en `h1,h2` y no encontraba nada (el título no es un heading), así que caía
-     * siempre a nacimiento y ponía la fecha de nacimiento como fecha de expedición: una fecha que el
-     * negocio rechaza, porque la cédula no se expide el día que nacés.
-     *
-     * ⚠ Límite conocido: si una pantalla pidiera las DOS fechas a la vez, esto no las distinguiría.
-     * Hoy no existe, y el día que exista la señal tendría que venir del componente, no del texto.
-     */
-    function fechaDelContexto(_el: HTMLElement): string {
-        const arriba = norm((document.body.innerText || '').slice(0, 400));
-        return /expedicion|expedid|issue/.test(arriba) ? datos.expedicion : datos.nacimiento;
-    }
+     * ⚠ Se lee de `window` y no se importa PORQUE ESTE GUION SE SERIALIZA. Si el global no está, la
+     * fecha se saltea en vez de inventarse una: un trío mal puesto es peor que un trío vacío, que al
+     * menos se ve. */
+    const TRIO = (window as any).__trioFecha as {
+        MESES: string[];
+        parteDeCombo: (t: string, e: string, i: number, m: string[]) => 'dia' | 'mes' | 'anio' | null;
+        valorBuscado: (p: 'dia' | 'mes' | 'anio', f: string, m: string[]) => string[];
+        fechaDeLaPantalla: (arriba: string, nac: string, exp: string) => string;
+        yaMuestra: (t: string, buscado: string[]) => boolean;
+        esTrioDeFecha: (partes: Array<'dia' | 'mes' | 'anio' | null>) => boolean;
+    } | undefined;
+
+    /** La fecha que pide ESTA pantalla, según el texto de arriba. */
+    const fechaDeAca = () => TRIO
+        ? TRIO.fechaDeLaPantalla((document.body.innerText || '').slice(0, 400), datos.nacimiento, datos.expedicion)
+        : '';
 
     async function rellenar(): Promise<number> {
         let n = 0;
@@ -346,12 +352,15 @@ function guion(datos: DatosAutorelleno) {
             const esFecha = /\bdia\b|\bday\b|\bmes\b|\bmonth\b|\banio\b|\bano\b|\byear\b/.test(p);
 
             if (esFecha) {
-                if (tocados.has(sel)) continue;
-                tocados.add(sel);
-                const [aa, mm, dd] = fechaDelContexto(sel).split('-');
-                const cand = /\bdia\b|\bday\b/.test(p) ? [String(Number(dd)), dd]
-                    : /\bmes\b|\bmonth\b/.test(p) ? [MESES[Number(mm) - 1], String(Number(mm)), mm]
-                        : [aa];
+                if (!TRIO) continue;
+                // La parte sale de la PISTA del select (tiene `name`/`label`, a diferencia de los de
+                // Radix), y el valor de la regla compartida.
+                const parte = TRIO.parteDeCombo('', p, 9, TRIO.MESES);
+                if (!parte) continue;
+                const cand = TRIO.valorBuscado(parte, fechaDeAca(), TRIO.MESES);
+                // Idempotente igual que el trío de Radix: si ya está elegido, no se vuelve a tocar.
+                const actual = sel.options[sel.selectedIndex]?.textContent ?? sel.value;
+                if (TRIO.yaMuestra(actual, cand)) continue;
                 if (elegirOpcion(sel, cand)) n++;
                 continue;
             }
@@ -423,45 +432,42 @@ function guion(datos: DatosAutorelleno) {
         }
 
         /* ⚠ EL TRÍO DE FECHA DE RADIX es el caso que costó dos capturas. Son
-         * `button[role=combobox]` cuyo TEXTO es el valor actual —`1`, `Enero`, `2026`—, así que:
-         *   · no parecen vacíos (mi regla de «sólo si está vacío» los saltaba), y
-         *   · su default (1 / Enero / año actual) es una fecha que ninguna validación acepta: daba
-         *     `2026-01-01` como fecha de expedición del documento, o sea hoy, en el futuro.
-         * No tienen `name` ni `id`, así que la parte se deduce del TEXTO que muestran: nombre de mes →
-         * mes, cuatro dígitos → año, uno o dos → día. Eso generaliza a cualquier trío día/mes/año sin
-         * depender de cómo lo haya nombrado quien escribió la pantalla. */
-        const esMes = (t: string) => MESES.includes(norm(t));
+         * `button[role=combobox]` sin `name` ni `id`, así que la única señal de qué parte es cada uno
+         * está en lo que MUESTRAN — y eso lo decide ahora la regla compartida (`pkg/fecha-trio.ts`),
+         * que además cubre el caso que este archivo no veía: el combo VACÍO, que en vez de un valor
+         * muestra su placeholder («Día*»). El resto de acá es sólo la mecánica del popover. */
         const triggers = Array.from(document.querySelectorAll<HTMLElement>('[role=combobox],[aria-haspopup=listbox]'))
             .filter((t) => visible(t) && t.getAttribute('aria-disabled') !== 'true');
-        const trio = triggers.filter((t) => {
-            const txt = (t.textContent || '').trim();
-            return esMes(txt) || /^\d{1,2}$/.test(txt) || /^\d{4}$/.test(txt);
-        });
-        // Trío completo (día + mes + año) y no un combo suelto que casualmente muestre un número.
-        const esFechaCompleta = trio.length >= 3
-            && trio.some((t) => esMes((t.textContent || '').trim()))
-            && trio.some((t) => /^\d{4}$/.test((t.textContent || '').trim()));
 
-        if (esFechaCompleta) {
-            for (const t of trio) {
-                const txt = (t.textContent || '').trim();
-                const [aa, mm, dd] = fechaDelContexto(t).split('-');
-                const buscado = esMes(txt) ? [MESES[Number(mm) - 1]]
-                    : /^\d{4}$/.test(txt) ? [aa]
-                        : [String(Number(dd)), dd];
-                /* ⚠ SI YA MUESTRA LO QUE QUEREMOS, NO SE TOCA — y esto reemplaza a `tocados` acá, que
-                   NO alcanzaba. `tocados` es un WeakSet keyeado por el ELEMENTO, y Radix REEMPLAZA el
-                   nodo del trigger cuando cambia su valor: en la pasada siguiente el nodo es otro,
-                   `tocados.has(t)` da falso y la fecha se volvía a elegir. Eso es lo que se veía como
-                   «la fecha de expedición cambia dos veces». Comparar contra el valor deseado es
-                   idempotente por construcción y no depende de que el nodo sobreviva. */
-                if (buscado.some((b) => norm(txt) === norm(b))) continue;
-                if (await elegirEnPopover(t, buscado)) n++;
+        /* Se pregunta por el subconjunto que PARECE fecha, no por todos los combos de la pantalla: un
+           selector de cuotas también cae en «uno o dos dígitos» y no es un día. */
+        const textos = triggers.map((t) => (t.textContent || '').trim());
+        const candidatos = TRIO
+            ? triggers.map((t, i) => ({ p: TRIO.parteDeCombo(textos[i], pista(t), i, TRIO.MESES), i }))
+                .filter((x) => x.p !== null)
+            : [];
+        const esFechaCompleta = TRIO ? TRIO.esTrioDeFecha(candidatos.map((x) => x.p)) : false;
+        const indicesDeFecha = new Set(esFechaCompleta ? candidatos.map((x) => x.i) : []);
+
+        if (TRIO && esFechaCompleta) {
+            {
+                const fecha = fechaDeAca();
+                for (const { p, i } of candidatos) {
+                    const buscado = TRIO.valorBuscado(p!, fecha, TRIO.MESES);
+                    /* ⚠ SI YA MUESTRA LO QUE QUEREMOS, NO SE TOCA. Esto reemplazó a `tocados`, que NO
+                       alcanzaba: era un WeakSet keyeado por el ELEMENTO, y Radix REEMPLAZA el nodo del
+                       trigger cuando cambia su valor — en la pasada siguiente el nodo es otro,
+                       `tocados.has(t)` da falso y la fecha se volvía a elegir. Eso es lo que se veía
+                       como «la fecha de expedición cambia dos veces». */
+                    if (TRIO.yaMuestra(textos[i], buscado)) continue;
+                    if (await elegirEnPopover(triggers[i], buscado)) n++;
+                }
             }
         }
 
-        for (const trigger of triggers) {
-            if (esFechaCompleta && trio.includes(trigger)) continue;
+        for (let i = 0; i < triggers.length; i++) {
+            const trigger = triggers[i];
+            if (indicesDeFecha.has(i)) continue;   // ya lo resolvió el trío
             // `data-placeholder` (o un texto que diga «Seleccion…») delata que todavía no eligió nada.
             const vacio = trigger.hasAttribute('data-placeholder')
                 || /seleccion|elegi|choose|select/i.test(trigger.textContent || '');

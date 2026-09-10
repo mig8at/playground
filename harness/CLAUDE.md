@@ -154,6 +154,17 @@ existen en ninguna parte del monorepo. Por eso el motor de navegador **no los us
 etiqueta, con `pkg/autorrelleno.ts` (el motor genérico que antes vivía dentro del caminador del canal QR
 y ahora comparten los dos, con un mapa de campos por canal).
 
+⚠ **Y hay DOS autorrellenos, no uno** — `pkg/autorelleno.ts` (una `r`, la chapita ⌨/⌥R del camino
+visual, que se INYECTA en la página) y `pkg/autorrelleno.ts` (dos `r`, el de Playwright que usan los
+caminadores). No se pueden fundir: uno vive en el DOM y el otro habla por el protocolo de Playwright.
+Lo que **sí** está compartido, desde el 2026-09-10, es la regla del **trío de fecha**
+(`pkg/fecha-trio.ts`), y hay motivo medido: un día/mes/año no se rellena eligiendo la primera opción
+de cada combo —eso da `1 / Enero / <año actual>`, o sea hoy, que como fecha de expedición ninguna
+validación acepta—, la regla la sabía UNO de los dos, y el otro escribía la fecha inválida en la base
+sin que nada avisara. El inyectado la recibe por un `addInitScript` aparte (`fuenteInyectable()`)
+porque su guion se serializa y no puede importar; `pkg/fecha-trio.spec.ts` fija esa serialización
+evaluándola en un Chromium.
+
 ### S3 en local: MinIO, o los documentos no existen
 
 Sin esto, **cada subida de documento falla en silencio** y la URL que queda en la base da 404 (F-174).
