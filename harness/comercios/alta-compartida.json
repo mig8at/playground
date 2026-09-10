@@ -1,0 +1,90 @@
+{
+  "nombre": "Alta Fleet",
+  "slug": "alta-fleet",
+  "porque": "GEMELO de `alta.json` para la BASE COMPARTIDA (dev = qa = staging: es la misma, ver harness/CLAUDE.md §«Qué es real en cada target»). Existe para poder probar Alta en qa. ⚠ La ÚNICA diferencia son los MOLDES, y no es cosmética: los ids de `lenders` NO significan lo mismo en las dos bases. Medido el 2026-09-10 — en local `170` es «Motai RB» (rt=2, rto) y `173` es «Rent to Own»; en la compartida `170` es «My Tech YA» (rt=2, CREDIT) y `173` es «Efectivo» (rt=0). Sembrar con los ids de local acá habría clonado la familia de producto equivocada y la entidad se caería al firmar — el modo de falla de F-188, autoinfligido.",
+  "pais": 47,
+  "molde_comercio": 158,
+  "comercio": {
+    "self_managed": 1,
+    "have_ctopx": 0,
+    "initial_fee": 0,
+    "show_products": 0,
+    "flow_type": 0,
+    "image": "http://localhost:5195/images/motorbike.png",
+    "pages": {
+      "welcome": {
+        "logo": "http://localhost:5195/images/motorbike.png",
+        "description": "Alquila tu moto TVS Raider 125 con\nopción de compra",
+        "cta": "Iniciar solicitud",
+        "background": "http://localhost:5195/images/home.png"
+      }
+    }
+  },
+  "sucursales": [
+    {
+      "nombre": "Calle 90",
+      "ciudad": 149
+    }
+  ],
+  "entidades": [
+    {
+      "id": 211,
+      "nombre": "AltaX",
+      "slug": "altax",
+      "response_type": 2,
+      "product": "rto",
+      "document_types": [
+        "CC",
+        "CE",
+        "PEP"
+      ],
+      "molde_operativo": 205,
+      "molde_documentos": 205,
+      "requiere_codeudor": true,
+      "abaco": false,
+      "user_self_management": 0,
+      "calculadora": {
+        "plans": [
+          {
+            "id": "12",
+            "label": "12",
+            "weeks": 52,
+            "default": true
+          },
+          {
+            "id": "18",
+            "label": "18",
+            "weeks": 78
+          },
+          {
+            "id": "24",
+            "label": "24",
+            "weeks": 104
+          }
+        ],
+        "params": {
+          "tax": 0.19,
+          "rate": 0.018,
+          "extras": 1000000,
+          "margin": 1,
+          "setup_fee": 1500000,
+          "initial_fee": 2000000
+        },
+        "formulas": [
+          {
+            "name": "amount",
+            "expression": "((amount - initial_fee + setup_fee) * (1 + margin) + extras) * (1 + tax)"
+          },
+          {
+            "name": "payment",
+            "expression": "amount * ((1 + rate) ** (12 / 52) - 1) / (1 - (1 + rate) ** (-weeks * 12 / 52))"
+          }
+        ]
+      },
+      "_nota_bienvenida": "SIN bienvenida de ENTIDAD, a propósito. La tenía —heredada de la primera iteración, cuando la pantalla era por entidad— y el resultado era que el cliente veía DOS: la del comercio al entrar (`comercio.pages.welcome`) y la de la entidad en /confirmation, esta última con el fondo prestado de CREDIMOVIL y el logo heredado del molde de Motai. La bienvenida de Alta es del COMERCIO; si alguna vez hace falta una de entidad, es porque son dos momentos distintos (entrar vs. elegirla) y hay que decidirlo, no heredarlo.",
+      "_nota_moldes": "205 «Rent to Own» (rt=2, product `rto`) hace los DOS papeles, y por qué: el `molde_operativo` de local —170 «Motai RB»— NO EXISTE en la compartida (ahí sólo hay 62 «Motai X», 158 «Motai Renting» y 205 «Rent to Own»), y el `molde_documentos` de local —173 «Rent to Own»— es 205 acá, el mismo por nombre. Se comprobó que 205 está COMPLETO para todo lo que el sembrador le pide: lenders_by_allieds 1 · lenders_by_allied_branches 3 · credit_line_by_lenders 1 · lender_rules 12 · lender_datacredito_rules 2 · lender_users_categories 5 · lender_signing_documents 8. ⚠ El otro candidato, 158 «Motai Renting», también está completo pero su `product` es `renting` y el de Alta es `rto`: se eligió por familia de producto, no por completitud.",
+      "_nota_id_fijo": "⚠ El id 211 es FIJO y en la compartida hoy está libre (MAX(lenders.id) = 208, medido el 2026-09-10). Es un id compartido con el equipo: si alguien llega a ocupar el 211, una corrida de este spec lo BORRA — `limpiar()` busca por `slug=? OR id=?` y corre SIEMPRE, no sólo con CLEAN=1. Antes de re-sembrar acá, comprobá quién es el 211."
+    }
+  ],
+  "nota_assets": "⚠ LAS IMÁGENES APUNTAN A `localhost:5195`, que es el panel del harness. Sirven para que MIGUEL pruebe qa desde su máquina con el panel arriba (su navegador sí resuelve localhost); para cualquier otra persona dan 404 y la pantalla sale sin foto ni logo —el layout aguanta: el componente dibuja un relleno donde va el logo—. Para un demo de verdad en qa hay que subirlas a S3, donde viven las de todos los comercios de esa base: `https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/allieds/<slug>/<archivo>`, que es la ruta que escribe el admin al cargarlas. Eso NO se hizo acá."
+}
