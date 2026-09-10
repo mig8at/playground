@@ -93,6 +93,21 @@ const LENDER = PRODUCTO === 'consumo' ? 100 : 68;
 // El insumo que cada producto persiste en `lender_integration_flows` y que el servicio nuevo de
 // Bancolombia va a exigir como `transactionId` para emitir el código.
 const CLAVE_TX = PRODUCTO === 'consumo' ? 'loan_validate_key' : 'bnpl_transaction_id';
+/**
+ * El documento que el cliente teclea en la PRIMERA pantalla del canal.
+ *
+ * ⚠ Esto faltaba, y el hueco tapó un incidente de producción. La pantalla de alta de autogestión
+ * (`apps/loan-request-wizard/app/routes/bancolombia/onboarding/register.tsx:108-118`) pide teléfono **y
+ * documento** —sin preguntar el tipo—, y el repositorio lo manda cuando está
+ * (`phone-number.repository.ts:45`). El runner registraba SIN documento, así que el alta creaba una
+ * ficha con `document_number = 'TEMP-…'`, que es el caso SANO. La fila incoherente —documento real con
+ * el tipo en el centinela `-`— sólo aparece cuando el alta SÍ recibe el número, y por eso el recorrido
+ * cerraba en verde en local mientras en producción se cancelaba.
+ *
+ * `--documento ''` vuelve al comportamiento viejo (registrar sin documento), que sigue siendo un caso
+ * legítimo: es el cliente que entra por un canal que no lo pide.
+ */
+const DOCUMENTO = argv.includes('--documento') ? opt('--documento', '') : '1014257745';
 // El paso que la ESCRIBE (el único, en los dos productos).
 const PASO_TX = PRODUCTO === 'consumo' ? 'user-validate' : 'retrieve-quota';
 
@@ -181,9 +196,27 @@ spawnSync('node', ['bin/dbops.ts', 'scrubphone', PHONE], { cwd: new URL('..', im
 const reg = await http('POST', '/api/onboarding/phone/register', {
     phone_number: PHONE, phoneNumber: PHONE, terms: true, policies: true,
     otp_length: 4, otpLength: 4, partner_branch_hash: br.hash, partnerBranchHash: br.hash,
+    // Como lo manda el front de autogestión: el número, sin el tipo. Ver `DOCUMENTO`.
+    ...(DOCUMENTO ? { document_number: DOCUMENTO, documentNumber: DOCUMENTO } : {}),
 });
 const uid = reg.json?.data?.user?.id;
-P('register', !!uid, `HTTP ${reg.status} · user=${uid ?? trim(reg.json, 90)}`);
+P('register', !!uid, `HTTP ${reg.status} · user=${uid ?? trim(reg.json, 90)}`
+    + (DOCUMENTO ? ` · documento ${DOCUMENTO} (como la primera pantalla del canal)` : ' · SIN documento'));
+
+// El tipo con que nació la ficha. Es el dato que decide si el payload del lender va a ser aceptado: el
+// builder lo manda crudo y el banco lo valida contra su lista.
+if (uid) {
+    const fila = await one<{ document_type: string; document_number: string }>(
+        'SELECT document_type, document_number FROM users WHERE id=?', [uid],
+    ).catch(() => null);
+    const tipo = fila?.document_type ?? '?';
+    const docReal = !String(fila?.document_number ?? '').startsWith('TEMP-');
+    P('tipo de documento de la ficha', !(docReal && tipo === '-'),
+        `document_type=${JSON.stringify(tipo)} · document_number=${docReal ? 'real' : 'TEMP-…'}`
+        + (docReal && tipo === '-'
+            ? ' ← INCOHERENTE: documento real con el centinela. El banco va a rechazar el payload con SA400.'
+            : ''));
+}
 if (!uid) { await close(); process.exit(2); }
 
 // El asesor NO existe en este canal (es autogestión), pero `corporate_user_id` es NOT NULL para los logs
@@ -203,8 +236,12 @@ const UR = String(ins.insertId);
 traza.trazarUReq(UR);
 P('uReq creado', true, `#${UR} · lender ${LENDER} · monto ${AMOUNT.toLocaleString('es-CO')} · estado 1`);
 
-await synthFill(ins.insertId, { income: 2_500_000, score: 700 });
-P('buró sintético', true, 'ingreso 2.500.000 · score 700');
+// `keepDocumentType` respeta el ORDEN REAL del canal: acá el cliente todavía no declaró su tipo de
+// documento —la primera pantalla pide teléfono y número, nada más—, así que el relleno sintético no
+// puede inventarlo. Si lo inventa, la compuerta del lender ve un tipo válido y el recorrido cierra en
+// verde tapando lo que en producción se cancela.
+await synthFill(ins.insertId, { income: 2_500_000, score: 700, keepDocumentType: !!DOCUMENTO });
+P('buró sintético', true, `ingreso 2.500.000 · score 700${DOCUMENTO ? ' · tipo de documento SIN tocar (lo puso el alta)' : ''}`);
 console.log(`   ↳ encryptCode = ${bancolombiaEncryptCode(ins.insertId, br.hash)}  (pantallas /bancolombia/…/{code})`);
 
 // ── 4..12 · la máquina BNPL ────────────────────────────────────────────────────────────────────────

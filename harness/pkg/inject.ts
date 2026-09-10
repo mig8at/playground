@@ -137,7 +137,7 @@ async function ensureLenderCredential(alliedID: number, lenderID: number): Promi
     return 'sembrada (copiada de plantilla)';
 }
 
-async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType = 'CC', dob = '1990-01-01', expeditionDate = '2010-01-01'): Promise<void> {
+async function setSynthIdentity(userID: number, doc: string, email: string, gender: string, age: number, name?: string, documentType: string | null = 'CC', dob = '1990-01-01', expeditionDate = '2010-01-01'): Promise<void> {
     // name opcional (del panel): "Juan Perez" → first_name "Juan", surname "Perez". Default = SYNTH TEST USER.
     const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
     const first = parts[0] ?? 'SYNTH';
@@ -153,11 +153,19 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
     // local es un mock y no descarga nada. Se les pone forma de URL de S3 para que se reconozcan como
     // sintéticas al mirarlas en la base.
     const cedula = (cara: string) => `https://mock-s3.local/front-web/users/documents/synth/${doc}/${cara}.jpg`;
+    // `documentType: null` = NO tocar la columna, dejar el que escribió el alta.
+    //
+    // ⚠ Existe porque este relleno adelantaba el reloj y tapaba un incidente de producción. En los
+    // canales donde el cliente NO declara su tipo de documento antes de la preaprobación —autogestión,
+    // que pide sólo teléfono y número—, escribirlo acá le da a la solicitud un dato que en el flujo real
+    // todavía no tiene, y la compuerta del lender pasa a ver un tipo válido donde en producción ve el
+    // centinela `-`. El recorrido cerraba en verde en local y se cancelaba en producción.
+    const tipoSeEscribe = documentType !== null;
     await exec(
-        `UPDATE users SET document_type=?, document_number=?, first_name=?, surname=?,
+        `UPDATE users SET ${tipoSeEscribe ? 'document_type=?, ' : ''}document_number=?, first_name=?, surname=?,
          full_name=?, email=?, date_of_birth=?, expedition_date=?,
          age=?, gender=?, front_url=?, back_url=?, updated_at=NOW() WHERE id=?`,
-        [documentType, doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender,
+        [...(tipoSeEscribe ? [documentType] : []), doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender,
          cedula('frontal'), cedula('reverso'), userID],
     );
 }
@@ -230,6 +238,12 @@ export interface SynthFillOpts {
     userId?: number;
     lender?: string; income?: number; score?: number; name?: string;
     documentType?: string;   // 'CC' | 'CE' | 'PEP' — PEP (Permiso Especial de Permanencia) = migrante SIN buró
+    /** No tocar `users.document_type`: dejar el que escribió el alta.
+     *
+     *  Para los canales donde el cliente NO declara su tipo antes de la preaprobación (autogestión pide
+     *  teléfono y número, sin tipo). Sin esto el relleno adelanta el reloj y la compuerta del lender ve
+     *  un tipo válido donde en producción ve el centinela. Ver `setSynthIdentity`. */
+    keepDocumentType?: boolean;
     document?: string;       // cédula; default = auto (2.9B + ur)
     gender?: string;         // 'M' | 'F'
     age?: number;
@@ -305,7 +319,7 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
                 .catch((e) => (e instanceof Error ? e.message : String(e)))
             : Promise.resolve('PEP: sin buró (no se inyecta la fila Experian)');
     const [, , , dc] = await Promise.all([
-        opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, documentType, dob, expeditionDate),
+        opts.skipIdentity ? Promise.resolve() : setSynthIdentity(userID, doc, email, req.gender, req.age, opts.name, opts.keepDocumentType ? null : documentType, dob, expeditionDate),
         injectSummary(userID, req.income, req.score, negatives, consulted, hasBuro),
         injectIncomeFields(userID, uReqID, req.fields),
         buroDone,

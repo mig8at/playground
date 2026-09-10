@@ -187,6 +187,33 @@ const server = http.createServer(async (req, res) => {
         return json(res, 200, { ok: true, escenario: esc });
     }
 
+    // ── EL TIPO DE DOCUMENTO ──────────────────────────────────────────────────────────────────────
+    // El banco valida `type` contra SU lista y contesta `SA400` con este texto exacto ante cualquier
+    // valor que no reconozca. Medido en producción el 2026-09-09 (fila `logs.id=12141701`, uReq 552082):
+    //
+    //     request  {"data":{"customer":{"identification":{"type":"-","number":"1014257745"}},…}}
+    //     response 400 · {"code":"SA400","detail":"El valor del parámetro type no hace parte de los
+    //                     valores válidos"}
+    //
+    // El `-` es el centinela con que nace la ficha temporal (`TemporalUserConstants`), y el builder del
+    // payload lo manda CRUDO (`ApiBancolombiaLoanRequestBuilder`, op `validate`). Sin esta guarda el mock
+    // era más permisivo que el banco en este campo, así que el recorrido cerraba en verde en local y
+    // moría en producción — que es exactamente lo que pasó.
+    //
+    // ⚠ Es una lista de lo CONOCIDO-MALO, no de lo conocido-bueno: la lista blanca real del banco no está
+    // documentada de nuestro lado. Se rechaza SÓLO lo que medimos rechazado.
+    //
+    // Y el campo AUSENTE no se rechaza, a propósito: nunca lo medimos. El banco probablemente lo exija,
+    // pero afirmarlo acá sería inventar — y además rompería `npm run contrato:bancolombia`, que sondea
+    // los endpoints con un sobre mínimo para validar la forma de la respuesta contra los esquemas zod
+    // del front. Un mock que rechaza lo que no midió deja de ser un oráculo y pasa a ser una opinión.
+    // Si algún día se conoce el catálogo del banco, esto pasa a ser una lista blanca.
+    const TIPOS_QUE_EL_BANCO_RECHAZA = ['-'];
+    const tipoInvalido = (t) => typeof t === 'string' && TIPOS_QUE_EL_BANCO_RECHAZA.includes(t.trim());
+    const errTipo = (t) => err(res, 400, 'SA400',
+        'El valor del parámetro type no hace parte de los valores válidos'
+        + ` (recibido: ${JSON.stringify(t)})`);
+
     // ── el contrato ───────────────────────────────────────────────────────────────────────────────
     const tail = (s) => path.endsWith(s);
     llamadas.push({ at: new Date().toISOString(), path, tx: txDelBody(body) });
@@ -350,6 +377,14 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // sólo mira `data.hasQuota`) y la DECISIÓN DE PRODUCTO del canal QR, que exige `data.validate === true`
     // (`PreApprovedLenderService::validateBancolombiaPreapprove`). Se responde a los dos.
     if (tail('/prospect-validation/validate-quota')) {
+        // Mismo campo, otro sobre (acá va plano en `data`). ⚠ En local esta guarda casi nunca dispara:
+        // `legacy-application/app/Actions/Lenders/BancolombiaBnpl.php:707` manda
+        // `app()->environment() === 'production' ? $user->document_type : 'CC'`, así que fuera de
+        // producción siempre viaja `CC`. Se valida igual para que el día que ese ternario se quite —o
+        // que otro consumidor mande el tipo real— el mock no vuelva a tapar el problema.
+        const tipoBnpl = body?.data?.documentType;
+        if (tipoInvalido(tipoBnpl)) return errTipo(tipoBnpl);
+
         const ok = esc.hasQuota && habilitado('bnpl');
         return json(res, 200, { data: { hasQuota: ok, validate: ok, balance: esc.balance } });
     }
@@ -463,6 +498,10 @@ flujo con el <code>code</code> que el wizard espera.</p>
     // validate: de acá sale el `customerValidateKey`, que es el transactionId del producto Consumo
     // (`BancolombiaLoanController.php:187` lo guarda como `loan_validate_key`).
     if (tail('/customers/validate')) {
+        // Lo PRIMERO, antes de la compuerta de producto: el banco valida el sobre antes de decidir.
+        const tipoConsumo = body?.data?.customer?.identification?.type;
+        if (tipoInvalido(tipoConsumo)) return errTipo(tipoConsumo);
+
         // La key se GUARDA (no es local): varios pasos posteriores de Consumo se la devuelven al front y
         // el schema la exige (`LoanSecuritySchema.customerValidateKey`). Que sea la misma en todo el
         // recorrido es lo que hace el flujo coherente.
