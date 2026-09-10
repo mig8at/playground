@@ -22,7 +22,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 | **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
 | **2** | Los `catch` que no devuelven nada | front | 🟡 11 loaders + 4 actions del tronco; faltan 9 |
 | **3** | `data-testid` en el wizard | front | ✅ **hecho** — 7, y el parche borrado |
-| **4** | Mensajes presentables del catálogo `URV` | backend + front | 🟡 backend hecho; falta el front |
+| **4** | Mensajes presentables del catálogo `URV` | backend + front | ✅ **hecho** — mecanismo + 2 servicios + el front |
 
 El orden importa y no es por tamaño: **1 y 2 no dependen de nadie**, 3 desbloquea al harness, y 4 es
 el único que necesita ponerse de acuerdo con quien mantiene el catálogo.
@@ -131,6 +131,26 @@ cuesta caro en el autorrelleno del harness.
 - **4** — que ningún mensaje mostrado al cliente esté en inglés.
 
 ## Registro
+
+### 2026-09-09 · el punto 4, cerrado — el front también lo lee
+
+⚠ **NO se tocó `parseAnyApiError`, y esa es la decisión.** Era el lugar obvio, pero lo consume medio
+wizard: hacerlo matchear una forma MÁS significa que quien hoy recibe `null` empiece a recibir un
+objeto, o sea un cambio de comportamiento en flujos que no estamos probando. El parser que sí entiende
+el envelope de CommonsV1 **ya existía** y vive dentro del módulo del codeudor
+(`readUserRequestV1Error`): el campo se agregó ahí, con radio de acción ese módulo.
+
+El cableado va a un solo lugar, el que estaba mudo: **el reenvío del OTP del codeudor**. Fallaba y la
+pantalla no cambiaba nada.
+
+> **MEDICIÓN · 2026-09-09** — **la suite entera del wizard en verde: 441 pruebas, 42 archivos.** Es la
+> prueba de que el cambio no mueve otros flujos, que era la condición que puso Miguel. ⚠ Sin
+> `SESSION_SECRET` en el entorno, dos archivos fallan al CARGAR (`loan-request-ownership`,
+> `otp-funnel-cookie`) y parecen fallos del cambio: no lo son, con la variable puesta pasan.
+> `npm test` en `apps/loan-request-wizard`, con y sin la variable
+
+⚠ Y una prueba fija lo que devolvería el problema: **`userMessage` NO cae a `message`** cuando el
+código no tiene copia. Ese fallback publicaría los 42 mensajes en inglés.
 
 ### 2026-09-09 · el punto 4, la mitad del backend
 
