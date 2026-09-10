@@ -444,13 +444,18 @@ function guion(datos: DatosAutorelleno) {
 
         if (esFechaCompleta) {
             for (const t of trio) {
-                if (tocados.has(t)) continue;
-                tocados.add(t);
                 const txt = (t.textContent || '').trim();
                 const [aa, mm, dd] = fechaDelContexto(t).split('-');
                 const buscado = esMes(txt) ? [MESES[Number(mm) - 1]]
                     : /^\d{4}$/.test(txt) ? [aa]
                         : [String(Number(dd)), dd];
+                /* ⚠ SI YA MUESTRA LO QUE QUEREMOS, NO SE TOCA — y esto reemplaza a `tocados` acá, que
+                   NO alcanzaba. `tocados` es un WeakSet keyeado por el ELEMENTO, y Radix REEMPLAZA el
+                   nodo del trigger cuando cambia su valor: en la pasada siguiente el nodo es otro,
+                   `tocados.has(t)` da falso y la fecha se volvía a elegir. Eso es lo que se veía como
+                   «la fecha de expedición cambia dos veces». Comparar contra el valor deseado es
+                   idempotente por construcción y no depende de que el nodo sobreviva. */
+                if (buscado.some((b) => norm(txt) === norm(b))) continue;
                 if (await elegirEnPopover(t, buscado)) n++;
             }
         }
@@ -506,7 +511,7 @@ function guion(datos: DatosAutorelleno) {
             setTimeout(() => { btn.textContent = '⌨ Rellenar'; }, 1400); };
         // `disparar` existe aparte del handler para poder llamarlo desde el atajo de teclado: invocar
         // `btn.onclick` a mano obliga a fabricar un PointerEvent que a nadie le importa.
-        const disparar = async () => cuantos(await rellenar());
+        const disparar = async () => cuantos(await rellenar());   // manual: SIEMPRE corre, aunque el auto esté apagado
         btn.onclick = disparar;
         box.append(btn, auto);
         document.body.appendChild(box);
@@ -520,13 +525,26 @@ function guion(datos: DatosAutorelleno) {
          * campos que se van a re-crear. Se relee el DOM cada vez, así que un paso que agrega campos
          * (el formulario dinámico, el condicional de una ciudad) también queda cubierto. */
         let t: number | undefined;
+        /* ⚠ EL OBSERVER SE ALIMENTABA DE SÍ MISMO, y era la otra mitad de «la fecha cambia dos veces».
+         * `rellenar()` MUTA el DOM —abre y cierra popovers de Radix, escribe en inputs—, y este
+         * observer mira `document.body` con `subtree`: cada relleno agendaba el siguiente, 420 ms
+         * después de su propia última mutación. Con la fecha se notaba porque el trío es lo único que
+         * se re-escribe aunque ya tenga valor.
+         * `corriendo` corta el lazo: mientras rellena, las mutaciones que él produce no cuentan. El
+         * `finally` es lo que evita que una excepción deje el autorrelleno apagado para siempre. */
+        let corriendo = false;
+        const rellenarUnaVez = async () => {
+            if (corriendo) return;
+            corriendo = true;
+            try { await rellenar(); } finally { corriendo = false; }
+        };
         const obs = new MutationObserver(() => {
-            if (!encendido) return;
+            if (!encendido || corriendo) return;
             clearTimeout(t);
-            t = window.setTimeout(() => { void rellenar(); }, 420);
+            t = window.setTimeout(() => { void rellenarUnaVez(); }, 420);
         });
         obs.observe(document.body, { childList: true, subtree: true });
-        if (encendido) setTimeout(() => { void rellenar(); }, 700);
+        if (encendido) setTimeout(() => { void rellenarUnaVez(); }, 700);
     }
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', chapita);
