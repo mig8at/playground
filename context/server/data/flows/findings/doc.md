@@ -49,6 +49,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«aprieto Continuar y no pasa nada, y no hay error en ningún lado»** | **F-192** |
 | **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** |
 | **«las pruebas pasan pero el DESPLIEGUE se cae»** | **F-194** |
+| **«el arnés se salta una pantalla del flujo»** | **F-195** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -321,6 +322,7 @@ distinto según con qué pregunta llegues.
 | F-192 | El botón de la fecha de pago no hace NADA: el backend corta con 409 «requiere codeudor» y el front se traga el error | ABIERTO |
 | F-193 | El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta (y el `/confirmation` de escritorio muestra el QR por user-agent) | ABIERTO |
 | F-194 | El despliegue del wizard se cae por un import sin usar de un módulo `.server`, y vitest/tsc/biome dicen que está bien | arreglado · proceso ABIERTO |
+| F-195 | El arnés «se salta» personal-info: el scrub compara el teléfono por igualdad y el usuario está guardado con otro formato, así que sobrevive con su identidad | arreglado |
 
 ---
 
@@ -3776,3 +3778,48 @@ primero):
 
 **Estado:** cerrado (el arreglo), ABIERTO como proceso: subir `noUnusedImports` a `error` en
 `biome.json` convertiría este caso en un commit bloqueado en vez de un despliegue caído.
+
+### F-195 · El arnés «se salta» personal-info, y la causa es que NO LIMPIA — el scrub no ve al usuario
+
+**Síntoma:** una corrida del panel entra por el OTP y aparece directamente en `/lenders`. La pantalla
+de datos personales —«Nombres», «Apellidos», documento, fecha de nacimiento— no se muestra nunca, y
+se lee como «el arnés inyecta demasiado» o «esa pantalla no existe en este flujo».
+
+**Causa raíz — DOS eslabones, y el primero engaña:**
+
+1. **No es la inyección.** `dev/guided.spec.ts` ya pasa `skipIdentity: true` a `synthFill` en sus dos
+   sitios (`:1070`, `:1125`), o sea que la corrida **no** escribe la identidad: sólo el buró.
+2. **Es el SCRUB.** `pkg/asesor.ts` buscaba los usuarios a borrar con
+   `WHERE cell_phone = ?` — **igualdad exacta**. Y el mismo teléfono vive en la base con formatos
+   distintos según por dónde entró. Medido el 2026-09-10 en la compartida, para `3131010101`:
+
+   | user | `cell_phone` | quién es |
+   |---|---|---|
+   | 1827430 | **`+13131010101`** | `SYNTH TEST USER`, doc `2900502072`, **creado en JUNIO** |
+   | 1827431 | `+573131010101` | `TEMPORAL USER` |
+
+   Con `cell_phone = '3131010101'` el scrub encontraba **cero**. El usuario de junio sobrevivía **con
+   su identidad puesta** —arrastrada de la uReq 502072, del 3 de septiembre—, la solicitud nueva lo
+   reusaba por teléfono, y el backend, que tiene una rama escrita justo para eso en
+   `validateOtpCodeAndRedirectOrchestrator` («por donde entra quien vuelve con la información personal
+   ya cargada»), lo pasaba de largo.
+
+**O sea que el arnés dejó de aislar las corridas y nada lo avisó.** El síntoma no apunta al scrub en
+ningún momento: apunta a la inyección, que es la parte que sí funcionaba.
+
+**Arreglo:** el scrub compara por los **últimos 10 dígitos**, normalizando `+`, espacios y guiones a
+los dos lados, y **reporta los formatos que encontró** — para que el próximo formato raro se vea en el
+rastro y no se descubra depurando. Lo que NO se amplía es el guard `cognito_id IS NULL OR ''`: eso es
+lo que mantiene el borrado del lado de los usuarios cliente y lejos de las cuentas de asesor.
+Comprobado en lectura antes de aplicarlo: el SELECT nuevo alcanza **2** usuarios (los dos sintéticos),
+el viejo **0**, y **ninguna** cuenta con `cognito_id` comparte ese número.
+
+⚠ Y para un móvil colombiano los últimos 10 dígitos SON el número entero, así que pasar de «igual» a
+«termina igual» no agrega candidatos reales: sólo alcanza las variantes con prefijo del mismo número.
+
+⚠ **De dónde salió el `+1` no se pudo atribuir**, y el sospechoso obvio está descartado:
+`normalizePhoneE164` (`apps/loan-request-wizard/app/utils/analytics-taxonomy.ts:314`) convierte 10
+dígitos a **`+57`**, no a `+1`, y además alimenta la analítica, no `users.cell_phone`. El usuario es de
+junio. Con el arreglo el formato deja de importar, que es mejor que perseguir un valor viejo.
+
+**Estado:** arreglado (el scrub) · el origen del `+1`, ABIERTO y sin costo.

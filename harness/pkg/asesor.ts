@@ -232,14 +232,45 @@ async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<stri
     }
 }
 
-/** scrubphone (WRITE): borra los users CLIENTE (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER. */
+/** scrubphone (WRITE): borra los users CLIENTE (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER.
+ *
+ * ⚠ COMPARA POR LOS ÚLTIMOS 10 DÍGITOS, no por igualdad, y eso es un ARREGLO — no una comodidad.
+ * El mismo teléfono se guarda en formatos distintos según por dónde entró: medido el 2026-09-10 en la
+ * base compartida, `3131010101` convivía como `+573131010101` (un TEMPORAL USER) y como
+ * `+13131010101` — un número colombiano con prefijo de Estados Unidos, y ése es el que rompía todo.
+ *
+ * Con `cell_phone = '3131010101'` el scrub no encontraba ninguno de los dos, así que el usuario
+ * sobrevivía CON SU IDENTIDAD PUESTA: el user 1827430 venía de junio y arrastraba el nombre, el
+ * documento y el correo de una corrida del 3 de septiembre. La solicitud nueva lo reusaba por
+ * teléfono, el backend veía la información personal ya cargada —hay una rama escrita para ese caso en
+ * `validateOtpCodeAndRedirectOrchestrator`— y **se saltaba la pantalla de personal-info**. O sea que
+ * el síntoma no era «el arnés inyecta demasiado» sino «el arnés no limpia»: las corridas dejaban de
+ * estar aisladas y el flujo aparecía incompleto sin que nada avisara.
+ *
+ * ⚠ Lo que NO se amplía, a propósito: el guard `cognito_id IS NULL OR ''`. Eso es lo que mantiene el
+ * borrado del lado de los usuarios CLIENTE y lejos de las cuentas de asesor. Y para un móvil
+ * colombiano los últimos 10 dígitos SON el número entero, así que ensanchar de «igual» a «termina
+ * igual» no agrega candidatos reales: sólo alcanza las variantes con prefijo del mismo número.
+ */
 export async function scrubphone(phone: string): Promise<Record<string, unknown>> {
     const p = phone.trim();
     if (!p) throw new Error('uso: scrubphone <telefono>');
     assertWriteAllowed();
-    const rows = await query<{ id: number }>("SELECT id FROM users WHERE cell_phone=? AND (cognito_id IS NULL OR cognito_id='')", [p]);
+    const rows = await query<{ id: number; cell_phone: string }>(
+        `SELECT id, cell_phone FROM users
+          WHERE RIGHT(REPLACE(REPLACE(REPLACE(cell_phone,'+',''),' ',''),'-',''), 10) = RIGHT(?, 10)
+            AND (cognito_id IS NULL OR cognito_id = '')`,
+        [p.replace(/[^0-9]/g, '')],
+    );
     const ids = rows.map((r) => r.id);
+    // Los formatos que se encontraron se REPORTAN: si mañana aparece otro (un `+1` fue el que costó
+    // esta vuelta), tiene que verse en el rastro de la corrida y no descubrirse depurando.
+    const formatos = [...new Set(rows.map((r) => r.cell_phone))];
     const dump = await dumpAntesDeBorrar(p, ids);
     const n = await deleteUsers(ids);
-    return { phone: p, users_deleted: n, user_ids: ids, forense: dump ?? '(sin solicitudes previas que volcar)', note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info' };
+    return {
+        phone: p, users_deleted: n, user_ids: ids, formatos_encontrados: formatos,
+        forense: dump ?? '(sin solicitudes previas que volcar)',
+        note: 'el próximo register de ese teléfono crea un TEMPORAL USER → /personal-info',
+    };
 }
