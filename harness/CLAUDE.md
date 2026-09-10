@@ -185,7 +185,32 @@ endpoint, así que sin ella el archivo se guarda pero el link sigue dando 404. L
 propósito — el contenedor no resuelve `localhost` y el navegador no resuelve `host.docker.internal`.
 
 Consola web en `:9001` (usuario y clave `creditop` / `creditop123`) para mirar los documentos.
-**Para LocalStack en vez de MinIO: cambia sólo `AWS_ENDPOINT`.**
+
+⚠ **ACÁ DECÍA «para LocalStack en vez de MinIO: cambia sólo `AWS_ENDPOINT`». ES FALSO** — hay que
+cambiar **`AWS_URL` también**, porque el puerto está en las dos y son puertos distintos (MinIO 9000,
+LocalStack/ministack 4566). Con sólo el endpoint cambiado, la subida FUNCIONA y la URL que queda en
+la base apunta a un puerto donde no hay nadie: exactamente el 404 silencioso de F-174, pero ahora
+autoinfligido y más difícil de ver, porque el archivo sí existe.
+
+**Para ministack (LocalStack), que es lo que usa Miguel:**
+
+    AWS_ENDPOINT=http://host.docker.internal:4566     # a dónde ESCRIBE el contenedor
+    AWS_USE_PATH_STYLE_ENDPOINT=true
+    AWS_URL=http://localhost:4566/local-mock          # lo que se GUARDA y lo que pide el NAVEGADOR
+
+⚠ **Y el bucket no se crea solo.** Medido el 2026-09-10: ministack estaba arriba y **sin ningún
+bucket**, así que toda subida fallaba. Se crea una vez:
+
+    AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1 \
+      aws --endpoint-url http://localhost:4566 s3 mb s3://local-mock
+
+Comprobado de punta a punta el 2026-09-10: un caso cerrado en estado 11 dejó sus cuatro documentos
+como PDF de verdad, todos con HTTP 200 desde el host (14 KB · 145 KB · 158 KB · 10 KB).
+
+⚠ **`legacy-application` necesita lo MISMO pero con otro host**: corre con `artisan serve` en la
+máquina, no en Docker, así que su `AWS_ENDPOINT` va a `http://localhost:4566` (no
+`host.docker.internal`). Sus `AWS_*` estaban VACÍOS, o sea que las subidas del admin —el logo del
+comercio, el banner, las imágenes de la pantalla de bienvenida— no podían funcionar.
 
 ### Local monohilo: una línea y las corridas en paralelo dejan de hacer fila
 
@@ -421,6 +446,22 @@ que distingue "ventana cerrada" y **tira** (`dev/guided.spec.ts:538-545`); el re
 obligaría a reimplementar LogQL). La receta completa del `.env` del backend está en `README.md`
 §Observabilidad. La trampa que no perdona: **`LOG_CHANNEL=loki`, no `stack`** — `stack` incluye
 `dynamodb` con `ignore_exceptions => false` y sin credenciales de AWS la excepción **rompe el request**.
+
+⚠ **Y CON `LOG_CHANNEL=loki` Y LOKI ABAJO, LOS ERRORES DE RUNTIME SE PIERDEN — en silencio.** Medido el
+2026-09-10: un caso se trabó con `HTTP 500` en la generación de documentos, `storage/logs/laravel.log`
+no tenía **nada** de esa solicitud (sólo la salida de unas pruebas de Pest, que sí escriben ahí) y
+`make harness-loki UREQ=…` contestó «cero anclas». No había contenedor de Loki arriba. O sea que la
+combinación normal de trabajo —el `.env` con `loki` y el stack de observabilidad sin levantar— deja el
+peor de los dos mundos: ni archivo ni Loki.
+
+**El camino que sí funciona sin observabilidad: PEDIRLE EL ENDPOINT DE NUEVO.** El cuerpo del 500 trae
+la causa completa, y ahí no hay logging de por medio:
+
+    curl -s -w '\nHTTP %{http_code}\n' http://localhost/api/loans/requests/promissory-note/<ureq>
+    # → {"success":false,"message":"Blade PDF generation failed: Undefined variable $nombre_cliente
+    #    (View: …/creditopxpdf/lenders/motai/rto/contrato_rto_con_codeudor.blade.php)"}
+
+Antes de depurar un 500 en local, probá eso: es una línea y no depende de que nada esté arriba.
 
 ⚠ **NO apuntes el target `local` al Loki de dev.** Con la BD funciona (leés las filas que tu corrida
 escribió); con Loki no, porque tu corrida local no escribió allá: leerías la corrida de otro cuyo
