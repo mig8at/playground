@@ -22,7 +22,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 | **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
 | **2** | Los `catch` que no devuelven nada | front | 🟡 11 loaders + 4 actions del tronco; faltan 9 |
 | **3** | `data-testid` en el wizard | front | ✅ **hecho** — 7, y el parche borrado |
-| **4** | Mensajes presentables del catálogo `URV` | backend + front | ~94 mensajes |
+| **4** | Mensajes presentables del catálogo `URV` | backend + front | 🟡 backend hecho; falta el front |
 
 El orden importa y no es por tamaño: **1 y 2 no dependen de nadie**, 3 desbloquea al harness, y 4 es
 el único que necesita ponerse de acuerdo con quien mantiene el catálogo.
@@ -131,6 +131,33 @@ cuesta caro en el autorrelleno del harness.
 - **4** — que ningún mensaje mostrado al cliente esté en inglés.
 
 ## Registro
+
+### 2026-09-09 · el punto 4, la mitad del backend
+
+`BaseService::getUserMessage()` en `Creditop-SAS/legacy-backend#1351`: devuelve `null` por defecto y
+cada servicio la sobreescribe **por código**. `user_message` viaja en el envelope sólo cuando hay copia
+de cara al usuario. Adheridos los dos servicios del OTP del codeudor (URV25 y URV26, 8 códigos), que
+son los que Alta va a pisar porque su política exige codeudor. Seis pruebas, sin base.
+
+⚠ **El default es el SEGURO**, y es la decisión: un servicio que no la implemente no publica nada. Lo
+contrario —presentable salvo que digas que no— habría publicado los 42 mensajes en inglés el día del
+merge.
+
+⚠ **Y el recorte es por CÓDIGO, no por servicio.** Dentro de URV26 conviven «Aún debes esperar para
+solicitar un código nuevo» (le habla al codeudor) y «No se encontró el codeudor para el token
+indicado» (no le dice a nadie qué hacer). Marcar servicios enteros habría publicado los dos.
+
+> **MEDICIÓN · 2026-09-09** — ⚠ **el test no corre en `tests/Unit` sin pedir la app.** El `Pest.php`
+> del módulo ata `Tests\TestCase` sólo a `Feature` e `Integration`, y el envelope termina en
+> `response()->json()`, que necesita el contenedor: las 5 pruebas fallaban con «unresolvable
+> primitive» hasta agregar `uses(Tests\TestCase::class)`. **NO se agrega `RefreshDatabase`** —eso
+> recrea el esquema—: se saca la app, no la base. Verificado después: 60 pruebas en verde y la base
+> local intacta (270 comercios, 361.323 solicitudes).
+
+**Falta la mitad del front, y NO es una línea:** ninguno de sus parsers de error matchea la forma
+`{code, message, user_message}` de CommonsV1 —`LegacyApiErrorSchema` exige `errors`—, así que hace
+falta un parser nuevo y después cablearlo en las pantallas del codeudor. Agregar el campo al tipo sin
+eso sería código muerto, y por eso no se hizo.
 
 ### 2026-09-09 · el punto 3, hecho
 
