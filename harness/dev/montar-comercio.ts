@@ -452,12 +452,42 @@ const RUTA_FLOWS = new URL('../.flows.json', import.meta.url);
 try {
     const flows = JSON.parse(readFileSync(RUTA_FLOWS, 'utf8'));
     flows.merchants ??= {};
+    const hash = sucursales[0]?.hash;
+
+    /* ⚠ SE FUNDE, NO SE REEMPLAZA. Antes esto era `flows.merchants[PEDIDO] = {…}`, y ese `=` borraba
+       lo que un humano hubiera agregado a mano — en particular `por_target`, que es justo lo que hay
+       que poner cuando el mismo comercio vive con hashes distintos en cada base. O sea que re-sembrar
+       local te desarmaba el panel para qa, en silencio. */
+    const previa = flows.merchants[PEDIDO] ?? {};
+
+    /* ⚠ Y EL HASH VA DONDE CORRESPONDE SEGÚN EL TARGET. `branch_hash` es, por convención de
+       `bin/asesor:143` y de `branchHashForSlug`, el de LOCAL: es el fallback cuando no hay override.
+       Escribir ahí el hash de qa hacía que el panel mandara el hash de un ambiente contra el otro —
+       el front contesta «Error al cargar la información», que no dice nada sobre la causa. */
+    const ubicacion = TARGET === 'local'
+        ? { branch_hash: hash }
+        : { por_target: { ...(previa.por_target ?? {}), [TARGET]: hash } };
+
     flows.merchants[PEDIDO] = {
-        branch_hash: sucursales[0]?.hash, allied_id: idComercio,
-        branch_id: sucursales[0]?.id, name: spec.nombre,
+        ...previa, ...ubicacion,
+        allied_id: idComercio, branch_id: sucursales[0]?.id, name: spec.nombre,
     };
     writeFileSync(RUTA_FLOWS, JSON.stringify(flows, null, 2) + '\n');
-    paso('.flows.json', `slug «${PEDIDO}» → sucursal ${sucursales[0]?.id} (hash ${sucursales[0]?.hash})`);
+    paso('.flows.json', TARGET === 'local'
+        ? `slug «${PEDIDO}» → sucursal ${sucursales[0]?.id} (hash ${hash})`
+        : `slug «${PEDIDO}» → por_target.${TARGET} = ${hash} (sucursal ${sucursales[0]?.id})`);
+
+    /* El aviso que evita la vuelta entera: otra entrada con el MISMO nombre y sin override para este
+       target es un slug que el panel va a resolver al hash equivocado. */
+    if (TARGET !== 'local') {
+        for (const [slug, m] of Object.entries<any>(flows.merchants)) {
+            if (slug !== PEDIDO && m?.name === spec.nombre && !m?.por_target?.[TARGET]) {
+                paso('  ⚠ otro slug', `«${slug}» se llama igual y NO tiene por_target.${TARGET}: `
+                    + `si lo elegís en el panel con target ${TARGET} va a usar ${m.branch_hash}, que no `
+                    + `existe en esa base. Agregale "por_target": { "${TARGET}": "${hash}" }`);
+            }
+        }
+    }
 } catch (e: any) {
     paso('.flows.json', `✗ no pude escribirlo: ${e.message}`);
 }
