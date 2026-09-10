@@ -20,7 +20,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 | | qué | dueño | tamaño |
 |---|---|---|---|
 | **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
-| **2** | Los `catch` que no devuelven nada | front | 23 archivos |
+| **2** | Los `catch` que no devuelven nada | front | 🟡 loaders hechos (11); faltan 13 actions |
 | **3** | `data-testid` en el wizard | front | ~8-20 elementos |
 | **4** | Mensajes presentables del catálogo `URV` | backend + front | ~94 mensajes |
 
@@ -131,6 +131,28 @@ cuesta caro en el autorrelleno del harness.
 - **4** — que ningún mensaje mostrado al cliente esté en inglés.
 
 ## Registro
+
+### 2026-09-09 · el punto 2, la mitad de los loaders
+
+**11 `catch` de loader en 10 archivos** ahora relanzan, con un helper compartido
+(`captureAndRethrowServerException`) que lleva el porqué en su docblock en vez de repetirlo once
+veces.
+
+> **MEDICIÓN · 2026-09-09** — **relanzar no cambia lo que ve el cliente; cambia lo que recibe el
+> boundary.** Ningún componente del árbol tolera un loader que devuelve `undefined` —todos hacen
+> `const { x } = useLoaderData()`—, así que el error llegaba igual al boundary, pero como
+> `TypeError: Cannot destructure property 'response' of undefined`. Pidiendo una solicitud
+> inexistente, ahora llega `Failed to fetch first payment dates: NETWORK_ERROR`.
+> ⚠ La excepción es `loan-approved.tsx`, el ÚNICO de los 12 que sí tiene camino alternativo para datos
+> ausentes: ahí relanzar cambiaría el comportamiento y no se toca.
+> `curl` a `/self-service/<hash>/999999/payment-schedule` y `/first-payment-date`, leyendo el error en
+> el HTML del boundary
+
+**Quedan los 13 `catch` de ACTIONS**, y no se arreglan igual: ahí no hay que relanzar sino DEVOLVER
+algo que la pantalla pinte, y cada pantalla decide dónde. Diez son de canales que no ejercitamos
+(`bancolombia/*`, `dynamic/*`, `abaco`, `soft-update`); en el tronco CreditopX quedan
+`loan-confirmation`, `payment-schedule`, `sign-documents` y `otp-validation`. ⚠ De esos, 7 archivos ya
+consumen `useActionData`, así que ahí el cambio es chico; los otros 6 necesitan dónde pintar.
 
 ### 2026-09-09 · el punto 1, hecho
 
