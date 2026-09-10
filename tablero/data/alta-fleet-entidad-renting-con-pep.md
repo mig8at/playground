@@ -457,7 +457,12 @@ igual. O sea que para Alta **todo perfil exige codeudor**. Si eso no es lo que n
 UPDATE; si sí lo es, el flujo debería rutear al codeudor y no a la fecha de pago, y ahí el problema
 vuelve a ser el punto 3.
 
-**Lo que recomiendo, por dueño:** el arreglo del *front* (no tragarse el error) es chico y claramente
+**El del front YA ESTÁ**, en el mismo PR #983: el action devuelve el error en vez de `undefined`,
+rescata el `message` del cuerpo y la pantalla lo muestra con el banner que ya existía. Verificado — el
+caminador pasó de «no redirigió ni dio error» a «respondió error: true», y en el navegador sale el
+texto exacto del backend.
+
+**Lo que queda, por dueño:** el arreglo del *front* (no tragarse el error) era chico y claramente
 bueno — hoy cualquier 409 de ese endpoint es un botón muerto para cualquier comercio, no sólo Alta. El
 del *backend* (que las dos puntas contesten lo mismo) tiene alcance y merece su propia prueba. Y el de
 *config* es una decisión de negocio.

@@ -3443,7 +3443,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Arreglo:** guarda de etapa en el loader de las dos pantallas, y que la decisión del gate se guarde
   donde sobreviva al dispositivo. Con la decisión persistida, volver al gate muestra lo que se decidió
   en vez de volver a preguntarlo.
-- **Estado:** ABIERTO.
+- **Estado:** ABIERTO — la mitad del front está arreglada; quedan la del backend y la de config.
 
 ### F-187 · Un import estático deja `E2E_TARGET` en `dev`: el runner imprime «target local» y pega contra la BD COMPARTIDA
 
@@ -3549,7 +3549,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 - **Y lo que NO hace falta:** un `flow_id`. El catálogo de flujos sólo tiene `STANDARD` y
   `ALREADY_CONFIRMED_PRE_APPROVAL`, y de 360.717 solicitudes **360.710 tienen `flow_id = NULL`** — lo
   deja medido el docblock de `isSelfManagement()`.
-- **Estado:** ABIERTO.
+- **Estado:** ABIERTO — la mitad del front está arreglada; quedan la del backend y la de config.
 
 ### F-190 · El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness
 
@@ -3665,11 +3665,15 @@ UA de iPhone.
 O sea que para este comercio TODO perfil exige codeudor.
 
 **Arreglo, por dueño:**
-- *front*, chico y claramente bueno: no tragarse el error — devolver el mensaje del backend para que
-  la pantalla lo muestre. Hoy cualquier 409 de ese endpoint es un botón muerto.
+- *front* — **HECHO** (`Creditop-SAS/frontend-monorepo#983`): el action devuelve el error en vez de
+  `undefined`, rescata el `message` del cuerpo cuando lo hay, y la pantalla lo muestra con el banner
+  que ya usaba `lender-otp-verification.tsx`. ⚠ Lo que lo hacía invisible no era el error sino el
+  `catch` que no devolvía nada: sin valor, la UI no puede distinguir «salió bien» de «explotó».
+  Verificado: el caminador pasó de «no redirigió ni dio error» a «respondió error: true», y en el
+  navegador sale el texto exacto del backend.
 - *backend*: que las dos puntas contesten lo mismo. El patrón de la casa para esto ya existe
   (`LenderTabBehaviorResolver`, compartido justamente para que el listado y la selección no
   divergieran).
 - *config*: decidir si Alta exige codeudor en todos los perfiles o sólo en algunos.
 
-**Estado:** ABIERTO.
+**Estado:** ABIERTO — la mitad del front está arreglada; quedan la del backend y la de config.
