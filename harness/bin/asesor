@@ -250,10 +250,10 @@ ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE${FMT:+ · guardado como 
 # de otra persona en vuelo, y borrarle su usuario sintético a mitad le rompe la prueba sin que
 # entienda por qué. Allá tampoco hace falta — eran 3, contra 1.296 acá.
 if [ "$TARGET" = "local" ]; then
-  IDS="$(node bin/dbops.ts scrub-identidades 2>/dev/null | json_pick '.users_deleted')"
+  IDS="$(node bin/dbops.ts scrub-sinteticos 2>/dev/null | json_pick '.users_deleted')"
   # `if` y no `[ … ] && …`: bajo `set -e` un test falso al final de un bloque aborta el script.
   if [ "${IDS:-0}" != "0" ]; then
-    ok "scrub-identidades" "${IDS} de corridas anteriores (los TEMPORAL quedan: no llevan identidad)"
+    ok "scrub-sinteticos" "${IDS} sintético(s) de corridas anteriores (los registros reales abandonados quedan)"
   fi
 fi
 fi

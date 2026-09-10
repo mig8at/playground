@@ -3817,6 +3817,20 @@ el viejo **0**, y **ninguna** cuenta con `cognito_id` comparte ese número.
 ⚠ Y para un móvil colombiano los últimos 10 dígitos SON el número entero, así que pasar de «igual» a
 «termina igual» no agrega candidatos reales: sólo alcanza las variantes con prefijo del mismo número.
 
+**Y una limpieza más amplia, que salió de la misma conversación:** el scrub por teléfono deja limpia
+ESA corrida, no la acumulación — local tenía **1.341** usuarios sintéticos con identidad, cada uno una
+trampa latente para el día que un teléfono o un documento se repita. `dbops scrub-sinteticos` (SÓLO
+local) los borra al arrancar cada corrida.
+
+⚠ **Y acá el matiz que casi me hace borrar de más.** Los `TEMPORAL USER` (`document_number LIKE
+'TEMP-%'`) son **16.248** en local, y la primera versión los dejó afuera enteros argumentando que no
+llevan identidad. Era la pregunta equivocada. Cruzándolos contra los **68** teléfonos de
+`settings.qa_otp_bypass_phones`: **13** están en un teléfono de prueba —del arnés, y se borran— y
+**16.234** están en un teléfono cualquiera: son **personas que empezaron un registro y lo
+abandonaron**. Borrar ésos no habría sido limpiar data de prueba sino destruir registros reales. El
+cruce con la lista de bypass —la misma que el producto usa para saltarse el OTP— es lo único que
+distingue una cosa de la otra.
+
 ⚠ **De dónde salió el `+1` no se pudo atribuir**, y el sospechoso obvio está descartado:
 `normalizePhoneE164` (`apps/loan-request-wizard/app/utils/analytics-taxonomy.ts:314`) convierte 10
 dígitos a **`+57`**, no a `+1`, y además alimenta la analítica, no `users.cell_phone`. El usuario es de

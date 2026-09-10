@@ -239,17 +239,32 @@ async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<stri
  * eso se pueden borrar sin adivinar de quién son. `synthFill` pone el correo `synth-<ur>@creditop.com`
  * y el nombre `SYNTH TEST USER`; los caminadores derivan `qa<documento>@gmail.com`.
  *
- * ⚠ LOS TEMPORALES (`document_number LIKE 'TEMP-%'`) NO ESTÁN ACÁ, Y ES A PROPÓSITO. Son 16.248 en
- * local y 16.124 en la base compartida —medido el 2026-09-10, sobre tablas de ~229.000 usuarios— y
- * los crea el paso de registro de teléfono: cualquier registro ABANDONADO deja uno, así que no son
- * del arnés. Y sobre todo: **no llevan identidad**, que es lo único que rompe una corrida (F-195).
- * Borrarlos sería una limpieza masiva sin ningún efecto sobre la prueba.
+ * ⚠ LOS TEMPORALES (`document_number LIKE 'TEMP-%'`) entran, pero SÓLO los que están en un teléfono
+ * de prueba, y la diferencia es enorme: de los 16.248 de local, medido el 2026-09-10 cruzando contra
+ * los 68 teléfonos de `qa_otp_bypass_phones`, **13** son del arnés y **16.234** son personas que
+ * empezaron un registro y lo abandonaron. Borrar los 16.234 sería destruir registros reales, no
+ * limpiar data de prueba. El cruce con la lista de bypass es lo único que los distingue.
+ *
+ * (La primera versión de esto los dejaba TODOS afuera, argumentando que no llevan identidad y por
+ * eso no rompen una corrida. Cierto, pero era la pregunta equivocada: el pedido era borrar lo que el
+ * arnés crea, no sólo lo que estorba.)
  */
 const MARCADORES_DEL_ARNES = [
     "email LIKE 'synth-%@creditop.com'",
     "(first_name = 'SYNTH' AND surname = 'TEST USER')",
     "email REGEXP '^qa[0-9]+@gmail\\.com$'",
 ];
+
+/** Los últimos 10 dígitos de los teléfonos DE PRUEBA, de `settings.qa_otp_bypass_phones`. */
+async function telefonosDePrueba(): Promise<string[]> {
+    const row = await one<{ value: string }>("SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'");
+    let crudos: unknown[] = [];
+    try { crudos = JSON.parse(row?.value ?? '[]'); } catch { crudos = []; }
+    const diez = crudos
+        .map((t) => String(t).replace(/[^0-9]/g, '').slice(-10))
+        .filter((t) => t.length === 10);
+    return [...new Set(diez)];
+}
 
 /**
  * scrubHarnessIdentities (WRITE, SÓLO LOCAL): borra los usuarios con identidad que dejó el arnés, para
@@ -268,7 +283,7 @@ const MARCADORES_DEL_ARNES = [
  * **3** el 2026-09-10, contra 1.296 en local. Lo que sí corre en la compartida es el scrub por
  * teléfono, que es acotado a la corrida.
  */
-export async function scrubHarnessIdentities(): Promise<Record<string, unknown>> {
+export async function scrubHarnessUsers(): Promise<Record<string, unknown>> {
     assertWriteAllowed();
     if (TARGET !== 'local') {
         throw new Error(
@@ -276,10 +291,26 @@ export async function scrubHarnessIdentities(): Promise<Record<string, unknown>>
             + 'una corrida de otra persona en vuelo; allá el scrub por teléfono ya acota a la corrida.',
         );
     }
-    const donde = `(${MARCADORES_DEL_ARNES.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
+    /* ⚠ LOS TEMPORALES, PERO SÓLO LOS QUE ESTÁN EN UN TELÉFONO DE PRUEBA. Acá estuvo el matiz que casi
+       me hizo dejarlos afuera enteros. De los 16.248 `TEMP-%` de local, medido el 2026-09-10 cruzando
+       contra los 68 teléfonos de `qa_otp_bypass_phones`: **13** están en un teléfono de prueba —o sea
+       son del arnés— y **16.234** están en un teléfono cualquiera. Esos 16.234 son PERSONAS que
+       empezaron un registro y lo abandonaron: no los creó el arnés y borrarlos sería destruir
+       registros reales. El cruce con la lista de bypass es lo que separa una cosa de la otra, y es la
+       misma lista que usa el producto para saltarse el OTP. */
+    const telefonos = await telefonosDePrueba();
+    const marcadores = [...MARCADORES_DEL_ARNES];
+    if (telefonos.length > 0) {
+        const lista = telefonos.map((t) => `'${t}'`).join(',');
+        marcadores.push(
+            "(document_number LIKE 'TEMP-%' AND "
+            + `RIGHT(REPLACE(REPLACE(REPLACE(cell_phone,'+',''),' ',''),'-',''), 10) IN (${lista}))`,
+        );
+    }
+    const donde = `(${marcadores.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
     const rows = await query<{ id: number }>(`SELECT id FROM users WHERE ${donde}`);
     const ids = rows.map((r) => r.id);
-    if (ids.length === 0) return { users_deleted: 0, note: 'no había identidades del arnés que borrar' };
+    if (ids.length === 0) return { users_deleted: 0, note: 'no había usuarios sintéticos del arnés que borrar' };
 
     const dump = await dumpAntesDeBorrar('(identidades del arnés)', ids);
 
@@ -292,7 +323,7 @@ export async function scrubHarnessIdentities(): Promise<Record<string, unknown>>
     return {
         users_deleted: borrados, tandas: Math.ceil(ids.length / TANDA),
         forense: dump ?? '(sin solicitudes previas que volcar)',
-        note: 'los TEMPORAL USER quedan: no llevan identidad, así que no afectan una corrida',
+        note: 'los TEMPORAL USER de teléfonos que NO son de prueba quedan: son registros reales abandonados',
     };
 }
 

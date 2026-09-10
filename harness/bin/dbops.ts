@@ -7,12 +7,12 @@
 //   node bin/dbops.ts assign <email|sub> <merchant> [branchHash] [realSub]
 //   node bin/dbops.ts revoke
 //   node bin/dbops.ts scrubphone <telefono>
-//   node bin/dbops.ts scrub-identidades          (SÓLO LOCAL: borra los usuarios con identidad del arnés)
+//   node bin/dbops.ts scrub-sinteticos          (SÓLO LOCAL: borra los usuarios sintéticos que creó el arnés)
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
 import { close, one, query, scalar, exec, assertWriteAllowed } from '../pkg/db.ts';
-import { whois, assign, revoke, scrubphone, scrubHarnessIdentities } from '../pkg/asesor.ts';
+import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { synthFill, requestEstado11 } from '../pkg/inject.ts';
@@ -25,7 +25,7 @@ const num = (s: string | undefined): number => (s ? Number(s) : 0);
 try {
     let r: unknown;
     switch (cmd) {
-        case 'scrub-identidades': r = await scrubHarnessIdentities(); break;
+        case 'scrub-sinteticos': r = await scrubHarnessUsers(); break;
         case 'whois': r = await whois(a[0] ?? ''); break;
         case 'assign': r = await assign(a[0] ?? '', a[1] ?? '', a[2] ?? '', a[3] ?? ''); break;
         case 'revoke': r = await revoke(); break;
@@ -310,7 +310,7 @@ try {
             }
             break;
         default:
-            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-identidades|list|ecommerce-url|synth-fill|lender-rt|flow-id|is-corbeta`);
+            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|synth-fill|lender-rt|flow-id|is-corbeta`);
     }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n');
     await close();
