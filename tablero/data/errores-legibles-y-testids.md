@@ -132,6 +132,28 @@ cuesta caro en el autorrelleno del harness.
 
 ## Registro
 
+### 2026-09-09 · probado contra local, y lo que NO se pudo probar corriendo
+
+> **MEDICIÓN · 2026-09-09** — **la forma exacta que asume el front es la que el backend manda de
+> verdad.** Pidiendo `personal-info` con un documento ya registrado a otro usuario, la respuesta viva
+> es `{"success":false,"message":"document number already in use","errors":{"document_number":"El
+> número de documento ya se encuentra registrado con el celular *******300.","error_code":"ONB005",
+> "error_subcode":"DOCUMENT_DUPLICATE"}}`. Confirma las dos cosas del punto 1: que los
+> discriminadores viajan DENTRO de `errors` —y por eso se colaban como errores de campo— y que
+> `message` es de desarrollador y en inglés, así que mostrarlo habría sido el error.
+> `curl` a `/api/onboarding/loan-application/personal-info/2272/<ur>` en local
+
+⚠ **Lo que no se pudo probar por UI:** el diálogo de confirmación de titularidad exige la **fecha de
+expedición real** del documento, y con una inventada no deja enviar. O sea que el recorrido completo
+de los subcódigos de KYC por pantalla necesita un documento cuya fecha conozcamos (el lambda de mocks
+la dicta por cédula: `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`). El mapeo en sí está
+cubierto por las 10 pruebas unitarias, con esta misma forma de payload como fixture.
+
+⚠ **Y una deuda que YA creé:** borré `bin/testids` y su parche, pero los `data-testid` sólo existen en
+la rama del PR. Hasta que #983 mergee, quien esté en `main` no tiene ni los testids ni la herramienta.
+En la práctica no se pierde nada —el parche llevaba meses roto, 3 de 4 archivos no aplicaban— pero
+conviene saberlo antes de que alguien lo busque.
+
 ### 2026-09-09 · el punto 4, cerrado — el front también lo lee
 
 ⚠ **NO se tocó `parseAnyApiError`, y esa es la decisión.** Era el lugar obvio, pero lo consume medio
