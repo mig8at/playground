@@ -229,8 +229,33 @@ step "scrub-cliente"
 if [ "$PREBOOT" = 1 ]; then
   ok "scrub-cliente" "n/a (preboot: no se toca la BD)"
 else
-DEL="$(I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts scrubphone "$BYPASS_PHONE" 2>/dev/null | json_pick '.users_deleted')"
-ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE → temporal → personal-info)"
+# ⚠ UNA sola llamada, y de ahí se sacan los dos datos. La primera versión de esto llamaba a
+# `scrubphone` dos veces —una por campo—: un borrado duplicado, y encima la segunda no encontraba
+# nada porque la primera ya había borrado, así que el dato que venía a mostrar salía vacío.
+SCRUB="$(I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts scrubphone "$BYPASS_PHONE" 2>/dev/null)"
+DEL="$(printf '%s' "$SCRUB" | json_pick '.users_deleted')"
+# Los FORMATOS en que estaba guardado el teléfono. Se muestran porque un formato inesperado es lo que
+# escondió a un usuario del scrub durante meses (F-195): `+1` en un número colombiano.
+FMT="$(printf '%s' "$SCRUB" | json_pick '.formatos_encontrados' | tr -d '[]"' | tr ',' ' ')"
+ok "scrub-cliente" "${DEL:-0} borrado(s) ($BYPASS_PHONE${FMT:+ · guardado como $FMT} → temporal → personal-info)"
+
+# ── y en LOCAL, además, las identidades que dejaron las corridas anteriores ───────────────────────
+# El scrub de arriba limpia el teléfono de ESTA corrida, y con eso ESTA corrida arranca limpia. Lo que
+# no cubre es la ACUMULACIÓN: medido el 2026-09-10, local tenía 1.296 usuarios del caminador y ~45 de
+# `synthFill`, cada uno una trampa latente — el día que un teléfono o un documento se repita, la
+# corrida nueva reusa esa identidad y el flujo se salta la pantalla de datos personales sin avisar.
+# Eso es F-195 esperando, y ya pasó una vez.
+#
+# ⚠ SÓLO EN LOCAL, y el propio comando se niega si no: en la base compartida puede haber una corrida
+# de otra persona en vuelo, y borrarle su usuario sintético a mitad le rompe la prueba sin que
+# entienda por qué. Allá tampoco hace falta — eran 3, contra 1.296 acá.
+if [ "$TARGET" = "local" ]; then
+  IDS="$(node bin/dbops.ts scrub-identidades 2>/dev/null | json_pick '.users_deleted')"
+  # `if` y no `[ … ] && …`: bajo `set -e` un test falso al final de un bloque aborta el script.
+  if [ "${IDS:-0}" != "0" ]; then
+    ok "scrub-identidades" "${IDS} de corridas anteriores (los TEMPORAL quedan: no llevan identidad)"
+  fi
+fi
 fi
 
 # ── LO QUE HAY QUE TIPEAR, en una línea estable y machine-readable ────────────────────────────────

@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import { query, one, scalar, exec, withConnection, assertWriteAllowed } from './db.ts';
+import { query, one, scalar, exec, withConnection, assertWriteAllowed, TARGET } from './db.ts';
 import { resolveMerchant, ensureBranch } from './merchants.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -230,6 +230,70 @@ async function dumpAntesDeBorrar(phone: string, userIDs: number[]): Promise<stri
     } catch {
         return null;   // la forense es un extra: si falla, el scrub NO se frena
     }
+}
+
+/**
+ * LOS MARCADORES CON QUE EL ARNÉS FIRMA SUS PROPIOS USUARIOS.
+ *
+ * No es «cualquier usuario de prueba»: son las tres formas en que este repo crea identidades, y por
+ * eso se pueden borrar sin adivinar de quién son. `synthFill` pone el correo `synth-<ur>@creditop.com`
+ * y el nombre `SYNTH TEST USER`; los caminadores derivan `qa<documento>@gmail.com`.
+ *
+ * ⚠ LOS TEMPORALES (`document_number LIKE 'TEMP-%'`) NO ESTÁN ACÁ, Y ES A PROPÓSITO. Son 16.248 en
+ * local y 16.124 en la base compartida —medido el 2026-09-10, sobre tablas de ~229.000 usuarios— y
+ * los crea el paso de registro de teléfono: cualquier registro ABANDONADO deja uno, así que no son
+ * del arnés. Y sobre todo: **no llevan identidad**, que es lo único que rompe una corrida (F-195).
+ * Borrarlos sería una limpieza masiva sin ningún efecto sobre la prueba.
+ */
+const MARCADORES_DEL_ARNES = [
+    "email LIKE 'synth-%@creditop.com'",
+    "(first_name = 'SYNTH' AND surname = 'TEST USER')",
+    "email REGEXP '^qa[0-9]+@gmail\\.com$'",
+];
+
+/**
+ * scrubHarnessIdentities (WRITE, SÓLO LOCAL): borra los usuarios con identidad que dejó el arnés, para
+ * que una corrida no pueda reusar la de otra.
+ *
+ * POR QUÉ HACE FALTA además del scrub por teléfono: aquél limpia el teléfono de ESTA corrida, y con
+ * eso alcanza para que ESTA corrida esté limpia. Lo que no cubre es la acumulación — medido el
+ * 2026-09-10 en local, **1.296** usuarios del caminador y ~45 de `synthFill`—, y cada uno es una
+ * trampa latente: el día que un teléfono o un documento se repita, la corrida nueva reusa esa
+ * identidad y el flujo se salta la pantalla de datos personales sin avisar. Es exactamente F-195,
+ * esperando.
+ *
+ * ⚠ SE NIEGA FUERA DE LOCAL, y no por prudencia genérica: en la base COMPARTIDA (dev = qa = staging)
+ * puede haber una corrida de otra persona EN VUELO, y borrarle su usuario sintético a mitad le rompe
+ * la prueba sin que entienda por qué. Y allá no hace falta: los usuarios con identidad del arnés eran
+ * **3** el 2026-09-10, contra 1.296 en local. Lo que sí corre en la compartida es el scrub por
+ * teléfono, que es acotado a la corrida.
+ */
+export async function scrubHarnessIdentities(): Promise<Record<string, unknown>> {
+    assertWriteAllowed();
+    if (TARGET !== 'local') {
+        throw new Error(
+            `scrub de identidades sólo en local (target=${TARGET}). En la base compartida puede haber `
+            + 'una corrida de otra persona en vuelo; allá el scrub por teléfono ya acota a la corrida.',
+        );
+    }
+    const donde = `(${MARCADORES_DEL_ARNES.join(' OR ')}) AND (cognito_id IS NULL OR cognito_id = '')`;
+    const rows = await query<{ id: number }>(`SELECT id FROM users WHERE ${donde}`);
+    const ids = rows.map((r) => r.id);
+    if (ids.length === 0) return { users_deleted: 0, note: 'no había identidades del arnés que borrar' };
+
+    const dump = await dumpAntesDeBorrar('(identidades del arnés)', ids);
+
+    /* EN TANDAS: `deleteUsers` expande `IN (?)` con todos los ids y recorre ~20 tablas hijas, así que
+       1.300 de una vez arma statements enormes. En tandas el trabajo es el mismo y cada uno entra. */
+    const TANDA = 200;
+    let borrados = 0;
+    for (let i = 0; i < ids.length; i += TANDA) borrados += await deleteUsers(ids.slice(i, i + TANDA));
+
+    return {
+        users_deleted: borrados, tandas: Math.ceil(ids.length / TANDA),
+        forense: dump ?? '(sin solicitudes previas que volcar)',
+        note: 'los TEMPORAL USER quedan: no llevan identidad, así que no afectan una corrida',
+    };
 }
 
 /** scrubphone (WRITE): borra los users CLIENTE (cognito_id NULL) de un teléfono → próximo register = TEMPORAL USER.
