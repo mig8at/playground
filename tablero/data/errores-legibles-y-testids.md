@@ -19,7 +19,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 
 | | qué | dueño | tamaño |
 |---|---|---|---|
-| **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
+| **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ hecho — pero mide MENOS de lo que parecía |
 | **2** | Los `catch` que no devuelven nada | front | 🟡 11 loaders + 4 actions del tronco; faltan 9 |
 | **3** | `data-testid` en el wizard | front | ✅ **hecho** — 7, y el parche borrado |
 | **4** | Mensajes presentables del catálogo `URV` | backend + front | ✅ **hecho** — mecanismo + 2 servicios + el front |
@@ -131,6 +131,33 @@ cuesta caro en el autorrelleno del harness.
 - **4** — que ningún mensaje mostrado al cliente esté en inglés.
 
 ## Registro
+
+### 2026-09-09 · ¿el `error_subcode` es mejora? Menos de lo que dije
+
+Miguel preguntó si vale la pena, y la respuesta honesta **corrige lo que yo había afirmado**.
+
+> **MEDICIÓN · 2026-09-09** — **cada subcódigo YA viene con un mensaje de campo en español y
+> accionable, y varios MEJORES que un texto genérico.** Recorriendo las emisiones reales en
+> `OnboardingService`: `EXPEDITION_DATE_INVALID` → «La fecha de expedición no es válida. Verifica día,
+> mes y año.»; `BIRTH_DATE_UNDERAGE` → «Debes ser mayor de edad (mínimo 18 años) para continuar.»;
+> `STRATUM_REQUIRED` → «Debes indicar un estrato socioeconómico válido (1 a 6).»;
+> `DOCUMENT_DUPLICATE` → «…ya se encuentra registrado con el celular \*\*\*\*\*\*\*300.». Y como el mensaje
+> del subcódigo CEDE la prioridad al del backend cuando hay error de campo —decisión deliberada—, en
+> todos esos casos **el texto de la tabla no se muestra**.
+>
+> **Dónde sí se muestra: `PROVIDER_ERROR`**, que es lo que `fromErrorsPayload` devuelve cuando el
+> proveedor no mandó ningún error (`errors` vacío). Ahí no hay campo al que colgarse y hoy el cliente
+> no ve nada. Es un caso real —el proveedor caído— pero es **UNO**, no nueve.
+> lectura de las 7 emisiones de `KycValidationOutcome::` y de `fromErrorsPayload`
+
+**Entonces la mejora real de ese cambio son los DOS defectos que aparecieron al hacerlo**, no la tabla:
+los discriminadores viajando como errores de campo (y contados como tales en la analítica), y el toast
+que no se disparaba nunca porque `errors` es siempre un objeto. La tabla queda como red de seguridad.
+
+⚠ Y hay un hueco que la prueba «no hay errores de campo» no cubre: si el proveedor manda claves que no
+son campos del formulario, `porCampo` queda no vacío —así que el mensaje del subcódigo se suprime— y
+esos "errores" no se pintan en ningún lado porque no existe tal campo. La regla correcta sería «no hay
+errores de campo QUE EL FORMULARIO SEPA PINTAR», y eso pide conocer sus campos. No se hizo.
 
 ### 2026-09-09 · probado contra local, y lo que NO se pudo probar corriendo
 
