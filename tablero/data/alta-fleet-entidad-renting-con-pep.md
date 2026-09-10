@@ -427,6 +427,41 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+
+### 2026-09-10 · los dos PRs en qa, y qué se probó contra el backend desplegado
+
+Mergeados los dos (`legacy-backend#1351` y `frontend-monorepo#983`), más un hotfix
+(`frontend-monorepo#987`) porque #983 rompió el build del despliegue — ver **F-194**.
+
+> **MEDICIÓN · 2026-09-10** — **dos de las tres piezas de backend, probadas VIVAS contra el
+> backend desplegado de qa.** (1) `GET /api/loans/allied/ea2fe316` devuelve el objeto `pages`
+> completo con la bienvenida de Alta, y trae `allowed_document_types`, que es la firma de que
+> responde la rama `qa` y no `develop` (harness/CLAUDE.md §«Qué es real en cada target»).
+> (2) `POST /api/onboarding/loan-application/update-user-request/502189` con `lender_id 211` y
+> **sin sesión de asesor** devuelve
+> `continueUrl: https://originaciones-qa.dev.creditop.com/self-service/ea2fe316/502189/confirmation`
+> — la URL pública del ambiente, apuntando a `/confirmation` y **no** a `/continue`, que es el
+> arreglo de **F-191**. (3) El listado: `dev/listado.ts --branch ea2fe316` contra qa da
+> **1 de 1 cableada, `211 AltaX` rt=2, HTTP 200**.
+> curl contra `legacy-backend-qa.inertia-develop` + `dev/listado.ts` con `E2E_TARGET=qa`
+
+⚠ **La tercera pieza NO está probada en qa**: el builder de documentos por PRODUCTO (el arreglo
+de F-188, que es lo que hacía que Alta se cayera al firmar con 500). Pide llegar a la generación
+de documentos, o sea el flujo completo — se prueba con `make harness-caminar CASOS='#ea2fe316:211'
+CERRAR=1` contra el front desplegado, y eso necesitaba que el front estuviera arriba. En qa el
+Rent to Own es el **205** y en producción el **193**, así que qa es justamente el ambiente donde
+el código viejo estaba roto: vale la pena correrlo.
+
+⚠ **Lo que quedó en la base COMPARTIDA de mi corrida**, para que nadie se pregunte: user
+**1828318**, uReq **502189** (estado 3, lender 211, monto 2.000.000). El comercio: allied **339**
+«Alta Fleet» (hash `75cfc9b2`), sucursal **2174** (hash `ea2fe316`), entidad **211** «AltaX».
+
+⚠ **Y las imágenes siguen apuntando a `localhost:5195`**: la bienvenida de qa va a salir sin logo
+ni foto para cualquiera que no tenga el panel del harness arriba. El layout aguanta —el componente
+dibuja un relleno donde va el logo—. Quedó pendiente subirlas desde `legacy-application`.
+
+**La URL para probar en qa:** `https://originaciones-qa.dev.creditop.com/self-service/ea2fe316/solicitar`
+
 ### 2026-09-09 (cierre 4) · por qué el botón de la fecha de pago no hace nada
 
 Con los dos PRs aplicados en local, el canal de autogestión llega hasta `first-payment-date` y **ahí
