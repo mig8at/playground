@@ -21,7 +21,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 |---|---|---|---|
 | **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
 | **2** | Los `catch` que no devuelven nada | front | 🟡 11 loaders + 4 actions del tronco; faltan 9 |
-| **3** | `data-testid` en el wizard | front | ~8-20 elementos |
+| **3** | `data-testid` en el wizard | front | ✅ **hecho** — 7, y el parche borrado |
 | **4** | Mensajes presentables del catálogo `URV` | backend + front | ~94 mensajes |
 
 El orden importa y no es por tamaño: **1 y 2 no dependen de nadie**, 3 desbloquea al harness, y 4 es
@@ -131,6 +131,23 @@ cuesta caro en el autorrelleno del harness.
 - **4** — que ningún mensaje mostrado al cliente esté en inglés.
 
 ## Registro
+
+### 2026-09-09 · el punto 3, hecho
+
+Siete `data-testid` en cuatro archivos del front (`Creditop-SAS/frontend-monorepo#983`), y el parche
+local del harness **borrado** — con su binario `bin/testids`.
+
+> **MEDICIÓN · 2026-09-09** — **verificados en el DOM, no supuestos.** `MoneyInput` e `InputOTP` son
+> wrappers y podrían no propagar el atributo: recorriendo el wizard aparecen los seis (monto, teléfono,
+> OTP). El séptimo, `lender-toggle-<id>`, **no sale con Alta** —una sola entidad, no hay nada que
+> plegar— y sí con **Pullman**: `lender-toggle-39`, `-9`, `-6`, `-32`.
+> Playwright contra local, contando `[data-testid]` pantalla por pantalla
+
+⚠ Y una trampa de la primera corrida: los seis daban **cero** porque la página estaba en la
+**bienvenida** del comercio y no en el formulario. El testid estaba bien; la medición, mal.
+
+⚠ Nota al margen, preexistente: en `harness/pkg/` conviven **`autorelleno.ts` y `autorrelleno.ts`**
+(con una y con dos erres). Son módulos distintos y el nombre no lo dice.
 
 ### 2026-09-09 · el punto 2, la mitad de los loaders
 
