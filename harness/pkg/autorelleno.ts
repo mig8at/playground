@@ -14,9 +14,13 @@
 // formulario que nadie anticipó se llena igual, que es la única forma de que la herramienta no caduque
 // con la próxima pantalla.
 //
-// ⚠ NO se usan los `data-testid`, a propósito: son un PARCHE LOCAL (`bin/testids on`) que no está
-// aplicado en todas las ramas, así que apoyarse en ellos haría que el autorelleno funcione o no según
-// el working tree — el peor modo de falla para una ayuda de tipeo.
+// ⚠ Y SIGUE SIENDO HEURÍSTICO aunque desde el 2026-09-09 el front ya trae `data-testid` propios (los
+// siete del wizard: monto, teléfono, OTP y el toggle de las tarjetas). El motivo cambió: antes era que
+// vivían en un PARCHE LOCAL (`bin/testids on`) que no estaba aplicado en todas las ramas, así que
+// apoyarse en ellos hacía que el autorrelleno funcionara o no según el working tree. Ahora el motivo
+// es otro: son SIETE, y este motor llena formularios que nadie anticipó —el de un país nuevo, el de un
+// lender nuevo—. Usarlos donde existan sería más preciso; abandonar la heurística dejaría mudo todo lo
+// demás.
 //
 // LOS DATOS SON LOS MISMOS QUE USA EL HARNESS, y esto es lo que lo vuelve utilizable: el teléfono sale
 // de `E2E_OTP_BYPASS_PHONE` (el que bypasea el OTP), el OTP son sus últimos 4 y el de firma sus últimos

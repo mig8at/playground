@@ -207,7 +207,6 @@ harness/
 │   ├── close-lender               ← → close-lender.ts: clona un rt=2 con min_initial_fee>0 en TODAS las
 │   │                                 categorías (el muro del cierre era el scoring, no Wompi)
 │   ├── panel                      ← = npm run dev
-│   └── testids                    ← on|off|status|regen: aplica patches/e2e-testids.patch al monorepo
 ├── pkg/                           ← infra
 │   ├── db.ts (mysql2 + guard) · inject.ts (synthFill) · laravel-crypt.ts (fila Experian)
 │   ├── asesor.ts · merchants.ts · ecommerce.ts (contrato base64) · cognito.ts · config.ts
@@ -314,8 +313,13 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
   revisá que haya vuelto.
 - **`create3.ts`, `close-lender.ts` y `dbops lender-set` escriben datos sintéticos.** Son reversibles
   (`--clean`, `--clean`, status inverso) pero `lender-set` toca `lenders.status`, que es **global**.
-- **`bin/testids`** aplica `data-testid` como capa local sobre el frontend-monorepo (`git apply` sin
-  commitear). Si el patch no aplica limpio, el componente cambió: reubicá a mano y `bin/testids regen`.
+- **Los `data-testid` ya viven en el FRONT**, no en un parche local. Eran `bin/testids on|off` sobre
+  `patches/e2e-testids.patch`, y los dos se borraron el 2026-09-09 al mergearlos al monorepo
+  (`Creditop-SAS/frontend-monorepo#983`). ⚠ El motivo de borrarlos importa más que el ahorro: un parche
+  es una SEGUNDA fuente de verdad, y la que estaba rota ganaba por descuido — medido ese día, **3 de
+  sus 4 archivos ya no aplicaban** porque el front había cambiado en junio, y nadie se había enterado.
+  Los siete de hoy: `amount-input`/`-submit`, `phone-input`/`-submit`, `otp-input`/`-submit` y
+  `lender-toggle-<id>`.
 
 ---
 
