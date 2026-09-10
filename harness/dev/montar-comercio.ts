@@ -47,6 +47,10 @@
 //     requiere_codeudor    fuerza `requires_cosigner` en los perfiles. Tiene que coincidir con las
 //                          ramas que EXISTEN en el catálogo de documentos, o no se genera ninguno.
 //     abaco                el underwriting por ingresos gig. Se apaga salvo que se pida.
+//     form_dinamico        el formulario que el cliente ve DESPUÉS de elegir la entidad
+//                          (`lender_requirements.dynamic_form_type_id`), o `null` para ninguno. Si no
+//                          se declara se hereda del molde — y el molde NO significa lo mismo en cada
+//                          ambiente, así que ahí el flujo cambia de largo sin que nadie lo pida.
 //     user_self_management si la entidad le manda el link al cliente por WhatsApp.
 //     bienvenida {…}       la pantalla de bienvenida a pantalla completa (`show_intro_screen`).
 //     calculadora {…}      el JSON de `lenders.calculator`. Tampoco lo pone ningún panel.
@@ -97,6 +101,7 @@ type Bienvenida = { descripcion?: string; fondo?: string; cta?: string };
 type Entidad = {
     id: number; nombre: string; slug: string; response_type?: number; product?: string;
     document_types?: string[]; molde_operativo: number; molde_documentos?: number;
+    form_dinamico?: number | null;
     requiere_codeudor?: boolean; abaco?: boolean; user_self_management?: boolean;
     bienvenida?: Bienvenida; calculadora?: unknown;
 };
@@ -402,8 +407,31 @@ for (const e of spec.entidades) {
            el «gemelo a medias»: heredar una decisión de negocio por venir en la misma fila. Y además
            rompe la corrida: en local el camino feliz de Ábaco sólo existe con `bin/mock-abaco`, y en
            dev/qa no hay mock. */
-        const abaco = t === 'lender_requirements' ? { abaco_is_enabled: e.abaco ? 1 : 0 } : {};
-        for (const f of filas) await clonar(t, f, { lender_id: idLender, ...abaco });
+        /* ⚠ Y EL FORMULARIO DINÁMICO ES LA MISMA TRAMPA QUE ÁBACO, encontrada de nuevo el 2026-09-10 y
+           esta vez al revés. `lender_requirements.dynamic_form_type_id` decide si después de elegir la
+           entidad el cliente ve un formulario dinámico, y viene en esta misma fila: en local el molde
+           170 «Motai RB» lo trae en NULL y en la base compartida el 205 «Rent to Own» lo trae en 7.
+           Resultado: el MISMO spec sembrado en los dos ambientes daba flujos con distinta cantidad de
+           pantallas, y el caminador se paró en una que en local no existe. Declarándolo en el spec, el
+           ambiente deja de decidirlo.
+           ⚠ Cuando el spec NO lo declara se hereda del molde —para no cambiarle el sembrado a los
+           comercios que ya existen—, pero se AVISA si lo que se hereda no es NULL: una pantalla de más
+           que nadie pidió tiene que verse en el rastro. */
+        const extra = t === 'lender_requirements'
+            ? {
+                  abaco_is_enabled: e.abaco ? 1 : 0,
+                  ...(e.form_dinamico !== undefined ? { dynamic_form_type_id: e.form_dinamico } : {}),
+              }
+            : {};
+        if (t === 'lender_requirements' && e.form_dinamico === undefined) {
+            const heredado = filas[0]?.dynamic_form_type_id ?? null;
+            if (heredado !== null) {
+                paso('  ⚠ form dinámico', `heredado del molde ${e.molde_operativo}: form_type ${heredado}. `
+                    + 'El cliente va a ver un formulario después de elegir la entidad. Si no lo querés, '
+                    + 'declaralo en el spec: "form_dinamico": null');
+            }
+        }
+        for (const f of filas) await clonar(t, f, { lender_id: idLender, ...extra });
         if (t === 'lender_requirements') paso('  requirements', `Ábaco ${e.abaco ? 'ENCENDIDO' : 'apagado'}`);
     }
 
