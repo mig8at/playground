@@ -20,7 +20,7 @@ No son cuatro ideas sueltas: son cuatro puntos de la misma cañería, del backen
 | | qué | dueño | tamaño |
 |---|---|---|---|
 | **1** | `error_subcode` de KYC → mensajes accionables | front | ✅ **hecho** (#983) |
-| **2** | Los `catch` que no devuelven nada | front | 🟡 loaders hechos (11); faltan 13 actions |
+| **2** | Los `catch` que no devuelven nada | front | 🟡 11 loaders + 4 actions del tronco; faltan 9 |
 | **3** | `data-testid` en el wizard | front | ~8-20 elementos |
 | **4** | Mensajes presentables del catálogo `URV` | backend + front | ~94 mensajes |
 
@@ -148,11 +148,17 @@ veces.
 > `curl` a `/self-service/<hash>/999999/payment-schedule` y `/first-payment-date`, leyendo el error en
 > el HTML del boundary
 
-**Quedan los 13 `catch` de ACTIONS**, y no se arreglan igual: ahí no hay que relanzar sino DEVOLVER
-algo que la pantalla pinte, y cada pantalla decide dónde. Diez son de canales que no ejercitamos
-(`bancolombia/*`, `dynamic/*`, `abaco`, `soft-update`); en el tronco CreditopX quedan
-`loan-confirmation`, `payment-schedule`, `sign-documents` y `otp-validation`. ⚠ De esos, 7 archivos ya
-consumen `useActionData`, así que ahí el cambio es chico; los otros 6 necesitan dónde pintar.
+**Y los 4 ACTIONS del tronco CreditopX** —`loan-confirmation`, `payment-schedule`, `sign-documents`,
+`otp-validation`— ya devuelven. El aviso vive en UN componente (`ActionErrorBanner`) sin props: lee el
+`useActionData` de su ruta y se dibuja solo si hay `errorMessage`, así una pantalla lo adopta con una
+línea y las que devuelven otra forma no lo activan sin querer. ⚠ `otp-validation` NO lleva banner
+porque su UI ya pinta `actionData.error`: agregarlo mostraría el mismo error dos veces.
+
+**Quedan 9 `catch` de ACTIONS**, y no se arreglan igual: ahí no hay que relanzar sino DEVOLVER
+algo que la pantalla pinte, y cada pantalla decide dónde. todos de canales que no ejercitamos (`bancolombia/*`, `dynamic/*`,
+`abaco`, `soft-update`). ⚠ Tocarlos a ciegas es peor que dejarlos: un banner puesto donde no se ve
+PARECE arreglado y no lo está. El dato que los hace baratos: **7 de esos archivos ya consumen
+`useActionData`**, así que ahí el cambio es de tres líneas.
 
 ### 2026-09-09 · el punto 1, hecho
 
