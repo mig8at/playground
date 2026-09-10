@@ -48,6 +48,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el cliente que va SOLO se queda parado / le mandamos un mensaje que no existe»** | **F-189** · **F-191** |
 | **«aprieto Continuar y no pasa nada, y no hay error en ningún lado»** | **F-192** |
 | **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** |
+| **«las pruebas pasan pero el DESPLIEGUE se cae»** | **F-194** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -319,6 +320,7 @@ distinto según con qué pregunta llegues.
 | F-191 | En autogestión el front manda al cliente a `/continue`, y esa ruta NO existe bajo `/self-service`: 404 | ⏳ PR abierto |
 | F-192 | El botón de la fecha de pago no hace NADA: el backend corta con 409 «requiere codeudor» y el front se traga el error | ABIERTO |
 | F-193 | El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta (y el `/confirmation` de escritorio muestra el QR por user-agent) | ABIERTO |
+| F-194 | El despliegue del wizard se cae por un import sin usar de un módulo `.server`, y vitest/tsc/biome dicen que está bien | arreglado · proceso ABIERTO |
 
 ---
 
@@ -3721,3 +3723,56 @@ en vez de navegarla. No se aplicó todavía porque Miguel pidió no tocar el har
 estén en `main`.
 
 **Estado:** ABIERTO (el harness), MEDIDO (el flujo).
+
+### F-194 · El despliegue del wizard se cae por un import sin usar, y las tres herramientas de siempre dicen que está bien
+
+**Síntoma:** el build de Docker falla en `pnpm turbo run build --filter=loan-request-wizard` y la cola
+del log es un array de ~90 rutas terminado en `... 75 more items`, que no dice nada. El PR tenía **448
+pruebas en verde, `tsc` en su línea base y el hook de biome pasando**.
+
+**El error real está ARRIBA de ese volcado** — buscalo, no leas la cola:
+
+    ✗ Build failed in 351ms
+    [commonjs--resolver] Server-only module referenced by client
+        '~/utils/posthog.server' imported by route 'app/routes/request-canceled.tsx'
+      But other route exports in 'app/routes/request-canceled.tsx' depend on '~/utils/posthog.server'.
+
+**Causa raíz:** un `import { captureServerException }` de `~/utils/posthog.server` que quedó **sin
+usar** al reemplazarlo por otro helper. React Router 7 sólo saca el código de servidor de los exports
+`loader`, `action`, `middleware` y `headers`; una referencia al módulo que no puede atribuir a ninguno
+de esos cuatro la considera alcanzable desde el cliente y corta el build. El mensaje habla de «otros
+route exports» y manda a buscar un uso en el componente **que no existe**: lo que sobra es el import.
+
+**Por qué no lo atrapó nada** (medido el 2026-09-10):
+
+| herramienta | qué dijo |
+|---|---|
+| `vitest` | 448 en verde — **no compila** |
+| `tsc` | 218 errores, **ninguno** en ese archivo: un import sin usar no es error de tipos |
+| `biome` | **sí lo vio**, `lint/correctness/noUnusedImports` … como **`warning`**, así que no corta el hook ni el exit code |
+| `pnpm turbo run build` | ✗ falla — **es la única vara** |
+
+⚠ **La lección, y es del repo entero: un warning de import sin usar sobre un módulo `.server` es un
+rompe-build, no una pelusa.** Cualquier PR que toque imports de `*.server.ts` se valida con el build,
+no con las pruebas.
+
+**Cómo encontrarlos todos de una** (no sólo el que el build alcanzó a nombrar — se detiene en el
+primero):
+
+    python3 - <<'PY'
+    import re, pathlib
+    for f in sorted(pathlib.Path("apps/loan-request-wizard/app").rglob("*.ts*")):
+        s = f.read_text()
+        m = re.search(r'import\s*\{([^}]*)\}\s*from\s*"~/utils/posthog\.server"', s)
+        if not m: continue
+        nombres = [n.strip() for n in m.group(1).split(",") if n.strip()]
+        cuerpo = s[:m.start()] + s[m.end():]
+        sin_usar = [n for n in nombres if not re.search(r'\b'+re.escape(n)+r'\b', cuerpo)]
+        if sin_usar: print(f, "→ no usa:", ", ".join(sin_usar))
+    PY
+
+**Arreglo:** sacar el import sobrante. Dos archivos lo tenían — `routes/request-canceled.tsx` y
+`routes/bancolombia/bnpl/processing.tsx` — y con eso el build cierra 2 de 2.
+
+**Estado:** cerrado (el arreglo), ABIERTO como proceso: subir `noUnusedImports` a `error` en
+`biome.json` convertiría este caso en un commit bloqueado en vez de un despliegue caído.
