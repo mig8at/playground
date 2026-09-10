@@ -53,15 +53,31 @@
 //
 // Uso:   E2E_TARGET=local node dev/montar-comercio.ts alta
 //        E2E_TARGET=local node dev/montar-comercio.ts alta --clean
-import { query, one, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
+import { query, one, exec, assertWriteAllowed, TARGET, env } from '../pkg/db.ts';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
 assertWriteAllowed();
-if (TARGET !== 'local') {
-    // Es data sintética de comercios que en el ambiente compartido pueden existir DE VERDAD: sembrar
-    // un homónimo en dev/staging —que además comparten la MISMA base— dejaría dos y nadie sabría cuál
-    // es el real. Alta ya es ese caso: existe en producción como allied 346.
-    throw new Error(`montar-comercio sólo corre en local (E2E_TARGET=${TARGET}); es data sintética`);
+if (TARGET === 'prod') {
+    throw new Error('montar-comercio NUNCA corre contra producción. No hay flag que lo habilite.');
+}
+if (TARGET !== 'local' && env('I_KNOW_THIS_TOUCHES_SHARED_DEV') !== '1') {
+    // ANTES ACÁ HABÍA UNA PROHIBICIÓN TOTAL fuera de local, y su motivo era bueno: es data sintética
+    // de comercios que en el ambiente compartido pueden existir DE VERDAD, y sembrar un homónimo
+    // dejaría dos sin que nadie sepa cuál es el real. Alta es justo ese caso — existe en producción
+    // como allied 346.
+    //
+    // Se abrió con llave porque hizo falta: para probar en qa el comercio tiene que estar en la base
+    // COMPARTIDA (dev = qa = staging es la misma), y no hay otra forma de ponerlo ahí. Pero el motivo
+    // del guard NO se tiró: pasó a ser el chequeo de HOMÓNIMO de más abajo, que mira la condición real
+    // —«¿ya hay uno con este nombre?»— en vez de aproximarla con el nombre del ambiente. Un guard que
+    // prohíbe por ambiente es más fácil de escribir, y más fácil de tener razón por accidente.
+    throw new Error(
+        `montar-comercio contra ${TARGET} escribe en la BASE COMPARTIDA del equipo (dev = qa = staging).\n`
+        + '  Si de verdad es lo que querés: exportá I_KNOW_THIS_TOUCHES_SHARED_DEV=1\n'
+        + '  Y antes mirá los MOLDES: los ids de `lenders` no significan lo mismo en las dos bases, así\n'
+        + '  que un spec con los de local clona ahí la familia de producto equivocada — el spec\n'
+        + '  `alta-compartida.json` existe por eso y explica el mapeo.',
+    );
 }
 
 const CLEAN = process.argv.includes('--clean');
@@ -168,6 +184,27 @@ async function limpiar() {
         await exec('DELETE FROM allieds WHERE id=?', [comercio.id]);
     }
     return { comercio: comercio?.id, sucursales: sucursales.length, entidades: idsLender.length };
+}
+
+// ── EL HOMÓNIMO: lo que el guard de arriba protegía de verdad ───────────────────────────────────
+// `limpiar()` reemplaza por SLUG. Un comercio con el mismo NOMBRE y otro slug le sobrevive, y ése es
+// el estado malo: dos «Alta Fleet» en la base del equipo y nadie sabe cuál es el real. Se comprueba
+// sólo fuera de local, porque en local no hay nada real que confundir.
+if (TARGET !== 'local') {
+    const homonimo = await one<{ id: number; name: string; slug: string }>(
+        'SELECT id, name, slug FROM allieds WHERE name = ? AND slug <> ? LIMIT 1',
+        [spec.nombre, spec.slug],
+    );
+    if (homonimo) {
+        console.log(
+            `\n  ✗ en ${TARGET} ya existe un comercio llamado «${homonimo.name}» (id ${homonimo.id}, `
+            + `slug \`${homonimo.slug}\`)\n`
+            + `    y este spec usa el slug \`${spec.slug}\`, así que sembrar dejaría DOS con el mismo\n`
+            + `    nombre. Decidí cuál es el real: cambiale el nombre a este spec, o usá el slug del que\n`
+            + `    ya está para reemplazarlo.\n`,
+        );
+        process.exit(2);
+    }
 }
 
 const borrado = await limpiar();
