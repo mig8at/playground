@@ -41,15 +41,16 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«elige una fecha de pago y el cambio la rechaza»** | **F-148** |
 | **«le aprobaron cupo a alguien que no debía»** | F-112 |
 | **«no sale la opción de una entidad, sin error»** | F-113 |
-| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** · **F-190** |
+| **«esto anda en local y no en dev/qa» / «probé contra el ambiente equivocado»** | F-06 · F-18 · F-61 · F-62 · F-65 · F-73 · F-74 · F-76 · F-77 · F-95 · **F-187** · **F-190** · **F-196** |
 | **«parece un bug del producto» (y es una env faltante)** | F-04 · F-05 · F-23 · F-70 · F-98 · F-99 · F-104 |
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
 | **«el cliente que va SOLO se queda parado / le mandamos un mensaje que no existe»** | **F-189** · **F-191** |
 | **«aprieto Continuar y no pasa nada, y no hay error en ningún lado»** | **F-192** |
-| **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** |
+| **«la prueba pasó, pero ¿probó lo que creo? / lo verifiqué desde el escritorio»** | **F-193** · **F-196** |
 | **«las pruebas pasan pero el DESPLIEGUE se cae»** | **F-194** |
 | **«el arnés se salta una pantalla del flujo»** | **F-195** |
+| **«el mock/arnés es más permisivo que el proveedor real»** | **F-196** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -323,6 +324,7 @@ distinto según con qué pregunta llegues.
 | F-193 | El caminado en verde no prueba la redirección: el harness NAVEGA al destino por su cuenta (y el `/confirmation` de escritorio muestra el QR por user-agent) | ABIERTO |
 | F-194 | El despliegue del wizard se cae por un import sin usar de un módulo `.server`, y vitest/tsc/biome dicen que está bien | arreglado · proceso ABIERTO |
 | F-195 | El arnés «se salta» personal-info: el scrub compara el teléfono por igualdad y el usuario está guardado con otro formato, así que sobrevive con su identidad | arreglado |
+| F-196 | El canal QR cerraba en VERDE en local con el payload que el banco rechaza: tres huecos de fidelidad encadenados, los tres en el mismo campo | arreglado |
 
 ---
 
@@ -3837,3 +3839,70 @@ dígitos a **`+57`**, no a `+1`, y además alimenta la analítica, no `users.cel
 junio. Con el arreglo el formato deja de importar, que es mejor que perseguir un valor viejo.
 
 **Estado:** arreglado (el scrub) · el origen del `+1`, ABIERTO y sin costo.
+
+### F-196 · El recorrido cerraba en verde en local con el payload que el banco rechaza: tres huecos de fidelidad, encadenados
+
+**Síntoma:** `make harness-qr` cierra el canal QR en **estado 25 con código emitido**, en los dos
+productos, mientras en producción las mismas solicitudes se **cancelan**. Ningún ambiente levantaba el
+problema, así que el incidente del centinela `document_type = '-'` llegó a producción y estuvo ocho
+días sangrando (~25 fichas nuevas por día con documento real y el centinela) sin que una corrida local
+lo delatara.
+
+**Causa raíz: TRES huecos distintos, uno arriba del otro, y los tres en el MISMO campo.** Cualquiera de
+los tres, solo, alcanzaba para que el recorrido cerrara en verde — por eso arreglar uno no habría
+bastado, y por eso conviene leerlos juntos:
+
+| # | dónde | qué hacía | por qué tapaba |
+|---|---|---|---|
+| 1 | `harness/mock-bancolombia/server.mjs` | validaba headers y rangos, **no** el tipo de documento | el payload que el banco rechaza con `SA400` pasaba |
+| 2 | `harness/dev/qr-corbeta.ts` | llamaba a `phone/register` **sin** `document_number` | el alta creaba la ficha con `TEMP-…`, que es el caso **sano**: la fila incoherente sólo nace cuando el alta recibe el número |
+| 3 | `harness/pkg/inject.ts` (`synthFill`) | escribía `document_type` **justo después** del alta | la compuerta del lender veía un tipo válido donde en producción ve el centinela |
+
+**Lo que el banco contesta de verdad**, medido en producción el 2026-09-09 (`logs.id = 12141701`,
+uReq 552082):
+
+    request   {"data":{"customer":{"identification":{"type":"-","number":"1014257745"}},…}}
+    response  400 · {"code":"SA400","detail":"El valor del parámetro type no hace parte de los
+                     valores válidos"}
+
+**El hueco 3 es el que más enseña, porque no parece un hueco: parece una ayuda.** `synthFill` completa
+los datos de la persona para que la corrida pueda avanzar, y al hacerlo **adelanta el reloj del flujo**.
+En autogestión el cliente declara su teléfono y su número de documento en la primera pantalla y **nunca
+su tipo**; la compuerta de preaprobación le habla a la entidad *antes* del formulario de datos
+personales. Rellenar el tipo ahí no es sembrar un dato de prueba: es cambiar el ORDEN del flujo, y el
+orden era justo lo que fallaba. La opción nueva `keepDocumentType` deja el tipo que escribió el alta.
+
+⚠ **La lección general: un mock que es más laxo que el proveedor no es un mock incompleto, es un
+oráculo invertido** — convierte «esto se rompe» en «esto anda». El propio `server.mjs` ya lo decía para
+otro endpoint («se valida acá lo mismo que valida el banco… para que un sobre plano NO pase en local y
+sí falle contra el banco»); el campo del tipo de documento se había quedado afuera de esa regla.
+
+⚠ **Y el corolario que cuesta más aceptar: un relleno sintético que adelanta un paso del flujo puede
+invalidar la prueba entera sin que nada se ponga rojo.** Antes de confiar en un recorrido verde, la
+pregunta no es «¿pasó?» sino **«¿en qué orden pasó, y ese orden es el del cliente?»**.
+
+**Arreglo, y cómo se midió** (con el arreglo del backend puesto y quitado, sobre el mismo runner):
+
+    sin el arreglo   consumo   9 ok · 12 en rojo · estado 3 · sin código
+                               `Error loan - validate` → 400 `SA400`, idéntico en forma al de producción
+    con el arreglo   consumo  23 ok ·  0 en rojo · estado 25 + código
+                     bnpl     22 ok ·  0 en rojo · estado 25 + código · `document_type="CC"`
+
+El runner además **afirma** sobre la fila: documento real con el centinela es un muro con su
+explicación, no una línea informativa. Eso es lo que convierte la corrida en una prueba.
+
+⚠ **Y la guarda del mock rechaza SÓLO el centinela, no el campo ausente.** La lista blanca real del
+banco no está documentada de nuestro lado, así que se rechaza únicamente lo que se MIDIÓ rechazado.
+Rechazar además lo ausente rompía `npm run contrato:bancolombia` —que sondea los endpoints con un sobre
+mínimo— y, peor, habría sido inventar una regla del proveedor: **un mock que rechaza lo que no midió
+deja de ser un oráculo y pasa a ser una opinión**.
+
+⚠ **BNPL sigue sin poder reproducirlo por su cuenta**, y no es del arnés: es
+`legacy-application/app/Actions/Lenders/BancolombiaBnpl.php:707`, que manda
+`app()->environment() === 'production' ? $user->document_type : 'CC'`. Fuera de producción **siempre**
+viaja `CC`. La guarda se puso igual en `validate-quota` para el día que ese ternario se quite; el camino
+que sí reproduce es **Consumo**, cuyo builder (`app/Services/ApiBancolombiaLoanRequestBuilder.php`, op
+`validate`) no tiene ternario y manda el tipo crudo en todos los ambientes. Que el payload de producción
+difiera del de todos los demás ambientes merece su propia discusión.
+
+**Estado:** arreglado (los tres huecos del arnés) · el ternario de `legacy-application`, ABIERTO.
