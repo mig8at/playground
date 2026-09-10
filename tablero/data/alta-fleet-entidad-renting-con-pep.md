@@ -427,6 +427,41 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-09 (cierre 4) · por qué el botón de la fecha de pago no hace nada
+
+Con los dos PRs aplicados en local, el canal de autogestión llega hasta `first-payment-date` y **ahí
+se muere en silencio**: el cliente elige la fecha, aprieta «Continuar» y no pasa nada. Es **F-192**, y
+son tres cosas encadenadas que conviene no confundir.
+
+> **MEDICIÓN · 2026-09-09** — **el backend SÍ contesta, y con un mensaje presentable; el front lo
+> tira.** `POST .../confirm-payment-date` para el uReq 466464 devuelve **409** con «Tu solicitud
+> requiere un codeudor aprobado antes de firmar los documentos». El `catch` del action de
+> `first-payment-date.tsx` llama a `captureServerException` y **devuelve `undefined`** — sin `throw` y
+> sin valor de error—, así que React Router no navega ni pinta nada. ⚠ Y en local es completamente
+> mudo: `APP_ENV=local` apaga PostHog, o sea que el error no queda ni en telemetría.
+>
+> **Y el paso anterior no debió mandarlo ahí.** `available-quota/extended`, sobre la MISMA solicitud,
+> responde 200 con `type_policy_configured: false`, «la entidad no define política para esta etapa;
+> sin restricción adicional» y **`next_step: first_payment_date`**. Dos endpoints del mismo backend
+> contestan distinto: uno rutea a un paso que el otro rechaza. La causa es un fallback que existe en un
+> lado y no en el otro — `CosignerRequirementService::applicantPolicyType()` usa **type 2 si el lender
+> lo tiene y type 1 si no**, y con type 1 encuentra la categoría con `requires_cosigner = 1`. El propio
+> docblock de ese servicio dice que la etapa que decide es la extendida, así que el fallback
+> contradice la regla que él mismo escribe.
+>
+> `curl` a los tres endpoints con UA de iPhone, y `lender_users_categories` en local
+
+⚠ **Y el dato de configuración que lo dispara es MÍO:** las **cuatro** categorías de AltaX salieron
+con `requires_cosigner = 1` —incluida «Premium»—, copiadas del molde de Motai RTO, que las tiene
+igual. O sea que para Alta **todo perfil exige codeudor**. Si eso no es lo que negocio quiere, es un
+UPDATE; si sí lo es, el flujo debería rutear al codeudor y no a la fecha de pago, y ahí el problema
+vuelve a ser el punto 3.
+
+**Lo que recomiendo, por dueño:** el arreglo del *front* (no tragarse el error) es chico y claramente
+bueno — hoy cualquier 409 de ese endpoint es un botón muerto para cualquier comercio, no sólo Alta. El
+del *backend* (que las dos puntas contesten lo mismo) tiene alcance y merece su propia prueba. Y el de
+*config* es una decisión de negocio.
+
 ### 2026-09-09 (cierre 3) · la autogestión, y el 404 que nadie había visto
 
 Tercer pedido de la tarea, ya en los mismos dos PRs: **que en autogestión no se le mande el mensaje al

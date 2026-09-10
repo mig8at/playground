@@ -46,6 +46,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la pantalla no avanza y no hay ningún error»** | F-01 · F-02 · F-03 · F-58 · F-88 · F-91 · F-92 |
 | **«¿en qué repo vive esto? / no está en el monolito»** | **F-123** · **F-189** |
 | **«el cliente que va SOLO se queda parado / le mandamos un mensaje que no existe»** | **F-189** · **F-191** |
+| **«aprieto Continuar y no pasa nada, y no hay error en ningún lado»** | **F-192** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -315,6 +316,7 @@ distinto según con qué pregunta llegues.
 | F-189 | La autogestión tiene flag y `legacy-application` lo ignora para rt=2: manda el WhatsApp igual, y el gemelo no | ABIERTO |
 | F-190 | El comercio se queda «pegado» al cambiarlo: su cookie de contexto viaja dentro del cache de sesión del harness | cerrado |
 | F-191 | En autogestión el front manda al cliente a `/continue`, y esa ruta NO existe bajo `/self-service`: 404 | ⏳ PR abierto |
+| F-192 | El botón de la fecha de pago no hace NADA: el backend corta con 409 «requiere codeudor» y el front se traga el error | ABIERTO |
 
 ---
 
@@ -3623,3 +3625,51 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   que **sí** manda el WhatsApp para todo rt=2 ignorando el flag. Los dos salen del mismo pedido
   —«que en autogestión no se le mande nada»— pero viven en repos distintos y se arreglan aparte.
 - **Estado:** ⏳ PR abierto (`Creditop-SAS/frontend-monorepo#983` + `Creditop-SAS/legacy-backend#1351`).
+
+### F-192 · El botón de la fecha de pago no hace nada: el backend corta con 409 y el front se traga el error
+
+**Síntoma:** el cliente elige la fecha de pago, aprieta «Continuar» y **no pasa nada**. Sin mensaje, sin
+error en pantalla, sin nada en la consola. El caminador lo reporta como
+`first-payment-date: el action no redirigió ni dio error · {}`.
+
+**Son TRES cosas encadenadas, y conviene no confundirlas:**
+
+1. **El backend sí contesta, y con un mensaje presentable.**
+   `POST /api/loans/customer/requests/promissory-note/<ur>/confirm-payment-date` devuelve **409**
+   con `"Tu solicitud requiere un codeudor aprobado antes de firmar los documentos."`
+   (`CosignerRequirementService::assertApplicantMaySign`).
+
+2. **El front lo TIRA.** El `catch` del action de `routes/first-payment-date.tsx` llama a
+   `captureServerException` y **devuelve `undefined`** — sin `throw`, sin valor de error para la UI.
+   React Router recibe «nada» y no navega ni pinta nada. ⚠ Y en **local es completamente mudo**,
+   porque `APP_ENV=local` apaga `getServerPostHog`: el error no queda ni en telemetría.
+
+3. **Y el paso anterior no debió mandarlo ahí.** `resolvePostValidationStep` pregunta a
+   `POST /api/loans/lender/available-quota/extended`, que para el mismo uReq contesta
+   `type_policy_configured: false`, `"Aprobado: la entidad no define política para esta etapa; sin
+   restricción adicional"` y **`next_step: first_payment_date`**. O sea que **dos endpoints del mismo
+   backend contestan distinto sobre la misma solicitud**: uno rutea a un paso que el otro va a
+   rechazar. La causa es un fallback que existe en un lado y no en el otro —
+   `CosignerRequirementService::applicantPolicyType()` usa **type 2 si el lender lo tiene y type 1 si
+   no**, y con type 1 encuentra la categoría con `requires_cosigner = 1`—, mientras el endpoint
+   extendido concluye «sin política» y sigue de largo. El propio docblock del servicio dice que *la
+   etapa que decide es la extendida*, así que el fallback contradice la regla que él mismo escribe.
+
+**Evidencia (local, Alta Fleet, uReq 466464):** el GET de `select-payment-date` responde 200 con su
+fecha; el POST de `confirm-payment-date` responde **409** con ese mensaje; y
+`available-quota/extended` responde **200** con `next_step: first_payment_date`. Las tres a mano, con
+UA de iPhone.
+
+**Y el dato de configuración que lo dispara:** las **cuatro** categorías de AltaX tienen
+`requires_cosigner = 1` —incluida «Premium»—, copiadas del molde de Motai RTO, que las tiene igual.
+O sea que para este comercio TODO perfil exige codeudor.
+
+**Arreglo, por dueño:**
+- *front*, chico y claramente bueno: no tragarse el error — devolver el mensaje del backend para que
+  la pantalla lo muestre. Hoy cualquier 409 de ese endpoint es un botón muerto.
+- *backend*: que las dos puntas contesten lo mismo. El patrón de la casa para esto ya existe
+  (`LenderTabBehaviorResolver`, compartido justamente para que el listado y la selección no
+  divergieran).
+- *config*: decidir si Alta exige codeudor en todos los perfiles o sólo en algunos.
+
+**Estado:** ABIERTO.
