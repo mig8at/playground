@@ -706,6 +706,43 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-11 (cierre 2) · la pantalla lenta no era el SQL: son 30 segundos esperando al perfilador
+
+Se probó el índice contra la base compartida y, de paso, se midió el listado ENTERO en dev. El
+resultado reordena todo lo que veníamos pensando de esa pantalla.
+
+> **MEDICIÓN · el listado en dev, tres solicitudes distintas.**
+>
+> | llamada | tiempo |
+> |---|---|
+> | `lenders-v2/{ureq}` (completo) | **31,6 · 31,8 · 31,9 · 32,0 s** |
+> | `lenders-v2/{ureq}/recalculate` (mismo lender, SIN perfilamiento) | **1,2 s** |
+> | una llamada trivial al mismo backend | **0,6 s** |
+>
+> **~30 de los 32 segundos son el perfilamiento.** No la red, no el pipeline, y desde luego no el
+> SQL: el listado entero hace 50 ms de base. La forma del número —30 s ≈ dos timeouts de 15 s— apunta
+> al perfilador ML, pero cuál expira no está confirmado. Es **F-207**.
+
+Lo que esto le hace a la conversación de la tarde: el índice baja el listado de ~300 ms a 189 ms y es
+real, pero **son 110 ms sobre 32 segundos**. Antes de optimizar el pipeline o partir archivos, hay que
+saber por qué se esperan 30 segundos a un servicio.
+
+> **MEDICIÓN · el índice bajo carga.** 40 consultas en una sola conexión contra dev: **6,29 s sin
+> índice · 4,16 s con**. La diferencia, 2,13 s, es exactamente 40 × 53 ms — el escaneo. El piso de
+> 4,16 s es latencia de red al RDS desde una máquina de escritorio, que el backend no paga.
+
+**Del arnés** (no es esfuerzo de esta tarea, queda dicho acá porque salió de la misma corrida): el
+runner del listado usaba un **teléfono fijo**, así que dos corridas en paralelo contra la base
+compartida chocaban con «Duplicate entry» y morían en el registro — el síntoma parecía del producto.
+Arreglado con azar sobre el reloj: la marca de tiempo sola NO alcanzaba, dos corridas lanzadas con
+0,3 s de separación repetían el número.
+
+**Higiene de la base compartida.** Las siete identidades sintéticas que crearon estas pruebas se
+borraron con `scrubphone`, una por teléfono, y se verificó que no quedaron solicitudes huérfanas. ⚠ Y
+quedó SIN TOCAR un usuario del mismo día que **no era de esta sesión** —el teléfono fijo viejo, creado
+por la mañana—: en la base compartida puede haber una corrida de otra persona en vuelo, y el scrub por
+marcadores habría barrido con ella.
+
 ### 2026-09-11 (cierre) · la pantalla lenta: un índice, medido en local y aplicado en la compartida
 
 Miguel preguntó por qué el listado es una de las pantallas más lentas. Se instrumentó

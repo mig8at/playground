@@ -61,6 +61,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«andaba, lo reinicié y dejó de andar»** | **F-204** |
 | **«funciona en producción y en dev no, sin error»** | **F-205** |
 | **«medí el rendimiento en local y en el ambiente real no mejora»** | **F-206** |
+| **«el listado tarda una eternidad en dev/qa»** | **F-207** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -345,6 +346,7 @@ distinto según con qué pregunta llegues.
 | F-204 | El proceso viejo tiene el entorno de cuando arrancó: reiniciar el dev server «rompió» el OTP, y el mock que faltaba enchufar ya estaba corriendo | disciplina, sin arreglo de código |
 | F-205 | Una constante de id en el front es de PRODUCCIÓN: en dev señala a otra entidad, así que la regla no aplica y nada falla | ⏳ columna en el backend, front pendiente |
 | F-206 | El dump local NO trae todos los índices de producción: medir rendimiento sobre él inventa cuellos de botella que allá no existen | disciplina, sin arreglo de código |
+| F-207 | El listado tarda 32 s en dev y 30 de ellos son el PERFILAMIENTO: el mismo endpoint sin esa etapa contesta en 1,2 s | ABIERTO |
 
 ---
 
@@ -4303,3 +4305,40 @@ sólo vale si lo que se está midiendo existe igual en el ambiente real. Para co
 alcanza; para tiempos, no.
 
 **Estado:** disciplina, sin arreglo de código.
+
+### F-207 · El listado tarda 32 segundos en dev, y 30 son el perfilamiento
+
+**Síntoma:** «el listado de entidades es de las pantallas más lentas». En dev, una corrida del arnés
+que debería tardar segundos tarda medio minuto, y no hay ningún error: contesta 200.
+
+> **MEDICIÓN · 2026-09-11, contra el backend de dev, tres solicitudes distintas.**
+>
+> | llamada | qué hace | tiempo |
+> |---|---|---|
+> | `lenders-v2/{ureq}` | el listado COMPLETO | **31,6 · 31,8 · 31,9 · 32,0 s** |
+> | `lenders-v2/{ureq}/recalculate` | el MISMO lender, misma base, **sin perfilamiento ni datacrédito** | **1,2 s** |
+> | `onboarding/user/{id}` | una llamada trivial al mismo backend | **0,6 s** |
+>
+> O sea: **~30 de los 32 segundos están en la etapa de perfilamiento**, la que el recálculo se salta a
+> propósito. No es la red (0,6 s), no es el resto del pipeline (1,2 s) y desde luego **no es el SQL**:
+> instrumentado con el log de consultas, el listado entero hace 50 ms de base.
+
+**La forma del número dice de qué se trata.** 30 s ≈ **dos timeouts de 15 s**, que es exactamente lo
+que declara el perfilador ML (H2O) — el mismo que sin host configurado tira el listado entero con
+`PendingRequest::baseUrl(): Argument #1 must be of type string, null given`, error que también se vio
+en dev el mismo día para algunos comercios. Cuál de las dos llamadas expira y por qué **no está
+confirmado**: eso pide la configuración del servicio o su traza, no se deduce desde afuera.
+
+⚠ **Medido en DEV, no en producción.** Allá el perfilador puede estar configurado y responder rápido.
+Y no se comprueba llamando al endpoint de prod: el listado ESCRIBE (sella el estado CreditopX). Para
+producción, el instrumento es la traza del servicio.
+
+**Por qué importa más que cualquier optimización de consulta.** El mismo día se midió que falta un
+índice y que arreglarlo baja el listado de ~300 ms a 189 ms. Eso es real, pero **son 110 ms sobre 32
+segundos**: tres décimas de un uno por ciento. Antes de optimizar el pipeline, hay que saber por qué
+se esperan 30 segundos a un servicio.
+
+**Y explica algo que se lee mal todos los días:** las corridas del arnés contra dev «tardan mucho» y
+uno culpa al arnés o a la red. No: es esta etapa.
+
+**Estado:** ABIERTO. El diagnóstico está medido; la causa exacta dentro del perfilamiento, no.
