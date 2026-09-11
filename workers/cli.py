@@ -191,6 +191,9 @@ def main():
                    choices=["despacho", "id_quemado", "lista_ids", "ambiente"],
                    help="una sola categoría, con sus archivos y líneas")
 
+    con_json(sub.add_parser(
+        "cobertura", help="de la lógica quemada, qué cubre canon y con cuánto peso"))
+
     sub.add_parser("check", help="¿las rutas escritas a mano siguen vivas en main?")
     sub.add_parser("pesos", help="refresca los tamaños guardados en repos.json")
 
@@ -360,6 +363,59 @@ def main():
         print(f"  ⚠ {len(rotas)} inferidas NO se sostienen en los datos "
               f"({', '.join(f'{t}.{c}' for t, c in rotas[:3])}…)")
         print("\n  `relaciones <vecindario>` · `relaciones <tabla>` · `--json`\n")
+        return 0
+
+    if a.cmd == "cobertura":
+        import json as _j, collections as _c
+        import quemado as _q, cobertura as _cob
+        filas, hay_peso = _cob.cruzar(_q.barrer())
+        if j:
+            print(_j.dumps({"lugares": filas}, ensure_ascii=False, indent=2))
+            return 0
+        dec = [f for f in filas if f["declarado"]]
+        fuera = [f for f in filas if not f["declarado"]]
+        print(f"\n  {len(filas)} lugares donde el código decide por identidad, "
+              f"cruzados contra lo que canon declara\n")
+        print(f"    cubiertos por un área    {len(dec):4d}  ({100*len(dec)//len(filas)}%)")
+        print(f"    fuera del corpus         {len(fuera):4d}   ← nadie que lea canon antes de una tarea los va a ver")
+
+        # Por categoría: dice DÓNDE duele que falte, que no es lo mismo que cuánto falta.
+        print("\n  POR CATEGORÍA — cuánto de cada clase queda fuera:")
+        for cat, n_ in _c.Counter(f["categoria"] for f in filas).most_common():
+            f_ = sum(1 for x in filas if x["categoria"] == cat and not x["declarado"])
+            print(f"    {cat:12s} {n_:4d} · fuera {f_:4d} ({100*f_//n_:3d}%)")
+        print("    ⚠ `id_quemado` y `despacho` son los que atan una conducta a UNA entidad:")
+        print("      que sean los MENOS cubiertos es lo contrario de lo que uno querría.")
+
+        if hay_peso:
+            # Una línea con cuatro ids salía cuatro veces: se agrupa por línea y se dice cuántos ids tiene.
+            porLinea = {}
+            for f_ in dec:
+                if not (f_["commits"] or 0):
+                    continue
+                k = (f_["archivo"], f_["linea"])
+                porLinea.setdefault(k, {**f_, "ids": 0})["ids"] += 1
+            activos = sorted(porLinea.values(), key=lambda x: -x["commits"])
+            print("\n  LOS QUE MÁS DUELEN — quemado en un área que el equipo está tocando:")
+            for f_ in activos[:6]:
+                cuantos = f" ({f_['ids']} ids en la misma línea)" if f_["ids"] > 1 else ""
+                print(f"    {f_['commits']:>4} commits · {f_['area']:20s} {f_['categoria']:11s} "
+                      f"{f_['archivo'].split('/')[-1]}:{f_['linea']}{cuantos}")
+
+        graves = [f for f in fuera if f["categoria"] in ("id_quemado", "despacho")]
+        if graves:
+            print(f"\n  INVISIBLES — atan una conducta a UNA entidad y ningún área los declara ({len(graves)}):")
+            for f_ in graves[:8]:
+                sitio = f"{f_['archivo'].split('/')[-1]}:{f_['linea']}"
+                if f_.get("quien"):
+                    # un id resuelto a su nombre de negocio: eso es lo que informa
+                    print(f"    {sitio:<32} {f_.get('columna')} {f_.get('id')} = {f_['quien'][:48]}")
+                else:
+                    # `despacho` no compara un id: ARMA un nombre con él, así que lo que informa es el texto
+                    print(f"    {sitio:<32} {(f_.get('texto') or '').strip()[:62]}")
+
+        print("\n  El detector es `quemado` y el peso lo mide `canon -peso`: acá sólo se cruzan.")
+        print("  `cobertura --json` para la lista entera\n")
         return 0
 
     if a.cmd == "quemado":
