@@ -2,6 +2,7 @@
 id: 79
 title: "La tarjeta del lender, por capacidad y no por id"
 stage: idea
+archived: "2026-09-11T11:55:00-05:00"
 ramas: ""
 created: "2026-09-11T08:00:00-05:00"
 context_nodes: [hardcodes-entidades, frontend-monorepo, entities, findings]
@@ -10,6 +11,11 @@ jira_title: ""
 ---
 
 ## Si retomás esto sin contexto, empezá acá
+
+> ⚠ **ARCHIVADA el 2026-09-11: este frente se trabaja dentro de la tarea #76 (Alta Fleet, CORE-558).**
+> Miguel decidió que la tarjeta parametrizable va en la misma tarea en la que venimos trabajando, así
+> que el avance se escribe allá —`alta-fleet-entidad-renting-con-pep.md`, sección «La tarjeta de cada
+> entidad»— y no acá. Este archivo queda sólo como el documento de la medición original.
 
 Miguel preguntó si conviene que **cada lender defina cómo se muestra su tarjeta**, para sacar la forma
 quemada de hoy. Se midió antes de opinar, y la medición cambió la respuesta: **el canal ya existe, ya

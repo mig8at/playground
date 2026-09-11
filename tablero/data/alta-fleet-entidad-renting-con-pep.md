@@ -56,7 +56,13 @@ documentos se elige por `lenders.product` y no por id de entidad. Con eso **Alta
 estado 11 en local**, con sus cinco documentos generados y firmados, y la suite del codeudor volvió a
 verde. La autogestión también quedó verificada corriéndola: `showModal: false`, sin mensaje.
 
-**El próximo paso es:** que exista la entidad en `qa`. El PR lleva el CÓDIGO; la configuración de Alta
+**FRENTE NUEVO desde el 2026-09-11: la tarjeta de cada entidad.** Miguel pidió que la tarjeta deje
+de estar quemada y que cada entidad pueda definir la suya, y decidió que se trabaja **en esta misma
+tarea**. Ya está medido (sección «La tarjeta de cada entidad»): el canal existe, es administrable, y
+está roto en las dos puntas —tres campos que el admin guarda y la tarjeta no dibuja, dos que la
+tarjeta lee y **ningún admin escribe**, y cuatro writers que **borran** lo que se cargó a mano—.
+
+**El próximo paso es:** aterrizar ese frente **en LOCAL** — que exista la entidad en `qa`. El PR lleva el CÓDIGO; la configuración de Alta
 allá es **dato**, y dev/qa/staging comparten la misma base — así que no se siembra desde una migración
 sin decidirlo. El runbook está en §«Cómo se ataca», paso 6.
 
@@ -149,6 +155,274 @@ activas, une, y recorta con el catálogo del país.
 
 **Usar el gemelo `Modules/Partner` de legacy-backend** para el CRUD del comercio. Está habilitado pero
 su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de `legacy-application`.
+
+## La tarjeta de cada entidad: por capacidad y no por id
+
+Frente nuevo, incorporado a ESTA tarea el 2026-09-11 por decisión de Miguel: la tarjeta parametrizable
+se trabaja acá y no en una tarea aparte. Nació de su pregunta —«¿que cada lender defina cómo mostrar su
+tarjeta y eliminar lo hardcodeado?»— y se midió antes de opinar.
+
+⚠ La distinción que decide el alcance: una cosa es que el lender declare **QUÉ tiene** (planes
+calculados, lista de beneficios, su copy de botón) y otra que declare **CÓMO se ve** (layout,
+componentes, slots). Lo primero mata las listas de ids. Lo segundo es un lenguaje de render para
+mantener, y el lender no conoce el design system del wizard.
+
+### Lo medido (2026-09-11)
+
+
+#### 1 · el canal de presentación YA EXISTE y es una columna administrable
+
+`lenders.additional_data` (longText, migración `2023_04_20_202610`) llega al front como **string JSON**
+y su tipo declara seis campos: `amount_text`, `number_fee_text`, `rate_text`, `conditional_text`,
+`action_text`, `benefit_list`.
+
+#### 2 · pero ninguna de las dos puntas coincide con la otra
+
+> **MEDICIÓN.** Quién escribe y quién lee, campo por campo. Los ✗ de la columna «escrito» no son un
+> olvido de formulario: **ningún writer los emite** (ver medición 3).
+>
+> | campo | lo escribe algún admin | lo dibuja la tarjeta nueva | lo usa el listado viejo (Vue) |
+> |---|---|---|---|
+> | `rate_text` | ✔ | ✔ `LenderCard` ×2 · `LenderCardProcessing` ×2 | ✗ |
+> | `amount_text` | ✔ | ✗ *(se mapea a la entidad y nadie lo consume)* | ✗ |
+> | `number_fee_text` | ✔ | ✗ *(idem)* | ✗ |
+> | `conditional_text` | ✔ | ✗ *(idem)* | ✔ ×2 |
+> | `action_text` | **✗** | ✔ override genérico en `getActionText` | ✗ |
+> | `benefit_list` | **✗** | ✔ ×3, gateado por `BANCOLOMBIA_LENDER_IDS` | ✔ ×3 |
+>
+> `grep additional_data` en `frontend-monorepo` (sin tests, stories ni mocks) + `legacy-application/resources/js`
+
+**Los dos campos que sirven para parametrizar son justamente los dos que no se pueden configurar.** Y
+el caso de `action_text` es el más elocuente, porque el override ya está escrito, probado y mergeado —
+su comentario dice *«producto puede cambiarlo sin deploy»*, y hoy **producto no puede**, porque no hay
+dónde escribirlo:
+
+    const configuredActionText = additionalData?.action_text?.trim();
+    if (configuredActionText) return configuredActionText;      // gana sobre todo lo de abajo
+    if (pathId === MANAGED_LENDER_PATH_ID) return "Continuar";
+    if (BANCOLOMBIA_LENDER_IDS.includes(lenderId)) return "Consultar Cupo";
+    if (isNequiLender(lenderId)) return "Finalizar la compra";  // "fallback para cuando action_text
+    switch (responseType) { … }                                 //  todavía no está configurado"
+
+#### 3 · y los CUATRO lugares que lo escriben son DESTRUCTIVOS
+
+> **MEDICIÓN.** `legacy-application` (`Admin\LenderController` update:96 y create:226) y
+> `legacy-backend` (`Modules/Partner/App/Services/LenderManagementService` create:55 y update:137)
+> **reconstruyen el objeto entero desde cuatro llaves** y lo vuelven a serializar:
+>
+>     $additional_data = [
+>         'amount_text' => …, 'number_fee_text' => …, 'rate_text' => …, 'conditional_text' => …
+>     ];
+>     … 'additional_data' => json_encode($additional_data),
+>
+> No es un merge: es un reemplazo. **Cualquier guardado desde cualquiera de los dos admin borra
+> `benefit_list` y `action_text`.** Quien los haya puesto a mano los pierde sin aviso.
+
+Eso convierte el «no se puede escribir» en algo peor que un hueco de formulario: lo poco que hay
+configurado es **frágil**, y se pierde por usar la pantalla como se debe usar.
+
+#### 4 · qué hay REALMENTE en la base (copia local, 162 lenders)
+
+> **MEDICIÓN.**
+>
+> - `benefit_list`: **2 lenders** — ids **68 y 100**, que son *exactamente* `BANCOLOMBIA_LENDER_IDS`.
+>   JSON escrito a mano, con iconos Tabler (`ti ti-calendar`) y hasta `\n` literales adentro.
+> - `action_text`: **0 lenders**. El override nunca se ejerció.
+> - `conditional_text`: con contenido real, **5 de 162**.
+> - `rate_text`: 159 llenos… y ahí está la otra cara del texto libre. **La misma tasa, escrita de
+>   ocho formas**: `1.88% M.V` (70) · `1.88% M.V.` (19) · `0` (10) · `0% M.V` (6) · `0%` (4) ·
+>   `1.88% Mes vencido` (4) · `1.88% MV` (4) · `.` (4) · `1.88% N.M.` (3)…
+> - `amount_text` es igual de artesanal: `1M-10M` · `1-20M` · `100K-1MM` · `de 1 a 20M` · `$50k-$3M` · `.`
+>
+> `docker exec legacy-backend-mysql-1 mysql … creditop`
+
+Que `benefit_list` viva sólo en los dos Bancolombia **es lo que hace segura la poda del tramo 0**: la
+condición con y sin la lista de ids da hoy el mismo resultado, y está medido, no supuesto.
+
+Y `rate_text` es el argumento entero en un solo campo: **es un número viajando como prosa**. Nadie
+puede ordenar por tasa, compararla ni traducirla, y el mismo 1,88% se le muestra al cliente de ocho
+maneras según quién cargó la fila.
+
+#### 5 · la identidad quemada del front son 31 usos en ~18 archivos — y `quemado` no la ve
+
+> **MEDICIÓN.** La herramienta `quemado` indexa `legacy-backend` (174) y `legacy-application` (217) y
+> **cero** del frontend. A mano, en `lenders-marketplace` (sin el archivo que las declara ni tests):
+>
+> | constante | usos | archivos |
+> |---|---|---|
+> | `MEDDIPAY_LENDER_ID` | 11 | 5 |
+> | `CREDIFAMILIA_LENDER_ID` | 7 | 4 |
+> | `BANCOLOMBIA_LENDER_IDS` | 5 | 3 |
+> | `PRAMI_LENDER_ID` | 5 | 3 |
+> | `WELLI_LENDER_IDS` · `ALL_WELLI_IDS` · `NEQUI_LENDER_ID` | 1 c/u | 1 c/u |
+> | `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS` | **0** | **0** |
+>
+> El último es **código muerto**: la constante y su helper `hidesAvailableCreditTag` sólo aparecen en
+> su propio archivo de declaración.
+
+#### 6 · TRES lenders tienen forma propia de cotización, y ahí está el costo real
+
+`lender-transaction-data.service.ts` (389 líneas) tiene extractores de dos clases: genéricos
+(`extractProductCondition`, `extractRevolvingLimits`, `extractCategoryRate`,
+`extractQuotaInitialFeePercentage`, `extractCategoryFga`) y **por lender**: `extractPramiQuotas`,
+`extractMeddipayOffers`, `extractMeddipayCreditLimit`, `extractMeddipayTermOptions`,
+`extractWelliInstallments` — más Credifamilia con su plan dinámico aparte.
+
+**El front conoce la forma del payload de cada lender.** Eso no es presentación: es un adaptador que
+quedó del lado equivocado de la frontera.
+
+#### 7 · TRES puertas distintas, y es lo que hace que la retrocompatibilidad salga gratis
+
+> **MEDICIÓN · 2026-09-11.** Los dos fronts **no comparten endpoint**, y el microservicio es una
+> tercera cosa:
+>
+> | quién | a qué le pega | quién lo atiende |
+> |---|---|---|
+> | wizard (`frontend-monorepo`) | `GET /api/onboarding/loan-application/**lenders-v2**/{ureq}` | `LenderListingController@index` (Modules/Onboarding) |
+> | `legacy-application` | `GET /api/onboarding/loan-application/**lenders**/{ureq}` | `ListLenderController@index` — **otro controlador** |
+> | wizard, ADEMÁS | `POST /v1/preapprovals/check` (`VITE_PREAPPROVALS_ENDPOINT`) | el microservicio de pre-aprobados |
+>
+> `loan-options.repository.ts:35` · `Modules/Onboarding/routes/api.php:51-53` ·
+> `legacy-application/app/Http/Controllers/Customer/ListLenderController.php:264`
+
+**Consecuencia directa:** agregarle un bloque nuevo a `lenders-v2` **no puede** llegarle a
+`legacy-application`, porque no llama a esa ruta. La retrocompatibilidad no hay que construirla con un
+flag: ya está, y es por puertas separadas.
+
+⚠ **Trampa de nombres, y es fácil caer:** la vista de `legacy-application` se llama
+`customer/lenders/list/**v2**/ListLenders.vue` — ese «v2» es la versión de la PANTALLA, y esa pantalla
+consume la API **v1**. «v2» no quiere decir lo mismo en los dos sistemas.
+
+#### 8 · lo que NO está normalizado es `transaction_data`, y el que puede normalizarlo es el MICROSERVICIO
+
+El envelope del microservicio **ya es uniforme** para todos los lenders —`applicant_id`,
+`approved_amount`, `available`, `probability`, `status`, `sort`…— y adentro lleva un agujero declarado
+a propósito:
+
+    transaction_data: z.unknown(),
+    // "All lenders return the same envelope; `transaction_data` is intentionally
+    //  `unknown` because each lender ships its own structure."
+
+Ahí nacen los cinco extractores de la medición 6. O sea: **el lugar donde hay que normalizar la
+cotización no es el listado del monolito, es el microservicio de pre-aprobados** — que es justamente
+quien habla con la API de cada lender y tiene el dato en crudo. El front hoy hace de adaptador de un
+servicio que ya tenía la oportunidad de hacerlo.
+
+### Lo que ya está resuelto bien, y sirve de molde
+
+No hay que inventar el patrón: hay tres ejemplos, todos mergeados.
+
+    // ✔ por CAPACIDAD, con el dato que el backend manda
+    usesCalculatorOffer(lender) → hasCalculatorPlans(lender.calculated) || isCalculatorProduct(lender.product)
+    // ✔ por CONFIGURACIÓN, con precedencia clara
+    getActionText(…)           → additional_data.action_text gana; los ids son el fallback
+    // ✔ que lo decida el backend
+    hide_probability           → un booleano en la respuesta ("lo decide el backend")
+
+    // ✗ por ID
+    supportsDynamicPaymentPlan(id) → id === CREDIFAMILIA_LENDER_ID
+    supportsLiveReprice(id)        → id === MEDDIPAY_LENDER_ID
+
+El test del primero explica por qué gana, y no es estético: *«antes el RTO venía con
+`product = 'renting'` para heredar la card, y un UPDATE en BD lo habría tirado a la de crédito»* — y
+cubre la degradación: un alquiler con el calculator roto **no** cae a la tarjeta de crédito.
+
+### La propuesta, en tramos
+
+#### Tramo 0 — la poda · horas · riesgo nulo
+
+- Borrar `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS` y `hidesAvailableCreditTag`: sin consumidores.
+- Sacar `BANCOLOMBIA_LENDER_IDS.includes(lenderData.id)` de `shouldShowBenefitList`
+  (`LenderCardContent.tsx:1078`). La condición ya exige `!isNil && !isEmpty`, y sólo 68 y 100 tienen
+  `benefit_list`, así que **la conducta no cambia** — cambia la REGLA: de «lo muestro si sos
+  Bancolombia» a «muestro lo que llegó».
+  ⚠ Ojo al efecto colateral: `shouldApplyDarkBackground` (línea 1089) cuelga de esa misma variable, así
+  que el día que otro lender traiga beneficios también cambia de fondo. Es lo que se quiere, pero hay
+  que decirlo.
+
+**Qué compra:** el siguiente lender con beneficios funciona sin tocar código.
+
+#### Tramo 1 — conectar el canal que ya existe · días · el mejor retorno
+
+1. **Que los writers dejen de borrar.** Los cuatro lugares que reconstruyen `additional_data` tienen
+   que **mergear sobre lo que había**, no reemplazar. Sin esto, todo lo demás se pierde al primer
+   guardado.
+2. **`action_text` y `benefit_list` al formulario del admin.** El primero es una caja de texto y ya
+   tiene su override probado: es el cambio más barato del documento con efecto visible en la tarjeta.
+3. **Decidir los tres huérfanos**: `amount_text` y `number_fee_text` no los dibuja nadie, y
+   `conditional_text` sólo sobrevive en el listado viejo. O los lee la tarjeta nueva, o salen del
+   formulario. Un campo que se guarda y no hace nada es peor que no tenerlo: alguien lo llena y espera
+   un efecto.
+4. **`additional_data` deja de viajar como string JSON** y viaja como objeto, con un solo parseo
+   validado (hoy el front hace `JSON.parse` de una columna de texto, con `catch` que devuelve vacío).
+
+**Qué compra:** esto ES «que el lender defina su tarjeta», administrable, sin inventar nada. Y es el
+tramo que hay que hacer **antes** de prometer más: si se conecta y en un mes nadie lo usa, la hipótesis
+queda medida en vez de supuesta.
+
+#### Tramo 1b — el bloque `card` en la respuesta del listado (la idea de Miguel) · aditivo
+
+Que `lenders-v2` traiga, por lender, un bloque con **lo que la tarjeta tiene que decir**. El front lo
+usa si viene y cae a lo de hoy si no viene, igual que ya hace `action_text`.
+
+    "card": {
+      "action_text": "Consultar cupo",
+      "benefit_list": [ { "icon": "…", "text": "…" } ],
+      "rate":   { "value": 1.88, "period": "monthly" },
+      "amount": { "min": 1000000, "max": 10000000 },
+      "notes":  "texto condicional"
+    }
+
+**Por qué es seguro:** `legacy-application` no llama a `lenders-v2` (medición 7), así que no se entera.
+Y dentro del wizard, un campo nuevo que nadie lee todavía no cambia ninguna pantalla: se puede
+desplegar el backend primero y el front después, sin coordinar.
+
+⚠ **Dónde está la línea, y es la decisión de fondo del documento.** Ese JSON describe **contenido y
+capacidades** (qué texto, qué beneficios, qué tasa, qué rango). El día que empiece a describir
+**estructura** —`{"components":[{"type":"row","children":[…]}]}`— deja de ser configuración y pasa a
+ser un lenguaje de render: el front pierde los tipos, un cambio de diseño se vuelve una migración de
+datos, QA no puede probar una pantalla que varía por fila, y el tema oscuro, la accesibilidad y los
+idiomas quedan del lado del que carga el dato. La regla: **el lender declara QUÉ tiene; la tarjeta
+decide CÓMO se ve.**
+
+Y una consecuencia práctica de la medición 4: `rate` conviene que viaje **como número y período**, no
+como el texto libre de hoy. Si el bloque `card` nace copiando `rate_text`, nace con las ocho grafías
+adentro.
+
+#### Tramo 2 — normalizar la cotización EN EL MICROSERVICIO · el caro, y el que de verdad paga
+
+Que `transaction_data` deje de ser `unknown` y el microservicio entregue **una sola forma** de «cuota
+por plazo». No es en el listado del monolito: el que tiene el dato crudo de cada lender —y el que ya
+uniformó todo lo demás del envelope— es el microservicio de pre-aprobados (medición 8).
+
+**Alcance medido:** 5 extractores por lender dentro de un servicio de 389 líneas; 31 usos de constantes
+de identidad en ~18 archivos, con Meddipay como el más caro (11). Las tres ramas por id de
+`LenderCardContent` (1081, 1122, 1144) colapsan cuando esto se hace; `supportsDynamicPaymentPlan` y
+`supportsLiveReprice` se vuelven capacidades como ya lo es `usesCalculatorOffer`.
+
+**Qué compra:** agregar un lender rt=1 deja de tocar el front. **Riesgo:** cambia el contrato de
+`/lenders`, que alimenta la pantalla más visitada del wizard — pide caracterización previa (el harness
+ya cierra casos por consola) y despliegue por ambientes.
+
+#### Tramo 3 — lo que NO haría
+
+Un DSL de layout: que el backend mande componentes, slots o estructura. Cuesta un lenguaje que
+mantener, le quita tipos al front, convierte un cambio de diseño en un cambio de dato, y el lender no
+conoce el design system del wizard. La regla que lo reemplaza: **el lender declara QUÉ tiene; la
+tarjeta decide CÓMO se ve.**
+
+### Riesgos y preguntas abiertas de este frente
+
+
+- **Los números de la medición 4 son de la copia local.** Antes de tocar nada hay que repetir esa
+  consulta **contra prod** (lectura, que es lo único permitido): si allá `benefit_list` lo tiene alguien
+  más que 68 y 100, el tramo 0 deja de ser neutro.
+- **`rate_text` con ocho grafías es un síntoma, no la enfermedad.** Convertirlo en dato (tasa + período)
+  es su propio trabajo y no está costeado acá; lo que sí conviene es no agregar más texto libre
+  mientras tanto.
+- **`quemado` no indexa el front**, así que el inventario que usamos para priorizar tiene un punto
+  ciego. Cerrarlo es barato y hace visible esto y lo que venga.
+- El merge de los writers (tramo 1.1) toca dos monolitos a la vez. Van por PRs separados.
 
 ## Lo que está decidido
 
@@ -426,6 +700,25 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-11 · la tarjeta parametrizable entra a esta tarea, y se mide antes de tocar código
+
+Miguel pidió mirar, **antes de escribir código**, cómo el listado arma la tarjeta de cada entidad, y
+propuso que cada lender defina la suya. Se midió (las ocho mediciones están arriba) y la medición
+corrigió dos supuestos míos: `action_text` **sí** se lee —el override genérico ya está mergeado, con
+tests— y lo que falta es poder escribirlo; y los writers no sólo omiten campos, los **destruyen**.
+
+Después preguntó si el listado que consume el wizard es el del microservicio o `lenders-v1`, para no
+validar sobre el camino equivocado. Bien preguntado: es **`lenders-v2`** del monolito, y el
+microservicio es una llamada aparte. De medirlo salieron dos cosas que cambian el plan —
+`legacy-application` consume **otro endpoint** (retrocompatibilidad por construcción, sin flag), y el
+`transaction_data: unknown` del microservicio es el origen real de los cinco extractores, así que la
+normalización va **en el microservicio**.
+
+Nació como tarea #79 aparte y **se plegó acá** por decisión de Miguel: la #79 queda archivada como el
+documento de la medición. El esfuerzo de la bitácora también se movió a esta tarea. Y quedó la regla
+para la bitácora de acá en adelante: **el arnés y las herramientas locales NO son esfuerzo de tarea**
+— se registran como tiempo, sin colgar de ninguna.
 
 ### 2026-09-11 · publicada como CORE-558, en progreso
 
