@@ -62,6 +62,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«funciona en producción y en dev no, sin error»** | **F-205** |
 | **«medí el rendimiento en local y en el ambiente real no mejora»** | **F-206** |
 | **«el listado tarda una eternidad en dev/qa»** | **F-207** |
+| **«un ambiente de prueba tocó datos de PRODUCCIÓN sin que nadie lo pidiera»** | **F-208** |
+| **«el job que encolé en qa nunca se ejecutó» · «el comando agendado no corre en dev»** | **F-209** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -347,6 +349,8 @@ distinto según con qué pregunta llegues.
 | F-205 | Una constante de id en el front es de PRODUCCIÓN: en dev señala a otra entidad, así que la regla no aplica y nada falla | ⏳ columna en el backend, front pendiente |
 | F-206 | El dump local NO trae todos los índices de producción: medir rendimiento sobre él inventa cuellos de botella que allá no existen | disciplina, sin arreglo de código |
 | F-207 | El listado tarda 32 s en dev y 30 de ellos son el PERFILAMIENTO: el mismo endpoint sin esa etapa contesta en 1,2 s | ABIERTO |
+| F-208 | `pdf_mapper` y `pdf_mapper_service` tienen de DEFAULT el host de PRODUCCIÓN: el ambiente que olvide la variable escribe allá, en silencio | ABIERTO |
+| F-209 | Fuera de prod `legacy-backend` no tiene worker ni scheduler: con `QUEUE_CONNECTION=sync` lo encolado corre dentro del request, y lo agendado no corre | ABIERTO |
 
 ---
 
@@ -4360,5 +4364,100 @@ uno culpa al arnés o a la red. No: es esta etapa.
 su propio listado— duró 2 s el mismo día. No es el mismo endpoint: compararlos lleva a concluir que
 «a veces va rápido».
 
+**2026-09-11 · lo que se descartó sondeando los servicios.** Desde la máquina los nombres del cluster
+responden, así que las dos sospechas «el servicio no contesta» se pueden medir en vez de suponerse:
+
+| servicio | sonda | resultado |
+|---|---|---|
+| `profiler-ml.inertia-develop:8000` | `GET /` | **200 en 0,18 s** |
+| `h2o.inertia-develop:54321` | `GET /3/Cloud` | **13,9 s** la primera; 1,3 · 1,4 · 2,4 · 2,8 s las siguientes |
+
+**El perfilador nuevo está vivo y es rápido** — la hipótesis de que su host no contestaba queda
+descartada. **H2O sí está lento**, pero arranca en frío y se recupera; y sobre todo, H2O se usa
+únicamente en `makePrediction()`, que es el camino **legacy**, el mismo que los logs dicen que no se
+disparó. Las dos sospechas se caen, y con ellas la explicación «15 + 15 de timeout».
+
+⚠ **Sonda con control, o no es sonda.** Un nombre inventado no resuelve y un puerto inventado da
+cerrado: se comprobaron los dos casos antes de creerle a estas cifras. Y `nc -z` habría mentido —
+`onboarding-forms-service` acepta TCP en dos puertos y sólo uno habla HTTP.
+
+**Lo que queda como explicación más probable, y NO está medido:** que el perfilamiento se calculaba
+**tres veces** por listado. Eso se encontró y se corrigió aparte (el PR del doble cálculo, mergeado el
+2026-09-11), y ×3 sobre una etapa de ~10 s da los 30 medidos. **La forma de cerrarlo es volver a medir
+el listado ahora que ese PR está desplegado**, no seguir sondeando servicios.
+
+
 **Estado:** ABIERTO. El diagnóstico está medido —30 de 32 s en el perfilamiento, reproducido seis
 veces sobre dos solicitudes distintas—; **cuál de sus tres llamadas se los lleva, NO**.
+
+### F-208 · Dos claves de configuración apuntan a PRODUCCIÓN por defecto, y el ambiente que olvide la variable escribe allá
+
+**Síntoma:** ninguno. Ése es el problema. Un ambiente no productivo al que le falte una variable no
+falla, no avisa y no se ve distinto: habla con el servicio de **producción** como si fuera el suyo.
+
+**Causa raíz.** En `legacy-backend/config/services.php`, el segundo argumento de `env()` —el valor por
+defecto— es una URL del cluster de producción:
+
+```php
+'pdf_mapper' => [
+    'base_url' => env('PDF_MAPPER_BASE_URL', 'http://pdf-mapper-service.inertia-production:8080'),
+],
+'pdf_mapper_service' => [
+    'host' => env('PDF_MAPPER_SERVICE_HOST', 'http://pdf-mapper-service.inertia-production:8080'),
+],
+```
+
+Son las **dos únicas** claves de todo `config/` con un default productivo (verificado con
+`grep -rn inertia-production config/` el 2026-09-11: el resto de apariciones son comentarios). Y
+`pdf-mapper-service` **existe en los dos clusters**, así que no es que no hubiera a dónde apuntar.
+
+**Por qué es caro.** `pdf-mapper-service` rellena plantillas PDF y su única fuente es **S3**: un ambiente
+de prueba que caiga en el default lee —y escribe— el bucket de producción. El resto de los clientes del
+repo eligieron el default contrario y lo dejaron escrito: `merchant_api` usa `env('MERCHANT_API_HOST', '')`
+y su comentario explica el porqué, que es exactamente la regla que falta acá — «si queda vacío el cliente
+apunta a una base vacía y las llamadas fallan como error de transporte, que los servicios llamadores
+atrapan».
+
+**Agrava:** de las **55** variables de host/URL que lee `config/services.php`, **45 no están en el
+`.env.example` versionado** — entre ellas `PDF_MAPPER_BASE_URL`, `H2O_API_HOST`, `NEW_PROFILER_ML_HOST`,
+`PRE_APPROVALS_BASE_URL`, `FORM_SERVICE_HOST` y `OTP_SERVICE_HOST`. La plantilla no le recuerda a nadie
+que esa variable existe, así que «olvidarla» es el caso normal, no el raro. (Y `H2O_API_HOST` es la que,
+si falta, tumba **todo** `/lenders` con un 500 — ver el nodo `profiling`.)
+
+**Arreglo:** default vacío en las dos claves, como `merchant_api`. Y llevar las variables de host al
+`.env.example`, aunque sea comentadas: una plantilla que omite 45 de 55 no es una plantilla.
+
+**Estado:** ABIERTO, sin PR. Detectado leyendo configuración, **no** reproducido — nadie comprobó que
+haya hoy un ambiente sin la variable.
+
+### F-209 · Fuera de producción el monolito nuevo no tiene cola ni cron: lo encolado corre DENTRO del request, y lo agendado no corre nunca
+
+**Síntoma:** «el job que encolé en qa nunca se ejecutó». O al revés, y más difícil de ver: «este endpoint
+tarda de más en dev y en producción no».
+
+**Causa raíz.** `legacy-backend-worker` y `legacy-backend-scheduler` existen **sólo en el cluster de
+producción**. En `inertia-develop` están comentados en el `terragrunt.hcl`, así que no hay proceso que
+consuma la cola ni que corra `schedule:run`. Verificado sin depender del documento de infra: ninguno de
+los dos nombres resuelve en DNS, mientras que `legacy-application-worker.inertia-develop` —el worker del
+monolito **viejo**, que sí está desplegado— resuelve sin problema. Es fácil ver ese y concluir que hay
+worker.
+
+**La consecuencia que se lee al revés.** El default de la cola en el repo es **`sync`**
+(`config/queue.php:16` y el `.env.example` versionado). Con `sync`, Laravel **no encola**: ejecuta el job
+en el mismo proceso, dentro del request. Así que en dev/qa/staging/lab lo despachado no se pierde —se
+paga, en latencia, en la petición del usuario—. Un endpoint que en producción delega trabajo a la cola,
+en esos ambientes lo hace él mismo mientras el cliente espera. **Comparar tiempos entre dev y producción
+sin saber esto lleva a buscar el cuello de botella donde no está.**
+
+⚠ **Lo que sigue sin comprobarse es el valor efectivo.** `QUEUE_CONNECTION` puede venir pisado por el
+secreto del servicio en ECS, que no se lee desde el repositorio — el mismo hueco que ya tiene `APP_ENV`
+en staging. Lo medido es: el default del repo es `sync` y **no hay worker desplegado**. Si el secreto
+pusiera `sqs` o `redis`, el resultado es el otro: los jobs se encolan y **nadie los saca nunca**.
+Cualquiera de los dos escenarios importa; no se puede suponer cuál.
+
+**Y lo agendado no corre en ningún caso.** Sin scheduler, los comandos de `schedule()` no se disparan
+fuera de producción — incluidos los crons de cartera. Probar un comando agendado ahí exige invocarlo a
+mano.
+
+**Estado:** topología CONFIRMADA (DNS). El comportamiento de la cola, **deducido del repo y no medido en
+el servicio**.

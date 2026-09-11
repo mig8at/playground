@@ -78,6 +78,114 @@ que atiende tráfico del que apenas late.
   faltaba para contestar si el pipeline de KYC en Temporal ya reemplazó al bloque síncrono del monolito:
   **todavía no**. Ver abajo.
 
+## La topología DESPLEGADA (infra, 2026-08-31 + sondeado el 2026-09-11)
+
+El censo de arriba se hizo con Loki: dice **quién loguea**. Este dice **quién está desplegado**, que es
+otra pregunta — y es justo la que el propio nodo advierte que Loki no contesta («la ausencia de un
+`service_name` NO prueba que el servicio esté muerto»). Fuente: el documento *Environments Sites* de
+infraestructura, con fecha de actualización **2026-08-31**; lo que dice cada tabla se volvió a **sondear
+desde la máquina el 2026-09-11** y las diferencias están marcadas.
+
+**Sólo hay DOS clusters ECS**: `inertia-develop` y `inertia-production`. Dev, staging, QA y canary son
+**el mismo cluster** con servicios distintos; no hay una cuenta ni una red por ambiente.
+
+**El formato del nombre interno es `http://{servicio}.{cluster}:{puerto}`** — service discovery, sin
+TLS y sin pasar por el ALB. Es lo que ya usan los `.env.*` del arnés (`E2E_API_BASE_URL`,
+`E2E_PREAPPROVALS_ENDPOINT`) y los del wizard.
+
+### Lo que sólo existe en un lado
+
+| Sólo en PROD | Sólo en DEV |
+|---|---|
+| `legacy-application-worker-high` | `legacy-application-stg` · `legacy-application-canary` (+ su worker) |
+| `legacy-application-scheduler` | `legacy-backend-stg` · `-qa` · `-rec` · `-lab` |
+| **`legacy-backend-scheduler`** | `loan-request-wizard-stg` · `-qa` |
+| **`legacy-backend-worker`** | `payment-gateway-service` · `payment-service` · `risk-profile-service` |
+| `uma` | **`profiler-ml`** |
+
+Las dos filas en negrita de PROD son **F-209**: fuera de producción el monolito nuevo no tiene ni cola
+ni cron. Verificado sin depender del documento — `legacy-backend-worker.inertia-develop` y
+`legacy-backend-scheduler.inertia-develop` **no resuelven en DNS**, mientras que
+`legacy-application-worker.inertia-develop` sí.
+
+**`profiler-ml` no tiene workflow de producción**, y es el perfilador *nuevo* (`services.new_profiler_ml`),
+el primario de la cadena que describe el nodo `profiling`. En dev está vivo y es rápido: sondeado el
+2026-09-11, `GET http://profiler-ml.inertia-develop:8000/` contesta **200 en 0,18 s**.
+
+⚠ **`h2o` es otra cosa.** Está en los dos clusters y en dev **arranca en frío**: la primera llamada a
+`/3/Cloud` tardó **13,9 s** y las cinco siguientes 1,3–2,8 s. Es el modelo del camino **legacy** del
+perfilador (`services.h2oapi`, `ProfilerMLController::makePrediction`, `timeout(15)`). Que esté lento no
+basta para explicar un listado lento: hay que comprobar antes que el fallback se haya disparado (ver
+F-207).
+
+### Cinco `legacy-backend` sobre UNA base
+
+En el cluster de dev corren **cinco** servicios del mismo repo —`legacy-backend`, `-stg`, `-qa`, `-rec`,
+`-lab`—, y los cuatro con workflow construyen la imagen con **`APP_ENV=develop`** (verificado en
+`main-dev.yaml`, `main-stg.yaml`, `main-qa.yaml`, `main-lab.yaml`). Comparten la **misma base**
+(`inertia-dev`). Dos consecuencias que ya costaron tiempo:
+
+- **«es dev» no se puede probar desde un log.** Los cinco emiten con las mismas etiquetas, así que en
+  Grafana no se distingue cuál contestó. Es por qué una inferencia por conteo de líneas entre dev y qa
+  no vale — cualquiera de los cinco pudo escribirlas.
+- **la advertencia de la BD compartida es por cinco, no por dos.** `CLAUDE.md` dice que staging comparte
+  la base con dev; son cinco backends y dos monolitos viejos sobre el mismo RDS.
+
+⚠ **`legacy-backend-rec` no tiene rama ni workflow.** Resuelve en DNS, pero en `origin` no hay rama `rec`
+ni `main-rec.yaml`: corre una imagen que nadie vuelve a publicar. No lo uses como ambiente y no supongas
+qué código tiene.
+
+### Rama → despliegue
+
+| ambiente | dispara con |
+|---|---|
+| DEV | push a `develop` |
+| STG | push a `staging` |
+| QA | push a `qa` |
+| LAB | push a `lab` *(el documento no lo lista para `legacy-backend`; el workflow sí — verificado)* |
+| Canary | push a `canary` (sólo `legacy-application`; el workflow vive en esa rama) |
+| PROD | **un tag**, no una rama |
+
+Excepción que engaña: **`backoffice` (en `frontend-monorepo`) usa la rama `lab` para DEV y `main` para
+PROD** — nada de `develop`. Y hay **dos `lab` distintos**: el de `frontend-monorepo` sirve al backoffice,
+el de `legacy-backend` sirve a `legacy-backend-lab`.
+
+### URLs públicas: qué host es qué ambiente
+
+Tres ALB internet-facing, todos por host-header y sólo HTTPS; un host que no matchea da **403**, que se
+lee como «el servicio está caído» y no lo es.
+
+- **PROD** (`Live`): `api` · `admin` · `aliados` · `loans` · `originaciones` · `smartpay` · `uma` ·
+  `backoffice` · `ws` `.creditop.com`.
+- **DEV/STG/QA/Canary** (`alb-inertia-develop`), todos bajo `dev.creditop.com` salvo staging y canary:
+  `dev` · `admin.dev` · `aliados.dev` · `originaciones.dev`, más
+  **`originaciones-stg.dev.creditop.com`** y **`originaciones-qa.dev.creditop.com`** (los wizards de
+  staging y QA), y `admin/aliados/api.staging.creditop.com` y `*.canary.creditop.com` para los monolitos
+  viejos de esos ambientes.
+- **Herramientas** (`alb-internal-tools`): `redash` · `metabase` · `playground` y sus hijos
+  (`credibot`, `cuadrilla`, `canon`).
+
+⚠ **`auth.creditop.com` sólo enruta `/auth/login` y `/auth/callback`** al `web-auth-service`; cualquier
+otro path de ese host cae al default y da 403. Un 403 ahí no dice nada del servicio.
+
+Y hay **dos ALB `internal`** (`alb-internal-develop`, `alb-internal-production`) que no exponen nada
+públicamente.
+
+### Cómo volver a comprobarlo (sin pedirle nada a nadie)
+
+Desde la máquina de Miguel los nombres del cluster **resuelven y responden** (hay ruta a la VPC), así que
+el documento se audita solo:
+
+```sh
+dscacheutil -q host -a name <servicio>.inertia-develop     # ¿existe el servicio?
+curl -s -o /dev/null -m 10 -w '%{http_code} %{time_total}s\n' http://<servicio>.inertia-develop:<puerto>/
+```
+
+⚠ **Con control, siempre.** Un nombre inventado (`no-existe-este-servicio.inertia-develop`) **no resuelve**
+y un puerto inventado da *cerrado*: si tu sonda no distingue esos dos casos, no está midiendo. Y `nc -z`
+sólo prueba el TCP — `onboarding-forms-service` acepta conexión en 8089 **y** en 8092, pero el único que
+habla HTTP es **8092**.
+
 ## `customer-profiling-service`: el KYC que viene
 
 Es el servicio que más importa entender de los nuevos, porque **pisa dos nodos grandes del árbol**
