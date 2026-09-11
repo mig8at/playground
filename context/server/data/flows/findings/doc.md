@@ -64,6 +64,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el listado tarda una eternidad en dev/qa»** | **F-207** |
 | **«un ambiente de prueba tocó datos de PRODUCCIÓN sin que nadie lo pidiera»** | **F-208** |
 | **«el job que encolé en qa nunca se ejecutó» · «el comando agendado no corre en dev»** | **F-209** |
+| **«¿cuántas consultas hace este endpoint?» · «medí y el número no puede ser»** | **F-210** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -351,6 +352,7 @@ distinto según con qué pregunta llegues.
 | F-207 | El listado tardaba 32 s y 30 eran el PERFILAMIENTO. Ya NO se reproduce (1,0-1,7 s el 2026-09-11) y el ×3 está arreglado; **por qué una llamada costaba ~10 s, sin respuesta** | no se reproduce |
 | F-208 | `pdf_mapper` y `pdf_mapper_service` tienen de DEFAULT el host de PRODUCCIÓN: el ambiente que olvide la variable escribe allá, en silencio | ABIERTO |
 | F-209 | Fuera de prod `legacy-backend` no tiene worker ni scheduler: con `QUEUE_CONNECTION=sync` lo encolado corre dentro del request, y lo agendado no corre | ABIERTO |
+| F-210 | El registro general de MySQL cuenta las consultas de Laravel en `Execute`, no en `Query`: filtrar por `Query` da 16 donde hay 124. Sirve para CONTAR, no para cronometrar | receta |
 
 ---
 
@@ -4517,3 +4519,47 @@ mano.
 
 **Estado:** topología CONFIRMADA (DNS). El comportamiento de la cola, **deducido del repo y no medido en
 el servicio**.
+
+### F-210 · Contar las consultas de UNA petición: el registro general de MySQL las esconde donde nadie mira
+
+**Síntoma:** querés saber cuántas consultas hace un endpoint y el registro general de MySQL te
+contesta **16** cuando son **124**. O peor: te contesta un número redondo y creíble, y encima de ese
+número construís un diagnóstico.
+
+**Causa raíz.** Laravel habla con MySQL por **sentencias preparadas**. En `mysql.general_log` eso NO
+aparece como `command_type='Query'` —el filtro que uno escribe por reflejo— sino repartido en
+`Prepare`, `Execute` y `Close stmt`. Filtrando por `Query` quedan sólo las sentencias **internas de
+los procedimientos almacenados** (las que tienen `INTO` y `NAME_CONST`), que son reales pero son
+otra cosa. La cuenta que importa es la de **`Execute`**.
+
+**La receta, contra el MySQL local y nada más:**
+
+```sh
+docker exec legacy-backend-mysql-1 mysql -uroot -ppassword -e "
+  SET GLOBAL log_output='TABLE'; SET GLOBAL general_log='ON'; TRUNCATE TABLE mysql.general_log;"
+# …la petición que querés medir…
+docker exec legacy-backend-mysql-1 mysql -uroot -ppassword -N -e "
+  SELECT command_type, COUNT(*) FROM mysql.general_log GROUP BY command_type;"   # mirá Execute
+docker exec legacy-backend-mysql-1 mysql -uroot -ppassword -e "SET GLOBAL general_log='OFF';"
+```
+
+Y para encontrar el N+1, agrupá el texto de las `Execute` normalizando literales (`'…'` y números a
+`?`): lo que se repite N veces con N = cantidad de entidades es el bucle.
+
+⚠ **Apagalo al terminar.** Queda encendido para toda la instancia y escribe una fila por sentencia.
+
+✔ **Es el instrumento correcto para CONTAR, y el equivocado para CRONOMETRAR.** El conteo es
+estructural —el mismo bucle da el mismo número en cualquier ambiente—, así que medirlo en local vale.
+El tiempo no: con la base en la misma máquina, 38 viajes de red menos **no mueven el reloj**
+(medido: 0,33–0,37 s antes y después de sacar 38 consultas). Quien concluya de ahí que «no sirvió»
+está midiendo su propio localhost. Es el primo de **F-206**, al revés.
+
+⚠ **Y el segundo modo de mentir, que no es de MySQL sino del shell: `for u in $IDS` NO parte por
+espacios en zsh.** Un `IDS="a b c"` da UNA vuelta con las tres juntas, las URLs salen malformadas,
+los archivos quedan **vacíos** — y el `md5` de dos archivos vacíos **es igual**, así que la
+comparación imprime «respuesta IDÉNTICA» y el A/B entero pasa en verde sin haber corrido nunca. Va
+array (`IDS=(a b c)`) y, sobre todo, **el comparador tiene que exigir que haya contenido**
+(`[ -s archivo ] && …`): una prueba que no puede distinguir «igual» de «no corrió» no es una prueba.
+
+**Estado:** receta, no defecto. Lo que se midió con ella está en la tabla de
+`processLendersWithAdditionalInfo` (⏳ PENDIENTE DE MERGE, PR del listado).
