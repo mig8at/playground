@@ -255,10 +255,14 @@ maneras según quién cargó la fila.
 > | `BANCOLOMBIA_LENDER_IDS` | 5 | 3 |
 > | `PRAMI_LENDER_ID` | 5 | 3 |
 > | `WELLI_LENDER_IDS` · `ALL_WELLI_IDS` · `NEQUI_LENDER_ID` | 1 c/u | 1 c/u |
-> | `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS` | **0** | **0** |
+> | `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS` | 3 | 3 |
 >
-> El último es **código muerto**: la constante y su helper `hidesAvailableCreditTag` sólo aparecen en
-> su propio archivo de declaración.
+> ⚠ **CORREGIDO el 2026-09-11.** El último lo di por **código muerto** y era FALSO: lo grepeé con el
+> nombre equivocado (`hidesAvailableCreditTag`), y el helper se llama **`shouldHideAvailableCreditTag`**.
+> Tiene **tres consumidores reales** — el mapper, `lender-resolution.service` y `lender-approval.service`.
+> No se borra. Y es mejor noticia que un borrado: **el propio código ya pide lo que proponemos**, en un
+> comentario escrito antes que esta tarea —*«TODO(backend): mover esta decisión al backend (un flag en la
+> respuesta del lender…)»*—, así que es el cuarto caso que el payload debería resolver, no el que sobra.
 
 #### 6 · TRES lenders tienen forma propia de cotización, y ahí está el costo real
 
@@ -331,7 +335,8 @@ cubre la degradación: un alquiler con el calculator roto **no** cae a la tarjet
 
 #### Tramo 0 — la poda · horas · riesgo nulo
 
-- Borrar `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS` y `hidesAvailableCreditTag`: sin consumidores.
+- ~~Borrar `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS`~~ — **no es código muerto** (ver la corrección en la
+  medición 5). Pasa a ser candidato del payload, con su `TODO(backend)` ya escrito en el código.
 - Sacar `BANCOLOMBIA_LENDER_IDS.includes(lenderData.id)` de `shouldShowBenefitList`
   (`LenderCardContent.tsx:1078`). La condición ya exige `!isNil && !isEmpty`, y sólo 68 y 100 tienen
   `benefit_list`, así que **la conducta no cambia** — cambia la REGLA: de «lo muestro si sos
