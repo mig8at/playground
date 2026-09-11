@@ -55,6 +55,10 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el mismo comercio se porta distinto en local y en qa»** | **F-199** · F-188 |
 | **«en local falla y en qa funciona» / «el dato está pero no se ve»** | **F-200** |
 | **«el mock/arnés es más permisivo que el proveedor real»** | **F-196** |
+| **«el arnés dice que pasó y a mano no pasa»** | **F-201** |
+| **«la tarjeta dice *No pudimos consultar esta entidad* y el Reintentar no sirve»** | **F-202** |
+| **«el cliente ve un 0 / un punto donde va la tasa»** | **F-203** |
+| **«andaba, lo reinicié y dejó de andar»** | **F-204** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -333,6 +337,10 @@ distinto según con qué pregunta llegues.
 | F-199 | Un id de entidad no significa lo mismo en cada base: el mismo spec clona otra familia de producto y agrega pantallas al flujo | arreglado en el sembrador |
 | F-200 | El backend local está en otra rama: la base tiene el dato y el código que lo lee no está, así que el síntoma parece del producto | disciplina, sin arreglo de código |
 | F-196 | El canal QR cerraba en VERDE en local con el payload que el banco rechaza: tres huecos de fidelidad encadenados, los tres en el mismo campo | arreglado |
+| F-201 | El motor HTTP del arnés dice «listó» donde el navegador se traba: postea la acción y se salta la validación del cliente (el selector de producto) | ABIERTO |
+| F-202 | El front le pregunta al microservicio de pre-aprobados por entidades cuya clave NO existe: la arma con el `slug`, y en prod sólo 7 de 140 son válidas | ABIERTO |
+| F-203 | La tasa de la tarjeta es TEXTO LIBRE: el cliente ve «0» o «.» donde va un interés, y el mismo 1,88% está escrito de ocho formas | ABIERTO |
+| F-204 | El proceso viejo tiene el entorno de cuando arrancó: reiniciar el dev server «rompió» el OTP, y el mock que faltaba enchufar ya estaba corriendo | disciplina, sin arreglo de código |
 
 ---
 
@@ -4088,3 +4096,117 @@ wizard estando el FRONT en otra rama y reportar que la pantalla no existía. La 
 dos: **antes de reportar una ausencia, comprobá que el código que la produciría está corriendo.**
 
 **Estado:** no tiene arreglo de código — es disciplina. Por eso está acá.
+
+### F-201 · El motor HTTP del arnés dice «listó» donde un usuario real no puede pasar
+
+**Síntoma:** el mismo comercio sale **verde por HTTP y rojo con navegador**. Por HTTP: «listó 5
+entidades». Con navegador: *«solicitar: sin botón habilitado para avanzar»*, en la primera pantalla.
+
+**Causa:** el motor HTTP **postea la acción del front directo**, así que se salta todo lo que el
+cliente valida ANTES de habilitar el botón. En estos comercios lo que falta es elegir el **producto**:
+la pantalla pide «Selecciona tu producto» y el botón queda `disabled` hasta que hay uno. El
+autorrelleno no toca ese combo —no es un input de texto— y el motor HTTP ni se entera de que existe.
+
+> **MEDICIÓN · 2026-09-11 · correlación perfecta en 6 comercios.** Los que tienen productos cargados
+> se traban; los que no, caminan:
+>
+> | comercio | productos | HTTP | navegador |
+> |---|---|---|---|
+> | motai | 1 | ✓ «listó» | ✗ trabado |
+> | dentix | 5 | ✓ «listó» | ✗ trabado |
+> | sonria · gaes · celucambio · alta-fleet | 0 | ✓ | ✓ |
+>
+> Comprobado a mano: eligiendo el producto y poniendo un monto válido, el botón **se habilita**.
+
+**Por qué importa más de lo que parece:** no es «al arnés le falta rellenar un campo». Es que el motor
+rápido —el que uno usa por defecto— **certifica como sano un comercio por el que nadie puede pasar**.
+Un verde que no significa lo que uno cree es peor que un rojo.
+
+**Arreglo:** que el autorrelleno elija el producto (es un combo con buscador: `Buscar tu producto…` +
+su trigger), y —más importante— que el motor HTTP **no declare «listó» sin haber comprobado que el
+botón estaba habilitado**, o que diga explícitamente que no lo comprobó.
+
+**Estado:** ABIERTO. El diagnóstico está medido; el arreglo no está hecho.
+
+### F-202 · El front le pregunta al microservicio por entidades cuya clave no existe, y pinta un «Reintentar» que nunca puede funcionar
+
+**Síntoma:** en el listado, una entidad muestra **«No pudimos consultar esta entidad»** con un botón
+de **Reintentar**. Reintentar no cambia nada, siempre.
+
+**Causa:** la clave que viaja al servicio de pre-aprobados se **deriva del `slug` del lender**, con dos
+excepciones escritas a mano:
+
+    key: isCreditopXType(response_type) ? "creditop_x"
+       : isWelliLender(id)              ? "welli"
+       : lender.slug                     // ← todas las demás
+
+…pero el microservicio valida contra un **registro CERRADO** de 12 claves
+(`LendingProductKey.Validate`) y corta con **400** *antes* de mirar nada más. Un slug que no está en
+esa lista no es «no encontrado»: es una petición inválida, y lo será siempre.
+
+> **MEDICIÓN · 2026-09-11 · contra PRODUCCIÓN (solo lectura).**
+>
+> | | |
+> |---|---|
+> | entidades activas con `response_type <> 0` | **140** |
+> | …cuyo slug ES una clave válida | **7** |
+> | …sin clave válida y **cableadas a una sucursal activa** (o sea, pueden listarse) | **98** |
+>
+> En local se vio en vivo: `celucambio` pintó así a **Banco de Bogotá** y a **Su+pay**.
+
+⚠ **Y el gate no lo tapa:** `isPreApprovalBlocked` decide por las políticas de datacrédito
+(`can_check_preapproval`), no por si la clave existe. Nada filtra por clave válida.
+
+**Arreglo:** que la clave la **mande el backend** junto con la entidad, en vez de que el front la
+adivine del slug. El backend ya sabe cuáles son consultables —manda `can_check_preapproval`—, así que
+es el mismo viaje. Mientras tanto, una entidad sin clave válida no debería consultarse ni ofrecer
+«Reintentar».
+
+**Estado:** ABIERTO.
+
+### F-203 · La tasa de la tarjeta es texto libre, y el cliente ve «0» donde va un interés
+
+**Síntoma:** en el listado, una tarjeta muestra **`0`** en el lugar de la tasa. Otras muestran la misma
+tasa escrita de maneras distintas, una debajo de la otra.
+
+**Causa:** `additional_data.rate_text` es una **cadena escrita a mano** en el admin, no un número con
+su período. Nadie puede ordenar por tasa, compararla, traducirla ni validarla — y nada impide guardar
+un `0` o un `.`.
+
+> **MEDICIÓN · 2026-09-11 · copia local, 162 entidades.**
+>
+> - `rate_text` con contenido: **159**.
+> - **La misma tasa, ocho grafías**: `1.88% M.V` (70) · `1.88% M.V.` (19) · `1.88% Mes vencido` (4) ·
+>   `1.88% MV` (4) · `1.88% N.M.` (3) · `1.89% M.V` (2) · `1.82` (2) · `1.88% quincena vencida` (2).
+> - **Sin sentido para un cliente**: **18** entidades con `0`, `0%` o `.`.
+> - Visto en pantalla: la tarjeta de **AltaX** muestra `0`; en una sola lista conviven
+>   `1.88% N.M.V`, `1.88% M.V`, `1.88% Mes vencido` y `1.88% N.M.`
+
+**Arreglo:** que la tasa viaje como **número + período** y que la tarjeta la formatee. El texto libre
+puede quedar como override, no como fuente.
+
+**Estado:** ABIERTO.
+
+### F-204 · El proceso que lleva días corriendo tiene el entorno de cuando arrancó
+
+**Síntoma:** algo que venía funcionando **se rompe al reiniciar el servicio**, sin que nadie haya
+tocado su código. Acá: el wizard dejó de pasar el OTP y después ni siquiera registraba el teléfono.
+
+**Causa:** el `.env.local` del wizard había sido **renombrado a `.env.local.asesor-bak`** semanas
+antes. El proceso seguía vivo con esos valores **cargados en memoria**; el archivo ya no existía. Al
+reiniciarlo tomó el `.env` de siempre —que apunta a **dev** y además termina en `/api`— y empezó a
+pedir `POST /api/api/onboarding/phone/register`, con doble prefijo, contra el ambiente equivocado.
+
+El síntoma engaña dos veces: primero parece del backend (que estaba sano: probado con `curl`, registra
+el teléfono sin chistar), y después parece del cambio que uno acaba de hacer.
+
+**El chequeo:** cuando algo se rompe justo al reiniciar, compará **el entorno del proceso** con los
+archivos que hay hoy (`ps eww <pid>`), y buscá `.env*` renombrados.
+
+⚠ **Y el corolario, que costó una afirmación falsa el mismo día:** dije que en local no había forma de
+simular el servicio de pre-aprobados. Era mentira — **`harness/mock-preapprovals` existe, estaba
+CORRIENDO en :8095**, y emite el `transaction_data` de Welli, Meddipay, Prami y Credifamilia. Lo que
+faltaba era una línea (`VITE_PREAPPROVALS_ENDPOINT`) apuntándole. Antes de decir «no se puede simular»,
+mirá la carpeta: `ls harness/mock-*` son dieciocho.
+
+**Estado:** disciplina, sin arreglo de código.

@@ -706,6 +706,45 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-11 (tarde) · el refactor probado con el mock, y cuatro hallazgos de correr doce comercios
+
+**Lo que se hizo.** Rama `feat/tarjeta-por-capacidad` en `frontend-monorepo` y `legacy-backend`, las
+dos **desde `qa`**, sin push. El front ya tiene el cambio: las CUATRO ramas que buscaban la cuota del
+plazo elegido —cada una abriendo con `lenderData.id === <ENTIDAD>`— colapsaron en **una**,
+`resolveQuotedInstallment`, que resuelve por la **forma del payload** (`quotas`, `commercialOffer`,
+`plan_de_cuotas`) y no por el id. La tarjeta quedó sin una sola referencia a `MEDDIPAY_LENDER_ID`,
+`PRAMI_LENDER_ID`, `isWelliLender` ni `BANCOLOMBIA_LENDER_IDS`. Build en verde.
+
+> **MEDICIÓN · el refactor, corriendo.** Con el mock de pre-aprobados enchufado al wizard, `sonria`
+> resuelve las tres formas por el único resolver: **Welli** $78.134 a 36 · **Meddipay** $78.839 a 36 ·
+> **Credifamilia** $1.636.123 a 6. Verificado contra la fórmula del propio mock: son la **cotización
+> del lender**, no la que calcularía el front. Y **Alta Fleet** dibuja su tarjeta de RTO completa
+> —*Monto total $4.760.000 · Pago semanal $101.896 · Plan 12/18/24*— **enteramente desde config de
+> base de datos**: es el molde que queremos para el resto.
+
+**Los cuatro hallazgos, ya escritos en el árbol de hallazgos** (F-201…F-204):
+
+- **F-201** · el motor HTTP del arnés dice «listó» donde el navegador se traba. Correlación perfecta en
+  6 comercios: los que tienen productos cargados (motai, dentix) no pasan la primera pantalla porque
+  hay que **elegir el producto**; los que no tienen (sonria, gaes, celucambio, alta-fleet) caminan.
+- **F-202** · el front le pregunta al microservicio por entidades cuya clave no existe: la arma con el
+  `slug`. **Medido contra producción: 7 de 140** entidades activas rt≠0 tienen clave válida, y **98**
+  de las que no, están cableadas a una sucursal activa. Síntoma: «No pudimos consultar esta entidad»
+  con un Reintentar que nunca puede funcionar.
+- **F-203** · la tasa es texto libre: **18** entidades muestran `0`, `0%` o `.` al cliente, y el mismo
+  1,88% está escrito de **ocho** formas.
+- **F-204** · el proceso viejo tenía el entorno de cuando arrancó (un `.env.local` renombrado semanas
+  atrás), y por eso reiniciar el dev server «rompió» el OTP. Con su corolario: **dije que en local no
+  se podía simular el servicio de pre-aprobados y era falso** — `mock-preapprovals` existe, estaba
+  corriendo y emite el `transaction_data` de las cuatro entidades.
+
+**Lo que esto le hace al plan.** F-202 agrega una capacidad a la lista: la clave del microservicio
+debería venir del backend junto con `can_check_preapproval`, no derivarse del slug. Quedan **siete**
+capacidades por mover al payload, y dos de ellas no necesitan flag nuevo (el plan dinámico se deduce de
+«¿vino el plan?» y el tope de Nequi de un `max_financing_amount`).
+
+**Decisión de Miguel:** no se pushea a `qa` hasta terminar de sacar el hardcoding del front.
+
 ### 2026-09-11 · la tarjeta parametrizable entra a esta tarea, y se mide antes de tocar código
 
 Miguel pidió mirar, **antes de escribir código**, cómo el listado arma la tarjeta de cada entidad, y
