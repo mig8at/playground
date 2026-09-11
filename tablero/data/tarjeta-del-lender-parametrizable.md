@@ -126,6 +126,43 @@ maneras según quién cargó la fila.
 **El front conoce la forma del payload de cada lender.** Eso no es presentación: es un adaptador que
 quedó del lado equivocado de la frontera.
 
+### 7 · TRES puertas distintas, y es lo que hace que la retrocompatibilidad salga gratis
+
+> **MEDICIÓN · 2026-09-11.** Los dos fronts **no comparten endpoint**, y el microservicio es una
+> tercera cosa:
+>
+> | quién | a qué le pega | quién lo atiende |
+> |---|---|---|
+> | wizard (`frontend-monorepo`) | `GET /api/onboarding/loan-application/**lenders-v2**/{ureq}` | `LenderListingController@index` (Modules/Onboarding) |
+> | `legacy-application` | `GET /api/onboarding/loan-application/**lenders**/{ureq}` | `ListLenderController@index` — **otro controlador** |
+> | wizard, ADEMÁS | `POST /v1/preapprovals/check` (`VITE_PREAPPROVALS_ENDPOINT`) | el microservicio de pre-aprobados |
+>
+> `loan-options.repository.ts:35` · `Modules/Onboarding/routes/api.php:51-53` ·
+> `legacy-application/app/Http/Controllers/Customer/ListLenderController.php:264`
+
+**Consecuencia directa:** agregarle un bloque nuevo a `lenders-v2` **no puede** llegarle a
+`legacy-application`, porque no llama a esa ruta. La retrocompatibilidad no hay que construirla con un
+flag: ya está, y es por puertas separadas.
+
+⚠ **Trampa de nombres, y es fácil caer:** la vista de `legacy-application` se llama
+`customer/lenders/list/**v2**/ListLenders.vue` — ese «v2» es la versión de la PANTALLA, y esa pantalla
+consume la API **v1**. «v2» no quiere decir lo mismo en los dos sistemas.
+
+### 8 · lo que NO está normalizado es `transaction_data`, y el que puede normalizarlo es el MICROSERVICIO
+
+El envelope del microservicio **ya es uniforme** para todos los lenders —`applicant_id`,
+`approved_amount`, `available`, `probability`, `status`, `sort`…— y adentro lleva un agujero declarado
+a propósito:
+
+    transaction_data: z.unknown(),
+    // "All lenders return the same envelope; `transaction_data` is intentionally
+    //  `unknown` because each lender ships its own structure."
+
+Ahí nacen los cinco extractores de la medición 6. O sea: **el lugar donde hay que normalizar la
+cotización no es el listado del monolito, es el microservicio de pre-aprobados** — que es justamente
+quien habla con la API de cada lender y tiene el dato en crudo. El front hoy hace de adaptador de un
+servicio que ya tenía la oportunidad de hacerlo.
+
 ## Lo que ya está resuelto bien, y sirve de molde
 
 No hay que inventar el patrón: hay tres ejemplos, todos mergeados.
@@ -178,10 +215,40 @@ cubre la degradación: un alquiler con el calculator roto **no** cae a la tarjet
 tramo que hay que hacer **antes** de prometer más: si se conecta y en un mes nadie lo usa, la hipótesis
 queda medida en vez de supuesta.
 
-### Tramo 2 — normalizar la cotización en el BACKEND · el caro, y el que de verdad paga
+### Tramo 1b — el bloque `card` en la respuesta del listado (la idea de Miguel) · aditivo
 
-Que el backend entregue **una sola forma** de «cuota por plazo» y el front deje de conocer lenders.
-Hoy son tres formas más el plan dinámico, y las cinco viven en el front.
+Que `lenders-v2` traiga, por lender, un bloque con **lo que la tarjeta tiene que decir**. El front lo
+usa si viene y cae a lo de hoy si no viene, igual que ya hace `action_text`.
+
+    "card": {
+      "action_text": "Consultar cupo",
+      "benefit_list": [ { "icon": "…", "text": "…" } ],
+      "rate":   { "value": 1.88, "period": "monthly" },
+      "amount": { "min": 1000000, "max": 10000000 },
+      "notes":  "texto condicional"
+    }
+
+**Por qué es seguro:** `legacy-application` no llama a `lenders-v2` (medición 7), así que no se entera.
+Y dentro del wizard, un campo nuevo que nadie lee todavía no cambia ninguna pantalla: se puede
+desplegar el backend primero y el front después, sin coordinar.
+
+⚠ **Dónde está la línea, y es la decisión de fondo del documento.** Ese JSON describe **contenido y
+capacidades** (qué texto, qué beneficios, qué tasa, qué rango). El día que empiece a describir
+**estructura** —`{"components":[{"type":"row","children":[…]}]}`— deja de ser configuración y pasa a
+ser un lenguaje de render: el front pierde los tipos, un cambio de diseño se vuelve una migración de
+datos, QA no puede probar una pantalla que varía por fila, y el tema oscuro, la accesibilidad y los
+idiomas quedan del lado del que carga el dato. La regla: **el lender declara QUÉ tiene; la tarjeta
+decide CÓMO se ve.**
+
+Y una consecuencia práctica de la medición 4: `rate` conviene que viaje **como número y período**, no
+como el texto libre de hoy. Si el bloque `card` nace copiando `rate_text`, nace con las ocho grafías
+adentro.
+
+### Tramo 2 — normalizar la cotización EN EL MICROSERVICIO · el caro, y el que de verdad paga
+
+Que `transaction_data` deje de ser `unknown` y el microservicio entregue **una sola forma** de «cuota
+por plazo». No es en el listado del monolito: el que tiene el dato crudo de cada lender —y el que ya
+uniformó todo lo demás del envelope— es el microservicio de pre-aprobados (medición 8).
 
 **Alcance medido:** 5 extractores por lender dentro de un servicio de 389 líneas; 31 usos de constantes
 de identidad en ~18 archivos, con Meddipay como el más caro (11). Las tres ramas por id de
@@ -212,6 +279,19 @@ tarjeta decide CÓMO se ve.**
 - El merge de los writers (tramo 1.1) toca dos monolitos a la vez. Van por PRs separados.
 
 ## Registro
+
+### 2026-09-11 · segunda pasada: las tres puertas, y dónde va la normalización
+
+Miguel preguntó si el listado que consume el wizard es el del microservicio o `lenders-v1`, para no
+validar sobre el camino equivocado. Medido: el wizard usa **`lenders-v2`** del monolito, y el
+microservicio de pre-aprobados es una llamada **aparte** (`/v1/preapprovals/check`) — las mediciones de
+arriba caen sobre el camino correcto. De paso salieron dos cosas que cambian el plan: `legacy-application`
+consume **otro endpoint**, así que la retrocompatibilidad ya está dada por construcción (medición 7); y
+el `transaction_data: unknown` del microservicio es **el origen real** de los cinco extractores, así que
+el tramo 2 se mueve del monolito al microservicio (medición 8). Se agregó el tramo 1b con la propuesta
+de Miguel —un bloque `card` aditivo en la respuesta del listado— y la línea que la mantiene sana:
+contenido y capacidades sí, estructura no.
+
 
 ### 2026-09-11 · medido y propuesto
 
