@@ -43,7 +43,17 @@ const { synthFill } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 
 const API = e2eConfig.mockUrl;
-let PHONE = '3131010101';   // se ajusta al largo que declara el país del comercio (ver telefonoDeLaSucursal)
+// ⚠ ÚNICO POR CORRIDA, no fijo. Con un número fijo dos listados en PARALELO contra la MISMA base
+// chocan: el segundo recibe «Duplicate entry '…' for key 'users_cell_phone_unique'» y muere en el
+// registro, sin llegar nunca al listado. Se ve sólo contra dev/qa —en local uno corre de a uno— y el
+// síntoma parece del producto: un 400 del registro. Medido el 2026-09-11 corriendo cuatro comercios
+// a la vez contra la base compartida.
+//
+// ⚠ Y con la marca de tiempo SOLA no alcanza, medido: cuatro corridas lanzadas con 0,3 s de
+// separación dieron el MISMO número dos veces, porque lo que decide es cuándo evalúa el módulo —
+// después de arrancar `make` y node, cuyo tiempo varía— y no cuándo se lanzó. Va con azar encima.
+// `telefonoDeLaSucursal` lo recorta después al largo que declare el país del comercio.
+let PHONE = String(3_130_000_000 + ((Date.now() + Math.floor(Math.random() * 1_000_000)) % 9_000_000));
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
 const ASESOR_SUB = process.env.E2E_ASESOR_SUB ?? '';
