@@ -113,7 +113,7 @@ el primario de la cadena que describe el nodo `profiling`. En dev está vivo y e
 2026-09-11, `GET http://profiler-ml.inertia-develop:8000/` contesta **200 en 0,18 s**.
 
 ⚠ **`h2o` es otra cosa.** Está en los dos clusters y en dev **arranca en frío**: la primera llamada a
-`/3/Cloud` tardó **13,9 s** y las cinco siguientes 1,3–2,8 s. Es el modelo del camino **legacy** del
+`/3/Cloud` tardó **13,9 s** y las cinco siguientes **1,3–2,8 s**. Es el modelo del camino **legacy** del
 perfilador (`services.h2oapi`, `ProfilerMLController::makePrediction`, `timeout(15)`). Que esté lento no
 basta para explicar un listado lento: hay que comprobar antes que el fallback se haya disparado (ver
 F-207).

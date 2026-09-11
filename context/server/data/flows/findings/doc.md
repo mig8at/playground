@@ -4370,7 +4370,7 @@ responden, así que las dos sospechas «el servicio no contesta» se pueden medi
 | servicio | sonda | resultado |
 |---|---|---|
 | `profiler-ml.inertia-develop:8000` | `GET /` | **200 en 0,18 s** |
-| `h2o.inertia-develop:54321` | `GET /3/Cloud` | **13,9 s** la primera; 1,3 · 1,4 · 2,4 · 2,8 s las siguientes |
+| `h2o.inertia-develop:54321` | `GET /3/Cloud` | **13,9 s** la primera; **1,3–2,8 s** las cinco siguientes |
 
 **El perfilador nuevo está vivo y es rápido** — la hipótesis de que su host no contestaba queda
 descartada. **H2O sí está lento**, pero arranca en frío y se recupera; y sobre todo, H2O se usa
