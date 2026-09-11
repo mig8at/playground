@@ -348,7 +348,7 @@ distinto según con qué pregunta llegues.
 | F-204 | El proceso viejo tiene el entorno de cuando arrancó: reiniciar el dev server «rompió» el OTP, y el mock que faltaba enchufar ya estaba corriendo | disciplina, sin arreglo de código |
 | F-205 | Una constante de id en el front es de PRODUCCIÓN: en dev señala a otra entidad, así que la regla no aplica y nada falla | ⏳ columna en el backend, front pendiente |
 | F-206 | El dump local NO trae todos los índices de producción: medir rendimiento sobre él inventa cuellos de botella que allá no existen | disciplina, sin arreglo de código |
-| F-207 | El listado tarda 32 s en dev y 30 de ellos son el PERFILAMIENTO: el mismo endpoint sin esa etapa contesta en 1,2 s | ABIERTO |
+| F-207 | El listado tardaba 32 s y 30 eran el PERFILAMIENTO. Ya NO se reproduce (1,0-1,7 s el 2026-09-11) y el ×3 está arreglado; **por qué una llamada costaba ~10 s, sin respuesta** | no se reproduce |
 | F-208 | `pdf_mapper` y `pdf_mapper_service` tienen de DEFAULT el host de PRODUCCIÓN: el ambiente que olvide la variable escribe allá, en silencio | ABIERTO |
 | F-209 | Fuera de prod `legacy-backend` no tiene worker ni scheduler: con `QUEUE_CONNECTION=sync` lo encolado corre dentro del request, y lo agendado no corre | ABIERTO |
 
@@ -4389,6 +4389,62 @@ el listado ahora que ese PR está desplegado**, no seguir sondeando servicios.
 
 **Estado:** ABIERTO. El diagnóstico está medido —30 de 32 s en el perfilamiento, reproducido seis
 veces sobre dos solicitudes distintas—; **cuál de sus tres llamadas se los lleva, NO**.
+
+---
+
+**2026-09-11, 23:10Z · LA MEDICIÓN DESPUÉS DEL ARREGLO — y por qué este hallazgo cambia de forma.**
+
+`#1379` (el perfilador se calcula una vez) mergeó a `qa` a las 22:37Z y su despliegue terminó a las
+22:43Z. Medido 25 minutos después, **el listado ya no tarda 32 segundos en ningún lado**:
+
+| backend | rama | `GET lenders-v2` (5 corridas, 2 solicitudes) |
+|---|---|---|
+| `legacy-backend-qa` | `qa` — **con** el arreglo | **0,95 · 0,98 · 1,02 · 1,44 · 1,58 s** |
+| `legacy-backend` | `develop` — **sin** el arreglo | **1,55 · 1,55 · 1,64 · 1,72 · 2,35 s** |
+
+⚠ **Y ahí está lo que obliga a reabrir el diagnóstico: dev bajó de 32 s a 1,7 s SIN el arreglo.** El
+`develop` de esta medición es el mismo código que dio 32 s por la mañana. Así que el ×3 **no era la
+causa de los 30 segundos**: era un multiplicador que sólo se nota cuando cada llamada cuesta caro.
+
+**El reparto por etapa, ahora que se puede leer** (`listado.etapas_ms`, la instrumentación que entró
+con `#1374`, sólo en `qa`). De 18 listados en media hora:
+
+| etapa | rango |
+|---|---|
+| `universo` | 4–94 ms |
+| `reglas_duras` | 62–324 ms |
+| `perfilamiento` | **36–528 ms** |
+| `orden_y_condiciones` | **83–1.032 ms** ← el más caro hoy |
+| `cierre` | 11–346 ms |
+| **total** | **302–1.886 ms** |
+
+Y dentro del perfilamiento, para un listado de 7 entidades: demográfico **12 ms**, matrices **9 ms**,
+machine learning **285 ms**, total **306 ms**. **Una sola pasada** — el ×3 está efectivamente
+corregido, y `profiling_reviews` guarda una fila por solicitud, no tres.
+
+**LO QUE INVALIDA LA EVIDENCIA DE ARRIBA.** La tabla de conteos de `ProfilerML:` que decía que el
+fallback no se disparó **se midió sobre el servicio equivocado**. Verificado esta noche: el backend de
+**develop** emite con `service_name="legacy-backend"` y el de **qa** con `service_name="CreditopDev"`
+—los nombres están cambiados respecto de la intuición—, y además `develop` **no tiene esas líneas en
+su código** (el log del perfilador entró por `qa`): 0 en 24 h contra 100 de `CreditopDev`. O sea que se
+contó qa mientras se medía dev, y **no se sabe qué hizo el perfilador durante los 32 s**.
+
+**Qué queda en pie y qué no:**
+
+- ✔ **30 de los 32 s estaban en la etapa de perfilamiento.** Eso se midió con el propio endpoint
+  (`recalculate`, que se la salta, contestaba en 1,2 s) y no depende de ningún log.
+- ✔ **El ×3 existía y está arreglado**, y era una tercera parte del costo de esa etapa.
+- ✘ **«El fallback no se disparó»** — medido en el ambiente equivocado. No dice nada de aquella tarde.
+- ✘ **«Es el perfilador nuevo que no responde»** — descartado: contesta en 0,18 s y su etapa de ML
+  midió 285 ms.
+- ❓ **Qué hacía que una llamada costara ~10 s esa tarde y 285 ms esta noche.** Sin reproducirlo no se
+  contesta, y ya no se reproduce sola. Lo que sí cambió: ahora **cada listado deja escrito su propio
+  reparto**, así que el próximo episodio no hay que reconstruirlo — se lee.
+
+**Estado: el síntoma NO se reproduce.** Cerrado como incidente, abierto como pregunta. El siguiente
+objetivo de rendimiento ya no es el perfilamiento sino **`orden_y_condiciones`**, que es hoy la etapa
+más cara.
+
 
 ### F-208 · Dos claves de configuración apuntan a PRODUCCIÓN por defecto, y el ambiente que olvide la variable escribe allá
 

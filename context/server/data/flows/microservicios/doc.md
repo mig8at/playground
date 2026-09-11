@@ -125,9 +125,16 @@ En el cluster de dev corren **cinco** servicios del mismo repo —`legacy-backen
 `main-dev.yaml`, `main-stg.yaml`, `main-qa.yaml`, `main-lab.yaml`). Comparten la **misma base**
 (`inertia-dev`). Dos consecuencias que ya costaron tiempo:
 
-- **«es dev» no se puede probar desde un log.** Los cinco emiten con las mismas etiquetas, así que en
-  Grafana no se distingue cuál contestó. Es por qué una inferencia por conteo de líneas entre dev y qa
-  no vale — cualquiera de los cinco pudo escribirlas.
+- **dev y qa SÍ se distinguen en Loki, y no por el nombre que uno esperaría.** Medido el 2026-09-11
+  cruzando llamadas propias contra sus líneas: el servicio de **develop** emite con
+  `service_name="legacy-backend"` y el de **qa** con `service_name="CreditopDev"`. Los nombres están
+  cambiados respecto de la intuición, y filtrar por `environment` no ayuda: los dos dicen
+  `development`. *(Acá se dijo lo contrario esa misma tarde —«los cinco emiten con las mismas
+  etiquetas»— y era falso: se afirmó sin medirlo. Lo que sigue sin comprobarse es con qué
+  `service_name` emiten `-stg`, `-lab` y `-rec`.)*
+- ⚠ **Y por eso un conteo de líneas se atribuye al ambiente equivocado con una sola letra de
+  diferencia en el selector.** Ya pasó: la evidencia que sostenía F-207 se contó sobre `CreditopDev`
+  —qa— mientras el problema se medía contra dev.
 - **la advertencia de la BD compartida es por cinco, no por dos.** `CLAUDE.md` dice que staging comparte
   la base con dev; son cinco backends y dos monolitos viejos sobre el mismo RDS.
 
