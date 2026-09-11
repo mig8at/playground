@@ -61,6 +61,17 @@ hay». Ya costó dos conteos falsos en este repo (`git grep` no entiende `\s`) y
 de las siete fases del relevamiento. **Regla: todo patrón se prueba primero contra un caso que TIENE que
 matchear.**
 
+⚠ **Y un uno tampoco.** Cuando la afirmación tiene la forma «esto lo escribe X», el grep tiene que
+devolver **todos** los escritores antes de escribir una sola línea — no el primero que confirma la
+hipótesis. Pasó el 2026-09-11: el borrador decía «la marca del código de compra la escriben los tres
+procesos nocturnos de facturación», que era lo que sugería el primer archivo abierto. El grep completo
+encontró **cinco**, y los dos que faltaban eran controladores en tiempo real: con tres, «revisado»
+significaba «llegó la factura»; con cinco, significa «alguien lo marcó y la fila no dice cuál». La
+afirmación no era imprecisa, era **otra**.
+
+    git -C <repo> grep -ln "<columna>" origin/main        # QUIÉNES la tocan
+    # y recién después, por cada uno: ¿lee o escribe?
+
 ---
 
 ## 4. Las tres preguntas que el grep no contesta
@@ -111,6 +122,19 @@ Y con las tres cosas que hacen accionable una sección:
 - `canon -lint` y **`canon -bench`**: 115/115 es **compuerta de build**, no métrica. Si baja, la causa
   casi siempre es que la prosa nueva le robó las palabras a una pregunta vieja — se arregla cambiando
   el vocabulario de LA NUEVA, nunca parcheando la sección ajena.
+
+  **Y el diagnóstico sale gratis:** corré el banco con y sin tus cambios y comparé las listas de
+  «recuperado entre los 3 primeros». La que aparece sólo en la lista nueva es la que desplazaste — dos
+  corridas de una compuerta que ya ibas a correr, cero tokens de modelo.
+
+      canon -bench 2>&1 | grep "recuperado entre los 3" | sed 's/.*· //' | sort > /tmp/con.txt
+      git stash -- content && canon -bench … > /tmp/sin.txt && git stash pop
+      comm -13 /tmp/sin.txt /tmp/con.txt
+
+  ⚠ **Y suele ser UNA palabra, no la sección entera.** El 2026-09-11 una sección de identidad usaba
+  «registro» con el sentido de *registraduría*; en este corpus «registro» quiere decir *rastro*, y le
+  robó «la biometria no dejo registro». Cambiada esa palabra —y sólo esa—, el banco volvió a 96. Antes
+  de reescribir un párrafo, mirá qué término comparten los dos textos.
 - Buscá cada sección nueva **con la pregunta con que llegaría de soporte**. Si no sale primera, no la
   va a encontrar nadie.
 - Y después del merge, **dos preguntas nuevas contra producción**, nunca del banco.
