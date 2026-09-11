@@ -2,17 +2,6 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "cuadrilla",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "cuadrilla",
-      "port": 5197,
-      "autoPort": false
-    },
-    {
       "name": "flow",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

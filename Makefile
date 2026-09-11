@@ -417,9 +417,10 @@ plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 
 # Ya no vive acá: el 2026-09-10 cuadrilla se mudó al repo COMPARTIDO
 # (`github/playground/tools/cuadrilla`) y se rehizo en Go + Vue. El target se queda porque la puerta
-# es una sola: lo que cambió es a dónde apunta. Levanta la API en :8080 y el front en :5173.
+# es una sola: lo que cambió es a dónde apunta. Levanta la API en :8080 y el front en :5197 — NO en
+# el :5173 que anuncia `task dev`, porque ese lo tiene el Vite de legacy-backend.
 .PHONY: cuadrilla
-cuadrilla: ## @expl las épicas del equipo — ramas por persona. Vive en el repo COMPARTIDO (API :8080 · front :5173)
+cuadrilla: ## @expl las épicas del equipo — ramas por persona. Vive en el repo COMPARTIDO (API :8080 · front :5197)
 	@cd ../github/playground && task dev TOOL=cuadrilla
 
 # Lo único acá que NO habla de CreditOp: es para aprender inglés. Está en el playground porque es
