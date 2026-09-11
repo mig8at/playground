@@ -5,8 +5,8 @@ stage: work
 ramas: feat/comercio-pantalla-de-bienvenida
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
-jira: []
-jira_title: ""
+jira: [CORE-558]
+jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
@@ -426,6 +426,14 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-11 · publicada como CORE-558, en progreso
+
+La tarea existía en el tablero desde el 9/9 y nunca se había publicado (`jira: []`). Se subió con la
+sección publicable tal cual estaba —5172 caracteres, pasa el guard—, al **sprint activo (CORE Sprint
+15)** y con la transición a **🚧 En progreso** en el mismo paso. No se le cargaron **puntos**: la
+estimación la pone quien la va a hacer, y inventarla acá sería un número sin medir.
+
 
 
 ### 2026-09-10 · los dos PRs en qa, y qué se probó contra el backend desplegado
