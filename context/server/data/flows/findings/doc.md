@@ -4323,11 +4323,26 @@ que debería tardar segundos tarda medio minuto, y no hay ningún error: contest
 > propósito. No es la red (0,6 s), no es el resto del pipeline (1,2 s) y desde luego **no es el SQL**:
 > instrumentado con el log de consultas, el listado entero hace 50 ms de base.
 
-**La forma del número dice de qué se trata.** 30 s ≈ **dos timeouts de 15 s**, que es exactamente lo
-que declara el perfilador ML (H2O) — el mismo que sin host configurado tira el listado entero con
-`PendingRequest::baseUrl(): Argument #1 must be of type string, null given`, error que también se vio
-en dev el mismo día para algunos comercios. Cuál de las dos llamadas expira y por qué **no está
-confirmado**: eso pide la configuración del servicio o su traza, no se deduce desde afuera.
+**De qué está hecha esa etapa.** `getProfilingData` hace TRES llamadas: perfilamiento demográfico,
+modelo de matrices y perfilador ML. Y el ML tiene dos caminos con un timeout de **15 s cada uno** — el
+perfilador nuevo (`services.new_profiler_ml.timeout`, default 15) y, si ese falla, el legacy de H2O
+(`ProfilerMLController:97`, `->timeout(15)`). **15 + 15 = 30** encaja con el número medido.
+
+⚠ **PERO LOS LOGS NO LO CONFIRMAN, y conviene decirlo antes de que alguien lo dé por cerrado.** El
+propio perfilador escribe en Loki cuál camino tomó, y en el stack de dev:
+
+| línea | en 6 h | en 24 h |
+|---|---|---|
+| `ProfilerML: perfilamiento resuelto` | **20** | — |
+| `ProfilerML: perfilador nuevo no utilizable, cayendo al legacy` | **0** | 2 |
+
+O sea que durante las mediciones **el perfilador primario resolvió bien y el fallback no se disparó**.
+Si no hubo dos timeouts, los 30 s son otra cosa dentro de la misma etapa: el perfilador nuevo
+respondiendo lento pero a tiempo, o el demográfico y las matrices, que no hacen HTTP pero sí llaman
+procedimientos almacenados (`SP_Experian_Extract_Data` y compañía).
+
+**Lo que falta para cerrarlo es la traza del servicio** (el token de Grafana tiene `traces:read`, pero
+el trazador de la casa sólo consulta Loki). Con las duraciones por span, esto se contesta en un minuto.
 
 ⚠ **Medido en DEV, no en producción.** Allá el perfilador puede estar configurado y responder rápido.
 Y no se comprueba llamando al endpoint de prod: el listado ESCRIBE (sella el estado CreditopX). Para
@@ -4341,4 +4356,9 @@ se esperan 30 segundos a un servicio.
 **Y explica algo que se lee mal todos los días:** las corridas del arnés contra dev «tardan mucho» y
 uno culpa al arnés o a la red. No: es esta etapa.
 
-**Estado:** ABIERTO. El diagnóstico está medido; la causa exacta dentro del perfilamiento, no.
+⚠ **Y no generalices de una traza suelta.** Una traza de `CreditopDev` —el monolito viejo, que tiene
+su propio listado— duró 2 s el mismo día. No es el mismo endpoint: compararlos lleva a concluir que
+«a veces va rápido».
+
+**Estado:** ABIERTO. El diagnóstico está medido —30 de 32 s en el perfilamiento, reproducido seis
+veces sobre dos solicitudes distintas—; **cuál de sus tres llamadas se los lleva, NO**.
