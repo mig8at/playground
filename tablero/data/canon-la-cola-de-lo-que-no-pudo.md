@@ -16,6 +16,9 @@ La página `/preguntas` de canon guarda en Postgres lo que se le preguntó y qu�
 reserva**. Esta tarea lee esas 70, las clasifica **por causa** —no por tema— y valida contra
 `origin/main` cuáles se arreglan agregando contexto y cuáles no.
 
+*(Al 2026-09-11 la cola creció a **132 preguntas** —50 respaldadas, 6 sin citar, 76 con reserva— y se
+mergearon cuatro PRs de corpus: ver el Registro del 11/09.)*
+
 ⚠ **La conclusión invierte lo que uno esperaría: la mayor parte de la cola NO es corpus faltante.**
 De las 70 con reserva, **61 (87%) se pasaron del techo de 14 pasos** y su reserva dice, con estas
 palabras, «no llegué a leer el cuerpo». La mediana de pasos es **17**. Escribir más prosa no mueve
@@ -151,6 +154,39 @@ validación que prueba que la cola baja.
   versionado, e `ICV+30` no aparece en ninguno de los dos monolitos.
 - **Y una contradicción del propio canon:** `comission_percentage` = 0 para Creditop X contra la prosa
   que dice que gana comisión por recaudo.
+
+### 2026-09-11 · cuarta vuelta del método, y el muro de declaración confirmado
+
+Cuatro PRs mergeados el mismo día (#161, #162, #163, #164) y una quinta tanda dentro del propio #164.
+Lo que confirma la hipótesis de arriba: **de las cinco preguntas que pedían `CutoffCalendar`, ninguna
+la bloqueó el techo de pasos — la bloqueó el muro.** Dos reservas lo dicen con estas palabras: «el
+archivo no está declarado por ningún tema del corpus, así que no pude leerlo directamente». Quedó
+declarado en `cartera`, y con él la prosa del mecanismo.
+
+**Lo que se escribió, y de qué reserva salió cada cosa:**
+
+| sección | reservas que la pedían | qué resultó |
+|---|---|---|
+| el código de compra y quién lo marca | 1 (el OTP del punto de venta) | el borrador decía «tres procesos nocturnos»; el grep completo encontró **cinco** escritores, y los dos que faltaban cambian el significado |
+| el candado que no dispara | — (salió del anterior) | condición imposible (`id == 68 && id == 133`); el candado por estado tampoco tapa porque el cierre deja 26, no 11 |
+| «cascada» en vocabulario | 1 | la que se preguntó no existe: no hay failover entre burós |
+| el interés diario y los tres ritmos | 2 | el archivo no estaba declarado |
+| el pago anticipado no usa el calendario | — (salió del anterior) | tres cosas cableadas a mano; **latente**, la única entidad con descuento es quincenal |
+| el código por campo de identidad | 3 | los dos caminos viejos ignoran en silencio un «no coincide» del segundo apellido |
+| exigible ≠ total | 1 | 231 créditos vivos lo muestran y **141 están cerrados**: no es alarma |
+| el catálogo de estados | (la misma) | la columna se llama descripción, no nombre — por eso la consulta falló |
+
+**Dos cosas que valen más que las secciones:**
+
+1. **Buscar los escritores completos, no los que confirman la hipótesis.** El primer borrador del
+   código de compra era falso por haber parado el grep demasiado pronto. La regla nueva del método:
+   cuando la afirmación es «esto lo escribe X», el grep tiene que devolver **todos** los escritores
+   antes de escribir una sola línea.
+2. **Una palabra puede tirar el banco.** La sección de identidad usaba «registro» con el sentido de
+   *registraduría*, y en este corpus «registro» quiere decir *rastro*: le robó «la biometria no dejo
+   registro» y el primer resultado cayó a 95. Cambiada la palabra, 96. El diagnóstico salió gratis
+   comparando las listas de «recuperado entre los 3» con y sin los cambios — dos corridas de `-bench`,
+   cero tokens de modelo.
 
 ## Tarea (publicable)
 
