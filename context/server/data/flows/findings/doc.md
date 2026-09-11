@@ -59,6 +59,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la tarjeta dice *No pudimos consultar esta entidad* y el Reintentar no sirve»** | **F-202** |
 | **«el cliente ve un 0 / un punto donde va la tasa»** | **F-203** |
 | **«andaba, lo reinicié y dejó de andar»** | **F-204** |
+| **«funciona en producción y en dev no, sin error»** | **F-205** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -341,6 +342,7 @@ distinto según con qué pregunta llegues.
 | F-202 | El front le pregunta al microservicio de pre-aprobados por entidades cuya clave NO existe: la arma con el `slug`, y en prod sólo 7 de 140 son válidas | ABIERTO |
 | F-203 | La tasa de la tarjeta es TEXTO LIBRE: el cliente ve «0» o «.» donde va un interés, y el mismo 1,88% está escrito de ocho formas | ABIERTO |
 | F-204 | El proceso viejo tiene el entorno de cuando arrancó: reiniciar el dev server «rompió» el OTP, y el mock que faltaba enchufar ya estaba corriendo | disciplina, sin arreglo de código |
+| F-205 | Una constante de id en el front es de PRODUCCIÓN: en dev señala a otra entidad, así que la regla no aplica y nada falla | ⏳ columna en el backend, front pendiente |
 
 ---
 
@@ -4140,9 +4142,10 @@ excepciones escritas a mano:
        : isWelliLender(id)              ? "welli"
        : lender.slug                     // ← todas las demás
 
-…pero el microservicio valida contra un **registro CERRADO** de 12 claves
-(`LendingProductKey.Validate`) y corta con **400** *antes* de mirar nada más. Un slug que no está en
-esa lista no es «no encontrado»: es una petición inválida, y lo será siempre.
+…pero el microservicio valida contra un **registro CERRADO de 11 claves**
+(`LendingProductKey.Validate`, leído en el repo del servicio) y corta con **400** *antes* de mirar nada
+más. Un slug que no está en esa lista no es «no encontrado»: es una petición inválida, y lo será
+siempre.
 
 > **MEDICIÓN · 2026-09-11 · contra PRODUCCIÓN (solo lectura).**
 >
@@ -4152,7 +4155,22 @@ esa lista no es «no encontrado»: es una petición inválida, y lo será siempr
 > | …cuyo slug ES una clave válida | **7** |
 > | …sin clave válida y **cableadas a una sucursal activa** (o sea, pueden listarse) | **98** |
 >
-> En local se vio en vivo: `celucambio` pintó así a **Banco de Bogotá** y a **Su+pay**.
+> ⚠ **Y el matiz que cambia la lectura, medido después:** las 7 que funcionan son justo las que
+> importan —Bancolombia BNPL (68), consumo (100), Credifamilia, Meddipay, Prami, Welli, BCP consumo—,
+> porque **en producción alguien renombró sus slugs para que coincidan** (`bancolombia_bnpl`,
+> `bancolombia_consumer_loan`). O sea: la derivación por slug **funciona por convención, no por
+> diseño**, y nada impide que un rename la rompa en silencio.
+>
+> Y ya hay dos grietas visibles:
+>
+> 1. **Las variantes de Welli** (`welli-ts`, `welli-t0`, `welli-risk`) NO tienen slug válido: hoy las
+>    salva el `isWelliLender(id)` quemado en el front. **Ese hardcode es portante** — sacarlo sin
+>    reemplazo rompe tres entidades vivas.
+> 2. **La cola larga** —Banco de Bogotá, Su+pay, Approbe, Compensar…— se consulta con su slug y recibe
+>    400. En local se vio en vivo: `celucambio` pintó así a **Banco de Bogotá** y a **Su+pay**.
+>
+> ⚠ **El dump local NO tiene los slugs de producción** (allá 68 es `bancolombia-compra-y-paga-despues`),
+> así que el síntoma se ve peor en local que en prod. No midas esto contra local.
 
 ⚠ **Y el gate no lo tapa:** `isPreApprovalBlocked` decide por las políticas de datacrédito
 (`can_check_preapproval`), no por si la clave existe. Nada filtra por clave válida.
@@ -4210,3 +4228,33 @@ faltaba era una línea (`VITE_PREAPPROVALS_ENDPOINT`) apuntándole. Antes de dec
 mirá la carpeta: `ls harness/mock-*` son dieciocho.
 
 **Estado:** disciplina, sin arreglo de código.
+
+### F-205 · Una constante de id en el front vale sólo en producción, y en los otros ambientes no falla: no hace nada
+
+**Síntoma:** una regla de la tarjeta «no funciona» en dev o en qa, sin error, sin log y sin nada roto.
+En producción sí funciona. Nadie la reporta porque no rompe: simplemente no ocurre.
+
+**Causa:** la regla se escribió contra un **id de entidad**, y `lenders.id` es un AUTO_INCREMENT que
+**no significa lo mismo en cada base**. El caso medido:
+
+    // frontend-monorepo · lender.constants.ts
+    export const HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS: readonly number[] = [160];
+
+> **MEDICIÓN · 2026-09-11.** `160` es **SmartPay en producción**. En la base compartida de dev,
+> SmartPay es **153** (y hay un duplicado, `152`, con el mismo slug). O sea que el tag de cupo se
+> esconde en prod y **se muestra en dev y qa** — la pantalla que QA valida no es la que ve el cliente.
+
+⚠ **Y el propio monolito ya lo sabía.** `Lender::isSmartpayChannel()` compara contra
+`config('lenders.smartpay_lender_id')` y su comentario dice, textualmente, que el id varía por
+ambiente *«(dev=153, prod=160), por eso se compara contra el valor configurado y no contra un
+literal»*. La lección estaba escrita de un lado de la frontera y no cruzó al otro.
+
+**La regla general:** un id de entidad **no es un identificador estable entre ambientes**; el `slug` sí
+(los tres lo comparten). Cualquier cosa escrita contra un id hay que leerla dos veces: si vale en prod,
+probablemente no vale donde QA la prueba.
+
+**Arreglo:** que la decisión viaje en el payload como una capacidad de la entidad, no como una lista de
+ids en el front. Hecho del lado del backend —`lenders.capabilities`, con backfill **por slug** justo
+por esto—; falta que el front la consuma.
+
+**Estado:** ⏳ columna emitida por `lenders-v2`; el front todavía decide por id.
