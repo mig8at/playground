@@ -706,6 +706,49 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-11 (noche) · las tres reservas, medidas: ninguna es mecánica
+
+Se intentaron las tres que habían quedado, y las tres se frenaron por el mismo motivo: **no son
+refactors, necesitan una señal del backend o una decisión de negocio.** Frenarlas es el resultado.
+
+**1 · La consulta compartida de Welli.** La idea era agrupar por `preapproval_key` en vez de por
+`isWelliLender`. **No sirve, y por poco no lo veo:** TODAS las entidades rt=2/3 comparten la clave
+`creditop_x`, así que agrupar por clave las haría compartir UNA sola consulta — y cada una es la línea
+de crédito de un comercio distinto, que el microservicio separa por `lending_product_id`. Agrupar por
+clave sola habría hecho que un comercio viera el cupo de otro. Necesita una señal explícita
+(`shares_preapproval`) y, aparte, decidir **cuál** del grupo dispara: hoy es Tasa Full *con sus
+credenciales*, y de ahí sale el `comision_aliado` del riesgo compartido.
+
+**2 · Los plazos del selector** (`useInstallmentOptions`, hoy con `isWelliLender` + `MEDDIPAY_LENDER_ID`).
+Parecía la misma pregunta con dos formas de payload, pero las dos ramas **no hacen lo mismo**: Welli
+prefiere lo repreciado en vivo (`externalFinancials`) sobre su tarifario; Meddipay usa el tarifario de
+la oferta aunque haya repreciado. Y `useExternalFinancials` es genérico —no es de Welli—, así que
+unificarlas le cambiaría la conducta a Meddipay en silencio. Es una política, no una forma: hace falta
+decidirla antes de escribirla.
+
+**3 · Lo de Nequi** (8 usos) no es de la tarjeta: son sus pantallas propias —POS, estado de pago,
+banner—, 1.797 líneas en 9 archivos dentro del módulo del listado. No es hardcoding que sobre: es un
+producto distinto que vive en la carpeta equivocada. Moverlo es otra tarea.
+
+> **MEDICIÓN · 2026-09-11 · ¿esto achica el listado? NO, y conviene decirlo con números.**
+> La rama va **+582 / −133**, con **4 archivos nuevos y 0 borrados**. El módulo tiene 140 archivos y
+> 15.902 líneas. Mover una decisión de «un `if` por id» a «capacidad + tipo + prueba» AGREGA código;
+> lo que borra es la normalización que viene después.
+>
+> Lo que SÍ se puede borrar, medido:
+>
+> | qué | líneas | cuándo |
+> |---|---|---|
+> | los 5 extractores por lender | **176** de 405 | cuando el backend normalice `transaction_data` |
+> | el respaldo por id + sus listas | ~90 | cuando la columna esté en los tres ambientes |
+> | `quoted-installment` se encoge a un lookup | ~50 de 80 | idem |
+>
+> Total realista: **~300 líneas de 15.902 — menos del 2%.**
+>
+> Y la complejidad de verdad no está en los ids: está en **tres archivos genéricos** —
+> `LenderCardContent` (1.223), `AvailableLenders` (972) y `LenderCard` (637): 2.832 líneas con
+> complejidad ciclomática de 16, 52 y 21 medida por el propio linter. Ninguna lista de ids los toca.
+
 ### 2026-09-11 (tarde) · el refactor probado con el mock, y cuatro hallazgos de correr doce comercios
 
 **Lo que se hizo.** Rama `feat/tarjeta-por-capacidad` en `frontend-monorepo` y `legacy-backend`, las
