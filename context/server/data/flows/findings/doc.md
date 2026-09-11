@@ -60,6 +60,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el cliente ve un 0 / un punto donde va la tasa»** | **F-203** |
 | **«andaba, lo reinicié y dejó de andar»** | **F-204** |
 | **«funciona en producción y en dev no, sin error»** | **F-205** |
+| **«medí el rendimiento en local y en el ambiente real no mejora»** | **F-206** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -343,6 +344,7 @@ distinto según con qué pregunta llegues.
 | F-203 | La tasa de la tarjeta es TEXTO LIBRE: el cliente ve «0» o «.» donde va un interés, y el mismo 1,88% está escrito de ocho formas | ABIERTO |
 | F-204 | El proceso viejo tiene el entorno de cuando arrancó: reiniciar el dev server «rompió» el OTP, y el mock que faltaba enchufar ya estaba corriendo | disciplina, sin arreglo de código |
 | F-205 | Una constante de id en el front es de PRODUCCIÓN: en dev señala a otra entidad, así que la regla no aplica y nada falla | ⏳ columna en el backend, front pendiente |
+| F-206 | El dump local NO trae todos los índices de producción: medir rendimiento sobre él inventa cuellos de botella que allá no existen | disciplina, sin arreglo de código |
 
 ---
 
@@ -4258,3 +4260,46 @@ ids en el front. Hecho del lado del backend —`lenders.capabilities`, con backf
 por esto—; falta que el front la consuma.
 
 **Estado:** ⏳ columna emitida por `lenders-v2`; el front todavía decide por id.
+
+### F-206 · El dump local no trae todos los índices de producción, así que medir rendimiento sobre él miente
+
+**Síntoma:** se instrumenta una pantalla lenta en local, aparece una consulta que se lleva el 67 % del
+tiempo con un escaneo completo de tabla, se propone el índice… y en el ambiente real ese índice **ya
+existe**. El cuello de botella era del dump, no del producto.
+
+**El caso medido, el 2026-09-11.** Perfilando el listado de entidades:
+
+> La consulta más cara era `creditop_x_requests_history where user_id = ? and status = ?`, con
+> `EXPLAIN` en `type: ALL` y **573 ms de 851 (67 %)**. La tabla tiene 215.197 filas en local y
+> 1.200.263 en producción, así que el razonamiento «allá debe ser peor» parecía obvio.
+>
+> Leyendo `information_schema` de los ambientes reales:
+>
+> | | índice por `user_id` |
+> |---|---|
+> | producción | ✔ `idx_creditop_x_requests_history_user_id` |
+> | dev compartida | ✔ uno compuesto que empieza por `user_id` |
+> | **copia local** | **✗ ninguno** |
+>
+> Agregarlo habría creado un índice **redundante** en los dos ambientes que importan: costo en cada
+> escritura, cero ganancia.
+
+**Por qué pasa:** el dump con el que se siembra la base local **no arrastra todos los índices**. Las
+tablas y los datos sí; parte de los índices, no. Y `EXPLAIN` no tiene forma de avisarte: te contesta
+la verdad sobre la base que tenés adelante.
+
+**El chequeo, antes de proponer cualquier índice** (una consulta, y es de solo lectura):
+
+    make trazador-sql TARGET=prod SQL="SELECT index_name, seq_in_index, column_name
+      FROM information_schema.statistics WHERE table_schema='creditop'
+      AND table_name='<tabla>' ORDER BY index_name, seq_in_index"
+
+**Y la forma honesta de medir una mejora de índice:** poner la base local en el **mismo estado de
+índices que el ambiente real**, medir ahí, y recién entonces agregar el que falta. En este caso eso
+cambió el titular de «−67 %» a «−37 %» — que sigue siendo real, pero es otro número y otra decisión.
+
+⚠ **La regla generaliza más allá de los índices:** una medición de RENDIMIENTO sobre la copia local
+sólo vale si lo que se está midiendo existe igual en el ambiente real. Para conducta funcional el dump
+alcanza; para tiempos, no.
+
+**Estado:** disciplina, sin arreglo de código.

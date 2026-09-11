@@ -706,6 +706,43 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-11 (cierre) · la pantalla lenta: un índice, medido en local y aplicado en la compartida
+
+Miguel preguntó por qué el listado es una de las pantallas más lentas. Se instrumentó
+`getLenders` con el log de consultas de Laravel, y el resultado corrige el rumbo de toda la tarde:
+**la lentitud no era la complejidad del código, era un índice.**
+
+> **MEDICIÓN · el listado por dentro.** Entre 98 y 129 consultas por llamada — **47 distintas de 104,
+> o sea 57 repeticiones** (`allied_branches` 9× el MISMO id, `lenders` 9× por id ya cargados,
+> `lender_allied_credentials` 14×, `SP_Experian_Extract_Data` 4×). La mitad del tiempo es SQL. Y el
+> front pide el listado **DOS veces por carga**.
+
+> **MEDICIÓN · el índice, en la base COMPARTIDA (dev), antes y después.**
+>
+> | | plan | tiempo |
+> |---|---|---|
+> | antes | `type: ALL`, escanea 148.729 filas | **43,1 · 43,3 · 43,4 · 43,4 ms** |
+> | después | índice con cardinalidad 143.260 | **0,38 · 0,39 · 0,42 · 0,46 ms** |
+>
+> ~**100×** en esa consulta. Y sobre el listado completo, con la base local puesta en el mismo estado
+> de índices que producción: **~300 ms → 189 ms (−37 %)**.
+
+⚠ **Y el error que casi se publica, que es lo que más vale de esta entrada.** La primera medición
+—hecha sobre la copia local— señalaba OTRA tabla, `creditop_x_requests_history`, con el 67 % del
+tiempo. Era un **artefacto del dump**: dev y producción **ya tienen** ese índice y local no. Publicar
+esa migración habría creado un índice redundante en los dos ambientes que importan. Está escrito como
+**F-206**, con el chequeo que lo evita.
+
+**Cómo se aplicó en la compartida, y por qué así.** No con `artisan migrate`: las credenciales de dev
+que circulan son las del usuario **maestro del RDS, con DROP**, y apuntar el `.env` del contenedor a
+esa base es exactamente el mecanismo del incidente del 19/8. Se corrieron **dos sentencias acotadas a
+un proceso** —el `CREATE INDEX` y el `INSERT` en `migrations`— sin tocar ningún `.env`. La migración
+es idempotente, así que un `artisan migrate` allá es un no-op por partida doble.
+
+**Lo que esto le hace al plan del listado.** Veníamos apuntando a partir tres archivos de 2.832
+líneas; el índice cuesta mil veces menos y paga más. La complejidad y la lentitud resultaron ser dos
+problemas distintos.
+
 ### 2026-09-11 (noche) · las tres reservas, medidas: ninguna es mecánica
 
 Se intentaron las tres que habían quedado, y las tres se frenaron por el mismo motivo: **no son
