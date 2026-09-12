@@ -4448,6 +4448,49 @@ objetivo de rendimiento ya no es el perfilamiento sino **`orden_y_condiciones`**
 más cara.
 
 
+---
+
+**2026-09-12 · EL SIGUIENTE OBJETIVO, MEDIDO EN QA.** ⏳ PENDIENTE DE MERGE *(en `qa`, no en `main`)*
+
+Con el perfilamiento en ~300 ms, la etapa más cara pasó a ser **`orden_y_condiciones`**. Adentro
+había un N+1: `processLendersWithAdditionalInfo` gastaba **cuatro consultas por entidad** para llenar
+tres campos, y dos ni siquiera eran suyas —`findOrFailByLenderAndAlly` recibe **enteros**, así que
+resolvía la entidad y **la misma sucursal** con un `findOrFail` cada vez antes de mirar la credencial.
+
+Contado en local con el registro general de MySQL (la receta y sus trampas: **F-210**):
+
+| entidades del comercio | consultas antes | después |
+|---|---|---|
+| 7 | 124 | 86 |
+| 10 | 101 | 54 |
+| 10 | 98 | 46 |
+| 12 | 114 | 45 |
+
+**Y lo que eso vale en un ambiente real, medido en qa** con `listado.etapas_ms` sobre las MISMAS dos
+solicitudes antes y después del despliegue:
+
+| comercio | entidades | `orden_y_condiciones` antes (n=5) | después (n=38, calientes) |
+|---|---|---|---|
+| 91 | 5 | mediana **243** ms (146-309) | mediana **84** ms (64-257) |
+| 158 | 2 | mediana **103** ms (95-135) | mediana **95** ms (53-141) |
+
+Dicho sin suponer distribuciones: en el comercio de 5 entidades, **33 de las 38 corridas nuevas (87%)
+son más rápidas que la MEJOR de las cinco viejas**. En el de 2 entidades, 45% — o sea, indistinguible,
+que es exactamente lo que se espera al desarmar un N+1 cuando N vale 2.
+
+⚠ **El reloj de punta a punta NO sirvió para verlo.** Se intentó primero comparando el tiempo total
+del endpoint contra el backend de dev —que sigue con el código viejo y la misma base, o sea un
+control perfecto— y el resultado fue ruido: el propio control se movió entre −0,12 s y −0,34 s entre
+dos tandas separadas por una hora. Un cambio de ~150 ms no se ve contra 300 ms de jitter. **La etapa
+aislada sí lo ve**, y esa es la diferencia entre tener instrumentación y no tenerla.
+
+⚠ **Y el arranque en frío volvió a aparecer, del tamaño del problema original.** Las dos primeras
+peticiones contra el pod recién desplegado tardaron **16,8 s y 11,7 s**, y el reparto dice que se
+fueron al **perfilamiento** (`perfilamiento.ms` = 11.868). Es la misma forma que los 32 s de arriba.
+No alcanza para cerrarlo —una sola observación—, pero es la primera pista concreta de dónde mirar: un
+pod frío, no una consulta lenta.
+
+
 ### F-208 · Dos claves de configuración apuntan a PRODUCCIÓN por defecto, y el ambiente que olvide la variable escribe allá
 
 **Síntoma:** ninguno. Ése es el problema. Un ambiente no productivo al que le falte una variable no
