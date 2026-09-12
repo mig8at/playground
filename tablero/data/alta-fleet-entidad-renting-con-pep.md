@@ -416,6 +416,65 @@ mantener, le quita tipos al front, convierte un cambio de diseño en un cambio d
 conoce el design system del wizard. La regla que lo reemplaza: **el lender declara QUÉ tiene; la
 tarjeta decide CÓMO se ve.**
 
+### La card de Alta contra la de Motai — medido el 2026-09-12, sin tocar código
+
+Miguel mostró el diseño de la tarjeta de Alta: logo, **una** fila (*Pago semanal \* → $225.000*) y el
+botón *Validar Pre aprobado*. Nada más. La pregunta era si se puede con la tarjeta que hoy usa Motai —
+que tiene más campos— o si toca una segunda tarjeta.
+
+**Primero, la premisa era otra.** En **producción** Alta NO usa la tarjeta de Motai: `lenders` 199
+«Alta te financia» tiene **`product = credit` y `calculator = NULL`**, así que cae en
+`StandardLenderCardContent` — la tarjeta de **crédito**, con cupo, cuotas y tasa. La que hereda la de
+Motai es la de **local**, montada acá como `AltaX` (211, `product = rto`, calculator con **tres**
+planes 12/18/24 meses = 52/78/104 semanas). El mock no es ninguno de los dos: es un tercer diseño.
+
+**Segundo, no existe «la tarjeta de Motai».** `CalculatorLenderCardContent` es **una sola** para
+renting y RTO, con filas condicionales. La brecha exacta contra el mock:
+
+| elemento | hoy | mock | qué lo decide hoy |
+|---|---|---|---|
+| logo + nombre | ✔ | ✔ | fuera de esa función |
+| **Monto total** | ✔ (el RTO lo muestra) | ✗ | `product === 'renting'`, única forma de ocultarlo |
+| **Pago semanal \*** | ✔ | ✔ | `plans.length > 0`; el «semanal» sale solo (`payment_unit` por defecto `weekly` en el backend) |
+| **Plan \*** (select) | ✔ | ✗ | `plans.length > 0` — **no tiene interruptor propio** |
+| botón | ✔ | «Validar Pre aprobado» | `additional_data.action_text`, que **ningún admin escribe** (medición 2) |
+
+**Conclusión: NO hace falta una segunda tarjeta.** Faltan dos interruptores, y su naturaleza es
+distinta — es eso lo que decide el alcance:
+
+1. **El selector de plan se resuelve SIN schema nuevo.** Con **un** plan no hay nada que elegir: un
+   `select` de una sola opción es ruido en la tarjeta de cualquier entidad. La regla «el selector
+   aparece con más de un plan» es correcta universalmente, no es un parche para Alta, y Motai conserva
+   los suyos. Cero columnas.
+2. **El «Monto total» sí necesita dónde escribirse.** Ocultarlo en un RTO es una decisión **comercial**
+   —no anclar al cliente en el precio de la moto— y varía por entidad, no por producto. Lo más barato
+   es un campo en `calculator`, que el admin ya edita como JSON; lo más limpio, el bloque `card` del
+   tramo 1b.
+
+⚠ **Lo que NO se hace:** poner `product = 'renting'` para heredar la tarjeta. Ya se probó y se descartó
+en esta misma tarea —rompe el generador de documentos (F-188)— y el test que lo cubre existe justamente
+por eso.
+
+**Bloqueado en dos decisiones de negocio** (Miguel, 2026-09-12: las dos **sin definir todavía**):
+
+- **¿Alta cotiza UN plan o varios?** El mock no deja elegir. Si es uno, el punto 1 lo resuelve gratis.
+  Si son tres y el cliente no los elige, hay que definir **quién fija el plazo** — hoy quedaría el
+  default del calculator y nadie decide.
+- **¿Por qué no va el «Monto total»?** Si es decisión comercial, punto 2. Si el mock todavía puede
+  llevarlo, no hay nada que construir.
+
+**Lo que salió de paso y no depende de esas respuestas:**
+
+- **`terms` vs `plans`**: el backend elige la llave de la matriz por **cuál está presente**
+  (`LenderCalculator::matrixKey`), no por producto, mientras su propio docblock dice *«`plans`
+  (renting) | `terms` (rto)»*. Una entidad RTO configurada siguiendo ese comentario se queda **sin fila
+  de pago y sin selector**, en silencio, porque el front sólo lee `calculated.plans`. Ya hay una así en
+  la base: **Motai RB (170)**, `rto`, con calculator de params y fórmulas y **ninguna matriz** — su
+  tarjeta hoy es «Monto total» y el botón. Es **F-212**.
+- **El asterisco de «Pago semanal \*» y «Plan \*» no apunta a nada**: está escrito dentro del label y
+  no hay nota al pie en ninguna parte de la tarjeta.
+
+
 ### Riesgos y preguntas abiertas de este frente
 
 

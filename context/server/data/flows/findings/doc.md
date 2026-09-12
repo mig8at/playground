@@ -66,6 +66,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el job que encolé en qa nunca se ejecutó» · «el comando agendado no corre en dev»** | **F-209** |
 | **«¿cuántas consultas hace este endpoint?» · «medí y el número no puede ser»** | **F-210** |
 | **«en dev/qa tarda una eternidad y solo no»** · **«la optimización no se nota»** | **F-211** |
+| **«configuré la calculadora y la tarjeta sale sin cuota ni plan»** | **F-212** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -355,6 +356,7 @@ distinto según con qué pregunta llegues.
 | F-209 | Fuera de prod `legacy-backend` no tiene worker ni scheduler: con `QUEUE_CONNECTION=sync` lo encolado corre dentro del request, y lo agendado no corre | ABIERTO |
 | F-210 | El registro general de MySQL cuenta las consultas de Laravel en `Execute`, no en `Query`: filtrar por `Query` da 16 donde hay 124. Sirve para CONTAR, no para cronometrar | receta |
 | F-211 | Los backends de dev y qa tienen concurrencia efectiva UNO: el rendimiento es plano (~1,2 req/s) y la latencia crece lineal con los concurrentes. Todo tiempo medido ahí incluye la cola | ABIERTO |
+| F-212 | El backend acepta `plans` o `terms` en el `calculator` y el front sólo lee `plans`: un RTO configurado como dice el docblock queda con la tarjeta muda, sin error | ABIERTO |
 
 ---
 
@@ -4744,3 +4746,49 @@ de CPU, o el pool de conexiones. Eso se contesta mirando la definición del serv
 infraestructura, no desde el repositorio.
 
 **Estado:** ABIERTO. La conducta está MEDIDA; su causa, no.
+
+### F-212 · Una entidad de RTO configurada como dice el comentario del código se queda con la tarjeta muda
+
+**Síntoma:** configurás el `calculator` de una entidad de renting o rent-to-own, el listado la devuelve
+con 200 y su tarjeta sale **sin fila de pago y sin selector de plan** — sólo el monto y el botón. Nada
+falla, no hay error en ningún lado, y el config «está bien escrito».
+
+**Causa raíz.** El backend acepta **dos** llaves para la matriz de la oferta y elige **la que esté
+presente**, no la que corresponda al producto:
+
+```php
+private const MATRIX_KEYS = ['plans', 'terms'];
+// …
+foreach (self::MATRIX_KEYS as $key) {
+    if (isset($config[$key]) && is_array($config[$key])) { return $key; }
+}
+```
+
+El front, en cambio, lee **sólo una**:
+
+```ts
+export function hasCalculatorPlans(calculated?: { plans?: unknown } | null): boolean {
+      return Array.isArray(calculated?.plans) && calculated.plans.length > 0;
+}
+```
+
+Así que un config con `terms` produce `calculated.terms`, que **ninguna tarjeta mira**. Y la tarjeta no
+se cae a la de crédito —`usesCalculatorOffer` la retiene por producto, que para eso está—: se queda en
+la de calculadora **sin nada que dibujar**.
+
+⚠ **Y lo que lo vuelve una trampa y no un descuido es el propio docblock**, que induce el error:
+
+    @param string|null $matrixKey  'plans' (renting) | 'terms' (rto) | null (crédito)
+
+Quien configure un RTO leyendo eso escribe `terms`, que es exactamente lo que el front no lee.
+
+**Evidencia de que no es hipotético:** en la copia local hay una así — **Motai RB (170)**, `product =
+rto`, con un `calculator` de `params` y `formulas` y **ninguna** de las dos matrices. Su tarjeta hoy es
+una fila de «Monto total» y el botón.
+
+**Arreglo, en orden de costo:** (1) que el front lea las dos llaves —una línea— o (2) que el backend
+emita siempre `plans` y deje `terms` como alias de entrada. (3) Y en cualquier caso, corregir el
+docblock: hoy describe una convención que el código no aplica y que rompe al que la sigue.
+
+**Estado:** ABIERTO, sin PR. Encontrado leyendo las dos puntas mientras se medía la tarjeta de una
+entidad nueva; la fila 170 confirma que el caso existe en datos.
