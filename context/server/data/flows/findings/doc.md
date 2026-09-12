@@ -65,6 +65,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«un ambiente de prueba tocó datos de PRODUCCIÓN sin que nadie lo pidiera»** | **F-208** |
 | **«el job que encolé en qa nunca se ejecutó» · «el comando agendado no corre en dev»** | **F-209** |
 | **«¿cuántas consultas hace este endpoint?» · «medí y el número no puede ser»** | **F-210** |
+| **«en dev/qa tarda una eternidad y solo no»** · **«la optimización no se nota»** | **F-211** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -353,6 +354,7 @@ distinto según con qué pregunta llegues.
 | F-208 | `pdf_mapper` y `pdf_mapper_service` tienen de DEFAULT el host de PRODUCCIÓN: el ambiente que olvide la variable escribe allá, en silencio | ABIERTO |
 | F-209 | Fuera de prod `legacy-backend` no tiene worker ni scheduler: con `QUEUE_CONNECTION=sync` lo encolado corre dentro del request, y lo agendado no corre | ABIERTO |
 | F-210 | El registro general de MySQL cuenta las consultas de Laravel en `Execute`, no en `Query`: filtrar por `Query` da 16 donde hay 124. Sirve para CONTAR, no para cronometrar | receta |
+| F-211 | Los backends de dev y qa tienen concurrencia efectiva UNO: el rendimiento es plano (~1,2 req/s) y la latencia crece lineal con los concurrentes. Todo tiempo medido ahí incluye la cola | ABIERTO |
 
 ---
 
@@ -4487,8 +4489,11 @@ aislada sí lo ve**, y esa es la diferencia entre tener instrumentación y no te
 ⚠ **Y el arranque en frío volvió a aparecer, del tamaño del problema original.** Las dos primeras
 peticiones contra el pod recién desplegado tardaron **16,8 s y 11,7 s**, y el reparto dice que se
 fueron al **perfilamiento** (`perfilamiento.ms` = 11.868). Es la misma forma que los 32 s de arriba.
-No alcanza para cerrarlo —una sola observación—, pero es la primera pista concreta de dónde mirar: un
-pod frío, no una consulta lenta.
+No alcanza para cerrarlo —una sola observación—, pero es una pista concreta de dónde mirar.
+
+*(Y horas después apareció una segunda, más simple y medida: **F-211** — estos backends atienden UNA
+petición a la vez, así que ocho concurrentes ya hacen un listado de 10 s y la relación es lineal. Antes
+de seguir con el pod frío, conviene descartar la cola.)*
 
 
 ### F-208 · Dos claves de configuración apuntan a PRODUCCIÓN por defecto, y el ambiente que olvide la variable escribe allá
@@ -4606,3 +4611,59 @@ array (`IDS=(a b c)`) y, sobre todo, **el comparador tiene que exigir que haya c
 
 **Estado:** receta, no defecto. Lo que se midió con ella está en la tabla de
 `processLendersWithAdditionalInfo` (⏳ PENDIENTE DE MERGE, PR del listado).
+
+### F-211 · Los backends de dev y qa atienden UNA petición a la vez: cualquier medición de tiempo ahí mide la cola, no el código
+
+**Síntoma:** «en dev/qa esto tarda muchísimo» — y al medirlo solo, tarda un segundo. O al revés: una
+optimización real no se nota, o una pantalla sana tarda treinta segundos sin que nada falle.
+
+**Causa raíz, medida el 2026-09-12** contra los dos servicios, con el MISMO endpoint trivial
+(`/api/onboarding/user/{id}`, ~0,7 s cuando está solo):
+
+| backend | sola | 8 a la vez (pared) | rendimiento | latencias |
+|---|---|---|---|---|
+| `legacy-backend` (develop) | 0,63 s | **6,30 s** | 1,3 req/s | 2,1 · 2,5 · 3,1 · 3,2 · 4,4 · 5,5 · 6,1 · 6,3 |
+| `legacy-backend-qa` (qa) | 0,72 s | **6,81 s** | 1,2 req/s | 1,5 · 1,7 · 2,9 · 3,9 · 4,2 · 5,8 · 6,3 · 6,8 |
+
+Una sola petición se sirve en 0,7 s → el techo teórico sería ~1,4 req/s. Con ocho en paralelo el
+rendimiento medido es **1,2-1,3 req/s**. O sea: **la concurrencia efectiva es UNO.** No hay paralelismo
+que ganar; lo único que cambia es cuánto esperás en la fila.
+
+Y la curva del listado lo confirma, en qa, subiendo la concurrencia con las mismas 8 solicitudes:
+
+| concurrencia | pared | latencia mediana | rendimiento |
+|---|---|---|---|
+| 1 | 1,40 s | 1,38 s | 0,72 listados/s |
+| 2 | 2,40 s | 2,28 s | 0,83 |
+| 4 | 4,83 s | 4,32 s | 0,83 |
+| 6 | 8,74 s | 6,17 s | 0,69 |
+| 8 | 9,95 s | 6,23 s | 0,80 |
+
+**El rendimiento es PLANO y la latencia crece lineal.** Ocho listados en paralelo tardan lo mismo que
+ocho en serie: 11 s.
+
+**Y no es del listado, es del servidor.** El endpoint trivial se serializa igual. Por eso esto no se
+arregla optimizando una consulta.
+
+**Lo que cambia en cómo se lee TODO lo demás:**
+
+- ⚠ **Un tiempo medido en dev/qa no es el tiempo del código, es el tiempo del código MÁS la fila.** Y
+  la fila no la controlás: basta que otra persona esté probando, o que el propio wizard dispare sus
+  llamadas en paralelo al abrir una pantalla.
+- ⚠ **Explica el orden de magnitud de F-207 sin necesidad de nada exótico.** Con 8 en paralelo un
+  listado tarda 10 s; la relación es lineal, así que ~24 concurrentes dan ~30 s. *(Que ESA tarde
+  hubiera esa concurrencia no está probado — lo que está probado es que el mecanismo existe y da
+  justo esa magnitud, cosa que no lograron ni la hipótesis del timeout ni la del servicio caído.)*
+- ✔ **Y da vuelta el valor de bajar el trabajo por petición.** Bajo saturación, la latencia es
+  `concurrencia × tiempo de servicio`: recortar un 30% del tiempo de servicio recorta un 30% de la
+  latencia de TODOS los que están en la fila. Una optimización que en vacío «no se nota» es
+  exactamente la que más rinde acá.
+- ⚠ **Medir en paralelo para «ir más rápido» no sirve** — 8 corridas del arnés a la vez tardaron 22-32 s
+  cada una contra los ~9,6 s de una sola, y el total fue el mismo que en serie. Sirve para probar
+  concurrencia, no para ahorrar tiempo.
+
+**Lo que NO se sabe:** por qué. Puede ser una sola tarea ECS con un solo worker de PHP-FPM, un límite
+de CPU, o el pool de conexiones. Eso se contesta mirando la definición del servicio en la
+infraestructura, no desde el repositorio.
+
+**Estado:** ABIERTO. La conducta está MEDIDA; su causa, no.
