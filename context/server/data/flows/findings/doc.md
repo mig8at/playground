@@ -4391,6 +4391,47 @@ cerrado: se comprobaron los dos casos antes de creerle a estas cifras. Y `nc -z`
 el listado ahora que ese PR está desplegado**, no seguir sondeando servicios.
 
 
+
+**¿Y valió la pena? · lo medido para contestarlo, 2026-09-12.**
+
+Primero el control interno, que es lo que separa «bajó porque lo arreglé» de «bajó porque el ambiente
+estaba menos cargado» —una duda legítima, porque **F-211** dice que todo tiempo medido ahí incluye la
+cola—. Comercio 91, mismas solicitudes, medianas antes (n=5) y después (n=46):
+
+| etapa | antes | después | |
+|---|---|---|---|
+| `universo` | 4 | 5 ms | +25% |
+| `reglas_duras` | 65 | 108 ms | **+67%** |
+| `perfilamiento` | 464 | 364 ms | −22% |
+| **`orden_y_condiciones`** | **243** | **88 ms** | **−64%** ← la que se tocó |
+| `cierre` | 12 | 12 ms | 0% |
+
+**El ambiente no estaba más rápido: `reglas_duras` SUBIÓ un 67% y `cierre` no se movió.** La única
+etapa que baja de verdad es la que se tocó. El listado entero: **795 → 625 ms (−21%)**.
+
+Y en el comercio de 2 entidades, todo dentro de ±10% incluida la etapa tocada (−8%): con N=2 no hay
+N+1 que desarmar.
+
+**Cuánto de la realidad cae en cada caso** — producción, solicitudes de 90 días agrupadas por cuántas
+entidades tiene cableadas el comercio:
+
+| entidades del comercio | solicitudes | |
+|---|---|---|
+| 8 o más | 43.495 | **57%** |
+| 5 a 7 | 14.166 | 19% |
+| 4 | 744 | 1% |
+| 3 | 1.503 | 2% |
+| 2 | 14.744 | 19% |
+| 1 | 1.284 | 2% |
+
+**El 76% del tráfico sale de comercios con 5 o más entidades**, y el 57% de comercios con 8 o más —el
+extremo donde el ahorro es mayor, porque crece con N—. Sólo el 21% (dos entidades o menos) no ve nada.
+
+⚠ **Lo que NO está medido:** el tiempo de la etapa en qa para un comercio de 8+ entidades, que es
+justo donde está la mayoría del tráfico. Lo medido ahí es el **conteo de consultas** (143 → 86 en un
+comercio de 10, en local), que sí escala con N; que el tiempo escale igual es una inferencia razonable,
+no un dato. Y nada de esto se midió en producción, que puede no estar saturada como qa.
+
 **Estado:** ABIERTO. El diagnóstico está medido —30 de 32 s en el perfilamiento, reproducido seis
 veces sobre dos solicitudes distintas—; **cuál de sus tres llamadas se los lleva, NO**.
 
