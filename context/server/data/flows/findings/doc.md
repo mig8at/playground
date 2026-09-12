@@ -4609,6 +4609,25 @@ comparación imprime «respuesta IDÉNTICA» y el A/B entero pasa en verde sin h
 array (`IDS=(a b c)`) y, sobre todo, **el comparador tiene que exigir que haya contenido**
 (`[ -s archivo ] && …`): una prueba que no puede distinguir «igual» de «no corrió» no es una prueba.
 
+⚠ **Y el tercero, que es el peor de los tres porque el resultado falso es PLAUSIBLE: comparar dos
+versiones intercambiando el archivo PHP mide la versión equivocada.** El servidor local corre **varios
+procesos worker, cada uno con su propio opcache**, y `opcache.validate_timestamps=On` con
+`revalidate_freq=2` significa que cada worker mira la fecha del archivo **como mucho una vez cada dos
+segundos**. Copiar el archivo y pedir enseguida sirve el bytecode viejo — y no en todas las peticiones,
+sólo en las que caen en un worker que todavía no revalidó.
+
+Medido el 2026-09-12 comparando un arreglo de N+1 sobre ocho comercios: con un calentamiento de tres
+peticiones seguidas, **tres de los ocho dieron «+0 consultas»** y los otros cinco el ahorro real. Ese
+cero no se lee como un error de método: se lee como «en estos comercios el arreglo no aplica», que es
+una conclusión falsa y perfectamente creíble. Con `sleep 4` y catorce peticiones de calentamiento
+—suficientes para tocar todos los workers después de la ventana de revalidación—, los ocho dieron el
+mismo ahorro (−34% a −48%).
+
+**La regla:** entre una versión y otra, **esperá más que `revalidate_freq` y pegale a todos los
+workers antes de medir** — o reiniciá el proceso. Y desconfiá de un A/B donde algunos casos den
+exactamente cero: el cero perfecto casi nunca es un resultado, es un instrumento que no cambió de
+versión.
+
 **Estado:** receta, no defecto. Lo que se midió con ella está en la tabla de
 `processLendersWithAdditionalInfo` (⏳ PENDIENTE DE MERGE, PR del listado).
 
@@ -4661,6 +4680,23 @@ arregla optimizando una consulta.
 - ⚠ **Medir en paralelo para «ir más rápido» no sirve** — 8 corridas del arnés a la vez tardaron 22-32 s
   cada una contra los ~9,6 s de una sola, y el total fue el mismo que en serie. Sirve para probar
   concurrencia, no para ahorrar tiempo.
+
+
+**⚠ Y LOCAL NO SIRVE PARA ESTUDIAR ESTO**, medido el mismo día con las mismas ocho solicitudes:
+
+| | concurrencia 1 | concurrencia 8 |
+|---|---|---|
+| **local** (Docker, servidor embebido de PHP con varios workers) | 2,5 listados/s | **6,7 listados/s** |
+| **qa** (`legacy-backend-qa`) | 0,7 listados/s | **0,8 listados/s** |
+
+Local **escala** —casi ×3 al subir la concurrencia— y qa **no se mueve**. Son dos máquinas distintas
+respondiendo la misma pregunta de dos maneras opuestas: cualquier conclusión sobre comportamiento bajo
+carga sacada de local es, acá, exactamente al revés de lo que pasa en el ambiente compartido. Es el
+mismo aviso de **F-206** en otra dimensión — allá eran los índices, acá es la concurrencia.
+
+Y por eso el mismo arreglo del N+1 se ve o no se ve según dónde lo midas: en local, ocho listados en
+paralelo pasaron de **1,24 s a 1,20 s** (−3%, seis repeticiones), porque sacar 45 consultas contra un
+MySQL que vive en la misma máquina no cuesta casi nada; en qa la misma etapa bajó de 243 ms a 84 ms.
 
 **Lo que NO se sabe:** por qué. Puede ser una sola tarea ECS con un solo worker de PHP-FPM, un límite
 de CPU, o el pool de conexiones. Eso se contesta mirando la definición del servicio en la
