@@ -910,6 +910,70 @@ y a nadie del medio.** Eso es literalmente lo que se pedía.
 no typechequea, y en un refactor de props es la única red que hay** — estos componentes no tienen una
 sola prueba.
 
+## 🤔 «¿Y si fueran 5 archivos?» — medido (2026-09-13)
+
+Pregunta hipotética de Miguel, dejando la hexagonal para después. La respuesta corta: **no por el
+número, pero la intuición señala algo real — y el arreglo es otro eje, no menos archivos.**
+
+### Qué pesaría cada archivo
+
+16.863 líneas repartidas en:
+
+| escenario | líneas por archivo |
+|---|---|
+| **5 archivos** | **3.372** |
+| 10 archivos | 1.686 |
+| 20 archivos | 843 |
+| hoy (150) | 112 |
+
+⚠ **Referencia:** hoy partimos `LenderCardContent.tsx` **porque 1.243 líneas eran ilegibles**. Cinco
+archivos darían piezas **2,7 veces peores** que la que acabamos de desarmar. Y por tema no mejora: «la
+tarjeta» sola serían 3.196 líneas y «el listado» 3.116.
+
+### Y el costo que no se ve hasta que duele: los conflictos
+
+Medido sobre 6 meses de `origin/main`:
+
+| archivo de hoy | commits | personas |
+|---|---|---|
+| `AvailableLenders.tsx` | 59 | **11** |
+| `LenderCardContent.tsx` | 40 | **12** |
+| `lib/index.ts` | 34 | 10 |
+
+**Con ocho archivos temáticos, «el listado» habría recibido 151 commits de 12 personas** — unos seis
+por semana sobre un archivo de 3.116 líneas. Hoy el peor archivo del módulo ya es zona de conflicto;
+consolidar lo volvería la norma de cada área.
+
+### Pero la intuición SÍ señala algo, y es el EJE
+
+Midiendo los mismos 188 commits de dos formas:
+
+| | mediana | p75 | p90 | máx | tocan uno solo |
+|---|---|---|---|---|---|
+| **capas** (puerto, use-case, repo, entidad, servicio, mapper, componente…) | 2 | 3 | **6** | 9 | 46% |
+| **funciones** (la tarjeta, el listado, nequi, welli…) | **1** | 2 | **3** | 4 | **59%** |
+
+**Los cambios se contienen mejor por FUNCIÓN que por CAPA**: 59% contra 46%, y en la cola la diferencia
+es el doble (p90 de 3 contra 6). O sea: lo que hace que un cambio se desparrame **no es que haya 150
+archivos: es que están cortados por capa**.
+
+⚠ **Y el módulo ya está partido a la mitad en los dos ejes a la vez:**
+
+    lib/         application · config · domain · infrastructure · mappers · ports · types · utils   ← por CAPA
+    components/  available-lenders · lender-card · nequi · forms · modals · context · hooks         ← por FUNCIÓN
+
+**La mitad de componentes ya es vertical; la mitad de `lib/` es horizontal.** Ahí está la costura que
+obliga a cruzar. Un cambio en la tarjeta vive en `components/lender-card/` **y** se desparrama por
+`lib/domain/services`, `lib/mappers`, `lib/domain/entities`…
+
+**La recomendación, entonces, no es «menos archivos» sino «el mismo eje en las dos mitades»**: mover lo
+que es de la tarjeta a `lender-card/`, lo del listado a `available-lenders/`, y dejar en un `shared/`
+sólo lo que de verdad usan varios. Mismo número de archivos, la mitad de los cruces.
+
+⚠ **Eso NO se hizo**: mover `lib/` entero es un cambio grande, toca imports de todo el monorepo y se
+pisa con la conversación de la hexagonal que Miguel quiere dar con el arquitecto. Queda medido y
+propuesto, no ejecutado.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
