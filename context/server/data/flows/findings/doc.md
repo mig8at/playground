@@ -67,6 +67,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«¿cuántas consultas hace este endpoint?» · «medí y el número no puede ser»** | **F-210** |
 | **«en dev/qa tarda una eternidad y solo no»** · **«la optimización no se nota»** | **F-211** |
 | **«configuré la calculadora y la tarjeta sale sin cuota ni plan»** | **F-212** |
+| **«la telemetría dice que la entidad hizo X y en pantalla hizo Y»** | **F-213** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -357,6 +358,7 @@ distinto según con qué pregunta llegues.
 | F-210 | El registro general de MySQL cuenta las consultas de Laravel en `Execute`, no en `Query`: filtrar por `Query` da 16 donde hay 124. Sirve para CONTAR, no para cronometrar | receta |
 | F-211 | Los backends de dev y qa tienen concurrencia efectiva UNO: el rendimiento es plano (~1,2 req/s) y la latencia crece lineal con los concurrentes. Todo tiempo medido ahí incluye la cola | ABIERTO |
 | F-212 | El backend acepta `plans` o `terms` en el `calculator` y el front sólo lee `plans`: un RTO configurado como dice el docblock queda con la tarjeta muda, sin error | ABIERTO |
+| F-213 | El `next_step` de la telemetría lo calcula un ESPEJO del árbol de decisión, no el árbol: ya divergieron y las 3 entidades de gestión manual se reportan mal | ABIERTO |
 
 ---
 
@@ -4792,3 +4794,38 @@ docblock: hoy describe una convención que el código no aplica y que rompe al q
 
 **Estado:** ABIERTO, sin PR. Encontrado leyendo las dos puntas mientras se medía la tarjeta de una
 entidad nueva; la fila 170 confirma que el caso existe en datos.
+
+### F-213 · La telemetría de «qué pasó al elegir entidad» la calcula un espejo, y el espejo ya divergió
+
+**Síntoma.** En PostHog, el `next_step` del evento `lender_selection_result` dice que la solicitud
+siguió por un camino, y en pantalla siguió por otro. Pasa siempre con las mismas entidades y no hay
+error en ningún lado: el flujo funciona, lo que miente es el dato.
+
+**Causa raíz.** La decisión de qué pasa después de elegir una entidad está escrita **dos veces**:
+
+- el árbol real, en el `action` de `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx`,
+  que devuelve redirecciones y objetos;
+- su espejo, `getLenderSelectionNextStep` en `available-lenders.helpers.ts`, que existe **sólo** para
+  poner una etiqueta en el evento.
+
+El espejo lo admite en su propio comentario: *«es duplicación conocida: un caso nuevo en el árbol real
+tiene que agregarse acá también, o el flujo funciona pero la telemetría lo reporta como unhandled»*. Y
+ya pasó: el árbol real evalúa **primera** la rama `path_id === 3` (gestión manual, `MANAGED_LENDER_PATH_ID`)
+y el espejo **no la tiene**. Además el espejo se llama ANTES de esa rama, así que ni siquiera podría
+verla.
+
+**Evidencia.** Verificado contra el árbol real el 2026-09-13; en prod son **3 entidades activas** con
+`path_id = 3` —Efectivo, Elite Vacances y Tarjeta—, medidas con `make trazador-sql TARGET=prod`. Las
+tres se reportan con la etiqueta que les toque del resto del árbol (`modal`, `external-redirect`,
+`unhandled`…), nunca con la verdadera.
+
+⚠ **La trampa general, que es lo que hay que llevarse:** cuando la telemetría de una decisión la calcula
+una función distinta de la que toma la decisión, el dato no envejece con un error — envejece en
+silencio, y el tablero se sigue viendo sano. Antes de creerle a un `next_step`, `stage`, `status` o
+`reason` de analytics, comprobá si lo emite **quien decidió** o **alguien que volvió a decidir**.
+
+**Arreglo.** Que la decisión se tome una vez y devuelva un **valor**, y que la telemetría lea ese valor
+en vez de recalcularlo. Escrito y probado en local —`resolveAction` en
+`modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-action.service.ts`, con
+una prueba diferencial de las 768 combinaciones contra el espejo actual, cero desacuerdos— en la rama
+`feat/lenders-tarjeta-desde-el-back`. ⏳ PENDIENTE DE MERGE: nada de esto está en `main`.
