@@ -152,6 +152,29 @@ si falta, la cascada actual (rt 2/3 → `creditop_x`, Welli por id, slug). Es ca
 `card`. ⚠ Los dos PRs (back y front) llevan cada uno su rama desde `qa`; el del front no depende del
 del back porque NULL preserva el comportamiento.
 
+## Dónde quedó, y qué desbloquea qué (2026-09-13)
+
+**Parado a propósito, por decisión de Miguel:** el esquema se acuerda antes de escribir más código.
+Lo hecho vive en local, en tres commits, ninguno pusheado.
+
+| | estado |
+|---|---|
+| fase 1 · el bloque viaja | ✅ `legacy-backend` `0347dffa` — 86 → 87 consultas, una sola para todas |
+| fase 2 · la tarjeta lo lee | ✅ `frontend-monorepo` `7f88af93` — mismo veredicto en las 7 entidades reales |
+| fase 3 · endpoint del admin | ✅ `legacy-backend` `150d461e` — GET/PUT/DELETE, 7 pruebas |
+| fase 3 · la pantalla | ⏸ **esperando el esquema** |
+| fase 4 · retirar lo viejo | ⏸ después, y sí es una v3 |
+| el intérprete de verbos | ⏸ **esperando el esquema** |
+
+**Por qué las dos que faltan esperan lo mismo, y no es la misma razón que parecía.** La pantalla espera
+porque es la pieza más cara de rehacer (2.823 líneas en el módulo que le sirve de molde). El
+intérprete espera por otra cosa: **su contrato SON los verbos**, y los seis salieron de leer
+`getLenderSelectionNextStep`, no de acordarlos con nadie. Escribir el intérprete antes de fijarlos es
+fijarlos por la vía de los hechos — exactamente lo que el taller vino a evitar.
+
+**Lo que sí se puede hacer sin esperar nada:** el PR de la clave de pre-aprobados (F-202). Es el
+arreglo de un defecto de hoy, no depende del esquema, y está definido más arriba con sus tres estados.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
