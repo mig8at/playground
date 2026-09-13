@@ -469,6 +469,38 @@ Antes de partir o extraer, mirar **qué proporción del archivo es decisión**:
 - mucho **efecto y ciclo de vida** → **dejarlo** (`useLenderSelection`). Un hook que coordina el
   navegador no se simplifica moviéndolo: se simplifica cuando lo que despacha ya viene decidido.
 
+## ✅ Adoptado: el `actionHandler` decide por verbo (2026-09-13)
+
+El intérprete dejó de ser una pieza al costado. Las **once ramas** del `actionHandler` se eligen por
+`action.verb`, y el `next_step` del evento lee **ese mismo valor** — con lo que **F-213 queda arreglado
+en local**: ya no hay dos lugares que puedan separarse.
+
+**Una rama menos, y salió de leer los cuerpos para migrarlos:** «modal con url para copiar» y «modal de
+proceso» devolvían el **mismo objeto**, con un `url` contra `url || ""` de diferencia. Son un solo caso.
+**11 → 10.**
+
+⚠ **La complejidad NO bajó: 54 → 55.** Y a mitad de camino había subido a **57**, porque las guardas
+nuevas eran compuestas (`method === "post" && envelope !== null`) donde antes `!isNil(...)` estrechaba
+gratis. Se arregló **modelando mejor, no aceptándolo**: `redirect` pasó a ser una unión **discriminada**
+—un POST siempre lleva sobre y nunca url, un GET al revés— y las tres guardas de nulo se cayeron solas.
+
+**Este cambio no era para achicar esa función.** Era para que la decisión tenga un dueño y se pueda
+probar. Tres constantes se fueron del route (`MANAGED_LENDER_PATH_ID`, `isCalculatorProduct`,
+`isNequiLender`): el árbol dejó de preguntar quién es la entidad.
+
+⚠ **El espejo no se borra.** `getLenderSelectionNextStep` queda como **referencia congelada** de la
+prueba diferencial de 768 combinaciones. Mientras esté, mover una conducta sin querer se pone rojo;
+borrarlo se lleva esa red. Su docblock ya lo dice.
+
+⚠ **Y `tsc` atrapó cuatro cosas que el build no ve** —los estrechamientos de `postRedirect`, de la url
+del modal, de la del popup, y dos tipos de mis propias pruebas—. Ninguna habría fallado compilando.
+**El build de Vite no typechequea: correr `tsc` aparte no es opcional.**
+
+### Lo que esto desbloquea
+
+Las **111 líneas** del `useEffect` de `useLenderSelection` —la mitad CLIENTE del mismo árbol— ya pueden
+pasar a ser un `switch (action.verb)`. Era lo único que las trababa.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
