@@ -152,28 +152,75 @@ si falta, la cascada actual (rt 2/3 → `creditop_x`, Welli por id, slug). Es ca
 `card`. ⚠ Los dos PRs (back y front) llevan cada uno su rama desde `qa`; el del front no depende del
 del back porque NULL preserva el comportamiento.
 
-## Dónde quedó, y qué desbloquea qué (2026-09-13)
+## Dónde quedó (2026-09-13)
 
-**Parado a propósito, por decisión de Miguel:** el esquema se acuerda antes de escribir más código.
-Lo hecho vive en local, en tres commits, ninguno pusheado.
+**El objetivo de esta tarea es validar VIABILIDAD, no llegar a un acuerdo formal antes de escribir**
+(dicho por Miguel). Así que los verbos se fijaron midiendo el código, no opinando, y cada decisión de
+abajo tiene de dónde se sacó. Todo vive en local, en cinco commits, ninguno pusheado.
 
 | | estado |
 |---|---|
 | fase 1 · el bloque viaja | ✅ `legacy-backend` `0347dffa` — 86 → 87 consultas, una sola para todas |
 | fase 2 · la tarjeta lo lee | ✅ `frontend-monorepo` `7f88af93` — mismo veredicto en las 7 entidades reales |
 | fase 3 · endpoint del admin | ✅ `legacy-backend` `150d461e` — GET/PUT/DELETE, 7 pruebas |
-| fase 3 · la pantalla | ⏸ **esperando el esquema** |
+| los verbos, corregidos | ✅ `legacy-backend` `bc6141f1` — la lista anterior partía de una premisa falsa |
+| el intérprete de verbos | ✅ `frontend-monorepo` `78329cbf` — 768 combinaciones, cero desacuerdos |
+| fase 3 · la pantalla | ⏸ la pieza más cara de rehacer (2.823 líneas de molde); ahora sí puede arrancar |
 | fase 4 · retirar lo viejo | ⏸ después, y sí es una v3 |
-| el intérprete de verbos | ⏸ **esperando el esquema** |
 
-**Por qué las dos que faltan esperan lo mismo, y no es la misma razón que parecía.** La pantalla espera
-porque es la pieza más cara de rehacer (2.823 líneas en el módulo que le sirve de molde). El
-intérprete espera por otra cosa: **su contrato SON los verbos**, y los seis salieron de leer
-`getLenderSelectionNextStep`, no de acordarlos con nadie. Escribir el intérprete antes de fijarlos es
-fijarlos por la vía de los hechos — exactamente lo que el taller vino a evitar.
+### Las tres preguntas que faltaban, contestadas con el código
 
-**Lo que sí se puede hacer sin esperar nada:** el PR de la clave de pre-aprobados (F-202). Es el
-arreglo de un defecto de hoy, no depende del esquema, y está definido más arriba con sus tres estados.
+**1 · ¿Los tres redirects son tres verbos o uno con parámetros?** **Uno.** Se distinguen sólo por
+(`method`, `target`): `external-redirect` = get+same_tab, `external-popup` = get+new_tab,
+`post-redirect` = post+new_tab. La cuarta combinación no se usa y queda representable sin escribir una
+rama. Lo confirma el backend: `openNewTab` se calcula en **un solo lugar**
+(`lenderTabBehaviorResolver->opensNewTab`) después de que todas las ramas corrieron, así que `target`
+ya es un parámetro y no parte de la identidad del verbo.
+
+**2 · ¿`message` lleva un `kind`?** **No.** `modal` y `process-modal` devuelven del árbol real la
+**misma forma**, con un `url || ""` de diferencia. Y `continue-with-qr` ni siquiera es un mensaje: el
+árbol redirige a `/continue?url=<qrUrl>` — es `continue` con un parámetro, aunque su flag se llame
+`showModal`. Tres etiquetas → un `message` con url opcional y un `continue`.
+
+**3 · ¿La tarjeta puede declarar `otp` y `message`?** **Sí, y lo contrario era una premisa falsa mía**
+que llegó a quedar fijada en un test. Medido en `UserRequestService::updateUserRequest`: a Compensar
+le prende `validateLenderOtp` un **`switch ($lender->name)`**; a Meddipay, Prami, Lagobo (x2) y
+Davivienda les prende `openProcessModal` un **`if` por nombre**. Ninguno mira lo que contesta la
+entidad — se deciden antes de llamar a nadie. Son identidad quemada, que es justo lo que esta tabla
+viene a reemplazar; excluirlos dejaba afuera **7 de las 13** entidades con su nombre en el código.
+
+Lo que sí no se puede configurar es el **destino**: la `url` es un checkout con token, por solicitud.
+Y `lenders.url` está poblada en **las 196 activas** —incluidas las que nunca redirigen—, así que
+tampoco sirve para declararlo. Por eso `redirect` sale de la tarjeta, y con él `action.url`, `path`,
+`method` y `target`.
+
+**El vocabulario quedó `['continue', 'otp', 'message', 'open_terminal', 'manage']`.** `select` no está:
+es la **ausencia** de verbo —el caso de 183 de 196— y tenerlo como valor daría dos formas de escribir
+lo mismo. `manage` entró: es `path_id = 3` (Efectivo, Elite Vacances, Tarjeta), una rama que el espejo
+de telemetría **tampoco conoce**, así que hoy esas tres se reportan mal.
+
+Medido en prod sobre las 196 activas: `message` 5 · `manage` 3 · `continue` 2 · `otp` 2 ·
+`open_terminal` 1 · las otras 183 sin `action`.
+
+### Qué prueba el intérprete, y qué NO prueba
+
+`resolveAction` es el árbol de `available-lenders.tsx` escrito como función pura. La prueba no son ocho
+casos elegidos a mano: son **las 768 combinaciones** (2·3·2⁷) de las nueve señales que el árbol lee,
+comparadas una por una contra `getLenderSelectionNextStep` —que no es una reimplementación, es el
+espejo que el repo ya mantiene y con el que hoy se reporta producción—. **Cero desacuerdos.** Eso
+convierte el reemplazo del árbol en mecánico, y hace que mover una rama de lugar se ponga rojo.
+
+⚠ **Lo que NO prueba:** que el árbol de hoy esté bien. Prueba que el intérprete decide **lo mismo**.
+Los dos defectos conocidos siguen ahí y quedan anotados en el propio archivo — una entidad de Nequi
+configurada como renting se iría por `continue` y se saltearía el cobro; y `manage` no llega a la
+telemetría. El intérprete no los arregla: los deja en **un** lugar donde arreglarlos es una línea.
+
+⚠ **Y el ahorro honesto: la tarjeta saca 13 hardcodes por identidad, no 183 ramas.** Las otras 183
+entidades siguen sin `action` y siguen haciendo el POST para enterarse. Trece de 196 suena poco hasta
+que se ve qué son: son exactamente las que hoy tienen un `switch` con su nombre adentro del backend.
+
+**Lo que sigue sin depender de nada:** el PR de la clave de pre-aprobados (F-202). Es el arreglo de un
+defecto de hoy y está definido más arriba con sus tres estados.
 
 ## Riesgos y preguntas abiertas
 
