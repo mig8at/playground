@@ -169,6 +169,30 @@ del back porque NULL preserva el comportamiento.
 
 ## Registro
 
+### 2026-09-13 · fase 1 hecha en local: la tarjeta viaja y no se ve
+
+`legacy-backend`, rama `feat/lenders-tabla-cards`, commit local `0347dffa` — sin push. La tabla
+`cards`, el modelo, `CardComposer` y el bloque colgado de cada entidad en `LenderListingService`.
+
+Medido con disciplina de opcache y solicitud viva: **86 → 87 consultas**, tres corridas por lado, y la
+de `cards` es **una sola para todas las entidades**. La composición verificada en sus cuatro caminos
+—crédito pelado, `show_disbursement_details = 0` → `hide: [offer]`, `rto` → `action: continue`, y los
+beneficios reales de Bancolombia 68 y 100—, más la fila guardada pisando campo por campo con una fila
+sembrada a mano y revertida. `down()` borra la tabla y re-correr la migración no hace nada. La suite
+del módulo: 54 fallidas / 379 pasadas contra 54 / 368 sin el cambio — mismos fallos preexistentes y
++11 nuevos.
+
+⚠ **Y una hora perdida persiguiendo un fantasma, que conviene no repetir.** El listado empezó a
+devolver 0 entidades y parecía una regresión mía; no lo era, y tampoco era `qa`. Las solicitudes
+locales de prueba **habían sido borradas**: `dev/listado.ts` corre `scrubphone` antes de cada
+registro, y ese scrub empareja por los **últimos 10 dígitos** y borra el usuario *con sus
+solicitudes*. El teléfono que genera es `313` + `Date.now() % 9.000.000`, o sea que **se repite cada
+2 horas y media**: una corrida de la tarde borra la de la mañana. La pista que lo delató fue que el
+arnés reportaba ids **por encima** del `AUTO_INCREMENT` de la tabla. Lo que sí se descartó en el
+camino: las peticiones repetidas **no** agotan una solicitud (11 listados seguidos, 7 entidades
+siempre). Para medir, solicitud fresca y de una.
+
+
 ### 2026-09-13 · nace como tarea propia; el taller queda como fuente de verdad
 
 Miguel cortó Alta en `frontend-monorepo#994` y sacó este frente a su propia tarea, para trabajarlo en
