@@ -222,6 +222,71 @@ que se ve qué son: son exactamente las que hoy tienen un `switch` con su nombre
 **Lo que sigue sin depender de nada:** el PR de la clave de pre-aprobados (F-202). Es el arreglo de un
 defecto de hoy y está definido más arriba con sus tres estados.
 
+## ⚖ ¿Vale la pena mover la tarjeta a la base? — medido el 2026-09-13
+
+Miguel pidió seguir validando si el cambio se paga. Se midió el front entero, y la respuesta honesta
+es **la mitad sí y la mitad no, y la mitad que paga no es la que estábamos construyendo.**
+
+### La mitad que NO paga: `hide` / `labels` / `benefits` / `action`
+
+En toda la carpeta de la tarjeta —3.086 líneas en 17 archivos— las decisiones por IDENTIDAD de entidad
+son **tres**:
+
+    LenderCard.tsx:85           if (lenderId === MEDDIPAY_LENDER_ID)
+    LenderCardContent.tsx:1139  if (lenderData.id !== MEDDIPAY_LENDER_ID) return null
+    LenderCardContent.tsx:1161  if (lenderData.id !== PRAMI_LENDER_ID) return null
+
+Tres ramas, dos entidades. Sumadas las reglas derivadas que el bloque también reemplaza (el renting
+esconde el monto, `show_disbursement_details` apaga la oferta, los beneficios salen de
+`additional_data`), lo que se ahorra es del orden de decenas de líneas. **La fase 2 midió «no cambia
+ninguna pantalla» y eso era exacto: tampoco cambia mucho el código.**
+
+⚠ Y hay ocho usos más de ids quemados FUERA de la tarjeta —en `lender-resolution.service`,
+`fetch-lender-preapproval`, `lender-response.mapper`, `lender-transaction-status.entity` y la ruta—
+que el bloque `card` **no toca**: son de flujo, no de presentación.
+
+### La mitad que SÍ paga: normalizar el PRECIO
+
+Al abrir las tres ramas de arriba resultó que **no son sobre qué muestra la tarjeta**: son sobre **de
+dónde sale el número**. Cada entidad manda su precio en otra forma dentro de `transaction_data`:
+
+| entidad | dónde pone su cuota |
+|---|---|
+| Meddipay | `commercialOffer`, una cuota por plazo |
+| Welli | el plan de `transaction_data` |
+| Prami | `transaction_data.quotas` |
+
+Y eso cuesta, medido:
+
+- **149 de 405 líneas (37%)** de `lender-transaction-data.service.ts` son extractores POR ENTIDAD
+  (`extractPramiQuotas`, `extractMeddipayOffers`, `extractMeddipayCreditLimit`,
+  `extractWelliInstallments`, `extractMeddipayTermOptions`);
+- se consumen en **cinco lugares**: `useInstallmentOptions`, `LenderCard`, `LenderCardContent`,
+  `lender-resolution.service` y el barrel;
+- cada uno arrastra su rama de selección («si es Meddipay usá este, si es Welli este otro»).
+
+Los extractores **genéricos**, para comparar, tienen 1 o 2 consumidores cada uno.
+
+**El backend ya sabe hacer esto para los otros productos.** `attachCalculatedFields` corre la fórmula
+de `lenders.calculator` y produce `calculated` con `plans[]`, `payment_unit`, `default_plan` e
+`initial_fee`. Meddipay, Welli y Prami no tienen `calculator` — su precio llega de su API en el
+`transaction_data`, que **el backend ya tiene en la mano** cuando arma la respuesta.
+
+### Qué significa para el plan
+
+**El bloque `offer` del esquema del taller es el que se paga; el bloque `card` es cosmético.** Eran la
+misma propuesta y hay que separarlos:
+
+1. mover la normalización del precio al back —los tres extractores mueren en el front y la tarjeta pasa
+   a dibujar `plans[]`, que es lo que ya hace con renting y RTO—;
+2. `hide`/`labels`/`benefits` siguen valiendo, pero por **configurabilidad sin desplegar**, no por
+   ahorro de código. Vendida como simplificación, la tabla `cards` no se sostiene con los números.
+
+⚠ **Y el ahorro no se mide en entidades de hoy sino en las de mañana.** Son tres entidades con forma
+propia sobre 196; visto así es poco. Pero cada entidad nueva con un precio propio agrega hoy un
+extractor **más una rama en cinco archivos**, y eso es exactamente la queja de «138 archivos para
+listar algo». Normalizado en el back, una entidad nueva es un mapeador y cero cambios en el front.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
