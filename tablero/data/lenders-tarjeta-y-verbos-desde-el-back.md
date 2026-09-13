@@ -743,6 +743,69 @@ caminos a la vez.** `LenderCardContent.tsx` recibe `selectedOffer` como prop **y
 4. **Las 8 banderas de presentación** son el siguiente bocado: las calcula el padre y podrían salir de
    una función pura como las cuatro de esta tarea.
 
+## ❌ Las «cuatro props duplicadas» no existían — y de dónde viene la sensación de profundidad
+
+### Mi error, primero
+
+Escribí que `selectedOffer`, `selectedFeeNumber`, `isAmountUpdating` y `requestedAmount` «viajan por los
+dos caminos a la vez». **Es falso.** Lo derivé cruzando «el store la sirve» con «algún componente la
+lee», que no es lo mismo que «el mismo componente hace las dos cosas». Cruzado bien, quedaban **dos**
+casos, y ninguno es duplicación:
+
+- `LenderMarketplaceContext` recibe `requestedAmount` y expone `useRequestedAmount` — **es el provider**:
+  por definición recibe lo que expone;
+- `LenderCardVariants` tiene los dos hermanos resolviéndolo distinto… **porque la regla es distinta**.
+
+⚠ **Y quitarla habría metido un bug.** El `selectedFeeNumber` que baja por props **no es** el que da el
+store: `useInstallmentOptions` devuelve `getValidSelectedFeeNumber(...)`, el valor **ya validado contra
+las opciones disponibles**. El hook del store da el crudo. Para renting y RTO el hook explícitamente
+**no** coerce —los planes cuentan pagos, no cuotas—, y por eso `CalculatorLenderCardContent` sí lee del
+store y `StandardLenderCardContent` no. No es inconsistencia: es la regla.
+
+**Nada que quitar.** Anotado porque el error es instructivo: un conteo cruzado mal parece un hallazgo.
+
+### Lo que sí se midió: «toco 20 archivos para un cambio»
+
+203 commits al marketplace en 6 meses, sin merges:
+
+| archivos por commit | commits |
+|---|---|
+| 1 | 31% |
+| 2–3 | 31% |
+| 4–9 | 28% |
+| 10–19 | 10% |
+| **20 o más** | **1%** (2 de 203) |
+
+**Mediana: 3 archivos.** Los dos de 20+ son features enteras: integrar el servicio async de
+pre-aprobados (24) e integrar Nequi (23).
+
+**Pero la sensación no es sobre la cantidad: es sobre la PROFUNDIDAD, y ahí Miguel tiene razón.**
+Midiendo **capas distintas** por commit —puerto, use-case, repositorio, entidad, servicio, mapper,
+tipos, store, hook, componente, ruta—:
+
+| capas | commits |
+|---|---|
+| 1 | **48%** |
+| 2 | 18% |
+| 3 | 13% |
+| **6 o más** | **10%** |
+| máximo | **10 capas** |
+
+**La mitad de los cambios toca una sola capa. Pero uno de cada diez cruza seis o más** — y ésos son los
+que duelen, los que se recuerdan y los que forman la sensación. Los peores:
+
+    10 capas · 24 archivos   integrar el servicio async de pre-aprobados
+     9 capas · 23 archivos   integrar el flujo de pago Nequi
+     9 capas ·  9 archivos   resumen financiero en la pantalla de lenders
+
+⚠ **El patrón: los que cruzan muchas capas son los que traen un DATO NUEVO desde el backend.** Entidad →
+mapper → repositorio → use-case → puerto → servicio → hook → componente → ruta. Y es exactamente donde
+15 de esos archivos no hacen nada (los use-cases pasamanos y sus puertos).
+
+**Así que las dos mediciones se juntan:** la profundidad no molesta en el 90% de los cambios, y en el
+10% restante lo que se atraviesa es, en buena parte, ceremonia. Eso vuelve la poda del pasamanos un
+canje mucho más claro de lo que parecía cuando se miró sola.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
