@@ -358,7 +358,7 @@ distinto según con qué pregunta llegues.
 | F-210 | El registro general de MySQL cuenta las consultas de Laravel en `Execute`, no en `Query`: filtrar por `Query` da 16 donde hay 124. Sirve para CONTAR, no para cronometrar | receta |
 | F-211 | Los backends de dev y qa tienen concurrencia efectiva UNO: el rendimiento es plano (~1,2 req/s) y la latencia crece lineal con los concurrentes. Todo tiempo medido ahí incluye la cola | ABIERTO |
 | F-212 | El backend acepta `plans` o `terms` en el `calculator` y el front sólo lee `plans`: un RTO configurado como dice el docblock queda con la tarjeta muda, sin error | ABIERTO |
-| F-213 | El `next_step` de la telemetría lo calcula un ESPEJO del árbol de decisión, no el árbol: ya divergieron y las 3 entidades de gestión manual se reportan mal | ABIERTO |
+| F-213 | El `next_step` de la telemetría lo calcula un ESPEJO del árbol de decisión, no el árbol: ya divergieron y las 3 entidades de gestión manual se reportan mal | ARREGLADO ⏳ pendiente de merge |
 
 ---
 
@@ -4824,8 +4824,17 @@ una función distinta de la que toma la decisión, el dato no envejece con un er
 silencio, y el tablero se sigue viendo sano. Antes de creerle a un `next_step`, `stage`, `status` o
 `reason` de analytics, comprobá si lo emite **quien decidió** o **alguien que volvió a decidir**.
 
-**Arreglo.** Que la decisión se tome una vez y devuelva un **valor**, y que la telemetría lea ese valor
-en vez de recalcularlo. Escrito y probado en local —`resolveAction` en
-`modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-action.service.ts`, con
-una prueba diferencial de las 768 combinaciones contra el espejo actual, cero desacuerdos— en la rama
-`feat/lenders-tarjeta-desde-el-back`. ⏳ PENDIENTE DE MERGE: nada de esto está en `main`.
+**Arreglo — HECHO en local, ⏳ PENDIENTE DE MERGE.** La decisión se toma una vez y devuelve un
+**valor**; la telemetría lee ese valor en vez de recalcularlo. `resolveAction` vive en
+`modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-action.service.ts` y el
+`actionHandler` de `available-lenders.tsx` elige sus once ramas por `action.verb`, el mismo que viaja en
+`next_step`. Rama `feat/lenders-tarjeta-desde-el-back`; nada en `main`.
+
+⚠ **El espejo NO se borró, y la razón importa.** `getLenderSelectionNextStep` quedó como **referencia
+congelada** de una prueba diferencial que compara las 768 combinaciones de las nueve señales del árbol.
+Mientras esté ahí, cambiar `resolveAction` y mover una conducta sin querer se pone rojo. Borrarlo se
+lleva esa red: es una decisión, no una limpieza.
+
+**Y de paso salió una rama de menos.** Al leer los cuerpos para migrarlos, «modal con url para copiar» y
+«modal de proceso» resultaron devolver el MISMO objeto, con un `url` contra `url || ""` de diferencia.
+Eran un solo caso —un mensaje con url opcional—: once ramas quedaron en diez.
