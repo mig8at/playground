@@ -554,6 +554,44 @@ que nadie lea «probado» de más.
 **cerrada** y mi contrato decía `string`. Compilaba, y dejaba pasar un nombre inventado — que en
 analítica no falla: **se pierde**.
 
+## 🔧 `LenderCard` partido, y el balance del frente (2026-09-13)
+
+Último de los grandes. Mismo diagnóstico que `LenderCardContent`, más chico: 635 líneas y **nueve
+componentes**, con cero `useMemo` y un solo `useEffect` de efecto real. No sobraba lógica: sobraba
+apretujamiento.
+
+| archivo | líneas | qué agrupa |
+|---|---|---|
+| `LenderCard.tsx` | 635 → **327** | `LenderCardInner`, sus props y `resolveShouldShowFee` |
+| `LenderCardShells.tsx` | **202** | los dos envoltorios: la plegable y la destacada |
+| `LenderCardParts.tsx` | **140** | ícono, tooltip, pie del rotativo, etiquetas, «validando» |
+| `lender-card.variants.ts` | **29** | los dos marcos (`cardVariants`) y su tipo |
+
+⚠ **Lo de `cardVariants` no es prolijidad.** Vivía dentro de `LenderCard.tsx` y **seis** archivos lo
+importan de ahí —varios de los cuales `LenderCard` importa a su vez—, o sea que **el ciclo ya existía**.
+Al partir en tres iban a ser dos ciclos más. En su propio archivo no hay ciclo posible. `LenderCard`
+los **sigue reexportando**, así que los seis importadores no se tocan: migrarlos es otro cambio,
+mecánico, y mezclarlo volvía imposible leer cuál de los dos rompió algo.
+
+**Verificado como movimiento puro:** 17 definiciones antes, 17 después, ninguna perdida, ninguna nueva,
+y un solo cuerpo distinto — una firma que biome partió en varias líneas.
+
+### El balance del frente
+
+| | al empezar | ahora |
+|---|---|---|
+| archivos de código del módulo | 141 | **150** |
+| archivos de más de 400 líneas | 5 | **3** |
+| `LenderCardContent.tsx` | 1.243 | **267** |
+| `LenderCard.tsx` | 635 | **327** |
+| `AvailableLenders.tsx` | 972 · complejidad 52 | **933 · 45** |
+| `useLenderSelection.ts` | 443 · complejidad 25 | **416 · sin aviso** |
+| decisiones con prueba | 0 | **4 servicios puros** — 768 + 324/1.296 + 5.760 + 675 combinaciones |
+
+**El conteo de archivos SUBIÓ de 141 a 150, y eso está bien.** Lo que bajó es lo que importaba: cuánto
+hay que leer para entender una decisión, y cuánto se puede probar sin montar React. Pedir «menos
+archivos» habría empeorado los dos.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
