@@ -2,7 +2,7 @@
 id: 76
 title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
-ramas: feat/comercio-pantalla-de-bienvenida
+ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta
 created: "2026-09-09T10:00:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
 jira: [CORE-558]
@@ -10,6 +10,13 @@ jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
+
+**✂ CORTE · 2026-09-13.** Miguel cerró el alcance de esta tarea en **`frontend-monorepo#994`** («el
+selector de plan aparece cuando hay algo que elegir»), que queda abierto para mergear o seguir
+actualizando mañana. **Todo el frente de la tarjeta parametrizable —el esquema, los verbos, la tabla
+`cards`, mover la orquestación al back— salió a la tarea 80**
+(`lenders-tarjeta-y-verbos-desde-el-back`): *«no las mezclemos con los cambios de Alta»*. Lo que queda
+de ese frente acá abajo es la historia de cómo nació; la fuente de verdad ya no es este archivo.
 
 **Alta Fleet** es un comercio de MOTOS que entra como *upselling* con SaaS de $250.000 y **línea de
 crédito propia** — o sea el modelo **CreditopX** (`response_type = 2`): el capital y el riesgo son del
@@ -56,7 +63,7 @@ documentos se elige por `lenders.product` y no por id de entidad. Con eso **Alta
 estado 11 en local**, con sus cinco documentos generados y firmados, y la suite del codeudor volvió a
 verde. La autogestión también quedó verificada corriéndola: `showModal: false`, sin mensaje.
 
-**FRENTE NUEVO desde el 2026-09-11: la tarjeta de cada entidad.** Miguel pidió que la tarjeta deje
+**FRENTE NUEVO desde el 2026-09-11 — ⏩ y MOVIDO a la tarea 80 el 2026-09-13: la tarjeta de cada entidad.** Miguel pidió que la tarjeta deje
 de estar quemada y que cada entidad pueda definir la suya, y decidió que se trabaja **en esta misma
 tarea**. Ya está medido (sección «La tarjeta de cada entidad»): el canal existe, es administrable, y
 está roto en las dos puntas —tres campos que el admin guarda y la tarjeta no dibuja, dos que la
@@ -157,6 +164,11 @@ activas, une, y recorta con el catálogo del país.
 su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de `legacy-application`.
 
 ## La tarjeta de cada entidad: por capacidad y no por id
+
+> ⏩ **Desde el 2026-09-13 este frente vive en la tarea 80** (`lenders-tarjeta-y-verbos-desde-el-back`),
+> y su fuente de verdad es el taller: https://claude.ai/code/artifact/d6933a7c-f0d2-4eb7-a4fa-4352220c6834.
+> Lo de abajo se conserva porque es donde se midió por primera vez, pero **no se actualiza más acá**.
+
 
 Frente nuevo, incorporado a ESTA tarea el 2026-09-11 por decisión de Miguel: la tarjeta parametrizable
 se trabaja acá y no en una tarea aparte. Nació de su pregunta —«¿que cada lender defina cómo mostrar su
@@ -812,6 +824,17 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-13 · el corte: Alta cierra en #994 y la tarjeta se va a su propia tarea
+
+El último PR de esta tarea es `frontend-monorepo#994`: el selector de plan se dibuja sólo cuando hay
+más de un plan —medido: las dos únicas entidades con calculadora en prod traen tres, así que hoy no
+cambia ninguna pantalla— y las dos historias de Storybook que la card de alquiler no tenía. Se probó en
+local poniendo a AltaX en un solo plan: el renglón «Plan» desaparece y la cuota se conserva. Miguel lo
+verá mañana. Lo que faltaba para el diseño de Alta —ocultar «Monto total», el texto del botón— quedó
+bloqueado en decisiones de diseño y **pasa entero a la tarea 80** junto con todo el frente de la
+tarjeta parametrizable. Esta tarea no crece más por ese lado.
+
 
 ### 2026-09-11 (cierre 2) · la pantalla lenta no era el SQL: son 30 segundos esperando al perfilador
 
