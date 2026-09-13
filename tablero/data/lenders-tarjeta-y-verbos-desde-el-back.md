@@ -287,6 +287,54 @@ propia sobre 196; visto así es poco. Pero cada entidad nueva con un precio prop
 extractor **más una rama en cinco archivos**, y eso es exactamente la queja de «138 archivos para
 listar algo». Normalizado en el back, una entidad nueva es un mapeador y cero cambios en el front.
 
+## 🔧 El lugar único, hecho y validado (2026-09-13)
+
+Se probó la idea de Miguel —«los componentes externos simples y uno solo con la lógica»— sobre el caso
+medido arriba, y **funciona**. `resolveLenderOffer` junta la cascada que estaba en tres archivos:
+
+| | antes | ahora |
+|---|---|---|
+| `useInstallmentOptions` | Welli + Meddipay + external | «¿contestó la entidad?» (−37 +14) |
+| `LenderCardContent` | un `useMemo` por entidad ×3 | uno (−54 +25) |
+| `lender-resolution.service` | leía el tarifario de Prami | lo pide al mismo lugar (−6 +12) |
+
+Neto en los llamadores **−97 +51**; con el servicio nuevo el total **no baja**. Lo que se gana es que el
+hecho tiene un dueño, que una entidad nueva es una rama en un archivo, y sobre todo que **ahora se puede
+probar**: esa lógica vivía dentro de un hook de React y del `useMemo` de un componente, en un módulo
+donde vitest ni arranca.
+
+**Cómo se validó sin pruebas en el módulo:** una prueba diferencial que transcribe literalmente las tres
+cascadas de hoy y las compara — **324 combinaciones** para los plazos y **1.296** para la cuota. Encontró
+tres cosas que no se veían leyendo:
+
+1. un Meddipay con tarifario vacío **no** cae a las cuotas de crédito (el código devuelve adentro del
+   `if`); mi primera versión sí caía;
+2. con Welli ya actualizado, la cuota entra por `calculate-loan-financials.uc`, que pisa
+   `estimatedFeeAmount` — mi referencia no modelaba ese camino y acusó una diferencia inexistente;
+3. **el resultado vivo es sólo de Welli** (`setExternalFinancials` se llama en un lugar y tras parsear
+   con el schema de Welli), así que la rama genérica `if (externalFinancials)` de `useInstallmentOptions`
+   hoy **no la alcanza nadie**.
+
+## ⚠ Y el diagnóstico de «tantos archivos» era otro
+
+Medido el módulo entero: **141 archivos de código, 16.318 líneas** (más 24 de prueba). Pero:
+
+- **62 archivos tienen menos de 50 líneas.** Ésos no son el problema, y juntarlos lo empeoraría.
+- **8 archivos tienen el 30% de las líneas.**
+
+Y esos ocho no fallan por lo mismo:
+
+| archivo | líneas | qué es |
+|---|---|---|
+| `LenderCardContent.tsx` | 1.242 | **16 componentes en un archivo** y 7 `useMemo`: es DIBUJO apretado, no lógica |
+| `AvailableLenders.tsx` | 972 | **42 hooks y CERO componentes**: es orquestación pura |
+| `LenderCard.tsx` | 636 | 6 componentes, 9 hooks |
+
+**La conclusión invierte el pedido:** `LenderCardContent` no necesita menos archivos sino **más** —16
+componentes no caben en uno—, y el que sí necesita el tratamiento del lugar único es
+**`AvailableLenders.tsx`**, donde 42 hooks deciden sin una sola prueba. Reducir el conteo de archivos no
+es la palanca; sacar las decisiones de los componentes a funciones puras y probables, sí.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
