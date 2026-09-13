@@ -383,6 +383,45 @@ tapa el día que alguien sí mute. **El build de Vite no typechequea** — corre
 
 Las dos veces la prueba encontró algo que no se veía leyendo, y las dos veces era un error mío.
 
+## 🔧 Tercera pasada: partir `LenderCardContent` (2026-09-13)
+
+El tercer archivo grande, y **el diagnóstico es el opuesto a los otros dos**: 1.243 líneas con
+**dieciséis componentes** y sólo 7 `useMemo`. Ahí no sobraba lógica, sobraba apretujamiento. Necesitaba
+más archivos, no menos — así que este cambio no extrae nada, mueve.
+
+| archivo | líneas | qué agrupa |
+|---|---|---|
+| `LenderCardContent.tsx` | 1.243 → **267** | el contenedor y su hook de oferta por defecto |
+| `LenderCardVariants.tsx` | **379** | las dos tarjetas que existen: crédito y calculadora |
+| `LenderCardSummaries.tsx` | **286** | los cinco que dibujan NÚMEROS |
+| `LenderCardPrimitives.tsx` | **255** | el botón, los selectores, un monto, los tooltips |
+| `LenderCardBodyDetails.tsx` | **155** | los renglones, los beneficios y las alertas |
+
+El criterio de cada corte quedó escrito en la cabecera de su archivo. El de las primitivas es el que más
+manda: **no deciden nada**. Si una necesita un `useMemo` con reglas de negocio, no es una primitiva.
+
+**Cómo se verifica un movimiento puro**, que no es lo mismo que verificar un cambio: no alcanza con que
+compile, hay que probar que el código **es el mismo**. Se compararon las definiciones de nivel superior
+de antes contra las de los cinco archivos de ahora — **40 antes, 40 después**, ninguna perdida, ninguna
+nueva, ningún cuerpo distinto salvo dos firmas que biome partió en varias líneas.
+
+⚠ **Y esa comparación encontró un defecto que ni el build ni `tsc` veían.** Al mover
+`useDefaultOfferSelection` quedó sin usar en `LenderCardVariants`, y el arreglo `--unsafe` de biome lo
+**renombró** a `_useDefaultOfferSelection` en vez de borrarlo: quedaban dos copias, una muerta, y ningún
+aviso. **Con `--unsafe` hay que mirar lo que hizo** — «no quedan avisos» no es «no quedó basura».
+
+### El balance de las tres pasadas
+
+| | antes | después |
+|---|---|---|
+| `AvailableLenders.tsx` | 972 líneas · 42 hooks · complejidad 52 | 932 · 39 · **45** |
+| `LenderCardContent.tsx` | 1.243 líneas · 16 componentes | **267** en 5 archivos |
+| decisiones probables | 0 | **3 servicios puros, 5.760 + 1.620 + 324 combinaciones** |
+
+El módulo pasó de 141 a 145 archivos de código: **la cuenta subió, y eso está bien**. Lo que bajó es lo
+que importaba — cuánto hay que leer para entender una decisión, y cuánto se puede probar sin montar
+React.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
