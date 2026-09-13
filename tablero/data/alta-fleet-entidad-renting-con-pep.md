@@ -475,6 +475,54 @@ por eso.
   no hay nota al pie en ninguna parte de la tarjeta.
 
 
+#### El flag por componente ya existe, y su precedente dice lo que cuesta
+
+Pregunta de Miguel (2026-09-13): *«¿es posible un flag para cada componente y decidir cuándo mostrarlo
+o no?»*. La respuesta corta es que **sí, y ya está hecho una vez**: `lenders.show_disbursement_details`
+(`tinyint(1)`, default 1, migración `2026_07_01_120000`) es exactamente eso — un interruptor por
+entidad que apaga un bloque de la tarjeta. En **producción lo usan 3 de 199 entidades**.
+
+Ese precedente deja dos cosas medidas, y las dos importan más que la pregunta:
+
+**1 · Un flag que esconde un componente se lleva lo que cuelga de él.** No lo deduzco: lo dice el
+comentario que alguien tuvo que escribir en `LenderCardContent.tsx` al chocar con eso —
+
+> *«Vive FUERA de `LenderCardBodyDetails` a propósito. Ese componente corta de entrada cuando
+> `show_disbursement_details === false` —el caso de Nequi—, y ese corte se lleva también los
+> beneficios, así que nada colgado de ahí se vería.»*
+
+O sea que el renglón «Te financiamos hasta X» está fuera de su padre natural **por culpa del flag**. El
+flag no sólo esconde: reordena el árbol de componentes, y lo paga el que viene después.
+
+**2 · Nadie lo puede escribir.** Vive sólo en `legacy-backend` —migración, modelo y un servicio— y
+**no aparece en `legacy-application`**, que es donde está el admin. Las 3 entidades que lo tienen en 0
+llegaron ahí por un UPDATE a mano. Es la misma historia de `action_text` (medición 2): el canal existe,
+el override funciona, y producto no puede tocarlo.
+
+**Agregar flags a un canal que nadie puede escribir, sobre un árbol donde esconder una caja mata su
+contenido, es ponerle caudal a un tubo roto.**
+
+#### La recomendación: no un flag por componente, UNO
+
+De los cuatro renglones de la tarjeta de alquiler, **tres se deducen del dato** y sólo uno necesita que
+alguien decida:
+
+| renglón | ¿lo contesta el dato que ya llega? |
+|---|---|
+| Pago del período | **sí** — hay planes calculados o no |
+| Plan | **sí** — hay más de uno o no (hecho, PR #994) |
+| Texto del botón | **ya tiene canal** (`action_text`); falta quién lo escriba |
+| **Monto total** | **NO** — es decisión comercial por entidad → acá sí, un flag |
+
+La regla que se sigue de esto, y que conviene fijar antes de que entre el próximo renglón: **primero se
+pregunta si el dato ya lo contesta; sólo si no, se le da un interruptor.** Así la cantidad de flags se
+queda cerca de cero y cada uno está justificado. Lo contrario —un booleano por caja— son 2⁴
+combinaciones de las que nadie probó 15, y ninguna dice POR QUÉ se esconde.
+
+⚠ **Y el prerrequisito vale más que el flag:** mientras el canal siga sin admin (tramo 1), cualquier
+interruptor nuevo se configura con un UPDATE a mano, igual que los 3 de `show_disbursement_details`.
+
+
 ### Riesgos y preguntas abiertas de este frente
 
 
