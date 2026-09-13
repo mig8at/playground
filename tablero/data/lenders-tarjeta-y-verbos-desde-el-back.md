@@ -806,6 +806,64 @@ mapper → repositorio → use-case → puerto → servicio → hook → compone
 10% restante lo que se atraviesa es, en buena parte, ceremonia. Eso vuelve la poda del pasamanos un
 canje mucho más claro de lo que parecía cuando se miró sola.
 
+## 📏 El encadenamiento de props, medido — y las dos conversaciones separadas (2026-09-13)
+
+Miguel separó dos cosas que yo había mezclado, y tiene razón en separarlas:
+
+1. **La hexagonal para pegarle al backend** (puertos + use-cases pasamanos) le parece sobreingeniería,
+   **pero es decisión del ARQUITECTO** — ya hubo fricción por no usar las capas. ⛔ **No se toca
+   unilateralmente.** Lo que queda de esta tarea para esa conversación son números, no una propuesta:
+   15 de 20 use-cases tienen un `execute` de una línea que delega; los 8 puertos tienen una
+   implementación cada uno y **cero dobles de prueba**; y de los commits que cruzan 6+ capas, buena
+   parte atraviesa justo esa ceremonia.
+2. **El paso de props entre componentes**, que es lo que de verdad le molesta. Eso sí es del equipo del
+   front y se midió.
+
+### Cuántas props no hacen nada más que pasar de largo
+
+Una prop «de paso» es la que un componente **declara y reenvía sin usarla**:
+
+| componente | props | sólo reenvía | |
+|---|---|---|---|
+| `LenderCard` | 17 | 3 | 18% |
+| `LenderCardShells` | 12 | 1 | 8% |
+| `LenderCardContent` | 22 | **7** | 32% |
+| `LenderCardVariants` | 30 | **14** | **47%** |
+| `LenderCardBodyDetails` | 19 | **9** | **47%** |
+
+**34 de 100 props declaradas en la cadena sólo pasan de largo**, y en los dos últimos eslabones es casi
+la mitad. Ahí está la sensación de «toco cuatro archivos y tres no aportan nada»: es literal — tres de
+esos cuatro sólo escriben el nombre de la prop dos veces.
+
+### Por qué un store no lo arregla, y qué sí
+
+Las 29 props de `StandardLenderCardContent` se agrupan solas:
+
+| grupo | cuántas |
+|---|---|
+| banderas de presentación (`should*`, `is*`, `variant`, `show*`) | **15** |
+| la oferta y su plata (`financialData`, `formatMoney`, `validation`, `selected*`…) | **8** |
+| manejadores (`on*`) | **4** |
+| el resto (`lenderData`, `statusMessage`) | 2 |
+
+**Tres bolsas cubren 27 de 29.** Y eso es lo que ataca el problema de verdad: hoy **agregar un campo
+obliga a declararlo y reenviarlo en cada eslabón**; con una bolsa, agregar un campo toca **al que lo
+produce y al que lo consume, y a nadie más**. Los intermediarios reenvían el objeto y no se enteran.
+
+⚠ Un store no sirve para esto: 15 de las 29 son **banderas calculadas por el padre para ESA tarjeta**,
+no estado compartido. Meterlas en un store global sería peor.
+
+**Las dos opciones reales, con su canje:**
+
+- **bolsas** (`presentation`, `offer`, `handlers`): quita el reenvío sin agregar indirección; el costo
+  es que los tipos se vuelven más gruesos y hay que decidir qué va en cuál;
+- **un contexto por tarjeta**: quita el reenvío del todo, pero agrega una indirección y vuelve más
+  difícil ver de dónde sale un valor — que es el defecto que esta tarea pasó el día corrigiendo en
+  otros lados.
+
+Mi recomendación son las **bolsas**: es el cambio que hace que «agregar un campo» deje de tocar cuatro
+archivos, sin comprarse un mecanismo nuevo.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
