@@ -11,12 +11,14 @@ jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**✂ CORTE · 2026-09-13.** Miguel cerró el alcance de esta tarea en **`frontend-monorepo#994`** («el
-selector de plan aparece cuando hay algo que elegir»), que queda abierto para mergear o seguir
-actualizando mañana. **Todo el frente de la tarjeta parametrizable —el esquema, los verbos, la tabla
-`cards`, mover la orquestación al back— salió a la tarea 80**
-(`lenders-tarjeta-y-verbos-desde-el-back`): *«no las mezclemos con los cambios de Alta»*. Lo que queda
-de ese frente acá abajo es la historia de cómo nació; la fuente de verdad ya no es este archivo.
+**⏸ PAUSADA · 2026-09-13.** Alta queda donde está: su último PR es **`frontend-monorepo#994`** («el
+selector de plan aparece cuando hay algo que elegir»), abierto, mergeable y con checks limpios; Miguel
+lo mergea o lo sigue actualizando mañana. **Mientras tanto se trabaja, sólo en local, la tarea 80**
+(`lenders-tarjeta-y-verbos-desde-el-back`): todo el frente de la tarjeta parametrizable —esquema,
+verbos, tabla `cards`, mover la orquestación al back— salió para allá el 13/9, *«no las mezclemos con
+los cambios de Alta»*. Lo que queda de ese frente acá abajo es la historia de cómo nació. El tablero no
+tiene un estado «pausada», así que el estado de verdad es este párrafo; `stage: work` se conserva
+porque la tarea sigue en el sprint con un PR abierto.
 
 **Alta Fleet** es un comercio de MOTOS que entra como *upselling* con SaaS de $250.000 y **línea de
 crédito propia** — o sea el modelo **CreditopX** (`response_type = 2`): el capital y el riesgo son del
@@ -166,8 +168,8 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 ## La tarjeta de cada entidad: por capacidad y no por id
 
 > ⏩ **Desde el 2026-09-13 este frente vive en la tarea 80** (`lenders-tarjeta-y-verbos-desde-el-back`),
-> y su fuente de verdad es el taller: https://claude.ai/code/artifact/d6933a7c-f0d2-4eb7-a4fa-4352220c6834.
-> Lo de abajo se conserva porque es donde se midió por primera vez, pero **no se actualiza más acá**.
+> y su fuente de verdad está allá. Lo de abajo se conserva porque es donde se midió por primera vez,
+> pero **no se actualiza más acá**.
 
 
 Frente nuevo, incorporado a ESTA tarea el 2026-09-11 por decisión de Miguel: la tarjeta parametrizable
@@ -825,7 +827,7 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
-### 2026-09-13 · el corte: Alta cierra en #994 y la tarjeta se va a su propia tarea
+### 2026-09-13 · la pausa: Alta queda en #994 y la tarjeta se va a su propia tarea
 
 El último PR de esta tarea es `frontend-monorepo#994`: el selector de plan se dibuja sólo cuando hay
 más de un plan —medido: las dos únicas entidades con calculadora en prod traen tres, así que hoy no
