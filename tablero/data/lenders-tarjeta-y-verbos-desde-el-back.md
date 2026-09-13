@@ -684,6 +684,65 @@ implementación cada uno y CERO dobles de prueba**. La costura para probar los u
 usa nadie. No es para borrarla —es justo la que haría falta el día que se quieran probar— pero conviene
 saber que hoy no compra nada.
 
+## 📏 «150 archivos es absurdo · ¿y un store tipo Pinia?» — medido (2026-09-13)
+
+Dos preguntas de Miguel. **La intuición del encadenamiento es correcta y medible; la del store llega
+tarde, porque ya hay uno.**
+
+### Qué son los 150 archivos
+
+| carpeta | archivos | líneas |
+|---|---|---|
+| `lib/domain` | 28 | 4.069 |
+| `components/lender-card` | 23 | 3.194 |
+| **`lib/application`** | **20** | **638** |
+| `components/available-lenders` | 19 | 3.116 |
+| `lib/infrastructure` | 14 | 1.431 |
+| **`lib/ports`** | **11** | **183** |
+| `components/nequi` | 9 | 1.328 |
+| el resto | 26 | 2.902 |
+
+**`lib/application` + `lib/ports` son 31 archivos y 821 líneas: el 21% de los archivos y el 5% del
+código.** Y medido uno por uno: **15 de los 20 use-cases tienen un `execute` de UNA línea que sólo
+delega**. `GetLoanOptionsUc` entero son 10 líneas para llamar a `repository.getByLoanRequestId`, más
+un puerto de 14 para declarar esa firma. Sólo 2 de los 20 hacen algo sustancial
+(`calculate-loan-financials`, 95 líneas; `validate-loan-amount`, 67).
+
+⚠ Y los 8 puertos tienen **una implementación cada uno y cero dobles de prueba**. Borrar el pasamanos
+son ~23 archivos menos; el costo es cerrar la costura que haría falta el día que se quieran probar los
+use-cases. **Es un canje con número, no una obviedad en ninguna de las dos direcciones.**
+
+### El store ya existe, y es más fino que un Zustand ingenuo
+
+`components/context/LenderMarketplaceContext.tsx` —392 líneas— es un store hecho a mano con
+`useSyncExternalStore` y **suscripción POR ENTIDAD**: expone `useRequestedAmount`,
+`useSelectedFeeNumber`, `useSelectedOffer`, `useExternalFinancials`, `useIsUpdatingAmount`,
+`useAmountConditions`, `useCategoryCredipullman`, `useInitialFeeValue` y más.
+
+Cambiarlo por Zustand o Jotai **no bajaría el conteo de archivos ni quitaría una sola prop**, porque las
+props que sobran no son estado compartido.
+
+### Pero el encadenamiento SÍ está, y se arregla sin librería
+
+Props declaradas por la cadena: **18 → 17 → 22 → 42 → 19**.
+
+Las 29 de `StandardLenderCardContent` se reparten así: 8 son **banderas de presentación** que calcula el
+padre (`shouldShowBenefitList`, `shouldAddTopPadding`, `shouldApplyDarkBackground`…), 7 son **datos por
+tarjeta**, 3 **callbacks**, 6 **banderas de estado**… y **cuatro ya están en el store**.
+
+⚠ **`selectedOffer`, `selectedFeeNumber`, `isAmountUpdating` y `requestedAmount` viajan por los DOS
+caminos a la vez.** `LenderCardContent.tsx` recibe `selectedOffer` como prop **y** llama a
+`useSelectedOffer`. Eso no lo arregla una librería: se arregla **dejando de bajarlas**.
+
+### El veredicto
+
+1. **No hace falta un store nuevo** — hay uno, y es bueno.
+2. **Sí hay props de más**, y las primeras cuatro son gratis: ya están en el store.
+3. **El conteo de archivos sí se puede bajar ~23**, pero por el lado del pasamanos, no del store. Y
+   tiene un costo real.
+4. **Las 8 banderas de presentación** son el siguiente bocado: las calcula el padre y podrían salir de
+   una función pura como las cuatro de esta tarea.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
