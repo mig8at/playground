@@ -518,12 +518,41 @@ F-213: está expresando una **composición**, que es otra cosa.
 ⚠ **Y agregarle el verbo al `actionData` tampoco sirve**: el cliente ya distingue bien los tres casos
 por su forma, así que el campo nuevo no lo leería nadie. Un campo que no se usa es peor que no tenerlo.
 
-**Queda pendiente lo único que sí valdría**: el efecto tiene complejidad **25** y son 111 líneas de
-`setState` y analítica con tres pasos sin nombre. Bajarlo es extraer esos tres pasos a funciones con
-nombre, donde la composición se vuelve explícita (el paso del checkout devuelve «ya me ocupé» o «seguí
-al mensaje»). **No se hizo**: es código sin una sola prueba, con tiempos de popup y con guardas del
-ciclo de React Router, y tocarlo a ciegas es exactamente lo que las tres pasadas anteriores evitaron
-midiendo primero. El orden correcto es **probarlo antes de moverlo**, no al revés.
+### Y lo que sí se hizo: probarlo primero, después moverlo
+
+El efecto tenía complejidad **25** —el único aviso del archivo— y 111 líneas de `setState` y analítica
+con tres pasos sin nombre. Se hizo en **dos commits separados a propósito**, en ese orden:
+
+**1 · El contrato y sus pruebas, sin tocar el hook.** `selectionEffects` devuelve una **lista ordenada
+de efectos**, que es la forma correcta justamente porque un verbo no alcanza: la lista sí puede decir
+«esto y después esto otro». La referencia es la transcripción literal del cuerpo de hoy, con los
+`setState`, la analítica y las notificaciones cambiados por un grabador. **675 combinaciones, cero
+desacuerdos.**
+
+El generador atrapó otro estado imposible inventado por mí —«hay sobre pero no se intentó abrir»—; se
+restringió el generador, no el veredicto.
+
+**2 · El efecto pasa a ejecutar la lista.**
+
+| | antes | ahora |
+|---|---|---|
+| `useLenderSelection.ts` | 443 líneas | **415** |
+| complejidad de biome | **25** | **sin aviso** |
+
+El efecto quedó en tres cosas: las dos guardas del ciclo de React Router, abrir la ventana, y un bucle.
+`applySelectionEffect` es el único lugar que traduce un efecto en llamadas: cinco `case` cortos.
+
+⚠ **Abrir la ventana sigue FUERA de la lista**, y no es una inconsistencia: el navegador sólo concede
+una pestaña nueva en el mismo tick del gesto del usuario. Si esperara a que se arme la lista, la
+trataría como popup no solicitado. Por eso `checkoutToOpen` existe aparte.
+
+⚠ **Lo que las pruebas NO cubren:** las dos guardas de arriba (`isSubmitInFlight` y la comparación por
+identidad con `lastProcessedActionData`). Son del ciclo de React Router y siguen sin red — escrito para
+que nadie lea «probado» de más.
+
+⚠ Y `tsc` volvió a atrapar lo que el build no ve: el nombre del evento de analítica es una unión
+**cerrada** y mi contrato decía `string`. Compilaba, y dejaba pasar un nombre inventado — que en
+analítica no falla: **se pierde**.
 
 ## Riesgos y preguntas abiertas
 
