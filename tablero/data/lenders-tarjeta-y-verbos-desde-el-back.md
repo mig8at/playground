@@ -496,10 +496,34 @@ borrarlo se lleva esa red. Su docblock ya lo dice.
 del modal, de la del popup, y dos tipos de mis propias pruebas—. Ninguna habría fallado compilando.
 **El build de Vite no typechequea: correr `tsc` aparte no es opcional.**
 
-### Lo que esto desbloquea
+### ⚠ Lo que creí que desbloqueaba, y NO
 
-Las **111 líneas** del `useEffect` de `useLenderSelection` —la mitad CLIENTE del mismo árbol— ya pueden
-pasar a ser un `switch (action.verb)`. Era lo único que las trababa.
+Escribí acá que las 111 líneas del `useEffect` de `useLenderSelection` «ya pueden pasar a ser un
+`switch (action.verb)`». **Es falso, y se ve leyendo los cuerpos** —que es lo que no había hecho—.
+
+El bloque de `postRedirect` tiene **tres salidas**, y la tercera es la que rompe la idea:
+
+1. el sobre no pasa el schema → aviso de error y **corta**;
+2. el navegador bloqueó el popup → `setReadyLender` para que el botón de la tarjeta reintente con el
+   gesto del usuario, y **corta sin modal a propósito** («taparía justo ese botón»);
+3. **se abrió bien → NO corta: sigue al bloque del mensaje** para dejarle al asesor su modal de proceso.
+
+Y no es un descuido: el `actionHandler` **fuerza** `showModal: true` en esa rama justamente para eso —el
+checkout se abre en otra pestaña y el modal es lo único que le dice al asesor que algo pasó—.
+
+**Ese caso son DOS resultados —redirigir Y avisar— y un verbo es UN valor.** Un `switch` los perdería.
+La lectura de formas que hace este efecto no está duplicando una decisión como hacía el espejo de
+F-213: está expresando una **composición**, que es otra cosa.
+
+⚠ **Y agregarle el verbo al `actionData` tampoco sirve**: el cliente ya distingue bien los tres casos
+por su forma, así que el campo nuevo no lo leería nadie. Un campo que no se usa es peor que no tenerlo.
+
+**Queda pendiente lo único que sí valdría**: el efecto tiene complejidad **25** y son 111 líneas de
+`setState` y analítica con tres pasos sin nombre. Bajarlo es extraer esos tres pasos a funciones con
+nombre, donde la composición se vuelve explícita (el paso del checkout devuelve «ya me ocupé» o «seguí
+al mensaje»). **No se hizo**: es código sin una sola prueba, con tiempos de popup y con guardas del
+ciclo de React Router, y tocarlo a ciegas es exactamente lo que las tres pasadas anteriores evitaron
+midiendo primero. El orden correcto es **probarlo antes de moverlo**, no al revés.
 
 ## Riesgos y preguntas abiertas
 
