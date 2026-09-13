@@ -169,6 +169,30 @@ del back porque NULL preserva el comportamiento.
 
 ## Registro
 
+### 2026-09-13 · fase 2 hecha en local: la tarjeta lee el bloque, y sigue sin verse
+
+`frontend-monorepo`, rama `feat/lenders-tarjeta-desde-el-back`, commit local `7f88af93` — sin push.
+`card-config.service` es la frontera: `hidesCardRow`, `cardLabel`, `cardBenefits`. El componente
+consume eso en vez de derivar de tres fuentes.
+
+**La prueba que importa:** contra el backend real, las 7 entidades de un listado dan el **mismo
+veredicto** con el bloque y sin él —los cinco renglones y la cuenta de beneficios—, así que la
+pantalla queda igual. Más 22 aserciones sobre la cascada (sin bloque manda la regla vieja; con bloque
+manda el bloque; a medias sólo pisa lo que declara; `hide: []` apaga la regla vieja; un bloque que no
+es objeto se ignora entero). Build del wizard verde, `tsc` con los mismos 16 errores preexistentes,
+biome limpio con los 2 avisos de complejidad que ya estaban.
+
+Se cayeron tres imports muertos, y uno tenía filo: `shouldShowBenefitList` exigía que el lender fuera
+uno de `BANCOLOMBIA_LENDER_IDS`, así que una entidad nueva podía traer beneficios configurados y **no
+verlos nunca**. Hoy no cambia ninguna pantalla —sólo 68 y 100 los tienen— pero cambia la regla.
+
+⚠ **El `.test.ts` no se puede correr**: la suite del módulo sigue rota de antes (vitest 1.6.1 contra
+vite 7.3.3, 23 archivos) y **ningún workflow del repo corre tests**. Las mismas aserciones se
+corrieron con `tsx`. Y ojo con el atajo: `lodash` es CJS y no da exports nombrados fuera del bundler
+—por eso `card-config.service` no lo usa, que además es más correcto: `isEmpty` de lodash devuelve
+`true` para un número.
+
+
 ### 2026-09-13 · fase 1 hecha en local: la tarjeta viaja y no se ve
 
 `legacy-backend`, rama `feat/lenders-tabla-cards`, commit local `0347dffa` — sin push. La tabla
