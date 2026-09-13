@@ -335,6 +335,54 @@ componentes no caben en uno—, y el que sí necesita el tratamiento del lugar �
 **`AvailableLenders.tsx`**, donde 42 hooks deciden sin una sola prueba. Reducir el conteo de archivos no
 es la palanca; sacar las decisiones de los componentes a funciones puras y probables, sí.
 
+## 🔧 Segunda pasada: `AvailableLenders` (2026-09-13)
+
+Era el candidato que salió de la medición —972 líneas, 42 hooks, cero componentes— y entre medio
+decidía **quién se ve, cuál va destacada y qué tan vacía está la pantalla**: siete `useMemo` y cinco
+constantes sueltas, sin una sola prueba.
+
+`buildMarketplaceView` se lleva esas decisiones. Resultado medido:
+
+| | antes | ahora |
+|---|---|---|
+| líneas | 972 | **932** (−81 +41) |
+| hooks | 42 | **39** |
+| complejidad de biome | 52 | **45** (sigue sobre el límite) |
+| imports de entidades | 6 | **0** |
+
+Los seis que se fueron: `computeHiddenFallbackLenderIds`, `computeHiddenWelliRiskLenderIds`,
+`isServerErrorResolution`, `isWelliInstallmentLender`, `isWelliLender` y `supportsLiveReprice`. **El
+componente dejó de saber de Welli, de fallbacks, de errores 5xx y de re-precio** — ése es el cambio, no
+las 40 líneas.
+
+**Validado igual que la vez anterior:** prueba diferencial con las siete decisiones transcritas tal como
+están hoy, comparadas en **5.760 combinaciones** (6 listas × 6 mapas de estado × 5 «mejor aprobada» × 2
+montos × 4 juegos de banderas × 2 × 2). Cero desacuerdos. Lo que había que cubrir eran los **cruces**: la
+mejor aprobada escondida por un fallback, un 5xx sobre la recomendada del backend, Welli con variantes
+mezcladas.
+
+Tres reglas quedaron fijadas por prueba, ninguna protegida hasta hoy:
+
+- **hay TRES clases de vacío**, no un booleano: `soft` deja las tarjetas y quita la destacada; `true` la
+  reemplaza por el aviso naranja y deja las tarjetas igual;
+- la destacada **cae a «la primera aprobada que siga visible»** cuando la mejor quedó escondida;
+- las reglas de Welli se calculan **sobre las visibles**, o la variante escondida le apaga el selector a
+  la que sobrevivió.
+
+⚠ **`tsc` atrapó lo que el build no ve.** Los tipos `readonly` de la primera versión chocaban con los
+ayudantes que ya existen y con las props de los consumidores. Se quitaron en vez de castear: un cast
+tapa el día que alguien sí mute. **El build de Vite no typechequea** — correr `tsc` aparte no es opcional.
+
+### El patrón, ya probado dos veces
+
+1. medir dónde está la decisión (no dónde está el código);
+2. escribirla como función pura en `lib/domain/services/`;
+3. **validar con una prueba diferencial contra la transcripción literal de lo que hay hoy**, en muchas
+   combinaciones, no en casos elegidos;
+4. recién ahí cambiar el llamador.
+
+Las dos veces la prueba encontró algo que no se veía leyendo, y las dos veces era un error mío.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
