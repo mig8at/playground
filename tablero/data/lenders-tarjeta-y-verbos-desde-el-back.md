@@ -422,6 +422,53 @@ El módulo pasó de 141 a 145 archivos de código: **la cuenta subió, y eso est
 que importaba — cuánto hay que leer para entender una decisión, y cuánto se puede probar sin montar
 React.
 
+## 📏 Medido antes de seguir: `LenderCard` y `useLenderSelection` (2026-09-13)
+
+Se midieron los dos que quedaban **antes** de decidir, y dan respuestas opuestas.
+
+### `LenderCard.tsx` — 635 líneas, 9 componentes → PARTIR, no extraer
+
+Mismo caso que `LenderCardContent`, más chico: `LenderCardInner` (248), `CollapsibleLenderCard` (94),
+`FeaturedLenderCard` (62) y seis piezas menores. **Un solo `useEffect` de efecto real y cero `useMemo`.**
+
+Y lo que decide `LenderCardInner` es **estado de pantalla**, no reglas: `isExpanded`, `showContent`,
+`shouldShowRevolvingFooter`, el grosor del borde. La única regla de negocio del archivo
+—`resolveShouldShowFee`, el selector de cuotas de Welli y Meddipay— **ya es una función pura** de 14
+líneas. No hay nada que extraer.
+
+**Veredicto: vale, es mecánico y de bajo riesgo, pero es menos urgente** — 635/9 contra el 1.243/16 que
+ya se partió. Va cuando haya rato, no antes que otra cosa.
+
+### `useLenderSelection.ts` — 443 líneas, UN hook de 336 → NO tocarlo ahora
+
+Sus **quince** condiciones, clasificadas a mano:
+
+| qué es | cuántas |
+|---|---|
+| guardas del ciclo de React Router (`isSubmitInFlight`, `lastProcessedActionData`, `lastProcessedError`) | **6** |
+| realidad del navegador (el popup se bloqueó, la ventana se cerró sola) | **3** |
+| despacho sobre la respuesta (`postRedirect`, `showModal`, `tryPopup`) | **3** |
+| negocio (`usesCalculatorOffer`, confirmación de la entidad) | **2** |
+
+**Diez de quince son ciclo de vida y realidad del navegador, y eso no se puede mover a una función
+pura: coordinar envíos de React Router, bloqueadores de popups y modales ES complicado.** Ese archivo
+es grande porque su trabajo lo es. Extraer las 2 de negocio movería seis líneas y dejaría 330.
+
+⚠ **Pero las 3 del despacho son otra cosa: son la mitad CLIENTE del árbol de verbos.**
+`resolveAction` ya modela la mitad servidor (`response.data` → verbo); este `useEffect` es
+`actionData` → qué hace el navegador. El día que el intérprete se adopte de verdad, estas 111 líneas
+pasan a ser un `switch (action.verb)`. **No están bloqueadas por falta de ganas: están bloqueadas por
+el intérprete**, y adelantarlas sería escribir el mismo despacho por tercera vez.
+
+### La regla que sale de haber medido cinco archivos
+
+Antes de partir o extraer, mirar **qué proporción del archivo es decisión**:
+
+- mucha decisión y poco dibujo → **extraer a una función pura** (`AvailableLenders`, las tres cascadas);
+- mucho dibujo y muchos componentes → **partir** (`LenderCardContent`, `LenderCard`);
+- mucho **efecto y ciclo de vida** → **dejarlo** (`useLenderSelection`). Un hook que coordina el
+  navegador no se simplifica moviéndolo: se simplifica cuando lo que despacha ya viene decidido.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
