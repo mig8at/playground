@@ -864,6 +864,52 @@ no estado compartido. Meterlas en un store global sería peor.
 Mi recomendación son las **bolsas**: es el cambio que hace que «agregar un campo» deje de tocar cuatro
 archivos, sin comprarse un mecanismo nuevo.
 
+## ✅ Las tres bolsas, hechas (2026-09-13)
+
+El reenvío de props era lo que Miguel señaló como su incomodidad de todos los días. Medido y atacado:
+
+| | props de la cadena | sólo pasan de largo |
+|---|---|---|
+| al empezar | 100 | **34** |
+| tras `handlers` (4) | 94 | 27 |
+| tras `presentation` (8) | 83 | 25 |
+| tras `offer` (9) | **69** | **13** |
+
+Por componente, el efecto se concentra donde dolía:
+
+| | props | reenvía |
+|---|---|---|
+| `LenderCardVariants` | 30 → **12** | 14 → **2** |
+| `LenderCardBodyDetails` | 19 → **9** | 9 → **3** |
+
+**Lo que cambia no es el conteo: es que agregar un campo toca a quien lo produce y a quien lo consume,
+y a nadie del medio.** Eso es literalmente lo que se pedía.
+
+### Las tres reglas que salieron de hacerlo
+
+1. **Lo que se TRANSFORMA no entra en una bolsa armada más arriba.** `LenderCardContent` pisa
+   `financialData`, `filteredInstallmentOptions` e `isAmountUpdating` con sus versiones «effective»
+   cuando el plan es dinámico. Por eso `offer` se arma **ahí** y no en `LenderCard`: armada arriba y
+   reenviada tal cual, se comía el cálculo.
+2. **Las hojas conservan sus props sueltas.** `LenderCardFinancialSummary` recibe
+   `showFee={presentation.showFee}`, no la bolsa. Una hoja consume, no reenvía; darle el objeto entero
+   la ata a cosas que no usa.
+3. **Un componente que USA la mitad de la bolsa igual la recibe entera.** `Variants` usa cinco de las
+   ocho de `presentation`: la bolsa no le baja el conteo, le saca el reenvío. Son cosas distintas y
+   conviene no prometer la primera.
+
+### Cuatro errores míos, los cuatro atrapados antes de commitear
+
+- armar `offer` **antes** de que existieran los `effective` (zona muerta);
+- un regex que renombró una **variable local** — `CalculatorLenderCardContent` lee `selectedFeeNumber`
+  del store, no de props;
+- un regex que borró los reenvíos a las **hojas** junto con los de la cadena;
+- dos reemplazos sobre el mismo import dejando una coma doble.
+
+⚠ **Los cuatro los cantó `tsc`, ninguno el build.** Es la cuarta vez en esta tarea: **el build de Vite
+no typechequea, y en un refactor de props es la única red que hay** — estos componentes no tienen una
+sola prueba.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
