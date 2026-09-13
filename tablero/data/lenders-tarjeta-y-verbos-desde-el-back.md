@@ -974,6 +974,52 @@ sólo lo que de verdad usan varios. Mismo número de archivos, la mitad de los c
 pisa con la conversación de la hexagonal que Miguel quiere dar con el arquitecto. Queda medido y
 propuesto, no ejecutado.
 
+## ⚖ «En Vue con Pinia esto no sería tan complicado» — se puede COMPARAR, y se comparó (2026-09-13)
+
+Miguel viene de Vue/Pinia y siente que en React hay mucha ceremonia, en parte por TypeScript. Es una
+sensación contrastable como pocas, porque **el mismo listado existe en Vue**: `legacy-application`.
+
+### El mismo listado, en los dos
+
+| | archivos | líneas | promedio | el más grande |
+|---|---|---|---|---|
+| **Vue** (`legacy-application/…/customer/lenders`) | 57 | **15.047** | 263 | **3.771** (`list/v2/ListLenders.vue`) |
+| **React** (`lenders-marketplace/src`) | 150 | **16.863** | 112 | 933 |
+
+**Prácticamente la misma cantidad de código: 15.047 contra 16.863, un 12% de diferencia.** Misma
+funcionalidad, misma empresa, dos frameworks. Lo que cambia no es cuánto hay: es cómo está repartido —
+57 archivos gordos contra 150 finos.
+
+⚠ **Y `legacy-application` NO usa Pinia: cero `defineStore` en todo el repo.** El listado que sirve de
+referencia mental resuelve lo mismo en **un archivo de 3.771 líneas**, sin store. (Hay además otras dos
+versiones de `ListLenders.vue` conviviendo, de 1.991 y 922 líneas.)
+
+### Y TypeScript, medido
+
+De las 16.713 líneas del módulo de React:
+
+| | líneas | |
+|---|---|---|
+| código | 9.379 | **56%** |
+| comentarios | 2.802 | 17% |
+| **tipos (TypeScript puro)** | **1.731** | **10%** |
+| vacías | 1.604 | 10% |
+| JSX | 1.197 | 7% |
+
+**Sin TypeScript quedarían ~14.982 líneas — un 10% menos, y prácticamente lo mismo que el Vue sin
+tipos (15.047).** La ceremonia de tipos no es de dónde sale el tamaño.
+
+### Qué se lleva de acá
+
+**El costo es el DOMINIO, no el framework ni el lenguaje.** Trece entidades con tarifarios en formas
+distintas, pre-aprobados asíncronos por entidad, bloqueadores de popup, Nequi, Welli con riesgo
+compartido, fallbacks, reglas de datacrédito. Eso pesa lo mismo en Vue que en React; la prueba es que
+pesa **lo mismo** en los dos repos de la casa.
+
+⚠ Lo que sí es real de la incomodidad, y quedó medido por separado en esta tarea: **el eje de la
+partición** (`lib/` por capa y `components/` por función, así que los cambios pagan el cruce) y **la
+ceremonia de la hexagonal** (15 use-cases pasamanos). Ninguna de las dos es de React ni de TypeScript.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
