@@ -592,6 +592,45 @@ y un solo cuerpo distinto — una firma que biome partió en varias líneas.
 hay que leer para entender una decisión, y cuánto se puede probar sin montar React. Pedir «menos
 archivos» habría empeorado los dos.
 
+## 🔧 Segunda pasada de `AvailableLenders`, y un resultado negativo (2026-09-13)
+
+La primera sacó la **forma** del marketplace. Estos tres eran lo que quedaba decidiendo adentro:
+
+- `applyRecalculatedPlans` — el `calculated` que recalcula el backend, encima;
+- `enrichLoanOptions` — fusionar la resolución, los overrides de Welli, y ordenar, **en ese orden**;
+- `consultationProgress` — disponibles, bloqueadas por política, y el pendiente del copy.
+
+| | antes | ahora |
+|---|---|---|
+| líneas | 932 | **901** |
+| `useMemo` | 15 | **13** |
+| complejidad de biome | 45 | **45** |
+
+⚠ **LA COMPLEJIDAD NO BAJÓ, y el motivo vale más que el número.** Lo extraído es código de **línea
+recta** —`map`, `filter`, `sort`— y la complejidad cognitiva cuenta **ramas**, no líneas. Lo que quedó
+en el componente son los `if` de verdad: los estados de la pantalla y el árbol de render. Bajar de 45
+pide **partir el JSX**, que es otro trabajo.
+
+**Lo que sí se ganó son dos reglas de TIEMPO** que vivían sólo como comentario y ahora tienen prueba:
+
+1. **el reparto del gate sale del PAYLOAD, no de `resolutionStates`.** El evento que lo reporta se
+   dispara en el primer render, cuando todos los estados están en `processing` —los sembrados llegan
+   recién en el primer microtask—: contar por estado daría **0 bloqueadas siempre**;
+2. **`consultedPendingCount` cuenta sólo las consultables**, mientras `pendingResolutions` y
+   `allResolved` cuentan todas. Esos dos gobiernan cuándo termina la pantalla y cuándo se manda el
+   snapshot de `lender-results`; mezclarlos rompe ese contrato.
+
+Y una tercera quedó escrita al mover: en `applyRecalculatedPlans` las llaves llegan como **string** —es
+JSON— y los ids son números. Sin el `String(lender.id)` no matchea ninguna y **el recálculo se pierde en
+silencio**, que es el peor modo de fallar para algo que cambia una cuota en pantalla.
+
+### La regla, corregida por este caso
+
+A la de las tres pasadas anteriores —decisión → extraer, dibujo → partir, efecto → dejar— le faltaba
+una distinción: **extraer código de línea recta baja las líneas y no la complejidad.** Si lo que se
+busca es bajar el número de biome, hay que ir por las **ramas**, y en un componente las ramas viven en
+el JSX.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
