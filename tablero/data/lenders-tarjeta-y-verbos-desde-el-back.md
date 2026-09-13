@@ -631,6 +631,59 @@ una distinción: **extraer código de línea recta baja las líneas y no la comp
 busca es bajar el número de biome, hay que ir por las **ramas**, y en un componente las ramas viven en
 el JSX.
 
+## ⚖ «¿Y si dejamos un solo repository y un solo service?» — medido (2026-09-13)
+
+Pregunta de Miguel. La respuesta corta es **no a las dos**, pero la pregunta encontró algo real que no
+es ninguna de las dos.
+
+### Por qué NO un solo repositorio
+
+Hay **10 implementaciones**, y no son divisiones arbitrarias: cada una habla con una **familia de
+endpoints distinta**.
+
+| repositorio | contra qué |
+|---|---|
+| `loan-options` | el listado: `lenders-v2`, `recalculate`, `lender-results` |
+| `loan-request` | `/api/loans/customer/requests/*` — otro servicio entero |
+| `lender-return` | el regreso de Cuotéalo/BCP |
+| `welli-amount` | `welli/update-amount` |
+| `qr` · `post-redirect` · `user-request` · `lender-transaction-status` | uno cada uno |
+
+Juntarlas da **una clase de ~1.000 líneas con 20 métodos contra 8 superficies del backend**. Es
+exactamente el `LenderCardContent.tsx` de 1.243 líneas que esta misma tarea acaba de deshacer. La regla
+de hoy —**un repositorio por familia de endpoints**— es fácil de seguir y dice dónde va lo próximo.
+
+### Por qué NO un solo servicio
+
+**13 servicios, 2.354 líneas**, partidos por regla de negocio: `card-config`, `fallback-lender`,
+`welli-shared-risk`, `preapproval-gate`, `holder-name`, más los cuatro de esta tarea. Un
+`LenderService` de 2.354 líneas es el mismo error con otro nombre.
+
+### Lo que la pregunta SÍ encontró: hay dos formas de hablarle al backend
+
+| | repositorios |
+|---|---|
+| `HttpClient` + `ApiResult` + zod (el patrón del ADR-0001, el que usa el backoffice) | **2** |
+| `fetch` pelado | **8** |
+
+Y la validación es despareja: **`loan-options.repository` —el del LISTADO, el más importante— no valida
+NADA**. Tres castes: `response.json() as Promise<LendersApiResponse>`, `as RecalculatedLenders`, y un
+`return await response.json()` sin tipo. Lo que el backend mande entra tal cual.
+
+⚠ Esto ya había aparecido en esta tarea por otro camino —«la respuesta del listado no se valida con
+esquema»— y explica por qué la fase 1 pudo agregar la llave `card` sin que nada se enterara. Es a la vez
+la razón por la que el cambio fue barato **y** la razón por la que un cambio de forma en el backend no
+se nota hasta que algo se ve raro en pantalla.
+
+**Lo que sí valdría centralizar, entonces, no es «un repositorio»: es UNA MANERA de hacer un
+repositorio.** Y el primer candidato es el del listado, que es el que más tráfico mueve y el único sin
+red.
+
+⚠ **Y un dato del mismo barrio:** los 8 puertos de `lib/ports/repositories` tienen **exactamente una
+implementación cada uno y CERO dobles de prueba**. La costura para probar los use-cases existe y no la
+usa nadie. No es para borrarla —es justo la que haría falta el día que se quieran probar— pero conviene
+saber que hoy no compra nada.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
