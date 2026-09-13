@@ -169,6 +169,31 @@ del back porque NULL preserva el comportamiento.
 
 ## Registro
 
+### 2026-09-13 · fase 3, mitad del backend: el apartado del admin ya tiene endpoint
+
+`legacy-backend`, commit local `150d461e` — sin push. `GET`, `PUT` y `DELETE` en
+`/api/backoffice/lenders/{lender}/card`, hermanos de `config` y `rules`, con su FormRequest de
+vocabularios cerrados, su servicio y 7 pruebas.
+
+**La decisión de diseño de la pantalla:** el documento devuelve **tres** cosas —`composed`, `stored`
+(null para 188 de 196) y `effective`—. Sin las tres la pantalla miente por omisión: sólo `stored` deja
+un formulario vacío para una entidad que SÍ esconde el monto porque es renting, y sólo `effective`
+hace imposible distinguir «lo escribió alguien» de «salió solo». Y `DELETE` es de primera clase, no el
+efecto de guardar vacío: la tabla existe para tener SÓLO las excepciones.
+
+Probado de punta a punta contra la base local: Motai Renting sin fila da el compuesto; guardar sólo
+una etiqueta deja vivo el `hide` compuesto; `hide: []` lo apaga y la etiqueta sobrevive; `DELETE`
+devuelve la tabla a cero; lender inexistente da 404.
+
+⚠ **`Modules/Backoffice/tests/Feature` arrastra `RefreshDatabase`** — se corrió sólo `tests/Unit` (29
+pasadas, 0 fallidas). Vale anotarlo: es una de las seis carpetas que pueden recrear la base.
+
+**Lo que falta de la fase 3 es la pantalla**, y es la pieza más cara de todo el frente: el módulo que
+sirve de molde (`modules/backoffice/lender-config`) son **13 archivos y 2.823 líneas**, más su
+repositorio, su hook y su ruta. Es también la más cara de rehacer si el esquema cambia, así que
+conviene no escribirla antes de que el esquema esté acordado.
+
+
 ### 2026-09-13 · fase 2 hecha en local: la tarjeta lee el bloque, y sigue sin verse
 
 `frontend-monorepo`, rama `feat/lenders-tarjeta-desde-el-back`, commit local `7f88af93` — sin push.
