@@ -16,7 +16,7 @@ Para sumar una entidad/comercio con un flujo distinto **hay que editar código e
 1. **God-method `PreApprovedLenderService` con `if ($lender->id == N)`** — un if-chain con una rama por cada lender rt=1 (68, 100, 39, 12, 9, 6, 5, 133, 154/155, 84, 11…). Raíz de ~9 clusters. Sumar un agregador = editar este método. Irónico: `lender->action` YA existe como clase polimórfica — la solución está a medio construir y no se usa acá.
 2. **Arrays de ids quemados por comercio/lender** — `[24,209,210,211,311]` Corbeta, `[218,219,221,222]` Pash, ~~`MOTAI_LENDER_IDS=[158]`~~ (retirado 2026-08-28), Welli `[23,141,142,166]`, allieds sueltos `26/153/225/277/250/67/95/24`. Raíz de ~11 clusters.
 3. **Branch por nombre (`lender.name ==`) + assets por-id** — `LenderTabBehaviorResolver` por string, y peor: **archivos nombrados por id** (`consent_{id}.blade`, `payment_schedules/lender_{id}`, URLs S3 de T&C por id). Cada lender con doc propio = un archivo con su número.
-> ~~Espejo en el front: `MOTAI_LENDER_IDS` forka la card, la fórmula de precio (duplicada), el routing y el tipo de documento PEP — todo por `id === 158`.~~ **Corregido el 2026-08-28**: la des-motaización retiró el fork — `MOTAI_LENDER_IDS` da **cero** resultados en `main` (front y backend); la card se decide por `lenders.product` y el precio viene calculado del backend (`calculated`).
+> ~~Espejo en el front: `MOTAI_LENDER_IDS` forka la card, la fórmula de precio (duplicada), el routing y el tipo de documento PEP — todo por `id === 158`.~~ **Corregido el 2026-08-28**: la des-motaización retiró el fork — `MOTAI_LENDER_IDS` ya no existe como CÓDIGO en `main` (front y backend; quedan 2 comentarios que narran el retiro); la card se decide por `lenders.product` y el precio viene calculado del backend (`calculated`).
 
 **(2026-08-28) Re-verificación asistida de los 41 archivos derivados** (worker digirió el diff contra
 este doc en 10 funcionalidades; las 3 que invalidaban afirmaciones se verificaron a mano — las tres
@@ -40,9 +40,14 @@ entidad, abrí estas tres y vas a saber en minutos si te toca tocar código o al
   `lender->action` YA existe como clase polimórfica y este método no la usa.
 - **Puerta 2 · los arrays de ids quemados** — no tienen un solo archivo, pero sí una firma para
   grepear: `[24,209,210,211,311]` (Corbeta, y ojo que el setting `corbeta_allieds` existe y es la
-  fuente correcta), `[218,219,221,222]` (Pash), `MOTAI_LENDER_IDS`, Welli `[23,141,142,166]`. En el
-  front: `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx:555`
-  forka la card por `MOTAI_LENDER_IDS`, y el mismo array vuelve en `hooks/useLenderSelection.ts:8`.
+  fuente correcta), `[218,219,221,222]` (Pash), Welli `[23,141,142,166]`.
+  ⚠ **`MOTAI_LENDER_IDS` ya NO es una de esas firmas — no lo grepees esperando código.** Re-verificado
+  contra `main` el 2026-09-14: quedan **dos** apariciones y las dos son COMENTARIOS que cuentan que se
+  retiró (`apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts` y su
+  test). La regla viva se escribe por PRODUCTO: `isCalculatorProduct(product)` en
+  `frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts:46-48`.
+  Los dos archivos que este nodo citaba —`AvailableLenders.tsx:555` y `hooks/useLenderSelection.ts:8`—
+  **siguen existiendo pero ya no forkean por ese array**: la cita quedó señalando otra cosa.
 - **Puerta 3 · el branch por NOMBRE** —
   `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php`: decide la UX
   post-selección comparando `lender.name` como string. Se rompe con un renombre en el admin, sin que
@@ -89,6 +94,21 @@ Estos 7 no bloquean: ya leen BD/setting/columna, o son globales. **Importan porq
 - **Taxonomía `path_id`** (IMEI=2 / managed=3) y **canal ecommerce/merchant** — discriminantes por columna.
 - **IVA 19%** y **otorgamiento especial por bandas de score** (DENTIX/DFS) — quemados pero GLOBALES (no per-entidad); la columna `lenders_by_allieds.iva` ya existe sin usar.
 - **`response_type`** (0-4) — enum estructural de despacho; quemado pero es el eje del sistema, no un acoplamiento a un externo puntual.
+
+> ⏳ **PENDIENTE DE MERGE** — esto vive en `qa` (PR `frontend-monorepo#994`), no en `main`.
+> Al mergear: re-verificar con el oráculo, sumarlo a la lista de arriba y **borrar esta marca**.
+>
+> **El selector de plan se decide por CANTIDAD, no por entidad** — `offersPlanChoice(plans)` en
+> `lenders-marketplace/src/lib/domain/constants/lender.constants.ts` es literalmente
+> `Array.isArray(plans) && plans.length > 1`. Vale como patrón más allá de la pantalla: la pregunta
+> «¿hay algo que elegir?» se le hace al DATO, así que una entidad que cotice un plazo único queda
+> cubierta sin tocar código y la que cotice varios conserva su selector. Es el movimiento 2 de
+> «Cómo des-hardcodear» hecho en chico.
+>
+> ⚠ **Y trae su propia advertencia sobre cómo se mide un cambio así:** medido contra producción el
+> 2026-09-13, las dos entidades con calculadora traen **tres** planes cada una — o sea que el cambio
+> **no mueve ninguna pantalla hoy**. Cambia la REGLA, no el render. Un A/B visual contra prod habría
+> dado «sin diferencias» y eso no es evidencia de que no haga nada.
 
 ## Cómo des-hardcodear (los 24 se resuelven con 4 movimientos, no 24)
 1. **Registry de adapters de integración** — columna `lenders.integration_key` → clase que implementa una interfaz `PreApproval` común; el dispatcher itera config en vez del if-chain. Mata ~9 clusters. (`lender->action` ya existe → reusarlo.)

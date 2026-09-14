@@ -4,76 +4,46 @@ title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
 ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta
 created: "2026-09-09T10:00:00-05:00"
-context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades]
+archived: "2026-09-14T18:40:00-05:00"
+context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades, entities]
 jira: [CORE-558]
 jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 ---
 
 ## Si retomás esto sin contexto, empezá acá
 
-**⏸ PAUSADA · 2026-09-13.** Alta queda donde está: su último PR es **`frontend-monorepo#994`** («el
-selector de plan aparece cuando hay algo que elegir»), abierto, mergeable y con checks limpios; Miguel
-lo mergea o lo sigue actualizando mañana. **Mientras tanto se trabaja, sólo en local, la tarea 80**
-(`lenders-tarjeta-y-verbos-desde-el-back`): todo el frente de la tarjeta parametrizable —esquema,
-verbos, tabla `cards`, mover la orquestación al back— salió para allá el 13/9, *«no las mezclemos con
-los cambios de Alta»*. Lo que queda de ese frente acá abajo es la historia de cómo nació. El tablero no
-tiene un estado «pausada», así que el estado de verdad es este párrafo; `stage: work` se conserva
-porque la tarea sigue en el sprint con un PR abierto.
+**✅ GRADUADA · 2026-09-14.** Los tres PRs de Alta mergearon: `frontend-monorepo#983` (las páginas
+propias del comercio, y la primera es la bienvenida), `frontend-monorepo#994` (el selector de plan
+aparece cuando hay algo que elegir) y `legacy-backend#1351`. Lo que esta tarea aprendió **ya no vive
+acá**: pasó a `context/` como «cómo funciona CreditOp». De acá para abajo queda la historia de cómo se
+llegó, que es lo que evita volver a evaluar los caminos ya descartados.
 
-**Alta Fleet** es un comercio de MOTOS que entra como *upselling* con SaaS de $250.000 y **línea de
-crédito propia** — o sea el modelo **CreditopX** (`response_type = 2`): el capital y el riesgo son del
-comercio y CreditOp opera y cobra comisión. Es el mismo molde que **Motai**, y por eso hereda dos
-rasgos suyos: producto de **renting/rent-to-own** sobre moto, y población **gig/migrante** que necesita
-el tipo de documento **PEP** (Permiso Especial de Permanencia).
+⚠ **Mergearon a `qa`, NO a `main` — y la vara de `context/` es `main`.** Verificado el 2026-09-14 con
+`git merge-base --is-ancestor`: ninguno de los dos commits del front está en `main`, `develop` ni
+`staging`. Por eso las dos secciones que graduaron llevan `⏳ PENDIENTE DE MERGE` inline, y el nodo
+`merchants` lleva además el `pending_merge` estructurado en su `map.json` para que `alinear.py` dispare
+la señal 🔁 el día que lleguen. **Lo único que queda de Alta es promoción de ambiente, no trabajo.**
 
-**El comercio YA EXISTE en producción y nadie lo terminó.** Está creado desde el 2026-08-31 con su
-sucursal en Bogotá y sus reglas duras copiadas, pero cableado a las **dos entidades de Bancolombia**
-(agregadores externos, `rt=1`) — no a una entidad propia. **Cero solicitudes en 9 días.** Lo que falta
-es exactamente lo que pidieron: su entidad de renting.
+**Dónde quedó cada cosa:**
 
-**Producto decidido: Rent to Own** — el cliente se queda con la moto (Miguel, 2026-09-09).
+| lo que se aprendió | dónde vive ahora | estado |
+|---|---|---|
+| las páginas propias del comercio (`allieds.pages.welcome`) y por qué NO son la bienvenida de la entidad | `merchants` §10 | ⏳ en `qa` |
+| el selector de plan se decide por CANTIDAD de planes, no por entidad (`offersPlanChoice`) | `hardcodes-entidades`, en «Ya es config 🟢» | ⏳ en `qa` |
+| dar de alta una entidad sin SQL a mano (`LenderRulesWriterService` + `LenderReadinessService`) | `backoffice` | ✅ en `main` |
+| el PEP se habilita en `lenders.document_types` de la ENTIDAD, y el país es TECHO no piso | `entities` | ✅ en `main` |
+| la 193 corre `product='rto'` con calculadora propia | `motai` | ✅ en `main` |
 
-**Ya está montado y corriendo en LOCAL** (`harness/dev/montar-alta.ts`, idempotente y con `--clean`):
-el comercio, la sucursal de Bogotá y la entidad **AltaX** (`rt=2`, `product=rto`, con PEP), con las
-reglas duras **alineadas** entre plantilla y clon de sucursal. Medido: **lista** y **ofrece PEP**.
-**No cierra**, y la causa no es del comercio nuevo: es **F-188**, un mapa por id de entidad quemado en
-el generador de documentos — el propio Rent to Own de Motai falla igual en local.
+**Y tres correcciones que salieron de graduar, no de trabajar** — el nodo estaba mintiendo y nadie lo
+sabía: `merchants` decía que `allied-theme` trae «6 colores `primary`…`senary`» cuando en `main` ese
+módulo **ya no transporta colores** (se mudó a `partner-branding`, con tokens semánticos del DS);
+`hardcodes-entidades` mandaba a grepear `MOTAI_LENDER_IDS`, que ya no es código; y `entities` citaba
+ese mismo array y ocho líneas `archivo:línea` corridas. Las tres eran del tipo que no falla en ningún
+lado: las lee un modelo y decide mal.
 
-Lo que **ya no hay que investigar**: el mecanismo del PEP (es un campo de la entidad, no de la
-sucursal, y el admin ya lo edita), quién escribe las reglas duras (hay API de backoffice en `main` que
-las escribe y las propaga), qué le falta a una entidad `rt=2` para operar (el código lo define en
-cinco chequeos), y por qué no cierra (F-188, medido por los dos lados).
-
-⚠ **Y el 2026-09-09 a las 12:06 alguien creó la entidad en PRODUCCIÓN**: `lenders` **199 «Alta te
-financia»**, `rt=2`, y ya está **activada** en la sucursal. Le falta TODO lo que el admin no puede
-poner, y dos de los cinco chequeos de «listo para operar» fallan. Está en la anotación de abajo.
-
-**Tres cosas más, pedidas el 2026-09-09 y ya investigadas** — las tres son **config que ya existe**,
-no desarrollo nuevo:
-
-1. **Herramienta genérica** — `make harness-comercio COMERCIO=<slug>` siembra un comercio entero
-   desde un spec declarativo (`harness/comercios/*.json`): sucursales, entidades, reglas duras,
-   perfiles, bienvenida y autogestión. Hecho.
-2. **Pantalla de bienvenida** (como CrediMovil) — **ya es config**: `lenders.show_intro_screen` +
-   `intro_background_url`, y el front la dibuja con `LenderIntroduction`. Verificada corriendo para
-   AltaX. ⚠ Su titular es `lenders.description`, **la misma columna** que la descripción de la tarjeta.
-3. **Autogestión** — **el flag ya existe, en dos niveles y administrable**. Lo que falta es que el
-   código lo respete: `legacy-application` lo ignora para `rt=2`.
-
-**F-188 ARREGLADO y con PR abierto contra `qa`:** `Creditop-SAS/legacy-backend#1349` — el builder de
-documentos se elige por `lenders.product` y no por id de entidad. Con eso **Alta Fleet cierra en
-estado 11 en local**, con sus cinco documentos generados y firmados, y la suite del codeudor volvió a
-verde. La autogestión también quedó verificada corriéndola: `showModal: false`, sin mensaje.
-
-**FRENTE NUEVO desde el 2026-09-11 — ⏩ y MOVIDO a la tarea 80 el 2026-09-13: la tarjeta de cada entidad.** Miguel pidió que la tarjeta deje
-de estar quemada y que cada entidad pueda definir la suya, y decidió que se trabaja **en esta misma
-tarea**. Ya está medido (sección «La tarjeta de cada entidad»): el canal existe, es administrable, y
-está roto en las dos puntas —tres campos que el admin guarda y la tarjeta no dibuja, dos que la
-tarjeta lee y **ningún admin escribe**, y cuatro writers que **borran** lo que se cargó a mano—.
-
-**El próximo paso es:** aterrizar ese frente **en LOCAL** — que exista la entidad en `qa`. El PR lleva el CÓDIGO; la configuración de Alta
-allá es **dato**, y dev/qa/staging comparten la misma base — así que no se siembra desde una migración
-sin decidirlo. El runbook está en §«Cómo se ataca», paso 6.
+**El próximo paso es:** nada en esta tarea. Si alguien vuelve acá es por una de dos — promover `qa` a
+`main` (y entonces borrar las dos marcas ⏳), o retomar la tarjeta parametrizable, que **no es de acá**:
+se fue a la tarea 80 el 13/9.
 
 ## Objetivo
 
@@ -826,6 +796,49 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-14 · graduada: lo aprendido pasó a `context/`, y de paso el árbol quedó menos falso
+
+Mergearon los tres PRs (#983, #994, `legacy-backend#1351`) y se ejecutó el paso 5 del ciclo. **No fue
+copiar y pegar**: cada afirmación se verificó contra `main` antes de escribirla, y ahí aparecieron tres
+cosas que el árbol daba por ciertas y no lo eran.
+
+**Lo que se midió, y con qué:**
+
+- **Dónde está cada PR.** `git merge-base --is-ancestor <sha> origin/main` sobre `aed2acf1b` (#994) y
+  `3f3f8700` (#983): los dos dan NO. Están en `qa` y nada más. Por eso las dos secciones nuevas
+  nacieron con `⏳ PENDIENTE DE MERGE` en vez de escribirse como presente.
+- **Qué falta exactamente.** `git diff origin/main origin/qa` sobre `modules/allied-theme/`: **+92
+  líneas** en dos archivos que **sí** están en `main`. O sea que el módulo existe y lo que falta es la
+  parte de `pages`. Eso importa porque el oráculo da KEPT 57/0 y **no lo vería**: mide existencia de
+  archivo, no contenido. La señal estructurada se colgó de `action-error-banner.tsx`, que viaja en el
+  mismo PR y sí es nuevo.
+- **`merchants` estaba mintiendo sobre el tema.** Decía «`GET /api/loans/allied/{hash}` devuelve 6
+  colores (`primary`…`senary`)». En `main` ese módulo abre con «este módulo ya NO transporta colores»:
+  el theming se mudó a `partner-branding` (`GET /api/partners/{hash}/branding`), y no son 6 colores
+  sino tokens semánticos del DS, validados como hex con `.catch()` por campo y con un timeout de 2,5 s
+  que cae al tema Creditop. Las dos citas a `allied-theme.repository.ts:19` apuntaban a un comentario
+  de `toAmountLimits`.
+- **`hardcodes-entidades` se contradecía consigo mismo.** En una línea decía que `MOTAI_LENDER_IDS` da
+  cero en `main`; ochenta líneas después, «Puerta 2» seguía mandando a grepearlo con archivo y línea.
+  Hoy quedan dos apariciones y **las dos son comentarios** que narran el retiro; la regla viva es
+  `isCalculatorProduct(product)`.
+- **`entities` tenía ocho citas corridas.** `refs.py` pasó de 33 ancladas / 4 movidas / 3 corridas / 1
+  reescrita a **42 ancladas y cero deriva**. Ninguna se tocó por el número: se abrió la función en
+  `main` y se comprobó que dijera lo que el nodo afirma —el `if` de la url excluyendo rt 2 y 4, las
+  cuatro rutas de `entidades`, el `case 4` con `standBy=true`—. Una cita puede resolver a una línea
+  que existe y ser de otra función; ése es el error que el método previene.
+
+**Un error propio, y vale anotarlo.** Al verificar `DocumentTypesService::resolver()` grepeé con
+`head -12` y la lista de métodos se cortó justo antes: concluí que el método **no existía** y estuve a
+punto de reescribir una sección correcta. Existe, es público y está en `:293`. El chequeo que miente
+por truncamiento se lee igual que un chequeo que falla. Sí apareció un error real por el mismo camino:
+la transcripción del cruce había perdido el `array_values(...)`, que no es cosmético —`array_intersect`
+conserva las claves, así que sin él la respuesta sale como objeto y no como lista—.
+
+**Lo que NO se hizo, a propósito:** no se sellaron los nodos. Sellar dice «lo revisé entero» y acá se
+agregaron secciones y se corrigieron citas puntuales. Y no se tocó `legacy-application`, que se va a
+matar.
 
 ### 2026-09-13 · la pausa: Alta queda en #994 y la tarjeta se va a su propia tarea
 

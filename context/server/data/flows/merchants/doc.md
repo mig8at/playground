@@ -18,7 +18,7 @@ El nodo se documentó **leyendo código** (no hay doc fuente). La verdad estruct
 - **Fallback silencioso a BdB (lender 5).** Una entidad sin plantilla de datacrédito hereda los umbrales de Banco de Bogotá sin ninguna marca visible (`LenderDatacreditoRulesController.php:102`, `LenderRuleRepository.php:146`).
 - **Los errores de copia se tragan** (mail a `santiago@creditop.com`): una sucursal puede quedar habilitada **sin reglas** y no hay señal en UI.
 - **El gemelo legacy de la copia está roto.** `AlliedManagementService.php:239-240` (y `:1384-1385`) hace `new LenderDatacreditoRulesController()` / `new LenderRulesController()` **sin argumentos**, pero ambos controllers exigen `LenderRuleManagementService` en el constructor → `ArgumentCountError`, que **no** es `\Exception` y por lo tanto **no lo atrapan** los `catch` de alrededor. Ese camino fatalea si se invoca.
-- **`min_amount` es fantasma.** Está en `LendersByAllied::$fillable` en ambos repos y en la migración, pero **ningún controller lo escribe y nadie lo lee**. El `min_amount` que sí decide es el de `credit_line_by_lenders` (nivel entidad). `max_amount` sí manda: pisa el cupo de la entidad si es no-nulo (`LenderRetrievalService.php:533`), y solo lo escribe el `update` (`AlliedLenderController:249`), nunca el `store`.
+- **`min_amount` es fantasma.** Está en `LendersByAllied::$fillable` en ambos repos y en la migración, pero **ningún controller lo escribe y nadie lo lee**. El `min_amount` que sí decide es el de `credit_line_by_lenders` (nivel entidad). `max_amount` sí manda: pisa el cupo de la entidad si es no-nulo (`LenderRetrievalService.php:542`), y solo lo escribe el `update` (`AlliedLenderController:249`), nunca el `store`.
 - **Colisión de hash.** Comercio y sucursal usan `hash('crc32', date('Y-m-d H:i:s'))` — 8 hex derivados **solo del segundo actual**, y `allied_branches.hash` **no tiene índice único**. Dos sucursales creadas en el mismo segundo comparten la llave de entrada al flujo.
 - **`AlliedController::update` no usa `validated()`** (`:185`, con la línea correcta comentada justo arriba): mass-assign desde el request crudo, contenido solo por el `->only([...])`.
 - **`AlliedController::store` descarta campos validados.** `Allied/StoreRequest` exige `price` (y acepta `initial_fee`, `self_managed`), pero el `create` no los escribe: solo se pueden setear después, por update.
@@ -83,8 +83,19 @@ No hay columna "canal". Lo que bifurca es la **existencia de una fila en `allied
 El `hash` de la sucursal es la llave de todo el flujo.
 - **Ruta del wizard:** `/merchant/{partner_hash}/solicitar`. El loader (`default-layout.tsx:74`) **fuerza** que `params.partner_hash` sea el hash de la sucursal del asesor logueado y redirige si no coincide → un asesor solo opera su propia sucursal.
 - **Cookie de contexto:** `merchant_context` (httpOnly, `sameSite=lax`, dominio `.creditop.com`, 24 h) con `{merchant_id, merchant_slug, merchant_name, allied_branch_hash}` (`merchant-context-cookie.server.ts`), escrita en `default-layout.tsx:160-169`.
-- **Contrato al front:** `PartnerInfoResponse = { partner, partner_branch, partner_modes, partner_branches }` (`api-responses.ts:87`). El `Partner` (`:24`) expone los toggles del comercio (`have_ctopx`, `self_managed`, `initial_fee`, `flow_type`, `new_screens`, `show_profiling`, `show_originated_credits`, `preapproved_registration`, colores, `country_id`).
-- **Tema/branding:** `GET /api/loans/allied/{hash}` devuelve 6 colores (`primary`…`senary`) + logo y `lender_path` (`allied-theme.repository.ts:19`).
+- **Contrato al front:** `PartnerInfoResponse = { partner, partner_branch, partner_modes, partner_branches }` (`api-responses.ts:82`). El `Partner` (`:24`) expone los toggles del comercio (`have_ctopx`, `self_managed`, `initial_fee`, `flow_type`, `new_screens`, `show_profiling`, `show_originated_credits`, `preapproved_registration`, colores, `country_id`).
+- **Tema/branding: son DOS endpoints, y el que trae los colores ya no es éste.** Re-verificado contra
+  `main` el 2026-09-14. El color vive en `GET /api/partners/{hash}/branding` → módulo
+  `apps/loan-request-wizard/app/modules/partner-branding/`, y ya no son «6 colores `primary`…`senary`»
+  sino **tokens semánticos del design system** (`domain/partner-branding.schema.ts:7`,
+  `TOKEN_OVERRIDE_KEYS`) + `logo_url`, validados como hex y con `.catch()` por campo — **un color malo
+  degrada ese token, no tumba el tema**. El repositorio cachea en memoria del servidor y **se rinde a los
+  2,5 s**: si `/branding` no contestó, se entra con el tema Creditop
+  (`infrastructure/partner-branding.repository.ts:14`). `GET /api/loans/allied/{hash}` (módulo
+  `allied-theme`) se quedó con la data OPERATIVA —entidad, país, tipos de documento y sus reglas,
+  documentos legales, límites de monto, formularios dinámicos—; su propio encabezado lo dice en la
+  línea 4. ⚠ Citar `allied-theme` para hablar de colores es el error que este nodo tenía: sirve para
+  todo menos para eso.
 - **Metadatos para terceros:** `Modules/Onboarding/.../AlliedBranchController::getByHash` (`:48`) resuelve `business_name`/`store_name`/`department`/`city`/`email` para los bodies de Meddipay/Prami/Welli, consumido por el pre-approvals-service. **Nunca devuelve 4xx/5xx**: degrada a strings vacíos + `admin.ecommerce@creditop.com`.
 - En la arquitectura nueva la resolución vive en `Modules/AlliedBranchV1` (`FindByHashService`, serie `ABV11xxx`) — el módulo **no tiene carpeta `routes/`**, se consume cross-módulo desde `OnboardingV2::ValidateOtpAuthService`.
 
@@ -140,6 +151,38 @@ Ver **F-127**. Al construir el panel nuevo, la decisión de diseño es si esas d
 columna de comercio (y volverse config por par, como sugiere la UI) o si la UI debe dejar de
 presentarlas por comercio (y volverse pantalla de entidad, como dice el esquema).
 
+### 10. Las páginas propias del comercio (`allieds.pages`)
+
+> ⏳ **PENDIENTE DE MERGE** — esto vive en `qa` (PR `frontend-monorepo#983`), no en `main`. El módulo
+> `allied-theme` **sí** está en `main`; lo que falta son las ~92 líneas de `pages`/`welcome` y el
+> `action-error-banner.tsx`. Al mergear: re-verificar con el oráculo y **borrar esta marca**.
+
+Un comercio puede traer **pantallas que el wizard le dibuja a él y a nadie más**, dentro de la misma
+respuesta de `GET /api/loans/allied/{hash}` (`modules/allied-theme/types/allied-theme.ts`). Hoy existe
+una: `welcome`, la bienvenida, lo primero que ve el cliente al entrar.
+
+**No hay flag aparte: la presencia de la página ES su flag.** Ausente = cero páginas, que es el caso de
+casi todo el padrón. Por eso no existe el estado «tiene pantalla configurada y no muestra nada», que es
+la clase de bug que produce un booleano separado del contenido. Dentro de `welcome` lo único requerido
+es `description` (el titular; un `\n` parte la línea); `logo`, `background` y `cta` son opcionales y su
+ausencia cae al default del componente.
+
+⚠ **La bienvenida del COMERCIO no es la de la ENTIDAD, y confundirlas manda a la columna equivocada.**
+
+| | quién la configura | dónde | cuándo se dibuja |
+|---|---|---|---|
+| bienvenida del **comercio** | `allieds.pages.welcome` | respuesta del comercio | al ENTRAR al flujo |
+| bienvenida de la **entidad** | `lenders.show_intro_screen` + `intro_background_url` | fila de la entidad | en `loan-confirmation`, al ELEGIRLA |
+
+Son momentos distintos y **no hay precedencia entre las dos**: pueden convivir. La del comercio puede ir
+primero porque el comercio se sabe siempre —su hash está en la URL—; la de la entidad no puede, porque
+hasta el marketplace no hay entidad elegida. Las dos reusan el mismo componente: las llaves de
+`welcome` son literalmente los props de `LenderIntroduction`.
+
+⚠ **Agregar una página al tipo NO alcanza para que exista.** `AlliedPages` es sólo la forma del dato: el
+front tiene que saber dibujarla y hay que decidir en qué punto del funnel va. → ver `entities` para el
+lado de la entidad.
+
 ## Subcontextos
 - **Motai** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
 - **SmartPay** — canal in-platform (path IMEI): el celular como garantía, salta el AML de TusDatos, bloqueo por MDM.
@@ -162,10 +205,10 @@ permiso (CORE-380). Verificado contra `main`.
 - `app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php:53` 2.º disparador (crea sucursal `Ecommerce-*`, `:72` ciudad quemada, `:84` token).
 - `app/Http/Controllers/Admin/AlliedModulesController.php:65` pestaña "Módulos" = matriz `status_per_profiles`.
 - `app/Http/Controllers/Admin/AlliedRulesController.php` — 237 líneas de código muerto (ver Gotchas).
-- `routes/admin.php:37-66` el mapa de pantallas (`aliados`, `aliados.puntosdeventa` `:53`, `editar-disparador` `:54`, `aliados.entidades` `:61`, `aliados.modulos` `:65`, `aliados.ecommerce` `:66`) · `:145-149` reglas.
+- `routes/admin.php:42-71` el mapa de pantallas (`aliados`, `aliados.puntosdeventa` `:58`, `editar-disparador` `:59`, `aliados.entidades` `:66`, `aliados.modulos` `:70`, `aliados.ecommerce` `:71`) · `:145-149` reglas.
 - Modelos: `app/Models/Allied.php` · `app/Models/AlliedBranch.php` (`:18` default del trigger, `:79` `isEcommerceBranch`, `:83` `hasCreditopX`) · `app/Models/LendersByAllied.php` · `app/Models/LendersByAlliedBranch.php` · `app/Models/AlliedEcommerceCredential.php` · `app/Models/Country.php:16` (`COLOMBIA_ID = 47`).
 - **Validación**: `app/Http/Requests/Admin/Allied/StoreRequest.php` (`Rule::in([47,60])`, exige `price`) · `app/Http/Requests/Admin/AlliedBranch/UpdateRequest.php` (**no valida `lenders_selected`**).
-- Consumo: `app/Services/lenders/LenderRetrievalService.php:533` (`lenders_by_allieds.max_amount` pisa el cupo de la entidad) · `:120-165` (`have_ctopx` + `no_more`) · `app/Http/Controllers/Customer/SimulatorController.php:32-41` (sucursal = membresía / comercio = economía).
+- Consumo: `app/Services/lenders/LenderRetrievalService.php:542` (`lenders_by_allieds.max_amount` pisa el cupo de la entidad) · `:120-165` (`have_ctopx` + `no_more`) · `app/Http/Controllers/Customer/SimulatorController.php:32-41` (sucursal = membresía / comercio = economía).
 
 **Esquema** (`legacy-backend/database/migrations/`, la lista completa en `map.json`): las tres con
 trampa — `2026_03_09_204622_create_merchant_modes_table.php` (**crea `allied_modes`, no
@@ -175,5 +218,5 @@ deriva).
 
 **Legacy** (`legacy-backend`): `Modules/Partner/App/Services/AlliedManagementService.php:196` update de sucursal · `:280` store · `:763` store de comercio · `:1367` credencial ecommerce · `:239-240` y `:1384-1385` la instanciación rota. `Modules/Partner/App/Http/Controllers/LenderRulesController.php:109` · `.../LenderDatacreditoRulesController.php:57` · `Modules/Partner/App/Services/LenderRuleManagementService.php:384` · `Modules/Partner/App/Repositories/LenderRuleRepository.php:146` (BdB). `Modules/Partner/routes/api.php:17-18` + `Modules/Partner/App/Providers/RouteServiceProvider.php:40`. `Modules/Partner/App/Services/UrlGenerationService.php:27-58` (métodos muertos). `Modules/AlliedBranchV1/App/Services/{FindByHashService,IsEcommerceBranchService,IsCorbetaOnboardingService}.php` (internos, sin rutas; `IsCorbetaOnboardingService:113` lee `settings.corbeta_allieds`). `Modules/Onboarding/App/Http/Controllers/AlliedBranchController.php:48`. `Modules/Onboarding/App/Services/lenders/LenderListingService.php:350-386`. `Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php:20`. `Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:38`. Modelos: `app/Models/Allied.php:139` (accessor `show_originated_credits`), `app/Models/AlliedMode.php`.
 
-**Front** (`frontend-monorepo`): `apps/loan-request-wizard/app/layouts/default-layout.tsx:74` (hash del asesor obligatorio), `:120` (fallback allied 26), `:160-169` (cookie) · `apps/loan-request-wizard/app/utils/merchant-context-cookie.server.ts` · `modules/loan-request-wizard/loan-application-form/src/lib/types/api-responses.ts:24-92` · `apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts:19`.
+**Front** (`frontend-monorepo`): `apps/loan-request-wizard/app/layouts/default-layout.tsx:74` (hash del asesor obligatorio), `:120` (fallback allied 26), `:160-169` (cookie) · `apps/loan-request-wizard/app/utils/merchant-context-cookie.server.ts` · `modules/loan-request-wizard/loan-application-form/src/lib/types/api-responses.ts:24-92` · `apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts` (sin número: el `:19` que este nodo citaba quedó dentro de un comentario de `toAmountLimits`) · `apps/loan-request-wizard/app/modules/partner-branding/` (el tema).
 

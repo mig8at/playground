@@ -47,7 +47,14 @@ Esto ya confundió más de una vez, y en agosto se volvió más peligroso porque
 
 ⚠ **Y la calculadora del Rent to Own NO es la misma en los dos ambientes.** Medido el 2026-08-20: producción y qa tienen tasas distintas, y la configuración de cada uno la puso una **migración que no existe en el repositorio** (ni en una rama ni en el historial). O sea que **lo que valides en un ambiente no predice el otro**, y la config de producción no se puede reconstruir desde el código. Antes de conciliar un número contra el Excel, mirá contra qué ambiente estás midiendo.
 
-⚠ **El "Rent to Own" es un CLON del renting, no un producto nuevo.** La migración que lo crea copia la fila entera del 158 —calculadora incluida— y deja **`product` en `'renting'` a propósito**: así el clon se comporta idéntico de punta a punta (la card lo dibuja con el layout de renting, el `calculator` expone `plans`, y el plan de pagos despacha por la **matriz** del calculator, no por `product`). Consecuencia práctica: **la rama `terms` de la calculadora sigue sin ejercitarse en ningún ambiente**. Pasarlo a `'rto'` es un `UPDATE` de un campo el día que se quiera. Lo que la migración **no** clona: categorías de usuario y sus reglas (ahí vive `min_initial_fee`), credenciales, ciudades, métodos de pago y requisitos — hay que configurarlos a mano.
+⚠ **El "Rent to Own" NACIÓ como un clon del renting, y ya no lo es.** La migración que lo crea copiaba la fila entera del 158 —calculadora incluida— y dejaba `product` en `'renting'` a propósito, con la idea de que pasarlo a `'rto'` fuera «un `UPDATE` de un campo el día que se quiera». **Ese día llegó: medido contra producción el 2026-09-14, el 193 corre con `product = 'rto'` y con una calculadora PROPIA** —515 bytes contra los 651 del 158—, o sea que ya no comparte fórmula con el renting.
+
+Eso invierte dos consecuencias que este nodo daba por ciertas:
+
+- **la rama `terms` de la calculadora SÍ se ejercita** — el 193 cotiza por matriz de plazos (`12/18/24`, `weeks 52/78/104`) y el 158 por planes semanales;
+- y **`product` ya distingue a los dos**, así que un despacho por `product` deja de ser equivalente a uno por la forma del `calculator`.
+
+`SELECT id, name, product, LENGTH(calculator) FROM lenders WHERE id IN (62,158,193)` (prod, solo lectura). Lo que la migración **no** clona: categorías de usuario y sus reglas (ahí vive `min_initial_fee`), credenciales, ciudades, métodos de pago y requisitos — hay que configurarlos a mano.
 
 ## El flujo lo dirige el backend por `next_step`
 El self-service tiene **un único punto de entrada**: el front pregunta el paso y **obedece**. `POST /api/loans/customer/requests/confirm` → `CreditopXFlowService::getNextStepData` resuelve, en este orden, leyendo `lender_requirements`:

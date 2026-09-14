@@ -13,7 +13,7 @@ El campo que manda es **`response_type` (rt)**: un `integer` que decide **quién
 - **`response_type` default = 1**: un lender mal configurado nace como integración externa. Y `StoreRequest` no restringe el valor: cualquier entero pasa.
 - **rt=3 y rt=4 no están en `response_types`** → el dropdown del panel no los ofrece; se setean por SQL. Nadie valida `response_type` contra el catálogo.
 - **Comentario mentiroso en el código**: `LoanAuthorizationService.php:184` documenta la formalización externa como "(response_type 5)" cuando la constante que usa es **4** (`:43`). No existe rt=5 en ningún otro lado.
-- **`path_id = 3` no existe en ninguna migración ni seeder** de los dos backs (solo se siembran 1 y 2), pero el front lo consume como `MANAGED_LENDER_PATH_ID` para desviar a gestión manual (`lender-response.mapper.ts:96`). La fila se insertó fuera de migración.
+- **`path_id = 3` no existe en ninguna migración ni seeder** de los dos backs (solo se siembran 1 y 2), pero el front lo consume como `MANAGED_LENDER_PATH_ID` para desviar a gestión manual (`lender-response.mapper.ts:97`). La fila se insertó fuera de migración.
 - **Columna muerta**: `requires_restrictive_list_check` (migración + `->after()` de la siguiente migración) **no tiene un solo consumidor** en application, legacy-backend ni frontend-monorepo. Tampoco está en el `$fillable`.
 - **Bug del panel — el email nunca se guarda**: los dos formularios Vue bindean `form.emails` (plural) y precargan `this.lender.emails`, pero la columna, el `$fillable` y el controlador usan **`email`** (singular). El campo renderiza vacío al editar y el POST no llega a la columna.
 - **Serialización que pisa el escalar**: `edit()` hace `$lender->load([... 'responseType' ...])`; Eloquent serializa esa relación en snake_case como `response_type`, **sombreando el entero**. Por eso el Vue lee `this.lender.response_type.id`. Cualquier consumidor que espere un `int` en ese payload se rompe.
@@ -65,7 +65,7 @@ La tabla catálogo `response_types` es mínima (`id, name, status`) y su seeder 
 **rt=4 no tiene constante compartida**: está redefinido como `private const` con nombre distinto en **4 archivos** (`EXTRA_DETAILS_RESPONSE_TYPE`, `EXTERNAL_MANAGED_RESPONSE_TYPE`, `EXTERNALLY_MANAGED_RESPONSE_TYPE` ×2), más decenas de literales `== 2` / `== 3` sueltos. No hay enum PHP de `response_type` en ningún repo.
 
 **El despacho ocurre en dos lugares gemelos y divergentes** (`switch ($lender->response_type)`), después de un gate por credencial (`if (empty($credential))`):
-- **legacy-backend** `UserRequestService.php:442` — `case 0/1` · `case 2/3/4` · rama con credencial `case 0` / `case 1` / `case 4`.
+- **legacy-backend** `UserRequestService.php:469` — `case 0/1` · `case 2/3/4` · rama con credencial `case 0` / `case 1` / `case 4`.
 - **application** `UserRequestController.php:818` — `case 0/1` · `case 2/3`. **No hay `case 4`.**
 
 Esa ausencia explica el hardcode más famoso del modelo: `application/app/Models/Lender.php:59` define `getResponseTypeAttribute()` que **devuelve 1 si `id == 24`** (Credifamilia), sin importar la BD. Es el parche que evita que Credifamilia caiga en un `switch` sin rama. El accessor **no existe** en legacy-backend, que sí tiene su `case 4`.
@@ -91,7 +91,7 @@ Hay **dos CRUD gemelos** sobre la misma tabla, y comparten hasta los FormRequest
 
 | | **application** (vivo) | **legacy-backend** (gemelo) |
 |---|---|---|
-| Entrada | Inertia, `routes/admin.php:47-50` (`entidades`) | API, `Modules/Partner/routes/api.php:129` |
+| Entrada | Inertia, `routes/admin.php:52-55` (`entidades`) | API, `Modules/Partner/routes/api.php:129` |
 | Controlador | `Admin/LenderController` | `Partner/…/LenderController` → `LenderManagementService` → `LenderRepository` |
 | UI | 5 pantallas Vue en `resources/js/pages/admin/lenders/` | **ninguna** — `frontend-monorepo/apps/admin/` contiene solo un `.gitignore` |
 
@@ -116,7 +116,24 @@ verificadas a mano — ciertas): el modelo de entidad **ganó columnas `product`
 son flags sueltos» quedó vieja para esta familia; y `lenders_by_allied_branches` ganó
 **`document_types` (array)**: los tipos de documento habilitados se parametrizan POR SUCURSAL — el
 contraste «28 columnas por comercio vs 5 por sucursal» ahora es 28 vs 6, y la sucursal dejó de ser sólo
-url/orden/estado. Más: la autorización diferida por codeudor, el estado de validación consultable para
+url/orden/estado.
+
+⚠ **Pero la columna de la sucursal NO es la que decide qué ve el cliente.** Quien resuelve la lista es
+`app/Services/DocumentTypesService::resolver($branchId, $tiposDelPais)`, y toma otro camino: junta las
+entidades **activas** de la sucursal (`lenders_by_allied_branches.status = 1`), une sus
+**`lenders.document_types`** —la columna de la ENTIDAD, no la de la sucursal— y recorta con el catálogo
+del país.
+
+**El país es TECHO, no piso**, y las dos ramas del final lo dicen:
+
+    if ($tiposDelPais === []) return [];                      // país sin catálogo -> vacío, y el front lo dice
+    $cruce = array_values(array_intersect($deLasEntidades, $tiposDelPais));  // reindexa: la respuesta es LISTA, no objeto
+    return $cruce !== [] ? $cruce : array_values($tiposDelPais); // cruce vacío -> manda el país
+
+**Consecuencia práctica para habilitar un documento** (el PEP, por ejemplo): se carga en
+`lenders.document_types` de la ENTIDAD —se edita desde el admin viejo— y alcanza con eso, siempre que el
+catálogo del país lo tenga. Colombia es `["CC","CE","PEP"]`, verificado en la BD. Buscar dónde
+«activarlo por sucursal» es buscar en la columna equivocada. Más: la autorización diferida por codeudor, el estado de validación consultable para
 codeudores, y el disparo de Experian de Credifamilia movido a la confirmación (CRED-222).
 
 ## Dónde mirar
@@ -131,7 +148,7 @@ codeudores, y el disparo de Experian de Credifamilia movido a la confirmación (
 - `legacy-backend/database/seeders/ResponseTypesTableSeeder.php:24` (`0 UTM`), `:29` (`1 Integración`), `:34` (`2 Creditop X`) — no hay 3 ni 4.
 - `legacy-backend/database/migrations/2024_04_25_174044_create_response_types_table.php:15` — la tabla catálogo (`id, name, status`).
 - `application/app/Models/ResponseType.php` · `legacy-backend/app/Models/ResponseType.php` — idénticos, `$fillable = ['name']`.
-- `legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php:415` (url: excluye rt 2 y 4) · `:441` switch · `:442` `case 0/1` · `:450-452` `case 2/3/4` · `:601` `case 4` con `standBy=true`.
+- `legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php:420` (url: excluye rt 2 y 4) · `:469` switch · `:470-471` `case 0/1` · `:477-479` `case 2/3/4` · `:649-658` `case 4` con `standBy=true`.
 - `application/app/Http/Controllers/Customer/UserRequestController.php:791` (url: excluye solo rt 2) · `:817` switch · `:818` `case 0/1` · `:827` `case 2/3` (**sin `case 4`**) · `:881` `switch ($lender->id)` con `case 24` · `:968` `switch ($lender->name)`.
 - `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php:19` (RD=60), `:22` (nombres), `:25` (`EXTERNAL_REDIRECT_RESPONSE_TYPES = [0,1]`), `:27` `opensNewTab()`.
 - `legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php:54` (`lender_path`) · `:59-63` (`credit_type` 3→revolving / 2→consumer / other).
@@ -154,12 +171,13 @@ codeudores, y el disparo de Experian de Credifamilia movido a la confirmación (
 
 **Alta / administración**
 - `application/app/Http/Controllers/Admin/LenderController.php` — `:73` `create()` (dropdown `ResponseType…where('status',1)`), `:81` `update()` (**`:125` rt==2 || rt==3**), `:186` `destroy()` (soft `status=0`), `:196` `store()` → `:219` `Lender::create` → `:235` `CreditLineByLender::create` → `:248` `CreditopXLenderConfiguration` **solo rt==2**, `:263` `updateUsuryRate` (salta lender 140 y `country_id==60`, `:275`).
-- `application/app/Http/Requests/Admin/Lender/StoreRequest.php:35` — `response_type` es solo `required` (sin `in:` ni `exists:`).
-- `application/routes/admin.php:47-50` · pantallas `application/resources/js/pages/admin/lenders/lender-edit/LenderEdit.vue:80-83` (select de `responseTypes`), `:95` (`form.emails`), `:252` (`lender.response_type.id`) y `…/lender-create/LenderCreate.vue:80`.
+- `application/app/Http/Requests/Admin/Lender/StoreRequest.php:36` — `response_type` es solo `required` (sin `in:` ni `exists:`).
+- `application/routes/admin.php:52-55` · pantallas `application/resources/js/pages/admin/lenders/lender-edit/LenderEdit.vue:80-83` (select de `responseTypes`), `:95` (`form.emails`), `:252` (`lender.response_type.id`) y `…/lender-create/LenderCreate.vue:80`.
 - Gemelo legacy: `Modules/Partner/App/Http/Controllers/LenderController.php:152` `store` · `Modules/Partner/App/Services/LenderManagementService.php:30` `createLender` (`:67` rt default 1, `:93` rt==2), `:120` `updateLender` (`:188` rt==2), `:323` `destroyLender` (`:333` soft) · `Modules/Partner/App/Repositories/LenderRepository.php:24` `create` · `Modules/Partner/routes/api.php:129` (bloque lenders), `:147` (lender-rules).
 
 **Front**
-- `frontend-monorepo/…/lib/domain/constants/lender.constants.ts:37` `LENDER_RESPONSE_TYPE` · `:46` `MANAGED_LENDER_PATH_ID = 3` · `:49` `IMEI_LENDER_PATH_ID = 2` · `:57` `isCreditopXType` · `:68` `PRE_APPROVAL_FLOW_RESPONSE_TYPES` (incluye 4) · `:1` Credifamilia 24 · `:13` Motai [158] · `:31` `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS = [160]`.
+- `frontend-monorepo/…/lib/domain/constants/lender.constants.ts:122` `LENDER_RESPONSE_TYPE` · `:131` `MANAGED_LENDER_PATH_ID = 3` · `:134` `IMEI_LENDER_PATH_ID = 2` · `:142` `isCreditopXType` · `:153` `PRE_APPROVAL_FLOW_RESPONSE_TYPES` (incluye el 4 como literal, porque no está en el mapa) · `:1` Credifamilia 24 · `:47` `HIDE_AVAILABLE_CREDIT_TAG_LENDER_IDS = [160]`.
+  ⚠ **Motai ya no se cita acá.** El `MOTAI_LENDER_IDS = [158]` que este nodo listaba **se borró de `main`**: la misma regla se escribe hoy por PRODUCTO, no por id — `isCalculatorProduct(product)` en `frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts:46-48`, con el comentario que deja dicho que reemplaza al chequeo por id. Si buscás «por qué esta entidad se porta distinto», el eje ya no es el id.
 - `frontend-monorepo/…/lib/domain/entities/loan-option.entity.ts:11` `LenderResponseType = 0|1|2|3` · `:134` el campo en el DTO.
-- `frontend-monorepo/…/lib/mappers/lender-response.mapper.ts:96` (desvío por `MANAGED_LENDER_PATH_ID`) · `:189` mapeo de `response_type`.
+- `frontend-monorepo/…/lib/mappers/lender-response.mapper.ts:97` (desvío por `MANAGED_LENDER_PATH_ID`) · `:189` mapeo de `response_type`.
 

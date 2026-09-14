@@ -19,7 +19,6 @@
     "frontend-monorepo/apps/backoffice/app/components/AdminShell.tsx",
     "frontend-monorepo/apps/backoffice/app/components/DateFormatSelector.tsx",
     "frontend-monorepo/apps/backoffice/app/components/HelpDialog.tsx",
-    "frontend-monorepo/apps/backoffice/app/components/NavigationOverlay.tsx",
     "frontend-monorepo/apps/backoffice/app/components/PageHeadingContext.tsx",
     "frontend-monorepo/apps/backoffice/app/components/SidebarUserMenu.tsx",
     "frontend-monorepo/apps/backoffice/app/components/ThemeToggleButton.tsx",
@@ -129,6 +128,8 @@
     "legacy-backend/Modules/Backoffice/App/Providers/BackofficeServiceProvider.php",
     "legacy-backend/Modules/Backoffice/App/Providers/RouteServiceProvider.php",
     "legacy-backend/Modules/Backoffice/App/Services/ApplicationsService.php",
+    "legacy-backend/Modules/Backoffice/App/Services/LenderReadinessService.php",
+    "legacy-backend/Modules/Backoffice/App/Services/LenderRulesWriterService.php",
     "legacy-backend/Modules/Backoffice/App/Services/UsersService.php",
     "legacy-backend/Modules/Backoffice/routes/backoffice.php",
     "legacy-backend/config/app.php"

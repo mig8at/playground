@@ -114,8 +114,47 @@ mano contra `main` — muestreo de 3/6 confirmado exacto. El resultado:
   codeudor activo, su participación queda no-elegible y no reintenta la pantalla de identidad en bucle.
   Cierra el circuito con el flujo de codeudor (ver ese nodo).
 
+## Dar de alta una entidad sin SQL a mano: la API que escribe las reglas, y la que dice si está lista
+
+Dos servicios de `Modules/Backoffice/App/Services/` que `context/` no nombraba y que cambian cómo se
+monta una entidad nueva. Los dos verificados contra `main` el 2026-09-14.
+
+### `LenderRulesWriterService` — `PUT /api/backoffice/lenders/{id}/rules`
+
+Escribe, **en una sola transacción**, la plantilla de reglas duras (`group_rule_id IS NULL`) **y** los
+clones por sucursal, junto con los perfiles y sus criterios. Lleva `baseVersion` para no pisar el
+trabajo de otro (devuelve `409`).
+
+⚠ **El defecto que evita está nombrado en su propio docblock, y vale más que la API:** la plantilla la
+evalúa el **cupo** de CreditopX y los clones los evalúa el **listado** del onboarding. Verlas divergir
+es lo que hace que una entidad **aparezca en el listado y después falle al pedir cupo** — el síntoma
+clásico de haber escrito las reglas a mano en una sola de las dos.
+
+⚠ **Y el ORDEN importa, porque se lee en el código:** el writer crea clones sólo para las sucursales
+donde la entidad **ya está habilitada** (`bootstrapBranchGroups`, y sólo cuando no hay ninguna fila
+previa). O sea: **primero se habilita la entidad en la sucursal, después se escribe la política.** Al
+revés quedan las reglas sin clonar y la entidad lista a medias.
+
+### `LenderReadinessService` — «listo para operar» no es opinión
+
+Cinco chequeos, y uno de ellos **no bloquea a propósito**:
+
+| # | chequeo | qué pasa si falta |
+|---|---|---|
+| 1 | **identidad** — `lenders.originator_nit` cargado | la pasarela rechaza los pagos |
+| 2 | **validación** — un proveedor ACTIVO en `order 1` | el flujo lanza excepción |
+| 3 | **pagos** — al menos un comercio con cuenta de Wompi lista | no se puede cobrar |
+| 4 | **perfiles** — al menos un perfil con fila en `lender_users_category_rules` | *«una categoría sin criterios no existe para el motor»* |
+| 5 | **política dura** | se reporta el conteo, con **`blocking: false`** |
+
+El quinto es la decisión que conviene no revertir por prolijidad: *«un lender sin reglas no está
+incompleto, está sin filtros»*. Un lender sin política dura **opera** — lista para todos. Marcarlo como
+bloqueante convertiría un default deliberado en un error.
+
 ## Dónde mirar
 
+- **Alta de entidades** (legacy-backend): `Modules/Backoffice/App/Services/LenderRulesWriterService.php` ·
+  `App/Services/LenderReadinessService.php`.
 - **API** (legacy-backend): `Modules/Backoffice/routes/backoffice.php` — el mapa completo de endpoints ·
   `App/Http/Controllers/{Users,Applications,Me}Controller.php` · `App/Services/{Users,Applications}Service.php`.
 - **Auth** (legacy-backend): `Modules/Auth/routes/auth.php` · `App/Http/Middleware/EnsureCognitoAccessToken.php`
