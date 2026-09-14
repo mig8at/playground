@@ -37,6 +37,7 @@
   input,select{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:7px;
                background:var(--bg);color:var(--tinta);font:13px var(--mono)}
   input:focus,select:focus{outline:2px solid var(--acento);outline-offset:-1px}
+  input:disabled{opacity:.72;cursor:not-allowed;background:var(--tienda)}
   button{border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;
          cursor:pointer;background:var(--acento);color:#fff;font-family:inherit}
   button.gris{background:transparent;color:var(--tinta);border:1px solid var(--linea)}
@@ -46,6 +47,17 @@
        border-radius:4px;padding:1px 5px}
   .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
   .campos .ancho{grid-column:1/-1}
+
+  /* ── el panel de simulación del comercio ────────────────────────────── */
+  .mapa{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+  .mapa .fila-m{display:flex;align-items:center;gap:8px;border:1px solid var(--linea);
+                border-radius:8px;padding:7px 9px;background:var(--bg)}
+  .mapa .fila-m input[type=checkbox]{width:auto;flex-shrink:0;margin:0}
+  .mapa .fila-m .nom{font:11px var(--mono);color:var(--suave);width:82px;flex-shrink:0}
+  .mapa .fila-m input[type=text]{flex:1;min-width:0;padding:4px 6px;font-size:12px}
+  .resumen{margin-top:12px;padding:10px 12px;border-radius:8px;font-size:13.5px;
+           background:var(--ok-bg);border:1px solid var(--ok);color:var(--ok)}
+  .resumen.falta{background:var(--alerta-bg);border-color:var(--alerta);color:var(--alerta)}
 
   /* ── la tienda del comercio ─────────────────────────────────────────── */
   .tienda{background:var(--tienda);border:1px solid var(--linea);border-radius:14px;
@@ -64,7 +76,7 @@
   .precio{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
   .prod-info .que{color:var(--suave);font-size:13px;margin:0}
 
-  /* ── el widget del SDK, montado dentro de la tienda ─────────────────── */
+  /* ── el widget del SDK ──────────────────────────────────────────────── */
   #ct-widget{margin-top:16px;border:1.5px solid var(--acento);border-radius:12px;
              background:var(--panel);padding:16px 18px}
   .w-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -82,7 +94,22 @@
   .estado.err{background:var(--stop-bg);border:1px solid var(--stop);color:var(--stop)}
   .estado.info{background:var(--alerta-bg);border:1px solid var(--alerta);color:var(--alerta)}
 
-  /* ── el listado, renderizado EN la tienda ───────────────────────────── */
+  /* ── el formulario que se recalcula ─────────────────────────────────── */
+  .form-din{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+  .campo{position:relative}
+  .campo .cab{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+  .campo .cab label{margin:0}
+  .tag{font:9.5px var(--mono);border-radius:99px;padding:1.5px 6px;
+       text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+  .tag.viene{color:var(--ok);border:1px solid var(--ok)}
+  .tag.falta{color:var(--alerta);border:1px solid var(--alerta)}
+  .tag.clave{color:var(--stop);border:1px solid var(--stop)}
+  .corregir{margin-left:auto;display:flex;align-items:center;gap:4px;
+            font:10px var(--mono);color:var(--suave);cursor:pointer;text-transform:none}
+  .corregir input{width:auto;margin:0}
+  .trio{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:5px}
+
+  /* ── el listado ─────────────────────────────────────────────────────── */
   .lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px;margin-top:12px}
   .card{border:1px solid var(--linea);border-radius:10px;padding:12px 13px;background:var(--bg)}
   .card h4{margin:0 0 3px;font-size:14px}
@@ -90,7 +117,7 @@
             border-radius:99px;padding:1px 6px;display:inline-block;margin-bottom:8px}
   .card button{width:100%;padding:7px;font-size:12.5px}
 
-  /* ── la bitácora HTTP: la evidencia ─────────────────────────────────── */
+  /* ── la bitácora HTTP ───────────────────────────────────────────────── */
   .log{font:11.5px/1.5 var(--mono);background:var(--bg);border:1px solid var(--linea);
        border-radius:8px;padding:12px;max-height:340px;overflow:auto}
   .log:empty::after{content:"— sin llamadas todavía —";color:var(--apagado)}
@@ -111,19 +138,20 @@
   li{margin-bottom:5px}
   .pie{color:var(--suave);font-size:12.5px;margin-top:26px;padding-top:14px;
        border-top:1px solid var(--linea)}
+  @media (max-width:560px){ .trio{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <h1>El onboarding dentro de la tienda</h1>
-  <p class="sub">Prototipo del SDK: una página de comercio que maneja el flujo de CreditOp desde su propio DOM y pinta el listado de entidades sin que el comprador se vaya.</p>
+  <p class="sub">Prototipo del SDK: una página de comercio que maneja el flujo de CreditOp desde su propio DOM, <b>pide sólo los datos que el comercio no le dio</b> y pinta el listado de entidades sin que el comprador se vaya.</p>
   <div class="fecha">tarea #6 · ecommerce-stateless · CORE-543 · 2026-09-14</div>
 
   <div class="aviso">
     <b>Qué contesta esto, y qué no.</b>
-    <p><b>Sí:</b> si una página servida desde OTRO origen puede manejar el flujo por API hasta el listado. Eso se contesta corriéndolo — no leyendo la config de CORS.</p>
-    <p><b>No:</b> si esto es seguro (no lo es todavía: <code>auth.cognito</code> no autentica), ni si es la forma de producto correcta. Y no dice nada de lo que pasa DESPUÉS de elegir entidad.</p>
+    <p><b>Sí:</b> si una página servida desde OTRO origen puede manejar el flujo por API hasta el listado, y cómo se encoge el formulario según lo que mande la tienda. Eso se contesta corriéndolo.</p>
+    <p><b>No:</b> si esto es seguro (no lo es todavía: <code>auth.cognito</code> no autentica), ni si es la forma de producto correcta.</p>
   </div>
 
   <div class="aviso stop">
@@ -150,10 +178,6 @@
         <input id="monto" value="2000000">
       </div>
       <div>
-        <label for="tel">celular</label>
-        <input id="tel" value="">
-      </div>
-      <div>
         <label for="otp">código OTP</label>
         <input id="otp" value="1111">
       </div>
@@ -161,9 +185,39 @@
     <p style="color:var(--suave);font-size:12.5px;margin:0">
       Defaults de <b>local</b>: <code>e9409aff</code> es Amoblando Pullman (7 entidades cableadas) y en
       <code>local</code> el OTP es <b>1111</b> — <code>OtpService.php:432</code>, y sólo en ese ambiente.
-      El celular se genera al azar en cada carga: <code>users.cell_phone</code> es único y reusar uno
-      choca en el registro.
+      El celular y el documento se generan al azar en cada carga: <code>users.cell_phone</code> y el email
+      son únicos, y reusarlos choca.
     </p>
+  </div>
+
+  <!-- ════════ lo que manda la tienda ════════ -->
+  <div class="panel">
+    <h2>Lo que manda la tienda</h2>
+    <p class="sub" style="margin-bottom:12px">
+      Estos son <b>exactamente</b> los seis campos que <code>EcommerceRequestService</code> lee del contrato
+      base64 y devuelve como <code>prefill</code>. Destildá uno para simular un comercio que no lo mapeó —
+      el formulario de abajo se recalcula solo.
+    </p>
+    <div class="mapa" id="mapa"></div>
+
+    <div style="margin-top:12px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <label class="corregir" style="text-transform:none;font-size:12.5px;color:var(--tinta)">
+        <input type="checkbox" id="pide-exp"> esta sucursal pide <b>fecha de expedición</b>
+        (<code>should_collect_expedition_date</code>)
+      </label>
+    </div>
+
+    <div class="resumen" id="resumen"></div>
+
+    <div class="aviso" style="margin-top:12px;margin-bottom:0">
+      <b>⚠ Acá el prototipo miente a propósito, y hay que saberlo.</b>
+      <p>El recálculo de «qué falta» lo hace el <b>front</b>, para que se vea. <b>En producción eso no va acá.</b>
+      El propio repo dejó la advertencia en <code>GetPersonalInfoConfigService</code>:
+      «<i>two independent readings of "does this merchant need a stratum" is how a screen ends up not asking
+      for something the save then rejects</i>». Si el form decide solo qué saltear y
+      <code>StorePersonalInfoService</code> valida por su cuenta, el guardado rechaza lo que la pantalla
+      nunca pidió. <b>Quien decide qué se pide tiene que ser quien valida</b> — o sea, un endpoint.</p>
+    </div>
   </div>
 
   <!-- ════════ la tienda ════════ -->
@@ -190,14 +244,15 @@
         <b>Paga a cuotas con CreditOp</b>
         <span class="marca">sdk</span>
       </div>
-      <p class="w-que" id="w-que">Ingresá tu celular y te mostramos con qué entidades podés comprarlo.</p>
+      <p class="w-que" id="w-que">Confirmá tu celular y te mostramos con qué entidades podés comprarlo.</p>
 
       <div id="paso-tel">
         <div class="paso-t">1 · celular</div>
         <div class="fila">
           <div class="crece"><input id="in-tel" placeholder="3130000000"></div>
-          <button id="b-tel">Ver mis opciones</button>
+          <button id="b-tel">Continuar</button>
         </div>
+        <p class="w-que" id="tel-nota" style="margin:8px 0 0"></p>
       </div>
 
       <div id="paso-otp" hidden>
@@ -209,8 +264,14 @@
         </div>
       </div>
 
+      <div id="paso-form" hidden>
+        <div class="paso-t" id="form-t">3 · completá lo que falta</div>
+        <div class="form-din" id="form-din"></div>
+        <div style="margin-top:14px"><button id="b-form">Ver mis opciones</button></div>
+      </div>
+
       <div id="paso-lista" hidden>
-        <div class="paso-t">3 · entidades disponibles para vos</div>
+        <div class="paso-t">4 · entidades disponibles para vos</div>
         <div class="lista" id="lista"></div>
       </div>
 
@@ -229,12 +290,34 @@
     <div style="margin-top:10px"><button class="gris mini" id="b-limpiar">limpiar</button></div>
   </div>
 
+  <!-- ════════ el contrato ════════ -->
+  <div class="panel">
+    <h2>Por qué son esos seis campos, y no otros</h2>
+    <p class="sub" style="margin-bottom:10px">
+      Verificado contra <code>main</code>. La coincidencia no es casual: <b>los seis del prefill cubren
+      los cinco obligatorios de <code>personal-info</code></b>, más el teléfono que se usa en el registro.
+    </p>
+    <table>
+      <thead><tr><th>Campo del prefill</th><th>¿Lo exige personal-info?</th><th>¿De dónde sale en la tienda?</th></tr></thead>
+      <tbody>
+        <tr><td><code>documentType</code></td><td class="si">obligatorio</td><td class="no">NO es mapeable — no está entre los seis del plugin. Sólo llega si <code>billing.document_type</code> existe.</td></tr>
+        <tr><td><code>documentNumber</code></td><td class="si">obligatorio</td><td>Mapeable («Campo documento»). No es nativo de Woo: si el comercio no lo mapeó, no llega.</td></tr>
+        <tr><td><code>email</code></td><td class="si">obligatorio</td><td class="si">Nativo del <code>billing</code> de Woo.</td></tr>
+        <tr><td><code>firstName</code></td><td class="si">obligatorio (min 3)</td><td class="si">Nativo + mapeable («Campo nombres»).</td></tr>
+        <tr><td><code>lastName</code></td><td class="si">obligatorio (min 3)</td><td>Nativo. ⚠ El mapeo está <b>roto</b>: el plugin guarda la clave como <code>surname</code> y el backend busca <code>$config->last_name</code>.</td></tr>
+        <tr><td><code>phone</code></td><td>— (se usa en <code>phone/register</code>)</td><td class="si">Nativo + mapeable.</td></tr>
+        <tr><td><code>document.expedition</code></td><td><code>nullable</code> — sólo si la sucursal la pide</td><td class="no">NO viaja. Nunca.</td></tr>
+        <tr><td><code>birth</code> · <code>address</code> · <code>stratum</code></td><td><code>nullable</code></td><td class="no">La dirección y la ciudad SÍ viajan en <code>config</code>, pero <code>prefill</code> no las lee: se tiran.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
   <!-- ════════ la corrida medida ════════ -->
   <div class="panel">
     <h2>La corrida del 2026-09-14, medida</h2>
     <p class="sub" style="margin-bottom:10px">
       Servido en <code>localhost:5199</code> contra el backend en <code>localhost:80</code> — dos
-      orígenes distintos, como en una tienda real. Tres llamadas, las tres <b>200</b>:
+      orígenes distintos, como en una tienda real. Primera versión del prototipo, sin formulario:
     </p>
     <table>
       <thead><tr><th>#</th><th>Llamada</th><th>Resultado</th></tr></thead>
@@ -250,16 +333,12 @@
 
     <div class="aviso" style="margin-top:14px">
       <b>El hallazgo: salieron 6, no 7 — y falta justo la que importa.</b>
-      <p>El mismo comercio por <code>make harness-listado</code> da <b>7</b>. La que no aparece acá es
+      <p>El mismo comercio por <code>make harness-listado</code> da <b>7</b>. La que no aparece es
       <b>CrediPullman (id 77, rt=2)</b>, la de CreditopX. No es un bug del prototipo: el harness
       <b>inyecta</b> datos de riesgo sintéticos (ingreso 2.500.000, score 700) antes de pedir el listado.
-      Acá el usuario es temporal y no tiene ninguno, así que rt=2 no puede calcular cupo y se cae del
-      listado.</p>
-      <p><b>Lo que eso significa para el SDK:</b> «mostrar el cupo en la tienda» sin pedir datos
-      personales <b>no muestra la oferta de CreditopX</b> — que es la única donde el comercio pone el
-      capital y CreditOp cobra comisión. Lo barato (celular + OTP) alcanza para las entidades externas;
-      lo que de verdad se quiere vender exige el formulario. Eso hay que decidirlo antes de diseñar la
-      pantalla, no después.</p>
+      Sin datos personales el usuario es temporal, rt=2 no calcula cupo y se cae del listado.</p>
+      <p><b>Eso es lo que vino a atacar el paso 3.</b> Si el comercio ya trae el documento, el comprador
+      no tiene que escribirlo — y la solicitud deja de ser temporal sin fricción nueva.</p>
     </div>
   </div>
 
@@ -291,240 +370,452 @@
   <div class="aviso stop">
     <b>Lo que este prototipo NO resuelve y hay que resolver antes de cualquier piloto.</b>
     <ul>
-      <li><code>auth.cognito</code> (<code>ResolveCognitoUser</code>) lee <code>x-user-id</code> / <code>x-cognito-identity-id</code> de los headers y <b>nunca rechaza</b>. Hoy eso está contenido porque quien llama es el SSR del wizard, dentro del cluster. Un SDK lo publica.</li>
-      <li>Falta clave pública por comercio + allowlist de origen + rate limit por origen. Lo único que hay hoy es el rate limit de personal-info (4/hora por documento).</li>
-      <li>Sería la <b>cuarta</b> superficie sobre el mismo contrato (G1 Inertia · G2 <code>Modules/Onboarding</code> · G3 <code>OnboardingV2</code> · esto).</li>
+      <li><b>El recálculo va en el backend, no acá.</b> Un endpoint que, dada la sucursal + el <code>ecommerce_request</code>, responda «estos campos, estos ya vienen, estos faltan» — espejando el gate de escritura, como ya se hizo con el estrato.</li>
+      <li><b>Saltear un paso no es sólo UI.</b> <code>isForm1Completed</code> exige tres <code>user_field_values</code> con <code>form_id=1</code>: <b>29</b> (situación laboral), <b>87</b> (ingreso) y <b>160</b> — que no es un dato, es el marcador literal <code>'no'</code> de «el formulario 1 se envió». Lo que se saltea hay que <b>marcarlo</b>, o el ruteo devuelve ONB004 en loop.</li>
+      <li><b>El checkbox «corregir» es del prototipo, no del producto.</b> El backend marca <code>documentNumber</code>, <code>documentType</code> y <code>phone</code> como <code>readonly: true</code> a propósito: son la identidad que ata la solicitud al pedido de la tienda. Dejar que el comprador los edite rompe ese vínculo.</li>
+      <li><b>Y ojo con <code>disabled</code>.</b> El wizard real bloquea por CSS, no con el atributo — el comentario lo dice: «<i>which would drop the value from the submit</i>». Acá no molesta porque el payload se arma desde el estado en JS, pero al implementarlo de verdad sí.</li>
+      <li><code>auth.cognito</code> (<code>ResolveCognitoUser</code>) lee <code>x-user-id</code> / <code>x-cognito-identity-id</code> de los headers y <b>nunca rechaza</b>. Falta clave pública por comercio + allowlist de origen + rate limit por origen.</li>
+      <li>Sería la <b>cuarta</b> superficie sobre el mismo contrato (G1 · G2 · G3 · SDK).</li>
     </ul>
   </div>
 
   <p class="pie">
     Prototipo de la tarea <b>#6 · ecommerce-stateless</b> (CORE-543). Un archivo, sin build ni dependencias.
-    El contrato que usa salió de los repositorios del wizard en <code>main</code>, no de suposiciones:
-    <code>phone-number.repository.ts</code>, <code>phone-otp.repository.ts</code>,
-    <code>personal-info.repository.ts</code>, <code>loan-options.repository.ts</code>.
+    El contrato salió de los repositorios del wizard en <code>main</code> y de
+    <code>EcommerceRequestService</code> / <code>StorePersonalInfoRequest</code>, no de suposiciones.
   </p>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  El "SDK": lo que instalaría el comercio. Vanilla, sin dependencias, para
-//  que el prototipo conteste la pregunta de red y no arrastre React.
+//  El "SDK": lo que instalaría el comercio. Vanilla, sin dependencias.
 //
 //  ⚠ El contrato NO está inventado: son las rutas que hoy llama el wizard en
-//  `main`. Ojo que el wizard ya migró parte a OnboardingV2 (`api/v2`), así que
-//  el flujo mezcla las dos generaciones — igual que el wizard real:
-//    1. POST /api/onboarding/phone/register              (G2)
-//    2. POST /api/v2/onboarding/otp-auth/validate/{hash}  (G3, códigos OBV22xxx)
-//    3. POST /api/v2/onboarding/personal-info/{hash}/{ur} (G3, si hace falta)
+//  `main`, que ya mezcla dos generaciones — igual que el wizard real:
+//    1. POST /api/onboarding/phone/register                (G2)
+//    2. POST /api/v2/onboarding/otp-auth/validate/{hash}     (G3, códigos OBV22xxx)
+//    3. POST /api/v2/onboarding/personal-info/{hash}/{ur}    (G3, códigos OBV21xxx)
 //    4. GET  /api/onboarding/loan-application/lenders-v2/{ur}?amount=
 // ═══════════════════════════════════════════════════════════════════════════
 
 const $ = (id) => document.getElementById(id);
-const estado = { userId: null, userRequestId: null, phone: null };
+const sesion = { userId: null, userRequestId: null, phone: null };
 
-// Celular único por carga: `users.cell_phone` es UNIQUE y reusar uno hace que el
-// registro falle con un 4xx que parece un bug del producto y no lo es.
-$("in-tel").value = $("tel").value =
-  String(3130000000 + Math.floor(Math.random() * 9000000));
+// Los SEIS campos del prefill, en el orden en que los devuelve el backend.
+// `clave` marca los tres que el backend manda con readonly:true — son la identidad
+// que ata la solicitud al pedido de la tienda, no un detalle de UI.
+const CAMPOS = [
+      { id: "firstName",      rotulo: "Nombres",   personal: "name",           clave: false },
+      { id: "lastName",       rotulo: "Apellidos", personal: "surname",        clave: false },
+      { id: "documentType",   rotulo: "Tipo doc.", personal: "document.type",  clave: true  },
+      { id: "documentNumber", rotulo: "Documento", personal: "document.number",clave: true  },
+      { id: "email",          rotulo: "Email",     personal: "email",          clave: false },
+      { id: "phone",          rotulo: "Celular",   personal: null,             clave: true  },
+];
 
-$("monto").addEventListener("input", () => {
-  const n = Number($("monto").value) || 0;
-  $("precio").textContent = "$ " + n.toLocaleString("es-CO");
-});
+// Datos sintéticos únicos por carga: cell_phone y email son UNIQUE en `users`, y
+// reusarlos hace que el registro falle con un 4xx que parece un bug del producto.
+const RND = Math.floor(Math.random() * 9000000);
+const tienda = {
+      firstName: "Camila", lastName: "Restrepo",
+      documentType: "CC", documentNumber: String(1000000000 + RND),
+      email: "camila.restrepo+" + RND + "@example.com",
+      phone: String(3130000000 + RND),
+};
+// Qué manda de verdad este comercio. Destildar = "no lo mapeó".
+const manda = { firstName: true, lastName: true, documentType: true, documentNumber: true, email: true, phone: true };
+// Campos que el comprador decidió corregir a mano.
+const corregir = {};
+// Lo que el comprador escribió para lo que falta.
+const escrito = {};
+
+// ── panel de simulación del comercio ───────────────────────────────────────
+function pintarMapa() {
+      const cont = $("mapa");
+      cont.innerHTML = "";
+      for (const c of CAMPOS) {
+            const fila = document.createElement("div");
+            fila.className = "fila-m";
+            const chk = document.createElement("input");
+            chk.type = "checkbox"; chk.checked = manda[c.id];
+            chk.onchange = () => { manda[c.id] = chk.checked; val.disabled = !chk.checked; recalcular(); };
+            const nom = document.createElement("span");
+            nom.className = "nom"; nom.textContent = c.id;
+            const val = document.createElement("input");
+            val.type = "text"; val.value = tienda[c.id]; val.disabled = !manda[c.id];
+            val.oninput = () => { tienda[c.id] = val.value; recalcular(); };
+            fila.append(chk, nom, val);
+            cont.appendChild(fila);
+      }
+}
+
+// Lo que el comercio entrega de verdad para un campo (o undefined).
+// Espeja el helper `real()` del wizard: descarta vacíos y placeholders tipo "---",
+// para no prellenar ni bloquear basura.
+function delComercio(id) {
+      if (!manda[id]) return undefined;
+      const v = (tienda[id] ?? "").trim();
+      return v !== "" && !/^-+$/.test(v) ? v : undefined;
+}
+
+// ── el recálculo: qué falta ────────────────────────────────────────────────
+// ⚠ Esto acá es didáctico. En producción lo contesta el backend (ver el aviso de arriba).
+function faltantes() {
+      const obligatorios = CAMPOS.filter((c) => c.personal); // los 5 de personal-info
+      return obligatorios.filter((c) => delComercio(c.id) === undefined || corregir[c.id]);
+}
+
+function recalcular() {
+      const obligatorios = CAMPOS.filter((c) => c.personal);
+      const cubiertos = obligatorios.filter((c) => delComercio(c.id) !== undefined).length;
+      const faltan = obligatorios.length - cubiertos;
+      const exp = $("pide-exp").checked;
+
+      const r = $("resumen");
+      r.className = "resumen" + (faltan > 0 || exp ? " falta" : "");
+      const piezas = [];
+      if (faltan > 0) piezas.push(obligatorios.filter((c) => delComercio(c.id) === undefined).map((c) => c.rotulo.toLowerCase()).join(", "));
+      if (exp) piezas.push("fecha de expedición");
+      r.textContent = piezas.length === 0
+            ? `El comercio cubre los ${obligatorios.length} campos obligatorios de personal-info. El comprador no escribe nada: sólo el OTP.`
+            : `El comercio cubre ${cubiertos} de ${obligatorios.length}. El comprador tendría que escribir: ${piezas.join(" + ")}.`;
+
+      // Prellenar el celular del paso 1 con lo que manda la tienda.
+      const tel = delComercio("phone");
+      $("in-tel").value = tel ?? (escrito.phone ?? "");
+      $("in-tel").disabled = tel !== undefined && !corregir.phone;
+      $("tel-nota").textContent = tel !== undefined
+            ? "Lo trajimos de tu pedido en la tienda."
+            : "Este comercio no nos manda el celular, así que hay que pedirlo.";
+
+      if (!$("paso-form").hidden) pintarForm();
+}
+
+// ── el formulario que se recalcula ─────────────────────────────────────────
+function pintarForm() {
+      const cont = $("form-din");
+      cont.innerHTML = "";
+      const obligatorios = CAMPOS.filter((c) => c.personal);
+
+      for (const c of obligatorios) {
+            const valor = delComercio(c.id);
+            const viene = valor !== undefined;
+            const editable = !viene || corregir[c.id];
+
+            const campo = document.createElement("div");
+            campo.className = "campo";
+
+            const cab = document.createElement("div");
+            cab.className = "cab";
+            const lab = document.createElement("label");
+            lab.textContent = c.rotulo;
+            const tag = document.createElement("span");
+            tag.className = "tag " + (viene ? (c.clave ? "clave" : "viene") : "falta");
+            tag.textContent = viene ? (c.clave ? "del pedido · clave" : "del pedido") : "falta";
+            cab.append(lab, tag);
+
+            // El checkbox de "corregir" sólo aparece si el comercio SÍ lo mandó.
+            if (viene) {
+                  const corr = document.createElement("label");
+                  corr.className = "corregir";
+                  const chk = document.createElement("input");
+                  chk.type = "checkbox"; chk.checked = !!corregir[c.id];
+                  chk.onchange = () => {
+                        corregir[c.id] = chk.checked;
+                        if (chk.checked && escrito[c.id] === undefined) escrito[c.id] = valor;
+                        pintarForm();
+                  };
+                  corr.append(chk, document.createTextNode("corregir"));
+                  cab.appendChild(corr);
+            }
+            campo.appendChild(cab);
+
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.value = editable ? (escrito[c.id] ?? (viene ? valor : "")) : valor;
+            inp.disabled = !editable;
+            inp.oninput = () => { escrito[c.id] = inp.value; };
+            campo.appendChild(inp);
+            cont.appendChild(campo);
+      }
+
+      // Fecha de expedición: nunca viaja en el contrato. Si la sucursal la pide,
+      // siempre la escribe el comprador.
+      if ($("pide-exp").checked) {
+            const campo = document.createElement("div");
+            campo.className = "campo";
+            campo.innerHTML =
+                  `<div class="cab"><label>Fecha de expedición</label>` +
+                  `<span class="tag falta">nunca viaja</span></div>` +
+                  `<div class="trio">` +
+                  `<input id="exp-d" placeholder="día" inputmode="numeric">` +
+                  `<input id="exp-m" placeholder="mes" inputmode="numeric">` +
+                  `<input id="exp-y" placeholder="año" inputmode="numeric"></div>`;
+            cont.appendChild(campo);
+      }
+
+      const faltan = faltantes().length;
+      $("form-t").textContent = faltan === 0 && !$("pide-exp").checked
+            ? "3 · confirmá tus datos (no falta nada)"
+            : "3 · completá lo que falta";
+}
 
 // ── bitácora ───────────────────────────────────────────────────────────────
 function anotar(metodo, ruta, status, cuerpo, nota) {
-  const ln = document.createElement("div");
-  ln.className = "ln";
-  const cls = status >= 200 && status < 300 ? "s-ok" : "s-no";
-  const marca = status === 0 ? "SIN RESPUESTA" : status;
-  ln.innerHTML =
-    `<span class="m">${metodo}</span> ${ruta} → <span class="${cls}">${marca}</span>` +
-    (cuerpo ? `<span class="cuerpo">${cuerpo}</span>` : "") +
-    (nota ? `<span class="nota">⚠ ${nota}</span>` : "");
-  $("log").appendChild(ln);
-  $("log").scrollTop = $("log").scrollHeight;
+      const ln = document.createElement("div");
+      ln.className = "ln";
+      const cls = status >= 200 && status < 300 ? "s-ok" : "s-no";
+      const marca = status === 0 ? "SIN RESPUESTA" : status;
+      ln.innerHTML =
+            `<span class="m">${metodo}</span> ${ruta} → <span class="${cls}">${marca}</span>` +
+            (cuerpo ? `<span class="cuerpo">${cuerpo}</span>` : "") +
+            (nota ? `<span class="nota">⚠ ${nota}</span>` : "");
+      $("log").appendChild(ln);
+      $("log").scrollTop = $("log").scrollHeight;
 }
 
 function decir(texto, tipo) {
-  const e = $("estado");
-  e.className = "estado on " + (tipo || "info");
-  e.textContent = texto;
+      const e = $("estado");
+      e.className = "estado on " + (tipo || "info");
+      e.textContent = texto;
 }
 
 // ── el cliente HTTP ────────────────────────────────────────────────────────
-// El detalle que importa: un fallo de CORS llega como TypeError SIN status. Es
-// indistinguible de "el backend está caído" si no se dice, y confundirlos cuesta
-// una tarde. Por eso se nombra explícitamente.
+// Un fallo de CORS llega como TypeError SIN status, indistinguible de "el backend
+// está caído" si no se dice. Confundirlos cuesta una tarde.
 async function llamar(metodo, ruta, cuerpo) {
-  const url = $("api").value.replace(/\/+$/, "") + ruta;
-  let r;
-  try {
-    r = await fetch(url, {
-      method: metodo,
-      headers: { "content-type": "application/json", accept: "application/json" },
-      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-    });
-  } catch (e) {
-    anotar(metodo, ruta, 0, String(e.message),
-      "sin status: o lo bloqueó CORS, o el host no responde. El navegador no distingue — mirá la consola y la pestaña Red.");
-    return { status: 0, json: null };
-  }
-  const texto = await r.text();
-  let json = null;
-  try { json = JSON.parse(texto); } catch { /* respuesta no-JSON */ }
-  anotar(metodo, ruta, r.status, texto.slice(0, 220));
-  return { status: r.status, json };
+      const url = $("api").value.replace(/\/+$/, "") + ruta;
+      let r;
+      try {
+            r = await fetch(url, {
+                  method: metodo,
+                  headers: { "content-type": "application/json", accept: "application/json" },
+                  body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+            });
+      } catch (e) {
+            anotar(metodo, ruta, 0, String(e.message),
+                  "sin status: o lo bloqueó CORS, o el host no responde. El navegador no distingue.");
+            return { status: 0, json: null };
+      }
+      const texto = await r.text();
+      let json = null;
+      try { json = JSON.parse(texto); } catch { /* respuesta no-JSON */ }
+      anotar(metodo, ruta, r.status, texto.slice(0, 220));
+      return { status: r.status, json };
 }
 
 // ── paso 1 · registrar el celular ──────────────────────────────────────────
 async function registrar() {
-  const tel = $("in-tel").value.trim();
-  const hash = $("hash").value.trim();
-  if (!tel || !hash) return decir("Falta el celular o el hash de sucursal.", "err");
+      const tel = $("in-tel").value.trim();
+      const hash = $("hash").value.trim();
+      if (!tel || !hash) return decir("Falta el celular o el hash de sucursal.", "err");
 
-  $("b-tel").disabled = true;
-  decir("Registrando el celular…", "info");
+      $("b-tel").disabled = true;
+      decir("Registrando el celular…", "info");
 
-  // `onboarding_channel: ecommerce` es lo que declara el front de verdad; el
-  // backend no lo pisa si el usuario ya tiene canal.
-  const r = await llamar("POST", "/api/onboarding/phone/register", {
-    phone_number: tel, terms: true, policies: true, otp_length: 4,
-    partner_branch_hash: hash, onboarding_channel: "ecommerce",
-  });
-  $("b-tel").disabled = false;
+      const r = await llamar("POST", "/api/onboarding/phone/register", {
+            phone_number: tel, terms: true, policies: true, otp_length: 4,
+            partner_branch_hash: hash, onboarding_channel: "ecommerce",
+      });
+      $("b-tel").disabled = false;
 
-  if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora de abajo.", "err");
-  if (r.status < 200 || r.status >= 300)
-    return decir("El registro no pasó (HTTP " + r.status + "). La bitácora tiene el cuerpo.", "err");
+      if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora de abajo.", "err");
+      if (r.status < 200 || r.status >= 300)
+            return decir("El registro no pasó (HTTP " + r.status + "). La bitácora tiene el cuerpo.", "err");
 
-  estado.userId = r.json?.data?.user?.id ?? null;
-  estado.phone = tel;
-  $("paso-tel").hidden = true;
-  $("paso-otp").hidden = false;
-  $("in-otp").value = $("otp").value;
-  $("in-otp").focus();
-  decir("Te mandamos un código por SMS." +
-    (estado.userId ? " (usuario " + estado.userId + ")" : ""), "ok");
+      sesion.userId = r.json?.data?.user?.id ?? null;
+      sesion.phone = tel;
+      $("paso-tel").hidden = true;
+      $("paso-otp").hidden = false;
+      $("in-otp").value = $("otp").value;
+      $("in-otp").focus();
+      decir("Te mandamos un código por SMS." +
+            (sesion.userId ? " (usuario " + sesion.userId + ")" : ""), "ok");
 }
 
 // ── paso 2 · validar el OTP → nace la user_request ─────────────────────────
 async function validar() {
-  const hash = $("hash").value.trim();
-  const monto = Number($("monto").value) || 0;
+      const hash = $("hash").value.trim();
+      const monto = Number($("monto").value) || 0;
 
-  $("b-otp").disabled = true;
-  decir("Validando el código…", "info");
+      $("b-otp").disabled = true;
+      decir("Validando el código…", "info");
 
-  const r = await llamar("POST", "/api/v2/onboarding/otp-auth/validate/" + hash, {
-    cellPhone: estado.phone,
-    otpCode: $("in-otp").value.trim(),
-    originalAmount: monto,
-    amount: monto,
-    partner_branch_hash: hash,
-  });
-  $("b-otp").disabled = false;
+      const r = await llamar("POST", "/api/v2/onboarding/otp-auth/validate/" + hash, {
+            cellPhone: sesion.phone,
+            otpCode: $("in-otp").value.trim(),
+            originalAmount: monto,
+            amount: monto,
+            partner_branch_hash: hash,
+      });
+      $("b-otp").disabled = false;
 
-  if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora.", "err");
+      if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora.", "err");
 
-  // El envelope de OnboardingV2 NO es el { success, error_code } del monolito:
-  // es { code, message, data: { payload } } y el veredicto va en `code`.
-  const code = r.json?.code ?? "(sin code)";
-  const ur = r.json?.data?.payload?.userRequestId ?? null;
+      // El envelope de OnboardingV2 NO es el { success, error_code } del monolito:
+      // es { code, message, data: { payload } } y el veredicto va en `code`.
+      const code = r.json?.code ?? "(sin code)";
+      const ur = r.json?.data?.payload?.userRequestId ?? null;
+      if (!ur) return decir("El backend contestó " + code + " y no devolvió solicitud.", "err");
 
-  if (!ur) {
-    return decir("El backend contestó " + code + " y no devolvió solicitud. " +
-      "Acá es donde el SDK tendría que pintar el formulario de datos personales.", "err");
-  }
+      sesion.userRequestId = ur;
+      $("paso-otp").hidden = true;
+      $("paso-form").hidden = false;
+      pintarForm();
 
-  estado.userRequestId = ur;
-  $("paso-otp").hidden = true;
-
-  // OBV22005 = usuario temporal (faltan datos personales) · OBV22006 = falta info laboral.
-  // No los invento: el prototipo los MUESTRA en vez de fingir que llegó al listado.
-  if (code === "OBV22005" || code === "OBV22006") {
-    decir("Solicitud " + ur + " creada, pero el backend pide más datos (" + code + "). " +
-      "Voy igual al listado para ver qué contesta — es justo el caso que hay que mirar.", "info");
-  } else {
-    decir("Solicitud " + ur + " creada (" + code + ").", "ok");
-  }
-  await listar();
+      const faltan = faltantes().length;
+      decir("Solicitud " + ur + " creada (" + code + "). " +
+            (faltan === 0
+                  ? "El comercio ya nos dio todo: sólo confirmá y seguimos."
+                  : "Faltan " + faltan + " dato(s) que este comercio no manda."), "ok");
 }
 
-// ── paso 3 · el listado, pintado DENTRO de la tienda ───────────────────────
+// ── paso 3 · guardar los datos personales ──────────────────────────────────
+// Lo que el comercio mandó + lo que el comprador escribió, en un solo payload.
+function valorFinal(id) {
+      const delC = delComercio(id);
+      if (delC !== undefined && !corregir[id]) return delC;
+      return (escrito[id] ?? "").trim();
+}
+
+async function guardarDatos() {
+      const hash = $("hash").value.trim();
+      const cuerpo = {
+            document: {
+                  type: valorFinal("documentType").toUpperCase(),
+                  // NÚMERO, no string: así lo manda el wizard real (`Number(input.documentNumber)`
+                  // en personal-info.repository.ts). Mandarlo como texto es una diferencia silenciosa.
+                  number: Number(valorFinal("documentNumber")),
+            },
+            email: valorFinal("email"),
+            name: valorFinal("firstName"),
+            surname: valorFinal("lastName"),
+      };
+
+      if ($("pide-exp").checked) {
+            const d = Number($("exp-d")?.value), m = Number($("exp-m")?.value), y = Number($("exp-y")?.value);
+            if (d && m && y) cuerpo.document.expedition = { day: d, month: m, year: y };
+      }
+
+      const vacios = Object.entries({ tipo: cuerpo.document.type, documento: cuerpo.document.number,
+            email: cuerpo.email, nombres: cuerpo.name, apellidos: cuerpo.surname })
+            .filter(([, v]) => !v).map(([k]) => k);
+      if (vacios.length) return decir("Faltan: " + vacios.join(", "), "err");
+
+      $("b-form").disabled = true;
+      decir("Guardando tus datos…", "info");
+      const r = await llamar("POST",
+            "/api/v2/onboarding/personal-info/" + hash + "/" + sesion.userRequestId, cuerpo);
+      $("b-form").disabled = false;
+
+      if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora.", "err");
+
+      const code = r.json?.code ?? "(sin code)";
+      if (r.status < 200 || r.status >= 300) {
+            // El envelope V2 pone los errores de validación en data.errors.
+            const errs = r.json?.data?.errors ?? r.json?.errors;
+            // OBV21002 es el cajón de sastre de `runServiceMethod`: cualquier excepción sale así, y el
+            // mensaje real se va a Loki — que en local NO está, y el handler se traga su propio fallo
+            // sin caer al log de Laravel. O sea: en local, la causa es INVISIBLE. Medido el 2026-09-14.
+            const pista = code === "OBV21002"
+                  ? " ⚠ OBV21002 es genérico: es una excepción atrapada, y su mensaje se pierde en local. " +
+                    "Causa ya vista: la rama del working tree traía el validador viejo con `$this` dentro " +
+                    "de un método estático («Using $this when not in object context»). En `main` está " +
+                    "arreglado. Para verla: levantá un receptor en el 3100 y repetí."
+                  : "";
+            return decir("El guardado devolvió " + code + " (HTTP " + r.status + "). " +
+                  (errs ? JSON.stringify(errs).slice(0, 220) : "") + pista, "err");
+      }
+
+      $("paso-form").hidden = true;
+      decir("Datos guardados (" + code + "). Buscando entidades…", "ok");
+      await listar();
+}
+
+// ── paso 4 · el listado, pintado DENTRO de la tienda ───────────────────────
 async function listar() {
-  const monto = Number($("monto").value) || 0;
-  const r = await llamar("GET",
-    "/api/onboarding/loan-application/lenders-v2/" + estado.userRequestId + "?amount=" + monto);
+      const monto = Number($("monto").value) || 0;
+      const r = await llamar("GET",
+            "/api/onboarding/loan-application/lenders-v2/" + sesion.userRequestId + "?amount=" + monto);
 
-  if (r.status !== 200)
-    return decir("El listado devolvió HTTP " + r.status + ". La bitácora tiene el cuerpo.", "err");
+      if (r.status !== 200)
+            return decir("El listado devolvió HTTP " + r.status + ". La bitácora tiene el cuerpo.", "err");
 
-  const crudo = r.json?.data ?? r.json;
-  const lista = Array.isArray(crudo) ? crudo
-    : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
+      const crudo = r.json?.data ?? r.json;
+      const lista = Array.isArray(crudo) ? crudo
+            : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
 
-  $("paso-lista").hidden = false;
-  $("w-que").textContent =
-    "Estas son las entidades con las que podés comprar este producto.";
-  const cont = $("lista");
-  cont.innerHTML = "";
+      $("paso-lista").hidden = false;
+      $("w-que").textContent = "Estas son las entidades con las que podés comprar este producto.";
+      const cont = $("lista");
+      cont.innerHTML = "";
 
-  if (!lista.length) {
-    decir("El listado respondió 200 pero vino vacío. Eso es un resultado, no un error: " +
-      "el cliente no califica, o le faltan datos.", "info");
-    return;
-  }
+      if (!lista.length) {
+            decir("El listado respondió 200 pero vino vacío. Eso es un resultado, no un error: " +
+                  "el cliente no califica, o le faltan datos.", "info");
+            return;
+      }
 
-  for (const e of lista) {
-    const nombre = e.name ?? e.lender_name ?? e.lender?.name ?? "(sin nombre)";
-    const rt = e.response_type ?? e.responseType ?? e.lender?.response_type;
-    const id = e.id ?? e.lender_id ?? e.lender?.id ?? "?";
-    const card = document.createElement("div");
-    card.className = "card";
-    card.innerHTML =
-      `<h4>${nombre}</h4><span class="rt">id ${id} · rt=${rt ?? "?"}</span>`;
-    const b = document.createElement("button");
-    b.textContent = "Continuar";
-    b.onclick = () => elegir(nombre, rt);
-    card.appendChild(b);
-    cont.appendChild(card);
-  }
+      let hayRt2 = false;
+      for (const e of lista) {
+            const nombre = e.name ?? e.lender_name ?? e.lender?.name ?? "(sin nombre)";
+            const rt = e.response_type ?? e.responseType ?? e.lender?.response_type;
+            const id = e.id ?? e.lender_id ?? e.lender?.id ?? "?";
+            if (rt === 2 || rt === 3) hayRt2 = true;
+            const card = document.createElement("div");
+            card.className = "card";
+            card.innerHTML = `<h4>${nombre}</h4><span class="rt">id ${id} · rt=${rt ?? "?"}</span>`;
+            const b = document.createElement("button");
+            b.textContent = "Continuar";
+            b.onclick = () => elegir(nombre, rt);
+            card.appendChild(b);
+            cont.appendChild(card);
+      }
 
-  decir("Listado pintado dentro de la tienda: " + lista.length +
-    " entidad(es). Hasta acá llega el SDK.", "ok");
+      decir("Listado pintado dentro de la tienda: " + lista.length + " entidad(es)" +
+            (hayRt2 ? ", incluida una de CreditopX (rt=2)" : " — sin CreditopX (rt=2): falta el dato de riesgo") +
+            ". Hasta acá llega el SDK.", hayRt2 ? "ok" : "info");
 }
 
 // ── el borde: elegir entidad YA NO es del SDK ──────────────────────────────
-// No navega a propósito. El punto del prototipo es hacer visible dónde corta.
+// No navega a propósito: el punto es hacer visible dónde corta.
 function elegir(nombre, rt) {
-  const hash = $("hash").value.trim();
-  const destino = window.location.origin.replace(/:\d+$/, ":5174") +
-    "/ecommerce/" + hash + "/" + estado.userRequestId + "/lenders";
-  decir(
-    "Elegiste «" + nombre + "» (rt=" + rt + "). Acá el SDK entrega y NO sigue: " +
-    (rt === 2 || rt === 3
-      ? "esto pide validación de identidad, que es mobile-only (403 + QR + SMS en escritorio) y necesita cámara."
-      : "esto sale a la entidad por redirect o POST con navegación real, que no funciona embebido.") +
-    " El salto sería top-level a " + destino + " — el prototipo no navega a propósito.",
-    "info");
+      const hash = $("hash").value.trim();
+      const destino = window.location.origin.replace(/:\d+$/, ":5174") +
+            "/ecommerce/" + hash + "/" + sesion.userRequestId + "/lenders";
+      decir(
+            "Elegiste «" + nombre + "» (rt=" + rt + "). Acá el SDK entrega y NO sigue: " +
+            (rt === 2 || rt === 3
+                  ? "esto pide validación de identidad, que es mobile-only (403 + QR + SMS en escritorio) y necesita cámara."
+                  : "esto sale a la entidad por redirect o POST con navegación real, que no funciona embebido.") +
+            " El salto sería top-level a " + destino + " — el prototipo no navega a propósito.",
+            "info");
 }
 
 // ── cableado ───────────────────────────────────────────────────────────────
+$("monto").addEventListener("input", () => {
+      $("precio").textContent = "$ " + (Number($("monto").value) || 0).toLocaleString("es-CO");
+});
+$("pide-exp").onchange = recalcular;
 $("b-tel").onclick = registrar;
 $("b-otp").onclick = validar;
+$("b-form").onclick = guardarDatos;
 $("b-volver").onclick = () => {
-  estado.userId = estado.userRequestId = null;
-  $("paso-otp").hidden = true;
-  $("paso-lista").hidden = true;
-  $("paso-tel").hidden = false;
-  $("in-tel").value = String(3130000000 + Math.floor(Math.random() * 9000000));
-  $("w-que").textContent = "Ingresá tu celular y te mostramos con qué entidades podés comprarlo.";
-  $("estado").className = "estado";
+      sesion.userId = sesion.userRequestId = null;
+      for (const k of Object.keys(corregir)) delete corregir[k];
+      for (const k of Object.keys(escrito)) delete escrito[k];
+      $("paso-otp").hidden = $("paso-form").hidden = $("paso-lista").hidden = true;
+      $("paso-tel").hidden = false;
+      $("w-que").textContent = "Confirmá tu celular y te mostramos con qué entidades podés comprarlo.";
+      $("estado").className = "estado";
+      recalcular();
 };
 $("b-limpiar").onclick = () => { $("log").innerHTML = ""; };
 $("in-tel").addEventListener("keydown", (e) => { if (e.key === "Enter") registrar(); });
 $("in-otp").addEventListener("keydown", (e) => { if (e.key === "Enter") validar(); });
+
+pintarMapa();
+recalcular();
 </script>
 </body>
 </html>

@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Comprar sin salir de la tienda</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#f4f6f3;
+    --surface:#ffffff;
+    --surface-2:#ecefea;
+    --ink:#14201a;
+    --ink-2:#4b5c53;
+    --ink-3:#7d8d84;
+    --line:#dde3dd;
+    --line-2:#c7d1c9;
+    --accent:#0f6b4a;
+    --accent-ink:#ffffff;
+    --accent-soft:#dfeee6;
+    --friction:#b4602a;
+    --friction-soft:#f7e9de;
+    --shadow:0 1px 2px rgba(20,32,26,.05), 0 8px 24px -12px rgba(20,32,26,.18);
+    --display:"Bricolage Grotesque","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --body:"Public Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0f1411;
+      --surface:#181e1a;
+      --surface-2:#212823;
+      --ink:#e7ece7;
+      --ink-2:#a8b5ac;
+      --ink-3:#7c8a81;
+      --line:#2b342d;
+      --line-2:#3a453d;
+      --accent:#4fbf8b;
+      --accent-ink:#0c1a13;
+      --accent-soft:#162c22;
+      --friction:#dd935c;
+      --friction-soft:#2c211a;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0f1411;
+    --surface:#181e1a;
+    --surface-2:#212823;
+    --ink:#e7ece7;
+    --ink-2:#a8b5ac;
+    --ink-3:#7c8a81;
+    --line:#2b342d;
+    --line-2:#3a453d;
+    --accent:#4fbf8b;
+    --accent-ink:#0c1a13;
+    --accent-soft:#162c22;
+    --friction:#dd935c;
+    --friction-soft:#2c211a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{max-width:1080px;margin:0 auto;padding-inline:24px;padding-block:0 96px}
+  @media (max-width:560px){ .page{padding-inline:16px} }
+
+  h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+  h1{font-size:clamp(34px,6vw,58px);font-weight:800;letter-spacing:-.03em;line-height:1.02}
+  h2{font-size:clamp(23px,3.2vw,31px);font-weight:700;letter-spacing:-.02em;line-height:1.14}
+  h3{font-size:18px;font-weight:700;letter-spacing:-.01em}
+  p{margin:0}
+  .lede{font-size:clamp(17px,2.1vw,20px);line-height:1.5;color:var(--ink-2);max-width:60ch}
+  .eyebrow{
+    font-family:var(--mono);font-size:11.5px;font-weight:500;text-transform:uppercase;
+    letter-spacing:.14em;color:var(--ink-3);
+  }
+
+  /* ── ritmo vertical: una sola escala ───────────────────────────── */
+  section{display:flex;flex-direction:column;gap:22px;padding-block:52px;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:0}
+  .sec-head{display:flex;flex-direction:column;gap:9px}
+
+  /* ── portada ───────────────────────────────────────────────────── */
+  .hero{display:flex;flex-direction:column;gap:22px;padding-block:64px 8px;border-top:0}
+  .hero .lede{max-width:56ch}
+  .tesis{
+    font-family:var(--display);font-size:clamp(18px,2.4vw,22px);font-weight:500;
+    line-height:1.38;letter-spacing:-.01em;max-width:46ch;
+    border-left:3px solid var(--accent);padding-left:18px;color:var(--ink);
+  }
+  .tesis b{font-weight:800}
+
+  /* ── hoy / con el sdk ──────────────────────────────────────────── */
+  .contraste{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:700px){ .contraste{grid-template-columns:1fr} }
+  .via{display:flex;flex-direction:column;gap:12px;padding:22px;border-radius:4px;background:var(--surface-2)}
+  .via.nueva{background:var(--accent-soft)}
+  .via h3{font-size:16px}
+  .via .eyebrow{color:var(--ink-3)}
+  .via.nueva .eyebrow{color:var(--accent)}
+  .ruta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13.5px;color:var(--ink-2)}
+  .ruta span{
+    background:var(--surface);border:1px solid var(--line);border-radius:3px;
+    padding:4px 9px;white-space:nowrap;
+  }
+  .ruta .fuga{border-style:dashed;border-color:var(--friction);color:var(--friction)}
+  .ruta i{font-style:normal;color:var(--ink-3)}
+
+  /* ── el demo ───────────────────────────────────────────────────── */
+  .demo{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:20px;align-items:start}
+  @media (max-width:840px){ .demo{grid-template-columns:1fr} }
+
+  .consola{
+    background:var(--surface);border:1px solid var(--line);border-radius:5px;
+    padding:20px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow);
+  }
+  .consola > .eyebrow{margin-bottom:-4px}
+  .datos{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+  .dato{
+    display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--surface);
+    cursor:pointer;transition:background .12s;
+  }
+  .dato:hover{background:var(--surface-2)}
+  .dato input{
+    appearance:none;width:17px;height:17px;flex-shrink:0;margin:0;border-radius:3px;
+    border:1.5px solid var(--line-2);background:var(--surface);cursor:pointer;
+    display:grid;place-content:center;transition:all .12s;
+  }
+  .dato input:checked{background:var(--accent);border-color:var(--accent)}
+  .dato input:checked::after{
+    content:"";width:9px;height:5px;border-left:2px solid var(--accent-ink);
+    border-bottom:2px solid var(--accent-ink);transform:rotate(-45deg) translate(1px,-1px);
+  }
+  .dato input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .dato .nom{font-size:14.5px;font-weight:500;flex:1}
+  .dato .val{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);text-align:right;
+             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
+  .dato.off .nom,.dato.off .val{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
+
+  .marcador{
+    display:flex;flex-direction:column;gap:3px;padding:15px 16px;border-radius:4px;
+    background:var(--accent-soft);border:1px solid transparent;
+  }
+  .marcador.hay-friccion{background:var(--friction-soft)}
+  .marcador .cifra{
+    font-family:var(--display);font-size:29px;font-weight:800;line-height:1.05;
+    letter-spacing:-.025em;color:var(--accent);font-variant-numeric:tabular-nums;
+  }
+  .marcador.hay-friccion .cifra{color:var(--friction)}
+  .marcador .glosa{font-size:13.5px;color:var(--ink-2);line-height:1.42}
+
+  /* ── la ficha del producto ─────────────────────────────────────── */
+  .tienda{
+    background:var(--surface);border:1px solid var(--line);border-radius:5px;
+    overflow:hidden;box-shadow:var(--shadow);
+  }
+  .barra{
+    display:flex;align-items:center;gap:10px;padding:13px 20px;
+    border-bottom:1px solid var(--line);background:var(--surface-2);
+  }
+  .barra .marca{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:-.015em}
+  .barra .url{
+    margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-3);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .ficha{padding:20px;display:flex;gap:18px;flex-wrap:wrap}
+  .imagen{
+    width:112px;height:112px;flex-shrink:0;border-radius:4px;
+    background:
+      repeating-linear-gradient(115deg, var(--surface-2) 0 11px, var(--line) 11px 12px),
+      var(--surface-2);
+    border:1px solid var(--line);
+  }
+  .detalle{flex:1;min-width:190px;display:flex;flex-direction:column;gap:3px}
+  .detalle h3{font-size:19px}
+  .detalle .meta{font-size:13px;color:var(--ink-3)}
+  .detalle .precio{
+    font-family:var(--display);font-size:27px;font-weight:700;letter-spacing:-.025em;
+    margin-top:5px;font-variant-numeric:tabular-nums;
+  }
+
+  /* ── el widget ─────────────────────────────────────────────────── */
+  .widget{margin:0 20px 20px;border:1.5px solid var(--accent);border-radius:5px;background:var(--surface)}
+  .w-barra{
+    display:flex;align-items:center;gap:9px;padding:12px 17px;
+    background:var(--accent);color:var(--accent-ink);
+  }
+  .w-barra .t{font-family:var(--display);font-weight:700;font-size:14.5px;letter-spacing:-.01em}
+  .w-barra .paso{
+    margin-left:auto;font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;
+    text-transform:uppercase;opacity:.82;
+  }
+  .w-cuerpo{padding:17px;display:flex;flex-direction:column;gap:15px}
+  .w-intro{font-size:14px;color:var(--ink-2);line-height:1.45}
+  .w-intro b{color:var(--ink);font-weight:600}
+
+  .rejilla{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  @media (max-width:480px){ .rejilla{grid-template-columns:1fr} }
+  .rejilla .ancho{grid-column:1/-1}
+  .celda{display:flex;flex-direction:column;gap:5px}
+  .celda .cab{display:flex;align-items:baseline;gap:7px}
+  .celda label{
+    font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--ink-3);
+  }
+  .sello{
+    font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;
+    padding:1px 6px;border-radius:2px;white-space:nowrap;
+  }
+  .sello.sabe{background:var(--accent-soft);color:var(--accent)}
+  .sello.pide{background:var(--friction-soft);color:var(--friction)}
+  .caja{
+    border:1px solid var(--line);border-radius:3px;padding:9px 11px;font-size:14px;
+    background:var(--surface-2);color:var(--ink-2);min-height:38px;display:flex;align-items:center;
+    font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .caja.vacia{
+    background:var(--surface);border-color:var(--friction);border-style:dashed;
+    color:var(--ink-3);font-style:italic;
+  }
+  .boton{
+    background:var(--accent);color:var(--accent-ink);border:0;border-radius:3px;
+    padding:12px 18px;font-family:var(--body);font-size:14.5px;font-weight:600;
+    cursor:pointer;align-self:flex-start;
+  }
+  .boton:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+  /* ── las opciones ──────────────────────────────────────────────── */
+  .opciones{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:9px}
+  .opcion{
+    border:1px solid var(--line);border-radius:4px;padding:11px 12px;
+    display:flex;flex-direction:column;gap:2px;background:var(--surface);
+  }
+  .opcion .nom{font-size:13.5px;font-weight:600;line-height:1.28}
+  .opcion .cuota{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+  .opcion.bloqueada{border-style:dashed;border-color:var(--line-2);background:transparent}
+  .opcion.bloqueada .nom{color:var(--ink-3)}
+  .opcion.bloqueada .cuota{color:var(--friction)}
+
+  /* ── pasos ─────────────────────────────────────────────────────── */
+  .pasos{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
+  @media (max-width:760px){ .pasos{grid-template-columns:1fr 1fr} }
+  @media (max-width:440px){ .pasos{grid-template-columns:1fr} }
+  .paso-c{
+    display:flex;flex-direction:column;gap:7px;padding:20px 20px 20px 0;
+    border-left:1px solid var(--line);padding-left:20px;
+  }
+  .paso-c .n{
+    font-family:var(--mono);font-size:11.5px;color:var(--accent);letter-spacing:.09em;font-weight:500;
+  }
+  .paso-c h3{font-size:16px}
+  .paso-c p{font-size:14px;color:var(--ink-2);line-height:1.46}
+
+  /* ── decisiones ────────────────────────────────────────────────── */
+  .decisiones{display:flex;flex-direction:column;gap:0}
+  .decision{
+    display:grid;grid-template-columns:34px 1fr;gap:18px;padding-block:22px;
+    border-top:1px solid var(--line);
+  }
+  .decision:first-child{border-top:0;padding-top:4px}
+  .decision .marca-d{
+    font-family:var(--display);font-size:25px;font-weight:800;color:var(--line-2);
+    line-height:1;letter-spacing:-.03em;font-variant-numeric:tabular-nums;
+  }
+  .decision .cuerpo{display:flex;flex-direction:column;gap:7px}
+  .decision h3{font-size:17px}
+  .decision p{font-size:15px;color:var(--ink-2)}
+  .decision .dato-duro{
+    font-size:13.5px;color:var(--ink-2);background:var(--surface-2);
+    border-left:2px solid var(--friction);padding:9px 13px;border-radius:0 3px 3px 0;
+  }
+  .decision .dato-duro b{color:var(--ink);font-weight:600}
+
+  .cierre{
+    background:var(--surface);border:1px solid var(--line);border-radius:5px;
+    padding:24px;display:flex;flex-direction:column;gap:11px;
+  }
+  .cierre h3{font-size:17px}
+  .cierre p{font-size:15px;color:var(--ink-2);max-width:64ch}
+
+  .pie{
+    margin-top:44px;padding-top:20px;border-top:1px solid var(--line);
+    font-size:13px;color:var(--ink-3);max-width:70ch;
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important} }
+</style>
+
+<div class="page">
+
+  <header class="hero">
+    <p class="eyebrow">CreditOp · canal ecommerce · exploración</p>
+    <h1>Comprar sin salir de la tienda</h1>
+    <p class="lede">
+      Cómo se vería el crédito de CreditOp funcionando dentro del checkout de un comercio, y cuál es
+      la única palanca que decide si el comprador escribe algo o no escribe nada.
+    </p>
+    <p class="tesis">
+      La tienda <b>ya sabe</b> quién está comprando. Cada dato que nos entrega es un campo que el
+      comprador no tiene que volver a escribir.
+    </p>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">El cambio</p>
+      <h2>Hoy el comprador se va. Y a veces no vuelve.</h2>
+    </div>
+    <div class="contraste">
+      <div class="via">
+        <p class="eyebrow">Hoy</p>
+        <h3>Se lo lleva a otra página</h3>
+        <div class="ruta">
+          <span>Ficha del producto</span><i>→</i>
+          <span class="fuga">Sale de la tienda</span><i>→</i>
+          <span class="fuga">Escribe todo de nuevo</span><i>→</i>
+          <span>Vuelve, si vuelve</span>
+        </div>
+        <p style="font-size:14px;color:var(--ink-2)">
+          El comprador ya puso su nombre, su correo y su celular en el checkout. Se los volvemos a
+          pedir en una página con otra marca.
+        </p>
+      </div>
+      <div class="via nueva">
+        <p class="eyebrow">Con el SDK</p>
+        <h3>Pasa todo en la misma ficha</h3>
+        <div class="ruta">
+          <span>Ficha del producto</span><i>→</i>
+          <span>Confirma el código</span><i>→</i>
+          <span>Ve sus opciones</span>
+        </div>
+        <p style="font-size:14px;color:var(--ink-2)">
+          El comercio instala un componente. Nosotros recibimos lo que su tienda ya tiene y sólo
+          preguntamos lo que falta.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">La palanca</p>
+      <h2>Cuánto escribe el comprador lo decide la tienda</h2>
+      <p class="lede">
+        Son seis datos. Apagá los que una tienda no nos mande y mirá qué le pasa a la pantalla que ve
+        el comprador.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="consola">
+        <p class="eyebrow">Lo que esta tienda nos entrega</p>
+        <div class="datos" id="datos"></div>
+        <div class="marcador" id="marcador">
+          <span class="cifra" id="cifra">0 campos</span>
+          <span class="glosa" id="glosa"></span>
+        </div>
+      </div>
+
+      <div class="tienda">
+        <div class="barra">
+          <span class="marca">Amoblando Pullman</span>
+          <span class="url">amoblandopullman.com/sofa-modular-3p</span>
+        </div>
+
+        <div class="ficha">
+          <div class="imagen" role="img" aria-label="Sofá modular de tres puestos"></div>
+          <div class="detalle">
+            <h3>Sofá modular tres puestos</h3>
+            <p class="meta">Entrega en 5 días hábiles · SKU PLL-3390</p>
+            <p class="precio">$ 2.000.000</p>
+            <p class="meta">Disponible en tienda y en línea</p>
+          </div>
+        </div>
+
+        <div class="widget">
+          <div class="w-barra">
+            <span class="t">Paga a cuotas con CreditOp</span>
+            <span class="paso" id="w-paso">Paso 3 de 4</span>
+          </div>
+          <div class="w-cuerpo">
+            <p class="w-intro" id="w-intro"></p>
+            <div class="rejilla" id="rejilla"></div>
+            <button class="boton" id="w-boton" type="button">Ver mis opciones</button>
+          </div>
+        </div>
+
+        <div class="widget" style="border-color:var(--line)">
+          <div class="w-barra" style="background:var(--surface-2);color:var(--ink)">
+            <span class="t">Tus opciones</span>
+            <span class="paso" style="opacity:.6">Paso 4 de 4</span>
+          </div>
+          <div class="w-cuerpo">
+            <div class="opciones">
+              <div class="opcion"><span class="nom">Sistecrédito</span><span class="cuota">desde $ 178.000/mes</span></div>
+              <div class="opcion"><span class="nom">Bancolombia · Compra y paga después</span><span class="cuota">4 cuotas sin interés</span></div>
+              <div class="opcion"><span class="nom">Bancolombia · Crédito de consumo</span><span class="cuota">desde $ 156.000/mes</span></div>
+              <div class="opcion"><span class="nom">Meddipay</span><span class="cuota">desde $ 189.000/mes</span></div>
+              <div class="opcion"><span class="nom">Vanti</span><span class="cuota">a la factura del gas</span></div>
+              <div class="opcion"><span class="nom">Credifamilia · addi</span><span class="cuota">desde $ 171.000/mes</span></div>
+              <div class="opcion bloqueada">
+                <span class="nom">CrediPullman</span>
+                <span class="cuota">requiere identificar al comprador</span>
+              </div>
+            </div>
+            <p class="w-intro" style="font-size:13px">
+              Las seis primeras son entidades externas. <b>CrediPullman es la del propio comercio</b> —
+              la única donde Pullman pone el capital y CreditOp cobra comisión— y no puede aparecer
+              hasta que sepamos quién es el comprador.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">La experiencia completa</p>
+      <h2>Cuatro pasos, y dos de ellos son automáticos</h2>
+    </div>
+    <div class="pasos">
+      <div class="paso-c">
+        <span class="n">Paso 1</span>
+        <h3>Confirma su celular</h3>
+        <p>Ya viene del pedido, así que sólo lo ve y sigue. Si la tienda no nos lo manda, lo escribe.</p>
+      </div>
+      <div class="paso-c">
+        <span class="n">Paso 2</span>
+        <h3>Recibe un código</h3>
+        <p>Le llega por SMS y lo confirma. Es el único paso que no se puede evitar: es lo que prueba que el celular es suyo.</p>
+      </div>
+      <div class="paso-c">
+        <span class="n">Paso 3</span>
+        <h3>Completa lo que falte</h3>
+        <p>Y sólo eso. Si la tienda nos dio los seis datos, esta pantalla no le pide nada: le muestra lo que ya sabemos y sigue.</p>
+      </div>
+      <div class="paso-c">
+        <span class="n">Paso 4</span>
+        <h3>Ve sus opciones</h3>
+        <p>En la misma ficha del producto, sin haber cambiado de página ni una vez.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">El límite</p>
+      <h2>Hasta acá llega la tienda. De acá sigue el celular.</h2>
+    </div>
+    <p class="lede" style="max-width:66ch">
+      Cuando el comprador elige una entidad, lo que viene es validación de identidad: fotos del
+      documento y una selfie. Eso no se puede hacer bien en el computador de escritorio donde suele
+      estar el checkout de un mueble.
+    </p>
+    <div class="cierre">
+      <h3>La buena noticia: ya funciona así</h3>
+      <p>
+        CreditOp hoy ya detecta cuando alguien está en un computador y le manda un mensaje con un
+        enlace para seguir desde el teléfono, además de mostrarle un código QR. No hay que inventar
+        ese salto — el SDK simplemente lo aprovecha.
+      </p>
+      <p>
+        Eso además ordena el reparto: <b>la tienda muestra las opciones, el celular cierra el crédito.</b>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <p class="eyebrow">Lo que hay que decidir</p>
+      <h2>Tres preguntas que son de producto, no de ingeniería</h2>
+    </div>
+    <div class="decisiones">
+      <div class="decision">
+        <span class="marca-d">1</span>
+        <div class="cuerpo">
+          <h3>¿Pedimos los datos que faltan, o mostramos sólo lo que no los necesita?</h3>
+          <p>
+            Es la decisión central, y tiene un costo concreto de los dos lados: pedir datos agrega
+            fricción justo donde queríamos quitarla, y no pedirlos deja afuera la entidad del comercio.
+          </p>
+          <p class="dato-duro">
+            <b>Medido:</b> sin datos del comprador, el listado muestra <b>6 de 7</b> entidades. La que
+            falta es siempre la del propio comercio.
+          </p>
+        </div>
+      </div>
+      <div class="decision">
+        <span class="marca-d">2</span>
+        <div class="cuerpo">
+          <h3>¿Qué le vamos a exigir a un comercio para habilitarlo?</h3>
+          <p>
+            La experiencia sin fricción depende de que la tienda nos mande el número de documento — y
+            muchas tiendas no lo piden en su checkout. Eso convierte «instalar el SDK» en una
+            conversación comercial, no sólo técnica: o le pedimos al comercio que agregue ese campo,
+            o aceptamos que en su tienda el comprador escriba más.
+          </p>
+        </div>
+      </div>
+      <div class="decision">
+        <span class="marca-d">3</span>
+        <div class="cuerpo">
+          <h3>¿Quién carga con el dato que nunca viene?</h3>
+          <p>
+            Algunos comercios exigen la fecha de expedición del documento. Esa nunca la tiene una
+            tienda, así que siempre la escribe el comprador. Vale decidir si ese requisito se mantiene
+            en el canal ecommerce o se resuelve de otra forma.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <p class="pie">
+    Exploración del canal ecommerce, septiembre de 2026. La pantalla de arriba es una simulación para
+    conversar: los nombres de las entidades y el dato de «6 de 7» salen de una corrida real contra el
+    ambiente local con el comercio Amoblando Pullman; las cuotas son ilustrativas. Nada de esto está
+    construido todavía.
+  </p>
+</div>
+
+<script>
+(function () {
+      "use strict";
+
+      // Los seis datos que una tienda puede entregarnos al iniciar la compra.
+      // `clave` = dato de identidad: es lo que ata la compra a la persona.
+      const DATOS = [
+            { id: "nombres",   rotulo: "Nombres",              valor: "Camila",                  clave: false },
+            { id: "apellidos", rotulo: "Apellidos",            valor: "Restrepo",                clave: false },
+            { id: "tipo",      rotulo: "Tipo de documento",    valor: "Cédula",                  clave: true  },
+            { id: "documento", rotulo: "Número de documento",  valor: "1.032.884.190",           clave: true  },
+            { id: "correo",    rotulo: "Correo",               valor: "camila.r@correo.com",     clave: false },
+            { id: "celular",   rotulo: "Celular",              valor: "310 244 8891",            clave: false },
+      ];
+
+      const entrega = Object.fromEntries(DATOS.map((d) => [d.id, true]));
+
+      const $ = (id) => document.getElementById(id);
+
+      function pintarConsola() {
+            const cont = $("datos");
+            cont.textContent = "";
+            for (const d of DATOS) {
+                  const fila = document.createElement("label");
+                  fila.className = "dato" + (entrega[d.id] ? "" : " off");
+
+                  const chk = document.createElement("input");
+                  chk.type = "checkbox";
+                  chk.id = "dato-" + d.id;
+                  chk.checked = entrega[d.id];
+                  chk.addEventListener("change", () => {
+                        entrega[d.id] = chk.checked;
+                        pintar();
+                  });
+
+                  const nom = document.createElement("span");
+                  nom.className = "nom";
+                  nom.textContent = d.rotulo;
+
+                  const val = document.createElement("span");
+                  val.className = "val";
+                  val.textContent = d.valor;
+
+                  fila.append(chk, nom, val);
+                  cont.appendChild(fila);
+            }
+      }
+
+      function pintarFormulario() {
+            // El celular se resuelve antes (paso 1), así que la pantalla de datos
+            // muestra los otros cinco.
+            const enPantalla = DATOS.filter((d) => d.id !== "celular");
+            const rejilla = $("rejilla");
+            rejilla.textContent = "";
+
+            for (const d of enPantalla) {
+                  const celda = document.createElement("div");
+                  celda.className = "celda" + (d.id === "correo" ? " ancho" : "");
+
+                  const cab = document.createElement("div");
+                  cab.className = "cab";
+                  const lab = document.createElement("label");
+                  lab.textContent = d.rotulo;
+                  const sello = document.createElement("span");
+                  const sabe = entrega[d.id];
+                  sello.className = "sello " + (sabe ? "sabe" : "pide");
+                  sello.textContent = sabe ? "ya lo sabemos" : "lo escribe";
+                  cab.append(lab, sello);
+
+                  const caja = document.createElement("div");
+                  caja.className = "caja" + (sabe ? "" : " vacia");
+                  caja.textContent = sabe ? d.valor : "Pendiente";
+
+                  celda.append(cab, caja);
+                  rejilla.appendChild(celda);
+            }
+
+            const faltan = enPantalla.filter((d) => !entrega[d.id]);
+            const sinCelular = !entrega.celular;
+
+            $("w-intro").innerHTML = faltan.length === 0
+                  ? "Estos datos vienen de tu compra en <b>Amoblando Pullman</b>. Revisalos y seguí."
+                  : "Estos datos vienen de tu compra en <b>Amoblando Pullman</b>. Nos falta " +
+                    listar(faltan.map((d) => d.rotulo.toLowerCase())) + " para continuar.";
+
+            $("w-boton").textContent = faltan.length === 0 ? "Confirmar y ver mis opciones" : "Continuar";
+            $("w-paso").textContent = sinCelular ? "Paso 3 de 4 · antes pidió su celular" : "Paso 3 de 4";
+      }
+
+      function listar(xs) {
+            if (xs.length === 1) return "tu " + xs[0];
+            return "tu " + xs.slice(0, -1).join(", tu ") + " y tu " + xs[xs.length - 1];
+      }
+
+      function pintarMarcador() {
+            // Cuántos campos escribe de verdad el comprador: los cinco de la pantalla
+            // de datos, más el celular si la tienda tampoco lo manda.
+            const n = DATOS.filter((d) => !entrega[d.id]).length;
+            const marcador = $("marcador");
+            marcador.className = "marcador" + (n > 0 ? " hay-friccion" : "");
+            $("cifra").textContent = n === 0 ? "Ni un campo" : (n === 1 ? "1 campo" : n + " campos");
+
+            const identidadFalta = DATOS.some((d) => d.clave && !entrega[d.id]);
+            $("glosa").textContent = n === 0
+                  ? "El comprador sólo confirma el código que le llega por SMS. Es la experiencia completa."
+                  : (identidadFalta
+                        ? "Los tiene que escribir el comprador. Y sin el documento no podemos identificarlo, así que la entidad del propio comercio no aparece en la lista."
+                        : "Los tiene que escribir el comprador antes de ver sus opciones.");
+      }
+
+      function pintar() {
+            pintarConsola();
+            pintarFormulario();
+            pintarMarcador();
+      }
+
+      $("w-boton").addEventListener("click", () => {
+            const faltan = DATOS.filter((d) => d.id !== "celular" && !entrega[d.id]);
+            $("w-intro").innerHTML = faltan.length === 0
+                  ? "Listo. Estas son tus opciones, acá abajo."
+                  : "Completá los campos pendientes para continuar.";
+      });
+
+      pintar();
+})();
+</script>
+</body>
+</html>

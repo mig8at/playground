@@ -95,6 +95,83 @@ cae. **Mostrar cupo en la tienda sin pedir datos personales no muestra la oferta
 justo donde el comercio pone capital y CreditOp cobra comisión. Hay que decidirlo antes de diseñar la
 pantalla.
 
+### Qué datos del usuario ya tiene el comercio (2026-09-14)
+
+`EcommerceRequestService` lee del contrato base64 y devuelve **exactamente seis**: `email`, `phone`,
+`firstName`, `lastName`, `documentNumber`, `documentType` — en `main`, en las dos puntas (`ERS003` al
+entrar y `ERS005` al rehidratar). WooCommerce manda el pedido entero y deja mapear nombres de campo
+personalizados (`config`: nombres, apellidos, documento, dirección, ciudad, teléfono); VTEX normaliza
+a los nombres canónicos y manda `config: []`.
+
+**Y no es casualidad que sean esos seis: cubren los CINCO obligatorios de `personal-info`**
+(`document.type`, `document.number`, `email`, `name`, `surname`) más el teléfono del registro.
+`document.expedition` y `birth` son **`nullable`** en el validador — la expedición sólo se exige donde
+`should_collect_expedition_date` la pide. O sea: **para un comercio que mapee todo, el piso de fricción
+puede ser cero.** *(Corrige lo que dije antes en este mismo hilo, que el piso nunca era cero.)*
+
+**Cuatro trampas verificadas:**
+1. **`address` y `city` viajan y se tiran** — el plugin las deja mapear, llegan en `config`, y `prefill`
+   no las lee. `personal-info` acepta `address`.
+2. **El fallback por config de *apellidos* está muerto**: el plugin guarda la clave como `surname` y
+   `getBillingField` pregunta por `$config->last_name`. Un comercio que renombró ese campo **no lo puede
+   mapear**; funciona sólo porque el `billing` nativo de Woo ya trae `last_name`.
+3. **`document_type` no es mapeable** — no está entre los seis del plugin.
+4. **Los dos endpoints difieren en el default**: `create` devuelve `documentNumber ?? ''` y
+   `documentType ?? 'CC'`; `detail` no pone default. VTEX también quema `'CC'` (`billingFrom:213`).
+   Engancha con #71 y #68.
+
+✔ El front ya se defiende: `real()` descarta vacíos y placeholders `---`, y `lockedFields =
+Object.keys(prefill)` bloquea **sólo lo que llegó** — ignora el `readonlyFields` del backend. Vive en
+**develop**, no en main.
+
+### Que el formulario reaccione a lo que recibe: ya está a medio cablear
+
+Tres piezas vivas y una tirada:
+1. **Reacciona a quién es el comercio**: `GET /api/v2/onboarding/personal-info/{branch}/config` →
+   `visibleOptionalFields`, y el form **oculta** (`{showBirthDate && …}`), no sólo bloquea.
+2. **Reacciona a qué mandó la tienda**: `lockedFields`. El lock es por **CSS, no `disabled`** — el
+   comentario dice por qué: «*which would drop the value from the submit*».
+3. **Dos flags que el backend ya manda y el front tira**: el docblock de `GetPersonalInfoConfigService`
+   dice que v1 devuelve `should_collect_expedition_date` y `should_collect_employment_info` y que «*the
+   wizard's own schema does not even parse*» — y ya existe `shouldCollectExpeditionDateForAllied`
+   (`OnboardingController:1800`).
+
+⚠ **Pero el recálculo va en el BACKEND, no en el front.** El mismo archivo trae la advertencia: «*two
+independent readings of "does this merchant need a stratum" is how a screen ends up not asking for
+something the save then rejects*». Si el form decide solo qué saltear y `StorePersonalInfoService`
+valida por su cuenta, el guardado rechaza lo que la pantalla nunca pidió. Y hay una segunda razón:
+`should_use_manual_birth_date` no sale del comercio sino de **si la sucursal ofrece una entidad que lo
+exige** — el front no puede saberlo.
+
+Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_date`, que ya viaja;
+**(b)** mover la decisión al backend espejando el gate de escritura, como se hizo con el estrato;
+**(c)** recién ahí evaluar el form dinámico (`form-service`, `@creditop/backend-driven-form`,
+`packages/form-engine` ya existen).
+
+### Dos trampas que costaron tiempo hoy, y no eran del producto
+
+- ⚠ **El contenedor local corre el WORKING TREE, no `main`.** El prototipo daba **HTTP 500 / `OBV21002`**
+  en `personal-info`. La causa: la rama `feat/lenders-tabla-cards` trae el validador viejo con `$this`
+  dentro de un método `static` («Using $this when not in object context»), que revienta en el closure de
+  `document.type`. **En `main` está arreglado** (captura `$partnerBranchId` en variable) y el propio
+  archivo documenta ese mismo fatal como un bug ya corregido una vez. No es un defecto de `main`: es la
+  rama local atrasada.
+- ⚠ **En local, la causa de un `OBV21002` es INVISIBLE.** `runServiceMethod` atrapa todo y loguea con el
+  tracer → `Log::channel('loki')` → `host.docker.internal:3100`, que en local no existe; el handler se
+  traga su propio fallo y **el fallback a `Log::channel()` nunca dispara**. Para verla hay que levantar
+  un receptor en el 3100 y repetir la llamada. *(Candidato a F-xx.)*
+- Y un detalle del contrato: el wizard manda `document.number` como **número**
+  (`Number(input.documentNumber)`), no string.
+
+### El artefacto para producto
+
+`tablero/data/artifacts/ecommerce-stateless.experiencia-para-producto.html` — mismo tema, otro público:
+sin códigos, sin endpoints, sin `main` vs rama. Muestra la experiencia del comprador y **la única
+palanca**: seis interruptores de «qué nos manda esta tienda» y una ficha de producto que se re-dibuja
+mostrando cuánto tiene que escribir. No pega contra la API (es simulado, para que ande en cualquier
+demo). Cierra con las tres decisiones que son de producto. Publicado también como artifact:
+<https://claude.ai/code/artifact/00755787-ad1c-4f46-9dcf-61f47298ebf0>
+
 ### Lo que el prototipo NO resuelve
 
 - `auth.cognito` (`ResolveCognitoUser`) lee `x-user-id` / `x-cognito-identity-id` de headers y **nunca
@@ -124,6 +201,10 @@ pantalla.
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
 - [ ] **Decidir el alcance del SDK**: ¿listado completo (exige datos personales, muestra CreditopX) o sólo entidades externas (celular + OTP, sin rt=2)? Es la decisión de producto que destapó la corrida.
+- [ ] **Medir cuántos comercios ecommerce mapean el campo documento** (`allied_ecommerce_credentials` + los `ecommerce_requests.data` ya guardados). Es lo que decide si la experiencia sin fricción es real o es una demo: sin documento no hay identificación y la entidad del propio comercio no aparece.
+- [ ] Parsear `should_collect_expedition_date` en el wizard — el backend ya lo manda y el schema del front no lo lee.
+- [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.
+- [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
 - [ ] **Antes de cualquier piloto**: clave pública por comercio + allowlist de origen + rate limit por origen en `api/onboarding`. Hoy no hay nada de eso.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
 - [ ] Corregir el nodo `context/…/onboarding`: dice que G3 (`OnboardingV2`) no tiene consumidores, y el wizard en `main` ya le pega a `api/v2/onboarding/otp-auth/validate`.
