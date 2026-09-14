@@ -81,6 +81,76 @@ funcionando actualmente*» — que es la definición de esta tarea. Hoy vive com
 abierta escrita adentro. **Queda por decidir si se unifican** (el propio archivo dice cómo: poner
 `CORE-30` en el `jira:` de acá y borrarlo). Los dos issues están hoy en **🧪 En pruebas**.
 
+## Por qué el enfoque de junio es mejor: el dato del comercio NO se copia
+
+El resumen «sin cookie» se queda corto. Lo que cambia es la **forma del dato**, y la primera línea de
+`ecommerce-context.server.ts` lo dice literal:
+
+> *«Stateless ecommerce context from legacy (no cookie): key = erId in the URL (pre-OTP) /
+> loan_request_id (post-OTP).»*
+
+- **Abril**: una lectura en la puerta → copia entera al cookie
+  (`session.set("ecommerce_session", {ecommerceRequestId, amount, prefill, readonlyFields})`) → todas
+  las pantallas leen **la copia**.
+- **Junio**: viaja **la llave** (`?erId=` pre-OTP, el `loan_request_id` del path post-OTP) y el dato se
+  **relee en su fuente** en cada paso. **Seis loaders** lo piden por su cuenta (`phone-number`,
+  `loan-request-form`, `available-lenders`, `lender-result`, `loan-approved`…), sin caché: `fetch` pelado.
+  Los dos endpoints que lo habilitan (`ecommerce-request/detail/{id}` y `by-user-request/{ur}`) son los
+  que puso #795 y **ya están en `main`**.
+
+⚠ **Y eso es lo que hace posible el handoff a celular.** Cuando `RedirectIdValidationIfDesktop` manda
+el QR + SMS para seguir en el teléfono, ese teléfono **no tiene la cookie**: con el enfoque de abril
+llegaría sin prefill ni monto. La versión stateless no es sólo más limpia — es la única de las dos que
+sobrevive el cambio de dispositivo que el propio producto exige.
+
+⚠ **Costura frágil que conviene conocer — candidata a F-xx.** Las acciones POST pierden el query string,
+así que `readErIdFromRequest` cae a leer el `erId` del header **`Referer`**. Funciona porque el wizard
+manda `Referrer-Policy: strict-origin-when-cross-origin` (`security-headers.server.ts:139`), que en
+navegación *same-origin* envía la URL completa. **Si alguien endurece esa cabecera a `no-referrer` o
+`origin`, el prefill pre-OTP se rompe EN SILENCIO** — sin error, simplemente sin datos del comercio.
+Es un acoplamiento entre dos archivos que nada declara.
+✔ Degrada bien, eso sí: `if (!res.ok) return null` y el catch también, con el comentario *«Non-fatal:
+no prefill/context on network error»*. Un fallo del contexto deja al comprador sin prellenado, no lo bloquea.
+
+## Cómo aterrizarlo: rama desde `qa`, y NO son dos PRs por repo
+
+> **MEDICIÓN · 2026-09-14** — `develop` está **772 commits detrás de `main`**: #551 no promueve de ahí
+> nunca. `qa` sí llega a main (merge `Qa (#961)`, 4-sep). Y **el backend ya está completo en `qa`**.
+> **Cómo se vuelve a comprobar:** `git rev-list --count origin/develop..origin/main`;
+> `git log origin/main --merges`; y `git cat-file -e origin/qa:<los 4 archivos de #795>`.
+
+| | estado |
+|---|---|
+| `develop` | último commit 31-ago · **772 commits detrás de main** — vía muerta |
+| `qa` | último commit **hoy** · 17 de main le faltan, 29 propios · **de acá sí se llega a main** |
+| backend #795 en `qa` | ✅ **los 4 archivos, con `prefill`/`readonlyFields`** |
+| front: los 5 net-new en `qa` | ❌ ninguno |
+
+**Corrección 1 · el backend no necesita PR.** Ya está en las cuatro ramas. Un PR de backend sólo se
+justifica si además se rescata la sala de espera (`AdvisorStatusController@checkLoanStatus` +
+`loans/ecommerce-check`), que eso sí no está en ninguna.
+
+**Corrección 2 · los dos PRs son por CONCERN, y los dos van en el front.** #551 empaquetó dos cosas:
+
+| concern | archivos | líneas |
+|---|---|---|
+| **entrada stateless de ecommerce** | `ecommerce/checkout.tsx` +90 · `ecommerce-context.server.ts` +60 · y ~16 retoques | ~336 |
+| **cuota inicial** (payments) | `down-payment-validation.tsx` +109 · `initial-fee-payment.tsx` +93 · `.server.ts` +47 | **249 (43 %)** |
+
+`checkout.tsx` **no menciona** la cuota inicial; se tocan sólo en `routes.ts`, `route-helpers.ts` y
+`available-lenders.tsx`. Son separables. Y si van en un commit único juntas, revertir un fallo del
+checkout en prod se lleva puesta la cuota inicial.
+
+**El orden:** (1) rama desde `qa` al día → re-aplicar los 5 net-new de ecommerce + los ~16 retoques →
+PR 1, probado con `pnpm turbo run build --filter=loan-request-wizard` (**es la vara del repo**: vitest,
+tsc y biome dejan pasar el split servidor/cliente). (2) Con PR 1 en `qa`, rama nueva desde `qa` → PR 2
+con la cuota inicial — secuencial, **sin apilar ramas**. (3) La sala de espera, aparte y después: es
+rescate, no migración.
+
+⚠ **Y un bloqueante que no es de código:** aunque el PR llegue a `main`,
+`originaciones.creditop.com/ecommerce/{hash}/checkout` tiene que **responder en prod** para que el
+redirect de borde sirva. Eso es deploy/ingress del front.
+
 ## Los CUATRO PRs de la migración, y qué rescatar (2026-09-14)
 
 > **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
@@ -334,7 +404,8 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
 
 ## Pendientes
-- [ ] **Promover #551 (front) a main** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
+- [ ] ~~Promover #551 (front) a main~~ → **no promueve: `develop` está 772 commits detrás de `main`.** El camino es rama nueva desde `qa` (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
+- [ ] ~~viejo~~ **Promover la entrada stateless** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
 - [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en main ni develop, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
 - [ ] **Cerrar o reabastecer #503 y #363** — siguen ABIERTOS. Lo demás de #503 hay que revisarlo archivo por archivo contra main antes de rescatar.
 - [ ] **Redirect de borde en `aliados.creditop.com/checkout/*`** — pedido a Infra, 302 con query verbatim. ⚠ Bloqueado por que `/ecommerce/{hash}/checkout` llegue a `main`, y **tiene que excluir los hashes de Corbeta** o secuestra el tráfico que hoy convierte al 18,7 %. Lista de hashes en §«Los CUATRO PRs».
@@ -344,6 +415,7 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - [ ] **Medir cuántos comercios ecommerce mapean el campo documento** (`allied_ecommerce_credentials` + los `ecommerce_requests.data` ya guardados). Es lo que decide si la experiencia sin fricción es real o es una demo: sin documento no hay identificación y la entidad del propio comercio no aparece.
 - [ ] Parsear `should_collect_expedition_date` en el wizard — el backend ya lo manda y el schema del front no lo lee.
 - [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.
+- [ ] Promover a F-xx: el `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en `strict-origin-when-cross-origin`; endurecerla rompe el prefill en silencio.
 - [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
 - [ ] **Antes de cualquier piloto**: clave pública por comercio + allowlist de origen + rate limit por origen en `api/onboarding`. Hoy no hay nada de eso.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
