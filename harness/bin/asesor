@@ -392,27 +392,62 @@ case "$BE_CODE" in
     ok "backend" "HTTP $BE_CODE — vivo (${WIZ_API} · ${TARGET})" ;;
 esac
 
-# Si el wizard YA está arriba pero apunta a OTRO backend, reusarlo serviría el backend equivocado → marcamos el
-# VITE_API_URL al bootear (/tmp/asesor-wizard.api) y, si no coincide, forzamos reinicio.
+# ⚠ «frontend reusado» tiene que ser una MEDICIÓN, no una creencia. El 2026-09-14 esta línea imprimió
+# «reusado (:5174 → http://localhost · local)» y el wizard de verdad (a) servía el bundle de SERVIDOR de la
+# rama del día anterior y (b) tras un reinicio a mano leía su .env y pegaba contra dev con `/api` doblado
+# (502 mudo). Ninguna de las dos se veía. Cuatro comprobaciones antes de reusar, en este orden:
 WANT="${WIZ_API}|${PREAPPROVALS}"
 MARKER=/tmp/asesor-wizard.api
 if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
-  CUR_API=""; [ -f "$MARKER" ] && CUR_API="$(cat "$MARKER" 2>/dev/null)"
+  LISTEN_PID="$(lsof -ti:5174 2>/dev/null | head -1)"
+  # (1) ¿ES EL MISMO PROCESO que lanzó bin/asesor? El marker guarda dos líneas: el PID que quedó
+  #     escuchando y el WANT con el que se lanzó. Sólo vale si el PID coincide con el que escucha HOY:
+  #     el formato viejo (una línea) describía el proceso lanzado, no el que corre, y por eso mintió.
+  CUR_API=""
+  if [ -f "$MARKER" ] && [ -n "$LISTEN_PID" ] && [ "$(sed -n 1p "$MARKER" 2>/dev/null || true)" = "$LISTEN_PID" ]; then
+    CUR_API="$(sed -n 2p "$MARKER" 2>/dev/null || true)"
+  fi
+  # (2) Si no, el ENV del proceso: VITE_API_URL sólo está ahí si alguien lo lanzó con la variable puesta.
   if [ -z "$CUR_API" ]; then
-    for p in $(lsof -ti:5174 2>/dev/null) $(pgrep -f 'pnpm dev' 2>/dev/null); do
-      CUR_API="$(ps eww -p "$p" 2>/dev/null | tr ' ' '\n' | grep -E '^VITE_API_URL=' | head -1 | sed 's/^VITE_API_URL=//')"
-      [ -n "$CUR_API" ] && break
+    for p in $LISTEN_PID $(pgrep -f 'pnpm dev' 2>/dev/null); do
+      # `|| true` en cada tubería: bajo `set -eo pipefail` un grep sin match tumbaba el script entero acá.
+      v="$(ps eww -p "$p" 2>/dev/null | tr ' ' '\n' | grep -E '^VITE_API_URL=' | head -1 | sed 's/^VITE_API_URL=//' || true)"
+      pa="$(ps eww -p "$p" 2>/dev/null | tr ' ' '\n' | grep -E '^VITE_PREAPPROVALS_ENDPOINT=' | head -1 | sed 's/^VITE_PREAPPROVALS_ENDPOINT=//' || true)"
+      [ -n "$v" ] && { CUR_API="${v%/}|${pa:-$PREAPPROVALS}"; break; }
+    done
+  fi
+  # (3) Si tampoco, lo lanzaron pelado y Vite leyó su .env(.local): ESO es lo que sirve, no lo que pedís.
+  if [ -z "$CUR_API" ]; then
+    for f in "$WIZARD/.env.local" "$WIZARD/.env"; do
+      v="$(grep -E '^VITE_API_URL=' "$f" 2>/dev/null | head -1 | sed 's/^VITE_API_URL=//; s/["'"'"']//g' || true)"
+      if [ -n "$v" ]; then
+        v="${v%/}"; v="${v%/api}"; CUR_API="${v}|${PREAPPROVALS}"
+        log "el wizard en :5174 no lo lanzó bin/asesor: su backend sale de ${f##*/} (${v})"
+        break
+      fi
     done
   fi
   CUR_API="${CUR_API%/}"
   if [ -n "$CUR_API" ] && [ "$CUR_API" != "$WANT" ]; then
-    log "el wizard en :5174 apunta a ${CUR_API} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
+    log "el wizard en :5174 apunta a ${CUR_API%%|*} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
   elif [ -z "$CUR_API" ]; then
     log "no pude confirmar el backend del wizard en :5174 → reinicio limpio"; FRESH=1
   fi
+  # (4) ¿ES MÁS VIEJO QUE LA RAMA? Un dev server que arrancó ANTES del último movimiento de HEAD del
+  #     monorepo puede seguir sirviendo el bundle de SERVIDOR de la rama anterior aunque las rutas
+  #     nuevas ya carguen: medido el 2026-09-14 (arrancado el 13 a las 10:11, la rama cambió el 14 a las
+  #     14:28, y el SSR seguía pintando testids que no existían en el fuente). Vite no avisa.
+  if [ "$FRESH" = 0 ] && [ -n "$LISTEN_PID" ] && git -C "$FRONT" rev-parse --git-dir >/dev/null 2>&1; then
+    PROC_T="$(ps -o lstart= -p "$LISTEN_PID" 2>/dev/null | sed 's/^ *//; s/  */ /g' || true)"
+    PROC_S="$(date -j -f '%a %b %d %T %Y' "$PROC_T" +%s 2>/dev/null || true)"
+    HEAD_S="$(git -C "$FRONT" reflog -1 --format=%ct 2>/dev/null || true)"
+    if [ -n "$PROC_S" ] && [ -n "$HEAD_S" ] && [ "$PROC_S" -lt "$HEAD_S" ]; then
+      log "el wizard en :5174 arrancó el $(date -r "$PROC_S" '+%d/%m %H:%M') y la rama del monorepo se movió después ($(date -r "$HEAD_S" '+%d/%m %H:%M') → $(git -C "$FRONT" rev-parse --abbrev-ref HEAD 2>/dev/null)): puede servir el bundle de servidor viejo → reinicio limpio"; FRESH=1
+    fi
+  fi
 fi
 if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
-  ok "frontend" "reusado (:5174 ya arriba → ${WIZ_API} · ${TARGET})"
+  ok "frontend" "reusado (:5174 pid ${LISTEN_PID:-?} → ${WIZ_API} · ${TARGET} · backend y antigüedad verificados)"
 else
   if [ "$UP" = 1 ]; then
     log "reinicio el wizard en :5174 (limpio contra ${TARGET})…"
@@ -426,7 +461,7 @@ else
   if [ -f "$WIZARD/.env" ] && [ -f "$WIZARD/.env.local" ]; then
     mv "$WIZARD/.env.local" "$WIZARD/.env.local.asesor-bak"; MOVED=1
   fi
-  printf '%s' "$WANT" > "$MARKER" 2>/dev/null || true
+  printf '%s\n%s' "" "$WANT" > "$MARKER" 2>/dev/null || true   # el PID se completa cuando levante
   # El directorio ANTES de esperar: si no existe, el `cd` del subshell falla, `pnpm dev` no corre y el
   # bucle de abajo igual espera 480s. Cortar acá con el path a la vista ahorra los 8 minutos.
   if [ ! -d "$WIZARD" ]; then
@@ -459,6 +494,9 @@ else
     restore_envlocal; exit 1
   fi
   # NO restaurar el .env.local acá (Vite hot-reloadearía sus valores fake y rompe el flujo). El trap EXIT lo restaura al final.
+  # El marker queda atado al PID que escucha: así la próxima corrida sabe si el proceso sigue siendo éste
+  # o alguien lo reinició a mano (ver las cuatro comprobaciones de arriba).
+  printf '%s\n%s' "$(lsof -ti:5174 2>/dev/null | head -1)" "$WANT" > "$MARKER" 2>/dev/null || true
   ok "frontend" "arriba (:5174 → ${TARGET} · ${WIZ_API} · forms ${FORMS##*//} · boot ~${boot}s)"
 fi
 fi

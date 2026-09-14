@@ -25,8 +25,12 @@
 // «se envió un mensaje». El caminador hace lo que haría el cliente al tocar el link: abre esa
 // pantalla. Es el mismo salto A→B que hace el panel (`guided.spec.ts`), y se imprime como tal.
 //
-// CANAL: `self-service` por defecto (no pide sesión). El canal asesor (`/merchant`) exige la sesión
-// Cognito; `pkg/front.ts` ya sabe cargar el storageState cacheado, falta cablear el `--flow merchant`.
+// CANAL (`--flow`): `self-service` por defecto (autogestión, sin sesión) · `merchant` (asesor: carga la
+// sesión Cognito que cacheó el panel, ver `correr`) · `ecommerce` (entra por el CHECKOUT de la tienda con
+// un contrato base64 armado con la identidad del caso, sigue el 302 con `?erId=`, y comprueba lo único
+// que ese canal promete: que la solicitud quede ATADA al pedido y que personal-info llegue con los
+// campos del comercio prellenados y bloqueados — `lockedFields`, la decisión del propio loader). El
+// motor navegador cubre los dos primeros; ecommerce sólo el HTTP.
 //
 // QUÉ SIEMBRA: lo mismo que `caso.ts` y el panel, y por la misma razón —el buró no lo contesta el
 // proveedor en local/dev— (`synthFill` al llegar a personal-info) y, con `--manual`, la validación
@@ -55,6 +59,7 @@ const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, b
 const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrelleno.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
 const { cognitoStorageState, COGNITO_STATE_PATH } = await import('../pkg/cognito.ts');
+const { branchToken, ecommerceContract } = await import('../pkg/ecommerce.ts');
 
 type Form = Record<string, string | number | null | undefined>;
 
@@ -132,10 +137,19 @@ async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
 
 async function buscarSucursal(ref: string) {
     const porHash = ref.startsWith('#');
+    // Canal ecommerce por NOMBRE: la sucursal tiene que tener credencial de tienda o no hay checkout.
+    // Sin esta rama caía en la sucursal con más entidades —la de mostrador— y el caso moría en la entrada.
+    const conTienda = FLOW === 'ecommerce' && !porHash;
     return one<{ id: number; hash: string; com: string; allied: number }>(
         porHash
             ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
                  JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
+            : conTienda
+            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id
+                 JOIN allied_ecommerce_credentials c ON c.allied_branch_id = b.id
+                WHERE x.slug = ? OR x.name LIKE ?
+                ORDER BY (x.slug = ?) DESC, b.id LIMIT 1`
             : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
                  JOIN allieds x ON x.id = b.allied_id
                 WHERE x.slug = ? OR x.name LIKE ?
@@ -287,11 +301,36 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
     };
     const base = `/${FLOW}/${br.hash}`;
     let ruta = `${base}/solicitar?amount=${AMOUNT}`;
+    let erId: number | null = null;                 // el pedido de la tienda (canal ecommerce)
+    let vinculoVisto = false, prefillVisto = false;
+    if (FLOW === 'ecommerce') {
+        // LA ENTRADA ES EL CHECKOUT, no /solicitar: la tienda manda al cliente a
+        // `/ecommerce/{hash}/checkout?o=…&p=…&t=…&u=…&ps=…&config=…` con el pedido en base64; el loader
+        // lo persiste en legacy y redirige a /solicitar con `?erId=`. Ese GET CREA el ecommerce_request,
+        // así que se hace UNA vez y se sigue su redirección — el caminador no adivina la URL siguiente.
+        const token = await branchToken(br.hash);
+        if (!token) return terminar('trabado', `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${c.ref.replace(/^#/, '')} te la da)`);
+        // El contrato lleva LA IDENTIDAD DEL CASO —el mismo doc, celular y nombre que después se postean
+        // en personal-info—, como haría la tienda con su comprador; y sin destinos externos (puerto 9 =
+        // discard), igual que `dev/ecommerce.ts`.
+        const c64 = ecommerceContract(br.hash, token, tel, 'http://localhost:9/notificacion/', 'http://localhost:9/volver-al-comercio',
+            { docType: docTipo, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
+        ruta = `${base}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}`;
+    }
     let burоInyectado = false;
     let lenderElegido: any = null;
 
     for (let paso = 0; paso < MAX_PASOS && ruta; paso++) {
         { const u = urDe(ruta); if (u) r.ur = u; }
+        // Canal ecommerce: apenas existe la solicitud se mira si quedó ATADA al pedido. Es la promesa
+        // del canal, y falló en silencio hasta el 2026-09-14 (el OTP v1 salía sin `ecommerce_request_id`):
+        // sin el vínculo el comercio no recibe el veredicto y personal-info no prellena ni bloquea nada.
+        if (FLOW === 'ecommerce' && r.ur && !vinculoVisto) {
+            vinculoVisto = true;
+            const v = await one<{ er: number }>('SELECT ecommerce_request_id AS er FROM user_requests_by_ecommerce_request WHERE user_request_id = ? ORDER BY id DESC LIMIT 1', [r.ur]).catch(() => null);
+            if (v) log(`vínculo comercio ↔ crédito: uReq ${r.ur} atada al pedido ${v.er}${erId !== null && v.er !== erId ? ` ⚠ (el checkout había creado el ${erId})` : ''} ✓`);
+            else return terminar('malo', `la solicitud ${r.ur} nació SIN atarse al pedido${erId !== null ? ` ${erId}` : ''}: el OTP salió sin el id del pedido — el comercio no recibiría el veredicto y personal-info no prellena ni bloquea nada`);
+        }
         const res = await pantalla(ruta);
 
         // El loader mismo redirigió (gate, estado terminal, login…): se sigue y punto.
@@ -306,6 +345,10 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             }
             const d = destino(res.redirect, ruta);
             if (!d) return terminar(/prohibida/i.test(lineas.at(-1) ?? '') ? 'malo' : 'trabado', `el loader de ${ruta.split('?')[0].split('/').slice(3).join('/')} redirigió a ${res.redirect}`);
+            if (FLOW === 'ecommerce' && erId === null) {
+                const m = /[?&]erId=(\d+)/.exec(d);
+                if (m) { erId = Number(m[1]); log(`entrada ecommerce: el checkout aceptó el pedido → ecommerce_request ${erId} (viaja en la URL, sin cookie)`); }
+            }
             ruta = d; continue;
         }
         if (res.status === 0) return terminar('trabado', `${ruta}: ${res.crudo?.slice(0, 120) ?? 'sin respuesta'}`);
@@ -329,6 +372,15 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
         } else if (hoja === 'personal-info' || hoja === 'employment-info') {
             const ur = urDe(ruta)!;
             if (!burоInyectado) { await sembrar(ur, doc, log); burоInyectado = true; }
+            // Canal ecommerce: lo que el comercio entregó tiene que llegar PRELLENADO Y BLOQUEADO, y eso lo
+            // decide el LOADER (`resolvePrefillDelComercio` → `lockedFields`): se lee de él, no se supone.
+            if (FLOW === 'ecommerce' && hoja === 'personal-info' && !prefillVisto) {
+                prefillVisto = true;
+                const lf: unknown = res.datos?.lockedFields;
+                const n = Array.isArray(lf) ? lf.length : 0;
+                if (n > 0) log(`personal-info: ${n} campo(s) del comercio prellenados y bloqueados (${(lf as string[]).join(', ')})`);
+                else return terminar('malo', 'personal-info llegó SIN prefill del comercio (lockedFields vacío): el loader no encontró el pedido de esta solicitud');
+            }
             form = hoja === 'personal-info'
                 ? { intent: 'save-personal-info', documentType: docTipo, documentNumber: doc, name: 'CARLOS', surname: 'RUIZ',
                     email: `qa${doc}@gmail.com`, address: 'Calle 1 # 2-3', stratum: '3',
@@ -650,6 +702,10 @@ if (flag('cerrar') && TARGET !== 'local') {
 const t0 = Date.now();
 let resultados: Resultado[];
 // UN navegador para toda la tanda; un CONTEXTO por caso (el perfil aislado = «otro cliente»).
+if (MOTOR === 'navegador' && FLOW === 'ecommerce') {
+    console.log('  ✗ el canal ecommerce está cableado sólo en el motor HTTP: el navegador entra por /solicitar y este canal entra por el checkout de la tienda. Corré sin --motor navegador.\n');
+    process.exit(2);
+}
 const browser = MOTOR === 'navegador' ? await abrirNavegador({ headed: flag('headed') }) : null;
 const unCaso = (c: Caso, i: number) => (MOTOR === 'navegador' ? correrNavegador(c, i, browser) : correr(c, i));
 try {

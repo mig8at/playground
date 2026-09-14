@@ -21,7 +21,7 @@
       "comercio": "amoblar"
     },
     {
-      "nombre": "regresión del campo que se ignoraba en silencio: `ecommerceRequestId` en camelCase — con el snake_case del v1 la solicitud nace SIN vincular y el comercio nunca recibe el veredicto",
+      "nombre": "regresión del anclaje al pedido POR EL MISMO CAMINO DE OTP QUE EL FRONT: cada endpoint lee sólo su forma (v1 `ecommerce_request_id` · v2 `ecommerceRequestId`); si el repositorio de ese camino deja de mandarla, la solicitud nace SIN vincular y el comercio nunca recibe el veredicto",
       "comercio": "amoblar",
       "espera": {
         "vinculada": true

@@ -17,6 +17,8 @@
 //
 // GOTCHAS que ya costaron tiempo y que acá aplican igual:
 //   · `E2E_TARGET` por defecto es **dev** → se fuerza `local` salvo override explícito.
+//   · el OTP se valida por el MISMO camino que el front (`kyc-flow` → v1 o v2), con la forma del campo
+//     que lee ESE endpoint. Pegar a uno fijo dio verde con el navegador roto (2026-09-14).
 //   · UA de **iPhone** siempre: con UA de escritorio `onlyMobileValidation` responde 403 en las
 //     rutas que lo llevan. (El endpoint de la sala de espera está a propósito en un grupo que lo
 //     excluye, y este runner lo comprueba.)
@@ -147,20 +149,44 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     });
     if (reg.status < 200 || reg.status >= 300) { mal('registro', `HTTP ${reg.status}`); return; }
 
-    /* ⚠ EL CAMPO VA EN camelCase. OnboardingV2 lo valida como `ecommerceRequestId`
-       (`ValidateOtpAuthRequest:65`) y lo consume hasta `FindOrCreateService`. El snake_case del v1
-       —`ecommerce_request_id`— NO lo lee nadie: se envía, el backend lo ignora, y la solicitud nace
-       SIN vincularse al pedido, sin error y sin notificación al comercio. Esta comprobación existe
-       para que ese defecto no vuelva en silencio. */
-    const otp = await http('POST', `/api/v2/onboarding/otp-auth/validate/${checkout.hash}`, {
-        cellPhone: tel, otpCode: '1111',
-        originalAmount: checkout.amount, amount: checkout.amount,
-        partner_branch_hash: checkout.hash,
-        ecommerceRequestId: Number(erId),
-    });
-    const ur = otp.json?.data?.payload?.userRequestId;
-    if (!ur) { mal('otp-validate', `HTTP ${otp.status} · code ${otp.json?.code ?? '?'}`); return; }
-    ok('solicitud creada', `uReq ${ur} · code ${otp.json?.code}`);
+    /* ── EL OTP VA POR EL MISMO CAMINO QUE EL FRONT, no por uno fijo ─────────────────────────────
+       `otp-verification.tsx` elige el repositorio con `kyc-flow/{hash}`: v2 si `usesPipeline`, v1 —el
+       legacy del monolito— si no. Y cada endpoint lee el anclaje al pedido con SU PROPIA forma:
+         v2  `ecommerceRequestId`    (ValidateOtpAuthRequest → FindOrCreateService)
+         v1  `ecommerce_request_id`  (OnboardingController::validateOtpCodeAndRedirect → UserRequestService)
+       Mandar la del otro equivale a no mandar nada: el backend la ignora sin un solo error.
+
+       ⚠ Hasta el 2026-09-14 este runner pegaba SIEMPRE al v2 y daba verde («vínculo · fila y puente»)
+       mientras el navegador —que en qa va por v1 para TODOS los comercios consultados— nacía sin
+       vincular. Pasar por API no es pasar por el front: un runner que no recorre el camino del front no
+       prueba el front. Por eso acá se resuelve el camino igual que él, y se dice cuál se tomó. */
+    const kyc = await http('GET', `/api/v2/onboarding/kyc-flow/${checkout.hash}`);
+    const usesPipeline = kyc.status === 200 && kyc.json?.data?.payload?.usesPipeline === true;
+    const caminoOtp = usesPipeline ? 'v2 (pipeline) · ecommerceRequestId' : 'v1 (legacy) · ecommerce_request_id';
+    ok('camino del OTP', kyc.status === 200
+        ? `${caminoOtp} — lo dijo kyc-flow (${kyc.json?.code})`
+        : `${caminoOtp} — kyc-flow respondió HTTP ${kyc.status} y el front cae al v1 sin avisar; acá igual (¿falta \`make harness-kyc-flow\`?)`);
+    const otp = usesPipeline
+        ? await http('POST', `/api/v2/onboarding/otp-auth/validate/${checkout.hash}`, {
+            cellPhone: tel, otpCode: tel.slice(-4),
+            originalAmount: checkout.amount, amount: checkout.amount,
+            partner_branch_hash: checkout.hash,
+            ecommerceRequestId: Number(erId),
+        })
+        : await http('POST', `/api/onboarding/loan-application/otp-validate/${checkout.hash}`, {
+            cell_phone: tel, otp_code: tel.slice(-4),
+            original_amount: String(checkout.amount), amount: String(checkout.amount),
+            partner_branch_hash: checkout.hash,
+            ecommerce_request_id: Number(erId),
+        });
+    // En v1 el uReq viene en TRES lugares según cómo terminó la validación (la misma trampa que anota
+    // `caso.ts`): usuario temporal → error ONB002 con `errors.payload`; ya válido → `data.payload`; y
+    // `payload` suelto. Mirar sólo uno da «HTTP 200 y sin uReq», que se contradice solo.
+    const ur = usesPipeline
+        ? otp.json?.data?.payload?.userRequestId
+        : (otp.json?.errors?.payload?.user_request_id ?? otp.json?.data?.payload?.user_request_id ?? otp.json?.payload?.user_request_id);
+    if (!ur) { mal('otp-validate', `HTTP ${otp.status} · code ${otp.json?.code ?? otp.json?.error_code ?? '?'} · ${caminoOtp}`); return; }
+    ok('solicitud creada', `uReq ${ur} · ${otp.json?.code ? `code ${otp.json.code}` : `HTTP ${otp.status}`} · OTP por ${usesPipeline ? 'v2' : 'v1'}`);
 
     if (c.espera?.vinculada) {
         const enFila = await one<{ n: number }>(
