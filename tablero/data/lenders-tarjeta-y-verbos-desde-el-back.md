@@ -1182,6 +1182,61 @@ Venía reportando «0 errores de tsc» para el app, y era engañoso: yo grepeaba
 **El wizard arrastra 218 errores de `tsc` pre-existentes** —de `packages/ui` y otros módulos— y el
 módulo 14. Lo correcto es decir que este trabajo **no agregó ninguno**, medido antes y después.
 
+## ⚖ ¿Cuánto aporta la hexagonal para pegarle a un HTTP? — medido (2026-09-13)
+
+Miguel pidió validar si la capa de consulta externa aporta, o si «un listado de peticiones a endpoints»
+sería lo mismo y más simple. **Se midió sin asumir la respuesta, y el resultado es más filoso que un sí
+o un no: la costura está en el lugar equivocado.**
+
+### Lo que SÍ gana su lugar: los repositorios
+
+No son ceremonia. `loan-options.repository` hace, en 193 líneas: arma la URL, aborta a los 60 s, tira
+error si el HTTP no es ok, mapea a entidades **y** normaliza reglas reales — por ejemplo, que un
+`original_amount` en 0 —que el onboarding deja por defecto— no se propague como monto solicitado y
+termine persistido en 0 al seleccionar la entidad.
+
+**Un `fetch` suelto en cada llamador perdería todo eso.** Ese no es el candidato.
+
+### Lo que NO aporta: los puertos y los use-cases pasamanos
+
+| | archivos | líneas |
+|---|---|---|
+| use-cases **pasamanos** (el `execute` es una línea que delega) | **15** | 207 |
+| use-cases **con lógica propia** | 2 | 431 |
+| puertos | 11 | 183 |
+
+Y los datos que lo cierran:
+
+- los 11 puertos tienen **una implementación cada uno** y **cero dobles de prueba**;
+- **526 instanciaciones a mano** en 138 archivos del wizard (270 repositorios + 256 use-cases, casi
+  1:1) — el llamador escribe `new XRepository()`, `new YUc(repo)` y recién ahí llama;
+- y el remate: **los dos use-cases con lógica real —`calculate-loan-financials` (95 líneas) y
+  `validate-loan-amount` (67)— NO tienen constructor. No dependen de ningún repositorio.** Son
+  funciones puras vestidas de clase.
+
+### El hallazgo
+
+**La inversión de dependencias está cableada exactamente donde no hay nada que probar, y ausente donde
+está la lógica.**
+
+Los puertos existen para inyectar repositorios en use-cases. Los use-cases que se beneficiarían de esa
+inyección —los que tienen reglas— no usan repositorios. Los que sí los reciben son los 15 pasamanos,
+que no tienen nada que testear.
+
+**No es «la hexagonal está mal»: es que esta aplicación de ella no aterriza.**
+
+### Qué se ganaría, con número
+
+Borrar los **11 puertos** y los **15 use-cases pasamanos**: **26 archivos, ~390 líneas**, y las 526
+instanciaciones bajan a ~270 (una por repositorio). Los 2 use-cases con lógica se quedan —como
+funciones, que es lo que ya son.
+
+⚠ **Lo que se pierde:** la costura para probar un use-case con un repositorio falso. Hoy no la usa
+nadie, y los use-cases que la querrían no la necesitan. Pero cerrarla es una decisión, no una limpieza.
+
+⛔ **NO se tocó.** Es del arquitecto, y ya hubo fricción por no usar las capas. Lo de acá son números
+para esa conversación.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
