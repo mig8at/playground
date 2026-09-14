@@ -48,6 +48,39 @@ Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesi�
   - `app/routes/down-payment-validation.tsx`.
 - **Modificados (16):** `entry.client`, `routes.ts`, `route-helpers.ts`, `available-lenders`, `loan-approved`, `bancolombia/no-preapproved`, y el `loan-application-form` (phone/OTP/personal-info/init-loan-request/amount-form/verify-phone-otp/phone-otp.repository) adaptados a la hidratación por contexto.
 
+## Quién hizo qué, y qué lleva tráfico hoy (verificado 2026-09-14)
+
+> **MEDICIÓN · 2026-09-14** — hay **DOS** migraciones de ecommerce al mundo nuevo y se confunden.
+> La de esta tarea **todavía no lleva tráfico**.
+> **Cómo se vuelve a comprobar:** `git log main --reverse -- <ruta>` sobre `CorbetaCheckoutController.php`
+> y `git log main -S'revisionCorbeta' -- WoocommerceController.php`; y
+> `git ls-tree -r --name-only main apps/loan-request-wizard/app/routes/ecommerce/` en el front.
+
+| pieza | quién · cuándo | qué migra | ¿en `main`? | ¿lleva tráfico? |
+|---|---|---|---|---|
+| **Corbeta / Bancolombia retail** — `CorbetaCheckoutController` + el array `revisionCorbeta` `[24,209,210,211,311]` | **jose guzman** · feb-2026 | **sólo** esos 5 comercios | ✅ sí | ✅ **sí** — 2.583 checkouts en 6 meses |
+| **Ecommerce web stateless** (ESTA tarea) — PRs [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) + [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | **Miguel** (`mig-creditop`) · **11-jun-2026** | la entrada **genérica**, todos los demás comercios | 🟡 backend sí, **front NO** | ❌ **no** |
+
+Los dos commits squash están firmados `mig-creditop <miguel@creditop.com>` con **7 segundos de
+diferencia** (`bb14a8ff` 08:37:57 y `d2242469` 08:38:04 del 11-jun-2026): los dos PRs se mergearon juntos.
+
+**Por qué importa la distinción:** es fácil leer «ecommerce ya corre en legacy-backend» y darla por
+hecha. Lo que corre es la pieza de Corbeta, que es **por comercio y hardcodeada**. La entrada genérica
+—la de esta tarea— sigue esperando que #551 llegue a `main`, y mientras tanto **el 85 % de los checkouts
+los sigue sirviendo el monolito**.
+
+**Lo que está en juego, medido el mismo día contra prod:** los **14.160 checkouts en 6 meses** que hoy
+pasan por el monolito son exactamente el tráfico que esta migración tomaría — y son los que convierten
+al **1,9 %** contra el **18,7 %** del mundo nuevo. Promover #551 no es «terminar una tarea vieja»: es
+mover el canal que peor convierte al camino que mejor convierte.
+
+⚠ **Y CORE-30 parece ser el MISMO trabajo que CORE-543.** El texto de CORE-30 en Jira es literal: «*Se
+debe pasar el flujo de ecommerce al refactor y validar que funcione de la misma forma en la que está
+funcionando actualmente*» — que es la definición de esta tarea. Hoy vive como archivo aparte
+(`revision-de-flujo-ecommerce-v1.md`, id 42, 8 puntos, la reporta Manuela Romero) con la pregunta
+abierta escrita adentro. **Queda por decidir si se unifican** (el propio archivo dice cómo: poner
+`CORE-30` en el `jira:` de acá y borrarlo). Los dos issues están hoy en **🧪 En pruebas**.
+
 ## Hilo nuevo (2026-09-14): ¿y si el flujo sale de CreditOp y entra a la tienda?
 
 La pregunta que abrió este hilo es de la parte ecommerce: **que el comprador no se vaya de la tienda**.
@@ -237,7 +270,7 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
 
 ## Pendientes
-- [ ] **Promover #551 (front) a main** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod.
+- [ ] **Promover #551 (front) a main** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
 - [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
@@ -247,6 +280,7 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
 - [ ] **Antes de cualquier piloto**: clave pública por comercio + allowlist de origen + rate limit por origen en `api/onboarding`. Hoy no hay nada de eso.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
+- [ ] **Decidir si CORE-30 y CORE-543 se unifican** — el texto de CORE-30 describe este mismo trabajo. Ver §«Quién hizo qué».
 - [ ] Corregir el nodo `context/…/onboarding`: dice que G3 (`OnboardingV2`) no tiene consumidores, y el wizard en `main` ya le pega a `api/v2/onboarding/otp-auth/validate`.
 
 ## Enlaces
