@@ -1,0 +1,31 @@
+{
+  "nombre": "El canal ecommerce · del carrito de la tienda al listado, con el comercio vinculado",
+  "porDefecto": {
+    "amount": 2000000,
+    "espera": {
+      "prefill": [
+        "email",
+        "phone",
+        "firstName",
+        "lastName",
+        "documentNumber",
+        "documentType"
+      ],
+      "vinculada": true,
+      "entidadesMin": 1
+    }
+  },
+  "casos": [
+    {
+      "nombre": "el contrato del carrito entra, el comercio queda atado al crédito y sus datos llegan al formulario",
+      "comercio": "amoblar"
+    },
+    {
+      "nombre": "regresión del campo que se ignoraba en silencio: `ecommerceRequestId` en camelCase — con el snake_case del v1 la solicitud nace SIN vincular y el comercio nunca recibe el veredicto",
+      "comercio": "amoblar",
+      "espera": {
+        "vinculada": true
+      }
+    }
+  ]
+}

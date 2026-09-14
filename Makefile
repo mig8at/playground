@@ -216,7 +216,7 @@ env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 carac
 	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
-.PHONY: harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
+.PHONY: harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -263,6 +263,9 @@ harness-dni-choca: ## @har ¿un DNI peruano se puede registrar si el número ya 
 
 harness-suite-paises: ## @har ¿el cliente nace con el país de su comercio, su documento y su celular? La suite de internacionalización, contra la base. [PAR=1]
 	@cd harness && node dev/caso.ts --suite suites/paises.json $(if $(PAR),--paralelo)
+
+harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de la tienda entra, el comercio queda atado al crédito y sus datos llegan al formulario? [SUITE=suites/ecommerce.json] [COMERCIO=amoblar]
+	@cd harness && node dev/ecommerce.ts $(if $(SUITE),--suite '$(patsubst harness/%,%,$(SUITE))',--suite suites/ecommerce.json) $(if $(COMERCIO),--comercio $(COMERCIO))
 
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000]
 	@cd harness && node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)

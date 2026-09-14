@@ -1,0 +1,19 @@
+{
+  "nombre": "La sala de espera del veredicto · REQUIERE legacy-backend#1392 en el ambiente",
+  "porDefecto": {
+    "amount": 2000000,
+    "espera": {
+      "vinculada": true
+    }
+  },
+  "casos": [
+    {
+      "nombre": "la sala de espera responde desde ESCRITORIO y trae el «volver al comercio» — falla si la ruta se mueve a un grupo con `onlyMobileValidation` (necesita legacy-backend#1392)",
+      "comercio": "amoblar",
+      "espera": {
+        "salaDeEspera": true,
+        "returnUrl": true
+      }
+    }
+  ]
+}
