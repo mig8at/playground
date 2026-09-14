@@ -1105,6 +1105,56 @@ fixture y **está igual en las dos ramas**, no es un defecto introducido.
 componentes de la tarjeta no tienen una sola prueba unitaria; las 20 historias fueron la única forma de
 verificar visualmente un refactor de 4.644 líneas.
 
+## 🔎 Caza de código sin valor — medido (2026-09-13)
+
+Miguel pidió seguir buscando archivos y funciones que no aporten y sólo generen complejidad. Se midió
+todo el módulo. **El resultado sorprende: casi no hay código muerto.**
+
+| candidato | medida | veredicto |
+|---|---|---|
+| archivos que nadie importa | **1 de 150** (23 líneas) | **borrable** |
+| símbolos de runtime muertos (ni su propio archivo los usa) | **0** | no hay |
+| `export` de más (usados sólo dentro de su archivo) | 22 | ruido, no complejidad |
+| **el barrel `lib/index.ts`** | **354 líneas · 218 símbolos · 121 internos** | **el hallazgo** |
+| use-cases pasamanos + sus puertos | 23 archivos · ~800 líneas | del arquitecto |
+
+### Lo único genuinamente muerto
+
+`lib/infrastructure/api/loan-request-details.dto.ts` — 23 líneas de esquema zod. **No está en el
+barrel, nadie lo importa por su ruta, y sus dos símbolos no se usan en ningún lado.** Es la única
+eliminación limpia que hay.
+
+### El hallazgo grande: el barrel expone el 55% de más
+
+`lib/index.ts` reexporta **218 símbolos** en 354 líneas. De ésos:
+
+- **97 se usan fuera del módulo** — eso es lo que un barrel existe para exponer;
+- **121 se usan SÓLO dentro** — no tenían por qué estar en la API pública;
+- 0 no los usa nadie.
+
+**Por qué importa para lo que Miguel busca:**
+
+1. **Tapa las dependencias.** Todos los componentes hacen `from "../../lib"` y se llevan todo. Cuando
+   en esta misma tarea hubo que averiguar qué funcionalidad era dueña de cada servicio, preguntar
+   «quién importa este archivo» devolvía **«nadie»** para los trece. Hubo que resolverlo por símbolo.
+2. **Una API pública de 218 símbolos** significa que tocar cualquier cosa interna es potencialmente
+   romper a un consumidor.
+3. Son **354 líneas** de puro reexporte que alguien mantiene.
+
+**Lo que costaría achicarlo:** 29 archivos, **37 declaraciones de import**, 138 símbolos. Mecánico, y
+`tsc` lo verifica entero. El barrel quedaría en ~97 símbolos: **la API pública real**.
+
+Hay 11 barriles en total (442 líneas), pero `lib/index.ts` se lleva el 80%.
+
+### Lo que NO es el problema, y conviene dejar escrito
+
+**Este módulo no tiene grasa.** No hay funciones muertas, no hay componentes sin usar, no hay archivos
+olvidados. Todo lo que está, se usa. La complejidad no viene de código de más: viene de **dónde está
+puesto** —el barrel que tapa, el eje que cruza— y de que el dominio es grande de verdad (trece
+entidades con tarifarios propios, pre-aprobados asíncronos, popups, Nequi, Welli).
+
+Buscar más código muerto no va a rendir: ya se buscó y hay 23 líneas.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
