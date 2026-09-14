@@ -21,26 +21,25 @@
  *     scroll-into-view, no hace falta forzarlo.
  */
 /*
- * ⚠⚠ MEDICIÓN 2026-09-14 · EN EL WIZARD SÓLO EXISTEN CUATRO `data-testid`, Y ESTE ARCHIVO USA 21.
+ * ⚠⚠ ESTE WIZARD CASI NO PUBLICA `data-testid`: SON SEIS, Y ESTE ARCHIVO LLEGÓ A NOMBRAR 21.
  *
- * Contra `origin/qa`, buscando el ATRIBUTO (no el substring, que cuenta de más: `personal-info-form`
- * aparece como nombre de archivo en un `index.ts` y parece existir), los `data-testid` renderizados por
- * el wizard son SEIS en total: `amount-input`, `amount-submit`, `phone-input`, `phone-submit` —los que
- * usan los dos primeros helpers de abajo— más `cambiar-vista` y `lender-toggle-`, de otra pantalla.
+ * Medido el 2026-09-14 contra `origin/qa`, pidiendo el atributo literal y SIN restringir directorios:
+ * existen `amount-input`, `amount-submit`, `phone-input`, `phone-submit` (en `modules/`) y
+ * `otp-input`, `otp-submit` (en `packages/shared/components/`, que es por qué una primera medición los
+ * dio por muertos). Los 15 restantes no están en ninguna rama mergeada: vivían en los stashes
+ * `local-e2e: data-testid …`, cuyo propio mensaje dice «NO commitear». Es **F-217**.
  *
- * Los 17 restantes que este archivo y los specs nombran NO EXISTEN en ninguna rama mergeada: vivían en
- * los stashes `local-e2e: data-testid …`, cuyo propio mensaje dice «NO commitear». Por eso
- * `fillOtpStep`, `fillPersonalInfoIdentification`, `fillExpeditionDate` y `fillEmploymentInfo` fallan
- * SIEMPRE, y siempre en su primera línea, con un `toBeVisible() failed` que parece un problema de la
- * pantalla y es del locator.
+ * POR ESO LOS HELPERS DE ABAJO VAN POR ROL Y LABEL, con el testid como PREFERENCIA cuando existe:
+ * `getByTestId(x).or(getByRole(...))`. Los nombres accesibles salen del DOM REAL de cada pantalla —se
+ * caminó el flujo y se volcaron los controles—, no del código: inferirlos del componente fue
+ * exactamente lo que dejó este archivo apuntando a una pantalla que nunca se commiteó.
  *
- * QUÉ USAR MIENTRAS TANTO: el recorrido por HTTP (`dev/caminar-wizard.ts`, `make harness-caminar`) no
- * depende de testids —postea los formularios que el front declara— y llega hasta `/lenders` y hasta el
- * cierre con `CERRAR=1`. Para el tramo por navegador, los dos primeros helpers sí sirven.
- *
- * ARREGLARLO de verdad es una de dos: reescribir los cuatro helpers por rol/label —que es lo que hizo
- * `fillAmountStep` con su fallback—, o agregar los testids al wizard en un PR. Lo segundo es más
- * estable, pero toca el repo del producto: no se hace desde acá sin pedirlo.
+ * DOS COSAS QUE NO SE VEN LEYENDO EL DOM Y ROMPEN IGUAL:
+ *   · en el canal ECOMMERCE varios campos llegan del comercio y BLOQUEADOS — y el bloqueo no es
+ *     `disabled` ni `readOnly` sino `pointer-events:none`, que Playwright ve como «enabled». Escribir
+ *     ahí no falla: se cuelga 10 s. Por eso las guardas miran el VALOR, no el estado.
+ *   · la fecha de expedición es el SEGUNDO paso de `/personal-info`: la URL no cambia, así que esperar
+ *     un cambio de URL entre esos dos pasos cuelga el spec.
  */
 import { expect, type Page } from '@playwright/test';
 
@@ -108,84 +107,103 @@ export async function fillPhoneStep(page: Page, phone?: string): Promise<string>
 }
 
 export async function fillOtpStep(page: Page, code = '1234'): Promise<void> {
-    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `otp-input` no existe en ninguna
-    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
-    if (!(await page.getByTestId('otp-input').count())) {
-        throw new Error(
-            '`fillOtpStep` no puede correr: el wizard NO tiene el testid `otp-input` (medido contra qa el '
-            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper escribe el código del OTP. '
-            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
-        );
-    }
-    await expect(page.getByTestId('otp-input')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('otp-input').click();
+    // `otp-input`/`otp-submit` SÍ existen: los publica el componente compartido
+    // `packages/shared/components/src/components/otp.tsx`. (Vivían fuera de `modules`/`apps`, que es
+    // por qué una medición de 2026-09-14 los dio por muertos — ver F-217.)
+    const input = page.getByTestId('otp-input').or(page.getByRole('textbox', { name: /c[óo]digo|otp/i }));
+    await expect(input).toBeVisible({ timeout: 15_000 });
+    await input.click();
+    // Tecleado, no `fill()`: el campo reparte los dígitos entre casillas y `fill` las saltea.
     await page.keyboard.type(code, { delay: 30 });
-    await page.getByTestId('otp-submit').click();
+    const submit = page.getByTestId('otp-submit').or(page.getByRole('button', { name: /confirmar|validar|verificar|continuar/i }));
+    await expect(submit).toBeEnabled({ timeout: 10_000 });
+    await submit.click();
 }
 
 export async function fillPersonalInfoIdentification(page: Page): Promise<void> {
-    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `docnum-input` no existe en ninguna
-    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
-    if (!(await page.getByTestId('docnum-input').count())) {
-        throw new Error(
-            '`fillPersonalInfoIdentification` no puede correr: el wizard NO tiene el testid `docnum-input` (medido contra qa el '
-            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper llena la identificación. '
-            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
-        );
-    }
-    await expect(page.getByTestId('personal-info-form')).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId('docnum-input')).toBeVisible({ timeout: 15_000 });
-    // FE validates `10000 < doc < 3_000_000_000`. Constrain generation so we never
-    // sample outside that range (previous range used 1B–10B and flaked ~66%).
-    const docNum = Math.floor(Math.random() * 2_899_999_999 + 100_000_000).toString();
-    await typeInto(page, 'docnum-input', docNum);
-    await typeInto(page, 'name-input', 'JUAN');
-    await typeInto(page, 'surname-input', 'PEREZ');
-    await typeInto(page, 'email-input', `juan${Date.now()}@example.com`);
-    await page.getByTestId('identification-submit').click();
+    // POR LABEL, no por testid: esta pantalla no publica ninguno (F-217). Los nombres salen del DOM
+    // real, medido el 2026-09-14: «Número de identificación *», «Nombres (Como aparecen en tu
+    // documento)», «Apellidos (…)» y «Correo electrónico *».
+    const campo = (re: RegExp, testid: string) =>
+        page.getByTestId(testid).or(page.getByRole('textbox', { name: re }));
+    const doc = campo(/n[úu]mero de identificaci[óo]n/i, 'docnum-input');
+    await expect(doc).toBeVisible({ timeout: 15_000 });
+
+    // ⚠ EN EL CANAL ECOMMERCE ESTOS CAMPOS LLEGAN DEL COMERCIO Y BLOQUEADOS (`readonly`, y el bloqueo
+    // real es por CSS: `pointer-events:none`). Escribir encima no falla con un mensaje útil: se cuelga
+    // 10 s y culpa a la pantalla. Igual que en el monto y el celular, la guarda mira el VALOR: si el
+    // dato ya vino, no hay nada que escribir. En self-service/asesor llegan vacíos y sí se escriben.
+    const escribirSiHaceFalta = async (loc: ReturnType<typeof campo>, valor: string) => {
+        if (!(await loc.count())) return;
+        if (((await loc.inputValue().catch(() => '')) ?? '').trim() !== '') return;
+        await loc.click();
+        await loc.pressSequentially(valor, { delay: 30 });
+    };
+    await escribirSiHaceFalta(doc, Math.floor(Math.random() * 2_899_999_999 + 100_000_000).toString());
+    await escribirSiHaceFalta(campo(/nombres/i, 'name-input'), 'JUAN');
+    await escribirSiHaceFalta(campo(/apellidos/i, 'surname-input'), 'PEREZ');
+    await escribirSiHaceFalta(campo(/correo|email/i, 'email-input'), `juan${Date.now()}@example.com`);
+
+    const submit = page.getByTestId('identification-submit').or(page.getByRole('button', { name: /^siguiente$/i }));
+    await expect(submit).toBeEnabled({ timeout: 10_000 });
+    await submit.click();
 }
 
 export async function fillExpeditionDate(page: Page): Promise<void> {
-    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `date-selector-day` no existe en ninguna
-    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
-    if (!(await page.getByTestId('date-selector-day').count())) {
-        throw new Error(
-            '`fillExpeditionDate` no puede correr: el wizard NO tiene el testid `date-selector-day` (medido contra qa el '
-            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper elige la fecha de expedición. '
-            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
-        );
-    }
-    await expect(page.getByTestId('date-selector-day')).toBeVisible({ timeout: 15_000 });
-    // Orden DÍA → MES → AÑO: mes y año están disabled hasta tener día.
-    await page.getByTestId('date-selector-day').click();
-    await page.getByTestId('date-selector-day-option-15').click();
-    await page.getByTestId('date-selector-month').click();
-    await page.getByTestId('date-selector-month-option-6').click();
-    await page.getByTestId('date-selector-year').click();
-    await page.getByTestId('date-selector-year-option-2010').click();
-    // Checkbox de confirmación de identidad — sin testid en el componente actual.
-    await page.getByRole('checkbox').first().check({ force: true });
-    await page.getByTestId('expedition-date-submit').click();
+    // La fecha de expedición es el SEGUNDO paso de `/personal-info` — la URL no cambia— y sus tres
+    // selectores son combobox de Radix SIN testid, con nombre accesible «Día*», «Mes*» y «Año*»
+    // (medido en el DOM el 2026-09-14). El ORDEN importa: mes y año nacen `disabled` hasta que hay día.
+    // ⚠ POR TEXTO Y NO POR `{ name }`: estos combobox NO tienen nombre accesible. En el árbol de
+    // Playwright salen como `- combobox: Día*` (sin comillas), y las comillas son justamente lo que
+    // marca el nombre; «Día*» es sólo su contenido. `{ name: /día/i }` no encuentra nada y el spec
+    // muere con «element(s) not found» señalando a la pantalla en vez de al locator.
+    const combo = (re: RegExp, testid: string) =>
+        page.getByTestId(testid).or(page.getByRole('combobox').filter({ hasText: re }).first());
+    const elegir = async (re: RegExp, testid: string, opcion: RegExp) => {
+        const c = combo(re, testid);
+        await expect(c).toBeEnabled({ timeout: 15_000 });
+        await c.click();
+        // La opción es un `option` del listbox que Radix abre en un portal, así que se busca en la
+        // PÁGINA y no dentro del combo.
+        await page.getByRole('option', { name: opcion }).first().click();
+    };
+    await elegir(/d[íi]a/i, 'date-selector-day', /^15$/);
+    await elegir(/mes/i, 'date-selector-month', /^junio$/i);
+    await elegir(/a[ñn]o/i, 'date-selector-year', /^2010$/);
+
+    // El checkbox de «confirmo que los datos son correctos» no tiene label accesible: es el primero de
+    // la pantalla. `force` porque Radix lo pinta sobre un input oculto.
+    const check = page.getByRole('checkbox').first();
+    if (await check.count()) await check.check({ force: true }).catch(() => {});
+
+    const submit = page.getByTestId('expedition-date-submit').or(page.getByRole('button', { name: /^continuar$/i }));
+    await expect(submit).toBeEnabled({ timeout: 10_000 });
+    await submit.click();
 }
 
 export async function fillEmploymentInfo(
     page: Page,
     options: { status?: string; monthlyIncome?: string } = {},
 ): Promise<void> {
-    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `employment-status-trigger` no existe en ninguna
-    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
-    if (!(await page.getByTestId('employment-status-trigger').count())) {
-        throw new Error(
-            '`fillEmploymentInfo` no puede correr: el wizard NO tiene el testid `employment-status-trigger` (medido contra qa el '
-            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper llena los datos laborales. '
-            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
-        );
-    }
     const { status = 'Empleado', monthlyIncome = '2500000' } = options;
-    await expect(page.getByTestId('employment-info-form')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('employment-status-trigger').click();
-    await page.getByTestId(`employment-status-option-${status}`).click();
-    await page.getByTestId('monthly-income-input').click();
-    await page.keyboard.type(monthlyIncome, { delay: 30 });
-    await page.getByTestId('employment-submit').click();
+    // Sin testids (F-217): el selector es un Radix con placeholder «Selecciona tu situación laboral» y
+    // el monto un input con placeholder «Ingresos mensuales» (`employment-info-form.tsx`).
+    // Por TEXTO, igual que la fecha de expedición: los combobox del wizard no publican nombre accesible.
+    const trigger = page.getByTestId('employment-status-trigger')
+        .or(page.getByRole('combobox').filter({ hasText: /situaci[óo]n laboral|selecciona/i }).first())
+        .or(page.getByRole('combobox').first());
+    await expect(trigger).toBeVisible({ timeout: 15_000 });
+    await trigger.click();
+    await page.getByRole('option', { name: new RegExp(`^${status}$`, 'i') }).first().click();
+
+    const ingreso = page.getByTestId('monthly-income-input')
+        .or(page.getByRole('textbox', { name: /ingresos mensuales/i }))
+        .or(page.getByPlaceholder(/ingresos mensuales/i));
+    await ingreso.click();
+    // Tecleado: el campo lleva máscara de moneda y `fill()` la saltea de a ratos.
+    await ingreso.pressSequentially(monthlyIncome, { delay: 30 });
+
+    const submit = page.getByTestId('employment-submit').or(page.getByRole('button', { name: /^(continuar|siguiente)$/i }));
+    await expect(submit).toBeEnabled({ timeout: 10_000 });
+    await submit.click();
 }

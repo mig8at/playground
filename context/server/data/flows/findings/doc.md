@@ -366,7 +366,7 @@ distinto según con qué pregunta llegues.
 | F-214 | Con `flow_id=2` (cupo ya confirmado) el listado se recorta a `rt=0`: en un comercio sin ninguna, la pantalla queda vacía y sin salida. El cableado está sano | ABIERTO · por diseño |
 | F-215 | En un 404 el root emite `window.ENV = undefined` y `entry.client` lo lee sin `?.`: la hidratación muere y la página queda muerta. En `main` y `qa` | ABIERTO |
 | F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
-| F-217 | El harness usa 21 `data-testid` y el wizard tiene 4: los otros 17 vivían en stashes marcados «NO commitear». Cuatro helpers fallan siempre | PARCIAL · helpers avisan |
+| F-217 | El harness usa 21 `data-testid` y el wizard publica 6: los otros 15 vivían en stashes marcados «NO commitear». Tres helpers reescritos por rol | ARREGLADO |
 
 ---
 
@@ -4934,7 +4934,7 @@ lo que qa contesta), idempotente y con comprobación contra el endpoint. **Lo qu
 fallback mudo del front**: no distingue «este comercio va por el legacy» de «no pude preguntarlo».
 
 
-### F-217 · El harness se apoya en 21 `data-testid` y el wizard tiene CUATRO: los specs por navegador mueren siempre en el mismo paso
+### F-217 · El harness se apoya en 21 `data-testid` y el wizard sólo publica 6: los specs por navegador mueren siempre en el mismo paso
 
 **Síntoma.** Un spec de Playwright del wizard falla en el mismo paso desde hace meses, con
 `expect(locator).toBeVisible() failed · waiting for getByTestId('…')` tras 15-20 s. Se lee como «esa
@@ -4945,25 +4945,35 @@ mergeada**. Vivía en los stashes `local-e2e: data-testid …` del monorepo, cuy
 **«NO commitear»**. Alguien corrió los specs con ese stash aplicado, funcionaron, y quedaron escritos
 contra una pantalla que sólo existía en su working tree.
 
-**Evidencia.** Medido el 2026-09-14 contra `origin/qa`, buscando el ATRIBUTO `data-testid=` (no el
-substring, que cuenta de más — `personal-info-form` aparece como nombre de archivo en un `index.ts` y
-parece existir): el wizard renderiza **seis** testids en total —`amount-input`, `amount-submit`,
-`phone-input`, `phone-submit`, `cambiar-vista` y `lender-toggle-`—. El harness nombra **21**, de los
-cuales **existen 4**. Los 17 restantes se reparten entre cuatro helpers de `pkg/wizard-steps.ts`
-(`fillOtpStep`, `fillPersonalInfoIdentification`, `fillExpeditionDate`, `fillEmploymentInfo`), que por
-eso fallan siempre y siempre en su primera línea.
+**Evidencia.** Medido el 2026-09-14 contra `origin/qa`, buscando el ATRIBUTO literal y **sin restringir
+directorios**: de los **21** que el harness nombra, **existen 6** —`amount-input`, `amount-submit`,
+`phone-input`, `phone-submit`, `otp-input`, `otp-submit`— y **faltan 15**. Los que faltan se reparten
+entre tres helpers de `pkg/wizard-steps.ts`: `fillPersonalInfoIdentification`, `fillExpeditionDate` y
+`fillEmploymentInfo`, que por eso fallan siempre y siempre en su primera línea.
 
-⚠ **Las dos trampas al medirlo, y las dos costaron una conclusión falsa el mismo día.** (1) `git grep`
-con `-c` y el resultado canalizado a `wc -l` cuenta ARCHIVOS, no coincidencias, y da «existe» para todo;
-(2) buscar el nombre pelado encuentra imports y nombres de archivo. La forma que no miente es pedir el
-atributo: `git grep -E 'data-testid=[{"\`]*"?<id>"' origin/<rama>`.
+⚠ **TRES formas de medir esto mal, y las tres dieron una conclusión falsa el mismo día:**
+(1) `git grep -c` canalizado a `wc -l` cuenta ARCHIVOS, no coincidencias, y da «existe» para todo;
+(2) buscar el nombre pelado encuentra imports y nombres de archivo (`personal-info-form` y
+`employment-info-form` aparecen en un `index.ts` y parecen existir, pero no se renderizan);
+(3) **restringir la búsqueda a `modules` y `apps` deja fuera `packages/`**, que es donde vive el
+componente compartido del OTP — eso hizo dar por muerto a `fillOtpStep`, que funciona. La única forma
+que no miente es pedir el atributo literal contra TODO el árbol:
+`git grep 'data-testid="<id>"' origin/<rama>`. Y, mejor todavía, **mirar el DOM de la pantalla
+corriendo**: fue lo que corrigió esta entrada.
 
-**Arreglo — PARCIAL.** Los cuatro helpers ahora **fallan diciendo su causa** en vez de esperar 15 s y
-culpar a la pantalla, y la medición quedó escrita en la cabecera de `pkg/wizard-steps.ts`. Un spec que
-se apoyaba entero en testids inexistentes se borró, con el porqué y apuntando a su reemplazo. Lo que
-sigue abierto es elegir: reescribir los cuatro helpers por rol/label —como ya hace `fillAmountStep` con
-su `.or(...)`— o agregar los testids al wizard en un PR, que es más estable pero toca el repo del
-producto.
+**Arreglo — HECHO y verificado CORRIENDO.** Los helpers se reescribieron **por rol y texto**, leídos
+del DOM real de cada pantalla y no inferidos del código, con el testid como preferencia cuando existe
+(`.getByTestId(...).or(...)`, el patrón que ya usaba `fillAmountStep`). Se ejercitaron de punta a punta
+contra el wizard local hasta `/lenders`, y el de datos laborales aparte porque ese flujo no pide su
+pantalla. Un spec que se apoyaba entero en siete testids inexistentes se borró, con el porqué y
+apuntando a su reemplazo; la medición quedó en la cabecera de `pkg/wizard-steps.ts`.
+
+⚠ **Y una cuarta trampa, ésta de los locators y no de la medición:** los tres combobox del wizard
+(día/mes/año de la expedición, situación laboral) **no tienen nombre accesible**. En el árbol de
+Playwright salen como `- combobox: Día*` —sin comillas, y las comillas son lo que marca el nombre—, así
+que `getByRole('combobox', { name: /día/i })` no encuentra nada y el spec vuelve a morir con
+«element(s) not found» señalando a la pantalla. Se localizan por CONTENIDO:
+`getByRole('combobox').filter({ hasText: /día/i })`.
 
 **Mientras tanto, el camino que no depende de esto** es el recorrido por HTTP (`make harness-caminar`):
 postea los formularios que el front declara, llega hasta `/lenders` y, con `CERRAR=1`, hasta el cierre.
