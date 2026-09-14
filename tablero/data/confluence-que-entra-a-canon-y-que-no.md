@@ -84,6 +84,25 @@ Y lo que **no se puede verificar desde acá**: el repositorio de la librería co
 los demás microservicios del análisis **no están clonados** en esta máquina. Lo que entró de esa
 página es sólo lo que se pudo comprobar en los cinco servicios que sí están.
 
+## Cerrada la lista: 8 secciones de 15 páginas candidatas
+
+Las cuatro últimas, y por qué tres no dieron nada — el «no» también es resultado:
+
+| página | veredicto |
+|---|---|
+| **Cupo Rotativo** | es **un enlace a Figma**, sin texto. Nada que cosechar |
+| **Recaudo Referenciado** | guía para el banco recaudador. Su código de respuesta `MTD00000` **no existe en ningún repo clonado**: no se puede verificar, así que no entra |
+| **Integración Deceval** | ✔ **en producción**, y dio una sección: el callejón del girador |
+| **FormEngine** | propuesta con forma de argumento de venta —«revoluciona», «cero deuda técnica»—, dos menciones de código en toda la página, y canon ya cubre el formulario dinámico real |
+
+**Lo que entró de Deceval**: con el mismo documento y nombres distintos, el depósito no falla — devuelve
+la cuenta en CERO, esa cuenta viaja tal cual al pagaré y lo hace rechazar, omitir el campo da el mismo
+rechazo, y **no hay operación para preguntarle qué nombre tiene registrado**. Es un callejón sin salida
+desde este lado, y conviene no confundirlo con la otra falla del mismo tramo, que es nuestra.
+
+⚠ Y una vez más el paso 0 evitó un duplicado: canon **ya tenía** «la firma del pagaré no comprueba que
+el depósito haya dicho que salió bien». La sección nueva apunta a ésa en vez de repetirla.
+
 ## Cómo se cosecha (el bucle que funcionó)
 
 1. `paginas <espacio>` y leer TÍTULOS: la forma del título ya clasifica (fecha = acta, PRD = deber ser).
