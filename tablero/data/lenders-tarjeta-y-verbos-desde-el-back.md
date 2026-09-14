@@ -1062,6 +1062,31 @@ y ver todo lo suyo tiene valor aunque el p90 no lo registre.
 no tenían nada que ver. Se revirtieron todos (ninguno importaba lo movido). **Acotar el alcance de
 `--unsafe` no es opcional** — es la segunda vez en esta tarea que `--unsafe` hace de más.
 
+## 👁 Verificado en pantalla: 20 historias, DOM idéntico (2026-09-13)
+
+Faltaba lo único que las pruebas no cubren — **que alguien abra la pantalla**. Se hizo con storybook, que
+renderiza los componentes con datos de prueba y sin backend.
+
+**Método: A/B por rama, comparando el DOM renderizado, no capturas a ojo.** Se capturó el `innerText` de
+cada historia en `origin/qa`, se volvió a la rama de trabajo y se capturó otra vez.
+
+| | historias | diferencias |
+|---|---|---|
+| `LenderCard` (featured, collapsed, alta/baja probabilidad, rotativo, validando, submitting, bloqueada…) | 12 | **ninguna** |
+| `AvailableLenders` (default, Motai renting, CreditopX, rotativo, estados terminales, tema del comercio, Nequi ×2) | 8 | **ninguna** |
+
+**Veinte historias, cero diferencias.** Es la confirmación que faltaba: los 19 commits del front no
+cambian lo que se ve, ni en la tarjeta suelta ni en el listado completo con sus estados.
+
+⚠ **Lo que esto NO cubre:** las historias usan fixtures, no la API. El flujo de selección —hacer clic y
+que abra el checkout, el popup bloqueado, el modal— **no se probó en pantalla**; eso sigue siendo QA.
+Y las historias tienen un monto de prueba que dispara «supera el máximo permitido hasta $ 1»: es del
+fixture y **está igual en las dos ramas**, no es un defecto introducido.
+
+⚠ Y de paso contestó la pregunta de Miguel sobre storybook: **su uso real, para él, es éste**. Los
+componentes de la tarjeta no tienen una sola prueba unitaria; las 20 historias fueron la única forma de
+verificar visualmente un refactor de 4.644 líneas.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
