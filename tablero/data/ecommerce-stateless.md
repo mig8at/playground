@@ -164,14 +164,14 @@ rescate, no migración.
 `originaciones.creditop.com/ecommerce/{hash}/checkout` tiene que **responder en prod** para que el
 redirect de borde sirva. Eso es deploy/ingress del front.
 
-### Estado de CI de los dos PRs (2026-09-14) — ⚠ BLOQUEADOS por Sonar
+### Estado de CI de los dos PRs (2026-09-14) — ✅ LOS DOS EN VERDE
 
 | | #997 checkout | #998 cuota inicial |
 |---|---|---|
 | commits | 1 | 1 |
 | `turbo run build` | ✅ | ✅ |
 | `typecheck` (errores propios) | ✅ 0 | ✅ 0 |
-| **SonarCloud** | ❌ **B Security Rating on New Code** (exige ≥ A) | ❌ **idem** |
+| **SonarCloud** | ✅ **SUCCESS** | ✅ **SUCCESS** |
 
 Sonar **pasa** en los PRs vecinos (#991, #993, #994), así que es del código nuevo, no del repo.
 Se endurecieron cuatro puntos de la misma clase —todos correctos por sí mismos, independientemente
@@ -187,9 +187,22 @@ de Sonar— y **el rating siguió en B**:
 4. `initial-fee-payment.tsx` (#998) — `redirect(checkout_url)` con la URL que devuelve la pasarela.
    Idem.
 
-⚠ **Lo que falta es ver el hallazgo exacto, y eso pide acceso a SonarCloud** (la API pública devuelve
-vacío para un proyecto privado, y Sonar no dejó comentarios inline). El dashboard:
-<https://sonarcloud.io/dashboard?id=Creditop-SAS_frontend-monorepo&pullRequest=997>
+✅ **La causa era otra, y la trajo Miguel del dashboard:** el literal
+`|| "http://legacy-backend.inertia-develop"` del `getApiUrl()` — *«Using http protocol is insecure»*.
+Está repetido en decenas de archivos del repo, pero Sonar sólo lo mira en **código nuevo**, y mis dos
+archivos nuevos lo arrastraban del PR de junio.
+
+**Y el arreglo correcto no era ponerle `https`:** ese host es interno y responde por http. Lo correcto
+era **borrar el respaldo**, porque `VITE_API_URL` **ya es obligatoria** —`env.server.ts` la declara en
+su esquema zod y `init()` aborta el arranque si falta—. O sea que ese `||` no protegía de nada: con la
+variable ausente la app ni arranca, y lo único que podía hacer era mandar tráfico **en claro al cluster
+de desarrollo** si alguien rompía esa validación. Ahora tira un error explícito.
+
+⚠ **Y quitarlo destapó el split servidor/cliente otra vez.** Al centralizar la base en el servicio,
+`down-payment-validation.tsx` —que consulta `check-status` desde el CLIENTE— quedó importando de un
+módulo `.server`, y el build murió con *«Removal of server code»*. **El archivo ya avisaba en su propio
+comentario** y lo rompí igual. `typecheck` y `biome` lo dejaron pasar; **sólo el build lo vio**. Es
+exactamente [[frontend-el-build-es-la-vara]], otra vez y en el mismo día.
 
 > **MEDICIÓN · 2026-09-14** — ⚠ **Un chequeo que contesta «ninguno» sin haber mirado.** Verifiqué los
 > tipos de #997 con la lista de `git status --porcelain`, y para un archivo nuevo dentro de un
