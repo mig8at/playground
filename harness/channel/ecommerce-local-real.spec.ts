@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { decryptLaravelString } from '../pkg/laravel-crypt';
 import { fillAmountStep, fillEmploymentInfo, fillExpeditionDate } from '../channel/steps';
+import { contratoParaSpec } from '../pkg/ecommerce';
 import { Flow } from '../pkg/flow';
 
 /**
@@ -20,13 +21,10 @@ import { Flow } from '../pkg/flow';
  * hace falta descifrar el de `otps` ni APP_KEY. NO se requiere ningún bypass de código.
  *
  * Opcionales:
- *   GEN_SCRIPT (default ../github/generate_checkout_url.php, ruta al generador de la URL base64)
  */
 
 const DB_CONTAINER = process.env.E2E_DB_CONTAINER ?? 'legacy-backend-mysql-1';
 const DB_NAME = process.env.E2E_DB_NAME ?? 'creditop';
-const GEN_SCRIPT =
-    process.env.GEN_SCRIPT ?? '/Users/miguelochoa/Desktop/CREDITOP/github/generate_checkout_url.php';
 
 function freshPhone(): string {
     const suffix = Math.floor(1_000_000 + Math.random() * 9_000_000).toString();
@@ -34,14 +32,13 @@ function freshPhone(): string {
 }
 
 /** Corre generate_checkout_url.php y devuelve solo el path+query de la URL del wizard. */
-function buildCheckoutPath(): string {
-    const out = execFileSync('php', [GEN_SCRIPT], { encoding: 'utf8' }).trim();
-    const match = out.match(/https?:\/\/[^\s]+\/ecommerce\/[^\s]+/);
-    if (!match) {
-        throw new Error(`No pude extraer la URL de checkout de generate_checkout_url.php: ${out.slice(0, 200)}`);
-    }
-    const url = new URL(match[0]);
-    return url.pathname + url.search; // /ecommerce/<hash>/checkout?o=...&p=...&t=...
+async function buildCheckoutPath(): Promise<string> {
+    // Del repo, no de un script PHP en una ruta absoluta del home: aquél se movió a
+    // `creditop-woocommerce/tools/` el 2026-07-19 y estos specs quedaron apuntando a la nada. El del
+    // repo además resuelve el comercio contra la BASE —nada de hashes quemados— y usa un `order_key`
+    // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
+    const c = await contratoParaSpec('amoblar');
+    return c.checkout_path;
 }
 
 /** Lee el OTP cifrado del mysql LOCAL por cell_phone (sin -h: contenedor local). */
@@ -74,7 +71,7 @@ test('Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP
         '/checkout → solicitar → amount → phone → OTP(real) → personal-info',
     )
         .step('Handshake checkout', 'genera la URL con generate_checkout_url.php → /ecommerce/{hash}/checkout?o=...', async () => {
-            const checkoutPath = buildCheckoutPath();
+            const checkoutPath = await buildCheckoutPath();
             await page.goto(checkoutPath);
             return checkoutPath;
         })
@@ -148,7 +145,7 @@ test('Ecommerce LOCAL real (testids): /checkout → amount → phone → OTP →
         '/checkout → amount → phone → OTP → personal → laboral → /lenders',
     )
         .step('Handshake checkout', 'URL real desde generate_checkout_url.php', async () => {
-            const path = buildCheckoutPath();
+            const path = await buildCheckoutPath();
             await page.goto(path);
             return path;
         })

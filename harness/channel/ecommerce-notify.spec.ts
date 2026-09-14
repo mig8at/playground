@@ -1,6 +1,6 @@
 import { expect, test, request as pwRequest } from '@playwright/test';
-import { execFileSync } from 'node:child_process';
 import http from 'node:http';
+import { contratoParaSpec } from '../pkg/ecommerce';
 import { config } from '../pkg/config';
 import { Flow } from '../pkg/flow';
 
@@ -17,22 +17,17 @@ import { Flow } from '../pkg/flow';
  * (PHP-serializado; con placeholders el create da 500).
  */
 
-// El script se movió al repo el 2026-07-19 (antes estaba suelto en ~/Desktop/CREDITOP/github/, sin
-// control de versiones). Ruta relativa: sobrevive a que cambie el home o el nombre de la carpeta.
-const GEN_SCRIPT = process.env.GEN_SCRIPT
-    ?? resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 'creditop-woocommerce', 'tools', 'generate_checkout_url.php');
+/*
+ * El contrato sale de `pkg/ecommerce.ts` (del repo), no de `generate_checkout_url.php`.
+ *
+ * Ese script tenía tres defectos que rompían este spec: vivía en una ruta ABSOLUTA fuera del repo
+ * —se movió y el spec quedó apuntando a la nada—, pedía `php` instalado, y sobre todo usaba un
+ * **`order_key` FIJO**, así que el `upsert` caía siempre en la MISMA fila de `ecommerce_requests`:
+ * con `processed = 1` de una corrida vieja, la notificación al comercio ya no se disparaba y el
+ * spec fallaba con ERS000 sin que el motivo estuviera a la vista.
+ */
 const LISTENER_PORT = Number(process.env.E2E_SHOP_PORT ?? 9099);
 
-/** Genera el contrato base64 real (del script) y devuelve los params o,p,u,t,config + hash. */
-function realContract(): { hash: string; o: string; p: string; u: string; t: string; config: string } {
-    const out = execFileSync('php', [GEN_SCRIPT], { encoding: 'utf8' }).trim();
-    const m = out.match(/https?:\/\/[^\s]+\/ecommerce\/[^\s]+/);
-    if (!m) throw new Error(`generate_checkout_url.php no devolvió URL: ${out.slice(0, 200)}`);
-    const url = new URL(m[0]);
-    const hash = url.pathname.split('/')[2];
-    const q = url.searchParams;
-    return { hash, o: q.get('o')!, p: q.get('p')!, u: q.get('u')!, t: q.get('t')!, config: q.get('config')! };
-}
 
 test('Ecommerce: notify-store POSTea al process_url de la tienda con {status}', async () => {
     test.setTimeout(60_000);
@@ -57,9 +52,9 @@ test('Ecommerce: notify-store POSTea al process_url de la tienda con {status}', 
                 await new Promise<void>((r) => server.listen(LISTENER_PORT, r));
                 return `escuchando en :${LISTENER_PORT}`;
             })
-            .step('Crear ecommerce_request', 'contrato base64 real desde generate_checkout_url.php + process_url al listener', async (ctx) => {
+            .step('Crear ecommerce_request', 'contrato base64 del repo + process_url al listener', async (ctx) => {
                 const api = await pwRequest.newContext({ baseURL: config.mockUrl });
-                const c = realContract();
+                const c = await contratoParaSpec('amoblar');
                 // process_url → host.docker.internal:PORT (alcanzable desde el contenedor backend).
                 const shopUrl = `http://host.docker.internal:${LISTENER_PORT}/`;
                 const createRes = await api.post(`/api/onboarding/ecommerce-request/create/${c.hash}`, {
@@ -75,7 +70,9 @@ test('Ecommerce: notify-store POSTea al process_url de la tienda con {status}', 
                 });
                 const createBody = await createRes.json();
                 expect(createBody.success, `create falló: ${JSON.stringify(createBody)}`).toBe(true);
-                expect(String(createBody.data.returnUrl)).toMatch(/tienda-prueba\.com/);
+                // La return_url sale de `E2E_RETURN_URL` (`.env.<target>` del harness). Sólo se exige
+                // que HAYA una: fijar el dominio ataba el spec al valor de un `.env` de una máquina.
+                expect(String(createBody.data.returnUrl ?? ''), 'el create debe devolver la return_url del comercio').toMatch(/^https?:\/\//);
                 ctx.set('api', api);
                 ctx.set('ecommerceRequestId', createBody.data.ecommerceRequestId);
                 return `ecommerceRequestId ${createBody.data.ecommerceRequestId}`;

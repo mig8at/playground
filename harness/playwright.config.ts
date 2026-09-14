@@ -1,5 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/*
+ * ⚠ EL TARGET SE FIJA ACÁ, ANTES QUE NADA, Y NO ES UN DETALLE.
+ *
+ * `pkg/config.ts` arma `mockUrl` leyendo `.env.<target>`, y `TARGET` por defecto es **dev** — el
+ * ambiente COMPARTIDO con el equipo. Este archivo declaraba en su propio docblock que «el backend
+ * corre en localhost», pero sin esta línea `config.mockUrl` resolvía a
+ * `http://legacy-backend.inertia-develop` y **todos los specs de `channel/` escribían en dev**:
+ * medido el 2026-09-14, una corrida de `ecommerce-notify` creó ahí el `ecommerce_request` 7331
+ * mientras la base local iba por 6907.
+ *
+ * Y ahí no hay red: el guard `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) protege las escrituras por
+ * `pkg/db.ts`, no las que van por la API — que son justo las que hacen estos specs.
+ *
+ * Va con `||=` para poder apuntar a otro ambiente a propósito: `E2E_TARGET=qa npx playwright test …`.
+ */
+process.env.E2E_TARGET ||= 'local';
+process.env.CFE_TARGET ||= 'local';
+
 /**
  * Playwright config — Creditop frontend E2E suite.
  *

@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { contratoParaSpec } from "../pkg/ecommerce";
 import { Flow } from "../pkg/flow";
 
 /**
@@ -15,8 +16,12 @@ import { Flow } from "../pkg/flow";
  *   2) creó el link user_request ↔ ecommerce_request (anclaje del webhook) — vía erId-en-URL, sin cookie.
  */
 
-const GEN_SCRIPT =
-      process.env.GEN_SCRIPT ?? "/Users/miguelochoa/Desktop/CREDITOP/github/generate_checkout_url.php";
+/*
+ * El contrato sale de `pkg/ecommerce.ts` (del repo). Antes venía de un `generate_checkout_url.php`
+ * en una ruta ABSOLUTA del home, que el 2026-07-19 se movió a `creditop-woocommerce/tools/` — y este
+ * spec no se actualizó, así que apuntaba a un archivo inexistente. El del repo además usa un
+ * `order_key` ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
+ */
 const DB_CONTAINER = process.env.E2E_DB_CONTAINER ?? "legacy-backend-mysql-1";
 const DB_NAME = process.env.E2E_DB_NAME ?? "creditop";
 
@@ -25,12 +30,13 @@ function freshPhone(): string {
       return `305${suffix}`;
 }
 
-function buildCheckoutPath(): string {
-      const out = execFileSync("php", [GEN_SCRIPT], { encoding: "utf8" }).trim();
-      const match = out.match(/https?:\/\/[^\s]+\/ecommerce\/[^\s]+/);
-      if (!match) throw new Error(`No pude extraer la URL de checkout: ${out.slice(0, 200)}`);
-      const url = new URL(match[0]);
-      return url.pathname + url.search;
+async function buildCheckoutPath(): Promise<string> {
+      // Del repo, no de un script PHP en una ruta absoluta del home: aquél se movió a
+      // `creditop-woocommerce/tools/` el 2026-07-19 y estos specs quedaron apuntando a la nada. El del
+      // repo además resuelve el comercio contra la BASE —nada de hashes quemados— y usa un `order_key`
+      // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
+      const c = await contratoParaSpec('amoblar');
+      return c.checkout_path;
 }
 
 function queryLinkCount(userRequestId: string): number {
@@ -55,7 +61,7 @@ test("Ecommerce sin cookie: /checkout → (borra _session) → phone → OTP →
             "borra _session tras checkout; el flujo vive de erId-en-URL + by-user-request",
       )
             .step("Handshake checkout", "genera URL real → /ecommerce/{hash}/checkout?o=...", async () => {
-                  const path = buildCheckoutPath();
+                  const path = await buildCheckoutPath();
                   await page.goto(path);
                   // El checkout ya redirigió a /solicitar?amount&erId y seteó _session. Lo BORRAMOS:
                   await page.context().clearCookies({ name: "_session" });

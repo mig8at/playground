@@ -165,3 +165,26 @@ export async function vtexInit(
         checkout_path: u.pathname + u.search,
     };
 }
+
+/**
+ * El contrato del checkout como PARAMS, para los specs de `channel/`.
+ *
+ * Existe para sacarlos de `generate_checkout_url.php`, que era una dependencia con tres defectos:
+ * vivía en una ruta ABSOLUTA fuera del repo (y se movió, dejando specs apuntando a la nada), pedía
+ * `php` instalado, y sobre todo usaba un **`order_key` FIJO** — así que el `upsert` caía siempre en la
+ * MISMA fila de `ecommerce_requests` y, con `processed = 1` de una corrida vieja, la notificación al
+ * comercio ya no se disparaba. Es el mismo defecto que `ecommerceContract` documenta arriba y que
+ * resolvió con una clave única por corrida.
+ */
+export async function contratoParaSpec(merchantQ = 'amoblar', opciones: { processUrl?: string; amount?: number } = {}) {
+    if (opciones.processUrl) process.env.E2E_WEBHOOK_URL = opciones.processUrl;
+    const u = await buildEcommerceUrl(merchantQ, '', opciones.amount ?? 600_000);
+    const q = new URLSearchParams(u.checkout_path.split('?')[1]);
+    return {
+        hash: u.hash,
+        amount: u.amount,
+        o: q.get('o') ?? '', p: q.get('p') ?? '', t: q.get('t') ?? '',
+        u: q.get('u') ?? '', ps: q.get('ps') ?? '', config: q.get('config') ?? '',
+        checkout_path: u.checkout_path,
+    };
+}

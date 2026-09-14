@@ -60,29 +60,43 @@ de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/m
 | `dev/posthog-errores.ts` | **¿qué PANTALLAS del front se están rompiendo, y con qué?** el canal de LOGS agregado en dos cortes: por pantalla (DÓNDE: archivo + `loader`/`action` + error) y por patrón (QUÉ: los mensajes agrupados por PostHog, así 50 mensajes con distinto id cuentan como UN problema) — `make harness-posthog-errores [DIAS=7]`. ⚠ Sólo `staging` (los deploys de qa y de staging) y `production`: ni dev ni local tienen front desplegado. ⚠ El conteo es FRECUENCIA, no gravedad: un `ZodError` en el loader de una pantalla muy visitada suma más que una firma caída que le pasó a tres personas. Medido 2026-09-02, 3 días de prod: **2.123 `ZodError` del esquema del TEMA del comercio** (`data.colors.primary_color` en null) repartidos en 10 pantallas — es el mecanismo del punto 2 de **F-55** (el `catch` del loader que envuelve el tema del comercio redirige a `request-canceled`); y el loader de `request-canceled` con 82 errores, todos `DELETE /api/identity/request/<n>` → **403**, o sea la pantalla que cancela fallando al cancelar |
 | `dev/caminar-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-caminar CASOS='#hash:lender' CERRAR=1 MANUAL=1`). Es el tercer camino: `caso.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
 
-### Estado REAL de los specs del canal ecommerce (medido el 2026-09-14)
+### Los specs de `channel/` corrían contra DEV, no contra local (2026-09-14)
 
-Se corrieron los cinco de `channel/ecommerce-*`. **Dos están rotos en el archivo, uno no es una prueba,
-uno pasa, y dos no se pueden juzgar sin el front correcto.**
+> **MEDICIÓN · 2026-09-14** — ⚠⚠ **Sin `E2E_TARGET`, TODOS los specs de `channel/` escribían en el
+> ambiente COMPARTIDO.** `pkg/config.ts` arma `mockUrl` leyendo `.env.<target>` y `TARGET` por defecto
+> es **dev**, así que `config.mockUrl` resolvía a `http://legacy-backend.inertia-develop` — aunque el
+> docblock de `playwright.config.ts` dijera «el backend corre en localhost». Medido: una corrida de
+> `ecommerce-notify` creó allá el `ecommerce_request` **7331** mientras la base local iba por **6907**.
+> **Cómo se vuelve a comprobar:** `node -e "const {config}=await import('./pkg/config.ts'); console.log(config.mockUrl)"`
+> sin `E2E_TARGET` puesto.
 
-| spec | estado | qué pasa |
+⚠ **Y ahí no había red que lo frenara:** el guard `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) protege las
+escrituras que pasan por `pkg/db.ts`, **no las que van por la API** — que son justo las de estos specs.
+
+**Arreglado** fijando `process.env.E2E_TARGET ||= 'local'` en `playwright.config.ts`, que carga antes
+que cualquier spec. Con `||=` para poder apuntar a otro ambiente a propósito
+(`E2E_TARGET=qa npx playwright test …`).
+
+**Y los specs del canal quedaron sanos.** Estaban rotos por tres cosas distintas, ninguna de negocio:
+
+| spec | qué tenía | estado |
 |---|---|---|
-| `ecommerce-ui` | ✅ **pasa** (1,1 s) | API pura: que `create` exija el contrato completo |
-| `ecommerce-notify` | 🔴 **no carga** | `ReferenceError: resolve is not defined` — usa `resolve`/`dirname`/`fileURLToPath` **sin importarlos**. No llega a correr un solo test |
-| `ecommerce-no-cookie` | 🟠 **ruta podrida** | apunta a `~/Desktop/CREDITOP/github/generate_checkout_url.php`, que **no existe**: el script se movió a `creditop-woocommerce/tools/` el 2026-07-19 y este spec no se actualizó (el de `notify` sí, y por eso su comentario lo explica) |
-| `ecommerce-local-real` | 🟠 **hash quemado** | usa `17f7b360` fijo |
-| `ecommerce-prefill-demo` | ⚪ **no es prueba** | su propio encabezado dice «DEMO VISUAL (no es validación)»; `headless: false` + `slowMo: 650` |
+| `ecommerce-ui` | nada | ✅ pasa |
+| `ecommerce-notify` | usaba `resolve`/`dirname`/`fileURLToPath` **sin importarlos** → `ReferenceError` al cargar, y Playwright reportaba «No tests found», que se lee como «no hay pruebas» en vez de «están rotas» | ✅ pasa |
+| `ecommerce-no-cookie` | ruta ABSOLUTA a un `generate_checkout_url.php` que se movió al repo el 2026-07-19 | ✅ carga y corre; el paso del navegador pide la ruta nueva del front |
+| `ecommerce-local-real` | ídem + hash quemado (`17f7b360`) | ✅ ídem |
+| `ecommerce-prefill-demo` | — | ⚪ es una DEMO visual, lo dice su encabezado |
 
-⚠ **Y el confundidor que hay que nombrar antes de culpar a los specs:** los dos 🟠 fallan hoy porque el
-wizard de `:5174` sirve la rama que uno tenga abierta, y `/ecommerce/{hash}/checkout` **da 404** en
-cualquiera que no sea `develop` o la rama del PR. Su LÓGICA no quedó evaluada — lo que sí quedó probado
-es la podredumbre de sus rutas. Para juzgarlos de verdad hay que levantar el wizard de una rama que
-tenga la entrada.
+**Los tres dejaron de depender del script PHP externo**: ahora arman el contrato con
+`contratoParaSpec()` de `pkg/ecommerce.ts`, que vive en el repo, resuelve el comercio contra la BASE
+—nada de hashes quemados— y usa un **`order_key` único por corrida**. Eso último no es cosmético: con
+la clave fija del script, el `upsert` caía siempre en la MISMA fila y, una vez `processed = 1`, la
+notificación al comercio **ya no se disparaba**. Es la misma lección que `ecommerceContract` había
+aprendido y que estos specs no tenían.
 
-**Consecuencia práctica:** de la cobertura que parecía existir para este canal, hoy corre **una de
-cinco**. Eso es lo que hace que `dev/ecommerce.ts` no sea puro solapamiento — pero también lo que dice
-que la deuda está en `channel/`, y arreglar dos imports y una ruta es más barato que mantener dos
-caminos.
+⚠ **Lo que NO se pudo evaluar:** los dos specs de navegador necesitan `/ecommerce/{hash}/checkout`, que
+**sólo existe en `develop` y en la rama del PR** — en cualquier otra el wizard de `:5174` devuelve 404.
+Su lógica sigue sin ejercitarse hasta levantar el front correcto.
 
 ### El caminador del wizard tiene DOS motores, y la diferencia entre ellos ES el diagnóstico
 
