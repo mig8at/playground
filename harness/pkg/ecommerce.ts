@@ -176,9 +176,15 @@ export async function vtexInit(
  * comercio ya no se disparaba. Es el mismo defecto que `ecommerceContract` documenta arriba y que
  * resolvió con una clave única por corrida.
  */
-export async function contratoParaSpec(merchantQ = 'amoblar', opciones: { processUrl?: string; amount?: number } = {}) {
+export async function contratoParaSpec(
+    merchantQ = 'amoblar',
+    opciones: { processUrl?: string; amount?: number; phone?: string } = {},
+) {
     if (opciones.processUrl) process.env.E2E_WEBHOOK_URL = opciones.processUrl;
-    const u = await buildEcommerceUrl(merchantQ, '', opciones.amount ?? 600_000);
+    // `phone` viaja DENTRO del contrato (billing.phone) porque así funciona el canal: el comercio ya
+    // conoce al comprador y el wizard recibe el campo prellenado y BLOQUEADO. Un spec que necesite un
+    // celular único por corrida —lo son en `users`— tiene que ponerlo acá, no tipearlo en la pantalla.
+    const u = await buildEcommerceUrl(merchantQ, opciones.phone ?? '', opciones.amount ?? 600_000);
     const q = new URLSearchParams(u.checkout_path.split('?')[1]);
     return {
         hash: u.hash,

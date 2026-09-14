@@ -30,12 +30,14 @@ function freshPhone(): string {
       return `305${suffix}`;
 }
 
-async function buildCheckoutPath(): Promise<string> {
+async function buildCheckoutPath(phone?: string): Promise<string> {
       // Del repo, no de un script PHP en una ruta absoluta del home: aquél se movió a
       // `creditop-woocommerce/tools/` el 2026-07-19 y estos specs quedaron apuntando a la nada. El del
       // repo además resuelve el comercio contra la BASE —nada de hashes quemados— y usa un `order_key`
       // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
-      const c = await contratoParaSpec('amoblar');
+      // El celular va DENTRO del contrato: el input llega prellenado y bloqueado, así que es el
+      // único lugar donde el spec puede fijar uno único por corrida (son UNIQUE en `users`).
+      const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
       return c.checkout_path;
 }
 
@@ -61,7 +63,7 @@ test("Ecommerce sin cookie: /checkout → (borra _session) → phone → OTP →
             "borra _session tras checkout; el flujo vive de erId-en-URL + by-user-request",
       )
             .step("Handshake checkout", "genera URL real → /ecommerce/{hash}/checkout?o=...", async () => {
-                  const path = await buildCheckoutPath();
+                  const path = await buildCheckoutPath(phone);
                   await page.goto(path);
                   // El checkout ya redirigió a /solicitar?amount&erId y seteó _session. Lo BORRAMOS:
                   await page.context().clearCookies({ name: "_session" });
@@ -70,19 +72,28 @@ test("Ecommerce sin cookie: /checkout → (borra _session) → phone → OTP →
                   return `erId=${url.searchParams.get("erId")} · cookie _session borrado`;
             })
             .step("Monto", "prellenado del order + bloqueado; solo se confirma", async () => {
-                  const activar = page.getByRole("button", { name: /activar mi cr[ée]dito/i });
+                  // A mano y NO con `fillAmountStep`, a propósito: este spec necesita borrar el
+                  // cookie JUSTO ANTES del click, y el helper hace el click adentro.
+                  // El monto llega del carrito con el input `disabled`: no se escribe, se confirma.
+                  // «Confirmación de cupo» (omit-Experian) es OBLIGATORIO donde aparece: sin
+                  // contestarlo el submit nace deshabilitado y el paso muere estando todo bien.
+                  const cupo = page.getByRole("radio", { name: "No", exact: true });
+                  if (await cupo.isVisible().catch(() => false)) await cupo.click();
+                  const activar = page
+                        .getByTestId("amount-submit")
+                        .or(page.getByRole("button", { name: /iniciar solicitud|continuar/i }));
                   await expect(activar).toBeEnabled({ timeout: 20_000 });
                   await page.context().clearCookies({ name: "_session" });
                   await activar.click();
                   return "monto prellenado + bloqueado (sin cookie)";
             })
             .step("Teléfono", "register persiste OTP; sin cookie, erId va en la URL", async () => {
-                  const phoneBox = page.getByRole("textbox", { name: /celular|tel[ée]fono|n[úu]mero/i });
+                  // El celular viene del contrato del carrito y el input llega `readonly`: no se
+                  // tipea, se confirma. (Va en el contrato, en `buildCheckoutPath(phone)`.)
+                  const phoneBox = page.getByTestId("phone-input");
                   await expect(phoneBox).toBeVisible({ timeout: 20_000 });
-                  await phoneBox.click();
-                  await phoneBox.pressSequentially(phone, { delay: 30 });
                   await page.context().clearCookies({ name: "_session" });
-                  await page.getByRole("button", { name: /continuar|siguiente|enviar|activar/i }).click();
+                  await page.getByTestId("phone-submit").click();
                   await page.waitForURL(/\/otp(\?|$)/, { timeout: 20_000 });
                   const url = new URL(page.url());
                   expect(url.searchParams.get("erId"), "erId debe seguir en la URL del OTP").toBeTruthy();

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { decryptLaravelString } from '../pkg/laravel-crypt';
-import { fillAmountStep, fillEmploymentInfo, fillExpeditionDate } from '../channel/steps';
+import { fillAmountStep, fillEmploymentInfo, fillExpeditionDate, fillPhoneStep } from '../channel/steps';
 import { contratoParaSpec } from '../pkg/ecommerce';
 import { Flow } from '../pkg/flow';
 
@@ -32,12 +32,14 @@ function freshPhone(): string {
 }
 
 /** Corre generate_checkout_url.php y devuelve solo el path+query de la URL del wizard. */
-async function buildCheckoutPath(): Promise<string> {
+async function buildCheckoutPath(phone?: string): Promise<string> {
     // Del repo, no de un script PHP en una ruta absoluta del home: aquél se movió a
     // `creditop-woocommerce/tools/` el 2026-07-19 y estos specs quedaron apuntando a la nada. El del
     // repo además resuelve el comercio contra la BASE —nada de hashes quemados— y usa un `order_key`
     // ÚNICO por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
-    const c = await contratoParaSpec('amoblar');
+    // El celular va DENTRO del contrato: en ecommerce el input llega prellenado y bloqueado, así
+    // que es el único lugar donde un spec puede fijar uno único por corrida.
+    const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
     return c.checkout_path;
 }
 
@@ -71,22 +73,21 @@ test('Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP
         '/checkout → solicitar → amount → phone → OTP(real) → personal-info',
     )
         .step('Handshake checkout', 'genera la URL con generate_checkout_url.php → /ecommerce/{hash}/checkout?o=...', async () => {
-            const checkoutPath = await buildCheckoutPath();
+            const checkoutPath = await buildCheckoutPath(phone);
             await page.goto(checkoutPath);
             return checkoutPath;
         })
         .step('Monto', 'prellenado del order + bloqueado; solo se confirma', async () => {
-            const activar = page.getByRole('button', { name: /activar mi cr[ée]dito/i });
-            await expect(activar).toBeEnabled({ timeout: 20_000 });
-            await activar.click();
+            // El paso va por `fillAmountStep`, no a mano: el copy del botón cambió («activar mi
+            // crédito» → «Iniciar solicitud», medido el 2026-09-14 contra qa) y la pantalla ganó el
+            // selector OBLIGATORIO «Confirmación de cupo», sin el cual el submit nace deshabilitado.
+            await fillAmountStep(page);
             return 'monto prellenado + bloqueado';
         })
         .step('Teléfono', 'register persiste OTP cifrado en tabla otps', async () => {
-            const phoneBox = page.getByRole('textbox', { name: /celular|tel[ée]fono|n[úu]mero/i });
-            await expect(phoneBox).toBeVisible({ timeout: 20_000 });
-            await phoneBox.click();
-            await phoneBox.pressSequentially(phone, { delay: 30 });
-            await page.getByRole('button', { name: /continuar|siguiente|enviar|activar/i }).click();
+            // Viene del contrato y `readonly`: sólo se confirma. `fillPhoneStep` respeta el
+            // prellenado y devuelve el celular que de verdad quedará en la solicitud.
+            await fillPhoneStep(page, phone);
             await page.waitForURL(/\/otp(\?|$)/, { timeout: 20_000 });
             return `teléfono ${phone}`;
         })
@@ -145,7 +146,7 @@ test('Ecommerce LOCAL real (testids): /checkout → amount → phone → OTP →
         '/checkout → amount → phone → OTP → personal → laboral → /lenders',
     )
         .step('Handshake checkout', 'URL real desde generate_checkout_url.php', async () => {
-            const path = await buildCheckoutPath();
+            const path = await buildCheckoutPath(phone);
             await page.goto(path);
             return path;
         })
@@ -154,10 +155,9 @@ test('Ecommerce LOCAL real (testids): /checkout → amount → phone → OTP →
             return 'monto 600000';
         })
         .step('Teléfono', 'register → OTP cifrado en otps', async () => {
-            await expect(page.getByTestId('phone-input')).toBeVisible({ timeout: 20_000 });
-            await page.getByTestId('phone-input').click();
-            await page.getByTestId('phone-input').pressSequentially(phone, { delay: 30 });
-            await page.getByTestId('phone-submit').click();
+            // Mismo motivo que el monto: en ecommerce el celular viene del contrato y el input
+            // llega `readonly`. `fillPhoneStep` respeta el prellenado en vez de tipear encima.
+            await fillPhoneStep(page, phone);
             await page.waitForURL(/\/otp(\?|$)/, { timeout: 20_000 });
             return `teléfono ${phone}`;
         })

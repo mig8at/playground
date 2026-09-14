@@ -39,10 +39,22 @@ export async function fillAmountStep(
         .getByTestId('amount-input')
         .or(page.getByRole('textbox', { name: /monto/i }));
     await expect(input).toBeVisible({ timeout: 15_000 });
-    // Currency-masked input rejects `.fill()` intermittently. Type chars one
-    // by one so the masking layer receives each keystroke event.
-    await input.click();
-    await input.pressSequentially(amount, { delay: 30 });
+    // ⚠ El canal ECOMMERCE fija el monto desde el carrito: el input llega con valor y BLOQUEADO.
+    // No se escribe, sólo se confirma.
+    //
+    // Y el bloqueo NO se ve con `isEnabled()` / `isEditable()`: medido el 2026-09-14 contra qa, tras
+    // hidratar el input queda `disabled=false`, `readOnly=false` y **`pointer-events: none`**. Para
+    // Playwright está «visible, enabled and stable», así que intenta el click — y el click se lo
+    // come el `<div>` padre. El spec muere con un timeout de 10 s tras «done scrolling», que no se
+    // parece en nada a su causa. Por eso la guarda mira el VALOR, que es además lo semántico:
+    // si el monto ya vino, no hay nada que escribir.
+    const yaTraeMonto = ((await input.inputValue().catch(() => '')) ?? '').trim() !== '';
+    if (!yaTraeMonto) {
+        // Currency-masked input rejects `.fill()` intermittently. Type chars one
+        // by one so the masking layer receives each keystroke event.
+        await input.click();
+        await input.pressSequentially(amount, { delay: 30 });
+    }
     // "Confirmación de cupo" (feature omit-Experian): selector OBLIGATORIO en comercios habilitados
     // (check-if-able-to-omit → RKV26000). Si está presente hay que elegir para habilitar el submit;
     // default 'no' = flujo estándar (preserva el comportamiento de los specs previos).
@@ -62,10 +74,15 @@ export async function fillAmountStep(
 export async function fillPhoneStep(page: Page, phone?: string): Promise<string> {
     const value =
         phone ?? `300${Math.floor(Math.random() * 10_000_000).toString().padStart(7, '0')}`;
-    await expect(page.getByTestId('phone-input')).toBeVisible({ timeout: 15_000 });
-    await page.getByTestId('phone-input').fill(value);
+    const input = page.getByTestId('phone-input');
+    await expect(input).toBeVisible({ timeout: 15_000 });
+    // Igual que el monto: en ECOMMERCE el celular viene del contrato del carrito y el input llega
+    // `readonly`. Escribir ahí no falla con un mensaje útil — se cuelga. Si ya trae valor se respeta
+    // y se DEVUELVE ése, que es el que quedará en la solicitud.
+    const yaTrae = ((await input.inputValue().catch(() => '')) ?? '').trim();
+    if (yaTrae === '') await input.fill(value);
     await page.getByTestId('phone-submit').click();
-    return value;
+    return yaTrae === '' ? value : yaTrae;
 }
 
 export async function fillOtpStep(page: Page, code = '1234'): Promise<void> {
