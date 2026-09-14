@@ -1020,6 +1020,48 @@ pesa **lo mismo** en los dos repos de la casa.
 partición** (`lib/` por capa y `components/` por función, así que los cambios pagan el cruce) y **la
 ceremonia de la hexagonal** (15 use-cases pasamanos). Ninguna de las dos es de React ni de TypeScript.
 
+## 🔧 El eje de la partición, atacado — y el resultado fue MENOR de lo esperado (2026-09-13)
+
+Se movieron **nueve de trece servicios** de `lib/domain/services` a la carpeta de su funcionalidad.
+
+**Cómo se eligió, que es lo que hace defendible el movimiento:** no a dedo, sino del grafo. Un servicio
+puede mudarse **sólo si nadie de `lib/` lo importa** —`components → lib` está bien, `lib → components`
+no—, y eso se resuelve en cascada:
+
+| ronda | se mueven |
+|---|---|
+| 1 | `card-config` (tarjeta) · `lender-selection-outcome` · `marketplace-view` · `nequi-polling` |
+| 2 | `fallback-lender` · `lender-resolution` · `preapproval-gate` · `welli-shared-risk` |
+| 3 | `lender-approval` |
+
+Se quedan en `lib/` los cuatro que de verdad comparten: `lender-offer`, `lender-transaction-data`,
+`lender-action` y `holder-name`.
+
+⚠ **El dueño se derivó por SÍMBOLO, no por ruta**, y esto vale como método: el barrel tapa las
+dependencias —todos los componentes hacen `from "../../lib"`—, así que preguntar «quién importa este
+archivo» daba «nadie». Hubo que resolver qué símbolo del barrel usa cada funcionalidad.
+
+### El resultado, medido sobre los mismos 188 commits
+
+| | capas por commit | p90 | tocan una sola |
+|---|---|---|---|
+| antes | mediana 2 | **6** | 46% |
+| después | mediana 2 | **5** | 46% |
+
+**El p90 baja de 6 a 5 y lo demás no se mueve.** Es honestamente poco para el tamaño del cambio.
+
+**Por qué:** los commits que cruzan muchas capas también tocan `lib/domain/entities` y `lib/mappers`,
+que son **genuinamente compartidos** y no se pueden mudar sin duplicarlos. Mover los servicios era la
+parte fácil; la que movería la aguja es la de las entidades, **y ésa no tiene dueño único**.
+
+**Lo que sí se gana, y no está en ese número:** `components/available-lenders/` pasó de 19 a 21
+archivos y ahora contiene su propia lógica; `lender-card/` idem. Abrir la carpeta de una funcionalidad
+y ver todo lo suyo tiene valor aunque el p90 no lo registre.
+
+⚠ **Un susto propio:** `biome --write --unsafe` sobre `apps/storybook` reformateó **140 archivos** que
+no tenían nada que ver. Se revirtieron todos (ninguno importaba lo movido). **Acotar el alcance de
+`--unsafe` no es opcional** — es la segunda vez en esta tarea que `--unsafe` hace de más.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
