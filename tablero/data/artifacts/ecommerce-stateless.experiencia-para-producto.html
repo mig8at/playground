@@ -149,6 +149,19 @@
              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:42%}
   .dato.off .nom,.dato.off .val{color:var(--ink-3);text-decoration:line-through;text-decoration-thickness:1px}
 
+  /* El requisito del comercio es otra clase de interruptor que los seis datos:
+     no es "nos lo manda", es "lo pide". Va separado para que no se lea como uno más. */
+  .exige{
+    display:flex;flex-direction:column;gap:6px;padding:12px 13px;
+    border:1px dashed var(--line-2);border-radius:4px;
+  }
+  .exige .dato{padding:0;cursor:pointer}
+  .exige .dato:hover{background:transparent}
+  .exige .dato input:checked{background:var(--friction);border-color:var(--friction)}
+  .exige .dato input:checked::after{border-left-color:var(--surface);border-bottom-color:var(--surface)}
+  .nota-exige{font-size:12.5px;line-height:1.42;color:var(--ink-3)}
+  .nota-exige b{color:var(--friction);font-weight:600}
+
   .marcador{
     display:flex;flex-direction:column;gap:3px;padding:15px 16px;border-radius:4px;
     background:var(--accent-soft);border:1px solid transparent;
@@ -250,16 +263,17 @@
   .opcion.bloqueada .cuota{color:var(--friction)}
 
   /* ── pasos ─────────────────────────────────────────────────────── */
-  .pasos{display:grid;grid-template-columns:repeat(4,1fr);gap:0}
-  @media (max-width:760px){ .pasos{grid-template-columns:1fr 1fr} }
-  @media (max-width:440px){ .pasos{grid-template-columns:1fr} }
+  .pasos{display:grid;grid-template-columns:repeat(3,1fr);gap:0}
+  @media (max-width:760px){ .pasos{grid-template-columns:1fr} }
   .paso-c{
     display:flex;flex-direction:column;gap:7px;padding:20px 20px 20px 0;
     border-left:1px solid var(--line);padding-left:20px;
   }
   .paso-c .n{
-    font-family:var(--mono);font-size:11.5px;color:var(--accent);letter-spacing:.09em;font-weight:500;
+    font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.07em;font-weight:500;
+    text-transform:uppercase;
   }
+  .paso-c p b{color:var(--ink);font-weight:600}
   .paso-c h3{font-size:16px}
   .paso-c p{font-size:14px;color:var(--ink-2);line-height:1.46}
 
@@ -362,6 +376,18 @@
       <div class="consola">
         <p class="eyebrow">Lo que esta tienda nos entrega</p>
         <div class="datos" id="datos"></div>
+
+        <div class="exige">
+          <label class="dato" for="dato-expedicion" style="background:transparent">
+            <input type="checkbox" id="dato-expedicion">
+            <span class="nom">Exige fecha de expedición</span>
+          </label>
+          <p class="nota-exige">
+            No es un dato que la tienda pueda darnos: <b>ninguna tienda lo tiene</b>. Donde el comercio
+            lo exige, siempre lo escribe el comprador.
+          </p>
+        </div>
+
         <div class="marcador" id="marcador">
           <span class="cifra" id="cifra">0 campos</span>
           <span class="glosa" id="glosa"></span>
@@ -387,7 +413,7 @@
         <div class="widget">
           <div class="w-barra">
             <span class="t">Paga a cuotas con CreditOp</span>
-            <span class="paso" id="w-paso">Paso 3 de 4</span>
+            <span class="paso" id="w-paso">Paso 2 de 3</span>
           </div>
           <div class="w-cuerpo">
             <p class="w-intro" id="w-intro"></p>
@@ -399,7 +425,7 @@
         <div class="widget" style="border-color:var(--line)">
           <div class="w-barra" style="background:var(--surface-2);color:var(--ink)">
             <span class="t">Tus opciones</span>
-            <span class="paso" style="opacity:.6">Paso 4 de 4</span>
+            <span class="paso" style="opacity:.6">Paso 3 de 3</span>
           </div>
           <div class="w-cuerpo">
             <div class="opciones">
@@ -428,26 +454,28 @@
   <section>
     <div class="sec-head">
       <p class="eyebrow">La experiencia completa</p>
-      <h2>Cuatro pasos, y dos de ellos son automáticos</h2>
+      <h2>Tres pasos, y sólo uno es obligatorio</h2>
     </div>
     <div class="pasos">
       <div class="paso-c">
-        <span class="n">Paso 1</span>
-        <h3>Confirma su celular</h3>
-        <p>Ya viene del pedido, así que sólo lo ve y sigue. Si la tienda no nos lo manda, lo escribe.</p>
+        <span class="n">Paso 1 · siempre</span>
+        <h3>Valida su celular</h3>
+        <p>
+          Ve su número —ya viene del pedido— y confirma el código que le llega por SMS. Son dos
+          pantallas, pero un solo momento. <b>Es el único paso que no se puede evitar:</b> es lo que
+          prueba que el celular es suyo.
+        </p>
       </div>
       <div class="paso-c">
-        <span class="n">Paso 2</span>
-        <h3>Recibe un código</h3>
-        <p>Le llega por SMS y lo confirma. Es el único paso que no se puede evitar: es lo que prueba que el celular es suyo.</p>
-      </div>
-      <div class="paso-c">
-        <span class="n">Paso 3</span>
+        <span class="n">Paso 2 · depende de la tienda</span>
         <h3>Completa lo que falte</h3>
-        <p>Y sólo eso. Si la tienda nos dio los seis datos, esta pantalla no le pide nada: le muestra lo que ya sabemos y sigue.</p>
+        <p>
+          Y sólo eso. Si la tienda nos dio los seis datos y no exige fecha de expedición, esta
+          pantalla no le pide nada: le muestra lo que ya sabemos y sigue.
+        </p>
       </div>
       <div class="paso-c">
-        <span class="n">Paso 4</span>
+        <span class="n">Paso 3 · siempre</span>
         <h3>Ve sus opciones</h3>
         <p>En la misma ficha del producto, sin haber cambiado de página ni una vez.</p>
       </div>
@@ -514,9 +542,13 @@
         <div class="cuerpo">
           <h3>¿Quién carga con el dato que nunca viene?</h3>
           <p>
-            Algunos comercios exigen la fecha de expedición del documento. Esa nunca la tiene una
-            tienda, así que siempre la escribe el comprador. Vale decidir si ese requisito se mantiene
-            en el canal ecommerce o se resuelve de otra forma.
+            Algunos comercios exigen la fecha de expedición del documento, y ninguna tienda la tiene:
+            no existe en ningún checkout. Es el interruptor de arriba — prendelo y vas a ver que la
+            experiencia perfecta se cae aunque la tienda nos haya dado los seis datos.
+          </p>
+          <p class="dato-duro">
+            <b>Es el único campo que no se puede resolver con datos del comercio.</b> O se saca del
+            canal ecommerce, o se acepta que ahí el comprador siempre escribe algo.
           </p>
         </div>
       </div>
@@ -547,6 +579,11 @@
       ];
 
       const entrega = Object.fromEntries(DATOS.map((d) => [d.id, true]));
+
+      // La fecha de expedición no es un dato que la tienda pueda darnos: no existe en
+      // ningún checkout. Es un REQUISITO del comercio, así que es otro interruptor:
+      // cuando está prendido, siempre lo escribe el comprador.
+      let exigeExpedicion = false;
 
       const $ = (id) => document.getElementById(id);
 
@@ -608,16 +645,38 @@
                   rejilla.appendChild(celda);
             }
 
-            const faltan = enPantalla.filter((d) => !entrega[d.id]);
-            const sinCelular = !entrega.celular;
+            // La fecha de expedición se pinta aparte porque nunca llega de la tienda:
+            // cuando el comercio la exige, es siempre un campo a escribir.
+            if (exigeExpedicion) {
+                  const celda = document.createElement("div");
+                  celda.className = "celda ancho";
+                  const cab = document.createElement("div");
+                  cab.className = "cab";
+                  const lab = document.createElement("label");
+                  lab.textContent = "Fecha de expedición del documento";
+                  const sello = document.createElement("span");
+                  sello.className = "sello pide";
+                  sello.textContent = "lo escribe";
+                  cab.append(lab, sello);
+                  const caja = document.createElement("div");
+                  caja.className = "caja vacia";
+                  caja.textContent = "Día / mes / año";
+                  celda.append(cab, caja);
+                  rejilla.appendChild(celda);
+            }
+
+            const faltan = enPantalla.filter((d) => !entrega[d.id]).map((d) => d.rotulo.toLowerCase());
+            if (exigeExpedicion) faltan.push("fecha de expedición");
 
             $("w-intro").innerHTML = faltan.length === 0
                   ? "Estos datos vienen de tu compra en <b>Amoblando Pullman</b>. Revisalos y seguí."
                   : "Estos datos vienen de tu compra en <b>Amoblando Pullman</b>. Nos falta " +
-                    listar(faltan.map((d) => d.rotulo.toLowerCase())) + " para continuar.";
+                    listar(faltan) + " para continuar.";
 
             $("w-boton").textContent = faltan.length === 0 ? "Confirmar y ver mis opciones" : "Continuar";
-            $("w-paso").textContent = sinCelular ? "Paso 3 de 4 · antes pidió su celular" : "Paso 3 de 4";
+            $("w-paso").textContent = entrega.celular
+                  ? "Paso 2 de 3"
+                  : "Paso 2 de 3 · antes pidió su celular";
       }
 
       function listar(xs) {
@@ -626,19 +685,27 @@
       }
 
       function pintarMarcador() {
-            // Cuántos campos escribe de verdad el comprador: los cinco de la pantalla
-            // de datos, más el celular si la tienda tampoco lo manda.
-            const n = DATOS.filter((d) => !entrega[d.id]).length;
+            // Cuántos campos escribe de verdad el comprador: los que la tienda no manda,
+            // más la fecha de expedición si el comercio la exige (esa nunca llega).
+            const n = DATOS.filter((d) => !entrega[d.id]).length + (exigeExpedicion ? 1 : 0);
             const marcador = $("marcador");
             marcador.className = "marcador" + (n > 0 ? " hay-friccion" : "");
             $("cifra").textContent = n === 0 ? "Ni un campo" : (n === 1 ? "1 campo" : n + " campos");
 
             const identidadFalta = DATOS.some((d) => d.clave && !entrega[d.id]);
-            $("glosa").textContent = n === 0
-                  ? "El comprador sólo confirma el código que le llega por SMS. Es la experiencia completa."
-                  : (identidadFalta
-                        ? "Los tiene que escribir el comprador. Y sin el documento no podemos identificarlo, así que la entidad del propio comercio no aparece en la lista."
-                        : "Los tiene que escribir el comprador antes de ver sus opciones.");
+            let glosa;
+            if (n === 0) {
+                  glosa = "El comprador sólo confirma el código que le llega por SMS. Es la experiencia completa.";
+            } else if (identidadFalta) {
+                  glosa = "Los tiene que escribir el comprador. Y sin el documento no podemos " +
+                          "identificarlo, así que la entidad del propio comercio no aparece en la lista.";
+            } else if (exigeExpedicion && n === 1) {
+                  glosa = "La tienda nos dio todo lo que puede darnos. Lo que queda es el requisito " +
+                          "del comercio, y ése no hay tienda que lo cubra.";
+            } else {
+                  glosa = "Los tiene que escribir el comprador antes de ver sus opciones.";
+            }
+            $("glosa").textContent = glosa;
       }
 
       function pintar() {
@@ -646,6 +713,13 @@
             pintarFormulario();
             pintarMarcador();
       }
+
+      // Vive fuera de #datos (es otra clase de interruptor), así que pintarConsola
+      // no lo rehace y el listener se engancha una sola vez.
+      $("dato-expedicion").addEventListener("change", (ev) => {
+            exigeExpedicion = ev.target.checked;
+            pintar();
+      });
 
       $("w-boton").addEventListener("click", () => {
             const faltan = DATOS.filter((d) => d.id !== "celular" && !entrega[d.id]);
