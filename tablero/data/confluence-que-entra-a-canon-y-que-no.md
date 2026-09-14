@@ -1,7 +1,7 @@
 ---
 id: 79
 title: "Confluence: qué entra a canon y qué no"
-stage: work
+stage: done
 created: "2026-09-14T18:00:00-05:00"
 context_nodes: []
 jira: []
@@ -11,14 +11,21 @@ ramas:
 
 ## Si retomás esto sin contexto, empezá acá
 
-Confluence tiene **228 páginas** (204 en el espacio Creditop + 24 repartidas en siete espacios de
-proveedores). Este archivo dice **cuáles pueden entrar al corpus técnico y cuáles no**, con el criterio
-y con lo que ya se cosechó. El acceso es `make confluence CMD='…'`; la búsqueda es **AND sobre todos
-los términos**, así que una frase de cinco palabras devuelve cero y parece que no hay nada.
+**Barrido cerrado el 2026-09-14.** Confluence tiene **228 páginas** (204 en el espacio Creditop + 24 en
+siete espacios de proveedores). Se revisaron todas por título y por su línea de estado, se leyeron **15
+candidatas** y entraron **8 secciones** al corpus técnico, todas verificadas contra `origin/main` antes
+de escribirse. El banco quedó quieto en 96/115 y 115/115 en las ocho.
+
+Lo que queda de esta tarea **no es hacer otra pasada**: es el criterio, que está abajo, para cuando
+aparezca una página nueva. Y una deuda que no es de acá: los cuatro hallazgos de seguridad.
+
+El acceso es `make confluence CMD='…'`; la búsqueda es **AND sobre todos los términos**, así que una
+frase de cinco palabras devuelve cero y parece que no hay nada.
 
 ⚠ **El token vive en `context/.env`** con los nombres `CONFLUENCE_URL · CONFLUENCE_EMAIL ·
 CONFLUENCE_TOKEN`. El 2026-09-14 estaba puesto en otro archivo y con otros nombres
-(`ATLASSIAN_API_TOKEN` en el `.env` de canon), así que la herramienta decía que había vencido.
+(`ATLASSIAN_API_TOKEN` en el `.env` de canon), así que la herramienta decía que había vencido — y el
+diagnóstico que imprime es correcto, el token estaba bien.
 
 ## La regla, en una línea
 
@@ -111,3 +118,31 @@ el depósito haya dicho que salió bien». La sección nueva apunta a ésa en ve
 4. **Verificar cada afirmación contra `origin/main`**, y verificar también **quién consume** el dato —
    ahí fue donde la fuente se equivocaba.
 5. Escribir el mecanismo, declarar el área con sus archivos y hashes, y pasar la compuerta.
+
+## Registro
+
+### 2026-09-14 · la cosecha completa, en cuatro tandas
+
+*(⚠ `ramas:` queda vacío a propósito. Ese campo es un PATRÓN que el medidor cruza contra los repos de
+la compañía, y este trabajo fue entero en el repo compartido —cuatro ramas de canon, las cuatro
+mergeadas y borradas—, que ese medidor no sigue. Declararlo daría una medición vacía que se lee como
+«no llegó a ninguna rama», que es peor que no declarar nada.)*
+
+Ocho secciones, todas contra `origin/main`. Por orden: el perfilamiento que no corre fuera de
+producción y la foto que omite sub-reglas (`listado`); la cascada del porcentaje de cuota inicial
+(`cuota`); el hilo entre microservicios (`observabilidad`); el origen del onboarding (`onboarding`) y el
+grafo de burós (`kyc`); el vencimiento que nadie avisa (`credenciales`) y el callejón del girador
+(`formalizacion`), más una línea dentro de una sección que ya existía (`smartpay`).
+
+**Lo que más vale de todo esto no son las secciones: es que el código corrigió a la documentación en
+las CUATRO tandas, sin una sola excepción.** El grafo que la página daba por leído de la base y llega
+como entrada; `hard_rules` presentado como si decidiera cuando sólo registra; el desbloqueo del equipo
+dado por inmediato cuando es una pasada diaria; la tercera tabla de credenciales que nadie contaba.
+Confluence sirve para saber **dónde mirar**, no como fuente.
+
+⚠ **Y el paso 0 —¿ya está?— evitó dos duplicados y la vez que no lo hice costó revertir una sección
+entera** sobre el bloqueo de equipos que habría competido en el ranking contra una explicación más
+completa que ya estaba escrita. Va primero, siempre.
+
+**Pendiente que no es de esta tarea:** los cuatro `Hallazgo 0x` de seguridad, listados arriba sin su
+contenido a propósito. Van por el canal de seguridad.
