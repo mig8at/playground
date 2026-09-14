@@ -81,6 +81,70 @@ funcionando actualmente*» — que es la definición de esta tarea. Hoy vive com
 abierta escrita adentro. **Queda por decidir si se unifican** (el propio archivo dice cómo: poner
 `CORE-30` en el `jira:` de acá y borrarlo). Los dos issues están hoy en **🧪 En pruebas**.
 
+## Los CUATRO PRs de la migración, y qué rescatar (2026-09-14)
+
+> **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
+> **dos piezas que no existen hoy en ningún lado**.
+> **Cómo se vuelve a comprobar:** `gh pr view <n> --json state,baseRefName,files` en cada repo, y
+> `git grep "ecommerce-check" main` / `git ls-tree -r --name-only origin/develop …/routes/ | grep waiting`.
+
+| PR | estado | base | tamaño | qué es |
+|---|---|---|---|---|
+| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🟠 **ABIERTO** | ← **main** | 15 arch · +295/−31 | «checkout integration», abril |
+| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🟠 **ABIERTO** | ← develop | 15 arch · +342/−57 | idem, front |
+| `legacy-backend` [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) | ✅ merged | ← develop | 4 arch · +131/−5 | endpoints de contexto stateless |
+| `frontend-monorepo` [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | ✅ merged | ← develop | 21 arch · +585/−31 | entrada stateless |
+
+*(Corrige lo que decía este archivo: «quedaron sin merge» se leía como cerrados. Están abiertos, y #503
+apunta a `main` directo.)*
+
+**Cuál resuelve mejor: junio (#795+#551), y la razón está en el código de abril.**
+`checkout-redirection.tsx` de #363 guarda el contexto en una **cookie**
+(`session.set("ecommerce_session", {…})`) — exactamente la cookie que se perdía cruzando hosts y que
+motivó el enfoque stateless. Abril no está superado por estilo: lo está por el bug que lo originó.
+
+**Lo rescatable, y es concreto — dos piezas que NO están ni en `main` ni en `origin/develop`:**
+1. **Backend #503**: `GET loans/ecommerce-check/{user_request_id}` → `AdvisorStatusController@checkLoanStatus`
+   (38 líneas). Verificado: `git grep "ecommerce-check" main` no devuelve nada.
+2. **Front #363**: `ecommerce-continue.tsx` montado en la ruta **`waiting-room`** (90 líneas) — polling
+   cada 5 s hasta `user_request_status_id === 11`, y al aprobar pinta `RequestStatus`.
+
+Juntas son **la sala de espera del veredicto**, y hoy eso existe **sólo para Bancolombia**
+(`bancolombia/ecommerce/ecommerce-loan-processing.tsx`). Engancha con lo medido en prod: **2.167
+solicitudes del monolito quedan en estado 3 «Seleccionó entidad»** — eligieron entidad y no volvieron.
+Ese es el hueco que la sala de espera tapa.
+
+El resto de #503 (TusDatos, DocumentSigning, OtpValidation, RequestCompletion, AlliedProductService,
+Experian, BancolombiaBnpl) son cambios dispersos de abril: hay que revisarlos uno por uno contra `main`
+antes de rescatarlos — buena parte probablemente ya llegó por otras vías.
+
+### El redirect de borde en `aliados.creditop.com/checkout/*`
+
+Lo verificado que **da la razón** a la propuesta: el prerrequisito bloqueante es real
+(`/ecommerce/{hash}/checkout` está en `origin/develop`, **no en `main`** → 404 en prod); el 302 y el
+query verbatim son correctos, y el código ya lo asume — el monolito documenta que reenvía
+`getQueryString()` con los `+` como `%20` y que legacy los revierte aguas abajo
+(`str_replace(' ', '+', …)` en `unserializeCreateEcommerceRequest`). Re-encodear en el borde rompería
+el base64.
+
+⚠ **Lo que falta en la propuesta: la regla `/checkout/*` SECUESTRA a Corbeta.** El monolito no manda a
+todos al mismo destino — para los allieds `[24,209,210,211,311]` llama a `buildLegacyCheckoutRedirectUrl`,
+que resuelve `NewFrontendUrlService::ecommerceResolveCheckout` (→ `/bancolombia/ecommerce/resolve-checkout`)
+o cae a `legacy-api.creditop.com/api/onboarding/checkout/{hash}`. Un 302 de borde plano los mandaría a la
+entrada **genérica**, que no conoce el flujo Corbeta — y ése es justo el tráfico que funciona: **2.583
+checkouts al 18,7 %** contra el 1,9 % del resto.
+
+**Hashes de sucursal a excluir** (los que tienen credencial ecommerce, medido en prod):
+`f61bb559` Alkosto (2.193 checkouts/6m) · `9909ad59` Alkomprar (142) · `88cbd88b` K-TRONIX (138) ·
+`b8e4f63b` Kalley (110) · y los de Creditop 24 sin tráfico: `bb534d6a`, `96f5da12`, `eeddcc1c`,
+`638bd7f1`, `4e803739`, `d9c122ff`.
+
+✔ **Y un dato que reduce el alcance del problema:** el plugin de Woo **ya está migrado** — su ajuste
+`base_url` tiene por defecto `https://originaciones.creditop.com` y arma el path nuevo
+`/ecommerce/{hash}/checkout` (v1.0.20, `class-creditop-gateway.php:508`). El redirect de borde es para
+la **base instalada vieja**, que es exactamente el planteo; pero conviene decirlo, porque abre una
+segunda palanca (empujar la actualización del plugin) para los comercios que sí actualizan.
+
 ## Hilo nuevo (2026-09-14): ¿y si el flujo sale de CreditOp y entra a la tienda?
 
 La pregunta que abrió este hilo es de la parte ecommerce: **que el comprador no se vaya de la tienda**.
@@ -271,6 +335,9 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 
 ## Pendientes
 - [ ] **Promover #551 (front) a main** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
+- [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en main ni develop, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
+- [ ] **Cerrar o reabastecer #503 y #363** — siguen ABIERTOS. Lo demás de #503 hay que revisarlo archivo por archivo contra main antes de rescatar.
+- [ ] **Redirect de borde en `aliados.creditop.com/checkout/*`** — pedido a Infra, 302 con query verbatim. ⚠ Bloqueado por que `/ecommerce/{hash}/checkout` llegue a `main`, y **tiene que excluir los hashes de Corbeta** o secuestra el tráfico que hoy convierte al 18,7 %. Lista de hashes en §«Los CUATRO PRs».
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
 - [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
