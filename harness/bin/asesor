@@ -173,7 +173,13 @@ if [ "$ECOMMERCE" = 1 ]; then
     log "return_url → tienda mock (shim :${MOCK_REDIRECT_PORT:-8096}/return)"
   fi
   # || true: si el comercio NO tiene credencial ecommerce, dbops sale 1 → llegamos al mensaje claro de abajo.
-  EURL="$(node bin/dbops.ts ecommerce-url "$MERCHANT" "$BYPASS_PHONE" 2>/dev/null)" || true
+  #
+  # El MONTO del panel va como 3er argumento, y la identidad viaja por las E2E_SYNTH_* que el panel ya
+  # exporta (las lee `identidadDelCaso()` en pkg/ecommerce.ts). Sin esto el contrato salía con los
+  # valores fijos del helper —CC 1032456789 · SYNTH ECOM · $600.000— y el canal dejaba de probar EL
+  # CASO que elegiste: el panel anunciaba una identidad y un monto, y por la tienda entraba otro.
+  # Medido el 2026-09-14: panel «CC 2941056394 · $2.000.000» → contrato «CC 1032456789 · $600.000».
+  EURL="$(node bin/dbops.ts ecommerce-url "$MERCHANT" "$BYPASS_PHONE" "${E2E_AMOUNT:-}" 2>/dev/null)" || true
   ECHASH="$(printf '%s' "$EURL" | json_pick '.hash')"
   ECPATH="$(printf '%s' "$EURL" | json_pick '.checkout_path')"
   [ -n "$ECHASH" ] && [ -n "$ECPATH" ] || { echo "✗ '$MERCHANT' no tiene checkout ecommerce (sin credencial). Usá bin/asesor (login de asesor)."; exit 1; }

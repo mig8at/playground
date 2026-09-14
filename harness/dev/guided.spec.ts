@@ -860,6 +860,15 @@ test('guided (semiautomático)', async ({ browser }) => {
         // El pedido lleva EL MISMO usuario sintético que definiste en el panel. Ese es el punto del
         // canal: no cambia el caso, cambia la PUERTA — así podés correr la misma identidad entrando por
         // asesor y por tienda, y comparar. Los campos salen de las E2E_SYNTH_* que setea el panel.
+        //
+        // ⚠ OJO AL LEER ESTO: cuando venís del panel, este `pedido` NO es el que viaja. `bin/asesor`
+        // ya armó el contrato y exportó `E2E_CHECKOUT_URL`, que gana en la línea de abajo. El caso
+        // igual llega, pero por el otro camino: `identidadDelCaso()` en `pkg/ecommerce.ts` lee las
+        // mismas E2E_SYNTH_*, y el monto va como 3er argumento de `dbops ecommerce-url`.
+        // `urlCheckout(HASH, pedido)` es el camino de abajo: sólo corre si NADIE armó la URL antes.
+        // Hasta el 2026-09-14 el de arriba ignoraba el caso y este comentario describía algo que no
+        // pasaba — el panel decía «CC 2941056394 · $2.000.000» y por la tienda entraba
+        // «CC 1032456789 · $600.000», sin un solo error a la vista.
         const nombre = (process.env.E2E_SYNTH_NAME || 'SYNTH TEST USER').trim().split(/\s+/);
         const pedido = {
             total: Number(AMOUNT) || 1_500_000,

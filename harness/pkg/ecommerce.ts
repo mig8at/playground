@@ -61,6 +61,31 @@ export function ecommerceContract(hash: string, token: string, phone: string, pr
 
 export interface EcommerceUrl { merchant: string; hash: string; amount: number; phone: string; checkout_path: string; }
 
+/**
+ * La identidad que el COMERCIO dice conocer del comprador — la que viaja en `billing` y que el wizard
+ * usa para prellenar (y bloquear) el formulario.
+ *
+ * Sale del caso del panel (`E2E_SYNTH_*`) cuando lo hay. Antes era fija, y eso rompía en silencio lo
+ * único que el canal promete: correr LA MISMA identidad por la puerta del asesor y por la de la tienda
+ * para poder compararlas. El panel decía «CC 2941056394 · SYNTH TEST USER» y por la tienda entraba
+ * «CC 1032456789 · SYNTH ECOM» — dos personas distintas, y ningún error a la vista.
+ *
+ * `E2E_DOC` gana sobre el caso a propósito: es el override por corrida de `dev/ecommerce.ts`, que
+ * necesita un documento nuevo cada vez (son UNIQUE en `users`).
+ */
+export function identidadDelCaso(): PersonalInfo {
+    const partes = (process.env.E2E_SYNTH_NAME || '').trim().split(/\s+/).filter(Boolean);
+    const doc = process.env.E2E_DOC || process.env.E2E_SYNTH_DOC || '1032456789';
+    return {
+        docType: process.env.E2E_SYNTH_DOCTYPE || 'CC',
+        doc,
+        name: partes[0] || 'SYNTH',
+        surname: partes.slice(1).join(' ') || 'ECOM',
+        // El default sigue el documento para que dos casos distintos no compartan correo: es UNIQUE.
+        email: process.env.E2E_SYNTH_EMAIL || (partes.length ? `synth-${doc}@creditop.com` : 'synth-ecom@creditop.com'),
+    };
+}
+
 /** Arma la URL del CHECKOUT que abre el wizard: /ecommerce/{hash}/checkout?o=…&t=… Port de opEcommerceURL. */
 export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 0): Promise<EcommerceUrl> {
     const branches = await listEcommerce(merchantQ);
@@ -80,7 +105,7 @@ export async function buildEcommerceUrl(merchantQ: string, phone = '', amount = 
     const amt = amount || 600000;
     // billing del contrato → pre-llena (y bloquea) el form personal-info del wizard. document_number configurable
     // con E2E_DOC (default sintético). En el harness, synthFill luego fija el doc real del user para el buró.
-    const p: PersonalInfo = { docType: 'CC', doc: process.env.E2E_DOC || '1032456789', name: 'SYNTH', surname: 'ECOM', email: 'synth-ecom@creditop.com' };
+    const p: PersonalInfo = identidadDelCaso();
     // process_url al que el backend notifica al sellar Estado 11 (configurable con E2E_WEBHOOK_URL).
     // ecommerce_id=1 (Woo) concatena el order_identifier al process_url → normalizamos con '/' final
     // para que un receptor tipo webhook.site capture la notificación en .../{token}/{orderId}.
