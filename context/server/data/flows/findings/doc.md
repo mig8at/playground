@@ -158,6 +158,9 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la consulta de actividad reciente da CERO filas» / un timestamp que se lee 5 h en el futuro** | **F-183** |
 | **«volví atrás y el monto cambió» / la entidad cotiza sobre el valor del vehículo** | **F-185** |
 | **«la solicitud aparece Negada y nadie la negó»** | **F-186** |
+| **«no hay entidades para vos» con el comercio bien cableado** | **F-214** |
+| **«la pantalla se ve bien pero el botón no hace nada»** · un 404 del wizard | **F-215** |
+| **«el endpoint da 500 y sin embargo todo funciona»** / un ambiente que decide por otro camino | **F-216** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -359,6 +362,9 @@ distinto según con qué pregunta llegues.
 | F-211 | Los backends de dev y qa tienen concurrencia efectiva UNO: el rendimiento es plano (~1,2 req/s) y la latencia crece lineal con los concurrentes. Todo tiempo medido ahí incluye la cola | ABIERTO |
 | F-212 | El backend acepta `plans` o `terms` en el `calculator` y el front sólo lee `plans`: un RTO configurado como dice el docblock queda con la tarjeta muda, sin error | ABIERTO |
 | F-213 | El `next_step` de la telemetría lo calcula un ESPEJO del árbol de decisión, no el árbol: ya divergieron y las 3 entidades de gestión manual se reportan mal | ARREGLADO ⏳ pendiente de merge |
+| F-214 | Con `flow_id=2` (cupo ya confirmado) el listado se recorta a `rt=0`: en un comercio sin ninguna, la pantalla queda vacía y sin salida. El cableado está sano | ABIERTO · por diseño |
+| F-215 | En un 404 el root emite `window.ENV = undefined` y `entry.client` lo lee sin `?.`: la hidratación muere y la página queda muerta. En `main` y `qa` | ABIERTO |
+| F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
 
 ---
 
@@ -4838,3 +4844,89 @@ lleva esa red: es una decisión, no una limpieza.
 **Y de paso salió una rama de menos.** Al leer los cuerpos para migrarlos, «modal con url para copiar» y
 «modal de proceso» resultaron devolver el MISMO objeto, con un `url` contra `url || ""` de diferencia.
 Eran un solo caso —un mensaje con url opcional—: once ramas quedaron en diez.
+
+
+### F-214 · «No encontramos una opción para ti» con el comercio bien cableado: el flujo de cupo confirmado deja SOLO las entidades sin integración
+
+**Síntoma.** El cliente llega a `/lenders` y ve la pantalla vacía («Por el momento no contamos con una
+entidad financiera que se ajuste a tus necesidades»). El comercio tiene entidades activas, el monto
+está en rango y el mismo comercio lista bien por otro camino.
+
+**Causa raíz.** `LenderListingController::filterLendersByResponseTypeForFlow` (legacy-backend,
+`Modules/Onboarding`): si la solicitud tiene `flow_id = 2` —*already-confirmed-pre-approval*, el que se
+enciende al contestar **«Sí»** en «Confirmación de cupo»— el listado se recorta a `response_type = 0` y
+se descarta **toda** entidad integrada. Es intencional: la premisa declarada es que quien entra por ahí
+ya tiene una preaprobación *de una entidad no integrada*. Si el comercio no tiene ninguna `rt=0`
+cableada, el filtro deja cero y la pantalla queda sin salida — y el cliente no tiene cómo volver a
+cambiar su respuesta.
+
+**Evidencia.** Verificado el 2026-09-14 por los dos lados. En el código, el filtro y su propia
+advertencia de deuda técnica (`! WARNING (technical debt 16-07-2026)`). Corriendo: la sucursal
+`13874eb6` tiene 4 entidades —Sistecrédito, los dos Bancolombia (`rt=1`) y CrediPullman (`rt=2`)—, **cero
+`rt=0`**; con `flow_id=2` el listado sale vacío y, con el mismo comercio y el mismo monto sin ese flujo,
+`make harness-listado` devuelve las 4. En la base **local**, 26 de 40 sucursales con checkout ecommerce
+están en esa situación (local no es prod: sirve para decir que no es un caso aislado, no como cifra).
+
+⚠ **La trampa al depurarlo:** todo lo que uno mira primero está sano —la sucursal, las entidades, el
+monto, las reglas— porque el recorte no es del cascade de visibilidad, sino un filtro POSTERIOR que sólo
+depende de una respuesta del cliente. Antes de revisar la config de un comercio cuyo listado sale vacío,
+mirá `user_requests.flow_id`: si dice 2, el cableado no tiene la culpa.
+
+**Arreglo — NO hay, y es una decisión de producto, no un bug.** El filtro hace lo que dice. Lo que queda
+abierto es la consecuencia: un comercio sin `rt=0` no debería ofrecer esa pregunta, o la pantalla
+debería dejar volver atrás. La deuda anotada en el código es la del filtro; ésta no está anotada en
+ningún lado. **Para probar el flujo completo en un comercio así: contestá «No».**
+
+### F-215 · Cualquier 404 del wizard deja una página que se ve bien y no responde: la hidratación muere antes de montar
+
+**Síntoma.** Se entra a una URL que el wizard no conoce y aparece «Página no encontrada», bien pintada.
+Pero es un cadáver: el cliente nunca hidrata, así que lo que la pantalla ofrezca —el botón «Volver a
+intentar»— no hace nada. En consola queda un `pageerror: Cannot read properties of undefined (reading
+'APP_ENV')` que no menciona ni el 404 ni la hidratación.
+
+**Causa raíz.** Dos archivos que no concuerdan:
+
+- `apps/loan-request-wizard/app/root.tsx:51` emite `window.ENV = ${JSON.stringify(data?.ENV)}`. En un
+  404 el loader del root no entrega datos, `JSON.stringify(undefined)` devuelve `undefined`, y el script
+  inline queda literalmente `window.ENV = undefined`.
+- `apps/loan-request-wizard/app/entry.client.tsx:14` lo lee como `window.ENV.APP_ENV === "local"`, **sin
+  `?.` y en el tope del módulo** — así que lanza antes de que `HydratedRouter` llegue a montar.
+
+**Evidencia.** Verificado contra las ramas el 2026-09-14 con `git show <rama>:<archivo>`: el acceso sin
+guarda está en **`main`**, en **`origin/qa`** y en las ramas de trabajo; **no** en `origin/develop`. Y el
+mismo valor se lee **a la defensiva** tres archivos más allá —`app/utils/analytics-taxonomy.ts:474`,
+`globalThis.window.ENV?.APP_ENV`—, así que es una inconsistencia, no una decisión.
+
+⚠ **Lo que engaña:** el 404 en sí es correcto (la ruta no existe en esa rama) y la pantalla se ve
+completa, porque el HTML lo pintó el servidor. Nada sugiere que el problema sea de hidratación.
+
+**Arreglo — NO aplicado: `window.ENV?.APP_ENV`, un carácter.** Queda fuera del alcance de la tarea que
+lo encontró y toca una rama ajena. **No se comprobó que el botón «Volver a intentar» esté efectivamente
+inerte**; se dedujo de que el cliente no monta.
+
+### F-216 · Una fila de configuración que NO existe da 500, el front lo traga cambiando de camino, y nadie se entera
+
+**Síntoma.** En local, `GET api/v2/onboarding/kyc-flow/{hash}` devuelve **500 `OBV23003`** para
+cualquier hash. Y sin embargo el wizard funciona: los flujos cierran, las pruebas pasan, y el error sólo
+aparece en el log del dev server del front.
+
+**Causa raíz.** Dos mitades. En el backend, `ResolveKycFlowService` lee la setting `kyc_pipeline_allieds`
+con `SettingsService::get`, que **lanza** si la fila no está (`"The setting … was not found"`). El
+docblock del servicio dice *«la lista está vacía por defecto, o sea que todos siguen en el flujo viejo
+hasta que alguien sea agregado deliberadamente»* — pero **ausente no es vacía**: vacía responde 200,
+ausente revienta. En el front, `otp-verification.tsx` usa ese endpoint para elegir entre sus dos
+repositorios de OTP y, ante el fallo, **cae al v1 sin avisar**. El 500 nunca llega al usuario.
+
+**Evidencia.** Medido el 2026-09-14: en **local** la tabla `settings` no tenía la fila (89 filas, ninguna
+de kyc/pipeline) → 500 para los cuatro hashes probados. En **qa** y en **dev** la fila existe y responde
+`200 OBV23001 · usesPipeline=false`; en **staging** la ruta ni siquiera está desplegada (404). La fila real
+de dev, leída con `make trazador-sql TARGET=dev`: `code='setting' · key='kyc_pipeline_allieds' ·
+value='{"allieds":[91]}' · serialized=4`.
+
+⚠ **La trampa general:** un *fallback* silencioso ante un 5xx de configuración convierte un ambiente mal
+sembrado en un ambiente que *parece* sano pero decide por otro camino. Acá importó: el camino al que se
+cae —el v1— era justamente el que no anclaba la solicitud al pedido del comercio.
+
+**Arreglo — HECHO en local:** `make harness-kyc-flow` siembra la fila vacía (todos por el legacy, que es
+lo que qa contesta), idempotente y con comprobación contra el endpoint. **Lo que sigue abierto es el
+fallback mudo del front**: no distingue «este comercio va por el legacy» de «no pude preguntarlo».

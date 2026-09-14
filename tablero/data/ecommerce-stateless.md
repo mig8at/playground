@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: ecommerce-stateless-checkout, ecommerce-*stateless*
+ramas: ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -15,7 +15,19 @@ ramas: ecommerce-stateless-checkout, ecommerce-*stateless*
 CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, en develop), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
 
 # Ecommerce web stateless (→ wizard sin cookie) · task
-> **rama:** `feature/onboarding/ecommerce-*stateless*` · **PR:** backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) (✅ en main) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) (🟡 en develop, NO en main) · **estado:** parcialmente aterrizado
+> **estado (2026-09-14):** 🟢 **en `qa`, ⏳ NO en `main`.** Los dos PRs que rehicieron esto sobre la rama
+> viva están MERGEADOS: [frontend-monorepo#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)
+> (merge `6fa13ae5`) y [legacy-backend#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392)
+> (merge `3cd20e34`), un commit cada uno. **Verificado el mismo día:** `checkout.tsx` y la ruta
+> `ecommerce-status` resuelven contra `origin/qa` y **no** contra `origin/main`.
+>
+> **Por eso la tarea NO gradúa todavía a `context/`:** la vara del árbol es `main`, y de `qa` a `main`
+> falta el merge de promoción. Hasta entonces esto no corre en producción y los 14.160 checkouts del
+> pendiente de abajo siguen esperando.
+>
+> Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
+> (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
+> (🟡 murió en `develop`, 772 commits detrás — ver §«Cómo aterrizarlo»).
 >
 > Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
 
@@ -132,6 +144,11 @@ no prefill/context on network error»*. Un fallo del contexto deja al comprador 
 **Corrección 1 · el backend no necesita PR.** Ya está en las cuatro ramas. Un PR de backend sólo se
 justifica si además se rescata la sala de espera (`AdvisorStatusController@checkLoanStatus` +
 `loans/ecommerce-check`), que eso sí no está en ninguna.
+
+> **DESENLACE · 2026-09-14, 15:30** — los dos PRs **mergeados a `qa`**. Antes del merge se corrieron los
+> tres canales por el front sobre la rama (ecommerce, autogestión de Alta y asesor), con una corrida de
+> control sobre `qa` sin los cambios para separar lo nuevo de lo que ya fallaba. Lo que apareció ahí
+> está abajo, en §«Lo que encontró validar antes de mergear».
 
 **Corrección 2 · ~~los dos PRs son por CONCERN~~ — ⚠ DESCARTADA por Miguel (2026-09-14):** quería
 **un PR por REPO**, no por concern. Se consolidó todo en [#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)
@@ -408,6 +425,38 @@ Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_da
 - Y un detalle del contrato: el wizard manda `document.number` como **número**
   (`Number(input.documentNumber)`), no string.
 
+## Lo que encontró validar antes de mergear (2026-09-14)
+
+Correr los tres canales antes del merge encontró **un agujero real en el propio PR**, y lo encontró
+porque se recorrió el FRONT, no la API.
+
+**El anclaje al pedido sólo funcionaba para una minoría de comercios.** `otp-verification.tsx` elige
+entre dos repositorios de OTP según `resolveKycFlow`: v2 si el comercio está en la lista
+`kyc_pipeline_allieds`, v1 —el legacy del monolito— si no. **Cada endpoint lee el id del pedido con su
+propia forma** (v2 `ecommerceRequestId`, v1 `ecommerce_request_id`) y el otro lo ignora sin un solo
+error. El PR original arreglaba el camino v2; el repositorio **v1 no mandaba el campo en ninguna forma
+pese a recibirlo**. Medido contra el ambiente **qa**: de los 7 comercios consultados, **los 7 responden
+`usesPipeline=false`** — o sea que v1 no era el caso de borde, era el camino de todos.
+
+Sin ese anclaje se caían **tres cosas a la vez**, y ninguna daba error: el comercio no recibía el
+veredicto, el formulario no se prellenaba con lo que el comercio ya sabía, y **por lo tanto tampoco se
+bloqueaba ningún campo** — `lockedFields` llegaba vacío y el cliente podía reescribir sus propios datos.
+Arreglado dentro del mismo PR (tres líneas en `phone-otp-legacy.repository.ts`) y comprobado corriendo:
+el payload sale con el campo, el puente `user_requests_by_ecommerce_request` queda creado, y el loader
+de personal-info pasa de `lockedFields: []` a los cinco campos. El spec que lo verifica **borra el cookie
+`_session` en cada paso**, así que también deja medido que el camino v1 es stateless: el id llega por el
+request, no por la sesión.
+
+**Tres hallazgos transversales salieron de la misma validación** y se registraron en `findings`:
+**F-214** (con `flow_id=2` el listado se recorta a `rt=0` y un comercio sin ninguna queda con la pantalla
+vacía — es lo que se vio al probar la UI), **F-215** (cualquier 404 del wizard deja una página que no
+hidrata, en `main` y `qa`) y **F-216** (una setting ausente da 500 y el front cae al OTP v1 sin avisar).
+
+**Y el canal asesor no fallaba por el PR: fallaba el harness.** El motor HTTP de `harness-caminar` nunca
+cargaba la sesión de Cognito, así que `--flow merchant` iba siempre al login y moría en un «/login: HTTP
+500» que no decía nada. La corrida de control sobre `qa` daba idéntico, lo que probaba que no era
+regresión pero señalaba al lugar equivocado. Arreglado en el harness.
+
 ## Cómo probar / validar
 - Flujo E2E de ecommerce: `bin/ecommerce` de **harness** (ver nodo **harness**). Como el front vive en develop, apuntá el harness a **dev/develop**, no a main.
 - ⚠ Gotcha (nodo `ecommerce`): la entrada ecommerce se degrada en local por Mixed Content — el motivo mismo del rediseño stateless.
@@ -417,6 +466,15 @@ Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_da
 - **2026-04** — 1er intento "web-origination" (PRs 503/363, rama `feature/onboarding/ecommerce-web-origination`): quedó **sin merge**, superado por el enfoque stateless.
 - **2026-06-11** — mergeados los squash `bb14a8ff` (#795) y `d2242469` (#551).
 - **2026-07-18** — registrado como task (corrige la versión previa de este nodo, que apuntaba por error a 503/363). Estado de merge verificado contra las ramas remotas: backend en main, front en develop. Superficie = 20 archivos que resuelven; 5 net-new del front + los adds van en prosa.
+- **2026-09-14 · tarde** — **los dos PRs mergeados a `qa`** (#997 `6fa13ae5` · #1392 `3cd20e34`), un
+  commit cada uno. Antes del merge se validaron los tres canales por el front, con control sobre `qa`
+  sin los cambios: ahí apareció que el anclaje al pedido sólo cubría el camino v2 del OTP, y que **los 7
+  comercios consultados en qa van por el v1** — se arregló dentro del mismo PR y se comprobó corriendo
+  (puente creado, `lockedFields` de `[]` a 5). Salieron **F-214/F-215/F-216**. Y cinco arreglos al
+  harness, todos del mismo defecto: afirmaba resultados que no había medido (el panel no miraba el
+  vínculo, el runner de ecommerce pegaba al endpoint que el front no usa, «frontend reusado» describía
+  un proceso que ya no corría, el caminar no cargaba la sesión del asesor, y el contrato de la tienda
+  no llevaba el caso del panel). **Pendiente el salto `qa` → `main`: hasta eso, no corre en prod.**
 - **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
 
 ## Pendientes
@@ -430,9 +488,16 @@ Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_da
 - [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
 - [x] ~~Parsear `should_collect_expedition_date`~~ → **YA ESTÁ**, verificado en `qa` el 2026-09-14: `personal-info-config-v2.repository.ts:112` lo lee con test propio, y `loan-request-form` lo usa como `showExpeditionDate` con `?? true` (fallar hacia el paso de MÁS, que es recuperable). El docblock de `GetPersonalInfoConfigService` que decía «the wizard's own schema does not even parse» quedó viejo.
 - [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.
-- [ ] Promover a F-xx: el `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en `strict-origin-when-cross-origin`; endurecerla rompe el prefill en silencio.
+- [ ] Promover a F-xx: el `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en `strict-origin-when-cross-origin`; endurecerla rompe el prefill en silencio. ⚠ **Y ahora hay dato:** medido el 2026-09-14, el POST del OTP sale con `referer: —` (vacío) y el anclaje funciona igual porque el id viaja en el **body**; lo que depende del Referer es `readErIdFromRequest` cuando la URL del action no lo trae.
 - [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
-- [ ] **Pedir revisor** en [#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997) y [legacy-backend#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) — los dos abiertos contra `qa`, un commit cada uno, sin revisor pedido.
+- [x] ~~Promover a F-xx el listado vacío del flujo de cupo confirmado~~ → **F-214** (2026-09-14).
+- [x] ~~Promover a F-xx la hidratación muerta en los 404~~ → **F-215** (2026-09-14).
+- [x] ~~Promover a F-xx el 500 del `kyc-flow` que el front traga~~ → **F-216** (2026-09-14).
+- [ ] **Decidir qué hacer con F-214 (producto)** — un comercio sin ninguna entidad `rt=0` no debería ofrecer «Confirmación de cupo», o la pantalla vacía debería dejar volver atrás. Hoy el cliente queda sin salida y sin poder corregir su respuesta.
+- [ ] **F-215: el arreglo es un carácter** (`window.ENV?.APP_ENV` en `entry.client.tsx:14`) y toca una rama ajena a esta tarea. Está en `main` y en `qa`. No se comprobó si el botón «Volver a intentar» queda inerte.
+- [ ] **F-216: el fallback mudo sigue abierto** — el front no distingue «este comercio va por el legacy» de «no pude preguntarlo». En local se tapó sembrando la setting (`make harness-kyc-flow`).
+- [x] ~~Pedir revisor en #997 y #1392~~ → **MERGEADOS a `qa`** el 2026-09-14 15:30 (merges `6fa13ae5` y `3cd20e34`).
+- [ ] ⚠ **PROMOVER `qa` → `main`** — es lo único que separa esto de producción. Verificado el 2026-09-14: `checkout.tsx` y la ruta `ecommerce-status` están en `origin/qa` y **no** en `origin/main`. Mientras tanto la tarea **no gradúa** a `context/` (la vara del árbol es `main`) y los 14.160 checkouts siguen esperando.
 - [ ] **Confirmar con producto el ORDEN del cobro de cuota inicial** en autogestión — la única decisión de criterio del #997, comentada en el código.
 - [ ] ⚠ **Promover a F-xx, y es el hallazgo más transversal del día: la guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) sólo cubre las escrituras por `pkg/db.ts`.** Todo lo que escribe **por la API** contra dev pasa sin pedir permiso — así los specs de `channel/` crearon filas en el compartido durante meses sin que nada avisara. Tapado el caso de Playwright (`playwright.config.ts` fija el target), pero el agujero sigue.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
@@ -465,3 +530,64 @@ Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_da
 - frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx
 - frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/verify-phone-otp.uc.ts
 - frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts
+
+
+## Tarea (publicable)
+
+## En una línea
+Una compra que arranca desde la tienda del comercio entra al flujo de crédito nuevo llevando consigo lo
+que el comercio ya sabe del comprador, y al cerrarse le devuelve el veredicto a la tienda.
+
+## Por qué
+Hoy ese recorrido corre por la plataforma vieja y **convierte al 1,9 %**, contra el 18,7 % del mundo
+nuevo. Son 14.160 compras en seis meses entrando por la puerta que peor funciona. El motivo técnico del
+rediseño es que el estado del pedido viajaba en una cookie del navegador, y esa cookie se perdía al
+cruzar de dominio o al pasar a otro dispositivo: el comprador llegaba al formulario sin monto y sin
+datos. Ahora la llave viaja en la dirección y cada pantalla vuelve a preguntar por el pedido.
+
+## Qué cambia
+El comprador que viene de una tienda ve el **monto ya puesto y bloqueado** —lo fija el carrito, no se
+escribe— y, en el formulario de datos personales, **los campos que el comercio ya entregó llegan llenos
+y bloqueados**: sólo se piden los que faltan. Se bloquean únicamente los que traen un dato de verdad: si
+el comercio manda un campo vacío, queda editable. Cuando la entidad elegida exige cuota inicial, el
+cobro se hace por pasarela antes de continuar. Y al terminar, el comercio recibe el resultado de la
+compra y el comprador tiene el botón para volver a la tienda.
+
+## Alcance
+No cambia nada del recorrido de mostrador ni del canal del asesor. **No** enciende todavía la nueva
+entrada para los comercios que ya están operando: eso es un cambio de infraestructura aparte, que además
+debe excluir a los comercios de Corbeta, que ya tienen su propio recorrido y son los que hoy mejor
+convierten. La pantalla de espera del veredicto queda disponible en el servidor, pero su pantalla en el
+navegador no entra en esta tarea.
+
+## Dónde probar
+Ambiente **QA**. Comercio: cualquiera con tienda configurada — se probó con **Amoblando Pullman** y con
+**Amoblar**. No hace falta usuario de asesor: el comprador entra sin sesión, desde la tienda.
+
+## Cómo validar
+1. Iniciar una compra desde la tienda y elegir pagar con crédito. Debe abrirse el formulario con el
+   **monto del carrito ya puesto y bloqueado**.
+2. Continuar hasta el código de verificación por celular y validarlo.
+3. En la pantalla de datos personales, comprobar que **los campos que el comercio envió están llenos y
+   no se pueden editar**, y que los que el comercio no envió sí se pueden escribir.
+4. Elegir una entidad y, si pide cuota inicial, completar el pago.
+5. Al cerrar, comprobar que **la tienda recibe el resultado** y que aparece el botón para volver a ella.
+
+⚠ Si en el primer paso se responde **«Sí»** a «¿el cliente tiene cupo disponible…?», el listado puede
+salir vacío: ese flujo muestra sólo entidades sin integración directa, y no todos los comercios tienen.
+Para recorrer el flujo completo, responder **«No»**.
+
+## Criterios de aceptación
+- El monto del formulario coincide con el total del carrito y no se puede modificar.
+- Los datos que el comercio envió aparecen llenos y bloqueados; los que no envió, editables.
+- Si el navegador pierde su sesión a mitad del recorrido, el flujo continúa igual.
+- Al cerrarse el crédito, la tienda recibe la notificación del resultado.
+- El recorrido de mostrador y el del asesor siguen funcionando igual que antes.
+
+## Dependencias / contraparte
+- **Infraestructura**: para que los comercios que ya operan usen la entrada nueva hace falta una
+  redirección desde el dominio actual, **excluyendo los comercios de Corbeta**. Sin eso, esto sólo
+  aplica a comercios que se configuren de cero.
+- **Producto**: falta confirmar en qué momento se cobra la cuota inicial cuando el comprador continúa
+  solo desde su celular.
+- **Promoción a producción**: el cambio está en QA; hasta que se promueva no aplica a clientes.

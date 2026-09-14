@@ -6,7 +6,7 @@
   "when": "Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o \"esto que veo, ¿es real o es un mock?\". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-14",
     "source": "manual"
   },
   "sintomas": [
@@ -60,7 +60,14 @@
     "legacy-backend/app/Services/PdfMapperClient.php",
     "legacy-backend/config/documents.php",
     "legacy-backend/config/logging.php",
-    "legacy-backend/config/services.php"
+    "legacy-backend/config/services.php",
+    "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/root.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/entry.client.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
+    "legacy-backend/Modules/OnboardingV2/App/Services/ResolveKycFlowService.php",
+    "legacy-backend/Modules/CommonsV1/App/Services/SettingsService.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx"
   ],
   "puertas": "n/a: es una BITÁCORA, no dueña código. Su puerta es el índice por síntoma del doc.md; los archivos del map son los que los hallazgos CITAN."
 }
