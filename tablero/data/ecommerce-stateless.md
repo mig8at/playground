@@ -6,6 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-543]
 jira_title: "Inicio paso refactor ecommerce"
+ramas: ecommerce-stateless-checkout, ecommerce-*stateless*
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -141,9 +142,15 @@ justifica si además se rescata la sala de espera (`AdvisorStatusController@chec
 `available-lenders.tsx`. Son separables. Y si van en un commit único juntas, revertir un fallo del
 checkout en prod se lleva puesta la cuota inicial.
 
-**El orden:** (1) rama desde `qa` al día → re-aplicar los 5 net-new de ecommerce + los ~16 retoques →
-PR 1, probado con `pnpm turbo run build --filter=loan-request-wizard` (**es la vara del repo**: vitest,
-tsc y biome dejan pasar el split servidor/cliente). (2) Con PR 1 en `qa`, rama nueva desde `qa` → PR 2
+**El orden:** (1) ✅ **HECHO** — rama `feat/ecommerce-stateless-checkout` desde `qa`, **PR
+[#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)**, un commit, 16 archivos
+(+371/−26). Build en verde; `typecheck` da 220 errores preexistentes de `qa` y **ninguno** en los
+archivos del cambio. ⚠ Y el camino dejó **dos cosas que sólo aparecen rehaciéndolo**: el build atrapó
+que `routes.ts` se había traído las rutas de la cuota inicial sin sus archivos, y —lo caro— el PR
+original mandaba `ecommerce_request_id` en **snake_case al endpoint v1**, mientras `qa` ya usa
+OnboardingV2, que lo valida como **`ecommerceRequestId`**: copiado tal cual, el backend lo ignoraba, la
+solicitud nacía sin vincular al pedido y **el comercio nunca recibía el veredicto**, sin ningún error
+visible. (2) Con PR 1 en `qa`, rama nueva desde `qa` → PR 2
 con la cuota inicial — secuencial, **sin apilar ramas**. (3) La sala de espera, aparte y después: es
 rescate, no migración.
 
