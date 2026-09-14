@@ -25,8 +25,17 @@ lo sacó como tarea propia**: *«no las mezclemos con los cambios de Alta»*. Al
 **Cómo se trabajó:** en local, en ramas a partir de `qa`, sin push mientras el esquema no estaba fijo.
 **El 2026-09-13 Miguel dio el OK y se abrieron los dos PRs, uno por repo, contra `qa`:**
 
-- `Creditop-SAS/legacy-backend#1388` — la tarjeta viaja en la respuesta y el perfilador dice por qué rechaza (4 commits)
-- `Creditop-SAS/frontend-monorepo#995` — las decisiones salen de los componentes, con prueba diferencial (15 commits)
+- `Creditop-SAS/legacy-backend#1388` — la tarjeta viaja en la respuesta y el perfilador dice por qué rechaza
+- `Creditop-SAS/frontend-monorepo#995` — las decisiones salen de los componentes, con prueba diferencial
+
+⚠ **Los dos quedaron en UN commit**, por pedido de Miguel, y **toda la indagación vive en la descripción
+del PR**: qué se midió, qué se descartó y por qué. Es el lugar correcto — un revisor lee la descripción,
+no el historial.
+
+**Antes del squash se verificó que el árbol no cambiara un byte** (`rev-parse HEAD^{tree}` antes y
+después, idéntico en los dos repos) y se dejó respaldo local del historial largo en
+`respaldo/<rama>-antes-del-squash`. El force-push fue con `--force-with-lease`, y en ese momento los
+PRs tenían cero revisiones humanas (el único comentario era el bot de SonarCloud).
 
 ⚠ **Uno por repo, no partido por riesgo.** Se evaluó separar el front en «riesgo cero» y «cambia
 caminos», y se descartó: las particiones de archivos se hicieron DESPUÉS de los cambios de conducta
