@@ -12,7 +12,7 @@ import * as traza from '../pkg/trace';
 // Importado con nombre propio y no como `* as loki` para que en el cuerpo se lea qué hace: `traza` dicta
 // el veredicto, esto solo lo explica. Ver la sección de forense en CLAUDE.md.
 import { forenseAlCerrar as lokiForense } from '../pkg/loki';
-import { urlCheckout, seguirCheckout } from '../pkg/checkout-b64';
+import { urlCheckout } from '../pkg/checkout-b64';   // `seguirCheckout` se quitó: estaba importado y nunca se usaba
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
 import { autorrellenarQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
 import { close } from '../pkg/db';
@@ -882,7 +882,25 @@ test('guided (semiautomático)', async ({ browser }) => {
         };
         // el checkout rebota con BP12700001 si el teléfono ya tiene usuario con OTRA identidad
         await exec('DELETE FROM users WHERE cell_phone=? AND (cognito_id IS NULL OR cognito_id=\'\')', [PHONE]).catch(() => {});
-        const url = CHECKOUT_URL || urlCheckout(HASH, pedido);
+        // ⚠ EL FALLBACK CAMBIA DE CANAL, no sólo de armador. `CHECKOUT_URL` (la que arma `bin/asesor`
+        // con `dbops ecommerce-url`) entra por la landing GENÉRICA del front; `urlCheckout` entra por
+        // el checkout de **CORBETA**, que es otro controlador y otro flujo — y con un comercio que no
+        // es Corbeta su resolvedor CANCELA la solicitud (ver el docblock de `pkg/checkout-b64.ts` y el
+        // aviso de más abajo). Que eso pase en silencio convertía «me falta una variable de entorno» en
+        // «el producto me canceló la solicitud».
+        let url = CHECKOUT_URL;
+        if (!url) {
+            const { corbetaDeLaSucursal } = await import('../pkg/merchants.ts');
+            const esCorbeta = await corbetaDeLaSucursal(HASH).then((x) => x.corbeta).catch(() => false);
+            if (!esCorbeta) {
+                log(`⚠ sin E2E_CHECKOUT_URL y este comercio NO es Corbeta: el único checkout que queda es el de Corbeta,`);
+                log(`   y su resolvedor cancelaría la solicitud. Entrá por el panel (canal ecommerce) o exportá E2E_CHECKOUT_URL`);
+                log(`   (node bin/dbops.ts ecommerce-url <comercio> te la arma).`);
+                throw new Error('canal ecommerce sin URL de checkout genérica, y el comercio no es Corbeta');
+            }
+            log('sin E2E_CHECKOUT_URL: este comercio SÍ es Corbeta → se entra por su checkout (`pkg/checkout-b64.ts`)');
+            url = urlCheckout(HASH, pedido);
+        }
         // OJO: NO pre-seguimos el checkout acá. Cada GET a esa URL CREA una solicitud, así que hacerlo
         // headless y además navegar el browser generaba DOS (y dejaba la primera huérfana). El browser
         // recorre el 302 real; el uReq lo leemos del aterrizaje. `seguirCheckout()` queda para el camino

@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
+import { contratoParaSpec } from "../pkg/ecommerce";
 import { Flow } from "../pkg/flow";
 import { fillEmploymentInfo, fillExpeditionDate } from "../pkg/wizard-steps";
 
@@ -9,7 +9,6 @@ import { fillEmploymentInfo, fillExpeditionDate } from "../pkg/wizard-steps";
  * NO re-escribe los campos que vienen del JSON (nombre/apellido/email/documento): solo los muestra.
  */
 
-const GEN = process.env.GEN_SCRIPT ?? "/tmp/gen_demo.php"; // contrato con billing real
 
 // Headed + lento para poder observar cada acción.
 test.use({ headless: false, launchOptions: { slowMo: 650 } });
@@ -19,12 +18,19 @@ function freshPhone(): string {
       return `305${suffix}`;
 }
 
-function buildCheckoutPath(): string {
-      const out = execFileSync("php", [GEN], { encoding: "utf8" }).trim();
-      const m = out.match(/https?:\/\/[^\s]+\/ecommerce\/[^\s]+/);
-      if (!m) throw new Error(`No pude extraer la URL de checkout: ${out.slice(0, 200)}`);
-      const url = new URL(m[0]);
-      return url.pathname + url.search;
+/*
+ * El contrato sale de `pkg/ecommerce.ts` (del REPO). Antes lo generaba `php /tmp/gen_demo.php`: un
+ * script fuera del repo, en un directorio que el sistema limpia, y que además exigía `php` instalado en
+ * la máquina. El spec moría en el paso 1 con «Command failed: php /tmp/gen_demo.php» — un mensaje que
+ * no dice que el problema es el generador y no el producto. Es el mismo defecto que ya se corrigió en
+ * `ecommerce-notify` y `ecommerce-no-cookie`; éste quedó afuera y se arregló el 2026-09-14.
+ *
+ * El del repo resuelve el comercio contra la BASE (nada de hashes quemados) y usa un `order_key` ÚNICO
+ * por corrida, así que cada run crea una fila fresca en vez de reusar la misma.
+ */
+async function buildCheckoutPath(phone?: string): Promise<string> {
+      const c = await contratoParaSpec('amoblar', phone ? { phone } : {});
+      return c.checkout_path;
 }
 
 test("DEMO prefill: checkout → amount → phone → OTP → /personal-info (muestra autocompletado)", async ({ page }) => {
@@ -33,15 +39,32 @@ test("DEMO prefill: checkout → amount → phone → OTP → /personal-info (mu
 
       await new Flow("Demo prefill ecommerce (lento)", "no re-escribe los campos del JSON; pausa en personal-info").
             step("Handshake checkout", "contrato con billing real → /ecommerce/{hash}/checkout", async () => {
-                  await page.goto(buildCheckoutPath());
-                  // react-scan no debe cargar bajo automatización.
+                  await page.goto(await buildCheckoutPath(phone));
+                  // react-scan: se OBSERVA, no se exige. Esta comprobación tiraba el demo entero con
+                  // «react-scan se cargó bajo automatización (debería estar desactivado)», y el wizard
+                  // nunca prometió eso: la guarda es `if (import.meta.env.DEV)` en `entry.client.tsx`,
+                  // sin ninguna condición sobre automatización, y `git log -S webdriver` sobre ese
+                  // archivo no devuelve NADA — la guarda que el spec daba por hecha no existió nunca.
+                  // Verificado el 2026-09-14. Este archivo además es un DEMO VISUAL, no una validación:
+                  // abortarlo por esto es perder el demo por una expectativa inventada.
+                  //
+                  // Se deja el dato porque sí cuesta algo: el script viene de unpkg.com, así que cada
+                  // corrida con `pnpm dev` sale a internet y repinta lo que mida el demo.
                   const scan = await page.locator('script[src*="react-scan"]').count();
-                  if (scan > 0) throw new Error("react-scan se cargó bajo automatización (debería estar desactivado)");
-                  return `react-scan OFF · ${new URL(page.url()).pathname}`;
+                  return `${scan > 0 ? "react-scan ON (normal en `pnpm dev`)" : "react-scan OFF"} · ${new URL(page.url()).pathname}`;
             })
             .step("Monto (BLOQUEADO)", "viene del base64: prellenado y bloqueado, no se escribe", async () => {
-                  const activar = page.getByRole("button", { name: /activar mi cr[ée]dito/i });
+                  // Por TESTID y no por copy: el botón se llamó «activar mi crédito» hasta la rama de
+                  // junio y hoy dice «Iniciar solicitud» (medido contra qa el 2026-09-14). El rol queda
+                  // de respaldo con los dos textos, porque el copy puede venir del comercio.
+                  const activar = page
+                        .getByTestId("amount-submit")
+                        .or(page.getByRole("button", { name: /iniciar solicitud|activar mi cr[ée]dito|continuar/i }));
                   await expect(activar).toBeVisible({ timeout: 20_000 });
+                  // «Confirmación de cupo» (omit-Experian) es OBLIGATORIO donde aparece: sin contestarlo
+                  // el submit nace deshabilitado y el paso muere aunque el prefill esté perfecto.
+                  const cupo = page.getByRole("radio", { name: "No", exact: true });
+                  if (await cupo.isVisible().catch(() => false)) await cupo.click();
                   await expect(activar).toBeEnabled({ timeout: 10_000 }); // prefill válido → botón habilitado
                   await page.waitForTimeout(2_000); // pausa para ver el monto bloqueado
                   await activar.click();
@@ -86,16 +109,29 @@ test("DEMO prefill: checkout → amount → phone → OTP → /personal-info (mu
                   return `bloqueados: ${JSON.stringify(values)}`;
             })
             .step("Fecha de expedición (MANUAL)", "el cliente la edita a mano (no viene del comercio)", async () => {
+                  // ⚠ ACÁ TERMINA LO QUE ESTE DEMO PUEDE MOSTRAR, y no es un fallo del producto: los
+                  // seis testids del selector de fecha (`date-selector-*`) NO existen en ninguna rama
+                  // mergeada — medido contra qa el 2026-09-14, el wizard tiene CUATRO testids en total.
+                  // El demo ya cumplió su propósito en el paso anterior (se vio el prefill del comercio
+                  // llegando bloqueado), así que se corta acá con el motivo a la vista en vez de morir
+                  // con un `toBeVisible() failed` que parece un problema de la pantalla.
+                  if (!(await page.getByTestId("date-selector-day").count())) {
+                        return "hasta acá llega el demo: el selector de fecha no tiene testids en qa "
+                              + "(ver la cabecera de pkg/wizard-steps.ts) · para el flujo completo: make harness-caminar";
+                  }
                   await fillExpeditionDate(page);
                   return "fecha de expedición ingresada manualmente";
             })
             .step("Datos laborales (MANUAL, si aplica)", "edición manual hasta lenders", async () => {
+                  // Si el paso anterior se cortó, seguimos en personal-info: se dice y no se espera 30 s.
+                  if (/personal-info/.test(page.url())) return "omitido: el demo se detuvo en personal-info";
                   await page.waitForURL(/\/(employment-info|lenders)(\?|$)/, { timeout: 30_000 });
                   if (!/\/employment-info/.test(page.url())) return "omitido (no aplica)";
                   await fillEmploymentInfo(page, { status: "Empleado", monthlyIncome: "2500000" });
                   return "datos laborales ingresados manualmente";
             })
             .step("/lenders", "aterriza en el marketplace", async () => {
+                  if (/personal-info/.test(page.url())) return "omitido: el demo se detuvo en personal-info";
                   await page.waitForURL(/\/lenders(\?|$)/, { timeout: 30_000 });
                   await page.waitForTimeout(4_000); // pausa para ver el marketplace
                   return page.url();

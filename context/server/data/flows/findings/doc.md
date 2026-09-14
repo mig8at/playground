@@ -161,6 +161,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«no hay entidades para vos» con el comercio bien cableado** | **F-214** |
 | **«la pantalla se ve bien pero el botón no hace nada»** · un 404 del wizard | **F-215** |
 | **«el endpoint da 500 y sin embargo todo funciona»** / un ambiente que decide por otro camino | **F-216** |
+| **«este spec de Playwright falla siempre en el mismo paso»** / `getByTestId` que no aparece | **F-217** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -365,6 +366,7 @@ distinto según con qué pregunta llegues.
 | F-214 | Con `flow_id=2` (cupo ya confirmado) el listado se recorta a `rt=0`: en un comercio sin ninguna, la pantalla queda vacía y sin salida. El cableado está sano | ABIERTO · por diseño |
 | F-215 | En un 404 el root emite `window.ENV = undefined` y `entry.client` lo lee sin `?.`: la hidratación muere y la página queda muerta. En `main` y `qa` | ABIERTO |
 | F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
+| F-217 | El harness usa 21 `data-testid` y el wizard tiene 4: los otros 17 vivían en stashes marcados «NO commitear». Cuatro helpers fallan siempre | PARCIAL · helpers avisan |
 
 ---
 
@@ -4930,3 +4932,38 @@ cae —el v1— era justamente el que no anclaba la solicitud al pedido del come
 **Arreglo — HECHO en local:** `make harness-kyc-flow` siembra la fila vacía (todos por el legacy, que es
 lo que qa contesta), idempotente y con comprobación contra el endpoint. **Lo que sigue abierto es el
 fallback mudo del front**: no distingue «este comercio va por el legacy» de «no pude preguntarlo».
+
+
+### F-217 · El harness se apoya en 21 `data-testid` y el wizard tiene CUATRO: los specs por navegador mueren siempre en el mismo paso
+
+**Síntoma.** Un spec de Playwright del wizard falla en el mismo paso desde hace meses, con
+`expect(locator).toBeVisible() failed · waiting for getByTestId('…')` tras 15-20 s. Se lee como «esa
+pantalla se rompió» o «cambió el front», y el paso anterior pasó sin problema.
+
+**Causa raíz.** El testid no existe, y no es que lo hayan renombrado: **nunca estuvo en una rama
+mergeada**. Vivía en los stashes `local-e2e: data-testid …` del monorepo, cuyo propio mensaje dice
+**«NO commitear»**. Alguien corrió los specs con ese stash aplicado, funcionaron, y quedaron escritos
+contra una pantalla que sólo existía en su working tree.
+
+**Evidencia.** Medido el 2026-09-14 contra `origin/qa`, buscando el ATRIBUTO `data-testid=` (no el
+substring, que cuenta de más — `personal-info-form` aparece como nombre de archivo en un `index.ts` y
+parece existir): el wizard renderiza **seis** testids en total —`amount-input`, `amount-submit`,
+`phone-input`, `phone-submit`, `cambiar-vista` y `lender-toggle-`—. El harness nombra **21**, de los
+cuales **existen 4**. Los 17 restantes se reparten entre cuatro helpers de `pkg/wizard-steps.ts`
+(`fillOtpStep`, `fillPersonalInfoIdentification`, `fillExpeditionDate`, `fillEmploymentInfo`), que por
+eso fallan siempre y siempre en su primera línea.
+
+⚠ **Las dos trampas al medirlo, y las dos costaron una conclusión falsa el mismo día.** (1) `git grep`
+con `-c` y el resultado canalizado a `wc -l` cuenta ARCHIVOS, no coincidencias, y da «existe» para todo;
+(2) buscar el nombre pelado encuentra imports y nombres de archivo. La forma que no miente es pedir el
+atributo: `git grep -E 'data-testid=[{"\`]*"?<id>"' origin/<rama>`.
+
+**Arreglo — PARCIAL.** Los cuatro helpers ahora **fallan diciendo su causa** en vez de esperar 15 s y
+culpar a la pantalla, y la medición quedó escrita en la cabecera de `pkg/wizard-steps.ts`. Un spec que
+se apoyaba entero en testids inexistentes se borró, con el porqué y apuntando a su reemplazo. Lo que
+sigue abierto es elegir: reescribir los cuatro helpers por rol/label —como ya hace `fillAmountStep` con
+su `.or(...)`— o agregar los testids al wizard en un PR, que es más estable pero toca el repo del
+producto.
+
+**Mientras tanto, el camino que no depende de esto** es el recorrido por HTTP (`make harness-caminar`):
+postea los formularios que el front declara, llega hasta `/lenders` y, con `CERRAR=1`, hasta el cierre.

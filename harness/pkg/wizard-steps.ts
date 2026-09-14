@@ -20,6 +20,28 @@
  *   - Algunos botones quedan tapados por el dock móvil de Vite en local; `click()` ya hace
  *     scroll-into-view, no hace falta forzarlo.
  */
+/*
+ * ⚠⚠ MEDICIÓN 2026-09-14 · EN EL WIZARD SÓLO EXISTEN CUATRO `data-testid`, Y ESTE ARCHIVO USA 21.
+ *
+ * Contra `origin/qa`, buscando el ATRIBUTO (no el substring, que cuenta de más: `personal-info-form`
+ * aparece como nombre de archivo en un `index.ts` y parece existir), los `data-testid` renderizados por
+ * el wizard son SEIS en total: `amount-input`, `amount-submit`, `phone-input`, `phone-submit` —los que
+ * usan los dos primeros helpers de abajo— más `cambiar-vista` y `lender-toggle-`, de otra pantalla.
+ *
+ * Los 17 restantes que este archivo y los specs nombran NO EXISTEN en ninguna rama mergeada: vivían en
+ * los stashes `local-e2e: data-testid …`, cuyo propio mensaje dice «NO commitear». Por eso
+ * `fillOtpStep`, `fillPersonalInfoIdentification`, `fillExpeditionDate` y `fillEmploymentInfo` fallan
+ * SIEMPRE, y siempre en su primera línea, con un `toBeVisible() failed` que parece un problema de la
+ * pantalla y es del locator.
+ *
+ * QUÉ USAR MIENTRAS TANTO: el recorrido por HTTP (`dev/caminar-wizard.ts`, `make harness-caminar`) no
+ * depende de testids —postea los formularios que el front declara— y llega hasta `/lenders` y hasta el
+ * cierre con `CERRAR=1`. Para el tramo por navegador, los dos primeros helpers sí sirven.
+ *
+ * ARREGLARLO de verdad es una de dos: reescribir los cuatro helpers por rol/label —que es lo que hizo
+ * `fillAmountStep` con su fallback—, o agregar los testids al wizard en un PR. Lo segundo es más
+ * estable, pero toca el repo del producto: no se hace desde acá sin pedirlo.
+ */
 import { expect, type Page } from '@playwright/test';
 
 async function typeInto(page: Page, testId: string, value: string): Promise<void> {
@@ -86,6 +108,15 @@ export async function fillPhoneStep(page: Page, phone?: string): Promise<string>
 }
 
 export async function fillOtpStep(page: Page, code = '1234'): Promise<void> {
+    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `otp-input` no existe en ninguna
+    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
+    if (!(await page.getByTestId('otp-input').count())) {
+        throw new Error(
+            '`fillOtpStep` no puede correr: el wizard NO tiene el testid `otp-input` (medido contra qa el '
+            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper escribe el código del OTP. '
+            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
+        );
+    }
     await expect(page.getByTestId('otp-input')).toBeVisible({ timeout: 15_000 });
     await page.getByTestId('otp-input').click();
     await page.keyboard.type(code, { delay: 30 });
@@ -93,6 +124,15 @@ export async function fillOtpStep(page: Page, code = '1234'): Promise<void> {
 }
 
 export async function fillPersonalInfoIdentification(page: Page): Promise<void> {
+    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `docnum-input` no existe en ninguna
+    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
+    if (!(await page.getByTestId('docnum-input').count())) {
+        throw new Error(
+            '`fillPersonalInfoIdentification` no puede correr: el wizard NO tiene el testid `docnum-input` (medido contra qa el '
+            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper llena la identificación. '
+            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
+        );
+    }
     await expect(page.getByTestId('personal-info-form')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('docnum-input')).toBeVisible({ timeout: 15_000 });
     // FE validates `10000 < doc < 3_000_000_000`. Constrain generation so we never
@@ -106,6 +146,15 @@ export async function fillPersonalInfoIdentification(page: Page): Promise<void> 
 }
 
 export async function fillExpeditionDate(page: Page): Promise<void> {
+    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `date-selector-day` no existe en ninguna
+    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
+    if (!(await page.getByTestId('date-selector-day').count())) {
+        throw new Error(
+            '`fillExpeditionDate` no puede correr: el wizard NO tiene el testid `date-selector-day` (medido contra qa el '
+            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper elige la fecha de expedición. '
+            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
+        );
+    }
     await expect(page.getByTestId('date-selector-day')).toBeVisible({ timeout: 15_000 });
     // Orden DÍA → MES → AÑO: mes y año están disabled hasta tener día.
     await page.getByTestId('date-selector-day').click();
@@ -123,6 +172,15 @@ export async function fillEmploymentInfo(
     page: Page,
     options: { status?: string; monthlyIncome?: string } = {},
 ): Promise<void> {
+    // Falla con la CAUSA, no con un `toBeVisible() failed` a los 15 s: `employment-status-trigger` no existe en ninguna
+    // rama mergeada (ver la medición de la cabecera). Sin esto, el spec culpa a la pantalla.
+    if (!(await page.getByTestId('employment-status-trigger').count())) {
+        throw new Error(
+            '`fillEmploymentInfo` no puede correr: el wizard NO tiene el testid `employment-status-trigger` (medido contra qa el '
+            + '2026-09-14; sólo existen amount-input/amount-submit/phone-input/phone-submit). Este helper llena los datos laborales. '
+            + 'Usá el recorrido por HTTP: make harness-caminar, que no depende de testids.',
+        );
+    }
     const { status = 'Empleado', monthlyIncome = '2500000' } = options;
     await expect(page.getByTestId('employment-info-form')).toBeVisible({ timeout: 15_000 });
     await page.getByTestId('employment-status-trigger').click();

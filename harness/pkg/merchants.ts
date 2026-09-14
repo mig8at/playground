@@ -86,3 +86,38 @@ export async function telefonoDeLaSucursal(branchHash: string, semilla = 3131010
     const cuerpo = (base + base).slice(0, Math.max(largo - 1, 1));
     return (base[0] || '9') + cuerpo.slice(0, largo - 1);
 }
+
+/** Qué contesta `corbeta_allieds` sobre una sucursal: su allied, si pertenece al grupo, y la lista.
+ *
+ * ⚠ LA FUENTE DE VERDAD ES EL SETTING, no la lista `[24,209,210,211]` escrita a mano: ese hardcode ya
+ * existe 24 veces en el producto (nodo `hardcodes-entidades`) y sumar el 25 acá lo desincronizaría el
+ * día que negocio agregue un comercio al grupo. El backend lo lee en tres sitios
+ * (`IsCorbetaOnboardingService`, `OnboardingService`, `PurchaseCodeService::isCorbetaAllied`).
+ *
+ * Vive acá y no en `bin/dbops.ts` porque lo necesitan DOS: el subcomando `is-corbeta` (que el panel
+ * consulta) y `dev/guided.spec.ts`, que sin esto elegía el checkout equivocado. Escribirlo dos veces
+ * era exactamente lo que el comentario de `is-corbeta` advertía que no se hiciera.
+ */
+export async function corbetaDeLaSucursal(branchHash: string): Promise<{ alliedId: number | null; corbeta: boolean; selfManaged: boolean | null; allieds: number[] }> {
+    // `self_managed` viaja en la MISMA consulta: es lo que el panel necesita para preseleccionar el
+    // canal, y pedirlo aparte sería un viaje más para un dato que ya está en el join.
+    const br = await one<{ alliedId: number; selfManaged: number }>(
+        'SELECT ab.allied_id AS alliedId, al.self_managed AS selfManaged'
+        + ' FROM allied_branches ab JOIN allieds al ON al.id = ab.allied_id WHERE ab.hash = ?',
+        [branchHash]);
+    const raw = await one<{ value: string }>("SELECT value FROM settings WHERE `key` = 'corbeta_allieds'");
+    let allieds: number[] = [];
+    try {
+        const v = raw?.value as unknown;
+        const arr = Array.isArray(v) ? v : JSON.parse(String(v ?? '[]'));
+        allieds = (Array.isArray(arr) ? arr : []).map((x: unknown) => Number(x)).filter(Number.isFinite);
+    } catch { allieds = []; }
+    return {
+        alliedId: br?.alliedId ?? null,
+        corbeta: br ? allieds.includes(Number(br.alliedId)) : false,
+        // null cuando la sucursal no se encontró: no es lo mismo que «no la tiene», y el panel no debe
+        // preseleccionar sobre una suposición.
+        selfManaged: br ? Number(br.selfManaged) === 1 : null,
+        allieds,
+    };
+}

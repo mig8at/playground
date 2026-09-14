@@ -1,5 +1,21 @@
-// checkout-b64.ts — arma la ENTRADA POR ECOMMERCE: la URL base64 que una tienda genera para mandar
-// al cliente al wizard de CreditOp.
+// checkout-b64.ts — arma la entrada del checkout de **CORBETA**: la URL base64 que su tienda genera
+// para mandar al cliente al wizard.
+//
+// ⚠⚠ NO ES «EL» CHECKOUT DE ECOMMERCE: ES UNO DE DOS, Y VAN A CONTROLADORES DISTINTOS.
+//
+//     este archivo        → GET `/api/onboarding/checkout/{hash}`        → CorbetaCheckoutController@show
+//                           302 a `…/resolve-ecommerce-flow/{uReq}` (el resolvedor de BANCOLOMBIA)
+//     `pkg/ecommerce.ts`  → GET `/ecommerce/{hash}/checkout` (el FRONT)  → `ecommerce-request/create`
+//                           302 a `…/solicitar?erId=…` (el canal genérico, el de la tarea #6)
+//
+// Elegir el equivocado no da un error: da OTRO FLUJO. Con un comercio que no es Corbeta, el resolvedor
+// saca `flowType: no_preapproved` y su propio loader llama `cancelCorbetaCheckout` — **la solicitud
+// nace CANCELADA** y el harness lo reporta como si el producto la hubiera rechazado.
+//
+// CÓMO SABER CUÁL ARMÓ UNA URL que estás mirando, sin decodificar nada: el `order_key`.
+//     `wc_order_e2e_<documento>`      → este archivo (Corbeta)
+//     `wc_mcp_<hash>_<timestamp36>`   → `pkg/ecommerce.ts` (genérico)
+// Saber eso costó decodificar base64 a mano el 2026-09-14.
 //
 // POR QUÉ EXISTE:
 //   Hasta ahora el harness solo entraba por el login del asesor. La entrada real de ecommerce es otra:
@@ -20,9 +36,11 @@
 //     `unserialize`, cae a `json_decode`, y castea array→objeto en ambos casos. Si algún día valida
 //     más estrictamente, ESTE es el mapa a respetar.
 //   · DESTINO: el plugin apunta a `{front}/ecommerce/{hash}/checkout` (la LANDING del wizard); acá
-//     pegamos al endpoint del BACKEND. No es capricho: esa landing no existe en la rama actual — vive
-//     solo en `feat/ecommerce-checkout-integration` (F-54). O sea el plugin apunta hoy a una ruta que
-//     el wizard de esta rama no tiene.
+//     pegamos al endpoint del BACKEND de Corbeta.
+//     ⚠ El motivo original de hacerlo así CADUCÓ el 2026-09-14: decía que esa landing «no existe en la
+//     rama actual, vive sólo en `feat/ecommerce-checkout-integration` (F-54)», y ya está en `qa`
+//     (frontend-monorepo#997). Quien quiera la landing genérica hoy usa `pkg/ecommerce.ts`; este
+//     archivo se queda porque el checkout de Corbeta SIGUE siendo otro endpoint y otro flujo.
 //
 // CONTRATO (leído de Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:119-146):
 //   GET /api/onboarding/checkout/{allied_branch_hash}?o=&p=&t=&u=&ps=[&config=]

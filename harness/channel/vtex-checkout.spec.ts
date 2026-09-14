@@ -31,7 +31,15 @@ test('VTEX checkout: /vtex/init (legacy genera base64) → wizard → /lenders',
             return `authorizationId=${init.authorizationId} · ${init.hash} · ${init.checkout_path.slice(0, 70)}…`;
         })
         .step('Monto', 'el monto viene prellenado del order (contrato base64) y bloqueado: solo se confirma', async () => {
-            const activar = page.getByRole('button', { name: /activar mi cr[ée]dito|continuar|siguiente/i });
+            // Por TESTID primero: el copy «activar mi crédito» sólo existe ya en la rama de junio
+            // (medido contra qa el 2026-09-14); hoy el botón dice «Iniciar solicitud».
+            const activar = page
+                .getByTestId('amount-submit')
+                .or(page.getByRole('button', { name: /iniciar solicitud|activar mi cr[ée]dito|continuar|siguiente/i }));
+            await expect(activar.first()).toBeVisible({ timeout: 20_000 });
+            // «Confirmación de cupo»: obligatorio donde aparece, o el submit no se habilita nunca.
+            const cupo = page.getByRole('radio', { name: 'No', exact: true });
+            if (await cupo.isVisible().catch(() => false)) await cupo.click();
             await expect(activar.first()).toBeEnabled({ timeout: 20_000 });
             await activar.first().click();
             return 'monto prellenado + confirmado';

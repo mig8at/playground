@@ -468,6 +468,18 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             return `${l.name} #${l.id} rt${l.rt} → ${on ? st : 'APAGADO (no va a listar)'}`;
         });
         L.push(row('lenders', desc.join('\n' + ' '.repeat(16))));
+        // ⚠ AVISO DE LA PANTALLA SIN SALIDA (F-214). Si el cliente contesta «Sí» en «Confirmación de
+        // cupo», la solicitud nace con `flow_id = 2` y el listado se recorta a `rt=0`: se descartan
+        // TODAS las entidades integradas. En un comercio sin ninguna `rt=0` eso deja la pantalla vacía
+        // —«No encontramos una opción para ti»— y el cliente no puede volver a cambiar su respuesta.
+        // El dato ya está acá (los `rt` de arriba), así que decirlo ANTES cuesta cero: sin el aviso,
+        // depurarlo empieza por la config del comercio, que está sana. Pasó el 2026-09-14.
+        const conRt0 = lenders.filter((l) => Number(l.rt) === 0 && Number(l.lender_status) === 1);
+        if (!conRt0.length) {
+            L.push(row('⚠ cupo', 'este comercio NO tiene ninguna entidad rt=0 activa: si en «Confirmación de cupo»\n'
+                + ' '.repeat(16) + 'contestás «Sí», el listado sale VACÍO (flow_id=2 deja sólo rt=0 · F-214).\n'
+                + ' '.repeat(16) + 'Para recorrer el flujo entero, contestá «No».'));
+        }
     } else if (Object.keys(pa).length) {
         L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${ES[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));
     }

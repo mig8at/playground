@@ -15,6 +15,7 @@ import { close, one, query, scalar, exec, assertWriteAllowed } from '../pkg/db.t
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
+import { corbetaDeLaSucursal } from '../pkg/merchants.ts';
 import { synthFill, requestEstado11 } from '../pkg/inject.ts';
 import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
@@ -311,40 +312,12 @@ try {
                 [num(a[0])],
             );
             break;
-        case 'is-corbeta': // ¿esta SUCURSAL pertenece al grupo Corbeta? → {hash, alliedId, corbeta, allieds}
-            // La fuente de verdad es el MISMO setting con el que decide el producto —`corbeta_allieds`,
-            // leído en 3 sitios del backend (IsCorbetaOnboardingService, OnboardingService y
-            // PurchaseCodeService::isCorbetaAllied)—. Se resuelve por setting y NO con la lista
-            // `[24,209,210,211]` a mano: ese hardcode ya existe 24 veces en el producto (nodo
-            // `hardcodes-entidades`) y sumar el 25 en el harness lo desincronizaría el día que negocio
-            // agregue un comercio al grupo.
-            {
-            // `self_managed` viaja en la MISMA consulta: es lo que el panel necesita para preseleccionar el
-            // canal, y pedirlo aparte sería un viaje más para un dato que ya está en el join.
-            const br = await one<{ alliedId: number; selfManaged: number }>(
-                'SELECT ab.allied_id AS alliedId, al.self_managed AS selfManaged'
-                + ' FROM allied_branches ab JOIN allieds al ON al.id = ab.allied_id WHERE ab.hash = ?',
-                [String(a[0] ?? '')]);
-            const raw = await one<{ value: string }>(
-                "SELECT value FROM settings WHERE `key` = 'corbeta_allieds'");
-            let allieds: number[] = [];
-            try {
-                const v = raw?.value as unknown;
-                const arr = Array.isArray(v) ? v : JSON.parse(String(v ?? '[]'));
-                allieds = (Array.isArray(arr) ? arr : []).map((x: unknown) => Number(x)).filter(Number.isFinite);
-            } catch { allieds = []; }
-            r = {
-                hash: String(a[0] ?? ''),
-                alliedId: br?.alliedId ?? null,
-                corbeta: br ? allieds.includes(Number(br.alliedId)) : false,
-                // El flag de comercio que enciende la autogestión (`allieds.self_managed`, el switch
-                // «Habilitar auto gestión» del panel de admin). null cuando la sucursal no se encontró:
-                // no es lo mismo que "no la tiene", y el panel no debe preseleccionar sobre una suposición.
-                selfManaged: br ? Number(br.selfManaged) === 1 : null,
-                allieds,
-            };
-            }
+        case 'is-corbeta': { // ¿esta SUCURSAL pertenece al grupo Corbeta? → {hash, alliedId, corbeta, selfManaged, allieds}
+            // La lógica vive en `pkg/merchants.ts` porque la comparten este subcomando y `guided.spec.ts`.
+            const hash = String(a[0] ?? '');
+            r = { hash, ...(await corbetaDeLaSucursal(hash)) };
             break;
+        }
         default:
             throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|ecommerce-vinculo|synth-fill|lender-rt|flow-id|is-corbeta`);
     }

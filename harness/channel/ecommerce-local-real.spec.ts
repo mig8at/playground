@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { decryptLaravelString } from '../pkg/laravel-crypt';
-import { fillAmountStep, fillEmploymentInfo, fillExpeditionDate, fillPhoneStep } from '../channel/steps';
+import { fillAmountStep, fillPhoneStep } from '../channel/steps';
 import { contratoParaSpec } from '../pkg/ecommerce';
 import { Flow } from '../pkg/flow';
 
@@ -114,87 +113,25 @@ test('Ecommerce LOCAL real: /checkout → solicitar → amount → phone → OTP
         })
         .run();
 });
-
-/**
- * Camino COMPLETO hasta /lenders usando los data-testid (requiere el stash de testids aplicado).
- * Dónde va cada data-testid (archivo → elemento → testid) en frontend-monorepo:
- *   loan-application-form/src/components/
- *     amount-form.tsx ............... amount-input (Input monto), amount-submit (botón)
- *     phone-number-step-form.tsx .... phone-input (Input), phone-submit (botón)
- *     forms/personal-info-form.tsx .. personal-info-form (div), docnum/name/surname/email-input,
- *                                     identification-submit (botón)
- *     forms/employment-info-form.tsx  employment-info-form, employment-status-trigger,
- *                                     employment-status-option-${value}, monthly-income-input, employment-submit
- *     document-expedition-date.tsx .. expedition-date-submit (botón; el DateSelector usa los de abajo;
- *                                     el checkbox confirmIdentity NO tiene testid → getByRole('checkbox'))
- *   packages/shared/components/src/components/otp.tsx . otp-input (InputOTP), otp-submit (botón)
- *   packages/ui/src/components/date-selector.tsx ..... date-selector-{day,month,year} (SelectTrigger) +
- *                                     date-selector-{day,month,year}-option-${n} (cada SelectItem)
- *   lenders-marketplace/src/components/forms/InitialFeeForm.tsx . initial-fee-input
- * Con el perfil mock completo /lenders responde sin ningún bypass. Usa los helpers compartidos.
+/*
+ * ⚠ ACÁ VIVÍA UN SEGUNDO TEST («Ecommerce LOCAL real (testids)») Y SE BORRÓ EL 2026-09-14.
+ *
+ * Recorría el flujo entero hasta /lenders apoyándose en ocho `data-testid`: `otp-input`, `otp-submit`,
+ * `personal-info-form`, `docnum-input`, `name-input`, `surname-input`, `email-input` e
+ * `identification-submit`. **Ninguno de los ocho existe** — medido contra `origin/qa`. Nunca estuvieron
+ * en una rama mergeada: vivían en los stashes `local-e2e: data-testid …` que su propio mensaje marca
+ * «NO commitear». El spec llevaba meses muriendo en el paso 5 de 8, y no había locator que lo arregle:
+ * no es un selector viejo, es una pantalla que nunca existió así.
+ *
+ * (Los cuatro testids que SÍ existen en el wizard son `amount-input`, `amount-submit`, `phone-input` y
+ * `phone-submit`; los usa el test de arriba y `pkg/wizard-steps.ts`.)
+ *
+ * QUÉ CUBRE HOY ESA COBERTURA, que era llegar hasta el listado:
+ *   · `make harness-caminar CASOS='#<hash>' FLOW=ecommerce` — el mismo recorrido por HTTP, en segundos,
+ *     y además comprueba lo que este test no miraba: que la solicitud quede ATADA al pedido y que
+ *     personal-info llegue con los campos del comercio bloqueados (lee `lockedFields` del loader).
+ *   · el test de arriba, que sigue cubriendo el tramo por NAVEGADOR hasta /personal-info.
+ *
+ * Un test que no puede correr no protege nada, y mantenerlo con locators inventados es peor que no
+ * tenerlo: se lee como cobertura y es un fallo fijo que la gente aprende a ignorar.
  */
-test('Ecommerce LOCAL real (testids): /checkout → amount → phone → OTP → personal → laboral → /lenders', async ({
-    page,
-}) => {
-    test.setTimeout(150_000);
-    // Perfil mock (ONBOARDING_DRIVER_OTP=fake, escenario success): el OTP valida con cualquier código.
-
-    const phone = freshPhone();
-
-    await new Flow(
-        'Ecommerce LOCAL real (testids)',
-        '/checkout → amount → phone → OTP → personal → laboral → /lenders',
-    )
-        .step('Handshake checkout', 'URL real desde generate_checkout_url.php', async () => {
-            const path = await buildCheckoutPath(phone);
-            await page.goto(path);
-            return path;
-        })
-        .step('Monto', 'usa testid amount-input/submit', async () => {
-            await fillAmountStep(page, '600000');
-            return 'monto 600000';
-        })
-        .step('Teléfono', 'register → OTP cifrado en otps', async () => {
-            // Mismo motivo que el monto: en ecommerce el celular viene del contrato y el input
-            // llega `readonly`. `fillPhoneStep` respeta el prellenado en vez de tipear encima.
-            await fillPhoneStep(page, phone);
-            await page.waitForURL(/\/otp(\?|$)/, { timeout: 20_000 });
-            return `teléfono ${phone}`;
-        })
-        .step('OTP', 'driver fake valida con cualquier código (1234)', async () => {
-            await page.waitForTimeout(2_000);
-            const otpCode = '1234';
-            await page.getByTestId('otp-input').click();
-            await page.keyboard.type(otpCode, { delay: 40 });
-            await page.getByTestId('otp-submit').click();
-            await page.waitForURL(/\/personal-info(\?|$)/, { timeout: 25_000 });
-            return 'OTP validado → /personal-info';
-        })
-        .step('Identificación', 'sobrescribe prefill del stub de facturación (---)', async () => {
-            await expect(page.getByTestId('personal-info-form')).toBeVisible({ timeout: 20_000 });
-            const docNum = String(Math.floor(Math.random() * 2_899_999_999 + 100_000_000));
-            await page.getByTestId('docnum-input').fill('');
-            await page.getByTestId('docnum-input').pressSequentially(docNum, { delay: 40 });
-            await page.getByTestId('name-input').fill('JUAN');
-            await page.getByTestId('surname-input').fill('PEREZ');
-            await page.getByTestId('email-input').fill(`e2e${Date.now()}@gmail.com`);
-            await page.getByTestId('identification-submit').click();
-            return `docnum ${docNum}`;
-        })
-        .step('Fecha de expedición', 'día → mes → año + checkbox identidad', async () => {
-            await fillExpeditionDate(page);
-            return 'fecha enviada';
-        })
-        .step('Datos laborales', 'solo si el FE pidió /employment-info', async () => {
-            await page.waitForURL(/\/(employment-info|lenders)(\?|$)/, { timeout: 30_000 });
-            if (!/\/employment-info/.test(page.url())) return 'omitido (no aplica)';
-            await fillEmploymentInfo(page, { status: 'Empleado', monthlyIncome: '2500000' });
-            await page.waitForURL(/\/lenders(\?|$)/, { timeout: 30_000 });
-            return 'empleo registrado';
-        })
-        .step('Aterrizaje en /lenders', 'marketplace renderizado', async () => {
-            await expect(page).toHaveURL(/\/lenders/);
-            return page.url();
-        })
-        .run();
-});
