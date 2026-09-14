@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-543]
 jira_title: "Inicio paso refactor ecommerce"
-ramas: ecommerce-stateless-checkout, cuota-inicial-en-el-wizard, ecommerce-*stateless*
+ramas: ecommerce-stateless-checkout, ecommerce-*stateless*
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -131,9 +131,16 @@ no prefill/context on network error»*. Un fallo del contexto deja al comprador 
 justifica si además se rescata la sala de espera (`AdvisorStatusController@checkLoanStatus` +
 `loans/ecommerce-check`), que eso sí no está en ninguna.
 
-**Corrección 2 · los dos PRs son por CONCERN, y los dos van en el front.** #551 empaquetó dos cosas:
+**Corrección 2 · ~~los dos PRs son por CONCERN~~ — ⚠ DESCARTADA por Miguel (2026-09-14):** quería
+**un PR por REPO**, no por concern. Se consolidó todo en [#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)
+(20 archivos, +749/−26, **un commit**) y se cerró el #998. El cherry-pick entró limpio y build,
+typecheck y Sonar siguen en verde con los dos concerns juntos. **El argumento del split se queda
+anotado como riesgo asumido:** revertir un fallo del checkout en prod se lleva puesta la cuota inicial.
+Lo que sigue abajo describe por qué se propuso separarlos.
 
-| concern | archivos | líneas |
+~~Los dos PRs son por concern, y los dos van en el front.~~ #551 empaquetó dos cosas:
+
+| concern (ambos van juntos en #997) | archivos | líneas |
 |---|---|---|
 | **entrada stateless de ecommerce** | `ecommerce/checkout.tsx` +90 · `ecommerce-context.server.ts` +60 · y ~16 retoques | ~336 |
 | **cuota inicial** (payments) | `down-payment-validation.tsx` +109 · `initial-fee-payment.tsx` +93 · `.server.ts` +47 | **249 (43 %)** |
@@ -150,10 +157,9 @@ que `routes.ts` se había traído las rutas de la cuota inicial sin sus archivos
 original mandaba `ecommerce_request_id` en **snake_case al endpoint v1**, mientras `qa` ya usa
 OnboardingV2, que lo valida como **`ecommerceRequestId`**: copiado tal cual, el backend lo ignoraba, la
 solicitud nacía sin vincular al pedido y **el comercio nunca recibía el veredicto**, sin ningún error
-visible. (2) ✅ **HECHO** — **PR
-[#998](https://github.com/Creditop-SAS/frontend-monorepo/pull/998)**, rama `feat/cuota-inicial-en-el-wizard`,
-también desde `qa` y **no apilada** sobre la otra: 6 archivos, +275, un commit. Backend ya presente en
-las cuatro ramas. ⚠ Trajo **una decisión de criterio** que el PR de junio no enfrentaba porque esas
+visible. (2) ✅ **HECHO, y consolidado en #997** — la cuota inicial se armó primero
+como PR #998 aparte y Miguel pidió un PR por repo, así que se cherry-pickeó al #997 y el #998 se cerró.
+Backend ya presente en las cuatro ramas. ⚠ Trajo **una decisión de criterio** que el PR de junio no enfrentaba porque esas
 ramas no existían: dónde va el cobro en la cadena de navegación de `available-lenders`. Quedó después
 de gestión manual y autogestión —ahí el comprador ya no está en la pantalla— y antes del resto; y
 después de la analítica, para no perder `lender_selection_result`, que el early-return original se
