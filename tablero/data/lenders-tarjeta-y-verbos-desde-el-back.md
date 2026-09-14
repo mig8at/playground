@@ -1,7 +1,7 @@
 ---
 id: 80
 title: "Lenders: la tarjeta y sus verbos los define el back"
-stage: idea
+stage: work
 ramas: feat/lenders-tarjeta-desde-el-back, feat/lenders-tabla-cards
 created: "2026-09-13T11:30:00-05:00"
 context_nodes: [frontend-monorepo, legacy-backend, hardcodes-entidades, entities, ms-preapprovals, microservicios, findings]
@@ -22,8 +22,17 @@ mismo día se plegó a Alta Fleet (76) porque parecía un renglón de esa entida
 lo sacó como tarea propia**: *«no las mezclemos con los cambios de Alta»*. Alta cierra en
 `frontend-monorepo#994`; todo lo que sigue es de acá.
 
-**Cómo se trabaja, por decisión de Miguel (2026-09-13):** **sólo en local**, en ramas hechas **a partir
-de `qa`**, **sin push y sin PR** hasta que haya acuerdo en el esquema. Las ramas: `feat/lenders-tarjeta-desde-el-back`
+**Cómo se trabajó:** en local, en ramas a partir de `qa`, sin push mientras el esquema no estaba fijo.
+**El 2026-09-13 Miguel dio el OK y se abrieron los dos PRs, uno por repo, contra `qa`:**
+
+- `Creditop-SAS/legacy-backend#1388` — la tarjeta viaja en la respuesta y el perfilador dice por qué rechaza (4 commits)
+- `Creditop-SAS/frontend-monorepo#995` — las decisiones salen de los componentes, con prueba diferencial (15 commits)
+
+⚠ **Uno por repo, no partido por riesgo.** Se evaluó separar el front en «riesgo cero» y «cambia
+caminos», y se descartó: las particiones de archivos se hicieron DESPUÉS de los cambios de conducta
+sobre esos mismos archivos, así que el split pedía rebasar y el historial dejaba de ser el verificado.
+El riesgo va documentado en la descripción, con **checklist de QA del flujo de selección** — que es lo
+único que ni las pruebas ni las historias cubren. Las ramas: `feat/lenders-tarjeta-desde-el-back`
 (monorepo) y `feat/lenders-tabla-cards` (backend), ambas nacidas de `origin/qa` el 13/9 y vacías. Hay
 además dos ramas locales más viejas del mismo frente, `feat/tarjeta-por-capacidad` en los dos repos,
 con el trabajo del 11/9 (los servicios por capacidad, la migración de `preapproval_key` +
