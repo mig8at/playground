@@ -527,10 +527,14 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
 - [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
 - [ ] **Medir cuántos comercios ecommerce mapean el campo documento** (`allied_ecommerce_credentials` + los `ecommerce_requests.data` ya guardados). Es lo que decide si la experiencia sin fricción es real o es una demo: sin documento no hay identificación y la entidad del propio comercio no aparece.
-- [ ] Parsear `should_collect_expedition_date` en el wizard — el backend ya lo manda y el schema del front no lo lee.
+- [x] ~~Parsear `should_collect_expedition_date`~~ → **YA ESTÁ**, verificado en `qa` el 2026-09-14: `personal-info-config-v2.repository.ts:112` lo lee con test propio, y `loan-request-form` lo usa como `showExpeditionDate` con `?? true` (fallar hacia el paso de MÁS, que es recuperable). El docblock de `GetPersonalInfoConfigService` que decía «the wizard's own schema does not even parse» quedó viejo.
 - [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.
 - [ ] Promover a F-xx: el `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en `strict-origin-when-cross-origin`; endurecerla rompe el prefill en silencio.
 - [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
+- [ ] **Pedir revisor** en [#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997) y [legacy-backend#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) — los dos abiertos contra `qa`, un commit cada uno, sin revisor pedido.
+- [ ] **Confirmar con producto el ORDEN del cobro de cuota inicial** en autogestión — la única decisión de criterio del #997, comentada en el código.
+- [ ] **Decidir si CORE-30 y CORE-543 se unifican** (ver §«Quién hizo qué»).
+- [ ] ⚠ **Promover a F-xx, y es el hallazgo más transversal del día: la guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) sólo cubre las escrituras por `pkg/db.ts`.** Todo lo que escribe **por la API** contra dev pasa sin pedir permiso — así los specs de `channel/` crearon filas en el compartido durante meses sin que nada avisara. Tapado el caso de Playwright (`playwright.config.ts` fija el target), pero el agujero sigue.
 - [ ] **Antes de cualquier piloto**: clave pública por comercio + allowlist de origen + rate limit por origen en `api/onboarding`. Hoy no hay nada de eso.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
 - [ ] **Decidir si CORE-30 y CORE-543 se unifican** — el texto de CORE-30 describe este mismo trabajo. Ver §«Quién hizo qué».
