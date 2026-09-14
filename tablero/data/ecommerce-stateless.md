@@ -172,11 +172,16 @@ mostrando cuánto tiene que escribir. No pega contra la API (es simulado, para q
 demo). Cierra con las tres decisiones que son de producto. Publicado también como artifact:
 <https://claude.ai/code/artifact/00755787-ad1c-4f46-9dcf-61f47298ebf0>
 
-### MEDIDO (2026-09-14): qué destraba la entidad rt=2 — y no son los datos del comercio
+### Qué destraba la entidad rt=2 — y no son los datos del comercio
 
-La pregunta abierta era si dar los datos personales hace aparecer a **CrediPullman (77, rt=2)**.
-Contestada corriendo el flujo por API tres veces contra local, mismo comercio (`e9409aff`) y mismo
-monto (2.000.000), variando **sólo** el endpoint de datos personales:
+> **MEDICIÓN · 2026-09-14** — ¿dar los datos personales hace aparecer a **CrediPullman (77, rt=2)**?
+> **No: lo que la destraba es la consulta al buró.**
+> **Cómo se vuelve a comprobar:** corré el flujo por API contra local tres veces, mismo comercio
+> (`e9409aff`) y mismo monto (2.000.000), variando **sólo** el endpoint de datos personales —
+> `phone/register` → `api/v2/onboarding/otp-auth/validate` (OTP `1111`) → el endpoint bajo prueba →
+> `lenders-v2`; después mirá los `user_field_values` 29/87/160 del usuario.
+
+Los tres resultados:
 
 | camino | respuesta | campos EAV 29/87/160 | listado | rt=2 |
 |---|---|---|---|---|
