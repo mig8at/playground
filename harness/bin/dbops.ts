@@ -45,6 +45,42 @@ try {
         case 'ecommerce-ok': // ¿el comercio tiene checkout ecommerce (alguna sucursal con credencial)? → {ok}
             r = { merchant: a[0] ?? '', ok: (await listEcommerce(a[0] ?? '')).length > 0 };
             break;
+        case 'ecommerce-vinculo': { // ¿la solicitud quedó ATADA al pedido de la tienda, y qué datos entregó el comercio? → lo imprime el panel al cerrar una corrida ecommerce
+            const ureq = num(a[0]);
+            const link = await one<{ ecommerce_request_id: number }>(
+                'SELECT ecommerce_request_id FROM user_requests_by_ecommerce_request WHERE user_request_id = ? ORDER BY id DESC LIMIT 1',
+                [ureq],
+            );
+            const er = link ? await one<{ id: number; order_key: string; processed: number; data: string }>(
+                'SELECT id, order_key, processed, data FROM ecommerce_requests WHERE id = ?',
+                [link.ecommerce_request_id],
+            ) : null;
+            // `data` es el JSON del pedido seguido de una cola literal `config[]` (medido el 2026-09-14
+            // en la fila 6945), así que un JSON.parse directo falla: se corta en el último `}`.
+            let billing: Record<string, unknown> = {};
+            try {
+                const raw = String(er?.data ?? '');
+                billing = JSON.parse(raw.slice(0, raw.lastIndexOf('}') + 1))?.billing ?? {};
+            } catch { billing = {}; }
+            // LA MISMA REGLA QUE EL FRONT (`resolvePrefillDelComercio`): cuenta como dato lo que no está vacío
+            // y no es un «---». Es lo que decide qué campos llegan prellenados y bloqueados.
+            const real = (v: unknown) => typeof v === 'string' && v.trim() !== '' && !/^-+$/.test(v.trim());
+            const CAMPOS: Record<string, string> = {
+                first_name: 'nombre', last_name: 'apellido', document_number: 'documento',
+                document_type: 'tipo doc', email: 'email', phone: 'celular',
+            };
+            const conDato = Object.entries(CAMPOS).filter(([k]) => real(billing[k])).map(([, n]) => n);
+            const sinDato = Object.entries(CAMPOS).filter(([k]) => !real(billing[k])).map(([, n]) => n);
+            r = {
+                ureq,
+                vinculada: !!link,
+                ecommerceRequestId: link?.ecommerce_request_id ?? null,
+                orderKey: er?.order_key ?? null,
+                processed: er ? Number(er.processed) === 1 : null,
+                conDato, sinDato,
+            };
+            break;
+        }
         case 'ecommerce-merchants': { // de un set de branch_hashes (coma-sep), cuáles tienen checkout ecommerce
             const hashes = (a[0] ?? '').split(',').filter(Boolean);   // (por allied del branch) → [hash]
             if (!hashes.length) { r = []; break; }
@@ -310,7 +346,7 @@ try {
             }
             break;
         default:
-            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|synth-fill|lender-rt|flow-id|is-corbeta`);
+            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|ecommerce-vinculo|synth-fill|lender-rt|flow-id|is-corbeta`);
     }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n');
     await close();

@@ -296,6 +296,9 @@ tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
 	@cd harness && node dev/montar-rto.ts
 
+harness-kyc-flow: ## @har deja el resolvedor de KYC usable en LOCAL: siembra la setting `kyc_pipeline_allieds` vacía (= todos por el flujo legacy, como en qa). Sin ella `kyc-flow/{hash}` da 500 y el front cae al v1 sin avisar. Sólo local, idempotente
+	@cd harness && E2E_TARGET=local node dev/montar-kyc-flow.ts
+
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
 	@cd harness && E2E_TARGET=local node dev/montar-peru.ts
 

@@ -53,7 +53,7 @@ const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
 const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
     await import('../pkg/wizard-navegador.ts');
 const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrelleno.ts');
-const { mkdirSync } = await import('node:fs');
+const { mkdirSync, readFileSync, statSync } = await import('node:fs');
 const { cognitoStorageState, COGNITO_STATE_PATH } = await import('../pkg/cognito.ts');
 
 type Form = Record<string, string | number | null | undefined>;
@@ -232,6 +232,23 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
     const docTipo = await tipoDeDocumentoDelComercio(br.hash);
 
     const s = new SesionFront();
+    // ⚠ El canal ASESOR necesita la sesión de Cognito, y este motor NO LA CARGABA: `s` nacía sin
+    // cookies, el primer loader de `/merchant/…` mandaba a `/login`, el bucle seguía la redirección al
+    // hosted UI y moría con un «/login: HTTP 500» que no decía nada de la causa. Medido el 2026-09-14
+    // contra la rama de ecommerce Y contra qa: idéntico en las dos — el motor, no el código bajo prueba.
+    // El estado cacheado es el mismo que usa el motor navegador (`cognitoStorageState`); si no hay,
+    // se dice igual que allá. Y si aun con cookies el front manda al login, lo dice el bucle de abajo.
+    let sesionAsesor: { ruta: string; fecha: string } | null = null;
+    if (FLOW === 'merchant') {
+        const ruta = cognitoStorageState();
+        if (!ruta) return terminar('trabado', `el canal de asesor pide sesión y no hay ninguna cacheada en ${COGNITO_STATE_PATH} — entrá una vez por el panel (canal asesor) y volvé`);
+        try {
+            s.conCookiesDe(JSON.parse(readFileSync(ruta, 'utf8')));
+            sesionAsesor = { ruta, fecha: statSync(ruta).mtime.toISOString().slice(0, 16).replace('T', ' ') };
+        } catch (e) {
+            return terminar('trabado', `no pude leer la sesión cacheada en ${ruta}: ${(e as Error).message}`);
+        }
+    }
     // La traza de ESTE caso. Su salida va al buffer del caso, no a consola: en paralelo, N casos
     // escribiendo a la vez dan un log ilegible.
     const t = crearTraza({ salida: (l) => lineas.push(l), ancho: 74 });
@@ -279,6 +296,14 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
 
         // El loader mismo redirigió (gate, estado terminal, login…): se sigue y punto.
         if (res.status === 202 && res.redirect) {
+            // …salvo al LOGIN: seguirlo lleva al hosted UI de Cognito y a un 500 sin causa. Acá la causa
+            // es una sola —las cookies cacheadas no le sirven a este front— y se dice con el archivo y
+            // su fecha, que es lo que hace falta para arreglarlo (entrar una vez por el panel).
+            if (/^\/login(\?|$)/.test(res.redirect)) {
+                return terminar('trabado', sesionAsesor
+                    ? `el front mandó al LOGIN con las cookies cacheadas en ${sesionAsesor.ruta} (archivo del ${sesionAsesor.fecha}): esa sesión no le sirve a ${s.base} (vencida, o de otro origen) — entrá una vez por el panel (canal asesor) y volvé`
+                    : `el loader de ${ruta.split('?')[0].split('/').slice(3).join('/')} mandó al LOGIN: esta ruta pide sesión de asesor (probá --flow merchant)`);
+            }
             const d = destino(res.redirect, ruta);
             if (!d) return terminar(/prohibida/i.test(lineas.at(-1) ?? '') ? 'malo' : 'trabado', `el loader de ${ruta.split('?')[0].split('/').slice(3).join('/')} redirigió a ${res.redirect}`);
             ruta = d; continue;

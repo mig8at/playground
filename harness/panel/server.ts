@@ -33,7 +33,7 @@ function envFor(target: string): NodeJS.ProcessEnv {
 }
 
 // una sola corrida a la vez (un browser headed a la vez).
-let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; startedAt: number; done: boolean; code: number | null } | null = null;
+let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; canal: string; startedAt: number; done: boolean; code: number | null } | null = null;
 
 // ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
 // Al CERRAR la corrida se hace UNA consulta `dbops activity` (ventana = duración) y se vuelca acá: a la
@@ -42,7 +42,7 @@ let current: { child: ReturnType<typeof spawn>; slug: string; target: string; in
 // proceso+conexión por tick — una sola foto al final alcanza y es más barata.
 const RUNS_DIR = resolve(ROOT, '.runs');
 const ULTIMA = join(RUNS_DIR, 'ultima-corrida.json');
-let bitacora: { user: number | null; eventos: Map<string, any> } = { user: null, eventos: new Map() };
+let bitacora: { user: number | null; eventos: Map<string, any>; ecommerce?: any } = { user: null, eventos: new Map() };
 
 /** Mezcla lo que devolvió `dbops activity` en la bitácora. Clave = tabla+id+op+at → idempotente (hoy se
  *  llama una sola vez, al cierre; el dedup por clave queda por si vuelve a haber más de una fuente). */
@@ -106,6 +106,15 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
         // paquete haya llegado — y son dos cosas distintas que nada más distingue.
         radicoBien: radicacion === null ? null : radicacion === 'CREDIT_COMPLETED',
         flujo: mFlujo ? (firmado ? '2 · already-confirmed-pre-approval (omite buró)' : `${mFlujo[1]} · estándar`) : 'sin firmar',
+        // Canal ECOMMERCE: lo único que ese canal promete es que la solicitud quede ATADA al pedido de la
+        // tienda — sin eso el comercio no recibe el veredicto, y el formulario ni se prellena ni bloquea
+        // nada. Este resumen no lo miraba: el 2026-09-14 una corrida por UI llegó a /lenders, acá decía
+        // todo bien, y el vínculo era 0. La consulta la hace `dbops ecommerce-vinculo` al cerrar.
+        ...(bitacora.ecommerce ? {
+            comercio: bitacora.ecommerce.vinculada
+                ? `✓ atada al pedido #${bitacora.ecommerce.ecommerceRequestId} (${bitacora.ecommerce.orderKey}) · el comercio entregó ${bitacora.ecommerce.conDato.length}/6 campos: ${bitacora.ecommerce.conDato.join(', ')} → el front los prellena y BLOQUEA${bitacora.ecommerce.sinDato.length ? ` · sin dato (editables): ${bitacora.ecommerce.sinDato.join(', ')}` : ''}`
+                : '✗ SIN ATAR a ningún pedido — el comercio no recibirá el veredicto, y el formulario no se prellena ni bloquea nada. Causa conocida: el OTP salió sin `ecommerce_request_id` (frontend-monorepo#997)',
+        } : {}),
         // En modo SINTÉTICO la fila de Experian la escribe `synthFill`, NO la consulta el backend.
         // Contarla como consulta daba un falso negativo: "flujo firmado pero se consultó Experian",
         // acusando a la lógica de omisión de algo que hizo el propio harness. Un veredicto equivocado
@@ -161,6 +170,7 @@ function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Reco
         `  solicitud:  ${v.solicitud ?? '—'}`,
         `  estado:     ${v.estadoFinal}`,
         `  flujo:      ${v.flujo}`,
+        ...(v.comercio ? [`  comercio:   ${v.comercio}`] : []),
         `  experian:   ${v.experian}`,
         `  lectura:    ${v.lectura}`,
         `  tablas:     ${tablas}`,
@@ -515,7 +525,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     // (bash → npx playwright → node → chromium), no solo el bash.
     const bin = canal === 'ecommerce' ? 'ecommerce' : canal === 'qr' ? 'qr' : canal === 'autogestion' ? 'autogestion' : 'asesor';   // ecommerce/qr/autogestion son wrappers que exportan CFE_ENTRY
     const child = spawn('/bin/bash', [join(ROOT, 'bin', bin), slug], { cwd: ROOT, env, detached: true });  // sin `auto` → manual
-    current = { child, slug, target: t, inject, startedAt: Date.now(), done: false, code: null };
+    current = { child, slug, target: t, inject, canal, startedAt: Date.now(), done: false, code: null };
     bitacora = { user: null, eventos: new Map() };   // arranca limpia: si no, arrastraría la corrida anterior
     // Estampa "listo para explorar en Xs" la PRIMERA vez que el spec canta que aterrizó (entrada DIRECTA/OK).
     // Ese delta —desde que diste Lanzar hasta que podés explorar— es la métrica REAL de velocidad; el
@@ -562,6 +572,12 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             const seg = current ? Math.max(1, Math.round((Date.now() - current.startedAt) / 1000)) : 300;
             const act = await dbopsJson(['activity', String(seg)], current?.target || 'local');
             acumular(act);
+            // Sólo para el canal ecommerce: ¿quedó atada al pedido? (ver el comentario en `volcarBitacora`).
+            if (current?.canal === 'ecommerce') {
+                const urs = [...bitacora.eventos.values()].filter((e) => e.tabla === 'user_requests');
+                const ureq = urs.length ? urs[urs.length - 1].id : null;
+                if (ureq) bitacora.ecommerce = await dbopsJson(['ecommerce-vinculo', String(ureq)], current.target);
+            }
             const info = volcarBitacora();
             // ¿la UI mostró algún banner de error durante la corrida? El spec los vuelca como "⚠ FALLO EN
             // PANTALLA …" (errorShot). Con el salto por `commit`, un error POSTERIOR no tumba la corrida
