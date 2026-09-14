@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El onboarding dentro de la tienda · prototipo</title>
+<style>
+  :root{
+    --bg:#faf9f7; --panel:#fff; --tinta:#1c1a17; --suave:#6b6660; --linea:#e5e1db;
+    --acento:#1f6feb; --ok:#1a7f4b; --ok-bg:#eefaf2; --alerta:#9a5b00; --alerta-bg:#fff8e8;
+    --stop:#b4232a; --stop-bg:#fdeeee; --apagado:#b8b2aa; --tienda:#f3efe9;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#161513; --panel:#1e1d1a; --tinta:#eceae6; --suave:#a09a92; --linea:#332f2a;
+    --acento:#6ea8fe; --ok:#4ade80; --ok-bg:#16251c; --alerta:#e0b341; --alerta-bg:#2a2317;
+    --stop:#ff6b6b; --stop-bg:#2b1a1a; --apagado:#4a453e; --tienda:#191817;}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--tinta);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.02em}
+  h2{font-size:17px;margin:0 0 12px;letter-spacing:-.01em}
+  .sub{color:var(--suave);margin:0 0 18px}
+  .fecha{display:inline-block;font:12px/1 var(--mono);color:var(--suave);
+         border:1px solid var(--linea);border-radius:99px;padding:5px 10px;margin-bottom:18px}
+  .aviso{background:var(--alerta-bg);border:1px solid var(--alerta);border-left-width:3px;
+         border-radius:8px;padding:12px 14px;margin:0 0 14px;font-size:14px}
+  .aviso b{color:var(--alerta)}
+  .aviso.stop{background:var(--stop-bg);border-color:var(--stop)}
+  .aviso.stop b{color:var(--stop)}
+  .aviso p{margin:6px 0 0}
+  .panel{background:var(--panel);border:1px solid var(--linea);border-radius:12px;
+         padding:18px 20px;margin-bottom:16px}
+  label{display:block;font-size:11px;color:var(--suave);margin-bottom:4px;
+        text-transform:uppercase;letter-spacing:.04em}
+  input,select{width:100%;padding:7px 9px;border:1px solid var(--linea);border-radius:7px;
+               background:var(--bg);color:var(--tinta);font:13px var(--mono)}
+  input:focus,select:focus{outline:2px solid var(--acento);outline-offset:-1px}
+  button{border:0;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;
+         cursor:pointer;background:var(--acento);color:#fff;font-family:inherit}
+  button.gris{background:transparent;color:var(--tinta);border:1px solid var(--linea)}
+  button.mini{padding:5px 10px;font-size:12px;font-weight:500}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  code{font:12px var(--mono);background:var(--bg);border:1px solid var(--linea);
+       border-radius:4px;padding:1px 5px}
+  .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .campos .ancho{grid-column:1/-1}
+
+  /* ── la tienda del comercio ─────────────────────────────────────────── */
+  .tienda{background:var(--tienda);border:1px solid var(--linea);border-radius:14px;
+          padding:20px;margin-bottom:16px}
+  .tienda-top{display:flex;align-items:center;gap:10px;padding-bottom:14px;
+              border-bottom:1px solid var(--linea);margin-bottom:16px}
+  .logo{font-weight:800;letter-spacing:-.02em;font-size:16px}
+  .logo span{color:var(--suave);font-weight:400;font-size:12px;margin-left:6px}
+  .carrito{margin-left:auto;font:12px var(--mono);color:var(--suave)}
+  .producto{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+  .foto{width:110px;height:110px;border-radius:10px;flex-shrink:0;
+        background:linear-gradient(135deg,#d9d2c7,#b9ad9c);display:grid;place-items:center;
+        font-size:40px}
+  .prod-info{flex:1;min-width:200px}
+  .prod-info h3{margin:0 0 4px;font-size:17px}
+  .precio{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
+  .prod-info .que{color:var(--suave);font-size:13px;margin:0}
+
+  /* ── el widget del SDK, montado dentro de la tienda ─────────────────── */
+  #ct-widget{margin-top:16px;border:1.5px solid var(--acento);border-radius:12px;
+             background:var(--panel);padding:16px 18px}
+  .w-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .w-top b{font-size:14px}
+  .marca{font:10px var(--mono);color:var(--acento);border:1px solid var(--acento);
+         border-radius:99px;padding:2px 7px;text-transform:uppercase;letter-spacing:.05em}
+  .w-que{color:var(--suave);font-size:12.5px;margin:0 0 14px}
+  .paso-t{font:11px var(--mono);color:var(--suave);text-transform:uppercase;
+          letter-spacing:.05em;margin-bottom:8px}
+  .fila{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+  .fila .crece{flex:1;min-width:150px}
+  .estado{margin-top:10px;font-size:13px;padding:9px 12px;border-radius:8px;display:none}
+  .estado.on{display:block}
+  .estado.ok{background:var(--ok-bg);border:1px solid var(--ok);color:var(--ok)}
+  .estado.err{background:var(--stop-bg);border:1px solid var(--stop);color:var(--stop)}
+  .estado.info{background:var(--alerta-bg);border:1px solid var(--alerta);color:var(--alerta)}
+
+  /* ── el listado, renderizado EN la tienda ───────────────────────────── */
+  .lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px;margin-top:12px}
+  .card{border:1px solid var(--linea);border-radius:10px;padding:12px 13px;background:var(--bg)}
+  .card h4{margin:0 0 3px;font-size:14px}
+  .card .rt{font:10px var(--mono);color:var(--suave);border:1px solid var(--linea);
+            border-radius:99px;padding:1px 6px;display:inline-block;margin-bottom:8px}
+  .card button{width:100%;padding:7px;font-size:12.5px}
+
+  /* ── la bitácora HTTP: la evidencia ─────────────────────────────────── */
+  .log{font:11.5px/1.5 var(--mono);background:var(--bg);border:1px solid var(--linea);
+       border-radius:8px;padding:12px;max-height:340px;overflow:auto}
+  .log:empty::after{content:"— sin llamadas todavía —";color:var(--apagado)}
+  .ln{padding:3px 0;border-bottom:1px dotted var(--linea);white-space:pre-wrap;word-break:break-word}
+  .ln:last-child{border-bottom:0}
+  .ln .m{color:var(--acento);font-weight:600}
+  .ln .s-ok{color:var(--ok);font-weight:600}
+  .ln .s-no{color:var(--stop);font-weight:600}
+  .ln .cuerpo{color:var(--suave);display:block;padding-left:14px}
+  .ln .nota{color:var(--alerta);display:block;padding-left:14px}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:11px;color:var(--suave);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+  td.si{color:var(--ok);font-weight:600}
+  td.no{color:var(--stop);font-weight:600}
+  ul{margin:6px 0 0;padding-left:20px}
+  li{margin-bottom:5px}
+  .pie{color:var(--suave);font-size:12.5px;margin-top:26px;padding-top:14px;
+       border-top:1px solid var(--linea)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>El onboarding dentro de la tienda</h1>
+  <p class="sub">Prototipo del SDK: una página de comercio que maneja el flujo de CreditOp desde su propio DOM y pinta el listado de entidades sin que el comprador se vaya.</p>
+  <div class="fecha">tarea #6 · ecommerce-stateless · CORE-543 · 2026-09-14</div>
+
+  <div class="aviso">
+    <b>Qué contesta esto, y qué no.</b>
+    <p><b>Sí:</b> si una página servida desde OTRO origen puede manejar el flujo por API hasta el listado. Eso se contesta corriéndolo — no leyendo la config de CORS.</p>
+    <p><b>No:</b> si esto es seguro (no lo es todavía: <code>auth.cognito</code> no autentica), ni si es la forma de producto correcta. Y no dice nada de lo que pasa DESPUÉS de elegir entidad.</p>
+  </div>
+
+  <div class="aviso stop">
+    <b>Servilo por HTTP, no con doble clic.</b>
+    <p>Abierto como <code>file://</code> el navegador manda <code>Origin: null</code> y el resultado no se parece al de una tienda real. El servidor de esta carpeta ya existe:</p>
+    <p><code>make soporte-qa</code> → <code>http://localhost:5199/ecommerce-stateless.sdk-en-la-tienda.html</code></p>
+    <p>Eso es un origen distinto del backend (<code>:5199</code> vs <code>:80</code>), que es exactamente la situación del comercio.</p>
+  </div>
+
+  <!-- ════════ configuración ════════ -->
+  <div class="panel">
+    <h2>Contra qué corre</h2>
+    <div class="campos">
+      <div class="ancho">
+        <label for="api">API base (legacy-backend)</label>
+        <input id="api" value="http://localhost">
+      </div>
+      <div>
+        <label for="hash">hash de sucursal</label>
+        <input id="hash" value="e9409aff">
+      </div>
+      <div>
+        <label for="monto">monto</label>
+        <input id="monto" value="2000000">
+      </div>
+      <div>
+        <label for="tel">celular</label>
+        <input id="tel" value="">
+      </div>
+      <div>
+        <label for="otp">código OTP</label>
+        <input id="otp" value="1111">
+      </div>
+    </div>
+    <p style="color:var(--suave);font-size:12.5px;margin:0">
+      Defaults de <b>local</b>: <code>e9409aff</code> es Amoblando Pullman (7 entidades cableadas) y en
+      <code>local</code> el OTP es <b>1111</b> — <code>OtpService.php:432</code>, y sólo en ese ambiente.
+      El celular se genera al azar en cada carga: <code>users.cell_phone</code> es único y reusar uno
+      choca en el registro.
+    </p>
+  </div>
+
+  <!-- ════════ la tienda ════════ -->
+  <h2>La página del comercio</h2>
+  <div class="tienda">
+    <div class="tienda-top">
+      <div class="logo">Amoblando Pullman<span>tienda en línea</span></div>
+      <div class="carrito">carrito · 1 ítem</div>
+    </div>
+
+    <div class="producto">
+      <div class="foto">🛋️</div>
+      <div class="prod-info">
+        <h3>Sofá modular tres puestos</h3>
+        <p class="que">Entrega en 5 días hábiles · SKU PLL-3390</p>
+        <div class="precio" id="precio">$ 2.000.000</div>
+        <p class="que">o pagalo a cuotas — mirá las opciones abajo, sin salir de acá.</p>
+      </div>
+    </div>
+
+    <!-- ── acá monta el SDK ── -->
+    <div id="ct-widget">
+      <div class="w-top">
+        <b>Paga a cuotas con CreditOp</b>
+        <span class="marca">sdk</span>
+      </div>
+      <p class="w-que" id="w-que">Ingresá tu celular y te mostramos con qué entidades podés comprarlo.</p>
+
+      <div id="paso-tel">
+        <div class="paso-t">1 · celular</div>
+        <div class="fila">
+          <div class="crece"><input id="in-tel" placeholder="3130000000"></div>
+          <button id="b-tel">Ver mis opciones</button>
+        </div>
+      </div>
+
+      <div id="paso-otp" hidden>
+        <div class="paso-t">2 · código que te llegó por SMS</div>
+        <div class="fila">
+          <div class="crece"><input id="in-otp" placeholder="1111"></div>
+          <button id="b-otp">Confirmar</button>
+          <button id="b-volver" class="gris mini">empezar de nuevo</button>
+        </div>
+      </div>
+
+      <div id="paso-lista" hidden>
+        <div class="paso-t">3 · entidades disponibles para vos</div>
+        <div class="lista" id="lista"></div>
+      </div>
+
+      <div class="estado" id="estado"></div>
+    </div>
+  </div>
+
+  <!-- ════════ la evidencia ════════ -->
+  <div class="panel">
+    <h2>Lo que salió por la red</h2>
+    <p class="sub" style="margin-bottom:10px">
+      Cada llamada con su método, ruta y status. Es la prueba: si el navegador de un tercero
+      llega o no llega.
+    </p>
+    <div class="log" id="log"></div>
+    <div style="margin-top:10px"><button class="gris mini" id="b-limpiar">limpiar</button></div>
+  </div>
+
+  <!-- ════════ la corrida medida ════════ -->
+  <div class="panel">
+    <h2>La corrida del 2026-09-14, medida</h2>
+    <p class="sub" style="margin-bottom:10px">
+      Servido en <code>localhost:5199</code> contra el backend en <code>localhost:80</code> — dos
+      orígenes distintos, como en una tienda real. Tres llamadas, las tres <b>200</b>:
+    </p>
+    <table>
+      <thead><tr><th>#</th><th>Llamada</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td><code>POST /api/onboarding/phone/register</code></td>
+            <td class="si">200 · usuario 1830489 (TEMPORAL USER)</td></tr>
+        <tr><td>2</td><td><code>POST /api/v2/onboarding/otp-auth/validate/e9409aff</code></td>
+            <td class="si">200 · <code>OBV22005</code> «Temporal user found» · uReq 466543</td></tr>
+        <tr><td>3</td><td><code>GET …/lenders-v2/466543?amount=2000000</code></td>
+            <td class="si">200 · <b>6</b> entidades</td></tr>
+      </tbody>
+    </table>
+
+    <div class="aviso" style="margin-top:14px">
+      <b>El hallazgo: salieron 6, no 7 — y falta justo la que importa.</b>
+      <p>El mismo comercio por <code>make harness-listado</code> da <b>7</b>. La que no aparece acá es
+      <b>CrediPullman (id 77, rt=2)</b>, la de CreditopX. No es un bug del prototipo: el harness
+      <b>inyecta</b> datos de riesgo sintéticos (ingreso 2.500.000, score 700) antes de pedir el listado.
+      Acá el usuario es temporal y no tiene ninguno, así que rt=2 no puede calcular cupo y se cae del
+      listado.</p>
+      <p><b>Lo que eso significa para el SDK:</b> «mostrar el cupo en la tienda» sin pedir datos
+      personales <b>no muestra la oferta de CreditopX</b> — que es la única donde el comercio pone el
+      capital y CreditOp cobra comisión. Lo barato (celular + OTP) alcanza para las entidades externas;
+      lo que de verdad se quiere vender exige el formulario. Eso hay que decidirlo antes de diseñar la
+      pantalla, no después.</p>
+    </div>
+  </div>
+
+  <!-- ════════ lo que el prototipo deja fijado ════════ -->
+  <div class="panel">
+    <h2>Dónde termina este camino</h2>
+    <p class="sub" style="margin-bottom:6px">Verificado contra <code>main</code> el 2026-09-14. Esto no se prueba corriendo el prototipo: se lee en el código, y explica por qué el SDK corta en el listado.</p>
+    <table>
+      <thead><tr><th>Etapa</th><th>¿Sirve en la página del comercio?</th><th>Por qué</th></tr></thead>
+      <tbody>
+        <tr><td>Celular · OTP · datos · <b>listado</b></td><td class="si">Sí</td>
+            <td><code>Modules/Onboarding</code> y <code>Modules/OnboardingV2</code> no usan <code>onlyMobileValidation</code>; CORS abierto y sin secreto de servidor.</td></tr>
+        <tr><td>Validación de identidad</td><td class="no">No</td>
+            <td><code>Modules/Identity</code> sí usa <code>onlyMobileValidation</code>: con user-agent de escritorio devuelve <b>403</b> + QR + SMS con link para seguir en el celular.</td></tr>
+        <tr><td>Confirmación y documentos</td><td class="no">No</td>
+            <td>Igual: <code>Modules/Loans</code> lo aplica a <code>requests/*</code>. Y la captura pide cámara (<code>Capture.tsx</code>, <code>Scanner.tsx</code>).</td></tr>
+        <tr><td>Ir a la entidad (rt=0 / rt=1)</td><td class="no">No</td>
+            <td>Redirect externo o POST con navegación real. <code>submit-post-redirect.ts:8</code>: no sirve fetch ni iframe.</td></tr>
+      </tbody>
+    </table>
+    <p style="margin:14px 0 0;font-size:13.5px">
+      <b>Ese 403 no es un obstáculo: es el handoff que ya existe.</b>
+      <code>RedirectIdValidationIfDesktop</code> genera un QR en S3 y manda un SMS por Twilio con el link a
+      <code>/self-service/{hash}/{ur}/confirmation</code>. La plataforma ya asume «empieza en el escritorio,
+      termina en el celular» — que es justo la forma que necesita un SDK de tienda.
+    </p>
+  </div>
+
+  <div class="aviso stop">
+    <b>Lo que este prototipo NO resuelve y hay que resolver antes de cualquier piloto.</b>
+    <ul>
+      <li><code>auth.cognito</code> (<code>ResolveCognitoUser</code>) lee <code>x-user-id</code> / <code>x-cognito-identity-id</code> de los headers y <b>nunca rechaza</b>. Hoy eso está contenido porque quien llama es el SSR del wizard, dentro del cluster. Un SDK lo publica.</li>
+      <li>Falta clave pública por comercio + allowlist de origen + rate limit por origen. Lo único que hay hoy es el rate limit de personal-info (4/hora por documento).</li>
+      <li>Sería la <b>cuarta</b> superficie sobre el mismo contrato (G1 Inertia · G2 <code>Modules/Onboarding</code> · G3 <code>OnboardingV2</code> · esto).</li>
+    </ul>
+  </div>
+
+  <p class="pie">
+    Prototipo de la tarea <b>#6 · ecommerce-stateless</b> (CORE-543). Un archivo, sin build ni dependencias.
+    El contrato que usa salió de los repositorios del wizard en <code>main</code>, no de suposiciones:
+    <code>phone-number.repository.ts</code>, <code>phone-otp.repository.ts</code>,
+    <code>personal-info.repository.ts</code>, <code>loan-options.repository.ts</code>.
+  </p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  El "SDK": lo que instalaría el comercio. Vanilla, sin dependencias, para
+//  que el prototipo conteste la pregunta de red y no arrastre React.
+//
+//  ⚠ El contrato NO está inventado: son las rutas que hoy llama el wizard en
+//  `main`. Ojo que el wizard ya migró parte a OnboardingV2 (`api/v2`), así que
+//  el flujo mezcla las dos generaciones — igual que el wizard real:
+//    1. POST /api/onboarding/phone/register              (G2)
+//    2. POST /api/v2/onboarding/otp-auth/validate/{hash}  (G3, códigos OBV22xxx)
+//    3. POST /api/v2/onboarding/personal-info/{hash}/{ur} (G3, si hace falta)
+//    4. GET  /api/onboarding/loan-application/lenders-v2/{ur}?amount=
+// ═══════════════════════════════════════════════════════════════════════════
+
+const $ = (id) => document.getElementById(id);
+const estado = { userId: null, userRequestId: null, phone: null };
+
+// Celular único por carga: `users.cell_phone` es UNIQUE y reusar uno hace que el
+// registro falle con un 4xx que parece un bug del producto y no lo es.
+$("in-tel").value = $("tel").value =
+  String(3130000000 + Math.floor(Math.random() * 9000000));
+
+$("monto").addEventListener("input", () => {
+  const n = Number($("monto").value) || 0;
+  $("precio").textContent = "$ " + n.toLocaleString("es-CO");
+});
+
+// ── bitácora ───────────────────────────────────────────────────────────────
+function anotar(metodo, ruta, status, cuerpo, nota) {
+  const ln = document.createElement("div");
+  ln.className = "ln";
+  const cls = status >= 200 && status < 300 ? "s-ok" : "s-no";
+  const marca = status === 0 ? "SIN RESPUESTA" : status;
+  ln.innerHTML =
+    `<span class="m">${metodo}</span> ${ruta} → <span class="${cls}">${marca}</span>` +
+    (cuerpo ? `<span class="cuerpo">${cuerpo}</span>` : "") +
+    (nota ? `<span class="nota">⚠ ${nota}</span>` : "");
+  $("log").appendChild(ln);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+function decir(texto, tipo) {
+  const e = $("estado");
+  e.className = "estado on " + (tipo || "info");
+  e.textContent = texto;
+}
+
+// ── el cliente HTTP ────────────────────────────────────────────────────────
+// El detalle que importa: un fallo de CORS llega como TypeError SIN status. Es
+// indistinguible de "el backend está caído" si no se dice, y confundirlos cuesta
+// una tarde. Por eso se nombra explícitamente.
+async function llamar(metodo, ruta, cuerpo) {
+  const url = $("api").value.replace(/\/+$/, "") + ruta;
+  let r;
+  try {
+    r = await fetch(url, {
+      method: metodo,
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+    });
+  } catch (e) {
+    anotar(metodo, ruta, 0, String(e.message),
+      "sin status: o lo bloqueó CORS, o el host no responde. El navegador no distingue — mirá la consola y la pestaña Red.");
+    return { status: 0, json: null };
+  }
+  const texto = await r.text();
+  let json = null;
+  try { json = JSON.parse(texto); } catch { /* respuesta no-JSON */ }
+  anotar(metodo, ruta, r.status, texto.slice(0, 220));
+  return { status: r.status, json };
+}
+
+// ── paso 1 · registrar el celular ──────────────────────────────────────────
+async function registrar() {
+  const tel = $("in-tel").value.trim();
+  const hash = $("hash").value.trim();
+  if (!tel || !hash) return decir("Falta el celular o el hash de sucursal.", "err");
+
+  $("b-tel").disabled = true;
+  decir("Registrando el celular…", "info");
+
+  // `onboarding_channel: ecommerce` es lo que declara el front de verdad; el
+  // backend no lo pisa si el usuario ya tiene canal.
+  const r = await llamar("POST", "/api/onboarding/phone/register", {
+    phone_number: tel, terms: true, policies: true, otp_length: 4,
+    partner_branch_hash: hash, onboarding_channel: "ecommerce",
+  });
+  $("b-tel").disabled = false;
+
+  if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora de abajo.", "err");
+  if (r.status < 200 || r.status >= 300)
+    return decir("El registro no pasó (HTTP " + r.status + "). La bitácora tiene el cuerpo.", "err");
+
+  estado.userId = r.json?.data?.user?.id ?? null;
+  estado.phone = tel;
+  $("paso-tel").hidden = true;
+  $("paso-otp").hidden = false;
+  $("in-otp").value = $("otp").value;
+  $("in-otp").focus();
+  decir("Te mandamos un código por SMS." +
+    (estado.userId ? " (usuario " + estado.userId + ")" : ""), "ok");
+}
+
+// ── paso 2 · validar el OTP → nace la user_request ─────────────────────────
+async function validar() {
+  const hash = $("hash").value.trim();
+  const monto = Number($("monto").value) || 0;
+
+  $("b-otp").disabled = true;
+  decir("Validando el código…", "info");
+
+  const r = await llamar("POST", "/api/v2/onboarding/otp-auth/validate/" + hash, {
+    cellPhone: estado.phone,
+    otpCode: $("in-otp").value.trim(),
+    originalAmount: monto,
+    amount: monto,
+    partner_branch_hash: hash,
+  });
+  $("b-otp").disabled = false;
+
+  if (r.status === 0) return decir("No hubo respuesta. Mirá la bitácora.", "err");
+
+  // El envelope de OnboardingV2 NO es el { success, error_code } del monolito:
+  // es { code, message, data: { payload } } y el veredicto va en `code`.
+  const code = r.json?.code ?? "(sin code)";
+  const ur = r.json?.data?.payload?.userRequestId ?? null;
+
+  if (!ur) {
+    return decir("El backend contestó " + code + " y no devolvió solicitud. " +
+      "Acá es donde el SDK tendría que pintar el formulario de datos personales.", "err");
+  }
+
+  estado.userRequestId = ur;
+  $("paso-otp").hidden = true;
+
+  // OBV22005 = usuario temporal (faltan datos personales) · OBV22006 = falta info laboral.
+  // No los invento: el prototipo los MUESTRA en vez de fingir que llegó al listado.
+  if (code === "OBV22005" || code === "OBV22006") {
+    decir("Solicitud " + ur + " creada, pero el backend pide más datos (" + code + "). " +
+      "Voy igual al listado para ver qué contesta — es justo el caso que hay que mirar.", "info");
+  } else {
+    decir("Solicitud " + ur + " creada (" + code + ").", "ok");
+  }
+  await listar();
+}
+
+// ── paso 3 · el listado, pintado DENTRO de la tienda ───────────────────────
+async function listar() {
+  const monto = Number($("monto").value) || 0;
+  const r = await llamar("GET",
+    "/api/onboarding/loan-application/lenders-v2/" + estado.userRequestId + "?amount=" + monto);
+
+  if (r.status !== 200)
+    return decir("El listado devolvió HTTP " + r.status + ". La bitácora tiene el cuerpo.", "err");
+
+  const crudo = r.json?.data ?? r.json;
+  const lista = Array.isArray(crudo) ? crudo
+    : Array.isArray(crudo?.lenders) ? crudo.lenders : [];
+
+  $("paso-lista").hidden = false;
+  $("w-que").textContent =
+    "Estas son las entidades con las que podés comprar este producto.";
+  const cont = $("lista");
+  cont.innerHTML = "";
+
+  if (!lista.length) {
+    decir("El listado respondió 200 pero vino vacío. Eso es un resultado, no un error: " +
+      "el cliente no califica, o le faltan datos.", "info");
+    return;
+  }
+
+  for (const e of lista) {
+    const nombre = e.name ?? e.lender_name ?? e.lender?.name ?? "(sin nombre)";
+    const rt = e.response_type ?? e.responseType ?? e.lender?.response_type;
+    const id = e.id ?? e.lender_id ?? e.lender?.id ?? "?";
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      `<h4>${nombre}</h4><span class="rt">id ${id} · rt=${rt ?? "?"}</span>`;
+    const b = document.createElement("button");
+    b.textContent = "Continuar";
+    b.onclick = () => elegir(nombre, rt);
+    card.appendChild(b);
+    cont.appendChild(card);
+  }
+
+  decir("Listado pintado dentro de la tienda: " + lista.length +
+    " entidad(es). Hasta acá llega el SDK.", "ok");
+}
+
+// ── el borde: elegir entidad YA NO es del SDK ──────────────────────────────
+// No navega a propósito. El punto del prototipo es hacer visible dónde corta.
+function elegir(nombre, rt) {
+  const hash = $("hash").value.trim();
+  const destino = window.location.origin.replace(/:\d+$/, ":5174") +
+    "/ecommerce/" + hash + "/" + estado.userRequestId + "/lenders";
+  decir(
+    "Elegiste «" + nombre + "» (rt=" + rt + "). Acá el SDK entrega y NO sigue: " +
+    (rt === 2 || rt === 3
+      ? "esto pide validación de identidad, que es mobile-only (403 + QR + SMS en escritorio) y necesita cámara."
+      : "esto sale a la entidad por redirect o POST con navegación real, que no funciona embebido.") +
+    " El salto sería top-level a " + destino + " — el prototipo no navega a propósito.",
+    "info");
+}
+
+// ── cableado ───────────────────────────────────────────────────────────────
+$("b-tel").onclick = registrar;
+$("b-otp").onclick = validar;
+$("b-volver").onclick = () => {
+  estado.userId = estado.userRequestId = null;
+  $("paso-otp").hidden = true;
+  $("paso-lista").hidden = true;
+  $("paso-tel").hidden = false;
+  $("in-tel").value = String(3130000000 + Math.floor(Math.random() * 9000000));
+  $("w-que").textContent = "Ingresá tu celular y te mostramos con qué entidades podés comprarlo.";
+  $("estado").className = "estado";
+};
+$("b-limpiar").onclick = () => { $("log").innerHTML = ""; };
+$("in-tel").addEventListener("keydown", (e) => { if (e.key === "Enter") registrar(); });
+$("in-otp").addEventListener("keydown", (e) => { if (e.key === "Enter") validar(); });
+</script>
+</body>
+</html>
