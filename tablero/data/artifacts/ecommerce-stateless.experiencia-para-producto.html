@@ -219,6 +219,45 @@
   .w-intro{font-size:14px;color:var(--ink-2);line-height:1.45}
   .w-intro b{color:var(--ink);font-weight:600}
 
+  /* ── el riel de pasos ──────────────────────────────────────────── */
+  .riel{display:flex;gap:0;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .r-paso{
+    flex:1;text-align:center;padding:8px 6px;font-family:var(--mono);font-size:10px;
+    text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);
+    border-bottom:2px solid transparent;
+  }
+  .r-paso.activo{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+  .r-paso.hecho{color:var(--ink-2)}
+
+  .pantalla{display:flex;flex-direction:column;gap:15px}
+  .pista{font-size:12.5px;line-height:1.45;color:var(--ink-3)}
+  .pista b{color:var(--ink-2);font-weight:600}
+  .acciones{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .entrada{
+    border:1px solid var(--line-2);border-radius:3px;padding:9px 11px;font-size:15px;
+    background:var(--surface);color:var(--ink);font-family:var(--body);width:100%;
+  }
+  .entrada:focus-visible{outline:2px solid var(--accent);outline-offset:-1px}
+  .enlace{
+    background:none;border:0;padding:0;font-family:var(--body);font-size:13.5px;
+    color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px;
+  }
+  .enlace:disabled{color:var(--ink-3);cursor:default;text-decoration:none}
+  .enlace:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+  /* ── las cajas del código ──────────────────────────────────────── */
+  .otp{display:flex;gap:9px}
+  .otp-caja{
+    width:52px;height:58px;text-align:center;font-family:var(--mono);font-size:23px;
+    border:1.5px solid var(--line-2);border-radius:4px;background:var(--surface);
+    color:var(--ink);padding:0;font-variant-numeric:tabular-nums;
+  }
+  .otp-caja:focus-visible{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+  .otp-caja.lleno{border-color:var(--accent);background:var(--accent-soft)}
+  @media (max-width:400px){ .otp-caja{width:46px;height:52px;font-size:20px} }
+
+  .boton.cargando{opacity:.75;cursor:progress}
+
   .rejilla{display:grid;grid-template-columns:1fr 1fr;gap:11px}
   @media (max-width:480px){ .rejilla{grid-template-columns:1fr} }
   .rejilla .ancho{grid-column:1/-1}
@@ -413,38 +452,84 @@
         <div class="widget">
           <div class="w-barra">
             <span class="t">Paga a cuotas con CreditOp</span>
-            <span class="paso" id="w-paso">Paso 2 de 3</span>
+            <span class="paso" id="w-paso">Paso 1 de 3</span>
           </div>
-          <div class="w-cuerpo">
-            <p class="w-intro" id="w-intro"></p>
-            <div class="rejilla" id="rejilla"></div>
-            <button class="boton" id="w-boton" type="button">Ver mis opciones</button>
-          </div>
-        </div>
 
-        <div class="widget" style="border-color:var(--line)">
-          <div class="w-barra" style="background:var(--surface-2);color:var(--ink)">
-            <span class="t">Tus opciones</span>
-            <span class="paso" style="opacity:.6">Paso 3 de 3</span>
+          <div class="riel" id="riel">
+            <span class="r-paso" data-r="celular">Celular</span>
+            <span class="r-paso" data-r="datos">Tus datos</span>
+            <span class="r-paso" data-r="opciones">Opciones</span>
           </div>
+
           <div class="w-cuerpo">
-            <div class="opciones">
-              <div class="opcion"><span class="nom">Sistecrédito</span><span class="cuota">desde $ 178.000/mes</span></div>
-              <div class="opcion"><span class="nom">Bancolombia · Compra y paga después</span><span class="cuota">4 cuotas sin interés</span></div>
-              <div class="opcion"><span class="nom">Bancolombia · Crédito de consumo</span><span class="cuota">desde $ 156.000/mes</span></div>
-              <div class="opcion"><span class="nom">Meddipay</span><span class="cuota">desde $ 189.000/mes</span></div>
-              <div class="opcion"><span class="nom">Vanti</span><span class="cuota">a la factura del gas</span></div>
-              <div class="opcion"><span class="nom">Credifamilia · addi</span><span class="cuota">desde $ 171.000/mes</span></div>
-              <div class="opcion bloqueada">
-                <span class="nom">CrediPullman</span>
-                <span class="cuota">requiere identificar al comprador</span>
+
+            <!-- ── pantalla 1a · el celular ── -->
+            <div class="pantalla" id="p-celular">
+              <p class="w-intro" id="cel-intro"></p>
+              <div class="celda">
+                <div class="cab">
+                  <label for="in-celular">Celular</label>
+                  <span class="sello" id="cel-sello"></span>
+                </div>
+                <div class="caja" id="cel-caja"></div>
+                <input class="entrada" id="in-celular" type="tel" inputmode="numeric"
+                       autocomplete="tel" placeholder="310 000 0000" hidden>
+              </div>
+              <button class="boton" id="b-enviar" type="button">Enviarme el código</button>
+            </div>
+
+            <!-- ── pantalla 1b · el código ── -->
+            <div class="pantalla" id="p-codigo" hidden>
+              <p class="w-intro">
+                Te enviamos un código de 4 dígitos por SMS al
+                <b id="cod-numero"></b>.
+              </p>
+              <div class="otp" id="otp" role="group" aria-label="Código de 4 dígitos">
+                <input class="otp-caja" id="otp-1" inputmode="numeric" maxlength="1" aria-label="Dígito 1">
+                <input class="otp-caja" id="otp-2" inputmode="numeric" maxlength="1" aria-label="Dígito 2">
+                <input class="otp-caja" id="otp-3" inputmode="numeric" maxlength="1" aria-label="Dígito 3">
+                <input class="otp-caja" id="otp-4" inputmode="numeric" maxlength="1" aria-label="Dígito 4">
+              </div>
+              <p class="pista" id="cod-pista">Es una demostración: cualquier código de 4 dígitos sirve.</p>
+              <div class="acciones">
+                <button class="boton" id="b-validar" type="button" disabled>Confirmar</button>
+                <button class="enlace" id="b-reenviar" type="button" disabled></button>
+                <button class="enlace" id="b-otro-numero" type="button">Usar otro número</button>
               </div>
             </div>
-            <p class="w-intro" style="font-size:13px">
-              Las seis primeras son entidades externas. <b>CrediPullman es la del propio comercio</b> —
-              la única donde Pullman pone el capital y CreditOp cobra comisión— y no puede aparecer
-              hasta que sepamos quién es el comprador.
-            </p>
+
+            <!-- ── pantalla 2 · los datos ── -->
+            <div class="pantalla" id="p-datos" hidden>
+              <p class="w-intro" id="w-intro"></p>
+              <div class="rejilla" id="rejilla"></div>
+              <button class="boton" id="w-boton" type="button">Ver mis opciones</button>
+            </div>
+
+            <!-- ── pantalla 3 · las opciones ── -->
+            <div class="pantalla" id="p-opciones" hidden>
+              <p class="w-intro">
+                Listo, <b id="op-nombre">Camila</b>. Estas son tus opciones para este sofá.
+              </p>
+              <div class="opciones">
+                <div class="opcion"><span class="nom">Sistecrédito</span><span class="cuota">desde $ 178.000/mes</span></div>
+                <div class="opcion"><span class="nom">Bancolombia · Compra y paga después</span><span class="cuota">4 cuotas sin interés</span></div>
+                <div class="opcion"><span class="nom">Bancolombia · Crédito de consumo</span><span class="cuota">desde $ 156.000/mes</span></div>
+                <div class="opcion"><span class="nom">Meddipay</span><span class="cuota">desde $ 189.000/mes</span></div>
+                <div class="opcion"><span class="nom">Vanti</span><span class="cuota">a la factura del gas</span></div>
+                <div class="opcion"><span class="nom">Credifamilia · addi</span><span class="cuota">desde $ 171.000/mes</span></div>
+                <div class="opcion bloqueada">
+                  <span class="nom">CrediPullman</span>
+                  <span class="cuota">requiere identificar al comprador</span>
+                </div>
+              </div>
+              <p class="pista">
+                Las seis primeras son entidades externas. <b>CrediPullman es la del propio comercio</b> —
+                la única donde Pullman pone el capital y CreditOp cobra comisión— y no puede aparecer
+                hasta que sepamos quién es el comprador.
+              </p>
+              <button class="enlace" id="b-reiniciar" type="button">Volver a empezar</button>
+            </div>
+
           </div>
         </div>
       </div>
@@ -601,6 +686,9 @@
                   chk.addEventListener("change", () => {
                         entrega[d.id] = chk.checked;
                         pintar();
+                        // Volver al inicio: el sentido de tocar un interruptor es
+                        // recorrer de nuevo y ver qué cambió.
+                        irA("celular");
                   });
 
                   const nom = document.createElement("span");
@@ -674,9 +762,6 @@
                     listar(faltan) + " para continuar.";
 
             $("w-boton").textContent = faltan.length === 0 ? "Confirmar y ver mis opciones" : "Continuar";
-            $("w-paso").textContent = entrega.celular
-                  ? "Paso 2 de 3"
-                  : "Paso 2 de 3 · antes pidió su celular";
       }
 
       function listar(xs) {
@@ -710,25 +795,195 @@
 
       function pintar() {
             pintarConsola();
+            pintarCelular();
             pintarFormulario();
             pintarMarcador();
       }
+
+      /* ═══ el recorrido ══════════════════════════════════════════════════
+         Cuatro pantallas y tres pasos: el celular y el código son el MISMO
+         paso (validar que el teléfono es suyo), y por eso el riel muestra
+         tres y no cuatro. ─────────────────────────────────────────────── */
+
+      const PANTALLAS = {
+            celular:  { el: "p-celular",  paso: "celular",  n: 1 },
+            codigo:   { el: "p-codigo",   paso: "celular",  n: 1 },
+            datos:    { el: "p-datos",    paso: "datos",    n: 2 },
+            opciones: { el: "p-opciones", paso: "opciones", n: 3 },
+      };
+      const ORDEN = ["celular", "datos", "opciones"];
+      let actual = "celular";
+      let cuentaRegresiva = null;
+
+      function irA(nombre) {
+            actual = nombre;
+            for (const [k, v] of Object.entries(PANTALLAS)) {
+                  $(v.el).hidden = k !== nombre;
+            }
+            const paso = PANTALLAS[nombre].paso;
+            const i = ORDEN.indexOf(paso);
+            document.querySelectorAll(".r-paso").forEach((el) => {
+                  const j = ORDEN.indexOf(el.dataset.r);
+                  el.classList.toggle("activo", j === i);
+                  el.classList.toggle("hecho", j < i);
+            });
+            $("w-paso").textContent = "Paso " + PANTALLAS[nombre].n + " de 3";
+            if (nombre !== "codigo") pararCuenta();
+      }
+
+      // El número que se va a usar: el del pedido, o el que escriba el comprador.
+      function numero() {
+            return entrega.celular ? DATOS.find((d) => d.id === "celular").valor
+                                   : $("in-celular").value.trim();
+      }
+
+      function pintarCelular() {
+            const viene = entrega.celular;
+            $("cel-intro").innerHTML = viene
+                  ? "Vamos a confirmar que este celular es tuyo. Lo trajimos de tu pedido en <b>Amoblando Pullman</b>."
+                  : "Esta tienda no nos manda tu celular, así que necesitamos que lo escribas.";
+            $("cel-sello").className = "sello " + (viene ? "sabe" : "pide");
+            $("cel-sello").textContent = viene ? "ya lo sabemos" : "lo escribe";
+            $("cel-caja").hidden = !viene;
+            $("in-celular").hidden = viene;
+            if (viene) $("cel-caja").textContent = DATOS.find((d) => d.id === "celular").valor;
+      }
+
+      function pararCuenta() {
+            if (cuentaRegresiva) { clearInterval(cuentaRegresiva); cuentaRegresiva = null; }
+      }
+
+      function arrancarCuenta() {
+            pararCuenta();
+            let seg = 30;
+            const b = $("b-reenviar");
+            const pintarB = () => {
+                  if (seg > 0) {
+                        b.disabled = true;
+                        b.textContent = "Reenviar en 0:" + String(seg).padStart(2, "0");
+                  } else {
+                        b.disabled = false;
+                        b.textContent = "Reenviar el código";
+                        pararCuenta();
+                  }
+            };
+            pintarB();
+            cuentaRegresiva = setInterval(() => { seg -= 1; pintarB(); }, 1000);
+      }
+
+      function limpiarCodigo() {
+            for (let i = 1; i <= 4; i++) {
+                  const c = $("otp-" + i);
+                  c.value = "";
+                  c.classList.remove("lleno");
+            }
+            $("b-validar").disabled = true;
+      }
+
+      // "Envía" el código: no hay backend, pero la espera es parte de la experiencia
+      // que se está mostrando — sin ella el paso no se siente.
+      function enviarCodigo() {
+            const tel = numero();
+            if (!entrega.celular && tel.replace(/\D/g, "").length < 10) {
+                  $("in-celular").focus();
+                  $("cel-intro").innerHTML =
+                        "Necesitamos un celular de 10 dígitos para mandarte el código.";
+                  return;
+            }
+            const b = $("b-enviar");
+            b.disabled = true;
+            b.classList.add("cargando");
+            b.textContent = "Enviando…";
+            setTimeout(() => {
+                  b.disabled = false;
+                  b.classList.remove("cargando");
+                  b.textContent = "Enviarme el código";
+                  $("cod-numero").textContent = tel;
+                  limpiarCodigo();
+                  irA("codigo");
+                  arrancarCuenta();
+                  $("otp-1").focus();
+            }, 900);
+      }
+
+      // Las cuatro cajas se comportan como un solo control: avanzan solas, el
+      // borrado retrocede, y pegar un código de 4 dígitos lo reparte.
+      for (let i = 1; i <= 4; i++) {
+            const caja = $("otp-" + i);
+            caja.addEventListener("input", () => {
+                  caja.value = caja.value.replace(/\D/g, "").slice(0, 1);
+                  caja.classList.toggle("lleno", caja.value !== "");
+                  if (caja.value && i < 4) $("otp-" + (i + 1)).focus();
+                  const completo = [1, 2, 3, 4].every((j) => $("otp-" + j).value !== "");
+                  $("b-validar").disabled = !completo;
+            });
+            caja.addEventListener("keydown", (ev) => {
+                  if (ev.key === "Backspace" && caja.value === "" && i > 1) $("otp-" + (i - 1)).focus();
+                  if (ev.key === "Enter" && !$("b-validar").disabled) $("b-validar").click();
+            });
+            caja.addEventListener("paste", (ev) => {
+                  const texto = (ev.clipboardData || window.clipboardData).getData("text").replace(/\D/g, "");
+                  if (texto.length < 2) return;
+                  ev.preventDefault();
+                  for (let j = 0; j < 4; j++) {
+                        const c = $("otp-" + (j + 1));
+                        c.value = texto[j] ?? "";
+                        c.classList.toggle("lleno", c.value !== "");
+                  }
+                  $("b-validar").disabled = texto.length < 4;
+                  $("otp-" + Math.min(texto.length + 1, 4)).focus();
+            });
+      }
+
+      $("b-enviar").addEventListener("click", enviarCodigo);
+      $("in-celular").addEventListener("keydown", (ev) => { if (ev.key === "Enter") enviarCodigo(); });
+
+      $("b-validar").addEventListener("click", () => {
+            pararCuenta();
+            irA("datos");
+      });
+
+      $("b-reenviar").addEventListener("click", () => {
+            limpiarCodigo();
+            arrancarCuenta();
+            $("cod-pista").textContent = "Te reenviamos el código. Es una demostración: cualquier código de 4 dígitos sirve.";
+            $("otp-1").focus();
+      });
+
+      $("b-otro-numero").addEventListener("click", () => {
+            pararCuenta();
+            irA("celular");
+            if (!entrega.celular) $("in-celular").focus();
+      });
+
+      $("w-boton").addEventListener("click", () => {
+            const faltanCampos = DATOS.some((d) => d.id !== "celular" && !entrega[d.id]) || exigeExpedicion;
+            if (faltanCampos) {
+                  $("w-intro").innerHTML =
+                        "En la versión real, acá el comprador escribe lo que falta. " +
+                        "<b>Es la fricción que estamos midiendo.</b> Seguimos igual para que veas el final.";
+            }
+            $("op-nombre").textContent = entrega.nombres
+                  ? DATOS.find((d) => d.id === "nombres").valor
+                  : "gracias";
+            irA("opciones");
+      });
+
+      $("b-reiniciar").addEventListener("click", () => {
+            limpiarCodigo();
+            irA("celular");
+      });
 
       // Vive fuera de #datos (es otra clase de interruptor), así que pintarConsola
       // no lo rehace y el listener se engancha una sola vez.
       $("dato-expedicion").addEventListener("change", (ev) => {
             exigeExpedicion = ev.target.checked;
             pintar();
-      });
-
-      $("w-boton").addEventListener("click", () => {
-            const faltan = DATOS.filter((d) => d.id !== "celular" && !entrega[d.id]);
-            $("w-intro").innerHTML = faltan.length === 0
-                  ? "Listo. Estas son tus opciones, acá abajo."
-                  : "Completá los campos pendientes para continuar.";
+            irA("celular");
       });
 
       pintar();
+      irA("celular");
 })();
 </script>
 </body>
