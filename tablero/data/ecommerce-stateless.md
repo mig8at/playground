@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-543]
 jira_title: "Inicio paso refactor ecommerce"
-ramas: ecommerce-stateless-checkout, ecommerce-*stateless*
+ramas: ecommerce-stateless-checkout, cuota-inicial-en-el-wizard, ecommerce-*stateless*
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -150,8 +150,14 @@ que `routes.ts` se había traído las rutas de la cuota inicial sin sus archivos
 original mandaba `ecommerce_request_id` en **snake_case al endpoint v1**, mientras `qa` ya usa
 OnboardingV2, que lo valida como **`ecommerceRequestId`**: copiado tal cual, el backend lo ignoraba, la
 solicitud nacía sin vincular al pedido y **el comercio nunca recibía el veredicto**, sin ningún error
-visible. (2) Con PR 1 en `qa`, rama nueva desde `qa` → PR 2
-con la cuota inicial — secuencial, **sin apilar ramas**. (3) La sala de espera, aparte y después: es
+visible. (2) ✅ **HECHO** — **PR
+[#998](https://github.com/Creditop-SAS/frontend-monorepo/pull/998)**, rama `feat/cuota-inicial-en-el-wizard`,
+también desde `qa` y **no apilada** sobre la otra: 6 archivos, +275, un commit. Backend ya presente en
+las cuatro ramas. ⚠ Trajo **una decisión de criterio** que el PR de junio no enfrentaba porque esas
+ramas no existían: dónde va el cobro en la cadena de navegación de `available-lenders`. Quedó después
+de gestión manual y autogestión —ahí el comprador ya no está en la pantalla— y antes del resto; y
+después de la analítica, para no perder `lender_selection_result`, que el early-return original se
+salteaba. **Falta confirmarlo con producto.** (3) La sala de espera, aparte y después: es
 rescate, no migración.
 
 ⚠ **Y un bloqueante que no es de código:** aunque el PR llegue a `main`,
