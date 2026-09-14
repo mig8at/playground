@@ -340,6 +340,29 @@
       <p><b>Eso es lo que vino a atacar el paso 3.</b> Si el comercio ya trae el documento, el comprador
       no tiene que escribirlo — y la solicitud deja de ser temporal sin fricción nueva.</p>
     </div>
+
+    <div class="aviso stop" style="margin-top:14px;margin-bottom:0">
+      <b>Y la respuesta, medida el mismo día: no alcanza con los datos. Lo que destraba la rt=2 es el BURÓ.</b>
+      <p>Tres corridas, mismo comercio y monto, variando <b>sólo</b> el endpoint de datos personales:</p>
+      <table style="margin-top:8px">
+        <thead><tr><th>Camino</th><th>Campos EAV 29/87/160</th><th>Listado</th><th>rt=2</th></tr></thead>
+        <tbody>
+          <tr><td>sin guardar datos</td><td>ninguno</td><td>6</td><td class="no">✗</td></tr>
+          <tr><td><code>v2</code> · <code>api/v2/onboarding/personal-info</code> → <code>OBV21001</code></td>
+              <td><b>ninguno</b></td><td>6</td><td class="no">✗</td></tr>
+          <tr><td><code>v1</code> · <code>loan-application/personal-info</code> → «<i>laboral information obtained <b>via risk centrals</b></i>»</td>
+              <td>29=Empleado · 87=2320000 · 160=no</td><td><b>7</b></td><td class="si">✓</td></tr>
+        </tbody>
+      </table>
+      <p style="margin-top:10px">El v2 «recoge y persiste, y nada más» — a propósito: el v1 compraba
+      Experian dentro de la misma llamada y con el pipeline de KYC encendido se pagaba <b>dos veces</b>.
+      En el camino nuevo la identidad la resuelve el pipeline, «el dueño del orden, del control de
+      frescura y <b>del dinero</b>».</p>
+      <p><b>Para el SDK:</b> las seis externas salen con celular + OTP. La del propio comercio exige una
+      consulta de buró que <b>se paga por comprador que la dispare, califique o no</b>. Usar el v1 desde
+      el SDK para forzar que aparezca vuelve a comprar buró en el lugar equivocado — justo lo que el v2
+      vino a arreglar.</p>
+    </div>
   </div>
 
   <!-- ════════ lo que el prototipo deja fijado ════════ -->

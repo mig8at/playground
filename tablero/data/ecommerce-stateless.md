@@ -172,6 +172,41 @@ mostrando cuánto tiene que escribir. No pega contra la API (es simulado, para q
 demo). Cierra con las tres decisiones que son de producto. Publicado también como artifact:
 <https://claude.ai/code/artifact/00755787-ad1c-4f46-9dcf-61f47298ebf0>
 
+### MEDIDO (2026-09-14): qué destraba la entidad rt=2 — y no son los datos del comercio
+
+La pregunta abierta era si dar los datos personales hace aparecer a **CrediPullman (77, rt=2)**.
+Contestada corriendo el flujo por API tres veces contra local, mismo comercio (`e9409aff`) y mismo
+monto (2.000.000), variando **sólo** el endpoint de datos personales:
+
+| camino | respuesta | campos EAV 29/87/160 | listado | rt=2 |
+|---|---|---|---|---|
+| **sin** guardar datos | — | ninguno | **6** | ✗ |
+| **v2** `api/v2/onboarding/personal-info` | `OBV21001` ok | **ninguno** | **6** | ✗ |
+| **v1** `api/onboarding/loan-application/personal-info` | *«laboral information obtained **via risk centrals**»* | **29=Empleado · 87=2320000 · 160=no** | **7** | ✓ |
+
+**La causa es el buró, no el dato del comercio.** El v2 «recoge y persiste, y nada más» —su propio
+docblock lo dice y explica por qué: el v1 corría la cascada AgilData → Mareigua y disparaba Experian
+dentro de la misma llamada, así que llenar el formulario **compraba consultas de buró**, y con el
+pipeline de KYC encendido se pagaban dos veces (run `01a036f7`: legacy compró Experian 22:29:11, el
+pipeline lo recompró 22:29:52). En el camino nuevo la identidad la resuelve el pipeline, que es «el
+dueño del orden, del control de frescura y **del dinero**».
+
+**Consecuencia para el SDK, y es la decisión de producto de verdad:** las seis entidades externas salen
+con celular + OTP y nada más. La del propio comercio —la única con capital del comercio y comisión de
+CreditOp— exige **una consulta de buró que se paga por comprador que la dispare, califique o no**. No es
+«¿pedimos datos o no?»: es **«¿pagamos buró dentro de la tienda, y con qué gatillo?»**.
+
+⚠ Y ojo con el atajo: usar el **v1** desde el SDK para que aparezca la rt=2 vuelve a comprar el buró en
+el lugar equivocado, que es exactamente lo que el v2 vino a arreglar.
+
+**Cómo se midió** (reproducible): `phone/register` → `api/v2/.../otp-auth/validate` (OTP `1111` en local)
+→ el endpoint de datos personales bajo prueba → `lenders-v2`, y después los `user_field_values`
+29/87/160 en la base. Para el caso v2 hizo falta aplicar **temporalmente** la versión de `main` de
+`StorePersonalInfoRequest.php` sobre el working tree (la rama `feat/lenders-tabla-cards` trae el
+validador viejo con `$this` en un método `static`) y **restaurarla al terminar** — verificado: la rama
+quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimiento**: sin ella devuelve
+`ONB005`.
+
 ### Lo que el prototipo NO resuelve
 
 - `auth.cognito` (`ResolveCognitoUser`) lee `x-user-id` / `x-cognito-identity-id` de headers y **nunca
@@ -200,7 +235,7 @@ demo). Cierra con las tres decisiones que son de producto. Publicado también co
 - [ ] **Promover #551 (front) a main** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod.
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
-- [ ] **Decidir el alcance del SDK**: ¿listado completo (exige datos personales, muestra CreditopX) o sólo entidades externas (celular + OTP, sin rt=2)? Es la decisión de producto que destapó la corrida.
+- [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
 - [ ] **Medir cuántos comercios ecommerce mapean el campo documento** (`allied_ecommerce_credentials` + los `ecommerce_requests.data` ya guardados). Es lo que decide si la experiencia sin fricción es real o es una demo: sin documento no hay identificación y la entidad del propio comercio no aparece.
 - [ ] Parsear `should_collect_expedition_date` en el wizard — el backend ya lo manda y el schema del front no lo lee.
 - [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.

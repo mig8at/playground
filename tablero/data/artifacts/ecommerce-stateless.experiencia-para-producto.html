@@ -519,13 +519,14 @@
                 <div class="opcion"><span class="nom">Credifamilia · addi</span><span class="cuota">desde $ 171.000/mes</span></div>
                 <div class="opcion bloqueada">
                   <span class="nom">CrediPullman</span>
-                  <span class="cuota">requiere identificar al comprador</span>
+                  <span class="cuota">requiere consultar el buró</span>
                 </div>
               </div>
               <p class="pista">
                 Las seis primeras son entidades externas. <b>CrediPullman es la del propio comercio</b> —
-                la única donde Pullman pone el capital y CreditOp cobra comisión— y no puede aparecer
-                hasta que sepamos quién es el comprador.
+                la única donde Pullman pone el capital y CreditOp cobra comisión— y para ofrecerla hay
+                que calcularle un cupo, que exige <b>consultar el buró de crédito</b>. Los datos del
+                pedido no alcanzan: esa consulta es un paso aparte, y se paga.
               </p>
               <button class="enlace" id="b-reiniciar" type="button">Volver a empezar</button>
             </div>
@@ -599,14 +600,18 @@
       <div class="decision">
         <span class="marca-d">1</span>
         <div class="cuerpo">
-          <h3>¿Pedimos los datos que faltan, o mostramos sólo lo que no los necesita?</h3>
+          <h3>¿La tienda muestra la oferta del propio comercio, o sólo las externas?</h3>
           <p>
-            Es la decisión central, y tiene un costo concreto de los dos lados: pedir datos agrega
-            fricción justo donde queríamos quitarla, y no pedirlos deja afuera la entidad del comercio.
+            Parecía una pregunta sobre datos, y no lo es. Las seis entidades externas salen con el
+            celular y nada más. La del comercio necesita un <b>cupo</b>, y un cupo necesita una
+            <b>consulta al buró de crédito</b> — que es un paso aparte y se paga por cada comprador
+            que la dispare, califique o no.
           </p>
           <p class="dato-duro">
-            <b>Medido:</b> sin datos del comprador, el listado muestra <b>6 de 7</b> entidades. La que
-            falta es siempre la del propio comercio.
+            <b>Medido el 14 de septiembre.</b> Sin nada: <b>6 de 7</b>. Guardando los datos personales
+            por el camino que <b>no</b> consulta centrales: <b>6 de 7</b> otra vez. Por el camino que
+            <b>sí</b> las consulta: <b>7 de 7</b>, con CrediPullman adentro. El dato que la destraba no
+            lo tiene la tienda — lo trae el buró.
           </p>
         </div>
       </div>
@@ -782,8 +787,8 @@
             if (n === 0) {
                   glosa = "El comprador sólo confirma el código que le llega por SMS. Es la experiencia completa.";
             } else if (identidadFalta) {
-                  glosa = "Los tiene que escribir el comprador. Y sin el documento no podemos " +
-                          "identificarlo, así que la entidad del propio comercio no aparece en la lista.";
+                  glosa = "Los tiene que escribir el comprador. Y sin documento no hay a quién " +
+                          "consultarle el buró, que es lo que destraba la entidad del propio comercio.";
             } else if (exigeExpedicion && n === 1) {
                   glosa = "La tienda nos dio todo lo que puede darnos. Lo que queda es el requisito " +
                           "del comercio, y ése no hay tienda que lo cubra.";
