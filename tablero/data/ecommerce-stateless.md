@@ -164,6 +164,41 @@ rescate, no migración.
 `originaciones.creditop.com/ecommerce/{hash}/checkout` tiene que **responder en prod** para que el
 redirect de borde sirva. Eso es deploy/ingress del front.
 
+### Estado de CI de los dos PRs (2026-09-14) — ⚠ BLOQUEADOS por Sonar
+
+| | #997 checkout | #998 cuota inicial |
+|---|---|---|
+| commits | 1 | 1 |
+| `turbo run build` | ✅ | ✅ |
+| `typecheck` (errores propios) | ✅ 0 | ✅ 0 |
+| **SonarCloud** | ❌ **B Security Rating on New Code** (exige ≥ A) | ❌ **idem** |
+
+Sonar **pasa** en los PRs vecinos (#991, #993, #994), así que es del código nuevo, no del repo.
+Se endurecieron cuatro puntos de la misma clase —todos correctos por sí mismos, independientemente
+de Sonar— y **el rating siguió en B**:
+
+1. `checkout.tsx` — el `partner_hash` viene de la URL y entraba sin validar tanto en la ruta del
+   fetch a legacy como en el destino del `redirect`. Ahora se valida contra la forma real de
+   `allied_branches.hash`.
+2. `ecommerce-context.server.ts` — `erId` y `loan_request_id` entraban en la ruta de un fetch **del
+   servidor**; un id con `/` o `..` reescribía el path. Ahora sólo ids numéricos.
+3. `loan-approved.tsx` — la `return_url` la elige el COMERCIO y termina siendo un destino de
+   navegación. Ahora sólo `http(s)` absolutas.
+4. `initial-fee-payment.tsx` (#998) — `redirect(checkout_url)` con la URL que devuelve la pasarela.
+   Idem.
+
+⚠ **Lo que falta es ver el hallazgo exacto, y eso pide acceso a SonarCloud** (la API pública devuelve
+vacío para un proyecto privado, y Sonar no dejó comentarios inline). El dashboard:
+<https://sonarcloud.io/dashboard?id=Creditop-SAS_frontend-monorepo&pullRequest=997>
+
+> **MEDICIÓN · 2026-09-14** — ⚠ **Un chequeo que contesta «ninguno» sin haber mirado.** Verifiqué los
+> tipos de #997 con la lista de `git status --porcelain`, y para un archivo nuevo dentro de un
+> DIRECTORIO nuevo eso lista **el directorio**, no el archivo: `checkout.tsx` nunca entró en la lista y
+> el chequeo dijo «0 errores propios» **teniendo uno**. Lo encontró Sonar, no yo.
+> **Cómo se hace bien:** la lista sale de `git show --name-only --format= HEAD`, que enumera archivos.
+> Es el mismo defecto que el `git grep -E '\s'` de `legacy-backend`: una verificación que no sabe
+> buscar es peor que no tenerla, porque se lee como garantía.
+
 ## Los CUATRO PRs de la migración, y qué rescatar (2026-09-14)
 
 > **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
