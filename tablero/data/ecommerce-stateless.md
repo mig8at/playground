@@ -218,6 +218,53 @@ exactamente [[frontend-el-build-es-la-vara]], otra vez y en el mismo día.
 > Es el mismo defecto que el `git grep -E '\s'` de `legacy-backend`: una verificación que no sabe
 > buscar es peor que no tenerla, porque se lee como garantía.
 
+### El PR de backend: la sala de espera (2026-09-14)
+
+**[legacy-backend #1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392)** ·
+`feat/sala-de-espera-ecommerce`, desde `qa`, **un commit**, 2 archivos (+93).
+
+Rescata del #503 el `checkLoanStatus` de `AdvisorStatusController` —que **sí existía** en `qa`, pero
+sólo con sus dos hermanos `checkSigningStatus` / `checkEnrollmentStatus`— y lo rutea como
+`GET api/loans/requests/device/ecommerce-status/{user_request_id}`.
+
+⚠ **La ubicación de la ruta es el cambio, no un detalle.** Va en el grupo `device`, que excluye
+`onlyMobileValidation`. Colgada del grupo padre respondería **403 a todo comprador de escritorio** — y
+el checkout de una tienda es exactamente eso. **Medido:** con user-agent de escritorio el endpoint
+nuevo da 200 y su hermano del grupo padre da 403.
+
+No se copió del #503 tal cual: ése leía el vínculo con la tienda con un **join crudo** por Query
+Builder; acá se usa el repositorio que ya existe (`UserRequestsByEcommerceRequestRepository`, que
+además ya trae la relación cargada). También salieron un log de depuración y las clases con ruta
+completa.
+
+### Caminado de punta a punta contra el harness (2026-09-14)
+
+> **MEDICIÓN · 2026-09-14** — la entrada de ecommerce del #997 **funciona**, y caminarla encontró un
+> defecto que el build, `typecheck` y Sonar dejaban pasar.
+> **Cómo se vuelve a comprobar:** levantar el wizard de la rama del PR, generar la URL con
+> `buildEcommerceUrl` de `harness/pkg/ecommerce.ts` (que ya apunta a `/ecommerce/{hash}/checkout`) y
+> abrirla. ⚠ Un worktree nuevo **no tiene los `.env`** (gitignoreados): hay que copiarlos, y el del
+> repo apunta a `legacy-backend.inertia-develop/api` — host de dev **y con `/api` incluido**, que el
+> código no espera.
+
+Lo que se comprobó, con el comercio **Amoblar** (`d63f05e7`) y un contrato base64 real:
+
+1. `/ecommerce/{hash}/checkout` decodifica el contrato, crea el `ecommerce_request` (**6898**) y
+   redirige a `/ecommerce/{hash}/solicitar?amount=2000000&erId=6898`. **La llave viaja en la URL.**
+2. El monto del pedido llega **prellenado y bloqueado** (`pointer-events-none opacity-60`).
+3. El paso del celular llega con **3134886296** —el del billing— en `readOnly` y bloqueado.
+4. El `erId` sobrevive el paso de monto → celular.
+
+⚠⚠ **EL DEFECTO: el botón quedaba DESHABILITADO con el dato correcto puesto.** Un campo bloqueado
+nunca dispara `onChange`, así que su valor no se validaba y el paso quedaba sin salida. El `trigger()`
+estaba en el componente PADRE y no alcanzaba: su efecto corre **antes** de que el formulario hijo se
+suscriba a `formState`, así que el `isValid` que lee el botón no se enteraba. **Movido adentro de
+`AmountForm` y `PhoneNumberStepForm`, el botón se habilita.** Medido en el navegador antes y después.
+
+**Y es la tercera vez en el día que algo pasa build + tipos + lint y sólo se ve corriéndolo.** Las
+otras dos fueron el `ecommerce_request_id` en snake_case y el import de un módulo `.server` desde
+cliente.
+
 ## Los CUATRO PRs de la migración, y qué rescatar (2026-09-14)
 
 > **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
