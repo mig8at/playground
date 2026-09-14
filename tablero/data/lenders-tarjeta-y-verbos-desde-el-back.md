@@ -1155,6 +1155,33 @@ entidades con tarifarios propios, pre-aprobados asíncronos, popups, Nequi, Well
 
 Buscar más código muerto no va a rendir: ya se buscó y hay 23 líneas.
 
+## ✅ Hecho: el barrel achicado y el huérfano borrado (2026-09-13)
+
+| | antes | ahora |
+|---|---|---|
+| símbolos en la API pública | 268 | **111** (−58%) |
+| líneas de `lib/index.ts` | 355 | **178** |
+| archivos con imports por ruta directa | 0 | **29** |
+| archivos muertos | 1 | **0** |
+
+Entró al PR `Creditop-SAS/frontend-monorepo#995`, que sigue en **un commit**.
+
+### Tres tropiezos que valen como método
+
+1. **`export *` no aparece en un regex de `export { … } from`.** El barrel tenía cuatro, y por ahí
+   llegaban `GenerateQrUc`, `QrRepositoryImpl` y `LoanSimulationEntity`. Ignorarlos **rompió el build**:
+   222 errores hasta que aparecieron. Se conservan tal cual, con una nota de por qué.
+2. **«Usado fuera del módulo» hay que medirlo contra TODO el monorepo**, no sólo las apps: dos de los
+   símbolos que faltaban los usaba `bancolombia-origination`, otro módulo.
+3. **Al regenerar el barrel se perdió el prefijo `type`** de los reexports y saltaron 21 `TS1205`
+   (`isolatedModules`). Esa marca hay que sacarla del barrel original, no deducirla del código.
+
+### Y una corrección a algo que dije antes
+
+Venía reportando «0 errores de tsc» para el app, y era engañoso: yo grepeaba por los archivos tocados.
+**El wizard arrastra 218 errores de `tsc` pre-existentes** —de `packages/ui` y otros módulos— y el
+módulo 14. Lo correcto es decir que este trabajo **no agregó ninguno**, medido antes y después.
+
 ## Riesgos y preguntas abiertas
 
 - **`preapproval_key` de los 4 rt=1** — decisión de negocio, no técnica.
