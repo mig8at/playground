@@ -19,10 +19,10 @@ otras: **(1)** validar que el harness lea la realidad de la BD (local o comparti
 que mientan sobre qué lenders van a salir; **(2)** si hay que mejorar, hacer **funciones claras y
 seguras para insertar/borrar** en las tablas, para que los flujos que escriben sean seguros.
 
-✅ **El preflight YA ESTÁ (commit `8ac74de`).** Miguel eligió arrancar por ahí el 15/9.
+✅ **Las dos mitades están hechas** (`8ac74de` el preflight · `e8d09d5` las escrituras).
 
-**El próximo paso es** decidir si se hace la **capa de escritura segura** (§«Propuesta», la mitad que
-falta) — es un refactor de 18 archivos y no bloquea nada: el preflight ya tapa la mentira.
+**El próximo paso es** migrar los llamadores a `borrarSeguro`/`insertarFila` **de a uno, cuando se
+toque cada archivo** — ya no es una deuda de seguridad (la guarda es estructural), es prolijidad.
 
 ## Lo que se auditó, y el veredicto (2026-09-15)
 
@@ -158,6 +158,68 @@ casos se aprende a ignorar, y el día que sí hay desajuste tampoco se mira. Hay
 **Comprobado:** desajuste (`pullman`) avisa 7 líneas · control (`celurd`) **0 avisos** · 9 pruebas
 nuevas, **23/23** con las del trío · typecheck **0** · `bash -n bin/asesor` ok.
 
+
+## Lo que se hizo: las escrituras (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — de los 15 archivos que escriben, **nueve no nombraban la guarda nunca**.
+> **Cómo se vuelve a comprobar:** por archivo, `grep -c "assertWriteAllowed"` contra el conteo de
+> `INSERT|UPDATE|DELETE`.
+
+| sin nombrar la guarda | escrituras propias |
+|---|---|
+| `dev/caso.ts` | 9 |
+| `dev/montar-rto.ts` | 8 |
+| `dev/caminar-wizard.ts` · `dev/inyectar-aml.ts` | 3 cada uno |
+| `dev/listado.ts` · `dev/montar-kyc-flow.ts` · `dev/qr-corbeta.ts` · `dev/sweep.ts` | 2 cada uno |
+
+⚠ **Y `exec()` no guardaba por sí mismo**, así que `make harness-caminar` contra `qa` le cambiaba la
+lista de teléfonos del bypass (`settings`) **a todo el equipo**, en silencio. Es la misma forma de F-53.
+
+### La guarda dejó de ser opcional
+
+`exec()` ahora detecta que la sentencia **muta** (`mutacionDe()`) y llama la guarda sola. Comprobado
+contra `qa`:
+
+    escritura a DB COMPARTIDA bloqueada (target qa, host inertia-dev…rds.amazonaws.com)
+      la disparó: UPDATE settings
+      Si de verdad querés escribir ahí, exportá I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en la shell.
+      Si NO querés, corré con E2E_TARGET=local (F-53).
+
+✔ **Y no marca de más:** `SET FOREIGN_KEY_CHECKS` (perilla de sesión, la usan los seeders) y un
+`SELECT … WHERE motivo='delete'` **no** cuentan como mutación. Hay prueba para eso: un chequeo que
+grita de más se aprende a ignorar.
+
+✔ **De paso registra lo que toca**, y eso llena un hueco declarado: `dbops activity` reconstruye lo
+escrito **consultando la base después**, y su propio comentario admite que **no ve los DELETEs** (una
+fila borrada no está para ser vista). Este registro anota la sentencia cuando corre.
+
+### `pkg/db-safe.ts` — las funciones nombradas
+
+| función | qué impide |
+|---|---|
+| **`borrarSeguro()`** | sin `WHERE` no borra · un `WHERE` que no filtra (`1=1`) tampoco · **cuenta primero** y aborta si matchea más de `maxFilas` (50 en compartida, 5.000 en local) · `soloContar` mide el alcance sin borrar |
+| **`actualizarFilas()`** | mismo trato: un `UPDATE` sin `WHERE` pisa la tabla entera y **no tiene la señal de alarma que tiene «delete»** |
+| **`insertarFila()`** | columnas y valores salen del MISMO objeto, así que no se pueden desalinear — reemplaza las listas de 15 columnas y 15 `?` a mano |
+| **`withWrite()` · `withWriteTx()`** | agrupan y etiquetan. La versión `Tx` **pasa la conexión** porque el `exec()` del módulo usa el pool: prometer atomicidad sin darla sería peor que no tenerla |
+
+**El tope es la red que importa.** `WHERE tel = ?` con el parámetro vacío puede matchear miles de filas
+y el `DELETE` no se queja. Probado: 6 filas contra un tope de 3 → aborta, y el conteo **no se movió**.
+
+**37 pruebas en verde.** La mitad que necesita base **se salta si el target no es local**, sobre una
+tabla propia por worker: probar la herramienta no es motivo para escribir en la compartida.
+
+### Y lo que faltaba del preflight: `subDelAsesor()`
+
+El caminador leía **sólo** `E2E_ASESOR_SUB`, que en `local` no está — así que su chequeo **se salteaba
+sin decir nada**, y un chequeo que se saltea se lee igual que uno que pasó. La cadena
+(`E2E_ASESOR_SUB` → `.flows.json`) estaba implementada **tres veces** (`bin/asesor`, el panel, el
+caminador); ahora vive una sola vez. Comprobado corriendo: avisa **antes** de caminar y la línea
+siguiente confirma el redirect que predijo.
+
+⚠ **Y lo destapó una corrida que se me movió sola:** pedí `13874eb6` y caminé `f0548728`, porque
+otra sesión reasignó al asesor por afuera mientras yo trabajaba. El preflight lo dice ahora; antes el
+síntoma era «la entidad 77 no salió en el listado».
+
 ## Registro
 
 ### 2026-09-15 · auditoría y propuesta
@@ -174,3 +236,10 @@ que ya existía comparaba contra la **BASE** (`whois`) y el wizard usa el **BACK
 «ya en X — sin write» y se iba a otra sucursal. Y el `E2E_ASESOR_SUB` de `.env.qa` resuelve a un
 comercio de **otra persona**. La mitad dinámica (`avisoDeRedireccion`) es la que caza el caso sin
 importar cuál de las tres fuentes esté mal. Queda la capa de escritura, que no bloquea nada.
+
+### 2026-09-15 (3) · las escrituras seguras, hechas
+`exec()` guarda y registra solo; `borrarSeguro`/`actualizarFilas`/`insertarFila`/`withWrite` en
+`pkg/db-safe.ts`. Lo que cambió el plan respecto de la propuesta: **no hizo falta migrar 18 archivos**
+para cerrar el riesgo — poniendo la guarda dentro de `exec()` quedaron cubiertos los nueve que no la
+nombraban, de una. Migrar los llamadores a las funciones nombradas pasa a ser prolijidad, de a uno
+cuando se toque cada archivo. 37 pruebas, typecheck 0.
