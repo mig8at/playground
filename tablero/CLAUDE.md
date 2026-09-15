@@ -410,14 +410,37 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   en fila eran 19 s para tres, ahora 11 s. Un comando que se usa cuando algo se rompió no puede hacer
   esperar.
 
-  ⚠ **Y Sonar hoy NO tiene datos de lo que se trabaja acá.** La organización `creditop-sas` tiene 47
-  proyectos y 36 con análisis, pero **`legacy-backend`, `legacy-application` y `frontend-monorepo` no
-  se analizaron NUNCA** (verificado por API el 2026-09-15). Los que sí se analizan son los
-  microservicios. Así que una columna de calidad en el tablero mostraría vacío justo donde está el
-  trabajo: primero hay que arreglar que el paso del scanner corra. El token queda puesto en
-  `server/.env` (`SONAR_URL`, `SONAR_ORG`, `SONAR_TOKEN`) para el día que haya qué leer.
-  ⚠ Es un token PERSONAL y vence: la propia pantalla de Sonar recomienda un *Scoped Organization Token*
-  para automatización de equipo, que no muere con la cuenta de nadie.
+- **SONAR: «falla el sonar» son DOS cosas distintas, y se consultan distinto.** Credenciales en
+  `server/.env`: `SONAR_URL` (`https://sonarcloud.io`), `SONAR_ORG` (`creditop-sas`) y `SONAR_TOKEN`.
+  ⚠ El token de hoy es PERSONAL y vence; la propia pantalla de Sonar recomienda un *Scoped Organization
+  Token* para automatización de equipo, que no muere con la cuenta de nadie.
+
+  | «falla el sonar» | qué es | cada cuánto |
+  |---|---|---|
+  | **el PASO del deploy** | el scanner no pudo correr, y **tumba el despliegue entero** | raro: 1 de 40 |
+  | **el GATE de calidad** | el análisis corrió bien y el código no pasa el umbral | permanente hoy |
+
+  **1 · El PASO.** `make deploys FALLAS=1` lo muestra con su motivo. El del 2026-09-02 tumbó el deploy
+  a **producción** con *«Failed to load the quality profiles of project … An unexpected error occurred.
+  Please try again later»* — un fallo del lado de SonarCloud, no del código ni de la configuración (los
+  perfiles existen: se comprueba con `api/qualityprofiles/search?project=…`). Se reintenta y pasa.
+
+  **2 · El GATE.** El análisis SÍ corre y publica por rama. Para saber por qué está en rojo:
+
+      source <(grep -E '^SONAR_(URL|ORG|TOKEN)=' tablero/server/.env)
+      # qué ramas tienen análisis, cuándo, y su gate
+      curl -s -u "$SONAR_TOKEN:" "$SONAR_URL/api/project_branches/list?project=Creditop-SAS_legacy-backend"
+      # y POR QUÉ falla el gate de una rama: las condiciones que no pasan
+      curl -s -u "$SONAR_TOKEN:" "$SONAR_URL/api/qualitygates/project_status?projectKey=Creditop-SAS_legacy-backend&branch=qa"
+
+  > **MEDICIÓN · 2026-09-15** — `legacy-backend`, rama `qa` (analizada ese mismo día): gate en ERROR por dos condiciones — `new_coverage` en **0,0 %** contra un umbral de 80, y `new_maintainability_rating` en 3 contra 1. O sea que lo que traba el gate es que **el código nuevo no trae pruebas**, no una regla exótica. `legacy-application` en `develop` da OK; `frontend-monorepo` sólo tiene `main`, del 2026-07-03.
+  > los dos `curl` de arriba
+
+  ⚠ **LA TRAMPA QUE ME COMÍ, y es la que va a repetir cualquiera:** `api/components/show` devuelve el
+  análisis de la **rama principal** del proyecto, y las principales están viejas (`main` de
+  `legacy-backend`: 2026-07-10). Con esa consulta los tres repos dan **«lastAnalysisDate: NUNCA»** y se
+  concluye que nadie los analiza — que es exactamente lo que afirmé acá antes de mirar las ramas. El
+  análisis vivo está en `qa`, `develop` o `lab`. **Siempre preguntar por RAMA.**
 
 - **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
