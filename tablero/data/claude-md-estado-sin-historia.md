@@ -20,7 +20,8 @@ fechas en la raíz, y unos **10.000 tokens de arranque por sesión** (7.000 del 
 del catálogo del hook). Las rutas que citan están sanas (3 muertas de 118), así que el problema NO es
 que mientan por rutas viejas: es que crecen por historia. El inventario de cada corrección y a dónde
 graduaría está abajo. **Nada de esto se reescribió todavía**: son textos de Miguel y la reescritura es
-su decisión; lo que hay es el mapa para hacerla.
+su decisión; lo que hay es el mapa para hacerla. **Es `clase: proyecto`**: no va a Jira, así que el
+15/9 se le retiró la sección publicable y lo que decía quedó como nota del cuerpo.
 
 **El próximo paso es:** decidir el destino de las 10 correcciones (F-xx nuevo · anotación con fecha
 en su sección · borrar porque ya está en un hallazgo) y reescribir la raíz dejando **sólo la regla
@@ -89,6 +90,13 @@ Cambiar reglas. Sólo separar la vigente de su historia.
 > `wc -c CLAUDE.md` / 4, y el stdout del hook `herramientas.py` / 4
 
 ## Registro
+
+### 2026-09-15
+
+Clasificada `clase: proyecto` —los `CLAUDE.md` son del playground, no son trabajo del día a día sobre
+CreditOp— y con eso se le retiró la sección publicable: un proyecto propio no sale a Jira. El texto que
+tenía quedó como nota del cuerpo, que es para lo que sirve. El inventario de las 10 correcciones no se
+tocó: sigue esperando la decisión de Miguel sobre el destino de cada una.
 
 ### 2026-09-14
 

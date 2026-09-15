@@ -123,6 +123,12 @@ misma trampa de siempre: una prueba que no corre se lee igual que una que pasa. 
 heredoc de Python convirtió los `\b` de los regex en el carácter backspace, así que los patrones nuevos
 no matcheaban nada y el test lo destapó.
 
+**Y el cierre confundía clasificar con trabajar.** Marcar las ocho tareas como proyecto es una línea de
+frontmatter cada una, y disparó el reclamo completo —estado, Registro, bitácora— sobre cinco de ellas.
+Ahora compara el CUERPO de hoy contra el del último commit anterior al día: si sólo cambió el
+frontmatter, no hay nada que cerrar. Es el mismo criterio que ya gobierna el archivo (el cuerpo es el
+trabajo; el frontmatter es metadato), y el aviso pasó de cinco tareas a ninguna.
+
 **El hook reclamaba tareas que esta sesión sólo había LEÍDO.** Frenó pidiendo registro y bitácora para
 `sdk-del-comercio`, que no tocó nadie acá: estaba sucia por OTRA sesión sobre el mismo worktree, y el
 hook la dio por propia porque el día anterior hubo un `head` sobre ese archivo. Dos intentos hasta que

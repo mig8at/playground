@@ -193,8 +193,16 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   tarea, y los que no tienen dueño). Sale 1 si a una tarea tocada le falta una pieza. Medido el día que
   se escribió: 23 de las 39 abiertas no tenían sección de retoma, 27 no tenían próximo paso y 3 con
   trabajo en septiembre no tenían bitácora — la lista de arriba llevaba un mes escrita.
+  ⚠ **Tocar el archivo no es trabajar en la tarea: si lo único que cambió es el FRONTMATTER** —declarar
+  `ramas:`, marcar `clase: proyecto`, corregir un id— **el cierre no reclama nada.** Lo mide comparando
+  el cuerpo de hoy con el del último commit anterior al día. Sin eso, marcar ocho tareas como proyecto
+  (una línea cada una) hizo que le reclamara a cinco reescribir el estado, apilar Registro y anotar
+  bitácora por un cambio que no dice nada nuevo de la tarea (2026-09-15). Un aviso que reclama de más se
+  empieza a ignorar, y ahí deja de servir para lo que existe.
   El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
-  por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. Si te frena en el
+  por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. ⚠ Y **leer un
+  archivo no es tocarlo**: el hook exige que la ruta esté pegada al verbo que la escribe (`>`, `tee`,
+  `sed -i`, `git add`, `open(…,'w')`) o que venga de un Write/Edit. Si te frena en el
   medio del trabajo, decilo en una línea y seguí: no vuelve a hablar.
 
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,

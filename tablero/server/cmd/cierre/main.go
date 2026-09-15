@@ -186,6 +186,17 @@ func tocadasPorGit(datos, dia string, esHoy bool) map[string]bool {
 // retomaAntes: la sección de retoma como estaba en el último commit ANTERIOR al día. Si el archivo no
 // existía, devuelve ok=false: una tarea que nació ese día no tiene con qué compararse.
 func retomaAntes(datos, dia, slug string) (texto string, ok bool) {
+	viejo, ok := cuerpoAntes(datos, dia, slug)
+	if !ok {
+		return "", false
+	}
+	return seccionRetoma(viejo), true
+}
+
+// cuerpoAntes devuelve el CUERPO (lo que sigue al frontmatter) como estaba en el último commit anterior
+// al día. Es la base de las dos preguntas que el cierre necesita: ¿se reescribió la retoma? y ¿esto fue
+// trabajo de verdad, o sólo un cambio de metadato?
+func cuerpoAntes(datos, dia, slug string) (string, bool) {
 	rev, err := git(datos, "rev-list", "-1", "--before="+dia+" 00:00:00", "HEAD", "--", slug+".md")
 	if err != nil || rev == "" {
 		return "", false
@@ -199,11 +210,22 @@ func retomaAntes(datos, dia, slug string) (texto string, ok bool) {
 	if err != nil {
 		return "", false
 	}
-	partes := strings.SplitN(viejo, "---", 3)
-	if len(partes) == 3 {
-		viejo = partes[2]
+	if partes := strings.SplitN(viejo, "---", 3); len(partes) == 3 {
+		return partes[2], true
 	}
-	return seccionRetoma(viejo), true
+	return viejo, true
+}
+
+// soloMetadatos: el archivo cambió hoy, pero su CUERPO no. O sea que lo único que se tocó fue el
+// frontmatter — declarar `ramas:`, marcar `clase: proyecto`, corregir un id.
+//
+// CLASIFICAR NO ES TRABAJAR, y confundirlos hace ruido del caro: el 2026-09-15, marcar ocho tareas como
+// proyecto (una línea cada una) hizo que el cierre le reclamara a CINCO de ellas reescribir el estado,
+// apilar un Registro y anotar bitácora, por un cambio de metadato que no dice nada nuevo de la tarea.
+// Un aviso que reclama de más se empieza a ignorar, y ahí deja de servir para lo que existe.
+func soloMetadatos(datos, dia, slug, cuerpoHoy string) bool {
+	antes, ok := cuerpoAntes(datos, dia, slug)
+	return ok && strings.TrimSpace(antes) == strings.TrimSpace(cuerpoHoy)
 }
 
 type entrada struct {
@@ -328,6 +350,10 @@ func main() {
 	for _, t := range tareas {
 		m := motivos[t.Slug]
 		if len(m) == 0 {
+			continue
+		}
+		// Si lo único que cambió hoy es el frontmatter y no hay trabajo en ramas, no hay nada que cerrar.
+		if len(m) == 1 && m[0] == "archivo" && soloMetadatos(datos, *dia, t.Slug, t.Cuerpo) {
 			continue
 		}
 		rv := Revision{ID: t.ID, Slug: t.Slug, Title: t.Title, Motivos: m}
