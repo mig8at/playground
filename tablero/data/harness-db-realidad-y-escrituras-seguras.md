@@ -19,8 +19,10 @@ otras: **(1)** validar que el harness lea la realidad de la BD (local o comparti
 que mientan sobre qué lenders van a salir; **(2)** si hay que mejorar, hacer **funciones claras y
 seguras para insertar/borrar** en las tablas, para que los flujos que escriben sean seguros.
 
-**El próximo paso es** decidir el alcance de la capa de escritura segura (§«Propuesta») — Miguel elige
-entre el arreglo mínimo (sólo el preflight que caza la mentira) y la capa completa.
+✅ **El preflight YA ESTÁ (commit `8ac74de`).** Miguel eligió arrancar por ahí el 15/9.
+
+**El próximo paso es** decidir si se hace la **capa de escritura segura** (§«Propuesta», la mitad que
+falta) — es un refactor de 18 archivos y no bloquea nada: el preflight ya tapa la mentira.
 
 ## Lo que se auditó, y el veredicto (2026-09-15)
 
@@ -115,6 +117,47 @@ la guarda y el registro no dependan de acordarse.
 local** y cada función lleva su prueba (como `fecha-trio.spec.ts`). No se toca el compartido para
 probar la herramienta.
 
+
+## Lo que se hizo: el preflight (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — el chequeo que ya existía miraba la fuente equivocada, y por eso no
+> cazaba nada.
+> **Cómo se vuelve a comprobar:** `E2E_TARGET=qa node bin/dbops.ts sucursal-check pullman <sub>`
+
+**El hallazgo que faltaba:** `bin/asesor` y el panel comparan
+`whois(SUB).matches[0].allied_branch_hash` contra el hash del catálogo. Eso mira la **BASE**, que es un
+**proxy**: el wizard no usa `users.allied_branch_id`, usa lo que le devuelve el **BACKEND** para el sub
+logueado (`GET /api/onboarding/loan-application/user` con `x-cognito-identity-id`, y de ahí
+`allied_branch.hash`). Por eso la corrida del 15/9 imprimió «ya en 'pullman' (13874eb6) — sin write» y
+aterrizó en otra sucursal: el chequeo decía la verdad **sobre la tabla**, y la tabla no es lo que manda.
+
+Medido preguntándole al backend por cada sub:
+
+| sub | el backend devuelve | de quién |
+|---|---|---|
+| `E2E_ASESOR_SUB` de `.env.qa` | `1bfb8cd0` CeluRD Santo Domingo | **oscar+dentix@creditop.com** |
+| `asesor.sub` de `.flows.json` | `f0548728` PRINCIPAL (Motai) | a.arismendy@uniandes.edu.co |
+| la sesión cacheada | → aterrizó en `ec977139` | un tercero |
+
+⚠ **Y el sub configurado para qa es de OTRA PERSONA.** No es sólo que el catálogo esté viejo: las tres
+fuentes apuntan a tres asesores distintos.
+
+**`pkg/preflight-sucursal.ts` — SÓLO LECTURA** (no escribe, no reasigna, no borra sesiones). Dos
+mitades, y la segunda es la que vale:
+
+1. **`preflightSucursal()`** — le pregunta al **backend** por el sub y lo compara con el catálogo.
+   Expuesto como `dbops sucursal-check <merchant|hash> <sub>`, cableado en `bin/asesor` (después de
+   `load-permiso`) y en el rastro del panel.
+2. **`avisoDeRedireccion()`** — **caza el caso sin importar cuál de las tres fuentes esté mal**: si el
+   wizard te mueve de sucursal, el 302 ya se veía en el log como un salto más de navegación; ahora dice
+   que **invalida el anuncio**. Cableado en `guided.spec.ts`, una vez por corrida.
+
+✔ **«No se pudo comprobar» se dice como tal, no como desajuste** — un aviso que grita igual en los dos
+casos se aprende a ignorar, y el día que sí hay desajuste tampoco se mira. Hay prueba para eso.
+
+**Comprobado:** desajuste (`pullman`) avisa 7 líneas · control (`celurd`) **0 avisos** · 9 pruebas
+nuevas, **23/23** con las del trío · typecheck **0** · `bash -n bin/asesor` ok.
+
 ## Registro
 
 ### 2026-09-15 · auditoría y propuesta
@@ -124,3 +167,10 @@ archivos, `exec` crudo). Encontrada la mentira de SUCURSAL: `.flows.json` (catá
 (`13874eb6` branch 659 vs `ec977139` branch 390, listas distintas). Propuesta `pkg/db-safe.ts`: un
 preflight que caza la mentira (no escribe) + una capa de escritura por función con guarda no-opcional,
 transacción, registro y undo. Falta que Miguel elija alcance.
+
+### 2026-09-15 (2) · el preflight, hecho
+Cableado el chequeo en `bin/asesor`, el panel y el spec visual. Lo que destapó construirlo: el chequeo
+que ya existía comparaba contra la **BASE** (`whois`) y el wizard usa el **BACKEND** — por eso decía
+«ya en X — sin write» y se iba a otra sucursal. Y el `E2E_ASESOR_SUB` de `.env.qa` resuelve a un
+comercio de **otra persona**. La mitad dinámica (`avisoDeRedireccion`) es la que caza el caso sin
+importar cuál de las tres fuentes esté mal. Queda la capa de escritura, que no bloquea nada.
