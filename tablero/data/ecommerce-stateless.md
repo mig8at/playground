@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*
+ramas: ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -30,11 +30,16 @@ el flujo del **asesor**, con una cuota inicial > 0, elegir entidad rebota a `/so
 ⚠ **El defecto sigue vivo en `qa`** — el revert fue sobre `main`. Cualquier promoción futura lo vuelve
 a subir si no se arregla antes.
 
-**El próximo paso es:** medir contra el backend si `POST /api/loans/requests/initial-fee-payment/{ur}`
-sigue devolviendo **403** para una entidad `rt=2` (lo estaba en junio). De esa medición depende el
-arreglo: si ya no 403ea, alcanza con registrar `initial-fee-payment` y
-`down-payment-validation/:transaction_id` en el árbol `merchant` de `routes.ts`; si sigue, además hay
-que guardar el `if` de la línea 637 para que las in-platform no vayan a Wompi.
+✔ **Y el arreglo ya está escrito — en junio.** #997 se rehizo partiendo de #551 (11/6) y **no se
+llevó los cinco PRs de corrección que vinieron después**; cuatro no están en `qa`, y uno de ellos
+—**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
+junio que el rebuild no se llevó».
+
+**El próximo paso es:** portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
+(`continue` en el árbol público) y #663 (el handoff por flujo)— **adaptados**, porque `standBy` ya no
+existe en el wizard y hoy el equivalente es la rama `showModal && isNil(url)`. Y agregar
+`initial-fee-payment` y `down-payment-validation/:transaction_id` al árbol `merchant`, que es lo que
+el propio #997 introdujo de nuevo.
 
 
 # Ecommerce web stateless (→ wizard sin cookie) · task
@@ -182,13 +187,37 @@ Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesi�
 > tarea, y lo que no mergeó no se hizo. *(Reemplaza a la tabla «Ramas y PRs por repo», que estaba
 > verificada al 2026-07-18 y se quedó en los dos PRs de junio.)*
 
-| | PR | rama | tamaño | mergeado a | cuándo | commit |
+**Los CATORCE PRs, en orden.** ⚠ La versión anterior de esta tabla listaba **cinco** y daba mal el
+nombre de dos ramas. Faltaba entera la **cola de arreglos de junio** — que es justo la que explica el
+revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
+
+| | PR | rama | tamaño | → | cuándo | merge |
 |---|---|---|---|---|---|---|
-| back | **#795** endpoints de contexto para el wizard sin cookie | `ecommerce-stateless-checkout` | +131/−5 · 4 arch | `develop` | 11/6 08:37 | `bb14a8ff3` |
-| front | **#551** la entrada ecommerce stateless | `ecommerce-stateless-checkout` | +585/−31 · 21 arch | `develop` | 11/6 08:38 | `d22424690` |
-| back | **#1392** la sala de espera del veredicto | `feat/sala-de-espera-ecommerce` | +93/−0 · 2 arch | `qa` | 14/9 15:30 | `gh:1392` |
-| front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `gh:997` |
-| front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `gh:1005` |
+| back | **#770** originación web stateless | `feature/onboarding/ecommerce-web-origination` | +63/−0 · 3 arch | `develop` | 9/6 10:34 | `53f2b794` |
+| back | **#795** endpoints de contexto para el wizard sin cookie | `feat/onboarding/ecommerce-stateless-detail` | +131/−5 · 4 arch | `develop` | 11/6 08:37 | `bb14a8ff` |
+| front | **#551** la entrada ecommerce stateless | `feature/onboarding/ecommerce-web-origination` | +585/−31 · 21 arch | `develop` | 11/6 08:38 | `d2242469` |
+| front | **#582** cierre CreditopX in-platform: honrar `standBy` → `/confirmation` | `fix/ecommerce/creditopx-standby-confirmation` | +37/−6 · 4 arch | `develop` | 12/6 12:26 | `84d4b1ad` |
+| front | **#600** no importar código `.server` en el cliente — rompía el build | `fix/ecommerce/down-payment-build` | +6/−6 · 2 arch | `develop` | 16/6 15:08 | `8f49a297` |
+| back | **#834** unificar el base64 del canal (VTEX) | `feature/onboarding/ecommerce-unify-base64-vtex` | +997/−191 · 27 arch | `develop` | 17/6 13:15 | `afb3f990` |
+| back | **#838** simulador de resultado de agregador | `feature/onboarding/ecommerce-unify-base64-vtex` | +93/−0 · 3 arch | `develop` | 17/6 14:36 | `e0707d8d` |
+| front | **#661** registrar `/ecommerce/…/continue` (faltaba en el árbol público → 404) | `feature/onboarding/ecommerce-continue-route` | +4/−1 · 1 arch | `develop` | 25/6 15:17 | `771e4850` |
+| front | **#663** el handoff se renderiza distinto según el flujo | `continue` | +20/−8 · 2 arch | `develop` | 25/6 17:51 | `b8c30a10` |
+| front | **#665** 🔴 **no mandar CreditopX a Wompi cuando hay cuota inicial** | `fix/ecommerce/creditopx-initial-fee-bounce` | +5/−2 · 1 arch | `develop` | 26/6 11:56 | `9206b28c` |
+| back | **#1392** la sala de espera del veredicto | `feat/sala-de-espera-ecommerce` | +93/−0 · 2 arch | `qa` | 14/9 15:30 | `3cd20e34` |
+| front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `6fa13ae5` |
+| front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
+| front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `f443ecad` |
+
+*(Medido el 2026-09-15 con `gh pr list --author mig-creditop --state all` filtrando por
+`ecommerce|checkout|cuota|stateless|sala` en título y rama. Horas de Colombia.)*
+
+⚠ **La rama de #663 se llama `continue` a secas**, así que **no entra en `ramas:`**: como patrón
+capturaría media docena de ramas ajenas. Es la única de las catorce que el tablero no puede medir
+sola — su estado hay que mirarlo a mano (`gh pr view 663`).
+
+⚠ **#834 y #838 son del CANAL, no de la entrada stateless** — unifican el base64 y el conector VTEX.
+Están acá porque no tienen tarea propia en el tablero y son trabajo mío mergeado; si se les abre una,
+se mudan.
 
 ### ⚠ Esto NO está todo en el mismo lugar, y esa es la parte que engaña
 
@@ -216,6 +245,44 @@ lo arregla lo de septiembre, que vive sólo en `qa`.
 > `qa`**. El contenido llegó por otro camino y el SHA no. Es la segunda vez en el día que la medición
 > por commit da un falso «falta» (la otra fue #983, en Alta). **El desempate es el contenido, no el
 > SHA.**
+
+### La cola de junio que el rebuild no se llevó — y es la causa del revert (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — #997 se rehizo sobre `qa` partiendo de **#551 (11/6)**, y **no se llevó
+> los cinco PRs de arreglo que vinieron DESPUÉS en `develop`**. Cuatro de los cinco **no están en `qa`**.
+> **Cómo se vuelve a comprobar:** `git grep -c standBy origin/qa -- apps/loan-request-wizard
+> modules/loan-request-wizard` (da 0; en `origin/develop` da 1) y, sobre el `routes.ts` de cada rama,
+> `route("continue"` dentro del bloque `:flow`.
+
+| arreglo de junio | qué tapaba | `develop` | `qa` |
+|---|---|---|---|
+| **#665** no mandar CreditopX a Wompi con cuota inicial | 🔴 **el rebote a `/solicitar`** | ✅ | ❌ |
+| **#582** honrar `standBy` → `/confirmation` | el cierre in-platform de CreditopX | ✅ | ❌ |
+| **#661** registrar `continue` en el árbol público | un 404 en ecommerce | ✅ | ❌ |
+| **#663** el handoff se pinta distinto por flujo | QR vs. WhatsApp | ✅ | ❌ |
+| **#600** no importar `.server` desde el cliente | el build roto | ✅ | ✔ rehecho en #997 |
+
+⚠ **#665 es literalmente el arreglo del defecto que causó el revert**, escrito el **26/6**, tres meses
+antes. Su comentario en el código lo dice con todas las letras: *«el backend responde
+"continue-link-sent" (HTTP 4xx) en /initial-fee-payment para Creditop X, así que mandarlo a Wompi rompe
+el flujo y **rebota a /solicitar**»*. Son cinco líneas: `if (Number(initial_fee) > 0 &&
+!response.data.standBy)`.
+
+✔ **Y de paso contesta la pregunta que dejé abierta ayer.** No hace falta medir si el backend sigue
+403eando: en junio quedó medido **y escrito en el propio código** que `/initial-fee-payment` no sirve
+para CreditopX. Lo que sí hay que decidir es la FORMA del arreglo hoy, porque `standBy` ya no existe en
+el wizard — el equivalente actual es la rama `showModal && isNil(url)`.
+
+⚠ **Y #661 es el MISMO defecto de ruteo, espejado.** En junio faltaba `continue` en el árbol
+**público** y daba 404 en ecommerce; en septiembre falta `initial-fee-payment` en el árbol
+**merchant** y rebota en asesor. Dos veces el mismo error de clase, en direcciones opuestas, con tres
+meses de distancia. Y `continue` **sigue faltando hoy en `qa`**: #661 tampoco sobrevivió.
+
+**Por qué pasó, y cómo no repetirlo.** `develop` quedó 772 commits detrás de `main`, así que rehacer
+el trabajo sobre `qa` era correcto. Lo que falló es **de dónde se copió**: se tomó el PR de la
+funcionalidad (#551) y no el **estado final de la rama en `develop`**, que son #551 más cinco
+correcciones. La regla que queda: **cuando se rehace trabajo viejo sobre una rama nueva, la base no es
+el PR — es `git log origin/develop -- <rutas>` desde ese PR hasta hoy.**
 
 ### Los dos PRs de abril ya NO están abiertos
 
@@ -643,6 +710,32 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (2) · los catorce PRs, y el arreglo que ya existía desde junio
+
+El libro mayor listaba **cinco** PRs y el `ramas:` del frontmatter declaraba **dos** patrones, así que
+el tablero medía dos ramas. Barridos los dos repos con
+`gh pr list --author mig-creditop --state all` filtrando por `ecommerce|checkout|cuota|stateless|sala`:
+son **catorce**. Declaradas once en `ramas:` (la de #663 se llama `continue` a secas y no se puede
+capturar sin arrastrar ramas ajenas); `make tareas-ramas` ahora mide once y **corrobora solo** lo de
+abajo.
+
+**Y lo que apareció al listarlos vale más que el listado.** Después de #551 (11/6) hubo **cinco PRs de
+corrección** en `develop` —#582, #600, #661, #663, #665— y **#997 no se los llevó**. Cuatro no están
+en `qa`, medido con `git grep -c standBy origin/qa` (0, contra 1 en `develop`) y con el bloque `:flow`
+del `routes.ts` de cada rama.
+
+**#665 (26/6) es literalmente el arreglo del defecto que causó el revert de septiembre**, cinco líneas,
+y su comentario nombra el síntoma: *«mandarlo a Wompi rompe el flujo y rebota a /solicitar»*. O sea que
+el bug no es nuevo: es un arreglo perdido. Eso **cierra la pregunta que había dejado abierta** — no hace
+falta medir el 403, junio ya lo midió y lo dejó escrito en el código.
+
+**Y #661 es el mismo defecto de ruteo, espejado:** en junio faltaba `continue` en el árbol público
+(404 en ecommerce); en septiembre falta `initial-fee-payment` en el árbol merchant (rebote en asesor).
+`continue` **sigue faltando hoy en `qa`**.
+
+La regla que queda: **rehacer trabajo viejo sobre una rama nueva no se copia del PR, se copia del
+estado final de la rama** — `git log origin/develop -- <rutas>` desde ese PR hasta hoy.
 
 ### 2026-09-15 · el revert de `main`, y la causa medida
 
