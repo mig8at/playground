@@ -1898,8 +1898,12 @@
           + 'Elegí una sucursal Corbeta con los dos lenders habilitados. Para llegar al código de compra: <code>bin/mock-corbeta start</code> '
           + 'y <code>CORBETA_HOST=http://host.docker.internal:8103</code> en el .env del backend.'
         : 'La tienda arma una URL base64 con el pedido y el usuario sintético; el cliente aterriza redirigido, sin asesor. '
-          + '<b style="color:var(--warn)">⚠ Hoy aterriza en el resolvedor de Bancolombia</b>, que cancela si el comercio es '
-          + 'CreditopX (F-54): la landing genérica del wizard no está en esta rama. Sirve para ejercitar el contrato, no para cerrar.';
+          + 'El panel entra por la <b>landing genérica</b> del wizard (<code>/ecommerce/{hash}/checkout</code>), que existe desde '
+          + 'el PR #997 y está en <code>qa</code>: el contrato se decodifica, el monto llega bloqueado y el pedido queda atado al crédito. '
+          + '<b style="color:var(--warn)">⚠ No confundir con el checkout de CORBETA</b> '
+          + '(<code>GET /api/onboarding/checkout/{hash}</code>), que es otra puerta y aterriza en el resolvedor de <b>Bancolombia</b>: '
+          + 'ése decide entre BNPL y Consumo, y con un comercio que no es Corbeta <b>cancela la solicitud al cargarse</b> (F-54). '
+          + 'El spec sólo cae ahí como respaldo, y únicamente si la sucursal ES Corbeta.';
       applyPasoGate();   // el canal decide qué arranques aplican
       updateGo();
     }
