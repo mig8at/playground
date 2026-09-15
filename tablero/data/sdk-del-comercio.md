@@ -1,10 +1,10 @@
 ---
-id: 0
+id: 82
 title: "El SDK del comercio: el onboarding dentro de la tienda"
 stage: evaluation
 created: "2026-09-14T14:30:00-05:00"
 context_nodes: [ecommerce, onboarding, entities, architecture]
-jira: [CORE-543]
+jira: []
 jira_title: "El SDK del comercio: el onboarding dentro de la tienda"
 ---
 
