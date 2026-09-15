@@ -244,7 +244,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
       make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
-      make deploys DIAS=7               qué se desplegó, a qué ambiente, y el que falló POR QUÉ
+      make deploys DIAS=7               qué se desplegó y a qué ambiente
+      make deploys FALLAS=1             SÓLO lo que falló, con el error del log — «¿qué se rompió?»
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
@@ -391,6 +392,23 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 
   > **MEDICIÓN · 2026-09-15** — 201 despliegues en 15 días, 11 fallidos: 7 en «Build Image» y 4 en «Deploy Task Def to ECS»; por ambiente, 6 en qa, 3 en develop y 2 en producción. El deploy a producción del 2026-09-02 se cayó en el paso de **SonarCloud**, porque el scanner no pudo cargar los perfiles de calidad del proyecto — el código estaba bien, falló la herramienta de análisis.
   > `make deploys DIAS=15 JSON=1`
+
+  **`FALLAS=1` es el modo de todos los días**: sólo lo fallido, con el ERROR del log y el enlace. Sin
+  él hay que buscar los ✗ entre 122 líneas, de las cuales 106 están en verde — medido, y es justo lo
+  que la herramienta venía a evitar. Trae el repo, el ambiente, la rama, el paso y el motivo:
+
+      ✗ 2026-09-10  legacy-backend → develop
+         dónde   develop / deploy / Deploy Task Def to ECS → Deploy to Amazon ECS
+         por qué Failed to register task definition in ECS: Actual length: '65558'. Max allowed length is '65536' bytes.
+
+  ⚠ **El error sale del marcador `##[error]` del runner, y NO siempre está**: de las 4 fallas de la
+  última semana, 3 lo traen y 1 no. Cuando falta hay un respaldo que busca líneas con «error», y si
+  tampoco hay **se dice que no se pudo leer** y queda el enlace. Inventar un motivo sería peor: quien lo
+  lee dejaría de abrir el log, que es donde está la respuesta.
+
+  El detalle de cada falla se pide EN PARALELO (dos llamadas por falla, una de ellas un log de ~30 KB):
+  en fila eran 19 s para tres, ahora 11 s. Un comando que se usa cuando algo se rompió no puede hacer
+  esperar.
 
   ⚠ **Y Sonar hoy NO tiene datos de lo que se trabaja acá.** La organización `creditop-sas` tiene 47
   proyectos y 36 con análisis, pero **`legacy-backend`, `legacy-application` y `frontend-monorepo` no

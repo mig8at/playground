@@ -5,6 +5,7 @@
 // `gh`, que ya está autenticado — no hace falta ningún token nuevo.
 //
 //	deploys                  los últimos días de los tres repos
+//	deploys -fallas          SÓLO lo que falló, con el error del log — es el modo de «¿qué se rompió?»
 //	deploys -dias 14         otra ventana
 //	deploys -repo legacy-backend
 //	deploys -json
@@ -29,6 +30,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -51,6 +53,7 @@ type corrida struct {
 	Ambiente   string `json:"ambiente,omitempty"`
 	JobFallido string `json:"jobFallido,omitempty"`
 	PasoFallo  string `json:"pasoQueFallo,omitempty"`
+	Error      string `json:"error,omitempty"` // la línea del log que dice POR QUÉ; sólo con -fallas
 }
 
 var (
@@ -176,11 +179,51 @@ func porQueFallo(repo string, id int64) (job, paso string) {
 	return "", ""
 }
 
+// reError es el marcador estándar de GitHub Actions: la línea que el runner marcó como el error.
+var reError = regexp.MustCompile(`##\[error\](.*)`)
+
+// errorDelLog baja el log del job fallido y saca la línea que dice POR QUÉ. Es lo que convierte
+// «falló en Build Docker image» en «la definición de tarea mide 65.558 bytes y el máximo es 65.536».
+//
+// ⚠ NO SIEMPRE HAY MARCADOR: medido el 2026-09-15 sobre las 4 fallas de la última semana, 3 lo traen y
+// 1 no (un build del front). Por eso hay un respaldo que busca líneas con «error» y, si tampoco hay,
+// se dice que no se pudo leer y queda la URL. Inventar un motivo es peor que no darlo: quien lo lee
+// va a dejar de abrir el log, que es justo donde está la respuesta.
+func errorDelLog(repo string, id int64) string {
+	b, err := gh("run", "view", fmt.Sprint(id), "--repo", org+"/"+repo, "--log-failed")
+	if err != nil {
+		return ""
+	}
+	lineas := strings.Split(string(b), "\n")
+	for _, l := range lineas {
+		if m := reError.FindStringSubmatch(l); m != nil {
+			if t := strings.TrimSpace(m[1]); t != "" {
+				return t
+			}
+		}
+	}
+	// respaldo: la última línea que hable de un error y no sea el ruido del runner
+	for i := len(lineas) - 1; i >= 0; i-- {
+		l := strings.TrimSpace(lineas[i])
+		if !strings.Contains(strings.ToLower(l), "error") || strings.Contains(l, "##[group]") {
+			continue
+		}
+		if i := strings.Index(l, "\t"); i >= 0 && i+1 < len(l) {
+			l = strings.TrimSpace(l[strings.LastIndex(l, "\t")+1:])
+		}
+		if len(l) > 12 {
+			return l
+		}
+	}
+	return ""
+}
+
 func main() {
 	var (
 		dias     = flag.Int("dias", 7, "cuántos días hacia atrás")
 		repo     = flag.String("repo", "", "un solo repo (por defecto: los tres donde se despliega)")
 		limite   = flag.Int("limite", 80, "cuántas corridas pedirle a GitHub por repo antes de filtrar")
+		soloMal  = flag.Bool("fallas", false, "sólo lo que falló, con el error del log")
 		comoJSON = flag.Bool("json", false, "salida en JSON")
 	)
 	flag.Parse()
@@ -200,14 +243,44 @@ func main() {
 		}
 		todas = append(todas, cs...)
 	}
-	// el porqué sólo de las fallidas
+	// El porqué, SÓLO de las fallidas y EN PARALELO. Cada falla cuesta una llamada por el detalle y otra
+	// por el log (~30 KB), y en fila eran 19 s para tres: un comando que se usa cuando algo se rompió no
+	// puede hacer esperar. De a cuatro, que es el techo útil contra la API de GitHub.
+	var wg sync.WaitGroup
+	cola := make(chan struct{}, 4)
 	for i := range todas {
-		if todas[i].Estado == "failure" {
-			todas[i].JobFallido, todas[i].PasoFallo = porQueFallo(todas[i].Repo, todas[i].ID)
+		if todas[i].Estado != "failure" {
+			continue
 		}
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			cola <- struct{}{}
+			defer func() { <-cola }()
+			todas[i].JobFallido, todas[i].PasoFallo = porQueFallo(todas[i].Repo, todas[i].ID)
+			// el log se baja SÓLO en el modo de fallas: no vale pagarlo mirando la lista entera
+			if *soloMal {
+				todas[i].Error = errorDelLog(todas[i].Repo, todas[i].ID)
+			}
+		}(i)
 	}
+	wg.Wait()
 	sort.Slice(todas, func(i, j int) bool { return todas[i].Creada > todas[j].Creada })
 
+	if *soloMal {
+		var mal []corrida
+		for _, c := range todas {
+			if c.Estado == "failure" {
+				mal = append(mal, c)
+			}
+		}
+		if *comoJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(mal)
+			return
+		}
+		imprimirFallas(mal, todas, *dias, repos)
+		return
+	}
 	if *comoJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(todas)
 		return
@@ -271,6 +344,37 @@ func imprimir(cs []corrida, dias int, repos []string) {
 		}
 	}
 	fmt.Println()
+}
+
+// imprimirFallas contesta «¿qué se rompió?»: sólo lo fallido, con el error y el enlace. El total de
+// despliegues va igual en la primera línea, porque «3 fallas» y «3 de 200» no son la misma noticia.
+func imprimirFallas(mal, todas []corrida, dias int, repos []string) {
+	fmt.Printf("\n  FALLAS · últimos %d días · %s\n", dias, strings.Join(repos, ", "))
+	fmt.Printf("  %d de %d despliegues\n\n", len(mal), len(todas))
+	if len(mal) == 0 {
+		fmt.Print("  ✔ nada falló en la ventana.\n\n")
+		return
+	}
+	for _, c := range mal {
+		amb := c.Ambiente
+		if amb == "" {
+			amb = "?"
+		}
+		fmt.Printf("  ✗ %s  %s → %s\n", c.Creada[:10], c.Repo, amb)
+		fmt.Printf("     rama    %s\n", c.Rama)
+		fmt.Printf("     qué     %s\n", corta(c.Titulo, 96))
+		paso := c.JobFallido
+		if c.PasoFallo != "" {
+			paso += " → " + c.PasoFallo
+		}
+		fmt.Printf("     dónde   %s\n", paso)
+		if c.Error != "" {
+			fmt.Printf("     por qué %s\n", corta(c.Error, 150))
+		} else {
+			fmt.Printf("     por qué (el log no marcó un error legible — está en el enlace)\n")
+		}
+		fmt.Printf("     %s\n\n", c.URL)
+	}
 }
 
 func corta(s string, n int) string {

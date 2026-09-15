@@ -95,8 +95,8 @@ retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs,
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/hoy -n "$(N)" $(if $(JSON),-json)
 
-deploys: ## @dia ¿qué se desplegó, a qué ambiente, y el que falló POR QUÉ (el job y el paso, no «falló»)? DIAS=7 · REPO=legacy-backend · JSON=1
-	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(JSON),-json)
+deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
+	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
 anatomia: ## @dia ¿cómo está repartido el archivo de cada tarea (estado/registro) y qué sección parece estar fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/hoy -anatomia $(if $(N),-n "$(N)")
