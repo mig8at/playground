@@ -100,6 +100,29 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ### 2026-09-15
 
+**Proyecto ≠ tarea, y el guard aprendió el vocabulario de las herramientas.** Miguel señaló que en
+`data/` conviven dos cosas distintas —el trabajo del día a día sobre CreditOp, y lo propio: las
+herramientas, el corpus, el SDK, las mejoras a futuro— y que al compartir a Jira no deberían filtrarse
+sus herramientas, aunque sí lo que se hizo contra los datos. **Lo medido antes de tocar nada, que
+cambió la conclusión:** de 32 publicables, las 7 que parecían nombrar herramientas eran **falsos
+positivos** (el «panel» es el de administración del producto, la «suite» es la de PHPUnit del repo,
+las «plantillas» son las del contrato), y 15 ya hablaban de migraciones o consultas. O sea: el riesgo
+de filtración casi no se estaba dando —el guard ya frenaba `harness` y `playground`—, y el problema
+real era el otro: **23 de 40 abiertas sin clave de Jira**, tratadas igual que las que sí la tienen.
+
+De ahí: `clase: tarea|proyecto` declarada (no deducida — hay trabajo sobre herramientas que SÍ se
+publicó, CORE-421), `make hoy` que las separa, la tarjeta que las marca, y el lint que AVISA si un
+proyecto conserva publicable. En el guard entraron sólo patrones específicos (`make <target>`,
+`E2E_TARGET`, los nombres propios de las herramientas, `localhost`), con el reemplazo escrito en el
+motivo; `canon` quedó afuera a propósito porque en renting es el pago mensual. Y la publicable ganó
+«Cambios en datos», que es lo que Miguel dijo que SÍ debe compartirse y no tenía lugar.
+
+⚠ **Una lección de método:** el primer test del guard dio «fallos: 0» sin haber corrido — el programa
+no compilaba (`internal/` no se importa desde afuera) y el bucle iteró sobre una lista vacía. Es la
+misma trampa de siempre: una prueba que no corre se lee igual que una que pasa. Y escribir Go desde un
+heredoc de Python convirtió los `\b` de los regex en el carácter backspace, así que los patrones nuevos
+no matcheaban nada y el test lo destapó.
+
 **El hook reclamaba tareas que esta sesión sólo había LEÍDO.** Frenó pidiendo registro y bitácora para
 `sdk-del-comercio`, que no tocó nadie acá: estaba sucia por OTRA sesión sobre el mismo worktree, y el
 hook la dio por propia porque el día anterior hubo un `head` sobre ese archivo. Dos intentos hasta que
