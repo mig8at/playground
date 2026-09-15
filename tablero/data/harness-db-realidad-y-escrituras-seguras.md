@@ -263,6 +263,63 @@ runners de un caso, y roto para N casos a la vez»*—. La volví a cometer, el 
 al lado. Arreglado con `AsyncLocalStorage` y **con su prueba**, que es lo único que la caza: con el
 `let` de módulo daba 0 y 2 en vez de 1 y 1.
 
+
+## La tanda que CIERRA en paralelo: 3 comercios rt=2, y dos hallazgos (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — tres comercios con entidades `rt=2` **distintas**, cerrando en
+> plataforma, contra local con PHP en multi-worker (1+6) y los PDF por **Blade** (el camino real, no el
+> mock — así se ejercitan las plantillas, F-150).
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=local make harness-caminar CASOS='#bb534d6a:37;#5aff189c:46;#fbaf73a6:48' FLOW=self-service PAR=1 CERRAR=1 MANUAL=1`
+
+**1/3 cerró, en 43 s** — o sea **tres casos en el tiempo de uno** (el que cerró tardó 43 s solo).
+
+| caso | entidad | desenlace |
+|---|---|---|
+| `#5aff189c` Mediarte | **46** Mediarte X | ✅ **estado 11 «Autorizada»**, 11 pantallas |
+| `#fbaf73a6` Unidad odontofacial | **48** UOF credit | 🔴 muere en el **OTP de firma** |
+| `#bb534d6a` Creditop | **37** Creditop X | 🔴 muere en **`confirmation`** |
+
+✔ **Y los dos fallos se REPRODUCEN EN SERIE**, así que **no son del paralelismo** — la capa de
+escrituras nueva aguanta la concurrencia. Es el control que hacía falta para creerle a la tanda.
+
+### Hallazgo 1 · UOF credit (48): el OTP de firma nace ya validado
+
+El backend, preguntado directo, es explícito:
+
+    POST /api/loans/requests/promissory-note/validate/verify-otp  {user_request_id:466688, otp:"929600"}
+    → HTTP 422  {"success":false,"message":"Este usuario no tiene un OTP pendiente de validación."}
+
+Y las filas de `otps` dicen por qué: **nacen con `updated_at == created_at` y `validated = 1`**, así
+que nunca hay uno *pendiente* que verificar. Comparado con el caso que SÍ cerró:
+
+| | primera fila de `otps` | |
+|---|---|---|
+| Mediarte (cerró) | creada 17:36:29 · **actualizada 17:36:30** | estuvo pendiente y **se validó** |
+| UOF (falla) | creada 17:38:50 · actualizada 17:38:50 | **nació validada** |
+
+⚠ **Ninguno de los dos teléfonos está en `qa_otp_bypass_phones`**, así que el bypass de QA no
+interviene: es el camino de OTP de local. **Por qué una entidad nace con el OTP validado y la otra no,
+NO lo aislé** — queda como el hilo a tirar. Reproducido 3 veces.
+
+### Hallazgo 2 · Creditop X (37): `confirmation` responde un error genérico
+
+    {"data":{"error":true,"errorCode":"unexpected","errorMessage":"No pudimos confirmar tu solicitud…"}}
+
+Muere en la 4.ª pantalla, justo después de que la solicitud pasa a estado 3 «Seleccionó entidad».
+`errorCode: "unexpected"` no dice nada del negocio: la causa está del lado del servidor y **no la
+busqué** (en local un error así no deja rastro — el tracer va a un Loki que no existe; el camino es
+repedirle el endpoint, según `harness/CLAUDE.md`).
+
+### Y dos debilidades del runner, arregladas
+
+1. **Reportaba `confirmation respondió error: true`.** Leía `error` —que en ese envelope es un
+   **booleano**, «hubo error», no el detalle— y buscaba el texto sólo en `message`, cuando esa pantalla
+   lo manda en `errorMessage`. Para saber qué había pasado hubo que repetir la llamada a mano. Ahora
+   busca las tres formas y, si no hay ninguna, imprime el cuerpo. **Con eso el hallazgo 2 salió en la
+   corrida siguiente, sin trabajo extra.**
+2. Lo de la etiqueta del registro (arriba), que sólo se ve corriendo en paralelo.
+
 ## Registro
 
 ### 2026-09-15 · auditoría y propuesta
@@ -292,3 +349,11 @@ Cuatro comercios distintos a la vez, 4/4 en 7,9 s, y el conjunto de entidades co
 declara cada sucursal — la pregunta original queda contestada corriendo, no leyendo. El paralelo
 además destapó que mi propio registro guardaba la etiqueta en el módulo: mismo error que trace.ts,
 arreglado con `AsyncLocalStorage` y con la prueba que lo caza.
+
+### 2026-09-15 (5) · la tanda que cierra, y dos hallazgos del producto
+Tres comercios con rt=2 distintas, cerrando: 1/3 en 43 s (tres casos en el tiempo de uno). Los dos
+fallos se reproducen EN SERIE, así que no son del paralelismo — la capa de escrituras aguanta. UOF
+credit (48) muere en el OTP de firma con un 422 «no tiene un OTP pendiente» y sus filas de `otps`
+nacen ya validadas; Creditop X (37) muere en `confirmation` con `errorCode: unexpected`. Ninguna de
+las dos causas raíz está aislada. Y el runner dejó de reportar «error: true»: buscaba el mensaje en
+`message` cuando venía en `errorMessage`.
