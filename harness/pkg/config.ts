@@ -269,3 +269,44 @@ export const expectedSubcodes = {
         providerError: 'PROVIDER_ERROR',
     },
 } as const;
+
+/**
+ * ¿ESTÁ CONFIGURADO EL PROVEEDOR DE IDENTIDAD (ADO)? — F-220.
+ *
+ * POR QUÉ EXISTE. Sin `ADO_HOST` en el `.env` del backend, el endpoint de inscripción responde **200**
+ * con un destino a medias —sólo el path del proveedor, sin host—, el contrato del front lo acepta
+ * (`z.string()`, no url) y el helper de redirección lo reinterpreta como **un segmento de ruta del
+ * flujo**, así que lo cuelga del prefijo del comercio. El router no matchea nada y queda una pantalla
+ * que se ve bien y no responde. Ninguna de las tres capas se queja.
+ *
+ * Medido el 2026-09-15: la variable no está en el `.env` ni declarada en el `.env.example`, y el
+ * contenedor resuelve la configuración como `NULL`. En los ambientes desplegados sí está — cero
+ * apariciones del síntoma en 30 días—, así que esto es de local.
+ *
+ * Se lee el `.env` del OTRO repo con el mismo idiom que `logsDelBackendLocal`: una perilla que cambia
+ * qué puede probar la corrida no puede estar invisible.
+ */
+export function proveedorDeIdentidadConfigurado(): boolean | null {
+      try {
+            const env = readFileSync(`${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`, 'utf8');
+            const v = (env.match(/^\s*ADO_HOST\s*=\s*(.*)$/m)?.[1] ?? '').trim().replace(/^["']|["']$/g, '');
+            return v !== '';
+      } catch {
+            return null;   // sin `.env` legible no se afirma nada
+      }
+}
+
+/**
+ * El aviso, o vacío si no hay nada que advertir. Sólo habla cuando el target es `local` y la variable
+ * falta: contra un ambiente desplegado el proveedor está puesto y avisar ahí sería ruido.
+ */
+export function avisoIdentidadSinProveedor(target: string): string[] {
+      if (target !== 'local') return [];
+      if (proveedorDeIdentidadConfigurado() !== false) return [];
+      return [
+            '⚠ el proveedor de identidad (ADO) NO está configurado en local: sin `ADO_HOST` en el .env del',
+            '  backend, la pantalla de validación de identidad termina en una ruta inventada y queda MUERTA',
+            '  («No routes matched» · F-220). No es un bug del flujo: es la variable, que tampoco está en el',
+            '  .env.example. El arnés aprueba la identidad a mano para poder pasar — y lo dice al hacerlo.',
+      ];
+}

@@ -3,9 +3,9 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
-import { avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
+import { avisoIdentidadSinProveedor, avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
-import { avisoDeEmpleoPisado, reponerEmpleo, synthFill, requestEstado11 } from '../pkg/inject';
+import { avisoDeEmpleoPisado, reponerEmpleo, synthFill, requestEstado11, validacionManual } from '../pkg/inject';
 import { avisoDeCupoSinSalida, rt0ActivasDeLaSucursal } from '../pkg/merchants';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
@@ -1172,7 +1172,41 @@ test('guided (semiautomático)', async ({ browser }) => {
                         }
                     }
                     const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: firmado });
-                    log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
+                    log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — seguí a /lenders`);
+
+                    /* ⚠ LA IDENTIDAD: SIN PROVEEDOR CONFIGURADO, LA PANTALLA QUEDA MUERTA (F-220).
+                     *
+                     * El camino VISUAL no sabía aprobarla —eso sólo lo tenía el caminador por consola con
+                     * `--manual`—, así que en local toda corrida que llegara a la validación de identidad
+                     * moría en una ruta inventada: el backend devuelve el destino sin host porque falta
+                     * `ADO_HOST`, y el helper del front lo reinterpreta como un segmento del flujo. Le pasó
+                     * tres veces seguidas a una corrida de ecommerce que por lo demás funcionaba.
+                     *
+                     * Acá se aprueba a mano, como lo haría el admin, y con las dos fotos del documento
+                     * sembradas (es lo que hace `sembrar` en el caminador). Va SÓLO cuando el proveedor no
+                     * está configurado: contra un ambiente desplegado la pantalla funciona y aprobar por
+                     * detrás cambiaría lo que la corrida prueba.
+                     *
+                     * ⚠ Y SE DICE, con todas las letras. Es un bypass —no prueba que un humano aprobaría—,
+                     * igual que el buró sintético. Hacerlo en silencio sería la clase de verde que tapa un
+                     * defecto, que es justo lo que este arnés viene a no hacer. */
+                    const sinProveedor = avisoIdentidadSinProveedor((process.env.E2E_TARGET || '').toLowerCase());
+                    if (sinProveedor.length) {
+                        for (const l of sinProveedor) log(`  ${l}`);
+                        const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=? LIMIT 1', [ur]).catch(() => null);
+                        if (u?.user_id) {
+                            const doc = process.env.E2E_SYNTH_DOC || String(ur);
+                            await exec(
+                                'UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
+                                [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
+                                 `https://mock-s3.local/front-web/users/documents/synth/${doc}/reverso.jpg`, u.user_id],
+                            ).catch(() => null);
+                            const filas = await validacionManual(u.user_id).catch(() => 0);
+                            log(filas
+                                ? '  → identidad APROBADA A MANO (bypass, como el admin): la pantalla de validación se saltea'
+                                : '  → no pude aprobar la identidad: la pantalla de validación va a quedar muerta igual');
+                        }
+                    }
                     tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (para terminar: cerrá la ventana o «Detener» en el panel.)');
                 } else {
                     log('no pude leer el uReq en personal-info — seguí igual (sin buró inyectado)');

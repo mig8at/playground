@@ -545,6 +545,22 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         // ⚠ El filtro se hace sobre las entidades que ya trajo el panel, pero la REGLA de «qué cuenta
         // como rt=0 activa» es la de `pkg/merchants.ts`, que es la que usa también el runner en caliente:
         // dos definiciones de esto derivarían, y una avisaría donde la otra se calla.
+        // ⚠ EL PROVEEDOR DE IDENTIDAD, cuando no está configurado (F-220). Va en la cabecera y no
+        // sólo en el rastro de la corrida porque cambia qué puede probar: el arnés va a aprobar la
+        // identidad por detrás para poder pasar, y eso es un bypass que conviene saber ANTES.
+        //
+        // Import DINÁMICO, como el resto de lo que este archivo toma de `pkg/`: el panel no arrastra
+        // esa capa al cargar (ahí se resuelve el target, y un import estático lo fijaría antes de que
+        // el panel elija — es la trampa de F-187).
+        try {
+            const { avisoIdentidadSinProveedor } = await import('../pkg/config.ts');
+            const lineas = avisoIdentidadSinProveedor(t);
+            if (lineas.length) {
+                L.push(row('⚠ identidad', lineas[0].replace(/^⚠ /, '')
+                    + lineas.slice(1).map((x) => `\n${' '.repeat(16)}${x.trim()}`).join('')));
+            }
+        } catch { /* sin el módulo, la cabecera sigue igual */ }
+
         const conRt0 = lenders.filter((l) => Number(l.rt) === 0 && Number(l.lender_status) === 1);
         if (!conRt0.length) {
             L.push(row('⚠ cupo', 'este comercio NO tiene ninguna entidad rt=0 activa EN ESTE AMBIENTE: si en\n'
