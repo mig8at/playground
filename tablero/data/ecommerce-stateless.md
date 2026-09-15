@@ -17,7 +17,8 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 ## Si retomás esto sin contexto, empezá acá
 
 **El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
-`Qa (#1012)` el 14/9 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`). El backend #1392
+`Qa (#1007)` el 14/9 a las 18:58 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`,
+20:52). El backend #1392
 **no** se revirtió y sigue en `main`.
 
 **El motivo del revert es un defecto real y ya está diagnosticado**, no hace falta re-investigarlo: en
@@ -37,8 +38,9 @@ que guardar el `if` de la línea 637 para que las in-platform no vayan a Wompi.
 
 
 # Ecommerce web stateless (→ wizard sin cookie) · task
-> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1012)`
-> (`f8a802b6`) y Abel lo sacó el 14/9 20:52 con
+> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1007)`
+> (`48246d68`, 14/9 18:58 — una promoción de **40 commits**, no un PR de esta tarea) y Abel lo sacó dos
+> horas después, el 14/9 20:52, con
 > [frontend-monorepo#1013](https://github.com/Creditop-SAS/frontend-monorepo/pull/1013) (merge
 > `77796a4f`), que deshace **#997 y #1005 enteros** — 27 archivos, −1.062 líneas.
 >

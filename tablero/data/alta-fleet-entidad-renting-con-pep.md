@@ -13,7 +13,11 @@ jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 
 **EN `main` DESDE EL 2026-09-14 · verificado el 15/9.** Los cuatro PRs de Alta —#983 y #1351 (las
 páginas propias del comercio, y el arreglo que la deja firmar), #987 (el hotfix del build) y #994 (el
-selector de plan)— llegaron a `main` con el merge `f8a802b6 "Qa (#1012)"`, que promovió `qa` entera.
+selector de plan)— llegaron a `main` con el merge `48246d68 "Qa (#1007)"`, que promovió `qa` entera
+(40 commits). *(Acá decía `f8a802b6 "Qa (#1012)"`, y es falso. Vale saber por qué: ese día hubo **dos**
+promociones `qa`→`main` seguidas —#1007 a las 18:58 y #1012 a las 20:33— y la segunda sólo llevó 2
+commits. Mirar la última que aparece en el log de `main` no dice por cuál cruzó un commit: eso lo
+contesta `git log --ancestry-path --merges <sha>..origin/main`. Medido el 2026-09-15.)*
 Medido con `git merge-base --is-ancestor` sobre los cuatro commits de merge, contra los cuatro
 ambientes: los cuatro están en `qa` y en `main`, y **ninguno en `develop` ni en `staging`**. El libro
 mayor, con tamaños, horas y commits medidos, está en «Lo que se mergeó» acá abajo.
@@ -892,7 +896,7 @@ Y los dos chequeos que no son un comando:
 que el tablero mostraba estas ramas como «en ningún ambiente» teniendo dos de ellas en `main`: el
 squash con el mensaje editado le cambia el patch-id y `git cherry` deja de reconocerlas. Con la
 segunda señal —el commit del PR— los cuatro PRs dan `qa` + `main`, y el merge que los trajo es
-`f8a802b6 "Qa (#1012)"` del 14/9 a la noche. Se borraron las dos marcas `⏳ PENDIENTE DE MERGE`
+`48246d68 "Qa (#1007)"` del 14/9 a la noche. Se borraron las dos marcas `⏳ PENDIENTE DE MERGE`
 (`merchants` §10 y `hardcodes-entidades`) y el `pending_merge` del `map.json`, después de verificar
 archivo por archivo contra `main` y de comprobar que `git diff origin/main origin/qa` sobre esas rutas
 da vacío. El oráculo del nodo `merchants` sigue en KEPT 57 / DROPPED 0 y `context-lint` pasa.
