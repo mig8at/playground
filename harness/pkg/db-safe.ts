@@ -17,7 +17,7 @@
 // legible por una capa que hay que aprender. Esto cubre los dos casos donde el SQL a mano se equivoca
 // caro, y deja el resto en paz.
 import type { PoolConnection } from 'mysql2/promise';
-import { assertWriteAllowed, esBaseLocal, etiquetarEscrituras, exec, scalar, TARGET, withConnection } from './db.ts';
+import { assertWriteAllowed, conEtiquetaDeEscrituras, esBaseLocal, exec, scalar, TARGET, withConnection } from './db.ts';
 
 /** Identificadores: sólo nombres de tabla/columna reales. No vienen de afuera, pero un typo con
  *  backticks produce SQL raro y el error se lee lejos del origen. */
@@ -36,12 +36,7 @@ function ident(nombre: string, que: string): string {
  */
 export async function withWrite<T>(nombre: string, fn: () => Promise<T>): Promise<T> {
       assertWriteAllowed(nombre);
-      const restaurar = etiquetarEscrituras(nombre);
-      try {
-            return await fn();
-      } finally {
-            restaurar();
-      }
+      return conEtiquetaDeEscrituras(nombre, fn);
 }
 
 /**
@@ -54,9 +49,8 @@ export async function withWrite<T>(nombre: string, fn: () => Promise<T>): Promis
  */
 export async function withWriteTx<T>(nombre: string, fn: (c: PoolConnection) => Promise<T>): Promise<T> {
       assertWriteAllowed(nombre);
-      const restaurar = etiquetarEscrituras(nombre);
-      try {
-            return await withConnection(async (c) => {
+      return conEtiquetaDeEscrituras(nombre, async () => {
+            return withConnection(async (c) => {
                   await c.beginTransaction();
                   try {
                         const out = await fn(c);
@@ -67,9 +61,7 @@ export async function withWriteTx<T>(nombre: string, fn: (c: PoolConnection) => 
                         throw e;
                   }
             });
-      } finally {
-            restaurar();
-      }
+      });
 }
 
 export interface BorradoOpts {

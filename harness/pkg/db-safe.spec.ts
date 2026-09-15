@@ -116,6 +116,22 @@ test.describe('contra la base local', () => {
             expect(r.filas).toBe(4);
       });
 
+      // 🔴 LA QUE HABRÍA CAZADO EL BUG DE LA ETIQUETA. La primera versión guardaba la etiqueta en un
+      // `let` de MÓDULO —una por proceso—, así que dos `withWrite` concurrentes se la pisaban y el
+      // registro atribuía las escrituras de uno al otro. Es la misma trampa que `pkg/trace.ts` ya
+      // había pagado, y correr en PARALELO es lo único que la muestra.
+      test('dos withWrite CONCURRENTES no se pisan la etiqueta', async () => {
+            const [a, b] = await Promise.all([
+                  withWrite('caso-A', async () => (await insertarFila(tabla, { tel: 'A' })).insertId),
+                  withWrite('caso-B', async () => (await insertarFila(tabla, { tel: 'B' })).insertId),
+            ]);
+            expect(a).toBeGreaterThan(0);
+            expect(b).toBeGreaterThan(0);
+            const porEtiqueta = (e: string) => escriturasDeLaCorrida().filter((x) => x.etiqueta === e);
+            expect(porEtiqueta('caso-A')).toHaveLength(1);
+            expect(porEtiqueta('caso-B')).toHaveLength(1);
+      });
+
       // El registro es lo que `dbops activity` no puede dar: éste anota la sentencia cuando corre, así
       // que el DELETE queda — reconstruirlo mirando filas que existen no lo ve, porque ya no están.
       test('el registro ve los DELETEs, y withWrite los etiqueta', async () => {

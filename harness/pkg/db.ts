@@ -7,6 +7,7 @@ import mysql from 'mysql2/promise';
 import type { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql2/promise';
 // La resolución por target (y la herencia entre targets) vive en `env.ts`. Se re-exporta para no romper
 // a quien ya importaba `TARGET`/`env` desde acá.
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { TARGET, env } from './env.ts';
 
 export { TARGET, env };
@@ -98,13 +99,22 @@ export function mutacionDe(sql: string): { op: string; tabla: string } | null {
 /** Lo que `exec` fue registrando en esta corrida, en orden. Sirve para decir QUÉ se tocó, DELETEs incluidos. */
 export interface Escritura { op: string; tabla: string; filas: number; target: string; local: boolean; etiqueta: string; cuando: string }
 const _escrituras: Escritura[] = [];
-let _etiqueta = '';
 
-/** Etiqueta con la que se registran las escrituras que vengan (la usa `withWrite`). */
-export function etiquetarEscrituras(nombre: string): () => void {
-    const previa = _etiqueta;
-    _etiqueta = nombre;
-    return () => { _etiqueta = previa; };
+/**
+ * LA ETIQUETA VA POR CONTEXTO ASÍNCRONO, no en el módulo.
+ *
+ * ⚠ La primera versión era un `let _etiqueta` de módulo, o sea **UNA por proceso** — correcto para
+ * las escrituras de un caso, y roto para N casos a la vez: dos `withWrite` concurrentes se pisan la
+ * etiqueta y el registro termina atribuyendo las escrituras de uno al otro. Es exactamente la trampa
+ * que `pkg/trace.ts` ya había pagado (su estado vivía en el módulo y en paralelo mezclaba contadores
+ * y alertas de todos los casos), y la volví a cometer. `AsyncLocalStorage` es el primitivo para esto:
+ * cada cadena de `await` ve su propia etiqueta y las paralelas no se ven entre sí.
+ */
+const _etiquetas = new AsyncLocalStorage<string>();
+
+/** Corre `fn` con las escrituras etiquetadas como `nombre` (la usa `withWrite`). */
+export function conEtiquetaDeEscrituras<T>(nombre: string, fn: () => T): T {
+    return _etiquetas.run(nombre, fn);
 }
 
 /** Todo lo que esta corrida escribió, en orden. Copia: nadie de afuera muta el registro. */
@@ -146,7 +156,7 @@ export async function exec(sql: string, params: any[] = []): Promise<{ affectedR
     if (mut) {
         _escrituras.push({
             op: mut.op, tabla: mut.tabla, filas: out.affectedRows, target: TARGET,
-            local: esBaseLocal(), etiqueta: _etiqueta, cuando: new Date().toISOString(),
+            local: esBaseLocal(), etiqueta: _etiquetas.getStore() ?? '', cuando: new Date().toISOString(),
         });
     }
     return out;
