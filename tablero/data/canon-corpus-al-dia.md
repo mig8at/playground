@@ -1,7 +1,7 @@
 ---
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
-ramas: canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones, canon/la-cola-de-hallazgos, canon/la-flota, canon/panel-de-preguntas, canon/el-panel-no-dice-el-dsn
+ramas: canon/lo-que-quedo-falso-en-main, canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones, canon/la-cola-de-hallazgos, canon/la-flota, canon/panel-de-preguntas, canon/el-panel-no-dice-el-dsn
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []
@@ -10,6 +10,18 @@ jira_title: ""
 ---
 
 ## Si retomás esto sin contexto, empezá acá
+
+**Estado al 2026-09-15.** La tarea entró en una segunda vuelta: el corpus se puso viejo otra vez en ocho
+días. La ronda pasó de 0 (2026-09-07) a **237 archivos declarados cambiados**, y aparecieron dos
+afirmaciones **falsas** —una de ellas mandaba a soporte a diagnosticar al revés—, ya corregidas y
+mergeadas en el PR #195. **Lo que sigue es escribir el contexto nuevo, y está todo inventariado y
+verificado contra `main` en la entrada del 2026-09-15 del Registro**: siete frentes de prioridad alta o
+crítica, con su prosa candidata y sus archivos ya identificados por los seis agentes de esa sesión. No
+hace falta volver a investigar: hace falta escribir, validar y mergear, un PR por frente.
+
+⚠ **Y una lección de método que costó una falsedad:** `smartpay` afirmaba lo contrario de lo que hace
+`main` porque se verificó contra el monolito **nuevo** y el comportamiento vive en el **viejo**. Cuando
+un tema toca los dos monolitos, verificar uno solo produce una afirmación falsa con evidencia real.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) describe lo que corre en
 `main`, y tenía dos huecos que Santi hizo visibles el 2026-09-06 al contar que su documentación vive en
@@ -311,6 +323,93 @@ Desde `tools/canon`, siempre con el binario recién construido (`-lint` y `-benc
 > como guía canónica.
 
 ## Registro
+
+### 2026-09-15
+
+**El corpus volvió a quedar viejo en ocho días, y esta vez había prosa FALSA.** El 2026-09-07 la ronda
+quedó en 0; hoy marca **237 archivos declarados que cambiaron**, en 29 temas (los peores: listado 23,
+cartera 21, smartpay 19, meddipay 16, welli 13). En el mismo período entraron **813 commits** a `main`
+entre los cuatro repos.
+
+**Mergeado: PR #195** — las dos afirmaciones falsas, que van solas y primero porque mandaban a
+diagnosticar al revés:
+
+- **`smartpay`**: decía que la pasada de las 05:00 era el único camino y que ante «pagó y sigue
+  bloqueado» se pidiera correr la pasada **en vez de** depurar el pago. Desde el 2026-09-11 el pago
+  libera el equipo en el acto (simula el cierre nocturno sin correrlo; no reintenta; los rotativos
+  quedan fuera). **El motivo del error vale tanto como el dato: se había verificado contra el monolito
+  NUEVO y esos pagos los aplica el VIEJO** — el modo de falla clásico de un corpus que no dice de qué
+  repo es cada ruta.
+- **`bcp`**: el id de la entidad de consumo ya no está quemado (desde el 2026-09-07 los dos salen de
+  configuración) y la lista de productos ya no está escrita a mano en el recorrido (la resuelve el
+  servidor desde la sucursal). El consejo forense quedó **datado**, que es lo que lo salva.
+
+Las dos secciones nuevas nacen declaradas en el mapa y son **alcanzables**: con el reclamo que las trae
+son el primer resultado de la búsqueda. Banco sin regresión (96/115 primer resultado, 115/115
+alcanzables). ⚠ **No se validó con modelo: en local el proveedor devuelve 403.**
+
+#### Lo medido contra PRODUCCIÓN hoy (y que corrige lo que decían los PRs)
+
+- **El diccionario de tablas (generado el 2026-09-07) quedó viejo.** Prod ya tiene cuatro columnas que
+  no lista: la de páginas del comercio, la de aprobación manual por entidad, la de cuentas embargadas y
+  la marca de tiempo del traspaso a WhatsApp. La tabla de bloqueos pasó de 15 a 18 columnas.
+- **La tabla del catálogo de productos por país SÍ existe en prod**, con una sola fila —República
+  Dominicana, 100 productos— creada el **2026-09-14 23:39**. El PR del revert afirmaba el 2026-09-11 que
+  producción «ni siquiera tenía la tabla»: era cierto entonces y dejó de serlo con el despliegue. Colombia
+  no está, así que el revert se sostuvo.
+
+#### El inventario de lo que falta, priorizado (investigado por seis agentes, verificado contra `main`)
+
+**Crítico — el corpus dice lo contrario o no lo nombra, y duele en soporte:**
+
+1. **Refinanciación, condonación y recuperación de créditos** (14 arch. / +2261, 2026-08-31). Cinco
+   operaciones de admin sobre un crédito vivo. **Cero apariciones de «refinanci» en todo el corpus.** Va
+   a `cartera`.
+2. **El módulo de bloqueo de equipos v2 + su admin** (93 arch. / +4591 en backend, 16 / +672 en el
+   viejo). Hoy son un párrafo de segunda mano en `smartpay`. Va a `smartpay` o a tema propio.
+
+**Alto — hueco total:**
+
+3. **Tema nuevo `ecommerce`**: la sala de espera del veredicto (entró el backend el 2026-09-14 y **no la
+   consume nadie**), el reuso de solicitud por pedido y no por cliente (bloquea con error propio; la
+   lista de estados es cerrada a propósito), y sobre todo que **la entrada genérica del checkout entró a
+   `main` y se revirtió el 2026-09-14** — está viva en `qa`, así que quien depure contra `qa` o contra el
+   historial concluye que existe en producción. Más una corrección en `onboarding` («las tres
+   implementaciones» ya son cuatro) y una sección en `fronteras` (la dirección de vuelta la elige el
+   comercio y sale sin validar).
+4. **La bienvenida del comercio** (`altas`): un comercio puede tener páginas propias, hoy hay una, y **el
+   texto es el interruptor**. No confundir con la bienvenida de la ENTIDAD, que existe desde abril,
+   se configura en otro lado, se ve en otro momento y **sí** admite quedar encendida sin nada que
+   mostrar. Conviven sin precedencia. Más los dos fallos del alta de comercio del 2026-09-14 (el 500 al
+   subir logo, y el precio que se perdía dejando todo comercio nuevo en cero).
+5. **El perfilador nuevo** (`listado`): desde el 2026-09-07 contesta primero y el viejo quedó de red de
+   seguridad, **sin ninguna palanca que lo diga** salvo una variable de entorno. **Una sola entidad sin
+   banda tira la respuesta entera** y el comercio completo queda perfilado por el motor viejo. El
+   puntaje continuo murió: son tres valores, y el orden visible lo decide la banda más la posición que
+   configuró el comercio. Y entre el 7 y el 11 de septiembre **la foto de auditoría guardaba una segunda
+   corrida, distinta de la que el cliente vio**. ⚠ Colisión de nombres: canon ya llama «servicio de
+   perfilamiento del cliente» al microservicio de KYC, que no tiene nada que ver.
+6. **La cuarta variante de Experian** (29 arch. / +1881): `repos/operar.md` dice «las **tres** variantes
+   de Experian» y hay cuatro desde el 2026-09-09. Es **la primera API del módulo que gasta dinero**, y su
+   contrato dice que un código de lectura inesperado es un error y nunca una licencia para comprar.
+7. **Credi ASYCO** (entidad 155): catálogo de firma propio resuelto **por slug y no por id**, pagaré y
+   garantía propios, y seis fixes del pagaré en cuatro días. Sólo está en el diccionario.
+
+**Medio:** el catálogo de productos por país y su revert de 67 minutos (la trampa vale más que la
+funcionalidad: en Colombia un «producto» es un modelo de equipo a bloquear y en RD un artículo con
+precio; **contar, no comparar columnas**) · la tanda de observabilidad del 2026-09-11 · la revisión de
+políticas de lenders desde backoffice · teléfono y OTP resueltos por país del aliado · el resumen de
+pago total · el detalle de TyC aceptados · la API de difusión.
+
+**Y un hueco de `nequi`**: lo del 2026-09-09 no es la integración (ésa está desde el 2026-08-13) sino la
+generación del comprobante al aprobarse el cobro, que el tema no menciona.
+
+#### Nota de método
+
+Los seis agentes devolvieron prosa candidata lista, con sus archivos y rutas verificadas. **No se copió
+nada sin re-verificar**: de las tres cosas que el agente del catálogo marcó como no verificadas, una
+resultó **desactualizada** al medirla contra prod hoy. Ese material está en los informes de esta sesión
+y es lo que hace que el resto del inventario no haya que volver a investigarlo.
 
 ### 2026-09-09
 
