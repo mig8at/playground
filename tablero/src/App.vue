@@ -12,7 +12,12 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { marked } from 'marked';
 
-const SERVER = 'http://localhost:8787';
+// La URL del server, parametrizable para poder levantar una SEGUNDA instancia sin tocar el código:
+// `npm run dev` usa `concurrently -k`, así que reiniciar el server para probar un cambio tumba también
+// el front de quien esté trabajando. Con esto se levanta un par aparte:
+//   cd server && WEB_PORT=8790 go run ./cmd/web
+//   VITE_TABLERO_API=http://localhost:8790 npx vite --port 5296
+const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 
 const loading = ref(true);
@@ -345,6 +350,33 @@ const ramasDe = (key) => {
   return (ramasSnap.value.tareas || {})[String(eid)] || null;
 };
 const ramasCuenta = (key) => (ramasDe(key)?.ramas || []).length;
+// LA ENTREGA, EN LA TARJETA Y SIN ABRIR NADA. La pregunta que uno le hace al tablero es «¿esto ya
+// está en producción?», y hasta hoy había que abrir el cajón de ramas para contestarla. `main` es la
+// vara (context/ se mide contra main), así que el resumen habla de main y deja el resto para el cajón.
+const entregaDe = (key) => {
+  const rs = ramasDe(key)?.ramas || [];
+  if (!rs.length) return null;
+  const enMain = rs.filter(r => r.en?.main).length;
+  const abiertos = rs.filter(r => r.pr?.estado === 'OPEN');
+  if (enMain === rs.length) {
+    return { texto: '✓ main', clase: 'ok', titulo: `las ${rs.length === 1 ? 'rama está' : rs.length + ' ramas están'} en main` };
+  }
+  if (enMain > 0) {
+    return { texto: `${enMain}/${rs.length} main`, clase: 'medio', titulo: `${enMain} de ${rs.length} ramas llegaron a main` };
+  }
+  if (abiertos.length) {
+    const bases = [...new Set(abiertos.map(p => p.pr.base))].join(', ');
+    return { texto: `${abiertos.length} PR → ${bases}`, clase: 'espera', titulo: `nada en main todavía; ${abiertos.length} PR abierto(s) contra ${bases}` };
+  }
+  return { texto: 'sin llegar', clase: 'espera', titulo: 'ninguna rama llegó a main y no hay PR abierto' };
+};
+// Cómo se supo que el cambio está en un ambiente. `patch` es el patch-id de la punta (la señal fuerte);
+// `pr` es el commit del PR mergeado, que es lo que salva al squash con el mensaje o el contenido
+// editados — sin esa segunda señal, la tarea de Alta Fleet decía que nada suyo estaba en main.
+const COMO_TEXTO = {
+  patch: 'el cambio ya está acá (el patch-id de la punta aparece en el ambiente)',
+  pr: 'llegó por el PR: el patch-id no coincide (squash con el mensaje o el contenido editados), pero el commit del merge ya es ancestro de este ambiente',
+};
 // Los ambientes que aparecen en la medición, en orden de menor a mayor riesgo. Se derivan del dato y no
 // se fijan acá: un repo puede no tener `staging`, y listarlo vacío diría "no está mergeado" cuando la
 // verdad es "esa rama no existe en ese repo".
@@ -1456,6 +1488,9 @@ onMounted(async () => {
                 <button v-if="ramasCuenta(i.Key)" class="tact" :class="{ act: ramasAbiertas && active?.Key === i.Key }"
                   @click="verRamas(i)">
                   Ramas<span class="cnt">{{ ramasCuenta(i.Key) }}</span>
+                  <!-- la entrega, sin abrir el cajón: es la pregunta que uno le hace al tablero -->
+                  <span v-if="entregaDe(i.Key)" class="entrega" :class="entregaDe(i.Key).clase"
+                    :title="entregaDe(i.Key).titulo">{{ entregaDe(i.Key).texto }}</span>
                 </button>
                 <!-- los hechos con fecha que declara el cuerpo. El punto rojo avisa que alguno venció
                      sin abrir el cajón: es lo que hace que una pregunta de hace 10 días se note. -->
@@ -1732,22 +1767,33 @@ onMounted(async () => {
           <div>
             <h3>Ramas</h3>
             <p v-if="active">de {{ active.Key }} · patrón <code>{{ ramasDe(active.Key)?.patron }}</code>
-              · medido {{ haceCuanto(ramasSnap.medidoEn) }}
+              <!-- la fecha de ESTA tarea: el snapshot se actualiza de a una (`ramas -n 62`), así que la
+                   fecha global haría ver fresca una medición de la semana pasada -->
+              · medido {{ haceCuanto(ramasDe(active.Key)?.medidoEn || ramasSnap.medidoEn) }}
               <!-- un snapshot que calla lo que le falta se lee como entero: si la medición se venció, lo dice -->
               <span v-if="ramasSnap.incompletas?.length" class="warn">· ⚠ {{ ramasSnap.incompletas.length }} tarea(s) sin medir (se venció el tiempo)</span></p>
           </div>
           <button class="drawer-x" title="Cerrar (Esc)" @click="ramasAbiertas = false">✕</button>
         </header>
         <div class="drawer-b">
-          <p class="empty">Medido por <b>patch-id</b>: un cambio que llegó por squash cuenta como
-            mergeado aunque la rama ya no exista. Se lee lo que el último <code>git fetch</code> dejó —
-            para refrescar: <code>make tareas-ramas</code>.</p>
+          <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
+            <span class="entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
+            {{ entregaDe(active?.Key).titulo }}
+          </p>
+          <!-- El cómo se mide explicado en UNA línea: el párrafo largo empujaba la tabla, que es lo que
+               se viene a mirar. El detalle queda a un hover de distancia. -->
+          <p class="empty comomide">
+            <span title="`git cherry` compara por patch-id, así que un cambio que llegó por squash de UN commit cuenta como mergeado aunque la rama ya no exista.">Medido por <b>patch-id</b></span>,
+            y cuando el squash cambió el patch —mensaje o contenido editados al mergear— por el
+            <span title="Si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el cambio está aunque el patch-id no coincida. Sin esta segunda señal, un PR squasheado que YA estaba en main salía como «no llegó».">
+              <b>commit del PR</b> (<span class="si via-pr">✓</span>)</span>.
+            Refrescar: <code>make tareas-ramas</code>.</p>
           <div class="tabla-wrap">
             <table class="ramas">
               <thead>
                 <tr>
                   <th>repo</th><th>rama</th><th>PR</th>
-                  <th v-for="a in ambientesDe(active?.Key)" :key="a">{{ a }}</th>
+                  <th v-for="a in ambientesDe(active?.Key)" :key="a" :class="{ ppal: a === 'main' }">{{ a }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1769,9 +1815,10 @@ onMounted(async () => {
                   <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
                        mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
                        desplegar algo en un repo que no tiene ese ambiente. -->
-                  <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb">
+                  <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb" :class="{ ppal: a === 'main' }">
                     <span v-if="!(a in (r.propios || {}))" class="na" title="ese ambiente no existe en este repo">—</span>
-                    <span v-else-if="r.en?.[a]" class="si" title="el cambio ya está acá">✓</span>
+                    <span v-else-if="r.en?.[a]" class="si" :class="{ 'via-pr': r.como?.[a] === 'pr' }"
+                      :title="COMO_TEXTO[r.como?.[a]] || 'el cambio ya está acá'">✓</span>
                     <span v-else class="no" title="el cambio todavía no está acá">·</span>
                   </td>
                 </tr>
@@ -2001,6 +2048,21 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
 .tact.go { color: #4ade80; border-color: #2a5f43; background: #0e2718 }
 .tact.go:hover:not(:disabled) { background: #123420; color: #4ade80 }
+/* La entrega dentro del botón de ramas: verde cuando todo está en main, ámbar a medio camino, y
+   gris cuando todavía no llegó nada. El color hace el trabajo de un vistazo; el texto, el de precisar. */
+.entrega { margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em;
+  padding: 1px 5px; border-radius: 999px; border: 1px solid transparent }
+.entrega.ok { color: #4ade80; border-color: #2a5f43; background: #0e2718 }
+.entrega.medio { color: #fbbf24; border-color: #fbbf2455; background: #fbbf2412 }
+.entrega.espera { color: var(--mut); border-color: var(--line); background: var(--panel2) }
+.resumen-entrega { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--txt); font-size: 12.5px }
+.resumen-entrega .entrega { margin-left: 0 }
+/* la columna que importa: `main` es la vara con la que se mide el contexto */
+.ramas th.ppal, .ramas td.ppal { background: #ffffff08; border-left: 1px solid var(--line) }
+.ramas th.ppal { color: var(--txt); font-weight: 800 }
+.comomide span[title] { border-bottom: 1px dotted var(--line); cursor: help }
+/* un ✓ que se supo por el PR y no por el patch-id: se marca para que el dato pueda explicarse */
+.amb .si.via-pr { color: #4ade80cc; border-bottom: 1px dotted #4ade8077 }
 .tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 999px }
 .tact.act .cnt { background: var(--acc); color: #1a1330 }
