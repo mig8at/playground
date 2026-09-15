@@ -88,9 +88,14 @@ def main() -> int:
     for t in informe.get("tareas") or []:
         if not t.get("faltan"):
             continue
-        nombres = [t["slug"]] + [m[5:] for m in t.get("tocada", []) if m.startswith("rama ")]
-        # la rama viene como "repo/rama"; en el transcript aparece la rama sola
-        nombres += [n.split("/", 1)[1] for n in nombres if "/" in n]
+        # La RUTA del archivo, no el slug pelado: un comando que sólo nombra la tarea (un grep, un
+        # dato de prueba, un `make tareas N=x`) no la tocó. Medido en la primera corrida real: marcó
+        # tres tareas de otras sesiones porque sus slugs aparecían como texto en un script.
+        nombres = ["data/" + t["slug"] + ".md"]
+        # la rama viene como "repo/rama"; en un comando aparece la rama sola
+        for m in t.get("tocada", []):
+            if m.startswith("rama ") and "/" in m[5:]:
+                nombres.append(m[5:].split("/", 1)[1])
         if any(n and n in transcript for n in nombres):
             mias.append(t)
     if not mias:
