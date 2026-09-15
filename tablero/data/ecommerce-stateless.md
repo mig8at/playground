@@ -14,22 +14,143 @@ ramas: ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*statel
 
 CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, en develop), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
 
+## Si retomás esto sin contexto, empezá acá
+
+**El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
+`Qa (#1012)` el 14/9 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`). El backend #1392
+**no** se revirtió y sigue en `main`.
+
+**El motivo del revert es un defecto real y ya está diagnosticado**, no hace falta re-investigarlo: en
+el flujo del **asesor**, con una cuota inicial > 0, elegir entidad rebota a `/solicitar`. La ruta
+`initial-fee-payment` se registró sólo en el árbol público y React Router la matchea ahí con
+`flow="merchant"`, que redirige a `/` → `/merchant` → `/solicitar`. Los cinco eslabones, medidos, en
+§«El rebote a `/solicitar`».
+
+⚠ **El defecto sigue vivo en `qa`** — el revert fue sobre `main`. Cualquier promoción futura lo vuelve
+a subir si no se arregla antes.
+
+**El próximo paso es:** medir contra el backend si `POST /api/loans/requests/initial-fee-payment/{ur}`
+sigue devolviendo **403** para una entidad `rt=2` (lo estaba en junio). De esa medición depende el
+arreglo: si ya no 403ea, alcanza con registrar `initial-fee-payment` y
+`down-payment-validation/:transaction_id` en el árbol `merchant` de `routes.ts`; si sigue, además hay
+que guardar el `if` de la línea 637 para que las in-platform no vayan a Wompi.
+
+
 # Ecommerce web stateless (→ wizard sin cookie) · task
-> **estado (2026-09-14):** 🟢 **en `qa`, ⏳ NO en `main`.** Los dos PRs que rehicieron esto sobre la rama
-> viva están MERGEADOS: [frontend-monorepo#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)
-> (merge `6fa13ae5`) y [legacy-backend#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392)
-> (merge `3cd20e34`), un commit cada uno. **Verificado el mismo día:** `checkout.tsx` y la ruta
-> `ecommerce-status` resuelven contra `origin/qa` y **no** contra `origin/main`.
+> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1012)`
+> (`f8a802b6`) y Abel lo sacó el 14/9 20:52 con
+> [frontend-monorepo#1013](https://github.com/Creditop-SAS/frontend-monorepo/pull/1013) (merge
+> `77796a4f`), que deshace **#997 y #1005 enteros** — 27 archivos, −1.062 líneas.
 >
-> **Por eso la tarea NO gradúa todavía a `context/`:** la vara del árbol es `main`, y de `qa` a `main`
-> falta el merge de promoción. Hasta entonces esto no corre en producción y los 14.160 checkouts del
-> pendiente de abajo siguen esperando.
+> **La causa es un defecto real del PR, no un accidente del merge**, y está diagnosticada y medida en
+> §«El rebote a `/solicitar`». Lo reportó Joel (QA) por DM el 15/9 08:38: *«cuando uno da click en el
+> botón de "Validar Pre aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de
+> solicitar»*.
+>
+> ⚠ **Y el revert dejó las dos puntas desparejas otra vez:** sólo se revirtió el **front**. El backend
+> [#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) **sigue en `main`** (la ruta
+> `ecommerce-status` resuelve contra `origin/main`). Es la misma forma del par de junio —backend
+> adelante, front atrás— repetida tres meses después.
+>
+> `qa` **conserva los tres PRs**: el revert se hizo sobre `main`, no sobre `qa`. O sea que el defecto
+> **sigue vivo en `qa`** y cualquier promoción futura lo vuelve a subir si no se arregla antes.
+>
+> **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
+>
+> ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
+> revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
+> `git merge-base --is-ancestor` da verdadero aunque el código ya no esté. Es la **inversa** del falso
+> «falta» que este mismo archivo anotó para #551 — y el desempate es el mismo: **el contenido, no el
+> SHA**. Acá, `git ls-tree -r --name-only origin/main -- …/ecommerce/checkout.tsx` → vacío.
 >
 > Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
 > (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
 > (🟡 murió en `develop`, 772 commits detrás — ver §«Cómo aterrizarlo»).
 >
 > Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
+
+## El rebote a `/solicitar`: por qué se revirtió de `main` (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — el síntoma que reportó QA es **del asesor**, no de ecommerce, y lo
+> produce una ruta que #997 registró en **un solo** árbol de rutas.
+> **Cómo se vuelve a comprobar:** los cinco eslabones de abajo se leen en `origin/qa`, y el único que no
+> se lee —el matcheo— se mide llamando a `matchRoutes` de **react-router 7.13.1** (la versión que
+> declara `apps/loan-request-wizard/package.json`) con una réplica del árbol de `routes.ts`.
+
+**El síntoma:** el asesor elige una entidad, hace click en **«Validar Pre aprobado»** y el wizard lo
+devuelve a `/solicitar`, la primera pantalla. Sin error, sin toast, sin nada en consola.
+
+**La cadena, eslabón por eslabón:**
+
+1. **«Validar Pre aprobado» es el copy de `response_type` 2 y 3**
+   (`lender-response.mapper.ts:137-140`). O sea CreditopX / in-platform.
+2. El action de `available-lenders.tsx` (qa:637) hace
+   `if (Number(initial_fee) > 0) return routeHelpers.redirect(ROUTE_PATHS.initialFeePayment(…))`.
+   Ese `initial_fee` **no lo pide la entidad: lo escribe el asesor** en el campo del listado
+   (`formData.get("initial_fee")`, qa:384), que aparece cuando el comercio tiene el toggle
+   `allied.initial_fee` prendido.
+3. `routeHelpers.redirect` **prefija el flujo**: en el árbol del asesor `params.flow` no existe, así
+   que `createRouteHelpers` cae a `detectRouteContext(pathname)` → `merchant`, y el destino queda
+   **`/merchant/{hash}/{lrid}/initial-fee-payment`**.
+4. **Esa ruta no existe en el árbol del asesor.** #997 la agregó —junto con
+   `down-payment-validation/:transaction_id`— **sólo** bajo `route(":flow", "layouts/public-layout.tsx")`.
+   El bloque `route("merchant", "layouts/default-layout.tsx")` no la tiene.
+5. Y acá está lo que no se ve leyendo: **React Router no tira 404, se cae al árbol de al lado.** Como
+   `:flow` es dinámico, `/merchant/…/initial-fee-payment` **matchea `public-layout` con
+   `flow = "merchant"`**. Medido:
+
+   | URL | rama que matchea |
+   |---|---|
+   | `/merchant/<h>/<id>/lenders` | `merchant-root` → … → `merchant-lenders` ✅ |
+   | `/merchant/<h>/<id>/initial-fee-payment` | **`public-layout`** → … → `pub-initial-fee` 🔴 |
+   | `/merchant/<h>/<id>/down-payment-validation/tx1` | **`public-layout`** 🔴 |
+   | `/merchant/<h>/<id>/ruta-inexistente` | **SIN MATCH (404)** ← el control |
+
+   La última fila es la que prueba que no es «cualquier ruta rara rebota»: una ruta que no existe en
+   **ningún** árbol sí da 404. Rebota exactamente la que #997 puso en el árbol equivocado.
+6. `public-layout.tsx:20-22`: `if (flow !== "ecommerce" && flow !== "self-service") return redirect("/")`.
+7. `home.tsx` → `redirect("/merchant")`.
+8. `default-layout.tsx:80,108`: sin `params.partner_hash` →
+   `redirect("/merchant/{userAlliedBranchHash}/solicitar")`.
+
+→ **`/solicitar`.** Cuatro 302 legítimos encadenados: por eso no hay error en ningún lado y por eso
+se lee como «se devuelve al comienzo» y no como «se rompió».
+
+### Lo que esto significa para el alcance
+
+⚠ **No es sólo rt=2/3.** El `if` de la línea 637 está **antes** de las ramas de renting/RTO, Nequi,
+`validateLenderOtp`, `postRedirect` y modal. Sólo lo esquivan las dos que van arriba —gestión manual
+(`path_id === 3`) y autogestión (`continueUrl`)—. O sea: **en el flujo del asesor, poner una cuota
+inicial > 0 rompe la selección de casi cualquier entidad.** «Validar Pre aprobado» es lo que Joel
+tocó, no el límite del defecto.
+
+✔ **Y por eso ecommerce no lo ve:** #997 fuerza `initialFeeAllowed = false` cuando `isEcommerce`, así
+que ahí `initial_fee` llega en 0 y el `if` no dispara. El canal que el PR venía a arreglar es el único
+inmune; el que rompe es el que no estaba en su título.
+
+### Ya nos había pasado — y el arreglo de entonces ya no aplica
+
+El mismo rebote se diagnosticó el **2026-06-26** sobre la rama local `continue`: mismo `if`, misma
+línea, mismo síntoma, mismo canal. El arreglo de entonces fue guardar la línea con
+`&& !response.data.standBy`. **Hoy ese arreglo no se puede copiar: `standBy` ya no existe** — cero
+ocurrencias en `apps/loan-request-wizard` y `modules/loan-request-wizard`. El camino de CreditopX hoy
+es la rama `showModal && isNil(url)` → `/continue?url=qrUrl` (qa:810).
+
+⚠ **Lo que NO se re-verificó hoy** y vale para decidir el arreglo: en junio quedó medido que el
+backend **403ea** `POST /api/loans/requests/initial-fee-payment/{ur}` para CreditopX, porque esa cuota
+inicial se cobra **in-platform** (continue → confirmation → `down-payment-validation`), no por Wompi.
+Si eso sigue siendo cierto, **registrar la ruta en el árbol del asesor no alcanza**: llevaría al asesor
+a una pantalla de cobro que el backend rechaza. Son dos defectos apilados — uno de ruteo y uno de
+criterio de negocio— y el segundo hay que medirlo antes de arreglar.
+
+### Por qué no lo atajó nada de lo que corrimos
+
+Build, `typecheck`, `biome` y Sonar pasaron los tres PRs en verde, y el caminado de punta a punta del
+14/9 recorrió **ecommerce**, que es justo el canal inmune. **Una ruta registrada en un árbol y no en el
+otro no falla en ningún lado**: `ROUTE_PATHS.initialFeePayment` compila igual, y el fall-through de
+React Router la hace matchear en el árbol equivocado en silencio. Es la **cuarta** vez en esta tarea que
+algo pasa build + tipos + lint y sólo aparece corriéndolo — y la primera en la que correr **tampoco**
+alcanzó, porque se corrió el canal que no era. Candidato firme a **F-xx**.
 
 ## Contextos que usa
 - **ecommerce** — el canal (contrato base64, credencial `allied_ecommerce_credentials`, `/vtex/*`, "volver al comercio"). Esta task lo lleva al wizard nuevo en modo stateless; el nodo describe el canal, la task el cambio.
@@ -62,7 +183,15 @@ Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesi�
 |---|---|---|---|---|
 | back #795 | ✅ | ✅ | ✅ | ✅ |
 | front #551 | ✅ *(por contenido)* | ✅ | ❌ | ❌ |
-| back #1392 · front #997 · front #1005 | ✅ | ❌ | ❌ | ❌ |
+| back #1392 | ✅ | ❌ | ❌ | ✅ **sí** |
+| front #997 · front #1005 | ✅ | ❌ | ❌ | 🔴 **entraron y se revirtieron** (#1013) |
+
+*(Re-medido el 2026-09-15 con `git ls-tree -r --name-only origin/<rama> -- <ruta>` sobre
+`checkout.tsx` e `initial-fee-payment.tsx`, y `git grep -c ecommerce-status origin/<rama> --
+Modules/Loans/routes/api.php`. ⚠ El primer intento usó un `for b in …; do git cat-file -e
+origin/$b:<ruta>` y **devolvió `no` para las cuatro ramas, incluida `qa`, donde el archivo SÍ está**:
+en zsh el `:` pegado a `$b` no expande como uno espera. Un chequeo que contesta «no hay» sin haber
+mirado, otra vez — misma clase que el `git grep -E '\s'` de legacy-backend.)*
 
 **El par de junio está PARTIDO**: el backend llegó hasta `main`, el front se quedó en `develop`. O sea
 que en producción hay endpoints de contexto stateless **sin la entrada del front que los usa**. Eso no
@@ -500,6 +629,32 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - ⚠ Gotcha (nodo `ecommerce`): la entrada ecommerce se degrada en local por Mixed Content — el motivo mismo del rediseño stateless.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
+## Registro
+
+### 2026-09-15 · el revert de `main`, y la causa medida
+
+Miguel trae por Slack el reporte de **Joel (QA)**: *«cuando uno da click en el botón de "Validar Pre
+aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de solicitar»*. Buscando el
+estado apareció primero lo que nadie había escrito: **los PRs entraron a `main` y Abel los revirtió**
+(#1013, `77796a4f`, 14/9 20:52), y el revert **no tocó el backend**, que quedó solo en `main`.
+
+La causa se cerró leyendo `origin/qa` y midiendo el único eslabón que no se lee: el matcheo de rutas.
+`/merchant/<h>/<id>/initial-fee-payment` **no cae en el árbol del asesor sino en `public-layout`**,
+porque #997 registró esa ruta sólo bajo `:flow` — y de ahí salen cuatro 302 encadenados hasta
+`/solicitar`. El control (`/merchant/<h>/<id>/ruta-inexistente` → sin match) descarta que sea
+«cualquier ruta rara rebota».
+
+Tres cosas que este día deja anotadas y valen más que el bug:
+
+1. **Correr no alcanza si se corre el canal que no es.** El caminado del 14/9 recorrió ecommerce, que
+   es el único canal **inmune** (ahí `initialFeeAllowed` se fuerza a `false`). El que rompe es el del
+   asesor, que el PR no venía a tocar.
+2. **Ya lo habíamos diagnosticado el 2026-06-26** — mismo `if`, misma línea, mismo síntoma. El arreglo
+   de entonces (`&& !response.data.standBy`) **ya no se puede copiar**: `standBy` no existe más en el
+   wizard.
+3. **Y una sonda maía mintió**: `for b in …; do git cat-file -e origin/$b:<ruta>` dio «no» para las
+   cuatro ramas, incluida `qa`, donde el archivo sí está. Se rehizo con `git ls-tree`.
+
 ## Bitácora
 - **2026-04** — 1er intento "web-origination" (PRs 503/363, rama `feature/onboarding/ecommerce-web-origination`): quedó **sin merge**, superado por el enfoque stateless.
 - **2026-06-11** — mergeados los squash `bb14a8ff` (#795) y `d2242469` (#551).
@@ -516,6 +671,19 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
 
 ## Pendientes
+- [ ] 🔴 **ARREGLAR EL REBOTE Y REPONER EL PR** — es lo que bloquea todo lo demás de esta tarea.
+      (a) medir si el backend sigue 403eando `initial-fee-payment/{ur}` para `rt=2`; (b) registrar
+      `initial-fee-payment` y `down-payment-validation/:transaction_id` en el árbol `merchant` de
+      `routes.ts`; (c) si el 403 sigue, guardar el `if` de qa:637. Ver §«El rebote a `/solicitar`».
+- [ ] ⚠ **El defecto está VIVO en `qa`** — el revert fue sobre `main`. Arreglarlo en `qa` antes de que
+      alguien vuelva a promover.
+- [ ] **El backend #1392 quedó solo en `main`** (front revertido, `ecommerce-status` no). Decidir:
+      revertirlo también o dejarlo esperando al front. Es la misma asimetría del par de junio.
+- [ ] **Promover a F-xx: una ruta registrada en UN árbol y no en el otro no falla en ningún lado** —
+      compila, pasa lint, y React Router la matchea en el árbol vecino en silencio hasta rebotar al
+      inicio. Es el hallazgo más transversal del día: aplica a las 3 ramas de `routes.ts`, no a ecommerce.
+- [ ] **Agregar al caminado el canal ASESOR con cuota inicial > 0** — la corrida del 14/9 pasó en verde
+      porque recorrió el único canal inmune.
 - [ ] ~~Promover #551 (front) a main~~ → **no promueve: `develop` está 772 commits detrás de `main`.** El camino es rama nueva desde `qa` (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
 - [ ] ~~viejo~~ **Promover la entrada stateless** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
 - [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en main ni develop, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
