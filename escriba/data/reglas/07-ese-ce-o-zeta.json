@@ -1,0 +1,59 @@
+{
+  "id": "07-ese-ce-o-zeta",
+  "titulo": "Ese, ce o zeta",
+  "resumen": "seseo: casa/caza, cocer/coser, -ción/-sión",
+  "regla": "En Colombia —y en casi toda América— la s, la c ante e o i, y la z suenan las tres igual. Eso se llama seseo. En el centro y norte de España no: allá «casa» y «caza» se distinguen al hablar, y por eso la ortografía las separa aunque acá el oído no pueda. Lo que queda son dos apoyos: las familias de palabras (canción viene de canto, televisión de televisor) y las parejas que hay que conocer de memoria.",
+  "oido": "No ayuda… salvo que te toque una voz de España, que sí las distingue y te resuelve el ejercicio. Si pasa, la app te avisa arriba en vez de dejarte creer que acertaste.",
+  "seOye": "no",
+  "items": [
+    {
+      "frase": "Cantó una [canción] preciosa.",
+      "porque": "Va con c porque su familia va con t: canción / canto / cantar."
+    },
+    {
+      "frase": "Anoche vi la [televisión].",
+      "porque": "Va con s porque su familia va con s: televisión / televisor."
+    },
+    {
+      "frase": "Se le cayó el [lápiz].",
+      "porque": "En singular, con z."
+    },
+    {
+      "frase": "Compró varios [lápices].",
+      "porque": "La z se vuelve c delante de e: lápiz → lápices, pez → peces, feliz → felices."
+    },
+    {
+      "frase": "Van a [cocer] las papas.",
+      "porque": "Cocer es cocinar, con c.",
+      "ojo": "«coser» con s es con aguja e hilo."
+    },
+    {
+      "frase": "Tengo que [coser] ese botón.",
+      "porque": "Con aguja: va con s."
+    },
+    {
+      "frase": "Salieron de [caza] al amanecer.",
+      "porque": "De cazar, perseguir animales: con z.",
+      "ojo": "«casa» con s es la vivienda."
+    },
+    {
+      "frase": "Fue una [sesión] muy larga.",
+      "porque": "Una reunión: con s.",
+      "ojo": "«cesión» con c es ceder algo, entregarlo."
+    },
+    {
+      "frase": "Le dio un [abrazo] fuerte.",
+      "porque": "De brazos: con z."
+    },
+    {
+      "frase": "Ese sol te va a [abrasar].",
+      "porque": "Abrasar es quemar: con s.",
+      "ojo": "«abrazar» con z es con los brazos."
+    },
+    {
+      "frase": "Vimos un [ciervo] en el bosque.",
+      "porque": "El animal: con c.",
+      "ojo": "«siervo» con s es el que sirve a alguien."
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "id": "01-tilde-que-cambia-el-sentido",
+  "titulo": "La tilde que cambia el sentido",
+  "resumen": "tú/tu · él/el · sé/se · más/mas · aún/aun",
+  "regla": "Hay pares de palabras que se escriben con las mismas letras y significan cosas que no tienen nada que ver. Acá la tilde no marca dónde pega la fuerza: marca CUÁL de las dos es. Se llama tilde diacrítica y es una lista corta y cerrada — no se deduce, se aprende, y después se reconoce en un segundo por lo que la palabra está haciendo en la frase.",
+  "oido": "No ayuda: las dos suenan exactamente igual. Lo único que decide es el papel que cumple la palabra.",
+  "seOye": "no",
+  "items": [
+    {
+      "frase": "[Tú] sabes muy bien lo que pasó.",
+      "porque": "Con tilde es la persona. Sin tilde, «tu» es el posesivo: «tu casa».",
+      "ojo": "La prueba rápida: si lo podés cambiar por «usted», lleva tilde."
+    },
+    {
+      "frase": "Trae [tu] pasaporte y nada más.",
+      "porque": "Posesivo: acompaña al sustantivo en vez de reemplazarlo. Sin tilde."
+    },
+    {
+      "frase": "[Él] llegó primero que todos.",
+      "porque": "Con tilde es la persona. Sin tilde, «el» es el artículo de «el perro»."
+    },
+    {
+      "frase": "Nos vimos en [el] parque de siempre.",
+      "porque": "Artículo: va pegado a un sustantivo. Sin tilde."
+    },
+    {
+      "frase": "A [mí] no me avisaron nada.",
+      "porque": "Pronombre, después de preposición. Sin tilde, «mi» es el posesivo de «mi casa».",
+      "ojo": "«ti» NUNCA lleva tilde, aunque «mí» y «sí» sí la lleven: no hay otra palabra «ti» de la que distinguirla."
+    },
+    {
+      "frase": "No sé [qué] hacer.",
+      "porque": "Lleva tilde cuando pregunta, aunque la pregunta vaya metida dentro de otra oración y no haya signos."
+    },
+    {
+      "frase": "No sé [si] va a venir.",
+      "porque": "Sin tilde es el condicional o la duda. Con tilde, «sí» afirma."
+    },
+    {
+      "frase": "Claro que [sí], ahí estaré.",
+      "porque": "Afirmación: con tilde."
+    },
+    {
+      "frase": "Todavía no [sé] la respuesta.",
+      "porque": "Del verbo saber. Sin tilde, «se» es el pronombre de «se fue»."
+    },
+    {
+      "frase": "Quiero [más] tiempo para pensarlo.",
+      "porque": "Cantidad: con tilde. Sin tilde, «mas» significa «pero», y hoy casi no se usa fuera de los libros."
+    },
+    {
+      "frase": "[Aún] no han contestado.",
+      "porque": "Cuando significa «todavía», lleva tilde.",
+      "ojo": "Sin tilde, «aun» significa «incluso»: «aun así, fui»."
+    },
+    {
+      "frase": "Espero que me [dé] una respuesta.",
+      "porque": "Del verbo dar. La tilde lo separa de la preposición «de»."
+    },
+    {
+      "frase": "Toma un poco de [té] caliente.",
+      "porque": "La bebida lleva tilde. Sin tilde, «te» es el pronombre de «te lo dije»."
+    }
+  ]
+}

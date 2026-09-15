@@ -1,0 +1,52 @@
+{
+  "id": "09-elle-o-ye",
+  "titulo": "Elle o ye",
+  "resumen": "yeísmo: cayó/calló, haya/halla, vaya/valla",
+  "regla": "En casi toda América la ll y la y suenan igual — eso es el yeísmo—, así que «cayó» y «calló» son el mismo sonido con dos significados que no se tocan. La ortografía las separa igual, y lo que decide es siempre el verbo del que viene la palabra: caer da y, callar da ll.",
+  "oido": "No ayuda. Sólo las distinguiría una voz argentina, que pronuncia la ll de otra manera.",
+  "seOye": "no",
+  "items": [
+    {
+      "frase": "Se le [cayó] el vaso al piso.",
+      "porque": "De caer: con y."
+    },
+    {
+      "frase": "Se [calló] de repente y no dijo más.",
+      "porque": "De callar, quedarse en silencio: con ll."
+    },
+    {
+      "frase": "Espero que [haya] más gente mañana.",
+      "porque": "Del verbo haber: con y."
+    },
+    {
+      "frase": "No [halla] la forma de decírselo.",
+      "porque": "De hallar, encontrar: con ll."
+    },
+    {
+      "frase": "Saltó la [valla] sin tocarla.",
+      "porque": "La barrera: con v y con ll.",
+      "ojo": "Tres gemelas: «vaya» es de ir, «valla» es la barrera y «baya» es el fruto."
+    },
+    {
+      "frase": "Espero que te [vaya] muy bien.",
+      "porque": "Del verbo ir: con v y con y."
+    },
+    {
+      "frase": "Cruzamos el [arroyo] a pie.",
+      "porque": "El río pequeño: con y."
+    },
+    {
+      "frase": "Hay que [rayar] la hoja con lápiz.",
+      "porque": "Hacer rayas: con y.",
+      "ojo": "«rallar» con ll es lo del queso."
+    },
+    {
+      "frase": "Voy a [rallar] el queso.",
+      "porque": "Desmenuzar con el rallador: con ll."
+    },
+    {
+      "frase": "De almuerzo hubo [pollo].",
+      "porque": "El animal: con ll."
+    }
+  ]
+}

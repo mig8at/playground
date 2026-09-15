@@ -1,0 +1,61 @@
+{
+  "id": "08-junto-o-separado",
+  "titulo": "Junto o separado",
+  "resumen": "porque/por qué/porqué · sino/si no · o sea",
+  "regla": "La familia más cara del español para un adulto: las mismas letras, un espacio de diferencia, y significados que no se parecen en nada. Nadie las escribe mal por no saber ortografía — se escriben mal porque al hablar el espacio no se oye y nunca hubo que decidir.",
+  "oido": "No ayuda: el espacio no suena. Lo único que decide es qué está diciendo la frase.",
+  "seOye": "no",
+  "items": [
+    {
+      "frase": "No fui [porque] estaba lloviendo.",
+      "porque": "Junto y sin tilde: da la causa. La prueba es cambiarlo por «ya que»."
+    },
+    {
+      "frase": "¿[Por qué] no viniste ayer?",
+      "porque": "Separado y con tilde: pregunta."
+    },
+    {
+      "frase": "Todavía no entiendo el [porqué] de todo esto.",
+      "porque": "Junto y con tilde: es un sustantivo, el motivo. Se le puede poner «el» o «un» delante."
+    },
+    {
+      "frase": "No es rojo [sino] azul.",
+      "porque": "Junto: corrige lo que se acaba de decir."
+    },
+    {
+      "frase": "[Si no] te apuras, perdemos el bus.",
+      "porque": "Separado: es un «si» de condición con un «no» detrás.",
+      "ojo": "La prueba: si podés meter algo en el medio («si tú no te apuras»), van separadas."
+    },
+    {
+      "frase": "Escribe bien y [también] dibuja.",
+      "porque": "Junto: significa «además»."
+    },
+    {
+      "frase": "Lo hizo [tan bien] que lo felicitaron.",
+      "porque": "Separado: mide qué tan bien lo hizo."
+    },
+    {
+      "frase": "[Sobre todo], no te olvides de avisar.",
+      "porque": "Siempre separado: significa «principalmente».",
+      "ojo": "«Sobretodo» junto es un abrigo largo, y casi nadie lo usa."
+    },
+    {
+      "frase": "Todo lo [demás] lo dejamos para mañana.",
+      "porque": "Junto: el resto de las cosas."
+    },
+    {
+      "frase": "Ya me parece que eso es [de más].",
+      "porque": "Separado: de sobra, más de la cuenta."
+    },
+    {
+      "frase": "Eso es un tema [aparte].",
+      "porque": "Junto: distinto, al margen."
+    },
+    {
+      "frase": "Dijo que vendría, [o sea] que hay que esperarlo.",
+      "porque": "Siempre separado, son dos palabras.",
+      "ojo": "«osea» junto es del hueso: «tejido óseo»."
+    }
+  ]
+}

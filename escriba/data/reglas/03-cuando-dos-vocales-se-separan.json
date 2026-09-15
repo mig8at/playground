@@ -1,0 +1,51 @@
+{
+  "id": "03-cuando-dos-vocales-se-separan",
+  "titulo": "Cuando dos vocales se separan",
+  "resumen": "el hiato: día, país, baúl, oído",
+  "regla": "Una vocal fuerte (a, e, o) pegada a una débil (i, u) se lee de un tirón: es un diptongo y cuenta como una sílaba. Pero si la fuerza cae justo en la DÉBIL, el par se rompe en dos sílabas —eso es un hiato— y esa i o esa u lleva tilde SIEMPRE, sin importar en qué termine la palabra ni qué diga la regla de agudas y llanas. Es la única tilde que le gana a la regla general.",
+  "oido": "Ayuda mucho: si al decirla se te parte en dos («dí-a», «pa-ís»), es hiato y va tilde.",
+  "seOye": "decide",
+  "items": [
+    {
+      "frase": "Nos vemos otro [día].",
+      "porque": "La fuerza cae en la «i» débil: rompe el diptongo. Lleva tilde aunque sea llana terminada en vocal."
+    },
+    {
+      "frase": "Es de otro [país].",
+      "porque": "Hiato: la fuerza cae en la «i»."
+    },
+    {
+      "frase": "Tiene buen [oído] para la música.",
+      "porque": "Hiato: o-í-do, tres sílabas."
+    },
+    {
+      "frase": "Llevó un [baúl] enorme.",
+      "porque": "Hiato con «u»: ba-úl."
+    },
+    {
+      "frase": "Fue una [caída] fea.",
+      "porque": "Hiato: ca-í-da."
+    },
+    {
+      "frase": "Compró [maíz] en el mercado.",
+      "porque": "Hiato: ma-íz."
+    },
+    {
+      "frase": "Vive cerca del [río].",
+      "porque": "Hiato: rí-o."
+    },
+    {
+      "frase": "Ese [ruido] no me deja dormir.",
+      "porque": "Dos vocales débiles juntas forman diptongo, y la palabra es llana terminada en vocal: sin tilde.",
+      "ojo": "Es el contraejemplo: no toda vocal junta se parte."
+    },
+    {
+      "frase": "Fue una historia [increíble].",
+      "porque": "Hiato: e-í."
+    },
+    {
+      "frase": "La ley lo [prohíbe].",
+      "porque": "La h no separa nada: se salta y la «i» igual lleva su tilde de hiato."
+    }
+  ]
+}

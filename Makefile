@@ -444,12 +444,20 @@ plantillas-check: ## @expl compila el server del prototipo (go vet + build)
 cuadrilla: ## @expl las épicas del equipo — ramas por persona. Vive en el repo COMPARTIDO (API :8080 · front :5197)
 	@cd ../github/playground && task dev TOOL=cuadrilla
 
-# Lo único acá que NO habla de CreditOp: es para aprender inglés. Está en el playground porque es
-# donde viven las herramientas de Miguel, y en @expl porque la regla que importa es la misma que
-# para el resto de esta sección — no es fuente de contexto de nada.
+# Las dos de acá abajo NO hablan de CreditOp: son para escribir mejor, una en inglés y otra en
+# español. Están en el playground porque es donde viven las herramientas de Miguel, y en @expl
+# porque la regla que importa es la misma que para el resto de esta sección — no son fuente de
+# contexto de nada.
 .PHONY: ingles ingles-check
 ingles: ## @expl NO es de CreditOp: leer inglés con las 100 palabras más usadas (:5189)
 	@cd ingles && npm run dev
 
 ingles-check: ## @expl ¿las historias tienen todo traducido? corrélo al agregar una. [N=02]
 	@cd ingles && node herramientas/check.js $(N)
+
+.PHONY: escriba escriba-check
+escriba: ## @expl NO es de CreditOp: practicar ortografía del español, por reglas (:5188)
+	@cd escriba && npm run dev
+
+escriba-check: ## @expl ¿las reglas están sanas y todas explican su porqué? corrélo al agregar una. [N=04]
+	@cd escriba && node herramientas/check.js $(N)
