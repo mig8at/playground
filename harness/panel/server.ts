@@ -483,6 +483,27 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     } else if (Object.keys(pa).length) {
         L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${ES[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));
     }
+
+    /* ⚠ ¿LAS ENTIDADES DE ARRIBA SON LAS QUE SE VAN A VER? Se anuncian las de `hash`, que sale del
+     * catálogo estático (`.flows.json` vía `branchHashForSlug`). Pero el wizard usa la sucursal que el
+     * BACKEND le da al asesor logueado, y si difieren te redirige allá — con otra lista. El chequeo de
+     * `ensureAssign` no lo caza: compara contra la BASE (`whois`), que es un proxy del backend, no el
+     * backend. Medido el 2026-09-15 contra qa: el panel anunció las de `13874eb6` y la corrida usó las
+     * de `ec977139`, dos sucursales del MISMO comercio con listas distintas.
+     *
+     * Sólo lectura y sin romper nada: si no se pudo comprobar, no se dice nada. */
+    if (hash && canal !== 'ecommerce') {
+        try {
+            const sub = await asesorSub(t);
+            if (sub) {
+                const chk = await dbopsJson(['sucursal-check', hash, sub], t);
+                const aviso: string[] = Array.isArray(chk?.aviso) ? chk.aviso : [];
+                if (chk?.coincide === false && aviso.length) {
+                    L.push(row('⚠ sucursal', aviso.join('\n' + ' '.repeat(16))));
+                }
+            }
+        } catch { /* el chequeo es una ayuda: si falla, la corrida sigue */ }
+    }
     return L.join('\n') + '\n';
 }
 

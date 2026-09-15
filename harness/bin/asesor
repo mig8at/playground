@@ -230,6 +230,21 @@ else
   fi
 fi
 
+# ── ¿la sucursal que vamos a correr es la que el backend le da a ESTE asesor? ─────────────────────
+# SÓLO LECTURA. El chequeo de arriba (`whois` contra el hash del catálogo) mira la BASE, que es un
+# proxy: el wizard no usa `users.allied_branch_id`, usa lo que le devuelve el backend para el sub que
+# está logueado. Por eso una corrida pudo imprimir «ya en 'pullman' (13874eb6) — sin write» y aterrizar
+# en `ec977139` — y con OTRAS entidades que las anunciadas. Medido el 2026-09-15 contra qa.
+# No falla la corrida: avisa. Quién arregla el desajuste (reasignar, borrar la sesión) lo decide quien
+# corre — hay casos legítimos de correr contra la sucursal que el asesor ya tiene.
+if [ "$PREBOOT" != 1 ] && [ "$ECOMMERCE" != 1 ] && [ "$SIN_ASESOR" != 1 ]; then
+  CHK="$(node bin/dbops.ts sucursal-check "$HASH" "$SUB" 2>/dev/null)"
+  COINCIDE="$(printf '%s' "$CHK" | json_pick '.coincide')"
+  if [ "$COINCIDE" = "false" ]; then
+    printf '%s' "$CHK" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{for(const l of (JSON.parse(s).aviso||[]))console.log("  "+l)}catch(e){}})'
+  fi
+fi
+
 # ── scrub del cliente: borra el usuario del teléfono → register fresco → /personal-info ──
 step "scrub-cliente"
 if [ "$PREBOOT" = 1 ]; then

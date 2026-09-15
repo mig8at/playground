@@ -11,11 +11,13 @@
 //   node bin/dbops.ts list [merchant]
 //   node bin/dbops.ts ecommerce-url <merchant> [phone] [amount]
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
-import { close, one, query, scalar, exec, assertWriteAllowed } from '../pkg/db.ts';
+//   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
+import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
 import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/asesor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { corbetaDeLaSucursal } from '../pkg/merchants.ts';
+import { preflightSucursal, avisoDesajuste } from '../pkg/preflight-sucursal.ts';
 import { synthFill, requestEstado11 } from '../pkg/inject.ts';
 import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
@@ -318,8 +320,16 @@ try {
             r = { hash, ...(await corbetaDeLaSucursal(hash)) };
             break;
         }
+        case 'sucursal-check': { // ¿la sucursal ANUNCIADA es la que el backend le da a ese asesor? → {coincide, esperada, asesor, aviso[]}
+            // SÓLO LECTURA: le pregunta al backend por el sub (lo mismo que hace el wizard) y lo
+            // compara con el hash del catálogo. No escribe, no reasigna, no borra sesiones — devuelve
+            // el desajuste y quien llama decide. Ver la cabecera de `pkg/preflight-sucursal.ts`.
+            const d = await preflightSucursal(String(a[0] ?? ''), TARGET, String(a[1] ?? ''));
+            r = { ...d, aviso: avisoDesajuste(d) };
+            break;
+        }
         default:
-            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|ecommerce-vinculo|synth-fill|lender-rt|flow-id|is-corbeta`);
+            throw new Error(`comando desconocido: ${cmd || '(vacío)'} — whois|assign|revoke|scrubphone|scrub-sinteticos|list|ecommerce-url|ecommerce-vinculo|synth-fill|lender-rt|flow-id|is-corbeta|sucursal-check`);
     }
     process.stdout.write(JSON.stringify(r, null, 2) + '\n');
     await close();

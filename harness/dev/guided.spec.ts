@@ -13,6 +13,7 @@ import * as traza from '../pkg/trace';
 // el veredicto, esto solo lo explica. Ver la sección de forense en CLAUDE.md.
 import { forenseAlCerrar as lokiForense } from '../pkg/loki';
 import { urlCheckout } from '../pkg/checkout-b64';   // `seguirCheckout` se quitó: estaba importado y nunca se usaba
+import { avisoDeRedireccion } from '../pkg/preflight-sucursal.ts';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
 import { autorrellenarQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
 import { close } from '../pkg/db';
@@ -386,6 +387,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     // que el diagnóstico del salto directo NO mienta: "no llegó a /lenders" tiene dos causas opuestas —
     // el front lo rechazó (esto en true) vs. el salto ni se pidió (carrera post-login, esto en false). F-66.
     let lendersBounced = false;
+    let avisoSucursalDado = false;   // el aviso de cambio de sucursal va UNA vez por corrida
     const wakeB = async (kind: 'creditopx' | 'agregador' | 'redirect', aUrl: string, lender = ''): Promise<void> => {
         // Autogestión: no hay a quién despertar. ⚠ Esta guarda es la que faltaba en la primera versión
         // del canal: el watcher del modo MANUAL llama acá en cuanto la URL de A toca `/continue` o
@@ -509,6 +511,19 @@ test('guided (semiautomático)', async ({ browser }) => {
         const isData = /\.data(\?|$)/.test(from);
         const relevant = /solicitar|continue|lenders|modes/.test(from) || /solicitar|continue|modes/.test(loc);
         if ((is3xx || isData || loc) && relevant) log(`  ↪ ${s} ${from}${loc ? ` → ${loc}` : ''}`);
+        /* ⚠ EL 302 QUE TE CAMBIA DE SUCURSAL, que hasta ahora se imprimía como un salto más.
+         * `default-layout` redirige a la sucursal que el BACKEND le da al asesor logueado cuando no es
+         * la de la URL — y ahi las entidades anunciadas por el panel dejan de valer, porque son de la
+         * otra sucursal. Medido el 2026-09-15 contra qa: se pidió `13874eb6` (Sistecrédito ·
+         * CrediPullman · Cierre X) y se aterrizó en `ec977139` (Addi · Vanti · CrediPullman ·
+         * Crédito 365). El dato ya estaba en el log; lo que faltaba era decir qué significa.
+         * Una sola vez: repetirlo en cada request lo vuelve ruido. */
+        if (!avisoSucursalDado) {
+            const hDe = /\/merchant\/([0-9a-f]{8})\//.exec(from)?.[1] ?? '';
+            const hA = /\/merchant\/([0-9a-f]{8})\//.exec(loc)?.[1] ?? '';
+            const lineas = avisoDeRedireccion(hDe, hA);
+            if (lineas.length) { avisoSucursalDado = true; for (const l of lineas) log(`  ${l}`); }
+        }
         if (/lenders/.test(from) && /solicitar/.test(loc)) lendersBounced = true;   // rebote REAL del front (F-66)
         // un 5xx del backend/loader es un fallo duro → foto (el backend caído era justo esto)
         if (s >= 500) void errorShot(page, `HTTP ${s} ${from}`);
