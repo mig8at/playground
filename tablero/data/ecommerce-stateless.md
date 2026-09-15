@@ -35,9 +35,9 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** **validar el canal ecommerce en `qa`** (ahí está #1015 desde el 15/9). De ese
-visto bueno depende el merge de **#1016**, que es lo que devuelve el código a `main` — y la única forma
-de hacerlo después del revert. El detalle de las corridas que lo
+**El próximo paso es:** decidir si se corre el **canal ASESOR con cuota inicial en `qa`** — es el único
+tramo sin validar ahí, y pide escribir en el RDS compartido (`I_KNOW_THIS_TOUCHES_SHARED_DEV=1`). El
+canal **ecommerce ya cerró entero en `qa`** el 15/9. Con eso, **#1016** puede mergearse. El detalle de las corridas que lo
 respaldan, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
@@ -746,6 +746,54 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (8) · ecommerce VALIDADO en `qa`, y qué falta todavía
+
+> **MEDICIÓN · 2026-09-15** — el canal ecommerce cierra **entero** contra `qa`, y el arreglo de #1015
+> **ya está desplegado** ahí.
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=qa CFE_TARGET=qa make harness-ecommerce TEL=3112345678`
+
+**1 · El arreglo está vivo en el despliegue de `qa`**, medido con sondas de URL contra
+`originaciones-qa.dev.creditop.com` (lectura pura, sin escribir nada):
+
+| ruta | qa desplegado |
+|---|---|
+| `/merchant/…/initial-fee-payment` | **302 → login** ✅ *(cayó en el árbol del asesor; con el código viejo daría 302 → `/`)* |
+| `/ecommerce/…/continue` · `/self-service/…/continue` | **200** ✅ *(con el viejo, 404)* |
+| `/merchant/…/ruta-que-no-existe` | 404 — el control |
+
+**2 · El canal, de punta a punta por API — las 8 comprobaciones en verde**, en los dos casos de la
+suite (comercio **Amoblar**, sucursal `d63f05e7`, `ecommerce_request` 7341 y 7342):
+
+    ✓ contrato armado          ✓ checkout aceptado        ✓ prefill 6/6 campos
+    ✓ contexto por erId        ✓ camino del OTP (v1)      ✓ solicitud creada (uReq 502319)
+    ✓ vínculo comercio ↔ crédito · fila y puente          ✓ listado · 1 entidad
+
+El **vínculo** es el que importa: es lo que hace que el comercio reciba el veredicto de su compra, y
+es justo lo que se había arreglado dentro del #997.
+
+### ⚠ Y la primera corrida FALLÓ por la herramienta, no por el canal
+
+`dev/ecommerce.ts` derivaba el teléfono **al azar**, que en local alcanza porque el driver de OTP no
+lo mira. Contra `qa` no: el OTP sólo es predecible si el teléfono está en `qa_otp_bypass_phones` (48
+entradas, **39** con forma de celular colombiano). Pasaba las cinco comprobaciones previas y moría en
+`otp-validate` con **HTTP 200 sin `user_request_id`** — que se lee como un fallo del canal siendo de
+la corrida. Agregado `TEL=`; es la cuarta vez en el día que la herramienta dice algo que no midió.
+
+### Lo que NO queda validado en `qa`, y por qué
+
+- **Las PANTALLAS.** Este runner valida el **contrato** entre front y legacy, no el render — lo dice su
+  propia cabecera. Para pantallas hace falta el wizard corriendo.
+- **El canal ASESOR con cuota inicial > 0**, que es donde estaba el defecto. Lo valida
+  `caminar-wizard`, que **escribe en la BD** (siembra el buró y amplía la lista del bypass) — y la BD
+  de `qa` es el **RDS compartido** `inertia-dev`. Eso pide `I_KNOW_THIS_TOUCHES_SHARED_DEV=1`
+  exportado a mano (F-53) y **no se corrió**: queda como decisión de Miguel. En local ese caso está
+  medido antes y después (0/1 → 1/1 en estado 11).
+- ⚠ **Y un matiz del `TEL=`:** al reusar un teléfono registrado se reusa un usuario que ya existe en
+  `qa`, así que los dos casos reportaron **el mismo uReq 502319** y el listado dio **1 entidad** (en
+  local daba 4). El vínculo se mide igual porque es por pedido, pero el prefill puede traer los datos
+  de ese usuario y no los del contrato.
 
 ### 2026-09-15 (7) · #1015 MERGEADO a `qa`, y los 6 hallazgos de Sonar en #1016
 
