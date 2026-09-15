@@ -157,16 +157,44 @@ export async function rt0ActivasDeLaSucursal(branchHash: string): Promise<Array<
  * y se sigue—, éste se imprime en el momento en que el resultado ya está decidido y antes de que se vea
  * la pantalla vacía. Vacío cuando sí hay con qué listar.
  */
-export function avisoDeCupoSinSalida(rt0: Array<{ id: number; name: string }>, branchHash: string): string[] {
+export function avisoDeCupoSinSalida(
+      rt0: Array<{ id: number; name: string }>,
+      branchHash: string,
+      uReqID: number | string = '',
+      apiBase = '',
+): string[] {
       if (rt0.length) return [];
-      return [
+      const lineas = [
             `⚠ EL LISTADO VA A SALIR VACÍO, y no es la config del comercio (F-214).`,
             `  El flujo quedó firmado como «cupo ya confirmado» (flow_id=2), y eso recorta el listado a`,
             `  rt=0 — descarta TODAS las integradas. La sucursal ${branchHash} no tiene ninguna rt=0 activa`,
             `  en este ambiente, así que no queda nada que mostrar: vas a ver «No encontramos una opción`,
             `  para ti», y desde ahí el cliente no puede volver a cambiar su respuesta.`,
-            `  Para recorrer el flujo entero, contestá «No» en «Confirmación de cupo».`,
             `  ⚠ Y ojo que el response_type cambia entre ambientes: Sistecrédito (#9) en esta sucursal es`,
             `  rt=0 en qa y rt=1 en local, así que el mismo «Sí» lista allá y sale vacío acá.`,
       ];
+      /**
+       * LA CORRIDA SE PUEDE RESCATAR, y decirlo importa tanto como el diagnóstico: hasta ahora este
+       * aviso sólo servía para empezar de nuevo, que contra un ambiente desplegado son minutos y un
+       * cliente sintético más en la base compartida.
+       *
+       * La firma del flujo se puede REHACER mientras la solicitud esté en estado 1 o 9
+       * (`FLOW_ASSIGNABLE_STATUS_IDS` del backend), y en esta pantalla está en 9. Verificado contra
+       * local el 2026-09-15: re-firmar como `standard` devolvió `flowId: 1`, y el listado que usa el
+       * front (`lenders-v2`) pasó de 0 a 4 entidades, CrediPullman incluida.
+       *
+       * Se imprime el comando y NO se ejecuta: cambiar el flujo que el cliente eligió es una decisión
+       * de quien prueba, y hacerlo solo dejaría la corrida diciendo que probó un escenario que no era.
+       */
+      if (uReqID && apiBase) {
+            lineas.push(
+                  `  Para RESCATAR esta corrida sin reiniciarla —el flujo se puede re-firmar en estado 1 o 9—:`,
+                  `      curl -s -X POST '${apiBase.replace(/\/$/, '')}/api/v1/user-request/${uReqID}/flow-signature/standard' \\`,
+                  `           -H 'Accept: application/json' -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 16_5)'`,
+                  `  y recargá /lenders. Para la próxima, contestá «No» en «Confirmación de cupo».`,
+            );
+      } else {
+            lineas.push(`  Para recorrer el flujo entero, contestá «No» en «Confirmación de cupo».`);
+      }
+      return lineas;
 }

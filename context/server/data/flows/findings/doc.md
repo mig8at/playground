@@ -4899,6 +4899,20 @@ que queda abierto es la consecuencia: un comercio sin `rt=0` no debería ofrecer
 pantalla debería dejar volver atrás. La deuda anotada en el código es la del filtro; ésta no está anotada
 en ningún lado. **Para probar el flujo completo en un comercio así: contestá «No».**
 
+⚠⚠ **Y LA CORRIDA SE PUEDE RESCATAR: la firma del flujo se REHACE.** El backend acepta (re)asignar el
+flujo mientras la solicitud esté en los estados «Validación OTP» o «Formulario de perfil» —que es justo
+donde está cuando se descubre el problema—, y el catálogo de alias tiene el flujo estándar además del
+firmado. Verificado el 2026-09-15 contra local: re-firmar como estándar devolvió el flujo 1 y el listado
+que consume el front pasó de **0 a 4 entidades**, la de plataforma incluida. Antes de eso, este hallazgo
+sólo servía para empezar de nuevo — contra un ambiente desplegado, minutos y un cliente sintético más en
+la base compartida.
+
+⚠ **El «Sí» que dispara esto es fácil de contestar por accidente, y conviene saber por qué.** La
+pregunta que ve quien prueba es «¿el cliente tiene cupo disponible en \<cuatro entidades\>?», y con un
+cliente sintético al que se le acaba de sembrar cupo, «Sí» es la respuesta natural. Pero ahí «Sí» no
+significa «tiene cupo»: significa «ya tiene una pre-aprobación lista en otra parte, saltá el buró y
+mostrale sólo las no integradas». Pasó tres corridas seguidas antes de que se entendiera.
+
 **Del lado de la herramienta sí se arregló, y el motivo es que el aviso que había no alcanzaba.** El
 rastro lo advertía **antes** de arrancar y en condicional («si contestás Sí…»), que es un aviso que se
 lee y se sigue: pasó el 2026-09-15 en local, con la advertencia impresa en la cabecera, y la corrida
@@ -5077,6 +5091,9 @@ del rt=2 es decisión de producto y la central escribe lo que le corresponde). T
   habilitado, que encima corren las reglas duras y que una rt=2 que no pasa desaparece;
 - el rastro ya no promete un empleo que no sobrevive: dice que la central lo pisa al enviar
   personal-info y que en este ambiente contesta el lambda de mocks;
+- el aviso en caliente trae además **el comando que rescata la corrida** (re-firmar el flujo), y lo
+  imprime sin ejecutarlo: cambiar el flujo que el cliente eligió es decisión de quien prueba, y hacerlo
+  solo dejaría la corrida afirmando que probó un escenario que no era;
 - y el runner **repone ocupación e ingreso en cuanto la central contesta**, avisando qué encontró y qué
   repuso. Va enganchado a la RESPUESTA del envío de personal-info y no a la navegación al listado,
   porque el pedido de datos del listado se emite antes de que la navegación se vea: reponer ahí llegaría

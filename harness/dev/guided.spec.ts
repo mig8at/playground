@@ -1143,7 +1143,7 @@ test('guided (semiautomático)', async ({ browser }) => {
                         const hSuc = /\/(?:merchant|ecommerce|self-service)\/([0-9a-f]{8})\//.exec(page.url())?.[1] ?? '';
                         if (hSuc) {
                             const rt0 = await rt0ActivasDeLaSucursal(hSuc);
-                            const lineas = avisoDeCupoSinSalida(rt0, hSuc);
+                            const lineas = avisoDeCupoSinSalida(rt0, hSuc, ur, config.mockUrl);
                             for (const l of lineas) log(`  ${l}`);
                             if (lineas.length) {
                                 traza.alertas.push(
