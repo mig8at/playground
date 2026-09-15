@@ -29,7 +29,13 @@
     "PostToolUse · tarea-lint: al escribir tablero/data/<slug>.md corre `tareas -lint` (frontmatter,",
     "              etapa del vocabulario, id único, nodos de context que existan, guard de la publicable).",
     "              Exit 2 con la lista si algo está mal. Una etapa inventada o un id repetido no fallaban",
-    "              en ningún lado, y pasaron dos veces."
+    "              en ningún lado, y pasaron dos veces.",
+    "",
+    "PreToolUse   · tests-destructivos (Bash): frena `artisan test`/phpunit/pest SIN ruta, `migrate:fresh`,",
+    "              `db:wipe`, `make fresh`, `make test` en legacy-backend, y `artisan test <ruta>` cuando la",
+    "              ruta arrastra RefreshDatabase (trait, uses() por archivo o Pest.php por directorio).",
+    "              Es la regla de CLAUDE.md que costó la BD compartida el 2026-08-19, hecha PreToolUse:",
+    "              corre ANTES y de verdad impide. Sólo mira comandos que hablen de legacy-backend."
   ],
   "hooks": {
     "SessionStart": [
@@ -52,6 +58,17 @@
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/no-editar-generados.py",
             "args": []
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/tests-destructivos.py",
+            "args": [],
+            "timeout": 30
           }
         ]
       }

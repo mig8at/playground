@@ -151,6 +151,14 @@ Que hoy haya uno solo **no es una propiedad del repo, es un estado**: nada impid
 y la guarda protege el host, no el borrado. Por eso el chequeo de abajo se sigue haciendo antes de correr
 una carpeta.
 
+**Desde el 2026-09-14 esto NO depende de acordarse: `.claude/hooks/tests-destructivos.py`** (PreToolUse
+sobre Bash) frena la suite sin ruta, el `fresh`/`wipe` de la base, el `test` del Makefile de
+legacy-backend, y una ruta que arrastre `RefreshDatabase` en cualquiera de sus tres formas — sólo para
+comandos que hablen de legacy-backend, y mirando la POSICIÓN DE COMANDO (nombrar la palabra en un
+commit o un grep no frena). Si de verdad querés recrear tu base local, el comando lleva
+`I_KNOW_THIS_RECREATES_MY_LOCAL_DB=1`. La lista de abajo sigue valiendo fuera de una sesión con hooks
+(la terminal, el editor).
+
 **Lo que NO se hace:**
 
 - `make test` en `legacy-backend` (es `artisan test` pelado: corre los 140 archivos, incluido el del trait)
