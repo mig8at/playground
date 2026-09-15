@@ -401,10 +401,30 @@ function guion(datos: DatosAutorelleno) {
             n++;
         }
 
-        // 4 · radios: el primero de cada grupo que no tenga nada elegido.
+        /* 4 · radios NATIVOS: el primero de cada grupo que no tenga nada elegido.
+         *
+         * ⚠ SE SALTAN LOS `aria-hidden`, y no es prolijidad. Los radios del wizard son de Radix, que
+         * por cada opción renderiza un `<button role="radio">` MÁS un input nativo oculto —el que lleva
+         * el valor al form data— con `aria-hidden`, `tabindex=-1`, `pointer-events: none`, `opacity: 0`
+         * y el ANCHO Y ALTO del botón. O sea que pasa el chequeo de visible() de acá, que mira medidas
+         * y `visibility`, no opacidad: este bucle lo clickeaba.
+         *
+         * Y clickearlo no elige nada. Verificado en la implementación instalada de Radix: ese input no
+         * escucha clicks —su único efecto va al revés, del estado de React al input—, así que el click
+         * le pone `checked` en el DOM y el valor del formulario sigue vacío. El resultado era el peor de
+         * los dos mundos: el DOM decía «Sí» elegido, React decía nada, y el botón seguía deshabilitado
+         * con «Selecciona una opción para continuar» sin que nada explicara por qué.
+         *
+         * ⚠ Y `[role=radio]` NO se toca A PROPÓSITO. En «Confirmación de cupo» esa elección no es un
+         * campo más: «Sí» firma el flujo (flow_id=2) y recorta el listado a rt=0 — en una sucursal sin
+         * ninguna rt=0 activa deja la pantalla vacía, sin vuelta atrás (F-214). Una ayuda de relleno no
+         * puede decidir eso por quien prueba; el otro autorrelleno, el de Playwright, lo resuelve
+         * pidiendo explícitamente «No» (`preferirRadio`), que es una decisión de la corrida, no del
+         * relleno. */
         const grupos = new Set<string>();
         for (const el of Array.from(document.querySelectorAll<HTMLInputElement>('input[type=radio]'))) {
             if (el.disabled || !visible(el) || !el.name || grupos.has(el.name)) continue;
+            if (el.getAttribute('aria-hidden') === 'true' || getComputedStyle(el).pointerEvents === 'none') continue;
             grupos.add(el.name);
             if (document.querySelector<HTMLInputElement>(`input[type=radio][name="${CSS.escape(el.name)}"]:checked`)) continue;
             el.click();
