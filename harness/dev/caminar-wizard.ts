@@ -71,6 +71,16 @@ const arg = (n: string, d = ''): string => {
 const flag = (n: string) => process.argv.includes(`--${n}`);
 
 const FLOW = arg('flow', 'self-service');
+/**
+ * ¿HAY UN SOLO DISPOSITIVO EN ESTE CANAL? Sin asesor —autogestión y ecommerce— el que está frente a la
+ * pantalla ES el cliente, en su propio navegador: no hay «celular del cliente» al que entregarle nada.
+ * Acá no hay ventanas (esto va por HTTP), pero el rastro las NOMBRABA igual —«B (celular): handoff»— y
+ * un nombre que no corresponde se lee como si el producto pidiera dos pantallas. Medido el 2026-09-15:
+ * el front manda a `/continue` en los dos canales, así que el desajuste se veía en los dos.
+ */
+const UN_SOLO_DISPOSITIVO = FLOW === 'self-service' || FLOW === 'ecommerce';
+/** Cómo se NOMBRA el tramo del cliente en el rastro: el arnés dice lo que hay, no lo que supone. */
+const TRAMO_CLIENTE = UN_SOLO_DISPOSITIVO ? 'el cliente sigue acá (un solo dispositivo)' : 'B (celular): handoff';
 const AMOUNT = Number(arg('amount', '2000000'));
 const INCOME = Number(arg('income', '2500000'));
 const SCORE = Number(arg('score', '700'));
@@ -489,7 +499,11 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
                 // `/initial-fee-payment` —que rebota al principio del wizard— y el caminador saltaba por
                 // encima y cerraba en estado 11 igual, así que la corrida daba verde con el flujo roto.
                 // Si el front manda a otro lado, se SIGUE esa redirección: es lo que haría el navegador.
-                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${baseHandoff}/${r.ur}/confirmation  [el front respondió 202 → ${acc.redirect}]`);
+                log(`${TRAMO_CLIENTE} CreditopX (${lenderElegido.name}) → ${baseHandoff}/${r.ur}/confirmation  [el front respondió 202 → ${acc.redirect}]`);
+                if (UN_SOLO_DISPOSITIVO && /\/continue(\?|$)/.test(String(acc.redirect))) {
+                    log(`⚠ pero el front lo dejó en \`/continue\`, la pantalla de ENTREGA, y en este canal no hay`);
+                    log(`  segundo dispositivo ni nada que entregar: el link que manda apunta a esta misma app (F-219).`);
+                }
                 saltoA = `${baseHandoff}/${r.ur}/confirmation`;
             } else {
                 if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
@@ -527,7 +541,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             }
             if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
                 const d = acc.cuerpo?.data ?? {};
-                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${baseHandoff}/${r.ur}/confirmation  [el front devolvió ${d.showModal ? `modal «${String(d.modalMessage ?? '').slice(0, 60)}»` : 'datos sin redirect'}]`);
+                log(`${TRAMO_CLIENTE} CreditopX (${lenderElegido.name}) → ${baseHandoff}/${r.ur}/confirmation  [el front devolvió ${d.showModal ? `modal «${String(d.modalMessage ?? '').slice(0, 60)}»` : 'datos sin redirect'}]`);
                 saltoA = `${baseHandoff}/${r.ur}/confirmation`;
             } else {
                 return terminar('trabado', `${hoja}: el action no redirigió ni dio error · ${JSON.stringify(acc.cuerpo).slice(0, 160)}`);
@@ -713,7 +727,7 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
         // pantalla `/continue` es la del que eligió, que sólo dice «se envió un mensaje» y no tiene botón
         // para avanzar. El caminador hace lo que haría el cliente al tocar el link. Es el salto A→B del panel.
         if (hoja === 'continue' && r.ur) {
-            log(`B (celular): handoff CreditopX → abro ${baseHandoff}/${r.ur}/confirmation`);
+            log(`${TRAMO_CLIENTE} CreditopX → ${baseHandoff}/${r.ur}/confirmation`);
             await page.goto(`${baseHandoff}/${r.ur}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
             continue;
         }

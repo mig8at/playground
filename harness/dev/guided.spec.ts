@@ -50,6 +50,18 @@ const RESULT = process.env.E2E_RESULT ?? 'success';                    // cómo 
 // sola vez en pkg/trace.ts y compartido con dev/sweep.ts — tener dos copias es como empiezan a derivar.
 const RESULT_STATUS = traza.ESTADO_ESPERADO;
 const ENTRY = process.env.E2E_ENTRY ?? 'cognito';               // 'cognito' (asesor) | 'self-service' (el cliente solo) | 'ecommerce' (checkout base64) | 'qr' (caja Corbeta)
+/**
+ * ¿HAY UN SOLO DISPOSITIVO EN ESTE CANAL? El handoff a «la ventana B» modela el paso del dispositivo
+ * del ASESOR al del cliente. En autogestión y en ecommerce **no hay asesor**: el que está frente a la
+ * pantalla ES el cliente, en su propio navegador. Abrir una segunda ventana ahí no representa nada del
+ * producto — representa una convención del arnés, y se lee como si el producto pidiera dos pantallas.
+ *
+ * ⚠ Estaba escrito como `ENTRY === 'self-service'` en un solo lugar del guion, así que ecommerce caía
+ * en la rama de dos dispositivos y el rastro decía «B (celular)» sobre un comprador que nunca salió de
+ * su browser. El canal QR tampoco tiene asesor, pero su recorrido es otro (no pasa por este bloque) y
+ * no se toca acá.
+ */
+const UN_SOLO_DISPOSITIVO = ENTRY === 'self-service' || ENTRY === 'ecommerce';
 const CHECKOUT_URL = process.env.E2E_CHECKOUT_URL ?? '';
 const STORE = process.env.E2E_STORE === '1';
 const AUTH = join(process.cwd(), '.auth');
@@ -498,7 +510,9 @@ test('guided (semiautomático)', async ({ browser }) => {
             const u = f.url();
             if (/\/lenders(\?|$)/.test(u)) seenLenders = true;
             if (bWoke) return;
-            if (/\/(continue|confirmation)(\?|$)/.test(u)) void wakeB('creditopx', u);
+            // Sin segundo dispositivo no hay a quién entregarle: despertar B acá es lo que hacía
+            // que una corrida de ecommerce terminara en dos ventanas.
+            if (!UN_SOLO_DISPOSITIVO && /\/(continue|confirmation)(\?|$)/.test(u)) void wakeB('creditopx', u);
             else if (seenLenders && isExternal(u)) void wakeB('redirect', u);
         });
     }
@@ -560,6 +574,11 @@ test('guided (semiautomático)', async ({ browser }) => {
         // lender. En GUIADO lo hace el guion (con el nombre del lender ya conocido) → acá no tocamos nada.
         // seenLenders: el copy "en tu celular" también aparece en el OTP → sin la guarda, B abriría el portal
         // del lender a mitad del alta, antes de que exista una selección.
+        /* ⚠ ACÁ B SÍ VA, incluso sin asesor, y la diferencia con el bloque de `continue` no es un
+ * descuido: el handoff del AGREGADOR entrega un link EXTERNO (el sitio de la entidad), y ese
+ * sí se le manda al celular del cliente de verdad. Lo que no representa nada es entregar un
+ * link a NUESTRA propia pantalla, que es el caso en plataforma (F-219). Misma pregunta, dos
+ * respuestas, porque lo que se entrega es distinto. */
         if (s.startsWith('__E2E_HANDOFF_MODAL__')) { if (process.env.E2E_GUIDED === '0' && seenLenders) void wakeB('agregador', page.url()); return; }
         const t = m.type();
         if (t !== 'error' && t !== 'warning') return;
@@ -1334,15 +1353,28 @@ test('guided (semiautomático)', async ({ browser }) => {
         //
         // ⚠ Y forzar `${base}/continue` acá daría 404: esa ruta existe SÓLO bajo `/merchant/*`, que es
         // justamente el defecto que el canal de autogestión vino a destapar (F-191).
-        const autogestion = ENTRY === 'self-service';
+        const autogestion = UN_SOLO_DISPOSITIVO;
         const cliente = autogestion ? page : B;
         // Cómo se NOMBRA esa ventana en el log. Decir «ventana B» cuando el recorrido va en A es
         // exactamente la confusión que ya costó una vuelta: el rastro tiene que nombrar lo que hay.
         const vent = autogestion ? 'cliente' : 'B (celular)';
 
         log(autogestion
-            ? `autogestión → el cliente sigue en la MISMA ventana (sin handoff) · ${after}`
+            ? `${ENTRY} → un solo dispositivo: el cliente sigue en la MISMA ventana (sin handoff) · ${after}`
             : `CreditopX → A: handoff \`continue\` natural (variant por flujo) · ${after}`);
+        /* ⚠ Y SI EL FRONT LO DEJÓ EN LA PANTALLA DE ENTREGA, SE DICE — no se pasa por encima en silencio.
+         * Medido el 2026-09-15 en los DOS canales de un solo dispositivo (autogestión y ecommerce, mismo
+         * comercio y misma entidad): el front responde `→ …/continue?url=null`, o sea la pantalla que
+         * entrega el proceso, sin nada que entregar. Es F-219: para una entidad EN PLATAFORMA el «link de
+         * autogestión» es nuestra propia pantalla de confirmación, así que el mensaje se manda igual y
+         * haberlo mandado es justo lo que impide continuar ahí mismo.
+         * El arnés sigue el recorrido que el cliente haría si el producto continuara solo, pero dejar el
+         * salto invisible convertiría este bloque en un verde que tapa el defecto. */
+        if (autogestion && /\/continue(\?|$)/.test(hereOf(page))) {
+            log('⚠ el front dejó al cliente en `/continue` (la pantalla de ENTREGA) aunque no hay segundo');
+            log('  dispositivo ni nada que entregar: el link que manda apunta a esta misma app. Es F-219.');
+            log('  El arnés sigue a `/confirmation`, que es donde el producto debería haber continuado solo.');
+        }
         if (!autogestion) {
             if (!/continue/.test(hereOf(page))) {
                 await page.goto(`${base}/continue`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
