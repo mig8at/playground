@@ -455,3 +455,36 @@ Cerrado el hueco: en local, con `LOG_CHANNEL=loki` y Loki abajo, los errores de 
 silencio — medido, el último `laravel.log` era de dos días antes y los errores del día entero no
 existen. El runner lo diagnostica (no avisa siempre) y, cuando un caso no cierra, dice que no hay
 rastro y da el comando que sí funciona con la solicitud puesta. En consola y en la UI.
+
+### 2026-09-15 (8) · un solo lugar decide el ambiente, y hay cómo comprobarlo
+La pregunta era si el arnés consulta el Loki y la base que le pidas, transparente por ambiente y sin
+duplicar la lógica. **Medido: sí, por una sola cadena** (`process.env` > `.env.<target>`), y así
+resuelven backend, front, base y Loki en los cuatro ambientes. **Corrección a la premisa: la base
+local NO es la compartida** — `dev`, `qa` y `staging` sí comparten servidor, local es `127.0.0.1`,
+un volcado en Docker. De esa diferencia depende la guarda que decide si una escritura pide permiso.
+
+**Cinco lugares no le preguntaban a la cadena**, y el patrón es siempre el mismo: leer del entorno
+pelado una clave que sólo vive en el archivo de UN ambiente, así que el valor no cambia nunca y no
+falla — miente. El peor posteaba el carrito de la tienda al servidor local en los cuatro ambientes:
+pidiéndole «ambiente de pruebas compartido» leía las credenciales de allá y escribía acá. Otros tres
+mandaban el asesor del catálogo local contra un ambiente compartido, y eso borra el asesor de la
+solicitud. El quinto dejaba un aviso al comercio apagado del todo, pareciendo encendido.
+
+**La comprobación ya existía y no veía esta clase**: miraba los valores resueltos, y un lugar que
+nunca pregunta los da perfectos. Ahora además revisa quién lee por fuera, con la lista de claves
+derivada de los archivos de ambiente y no escrita a mano, y queda fijada con prueba. Entra al
+catálogo (`make harness-ambiente TARGET=…`): estaba escrita y era invisible.
+
+Tres cosas más aparecieron al hacerlo. La comprobación anunciaba en su encabezado que acepta el
+ambiente por argumento y **nunca lo leía**: pedirle uno revisaba otro, con el aplomo de haber
+revisado el pedido. El canal de la tienda decía «error 422» y tiraba el motivo que el propio cuerpo
+traía. Y **ese 422 era mío, de hoy**: al agregar el teléfono por parámetro quedó una comparación que
+sólo cae con valor nulo, y el parámetro ausente llega vacío, no nulo — así que el teléfono derivado
+no se usaba nunca. Probé el camino nuevo, que siempre pasa el parámetro, y dejé roto el de siempre.
+El canal vuelve a cerrar 16/16.
+
+**Y hay una excepción deliberada a la transparencia, que se queda**: pedir el ambiente local
+apuntando al Loki de un ambiente remoto está bloqueado a propósito. Con la base funciona —leés las
+filas que tu corrida escribió—; con los registros no, porque tu corrida local no escribió allá y los
+identificadores se solapan: mostraría la solicitud de otra persona como si fuera tuya. Transparencia
+que produce un diagnóstico falso no es transparencia.
