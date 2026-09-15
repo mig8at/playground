@@ -71,7 +71,13 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // middleware ResolveCognitoUser lo convierte en el usuario autenticado. Sin él, `update-user-request`
 // hace `auth()->check() ? auth()->user()->id : $request->corporate_user_id` → NULL, y BORRA el asesor que
 // venía en la solicitud. Eso rompe Ábaco después (su log exige corporate_user_id NOT NULL). Ver F-46.
-const ASESOR_SUB = process.env.E2E_ASESOR_SUB || flowsRaw?.asesor?.sub || '';
+// El sub del asesor por la MISMA cadena que el resto del harness (`E2E_ASESOR_SUB` de
+// `.env.<target>` y, si no, `.flows.json`). ⚠ Antes era `process.env.E2E_ASESOR_SUB`, y eso NO ve el
+// `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
+// mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
+// porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
+const { subDelAsesor } = await import('../pkg/preflight-sucursal.ts');
+const ASESOR_SUB = subDelAsesor();
 const HDRS: Record<string, string> = {
     'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
     ...(ASESOR_SUB ? { 'x-cognito-identity-id': ASESOR_SUB } : {}),

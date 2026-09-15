@@ -10,16 +10,19 @@
 // webhook a la tienda; se verifica aparte. Best-effort + logueado: cada paso reporta el HTTP/estado.
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
+import { config } from './config.ts';
 import { exec, scalar, one, env, assertWriteAllowed } from './db.ts';
 import { requestEstado11 } from './inject.ts';
 
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';
-const apiBase = (): string => {
-    // E2E_API_BASE_URL (dev) o, si no está (p.ej. .env.local solo trae E2E_MOCK_URL), {E2E_MOCK_URL}/api.
-    const explicit = env('E2E_API_BASE_URL');
-    const baseUrl = explicit || `${env('E2E_MOCK_URL', 'http://legacy-backend.inertia-develop').replace(/\/$/, '')}/api`;
-    return baseUrl.replace(/\/$/, '');
-};
+// La API del target, derivada de la ÚNICA cadena que resuelve el backend (`pkg/config.ts`).
+//
+// ⚠ Antes el fallback era `http://legacy-backend.inertia-develop` QUEMADO: un `.env.local` sin
+// `E2E_MOCK_URL` mandaba el cierre de una corrida LOCAL al dev compartido, sin decir nada. Hoy ningún
+// `.env` llega a ese fallback —los cuatro definen `E2E_API_BASE_URL`—, así que la mina estaba dormida;
+// es la misma que se sacó del wizard en el PR de routes (un host remoto como default silencioso), y un
+// target nuevo la habría pisado. `config.mockUrl` ya normaliza: siempre devuelve la raíz, sin `/api`.
+const apiBase = (): string => `${config.mockUrl}/api`;
 
 async function api(method: string, path: string, body?: unknown): Promise<{ status: number; json: unknown }> {
     const res = await fetch(`${apiBase()}${path}`, {
@@ -79,7 +82,10 @@ export async function closeCreditopX(uReqID: number, opts: { lender?: string } =
         log(`lender #${lenderId} es rt=${lender.rt} (no Creditop X) → sin cierre in-platform; estado=${st.statusId ?? '?'} (lo define el flujo externo del lender)`);
         // lenders externos (rt=0/1): el webhook NO se dispara por el authorize in-platform. Si hay receptor
         // configurado (E2E_WEBHOOK_URL), lo disparamos por notify-store (lender-agnóstico) para PROBAR la entrega.
-        if (process.env.E2E_WEBHOOK_URL) {
+        // ⚠ Por la cadena, no por `process.env` pelado: `E2E_WEBHOOK_URL` la declaran `.env.local` y
+        // `.env.dev`, así que leída del entorno estaba SIEMPRE vacía y este disparo no corría nunca —
+        // el bloque parecía vivo y era código muerto salvo que alguien exportara la variable a mano.
+        if (env('E2E_WEBHOOK_URL')) {
             const n = await fireEcommerceWebhook(uReqID, 'completed');
             log(`webhook notify-store: HTTP ${n.httpStatus ?? '?'} (ecommerce_request #${n.erId ?? '?'})${n.note ? ` ⚠ ${n.note}` : ''}`);
         }

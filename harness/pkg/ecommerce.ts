@@ -1,5 +1,6 @@
 // ecommerce.ts — arma la URL del checkout ecommerce (contrato base64 + phpSerialize + token).
 // Port de ecommerce.go (b64/phpSerialize/branchToken/ecommerceContract/opEcommerceURL).
+import { config } from './config.ts';
 import { scalar, env } from './db.ts';
 import { resolveMerchant, listEcommerce } from './merchants.ts';
 
@@ -157,7 +158,15 @@ export async function vtexInit(
     if (!token) throw new Error(`sin token ecommerce para ${b.name} (${b.hash})`);
 
     const amount = opts.amount || 600000;
-    const base = (process.env.E2E_MOCK_URL ?? 'http://localhost').replace(/\/$/, '');
+    // El backend DEL TARGET, por la única cadena que lo resuelve (`pkg/config.ts`).
+    //
+    // ⚠ Antes era `process.env.E2E_MOCK_URL ?? 'http://localhost'`, y eso se salta la cadena: `env()`
+    // NO escribe en `process.env`, y `E2E_MOCK_URL` sólo existe en `.env.local`. O sea que este POST
+    // iba a **localhost en los cuatro targets** — medido el 2026-09-15. Con `E2E_TARGET=qa` (la forma
+    // documentada de apuntar un spec a otro ambiente) el token de la sucursal se leía de la base
+    // COMPARTIDA y el `/vtex/init` se posteaba al backend LOCAL: la misma mezcla huérfana de F-65, por
+    // un camino que ese arreglo no cubría. `dev/sweep.ts` ya había pagado este pozo.
+    const base = config.mockUrl;
     const payload = {
         paymentId: 'vtex_fe_' + b.hash,
         orderId: 'vtex_fe_ord_' + b.hash,

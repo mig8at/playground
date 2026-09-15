@@ -77,6 +77,31 @@ const ok = (t: string, d = '') => console.log(`    ${V}✓${N} ${t}${d ? ` · ${
 const mal = (t: string, d = '') => { fallos++; console.log(`    ${R}✗${N} ${t}${d ? ` · ${d}` : ''}`); };
 const nota = (t: string) => console.log(`    ${A}·${N} ${t}`);
 
+/**
+ * El porqué de un fallo HTTP, no sólo el número.
+ *
+ * ⚠ «HTTP 422» a secas cuesta una vuelta entera de diagnóstico: hay que salir a reproducir el endpoint
+ * con curl para ver qué campo se quejó. Laravel devuelve el motivo en el cuerpo —`message` y `errors`
+ * de la validación— y el runner lo tenía en la mano y lo tiraba. Es la misma línea que se le agregó al
+ * caminador del wizard.
+ */
+function porQue(r: { status: number; json?: any; error?: string }): string {
+    const j = r.json;
+    const partes: string[] = [`HTTP ${r.status}`];
+    const msg = j?.message ?? j?.errorMessage ?? j?.error;
+    if (msg && typeof msg === 'string') partes.push(msg.slice(0, 140));
+    if (j?.errorCode) partes.push(`code ${j.errorCode}`);
+    // `errors` de la validación de Laravel: {campo: ["motivo"]}. El CAMPO es el dato que falta.
+    if (j?.errors && typeof j.errors === 'object') {
+        const campos = Object.entries(j.errors as Record<string, unknown>)
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? String(v[0]) : String(v)}`)
+            .slice(0, 4);
+        if (campos.length) partes.push(campos.join(' · '));
+    }
+    if (!msg && r.error) partes.push(r.error.slice(0, 140));
+    return partes.join(' · ');
+}
+
 async function http(metodo: string, ruta: string, cuerpo?: unknown, ua = UA) {
     const r = await fetch(`${API}${ruta}`, {
         method: metodo,
@@ -113,7 +138,12 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     // ambiente: el vinculo comercio-credito se sigue midiendo igual (es por pedido), pero el prefill
     // puede traer los datos de ese usuario y no los del contrato. Es el mismo trato que hace
     // `bcp-volver.ts` contra qa.
-    const tel = arg('tel') ?? String(3_130_000_000 + r);
+    // ⚠ `||`, NO `??`: `arg()` devuelve CADENA VACÍA cuando el flag no está, y `'' ?? x` es `''` —
+    // `??` sólo cae con null/undefined. Con `??` el teléfono derivado no se usaba NUNCA y el registro
+    // moría con 422 «phone number is required», que se lee como un problema del backend. Entró al
+    // agregar `--tel` para poder correr contra un ambiente desplegado, y no se vio porque esa
+    // corrida SIEMPRE pasa el flag: se probó el camino nuevo y quedó roto el de siempre.
+    const tel = arg('tel') || String(3_130_000_000 + r);
 
     let checkout: { hash: string; merchant: string; checkout_path: string; amount: number };
     try {
@@ -157,7 +187,7 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
         phone_number: tel, terms: true, policies: true, otp_length: 4,
         partner_branch_hash: checkout.hash, onboarding_channel: 'ecommerce',
     });
-    if (reg.status < 200 || reg.status >= 300) { mal('registro', `HTTP ${reg.status}`); return; }
+    if (reg.status < 200 || reg.status >= 300) { mal('registro', porQue(reg)); return; }
 
     /* ── EL OTP VA POR EL MISMO CAMINO QUE EL FRONT, no por uno fijo ─────────────────────────────
        `otp-verification.tsx` elige el repositorio con `kyc-flow/{hash}`: v2 si `usesPipeline`, v1 —el
