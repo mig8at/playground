@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
+ramas: ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -1307,3 +1307,44 @@ leídas solas parecen un incendio. Separadas por canal son **170 del asesor y 0 
 del asesor el campo SÍ se muestra, así que ese mensaje es la interacción normal, no un callejón. La
 primera consulta de alcance también fue un falso negativo: buscó el mínimo en la tabla del par
 comercio-entidad y el mínimo real vive en la **categoría** de la entidad, como porcentaje.
+
+### 2026-09-15 (10) · PR #1018 · el botón muerto, arreglado
+Rama limpia desde `qa` al día, **un commit, 6 archivos, +150/−10**, todo dentro del módulo del
+marketplace: [#1018](https://github.com/Creditop-SAS/frontend-monorepo/pull/1018) → `qa`.
+
+**Lo que se arregló y por qué esa forma.** Había **una sola** idea —«¿este canal pide la cuota inicial
+acá?»— escrita en **un solo lugar**: la condición que decide si el campo se renderiza. Las otras dos
+cosas que dependen de ella no la miraban: el botón, que exigía un valor igual, y el aviso de la
+tarjeta, que hablaba de un mínimo incumplido. De ese desacuerdo salía el botón muerto. Ahora la idea
+tiene nombre y las tres la usan.
+
+Cuando el canal no ofrece el campo, **la elección pasa**. Eso se pudo decidir con un dato, no con una
+opinión: en la configuración de producción, las seis entidades con categoría que pide cuota inicial en
+sucursales de ecommerce son **todas de las que cierran en plataforma**, y ésas cobran la cuota por el
+camino de adentro. O sea que dejar pasar no saltea el cobro: lo devuelve a donde corresponde.
+
+Y el aviso pasa de error bloqueante a informativo —«No olvides que en un paso posterior debes realizar
+el pago de $X»—, que es lo que Miguel describió como el comportamiento buscado. **En el canal del
+asesor no cambia nada**: ahí el campo existe, y el error accionable que lleva a él sigue igual.
+
+⚠ **La prueba que se agregó no cubre el botón, cubre el modo de fallar SILENCIOSO.** El aviso
+informativo se muestra sólo si el mínimo es mayor que cero; si alguien deja de poblar ese número,
+`undefined > 0` es falso, el aviso **desaparece sin ningún error** y el comprador elige entidad sin
+enterarse de que tiene un pago pendiente. Cuatro casos fijan que el número viaje en las tres ramas de
+la validación y que un cero llegue como cero — «no pide cuota inicial» y «no sé cuánto pide» no pueden
+ser el mismo valor.
+
+**Tres cosas de la verificación que vale registrar:**
+- **el build atrapó lo que el chequeo de tipos no vio**: un reexport que faltaba en el índice del
+  contexto. Es la razón por la que en este repo la vara es el build y no el typecheck;
+- **lint y pruebas de ese módulo ya fallaban en `qa`** antes de tocar nada — se midió con y sin los
+  cambios para no atribuirse deuda ajena ni esconder deuda propia: lint pasa de 20 hallazgos a 19, la
+  complejidad del componente queda igual, y de los 4 tests que fallan ninguno es de lo tocado;
+- **las pruebas del módulo no corren en esta máquina** por deriva del árbol instalado (dos versiones
+  de vite y dos de vitest). Pre-existente y también en `qa` limpio. Se corrieron con la versión que
+  declara el lock, y **no se reinstaló nada a propósito**: el servidor de desarrollo estaba en uso.
+
+**Orden de merge: este PR ANTES del de reinserción.** Hoy en producción el callejón no es alcanzable
+—el despliegue vigente es el revert—, pero la configuración de producción tiene 7 sucursales de
+ecommerce expuestas, así que entra el día que se reinserte el trabajo del canal. Reinsertar primero
+sería publicar el botón muerto.
