@@ -1,6 +1,7 @@
 ---
 id: 82
 title: "El SDK del comercio: el onboarding dentro de la tienda"
+clase: proyecto
 stage: evaluation
 created: "2026-09-14T14:30:00-05:00"
 context_nodes: [ecommerce, onboarding, entities, architecture]

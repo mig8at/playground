@@ -1,6 +1,7 @@
 ---
 id: 85
 title: "Los CLAUDE.md: la regla vigente sola, y la historia donde va la historia"
+clase: proyecto
 stage: evaluation
 created: "2026-09-14T22:50:00-05:00"
 context_nodes: [findings]
@@ -94,15 +95,7 @@ Cambiar reglas. Sólo separar la vigente de su historia.
 Inventario medido de las 10 correcciones inline y de las rutas citadas (118, 3 muertas). Destinos
 propuestos en la tabla. No se reescribió nada.
 
-## Tarea (publicable)
+## Para qué sirve, en una línea
 
-## En una línea
+<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
 Las guías de trabajo dicen sólo lo que vale hoy, y la historia de cada corrección vive en el registro de hallazgos.
-
-## Por qué
-Cada vez que una guía resultó equivocada se corrigió al lado de la regla, y hoy quien lee tiene que
-descubrir cuál versión vale.
-
-## Cómo validar
-Abrir una guía y no encontrar ninguna corrección del tipo «acá decía»; cada regla con historia apunta a
-su hallazgo.

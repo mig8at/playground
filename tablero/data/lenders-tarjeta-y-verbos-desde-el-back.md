@@ -1,6 +1,7 @@
 ---
 id: 80
 title: "Lenders: la tarjeta y sus verbos los define el back"
+clase: proyecto
 stage: work
 ramas: feat/lenders-tarjeta-desde-el-back, feat/lenders-tabla-cards
 created: "2026-09-13T11:30:00-05:00"

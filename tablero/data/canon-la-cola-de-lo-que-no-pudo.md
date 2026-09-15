@@ -1,6 +1,7 @@
 ---
 id: 78
 title: "Canon: la cola de lo que no pudo contestar, y qué de eso se arregla escribiendo"
+clase: proyecto
 stage: work
 created: "2026-09-10T20:10:00-05:00"
 context_nodes: []

@@ -1,6 +1,7 @@
 ---
 id: 72
 title: "Canon: las mejoras del bucle de agentes, validadas y con plan"
+clase: proyecto
 stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []

@@ -37,13 +37,13 @@ const (
 )
 
 type tarea struct {
-	Slug, Title, Stage, Created, Ruta string
-	ID                                int
-	Archived                          bool
-	Ramas                             []string
-	Jira, Nodos                       []string
-	Cuerpo                            string
-	Toque                             time.Time // último cambio del archivo (git; hoy si está sucio)
+	Slug, Title, Stage, Clase, Created, Ruta string
+	ID                                       int
+	Archived                                 bool
+	Ramas                                    []string
+	Jira, Nodos                              []string
+	Cuerpo                                   string
+	Toque                                    time.Time // último cambio del archivo (git; hoy si está sucio)
 }
 
 var (
@@ -103,6 +103,8 @@ func leer(datos, ruta string, sucios map[string]bool) tarea {
 				t.Title = valor(l)
 			case strings.HasPrefix(l, "stage:"):
 				t.Stage = valor(l)
+			case strings.HasPrefix(l, "clase:"):
+				t.Clase = valor(l)
 			case strings.HasPrefix(l, "created:"):
 				t.Created = valor(l)
 			case strings.HasPrefix(l, "archived:"):
@@ -340,6 +342,7 @@ type fila struct {
 	Slug          string   `json:"slug"`
 	Title         string   `json:"title"`
 	Stage         string   `json:"stage"`
+	Clase         string   `json:"clase"`
 	Dias          int      `json:"diasSinTocar"`
 	ProximoPaso   string   `json:"proximoPaso"`
 	Entrega       string   `json:"entrega"`
@@ -355,7 +358,7 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 		if t.Archived || (stage != "" && t.Stage != stage) {
 			continue
 		}
-		f := fila{ID: t.ID, Slug: t.Slug, Title: t.Title, Stage: t.Stage, Dias: t.dias(),
+		f := fila{ID: t.ID, Slug: t.Slug, Title: t.Title, Stage: t.Stage, Clase: t.Clase, Dias: t.dias(),
 			ProximoPaso: t.proximoPaso(), Entrega: entrega(snap, t.ID)}
 		for _, a := range preguntasVencidas(t) {
 			q := a.Quien
@@ -381,11 +384,19 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 		return 0
 	}
 
-	var vivas, dormidas []fila
+	var vivas, dormidas, proyectos []fila
 	nVenc, nPend, nWork := 0, 0, 0
 	for _, f := range filas {
 		nVenc += len(f.Vencidas)
 		nPend += f.Pendientes
+		// LOS PROYECTOS VAN APARTE. Son herramientas propias, exploraciones y mejoras a futuro: no son
+		// el día a día sobre CreditOp y mezclarlos ahogaba lo que uno viene a mirar — medido el
+		// 2026-09-15, 8 de las 40 abiertas. Se listan igual, abajo y sin el detalle: se retoman con
+		// `make retomar`, pero no compiten con el trabajo que sí tiene a alguien esperándolo.
+		if f.Clase == "proyecto" {
+			proyectos = append(proyectos, f)
+			continue
+		}
 		if f.Stage == "work" {
 			nWork++
 		}
@@ -395,8 +406,8 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 			vivas = append(vivas, f)
 		}
 	}
-	fmt.Printf("\n  hoy · %s · %d abiertas (%d en work) · %d dormidas (≥%d días sin tocar) · %d pregunta(s) vencida(s) · %d pendiente(s)\n",
-		time.Now().Format("2006-01-02"), len(filas), nWork, len(dormidas), diasDormida, nVenc, nPend)
+	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d proyecto(s) propios · %d pregunta(s) vencida(s) · %d pendiente(s)\n",
+		time.Now().Format("2006-01-02"), len(filas)-len(proyectos), nWork, len(dormidas), diasDormida, len(proyectos), nVenc, nPend)
 	if snap.MedidoEn != "" {
 		fmt.Printf("  entrega según `make tareas-ramas` del %s", snap.MedidoEn[:10])
 		if len(snap.Incompletas) > 0 {
@@ -413,6 +424,16 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 		fmt.Printf("\n  DORMIDAS — %d días o más sin tocar. A los %d conviene archivar, o anotar por qué espera\n", diasDormida, diasArchivar)
 		for _, f := range dormidas {
 			imprimirFila(f, false)
+		}
+	}
+	if len(proyectos) > 0 {
+		fmt.Println("\n  PROYECTOS PROPIOS — herramientas, exploraciones y mejoras a futuro. No van a Jira")
+		for _, f := range proyectos {
+			cuando := fmt.Sprintf("%d d", f.Dias)
+			if f.Dias == 0 {
+				cuando = "hoy"
+			}
+			fmt.Printf("  #%-3d %-10s %-5s %s\n", f.ID, f.Stage, cuando, corta(f.Title, 70))
 		}
 	}
 	fmt.Println()

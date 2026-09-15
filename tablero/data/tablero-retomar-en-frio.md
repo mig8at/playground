@@ -1,6 +1,7 @@
 ---
 id: 84
 title: "Tablero: retomar cualquier tarea en frío, y que el cierre no dependa de acordarse"
+clase: proyecto
 stage: work
 created: "2026-09-14T21:40:00-05:00"
 context_nodes: []
@@ -160,15 +161,7 @@ booleano y son fechas), guarda de ids repetidos en el store con test, y la tarea
 pasó del 79 al 83 porque colisionaba con una archivada. Descartados: `SessionEnd`, mirar el
 transcript entero, fallar el store. Todo verificado corriéndolo contra hoy y contra el 10/9.
 
-## Tarea (publicable)
+## Para qué sirve, en una línea
 
-## En una línea
+<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
 El registro de trabajo del equipo avisa solo cuando una tarea queda sin lo necesario para retomarla.
-
-## Por qué
-Las tareas que se dejan varias semanas se retoman leyendo archivos largos que mezclan lo vigente con
-lo histórico, y el cierre del día dependía de acordarse.
-
-## Cómo validar
-Trabajar en una tarea y terminar la sesión sin escribir su estado: tiene que aparecer el aviso con lo
-que falta, una sola vez.

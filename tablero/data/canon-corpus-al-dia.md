@@ -2,6 +2,7 @@
 id: 74
 title: "Canon: el corpus al día con main y con los docs de Santi"
 ramas: canon/lo-que-quedo-falso-en-main, canon/gate-de-preaprobado, canon/tema-nequi, canon/tablas-al-dia, canon/ronda-en-cero, canon/la-ronda-dice-como-leer-el-diff, canon/la-ficha-los-codigos-y-la-difusion, canon/las-dos-guardas-del-borrador, canon/leer-el-tema-por-partes, canon/el-recorte-tambien-por-api, canon/las-herramientas-por-http, canon/el-catalogo-no-miente, canon/la-historia-no-necesita-clones, canon/como-llegar-desde-un-agente, canon/el-arranque-en-markdown, canon/identidad-de-credifamilia, canon/altas-y-el-techo-de-palabras, canon/la-cartera-corregida, canon/arquitectura-en-dos-nodos, canon/onboarding-y-los-formularios, canon/el-cierre-y-sus-documentos, canon/el-empujon-por-glosario, canon/el-arranque-sin-rito, canon/el-techo-de-60-segundos, canon/kyc-y-sus-once-correcciones, canon/bancolombia-y-sus-doce-correcciones, canon/la-cola-de-hallazgos, canon/la-flota, canon/panel-de-preguntas, canon/el-panel-no-dice-el-dsn
+clase: proyecto
 stage: work
 created: "2026-09-07T08:30:00-05:00"
 context_nodes: []

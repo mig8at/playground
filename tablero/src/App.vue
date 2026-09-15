@@ -308,6 +308,7 @@ const STAGES = [
   { id: 'work', label: 'Trabajando' },
   { id: 'tasks', label: 'Tareas creadas' },
 ];
+const esProyecto = (id) => efforts.value.find(e => e.id === id)?.clase === 'proyecto';
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
 // DÍAS SIN TOCAR el archivo de la tarea, según git (el server lo calcula; ver store/toques.go). La etapa
 // dice si algo se está evaluando o trabajando, no si sigue vivo: medido el 2026-09-14, 22 de las 39
@@ -1429,6 +1430,11 @@ onMounted(async () => {
                 <span v-if="!i._local" class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
                 <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
                 <i v-if="i._local && stageOf(i._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
+                <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
+                     que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
+                     una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
+                <span v-if="esProyecto(i._esfuerzoId)" class="spchip proyecto"
+                  title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
                 <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
                      partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
                 <span v-if="i._esfuerzo" class="spchip esf" :title="`esfuerzo: ${i._esfuerzo}`">
@@ -1965,6 +1971,7 @@ onMounted(async () => {
    al borde) y en ámbar, porque es un aviso — no el mismo tono que el dato neutro de al lado. */
 .spchip.drag { margin-left: 4px; color: #fbbf24; border-color: #fbbf2455 }
 .spchip.dormida { margin-left: 4px; color: #a8a29e; border-color: #a8a29e55; font-style: italic }
+.spchip.proyecto { margin-left: 4px; color: #60a5fa; border-color: #60a5fa55; background: #60a5fa12 }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }

@@ -1,6 +1,7 @@
 ---
 id: 81
 title: "Listado de entidades: lo caro no es la base, es el perfilador"
+clase: proyecto
 stage: evaluation
 ramas: perf/el-perfilador-que-falla-en-silencio
 created: "2026-09-13T16:20:00-05:00"

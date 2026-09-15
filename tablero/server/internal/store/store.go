@@ -282,6 +282,7 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 		JiraTitle:       fm["jira_title"],
 		JiraDescription: desc,
 		Stage:           fm["stage"],
+		Clase:           fm["clase"],
 		CreatedAt:       fm["created"],
 		// el struct expone los nodos como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
@@ -290,6 +291,9 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	}
 	if e.Stage == "" {
 		e.Stage = "evaluation"
+	}
+	if e.Clase == "" {
+		e.Clase = "tarea"
 	}
 	e.Artifacts = s.artefactosDe(slug)
 	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
@@ -671,7 +675,19 @@ type Effort struct {
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
-	Stage     string `json:"stage"` // evaluation | work | tasks
+	Stage string `json:"stage"` // evaluation | work | tasks
+	// CLASE: qué es esto, que es otra pregunta que en qué etapa está.
+	//
+	//	"tarea"     (default) trabajo del día a día sobre CreditOp. Va, o irá, a Jira.
+	//	"proyecto"  herramienta propia, exploración o mejora a futuro. NO va a Jira nunca.
+	//
+	// Existe porque el tablero las trataba igual y no lo son: medido el 2026-09-15, 23 de las 40
+	// abiertas no tienen clave de Jira, y buena parte son proyectos propios (las herramientas del
+	// playground, el corpus técnico, el SDK) a los que el tablero les pedía sección publicable y les
+	// reclamaba las piezas del cierre como si alguien fuera a leerlas del otro lado. ⚠ No se deduce de
+	// si hay clave de Jira ni de qué repo toca: hay trabajo sobre las herramientas que SÍ se publicó
+	// (CORE-421). Es una decisión, y por eso se declara.
+	Clase     string `json:"clase,omitempty"`
 	CreatedAt string `json:"createdAt"`
 	// TocadoEn: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
 	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `toques.go`.
@@ -706,6 +722,9 @@ type Effort struct {
 
 // Stages son las etapas válidas, en orden.
 var Stages = []string{"evaluation", "work", "tasks"}
+
+// Clases son las naturalezas válidas. Ver `Effort.Clase`.
+var Clases = []string{"tarea", "proyecto"}
 
 func validStage(s string) bool {
 	for _, v := range Stages {

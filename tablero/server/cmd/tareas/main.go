@@ -39,6 +39,7 @@ type Tarea struct {
 	ID       int      `json:"id"`
 	Title    string   `json:"title"`
 	Stage    string   `json:"stage"`
+	Clase    string   `json:"clase,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
 	Archived bool     `json:"archived"`
 	Jira     []string `json:"jira,omitempty"`
 	Nodos    []string `json:"context_nodes,omitempty"`
@@ -96,6 +97,8 @@ func leer(ruta string) (Tarea, string, error) {
 			t.Title = valor(l)
 		case strings.HasPrefix(l, "stage:"):
 			t.Stage = valor(l)
+		case strings.HasPrefix(l, "clase:"):
+			t.Clase = valor(l)
 		case strings.HasPrefix(l, "archived:"):
 			// El valor es la FECHA de archivado (así lo escribe el tablero y así lo lee el store:
 			// "" = viva). Acá decía `== "true"`, y como ningún archivo dice `true`, las 24 archivadas
@@ -121,8 +124,12 @@ func verLint(ruta string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	var fallas []string
+	var fallas, avisos []string
 	falla := func(f string, a ...any) { fallas = append(fallas, fmt.Sprintf(f, a...)) }
+	// Un AVISO se imprime pero no hace fallar: es algo que hay que mirar, no algo que esté roto. Existe
+	// por el caso de marcar una tarea como proyecto — su publicable queda ahí hasta que alguien la lea,
+	// y forzar el borrado en ese instante haría perder texto que quizá sirva para otra cosa.
+	avisa := func(f string, a ...any) { avisos = append(avisos, fmt.Sprintf(f, a...)) }
 
 	b, _ := os.ReadFile(ruta)
 	if !strings.HasPrefix(string(b), "---\n") {
@@ -130,6 +137,15 @@ func verLint(ruta string) int {
 	}
 	if t.Title == "" {
 		falla("`title` vacío: es el nombre compartido con Jira")
+	}
+	if t.Clase != "" && t.Clase != "tarea" && t.Clase != "proyecto" {
+		falla("clase «%s» no existe: `tarea` (va o irá a Jira) o `proyecto` (herramienta propia, exploración; no sale de acá)", t.Clase)
+	}
+	// Un PROYECTO no se comparte: si trae sección publicable, alguien la va a leer como si fuera para el
+	// equipo. Es aviso y no error del guard, porque el texto en sí puede estar perfecto — lo que está
+	// mal es que exista.
+	if t.Clase == "proyecto" && rePublic.MatchString(cuerpo) {
+		avisa("es `clase: proyecto` y conserva `## Tarea (publicable)`: un proyecto propio no sale a Jira. Revisala — o borrala, o cambiá la clase")
 	}
 	if !etapaValida(t.Stage) {
 		falla("etapa «%s» no existe (evaluation · work · tasks). Si la tarea terminó, va `archived: \"<fecha ISO>\"`, no otra etapa", t.Stage)
@@ -169,6 +185,9 @@ func verLint(ruta string) int {
 		for _, v := range guard.Violations(cuerpo[loc[1]:]) {
 			falla("la publicable no pasa el guard (%s): %q", v["what"], v["found"])
 		}
+	}
+	for _, a := range avisos {
+		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(ruta), a)
 	}
 	if len(fallas) == 0 {
 		return 0
@@ -573,7 +592,11 @@ func main() {
 		if len(t.Jira) > 0 {
 			j = "  " + strings.Join(t.Jira, ",")
 		}
-		fmt.Printf("  #%-3d %-10s %s%s\n", t.ID, t.Stage, t.Title, j)
+		clase := ""
+		if t.Clase == "proyecto" {
+			clase = " ·proyecto"
+		}
+		fmt.Printf("  #%-3d %-10s%s %s%s\n", t.ID, t.Stage, clase, t.Title, j)
 		fmt.Printf("       %s\n", t.Slug)
 	}
 	fmt.Println("\n  -n <slug|id> para una · -guard <archivo> antes de publicar · -json para encadenar")
