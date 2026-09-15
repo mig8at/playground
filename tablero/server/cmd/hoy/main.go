@@ -47,9 +47,13 @@ type tarea struct {
 }
 
 var (
-	reCita    = regexp.MustCompile(`^["']|["']$`)
-	reLista   = regexp.MustCompile(`\[(.*?)\]`)
-	reRetoma  = regexp.MustCompile(`(?m)^##\s+Si retom[áa]s esto sin contexto[^\n]*\n`)
+	reCita  = regexp.MustCompile(`^["']|["']$`)
+	reLista = regexp.MustCompile(`\[(.*?)\]`)
+	// ⚠ INSENSIBLE A MAYÚSCULAS Y CON NUMERACIÓN OPCIONAL. La tarea de Bancolombia titula su sección
+	// «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto no la veía: el cierre
+	// reclamaba «la sección no existe» sobre una tarea que la tiene desde julio. Un chequeo que
+	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
+	reRetoma  = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
 	reSeccion = regexp.MustCompile(`(?m)^##\s`)
 	reProximo = regexp.MustCompile(`(?is)\*\*El pr[óo]ximo paso es:?\*\*\s*(.*?)(?:\n\s*\n|\n##|\z)`)
 	reRegDia  = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})[^\n]*\n`)

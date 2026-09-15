@@ -105,6 +105,13 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ### 2026-09-15
 
+**Y el detector de la retoma no supo buscar.** Después de reestructurar, el cierre reclamó que
+`bancolombia` «no tiene sección Si retomás» — la tiene desde julio, titulada
+`## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ`. El patrón era exacto y sensible a mayúsculas.
+Ahora acepta numeración y mayúsculas, con test. Medido: era la única de las 40 en ese caso, pero es
+el mismo error que el repo ya documentó con `git grep` y `\s` — un chequeo que contesta «no hay»
+cuando no supo buscar es peor que no tenerlo.
+
 **Se aplicaron las cinco clases a las tareas pesadas que nadie tenía abiertas.** Criterio: sólo las que
 llevaban 14 días o más sin tocarse y sin archivo sucio por otra sesión —#15, #47, #46, #43; #71 y #68
 se miraron y no hacía falta: su peso es material y Registro legítimos—. Las cinco vivas hoy (#6, #72,

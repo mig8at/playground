@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -39,5 +40,23 @@ func TestLeerFrontmatterArchivadoEsFechaYRamasVanPorComa(t *testing.T) {
 	}
 	if !esRamaBase("legacy-backend/qa") || esRamaBase("legacy-backend/feat/qa-tools") {
 		t.Error("esRamaBase mira la rama entera, no una subcadena")
+	}
+}
+
+// La sección de retoma se reconoce aunque venga numerada y en mayúsculas: la tarea de Bancolombia la
+// titula «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto la daba por inexistente.
+func TestSeccionRetomaReconoceTitulosNumeradosYEnMayusculas(t *testing.T) {
+	for _, cuerpo := range []string{
+		"\n## Si retomás esto sin contexto, empezá acá\n\nHoy.\n\n## Objetivo\n",
+		"\n## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ\n\nHoy.\n\n## Objetivo\n",
+		"\n## 1. Si retomas esto sin contexto\n\nHoy.\n\n## Objetivo\n",
+	} {
+		if got := seccionRetoma(cuerpo); got != "Hoy." {
+			t.Errorf("no reconoció la sección en %q → %q", strings.SplitN(cuerpo, "\n", 3)[1], got)
+		}
+	}
+	// y no se inventa una donde no hay
+	if seccionRetoma("\n## Objetivo\n\nnada\n") != "" {
+		t.Error("sin sección tiene que dar vacío")
 	}
 }
