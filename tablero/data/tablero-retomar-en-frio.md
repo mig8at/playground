@@ -25,6 +25,12 @@ el diagnóstico inicial: está en el Registro. **La limpieza de los `CLAUDE.md` 
 build de Vite, **no en el navegador**: el server que corre en :8787 es el binario viejo de Miguel y no
 se reinició. Se ve al próximo `npm run dev`.
 
+**Al 15/9 se sumó el BARRIDO DE ENTREGA:** la medición de ramas mentía —un squash con el mensaje
+editado le cambia el patch-id y `git cherry` deja de reconocerlo—, así que ahora hay una segunda señal
+(el commit del PR) y cada ✓ dice cómo se supo. La tarjeta muestra «✓ main» sin abrir nada. De las 40
+abiertas, **12 están enteras en `main`** y 18 no se pueden medir porque no declaran `ramas:`
+(`make tareas-ramas SUGERIR=1` propone patrón: sólo una de las 18 tiene rama de verdad).
+
 **El próximo paso es:** correr una jornada entera con esto puesto y anotar qué molestó (el hook de
 `Stop` frenando en el medio del trabajo es el riesgo conocido) antes de tocar nada más.
 
@@ -90,6 +96,29 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 > `make cierre DIA=2026-09-10`
 
 ## Registro
+
+### 2026-09-15
+
+**Barrido de entrega: cuáles tareas están en `main`.** Miguel pidió que el ✓ de `main` apareciera
+cuando la tarea esté mergeada. Ya existía la columna, pero mentía en dos casos y no cubría a la mitad
+de las tareas. Lo medido y lo hecho:
+
+- **El patch-id no alcanza.** `frontend-monorepo#983` se mergeó con squash y mensaje editado → patch
+  distinto → `git cherry` lo daba por no llegado, teniéndolo en `main` desde el 14/9. Segunda señal: el
+  commit del PR como ancestro del ambiente. Cada ✓ guarda su procedencia (`patch` | `pr`) y la tabla los
+  distingue. Test con un repo temporal que reproduce el squash.
+- **Medir una tarea borraba las demás.** `ramas -n 62` dejaba el snapshot con esa sola; nada avisaba.
+  Ahora fusiona, y cada tarea lleva su fecha.
+- **18 de 40 tareas no declaran `ramas:`** y por eso no se miden. `SUGERIR=1` rankea ramas por lo que
+  comparten de raro; con las claves de Jira del cuerpo daba falsos positivos (le adjudicaba a Motai las
+  ramas de CORE-258 y CORE-431), así que salen del frontmatter. Resultado: **una sola** de las 18 tiene
+  rama de verdad (la 62), ya declarada y medida — las otras 17 todavía no tienen código.
+- **UI:** el resumen de entrega en el botón de la tarjeta (verde/ámbar/gris), columna `main` destacada,
+  fecha por tarea, y la URL de la API por variable para poder levantar una segunda instancia sin tumbar
+  el `npm run dev` de nadie.
+- **Lo que el barrido destapó:** Alta Fleet (#76) está en `main` desde el 14/9 y su tarea decía lo
+  contrario; se borraron sus dos marcas `⏳ PENDIENTE DE MERGE` y el `pending_merge` del `map.json`,
+  verificando antes archivo por archivo.
 
 ### 2026-09-14
 

@@ -13,6 +13,16 @@ jira_title: "Firma: el registro de evidencia guarda la fila de catálogo de la o
 `fix/rastro-documento-firmado-rama-de-politica` de `legacy-backend` (a partir de `main`,
 **sin pushear**). Queda esperando que se pida la tarea. El hallazgo del sistema es **F-154**.
 
+
+## Registro
+
+### 2026-09-15
+
+MEDIDA, no trabajada. El barrido de entrega del 15/9 propuso su patrón de rama y quedó declarado
+(`rastro-documento-firmado-rama`). Medición: la rama existe **sólo en local**, sin PR, y no llegó a
+ningún ambiente — así que lo que dice el estado de arriba sigue vigente. El tiempo de esta medición se
+registró en la tarea del tablero que la hizo, no acá.
+
 ## Cómo apareció
 
 Mirando en prod el alcance del hueco de documentos del Rent to Own (**F-152**), no del defecto en sí.
