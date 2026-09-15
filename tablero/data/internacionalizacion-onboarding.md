@@ -11,6 +11,11 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 
 # Internacionalización de CreditOp
 
+## Si retomás esto sin contexto, empezá acá
+
+> **MEDICIÓN · 2026-09-15** — de las 20 ramas declaradas, **18 están en `main`**. Las dos que no: `pais/borrar-documentos-de-sucursal` (PR `legacy-backend#1225`, **abierto contra `develop`** — es la migración bloqueada a propósito que nombra el estado de abajo) y `pais/reparar-columnas-de-documentos` (PR #1215, cerrado sin mergear). 14 días sin tocar la tarea.
+> `make retomar N=43`
+
 > **ESTADO (2026-09-01) — tercera tanda: el país ya no se supone, se escribe.** Lo de abajo, del 27/8 y
 > del 19/8, es historia y sigue siendo cierto para su momento. Esto es lo de hoy.
 >
@@ -1286,7 +1291,14 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 - El documento de una solicitud dominicana no dice «COLOMBIANA».
 - Si el país de un comercio no está configurado, el flujo sigue funcionando con el comportamiento actual.
 
-## Bitácora
+## Registro
+
+### 2026-09-15
+
+**Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: nada: sus secciones fechadas son decisiones y mediciones que siguen valiendo. Sólo se le puso encabezado a la retoma y «Bitácora» pasó a llamarse «Registro». El estado quedó
+con lo que sigue vigente, y arriba una medición de hoy de dónde está cada rama. El tiempo de esta pasada
+está en la tarea 84 del tablero, que es la que la hizo.
+
 - **2026-08-05** — Tarea abierta en evaluación. Barrido de contexto + verificación contra `main` de los dos
   repos y la BD local: las tres nociones de país, el fork de RD, los 28 archivos con `'+57'`, el predicado
   `isDoLogic` cuadruplicado, y el estado real de `countries`. Hallazgo que orienta el diseño:
@@ -1870,7 +1882,6 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   Para el celular, el prefijo ya se preselecciona; lo que queda quemado es la **lista** `[+1, +57]`, que
   ahora puede salir de `countries`.
 
-
 - **2026-08-25** — **Consolidación en una rama y un commit por repo, como pidió Miguel.** El admin ya
   puede editar los tipos de documento por entidad —lo que antes obligaba a tocar SQL—, y de paso
   salieron tres bugs: el guardado que borraba la config, un `fillable` que faltaba y un cast ausente en
@@ -1979,8 +1990,6 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
   3. `Modules/Onboarding/tests/Unit` tiene **86 fallas preexistentes en `qa`**, ninguna de esta
      campaña. Una es `OtpServiceTest`, que pasa 9 argumentos a un constructor de 10 desde mayo. Esa
      suite no está protegiendo nada.
-
-
 
 ## Tarea (publicable)
 

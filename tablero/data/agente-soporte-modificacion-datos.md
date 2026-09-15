@@ -20,6 +20,9 @@ jira_title: "Agente de soporte: modificación de datos"
 
 ## Si retomás esto sin contexto, empezá acá  ·  actualizado 2026-08-20
 
+> **MEDICIÓN · 2026-09-15** — el canal está en **`main`**: las ramas `support-bot-onto-develop` y `-onto-staging` de `legacy-backend` (PRs #1128 y #1095) y las rutas de `infrastructure` (PR #65) están en `develop`, `staging`, `qa` y `main`. La única sin llegar es la rama madre `feature/support-bot`, cuyo PR #1089 contra `main` se **cerró sin mergear** porque su trabajo entró por las otras dos. 25 días sin tocar la tarea. Lo que dice el estado de abajo (20/8) sigue siendo el estado.
+> `make retomar N=46`
+
 **Qué es:** canal de WhatsApp para que un asesor pida cambios de datos de un cliente y el cliente los
 autorice (más una autogestión del cliente para fecha de pago y plazo). Código en `Modules/SupportBot`
 de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
@@ -233,241 +236,6 @@ Lo que sigue son cuatro cosas y ninguna es escribir endpoints:
 no 404) y que el token que dieron tenga forma válida (la tiene: 64 hex). El OTP también está construido.
 
 ---
-
-## Estado del código — 2026-08-14 · **PRIMER TRAMO EN REVIEW**
-
-**PR [#1095](https://github.com/Creditop-SAS/legacy-backend/pull/1095) → `staging`, mergeable**, un
-solo commit **`9e094e20`**, 29 archivos, +1846 / −464. Rama
-`feature/support-bot-onto-staging` en `legacy-backend`, sobre el HEAD de `origin/staging`
-(`eddc3644`). **27 tests del módulo en verde.**
-
-Qué trae: el módulo `Modules/SupportBot` (proveedores, rutas, middleware de token,
-`ClientLookupService`, `SelfServiceController`, `SupportBotRequest`, `AuthorizationState`, comando de
-humo), las **3 migraciones**, y el refactor de los dos `CreditChangeController` (Consumer + Customer)
-extrayendo `CreditChangeService`.
-
-**LOS 16 ENDPOINTS ESTÁN CONSTRUIDOS**, y coinciden uno a uno con los de los prototipos. Del canal no
-falta código: lo que queda es desplegar y dos decisiones sin dueño (ver §«Preguntas abiertas»).
-
-### Lo que se decidió con Miguel el 2026-08-14, en orden
-
-1. **Todo lo que consume el bot entra por `/api/support/*`**, incluidas las 5 capacidades que también
-   existen como endpoints del crédito. Ver el bloque en §«Las APIs a entregar».
-2. **La validación de `wa` se deja sin formato** (presente, texto, ≤32). Un `wa=abc` sale por 404,
-   indistinguible de un número no registrado.
-3. **El backend lleva sólo el estado de AUTORIZACIÓN**; el recorrido conversacional es de n8n. Ver
-   §«Reparto del trabajo» → «el estado eran dos cosas».
-4. **El correo queda fuera por alcance.** Los prototipos sólo recorren celular, fecha de pago y plazo.
-   Sumarlo después es una línea en `CAMPOS_CONTACTO` más su validación de forma.
-5. **La autogestión exige celular + cédula.** El número dice de quién es la línea, la cédula de qué
-   crédito hablamos. Una cédula que no coincide responde con el cuerpo **idéntico** al de un número no
-   registrado: distinguirlos sería un oráculo, porque `by-phone` ya deja ver 7 de los 10 dígitos del
-   documento y se podría completar el resto probando.
-6. **El OTP es nuestro, no de n8n.** Filipo propuso validar el código de su lado y avisarnos «está
-   correcto»; se descartó porque el `otp_id` desaparecería y un booleano en un request es una
-   afirmación, no una prueba. La diferencia con su propuesta es un solo paso: nos reenvía el código en
-   vez de un «sí». Para él es menos trabajo —no guarda códigos, ni vencimientos, ni contadores— y lo
-   protege: si hay una disputa, «el workflow dijo que estaba ok» le pone la responsabilidad encima.
-
-### 🔴 Un defecto de `main`/`staging` que el refactor destapó y corrige
-
-Los dos `CreditChangeController` **no eran copias literales**. El de Consumer llama a
-`UserRequestRepository::update()` —que existe— y el de Customer a **`updateUserRequest()`, que no
-existe ni en el repositorio ni en su interfaz** (verificado: no está en ningún lado; las que se llaman
-parecido son de otros servicios con otra firma).
-
-O sea que el cambio de plazo por `requests/{id}/change-fee-number` y
-`customer/requests/{id}/change-fee-number` **falla siempre** con «Call to undefined method», pasadas
-la validación y la elegibilidad. Al unificar queda la llamada correcta: **esas dos rutas pasan de 500
-a funcionar**. Es un cambio de comportamiento sobre una ruta que consume la app móvil, y es lo único
-que yo miraría con lupa en review.
-
-### Verificación de impacto antes de mergear
-
-Lo que importaba no era la respuesta HTTP sino **qué queda escrito**: `creditop_x_requests_history` es
-un ledger event-sourced que consumen 6 crons de servicing en `application` y 3 de bloqueo de
-dispositivos en legacy (nodos `servicing` y `creditopx`).
-
-Se ejecutaron **un cambio de fecha y uno de plazo reales**, desde el mismo estado de partida, con y
-sin el cambio, contra una copia de la BD local: **mismas filas** en `creditop_x_requests_history`,
-`creditop_x_changes_log`, `creditop_x_log` y `user_requests`. Para el plazo la referencia fue la
-implementación de **Consumer**, que es la que sí funcionaba.
-
-Además: nadie fuera del módulo usa `CreditChangeService`; las 4 migraciones no chocan (3 `CREATE` y 1
-`ALTER` sobre tabla propia); el módulo no pisa ninguna ruta ni alias, y no hay rutas duplicadas en
-todo el repo.
-
-⚠ **Dos mediciones mías dieron falsos positivos antes de corregirlas**, y conviene saberlo para
-repetir el trabajo: `opcache.revalidate_freq=2` sirve el código de la rama anterior si no se reinicia
-php-fpm entre corridas, y un `git switch` falla en silencio si el árbol está sucio — con lo que se
-termina comparando una rama contra sí misma. La confianza está en las corridas finales.
-
-### 🔑 El OTP ya estaba hecho — el hallazgo que más cambia la estimación (2026-08-14)
-
-`Modules/Onboarding/App/Services/OtpService.php` tiene el ciclo completo (`sendOtpCode`,
-`validateOtpCode`, `verifyOtpCode`, `markOtpAsValidated`, `enableOtpAgain`, envío por SMS y por
-WhatsApp) y la tabla `otps` tiene **295.450 filas**: está en producción hace rato. Y la firma es
-
-```
-validateOtpCode(ValidateOtpCodeRequest $req, bool $includeOtpId = false): array
-```
-
-con el docblock diciendo `'otp_id' => ?int (only when $includeOtpId)`. **Ese parámetro devuelve
-exactamente lo que CORE-258 necesita como prueba de autorización.** Alguien ya lo previó. El tramo del
-OTP fue **cablear, no construir**.
-
-⚠ Dos cosas al reusarlo. Una: `OtpService` manda por **Twilio directo**
-(`config('services.twilio.sms_sid')`, con `messagingServiceSid` hardcodeado), **no** por
-`messaging-service` — y legacy-backend sí tiene clientes de `messaging-service` en otros lados
-(`MessagingServiceClient`, `MessagingServiceRepository`). Hay **dos caminos a Twilio conviviendo**; se
-eligió reusar `OtpService` tal cual y dejar la unificación como deuda aparte. Dos: `messaging-service`
-sólo tiene 4 endpoints (`/api/v1/messages`, `/messages/send`, `/emails`, `/emails/send`) — es
-**transporte**, no sabe de OTP. Filipo no puede resolver el OTP con él: generar y validar tiene que
-ser nuestro, o el `otp_id` no prueba nada.
-
-### El segundo factor, construido (commit `fe19d64e`)
-
-`POST /self/otp` emite y manda; `POST /self/otp/verify` valida y abre la sesión. Encima,
-`SessionService` + `SupportBotSession` sobre `AuthorizationState`.
-
-**La decisión que define el diseño: el `otp_id` NUNCA sale en una respuesta.** Se guarda en el
-contexto de la sesión y de ahí lo van a leer los endpoints de cambio. Si viajara al bot, éste podría
-reusarlo o inventarlo y la fila de auditoría volvería a no significar nada. Hay un test que se pone
-rojo si alguien lo agrega a la respuesta.
-
-Detalles que costaron pensarse y conviene no revertir por descuido:
-
-- **Los intentos se cuentan en la BD** (3), no en memoria: reiniciar n8n no puede regalar intentos o
-  el código de 6 dígitos sería fuerza-bruteable. Al agotarlos vuelve a `identified` —sigue siendo
-  quien es, pero la prueba empieza de cero— **y se resetean**, si no el reintento nacería agotado.
-- **`lockForUpdate` en las transiciones**: dos mensajes del mismo número pueden llegar casi juntos
-  (WhatsApp no serializa nada) y sin el lock dos fallos concurrentes contarían como uno.
-- **Un `code` con letras se rechaza por forma ANTES de tocar el OTP**: un error del orquestador no
-  debería costarle a la persona uno de sus tres intentos. Con `wa` es al revés y a propósito, porque
-  la consecuencia es distinta.
-- **La sesión dura 15 minutos** y el reloj se reinicia al verificar, no al empezar a escribir.
-- ⚠ **En local el código siempre valida**: `ONBOARDING_DRIVER_OTP=fake`. La rama del código
-  equivocado sólo se ejercita en los tests, con el `OtpService` simulado. Por eso el mock está: el
-  real manda un SMS de verdad por Twilio, y contra la copia local —que es un dump de prod— le
-  llegaría a un cliente real.
-
-### Cómo se llegó acá (por si hay que reconstruir el razonamiento)
-
-- La rama nació de `main`; se pidió bajarla a `staging`. Se hizo por cherry-pick, verificado línea por
-  línea: las **1793 agregadas y 464 borradas son idénticas** a las de la rama sobre `main`, salvo las
-  dos comas de las listas de módulos. La rama original `feature/support-bot` (commit `e535c605`) queda
-  como respaldo, y su **PR #1089 se cerró** apuntando al #1095.
-- Conflictos del trasplante: `composer.json` y `modules_statuses.json`, los dos «ambos agregaron al
-  final de la lista». ⚠ `staging` **no tiene** los módulos `Backoffice` ni `Auth` ni la dependencia
-  `firebase/php-jwt`; este módulo no usa ninguno, verificado clase por clase sobre los `use` del
-  commit.
-- ⚠ **`staging` y `main` son líneas largamente divergidas**: se separaron el 2026-07-22 (`21e46a0d`) y
-  `main` le lleva ~117 commits. Cambiarle la base a un PR desde GitHub **no sirve** — mostraría esos
-  117 como ruido. Hay que rebasar.
-- **El refactor no cambia comportamiento, medido**: se compararon **144 peticiones** a los 18
-  endpoints que pasan por los controllers refactorizados —mismo id, mismo endpoint— contra `staging`
-  sin el cambio: idénticas en código HTTP, cuerpo y claves (80×200, 64×422). ⚠ Hay que **reiniciar
-  php-fpm entre corridas**: `opcache.revalidate_freq=2` sirve el código de la rama anterior y
-  contamina la comparación (me pasó, y la primera medición dio un falso «mejoró»).
-
-### Defecto propio encontrado y arreglado: el 302
-
-`FormRequest` elige el formato de la respuesta con `expectsJson()`, o sea con la cabecera `Accept` del
-cliente. Sin ella responde **302 al home** y deja los errores en sesión — correcto para un formulario
-web, inservible para el bot, que no tiene navegador y puede no mandar `Accept`. Medido: una llamada
-sin el parámetro `wa` recibía la página de inicio, que el bot no puede distinguir de una caída.
-
-Arreglado con `SupportBotRequest`, base del canal que sobrescribe `failedValidation`. **No** se fuerza
-la cabecera de entrada a propósito: cambiaría también el formato de los errores que no son de
-validación. Los 11 endpoints que faltan heredan el comportamiento.
-
-**Decidido: la validación de `wa` se queda como está** (presente, texto, ≤32 caracteres, sin validar
-formato de teléfono). Consecuencia aceptada: un `wa=abc` pasa la validación y sale por
-`404 CLIENT_NOT_FOUND`, indistinguible de un número real no registrado.
-
-### Migraciones: **ya corridas en la BD de dev/staging**
-
-Las 3 tablas creadas el 2026-08-14, **0 migraciones pendientes** allá. Los 3 pendientes que había en
-dev eran exactamente los de esta tarea, así que no se arrastró nada ajeno. Son puro `Schema::create`,
-sin `ALTER` sobre tablas existentes ni foreign keys, y con `dropIfExists` en el `down()`: reversible
-con `migrate:rollback --step=3`. **Quedan pendientes para producción.**
-
-### Validado contra la BD de dev
-
-Con la app local corriendo este código apuntada a la base de dev (227.793 usuarios allá contra
-228.048 en la copia local — así se comprueba que de verdad leía dev). Los 8 casos correctos: 401 sin
-token y con token equivocado, **422 sin el parámetro `wa`** (el 302 arreglado), 404 para número
-inexistente / `TEMPORAL USER` / perfil no-cliente, y 200 con documento enmascarado para un cliente
-real, en formato nacional y en formato Twilio. **Las 3 tablas del canal quedaron en 0 filas**: el
-canal lee y no escribe.
-
-### Para desplegar — el estado de infra (medido contra dev el 2026-08-20)
-
-De los tres puntos, **dos ya están hechos** y queda uno:
-
-> **MEDICIÓN · 2026-08-20** — contra el API Gateway público de dev, el canal responde 503
-> `CHANNEL_NOT_CONFIGURED` con y sin token. Prueba que `SUPPORT_BOT_TOKEN` está VACÍO en el backend.
-> `curl -s https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
-> `# 503; ruta inventada → 404, así que el 503 viene del backend, no del gateway`
-
-1. ✅ **`SUPPORT_BOT_TOKEN` — RESUELTO el 2026-08-20.** La clave estaba en el secreto de la cuenta
-   equivocada; se agregó en la que corre el servicio y con el redespliegue el canal empezó a responder.
-
-   > **MEDICIÓN · 2026-08-20** — el canal pasó de 503 a 422 a las 11:24:36, con la revisión nueva ya
-   > corriendo. Sin token y con token inválido da 401; con el correcto, 422 del controlador. Y
-   > `self/by-phone` con un número inexistente da 404 `CLIENT_NOT_FOUND`: la cadena llega a la BD.
-   > `curl -s -o /dev/null -w '%{http_code}' https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
-
-   **La lección, porque costó dos vueltas:** el 503 del middleware significa «el token esperado está
-   VACÍO», no «el token no coincide» —eso es 401—. Esa distinción es la que permitió saber, sin acceso a
-   la cuenta correcta, que la variable no llegaba al contenedor. Y el nombre de familia de la task
-   definition es el MISMO en las dos cuentas, que es lo que hizo fácil medir en la que no atiende.
-
-   *(Lo que decía antes acá — «el secreto está, la task definition quedó vieja» — estaba medido en la
-   cuenta 697767917359, que no es la que sirve dev. Ver Registro 2026-08-20 (3).)*
-
-   > **MEDICIÓN · 2026-08-20** — el secreto `dev/legacy-backend` tiene 164 claves, incluida
-   > `SUPPORT_BOT_TOKEN` (64 hex, correcta). La task definition `legacy-backend-develop:199` enumera
-   > **163**. La diferencia es exactamente 1: la que se agregó.
-   > `aws ecs describe-task-definition --task-definition legacy-backend-develop --query 'taskDefinition.containerDefinitions[].secrets[].name'`
-
-   **Por qué agregar la clave al secreto NO alcanza.** El módulo de Terraform arma la lista de secretos
-   iterando las claves del JSON (`modules/ecs-application/task-definition.tf`, local
-   `service_secret_values`), pero la lee con un **data source, en tiempo de plan**. Así que la clave
-   nueva sólo entra a la task definition cuando alguien vuelve a aplicar Terraform. La revisión 199 se
-   registró el **2026-08-05** y el servicio sigue corriendo esa misma revisión: no se aplicó ni se
-   redesplegó desde entonces.
-
-   **Acción para infra, en dos pasos:** aplicar `environments/dev/ecs-application` (registra una
-   revisión nueva con la entrada 164) y redesplegar el servicio `legacy-backend` del cluster
-   `creditop-develop`. Con eso la variable llega al contenedor.
-
-   ✅ **Y NO hace falta tocar el cableado ni limpiar caches:** el servicio ya declara
-   `secret = "dev/legacy-backend"` (el lugar correcto), y `config:cache` no corre en el build ni en el
-   arranque —se verificó en `Dockerfile`, workflows y `bootstrap/cache/`—, así que no hay una segunda
-   pared esperando después del apply.
-2. ✅ **Gateway — HECHO.** Repo `infrastructure`, commit `67df336`, mergeado a `develop` (PR #65). Las
-   **16 rutas** están expuestas una por una (no por comodín) bajo el prefijo **`/legacy-api/support/*`**
-   → reescritas a `/api/support/*` contra el host `legacy-backend.develop.internal.creditop.com`, sin
-   authorizer de Cognito. ⚠ Ojo con el prefijo: es `/legacy-api`, no `/api` — y la URL pública es
-   `api.dev.creditop.com`, sin `/dev` de stage (con `/dev` da 404).
-3. ✅ **La pregunta de seguridad — CONTESTADA por la config.** El gateway NO reenvía `x-user-id`: cada
-   ruta declara `overwrite:header.host` y no copia cabeceras del cliente, y las rutas de support no
-   llevan authorizer, así que nadie inyecta identidad por ahí. El riesgo que se temía (que el gateway
-   pasara `x-user-id` a `ResolveCognitoUser`) no aplica a `/legacy-api/support/*`, que resuelve identidad
-   por OTP. **Sigue valiendo revisarlo para las rutas viejas `api/loans/consumer/credits/*`**, que sí
-   dependen de esa cabecera — pero eso es otra tarea.
-
-Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
-Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,
-el cliente lo autoriza desde el suyo, y nada se escribe hasta que hay consentimiento.
-
-**Y desde la reunión con Manuela y Filipo (2026-08-12), un segundo frente**: el cliente puede
-gestionar **por su cuenta** su fecha de pago y su plazo, sin asesor de por medio. Mismo canal, misma
-verdad en el backend, pero **otro recorrido** — se identifica solo y no hay tercero que autorice. Los
-datos de contacto **no** entran en la autogestión: siguen necesitando a un asesor que los pida.
-
-**Qué hay que construir**: 16 endpoints, 11 de ellos nuevos — ver §«Las APIs a entregar».
 
 ## Por qué existe — el estado de hoy, verificado
 
@@ -1091,68 +859,6 @@ cambio más chico de los 16 — un parámetro y una escritura.
    (`pendiente_autorizacion → autorizada → aplicada | rechazada | bloqueada`). Un log guarda el
    desenlace; acá el registro **es** el flujo.
 
-## Lo que falta para que el canal funcione — 2026-08-14
-
-> ⚠ **Esta sección es del 14/8 y varias de sus filas ya cambiaron** — lo vigente está arriba, en
-> §«Lo que queda pendiente». Se conserva porque el razonamiento sigue valiendo: por qué la autogestión
-> no espera a Meta y qué puede avanzar Filipo en paralelo. Lo que YA no es cierto: las 2 rutas de cambio
-> existen, están mergeadas y hay filas con `otp_id` real en dev.
-
-Suponiendo el PR mergeado, desplegado, con la variable puesta y la ruta en el gateway: **funciona una
-sola cosa** — resolver de quién es un número de WhatsApp. Después de identificar a la persona no hay
-siguiente paso.
-
-### El camino más corto a algo usable: la autogestión
-
-Y hay una razón para empezar por ahí que no es de esfuerzo: **las plantillas de Meta sólo bloquean el
-flujo del asesor**. Ahí el cliente *no escribió primero* —lo estamos interrumpiendo— y el primer
-mensaje tiene que ser plantilla aprobada. En autogestión **el cliente escribe primero**, así que la
-ventana de 24 h está abierta y el texto libre está permitido. La autogestión no espera a Meta.
-
-| pieza | de quién | estado |
-|---|---|---|
-| identificar por número + cédula | nuestro | ✅ hecho |
-| OTP + máquina de sesión | nuestro | ✅ hecho |
-| 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | ✅ hecho |
-| 2 rutas de cambio, con `otp_id` real | nuestro | ✅ hecho |
-| flujo del asesor (8 rutas) | nuestro | ✅ hecho |
-| webhook de WhatsApp + conversación | Filipo | **no existe en ningún lado** |
-
-**De nuestro lado no queda ninguna ruta.** Las dos reglas que sostienen las de crédito quedaron
-aplicadas y escritas en `routes/supportbot.php`: exigen sesión en `otp_verified` —si no, el
-`user_request_id` va en la URL y es enumerable— y toman el `otp_id` de la sesión, nunca de la
-petición.
-
-Lo que falta para que el canal FUNCIONE es de infraestructura y de Filipo: las 4 migraciones en cada
-ambiente, `SUPPORT_BOT_TOKEN`, exponer `/api/support/*` en el gateway, y del otro lado el webhook de
-entrada con verificación de firma más la capa conversacional.
-
-Recordatorio de por qué importa el `otp_id`: **las 31 filas de `creditop_x_changes_log` en dev tienen
-todas `otp_id = 0`** (verificado 2026-08-14). Hasta que esos 2 endpoints existan, el cambio se sigue
-guardando sin prueba de autorización.
-
-El flujo del asesor son **8 rutas más**, y ese sí depende de las plantillas. Va después, en paralelo
-con la aprobación.
-
-**Buena noticia para estimar**: parte de esas 15 ya tiene la lógica hecha y probada en el PR.
-`ClientLookupService` expone `findForAdvisor`, `alliedsOf` y `operableRequestsFor`, los tres con tests
-en verde, y son exactamente lo que necesita `GET /support/clients?document=`. Lo que hay que construir
-de cero es la sesión y el OTP — y para el OTP hay servicios reusables en el repo
-(`Modules/Onboarding/App/Services/OtpService.php`, `Modules/Loans/App/Services/OtpService.php`,
-`Modules/System/App/Repositories/OtpServiceRepository.php`): habría que ver cuál sirve y meterlo por
-inyección, no escribir otro.
-
-### Qué puede avanzar Filipo desde ya, sin esperarnos
-
-- **Las plantillas de Meta** — el camino crítico más largo, con lead time de días y rechazos posibles.
-- **El webhook de entrada con verificación de firma**, que hoy no existe en ningún lado.
-- **La capa NLU** (`POST /nlu/interpretar`), que ya está listada como entregable suyo.
-- Y con el contrato ya fijado —bearer token, envelope `{success, message, errors.error_code}`, los 4
-  códigos— puede escribir su cliente HTTP, el manejo de errores y los reintentos **una vez** y
-  reusarlos para los 16. **Darle la especificación de los 15 que faltan lo desbloquea sin que
-  esperemos a implementarlas**: armaría el flujo de n8n contra un mock y después sólo cambia la URL
-  base.
-
 ## Preguntas abiertas
 
 - 🔴 **¿Quién manda el mensaje de confirmación después de un cambio?** Descubierto 2026-08-14 y **sin
@@ -1617,6 +1323,12 @@ castigo pega sobre el número que también se usa para cobrar.
 ---
 
 ## Registro
+
+### 2026-09-15
+
+**Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: «Estado del código — 14/8» y «Lo que falta — 14/8», dos fotos del estado que el estado del 20/8 ya había reemplazado. El estado quedó
+con lo que sigue vigente, y arriba una medición de hoy de dónde está cada rama. El tiempo de esta pasada
+está en la tarea 84 del tablero, que es la que la hizo.
 
 <!-- append-only, lo nuevo arriba. (Esta tarea no tenía sección de registro; se agrega siguiendo
      PLANTILLA-TAREA.md. Lo de arriba es el ESTADO, que se reescribe; esto es qué pasó cada día.) -->
@@ -2616,6 +2328,305 @@ recorrido, por si hay que rehacerlo:
   `legacy-api.develop…` a `legacy-backend.develop.internal.creditop.com`.
 - El gateway enumera las 16 (cero comodines) y no reenvía `x-user-id` → eso cierra la pregunta de
   seguridad para estas rutas.
+
+### 2026-08-14
+
+**Estado del código — 2026-08-14 · **PRIMER TRAMO EN REVIEW****
+
+**PR [#1095](https://github.com/Creditop-SAS/legacy-backend/pull/1095) → `staging`, mergeable**, un
+solo commit **`9e094e20`**, 29 archivos, +1846 / −464. Rama
+`feature/support-bot-onto-staging` en `legacy-backend`, sobre el HEAD de `origin/staging`
+(`eddc3644`). **27 tests del módulo en verde.**
+
+Qué trae: el módulo `Modules/SupportBot` (proveedores, rutas, middleware de token,
+`ClientLookupService`, `SelfServiceController`, `SupportBotRequest`, `AuthorizationState`, comando de
+humo), las **3 migraciones**, y el refactor de los dos `CreditChangeController` (Consumer + Customer)
+extrayendo `CreditChangeService`.
+
+**LOS 16 ENDPOINTS ESTÁN CONSTRUIDOS**, y coinciden uno a uno con los de los prototipos. Del canal no
+falta código: lo que queda es desplegar y dos decisiones sin dueño (ver §«Preguntas abiertas»).
+
+#### Lo que se decidió con Miguel el 2026-08-14, en orden
+
+1. **Todo lo que consume el bot entra por `/api/support/*`**, incluidas las 5 capacidades que también
+   existen como endpoints del crédito. Ver el bloque en §«Las APIs a entregar».
+2. **La validación de `wa` se deja sin formato** (presente, texto, ≤32). Un `wa=abc` sale por 404,
+   indistinguible de un número no registrado.
+3. **El backend lleva sólo el estado de AUTORIZACIÓN**; el recorrido conversacional es de n8n. Ver
+   §«Reparto del trabajo» → «el estado eran dos cosas».
+4. **El correo queda fuera por alcance.** Los prototipos sólo recorren celular, fecha de pago y plazo.
+   Sumarlo después es una línea en `CAMPOS_CONTACTO` más su validación de forma.
+5. **La autogestión exige celular + cédula.** El número dice de quién es la línea, la cédula de qué
+   crédito hablamos. Una cédula que no coincide responde con el cuerpo **idéntico** al de un número no
+   registrado: distinguirlos sería un oráculo, porque `by-phone` ya deja ver 7 de los 10 dígitos del
+   documento y se podría completar el resto probando.
+6. **El OTP es nuestro, no de n8n.** Filipo propuso validar el código de su lado y avisarnos «está
+   correcto»; se descartó porque el `otp_id` desaparecería y un booleano en un request es una
+   afirmación, no una prueba. La diferencia con su propuesta es un solo paso: nos reenvía el código en
+   vez de un «sí». Para él es menos trabajo —no guarda códigos, ni vencimientos, ni contadores— y lo
+   protege: si hay una disputa, «el workflow dijo que estaba ok» le pone la responsabilidad encima.
+
+#### 🔴 Un defecto de `main`/`staging` que el refactor destapó y corrige
+
+Los dos `CreditChangeController` **no eran copias literales**. El de Consumer llama a
+`UserRequestRepository::update()` —que existe— y el de Customer a **`updateUserRequest()`, que no
+existe ni en el repositorio ni en su interfaz** (verificado: no está en ningún lado; las que se llaman
+parecido son de otros servicios con otra firma).
+
+O sea que el cambio de plazo por `requests/{id}/change-fee-number` y
+`customer/requests/{id}/change-fee-number` **falla siempre** con «Call to undefined method», pasadas
+la validación y la elegibilidad. Al unificar queda la llamada correcta: **esas dos rutas pasan de 500
+a funcionar**. Es un cambio de comportamiento sobre una ruta que consume la app móvil, y es lo único
+que yo miraría con lupa en review.
+
+#### Verificación de impacto antes de mergear
+
+Lo que importaba no era la respuesta HTTP sino **qué queda escrito**: `creditop_x_requests_history` es
+un ledger event-sourced que consumen 6 crons de servicing en `application` y 3 de bloqueo de
+dispositivos en legacy (nodos `servicing` y `creditopx`).
+
+Se ejecutaron **un cambio de fecha y uno de plazo reales**, desde el mismo estado de partida, con y
+sin el cambio, contra una copia de la BD local: **mismas filas** en `creditop_x_requests_history`,
+`creditop_x_changes_log`, `creditop_x_log` y `user_requests`. Para el plazo la referencia fue la
+implementación de **Consumer**, que es la que sí funcionaba.
+
+Además: nadie fuera del módulo usa `CreditChangeService`; las 4 migraciones no chocan (3 `CREATE` y 1
+`ALTER` sobre tabla propia); el módulo no pisa ninguna ruta ni alias, y no hay rutas duplicadas en
+todo el repo.
+
+⚠ **Dos mediciones mías dieron falsos positivos antes de corregirlas**, y conviene saberlo para
+repetir el trabajo: `opcache.revalidate_freq=2` sirve el código de la rama anterior si no se reinicia
+php-fpm entre corridas, y un `git switch` falla en silencio si el árbol está sucio — con lo que se
+termina comparando una rama contra sí misma. La confianza está en las corridas finales.
+
+#### 🔑 El OTP ya estaba hecho — el hallazgo que más cambia la estimación (2026-08-14)
+
+`Modules/Onboarding/App/Services/OtpService.php` tiene el ciclo completo (`sendOtpCode`,
+`validateOtpCode`, `verifyOtpCode`, `markOtpAsValidated`, `enableOtpAgain`, envío por SMS y por
+WhatsApp) y la tabla `otps` tiene **295.450 filas**: está en producción hace rato. Y la firma es
+
+```
+validateOtpCode(ValidateOtpCodeRequest $req, bool $includeOtpId = false): array
+```
+
+con el docblock diciendo `'otp_id' => ?int (only when $includeOtpId)`. **Ese parámetro devuelve
+exactamente lo que CORE-258 necesita como prueba de autorización.** Alguien ya lo previó. El tramo del
+OTP fue **cablear, no construir**.
+
+⚠ Dos cosas al reusarlo. Una: `OtpService` manda por **Twilio directo**
+(`config('services.twilio.sms_sid')`, con `messagingServiceSid` hardcodeado), **no** por
+`messaging-service` — y legacy-backend sí tiene clientes de `messaging-service` en otros lados
+(`MessagingServiceClient`, `MessagingServiceRepository`). Hay **dos caminos a Twilio conviviendo**; se
+eligió reusar `OtpService` tal cual y dejar la unificación como deuda aparte. Dos: `messaging-service`
+sólo tiene 4 endpoints (`/api/v1/messages`, `/messages/send`, `/emails`, `/emails/send`) — es
+**transporte**, no sabe de OTP. Filipo no puede resolver el OTP con él: generar y validar tiene que
+ser nuestro, o el `otp_id` no prueba nada.
+
+#### El segundo factor, construido (commit `fe19d64e`)
+
+`POST /self/otp` emite y manda; `POST /self/otp/verify` valida y abre la sesión. Encima,
+`SessionService` + `SupportBotSession` sobre `AuthorizationState`.
+
+**La decisión que define el diseño: el `otp_id` NUNCA sale en una respuesta.** Se guarda en el
+contexto de la sesión y de ahí lo van a leer los endpoints de cambio. Si viajara al bot, éste podría
+reusarlo o inventarlo y la fila de auditoría volvería a no significar nada. Hay un test que se pone
+rojo si alguien lo agrega a la respuesta.
+
+Detalles que costaron pensarse y conviene no revertir por descuido:
+
+- **Los intentos se cuentan en la BD** (3), no en memoria: reiniciar n8n no puede regalar intentos o
+  el código de 6 dígitos sería fuerza-bruteable. Al agotarlos vuelve a `identified` —sigue siendo
+  quien es, pero la prueba empieza de cero— **y se resetean**, si no el reintento nacería agotado.
+- **`lockForUpdate` en las transiciones**: dos mensajes del mismo número pueden llegar casi juntos
+  (WhatsApp no serializa nada) y sin el lock dos fallos concurrentes contarían como uno.
+- **Un `code` con letras se rechaza por forma ANTES de tocar el OTP**: un error del orquestador no
+  debería costarle a la persona uno de sus tres intentos. Con `wa` es al revés y a propósito, porque
+  la consecuencia es distinta.
+- **La sesión dura 15 minutos** y el reloj se reinicia al verificar, no al empezar a escribir.
+- ⚠ **En local el código siempre valida**: `ONBOARDING_DRIVER_OTP=fake`. La rama del código
+  equivocado sólo se ejercita en los tests, con el `OtpService` simulado. Por eso el mock está: el
+  real manda un SMS de verdad por Twilio, y contra la copia local —que es un dump de prod— le
+  llegaría a un cliente real.
+
+#### Cómo se llegó acá (por si hay que reconstruir el razonamiento)
+
+- La rama nació de `main`; se pidió bajarla a `staging`. Se hizo por cherry-pick, verificado línea por
+  línea: las **1793 agregadas y 464 borradas son idénticas** a las de la rama sobre `main`, salvo las
+  dos comas de las listas de módulos. La rama original `feature/support-bot` (commit `e535c605`) queda
+  como respaldo, y su **PR #1089 se cerró** apuntando al #1095.
+- Conflictos del trasplante: `composer.json` y `modules_statuses.json`, los dos «ambos agregaron al
+  final de la lista». ⚠ `staging` **no tiene** los módulos `Backoffice` ni `Auth` ni la dependencia
+  `firebase/php-jwt`; este módulo no usa ninguno, verificado clase por clase sobre los `use` del
+  commit.
+- ⚠ **`staging` y `main` son líneas largamente divergidas**: se separaron el 2026-07-22 (`21e46a0d`) y
+  `main` le lleva ~117 commits. Cambiarle la base a un PR desde GitHub **no sirve** — mostraría esos
+  117 como ruido. Hay que rebasar.
+- **El refactor no cambia comportamiento, medido**: se compararon **144 peticiones** a los 18
+  endpoints que pasan por los controllers refactorizados —mismo id, mismo endpoint— contra `staging`
+  sin el cambio: idénticas en código HTTP, cuerpo y claves (80×200, 64×422). ⚠ Hay que **reiniciar
+  php-fpm entre corridas**: `opcache.revalidate_freq=2` sirve el código de la rama anterior y
+  contamina la comparación (me pasó, y la primera medición dio un falso «mejoró»).
+
+#### Defecto propio encontrado y arreglado: el 302
+
+`FormRequest` elige el formato de la respuesta con `expectsJson()`, o sea con la cabecera `Accept` del
+cliente. Sin ella responde **302 al home** y deja los errores en sesión — correcto para un formulario
+web, inservible para el bot, que no tiene navegador y puede no mandar `Accept`. Medido: una llamada
+sin el parámetro `wa` recibía la página de inicio, que el bot no puede distinguir de una caída.
+
+Arreglado con `SupportBotRequest`, base del canal que sobrescribe `failedValidation`. **No** se fuerza
+la cabecera de entrada a propósito: cambiaría también el formato de los errores que no son de
+validación. Los 11 endpoints que faltan heredan el comportamiento.
+
+**Decidido: la validación de `wa` se queda como está** (presente, texto, ≤32 caracteres, sin validar
+formato de teléfono). Consecuencia aceptada: un `wa=abc` pasa la validación y sale por
+`404 CLIENT_NOT_FOUND`, indistinguible de un número real no registrado.
+
+#### Migraciones: **ya corridas en la BD de dev/staging**
+
+Las 3 tablas creadas el 2026-08-14, **0 migraciones pendientes** allá. Los 3 pendientes que había en
+dev eran exactamente los de esta tarea, así que no se arrastró nada ajeno. Son puro `Schema::create`,
+sin `ALTER` sobre tablas existentes ni foreign keys, y con `dropIfExists` en el `down()`: reversible
+con `migrate:rollback --step=3`. **Quedan pendientes para producción.**
+
+#### Validado contra la BD de dev
+
+Con la app local corriendo este código apuntada a la base de dev (227.793 usuarios allá contra
+228.048 en la copia local — así se comprueba que de verdad leía dev). Los 8 casos correctos: 401 sin
+token y con token equivocado, **422 sin el parámetro `wa`** (el 302 arreglado), 404 para número
+inexistente / `TEMPORAL USER` / perfil no-cliente, y 200 con documento enmascarado para un cliente
+real, en formato nacional y en formato Twilio. **Las 3 tablas del canal quedaron en 0 filas**: el
+canal lee y no escribe.
+
+#### Para desplegar — el estado de infra (medido contra dev el 2026-08-20)
+
+De los tres puntos, **dos ya están hechos** y queda uno:
+
+> **MEDICIÓN · 2026-08-20** — contra el API Gateway público de dev, el canal responde 503
+> `CHANNEL_NOT_CONFIGURED` con y sin token. Prueba que `SUPPORT_BOT_TOKEN` está VACÍO en el backend.
+> `curl -s https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
+> `# 503; ruta inventada → 404, así que el 503 viene del backend, no del gateway`
+
+1. ✅ **`SUPPORT_BOT_TOKEN` — RESUELTO el 2026-08-20.** La clave estaba en el secreto de la cuenta
+   equivocada; se agregó en la que corre el servicio y con el redespliegue el canal empezó a responder.
+
+   > **MEDICIÓN · 2026-08-20** — el canal pasó de 503 a 422 a las 11:24:36, con la revisión nueva ya
+   > corriendo. Sin token y con token inválido da 401; con el correcto, 422 del controlador. Y
+   > `self/by-phone` con un número inexistente da 404 `CLIENT_NOT_FOUND`: la cadena llega a la BD.
+   > `curl -s -o /dev/null -w '%{http_code}' https://api.dev.creditop.com/legacy-api/support/clients -H "Authorization: Bearer <token>"`
+
+   **La lección, porque costó dos vueltas:** el 503 del middleware significa «el token esperado está
+   VACÍO», no «el token no coincide» —eso es 401—. Esa distinción es la que permitió saber, sin acceso a
+   la cuenta correcta, que la variable no llegaba al contenedor. Y el nombre de familia de la task
+   definition es el MISMO en las dos cuentas, que es lo que hizo fácil medir en la que no atiende.
+
+   *(Lo que decía antes acá — «el secreto está, la task definition quedó vieja» — estaba medido en la
+   cuenta 697767917359, que no es la que sirve dev. Ver Registro 2026-08-20 (3).)*
+
+   > **MEDICIÓN · 2026-08-20** — el secreto `dev/legacy-backend` tiene 164 claves, incluida
+   > `SUPPORT_BOT_TOKEN` (64 hex, correcta). La task definition `legacy-backend-develop:199` enumera
+   > **163**. La diferencia es exactamente 1: la que se agregó.
+   > `aws ecs describe-task-definition --task-definition legacy-backend-develop --query 'taskDefinition.containerDefinitions[].secrets[].name'`
+
+   **Por qué agregar la clave al secreto NO alcanza.** El módulo de Terraform arma la lista de secretos
+   iterando las claves del JSON (`modules/ecs-application/task-definition.tf`, local
+   `service_secret_values`), pero la lee con un **data source, en tiempo de plan**. Así que la clave
+   nueva sólo entra a la task definition cuando alguien vuelve a aplicar Terraform. La revisión 199 se
+   registró el **2026-08-05** y el servicio sigue corriendo esa misma revisión: no se aplicó ni se
+   redesplegó desde entonces.
+
+   **Acción para infra, en dos pasos:** aplicar `environments/dev/ecs-application` (registra una
+   revisión nueva con la entrada 164) y redesplegar el servicio `legacy-backend` del cluster
+   `creditop-develop`. Con eso la variable llega al contenedor.
+
+   ✅ **Y NO hace falta tocar el cableado ni limpiar caches:** el servicio ya declara
+   `secret = "dev/legacy-backend"` (el lugar correcto), y `config:cache` no corre en el build ni en el
+   arranque —se verificó en `Dockerfile`, workflows y `bootstrap/cache/`—, así que no hay una segunda
+   pared esperando después del apply.
+2. ✅ **Gateway — HECHO.** Repo `infrastructure`, commit `67df336`, mergeado a `develop` (PR #65). Las
+   **16 rutas** están expuestas una por una (no por comodín) bajo el prefijo **`/legacy-api/support/*`**
+   → reescritas a `/api/support/*` contra el host `legacy-backend.develop.internal.creditop.com`, sin
+   authorizer de Cognito. ⚠ Ojo con el prefijo: es `/legacy-api`, no `/api` — y la URL pública es
+   `api.dev.creditop.com`, sin `/dev` de stage (con `/dev` da 404).
+3. ✅ **La pregunta de seguridad — CONTESTADA por la config.** El gateway NO reenvía `x-user-id`: cada
+   ruta declara `overwrite:header.host` y no copia cabeceras del cliente, y las rutas de support no
+   llevan authorizer, así que nadie inyecta identidad por ahí. El riesgo que se temía (que el gateway
+   pasara `x-user-id` a `ResolveCognitoUser`) no aplica a `/legacy-api/support/*`, que resuelve identidad
+   por OTP. **Sigue valiendo revisarlo para las rutas viejas `api/loans/consumer/credits/*`**, que sí
+   dependen de esa cabecera — pero eso es otra tarea.
+
+Un asesor no debería poder cambiar los datos de un cliente sin que el cliente se entere y lo apruebe.
+Hoy puede. La tarea pone al **dueño del dato** en el medio: el asesor pide el cambio desde WhatsApp,
+el cliente lo autoriza desde el suyo, y nada se escribe hasta que hay consentimiento.
+
+**Y desde la reunión con Manuela y Filipo (2026-08-12), un segundo frente**: el cliente puede
+gestionar **por su cuenta** su fecha de pago y su plazo, sin asesor de por medio. Mismo canal, misma
+verdad en el backend, pero **otro recorrido** — se identifica solo y no hay tercero que autorice. Los
+datos de contacto **no** entran en la autogestión: siguen necesitando a un asesor que los pida.
+
+**Qué hay que construir**: 16 endpoints, 11 de ellos nuevos — ver §«Las APIs a entregar».
+
+**Lo que falta para que el canal funcione — 2026-08-14**
+
+> ⚠ **Esta sección es del 14/8 y varias de sus filas ya cambiaron** — lo vigente está arriba, en
+> §«Lo que queda pendiente». Se conserva porque el razonamiento sigue valiendo: por qué la autogestión
+> no espera a Meta y qué puede avanzar Filipo en paralelo. Lo que YA no es cierto: las 2 rutas de cambio
+> existen, están mergeadas y hay filas con `otp_id` real en dev.
+
+Suponiendo el PR mergeado, desplegado, con la variable puesta y la ruta en el gateway: **funciona una
+sola cosa** — resolver de quién es un número de WhatsApp. Después de identificar a la persona no hay
+siguiente paso.
+
+#### El camino más corto a algo usable: la autogestión
+
+Y hay una razón para empezar por ahí que no es de esfuerzo: **las plantillas de Meta sólo bloquean el
+flujo del asesor**. Ahí el cliente *no escribió primero* —lo estamos interrumpiendo— y el primer
+mensaje tiene que ser plantilla aprobada. En autogestión **el cliente escribe primero**, así que la
+ventana de 24 h está abierta y el texto libre está permitido. La autogestión no espera a Meta.
+
+| pieza | de quién | estado |
+|---|---|---|
+| identificar por número + cédula | nuestro | ✅ hecho |
+| OTP + máquina de sesión | nuestro | ✅ hecho |
+| 3 rutas de lectura (`can-change`, fechas, plazos) | nuestro | ✅ hecho |
+| 2 rutas de cambio, con `otp_id` real | nuestro | ✅ hecho |
+| flujo del asesor (8 rutas) | nuestro | ✅ hecho |
+| webhook de WhatsApp + conversación | Filipo | **no existe en ningún lado** |
+
+**De nuestro lado no queda ninguna ruta.** Las dos reglas que sostienen las de crédito quedaron
+aplicadas y escritas en `routes/supportbot.php`: exigen sesión en `otp_verified` —si no, el
+`user_request_id` va en la URL y es enumerable— y toman el `otp_id` de la sesión, nunca de la
+petición.
+
+Lo que falta para que el canal FUNCIONE es de infraestructura y de Filipo: las 4 migraciones en cada
+ambiente, `SUPPORT_BOT_TOKEN`, exponer `/api/support/*` en el gateway, y del otro lado el webhook de
+entrada con verificación de firma más la capa conversacional.
+
+Recordatorio de por qué importa el `otp_id`: **las 31 filas de `creditop_x_changes_log` en dev tienen
+todas `otp_id = 0`** (verificado 2026-08-14). Hasta que esos 2 endpoints existan, el cambio se sigue
+guardando sin prueba de autorización.
+
+El flujo del asesor son **8 rutas más**, y ese sí depende de las plantillas. Va después, en paralelo
+con la aprobación.
+
+**Buena noticia para estimar**: parte de esas 15 ya tiene la lógica hecha y probada en el PR.
+`ClientLookupService` expone `findForAdvisor`, `alliedsOf` y `operableRequestsFor`, los tres con tests
+en verde, y son exactamente lo que necesita `GET /support/clients?document=`. Lo que hay que construir
+de cero es la sesión y el OTP — y para el OTP hay servicios reusables en el repo
+(`Modules/Onboarding/App/Services/OtpService.php`, `Modules/Loans/App/Services/OtpService.php`,
+`Modules/System/App/Repositories/OtpServiceRepository.php`): habría que ver cuál sirve y meterlo por
+inyección, no escribir otro.
+
+#### Qué puede avanzar Filipo desde ya, sin esperarnos
+
+- **Las plantillas de Meta** — el camino crítico más largo, con lead time de días y rechazos posibles.
+- **El webhook de entrada con verificación de firma**, que hoy no existe en ningún lado.
+- **La capa NLU** (`POST /nlu/interpretar`), que ya está listada como entregable suyo.
+- Y con el contrato ya fijado —bearer token, envelope `{success, message, errors.error_code}`, los 4
+  códigos— puede escribir su cliente HTTP, el manejo de errores y los reintentos **una vez** y
+  reusarlos para los 16. **Darle la especificación de los 15 que faltan lo desbloquea sin que
+  esperemos a implementarlas**: armaría el flujo de n8n contra un mock y después sólo cambia la URL
+  base.
 
 ## Tarea (publicable)
 

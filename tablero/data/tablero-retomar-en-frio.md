@@ -105,6 +105,19 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ### 2026-09-15
 
+**Se aplicaron las cinco clases a las tareas pesadas que nadie tenía abiertas.** Criterio: sólo las que
+llevaban 14 días o más sin tocarse y sin archivo sucio por otra sesión —#15, #47, #46, #43; #71 y #68
+se miraron y no hacía falta: su peso es material y Registro legítimos—. Las cinco vivas hoy (#6, #72,
+#76, #80, #74) se dejaron a propósito. Método: un ayudante que lista secciones y MUEVE las fechadas al
+Registro sin tocar una palabra, más una medición de hoy arriba de cada retoma (PR y ambientes, del
+snapshot). Resultado: el estado de `bancolombia` pasó de 100% a 34%, el de `kyc` de 91% a 29%.
+⚠ El ayudante perdió 450 palabras en la primera pasada sobre #46 —se quedaba con la fecha del
+encabezado y tiraba el título— y lo destapó el conteo de palabras antes/después; se restauró desde git,
+se corrigió para copiar segmentos verbatim, y ahora el control cruza contra `git show HEAD:` palabra por
+palabra: 0 perdidas en las cuatro. ⚠ Y una afirmación mía salió sin verificar: escribí en #43 que las
+dos ramas fuera de `main` eran «la del país del cliente» y no lo eran; lo dijo la medición y se corrigió
+antes de commitear.
+
 **Cómo está repartido un archivo de tarea, medido.** Miguel preguntó si hay forma de ordenar o dividir
 mejor. La medición sobre las 40 abiertas: **la mediana pesa 16 KB y está sana**; el problema son 11 que
 pasan de 40 KB y 6 de 80. Y la causa NO es la que uno supone: las grandes no crecieron por el Registro
