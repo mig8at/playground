@@ -86,7 +86,7 @@ el propio #997 introdujo de nuevo.
 > | PR | → | qué | tamaño |
 > |---|---|---|---|
 > | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
-> | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch |
+> | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch · Sonar ✅ · **sólo espera revisor** |
 >
 > **EL ORDEN DE MERGE, y el único punto donde importa:**
 >
