@@ -103,7 +103,17 @@ async function correrCaso(c: Caso, i: number): Promise<void> {
     // Sin destinos externos: es una prueba local y el contrato no tiene por qué apuntar a internet.
     process.env.E2E_WEBHOOK_URL = 'http://localhost:9/notificacion/';
     process.env.E2E_RETURN_URL = 'http://localhost:9/volver-al-comercio';
-    const tel = String(3_130_000_000 + r);
+    // El telefono se DERIVA (aleatorio) porque en local el driver de OTP no lo mira. Contra un
+    // ambiente desplegado eso no alcanza: el OTP solo es predecible si el telefono esta en la lista
+    // `qa_otp_bypass_phones`, y un derivado no esta. Sin `--tel`, `otp-validate` responde 200 sin
+    // `user_request_id` y el caso muere ahi — pasa las cinco comprobaciones previas y falla la sexta,
+    // que es exactamente lo que se vio al correr esto contra `qa` el 2026-09-15.
+    //
+    // ⚠ Con `--tel` se reusa un telefono YA registrado, o sea un usuario que ya existe en ese
+    // ambiente: el vinculo comercio-credito se sigue midiendo igual (es por pedido), pero el prefill
+    // puede traer los datos de ese usuario y no los del contrato. Es el mismo trato que hace
+    // `bcp-volver.ts` contra qa.
+    const tel = arg('tel') ?? String(3_130_000_000 + r);
 
     let checkout: { hash: string; merchant: string; checkout_path: string; amount: number };
     try {
