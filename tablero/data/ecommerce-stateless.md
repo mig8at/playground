@@ -35,7 +35,11 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
+**El próximo paso es:** correr el canal **asesor con cuota inicial > 0** contra la rama
+`fix/ecommerce/cuota-inicial-rebote-asesor` (ya armada y en verde de build/typecheck, sin pushear) y,
+si cierra, abrir el PR a `qa`. El detalle en el Registro del 15/9 (3).
+
+*(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
 (`continue` en el árbol público) y #663 (el handoff por flujo)— **adaptados**, porque `standBy` ya no
 existe en el wizard y hoy el equivalente es la rama `showModal && isNil(url)`. Y agregar
 `initial-fee-payment` y `down-payment-validation/:transaction_id` al árbol `merchant`, que es lo que
@@ -710,6 +714,53 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (3) · el arreglo, armado y probado — listo en local, sin abrir
+
+Elegido **el camino simple**, y resultó más simple de lo que parecía: `qa` es **ancestro estricto** de
+`main` (`merge-base(main, qa)` = la punta de `qa`, y `main..qa` da **0 commits**). Entonces una rama
+**desde `main`** ya contiene todo lo que `qa` tiene, y el `git revert 77796a4f` que repone #997/#1005
+**aplica limpio** — medido: 27 archivos, +1.062/−172, el inverso exacto del revert.
+
+**La forma: UN PR, rama desde `origin/main`, destino `qa`.** Hace tres cosas que `qa` necesita igual
+—sincroniza con `main`, repone lo revertido y arregla el rebote— y después la promoción
+`qa` → `main` es normal: el revert-del-revert es un commit **nuevo**, así que ya no lo frena el
+«git los da por mergeados».
+
+**Rama:** `fix/ecommerce/cuota-inicial-rebote-asesor`, dos commits — el revert-del-revert y el arreglo
+(3 archivos, +39/−5). **No pusheada, sin PR.**
+
+**Qué arregla, y son dos defectos apilados:**
+
+1. **Ruteo.** `initial-fee-payment` y `down-payment-validation` quedan registradas **también en el
+   árbol `merchant`**. Y de yapa `continue` en el árbol **público** — el mismo defecto espejado, que
+   **ya estaba vivo en `qa` aparte del bug de Joel**: `available-lenders` redirige a `continue` para
+   renting/RTO y para CreditopX, y en `/ecommerce` y `/self-service` esa ruta no existía → 404.
+2. **Negocio.** Vuelve el guard `&& !response.data.standBy`. ✔ **El backend SÍ sigue mandando
+   `standBy`** — `UserRequestService.php` lo pone en `false` por defecto y en `true` en las dos ramas
+   in-platform; el front había dejado de leerlo. Se vuelve a declarar en `LoanRequestResponse`.
+
+**Medido antes de dar nada por bueno:**
+
+| | resultado |
+|---|---|
+| `matchRoutes` (react-router 7.13.1) | `/merchant/…/initial-fee-payment` pasa de `public-layout` a **`merchant-initial-fee-payment`**; `/ecommerce/…/continue` y `/self-service/…/continue` pasan de **404** a resolver |
+| `turbo run build --filter=loan-request-wizard` | ✅ **2/2**, servidor y cliente |
+| `typecheck` | ✅ **0 errores** |
+| `biome` sobre los 3 archivos | 2 warnings de complejidad — **idénticos en la versión de `qa` sin el cambio**, o sea pre-existentes |
+
+⚠ **Lo que el PR arrastra:** al salir de `main`, el diff contra `qa` son ~57 archivos, de los cuales
+**sólo 3 son el arreglo**. El resto es la sincronización `main`→`qa` (los PRs **#1000-#1004**, lint y
+design-system, que fueron **directo a `main`** y `qa` no tiene). Es trabajo que `qa` necesita igual y el
+equipo ya hace ese merge de rutina (`a3548673`), pero conviene decirlo en la descripción del PR para que
+el revisor sepa dónde mirar.
+
+⚠ **Lo que NO entra a propósito:** el intento de **#663** (que el handoff se pinte distinto en asesor
+que en autogestión). Ese PR traía una URL de demo quemada y `qa` ya usa el `qrUrl` real; vale la
+intención, no el código. Queda como pendiente aparte.
+
+**Falta:** correr el canal **asesor con cuota inicial > 0** (el caso que rompe) y **ecommerce o
+self-service con renting/CreditopX** (el 404 de `continue`) antes de abrir el PR.
 
 ### 2026-09-15 (2) · los catorce PRs, y el arreglo que ya existía desde junio
 
