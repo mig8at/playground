@@ -35,9 +35,9 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** pedir revisor para **#1016** — el que devuelve el código a `main`— y avisar a
-quien promueve que **va antes de la próxima promoción `qa` → `main`**, o esa promoción da conflicto.
-**#1015 ya está en `qa`.** El detalle de las corridas que lo
+**El próximo paso es:** **validar el canal ecommerce en `qa`** (ahí está #1015 desde el 15/9). De ese
+visto bueno depende el merge de **#1016**, que es lo que devuelve el código a `main` — y la única forma
+de hacerlo después del revert. El detalle de las corridas que lo
 respaldan, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
@@ -88,16 +88,25 @@ el propio #997 introdujo de nuevo.
 > | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
 > | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch · Sonar ✅ · **sólo espera revisor** |
 >
-> **EL ORDEN DE MERGE, y el único punto donde importa:**
+> **EL ORDEN, y la DECISIÓN de Miguel (2026-09-15):**
 >
 > 1. ~~#1015 → `qa`~~ — ✅ **hecho el 15/9.**
-> 2. **#1016 → `main`** — **ANTES de cualquier promoción `qa` → `main`.**
-> 3. La promoción `qa` → `main` (Laura y Oscar) — después de las dos. **Medido: limpia, sin
->    conflictos**, y los cuatro archivos de ecommerce sobreviven.
+> 2. **#1016 → `main`: se mergea CUANDO QA dé el visto bueno de ecommerce en `qa`**, no antes.
+>    Decidido por Miguel. El motivo: **es la única forma de volver a meter el código después del
+>    revert**, así que conviene que entre ya validado — no hay apuro por riesgo, porque `main` hoy no
+>    tiene la funcionalidad y por lo tanto tampoco el defecto.
+> 3. La promoción `qa` → `main` (Laura y Oscar) — después del 2. **Medido: limpia, sin conflictos**, y
+>    los cuatro archivos de ecommerce sobreviven.
 >
 > ⚠ **Si la promoción del paso 3 ocurre ANTES de #1016, da conflicto** en `routes.ts` y
 > `available-lenders.tsx`, y resolviéndolo a favor de `qa` deja `routes.ts` apuntando a cuatro archivos
 > inexistentes → build roto. Es lo que hay que avisarle a quien promueve.
+>
+> ⚠ **Y que no confunda a nadie: `main` NO está roto, está VACÍO.** Medido el 15/9 contra
+> `origin/main`: el `if (initial_fee > 0)`, la ruta `initial-fee-payment` y el archivo
+> `initial-fee-payment.tsx` **no existen**. El revert no borró el bug, borró la funcionalidad entera.
+> Por eso #1016 **no es un arreglo**: es la reposición. Y si nunca se mergea, nada se rompe — sólo que
+> el trabajo no llega a producción y los 14.160 checkouts siguen entrando por el monolito.
 >
 > ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
 > revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
@@ -1013,10 +1022,13 @@ Tres cosas que este día deja anotadas y valen más que el bug:
 - **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
 
 ## Pendientes
-- [ ] 🔴 **ARREGLAR EL REBOTE Y REPONER EL PR** — es lo que bloquea todo lo demás de esta tarea.
+- [ ] **Mergear #1016 cuando QA valide ecommerce en `qa`** — decisión de Miguel del 15/9. Es la única
+      vía para reponer el código en `main` después del revert; sin apuro porque `main` no tiene hoy ni
+      la funcionalidad ni el defecto. ⚠ Tiene que entrar **antes** de la próxima promoción `qa`→`main`.
+- [x] ~~🔴 **ARREGLAR EL REBOTE Y REPONER EL PR** — es lo que bloquea todo lo demás de esta tarea.
       (a) medir si el backend sigue 403eando `initial-fee-payment/{ur}` para `rt=2`; (b) registrar
       `initial-fee-payment` y `down-payment-validation/:transaction_id` en el árbol `merchant` de
-      `routes.ts`; (c) si el 403 sigue, guardar el `if` de qa:637. Ver §«El rebote a `/solicitar`».
+      `routes.ts`; (c) si el 403 sigue, guardar el `if` de qa:637.~~ → **HECHO**: #1015 en `qa`, #1016 abierto.
 - [ ] ⚠ **El defecto está VIVO en `qa`**, y `main` NO lo recupera solo: el revert es pegajoso (los
       commits son ancestros de `main`). Reponerlo pide `git revert 77796a4f` o commits nuevos — junto
       con el arreglo, no después.
