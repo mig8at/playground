@@ -75,6 +75,14 @@ const AMOUNT = Number(arg('amount', '2000000'));
 const INCOME = Number(arg('income', '2500000'));
 const SCORE = Number(arg('score', '700'));
 const CUOTAS = Number(arg('cuotas', '4'));
+/** La CUOTA INICIAL que el asesor carga en el listado. Va en 0 por defecto porque es lo que hace
+ *  el grueso de las corridas, pero **tiene que poder no serlo**: con `initial_fee > 0` el action de
+ *  `available-lenders` toma una rama entera que con 0 no se ejecuta nunca —el cobro por pasarela—,
+ *  y ahí vivía el rebote a `/solicitar` que se llevó puesto el merge a `main` del 14/9. Mientras
+ *  esto estuvo quemado en 0, este caminador **no podía ver ese bug**, y por eso la validación previa
+ *  al merge dio verde en el canal del asesor. El campo sólo se ofrece cuando el comercio tiene
+ *  `allieds.initial_fee = 1`. */
+const CUOTA_INICIAL = Number(arg('cuota-inicial', '0'));
 const MAX_PASOS = 40;
 /** ⚠ TOPE DE TIEMPO POR CASO, y no es un lujo: el 2026-09-03 una corrida del motor de navegador contra el
  *  canal de asesor giró **18 minutos sin imprimir una línea**. Cada vuelta del bucle puede esperar
@@ -300,6 +308,15 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
         return m ? Number(m[1]) : null;
     };
     const base = `/${FLOW}/${br.hash}`;
+    /** ⚠ EL HANDOFF NO VA EN `base`, Y ESO NO ES UN DETALLE. La continuación de una CreditopX la abre
+     *  el CLIENTE en SU celular, y el backend arma esa url como `/self-service/<hash>/<ureq>/confirmation`
+     *  — nunca con el prefijo del asesor. Y `confirmation` **sólo está montada en el árbol `:flow`**:
+     *  con FLOW=merchant esto pedía `/merchant/<hash>/<ureq>/confirmation`, que no existe en ese árbol,
+     *  y React Router no da 404 por eso: matchea `public-layout` con flow="merchant", que redirige a
+     *  "/" → /merchant → /solicitar. El caminador volvía al principio, abría OTRA solicitud y repetía
+     *  hasta el tope de pasos, reportando «se pasó de 40 pasos» — que se lee como un fallo del producto
+     *  cuando era del runner. Medido el 2026-09-15. */
+    const baseHandoff = `/self-service/${br.hash}`;
     let ruta = `${base}/solicitar?amount=${AMOUNT}`;
     let erId: number | null = null;                 // el pedido de la tienda (canal ecommerce)
     let vinculoVisto = false, prefillVisto = false;
@@ -404,7 +421,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             form = {
                 lender_id: lenderElegido.id, lender_name: lenderElegido.name,
                 fee_number: lenderElegido.fee_number ?? CUOTAS, original_amount: amount, amount,
-                initial_fee: 0, productId: q.get('productId') ?? '',
+                initial_fee: CUOTA_INICIAL, productId: q.get('productId') ?? '',
                 rate: lenderElegido.credit_lines?.rate ?? 0, response_type: lenderElegido.response_type,
                 is_recommended: lenderElegido.isRecommended ? 'true' : 'false',
                 transaction_data: JSON.stringify(lenderElegido.transaction_data ?? null),   // el navegador manda «null» literal, y el action lo parsea
@@ -447,11 +464,22 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             return terminar('trabado', `${hoja}: ${acc.crudo?.slice(0, 120) ?? 'sin respuesta'}${sn ? ` · BD en ${sn.st}` : ''}`);
         }
         if (acc.redirect) {
-            if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
+            if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))
+                && /\/continue(\?|$)/.test(acc.redirect)) {
                 // El backend armó el link de confirmación y se lo mandó al cliente: se abre ESA pantalla.
-                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${base}/${r.ur}/confirmation  [el front respondió 202 → ${acc.redirect}]`);
-                saltoA = `${base}/${r.ur}/confirmation`;
+                //
+                // ⚠ EL ATAJO SÓLO VALE SI EL FRONT MANDÓ A `/continue`, y la condición es nueva: antes se
+                // tomaba mirando SÓLO el response_type, sin importar a dónde hubiera redirigido el front.
+                // Eso TAPABA defectos. Medido el 2026-09-15: con `initial_fee > 0` el action mandaba a
+                // `/initial-fee-payment` —que rebota al principio del wizard— y el caminador saltaba por
+                // encima y cerraba en estado 11 igual, así que la corrida daba verde con el flujo roto.
+                // Si el front manda a otro lado, se SIGUE esa redirección: es lo que haría el navegador.
+                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${baseHandoff}/${r.ur}/confirmation  [el front respondió 202 → ${acc.redirect}]`);
+                saltoA = `${baseHandoff}/${r.ur}/confirmation`;
             } else {
+                if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
+                    log(`⚠ ${lenderElegido.name} (rt=${lenderElegido.response_type}) NO mandó al handoff: el front redirigió a ${acc.redirect}. Se sigue esa redirección, que es lo que hace el navegador.`);
+                }
                 saltoA = destino(acc.redirect, hoja);
                 if (!saltoA) return terminar(SesionFront.esProhibida(acc.redirect) ? 'malo' : 'trabado', `${hoja} → ${acc.redirect}`);
             }
@@ -460,8 +488,8 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             if (err) return terminar('trabado', `${hoja} respondió error: ${typeof err === 'string' ? err : (err?.message ?? JSON.stringify(err)).slice(0, 160)}`);
             if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
                 const d = acc.cuerpo?.data ?? {};
-                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${base}/${r.ur}/confirmation  [el front devolvió ${d.showModal ? `modal «${String(d.modalMessage ?? '').slice(0, 60)}»` : 'datos sin redirect'}]`);
-                saltoA = `${base}/${r.ur}/confirmation`;
+                log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${baseHandoff}/${r.ur}/confirmation  [el front devolvió ${d.showModal ? `modal «${String(d.modalMessage ?? '').slice(0, 60)}»` : 'datos sin redirect'}]`);
+                saltoA = `${baseHandoff}/${r.ur}/confirmation`;
             } else {
                 return terminar('trabado', `${hoja}: el action no redirigió ni dio error · ${JSON.stringify(acc.cuerpo).slice(0, 160)}`);
             }
@@ -545,6 +573,15 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
     if (c.lender && !nombreEntidad) return terminar('trabado', `la entidad ${c.lender} no está en la base`);
 
     const base = `/${FLOW}/${br.hash}`;
+    /** ⚠ EL HANDOFF NO VA EN `base`, Y ESO NO ES UN DETALLE. La continuación de una CreditopX la abre
+     *  el CLIENTE en SU celular, y el backend arma esa url como `/self-service/<hash>/<ureq>/confirmation`
+     *  — nunca con el prefijo del asesor. Y `confirmation` **sólo está montada en el árbol `:flow`**:
+     *  con FLOW=merchant esto pedía `/merchant/<hash>/<ureq>/confirmation`, que no existe en ese árbol,
+     *  y React Router no da 404 por eso: matchea `public-layout` con flow="merchant", que redirige a
+     *  "/" → /merchant → /solicitar. El caminador volvía al principio, abría OTRA solicitud y repetía
+     *  hasta el tope de pasos, reportando «se pasó de 40 pasos» — que se lee como un fallo del producto
+     *  cuando era del runner. Medido el 2026-09-15. */
+    const baseHandoff = `/self-service/${br.hash}`;
     await page.goto(`${base}/solicitar?amount=${AMOUNT}`, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
     let sembrado = false;
     let ultima = '';
@@ -637,8 +674,8 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
         // pantalla `/continue` es la del que eligió, que sólo dice «se envió un mensaje» y no tiene botón
         // para avanzar. El caminador hace lo que haría el cliente al tocar el link. Es el salto A→B del panel.
         if (hoja === 'continue' && r.ur) {
-            log(`B (celular): handoff CreditopX → abro ${base}/${r.ur}/confirmation`);
-            await page.goto(`${base}/${r.ur}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+            log(`B (celular): handoff CreditopX → abro ${baseHandoff}/${r.ur}/confirmation`);
+            await page.goto(`${baseHandoff}/${r.ur}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
             continue;
         }
 
