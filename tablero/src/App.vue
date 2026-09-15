@@ -616,6 +616,73 @@ function slugTitulo(t) {
 function irASeccion(id) {
   document.getElementById('sec-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
+
+// COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
+//
+// Se copia el MARKDOWN, no el HTML renderizado: es lo que se pegó bien en todos lados y lo que otra
+// herramienta puede volver a parsear. Copiar el `innerText` del panel pierde las tablas y los bloques
+// de código, que es justo lo que uno quiere compartir de estos cuerpos.
+//
+// Y va con encabezado: pegado suelto, este texto empieza en «## Si retomás esto sin contexto» y quien
+// lo recibe no sabe de qué tarea es. Se le antepone la clave, el título y los nodos de contexto para
+// que sea autosuficiente — más la advertencia de que es PRIVADO, porque lo es: nombra repos, rutas y
+// F-xx, y no pasa el guard de Jira. La decisión de compartirlo es de quien copia; que salga sin el
+// aviso, no.
+const copiado = ref('');   // '' | 'ok' | 'error'
+let copiadoTimer = null;
+
+function textoParaCompartir() {
+  const i = active.value;
+  if (!i) return '';
+  const e = efforts.value.find(x => x.id === esfuerzoDe(i.Key));
+  const cuerpo = cuerpoDe(i.Key);
+  if (!cuerpo) return '';
+  const nodos = (e?.contextNodes || '').split(',').map(s => s.trim()).filter(Boolean);
+  // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
+  // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
+  // la línea opcional de nodos se decide al armar el arreglo y no con un `.filter` de vacíos
+  // después — ese filtro se comía también los separadores, que es justo el bug que tenía esto.
+  const cita = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
+  if (nodos.length) cita.push(`> Nodos de contexto: ${nodos.join(', ')}.`);
+  cita.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
+  const titulo = `# ${i.Key} · ${e?.title || i.Summary || ''}`.trim();
+  return [titulo, '', ...cita, '', cuerpo.trim(), ''].join('\n');
+}
+
+async function copiarCuerpo() {
+  const txt = textoParaCompartir();
+  if (!txt) return;
+  clearTimeout(copiadoTimer);
+  copiado.value = (await alPortapapeles(txt)) ? 'ok' : 'error';
+  copiadoTimer = setTimeout(() => { copiado.value = ''; }, 2000);
+}
+
+// Dos caminos, y el respaldo cuelga de que el primero FALLE, no de que falte.
+//
+// ⚠ Esa distinción es el bug que tenía esto y que sólo apareció probándolo: `navigator.clipboard`
+// puede EXISTIR y aun así rechazar. Pide contexto seguro **y** documento enfocado, así que tira
+// `NotAllowedError` si la pestaña perdió el foco — y como yo miraba sólo si la función existía, el
+// respaldo quedaba muerto y el botón se ponía en rojo con la API ahí, disponible.
+async function alPortapapeles(txt) {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); return true; }
+  } catch { /* sigue al respaldo */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+// Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
+watch(descAbierta, (abierto) => { if (!abierto) { clearTimeout(copiadoTimer); copiado.value = ''; } });
 function verDesc(i) {
   if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
   active.value = i; descAbierta.value = true;
@@ -1529,6 +1596,14 @@ onMounted(async () => {
             <h3>{{ active?.Key }}</h3>
             <p v-if="active">{{ active.Summary }}</p>
           </div>
+          <!-- copiar todo el cuerpo para pegarlo en otro lado. Va en el encabezado y no al pie: estos
+               cuerpos pasan de las mil líneas, y un botón al final no se encuentra. -->
+          <button v-if="cuerpoHTML" class="drawer-cp" :class="copiado"
+                  :title="copiado === 'ok' ? 'Copiado' : copiado === 'error' ? 'No se pudo copiar' : 'Copiar el cuerpo entero para compartirlo'"
+                  @click="copiarCuerpo">
+            <span aria-hidden="true">{{ copiado === 'ok' ? '✓' : copiado === 'error' ? '✕' : '⧉' }}</span>
+            {{ copiado === 'ok' ? 'copiado' : copiado === 'error' ? 'no se pudo' : 'copiar' }}
+          </button>
           <button class="drawer-x" title="Cerrar (Esc)" @click="descAbierta = false">✕</button>
         </header>
         <div class="drawer-b">
@@ -1875,6 +1950,16 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .drawer-x { margin-left: auto; border: 0; background: none; color: var(--mut); font: inherit; font-size: 15px;
   cursor: pointer; padding: 0 2px; line-height: 1 }
 .drawer-x:hover { color: var(--txt) }
+/* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
+   dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
+.drawer-cp { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+  border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--mut);
+  font: inherit; font-size: 11.5px; cursor: pointer; padding: 3px 8px; line-height: 1.4;
+  white-space: nowrap; transition: color .12s, border-color .12s }
+.drawer-cp:hover { color: var(--txt); border-color: var(--mut) }
+.drawer-cp.ok { color: #4ade80; border-color: currentColor }
+.drawer-cp.error { color: var(--bad); border-color: currentColor }
+.drawer-cp + .drawer-x { margin-left: 8px }
 /* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
