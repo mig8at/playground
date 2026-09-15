@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
+ramas: cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -35,9 +35,10 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** mirar el CI de
-**[#1014](https://github.com/Creditop-SAS/frontend-monorepo/pull/1014)** (abierto el 15/9 contra `qa`)
-y pedir revisor — conviene que sea **Abel**, que fue quien revirtió. El detalle de las corridas que lo
+**El próximo paso es:** pedir revisor para
+**[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** (3 archivos, contra `qa`) y,
+aparte, **plantear a quien mantiene `main` el revert del revert** — sin eso el trabajo de ecommerce no
+vuelve a producción por más promociones que se hagan. El detalle de las corridas que lo
 respaldan, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
@@ -80,9 +81,15 @@ el propio #997 introdujo de nuevo.
 >
 > **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
 >
-> ✔ **Y el camino de vuelta ya está abierto: [frontend-monorepo#1014](https://github.com/Creditop-SAS/frontend-monorepo/pull/1014)**
-> (`fix/ecommerce/cuota-inicial-rebote-asesor` → `qa`, 2 commits) repone #997/#1005 **y** arregla el
-> rebote, en el mismo cambio. Al mergearlo, la promoción `qa` → `main` vuelve a ser normal.
+> ✔ **El arreglo está en [frontend-monorepo#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)**
+> (`fix/ecommerce/cuota-inicial-rebote-asesor-qa` → `qa`, **1 commit, 3 archivos**). Reemplaza al
+> **#1014, que se CERRÓ por arrastrar 56 archivos ajenos** — ver §«El PR que arrastraba trabajo de
+> otros».
+>
+> ⚠ **#1015 NO devuelve el código a `main`, y eso queda pendiente de una decisión ajena a esta tarea.**
+> `main` tiene el revert y git da por mergeados los commits de #997/#1005, así que la promoción normal
+> —que es trabajo de **Laura y Oscar**— no los trae. Hace falta un `git revert 77796a4f` explícito, y lo
+> decide quien mantiene `main` (lo revirtió Abel). Queda avisado en la descripción de #1015.
 >
 > ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
 > revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
@@ -216,7 +223,8 @@ revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
 | front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `6fa13ae5` |
 | front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
 | front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `f443ecad` |
-| front | **#1014** el rebote a `/solicitar` del asesor + la reposición de #997/#1005 | `fix/ecommerce/cuota-inicial-rebote-asesor` | +982/−145 · 60 arch *(el arreglo son 3)* | `qa` | 15/9 · **ABIERTO** | — |
+| front | ~~#1014~~ el rebote + la reposición | `fix/ecommerce/cuota-inicial-rebote-asesor` | 60 arch, **56 ajenos** | — | **CERRADO** 15/9 | reemplazado por #1015 |
+| front | **#1015** el rebote a `/solicitar` del asesor con cuota inicial | `fix/ecommerce/cuota-inicial-rebote-asesor-qa` | +39/−5 · **3 arch** | `qa` | 15/9 · **ABIERTO** | — |
 
 *(Medido el 2026-09-15 con `gh pr list --author mig-creditop --state all` filtrando por
 `ecommerce|checkout|cuota|stateless|sala` en título y rama. Horas de Colombia.)*
@@ -720,6 +728,40 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (5) · el PR que arrastraba trabajo de otros, y por qué pasó
+
+> **MEDICIÓN · 2026-09-15** — #1014 mostraba **15 commits y 60 archivos**. Desglosados por origen:
+> **3** el arreglo, **3** la reposición, **56 cambios de `main` que `qa` no tiene** — los PRs
+> **#1000-#1004** (lint y design-system: `.oxlintrc.jsonc`, `AGENTS.md`, `CLAUDE.md`, rutas de Ábaco,
+> codeudor, entidad…). El 93 % del PR era trabajo ajeno, y **no aportaba nada al arreglo**.
+> **Cómo se vuelve a comprobar:** `comm -12` entre `git diff --name-only origin/qa HEAD` y los archivos
+> de `git show --name-only 77796a4f` (el revert) y del commit del arreglo.
+
+**El error, y vale nombrarlo:** la rama salió de `main` y apuntaba a `qa`. Como `qa` está **13 commits
+por detrás** de `main`, el diff se llevó ese desfase entero. Y la reposición de #997/#1005 **se
+cancela contra `qa`** —que ya tiene ese código—, así que lo único que quedó viajando fue trabajo de
+otra gente. Lo detectó Miguel mirando el contador del PR.
+
+**Corregido:** #1014 cerrado, **#1015** abierto desde `qa` con **1 commit y 3 archivos**.
+
+### ⚠ Y lo que NO resuelve #1015, que es de otro
+
+`main` no recupera #997/#1005 con una promoción. Medido simulando el merge:
+
+    CONFLICT (content): apps/loan-request-wizard/app/routes.ts
+    CONFLICT (content): .../available-lenders.tsx
+
+Y resolviendo a favor de `qa`, `main` queda con **`routes.ts` apuntando a 4 archivos inexistentes**
+(`ecommerce/checkout.tsx`, `initial-fee-payment.tsx`, `down-payment-validation.tsx`,
+`ecommerce-context.server.ts`) → el build se rompe. Es el mismo fallo que #997 ya se comió el 14/9.
+
+**Eso pide un `git revert 77796a4f` explícito contra `main`**, y no es de esta tarea: la promoción
+`qa` → `main` la llevan **Laura y Oscar**, y el revert lo hizo **Abel**. Queda escrito en la
+descripción de #1015 para que no se lo encuentren de sorpresa.
+
+**La regla que queda:** una rama para `qa` sale **de `qa`**. Salir de `main` apuntando a `qa` mete el
+desfase entre las dos ramas dentro del PR, y el contador de archivos es donde se ve.
 
 ### 2026-09-15 (4) · corrido: el bug reproducido y el arreglo comprobado — y el harness no podía verlo
 
