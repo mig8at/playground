@@ -53,7 +53,18 @@ que guardar el `if` de la línea 637 para que las in-platform no vayan a Wompi.
 > adelante, front atrás— repetida tres meses después.
 >
 > `qa` **conserva los tres PRs**: el revert se hizo sobre `main`, no sobre `qa`. O sea que el defecto
-> **sigue vivo en `qa`** y cualquier promoción futura lo vuelve a subir si no se arregla antes.
+> **sigue vivo en `qa`**.
+>
+> ⚠ **PERO una promoción `qa` → `main` NO lo vuelve a subir — y eso es un problema, no un alivio.**
+> Medido el 2026-09-15: `merge-base(origin/main, origin/qa)` **es la punta de `qa`**, o sea que `qa` ya
+> está entera dentro de `main`; y `6fa13ae5` (#997) y `f443ecad` (#1005) **son ancestros de `main`**
+> aunque su contenido no esté. Es el problema clásico de revertir un merge: git los da por mergeados,
+> así que **ninguna promoción futura los trae de vuelta**. El revert es pegajoso.
+>
+> **Consecuencia práctica para el arreglo:** no alcanza con corregir en `qa` y esperar la promoción. Para
+> que esto vuelva a `main` hay que **revertir el revert** (`git revert 77796a4f`) o rehacer el cambio
+> como commits NUEVOS. Y las dos piezas —la reposición y el arreglo del rebote— conviene que viajen
+> juntas, o `main` queda con la ventana rota abierta entre una y otra.
 >
 > **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
 >
@@ -675,8 +686,9 @@ Tres cosas que este día deja anotadas y valen más que el bug:
       (a) medir si el backend sigue 403eando `initial-fee-payment/{ur}` para `rt=2`; (b) registrar
       `initial-fee-payment` y `down-payment-validation/:transaction_id` en el árbol `merchant` de
       `routes.ts`; (c) si el 403 sigue, guardar el `if` de qa:637. Ver §«El rebote a `/solicitar`».
-- [ ] ⚠ **El defecto está VIVO en `qa`** — el revert fue sobre `main`. Arreglarlo en `qa` antes de que
-      alguien vuelva a promover.
+- [ ] ⚠ **El defecto está VIVO en `qa`**, y `main` NO lo recupera solo: el revert es pegajoso (los
+      commits son ancestros de `main`). Reponerlo pide `git revert 77796a4f` o commits nuevos — junto
+      con el arreglo, no después.
 - [ ] **El backend #1392 quedó solo en `main`** (front revertido, `ecommerce-status` no). Decidir:
       revertirlo también o dejarlo esperando al front. Es la misma asimetría del par de junio.
 - [ ] **Promover a F-xx: una ruta registrada en UN árbol y no en el otro no falla en ningún lado** —
