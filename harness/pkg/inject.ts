@@ -337,6 +337,78 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     };
 }
 
+/**
+ * ¿SIGUE EN PIE EL EMPLEO QUE INYECTAMOS? — y si no, reponerlo.
+ *
+ * POR QUÉ EXISTE. La inyección corre cuando CARGA `personal-info`; **Agildata corre cuando se ENVÍA**.
+ * Y `AgildataService::…` cierra con `storeLaboralInformation(user, uReq, approximate_real_salary,
+ * employed ? 'Empleado' : (self_employed ? 'Independiente' : 'Desempleado'), continuity)` y además
+ * pisa `user_summaries.agildata`. O sea que la respuesta del proveedor **reemplaza** ocupación (29),
+ * ingreso (87) y continuidad (161): lo que sembramos antes no sobrevive.
+ *
+ * Medido el 2026-09-15 contra `qa` (Pullman, solicitud 502341): la inyección escribió
+ * `Empleado · 2.500.000` a las 18:36:57 y a las 18:37:03 los campos decían `Desempleado · 0`, con el
+ * log diciendo «Agildata: lambda mock responded». Seis segundos. Y el listado, tres segundos después,
+ * evaluó esos valores: las tres entidades de la sucursal exigen ocupación ∈ {Empleado, Pensionado,
+ * Independiente} —y las dos rt=2, ingreso ≥ 1.000.000—, así que las tres fueron rechazadas y el
+ * cliente vio UNA (la rt=0, que rechazada igual se muestra). Parecía un filtro del canal ecommerce.
+ *
+ * ⚠ En local/dev/qa/staging las centrales las atiende el **lambda de mocks** de la empresa, no el
+ * proveedor: su respuesta por defecto para una cédula desconocida es una persona sin empleo y sin
+ * ingreso. Se le puede DICTAR la respuesta por cédula, y ése es el arreglo de fondo — esto es la red
+ * para cuando no se dictó.
+ *
+ * Devuelve qué encontró y qué repuso, para que quien llama lo diga en el rastro. No decide: informa y
+ * corrige los tres campos, nada más.
+ */
+export interface EmpleoRepuesto {
+      pisado: boolean;
+      ocupacionAntes: string;
+      ingresoAntes: string;
+      ocupacion: string;
+      ingreso: string;
+}
+
+export async function reponerEmpleo(
+      uReqID: number,
+      opts: { income?: number; occupation?: string } = {},
+): Promise<EmpleoRepuesto | null> {
+      const userID = (await scalar<number>('SELECT user_id FROM user_requests WHERE id = ? LIMIT 1', [uReqID])) ?? 0;
+      if (!userID) return null;
+
+      const leer = async (fid: number): Promise<string> =>
+            (await scalar<string>(
+                  'SELECT value FROM user_field_values WHERE user_id=? AND field_id=? AND form_id=1 LIMIT 1',
+                  [userID, fid],
+            )) ?? '';
+
+      const ocupacionAntes = await leer(29);
+      const ingresoAntes = await leer(87);
+      const ocupacion = opts.occupation || 'Empleado';
+      const ingreso = String(opts.income && opts.income > 0 ? opts.income : 2_500_000);
+
+      // Sólo se repone lo que NO coincide: una escritura que no cambia nada es ruido en el registro.
+      const pisado = ocupacionAntes !== ocupacion || ingresoAntes !== ingreso;
+      if (pisado) {
+            await injectIncomeFields(userID, uReqID, { 29: ocupacion, 87: ingreso });
+      }
+      return { pisado, ocupacionAntes, ingresoAntes, ocupacion, ingreso };
+}
+
+/** El aviso, en líneas listas para imprimir. Vacío cuando el empleo sobrevivió. */
+export function avisoDeEmpleoPisado(r: EmpleoRepuesto | null): string[] {
+      if (!r || !r.pisado) return [];
+      return [
+            `⚠ EL EMPLEO QUE SE INYECTÓ NO SOBREVIVIÓ: la respuesta de Agildata lo reemplazó.`,
+            `    ocupación  ${r.ocupacionAntes || '(vacía)'} → repuesta a ${r.ocupacion}`,
+            `    ingreso    ${r.ingresoAntes || '(vacío)'} → repuesto a ${r.ingreso}`,
+            `  Pasa porque la inyección corre al CARGAR personal-info y Agildata contesta al ENVIARLO,`,
+            `  y su respuesta escribe esos campos. En este ambiente contesta el lambda de mocks, y para`,
+            `  una cédula que no le dictaste devuelve una persona sin empleo y sin ingreso. Las reglas`,
+            `  duras evalúan ESTO, así que sin reponerlo el listado sale corto y parece un filtro del canal.`,
+      ];
+}
+
 export interface RequestState {
     statusId: number | null;  // user_requests.user_request_status_id — 11 = Estado 11 (Autorizada)
     sealed11: boolean;        // statusId === 11

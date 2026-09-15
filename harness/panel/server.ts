@@ -478,20 +478,30 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     ];
     if (inject) {
         L.push(row('identidad', `${p.documentType || 'CC'} ${p.document || '(auto)'} · ${p.name || 'SYNTH TEST USER'} · ${p.gender || 'M'} · ${p.age ?? 35} años`));
-        // ⚠ ESTA LÍNEA NO LA ESCRIBE LA INYECCIÓN, y decirlo importa: el buró se inyecta en la base,
-        // pero ocupación e ingreso viven en el FORMULARIO (`user_field_values`) y los pone quien camina
-        // el wizard. El ingreso lo escribe el autorrelleno (la chapita ⌨/⌥R); la OCUPACIÓN no está en su
-        // mapa —es un select— así que la elegís vos, siempre.
+        // ⚠ ESTA LÍNEA LA INYECCIÓN SÍ LA ESCRIBE — Y AGILDATA LA PISA DESPUÉS. Es F-218.
         //
-        // Medido el 2026-09-15 con Pullman en qa: la cabecera anunciaba «Empleado · ingreso $2.500.000»
-        // y la solicitud quedó con «Desempleado · 0», porque la corrida era MANUAL desde monto. Y son
-        // justo los dos datos que evalúan las reglas duras: las tres entidades de esa sucursal exigen
-        // ocupación ∈ {Empleado, Pensionado, Independiente}, y las dos rt2 además ingreso ≥ 1.000.000.
-        // O sea que la cabecera prometía un cliente que pasaba y el que se creó no pasaba ninguna.
+        // `synthFill` escribe ocupación (field 29) e ingreso (field 87) al CARGAR personal-info. Pero
+        // `AgildataService` corre al ENVIARLO, dentro de `storePersonalInfo`, y cierra llamando a
+        // `storeLaboralInformation(...)` con lo que devolvió el proveedor: `employed ? 'Empleado' :
+        // (self_employed ? 'Independiente' : 'Desempleado')` y `approximate_real_salary`. O sea que
+        // reemplaza los dos campos, y también `user_summaries.agildata`.
+        //
+        // Medido el 2026-09-15 contra qa (Pullman, solicitud 502341): la inyección puso
+        // «Empleado · 2.500.000» a las 18:36:57 y a las 18:37:03 los campos decían «Desempleado · 0»,
+        // con el log diciendo «Agildata: lambda mock responded, status 200». Tres segundos después el
+        // listado evaluó ESOS valores: las tres entidades exigen ocupación ∈ {Empleado, Pensionado,
+        // Independiente} —las dos rt=2 además ingreso ≥ 1.000.000—, así que rechazó las tres y el
+        // cliente vio UNA. Parecía un filtro del canal ecommerce y no lo era.
+        //
+        // ⚠ En este ambiente la central la atiende el LAMBDA DE MOCKS, y para una cédula que no le
+        // dictaste devuelve una persona sin empleo y sin ingreso. El arreglo de fondo es dictarle la
+        // respuesta a esa cédula; el runner ahora además REPONE los dos campos en cuanto Agildata
+        // contesta, y lo dice en el rastro.
         L.push(row('empleo', `${p.occupation || 'Empleado'} · ingreso ${money(p.income ?? 0)}`
-            + `\n${' '.repeat(16)}↑ NO se inyecta: va en el formulario. El ingreso lo pone el autorrelleno`
-            + `\n${' '.repeat(16)}  (⌥R); la ocupación la elegís VOS. Si llenás a mano, manda lo que pongas`
-            + `\n${' '.repeat(16)}  — y las reglas duras evalúan esto, no lo de acá arriba.`));
+            + `\n${' '.repeat(16)}↑ se inyecta, pero Agildata lo PISA al enviar personal-info (F-218): en`
+            + `\n${' '.repeat(16)}  este ambiente contesta el lambda de mocks y para una cédula sin dictar`
+            + `\n${' '.repeat(16)}  devuelve «Desempleado · 0». El runner lo repone y lo avisa — y las`
+            + `\n${' '.repeat(16)}  reglas duras evalúan esto, así que sin reponerlo el listado sale corto.`));
         L.push(row('buró', p.documentType === 'PEP' ? 'sin buró (PEP)' : `score ${p.score ?? '-'} · negativos ${p.negatives ?? 0} · consultas ${p.consulted ?? 0}`));
         if (p.email) L.push(row('email', p.email));
     }

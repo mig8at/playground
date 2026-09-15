@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
 import { avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
-import { synthFill, requestEstado11 } from '../pkg/inject';
+import { avisoDeEmpleoPisado, reponerEmpleo, synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
@@ -384,6 +384,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     // el Hosted UI de Cognito (navegación externa al arrancar) y el copy "en tu celular" del OTP (matchea el
     // regex del modal). Se prende al pasar por /lenders.
     let seenLenders = false;
+    let empleoRepuesto = false;   // el empleo se repone UNA vez (F-218)
     // ¿el SERVER rebotó /lenders → /solicitar (302 real)? Lo prende el response-listener de abajo. Sirve para
     // que el diagnóstico del salto directo NO mienta: "no llegó a /lenders" tiene dos causas opuestas —
     // el front lo rechazó (esto en true) vs. el salto ni se pidió (carrera post-login, esto en false). F-66.
@@ -524,6 +525,26 @@ test('guided (semiautomático)', async ({ browser }) => {
             const hA = /\/merchant\/([0-9a-f]{8})\//.exec(loc)?.[1] ?? '';
             const lineas = avisoDeRedireccion(hDe, hA);
             if (lineas.length) { avisoSucursalDado = true; for (const l of lineas) log(`  ${l}`); }
+        }
+        /* ⚠ REPONER EL EMPLEO EN CUANTO AGILDATA CONTESTA (F-218).
+         * Va acá y no en la navegación a `/lenders` porque el `.data` del listado se pide ANTES de que
+         * se vea la navegación: reponer ahí llegaría tarde para ESE render. Acá, en cambio, la respuesta
+         * del envío de `personal-info` ya trae a Agildata hecho —es dentro de `storePersonalInfo`—, así
+         * que la pantalla siguiente lee los valores repuestos.
+         * Una sola vez: el formulario se puede reenviar y el aviso se volvería ruido. */
+        if (!empleoRepuesto && /personal-info/.test(from) && resp.request().method() !== 'GET') {
+            empleoRepuesto = true;
+            void (async () => {
+                // El id sale de la URL del propio request: es la misma fuente que usa el resto del
+                // spec y no depende de que la traza ya lo tenga anclado.
+                const ur = from.match(UREQ_EN_URL)?.[1] ?? page.url().match(UREQ_EN_URL)?.[1] ?? '';
+                if (!ur) return;
+                const r = await reponerEmpleo(Number(ur), {
+                    income: Number(process.env.E2E_SYNTH_INCOME) || undefined,
+                    occupation: process.env.E2E_SYNTH_OCC || undefined,
+                }).catch(() => null);
+                for (const l of avisoDeEmpleoPisado(r)) log(`  ${l}`);
+            })();
         }
         if (/lenders/.test(from) && /solicitar/.test(loc)) lendersBounced = true;   // rebote REAL del front (F-66)
         // un 5xx del backend/loader es un fallo duro → foto (el backend caído era justo esto)

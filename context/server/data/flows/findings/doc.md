@@ -5019,6 +5019,21 @@ visible. El cliente de la corrida quedó con ocupación **«Desempleado»** e in
 grupos de reglas exigen ocupación ∈ {Empleado, Pensionado, Independiente}; las dos rt=2, además,
 ingreso ≥ 1.000.000.
 
+⚠ **Y POR QUÉ EL CLIENTE QUEDÓ ASÍ, que es la mitad accionable: la respuesta de la central PISA el
+empleo.** El servicio de ingresos cierra su llamada persistiendo los datos laborales con lo que
+devolvió el proveedor —`employed ? 'Empleado' : (self_employed ? 'Independiente' : 'Desempleado')` y
+`approximate_real_salary`— y además reescribe el resumen del usuario. Corre **dentro del envío de
+personal-info**, así que reemplaza ocupación, ingreso y continuidad sembrados antes. Medido por marca
+de tiempo: la siembra escribió «Empleado · 2.500.000» a las 18:36:57 y a las 18:37:03 los campos
+decían «Desempleado · 0», con el registro diciendo que la central había contestado 200. El campo que
+sólo escribe la siembra —reportes negativos— quedó intacto, que es lo que descarta cualquier otra
+explicación.
+
+⚠ **En los ambientes que no son producción la central la atiende el lambda de mocks de la empresa, y
+para una cédula que no se le dictó devuelve una persona sin empleo y sin ingreso.** O sea que sembrar
+un cliente que pasa las reglas no alcanza: hay que dictarle la respuesta a esa cédula, o reponer los
+campos después. La receta para dictarla está en la tarea de los mocks de centrales.
+
 ⚠ **Y el contador del registro miente en la dirección que oculta el problema:** la línea de cierre de
 la validación dice «rechazadas: 1» habiendo rechazado tres, porque cuenta **después** del `unset`. Una
 rt=2 excluida por reglas duras no deja rastro **ni en el listado ni en el conteo**: el único lugar donde
@@ -5039,10 +5054,14 @@ PRODUCTO: la asimetría es una decisión de producto sin documentar — la rt=2 
 mostrarse en gris—, y hoy no hay forma de saber, mirando el listado o los conteos, que una entidad
 rt=2 estuvo y se cayó.
 
-**Arreglado del lado de la herramienta** (el comportamiento del backend queda como está, es decisión de
-producto): el rastro del panel ya no anuncia las entidades de la sucursal como si fueran el listado —dice
-que es lo habilitado, que encima corren las reglas duras y que una rt=2 que no pasa desaparece—, y ya no
-promete un perfil de empleo que no escribe. Ese anuncio era la mitad de la confusión: prometía
-«Empleado · ingreso $2.500.000» mientras la solicitud nacía «Desempleado · 0», porque ocupación e
-ingreso viven en el formulario y los pone quien camina el wizard, no la inyección del buró. El ingreso
-del perfil del panel, que se exportaba y nadie leía, ahora sí llega al autorrelleno.
+**Arreglado del lado de la herramienta** (el comportamiento del backend queda como está: la asimetría
+del rt=2 es decisión de producto y la central escribe lo que le corresponde). Tres cosas:
+
+- el rastro ya no anuncia las entidades de la sucursal como si fueran el listado — dice que es lo
+  habilitado, que encima corren las reglas duras y que una rt=2 que no pasa desaparece;
+- el rastro ya no promete un empleo que no sobrevive: dice que la central lo pisa al enviar
+  personal-info y que en este ambiente contesta el lambda de mocks;
+- y el runner **repone ocupación e ingreso en cuanto la central contesta**, avisando qué encontró y qué
+  repuso. Va enganchado a la RESPUESTA del envío de personal-info y no a la navegación al listado,
+  porque el pedido de datos del listado se emite antes de que la navegación se vea: reponer ahí llegaría
+  tarde para ese render.
