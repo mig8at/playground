@@ -35,6 +35,21 @@ test.describe('qué parte de la fecha es cada combo', () => {
             expect(parte('', '', 1)).toBe('mes');
             expect(parte('', '', 2)).toBe('anio');
             expect(parte('', '', 3)).toBeNull();
+            // ...y también cuando el combo dice que todavía no eligió nada.
+            expect(parte('Seleccionar', '', 0)).toBe('dia');
+      });
+
+      // 🔴 LA POSICIÓN NO ALCANZA SI EL COMBO YA MUESTRA OTRA COSA, y esto costó dos capturas.
+      // En `/lenders` hay un selector de PLAZO por entidad; con tres tarjetas, el fallback por posición
+      // los daba como día/mes/año y `esTrioDeFecha` decía `true`. El autorrelleno abría los tres
+      // buscando una fecha adentro, ninguno la tenía, y quedaban abiertos uno encima del otro: se veía
+      // como «el select se quedó pegado y no cierra». Medido contra `qa` el 2026-09-15 con Crédito 365
+      // (3,6,9,12), Addi (3…24) y Vanti (2…60).
+      test('un selector de cuotas NO es parte de una fecha, aunque esté en la posición de una', () => {
+            const plazos = ['12 cuotas', '24 cuotas', '60 cuotas'];
+            const partes = plazos.map((t, i) => parte(t, '', i));
+            expect(partes).toEqual([null, null, null]);
+            expect(esTrioDeFecha(partes)).toBe(false);
       });
 
       // 🔴 Un combo suelto que casualmente muestra un número NO es una fecha: sin esto, el autorrelleno

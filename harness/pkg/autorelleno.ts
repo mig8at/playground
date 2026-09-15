@@ -416,18 +416,50 @@ function guion(datos: DatosAutorelleno) {
          *     concreta la cambiás vos — el autorelleno no la vuelve a pisar. */
         const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+        /** Cierra el popover de un trigger de radix DE VERDAD, y lo comprueba.
+         *
+         *  ⚠ Antes se cerraba con un segundo `trigger.click()`, y eso NO alcanza: con el contenido
+         *  abierto radix atrapa el foco, y un click sintetico sobre el trigger no siempre le llega.
+         *  El popover quedaba colgado — y como la busqueda de opciones era global (ver abajo), el
+         *  siguiente trigger abria el suyo y quedaban DOS listas abiertas, una encima de la otra.
+         *  Escape es la salida que radix si escucha siempre. */
+        async function cerrarPopover(trigger: HTMLElement): Promise<void> {
+            for (const intento of [0, 1]) {
+                if (trigger.getAttribute('aria-expanded') !== 'true') return;
+                const ev = { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true } as KeyboardEventInit;
+                (document.activeElement ?? trigger).dispatchEvent(new KeyboardEvent('keydown', ev));
+                await espera(intento === 0 ? 80 : 200);
+            }
+            // Ultimo recurso: un pointerdown afuera, que es la otra forma en que radix cierra.
+            if (trigger.getAttribute('aria-expanded') === 'true') {
+                document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+                await espera(80);
+            }
+        }
+
         /** Abre un trigger de radix y clickea la opción que matchee, o la primera si no se pide ninguna. */
         async function elegirEnPopover(trigger: HTMLElement, buscado?: string[]): Promise<boolean> {
             trigger.click();
             await espera(200);
-            const opciones = Array.from(document.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
-            if (!opciones.length) { trigger.click(); return false; }   // no abrió: se cierra, sin dejar el popover colgado
+            /* ⚠ LAS OPCIONES SE BUSCAN DENTRO DEL POPOVER DE **ESTE** TRIGGER, no en el documento.
+             * Era `document.querySelectorAll('[role=option]')`, global: con dos popovers abiertos
+             * juntaba las opciones de los dos y `opciones[0]` podía ser de OTRA tarjeta. En
+             * `/lenders`, donde hay un selector de plazo por entidad, eso es elegir en la lista
+             * equivocada. Radix pone el id del contenido en `aria-controls` del trigger. */
+            const panelId = trigger.getAttribute('aria-controls');
+            const panel = panelId ? document.getElementById(panelId) : null;
+            const raiz: ParentNode = panel ?? document;
+            const opciones = Array.from(raiz.querySelectorAll<HTMLElement>('[role=option]:not([aria-disabled=true])'));
+            if (!opciones.length) { await cerrarPopover(trigger); return false; }
             const elegida = buscado
                 ? opciones.find((o) => buscado.some((b) => norm(o.textContent || '') === norm(b)))
                 : opciones[0];
-            if (!elegida) { trigger.click(); return false; }
+            if (!elegida) { await cerrarPopover(trigger); return false; }
             elegida.click();
             await espera(180);
+            // Elegir CIERRA el popover en radix; si no cerro, el click no se registro como seleccion
+            // y dejarlo abierto es lo que se ve como «el select quedo pegado».
+            await cerrarPopover(trigger);
             return true;
         }
 

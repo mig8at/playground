@@ -90,7 +90,22 @@ export function parteDeCombo(
       if (/\bano\b|\banio\b|\byear\b/.test(e)) return 'anio';
       if (/\bdia\b|\bday\b/.test(e)) return 'dia';
 
-      // 3 · por la posición
+      // 3 · por la POSICIÓN — y sólo si el combo no dice ya qué muestra.
+      //
+      // ⚠ ESTO ERA UN FALLBACK CIEGO y clasificaba CUALQUIER terna de combos como día/mes/año.
+      // Medido el 2026-09-15 en `/lenders`: los tres selectores de PLAZO de las tarjetas —«12
+      // cuotas», «24 cuotas», «60 cuotas»— salían `["dia","mes","anio"]` y `esTrioDeFecha` daba
+      // `true`, así que el autorrelleno los abría los TRES buscando una fecha adentro. Ninguno la
+      // tenía, y quedaban abiertos uno encima del otro: se veía como «el select se quedó pegado y no
+      // cierra». El archivo ya avisaba que «un selector de cuotas también cae en uno o dos dígitos»,
+      // pero la guarda no estaba.
+      //
+      // Un combo de una fecha, cuando no muestra un valor de fecha, muestra su PLACEHOLDER («Día*»,
+      // que el paso 2 ya reconoce) o está vacío. Si muestra un texto CONCRETO que no es de fecha,
+      // no es parte de una fecha y adivinarlo por el orden en que apareció es inventar.
+      const pareceVacio = t === '' || /seleccion|elegi|choose|select|^-+$|^dd$|^mm$|^aa+$|^yy+$/.test(t);
+      if (!pareceVacio) return null;
+
       if (indice === 0) return 'dia';
       if (indice === 1) return 'mes';
       if (indice === 2) return 'anio';
