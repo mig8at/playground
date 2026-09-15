@@ -9,7 +9,9 @@ contexto.
 
 Un texto en inglés a la izquierda… perdón, a la derecha; el glosario a la izquierda. Pasás el mouse
 por encima de cualquier palabra o expresión y sale la traducción. El método es **transcribir la
-historia a mano** y pedir otra con el mismo vocabulario.
+historia a mano** y pedir otra con el mismo vocabulario — y antes de transcribir, **dictado**:
+el botón de arriba cambia de modo y te dicta las palabras del cuento para escribirlas sin tenerlas
+delante.
 
 ## Las tres decisiones que explican todo lo demás
 
@@ -47,6 +49,67 @@ porque Chrome corta en seco cualquier audio de más de ~15 s (un párrafo de tre
 trece: el problema no es teórico); y la **voz se elige con lista negra**, porque macOS registra como
 `en-US` sus voces de broma —Bells, Boing, Zarvox— y un `find` por idioma, que es lo obvio, elige un
 cencerro. Para ver con cuál va a leer, sin escucharla: `vozElegida()` en `src/voz.js`.
+
+## El dictado
+
+El botón **dictado**, arriba al lado del selector de historia. Suena una palabra del cuento, la
+escribís, y si fallás te muestra **dónde** —letra por letra— antes de seguir.
+
+Existe por lo que le falta a transcribir: con el texto delante, la mano puede copiar letra por letra
+sin que nadie aprenda a escribir nada, y uno termina el cuento entero sin saber si sabe. El dictado
+saca el modelo de la pantalla y deja sólo el sonido, que es justo donde el inglés no se deja
+deducir — *neighbour* no se escribe como suena y *though* no se parece a nada.
+
+**Qué se dicta.** Un selector, con la cantidad al lado para saber a qué te estás metiendo:
+
+| conjunto | qué trae |
+|---|---|
+| lo que esta historia agrega | `nuevas` + `frases` + `sentidos`: lo que estás aprendiendo hoy. Es el default |
+| las 100 que salen en ésta | las del núcleo que **de verdad** aparecen en este cuento, no las 100 |
+| todas las de esta historia | las dos juntas |
+| las que te vienen costando | sale del uso y cruza **todas** las historias: lo que consultaste leyendo más lo que fallaste acá, y esto último pesa doble — mirar la traducción es no acordarte del significado; fallar el dictado es no reconocerla ni oyéndola |
+
+**Lo que enseña es la corrección, no el veredicto.** Decir «está mal» es gratis; lo que sirve es
+dónde. Las dos escrituras se alinean con una distancia de edición y se pintan una debajo de la otra,
+en columnas del mismo ancho, así que el hueco cae justo debajo de la letra que falta:
+
+    escribiste   n e i g · b o u r
+    va           n e i g h b o · r
+
+Comparar posición por posición —lo obvio— no sirve: a «neigbor» le falta una letra en el medio y
+desde ahí **todas** quedan corridas, o sea que la corrección diría «tenés mal media palabra» cuando
+tenés mal una.
+
+**El ritmo es la otra mitad del ejercicio**, y son tres decisiones:
+
+- **acertar no frena** (se ve el ✓ y sigue sola) y **fallar sí**, y espera un ⏎: la corrección es lo
+  único que enseña y hay que darle tiempo a que se lea. Parar a celebrar cada acierto convierte una
+  vuelta de cuarenta palabras en un trámite;
+- **la que fallás vuelve a salir**, hasta tres veces. Sin eso el dictado es un examen —te dice lo que
+  no sabés y se acabó—; con eso es práctica, que era el punto;
+- **⏎ con el campo vacío la repite** en vez de contarla como fallo. No entender lo que sonó no es el
+  error que esto quiere medir.
+
+**Y sin soltar el teclado: tocar `shift` repite la palabra, `⌥` la repite a media velocidad.** Es lo
+que más se usa del ejercicio, y tenerlo sólo en un botón obliga a ir al mouse en mitad de escribir.
+
+⚠ Las dos miran el **keyup**, no el keydown, y no es un detalle: al escribir una mayúscula el Shift
+baja **antes** que la letra, así que disparar al bajar haría sonar la palabra cada vez que escribís
+un nombre propio. Anotando si hubo otra tecla en el medio, *tocar Shift* y *escribir en mayúscula* se
+distinguen sin ambigüedad — comprobado con los dos gestos, más el Shift sostenido, Shift+⏎ y perder
+el foco con la tecla abajo.
+
+Al comparar se perdonan mayúsculas, espacios de más y la comilla tipográfica —ésa la pone el teclado,
+no vos—. El apóstrofo **no** se perdona: en «don't» es la lección. Los separables se dictan y se
+escriben sin el hueco (*pick up*), que vuelve a aparecer en la corrección, donde sí explica algo.
+
+⚠ **El glosario del costado sigue ahí, con las respuestas a un clic.** Es a propósito: lo que esta
+herramienta evita es la ayuda que llega **sin pedirla** —por eso el hover no traduce párrafos—, no la
+que buscás a mano. Taparlo sería tratarte como a un alumno vigilado, y el que se sopla en su propia
+práctica ya sabe lo que está haciendo.
+
+El campo va con el corrector y el autocompletado del navegador **apagados**: el subrayado rojo de
+Chrome es exactamente la respuesta que estamos preguntando.
 
 ## Agregar una historia
 
@@ -109,7 +172,8 @@ cada historia agrega algunas; cuántas, lo decidís vos según cuánto quieras t
 | archivo | qué hace |
 |---|---|
 | `src/lex.js` | lo único no trivial: reconoce el glosario dentro del texto, conjugado y separado |
-| `src/memoria.js` | el contador de consultas y el «ya la sé» (localStorage) |
+| `src/dictado.js` | arma la tanda y **alinea** lo que escribiste con lo que iba. Sin Vue adentro, a propósito: así se prueba con `node` y sin navegador |
+| `src/memoria.js` | el contador de consultas, el «ya la sé» y la cuenta del dictado (localStorage) |
 | `src/voz.js` | pronunciación con el sintetizador del navegador, sin dependencias |
 | `herramientas/check.js` | el oráculo de los `.json` |
 

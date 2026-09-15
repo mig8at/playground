@@ -4,6 +4,7 @@ import core from '../data/core-100.json'
 import { construirLexico, analizar, cobertura } from './lex.js'
 import { ver } from './memoria.js'
 import Texto from './piezas/Texto.vue'
+import Dictado from './piezas/Dictado.vue'
 import Sidebar from './piezas/Sidebar.vue'
 import Globo from './piezas/Globo.vue'
 
@@ -50,9 +51,21 @@ const MARCAS = [
 ]
 const marcas = ref(localStorage.getItem('ingles.marcas') ?? 'nuevo')
 
+/* Leer y dictar son la misma página en dos modos, no dos herramientas: el dictado usa el glosario de
+   la historia abierta y existe para el rato ANTES de transcribirla. Por eso comparten el selector de
+   historia y el encabezado.
+   El modo NO se recuerda entre sesiones, al revés que la historia y las marcas: esto es un lector, y
+   abrirlo mañana tiene que caer en el cuento y no en un ejercicio a medio empezar. */
+const modo = ref('leer')
+function irA(m) {
+  modo.value = m
+  cerrar()
+}
+
 // Sólo para NOMBRAR la tecla en la leyenda. El gesto acepta ⌘ y Ctrl en cualquier plataforma, así
 // que si esta detección se equivoca lo único que pasa es que el cartel dice la otra.
 const TECLA = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl'
+const ALT = TECLA === '⌘' ? '⌥' : 'alt'   // derivado del de arriba: una sola detección, no dos
 function cambiarMarcas(v) {
   marcas.value = v
   try { localStorage.setItem('ingles.marcas', v) } catch { /* da igual */ }
@@ -163,8 +176,13 @@ onUnmounted(() => {
         <select class="ctl" :value="elegida" @change="elegir($event.target.value)">
           <option v-for="h in historias" :key="h.id" :value="h.id">{{ h.titulo }}</option>
         </select>
+        <nav class="modos">
+          <button class="ctl" :aria-pressed="modo === 'leer'" @click.stop="irA('leer')">leer</button>
+          <button class="ctl" :aria-pressed="modo === 'dictado'" @click.stop="irA('dictado')">dictado</button>
+        </nav>
         <span class="resumen tenue">{{ historia?.resumen }}</span>
-        <select class="ctl" :value="marcas" @click.stop @change="cambiarMarcas($event.target.value)">
+        <select v-if="modo === 'leer'" class="ctl" :value="marcas" @click.stop
+                @change="cambiarMarcas($event.target.value)">
           <option v-for="[v, t] in MARCAS" :key="v" :value="v">{{ t }}</option>
         </select>
       </header>
@@ -173,17 +191,27 @@ onUnmounted(() => {
         <!-- `:key` fuerza a rehacerlo al cambiar de historia: sin eso quedarían abiertas las
              traducciones de los párrafos que estaban abiertos en la historia anterior, por índice. -->
         <Texto
+          v-if="modo === 'leer'"
           :key="historia?.id"
           :parrafos="parrafos" :titulo="historia?.titulo" :marcas="marcas"
           :traduccion="historia?.traduccion" :historia-id="historia?.id"
           @entrar="entrar" @salir="salir" @fijar="fijar"
         />
 
-        <p v-if="marcas === 'ninguna'" class="aviso">
+        <!-- `:key` acá también: cambiar de historia tiene que descartar la vuelta a medias, que es
+             de las palabras de la anterior. -->
+        <Dictado
+          v-else
+          :key="historia?.id"
+          :lex="lex" :usadas="cob.usadas" :global="glosarioGlobal"
+          @leer="irA('leer')"
+        />
+
+        <p v-if="modo === 'leer' && marcas === 'ninguna'" class="aviso">
           Sin marcas, sin hover y sin español. El <b>▶</b> del margen sí se queda: escuchar el inglés
           no lo traduce, y leer oyendo es ejercicio, no muleta.
         </p>
-        <p v-else-if="marcas === 'nuevo'" class="aviso">
+        <p v-else-if="modo === 'leer' && marcas === 'nuevo'" class="aviso">
           Marcado sólo lo nuevo. Las 100 no se subrayan para no rayar el párrafo entero, pero
           <b>siguen respondiendo al mouse</b>: pasá por encima de cualquier palabra.
           Y en el margen de cada párrafo: <b>es</b> lo muestra en español (o <b>{{ TECLA }}+clic</b>
@@ -192,19 +220,28 @@ onUnmounted(() => {
 
         <!-- Sale de comparar el glosario contra el texto: si aparece, es un typo en el JSON, no una
              palabra de más. Vale gritarlo en pantalla porque el fallo sería silencioso. -->
-        <p v-if="cob.huerfanas.length" class="aviso mal">
+        <p v-if="modo === 'leer' && cob.huerfanas.length" class="aviso mal">
           En el glosario y no en el texto: <b>{{ cob.huerfanas.join(', ') }}</b>.
           Casi siempre es una palabra mal escrita en el .json.
         </p>
       </div>
 
       <footer class="leyenda">
-        <span><i class="m core"></i>una de las 100</span>
-        <span><i class="m nueva"></i>palabra nueva</span>
-        <span><i class="m frase"></i>phrasal verb / expresión</span>
-        <span><i class="m sentido"></i>otro sentido</span>
-        <span class="tenue der">clic clava el globo · <b>{{ TECLA }}+clic</b> traduce el párrafo ·
-          <b>▶</b> lo lee · Esc cierra</span>
+        <template v-if="modo === 'leer'">
+          <span><i class="m core"></i>una de las 100</span>
+          <span><i class="m nueva"></i>palabra nueva</span>
+          <span><i class="m frase"></i>phrasal verb / expresión</span>
+          <span><i class="m sentido"></i>otro sentido</span>
+          <span class="tenue der">clic clava el globo · <b>{{ TECLA }}+clic</b> traduce el párrafo ·
+            <b>▶</b> lo lee · Esc cierra</span>
+        </template>
+        <template v-else>
+          <!-- Sin `<b>` en el medio a propósito: `.leyenda span` es inline-flex con `gap`, así que
+               partir el texto en dos nodos le mete 6px ANTES de la coma y queda flotando sola. -->
+          <span>las palabras de «{{ historia?.titulo }}», dictadas</span>
+          <span class="tenue der"><b>⏎</b> comprueba · <b>shift</b> repite la palabra ·
+            <b>{{ ALT }}</b> más lento · la que fallás vuelve a salir</span>
+        </template>
       </footer>
     </div>
 
@@ -225,6 +262,7 @@ onUnmounted(() => {
 .head{display:flex;align-items:center;gap:12px;padding:10px 16px;
   border-bottom:1px solid var(--line);background:var(--panel)}
 .resumen{font-size:12px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modos{display:flex;gap:6px;flex:none}
 
 /* `min-height:0` NO es adorno: sin él este bloque no scrollea. Un item flex arranca con
    `min-height:auto`, así que en vez de encogerse al alto disponible y desbordar, crece con su

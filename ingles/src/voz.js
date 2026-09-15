@@ -41,12 +41,12 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
 
 export const hayVoz = () => typeof window !== 'undefined' && !!window.speechSynthesis
 
-function armar(texto) {
+function armar(texto, rate = 0.85) {
   const u = new SpeechSynthesisUtterance(String(texto).replace(/…|~/g, ' '))
   const v = vozInglesa()
   if (v) u.voice = v
   u.lang = v?.lang ?? 'en-US'
-  u.rate = 0.85   // un poco lento: es para aprender, no para sonar natural
+  u.rate = rate   // 0.85 por defecto: un poco lento, es para aprender y no para sonar natural
   return u
 }
 
@@ -55,11 +55,13 @@ export function callar() {
   if (hayVoz()) window.speechSynthesis.cancel()
 }
 
-// Una palabra o una frase corta: lo del globo y el glosario.
-export function decir(texto) {
+/* Una palabra o una frase corta: lo del globo y el glosario. El `rate` está abierto por el dictado,
+   donde una palabra que no se entiende hay que poder oírla más despacio — es el único lugar donde la
+   pronunciación no es un extra sino el enunciado del ejercicio. */
+export function decir(texto, { rate } = {}) {
   if (!hayVoz()) return
   callar()
-  window.speechSynthesis.speak(armar(texto))
+  window.speechSynthesis.speak(armar(texto, rate))
 }
 
 /* Chrome CORTA en seco cualquier utterance que pase de unos ~15 segundos. Un párrafo de treinta

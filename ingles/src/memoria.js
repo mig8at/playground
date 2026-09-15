@@ -14,14 +14,15 @@ import { reactive } from 'vue'
 
 const LLAVE = 'ingles.memoria.v1'
 
-const vacio = () => ({ vistas: {}, sabidas: [], parrafos: [] })
+const vacio = () => ({ vistas: {}, sabidas: [], parrafos: [], dictado: {} })
 
 function leer() {
   try {
     const crudo = localStorage.getItem(LLAVE)
     if (!crudo) return vacio()
     const d = JSON.parse(crudo)
-    return { vistas: d.vistas ?? {}, sabidas: d.sabidas ?? [], parrafos: d.parrafos ?? [] }
+    return { vistas: d.vistas ?? {}, sabidas: d.sabidas ?? [], parrafos: d.parrafos ?? [],
+             dictado: d.dictado ?? {} }
   } catch {
     return vacio()   // modo privado, storage bloqueado, JSON corrupto — la app sigue igual
   }
@@ -71,9 +72,24 @@ export function marcarParrafo(clave) {
   }
 }
 
+/* El dictado lleva su propia cuenta y NO suma al contador de arriba, aunque las dos digan «ésta te
+   cuesta». Miden cosas distintas: `vistas` dice cuántas veces no te acordaste del SIGNIFICADO, y
+   esto dice cuántas veces no supiste ESCRIBIRLA oyéndola. Mezclarlas volvería el número de arriba
+   —«la miraste 5 veces»— una frase falsa, que es justo lo que lo hace servir. */
+export function anotarDictado(clave, bien) {
+  const d = estado.dictado[clave] ?? { bien: 0, mal: 0 }
+  estado.dictado[clave] = { bien: d.bien + (bien ? 1 : 0), mal: d.mal + (bien ? 0 : 1) }
+  escribir(estado)
+}
+
+export function dictadoDe(clave) {
+  return estado.dictado[clave] ?? { bien: 0, mal: 0 }
+}
+
 export function olvidarTodo() {
   estado.vistas = {}
   estado.sabidas = []
   estado.parrafos = []
+  estado.dictado = {}
   escribir(estado)
 }
