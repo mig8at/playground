@@ -320,6 +320,62 @@ repedirle el endpoint, según `harness/CLAUDE.md`).
    corrida siguiente, sin trabajo extra.**
 2. Lo de la etiqueta del registro (arriba), que sólo se ve corriendo en paralelo.
 
+
+## El log de la corrida, lo más detallado que se pudo (2026-09-15)
+
+Tres cosas que **hoy hubo que averiguar a mano** y ahora salen en el log, en los **dos** caminos: la
+consola (`harness-caminar`) y la UI (el panel, que transmite el stdout de `guided.spec.ts`).
+
+### 1 · Lo que el arnés le escribió a la base
+
+El registro de `pkg/db.ts` existía y **nadie lo imprimía**. Al cerrar:
+
+    ── LO QUE EL ARNÉS ESCRIBIÓ EN LA BASE · local ──
+       (la siembra y los bypasses; lo que escribe el backend por la API va aparte — `dbops activity`)
+       user_field_values       INSERT               3 fila(s)
+       users                   UPDATE               2 fila(s)
+       risk_central_user_data  DELETE+INSERT        1 fila(s)
+       8 sentencia(s) · incluye DELETEs, que `dbops activity` no puede ver
+       detalle sentencia por sentencia → .runs/escrituras-<ts>.json
+
+**Importa para algo concreto:** una corrida puede decir «0/N cerraron» y haber dejado la base llena
+—ya pasó tres veces (F-176, F-180)— y **relanzarla entonces DUPLICA los datos**. Contra una base
+compartida eso es lo primero que hay que mirar antes de volver a lanzar.
+
+⚠ **La cabecera aclara que es lo que escribe EL ARNÉS, no el flujo.** Sin eso se lee al revés
+(«escribió 8 sentencias y no veo la solicitud»): lo que escribe el backend cuando el runner le pega por
+la API no pasa por este registro.
+
+### 2 · El status HTTP del paso que falló — y de QUIÉN es
+
+Un 422 y un 500 se depuran distinto, y sin el número había que repetir la llamada para saber cuál fue.
+
+⚠ **Pero el status se etiqueta como «del FRONT», y no es pedantería.** Medido con el OTP de firma: el
+front responde **200 con el error adentro del cuerpo** mientras el backend había devuelto **422**.
+Leer ese 200 como «el backend estuvo bien» manda a buscar el bug en el lugar equivocado.
+
+### 3 · En la UI, los BORRADOS que la comprobación no podía ver
+
+El panel corre el spec como **hijo**, así que su registro vive en la memoria del hijo: el spec lo
+vuelca a `.runs/escrituras-guiado.json` y el panel lo lee. Su bloque post-corrida gana:
+
+    arnés:      users (UPDATE 2) · risk_central_user_data (DELETE+INSERT 1) · …
+                ↑ lo que escribió el ARNÉS (siembra y bypasses), 8 sentencia(s)
+                  — con BORRADOS en …, que la línea «tablas» no puede ver
+
+✔ **Ése es el dato nuevo.** La línea `tablas:` sale de `dbops activity`, que **reconstruye** el rastro
+consultando la base después — y su propio comentario admite que **no ve los DELETEs**, porque una fila
+borrada no está para ser consultada. **El scrub del cliente borra en CADA corrida (F-52) y nunca
+apareció en esa comprobación.**
+
+### ⚠ Y un bug mío, visto en la primera salida del registro
+
+`mutacionDe` leía `DROP TABLE IF EXISTS x` como la tabla **«if»**, porque el `IF EXISTS` va entre el
+verbo y el nombre. Lo vi en el propio log que vine a hacer confiable. **Un registro con nombres
+inventados se lee como si fueran tablas reales: es peor que no tenerlo.** Arreglado con su prueba.
+
+**39 pruebas en verde** entre las tres suites, typecheck 0.
+
 ## Registro
 
 ### 2026-09-15 · auditoría y propuesta
@@ -357,3 +413,11 @@ credit (48) muere en el OTP de firma con un 422 «no tiene un OTP pendiente» y 
 nacen ya validadas; Creditop X (37) muere en `confirmation` con `errorCode: unexpected`. Ninguna de
 las dos causas raíz está aislada. Y el runner dejó de reportar «error: true»: buscaba el mensaje en
 `message` cuando venía en `errorMessage`.
+
+### 2026-09-15 (6) · el log de la corrida, detallado en los dos caminos
+El registro de escrituras existía y nadie lo imprimía: ahora sale al cerrar (consola y UI), con el
+detalle sentencia por sentencia volcado a `.runs/`, y el panel muestra los BORRADOS que `dbops
+activity` admite que no puede ver — el scrub borra en cada corrida y nunca aparecía. Más el status
+HTTP del paso que falló, etiquetado como «del front» porque medido responde 200 donde el backend dio
+422. Y un bug mío en el propio registro (`DROP TABLE IF EXISTS x` → tabla «if»), visto en su primera
+salida y arreglado con prueba.
