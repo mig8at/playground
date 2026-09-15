@@ -500,7 +500,22 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             }
         } else {
             const err = acc.cuerpo?.error ?? acc.datos?.error ?? acc.cuerpo?.data?.error;
-            if (err) return terminar('trabado', `${hoja} respondió error: ${typeof err === 'string' ? err : (err?.message ?? JSON.stringify(err)).slice(0, 160)}`);
+            if (err) {
+                /* ⚠ CUANDO EL `error` NO ES UN MENSAJE, MOSTRAR EL CUERPO. Medido el 2026-09-15: una
+                 * pantalla devolvió `error: true` y el reporte decía literalmente «`confirmation`
+                 * respondió error: true» — cero información, y para saber qué pasó había que repetir la
+                 * corrida a mano contra el endpoint. `error` booleano es una forma legítima del
+                 * envelope (dice «hubo error», el detalle va en otra clave), así que el runner tiene
+                 * que ir a buscarlo en vez de imprimir el booleano. */
+                /* Y se buscan las DOS formas del envelope: `message` y `errorMessage`/`errorCode`.
+                 * La pantalla que destapó esto manda `{error:true, errorCode, errorMessage}` — el
+                 * mensaje estaba ahí todo el tiempo y el runner miraba sólo `message`. */
+                const d = (acc.cuerpo?.data ?? acc.datos?.data ?? acc.cuerpo ?? acc.datos ?? {}) as any;
+                const detalle = typeof err === 'string' ? err
+                    : (err?.message ?? d.errorMessage ?? (d.errorCode ? `errorCode ${d.errorCode}` : null));
+                const cuerpo = JSON.stringify(acc.cuerpo ?? acc.datos ?? null);
+                return terminar('trabado', `${hoja} respondió error: ${detalle ?? `(sin mensaje) cuerpo: ${cuerpo.slice(0, 400)}`}`);
+            }
             if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
                 const d = acc.cuerpo?.data ?? {};
                 log(`B (celular): handoff CreditopX (${lenderElegido.name}) → abro ${baseHandoff}/${r.ur}/confirmation  [el front devolvió ${d.showModal ? `modal «${String(d.modalMessage ?? '').slice(0, 60)}»` : 'datos sin redirect'}]`);
