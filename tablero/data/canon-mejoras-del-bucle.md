@@ -5,11 +5,26 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
 ## Si retomás esto sin contexto, empezá acá
+
+**Estado al 2026-09-15.** Se le sumó a la Sala **la franja de repos**: arriba del panel, una fila por
+repo y una columna por área del mapa, con un punto donde el área declara archivos de ese repo. Contesta
+de un vistazo **dónde vive un tema** —el listado casi todo en el front, la cartera en el monolito
+viejo—, que es algo que ninguna prosa dejaba ver, y al abrir una sección enciende las áreas que la
+respaldan. Sale de los mismos hashes que verifica la ronda, así que no envejece aparte. Mergeada en
+`Creditop-SAS/playground#194`.
+
+⚠ **A propósito NO es un mapa de tren**, que fue la idea original: las áreas del mapa no traen orden de
+ejecución, y dibujarlas como estaciones en fila afirmaría un flujo que nadie midió. El orden, si alguna
+vez se quiere, tiene que venir de algo que corre (el harness recorre el flujo y sí lo sabe), no de algo
+que alguien escribió.
+
+**El próximo paso es:** medir si la franja se usa, con el mismo criterio con que se mide cualquier otra
+mejora de canon — que el camino se recorra, no que la herramienta funcione.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -294,6 +309,28 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-15
+
+- **La franja de repos, en el panel de la Sala.** PR #194, mergeado. Una fila por repo, una columna por
+  área, un punto donde el área declara archivos de ese repo; el radio crece con la raíz de la cantidad,
+  porque el ojo compara áreas y no diámetros. Al abrir una sección se encienden las áreas que la
+  respaldan — la misma información que la cabecera «Respaldada por el área N», pero puesta en el mapa.
+  `/api/grafo` entrega por tema las áreas con su conteo por repo y los repos por peso: es **derivado**,
+  como el resto del grafo, no declarado.
+- **Al posar el puntero, la franja dice qué es cada punto**: el objetivo del área y las secciones que
+  respalda, por título. El texto no se inventó — es el `objetivo` que ya escribió una persona, así que
+  la franja y el chat dicen lo mismo.
+- ⚠ **Y salió un defecto de mirarlo, no de probarlo: dos tooltips encimados.** Había dejado el `<title>`
+  del SVG «por las dudas» para lectores de pantalla, y el navegador lo dibuja igual. El texto pasó a
+  `aria-label` —que se lee y no se dibuja— y el SVG a `role="group"`, porque `role="img"` oculta a sus
+  hijos del árbol de accesibilidad. La prueba nueva falla si vuelve a entrar un `<title>`, y **me cazó a
+  mí primero**: mirando el archivo entero encontraba la palabra en mi propio comentario, así que mira
+  sólo el template.
+- **Lo que NO se hizo, y el motivo:** la idea era un «mapa de tren» con estaciones en fila. Los mapas
+  dan repos y archivos, pero **no dan orden**: las áreas van en el orden en que alguien las escribió.
+  Dibujarlas como secuencia habría hecho que canon afirmara un flujo que nadie midió, justo lo contrario
+  de su regla de que el grafo es derivado y nunca declarado.
 
 ### 2026-09-03 · la ronda en cero, y lo que costó llegar (#83)
 
