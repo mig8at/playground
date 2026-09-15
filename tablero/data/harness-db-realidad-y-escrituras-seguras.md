@@ -220,6 +220,49 @@ siguiente confirma el redirect que predijo.
 otra sesión reasignó al asesor por afuera mientras yo trabajaba. El preflight lo dice ahora; antes el
 síntoma era «la entidad 77 no salió en el listado».
 
+
+## La comprobación en PARALELO: 4 comercios, y el listado coincide entidad por entidad (2026-09-15)
+
+> **MEDICIÓN · 2026-09-15** — la pregunta original («¿el harness lee la realidad de la BD o hay cosas
+> quemadas que mienten en qué lenders van a salir?») contestada corriendo, contra cuatro comercios
+> distintos a la vez.
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=local make harness-caminar CASOS='#a1a55fab:6;#dc835830:100;#2b2b4b16:7;#2e4fdf84:23' FLOW=self-service PAR=1`
+
+**4/4 listaron en 7,9 s.** Y contrastando cada listado contra los lenders activos de ESA sucursal
+(`lenders_by_allied_branches` + `lenders.status`):
+
+| comercio | la BD declara | el wizard listó | |
+|---|---|---|---|
+| `a1a55fab` 14-85 Dental Spa | `5,6,9,23,39,68` | `39,9,23,5,68,6` | ✅ los mismos 6 |
+| `dc835830` ACTION BIKES | `5,6,9,68,100` | `9,5,68,100,6` | ✅ los mismos 5 |
+| `2b2b4b16` AHL | `5,6,7,9,16,17,20,68` | `9,5,68,16,20,17,6,7` | ✅ los mismos 8 |
+| `2e4fdf84` Aliviamos | `5,23,68,100` | `100,5,23,68` | ✅ los mismos 4 |
+
+✔ **Conclusión medida: el CONJUNTO de entidades que lista el wizard es exactamente el que declara la
+sucursal en la base.** No hay lista quemada en ningún lado.
+
+⚠ **El ORDEN sí difiere, y eso NO es un desajuste.** El orden lo decide el ranking (ML H2O + fallback
+por matrices, con rt=2/rt=3 forzados arriba), no la base. Leer la diferencia de orden como «el harness
+miente» sería un falso positivo; lo que hay que comparar es el conjunto.
+
+⚠ **Y el canal importa para esta prueba.** Se usó `FLOW=self-service` a propósito: el canal de ASESOR
+está pegado a la sucursal del asesor logueado, así que **no se pueden correr varios comercios en
+paralelo por ahí** — los cuatro aterrizarían en la misma sucursal. Por autogestión el hash del caso
+manda, y ahí sí se puede variar el comercio.
+
+### Y correr en paralelo destapó un bug MÍO, del mismo día
+
+`_etiqueta` del registro era un `let` de **módulo** —una por proceso—, así que dos `withWrite`
+concurrentes se la pisaban: en un `Promise.all` los dos la fijan antes de que resuelva el primer
+`await`, y ganaba el último. El registro atribuía las escrituras de un caso al otro.
+
+⚠ **Es exactamente la trampa que `pkg/trace.ts` ya había pagado** y que `harness/CLAUDE.md` tiene
+escrita —*«el estado de la traza vivía en el módulo, o sea UNA por proceso: correcto para los tres
+runners de un caso, y roto para N casos a la vez»*—. La volví a cometer, el mismo día, en el archivo de
+al lado. Arreglado con `AsyncLocalStorage` y **con su prueba**, que es lo único que la caza: con el
+`let` de módulo daba 0 y 2 en vez de 1 y 1.
+
 ## Registro
 
 ### 2026-09-15 · auditoría y propuesta
@@ -243,3 +286,9 @@ importar cuál de las tres fuentes esté mal. Queda la capa de escritura, que no
 para cerrar el riesgo — poniendo la guarda dentro de `exec()` quedaron cubiertos los nueve que no la
 nombraban, de una. Migrar los llamadores a las funciones nombradas pasa a ser prolijidad, de a uno
 cuando se toque cada archivo. 37 pruebas, typecheck 0.
+
+### 2026-09-15 (4) · la comprobación en paralelo
+Cuatro comercios distintos a la vez, 4/4 en 7,9 s, y el conjunto de entidades coincide con lo que
+declara cada sucursal — la pregunta original queda contestada corriendo, no leyendo. El paralelo
+además destapó que mi propio registro guardaba la etiqueta en el módulo: mismo error que trace.ts,
+arreglado con `AsyncLocalStorage` y con la prueba que lo caza.
