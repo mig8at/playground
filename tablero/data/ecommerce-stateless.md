@@ -747,6 +747,38 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-15 (10) · los selects pegados eran el AUTORRELLENO: creía que el plazo era una fecha
+
+> **MEDICIÓN · 2026-09-15** — la entrada (9) se quedó a mitad de camino: acertó que las dos listas
+> abiertas eran de tarjetas distintas, pero no dijo **quién las abría**. Es el autorrelleno del harness.
+> **Cómo se vuelve a comprobar:** `parteDeCombo('12 cuotas','',0,MESES)` — daba `'dia'`.
+
+**`pkg/fecha-trio.ts` tenía un fallback POR POSICIÓN que adivinaba sin mirar el contenido**: índice 0 =
+día, 1 = mes, 2 = año. En `/lenders` hay **un selector de plazo por entidad**, así que con tres
+tarjetas los tres salían `["dia","mes","anio"]` y `esTrioDeFecha` devolvía **`true`**. El autorrelleno
+abría **los tres** buscando un día y un mes adentro — y ninguno los tiene (Crédito 365: `3,6,9,12` ·
+Addi: `3…24` · Vanti: `2…60`).
+
+⚠ **El archivo ya avisaba de esto y la guarda no estaba:** *«un selector de cuotas también cae en uno o
+dos dígitos y no es un día»*. El aviso cubría los pasos 1 y 2 (por valor y por etiqueta); el que
+fallaba era el 3.
+
+**Y dos fugas más en `elegirEnPopover`, que son por qué quedaban ABIERTOS:**
+
+1. las opciones se buscaban con `document.querySelectorAll('[role=option]')`, **global**. Con dos
+   popovers abiertos juntaba las de los dos y `opciones[0]` podía ser **de otra tarjeta**.
+2. se cerraba con un **segundo `trigger.click()`**, y con el contenido abierto radix atrapa el foco: un
+   click sintético no siempre le llega. Ahora cierra con **Escape**, lo verifica por `aria-expanded` y
+   cae a un `pointerdown` afuera como último recurso.
+
+**Arreglado y con la regresión fijada** (`057dc11`): la posición sólo decide si el combo está vacío o
+muestra un placeholder. Los cinco casos reales del trío siguen detectándose — **14/14 en verde**, y dos
+de esas pruebas comprueban que la versión **inyectada al navegador** se porta igual que el módulo, o sea
+que el arreglo viaja.
+
+✔ **Y esto cierra el porqué del «no se cierran»**, que la entrada (9) dejó como «capa/posicionamiento»:
+no era z-index, era que **nadie los cerraba**.
+
 ### 2026-09-15 (9) · el «bucle» del selector de plazo: no era un bucle, era una tarjeta tapando a otra
 
 > **MEDICIÓN · 2026-09-15** — pedido el listado real de la solicitud de esa corrida (uReq **502328**,
