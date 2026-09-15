@@ -93,7 +93,11 @@ export async function scalar<T = any>(sql: string, params: any[] = []): Promise<
  */
 export function mutacionDe(sql: string): { op: string; tabla: string } | null {
     const t = sql.replace(/^[\s(]+/, '').replace(/^\/\*[\s\S]*?\*\//, '').trimStart();
-    const m = /^(INSERT(?:\s+IGNORE)?(?:\s+INTO)?|REPLACE(?:\s+INTO)?|UPDATE|DELETE\s+FROM|TRUNCATE(?:\s+TABLE)?|DROP\s+TABLE|ALTER\s+TABLE|CREATE\s+TABLE)\s+`?([a-z0-9_]+)`?/i.exec(t);
+    // ⚠ `IF EXISTS` / `IF NOT EXISTS` van ENTRE el verbo y la tabla, así que sin contemplarlas el
+    // nombre que salía era `if`. Lo vi en el propio log que vine a hacer confiable: un
+    // `DROP TABLE IF EXISTS x` se reportaba como la tabla «if». Un registro con nombres inventados es
+    // peor que no tenerlo, porque se lee como si fueran tablas reales.
+    const m = /^(INSERT(?:\s+IGNORE)?(?:\s+INTO)?|REPLACE(?:\s+INTO)?|UPDATE|DELETE\s+FROM|TRUNCATE(?:\s+TABLE)?|DROP\s+TABLE|ALTER\s+TABLE|CREATE\s+TABLE)(?:\s+IF(?:\s+NOT)?\s+EXISTS)?\s+`?([a-z0-9_]+)`?/i.exec(t);
     if (!m) return null;
     return { op: m[1].replace(/\s+/g, ' ').toUpperCase(), tabla: m[2].toLowerCase() };
 }

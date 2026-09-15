@@ -157,6 +157,34 @@ function volcarBitacora(): { veredicto: Record<string, unknown>; resumen: Record
     return { veredicto, resumen };
 }
 
+/**
+ * LO QUE EL ARNÉS ESCRIBIÓ, del registro DIRECTO que vuelca el spec (`.runs/escrituras-guiado.json`).
+ *
+ * ⚠ Es un dato que el bloque de arriba no puede dar. La línea `tablas:` sale de `dbops activity`, que
+ * **reconstruye** el rastro consultando la base después — y su propio comentario admite que **no ve
+ * los DELETEs**, porque una fila borrada no está para ser consultada. El scrub del cliente borra en
+ * cada corrida (F-52) y eso nunca apareció en esta comprobación. El registro anota la sentencia cuando
+ * corre, así que sí los ve.
+ *
+ * Silencioso si no hay volcado (una corrida vieja, o un spec que murió antes): un bloque que aparece
+ * vacío ensucia el reporte sin aportar.
+ */
+function escriturasDelArnes(): string[] {
+    try {
+        const j = JSON.parse(readFileSync(join(RUNS_DIR, 'escrituras-guiado.json'), 'utf8'));
+        const r: Array<{ tabla: string; ops: string; filas: number }> = j?.resumen ?? [];
+        if (!r.length) return [];
+        const conBorrado = r.filter((x) => x.ops.includes('DELETE')).map((x) => x.tabla);
+        return [
+            `  arnés:      ${r.map((x) => `${x.tabla} (${x.ops} ${x.filas})`).join(' · ')}`,
+            `              ↑ lo que escribió el ARNÉS (siembra y bypasses), ${j.sentencias?.length ?? '?'} sentencia(s)`
+            + (conBorrado.length ? ` — con BORRADOS en ${conBorrado.join(', ')}, que la línea «tablas» no puede ver` : ''),
+        ];
+    } catch {
+        return [];
+    }
+}
+
 /** Formatea el veredicto + resumen para la CONSOLA de la corrida (texto, queda después de terminar). */
 function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Record<string, { altas: number; cambios: number }> } | null, nEventos: number, uiErrors = 0): string {
     if (!info) return '  (sin corrida)\n';
@@ -175,6 +203,7 @@ function comprobacionTexto(info: { veredicto: Record<string, any>; resumen: Reco
         `  lectura:    ${v.lectura}`,
         `  tablas:     ${tablas}`,
         `  detalle completo → .runs/ultima-corrida.json (${nEventos} operación/es de BD)`,
+        ...escriturasDelArnes(),
         ...(uiErrors ? [`  ⚠ UI:        ${uiErrors} error(es) en pantalla durante la corrida (ver .auth/guided-ERROR-*.png) — "passed" es del harness, no de la app`] : []),
         '',
     ].join('\n') + '\n';

@@ -28,6 +28,14 @@ test.describe('¿esta sentencia muta?', () => {
 
       // 🔴 Un chequeo que marca de más se aprende a ignorar. `SET FOREIGN_KEY_CHECKS=0` es una perilla
       // de sesión (la usan los seeders) y un SELECT que menciona «delete» no muta nada.
+      // 🔴 `IF EXISTS` va ENTRE el verbo y la tabla. Sin contemplarlo el nombre que salia era
+      // `if`, y lo vi en el propio log que este registro vino a hacer confiable. Un registro con
+      // nombres inventados se lee como si fueran tablas reales: es peor que no tenerlo.
+      test('IF [NOT] EXISTS no se confunde con el nombre de la tabla', () => {
+            expect(mutacionDe('DROP TABLE IF EXISTS harness_probe')).toEqual({ op: 'DROP TABLE', tabla: 'harness_probe' });
+            expect(mutacionDe('CREATE TABLE IF NOT EXISTS otps (a INT)')).toEqual({ op: 'CREATE TABLE', tabla: 'otps' });
+      });
+
       test('NO marca lo que no muta', () => {
             expect(mutacionDe('SELECT * FROM users WHERE motivo = "delete"')).toBeNull();
             expect(mutacionDe('SET FOREIGN_KEY_CHECKS = 0')).toBeNull();

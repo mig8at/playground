@@ -12,6 +12,7 @@ import * as traza from '../pkg/trace';
 // Importado con nombre propio y no como `* as loki` para que en el cuerpo se lea qué hace: `traza` dicta
 // el veredicto, esto solo lo explica. Ver la sección de forense en CLAUDE.md.
 import { forenseAlCerrar as lokiForense } from '../pkg/loki';
+import { lineasDeEscrituras, volcarEscrituras } from '../pkg/db';
 import { urlCheckout } from '../pkg/checkout-b64';   // `seguirCheckout` se quitó: estaba importado y nunca se usaba
 import { avisoDeRedireccion } from '../pkg/preflight-sucursal.ts';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr';
@@ -1487,6 +1488,18 @@ test('guided (semiautomático)', async ({ browser }) => {
     // justo en los fallos que vino a explicar. Acá el bloque se imprime primero y el expect falla después,
     // así el porqué queda arriba del mensaje de error. No toca el veredicto y no consulta si cerró bien.
     await lokiForense(uReqID, v);
+
+    /* LO QUE EL ARNÉS LE ESCRIBIÓ A LA BASE, del registro directo de `pkg/db.ts`.
+     *
+     * Va por `console.log` y no por la traza porque el PANEL transmite el stdout del spec: puesto acá
+     * aparece en la consola de la corrida del panel sin tocar el panel. Y también ANTES de los expect,
+     * por el mismo motivo que el forense — en una corrida que falla es cuando más importa saber qué
+     * quedó escrito, porque de eso depende si relanzarla duplica datos (F-176, F-180).
+     *
+     * El volcado es para el panel, que corre este spec como HIJO: su registro vive en la memoria de
+     * este proceso y de otra forma se pierde al terminar. */
+    for (const l of lineasDeEscrituras('  ')) console.log(l);
+    volcarEscrituras('.runs/escrituras-guiado.json');
 
     if (v.existe) {
         expect(v.malo, `la solicitud ${uReqID} terminó en estado ${v.st} «${v.estado}» ` +
