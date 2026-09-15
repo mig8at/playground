@@ -1,7 +1,8 @@
 ---
 id: 83
 title: "Confluence: qué entra a canon y qué no"
-stage: done
+stage: tasks
+archived: "2026-09-14T22:30:00-05:00"
 created: "2026-09-14T18:00:00-05:00"
 context_nodes: []
 jira: []

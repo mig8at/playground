@@ -1,10 +1,10 @@
 ---
 id: 81
 title: "Listado de entidades: lo caro no es la base, es el perfilador"
-stage: idea
+stage: evaluation
 ramas: perf/el-perfilador-que-falla-en-silencio
 created: "2026-09-13T16:20:00-05:00"
-context_nodes: [legacy-backend, findings, microservicios, lender-listing]
+context_nodes: [legacy-backend, findings, microservicios, profiling]
 jira: []
 jira_title: ""
 ---

@@ -1,7 +1,7 @@
 ---
 id: 79
 title: "La tarjeta del lender, por capacidad y no por id"
-stage: idea
+stage: evaluation
 archived: "2026-09-11T11:55:00-05:00"
 ramas: ""
 created: "2026-09-11T08:00:00-05:00"

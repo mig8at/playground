@@ -111,6 +111,110 @@ func leer(ruta string) (Tarea, string, error) {
 	return t, partes[2], nil
 }
 
+// verLint es la validación de UN archivo de tarea al escribirlo (la corre el hook de PostToolUse).
+// Existe porque nada de esto fallaba en ningún lado: una etapa inventada no cae en ninguna columna,
+// un id repetido hace que una tarea pise a la otra en el store, y un nodo de context mal escrito manda
+// a leer una carpeta que no existe. Las tres pasaron (27/8 y 14/9). Sale 1 con la lista; 0 en silencio.
+func verLint(ruta string) int {
+	t, cuerpo, err := leer(ruta)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
+	var fallas []string
+	falla := func(f string, a ...any) { fallas = append(fallas, fmt.Sprintf(f, a...)) }
+
+	b, _ := os.ReadFile(ruta)
+	if !strings.HasPrefix(string(b), "---\n") {
+		falla("no tiene frontmatter: el archivo tiene que empezar con `---`")
+	}
+	if t.Title == "" {
+		falla("`title` vacío: es el nombre compartido con Jira")
+	}
+	if !etapaValida(t.Stage) {
+		falla("etapa «%s» no existe (evaluation · work · tasks). Si la tarea terminó, va `archived: \"<fecha ISO>\"`, no otra etapa", t.Stage)
+	}
+	fm := frontmatter(string(b))
+	if v, ok := fm["archived"]; ok && (v == "true" || v == "false" || v == "null" || v == "") {
+		falla("`archived: %s` no vale: el valor es la FECHA de archivado (ISO-8601), o la línea no va", v)
+	}
+	if v, ok := fm["archived"]; ok && v != "" && !reFecha.MatchString(v) {
+		falla("`archived: %s` no parece una fecha ISO-8601 (ej. 2026-09-14T18:00:00-05:00)", v)
+	}
+	if v, ok := fm["created"]; !ok || v == "" {
+		falla("falta `created` (ISO-8601 con offset)")
+	} else if !reFecha.MatchString(v) {
+		falla("`created: %s` no parece una fecha ISO-8601", v)
+	}
+	for _, l := range strings.Split(strings.SplitN(string(b), "---", 3)[1], "\n") {
+		if i := strings.Index(l, " #"); i > 0 {
+			falla("el frontmatter no admite comentarios en la línea (%q): el parser los deja DENTRO del valor", strings.TrimSpace(l))
+		}
+	}
+	// id único: el store indexa por id y dos archivos con el mismo número se pisan
+	ts, _ := todas()
+	for _, o := range ts {
+		if o.ID == t.ID && o.Slug != t.Slug && t.ID != 0 {
+			falla("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
+		}
+	}
+	// nodos de context: existen como carpeta del árbol, o mandan a leer algo que no está
+	for _, n := range t.Nodos {
+		if _, err := os.Stat(filepath.Join(dirContext(), n)); err != nil {
+			falla("context_nodes: el nodo «%s» no existe en context/server/data/flows/", n)
+		}
+	}
+	// la publicable pasa el guard: es lo único que sale a Jira
+	if loc := rePublic.FindStringIndex(cuerpo); loc != nil {
+		for _, v := range guard.Violations(cuerpo[loc[1]:]) {
+			falla("la publicable no pasa el guard (%s): %q", v["what"], v["found"])
+		}
+	}
+	if len(fallas) == 0 {
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "tarea %s: %d problema(s)\n", filepath.Base(ruta), len(fallas))
+	for _, f := range fallas {
+		fmt.Fprintf(os.Stderr, "  ✗ %s\n", f)
+	}
+	return 1
+}
+
+var reFecha = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?)?$`)
+
+func frontmatter(texto string) map[string]string {
+	out := map[string]string{}
+	partes := strings.SplitN(texto, "---", 3)
+	if len(partes) < 3 {
+		return out
+	}
+	for _, l := range strings.Split(partes[1], "\n") {
+		if k, _, ok := strings.Cut(l, ":"); ok && strings.TrimSpace(k) != "" && !strings.HasPrefix(l, " ") {
+			out[strings.TrimSpace(k)] = valor(l)
+		}
+	}
+	return out
+}
+
+func maxID(ts []Tarea) int {
+	m := 0
+	for _, t := range ts {
+		if t.ID > m {
+			m = t.ID
+		}
+	}
+	return m
+}
+
+func dirContext() string {
+	for _, d := range []string{"../../context/server/data/flows", "../context/server/data/flows", "context/server/data/flows"} {
+		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
+			return d
+		}
+	}
+	return "../../context/server/data/flows"
+}
+
 // avisos son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,
 // mienten: un id repetido hace que una tarea pise a la otra en el store, y una etapa fuera del
 // vocabulario no cae en ninguna columna. Se imprimen arriba de la lista, no como error: la lista
@@ -415,6 +519,7 @@ func main() {
 	var (
 		una      = flag.String("n", "", "una tarea, por slug o por id (acepta subcadena del slug)")
 		guardar  = flag.String("guard", "", "¿el texto de este archivo puede salir a Jira? sale 1 si no")
+		lint     = flag.String("lint", "", "¿este archivo de tarea está bien formado? frontmatter, id único, etapa, nodos y guard de la publicable. Sale 1 si no")
 		stage    = flag.String("stage", "", "filtrar por etapa (p. ej. work)")
 		conTodas = flag.Bool("todas", false, "incluir las archivadas")
 		sprint   = flag.Bool("sprint", false, "el sprint activo, del snapshot de Jira (dice cuándo se tomó)")
@@ -425,6 +530,9 @@ func main() {
 
 	if *guardar != "" {
 		os.Exit(verGuard(*guardar, *comoJSON))
+	}
+	if *lint != "" {
+		os.Exit(verLint(*lint))
 	}
 	if *sprint {
 		os.Exit(verSprint(*comoJSON))

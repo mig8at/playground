@@ -24,7 +24,12 @@
     "              falta retoma, registro del día, bitácora o ramas, devuelve `block` con la lista y el",
     "              modelo completa. UNA vez por sesión y por día (marca en tablero/data/cache/). Es la",
     "              regla de tablero/CLAUDE.md §«AL CERRAR» hecha automática: se olvidó el 26/8 y el",
-    "              tablero mintió ocho días."
+    "              tablero mintió ocho días.",
+    "",
+    "PostToolUse · tarea-lint: al escribir tablero/data/<slug>.md corre `tareas -lint` (frontmatter,",
+    "              etapa del vocabulario, id único, nodos de context que existan, guard de la publicable).",
+    "              Exit 2 con la lista si algo está mal. Una etapa inventada o un id repetido no fallaban",
+    "              en ningún lado, y pasaron dos veces."
   ],
   "hooks": {
     "SessionStart": [
@@ -61,6 +66,13 @@
             "args": [],
             "statusMessage": "Validando las rutas del nodo…",
             "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/tarea-lint.py",
+            "args": [],
+            "statusMessage": "Validando la tarea…",
+            "timeout": 90
           }
         ]
       }
