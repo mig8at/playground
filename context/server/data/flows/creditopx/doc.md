@@ -48,6 +48,21 @@ las cuatro del medio, el «0%» tampoco es un bug: está cableado por id.
 (`:311-324` — solo entra a `false_lenders` `if (!$user_request->allied->have_ctopx)`), así que
 sobrevive hasta el corte de categoría. Los dos mecanismos conviven y el segundo tapa al primero.
 
+⚠⚠ **Y ESTO VIVE EN LOS DOS MONOLITOS, no sólo en el viejo.** La cita de arriba es de
+`legacy-application`, pero el mismo `unset` y la misma guarda por `have_ctopx` están en
+`legacy-backend` —que es el que sirve el wizard actual— en
+`Modules/Onboarding/App/Services/lenders/LenderValidationService.php:411-412` (el `unset`) y `:348-357`
+(la guarda). Verificado contra `main` el 2026-09-15. Leer uno solo y concluir «esto ya no corre» es el
+error que la regla de los dos monolitos viene a evitar.
+
+⚠ **El registro de la corrida NO sirve para contar los rechazos, y engaña en la dirección que oculta el
+problema.** La línea de cierre de la validación informa «rechazadas: N» contando **después** del
+`unset` (`:423` y `:428`, sobre `false_lenders` ya recortado). Medido: con **tres** entidades rechazadas
+—una rt=0 y dos rt=2— la línea dijo **«1»**. O sea que una rt=2 excluida por reglas duras no deja rastro
+**ni en el listado ni en el conteo**: el único lugar donde aparece es la línea por entidad, que sí
+registra su veredicto una por una. Entrar por ahí es lo único que contesta «¿estuvo y se cayó, o nunca
+estuvo?».
+
 ## El INGRESO no decide quién aparece — medido, no deducido
 
 Corridas contra `local` el **2026-08-17** en Amoblando Pullman (sucursal `e9409aff`, 7 entidades

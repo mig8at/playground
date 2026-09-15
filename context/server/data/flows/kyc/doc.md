@@ -282,6 +282,47 @@ toma como éxito → la solicitud queda en `flow_id = 1` y **se consulta Experia
 se dispara (el front valida lo mismo antes, sobre la misma sucursal), pero el validador anuncia más
 rechazos por venir. Detalle en `findings` F-58.
 
+### Qué significa ese «Sí», y por qué se contesta mal
+
+La pregunta que ve el cliente —o quien prueba— es **«¿El cliente tiene cupo disponible en Addi, Brilla,
+Lagobo y Davivienda?»**, con dos opciones y «Sí» primero. Y «Sí» **no** significa «tiene capacidad de
+endeudamiento»: significa **«ya tiene una pre-aprobación lista en una entidad sin integración directa,
+así que no hace falta consultar el buró y sólo tiene sentido mostrarle las que no integran»**. De ahí el
+recorte a `response_type = 0`: no es una consecuencia lateral, es el supuesto del flujo.
+
+⚠ **El campo es `confirmQuota` y su valor viaja por SESIÓN, no por la solicitud.** Se captura en la
+pantalla del monto, se guarda en la sesión del front (`flowSignatureChoice`) y **se firma después, al
+validar el OTP** — que es cuando ya existe el `user_request`. Por eso el flujo aparece firmado en una
+solicitud que nunca «pasó» por una pantalla de cupo: la respuesta se dio dos pantallas antes.
+
+⚠ **Contestar «No» TAMBIÉN firma**, con el otro alias. El catálogo es la fuente única del mapeo
+(`Modules/UserRequestV1/App/Constants/Flow.php`): `standard` → **1** · `already-confirmed-pre-approval`
+→ **2**. O sea que un `flow_id = 1` puede ser «contestó No» o «nunca se le preguntó», y los dos se ven
+igual en la fila.
+
+⚠ **Y el recorte puede dejar el listado VACÍO, sin retorno.** Si la sucursal no tiene ninguna entidad
+`response_type = 0` activa, «Sí» deja la pantalla sin nada que mostrar —«No encontramos una opción para
+ti»— y desde ahí el cliente **no puede volver a cambiar su respuesta**. Es **F-214**, que además mide
+algo que vuelve al caso irreproducible: **el `response_type` de una misma entidad no es igual en todos
+los ambientes**, así que el mismo «Sí» lista en uno y sale vacío en otro.
+
+### La firma se puede REHACER, y eso rescata una solicitud
+
+No es de una sola vez. El backend acepta (re)asignar el flujo mientras la solicitud esté en uno de los
+dos estados asignables —«Validación OTP» y «Formulario de perfil»
+(`FlowSignatureServiceConstants::FLOW_ASSIGNABLE_STATUS_IDS`)—, que son justo los dos en los que el
+problema se descubre. Re-firmar con el alias `standard` devuelve la solicitud al flujo estándar y el
+listado vuelve a traer todas las entidades habilitadas.
+
+**Verificado corriendo el 2026-09-15** contra una solicitud en «Formulario de perfil»: re-firmar como
+`standard` respondió `flowId: 1`, y el listado que consume el front (`lenders-v2`) pasó de **0 a 4
+entidades** — la de plataforma incluida. Sirve tanto para soporte como para no perder una prueba a
+medio camino.
+
+⚠ **Lo que NO revierte:** la consulta de buró que no se hizo sigue sin hacerse. Re-firmar cambia el
+flujo, no rellena el pasado — si el escenario necesita el buró consultado de verdad, la solicitud
+re-firmada no lo tiene y hay que empezar de nuevo.
+
 > Seguimiento de la tarea: **CORE-293** · el detalle de trabajo vive en el tablero (esfuerzo "Omitir
 > consulta de buró cuando el cupo ya está confirmado"), no acá.
 
