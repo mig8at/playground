@@ -244,6 +244,7 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
       make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
+      make deploys DIAS=7               qué se desplegó, a qué ambiente, y el que falló POR QUÉ
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
@@ -377,6 +378,28 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   **Consecuencia para la publicable:** «Dónde probar» nombra **el ambiente concreto**, no «el ambiente
   de pruebas». QA prueba en dev, en qa y en staging según la tarea, y los tres se ven iguales porque
   muestran los mismos datos — si la sección no lo dice, tiene que adivinar entre tres.
+
+- **DESPLIEGUES: `make deploys` dice el PASO que falló, no «falló».** Es la pregunta del día a día que
+  se contestaba abriendo GitHub repo por repo. Sale de `gh`, que ya está autenticado: no hace falta
+  ningún token nuevo.
+
+  ⚠ **La distinción que justifica la herramienta:** una corrida en rojo no es «falló el deploy». Medido
+  el 2026-09-15 sobre las 8 últimas fallas de `legacy-backend`, dos eran de **Dependabot** (ni siquiera
+  son despliegues), tres del deploy a ECS, dos del **análisis de SonarCloud** y una del build de la
+  imagen. Leerlas todas igual son cuatro conclusiones equivocadas de ocho. Por eso el ruido de
+  dependencias se filtra por el nombre del workflow, y de cada falla se muestra **el job y el paso**.
+
+  > **MEDICIÓN · 2026-09-15** — 201 despliegues en 15 días, 11 fallidos: 7 en «Build Image» y 4 en «Deploy Task Def to ECS»; por ambiente, 6 en qa, 3 en develop y 2 en producción. El deploy a producción del 2026-09-02 se cayó en el paso de **SonarCloud**, porque el scanner no pudo cargar los perfiles de calidad del proyecto — el código estaba bien, falló la herramienta de análisis.
+  > `make deploys DIAS=15 JSON=1`
+
+  ⚠ **Y Sonar hoy NO tiene datos de lo que se trabaja acá.** La organización `creditop-sas` tiene 47
+  proyectos y 36 con análisis, pero **`legacy-backend`, `legacy-application` y `frontend-monorepo` no
+  se analizaron NUNCA** (verificado por API el 2026-09-15). Los que sí se analizan son los
+  microservicios. Así que una columna de calidad en el tablero mostraría vacío justo donde está el
+  trabajo: primero hay que arreglar que el paso del scanner corra. El token queda puesto en
+  `server/.env` (`SONAR_URL`, `SONAR_ORG`, `SONAR_TOKEN`) para el día que haya qué leer.
+  ⚠ Es un token PERSONAL y vence: la propia pantalla de Sonar recomienda un *Scoped Organization Token*
+  para automatización de equipo, que no muere con la cuenta de nadie.
 
 - **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
