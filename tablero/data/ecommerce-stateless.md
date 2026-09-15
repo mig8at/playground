@@ -747,6 +747,47 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-15 (9) · el «bucle» del selector de plazo: no era un bucle, era una tarjeta tapando a otra
+
+> **MEDICIÓN · 2026-09-15** — pedido el listado real de la solicitud de esa corrida (uReq **502328**,
+> sucursal `ec977139`) a `lenders-v2`, los plazos de cada entidad son:
+> **Cómo se vuelve a comprobar:**
+> `GET /api/onboarding/loan-application/lenders-v2/<ur>?amount=<monto>` y mirar `credit_lines.fee_numbers`.
+
+| entidad | plazos que ofrece | default |
+|---|---|---|
+| **#212 Crédito 365** (rt=1) | **`3, 6, 9, 12`** | **12** |
+| #6 Addi (rt=0) | `3,6,9,12,18,24` | 24 |
+| **#32 Vanti** (rt=0) | **`2,3,4,5,6,7,8,9,10,11,12,15,17,18,24,36,40,45,50,55,60`** | 60 |
+
+**La lista abierta en la captura empieza en `2` y sigue 3,4,…9 con más abajo: es la de VANTI.** Crédito
+365 sólo tiene cuatro opciones y ninguna es `2`. O sea que el «12 cuotas» que no cambiaba es el
+**default de Crédito 365** y el «3 cuotas» marcado es el de **Vanti** — **dos tarjetas distintas**.
+
+✔ **No hay bucle de estado.** El desplegable de una tarjeta de «Otras opciones» se dibuja **encima de
+la tarjeta destacada**, así que se elige en una lista y el valor visible —que es de la otra— no se mueve.
+Se lee como «se quedó pegado» y se vuelve a elegir. Es un problema de **capa/posicionamiento**, no de
+estado. *(Descartado adversarialmente: el `Select` toma el label Y el check del mismo
+`selectedFeeNumber`, así que dentro de UNA tarjeta no pueden discrepar; `usePaymentPlanOptions` está
+gateado a Credifamilia; `useLenderAmountUpdate` se dispara por MONTO, no por plazo; y
+`amount_conditions` —el filtro que dejaría una sola opción— **no existe como tabla en `qa`**.)*
+
+⚠ **Lo que SÍ es un bucle, y está documentado en el código:** `useInstallmentOptions` coerciona el
+plazo al **último** de la lista cuando el elegido no está
+(`getValidSelectedFeeNumber` → `installmentOptions[length-1]`), y hay **tres** escritores de
+`setSelectedFeeNumber`. El propio archivo cuenta que eso ya produjo *«un ciclo que no converge (React
+#185, Maximum update depth exceeded)»* con renting/RTO, y se tapó salteándose la coerción para esos.
+No es lo de esta captura, pero el mecanismo sigue ahí para cualquier entidad cuyo plazo elegido caiga
+fuera de sus opciones.
+
+### ⚠ Y el panel anunció las entidades de OTRA sucursal
+
+La corrida imprimió `CrediPullman #77 · Cierre X #201 · Sistecrédito #9`, que son de la sucursal
+**`13874eb6`**. Pero la sesión del asesor redirige a **`ec977139`** —se ve en el log:
+`302 /merchant/13874eb6/solicitar → /merchant/ec977139/solicitar`— y ahí las entidades son **Addi,
+Crédito 365 y Vanti**. El panel describió un montaje que no era el que se probó. Es la misma clase que
+los otros tres defectos del harness de hoy: **la herramienta afirmando lo que no midió.**
+
 ### 2026-09-15 (8) · ecommerce VALIDADO en `qa`, y qué falta todavía
 
 > **MEDICIÓN · 2026-09-15** — el canal ecommerce cierra **entero** contra `qa`, y el arreglo de #1015

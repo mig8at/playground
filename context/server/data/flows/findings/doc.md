@@ -225,7 +225,7 @@ distinto según con qué pregunta llegues.
 | F-51 | El formulario de referencias del Figma: el mecanismo existe, la posición y los campos no | cerrado |
 | F-52 | El scrub del harness borra la corrida anterior y deja el historial huérfano | TRAMPA |
 | F-53 | La guarda de "estás tocando dev compartido" viene desarmada de fábrica | stale |
-| F-54 | La entrada por ecommerce existe y funciona — pero hoy solo resuelve Bancolombia | TRAMPA |
+| F-54 | La entrada por ecommerce existe y funciona — hoy son DOS puertas, y la de Corbeta solo resuelve Bancolombia | TRAMPA |
 | F-55 | El ruteo de validación de identidad tiene tres agujeros que CANCELAN el crédito | TRAMPA |
 | F-56 | Cuatro de las cinco salidas de `/lenders` dan 404 fuera de `/merchant` | stale |
 | F-57 | Rescate antes de borrar `backend-e2e` y `backend-mcp` | stale |
@@ -970,7 +970,18 @@ if (flowType === "no_preapproved") {
 
 Evidencia: la uReq 464508 (Pullman, $1.5M) quedó en estado **8** con `Cancelación no voluntaria código 5001` **en el mismo segundo** de su creación. Es el mismo código genérico de F-50 — otra ruta que cancela desde el `loader`.
 
-**Dónde está la pieza que falta.** La landing genérica multi-flujo —`route("checkout", "routes/checkout-redirection.tsx")` + `route("waiting-room", "routes/ecommerce-continue.tsx")`— existe **solo** en `feat/ecommerce-checkout-integration` (abril 2026). Verificado que **no** está en `main`, `develop`, `feature/motai-v2`, `feature/onboarding/ecommerce-web-origination` ni `feature/onboarding/ecommerce-continue-route`.
+**Dónde está la pieza que falta.** *(CADUCÓ — re-medido el 2026-09-15: **la landing genérica YA EXISTE**.
+La agregó el PR `frontend-monorepo#997` como `route("checkout", "routes/ecommerce/checkout.tsx")` bajo
+`:flow/:partner_hash`, y está en `qa`. Contra `main` aún no, porque el revert `#1013` la sacó y su
+reposición espera en `#1016`. Así que hoy **hay DOS puertas**, y conviene no mezclarlas: la genérica
+`/ecommerce/{hash}/checkout`, que decodifica el contrato en el FRONT y arranca en `/solicitar`; y la de
+**Corbeta** `GET /api/onboarding/checkout/{hash}`, que es la de este hallazgo y sigue aterrizando en el
+resolvedor de Bancolombia. El resto de F-54 —que ese resolvedor cancela con un comercio no-Corbeta—
+**sigue vigente**: verificado contra `origin/qa` y `origin/main`, `CorbetaCheckoutController` sigue
+redirigiendo a `resolve-ecommerce-flow` y su loader sigue llamando `cancelCorbetaCheckout` cuando el
+`flowType` sale `no_preapproved`.)*
+
+Lo que decía antes: la landing genérica multi-flujo —`route("checkout", "routes/checkout-redirection.tsx")` + `route("waiting-room", "routes/ecommerce-continue.tsx")`— existía **solo** en `feat/ecommerce-checkout-integration` (abril 2026), y no en `main`, `develop`, `feature/motai-v2`, `feature/onboarding/ecommerce-web-origination` ni `feature/onboarding/ecommerce-continue-route`. ⚠ Y la **sala de espera** (`waiting-room`) sí sigue sin existir: su mitad de backend entró por `legacy-backend#1392`, la pantalla no.
 
 Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `develop`) registró `/ecommerce/.../continue` — el handoff de CreditopX. O sea **develop tiene el medio del árbol ecommerce, pero no la puerta**.
 
