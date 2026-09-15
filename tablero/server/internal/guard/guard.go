@@ -32,6 +32,22 @@ var Patterns = []Pattern{
 	// llenada sin borrarlos publicaría «<!-- Qué se logra. Una oración… -->» en Jira. Y en general un
 	// comentario es donde alguien deja la nota que NO quería que se vea.
 	{`<!--`, "quedaron comentarios de la plantilla (o notas ocultas)"},
+	// LAS HERRAMIENTAS PROPIAS NO SE NOMBRAN AFUERA. Son de Miguel y nadie más las corre, así que
+	// citarlas en Jira manda al lector a algo que no tiene — y peor, hace parecer que la prueba depende
+	// de una herramienta personal. Lo que SÍ va es QUÉ se hizo, en general: se recorrió el flujo, se
+	// consultó producción, se corrió una migración, se sembró un dato. Por eso cada motivo dice con qué
+	// reemplazarlo: un guard que sólo prohíbe hace borrar información, uno que traduce la conserva.
+	//
+	// ⚠ Los patrones son ESPECÍFICOS a propósito, y la lista de lo que quedó afuera importa tanto como
+	// la de adentro: `canon` es el pago mensual del renting (6 tareas lo usan así), `panel` es el de
+	// administración del producto, `suite` es la de PHPUnit del repo real y `plantillas` son las del
+	// contrato. Medido el 2026-09-15 sobre las 32 publicables: con estos patrones no se frena ninguna
+	// —son red de seguridad, no un cambio de reglas—, y buscar palabras comunes habría dado 7 falsos
+	// positivos, todos legítimos.
+	{`\bmake\s+[a-z][a-z0-9-]{2,}\b`, "cita un comando de mis herramientas — decí QUÉ se hizo (se recorrió el flujo, se consultó la base), no con qué"},
+	{`E2E_TARGET|I_KNOW_THIS_[A-Z_]+`, "nombra una variable de mis herramientas — el ambiente se dice por su nombre (dev, qa, staging, producción)"},
+	{`\btrazador\b|\bcredibot\b|\bcredibrain\b|\bcuadrilla\b`, "nombra una herramienta propia que nadie más corre — decí el resultado, no la herramienta"},
+	{`localhost|127\.0\.0\.1|:5[0-9]{3}\b`, "apunta a algo que corre en mi máquina — nombrá el ambiente compartido donde QA lo puede ver"},
 }
 
 var compiled = func() []*regexp.Regexp {

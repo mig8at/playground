@@ -35,7 +35,21 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   que escribe en Jira. Una tarea local es material de trabajo; el día que valga la pena compartirla se
   decide, no se filtra por estar en pantalla.
 
-- **Frontmatter**: `id` · `title` · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
+- ⚠ **DOS COSAS DISTINTAS VIVEN EN `data/`, y `clase:` las separa.** `clase: tarea` (el default) es el
+  trabajo del día a día sobre CreditOp: va, o irá, a Jira, y alguien del otro lado lo espera.
+  `clase: proyecto` es lo propio — las herramientas del playground, el corpus técnico, una exploración,
+  una mejora a futuro— y **no va a Jira nunca**.
+
+  Medido el 2026-09-15: **23 de las 40 abiertas no tienen clave de Jira**, y 8 son proyectos. Tratarlas
+  igual tenía dos costos: el tablero les pedía sección publicable a cosas que nadie del equipo va a leer,
+  y los proyectos competían en la lista con el trabajo que sí tiene a alguien esperándolo. Ahora
+  `make hoy` los lista aparte, la tarjeta los marca y el lint avisa si un proyecto conserva publicable.
+
+  ⚠ **No se deduce, se declara.** No alcanza con «no tiene clave de Jira» (una tarea local puede ser
+  trabajo real sin publicar todavía) ni con «toca el playground»: hay trabajo sobre las herramientas que
+  SÍ se publicó (CORE-421). Es una decisión de Miguel, y por eso es una línea del frontmatter.
+
+- **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`, default `tarea`) · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
   `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
   coma). Archivar = poner `archived`, no
   mover el archivo.
@@ -44,10 +58,24 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   y pasa el guard del server (rechaza repos, rutas de archivo y F-xx). No muevas esa marca ni
   metas detalle técnico debajo de ella.
 
-  ⚠ Y el guard **no** es la regla de qué escribir, sólo de qué no filtrar: son 4 regex (`F-\d+`,
-  `playground`, unos nombres de repo, rutas con extensión). Un texto lleno de nombres de tabla, SQL y
-  clases de Laravel **pasa el guard entero**. El registro de cada pieza lo define la lista de abajo, no
-  el guard.
+  ⚠ Y el guard **no** es la regla de qué escribir, sólo de qué no filtrar: son 8 regex (`F-\d+`,
+  `playground`, unos nombres de repo, rutas con extensión, comentarios HTML, y —desde el 2026-09-15— el
+  vocabulario de **mis herramientas**: `make <target>`, `E2E_TARGET`, `trazador`/`credibot`/`cuadrilla`,
+  `localhost` y los puertos locales). Un texto lleno de nombres de tabla, SQL y clases de Laravel **pasa
+  el guard entero**. El registro de cada pieza lo define la lista de abajo, no el guard.
+
+  **Lo que se comparte es QUÉ se hizo, no CON QUÉ.** Las herramientas son de Miguel y nadie más las
+  corre: nombrarlas en Jira manda al lector a algo que no tiene, y hace parecer que la prueba depende de
+  una herramienta personal. Lo que SÍ va, y en general: se recorrió el flujo de punta a punta, se
+  consultó producción, se corrió la migración, se sembró la fila de configuración. Por eso cada motivo
+  del guard dice **con qué reemplazarlo** — uno que sólo prohíbe hace borrar información; uno que
+  traduce la conserva. Para lo de datos hay sección propia en la publicable: «Cambios en datos».
+
+  ⚠ Los patrones son ESPECÍFICOS a propósito, y lo que quedó AFUERA importa tanto como lo de adentro:
+  `canon` es el pago mensual del renting (6 tareas lo usan así), `panel` es el de administración del
+  producto, `suite` es la de PHPUnit del repo real y `plantillas` son las del contrato. Buscar palabras
+  comunes daba **7 falsos positivos** sobre las 32 publicables reales, todos legítimos; con los patrones
+  que quedaron no se frena **ninguna** — son red de seguridad, no un cambio de reglas.
 
 - **La forma del cuerpo está en `PLANTILLA-TAREA.md`** (en la raíz de `tablero/`, NO en `data/`: ahí
   todo `.md` se lee como tarea). Copiala para una tarea nueva. No es decoración: existe para que
@@ -110,6 +138,7 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
          ## Alcance           ── producto: los límites (qué NO entra)
          ## Dónde probar      ── QA: ambiente, comercio, entidad, usuario
          ## Cómo validar      ── QA: los pasos, con los datos concretos
+         ## Cambios en datos  ── QA: migraciones, backfill, filas de config, consultas para verificar
          ## Criterios de aceptación   ── QA: cómo se sabe que pasó
          ## Dependencias / contraparte ── QA: qué falta de afuera, y de quién
 

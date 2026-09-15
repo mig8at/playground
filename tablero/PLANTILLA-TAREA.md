@@ -138,6 +138,13 @@ jira_title: ""
 ## Cómo validar
 <!-- Los pasos, con los datos concretos. Si QA tiene que preguntar algo, falta acá. -->
 
+## Cambios en datos
+<!-- Lo que hay que correr o sembrar fuera del código, dicho en general: migraciones, backfill, filas
+     de configuración, consultas para verificar. Es lo que QA y quien despliega necesitan y lo que más
+     se olvida — mergear NO aplica migraciones en ningún ambiente. Va el QUÉ, no con qué herramienta:
+     «se corrió la migración y un backfill de 1.200 filas», no el comando con el que se corrió.
+     Si la tarea no toca datos, borrá esta sección. -->
+
 ## Criterios de aceptación
 <!-- Cómo se sabe que pasó. Verificable, no opinable. -->
 
