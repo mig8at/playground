@@ -304,6 +304,16 @@ const STAGES = [
   { id: 'tasks', label: 'Tareas creadas' },
 ];
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
+// DÍAS SIN TOCAR el archivo de la tarea, según git (el server lo calcula; ver store/toques.go). La etapa
+// dice si algo se está evaluando o trabajando, no si sigue vivo: medido el 2026-09-14, 22 de las 39
+// abiertas llevaban 14 días o más sin tocarse y todas se veían igual. DORMIDA a los 14; a los 30 la
+// pregunta es si se archiva o se anota por qué espera.
+const DORMIDA_DIAS = 14;
+const diasSinTocar = (id) => {
+  const t = efforts.value.find(e => e.id === id)?.tocadoEn;
+  if (!t) return null;
+  return Math.max(0, Math.floor((Date.now() - new Date(t + 'T12:00:00')) / 86400000));
+};
 // PROTOTIPOS del esfuerzo: los html autocontenidos de `data/artifacts/` que sirve el server. Son
 // varios porque una tarea suele tener más de un actor o más de un camino, y verlos al lado es lo
 // que permite decidir. Se abren en pestaña aparte — son para mirarlos, no para vivir embebidos acá.
@@ -1394,6 +1404,11 @@ onMounted(async () => {
                   <i v-if="stageOf(i._esfuerzoId)" class="stg" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
                 </span>
                 <span v-if="i._sprint" class="spchip" :title="`del ${i._sprint}`">{{ i._sprint }}</span>
+                <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
+                     DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
+                <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
+                  :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === i._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
+                  {{ diasSinTocar(i._esfuerzoId) }} d sin tocar{{ diasSinTocar(i._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
                 <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
                      quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
                 <span v-if="i._arrastres > 1" class="spchip drag"
@@ -1902,6 +1917,7 @@ onMounted(async () => {
 /* Arrastre: va PEGADO al chip del sprint (el `margin-left:auto` es del primero, que ya empujó los dos
    al borde) y en ámbar, porque es un aviso — no el mismo tono que el dato neutro de al lado. */
 .spchip.drag { margin-left: 4px; color: #fbbf24; border-color: #fbbf2455 }
+.spchip.dormida { margin-left: 4px; color: #a8a29e; border-color: #a8a29e55; font-style: italic }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font-weight: 800;
   color: #0b0713; font-size: 19px; background: linear-gradient(135deg, #a78bfa, #60a5fa) }

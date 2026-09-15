@@ -136,6 +136,10 @@ func (s *Store) cargar() error {
 		}
 		leidas = append(leidas, leida{e, arch, d.Name()})
 	}
+	toques := ultimosToques(s.dir)
+	for i := range leidas {
+		leidas[i].e.TocadoEn = toques[leidas[i].archivo]
+	}
 
 	// LOS `id: 0` RECIBEN UN ID DE VERDAD, ACÁ Y AHORA.
 	//
@@ -669,6 +673,9 @@ type Effort struct {
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
 	Stage     string `json:"stage"` // evaluation | work | tasks
 	CreatedAt string `json:"createdAt"`
+	// TocadoEn: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
+	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `toques.go`.
+	TocadoEn string `json:"tocadoEn,omitempty"`
 	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
 	// riesgos). Igual que los prototipos, salen del contenido y no de una lista que haya que mantener.
 	// Ver `anotaciones.go` para la forma y el porqué.
