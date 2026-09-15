@@ -370,7 +370,7 @@ distinto según con qué pregunta llegues.
 | F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
 | F-217 | El harness usa 21 `data-testid` y el wizard publica 6: los otros 15 vivían en stashes marcados «NO commitear». Tres helpers reescritos por rol | ARREGLADO |
 | F-218 | Una rt=2 rechazada por reglas duras DESAPARECE del listado (y del conteo de rechazos); una rt=0 rechazada se muestra marcada. Parece filtro de canal y no lo es | CARACTERIZADO · herramienta arreglada |
-| F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | CARACTERIZADO |
+| F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | ARREGLADO ⏳ PENDIENTE DE MERGE |
 
 ---
 
@@ -5137,11 +5137,29 @@ caso «la entidad no tiene credencial»; en la rama de las que sí la tienen **n
 plataforma**, así que ni se arma ni se marca el modo. Un par (comercio, entidad) con credencial nunca
 puede continuar en el lugar, y eso no está declarado en ninguna parte.
 
-**Arreglo — NO hay, y por config sola no alcanza.** La combinación que sí continúa en el lugar es
-*comercio autogestionado* + *marca de autogestión de la entidad apagada*. Pero esa marca es del par
-(comercio, entidad), **no del canal**: apagarla también le quita el WhatsApp al canal del asesor, donde es
-la forma de pasarle el proceso al cliente. La configuración obliga a elegir entre los dos canales.
+**Por config sola NO alcanzaba.** La combinación que continúa en el lugar es *comercio autogestionado* +
+*marca de autogestión de la entidad apagada*. Pero esa marca es del par (comercio, entidad), **no del
+canal**: apagarla también le quita el WhatsApp al canal del asesor, donde es la forma de pasarle el
+proceso al cliente. La configuración obligaba a elegir entre los dos canales.
 
-Lo que arregla de verdad es código, y es una condición: **no mandar un mensaje cuando el link apunta a
-nuestra propia pantalla y el que está mirando es el cliente**. Con eso la rama del punto 1 recupera su
-condición y el flujo termina donde empezó. Queda propuesto, no hecho.
+**Arreglo — HECHO. ⏳ PENDIENTE DE MERGE** (`legacy-backend#1402`, contra `qa`). La decisión de si el
+proceso sigue en esta pantalla se calcula **una vez y antes** de los avisos, y la comparten los tres
+lugares que dependían de ella por separado: el envío del mensaje, el modal de «continuá con el asesor» y
+la rama que puebla la url de continuación. Los dos avisos parten del supuesto de que el proceso pasa a
+otra persona o a otro dispositivo; cuando el flujo sigue acá, ese supuesto es falso y no se anuncia.
+
+⚠ **Se calcula con el resolver COMPLETO y no sólo con «no hay asesor».** Si el par no está marcado para
+seguir en el lugar, el flujo no continúa acá y su aviso tiene que salir igual que siempre: silenciar el
+mensaje sin poblar la url dejaría al cliente sin aviso **y** sin destino. Ése es el error que la primera
+versión de este arreglo iba a cometer.
+
+**Verificado corriendo los tres canales, antes y después:** el del asesor queda **idéntico** (el resolver
+devuelve falso con asesor autenticado, y sus 14 pruebas siguen verdes), y los dos sin asesor pasan de la
+pantalla de entrega a la de confirmación. El de la tienda **cierra entero en un solo recorrido**: doce
+pantallas hasta «Autorizada».
+
+⚠ **La guarda de regresión no es una prueba unitaria, es el arnés**, y conviene saberlo: el idiom del
+repositorio para esta zona es un test que recorre el camino por HTTP sobre un esquema propio, y armarlo
+para este endpoint —que toca muchas tablas— era desproporcionado para cuatro líneas. En cambio, al
+caminar cualquiera de los dos canales el arnés avisa explícitamente si el front vuelve a aterrizar en la
+pantalla de entrega sin nada que entregar.

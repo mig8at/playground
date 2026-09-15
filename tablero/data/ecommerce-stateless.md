@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
+ramas: autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -1348,3 +1348,36 @@ ser el mismo valor.
 —el despliegue vigente es el revert—, pero la configuración de producción tiene 7 sucursales de
 ecommerce expuestas, así que entra el día que se reinserte el trabajo del canal. Reinsertar primero
 sería publicar el botón muerto.
+
+### 2026-09-15 (11) · PR legacy-backend#1402 · el flujo sin asesor ya no entrega el proceso al que está mirando
+Rama limpia desde `qa`, **un commit, un archivo, cuatro líneas efectivas**:
+[legacy-backend#1402](https://github.com/Creditop-SAS/legacy-backend/pull/1402) → `qa`.
+
+**Lo que se arregló.** Elegir una entidad en plataforma sin asesor dejaba al cliente en la pantalla de
+entrega en vez de continuar. Ya existía la rama que hace lo correcto —su propio comentario dice que en
+autogestión no hay a quién entregarle nada—, pero antes corría el envío del mensaje, y para una entidad
+en plataforma **el link que manda es nuestra propia pantalla de confirmación**. O sea que se le avisaba
+al cliente por WhatsApp que siguiera en la página que estaba mirando, y ese aviso marcaba «ya se le
+entregó algo», que es justo la condición que la rama de continuar exige que NO esté. La misma marca
+habilitaba y impedía.
+
+Ahora la decisión se calcula **una vez y antes** de los avisos, y la comparten los tres lugares que
+dependían de ella por separado. Es el mismo patrón que el PR del listado: una idea que estaba escrita en
+un solo lugar y que otros dos consultaban de memoria.
+
+⚠ **Y la primera versión de este arreglo iba a romper otro caso.** Suprimir el mensaje «a secas» dejaba
+sin aviso a un par que hoy sí lo recibe y que NO continúa en el lugar: quedaba sin mensaje y sin destino.
+Por eso la decisión se calcula con el resolver completo y no con «no hay asesor». Se vio pensándolo, no
+corriéndolo — pero se vio antes de escribirlo.
+
+**Verificación: los tres canales, antes y después.** El del asesor queda idéntico (medido: sigue yendo a
+su pantalla de entrega con el handoff, y las 14 pruebas del resolver siguen verdes). Los dos sin asesor
+pasan a la confirmación. Y el de la tienda **cierra entero en un solo recorrido: doce pantallas hasta
+«Autorizada»**, que es exactamente lo que Miguel pidió.
+
+⚠ **No se agregó prueba automatizada, y el motivo queda escrito:** el idiom del repositorio para esta
+zona recorre el camino por HTTP sobre un esquema propio, y armarlo para este endpoint era desproporcionado
+para cuatro líneas. La guarda de regresión es el arnés, que al caminar cualquiera de los dos canales avisa
+si el front vuelve a aterrizar en la pantalla de entrega sin nada que entregar.
+
+**Orden:** este PR y el del listado (#1018) son independientes — tocan repos distintos y no se pisan.
