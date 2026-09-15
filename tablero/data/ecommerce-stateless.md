@@ -1273,3 +1273,37 @@ Para recorrer el flujo completo, responder **«No»**.
 - **Producto**: falta confirmar en qué momento se cobra la cuota inicial cuando el comprador continúa
   solo desde su celular.
 - **Promoción a producción**: el cambio está en QA; hasta que se promueva no aplica a clientes.
+
+### 2026-09-15 (9) · el botón de validar no hace nada cuando la entidad pide cuota inicial
+Probando el canal en el ambiente de pruebas apareció una tarjeta con «La cuota inicial mínima es
+$321.000» y el botón **no hace nada**: ni avanza, ni muestra un error, ni deja rastro en consola.
+Medido: la solicitud quedó sin entidad elegida y sin moverse de estado, y no salió ni una petición —
+o sea que el freno es del navegador, no del backend.
+
+**La causa es mía, del cambio del 14/9 que sacó la cuota inicial del listado en este canal.** Esconder
+el campo no elimina el mínimo que exige la entidad: lo vuelve insatisfacible. El botón evalúa «esta
+entidad pide cuota inicial y no hay valor», escribe el mensaje «Ingresa la cuota inicial para
+continuar» **dentro del formulario que acabamos de esconder**, hace scroll hacia ese formulario oculto
+y corta. Desde el lado del cliente eso es un botón muerto, y desde el lado del comprador es un
+callejón: ya pagó su carrito y no puede terminar de financiar.
+
+⚠ **El propio comentario del cambio dice lo que debería pasar** —«primero elige entidad, y la cuota
+inicial se resuelve después si esa entidad la exige»— y afirma que el cobro posterior no se toca
+porque «el valor llega en 0 y el redirect no dispara solo». Eso último es justo lo que falla: el
+redirect no dispara porque **el envío nunca ocurre**. La condición que bloquea tiene que mirar si el
+canal ofrece el campo; si no lo ofrece, dejar pasar la elección y cobrar en su pantalla.
+
+**Alcance, medido.** En producción **no es alcanzable hoy**: el despliegue vigente es el revert y la
+línea no está en la punta de la rama principal. Pero la configuración de producción tiene **7
+sucursales de ecommerce con 6 entidades** que tienen al menos una categoría con cuota inicial — una se
+llama «Refurbicredit ecommerce». O sea que **entra en producción el día que se reinserte el trabajo**.
+
+⚠ **Y eso lo vuelve un bloqueante del PR de reinserción**, que es justo el que espera el visto bueno de
+QA sobre este canal: es un defecto que QA encuentra apretando un botón.
+
+**Cómo se confirmó que en producción todavía no pasa** (y por qué el primer número era engañoso): el
+evento de selección fallida por cuota inicial tiene **170 ocurrencias en producción en 30 días**, que
+leídas solas parecen un incendio. Separadas por canal son **170 del asesor y 0 de ecommerce** — y en el
+del asesor el campo SÍ se muestra, así que ese mensaje es la interacción normal, no un callejón. La
+primera consulta de alcance también fue un falso negativo: buscó el mínimo en la tabla del par
+comercio-entidad y el mínimo real vive en la **categoría** de la entidad, como porcentaje.
