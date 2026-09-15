@@ -8,6 +8,8 @@ import type { Pool, PoolConnection, RowDataPacket, ResultSetHeader } from 'mysql
 // La resolución por target (y la herencia entre targets) vive en `env.ts`. Se re-exporta para no romper
 // a quien ya importaba `TARGET`/`env` desde acá.
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { TARGET, env } from './env.ts';
 
 export { TARGET, env };
@@ -132,6 +134,54 @@ export function resumenDeEscrituras(): Array<{ tabla: string; ops: string; filas
         m.set(e.tabla, v);
     }
     return [...m.entries()].map(([tabla, v]) => ({ tabla, ops: [...v.ops].join('+'), filas: v.filas }));
+}
+
+/**
+ * LO QUE ESTA CORRIDA ESCRIBIÓ, en líneas listas para imprimir. Vacío si no escribió nada.
+ *
+ * ⚠ No es lo mismo que `dbops activity`, y conviene no confundirlos: aquél **reconstruye** el rastro
+ * consultando la base después de la corrida, y su propio comentario admite que **no ve los DELETEs**
+ * (una fila borrada no está para ser vista) ni las tablas que no tiene en su lista. Esto anota la
+ * sentencia cuando corre: ve los borrados, y ve cualquier tabla.
+ */
+export function lineasDeEscrituras(sangria = '  '): string[] {
+    const r = resumenDeEscrituras();
+    if (!r.length) return [];
+    const compartida = !esBaseLocal();
+    const ancho = Math.max(...r.map((x) => x.tabla.length));
+    const out = [
+        `${sangria}── LO QUE EL ARNÉS ESCRIBIÓ EN LA BASE · ${TARGET}${compartida ? ' ⚠ COMPARTIDA' : ''} ──`,
+        // ⚠ EL ARNÉS, no el flujo. Lo que escribe el BACKEND cuando el runner le pega por la API
+        // (la solicitud, sus records) NO pasa por acá y por eso no aparece: esto es la siembra y los
+        // bypasses, o sea la parte que se puede repetir o revertir. Decirlo evita la lectura al revés
+        // —«escribió 16 sentencias y no veo la solicitud»— y la peor: creer que esto es todo el rastro.
+        `${sangria}   (la siembra y los bypasses; lo que escribe el backend por la API va aparte — \`dbops activity\`)`,
+    ];
+    for (const x of r.sort((a, b) => b.filas - a.filas)) {
+        out.push(`${sangria}   ${x.tabla.padEnd(ancho)}  ${x.ops.padEnd(20)} ${x.filas} fila(s)`);
+    }
+    // El total en sentencias, no en filas: dos runners con el mismo total de filas pueden haber hecho
+    // 3 sentencias o 300, y eso cambia qué tan invasiva fue la corrida.
+    out.push(`${sangria}   ${_escrituras.length} sentencia(s) · incluye DELETEs, que \`dbops activity\` no puede ver`);
+    return out;
+}
+
+/**
+ * Vuelca el registro a un JSON, para que lo lea otro proceso (el panel corre el spec como hijo, así
+ * que su registro vive en la memoria del hijo y de otra forma se pierde al terminar).
+ * Best-effort: un fallo al escribir el forense no puede tumbar la corrida que vino a documentar.
+ */
+export function volcarEscrituras(ruta: string): boolean {
+    try {
+        mkdirSync(dirname(ruta), { recursive: true });
+        writeFileSync(ruta, JSON.stringify({
+            target: TARGET, local: esBaseLocal(), cuando: new Date().toISOString(),
+            resumen: resumenDeEscrituras(), sentencias: _escrituras,
+        }, null, 2));
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 /**

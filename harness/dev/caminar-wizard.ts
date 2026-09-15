@@ -48,7 +48,7 @@ process.env.E2E_TARGET ||= 'local';
 export {};
 
 const { SesionFront, PROHIBIDAS } = await import('../pkg/front.ts');
-const { one, exec, close, TARGET } = await import('../pkg/db.ts');
+const { one, exec, close, TARGET, lineasDeEscrituras, volcarEscrituras } = await import('../pkg/db.ts');
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config, avisoDocGen } = await import('../pkg/config.ts');
 const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
@@ -514,7 +514,16 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
                 const detalle = typeof err === 'string' ? err
                     : (err?.message ?? d.errorMessage ?? (d.errorCode ? `errorCode ${d.errorCode}` : null));
                 const cuerpo = JSON.stringify(acc.cuerpo ?? acc.datos ?? null);
-                return terminar('trabado', `${hoja} respondió error: ${detalle ?? `(sin mensaje) cuerpo: ${cuerpo.slice(0, 400)}`}`);
+                /* El STATUS va en el mensaje: un 422 y un 500 se depuran distinto — el primero es una
+                 * regla de negocio que rechazó, el segundo es código roto— y sin él hay que repetir la
+                 * llamada a mano para saber cuál de los dos fue. Pasó el 2026-09-15 con el OTP de firma:
+                 * el reporte decía sólo el texto y el 422 («no hay OTP pendiente») salió de un curl. */
+                /* ⚠ «HTTP del FRONT», y la distinción no es pedante: el front responde **200** con el
+                 * error adentro del cuerpo aunque el backend haya devuelto 422. Medido el 2026-09-15
+                 * con el OTP de firma: acá salía 200 y un `curl` al endpoint daba
+                 * `422 "no tiene un OTP pendiente"`. Leer este 200 como «el backend estuvo bien» manda
+                 * a buscar el bug en el lugar equivocado. */
+                return terminar('trabado', `${hoja} respondió error (HTTP ${acc.status} del front; el del backend puede diferir): ${detalle ?? `(sin mensaje) cuerpo: ${cuerpo.slice(0, 400)}`}`);
             }
             if (hoja === 'lenders' && lenderElegido && [2, 3, 4].includes(Number(lenderElegido.response_type))) {
                 const d = acc.cuerpo?.data ?? {};
@@ -792,5 +801,19 @@ for (const r of resultados) {
 }
 const cerraron = resultados.filter((r) => r.fin === 'cerro' || r.fin === 'listo').length;
 console.log(`  ${cerraron}/${resultados.length} ${flag('cerrar') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+
+/* LO QUE LA CORRIDA LE HIZO A LA BASE, del registro directo de `pkg/db.ts`.
+ *
+ * ⚠ Es distinto del veredicto: una corrida puede decir «0/N cerraron» y haber dejado la base llena
+ * —ya pasó tres veces (F-176, F-180)—, y repetirla entonces DUPLICA los datos. Contra una base
+ * compartida eso es lo primero que hay que ver antes de volver a lanzar.
+ * Y ve los DELETEs, que `dbops activity` admite que no puede ver porque reconstruye mirando filas
+ * que existen. */
+const lineas = lineasDeEscrituras('  ');
+if (lineas.length) { console.log(''); for (const l of lineas) console.log(l); }
+// Ruta relativa al repo, igual que el resto de la evidencia del runner (`.runs/caminar-…`).
+const volcado = `.runs/escrituras-${new Date(t0).toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`;
+if (volcarEscrituras(volcado)) console.log(`     detalle sentencia por sentencia → ${volcado}`);
+console.log('');
 await close();
 process.exit(cerraron === resultados.length ? 0 : 1);
