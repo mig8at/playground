@@ -163,6 +163,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el endpoint da 500 y sin embargo todo funciona»** / un ambiente que decide por otro camino | **F-216** |
 | **«este spec de Playwright falla siempre en el mismo paso»** / `getByTestId` que no aparece | **F-217** |
 | **«el canal ecommerce muestra menos entidades»** / la sucursal tiene 3 habilitadas y el cliente ve 1 | **F-218** |
+| **«me manda al celular y yo ya estoy acá»** / autogestión o ecommerce que igual entrega el proceso | **F-219** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -369,6 +370,7 @@ distinto según con qué pregunta llegues.
 | F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
 | F-217 | El harness usa 21 `data-testid` y el wizard publica 6: los otros 15 vivían en stashes marcados «NO commitear». Tres helpers reescritos por rol | ARREGLADO |
 | F-218 | Una rt=2 rechazada por reglas duras DESAPARECE del listado (y del conteo de rechazos); una rt=0 rechazada se muestra marcada. Parece filtro de canal y no lo es | CARACTERIZADO · herramienta arreglada |
+| F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | CARACTERIZADO |
 
 ---
 
@@ -5098,3 +5100,48 @@ del rt=2 es decisión de producto y la central escribe lo que le corresponde). T
   repuso. Va enganchado a la RESPUESTA del envío de personal-info y no a la navegación al listado,
   porque el pedido de datos del listado se emite antes de que la navegación se vea: reponer ahí llegaría
   tarde para ese render.
+
+
+### F-219 · El WhatsApp de autogestión manda un link a la pantalla en la que el comprador ya está — y mandarlo es lo que impide continuar ahí mismo
+
+**Síntoma.** En un canal sin asesor (ecommerce o autogestión), el comprador elige la entidad y la pantalla
+le dice que continúe desde su celular. Pero el que está frente a la pantalla **es** el comprador: no hay
+de dónde pasarle nada, y el mensaje lo saca de un flujo que podía terminar ahí.
+
+**Causa raíz — dos piezas que se pisan, y la segunda anula la primera.**
+
+1. **Existe una rama pensada exactamente para esto**, y su comentario en el código lo dice: «el handoff
+   existe para pasar el proceso del dispositivo del asesor al del cliente; en autogestión no hay de dónde
+   pasarlo». Puebla una url de continuación y el front lleva al cliente derecho al flujo. Pide tres
+   condiciones: que el flujo sea EN PLATAFORMA, que **no se le haya entregado nada ya**, y que un resolver
+   diga que continúa en el lugar (sin asesor autenticado, y con el comercio autogestionado **o** la
+   entidad marcada como autogestión del usuario).
+2. **Y antes de eso corre el envío del WhatsApp**, que dispara cuando la entidad tiene la marca de
+   autogestión **y hay una url que mandar**. Ahí está el choque: para una entidad EN PLATAFORMA esa url
+   **es nuestra propia pantalla de confirmación**. Así que se le manda un mensaje con el link a la página
+   que está mirando, se marca que ya se le entregó algo, y esa marca es justo la condición que la rama
+   del punto 1 exige que NO esté.
+
+O sea que **la misma marca habilita la continuación en el lugar y la impide**: habilita porque el resolver
+la acepta, impide porque su efecto colateral es el mensaje.
+
+**Evidencia — caminado el 2026-09-15 contra local, canal ecommerce, entidad en plataforma.** Tras elegir
+la entidad, el front respondió con destino `…/continue?url=null` —la pantalla de entrega, **sin nada que
+entregar**— en vez de la confirmación. Y la configuración medida del par decía que debía continuar en el
+lugar: sin credencial (así que la url de continuación en plataforma sí se arma), sin asesor autenticado, y
+con la marca de autogestión de la entidad en 1. La única condición que fallaba era «no se le entregó
+nada», puesta por el propio envío.
+
+⚠ **Y la url de continuación sólo se arma en UNA de las dos ramas.** La que la construye vive dentro del
+caso «la entidad no tiene credencial»; en la rama de las que sí la tienen **no hay caso para el tipo en
+plataforma**, así que ni se arma ni se marca el modo. Un par (comercio, entidad) con credencial nunca
+puede continuar en el lugar, y eso no está declarado en ninguna parte.
+
+**Arreglo — NO hay, y por config sola no alcanza.** La combinación que sí continúa en el lugar es
+*comercio autogestionado* + *marca de autogestión de la entidad apagada*. Pero esa marca es del par
+(comercio, entidad), **no del canal**: apagarla también le quita el WhatsApp al canal del asesor, donde es
+la forma de pasarle el proceso al cliente. La configuración obliga a elegir entre los dos canales.
+
+Lo que arregla de verdad es código, y es una condición: **no mandar un mensaje cuando el link apunta a
+nuestra propia pantalla y el que está mirando es el cliente**. Con eso la rama del punto 1 recupera su
+condición y el flujo termina donde empezó. Queda propuesto, no hecho.
