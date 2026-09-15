@@ -628,15 +628,76 @@ function irASeccion(id) {
 // que sea autosuficiente — más la advertencia de que es PRIVADO, porque lo es: nombra repos, rutas y
 // F-xx, y no pasa el guard de Jira. La decisión de compartirlo es de quien copia; que salga sin el
 // aviso, no.
-const copiado = ref('');   // '' | 'ok' | 'error'
+const copiado = ref('');       // '' | 'ok' | 'error'
+const copiadoCual = ref('');   // qué botón lo dejó así, para pintar sólo ese
 let copiadoTimer = null;
 
-function textoParaCompartir() {
+// El marcador de anotación, COPIADO del server (`store/anotaciones.go`) y no reinventado: si los dos
+// no cortan por la misma línea, lo que el panel muestra como «Cómo» y lo que el copiado saca dejan de
+// ser lo mismo, y eso no falla — miente.
+const RE_ANOTACION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*\d{4}-\d{2}-\d{2}\s*(?:·\s*[^*]+?)?\s*\*\*/i;
+
+// EL CORTE PARA COMPARTIR: se saca lo que es MÍO, no lo que «parece interno».
+//
+// La tentación era filtrar por palabras —borrar lo que diga `harness`, `playground`, `make …`— y es
+// justo lo que NO hay que hacer: un filtro por regex se come 88 de 89 menciones y uno confía en él,
+// que es peor que no tenerlo. Es la misma lección que el guard de Jira ya dejó escrita.
+//
+// Se corta por ESTRUCTURA, que el formato ya tiene. Medido sobre la tarea de Alta (89 líneas con
+// herramientas, en 12 secciones): el grueso vive en dos lugares que no hay que adivinar —
+//   · `## Registro`, que es la bitácora de qué hice cada día (48 de las 89);
+//   · el `Cómo` de las anotaciones, o sea las citas que siguen al marcador, donde va el comando que
+//     la vuelve a comprobar. El QUÉ se queda: el hallazgo es lo que se comparte.
+//
+// ⚠ Esto quita el RUIDO de mis herramientas. No es una garantía de privacidad: el cuerpo sigue
+// nombrando repos, rutas y hallazgos, y por eso el encabezado lo sigue avisando.
+// Las secciones que se van enteras. Son NOMBRES de la plantilla de tareas, no una heurística:
+//   · «Registro» es la bitácora de qué hice cada día;
+//   · «Cómo se comprueba» es, por definición de la plantilla, con qué lo probé — el harness, las
+//     suites, los curl contra localhost. Es justo lo que no le sirve a quien lo recibe.
+const SECCIONES_MIAS = /^(registro|c[óo]mo se comprueba)\b/i;
+
+// ⚠ Los prefijos van con `^ {0,3}` y NO con `trimStart()`, y esa es la diferencia entre cortar bien
+// y dejar contenido huérfano. En markdown un encabezado admite hasta TRES espacios de sangría; con
+// CUATRO ya es un bloque de código indentado. Con `trimStart()` la línea `    # 1 · montar el
+// comercio` —que es un comentario de shell dentro de un bloque— pasaba por encabezado de nivel 1,
+// APAGABA el corte y dejaba escapar el resto de la sección. Se vio corriéndolo, no leyéndolo.
+const RE_FENCE  = /^ {0,3}(```|~~~)/;
+const RE_TITULO = /^ {0,3}(#{1,6})\s+(.+?)\s*$/;
+const RE_CITA   = /^ {0,3}>/;
+
+function cortarParaCompartir(md) {
+  const out = [];
+  let enBloque = false, enRecorte = false, trasAnotacion = false;
+  const guardar = (l) => { if (!enRecorte) out.push(l); };
+  for (const l of md.split('\n')) {
+    // Dentro de un bloque de código un `>` o un `##` son contenido, no estructura — y acá se BORRA
+    // texto, así que confundirlos cuesta caro.
+    if (RE_FENCE.test(l)) { enBloque = !enBloque; trasAnotacion = false; guardar(l); continue; }
+    if (enBloque) { guardar(l); continue; }
+    const h = RE_TITULO.exec(l);
+    if (h) {
+      // Un encabezado de nivel 1 o 2 abre o cierra el recorte; los `###` de adentro son de su sección.
+      if (h[1].length <= 2) enRecorte = SECCIONES_MIAS.test(h[2]);
+      trasAnotacion = false;
+      if (enRecorte) continue;
+    }
+    if (enRecorte) continue;
+    if (RE_ANOTACION.test(l)) { out.push(l); trasAnotacion = true; continue; }
+    if (trasAnotacion && RE_CITA.test(l)) continue;   // el `Cómo`: fuera
+    trasAnotacion = false;
+    out.push(l);
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function textoParaCompartir(modo) {
   const i = active.value;
   if (!i) return '';
   const e = efforts.value.find(x => x.id === esfuerzoDe(i.Key));
-  const cuerpo = cuerpoDe(i.Key);
+  let cuerpo = cuerpoDe(i.Key);
   if (!cuerpo) return '';
+  if (modo === 'compartir') cuerpo = cortarParaCompartir(cuerpo);
   const nodos = (e?.contextNodes || '').split(',').map(s => s.trim()).filter(Boolean);
   // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
   // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
@@ -644,17 +705,20 @@ function textoParaCompartir() {
   // después — ese filtro se comía también los separadores, que es justo el bug que tenía esto.
   const cita = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
   if (nodos.length) cita.push(`> Nodos de contexto: ${nodos.join(', ')}.`);
+  // Decir QUÉ se recortó, y no sólo que se recortó: quien lo recibe tiene que poder pedir lo que falta.
+  if (modo === 'compartir') cita.push('> Recortado para compartir: sin el registro de trabajo, sin «cómo se comprueba» y sin los comandos de reproducción.');
   cita.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
   const titulo = `# ${i.Key} · ${e?.title || i.Summary || ''}`.trim();
   return [titulo, '', ...cita, '', cuerpo.trim(), ''].join('\n');
 }
 
-async function copiarCuerpo() {
-  const txt = textoParaCompartir();
+async function copiarCuerpo(modo) {
+  const txt = textoParaCompartir(modo);
   if (!txt) return;
   clearTimeout(copiadoTimer);
+  copiadoCual.value = modo;
   copiado.value = (await alPortapapeles(txt)) ? 'ok' : 'error';
-  copiadoTimer = setTimeout(() => { copiado.value = ''; }, 2000);
+  copiadoTimer = setTimeout(() => { copiado.value = ''; copiadoCual.value = ''; }, 2000);
 }
 
 // Dos caminos, y el respaldo cuelga de que el primero FALLE, no de que falte.
@@ -682,7 +746,7 @@ async function alPortapapeles(txt) {
 }
 
 // Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
-watch(descAbierta, (abierto) => { if (!abierto) { clearTimeout(copiadoTimer); copiado.value = ''; } });
+watch(descAbierta, (abierto) => { if (!abierto) { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; } });
 function verDesc(i) {
   if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
   active.value = i; descAbierta.value = true;
@@ -1596,14 +1660,23 @@ onMounted(async () => {
             <h3>{{ active?.Key }}</h3>
             <p v-if="active">{{ active.Summary }}</p>
           </div>
-          <!-- copiar todo el cuerpo para pegarlo en otro lado. Va en el encabezado y no al pie: estos
-               cuerpos pasan de las mil líneas, y un botón al final no se encuentra. -->
-          <button v-if="cuerpoHTML" class="drawer-cp" :class="copiado"
-                  :title="copiado === 'ok' ? 'Copiado' : copiado === 'error' ? 'No se pudo copiar' : 'Copiar el cuerpo entero para compartirlo'"
-                  @click="copiarCuerpo">
-            <span aria-hidden="true">{{ copiado === 'ok' ? '✓' : copiado === 'error' ? '✕' : '⧉' }}</span>
-            {{ copiado === 'ok' ? 'copiado' : copiado === 'error' ? 'no se pudo' : 'copiar' }}
-          </button>
+          <!-- DOS copiados, y la diferencia no es cosmética: «compartir» es para otra persona y
+               «todo» es para mí cuando retomo. Van en el encabezado y no al pie porque estos cuerpos
+               pasan de las mil líneas y un botón al final no se encuentra. -->
+          <div v-if="cuerpoHTML" class="drawer-cps">
+            <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
+                    title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
+                    @click="copiarCuerpo('compartir')">
+              <span aria-hidden="true">{{ copiadoCual === 'compartir' && copiado === 'ok' ? '✓' : copiadoCual === 'compartir' && copiado === 'error' ? '✕' : '⧉' }}</span>
+              {{ copiadoCual === 'compartir' && copiado === 'ok' ? 'copiado' : copiadoCual === 'compartir' && copiado === 'error' ? 'no se pudo' : 'compartir' }}
+            </button>
+            <button class="drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
+                    title="Copiar el cuerpo ENTERO, con el registro y los comandos — para retomar la tarea"
+                    @click="copiarCuerpo('todo')">
+              <span aria-hidden="true">{{ copiadoCual === 'todo' && copiado === 'ok' ? '✓' : copiadoCual === 'todo' && copiado === 'error' ? '✕' : '⧉' }}</span>
+              {{ copiadoCual === 'todo' && copiado === 'ok' ? 'copiado' : copiadoCual === 'todo' && copiado === 'error' ? 'no se pudo' : 'todo' }}
+            </button>
+          </div>
           <button class="drawer-x" title="Cerrar (Esc)" @click="descAbierta = false">✕</button>
         </header>
         <div class="drawer-b">
@@ -1952,7 +2025,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .drawer-x:hover { color: var(--txt) }
 /* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
    dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
-.drawer-cp { margin-left: auto; display: inline-flex; align-items: center; gap: 5px;
+.drawer-cps { margin-left: auto; display: flex; gap: 6px }
+.drawer-cps + .drawer-x { margin-left: 8px }
+.drawer-cp { display: inline-flex; align-items: center; gap: 5px;
   border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--mut);
   font: inherit; font-size: 11.5px; cursor: pointer; padding: 3px 8px; line-height: 1.4;
   white-space: nowrap; transition: color .12s, border-color .12s }
