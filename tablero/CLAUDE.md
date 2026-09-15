@@ -253,8 +253,13 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      tareas TERMINADAS. `local` **no** quiere decir «sin pushear» — los ambientes dicen cuál de las dos es
      (la de Credifamilia sale «local» y a la vez «ya está en main»).
   5. **La parte de git NO habla con la red; la de los PRs SÍ.** Git lee lo que el último `git fetch` dejó
-     —si un dato se ve viejo, fetcheá—. Los PRs son UNA llamada a `gh` por repo (no por rama) y **degradan
-     sin ruido**: sin `gh`, sin sesión o sin VPN, las ramas salen igual y sólo faltan los PRs.
+     —si un dato se ve viejo, fetcheá—. Los PRs son UNA llamada a `gh` por repo **más una por cada rama
+     que esa llamada no cubrió**, y **degradan sin ruido**: sin `gh`, sin sesión o sin VPN, las ramas salen
+     igual y sólo faltan los PRs. ⚠ La llamada por repo trae los **200 más nuevos**, y eso es una ventana:
+     medido el 2026-09-14 llegaba al 24/8 en `legacy-backend` y al 13/8 en `frontend-monorepo`. Antes de
+     la búsqueda por rama, 20 de 112 ramas salían «sin PR» —13 ya estaban en `main`— y una tenía un PR
+     **abierto contra `main`** que nadie veía (`legacy-backend#1043`). Y `--search head:x` no es exacto
+     (trae `x-onto-develop` también): se filtra por nombre después.
   6. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
      de git sin fecha se lee como actual y no lo es. La clave es el **id** de la tarea, no el slug,
      porque el nombre del archivo se puede renombrar a mano.

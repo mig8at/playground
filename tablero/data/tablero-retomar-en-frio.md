@@ -73,12 +73,23 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
     make tareas | head -3       # tiene que decir 39 abiertas (no 63) y avisar etapas fuera del vocabulario
     cd tablero/server && go test ./cmd/cierre ./internal/store
 
+> **MEDICIÓN · 2026-09-14** — `make tareas-ramas` antes: 1 min 30, 112 ramas, 20 sin PR (13 ya en main), 6 PRs abiertos, 5 tareas truncadas en silencio. Después: 1 min 00, 120 ramas, 2 sin PR (las dos de respaldo, sin PR de verdad), 10 PRs abiertos, 0 truncadas.
+> `make tareas-ramas && python3 -c "…contar pr==null en tablero/data/cache/ramas.json"`
 > **MEDICIÓN · 2026-09-14** — `make cierre` sobre hoy: 6 tareas tocadas, 19 piezas faltantes, 3 ramas sin dueño, 60′ de bitácora sin tarea. Sobre el 10/9: 4 tocadas, 10 piezas, 151′ sin tarea.
 > `make cierre DIA=2026-09-10`
 
 ## Registro
 
 ### 2026-09-14
+
+**Segunda tanda — el estado de los PRs.** Miguel preguntó por «sacarle el jugo a git» para saber si un
+PR está abierto o mergeado y si ya está en `main`. Ya existía (`make tareas-ramas`), pero con dos
+huecos medidos: (1) la lista de `gh` trae los **200 PRs más nuevos** y todo lo anterior salía «sin PR»
+—20 de 112 ramas, y una con un PR **abierto contra `main`** invisible, `legacy-backend#1043`—; (2) la
+corrida entera tardaba 1 min 30, justo el timeout de 90 s, y al vencerse **cinco tareas salían con cero
+ramas sin ningún aviso**. Arreglos: búsqueda por rama sólo para los huecos (filtrando por nombre
+exacto, porque `head:x` también trae `x-onto-develop`), tareas en paralelo de a cuatro con caché de PRs
+con candado, `-timeout` configurable (5 min) y el snapshot declara `incompletas` y la tarjeta lo muestra.
 
 Diagnóstico medido sobre las 39 abiertas (arriba). Hecho: `make cierre` con `-dia/-json/-quiet`,
 hook de `Stop` una vez por sesión, arreglo del conteo de `make tareas` (leía `archived` como

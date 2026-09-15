@@ -35,6 +35,7 @@ func main() {
 		soloJSON = flag.Bool("json", false, "imprimir el snapshot además de guardarlo")
 		soloUna  = flag.String("n", "", "medir sólo esta tarea (slug)")
 		root     = flag.String("root", "", "dónde viven los repos (default: ~/Desktop/CREDITOP/github)")
+		espera   = flag.Duration("timeout", 5*time.Minute, "cuánto esperar la medición entera antes de devolver lo que haya")
 	)
 	flag.Parse()
 
@@ -84,12 +85,16 @@ func main() {
 		return
 	}
 
-	// 90s para 13 repos × N ramas × 4 ambientes: si se pasa, es que algo está bloqueado y conviene
-	// devolver lo medido hasta ahí antes que colgar a quien está esperando en la terminal.
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	// Si se pasa del tiempo, se devuelve lo medido hasta ahí antes que colgar a quien espera en la
+	// terminal — pero DICIENDO qué faltó: el snapshot guarda las tareas que no alcanzó y acá se avisa.
+	ctx, cancel := context.WithTimeout(context.Background(), *espera)
 	defer cancel()
 
 	snap := store.MedirRamas(ctx, *root, patrones, nil)
+	if len(snap.Incompletas) > 0 {
+		fmt.Fprintf(os.Stderr, "⚠ se venció el tiempo (%s): %d tarea(s) sin medir —ids %s—. Subí -timeout o medí una con -n\n",
+			*espera, len(snap.Incompletas), strings.Join(snap.Incompletas, ", "))
+	}
 	cacheDir := filepath.Join(dataDir, "cache")
 	if err := store.GuardarSnapshotRamas(cacheDir, snap); err != nil {
 		fmt.Fprintf(os.Stderr, "no pude guardar el snapshot: %v\n", err)

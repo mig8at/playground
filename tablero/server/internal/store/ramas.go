@@ -33,6 +33,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -91,6 +92,10 @@ type SnapshotRamas struct {
 	// nombre del archivo se puede renombrar a mano —el id vive en el frontmatter y es la identidad—,
 	// así que una clave por slug se orfanaría con un renombre.
 	Tareas map[string]RamasDeTarea `json:"tareas"`
+	// Incompletas: ids que NO se alcanzaron a medir (se venció el tiempo). Van declaradas porque un
+	// snapshot que calla lo que le falta se lee como entero: el 2026-09-14 cinco tareas salieron con
+	// cero ramas por un timeout y parecían tareas sin ramas.
+	Incompletas []string `json:"incompletas,omitempty"`
 }
 
 var gitBin = func() string {
@@ -150,14 +155,52 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 	snap := SnapshotRamas{MedidoEn: time.Now().Format(time.RFC3339), Root: root, Tareas: map[string]RamasDeTarea{}}
 
 	repos := reposEn(root)
-	// Los PRs se piden UNA vez por repo y se reusan para todas las tareas: dos tareas que tocan el
-	// mismo repo no deben pagar dos llamadas a la red.
-	prsPorRepo := map[string]map[string]*PullRequest{}
+	prs := &prCache{porRepo: map[string]map[string]*PullRequest{}}
+
+	// LAS TAREAS SE MIDEN EN PARALELO, de a cuatro. Medido el 2026-09-14 en serie: 1 min 30 para 21
+	// tareas, justo el timeout de la consola — y cuando se pasaba, las últimas tareas salían con CERO
+	// ramas y el snapshot no decía que estaba truncado. Cuatro y no más: son comandos de git contra
+	// disco y llamadas a gh; más goroutines no aceleran, compiten.
+	var (
+		mu   sync.Mutex
+		wg   sync.WaitGroup
+		cola = make(chan struct{}, 4)
+	)
 	for id, patron := range patrones {
 		pats := patronesDe(patron)
 		if len(pats) == 0 {
 			continue
 		}
+		wg.Add(1)
+		go func(id, patron string, pats []string) {
+			defer wg.Done()
+			cola <- struct{}{}
+			defer func() { <-cola }()
+			if ctx.Err() != nil {
+				mu.Lock()
+				snap.Incompletas = append(snap.Incompletas, id)
+				mu.Unlock()
+				return
+			}
+			res := medirTarea(ctx, repos, patron, pats, ambientes, prs)
+			mu.Lock()
+			defer mu.Unlock()
+			if ctx.Err() != nil {
+				// Se venció en el medio: lo medido está a medias y NO se guarda como si fuera entero.
+				snap.Incompletas = append(snap.Incompletas, id)
+				return
+			}
+			snap.Tareas[id] = res
+		}(id, patron, pats)
+	}
+	wg.Wait()
+	sort.Strings(snap.Incompletas)
+	return snap
+}
+
+// medirTarea es el trabajo de UNA tarea: sus ramas en cada repo, hasta dónde llegaron y su PR.
+func medirTarea(ctx context.Context, repos []string, patron string, pats, ambientes []string, prs *prCache) RamasDeTarea {
+	{
 		res := RamasDeTarea{Patron: patron}
 		for _, repo := range repos {
 			// Dos patrones pueden traer la MISMA rama (`motai` y `motai-v2`): se mide una sola vez, o la
@@ -218,12 +261,7 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 					r.Propios[amb] = propios
 					r.En[amb] = puntaDentro
 				}
-				if _, visto := prsPorRepo[repo]; !visto {
-					prsPorRepo[repo] = prsDelRepo(ctx, repo)
-				}
-				if pr, ok := prsPorRepo[repo][rm.Nombre]; ok {
-					r.PR = pr
-				}
+				r.PR = prs.de(ctx, repo, rm.Nombre)
 				res.Ramas = append(res.Ramas, r)
 			}
 		}
@@ -233,9 +271,37 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 			}
 			return res.Ramas[i].Rama < res.Ramas[j].Rama
 		})
-		snap.Tareas[id] = res
+		return res
 	}
-	return snap
+}
+
+// prCache: los PRs se piden UNA vez por repo y se reusan para todas las tareas —dos tareas que tocan el
+// mismo repo no deben pagar dos llamadas a la red—, y las ramas que la lista no cubrió se preguntan una
+// vez cada una. Con las tareas en paralelo, el mapa necesita candado.
+type prCache struct {
+	mu      sync.Mutex
+	porRepo map[string]map[string]*PullRequest // nil = gh no contestó para ese repo
+}
+
+func (c *prCache) de(ctx context.Context, repo, rama string) *PullRequest {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	m, visto := c.porRepo[repo]
+	if !visto {
+		m = prsDelRepo(ctx, repo)
+		c.porRepo[repo] = m
+	}
+	if m == nil {
+		return nil
+	}
+	if pr, ok := m[rama]; ok {
+		return pr
+	}
+	// gh SÍ contestó y esta rama no estaba entre los 200 más nuevos: se pregunta por ella. Se guarda
+	// aunque sea nil, para no repetir la llamada si otra tarea declara la misma rama.
+	pr := prDeRama(ctx, repo, rama)
+	m[rama] = pr
+	return pr
 }
 
 // reposEn lista los repos git bajo root, bajando un nivel extra (en `github/` conviven repos sueltos y
@@ -368,39 +434,76 @@ func ownerRepo(ctx context.Context, dir string) string {
 //
 // `--state all` a propósito: un PR ya mergeado o cerrado es justamente lo que explica por qué una rama
 // que "falta en main" en realidad ya llegó, o por qué otra quedó abandonada.
+//
+// ⚠ Trae los 200 MÁS NUEVOS, y eso es una ventana, no el repo: medido el 2026-09-14, en legacy-backend
+// llegaba hasta el 24/8, en frontend-monorepo hasta el 13/8. Todo PR anterior salía como «sin PR» —
+// incluido uno ABIERTO contra main (legacy-backend #1043). Por eso las ramas que quedan sin PR acá se
+// vuelven a preguntar una por una con `prDeRama`: pocas llamadas, y sólo para los huecos.
 func prsDelRepo(ctx context.Context, dir string) map[string]*PullRequest {
-	if ghBin == "" {
-		return nil
-	}
 	slug := ownerRepo(ctx, dir)
-	if slug == "" {
+	if ghBin == "" || slug == "" {
 		return nil
 	}
-	cmd := exec.CommandContext(ctx, ghBin, "pr", "list", "--repo", slug, "--state", "all", "--limit", "200",
-		"--json", "number,state,headRefName,baseRefName,url,reviewDecision,mergedAt,isDraft")
+	crudos, ok := ghPRs(ctx, dir, slug, "--limit", "200")
+	if !ok {
+		return nil
+	}
+	return indexarPRs(crudos)
+}
+
+// prDeRama busca el PR de UNA rama, para las que la ventana de `prsDelRepo` no alcanzó. Devuelve nil si
+// no hay o no se pudo preguntar.
+//
+// ⚠ `--search head:x` NO es exacto: `head:feature/pais-como-dato` devuelve también
+// `feature/pais-como-dato-onto-develop`. Por eso se filtra por nombre exacto después de traerlos.
+func prDeRama(ctx context.Context, dir, rama string) *PullRequest {
+	slug := ownerRepo(ctx, dir)
+	if ghBin == "" || slug == "" {
+		return nil
+	}
+	crudos, ok := ghPRs(ctx, dir, slug, "--search", "head:"+rama, "--limit", "20")
+	if !ok {
+		return nil
+	}
+	return indexarPRs(crudos)[rama]
+}
+
+type prCrudo struct {
+	Number         int    `json:"number"`
+	State          string `json:"state"`
+	HeadRefName    string `json:"headRefName"`
+	BaseRefName    string `json:"baseRefName"`
+	URL            string `json:"url"`
+	ReviewDecision string `json:"reviewDecision"`
+	MergedAt       string `json:"mergedAt"`
+	IsDraft        bool   `json:"isDraft"`
+}
+
+// ghPRs es la única forma de hablar con `gh pr list` acá: mismos campos, misma degradación (ok=false si
+// falló, y quien llama muestra la rama sin PR en vez de romper).
+func ghPRs(ctx context.Context, dir, slug string, extra ...string) ([]prCrudo, bool) {
+	args := append([]string{"pr", "list", "--repo", slug, "--state", "all",
+		"--json", "number,state,headRefName,baseRefName,url,reviewDecision,mergedAt,isDraft"}, extra...)
+	cmd := exec.CommandContext(ctx, ghBin, args...)
 	cmd.Dir = dir
 	var sb strings.Builder
 	cmd.Stdout = &sb
 	if err := cmd.Run(); err != nil {
-		return nil
+		return nil, false
 	}
-	var crudos []struct {
-		Number         int    `json:"number"`
-		State          string `json:"state"`
-		HeadRefName    string `json:"headRefName"`
-		BaseRefName    string `json:"baseRefName"`
-		URL            string `json:"url"`
-		ReviewDecision string `json:"reviewDecision"`
-		MergedAt       string `json:"mergedAt"`
-		IsDraft        bool   `json:"isDraft"`
-	}
+	var crudos []prCrudo
 	if err := json.Unmarshal([]byte(sb.String()), &crudos); err != nil {
-		return nil
+		return nil, false
 	}
+	return crudos, true
+}
+
+// indexarPRs pasa de la lista de gh al mapa rama → PR. Si una rama tuvo VARIOS PRs, gana el de número
+// más alto: es el intento vigente. Quedarse con el primero mostraría un PR viejo y cerrado como si
+// fuera el estado de hoy.
+func indexarPRs(crudos []prCrudo) map[string]*PullRequest {
 	out := map[string]*PullRequest{}
 	for _, p := range crudos {
-		// Si una rama tuvo VARIOS PRs, gana el de número más alto: es el intento vigente. Quedarse con
-		// el primero mostraría un PR viejo y cerrado como si fuera el estado de hoy.
 		if prev, ok := out[p.HeadRefName]; ok && prev.Numero > p.Number {
 			continue
 		}

@@ -1717,7 +1717,9 @@ onMounted(async () => {
           <div>
             <h3>Ramas</h3>
             <p v-if="active">de {{ active.Key }} · patrón <code>{{ ramasDe(active.Key)?.patron }}</code>
-              · medido {{ haceCuanto(ramasSnap.medidoEn) }}</p>
+              · medido {{ haceCuanto(ramasSnap.medidoEn) }}
+              <!-- un snapshot que calla lo que le falta se lee como entero: si la medición se venció, lo dice -->
+              <span v-if="ramasSnap.incompletas?.length" class="warn">· ⚠ {{ ramasSnap.incompletas.length }} tarea(s) sin medir (se venció el tiempo)</span></p>
           </div>
           <button class="drawer-x" title="Cerrar (Esc)" @click="ramasAbiertas = false">✕</button>
         </header>
