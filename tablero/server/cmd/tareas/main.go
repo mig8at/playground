@@ -97,7 +97,11 @@ func leer(ruta string) (Tarea, string, error) {
 		case strings.HasPrefix(l, "stage:"):
 			t.Stage = valor(l)
 		case strings.HasPrefix(l, "archived:"):
-			t.Archived = valor(l) == "true"
+			// El valor es la FECHA de archivado (así lo escribe el tablero y así lo lee el store:
+			// "" = viva). Acá decía `== "true"`, y como ningún archivo dice `true`, las 24 archivadas
+			// contaban como abiertas: `make tareas` anunciaba 63 cuando eran 39 (2026-09-14).
+			v := valor(l)
+			t.Archived = v != "" && v != "false" && v != "null"
 		case strings.HasPrefix(l, "jira:"):
 			t.Jira = lista(l)
 		case strings.HasPrefix(l, "context_nodes:"):
@@ -105,6 +109,38 @@ func leer(ruta string) (Tarea, string, error) {
 		}
 	}
 	return t, partes[2], nil
+}
+
+// avisos son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,
+// mienten: un id repetido hace que una tarea pise a la otra en el store, y una etapa fuera del
+// vocabulario no cae en ninguna columna. Se imprimen arriba de la lista, no como error: la lista
+// sigue sirviendo, pero hay que arreglar el archivo.
+func avisos(ts []Tarea) []string {
+	var out []string
+	porID := map[int][]string{}
+	for _, t := range ts {
+		porID[t.ID] = append(porID[t.ID], t.Slug)
+		if !t.Archived && !etapaValida(t.Stage) {
+			out = append(out, fmt.Sprintf("#%d %s: etapa «%s» no existe (evaluation · work · tasks). "+
+				"Si está terminada, va `archived:` con fecha", t.ID, t.Slug, t.Stage))
+		}
+	}
+	ids := make([]int, 0, len(porID))
+	for id := range porID {
+		ids = append(ids, id)
+	}
+	sort.Ints(ids)
+	for _, id := range ids {
+		if len(porID[id]) > 1 {
+			out = append(out, fmt.Sprintf("id %d repetido: %s — en el tablero sobrevive uno solo",
+				id, strings.Join(porID[id], ", ")))
+		}
+	}
+	return out
+}
+
+func etapaValida(s string) bool {
+	return s == "evaluation" || s == "work" || s == "tasks" || s == ""
 }
 
 func dirDatos() string {
@@ -421,6 +457,9 @@ func main() {
 	}
 	fmt.Printf("\n  %d tarea(s)%s · de %d en total\n\n", len(vis),
 		map[bool]string{true: "", false: " abiertas"}[*conTodas], len(ts))
+	for _, aviso := range avisos(ts) {
+		fmt.Printf("  ⚠ %s\n", aviso)
+	}
 	for _, t := range vis {
 		j := ""
 		if len(t.Jira) > 0 {

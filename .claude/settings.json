@@ -17,7 +17,14 @@
     "              evento, el stdout entra como texto plano). Sin matcher a propósito: también",
     "              dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde. ~1.200",
     "              tokens por sesión, y es el precio de que un modelo no decida que no puede leer",
-    "              Loki cuando sí puede. Se genera del Makefile: un target nuevo aparece solo."
+    "              Loki cuando sí puede. Se genera del Makefile: un target nuevo aparece solo.",
+    "",
+    "Stop         · cierre: al terminar de responder, corre `cierre -json` (tablero/server/cmd/cierre) y",
+    "              mira SÓLO las tareas que ESTA sesión tocó (el transcript las nombra). Si a alguna le",
+    "              falta retoma, registro del día, bitácora o ramas, devuelve `block` con la lista y el",
+    "              modelo completa. UNA vez por sesión y por día (marca en tablero/data/cache/). Es la",
+    "              regla de tablero/CLAUDE.md §«AL CERRAR» hecha automática: se olvidó el 26/8 y el",
+    "              tablero mintió ocho días."
   ],
   "hooks": {
     "SessionStart": [
@@ -53,6 +60,18 @@
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/oraculo.py",
             "args": [],
             "statusMessage": "Validando las rutas del nodo…",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/cierre.py",
+            "args": [],
             "timeout": 120
           }
         ]

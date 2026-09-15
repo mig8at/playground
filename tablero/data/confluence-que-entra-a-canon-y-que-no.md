@@ -1,5 +1,5 @@
 ---
-id: 79
+id: 83
 title: "Confluence: qué entra a canon y qué no"
 stage: done
 created: "2026-09-14T18:00:00-05:00"

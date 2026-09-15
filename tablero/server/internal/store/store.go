@@ -157,6 +157,30 @@ func (s *Store) cargar() error {
 			renumeradas = append(renumeradas, max)
 		}
 	}
+	// Y LOS IDS REPETIDOS TAMBIÉN, por la misma razón: el mapa de abajo va por id, así que dos archivos
+	// con el mismo número se pisan y sobrevive uno solo — el mismo modo de falla del `id: 0`, pero
+	// sin que nada lo delate. Pasó el 2026-09-14: una tarea nueva escrita a mano nació con el 79, que
+	// ya era de una archivada. Se queda con el número la más VIEJA (por `created`) —es la que puede
+	// tener bitácora y Jira colgados de él— y la otra recibe el siguiente libre, persistido.
+	porID := map[int64]int{}
+	for i := range leidas {
+		id := leidas[i].e.ID
+		j, visto := porID[id]
+		if !visto {
+			porID[id] = i
+			continue
+		}
+		nueva, vieja := i, j
+		if leidas[i].e.CreatedAt < leidas[j].e.CreatedAt {
+			nueva, vieja = j, i
+		}
+		max++
+		leidas[nueva].e.ID = max
+		renumeradas = append(renumeradas, max)
+		porID[id] = vieja
+		fmt.Fprintf(os.Stderr, "tablero: id %d repetido en %s y %s → %s pasa a %d\n",
+			id, leidas[vieja].archivo, leidas[nueva].archivo, leidas[nueva].archivo, max)
+	}
 	for _, l := range leidas {
 		s.efforts = append(s.efforts, l.e)
 		s.slugs[l.e.ID] = l.archivo

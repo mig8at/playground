@@ -201,7 +201,8 @@ no cubre) y **harness** (la prueba) — y el circuito es fijo:
    ⚠ **Y al cerrar la sesión son CUATRO cosas, no una:** reescribir el estado de arriba · apilar la
    entrada del Registro · declarar `ramas:` y volver a medir con `make tareas-ramas` · escribir la
    bitácora en `tablero/data/entries/` **con minutos medidos** (`make pulso`, o el lapso de commits), no
-   estimados. El detalle y lo medido que lo justifica: `tablero/CLAUDE.md`.
+   estimados. **`make cierre` chequea las cuatro** y el hook de `Stop` lo corre solo. El detalle y lo
+   medido que lo justifica: `tablero/CLAUDE.md`.
 2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (generado,
    validado contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
    análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en

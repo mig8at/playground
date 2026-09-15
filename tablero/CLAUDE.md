@@ -155,6 +155,16 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   ⚠ **Y decilo cuando no puedas medirlo.** Si el pulso no tiene datos de ese día, la entrada sale del
   lapso de commits y eso se avisa: quien lee la bitácora tiene que poder saber de dónde salió el número.
 
+  **Y desde el 2026-09-14 esto NO es una lista: es `make cierre`.** Cruza git (qué archivos de tarea se
+  tocaron hoy, y si la sección de retoma de verdad CAMBIÓ respecto de ayer), el pulso (qué ramas se
+  tocaron → qué tarea las declara en `ramas:`, y cuáles ninguna) y la bitácora del día (minutos por
+  tarea, y los que no tienen dueño). Sale 1 si a una tarea tocada le falta una pieza. Medido el día que
+  se escribió: 23 de las 39 abiertas no tenían sección de retoma, 27 no tenían próximo paso y 3 con
+  trabajo en septiembre no tenían bitácora — la lista de arriba llevaba un mes escrita.
+  El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
+  por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. Si te frena en el
+  medio del trabajo, decilo en una línea y seguí: no vuelve a hablar.
+
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
   va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
@@ -168,6 +178,7 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make bitacora DAYS=7              el tiempo registrado, por día
       make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
       make tareas-ramas N=43 JSON=1     una sola, en json
+      make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
