@@ -652,10 +652,19 @@ const RE_ANOTACION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)
 // ⚠ Esto quita el RUIDO de mis herramientas. No es una garantía de privacidad: el cuerpo sigue
 // nombrando repos, rutas y hallazgos, y por eso el encabezado lo sigue avisando.
 // Las secciones que se van enteras. Son NOMBRES de la plantilla de tareas, no una heurística:
-//   · «Registro» es la bitácora de qué hice cada día;
-//   · «Cómo se comprueba» es, por definición de la plantilla, con qué lo probé — el harness, las
-//     suites, los curl contra localhost. Es justo lo que no le sirve a quien lo recibe.
-const SECCIONES_MIAS = /^(registro|c[óo]mo se comprueba)\b/i;
+//   · el REGISTRO de qué hice cada día;
+//   · CÓMO SE COMPRUEBA, que la plantilla define como «con qué lo probé» — el harness, las suites,
+//     los curl contra localhost. Es justo lo que no le sirve a quien lo recibe.
+//
+// Cada una tiene DOS nombres, porque las tareas viejas usan los de antes y `tablero/CLAUDE.md` dice
+// que no se migran: «Registro»/«Bitácora» y «Cómo se comprueba»/«Cómo probar / validar». Medido sobre
+// las 41 tareas: 15 + 10 y 11 + 4. Cubrir sólo los nombres nuevos dejaba la mitad de las tareas sin
+// cortar — y el corte que no corta es peor que no tenerlo, porque uno cree que sí.
+//
+// ⚠ «Cómo validar» (20 apariciones) NO entra y no es un olvido: vive del lado PUBLICABLE, que es la
+// mitad escrita para QA y ni siquiera llega a `techNotes`. Verificado partiendo cada archivo por el
+// marcador: las cuatro de arriba salen todas del cuerpo privado, «Cómo validar» todas de la publicable.
+const SECCIONES_MIAS = /^(registro|bit[áa]cora|c[óo]mo se comprueba|c[óo]mo probar)\b/i;
 
 // ⚠ Los prefijos van con `^ {0,3}` y NO con `trimStart()`, y esa es la diferencia entre cortar bien
 // y dejar contenido huérfano. En markdown un encabezado admite hasta TRES espacios de sangría; con

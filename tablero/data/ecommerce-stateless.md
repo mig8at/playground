@@ -40,13 +40,48 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 ## Objetivo
 Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesión: el front (`ecommerce/checkout.tsx`) recibe el contrato, y en cada paso rehidrata desde endpoints de contexto del backend (`ecommerce-context.server.ts` → `EcommerceRequestController`). Motivación técnica del "no cookie": el SSR del wizard cruza hosts/ambientes y la cookie se perdía. No re-explica el canal (ver **ecommerce**).
 
-## Ramas y PRs por repo
-| Repo | PR | Commit (squash) | Fecha | ¿En main? | ¿develop? | ¿staging? |
-|---|---|---|---|---|---|---|
-| `legacy-backend` | [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) — *ecommerce context endpoints for stateless wizard (no cookie)* | `bb14a8ff` | 2026-06-11 | ✅ **SÍ** | ✅ | ✅ |
-| `frontend-monorepo` | [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) — *entrada ecommerce web stateless* | `d2242469` | 2026-06-11 | 🟡 **NO** | ✅ | ❌ |
+## Lo que se mergeó: el libro mayor de los PRs
 
-> **Respuesta a "no sé si ya está en main" (verificado 2026-07-18 con `git branch -r --contains`):** el **backend #795 SÍ está en main** (4 archivos, endpoints de contexto). El **frontend #551 NO — solo en develop**. La feature completa NO está en main hasta que #551 promueva. Corroborado por el oráculo: los 5 archivos net-new del front (abajo) NO resuelven contra el índice (que se escanea de main); el 1 net-new del backend SÍ.
+> Medido el 2026-09-14 con `gh` y `git merge-base --is-ancestor`, no de memoria. Las horas son de
+> Colombia (`gh` las devuelve en UTC). Esta sección es ESTADO: se reescribe, no se apila.
+> **Sólo lo de esta tarea, sólo lo mío y sólo lo MERGEADO** — lo que mergeó otra gente vive en SU
+> tarea, y lo que no mergeó no se hizo. *(Reemplaza a la tabla «Ramas y PRs por repo», que estaba
+> verificada al 2026-07-18 y se quedó en los dos PRs de junio.)*
+
+| | PR | rama | tamaño | mergeado a | cuándo | commit |
+|---|---|---|---|---|---|---|
+| back | **#795** endpoints de contexto para el wizard sin cookie | `ecommerce-stateless-checkout` | +131/−5 · 4 arch | `develop` | 11/6 08:37 | `bb14a8ff3` |
+| front | **#551** la entrada ecommerce stateless | `ecommerce-stateless-checkout` | +585/−31 · 21 arch | `develop` | 11/6 08:38 | `d22424690` |
+| back | **#1392** la sala de espera del veredicto | `feat/sala-de-espera-ecommerce` | +93/−0 · 2 arch | `qa` | 14/9 15:30 | `gh:1392` |
+| front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `gh:997` |
+| front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `gh:1005` |
+
+### ⚠ Esto NO está todo en el mismo lugar, y esa es la parte que engaña
+
+| PR | `qa` | `develop` | `staging` | `main` |
+|---|---|---|---|---|
+| back #795 | ✅ | ✅ | ✅ | ✅ |
+| front #551 | ✅ *(por contenido)* | ✅ | ❌ | ❌ |
+| back #1392 · front #997 · front #1005 | ✅ | ❌ | ❌ | ❌ |
+
+**El par de junio está PARTIDO**: el backend llegó hasta `main`, el front se quedó en `develop`. O sea
+que en producción hay endpoints de contexto stateless **sin la entrada del front que los usa**. Eso no
+lo arregla lo de septiembre, que vive sólo en `qa`.
+
+> ⚠ **Y ojo con cómo se mide.** `git merge-base --is-ancestor` dice que el merge de **#551 NO está en
+> `qa`**, y es falso: los cuatro archivos net-new de ese PR —`ecommerce/checkout.tsx`,
+> `down-payment-validation.tsx`, `initial-fee-payment.tsx`, `ecommerce-context.server.ts`— **existen en
+> `qa`**. El contenido llegó por otro camino y el SHA no. Es la segunda vez en el día que la medición
+> por commit da un falso «falta» (la otra fue #983, en Alta). **El desempate es el contenido, no el
+> SHA.**
+
+### Los dos PRs de abril ya NO están abiertos
+
+> **MEDICIÓN · 2026-09-14** — `legacy-backend#503` y `frontend-monorepo#363` están **CLOSED**, sin
+> merge. Se cerraron después de la medición de más abajo, que los dio por abiertos ese mismo día.
+> Por eso no entran al libro mayor: no se hicieron. Lo que había que **rescatar** de ellos sigue
+> valiendo y está en «Los CUATRO PRs de la migración».
+
 
 ## Lo que se hizo
 ### Backend #795 (`bb14a8ff`, en main) — endpoints de contexto stateless (4 archivos)
@@ -288,13 +323,16 @@ cliente.
 
 > **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
 > **dos piezas que no existen hoy en ningún lado**.
+> ⚠ **Caducó el mismo día: los dos se CERRARON** (re-medido el 2026-09-14 por la tarde). Lo que no
+> caduca es la segunda mitad — las dos piezas siguen sin existir en ningún lado, y cerrarlos no las
+> trajo. Que el PR se cierre no rescata su contenido.
 > **Cómo se vuelve a comprobar:** `gh pr view <n> --json state,baseRefName,files` en cada repo, y
 > `git grep "ecommerce-check" main` / `git ls-tree -r --name-only origin/develop …/routes/ | grep waiting`.
 
 | PR | estado | base | tamaño | qué es |
 |---|---|---|---|---|
-| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🟠 **ABIERTO** | ← **main** | 15 arch · +295/−31 | «checkout integration», abril |
-| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🟠 **ABIERTO** | ← develop | 15 arch · +342/−57 | idem, front |
+| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🔴 **CERRADO** sin merge *(se cerró el 14/9, después de la medición de acá arriba)* | ← **main** | 15 arch · +295/−31 | «checkout integration», abril |
+| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🔴 **CERRADO** sin merge *(ídem)* | ← develop | 15 arch · +342/−57 | idem, front |
 | `legacy-backend` [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) | ✅ merged | ← develop | 4 arch · +131/−5 | endpoints de contexto stateless |
 | `frontend-monorepo` [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | ✅ merged | ← develop | 21 arch · +585/−31 | entrada stateless |
 
