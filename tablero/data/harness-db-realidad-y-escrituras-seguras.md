@@ -368,6 +368,34 @@ consultando la base después — y su propio comentario admite que **no ve los D
 borrada no está para ser consultada. **El scrub del cliente borra en CADA corrida (F-52) y nunca
 apareció en esa comprobación.**
 
+
+### 4 · Y el hueco que quedaba: la causa del backend, cuando en local no hay dónde buscarla
+
+> **MEDICIÓN · 2026-09-15, en esta máquina** — `LOG_CHANNEL=loki` en el `.env` de `legacy-backend`,
+> Loki (`:3100`) **sin contestar**, y el último `laravel.log` con datos era del **13 de septiembre**.
+> O sea que **los errores de backend de todas las corridas del día se perdieron**: el 422 «no tiene un
+> OTP pendiente» del OTP de firma y el `errorCode: unexpected` de `confirmation` hubo que ir a
+> buscarlos con `curl`.
+> **Cómo se vuelve a comprobar:** `grep LOG_CHANNEL <legacy-backend>/.env` + `curl localhost:3100/ready`.
+
+`harness/CLAUDE.md` ya llama a esa combinación **«el peor de los dos mundos»** —ni archivo ni Loki— y
+es la **configuración normal de trabajo**: el `.env` queda en `loki` y el stack de observabilidad no se
+levanta para cada corrida.
+
+**`avisoLogsDelBackend()` lo DIAGNOSTICA** en vez de avisar siempre: lee el `LOG_CHANNEL` del otro repo
+y prueba `:3100`. Si Loki está arriba **no dice nada** — un aviso que sale igual en los dos casos se
+aprende a ignorar. Sale **cuando un caso no cierra**, que es cuando se va a buscar la causa, en el
+caminador **y** en el spec visual (consola y UI):
+
+    ⚠ LOS ERRORES DEL BACKEND DE ESTA CORRIDA NO QUEDARON EN NINGUNA PARTE.
+       `LOG_CHANNEL=loki` en el .env de legacy-backend y Loki (:3100) no contesta: el handler se
+       traga su propio fallo y el fallback a storage/logs NO dispara. Ni archivo ni Loki.
+       Para ver la causa de un 500 sin levantar nada, pedile el endpoint de nuevo:
+         curl -s -w '\nHTTP %{http_code}\n' http://localhost/api/loans/requests/promissory-note/466694
+       O levantá el stack: `make harness-obs-up`
+
+✔ Trae el comando **con la solicitud ya puesta**, el mismo idioma que los avisos de PostHog y de Loki.
+
 ### ⚠ Y un bug mío, visto en la primera salida del registro
 
 `mutacionDe` leía `DROP TABLE IF EXISTS x` como la tabla **«if»**, porque el `IF EXISTS` va entre el
@@ -421,3 +449,9 @@ activity` admite que no puede ver — el scrub borra en cada corrida y nunca apa
 HTTP del paso que falló, etiquetado como «del front» porque medido responde 200 donde el backend dio
 422. Y un bug mío en el propio registro (`DROP TABLE IF EXISTS x` → tabla «if»), visto en su primera
 salida y arreglado con prueba.
+
+### 2026-09-15 (7) · el aviso de que la causa del backend no quedó registrada
+Cerrado el hueco: en local, con `LOG_CHANNEL=loki` y Loki abajo, los errores de runtime se pierden en
+silencio — medido, el último `laravel.log` era de dos días antes y los errores del día entero no
+existen. El runner lo diagnostica (no avisa siempre) y, cuando un caso no cierra, dice que no hay
+rastro y da el comando que sí funciona con la solicitud puesta. En consola y en la UI.
