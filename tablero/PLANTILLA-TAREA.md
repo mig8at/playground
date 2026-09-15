@@ -93,10 +93,17 @@ jira_title: ""
 
 <!-- El límite explícito. Sin esto la tarea crece sola y nunca cierra. -->
 
-## Cómo se comprueba
+## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-<!-- El comando o la corrida que DEMUESTRA que funciona, copiable. Es lo privado y detallado; la
-     receta para QA va abajo, en la publicable, y en otro idioma.
+<!-- Acá vive lo que se vuelve a usar: la receta de punta a punta (sembrar el caso, correrlo,
+     verificar dónde quedó), las consultas, los datos de prueba, el esquema. Es el comando o la
+     corrida que DEMUESTRA que funciona, copiable. Es lo privado y detallado; la receta para QA va
+     abajo, en la publicable, y en otro idioma.
+
+     ⚠ ESTA SECCIÓN NO SE REESCRIBE NI SE APILA: SE MANTIENE. Es la tercera clase de contenido y la
+     que no tenía nombre — por eso terminaba creciendo como secciones nuevas arriba, con fecha, hasta
+     volver ilegible el archivo. Si la receta cambió, se corrige acá; lo que pasó ese día va al
+     Registro. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
      Las mediciones van como anotación, con su `Como`:
 > **MEDICIÓN · 2026-08-20** — 86,6% de las consultas no pasa por el contador.
 > `SELECT count(*) FROM kyc_name_checks WHERE ...`

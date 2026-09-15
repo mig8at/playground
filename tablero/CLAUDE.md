@@ -82,10 +82,32 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   **retomar en frío sea rápido**, y su única regla estructural sale de medir por qué las tareas grandes
   se vuelven ilegibles.
 
-  **Hay DOS clases de contenido y no se mezclan:**
+  **Hay CINCO clases de contenido, y cada una se trata distinto. Tres tienen nombre propio en el
+  archivo; las otras dos son las que lo desordenan cuando no se las reconoce:**
 
-      ESTADO ACTUAL  (todo hasta «Registro»)  → se REESCRIBE. Siempre dice lo de HOY.
-      REGISTRO       (al final)               → se APILA. Nunca se edita lo viejo.
+      1 ESTADO       dónde estoy hoy            → se REESCRIBE   «Si retomás esto sin contexto»
+      2 PLAN         objetivo, cómo se ataca    → se REESCRIBE   «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
+      3 MATERIAL     recetas, consultas, datos  → se MANTIENE    «Cómo se comprueba — y el MATERIAL…»
+      4 REGISTRO     qué pasó ESE día           → se APILA       «Registro»
+      5 CONOCIMIENTO cómo funciona el sistema   → GRADÚA         a un nodo de `context/`
+
+  **La que más se equivoca es la 4 disfrazada de 3**: el diario de ejecución escrito como sección nueva
+  arriba («🔧 Segunda pasada (13/9)», «2ª revisión de Santi (3/8)»). Medido el 2026-09-15 sobre las 40
+  abiertas: la mediana pesa 16 KB y está sana, pero **11 pasan de 40 KB y 6 de 80**, y las grandes no
+  crecieron por el Registro —que es append-only a propósito— sino porque el ESTADO se volvió un diario:
+  **91 de sus 621 secciones llevan fecha**, y en la peor son 21 de 72.
+
+  ⚠ **Tener fecha NO condena a una sección.** «Cómo se prueba, de cero (verificado el 2026-08-20)» es
+  MATERIAL vigente y la fecha dice cuándo se comprobó. El test que discrimina es el mismo de siempre:
+  **si esto se mergea mañana, ¿sigue siendo cierto?** Sí y es de la tarea → queda. Sí y es del sistema →
+  gradúa a `context/`. No → es un hecho de ese día, va al Registro.
+
+  **`make anatomia`** mide esto por tarea —tamaño, reparto estado/registro, y qué secciones fechadas
+  viven arriba— y no mueve nada: señala para que alguien mire. `N=<id>` para una sola.
+
+  ⚠ A propósito **el lint NO avisa por tamaño**: corre en cada escritura y tiene que hablar de lo que
+  está MAL, no de lo que está grande. Un archivo de 80 KB puede ser correcto; que convenga partirlo es
+  un juicio, y los juicios van a `make anatomia`, que se mira cuando uno quiere mirarlos.
 
   Medido el 2026-08-19 sobre las 41 tareas: las dos más grandes —130 KB con 60 secciones y 84 KB con
   55— son ilegibles **no por largas, sino por mezclarlas**. Cada día se apiló una sección nueva al

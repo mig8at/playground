@@ -95,6 +95,9 @@ retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs,
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/hoy -n "$(N)" $(if $(JSON),-json)
 
+anatomia: ## @dia ¿cómo está repartido el archivo de cada tarea (estado/registro) y qué sección parece estar fuera de lugar? N=<id|slug>
+	@cd tablero/server && go run ./cmd/hoy -anatomia $(if $(N),-n "$(N)")
+
 bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [KIND=progress] [SECO=1]
 	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
 	@cd tablero/server && go run ./cmd/bitacora -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \

@@ -54,6 +54,11 @@ var (
 	reProximo = regexp.MustCompile(`(?is)\*\*El pr[óo]ximo paso es:?\*\*\s*(.*?)(?:\n\s*\n|\n##|\z)`)
 	reRegDia  = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})[^\n]*\n`)
 	rePublic  = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
+	// «Bitácora» es como llaman al Registro las tareas viejas: mirar sólo «Registro» contaba su diario
+	// entero como estado y las dejaba arriba del ranking por un nombre.
+	reRegistro      = regexp.MustCompile(`(?m)^##\s+(Registro|Bit[áa]cora)\s*$`)
+	reSecc          = regexp.MustCompile(`(?m)^#{2,4}\s+(.*)$`)
+	reFechaEnTitulo = regexp.MustCompile(`20\d\d-\d\d-\d\d`)
 )
 
 func valor(l string) string {
@@ -313,6 +318,7 @@ func main() {
 	var (
 		una      = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
 		stage    = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
+		anatomia = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		comoJSON = flag.Bool("json", false, "salida en JSON")
 	)
 	flag.Parse()
@@ -331,6 +337,9 @@ func main() {
 	}
 	snap := leerSnap(datos)
 
+	if *anatomia {
+		os.Exit(verAnatomia(datos, tareas, *una))
+	}
 	if *una != "" {
 		os.Exit(retomar(datos, tareas, snap, *una, *comoJSON))
 	}
@@ -467,6 +476,117 @@ func imprimirFila(f fila, detalle bool) {
 	if f.Pendientes > 0 {
 		fmt.Printf("       ☐ %d pendiente(s)\n", f.Pendientes)
 	}
+}
+
+// ── anatomía: cómo está repartido el archivo ────────────────────────────────────────────────────
+
+// CINCO COSAS VIVEN EN UN ARCHIVO DE TAREA, y sólo tres tienen nombre propio hoy. La medición del
+// 2026-09-15 sobre las 40 abiertas: la mediana pesa 16 KB y está sana, pero 11 pasan de 40 KB y 6 de
+// 80 — y las grandes no son grandes por el Registro (que es append-only a propósito), sino porque el
+// ESTADO se volvió un diario: 91 de sus 621 secciones llevan fecha, y en la peor son 21 de 72.
+//
+//	1 ESTADO      dónde estoy hoy        → se REESCRIBE      «Si retomás esto sin contexto»
+//	2 PLAN        objetivo, cómo se ataca → se REESCRIBE      «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
+//	3 MATERIAL    recetas, consultas, datos de prueba, esquemas → se MANTIENE (se corrige, no se apila)
+//	4 REGISTRO    qué pasó ese día       → se APILA          «Registro»
+//	5 CONOCIMIENTO cómo funciona el sistema → GRADÚA a context/
+//
+// Lo que se apila en el estado casi siempre es 4 disfrazado de 3. ⚠ Pero tener fecha NO alcanza para
+// condenar una sección: «Cómo se prueba, de cero (verificado el 2026-08-20)» es MATERIAL vigente y la
+// fecha dice cuándo se comprobó. El test que sí discrimina es el mismo del repo: **si esto se mergea
+// mañana, ¿sigue siendo cierto?** Por eso acá no se mueve nada solo — se señala para que alguien mire.
+const (
+	kbIncomodo = 40 // por encima, una tarea deja de retomarse leyéndola entera
+	kbGrave    = 80
+)
+
+func verAnatomia(datos string, tareas []tarea, ref string) int {
+	type fila struct {
+		t                        tarea
+		kb, secs, fechadas, dias int
+		pEstado, pReg, pPub      int
+		ejemplos                 []string
+	}
+	var filas []fila
+	for _, t := range tareas {
+		if t.Archived {
+			continue
+		}
+		if ref != "" && t.Slug != ref && strconv.Itoa(t.ID) != ref && !strings.Contains(strings.ToLower(t.Slug), strings.ToLower(ref)) {
+			continue
+		}
+		b, err := os.ReadFile(t.Ruta)
+		if err != nil {
+			continue
+		}
+		total := len(b)
+		f := fila{t: t, kb: total / 1024}
+		iReg := len(t.Cuerpo)
+		if m := reRegistro.FindStringIndex(t.Cuerpo); m != nil {
+			iReg = m[0]
+		}
+		iPub := len(t.Cuerpo)
+		if m := rePublic.FindStringIndex(t.Cuerpo); m != nil {
+			iPub = m[0]
+		}
+		finReg := iPub
+		if finReg < iReg {
+			finReg = len(t.Cuerpo)
+		}
+		cl := len(t.Cuerpo)
+		if cl == 0 {
+			cl = 1
+		}
+		f.pEstado, f.pReg, f.pPub = iReg*100/cl, (finReg-iReg)*100/cl, (len(t.Cuerpo)-iPub)*100/cl
+		f.dias = len(reRegDia.FindAllString(t.Cuerpo, -1))
+		for _, m := range reSecc.FindAllStringSubmatch(t.Cuerpo[:iReg], -1) {
+			f.secs++
+			if reFechaEnTitulo.MatchString(m[1]) {
+				f.fechadas++
+				if len(f.ejemplos) < 4 {
+					f.ejemplos = append(f.ejemplos, strings.TrimSpace(m[1]))
+				}
+			}
+		}
+		filas = append(filas, f)
+	}
+	if len(filas) == 0 {
+		fmt.Fprintln(os.Stderr, "no encontré esa tarea")
+		return 2
+	}
+	sort.Slice(filas, func(i, j int) bool {
+		if filas[i].fechadas != filas[j].fechadas {
+			return filas[i].fechadas > filas[j].fechadas
+		}
+		return filas[i].kb > filas[j].kb
+	})
+
+	fmt.Printf("\n  ANATOMÍA · qué hay dentro del archivo de cada tarea, y qué parece estar fuera de lugar\n")
+	fmt.Printf("  Un archivo tiene ESTADO (se reescribe) · MATERIAL (se mantiene) · REGISTRO (se apila) ·\n")
+	fmt.Printf("  y lo que es CONOCIMIENTO gradúa a context/. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbIncomodo)
+	for _, f := range filas {
+		marca := " "
+		switch {
+		case f.kb >= kbGrave:
+			marca = "🔴"
+		case f.kb >= kbIncomodo:
+			marca = "🟠"
+		}
+		fmt.Printf("  %s #%-3d %-44s %3d KB · %2d secciones · estado %d%% / registro %d%% (%d día(s))\n",
+			marca, f.t.ID, corta(f.t.Slug, 44), f.kb, f.secs, f.pEstado, f.pReg, f.dias)
+		if f.fechadas > 0 {
+			fmt.Printf("        ⚠ %d sección(es) con fecha DENTRO del estado — mirá si son hechos de un día (→ Registro)\n", f.fechadas)
+			for _, e := range f.ejemplos {
+				fmt.Printf("           · %s\n", corta(e, 86))
+			}
+			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a context/); no → Registro\n")
+		}
+		if f.kb >= kbIncomodo && f.pReg > 50 {
+			fmt.Printf("        · el Registro es el %d%%: es append-only a propósito, pero a este tamaño conviene cerrar el mes viejo\n", f.pReg)
+		}
+	}
+	fmt.Println()
+	return 0
 }
 
 func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON bool) int {

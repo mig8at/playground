@@ -9,6 +9,11 @@ jira: []
 jira_title: ""
 ---
 
+## Para qué sirve, en una línea
+
+<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
+Las guías de trabajo dicen sólo lo que vale hoy, y la historia de cada corrección vive en el registro de hallazgos.
+
 ## Si retomás esto sin contexto, empezá acá
 
 Los cuatro `CLAUDE.md` (raíz, `tablero/`, `context/`, `harness/`) tienen la misma enfermedad que se
@@ -102,8 +107,3 @@ tocó: sigue esperando la decisión de Miguel sobre el destino de cada una.
 
 Inventario medido de las 10 correcciones inline y de las rutas citadas (118, 3 muertas). Destinos
 propuestos en la tabla. No se reescribió nada.
-
-## Para qué sirve, en una línea
-
-<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
-Las guías de trabajo dicen sólo lo que vale hoy, y la historia de cada corrección vive en el registro de hallazgos.

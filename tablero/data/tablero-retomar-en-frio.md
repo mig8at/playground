@@ -9,6 +9,11 @@ jira: []
 jira_title: ""
 ---
 
+## Para qué sirve, en una línea
+
+<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
+El registro de trabajo del equipo avisa solo cuando una tarea queda sin lo necesario para retomarla.
+
 ## Si retomás esto sin contexto, empezá acá
 
 Miguel pidió (14/9) mejoras al tablero para «tener ordenado el día a día y poder retomar cualquier
@@ -100,6 +105,23 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ### 2026-09-15
 
+**Cómo está repartido un archivo de tarea, medido.** Miguel preguntó si hay forma de ordenar o dividir
+mejor. La medición sobre las 40 abiertas: **la mediana pesa 16 KB y está sana**; el problema son 11 que
+pasan de 40 KB y 6 de 80. Y la causa NO es la que uno supone: las grandes no crecieron por el Registro
+—que es append-only a propósito y que `make retomar` ni siquiera muestra entero— sino porque **el
+ESTADO se volvió un diario**. `lenders` es 90% estado con 21 secciones fechadas de 72; `bancolombia`,
+100% estado. En total, 91 de las 621 secciones de estado llevan fecha.
+
+De ahí que las clases de contenido pasen de dos a **cinco**: ESTADO y PLAN se reescriben, **MATERIAL**
+(recetas, consultas, datos de prueba) se MANTIENE —era la que no tenía nombre, y por eso crecía como
+secciones nuevas arriba—, REGISTRO se apila, y CONOCIMIENTO gradúa a `context/`. ⚠ Tener fecha no
+condena una sección: «Cómo se prueba, de cero (verificado el 20/8)» es material vigente. El test que
+discrimina es el de siempre: si esto se mergea mañana, ¿sigue siendo cierto?
+
+`make anatomia` lo mide y NO mueve nada: señala. Y a propósito el lint no avisa por tamaño — corre en
+cada escritura y tiene que hablar de lo que está mal, no de lo que está grande; un archivo de 80 KB
+puede ser correcto, y que convenga partirlo es un juicio.
+
 **Proyecto ≠ tarea, y el guard aprendió el vocabulario de las herramientas.** Miguel señaló que en
 `data/` conviven dos cosas distintas —el trabajo del día a día sobre CreditOp, y lo propio: las
 herramientas, el corpus, el SDK, las mejoras a futuro— y que al compartir a Jira no deberían filtrarse
@@ -189,8 +211,3 @@ hook de `Stop` una vez por sesión, arreglo del conteo de `make tareas` (leía `
 booleano y son fechas), guarda de ids repetidos en el store con test, y la tarea de Confluence
 pasó del 79 al 83 porque colisionaba con una archivada. Descartados: `SessionEnd`, mirar el
 transcript entero, fallar el store. Todo verificado corriéndolo contra hoy y contra el 10/9.
-
-## Para qué sirve, en una línea
-
-<!-- era la publicable; un `clase: proyecto` no sale a Jira, así que queda como nota del cuerpo -->
-El registro de trabajo del equipo avisa solo cuando una tarea queda sin lo necesario para retomarla.
