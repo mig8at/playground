@@ -11,14 +11,22 @@ jira_title: ""
 ## Si retomás esto sin contexto, empezá acá
 
 Miguel pidió (14/9) mejoras al tablero para «tener ordenado el día a día y poder retomar cualquier
-tarea». El diagnóstico se midió sobre las 39 abiertas: 23 sin sección de retoma, 27 sin próximo paso,
-21 sin tocar hace más de 3 semanas, 3 con Registro y sin bitácora en septiembre, y `make tareas`
-decía 63 abiertas por un parser roto. **La causa común: el cierre de sesión era una lista en
-`tablero/CLAUDE.md`, no un chequeo.** Hoy ya no: `make cierre` existe y el hook de `Stop` lo corre
-solo (commit `678343e`). No hay que volver a medir el diagnóstico; está en el Registro.
+tarea», y después «dale con todo lo que consideres». **Estado al cierre del 14/9: los seis pasos del
+plan están hechos y commiteados**, más tres que salieron en el camino. Lo que hay hoy: `make cierre` +
+hook de `Stop` (una vez por sesión) · `make hoy` (agenda: próximo paso, preguntas vencidas, entrega,
+dormidas) · `make retomar N=x` · `make bitacora-add` (minutos medidos por el comando) · lint del
+frontmatter al escribir (`tareas -lint` + hook de PostToolUse) · «días sin tocar» en la tarjeta,
+dormida a los 14 · el pulso ya ve el playground personal (`PULSO_EXTRA`, agente reinstalado) · el PR
+de cada rama aunque sea viejo, y la medición de ramas en paralelo y declarando lo que no alcanzó · el
+hook `tests-destructivos.py` que frena la suite de legacy-backend sin ruta. No hay que volver a medir
+el diagnóstico inicial: está en el Registro. **La limpieza de los `CLAUDE.md` es otra tarea: #85.**
 
-**El próximo paso es:** escribir `make retomar N=x` (sección de retoma + próximo paso + último
-Registro + snapshot de ramas + última bitácora, y en rojo lo que no exista).
+⚠ La tarjeta con el chip de dormida se verificó por API (39/39 con `tocadoEn`, 22 dormidas) y con el
+build de Vite, **no en el navegador**: el server que corre en :8787 es el binario viejo de Miguel y no
+se reinició. Se ve al próximo `npm run dev`.
+
+**El próximo paso es:** correr una jornada entera con esto puesto y anotar qué molestó (el hook de
+`Stop` frenando en el medio del trabajo es el riesgo conocido) antes de tocar nada más.
 
 ## Objetivo
 
@@ -37,10 +45,13 @@ alguien se acuerde.
 
 ## Cómo se ataca
 
-1. ✔ `make cierre` + hook. 2. ✔ conteo de abiertas e ids repetidos. 3. `make retomar N=x`.
-4. «días sin tocar» en la tarjeta, medido con git: dormida a los 14, proponer archivar a los 30.
-5. `make bitacora` con la columna del pulso del mismo día y los minutos sin tarea.
-6. Migrar a la plantilla sólo las abiertas en `work` tocadas en las últimas 4 semanas (~12).
+1. ✔ `make cierre` + hook. 2. ✔ conteo de abiertas e ids repetidos. 3. ✔ `make retomar N=x`.
+4. ✔ «días sin tocar» en la tarjeta (git; dormida a los 14, ¿archivar? a los 30). 5. ✔ pulso vs
+bitácora: el cierre ya muestra los dos y los minutos sin tarea; y el pulso ya ve el playground personal.
+6. Migrar a la plantilla sólo las abiertas en `work` tocadas en las últimas 4 semanas — **queda**: son
+textos de otras sesiones y `make retomar` ya dice qué le falta a cada una.
+Salieron además: lint del frontmatter al escribir · `make hoy` · `make bitacora-add` · el hook de
+tests destructivos · el estado de los PRs viejos y la medición en paralelo.
 
 ## Lo que se evaluó y NO se eligió
 
@@ -81,6 +92,17 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 ## Registro
 
 ### 2026-09-14
+
+**Tercera tanda — «dale con todo».** Lint del frontmatter al escribir (`tareas -lint` + hook; baseline
+0 problemas en 65 archivos tras normalizar 3 etapas y un nodo). `make bitacora-add` con minutos de UNA
+fuente declarada (lapso · pulso · N con fuente); se colgó leyendo stdin y ahora la nota por stdin es
+explícita. `make hoy` y `make retomar`. `tocadoEn` en el store con dos llamadas a git y el chip de
+dormida. El pulso no veía el playground personal (su raíz es `github/`): `PULSO_EXTRA` con nombre
+explícito porque «playground» choca con `github/playground`; agente reinstalado y sembrado. El hook
+`tests-destructivos.py`: la primera versión frenó mi propio commit por NOMBRAR «make test» en el
+mensaje → mira sólo la posición de comando por segmento y salta heredocs; 21 casos. Tarea #85 con el
+inventario de las 10 correcciones inline de los `CLAUDE.md`. Descartados: `SessionEnd`, un
+`CHANGELOG.md` para las correcciones, reescribir los `CLAUDE.md` sin Miguel.
 
 **Segunda tanda — el estado de los PRs.** Miguel preguntó por «sacarle el jugo a git» para saber si un
 PR está abierto o mergeado y si ya está en `main`. Ya existía (`make tareas-ramas`), pero con dos
