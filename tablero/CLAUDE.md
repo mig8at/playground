@@ -181,7 +181,10 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       make bitacora DAYS=7              el tiempo registrado, por día
       make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
       make tareas-ramas N=43 JSON=1     una sola, en json
+      make hoy                          la agenda: próximo paso de cada tarea viva, preguntas vencidas, entrega, dormidas
+      make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
+      make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
 
   El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
