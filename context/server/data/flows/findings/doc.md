@@ -4887,10 +4887,26 @@ monto, las reglas— porque el recorte no es del cascade de visibilidad, sino un
 depende de una respuesta del cliente. Antes de revisar la config de un comercio cuyo listado sale vacío,
 mirá `user_requests.flow_id`: si dice 2, el cableado no tiene la culpa.
 
-**Arreglo — NO hay, y es una decisión de producto, no un bug.** El filtro hace lo que dice. Lo que queda
-abierto es la consecuencia: un comercio sin `rt=0` no debería ofrecer esa pregunta, o la pantalla
-debería dejar volver atrás. La deuda anotada en el código es la del filtro; ésta no está anotada en
-ningún lado. **Para probar el flujo completo en un comercio así: contestá «No».**
+⚠⚠ **Y EL `response_type` NO ES EL MISMO EN TODOS LOS AMBIENTES, que es lo que vuelve a esto
+irreproducible.** Medido el 2026-09-15 sobre la MISMA sucursal `13874eb6`: Sistecrédito (#9) es **`rt=0`
+en el ambiente compartido y `rt=1` en local**. O sea que el mismo comercio, con la misma respuesta
+«Sí», **lista una entidad en uno y sale vacío en el otro**. Quien reproduce en el ambiente equivocado
+concluye que no pasa, y quien lo ve en local y va a buscarlo al compartido tampoco lo encuentra. Por eso
+la cuenta de `rt=0` se le pregunta a la base **del target**, nunca de memoria.
+
+**Arreglo — NO hay del lado del producto, y es una decisión, no un bug.** El filtro hace lo que dice. Lo
+que queda abierto es la consecuencia: un comercio sin `rt=0` no debería ofrecer esa pregunta, o la
+pantalla debería dejar volver atrás. La deuda anotada en el código es la del filtro; ésta no está anotada
+en ningún lado. **Para probar el flujo completo en un comercio así: contestá «No».**
+
+**Del lado de la herramienta sí se arregló, y el motivo es que el aviso que había no alcanzaba.** El
+rastro lo advertía **antes** de arrancar y en condicional («si contestás Sí…»), que es un aviso que se
+lee y se sigue: pasó el 2026-09-15 en local, con la advertencia impresa en la cabecera, y la corrida
+terminó en verde mientras la pantalla decía «No encontramos una opción para ti». Ahora el runner lo
+vuelve a decir **en el momento en que ya sabe que el flujo quedó firmado** —antes de que se vea la
+pantalla vacía, que es el único momento en que sirve— y lo deja como ALERTA para que aparezca en el
+resumen y no sólo en el scroll. La regla de «qué cuenta como `rt=0` activa» quedó en UNA sola función
+que usan el rastro y el runner: dos definiciones de esto derivarían, y una avisaría donde la otra calla.
 
 ### F-215 · Cualquier 404 del wizard deja una página que se ve bien y no responde: la hidratación muere antes de montar
 

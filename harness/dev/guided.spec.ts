@@ -6,6 +6,7 @@ import type { Page } from '@playwright/test';
 import { avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
 import { avisoDeEmpleoPisado, reponerEmpleo, synthFill, requestEstado11 } from '../pkg/inject';
+import { avisoDeCupoSinSalida, rt0ActivasDeLaSucursal } from '../pkg/merchants';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
 import { one, exec } from '../pkg/db';
 import * as traza from '../pkg/trace';
@@ -1130,7 +1131,27 @@ test('guided (semiautomático)', async ({ browser }) => {
                     // fila después significa que la omisión NO funcionó: prueba válida y gratis.
                     const flow = await one<{ flow_id: number | null }>('SELECT flow_id FROM user_requests WHERE id=? LIMIT 1', [ur]).catch(() => null);
                     const firmado = Number(flow?.flow_id) === 2;
-                    if (firmado) log('flujo already-confirmed-pre-approval detectado → NO inyecto el buró (así "no hay fila" prueba la omisión)');
+                    if (firmado) {
+                        log('flujo already-confirmed-pre-approval detectado → NO inyecto el buró (así "no hay fila" prueba la omisión)');
+                        /* ⚠ Y ACÁ SE SABE YA SI EL LISTADO VA A SALIR VACÍO (F-214), así que se dice.
+                         * El panel avisa ANTES y en condicional («si contestás Sí…»), y por eso se lee y se
+                         * sigue: pasó el 2026-09-15 en local, con el aviso impreso en la cabecera, y la
+                         * corrida terminó en ✅ mientras la pantalla decía «No encontramos una opción para
+                         * ti». Éste sale cuando el resultado ya está decidido y antes de verlo, que es el
+                         * único momento en que sirve. Queda además como ALERTA, para que aparezca en el
+                         * resumen y no sólo en el scroll. */
+                        const hSuc = /\/(?:merchant|ecommerce|self-service)\/([0-9a-f]{8})\//.exec(page.url())?.[1] ?? '';
+                        if (hSuc) {
+                            const rt0 = await rt0ActivasDeLaSucursal(hSuc);
+                            const lineas = avisoDeCupoSinSalida(rt0, hSuc);
+                            for (const l of lineas) log(`  ${l}`);
+                            if (lineas.length) {
+                                traza.alertas.push(
+                                    `flujo firmado (flow_id=2) en una sucursal SIN entidades rt=0 activas: el listado sale vacío (F-214)`,
+                                );
+                            }
+                        }
+                    }
                     const r = await synthFill(Number(ur), { ...synthOptsFromEnv(), skipIdentity: true, skipBuro: firmado });
                     log(`buró inyectado para uReq ${ur} (Experian ${r.datacredito_forged}) — identidad la ponés vos; seguí a /lenders`);
                     tip('Buró inyectado (invisible). Seguí el wizard hasta /lenders. (para terminar: cerrá la ventana o «Detener» en el panel.)');

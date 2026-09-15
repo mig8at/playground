@@ -542,11 +542,15 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         // —«No encontramos una opción para ti»— y el cliente no puede volver a cambiar su respuesta.
         // El dato ya está acá (los `rt` de arriba), así que decirlo ANTES cuesta cero: sin el aviso,
         // depurarlo empieza por la config del comercio, que está sana. Pasó el 2026-09-14.
+        // ⚠ El filtro se hace sobre las entidades que ya trajo el panel, pero la REGLA de «qué cuenta
+        // como rt=0 activa» es la de `pkg/merchants.ts`, que es la que usa también el runner en caliente:
+        // dos definiciones de esto derivarían, y una avisaría donde la otra se calla.
         const conRt0 = lenders.filter((l) => Number(l.rt) === 0 && Number(l.lender_status) === 1);
         if (!conRt0.length) {
-            L.push(row('⚠ cupo', 'este comercio NO tiene ninguna entidad rt=0 activa: si en «Confirmación de cupo»\n'
-                + ' '.repeat(16) + 'contestás «Sí», el listado sale VACÍO (flow_id=2 deja sólo rt=0 · F-214).\n'
-                + ' '.repeat(16) + 'Para recorrer el flujo entero, contestá «No».'));
+            L.push(row('⚠ cupo', 'este comercio NO tiene ninguna entidad rt=0 activa EN ESTE AMBIENTE: si en\n'
+                + ' '.repeat(16) + '«Confirmación de cupo» contestás «Sí», el listado sale VACÍO (flow_id=2 deja\n'
+                + ' '.repeat(16) + 'sólo rt=0 · F-214). Para recorrer el flujo entero, contestá «No».\n'
+                + ' '.repeat(16) + 'El runner lo vuelve a avisar cuando el flujo ya quedó firmado.'));
         }
     } else if (Object.keys(pa).length) {
         L.push(row('pre-aprob.', Object.entries(pa).map(([id, s]) => `#${id} ${ES[s] ?? s}`).join(' · ') + ' (resto: aprobado)'));

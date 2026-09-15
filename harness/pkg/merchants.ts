@@ -121,3 +121,52 @@ export async function corbetaDeLaSucursal(branchHash: string): Promise<{ alliedI
         allieds,
     };
 }
+
+/**
+ * ¿EL FLUJO DE CUPO FIRMADO DEJA ALGO QUE LISTAR? — F-214.
+ *
+ * Cuando el cliente contesta «Sí» en «Confirmación de cupo», la solicitud nace con `flow_id = 2` y el
+ * listado **se recorta a `rt=0`**: se descartan TODAS las entidades integradas. En una sucursal sin
+ * ninguna `rt=0` activa eso deja la pantalla vacía —«No encontramos una opción para ti»— y el cliente
+ * no puede volver atrás a cambiar su respuesta.
+ *
+ * ⚠ Y el `response_type` NO es el mismo en todos los ambientes, que es lo que hace esto difícil de ver:
+ * medido el 2026-09-15, Sistecrédito (#9) en la sucursal `13874eb6` es **rt=0 en qa y rt=1 en local**.
+ * O sea que el mismo comercio, el mismo «Sí», lista en un ambiente y sale vacío en el otro. Por eso se
+ * pregunta a la BASE del target y no se decide de memoria.
+ *
+ * Vive acá para que haya UNA definición: la usan el panel (aviso previo, condicional) y el runner
+ * (aviso en caliente, cuando ya sabe que el flujo quedó firmado).
+ */
+export async function rt0ActivasDeLaSucursal(branchHash: string): Promise<Array<{ id: number; name: string }>> {
+      return query<{ id: number; name: string }>(
+            `SELECT l.id, l.name
+               FROM lenders_by_allied_branches lab
+               JOIN allied_branches ab ON ab.id = lab.allied_branch_id
+               JOIN lenders l ON l.id = lab.lender_id
+              WHERE ab.hash = ? AND l.response_type = 0 AND l.status = 1 AND lab.status = 1
+              ORDER BY l.id`,
+            [branchHash],
+      ).catch(() => []);
+}
+
+/**
+ * El aviso EN CALIENTE: el flujo ya quedó firmado y se sabe qué hay en la sucursal.
+ *
+ * A diferencia del aviso del panel —que es previo y condicional («si contestás Sí…»), y por eso se lee
+ * y se sigue—, éste se imprime en el momento en que el resultado ya está decidido y antes de que se vea
+ * la pantalla vacía. Vacío cuando sí hay con qué listar.
+ */
+export function avisoDeCupoSinSalida(rt0: Array<{ id: number; name: string }>, branchHash: string): string[] {
+      if (rt0.length) return [];
+      return [
+            `⚠ EL LISTADO VA A SALIR VACÍO, y no es la config del comercio (F-214).`,
+            `  El flujo quedó firmado como «cupo ya confirmado» (flow_id=2), y eso recorta el listado a`,
+            `  rt=0 — descarta TODAS las integradas. La sucursal ${branchHash} no tiene ninguna rt=0 activa`,
+            `  en este ambiente, así que no queda nada que mostrar: vas a ver «No encontramos una opción`,
+            `  para ti», y desde ahí el cliente no puede volver a cambiar su respuesta.`,
+            `  Para recorrer el flujo entero, contestá «No» en «Confirmación de cupo».`,
+            `  ⚠ Y ojo que el response_type cambia entre ambientes: Sistecrédito (#9) en esta sucursal es`,
+            `  rt=0 en qa y rt=1 en local, así que el mismo «Sí» lista allá y sale vacío acá.`,
+      ];
+}
