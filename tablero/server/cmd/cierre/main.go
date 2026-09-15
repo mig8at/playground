@@ -361,7 +361,7 @@ func main() {
 			rv.Faltan = append(rv.Faltan, "el Registro no tiene entrada `### "+*dia+"`")
 		}
 		if rv.MinutosHoy == 0 {
-			rv.Faltan = append(rv.Faltan, "sin bitácora del día (data/entries/"+(*dia)[:7]+".jsonl, effortId "+strconv.Itoa(t.ID)+"; minutos MEDIDOS con `make pulso`)")
+			rv.Faltan = append(rv.Faltan, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
 		inf.PiezasFaltan += len(rv.Faltan)
 		inf.Tareas = append(inf.Tareas, rv)

@@ -88,6 +88,11 @@ bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la 
 tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó? mide git y guarda el snapshot. N=<id|título> · JSON=1
 	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(JSON),-json)
 
+bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [KIND=progress] [SECO=1]
+	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
+	@cd tablero/server && go run ./cmd/bitacora -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
+	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
+
 cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál le falta retoma, registro, bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/cierre $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 

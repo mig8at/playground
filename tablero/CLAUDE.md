@@ -147,10 +147,13 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
      patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin esa línea el
      cajón de ramas de la tarjeta no existe — no está vacío: no aparece.
-  4. **Escribí la bitácora** (`data/entries/<YYYY-MM>.jsonl`, una entrada JSON por línea; el `effort` es
-     el nombre del archivo de la tarea). ⚠ **Los minutos se MIDEN, no se estiman**: `make pulso` da la
-     jornada real en tramos de 5′, y para una sesión que el pulso no cubrió, el lapso entre el primer y
-     el último commit. Inventar un número ahí es peor que dejarlo vacío, porque después se sube a Jira.
+  4. **Escribí la bitácora con `make bitacora-add`**, no a mano: pone el id, el día y la hora, resuelve
+     la tarea por id o slug, y **los minutos salen de UNA fuente que queda escrita en la nota**:
+     `LAPSO=HH:MM-HH:MM` (la sesión), `PULSO=HH:MM` (tramos de 5′ con cambios desde esa hora) o
+     `MIN=N FUENTE='…'`. Sin fuente no escribe. ⚠ **Los minutos se MIDEN, no se estiman**: inventar un
+     número ahí es peor que dejarlo vacío, porque después se sube a Jira. *(Hasta el 2026-09-14 esto se
+     escribía como JSON a mano en `data/entries/<YYYY-MM>.jsonl` y así salieron 211′ sin tarea en un
+     mes; el formato sigue siendo ese, pero lo escribe el store.)*
 
   ⚠ **Y decilo cuando no puedas medirlo.** Si el pulso no tiene datos de ese día, la entrada sale del
   lapso de commits y eso se avisa: quien lee la bitácora tiene que poder saber de dónde salió el número.
