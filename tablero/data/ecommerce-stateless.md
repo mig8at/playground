@@ -35,9 +35,10 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** correr el canal **asesor con cuota inicial > 0** contra la rama
-`fix/ecommerce/cuota-inicial-rebote-asesor` (ya armada y en verde de build/typecheck, sin pushear) y,
-si cierra, abrir el PR a `qa`. El detalle en el Registro del 15/9 (3).
+**El próximo paso es:** abrir el PR a `qa` desde `fix/ecommerce/cuota-inicial-rebote-asesor` — ya
+está armada, en verde de build/typecheck y **comprobada corriendo** (el bug reproducido y el arreglo
+cerrando en estado 11 en los cuatro canales). Falta sólo la decisión de Miguel y el push. El detalle
+de las corridas, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
 (`continue` en el árbol público) y #663 (el handoff por flujo)— **adaptados**, porque `standBy` ya no
@@ -714,6 +715,70 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (4) · corrido: el bug reproducido y el arreglo comprobado — y el harness no podía verlo
+
+> **MEDICIÓN · 2026-09-15** — dos wizards en paralelo contra la **misma** base local: `:5174` con el
+> código de `qa` (el bug) y `:5177` con la rama del arreglo. Mismo comercio, misma entidad, mismo caso.
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=local E2E_BASE_URL=http://localhost:<puerto> make harness-caminar CASOS='#13874eb6:77' FLOW=merchant CUOTA=300000 CERRAR=1 MANUAL=1`
+
+**El caso de reproducción ya existía en local:** **Amoblando Pullman** (`13874eb6`) tiene
+`allieds.initial_fee = 1` y ofrece **CrediPullman (77, `rt=2`)**. Es el mismo par de junio.
+
+**El rebote, paso por paso, en la app de verdad:**
+
+    ⚠ CrediPullman (rt=2) NO mandó al handoff: el front redirigió a .../initial-fee-payment
+    ▸ 35 /merchant/13874eb6/466660/initial-fee-payment   [202 → /]
+    ▸ 36 /                                                [202 → /merchant]
+    ▸ 37 /merchant                                        [202 → /merchant/13874eb6/solicitar]
+    ▸ 38 /merchant/13874eb6/solicitar                     [200]   ← la pantalla del monto
+
+Y después **vuelve a empezar**: abre otra solicitud, elige otra vez, rebota otra vez, hasta el tope de
+pasos. Cada vuelta deja una `user_request` en estado 3 — que es exactamente el hueco de las **2.167
+solicitudes en «Seleccionó entidad»** que este mismo archivo tenía medido en prod.
+
+**El antes y el después:**
+
+| caso (canal asesor, cuota inicial 300.000) | `:5174` con el bug | `:5177` arreglado |
+|---|---|---|
+| **CrediPullman `rt=2`** (cierra en plataforma) | 🔴 **0/1** — rebota a `/solicitar` y cicla | ✅ **1/1**, estado **11 «Autorizada»**, 11 pantallas |
+| **Bancolombia `rt=1`** (sí cobra por pasarela) | 🔴 **0/1** — rebota igual | ✅ la pantalla de cobro **responde 200** |
+| self-service, sin cuota inicial | — | ✅ **1/1**, estado 11 |
+| ecommerce, sin cuota inicial | — | ✅ **1/1**, estado 11 |
+
+✔ **La fila de `rt=1` es la que prueba que el alcance era más ancho que CreditopX**: con el bug,
+**cualquier** entidad con cuota inicial rebotaba en el canal del asesor.
+
+Y a nivel URL, sobre los dos servidores corriendo:
+
+| | `:5174` | `:5177` |
+|---|---|---|
+| `/merchant/…/initial-fee-payment` | **302 → `/`** | 302 → login (o sea: cayó en el árbol del asesor) |
+| `/merchant/…/down-payment-validation/tx1` | **302 → `/`** | 302 → login |
+| `/ecommerce/…/continue` · `/self-service/…/continue` | **404** | **200** |
+| `/merchant/…/ruta-que-no-existe` | 404 | 404 *(el control: una ruta que no existe en NINGÚN árbol sí da 404)* |
+
+### ⚠ Y lo que más vale del día: el caminador NO PODÍA ver este bug
+
+Tres defectos del propio `dev/caminar-wizard.ts`, los tres de la misma clase —**daba verde sin haber
+mirado**— y los tres arreglados (commit `a16b5c2`):
+
+1. **`initial_fee` estaba QUEMADO en 0.** La rama entera del cobro por pasarela no se ejecutaba nunca.
+   Por eso la validación del 14/9 dio verde en el canal del asesor. Ahora hay `CUOTA=`.
+2. **El handoff usaba el prefijo del flujo en curso** (`/merchant/…/confirmation`), y esa ruta **no
+   existe en el árbol merchant en ninguna rama**. Rebotaba, abría otra solicitud y cicíaba hasta el
+   tope, reportando «se pasó de 40 pasos» — que se lee como fallo del producto siendo del runner. La
+   continuación la abre el CLIENTE: va fija a `/self-service/…`.
+3. **El atajo del handoff se tomaba mirando sólo el `response_type`**, sin importar a dónde hubiera
+   redirigido el front — así que saltaba por encima del `/initial-fee-payment` y **cerraba en estado 11
+   igual, con el flujo roto**. Medido: el mismo caso pasaba de «1/1 cerró» (falso) a 0/1 con los cuatro
+   saltos impresos. Ahora el atajo exige que el front haya mandado a `/continue`.
+
+⚠ **El punto 3 es el que asusta**: no era que la herramienta no mirara, es que **miraba y contestaba
+que estaba bien**. Un runner que se saltea el paso que falla y después declara «cerró» es peor que no
+tenerlo — la misma forma que el `git grep -E '\s'` y que mi propia sonda de `git cat-file` de esta
+mañana.
 
 ### 2026-09-15 (3) · el arreglo, armado y probado — listo en local, sin abrir
 
