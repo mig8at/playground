@@ -99,6 +99,18 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ### 2026-09-15
 
+**El hook reclamaba tareas que esta sesión sólo había LEÍDO.** Frenó pidiendo registro y bitácora para
+`sdk-del-comercio`, que no tocó nadie acá: estaba sucia por OTRA sesión sobre el mismo worktree, y el
+hook la dio por propia porque el día anterior hubo un `head` sobre ese archivo. Dos intentos hasta que
+quedó bien: exigir «la ruta aparece Y el comando escribe algo» seguía marcándola —casi todo comando
+escribe algo, y ese mencionaba la ruta dentro de un `echo`—, así que la señal pasó a ser la
+**adyacencia**: la ruta pegada al verbo (`>`, `tee`, `sed -i`, `git add`, `open(…,'w')`), o el modo
+`p='…'` + `open(p,'w')`, o un `file_path` de Write/Edit. Verificado con 12 comandos (5 que leen, 7 que
+escriben) y contra el transcript real de esta sesión: antes reclamaba dos tareas, ahora una, la única
+que se escribió. ⚠ Y hay un borde que costó los dos intentos: el comando viaja DENTRO de un JSON, así
+que antes del verbo puede haber una comilla y no un espacio — exigir `\s` dejaba pasar `git add` y
+`sed -i` sin detectarlos.
+
 **Barrido de entrega: cuáles tareas están en `main`.** Miguel pidió que el ✓ de `main` apareciera
 cuando la tarea esté mergeada. Ya existía la columna, pero mentía en dos casos y no cubría a la mitad
 de las tareas. Lo medido y lo hecho:

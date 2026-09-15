@@ -21,6 +21,7 @@ calcular no puede ser motivo de que la sesión no termine.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import date
@@ -54,8 +55,56 @@ def leer_transcript(ruta: str) -> str:
         for bloque in contenido:
             if isinstance(bloque, dict) and bloque.get("type") == "tool_use":
                 hubo_forma = True
-                piezas.append(json.dumps(bloque.get("input"), ensure_ascii=False))
-    return "\n".join(piezas) if hubo_forma else crudo
+                piezas.append((bloque.get("name") or "", json.dumps(bloque.get("input"), ensure_ascii=False)))
+    return piezas if hubo_forma else [("", crudo)]
+
+
+# ¿ESTA SESIÓN ESCRIBIÓ ESE ARCHIVO? Tiene que ser preciso en las dos direcciones, y las dos fallas ya
+# pasaron:
+#
+#   · LEER NO ES TOCAR. Un `head -60 data/sdk-del-comercio.md` del día anterior hizo que el cierre le
+#     reclamara registro y bitácora a una tarea que esta sesión sólo había mirado — y que además estaba
+#     modificada por OTRA sesión sobre el mismo worktree, que es como se trabaja acá.
+#   · NOMBRAR JUNTO A UNA ESCRITURA TAMPOCO. Buscar «la ruta aparece Y el comando escribe algo» seguía
+#     marcándola: un comando que escribía `.claude/settings.json` mencionaba esa ruta adentro de un
+#     `echo`. Casi todo comando escribe algo, así que la señal tiene que ser la ADYACENCIA — la ruta
+#     pegada al verbo, no en la misma línea.
+#
+# De ahí los tres modos, que son los tres con los que se escribe de verdad acá.
+def _patrones(ruta: str):
+    r = re.escape(ruta)
+    return [
+        # open('…/x.md', 'w')
+        re.compile(r"open\(\s*['\"][^'\"]*" + r + r"['\"]\s*,\s*['\"][wa]"),
+        # > x.md · >> x.md · tee x.md · sed -i … x.md · git add/rm/mv … x.md
+        # El comando viaja DENTRO de un JSON, así que antes del verbo puede haber una comilla y no un
+        # espacio: exigir `\s` dejaba pasar `git add …` y `sed -i … ` sin detectarlos. Y entre el verbo y
+        # la ruta caben argumentos que no empiezan con `-` (`sed -i '' 's/a/b/' x.md`), pero NO otro
+        # comando: `[^;&|\n]` corta en el separador, que es lo que evita cruzar de un comando al siguiente.
+        re.compile(r"(?:^|[;&|\s\"'({])(?:>>?|tee|sed\s+-i|git\s+add|git\s+rm|git\s+mv)(?:[^;&|\n]*?\s)?['\"]?\S*" + r),
+    ]
+
+
+def _asignada_y_escrita(texto: str, ruta: str) -> bool:
+    """El modo `p='…/x.md'` … `open(p,'w')`: la ruta va a una variable y se escribe por ella. Se exige
+    que la ASIGNACIÓN sea de esta ruta — si no, cualquier script que escriba otro archivo contaría."""
+    if not re.search(r"=\s*['\"][^'\"]*" + re.escape(ruta) + r"['\"]", texto):
+        return False
+    return bool(re.search(r"open\(\s*\w+\s*,\s*['\"][wa]|\.write\(|writelines\(", texto))
+
+
+def escribio(piezas, ruta: str) -> bool:
+    pats = _patrones(ruta)
+    for nombre, texto in piezas:
+        if ruta not in texto:
+            continue
+        if nombre in ("Write", "Edit", "NotebookEdit"):
+            return True
+        if nombre != "Bash":
+            continue
+        if any(p.search(texto) for p in pats) or _asignada_y_escrita(texto, ruta):
+            return True
+    return False
 
 
 def main() -> int:
@@ -80,8 +129,8 @@ def main() -> int:
     except Exception:
         return 0
 
-    transcript = leer_transcript(entrada.get("transcript_path", ""))
-    if not transcript:
+    piezas = leer_transcript(entrada.get("transcript_path", ""))
+    if not piezas:
         return 0  # sin transcript no se sabe qué tocó ESTA sesión; mejor callar que molestar a ciegas
 
     mias = []
@@ -91,13 +140,17 @@ def main() -> int:
         # La RUTA del archivo, no el slug pelado: un comando que sólo nombra la tarea (un grep, un
         # dato de prueba, un `make tareas N=x`) no la tocó. Medido en la primera corrida real: marcó
         # tres tareas de otras sesiones porque sus slugs aparecían como texto en un script.
-        nombres = ["data/" + t["slug"] + ".md"]
-        # la rama viene como "repo/rama"; en un comando aparece la rama sola
+        if escribio(piezas, "data/" + t["slug"] + ".md"):
+            mias.append(t)
+            continue
+        # o la sesión trabajó en una rama que la tarea declara: ahí el trabajo existe aunque su
+        # archivo no se haya tocado — que es justamente lo que el cierre viene a reclamar.
         for m in t.get("tocada", []):
             if m.startswith("rama ") and "/" in m[5:]:
-                nombres.append(m[5:].split("/", 1)[1])
-        if any(n and n in transcript for n in nombres):
-            mias.append(t)
+                rama = m[5:].split("/", 1)[1]
+                if any(rama in texto for _, texto in piezas):
+                    mias.append(t)
+                    break
     if not mias:
         return 0
 

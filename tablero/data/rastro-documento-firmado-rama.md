@@ -9,9 +9,22 @@ jira: []
 jira_title: "Firma: el registro de evidencia guarda la fila de catálogo de la otra rama de política"
 ---
 
-**ESTADO 2026-08-22.** Diagnosticado, arreglado y probado **en local**, en la rama
-`fix/rastro-documento-firmado-rama-de-politica` de `legacy-backend` (a partir de `main`,
-**sin pushear**). Queda esperando que se pida la tarea. El hallazgo del sistema es **F-154**.
+## Si retomás esto sin contexto, empezá acá
+
+El registro de evidencia de un documento firmado guarda la fila de catálogo de **la otra rama de
+política**, así que en prod se lee como si el cliente hubiera firmado el contrato equivocado. Está
+**diagnosticado, arreglado y probado en local**, y ahí se quedó: nada de esto salió de esta máquina.
+
+- **Qué NO hay que volver a investigar:** la causa raíz y el arreglo, que ya están abajo, y el hallazgo
+  del sistema **F-154**. Cómo apareció (mirando el alcance de F-152 en la solicitud `533540`) también.
+- **Dónde está el trabajo, medido el 2026-09-15:** rama `fix/rastro-documento-firmado-rama-de-politica`
+  en `legacy-backend`, cortada de `main`. Existe **sólo en esta máquina**: sin pushear, **sin PR**, y no
+  llegó a `develop`, `staging`, `qa` ni `main`. Se vuelve a comprobar con `make retomar N=62`.
+- **Por qué está parado:** no es que falte trabajo, falta que se pida la tarea. Es una decisión, no un
+  bloqueo técnico.
+
+**El próximo paso es:** decidir si se pide la tarea en Jira; si sí, pushear la rama y abrir el PR
+contra `develop`, que es lo único que falta para que exista fuera de local.
 
 
 ## Registro
@@ -20,8 +33,8 @@ jira_title: "Firma: el registro de evidencia guarda la fila de catálogo de la o
 
 MEDIDA, no trabajada. El barrido de entrega del 15/9 propuso su patrón de rama y quedó declarado
 (`rastro-documento-firmado-rama`). Medición: la rama existe **sólo en local**, sin PR, y no llegó a
-ningún ambiente — así que lo que dice el estado de arriba sigue vigente. El tiempo de esta medición se
-registró en la tarea del tablero que la hizo, no acá.
+ningún ambiente — así que lo que dice el estado de arriba sigue vigente. Con eso se escribió la sección
+de retoma, que no tenía: el archivo abría con un párrafo de estado sin decir dónde vive el trabajo.
 
 ## Cómo apareció
 
