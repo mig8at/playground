@@ -505,6 +505,7 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
 | `PULSO_EMAILS` | mis identidades de commit, separadas por coma | las 3 de Miguel (ver `internal/pulso`) |
+| `PULSO_EXTRA` | repos FUERA de la raíz que también son jornada, como `nombre=/ruta` separados por coma. El nombre va explícito porque el último segmento puede chocar con uno de la raíz (`playground` vs `github/playground`) | vacío — el playground personal no cuenta hasta que se declara |
 
 Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el server: `LoadDefaults` lo
 busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,

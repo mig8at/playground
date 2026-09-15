@@ -79,6 +79,18 @@ type Config struct {
 	Root   string        // dónde viven los repos de la compañía
 	Emails []string      // qué autor soy yo (los commits ajenos que llegan por `pull` NO son mi jornada)
 	MaxGap time.Duration // techo de la ventana de un tick: acota el costo tras un hueco largo
+	// Extra: repos FUERA de la raíz que también son jornada, con el nombre con que se registran.
+	// Existe por un punto ciego medido el 2026-09-14: el playground personal (donde viven el tablero,
+	// las tareas y buena parte del trabajo de las herramientas) no está bajo `github/`, así que una
+	// sesión entera de ediciones y commits ahí daba CERO tramos, y la bitácora superaba al pulso.
+	// El nombre va explícito porque `Name` sólo sabe resolver rutas relativas a la raíz, y el último
+	// segmento —«playground»— choca con `github/playground`, que es OTRO repo.
+	Extra []RepoExtra
+}
+
+// RepoExtra es un repo vigilado por fuera de la raíz: `PULSO_EXTRA=nombre=/ruta,otro=/ruta`.
+type RepoExtra struct {
+	Name, Path string
 }
 
 // DefaultEmails son las identidades con las que Miguel firma. Son TRES porque los repos no están
@@ -99,6 +111,11 @@ func Load() Config {
 	for _, e := range strings.Split(envOr("PULSO_EMAILS", strings.Join(DefaultEmails, ",")), ",") {
 		if e = strings.TrimSpace(e); e != "" {
 			c.Emails = append(c.Emails, e)
+		}
+	}
+	for _, x := range strings.Split(os.Getenv("PULSO_EXTRA"), ",") {
+		if n, p, ok := strings.Cut(strings.TrimSpace(x), "="); ok && n != "" && p != "" {
+			c.Extra = append(c.Extra, RepoExtra{Name: strings.TrimSpace(n), Path: strings.TrimSpace(p)})
 		}
 	}
 	return c
@@ -167,15 +184,22 @@ func Name(root, repo string) string {
 // En paralelo porque son ~19 repos × 3 comandos de git: en serie son un par de segundos cada 5 minutos,
 // y un agente de fondo que se hace notar termina desinstalado.
 func Run(cfg Config, since, now time.Time) Tick {
-	repos := Repos(cfg.Root)
-	res := make([][]Signal, len(repos))
+	type objetivo struct{ name, repo string }
+	var objetivos []objetivo
+	for _, r := range Repos(cfg.Root) {
+		objetivos = append(objetivos, objetivo{Name(cfg.Root, r), r})
+	}
+	for _, x := range cfg.Extra {
+		objetivos = append(objetivos, objetivo{x.Name, x.Path})
+	}
+	res := make([][]Signal, len(objetivos))
 	var wg sync.WaitGroup
-	for i, r := range repos {
+	for i, o := range objetivos {
 		wg.Add(1)
-		go func(i int, r string) {
+		go func(i int, o objetivo) {
 			defer wg.Done()
-			res[i] = Probe(cfg.Root, r, since, cfg.Emails)
-		}(i, r)
+			res[i] = ProbeNamed(o.name, o.repo, since, cfg.Emails)
+		}(i, o)
 	}
 	wg.Wait()
 
@@ -190,10 +214,14 @@ func Run(cfg Config, since, now time.Time) Tick {
 // Probe interroga UN repo y devuelve las señales que caen en la ventana. Nunca falla: un repo roto o a
 // medio clonar simplemente no aporta señales — el pulso no puede caerse por un repo.
 func Probe(root, repo string, since time.Time, emails []string) []Signal {
+	return ProbeNamed(Name(root, repo), repo, since, emails)
+}
+
+// ProbeNamed es Probe con el nombre ya resuelto: para los repos de `Extra`, que no están bajo la raíz.
+func ProbeNamed(name, repo string, since time.Time, emails []string) []Signal {
 	ctx, cancel := context.WithTimeout(context.Background(), perRepoTimeout)
 	defer cancel()
 
-	name := Name(root, repo)
 	branch, _ := git(ctx, repo, "rev-parse", "--abbrev-ref", "HEAD")
 	branch = strings.TrimSpace(branch)
 

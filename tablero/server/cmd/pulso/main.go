@@ -361,7 +361,10 @@ func repos() error {
 	for _, r := range rs {
 		fmt.Printf("    %s\n", r)
 	}
-	fmt.Printf("\n  %d repos\n\n", len(rs))
+	for _, x := range cfg.Extra {
+		fmt.Printf("    %s  (extra, registrado como «%s»)\n", x.Path, x.Name)
+	}
+	fmt.Printf("\n  %d repos\n\n", len(rs)+len(cfg.Extra))
 	return nil
 }
 
@@ -496,6 +499,13 @@ func plistXML(exe, data string, cfg pulso.Config, logPath string) string {
 		{"TABLERO_DATA", data},
 		{"PULSO_ROOT", cfg.Root},
 		{"PULSO_EMAILS", strings.Join(cfg.Emails, ",")},
+	}
+	if len(cfg.Extra) > 0 {
+		var xs []string
+		for _, x := range cfg.Extra {
+			xs = append(xs, x.Name+"="+x.Path)
+		}
+		env = append(env, [2]string{"PULSO_EXTRA", strings.Join(xs, ",")})
 	}
 	var b strings.Builder
 	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
