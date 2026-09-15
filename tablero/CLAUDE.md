@@ -246,6 +246,14 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   1. **Se mide por PATCH-ID** (`git cherry`), no por nombre de rama: así se detecta un cambio que llegó
      por **squash**, donde el hash cambia y la rama ya no existe. Es cómo se supo que el backend de
      países estaba en `develop` y `staging` pero no en `main`.
+     ⚠ **Pero el patch-id solo NO alcanza, y el agujero es grande: un squash cuyo mensaje o contenido se
+     editaron al mergear cambia el patch, y la rama pasa a figurar «en ningún ambiente» aunque su
+     cambio esté en `main`.** Medido el 2026-09-15: `frontend-monorepo#983`, squasheado a `3f3f8700`,
+     estaba en `main` hacía un día y el tablero decía que no — y la tarea de Alta Fleet afirmaba, con esa
+     medición, que nada suyo había llegado. Por eso hay una **segunda señal**: si el PR se mergeó y su
+     commit resultante ya es ancestro del ambiente, el cambio está. Cada ✓ guarda **cómo se supo**
+     (`como: patch | pr`) y la tabla marca distinto los que vinieron por el PR: un dato que no se puede
+     explicar no se puede defender.
   2. **La señal es «¿está la PUNTA en el ambiente?»**, no «¿le queda algo propio?». Lo segundo engaña:
      una rama cortada de `main` arrastra ~190 commits ajenos contra `develop` y decir «falta en
      develop(190)» sugiere 190 pendientes cuando el pendiente es uno.
@@ -266,7 +274,16 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
      la búsqueda por rama, 20 de 112 ramas salían «sin PR» —13 ya estaban en `main`— y una tenía un PR
      **abierto contra `main`** que nadie veía (`legacy-backend#1043`). Y `--search head:x` no es exacto
      (trae `x-onto-develop` también): se filtra por nombre después.
-  6. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
+  6. **Medir UNA tarea (`-n`) no borra las demás.** Guardaba el resultado tal cual y el snapshot quedaba
+     con esa sola: el tablero mostraba que ninguna otra tarea tiene ramas, sin avisar (2026-09-15). Ahora
+     se fusiona con lo que había, y **cada tarea lleva su propia fecha de medición**, así que lo viejo se
+     ve viejo en vez de heredar la fecha de la última corrida.
+  7. **Las tareas que no declaran `ramas:` no se miden — y son la mitad.** `make tareas-ramas SUGERIR=1`
+     propone patrones mirando las ramas reales: rankea por lo que comparten de RARO (un trozo que
+     aparece en pocas ramas de todo el universo) y por la clave de Jira **del frontmatter**, no del
+     cuerpo —el cuerpo menciona las claves de otras tareas—. Es una propuesta, no una medición: el patrón
+     sigue siendo lo único que se escribe a mano.
+  8. **Es un SNAPSHOT con fecha** (`data/cache/ramas.json`, fuera de git), como el del sprint: un estado
      de git sin fecha se lee como actual y no lo es. La clave es el **id** de la tarea, no el slug,
      porque el nombre del archivo se puede renombrar a mano.
 

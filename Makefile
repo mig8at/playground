@@ -85,8 +85,8 @@ bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la 
 # Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
 # comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
-tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó? mide git y guarda el snapshot. N=<id|título> · JSON=1
-	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(JSON),-json)
+tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|título> · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
+	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
 
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (próximo paso, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/hoy $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)

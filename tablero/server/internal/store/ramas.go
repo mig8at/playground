@@ -43,11 +43,11 @@ var AmbientesPorDefecto = []string{"develop", "staging", "qa", "main"}
 
 // RamaTarea es UNA rama de trabajo de la tarea, con hasta dónde llegó.
 type RamaTarea struct {
-	Repo   string `json:"repo"`   // nombre corto del repo (no la ruta absoluta: la card muestra esto)
-	Rama   string `json:"rama"`   // sin el prefijo `origin/`
+	Repo string `json:"repo"` // nombre corto del repo (no la ruta absoluta: la card muestra esto)
+	Rama string `json:"rama"` // sin el prefijo `origin/`
 	// Local: la rama sólo existe en esta máquina. Pasa sobre todo con las MERGEADAS —al aprobar el PR se
 	// borra la remota y queda la copia local—, así que no equivale a "sin pushear": mirá los ambientes.
-	Local bool `json:"local,omitempty"`
+	Local  bool   `json:"local,omitempty"`
 	Commit string `json:"commit"` // punta de la rama, corto
 	Asunto string `json:"asunto"` // primera línea del commit de punta
 	// En dice si EL COMMIT DE PUNTA de la rama —el cambio de la tarea— ya está en cada ambiente,
@@ -60,6 +60,21 @@ type RamaTarea struct {
 	// Propios es cuántos commits de la rama NO están en cada ambiente: el contexto de cuánta deriva
 	// arrastra la rama. NO es "cuánto falta de esta tarea" — para eso está `En`.
 	Propios map[string]int `json:"propios"`
+	// Como dice CÓMO se supo que el cambio está en cada ambiente, y existe porque las dos señales no
+	// valen lo mismo:
+	//
+	//	"patch"  el patch-id de la punta aparece en el ambiente (`git cherry`). Es la señal fuerte:
+	//	         dice que ESE CAMBIO está ahí, aunque haya llegado por squash de un commit.
+	//	"pr"     el patch-id NO aparece, pero el PR de la rama se mergeó y su commit resultante SÍ es
+	//	         ancestro del ambiente. Pasa con el squash de VARIOS commits o cuando el mensaje/contenido
+	//	         se editó al mergear: el patch-id cambia y `git cherry` deja de reconocerlo.
+	//
+	// Medido el 2026-09-15: sin la segunda señal, `frontend-monorepo#983` —squasheado a `3f3f8700`, que
+	// está en `main`— salía como «en ningún ambiente», y la tarea de Alta Fleet afirmaba que nada suyo
+	// había llegado a `main`. Se guarda la procedencia en vez de mezclarlas porque la señal por PR habla
+	// del PR, no de la punta: si alguien siguió commiteando en la rama después del merge, la punta de
+	// verdad no está y el ✓ tiene que poder explicarse.
+	Como map[string]string `json:"como,omitempty"`
 	// PR de esta rama, si lo hay. Nil = no se pudo preguntar (sin `gh`/sin red) o la rama no tiene PR;
 	// los dos casos se ven igual en la card a propósito: "no hay PR" es la información útil, y
 	// distinguir "no pude preguntar" pediría un tercer estado que nadie va a mirar.
@@ -76,12 +91,19 @@ type PullRequest struct {
 	Revision string `json:"revision"` // APPROVED | REVIEW_REQUIRED | CHANGES_REQUESTED | "" (sin revisor pedido)
 	Draft    bool   `json:"draft"`
 	Mergeado string `json:"mergeado,omitempty"` // fecha, si ya se mergeó
+	// MergeCommit es el commit que quedó en la base al mergear (el del squash, si fue squash). Es lo que
+	// permite contestar «¿llegó a main?» cuando el patch-id ya no coincide — ver `RamaTarea.Como`.
+	MergeCommit string `json:"mergeCommit,omitempty"`
 }
 
 // RamasDeTarea es el resultado por tarea.
 type RamasDeTarea struct {
 	Patron string      `json:"patron"`
 	Ramas  []RamaTarea `json:"ramas"`
+	// MedidoEn es cuándo se midió ESTA tarea, y existe porque el snapshot se puede actualizar de a una
+	// (`ramas -n 62`). Con una sola fecha global, una tarea medida hace una semana se leía con la fecha
+	// de la corrida de hoy — un dato viejo presentado como fresco.
+	MedidoEn string `json:"medidoEn,omitempty"`
 }
 
 // SnapshotRamas es lo que se guarda en disco.
@@ -183,6 +205,7 @@ func MedirRamas(ctx context.Context, root string, patrones map[string]string, am
 				return
 			}
 			res := medirTarea(ctx, repos, patron, pats, ambientes, prs)
+			res.MedidoEn = time.Now().Format(time.RFC3339)
 			mu.Lock()
 			defer mu.Unlock()
 			if ctx.Err() != nil {
@@ -228,40 +251,23 @@ func medirTarea(ctx context.Context, repos []string, patron string, pats, ambien
 					Local:   rm.Local,
 					En:      map[string]bool{},
 					Propios: map[string]int{},
+					Como:    map[string]string{},
 				}
 				if out, err := git(ctx, repo, "log", "-1", "--format=%h|%s", ref); err == nil {
 					if h, asunto, ok := strings.Cut(strings.TrimSpace(out), "|"); ok {
 						r.Commit, r.Asunto = h, asunto
 					}
 				}
-				for _, amb := range ambientes {
-					// `git cherry <upstream> <head>` lista los commits de head que NO están en upstream,
-					// comparando por patch-id. Si el ambiente no existe en este repo, se omite: decir
-					// "no está mergeado en staging" cuando staging no existe sería una falsedad.
-					if _, err := git(ctx, repo, "rev-parse", "--verify", "--quiet", "origin/"+amb); err != nil {
-						continue
-					}
-					out, err := git(ctx, repo, "cherry", "origin/"+amb, ref)
-					if err != nil {
-						continue
-					}
-					// `git cherry` lista en orden cronológico: la ÚLTIMA línea es la punta. `+` = no está
-					// en el ambiente, `-` = sí está (llegó, incluso por squash). Sin líneas = nada propio.
-					propios, puntaDentro := 0, true
-					for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
-						l = strings.TrimSpace(l)
-						if l == "" {
-							continue
-						}
-						if strings.HasPrefix(l, "+") {
-							propios++
-						}
-						puntaDentro = strings.HasPrefix(l, "-")
-					}
-					r.Propios[amb] = propios
-					r.En[amb] = puntaDentro
-				}
+				// El PR se pide ANTES de medir los ambientes: su commit de merge es la segunda señal
+				// cuando el patch-id ya no coincide (squash con el mensaje o el contenido editados).
 				r.PR = prs.de(ctx, repo, rm.Nombre)
+				for _, amb := range ambientes {
+					en, propios, como := alcanza(ctx, repo, ref, amb, r.PR)
+					if como == "" && !en && propios == 0 {
+						continue // el ambiente no existe en este repo: no se inventa un "no llegó"
+					}
+					r.En[amb], r.Propios[amb], r.Como[amb] = en, propios, como
+				}
 				res.Ramas = append(res.Ramas, r)
 			}
 		}
@@ -302,6 +308,96 @@ func (c *prCache) de(ctx context.Context, repo, rama string) *PullRequest {
 	pr := prDeRama(ctx, repo, rama)
 	m[rama] = pr
 	return pr
+}
+
+// alcanza contesta, para UNA rama y UN ambiente: ¿el cambio ya está ahí, cuántos commits propios le
+// quedan, y CÓMO se supo? Devuelve como="" cuando el ambiente no existe en este repo — decir "no está
+// mergeado en staging" donde staging no existe sería una falsedad, y es distinto de "no llegó".
+//
+// DOS SEÑALES, en orden de fuerza:
+//
+//  1. patch-id (`git cherry`): la punta de la rama aparece en el ambiente. Reconoce el squash de UN
+//     commit, porque el patch no cambia.
+//  2. el commit del PR: si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el
+//     cambio está aunque el patch-id no coincida. Pasa con el squash de VARIOS commits, y con el de uno
+//     solo cuando se edita el mensaje o el contenido al mergear.
+//
+// Medido el 2026-09-15: sin la segunda señal, `frontend-monorepo#983` —squasheado a `3f3f8700`, que ya
+// estaba en `main`— salía como «en ningún ambiente», y la tarea de Alta Fleet afirmaba que nada suyo
+// había llegado a `main`.
+func alcanza(ctx context.Context, repo, ref, amb string, pr *PullRequest) (en bool, propios int, como string) {
+	if _, err := git(ctx, repo, "rev-parse", "--verify", "--quiet", "origin/"+amb); err != nil {
+		return false, 0, ""
+	}
+	out, err := git(ctx, repo, "cherry", "origin/"+amb, ref)
+	if err != nil {
+		return false, 0, ""
+	}
+	// `git cherry` lista en orden cronológico: la ÚLTIMA línea es la punta. `+` = no está en el
+	// ambiente, `-` = sí está. Sin líneas = la rama no tiene nada propio, o sea que ya está entera.
+	puntaDentro := true
+	for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+		if l = strings.TrimSpace(l); l == "" {
+			continue
+		}
+		if strings.HasPrefix(l, "+") {
+			propios++
+		}
+		puntaDentro = strings.HasPrefix(l, "-")
+	}
+	if puntaDentro {
+		return true, propios, "patch"
+	}
+	if pr != nil && pr.Estado == "MERGED" && pr.MergeCommit != "" {
+		if _, err := git(ctx, repo, "merge-base", "--is-ancestor", pr.MergeCommit, "origin/"+amb); err == nil {
+			return true, propios, "pr"
+		}
+	}
+	return false, propios, "no"
+}
+
+// RamaSuelta es una rama vista en un repo, sin atarla a ninguna tarea. Es la materia prima de la
+// SUGERENCIA de patrones: las tareas que no declaran `ramas:` no se pueden medir, y adivinar el patrón
+// a ciegas es peor que no tenerlo (un patrón ancho no falla, MIENTE). Así que se listan las ramas
+// reales, con su fecha, y quien decide ve qué traería cada candidato antes de escribirlo.
+type RamaSuelta struct {
+	Repo   string `json:"repo"`
+	Rama   string `json:"rama"`
+	Fecha  string `json:"fecha"` // YYYY-MM-DD del último commit
+	Local  bool   `json:"local,omitempty"`
+	Asunto string `json:"asunto,omitempty"`
+}
+
+// TodasLasRamas lista las ramas de todos los repos bajo root en UNA pasada (dos llamadas a git por
+// repo), para poder cruzarlas en memoria contra muchas tareas sin pagar una búsqueda por tarea.
+func TodasLasRamas(ctx context.Context, root string) []RamaSuelta {
+	var out []RamaSuelta
+	for _, repo := range reposEn(root) {
+		nombre := filepath.Base(repo)
+		for _, ref := range []string{"refs/remotes/origin", "refs/heads"} {
+			txt, err := git(ctx, repo, "for-each-ref", "--format=%(refname:short)|%(committerdate:short)|%(contents:subject)", ref)
+			if err != nil {
+				continue
+			}
+			for _, l := range strings.Split(txt, "\n") {
+				partes := strings.SplitN(strings.TrimSpace(l), "|", 3)
+				if len(partes) < 2 || partes[0] == "" || strings.HasSuffix(partes[0], "/HEAD") {
+					continue
+				}
+				nom, local := partes[0], ref == "refs/heads"
+				if !local {
+					nom = strings.TrimPrefix(nom, "origin/")
+				}
+				asunto := ""
+				if len(partes) == 3 {
+					asunto = partes[2]
+				}
+				out = append(out, RamaSuelta{Repo: nombre, Rama: nom, Fecha: partes[1], Local: local, Asunto: asunto})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Fecha > out[j].Fecha })
+	return out
 }
 
 // reposEn lista los repos git bajo root, bajando un nivel extra (en `github/` conviven repos sueltos y
@@ -477,13 +573,16 @@ type prCrudo struct {
 	ReviewDecision string `json:"reviewDecision"`
 	MergedAt       string `json:"mergedAt"`
 	IsDraft        bool   `json:"isDraft"`
+	MergeCommit    struct {
+		OID string `json:"oid"`
+	} `json:"mergeCommit"`
 }
 
 // ghPRs es la única forma de hablar con `gh pr list` acá: mismos campos, misma degradación (ok=false si
 // falló, y quien llama muestra la rama sin PR en vez de romper).
 func ghPRs(ctx context.Context, dir, slug string, extra ...string) ([]prCrudo, bool) {
 	args := append([]string{"pr", "list", "--repo", slug, "--state", "all",
-		"--json", "number,state,headRefName,baseRefName,url,reviewDecision,mergedAt,isDraft"}, extra...)
+		"--json", "number,state,headRefName,baseRefName,url,reviewDecision,mergedAt,isDraft,mergeCommit"}, extra...)
 	cmd := exec.CommandContext(ctx, ghBin, args...)
 	cmd.Dir = dir
 	var sb strings.Builder
@@ -510,6 +609,7 @@ func indexarPRs(crudos []prCrudo) map[string]*PullRequest {
 		out[p.HeadRefName] = &PullRequest{
 			Numero: p.Number, Estado: p.State, Base: p.BaseRefName, URL: p.URL,
 			Revision: p.ReviewDecision, Draft: p.IsDraft, Mergeado: p.MergedAt,
+			MergeCommit: p.MergeCommit.OID,
 		}
 	}
 	return out
