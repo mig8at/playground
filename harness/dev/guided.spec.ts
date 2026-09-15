@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Page } from '@playwright/test';
-import { config, cognitoCreds } from '../pkg/config';
+import { avisoLogsDelBackend, config, cognitoCreds } from '../pkg/config';
 import { cognitoLogin, cognitoStorageState, persistCognitoState } from '../pkg/cognito';
 import { synthFill, requestEstado11 } from '../pkg/inject';
 import { closeCreditopX, resolveRequestStatus } from '../pkg/close';
@@ -1500,6 +1500,14 @@ test('guided (semiautomático)', async ({ browser }) => {
      * este proceso y de otra forma se pierde al terminar. */
     for (const l of lineasDeEscrituras('  ')) console.log(l);
     volcarEscrituras('.runs/escrituras-guiado.json');
+
+    /* ⚠ Y SI EL DESENLACE FUE MALO, decir si la causa del backend quedó en alguna parte. En local
+     * suele ser NO — `LOG_CHANNEL=loki` con Loki abajo pierde los errores de runtime en silencio—, y
+     * enterarse ahora cambia lo que hacés después: en vez de buscar en un log vacío, le repetís el
+     * endpoint. El aviso trae el comando con la solicitud ya puesta. */
+    if (v.malo || v.miente?.length) {
+        for (const l of await avisoLogsDelBackend((process.env.E2E_TARGET || '').toLowerCase(), uReqID)) console.log(`  ${l}`);
+    }
 
     if (v.existe) {
         expect(v.malo, `la solicitud ${uReqID} terminó en estado ${v.st} «${v.estado}» ` +

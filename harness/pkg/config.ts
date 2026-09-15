@@ -97,6 +97,73 @@ export function avisoDocGen(target: string): string | null {
         + ' — un «Undefined variable» en el render no se atrapa acá (F-150). Para validar documentos: DOC_GEN_*=blade.';
 }
 
+/**
+ * ¿LOS ERRORES DEL BACKEND LOCAL SE ESTÁN PERDIENDO? El diagnóstico, no una suposición.
+ *
+ * POR QUÉ EXISTE. `harness/CLAUDE.md` ya documenta la trampa y la llama por su nombre: con
+ * `LOG_CHANNEL=loki` y Loki abajo, los errores de runtime **se pierden en silencio** — el handler se
+ * traga su propio fallo y el fallback a `storage/logs` nunca dispara. Es «el peor de los dos mundos»:
+ * ni archivo ni Loki. Y es la combinación NORMAL de trabajo, porque el `.env` queda con `loki` y el
+ * stack de observabilidad no se levanta para cada corrida.
+ *
+ * Medido el 2026-09-15: `LOG_CHANNEL=loki`, `:3100` sin contestar, y el último `laravel.log` era del
+ * **13 de septiembre** — o sea que los errores de backend de todas las corridas del día se perdieron,
+ * incluido un 422 del OTP de firma y un `errorCode: unexpected` que hubo que ir a buscar con `curl`.
+ *
+ * Se diagnostica en vez de avisar siempre: si Loki ESTÁ arriba no hay nada que advertir, y un aviso
+ * que sale igual en los dos casos se aprende a ignorar.
+ */
+export interface LogsDelBackend {
+      canal: string;
+      lokiArriba: boolean | null;   // `null` = no se pudo probar
+      sePierden: boolean;
+}
+
+export async function logsDelBackendLocal(): Promise<LogsDelBackend> {
+      const out: LogsDelBackend = { canal: '', lokiArriba: null, sePierden: false };
+      try {
+            const env = readFileSync(`${process.env.HOME}/Desktop/CREDITOP/github/legacy-backend/.env`, 'utf8');
+            out.canal = (env.match(/^\s*LOG_CHANNEL\s*=\s*(\S+)/m)?.[1] ?? '').trim();
+      } catch {
+            return out;   // sin `.env` legible no se afirma nada
+      }
+      if (!/loki/i.test(out.canal)) return out;   // con `stack`/`single` el archivo recibe: nada que avisar
+
+      try {
+            const res = await fetch('http://localhost:3100/ready', { signal: AbortSignal.timeout(2500) });
+            out.lokiArriba = res.ok;
+      } catch {
+            out.lokiArriba = false;
+      }
+      out.sePierden = out.lokiArriba === false;
+      return out;
+}
+
+/**
+ * El aviso, o `null` si no hay nada que advertir. Lo imprimen los runners CUANDO UN CASO FALLA: ahí es
+ * cuando se va a buscar la causa, y es el momento en que enterarse de que no quedó rastro cambia lo
+ * que hacés después.
+ *
+ * Incluye el comando que SÍ funciona sin observabilidad —repedirle el endpoint, que devuelve la causa
+ * en el cuerpo— con la solicitud ya puesta, igual que hacen los avisos de PostHog y de Loki.
+ */
+export async function avisoLogsDelBackend(target: string, uReq?: number | string | null): Promise<string[]> {
+      if (target !== 'local') return [];
+      const d = await logsDelBackendLocal();
+      if (!d.sePierden) return [];
+      return [
+            `⚠ LOS ERRORES DEL BACKEND DE ESTA CORRIDA NO QUEDARON EN NINGUNA PARTE.`,
+            `   \`LOG_CHANNEL=${d.canal}\` en el .env de legacy-backend y Loki (:3100) no contesta: el handler se`,
+            `   traga su propio fallo y el fallback a storage/logs NO dispara. Ni archivo ni Loki.`,
+            `   Para ver la causa de un 500 sin levantar nada, pedile el endpoint de nuevo — el cuerpo la trae:`,
+            uReq
+                  ? `     curl -s -w '\\nHTTP %{http_code}\\n' http://localhost/api/loans/requests/promissory-note/${uReq}`
+                  : `     curl -s -w '\\nHTTP %{http_code}\\n' http://localhost/api/loans/requests/promissory-note/<ureq>`,
+            `   O levantá el stack: \`make harness-obs-up\` (y entonces \`make harness-loki UREQ=…\` sirve).`,
+      ];
+}
+
+
 export const config = {
     /** URL del frontend. Por TARGET: local = Vite :5174 · dev/staging = el deploy correspondiente.
      *  Se lee con `env()` (no `process.env` pelado) para que valga ponerla en `env/<target>.env`. */

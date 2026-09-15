@@ -50,7 +50,7 @@ export {};
 const { SesionFront, PROHIBIDAS } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, lineasDeEscrituras, volcarEscrituras } = await import('../pkg/db.ts');
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
-const { config, avisoDocGen } = await import('../pkg/config.ts');
+const { config, avisoDocGen, avisoLogsDelBackend } = await import('../pkg/config.ts');
 const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
@@ -797,7 +797,17 @@ const icono: Record<Resultado['fin'], string> = { cerro: '✓', listo: '✓', tr
 for (const r of resultados) {
     console.log(`  ${icono[r.fin]} ${r.caso} · uReq ${r.ur ?? '—'} · tel ${r.tel} · doc ${r.doc} · ${r.pantallas} pantallas · ${(r.ms / 1000).toFixed(1)}s`);
     for (const l of r.lineas) console.log(l);
-    console.log(`      ${r.fin === 'cerro' ? 'CERRÓ' : r.fin === 'listo' ? 'LISTÓ' : r.fin === 'malo' ? 'DESENLACE MALO' : 'NO cerró'}: ${r.motivo}\n`);
+    console.log(`      ${r.fin === 'cerro' ? 'CERRÓ' : r.fin === 'listo' ? 'LISTÓ' : r.fin === 'malo' ? 'DESENLACE MALO' : 'NO cerró'}: ${r.motivo}`);
+    /* ⚠ Y SI FALLÓ, decir si la causa del backend quedó registrada en alguna parte.
+     * En local la respuesta suele ser NO: con `LOG_CHANNEL=loki` y Loki abajo el handler se traga su
+     * propio fallo y el fallback a `storage/logs` no dispara. Medido el 2026-09-15: el último
+     * `laravel.log` era de dos días antes, o sea que los errores de todas las corridas del día se
+     * perdieron — incluido un 422 que hubo que ir a buscar con `curl`. Va acá y no en la cabecera
+     * porque es cuando se va a buscar la causa; en una corrida que cierra no aporta. */
+    if (r.fin === 'trabado' || r.fin === 'malo') {
+        for (const l of await avisoLogsDelBackend(TARGET, r.ur)) console.log(`      ${l}`);
+    }
+    console.log('');
 }
 const cerraron = resultados.filter((r) => r.fin === 'cerro' || r.fin === 'listo').length;
 console.log(`  ${cerraron}/${resultados.length} ${flag('cerrar') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
