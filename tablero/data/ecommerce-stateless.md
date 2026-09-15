@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
+ramas: cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -35,10 +35,10 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** abrir el PR a `qa` desde `fix/ecommerce/cuota-inicial-rebote-asesor` — ya
-está armada, en verde de build/typecheck y **comprobada corriendo** (el bug reproducido y el arreglo
-cerrando en estado 11 en los cuatro canales). Falta sólo la decisión de Miguel y el push. El detalle
-de las corridas, en el Registro del 15/9 (4).
+**El próximo paso es:** mirar el CI de
+**[#1014](https://github.com/Creditop-SAS/frontend-monorepo/pull/1014)** (abierto el 15/9 contra `qa`)
+y pedir revisor — conviene que sea **Abel**, que fue quien revirtió. El detalle de las corridas que lo
+respaldan, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
 (`continue` en el árbol público) y #663 (el handoff por flujo)— **adaptados**, porque `standBy` ya no
@@ -79,6 +79,10 @@ el propio #997 introdujo de nuevo.
 > juntas, o `main` queda con la ventana rota abierta entre una y otra.
 >
 > **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
+>
+> ✔ **Y el camino de vuelta ya está abierto: [frontend-monorepo#1014](https://github.com/Creditop-SAS/frontend-monorepo/pull/1014)**
+> (`fix/ecommerce/cuota-inicial-rebote-asesor` → `qa`, 2 commits) repone #997/#1005 **y** arregla el
+> rebote, en el mismo cambio. Al mergearlo, la promoción `qa` → `main` vuelve a ser normal.
 >
 > ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
 > revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
@@ -212,6 +216,7 @@ revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
 | front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `6fa13ae5` |
 | front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
 | front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `f443ecad` |
+| front | **#1014** el rebote a `/solicitar` del asesor + la reposición de #997/#1005 | `fix/ecommerce/cuota-inicial-rebote-asesor` | +982/−145 · 60 arch *(el arreglo son 3)* | `qa` | 15/9 · **ABIERTO** | — |
 
 *(Medido el 2026-09-15 con `gh pr list --author mig-creditop --state all` filtrando por
 `ecommerce|checkout|cuota|stateless|sala` en título y rama. Horas de Colombia.)*
