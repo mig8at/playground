@@ -164,6 +164,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«este spec de Playwright falla siempre en el mismo paso»** / `getByTestId` que no aparece | **F-217** |
 | **«el canal ecommerce muestra menos entidades»** / la sucursal tiene 3 habilitadas y el cliente ve 1 | **F-218** |
 | **«me manda al celular y yo ya estoy acá»** / autogestión o ecommerce que igual entrega el proceso | **F-219** |
+| **«No routes matched»** en la validación de identidad / pantalla muerta al ir a validar la persona | **F-220** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -371,6 +372,7 @@ distinto según con qué pregunta llegues.
 | F-217 | El harness usa 21 `data-testid` y el wizard publica 6: los otros 15 vivían en stashes marcados «NO commitear». Tres helpers reescritos por rol | ARREGLADO |
 | F-218 | Una rt=2 rechazada por reglas duras DESAPARECE del listado (y del conteo de rechazos); una rt=0 rechazada se muestra marcada. Parece filtro de canal y no lo es | CARACTERIZADO · herramienta arreglada |
 | F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | ARREGLADO ⏳ PENDIENTE DE MERGE |
+| F-220 | Falta una variable de entorno del proveedor de identidad y el resultado es una PANTALLA MUERTA: el backend devuelve una url a medias, el contrato la acepta y el front la reinterpreta como una ruta del flujo. Sólo local | CARACTERIZADO |
 
 ---
 
@@ -5163,3 +5165,48 @@ repositorio para esta zona es un test que recorre el camino por HTTP sobre un es
 para este endpoint —que toca muchas tablas— era desproporcionado para cuatro líneas. En cambio, al
 caminar cualquiera de los dos canales el arnés avisa explícitamente si el front vuelve a aterrizar en la
 pantalla de entrega sin nada que entregar.
+
+
+### F-220 · Sin la variable del proveedor de identidad, la url a medias se reinterpreta como una ruta del flujo y deja una pantalla muerta
+
+**Síntoma.** En la validación de identidad el flujo navega a una ruta que no existe —el nombre del paso
+del proveedor colgado del prefijo del comercio— y la consola dice **«No routes matched location»**. La
+página se ve bien y no responde: es la forma de F-215.
+
+**Causa raíz — la url se degrada en tres capas y ninguna se queja.**
+
+1. **El backend arma el destino concatenando el host del proveedor con el path del paso.** Sin la
+   variable de entorno, ese host es `null` y la concatenación devuelve **sólo el path**. El endpoint
+   responde 200 con un destino que no puede funcionar.
+2. **El contrato del front la acepta**: el campo se valida como `z.string()`, no como url. Una cadena
+   que no es una dirección pasa sin ruido.
+3. **Y el helper de redirección la reinterpreta.** Si el valor NO es una url externa —lo decide
+   construyendo un `URL`, que con un path suelto lanza— el helper deja de tratarlo como destino y lo
+   trata como **un segmento de ruta del flujo actual**, así que lo cuelga del prefijo del comercio. El
+   resultado es una ruta inventada que el router no matchea.
+
+**Evidencia — medido el 2026-09-15 contra local.** La variable no está en el `.env` y el contenedor
+resuelve la configuración del host del proveedor como `NULL`, comprobado dentro del contenedor. El
+destino observado fue el path del proveedor colgado del prefijo del comercio, exactamente lo que produce
+el paso 3.
+
+⚠ **Y la variable NO está declarada en el `.env.example`** del repositorio: no hay `ADO_*` ninguna. O sea
+que un entorno local recién armado nunca la tiene y este muro aparece la primera vez que alguien camina
+la validación de identidad. Eso explica por qué el flujo «se sentía» roto sin que nada estuviera mal en
+el código.
+
+**Alcance — sólo local.** Medido en el canal de eventos del front: en 30 días, **cero** apariciones de la
+ruta inventada o de «No routes matched» en los ambientes desplegados. Allá la variable está puesta. Pero
+el modo de fallar sigue vivo: el día que un ambiente nuevo o una rotación la deje vacía, el síntoma es
+una pantalla muerta, no un error.
+
+**Cómo seguir hoy, sin arreglar nada:** la validación de identidad por foto no es automatizable con un
+usuario sintético, así que el camino de prueba es saltarla como lo haría el admin —el runner del arnés lo
+ofrece— o poner la variable en el `.env` local.
+
+**Arreglo — NO hay, y lo que corresponde es que la url a medias no salga del backend.** Un endpoint que
+no puede construir su destino tiene que decirlo, no responder 200 con la mitad. Las otras dos capas son
+agravantes: validar el campo como url convertiría esto en un error temprano, y el helper reinterpretando
+un path absoluto como segmento de ruta es una conversión silenciosa que conviene revisar aparte — hoy
+cualquier destino que no sea una url externa termina colgado del prefijo del comercio. Y la variable
+debería estar en el `.env.example`.
