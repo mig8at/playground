@@ -90,7 +90,11 @@ export function datosDeEnv(): DatosAutorelleno {
         // Las dos fechas, del módulo que también las usa del lado de Playwright (ahí está el porqué
         // de que sean años plausibles y no «hoy»).
         ...fechasSinteticas(),
-        ingreso: '2500000', monto: '2000000',
+        // ⚠ El ingreso sale de la MISMA cadena que el resto (el panel lo exporta como
+        // `E2E_SYNTH_INCOME` desde su perfil). Estaba quemado en 2.500.000 y la perilla del panel no
+        // llegaba a ninguna parte: el panel anunciaba «ingreso $X» y el wizard recibía otro número.
+        // Y el ingreso no es cosmético — es lo que evalúan las reglas duras de cada entidad.
+        ingreso: process.env.E2E_SYNTH_INCOME || '2500000', monto: '2000000',
         direccion: 'CALLE 90 # 15 - 20', empresa: 'HARNESS QA SAS',
         placa: 'ABC12D', serie: '9C2KC0810JR000001',
         comercios: comerciosDeFlows(),

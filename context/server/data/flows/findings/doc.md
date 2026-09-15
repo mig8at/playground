@@ -162,6 +162,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la pantalla se ve bien pero el botón no hace nada»** · un 404 del wizard | **F-215** |
 | **«el endpoint da 500 y sin embargo todo funciona»** / un ambiente que decide por otro camino | **F-216** |
 | **«este spec de Playwright falla siempre en el mismo paso»** / `getByTestId` que no aparece | **F-217** |
+| **«el canal ecommerce muestra menos entidades»** / la sucursal tiene 3 habilitadas y el cliente ve 1 | **F-218** |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
@@ -367,6 +368,7 @@ distinto según con qué pregunta llegues.
 | F-215 | En un 404 el root emite `window.ENV = undefined` y `entry.client` lo lee sin `?.`: la hidratación muere y la página queda muerta. En `main` y `qa` | ABIERTO |
 | F-216 | `kyc_pipeline_allieds` ausente hace que `kyc-flow` dé 500, y el front cae al OTP v1 sin avisar: el ambiente parece sano y decide por otro camino | receta en local · fallback mudo ABIERTO |
 | F-217 | El harness usa 21 `data-testid` y el wizard publica 6: los otros 15 vivían en stashes marcados «NO commitear». Tres helpers reescritos por rol | ARREGLADO |
+| F-218 | Una rt=2 rechazada por reglas duras DESAPARECE del listado (y del conteo de rechazos); una rt=0 rechazada se muestra marcada. Parece filtro de canal y no lo es | CARACTERIZADO · herramienta arreglada |
 
 ---
 
@@ -4988,3 +4990,59 @@ que `getByRole('combobox', { name: /día/i })` no encuentra nada y el spec vuelv
 
 **Mientras tanto, el camino que no depende de esto** es el recorrido por HTTP (`make harness-caminar`):
 postea los formularios que el front declara, llega hasta `/lenders` y, con `CERRAR=1`, hasta el cierre.
+
+### F-218 · Una entidad rt=2 que no pasa las reglas duras DESAPARECE del listado; una rt=0 que tampoco pasa se muestra marcada — y eso se lee como que el canal esconde entidades
+
+**Síntoma.** Un comercio tiene tres entidades habilitadas en su sucursal y el cliente ve **una**. La
+pregunta que sale sola es «¿hay lógica que impida mostrar algunas entidades en ecommerce?». La entidad
+que sí aparece refuerza la sospecha, porque es la única de un `response_type` distinto.
+
+**Causa raíz — son dos cosas apiladas, y ninguna es el canal.**
+
+1. **Las tres fueron RECHAZADAS por las reglas duras del grupo de la sucursal.** No es que dos se
+   filtraran y una pasara: pasaron cero.
+2. **El rechazo se trata distinto según el `response_type`.** En `LenderValidationService`, después de
+   marcar a las rechazadas con «Probabilidad muy baja», hay un `unset` que **saca del arreglo a las
+   `response_type == 2`**. El listado que se devuelve es `array_merge(aprobadas, rechazadas)`, así que
+   una rt=0 rechazada VIAJA (marcada), y una rt=2 rechazada no existe. Con todas rechazadas, el cliente
+   ve exactamente las rechazadas que no son rt=2.
+
+⚠ **El canal NO filtra entidades, y conviene descartarlo temprano.** El flag `is_ecommerce` entra al
+listado y se usa en dos lugares: elegir la sucursal (si hay asesor autenticado y NO es ecommerce, manda
+la del asesor) y armar los pasos del wizard. **En ningún punto toca el conjunto de entidades.**
+
+**Evidencia — medido el 2026-09-15 contra `qa`, comercio Amoblando Pullman, sucursal 659.** Las tres
+entidades declaradas, las tres habilitadas. Los registros del listado dicen el veredicto entidad por
+entidad: las tres «rechazado». El snapshot de lo mostrado guardó UNA, y su propio registro la marca
+«Probabilidad muy baja» — o sea que lo que se vio no era una entidad aprobada, era una rechazada
+visible. El cliente de la corrida quedó con ocupación **«Desempleado»** e ingreso **0**, y los dos
+grupos de reglas exigen ocupación ∈ {Empleado, Pensionado, Independiente}; las dos rt=2, además,
+ingreso ≥ 1.000.000.
+
+⚠ **Y el contador del registro miente en la dirección que oculta el problema:** la línea de cierre de
+la validación dice «rechazadas: 1» habiendo rechazado tres, porque cuenta **después** del `unset`. Una
+rt=2 excluida por reglas duras no deja rastro **ni en el listado ni en el conteo**: el único lugar donde
+aparece es la línea por entidad, que es de nivel `info` y por eso se pudo leer.
+
+**Cómo se diagnostica en tres minutos, sin leer código.** El listado emite una línea por entidad con
+su veredicto. Con la solicitud a mano:
+
+    E2E_TARGET=<target> node dev/loki-lineas.ts '{service_name="CreditopDev"} |~ `entidad`' <desde> <hasta>
+
+⚠ La forense por solicitud (`make harness-loki UREQ=…`) **no sirve para esto**: esas líneas no traen el
+id de la solicitud como valor del `context`, así que contesta «cero anclas» — que se lee como «no hay
+nada» cuando hay quince líneas. Ver el mismo modo de fallar en F-179.
+
+**Qué implica, y para quién.** Para quien PRUEBA: tres entidades habilitadas no son tres entidades
+listadas, y con un cliente que no pasa ninguna regla el listado corto no es un bug del canal. Para
+PRODUCTO: la asimetría es una decisión de producto sin documentar — la rt=2 se esconde en vez de
+mostrarse en gris—, y hoy no hay forma de saber, mirando el listado o los conteos, que una entidad
+rt=2 estuvo y se cayó.
+
+**Arreglado del lado de la herramienta** (el comportamiento del backend queda como está, es decisión de
+producto): el rastro del panel ya no anuncia las entidades de la sucursal como si fueran el listado —dice
+que es lo habilitado, que encima corren las reglas duras y que una rt=2 que no pasa desaparece—, y ya no
+promete un perfil de empleo que no escribe. Ese anuncio era la mitad de la confusión: prometía
+«Empleado · ingreso $2.500.000» mientras la solicitud nacía «Desempleado · 0», porque ocupación e
+ingreso viven en el formulario y los pone quien camina el wizard, no la inyección del buró. El ingreso
+del perfil del panel, que se exportaba y nadie leía, ahora sí llega al autorrelleno.

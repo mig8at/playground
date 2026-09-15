@@ -478,7 +478,20 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
     ];
     if (inject) {
         L.push(row('identidad', `${p.documentType || 'CC'} ${p.document || '(auto)'} · ${p.name || 'SYNTH TEST USER'} · ${p.gender || 'M'} · ${p.age ?? 35} años`));
-        L.push(row('empleo', `${p.occupation || 'Empleado'} · ingreso ${money(p.income ?? 0)}`));
+        // ⚠ ESTA LÍNEA NO LA ESCRIBE LA INYECCIÓN, y decirlo importa: el buró se inyecta en la base,
+        // pero ocupación e ingreso viven en el FORMULARIO (`user_field_values`) y los pone quien camina
+        // el wizard. El ingreso lo escribe el autorrelleno (la chapita ⌨/⌥R); la OCUPACIÓN no está en su
+        // mapa —es un select— así que la elegís vos, siempre.
+        //
+        // Medido el 2026-09-15 con Pullman en qa: la cabecera anunciaba «Empleado · ingreso $2.500.000»
+        // y la solicitud quedó con «Desempleado · 0», porque la corrida era MANUAL desde monto. Y son
+        // justo los dos datos que evalúan las reglas duras: las tres entidades de esa sucursal exigen
+        // ocupación ∈ {Empleado, Pensionado, Independiente}, y las dos rt2 además ingreso ≥ 1.000.000.
+        // O sea que la cabecera prometía un cliente que pasaba y el que se creó no pasaba ninguna.
+        L.push(row('empleo', `${p.occupation || 'Empleado'} · ingreso ${money(p.income ?? 0)}`
+            + `\n${' '.repeat(16)}↑ NO se inyecta: va en el formulario. El ingreso lo pone el autorrelleno`
+            + `\n${' '.repeat(16)}  (⌥R); la ocupación la elegís VOS. Si llenás a mano, manda lo que pongas`
+            + `\n${' '.repeat(16)}  — y las reglas duras evalúan esto, no lo de acá arriba.`));
         L.push(row('buró', p.documentType === 'PEP' ? 'sin buró (PEP)' : `score ${p.score ?? '-'} · negativos ${p.negatives ?? 0} · consultas ${p.consulted ?? 0}`));
         if (p.email) L.push(row('email', p.email));
     }
@@ -496,7 +509,23 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
             const st = Number(l.rt) !== 0 ? (ES[pa[String(l.id)]] ?? 'aprobado (default)') : 'sin pre-aprobación (rt0)';
             return `${l.name} #${l.id} rt${l.rt} → ${on ? st : 'APAGADO (no va a listar)'}`;
         });
-        L.push(row('lenders', desc.join('\n' + ' '.repeat(16))));
+        // ⚠ ESTO ES EL UNIVERSO, NO EL LISTADO. Sale de `lenders_by_allied_branches` —lo que la
+        // sucursal tiene habilitado— que es la BASE de la cascada; encima corren las reglas duras del
+        // grupo de la sucursal, y ahí se cae lo que no cumple. El «aprobado» de cada línea describe lo
+        // que va a contestar el MOCK de pre-aprobados, que es un paso POSTERIOR: no dice nada sobre las
+        // reglas duras.
+        //
+        // Y la asimetría que hace que esto se lea como un bug del canal (medido el 2026-09-15 en qa):
+        // una entidad rt2 que NO pasa las reglas duras **desaparece** del listado —`LenderValidationService`
+        // la saca con `unset`—, mientras una rt0 que tampoco pasa **sí se muestra**, marcada «Probabilidad
+        // muy baja». Con las tres rechazadas, el cliente ve UNA y parece que el canal ecommerce esconde
+        // entidades. No las esconde: el canal (`is_ecommerce`) sólo elige la sucursal y los pasos del
+        // wizard, nunca toca el conjunto de entidades. El contador del log tampoco ayuda — dice
+        // «rejected 1» habiendo rechazado 3, porque cuenta después del `unset`.
+        L.push(row('lenders', desc.join('\n' + ' '.repeat(16))
+            + `\n${' '.repeat(16)}↑ es lo HABILITADO en la sucursal, no lo que va a listar: encima corren`
+            + `\n${' '.repeat(16)}  las reglas duras (ocupación, ingreso, edad…). Una rt2 que no pasa`
+            + `\n${' '.repeat(16)}  DESAPARECE; una rt0 que no pasa se muestra «Probabilidad muy baja».`));
         // ⚠ AVISO DE LA PANTALLA SIN SALIDA (F-214). Si el cliente contesta «Sí» en «Confirmación de
         // cupo», la solicitud nace con `flow_id = 2` y el listado se recorta a `rt=0`: se descartan
         // TODAS las entidades integradas. En un comercio sin ninguna `rt=0` eso deja la pantalla vacía
