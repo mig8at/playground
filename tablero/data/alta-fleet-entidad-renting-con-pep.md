@@ -4,7 +4,6 @@ title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
 ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta
 created: "2026-09-09T10:00:00-05:00"
-archived: "2026-09-14T18:40:00-05:00"
 context_nodes: [motai, merchants, creditopx, backoffice, hardcodes-entidades, entities]
 jira: [CORE-558]
 jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
@@ -12,15 +11,20 @@ jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**✅ GRADUADA · 2026-09-14.** Los tres PRs de Alta mergearon: `frontend-monorepo#983` (las páginas
-propias del comercio, y la primera es la bienvenida), `frontend-monorepo#994` (el selector de plan
-aparece cuando hay algo que elegir) y `legacy-backend#1351`. Lo que esta tarea aprendió **ya no vive
-acá**: pasó a `context/` como «cómo funciona CreditOp». De acá para abajo queda la historia de cómo se
-llegó, que es lo que evita volver a evaluar los caminos ya descartados.
+**EN `qa`, ESPERANDO PROMOCIÓN · 2026-09-14.** Mis cuatro PRs de Alta están en `qa`: #983 y #1351
+(las páginas propias del comercio, y el arreglo que la deja firmar), #987 (el hotfix del build) y #994
+(el selector de plan). El libro
+mayor, con tamaños, horas y commits medidos, está en «Lo que se mergeó» acá abajo.
 
-⚠ **Mergearon a `qa`, NO a `main` — y la vara de `context/` es `main`.** Verificado el 2026-09-14 con
-`git merge-base --is-ancestor`: ninguno de los dos commits del front está en `main`, `develop` ni
-`staging`. Por eso las dos secciones que graduaron llevan `⏳ PENDIENTE DE MERGE` inline, y el nodo
+**El conocimiento ya graduó a `context/`** (nodos `merchants`, `hardcodes-entidades`, `backoffice`,
+`entities`, `motai`), así que de acá para abajo queda la historia de cómo se llegó — lo que evita
+volver a evaluar los caminos ya descartados. **La tarea se desarchivó a propósito**: archivarla la sacó
+del tablero (`Efforts()` saltea las archivadas) y con ella el cuerpo, la bitácora y el cajón de ramas,
+justo cuando todavía hay trabajo colgando: esto está en `qa` y no en `main`, y la fila 199 de PROD
+sigue sin corregir. Se vuelve a archivar cuando `qa` llegue a `main`.
+
+⚠ **Nada de esto está en `main`, `develop` ni `staging` — sólo en `qa`.** Verificado el 2026-09-14 con
+`git merge-base --is-ancestor` sobre los cuatro commits. Por eso las dos secciones que graduaron llevan `⏳ PENDIENTE DE MERGE` inline, y el nodo
 `merchants` lleva además el `pending_merge` estructurado en su `map.json` para que `alinear.py` dispare
 la señal 🔁 el día que lleguen. **Lo único que queda de Alta es promoción de ambiente, no trabajo.**
 
@@ -44,6 +48,81 @@ lado: las lee un modelo y decide mal.
 **El próximo paso es:** nada en esta tarea. Si alguien vuelve acá es por una de dos — promover `qa` a
 `main` (y entonces borrar las dos marcas ⏳), o retomar la tarjeta parametrizable, que **no es de acá**:
 se fue a la tarea 80 el 13/9.
+
+## Lo que se mergeó: el libro mayor de los PRs
+
+> Medido el 2026-09-14 con `gh` y `git merge-base --is-ancestor`, no de memoria. Las horas son de
+> Colombia (`gh` las devuelve en UTC). Esta sección es ESTADO: se reescribe, no se apila.
+> **Sólo lo de Alta, sólo lo mío y sólo lo que está EN `qa`** — que es lo que realmente se hizo. Lo
+> que mergeó otra gente vive en SU tarea; lo que no mergeó no se hizo, por buena que fuera la razón.
+
+| | PR | rama | tamaño | mergeado a `qa` | commit |
+|---|---|---|---|---|---|
+| front | **#983** dibuja las páginas propias del comercio, y la primera es la bienvenida | `feat/comercio-pantalla-de-bienvenida` | +1226/−105 · 39 arch | 10/9 09:33 | `3f3f87000` |
+| back | **#1351** las páginas propias de un comercio, y el arreglo que la deja firmar | `feat/comercio-pantalla-de-bienvenida` | +1117/−33 · 19 arch | 10/9 09:33 | `f70fa7a5f` |
+| front | **#987** saca dos imports sobrantes de `posthog.server` que rompen el build de `qa` | `fix/import-servidor-sobrante-rompe-el-build` | +2/−2 · 2 arch | 10/9 09:54 | `852cc163d` |
+| front | **#994** el selector de plan aparece cuando hay algo que elegir | `feat/la-card-de-alta` | +318/−201 · 5 arch | 14/9 08:26 | `aed2acf1b` |
+
+### ⚠ Dónde está todo esto: en `qa`, y en ningún otro lado
+
+Verificado con `git merge-base --is-ancestor` contra los tres refs, los cuatro commits dan lo mismo:
+
+    origin/develop   NO      origin/staging   NO      origin/main   NO
+
+Así que **«Alta está lista» quiere decir «lista en `qa`»**. Y `qa`, `dev` y `staging` comparten la BD
+pero **no el backend**, así que probarlo apuntando al front de staging mide otra rama.
+
+⚠ **Por qué el #987 existe, y por qué son 21 minutos: #983 rompió el build de `qa` al mergear.**
+Entró con **dos imports de más** —`captureServerException` de `~/utils/posthog.server`, en
+`bancolombia/bnpl/processing.tsx` y en `request-canceled.tsx`— que nadie usaba. Es exactamente el
+defecto que **sólo el build atrapa**: vitest, `tsc` y biome lo dejan pasar, biome lo marca como
+*warning* y el despliegue se cae igual. Es **F-194**. El #987 son dos líneas y verificado: `qa` hoy
+importa sólo `captureAndRethrowServerException` en las dos rutas.
+
+> **Y de ahí sale una trampa de medición: `make tareas-ramas` dice «falta en qa» para #983 y es
+> FALSO.** La remota `feat/comercio-pantalla-de-bienvenida` apunta a `77717c77`, pero lo que mergeó
+> fue **`b8466f5f`** (los padres del merge `3f3f8700` son `b42af7f7` y `b8466f5f`), y esos dos
+> difieren justo en los dos imports de arriba. O sea que el tip de la rama coincide con lo que `qa`
+> tiene HOY —después del hotfix— pero con un commit que nunca entró por su propio SHA. El contenido
+> está: `allied-theme` tiene en `qa` las +92 líneas de `pages`/`welcome`. La lección general: cuando
+> la medición por commit diga «falta», el desempate son los PADRES del merge y el contenido, no el
+> nombre de la rama.
+
+### La consecuencia que más duele: F-188 está arreglado en `qa` y VIVO en `main`
+
+El **#1351** trajo ese arreglo —commit `32e22122`, verificado dentro del merge y presente en `qa`—.
+`CatalogDocumentPayloadResolver` elige hoy el builder del PDF así:
+
+| rama | llave | qué implica |
+|---|---|---|
+| `qa` | `BUILDERS_BY_PRODUCT` (`:56`, `:91`) | cualquier entidad con renting/RTO firma, sin tocar código |
+| `main` | `BUILDERS_BY_LENDER` (`:41`, `:65`) | se elige por **id quemado**, y el id del RTO es 193 en prod, 205 en dev/qa y 173 en el dump local |
+
+O sea que **en producción el defecto sigue de pie**: una entidad `rt=2` nueva que reuse ese catálogo
+lista bien, simula bien y **se cae al firmar con 500** (`Undefined variable $nombre_cliente`). Mientras
+`qa` no promueva, el arreglo no protege a nadie. → [[hardcode-payload-builder-documentos]]
+
+### Dos pantallas de bienvenida, y no son la misma
+
+La de #983 es **del COMERCIO** y no hay que confundirla con la que ya existía:
+
+| | dónde se configura | cuándo se dibuja |
+|---|---|---|
+| **comercio** | `allieds.pages.welcome` | al ENTRAR al flujo |
+| **entidad** | `lenders.show_intro_screen` + `intro_background_url` | al ELEGIRLA, en `loan-confirmation` |
+
+Usan el mismo componente (`LenderIntroduction`) y viven en capas distintas — no hay precedencia entre
+las dos y pueden convivir. Buscar la de una en la columna de la otra es el error fácil.
+
+### Qué falta para cerrar Alta de verdad
+
+1. **Promover `qa` → `main`.** Recién ahí se borran las dos marcas `⏳ PENDIENTE DE MERGE` que quedaron
+   en `context/` — `merchants` §10 y `hardcodes-entidades`.
+2. **Corregir la fila 199 en PROD** — sigue con `product=credit`, `document_types=["CC"]`, sin
+   `calculator` ni `originator_nit`, y 3 de los 5 chequeos de readiness fallando. Nada de lo mergeado
+   toca eso: es dato, no código.
+3. **`CORE-563 · Parte2. Alta dashboard`** está en el sprint activo y **no tiene archivo de tarea**.
+
 
 ## Objetivo
 
@@ -91,8 +170,7 @@ En cuatro entregas que se pueden parar en el medio. **Las tres primeras no tocan
 2. ✅ **Ejercitar el flujo por consola** — hecho: lista y ofrece PEP; **no cierra** por F-188. La suite
    `harness/suites/alta.json` queda declarada con el cierre en rojo **a propósito**, para que se ponga
    verde sola el día que F-188 se arregle.
-3. ✅ **F-188 arreglado** — `Creditop-SAS/legacy-backend#1349`, rama
-   `feat/alta-fleet-documentos-por-producto` desde `qa`. El payload builder se elige por
+3. ✅ **F-188 arreglado, y en `qa` por `legacy-backend#1351`** (commit `32e22122`). El payload builder se elige por
    `lenders.product`; `builderClassFor()` extraída pura con 5 pruebas unitarias. Desbloquea a Alta
    Fleet **y** repara el RTO de Motai en local y en qa (donde es el 205 y el mapa decía 193).
 4. **Escribir las dos piezas de config que ningún panel pone**: la migración del `calculator` propio de
