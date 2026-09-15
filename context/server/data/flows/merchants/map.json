@@ -75,11 +75,5 @@
     "legacy-backend/database/migrations/2026_03_09_204622_create_merchant_modes_table.php",
     "legacy-backend/database/migrations/2026_06_22_171820_add_show_authorizations_to_allieds_table.php",
     "legacy-backend/database/migrations/2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php"
-  ],
-  "pending_merge": {
-    "ref": "qa",
-    "files": [
-      "frontend-monorepo/apps/loan-request-wizard/app/components/action-error-banner.tsx"
-    ]
-  }
+  ]
 }

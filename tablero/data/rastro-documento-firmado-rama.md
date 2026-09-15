@@ -1,6 +1,7 @@
 ---
 id: 62
 title: "La evidencia del documento firmado apunta a la fila de catálogo equivocada"
+ramas: rastro-documento-firmado-rama
 stage: work
 created: "2026-08-22T18:00:00-05:00"
 context_nodes: [codeudor, motai]

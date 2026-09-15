@@ -95,9 +95,6 @@ Estos 7 no bloquean: ya leen BD/setting/columna, o son globales. **Importan porq
 - **IVA 19%** y **otorgamiento especial por bandas de score** (DENTIX/DFS) — quemados pero GLOBALES (no per-entidad); la columna `lenders_by_allieds.iva` ya existe sin usar.
 - **`response_type`** (0-4) — enum estructural de despacho; quemado pero es el eje del sistema, no un acoplamiento a un externo puntual.
 
-> ⏳ **PENDIENTE DE MERGE** — esto vive en `qa` (PR `frontend-monorepo#994`), no en `main`.
-> Al mergear: re-verificar con el oráculo, sumarlo a la lista de arriba y **borrar esta marca**.
->
 > **El selector de plan se decide por CANTIDAD, no por entidad** — `offersPlanChoice(plans)` en
 > `lenders-marketplace/src/lib/domain/constants/lender.constants.ts` es literalmente
 > `Array.isArray(plans) && plans.length > 1`. Vale como patrón más allá de la pantalla: la pregunta

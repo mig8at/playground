@@ -11,10 +11,19 @@ jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**EN `qa`, ESPERANDO PROMOCIÓN · 2026-09-14.** Mis cuatro PRs de Alta están en `qa`: #983 y #1351
-(las páginas propias del comercio, y el arreglo que la deja firmar), #987 (el hotfix del build) y #994
-(el selector de plan). El libro
+**EN `main` DESDE EL 2026-09-14 · verificado el 15/9.** Los cuatro PRs de Alta —#983 y #1351 (las
+páginas propias del comercio, y el arreglo que la deja firmar), #987 (el hotfix del build) y #994 (el
+selector de plan)— llegaron a `main` con el merge `f8a802b6 "Qa (#1012)"`, que promovió `qa` entera.
+Medido con `git merge-base --is-ancestor` sobre los cuatro commits de merge, contra los cuatro
+ambientes: los cuatro están en `qa` y en `main`, y **ninguno en `develop` ni en `staging`**. El libro
 mayor, con tamaños, horas y commits medidos, está en «Lo que se mergeó» acá abajo.
+
+*(Acá decía «EN qa, ESPERANDO PROMOCIÓN — nada de esto está en main». Fue cierto hasta el 14/9 a la
+tarde y lo desmintió la promoción de esa misma noche. No se detectó antes por un defecto de la
+medición, no por falta de mirada: `frontend-monorepo#983` se mergeó con **squash y el mensaje
+editado**, así que su patch-id cambió y `git cherry` no lo reconocía — el tablero lo mostraba «en
+ningún ambiente» teniéndolo en `main`. Arreglado el 15/9: ahora la medición usa además el commit del
+PR. Es la tarea 84.)*
 
 **El conocimiento ya graduó a `context/`** (nodos `merchants`, `hardcodes-entidades`, `backoffice`,
 `entities`, `motai`), así que de acá para abajo queda la historia de cómo se llegó — lo que evita
@@ -23,17 +32,19 @@ del tablero (`Efforts()` saltea las archivadas) y con ella el cuerpo, la bitáco
 justo cuando todavía hay trabajo colgando: esto está en `qa` y no en `main`, y la fila 199 de PROD
 sigue sin corregir. Se vuelve a archivar cuando `qa` llegue a `main`.
 
-⚠ **Nada de esto está en `main`, `develop` ni `staging` — sólo en `qa`.** Verificado el 2026-09-14 con
-`git merge-base --is-ancestor` sobre los cuatro commits. Por eso las dos secciones que graduaron llevan `⏳ PENDIENTE DE MERGE` inline, y el nodo
-`merchants` lleva además el `pending_merge` estructurado en su `map.json` para que `alinear.py` dispare
-la señal 🔁 el día que lleguen. **Lo único que queda de Alta es promoción de ambiente, no trabajo.**
+✔ **Las dos marcas `⏳ PENDIENTE DE MERGE` y el `pending_merge` del `map.json` de `merchants` se
+BORRARON el 15/9**, porque lo que anunciaban ya llegó: verificado archivo por archivo contra `main`
+(`action-error-banner.tsx`, `pages`/`welcome` en `allied-theme/types`, `offersPlanChoice` en
+`lender.constants.ts`) y con `git diff origin/main origin/qa` sobre esas rutas, que da **vacío**.
+⚠ Queda pendiente `develop` y `staging`, que siguen sin nada de esto — y la **fila 199 de PROD**, que
+es el motivo por el que esta tarea NO se archiva todavía.
 
 **Dónde quedó cada cosa:**
 
 | lo que se aprendió | dónde vive ahora | estado |
 |---|---|---|
-| las páginas propias del comercio (`allieds.pages.welcome`) y por qué NO son la bienvenida de la entidad | `merchants` §10 | ⏳ en `qa` |
-| el selector de plan se decide por CANTIDAD de planes, no por entidad (`offersPlanChoice`) | `hardcodes-entidades`, en «Ya es config 🟢» | ⏳ en `qa` |
+| las páginas propias del comercio (`allieds.pages.welcome`) y por qué NO son la bienvenida de la entidad | `merchants` §10 | ✅ en `main` |
+| el selector de plan se decide por CANTIDAD de planes, no por entidad (`offersPlanChoice`) | `hardcodes-entidades`, en «Ya es config 🟢» | ✅ en `main` |
 | dar de alta una entidad sin SQL a mano (`LenderRulesWriterService` + `LenderReadinessService`) | `backoffice` | ✅ en `main` |
 | el PEP se habilita en `lenders.document_types` de la ENTIDAD, y el país es TECHO no piso | `entities` | ✅ en `main` |
 | la 193 corre `product='rto'` con calculadora propia | `motai` | ✅ en `main` |
@@ -874,6 +885,18 @@ Y los dos chequeos que no son un comando:
       | jq '.data.userRequest.lender | {show_intro_screen, description, intro_background_url}'
 
 ## Registro
+
+### 2026-09-15
+
+**Llegó a `main`, y se supo por un arreglo de la medición.** El barrido de entrega (tarea 84) destapó
+que el tablero mostraba estas ramas como «en ningún ambiente» teniendo dos de ellas en `main`: el
+squash con el mensaje editado le cambia el patch-id y `git cherry` deja de reconocerlas. Con la
+segunda señal —el commit del PR— los cuatro PRs dan `qa` + `main`, y el merge que los trajo es
+`f8a802b6 "Qa (#1012)"` del 14/9 a la noche. Se borraron las dos marcas `⏳ PENDIENTE DE MERGE`
+(`merchants` §10 y `hardcodes-entidades`) y el `pending_merge` del `map.json`, después de verificar
+archivo por archivo contra `main` y de comprobar que `git diff origin/main origin/qa` sobre esas rutas
+da vacío. El oráculo del nodo `merchants` sigue en KEPT 57 / DROPPED 0 y `context-lint` pasa.
+La tarea NO se archiva: falta la fila 199 de PROD, y `develop`/`staging` siguen sin nada de esto.
 
 ### 2026-09-14 · graduada: lo aprendido pasó a `context/`, y de paso el árbol quedó menos falso
 

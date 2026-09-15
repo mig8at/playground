@@ -153,10 +153,6 @@ presentarlas por comercio (y volverse pantalla de entidad, como dice el esquema)
 
 ### 10. Las páginas propias del comercio (`allieds.pages`)
 
-> ⏳ **PENDIENTE DE MERGE** — esto vive en `qa` (PR `frontend-monorepo#983`), no en `main`. El módulo
-> `allied-theme` **sí** está en `main`; lo que falta son las ~92 líneas de `pages`/`welcome` y el
-> `action-error-banner.tsx`. Al mergear: re-verificar con el oráculo y **borrar esta marca**.
-
 Un comercio puede traer **pantallas que el wizard le dibuja a él y a nadie más**, dentro de la misma
 respuesta de `GET /api/loans/allied/{hash}` (`modules/allied-theme/types/allied-theme.ts`). Hoy existe
 una: `welcome`, la bienvenida, lo primero que ve el cliente al entrar.
