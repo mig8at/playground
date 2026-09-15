@@ -9,7 +9,7 @@
 // ⚠ NO se pega a ningún backend acá: `sucursalDelAsesor` sale por red y eso haría la prueba depender
 // del ambiente. Lo que se fija es la DECISIÓN —comparar y redactar— que es donde estaba el hueco.
 import { expect, test } from '@playwright/test';
-import { avisoDeRedireccion, avisoDesajuste, hashDelCatalogo, type Desajuste } from './preflight-sucursal.ts';
+import { avisoDeRedireccion, avisoDesajuste, hashDelCatalogo, subDelAsesor, type Desajuste } from './preflight-sucursal.ts';
 
 const base = (over: Partial<Desajuste> = {}): Desajuste => ({
       coincide: false, comprobado: true, slug: 'pullman', target: 'qa',
@@ -74,5 +74,33 @@ test.describe('el hash del catálogo', () => {
 
       test('un slug que el catálogo no conoce no inventa un hash', () => {
             expect(hashDelCatalogo('comercio-que-no-existe-xyz', 'qa')).toBe('');
+      });
+});
+
+test.describe('el sub del asesor', () => {
+      // 🔴 Ésta es la que falló en silencio: el caminador leía SÓLO la variable de entorno, y en `local`
+      // no está — así que el chequeo se saltaba y parecía que no había desajuste. Un chequeo que se
+      // saltea se lee igual que uno que pasó.
+      test('cae a .flows.json cuando la variable de entorno no está', () => {
+            const previo = process.env.E2E_ASESOR_SUB;
+            delete process.env.E2E_ASESOR_SUB;
+            try {
+                  // El `.flows.json` de esta máquina declara un asesor; lo que se fija es que NO devuelva
+                  // vacío por no haber mirado ahí.
+                  expect(subDelAsesor()).not.toBe('');
+            } finally {
+                  if (previo !== undefined) process.env.E2E_ASESOR_SUB = previo;
+            }
+      });
+
+      test('la variable de entorno manda sobre el catálogo', () => {
+            const previo = process.env.E2E_ASESOR_SUB;
+            process.env.E2E_ASESOR_SUB = 'sub-de-la-variable';
+            try {
+                  expect(subDelAsesor()).toBe('sub-de-la-variable');
+            } finally {
+                  if (previo === undefined) delete process.env.E2E_ASESOR_SUB;
+                  else process.env.E2E_ASESOR_SUB = previo;
+            }
       });
 });

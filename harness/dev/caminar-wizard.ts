@@ -270,6 +270,21 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
         } catch (e) {
             return terminar('trabado', `no pude leer la sesión cacheada en ${ruta}: ${(e as Error).message}`);
         }
+        /* ⚠ ¿LA SUCURSAL QUE PEDISTE ES LA QUE VA A USAR EL WIZARD? En el canal de asesor NO la decide
+         * el caso: la decide el BACKEND, según a qué sucursal esté asignado el asesor de la sesión. Si
+         * difieren, el wizard te redirige allá y **las entidades son otras** — el caso pide la #77 y el
+         * listado trae las de otro comercio, lo que se lee como «esa entidad no salió».
+         * Medido el 2026-09-15: una corrida pidió `13874eb6` y caminó `f0548728`, porque otra sesión
+         * había reasignado al asesor por afuera. No corta la corrida: avisa, porque correr contra la
+         * sucursal que el asesor ya tiene es un caso legítimo. Sólo lectura. */
+        try {
+            const { preflightSucursal, avisoDesajuste, subDelAsesor } = await import('../pkg/preflight-sucursal.ts');
+            const sub = subDelAsesor();
+            if (sub) {
+                const d = await preflightSucursal(br.hash, TARGET, sub);
+                for (const l of avisoDesajuste(d)) log(l);
+            }
+        } catch { /* el chequeo es una ayuda: si falla, la corrida sigue */ }
     }
     // La traza de ESTE caso. Su salida va al buffer del caso, no a consola: en paralelo, N casos
     // escribiendo a la vez dan un log ilegible.

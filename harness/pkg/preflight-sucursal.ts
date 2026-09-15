@@ -52,6 +52,26 @@ export function hashDelCatalogo(slug: string, target = 'local'): string {
       return /^[0-9a-f]{8}$/.test(s) ? s : '';
 }
 
+/**
+ * EL SUB DEL ASESOR, por la MISMA cadena que usa todo el harness: `E2E_ASESOR_SUB` del
+ * `.env.<target>` y, si no está, `asesor.sub` de `.flows.json`.
+ *
+ * ⚠ Vive acá porque los tres que preguntan lo resolvían cada uno a su manera: `bin/asesor` con
+ * `envget` + `fget`, el panel con `asesorSub()`, y el caminador leía sólo la variable de entorno — que
+ * en `local` no está, así que su chequeo se saltaba sin decir nada y parecía que no había desajuste.
+ * Tres implementaciones de la misma pregunta es como una se queda atrás.
+ */
+export function subDelAsesor(): string {
+      const deEnv = env('E2E_ASESOR_SUB').trim();
+      if (deEnv) return deEnv;
+      try {
+            const j = JSON.parse(readFileSync(join(ROOT, '.flows.json'), 'utf8'));
+            return String(j?.asesor?.sub ?? '').trim();
+      } catch {
+            return '';
+      }
+}
+
 /** La base del backend para un target, la misma cadena que usa el resto del harness. */
 function apiBase(): string {
       const b = env('E2E_API_BASE_URL') || `${env('E2E_MOCK_URL', 'http://localhost').replace(/\/$/, '')}/api`;
