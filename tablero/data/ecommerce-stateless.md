@@ -35,9 +35,9 @@ llevó los cinco PRs de corrección que vinieron después**; cuatro no están en
 —**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
 junio que el rebuild no se llevó».
 
-**El próximo paso es:** pedir revisor para los dos PRs — **#1015** (3 archivos → `qa`) y **#1016**
-(28 → `main`, el que devuelve el código) — y avisar a quien promueve que **#1016 va antes de la
-próxima promoción `qa` → `main`**, o esa promoción da conflicto. El detalle de las corridas que lo
+**El próximo paso es:** pedir revisor para **#1016** — el que devuelve el código a `main`— y avisar a
+quien promueve que **va antes de la próxima promoción `qa` → `main`**, o esa promoción da conflicto.
+**#1015 ya está en `qa`.** El detalle de las corridas que lo
 respaldan, en el Registro del 15/9 (4).
 
 *(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
@@ -85,12 +85,12 @@ el propio #997 introdujo de nuevo.
 >
 > | PR | → | qué | tamaño |
 > |---|---|---|---|
-> | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · Sonar ✅ |
+> | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
 > | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch |
 >
 > **EL ORDEN DE MERGE, y el único punto donde importa:**
 >
-> 1. **#1015 → `qa`** — cuando sea. Con esto se prueba en qa.
+> 1. ~~#1015 → `qa`~~ — ✅ **hecho el 15/9.**
 > 2. **#1016 → `main`** — **ANTES de cualquier promoción `qa` → `main`.**
 > 3. La promoción `qa` → `main` (Laura y Oscar) — después de las dos. **Medido: limpia, sin
 >    conflictos**, y los cuatro archivos de ecommerce sobreviven.
@@ -232,8 +232,8 @@ revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
 | front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
 | front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `f443ecad` |
 | front | ~~#1014~~ el rebote + la reposición | `fix/ecommerce/cuota-inicial-rebote-asesor` | 60 arch, **56 ajenos** | — | **CERRADO** 15/9 | reemplazado por #1015 |
-| front | **#1015** el rebote a `/solicitar` del asesor con cuota inicial | `fix/ecommerce/cuota-inicial-rebote-asesor-qa` | +54/−9 · **3 arch** | `qa` | 15/9 · **ABIERTO** | — |
-| front | **#1016** repone la entrada del checkout y la bienvenida, con el rebote arreglado | `restore/ecommerce-checkout-y-rebote` | +1.108/−173 · 28 arch | `main` | 15/9 · **ABIERTO** | — |
+| front | **#1015** el rebote a `/solicitar` del asesor con cuota inicial | `fix/ecommerce/cuota-inicial-rebote-asesor-qa` | +54/−9 · **3 arch** | `qa` | 15/9 · **MERGEADO** | — |
+| front | **#1016** repone la entrada del checkout y la bienvenida, con el rebote arreglado | `restore/ecommerce-checkout-y-rebote` | +1.136/−176 · 28 arch | `main` | 15/9 · **ABIERTO** | — |
 
 *(Medido el 2026-09-15 con `gh pr list --author mig-creditop --state all` filtrando por
 `ecommerce|checkout|cuota|stateless|sala` en título y rama. Horas de Colombia.)*
@@ -737,6 +737,40 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-15 (7) · #1015 MERGEADO a `qa`, y los 6 hallazgos de Sonar en #1016
+
+**#1015 está en `qa`** (mergeado por Miguel; al cierre de esta entrada el despliegue aún no terminó).
+
+**#1016 tenía 6 hallazgos de Sonar, y la compuerta caía por UNO solo:** «B Security Rating on New
+Code», del literal `|| "http://legacy-backend.inertia-develop"` en el `getApiUrl()` de
+`phone-otp-legacy.repository.ts`.
+
+⚠ **Y ese literal no lo introduce el PR: `qa` tiene la misma línea.** Aparece como «código nuevo»
+porque el revert-del-revert repone el archivo entero. **Es un costo inherente de un PR de
+reposición**: todo lo que vuelve cuenta como nuevo, incluidos los problemas viejos que arrastraba.
+
+**Arreglado con el patrón que ya usa el repo** (`nequi-payment`, `lender-return`, `user-request`): la
+base sale de `VITE_API_URL` **sin respaldo** y falla explícito si falta. Ese `||` no protegía de nada
+—`VITE_API_URL` ya es obligatoria, `env.server.ts` la declara en zod y `init()` aborta el arranque si
+falta— y lo único que podía hacer era mandar tráfico **en claro al cluster de desarrollo**. Aplicado
+también a su gemelo **`phone-otp.repository.ts`**, que tenía la misma línea y Sonar **no** había
+reportado — porque su línea 7 no cae en el código nuevo del PR. Un problema real que la herramienta
+no marcó.
+
+De los otros cinco, dos se arreglaron por ser de cinco minutos y estar en archivos que el PR ya toca:
+props como `Readonly` en `Landing.tsx` y `\D` en vez de `[^0-9]` en `phone-number-step-form.tsx`.
+
+### ⚠ Dos de los seis eran FALSOS POSITIVOS, y la causa es el idioma
+
+`loan-request-form:419` y `loan-option.entity:234` los marcaba como «Complete the task associated to
+this "TODO" comment». No hay ningún TODO: **Sonar matchea la palabra española «todo» dentro de
+prosa** — *«por qué no es TODO lo que llega»*, *«resuelve TODO acá»—. Es un costo recurrente de
+escribir los comentarios en español, que es la convención del repo: no se cambia, se sabe.
+
+El tercero —`amount-form:205`— **sí es un TODO de verdad**, y lo que pide es confirmar un copy **con
+Lau y Oscar**. Borrarlo para callar a Sonar sería perder la pregunta. Los tres quedan, y son Info: no
+tocan la compuerta.
 
 ### 2026-09-15 (6) · los dos PRs finales, un commit cada uno, y el orden de merge medido
 
