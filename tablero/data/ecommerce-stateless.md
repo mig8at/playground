@@ -17,33 +17,47 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 
 ## Si retomás esto sin contexto, empezá acá
 
-**El arreglo de autogestión está vivo en `qa` y FUNCIONA — VISTO en el navegador.** Sin sesión de
-asesor, el front de `qa` salta del listado a `/self-service/ec977139/502380/confirmation` solo, sin el
-arnés en el medio (Registro del 16/9 (3)). **Lo que QA reporta como falla son corridas con sesión de
-asesor, y ahí ir a `/continue` es el comportamiento diseñado.** Medido el 16/9 contra `qa`
-con CrediPullman (77) sobre Amoblando Pullman (94): las seis solicitudes que fallan llevan todas
-`corporate_user_id = 276231` (`oscar+pullman@creditop.com`, «CREDITOP TEST»), **incluida la del canal
-ecommerce**; la corrida propia sin asesor (uReq 502379) no disparó el WhatsApp de handoff y cerró en
-estado 11. El rastro que lo prueba es `twilio_logs.method = 'sendSelfManagement'`, porque lo gobierna
-el mismo booleano que puebla `continueUrl`. El detalle, en el Registro del 16/9 (2).
+**TODO está en `qa` y desplegado. Lo que falta es que QA lo pruebe.** Al 16/9 19:18: backend
+**#1409** (el flujo por origen) y **#1388**, y front **#995**, los tres con su despliegue en verde,
+encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban.
 
-**El próximo paso es:** pedirle a QA que repita en **sesión limpia** (incógnito o logout previo), por
-`/self-service/ec977139/solicitar` o por el checkout de la tienda — ahí debe caer en
-`/self-service/<hash>/<ureq>/confirmation`. Y si lo que se quiere es que también continúe en el lugar
-**con** asesor, eso **no es un bug**: es la inversión de precedencia que ya se evaluó y se descartó por
-alcance, escrita en el docblock de `LenderTabBehaviorResolver::continuesInPlace`. Es otra tarea.
+**El próximo paso es:** que QA recorra los tres canales en `qa`. El guion está en
+§«Cómo validar», y lo importante es el aviso de arriba de esa sección: **sin sesión de asesor** —
+ventana de incógnito o logout previo—, porque el wizard sirve los tres canales desde el mismo dominio
+y una sesión abierta hace que la compra se comporte como mostrador. Eso fue lo que hizo fallar las
+pruebas del 15 y el 16.
 
-**Lo que se descartó en el camino** (Registro del 16/9): que no se hubiera subido —front #1015/#1018 y
-back #1402 están en `origin/qa` con los tres despliegues en verde—, y que el problema fuera el hueco de
-la credencial. ⚠ Ese hueco **existe igual y sigue abierto**: `$inPlatformContinueUrl` sólo se asigna en
-la rama `empty($credential)`, así que una entidad en plataforma **con** credencial nunca dispara el
-arreglo (rt=4 prende `standBy` sin poblar la url; rt=2/3 ni tienen `case`). Tres pares reales de la base
-de qa caen ahí, los tres con Credifamilia. No es lo que QA está viendo, pero es deuda con nombre.
+**Lo que se espera ver:** compra desde la tienda y autogestión **siguen en la pantalla de
+confirmación**; con asesor **sí** aparece la pantalla de entrega, que ahí es lo correcto.
 
-⚠ **Dos herramientas mienten en este terreno, y las dos costaron corridas hoy:** `dev/caminar-wizard.ts`
-no puede ejercitar una rt=2 acá —su siembra no la deja salir en el listado— y `dev/loki-trace.ts` no
-puede separar `dev` de `qa`, porque la etiqueta `environment` no tiene valor `qa`. Las dos, en el
-Registro del 16/9 (2).
+### `main` queda para después, y a propósito
+
+Nada va a `main` hasta que QA apruebe: cuando eso pase, la promoción `qa`→`main` se lleva todo lo de
+arriba sin PRs extra.
+
+⚠ **La única excepción es #1016, y no es de criterio.** Medido: `6fa13ae5` (#997) y `f443ecad` (#1005)
+**figuran como ancestros de `main`** —subieron con `Qa (#1007)` el 14/9— pero Abel revirtió su
+CONTENIDO con #1013 esa misma noche, así que `apps/…/ecommerce/checkout.tsx` **no existe en `main`**.
+Git los da por mergeados: la promoción no tiene nada que traer. Por eso #1016 repone el contenido como
+commits nuevos, y por eso necesita su propio PR.
+
+✔ **Y #1016 ya tiene #1018 portado**: cherry-pick limpio, commit `33649662` sobre `f474b237`, con el
+build verde. **Falta pushearlo** (va por SHA: la rama está tomada por el worktree de otra sesión).
+
+⚠ **Orden cuando llegue el momento:** primero la promoción `qa`→`main`, después #1016. Al revés,
+producción estrena la entrada de ecommerce con el backend viejo y el comprador cae en
+`/continue?url=null` — justo el bug que esto arregla.
+
+### Tres cosas abiertas, ninguna bloqueante
+
+- **El hueco de la credencial**: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
+  así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
+  base de qa, los tres con Credifamilia.
+- **19 archivos de prueba que no corren**: el `include` de vitest del wizard cubre
+  `lenders-marketplace/src/lib/utils/**` y hay 20 pruebas bajo `src/lib/**`. Ensancharlo lleva de 492 a
+  703 pruebas y destapa 4 fallas reales. Registro del 16/9 (10).
+- **La siembra del caminador**: no puede ejercitar una rt=2 porque siembra antes del formulario y el
+  `action` la pisa. Registro del 16/9 (3).
 
 ### Lo de antes, que sigue valiendo
 
@@ -1222,6 +1236,114 @@ Pullman, **sin sesión de asesor**, contra `originaciones-qa.dev.creditop.com`.
 **Lo que NO se verificó:** contra qué URL, con qué comercio y con qué entidad se corrió la prueba que
 falló. Sin eso no se puede elegir entre las tres explicaciones — y las tres tienen arreglo distinto.
 
+### 2026-09-15 (11) · el botón de validar no hace nada cuando la entidad pide cuota inicial
+Probando el canal en el ambiente de pruebas apareció una tarjeta con «La cuota inicial mínima es
+$321.000» y el botón **no hace nada**: ni avanza, ni muestra un error, ni deja rastro en consola.
+Medido: la solicitud quedó sin entidad elegida y sin moverse de estado, y no salió ni una petición —
+o sea que el freno es del navegador, no del backend.
+
+**La causa es mía, del cambio del 14/9 que sacó la cuota inicial del listado en este canal.** Esconder
+el campo no elimina el mínimo que exige la entidad: lo vuelve insatisfacible. El botón evalúa «esta
+entidad pide cuota inicial y no hay valor», escribe el mensaje «Ingresa la cuota inicial para
+continuar» **dentro del formulario que acabamos de esconder**, hace scroll hacia ese formulario oculto
+y corta. Desde el lado del cliente eso es un botón muerto, y desde el lado del comprador es un
+callejón: ya pagó su carrito y no puede terminar de financiar.
+
+⚠ **El propio comentario del cambio dice lo que debería pasar** —«primero elige entidad, y la cuota
+inicial se resuelve después si esa entidad la exige»— y afirma que el cobro posterior no se toca
+porque «el valor llega en 0 y el redirect no dispara solo». Eso último es justo lo que falla: el
+redirect no dispara porque **el envío nunca ocurre**. La condición que bloquea tiene que mirar si el
+canal ofrece el campo; si no lo ofrece, dejar pasar la elección y cobrar en su pantalla.
+
+**Alcance, medido.** En producción **no es alcanzable hoy**: el despliegue vigente es el revert y la
+línea no está en la punta de la rama principal. Pero la configuración de producción tiene **7
+sucursales de ecommerce con 6 entidades** que tienen al menos una categoría con cuota inicial — una se
+llama «Refurbicredit ecommerce». O sea que **entra en producción el día que se reinserte el trabajo**.
+
+⚠ **Y eso lo vuelve un bloqueante del PR de reinserción**, que es justo el que espera el visto bueno de
+QA sobre este canal: es un defecto que QA encuentra apretando un botón.
+
+**Cómo se confirmó que en producción todavía no pasa** (y por qué el primer número era engañoso): el
+evento de selección fallida por cuota inicial tiene **170 ocurrencias en producción en 30 días**, que
+leídas solas parecen un incendio. Separadas por canal son **170 del asesor y 0 de ecommerce** — y en el
+del asesor el campo SÍ se muestra, así que ese mensaje es la interacción normal, no un callejón. La
+primera consulta de alcance también fue un falso negativo: buscó el mínimo en la tabla del par
+comercio-entidad y el mínimo real vive en la **categoría** de la entidad, como porcentaje.
+
+### 2026-09-15 (12) · PR #1018 · el botón muerto, arreglado
+Rama limpia desde `qa` al día, **un commit, 6 archivos, +150/−10**, todo dentro del módulo del
+marketplace: [#1018](https://github.com/Creditop-SAS/frontend-monorepo/pull/1018) → `qa`.
+
+**Lo que se arregló y por qué esa forma.** Había **una sola** idea —«¿este canal pide la cuota inicial
+acá?»— escrita en **un solo lugar**: la condición que decide si el campo se renderiza. Las otras dos
+cosas que dependen de ella no la miraban: el botón, que exigía un valor igual, y el aviso de la
+tarjeta, que hablaba de un mínimo incumplido. De ese desacuerdo salía el botón muerto. Ahora la idea
+tiene nombre y las tres la usan.
+
+Cuando el canal no ofrece el campo, **la elección pasa**. Eso se pudo decidir con un dato, no con una
+opinión: en la configuración de producción, las seis entidades con categoría que pide cuota inicial en
+sucursales de ecommerce son **todas de las que cierran en plataforma**, y ésas cobran la cuota por el
+camino de adentro. O sea que dejar pasar no saltea el cobro: lo devuelve a donde corresponde.
+
+Y el aviso pasa de error bloqueante a informativo —«No olvides que en un paso posterior debes realizar
+el pago de $X»—, que es lo que Miguel describió como el comportamiento buscado. **En el canal del
+asesor no cambia nada**: ahí el campo existe, y el error accionable que lleva a él sigue igual.
+
+⚠ **La prueba que se agregó no cubre el botón, cubre el modo de fallar SILENCIOSO.** El aviso
+informativo se muestra sólo si el mínimo es mayor que cero; si alguien deja de poblar ese número,
+`undefined > 0` es falso, el aviso **desaparece sin ningún error** y el comprador elige entidad sin
+enterarse de que tiene un pago pendiente. Cuatro casos fijan que el número viaje en las tres ramas de
+la validación y que un cero llegue como cero — «no pide cuota inicial» y «no sé cuánto pide» no pueden
+ser el mismo valor.
+
+**Tres cosas de la verificación que vale registrar:**
+- **el build atrapó lo que el chequeo de tipos no vio**: un reexport que faltaba en el índice del
+  contexto. Es la razón por la que en este repo la vara es el build y no el typecheck;
+- **lint y pruebas de ese módulo ya fallaban en `qa`** antes de tocar nada — se midió con y sin los
+  cambios para no atribuirse deuda ajena ni esconder deuda propia: lint pasa de 20 hallazgos a 19, la
+  complejidad del componente queda igual, y de los 4 tests que fallan ninguno es de lo tocado;
+- **las pruebas del módulo no corren en esta máquina** por deriva del árbol instalado (dos versiones
+  de vite y dos de vitest). Pre-existente y también en `qa` limpio. Se corrieron con la versión que
+  declara el lock, y **no se reinstaló nada a propósito**: el servidor de desarrollo estaba en uso.
+
+**Orden de merge: este PR ANTES del de reinserción.** Hoy en producción el callejón no es alcanzable
+—el despliegue vigente es el revert—, pero la configuración de producción tiene 7 sucursales de
+ecommerce expuestas, así que entra el día que se reinserte el trabajo del canal. Reinsertar primero
+sería publicar el botón muerto.
+
+### 2026-09-15 (13) · PR legacy-backend#1402 · el flujo sin asesor ya no entrega el proceso al que está mirando
+Rama limpia desde `qa`, **un commit, un archivo, cuatro líneas efectivas**:
+[legacy-backend#1402](https://github.com/Creditop-SAS/legacy-backend/pull/1402) → `qa`.
+
+**Lo que se arregló.** Elegir una entidad en plataforma sin asesor dejaba al cliente en la pantalla de
+entrega en vez de continuar. Ya existía la rama que hace lo correcto —su propio comentario dice que en
+autogestión no hay a quién entregarle nada—, pero antes corría el envío del mensaje, y para una entidad
+en plataforma **el link que manda es nuestra propia pantalla de confirmación**. O sea que se le avisaba
+al cliente por WhatsApp que siguiera en la página que estaba mirando, y ese aviso marcaba «ya se le
+entregó algo», que es justo la condición que la rama de continuar exige que NO esté. La misma marca
+habilitaba y impedía.
+
+Ahora la decisión se calcula **una vez y antes** de los avisos, y la comparten los tres lugares que
+dependían de ella por separado. Es el mismo patrón que el PR del listado: una idea que estaba escrita en
+un solo lugar y que otros dos consultaban de memoria.
+
+⚠ **Y la primera versión de este arreglo iba a romper otro caso.** Suprimir el mensaje «a secas» dejaba
+sin aviso a un par que hoy sí lo recibe y que NO continúa en el lugar: quedaba sin mensaje y sin destino.
+Por eso la decisión se calcula con el resolver completo y no con «no hay asesor». Se vio pensándolo, no
+corriéndolo — pero se vio antes de escribirlo.
+
+**Verificación: los tres canales, antes y después.** El del asesor queda idéntico (medido: sigue yendo a
+su pantalla de entrega con el handoff, y las 14 pruebas del resolver siguen verdes). Los dos sin asesor
+pasan a la confirmación. Y el de la tienda **cierra entero en un solo recorrido: doce pantallas hasta
+«Autorizada»**, que es exactamente lo que Miguel pidió.
+
+⚠ **No se agregó prueba automatizada, y el motivo queda escrito:** el idiom del repositorio para esta
+zona recorre el camino por HTTP sobre un esquema propio, y armarlo para este endpoint era desproporcionado
+para cuatro líneas. La guarda de regresión es el arnés, que al caminar cualquiera de los dos canales avisa
+si el front vuelve a aterrizar en la pantalla de entrega sin nada que entregar.
+
+**Orden:** este PR y el del listado (#1018) son independientes — tocan repos distintos y no se pisan.
+
 ### 2026-09-15 (10) · los selects pegados eran el AUTORRELLENO: creía que el plazo era una fecha
 
 > **MEDICIÓN · 2026-09-15** — la entrada (9) se quedó a mitad de camino: acertó que las dos listas
@@ -1722,13 +1844,30 @@ Ambiente **QA**. Comercio: cualquiera con tienda configurada — se probó con *
 **Amoblar**. No hace falta usuario de asesor: el comprador entra sin sesión, desde la tienda.
 
 ## Cómo validar
+
+⚠ **Antes que nada: abrí una ventana de incógnito, o cerrá sesión.** Si el navegador tiene abierta una
+sesión de asesor, el flujo se comporta como el de mostrador aunque entres por la tienda — el wizard
+sirve los tres canales desde el mismo dominio y la sesión viaja igual. Es lo que hizo fallar las
+pruebas anteriores.
+
+**A · La compra desde la tienda (sin sesión)**
 1. Iniciar una compra desde la tienda y elegir pagar con crédito. Debe abrirse el formulario con el
    **monto del carrito ya puesto y bloqueado**.
 2. Continuar hasta el código de verificación por celular y validarlo.
-3. En la pantalla de datos personales, comprobar que **los campos que el comercio envió están llenos y
-   no se pueden editar**, y que los que el comercio no envió sí se pueden escribir.
-4. Elegir una entidad y, si pide cuota inicial, completar el pago.
-5. Al cerrar, comprobar que **la tienda recibe el resultado** y que aparece el botón para volver a ella.
+3. En datos personales, comprobar que **los campos que el comercio envió están llenos y no se pueden
+   editar**, y que los que el comercio no envió sí se pueden escribir.
+4. Elegir una entidad. Si es una entidad **en plataforma**, el flujo debe seguir **en la misma
+   pantalla**, en la de confirmación — **no** debe aparecer la pantalla que dice «continuá desde tu
+   celular» o «te enviamos un link por WhatsApp». Eso es lo que se arregló.
+5. Si pide cuota inicial, completar el pago.
+6. Al cerrar, comprobar que **la tienda recibe el resultado** y que aparece el botón para volver a ella.
+
+**B · El mismo comercio, entrando solo (sin sesión y sin pasar por la tienda)**
+Mismo resultado que A en el paso 4: sigue en la pantalla de confirmación.
+
+**C · El mismo comercio, con asesor**
+Acá **sí** tiene que aparecer la pantalla de entrega: el proceso pasa del asesor al cliente, y eso es
+lo correcto. Si en este caso ves la confirmación, ESO es el error.
 
 ⚠ Si en el primer paso se responde **«Sí»** a «¿el cliente tiene cupo disponible…?», el listado puede
 salir vacío: ese flujo muestra sólo entidades sin integración directa, y no todos los comercios tienen.
@@ -1748,111 +1887,3 @@ Para recorrer el flujo completo, responder **«No»**.
 - **Producto**: falta confirmar en qué momento se cobra la cuota inicial cuando el comprador continúa
   solo desde su celular.
 - **Promoción a producción**: el cambio está en QA; hasta que se promueva no aplica a clientes.
-
-### 2026-09-15 (9) · el botón de validar no hace nada cuando la entidad pide cuota inicial
-Probando el canal en el ambiente de pruebas apareció una tarjeta con «La cuota inicial mínima es
-$321.000» y el botón **no hace nada**: ni avanza, ni muestra un error, ni deja rastro en consola.
-Medido: la solicitud quedó sin entidad elegida y sin moverse de estado, y no salió ni una petición —
-o sea que el freno es del navegador, no del backend.
-
-**La causa es mía, del cambio del 14/9 que sacó la cuota inicial del listado en este canal.** Esconder
-el campo no elimina el mínimo que exige la entidad: lo vuelve insatisfacible. El botón evalúa «esta
-entidad pide cuota inicial y no hay valor», escribe el mensaje «Ingresa la cuota inicial para
-continuar» **dentro del formulario que acabamos de esconder**, hace scroll hacia ese formulario oculto
-y corta. Desde el lado del cliente eso es un botón muerto, y desde el lado del comprador es un
-callejón: ya pagó su carrito y no puede terminar de financiar.
-
-⚠ **El propio comentario del cambio dice lo que debería pasar** —«primero elige entidad, y la cuota
-inicial se resuelve después si esa entidad la exige»— y afirma que el cobro posterior no se toca
-porque «el valor llega en 0 y el redirect no dispara solo». Eso último es justo lo que falla: el
-redirect no dispara porque **el envío nunca ocurre**. La condición que bloquea tiene que mirar si el
-canal ofrece el campo; si no lo ofrece, dejar pasar la elección y cobrar en su pantalla.
-
-**Alcance, medido.** En producción **no es alcanzable hoy**: el despliegue vigente es el revert y la
-línea no está en la punta de la rama principal. Pero la configuración de producción tiene **7
-sucursales de ecommerce con 6 entidades** que tienen al menos una categoría con cuota inicial — una se
-llama «Refurbicredit ecommerce». O sea que **entra en producción el día que se reinserte el trabajo**.
-
-⚠ **Y eso lo vuelve un bloqueante del PR de reinserción**, que es justo el que espera el visto bueno de
-QA sobre este canal: es un defecto que QA encuentra apretando un botón.
-
-**Cómo se confirmó que en producción todavía no pasa** (y por qué el primer número era engañoso): el
-evento de selección fallida por cuota inicial tiene **170 ocurrencias en producción en 30 días**, que
-leídas solas parecen un incendio. Separadas por canal son **170 del asesor y 0 de ecommerce** — y en el
-del asesor el campo SÍ se muestra, así que ese mensaje es la interacción normal, no un callejón. La
-primera consulta de alcance también fue un falso negativo: buscó el mínimo en la tabla del par
-comercio-entidad y el mínimo real vive en la **categoría** de la entidad, como porcentaje.
-
-### 2026-09-15 (10) · PR #1018 · el botón muerto, arreglado
-Rama limpia desde `qa` al día, **un commit, 6 archivos, +150/−10**, todo dentro del módulo del
-marketplace: [#1018](https://github.com/Creditop-SAS/frontend-monorepo/pull/1018) → `qa`.
-
-**Lo que se arregló y por qué esa forma.** Había **una sola** idea —«¿este canal pide la cuota inicial
-acá?»— escrita en **un solo lugar**: la condición que decide si el campo se renderiza. Las otras dos
-cosas que dependen de ella no la miraban: el botón, que exigía un valor igual, y el aviso de la
-tarjeta, que hablaba de un mínimo incumplido. De ese desacuerdo salía el botón muerto. Ahora la idea
-tiene nombre y las tres la usan.
-
-Cuando el canal no ofrece el campo, **la elección pasa**. Eso se pudo decidir con un dato, no con una
-opinión: en la configuración de producción, las seis entidades con categoría que pide cuota inicial en
-sucursales de ecommerce son **todas de las que cierran en plataforma**, y ésas cobran la cuota por el
-camino de adentro. O sea que dejar pasar no saltea el cobro: lo devuelve a donde corresponde.
-
-Y el aviso pasa de error bloqueante a informativo —«No olvides que en un paso posterior debes realizar
-el pago de $X»—, que es lo que Miguel describió como el comportamiento buscado. **En el canal del
-asesor no cambia nada**: ahí el campo existe, y el error accionable que lleva a él sigue igual.
-
-⚠ **La prueba que se agregó no cubre el botón, cubre el modo de fallar SILENCIOSO.** El aviso
-informativo se muestra sólo si el mínimo es mayor que cero; si alguien deja de poblar ese número,
-`undefined > 0` es falso, el aviso **desaparece sin ningún error** y el comprador elige entidad sin
-enterarse de que tiene un pago pendiente. Cuatro casos fijan que el número viaje en las tres ramas de
-la validación y que un cero llegue como cero — «no pide cuota inicial» y «no sé cuánto pide» no pueden
-ser el mismo valor.
-
-**Tres cosas de la verificación que vale registrar:**
-- **el build atrapó lo que el chequeo de tipos no vio**: un reexport que faltaba en el índice del
-  contexto. Es la razón por la que en este repo la vara es el build y no el typecheck;
-- **lint y pruebas de ese módulo ya fallaban en `qa`** antes de tocar nada — se midió con y sin los
-  cambios para no atribuirse deuda ajena ni esconder deuda propia: lint pasa de 20 hallazgos a 19, la
-  complejidad del componente queda igual, y de los 4 tests que fallan ninguno es de lo tocado;
-- **las pruebas del módulo no corren en esta máquina** por deriva del árbol instalado (dos versiones
-  de vite y dos de vitest). Pre-existente y también en `qa` limpio. Se corrieron con la versión que
-  declara el lock, y **no se reinstaló nada a propósito**: el servidor de desarrollo estaba en uso.
-
-**Orden de merge: este PR ANTES del de reinserción.** Hoy en producción el callejón no es alcanzable
-—el despliegue vigente es el revert—, pero la configuración de producción tiene 7 sucursales de
-ecommerce expuestas, así que entra el día que se reinserte el trabajo del canal. Reinsertar primero
-sería publicar el botón muerto.
-
-### 2026-09-15 (11) · PR legacy-backend#1402 · el flujo sin asesor ya no entrega el proceso al que está mirando
-Rama limpia desde `qa`, **un commit, un archivo, cuatro líneas efectivas**:
-[legacy-backend#1402](https://github.com/Creditop-SAS/legacy-backend/pull/1402) → `qa`.
-
-**Lo que se arregló.** Elegir una entidad en plataforma sin asesor dejaba al cliente en la pantalla de
-entrega en vez de continuar. Ya existía la rama que hace lo correcto —su propio comentario dice que en
-autogestión no hay a quién entregarle nada—, pero antes corría el envío del mensaje, y para una entidad
-en plataforma **el link que manda es nuestra propia pantalla de confirmación**. O sea que se le avisaba
-al cliente por WhatsApp que siguiera en la página que estaba mirando, y ese aviso marcaba «ya se le
-entregó algo», que es justo la condición que la rama de continuar exige que NO esté. La misma marca
-habilitaba y impedía.
-
-Ahora la decisión se calcula **una vez y antes** de los avisos, y la comparten los tres lugares que
-dependían de ella por separado. Es el mismo patrón que el PR del listado: una idea que estaba escrita en
-un solo lugar y que otros dos consultaban de memoria.
-
-⚠ **Y la primera versión de este arreglo iba a romper otro caso.** Suprimir el mensaje «a secas» dejaba
-sin aviso a un par que hoy sí lo recibe y que NO continúa en el lugar: quedaba sin mensaje y sin destino.
-Por eso la decisión se calcula con el resolver completo y no con «no hay asesor». Se vio pensándolo, no
-corriéndolo — pero se vio antes de escribirlo.
-
-**Verificación: los tres canales, antes y después.** El del asesor queda idéntico (medido: sigue yendo a
-su pantalla de entrega con el handoff, y las 14 pruebas del resolver siguen verdes). Los dos sin asesor
-pasan a la confirmación. Y el de la tienda **cierra entero en un solo recorrido: doce pantallas hasta
-«Autorizada»**, que es exactamente lo que Miguel pidió.
-
-⚠ **No se agregó prueba automatizada, y el motivo queda escrito:** el idiom del repositorio para esta
-zona recorre el camino por HTTP sobre un esquema propio, y armarlo para este endpoint era desproporcionado
-para cuatro líneas. La guarda de regresión es el arnés, que al caminar cualquiera de los dos canales avisa
-si el front vuelve a aterrizar en la pantalla de entrega sin nada que entregar.
-
-**Orden:** este PR y el del listado (#1018) son independientes — tocan repos distintos y no se pisan.
