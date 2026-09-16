@@ -759,6 +759,48 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (10) · #1018 portado a #1016 — y 19 archivos de prueba que no corren
+
+> **MEDICIÓN · 2026-09-16** — `#1409`, `#1388` y `#995` ya están en `qa`. Falta #1016, y se le portó
+> #1018 con un cherry-pick **limpio, sin conflictos** (6 archivos, 150+/10−). Commit `33649662` sobre
+> `f474b237`. Build verde, pruebas iguales a la base.
+> **Cómo se vuelve a comprobar:**
+> `git show origin/qa:<validate-loan-amount.uc.ts> | grep -c minimumInitialFee` → 9, y lo mismo en la rama.
+
+| | `minimumInitialFee` |
+|---|---|
+| `qa` | 9 |
+| `main` | 5 |
+| #1016 **antes** | 5 |
+| #1016 **ahora** | **9** ✅ |
+
+De los 6 archivos de #1018, **cuatro quedaron idénticos a `qa`**; los otros dos difieren **sólo en el
+estilo de import** —`qa` usa rutas profundas por el refactor de #995, que va a `qa` y todavía no a
+`main`—. La lógica es la misma.
+
+### ⚠ Y de paso: la prueba que trae #1018 NO CORRE, ni acá ni en `qa`
+
+El `include` de vitest del wizard cubre `lenders-marketplace/src/lib/**utils**/**/*.test.ts`, y el
+archivo de #1018 vive en `src/lib/**application**/`. **Mismo `include` en `qa` y en `main`**, así que
+esa prueba entró a `qa` sin ejecutarse nunca.
+
+**No es un archivo: son 19.** Bajo `lenders-marketplace/src/lib/**` hay **20** archivos de prueba y el
+`include` cubre **uno** (`utils/submit-post-redirect.test.ts`).
+
+✔ **Medido qué pasaría al ensancharlo** a `src/lib/**`: de **492 a 703 pruebas** (+211), y aparecen
+**4 fallas reales** que hoy están a oscuras —el polling de Credifamilia (`fetch-lender-preapproval`) y
+tres del `action-text` de Nequi—. La de #1018 **pasa**.
+
+Es otro cambio, con su propio riesgo: no entra en #1016. Pero conviene abrirlo, porque hoy cualquier
+prueba que se escriba ahí adentro es decorativa. ⚠ Y es la misma lección que con `opensNewTab`:
+**arreglar el alcance de algo destapa todo lo que estaba detrás.**
+
+### Nota de método
+
+La rama de #1016 estaba tomada por el worktree de **otra sesión** (`fm-probe`), limpio y en el mismo
+commit. No se tocó: el cherry-pick se hizo en un worktree propio. Por eso el push va **por SHA** y no
+por nombre de rama.
+
 ### 2026-09-16 (9) · PR abierto: legacy-backend#1409 → `qa`
 
 > **MEDICIÓN · 2026-09-16** — la rama `fix/flujo-por-origen` se subió y el PR está abierto:
