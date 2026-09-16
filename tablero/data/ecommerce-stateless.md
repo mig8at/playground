@@ -1832,16 +1832,29 @@ el comercio manda un campo vacío, queda editable. Cuando la entidad elegida exi
 cobro se hace por pasarela antes de continuar. Y al terminar, el comercio recibe el resultado de la
 compra y el comprador tiene el botón para volver a la tienda.
 
+Y se corrige lo que hacía fallar el cierre: al elegir una entidad que resuelve **dentro de la
+plataforma**, el flujo **sigue en la misma pantalla** en vez de mostrar «continuá desde tu celular».
+Ese mensaje no tenía sentido para quien compra desde la tienda —ya está frente a la pantalla, y no se
+le envió ningún mensaje—, pero aparecía igual. Ahora lo decide **de dónde viene la solicitud**: con
+asesor el proceso se le entrega al cliente, que es lo correcto; sin asesor —desde la tienda o entrando
+solo— continúa en el lugar. Antes lo decidía si había una sesión abierta en el navegador, y por eso una
+compra de tienda se comportaba como una venta de mostrador cuando alguien del comercio tenía su panel
+abierto en otra pestaña.
+
 ## Alcance
-No cambia nada del recorrido de mostrador ni del canal del asesor. **No** enciende todavía la nueva
+**El recorrido del asesor no cambia**: sigue entregándole el proceso al cliente igual que siempre. Lo
+que sí cambia es que un comercio **no marcado como autogestionado** ahora también deja continuar en el
+lugar a quien entra solo; medido contra producción, ese caso ocurrió **cero veces en 90 días**, así que
+no afecta a nadie hoy. **No** enciende todavía la nueva
 entrada para los comercios que ya están operando: eso es un cambio de infraestructura aparte, que además
 debe excluir a los comercios de Corbeta, que ya tienen su propio recorrido y son los que hoy mejor
 convierten. La pantalla de espera del veredicto queda disponible en el servidor, pero su pantalla en el
 navegador no entra en esta tarea.
 
 ## Dónde probar
-Ambiente **QA**. Comercio: cualquiera con tienda configurada — se probó con **Amoblando Pullman** y con
-**Amoblar**. No hace falta usuario de asesor: el comprador entra sin sesión, desde la tienda.
+Ambiente **QA**. Comercio con tienda configurada y con una entidad que resuelva dentro de la
+plataforma — sirve **Amoblando Pullman**. No hace falta usuario de asesor: el comprador entra sin
+sesión, desde la tienda. ⚠ Y para el caso del asesor hace falta uno **asignado a ese mismo comercio**.
 
 ## Cómo validar
 
