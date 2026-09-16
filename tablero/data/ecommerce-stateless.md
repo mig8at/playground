@@ -759,6 +759,51 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (4) · ECOMMERCE también cae en `/confirmation` — y por qué la prueba de QA no
+
+> **MEDICIÓN · 2026-09-16** — el canal **ecommerce sin sesión** hace lo correcto: visto en el navegador,
+> uReq **502378** (sucursal 659 `13874eb6`, `corporate_user_id = NULL`) salta del listado a
+> `/self-service/13874eb6/502378/confirmation`. La prueba de QA en ese mismo canal (**502370**) tenía
+> `corporate_user_id = 276231`, y por eso se comportó como el canal del asesor.
+> **Cómo se vuelve a comprobar:** abrir `/ecommerce/13874eb6/<ureq>/lenders?amount=…` en un navegador
+> **sin** sesión y apretar «Validar Pre aprobado».
+
+⚠ **Y la sesión NO tiene por qué estar ahí: se cuela.** `buildBackendAuthHeaders(request)`
+(`apps/loan-request-wizard/app/utils/backend-auth-headers.server.ts`) decide **sólo** por si hay usuario
+en la petición — **no mira en qué árbol está la ruta**. Como el wizard sirve los tres canales desde el
+MISMO dominio, las cookies `_at`/`_rt` viajan también en `/ecommerce/*`, el action reenvía el `Bearer`, y
+para legacy `auth()->user()` deja de ser null.
+
+**Y ahí hay una asimetría en el resolver, que es donde se arreglaría:**
+
+| método | ¿recibe el canal? |
+|---|---|
+| `LenderTabBehaviorResolver::opensNewTab(..., bool $isEcommerce, ...)` | **sí** |
+| `LenderTabBehaviorResolver::continuesInPlace($isAuthenticated, $alliedSelfManaged, $userSelfManagement)` | **no** |
+
+El propio `UserRequestService` ya excluye ecommerce en la rama de al lado
+(`else if (… && !isset($ecommerceRequestId) …)`), así que el criterio existe — simplemente no llega al
+método que decide si el proceso se entrega. **En ecommerce no hay asesor por definición: el que está
+frente a la pantalla es el comprador.** Que una sesión abierta en otra pestaña le cambie el flujo es
+efecto colateral, no decisión.
+
+⚠ **En producción esto no es sólo un artefacto de prueba:** el empleado del comercio que tiene el panel
+abierto y prueba la tienda en el mismo navegador reproduce exactamente esto. El comprador desde su casa
+no, porque no tiene sesión.
+
+### El estado de los TRES canales, hoy
+
+| canal | qué hace | cómo se verificó |
+|---|---|---|
+| **autogestión** (`/self-service`, sin sesión) | → `/confirmation` ✅ | **visto** en el navegador (502380) |
+| **ecommerce** (`/ecommerce`, sin sesión) | → `/confirmation` ✅ | **visto** en el navegador (502378) |
+| **ecommerce con sesión de asesor colada** | → `/continue` ⚠ | 502370, `corporate_user_id = 276231` — **es lo que vio QA** |
+| **asesor** (`/merchant`) | → `/continue` con handoff, **lo diseñado** | 6 solicitudes con asesor y las 6 con `sendSelfManagement`; **no** lo caminé en navegador (los cookies de sesión son httpOnly y no se inyectan desde JS) |
+
+✔ **Falsa alarma descartada de paso:** el QR de la pantalla de confirmación se veía roto en la primera
+carga de 502378 (`naturalWidth = 0`). Al recargar dio **HTTP 200 y 1113 px** — es una carrera entre la
+generación del PNG en S3 y el render, no un defecto.
+
 ### 2026-09-16 (3) · VISTO en el navegador: el front de `qa` redirige a `/confirmation` — sin arnés en el medio
 
 > **MEDICIÓN · 2026-09-16** — la entrada (2) probó el arreglo por el RASTRO (la fila de `twilio_logs`
