@@ -54,7 +54,7 @@ define subcomandos
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero tareas tareas-guard sprint bitacora panel trazador trazador-buscar trazador-ureq
+.PHONY: status context tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@cd context && python3 tools/alinear.py --ver | tail -n 25
 	@echo ""
@@ -87,6 +87,12 @@ bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la 
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
 tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|título> · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
 	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
+
+# Publica en CUADRILLA (el tablero del EQUIPO) las ramas de una tarea de acá. Viaja lo que se MIDE
+# —repo y rama— y nada más: quién está en la épica y la rama base se deciden allá. Sin APLICAR=1 sólo
+# dice qué haría. No crea épicas: la épica es un acuerdo del equipo.
+cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APLICAR=1 escribe · EN=<url>
+	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APLICAR),-aplicar) $(if $(EN),-en $(EN))
 
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (próximo paso, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/hoy $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)

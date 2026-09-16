@@ -33,7 +33,7 @@ function envFor(target: string): NodeJS.ProcessEnv {
 }
 
 // una sola corrida a la vez (un browser headed a la vez).
-let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; canal: string; startedAt: number; done: boolean; code: number | null } | null = null;
+let current: { child: ReturnType<typeof spawn>; slug: string; target: string; inject: boolean; canal: string; startedAt: number; finishedAt?: number; done: boolean; code: number | null } | null = null;
 
 // ── BITÁCORA DE LA CORRIDA ───────────────────────────────────────────────────────────────────────
 // Al CERRAR la corrida se hace UNA consulta `dbops activity` (ventana = duración) y se vuelca acá: a la
@@ -683,7 +683,9 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
     child.stderr?.on('data', (b: Buffer) => { append(b); vigilarFin(b.toString()); });
     child.on('close', async (code) => {
         if (cierreForzado) { clearTimeout(cierreForzado); cierreForzado = null; }
-        if (current) { current.done = true; current.code = code; }
+        // El panel sigue observando hasta que la evidencia está lista. Marcar done acá cortaba el
+        // polling antes del resumen de BD y permitía iniciar otra corrida mientras aún se recolectaba.
+        if (current) { current.code = code; current.finishedAt = Date.now(); }
         append(Buffer.from(`\n✓ corrida terminada (code ${code})\n`));
         // Comprobación de BD UNA sola vez, al FINAL (no polling durante la corrida): consulta qué persistió
         // la corrida y lo vuelca a ESTA consola + a .runs. El resumen queda en la consola después de terminar
@@ -707,6 +709,8 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size, uiErrors)));
         } catch (e) {
             append(Buffer.from(`  ⚠ no se pudo comprobar la BD al cerrar: ${e instanceof Error ? e.message : String(e)}\n`));
+        } finally {
+            if (current) current.done = true;
         }
     });
     return { ok: true, msg: `lanzado '${slug}' (${t}) — ${mode}${jump}.` };
@@ -739,7 +743,7 @@ function fullLog(): string {
 
 // mata el ÁRBOL de procesos de la corrida (grupo entero, gracias a detached). SIGTERM y luego SIGKILL.
 function killRun(sig: NodeJS.Signals): void {
-    if (!current || current.done || !current.child.pid) return;
+    if (!current || current.done || current.finishedAt || !current.child.pid) return;
     try { process.kill(-current.child.pid, sig); }        // -pid = grupo entero
     catch { try { current.child.kill(sig); } catch {} }   // fallback: solo el proceso
 }
@@ -1238,6 +1242,11 @@ const server = createServer(async (req, res) => {
         const base = {
             running: !!(current && !current.done),
             slug: current?.slug ?? null,
+            target: current?.target ?? null,
+            canal: current?.canal ?? null,
+            inject: current?.inject ?? null,
+            startedAt: current?.startedAt ?? null,
+            finishedAt: current?.finishedAt ?? null,
             code: current?.done ? current?.code : null,
         };
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —

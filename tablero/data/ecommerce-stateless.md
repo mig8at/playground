@@ -5,6 +5,7 @@ stage: work
 created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
+cuadrilla: ecommerce/miguel
 jira_title: "Revisión de flujo ecommerce V1"
 ramas: autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---

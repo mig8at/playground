@@ -770,6 +770,69 @@
     .ltog.on { background: rgba(34, 197, 94, .15); border-color: var(--acc); color: var(--acc); }
     .ltog:disabled { opacity: .5; cursor: default; }
     .pasel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
+    /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
+    [hidden] { display: none !important; }
+    .header-note { margin-left: auto; color: var(--mut); font-size: 12px; }
+    .config-fields { min-width: 0; padding: 0; margin: 0; border: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    .card h2 { font-size: 12px; letter-spacing: .7px; }
+    .grouplbl, .altafila label { font-size: 12px; }
+    .environment-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .environment-row .targets { margin-left: 0; flex-wrap: wrap; }
+    .field-label { color: var(--mut); font-size: 12px; font-weight: 600; }
+    .environment-row .admin-btn { margin-left: auto; }
+    #devwarn { margin: 0 0 16px; }
+    #results { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    #results .m { padding: 10px 12px; }
+    #results .nm { font-size: 14px; }
+    .card > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--txt); }
+    .card > summary span { font-size: 12px; font-weight: 400; color: var(--mut); margin-left: 8px; }
+    .card[open] > summary { margin-bottom: 18px; }
+    .card > summary:focus-visible, button:focus-visible, [role=button]:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+    .scope-note { font-size: 13px; color: #d8b77a; line-height: 1.6; margin: 0 0 18px; }
+    .health { margin-top: 18px; }
+    .health.needs-attention > summary span { color: var(--warn); }
+    .health .stats { margin-top: 0; }
+    .last-result { margin-top: 18px; }
+    .last-result .stat { max-width: none; }
+    .activity { margin-top: 20px; border-color: var(--line2); scroll-margin-top: 20px; }
+    .activity.running { border-left: 3px solid var(--acc); }
+    .activity.interrupted { border-left: 3px solid var(--warn); }
+    .activity-head { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+    .eyebrow { color: var(--mut); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px; }
+    .activity h2 { text-transform: none; color: var(--txt); letter-spacing: -.3px; font-size: 22px; margin: 0; }
+    .activity-time { font-size: 14px; color: var(--mut); white-space: nowrap; }
+    .activity-context { color: var(--mut); font-size: 13px; margin: 8px 0 16px; }
+    .activity-event { padding: 12px 15px; background: var(--panel2); border-radius: var(--radius-sm); margin-bottom: 14px; }
+    .event-label { color: var(--mut); font-size: 12px; }
+    #activityMessage { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 14px; }
+    .dockin { flex-wrap: nowrap; justify-content: space-between; }
+    .launch-review { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .launch-review strong { font-size: 14px; }
+    .launch-review > span { font-size: 12px; color: var(--mut); }
+    .launch-review .sumry:empty { display: none; }
+    .launch-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+    .wrap { padding-bottom: 140px; }
+    .config-fields:disabled .cols { opacity: .65; }
+    .config-fields:disabled .m, .config-fields:disabled .lrow { pointer-events: none; }
+    .seg { flex-wrap: wrap; }
+    .lrow { flex-wrap: wrap; }
+    .logcard { scroll-margin-top: 18px; }
+    @media (max-width: 700px) {
+      .wrap { padding: 18px 14px 195px; }
+      .header-note { display: none; }
+      .card { padding: 16px; }
+      .dockin { padding: 12px 14px; flex-direction: column; align-items: stretch; gap: 10px; }
+      .launch-actions { justify-content: flex-end; }
+      .launch-actions .go { flex: 1; }
+      .two { gap: 9px; }
+      .card > summary span { display: block; margin: 5px 0 0; }
+      .logacts { flex-wrap: wrap; gap: 4px; }
+      .logcard h2 { align-items: flex-start; gap: 8px; }
+      .tren-hint { display: none !important; }
+      pre#log img.shotmini { max-width: 90%; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; } }
   </style>
 </head>
 
@@ -777,39 +840,20 @@
   <div class="wrap">
     <header>
       <div class="logo">C</div>
-      <div>
-        <h1>Panel del harness</h1>
-        <p class="sub">Elegí comercio → definí el usuario (y el buró) → abre el wizard en monto.</p>
-      </div>
-      <!-- Atajo al ADMIN del TARGET elegido: la mitad de la config que el flujo lee (comercios, entidades,
-           puntos de venta) se toca ahí. En local entra sin contraseña y levanta `artisan serve` si hace
-           falta; en dev y staging abre la URL con un perfil que recuerda la sesión. Producción no está. -->
-      <button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button>
-      <div class="targets" id="targets">
-        <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
-      </div>
+      <div><h1>Panel del harness</h1><p class="sub">Prepará un caso. Recorré el wizard. Mirá qué pasó.</p></div>
+      <span class="header-note">CreditOp · herramientas de prueba</span>
     </header>
-
-    <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
-      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
-      <b>staging usa esa MISMA base</b> (solo cambia el frontend), así que dos corridas a la vez se pisan.
-    </div>
-
-    <div class="stats" id="stats"></div>
-      <!-- El desenlace que llega de AFUERA: rt=0 y rt=1 no terminan solos. Aparece sólo cuando la
-           corrida quedó en estado 3 esperando a la entidad. -->
-      <section id="webhookZona" class="wh" style="display:none"></section>
-
-    <!-- Recorrido del wizard, arriba de todo: es el mapa del territorio antes de elegir nada. Tronco
-         común hasta /lenders y un ramal por response_type; se dibujan SOLO los ramales que el comercio
-         seleccionado tiene. Hover en una estación = los archivos que ese paso toca. -->
-    <section class="card tren" id="tren" style="display:none">
-      <h2><b>▸</b> Recorrido del wizard <span id="trenwarn"></span>
-        <span class="tren-hint">arrastrá para mover · ⌘/ctrl + rueda para zoom · doble clic para encuadrar</span>
-      </h2>
+    <section class="card activity" id="activity" hidden aria-label="Actividad de la corrida">
+      <div class="activity-head"><div><p class="eyebrow">Actividad de la corrida</p><h2 id="activityTitle">Preparando la corrida</h2></div><span id="activityTime" class="activity-time"></span></div>
+      <p id="activityContext" class="activity-context"></p>
+      <div class="activity-event"><span class="event-label" id="activityLabel">Última actividad</span><p id="activityMessage" role="status">Esperando información del proceso…</p></div>
+      <div id="tipear" class="tipear"></div>
+      <button class="copy" id="viewLog" type="button">Ver consola ↓</button>
+    </section>
+    <details class="card tren" id="tren" style="display:none">
+      <summary>Mapa del recorrido <span id="trenwarn"></span>
+        <span class="tren-hint">Referencia del flujo · expandir para explorar</span>
+      </summary>
       <div id="trenvias">
         <svg id="trensvg"><g id="trencam"></g></svg>
         <div class="zoomctl">
@@ -818,16 +862,31 @@
           <button id="zfit" title="encuadrar">⤢</button>
         </div>
       </div>
-    </section>
-
-
+    </details>
+    <fieldset id="configFields" class="config-fields">
+    <legend class="sr-only">Configuración de la próxima corrida</legend>
     <div class="cols">
-    <div class="col"><!-- ── columna IZQUIERDA: el escenario (comercio + lenders) ── -->
-
-    <!-- 1 · Comercio (pruebas, configurado a mano en MERCHANTS) -->
-    <section class="card">
-      <h2><b>1</b> Comercio de prueba</h2>
-      <!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
+      <div class="col">
+        <section class="card" id="whereCard">
+          <h2><b>01</b> Dónde</h2>
+          <div class="environment-row"><span class="field-label">Ambiente</span><div class="targets" id="targets">
+        <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
+        <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
+      </div><button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button></div>
+          <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
+      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
+      <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
+    </div><div class="field">
+        <label>Frontend</label>
+        <div class="seg" id="frontmode">
+          <button data-v="ambiente">Del ambiente</button>
+          <button data-v="local">Local :5174</button>
+        </div>
+        <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
+          <p class="grouplbl">Comercio y sucursal</p><!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
            El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
            CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
            genérica no da. Flujo: comercio → sucursal → nombre → Agregar. -->
@@ -852,18 +911,20 @@
         </div>
       </div>
       <div class="grid" id="results" style="margin-top:16px"></div>
-      <div style="margin-top:14px">
-        <p class="grouplbl">Lenders de la sucursal <span id="lendersbranch" style="font-weight:400;color:var(--mut)"></span></p>
-        <p style="color:var(--mut);font-size:11px;margin:-4px 0 6px">ON/OFF = status <b>global</b> del lender (lo que filtra el listado). Afecta todas las sucursales en local; reversible.</p>
-        <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
-      </div>
-    </section>
-
-    <!-- 2 · La corrida: parámetros del flujo (el botón vive en el dock fijo de abajo) -->
-    <section class="card">
-      <h2><b>2</b> La corrida</h2>
-
-      <div class="field">
+      
+    
+        </section>
+        <section class="card" id="journeyCard"><h2><b>02</b> Qué recorrido</h2>
+          <div class="field" style="margin-top:16px">
+        <label>Canal de entrada</label>
+        <div class="seg" id="canal">
+          <button class="on" data-c="asesor">Asesor</button>
+          <button data-c="autogestion">Autogestión</button>
+          <button data-c="ecommerce">Tienda online</button>
+          <button data-c="qr">QR en caja</button>
+        </div>
+        <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div><div class="field">
         <label>Monto solicitado</label>
         <div class="money"><input id="amount" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
         <!-- Cupo ya confirmado (al pie del monto): al inyectar, firma el flujo `already-confirmed-pre-approval`
@@ -874,9 +935,7 @@
           <input type="checkbox" id="cupo" style="width:16px;height:16px;cursor:pointer" />
           <span>Cupo ya confirmado <span style="opacity:.7;font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
-      </div>
-
-      <div class="field">
+      </div><div class="field">
         <label>Arranque</label>
         <!-- Solo DOS arranques (los intermedios phone/personal-info siguen por CLI: E2E_STEP_TARGET):
              Inicio = el wizard desde Monto (con Sintético el buró se inyecta invisible al llegar a Datos) ·
@@ -884,53 +943,27 @@
              usuario que sembrar, por eso Real lo deshabilita). -->
         <div class="seg" id="step">
           <button class="on" data-v="monto">Inicio</button>
-          <button data-v="lenders">Lenders</button>
+          <button data-v="lenders">Entidades</button>
         </div>
         <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
         <!-- El "cupo ya confirmado" (firma del flujo → salta el buró) se controla desde el checkbox al pie del
              MONTO (arriba). Es INYECCIÓN de estado, no validación: sólo siembra el flujo already-confirmed-pre-approval.
              La VALIDACIÓN de que la omisión realmente ocurrió sigue fuera del panel, por CLI (dev/experian-check.ts). -->
       </div>
-
-      <!-- FRONTEND: ¿el desplegado del ambiente, o tu :5174? Con "Local" el wizard corre desde tu working
-           copy del monorepo contra el backend del target — es la forma de ver un cambio del front contra
-           qa SIN esperar el deploy. Lo único que cambia es qué front se abre: backend, BD y mocks siguen
-           siendo los del target. "Del ambiente" solo existe si ese target tiene un front desplegado
-           configurado (E2E_BASE_URL); lo dice el servidor por la misma cadena que bin/asesor, no una
-           lista de targets escrita acá (se desincronizaría). -->
-      <div class="field">
-        <label>Frontend</label>
-        <div class="seg" id="frontmode">
-          <button data-v="ambiente">Del ambiente</button>
-          <button data-v="local">Local :5174</button>
-        </div>
-        <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        </section>
+        <details class="card environment-settings" id="environmentSettings">
+          <summary>Configuración del entorno <span>Entidades y respuestas simuladas</span></summary>
+          <p class="scope-note">Los interruptores cambian el estado global de la entidad. Afectan todas las sucursales de este ambiente y se conservan después de la corrida.</p>
+          <p class="grouplbl">Entidades vinculadas <span id="lendersbranch"></span></p>
+          <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
+        </details>
       </div>
-
-      <div class="field" style="margin-bottom:0" id="padelayField">
-        <label>Espera pre-aprobados (para ver el loader)</label>
-        <div class="seg" id="padelay">
-          <button class="on" data-v="0">Sin espera</button>
-          <button data-v="3000">3s</button>
-          <button data-v="5000">5s</button>
-          <button data-v="10000">10s</button>
-          <button data-v="15000">15s</button>
-        </div>
-      </div>
-    </section>
-
-    </div><!-- /col izquierda -->
-    <div class="col"><!-- ── columna DERECHA: el sujeto de la prueba ── -->
-
-    <!-- 3 · Usuario sintético — todo editable, con defaults sensatos -->
-    <section class="card">
-      <h2><b>3</b> Usuario sintético</h2>
-
-      <div class="field">
+      <div class="col">
+        <section class="card" id="personCard"><h2><b>03</b> Con qué persona</h2><div class="field">
         <label>Modo del buró</label>
         <div class="seg" id="injmode">
-          <button class="on" data-i="1">Sintético · inyecta buró</button>
-          <button data-i="0">Real · consulta buró</button>
+          <button class="on" data-i="1">Buró inyectado</button>
+          <button data-i="0">Sin inyección</button>
         </div>
         <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div>
@@ -942,16 +975,7 @@
            ⚠ Asesor y Autogestión montan el MISMO módulo del front para `solicitar`, así que la pantalla se
            ve igual — pero `/merchant/*` está detrás de login y `/self-service/*` no, y con sesión el
            backend resuelve punto de venta. Probar autogestión por el canal del asesor prueba otra cosa. -->
-      <div class="field" style="margin-top:16px">
-        <label>Canal de entrada</label>
-        <div class="seg" id="canal">
-          <button class="on" data-c="asesor">Asesor · login + wizard</button>
-          <button data-c="autogestion">Autogestión · el cliente solo</button>
-          <button data-c="ecommerce">Ecommerce · URL base64</button>
-          <button data-c="qr">QR · caja Corbeta</button>
-        </div>
-        <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
-      </div>
+      
 
       <div id="synthbody">
         <!-- Identidad COLAPSADA: 6 campos que se autogeneran (cédula/email) o casi nunca movés. El resumen
@@ -1019,14 +1043,26 @@
       </div>
       </div><!-- /synthbody -->
     </section>
-
-    </div><!-- /col derecha -->
-    </div><!-- /cols -->
-
-    <!-- CONSOLA como card: es la salida de la corrida, no un accesorio del botón. Vive en el flujo de
-         la página como todo lo demás, con su header y sus acciones a la derecha. -->
-    <section class="card logcard" id="logcard" style="display:none">
-      <div class="tipear" id="tipear"></div>
+        <details class="card advanced" id="advancedSettings">
+          <summary>Opciones avanzadas <span id="advancedSummary">Sin demora de preaprobación</span></summary>
+          <div class="field" style="margin-bottom:0" id="padelayField">
+        <label>Demora de preaprobación</label>
+        <div class="seg" id="padelay">
+          <button class="on" data-v="0">Sin espera</button>
+          <button data-v="3000">3s</button>
+          <button data-v="5000">5s</button>
+          <button data-v="10000">10s</button>
+          <button data-v="15000">15s</button>
+        </div>
+      </div>
+        </details>
+      </div>
+    </div>
+    </fieldset>
+    <details class="card health" id="healthDetails"><summary>Estado del entorno <span id="healthSummary">Consultando servicios…</span></summary><div class="stats" id="stats"></div></details>
+    <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
+    <section id="webhookZona" class="wh" style="display:none"></section><section class="card logcard" id="logcard" style="display:none">
+      
       <h2><b>▸</b> Consola de la corrida
         <span class="logacts">
           <button class="copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
@@ -1037,17 +1073,10 @@
       <pre id="log"></pre>
     </section>
   </div>
-
-  <!-- DOCK fijo: lo que apretás en cada corrida + el estado + el log (drawer). Siempre visible, sin scroll. -->
-  <div class="dock">
-    <div class="dockin">
-      <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
-      <button class="stop" id="stopBtn">Detener</button>
-      <span class="dot" id="dot"></span>
-      <span class="sumry" id="sumry">Elegí un comercio primero.</span>
-    </div>
-  </div>
-
+  <div class="dock"><div class="dockin">
+    <div class="launch-review"><strong id="caseTitle">Elegí un comercio</strong><span id="caseDetails"></span><span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span></div>
+    <div class="launch-actions"><span class="dot" id="dot"></span><button class="stop" id="stopBtn">Detener</button><button class="go" id="go" disabled>Preparar + Lanzar ▶</button></div>
+  </div></div>
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -1220,7 +1249,11 @@
           acc.children[1].onclick = (e) => { e.stopPropagation(); quitarFav(m); };
           d.appendChild(acc);
         }
-        d.onclick = () => { sel = m; renderMerchants(); refresh(); loadLenders(); ensureAssignUI(); };
+        d.setAttribute('role', 'button');
+        d.tabIndex = corridaRunning ? -1 : 0;
+        d.setAttribute('aria-pressed', String(sel?.slug === m.slug));
+        d.onclick = () => { if (corridaRunning) return; sel = m; renderMerchants(); refresh(); loadLenders(); ensureAssignUI(); };
+        d.onkeydown = (e) => { if (e.target === d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); d.click(); } };
         g.appendChild(d);
       }
     }
@@ -1437,6 +1470,7 @@
     // Responden "¿está el harness listo para correr?" antes de que aprietes Lanzar. Se refrescan al
     // cambiar de comercio y al terminar una corrida.
     async function loadEstado() {
+      const requestedTarget = target, requestedSlug = sel?.slug;
       let e = null;
       // Puerto → cómo se levanta. Va acá porque el momento en que hace falta el comando es
       // EXACTAMENTE éste: viendo que falta, sin ir a buscarlo a otro lado.
@@ -1453,6 +1487,8 @@
         4000: 'bin/mock-financial-health start',
       };
       try { e = await (await fetch('/api/estado')).json(); } catch { /* el panel sigue sin esto */ }
+      if (requestedTarget !== target || requestedSlug !== sel?.slug) return;
+      $('healthSummary').textContent = e ? 'Ver servicios, entidades y mapa' : 'No se pudo consultar el estado';
       const box = $('stats'); if (!box) return;
       const card = (cls, ico, k, v, sub, tip) =>
         `<div class="stat ${cls}"${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>`
@@ -1487,6 +1523,8 @@
         const up = e.mocks.filter(m => m.arriba);
         const down = e.mocks.filter(m => !m.arriba);
         const criticos = down.filter(m => necesita(m.para));
+        $('healthSummary').textContent = criticos.length ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
+        $('healthDetails').classList.toggle('needs-attention', criticos.length > 0);
         out.push(card(criticos.length ? 'st-bad' : down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
           `${up.length}/${e.mocks.length}`,
           criticos.length
@@ -1509,6 +1547,8 @@
       }
 
       // 4 · última corrida: el veredicto contra la BD, no "1 passed"
+      const lastBox = $('lastResult');
+      lastBox.hidden = !e?.ultima || corridaRunning;
       if (e?.ultima) {
         const malo = [6, 8].includes(Number(e.ultima.estadoId));
         const cerro = [11, 28, 25].includes(Number(e.ultima.estadoId));
@@ -1517,14 +1557,14 @@
         // con el crédito jamás enviado (F-168). Cuando la entidad radica, el verde depende de las DOS.
         const rad = e.ultima.radicacion;
         const radMal = rad && rad !== 'CREDIT_COMPLETED';
-        out.push(card(malo || radMal ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última corrida',
+        lastBox.innerHTML = card(malo || radMal ? 'st-bad' : cerro ? 'st-ok' : 'st-mut', '🧾', 'Última evidencia guardada',
           `#${e.ultima.uReq}`,
           `${e.ultima.estado}${e.ultima.lender ? ` · <b>${e.ultima.lender}</b>` : ''}`
           + (rad ? (radMal ? ` · ⚠ radicación <b>${rad}</b>` : ' · radicada ✓') : ''),
           `Del volcado forense que hace el scrub antes de borrar (F-52).\nuReq ${e.ultima.uReq} · estado ${e.ultima.estado}`
           + (rad ? `\nradicación: ${rad}`
                + (radMal ? '\n⚠ el crédito quedó autorizado pero el paquete NO llegó a la entidad (F-168)'
-                         : '\nsólo CREDIT_COMPLETED significa que el lender lo recibió') : '')));
+                         : '\nsólo CREDIT_COMPLETED significa que el lender lo recibió') : ''));
       }
 
       // ── EL DESENLACE QUE FALTA: rt=0 y rt=1 no terminan solos ────────────────────────────────
@@ -1532,7 +1572,7 @@
       // por webhook, a `legacy-application`. Sin este control el panel corre media familia y deja
       // una solicitud colgada que parece un fallo — y son el 46 % y el 34 % del volumen de prod.
       // El receptor es REAL; lo único simulado es la entidad que llama (F-170/F-171).
-      const esperando = e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
+      const esperando = !corridaRunning && e?.ultima && Number(e.ultima.estadoId) === 3 && e.ultima.lenderId;
       const zona = $('webhookZona');
       if (zona) {
         if (!esperando) { zona.style.display = 'none'; zona.innerHTML = ''; }
@@ -1812,6 +1852,7 @@
       $('zmas').onclick = () => zoomEn(1.2);
       $('zmenos').onclick = () => zoomEn(1 / 1.2);
       $('zfit').onclick = () => encuadrar();
+      $('tren').addEventListener('toggle', () => { if ($('tren').open) requestAnimationFrame(() => encuadrar()); });
     })();
 
     // La card muestra el hash de la sucursal que REALMENTE se lanza (.flows.json), no el de una búsqueda
@@ -1913,8 +1954,58 @@
       document.querySelectorAll('.buro').forEach(el => el.classList.toggle('buro-off', pep));
     }
 
+    const CHANNEL_LABELS = { asesor: 'Asesor', autogestion: 'Autogestión', ecommerce: 'Tienda online', qr: 'QR en caja' };
+    let activeCaseSummary = '';
+
+    function updateCaseSummary() {
+      $('caseTitle').textContent = sel ? `${sel.name} · ${CHANNEL_LABELS[canal]} · ${target}` : 'Elegí un comercio';
+      const datos = [`Monto $${fmt(moneyNum('amount'))}`, step === 'lenders' ? 'Desde entidades' : 'Desde el inicio', `Front ${frontMode === 'local' ? 'local' : 'del ambiente'}`];
+      if (inject) {
+        datos.push(`Ingreso $${fmt(moneyNum('income'))}`, doctype === 'PEP' ? 'Sin buró · PEP' : `Score ${$('score').value} · buró inyectado`);
+      } else datos.push('Sin inyección');
+      $('caseDetails').textContent = sel ? datos.join(' · ') : '';
+      $('advancedSummary').textContent = padelay ? `Preaprobación con ${padelay / 1000} s de demora` : 'Sin demora de preaprobación';
+    }
+
+    function setRunningUI(running) {
+      corridaRunning = running;
+      $('configFields').disabled = running;
+      $('activity').classList.toggle('running', running);
+      document.querySelectorAll('#results .m').forEach(m => {
+        m.setAttribute('aria-disabled', String(running));
+        m.tabIndex = running ? -1 : 0;
+      });
+    }
+
+    function renderActivity(status) {
+      if (!status.slug) return; // abrir el panel sin corridas no inventa una actividad.
+      $('activity').hidden = false;
+      $('activity').classList.toggle('interrupted', !status.running && status.code !== 0);
+      $('activityTitle').textContent = status.running ? (status.finishedAt ? 'Recopilando evidencia' : 'Corrida en curso') : status.code === 0 ? 'Proceso terminado' : 'Proceso interrumpido';
+      $('stopBtn').disabled = !!(status.running && status.finishedAt);
+      const context = activeCaseSummary || [status.slug, CHANNEL_LABELS[status.canal], status.target,
+        status.inject === false ? 'Sin inyección' : status.inject === true ? 'Buró inyectado' : ''].filter(Boolean).join(' · ');
+      $('activityContext').textContent = context;
+      if (status.startedAt) {
+        const seconds = Math.max(0, Math.floor(((status.finishedAt || Date.now()) - status.startedAt) / 1000));
+        $('activityTime').textContent = `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
+      }
+      const latest = [...logLineas].reverse().find(l => /👉|▸|▶|▲|✗|⚠|■/.test(l));
+      $('activityLabel').textContent = status.running ? 'Último mensaje del runner' : 'Cierre del proceso';
+      $('activityMessage').textContent = status.running
+        ? (status.finishedAt ? 'El wizard terminó. Se está consultando la base de datos para completar la evidencia de esta corrida.' : latest?.trim() || 'Preparando el wizard. Las instrucciones aparecerán acá.')
+        : (status.code === 0 ? 'El proceso terminó. Consultá la consola para ver el desenlace y la evidencia de la solicitud.'
+          : `El proceso se interrumpió${status.code == null ? '' : ` (código ${status.code})`}. Revisá la última actividad en la consola.`);
+      if (status.running) {
+        $('sumry').textContent = status.finishedAt ? 'Recopilando evidencia de la corrida…' : 'Corrida en curso · seguí las instrucciones del wizard.';
+        $('caseTitle').textContent = context;
+        $('caseDetails').textContent = '';
+      }
+    }
+
     function updateGo() {
       if (corridaRunning) return;   // el botón es de startPoll mientras corre
+      updateCaseSummary();
       // GATING POR SESIÓN (solo canal asesor: ecommerce entra por URL base64, sin Cognito). El objetivo es
       // que NINGUNA corrida pase por el login de Cognito: mientras el token del target se obtiene, el botón
       // espera; sin token, apunta al dot. 'unreachable' NO bloquea (ver el comentario de sessionState).
@@ -1946,11 +2037,7 @@
       }
       $('go').textContent = 'Preparar + Lanzar ▶';
       $('go').disabled = !sel;      if (!sel) { $('sumry').innerHTML = 'Elegí un comercio primero.'; return; }
-      if (!inject) { $('sumry').innerHTML = `<b>${sel.name}</b> · <b>REAL</b> — llenás todo en el wizard (buró real)`; return; }
-      const buro = doctype === 'PEP'
-        ? ' · <b>sin buró</b>'
-        : ` · ingreso <b>$${fmt(moneyNum('income'))}</b> · score <b>${$('score').value}</b>`;
-      $('sumry').innerHTML = `<b>${sel.name}</b> · <b>${doctype}</b> · sintético${buro}`;
+      $('sumry').textContent = '';
     }
 
     // resumen de la Identidad colapsada: lo elegido, visible sin desplegar el fold.
@@ -1994,11 +2081,30 @@
           $('go').textContent = 'Preparar + Lanzar ▶'; updateGo(); return;
         }
       }
+      activeCaseSummary = `${$('caseTitle').textContent} · ${$('caseDetails').textContent}`;
+      setRunningUI(true);
       $('go').disabled = true; $('go').textContent = 'Lanzando…';
-      const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-      const j = await r.json();
-      if (!j.ok) { alert(j.msg || 'no se pudo lanzar'); $('go').textContent = 'Preparar + Lanzar ▶'; updateGo(); return; }
-      showLog(true); $('stopBtn').classList.add('on');
+      try {
+        const r = await fetch('/api/launch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const j = await r.json();
+        if (!j.ok) throw new Error(j.msg || 'No se pudo lanzar la corrida.');
+      } catch (err) {
+        setRunningUI(false); updateGo();
+        $('sumry').textContent = err.message || 'No se pudo conectar con el panel.';
+        activeCaseSummary = '';
+        return;
+      }
+      $('activity').hidden = false;
+      $('activityTitle').textContent = 'Preparando la corrida';
+      $('activityContext').textContent = activeCaseSummary;
+      $('activityMessage').textContent = 'Preparando el wizard. Las instrucciones aparecerán acá.';
+      $('activityTime').textContent = '';
+      $('tipear').replaceChildren();
+      $('lastResult').hidden = true;
+      $('webhookZona').style.display = 'none';
+      showLog(false); $('stopBtn').classList.add('on');
+      $('tren').open = true;
+      $('activity').scrollIntoView({ behavior: 'instant', block: 'start' });
       startPoll();
     }
 
@@ -2098,7 +2204,11 @@
       runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
       logLineas = []; logCursor = 0; $('log').replaceChildren();   // consola limpia: es OTRA corrida
       if (poll) clearInterval(poll);
+      let pollBusy = false;
       const tick = async () => {
+        if (pollBusy) return;
+        pollBusy = true;
+        try {
         const j = await (await fetch(`/api/status?from=${logCursor}`)).json();
         const atBottom = $('log').scrollTop + $('log').clientHeight >= $('log').scrollHeight - 30;
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
@@ -2106,21 +2216,39 @@
         else if (j.lines && j.lines.length) { appendLog(j.lines); logCursor = j.total; }
         if (atBottom) $('log').scrollTop = $('log').scrollHeight;   // auto-scroll solo si ya estabas al final
         if (j.running) {
-          corridaRunning = true;
+          if (!corridaRunning) { setRunningUI(true); $('tren').open = true; }
+          $('stopBtn').classList.add('on');
           $('go').textContent = 'corriendo…'; $('go').disabled = true;          $('dot').className = 'dot run';
-          if ($('logcard').style.display === 'none') showLog(true);   // corrida en curso → la consola aparece sola
+          if ($('logcard').style.display === 'none') showLog(false);
         } else {
-          corridaRunning = false;
+          setRunningUI(false);
           $('go').textContent = 'Preparar + Lanzar ▶'; updateGo();          $('stopBtn').classList.remove('on'); $('dot').className = 'dot';
           loadEstado();   // terminó una corrida → refrescar el veredicto
           checkSession(target, true);   // la corrida pudo renovar (o quemar) la sesión → re-verificar el dot
           clearInterval(poll); poll = null;
         }
+        renderActivity(j);
+        } catch {
+          // Una desconexión no significa que terminó el proceso: conservá Detener y reintentá.
+          $('sumry').textContent = 'Sin conexión con el panel. Reintentando consultar la corrida…';
+          if (corridaRunning) {
+            $('activityLabel').textContent = 'Conexión interrumpida';
+            $('activityMessage').textContent = 'No se puede confirmar el estado actual. El proceso puede seguir ejecutándose.';
+          }
+        } finally { pollBusy = false; }
       };
       tick(); poll = setInterval(tick, 2000);
     }
 
-    async function stop() { await fetch('/api/stop', { method: 'POST' }); }
+    async function stop() {
+      $('stopBtn').disabled = true;
+      try {
+        const response = await fetch('/api/stop', { method: 'POST' });
+        if (!response.ok) throw new Error('stop failed');
+        $('sumry').textContent = 'Detención solicitada. Esperando a que termine el proceso…';
+      } catch { $('sumry').textContent = 'No se pudo solicitar la detención. Podés reintentar.'; }
+      finally { $('stopBtn').disabled = false; }
+    }
 
     // segmentos
     document.querySelectorAll('#doctype button').forEach(b => b.onclick = () => { doctype = b.dataset.v; setSeg('doctype', doctype); togglePep(); refresh(); });
@@ -2132,7 +2260,7 @@
     const STEP_HINTS = {
       monto: () => inject
         ? 'Desde el inicio (Monto): recorrés las vistas y el buró se inyecta invisible al llegar a Datos.'
-        : 'Desde el inicio (Monto): prueba REAL — llenás todo y se consultan los burós reales.',
+        : 'Desde el inicio: completás los datos en el wizard, sin inyectar el buró.',
       lenders: () => 'Salto directo a /lenders con el usuario sintético sembrado (sin pasar por las vistas).',
     };
     const updateStepHint = () => { $('stephint').textContent = (STEP_HINTS[step] || (() => ''))(); };
@@ -2305,7 +2433,7 @@
       $('synthbody').classList.toggle('buro-off', !inject);
       $('injhint').textContent = inject
         ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
-        : 'Prueba REAL: llenás todo en el wizard y se consulta el buró con tus datos reales. Los campos de abajo no se usan.';
+        : 'Completás los datos en el wizard. Se usan los proveedores configurados en este ambiente; los campos sintéticos de abajo no se aplican.';
       applyPasoGate();    // qué arranques aplican (depende del buró Y del canal)
       applyCupoGate();    // el checkbox "Cupo ya confirmado" sólo aplica en Lenders + Sintético
       updateGo();
@@ -2366,6 +2494,7 @@
         ? `Abre tu :5174 (Vite sobre el monorepo local) contra el backend de ${target}: ves tus cambios del front sin esperar el deploy.`
           + (otroPool ? ' Ojo: el pool de Cognito lo trae el wizard local (dev), así que loguea con la cuenta de .cognito.json y usa la sesión de dev.' : '')
         : `Abre ${frontAmbienteUrl} — el build desplegado. Tus cambios locales del front NO se ven acá.`;
+      updateGo();
     }
 
     document.querySelectorAll('#frontmode button').forEach(b => b.onclick = () => {
@@ -2379,7 +2508,7 @@
       const realBtn = document.querySelector('#injmode button[data-i="0"]');
       const realOk = target !== 'local';
       realBtn.disabled = !realOk;
-      realBtn.title = realOk ? '' : 'Real no disponible en local (sin envío de OTP ni burós reales)';
+      realBtn.title = realOk ? '' : 'Sin inyección no está disponible en local: requiere los servicios configurados en otro ambiente.';
       if (!realOk) inject = true;   // local → Sintético obligado
       applyInjMode();
       applyCanal();
@@ -2388,6 +2517,7 @@
     ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
       .forEach(id => $(id).addEventListener('input', refresh));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
+    $('viewLog').onclick = () => { showLog(true); $('logcard').scrollIntoView({ behavior: 'instant', block: 'start' }); };
     $('logToggle').onclick = () => showLog(!logOpen);
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
     $('logFiltro').onclick = () => {
