@@ -289,7 +289,12 @@ equivocado**, invisibles hasta entonces. Tres formas en que «el archivo más ce
 tres vistas: la cita va **antes** del archivo en su línea (`profiling` L43) · la línea nombra **varios**
 y se reparten (`merchants` L115/L116) · el archivo se nombra **sin número** y el patrón no lo ve
 (`profiling` L135). Y una cuarta: a veces la cita corta es **meta** —el texto habla de una cita que ya
-no existe— y expandirla inventa una referencia (`merchants` L217).
+no existe— y expandirla inventa una referencia (`merchants` L217). Y una quinta, la peor porque el
+resultado parece válido: **`` `:5174` `` puede ser un PUERTO y no una línea** (el wizard, el mock, un MinIO).
+En `findings` eran tres de 42; expandirlas habría inventado tres referencias a líneas inexistentes. Si la
+prosa dice «vive en» o «corre en», mirá antes de expandir — y reescribilas como «el puerto `5174`» para que
+dejen de contarse como citas cortas. **Y `legacy-application/` NO es un alias: es `application/`** (`tools/roots.py`);
+seis citas del árbol lo usaban y salían como «no existe en main».
 
 ⚠ **Un desplazamiento uniforme tampoco sirve.** En `bancolombia`, `BancolombiaBnpl.php` se corrió **+21
 hasta `retrieveQuota` y +29 de ahí en adelante**; en `profiling`, `LenderUserCategoryService.php` creció
