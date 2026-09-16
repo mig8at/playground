@@ -17,35 +17,46 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 
 ## Si retomás esto sin contexto, empezá acá
 
+**QA reporta que el flujo sigue yendo a `continuar` en vez de `confirmation`, y la primera sospecha
+—«no se subió a qa»— ya quedó descartada.** Medido el 16/9: front **#1015** (`a58d861a`, 15/9 10:49) y
+**#1018** (`7e5774c8`, 15/9 14:59) y back **#1402** (`7b1f45f0`, 15/9 15:58) están en `origin/qa` y las
+tres corridas de *Deploy … QA* están en verde. No hubo despliegues posteriores que las pisen. El
+detalle, en el Registro del 16/9.
+
+**Quedan TRES explicaciones vivas, y cada una se arregla distinto** (§«Las TRES condiciones del
+arreglo»):
+
+1. **que la prueba haya ido contra `dev`** — la guarda de #1402 tiene 5 ocurrencias en `qa` y **CERO en
+   `develop` y `staging`**, y las dos URLs se diferencian en un token
+   (`originaciones.dev` vs `originaciones-qa.dev`);
+2. **que el par (comercio, entidad) no esté marcado** — el arreglo exige `allieds.self_managed` o
+   `lenders_by_allieds.user_self_management`, y con **Credifamilia sobre Amoblando Pullman ir a
+   `/continue` es lo correcto, no el bug**;
+3. 🔴 **un hueco real:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`. Con
+   credencial, `case 4` prende `standBy` pero no puebla la url y **rt=2/3 ni siquiera tienen `case`**,
+   así que el arreglo nunca dispara. Tres pares reales de la base de qa caen ahí.
+
+**El próximo paso es:** preguntarle a QA **contra qué URL, con qué comercio y con qué entidad** corrió
+la prueba que falló — con eso las tres se reducen a una. El caso que SÍ ejercita el arreglo es
+**CrediPullman (77) o Cierre X (201) sobre Amoblando Pullman, sin sesión de asesor, en
+`originaciones-qa.dev.creditop.com`**; si ahí también falla, es el hueco 3 y hay que tocar código.
+
+⚠ **Y ojo con los logs para dirimirlo:** la etiqueta `environment` de Loki en ese stack sólo tiene
+`development`, `local` y `testing` — **no hay valor `qa`**, así que `dev/loki-trace.ts` con
+`E2E_TARGET=qa` contesta «no es de este target» sin que eso signifique nada.
+
+### Lo de antes, que sigue valiendo
+
 **El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
 `Qa (#1007)` el 14/9 a las 18:58 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`,
-20:52). El backend #1392
-**no** se revirtió y sigue en `main`.
+20:52). El backend #1392 **no** se revirtió y sigue en `main`. El motivo del revert es un defecto real
+y ya diagnosticado: en el flujo del **asesor**, con cuota inicial > 0, elegir entidad rebota a
+`/solicitar` — los cinco eslabones, medidos, en §«El rebote a `/solicitar`». Se arregló con **#1015**,
+que ya está en `qa`; **#1016** repone la entrada del checkout en `main` y **sigue ABIERTO**.
 
-**El motivo del revert es un defecto real y ya está diagnosticado**, no hace falta re-investigarlo: en
-el flujo del **asesor**, con una cuota inicial > 0, elegir entidad rebota a `/solicitar`. La ruta
-`initial-fee-payment` se registró sólo en el árbol público y React Router la matchea ahí con
-`flow="merchant"`, que redirige a `/` → `/merchant` → `/solicitar`. Los cinco eslabones, medidos, en
-§«El rebote a `/solicitar`».
-
-⚠ **El defecto sigue vivo en `qa`** — el revert fue sobre `main`. Cualquier promoción futura lo vuelve
-a subir si no se arregla antes.
-
-✔ **Y el arreglo ya está escrito — en junio.** #997 se rehizo partiendo de #551 (11/6) y **no se
-llevó los cinco PRs de corrección que vinieron después**; cuatro no están en `qa`, y uno de ellos
-—**#665, `fix/ecommerce/creditopx-initial-fee-bounce`**— es exactamente este bug. Ver §«La cola de
-junio que el rebuild no se llevó».
-
-**El próximo paso es:** decidir si se corre el **canal ASESOR con cuota inicial en `qa`** — es el único
-tramo sin validar ahí, y pide escribir en el RDS compartido (`I_KNOW_THIS_TOUCHES_SHARED_DEV=1`). El
-canal **ecommerce ya cerró entero en `qa`** el 15/9. Con eso, **#1016** puede mergearse. El detalle de las corridas que lo
-respaldan, en el Registro del 15/9 (4).
-
-*(Lo que decía antes, y sigue valiendo como descripción del arreglo:)* portar esa cola a `qa` — #665 y #582 (el `if` y el cierre in-platform), #661
-(`continue` en el árbol público) y #663 (el handoff por flujo)— **adaptados**, porque `standBy` ya no
-existe en el wizard y hoy el equivalente es la rama `showModal && isNil(url)`. Y agregar
-`initial-fee-payment` y `down-payment-validation/:transaction_id` al árbol `merchant`, que es lo que
-el propio #997 introdujo de nuevo.
+✔ **El arreglo del rebote ya estaba escrito desde junio** (#665): #997 se rehizo partiendo de #551
+(11/6) y no se llevó los cinco PRs de corrección posteriores. Ver §«La cola de junio que el rebuild no
+se llevó» — de esa cola siguen faltando en `qa` **#582, #661 y #663**.
 
 
 # Ecommerce web stateless (→ wizard sin cookie) · task
