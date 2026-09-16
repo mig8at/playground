@@ -194,7 +194,7 @@ Todo se loguea en `logs` (tabla) con name `Corbeta - query` / `CORBETA - registe
 
 ## 6. El ciclo BATCH: conciliación, estado 26 y confirmación a Bancolombia
 
-Aquí está lo distintivo. Cadence en `application/app/Console/Kernel.php:57-65`:
+Aquí está lo distintivo. Cadence en `application/app/Console/Kernel.php:81-90`:
 
 | Cron | Command | Cadencia | Qué hace |
 |------|---------|----------|----------|

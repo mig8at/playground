@@ -150,7 +150,7 @@ codeudores, y el disparo de Experian de Credifamilia movido a la confirmación (
 - `application/app/Models/ResponseType.php` · `legacy-backend/app/Models/ResponseType.php` — idénticos, `$fillable = ['name']`.
 - `legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php:420` (url: excluye rt 2 y 4) · `:469` switch · `:470-471` `case 0/1` · `:477-479` `case 2/3/4` · `:649-658` `case 4` con `standBy=true`.
 - `application/app/Http/Controllers/Customer/UserRequestController.php:791` (url: excluye solo rt 2) · `:817` switch · `:818` `case 0/1` · `:827` `case 2/3` (**sin `case 4`**) · `:881` `switch ($lender->id)` con `case 24` · `:968` `switch ($lender->name)`.
-- `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php:19` (RD=60), `:22` (nombres), `:25` (`EXTERNAL_REDIRECT_RESPONSE_TYPES = [0,1]`), `:27` `opensNewTab()`.
+- `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php:25` (RD=60), `:22` (nombres), `:25` (`EXTERNAL_REDIRECT_RESPONSE_TYPES = [0,1]`), `:27` `opensNewTab()`.
 - `legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php:54` (`lender_path`) · `:59-63` (`credit_type` 3→revolving / 2→consumer / other).
 - rt=4, las 4 constantes privadas: `LoanAuthorizationService.php:43` · `ContinueUserFlowController.php:20` · `PaymentDateService.php:18` · `PaymentSchedule/ExternallyManagedPaymentScheduleService.php:20`.
 

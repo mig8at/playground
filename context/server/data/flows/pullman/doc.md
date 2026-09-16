@@ -46,8 +46,8 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 **El gate (lender 77)**:
 - **rt=2 clasifica-no-excluye** (application): `app/Services/lenders/LenderValidationService.php:176` (`response_type == 2`) · `:311-324` (`have_ctopx` no manda el rt=2 fallido a `false_lenders`) · `:376-377` (`unset` de todo rt=2 de la lista de baja).
 - **Datacrédito genérico 400** (legacy): `Modules/Loans/App/Services/DatacreditoRuleEvaluator.php:80` (`score >= ruleScore`) · `:37` (fail-closed `no_datacredito_data`); regla genérica en `Modules/Loans/App/Repositories/LenderDatacreditoRulesRepository.php:25` (`whereNull('allied_branch_id')`).
-- **Categoría → cupo** (legacy): `Modules/Loans/App/Services/LenderUserCategoryService.php:54 getLenderUserCategory` · `:79/:105` (primer tier que pasa, ordenado por `lender_users_category_id`).
-- **Cupo autoritativo** (legacy): `Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:66 getAvailableQuota` · `:268` categoría · `:331` `scoring_policy_fallback_blocked`.
+- **Categoría → cupo** (legacy): `Modules/Loans/App/Services/LenderUserCategoryService.php:61 getLenderUserCategory` · `:79/:105` (primer tier que pasa, ordenado por `lender_users_category_id`).
+- **Cupo autoritativo** (legacy): `Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:81 getAvailableQuota` · `:268` categoría · `:331` `scoring_policy_fallback_blocked`.
 
 > El cascade completo de 8 etapas (base sucursal → filtros duros → group_rules → datacrédito → ML → especiales → pre-aprobados → categoría) vive en el nodo **CreditopX**; acá solo lo específico de Pullman.
 

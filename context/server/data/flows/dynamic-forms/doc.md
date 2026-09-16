@@ -175,7 +175,7 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Rutas del wizard**: `apps/loan-request-wizard/app/routes.ts:91-96`.
 
 **G2 — backend-driven-form**
-- **Resolución del form por entidad**: `Modules/Loans/App/Services/FormTypeService.php:29-37` · ruta `Modules/Loans/routes/api.php:124`.
+- **Resolución del form por entidad**: `Modules/Loans/App/Services/FormTypeService.php:29-37` · ruta `Modules/Loans/routes/api.php:141`.
 - **Salto si no hay form**: `apps/loan-request-wizard/app/routes/additional-info.tsx:36-39`.
 - **Contrato del esquema**: `modules/loan-request-wizard/backend-driven-form/src/domain/types/backend-form.ts:21-40` (espejo de `fields`).
 - **Endpoints**: `.../infrastructure/repositories/dynamic-form-schema.repository.ts:5-6` y `:19` · `.../save-form-response.repository.ts:18` (las respuestas salen a la MS) · `.../form-type.repository.ts:18` · `.../supplementary-info.repository.ts:7-8` (typo del proveedor documentado en comentario).

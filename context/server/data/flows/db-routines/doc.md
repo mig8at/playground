@@ -61,7 +61,7 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 
 **Las puertas desde el código**, por responsabilidad:
 
-- **Features del perfilador ML** — `legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php:261`
+- **Features del perfilador ML** — `legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php:306`
   (`CALL SP_AgilData_Mareigua_Extract_Data`) y `:290` (`CALL SP_Experian_Extract_Data`). Esos dos
   procedimientos son el paraguas: adentro llaman a las **23 `FN_Experian_*`**
   (`CC_Debt_Balance`, `CC_Vector_Overdue`, `CC_Is_Delinquent`, `Liabilities_*`, `Savings_Is_Seized`…),

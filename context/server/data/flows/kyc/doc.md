@@ -13,7 +13,7 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **`users.age` es COLUMNA real** (no accessor de `date_of_birth`): se calcula al capturar la persona (`PersonalInfoController.php:158`); es el gate de edad (Pullman).
 - **Caché 1 mes**: Experian/Mareigua/Ágil reusan `risk_central_user_data < 1 mes` sin reconsultar (`Experian.php:73`); una fila inyectada se reusa (borrar la fila para refrescar).
 - **`verifyCoincidence` (match de nombres) SIEMPRE true** en local/development
-  (`MareiguaService.php:368` · `AgildataService.php:363` · `TusDatosService.php:464`). ⚠ Y la consecuencia
+  (`MareiguaService.php:437` · `AgildataService.php:432` · `TusDatosService.php:486`). ⚠ Y la consecuencia
   que no es obvia: **el único entorno donde se pueden inyectar fakes es el único donde la comparación
   está apagada**, así que el match estricto de nombres **no se puede reproducir en local**. No es un
   detalle de comodidad — es por lo que **F-132** vivió meses. Para probarlo hay que salir de
@@ -27,7 +27,7 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   hay un caso observado que lo confirme. Es medible: buscar personas a las que se les corrigió el primer
   apellido y ver si su consulta a Experian fallaba antes.)*
 - **La cascada de identidad es una COMPUERTA, no una FUENTE.** Ágil, Mareigua y TusDatos devuelven los
-  tres `'names' => $form_name` (`AgildataService.php:111` · `MareiguaService.php:137` ·
+  tres `'names' => $form_name` (`AgildataService.php:169` · `MareiguaService.php:195` ·
   `TusDatosService.php:250`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
   completarlo ni corregirlo — ni siquiera cuando ellos tienen la versión correcta.
 
