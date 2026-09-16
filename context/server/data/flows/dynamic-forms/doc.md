@@ -164,7 +164,7 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Cliente del form-service**: `Modules/Onboarding/App/Repositories/DynamicFormsRepository.php:22` (código `OFS1000`) · `:55` (config) · `:79` (`/v1/dynamic/full/{formId}/schema`).
 - **Envelope de entrada**: `Modules/Onboarding/App/Http/Requests/DynamicForms.php:10-22` (id uuid / hash / data) · `:36-43` (hash 4-16 alfanumérico).
 - **Ruta**: `Modules/Onboarding/routes/api.php:193-195`.
-- **Config**: `Modules/Onboarding/config/config.php:6-8` (`ONBOARDING_FORMS_SERVICE_BASE_URL`), fusionada por `Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:268`.
+- **Config**: `Modules/Onboarding/config/config.php:12-14` (`ONBOARDING_FORMS_SERVICE_BASE_URL`), fusionada por `Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:268`.
 - **Sesión en Redis**: `Modules/Partner/App/Services/DynamicFormSessionService.php:10-11` (prefijo + TTL) · `:54` (refresco) · rutas en `Modules/Partner/routes/api.php:218-222`.
 
 **G1 — wizard RD, frontend**

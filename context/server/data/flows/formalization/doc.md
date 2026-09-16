@@ -150,7 +150,7 @@ compuertas de política (detalle en el nodo codeudor); la relación Eloquent `pr
 ## Dónde mirar
 - **Autorización / Estado 11** (legacy-backend): `Modules/Loans/App/Services/LoanAuthorizationService.php:84` `authorize`, `:384` `authorizeRequest`, `:424` `transitionToIntermediate`, `:471` `resolveAuthorizationStatusId` (`return 11`), `:252` `disburseImeiRequest`, `:194` formalización rt=4.
 - **Endpoints de firma** (legacy-backend): `Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:149` sendOtp · `:270` verifyOtp · `:313` disburse · `:381` notifyEcommerceStore.
-- **Documentos** (legacy-backend): `Modules/Loans/App/Services/DocumentSigningService.php:48` `generateAllDocuments`, `:59` camino IMEI, `:113` lote Netco, `:371` pagaré Deceval.
+- **Documentos** (legacy-backend): `Modules/Loans/App/Services/DocumentSigningService.php:59` `generateAllDocuments`, `Modules/Loans/App/Services/DocumentSigningService.php:92` camino IMEI, `Modules/Loans/App/Services/DocumentSigningService.php:329` lote Netco, `Modules/Loans/App/Services/DocumentSigningService.php:587` pagaré Deceval.
 - **Amortización** (legacy-backend): `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:80-148` (`:85` IVA 19 %, `:93` anualidad, `:190` enganche).
 - **Fechas de pago** (legacy-backend): `Modules/Loans/App/Services/PaymentDateService.php:56-79`; el salto a estado 10 en `Modules/Loans/App/Services/PaymentScheduleService.php:25-35`.
 - **Ruteo del wizard** (frontend-monorepo): `apps/loan-request-wizard/app/routes.ts:36-68`; encadenado verify→authorize en `app/routes/otp-validation.tsx:167-200`; timeouts en `modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts:135,226`.

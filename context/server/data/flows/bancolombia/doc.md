@@ -60,13 +60,13 @@ onboarding, todo cuelga de `bancolombia/:bancolombia_type` (`routes.ts:172`), co
 | # | Endpoint | Controller | Action (`BancolombiaBnpl.php`) | Persiste |
 |---|---|---|---|---|
 | 1 | `login-redirect/{ur}` | `BancolombiaBNPLLoginRedirect` | `app/Actions/Lenders/BancolombiaBnpl.php:85` `login` (`app/Actions/Lenders/BancolombiaBnpl.php:32` `provideAuthentication`) | — |
-| 2 | `retrieve-quota/{ur}` | `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:200` `BancolombiaBNPLRetrieveQuota` | `app/Actions/Lenders/BancolombiaBnpl.php:190` `retrieveQuota` | **`app/Actions/Lenders/BancolombiaBnpl.php:238` `bnpl_transaction_id`** + `app/Actions/Lenders/BancolombiaBnpl.php:345` `retrieve_quota` |
+| 2 | `retrieve-quota/{ur}` | `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:200` `BancolombiaBNPLRetrieveQuota` | `app/Actions/Lenders/BancolombiaBnpl.php:190` `retrieveQuota` | **`app/Actions/Lenders/BancolombiaBnpl.php:213` `bnpl_transaction_id`** + `app/Actions/Lenders/BancolombiaBnpl.php:232` `retrieve_quota` |
 | 3 | `list-accounts-and-quota/{ur}` | `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:504` `BancolombiaBNPLListAccountsAndQuota` | — | **nada** (lee con `?? null` en `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:477`) |
 | 4 | `account-select/{ur}` | `BancolombiaBNPLAccountSelect` | `app/Actions/Lenders/BancolombiaBnpl.php:325` `selectAccount` | — |
-| 5 | `fetch-terms-and-conditions/{ur}` | `…FetchTermsAndConditions` | `app/Actions/Lenders/BancolombiaBnpl.php:491` `retrieveTerms` | `app/Actions/Lenders/BancolombiaBnpl.php:923` `retrieve_terms` |
+| 5 | `fetch-terms-and-conditions/{ur}` | `…FetchTermsAndConditions` | `app/Actions/Lenders/BancolombiaBnpl.php:491` `retrieveTerms` | `app/Actions/Lenders/BancolombiaBnpl.php:525` `/terms/retrieve` — **sin escenario sandbox**: `config/api_bancolombia_bnpl.php` sólo define `retrieve_quota` y `origination` |
 | 6 | `accept-terms-and-conditions/{ur}` | `…AcceptTermsAndConditions` | `app/Actions/Lenders/BancolombiaBnpl.php:561` `acceptanceTerms` | — |
 | 7 | `dynamic-key-signature/{ur}` | `…DynamicKeySignature` | (firma clave dinámica) | — |
-| 8 | `origination/{ur}` | `…Origination` | `app/Actions/Lenders/BancolombiaBnpl.php:630` `origination` | `app/Actions/Lenders/BancolombiaBnpl.php:658` **`LenderTransaction`** por `order_id` |
+| 8 | `origination/{ur}` | `…Origination` | `app/Actions/Lenders/BancolombiaBnpl.php:630` `origination` | `app/Actions/Lenders/BancolombiaBnpl.php:684` **`LenderTransaction`** por `order_id` |
 
 Fuera de la secuencia: `app/Actions/Lenders/BancolombiaBnpl.php:745` `validateQuota` (el que usan el listado y el resolve-ecommerce),
 `app/Actions/Lenders/BancolombiaBnpl.php:941` `bnplConfirmed` (lo invocan los crons Corbeta), `app/Actions/Lenders/BancolombiaBnpl.php:1032` `selfManager` + `app/Actions/Lenders/BancolombiaBnpl.php:1057`
@@ -175,7 +175,7 @@ En no-producción hay escenarios direccionables **sin tocar la API real** (`app(
 | Palanca | Dónde | Cómo se elige |
 |---|---|---|
 | `validateQuota` (listado) | `BancolombiaBnpl.php:793-802` | **cédula**: `1998228194` con cupo · `1998228111` sin cupo |
-| `retrieveQuota` + `origination` (BNPL) | `app/Actions/Lenders/BancolombiaBnpl.php:263` `resolveSandboxScenarioByPhone` / `app/Actions/Lenders/BancolombiaBnpl.php:283` `resolveOriginationScenarioByPhone` + `config/api_bancolombia_bnpl.php` | **celular**: `3000000010`→BP20790 compra reciente · `3000000015`→BP20753 sesión expirada · `3000000016`→BP20794 riesgo de fraude |
+| `retrieveQuota` + `origination` (BNPL) | `app/Actions/Lenders/BancolombiaBnpl.php:292` `resolveSandboxScenarioByPhone` / `app/Actions/Lenders/BancolombiaBnpl.php:312` `resolveOriginationScenarioByPhone` + `config/api_bancolombia_bnpl.php` | **celular**: `3000000010`→BP20790 compra reciente · `3000000015`→BP20753 sesión expirada · `3000000016`→BP20794 riesgo de fraude |
 | Consumo | `ApiBancolombiaLoanRequestBuilder::resolveScenarioByDocumentNumber` + `config/api_bancolombia_loan_requests.php` | **cédula**; hay un artisan de preview (`BancolombiaPreviewPayloadCommand`) |
 | MS Go (v2) | `pre-approvals-service` `bancolombia_bnpl/sandbox.go` | **cédula**: `1998228194` → `with_quota`; **cualquier otra** → `without_quota` |
 
