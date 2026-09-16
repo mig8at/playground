@@ -759,6 +759,63 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (6) · más pruebas en local: el par que discrimina, el congelamiento, y un 404 que no es nuestro
+
+> **MEDICIÓN · 2026-09-16** — tercera pasada sobre `fix/flujo-por-origen`. Aparecieron **dos cosas que
+> no estaban en el plan**: un efecto colateral del arreglo que había que acotar, y un 404 previo.
+> **Cómo se vuelve a comprobar:** las tres corridas de abajo, más
+> `./vendor/bin/sail artisan test Modules/Onboarding/tests/Unit/LenderTabBehaviorResolverTest.php`
+
+### 1 · El par que prueba que el origen DISCRIMINA
+
+Todas las corridas anteriores usaban comercios con `usm=1`, donde autogestión y ecommerce contestan
+**lo mismo** — o sea que no probaban nada del canal. El par que sí lo prueba es el mismo comercio y la
+misma entidad con **los dos flags apagados** (Creditop X sobre Creditop), cambiando sólo el canal:
+
+| canal | uReq | destino |
+|---|---|---|
+| ecommerce | 466734 | **`/confirmation`** |
+| autogestión | 466735 | `/continue?url=null` — **sin cambio**, y es lo correcto ahí |
+
+Y la cadena entera contra la BD real, con el vínculo persistido:
+
+| uReq | vínculo | sesión | origen | ¿sigue acá? |
+|---|---|---|---|---|
+| 466734 compra de tienda | sí | sin sesión | `ecommerce` | **sí** |
+| 466734 compra de tienda | sí | **con sesión colada** | `ecommerce` | **sí** ← el bug reportado |
+| 466735 autogestión | no | sin sesión | `self_service` | no |
+| 466735 autogestión | no | con sesión | `advisor` | no |
+
+### 2 · ⚠ El efecto colateral que hubo que ACOTAR
+
+`opensNewTab` recibía `isEcommerce` del mismo campo que nunca viaja, así que llegaba **siempre false**
+y ecommerce caía en la rama de autogestión. Al arreglar el dato, se destapaba — y eso **cambia
+producción**. Medido contra prod, sucursales con credencial de ecommerce y comercio no autogestionado
+pasarían de modal a **pestaña nueva**: **Welli** (19 sucursales), **Medicredit** (18), **Wompi** (11),
+**Su+pay** (4), **Addi** (1). Bancolombia no (va por `postRedirect`, ya forzado a false); Compensar,
+Sistecrédito y Meddipay tampoco (lista de exclusión).
+
+**Decisión de Miguel: congelarlo.** El método vuelve a su firma original, sus 9 pruebas quedan tal cual
+—son la red que prueba que no se tocó— y se suma **una que FIJA el congelamiento**: si alguien lo migra
+sin abrir esa entrega, se pone roja. El blast radius del PR queda en UNO.
+
+⚠ **Y la lección generaliza: arreglar un dato roto destapa todo lo que lo consumía.** El primer commit
+«funcionaba» sin cambiar nada; el segundo, al arreglar de dónde sale el canal, movió dos ramas — una
+buscada y otra no. Antes de arreglar un campo que nunca llegó, hay que listar quién lo lee.
+
+### 3 · Un 404 que apareció probando, y es PREVIO
+
+Elegir **Sistecrédito** por ecommerce lleva a `/ecommerce/<hash>/<ureq>/validate-lender-otp` → **404**.
+Verificado con A/B contra el código de `qa`: **se reproduce idéntico**. Es la **tercera vez** el mismo
+defecto de clase —una ruta declarada en un árbol de `routes.ts` y no en el otro—, después de `continue`
+(faltaba en el público) y `initial-fee-payment` (faltaba en el del asesor). Candidato a F-xx.
+
+### El estado de la rama
+
+Tres commits sobre `origin/qa`, sólo backend. Pruebas **14 → 20** (47 aserciones). El cuerpo del PR
+está escrito. **El push quedó bloqueado por el clasificador de permisos de la sesión**, así que lo sube
+Miguel.
+
 ### 2026-09-16 (5) · rama `fix/flujo-por-origen`: el canal como valor con nombre, y el campo que nunca viajó
 
 > **MEDICIÓN · 2026-09-16** — rama desde `origin/qa` (`7b1f45f0`), dos commits, **sólo backend**.
