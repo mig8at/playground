@@ -26,9 +26,16 @@ DOS TRAMPAS, las dos medidas, y por eso el chequeo es más angosto de lo que uno
      `Experian.php:51` es correcta en `application` y absurda en `legacy-backend`. Se prueban TODOS los
      candidatos y sólo se marca si falla en todos — y el reporte dice dónde está en cada uno.
 
-LO QUE **NO** CONTESTA: las citas sin símbolo pegado (la mayoría: ~1800 de 2026). Para esas la única
-vara sigue siendo `refs.py`. El resumen las declara, igual que `refs.py` declara las cortas: un verde
-que cubre el 10 % y no lo dice es la trampa que las dos herramientas vienen a no repetir.
+DOS REDES, y la segunda se agregó porque la primera dejaba afuera demasiado. Si no hay símbolo
+pegado, se toma **todo lo que la prosa pone entre backticks hasta la cita siguiente** y se sacan de ahí
+los identificadores —también los de dentro de expresiones como `` `$lenderClass = $lender->action` ``—:
+basta con que UNO aparezca cerca. Es más laxa a propósito (más cobertura, menos señal por caso), y en
+`entities` encontró **7 citas malas que la red estricta no veía**: las de `lender.constants.ts`, que el
+doc anota con constantes entre backticks pero no pegadas.
+
+LO QUE **NO** CONTESTA: las citas que no traen NADA entre backticks detrás. Para esas la única vara
+sigue siendo `refs.py`. El resumen declara cuántas son, igual que `refs.py` declara las cortas: un verde
+que cubre una fracción y no lo dice es la trampa que las dos herramientas vienen a no repetir.
 
 USO
   python3 tools/simbolos.py                 → todos los nodos
@@ -46,22 +53,55 @@ CAND = [("legacy-backend", ""), ("legacy-application", ""), ("pre-approvals-serv
         ("frontend-monorepo", "apps/loan-request-wizard/"), ("frontend-monorepo", "")]
 EXT = r"(?:tsx|ts|jsx|js|mjs|cjs|php|vue|go)(?![\w])"
 # El `[alias]` que algunos docs anteponen (`[legacy] app/…`) no es parte de la ruta.
-CITA = re.compile(r"`(?:\[\w[\w\-]*\]\s*)?([\w][\w./+\-]*\." + EXT + r"):(\d+)(?:-(\d+))?`")
+# `…` va en la clase: los docs eliden tramos largos (`frontend-monorepo/…/lib/…`) y se resuelven por
+# sufijo, igual que en `refs.py`. Sin el caracter, la ruta se cortaba en el trozo de después.
+CITA = re.compile(r"`(?:\[\w[\w\-]*\]\s*)?([\w][\w./+…\-]*\." + EXT + r"):(\d+)(?:-(\d+))?`")
 SIMB = re.compile(r"`([A-Za-z_][\w]*)`")
-CERCA = 3          # cuántas líneas antes/después cuentan como «ahí»
+BACKTICK = re.compile(r"`([^`]+)`")
+IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}")
+# Dónde CORTA la red ancha: en la cita siguiente, en el separador del doc (` · `) o al terminar la
+# frase. Sin esto agarraba el símbolo de la oración de al lado — el mismo falso positivo que la red
+# estricta ya evitaba (`Prami.php:384` se llevaba el `FN_…` de la frase siguiente).
+CORTE = re.compile(r" · |(?<=\))\. |(?<=[a-z])\. ")
+# Un `path/al/archivo.php` entre backticks NO es un símbolo de la línea citada: es otra referencia.
+# Sin filtrarlo, `app`, `php`, `Models` y `Http` matcheaban en cualquier archivo y todo daba ✓ o ruido.
+def utiles(txt):
+    if "/" in txt:
+        return set()
+    # se exige snake_case, camelCase o CONSTANTE: `local`, `case`, `false`, `age` no afirman nada.
+    return {w for w in IDENT.findall(txt) if len(w) >= 5 and ("_" in w or any(c.isupper() for c in w[1:]))}
+CERCA = 3          # red ESTRICTA: el símbolo tiene que estar EN esa línea (±3 por si el bloque creció)
+# Red ANCHA: la prosa describe una REGIÓN («`updateTrigger`, con `apply_all` que lo pisa»), y lo que
+# nombra suele vivir DENTRO del método, no en su firma. Con ±3 eso daba falso positivo — `apply_all`
+# está 11 líneas debajo de la línea citada, y la cita es correcta. Se mide contra el bloque, no la línea.
+CERCA_ANCHA = 30
 _cache = {}
+_arboles = {}
 
 
 def versiones(rel):
     """[(nombre, líneas)] — TODAS las copias del archivo en `origin/main`, no la primera."""
     if rel in _cache:
         return _cache[rel]
+    elidida = "…" in rel or "..." in rel
+    suf = re.split(r"(?:\.{3}|…)/?", rel)[-1] if elidida else None
     out = []
     for repo, pre in CAND:
+        ruta = f"{pre}{rel}"
+        if elidida:
+            if repo not in _arboles:
+                _arboles[repo] = subprocess.run(
+                    ["git", "-C", f"{G}/{repo}", "ls-tree", "-r", "--name-only", "origin/main"],
+                    capture_output=True, text=True).stdout.split("\n")
+            hits = [x for x in _arboles[repo] if x.endswith(suf)]
+            if not hits:
+                continue
+            ruta = hits[0]
         try:
-            txt = subprocess.run(["git", "-C", f"{G}/{repo}", "show", f"origin/main:{pre}{rel}"],
+            txt = subprocess.run(["git", "-C", f"{G}/{repo}", "show", f"origin/main:{ruta}"],
                                  capture_output=True, text=True, check=True).stdout.split("\n")
-            out.append((repo if not pre else f"{repo}/{pre.rstrip('/')}", txt))
+            out.append(repo if not pre and not elidida else f"{repo}:{ruta}")
+            out[-1] = (out[-1], txt)
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
     _cache[rel] = out
@@ -72,27 +112,42 @@ def revisar(nodo):
     doc = os.path.join(FLOWS, nodo, "doc.md")
     malas = buenas = sin = 0
     for i, linea in enumerate(io.open(doc, encoding="utf-8").read().split("\n")):
-        for m in CITA.finditer(linea):
+        citas = list(CITA.finditer(linea))
+        for k, m in enumerate(citas):
             rel, n, fin = m.group(1), int(m.group(2)), int(m.group(3) or 0)
+            # RED 1 — el símbolo PEGADO: tiene que estar ese, y no otro.
             s = SIMB.search(linea, m.end())
-            if not s or not re.fullmatch(r" ?\(?", linea[m.end():s.start()]):
-                sin += 1
+            if s and re.fullmatch(r" ?\(?", linea[m.end():s.start()]):
+                simbolos, ancha = {s.group(1)}, False
+            else:
+                # RED 2 — todo lo entrecomillado hasta la cita siguiente: basta con que uno pegue.
+                hasta = citas[k + 1].start() if k + 1 < len(citas) else len(linea)
+                corte = CORTE.search(linea, m.end(), hasta)
+                if corte:
+                    hasta = corte.start()
+                simbolos = set()
+                for b in BACKTICK.finditer(linea[m.end():hasta]):
+                    simbolos |= utiles(b.group(1))
+                ancha = True
+            vs = versiones(rel)
+            if not simbolos or not vs:
+                sin += 1                      # nada que comparar, o el archivo no existe (lo ve refs.py)
                 continue
-            sim, vs = s.group(1), versiones(rel)
-            if not vs:
-                continue                      # el archivo no existe: eso lo reporta `refs.py`
-            if any(sim in l for _, t in vs for l in t[max(0, n - CERCA - 1):(fin or n) + CERCA]):
+            radio = CERCA_ANCHA if ancha else CERCA
+            cerca = [l for _, t in vs for l in t[max(0, n - radio - 1):(fin or n) + radio]]
+            if any(sim in l for sim in simbolos for l in cerca):
                 buenas += 1
                 continue
-            pat = re.compile(r"\b" + re.escape(sim) + r"\b")
             donde = []
             for repo, t in vs:
-                hits = [j + 1 for j, l in enumerate(t) if pat.search(l)]
+                hits = [j + 1 for j, l in enumerate(t) if any(sim in l for sim in simbolos)]
                 donde.append(f"{repo}: " + (f":{hits[0]}" + (f" (+{len(hits)-1})" if len(hits) > 1 else "")
                                             if hits else "no aparece"))
             malas += 1
             rango = f"{n}-{fin}" if fin else str(n)
-            print(f"  {nodo}/doc.md:{i+1:<5} {rel}:{rango}  «{sim}» → " + " · ".join(donde))
+            marca = "~" if ancha else " "
+            print(f" {marca}{nodo}/doc.md:{i+1:<5} {rel}:{rango}  "
+                  f"«{'/'.join(sorted(simbolos)[:3])}» → " + " · ".join(donde))
     return malas, buenas, sin
 
 
@@ -108,8 +163,9 @@ def main():
         tm, tb, ts = tm + a, tb + b, ts + c
     cubre = round(100 * (tm + tb) / max(1, tm + tb + ts))
     print(f"\n{tm + tb + ts} citas con archivo y línea · ⚠ {tm} apuntan a otro lado · ✓ {tb} bien")
-    print(f"⚠ {ts} no traen un símbolo pegado y NO se pueden comprobar así → esto cubre el {cubre}%. "
-          f"Para esas, la vara es `tools/refs.py`.")
+    print(f"⚠ {ts} no traen NADA entre backticks detrás y no se pueden comprobar así → esto cubre el "
+          f"{cubre}%. Para esas, la vara es `tools/refs.py`. Las marcadas con ~ salen de la red ANCHA "
+          f"(basta un identificador de la prosa): más cobertura, menos señal por caso.")
     return 1 if tm else 0
 
 
