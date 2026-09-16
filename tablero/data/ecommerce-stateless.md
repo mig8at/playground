@@ -7,7 +7,7 @@ context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
+ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, restore/ecommerce-checkout-y-rebote, cuota-inicial-rebote-asesor-qa, cuota-inicial-rebote-asesor, ecommerce-stateless-checkout, sala-de-espera-ecommerce, ecommerce-*stateless*, ecommerce-bienvenida-campos-y-cuota-inicial, cuota-inicial-en-el-wizard, ecommerce-web-origination, ecommerce-stateless-detail, ecommerce-continue-route, creditopx-standby-confirmation, creditopx-initial-fee-bounce, down-payment-build, ecommerce-unify-base64-vtex
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -758,6 +758,66 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-16 (5) · rama `fix/flujo-por-origen`: el canal como valor con nombre, y el campo que nunca viajó
+
+> **MEDICIÓN · 2026-09-16** — rama desde `origin/qa` (`7b1f45f0`), dos commits, **sólo backend**.
+> Probado en local con el A/B del mismo comercio y la misma entidad, antes y después.
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=local node dev/caminar-wizard.ts --casos '#bb534d6a:37' --flow ecommerce --cerrar --manual`
+
+**Qué cambia.** El canal deja de deducirse de dos booleanos sueltos y pasa a ser un valor con nombre,
+`OnboardingOrigin`, resuelto **una vez** y compartido por las tres decisiones que antes lo deducían por
+separado (el modal «continuá con el asesor», si el proceso se entrega, y si la selección abre pestaña):
+
+| canal | ¿el flujo sigue acá? |
+|---|---|
+| `ECOMMERCE` | **sí**, siempre — la compra existe y el comprador está en su propio dispositivo |
+| `ADVISOR` | **no** — es punto de venta, el handoff es lo que corresponde |
+| `SELF_SERVICE` | sólo si el comercio o la entidad están marcados, igual que antes |
+
+Y **el pedido de la tienda gana sobre la sesión**, que es el arreglo: antes la primera pregunta era
+`auth()->user() !== null`, así que una sesión colada convertía una compra en flujo de mostrador.
+
+### ⚠ El hallazgo que no esperaba, y es anterior a esta rama
+
+**`$request->ecommerce_request_id` es SIEMPRE null en `update-user-request`.** El payload del front es
+`{lender_id, fee_number, original_amount, amount, initial_fee, rate, transaction_data}`
+(`LoanRequestPayload`) — ese campo no está. Consecuencias, las dos medidas:
+
+1. mi primera versión del arreglo **no hacía nada**, porque el origen nunca podía dar `ECOMMERCE`;
+2. **y la guarda que ya existía tampoco.** La condición del modal «continuá el proceso con el asesor
+   comercial» dice `&& !isset($ecommerceRequestId)` — o sea que **nunca excluyó a ecommerce**, y una
+   compra de tienda recibía ese modal igual. Eso es lo que produce el `/continue?url=null`.
+
+✔ **El dato bueno está persistido desde el checkout, y vive en TRES lugares** —
+`ecommerce_requests.user_request_id`, `.original_user_request_id` y la tabla puente
+`user_requests_by_ecommerce_request`—, que es el mismo trío que ya excluye
+`UserRequestRepository::findWithEcommerceExclusions()`. Queda como predicado con nombre,
+`EcommerceRequest::existsForUserRequest()`, en vez de una cuarta copia suelta.
+
+### El A/B, y los tres canales
+
+| caso | antes (`origin/qa`) | después |
+|---|---|---|
+| **ecommerce, los dos flags apagados** (Creditop X) | `/ecommerce/…/continue?url=null` | **`/confirmation`** ✅ |
+| autogestión (Mediarte X, `usm=1`) | `/confirmation` → estado 11 | igual |
+| ecommerce (CrediPullman, `usm=1`) | `/confirmation` → estado 11 | igual |
+| asesor sobre comercio `self_managed=1` (AltaX) | `/continue` con handoff | igual |
+
+Pruebas del resolver: **14 → 19** (46 aserciones), incluida la regresión de la sesión colada.
+
+### Tres cosas que quedan escritas y NO se hicieron acá
+
+- ⚠ **QR de Corbeta no es un `case` aparte**, a propósito: entra por el mismo endpoint que la tienda
+  web (`checkout/{allied_branch_hash}`, `CorbetaCheckoutController`) y crea la misma fila, así que hoy
+  no se distingue — y para esta decisión da lo mismo. Separarlo pide una marca al crear el pedido.
+- ⚠ **Autogestión con una sesión colada sigue leyéndose como asesor.** Desde el backend no hay con qué
+  distinguirla: el árbol de la ruta sólo lo sabe el front, que ya tiene `resolveOnboardingChannel`.
+  Cerrarlo pide mandar el canal en el payload — otra entrega, y toca los dos repos.
+- ⚠ **`NequiPaymentService::isSelfManagement()` tiene una copia del mismo trío** y sigue preguntando
+  primero por la sesión. No se tocó: contesta otra pregunta. La divergencia queda **asertada** en la
+  tabla de pruebas, con la fila que se separa marcada, en vez de quedar en silencio.
 
 ### 2026-09-16 (4) · ECOMMERCE también cae en `/confirmation` — y por qué la prueba de QA no
 
