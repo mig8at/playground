@@ -759,6 +759,28 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (9) · PR abierto: legacy-backend#1409 → `qa`
+
+> **MEDICIÓN · 2026-09-16** — la rama `fix/flujo-por-origen` se subió y el PR está abierto:
+> [legacy-backend#1409](https://github.com/Creditop-SAS/legacy-backend/pull/1409) → `qa`,
+> **MERGEABLE/CLEAN**. Cuatro commits, sólo backend, 20 pruebas del resolver en verde y los cuatro
+> caminos caminados en local.
+
+**El orden de merge de lo que queda:**
+
+| | PR | → | estado |
+|---|---|---|---|
+| 1 | **#1409** el flujo por origen | `qa` | ✅ abierto, limpio — desbloquea a QA |
+| 2 | **#1388** el backend de la tarjeta | `qa` | `MERGEABLE/CLEAN` |
+| 3 | **#995** el front de la tarjeta | `qa` | rebaseado en local; se pone verde al pushear |
+| 4 | el backend a producción | `main` | promoción `qa`→`main`, o PR propio |
+| 5 | **#1016** repone la entrada del checkout | `main` | ⚠ **le falta portarle #1018** |
+
+⚠ **Dos órdenes que no son cosméticos.** El backend de la tarjeta va **antes** que su front (#1388 antes
+que #995): agrega un campo que nadie lee todavía, y al revés rompe. Y el backend llega a `main` **antes**
+que #1016, porque si no producción estrena la entrada de ecommerce con el backend viejo y el comprador
+cae en `/continue?url=null` — que es exactamente el bug que esto viene a arreglar.
+
 ### 2026-09-16 (8) · la MATRIZ: cada comercio por los dos caminos, y por qué la tabla anterior engañaba
 
 > **MEDICIÓN · 2026-09-16** — Miguel señaló que la tabla anterior tenía a Alta Fleet sólo en la fila del
