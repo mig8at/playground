@@ -773,6 +773,33 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (11) · 🔴 BLOQUEADO: `lenders-v2` da 500 en `qa` — falta una migración, y no es de esta tarea
+
+> **MEDICIÓN · 2026-09-16** — al arrancar las pruebas en `qa`, el listado **no carga**:
+> `GET /api/onboarding/loan-application/lenders-v2/<ureq>` → **HTTP 500**.
+> `SQLSTATE[42S02]: Table 'creditop.cards' doesn't exist`.
+> **Cómo se vuelve a comprobar:**
+> `I_KNOW_THIS_TOUCHES_SHARED_DEV=1 E2E_TARGET=qa node dev/listado.ts --branch 13874eb6 --v2`
+
+**La causa, medida:** el PR **legacy-backend#1388** («la tarjeta viaja en la respuesta») **sí trae** su
+migración —`database/migrations/2026_09_13_120000_create_cards_table.php`— pero **la tabla no existe**
+en la base compartida (`information_schema` devuelve 0). El código se desplegó y la migración no corrió:
+`main-qa.yaml` sólo invoca el deploy de ECS (`config-ci/deploy-ecs-service.yaml`), sin paso de
+migraciones.
+
+⚠ **Esto bloquea a TODO el equipo, no sólo a esta tarea**: el listado está en todos los flujos, así que
+en `qa` nadie pasa de ahí. Y el front usa `lenders-v2`, que es justo el que revienta.
+
+⚠ **No se corrió la migración desde acá, a propósito.** Aplicar migraciones a mano contra la base
+compartida desde un contenedor local es exactamente la práctica que dejó la BD de dev+staging vacía el
+2026-08-19 (CORE-431). Le corresponde a quien despliega, en el ambiente.
+
+**Cómo se descubrió, que vale como método:** el backend no dejó rastro en Loki (cero errores en 45
+minutos) y el navegador mostraba sólo «Error al obtener las opciones de financiamiento». La causa
+apareció en **PostHog** —`available-lenders.tsx loader GET …/lenders-v2/502391 returned 500`— y el
+mensaje exacto sólo salió pegándole al endpoint con `listado.ts`. Las tres fuentes, y cada una aportó
+una pieza distinta.
+
 ### 2026-09-16 (10) · #1018 portado a #1016 — y 19 archivos de prueba que no corren
 
 > **MEDICIÓN · 2026-09-16** — `#1409`, `#1388` y `#995` ya están en `qa`. Falta #1016, y se le portó
