@@ -1882,7 +1882,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   <br>⚠ **Y NO se puede medir con `profiling_reviews.disbursed_lender`**, aunque tiente: esa columna
   se escribe junto al voucher en casi todos los call sites, **pero también** cuando un comercio marca
   la solicitud como desembolsada desde el panel
-  (`Modules/Partner/App/Services/UserRequestManagementService.php:188`, `STATUS_DISBURSED = 11`), que
+  (`Modules/Partner/App/Services/UserRequestManagementService.php:33`, `STATUS_DISBURSED = 11`), que
   **no genera voucher**. Medir por ahí exonera al 162 por error: su ratio alto es vía de ingreso
   distinta, no vouchers. La huella en BD del voucher **no existe** — `VoucherService::generateVoucher`
   solo escribe el PDF a S3 y no deja fila; el log `Voucher generated` lo emite el

@@ -191,13 +191,13 @@ referencia + ajuste de timeouts en los loaders del wizard.
 - `Modules/Onboarding/App/Services/OtpBypassService.php:25` Setting `qa_otp_bypass_phones` · `Modules/Onboarding/App/Services/OtpBypassService.php:37` sólo `local`/`development` · `Modules/Onboarding/App/Services/OtpBypassService.php:65-71` el código = últimos 4 del teléfono.
 - `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:57` (`getRegistrationData`: partner + `partner_modes` + branch + sucursales) · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:78` (`processCellPhoneRegistration`) · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:413-419` `createTemporalUser` · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:594-597` `isTemporaryUser`.
 - `Modules/Onboarding/App/Services/CommerceService.php:127-130` — `ecommerce` vs `traditional` según `allied_ecommerce_credentials` (COM002).
-- `Modules/Onboarding/App/Services/DynamicFormsService.php:35-58` constantes + mapa de campos 162-172 · `Modules/Onboarding/App/Services/DynamicFormsService.php:68-77` catálogo DYFS1001-1005 · `Modules/Onboarding/App/Services/DynamicFormsService.php:495-518` crea la UR reusando `UserRequestService`.
+- `Modules/Onboarding/App/Services/DynamicFormsService.php:35-58` constantes + mapa de campos 162-172 · `Modules/Onboarding/App/Services/DynamicFormsService.php:68-77` catálogo DYFS1001-1005 · `Modules/Onboarding/App/Services/DynamicFormsService.php:546-568` crea la UR reusando `UserRequestService`.
 - `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:18-22` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
 
 **Nueva arquitectura (G3)**
 - `Modules/OnboardingV2/App/Providers/RouteServiceProvider.php:24` — prefijo `api/v2/onboarding`.
 - `Modules/OnboardingV2/routes/api.php:21-35` — `personal-info/{branch}/{ur}` y `otp-auth/validate/{branch}`; el comentario declara que **no consulta pre-aprobados ni ninguna central de riesgo**.
-- `Modules/OnboardingV2/App/Services/StorePersonalInfoService.php:122` — `OBV21000 = 501 Not Implemented`.
+- `Modules/OnboardingV2/App/Services/StorePersonalInfoService.php:212` — `OBV21000 = 501 Not Implemented`.
 - `Modules/UserRequestV1/App/Services/FindOrCreateService.php:117` orquestador · `Modules/UserRequestV1/App/Services/FindOrCreateService.php:364-373` estado 9 + record · `Modules/UserRequestV1/App/Services/FindOrCreateService.php:383-412` `baseConditions` / `baseData`.
 - `Modules/UserRequestV1/App/Constants/FindOrCreateServiceConstants.php:16-31` — **los nombres canónicos de los estados 1/9 y `EDITABLE_STATUS_IDS`**.
 

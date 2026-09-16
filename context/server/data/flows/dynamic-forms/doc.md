@@ -181,7 +181,7 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Endpoints**: `.../infrastructure/repositories/dynamic-form-schema.repository.ts:5-6` y `:19` · `.../save-form-response.repository.ts:18` (las respuestas salen a la MS) · `.../form-type.repository.ts:18` · `.../supplementary-info.repository.ts:7-8` (typo del proveedor documentado en comentario).
 - **Normalización**: `.../application/mappers/backend-to-internal.mapper.ts:17-32` (14 tipos) · `:44-46` (fallback silencioso a `text`) · `:56` (`required = nullable === false`) · `:72` (`formKey`).
 - **Visibilidad y payload**: `.../application/field-visibility.ts:21-28` · `.../application/submit-payload-builder.ts:33` (keyed por `field.id`).
-- **Hardcode de país**: `apps/loan-request-wizard/app/routes/additional-info-form.tsx:34` (`COUNTRY_ID = 47`) · `:169` (submit) · `:186` (→ firmar documentos).
+- **Hardcode de país**: `apps/loan-request-wizard/app/routes/additional-info-form.tsx:33` (`PAIS_POR_OMISION = 47` — se llamaba `COUNTRY_ID`) · `apps/loan-request-wizard/app/routes/additional-info-form.tsx:220` (submit) · `apps/loan-request-wizard/app/routes/additional-info-form.tsx:208` (→ firmar documentos).
 
 **G0 y el EAV**
 - **Definición**: `database/migrations/2023_04_20_225944_create_fields_table.php` · `..._230613_create_forms_table.php:17` · `..._230159_create_field_options_table.php` · `..._225653_create_field_categories_table.php` · `..._225816_create_form_types_table.php` + `2026_05_14_030659_add_lender_id_to_form_types_table.php`.

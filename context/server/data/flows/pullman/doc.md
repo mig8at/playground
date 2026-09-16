@@ -39,7 +39,7 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 ## Dónde mirar
 **Hardcodes por `allied_id==94`** (lo propio de Pullman):
 - **Monto mínimo** (legacy): `Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:86` `case 94:` → `:90` `amount <= 600000` → `:92` `pullman_min_amount`.
-- **Salto pre-aprobados + Experian aciertaQuanto** (legacy): `Modules/Onboarding/App/Services/OnboardingService.php:593-595` (`!$isPullman` neutraliza `consultPreApproveLender`) · `:760,:769` (`$experianMethod = $isPullman ? 'aciertaQuanto' : 'quanto'`).
+- **Salto pre-aprobados + Experian aciertaQuanto** (legacy): `Modules/Onboarding/App/Services/OnboardingService.php:682-684` (`!$isPullman` neutraliza `consultPreApproveLender`) · `Modules/Onboarding/App/Services/OnboardingService.php:858`, `Modules/Onboarding/App/Services/OnboardingService.php:869` (`$experianMethod = $isPullman ? 'aciertaQuanto' : 'quanto'`).
 - **Meddipay por hora** (application): `app/Services/lenders/PreApprovedLenderService.php:536` (`allied_id == 94` ⇒ `unset`).
 - **SMS Credipullman** (application): `app/Services/lenders/CreditopXNotificationService.php:48`.
 

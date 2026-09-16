@@ -70,6 +70,7 @@ def utiles(txt):
         return set()
     # se exige snake_case, camelCase o CONSTANTE: `local`, `case`, `false`, `age` no afirman nada.
     return {w for w in IDENT.findall(txt) if len(w) >= 5 and ("_" in w or any(c.isupper() for c in w[1:]))}
+REVISADAS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "simbolos-revisadas.txt")
 CERCA = 3          # red ESTRICTA: el símbolo tiene que estar EN esa línea (±3 por si el bloque creció)
 # Red ANCHA: la prosa describe una REGIÓN («`updateTrigger`, con `apply_all` que lo pisa»), y lo que
 # nombra suele vivir DENTRO del método, no en su firma. Con ±3 eso daba falso positivo — `apply_all`
@@ -108,9 +109,26 @@ def versiones(rel):
     return out
 
 
-def revisar(nodo):
+def revisadas():
+    """{(nodo, ruta:línea)} — citas ya verificadas a mano: la cita es correcta y lo que marca es el
+    límite de la heurística. La clave lleva la LÍNEA, así que corregir la cita invalida la entrada y
+    la herramienta avisa que sobra: una lista que perdonara «el nodo entero» se pudriría en silencio."""
+    out = {}
+    if not os.path.isfile(REVISADAS):
+        return out
+    for cruda in io.open(REVISADAS, encoding="utf-8"):
+        linea = cruda.split("#")[0].strip()
+        if not linea:
+            continue
+        partes = linea.split()
+        if len(partes) >= 3:
+            out[(partes[0], partes[1], partes[2])] = cruda.split("#", 1)[1].strip() if "#" in cruda else ""
+    return out
+
+
+def revisar(nodo, yarevisadas, usadas):
     doc = os.path.join(FLOWS, nodo, "doc.md")
-    malas = buenas = sin = 0
+    malas = buenas = sin = vistas = 0
     for i, linea in enumerate(io.open(doc, encoding="utf-8").read().split("\n")):
         citas = list(CITA.finditer(linea))
         for k, m in enumerate(citas):
@@ -138,35 +156,48 @@ def revisar(nodo):
             if any(sim in l for sim in simbolos for l in cerca):
                 buenas += 1
                 continue
+            rango = f"{n}-{fin}" if fin else str(n)
+            clave = (nodo, str(i + 1), f"{rel}:{rango}")
+            if clave in yarevisadas:
+                usadas.add(clave)
+                vistas += 1
+                continue
             donde = []
             for repo, t in vs:
                 hits = [j + 1 for j, l in enumerate(t) if any(sim in l for sim in simbolos)]
                 donde.append(f"{repo}: " + (f":{hits[0]}" + (f" (+{len(hits)-1})" if len(hits) > 1 else "")
                                             if hits else "no aparece"))
             malas += 1
-            rango = f"{n}-{fin}" if fin else str(n)
             marca = "~" if ancha else " "
             print(f" {marca}{nodo}/doc.md:{i+1:<5} {rel}:{rango}  "
                   f"«{'/'.join(sorted(simbolos)[:3])}» → " + " · ".join(donde))
-    return malas, buenas, sin
+    return malas, buenas, sin, vistas
 
 
 def main():
     nodos = sys.argv[1:] or sorted(d for d in os.listdir(FLOWS)
                                    if os.path.isfile(os.path.join(FLOWS, d, "doc.md")))
-    tm = tb = ts = 0
+    tm = tb = ts = tv = 0
+    ya, usadas = revisadas(), set()
     for nodo in nodos:
         if not os.path.isfile(os.path.join(FLOWS, nodo, "doc.md")):
             print(f"  ⚠ no existe el nodo «{nodo}»")
             continue
-        a, b, c = revisar(nodo)
-        tm, tb, ts = tm + a, tb + b, ts + c
-    cubre = round(100 * (tm + tb) / max(1, tm + tb + ts))
-    print(f"\n{tm + tb + ts} citas con archivo y línea · ⚠ {tm} apuntan a otro lado · ✓ {tb} bien")
+        a, b, c, d = revisar(nodo, ya, usadas)
+        tm, tb, ts, tv = tm + a, tb + b, ts + c, tv + d
+    sobran = [k for k in ya if k[0] in nodos and k not in usadas]
+    if sobran:
+        print("\n⚠ ENTRADAS DE `simbolos-revisadas.txt` QUE YA NO CORRESPONDEN — la cita cambió desde que")
+        print("  se verificó, así que la anotación no vale: volvé a verificarla y re-anotala (o borrala).")
+        for nodo, dl, cita in sorted(sobran):
+            print(f"    {nodo} {dl} {cita}")
+    cubre = round(100 * (tm + tb + tv) / max(1, tm + tb + ts + tv))
+    print(f"\n{tm + tb + ts + tv} citas con archivo y línea · ⚠ {tm} apuntan a otro lado · ✓ {tb} bien"
+          f" · ✓ {tv} marcadas pero YA VERIFICADAS a mano (`tools/simbolos-revisadas.txt`)")
     print(f"⚠ {ts} no traen NADA entre backticks detrás y no se pueden comprobar así → esto cubre el "
           f"{cubre}%. Para esas, la vara es `tools/refs.py`. Las marcadas con ~ salen de la red ANCHA "
           f"(basta un identificador de la prosa): más cobertura, menos señal por caso.")
-    return 1 if tm else 0
+    return 1 if (tm or sobran) else 0
 
 
 if __name__ == "__main__":
