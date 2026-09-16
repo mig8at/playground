@@ -17,8 +17,10 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 
 ## Si retomás esto sin contexto, empezá acá
 
-**El arreglo de autogestión está vivo en `qa` y FUNCIONA. Lo que QA reporta como falla son corridas con
-sesión de asesor, y ahí ir a `/continue` es el comportamiento diseñado.** Medido el 16/9 contra `qa`
+**El arreglo de autogestión está vivo en `qa` y FUNCIONA — VISTO en el navegador.** Sin sesión de
+asesor, el front de `qa` salta del listado a `/self-service/ec977139/502380/confirmation` solo, sin el
+arnés en el medio (Registro del 16/9 (3)). **Lo que QA reporta como falla son corridas con sesión de
+asesor, y ahí ir a `/continue` es el comportamiento diseñado.** Medido el 16/9 contra `qa`
 con CrediPullman (77) sobre Amoblando Pullman (94): las seis solicitudes que fallan llevan todas
 `corporate_user_id = 276231` (`oscar+pullman@creditop.com`, «CREDITOP TEST»), **incluida la del canal
 ecommerce**; la corrida propia sin asesor (uReq 502379) no disparó el WhatsApp de handoff y cerró en
@@ -756,6 +758,51 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-16 (3) · VISTO en el navegador: el front de `qa` redirige a `/confirmation` — sin arnés en el medio
+
+> **MEDICIÓN · 2026-09-16** — la entrada (2) probó el arreglo por el RASTRO (la fila de `twilio_logs`
+> que no se escribió), no por el redirect. Miguel pidió verlo **dejando que redirija la aplicación**, y
+> eso es otra cosa: `caso.ts` pega contra la API y **no pasa por el front**, así que ahí no hay redirect
+> que observar. Ahora sí está visto.
+> **Cómo se vuelve a comprobar:** abrir
+> `https://originaciones-qa.dev.creditop.com/self-service/ec977139/<ureq>/lenders?amount=2000000` en un
+> navegador **sin sesión de asesor** y apretar «Validar Pre aprobado» en CrediPullman.
+
+**Lo que hizo la aplicación, sola:** del listado saltó a
+`https://originaciones-qa.dev.creditop.com/self-service/ec977139/502380/**confirmation**` y pintó el paso
+de identidad (Identidad · Pasos · Firmas, con el QR). No `/continue`. Y la solicitud quedó con
+`corporate_user_id = NULL` y **cero** filas de `sendSelfManagement`: las dos mitades del mismo booleano,
+coherentes.
+
+### Para llegar ahí hubo que destrabar el caminador, y el motivo es un defecto suyo
+
+⚠ **`dev/caminar-wizard.ts` siembra el perfil ANTES de enviar el formulario, y el `action` de
+`personal-info` lo pisa.** Medido comparando las dos solicitudes de hoy, las dos sin asesor y en la
+misma sucursal:
+
+| | field 29 (ocupación) | field 87 (ingreso) | ¿sale 77 en el listado? |
+|---|---|---|---|
+| 502379 (`caso.ts`) | **Empleado** | **2.320.000** | ✅ `[77, 6, 212, 192, 32]` |
+| 502380 (caminador) | **Desempleado** | **0** | ❌ `[212, 192, 6, 32]` |
+
+Con «Desempleado» e ingreso 0, CrediPullman queda fuera por regla DURA — tan afuera que el backend **ni
+siquiera evalúa el cupo** (cero líneas `QUOTA_CHECK` en Loki para esa uReq). O sea que el runner
+reportaba «la entidad 77 no salió en el listado» como si fuera un hecho del comercio, cuando era su
+propia siembra. **Tres corridas se perdieron así** (502377, 502378, 502380) antes de verlo.
+
+✔ **El destrabe, sin tocar el runner:** volver a llamar `synthFill(ur, { lender: 77 })` **después** de que
+el formulario ya se envió, y recién entonces abrir `/lenders` en el navegador. `synthFill` con `lender`
+deriva el perfil que cumple las reglas de esa entidad (`deriveSynthReq`); sin él usa uno genérico.
+
+**El arreglo de fondo, para cuando se toque:** que `sembrar()` corra DESPUÉS del `action` de
+`personal-info` —o que vuelva a sembrar antes de pedir `/lenders`— y que le pase `c.lender` a
+`synthFill`, que ya está en alcance. Hoy la línea es
+`synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true })`.
+
+⚠ **Y ojo con culpar al score:** el primer intento fue subirlo a 750 (el `max(min_score)` de 77 es 700 y
+`deriveSynthReq` habría usado 750). **No cambió nada** — la exclusión era por ocupación e ingreso. Una
+corrida que falla por la siembra se parece mucho a una que falla por la regla.
 
 ### 2026-09-16 (2) · CORRIDO contra `qa`: el arreglo FUNCIONA — las pruebas que fallan llevan asesor
 
