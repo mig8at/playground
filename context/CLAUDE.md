@@ -346,6 +346,14 @@ repetir.**
 ⚠ **Y al expandir citas cortas, el orden importa:** `simbolos.py` **antes** de commitear la expansión,
 no después. Después ya no hay nada que delatar.
 
+⚠ **Lo que marca y ESTÁ BIEN se anota, no se re-verifica cada vez.** `tools/simbolos-revisadas.txt`
+guarda las citas ya comprobadas a mano con el motivo por el que la heurística las marca (el símbolo es
+de la frase de al lado · el nombre es una TABLA y no un identificador del archivo · lo usa un helper
+fuera de la ventana). **La lista no se puede pudrir en silencio**, y ése es todo el diseño: la clave
+lleva la **línea exacta**, así que en cuanto alguien corrige esa cita la entrada deja de coincidir, la
+herramienta avisa que sobra y **sale con error**. Una lista que perdonara «el nodo X entero» sí se
+pudriría. Anotá sólo lo que verificaste vos contra `origin/main`, con el motivo escrito.
+
 ## `alinear.py`: qué nodos quedaron viejos (corrélo DESPUÉS DE CADA MERGE)
 
 ```bash
