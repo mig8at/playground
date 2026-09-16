@@ -76,7 +76,7 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
   `legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/MareiguaExtractor.php:23` · `:66`.
 - **Revolvente rt=3** — `legacy-backend/Modules/Loans/App/Repositories/RevolvingCreditRepository.php:115`
   (`CALL SP_CreditopX_Revolving_Credit`) y
-  `legacy-application/app/Services/lenders/RevolvingLoanConfigService.php:80`
+  `application/app/Services/lenders/RevolvingLoanConfigService.php:80`
   (`FN_CreditopX_Revolving_Credit_Multiplier`). ⚠ **No son dos capas de lo mismo: son dos
   implementaciones que dan resultados distintos** — el SP recalcula todo el otorgamiento en SQL con otra
   función de multiplicador. Ver **F-114** y el nodo `rotativo`.

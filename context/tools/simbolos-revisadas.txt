@@ -50,3 +50,6 @@ application 45 app/Console/Kernel.php:13-94                                    #
 creditopx 209 database/seeders/ResponseTypesTableSeeder.php:24-35              # `smartpay_lender_id` es de Lender.php, citado aparte
 formalization 129 Modules/Onboarding/App/Http/Controllers/ValidateOtpController.php:69-82 # `WelliRegistrationData` es la frase siguiente
 frontend-monorepo 14 utils/auth/session.server.ts:5                            # `SESSION_SECRET`/`__session` son del OTRO archivo, citado a continuación
+
+# ── revisadas el 2026-09-16, nodo `findings` ──
+findings 998 Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:1475 # `resolveFrontendBaseUrl` SÍ está en :1475; `FRONTEND_URL_DEV` es la frase siguiente
