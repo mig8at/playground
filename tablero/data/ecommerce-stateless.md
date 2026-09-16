@@ -748,6 +748,58 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 · «no llegó a qa» era falso: llegó y está desplegado — lo que falla es OTRA cosa
+
+> **MEDICIÓN · 2026-09-16** — los dos lados del arreglo de autogestión (front #1015/#1018 y back
+> #1402) están en `origin/qa` **y desplegados**, con la corrida de despliegue en verde. La hipótesis
+> «no se subió» queda descartada.
+> **Cómo se vuelve a comprobar:**
+> `gh run list --branch qa --limit 8` en los dos repos · `git show origin/qa:Modules/Onboarding/App/Services/UserRequestService.php | grep -c continuaEnEstaPantalla`
+
+| pieza | rama | merge | despliegue a QA |
+|---|---|---|---|
+| front **#1015** el rebote a `/solicitar` | `qa` `a58d861a` | 15/9 10:49 | ✅ 15/9 10:49 |
+| front **#1018** el botón muerto del listado | `qa` `7e5774c8` | 15/9 14:59 | ✅ 15/9 14:59 |
+| back **#1402** autogestión sin entrega | `qa` `7b1f45f0` | 15/9 15:58 | ✅ 15/9 15:58 |
+
+**Y el alcance por rama, que es la primera trampa.** `continuaEnEstaPantalla` (la guarda de #1402)
+aparece **5 veces en `qa`, CERO en `develop` y CERO en `staging`**; `continueUrl` en el
+`UserRequestService`, **4 en `qa`, 3 en `main`, 0 en los otros dos**. O sea que **probar contra
+`originaciones.dev.creditop.com` (dev) o contra staging devuelve el comportamiento viejo**, y las dos
+URLs se diferencian en un token. ⚠ Y no se puede desempatar por logs: la etiqueta `environment` de
+Loki en ese stack sólo tiene `development`, `local` y `testing` — **no hay valor `qa`**, así que
+`dev/loki-trace.ts` con `E2E_TARGET=qa` dice «no es de este target» sin que eso signifique nada.
+
+### Las TRES condiciones del arreglo, y el hueco que no está escrito
+
+`$data['continueUrl']` se puebla sólo si se cumplen las tres a la vez:
+
+1. **sin sesión de asesor** — `continuesInPlace()` devuelve `false` con asesor autenticado, a propósito;
+2. **el par (comercio, entidad) marcado** — `allieds.self_managed` **o** `lenders_by_allieds.user_self_management`;
+3. **`$inPlatformContinueUrl !== null`** — que es donde está el problema.
+
+⚠ **Hueco medido: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`.** En la
+rama CON credencial, `case 4` prende `standBy` pero **no** puebla esa url, y **rt=2 y rt=3 ni siquiera
+tienen `case`**. Así que una entidad en plataforma con credencial cableada **nunca** dispara el
+arreglo: se le sigue mandando el WhatsApp, eso prende `showModal`, y el front aterriza en `/continue`.
+**Tres pares reales en la base de qa caen ahí** — Ramguiflex SAS (26), Mediarte (91) y DENTIX (189),
+los tres con **Credifamilia (24, rt=4)** y credencial a nivel comercio.
+
+### Y los dos comercios con los que se venía probando NO sirven para ver el arreglo
+
+| comercio | `self_managed` | entidades en plataforma (rt 2/3/4) | ¿dispara? |
+|---|---|---|---|
+| **Amoblar** (38) | 1 | **ninguna** | ❌ nunca hay a dónde continuar |
+| **Amoblando Pullman** (94) | 0 | Credifamilia 24 (`usm=0`) | ❌ **por diseño** — el par no está marcado |
+| | | CrediPullman 77 (`usm=1`) · Cierre X 201 (`usm=1`) | ✅ debería |
+
+O sea: **con Credifamilia sobre Amoblando Pullman, ir a `/continue` es el comportamiento correcto**, no
+el bug. El caso que sí ejercita el arreglo es CrediPullman (77) o Cierre X (201) sobre Amoblando
+Pullman, **sin sesión de asesor**, contra `originaciones-qa.dev.creditop.com`.
+
+**Lo que NO se verificó:** contra qué URL, con qué comercio y con qué entidad se corrió la prueba que
+falló. Sin eso no se puede elegir entre las tres explicaciones — y las tres tienen arreglo distinto.
+
 ### 2026-09-15 (10) · los selects pegados eran el AUTORRELLENO: creía que el plazo era una fecha
 
 > **MEDICIÓN · 2026-09-15** — la entrada (9) se quedó a mitad de camino: acertó que las dos listas
