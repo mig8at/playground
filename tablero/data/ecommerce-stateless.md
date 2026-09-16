@@ -773,6 +773,44 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (13) · la matriz COMPLETA en `qa`, y el bloqueo de la sesión resuelto por consola
+
+> **MEDICIÓN · 2026-09-16** — los tres canales, contra `qa`, con la aplicación haciendo el redirect.
+> **Cómo se vuelve a comprobar:** las tres filas de abajo, y si la sesión caducó,
+> `E2E_TARGET=qa npx playwright test dev/warm-session.spec.ts --headed --project=chromium`
+
+| uReq | canal | asesor | WhatsApp | destino |
+|---|---|---|---|---|
+| 502395 | ecommerce | NULL | 0 | **`/self-service/13874eb6/502395/confirmation`** |
+| 502396 | autogestión | NULL | 0 | **`/self-service/13874eb6/502396/confirmation`** |
+| 502397 | **asesor** | 1828388 | **1** | **`/merchant/ec977139/502397/continue`** |
+
+Las dos puntas coinciden: los dos sin asesor no dispararon el WhatsApp y siguieron en la pantalla de
+confirmación; el del asesor lo disparó y fue a la de entrega. **Los flujos se respetan.**
+
+### El bloqueo de la sesión NO era un bloqueo: era una herramienta sin documentar
+
+La sesión de Cognito de `qa` estaba vencida y el caminador cortaba con «entrá una vez por el panel».
+Pero el pre-login **ya existe por consola** —`dev/warm-session.spec.ts`, que es lo que el panel corre por
+debajo—. Renovó en 22 s: `WARM_OK qa`.
+
+⚠ **Va HEADED contra `qa`**: el Managed Login de `auth.merchant` corta la automatización por fingerprint
+y en headless queda colgado en `/verifyPassword` (F-66). ⚠ Y el caminador **no lo dispara solo**: sólo
+lee el cache. Las dos cosas quedaron documentadas en la tabla de herramientas de `harness/CLAUDE.md`.
+
+### La herramienta que faltaba, y el error que la enseñó
+
+El caminador no podía llegar a la selección en el canal del asesor —su siembra deja la entidad fuera del
+listado—, así que se agregó **`dev/asesor-destino.spec.ts`**: abre el listado con la sesión cacheada,
+elige la entidad y reporta a dónde llevó la aplicación. Nada más.
+
+⚠ **Y la primera versión mintió en verde.** Con un localizador propio
+(`locator('div').filter({hasText}).last()` y `getByRole('button').last()`) el click pegó en otro botón:
+la corrida dijo **«1 passed»**, imprimió como destino la misma URL del listado, y en la base el
+`lender_id` de la uReq 502397 quedó en **NULL** — o sea que no se había elegido nada. Lo delató mirar la
+BD, no el runner. Se reescribió usando `elegirEntidad` de `pkg/wizard-navegador.ts`, que además devuelve
+los botones que VIO, que es lo que permite explicar un fallo en vez de sólo reportarlo.
+
 ### 2026-09-16 (12) · PROBADO EN `qa`: los dos canales sin asesor caen en `/confirmation`
 
 > **MEDICIÓN · 2026-09-16** — desbloqueado el listado, corrida la matriz contra `qa` en el navegador.
