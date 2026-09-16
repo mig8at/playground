@@ -179,8 +179,8 @@ codeudor, y el primer cron del nuevo (RD 09:30, ver nodo application/servicing).
 - `application/routes/api.php:22-123` — los webhooks de agregadores rt=1 que siguen en el monolito.
 
 **Gemelos y su deriva**
-- `application/app/Models/Lender.php:55-62` — accessor que fuerza `response_type = 1` si `id == 24` (Credifamilia).
-- `legacy-backend/app/Models/Lender.php:75-78` — **no tiene ese accessor**; sí tiene `isSmartpayChannel()` contra `config/lenders.php:24` (160 en prod, 153 fuera), que **application no tiene**.
+- `application/app/Models/Lender.php:59-66` — accessor que fuerza `response_type = 1` si `id == 24` (Credifamilia).
+- `legacy-backend/app/Models/Lender.php:85-88` — **no tiene ese accessor**; sí tiene `isSmartpayChannel()` contra `config/lenders.php:24` (160 en prod, 153 fuera), que **application no tiene**.
 - `application/app/Http/Controllers/Customer/ListLenderController.php` (614 líneas, Inertia) vs `legacy-backend/Modules/Onboarding/routes/api.php:50` (`lenders-v2` → `LenderListingController`): el par de gemelos del listado.
 
 **Otros cutovers por config**

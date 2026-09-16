@@ -243,7 +243,7 @@ comercio grande sin poder vender a crédito es el peor incidente posible.
 Dónde el modelo comercial **se vuelve código** — es lo que hay que abrir para verificar cualquier
 afirmación de arriba:
 
-- `application/app/Models/LendersByAllied.php:19` (`$fillable`) — **la calculadora del par
+- `application/app/Models/LendersByAllied.php:24` (`$fillable`) — **la calculadora del par
   comercio-entidad**: acá viven, juntas, la comisión de CreditOp (`comission_percentage`), el colchón
   del asegurador (`guarantee_fund_percentage`, `guarantee_insurance_per_million`,
   `guarantee_fixed_monthly_percentage`) y el seguro de vida. Si el negocio cambia, cambia esta fila.

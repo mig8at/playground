@@ -113,7 +113,7 @@ v2, vouchers admin). Confirmado contra `main`.
 - `app/Http/Controllers/Api/VtexController.php:25` init/`redirect`/settel viejos · `app/Http/Controllers/Api/EcommerceController.php:20` `create` (`ecommerce/payment-link`), `:169` `status` · `app/Http/Controllers/Api/EcommerceReplayController.php:21` `replay` (re-disparo de notificación).
 - `app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php:53` `store` (`:92` fija `ecommerce_type_id`) + `app/Http/Requests/Admin/AlliedEcommerceCredential/StoreRequest.php` — **provisión de la credencial del canal** (frontera con merchants). `app/Http/Requests/Api/Ecommerce/EcommerceRequest.php` (validación del create viejo).
 - `app/Http/Middleware/RedirectIfEcommerceNoData.php:34` (si el hash es sucursal "Ecommerce" y no hay `session('ecommerce')` → redirige a login/solicitud-caducada). `app/Models/{EcommerceRequest,AlliedEcommerceCredential,EcommerceRequestsLog}.php`.
-- `routes/customer.php:242-245` (`checkout/{hash}`, `checkout/process`, `checkout/return`, `checkout/cancelar`; `:119` `registrar-celular-eccommerce`) · `routes/api.php:156-181` (vtex + ecommerce) · `routes/admin.php:66` `aliados.ecommerce`.
+- `routes/customer.php:242-245` (`checkout/{hash}`, `checkout/process`, `checkout/return`, `checkout/cancelar`; `:119` `registrar-celular-eccommerce`) · `routes/api.php:156-181` (vtex + ecommerce) · `routes/admin.php:71` `aliados.ecommerce`.
 - `app/Console/Commands/UpdateEcommerceRequestsCommand.php` — en legacy-backend está **neutralizado** (no-op; el reintento batch no está migrado); en `application` aún tiene lógica.
 
 ## Fronteras (qué cede a los hermanos)

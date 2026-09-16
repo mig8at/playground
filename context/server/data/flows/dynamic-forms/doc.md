@@ -19,7 +19,7 @@ Importa porque es la frontera entre *lo que se puede cambiar por config* y *lo q
 - **`user_field_values` no tiene unique ni FKs.** La terna (`field_id`,`user_id`,`user_request_id`) es única solo por convención del código, y hay **tres repositorios paralelos** sobre la misma tabla (Onboarding, Identity, Loans) con nombres distintos para la misma operación (`createOrUpdate` vs `updateOrCreate`), más ~37 accesos directos al modelo.
 - **`form_id` es basura.** El perfilamiento renderiza `form_type = 4` pero escribe `form_id = 1`; el complementario escribe `form_id = 5`; el form RD escribe siempre `1`. La columna no es confiable como discriminador.
 - **Claves de payload muertas.** Los controladores viejos pasan `files`, `file_names`, `file_sizes`, `file_mime_types`, que **no existen** en el `$fillable` (las columnas son `file` y `file_name`, singulares): se descartan en silencio.
-- **Código muerto verificado**: `createTemporaryUserEntity` en `DynamicFormsService.php:843` nunca se llama (el orquestador tira excepción si no encuentra usuario por teléfono). `Modules/Identity/App/Repositories/FormRepository.php:16-25` está registrado en el contenedor pero sus dos consultas filtran por una columna **inexistente** (`form_type`; la tabla tiene `form_type_id`) — reventaría si alguien la invocara.
+- **Código muerto verificado**: `createTemporaryUserEntity` en `DynamicFormsService.php:847` nunca se llama (el orquestador tira excepción si no encuentra usuario por teléfono). `Modules/Identity/App/Repositories/FormRepository.php:16-25` está registrado en el contenedor pero sus dos consultas filtran por una columna **inexistente** (`form_type`; la tabla tiene `form_type_id`) — reventaría si alguien la invocara.
 - **Gemelos no invocados** (patrón conocido del strangler): `GenericFormController` y `CreditopXFormController` existen en `legacy-backend` **sin rutas**; las rutas vivas están solo en `application` (`/formulario-perfilamiento`, `/formulario-complementario`).
 - **Dos archivos de config bajo el mismo namespace.** `config/onboarding.php` (drivers/fakes/logging) y `Modules/Onboarding/config/config.php` (dynamic_forms/abaco/redis) se fusionan ambos en `config('onboarding.*')` vía `mergeConfigFrom`. Hoy no chocan; el día que compartan una clave, gana el de raíz.
 - **Detalles menores pero reales**: el docblock del repositorio dice `OFS1001` mientras la constante exige `OFS1000`; el endpoint upstream de información suplementaria tiene un typo (`/v1/suplementary-info/`, con una sola `p`) que el cliente replica a propósito; `COUNTRY_ID = 47` está hardcodeado en la ruta de información adicional; y `field_id` 159 (estrato) quedó huérfano tras ser reemplazado por el 30.
@@ -172,7 +172,7 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Fetch del esquema**: `apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx:40` (`VITE_ONBOARDING_FORM_SERVICE`) · `:60` (`/dynamic/{partner_hash}/schema`).
 - **Que es RD**: `modules/loan-request-wizard/dynamic-form/src/ui/components/financial-info-options.ts:1-8` y `:44-51` (rangos `RD$`) · `modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts:22-24` (CED/CI_VE/PAS) · `:17-18` (18-100 años).
 - **Sesión (forma fija)**: `modules/loan-request-wizard/dynamic-form/src/lib/types/dynamic-form-session.ts:13-21`; cliente en `apps/loan-request-wizard/app/context/DynamicFormContext.tsx:34` / `:76` / `:95`.
-- **Rutas del wizard**: `apps/loan-request-wizard/app/routes.ts:82-87`.
+- **Rutas del wizard**: `apps/loan-request-wizard/app/routes.ts:91-96`.
 
 **G2 — backend-driven-form**
 - **Resolución del form por entidad**: `Modules/Loans/App/Services/FormTypeService.php:29-37` · ruta `Modules/Loans/routes/api.php:124`.
@@ -189,7 +189,7 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **EAV → decisión**: `Modules/Loans/App/Services/LenderUserCategoryService.php:346-351` (scoring por campo) · `:384-389` (87 como salario) · `:409` (29 como ocupación) · tabla en `database/migrations/2026_02_19_214838_create_table_lender_user_fields_scoring_policy.php`.
 - **Los ids del perfilamiento** (application, vivo): `app/Http/Controllers/Customer/GenericFormController.php:20` (form_type 4) · `:36` (estado 9) · `:74`/`:91`/`:125` (29/87/160) · rutas en `routes/customer.php:143-144`.
 - **Los ids del complementario** (application, vivo): `app/Http/Controllers/Customer/CreditopXFormController.php` (25/158/70) · `routes/customer.php:276-277` · gate por entidad en `database/migrations/2024_08_28_212910_add_complementary_form_to_lenders_table.php`.
-- **Estrato y fecha manual**: `Modules/Onboarding/App/Services/OnboardingService.php:1198` · `:1214` · `:1239` (field 30) · constantes en `Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php:20-23`.
+- **Estrato y fecha manual**: `Modules/Onboarding/App/Services/OnboardingService.php:1287` · `:1214` · `:1239` (field 30) · constantes en `Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php:20-23`.
 - **El "config" de dos booleanos**: `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1616-1634`; cliente en `apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts:14`.
 
 ## Lo que NO está verificado

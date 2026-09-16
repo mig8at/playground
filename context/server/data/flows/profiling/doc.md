@@ -49,7 +49,7 @@ tiempo en la BD. Una fila **por entidad evaluada**, con `category_rules_acceptan
 
 Escritores: `Modules/Loans/App/Services/LenderUserCategoryService.php:502 logCategory` y
 `Modules/Onboarding/App/Services/lenders/LenderUserCategoryService.php:30`. Lector de referencia:
-`Modules/Backoffice/App/Services/ApplicationsService.php:1432 decodeAcceptance`.
+`Modules/Backoffice/App/Services/ApplicationsService.php:1886 decodeAcceptance`.
 
 ⚠ **Tres reglas para leerlo, todas necesarias** (ver **F-118**): una clave **ausente** no es un criterio
 que pasó sino uno que **no se evaluó** (la evaluación corta en `:425` tras los cinco criterios sin buró)

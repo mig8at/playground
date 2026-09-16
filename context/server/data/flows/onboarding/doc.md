@@ -172,7 +172,7 @@ referencia + ajuste de timeouts en los loaders del wizard.
 **Entradas y bifurcación (application)**
 - `application/routes/customer.php:113-137` — las 6 rutas de la fase (`aliados/onboarding` deprecated, `registrar-celular`, `registrar-celular-eccommerce`, `validar-otp`, `informacion-personal`, `informacion-laboral`) · `:169` `entidades-v2` · `:184-189` simulador v1 deprecated / v2.
 - `application/app/Http/Controllers/Customer/RegisterCellPhoneController.php:24` (`oldIndex`, QR) · `:46-47` hardcode Pash · `:59-60` Setting `corbeta_allieds` · `:77` (`index`) · `:138-146` cache 30s del hash + `session(['allied_branch' => $allied_branch])` · `:179` (`store`) · `:184-194` delega a legacy · `:189-191` `terms/policies/otp_length=4` quemados · `:201-209` `CreditopXUserRequestsRecord` estado 2 · `:232-241` ecommerce base64.
-- `application/app/Http/Controllers/Customer/SimulatorController.php:110` (`indexV2`) · `:121-136` **el allowlist del frontend nuevo** · `:168-178` config de montos (min/max/rate desde `credit_line_by_lenders`) · `:190-211` (`startV2`: sólo sesión + redirect).
+- `application/app/Http/Controllers/Customer/SimulatorController.php:114` (`indexV2`) · `:121-136` **el allowlist del frontend nuevo** · `:168-178` config de montos (min/max/rate desde `credit_line_by_lenders`) · `:190-211` (`startV2`: sólo sesión + redirect).
 - `application/app/Services/NewFrontendUrlService.php:68` (`init` → `/{prefix}/{hash}/solicitar`) · `:87` `personalInfo` · `:154` `employmentInfo` · `:182` `lenders` · `:218` `bancolombiaSelfService`.
 
 **Delegación paso a paso (application → legacy)**
@@ -187,9 +187,9 @@ referencia + ajuste de timeouts en los loaders del wizard.
 - `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:39-57` mapa ONB→HTTP · `:899` (`validateOtpCodeAndRedirect`) · `:981-1065` **el docblock que describe los 16 pasos y las rarezas congeladas** · `:1066` orquestador · `:1188` `createUserRequest` · `:1235-1256` ONB002 (temporal) · `:1270-1272` stub aleatorio de pre-aprobación · `:1290-1319` `userViability` (Experian) · `:1329-1338` autofill 209/210/211 · `:1344-1362` ONB004 · `:1365` `ONB006` con `success: true`.
 - `Modules/Onboarding/App/Services/UserRequestService.php:72` (`createUserRequest`) · `:73` `findByHash` · `:111-138` (`handleRegularRequest`, `amount` en la clave) · `:144-199` rama ecommerce · `:241-252` estado 9 + `UserRequestRecord` · `:287-288` estado 3 (guard `!= 11 && != 25`).
 - `Modules/Onboarding/App/Services/OnboardingService.php:107` (`storePersonalInfo`) · `:127` `Experian::creditScore` **comentado** bajo un log que dice lo contrario · `:132-168` rate limit → ONB040 · `:892` (`storeLaboralInformation`) · `:1009-1045` field 160 = `'no'` · `:1298-1306` `isTemporalUser` / `isUserValidatedWithRiskCentrals` · `:1443-1472` config del rate limit · `:1474-1483` `isForm1Completed` = [29, 87, 160].
-- `Modules/Onboarding/App/Services/OtpService.php:31-35` constantes (plantilla SMS, SIDs Twilio, longitudes 4/6) · `:132` `validateOtpCode` · `:164-170` y `:392-400` QA bypass · `:432` **OTP = 1111 en `local`** · `:439-453` ONB014.
+- `Modules/Onboarding/App/Services/OtpService.php:38-42` constantes (plantilla SMS, SIDs Twilio, longitudes 4/6) · `:132` `validateOtpCode` · `:164-170` y `:392-400` QA bypass · `:432` **OTP = 1111 en `local`** · `:439-453` ONB014.
 - `Modules/Onboarding/App/Services/OtpBypassService.php:25` Setting `qa_otp_bypass_phones` · `:37` sólo `local`/`development` · `:65-71` el código = últimos 4 del teléfono.
-- `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:40` (`getRegistrationData`: partner + `partner_modes` + branch + sucursales) · `:56` (`processCellPhoneRegistration`) · `:378-386` `createTemporalUser` · `:474-476` `isTemporaryUser`.
+- `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:56` (`getRegistrationData`: partner + `partner_modes` + branch + sucursales) · `:56` (`processCellPhoneRegistration`) · `:378-386` `createTemporalUser` · `:474-476` `isTemporaryUser`.
 - `Modules/Onboarding/App/Services/CommerceService.php:127-130` — `ecommerce` vs `traditional` según `allied_ecommerce_credentials` (COM002).
 - `Modules/Onboarding/App/Services/DynamicFormsService.php:35-58` constantes + mapa de campos 162-172 · `:68-77` catálogo DYFS1001-1005 · `:495-518` crea la UR reusando `UserRequestService`.
 - `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:18-22` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
@@ -197,7 +197,7 @@ referencia + ajuste de timeouts en los loaders del wizard.
 **Nueva arquitectura (G3)**
 - `Modules/OnboardingV2/App/Providers/RouteServiceProvider.php:24` — prefijo `api/v2/onboarding`.
 - `Modules/OnboardingV2/routes/api.php:21-35` — `personal-info/{branch}/{ur}` y `otp-auth/validate/{branch}`; el comentario declara que **no consulta pre-aprobados ni ninguna central de riesgo**.
-- `Modules/OnboardingV2/App/Services/StorePersonalInfoService.php:66` — `OBV21000 = 501 Not Implemented`.
+- `Modules/OnboardingV2/App/Services/StorePersonalInfoService.php:122` — `OBV21000 = 501 Not Implemented`.
 - `Modules/UserRequestV1/App/Services/FindOrCreateService.php:117` orquestador · `:364-373` estado 9 + record · `:383-412` `baseConditions` / `baseData`.
 - `Modules/UserRequestV1/App/Constants/FindOrCreateServiceConstants.php:16-31` — **los nombres canónicos de los estados 1/9 y `EDITABLE_STATUS_IDS`**.
 
@@ -206,7 +206,7 @@ referencia + ajuste de timeouts en los loaders del wizard.
 - `apps/loan-request-wizard/app/utils/route-helpers.ts:11-15` — `ROUTE_PREFIXES`.
 - `.../routes/loan-application-form/phone-number.tsx:70-71` **gate `alliedCountry === 60` → flujo dynamic** · `:145` action · `:183-193` `terms/policies/otpLength:4` · `:209-215` redirect a `/otp?amount=`.
 - `.../routes/loan-application-form/otp-verification.tsx:71-89` `normalizeOtpErrorCode` · `:83` action · `:148` éxito → lenders · `:183` ONB002 · `:200` ONB004 · `:233` ONB001.
-- `.../routes/loan-application-form/loan-request-form.tsx:192-214` `mapPostSaveErrorToResult` · `:266` éxito · `:279-282` ONB005.
+- `.../routes/loan-application-form/loan-request-form.tsx:212-244` `mapPostSaveErrorToResult` · `:266` éxito · `:279-282` ONB005.
 - `.../routes/loan-application-form/employment-info.tsx:48` action · `:79-87` éxito · `:92-98` ONB002 / ONB021-023.
 - `.../routes/dynamic/request-amount.tsx:165-196` `transactionId` + sesión Redis del form dinámico · `:201` action.
 - `.../lenders-marketplace/.../loan-options.repository.ts:15` timeout 60 s · `:26` `GET lenders-v2` · `:44-58` fallback cuando `original_amount` llega en 0.

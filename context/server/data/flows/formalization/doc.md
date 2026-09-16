@@ -40,7 +40,7 @@ Redis** y `OtpService` lo lee con reintentos; solo en `local`, si el cache no en
 fijo para no bloquear (`OtpService.php:75`, `app()->environment('local')`). Al depurar un OTP que no
 llega, el sospechoso ya no es Twilio sino el MS y Redis.
 
-**El bypass QA sigue restringido a `local`/`development`** — verificado: `OtpBypassService.php:37`
+**El bypass QA sigue restringido a `local`/`development`** — verificado: `OtpBypassService.php:55`
 mantiene `if (!app()->environment('local','development'))`, igual que antes del refactor. Lo único que
 cambió es el comentario en `OtpService`, que dejó de decirlo; el guard está intacto.
 
@@ -75,7 +75,7 @@ La entrada la fabrica el backend al seleccionar entidad: para rt ∈ {2,3,4} arm
 3. **`payment-schedule`** → `simulate-payment-schedule` + `confirm-payment-schedule`. **Acá se fija el plazo**: `confirm` escribe `user_requests.fee_number` (`RegularPaymentScheduleService.php:102-126`). En el listado la cuota era estimación.
 4. **`additional-info`** (gate) → `GET /api/loans/customer/{id}/form-type`; si `formTypeId === null` salta a `sign-documents`, si no abre el formulario dinámico (`additional-info.tsx:36-39`) → subcontexto **dynamic-forms**.
 5. **`sign-documents`** → `GET .../promissory-note/{id}` (preview de todos los PDFs, **timeout de cliente 120 s**) y al confirmar `POST .../validate/send-otp`.
-6. **`otp-validation`** → `POST .../validate/verify-otp` (**timeout 180 s**); si `metadata.lender_path === 'IMEI'` va a `security-validation`, si no encadena `POST .../validate/authorize` → `loan-approved` (`otp-validation.tsx:171-204`). Los timeouts están en `promissory-note.repository.ts:135,226`.
+6. **`otp-validation`** → `POST .../validate/verify-otp` (**timeout 180 s**); si `metadata.lender_path === 'IMEI'` va a `security-validation`, si no encadena `POST .../validate/authorize` → `loan-approved` (`otp-validation.tsx:167-200`). Los timeouts están en `promissory-note.repository.ts:135,226`.
 
 ### Motor de plan de pagos
 `PaymentScheduleServiceFactory::createForRequest` prueba en orden **Revolving (rt=3) → ExternallyManaged (rt=4) → Regular**; el orden importa porque `RegularPaymentScheduleService::supports` matchea *cualquier* `response_type != 3` (comentado en el propio factory, `:22-28`).
@@ -151,10 +151,10 @@ compuertas de política (detalle en el nodo codeudor); la relación Eloquent `pr
 - **Autorización / Estado 11** (legacy-backend): `Modules/Loans/App/Services/LoanAuthorizationService.php:84` `authorize`, `:384` `authorizeRequest`, `:424` `transitionToIntermediate`, `:471` `resolveAuthorizationStatusId` (`return 11`), `:252` `disburseImeiRequest`, `:194` formalización rt=4.
 - **Endpoints de firma** (legacy-backend): `Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:149` sendOtp · `:270` verifyOtp · `:313` disburse · `:381` notifyEcommerceStore.
 - **Documentos** (legacy-backend): `Modules/Loans/App/Services/DocumentSigningService.php:48` `generateAllDocuments`, `:59` camino IMEI, `:113` lote Netco, `:371` pagaré Deceval.
-- **Amortización** (legacy-backend): `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:71-132` (`:85` IVA 19 %, `:93` anualidad, `:190` enganche).
+- **Amortización** (legacy-backend): `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:80-148` (`:85` IVA 19 %, `:93` anualidad, `:190` enganche).
 - **Fechas de pago** (legacy-backend): `Modules/Loans/App/Services/PaymentDateService.php:56-79`; el salto a estado 10 en `Modules/Loans/App/Services/PaymentScheduleService.php:25-35`.
-- **Ruteo del wizard** (frontend-monorepo): `apps/loan-request-wizard/app/routes.ts:31-63`; encadenado verify→authorize en `app/routes/otp-validation.tsx:171-204`; timeouts en `modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts:135,226`.
-- **Handoff desde la selección** (legacy-backend): `Modules/Onboarding/App/Services/UserRequestService.php:288` (estado 3), `:453-462` y `:601-611` (`standBy` + URL `/self-service/.../confirmation`), `:501-571` (radicación rt=1).
+- **Ruteo del wizard** (frontend-monorepo): `apps/loan-request-wizard/app/routes.ts:36-68`; encadenado verify→authorize en `app/routes/otp-validation.tsx:167-200`; timeouts en `modules/loan-request-wizard/loan-origination/src/lib/infrastructure/promissory-note.repository.ts:135,226`.
+- **Handoff desde la selección** (legacy-backend): `Modules/Onboarding/App/Services/UserRequestService.php:293` (estado 3), `:453-462` y `:601-611` (`standBy` + URL `/self-service/.../confirmation`), `:501-571` (radicación rt=1).
 - **Aviso al comercio** (legacy-backend): `app/Observers/UserRequestObserver.php:25,50-58`.
 - **Formalización Credifamilia** (legacy-backend): `app/Services/Pdf/CredifamiliaFormalizationService.php:51-152` y el orden de los 9 documentos en `app/Services/Pdf/CredifamiliaLegalizationDocumentService.php:91-128`.
 - **Gemelo monolítico** (application): `app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php:118-228`; rutas en `routes/customer.php:78-96`.
