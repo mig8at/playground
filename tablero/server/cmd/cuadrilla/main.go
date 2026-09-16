@@ -130,6 +130,7 @@ func leerTarea(ruta string) (tarea, error) {
 type rama struct {
 	Repo  string `json:"repo"`
 	Rama  string `json:"rama"`
+	Base  string `json:"base,omitempty"`
 	Autor string `json:"autor,omitempty"`
 	Nota  string `json:"nota,omitempty"`
 }
@@ -145,13 +146,19 @@ loQueViaja: de las ramas medidas, las que el equipo puede ver.
 	las resuelve por su PR, que es lo primero que mira— y son justamente las que cuentan el trabajo
 	hecho. Por eso la condición es «tiene PR, o sigue en origin».
 */
-func loQueViaja(medidas []store.RamaTarea, quien string) (viajan []rama, quedan []string) {
+func loQueViaja(medidas []store.RamaTarea, quien string, baseDe map[string]string) (viajan []rama, quedan []string, sinRepo []string) {
 	for _, r := range medidas {
 		if r.Local && r.PR == nil {
 			quedan = append(quedan, r.Repo+" "+r.Rama+" (sólo en esta máquina, sin PR)")
 			continue
 		}
-		viajan = append(viajan, rama{Repo: r.Repo, Rama: r.Rama, Autor: quien, Nota: nota(r)})
+		base, declarado := baseDe[r.Repo]
+		if !declarado {
+			// La épica no declara ese repo. Igual se manda —el trabajo existe— pero se avisa: es el
+			// equipo el que decide qué repos toca una épica, y esto lo está estirando.
+			sinRepo = append(sinRepo, r.Repo)
+		}
+		viajan = append(viajan, rama{Repo: r.Repo, Rama: r.Rama, Base: base, Autor: quien, Nota: nota(r)})
 	}
 	sort.Slice(viajan, func(i, j int) bool {
 		if viajan[i].Repo != viajan[j].Repo {
@@ -159,7 +166,18 @@ func loQueViaja(medidas []store.RamaTarea, quien string) (viajan []rama, quedan 
 		}
 		return viajan[i].Rama < viajan[j].Rama
 	})
-	return viajan, quedan
+	return viajan, quedan, unicos(sinRepo)
+}
+
+func unicos(xs []string) []string {
+	visto, out := map[string]bool{}, []string(nil)
+	for _, x := range xs {
+		if !visto[x] {
+			visto[x], out = true, append(out, x)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // nota: el asunto del commit de punta, que es lo más cerca de «en qué trabajás» que el tablero mide.
@@ -178,7 +196,11 @@ type epica struct {
 	ID     string   `json:"id"`
 	Nombre string   `json:"nombre"`
 	Devs   []string `json:"devs"`
-	Ramas  []struct {
+	Repos  []struct {
+		Repo string `json:"repo"`
+		Base string `json:"base"`
+	} `json:"repos"`
+	Ramas []struct {
 		Repo  string `json:"repo"`
 		Rama  string `json:"rama"`
 		Autor string `json:"autor"`
@@ -260,8 +282,6 @@ func correr(cual, base string, aplicar bool) error {
 		cuando = snap.MedidoEn
 	}
 
-	viajan, quedan := loQueViaja(medidas.Ramas, t.quien)
-
 	c := cliente{base: base, token: strings.TrimSpace(os.Getenv("CUADRILLA_TOKEN"))}
 	crudo, err := c.pedir("GET", "/api/epicas/"+t.epica, nil)
 	if err != nil {
@@ -271,6 +291,15 @@ func correr(cual, base string, aplicar bool) error {
 	if err := json.Unmarshal(crudo, &e); err != nil {
 		return fmt.Errorf("no entendí la épica: %w", err)
 	}
+
+	/* La rama base sale de la ÉPICA, no de la tarea: es lo que el equipo declaró para ese repo. Hay
+	   que mandarla porque el server no la completa —lo hacía el front al agregar a mano— y sin ella la
+	   rama queda sin base y la pantalla no puede decir si se desvió. */
+	baseDe := map[string]string{}
+	for _, r := range e.Repos {
+		baseDe[r.Repo] = r.Base
+	}
+	viajan, quedan, sinRepo := loQueViaja(medidas.Ramas, t.quien, baseDe)
 
 	// Lo que YA está allá a tu nombre. Sólo eso se compara y sólo eso se toca.
 	tuyasAlla := map[string]bool{}
@@ -307,6 +336,9 @@ func correr(cual, base string, aplicar bool) error {
 		fmt.Printf("     · se queda acá: %s\n", q)
 	}
 	fmt.Printf("  %d ya están allá a tu nombre\n", len(tuyasAlla))
+	for _, r := range sinRepo {
+		fmt.Printf("  ⚠ la épica no declara el repo %s — la rama se manda igual, pero sin rama base\n", r)
+	}
 
 	if len(sumar) == 0 && len(sacar) == 0 {
 		fmt.Printf("\n  ✓ nada que hacer: cuadrilla ya dice lo mismo que tu tarea\n\n")
