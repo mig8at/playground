@@ -17,33 +17,31 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 
 ## Si retomás esto sin contexto, empezá acá
 
-**QA reporta que el flujo sigue yendo a `continuar` en vez de `confirmation`, y la primera sospecha
-—«no se subió a qa»— ya quedó descartada.** Medido el 16/9: front **#1015** (`a58d861a`, 15/9 10:49) y
-**#1018** (`7e5774c8`, 15/9 14:59) y back **#1402** (`7b1f45f0`, 15/9 15:58) están en `origin/qa` y las
-tres corridas de *Deploy … QA* están en verde. No hubo despliegues posteriores que las pisen. El
-detalle, en el Registro del 16/9.
+**El arreglo de autogestión está vivo en `qa` y FUNCIONA. Lo que QA reporta como falla son corridas con
+sesión de asesor, y ahí ir a `/continue` es el comportamiento diseñado.** Medido el 16/9 contra `qa`
+con CrediPullman (77) sobre Amoblando Pullman (94): las seis solicitudes que fallan llevan todas
+`corporate_user_id = 276231` (`oscar+pullman@creditop.com`, «CREDITOP TEST»), **incluida la del canal
+ecommerce**; la corrida propia sin asesor (uReq 502379) no disparó el WhatsApp de handoff y cerró en
+estado 11. El rastro que lo prueba es `twilio_logs.method = 'sendSelfManagement'`, porque lo gobierna
+el mismo booleano que puebla `continueUrl`. El detalle, en el Registro del 16/9 (2).
 
-**Quedan TRES explicaciones vivas, y cada una se arregla distinto** (§«Las TRES condiciones del
-arreglo»):
+**El próximo paso es:** pedirle a QA que repita en **sesión limpia** (incógnito o logout previo), por
+`/self-service/ec977139/solicitar` o por el checkout de la tienda — ahí debe caer en
+`/self-service/<hash>/<ureq>/confirmation`. Y si lo que se quiere es que también continúe en el lugar
+**con** asesor, eso **no es un bug**: es la inversión de precedencia que ya se evaluó y se descartó por
+alcance, escrita en el docblock de `LenderTabBehaviorResolver::continuesInPlace`. Es otra tarea.
 
-1. **que la prueba haya ido contra `dev`** — la guarda de #1402 tiene 5 ocurrencias en `qa` y **CERO en
-   `develop` y `staging`**, y las dos URLs se diferencian en un token
-   (`originaciones.dev` vs `originaciones-qa.dev`);
-2. **que el par (comercio, entidad) no esté marcado** — el arreglo exige `allieds.self_managed` o
-   `lenders_by_allieds.user_self_management`, y con **Credifamilia sobre Amoblando Pullman ir a
-   `/continue` es lo correcto, no el bug**;
-3. 🔴 **un hueco real:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`. Con
-   credencial, `case 4` prende `standBy` pero no puebla la url y **rt=2/3 ni siquiera tienen `case`**,
-   así que el arreglo nunca dispara. Tres pares reales de la base de qa caen ahí.
+**Lo que se descartó en el camino** (Registro del 16/9): que no se hubiera subido —front #1015/#1018 y
+back #1402 están en `origin/qa` con los tres despliegues en verde—, y que el problema fuera el hueco de
+la credencial. ⚠ Ese hueco **existe igual y sigue abierto**: `$inPlatformContinueUrl` sólo se asigna en
+la rama `empty($credential)`, así que una entidad en plataforma **con** credencial nunca dispara el
+arreglo (rt=4 prende `standBy` sin poblar la url; rt=2/3 ni tienen `case`). Tres pares reales de la base
+de qa caen ahí, los tres con Credifamilia. No es lo que QA está viendo, pero es deuda con nombre.
 
-**El próximo paso es:** preguntarle a QA **contra qué URL, con qué comercio y con qué entidad** corrió
-la prueba que falló — con eso las tres se reducen a una. El caso que SÍ ejercita el arreglo es
-**CrediPullman (77) o Cierre X (201) sobre Amoblando Pullman, sin sesión de asesor, en
-`originaciones-qa.dev.creditop.com`**; si ahí también falla, es el hueco 3 y hay que tocar código.
-
-⚠ **Y ojo con los logs para dirimirlo:** la etiqueta `environment` de Loki en ese stack sólo tiene
-`development`, `local` y `testing` — **no hay valor `qa`**, así que `dev/loki-trace.ts` con
-`E2E_TARGET=qa` contesta «no es de este target» sin que eso signifique nada.
+⚠ **Dos herramientas mienten en este terreno, y las dos costaron corridas hoy:** `dev/caminar-wizard.ts`
+no puede ejercitar una rt=2 acá —su siembra no la deja salir en el listado— y `dev/loki-trace.ts` no
+puede separar `dev` de `qa`, porque la etiqueta `environment` no tiene valor `qa`. Las dos, en el
+Registro del 16/9 (2).
 
 ### Lo de antes, que sigue valiendo
 
@@ -758,6 +756,55 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-16 (2) · CORRIDO contra `qa`: el arreglo FUNCIONA — las pruebas que fallan llevan asesor
+
+> **MEDICIÓN · 2026-09-16** — corrido contra `qa` con CrediPullman (77) sobre Amoblando Pullman (94).
+> **Sin sesión de asesor el arreglo dispara**; las seis corridas que QA reporta como falladas tienen
+> todas `corporate_user_id = 276231` (`oscar+pullman@creditop.com`, «CREDITOP TEST»), y con asesor ir a
+> `/continue` es **el comportamiento diseñado**.
+> **Cómo se vuelve a comprobar (solo lectura):**
+> `SELECT ur.id, ur.corporate_user_id, (SELECT COUNT(*) FROM twilio_logs t WHERE t.user_request_id=ur.id AND t.method='sendSelfManagement') FROM user_requests ur WHERE ur.lender_id=77 AND ur.allied_id=94`
+
+**La prueba es el rastro del WhatsApp, no el ojo.** `NotificationService::sendSelfManagement` escribe una
+fila en `twilio_logs`, y ese envío es justo lo que #1402 suprime. Como el MISMO booleano
+(`$continuaEnEstaPantalla`) decide el envío y el `continueUrl`, la fila contesta las dos cosas:
+
+| uReq | UTC | suc | asesor | WhatsApp |
+|---|---|---|---|---|
+| 502320 · 502335 · 502345 · 502352 | 15/9 | 390 | **276231** | **sí** |
+| 502367 | 16/9 15:28 | 390 | **276231** | **sí** |
+| 502370 | 16/9 16:38 | **659 ecommerce** | **276231** | **sí** |
+| **502379** *(corrida propia, `caso.ts`)* | 16/9 17:08 | 390 | **NULL** | **no** — cerró en 11 |
+
+⚠ **Y la 502370 es la que más dice: es del canal ECOMMERCE y lleva asesor igual.** O sea que el
+navegador con el que se prueba tiene la sesión de «CREDITOP TEST» viva y el wizard la usa aunque se
+entre por la tienda. Un comprador real no la tiene — pero el empleado del comercio que prueba, sí.
+
+✔ **Qué pedirle a QA:** repetir en una **sesión limpia** (ventana de incógnito o logout previo), por
+`/self-service/ec977139/solicitar` o por el checkout de la tienda. Ahí el flujo debe caer en
+`/self-service/<hash>/<ureq>/confirmation`.
+
+⚠ **Y si lo que se quiere es que TAMBIÉN continúe en el lugar con asesor, eso NO es un bug: es una
+decisión de producto ya evaluada y descartada por alcance**, y está escrita en el docblock de
+`LenderTabBehaviorResolver::continuesInPlace` — medido en prod, de 39 comercios con el flag sólo dos
+tienen volumen en rt=2 en 90 días, y a My Tech (305) le cambiaría el 100% de sus solicitudes. La línea
+a tocar está señalada ahí. Es otra tarea, con su propia prueba.
+
+### Dos cosas que la corrida dejó de paso
+
+⚠ **El caminador no puede ejercitar una entidad rt=2 en este comercio: su siembra no la deja salir en
+el listado.** `dev/caminar-wizard.ts` llama `synthFill(ur, {income, score, skipIdentity})` **sin
+`lender`**, y además siembra ANTES de enviar el formulario, así que el `action` de `personal-info` pisa
+el perfil. Resultado: dos corridas (502377 self-service, 502378 ecommerce) murieron en «la entidad 77 no
+salió en el listado» sin haber probado nada. `caso.ts` sí la ve —listado `[77, 6, 212, 192, 32]` contra
+el mismo backend— porque dicta el buró aparte. **Un runner que se traba en la siembra reporta igual que
+uno que encontró un defecto**, y esta vez costó dos corridas contra la base compartida.
+
+⚠ **`loki-trace` no puede separar `dev` de `qa`.** La etiqueta `environment` del stack compartido sólo
+tiene `development`, `local` y `testing` — **no hay valor `qa`**, así que `E2E_TARGET=qa` contesta «el
+uReq no es de este target» para solicitudes que sí atendió qa. Con `E2E_TARGET=dev` se ven igual, pero
+sin poder decir cuál de los dos backends respondió.
 
 ### 2026-09-16 · «no llegó a qa» era falso: llegó y está desplegado — lo que falla es OTRA cosa
 
