@@ -759,6 +759,61 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (7) · autogestión también sigue en el lugar: la regla queda en «entrega SÓLO el mostrador»
+
+> **MEDICIÓN · 2026-09-16** — Miguel señaló que autogestión también debería caer en `/confirmation`, y
+> tiene el mismo argumento que ya aceptamos para ecommerce: **si no hay asesor, no hay a quién
+> entregarle nada**. Chocaba con una decisión escrita de #1402, así que se midió antes de darla vuelta.
+> **Cómo se vuelve a comprobar:**
+> `E2E_TARGET=local node dev/caminar-wizard.ts --casos '#bb534d6a:37' --flow self-service --cerrar --manual`
+
+**Lo que había.** `continuesInPlace` exigía `allieds.self_managed || lenders_by_allieds.user_self_management`
+para autogestión. Sin ninguno de los dos, el cliente terminaba en `/continue?url=null`: la pantalla que
+dice «recibirás un link por WhatsApp» cuando **no se envió nada y no hay asesor a quien esperar**. Le
+mentía.
+
+**La objeción de #1402 estaba escrita, y no aplica.** Decía: *«silenciar el mensaje sin poblar
+`continueUrl` dejaría al cliente sin aviso Y sin destino»*. Acá justamente **se puebla** `continueUrl`,
+así que destino hay. La objeción era contra silenciar a secas, no contra continuar en el lugar.
+
+### El riesgo, medido en prod antes de tocarlo — 90 días, entidades rt 2/3/4
+
+| caso | comercios | solicitudes |
+|---|---|---|
+| con asesor | 40 | 6.078 |
+| ecommerce | 2 | 2.050 |
+| autogestión · comercio marcado | 1 | 3 |
+| autogestión · entidad marcada | 8 | 36 |
+| **autogestión · ninguno marcado** | **0** | **0** ← el caso que cambia |
+
+**Nadie llega hoy por `/self-service/*` a un comercio no marcado.** El caso que en local mostraba la
+pantalla de entrega es un artefacto del dump, no un escenario de producción. ⚠ Y el cero se validó con
+el desglose: una consulta que devuelve cero sin mostrar la población de al lado no prueba nada — es la
+misma clase de error que el `git grep -E '\s'` de legacy-backend.
+
+### Lo que queda
+
+La regla es una línea —`$origin->isCustomerPresent()`— y el método **deja de recibir los dos flags**:
+no eran su pregunta. ⚠ **Pero los flags NO quedan sin trabajo**: siguen decidiendo el envío del
+WhatsApp y siguen gobernando `opensNewTab`. Y para una entidad **externa** (rt 0/1) no hay continuación
+en plataforma, así que el caller ni llega al resolver y el modal «continuá con el asesor comercial»
+sale igual que siempre — que es donde esa regla de negocio vive de verdad.
+
+| canal | caso | destino | antes |
+|---|---|---|---|
+| **autogestión, flags apagados** | Creditop X | **`/confirmation`** | `/continue?url=null` |
+| autogestión, entidad marcada | Mediarte X | `/confirmation` → estado 11 | igual |
+| ecommerce | CrediPullman | `/confirmation` → estado 11 | igual |
+| **asesor** sobre comercio marcado | AltaX | `/continue` con handoff | igual |
+
+Pruebas: **18** (44 aserciones) — son menos que antes en ese tramo porque la regla dejó de tener
+permutaciones de flags que probar. ⚠ Y la divergencia con la copia de
+`NequiPaymentService::isSelfManagement()` pasa de **una fila a dos**: queda asertada, con las dos
+marcadas.
+
+**Cuatro commits en la rama.** El cuerpo del PR está actualizado con esta tabla de prod, para que quien
+revise vea el cambio de criterio antes de aprobar.
+
 ### 2026-09-16 (6) · más pruebas en local: el par que discrimina, el congelamiento, y un 404 que no es nuestro
 
 > **MEDICIÓN · 2026-09-16** — tercera pasada sobre `fix/flujo-por-origen`. Aparecieron **dos cosas que
