@@ -301,6 +301,51 @@ Baldes: `ok` · `corrida` (≤3 líneas, no falla) · **`movida`** (apunta a otr
 deriva**: herramientas borradas, artefactos generados, repos fuera de los roots y **migraciones citadas
 por nombre parcial** — Laravel las prefija con timestamp, así que citálas con el nombre completo.
 
+## `simbolos.py`: `refs.py` mide DERIVA, no verdad — y editar una cita la congela en verde
+
+```bash
+make context-simbolos              # todos los nodos  (o: python3 tools/simbolos.py <nodo>)
+```
+
+⚠⚠ **`refs.py` nunca comprobó que una cita fuera CIERTA.** Guarda el texto que tenía la línea citada
+**el día que se afirmó** y avisa si hoy está en otro lado. Para lo que hace está bien — pero una cita
+que nació apuntando al método equivocado es **✓ para siempre**, porque el ancla es «lo que había
+ahí», no «lo que la prosa dice que hay ahí».
+
+⚠⚠ **Y hay algo peor, que se midió el 2026-09-16: EDITAR una cita la re-ancla contra HOY.** La fecha
+sale de `git blame` sobre el propio doc, y las líneas sin commitear salen con fecha de hoy — el
+docstring de `refs.py` lo dice y es deliberado (sin eso, corregir una cita la volvería a romper). La
+consecuencia no se había visto: **la pasada de citas cortas a ruta completa toca todas las líneas, así
+que CONGELA EN VERDE lo que estuviera mal**. El nodo sale con ✓ más alto y menos deriva justo cuando
+perdió la única vara que podía delatarlo.
+
+**La otra mitad la mira `simbolos.py`:** si la prosa escribe
+`` `…OnboardingController.php:899` `validateOtpCodeAndRedirect` ``, ¿está ese símbolo cerca de `:899`
+en `origin/main`? Estaba en `:937`. Corrido sobre el árbol el 2026-09-16 destapó **67 citas <!-- lint:ok -->
+equivocadas en nueve nodos** —el orquestador del OTP entero, las relaciones de `User` en los dos
+monolitos, `retrieve_terms` que ya no existe— y ninguna la veía `refs.py`.
+
+Las **dos** trampas que lo hacen más angosto de lo que uno escribiría, las dos medidas:
+
+1. **El símbolo tiene que estar PEGADO** — entre la cita y el backtick sólo un espacio y/o un
+   paréntesis que abre. Con tres caracteres de tolerancia entraba `). ` y se leía el símbolo de la
+   frase **siguiente**: tres falsos positivos. Es lo mismo que advierte el docstring de `refs.py`
+   cuando dice que emparejar con el símbolo contiguo «tampoco se puede»: se puede sólo siendo así de
+   estricto, y aun así **reporta, no corrige**.
+2. **El mismo archivo vive en DOS repos.** `app/Models/User.php` y `app/Actions/RiskCentrals/Experian.php`
+   están en `legacy-backend` y en `legacy-application`. Probar uno solo inventa deriva:
+   `Experian.php:51` es **correcta** en `application` y absurda en `legacy-backend`. Se prueban todos
+   los candidatos y sólo se marca si falla en todos. Para saber cuál quiere el nodo: **su `map.json`**
+   (`actors` declara `application/app/Models/User.php`), no el orden de los repos.
+
+⚠ **Cubre el 9 % (124 de 1.317).** Las demás no traen símbolo pegado y esta vara no las alcanza; ahí
+la única sigue siendo `refs.py`. Se dice el número por la misma razón por la que `refs.py` declara las
+cortas: **un verde que cubre una décima parte y no lo dice es la trampa que las dos vienen a no
+repetir.**
+
+⚠ **Y al expandir citas cortas, el orden importa:** `simbolos.py` **antes** de commitear la expansión,
+no después. Después ya no hay nada que delatar.
+
 ## `alinear.py`: qué nodos quedaron viejos (corrélo DESPUÉS DE CADA MERGE)
 
 ```bash

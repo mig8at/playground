@@ -183,7 +183,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulso uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-diff context-refs context-seal context-check context-map context-salud context-lint
+.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint
 context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)
 	@cd context && python3 tools/alinear.py
 
@@ -204,6 +204,9 @@ context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — l
 
 context-refs: ## @ctx ¿las citas `archivo:línea` apuntan a lo que dicen? (NODE=<nodo> para uno solo)
 	@cd context && python3 tools/refs.py $(NODE)
+
+context-simbolos: ## @ctx ¿la cita apunta al SÍMBOLO que la prosa le pone al lado? (lo que refs.py NO mira). NODE=<nodo>
+	@cd context && python3 tools/simbolos.py $(NODE)
 
 context-seal: ## @ctx marca un nodo como verificado HOY — solo si de verdad lo revisaste. NODE=<nodo>
 	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-seal NODE=kyc"; exit 2; }
