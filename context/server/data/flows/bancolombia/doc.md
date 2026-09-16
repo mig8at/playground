@@ -7,14 +7,14 @@ Bancolombia entra a CreditOp como **dos lenders distintos** que comparten infrae
 Ambos son `response_type=1`: la **decisión, el cupo y la cartera** son del banco. Lo que lo separa del
 resto de `aggregator` es que **CreditOp no hace un handoff**: renderiza toda la experiencia (login
 redirect, cuota, selección de cuenta, términos, clave dinámica, firma, desembolso) contra **endpoints
-propios** que proxyean la API del banco paso a paso. `Bancolombia::register()` (`:223`) está
+propios** que proxyean la API del banco paso a paso. `Bancolombia::register()` (`app/Actions/Lenders/Bancolombia.php:223`) está
 **literalmente vacío** — no usa el `register()` genérico de `Integration`.
 
 Consecuencia práctica: para trabajar acá **no alcanza el nodo padre**. El padre tiene la decisión
 (`PreApprovedLenderService`, el filtro del listado); la máquina de originación es este nodo.
 
 ## Antes de concluir
-- **`bnpl_transaction_id` lo escribe UN solo endpoint, y empezó a existir en dic-2025.** Sólo lo escribe `RetrieveQuota` (`:238`); el paralelo `ListAccountsAndQuota` (`:450`) **no escribe nada** y lo lee con `?? null` (`:477`). El "ausente en el 100%" del handoff es un **artefacto de medir sobre el histórico**: ninguna fila de flow del 68 tiene la clave antes de **2025-12**, y desde ahí se escribe normal (dic-25 **20** · mar-26 **51** · abr-26 **35** · may-26 **41**). Sobre las 119 solicitudes en estado 25: 0/94 hasta nov-25, 1/15 en dic-25, **4/4 en mar-26**. Para el tráfico actual el insumo **está disponible**. ⚠ **Pero el canal ecommerce no lo garantiza**: `bancolombia/ecommerce/resolve-ecommerce-flow.tsx` resuelve con `ValidatePreapprovedUc` (`validate-preapproved`), **no** con `retrieve-quota` — la única solicitud de la muestra con `ecommerce_request` no tiene la clave. Detalle y consultas en **F-80**.
+- **`bnpl_transaction_id` lo escribe UN solo endpoint, y empezó a existir en dic-2025.** Sólo lo escribe `RetrieveQuota` (`app/Actions/Lenders/BancolombiaBnpl.php:238`); el paralelo `ListAccountsAndQuota` (`Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:504`) **no escribe nada** y lo lee con `?? null` (`Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:477`). El "ausente en el 100%" del handoff es un **artefacto de medir sobre el histórico**: ninguna fila de flow del 68 tiene la clave antes de **2025-12**, y desde ahí se escribe normal (dic-25 **20** · mar-26 **51** · abr-26 **35** · may-26 **41**). Sobre las 119 solicitudes en estado 25: 0/94 hasta nov-25, 1/15 en dic-25, **4/4 en mar-26**. Para el tráfico actual el insumo **está disponible**. ⚠ **Pero el canal ecommerce no lo garantiza**: `bancolombia/ecommerce/resolve-ecommerce-flow.tsx` resuelve con `ValidatePreapprovedUc` (`validate-preapproved`), **no** con `retrieve-quota` — la única solicitud de la muestra con `ecommerce_request` no tiene la clave. Detalle y consultas en **F-80**.
 - **Las asignaciones `$request->campo = …` no persisten nada.** `clone $request` es `Illuminate\Http\Request`, no Eloquent: la propiedad vive sólo durante esa petición HTTP. La única persistencia real es `lender_integration_flows.data`. Importa porque `purchase-code/generate` es una petición **posterior y separada**.
 - **`UserRequest::lenderIntegrationFlow()`** (`app/Models/UserRequest.php:207`) es un `hasOne` **sin filtro de lender**, y la tabla mezcla lenders (local: 100→1.730, 68→223, 24→8, 23→1, 6→1). No hay índice único sobre `user_request_id`: **16** `user_request_id` con más de una fila en la copia local. Usar siempre `getStepsFromSession`.
 - **`getRequestExceptionCode()` accede por índice directo** `['errors'][0]['code']` — triplicado en `Bancolombia.php:27`, `BancolombiaBnpl.php:27`, `BancolombiaConsumerLoan.php:26`. Una respuesta de error sin `errors` **lanza dentro del propio manejador de errores**. El patrón robusto ya existe en `BancolombiaBnpl.php:671-690` pero no se aplicó acá.
@@ -23,7 +23,7 @@ Consecuencia práctica: para trabajar acá **no alcanza el nodo padre**. El padr
 - **Dos fuentes de verdad para "es Corbeta"**: `Setting('corbeta_allieds')` (dinámico, lo usa el guard) vs el `switch` hardcodeado de `CodeGenerationService.php:21-29`. Un allied agregado al Setting pero no al switch pasa el guard y cae en `generateInternally()` → **falla en silencio** con un código interno que no sirve en caja.
 - **HTTP 400 en `Allieds/Corbeta::register()` → variable indefinida**: sin seed de `LenderErrorCode` para `App\Actions\Allieds\Corbeta`, `handleException` retorna `void` y `register()` hace `return $apiResponse` **nunca asignada** → `Error` de PHP 8, que **no es `Exception`** y ningún catch de la cadena lo captura.
 - **Cero tests** del camino purchase-code (ni `Http::fake` del host de Corbeta): no hay red de seguridad para detectar una regresión al conmutar de proveedor.
-- **`query()` no manda el header `UserId` que `register()` sí manda** (`Corbeta.php:131` vs `:58`). No se determinó si es intencional.
+- **`query()` no manda el header `UserId` que `register()` sí manda** (`Corbeta.php:131` vs `app/Actions/Allieds/Corbeta.php:58`). No se determinó si es intencional.
 
 ## Contenido
 
@@ -34,14 +34,14 @@ Corbeta (24/209/210/211) son **4 de esos 109** — y al revés sí es cierto que
 lenders) es la cuenta propia de la casa, no un retail Corbeta.
 
 ### 1 · Dispatch por id (no hay config)
-`PreApprovedLenderService::validatePreApproveLender` bifurca por `$lender->id`: `:167` → `BancolombiaBnpl`
-(piso **$100.000**), `:193` → `BancolombiaConsumerLoan` (piso **$1.000.000** y además **fuerza**
-`$request->amount = 1000000` en `:199`). El Consumo se **muestra sin cupo real** por el `else`
+`PreApprovedLenderService::validatePreApproveLender` bifurca por `$lender->id`: `Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:167` → `BancolombiaBnpl`
+(piso **$100.000**), `Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:193` → `BancolombiaConsumerLoan` (piso **$1.000.000** y además **fuerza**
+`$request->amount = 1000000` en `Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php:199`). El Consumo se **muestra sin cupo real** por el `else`
 (`Probabilidad media`/`sort=2`, con un `// ToDo` del propio código admitiéndolo). Cada producto tiene su
 Action, su controller y su rama de front. Ver `hardcodes-entidades` (12 acoplamientos, P1).
 
 ### 2 · Entrada: Bancolombia tiene onboarding PROPIO
-No entra por el marketplace `/lenders`. `routes.ts:146-160` monta un layout aparte:
+No entra por el marketplace `/lenders`. `routes.ts:170-184` monta un layout aparte:
 
 | Ruta del wizard | Archivo |
 |---|---|
@@ -59,45 +59,45 @@ onboarding, todo cuelga de `bancolombia/:bancolombia_type` (`routes.ts:172`), co
 
 | # | Endpoint | Controller | Action (`BancolombiaBnpl.php`) | Persiste |
 |---|---|---|---|---|
-| 1 | `login-redirect/{ur}` | `BancolombiaBNPLLoginRedirect` | `:85` `login` (`:32` `provideAuthentication`) | — |
-| 2 | `retrieve-quota/{ur}` | `:200` `BancolombiaBNPLRetrieveQuota` | `:169` `retrieveQuota` | **`:238` `bnpl_transaction_id`** + `:345` `retrieve_quota` |
-| 3 | `list-accounts-and-quota/{ur}` | `:450` `BancolombiaBNPLListAccountsAndQuota` | — | **nada** (lee con `?? null` en `:477`) |
-| 4 | `account-select/{ur}` | `BancolombiaBNPLAccountSelect` | `:296` `selectAccount` | — |
-| 5 | `fetch-terms-and-conditions/{ur}` | `…FetchTermsAndConditions` | `:462` `retrieveTerms` | `:923` `retrieve_terms` |
-| 6 | `accept-terms-and-conditions/{ur}` | `…AcceptTermsAndConditions` | `:532` `acceptanceTerms` | — |
+| 1 | `login-redirect/{ur}` | `BancolombiaBNPLLoginRedirect` | `app/Actions/Lenders/BancolombiaBnpl.php:85` `login` (`app/Actions/Lenders/BancolombiaBnpl.php:32` `provideAuthentication`) | — |
+| 2 | `retrieve-quota/{ur}` | `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:200` `BancolombiaBNPLRetrieveQuota` | `app/Actions/Lenders/BancolombiaBnpl.php:190` `retrieveQuota` | **`app/Actions/Lenders/BancolombiaBnpl.php:238` `bnpl_transaction_id`** + `app/Actions/Lenders/BancolombiaBnpl.php:345` `retrieve_quota` |
+| 3 | `list-accounts-and-quota/{ur}` | `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:504` `BancolombiaBNPLListAccountsAndQuota` | — | **nada** (lee con `?? null` en `Modules/Onboarding/App/Http/Controllers/BancolombiaBnplController.php:477`) |
+| 4 | `account-select/{ur}` | `BancolombiaBNPLAccountSelect` | `app/Actions/Lenders/BancolombiaBnpl.php:325` `selectAccount` | — |
+| 5 | `fetch-terms-and-conditions/{ur}` | `…FetchTermsAndConditions` | `app/Actions/Lenders/BancolombiaBnpl.php:491` `retrieveTerms` | `app/Actions/Lenders/BancolombiaBnpl.php:923` `retrieve_terms` |
+| 6 | `accept-terms-and-conditions/{ur}` | `…AcceptTermsAndConditions` | `app/Actions/Lenders/BancolombiaBnpl.php:561` `acceptanceTerms` | — |
 | 7 | `dynamic-key-signature/{ur}` | `…DynamicKeySignature` | (firma clave dinámica) | — |
-| 8 | `origination/{ur}` | `…Origination` | `:601` `origination` | `:658` **`LenderTransaction`** por `order_id` |
+| 8 | `origination/{ur}` | `…Origination` | `app/Actions/Lenders/BancolombiaBnpl.php:630` `origination` | `app/Actions/Lenders/BancolombiaBnpl.php:658` **`LenderTransaction`** por `order_id` |
 
-Fuera de la secuencia: `:716` `validateQuota` (el que usan el listado y el resolve-ecommerce),
-`:912` `bnplConfirmed` (lo invocan los crons Corbeta), `:1003` `selfManager` + `:1028`
-`selfManagerStatusId`, `:992` `parseWebhookJsonWebToken`. `:367` `purchase` existe pero no cuelga de
+Fuera de la secuencia: `app/Actions/Lenders/BancolombiaBnpl.php:745` `validateQuota` (el que usan el listado y el resolve-ecommerce),
+`app/Actions/Lenders/BancolombiaBnpl.php:941` `bnplConfirmed` (lo invocan los crons Corbeta), `app/Actions/Lenders/BancolombiaBnpl.php:1032` `selfManager` + `app/Actions/Lenders/BancolombiaBnpl.php:1057`
+`selfManagerStatusId`, `app/Actions/Lenders/BancolombiaBnpl.php:1021` `parseWebhookJsonWebToken`. `app/Actions/Lenders/BancolombiaBnpl.php:396` `purchase` existe pero no cuelga de
 las 8 rutas de arriba.
 
 ### 4 · Consumo 100 — la secuencia real (prefijo `bancolombia-consumer-loan/`, `api.php:75-90`)
 
 | # | Endpoint | Action (`BancolombiaConsumerLoan.php`) | Persiste |
 |---|---|---|---|
-| 1 | `login-redirect/{ur}` | `:113` `authenticate` | — |
-| 2 | `redirect-user-validate/{ur}` | `:29` `validate` | **`BancolombiaLoanController.php:187` `loan_validate_key`** ← `data.security.customerValidateKey` |
-| 3 | `fetch-terms-and-conditions/{ur}` | `:219` `retrieveTerms` | — |
-| 4 | `register-terms/{ur}` | `:265` `registerTerms` | — |
-| 5 | `enable-offers/{ur}` | `:326` `enableOffers` | — |
-| 6 | `get-detail-simulation/{ur}` | `:389` `simulation` | — |
+| 1 | `login-redirect/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:113` `authenticate` | — |
+| 2 | `redirect-user-validate/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:29` `validate` | **`BancolombiaLoanController.php:187` `loan_validate_key`** ← `data.security.customerValidateKey` |
+| 3 | `fetch-terms-and-conditions/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:219` `retrieveTerms` | — |
+| 4 | `register-terms/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:265` `registerTerms` | — |
+| 5 | `enable-offers/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:326` `enableOffers` | — |
+| 6 | `get-detail-simulation/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:389` `simulation` | — |
 | 7 | `accept-terms-and-conditions/{ur}` | (trait `BancolombiaAcceptTermsTrait`) | — |
-| 8 | `select-insurance/{ur}` | `:454` `retrieveAccounts` / `:515` `confirm` | — |
-| 9 | `e-sign-document/{ur}` | `:159` `eSignDocument` | — |
-| 10 | `origination/{ur}` | `:565` `disbursement` | — |
+| 8 | `select-insurance/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:454` `retrieveAccounts` / `app/Actions/Lenders/BancolombiaConsumerLoan.php:515` `confirm` | — |
+| 9 | `e-sign-document/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:159` `eSignDocument` | — |
+| 10 | `origination/{ur}` | `app/Actions/Lenders/BancolombiaConsumerLoan.php:565` `disbursement` | — |
 
 Ramal **"respuesta al frente"** (form front): `validate-credit-study/{ur}` + `enable-offers-form-front/{ur}`
 → `BancolombiaConsumerLoanOfferEvaluation.php` + los dos FormRequests
-`{Personal,Financial}InfoOfferEvaluationRequest`. Cierre: `:637` `consumoConfirmed` (crons Corbeta),
-`:711` `selfManager`. **`:77` el 409 `BP40920507` = "sin cupo"** y se devuelve como respuesta, no como
+`{Personal,Financial}InfoOfferEvaluationRequest`. Cierre: `app/Actions/Lenders/BancolombiaConsumerLoan.php:637` `consumoConfirmed` (crons Corbeta),
+`app/Actions/Lenders/BancolombiaConsumerLoan.php:711` `selfManager`. **`app/Actions/Lenders/BancolombiaConsumerLoan.php:77` el 409 `BP40920507` = "sin cupo"** y se devuelve como respuesta, no como
 excepción.
 
 ### 5 · Auth: no hay token cacheado, se firma cada llamada
-Todo en `Bancolombia.php` (base, `extends Integration`): `:52` `getCertificateBase64` (exporta el cert y
-hace `strtr("\n"→" ")`), `:63` `generateJsonWebToken` (**RS256 firmado a mano** con `openssl_sign`,
-`exp = iat + 60s`, `nonce` de 8 bytes, **sin `kid` ni `scope`**), `:141` `authorize` (OAuth2
+Todo en `Bancolombia.php` (base, `extends Integration`): `app/Actions/Lenders/Bancolombia.php:52` `getCertificateBase64` (exporta el cert y
+hace `strtr("\n"→" ")`), `app/Actions/Lenders/Bancolombia.php:63` `generateJsonWebToken` (**RS256 firmado a mano** con `openssl_sign`,
+`exp = iat + 60s`, `nonce` de 8 bytes, **sin `kid` ni `scope`**), `app/Actions/Lenders/Bancolombia.php:141` `authorize` (OAuth2
 client-credentials por scope). Headers: `Client-Id`, `Client-Secret`, `X-Client-Certificate`,
 `Json-Web-Token`, `Message-Id`, `Channel` — **ensamblados inline en cada método**, no hay `buildHeaders()`.
 Credencial: `LenderAlliedCredential::findOrFailByLenderAndAlly` (columna única `credential`, cast
@@ -175,13 +175,13 @@ En no-producción hay escenarios direccionables **sin tocar la API real** (`app(
 | Palanca | Dónde | Cómo se elige |
 |---|---|---|
 | `validateQuota` (listado) | `BancolombiaBnpl.php:793-802` | **cédula**: `1998228194` con cupo · `1998228111` sin cupo |
-| `retrieveQuota` + `origination` (BNPL) | `:263` `resolveSandboxScenarioByPhone` / `:283` `resolveOriginationScenarioByPhone` + `config/api_bancolombia_bnpl.php` | **celular**: `3000000010`→BP20790 compra reciente · `3000000015`→BP20753 sesión expirada · `3000000016`→BP20794 riesgo de fraude |
+| `retrieveQuota` + `origination` (BNPL) | `app/Actions/Lenders/BancolombiaBnpl.php:263` `resolveSandboxScenarioByPhone` / `app/Actions/Lenders/BancolombiaBnpl.php:283` `resolveOriginationScenarioByPhone` + `config/api_bancolombia_bnpl.php` | **celular**: `3000000010`→BP20790 compra reciente · `3000000015`→BP20753 sesión expirada · `3000000016`→BP20794 riesgo de fraude |
 | Consumo | `ApiBancolombiaLoanRequestBuilder::resolveScenarioByDocumentNumber` + `config/api_bancolombia_loan_requests.php` | **cédula**; hay un artisan de preview (`BancolombiaPreviewPayloadCommand`) |
 | MS Go (v2) | `pre-approvals-service` `bancolombia_bnpl/sandbox.go` | **cédula**: `1998228194` → `with_quota`; **cualquier otra** → `without_quota` |
 
 ### 8 · Cierre de estado: el flujo está en legacy, el webhook NO
-`legacy-backend` tiene `app/Http/Controllers/Api/BancolombiaController.php` (`:24` `bnplWebhook`,
-`:111` `consumerLoanWebhook`) + sus dos FormRequests, pero **ningún archivo de rutas lo registra en
+`legacy-backend` tiene `app/Http/Controllers/Api/BancolombiaController.php` (`app/Http/Controllers/Api/BancolombiaController.php:24` `bnplWebhook`,
+`app/Http/Controllers/Api/BancolombiaController.php:111` `consumerLoanWebhook`) + sus dos FormRequests, pero **ningún archivo de rutas lo registra en
 `main`** — es copia muerta. Las rutas vivas están en `application/routes/api.php:21-30`: `bancolombia/bnpl/webhook`,
 `bancolombia/consumer-loan/webhook` y dos variantes `…/webhook-by-user-request` vía
 `BancolombiaUserRequestController`. `application/routes/customer.php:318-328` conserva además las
@@ -303,10 +303,10 @@ Corbeta manda **NIT con dígito de verificación**, y el resto es transversal ya
 nuevo, rutas de onboarding, observabilidad).
 
 ## Dónde mirar
-- **Actions** (legacy-backend `app/Actions/Lenders/`): `Bancolombia.php` (base: `:52` cert, `:63` JWT, `:141` authorize, **`:223` `register()` vacío**) · `BancolombiaBnpl.php` (§3 + `:671-690` **el patrón robusto de error a replicar**: `data_get(…,'errors.0.code')` + `$isBankHttpError` + reenvía el body crudo) · `BancolombiaConsumerLoan.php` (§4) · `BancolombiaConsumerLoanOfferEvaluation.php`.
-- **Controllers + rutas** (legacy-backend): `Modules/Onboarding/App/Http/Controllers/Bancolombia{,Bnpl,Loan}Controller.php` · `Modules/Onboarding/App/Traits/BancolombiaAcceptTermsTrait.php` · `Modules/Onboarding/routes/api.php:64-109` (los 3 prefijos) · `Modules/Onboarding/App/Services/lenders/Bancolombia/BancolombiaService.php` (`:69` rama `lender_id === 68`).
-- **Persistencia del flujo**: `app/Models/LenderIntegrationFlow.php` — `:34` `getStepsFromSession` (**el accesor canónico: `:48` filtra por `lender_id`**), `:19` `data` casteado a `collection`. El paso se escribe con `saveLenderIntegrationFlowStep` (`BancolombiaBnplController.php:1440`). `app/Models/LenderTransaction.php` es la bitácora (`order_id`, `request`, `response`, `status_id`).
-- **Código de compra**: `PurchaseCodeController.php:33` · `merchants/PurchaseCodeService.php:106/:135-144/:275-283/:296-311` · `merchants/CodeGenerationService.php:21-29/:51/:72` · `merchants/BarcodeService.php:35-51` · `app/Actions/Allieds/Corbeta.php` · `config/services.php:303-309` (bloque `corbeta`).
+- **Actions** (legacy-backend `app/Actions/Lenders/`): `Bancolombia.php` (base: `app/Actions/Lenders/Bancolombia.php:52` cert, `app/Actions/Lenders/Bancolombia.php:63` JWT, `app/Actions/Lenders/Bancolombia.php:141` authorize, **`app/Actions/Lenders/Bancolombia.php:223` `register()` vacío**) · `BancolombiaBnpl.php` (§3 + `app/Actions/Lenders/BancolombiaBnpl.php:700-719` **el patrón robusto de error a replicar**: `data_get(…,'errors.0.code')` + `$isBankHttpError` + reenvía el body crudo) · `BancolombiaConsumerLoan.php` (§4) · `BancolombiaConsumerLoanOfferEvaluation.php`.
+- **Controllers + rutas** (legacy-backend): `Modules/Onboarding/App/Http/Controllers/Bancolombia{,Bnpl,Loan}Controller.php` · `Modules/Onboarding/App/Traits/BancolombiaAcceptTermsTrait.php` · `Modules/Onboarding/routes/api.php:64-109` (los 3 prefijos) · `Modules/Onboarding/App/Services/lenders/Bancolombia/BancolombiaService.php` (`Modules/Onboarding/App/Services/lenders/Bancolombia/BancolombiaService.php:69` rama `lender_id === 68`).
+- **Persistencia del flujo**: `app/Models/LenderIntegrationFlow.php` — `app/Models/LenderIntegrationFlow.php:34` `getStepsFromSession` (**el accesor canónico: `app/Models/LenderIntegrationFlow.php:48` filtra por `lender_id`**), `app/Models/LenderIntegrationFlow.php:19` `data` casteado a `collection`. El paso se escribe con `saveLenderIntegrationFlowStep` (`BancolombiaBnplController.php:1440`). `app/Models/LenderTransaction.php` es la bitácora (`order_id`, `request`, `response`, `status_id`).
+- **Código de compra**: `PurchaseCodeController.php:33` · `merchants/PurchaseCodeService.php:106/:135-144/:275-283/:296-311` · `merchants/CodeGenerationService.php:21-29/:51/:72` · `merchants/BarcodeService.php:35-51` · `app/Actions/Allieds/Corbeta.php` · `config/services.php:378-384` (bloque `corbeta`).
 - **Front** (frontend-monorepo): `apps/loan-request-wizard/app/routes.ts:170-292` (el mapa entero) · **41** archivos en `app/routes/bancolombia/**` + **4** layouts en `app/layouts/bancolombia/` · módulo `modules/loan-request-wizard/bancolombia-origination/` (**30 use-cases**, ports, repositories; las 115 piezas de `ui/` son presentación y no se curan acá). Único test del árbol Bancolombia: `routes/bancolombia/loan/credit-approved.helpers.test.ts`.
 - **Precedentes reutilizables**: `Ecommerce/EcommerceNotifier.php` + resolver `Modules/Onboarding/App/Services/EcommerceRequestService.php:537` + `config/ecommerce.php:27-32` (estrategia config-driven) · `Ecommerce/SelfDevelopmentNotifier.php:51` (timeouts explícitos `15/10`) · `CredifamiliaConsumo/TransactionRequest.php:436-459` (`resolveCityCode`, DANE sin padding) · `app/Services/ErrorCaptureService.php`.
 
