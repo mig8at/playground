@@ -773,6 +773,39 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (12) · PROBADO EN `qa`: los dos canales sin asesor caen en `/confirmation`
+
+> **MEDICIÓN · 2026-09-16** — desbloqueado el listado, corrida la matriz contra `qa` en el navegador.
+> **Cómo se vuelve a comprobar:** crear la solicitud con el caminador, resembrar con
+> `synthFill(ur, { lender })` **después** del formulario, y abrir `/…/<ureq>/lenders` sin sesión.
+
+| caso | uReq | destino | asesor | WhatsApp |
+|---|---|---|---|---|
+| **A · ecommerce sin sesión** | 502395 | **`/self-service/13874eb6/502395/confirmation`** ✅ | NULL | 0 |
+| **B · autogestión sin sesión** | 502396 | **`/self-service/13874eb6/502396/confirmation`** ✅ | NULL | 0 |
+| **C · con asesor** | — | ⬜ **no se pudo** | — | — |
+
+El redirect lo hizo **la aplicación**, en el navegador, sin el arnés en el medio. Y el rastro coincide:
+cero filas de `sendSelfManagement`, que es el mismo booleano que puebla `continueUrl`.
+
+⚠ **El caso del asesor quedó sin probar en `qa`**: la sesión de Cognito cacheada
+(`.auth/cognito-state.qa.json`, del 13:26) **está vencida** y el front manda a `/login`. Renovarla pide
+entrar por el panel con credenciales. Lo que sí está: el mismo caso **caminado en local** esa tarde
+(AltaX sobre un comercio `self_managed=1` → `/merchant/…/continue` con handoff) y la tabla de pruebas
+del resolver, que lo fija.
+
+### El desbloqueo, y lo que dejó
+
+La tabla `cards` se creó en la base compartida **acotando el alcance**: sólo ese `CREATE TABLE`, con el
+DDL que Laravel había generado en local (`SHOW CREATE TABLE`), idempotente, y registrando la fila en
+`migrations` (lote 268) para que el próximo deploy no la reintente. **No se usó `artisan migrate`**: a
+secas corre todas las pendientes —el mecanismo de CORE-431— y con credenciales por la shell daba
+`Access denied` porque se manglean. La capa del harness las lee del `.env` por su cuenta.
+
+⚠ **Y la causa de fondo sigue abierta: el despliegue de `qa` no corre migraciones.** `main-qa.yaml`
+sólo invoca `config-ci/deploy-ecs-service.yaml`. Va a volver a pasar con la próxima migración de
+cualquiera — esta vez fue una sola y aditiva; la próxima puede no serlo.
+
 ### 2026-09-16 (11) · 🔴 BLOQUEADO: `lenders-v2` da 500 en `qa` — falta una migración, y no es de esta tarea
 
 > **MEDICIÓN · 2026-09-16** — al arrancar las pruebas en `qa`, el listado **no carga**:
