@@ -8,7 +8,7 @@ KYC es la etapa que, disparada desde el formulario personal/laboral (Onboarding)
 Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.data` (**cifrado AES-256-CBC con APP_KEY**), un **espejo** normalizado en `user_summaries`, y **EAV** en `user_field_values` (87 ingreso, 29 ocupación, 160 reportado-en-centrales, 90 egresos, 161 continuidad). En **local/dev el buró se MOCKEA** (`ExperianFixture`, 212 KB → score sintético 654 / Acierta+Quanto 707), así que el score de dev no es real. Sobre estos datos deciden **dos motores de datacrédito** con campos y comparadores distintos (viejo rt≠2 vs nuevo rt=2) — el detalle vive en **Profiling**.
 
 ## Antes de concluir
-- **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
+- **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`Experian.php:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
 - **Solo `data` cifra**: `additional_info`, `request` y todo `user_summaries` van **PLANOS**. Ágil Data escribe TODO en `additional_info` (sin cifrar), y los derivados de Experian (`negativeAccounts`, `maturationSince`) también. Un INSERT de JSON plano en `data` rompe el descifrado → gate **fail-closed**. Sin el **APP_KEY** correcto Laravel no descifra y el listado falla en silencio.
 - **`users.age` es COLUMNA real** (no accessor de `date_of_birth`): se calcula al capturar la persona (`PersonalInfoController.php:158`); es el gate de edad (Pullman).
 - **Caché 1 mes**: Experian/Mareigua/Ágil reusan `risk_central_user_data < 1 mes` sin reconsultar (`Experian.php:73`); una fila inyectada se reusa (borrar la fila para refrescar).
@@ -75,9 +75,9 @@ nodo, porque de acá sale qué puede hacer cada proveedor con el nombre (verific
 
 | proveedor | le das | te devuelve |
 |---|---|---|
-| **Ágil Data** | tipo + número de documento, y nada más (`Agildata.php:130`, Basic Auth + **mTLS** con cert de S3 en `:105`) | **el nombre completo en UN string** (`respuesta.datosBasicos.nombre`), edad, género, y el historial de aportes con sus pagos |
-| **Mareigua** | tipo + número + producto (`Mareigua.php:89-93`; token OAuth en `:157-160`) | **el nombre en CUATRO campos separados** (`primer_nombre_persona_natural` …), género, `tipo_cotizante`, aportes |
-| **TusDatos** | **el nombre ya partido en 4** + número + fecha de expedición (`Tusdatos.php:90-97`) | una **calificación por campo** (`findings.*.match_code` 0/1/2/null) + vigencia del documento |
+| **Ágil Data** | tipo + número de documento, y nada más (`Agildata.php:130`, Basic Auth + **mTLS** con cert de S3 en `Agildata.php:105`) | **el nombre completo en UN string** (`respuesta.datosBasicos.nombre`), edad, género, y el historial de aportes con sus pagos |
+| **Mareigua** | tipo + número + producto (`Mareigua.php:89-93`; token OAuth en `Mareigua.php:157-160`) | **el nombre en CUATRO campos separados** (`primer_nombre_persona_natural` …), género, `tipo_cotizante`, aportes |
+| **TusDatos** | **el nombre ya partido en 4** + número + fecha de expedición (`Tusdatos.php:117-126`) | una **calificación por campo** (`findings.*.match_code` 0/1/2/null) + vigencia del documento |
 | **Experian** | número + **sólo el primer apellido** (`Experian.php:437`) | score, negativos, consultas recientes, cuota de deuda |
 
 ⚠ **Y de ahí sale la asimetría que ordena todo lo demás: quién tiene que saber el nombre de antemano.**
@@ -244,12 +244,12 @@ para la misma persona con 41 segundos de diferencia, ambas guardando 836.00). El
 existiendo con su timeout de 2 horas (nodo microservicios), pero el wizard no lo compra.
 
 ## Dónde mirar
-- **Disparo por aliado** (application): `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:21` (`userViability`) → `:26` (lee `alliedBranch.datacredito_trigger`) → `:221` (`DatacreditoFrequency::where(allied_id)`) → `:233-234` (`frequency===null` ⇒ `aciertaQuanto` si hay Prami / `creditScore`).
-- **Trigger desde datos personales** (application): `app/Http/Controllers/Customer/PersonalInfoController.php:158` (`users.age` de `date_of_birth`) → `:434` (`userViability`) → `:766` (`Experian::aciertaQuanto`); `:866` (`experianMethod`: Pullman/DFS ⇒ `aciertaQuanto`, resto `quanto`).
-- **Cliente HTTP del buró** (application): `app/Actions/RiskCentrals/Experian.php:51` (`authorize` OAuth2, POST `/spla/oauth2/v1/token` en `:59`) · `:227` (`ProductId 64`) · `:234` (POST `/cs/credit-history/v1/hdcplus`) · `:203-205` (mock `ExperianFixture` por escenario) · `:73`/`:93`/`:98`/`:136` (reuso de caché `created_at > now()->subMonths(1)`) · `:120-123` (merge Acierta+Quanto) · `:479` (`creditScore`) · `:511` (`quanto`) · `:543` (`aciertaQuanto`). Copia parallel-run: `[legacy] app/Actions/RiskCentrals/Experian.php:512` (`ProductId 64`; endpoints con prefijo `/experian/...` en `:480-482`).
-- **Dónde se guarda + mapper** (application): `app/Models/RiskCentralUserData.php:20-23` (casts: `data`=`encrypted:collection` APP_KEY; `additional_info`/`request`=`collection` **PLANO**) · `Experian.php:240` (save) · `:267` (`score = avg(models[].scoreValue)`) · `:243-249` (`additional_info`: negativeAccounts, maturationSince) · `:320` (espejo `user_summaries`) · `:352` (EAV 87 ingreso) · `:374` (EAV 29 `'Empleado'` **HARDCODE**) · `:390` (EAV 160 `'no'` **HARDCODE**) · `:460-462` (EAV 90 egresos).
-- **Relaciones `User`** (application): `app/Models/User.php:232` (`datacredito()` por NOMBRE + latest) · `:244` (`tusDatos`, rc 2) · `:250` (`agildata`, 3) · `:256` (`mareigua`, 6) · `:262` (`aml`, 4) · `:268` (`ado`, por nombre `'Ado'`).
-- **KYC identidad / AML / liveness** (application): `app/Actions/RiskCentrals/Tusdatos.php:91` (AML `POST /api/launch`) → `app/Jobs/RiskCentrals/Tusdatos/CheckBackgroundJobStatus.php:61` (poll `GET /api/results/{jobid}`, `:72` dispatch `BackgroundJobResolved`) · `Agildata.php:26` (`certVerify` mTLS) `:112-113` (`withOptions(verify)`) `:159-163` (escribe en `additional_info`) · `Mareigua.php:128` (OAuth `/token`) `:82` (`POST /consultas`) · `Ado.php:23` (`GET .../Validation/{id}`) → `app/Jobs/RiskCentrals/Ado/StatusCheck.php:17` (poll; `:64` `IdState==1`, `:90-91` `IdState 17` cancelado, `:79` dispatch `StatusChanged`).
+- **Disparo por aliado** (application): `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:21` (`userViability`) → `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:26` (lee `alliedBranch.datacredito_trigger`) → `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:221` (`DatacreditoFrequency::where(allied_id)`) → `app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php:233-234` (`frequency===null` ⇒ `aciertaQuanto` si hay Prami / `creditScore`).
+- **Trigger desde datos personales** (application): `app/Http/Controllers/Customer/PersonalInfoController.php:158` (`users.age` de `date_of_birth`) → `app/Http/Controllers/Customer/PersonalInfoController.php:434` (`userViability`) → `app/Http/Controllers/Customer/PersonalInfoController.php:766` (`Experian::aciertaQuanto`); `app/Http/Controllers/Customer/PersonalInfoController.php:866` (`experianMethod`: Pullman/DFS ⇒ `aciertaQuanto`, resto `quanto`).
+- **Cliente HTTP del buró** (application): `app/Actions/RiskCentrals/Experian.php:51` (`authorize` OAuth2, POST `/spla/oauth2/v1/token` en `app/Actions/RiskCentrals/Experian.php:59`) · `app/Actions/RiskCentrals/Experian.php:227` (`ProductId 64`) · `app/Actions/RiskCentrals/Experian.php:234` (POST `/cs/credit-history/v1/hdcplus`) · `app/Actions/RiskCentrals/Experian.php:203-205` (mock `ExperianFixture` por escenario) · `app/Actions/RiskCentrals/Experian.php:73`/`app/Actions/RiskCentrals/Experian.php:93`/`app/Actions/RiskCentrals/Experian.php:98`/`app/Actions/RiskCentrals/Experian.php:136` (reuso de caché `created_at > now()->subMonths(1)`) · `app/Actions/RiskCentrals/Experian.php:120-123` (merge Acierta+Quanto) · `app/Actions/RiskCentrals/Experian.php:479` (`creditScore`) · `app/Actions/RiskCentrals/Experian.php:511` (`quanto`) · `app/Actions/RiskCentrals/Experian.php:543` (`aciertaQuanto`). Copia parallel-run: `[legacy] app/Actions/RiskCentrals/Experian.php:512` (`ProductId 64`; endpoints con prefijo `/experian/...` en `app/Actions/RiskCentrals/Experian.php:480-482`).
+- **Dónde se guarda + mapper** (application): `app/Models/RiskCentralUserData.php:20-23` (casts: `data`=`encrypted:collection` APP_KEY; `additional_info`/`request`=`collection` **PLANO**) · `Experian.php:240` (save) · `Experian.php:267` (`score = avg(models[].scoreValue)`) · `Experian.php:243-249` (`additional_info`: negativeAccounts, maturationSince) · `Experian.php:320` (espejo `user_summaries`) · `Experian.php:352` (EAV 87 ingreso) · `Experian.php:374` (EAV 29 `'Empleado'` **HARDCODE**) · `Experian.php:390` (EAV 160 `'no'` **HARDCODE**) · `Experian.php:460-462` (EAV 90 egresos).
+- **Relaciones `User`** (application): `app/Models/User.php:232` (`datacredito()` por NOMBRE + latest) · `app/Models/User.php:244` (`tusDatos`, rc 2) · `app/Models/User.php:250` (`agildata`, 3) · `app/Models/User.php:256` (`mareigua`, 6) · `app/Models/User.php:262` (`aml`, 4) · `app/Models/User.php:268` (`ado`, por nombre `'Ado'`).
+- **KYC identidad / AML / liveness** (application): `app/Actions/RiskCentrals/Tusdatos.php:91` (AML `POST /api/launch`) → `app/Jobs/RiskCentrals/Tusdatos/CheckBackgroundJobStatus.php:61` (poll `GET /api/results/{jobid}`, `app/Jobs/RiskCentrals/Tusdatos/CheckBackgroundJobStatus.php:72` dispatch `BackgroundJobResolved`) · `Agildata.php:26` (`certVerify` mTLS) `Agildata.php:112-113` (`withOptions(verify)`) `Agildata.php:159-163` (escribe en `additional_info`) · `Mareigua.php:128` (OAuth `/token`) `Mareigua.php:82` (`POST /consultas`) · `Ado.php:23` (`GET .../Validation/{id}`) → `app/Jobs/RiskCentrals/Ado/StatusCheck.php:17` (poll; `app/Jobs/RiskCentrals/Ado/StatusCheck.php:64` `IdState==1`, `app/Jobs/RiskCentrals/Ado/StatusCheck.php:90-91` `IdState 17` cancelado, `app/Jobs/RiskCentrals/Ado/StatusCheck.php:79` dispatch `StatusChanged`).
 - **Trigger / frecuencia (models)** (application): `app/Models/DatacreditoFrequency.php` (`datacredito_frequencies`) · `app/Models/DatacreditoQueryByAllied.php` (`datacredito_query_by_allieds`).
 - **KYC V2 Credifamilia** (solo legacy-backend, greenfield): `app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteClient.php:28` (`validar`) · `CrossCore/CrossCoreClient.php:31` (`evaluate`) · `CrossCore/JumioOnboardingService.php:25` (`start` biometría).
 - **Ábaco / "Información complementaria"** (solo legacy-backend): `app/Actions/RiskCentrals/Abaco.php` (ingreso gig; informativo, no gatea).
@@ -395,20 +395,20 @@ El tramo post-selección no tiene un proveedor fijo: `confirmation` lee
 > central en el tramo biométrico es lo NORMAL.** El OCR del documento y el reconocimiento facial corren
 > completos por AWS Rekognition y no dejan una sola fila en `risk_central_user_data` — sus rastros son los
 > logs (`Modules/Identity`: `Iniciando validación de documento` (`IdentityValidationService.php:737`),
-> `Resultado OCR frente/dorso` (`:943`/`:977`), `Starting face comparison`) **y la tabla propia de abajo**.
+> `Resultado OCR frente/dorso` (`Modules/Identity/App/Services/IdentityValidationService.php:943`/`Modules/Identity/App/Services/IdentityValidationService.php:977`), `Starting face comparison`) **y la tabla propia de abajo**.
 > Cualquier vista que muestre «las centrales no consultadas» tiene que decir primero **qué camino tenía
 > configurado ese lender**, o la ausencia se lee como un paso que faltó.
 
 ⚠ **El camino Rekognition SÍ tiene tabla propia: `identity_validation_attempts`** — no hay que caer en los
 logs. La escribe el mismo servicio (`IdentityValidationService.php`, que inyecta `RekognitionService` en
-`:31`): crea la fila en `:303` y la va actualizando por tramo, con **un estado por pieza** —
-`front_status` (`:324`/`:330`), `back_status` (`:408`/`:414`) y `face_status` (`:484`/`:504`/`:515`), cada
+`Modules/Identity/App/Services/IdentityValidationService.php:31`): crea la fila en `Modules/Identity/App/Services/IdentityValidationService.php:303` y la va actualizando por tramo, con **un estado por pieza** —
+`front_status` (`Modules/Identity/App/Services/IdentityValidationService.php:324`/`Modules/Identity/App/Services/IdentityValidationService.php:330`), `back_status` (`Modules/Identity/App/Services/IdentityValidationService.php:408`/`Modules/Identity/App/Services/IdentityValidationService.php:414`) y `face_status` (`Modules/Identity/App/Services/IdentityValidationService.php:484`/`Modules/Identity/App/Services/IdentityValidationService.php:504`/`Modules/Identity/App/Services/IdentityValidationService.php:515`), cada
 uno `pending → processing → validated|failed`— más **`failure_reason`** con el motivo textual del fallo,
 los tres `*_hash` y un `trace` json (`IdentityValidationAttempt.php:9-22`, casteado a array). El cierre
-exitoso pone `face_status = validated`, `active = false` y `completed_at` (`:515`).
+exitoso pone `face_status = validated`, `active = false` y `completed_at` (`Modules/Identity/App/Services/IdentityValidationService.php:515`).
 
 Y **el historial se guarda igual que en `risk_central_user_data`, pero con otro mecanismo**: cada intento
-nuevo llama `invalidateActiveAttempts($userRequestId)` (`:301`) antes de crear la fila, así que la
+nuevo llama `invalidateActiveAttempts($userRequestId)` (`Modules/Identity/App/Services/IdentityValidationService.php:301`) antes de crear la fila, así que la
 convención es **`active = true`**, no `deleted_at IS NULL`. Una consulta escrita para el patrón de las
 centrales no sirve acá.
 
@@ -416,9 +416,9 @@ centrales no sirve acá.
 lo mapea al tipo `1 · None` (`IdentityValidationStepResolver.php:22`), pero hay una **segunda** fuente que
 emite exactamente el mismo `step_details.type`: `CreditopXFlowService.php:77`, cuando el usuario tiene
 `manual_validation` **y** validó hace menos de **24 horas**. La ventana es literal —
-`calculateValidationTime` (`:33`) computa `hours_since_last_validation` desde `users.last_validation` y
-marca `validated_less_than_24_hours` con `< 24` (`:40`); `isManualValidationRecent` (`:53`) lo recalcula
-con `Carbon::now()->subHours(24)`— y la compuerta es el `&&` de `:73`: **las dos condiciones juntas**.
+`calculateValidationTime` (`Modules/Loans/App/Services/CreditopXFlowService.php:41`) computa `hours_since_last_validation` desde `users.last_validation` y
+marca `validated_less_than_24_hours` con `< 24` (`Modules/Loans/App/Services/CreditopXFlowService.php:48`); `isManualValidationRecent` (`Modules/Loans/App/Services/CreditopXFlowService.php:61`) lo recalcula
+con `Carbon::now()->subHours(24)`— y la compuerta es el `&&` de `Modules/Loans/App/Services/CreditopXFlowService.php:125`: **las dos condiciones juntas**.
 Consecuencias prácticas: (a) leer `no_validation_required` como propiedad del lender es un falso positivo
 si el usuario venía validado a mano; (b) **`users.last_validation` vence**, así que un usuario de prueba
 que ayer saltaba la biometría hoy no la salta — y nada en la UI lo anuncia. El comportamiento está fijado
@@ -427,7 +427,7 @@ en `Modules/Loans/tests/Unit/CreditopXFlowServiceValidationTypeTest.php:160`
 
 Y el tipo `1 · None` es la razón por la que este tramo es **condicional y no obligatorio**: hay 9 lenders que
 no validan identidad, y para ellos `confirmation` salta directo a `first-payment-date`
-(`loan-confirmation.tsx:218-239`). No hace falta suponerlo: está en el enum.
+(`loan-confirmation.tsx:221-242`). No hace falta suponerlo: está en el enum.
 
 ## Lo que NO está verificado
 - ¿`hasFindings` del AML (TusDatos) bloquea el listado de TODOS los lenders o solo el flujo Credifamilia? No se localizó un consumidor central que rechace por `aml()`.
