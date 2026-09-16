@@ -195,8 +195,13 @@ async function restaurarBypass(original: string | null): Promise<void> {
 /** La siembra que los dos motores necesitan al llegar al formulario: el buró (el proveedor no contesta
  *  en local/dev), las dos fotos de la cédula (sin ellas la formalización muere al final) y, con
  *  `--manual`, la validación de identidad. Vive acá y no en cada motor para no tener dos siembras. */
-async function sembrar(ur: number, doc: string, log: (s: string) => void): Promise<void> {
-    const inj = await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
+async function sembrar(ur: number, doc: string, log: (s: string) => void, lender?: number): Promise<void> {
+    // ⚠ Con `lender`, `synthFill` deriva el perfil que CUMPLE las reglas de esa entidad
+    // (`deriveSynthReq`); sin él usa uno genérico. Y entonces NO se le pasan `income`/`score`: pisarían
+    // justo lo que la derivación acaba de calcular.
+    const inj = lender
+        ? await synthFill(ur, { lender, skipIdentity: true } as any)
+        : await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
     const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=?', [ur]).catch(() => null);
     if (u?.user_id) await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
         [`https://mock-s3.local/front-web/users/documents/synth/${doc}/frontal.jpg`,
@@ -361,6 +366,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
     }
     let burоInyectado = false;
     let lenderElegido: any = null;
+    let resembrado = false;
 
     for (let paso = 0; paso < MAX_PASOS && ruta; paso++) {
         { const u = urDe(ruta); if (u) r.ur = u; }
@@ -440,7 +446,22 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             const pedido = c.lender ?? Number(opciones.find((l) => Number(l.response_type) === 2)?.id);
             lenderElegido = opciones.find((l) => Number(l.id) === pedido);
             r.enListado = !!lenderElegido;
-            if (!lenderElegido) return terminar('trabado', `la entidad ${pedido || '(ninguna rt=2)'} no salió en el listado`);
+            if (!lenderElegido && pedido && !resembrado) {
+                // ⚠ LA SIEMBRA DE ARRIBA LA PISA EL FORMULARIO, y por eso la entidad pedida puede no
+                // estar. `sembrar()` corre ANTES de enviar `personal-info`, y el `action` de esa
+                // pantalla escribe los campos del cliente encima: medido el 2026-09-16, la solicitud
+                // quedaba con ocupación «Desempleado» e ingreso 0, y con eso una rt=2 se cae por regla
+                // DURA — tan afuera que el backend ni siquiera evalúa el cupo.
+                //
+                // Se resiembra ACÁ y no antes porque el listado ya se consumió en este fetch: con el
+                // perfil derivado para la entidad, se vuelve a pedir la misma pantalla. Una sola vez:
+                // si tampoco aparece, la exclusión es del comercio y hay que reportarla como tal.
+                resembrado = true;
+                log(`la entidad ${pedido} no salió: el formulario pisó la siembra — resembrando para ella y pidiendo el listado de nuevo`);
+                await sembrar(urDe(ruta)!, doc, log, pedido);
+                continue;
+            }
+            if (!lenderElegido) return terminar('trabado', `la entidad ${pedido || '(ninguna rt=2)'} no salió en el listado${resembrado ? ' (ni después de resembrar para ella: la exclusión es del comercio)' : ''}`);
             // El mismo payload que arma `useLenderSelection.ts`. `amount` va igual al pedido: el
             // cálculo de garantía que hace el cliente (financedAmountWithGuarantee) no se replica acá.
             form = {

@@ -773,6 +773,36 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (14) · CINCO comercios en paralelo en `qa`: los cinco a `/confirmation`
+
+> **MEDICIÓN · 2026-09-16** — barrido por el canal de la tienda, cinco comercios con **cinco entidades
+> en plataforma distintas**, en paralelo contra `qa`.
+> **Cómo se vuelve a comprobar:**
+> `node dev/caminar-wizard.ts --casos '#bb534d6a:37;#13874eb6:77;#38299332:70;#e80531af:87;#414f789f:103' --flow ecommerce --paralelo --cerrar --manual`
+
+| comercio | entidad | `usm` | destino | BD |
+|---|---|---|---|---|
+| **Creditop** | Creditop X (37) | **0** | `/confirmation` | 10 |
+| **Amoblando Pullman** | CrediPullman (77) | 1 | `/confirmation` | 10 |
+| **Tienda Fisio** | CrediFis X (70) | 1 | `/confirmation` | **11** |
+| **Compubit** | Compucredit (87) | 1 | `/confirmation` | 10 |
+| **Alpeluche** | Alpeluche X Consumo (103) | 1 | `/confirmation` | 10 |
+
+**Los cinco con `corporate_user_id` NULL y CERO filas de `sendSelfManagement`.** Incluido Creditop, que
+tiene los dos flags del mostrador apagados — el caso donde autogestión y ecommerce se separan.
+
+⚠ **Los cuatro que quedaron en 10 cortaron en la FIRMA con 504, y no es el flujo: es la capacidad de
+`qa`.** Repetidos **dos** en paralelo en vez de cinco, los dos cerraron en **11** con 13 pantallas
+(uReq 502408 y 502409). Es F-180 —¼ de vCPU y el ALB cortando a los 60 s— agravado por los ~16 s que
+cuesta cada PDF. La decisión del canal, que es lo que este trabajo cambia, salió bien en **5 de 5**.
+
+### Y para poder barrer hubo que arreglar el caminador
+
+La siembra se pisaba con el formulario y los cinco morían en «la entidad no salió en el listado».
+Arreglado con una **resiembra dirigida**: si la entidad pedida falta, se resiembra con
+`synthFill(ur, { lender })` y se vuelve a pedir el listado, **una sola vez** — si tampoco aparece, la
+exclusión sí es del comercio. El detalle y lo que costó, en `harness/CLAUDE.md`.
+
 ### 2026-09-16 (13) · la matriz COMPLETA en `qa`, y el bloqueo de la sesión resuelto por consola
 
 > **MEDICIÓN · 2026-09-16** — los tres canales, contra `qa`, con la aplicación haciendo el redirect.

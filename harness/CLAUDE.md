@@ -62,6 +62,24 @@ de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/m
 | `dev/asesor-destino.spec.ts` | **¿a dónde manda el front al elegir una entidad, en el canal del ASESOR?** Abre el listado con la sesión cacheada, elige y reporta la URL — nada más. Existe porque el caminador no puede llegar ahí cuando su siembra deja la entidad fuera del listado: acá la solicitud viene sembrada desde afuera con `synthFill(ur, { lender })`. ⚠ Usa `elegirEntidad` de `pkg/wizard-navegador.ts` y **no un localizador propio**: el primer intento con `locator('div').filter(...)` clickeó otro botón, la selección nunca llegó a la base (`lender_id` NULL) y la corrida igual dio «passed» |
 | `dev/caminar-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-caminar CASOS='#hash:lender' CERRAR=1 MANUAL=1`). Es el tercer camino: `caso.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
 
+### La siembra del caminador la pisa el formulario — y por eso «la entidad no salió en el listado» mentía
+
+> **MEDICIÓN · 2026-09-16** — `sembrar()` corre ANTES de enviar `personal-info`, y el `action` de esa
+> pantalla escribe los campos del cliente **encima**. La solicitud quedaba con ocupación
+> «Desempleado» e ingreso **0**, y con eso una rt=2 se cae por regla DURA — tan afuera que el backend
+> **ni siquiera evalúa el cupo** (cero líneas `QUOTA_CHECK` en Loki).
+> **Cómo se veía:** `NO cerró: la entidad N no salió en el listado`, que se lee como un hecho del
+> comercio cuando era del runner. Costó **ocho corridas** contra la base compartida antes de verse, y
+> subir el `--score` no lo arregla: la exclusión era por ocupación e ingreso.
+
+**Arreglado** con una resiembra DIRIGIDA: si la entidad pedida no está en el listado, se resiembra con
+`synthFill(ur, { lender })` —que deriva el perfil que CUMPLE sus reglas (`deriveSynthReq`)— y se vuelve
+a pedir la misma pantalla. **Una sola vez**: si tampoco aparece, la exclusión sí es del comercio y se
+reporta como tal. Medido después del arreglo: 5 comercios con 5 entidades en plataforma distintas,
+los 5 resembraron y los 5 llegaron a la selección.
+
+⚠ **Y con `lender` NO se le pasan `income`/`score`**: pisarían justo lo que la derivación calculó.
+
 ### Los specs de `channel/` corrían contra DEV, no contra local (2026-09-14)
 
 > **MEDICIÓN · 2026-09-14** — ⚠⚠ **Sin `E2E_TARGET`, TODOS los specs de `channel/` escribían en el
