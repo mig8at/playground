@@ -76,10 +76,14 @@
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/AlliedBranchController.php",
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/UserController.php",
     "legacy-backend/Modules/Onboarding/App/Services/CognitoService.php",
+    "legacy-backend/Modules/Onboarding/App/Services/QrService.php",
+    "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
+    "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php",
     "legacy-backend/Modules/Onboarding/routes/api.php",
     "legacy-backend/Modules/Partner/App/Http/Controllers/AlliedCorporateUserController.php",
     "legacy-backend/Modules/Partner/routes/api.php",
     "legacy-backend/app/Http/Kernel.php",
+    "legacy-backend/app/Http/Middleware/RedirectIdValidationIfDesktop.php",
     "legacy-backend/app/Http/Middleware/ResolveCognitoUser.php",
     "legacy-backend/database/migrations/2026_07_02_120000_add_onboarding_origin_to_users.php"
   ]

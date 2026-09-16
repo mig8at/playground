@@ -76,6 +76,65 @@ Del lado backend, `ResolveCognitoUser` (alias `auth.cognito`, `legacy-backend/ap
 - `legacy-backend` — `AddOriginationFlowType` inyecta `metadata.origination_flow_type = 'ecommerce' | 'merchant'`, derivado de si existe fila en `user_requests_by_ecommerce_request` (`:14-15`, `:43-45`). **No distingue autogestión**: la colapsa dentro de `merchant`.
 - `wizard` — `channel` de analytics con 5 valores (`analytics-taxonomy.ts:44-50`) y, sobre todo, `session_type = origination | client_biometric`, con **20 segmentos de path** (confirmation, identity-validation, sign-documents, otp-validation, imei, abaco…) que marcan dónde **el cliente toma el teclado** aunque el canal sea el del asesor (`:78-104`).
 
+**Y en `legacy-backend` el handoff lo decide un FLAG, no el canal** (`UserRequestService::updateUserRequest`,
+verificado contra `main` el 2026-09-16). Al elegir entidad hay dos ramas excluyentes:
+
+    if ($lenderByAllied->user_self_management && $url != '')      → WhatsApp con $url · showModal = true
+    else if (auth() === null && !$allied->self_managed
+             && !isset($ecommerceRequestId))                       → modal «continuá con el asesor comercial»
+
+⚠ **`$url` no es siempre nuestro**: para rt=0/1 es la URL **de la entidad** (el cliente termina en Welli),
+y para rt=2/3/4 sin credencial es `/self-service/<hash>/<ureq>/confirmation`, que es NUESTRA pantalla.
+El mismo mecanismo manda dos cosas distintas.
+
+⚠ **Consecuencias que contradicen el modelo intuitivo «asesor = manda WhatsApp»:**
+- **Con asesor y el flag APAGADO no se manda nada**: el checkout de la entidad se abre en una pestaña en
+  la pantalla del asesor (`openNewTab`), y el cliente no recibe ningún link.
+- **En autogestión con una entidad EXTERNA y el flag encendido, el WhatsApp SÍ sale** — no hay
+  continuación en plataforma, así que la guarda no aplica y el link de la entidad se envía igual.
+
+**Quién decide si el flujo sigue en el lugar: `LenderTabBehaviorResolver::continuesInPlace()`**
+(`Modules/Onboarding/App/Services/lenders/`). Con el trío `auth()` + `allieds.self_managed` +
+`lenders_by_allieds.user_self_management` decide si se puebla `continueUrl`, que es lo que hace que el
+front siga derecho en vez de mostrar la pantalla de entrega. El asesor autenticado manda sobre la
+configuración del comercio.
+
+⚠⚠ **Y `isset($ecommerceRequestId)` de esa condición es SIEMPRE FALSO.** El payload de la selección que
+manda el front es `{lender_id, fee_number, original_amount, amount, initial_fee, rate, transaction_data}`
+(`LoanRequestPayload` en `lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts`) — ese campo
+no viaja. O sea que la exclusión de ecommerce del modal **nunca excluyó nada**, y una compra de tienda
+recibe el modal «continuá con el asesor» igual que si hubiera entrado sola. El vínculo real está
+persistido desde el checkout y vive en TRES lugares: `ecommerce_requests.user_request_id`,
+`.original_user_request_id` y la tabla puente `user_requests_by_ecommerce_request` — el mismo trío que ya
+excluye `UserRequestV1\App\Repositories\UserRequestRepository::findWithEcommerceExclusions()`.
+
+⏳ **PENDIENTE DE MERGE** — en la rama `qa` (PR `legacy-backend#1409`) el canal pasa a ser un valor con
+nombre (`OnboardingOrigin`) resuelto del vínculo persistido, el pedido de la tienda gana sobre la sesión,
+y `continuesInPlace` se reduce a «entrega sólo el mostrador». En `main` sigue vigente lo de arriba.
+
+**El QR de la pantalla de confirmación NO es un plan B del WhatsApp: es por el DISPOSITIVO.**
+`RedirectIdValidationIfDesktop` (`app/Http/Middleware/`) envuelve la validación de identidad y mira el
+user-agent:
+
+- **navegador de escritorio** → corta con **HTTP 403** y cuerpo `{userRequestId, qrUrl, message:
+  'continue-link-sent'}`, genera un QR de `/self-service/<hash>/<ureq>/confirmation`, lo sube a S3 como
+  `temp/continue-<ureq>.png` **público**, y **además** manda el WhatsApp (`sendContinueLinkWhenDesktop`),
+  acotado a **una vez por día** por solicitud (`checkIfContinueLinkWhenDesktopWasSentToday`).
+- **celular** → borra ese objeto de S3 y deja pasar.
+
+El motivo es que la identidad necesita cámara. Manda **las dos cosas** —el QR para escanear ahí mismo y
+el link por si prefiere el celular—, así que «salió un QR» no significa que el WhatsApp haya fallado.
+
+⚠ **Y ese 403 explica un síntoma que ya confundió**: `/initial-fee-payment` responde `continue-link-sent`
+para las entidades en plataforma, y mandarlas al cobro por pasarela rompe el flujo.
+
+⚠ **Hay TRES QR distintos y conviene no confundirlos:** el de escritorio de arriba (identidad) · el de
+**República Dominicana**, que con `$allied->country_id == 60` fuerza `qrUrl` + `showModal` en la
+selección misma, antes de todo lo demás · y el del canal **Corbeta → Bancolombia**, que es otro recorrido
+entero (nodo `bancolombia`). El primero los genera `App\Actions\Qr::create()`, que **manda la URL a un
+servicio de terceros** (`generator.qrcode.studio`) y deja la imagen en un bucket público; `QrService`
+documenta que para payloads que no son URLs públicas va `generatePayloadSvg()`, que renderiza local.
+
 **Actores no humanos.** `api.{host}` es la superficie de máquinas: webhooks de lenders con Sanctum + ability (`ability:Pash`, `ability:prami`, `routes/api.php:41-60`), y alguno sin auth con el comentario explícito de que *"la key en base64 es la única barrera de seguridad"* (`:36-39`). Además el asesor **sale** hacia los lenders como dato: `Onboarding\AlliedBranchController::getByHash` devuelve el email del `corporateUser` de la última solicitud de ese usuario en esa sucursal, para el `advisory_code` de Welli y el bloque `store` de Meddipay/Prami; si no hubo asesor cae al hardcode `admin.ecommerce@creditop.com` (`:16`, `:100-123`).
 
 **Cliente en apuros → asesor.** Cuando la validación de identidad falla, `ManualValidationService::triggerManualValidation` notifica por SMS/WhatsApp a los usuarios del comercio que tengan el permiso `validate identity manually` (`Identity/UserRepository.php:31-38`), más una lista de **5 celulares personales hardcodeados** de gente de CreditOp (`ManualValidationService.php:17-23`, `:66-70`); el desenlace lo ejecuta `Admin\UserController@manualValidation` (`:209`).
