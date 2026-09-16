@@ -8,6 +8,31 @@ Este árbol describe **lo que corre**, no lo que se está construyendo. Un nodo 
 mergear es peor que un nodo faltante: se lee como verdad.
 
 - **Verificá contra `main`**, no contra el working tree. Ante la duda: `git cat-file -e main:<relpath>`.
+
+⚠⚠ **Y «`main`» es la rama LOCAL, que NO se actualiza sola — `git fetch` no la mueve.** `refs.py`
+(`REF_HOY = "main"`), `oracle.py` y `alinear.py` leen esa rama, así que si está atrasada **todo el
+árbol se valida contra el main de la semana pasada** y el verde no vale. Medido el 2026-09-16: los
+tres repos estaban atrás —**legacy-backend 132 commits (8 días)**, legacy-application 75, y
+frontend-monorepo 69—, y con eso `refs.py` reportaba **38 citas movidas cuando eran 69**: el ref viejo <!-- lint:ok -->
+escondía **31 derivas reales**. Peor que el número: la MISMA cita daba dos correcciones distintas
+—`:697` con el main viejo, `:709` con el real—, así que aplicar lo que dice la herramienta con el ref
+atrasado **escribe mal**.
+
+**Antes de creerle a cualquiera de las tres, poné los refs al día:**
+
+    for r in legacy-backend legacy-application frontend-monorepo; do
+      git -C ~/Desktop/CREDITOP/github/$r fetch origin --quiet
+      git -C ~/Desktop/CREDITOP/github/$r rev-list --count main..origin/main   # 0 = al día
+    done
+
+Si alguno da distinto de 0, adelantalo con `git branch -f main origin/main` — ⚠ sólo si `main` **no
+está en ningún worktree** (`git worktree list`) y **no tiene commits propios**
+(`git rev-list --count origin/main..main` = 0). Los repos se trabajan en ramas, así que normalmente
+se cumple; el `-f` sobre una rama con commits propios los pierde.
+
+⚠ **Y esto no avisa.** El oráculo saca una línea por repo con la antigüedad del ref, pero es un aviso
+suelto entre otros y se lee como ruido. Lo que lo destapó fue un «FUERA DE RANGO — la línea no existe»
+que no cerraba: el archivo tenía 1064 líneas en `origin/main` y la herramienta decía 1018.
 - El encabezado de cada nodo dice **contra qué se validó, cuándo y con qué método**. Si lo tocás,
   actualizá esa línea.
 - Si hay que documentar algo que **todavía no está en main**, marcalo donde aparece:
@@ -247,6 +272,29 @@ cuál**. No marca: corrige. Sigue renombres.
 matcheaba, y **todos sus «ok» eran del chequeo débil** («el archivo tiene al menos N líneas») — una cita
 corrida seis líneas pasó en verde y con ella se selló un nodo. Si volvés a tocar esto: **medí cuántos
 «ok» son del chequeo fuerte**, no cuántos son «ok». Los baldes débiles se declaran (`sin ancla`).
+
+⚠ **Su corrección se aplica SÓLO si es unívoca, y hay DOS marcadores de ambigüedad, no uno.** El
+obvio es `· N candidatos`. El que se pasa por alto es **`(y N coincidencia(s) más)`** pegado al final
+de la línea: significa que el texto del ancla aparece en varios lugares del archivo y el tool eligió
+el más cercano. Medido el 2026-09-16 sobre las 69 movidas del árbol: clasificando sólo por
+`candidatos` daban **30 seguras**, y nueve de ésas traían ese sufijo — o sea que **el 30 % de lo que
+parecía seguro no lo era**. Las verdaderamente aplicables sin leer el código son las que no traen
+ninguno de los dos, ni `revisalo a mano`, ni `confirmalo`.
+
+⚠ **La salida de las citas CORTAS es convertirlas a ruta completa, y se hace LEYENDO.** El propio
+docstring de `refs.py` documenta por qué no se resuelven solas (se intentó, dio 22 fallos falsos: los
+docs nombran al sujeto por CLASE, no por archivo). Convertidas en seis nodos el 2026-09-16 —de 924 a
+572, cobertura del 54 % al 71 %— y **cada nodo destapó entre dos y quince citas que apuntaban al lugar
+equivocado**, invisibles hasta entonces. Tres formas en que «el archivo más cercano» escribe mal, las
+tres vistas: la cita va **antes** del archivo en su línea (`profiling` L43) · la línea nombra **varios**
+y se reparten (`merchants` L115/L116) · el archivo se nombra **sin número** y el patrón no lo ve
+(`profiling` L135). Y una cuarta: a veces la cita corta es **meta** —el texto habla de una cita que ya
+no existe— y expandirla inventa una referencia (`merchants` L217).
+
+⚠ **Un desplazamiento uniforme tampoco sirve.** En `bancolombia`, `BancolombiaBnpl.php` se corrió **+21
+hasta `retrieveQuota` y +29 de ahí en adelante**; en `profiling`, `LenderUserCategoryService.php` creció
++20, +47, +83, +326 y +329 en cinco puntos distintos. Se verifica **método por método**
+(`grep -n "public function …"` contra `main`), no con una resta.
 
 Baldes: `ok` · `corrida` (≤3 líneas, no falla) · **`movida`** (apunta a otra parte, con la corrección) ·
 `reescrita` · `fuera` · `sin ancla` · `ambigua` · `no existe`. ⚠ `ambigua`/`no existe` **no siempre son
