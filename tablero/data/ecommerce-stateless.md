@@ -759,6 +759,42 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-16 (8) · la MATRIZ: cada comercio por los dos caminos, y por qué la tabla anterior engañaba
+
+> **MEDICIÓN · 2026-09-16** — Miguel señaló que la tabla anterior tenía a Alta Fleet sólo en la fila del
+> asesor, y que eso **no dice qué pasa cuando el cliente va solo**. Tenía razón: cada fila probaba UN
+> camino de UN comercio, y de ahí no sale la regla. Corrida la matriz entera.
+> **Cómo se vuelve a comprobar:** el asesor local está atado a una sucursal, así que para recorrer los
+> demás hay que moverlo — `node bin/dbops.ts assign <cognito_id> <comercio> <hash> <cognito_id>`, y
+> **devolverlo al terminar** (quedó en Alta Fleet, como estaba).
+
+| comercio (config) | autogestión | asesor |
+|---|---|---|
+| **Alta Fleet** · `self_managed=1` | **`/confirmation`** | `/merchant/…/continue` |
+| **Mediarte** · `usm=1` | `/confirmation` → estado 11 | `/merchant/…/continue?url=null` → estado 11 |
+| **Amoblando** · `usm=1` | ecommerce → `/confirmation` → estado 11 | `/merchant/…/continue?url=null` → estado 11 |
+| **Creditop** · los dos apagados | `/confirmation` · ecommerce `/confirmation` | ⚠ error previo (ver abajo) |
+
+✔ **La regla se sostiene en los cuatro, con tres configuraciones distintas del comercio**: sin asesor
+va a `confirmation`, con asesor va a `continue`. Y el `?url=null` aparece justo donde tiene que
+aparecer — en el handoff del mostrador, que es el único lugar donde hay a quién entregarle algo.
+
+⚠ **Creditop por asesor da «No se pudo procesar la solicitud» al seleccionar.** Verificado con A/B: se
+reproduce **idéntico con el código de `qa`**, así que es previo y del comercio interno de pruebas.
+
+### Dos cosas del método, que costaron corridas
+
+⚠ **Una tabla con un comercio por fila y un camino por comercio no prueba una regla, la insinúa.** La
+versión anterior mostraba Alta Fleet sólo con asesor y Mediarte sólo sin asesor: de ahí no se puede
+saber si lo que manda es el canal o el comercio. Hacen falta las dos celdas del mismo comercio.
+
+⚠ **Y en el canal del asesor la sucursal NO la decide el caso, la decide el BACKEND** según a dónde
+esté asignado el asesor de la sesión — el propio caminador lo avisa en un comentario. Pedirle
+`--casos '#13874eb6:77' --flow merchant` mientras el asesor está en otra sucursal corre contra la OTRA
+y el listado sale distinto sin que nada falle. *(Primero lo atribuí a la cookie `merchant_context` de
+F-190; **es falso** —no hay ninguna cookie de ese tipo en el `storageState`—, era que la corrida se
+cruzó con la reasignación.)*
+
 ### 2026-09-16 (7) · autogestión también sigue en el lugar: la regla queda en «entrega SÓLO el mostrador»
 
 > **MEDICIÓN · 2026-09-16** — Miguel señaló que autogestión también debería caer en `/confirmation`, y
