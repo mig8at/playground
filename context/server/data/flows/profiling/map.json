@@ -33,7 +33,6 @@
     "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
     "legacy-backend/Modules/Loans/App/Services/datacredito/CreditopXDatacreditoAdjustmentService.php",
     "legacy-backend/Modules/Loans/tests/Feature/CreditopXQuotaControllerTest.php",
-    "legacy-backend/Modules/Loans/tests/Unit/CreditopXDatacreditoAdjustmentServiceTest.php",
     "legacy-backend/Modules/Loans/tests/Unit/LenderSpecialGrantingServiceTest.php",
     "legacy-backend/Modules/Loans/tests/Unit/LenderUserCategoryServiceMatchedByRuleTest.php",
     "legacy-backend/Modules/Onboarding/App/Services/ProfilerML/NewProfilerMLService.php",
