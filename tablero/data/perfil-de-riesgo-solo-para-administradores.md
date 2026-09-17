@@ -11,16 +11,19 @@ jira_title: "Restringir el perfil de riesgo del cliente al rol Administrador"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**Estado al 2026-09-17: arreglado en la rama, SIN PR y VIVO en producción.** Tres commits en
-`fix/perfil-de-riesgo-solo-para-administradores` (`legacy-application`), nada pusheado.
+**Estado al 2026-09-17: PR abierto contra `develop`, VIVO en producción hasta que mergee.**
+`Creditop-SAS/legacy-application#170` — tres commits rebaseados sobre `develop`, 6 archivos, +130/-5.
 
 Un usuario **Superadmin comercio** (rol 6) del comercio 26 abría *Perfilamiento Usuarios*, hacía clic
 en el **ojo** de una fila y veía el **score de Datacrédito** del cliente, más Ágil Data, Mareigua,
 TusDatos, Sistecrédito, su capacidad de endeudamiento y su historial en **todos los comercios** por los
 que pasó — no sólo el suyo. Ese módulo es sólo para el Administrador.
 
-**El próximo paso es:** abrir el PR y decidir si el arreglo va por `develop` o directo, por ser una
-fuga de datos de buró que está viva en prod.
+**El próximo paso es:** que alguien revise `#170`. Ojo con el camino a producción: la rama salió de
+`main` y el PR va contra `develop`, que hoy tiene **34 commits que `main` no tiene** y le faltan **7**
+de `main` (82 archivos de diferencia, medido el 2026-09-17). Mergear en `develop` NO lo pone en prod:
+falta el camino `develop` → … → `main`, y mientras tanto el agujero sigue abierto para los 790
+usuarios.
 
 ## Cómo se atacó
 

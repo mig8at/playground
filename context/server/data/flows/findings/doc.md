@@ -381,7 +381,7 @@ distinto según con qué pregunta llegues.
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
-| F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera | ARREGLADO ⏳ PENDIENTE DE MERGE |
+| F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera | ARREGLADO ⏳ PENDIENTE DE MERGE · PR #170 → develop |
 
 ---
 
@@ -5461,5 +5461,6 @@ haber promesas. El texto del runner nombra el desenlace, no la causa.
   el 55 estuviera huérfano se leía como «módulo restringido» y era exactamente lo contrario — la señal
   de que **nadie lo estaba verificando**. Un `can:` que nadie satisface tampoco cierra: rompe. Los dos
   cambios van juntos o ninguno.
-- **Estado:** cerrado en la rama `fix/perfil-de-riesgo-solo-para-administradores` (3 commits, sin PR
-  todavía). ⚠ **Vivo en producción** hasta que mergee.
+- **Estado:** arreglado, en revisión — `Creditop-SAS/legacy-application#170` contra `develop`.
+  ⚠ **Vivo en producción** hasta que mergee: `develop` no es prod, y hoy diverge de `main` en 82
+  archivos (34 commits de un lado, 7 del otro).
