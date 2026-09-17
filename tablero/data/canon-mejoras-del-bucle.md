@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -19,13 +19,23 @@ viejo—, que es algo que ninguna prosa dejaba ver, y al abrir una sección enci
 respaldan. Sale de los mismos hashes que verifica la ronda, así que no envejece aparte. Mergeada en
 `Creditop-SAS/playground#194`.
 
-⚠ **A propósito NO es un mapa de tren**, que fue la idea original: las áreas del mapa no traen orden de
-ejecución, y dibujarlas como estaciones en fila afirmaría un flujo que nadie midió. El orden, si alguna
-vez se quiere, tiene que venir de algo que corre (el harness recorre el flujo y sí lo sabe), no de algo
-que alguien escribió.
+*(Acá decía que a propósito NO era un mapa de tren —que las áreas no traen orden y dibujarlas en fila
+afirmaría un flujo que nadie midió—. **Caducó el 2026-09-17**, y la objeción no se ignoró: se resolvió.
+El orden ya no se infiere del mapa, se **declara** en un `flow.json` por área, con sus rutas y sus
+estaciones, y cada estación apunta a la sección que la sostiene. Sigue siendo cierto que el orden no
+sale del mapa; lo que cambió es que ahora hay dónde escribirlo. **Y la franja se fue**: ocupaba ese
+lugar del panel y Miguel pidió que el recorrido fuera la figura por defecto.)*
 
-**El próximo paso es:** medir si la franja se usa, con el mismo criterio con que se mide cualquier otra
-mejora de canon — que el camino se recorra, no que la herramienta funcione.
+**Al 2026-09-17 la figura del panel es el RECORRIDO.** Un área puede declarar en `content/<area>/flow.json`
+en qué orden pasan las cosas —rutas con su «cuándo» y estaciones con tipo, referencia y nota— y la Sala
+lo dibuja: tronco compartido entre rutas y un ramal por cada una. Lo declaran **18 temas**, los 10 del
+recorrido y las 8 entidades; los de referencia (vocabulario, credenciales, los `operar`, altas,
+backoffice, datos, arquitectura, fronteras, internacionalizacion, servicios) quedan **sin recorrido a
+propósito**, porque no describen un camino. `Creditop-SAS/playground#230` y `#231`, los dos en `main` y
+comprobados en prod.
+
+**El próximo paso es:** medir si el recorrido se usa —el mismo criterio de siempre: que el camino se
+recorra, no que la herramienta funcione—. La franja nunca llegó a esa medición y se fue antes.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -310,6 +320,33 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-17
+
+- **El recorrido de un área se declara, y la franja se va.** Dos PRs: `#230` trajo el mecanismo
+  —`flow.json` con rutas y estaciones, la validación en el lint, el dibujo en la Sala y Motai como
+  primer recorrido— y `#231` lo hizo por defecto: 17 temas más, la franja borrada y un aviso del lint.
+  La objeción de la entrada del 2026-09-15 —«las áreas del mapa no traen orden»— sigue en pie: el orden
+  **no se infiere**, se declara y se valida.
+- **El validador es lo que hace que esto no mienta.** Cada `referencia` tiene que ser una sección que
+  existe, y el lint me rebotó tres anclas que escribí de memoria (una de `formalizacion`, una de `cuota`
+  y una de `documentos`). Para las 165 restantes volqué las anclas reales con el propio parser desde un
+  test, en vez de derivarlas del markdown a ojo.
+- **Lo que decide la forma: el tronco es el prefijo común a TODAS las rutas**, y una estación fuera del
+  tronco no se puede compartir. Eso obliga a elegir bien la bifurcación de cada tema —en `listado` son
+  «sale con opciones» y «sale vacío», y el vacío blando queda como condición dentro de la primera,
+  porque ES una lista con tarjetas.
+- **Los 12 temas sin recorrido no son un olvido y el lint lo dice.** Avisa qué temas con código no
+  declaran `flow.json`; es aviso y no error, porque cuál de ellos merece uno lo decide una persona.
+- **Probado en prod, con el presupuesto de siempre.** La sonda gratis —`/api/flow?node=<tema>`, que pasa
+  de 404 a 200— detectó el despliegue a los **8 minutos**, y de paso se vio el despliegue rodante: 3 de
+  6 sondas en la versión nueva un minuto antes de que fueran 6 de 6. Después, sin modelo: los 19 temas
+  contestan 200 y los de referencia 404, y **las 165 referencias de las 187 estaciones resuelven contra
+  `/api/read`, cero rotas**. El bundle publicado es el mismo hash que construí, sin la franja.
+- **Y las dos preguntas.** Una de secuencia —el cierre con codeudor— que salió bien: ordenó los seis
+  pasos y ubicó la espera en «Pendiente firma codeudor», citando las secciones correctas. Y una de
+  control en un tema **sin** recorrido (las altas): contestó con la copia de reglas por sucursal, igual
+  que antes. Nada se rompió del lado de los temas que no se tocaron.
 
 ### 2026-09-15
 
