@@ -43,6 +43,21 @@ El panel es un `node panel/server.ts` sin dependencias. Elegís comercio → def
 sucursal → "Preparar + Lanzar ▶". Por debajo shellea `bin/dbops.ts` y `bin/asesor`, y te muestra la
 consola de la corrida en vivo.
 
+### Preparar y observar una corrida en el panel
+
+La configuración se agrupa en **Dónde**, **Qué recorrido** y **Con qué persona**. La barra de
+lanzamiento resume el caso elegido; el mapa empieza plegado y se abre al ejecutar. Los cambios
+globales de entidades están en **Configuración del entorno**, separados de los datos de la persona.
+
+**Perfiles reutilizables** guarda ingreso, ocupación, score, negativos y consultas en este navegador.
+No guarda identidad ni cambia el ambiente. Aplicar un perfil carga sus valores; guardar con el mismo
+nombre lo actualiza. Si faltan servicios locales, el aviso junto a Lanzar lleva a sus comandos,
+que se pueden copiar sin ejecutarlos desde el panel.
+
+Durante la corrida, la tarjeta de actividad muestra los mensajes del runner y los datos para tipear.
+La configuración queda bloqueada hasta completar la recolección de evidencia. **Proceso terminado**
+describe el proceso: el desenlace del crédito se consulta en la consola y su evidencia de BD.
+
 Por terminal, lo mismo (los bins son *plumbing*, no una segunda entrada):
 
 ```bash

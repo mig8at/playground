@@ -792,6 +792,15 @@
     .scope-note { font-size: 13px; color: #d8b77a; line-height: 1.6; margin: 0 0 18px; }
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
+    .profile-row { display: flex; gap: 8px; margin: 6px 0 12px; align-items: center; }
+    .profile-row input, .profile-row select { min-width: 0; }
+    .profile-row button { flex-shrink: 0; }
+    .profile-help { color: var(--mut); font-size: 12px; margin: 10px 0; }
+    .profiles { margin-bottom: 18px; }
+    .profiles[open] { padding-bottom: 4px; }
+    .dependency-list { display: grid; gap: 8px; margin: 14px 0 0; }
+    .dependency { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel2); padding: 10px 12px; border-radius: 7px; }
+    .dependency code { overflow-wrap: anywhere; font-size: 12px; flex: 1; }
     .health .stats { margin-top: 0; }
     .last-result { margin-top: 18px; }
     .last-result .stat { max-width: none; }
@@ -811,6 +820,8 @@
     .launch-review strong { font-size: 14px; }
     .launch-review > span { font-size: 12px; color: var(--mut); }
     .launch-review .sumry:empty { display: none; }
+    .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+    .readiness-link:hover { text-decoration: underline; }
     .launch-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
     .wrap { padding-bottom: 140px; }
     .config-fields:disabled .cols { opacity: .65; }
@@ -852,7 +863,7 @@
     </section>
     <details class="card tren" id="tren" style="display:none">
       <summary>Mapa del recorrido <span id="trenwarn"></span>
-        <span class="tren-hint">Referencia del flujo · expandir para explorar</span>
+        <span class="tren-hint">Referencia del flujo</span>
       </summary>
       <div id="trenvias">
         <svg id="trensvg"><g id="trencam"></g></svg>
@@ -925,7 +936,7 @@
         </div>
         <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div><div class="field">
-        <label>Monto solicitado</label>
+        <label for="amount">Monto solicitado</label>
         <div class="money"><input id="amount" type="text" inputmode="numeric" value="2.000.000" oninput="onMoney(this)" /></div>
         <!-- Cupo ya confirmado (al pie del monto): al inyectar, firma el flujo `already-confirmed-pre-approval`
              (flow_id=2). Es INYECTAR el estado del cupo, NO validar nada (la validación de la omisión sigue por
@@ -959,7 +970,17 @@
         </details>
       </div>
       <div class="col">
-        <section class="card" id="personCard"><h2><b>03</b> Con qué persona</h2><div class="field">
+        <section class="card" id="personCard"><h2><b>03</b> Con qué persona</h2>
+        <details class="fold profiles" id="profilesPanel">
+          <summary>Perfiles reutilizables <span class="foldsum" id="profilesCount">Guardá los valores que usás seguido</span></summary>
+          <p class="profile-help">Guardan ingreso, ocupación y buró en este navegador.</p>
+          <label class="field-label" for="savedProfiles">Aplicar un perfil</label>
+          <div class="profile-row"><select id="savedProfiles"><option value="">Elegí un perfil…</option></select><button class="copy" id="deleteProfile" type="button" disabled>Eliminar</button></div>
+          <label class="field-label" for="profileName">Guardar los valores actuales</label>
+          <div class="profile-row"><input id="profileName" type="text" maxlength="48" placeholder="Ej. Independiente · score 650" /><button class="copy" id="saveProfile" type="button">Guardar</button></div>
+          <p id="profileFeedback" class="profile-help" role="status"></p>
+        </details>
+        <div class="field">
         <label>Modo del buró</label>
         <div class="seg" id="injmode">
           <button class="on" data-i="1">Buró inyectado</button>
@@ -991,31 +1012,31 @@
         </div>
       </div>
       <div class="two">
-        <div class="field"><label>Nombre</label><input id="name" type="text" placeholder="SYNTH TEST USER" /></div>
-        <div class="field"><label>Documento / cédula</label><input id="document" type="text"
+        <div class="field"><label for="name">Nombre</label><input id="name" type="text" placeholder="SYNTH TEST USER" /></div>
+        <div class="field"><label for="document">Documento / cédula</label><input id="document" type="text"
             placeholder="auto (2.9B + ur)" /></div>
       </div>
       <div class="two">
         <div class="field"><label>Género</label>
           <div class="seg" id="gender"><button class="on" data-v="M">M</button><button data-v="F">F</button></div>
         </div>
-        <div class="field"><label>Edad</label><input id="age" type="number" value="35" step="1" min="18" /></div>
+        <div class="field"><label for="age">Edad</label><input id="age" type="number" value="35" step="1" min="18" /></div>
       </div>
       <div class="two">
-        <div class="field"><label>Fecha nacimiento</label><input id="dob" type="date" value="1990-01-01" /></div>
-        <div class="field"><label>Fecha expedición</label><input id="expedition" type="date" value="2010-01-01" /></div>
+        <div class="field"><label for="dob">Fecha nacimiento</label><input id="dob" type="date" value="1990-01-01" /></div>
+        <div class="field"><label for="expedition">Fecha expedición</label><input id="expedition" type="date" value="2010-01-01" /></div>
       </div>
-      <div class="field"><label>Email</label><input id="email" type="text"
+      <div class="field"><label for="email">Email</label><input id="email" type="text"
           placeholder="auto · synth-&lt;ur&gt;@creditop.com" /></div>
         </details><!-- /identidad -->
 
       <p class="grouplbl">Ingreso y empleo</p>
       <div class="two">
-        <div class="field"><label>Ingreso mensual (COP)</label>
+        <div class="field"><label for="income">Ingreso mensual (COP)</label>
           <div class="money"><input id="income" type="text" inputmode="numeric" value="2.500.000"
               oninput="onMoney(this)" /></div>
         </div>
-        <div class="field"><label>Ocupación</label>
+        <div class="field"><label for="occupation">Ocupación</label>
           <select id="occupation">
             <option>Empleado</option>
             <option>Independiente</option>
@@ -1026,12 +1047,12 @@
 
       <p class="grouplbl buro">Buró · Datacrédito</p>
       <div class="two buro">
-        <div class="field"><label>Score</label><input id="score" type="number" value="700" step="10" /></div>
-        <div class="field"><label>Negativos 12m</label><input id="negatives" type="number" value="0" step="1" min="0" />
+        <div class="field"><label for="score">Score</label><input id="score" type="number" value="700" step="10" /></div>
+        <div class="field"><label for="negatives">Negativos 12m</label><input id="negatives" type="number" value="0" step="1" min="0" />
         </div>
       </div>
       <div class="two buro">
-        <div class="field"><label>Consultas 6m</label><input id="consulted" type="number" value="1" step="1" min="0" />
+        <div class="field"><label for="consulted">Consultas 6m</label><input id="consulted" type="number" value="1" step="1" min="0" />
         </div>
         <div class="field"></div>
       </div>
@@ -1059,7 +1080,7 @@
       </div>
     </div>
     </fieldset>
-    <details class="card health" id="healthDetails"><summary>Estado del entorno <span id="healthSummary">Consultando servicios…</span></summary><div class="stats" id="stats"></div></details>
+    <details class="card health" id="healthDetails"><summary>Estado del entorno <span id="healthSummary">Consultando servicios…</span></summary><div class="stats" id="stats"></div><div class="dependency-list" id="missingServices"></div></details>
     <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
     <section id="webhookZona" class="wh" style="display:none"></section><section class="card logcard" id="logcard" style="display:none">
       
@@ -1074,7 +1095,7 @@
     </section>
   </div>
   <div class="dock"><div class="dockin">
-    <div class="launch-review"><strong id="caseTitle">Elegí un comercio</strong><span id="caseDetails"></span><span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span></div>
+    <div class="launch-review"><strong id="caseTitle">Elegí un comercio</strong><span id="caseDetails"></span><span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span><button class="readiness-link" id="readinessLink" type="button" hidden></button></div>
     <div class="launch-actions"><span class="dot" id="dot"></span><button class="stop" id="stopBtn">Detener</button><button class="go" id="go" disabled>Preparar + Lanzar ▶</button></div>
   </div></div>
   <script>
@@ -1489,6 +1510,10 @@
       try { e = await (await fetch('/api/estado')).json(); } catch { /* el panel sigue sin esto */ }
       if (requestedTarget !== target || requestedSlug !== sel?.slug) return;
       $('healthSummary').textContent = e ? 'Ver servicios, entidades y mapa' : 'No se pudo consultar el estado';
+      $('missingServices').replaceChildren();
+      $('healthDetails').classList.remove('needs-attention');
+      $('readinessLink').textContent = '';
+      $('readinessLink').hidden = true;
       const box = $('stats'); if (!box) return;
       const card = (cls, ico, k, v, sub, tip) =>
         `<div class="stat ${cls}"${tip ? ` title="${tip.replace(/"/g, '&quot;')}"` : ''}>`
@@ -1525,6 +1550,26 @@
         const criticos = down.filter(m => necesita(m.para));
         $('healthSummary').textContent = criticos.length ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
         $('healthDetails').classList.toggle('needs-attention', criticos.length > 0);
+        if (criticos.length) {
+          $('readinessLink').textContent = `Falta iniciar ${criticos.length === 1 ? criticos[0].nombre : `${criticos.length} servicios`} · ver comandos`;
+          $('readinessLink').hidden = corridaRunning;
+        }
+        for (const mock of criticos) {
+          const command = COMANDO[mock.puerto];
+          const row = document.createElement('div'); row.className = 'dependency';
+          const label = document.createElement('span'); label.textContent = mock.nombre;
+          const code = document.createElement('code'); code.textContent = command || `Revisá el servicio en el puerto ${mock.puerto}`;
+          row.append(label, code);
+          if (command) {
+            const copy = document.createElement('button'); copy.className = 'copy'; copy.textContent = 'Copiar comando';
+            copy.onclick = async () => {
+              try { await navigator.clipboard.writeText(command); copy.textContent = 'Copiado'; }
+              catch { copy.textContent = 'Seleccioná el comando para copiarlo'; }
+            };
+            row.append(copy);
+          }
+          $('missingServices').append(row);
+        }
         out.push(card(criticos.length ? 'st-bad' : down.length ? 'st-warn' : 'st-ok', '🔌', 'Mocks',
           `${up.length}/${e.mocks.length}`,
           criticos.length
@@ -1971,6 +2016,7 @@
       corridaRunning = running;
       $('configFields').disabled = running;
       $('activity').classList.toggle('running', running);
+      $('readinessLink').hidden = running || !$('readinessLink').textContent;
       document.querySelectorAll('#results .m').forEach(m => {
         m.setAttribute('aria-disabled', String(running));
         m.tabIndex = running ? -1 : 0;
@@ -2046,6 +2092,56 @@
       $('idsum').textContent = `${doctype} ${$('document').value.trim()} · ${nm} · ${gender} · ${$('age').value}a`;
     }
     const refresh = () => { updateGo(); updateIdSum(); };
+
+    // Perfiles FINANCIEROS locales: no guardan identidad, credenciales ni cambian el ambiente.
+    const PROFILE_KEY = 'creditop-harness.financial-profiles.v1';
+    const PROFILE_FIELDS = ['income', 'occupation', 'score', 'negatives', 'consulted'];
+    let savedProfiles = [];
+    const validProfile = p => p && typeof p.name === 'string' && p.name.trim().length > 0 && p.name.length <= 48
+      && ['Empleado', 'Independiente', 'Pensionado'].includes(p.values?.occupation)
+      && ['income', 'score', 'negatives', 'consulted'].every(k => Number.isFinite(p.values?.[k]) && p.values[k] >= 0);
+    try {
+      const stored = JSON.parse(localStorage.getItem(PROFILE_KEY) || '[]');
+      savedProfiles = Array.isArray(stored) ? stored.filter(validProfile).slice(0, 20) : [];
+    } catch { $('profileFeedback').textContent = 'No se pudieron leer los perfiles de este navegador.'; }
+    function renderProfiles(selected = '') {
+      $('savedProfiles').replaceChildren(new Option('Elegí un perfil…', ''));
+      for (const p of savedProfiles) $('savedProfiles').append(new Option(p.name, p.name));
+      $('savedProfiles').value = selected;
+      $('deleteProfile').disabled = !selected;
+      $('profilesCount').textContent = savedProfiles.length ? `${savedProfiles.length} guardado${savedProfiles.length === 1 ? '' : 's'}` : 'Guardá los valores que usás seguido';
+    }
+    function persistProfiles(next) {
+      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); savedProfiles = next; return true; }
+      catch { $('profileFeedback').textContent = 'El navegador no permitió guardar. Tus valores siguen en el formulario.'; return false; }
+    }
+    $('saveProfile').onclick = () => {
+      const name = $('profileName').value.trim();
+      const values = Object.fromEntries(PROFILE_FIELDS.map(k => [k, k === 'income' ? moneyNum(k) : k === 'occupation' ? $(k).value : Number($(k).value)]));
+      const profile = { name, values };
+      if (!validProfile(profile)) { $('profileFeedback').textContent = 'Escribí un nombre y usá valores numéricos válidos, sin negativos.'; return; }
+      const previous = savedProfiles.find(p => p.name.toLowerCase() === name.toLowerCase());
+      if (!previous && savedProfiles.length >= 20) { $('profileFeedback').textContent = 'Ya hay 20 perfiles. Eliminá uno o actualizá uno existente.'; return; }
+      const next = previous ? savedProfiles.map(p => p === previous ? profile : p) : [...savedProfiles, profile];
+      if (persistProfiles(next)) { renderProfiles(name); $('profileFeedback').textContent = `Perfil «${name}» ${previous ? 'actualizado' : 'guardado'}.`; }
+    };
+    $('savedProfiles').onchange = () => {
+      const profile = savedProfiles.find(p => p.name === $('savedProfiles').value);
+      $('deleteProfile').disabled = !profile;
+      if (!profile) return;
+      for (const k of PROFILE_FIELDS) $(k).value = k === 'income' ? fmt(profile.values[k]) : profile.values[k];
+      $('profileName').value = profile.name;
+      $('profileFeedback').textContent = `Perfil «${profile.name}» aplicado.${!inject ? ' Activá Buró inyectado para usarlo en la corrida.' : doctype === 'PEP' ? ' El documento PEP omite el buró.' : ''}`;
+      refresh();
+    };
+    $('deleteProfile').onclick = () => {
+      const name = $('savedProfiles').value;
+      if (persistProfiles(savedProfiles.filter(p => p.name !== name))) {
+        renderProfiles(); $('profileName').value = '';
+        $('profileFeedback').textContent = 'Perfil eliminado. Sus valores siguen en el formulario y podés guardarlos de nuevo.';
+      }
+    };
+    renderProfiles();
 
     async function launch() {
       if (!sel) return;
@@ -2307,11 +2403,11 @@
       }
       applyCupoGate();
     }
-    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); });
+    document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); refresh(); });
     updateStepHint();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
-    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); });
+    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); refresh(); });
 
     // switcher de target (local | dev | staging). dev y staging escriben data COMPARTIDA (la misma BD:
     // en legacy-backend staging no es un entorno aparte, solo lo es el frontend) → aviso + re-enrich.
@@ -2518,6 +2614,7 @@
       .forEach(id => $(id).addEventListener('input', refresh));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
     $('viewLog').onclick = () => { showLog(true); $('logcard').scrollIntoView({ behavior: 'instant', block: 'start' }); };
+    $('readinessLink').onclick = () => { $('healthDetails').open = true; $('healthDetails').scrollIntoView({ behavior: 'instant', block: 'start' }); };
     $('logToggle').onclick = () => showLog(!logOpen);
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
     $('logFiltro').onclick = () => {
