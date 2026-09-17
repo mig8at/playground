@@ -51,7 +51,7 @@ formalization 129 Modules/Onboarding/App/Http/Controllers/ValidateOtpController.
 frontend-monorepo 14 utils/auth/session.server.ts:5                            # `SESSION_SECRET`/`__session` son del OTRO archivo, citado a continuación
 
 # ── revisadas el 2026-09-16, nodo `findings` ──
-findings 1000 Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:1475 # `resolveFrontendBaseUrl` SÍ está en :1475; `FRONTEND_URL_DEV` es la frase siguiente
+findings 1002 Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:1475 # `resolveFrontendBaseUrl` SÍ está en :1475; `FRONTEND_URL_DEV` es la frase siguiente
 
 # ── revisadas el 2026-09-17, nodo `application` ──
 application 20 app/Services/lenders/LenderRetrievalService.php:557-562 # el bloque del parche SÍ está ahí; `corbeta_allieds` es la frase siguiente
