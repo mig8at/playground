@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -26,9 +26,11 @@ estaciones, y cada estación apunta a la sección que la sostiene. Sigue siendo 
 sale del mapa; lo que cambió es que ahora hay dónde escribirlo. **Y la franja se fue**: ocupaba ese
 lugar del panel y Miguel pidió que el recorrido fuera la figura por defecto.)*
 
-**Al 2026-09-17 la figura del panel es el RECORRIDO.** Un área puede declarar en `content/<area>/flow.json`
-en qué orden pasan las cosas —rutas con su «cuándo» y estaciones con tipo, referencia y nota— y la Sala
-lo dibuja: tronco compartido entre rutas y un ramal por cada una. Lo declaran **18 temas**, los 10 del
+**Al 2026-09-17 la figura del panel es el RECORRIDO, y es un MINIMAPA.** Un área puede declarar en
+`content/<area>/flow.json` en qué orden pasan las cosas —rutas con su «cuándo» y estaciones con tipo,
+referencia y nota— y la Sala lo dibuja dentro del panel del tema, arriba de la prosa: líneas finas,
+puntos chicos, tronco compartido y un ramal por ruta. El nombre y la nota de cada estación los dice el
+globo al pasar el puntero; el clic lleva a la sección que la sostiene. Lo declaran **18 temas**, los 10 del
 recorrido y las 8 entidades; los de referencia (vocabulario, credenciales, los `operar`, altas,
 backoffice, datos, arquitectura, fronteras, internacionalizacion, servicios) quedan **sin recorrido a
 propósito**, porque no describen un camino. `Creditop-SAS/playground#230` y `#231`, los dos en `main` y
@@ -343,6 +345,22 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
   6 sondas en la versión nueva un minuto antes de que fueran 6 de 6. Después, sin modelo: los 19 temas
   contestan 200 y los de referencia 404, y **las 165 referencias de las 187 estaciones resuelven contra
   `/api/read`, cero rotas**. El bundle publicado es el mismo hash que construí, sin la franja.
+- **Y a la tarde el recorrido dejó de ser un modal** (`#232`). Miguel lo pidió así: que entre en el
+  espacio chico del panel, con líneas finas y puntos, y que el detalle salga al pasar el puntero. El
+  dibujo pasó a contestar la FORMA —cuántas rutas hay, dónde se separan, cuántos pasos faltan— y el
+  detalle se pide de a uno: nada de etiquetas de estación, que no caben sin volver ilegible el dibujo.
+  El más ancho de los 18 mide 411px y el panel deja 412; la prueba lo comprueba sobre **todos** los
+  `flow.json` y no sólo sobre el piloto, que es lo que evita que el próximo recorrido largo lo rompa
+  sin avisar.
+- ⚠ **Un defecto que sólo aparece corriéndolo:** el globo se escondía al salir **del dibujo** y no del
+  punto, así que con el puntero paseando por el hueco entre dos estaciones quedaba colgado. Leerlo no
+  lo mostraba: los dos caminos parecen iguales hasta que movés el mouse.
+- **Probado en prod igual que la mañana**, y la sonda gratis fue otra porque este cambio es sólo del
+  frente: una cadena nueva del bundle (`clic para leer la explicación`), que no existía antes. Ocho
+  minutos hasta que las seis sondas seguidas dieron el bundle nuevo —y el hash servido es el mismo que
+  compilé—. Después, en el navegador contra prod: el minimapa dibuja, el globo aparece y se va, queda
+  recortado dentro del lienzo y no queda rastro del modal viejo. **Sin gastar ninguna pregunta de
+  modelo**: nada de esto la necesitaba.
 - **Y las dos preguntas.** Una de secuencia —el cierre con codeudor— que salió bien: ordenó los seis
   pasos y ubicó la espera en «Pendiente firma codeudor», citando las secciones correctas. Y una de
   control en un tema **sin** recorrido (las altas): contestó con la copia de reglas por sucursal, igual
