@@ -7,7 +7,7 @@ context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce
+ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -17,9 +17,15 @@ CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommer
 
 ## Si retomás esto sin contexto, empezá acá
 
-**TODO está en `qa` y desplegado. Lo que falta es que QA lo pruebe.** Al 16/9 19:18: backend
+**TODO está en `qa` y desplegado, y el 17/9 se comprobó corriéndolo.** Al 16/9 19:18: backend
 **#1409** (el flujo por origen) y **#1388**, y front **#995**, los tres con su despliegue en verde,
-encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban.
+encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban. El **17/9** se sumaron, ya
+mergeados, **#1024** (el botón que vuelve a la tienda) y **legacy-application#169** (el checkout de los
+comercios entrando al wizard).
+
+✔ **Y el 17/9 la conducta por canal quedó MEDIDA en base, no deducida:** mismo comercio, misma entidad
+y mismo desenlace, sólo cambia el canal — y el WhatsApp de entrega aparece **únicamente** con asesor.
+La tabla, con las cuatro solicitudes, en el Registro del 17/9 (3).
 
 **El próximo paso es:** que QA recorra los tres canales en `qa`. El guion está en
 §«Cómo validar», y lo importante es el aviso de arriba de esa sección: **sin sesión de asesor** —
@@ -29,6 +35,11 @@ pruebas del 15 y el 16.
 
 **Lo que se espera ver:** compra desde la tienda y autogestión **siguen en la pantalla de
 confirmación**; con asesor **sí** aparece la pantalla de entrega, que ahí es lo correcto.
+
+⚠ **Hay UN PR abierto que no es de ecommerce pero salió de probar esto: #1027** — una promesa de
+pre-aprobado rechazada rompía el listado entero en vez de mostrar el error de su tarjeta (**F-221**).
+Toca entidades **agregadoras**, así que no cambia nada de lo de arriba, pero conviene que entre con el
+resto.
 
 ### `main` queda para después, y a propósito
 
@@ -773,6 +784,137 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-17 (4) · PR #1027 · una promesa rechazada rompía el listado ENTERO, no su tarjeta
+
+El barrido de la entrada (3) dejó un caso que no cerraba, y resultó ser un defecto del listado que no
+tiene nada que ver con ecommerce: con una entidad **agregadora** el listado contestaba **«Unexpected
+Server Error»** y no llegaba nada — ni las entidades que sí habían resuelto.
+
+> **MEDICIÓN · 2026-09-17** — mismo caso (comercio Refurbi · entidad Welli, `response_type=1`) y mismo
+> canal (autogestión), por los dos motores del arnés:
+>
+> | motor | resultado |
+> |---|---|
+> | **navegador** (el cliente real) | ✅ **listó** |
+> | **HTTP** | ❌ «Unexpected Server Error», el listado no llegó |
+
+**Esa diferencia ES el bug.** El listado devuelve un diccionario **de promesas** (una por entidad) y lo
+transmite en streaming; una promesa **rechazada** no llega como el error de SU tarjeta, **tumba la
+serialización de todo el lote**. El navegador lo tapaba porque su `<Await>` recibe el rechazo y lo
+pinta; cualquier otro consumidor del stream ve una pantalla rota.
+
+⚠ **Y el `Promise.allSettled` que ya estaba NO cubría esto**, que es por qué sobrevivió a una guarda que
+parecía justamente la guarda: espera las promesas para que el `await` del loader no reviente, pero **el
+objeto promesa que se guardó es el mismo que viaja al cliente**. Una guarda sobre el `await` no es una
+guarda sobre el valor. Y hay un agravante: la promesa de Welli se **comparte** entre las entidades que
+consultan por ella, así que un rechazo no cuesta una tarjeta, cuesta todas las que apuntan a ese objeto.
+
+**El arreglo es una guarda de FRONTERA**, no un `try/catch` más adentro: `neverRejects()` envuelve todo
+lo que entra al diccionario. La regla queda declarada en un lugar —*nada que viaje en el stream puede
+rechazar*— en vez de repartida por cada sitio que produce una promesa. Separa `aborted` de `rejected`
+a propósito: el primero es que alguien se fue, el segundo es que algo falló y nadie lo convirtió en
+estado.
+
+Vive en `lib/utils/` y no inline **para que se pueda probar**: ahí cae dentro del `include` de vitest
+del wizard. Sus 5 casos incluyen los dos que revientan una guarda ingenua — el abort que llega como
+`Error` y no como `DOMException`, y un `reject(undefined)`, que devolvería el problema si la guarda
+asumiera `Error`.
+
+| | resultado |
+|---|---|
+| suite del wizard, baseline `origin/qa` | 521 pasan · 1 falla |
+| suite del wizard, con el cambio | **526 pasan** · 1 falla |
+
+Las **3 fallas son previas** (dos archivos que no cargan por `SESSION_SECRET` y uno de
+`backend-driven-form`), idénticas con y sin el cambio. Build del wizard en verde — la vara de este
+repo. `biome check` deja los 2 warnings de complejidad que ya trae `origin/qa`, ni uno más.
+
+⚠ **El export nuevo se puso a mano en su posición ordenada**: dejar que el formateador reordenara el
+índice público habría enterrado el cambio bajo ~200 líneas de movimiento.
+
+**PR abierto: frontend-monorepo #1027 → `qa`** (rama `fix/preapprovals-promesa-rechazada`). Graduó a
+**F-221** en el nodo de hallazgos, porque la lección generaliza y no es de esta tarea: *en un loader que
+transmite en streaming, el borde no es el `await`, es el valor* — cualquier promesa que se devuelva sin
+esperar es parte del contrato de la pantalla y tiene que ser tan total como un campo de un JSON.
+
+### 2026-09-17 (3) · los tres canales en paralelo contra `qa`: la BD dice exactamente lo que tiene que decir
+
+Con el redirect ya vivo (entrada 2), se corrieron **varios comercios con canales distintos en paralelo**
+contra `qa` para ver si los cambios rompían algo. **No rompen nada, y el discriminante del canal quedó
+medido en la base**, no deducido.
+
+> **MEDICIÓN · 2026-09-17** — cuatro solicitudes de `qa`, re-verificadas en base hoy:
+>
+> | solicitud | comercio · sucursal | canal | entidad | estado | `corporate_user_id` | WhatsApp de entrega |
+> |---|---|---|---|---|---|---|
+> | **502463** | Amoblando Pullman · **Ecommerce** (659) | tienda | CrediPullman (77) | **11** | NULL | **0** |
+> | **502468** | Amoblando Pullman · **principal** (390) | asesor | CrediPullman (77) | **11** | 1828388 | **1** |
+> | **502476** | Amoblando Pullman · Ecommerce (659) | autogestión | CrediPullman (77) | **11** | NULL | **0** |
+> | **502477** | Tienda Fisio · Ecommerce (756) | autogestión | CrediFis X (70) | **11** | NULL | **0** |
+>
+> `SELECT user_request_id, name FROM twilio_logs WHERE user_request_id IN (…)` devuelve **una sola
+> fila** en las cuatro: `WhatsApp - Send Self Management` en **502468**, la del asesor.
+
+**El par 502463 / 502468 es el que decide**, porque es el único contraste limpio: **mismo comercio**
+(Amoblando Pullman, `allieds` 94), **misma entidad** (77), **mismo desenlace** (estado 11) — y lo único
+que cambia es el canal. La compra desde la tienda **no** entrega el proceso al que está mirando; el
+mostrador **sí**, que ahí es lo correcto. Autogestión se comporta como la tienda, que es la regla que se
+fijó el 16/9.
+
+**Y el webhook fue el que mejor se portó, fallando.** La solicitud de tienda quedó atada a su pedido
+(`ecommerce_requests` 7391, pedido `5002`, sucursal 659) con `return_url` apuntando al sumidero del
+arnés, `http://localhost:9/volver-al-comercio`. En los logs sale `ecommerce_store_notify_failed` con
+`cURL error 7`, y en la base **`processed = 0`** — pero **el crédito llegó igual a estado 11**. Que la
+notificación a la tienda no se pueda entregar **no bloquea la autorización**, y queda registrado como
+pendiente de reintento en vez de perderse en silencio. Era exactamente la propiedad que había que
+comprobar.
+
+⚠ **Dos casos que no cerraron, ninguno de este trabajo:** `#96f5da12:11` (Creditop · Su+pay) muere
+antes, en `/solicitar`, sin botón habilitado para avanzar; y Compubit se cae con **504** en
+`sign-documents` — eso es **F-180**, la máquina de `qa` con ¼ de vCPU contra el corte de 60 s del
+balanceador.
+
+**De paso, un arreglo del arnés que estaba escondiendo resultados.** El bypass de OTP estaba
+**enganchado a la bandera `--cerrar`**: correr un caso sin cerrarlo dejaba el bypass sin registrar y la
+autogestión moría en el código de verificación. El síntoma parecía del proveedor —y lo pareció más
+porque el control falló igual—, pero era la invocación. Desacoplado en `ebebb1c`: el bypass ahora
+depende de que el ambiente **no sea** `local`, que es la condición real. Medido, **0/3 → 3/3**.
+
+### 2026-09-17 (2) · MERGEADOS: el botón que vuelve a la tienda, y el checkout de los comercios entrando al wizard
+
+Dos entregas, en dos repos, las dos **mergeadas**:
+
+**1 · frontend-monorepo #1024 → `qa`** (`fix/ecommerce-boton-volver-al-comercio`). En la pantalla de
+crédito aprobado, cuando el comprador viene de una tienda el botón dejó de decir «Ver mi perfil»: dice
+**«Regresar al comercio»** y lleva a la url de retorno del comercio. Se hizo **sin tocar el componente
+de estado**: ya acepta un `copy` parcial que se aplica al final, así que la pantalla sobrescribe sólo
+las dos frases que cambian y todo lo demás —incluido el texto del crédito rotativo— sigue igual. Y el
+enlace detecta solo que el destino es de otro dominio y sale como enlace común en vez de como navegación
+interna. La condición es explícita —hay url de retorno **y** no es el flujo de equipos—, así que ningún
+otro canal cambia de texto.
+
+**2 · legacy-application #169** (`feat/ecommerce-checkout-al-wizard`). El checkout de los comercios
+**entra al wizard nuevo**: la pantalla vieja recibe el contrato en base64 y, en vez de renderizar,
+redirige a `/ecommerce/{hash}/checkout` **reenviando el query string tal cual** — ahí viaja el base64,
+con `+ / =` adentro, y re-encodearlo lo corrompería sin dar error, sólo una pantalla sin datos.
+
+⚠ **Corbeta/Bancolombia se dejó exactamente como está, a propósito**: su flujo es muy independiente y ya
+tenía su propio camino. La rama nueva entra **después** de la suya, así que los comercios de esa lista
+ni la tocan.
+
+⚠ **Y una corrección a lo que dije primero: `NEW_FRONTEND_BASE_URL` NO sirve de interruptor de esta
+funcionalidad.** Es la misma variable que usan **seis** controladores, así que apagarla apaga mucho más
+que esto. Lo que sí hace es caer al checkout de siempre si no está configurada — por eso el método
+devuelve nulo con la variable ausente, vacía o con espacios, que son tres estados distintos y los dos
+últimos no son nulos. Van **6 pruebas unitarias** cubriendo justo eso y el reenvío verbatim del base64.
+
+**Probado de punta a punta**: el redirect salió de `develop` en el monolito viejo y el comprador aterrizó
+en `qa` del wizard, entrando por la url de prueba que arma el artefacto de QA.
+
+⚠ **Para producción falta un paso que no es de este PR:** `/ecommerce/{hash}/checkout` **no existe en
+`main`** del wizard todavía. Mandar el redirect a producción antes de la promoción `qa`→`main` deja al
+comprador en una ruta que no está — el mismo orden que ya está anotado más arriba.
 
 ### 2026-09-17 · `develop` sale de la vía de entrega
 

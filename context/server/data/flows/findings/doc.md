@@ -68,6 +68,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«en dev/qa tarda una eternidad y solo no»** · **«la optimización no se nota»** | **F-211** |
 | **«configuré la calculadora y la tarjeta sale sin cuota ni plan»** | **F-212** |
 | **«la telemetría dice que la entidad hizo X y en pantalla hizo Y»** | **F-213** |
+| **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -373,6 +374,7 @@ distinto según con qué pregunta llegues.
 | F-218 | Una rt=2 rechazada por reglas duras DESAPARECE del listado (y del conteo de rechazos); una rt=0 rechazada se muestra marcada. Parece filtro de canal y no lo es | CARACTERIZADO · herramienta arreglada |
 | F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-220 | Falta una variable de entorno del proveedor de identidad y el resultado es una PANTALLA MUERTA: el backend devuelve una url a medias, el contrato la acepta y el front la reinterpreta como una ruta del flujo. Sólo local | CARACTERIZADO |
+| F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 
 ---
 
@@ -5212,3 +5214,58 @@ agravantes: validar el campo como url convertiría esto en un error temprano, y 
 un path absoluto como segmento de ruta es una conversión silenciosa que conviene revisar aparte — hoy
 cualquier destino que no sea una url externa termina colgado del prefijo del comercio. Y la variable
 debería estar en el `.env.example`.
+
+### F-221 · Una promesa RECHAZADA dentro del stream no muestra el error de SU tarjeta: rompe el listado entero
+
+**Síntoma.** El listado de entidades contesta **«Unexpected Server Error»** y no llega nada — ni las
+entidades que sí resolvieron. En el navegador, el mismo caso lista bien. La pantalla no nombra la
+entidad culpable, así que parece una caída del servidor y no un problema de UNA tarjeta.
+
+**Causa raíz — el loader transmite promesas, y una promesa rechazada no es un dato.** El loader de
+`available-lenders.tsx:145` arma `preApprovals`, un diccionario **de promesas** (una por entidad), y lo
+devuelve **sin esperarlas**: el streaming de React Router las va resolviendo en el cliente contra un
+`<Await>`. El adapter de pre-aprobados convierte a estado terminal todo lo que **él** ve (`aborted`,
+`http_4xx`, `polling_timeout`…), pero lo que se le escapa —el abort del `signal` fuera de su bucle, un
+throw de la capa de red, un rechazo que ni siquiera es `Error`— **sale como rechazo**. Y un rechazo que
+viaja en el stream no llega como el error de esa entidad: **tumba la serialización de todo el lote**.
+
+⚠ **El `Promise.allSettled` que ya estaba NO cubre esto**, y por eso el bug sobrevivió a una guarda que
+parecía justamente la guarda: `available-lenders.tsx:244` espera las promesas primarias con
+`allSettled`, así que el `await` **del loader** nunca revienta. Pero el objeto promesa que se guardó en
+`preApprovals` es **el mismo** que viaja al cliente, y ése sigue rechazando. Una guarda sobre el `await`
+no es una guarda sobre el valor.
+
+⚠ **Y una sola promesa puede tumbar varias tarjetas**: `available-lenders.tsx:233-236` **comparte** la
+promesa de Welli entre las entidades que consultan por ella. Un rechazo ahí no es una tarjeta, son
+todas las que apuntan a ese objeto.
+
+**Evidencia — el 2×2 que lo prueba.** Medido el 2026-09-17 contra `qa`, **mismo caso** (comercio
+Refurbi · entidad Welli, `response_type=1`) y **mismo canal** (autogestión):
+
+| motor | resultado |
+|---|---|
+| **navegador** (el cliente real) | ✅ **listó** — el `<Await>` recibe el rechazo y lo pinta |
+| **HTTP** | ❌ «Unexpected Server Error», el listado no llegó |
+
+**Esa diferencia ES el bug.** Lo que un `<Await>` absorbe, cualquier otro consumidor del stream lo ve
+como pantalla rota — y no hay ninguna razón para que el contrato dependa de quién lo consuma. Las
+entidades **rt=1** (los agregadores: Welli, Su+pay) son las que lo disparan, porque son las únicas que
+entran a la partición de pre-aprobados; las rt=0 ni llegan ahí, que es por qué el barrido de comercios
+con entidades en plataforma nunca lo vio.
+
+**Arreglo — una guarda de FRONTERA, no un `try/catch` más adentro** (⏳ **PENDIENTE DE MERGE**: vive en
+`fix/preapprovals-promesa-rechazada`, PR #1027 → `qa`, así que las rutas de abajo todavía **no** están en
+`main`). `neverRejects()`, en `lenders-marketplace/src/lib/utils/never-rejects.ts`, envuelve **todo** lo
+que entra a `preApprovals`: `promise.catch(toErrorState)`. La regla queda declarada en un solo lugar —
+*nada que viaje en el stream puede rechazar*— en vez de repartida en cada sitio que produce una promesa.
+Separa `aborted` de `rejected` a propósito: el primero es que alguien se fue y no hay nada roto, el
+segundo es que algo falló y nadie lo convirtió en estado.
+
+Vive en `lib/utils/` y no inline **para que se pueda probar**: ahí cae dentro del `include` de vitest
+del wizard, y sus 5 casos incluyen los dos que revientan una guarda ingenua — el abort que llega como
+`Error` y no como `DOMException`, y un `reject(undefined)` que devolvería el problema si la guarda
+asumiera `Error`.
+
+**La lección que generaliza:** en un loader que transmite en streaming, **el borde no es el `await`, es
+el valor**. Cualquier promesa que se devuelva sin esperar es parte del contrato de la pantalla, y tiene
+que ser tan total como un campo de un JSON.
