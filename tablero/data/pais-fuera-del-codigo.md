@@ -13,7 +13,7 @@ ramas: "pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais
 
 ## Si retomás esto sin contexto, empezá acá
 
-**ESTADO 2026-08-27 · los tres PRs del documento MERGEARON hoy (#1220 → `qa`, #83 → `develop`,
+**ESTADO 2026-08-27 · los tres PRs del documento MERGEARON hoy (#1220 → `qa`, #83 → una rama fuera de la vía,
 #889 → `qa`), y quedan DOS abiertos: #1225 —bloqueado a propósito— y #900, nuevo. Producción todavía no
 tiene NADA de esto.** El #900 salió de probar BCP y **es un bloqueo de Perú que estaba vivo en `qa`**:
 en el flujo dinámico el campo del celular se recortaba a 9 y el validador seguía pidiendo 10, así que el
@@ -1332,7 +1332,7 @@ falla con `__vite_ssr_exportName__ is not defined` también en `qa`, en archivos
 | | | |
 |---|---|---|
 | `legacy-backend` [#1220](https://github.com/Creditop-SAS/legacy-backend/pull/1220) → `qa` | 8 archivos, +278 −52 | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
-| `legacy-application` [#83](https://github.com/Creditop-SAS/legacy-application/pull/83) → `develop` | 2 archivos, +119 −1 | el gemelo |
+| `legacy-application` [#83](https://github.com/Creditop-SAS/legacy-application/pull/83) → ⚪ fuera de la vía | 2 archivos, +119 −1 | el gemelo |
 | `frontend-monorepo` [#889](https://github.com/Creditop-SAS/frontend-monorepo/pull/889) → `qa` | 5 archivos, +85 −37 | resolvedor de país compartido, moneda del monto, largo del documento |
 | `legacy-backend` [#1225](https://github.com/Creditop-SAS/legacy-backend/pull/1225) → `qa` | 1 archivo, +103 | ⛔ **BLOQUEADA**: borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
 
@@ -1370,10 +1370,10 @@ Allá siguen las 191 entidades en Afganistán.
 | PR | destino | qué |
 |---|---|---|
 | [legacy-backend#1193](https://github.com/Creditop-SAS/legacy-backend/pull/1193) | `qa` | el país es configuración, no un literal |
-| [legacy-backend#1191](https://github.com/Creditop-SAS/legacy-backend/pull/1191) | `develop` | idem |
+| [legacy-backend#1191](https://github.com/Creditop-SAS/legacy-backend/pull/1191) | ⚪ fuera de la vía | idem |
 | [legacy-backend#1204](https://github.com/Creditop-SAS/legacy-backend/pull/1204) | `staging` | idem |
 | [legacy-backend#1205](https://github.com/Creditop-SAS/legacy-backend/pull/1205) | `qa` | las migraciones de datos: sacar las entidades de Afganistán y subirles los documentos |
-| [legacy-application#80](https://github.com/Creditop-SAS/legacy-application/pull/80) | `develop` | el selector de país editable en el panel |
+| [legacy-application#80](https://github.com/Creditop-SAS/legacy-application/pull/80) | ⚪ **sin destino** | el selector de país editable en el panel |
 | [frontend-monorepo#879](https://github.com/Creditop-SAS/frontend-monorepo/pull/879) | `qa` | el país del comercio decide el teléfono y los tipos de documento |
 
 **Las migraciones corrieron contra `dev`/`staging`**, con verificación antes y después. Predije que se

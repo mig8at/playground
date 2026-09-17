@@ -11,17 +11,19 @@ jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 
 ## Si retomás esto sin contexto, empezá acá
 
-> **MEDICIÓN · 2026-09-15** — el arreglo está en **`staging`** (PRs #1098 y #1103 mergeados) y el trasplante a `develop`, PR `legacy-backend#1127`, sigue **abierto**; nada de esto llegó a `main`. 26 días sin tocar la tarea. El carril visual quedó listo salvo la suite parqueada (ver «Listo para el carril VISUAL»).
+> **MEDICIÓN · 2026-09-15** — el arreglo está en **`staging`** (PRs #1098 y #1103 mergeados) y la rama del trasplante, PR `legacy-backend#1127`, sigue **abierta y SIN destino**; nada de esto llegó a `main`. 26 días sin tocar la tarea. El carril visual quedó listo salvo la suite parqueada (ver «Listo para el carril VISUAL»).
 > `make retomar N=47`
 
-**El próximo paso es:** que alguien revise y mergee el PR #1127 contra `develop` — es lo único que
-separa el arreglo de `main`, y no depende de código nuevo.
+**El próximo paso es:** **redefinir a dónde va el PR #1127.** Estaba abierto contra `develop`, que salió
+de la vía de entrega —la entrega es `qa → main`, y después el resto de las ramas se pone al día **desde
+`main`**—, así que ese PR **no se mergea donde está**: hay que re-apuntarlo o rehacer la rama sobre `qa`.
+⚠ Sigue siendo lo único que separa el arreglo de `main`, y no depende de código nuevo.
 
-**ESTADO 2026-08-18 · LA RAMA QUE VA A `main` ES LA DE `develop`, y el bypass de nombre MURIÓ.**
+**ESTADO 2026-08-18 · EL ARREGLO VIVO ES EL DEL TRASPLANTE, y el bypass de nombre MURIÓ.**
 Lo de `staging` (abajo) sigue siendo cierto pero ya no es la punta: la rama viva es
 **`fix/kyc-name-match-onto-develop`** → PR
-[#1127](https://github.com/Creditop-SAS/legacy-backend/pull/1127) contra `develop`, **abierto**.
-Detalle en § «El trasplante a develop».
+[#1127](https://github.com/Creditop-SAS/legacy-backend/pull/1127), **abierto y sin destino** (ver arriba).
+Detalle en § «El trasplante».
 
 ⚠ Del 2026-08-15 quedó escrito «del lado del código no queda nada». **Era falso para esta rama**:
 dos cosas se habían quedado sólo en `staging` y no habían bajado. Ver la sección nueva.
@@ -296,16 +298,16 @@ está en la tarea 84 del tablero, que es la que la hizo.
 
 ### 2026-08-18
 
-**El trasplante a develop (2026-08-18)**
+**El trasplante (2026-08-18)**
 
 Al reconciliar `fix/kyc-name-match-onto-develop` contra lo que de verdad se probó en `staging`
 faltaban **dos** piezas, las dos de observabilidad y las dos necesarias para poder volver a probar:
 
-- **el canal del log del PR #1100** — `OnboardingLogger` en `develop` escribía por
+- **el canal del log del PR #1100** — `OnboardingLogger` escribía en esa rama por
   `Log::getFacadeRoot()`, o sea el canal por defecto: `kyc.name_adoption` y `kyc.name_match_relaxed`
   no llegaban a Grafana. Es la trampa que ya costó una noche;
 - **el trazado del fallback del lambda** — si el lambda falla, el código cae a un fixture del repo y
-  sigue. En `develop` sólo Experian dejaba línea; las otras tres hacían `report()` a secas, así que
+  sigue. Ahí sólo Experian dejaba línea; las otras tres hacían `report()` a secas, así que
   una corrida degradada se leía igual que una sana. Importó de inmediato: fue lo que permitió
   descartar «el lambda no contestó» en el primer intento fallido de la corrida de abajo.
 

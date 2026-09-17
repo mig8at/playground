@@ -13,7 +13,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 
 ## Si retomás esto sin contexto, empezá acá
 
-> **MEDICIÓN · 2026-09-15** — de las 20 ramas declaradas, **18 están en `main`**. Las dos que no: `pais/borrar-documentos-de-sucursal` (PR `legacy-backend#1225`, **abierto contra `develop`** — es la migración bloqueada a propósito que nombra el estado de abajo) y `pais/reparar-columnas-de-documentos` (PR #1215, cerrado sin mergear). 14 días sin tocar la tarea.
+> **MEDICIÓN · 2026-09-15** — de las 20 ramas declaradas, **18 están en `main`**. Las dos que no: `pais/borrar-documentos-de-sucursal` (PR `legacy-backend#1225`, **abierto y sin destino válido** — es la migración bloqueada a propósito que nombra el estado de abajo) y `pais/reparar-columnas-de-documentos` (PR #1215, cerrado sin mergear). 14 días sin tocar la tarea.
 > `make retomar N=43`
 
 > **ESTADO (2026-09-01) — tercera tanda: el país ya no se supone, se escribe.** Lo de abajo, del 27/8 y
@@ -24,7 +24,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 > | frente | dónde quedó |
 > |---|---|
 > | **el documento del solicitante** | genérico y por país: bandera, gentilicio, nombre del documento, autoridad emisora y fecha de nacimiento. **Completo en `qa`** |
-> | **el admin** | el país de un comercio y los tipos de una entidad **se corrigen desde la pantalla**, con filtro de búsqueda y con los tipos ajenos visibles y removibles (`legacy-application` #95, en `develop`) |
+> | **el admin** | el país de un comercio y los tipos de una entidad **se corrigen desde la pantalla**, con filtro de búsqueda y con los tipos ajenos visibles y removibles (`legacy-application` #95) |
 > | **el país del CLIENTE** | pasó de no existir a escribirse: nace con el país de su comercio y el OTP lo usa (#1272 y #1277, **los dos mergeados a `qa` el 1/9**) |
 > | **el país del COMERCIO por API** | el `POST` del módulo Partner **ya lo exige**, como el admin (dentro de #1277) |
 >
@@ -32,7 +32,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 > tampoco están allá**: su migración se corrió sólo contra la base compartida.
 >
 > ⚠ **Dos migraciones escritas y SIN CORRER contra la compartida:** el backfill de teléfonos de #1272
-> —espera a que `qa` baje a `develop`, para que los tres ambientes tengan el arreglo de búsqueda antes
+> —espera a que el arreglo de búsqueda llegue a `main` (la vía es `qa → main`, y de ahí al resto) antes
 > de normalizar el dato— y `legacy-backend` #1225, **bloqueada a propósito** (borra la columna de la
 > sucursal y tres ramas desplegadas todavía la leen).
 >
@@ -60,7 +60,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 > | PR | destino | estado | qué |
 > |---|---|---|---|
 > | `legacy-backend` #1220 | `qa` | ✅ mergeado 27/8 | el documento lo dicta la ENTIDAD; selector y validador leen lo mismo |
-> | `legacy-application` #83 | `develop` | ✅ mergeado 27/8 | el gemelo |
+> | `legacy-application` #83 | ⚪ fuera de la vía | ✅ mergeado 27/8 | el gemelo |
 > | `frontend-monorepo` #889 | `qa` | ✅ mergeado 27/8 | resolvedor de país compartido, moneda del monto, largo del documento |
 > | `frontend-monorepo` #900 | `qa` | 🔵 abierto | el largo del celular manda también en el flujo dinámico (**bloqueo de Perú que estaba vivo en `qa`**), y el campo avisa cuando recorta |
 > | `legacy-backend` #1225 | `qa` | ⛔ **BLOQUEADO a propósito** | borra la columna de la sucursal, y tres ramas desplegadas todavía la leen |
@@ -83,7 +83,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 
 > **estado (2026-08-19, tarde):** el trabajo está hecho en los tres repos; lo que está desordenado es
 > **dónde quedó cada pieza**. Abajo, en §«Las ramas de esta tarea», está la única tabla que hay que
-> mirar. Resumen: **las TRES piezas mergeadas y desplegadas** — backend y admin en `develop`, front en
+> mirar. Resumen: **las TRES piezas mergeadas y desplegadas** — backend y admin desplegados en dev, front en
 > `staging`. El merge del admin a `main` que se hizo por afán quedó como percance registrado (abajo), y
 > **sigue sin llegar a producción porque ese repo despliega por TAG**. Lo que sigue son las pruebas, y
 > **contra qué ambiente correrlas no es obvio**: ver §«Dónde se prueba esto».
@@ -140,8 +140,8 @@ estorba, se cierra; no se mergea.
 
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
-| `legacy-backend` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
-| `legacy-application` | `feature/pais-como-dato-onto-develop` | **`develop`** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
+| `legacy-backend` | `feature/pais-como-dato-onto-develop` | ⚪ **fuera de la vía** | ✅ **mergeada** (PR #1126, 18/8) y desplegada a dev |
+| `legacy-application` | `feature/pais-como-dato-onto-develop` | ⚪ **fuera de la vía** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | ✅ **mergeada** (PR #834, 19/8 15:22, la apretó sanvipi-ctop) y desplegada a `loan-request-wizard-stg` |
 
 **Segunda tanda — «el país es configuración» (2026-08-24).** El detalle vive en la tarea
@@ -149,18 +149,17 @@ estorba, se cierra; no se mergea.
 
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
-| `legacy-backend` | `feature/pais-desde-el-comercio` | `develop` | ✅ **mergeada** (PR #1191, 24/8) y desplegada a dev |
+| `legacy-backend` | `feature/pais-desde-el-comercio` | ⚪ fuera de la vía | ✅ **mergeada** (PR #1191, 24/8) y desplegada a dev |
 | `legacy-backend` | **`feature/pais-configuracion`** | **`qa`** | 🟡 **PR #1193 abierto**, un commit, esperando aprobación |
-| `legacy-application` | **`feature/pais-configuracion`** | **`develop`** | 🟡 **PR #80 abierto**, un commit, esperando aprobación |
+| `legacy-application` | **`feature/pais-configuracion`** | ⚪ **sin destino** | 🟡 **PR #80 abierto y SIN base válida** — hay que re-apuntarlo o rehacerlo sobre `main` |
 
-⚠ **La corrección de rumbo del 24/8: `develop` NO es el camino.** Medido: en `legacy-backend`,
-`develop` está **332 commits detrás de `main`** mientras `qa` está a **11/8** — o sea al día. En
-`frontend-monorepo` es peor: `develop` a 433. Y el historial muestra que **`main` se alimenta de ramas
-de feature directamente**, no de qa ni de develop: `qa`, `develop` y `staging` son **ambientes**, no
-etapas de un flujo. Por eso la segunda tanda va desde **`qa`**.
+⚠ **La vía de entrega hoy es `qa → main`, y después el resto de las ramas se pone al día DESDE `main`.**
+Esto cierra la corrección de rumbo del 24/8, que ya decía que la rama de integración compartida **no era
+el camino**: el historial muestra que **`main` se alimenta de ramas de feature directamente**, y que los
+demás son **ambientes**, no etapas de un flujo. Por eso la segunda tanda va desde **`qa`**.
 
-⚠ **Excepción: `legacy-application` NO TIENE rama `qa`.** Sólo `develop` y `main`. Ahí la base sigue
-siendo `develop`.
+⚠ **Excepción: `legacy-application` NO TIENE rama `qa`.** Ahí la base hay que redefinirla: su PR abierto
+(#80) quedó sin destino válido.
 
 ⚠ **Y `dev`, `qa` y `staging` son UNA SOLA base de datos** (mismo host, mismo schema): una migración se
 corre una vez y sirve para las tres. Prod tiene la suya, y **sus ids de entidad NO coinciden** — 12 ids
@@ -172,15 +171,13 @@ ninguna corrección de datos se copia de una a la otra.
 PR #79 de `legacy-application` (cerrado, reemplazado por el #80).
 
 **Por qué cada uno va a donde va:**
-- **backend → `develop`**: es el ambiente compartido donde el equipo prueba, y sus 3 migraciones ya
-  están aplicadas ahí (dev y staging comparten BD, así que sirvieron para los dos).
-- **admin → `develop`**: `legacy-application` **no tiene staging** —sólo `develop` (dev) y `main`
-  (prod)—, y su deploy de dev está vivo. `develop` no tiene commits propios (es subconjunto de `main`),
-  así que el cherry-pick entra limpio.
-- **front → `staging`**: su `develop` está **congelado** desde el 2026-07-03 (267 commits detrás de
-  `main`, `loans-dev.yaml` sin correr), así que mergear ahí no pondría el cambio «en dev»: publicaría un
-  build de hace mes y medio. Y no hace falta, porque el harness levanta el wizard **local** contra la
-  API de dev, que ya publica `country`.
+- **backend y admin**: lo mergeado en su momento sirvió para **probar en dev** —sus 3 migraciones ya
+  están aplicadas ahí, y dev/qa/staging comparten BD—, pero **no es la vía de entrega**: eso es
+  `qa → main`.
+- **front → `staging`**: es donde se prueba. El deploy de dev del front **no corre desde el
+  2026-07-03**, así que mergear ahí no pondría el cambio «en dev»: publicaría un build de hace mes y
+  medio. Y no hace falta, porque el harness levanta el wizard **local** contra la API de dev, que ya
+  publica `country`.
 
 ### Dónde se prueba esto (medido el 2026-08-19, después de mergear las tres)
 
@@ -220,12 +217,12 @@ que averiguarla y anotarla acá, o probar con el wizard local contra dev, que ya
 Las tres ramas se cortaron **de `main`** y se apuntaron **a `main`**, que era lo cómodo pero no lo
 correcto: `main` es producción y esta tarea todavía no está probada. De ahí salió todo lo demás.
 
-1. **`legacy-backend`** debió nacer **en `develop`** desde el principio. En vez de eso salió contra
+1. **`legacy-backend`** no debió nacer contra `main`. En vez de eso salió contra
    `main` y después se portó **también a `staging`** (#1121) — un ambiente de más, con su propio port y
    su propia verificación. Trabajo duplicado por no haber elegido el destino al empezar.
 2. **`frontend-monorepo`** también salió contra `main`. Debió nacer **en `staging`**. Hoy ya está bien
    parado ahí (#834) — pero llegó por un segundo port, no de entrada.
-3. **`legacy-application`** debió nacer **en `develop`**. Salió contra `main` y, por afán, **se aprobó y
+3. **`legacy-application`** tampoco. Salió contra `main` y, por afán, **se aprobó y
    mergeó ahí** el 19/8. Es el único de los tres que terminó en una rama de producción.
 
 **La lección, para que sirva la próxima:** *el destino de la rama se elige ANTES del primer commit, y el

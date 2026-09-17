@@ -15,7 +15,7 @@ jira_title: ""
 CUÁNDO APLICA: Task en curso: des-motaizar la originación de Motai — sacar los ifs por id 158 y los modos, y moverlos a configuración por columna en base de datos.
 
 # Motai v2 · task
-> **rama:** `feature/motai-v2` · **PR:** backend →develop · frontend →staging · **estado:** 🧪 en pruebas
+> **rama:** `feature/motai-v2` · **PR:** backend **sin destino** (iba a `develop`, que salió de la vía) · frontend →staging · **estado:** 🧪 en pruebas
 >
 > Des-motaizar la originación de Motai: sacar los ifs quemados (`isMotaiRenting` / lender `158` / modos) y moverlos a **configuración por columna en BD** (`lenders.product`/`calculator`, `lenders_by_allied_branches.document_types`, `allied_documents`), para que otra entidad renting/RTO entre por **filas de config**, no por deploy.
 
@@ -42,12 +42,14 @@ Llevar Motai v1 al modelo único paramétrico (deber-ser del group Plataforma; m
 ## Ramas y PRs por repo
 | Repo | Rama | Base | PR → | Estado |
 |---|---|---|---|---|
-| `legacy-backend` | `feature/motai-v2` | staging | **develop** (retargeteado) | pusheado |
+| `legacy-backend` | `feature/motai-v2` | staging | ⚪ **sin destino** — iba a una rama fuera de la vía | pusheado |
 | `frontend-monorepo` | `feature/motai-v2` | staging | **staging** (sin retargetear) | pusheado |
 | `application` | — | — | — | sin cambios (§3.3: sin lógica Motai) |
 
+⚠ **La entrega es `qa → main`, y después el resto de las ramas se pone al día desde `main`.** El PR de backend hay que re-apuntarlo o rehacer la rama sobre `qa` antes de que sirva de algo.
+
 **Commits nuestros — backend:** `936f0a7c` des-motaización · `32cd4203` TyC por comercio · `607fd2b0` recálculo liviano · `5013f4af` quitar columna `abaco` · `44eb3c02` merge develop (resolución del retarget) · `098322a8` fix `$hasCredifamilia` · `4022b6c9` fix ProfilerML. **Frontend:** `653e7939` · `15f3b3e9` · `6708ea5b`.
-⚠ El diff del PR de backend vs develop muestra ~52 archivos: arrastra la divergencia staging↔develop (ruido heredado), **no todo es nuestro** — lo real son los commits de arriba. Los fixes `098322a8` (`$hasCredifamilia` indefinido) y `4022b6c9` (ProfilerML 500 sin `H2O_API_HOST`) son bugs pre-existentes de develop; el de `$hasCredifamilia` **también vive en develop → avisar al equipo**.
+⚠ El diff del PR de backend contra su base mostraba ~52 archivos: arrastraba la divergencia entre ramas (ruido heredado), **no todo es nuestro** — lo real son los commits de arriba. Los fixes `098322a8` (`$hasCredifamilia` indefinido) y `4022b6c9` (ProfilerML 500 sin `H2O_API_HOST`) son bugs pre-existentes de develop; el de `$hasCredifamilia` **también vive en develop → avisar al equipo**.
 `application` no se toca (§3.3, verificado 2026-07-12): sin lógica Motai, solo copy de marketing (`resources/js/pages/customer/lenders/list/v2/ListLenders.vue:296,813,1225`) + 2 migraciones de esquema Ábaco (`2026_03_06_003223_add_abaco_settings_to_settings_table.php` · `2026_03_09_000000_add_abaco_column_to_user_summaries_table.php`) — schema del equipo de Ábaco, no des-motaización.
 
 ## Lo que se hizo

@@ -34,7 +34,7 @@ comercio, el OTP por correo lo usa en vez de suponer Colombia, el indicativo de 
 configuración, y el `POST` de comercios exige país como ya lo exige el admin. *(Reemplaza a #1275 y
 #1276, cerrados: era el mismo trabajo repartido y se juntó para que se lea de corrido.)* ⚠ **Los dos traen migraciones y las migraciones no corren solas**
 (F-77): el backfill de teléfonos de #1272 está escrito y **sin correr** contra la compartida, a la
-espera de que `qa` baje a `develop` para que los tres ambientes tengan el arreglo de búsqueda.
+espera de que el arreglo de búsqueda llegue a `main` (la vía es `qa → main`, y de ahí al resto).
 
 ⚠ **Y no confundas «escribir el país» con «quitar el `DEFAULT 1`»**: son dos tareas y sólo se hizo la
 primera. La segunda sigue bloqueada por el `POST` de comercios del módulo Partner, que crea sin mandar
@@ -59,7 +59,7 @@ los del país, PEP incluido), y el bypass de OTP de QA **no aplica en el ambient
 en el canal `#qa-messages` de Slack.
 
 Los tres PRs de la segunda tanda **se mergearon el 2026-08-27**: `legacy-backend#1220` y
-`frontend-monorepo#889` a `qa`, `legacy-application#83` a `develop`. Quedan abiertos
+`frontend-monorepo#889` a `qa`; `legacy-application#83` se mergeó a una rama que salió de la vía. Quedan abiertos
 `frontend-monorepo#894` (el ejemplo del celular por país) y `legacy-backend#1225` (⛔ bloqueada).
 
 ⛔ **REGLA VIGENTE, de Miguel, 2026-08-27: la internacionalización NO toca los mecanismos de formularios
@@ -356,9 +356,9 @@ Colombia*.
 > tanda.)
 
 
-> **RIESGO · 2026-08-27** — **el orden de despliegue entre repos.** `legacy-application/develop` lee
+> **RIESGO · 2026-08-27** — **el orden de despliegue entre repos.** `legacy-application` lee
 > `countries.is_operating` en 7 archivos, y esa columna la crea una migración de **legacy-backend**. Si
-> `develop` sale primero, se caen las pantallas de alta de comercio y de entidad. Hoy **nada fuerza ese
+> el admin sale primero, se caen las pantallas de alta de comercio y de entidad. Hoy **nada fuerza ese
 > orden**.
 
 > **RIESGO · 2026-08-27** — el front **degrada a Colombia sin avisar**:
@@ -416,7 +416,7 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 > **MEDICIÓN · 2026-08-27 · PROD · producción no tiene nada de esto todavía** — de las columnas nuevas
 > sólo existe `lenders_by_allied_branches.document_types`, que ya estaba. Sin `is_operating`, sin
 > `countries.document_types`, sin `lenders.document_types` y sin el backfill: **191 entidades siguen en
-> Afganistán**. Todo lo mergeado vive en `qa` y en `develop`.
+> Afganistán**. Todo lo mergeado vive en `qa`.
 
 > **MEDICIÓN · 2026-08-27 · el 98 % de la mensajería va por el camino que no sabe de países** —
 > `TwilioController` existe **duplicado** en los dos monolitos (19 sitios en uno, 26 en el otro), recorta
@@ -525,8 +525,8 @@ DNI peruano en la base compartida**.
 
 **Tres cosas del ESTADO DE LOS AMBIENTES que salieron de esto y corrigen lo que estaba escrito:**
 
-1. **`qa` y `develop` están idénticos** — cero commits de diferencia. El merge ya pasó, así que la
-   advertencia de «correr la migración mientras develop tiene el código viejo» **ya no aplica**.
+1. **El merge ya pasó** — cero commits de diferencia con lo medido, así que la
+   advertencia de «correr la migración con el código viejo desplegado» **ya no aplica**.
 2. **El backfill de teléfonos YA CORRIÓ** en la compartida (lote 243, el 1/9 a las 16:58): normalizó 18
    filas. Acá decía «escrito y sin correr» — quedó viejo. No quedan teléfonos con `57` pegado; los que
    siguen con `+57` son los duplicados históricos que la migración salta a propósito.
@@ -541,14 +541,14 @@ DNI peruano en la base compartida**.
 > ambientes estén estables hasta producción**. No es por riesgo del cambio —está validado y el `ALTER`
 > es online, 1,3 s medido sobre una tabla del mismo tamaño— sino de SECUENCIA: mergear no corre
 > migraciones (F-77), así que el código puede quedar adelantado de la base; y dev/qa/staging comparten
-> base pero no código, de modo que correr la migración allá con `develop` y `staging` en el código viejo
+> base pero no código, de modo que correr la migración allá con los otros ambientes en el código viejo
 > abre una ventana en la que su búsqueda por número solo puede devolver la persona equivocada. Hoy esa
 > ventana está cerrada porque no hay ningún duplicado entre tipos, pero se abre en cuanto alguien pruebe
 > Perú a propósito. **Marcado como borrador con `⛔ EN ESPERA`**, igual que el otro bloqueado a
-> propósito, para que nadie lo mergee por inercia. *Cómo se retoma:* migración junto al `qa → develop`
+> propósito, para que nadie lo mergee por inercia. *Cómo se retoma:* migración junto al `qa → main`
 > —con el backfill de teléfonos, que espera lo mismo— y a producción con el resto de la campaña.
 
-⚠ **Y un detalle a corregir antes de mergearlo:** la base del PR quedó en `develop`, y el resto de la
+⚠ **Y un detalle a corregir antes de mergearlo:** la base del PR quedó en una rama fuera de la vía, y el resto de la
 campaña va a `qa`.
 
 ### 2026-09-02 · lo medido del choque, que desbloquea a Perú cuando se aplique
@@ -889,14 +889,13 @@ misma base, y **tres ramas desplegadas todavía leen** `lenders_by_allied_branch
 | lector | rama |
 |---|---|
 | `AlliedInfoController` (versión vieja, `pluck('document_types')`) | `legacy-backend/main` |
-| `AlliedInfoController` (versión vieja) | `legacy-backend/develop` |
-| `AlliedAlliedBranchController:136` — la **conserva** al guardar una sucursal | `legacy-application/develop` |
+| `AlliedAlliedBranchController:136` — la **conserva** al guardar una sucursal | `legacy-application` |
 
 Con **4.053 filas con dato en dev**, borrarla hoy es un `Unknown column` que tumba el listado de entidades
 y el guardado de sucursales en los dos ambientes a la vez.
 
 **Queda escrita y probada, en su propio PR marcado ⛔ BLOQUEADA.** El orden: mergear el PR del servicio →
-que `qa` llegue a `main` y a `develop` → sacar la línea que conserva el dato en el admin de
+que `qa` llegue a `main` → sacar la línea que conserva el dato en el admin de
 `legacy-application` → recién ahí borrar.
 
 **La migración no confía en que alguien lea eso:** `up()` **se niega a borrar** si `lenders.document_types`

@@ -20,16 +20,18 @@ jira_title: "Agente de soporte: modificación de datos"
 
 ## Si retomás esto sin contexto, empezá acá  ·  actualizado 2026-08-20
 
-> **MEDICIÓN · 2026-09-15** — el canal está en **`main`**: las ramas `support-bot-onto-develop` y `-onto-staging` de `legacy-backend` (PRs #1128 y #1095) y las rutas de `infrastructure` (PR #65) están en `develop`, `staging`, `qa` y `main`. La única sin llegar es la rama madre `feature/support-bot`, cuyo PR #1089 contra `main` se **cerró sin mergear** porque su trabajo entró por las otras dos. 25 días sin tocar la tarea. Lo que dice el estado de abajo (20/8) sigue siendo el estado.
+> **MEDICIÓN · 2026-09-15** — el canal está en **`main`**: el trabajo de las dos ramas de trasplante de `legacy-backend` y las rutas de `infrastructure` (PR #65) están en `staging`, `qa` y `main`. La única sin llegar es la rama madre `feature/support-bot`, cuyo PR #1089 contra `main` se **cerró sin mergear** porque su trabajo entró por las otras dos. 25 días sin tocar la tarea. Lo que dice el estado de abajo (20/8) sigue siendo el estado.
 > `make retomar N=46`
 
 **Qué es:** canal de WhatsApp para que un asesor pida cambios de datos de un cliente y el cliente los
 autorice (más una autogestión del cliente para fecha de pago y plazo). Código en `Modules/SupportBot`
-de `legacy-backend`, mergeado a `develop` (PR #1128) y `staging` (PR #1095).
+de `legacy-backend`, mergeado a `staging` (PR #1095) y —por la otra rama de trasplante— ya en `main`.
 
 **Al 2026-08-21 hay un PR abierto:** [#1175](https://github.com/Creditop-SAS/legacy-backend/pull/1175)
-→ `develop` — la sesión se llavea por teléfono canónico (E.164) en vez de por la cadena cruda, y se saca
+— **abierto y sin destino**: iba a una rama fuera de la vía. La sesión se llavea por teléfono canónico (E.164) en vez de por la cadena cruda, y se saca
 `POST /change-requests/{id}/otp`, que era inalcanzable. El canal queda en **15 rutas**. Falta bajarla
+
+⚠ **La entrega es `qa → main`, y después el resto de las ramas se pone al día desde `main`.** El PR #1175 hay que re-apuntarlo o rehacer la rama sobre `qa`: donde está no se mergea.
 también del API Gateway.
 
 **Dónde está de verdad (2026-08-20):** ✅ **el bloqueo de infra está CERRADO y el canal responde en
@@ -43,7 +45,7 @@ dev; cómo volver a probarlo en cinco minutos está en §«Cómo se prueba, de c
 §«Lo que queda pendiente».
 
 **Lo del cliente ya está MERGEADO:** PR https://github.com/Creditop-SAS/legacy-backend/pull/1166
-(`feat/CORE-258-solicitud-operable` → `develop`, 2026-08-20) — 9 archivos, +705/-19, 6 defectos del canal
+(`feat/CORE-258-solicitud-operable`, 2026-08-20) — 9 archivos, +705/-19, 6 defectos del canal
 más 1 latente, **68 tests en verde**, y desplegado y verificado contra dev. ⚠ El repo **no tiene checks
 de CI**: lo que valida es la suite del módulo y lo corrido a mano.
 
@@ -208,7 +210,7 @@ prueba parece que el canal se rompió.
 
 ## Lo que queda pendiente — al cierre del 2026-08-20
 
-**Del lado nuestro, código: nada.** El PR **#1166** está mergeado a `develop` y verificado contra dev.
+**Del lado nuestro, código: nada.** El PR **#1166** está mergeado y verificado contra dev.
 Lo que sigue son cuatro cosas y ninguna es escribir endpoints:
 
 1. **El flujo del ASESOR** — Miguel: *«eso lo vemos mañana»*. Las 8 rutas existen y están probadas; lo
@@ -1424,7 +1426,7 @@ punta — y un test lo tenía **documentado como comportamiento deseado** (el do
 `CreditEndpointsTest::WA` decía «la identidad de la sesión es la cadena, no el teléfono»).
 
 **Arreglado** en `fix/CORE-258-sesion-por-telefono-canonico` de `legacy-backend` (`e1b10668`),
-hoy en **[PR #1175](https://github.com/Creditop-SAS/legacy-backend/pull/1175) → `develop`** junto con la
+hoy en **[PR #1175](https://github.com/Creditop-SAS/legacy-backend/pull/1175), abierto y sin destino** junto con la
 poda de la ruta inalcanzable: `PhoneService::toE164()` —el complemento de `toNational()`, para cuando el
 número se usa como identidad— y `SessionService::canonicalWaId()`, aplicado en las tres puertas
 (`liveFor`, `openOrResume`, `closeStale`). Sin migración: las sesiones viven 15 minutos.

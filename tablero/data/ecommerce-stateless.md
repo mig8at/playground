@@ -13,7 +13,7 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 # Ecommerce web stateless (→ wizard sin cookie)
 (migrado del nodo-tarea `ecommerce-web-stateless` del árbol de context, 2026-07-21)
 
-CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, en develop), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
+CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, sin llegar a main), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
 
 ## Si retomás esto sin contexto, empezá acá
 
@@ -142,7 +142,7 @@ se llevó» — de esa cola siguen faltando en `qa` **#582, #661 y #663**.
 >
 > Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
 > (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
-> (🟡 murió en `develop`, 772 commits detrás — ver §«Cómo aterrizarlo»).
+> (🟡 **nunca llegó a `main`** — ver §«Cómo aterrizarlo»).
 >
 > Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
 
@@ -252,16 +252,16 @@ revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
 
 | | PR | rama | tamaño | → | cuándo | merge |
 |---|---|---|---|---|---|---|
-| back | **#770** originación web stateless | `feature/onboarding/ecommerce-web-origination` | +63/−0 · 3 arch | `develop` | 9/6 10:34 | `53f2b794` |
-| back | **#795** endpoints de contexto para el wizard sin cookie | `feat/onboarding/ecommerce-stateless-detail` | +131/−5 · 4 arch | `develop` | 11/6 08:37 | `bb14a8ff` |
-| front | **#551** la entrada ecommerce stateless | `feature/onboarding/ecommerce-web-origination` | +585/−31 · 21 arch | `develop` | 11/6 08:38 | `d2242469` |
-| front | **#582** cierre CreditopX in-platform: honrar `standBy` → `/confirmation` | `fix/ecommerce/creditopx-standby-confirmation` | +37/−6 · 4 arch | `develop` | 12/6 12:26 | `84d4b1ad` |
-| front | **#600** no importar código `.server` en el cliente — rompía el build | `fix/ecommerce/down-payment-build` | +6/−6 · 2 arch | `develop` | 16/6 15:08 | `8f49a297` |
-| back | **#834** unificar el base64 del canal (VTEX) | `feature/onboarding/ecommerce-unify-base64-vtex` | +997/−191 · 27 arch | `develop` | 17/6 13:15 | `afb3f990` |
-| back | **#838** simulador de resultado de agregador | `feature/onboarding/ecommerce-unify-base64-vtex` | +93/−0 · 3 arch | `develop` | 17/6 14:36 | `e0707d8d` |
-| front | **#661** registrar `/ecommerce/…/continue` (faltaba en el árbol público → 404) | `feature/onboarding/ecommerce-continue-route` | +4/−1 · 1 arch | `develop` | 25/6 15:17 | `771e4850` |
-| front | **#663** el handoff se renderiza distinto según el flujo | `continue` | +20/−8 · 2 arch | `develop` | 25/6 17:51 | `b8c30a10` |
-| front | **#665** 🔴 **no mandar CreditopX a Wompi cuando hay cuota inicial** | `fix/ecommerce/creditopx-initial-fee-bounce` | +5/−2 · 1 arch | `develop` | 26/6 11:56 | `9206b28c` |
+| back | **#770** originación web stateless | `feature/onboarding/ecommerce-web-origination` | +63/−0 · 3 arch | ⚪ fuera de la vía | 9/6 10:34 | `53f2b794` |
+| back | **#795** endpoints de contexto para el wizard sin cookie | `feat/onboarding/ecommerce-stateless-detail` | +131/−5 · 4 arch | ⚪ fuera de la vía | 11/6 08:37 | `bb14a8ff` |
+| front | **#551** la entrada ecommerce stateless | `feature/onboarding/ecommerce-web-origination` | +585/−31 · 21 arch | ⚪ fuera de la vía | 11/6 08:38 | `d2242469` |
+| front | **#582** cierre CreditopX in-platform: honrar `standBy` → `/confirmation` | `fix/ecommerce/creditopx-standby-confirmation` | +37/−6 · 4 arch | ⚪ fuera de la vía | 12/6 12:26 | `84d4b1ad` |
+| front | **#600** no importar código `.server` en el cliente — rompía el build | `fix/ecommerce/down-payment-build` | +6/−6 · 2 arch | ⚪ fuera de la vía | 16/6 15:08 | `8f49a297` |
+| back | **#834** unificar el base64 del canal (VTEX) | `feature/onboarding/ecommerce-unify-base64-vtex` | +997/−191 · 27 arch | ⚪ fuera de la vía | 17/6 13:15 | `afb3f990` |
+| back | **#838** simulador de resultado de agregador | `feature/onboarding/ecommerce-unify-base64-vtex` | +93/−0 · 3 arch | ⚪ fuera de la vía | 17/6 14:36 | `e0707d8d` |
+| front | **#661** registrar `/ecommerce/…/continue` (faltaba en el árbol público → 404) | `feature/onboarding/ecommerce-continue-route` | +4/−1 · 1 arch | ⚪ fuera de la vía | 25/6 15:17 | `771e4850` |
+| front | **#663** el handoff se renderiza distinto según el flujo | `continue` | +20/−8 · 2 arch | ⚪ fuera de la vía | 25/6 17:51 | `b8c30a10` |
+| front | **#665** 🔴 **no mandar CreditopX a Wompi cuando hay cuota inicial** | `fix/ecommerce/creditopx-initial-fee-bounce` | +5/−2 · 1 arch | ⚪ fuera de la vía | 26/6 11:56 | `9206b28c` |
 | back | **#1392** la sala de espera del veredicto | `feat/sala-de-espera-ecommerce` | +93/−0 · 2 arch | `qa` | 14/9 15:30 | `3cd20e34` |
 | front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `6fa13ae5` |
 | front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
@@ -283,12 +283,12 @@ se mudan.
 
 ### ⚠ Esto NO está todo en el mismo lugar, y esa es la parte que engaña
 
-| PR | `qa` | `develop` | `staging` | `main` |
-|---|---|---|---|---|
-| back #795 | ✅ | ✅ | ✅ | ✅ |
-| front #551 | ✅ *(por contenido)* | ✅ | ❌ | ❌ |
-| back #1392 | ✅ | ❌ | ❌ | ✅ **sí** |
-| front #997 · front #1005 | ✅ | ❌ | ❌ | 🔴 **entraron y se revirtieron** (#1013) |
+| PR | `qa` | `staging` | `main` |
+|---|---|---|---|
+| back #795 | ✅ | ✅ | ✅ |
+| front #551 | ✅ *(por contenido)* | ❌ | ❌ |
+| back #1392 | ✅ | ❌ | ✅ **sí** |
+| front #997 · front #1005 | ✅ | ❌ | 🔴 **entraron y se revirtieron** (#1013) |
 
 *(Re-medido el 2026-09-15 con `git ls-tree -r --name-only origin/<rama> -- <ruta>` sobre
 `checkout.tsx` e `initial-fee-payment.tsx`, y `git grep -c ecommerce-status origin/<rama> --
@@ -297,7 +297,7 @@ origin/$b:<ruta>` y **devolvió `no` para las cuatro ramas, incluida `qa`, donde
 en zsh el `:` pegado a `$b` no expande como uno espera. Un chequeo que contesta «no hay» sin haber
 mirado, otra vez — misma clase que el `git grep -E '\s'` de legacy-backend.)*
 
-**El par de junio está PARTIDO**: el backend llegó hasta `main`, el front se quedó en `develop`. O sea
+**El par de junio está PARTIDO**: el backend llegó hasta `main`, el front **no**. O sea
 que en producción hay endpoints de contexto stateless **sin la entrada del front que los usa**. Eso no
 lo arregla lo de septiembre, que vive sólo en `qa`.
 
@@ -311,12 +311,12 @@ lo arregla lo de septiembre, que vive sólo en `qa`.
 ### La cola de junio que el rebuild no se llevó — y es la causa del revert (2026-09-15)
 
 > **MEDICIÓN · 2026-09-15** — #997 se rehizo sobre `qa` partiendo de **#551 (11/6)**, y **no se llevó
-> los cinco PRs de arreglo que vinieron DESPUÉS en `develop`**. Cuatro de los cinco **no están en `qa`**.
+> los cinco PRs de arreglo que vinieron DESPUÉS**. Cuatro de los cinco **no están en `qa`**.
 > **Cómo se vuelve a comprobar:** `git grep -c standBy origin/qa -- apps/loan-request-wizard
-> modules/loan-request-wizard` (da 0; en `origin/develop` da 1) y, sobre el `routes.ts` de cada rama,
+> modules/loan-request-wizard` (da 0) y, sobre el `routes.ts` de cada rama,
 > `route("continue"` dentro del bloque `:flow`.
 
-| arreglo de junio | qué tapaba | `develop` | `qa` |
+| arreglo de junio | qué tapaba | ¿existe fuera de `main`? | `qa` |
 |---|---|---|---|
 | **#665** no mandar CreditopX a Wompi con cuota inicial | 🔴 **el rebote a `/solicitar`** | ✅ | ❌ |
 | **#582** honrar `standBy` → `/confirmation` | el cierre in-platform de CreditopX | ✅ | ❌ |
@@ -340,11 +340,11 @@ el wizard — el equivalente actual es la rama `showModal && isNil(url)`.
 **merchant** y rebota en asesor. Dos veces el mismo error de clase, en direcciones opuestas, con tres
 meses de distancia. Y `continue` **sigue faltando hoy en `qa`**: #661 tampoco sobrevivió.
 
-**Por qué pasó, y cómo no repetirlo.** `develop` quedó 772 commits detrás de `main`, así que rehacer
-el trabajo sobre `qa` era correcto. Lo que falló es **de dónde se copió**: se tomó el PR de la
-funcionalidad (#551) y no el **estado final de la rama en `develop`**, que son #551 más cinco
+**Por qué pasó, y cómo no repetirlo.** Rehacer el trabajo sobre `qa` era correcto. Lo que falló es
+**de dónde se copió**: se tomó el PR de la funcionalidad (#551) y no el **estado final de la rama**,
+que son #551 más cinco
 correcciones. La regla que queda: **cuando se rehace trabajo viejo sobre una rama nueva, la base no es
-el PR — es `git log origin/develop -- <rutas>` desde ese PR hasta hoy.**
+el PR — es `git log <la rama donde vivió> -- <rutas>` desde ese PR hasta hoy.**
 
 ### Los dos PRs de abril ya NO están abiertos
 
@@ -359,9 +359,9 @@ el PR — es `git log origin/develop -- <rutas>` desde ese PR hasta hoy.**
 - `Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php` + `App/Services/EcommerceRequestService.php` + `routes/api.php`: exponen el contexto de la `EcommerceRequest` para que el wizard lo consulte sin cookie.
 - **NET-NEW**: `App/Http/Requests/FetchEcommerceRequestByUserRequestRequest.php` (fetch del contexto por `user_request`). *(Este sí resuelve en el índice → confirma que está en main.)*
 
-### Frontend #551 (`d2242469`, solo en develop) — la entrada stateless (21 archivos)
+### Frontend #551 (`d2242469`) — la entrada stateless (21 archivos)
 - **NET-NEW (5, NO en el índice de main — evidencia de que #551 no promovió):**
-  - `app/routes/ecommerce/checkout.tsx` — **la entrada unificada** `/ecommerce/{hash}/checkout` que el nodo `ecommerce` marcaba como "no está en main" (efectivamente: está en develop).
+  - `app/routes/ecommerce/checkout.tsx` — **la entrada unificada** `/ecommerce/{hash}/checkout` que el nodo `ecommerce` marcaba como "no está en main" (efectivamente: no está).
   - `app/server/services/ecommerce-context.server.ts` — el fetch del contexto server-side (reemplaza la cookie).
   - `app/routes/initial-fee-payment.tsx` + `app/server/services/initial-fee-payment.server.ts` — la cuota inicial en el wizard.
   - `app/routes/down-payment-validation.tsx`.
@@ -435,14 +435,13 @@ no prefill/context on network error»*. Un fallo del contexto deja al comprador 
 
 ## Cómo aterrizarlo: rama desde `qa`, y NO son dos PRs por repo
 
-> **MEDICIÓN · 2026-09-14** — `develop` está **772 commits detrás de `main`**: #551 no promueve de ahí
-> nunca. `qa` sí llega a main (merge `Qa (#961)`, 4-sep). Y **el backend ya está completo en `qa`**.
-> **Cómo se vuelve a comprobar:** `git rev-list --count origin/develop..origin/main`;
-> `git log origin/main --merges`; y `git cat-file -e origin/qa:<los 4 archivos de #795>`.
+> **La vía es `qa → main`, y después el resto de las ramas se pone al día DESDE `main`.** `qa` sí
+> llega a main (merge `Qa (#961)`, 4-sep) y **el backend ya está completo en `qa`**.
+> **Cómo se vuelve a comprobar:** `git log origin/main --merges` y
+> `git cat-file -e origin/qa:<los 4 archivos de #795>`.
 
 | | estado |
 |---|---|
-| `develop` | último commit 31-ago · **772 commits detrás de main** — vía muerta |
 | `qa` | último commit **hoy** · 17 de main le faltan, 29 propios · **de acá sí se llega a main** |
 | backend #795 en `qa` | ✅ **los 4 archivos, con `prefill`/`readonlyFields`** |
 | front: los 5 net-new en `qa` | ❌ ninguno |
@@ -598,14 +597,16 @@ cliente.
 > caduca es la segunda mitad — las dos piezas siguen sin existir en ningún lado, y cerrarlos no las
 > trajo. Que el PR se cierre no rescata su contenido.
 > **Cómo se vuelve a comprobar:** `gh pr view <n> --json state,baseRefName,files` en cada repo, y
-> `git grep "ecommerce-check" main` / `git ls-tree -r --name-only origin/develop …/routes/ | grep waiting`.
+> `git grep "ecommerce-check" main` y `git ls-tree -r --name-only origin/main …/routes/ | grep waiting`.
 
-| PR | estado | base | tamaño | qué es |
-|---|---|---|---|---|
-| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🔴 **CERRADO** sin merge *(se cerró el 14/9, después de la medición de acá arriba)* | ← **main** | 15 arch · +295/−31 | «checkout integration», abril |
-| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🔴 **CERRADO** sin merge *(ídem)* | ← develop | 15 arch · +342/−57 | idem, front |
-| `legacy-backend` [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) | ✅ merged | ← develop | 4 arch · +131/−5 | endpoints de contexto stateless |
-| `frontend-monorepo` [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | ✅ merged | ← develop | 21 arch · +585/−31 | entrada stateless |
+| PR | estado | tamaño | qué es |
+|---|---|---|---|
+| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🔴 **CERRADO** sin merge *(se cerró el 14/9, después de la medición de acá arriba)* | 15 arch · +295/−31 | «checkout integration», abril |
+| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🔴 **CERRADO** sin merge *(ídem)* | 15 arch · +342/−57 | idem, front |
+| `legacy-backend` [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) | ⚪ mergeado en su día, **fuera de la vía de entrega** | 4 arch · +131/−5 | endpoints de contexto stateless |
+| `frontend-monorepo` [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | ⚪ mergeado en su día, **fuera de la vía de entrega** | 21 arch · +585/−31 | entrada stateless |
+
+⚠ **`develop` ya no es destino de nada de esta tarea.** La entrega va `qa → main`, y después el resto de las ramas se pone al día **desde `main`**. Estos PRs se listan sólo como **fuente del código a rescatar**: dónde mergearon en su momento no dice a dónde va el trabajo.
 
 *(Corrige lo que decía este archivo: «quedaron sin merge» se leía como cerrados. Están abiertos, y #503
 apunta a `main` directo.)*
@@ -615,7 +616,7 @@ apunta a `main` directo.)*
 (`session.set("ecommerce_session", {…})`) — exactamente la cookie que se perdía cruzando hosts y que
 motivó el enfoque stateless. Abril no está superado por estilo: lo está por el bug que lo originó.
 
-**Lo rescatable, y es concreto — dos piezas que NO están ni en `main` ni en `origin/develop`:**
+**Lo rescatable, y es concreto — dos piezas que NO están en `main` ni en ninguna rama viva:**
 1. **Backend #503**: `GET loans/ecommerce-check/{user_request_id}` → `AdvisorStatusController@checkLoanStatus`
    (38 líneas). Verificado: `git grep "ecommerce-check" main` no devuelve nada.
 2. **Front #363**: `ecommerce-continue.tsx` montado en la ruta **`waiting-room`** (90 líneas) — polling
@@ -633,7 +634,7 @@ antes de rescatarlos — buena parte probablemente ya llegó por otras vías.
 ### El redirect de borde en `aliados.creditop.com/checkout/*`
 
 Lo verificado que **da la razón** a la propuesta: el prerrequisito bloqueante es real
-(`/ecommerce/{hash}/checkout` está en `origin/develop`, **no en `main`** → 404 en prod); el 302 y el
+(`/ecommerce/{hash}/checkout` **no está en `main`** → 404 en prod); el 302 y el
 query verbatim son correctos, y el código ya lo asume — el monolito documenta que reenvía
 `getQueryString()` con los `+` como `%20` y que legacy los revierte aguas abajo
 (`str_replace(' ', '+', …)` en `unserializeCreateEcommerceRequest`). Re-encodear en el borde rompería
@@ -692,8 +693,8 @@ puede ser cero.** *(Corrige lo que dije antes en este mismo hilo, que el piso nu
    Engancha con #71 y #68.
 
 ✔ El front ya se defiende: `real()` descarta vacíos y placeholders `---`, y `lockedFields =
-Object.keys(prefill)` bloquea **sólo lo que llegó** — ignora el `readonlyFields` del backend. Vive en
-**develop**, no en main.
+Object.keys(prefill)` bloquea **sólo lo que llegó** — ignora el `readonlyFields` del backend. **No está
+en `main`.**
 
 ### Que el formulario reaccione a lo que recibe: ya está a medio cablear
 
@@ -767,7 +768,7 @@ cargaba la sesión de Cognito, así que `--flow merchant` iba siempre al login y
 regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Cómo probar / validar
-- Flujo E2E de ecommerce: `bin/ecommerce` de **harness** (ver nodo **harness**). Como el front vive en develop, apuntá el harness a **dev/develop**, no a main.
+- Flujo E2E de ecommerce: `bin/ecommerce` de **harness** (ver nodo **harness**). El front vive en `qa`: apuntá el harness ahí, no a main.
 - ⚠ Gotcha (nodo `ecommerce`): la entrada ecommerce se degrada en local por Mixed Content — el motivo mismo del rediseño stateless.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
@@ -1327,8 +1328,8 @@ sin poder decir cuál de los dos backends respondió.
 | back **#1402** autogestión sin entrega | `qa` `7b1f45f0` | 15/9 15:58 | ✅ 15/9 15:58 |
 
 **Y el alcance por rama, que es la primera trampa.** `continuaEnEstaPantalla` (la guarda de #1402)
-aparece **5 veces en `qa`, CERO en `develop` y CERO en `staging`**; `continueUrl` en el
-`UserRequestService`, **4 en `qa`, 3 en `main`, 0 en los otros dos**. O sea que **probar contra
+aparece **5 veces en `qa` y CERO en `staging`**; `continueUrl` en el
+`UserRequestService`, **4 en `qa` y 3 en `main`**. O sea que **probar contra
 `originaciones.dev.creditop.com` (dev) o contra staging devuelve el comportamiento viejo**, y las dos
 URLs se diferencian en un token. ⚠ Y no se puede desempatar por logs: la etiqueta `environment` de
 Loki en ese stack sólo tiene `development`, `local` y `testing` — **no hay valor `qa`**, así que
@@ -1812,8 +1813,8 @@ capturar sin arrastrar ramas ajenas); `make tareas-ramas` ahora mide once y **co
 abajo.
 
 **Y lo que apareció al listarlos vale más que el listado.** Después de #551 (11/6) hubo **cinco PRs de
-corrección** en `develop` —#582, #600, #661, #663, #665— y **#997 no se los llevó**. Cuatro no están
-en `qa`, medido con `git grep -c standBy origin/qa` (0, contra 1 en `develop`) y con el bloque `:flow`
+corrección** —#582, #600, #661, #663, #665— y **#997 no se los llevó**. Cuatro no están
+en `qa`, medido con `git grep -c standBy origin/qa` (da 0) y con el bloque `:flow`
 del `routes.ts` de cada rama.
 
 **#665 (26/6) es literalmente el arreglo del defecto que causó el revert de septiembre**, cinco líneas,
@@ -1826,7 +1827,7 @@ falta medir el 403, junio ya lo midió y lo dejó escrito en el código.
 `continue` **sigue faltando hoy en `qa`**.
 
 La regla que queda: **rehacer trabajo viejo sobre una rama nueva no se copia del PR, se copia del
-estado final de la rama** — `git log origin/develop -- <rutas>` desde ese PR hasta hoy.
+estado final de la rama donde vivió** — `git log <esa rama> -- <rutas>` desde ese PR hasta hoy.
 
 ### 2026-09-15 · el revert de `main`, y la causa medida
 
@@ -1885,10 +1886,10 @@ Tres cosas que este día deja anotadas y valen más que el bug:
       inicio. Es el hallazgo más transversal del día: aplica a las 3 ramas de `routes.ts`, no a ecommerce.
 - [ ] **Agregar al caminado el canal ASESOR con cuota inicial > 0** — la corrida del 14/9 pasó en verde
       porque recorrió el único canal inmune.
-- [ ] ~~Promover #551 (front) a main~~ → **no promueve: `develop` está 772 commits detrás de `main`.** El camino es rama nueva desde `qa` (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
-- [ ] ~~viejo~~ **Promover la entrada stateless** — hoy solo en develop; hasta entonces la entrada stateless no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
-- [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en main ni develop, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
-- [ ] **Cerrar o reabastecer #503 y #363** — siguen ABIERTOS. Lo demás de #503 hay que revisarlo archivo por archivo contra main antes de rescatar.
+- [ ] ~~Promover #551 (front) a main~~ → **el camino es rama nueva desde `qa`** (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
+- [ ] ~~viejo~~ **Promover la entrada stateless** — hasta que llegue a `main` no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
+- [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en `main`, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
+- [ ] **Rescatar lo que quede de #503 y #363** — los dos se **cerraron el 14/9 sin merge**, y cerrarlos no trajo su contenido. Revisarlo archivo por archivo contra `main` antes de rescatar.
 - [ ] **Redirect de borde en `aliados.creditop.com/checkout/*`** — pedido a Infra, 302 con query verbatim. ⚠ Bloqueado por que `/ecommerce/{hash}/checkout` llegue a `main`, y **tiene que excluir los hashes de Corbeta** o secuestra el tráfico que hoy convierte al 18,7 %. Lista de hashes en §«Los CUATRO PRs».
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
 - [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
