@@ -9,7 +9,7 @@
 // La mitad de DB corre SÓLO contra local, sobre una tabla propia que se crea y se borra acá. Contra una
 // base compartida estas pruebas se saltan: probar la herramienta no es motivo para escribir allá.
 import { expect, test } from '@playwright/test';
-import { esBaseLocal, escriturasDeLaCorrida, exec, mutacionDe, query, resumenDeEscrituras } from './db.ts';
+import { esBaseLocal, escriturasDeLaCorrida, exec, motivoDelBloqueo, mutacionDe, query, resumenDeEscrituras } from './db.ts';
 import { actualizarFilas, borrarSeguro, crudo, insertarFila, withWrite } from './db-safe.ts';
 
 const TABLA = 'harness_db_safe_probe';
@@ -41,6 +41,69 @@ test.describe('¿esta sentencia muta?', () => {
             expect(mutacionDe('SET FOREIGN_KEY_CHECKS = 0')).toBeNull();
             expect(mutacionDe('SHOW TABLES LIKE "users"')).toBeNull();
             expect(mutacionDe('  \n SELECT 1')).toBeNull();
+      });
+});
+
+// Los PERMISOS ANGOSTOS: lo que deja escribir en la compartida sin abrir el permiso general. Se prueban
+// con `motivoDelBloqueo`, que es pura — sin base y sin variables de entorno, así que estas pruebas
+// corren en cualquier target y no escriben en ningún lado.
+//
+// Se fijan acá porque esta es la función que autoriza a escribir en la base del EQUIPO: si un patrón se
+// afloja de más, nadie lo nota hasta que algo pisó datos que no eran de la corrida.
+test.describe('permisos angostos', () => {
+      const SIEMBRA = 'UPDATE users SET document_number=?, updated_at=NOW() WHERE id=?';
+      const ambito = (...ids: number[]) => new Set(ids);
+
+      test('sin permiso no opina: decide el llamador', () => {
+            expect(motivoDelBloqueo('DELETE FROM users', '', 0, [], undefined)).toBeNull();
+      });
+
+      test('un permiso que no existe se rechaza nombrando los que hay', () => {
+            expect(motivoDelBloqueo(SIEMBRA, 'inventado', 7, [7], ambito(7))).toMatch(/desconocido/);
+      });
+
+      // 🔴 El punto de todo el mecanismo: la ETIQUETA no autoriza, la SENTENCIA sí. Si esto se afloja,
+      // cualquier escritura puede pasar poniéndose el nombre de un permiso que existe.
+      test('la etiqueta NO sirve de contrabando para otra sentencia', () => {
+            expect(motivoDelBloqueo('DELETE FROM users WHERE id=?', 'siembra', 7, [7], ambito(7))).toMatch(/NO cubre esta sentencia/);
+            expect(motivoDelBloqueo('UPDATE users SET a=1 WHERE id=?', 'otp-bypass', 0, [1], undefined)).toMatch(/NO cubre esta sentencia/);
+            expect(motivoDelBloqueo('DROP TABLE users', 'siembra', 7, [7], ambito(7))).toMatch(/NO cubre esta sentencia/);
+      });
+
+      test('el bypass de OTP no necesita ámbito: no hay datos de personas en esa lista', () => {
+            const suma = "UPDATE settings SET value = JSON_MERGE_PRESERVE(value, CAST(? AS JSON)) WHERE `key`=? AND JSON_CONTAINS(value, '\"*\"') = 0";
+            expect(motivoDelBloqueo(suma, 'otp-bypass', 0, ['[]', 'qa_otp_bypass_phones'], undefined)).toBeNull();
+      });
+
+      // 🔴 Las tres condiciones de `siembra`. Cada una tapa un agujero distinto, y sacando cualquiera de
+      // las tres la escritura puede caer sobre una fila que la corrida no creó.
+      test('sembrar sin ámbito abierto se bloquea', () => {
+            expect(motivoDelBloqueo(SIEMBRA, 'siembra', 7, ['x', 7], undefined)).toMatch(/necesita un ámbito/);
+      });
+
+      test('sembrar sobre un usuario que no está en el ámbito se bloquea', () => {
+            expect(motivoDelBloqueo(SIEMBRA, 'siembra', 9, ['x', 9], ambito(7))).toMatch(/sólo alcanza a los usuarios de esta corrida/);
+            expect(motivoDelBloqueo(SIEMBRA, 'siembra', 0, ['x', 7], ambito(7))).toMatch(/sólo alcanza a los usuarios de esta corrida/);
+      });
+
+      test('declarar un dueño y escribirle a OTRO se bloquea', () => {
+            // El id declarado está en el ámbito, pero la sentencia le escribe al 9: sin este chequeo
+            // el ámbito no serviría de nada, porque el dueño sería una promesa y no un hecho.
+            expect(motivoDelBloqueo(SIEMBRA, 'siembra', 7, ['x', 9], ambito(7))).toMatch(/NO está entre sus parámetros/);
+      });
+
+      test('y con las tres puestas, pasa', () => {
+            expect(motivoDelBloqueo(SIEMBRA, 'siembra', 7, ['x', 7], ambito(7, 8))).toBeNull();
+      });
+
+      // 🔴 Los dos UPDATE que van por id de fila llevan `AND user_id=?` justamente para que el dueño sea
+      // comprobable. Si alguien los "simplifica" sacándolo, el patrón deja de matchear y la guarda frena
+      // — que es lo que se quiere, y esta prueba lo deja dicho.
+      test('los UPDATE por id de fila exigen el `AND user_id=?`', () => {
+            const con = 'UPDATE user_summaries SET agildata=?, datacredito=?, updated_at=NOW() WHERE id=? AND user_id=?';
+            const sin = 'UPDATE user_summaries SET agildata=?, datacredito=?, updated_at=NOW() WHERE id=?';
+            expect(motivoDelBloqueo(con, 'siembra', 7, ['a', 'b', 3, 7], ambito(7))).toBeNull();
+            expect(motivoDelBloqueo(sin, 'siembra', 7, ['a', 'b', 3], ambito(7))).toMatch(/NO cubre esta sentencia/);
       });
 });
 

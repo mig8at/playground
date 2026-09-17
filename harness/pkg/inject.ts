@@ -2,7 +2,7 @@
 // directo en el user_request del wizard, para que /lenders ofrezca sin volver a llamar centrales.
 // Port 1:1 de backend-mcp opSynthFill + deriveSynthReq + db.go (setSynthIdentity/injectSummary/
 // injectIncomeFields/injectDatacredito/datacreditoData). harness ya no shellea al mcp.
-import { query, one, scalar, exec, appKey, assertWriteAllowed, TARGET } from './db.ts';
+import { query, one, scalar, exec, appKey, assertWriteAllowed, conAmbitoDeSiembra, TARGET } from './db.ts';
 import { encryptLaravelString } from './laravel-crypt.ts';
 
 export interface SynthReq {
@@ -133,6 +133,7 @@ async function ensureLenderCredential(alliedID: number, lenderID: number): Promi
     await exec(
         'INSERT INTO lender_allied_credentials (lender_id, allied_type, allied_id, credential, created_at, updated_at) VALUES (?,?,?,?,NOW(),NOW())',
         [lenderID, tpl.allied_type, alliedID, tpl.credential],
+        { permiso: 'credencial-de-entidad' },
     );
     return 'sembrada (copiada de plantilla)';
 }
@@ -167,6 +168,7 @@ async function setSynthIdentity(userID: number, doc: string, email: string, gend
          age=?, gender=?, front_url=?, back_url=?, updated_at=NOW() WHERE id=?`,
         [...(tipoSeEscribe ? [documentType] : []), doc, first, surname, `${first} ${surname}`, email, dob, expeditionDate, age, gender,
          cedula('frontal'), cedula('reverso'), userID],
+        { permiso: 'siembra', usuario: userID },
     );
 }
 
@@ -182,9 +184,14 @@ async function injectSummary(userID: number, income: number, score: number, nega
         : null;
     const id = await scalar<number>('SELECT id FROM user_summaries WHERE user_id = ? LIMIT 1', [userID]);
     if (id && id > 0) {
-        await exec('UPDATE user_summaries SET agildata=?, datacredito=?, updated_at=NOW() WHERE id=?', [agildata, datacredito, id]);
+        // El `AND user_id=?` es redundante para la lógica —`id` salió de buscar por `user_id`— y NO lo
+        // es para la guarda: sin él, la sentencia no dice a quién le escribe y el permiso `siembra` no
+        // tendría cómo comprobar que la fila es de esta corrida.
+        await exec('UPDATE user_summaries SET agildata=?, datacredito=?, updated_at=NOW() WHERE id=? AND user_id=?',
+                   [agildata, datacredito, id, userID], { permiso: 'siembra', usuario: userID });
     } else {
-        await exec('INSERT INTO user_summaries (user_id, agildata, datacredito, created_at, updated_at) VALUES (?,?,?,NOW(),NOW())', [userID, agildata, datacredito]);
+        await exec('INSERT INTO user_summaries (user_id, agildata, datacredito, created_at, updated_at) VALUES (?,?,?,NOW(),NOW())',
+                   [userID, agildata, datacredito], { permiso: 'siembra', usuario: userID });
     }
 }
 
@@ -196,11 +203,14 @@ async function injectIncomeFields(userID: number, uReqID: number, fields: Record
         const fid = Number(fidStr);
         const ex = await scalar<number>('SELECT id FROM user_field_values WHERE user_id=? AND field_id=? AND form_id=1 LIMIT 1', [userID, fid]);
         if (ex && ex > 0) {
-            await exec('UPDATE user_field_values SET value=?, user_request_id=?, updated_at=NOW() WHERE id=?', [val, uReqID, ex]);
+            // Mismo motivo que en `injectSummary`: el `AND user_id=?` es para la guarda.
+            await exec('UPDATE user_field_values SET value=?, user_request_id=?, updated_at=NOW() WHERE id=? AND user_id=?',
+                       [val, uReqID, ex, userID], { permiso: 'siembra', usuario: userID });
         } else {
             await exec(
                 'INSERT INTO user_field_values (field_id, user_id, user_request_id, form_id, value, status, created_at, updated_at) VALUES (?,?,?,1,?,1,NOW(),NOW())',
                 [fid, userID, uReqID, val],
+                { permiso: 'siembra', usuario: userID },
             );
         }
     }));
@@ -221,11 +231,13 @@ async function injectDatacredito(userID: number, income: number, score: number, 
     const rcID = await experianRiskCentralID();
     if (rcID === 0) throw new Error('no encontré risk_central Experian (Acierta/+Quanto)');
     const enc = encryptLaravelString(JSON.stringify(datacreditoData(negatives, consulted)), key);
-    await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [userID, rcID]);
+    await exec('DELETE FROM risk_central_user_data WHERE user_id=? AND risk_central_id=?', [userID, rcID],
+               { permiso: 'siembra', usuario: userID });
     await exec(
         `INSERT INTO risk_central_user_data (uuid, user_id, risk_central_id, score, data, created_at, updated_at)
          VALUES (UUID(), ?, ?, ?, ?, NOW(), NOW())`,
         [userID, rcID, score, enc],
+        { permiso: 'siembra', usuario: userID },
     );
 }
 
@@ -264,7 +276,10 @@ export interface SynthFillOpts {
 /** Orquesta el KYC armado sobre un user_request existente. Port de opSynthFill. */
 export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promise<SynthFillResult> {
     if (!uReqID) throw new Error('uso: synthFill(uReqID, {lender?})');
-    assertWriteAllowed();
+    // ⚠ ACÁ HABÍA UN `assertWriteAllowed()` PELADO, y sacarlo es el punto de todo esto: pedía el permiso
+    // GENERAL al entrar, así que bloqueaba antes de que cualquier permiso angosto pudiera aplicar.
+    // La guarda no se fue: se movió a cada escritura, con el ámbito por usuario que se abre más abajo —
+    // una vez que se sabe SOBRE QUIÉN se va a sembrar, que es lo que acá arriba todavía no se sabe.
     appKey(); // falla temprano si no hay APP_KEY
 
     // Los dos SELECT de contexto son independientes → en paralelo (round-trips remotos, ver injectIncomeFields).
@@ -279,6 +294,14 @@ export async function synthFill(uReqID: number, opts: SynthFillOpts = {}): Promi
     ]);
     if (userID === 0) throw new Error(`no hay user_id para el request ${uReqID}`);
 
+    // DESDE ACÁ, y hasta que termine, esta rama puede sembrar sobre ESTE usuario y ninguno más. Es la
+    // guarda que reemplaza al permiso general: acota las FILAS, que es lo que la forma de la sentencia
+    // no puede acotar cuando la tabla es `users`.
+    return conAmbitoDeSiembra([userID], () => sembrarSobre(uReqID, userID, branchHash, opts));
+}
+
+/** El cuerpo de `synthFill`, ya con el usuario resuelto y el ámbito abierto. */
+async function sembrarSobre(uReqID: number, userID: number, branchHash: string, opts: SynthFillOpts): Promise<SynthFillResult> {
     let req: SynthReq = { fields: { 29: 'Empleado', 160: 'no', 87: '2500000' }, gender: 'M', age: 35, income: 2_500_000, score: 700 };
     let target = '';
     if (opts.lender && branchHash) {
@@ -459,9 +482,13 @@ export async function approvePaymentTx(txId: number): Promise<number> {
  */
 export async function validacionManual(userId: number): Promise<number> {
     if (!userId) return 0;
-    assertWriteAllowed();
-    const res = await exec('UPDATE users SET manual_validation=1, last_validation=NOW() WHERE id=?', [userId]);
-    return res.affectedRows;
+    // Abre su propio ámbito: se la llama SUELTA desde los runners, después de `synthFill`, así que no
+    // hereda ninguno. Es el mismo usuario y la misma corrida.
+    return conAmbitoDeSiembra([userId], async () => {
+        const res = await exec('UPDATE users SET manual_validation=1, last_validation=NOW() WHERE id=?', [userId],
+                               { permiso: 'siembra', usuario: userId });
+        return res.affectedRows;
+    });
 }
 
 /** Último user_request de un branch (por hash) con id > sinceId. Para el flujo dinámico: el forms-service

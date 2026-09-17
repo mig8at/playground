@@ -69,6 +69,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«configuré la calculadora y la tarjeta sale sin cuota ni plan»** | **F-212** |
 | **«la telemetría dice que la entidad hizo X y en pantalla hizo Y»** | **F-213** |
 | **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
+| **«fallaron TODOS los casos en la misma pantalla, debe ser el ambiente»** | **F-222** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -375,6 +376,7 @@ distinto según con qué pregunta llegues.
 | F-219 | Con una entidad en plataforma, el «link de autogestión» que se manda por WhatsApp es NUESTRA propia pantalla de continuación — y haberlo mandado es justo lo que impide continuar ahí mismo | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-220 | Falta una variable de entorno del proveedor de identidad y el resultado es una PANTALLA MUERTA: el backend devuelve una url a medias, el contrato la acepta y el front la reinterpreta como una ruta del flujo. Sólo local | CARACTERIZADO |
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
+| F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 
 ---
 
@@ -5269,3 +5271,64 @@ asumiera `Error`.
 **La lección que generaliza:** en un loader que transmite en streaming, **el borde no es el `await`, es
 el valor**. Cualquier promesa que se devuelva sin esperar es parte del contrato de la pantalla, y tiene
 que ser tan total como un campo de un JSON.
+
+### F-222 · Un `catch` que reemplaza el error por un aviso genérico no pierde información: mueve el síntoma a otra pantalla
+
+**Síntoma.** Nueve casos del arnés, en cuatro canales distintos, mueren todos en la **misma pantalla**
+—el OTP— con el mensaje genérico del front: «Ocurrió un error inesperado. Por favor, inténtalo de
+nuevo». Se lee como una caída del proveedor de OTP, o del ambiente. Dos pantallas antes había salido un
+aviso, `⚠ no se pudo ampliar qa_otp_bypass_phones`, que **no dice por qué** y que es fácil leer como
+ruido porque la corrida siguió.
+
+**Causa raíz — la guarda de escrituras rechazó, y el llamador se comió el motivo.** Registrar los
+teléfonos de prueba es un `UPDATE` contra la base compartida, así que **F-53** lo bloquea si no está
+`I_KNOW_THIS_TOUCHES_SHARED_DEV=1`. La guarda hizo su trabajo y tiró un error que decía exactamente qué
+pasaba. El llamador lo envolvía en `await registrarBypass(tels).catch(() => null)` y traducía `null` a
+un aviso fijo — o sea que **el diagnóstico existía y se descartó en la línea que lo recibió**.
+
+Sin los teléfonos en la lista, el proveedor valida de verdad y devuelve `CODE_INVALID`; el front lo
+muestra como su error genérico. **La causa y el síntoma quedan a dos pantallas y una capa de distancia**,
+y en el medio no hay nada que los una.
+
+**Evidencia.** Reproduciendo la misma llamada sin el `catch`:
+
+```
+✘ escritura a DB COMPARTIDA bloqueada (target qa, host inertia-dev…)
+  la disparó: UPDATE settings
+  Si de verdad querés escribir ahí, exportá I_KNOW_THIS_TOUCHES_SHARED_DEV=1 en la shell.
+```
+
+Cuatro corridas, nueve casos, **0 pasaron el OTP**. Con el permiso puesto, la misma tanda: la tienda
+cerró **3/3** y autogestión **1/2**.
+
+⚠ **Y la falla en grupo era la pista que más engañaba.** Que fallen los nueve, en canales distintos y
+con comercios distintos, *parece* una caída del ambiente — es justo el patrón que hace descartar la causa
+local. Pero fallaban todos por lo mismo: los cuatro procesos corrían en la misma shell, sin el permiso.
+
+**Arreglo — dos cosas, y la segunda es la que generaliza.**
+
+1. **Permisos angostos** (`PERMISOS_ANGOSTOS` en `pkg/db.ts`), concedidos **por la sentencia y no por
+   una etiqueta**: el SQL tiene que matchear su patrón. El permiso general abría *cualquier* escritura
+   durante toda la shell para meter dos teléfonos de mentira en una lista, o sea que la guarda empujaba
+   hacia lo peligroso — el arnés no se podía correr sin abrirlo todo.
+2. **Para las tablas de personas, el patrón NO alcanza, y ahí está lo que generaliza del arreglo.**
+   `UPDATE users … WHERE id=?` tiene la misma forma para un cliente sintético que para alguien real, así
+   que la siembra lleva además un **ámbito por usuario**: `synthFill` declara sobre quién va a sembrar en
+   cuanto lo resuelve, y fuera de ese ámbito la misma sentencia se bloquea. Tres condiciones, y las tres
+   hacen falta: la sentencia está en la lista, el usuario está en el ámbito, y ese id aparece entre los
+   parámetros — sin la tercera se podría declarar un dueño y escribirle a otro. Acotar la FORMA de la
+   escritura no sirve de nada si no se acotan las FILAS.
+3. El aviso **nombra la causa**: el motivo del rechazo se devuelve en vez de descartarse.
+
+⚠ **Lo que esto NO cubre, para no leer de más:** impide escribir fuera de esas sentencias y fuera de esos
+usuarios; **no** impide que alguien abra el ámbito sobre una persona real a propósito. Eso deja de ser un
+accidente y pasa a ser una decisión — que es justo la línea que el permiso general no sabía trazar,
+porque concedía las dos cosas con el mismo gesto.
+
+**La lección que generaliza:** un `catch` que sustituye el error por un texto fijo no es «manejo de
+errores», es **borrar el diagnóstico y dejar que el síntoma aparezca más adelante**, donde ya no se
+parece a su causa. Si un `catch` va a tragarse un error, que al menos imprima el mensaje: la diferencia
+entre «no se pudo» y «no se pudo porque X» fueron cuatro corridas y una hipótesis equivocada sobre el
+proveedor. Es el mismo modo de falla de **F-03** (el `.catch` vacío sobre el paso que da sentido a la
+corrida) y el reverso de **F-221**: allá el error viajaba entero y rompía de más, acá se descartaba y
+rompía de menos.

@@ -697,6 +697,23 @@ La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equ
   interactivo (`testIgnore` solo saca `_scratch/` y los reportes — `playwright.config.ts:28`). Pasá rutas.
 - **En toda llamada por API mandá `x-cognito-identity-id`**: sin ese header `update-user-request` pone
   `corporate_user_id = NULL` y te borra el asesor de la solicitud en silencio (F-46).
+- **Correr el arnés contra la compartida YA NO pide `I_KNOW_THIS_TOUCHES_SHARED_DEV`.** La guarda sigue
+  entera; lo que cambió es que las escrituras del arnés tienen **permisos angostos**
+  (`PERMISOS_ANGOSTOS` en `pkg/db.ts`) en vez de necesitar el permiso general, que abría CUALQUIER
+  escritura durante toda la shell — o sea que empujaba justo hacia lo peligroso. Hoy hay tres:
+  `otp-bypass` (los teléfonos de prueba, `pkg/otp-bypass.ts`), `credencial-de-entidad` (la credencial
+  comercio↔entidad que copia la siembra) y `siembra` (el cliente sintético, `pkg/inject.ts`).
+  ⚠ **El permiso se concede por la SENTENCIA, no por la etiqueta**: el SQL tiene que matchear su patrón,
+  así que no se puede usar de contrabando para otra escritura.
+  ⚠ **Y `siembra` exige ADEMÁS un ámbito por usuario**, porque toca `users`, `user_summaries`,
+  `user_field_values` y `risk_central_user_data`, que son tablas de personas: `UPDATE users … WHERE id=?`
+  tiene la misma forma para un cliente sintético que para alguien real, así que el patrón no alcanza y
+  hacen falta las FILAS. `synthFill` abre el ámbito con `conAmbitoDeSiembra([userID])` en cuanto resuelve
+  el usuario del `user_request`, y fuera de ese ámbito la misma sentencia se bloquea. **Si agregás una
+  escritura a la siembra, va con su patrón y su `usuario`** — si no, la guarda la frena y dice cuál era.
+  ⚠ Lo que esto **no** cubre: que alguien abra el ámbito sobre una persona real a propósito. Eso deja de
+  ser un accidente, que es la línea que el permiso general no sabía trazar. Para escribir algo que no sea
+  del arnés, el flag se exporta igual.
 - **El scrub por consola va con `E2E_TARGET=local` EXPLÍCITO** en el env del hijo: `bin/dbops.ts` es otro
   proceso, su default es **dev**, y ahí el guard de escrituras compartidas lo bloquea (F-53) sin que se note.
 - El panel lanza `bin/asesor <slug>` **sin `auto`** (`panel/server.ts:153`) → siempre modo manual. El

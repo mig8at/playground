@@ -95,6 +95,7 @@ const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 const { forenseAlCerrar } = await import('../pkg/loki.ts');
+const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -741,32 +742,12 @@ const SIN_PAIS = 'no pude resolver el país del comercio: su payload no respondi
  *  ⚠ SE REGISTRAN TODOS DE UNA Y EN SERIE, ANTES del paralelo. La lista es UN valor JSON: N escrituras
  *  concurrentes de «leé, agregá el mío, guardá» se pisan y sobreviven unas pocas — la misma trampa que
  *  el dictado a la lambda. Y se restaura al terminar para no dejar la lista creciendo sola. */
-async function registrarBypass(tels: string[]): Promise<string | null> {
-    const row = await one<{ value: string }>(
-        "SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
-    if (!row) return null;                       // sin la fila no hay bypass que ampliar: se avisa arriba
-    const original = row.value;
-    const actuales: string[] = JSON.parse(original ?? '[]').map(String);
-    // Con el comodín puesto no hay nada que ampliar: cualquier teléfono pasa. Tocar la lista igual
-    // sería escribir en la BD sin motivo, y dejaría la corrida creyendo que hizo algo que no hizo.
-    if (actuales.includes('*')) return original;
-    const faltan = tels.filter((t) => !actuales.includes(t));
-    if (!faltan.length) return original;
-    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'",
-               [JSON.stringify([...actuales, ...faltan])]);
-    return original;
-}
+// La implementación vive en `pkg/otp-bypass.ts` — la comparten los dos runners.
 
-/** Lo que había en la lista antes de que esta corrida la ampliara. De módulo y no local a `main()`
- *  para poder restaurarla aunque la corrida termine mal: una lista que crece sola con teléfonos de
- *  tandas viejas es basura que después nadie sabe de dónde salió. */
-let bypassOriginal: string | null = null;
-
-async function restaurarBypass(original: string | null): Promise<void> {
-    if (original === null) return;
-    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'", [original])
-        .catch(() => { /* restaurar es higiene, no puede tumbar la corrida */ });
-}
+/** Lo que ESTA corrida agregó a la lista. De módulo y no local a `main()` para poder limpiarlo aunque
+ *  la corrida termine mal: una lista que crece sola con teléfonos de tandas viejas es basura que
+ *  después nadie sabe de dónde salió. */
+let bypassPuesto: { agregados: string[]; comodin: boolean } | null = null;
 
 /** Le dicta a la lambda qué contesta cada central PARA ESA CÉDULA. Es el paso que vuelve el caso
  *  hipotético: se pide de antemano la respuesta que se quiere recibir. */
@@ -1744,10 +1725,13 @@ async function main(): Promise<number> {
             if (iso === null) throw new Error(`${c.comercio}: ${SIN_PAIS}`);
             return telefonoDe(i, iso);
         }))).flatMap((t) => [t, telefonoDelCodeudor(t)]);
-        bypassOriginal = await registrarBypass(tels).catch(() => null);
-        if (bypassOriginal === null) {
-            console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: la firma del pagaré va a fallar'
-                + ' con 422 y la solicitud va a quedar en estado 10, que no se parece a la causa.\n');
+        // ⚠ El aviso NOMBRA la causa. Sin eso, la corrida no muere acá: muere en la firma, con 422 y la
+        // solicitud en estado 10 — un síntoma que no se parece en nada a «faltó un permiso de escritura».
+        const r = await registrarBypass(tels).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) }));
+        if (r.ok) bypassPuesto = r.puesto;
+        else {
+            console.log(`  ⚠ no se pudo ampliar \`qa_otp_bypass_phones\`, así que la firma del pagaré va a fallar`
+                + ` con 422 y la solicitud va a quedar en estado 10, que no se parece a la causa: ${r.motivo}\n`);
         }
     }
 
@@ -1870,6 +1854,6 @@ async function main(): Promise<number> {
 }
 
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
-await restaurarBypass(bypassOriginal);
+await restaurarBypass(bypassPuesto);
 await close().catch(() => {});
 process.exit(code);

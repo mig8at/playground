@@ -60,6 +60,7 @@ const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrel
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
 const { cognitoStorageState, COGNITO_STATE_PATH } = await import('../pkg/cognito.ts');
 const { branchToken, ecommerceContract } = await import('../pkg/ecommerce.ts');
+const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
 
 type Form = Record<string, string | number | null | undefined>;
 
@@ -176,21 +177,9 @@ async function buscarSucursal(ref: string) {
         porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref]).catch(() => null);
 }
 
-// ─── bypass de OTP fuera de local (el driver fake de local no mira el teléfono) ─────────────────
-async function registrarBypass(tels: string[]): Promise<string | null> {
-    const row = await one<{ value: string }>("SELECT value FROM settings WHERE `key`='qa_otp_bypass_phones'").catch(() => null);
-    if (!row) return null;
-    const actuales: string[] = JSON.parse(row.value ?? '[]').map(String);
-    if (actuales.includes('*')) return row.value;
-    const faltan = tels.filter((t) => !actuales.includes(t));
-    if (!faltan.length) return row.value;
-    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'", [JSON.stringify([...actuales, ...faltan])]);
-    return row.value;
-}
-async function restaurarBypass(original: string | null): Promise<void> {
-    if (original === null) return;
-    await exec("UPDATE settings SET value=? WHERE `key`='qa_otp_bypass_phones'", [original]).catch(() => {});
-}
+// El bypass de OTP fuera de local vive en `pkg/otp-bypass.ts`: lo usan los dos runners y estaba
+// duplicado en los dos, con dos versiones del mismo comentario. Ver ahí por qué la suma es atómica y
+// por qué la escritura ya no pide el permiso general.
 
 /** La siembra que los dos motores necesitan al llegar al formulario: el buró (el proveedor no contesta
  *  en local/dev), las dos fotos de la cédula (sin ellas la formalización muere al final) y, con
@@ -797,7 +786,8 @@ console.log(`\n  CAMINAR · ${casos.length} caso(s) · motor ${MOTOR === 'navega
 const aviso = avisoDocGen(TARGET);
 if (aviso) console.log(`  ${aviso}\n`);
 
-let bypassOriginal: string | null = null;
+// Lo que ESTA corrida agregó al bypass, para sacar exactamente eso al terminar y no pisar a las demás.
+let bypassPuesto: { agregados: string[]; comodin: boolean } | null = null;
 // ⚠ NO depende de `--cerrar`, y que lo hiciera costó una tarde. El OTP está en la pantalla 3: lo
 // cruzan TODAS las corridas, también la corta que se detiene en el listado. Con el bypass atado a
 // `--cerrar`, esa corrida moría en el OTP con «Ocurrió un error inesperado» —el mensaje genérico del
@@ -815,8 +805,12 @@ if (TARGET !== 'local') {
         const br = await buscarSucursal(c.ref);
         return br ? await telefonoDelComercio(br.hash, i).catch(() => telefonoDe(i)) : telefonoDe(i);
     }));
-    bypassOriginal = await registrarBypass(tels).catch(() => null);
-    if (bypassOriginal === null) console.log('  ⚠ no se pudo ampliar `qa_otp_bypass_phones`: los OTP van a fallar fuera de local\n');
+    // ⚠ El aviso NOMBRA la causa, y eso no es cosmético: cuando el registro falla, la corrida no muere
+    // acá — muere DOS pantallas después, en el OTP, con el mensaje genérico del front. El 2026-09-17 esa
+    // distancia entre la causa y el síntoma costó nueve casos y un diagnóstico entero.
+    const r = await registrarBypass(tels).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) }));
+    if (r.ok) bypassPuesto = r.puesto;
+    else console.log(`  ⚠ no se pudo ampliar \`qa_otp_bypass_phones\`, así que los OTP van a fallar: ${r.motivo}\n`);
 }
 
 const t0 = Date.now();
@@ -833,7 +827,7 @@ try {
         ? await Promise.all(casos.map((c, i) => unCaso(c, i)))
         : await (async () => { const out: Resultado[] = []; for (let i = 0; i < casos.length; i++) out.push(await unCaso(casos[i], i)); return out; })();
 } finally {
-    await restaurarBypass(bypassOriginal);
+    await restaurarBypass(bypassPuesto);
     if (browser) await browser.close().catch(() => {});
 }
 
