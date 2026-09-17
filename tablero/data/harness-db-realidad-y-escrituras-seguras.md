@@ -3,7 +3,7 @@ id: 86
 title: "Harness: que refleje la BD real y no catálogos que mienten, y escrituras seguras con funciones definidas"
 clase: proyecto
 stage: work
-ramas:
+ramas: main
 created: "2026-09-15T17:00:00-05:00"
 context_nodes: [harness, findings]
 jira: []
@@ -20,6 +20,18 @@ que mientan sobre qué lenders van a salir; **(2)** si hay que mejorar, hacer **
 seguras para insertar/borrar** en las tablas, para que los flujos que escriben sean seguros.
 
 ✅ **Las dos mitades están hechas** (`8ac74de` el preflight · `e8d09d5` las escrituras).
+
+✅ **Y el 2026-09-17 se cerró la deuda de duplicación: seis piezas que cada runner escribía por su
+cuenta pasaron a `pkg/`.** Lo que la hacía urgente no era la repetición sino que **cada copia había
+aprendido una lección distinta** — había cinco clientes HTTP y ninguno distinguía «tardó» de «se cayó»,
+dos derivaciones de teléfono donde sólo una sabía que en RD el área ES el país, y tres resoluciones de
+sucursal que devolvían sucursales distintas. Duplicación real hoy: **cero**. Detalle en el Registro del
+17/9 y la tabla en el `CLAUDE.md` del arnés.
+
+✅ **Correr contra la base compartida ya no pide abrir toda la shell.** Las escrituras del arnés tienen
+permisos angostos —concedidos por la SENTENCIA, y para tablas de personas también por el USUARIO— en vez
+de `I_KNOW_THIS_TOUCHES_SHARED_DEV`, que abría cualquier escritura durante toda la sesión. Medido: 2/2
+casos cerraron en `qa` sin exportar nada.
 
 **El próximo paso es** migrar los llamadores a `borrarSeguro`/`insertarFila` **de a uno, cuando se
 toque cada archivo** — ya no es una deuda de seguridad (la guarda es estructural), es prolijidad.
@@ -405,6 +417,60 @@ inventados se lee como si fueran tablas reales: es peor que no tenerlo.** Arregl
 **39 pruebas en verde** entre las tres suites, typecheck 0.
 
 ## Registro
+
+### 2026-09-17 · seis piezas duplicadas se van a `pkg/`, y el permiso de escritura deja de ser todo-o-nada
+
+Empezó por una falla que parecía del producto: **nueve casos del arnés murieron todos en la misma
+pantalla**, el OTP, con el mensaje genérico del front. Que fallaran los nueve, en cuatro canales y con
+comercios distintos, se leía como una caída del ambiente — es justo el patrón que hace descartar la
+causa local. No era el ambiente: era que la guarda de escrituras había rechazado el registro de los
+teléfonos de prueba, y **un `catch` había reemplazado ese error por un aviso fijo**. La causa y el
+síntoma quedaban a dos pantallas y una capa de distancia. Quedó como **F-222**.
+
+**Lo primero fue el tamaño del permiso.** Para meter dos teléfonos de mentira en una lista de pruebas
+hacía falta `I_KNOW_THIS_TOUCHES_SHARED_DEV`, que abre **cualquier** escritura durante toda la shell —
+o sea que la guarda empujaba justo hacia lo peligroso. Ahora hay permisos angostos, y lo importante es
+**cómo** se conceden:
+
+- por la **sentencia**, no por una etiqueta: el SQL tiene que matchear su patrón, así que el nombre de
+  un permiso no sirve de contrabando para otra escritura;
+- y para las tablas de personas, **eso no alcanza**: `UPDATE users … WHERE id=?` se ve igual para un
+  cliente sintético que para alguien real. La siembra exige además un **ámbito por usuario** y tres
+  condiciones a la vez — la sentencia está en la lista, el usuario está en el ámbito, y ese id aparece
+  entre los parámetros. Sin la tercera se podría declarar un dueño y escribirle a otro.
+
+⚠ Lo que **no** cubre, y quedó escrito: impide escribir fuera de esas sentencias y fuera de esos
+usuarios; no impide que alguien abra el ámbito sobre una persona real a propósito. Eso deja de ser un
+accidente — que es la línea que el permiso general no sabía trazar, porque concedía las dos cosas con
+el mismo gesto.
+
+**Después vino la duplicación, y la pregunta correcta no era «cuántas copias hay» sino «cuáles ya
+divergieron».**
+
+| a `pkg/` | reemplazó | la lección que sólo tenía UNA copia |
+|---|---|---|
+| `http.ts` | **5** clientes HTTP | un timeout **no** es una caída: 90.002 ms se reportaban como «HTTP 0», que se lee como que el backend se murió. Y ninguno dejaba bitácora |
+| `telefonos.ts` | 2 derivaciones | el largo sale del país **y el prefijo también**: en RD el área ES el país, y con un dígito cualquiera el número se ubica en otro lado **sin fallar** |
+| `merchants.ts` | **3** resoluciones de sucursal | el canal de tienda necesita la sucursal con credencial de ecommerce; la de mostrador no tiene checkout |
+| `otp-bypass.ts` | 2 copias | dos corridas a la vez se pisaban la lista, y la primera en terminar le borraba los teléfonos a las otras |
+| `db-safe.ts` (`clonarFila`) | 2 copias | una re-sellaba las marcas de tiempo y la otra copiaba las de la fila original: hay entidades en la base que dicen haberse creado en **2023** |
+| `cognito.ts` (`saludDeLaSesion`) | un hueco | el archivo puede estar y la sesión estar muerta |
+
+**El de la sesión es el que mejor muestra el costo.** El canal de asesor arrancó con un archivo de dos
+horas antes, cargó las cookies y salió a caminar; recién en la primera pantalla —40 s el primer caso,
+54 s el segundo— el front lo mandó al login, y el mensaje era «entrá una vez por el panel». La respuesta
+estaba **en el archivo**: la cookie `_at` había vencido hacía 170 minutos, y leerla cuesta 0 ms. Ahora
+corta antes de arrancar, nombra la cookie y da el comando exacto.
+
+⚠ **Y una que se propuso y NO se hizo**: generalizar el patrón de «mutar un ajuste compartido sin pisar
+a las corridas vecinas». Al ir a buscar el segundo usuario, el único candidato **sólo corre en local**,
+así que la carrera no existe ahí. Una abstracción con un solo usuario es una abstracción inventada.
+
+**Comprobado corriendo, no leyendo**: los cinco runners del cliente HTTP contra local (el de tienda
+cierra en 11, el de QR en 25 con código, el de ecommerce da «todo lo declarado se cumple»), el sembrador
+de comercios entero, y el wizard contra `qa` **sin exportar ningún permiso**: 2/2 en estado 11. La suite
+de `pkg/` pasa de 14 pruebas a **74**.
+
 
 ### 2026-09-15 · auditoría y propuesta
 Auditado de dónde salen los lenders del panel (BD, no hardcode) y toda la superficie de escritura (18
