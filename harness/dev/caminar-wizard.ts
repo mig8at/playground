@@ -59,7 +59,7 @@ const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, b
     await import('../pkg/wizard-navegador.ts');
 const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrelleno.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
-const { cognitoStorageState, COGNITO_STATE_PATH } = await import('../pkg/cognito.ts');
+const { cognitoStorageState, COGNITO_STATE_PATH, saludDeLaSesion, comoRenovarLaSesion } = await import('../pkg/cognito.ts');
 const { branchToken, ecommerceContract } = await import('../pkg/ecommerce.ts');
 const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
 
@@ -787,6 +787,24 @@ if (TARGET !== 'local') {
     const r = await registrarBypass(tels).catch((e) => ({ ok: false as const, motivo: e instanceof Error ? e.message : String(e) }));
     if (r.ok) bypassPuesto = r.puesto;
     else console.log(`  ⚠ no se pudo ampliar \`qa_otp_bypass_phones\`, así que los OTP van a fallar: ${r.motivo}\n`);
+}
+
+// ⚠ LA SESIÓN SE MIRA ANTES DE ARRANCAR, y esto es lo que el 2026-09-17 costó dos minutos a los
+// golpes: el archivo estaba, así que la corrida cargó las cookies y salió a caminar; recién en la
+// primera pantalla —40 s el primer caso, 54 s el segundo— el front la mandó al login. La causa estaba
+// EN EL ARCHIVO todo el tiempo (la cookie `_at` había vencido hacía 170 min) y leerla cuesta 0 ms.
+// Fallar acá no ahorra sólo tiempo: ahorra un diagnóstico, porque el mensaje nombra la cookie.
+if (FLOW === 'merchant' && TARGET !== 'local') {
+    const sesion = saludDeLaSesion();
+    if (!sesion.sirve) {
+        console.log(`  ✗ el canal de asesor pide sesión y la que hay no sirve.\n     ${comoRenovarLaSesion(sesion)}\n`);
+        process.exit(2);
+    }
+    // Una sesión que vive 3 minutos pasa el chequeo y se muere a mitad de la tanda: se avisa, porque
+    // ese fallo se lee igual que el otro y no tiene por qué.
+    if (sesion.minutos !== null && sesion.minutos < 15) {
+        console.log(`  ⚠ ${sesion.motivo} — puede vencerse en plena tanda\n`);
+    }
 }
 
 const t0 = Date.now();

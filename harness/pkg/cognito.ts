@@ -202,3 +202,103 @@ export async function persistCognitoState(page: Page, savePath: string | null = 
         console.log(`    ⚠ no se pudo guardar el cache Cognito: ${e instanceof Error ? e.message : String(e)}`);
     }
 }
+
+/**
+ * ¿LA SESIÓN CACHEADA SIRVE, sin salir a preguntarle a nadie?
+ *
+ * POR QUÉ EXISTE. `cognitoStorageState()` sólo dice si el ARCHIVO está, no si la sesión vive. El
+ * 2026-09-17 el canal de asesor arrancó con un archivo de hacía dos horas, cargó las cookies, pidió la
+ * primera pantalla y **recién ahí** —40 s y 54 s después, un caso por vez— descubrió que el front lo
+ * mandaba al login. La respuesta estaba en el archivo todo el tiempo: la cookie `_at` había vencido
+ * hacía 170 minutos. Leerla cuesta 0 ms y no toca la red.
+ *
+ * ⚠ Mira el VENCIMIENTO, no la antigüedad del archivo. Un `mtime` reciente no dice nada —el saneo de
+ * `cognitoStorageState` reescribe el archivo sin renovar nada— y uno viejo tampoco: `_rt` dura ~30 días.
+ *
+ * Lo que NO hace: renovar. El refresh lo hace la app con su propio handshake, y fingirlo desde acá sería
+ * inventar un camino que ningún cliente recorre. Lo que sí hace es DECIRLO, para que el mensaje mande a
+ * `dev/warm-session.spec.ts` sabiendo que hace falta.
+ */
+export interface SaludDeLaSesion {
+    hay: boolean;
+    ruta: string;
+    /** `true` si las cookies que llevan la sesión siguen vivas. */
+    sirve: boolean;
+    /** Minutos que le quedan a la que vence primero, o `null` si no se pudo saber. */
+    minutos: number | null;
+    /** `true` si el refresh token vive: la sesión se puede recuperar sin volver a tipear la clave. */
+    renovable: boolean;
+    /** Listo para imprimir. */
+    motivo: string;
+}
+
+/**
+ * Las cookies que LLEVAN la sesión, por nombre.
+ *
+ * `_at` es el token de acceso del wizard y `cognito` el del proveedor: si cualquiera de las dos venció,
+ * la corrida termina en `/login` por más que el archivo esté. Las demás del archivo son idioma, CSRF,
+ * analítica y el `post-auth` efímero del handshake — ninguna decide si hay sesión.
+ */
+const COOKIES_DE_SESION = new Set(['_at', 'cognito']);
+/** El refresh token: no autentica por sí solo, pero dice si se puede recuperar sin clave. */
+const COOKIE_DE_REFRESCO = '_rt';
+
+export function saludDeLaSesion(): SaludDeLaSesion {
+    const base = { ruta: COGNITO_STATE_PATH, minutos: null as number | null, renovable: false };
+    if (!existsSync(COGNITO_STATE_PATH)) {
+        return { ...base, hay: false, sirve: false, motivo: `no hay sesión cacheada en ${COGNITO_STATE_PATH}` };
+    }
+
+    let cookies: Array<{ name: string; expires?: number }> = [];
+    try {
+        cookies = JSON.parse(readFileSync(COGNITO_STATE_PATH, 'utf8')).cookies ?? [];
+    } catch (e) {
+        return { ...base, hay: true, sirve: false, motivo: `no pude leer ${COGNITO_STATE_PATH}: ${(e as Error).message}` };
+    }
+
+    return { ...saludDeCookies(cookies, COGNITO_STATE_PATH), ruta: COGNITO_STATE_PATH };
+}
+
+/**
+ * La decisión, separada del archivo: se fija con pruebas sin tocar `.auth/` ni depender del target.
+ * `ahoraSeg` existe para poder pararse en un instante y no depender del reloj de quien corre.
+ */
+export function saludDeCookies(
+    cookies: Array<{ name: string; expires?: number }>,
+    ruta = COGNITO_STATE_PATH,
+    ahoraSeg = Date.now() / 1000,
+): SaludDeLaSesion {
+    const base = { hay: true, ruta, minutos: null as number | null };
+    // Una cookie sin `expires` (o con -1) es «de sesión»: muere al cerrar el navegador, y en un
+    // storageState replayado eso equivale a que no caduca. No se cuenta como vencida.
+    const restan = (c: { expires?: number }) => (!c.expires || c.expires < 0 ? Infinity : (c.expires - ahoraSeg) / 60);
+    const redondo = (m: number) => (Number.isFinite(m) ? Math.round(m) : null);
+
+    const deSesion = cookies.filter((c) => COOKIES_DE_SESION.has(c.name));
+    const refresco = cookies.find((c) => c.name === COOKIE_DE_REFRESCO);
+    const renovable = !!refresco && restan(refresco) > 0;
+
+    if (!deSesion.length) {
+        return { ...base, sirve: false, renovable,
+            motivo: `${ruta} no trae ninguna cookie de sesión (${[...COOKIES_DE_SESION].join(', ')}) — está incompleto` };
+    }
+
+    const vencidas = deSesion.filter((c) => restan(c) <= 0);
+    const minutos = Math.min(...deSesion.map(restan));
+
+    if (vencidas.length) {
+        const cuanto = Math.round(-Math.min(...vencidas.map(restan)));
+        return { ...base, sirve: false, minutos: redondo(minutos), renovable,
+            motivo: `la sesión de ${ruta} venció hace ${cuanto} min (${vencidas.map((c) => c.name).join(', ')})`
+                + (renovable ? ' — el refresh token todavía vive, así que alcanza con volver a entrar una vez' : '') };
+    }
+
+    return { ...base, sirve: true, renovable, minutos: redondo(minutos),
+        motivo: Number.isFinite(minutos) ? `sesión válida por ${Math.round(minutos)} min más` : 'sesión válida' };
+}
+
+/** El mensaje que un runner imprime cuando la sesión no sirve: el motivo, y qué hacer. */
+export function comoRenovarLaSesion(s: SaludDeLaSesion): string {
+    return `${s.motivo}\n     renovala con:  E2E_TARGET=${TARGET} npx playwright test dev/warm-session.spec.ts --headed --project=chromium`
+        + `\n     (va HEADED a propósito contra qa/staging: el Managed Login corta la automatización por fingerprint — F-66)`;
+}
