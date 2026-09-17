@@ -70,6 +70,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la telemetría dice que la entidad hizo X y en pantalla hizo Y»** | **F-213** |
 | **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
 | **«fallaron TODOS los casos en la misma pantalla, debe ser el ambiente»** | **F-222** |
+| **«el listado da 500 / *Error al obtener las opciones de financiamiento*»** | **F-223** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -377,6 +378,7 @@ distinto según con qué pregunta llegues.
 | F-220 | Falta una variable de entorno del proveedor de identidad y el resultado es una PANTALLA MUERTA: el backend devuelve una url a medias, el contrato la acepta y el front la reinterpreta como una ruta del flujo. Sólo local | CARACTERIZADO |
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
+| F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ABIERTO |
 
 ---
 
@@ -5332,3 +5334,64 @@ entre «no se pudo» y «no se pudo porque X» fueron cuatro corridas y una hip�
 proveedor. Es el mismo modo de falla de **F-03** (el `.catch` vacío sobre el paso que da sentido a la
 corrida) y el reverso de **F-221**: allá el error viajaba entero y rompía de más, acá se descartaba y
 rompía de menos.
+
+### F-223 · Una entidad habilitada en la SUCURSAL pero sin fila en el COMERCIO tumba el listado entero con 500
+
+**Síntoma.** `GET /api/onboarding/loan-application/lenders-v2/<ureq>` devuelve **HTTP 500** y el cliente
+ve «Error al obtener las opciones de financiamiento». No falla una tarjeta: **no llega ninguna**. Y le
+pasa a unos comercios sí y a otros no, sin patrón visible desde el front.
+
+⚠ **El backend NO deja rastro en Loki.** Medido el 2026-09-17 sobre la solicitud 502522: 111 líneas en 3
+traces, **un solo error y es el `ONB002` inofensivo** («temporal user found», que es el camino normal).
+Buscar la causa en los logs manda a concluir que no pasó nada. El mensaje real sólo aparece pegándole al
+endpoint: `node dev/listado.ts --branch <hash> --v2`.
+
+**Causa raíz — el listado sale de la SUCURSAL y el orden sale del COMERCIO, y nadie comprueba que
+coincidan.** En `LenderProbabilitySortingService.php:26-27`:
+
+```php
+$lender_sort = $lenders_sort_data->get($lender->id);
+$lender->sort = $lender_sort->sort;          // ← $lender_sort puede ser null
+```
+
+`$lenders_sort_data` se arma con `LendersByAllied::where('allied_id', …)` — la tabla **por comercio**
+(`lenders_by_allieds`). Pero las entidades que llegan acá salieron de la cascada de visibilidad, cuya
+base es **`lenders_by_allied_branches`**, la tabla **por sucursal**. Una entidad habilitada en la
+sucursal y sin fila en el comercio hace que `->get()` devuelva null, y la línea siguiente lo
+desreferencia: `Attempt to read property "sort" on null`.
+
+Es la misma frontera que el nodo de anatomía ya describe —comercio = la calculadora, sucursal = url,
+orden y estado— pero acá el código **asume** que lo de la sucursal existe arriba, y eso no está
+garantizado por ninguna restricción.
+
+**Evidencia — medida contra la base compartida el 2026-09-17:**
+
+| comercio (sucursal) | entidad | rt | ¿en la sucursal? | filas en el comercio |
+|---|---|---|---|---|
+| Refurbi (`c390eed9`) | Bancolombia (8) | 1 | sí | **1** |
+| Refurbi | **Welli (23)** | 1 | sí | **0** ← |
+| Refurbi | **Credifamilia (24)** | 4 | sí | **0** ← |
+| Creditop (`96f5da12`) | Banco de Bogotá (5) · Bancolombia (8) · Compensar (47) | 1 | sí | 1 |
+| Creditop | **Su+pay (11)** | 1 | sí | **0** ← |
+| Creditop | **Wompi (52)** | 0 | sí | **0** ← |
+
+Los dos casos que revientan piden justo una de las huérfanas. **El defecto es idéntico en `main` y en
+`qa`**, así que no es un artefacto del ambiente de pruebas.
+
+⚠ **Y explica por qué parece «del canal» o «de los agregadores».** Las entidades que quedaron huérfanas
+acá son rt=1 y rt=0, así que el 500 aparece en los comercios que las ofrecen y no en los de rt=2 — que
+cierran normalmente. Eso invita a buscar la causa en el tipo de respuesta, donde no está: lo que decide
+es si la fila del comercio existe, no qué clase de entidad es.
+
+⚠ **No confundir con F-221**, aunque el arnés reporte los dos como «la promesa fue rechazada». Ahí una
+promesa **por entidad** rechazaba y rompía el stream; acá la llamada entera devuelve 500 y no llega a
+haber promesas. El texto del runner nombra el desenlace, no la causa.
+
+**Arreglo (no aplicado).** Dos niveles, y hacen falta los dos:
+
+1. **El código no puede asumirlo**: `$lender_sort?->sort ?? <default>` — una entidad sin orden definido
+   tiene que quedar al final del grupo, no tumbar la pantalla. Que una fila de configuración falte es un
+   estado posible del sistema, no un imposible.
+2. **La configuración tampoco debería permitirlo**: habilitar una entidad en una sucursal sin que exista
+   su fila en el comercio deja al comercio en un estado que el producto no sabe servir. Eso se ve en el
+   admin, y hoy nada lo impide.

@@ -785,6 +785,44 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-17 (5) · los cuatro canales en paralelo de nuevo: el listado se cae por config, no por el canal
+
+> **MEDICIÓN · 2026-09-17** — cuatro canales a la vez contra `qa`, **sin exportar ningún permiso de
+> escritura**. Desenlace leído en la base, no en la consola:
+>
+> | canal | comercio · entidad | estado | pedido atado | WhatsApp |
+> |---|---|---|---|---|
+> | **tienda** | Tienda Fisio · CrediFis X | **11** ✓ | sí | 0 |
+> | **tienda** | Amoblando · CrediPullman | 10 | sí | 0 |
+> | **tienda** | Alpeluche · Alpeluche X | 10 | sí | 0 |
+> | **autogestión** | Creditop · Creditop X | 10 | — | 0 |
+> | **autogestión** | Alpeluche · Alpeluche X | 10 | — | 0 |
+> | **agregadores** | Refurbi · Welli · Creditop · Su+pay | **9, sin entidad** | — | 0 |
+> | **asesor** | — | cortó al instante: sesión vencida | — | — |
+
+**Los tres del canal tienda quedaron atados a su pedido y ninguno entregó el proceso al comprador**, que
+es la conducta que esta tarea vino a fijar. Sigue valiendo.
+
+**Lo que no cerró no es de esta tarea, y son dos cosas distintas:**
+
+- **estado 10 en cuatro casos** — llegaron hasta la firma y ahí el documento tardó más de lo que el
+  balanceador espera (**504**). Es **F-180**: `qa` es ¼ de vCPU y el corte son 60 s, agravado por correr
+  cinco casos a la vez. El flujo está bien; el ambiente no da.
+- **estado 9 sin entidad en los dos agregadores** — el listado devuelve **500**. Se diagnosticó y quedó
+  como **F-223**, y **no es lo que parecía**: la causa del 16/9 (la tabla `cards` que faltaba) **ya está
+  arreglada**, así que este 500 es otro. El listado sale de la **sucursal** y el orden sale del
+  **comercio**, y hay entidades habilitadas abajo sin fila arriba —Welli en Refurbi, Su+pay en
+  Creditop— así que el servicio que ordena desreferencia un null y tumba la pantalla entera. Está
+  igual en `main` y en `qa`.
+
+⚠ **Y el backend no deja rastro**: 111 líneas en Loki para esa solicitud y **un solo error, el `ONB002`
+inofensivo**. El mensaje real sólo aparece pegándole al endpoint con `dev/listado.ts --v2`.
+
+**De paso, dos comprobaciones del arnés que esta tanda vino a hacer:** los cuatro canales corrieron
+**sin `I_KNOW_THIS_TOUCHES_SHARED_DEV`**, y los tres procesos concurrentes **no se pisaron la lista del
+bypass** — 58 teléfonos con las tres corridas en vuelo, 51 al terminar: exactamente los 7 que pusieron.
+Antes el primero en terminar se los borraba a los otros.
+
 ### 2026-09-17 (4) · PR #1027 · una promesa rechazada rompía el listado ENTERO, no su tarjeta
 
 El barrido de la entrada (3) dejó un caso que no cerraba, y resultó ser un defecto del listado que no
