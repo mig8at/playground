@@ -15,7 +15,7 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 | `panel/` | La UI del harness (`npm run dev` → **:5195**). Es una cáscara sobre `bin/asesor`, no un segundo motor. | Camino visual: lo maneja Miguel |
 | `bin/` | **Plumbing**: launchers (`asesor` · `ecommerce` · `qr` · `panel`), los 11 `mock-*` y utilidades (`dbops.ts` · `envget.ts` · `steps-check.ts` · `preflight.ts`) | Casi nunca directo — el panel los llama |
 | `dev/` | **Herramientas por consola**, una por pregunta (abajo) | Camino rápido: es TU camino |
-| `pkg/` | La **librería compartida** (25 módulos): `trace.ts` (aserciones) · `db.ts` · `inject.ts` · `cognito.ts` · `qr.ts`+`qr-steps.ts` · `checkout-b64.ts` · `wizard-steps.ts` · `windows.ts` · … | Al agregar capacidad, va acá — no duplicada en dos runners |
+| `pkg/` | La **librería compartida**: `trace.ts` (aserciones) · `db.ts` · `inject.ts` · `cognito.ts` · `http.ts` · `telefonos.ts` · `merchants.ts` · `otp-bypass.ts` · `qr.ts`+`qr-steps.ts` · `checkout-b64.ts` · `windows.ts` · … | Al agregar capacidad, va acá — no duplicada en dos runners |
 | `mock-*/` | **la flota de mocks con launcher** (la tabla de puertos, abajo) + 2 páginas estáticas (`mock-bank/`, `mock-store/`, sin launcher: las sirve el spec) | Cuando el proveedor externo estorba |
 | `channel/` | **13 suites de caracterización** (`*.spec.ts`): congelan el comportamiento ACTUAL | Antes de cambiar algo, para tener red |
 | `.runs/` · `.auth/` | Forense de la última corrida (volcados, screenshots) | Cuando algo falló y hay que reconstruir |
@@ -421,6 +421,30 @@ router mismo—, así que una pantalla nueva aparece sola y una borrada desapare
 ⚠ **Es un techo, no una traza.** Dice qué PUEDE llamar cada pantalla, no qué llamó en tu corrida: sale
 de lo que la pantalla importa. La salida distingue los dos niveles —`→` lo llama esa pantalla, `·` está
 en un paquete que importa— y no hay que leerlos igual.
+
+### Lo que los runners NO escriben cada uno (2026-09-17)
+
+Cinco cosas que estaban duplicadas entre `dev/*.ts` y hoy viven en `pkg/`. La regla no cambió —«al
+agregar capacidad, va acá»— pero la deuda vieja seguía ahí, y **cada copia había aprendido una lección
+distinta**, que es el modo de falla que importa: no es que hubiera dos, es que no hacían lo mismo.
+
+| en `pkg/` | qué reemplazó | la lección que sólo tenía UNA de las copias |
+|---|---|---|
+| `http.ts` | **5** copias de `http()` | un timeout **no** es una caída, y `HTTP 0` los confunde (medido: 90.002 ms leídos como «el backend se murió»). Y ninguna dejaba bitácora |
+| `telefonos.ts` | 2 derivaciones | el LARGO sale del país (`countries.cell_phone_lenght`) **y** el PREFIJO también: en RD el área ES el país, y con un dígito cualquiera el número se ubica en otro lado **sin fallar** |
+| `merchants.ts` (`buscarSucursal`) | **3** resoluciones | el canal de tienda necesita la sucursal **con credencial de ecommerce**; la de mostrador no tiene checkout |
+| `otp-bypass.ts` | 2 copias | dos corridas a la vez se pisaban la lista, y la primera en terminar le borraba los teléfonos a las otras |
+| `cognito.ts` (`saludDeLaSesion`) | nada — era un hueco | el archivo puede estar y la sesión estar muerta: se mira el **vencimiento de las cookies**, no el `mtime` |
+
+⚠ **Y una que NO se hizo, a propósito:** generalizar el patrón de «mutar un ajuste compartido sin
+pisar a las corridas vecinas». El único otro candidato (`settings.front_end_url` en `montar-peru.ts`)
+**sólo corre en local**, así que la carrera no existe ahí y además guarda un escalar, no una lista. Una
+abstracción con un solo usuario es una abstracción inventada.
+
+⚠ **Antes de agregar la sexta copia de algo, `grep` el nombre en `dev/`.** Las seis de arriba se
+encuentran en un comando:
+
+    for f in dev/*.ts; do grep -hoE '^(export )?(async )?function [a-zA-Z_][a-zA-Z0-9_]*' "$f" | sed -E 's/.*function //' | sed "s|\$| $f|"; done | sort | awk '{n[$1]=n[$1]" "$2; c[$1]++} END {for (k in c) if (c[k]>1) print k, c[k], n[k]}'
 
 ## Cuándo cargar una skill
 

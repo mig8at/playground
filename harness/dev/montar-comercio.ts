@@ -58,6 +58,7 @@
 // Uso:   E2E_TARGET=local node dev/montar-comercio.ts alta
 //        E2E_TARGET=local node dev/montar-comercio.ts alta --clean
 import { query, one, exec, assertWriteAllowed, TARGET, env } from '../pkg/db.ts';
+import { clonarFila } from '../pkg/db-safe.ts';
 import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 
 assertWriteAllowed();
@@ -137,17 +138,9 @@ const nuevoHash = () => {
 };
 
 /** Clona una fila cambiando lo que se le diga. Los objetos se serializan (las columnas JSON). */
-async function clonar(tabla: string, fila: any, cambios: Record<string, unknown>): Promise<number> {
-    const r: any = { ...fila, ...cambios };
-    if (!('id' in cambios)) delete r.id;
-    delete r.created_at; delete r.updated_at;
-    const cols = Object.keys(r);
-    const vals = cols.map((c) => (r[c] !== null && typeof r[c] === 'object') ? JSON.stringify(r[c]) : r[c]);
-    const res = await exec(
-        `INSERT INTO \`${tabla}\` (${cols.map((c) => '`' + c + '`').join(',')}, created_at, updated_at) ` +
-        `VALUES (${cols.map(() => '?').join(',')}, NOW(), NOW())`, vals);
-    return res.insertId;
-}
+// `clonar` vive en `pkg/db-safe.ts` como `clonarFila`: estaba escrito dos veces y las dos copias
+// diferían en si re-sellaban `created_at`/`updated_at` — una clonaba filas nacidas hace dos años.
+const clonar = clonarFila;
 
 // ── LIMPIEZA ────────────────────────────────────────────────────────────────────────────────────
 // Se borra POR ALCANCE —el comercio por slug, cada entidad por slug o por su id fijo— y no «todo lo

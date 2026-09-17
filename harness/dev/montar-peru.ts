@@ -19,6 +19,7 @@
 //
 // Limpieza total:  E2E_TARGET=local node dev/montar-peru.ts --clean
 import { query, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
+import { clonarFila } from '../pkg/db-safe.ts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
@@ -108,13 +109,9 @@ async function limpiar() {
     }
 }
 
-async function clonar(tabla: string, fila: any, cambios: Record<string, any>) {
-    const r: any = { ...fila, ...cambios };
-    if (!('id' in cambios)) delete r.id;
-    const cols = Object.keys(r);
-    const vals = cols.map(c => (r[c] !== null && typeof r[c] === 'object') ? JSON.stringify(r[c]) : r[c]);
-    await exec(`INSERT INTO \`${tabla}\` (${cols.map(c => '`' + c + '`').join(',')}) VALUES (${cols.map(() => '?').join(',')})`, vals);
-}
+// `clonar` vive en `pkg/db-safe.ts` como `clonarFila`: estaba escrito dos veces y las dos copias
+// diferían en si re-sellaban `created_at`/`updated_at` — una clonaba filas nacidas hace dos años.
+const clonar = clonarFila;
 
 await limpiar();
 if (CLEAN) { console.log('✓ limpieza hecha (206 y 207 borrados con su cableado)'); process.exit(0); }

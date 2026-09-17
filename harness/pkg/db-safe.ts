@@ -214,3 +214,41 @@ export async function actualizarFilas(
       const res = await exec(`UPDATE ${t} SET ${sets.join(', ')} WHERE ${cond}`, [...valores, ...params]);
       return { filas: res.affectedRows };
 }
+
+/**
+ * Clona una fila leída con `SELECT *`, aplicando cambios. Devuelve el id nuevo.
+ *
+ * Es lo que hacen los sembradores: leer una fila que YA funciona —una entidad, una sucursal, una regla—
+ * y meter una igual con otro nombre. Estaba escrito dos veces (`montar-comercio.ts` y `montar-peru.ts`)
+ * y las dos copias habían divergido en algo chico y real: una ponía `created_at`/`updated_at` en `NOW()`
+ * y la otra **copiaba los de la fila original**, así que la fila nueva nacía diciendo que se creó hace
+ * dos años. Acá se re-sellan siempre, y sólo si la fila original traía esas columnas.
+ *
+ * Y de paso hereda la validación de identificadores de `insertarFila`: las dos copias interpolaban el
+ * nombre de la tabla en el SQL sin mirarlo.
+ *
+ * ⚠ `id` se descarta salvo que venga en `cambios`: clonar conservando el id es chocar con el original.
+ */
+export async function clonarFila(
+      tabla: string,
+      fila: Record<string, any>,
+      cambios: Record<string, any> = {},
+): Promise<number> {
+      const r: Record<string, any> = { ...fila, ...cambios };
+      if (!('id' in cambios)) delete r.id;
+
+      // Se re-sellan sólo las que la fila original tenía: agregarlas a una tabla que no las declara
+      // sería un error de columna desconocida, y quitarlas de una que sí las exige, un NOT NULL.
+      for (const col of ['created_at', 'updated_at']) {
+            if (col in r) r[col] = crudo('NOW()');
+      }
+
+      // Un JSON leído de la base vuelve como objeto; si se manda así, el driver lo serializa como
+      // `[object Object]`.
+      for (const [k, v] of Object.entries(r)) {
+            if (v !== null && typeof v === 'object' && !('__sql' in v) && !(v instanceof Date)) r[k] = JSON.stringify(v);
+      }
+
+      const { insertId } = await insertarFila(tabla, r);
+      return insertId;
+}
