@@ -1326,6 +1326,12 @@ castigo pega sobre el número que también se usa para cobrar.
 
 ## Registro
 
+### 2026-09-17 · `develop` sale de la vía de entrega
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá: la medición de arriba, el estado y el PR **#1175**, que queda **abierto y sin destino**. Se dejó intacto el PR #65 de `infrastructure` (otro repo, otro flujo) y todos los nombres de task definition y hosts internos, que no son PRs.
+
 ### 2026-09-15
 
 **Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: «Estado del código — 14/8» y «Lo que falta — 14/8», dos fotos del estado que el estado del 20/8 ya había reemplazado. El estado quedó

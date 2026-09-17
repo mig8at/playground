@@ -441,6 +441,12 @@ LAMBDA=1` da **6 · 12 · 9 · 8**, y `CASOS='Motai' CERRAR=1` cierra en estado 
 
 ## Registro
 
+### 2026-09-17 · `develop` sale de la vía de entrega
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá: trece lugares, incluido el **orden de despliegue entre repos** (la migración de `legacy-backend` crea la columna que el admin lee) y la fila del controlador viejo en la tabla de dónde vive cada cosa.
+
 ### 2026-09-02 (cierre) · la validación de país pasa a ser una suite declarada
 
 Lo que hoy se comprobó tres veces con SQL a mano —país del cliente = del comercio, documento del

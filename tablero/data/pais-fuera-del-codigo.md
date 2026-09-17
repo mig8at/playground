@@ -1281,6 +1281,12 @@ conclusión sale al revés. Para consultas con varias columnas parecidas, armar 
 
 ## Registro
 
+### 2026-09-17 · `develop` sale de la vía de entrega
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá: las tres tablas de PRs por destino. #83 y #1191 quedan como «fuera de la vía» (ya mergeados); #80 queda **sin destino**.
+
 ### 2026-08-27
 
 **Tarde — probar BCP encontró un bloqueo de Perú que estaba vivo en `qa`.**

@@ -290,6 +290,12 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
 
 ## Registro
 
+### 2026-09-17 · el próximo paso ya no es mergear: es decidir a dónde va
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá pesa más que en las otras: **el próximo paso de esta tarea ERA mergear el PR #1127 contra `develop`**. Ya no. Queda **abierto y sin destino**, y el próximo paso pasó a ser **redefinir su base** —re-apuntarlo o rehacer la rama sobre `qa`—. Sigue siendo lo único que separa el arreglo de `main`, y sigue sin depender de código nuevo.
+
 ### 2026-09-15
 
 **Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: los dos cierres de jornada (15/8 y 18/8, 36 KB) que abrían el archivo antes que el caso y la causa raíz. El estado quedó

@@ -774,6 +774,14 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 
 ## Registro
 
+### 2026-09-17 · `develop` sale de la vía de entrega
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá: la tabla de los cuatro PRs pierde la columna `base`, la matriz de presencia pierde la columna `develop`, la tabla histórica dice «fuera de la vía» en vez del destino, y cuatro pendientes quedaron reencuadradas. Se corrigió de paso que #503 y #363 seguían declarados ABIERTOS cuando el propio archivo medía que se **cerraron el 14/9**.
+
+⚠ **Y una consecuencia del plan que hay que mirar ANTES de ejecutarlo:** poner las ramas al día desde `main` **destruye lo que sólo vive fuera de `main`** — los CINCO arreglos de junio (#582, #600, #661, #663, #665) que #997 no se llevó. **#665 es literalmente el arreglo del defecto que causó el revert de septiembre.** Esa lista se dejó más visible, no menos: rescatarlos es prerrequisito del refresh.
+
 ### 2026-09-16 (14) · CINCO comercios en paralelo en `qa`: los cinco a `/confirmation`
 
 > **MEDICIÓN · 2026-09-16** — barrido por el canal de la tienda, cinco comercios con **cinco entidades

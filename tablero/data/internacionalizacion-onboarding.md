@@ -1290,6 +1290,12 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
 ## Registro
 
+### 2026-09-17 · `develop` sale de la vía de entrega
+
+Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
+
+Acá: las dos tablas de ramas y el «por qué cada uno va a donde va». La corrección de rumbo del 24/8 —que ya decía que la rama de integración compartida no era el camino— se actualizó al plan de hoy. El PR #80 de `legacy-application` queda **sin base válida**: ese repo no tiene rama `qa`, así que su destino hay que redefinirlo.
+
 ### 2026-09-15
 
 **Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: nada: sus secciones fechadas son decisiones y mediciones que siguen valiendo. Sólo se le puso encabezado a la retoma y «Bitácora» pasó a llamarse «Registro». El estado quedó
