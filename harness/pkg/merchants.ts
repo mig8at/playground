@@ -178,3 +178,87 @@ export function avisoDeCupoSinSalida(
       }
       return lineas;
 }
+
+// ─── Resolver una SUCURSAL para una corrida ─────────────────────────────────────────────────────
+
+export interface SucursalResuelta { id: number; hash: string; com: string; allied: number }
+
+/**
+ * Qué sucursal se quiere cuando el comercio se nombró por slug o por nombre (con `#hash` no hay dónde
+ * elegir). No es un detalle: un comercio tiene muchas sucursales y la respuesta correcta depende del
+ * CANAL por el que se va a entrar.
+ *
+ * - `con-mas-entidades` — la de mostrador, la que más entidades tiene habilitadas. Es lo que quiere una
+ *   corrida que va a mirar el listado.
+ * - `con-tienda` — la que tiene credencial de ecommerce. Sin esto, una corrida del canal de tienda caía
+ *   en la de mostrador y moría en la entrada, porque ahí no hay checkout que valga.
+ */
+export type CriterioDeSucursal = 'con-mas-entidades' | 'con-tienda';
+
+/**
+ * LA resolución de sucursal para las corridas. Devuelve `null` en vez de tirar: quien la llama ya tiene
+ * un mensaje mejor que el que se podría dar acá.
+ *
+ * ⚠ HABÍA TRES RESOLUCIONES DISTINTAS, y no daban la misma sucursal. Dos copias de esto —una en
+ * `caso.ts` y otra en `caminar-wizard.ts`, y sólo la segunda sabía de `con-tienda`—, más
+ * `resolveMerchant` de acá arriba, que ordena por `status DESC, id` en vez de por cantidad de
+ * entidades. `resolveMerchant` se queda como está porque sirve a OTRA pregunta (el panel y el
+ * ecommerce quieren *un* comercio, tiran si no existe, y devuelven su slug); ésta sirve a las corridas.
+ * Si algún día hay que unificarlas, lo que hay que decidir primero es el ORDEN, que es lo que cambia la
+ * respuesta.
+ *
+ * ⚠ Y el orden de intento es `#hash` → slug EXACTO → nombre por subcadena, en ese orden. Antes era sólo
+ * nombre con `LIKE`: `pullman` andaba porque «Amoblando Pullman» lo contiene, y `viva-tu-credito` —el
+ * slug real— daba «no encontré el comercio». Una tanda de 40 sacada de la base por slug falló entera.
+ */
+export async function buscarSucursal(ref: string, criterio: CriterioDeSucursal = 'con-mas-entidades'): Promise<SucursalResuelta | null> {
+    const porHash = ref.startsWith('#');
+    const conTienda = criterio === 'con-tienda' && !porHash;
+    return one<SucursalResuelta>(
+        porHash
+            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
+            : conTienda
+            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id
+                 JOIN allied_ecommerce_credentials c ON c.allied_branch_id = b.id
+                WHERE x.slug = ? OR x.name LIKE ?
+                ORDER BY (x.slug = ?) DESC, b.id LIMIT 1`
+            : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
+                 JOIN allieds x ON x.id = b.allied_id
+                WHERE x.slug = ? OR x.name LIKE ?
+                ORDER BY (x.slug = ?) DESC,
+                         (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
+        porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref],
+    ).catch(() => null);
+}
+
+/**
+ * El tipo de documento que el comercio acepta, según el propio backend.
+ *
+ * ⚠ SE LE PREGUNTA AL BACKEND Y NO A LA BASE porque el payload ya viene recortado por el catálogo del
+ * país: es la misma lista que ve el cliente en el formulario. Sin esto, un comercio dominicano moría
+ * con «el tipo de documento no está habilitado en este punto de venta».
+ *
+ * Si el backend no publica la lista, queda `CC` — que es lo que había antes de que la lista existiera,
+ * así que no cambia el comportamiento de los comercios colombianos.
+ *
+ * La caché es por proceso y estaba DUPLICADA junto con la función, o sea dos cachés para el mismo dato.
+ */
+const tiposPorComercio = new Map<string, string>();
+
+export async function tipoDeDocumentoDelComercio(apiBase: string, hash: string): Promise<string> {
+    const cacheado = tiposPorComercio.get(hash);
+    if (cacheado) return cacheado;
+
+    let tipo = 'CC';
+    try {
+        const r = await fetch(`${apiBase}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
+        const j = await r.json() as { data?: { allowed_document_types?: string[] } };
+        const lista = j?.data?.allowed_document_types;
+        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
+    } catch { /* sin payload, queda 'CC' */ }
+
+    tiposPorComercio.set(hash, tipo);
+    return tipo;
+}

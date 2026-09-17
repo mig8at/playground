@@ -52,6 +52,7 @@ const { one, exec, close, TARGET, lineasDeEscrituras, volcarEscrituras } = await
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config, avisoDocGen, avisoLogsDelBackend } = await import('../pkg/config.ts');
 const { telefonoDeLaSucursal, telefonoSintetico } = await import('../pkg/telefonos.ts');
+const { buscarSucursal: buscarSucursalEn, tipoDeDocumentoDelComercio: tipoDeDocumento } = await import('../pkg/merchants.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
 const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
@@ -146,43 +147,11 @@ const telefonoDe = (i: number) => telefonoSintetico('COL', i, BASE_DOC);
  */
 const telefonoDelComercio = (hash: string, i: number) => telefonoDeLaSucursal(hash, Number(`3${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`));
 
-const tiposPorComercio = new Map<string, string>();
-async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
-    const cacheado = tiposPorComercio.get(hash);
-    if (cacheado) return cacheado;
-    let tipo = 'CC';   // si el backend no publica la lista, no se cambia el comportamiento
-    try {
-        const r = await fetch(`${config.mockUrl}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
-        const j = await r.json() as { data?: { allowed_document_types?: string[] } };
-        const lista = j?.data?.allowed_document_types;
-        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
-    } catch { /* sin payload, queda 'CC' */ }
-    tiposPorComercio.set(hash, tipo);
-    return tipo;
-}
+const tipoDeDocumentoDelComercio = (hash: string) => tipoDeDocumento(config.mockUrl, hash);
 
-async function buscarSucursal(ref: string) {
-    const porHash = ref.startsWith('#');
-    // Canal ecommerce por NOMBRE: la sucursal tiene que tener credencial de tienda o no hay checkout.
-    // Sin esta rama caía en la sucursal con más entidades —la de mostrador— y el caso moría en la entrada.
-    const conTienda = FLOW === 'ecommerce' && !porHash;
-    return one<{ id: number; hash: string; com: string; allied: number }>(
-        porHash
-            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
-            : conTienda
-            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id
-                 JOIN allied_ecommerce_credentials c ON c.allied_branch_id = b.id
-                WHERE x.slug = ? OR x.name LIKE ?
-                ORDER BY (x.slug = ?) DESC, b.id LIMIT 1`
-            : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id
-                WHERE x.slug = ? OR x.name LIKE ?
-                ORDER BY (x.slug = ?) DESC,
-                         (SELECT COUNT(*) FROM lenders_by_allied_branches l WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
-        porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref]).catch(() => null);
-}
+// `buscarSucursal` y `tipoDeDocumentoDelComercio` viven en `pkg/merchants.ts`: estaban duplicadas
+// con `caso.ts` y ya habían divergido (sólo esta copia sabía de `con-tienda`).
+const buscarSucursal = (ref: string) => buscarSucursalEn(ref, FLOW === 'ecommerce' ? 'con-tienda' : 'con-mas-entidades');
 
 // El bypass de OTP fuera de local vive en `pkg/otp-bypass.ts`: lo usan los dos runners y estaba
 // duplicado en los dos, con dos versiones del mismo comentario. Ver ahí por qué la suma es atómica y

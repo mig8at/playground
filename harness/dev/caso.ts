@@ -97,6 +97,7 @@ const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 const { forenseAlCerrar } = await import('../pkg/loki.ts');
 const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
 const { telefonoSintetico, telefonoDelCodeudor } = await import('../pkg/telefonos.ts');
+const { buscarSucursal, tipoDeDocumentoDelComercio: tipoDeDocumento } = await import('../pkg/merchants.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -618,20 +619,7 @@ async function conciliarConLaBase(lb: LineaBase, okSegunRunner: number): Promise
  *
  * Entre varias sucursales del mismo comercio gana la que más entidades tiene: es la que más flujo cubre.
  */
-async function buscarSucursal(ref: string) {
-    const porHash = ref.startsWith('#');
-    return one<{ id: number; hash: string; com: string; allied: number }>(
-        porHash
-            ? `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id WHERE b.hash = ? LIMIT 1`
-            : `SELECT b.id, b.hash, x.name AS com, x.id AS allied FROM allied_branches b
-                 JOIN allieds x ON x.id = b.allied_id
-                WHERE x.slug = ? OR x.name LIKE ?
-                ORDER BY (x.slug = ?) DESC,
-                         (SELECT COUNT(*) FROM lenders_by_allied_branches l
-                           WHERE l.allied_branch_id = b.id) DESC LIMIT 1`,
-        porHash ? [ref.slice(1)] : [ref, `%${ref}%`, ref]).catch(() => null);
-}
+// `buscarSucursal` vive en `pkg/merchants.ts` — ver ahí las TRES resoluciones que había.
 
 /** El teléfono de un caso. DERIVADO, como la cédula — no sale de una lista.
  *
@@ -779,22 +767,7 @@ async function dictar(doc: string, central: string, valor: unknown): Promise<boo
  *
  * Se cachea por hash porque un barrido corre el mismo comercio muchas veces.
  */
-const tiposPorComercio = new Map<string, string>();
-async function tipoDeDocumentoDelComercio(hash: string): Promise<string> {
-    const cacheado = tiposPorComercio.get(hash);
-    if (cacheado) return cacheado;
-
-    let tipo = 'CC';   // lo que había: si el backend no publica la lista, no se cambia el comportamiento
-    try {
-        const r = await fetch(`${API}/api/loans/allied/${hash}`, { signal: AbortSignal.timeout(20_000) });
-        const j = await r.json() as { data?: { allowed_document_types?: string[] } };
-        const lista = j?.data?.allowed_document_types;
-        if (Array.isArray(lista) && lista.length > 0 && typeof lista[0] === 'string') tipo = lista[0];
-    } catch { /* sin payload, queda 'CC' */ }
-
-    tiposPorComercio.set(hash, tipo);
-    return tipo;
-}
+const tipoDeDocumentoDelComercio = (hash: string) => tipoDeDocumento(API, hash);
 
 /** EL recorrido: register → otp-validate → personal-info. No usa `synthFill` — justamente porque
  *  synthFill escribe la fila de `risk_central_user_data` y entonces el backend la reusa (caché de un
