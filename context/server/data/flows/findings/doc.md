@@ -380,7 +380,7 @@ distinto según con qué pregunta llegues.
 | F-220 | Falta una variable de entorno del proveedor de identidad y el resultado es una PANTALLA MUERTA: el backend devuelve una url a medias, el contrato la acepta y el front la reinterpreta como una ruta del flujo. Sólo local | CARACTERIZADO |
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
-| F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ABIERTO |
+| F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera | ARREGLADO ⏳ PENDIENTE DE MERGE |
 
 ---
@@ -5390,14 +5390,27 @@ es si la fila del comercio existe, no qué clase de entidad es.
 promesa **por entidad** rechazaba y rompía el stream; acá la llamada entera devuelve 500 y no llega a
 haber promesas. El texto del runner nombra el desenlace, no la causa.
 
-**Arreglo (no aplicado).** Dos niveles, y hacen falta los dos:
+**Arreglo.** Dos niveles, y hacen falta los dos:
 
-1. **El código no puede asumirlo**: `$lender_sort?->sort ?? <default>` — una entidad sin orden definido
-   tiene que quedar al final del grupo, no tumbar la pantalla. Que una fila de configuración falte es un
-   estado posible del sistema, no un imposible.
-2. **La configuración tampoco debería permitirlo**: habilitar una entidad en una sucursal sin que exista
-   su fila en el comercio deja al comercio en un estado que el producto no sabe servir. Eso se ve en el
-   admin, y hoy nada lo impide.
+1. ✅ **El código no puede asumirlo** — `legacy-backend#1427`, ⏳ PENDIENTE DE MERGE. `$lender_sort?->sort
+   ?? PHP_INT_MAX`: la entidad sin orden queda **última de su grupo**. Va al final y no al principio a
+   propósito, porque el `usort` es ascendente y un `null` —que comparado con un entero se lee como
+   menor— la pondría **primera**: la que nadie configuró pasaría al frente de las que el comercio sí
+   ordenó. Medido: `PHP_INT_MAX` da `3,1,2` y `null` da `2,3,1`.
+
+   ⚠ **Y deja rastro, que es la mitad que el `?->` no resuelve.** Ahora que no revienta, sin un aviso la
+   falta de configuración quedaría **invisible**: la entidad saldría última y nadie sabría por qué. El
+   aviso va por el tracer —para que traiga el `trace_id` y se junte con el resto del listado— y nombra
+   comercio, entidad y motivo. Así es como un arreglo de robustez se convierte en un problema silencioso
+   si se hace a medias.
+
+   Comprobado de punta a punta en local con el mismo estado de datos que rompe en `qa` (Vtex con Welli y
+   Credifamilia huérfanas): antes 500, ahora **`HTTP 200 · 2 entidades devueltas`**. Y 7 pruebas sin base.
+
+2. ⏳ **La configuración tampoco debería permitirlo** — ABIERTO. Habilitar una entidad en una sucursal
+   sin que exista su fila en el comercio deja al comercio en un estado que el producto no sabe servir.
+   Eso se hace desde el admin y hoy nada lo impide. **Arreglar sólo los datos no alcanza**: limpiar los
+   21 pares de producción deja el mismo 500 esperando al próximo que los cree.
 
 ### F-224 · El panel admin protege el MENÚ, no la RUTA: un comercio veía el score de Datacrédito de sus clientes
 
