@@ -73,6 +73,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el listado da 500 / *Error al obtener las opciones de financiamiento*»** | **F-223** |
 | **«ve algo que su rol no debería» · «tiene un permiso de más»** | **F-224** |
 | **«oculté el dato en pantalla, ¿alcanza?»** | **F-224** |
+| **«desplegué el permiso y al que SÍ debe entrar le da 403»** | **F-224** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -381,7 +382,7 @@ distinto según con qué pregunta llegues.
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
-| F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera | ARREGLADO ⏳ PENDIENTE DE MERGE · PR #170 → develop |
+| F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
 
 ---
 
@@ -5461,6 +5462,21 @@ haber promesas. El texto del runner nombra el desenlace, no la causa.
   el 55 estuviera huérfano se leía como «módulo restringido» y era exactamente lo contrario — la señal
   de que **nadie lo estaba verificando**. Un `can:` que nadie satisface tampoco cierra: rompe. Los dos
   cambios van juntos o ninguno.
-- **Estado:** arreglado, en revisión — `Creditop-SAS/legacy-application#170` contra `develop`.
-  ⚠ **Vivo en producción** hasta que mergee: `develop` no es prod, y hoy diverge de `main` en 82
-  archivos (34 commits de un lado, 7 del otro).
+- **⚠ Y el arreglo rompió en dev, por algo que el arreglo no controla: el deploy NO corre las
+  migraciones.** `main-dev.yaml` despliega sólo código —ni `migrate` ni `artisan` en ningún paso—, así
+  que el `can:` llegó a dev **sin** la fila que reparte el permiso: un Administrador real
+  (`user_profile_id` 2, con su fila en `model_has_roles` y `guard_name` `web` en los dos lados) quedó
+  con 403. Medido el 2026-09-17: en dev faltan **4** migraciones del repo. Reproducido en local —
+  revirtiendo la migración el rol 2 queda BLOQUEADO; volviéndola a correr, PUEDE.
+  **La lección: un `can:` nuevo es un cambio de DATOS disfrazado de cambio de código.** Poner la
+  cerradura sin repartir la llave no protege de más: deja afuera al dueño. Y si el pipeline no migra,
+  el PR no es autosuficiente por más verde que esté. Antes de mergear un `can:` nuevo, preguntá **quién
+  corre la migración en cada ambiente**.
+- **⚠ Y un `INSERT` a mano no invalida la caché de permisos de Spatie** (24 h, `CACHE_DRIVER` por
+  defecto `file` → una copia por contenedor, en tmpfs): sólo se invalida cuando el cambio pasa por
+  Spatie (`forgetCachedPermissions()`). Si la fila está en la base y el usuario sigue con 403, es la
+  caché — `php artisan permission:cache-reset` en el servicio, o reiniciarlo.
+- **Estado:** mergeado en `develop` (`Creditop-SAS/legacy-application#170`, 2026-09-17 20:32 UTC) y
+  desplegado. ⚠ **Vivo en producción**: `develop` no es prod y hoy diverge de `main` en 82 archivos (34
+  commits de un lado, 7 del otro). Y en prod el permiso **tampoco lo tiene nadie**, así que el día que
+  llegue hay que asegurar que la migración corra o los 39 Administradores quedan afuera.

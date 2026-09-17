@@ -11,19 +11,23 @@ jira_title: "Restringir el perfil de riesgo del cliente al rol Administrador"
 
 ## Si retomás esto sin contexto, empezá acá
 
-**Estado al 2026-09-17: PR abierto contra `develop`, VIVO en producción hasta que mergee.**
-`Creditop-SAS/legacy-application#170` — tres commits rebaseados sobre `develop`, 6 archivos, +130/-5.
+**Estado al 2026-09-17: MERGEADO en `develop` (`Creditop-SAS/legacy-application#170`, 20:32 UTC) y
+desplegado. ⚠ Y en dev dejó al Administrador afuera, porque el deploy NO corre migraciones.**
 
 Un usuario **Superadmin comercio** (rol 6) del comercio 26 abría *Perfilamiento Usuarios*, hacía clic
 en el **ojo** de una fila y veía el **score de Datacrédito** del cliente, más Ágil Data, Mareigua,
 TusDatos, Sistecrédito, su capacidad de endeudamiento y su historial en **todos los comercios** por los
 que pasó — no sólo el suyo. Ese módulo es sólo para el Administrador.
 
-**El próximo paso es:** que alguien revise `#170`. Ojo con el camino a producción: la rama salió de
-`main` y el PR va contra `develop`, que hoy tiene **34 commits que `main` no tiene** y le faltan **7**
-de `main` (82 archivos de diferencia, medido el 2026-09-17). Mergear en `develop` NO lo pone en prod:
-falta el camino `develop` → … → `main`, y mientras tanto el agujero sigue abierto para los 790
-usuarios.
+**El próximo paso es:** que Duncan vuelva a probar en dev (el permiso ya está asignado allá desde
+que alguien lo puso a mano; si sigue bloqueado es la caché de Spatie, 24 h y driver `file` por
+contenedor → `php artisan permission:cache-reset` o reiniciar el servicio).
+
+⚠ **Y antes de que esto llegue a producción hay que asegurar que la migración corra**: en prod el
+permiso tampoco lo tiene nadie, así que sin ella pasa lo mismo pero con los 39 Administradores reales.
+Ojo también con el camino: `develop` tiene 34 commits que `main` no tiene y le faltan 7 de `main` (82
+archivos de diferencia), así que mergear en `develop` NO lo pone en prod — el agujero original sigue
+abierto para los 790 usuarios mientras tanto.
 
 ## Cómo se atacó
 
@@ -111,6 +115,27 @@ lo pone el framework.
 Queda **F-224** en findings con la lección que generaliza —un permiso en `navigation/vertical/*.js` no
 es un control de acceso, y a la ruta se llega por cualquier link— y la pregunta abierta de las otras
 114 rutas de `admin.php` sin guard, que es trabajo aparte.
+
+**Y a la tarde, el arreglo rompió en dev — por una razón que no estaba en el radar.** Miguel desplegó
+`develop` y Duncan (`duncan.estrada@creditop.com`, rol 2) **no pudo ver** el Datacrédito. La hipótesis
+suya fue «falta correr la migración», y la medición la confirmó por un camino distinto al esperado:
+
+- en dev el permiso **sí** figura asignado al Administrador, con `guard_name` `web` en los dos lados y
+  Duncan con su fila en `model_has_roles` — o sea los datos estaban bien y aun así no entraba;
+- pero **`main-dev.yaml` NO corre migraciones**: ni `migrate`, ni `artisan`, nada. Sólo despliega
+  código. Lo confirma la base: en dev faltan **4** migraciones del repo, y la mía era una;
+- el deploy de las 20:32 puso la **cerradura** (`can:`) sin repartir la **llave** (el permiso). De ahí
+  el bloqueo. Alguien asignó el permiso a mano después, entre la prueba de Duncan y la medición.
+
+Reproducido en local para no suponer: revirtiendo la migración, el rol 2 queda **BLOQUEADO**;
+volviéndola a correr, **PUEDE**, y los roles 6 y 7 siguen bloqueados. El `down()` funciona.
+
+⚠ **Un `INSERT` a mano no invalida la caché de permisos de Spatie** (24 h, driver `file` → por
+contenedor): sólo se invalida cuando el cambio pasa por Spatie. Si Duncan sigue bloqueado con el
+permiso ya en la base, es eso.
+
+**No se corrió nada contra dev desde la máquina local, a propósito:** aplicar migraciones a mano desde
+un contenedor local contra la base compartida es la práctica que vació dev+staging en CORE-431.
 
 ## Tarea (publicable)
 
