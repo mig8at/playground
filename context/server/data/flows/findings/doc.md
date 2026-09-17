@@ -71,6 +71,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
 | **«fallaron TODOS los casos en la misma pantalla, debe ser el ambiente»** | **F-222** |
 | **«el listado da 500 / *Error al obtener las opciones de financiamiento*»** | **F-223** |
+| **«ve algo que su rol no debería» · «tiene un permiso de más»** | **F-224** |
+| **«oculté el dato en pantalla, ¿alcanza?»** | **F-224** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -379,6 +381,7 @@ distinto según con qué pregunta llegues.
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ABIERTO |
+| F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera | ARREGLADO ⏳ PENDIENTE DE MERGE |
 
 ---
 
@@ -5395,3 +5398,55 @@ haber promesas. El texto del runner nombra el desenlace, no la causa.
 2. **La configuración tampoco debería permitirlo**: habilitar una entidad en una sucursal sin que exista
    su fila en el comercio deja al comercio en un estado que el producto no sabe servir. Eso se ve en el
    admin, y hoy nada lo impide.
+
+### F-224 · El panel admin protege el MENÚ, no la RUTA: un comercio veía el score de Datacrédito de sus clientes
+
+- **Síntoma:** un usuario con perfil **Superadmin comercio** (rol 6) abre *Perfilamiento Usuarios*,
+  hace clic en el **ojo** de una fila y cae en una pantalla con el **score de Datacrédito** del cliente,
+  Ágil Data, Mareigua, TusDatos, Sistecrédito, su capacidad de endeudamiento y su historial en **todos
+  los comercios** por los que pasó. Se lee como «tiene un permiso de más», y por ahí no es: **no tiene
+  ninguno de los dos permisos del módulo**.
+- **Causa raíz:** la autorización del panel viejo vive en el **menú**, no en el servidor. El ítem
+  «Validación de usuario» pide `view user validation module`, pero `routes/admin.php` declaraba la ruta
+  **sin `can:`** y `ProfilingReviewController@userValidation` recibe un `Request` pelado, sin
+  `authorize()`. Al módulo no se llega por el menú: el **ojo** del listado se renderiza con
+  `v-if="context === 'admin'"` — **por dominio, no por permiso** — y Superadmin comercio (6) y Admin
+  comercio (7) son gente del comercio que **entra por el panel `admin.`** (Fortify deja pasar a todos
+  menos Cliente y Comercial).
+- **El control que sí existía falla ABIERTO, y es del lado del cliente.** El Vue tiene un
+  `showNotBelongsMessage` que oculta la pantalla si `user_profile_id !== 2 && is_same_allied === false`.
+  Pero `is_same_allied` es *«¿este cliente tiene solicitudes en MI comercio?»*, y **todo lo que sale en
+  su propio listado las tiene** → `true` → se muestra entero. Y aunque ocultara: es un **`v-if` de
+  template**. El servidor mandaba el payload igual, con `$userData['datacredito']` = el reporte
+  **descifrado completo**, que además esquiva el `$hidden` del modelo `RiskCentralUserData`. Ocultar en
+  el navegador no saca el dato del JSON de Inertia.
+- **Evidencia (2026-09-17, medida en prod):** el permiso `view user validation module` (id 55) **no lo
+  tiene NINGÚN rol** — cero filas en `role_has_permissions`—, así que el ítem de menú era invisible para
+  todos, **incluido el Administrador**, mientras la ruta quedaba abierta. `view risk centrals module`
+  (31) lo tiene sólo Administrador. De las **130 declaraciones de ruta de `admin.php`, sólo 16 llevaban
+  `can:`**. Usuarios activos que entran por `admin.`: **829, de los cuales 790 no son Administrador**
+  (483 Superadmin comercio, 251 Admin comercio, más Entidad/Contabilidad/Mesa/etc.). Los 4.035
+  Comercial **no** estaban expuestos: entran por `aliados.`, donde el mismo Vue recibe
+  `context: 'customer'` y el ojo no se renderiza.
+- **Y había un segundo agujero, peor, en el mismo módulo:** `ExperianRequest::authorize()` devolvía
+  **`true` literal**, y `/centrales-de-riesgo/datacredito` **no lee caché**: llama a
+  `Experian::creditScore()`, o sea dispara una consulta **nueva y facturable** al buró sobre cualquier
+  cédula, imputada al comercio «Creditop». Los otros **nueve** Form Requests del módulo ya exigían
+  `view risk centrals module`; ése era el único que no — o sea una **omisión aislada**, no un patrón.
+- **Arreglo (2026-09-17):** `can:view user validation module` en la ruta; el `authorize()` de Experian
+  alineado con sus nueve hermanos; el ojo **y su columna** condicionados al mismo permiso que exige la
+  ruta (si no, el botón queda y termina en 403); y una migración que le da el permiso 55 al rol
+  Administrador — **sin ella, cerrar la ruta dejaba el módulo cerrado también para quien debe entrar**.
+  Más `Log::create` en los dos endpoints: no había ningún rastro de quién consultaba datos de buró.
+- **La lección que generaliza:** en este panel, **un permiso en `navigation/vertical/*.js` no es un
+  control de acceso** — es una decisión de qué dibujar. El servidor sólo lo exige si la ruta lleva
+  `can:` o el Form Request tiene `authorize()`, y 114 de 130 rutas no tenían ninguno de los dos. Y el
+  corolario que costó el hallazgo: **al menú se llega por el menú, pero a la ruta se llega por cualquier
+  link** — acá, por un botón de otra pantalla que sólo miraba el dominio. Antes de dar por protegido un
+  módulo del admin, buscá quién más apunta a su `route()`.
+- **Y un permiso que no tiene nadie no es un permiso cerrado: es un permiso que no se está usando.** Que
+  el 55 estuviera huérfano se leía como «módulo restringido» y era exactamente lo contrario — la señal
+  de que **nadie lo estaba verificando**. Un `can:` que nadie satisface tampoco cierra: rompe. Los dos
+  cambios van juntos o ninguno.
+- **Estado:** cerrado en la rama `fix/perfil-de-riesgo-solo-para-administradores` (3 commits, sin PR
+  todavía). ⚠ **Vivo en producción** hasta que mergee.
