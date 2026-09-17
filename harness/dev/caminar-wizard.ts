@@ -798,7 +798,16 @@ const aviso = avisoDocGen(TARGET);
 if (aviso) console.log(`  ${aviso}\n`);
 
 let bypassOriginal: string | null = null;
-if (flag('cerrar') && TARGET !== 'local') {
+// ⚠ NO depende de `--cerrar`, y que lo hiciera costó una tarde. El OTP está en la pantalla 3: lo
+// cruzan TODAS las corridas, también la corta que se detiene en el listado. Con el bypass atado a
+// `--cerrar`, esa corrida moría en el OTP con «Ocurrió un error inesperado» —el mensaje genérico del
+// front— y la causa real (el teléfono no estaba en `qa_otp_bypass_phones`, así que el proveedor
+// validaba de verdad y devolvía CODE_INVALID) sólo se veía en los logs del backend. Peor: como la
+// corrida CON `--cerrar` sí pasaba, el patrón parecía del comercio o de la entidad, y mandaba a
+// buscar donde no era.
+//
+// `local` sigue afuera a propósito: ahí el driver de OTP es falso y no mira el teléfono.
+if (TARGET !== 'local') {
     // Los teléfonos se derivan del PAÍS de cada comercio, así que hay que resolver las sucursales
     // ANTES de poder registrarlos en el bypass. Un comercio que no resuelva cae a la forma colombiana:
     // ese caso va a fallar solo, con su propio mensaje, y no por culpa del bypass.
