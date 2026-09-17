@@ -32,7 +32,6 @@ merchants 215 app/Models/Allied.php:159                                        #
 onboarding 193 Modules/Onboarding/App/Services/CommerceService.php:127-130     # `allied_ecommerce_credentials` es una tabla; acá se decide por `isCommerceEcommerce`
 
 # ── el símbolo está en el archivo, pero fuera de la ventana: lo usa un helper o una inyección ──
-application 127 app/Services/lenders/LenderRetrievalService.php:73             # `getProfilingData` es otra cita de la misma frase
 bancolombia 17 app/Actions/Lenders/BancolombiaBnpl.php:213                     # es el ÚNICO lugar de retrieveQuota que toca la clave
 merchants 31 app/Http/Controllers/Admin/AlliedLenderController.php:239         # el nombre de la migración vive en legacy-backend, no acá
 merchants 58 app/Http/Controllers/Admin/AlliedAlliedBranchController.php:183   # `LendersByAlliedBranch::…->delete()`; la tabla se nombra por el modelo
@@ -53,3 +52,8 @@ frontend-monorepo 14 utils/auth/session.server.ts:5                            #
 
 # ── revisadas el 2026-09-16, nodo `findings` ──
 findings 998 Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:1475 # `resolveFrontendBaseUrl` SÍ está en :1475; `FRONTEND_URL_DEV` es la frase siguiente
+
+# ── revisadas el 2026-09-17, nodo `application` ──
+application 20 app/Services/lenders/LenderRetrievalService.php:557-562 # el bloque del parche SÍ está ahí; `corbeta_allieds` es la frase siguiente
+application 47 app/Http/Controllers/Customer/SsoCognitoController.php:74 # `:74` es el `hasRole('Comercial')`; `new_screens` es el destino, citado aparte
+application 124 app/Http/Controllers/Admin/AlliedModulesController.php:65 # `status_per_profiles` es una TABLA, no aparece en el controlador
