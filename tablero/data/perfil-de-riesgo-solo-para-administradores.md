@@ -85,6 +85,30 @@ esquiva el `$hidden` del modelo `RiskCentralUserData`.
 > Esta tarea cierra las dos que motivaron el reporte; el barrido del resto es trabajo aparte y
 > probablemente más grande. Ver **F-224**.
 
+## Registro
+
+### 2026-09-17
+
+**Reportado, medido y arreglado en la rama; sigue vivo en prod.** Miguel llegó con dos capturas: un
+Superadmin comercio del comercio 26 entrando por el ojo de *Perfilamiento Usuarios* a la ficha de
+riesgo de un cliente. La hipótesis inicial —«tiene un permiso de más»— resultó al revés: **no tiene
+ninguno de los dos**, y el permiso del módulo no lo tenía **ningún** rol. La autorización del panel
+vive en el menú, no en el servidor, y al ojo se llegaba por dominio.
+
+Tres commits en `fix/perfil-de-riesgo-solo-para-administradores`, uno por concern: el `authorize()` de
+Experian (que además dejaba disparar consultas facturables al buró), el cierre de `validacion-usuario`
+(migración + `can:` + el ojo y su columna), y el rastro de acceso que no existía.
+
+Verificado corriendo: `route:list -v` muestra el middleware registrado, y contra la base local —que
+reproducía el estado de prod, con el permiso 55 huérfano— el rol 2 pasa los dos gates y los roles 5,
+6, 7 y 8 quedan bloqueados en ambos. El lint del Vue da exactamente lo mismo que `main`. **No** se
+probó el 403 con sesión real: están las dos mitades (middleware registrado + gate en `false`) y el 403
+lo pone el framework.
+
+Queda **F-224** en findings con la lección que generaliza —un permiso en `navigation/vertical/*.js` no
+es un control de acceso, y a la ruta se llega por cualquier link— y la pregunta abierta de las otras
+114 rutas de `admin.php` sin guard, que es trabajo aparte.
+
 ## Tarea (publicable)
 
 ## En una línea
