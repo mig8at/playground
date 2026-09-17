@@ -96,6 +96,7 @@ const { appKey } = await import('../pkg/db.ts');
 const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
 const { forenseAlCerrar } = await import('../pkg/loki.ts');
 const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
+const { telefonoSintetico, telefonoDelCodeudor } = await import('../pkg/telefonos.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -393,11 +394,8 @@ const flag = (n: string) => process.argv.includes(`--${n}`) || implicitos.has(n)
 // Base 313 + 7 dígitos. El índice del caso va al final para que dos casos NUNCA compartan usuario;
 // se imprime en el reporte porque es lo que hace falta para ir a mirar la solicitud después.
 /** La forma del celular de cada país donde se opera. */
-const FORMA_DEL_CELULAR: Record<string, { prefijo: string; largo: number }> = {
-    COL: { prefijo: '3', largo: 10 },
-    DOM: { prefijo: '809', largo: 10 },
-    PER: { prefijo: '9', largo: 9 },
-};
+// `FORMA_DEL_CELULAR` vive en `pkg/telefonos.ts`: la compartían este runner y `telefonoDeLaSucursal`,
+// cada uno con media lección. Ver el encabezado de ese archivo.
 
 
 /** Lo que un caso DECLARA que debería pasar. Sin esto el runner sólo narra; con esto contesta
@@ -664,22 +662,9 @@ async function buscarSucursal(ref: string) {
  */
 /** Los dos últimos dígitos son el índice del caso: es lo que garantiza uno distinto por caso, que es
  *  la condición del paralelo. El resto se rellena con la base de la corrida, recortada al largo. */
-const telefonoDe = (i: number, iso = 'COL'): string => {
-    const f = FORMA_DEL_CELULAR[iso] ?? FORMA_DEL_CELULAR.COL;
-    const indice = String(i % 100).padStart(2, '0');
-    const relleno = f.largo - f.prefijo.length - indice.length;
-    return f.prefijo + String(BASE_DOC).slice(-relleno) + indice;
-};
+const telefonoDe = (i: number, iso = 'COL'): string => telefonoSintetico(iso, i, BASE_DOC);
 
-/** El teléfono del CODEUDOR, derivado del titular: distinto y reproducible. Vive acá y no dentro de
- *  `resolverCodeudor` porque hacen falta DOS cosas con él y en momentos distintos —registrarlo en el
- *  bypass de OTP antes de arrancar la tanda, y usarlo al unir al codeudor—, y dos derivaciones que
- *  tienen que coincidir son una que en algún momento no coincide. Es justo lo que pasaba: la lista de
- *  bypass sólo llevaba los teléfonos de los TITULARES, así que el OTP del codeudor no estaba
- *  bypasseado, su `otp-validate` no devolvía solicitud, y el runner lo reportaba como «el codeudor
- *  abrió otra solicitud (—) en vez de unirse» — que manda a buscar un problema de vínculo donde
- *  había uno de OTP. Medido contra qa el 2026-09-02 con Rent to Own (#205). */
-const telefonoDelCodeudor = (telTitular: string): string => `${telTitular.slice(0, -2)}99`;
+// `telefonoDelCodeudor` vive en `pkg/telefonos.ts`, con el porqué de que esté separado.
 
 /** El ISO-3 del país del comercio, del mismo payload del que ya sale el tipo de documento. */
 const isoPorComercio = new Map<string, string>();

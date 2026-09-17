@@ -51,7 +51,7 @@ const { SesionFront, PROHIBIDAS } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, lineasDeEscrituras, volcarEscrituras } = await import('../pkg/db.ts');
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config, avisoDocGen, avisoLogsDelBackend } = await import('../pkg/config.ts');
-const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
+const { telefonoDeLaSucursal, telefonoSintetico } = await import('../pkg/telefonos.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
 const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
@@ -121,8 +121,15 @@ function parsearCasos(): Caso[] {
 // ─── derivados por caso (mismo criterio que caso.ts: nunca dos casos con el mismo usuario) ──────
 const BASE_DOC = 1_090_000_000 + ((Date.now() / 100) % 9_000_000 | 0);
 const cedulaDe = (i: number) => String(BASE_DOC + i);
-/** 32 + 8 dígitos: un prefijo distinto del de caso.ts (313…), para no chocar con una tanda suya en curso. */
-const telefonoDe = (i: number) => `32${String(BASE_DOC).slice(-6)}${String(i % 100).padStart(2, '0')}`;
+/** El de respaldo, para cuando el comercio NO resuelve y no se le puede preguntar el país.
+ *
+ * ⚠ ACÁ ESTABA QUEMADA LA FORMA COLOMBIANA (`32` + 8 dígitos), y era el agujero que dejaba abierto el
+ * arreglo de más abajo: `telefonoDelComercio` sí preguntaba el país, pero cuando fallaba se caía JUSTO
+ * a este literal — o sea que un comercio de otro país que tardara en resolver terminaba con un móvil
+ * colombiano y moría en el primer paso, con un error que no habla de teléfonos. Ahora el respaldo sale
+ * de la misma tabla, así que lo peor que pasa es que use el país por defecto y no una forma inventada.
+ */
+const telefonoDe = (i: number) => telefonoSintetico('COL', i, BASE_DOC);
 
 /**
  * ⚠ EL TELÉFONO Y EL DOCUMENTO SALEN DEL COMERCIO, no de acá.

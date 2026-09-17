@@ -34,7 +34,7 @@ export {};
 
 const { SesionFront } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET } = await import('../pkg/db.ts');
-const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
+const { telefonoDeLaSucursal } = await import('../pkg/telefonos.ts');
 const { config } = await import('../pkg/config.ts');
 
 const arg = (n: string, d = ''): string => {

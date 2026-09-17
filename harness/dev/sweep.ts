@@ -42,7 +42,7 @@ process.env.CFE_TARGET ||= 'local';
    2026-09-09: con el import estático `TARGET` es `dev` y el host la RDS; con este orden es `local` y
    127.0.0.1. Por eso los imports de `db`/`inject` de más abajo ya eran dinámicos — a este le faltaba.
    Si lo «ordenás» subiéndolo, vuelve el defecto y no falla: cambia de base en silencio. */
-const { telefonoDeLaSucursal } = await import('../pkg/merchants.ts');
+const { telefonoDeLaSucursal } = await import('../pkg/telefonos.ts');
 const { one, exec, query, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 // Misma capa de aserción que el camino VISUAL (dev/guided.spec.ts). Que "pasó" signifique lo mismo en
