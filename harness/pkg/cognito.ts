@@ -226,7 +226,15 @@ export interface SaludDeLaSesion {
     sirve: boolean;
     /** Minutos que le quedan a la que vence primero, o `null` si no se pudo saber. */
     minutos: number | null;
-    /** `true` si el refresh token vive: la sesión se puede recuperar sin volver a tipear la clave. */
+    /**
+     * `true` si la cookie del refresh token NO venció.
+     *
+     * ⚠ NO PROMETE QUE SE PUEDA RENOVAR, y la diferencia costó una hipótesis. La fecha de la cookie y
+     * la validez del token son cosas distintas: el proveedor puede haberlo revocado o rotado y la
+     * cookie sigue diciendo 30 días. Medido el 2026-09-17 contra qa — con `_rt` «vivo» por un mes, el
+     * wizard intentó renovar, falló, y contestó `Set-Cookie: _at=; _rt=; Max-Age=0`, o sea borrando
+     * la sesión. Esto dice «todavía hay de dónde intentarlo», no «va a funcionar».
+     */
     renovable: boolean;
     /** Listo para imprimir. */
     motivo: string;
@@ -290,7 +298,9 @@ export function saludDeCookies(
         const cuanto = Math.round(-Math.min(...vencidas.map(restan)));
         return { ...base, sirve: false, minutos: redondo(minutos), renovable,
             motivo: `la sesión de ${ruta} venció hace ${cuanto} min (${vencidas.map((c) => c.name).join(', ')})`
-                + (renovable ? ' — el refresh token todavía vive, así que alcanza con volver a entrar una vez' : '') };
+                + (renovable
+                    ? ' — la cookie del refresh no venció, pero eso NO garantiza que sirva: hay que volver a entrar igual'
+                    : '') };
     }
 
     return { ...base, sirve: true, renovable, minutos: redondo(minutos),

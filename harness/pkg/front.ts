@@ -188,13 +188,53 @@ export class SesionFront {
         return this;
     }
 
+    /**
+     * Guarda lo que el servidor manda, y BORRA lo que manda borrar.
+     *
+     * Esta captura es lo que hace que la sesión del asesor se renueve sola: el wizard trae un
+     * middleware que, cuando el token de acceso vence, lo renueva con el de refresco y devuelve los
+     * dos por `Set-Cookie`. El frasco los recoge y la petición siguiente ya va con el nuevo. Sin eso
+     * la sesión duraría lo que dura `_at`, que son ~4 minutos.
+     *
+     * ⚠ Y LA PARTE QUE FALTABA: cuando el refresco FALLA, el servidor no se queda callado — contesta
+     * `Set-Cookie: _at=; Max-Age=0` para las tres cookies de sesión, que es como se dice «borralas».
+     * Guardarlas igual dejaba el frasco con `_at=` vacío y cada petición posterior seguía mandando
+     * basura, así que el runner nunca podía distinguir «no tengo sesión» de «tengo una vacía». Medido
+     * el 2026-09-17 contra qa: el 302 al login venía con las tres cookies expiradas en la respuesta.
+     */
+    /** Lo que el frasco tiene ahora. Existe para poder fijar con pruebas lo de arriba, que de otro
+     *  modo sólo se puede observar corriendo una sesión real contra un ambiente. */
+    frascoDeCookies(): Record<string, string> {
+        return Object.fromEntries(this.cookies);
+    }
+
+    /** Aplica un `Set-Cookie` como si hubiera llegado en una respuesta (para pruebas). */
+    aplicarSetCookie(lineas: string[]): this {
+        this.guardarCookies({ headers: { getSetCookie: () => lineas } } as unknown as Response);
+        return this;
+    }
+
     private guardarCookies(res: Response): void {
         const setCookies: string[] = typeof (res.headers as any).getSetCookie === 'function'
             ? (res.headers as any).getSetCookie() : [];
         for (const sc of setCookies) {
-            const [par] = sc.split(';');
+            const [par, ...atributos] = sc.split(';');
             const eq = par.indexOf('=');
-            if (eq > 0) this.cookies.set(par.slice(0, eq).trim(), par.slice(eq + 1).trim());
+            if (eq <= 0) continue;
+
+            const nombre = par.slice(0, eq).trim();
+            const valor = par.slice(eq + 1).trim();
+            // Las dos formas de decir «borrala», y hay que mirar las dos: `Max-Age=0` y una fecha
+            // pasada. Un valor vacío solo tambien cuenta — ningun servidor manda una cookie sin valor
+            // para que la uses.
+            const maxAgeCero = atributos.some((a) => /^\s*max-age\s*=\s*0\s*$/i.test(a));
+            const expirada = atributos.some((a) => {
+                const m = /^\s*expires\s*=(.+)$/i.exec(a);
+                return m ? Date.parse(m[1].trim()) <= Date.now() : false;
+            });
+
+            if (valor === '' || maxAgeCero || expirada) this.cookies.delete(nombre);
+            else this.cookies.set(nombre, valor);
         }
     }
 

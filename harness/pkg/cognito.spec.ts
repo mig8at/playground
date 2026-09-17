@@ -36,14 +36,18 @@ test.describe('¿sirve la sesión cacheada?', () => {
             expect(s.motivo).toMatch(/_at/);
       });
 
-      test('si el refresh vive, lo dice: se recupera sin volver a tipear la clave', () => {
-            const vencida = salud([{ name: '_at', expires: enMin(-10) }, { name: '_rt', expires: enMin(1_000) }]);
-            expect(vencida.renovable).toBe(true);
-            expect(vencida.motivo).toMatch(/refresh token todavía vive/);
+      // 🔴 `renovable` mira la COOKIE del refresh, y eso no es lo mismo que que el token sirva. Medido
+      // el 2026-09-17 contra qa: con `_rt` sin vencer por un mes, el wizard intentó renovar, falló, y
+      // contestó borrando las tres cookies. El mensaje no puede prometer lo que no sabe.
+      test('mira la cookie del refresh, sin prometer que vaya a funcionar', () => {
+            const conRefresh = salud([{ name: '_at', expires: enMin(-10) }, { name: '_rt', expires: enMin(1_000) }]);
+            expect(conRefresh.renovable).toBe(true);
+            expect(conRefresh.motivo).toMatch(/NO garantiza que sirva/);
+            expect(conRefresh.motivo).toMatch(/volver a entrar igual/);
 
-            const muerta = salud([{ name: '_at', expires: enMin(-10) }, { name: '_rt', expires: enMin(-10) }]);
-            expect(muerta.renovable).toBe(false);
-            expect(muerta.motivo).not.toMatch(/refresh token todavía vive/);
+            const sinRefresh = salud([{ name: '_at', expires: enMin(-10) }, { name: '_rt', expires: enMin(-10) }]);
+            expect(sinRefresh.renovable).toBe(false);
+            expect(sinRefresh.motivo).not.toMatch(/NO garantiza/);
       });
 
       // 🔴 Basta con que UNA de las dos haya vencido: la corrida termina en /login igual.
