@@ -62,6 +62,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
 const { subDelAsesor } = await import('../pkg/preflight-sucursal.ts');
+const { crearCliente } = await import('../pkg/http.ts');
 const ASESOR_SUB = subDelAsesor();
 const HDRS: Record<string, string> = {
     'content-type': 'application/json', accept: 'application/json', 'user-agent': UA,
@@ -79,16 +80,10 @@ const INCOME = Number(arg('income', '2500000'));
 const SCORE = Number(arg('score', '700'));
 const V2 = flag('v2');
 
-async function http(method: string, path: string, body?: unknown) {
-    const r = await fetch(`${API}${path}`, {
-        method, headers: HDRS, body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
-    }).catch((e) => e as Error);
-    if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 140) } };
-    const text = await r.text();
-    try { return { status: r.status, json: JSON.parse(text) }; }
-    catch { return { status: r.status, json: { raw: text.slice(0, 200) } }; }
-}
+// El cliente vive en `pkg/http.ts`: había CINCO copias de esto, y las cinco confundían un
+// timeout con una caída y no anotaban nada. `http` queda como el verbo de siempre.
+const cliente = crearCliente({ base: API, headers: HDRS, timeoutMs: 60_000, recorte: 200 });
+const http = (method: string, path: string, body?: unknown) => cliente.llamar(method, path, body);
 
 let paso = 0;
 const ok = (t: string, d = '') => console.log(`  ${String(++paso).padStart(2)}. ✓ ${t}${d ? ` · ${d}` : ''}`);

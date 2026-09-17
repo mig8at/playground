@@ -37,6 +37,7 @@ process.env.CFE_TARGET ||= 'local';
 const { buildEcommerceUrl } = await import('../pkg/ecommerce.ts');
 const { one, close } = await import('../pkg/db.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
+const { crearCliente } = await import('../pkg/http.ts');
 
 const API = e2eConfig.mockUrl;
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 '
@@ -102,18 +103,11 @@ function porQue(r: { status: number; json?: any; error?: string }): string {
     return partes.join(' · ');
 }
 
-async function http(metodo: string, ruta: string, cuerpo?: unknown, ua = UA) {
-    const r = await fetch(`${API}${ruta}`, {
-        method: metodo,
-        headers: { 'content-type': 'application/json', accept: 'application/json', 'user-agent': ua },
-        body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
-        signal: AbortSignal.timeout(90_000),
-    }).catch((e) => e as Error);
-    if (r instanceof Error) return { status: 0, json: null as any, error: String(r.message).slice(0, 140) };
-    const texto = await r.text();
-    try { return { status: r.status, json: JSON.parse(texto) }; }
-    catch { return { status: r.status, json: null as any, error: texto.slice(0, 160) }; }
-}
+// El cliente vive en `pkg/http.ts` — ver ahí las cinco copias que esto reemplaza. El `user-agent`
+// sigue siendo por llamada porque cada caso de la suite simula una tienda distinta.
+const cliente = crearCliente({ base: API, headers: { 'user-agent': UA }, timeoutMs: 90_000, recorte: 160 });
+const http = (metodo: string, ruta: string, cuerpo?: unknown, ua = UA) =>
+    cliente.llamar(metodo, ruta, cuerpo, ua === UA ? {} : { 'user-agent': ua });
 
 /** Los seis campos que el contrato base64 puede traer del billing del pedido. */
 const CAMPOS_DEL_COMERCIO = ['email', 'phone', 'firstName', 'lastName', 'documentNumber', 'documentType'];

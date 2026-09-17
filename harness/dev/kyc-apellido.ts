@@ -37,6 +37,7 @@ process.env.CFE_TARGET ||= 'local';
 
 const { config } = await import('../pkg/config.ts');
 const { one, close } = await import('../pkg/db.ts');
+const { crearCliente } = await import('../pkg/http.ts');
 
 const API = config.mockUrl;
 const PARTNER = config.partnerHash;
@@ -55,23 +56,11 @@ const AGIL_APELLIDOS_MAL = 'EMPLOYEE NAMES';   // una letra de más, dentro del 
 
 type Resp = { status: number; json: any };
 
-async function http(method: string, path: string, body?: unknown, scenario?: string): Promise<Resp> {
-    const r = await fetch(`${API}${path}`, {
-        method,
-        headers: {
-            'content-type': 'application/json',
-            accept: 'application/json',
-            'user-agent': UA,
-            ...(scenario ? { 'x-fake-scenario': scenario } : {}),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(60_000),
-    }).catch((e) => e as Error);
-    if (r instanceof Error) return { status: 0, json: { message: String(r.message).slice(0, 160) } };
-    const text = await r.text();
-    try { return { status: r.status, json: JSON.parse(text) }; }
-    catch { return { status: r.status, json: { raw: text.slice(0, 200) } }; }
-}
+// El cliente vive en `pkg/http.ts`. `x-fake-scenario` va por llamada: es lo que le dicta al mock
+// qué contestar en ESE paso, así que no puede ser una cabecera del cliente.
+const cliente = crearCliente({ base: API, headers: { 'user-agent': UA }, timeoutMs: 60_000, recorte: 200 });
+const http = (method: string, path: string, body?: unknown, scenario?: string): Promise<Resp> =>
+    cliente.llamar(method, path, body, scenario ? { 'x-fake-scenario': scenario } : {});
 
 function unico(): { phone: string; doc: string; email: string } {
     const n = Math.floor(Math.random() * 9_000_000) + 1_000_000;
