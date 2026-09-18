@@ -13,6 +13,7 @@ import { spawn, execFile } from 'node:child_process';
 import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
+import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de harness
@@ -908,6 +909,20 @@ const server = createServer(async (req, res) => {
         // que importa no es cuántos faltan sino si falta ALGUNO DE LOS QUE ESTA CORRIDA VA A USAR.
         // Faltando uno, el flujo no da un error de infraestructura: da un estado 28 con un mensaje que
         // culpa al proveedor (F-165), y eso se depura como si fuera del negocio.
+
+        // A qué puerto apunta el S3 del backend. `AWS_ENDPOINT` es la verdad: MinIO usa 9000 y
+        // ministack/LocalStack 4566, y cuál corre es una decisión de cada máquina — adivinarlo es lo
+        // que hacía que el aviso mintiera. Si no se puede leer el `.env`, se cae a MinIO, que es lo que
+        // documenta el README.
+        const puertoS3 = () => {
+            try {
+                const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
+                const m = /^AWS_ENDPOINT=.*?:(\d+)/m.exec(env);
+                const puerto = m ? Number(m[1]) : 9000;
+                return { puerto, etiqueta: puerto === 4566 ? 'ministack' : puerto === 9000 ? 'minio' : String(puerto) };
+            } catch { return { puerto: 9000, etiqueta: 'minio' }; }
+        };
+
         const MOCKS: Array<[string, number, string]> = [
             ['pre-aprobaciones', 8095, 'todos'], ['redirect', 8096, 'ecommerce'],
             ['payvalida', 8097, 'todos'], ['mdm/IMEI', 8098, 'smartpay'],
@@ -921,7 +936,12 @@ const server = createServer(async (req, res) => {
             // No son mocks pero sin ellos la corrida miente igual: MinIO guarda los documentos (sin él
             // cada subida falla en silencio y la URL da 404 — F-174) y el monolito viejo es el ÚNICO
             // que recibe los webhooks con los que rt=0 y rt=1 llegan a un desenlace (F-170).
-            ['minio/documentos', 9000, 'documentos'],
+            // ⚠⚠ EL PUERTO DEL S3 LOCAL SE LEE DEL `.env` DEL BACKEND, no se supone. Acá estaba fijo en
+            // 9000 (MinIO) y en esta máquina el S3 es **ministack en :4566**, así que el aviso «falta
+            // minio/documentos» estaba encendido SIEMPRE y no había nada que hacer al respecto — un
+            // aviso permanentemente rojo deja de leerse, y de paso tapa a los que sí importan. Ahora se
+            // prueba el puerto que el backend tiene configurado, sea MinIO (9000) o ministack (4566).
+            [`s3/documentos (${puertoS3().etiqueta})`, puertoS3().puerto, 'documentos'],
             ['app-vieja/webhooks', 8000, 'rt0-rt1'],
             ['fin-health', Number(process.env.MOCK_FINHEALTH_PORT) || 4000, 'todos'],
         ];
@@ -930,6 +950,26 @@ const server = createServer(async (req, res) => {
             req.on('error', () => ok(false));
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
+        // ⚠ QUÉ GENERA LOS DOCUMENTOS, que es una perilla del `.env` de OTRO repo y por eso es
+        // invisible desde acá. Con `microservice` la corrida sale 4× más rápida y DEJA DE EJERCITAR las
+        // plantillas Blade — o sea que deja de atrapar la clase de bug de F-150 (un builder que produce
+        // claves que la plantilla no espera revienta EN PLENO RENDER y tumba la firma; ya pasó en
+        // producción). Prendido mientras iterás reglas es razonable; dejarlo prendido para validar
+        // documentos convierte el verde en mentira. Por eso se muestra en vez de suponerse.
+        const docGen = (() => {
+            try {
+                const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
+                const v = [...env.matchAll(/^DOC_GEN_\w+=(\w+)/gm)].map((m) => m[1]);
+                if (!v.length) return { modo: 'blade', detalle: 'sin DOC_GEN_* en el .env: Blade (el default)' };
+                const unico = [...new Set(v)];
+                return unico.length === 1
+                    ? { modo: unico[0], detalle: unico[0] === 'microservice'
+                        ? 'mock pdf-mapper — rápido, pero NO ejercita las plantillas Blade (F-150)'
+                        : 'plantillas Blade — lento (~16 s por documento) y es lo que corre en producción' }
+                    : { modo: 'mixto', detalle: `mezclado: ${v.join(' · ')}` };
+            } catch { return { modo: '?', detalle: 'no se pudo leer el .env de legacy-backend' }; }
+        })();
+
         const estados = await Promise.all(MOCKS.map(async ([n, p, para]) => ({
             nombre: n, puerto: p, para, arriba: await vivo(p),
         })));
@@ -969,7 +1009,7 @@ const server = createServer(async (req, res) => {
             });
         });
 
-        return json(res, 200, { mocks: estados, ultima, mapa });
+        return json(res, 200, { docGen, mocks: estados, ultima, mapa });
     }
 
     if (path === '/api/steps') {

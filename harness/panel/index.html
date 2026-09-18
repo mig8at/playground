@@ -1402,6 +1402,43 @@
     .bottom > .logcard > h2 > .pest { flex: 0 0 auto; margin: 0 }
     .bottom > .logcard > h2 > .logacts { margin-left: auto; flex: 0 0 auto; display: flex; gap: 6px; float: none }
 
+
+    /* ═══ RESPIRO ═════════════════════════════════════════════════════════════════════════════════
+       La densidad estaba bien —24 px por fila— pero todo arrancaba pegado al borde y los grupos no se
+       separaban entre sí. Esto no agrega alto por fila: agrega MÁRGENES, que es lo que deja leer una
+       columna densa sin que parezca un volcado. */
+    .side-head { padding: 0 14px; letter-spacing: .1em }
+    .sl .side-body, .sr .side-body { padding-top: 4px; padding-bottom: 10px }
+
+    /* el buscador, con aire alrededor y no pegado al título */
+    .sl .side-body > .bus { margin: 2px 12px 10px }
+    .tree { margin-top: 2px }
+    .trow { padding-right: 12px }
+    .tadd-top { margin-top: 8px; padding-top: 2px }
+
+    /* Las entidades, indentadas bajo su sucursal y separadas del resto por su fondo. */
+    .tree > #environmentSettings { padding: 6px 10px 12px 26px; margin: 2px 0 6px;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line) }
+    .tree #lenderslist .lrow { padding-left: 2px }
+
+    /* El panel de propiedades: gutter parejo y los grupos separados de verdad. */
+    .panelprops { padding: 4px 14px 12px }
+    /* ⚠ El separador de grupo es una LÍNEA, no un bloque de aire: con 16 px de margen + 10 de padding
+       el panel pasó de entrar entero a pedir 163 px de scroll. La línea separa igual de bien y cuesta
+       un tercio. */
+    .panelprops .grouplbl { margin: 10px 0 5px; padding-top: 7px; border-top: 1px solid var(--line);
+      color: var(--mut); letter-spacing: .09em }
+    .panelprops > .grouplbl:first-child { margin-top: 2px; padding-top: 0; border-top: 0 }
+    .sr .panelprops .field { margin-bottom: 3px }
+    .sr .panelprops .field > label, .sr .panelprops .field > .field-label { padding-right: 2px }
+
+    /* La barra de estado y el header, con el mismo gutter que las columnas. */
+    .statusbar { padding: 0 14px }
+    .titlebar { padding: 0 14px }
+    .bottom > .logcard > h2 { padding: 0 14px }
+    .bottom > .logcard > pre { padding: 10px 14px 12px }
+    .stage { padding: 12px 14px 14px }
+
   </style>
 </head>
 
@@ -2626,7 +2663,10 @@
         8103: 'bin/mock-corbeta start',      8104: 'bin/mock-bancolombia start',
         8105: 'bin/mock-centrales start',    8106: 'bin/mock-deceval start',
         8107: 'bin/mock-netco start',        8108: 'bin/mock-credifamilia start',
+        // El S3 local es MinIO o ministack según la máquina: el servidor prueba el puerto que dice el
+        // `.env` del backend, así que acá van los dos comandos, uno por puerto.
         9000: 'docker start creditop-minio',
+        4566: 'ministack start   # o: docker start <tu contenedor de localstack>',
         8000: 'cd ~/Desktop/CREDITOP/github/legacy-application && php artisan serve --port=8000',
         4000: 'bin/mock-financial-health start',
       };
@@ -2784,6 +2824,12 @@
 
       // 5 · el mapa de pasos: si una ruta dejó de existir, el conteo del recorrido miente
       if (e?.mapa) {
+        // Qué genera los documentos: la perilla vive en el `.env` de OTRO repo, así que sin esto es
+        // invisible — y cambia QUÉ prueba la corrida, no sólo cuánto tarda.
+        if (e.docGen) {
+          out.push(card(e.docGen.modo === 'microservice' ? 'st-warn' : 'st-mut', '📄', 'Documentos',
+            e.docGen.modo === 'microservice' ? 'mock' : e.docGen.modo, e.docGen.detalle));
+        }
         out.push(card(e.mapa.ok ? 'st-ok' : 'st-bad', '🗺', 'Mapa del flujo',
           `${e.mapa.pasos}`,
           e.mapa.ok ? `pasos · <b>${e.mapa.archivos}</b> rutas verifican` : `⚠ ${e.mapa.rotas.length} rutas NO existen`,
