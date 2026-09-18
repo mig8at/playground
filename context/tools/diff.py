@@ -29,7 +29,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from alinear import base_en, pathspec, rutas_de  # mismo criterio que la alineación
-from roots import ROOTS
+from roots import ROOTS, ref_a_indexar
 
 CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLOWS = os.path.join(CTX, "server", "data", "flows")
@@ -75,21 +75,34 @@ def main():
 
     hubo = False
     for alias, (root, pre, rutas) in por_repo.items():
-        base = base_en(root, ref, sello)      # el «antes»: el commit al cierre del día del sello
+        # ⚠ `main` EN EL SELLO ES UNA ETIQUETA, NO UNA REF DE GIT, y la diferencia importa acá.
+        #
+        # El sello dice contra qué se verificó el nodo: `main` significa «la rama principal», y eso es
+        # verdad en cualquier máquina, sin importar dónde tenga el puntero local. Pero para DIFFEAR hay
+        # que resolverla: contra un `main` local atrasado el diff no muestra los commits nuevos —o sea
+        # que `context-diff` contesta «no cambió nada» sobre un nodo que sí quedó viejo, que es
+        # exactamente lo contrario de para lo que existe—. Medido el 2026-09-18: cinco de los diez
+        # repos estaban detrás, hasta 22 commits.
+        #
+        # Un sello contra OTRA rama (`qa`) se respeta literal: ahí sí es una rama concreta y elegida.
+        refe = ref
+        if ref in ("main", "origin/main"):
+            refe = ref_a_indexar(root)[0] or ref
+        base = base_en(root, refe, sello)     # el «antes»: el commit al cierre del día del sello
         if not base:
             continue
         # `-M` y el pathspec con las rutas VIEJAS: sin eso un renombre se lee como archivo nuevo
         # entero (el nodo `harness` mostraba sus 44 archivos como +203 líneas cada uno).
         spec = pathspec(root, pre, rutas, base)
-        stat = git(root, "diff", "--stat", "-M", f"{base}..{ref}", "--", *spec).strip()
+        stat = git(root, "diff", "--stat", "-M", f"{base}..{refe}", "--", *spec).strip()
         if not stat:
             continue
         hubo = True
-        print(f"\n── {alias}  ({base[:9]} … {ref}) ──")
+        print(f"\n── {alias}  ({base[:9]} … {refe}) ──")
         print(stat)
         if not solo_stat:
             print()
-            print(git(root, "diff", "-M", f"{base}..{ref}", "--", *spec).rstrip())
+            print(git(root, "diff", "-M", f"{base}..{refe}", "--", *spec).rstrip())
 
     if not hubo:
         print("\n✓ ningún archivo del nodo cambió desde el sello.")

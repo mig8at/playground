@@ -36,7 +36,7 @@ from datetime import date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oracle import del_ref  # una sola definición de "qué archivos existen en un ref"
 from refs import renombres, repo_de  # una sola implementación del seguimiento de renombres
-from roots import EXTS, ROOTS
+from roots import EXTS, ROOTS, ref_a_indexar
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 CTX = os.path.dirname(TOOLS)
@@ -47,6 +47,23 @@ MAX_NODOS_HUB = 4  # un archivo citado por MÁS de tantos nodos es un HUB (mismo
 
 
 TOPE_COMMITS = 15  # cuántos se guardan en el JSON; el total siempre se reporta entero
+
+
+def ref_efectiva(root, ref):
+    """La ref de git con la que se lee ESE repo, a partir de lo que dice el sello.
+
+    ⚠ `main` EN UN SELLO ES UNA ETIQUETA, NO UNA REF. Significa «la rama principal», y eso es verdad en
+    cualquier máquina — dónde esté el puntero local es un detalle de ese clon. Pero para LEER hay que
+    resolverla: contra un `main` local atrasado la deriva se mide contra código viejo, así que un nodo
+    que sí quedó desactualizado puede salir «al día», que es el falso verde que esta herramienta existe
+    para no dar. Medido el 2026-09-18: cinco de los diez repos estaban detrás, hasta 22 commits.
+
+    Un sello contra OTRA rama (`qa`, una feature) se respeta literal: ahí sí es una rama concreta y
+    elegida, y por eso el nodo se marca `rama-sin-mergear`.
+    """
+    if ref in (None, "main", "origin/main"):
+        return ref_a_indexar(root)[0] or "main"
+    return ref
 
 
 def base_en(root, ref, fecha):
@@ -120,12 +137,13 @@ def commits_desde(files, ref, desde):
     """
     vistos, lista = set(), []
     for alias, (root, pre, rutas) in rutas_de(files).items():
-        base = base_en(root, ref, desde)
+        refe = ref_efectiva(root, ref)
+        base = base_en(root, refe, desde)
         if not base:
             continue
         r = subprocess.run(
             ["git", "-C", root, "log", "--no-merges", "-M",
-             "--pretty=format:%h\x1f%cs\x1f%an\x1f%s", f"{base}..{ref}",
+             "--pretty=format:%h\x1f%cs\x1f%an\x1f%s", f"{base}..{refe}",
              "--", *pathspec(root, pre, rutas, base)],
             capture_output=True, text=True, errors="replace",
         )
@@ -161,11 +179,12 @@ def huerfanos_desde(files, ref, desde, declarados):
     fset = set(files)
     salida = []
     for alias, (root, pre, rutas) in rutas_de(files).items():
-        base = base_en(root, ref, desde)
+        refe = ref_efectiva(root, ref)
+        base = base_en(root, refe, desde)
         if not base:
             continue
         r = subprocess.run(
-            ["git", "-C", root, "diff", "--diff-filter=A", "--name-only", "-M", f"{base}..{ref}"],
+            ["git", "-C", root, "diff", "--diff-filter=A", "--name-only", "-M", f"{base}..{refe}"],
             capture_output=True, text=True, errors="replace",
         )
         if r.returncode != 0:
@@ -206,12 +225,13 @@ def cambiados_desde(files, ref, desde):
     """
     tocados = {}
     for alias, (root, pre, rutas) in rutas_de(files).items():
-        base = base_en(root, ref, desde)
+        refe = ref_efectiva(root, ref)
+        base = base_en(root, refe, desde)
         if not base:
             continue
         spec = pathspec(root, pre, rutas, base)
         r = subprocess.run(
-            ["git", "-C", root, "diff", "--numstat", "-M", "-z", f"{base}..{ref}", "--", *spec],
+            ["git", "-C", root, "diff", "--numstat", "-M", "-z", f"{base}..{refe}", "--", *spec],
             capture_output=True, text=True, errors="replace",
         )
         if r.returncode != 0:
@@ -242,7 +262,7 @@ def cambiados_desde(files, ref, desde):
         # serían ~170 procesos). El diff manda sobre QUIÉN está en la lista; el log solo pone fecha.
         r2 = subprocess.run(
             ["git", "-C", root, "log", "--name-only", "-M", "--first-parent",
-             "--diff-merges=first-parent", "--pretty=format:%cs", f"{base}..{ref}",
+             "--diff-merges=first-parent", "--pretty=format:%cs", f"{base}..{refe}",
              "--", *[pre + d for d in distintos]],
             capture_output=True, text=True,
         )
@@ -264,7 +284,11 @@ def main():
     solo_ver = "--ver" in args
     if solo_ver:
         args.remove("--ver")
-    ref = "main"
+    # `None` = automático: `del_ref` resuelve la ref POR REPO (la que CONTIENE a la otra). No es lo
+    # mismo que `--ref main`, que fuerza el literal — y contra un `main` local atrasado la deriva se
+    # mide contra código viejo, así que un nodo que SÍ quedó desactualizado puede salir «al día», que
+    # es el falso verde que esta herramienta existe para no dar.
+    ref = None
     if "--ref" in args:
         i = args.index("--ref")
         ref = args[i + 1] if i + 1 < len(args) else "main"
@@ -315,7 +339,14 @@ def main():
             estado = "rutas-muertas"
         elif ya_mergeadas:
             estado = "marca-ya-mergeada"
-        elif pm or sello.get("ref", "main") != "main":
+        # ⚠ `main` Y `origin/main` SON LA MISMA COSA PARA EL SELLO, y tratarlas distinto marcaría el
+        # árbol entero como «rama sin mergear». Lo que este estado detecta es un nodo sellado contra
+        # una rama que NO es la principal (`qa`, una feature): describe código que todavía no mergeó,
+        # así que su contenido no se puede dar por cierto. El sello guarda una ETIQUETA —«la rama
+        # principal»—, que es verdad en cualquier máquina; dónde esté el puntero local de ese clon no
+        # cambia contra qué se verificó. Por eso el sello sigue diciendo `main` aunque se lea
+        # `origin/main` para resolver el código.
+        elif pm or sello.get("ref", "main") not in ("main", "origin/main"):
             estado = "rama-sin-mergear"
         elif pct >= DERIVA_ALTA:
             estado = "deriva-alta"
@@ -357,7 +388,10 @@ def main():
     }
 
     # ── informe legible ──
-    print(f"ALINEACIÓN DEL CONTEXTO contra `{ref}` · {doc['generado']}\n")
+    # `None` es el modo automático (la ref se resuelve por repo): imprimirlo crudo decía «contra
+    # `None`», que se lee como un bug y no como una decisión.
+    contra = ref or "la ref al día de cada repo"
+    print(f"ALINEACIÓN DEL CONTEXTO contra `{contra}` · {doc['generado']}\n")
     ETIQ = {"rutas-muertas": "⛔ RUTAS MUERTAS", "marca-ya-mergeada": "🔁 MARCA YA MERGEADA",
             "deriva-alta": "🔴 deriva alta", "rama-sin-mergear": "⏳ rama sin mergear",
             "deriva": "🟡 deriva", "solo-hubs": "⚪ solo hubs", "al-dia": "🟢 al día"}
