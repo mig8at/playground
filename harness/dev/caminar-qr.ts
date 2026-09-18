@@ -20,6 +20,7 @@
  * BNPL, así que las 11 pantallas de Consumo no se alcanzan (ver la perilla `producto` del mock).
  */
 import { chromium, type Page } from '@playwright/test';
+import { mkdirSync } from 'node:fs';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr.ts';
 import { autorrellenarQr } from '../pkg/qr-steps.ts';
 import { scrubphone } from '../pkg/asesor.ts';
@@ -100,6 +101,14 @@ const recorrido: string[] = [];
 // La solicitud de ESTA corrida y su hora de arranque: las dos hacen falta para poder preguntarle
 // después a PostHog por ella. El id no se conoce de antemano (lo crea el canal), así que se toma la
 // línea base de la sucursal y al final se pide el primero que apareció por encima.
+/** Un nombre de archivo legible a partir de la ruta: `/bancolombia/consumo/loan-summary/X` → `loan-summary`. */
+const mote = (ruta: string) =>
+    (ruta.split('/').filter((t) => t && !/^[A-Z0-9]{8,}$/.test(t)).pop() ?? 'pantalla')
+        .replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 40) || 'pantalla';
+
+const CARPETA = `.runs/caminar-${PRODUCTO}`;
+mkdirSync(CARPETA, { recursive: true });
+
 const T0 = new Date();
 const uReqBase = (await latestUserRequestId(suc.hash)) ?? 0;
 await page.goto(qrEntryUrl(suc.hash), { waitUntil: 'domcontentloaded' });
@@ -108,6 +117,13 @@ for (let paso = 1; paso <= MAX; paso++) {
     await page.waitForTimeout(1200);
     const url = new URL(page.url()).pathname;
     recorrido.push(url);
+
+    // ⚠ UNA CAPTURA POR PANTALLA, y no es un lujo. Hasta el 2026-09-17 sólo se guardaba la ÚLTIMA, así
+    // que de un recorrido de 14 pantallas se podían mirar 1. F-227 —el «vence hoy» que contradecía a su
+    // propio contador— vivió meses justamente porque estaba en la única que se veía; las otras trece
+    // nadie las había mirado nunca. Un caminador que no deja mirar sólo prueba que la pantalla CARGA.
+    await page.screenshot({ path: `${CARPETA}/${String(paso).padStart(2, '0')}-${mote(url)}.png`, fullPage: true })
+        .catch(() => {});
 
     const banner = await page.getByText(/Error al cargar|no pudimos|hubo un problema|intenta de nuevo/i)
         .first().textContent({ timeout: 500 }).catch(() => null);
@@ -157,6 +173,7 @@ for (let paso = 1; paso <= MAX; paso++) {
 const shot = `.runs/caminar-${PRODUCTO}.png`;
 await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
 console.log(`\n${recorrido.length} pantalla(s) · última: ${recorrido.at(-1)} · 📸 ${shot}`);
+console.log(`   una captura por pantalla en ${CARPETA}/ — miralas, no alcanza con que hayan cargado`);
 if (errores.length) console.log(`⚠ ${errores.length} error(es) de página:\n   ${[...new Set(errores)].join('\n   ')}`);
 
 // LA TERCERA FUENTE, como pista y no como consulta. Este caminador usa navegador de verdad, así que
