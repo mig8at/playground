@@ -1,10 +1,11 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useTrazador } from './stores/trazador'
 import { trazaATexto } from './trazaTexto'
 import Buscador from './components/Buscador.vue'
 import Historia from './components/Historia.vue'
 import Etapas from './components/Etapas.vue'
+import Mapa from './components/Mapa.vue'
 import Detalle from './components/Detalle.vue'
 
 const t = useTrazador()
@@ -14,6 +15,13 @@ onMounted(async () => {
   await t.cargarMapa()
   t.desdeURL()
 })
+
+// LISTA O MAPA, y las dos conviven a propósito. La lista contesta «¿qué pasó en cada etapa?» mejor que
+// nada —hora, salto, subs, eventos— y el mapa contesta «¿por dónde fue y dónde se cortó?», que una lista
+// no puede. Reemplazar una por otra antes de saber cuál se usa es tirar algo que funciona: si el mapa
+// gana, la lista se va sola, y eso se decide mirándolo, no ahora.
+const vista = ref(localStorage.getItem('trazador.vista') || 'lista')
+watch(vista, (v) => localStorage.setItem('trazador.vista', v))
 
 const GLIFO = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
 const CLASE = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
@@ -47,6 +55,12 @@ async function copiar() {
       <span v-if="t.traza" class="ico big" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
       <span v-if="t.traza" class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
       <span v-if="t.traza" class="ureq">solicitud {{ t.traza.ureq }}</span>
+      <span class="vistas" role="group" aria-label="Cómo ver el recorrido">
+        <button :class="{ on: vista === 'lista' }" @click="vista = 'lista'"
+                title="Las etapas como un run de CI: hora, salto y sub-pasos al abrir">lista</button>
+        <button :class="{ on: vista === 'mapa' }" @click="vista = 'mapa'"
+                title="El recorrido como grafo: el carril que tomó, dónde se cortó y cuánto faltaba">mapa</button>
+      </span>
       <button v-if="t.traza" class="copiar" :class="{ ok: copiado }" @click="copiar"
               title="La traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.">
         {{ copiado ? '✓ copiado' : '⧉ copiar traza' }}
@@ -75,8 +89,9 @@ async function copiar() {
        botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
   <Historia />
 
-  <div class="cols">
-    <Etapas />
+  <div class="cols" :class="{ ancha: vista === 'mapa' }">
+    <Etapas v-if="vista === 'lista'" />
+    <Mapa v-else />
     <Detalle />
   </div>
 </template>
@@ -86,7 +101,12 @@ header { padding:16px 20px; border-bottom:1px solid var(--line) }
 .fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px }
 h1 { font-size:18px; margin:0; font-weight:600 }
 .ureq { color:var(--dim); font-size:13px }
-.copiar { margin-left:auto; padding:4px 12px; font-size:12px; border:1px solid var(--line);
+.vistas { margin-left:auto; display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden }
+.vistas button { padding:4px 11px; font-size:12px; border:0; background:var(--panel); color:var(--dim); cursor:pointer }
+.vistas button + button { border-left:1px solid var(--line) }
+.vistas button:hover { color:var(--txt) }
+.vistas button.on { background:var(--sel); color:var(--accent) }
+.copiar { margin-left:10px; padding:4px 12px; font-size:12px; border:1px solid var(--line);
   border-radius:6px; background:var(--panel); color:var(--txt); cursor:pointer }
 .copiar:hover { background:var(--sel); border-color:var(--accent) }
 .copiar.ok { color:var(--ok); border-color:var(--ok) }
@@ -102,5 +122,8 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .meta { color:var(--dim); font-size:13px; margin:10px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
 .cols { display:grid; grid-template-columns:290px minmax(0,1fr); min-height:60vh }
+/* El mapa necesita más ancho que la lista: con 290px las cajas y sus sub-pasos no entran y el grafo se
+   lee peor que la lista a la que vino a complementar. */
+.cols.ancha { grid-template-columns:min(46vw,470px) minmax(0,1fr) }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>

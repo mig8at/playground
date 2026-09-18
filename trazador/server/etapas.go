@@ -377,6 +377,13 @@ type Traza struct {
 	Target   string   `json:"target"`
 	Outcome  string   `json:"outcome"` // aprobado | roto | abandonado | en-curso
 	BrokeAt  string   `json:"brokeAt,omitempty"`
+	// Ramal: por cuál de las variantes de flujo fue ESTA solicitud (`creditopx` · `agregador` ·
+	// `redirect` · `credifamilia`, los ids de `ramales.json`). Se calculaba desde siempre para decidir
+	// qué etapas NO aplican, pero no salía del servidor — y sin él la vista puede decir «esta etapa se
+	// saltó» y no puede decir **por qué carril fue y cuáles había**, que es la mitad del diagnóstico.
+	// Vacío hasta que el cliente elige entidad: antes de `seleccion` no hay ramal, y eso es un hecho, no
+	// un dato faltante.
+	Ramal    string   `json:"ramal,omitempty"`
 	Etapas   []Etapa  `json:"etapas"`
 	Sources  []string `json:"sources"`
 	Warnings []string `json:"warnings,omitempty"`
@@ -541,6 +548,7 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	if s.Lender != "" {
 		fam = ramalDeRT(s.LenderID, s.LenderRT)
 	}
+	t.Ramal = fam
 
 	// La etapa de muerte se calcula UNA vez, con todo el material (transiciones + líneas por etapa), y
 	// puede ser "": ver etapaDeMuerte.
