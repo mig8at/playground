@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -148,8 +148,17 @@ dos cuentas, la ruta) leído de las dos secciones nuevas, pero **sin respaldo**:
 llamada dentro del texto y las citas no llegaron — el bucle lo limpió y lo anotó. Y necesitó dos búsquedas
 porque la sección dice «no llega» y la gente dice «no se conecta».
 
-**El próximo paso es:** sumar «no se conecta» a la sección del peering (cuesta una frase y ahorra una
-búsqueda), y verificar contra `main` el hecho del cliente que vuelve que sigue afuera.
+**Las dos cosas hechas, en un PR sin mergear.** El peering dice «no se conecta» y los tres síntomas. Y el
+hecho del cliente que vuelve se verificó contra `main`: el evaluador de crédito activo lo usa sólo el
+controlador de cupo, el listado no lo mira — la entidad se muestra y el rechazo llega al pedir el cupo. Entró
+como aviso en la sección de creditopx que ya lo explicaba. ⚠ La nota de la suite del arnés atribuía la
+visibilidad a la lista quemada `[12, 23, 141, 142, 166]`, y eso está mal: esa lista excluye de la consulta de
+preaprobado a cinco externas (un TODO temporal), nada que ver con créditos previos. Y la compuerta rechazó la
+primera redacción por pisar la misma pregunta frágil de la mañana («dónde se pierden las solicitudes que no
+llegan al listado»): con «oferta» en vez de «listado», 115/115.
+
+**El próximo paso es:** que Miguel mergee el PR, y avisarle a quien mantenga el arnés que la nota de
+`suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -437,6 +446,10 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **El cliente que vuelve, verificado contra `main`**: el evaluador de crédito activo corre sólo al pedir el
+  cupo; la entidad sigue en la oferta. Aviso en creditopx. La nota de la suite del arnés que lo motivó da la
+  razón equivocada (la lista quemada es del preaprobado, no de créditos previos). Y «no se conecta» en el
+  peering. La compuerta rechazó una redacción por «listado»: la pregunta frágil de la mañana, otra vez.
 - **#240 en prod en 8 minutos, y dos preguntas nuevas contra prod.** La de «read-only file system» salió
   perfecta (8 s, dos pasos, respaldada, cita a la sección nueva). La de «no se conecta a la base» salió
   correcta pero sin respaldo: el modelo metió el marcado de la llamada en el texto y perdió las citas —
