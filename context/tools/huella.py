@@ -118,7 +118,9 @@ def main():
     filas, traces = eventos(ureq)
     sp = spans(traces)
     dueno, por_clase = cobertura_arbol()
-    existen, _, _ = del_ref("main")
+    # `None` = automático: la ref se resuelve por repo (ver `roots.ref_a_indexar`). Con el literal,
+    # contra un `main` local atrasado faltan archivos y la huella los cuenta como inexistentes.
+    existen, _, _ = del_ref(None)
 
     # ¿qué tabla nombra algún nodo del árbol? (en prosa: es donde se explica, no en files[])
     prosa = {}
