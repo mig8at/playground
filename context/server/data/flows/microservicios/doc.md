@@ -207,7 +207,7 @@ consultó y qué respondió. Devuelve `COMPLETED` o `PENDING_USER_DATA` con los 
 
 **Cómo se conecta con el monolito, hoy**: al revés de lo que uno supondría. El monolito **no lo llama**;
 expone un endpoint para que **él** resuelva el `users.id` a partir del `user_request_id`
-(`OnboardingController.php:1647 showUserRequest`, cuyo comentario nombra explícitamente «the CPS
+(`OnboardingController.php:1821 showUserRequest`, cuyo comentario nombra explícitamente «the CPS
 legacy-kyc-pipeline»). O sea que el orquestador es el servicio nuevo y el monolito es su fuente de datos.
 
 ⚠ **Lo desplegado no es lo usado.** Tiene deploy a producción por tag (`main-prod.yaml`, con migraciones)
@@ -222,6 +222,43 @@ corto para que una solicitud abandonada no deje una corrida abierta indefinidame
 (`legacykycpipeline/workflow.go`). Y el monolito le sumó la ruta `abaco/sync-results` que empuja el
 scraping pendiente (ver nodo motai). Verificado contra `main`.
 
+**(2026-09-18) El pipeline dejó de ser sólo un tipo: ahora su identidad es `(tipo, PAÍS)`.**
+Verificado contra `origin/main` de `customer-profiling-service` — 618 líneas en 4 archivos, que el
+árbol no veía porque ese clon estaba detrás de su remoto.
+
+- **`country_code` es parte de la clave, no una etiqueta.** El lookup filtra por él —índice único en
+  `(pipeline_type, country_code) WHERE is_active`—, así que **el mismo tipo puede tener un grafo
+  distinto por país**. El default es `CO` (`domain.DefaultCountryCode`) y eso es compatibilidad
+  deliberada: un caller que todavía no manda el país sigue recibiendo el grafo de siempre, con lo cual
+  este servicio y los que lo llaman se pueden desplegar **en cualquier orden**.
+- ⚠ **La validación es de FORMA, no de catálogo**: `NormalizeCountryCode` exige dos letras y nada más.
+  Qué países sirve la plataforma lo contesta que exista un pipeline para ese país, y ese catálogo vive
+  en la base — una lista quemada obligaría a desplegar el servicio antes de poder cargar el grafo de
+  cada país nuevo.
+- **El legacy le dice qué saltear.** La corrida lleva `requirements` (qué partes del KYC v1 omite para
+  esa solicitud) y `requirementsKnown`, que es `false` en corridas que empezaron antes de que la
+  pregunta existiera. Los bypasses se registran como **`SKIPPED`, nunca como error**: son una decisión
+  de negocio, y el chequeo terminal ya los trata como resueltos.
+- **El gate de empleo cambió de PREGUNTA.** Antes era «¿el usuario tiene los campos 29/87/160?»; ahora
+  se le pregunta a la operación del legacy que hace las cuatro cosas antes de decidir —deriva los
+  campos del resumen del buró, inyecta su empleo por defecto para los comercios corbeta y los allieds
+  209/210/211, honra `collect_employment_info`, y recién entonces mira los campos—, y contesta si el
+  formulario sigue haciendo falta.
+- ⚠ **La variante de Experian se elige por SUCURSAL, y un grafo por comercio no puede expresarlo**
+  (`experianVariant`): una sucursal con un lender de la lista de bypass, o con uno de CreditopX, compra
+  Acierta+Quanto aunque el grafo haya pedido otra cosa. Sólo se respeta para una variación conocida;
+  cualquier otra deja el proveedor del grafo.
+- **Un TusDatos que revienta NO detiene el flujo** —sigue con los nombres que tipeó la persona, igual
+  que el `catch` de v1 en `OnboardingService::storePersonalInfo`—, pero su `DOCUMENT_NOT_FOUND` (ONB005)
+  **suspende** la corrida en vez de terminarla: la persona corrige el documento y la cascada entera
+  vuelve a correr, salvo que `kyc_document_not_found_bypass` perdone a ese comercio o sucursal. Los
+  intentos se cuentan **desde el primer pedido, no desde el primer reintento**, y todas las correcciones
+  comparten **una sola ventana**. Para el nombre, el techo es `maxIdentityAttempts = 3`.
+
+⚠ **Nada de esto cambia el veredicto de arriba**: sigue siendo el servicio hacia dónde va el KYC, no
+dónde está. Lo que cambió es que ahora sabe de países, que es lo que el monolito estuvo haciendo en
+paralelo — ver el nodo de internacionalización.
+
 ## Dónde mirar
 
 - **El pipeline de KYC** — `customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go`
@@ -230,7 +267,7 @@ scraping pendiente (ver nodo motai). Verificado contra `main`.
   `internal/infra/storage/postgres/pipeline_repository.go` (de dónde sale la configuración por comercio).
   El otro workflow, `internal/core/workflows/kyc/workflow.go`, es distinto — no se leyó.
 - **El punto de contacto con el monolito** —
-  `legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1647 showUserRequest`.
+  `legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1821 showUserRequest`.
   Es de una línea, y su comentario es la única mención de CPS en todo `main`.
 - **El backend del móvil** — `financial-health-service/cmd/http-server/main.go` y los tres handlers de
   `internal/infra/handlers/http/` (`financial_health`, `financial_tips`, `financial_profile`). Cada uno

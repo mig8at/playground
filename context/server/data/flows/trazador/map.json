@@ -28,6 +28,8 @@
     "trazador/src/components/Buscador.vue",
     "trazador/src/components/Historia.vue",
     "trazador/src/stores/trazador.js",
-    "trazador/src/trazaTexto.js"
+    "trazador/src/trazaTexto.js",
+    "trazador/server/chequeo.go",
+    "trazador/src/components/Mapa.vue"
   ]
 }

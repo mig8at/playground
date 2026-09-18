@@ -110,6 +110,31 @@ score pasa, qué regla datacrédito aplica) es turf de `profiling` / `kyc` — a
 radicación de Credifamilia cierra con F-168, y config/inyección acompañando). Autodocumentado en los
 commits del propio playground.
 
+**(2026-09-18) Lo que cambió el contrato del arnés con el resto del árbol**, verificado corriéndolo:
+
+- **La corrida se escribe sola como anotación: `MD=1`** en `harness-caso`, `-listado`, `-caminar` y
+  `-suite`. Devuelve el marcador con la fecha real, una línea de evidencia por caso y el comando que
+  la reproduce, al final y **solo**, para pegarlo en una tarea sin recortar. No es comodidad: el
+  tablero PARSEA esa evidencia y de ahí deriva con qué se comprobó y contra qué ambiente — pero sólo
+  si lo pegado trae el comando, y medido ese día, el 86 % de las anotaciones no lo traía.
+- ⚠ **El TARGET va siempre en ese comando, aunque sea el default — que acá NO es `local`.**
+  `E2E_TARGET` cae en `dev` si nadie lo dice, y dev y staging comparten base: una medición sin
+  ambiente no se puede contrastar.
+- **El panel dejó de ser una columna y pasó a ser un editor** (dos barras, consola abajo, el mapa del
+  recorrido al centro). El mapa ahora **marca dónde va la corrida**, leyendo las líneas de la traza.
+- **El aviso de «falta MinIO» mentía siempre**: el puerto del S3 local se leía fijo en 9000 y esta
+  máquina usa ministack en `:4566`. Ahora sale del `AWS_ENDPOINT` del backend. Un aviso
+  permanentemente rojo deja de leerse, y tapa a los que sí importan.
+- **Qué GENERA los documentos es una perilla del `.env` de otro repo, y ahora el panel la muestra**
+  (`DOC_GEN_*`: `blade` o `microservice`). Con el mock la corrida es mucho más rápida y **deja de
+  ejercitar las plantillas Blade**, o sea que deja de atrapar la clase de bug de **F-150**. Medido con
+  el mismo caso: **65,7 s con Blade contra 9,8 s con el mock**.
+
+⚠ **Los hallazgos de producto que trajeron esas corridas NO están acá**: tienen su `F-xx` en el nodo
+`findings` (F-214 listado vacío · F-218 una rt=2 que no pasa las reglas duras desaparece del listado · F-220 identidad sin proveedor ·
+F-236 el techo del documento · F-238 la caché de asignación). Este nodo describe la herramienta; lo
+que la herramienta encontró vive donde se busca por síntoma.
+
 ## Dónde mirar
 
 - `harness/dev/guided.spec.ts` — el demo guiado de 2 ventanas; detección del cierre **por conducta**

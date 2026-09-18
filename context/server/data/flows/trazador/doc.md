@@ -91,13 +91,56 @@ npm run dev --prefix trazador               # server + UI juntos (:5192)
 ```
 
 Diagnósticos: `-anclas` (cuánto se puede afirmar de cada línea), `-campos` (censo de campos del contexto
-de log), `-spans` (si el `span_id` alcanza para ubicar lo que el texto no reclama), `-validar` (audita el
-mapa contra un corpus de líneas crudas).
+de log), `-spans` (si el `span_id` alcanza para ubicar lo que el texto no reclama).
+
+**Y DOS CHEQUEOS DEL MAPA, que no son lo mismo: la diferencia es qué necesitan para correr.**
+
+| | qué mira | qué pide |
+|---|---|---|
+| `-chequeo` | coherencia interna, los ids de ramal que comparte con `harness/panel/steps.json`, los matchers contra los mensajes que el código EMITE y —con `-target`— que las tablas declaradas existan | **nada** |
+| `-validar <corpus>` | solapes entre patrones, matchers mudos, cobertura por etapa | un corpus de líneas reales |
+
+⚠ **El segundo existe desde antes y casi no se corre, justamente porque pide un corpus.** Ésa es la
+razón del primero: hay una clase entera de mentiras del mapa que no necesita líneas para detectarse.
+
+**Lo que encontró su primera corrida (2026-09-18) vale como advertencia del tipo de deriva que acumula
+este mapa:** cinco matchers anclados al NÚMERO de un stage del pipeline de Experian, que el código
+renumeró —«Frequency review» pasó de 2 a 4, «Check flow omitions» de 3 a 2, «Bypass rules review» de 4
+a 3—. Los cinco quedaron **mudos sin que nada avisara**: un matcher que no captura no falla, sus líneas
+caen en «sin ubicar» y la etapa se dibuja más vacía de lo que fue. Ahora van por regex con el NOMBRE.
+El número es el orden del pipeline y se renumera; el nombre es lo estable.
+
+⚠ **El cruce contra el código usa `workers/logs.json`, que es un índice DERIVADO y puede estar viejo.**
+Se construye con `python3 workers/cli.py logs --construir`; el que había el 2026-09-18 tenía un mes
+(1.576 mensajes) y regenerado dio 1.984. Antes de creerle a una acusación del chequeo, mirá su fecha.
+
+**El `Ramal` de la traza** (`creditopx` · `agregador` · `redirect` · `credifamilia`) sale del
+`response_type` del lender ya sellado en la solicitud, así que **sólo existe después de que el cliente
+eligió**: antes de `selected lender` no hay ramal, y eso es un hecho, no un dato faltante. De él cuelga
+qué etapas se declaran `no aplica`.
+
+⚠ Y se decide por **identidad** en un caso: Credifamilia por `id == 24`, no por su `response_type`. Es
+deuda conocida —la clase que cataloga `workers/cli.py quemado`— y miente en silencio el día que ese
+lender cambie de id.
 
 **La evidencia va con el paso.** Cada sub-paso de BD lleva un bloque `Evidencia` con la consulta que
 corrió (con el `?` ya resuelto, para pegar en Redash) y las filas que produjeron ese renglón. Se
 renderiza aparte de los logs a propósito: una fila de BD es un ESTADO, no un evento — pintarla como log
 invita a armar una línea de tiempo con lo que no es una.
+
+**DOS VISTAS DEL MISMO RECORRIDO, y las dos se quedan (2026-09-18).** `lista` (`Etapas.vue`) contesta
+«¿qué pasó en cada etapa?» —hora, salto, sub-pasos, eventos— y `mapa` (`Mapa.vue`) contesta «¿por dónde
+fue, dónde se cortó y cuánto faltaba?», que una lista no puede: no muestra que había otros carriles, ni
+cuánto quedaba después del corte, ni el salto de tiempo como distancia.
+
+⚠ **El mapa del trazador NO es el del harness**, y copiarlo hubiera sido el error: aquél dibuja las 26
+**pantallas** que un comercio PUEDE recorrer; éste, las 9 **etapas de negocio** que UNA solicitud
+recorrió de verdad. Lo único compartido a propósito es el vocabulario de ramales, que ya estaba
+compartido en `ramales.json` — y que desde el 2026-09-18 el `-chequeo` verifica en vez de suponer.
+
+**La corrida se puede pegar en una tarea sin reescribirla:** `MD=1` en `-ureq`, `-buscar` y `-sql`
+emite la anotación que consume el tablero, con la fecha real, la evidencia y el comando adentro. El
+tipo es siempre `MEDICIÓN`: eso sale de correr algo, y una `DECISIÓN` la escribe una persona.
 
 **(2026-08-28)** Deriva = commits propios de este playground (el árbol de 39 pasos «DÓNDE QUEDÓ» dentro
 de la traza, y las etapas nuevas). El doc describe la herramienta; su evolución es autodocumentada en
@@ -121,9 +164,9 @@ los commits.
 Por responsabilidad, con la línea donde decide. `etapas.go` son ~3.400 líneas: entrar sin esto es
 leerlo entero.
 
-- **Punto de entrada** — `trazador/server/etapas.go:2367 ArmarTraza(target, ureq)`: trae BD, trae logs
+- **Punto de entrada** — `trazador/server/etapas.go:2706 ArmarTraza(target, ureq)`: trae BD, trae logs
   y llama al ensamblado. Es la única puerta; todo lo demás cuelga de acá.
-- **El ensamblado** (el corazón) — `etapas.go:392 ensamblar(mapa, subMapa, s, lineas, target)`:
+- **El ensamblado** (el corazón) — `etapas.go:422 ensamblar(mapa, subMapa, s, lineas, target)`:
   `:472 porEtapa` reparte cada línea a su etapa (por patrón del mapa, y si no, heredando el span) ·
   `:1436 agruparPorHitos` la reparte a su sub-paso · `:2994 fusionarCentrales` junta el hecho de BD con
   la evidencia de log en UNA fila (la N:1 que hace que Experian traiga sus tres hitos) ·
@@ -154,7 +197,7 @@ leerlo entero.
   `:560 sqlProfiling` (el snapshot del motor, incluido `ML_predictions` con sus tres formas),
   `:498 fecha` (⚠ acá se corrige el desfase de 5 h: la BD llega en UTC). Los logs:
   `etapas.go:2016 traerLineas` (anclas por `user_request_id` con sus tres grafías, + la etiqueta del MS).
-- **La vista de terminal** — `etapas.go:1743 imprimirTraza` (el árbol, el resumen de hallazgos arriba,
+- **La vista de terminal** — `etapas.go:2025 imprimirTraza` (el árbol, el resumen de hallazgos arriba,
   y el recorte que NUNCA se come un error). El HTML opcional: `vista.go:23 escribirHTML`.
 - **La API que consume la Vue** — `serve.go:38 servir(addr)` · `:199 targetDe` (de qué ambiente lee) ·
   `:212 enmascararPII`.
