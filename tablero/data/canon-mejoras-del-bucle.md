@@ -212,7 +212,8 @@ falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y 
 eso la pregunta de documentos costó 21 llamadas— pero además **ya era papel tapiz**: medido sobre los 167 casos
 de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo esta mañana sin medirlo.
 
-**El próximo paso es:** avisarle a quien mantenga el arnés
+**El próximo paso es:** que la descripción de `archivo` empiece por el plural, como la de `leer` — es una línea
+con una base medida en 0%. Y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -500,7 +501,18 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
-- **#250 mergeado (15:04).** El aviso del recorrido no avisaba nada. Dos defectos, los dos míos y de hoy. Miraba sólo la prosa, así
+- **⚠ CORRECCIÓN sobre #250, mirando la traza de verdad.** Lo que mandé como «el aviso miraba el balde
+  equivocado» era falso, y lo era porque probé con una consulta que INVENTÉ en vez de la que el modelo usó.
+  Con la suya —`Bancolombia documentos subida archivos`— la regla vieja también anunciaba los dos temas, y la
+  traza lo confirma: **el modelo usó `recorrido(tema=bancolombia)` en el paso 3**. El aviso funcionó. Lo que
+  queda en pie de #250 es el otro defecto, que sí estaba medido: el aviso salía en el 98% de las preguntas con
+  4 temas y ahora sale con 2,8.
+- **Y el costo real de esa pregunta estaba en otro lado: LEER.** De sus 21 llamadas, 15 son de leer archivos y
+  código, **diez de ellas `archivo` de a una**. Medido sobre las últimas 20 preguntas de prod: `archivo` agrupa
+  el **0%** (31 llamadas de a una, ninguna agrupada), `codigo` el 20%, `leer` el 49%. Y la correlación salta a
+  la vista en cómo arranca cada descripción: `leer` dice «VARIAS secciones de una vez» (49%), `archivo` dice
+  «Lee UN archivo» (0%) — aunque acepte `rutas` en plural desde siempre.
+- **#250 mergeado (15:04).** El aviso del recorrido salía en casi todas las preguntas. Dos defectos, los dos míos y de hoy. Miraba sólo la prosa, así
   que a «flujo de subida de archivos» no le dijo que `documentos` tiene camino escrito —vino dos veces por el
   balde del mapa— y esa pregunta costó 21 llamadas y 87 s. Y sumarle el mapa a secas lo empeoraba: medido sobre
   los 167 casos de los bancos, sólo prosa salía en el **98%** de las preguntas con 4,0 temas y prosa+mapa en el
