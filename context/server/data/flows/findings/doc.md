@@ -1752,9 +1752,9 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** la comisión de un crédito Corbeta sale en cero, o sale con valores viejos después de
   renegociar el acuerdo comercial. No hay error: la celda simplemente trae 0.
 - **Causa raíz (verificada 2026-08-09):** `application/app/Exports/UserRequestsCorbetaExport.php:38`
-  define un JSON con **40 tramos** (1.000.000 → 40.000.000, uno por millón) y `application/app/Exports/UserRequestsCorbetaExport.php:156` lo recorre buscando
+  define un JSON con **40 tramos** (1.000.000 → 40.000.000, uno por millón) y `application/app/Exports/UserRequestsCorbetaExport.php:168` lo recorre buscando
   el tramo por **igualdad exacta**: `if ($row['monto'] == $millones)`, donde
-  `$millones = floor($user_request->final_amount / 1000000) * 1000000` (`application/app/Exports/UserRequestsCorbetaExport.php:155`). Si el monto truncado no
+  `$millones = floor($user_request->final_amount / 1000000) * 1000000` (`application/app/Exports/UserRequestsCorbetaExport.php:166`). Si el monto truncado no
   está en la tabla, `$consumoTotal` **queda en 0** y no hay `else` ni log. Los dos huecos:
   - `final_amount < 1.000.000` → `floor` da **0**, que no está en la tabla → comisión 0.
   - `final_amount >= 41.000.000` → fuera del último tramo → comisión 0.

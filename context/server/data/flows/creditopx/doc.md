@@ -16,7 +16,7 @@ Tipos (capacitación de producto, `159906a:docs/codigo/MECANICA-CREDITO.md`):
 
 Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, interés sobre **saldo diario**); **cuota total = capital+interés + seguro de vida + fondo de garantía (FGA)**.
 
-> ⚠ **Corregido (F-71).** Acá decía que la cadena de tasas era `EA → MV (1+EA)^(1/12)−1 → diaria (1+MV)^(1/30)−1`. **Ese no es el código de CreditopX** — es el de Credifamilia (`app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php`). CreditopX **divide**, no capitaliza: `rate/100` (`CreditopXPaymentService.php:741`, `CreditopXRequestHistoryService.php:302`) y `rate/30` para la diaria (`CreditopXRequestHistoryService.php:1272`), porque `credit_line_by_lenders.rate_suffix` es **N.M.** (nominal mensual) en las 157 filas — y para una nominal, dividir es lo correcto. Ver **F-71** en `findings`. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
+> ⚠ **Corregido (F-71).** Acá decía que la cadena de tasas era `EA → MV (1+EA)^(1/12)−1 → diaria (1+MV)^(1/30)−1`. **Ese no es el código de CreditopX** — es el de Credifamilia (`app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php`). CreditopX **divide**, no capitaliza: `rate/100` (`legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php:948`, `CreditopXRequestHistoryService.php:302`) y `rate/30` para la diaria (`CreditopXRequestHistoryService.php:1272`), porque `credit_line_by_lenders.rate_suffix` es **N.M.** (nominal mensual) en las 157 filas — y para una nominal, dividir es lo correcto. Ver **F-71** en `findings`. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
 
 ## Antes de concluir
 - **`have_ctopx` NO es gate duro.** Un rt=2 que falla las reglas duras no cae a `false_lenders` si el comercio tiene `have_ctopx`; el corte definitivo es la **categoría**, no el datacrédito temprano.
@@ -125,7 +125,7 @@ capital. Tres precisiones que cambian el diagnóstico:
   crédito prácticamente pagado deje a alguien sin poder comprar de nuevo.
 
 ⚠ **Y sólo aplica a rt=2.** El rotativo (rt=3) sale antes por otro camino (`RevolvingCreditsService`,
-`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:159`) y los rt≠2 salen del método antes de llegar a los evaluadores (`:170`): en esos, «ya tiene un
+`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:403`) y los rt≠2 salen del método antes de llegar a los evaluadores (`:414`): en esos, «ya tiene un
 crédito» lo decide —o no— la API del lender.
 
 ## Dónde se SACA una entidad del listado — el mapa completo
@@ -161,7 +161,7 @@ Orden real del cascade (application, la ruta **viva por defecto** en parallel-ru
 1. **Base sucursal** (`lenders_by_allied_branches`) + gate `no_more`: si el usuario ya tiene una solicitud rt=2, excluye los rt=2 (`LenderRetrievalService.php:121`).
 2. **Filtros duros** `status=1` / `country=1`.
 3. **`group_rules` (AND) + datacrédito rt=2 inline** (`LenderValidationService.php:176-262`): score `>=` (:206) · negativos 12m `<=` (:219) · consultas 6m `<=` (:232) · maduración `>=` (:249). Un rt=2 que falla se **EXCLUYE** (se hace `unset` de `false_lenders`, :376) — **salvo `have_ctopx`** (sobrevive hasta la categoría, :308-327). El datacrédito rt≠2 solo **REORDENA**.
-4. **ML/matrices** `weighted_score` — **solo en producción** (`application/app/Services/lenders/LenderRetrievalService.php:231` y `:244`); rt=2/3 forzados a `weighted_score=1` (arriba, `:586`/`:600` del MISMO archivo). ⚠ Ojo con el archivo: este punto **cambia de archivo** respecto del 3. Las sub-líneas sueltas (`:206`, `:219`…) del punto 3 continúan `LenderValidationService.php`, y acá los `:231/:244` iban sueltos también — se leían como del mismo archivo y son de **Retrieval**, no de **Validation**. Los dos viven en la misma carpeta y se diferencian en una palabra.
+4. **ML/matrices** `weighted_score` — **solo en producción** (`application/app/Services/lenders/LenderRetrievalService.php:235` y `:244`); rt=2/3 forzados a `weighted_score=1` (arriba, `:586`/`:600` del MISMO archivo). ⚠ Ojo con el archivo: este punto **cambia de archivo** respecto del 3. Las sub-líneas sueltas (`:206`, `:219`…) del punto 3 continúan `LenderValidationService.php`, y acá los `:231/:244` iban sueltos también — se leían como del mismo archivo y son de **Retrieval**, no de **Validation**. Los dos viven en la misma carpeta y se diferencian en una palabra.
 5. **Special granting** (buckets monto-por-score, casos DENTIX/especiales): `LenderSpecialGrantingService`.
 6. Pre-aprobados rt=1 (nodo `aggregator` / `ms-preapprovals`).
 7. Orden por probabilidad.
@@ -206,7 +206,7 @@ salta Experian y solo ofrece los lenders sin integración directa. Vale para `le
 vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Modules/Loans/App/Services/LenderUserCategoryService.php` (firma `getLenderUserCategory(int $userId, id)` — diverge de application, que pasa el objeto `$user`).
 - **Endpoint autoritativo del cupo** (legacy): `Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:81 getAvailableQuota` · `:239` datacrédito · `:268` categoría · `:326` `scoring_policy_fallback_blocked` · `:452/:468` cupo + tope por tramo.
 - **El marcador de log del rechazo por cupo es `QUOTA_CHECK_REJECTED`** — y el mismo controller lo emite desde **más de una decena** de puntos de salida distintos (`:98`, `:119`, `:143`, `:175`, `:199`, y sigue hasta `:693`; contalos con grep, no confíes en una lista escrita). O sea que el marcador **solo no dice cuál compuerta cortó**: hay que mirar el payload. Sale a nivel `info` (a diferencia del `debug` de `CATEGORY_RULE_REJECTED` → ver **Profiling § El vocabulario del CÓDIGO**, que tiene la tabla completa de marcadores de categoría). El equivalente rt=3 es `REVOLVING_CREDIT_REJECTED` → ver **rotativo**.
-- **Discriminadores** (legacy `database/seeders/ResponseTypesTableSeeder.php:24-35`; `app/Models/Lender.php:77 isSmartpay` vía `config('lenders.smartpay_lender_id')`; frontend `modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:37/57/68/78`).
+- **Discriminadores** (legacy `database/seeders/ResponseTypesTableSeeder.php:24-35`; `legacy-backend/app/Models/Lender.php:88 isSmartpayChannel` vía `config('lenders.smartpay_lender_id')`; frontend `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:56/134/143/146`).
 
 ## Lo que NO está verificado
 - La regla GENÉRICA del `DatacreditoRuleEvaluator`: el fail-closed está verificado (`:48`); el `whereNull(allied_branch_id)` exacto, no.
