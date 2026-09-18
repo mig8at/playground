@@ -48,11 +48,21 @@ modelo no puede diluir; y el chat **dibuja tablas**, que hasta hoy no dibujaba �
 camino estaba cerrado de los dos lados, y escribir una tabla castigaba al modelo con sopa de barras—.
 `Creditop-SAS/playground#233`.
 
-**El próximo paso es:** conseguir una llave de modelo que ande —la de Gemini local devuelve `403
-PERMISSION_DENIED`— y correr **dos preguntas nuevas**, que miden de una sola vez las dos cosas que
-quedaron sin medir: si el titular nuevo hace encoger el texto largo, y si el recorrido se recorre. El
-criterio es el de siempre —que el camino se use, no que la herramienta funcione— y es el que la franja
-nunca alcanzó antes de irse.
+**Mergeado y MEDIDO contra prod el mismo día** (`#233` en `main`; el despliegue tardó 8 minutos y se
+detectó con 12 sondas seguidas sobre `/api/tools`, gratis). Dos preguntas nuevas, ninguna del banco:
+`en_una_linea` **vino en las dos**, contesta de verdad —no anuncia— y el texto largo no la repite; las
+dos respaldadas, con 8 y 10 citas. Pero los dos límites que escribí en la descripción **no se
+respetaron**: el titular salió de **39 y 30 palabras** contra un techo de 20, y el texto largo dio
+**323 y 461** palabras contra una mediana de 142 — con la salvedad de que son dos preguntas anchas y
+`n=2`, así que eso último no se le puede colgar limpio al cambio. Y **cero tablas**, con la primera
+pregunta siendo explícitamente comparativa: la contestó con viñetas. O sea que ofrecer una forma en la
+descripción no alcanza, que es otra vez lo mismo — una instrucción es una sugerencia, una guarda es
+una guarda.
+
+**El próximo paso es:** hacer que `contestar` **rechace** un `en_una_linea` que se pase del techo, con
+el motivo escrito, igual que ya rechaza un ancla que no existe —se ve funcionando en la traza de la
+primera pregunta: cuatro rechazos y el modelo se recuperó solo—. Es la misma palanca de siempre: la
+herramienta, no el guion.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -340,6 +350,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-17
 
+- **Medido contra prod, y el resultado está partido.** `en_una_linea` funciona: vino en las dos
+  preguntas, contesta en vez de anunciar, y el texto largo no la repite. Lo que NO funcionó son los
+  dos límites: 39 y 30 palabras contra un techo de 20, y cero tablas en una pregunta explícitamente
+  comparativa. **Las dos cosas que fallaron son texto en una descripción; la que funcionó es un campo
+  del esquema.** Un campo el modelo no lo puede no llenar; un techo escrito sí lo puede ignorar.
 - **La respuesta del chat se parte en dos campos, y el chat aprende a dibujar tablas.** Lo que decidió
   todo fue medir primero: 46 respuestas reales, y el problema no era el largo sino 21,8 palabras por
   oración y 25 en la primera. Tres cambios de HERRAMIENTA —la descripción del campo, `en_una_linea`,
