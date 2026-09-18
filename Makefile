@@ -341,7 +341,7 @@ harness-comercio: ## @har siembra un COMERCIO ENTERO en LOCAL desde su spec (`ha
 harness-forms-g2: ## @har levanta el mock del FORM-SERVICE (:8109) — el formulario del VEHÍCULO de BCP. ⚠ Sin esto, en local ese formulario ESCRIBE en la BD compartida de dev. [CMD=start|stop|status|logs|capturar]
 	@cd harness && bin/mock-forms-g2 $(if $(CMD),$(CMD),start)
 
-harness-bcp-volver: ## @har el flujo VEHICULAR de BCP por HTTP y qué se PIERDE al volver atrás (el monto, el gate, la etapa). Sólo local. Pide `harness-peru` + `harness-forms-g2` [COMERCIO=#hash] [MONTO=60000]
+harness-bcp-volver: ## @har el flujo VEHICULAR de BCP por HTTP y qué se PIERDE al volver atrás (el monto, el gate, la etapa). local · dev · qa · staging [TARGET=qa] [COMERCIO=#hash] [MONTO=60000] [TEL=a,b obligatorio fuera de local: el OTP sólo se salta con los del bypass] [FRONT=url] [NIEGA=1 el recorrido B, que deja una solicitud NEGADA]. En local pide `harness-peru` + `harness-forms-g2`; contra qa el comercio YA existe (`#a8221e67`)
 	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/bcp-volver.ts $(if $(TEL),--tel $(TEL)) $(if $(NIEGA),--niega) $(if $(COMERCIO),--comercio '$(COMERCIO)') $(if $(MONTO),--amount $(MONTO)) $(if $(INICIAL),--inicial $(INICIAL)) $(if $(BONO),--bono $(BONO)) $(if $(FRONT),--front $(FRONT))
 
 harness-pantallas: ## @har ¿por qué PANTALLAS habría pasado el cliente? el recorrido del wizard derivado del router en main. AL REVÉS con ENDPOINT=confirm-payment-schedule. [FILTRO=texto] [JSON=1]

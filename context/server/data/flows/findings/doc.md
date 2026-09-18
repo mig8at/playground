@@ -71,6 +71,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
 | **«fallaron TODOS los casos en la misma pantalla, debe ser el ambiente»** | **F-222** |
 | **«el listado da 500 / *Error al obtener las opciones de financiamiento*»** | **F-223** |
+| **«corregí un dato y el flujo siguió bien, pero quedó guardado el viejo»** | **F-224** |
 | **«ve algo que su rol no debería» · «tiene un permiso de más»** | **F-224** |
 | **«oculté el dato en pantalla, ¿alcanza?»** | **F-224** |
 | **«desplegué el permiso y al que SÍ debe entrar le da 403»** | **F-224** |
@@ -382,6 +383,7 @@ distinto según con qué pregunta llegues.
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
+| F-224 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
 
 ---
@@ -5480,3 +5482,57 @@ haber promesas. El texto del runner nombra el desenlace, no la causa.
   desplegado. ⚠ **Vivo en producción**: `develop` no es prod y hoy diverge de `main` en 82 archivos (34
   commits de un lado, 7 del otro). Y en prod el permiso **tampoco lo tiene nadie**, así que el día que
   llegue hay que asegurar que la migración corra o los 39 Administradores quedan afuera.
+
+### F-224 · Corregir el vehículo pasado el gate cambia la pantalla pero NO la solicitud: el monto guardado queda en el viejo
+
+**Síntoma.** En el flujo vehicular de BCP, con el gate ya pasado, se corrige el valor del vehículo. La
+pantalla responde como debe —invalida la simulación vieja y vuelve al simulador con el monto nuevo— y
+el recorrido sigue con esa cifra. **Pero la solicitud guardada conserva la anterior.** No hay error en
+ningún lado: las dos pantallas siguientes muestran números coherentes entre sí y con lo que el cliente
+acaba de escribir.
+
+**Causa raíz — el monto nuevo viaja en la URL y no llega a la fila.** El `action` que guarda el vehículo
+recalcula el financiado y redirige con él (`…/entidad/simulador?amount=63000`), pero no reescribe
+`user_requests.amount` ni `original_amount`. A partir de ahí conviven dos cifras: la que la pantalla
+arrastra por query string y la que la base tiene.
+
+**Evidencia — medido contra `qa` el 2026-09-18**, corriendo `dev/bcp-volver.ts`:
+
+| | valor |
+|---|---|
+| vehículo original | 60.000 |
+| vehículo corregido | **75.000** |
+| monto financiado que el funnel arrastra | **63.000** |
+| `user_requests.amount` | **60.000** ← |
+| `user_requests.original_amount` | **60.000** ← |
+
+El propio runner lo marca:
+
+```
+✓ vuelve al simulador: la simulación vieja quedó invalidada
+✓ el monto que sigue es 63000 (esperado 63000)
+✗ la BD dice amount 60000.0000 · original_amount 60000.0000 (esperado 63000 / 75000)
+```
+
+⚠ **Lo que hace caro a esto es que las dos mitades se ven bien por separado.** La pantalla hace lo
+correcto (invalida y recotiza) y la base es consistente consigo misma; lo que no existe es el puente. Una
+prueba que mire sólo el front lo da por bueno, y una que mire sólo la base no ve que hubo una corrección.
+
+⚠ **Y hay un segundo desacuerdo en la misma corrida, sobre el mismo dato.** El marketplace cotiza sobre
+`qsAmount > 0 ? qsAmount : requestedAmount`, y `requestedAmount` es el **valor del vehículo**, no el
+financiado: con `?amount=48000` y sin query string, la pantalla informó **60.000** las dos veces, mientras
+el backend devolvía `48000` en un caso y **180.000** en el otro. O sea que en este flujo el «monto»
+significa tres cosas distintas según quién lo mire.
+
+**Cómo se vuelve a comprobar:**
+
+    make harness-bcp-volver TARGET=qa COMERCIO='#a8221e67' TEL=321411214,321411217 \
+        FRONT=https://originaciones-qa.dev.creditop.com
+
+⚠ **Este flujo no se había corrido nunca desde que existe el runner**, y salió a la primera. Es la regla
+de la casa otra vez: correr encuentra lo que leer no puede — ningún nodo del árbol describía esta
+divergencia porque no hay una línea de código que la declare, es lo que FALTA.
+
+**Arreglo:** no aplicado. Son dos decisiones de producto antes que de código — qué cifra manda cuando el
+cliente corrige (¿se reescribe la solicitud, o la corrección exige rehacer el tramo?), y qué significa
+«monto» en la pantalla del marketplace de este flujo.
