@@ -30,9 +30,17 @@ import json
 import pathlib
 import re
 import subprocess
+import sys
 
 AQUI = pathlib.Path(__file__).parent
 GITHUB = pathlib.Path("~/Desktop/CREDITOP/github").expanduser()
+
+# ⚠ `ref_a_indexar` y no el literal `main`: el `main` local de un clon que nadie actualiza va detrás del
+# remoto —medido el 2026-09-18, cinco de diez repos, hasta 22 commits— y grepear ahí devuelve MENOS
+# hardcodes. Acá eso es peor que en otros lados: el censo de lugares quemados es una MEDIDA DE DEUDA, y
+# medir de menos la hace parecer más chica de lo que es. Sin fetch, que esto es interactivo.
+sys.path.insert(0, str(AQUI.parent / "context" / "tools"))
+from roots import ref_a_indexar  # noqa: E402
 
 # (categoría, repos, globs, patrón). El patrón lo consume `git grep -E` contra `main`.
 PATRONES = [
@@ -125,7 +133,8 @@ def barrer() -> list[dict]:
             ruta = GITHUB / repo
             if not ruta.is_dir():
                 continue
-            cmd = ["git", "-C", str(ruta), "grep", "-nIE", patron, "main", "--", *globs]
+            ref, _ = ref_a_indexar(str(ruta))
+            cmd = ["git", "-C", str(ruta), "grep", "-nIE", patron, ref, "--", *globs]
             r = subprocess.run(cmd, capture_output=True, text=True)
             # ⚠ git grep sale 1 cuando NO hay coincidencias: es normal, no un fallo. Pero un 2 SÍ es
             # un error (patrón inválido, rama ausente) y callarlo daría un mapa vacío que se lee
@@ -161,7 +170,8 @@ def plantillas_por_entidad() -> dict[str, list[str]]:
         ruta = GITHUB / repo
         if not ruta.is_dir():
             continue
-        r = subprocess.run(["git", "-C", str(ruta), "ls-tree", "-r", "--name-only", "main"],
+        ref, _ = ref_a_indexar(str(ruta))
+        r = subprocess.run(["git", "-C", str(ruta), "ls-tree", "-r", "--name-only", ref],
                            capture_output=True, text=True)
         for f in r.stdout.splitlines():
             m = re.search(r"_(\d{2,4})\.(?:blade\.)?php$", f)

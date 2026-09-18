@@ -101,12 +101,32 @@ def refrescar_remotos(roots=None, timeout=30, verboso=False):
     return fallaron
 
 
+# El resultado se cachea por proceso: los consumidores interactivos la llaman DENTRO de un loop sobre
+# repos (`contexto.py` grepea los doce por consulta) y cada resolución son cuatro llamadas a git. Sin
+# cache eso es ~50 subprocesos por comando para contestar algo que no cambia mientras el comando corre.
+_CACHE_REF = {}
+
+
 def ref_a_indexar(root, rama="main"):
     """La ref de git que hay que recorrer: la que CONTIENE a la otra (ver la nota de arriba).
 
     Devuelve `(ref, motivo)`. El motivo existe para poder imprimirlo: un índice que no dice de qué ref
     salió no se puede contrastar con nada.
+
+    ⚠ NO HACE FETCH: resuelve con lo que ya hay en disco. Quien quiera refs frescas llama antes a
+    `refrescar_remotos()` — lo hace `logs.py`, que construye un índice persistente. Los consumidores
+    interactivos NO lo hacen a propósito: pagar segundos de red en cada grep es peor negocio que
+    aprovechar el último fetch de cualquiera. Aun sin fetch esto ya mejora lo que había, porque
+    `origin/main` suele estar por delante del `main` local que nadie mueve.
     """
+    if (root, rama) in _CACHE_REF:
+        return _CACHE_REF[(root, rama)]
+    out = _ref_a_indexar(root, rama)
+    _CACHE_REF[(root, rama)] = out
+    return out
+
+
+def _ref_a_indexar(root, rama):
     remoto = f"origin/{rama}"
     hay_local = _git(root, "rev-parse", "--verify", "--quiet", rama)[0] == 0
     hay_remoto = _git(root, "rev-parse", "--verify", "--quiet", remoto)[0] == 0

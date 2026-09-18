@@ -22,7 +22,7 @@ FLOWS = CONTEXT / "server" / "data" / "flows"
 # La tabla alias→repo NO se copia acá: se importa de su fuente única. El propio `roots.py` explica por
 # qué —tenerla dos veces es una divergencia que no falla, sólo da veredictos equivocados.
 sys.path.insert(0, str(CONTEXT / "tools"))
-from roots import ROOTS  # noqa: E402
+from roots import ROOTS, ref_a_indexar  # noqa: E402
 import extraer as _extraer  # noqa: E402  — de acá sale el `h` con el que los agentes responden
 import indice as _code_index  # noqa: E402  — el índice por repo, vecino de este archivo
 
@@ -103,10 +103,15 @@ def leer_codigo(ruta, desde=1, hasta=0):
     """Un tramo de un archivo fuente, leído de `main` (no del working tree). `ruta` es 'alias/camino'.
     Devuelve las líneas numeradas, para poder citarlas."""
     root, rel = _resolver(ruta)
-    r = subprocess.run(["git", "-C", root, "show", f"main:./{rel}"],
+    # ⚠ ÉSTE ES EL QUE MÁS IMPORTA de todos los que leían `main` a secas: es de donde un agente saca el
+    # CÓDIGO que después cita. Contra un `main` local atrasado devuelve una versión vieja del archivo sin
+    # decirlo —o un «no está en main» sobre algo recién mergeado— y lo que se afirme encima hereda el
+    # error con toda la apariencia de estar verificado contra main. La ref la elige `ref_a_indexar`.
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "show", f"{ref}:./{rel}"],
                        capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
-        return {"error": f"no está en main: {ruta}", "detalle": (r.stderr or "").strip()[:200]}
+        return {"error": f"no está en {ref}: {ruta}", "detalle": (r.stderr or "").strip()[:200]}
     lineas = r.stdout.splitlines()
     total = len(lineas)
     desde = max(1, int(desde))
@@ -129,14 +134,20 @@ def buscar_en_codigo(patron, alias, subruta=""):
     Usalo sólo si el nodo no te llevó directo — y después contá que lo usaste."""
     if alias not in ROOTS:
         return {"error": f"alias desconocido '{alias}'", "validos": sorted(ROOTS)}
-    cmd = ["git", "-C", ROOTS[alias], "grep", "-n", "--no-color", "-F", patron, "main"]
+    # ⚠ NO es literalmente `main`: es la ref que CONTIENE a la otra. El `main` local de un clon que
+    # nadie actualiza va detrás del remoto (medido el 2026-09-18: cinco de diez repos, hasta 22
+    # commits), y grepear ahí devuelve MENOS resultados — que se leen igual que «no existe». Acá NO se
+    # hace fetch: esto es interactivo y pagar segundos de red por consulta es peor negocio. Ver
+    # `context/tools/roots.py`.
+    ref, _ = ref_a_indexar(ROOTS[alias])
+    cmd = ["git", "-C", ROOTS[alias], "grep", "-n", "--no-color", "-F", patron, ref]
     if subruta:
         cmd += ["--", subruta]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
     if r.returncode not in (0, 1):
         return {"error": (r.stderr or "").strip()[:200]}
-    hits = [l.replace("main:", "", 1) for l in r.stdout.splitlines()[:40]]
-    return {"patron": patron, "alias": alias, "coincidencias": len(hits), "donde": hits}
+    hits = [l.replace(f"{ref}:", "", 1) for l in r.stdout.splitlines()[:40]]
+    return {"patron": patron, "alias": alias, "ref": ref, "coincidencias": len(hits), "donde": hits}
 
 
 def archivos_por_tag(termino, cuantos=40):
@@ -218,13 +229,14 @@ def quien_usa(simbolo, repos=None, cuantos=40):
     s = simbolos[0]
     define, usan, fallaron = [], [], []
     for a in alias:
-        r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", s, "main"],
+        ref, _ = ref_a_indexar(ROOTS[a])
+        r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", s, ref],
                            capture_output=True, text=True, timeout=120)
         if r.returncode not in (0, 1):
             fallaron.append(a)
             continue
         for linea in r.stdout.splitlines():
-            sin_ref = linea.replace("main:", "", 1)
+            sin_ref = linea.replace(f"{ref}:", "", 1)
             ruta, _, resto = sin_ref.partition(":")
             n, _, texto = resto.partition(":")
             item = {"ruta": f"{a}/{ruta}", "linea": n, "codigo": texto.strip()[:150]}
@@ -291,12 +303,13 @@ def codigo_de_log(mensaje, repos=None):
             break
         hits = []
         for a in alias:
-            r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", p, "main"],
+            ref, _ = ref_a_indexar(ROOTS[a])
+            r = subprocess.run(["git", "-C", ROOTS[a], "grep", "-n", "--no-color", "-F", p, ref],
                                capture_output=True, text=True, timeout=120)
             if r.returncode not in (0, 1):
                 continue
             for linea in r.stdout.splitlines()[:40]:
-                sin = linea.replace("main:", "", 1)
+                sin = linea.replace(f"{ref}:", "", 1)
                 ruta, _, resto = sin.partition(":")
                 n, _, texto = resto.partition(":")
                 full = f"{a}/{ruta}"

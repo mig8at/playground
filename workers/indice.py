@@ -31,7 +31,7 @@ CONTEXT = RAIZ.parent / "context"
 # La tabla alias→repo NO se copia: se importa de su fuente única, que vive en context/tools. El propio
 # `roots.py` explica por qué tenerla dos veces «no falla, sólo da veredictos equivocados».
 sys.path.insert(0, str(CONTEXT / "tools"))
-from roots import ROOTS  # noqa: E402
+from roots import ROOTS, ref_a_indexar  # noqa: E402
 
 INDICE = RAIZ / "repos.json"
 
@@ -53,7 +53,12 @@ def tamanos(alias):
     root = ROOTS.get(alias)
     if not root or not Path(root).is_dir():
         return {}
-    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "-l", "main"],
+    # ⚠ La ref no es literalmente `main`: es la que CONTIENE a la otra (`ref_a_indexar`). Un `main`
+    # local que nadie actualiza va detrás del remoto —medido el 2026-09-18: cinco de diez repos, hasta
+    # 22 commits— y ahí el árbol sale con MENOS archivos, que se lee igual que «esa ruta no existe».
+    # Sin fetch: esto es interactivo. Ver `context/tools/roots.py`.
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "-l", ref],
                        capture_output=True, text=True, timeout=180)
     d = {}
     for linea in r.stdout.splitlines():
@@ -108,11 +113,16 @@ def escribir_pesos():
 
 def _existe_en_main(alias, rel):
     """¿La ruta está en `main`? Contra main y no contra el working tree, como todo el árbol: los repos
-    reales trabajan en ramas, y un archivo que sólo existe en la tuya daría un falso OK."""
+    reales trabajan en ramas, y un archivo que sólo existe en la tuya daría un falso OK.
+
+    ⚠ «main» acá es `ref_a_indexar`, no el literal: contra un `main` local atrasado un archivo recién
+    mergeado se declara MUERTO, que es el falso negativo más caro de esta función — manda a borrar una
+    ruta que sí existe."""
     root = ROOTS.get(alias)
     if not root or not Path(root).is_dir():
         return None  # repo no clonado: ni OK ni DROP, se declara aparte
-    r = subprocess.run(["git", "-C", root, "cat-file", "-e", f"main:./{rel}"],
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "cat-file", "-e", f"{ref}:./{rel}"],
                        capture_output=True, text=True, timeout=30)
     return r.returncode == 0
 
@@ -308,14 +318,16 @@ def _arbol(alias):
     root = ROOTS.get(alias)
     if not root or not Path(root).is_dir():
         return []
-    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", "main"],
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", ref],
                        capture_output=True, text=True, timeout=120)
     return r.stdout.splitlines() if r.returncode == 0 else []
 
 
 def _leer(alias, rel):
     root = ROOTS[alias]
-    r = subprocess.run(["git", "-C", root, "show", f"main:./{rel}"],
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "show", f"{ref}:./{rel}"],
                        capture_output=True, text=True, timeout=30)
     return r.stdout if r.returncode == 0 else ""
 
@@ -375,7 +387,8 @@ def subramas(alias):
         u["tipo"] = "módulo V1/V2" if mod[-2:] in ("V1", "V2") else "módulo"
 
     unidades = list(porUnidad.values())
-    return {"repo": alias, "contra": "main", "unidades": unidades, "cuantas": len(unidades)}
+    return {"repo": alias, "contra": ref_a_indexar(ROOTS[alias])[0], "unidades": unidades,
+            "cuantas": len(unidades)}
 
 
 def mapa_de_negocio(alias):
@@ -428,7 +441,8 @@ def ver_mapa(alias):
         print("  Los nodos que lo describen salen de `puente`.\n")
         return 0
     us = d["unidades"]
-    print(f"\n▸ {alias} — qué parte del negocio vive en cada unidad (derivado de main + los map.json)\n")
+    print(f"\n▸ {alias} — qué parte del negocio vive en cada unidad "
+          f"(derivado de {ref_a_indexar(ROOTS[alias])[0]} + los map.json)\n")
     ancho = min(52, max((len(u) for u in us), default=20))
     for u in sorted(us, key=lambda x: -sum(c for _, c in us[x])):
         top = " · ".join(f"{n} ({c})" for n, c in us[u][:3])
@@ -455,7 +469,7 @@ def ver_subramas(alias):
         print(f"\n▸ {alias} — sin subramas: no usa workspaces ni módulos, es una unidad sola.")
         print("  Su estructura está en `repos.json` (cómo se ensambla + por dónde entrar).\n")
         return 0
-    print(f"\n▸ {alias} — {d['cuantas']} unidades con ensamblado propio (contra main)\n")
+    print(f"\n▸ {alias} — {d['cuantas']} unidades con ensamblado propio (contra {d.get('contra', 'main')})\n")
     for u in sorted(d["unidades"], key=lambda x: (x["tipo"], x["unidad"])):
         etiqueta = f"[{u['tipo']}]"
         print(f"  {etiqueta:16} {u['unidad']}" + (f"   ({u['nombre']})" if u["nombre"] else ""))

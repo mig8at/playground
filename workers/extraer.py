@@ -49,7 +49,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ.parent / "context" / "tools"))
-from roots import ROOTS  # noqa: E402
+from roots import ROOTS, ref_a_indexar  # noqa: E402
 
 CODIGO = {"php", "ts", "tsx", "js", "jsx", "mjs", "cjs", "vue", "go", "py", "rs"}
 INFRA_EXT = {"tf", "tfvars"}
@@ -183,11 +183,12 @@ def prefijos_del_repo(alias):
     root = ROOTS.get(alias)
     fuera = {}
     if root and Path(root).is_dir():
-        r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", "main"],
+        ref, _ = ref_a_indexar(root)
+        r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "--name-only", ref],
                            capture_output=True, text=True, timeout=120)
         provs = [l for l in r.stdout.split("\n") if "RouteServiceProvider" in l and l.endswith(".php")]
         for f in provs:
-            t = subprocess.run(["git", "-C", root, "show", "main:" + f],
+            t = subprocess.run(["git", "-C", root, "show", f"{ref}:" + f],
                                capture_output=True, text=True, timeout=60).stdout
             for m in _PROVIDER.finditer(t):
                 pref, mod, arch = (m.group(1) or "").strip("/"), m.group(2), m.group(3).lstrip("/")
@@ -337,7 +338,12 @@ def _blobs(alias, subruta="", tope_archivos=4000, solo_rutas=None):
     root = ROOTS.get(alias)
     if not root or not Path(root).is_dir():
         return []
-    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "main"] + ([subruta] if subruta else []),
+    # ⚠ La ref NO es literalmente `main`: es la que CONTIENE a la otra (`ref_a_indexar`). El `main`
+    # local de un clon que nadie actualiza va detrás del remoto —medido el 2026-09-18, cinco de diez
+    # repos, hasta 22 commits— y leer ahí devuelve MENOS archivos, que se lee igual que «no existe».
+    # Sin fetch a propósito: esto es interactivo. Ver `context/tools/roots.py`.
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", ref] + ([subruta] if subruta else []),
                        capture_output=True, text=True, timeout=180)
     quiero = []
     for linea in r.stdout.splitlines():
@@ -689,7 +695,8 @@ def _shas(alias, solo_codigo=True):
     root = ROOTS.get(alias)
     if not root or not Path(root).is_dir():
         return {}
-    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "main"],
+    ref, _ = ref_a_indexar(root)
+    r = subprocess.run(["git", "-C", root, "ls-tree", "-r", ref],
                        capture_output=True, text=True, timeout=180)
     d = {}
     for linea in r.stdout.splitlines():
