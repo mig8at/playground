@@ -157,8 +157,14 @@ preaprobado a cinco externas (un TODO temporal), nada que ver con créditos prev
 primera redacción por pisar la misma pregunta frágil de la mañana («dónde se pierden las solicitudes que no
 llegan al listado»): con «oferta» en vez de «listado», 115/115.
 
-**El próximo paso es:** que Miguel mergee el PR, y avisarle a quien mantenga el arnés que la nota de
-`suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
+**#241 mergeado a las 09:15.** Con eso, lo de hoy en `main`: la matriz de triaje, doce correcciones y secciones
+nuevas del corpus (#236, #237, #239, #241), el lint de los dos títulos (#238) y el tema `infraestructura/operar`
+(#240). Siete PRs, siete despliegues en 8-9 minutos, todos comprobados con la sonda gratis.
+
+**El próximo paso es:** avisarle a quien mantenga el arnés que la nota de `suites/cliente-recurrente.json` da
+la razón equivocada (la conclusión sí es cierta), y arreglar en el dictado los dos defectos que aparecieron
+hoy: que no enlaza la sección a un área existente cuando el archivo ya estaba declarado, y que sube el hash de
+esa área ajena.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
