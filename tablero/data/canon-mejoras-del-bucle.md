@@ -157,7 +157,7 @@ preaprobado a cinco externas (un TODO temporal), nada que ver con créditos prev
 primera redacción por pisar la misma pregunta frágil de la mañana («dónde se pierden las solicitudes que no
 llegan al listado»): con «oferta» en vez de «listado», 115/115.
 
-**#241 mergeado a las 09:15.** Con eso, lo de hoy en `main`: la matriz de triaje, doce correcciones y secciones
+**#241 mergeado a las 09:15 y en prod a las 09:23** (33 sondas gratis, ~8 minutos, como los otros seis). Con eso, lo de hoy en `main`: la matriz de triaje, doce correcciones y secciones
 nuevas del corpus (#236, #237, #239, #241), el lint de los dos títulos (#238) y el tema `infraestructura/operar`
 (#240). Siete PRs, siete despliegues en 8-9 minutos, todos comprobados con la sonda gratis.
 
@@ -452,6 +452,10 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#241 en `main` y en prod ocho minutos después**, comprobado con la sonda gratis: la frase nueva del aviso
+  de creditopx no estaba antes y está desde las 09:23. Cierre del día: siete PRs en `main` (#235 a #241), siete
+  despliegues detectados sin gastar modelo, y cuatro preguntas de modelo en total contra prod. Lo que queda
+  abierto está en «El próximo paso»: los dos defectos del dictado y la nota equivocada de la suite del arnés.
 - **El cliente que vuelve, verificado contra `main`**: el evaluador de crédito activo corre sólo al pedir el
   cupo; la entidad sigue en la oferta. Aviso en creditopx. La nota de la suite del arnés que lo motivó da la
   razón equivocada (la lista quemada es del preaprobado, no de créditos previos). Y «no se conecta» en el
