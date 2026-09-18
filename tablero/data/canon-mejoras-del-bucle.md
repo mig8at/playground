@@ -90,7 +90,7 @@ está a 26,3 por oración de mediana: el modelo hereda esa densidad.**
 definition `canon-production:177` salió «Deployment Successful», y una hora después prod seguía sirviendo
 los resúmenes viejos (#233 y #234 sí están). Es de ECS; hay que mirar el servicio `internal-tools`.
 
-**Motai ya está hecho con esa receta** (18/9, madrugada): la puerta del tema, de 36,6 a 20,4 por
+**Motai ya está hecho con esa receta** (18/9, a la mañana): la puerta del tema, de 36,6 a 20,4 por
 oración, y la calculadora, de 30,1 a 18,8 — mismos hechos, mismas anclas, 439→428 y 211→207 palabras. La
 respuesta a «qué diferencia hay entre renting y rent to own» pasó de 143 palabras a 28,6 por oración a
 123 a **17,6**, con las mismas cuatro citas. Tercera vez que se confirma: **el modelo hereda la densidad
