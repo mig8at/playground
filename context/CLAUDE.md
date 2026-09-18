@@ -417,6 +417,34 @@ estructuradas):
 ⚠ `alineacion.json` es GENERADO y **se versiona a propósito**: su historia en git dice **cuánto
 tiempo** lleva viejo un nodo, no solo que hoy lo está.
 
+## Qué deja esto en la tarea (y qué se lleva de vuelta)
+
+Con [`tablero/`](../tablero/CLAUDE.md) el intercambio va en los dos sentidos, y por eso es el único que
+no se resuelve con una sola línea:
+
+| cuándo | qué pasa |
+|---|---|
+| al ABRIR la tarea | los nodos que hay que leer antes de investigar van a **`context_nodes:`** del frontmatter — no en la prosa |
+| mientras se trabaja | el nodo es la FUENTE: se cita, no se copia. Lo que ya está acá no se repite en la tarea |
+| al CERRAR | lo que resultó ser **del sistema** (no de la tarea) **GRADÚA** a un nodo, o a `F-xx` si es una trampa con causa raíz |
+
+⚠ **El enlace es UNIDIRECCIONAL, y romperlo se paga al graduar.** La tarea apunta a nodos; el nodo
+**nunca** apunta a tareas. Si un nodo cita la tarea que lo originó, el día que esa tarea se archiva el
+nodo queda mintiendo — y los nodos no se releen solos.
+
+⚠ **Y `context_nodes` está vacío en 28 de 68 tareas** (medido el 2026-09-18), mientras que **43 de 68
+nombran `context` en la prosa**. O sea: la información existe y está donde no se puede recuperar — el
+frontmatter es lo que el tablero lee; un párrafo no.
+
+**El test para saber si algo gradúa** es el mismo de siempre: *si esto se mergea mañana, ¿sigue siendo
+cierto?* Sí y es del sistema → acá. Sí y es de la tarea → se queda en su `.md`. No → es un hecho de
+ese día y va al Registro de la tarea.
+
+⚠ **A Jira no va nada de acá.** Un nodo es privado por definición: nombra repos, rutas y `F-xx`, que
+son exactamente los tres patrones que el guard del tablero frena. Lo que se comparte es el HECHO
+traducido a lenguaje de producto — la regla, con qué poner en su lugar, está en
+[`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La frontera del guard está DENTRO del archivo».
+
 ## Al CERRAR una tarea: ¿el árbol te llevó hasta la causa?
 
 Es la única pregunta que hace que este árbol mejore solo, y son 10 minutos. Hacela **siempre**, aunque

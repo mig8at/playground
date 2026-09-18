@@ -196,9 +196,17 @@ simple: **no corras nada destructivo; si creés que hace falta, preguntá.**
 
 ## EL CICLO — acá siempre pasa lo mismo
 
-Se viene a resolver **tareas** sobre CreditOp con cuatro piezas — **tablero** (la tarea), **context**
+Se viene a resolver **tareas** sobre CreditOp con cinco piezas — **tablero** (la tarea), **context**
 (el conocimiento curado), **workers** (el índice derivado del código, para lo que el conocimiento aún
-no cubre) y **harness** (la prueba) — y el circuito es fijo:
+no cubre), **harness** (la prueba) y **trazador** (lo que ya pasó, incluido en prod) — y el circuito es
+fijo.
+
+⚠ **Y cada una tiene un lugar propio DENTRO del archivo de la tarea.** El `CLAUDE.md` de las cuatro que
+no son el tablero cierra con una sección «Qué deja esto en la tarea», y
+[`tablero/CLAUDE.md`](tablero/CLAUDE.md) §«De dónde sale lo que se escribe acá» es su espejo. Sin eso
+la información se escribe igual, pero suelta en la prosa, donde nadie la encuentra al retomar: medido
+el 2026-09-18, **43 de 68 tareas nombran `context` y sólo 40 declaran `context_nodes`**; el arnés
+aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.

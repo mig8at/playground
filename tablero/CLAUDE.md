@@ -96,6 +96,47 @@ el Markdown de una tarea nueva.
 **Prototipos** es una pestaña adicional sólo cuando existen artefactos; sigue la convención de
 `data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las siete pestañas principales.
 
+## De dónde sale lo que se escribe acá
+
+El tablero es el DÓNDE; el conocimiento y la evidencia los producen otras cuatro herramientas, y cada
+una tiene un lugar propio en el archivo de la tarea. Esta tabla es el espejo de la sección «Qué deja
+esto en la tarea» que cierra el `CLAUDE.md` de cada una:
+
+| herramienta | contesta | deja en la tarea |
+|---|---|---|
+| [`context/`](../context/CLAUDE.md) | lo que ya se sabe del sistema | `context_nodes:` al abrir · una **graduación** al cerrar |
+| [`workers/`](../workers/INDAGAR.md) | lo que nadie escribió (se deriva del código) | **«Dónde se toca»** — archivos con el porqué |
+| [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»** — el comando, no la conclusión |
+| [`trazador/`](../trazador/CLAUDE.md) | ¿pasa de verdad, y cuánto? | una anotación `> **MEDICIÓN · fecha**` |
+
+⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
+estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
+anotación, y de ahí `store.FuentesDe` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
+que la tarjeta pinta (`server/internal/store/fuentes.go`). El ambiente sale **sólo** de un `TARGET=`
+escrito en el comando: «en producción son 14.160» menciona un ambiente sin decir dónde se midió.
+
+**Medido el 2026-09-18, y el problema no es el hábito de anotar:**
+
+    350 anotaciones · 245 de ellas MEDICIÓN
+    308 (88 %) tienen continuación   ← anotar está instalado
+     51 (14 %) producen una FUENTE   ← lo que se escribe debajo es prosa, no el comando
+     11 (3 %)  dicen el ambiente     ← «medido en prod» y «en local» no son lo mismo
+
+O sea: el mecanismo está construido, con su UI, y está vacío en el 86 % de los casos. Y una `MEDICIÓN`
+sin comando es un número que nadie puede volver a tomar — así que nadie lo desmiente, y envejece
+haciéndose pasar por cierto.
+
+**Lo que más rinde para cerrar ese hueco es que la herramienta emita la anotación**, en vez de que
+alguien la escriba. Hoy sólo lo hace el trazador (`MD=1` en `trazador-ureq` · `-buscar` · `-sql`), que
+la devuelve con la fecha real, la evidencia y el comando adentro, lista para pegar. El harness aparece
+en **33 de 68** tareas —el doble que el trazador— y no tiene equivalente: ahí la evidencia se escribe a
+mano, y por eso sale prosa.
+
+⚠ **Y lo que NO cambia es la frontera.** La medición se publica; la herramienta, no. Eso ya está
+resuelto arriba, en «La frontera del guard está DENTRO del archivo»: a `## Tarea (publicable)` va *«se
+consultó producción: el 12 % de las solicitudes…»*, nunca el `make trazador-sql`. Las cuatro
+herramientas repiten ese enlace en su propia sección para que no se reinvente la regla en cada lado.
+
 ## Reglas de trabajo
 
 - **Una tarea = un archivo suelto**: `data/<tarea>.md`. `ls data/` responde *¿en qué se está
@@ -322,6 +363,14 @@ el Markdown de una tarea nueva.
   (una línea cada una) hizo que le reclamara a cinco reescribir el estado, apilar Registro y anotar
   bitácora por un cambio que no dice nada nuevo de la tarea (2026-09-15). Un aviso que reclama de más se
   empieza a ignorar, y ahí deja de servir para lo que existe.
+  ⚠ **Y hay una QUINTA cosa, pero avisa y NO frena** (desde el 2026-09-18): si la tarea declara
+  `ramas:` —o sea que hubo código— y en todo el archivo no hay un solo comando reconocible, el cierre
+  saca `▲ tocó código y no dice con QUÉ se comprobó`. Sale con `▲` y no con `✗` a propósito, y no suma
+  a las piezas faltantes: hay tareas de diseño o de lectura donde no hay nada que correr, y convertir
+  eso en un error enseña a ignorar el cierre entero, incluidas las cuatro que sí importan. La señal es
+  la misma que pinta la tarjeta (`store.FuentesDe`). Medido al escribirlo: de las 29 tareas con ramas,
+  **6** lo dispararían.
+
   El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
   por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. ⚠ Y **leer un
   archivo no es tocarlo**: el hook exige que la ruta esté pegada al verbo que la escribe (`>`, `tee`,

@@ -39,6 +39,7 @@ import (
 	"time"
 
 	"creditop/tablero/server/internal/pulso"
+	"creditop/tablero/server/internal/store"
 )
 
 type tarea struct {
@@ -64,6 +65,10 @@ type Revision struct {
 	MinutosHoy  int      `json:"minutosHoy"`
 	RamasDecl   bool     `json:"ramasDeclaradas"`
 	Faltan      []string `json:"faltan"`
+	// Mirar: lo que conviene revisar pero NO es una pieza faltante — no suma a `PiezasFaltan` ni hace
+	// salir 1. La distinción es la misma que el repo ya usa en el lint: el chequeo habla de lo que está
+	// MAL, y los juicios se ofrecen sin bloquear.
+	Mirar []string `json:"mirar,omitempty"`
 }
 
 type Informe struct {
@@ -422,6 +427,18 @@ func main() {
 		if rv.MinutosHoy == 0 {
 			rv.Faltan = append(rv.Faltan, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
+		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
+		// lectura donde no hay nada que correr, y convertir eso en un error enseña a ignorar el cierre.
+		//
+		// La señal es la misma que pinta la tarjeta (`store.FuentesDe`): de los comandos escritos en el
+		// cuerpo sale con QUÉ se comprobó. Si la tarea declara ramas —o sea que hay código— y en todo el
+		// archivo no hay un solo comando reconocible, lo que se afirme no se puede volver a comprobar.
+		// Medido el 2026-09-18: de 350 anotaciones del tablero, 308 tienen texto debajo y sólo 51 dejan
+		// una fuente; lo que se escribe suele ser prosa donde iba el comando.
+		if rv.RamasDecl && len(store.FuentesDe(t.Cuerpo)) == 0 {
+			rv.Mirar = append(rv.Mirar, "tocó código y no dice con QUÉ se comprobó: pegá el comando "+
+				"(el trazador lo emite con `MD=1`) en «Cómo se comprueba» o en una anotación")
+		}
 		inf.PiezasFaltan += len(rv.Faltan)
 		inf.Tareas = append(inf.Tareas, rv)
 	}
@@ -506,6 +523,12 @@ func imprimir(inf Informe) {
 			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy), marca(t.MinutosHoy > 0), hm(t.MinutosHoy))
 		for _, f := range t.Faltan {
 			fmt.Printf("       ✗ %s\n", f)
+		}
+		// Con otro glifo a propósito: `✗` es una pieza que falta y hace salir 1; `▲` es algo para mirar.
+		// Verlos iguales convierte el aviso en un error, y un cierre que «falla» por un juicio se aprende
+		// a ignorar entero — incluidas las cuatro piezas que sí importan.
+		for _, m := range t.Mirar {
+			fmt.Printf("       ▲ %s\n", m)
 		}
 		fmt.Println()
 	}

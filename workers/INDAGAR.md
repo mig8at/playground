@@ -141,6 +141,31 @@ Y con las tres cosas que hacen accionable una sección:
 
 ---
 
+## Qué deja esto en la tarea
+
+Indagar produce dos cosas distintas, y mezclarlas es lo que hace que una indagación de un día no se
+pueda reusar mañana. El destino es el `.md` de la tarea en [`tablero/`](../tablero/CLAUDE.md):
+
+| lo que salió | dónde va |
+|---|---|
+| **los archivos** que hay que tocar, con el porqué de cada uno | **«Dónde se toca»** — es lo que ahorra el primer grep a ciegas del que retome |
+| el **mecanismo** (cómo funciona, por qué, qué lo dispara) | no se queda en la tarea: **gradúa a un nodo de `context/`**, que es donde se busca la próxima vez |
+| los caminos que se descartaron, y por qué | **«Lo que se evaluó y NO se eligió»** — sin eso se vuelve a proponer lo que ya falló |
+
+⚠ **«Dónde se toca» está llena en 11 de 68 tareas** (medido el 2026-09-18). Es la sección que más rinde
+al retomar en frío y la que menos se escribe, justamente porque al terminar de indagar uno ya lo tiene
+todo en la cabeza y no le parece que haga falta.
+
+⚠ **Y el mecanismo NO va en la tarea.** Es la clase de contenido que sobrevive al merge, así que
+escribirlo en un `.md` que se archiva es enterrarlo: el test es *si esto se mergea mañana, ¿sigue
+siendo cierto?* Si sí y es del sistema, va a `context/`. El protocolo de escritura —incluido que un
+archivo listado sin explicar no sirve, porque para eso `grep` es más rápido— está en
+[`context/CLAUDE.md`](../context/CLAUDE.md).
+
+⚠ **A Jira no va nada de acá**: rutas de archivo y nombres de repo son dos de los patrones que el guard
+del tablero frena. La regla, con qué poner en su lugar, está en
+[`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La frontera del guard está DENTRO del archivo».
+
 ## El ciclo, en una línea
 
 **demanda → índice → verificación contra `main` → las tres preguntas → causa → mecanismo → compuerta →

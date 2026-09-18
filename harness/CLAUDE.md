@@ -833,3 +833,37 @@ wizard, mirá si `.env.local` está.**
   lock, pero no materializado). ⚠ El monorepo usa **pnpm** (hay `node_modules/.pnpm`): un `npm install`
   falla con `Cannot read properties of null (reading 'name')` — sin tocar el lock, pero sin instalar nada.
   Es `pnpm install` en la raíz del monorepo.
+
+## Qué deja esto en la tarea
+
+Una corrida no termina cuando cierra: termina cuando lo que probó queda escrito donde alguien lo vuelva
+a encontrar. El destino es el `.md` de la tarea en [`tablero/`](../tablero/CLAUDE.md), y son dos
+secciones distintas — confundirlas es lo que vuelve ilegibles las tareas grandes:
+
+| lo que produjo la corrida | dónde va |
+|---|---|
+| la RECETA para volver a correrlo (sembrar el caso, el comando, cómo verificar dónde quedó) | **«Cómo se comprueba — y el MATERIAL»**, que se MANTIENE: si la receta cambia, se corrige ahí |
+| lo que pasó ESE día (cerró, no cerró, con qué se topó) | **«Registro»**, que se APILA |
+| una trampa del SISTEMA, reproducible y con causa raíz | no se queda en la tarea: **gradúa a `F-xx`** (`context/server/data/flows/findings/doc.md`) |
+
+⚠ **Va el COMANDO, no la conclusión, y no es estilo: el tablero lo parsea.** De las líneas de cita que
+siguen a una anotación sale *con qué* se comprobó y *contra qué ambiente*
+(`tablero/server/internal/store/fuentes.go`), y el ambiente se reconoce **sólo** por un `TARGET=`
+escrito. «Corrí el caso y cerró» no deja rastro de nada; `make harness-caso CASOS='pullman' CERRAR=1`
+contra `local` sí. Medido el 2026-09-18: de 350 anotaciones del tablero, **308 tienen texto debajo y
+sólo 51 producen una fuente reconocible** — lo que se escribe suele ser prosa donde iba el comando.
+
+⚠ **Y el arnés aparece en 33 de 68 tareas, pero sólo 8 lo nombran dentro de «Cómo se comprueba»**: las
+otras 25 lo mencionan sueltas en la prosa, donde nadie las va a buscar al retomar. La sección existe
+justamente para eso.
+
+⚠ **A Jira NO va el arnés.** `## Tarea (publicable)` cambia de idioma: va *«se recorrió el flujo de
+punta a punta con un cliente de prueba»*, nunca `make harness-caminar`. Nadie más del equipo corre esta
+herramienta, así que nombrarla manda al lector a algo que no tiene y hace parecer que la prueba depende
+de un juguete personal. El guard del tablero frena `make <target>`, `E2E_TARGET` y los puertos locales;
+la regla entera, con qué poner en su lugar, está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La
+frontera del guard está DENTRO del archivo».
+
+**Lo que todavía no hace, y se nota:** el trazador emite su anotación ya escrita (`MD=1`, con fecha,
+evidencia y comando adentro) y el arnés no tiene equivalente — por eso su evidencia se escribe a mano y
+sale prosa. Es el hueco más grande entre las dos herramientas.

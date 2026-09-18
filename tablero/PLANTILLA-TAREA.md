@@ -36,7 +36,9 @@ jira_title: ""
     ramas         patrón de rama, o varios por coma. Se omite hasta que la rama exista
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
-    context_nodes los nodos de context/ que hay que leer ANTES de investigar
+    context_nodes los nodos de context/ que hay que leer ANTES de investigar. ⚠ ACÁ, no en la prosa:
+                  es lo que el tablero lee. Medido: 28 de 68 tareas lo dejan vacío mientras 43
+                  nombran context en el texto — o sea, donde no se puede recuperar
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
@@ -69,7 +71,10 @@ jira_title: ""
 ## Dónde se toca
 
 <!-- Repos, módulos y archivos con ruta y línea — acá SÍ se puede, el cuerpo es privado.
-     Es lo que ahorra el primer grep a ciegas. Si son muchos, agrupá por repo. -->
+     Es lo que ahorra el primer grep a ciegas. Si son muchos, agrupá por repo.
+     CON QUÉ SE LLENA: `workers/cli.py buscar "…"` describe en palabras y devuelve archivos con su
+     porqué. Es la sección que más rinde al retomar y la que menos se escribe (11 de 68): al terminar
+     de indagar uno ya lo tiene todo en la cabeza y no parece que haga falta. -->
 
 ## Cómo se ataca
 
@@ -112,19 +117,29 @@ jira_title: ""
      corrida que DEMUESTRA que funciona, copiable. Es lo privado y detallado; la receta para QA va
      abajo, en la publicable, y en otro idioma.
 
+     CON QUÉ SE LLENA: el harness (`make harness-caso` · `harness-listado` · `harness-caminar`) y, si
+     la pregunta es «¿pasa de verdad, y cuánto?», `make trazador-sql`. ⚠ VA EL COMANDO, NO LA
+     CONCLUSIÓN: de las líneas de cita que siguen a una anotación el tablero deriva con qué se
+     comprobó y contra qué ambiente, y el ambiente lo reconoce SÓLO por un `TARGET=` escrito. Medido:
+     el arnés aparece en 33 tareas y sólo 8 lo nombran acá; las otras 25, sueltas en la prosa.
+
      ⚠ ESTA SECCIÓN NO SE REESCRIBE NI SE APILA: SE MANTIENE. Es la tercera clase de contenido y la
      que no tenía nombre — por eso terminaba creciendo como secciones nuevas arriba, con fecha, hasta
      volver ilegible el archivo. Si la receta cambió, se corrige acá; lo que pasó ese día va al
      Registro. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
-     Las mediciones van como anotación, con su `Como`:
+     Las mediciones van como anotación, con su `Como` — y el trazador la emite ya escrita con `MD=1`
+     (`trazador-ureq` · `-buscar` · `-sql`), con la fecha real y el comando adentro:
 > **MEDICIÓN · 2026-08-20** — 86,6% de las consultas no pasa por el contador.
-> `SELECT count(*) FROM kyc_name_checks WHERE ...`
+> `make trazador-sql TARGET=prod SQL='SELECT count(*) FROM kyc_name_checks WHERE ...'`
 -->
 
 ## Referencias
 
 <!-- Nodos de contexto, PRs y enlaces útiles para retomar. El conocimiento estable vive en context/;
-     acá sólo se enlaza. No copies el historial dentro de esta sección. -->
+     acá sólo se enlaza. No copies el historial dentro de esta sección.
+     ⚠ La llena 1 de 68 tareas, así que si está vacía no es que sobre: es que se olvida. Los nodos que
+     de verdad hay que leer van igual en `context_nodes:` del frontmatter, que es lo que el tablero
+     lee; acá van los que ayudan a retomar y lo que no es un nodo (PRs, un tablero, un documento). -->
 
 ## Registro
 
