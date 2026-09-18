@@ -55,7 +55,7 @@ const { telefonoDeLaSucursal, telefonoSintetico } = await import('../pkg/telefon
 const { buscarSucursal: buscarSucursalEn, tipoDeDocumentoDelComercio: tipoDeDocumento } = await import('../pkg/merchants.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
-const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
+const { abrirNavegador, abrirContexto, avisoDeEvidencia, cerrarContexto, avanzar, elegirEntidad, bannerDeError, esperarCambio } =
     await import('../pkg/wizard-navegador.ts');
 const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrelleno.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
@@ -616,6 +616,28 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
             await page.screenshot({ path: `${dirEvidencia}/ultima.png`, fullPage: true }).catch(() => {});
             await cerrarContexto(ctx, `${dirEvidencia}/traza.zip`);
             log(`evidencia: ${dirEvidencia}/ (traza.zip se abre con \`npx playwright show-trace\`)`);
+        } else if (evidencia.consola.length || evidencia.red.length) {
+            // ⚠ UN CASO QUE CIERRA BIEN TAMBIÉN PUEDE HABER DEJADO ERRORES, y hasta acá se tiraban a la
+            // basura: el volcado sólo salía `if (salioMal)`. O sea que una corrida podía llegar a estado
+            // 11 con la consola llena y el reporte no decía una palabra — el mismo patrón que hizo que
+            // F-227 viviera dos meses: lo que nadie mira, nadie arregla.
+            //
+            // Va CORTO y NO toca el veredicto, a propósito: el caso cerró, y un error de consola no lo
+            // convierte en fallo. Es una invitación a mirar, no un resultado. Si fuera un volcado entero
+            // en cada caso feliz, la tanda se volvería ilegible y se aprendería a saltearlo.
+            //
+            // ⚠ Y esto SÓLO sirve desde que el filtro de ruido es confiable (`esRuidoDeLocal`): antes
+            // habría sacado esta advertencia en todos los casos por cuatro WebSockets de local.
+            for (const l of avisoDeEvidencia(evidencia.consola, evidencia.red)) log(l);
+            if (process.env.FORENSE !== '1') {
+                log('   (la traza no se guardó: FORENSE=1 la deja en disco aunque el caso cierre)');
+                await cerrarContexto(ctx, null);
+            } else {
+                try { mkdirSync(dirEvidencia, { recursive: true }); } catch { /* ya existe */ }
+                await page.screenshot({ path: `${dirEvidencia}/ultima.png`, fullPage: true }).catch(() => {});
+                await cerrarContexto(ctx, `${dirEvidencia}/traza.zip`);
+                log(`   evidencia: ${dirEvidencia}/`);
+            }
         } else {
             await cerrarContexto(ctx, null);
         }

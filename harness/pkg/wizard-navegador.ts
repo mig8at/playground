@@ -80,6 +80,33 @@ export function esRuidoDeLocal(mensajeCompleto: string): boolean {
         .test(mensajeCompleto);
 }
 
+/**
+ * Las líneas que se imprimen cuando un caso **cerró bien pero el navegador registró errores**.
+ *
+ * Existe como función aparte —y pura— porque es la rama más difícil de alcanzar corriendo: hace falta un
+ * caso que cierre Y que además haya ensuciado la consola, y en local los casos que ensucian suelen ser
+ * justo los que no cierran. Sin esta costura la rama quedaba escrita y sin ejercitar, que es como se
+ * cuelan los errores que nadie ve hasta que importan.
+ *
+ * Devuelve `[]` cuando no hay nada que decir, así el caso feliz no imprime ruido.
+ */
+export function avisoDeEvidencia(consola: string[], red: string[], maximo = 3): string[] {
+    if (!consola.length && !red.length) return [];
+
+    const cuenta = [
+        consola.length ? `${consola.length} de consola` : '',
+        red.length ? `${red.length} de red` : '',
+    ].filter(Boolean).join(' y ');
+
+    // ⚠ NO dice «falló» ni cambia el veredicto: el caso cerró. Es una invitación a mirar, no un
+    // resultado — si fuera un volcado entero en cada caso feliz, la tanda se volvería ilegible y se
+    // aprendería a saltearlo, que es exactamente como muere una señal.
+    return [
+        `⚠ cerró, pero el navegador registró ${cuenta} — no cambia el veredicto, pero mirá:`,
+        ...[...consola, ...red].slice(0, maximo).map((l) => `   ${l}`),
+    ];
+}
+
 export async function abrirContexto(browser: Browser, baseURL: string, opts: { traza?: string; storageState?: string } = {})
 : Promise<{ ctx: BrowserContext; page: Page; evidencia: Evidencia }> {
     const ctx = await browser.newContext({

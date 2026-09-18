@@ -80,6 +80,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«agrupé por hora y la curva no tiene sentido» · «me da CERO y no puede ser»** | **F-227** |
 | **«el código de depuración quedó en producción» · «esto logueaba un token»** | **F-228** |
 | **«la corrida anterior andaba y esta no» · «de golpe la entidad no tiene cupo»** | **F-229** |
+| **«la pantalla no tiene botón para seguir» · «No routes matched» en una ruta de un proveedor** | **F-230** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -390,6 +391,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
 | F-229 | `caminar-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
 | F-227 | La pantalla del código de compra dice «(Vence hoy a las 8:30 p.m.)» **siempre**: es un default quemado que `SuccessView` nunca pasa. El contador está bien; el texto miente en toda compra cerrada después de las 20:30, que es cuando el plazo se corre al día siguiente. Medido en prod: **14 de 507** (2,8 %) en 180 días, y está en `main` | ABIERTO |
 | F-226 | `make harness-sandbox` da «20 casos se apartaron de lo medido» y NINGUNO es del contrato: el WAF (Imperva) delante del gateway de Bancolombia devuelve **503 a todo** desde esta red, incluido `HEAD /health` pelado. El único oráculo capaz de contradecir nuestros mocks quedó fuera de alcance | ABIERTO · mitigado con `channel/qr-bancolombia-gateway.spec.ts` |
@@ -5685,3 +5687,30 @@ regla «por un rato», vale más dejar el ruido.
 - **El patrón, que ya nos pasó en otra forma:** estado compartido que sobrevive a la corrida que lo puso
   (ver **F-190**, la cookie de comercio dentro del `storageState`). **Restaurar por lista enumerada
   caduca; restaurar por instantánea, no.**
+\n
+### F-230 · Un host de proveedor sin configurar no falla: arma una URL relativa que aterriza en el wizard
+
+- **Síntoma:** el caminador del wizard con motor de navegador muere en la validación de identidad con
+  **«sin botón habilitado para avanzar · ningún botón de avance en la pantalla»**. Se lee como un
+  selector mal escrito o una pantalla trabada, y manda a mirar el harness.
+- **Lo que la consola sí decía:** `No routes matched location "/self-service/<hash>/validar-persona?…"`.
+  O sea que el cliente está pidiéndole al **wizard** una ruta del **proveedor**.
+- **Causa raíz:** `AdoController.php:91` arma el destino concatenando —
+  `config('services.ado.host') . '/validar-persona' . '?' . http_build_query(...)`. Sin `ADO_HOST` en el
+  `.env`, esa config es **null**, la concatenación empieza por `/validar-persona`, y eso es una **URL
+  relativa perfectamente válida**: el navegador la resuelve contra el origen que está mirando, que es el
+  wizard. No hay error en ningún lado — hay un 404 de router.
+- **Por qué es la parte que importa:** un host nulo **no revienta**. Si `Http::post(null)` hubiera sido
+  el caso, saldría un `TypeError` y se vería (es lo que pasó en **F-223** con `DECEVAL_SOAP_HOST`). Acá
+  la concatenación produce algo que *parece* una URL, así que el fallo aparece dos saltos después y
+  disfrazado de problema de pantalla. **La misma clase de bug, un grado más silencioso.**
+- **Evidencia (2026-09-18, local):** cero variables `ADO_*` en el `.env` de `legacy-backend`; el
+  recorrido con `MOTOR=navegador CERRAR=1` se detuvo en
+  `/self-service/e9409aff/validar-persona?callback=…` y la consola registró el `No routes matched` ×2.
+- **Alcance:** es configuración de **local** — no hay indicio de que falte en los ambientes desplegados,
+  y no se comprobó. Lo que sí deja es que **el funnel no se puede cerrar en local por el camino de
+  identidad con el motor de navegador**. El motor HTTP no lo ve porque sólo sigue las redirecciones que
+  emite la app.
+- **Cómo se reconoce en general:** ante un «No routes matched» de una ruta que suena a proveedor externo
+  (`validar-persona`, `redirect`, `callback`), sospechá de un `*_HOST` vacío antes que del router. El
+  delator es que la ruta viva bajo el origen del wizard en vez de bajo el dominio del proveedor.
