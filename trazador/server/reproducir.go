@@ -73,6 +73,36 @@ func pie(cmd string) {
 	fmt.Printf("\n     %s\n", gray("↻ "+cmd))
 }
 
+// vecinoDeTraza dice cuándo conviene la OTRA forense y con qué comando, porque las dos contestan
+// «¿qué le pasó a esta solicitud?» y hasta ahora se elegía por accidente.
+//
+// La diferencia no es de gusto: es de DÓNDE ANCLA cada una. Ésta arranca en la BD —el esqueleto son
+// hechos: un estado ocurrió o no— y los logs sólo explican; `harness-loki` arranca en los LOGS (el uReq
+// como valor de un campo del context, y de ahí expande por `trace_id`). De eso salen sus fuertes:
+// aquélla trae la regla con la que se evaluó cada entidad y el `timeline.ndjson` completo con payloads
+// y headers; ésta trae las etapas, los 39 pasos, qué VIO el cliente y qué archivos dejaron rastro. Y
+// cuando no hay logs, aquélla no puede decir nada y ésta contesta igual.
+//
+// ⚠ NO se ofrece contra `prod`: `harness-loki` no lo mira, y mandar ahí a alguien que está depurando
+// producción es peor que no decir nada.
+//
+// ⚠ Y los DEFAULTS son OPUESTOS —`harness-loki` cae a `local`, esta herramienta a `prod`—, así que el
+// comando se entrega con el target puesto: cambiar de herramienta sin escribirlo te cambia de ambiente
+// sin avisar. Es la misma familia de F-234.
+func vecinoDeTraza(target string, ureq int64) (cuando, cmd string, ok bool) {
+	if target == "prod" || ureq == 0 {
+		return "", "", false
+	}
+	return "las líneas crudas, con la regla que evaluó a cada entidad",
+		cmdMake("harness-loki", target, "UREQ", fmt.Sprint(ureq)), true
+}
+
+// vecino imprime la sugerencia de la herramienta de al lado. Glifo distinto al del pie a propósito: `↻`
+// repite lo mismo, `↔` te lleva a otra cosa.
+func vecino(cuando, cmd string) {
+	fmt.Printf("     %s\n", gray("↔ "+cuando+": "+cmd))
+}
+
 // anotacionMD escribe la medición en la forma que consume el tablero: el marcador con su tipo y su
 // fecha, las líneas de evidencia, y el comando como `Cómo se vuelve a comprobar`. Se pega tal cual en
 // «Cómo se comprueba» o en «Lo que está decidido» de una tarea, y de ahí la pestaña Hallazgos la lee.

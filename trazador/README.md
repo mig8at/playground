@@ -61,6 +61,25 @@ cómo volver a tomarla, así que nadie la desmiente. El target va siempre —aun
 contrastar. Y lo que se imprime es el comando de `make`, no la bandera: `-ureq 519245` no se puede
 correr desde la raíz, que es desde donde se corre todo lo demás.
 
+### La otra forense, y cuándo conviene
+
+`make harness-loki UREQ=…` contesta la misma pregunta desde el otro lado, así que cada una imprime el
+comando de la otra al terminar (`↔`). La diferencia es **dónde anclan**:
+
+| | `trazador-ureq` | `harness-loki` |
+|---|---|---|
+| ancla en | la **BD** — las etapas son hechos | los **logs** (el uReq en el `context`, y expande por `trace_id`) |
+| si no hay logs | contesta igual: el esqueleto sale de la BD | no puede decir nada («cero anclas») |
+| trae de más | los 39 pasos, qué VIO el cliente, qué archivos dejaron rastro | la regla con la que se evaluó **cada entidad**, y el `timeline.ndjson` con payloads y headers |
+| ambientes | local · dev · staging · **prod** | local · dev · staging · qa — **prod no** |
+| default | `prod` | `local` |
+
+⚠ **Los defaults son opuestos**, y por eso el comando que se imprime lleva el `TARGET=` puesto: cambiar
+de herramienta sin escribirlo te cambia de ambiente sin avisar. Es la misma familia de F-234.
+
+⚠ Y el vecino **no se ofrece contra `prod`**: `harness-loki` no lo mira, y mandar ahí a alguien que
+está depurando producción es peor que no decir nada.
+
 ### `MD=1`: la salida como anotación, lista para pegar
 
 `trazador-ureq`, `trazador-buscar` y `trazador-sql` aceptan `MD=1` y en vez de la vista humana emiten
@@ -329,9 +348,27 @@ En `creditop` (prod) `environment` tiene **un único valor**: `production`. Los 
 | `environment` | quién | sirve al target |
 |---|---|---|
 | `development` (+ `develop`) | `legacy-backend` y los 14 microservicios Go | **dev** |
-| `qa` | **`legacy-backend-stg`** | **staging** |
 | `local` | `CreditopDev` — una máquina de desarrollo empujando | (ver abajo) |
 | `testing` | `CreditopDev` | — |
+
+⚠ **Acá había una cuarta fila —`qa` → `legacy-backend-stg` → target `staging`— y hoy es FALSA.** Medido
+el 2026-09-18 con su control al lado: los valores de `environment` en `creditopdev` son
+**`development`, `local` y `testing`** en ventanas de 1 h, 24 h, 7 d y 30 d, y
+`sum(count_over_time({environment="qa"} [720h]))` **no devuelve nada** mientras el mismo conteo sobre
+`development` da **33.599 líneas en 24 h**. `legacy-backend-stg` tampoco existe como `service_name`.
+
+**Y eso rompe el target `staging` en silencio**, acá y en el harness: `trazador/.env.staging` filtra
+`LOKI_ENV=qa` y `harness/.env.staging` / `.env.qa` filtran `E2E_LOKI_ENV=qa`, o sea **un valor que no
+matchea nada**. Las dos herramientas presentan ese cero como «no hay logs para esta solicitud», que es
+la conclusión equivocada: no es que no haya logs, es que el filtro no puede encontrarlos. Para volver a
+medirlo:
+
+    make trazador-acceso TARGET=dev SINCE=720h
+    make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'
+    make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="development"} [24h]))'   # el control
+
+Queda por decidir qué filtro corresponde: `development|develop` devuelve las líneas **mezclando dev y
+qa** (honesto pero ambiguo), y hoy no hay etiqueta que las separe.
 
 ⚠ **Dev y staging comparten el stack Y la base de datos.** O sea que el mismo `user_request_id` tiene
 líneas de las **dos ramas de código** (`legacy-backend` en `develop` y `legacy-backend-stg` en `qa`). Sin

@@ -2810,6 +2810,9 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 		return 0
 	}
 	imprimirTraza(t, s)
+	if cuando, otro, hay := vecinoDeTraza(target, ureq); hay {
+		vecino(cuando, otro)
+	}
 	pie(cmd)
 	if htmlOut != "" {
 		if err := escribirHTML(t, s, htmlOut); err != nil {

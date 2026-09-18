@@ -43,6 +43,26 @@ function ventana(s = '12h'): number {
     return n * ({ s: 1000, m: 60_000, h: 3600_000, d: 86_400_000 })[m[2] as 's' | 'm' | 'h' | 'd'];
 }
 
+/** El comando de la OTRA forense de la casa, y por qué.
+ *
+ * Las dos contestan «¿qué le pasó a esta solicitud?» y hasta ahora se elegía por accidente. La
+ * diferencia es dónde ANCLA cada una: ésta arranca en los LOGS (el uReq como valor de un campo del
+ * context, y de ahí expande por trace), así que su fuerte es la regla con la que se evaluó cada
+ * entidad y el `timeline.ndjson` completo — pero si no hay líneas no puede decir nada. El trazador
+ * arranca en la BD: las etapas son hechos, salen igual con cero logs, y encima trae qué VIO el
+ * cliente y qué archivos dejaron rastro.
+ *
+ * ⚠ Los defaults son OPUESTOS —éste cae a `local`, el trazador a `prod`—, así que el target va
+ * SIEMPRE escrito: cambiar de herramienta sin ponerlo te cambia de ambiente sin avisar (F-234).
+ *
+ * ⚠ Y el trazador no tiene target `qa`: su `dev` comparte la base Y el stack de logs con qa, así que
+ * es el que corresponde.
+ */
+function trazadorUreq(): string {
+    const destino = TARGET === 'qa' ? 'dev' : TARGET;
+    return `make trazador-ureq UREQ=${ureq} TARGET=${destino}`;
+}
+
 const cfg = lokiConfig();
 const no = porQueNo(cfg);
 if (no) {
@@ -85,11 +105,17 @@ if (!lineas.length) {
         console.error(`  ▸ dev y staging comparten la BD, así que la solicitud existe en los dos pero la`);
         console.error(`  ▸ atendió otra rama de código. Probá con el target que corresponda:`);
         console.error(`  ▸   E2E_TARGET=dev node dev/loki-trace.ts ${ureq} --since ${valor('since') ?? '12h'}\n`);
+        console.error(`  ▸ o preguntale a la BD, que no depende del ambiente de los logs:`);
+        console.error(`  ▸   ${trazadorUreq()}\n`);
     } else {
         console.error(`\n  ▸ cero anclas para uReq ${ureq} en la ventana pedida.`);
         console.error(`  ▸ ${cobertura.lineasConTexto} líneas contenían el texto «${ureq}» pero ninguna lo traía`);
         console.error('  ▸ como VALOR de un campo del context (ese filtro evita anclar la solicitud de otro).');
         console.error('  ▸ Probá una ventana más ancha: --since 3d\n');
+        // Y el cruce: sin logs esta herramienta no puede decir NADA, y la de al lado sí — sus etapas
+        // salen de la BD, que es un hecho. «Cero anclas» no es «no se sabe hasta dónde llegó».
+        console.error(`  ▸ Sin logs acá no hay nada que leer, pero hasta dónde LLEGÓ lo dice la BD:`);
+        console.error(`  ▸   ${trazadorUreq()}\n`);
     }
     process.exit(2);
 }
@@ -113,6 +139,7 @@ const gris = (s: string) => (process.env.FORCE_COLOR !== '0' && (process.stdout.
 console.log('');
 console.log(`  ▸ ${gris(`detalle completo: ${dir.replace(process.cwd() + '/', '')}/`)}`);
 console.log(`  ▸ ${gris(`  resumen.json · timeline.ndjson (${lineas.length} líneas, context completo) · queries.logql`)}`);
+console.log(`  ▸ ${gris(`↔ las etapas, qué vio el cliente y qué archivos dejaron rastro: ${trazadorUreq()}`)}`);
 if (flag('full')) {
     console.log('');
     for (const l of lineas) console.log(`${new Date(l.ts).toISOString()} ${l.level.padEnd(5)} ${l.msg}`);

@@ -92,3 +92,26 @@ func TestSiHayOmiteElCero(t *testing.T) {
 		t.Fatal("un uReq real no puede perderse")
 	}
 }
+
+func TestVecinoNoSeOfreceContraProd(t *testing.T) {
+	// `harness-loki` no mira producción: sugerirlo ahí manda a alguien que está depurando prod a una
+	// herramienta que le va a contestar «no disponible para este target».
+	if _, _, hay := vecinoDeTraza("prod", 519245); hay {
+		t.Fatal("no se puede ofrecer el forense del harness contra prod")
+	}
+	for _, target := range []string{"local", "dev", "staging", "qa"} {
+		cuando, cmd, hay := vecinoDeTraza(target, 519245)
+		if !hay {
+			t.Errorf("target %q: el vecino tendría que ofrecerse", target)
+			continue
+		}
+		// El target VA en el comando: los defaults de las dos son opuestos (local vs prod), así que
+		// cambiar de herramienta sin escribirlo cambia de ambiente en silencio.
+		if !strings.Contains(cmd, "TARGET="+target) {
+			t.Errorf("target %q: el comando no lo lleva puesto: %s", target, cmd)
+		}
+		if !strings.HasPrefix(cmd, "make harness-loki ") || cuando == "" {
+			t.Errorf("target %q: comando o motivo mal armados: %q · %q", target, cmd, cuando)
+		}
+	}
+}
