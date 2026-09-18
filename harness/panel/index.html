@@ -700,13 +700,6 @@
 
     /* controles de zoom flotantes (estilo Maps): el canvas ya no se queda con la rueda, así que hace
        falta una forma explícita de acercar sin atajos de teclado. */
-    .zoomctl { position: absolute; right: 10px; bottom: 10px; display: flex; flex-direction: column; gap: 4px }
-    .zoomctl button {
-      width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer;
-      background: var(--panel); color: var(--mut); border: 1px solid var(--line);
-      border-radius: var(--radius-sm); font-size: 14px; line-height: 1; font-family: inherit; transition: .12s
-    }
-    .zoomctl button:hover { color: var(--txt); border-color: var(--line2) }
     #trenvias {
       position: relative;
       height: 360px; border-radius: var(--radius-sm); background: var(--panel2);
@@ -770,9 +763,6 @@
     .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
     .m .facc span:hover { background: var(--line); color: inherit; }
     .m .estrella { color: #fbbf24; font-size: 9px; margin-left: 5px; vertical-align: middle; }
-    .ltog { border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 12px; font-weight: 600; cursor: pointer; background: transparent; color: var(--mut); }
-    .ltog.on { background: rgba(34, 197, 94, .15); border-color: var(--acc); color: var(--acc); }
-    .ltog:disabled { opacity: .5; cursor: default; }
     .pasel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
     /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
     [hidden] { display: none !important; }
@@ -796,12 +786,6 @@
     .scope-note { font-size: 13px; color: #d8b77a; line-height: 1.6; margin: 0 0 18px; }
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
-    .profile-row { display: flex; gap: 8px; margin: 6px 0 12px; align-items: center; }
-    .profile-row input, .profile-row select { min-width: 0; }
-    .profile-row button { flex-shrink: 0; }
-    .profile-help { color: var(--mut); font-size: 12px; margin: 10px 0; }
-    .profiles { margin-bottom: 18px; }
-    .profiles[open] { padding-bottom: 4px; }
     .dependency-list { display: grid; gap: 8px; margin: 14px 0 0; }
     .dependency { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel2); padding: 10px 12px; border-radius: 7px; }
     .dependency code { overflow-wrap: anywhere; font-size: 12px; flex: 1; }
@@ -848,52 +832,610 @@
       pre#log img.shotmini { max-width: 90%; }
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; } }
+
+    /* ═══════════════════════════════════════════════════════════════════════════════════════════
+       CÁSCARA TIPO EDITOR · paleta Vercel dark
+       ═══════════════════════════════════════════════════════════════════════════════════════════
+       Va al FINAL del bloque de estilos a propósito: misma especificidad, gana el último. Así el CSS
+       de las tarjetas queda intacto y esto sólo redefine el marco — si mañana se quiere volver atrás,
+       se borra este bloque y el panel vuelve a ser la columna de antes.
+
+       El negro es negro de verdad (#000) y los bordes son de un pelo: en una herramienta de lectura densa, el
+       contraste tiene que gastarse en el CONTENIDO. Lo que NO cambia es el significado del color:
+       verde = corre/ON, ámbar = mirá esto, rojo = roto. Eso ya estaba decidido y es lo que hace que el
+       ojo encuentre; volverlo monocromo por estética sería perder la única señal que hay. */
+    :root {
+      --bg: #000;
+      --panel: #0a0a0a;
+      --panel2: #111113;
+      --line: #1f1f22;
+      --line2: #2e2e33;
+      --txt: #ededed;
+      --mut: #a1a1a6;
+      --radius: 8px;
+      --radius-sm: 6px;
+      --h-top: 52px;
+      --h-status: 26px;
+      --w-left: 300px;    /* comercios: una lista */
+      --w-right: 340px;   /* configuración: formularios */
+      --h-bottom: 240px;
+      --rsz: 4px;
+    }
+
+    html, body { height: 100% }
+    body { overflow: hidden }
+
+    .app {
+      height: 100vh;
+      display: grid;
+      grid-template-rows: var(--h-top) auto 1fr var(--rsz) var(--h-bottom) var(--h-status);
+    }
+    /* ⚠ CADA ZONA DICE SU FILA, y no es redundante: `#devwarn` vive en `display:none` casi siempre, y
+       un elemento así NO ocupa celda — el auto-placement corría todo lo de abajo un renglón y el panel
+       de consolas heredaba los 4 px de la manija. Se veía como «la consola desapareció». */
+    .app > .titlebar  { grid-row: 1 }
+    .app > .warnbar   { grid-row: 2 }
+    .app > .shell     { grid-row: 3 }
+    .app > .rsz-b     { grid-row: 4 }
+    .app > .bottom    { grid-row: 5 }
+    .app > .statusbar { grid-row: 6 }
+
+    /* ── barra de título ───────────────────────────────────────────────────────────────────── */
+    .titlebar {
+      display: flex; align-items: center; gap: 16px; padding: 0 12px; min-width: 0;
+      background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    .titlebar .brand { display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
+    .titlebar .logo { width: 26px; height: 26px; display: grid; place-items: center; font-size: 13px }
+    .brandtxt { display: flex; flex-direction: column; line-height: 1.15 }
+    .brandtxt b { font-size: 13px; letter-spacing: -.01em }
+    .brandtxt span { font-size: 10.5px; color: var(--mut) }
+    /* El fieldset del header es transparente: existe por el `disabled`, no por su caja. */
+    .tbcfg { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; gap: 14px; flex: 1 1 auto }
+    .tbcfg .environment-row { margin: 0; display: flex; align-items: center; gap: 8px }
+    .tbcfg .field { margin: 0; display: flex; align-items: center; gap: 8px }
+    .tbcfg .field > label { font-size: 11px; color: var(--mut); margin: 0; white-space: nowrap }
+    /* La pista del front es la línea que más crece: en el header se recorta en vez de empujar. */
+    .tbcfg #fronthint { margin: 0 !important; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .tbcfg .field-label { display: none }
+    .titlebar .seg button, .titlebar .pill { padding: 4px 9px; font-size: 11.5px }
+    .tbrun { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
+    .tbrun .activity-time { font-size: 11.5px; color: var(--mut); min-width: 0 }
+    .tbrun .go { padding: 7px 14px; font-size: 12.5px }
+    .tbrun .stop { padding: 7px 12px; font-size: 12.5px }
+
+    /* el aviso de ambiente compartido: banda a todo lo ancho, debajo del header */
+    .app > .warnbar { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
+
+    /* ── las tres columnas ─────────────────────────────────────────────────────────────────── */
+    .shell {
+      display: grid;
+      grid-template-columns: var(--w-left) var(--rsz) 1fr var(--rsz) var(--w-right);
+      min-height: 0; overflow: hidden;
+    }
+    .side { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel) }
+    .side-head {
+      height: 32px; display: flex; align-items: center; padding: 0 12px; flex: 0 0 auto;
+      font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--mut);
+      border-bottom: 1px solid var(--line);
+    }
+    /* ⚠ `min-inline-size: 0` NO ES DECORATIVO: un `<fieldset>` trae `min-inline-size: min-content` de
+       fábrica, así que se NIEGA a angostarse por debajo de su contenido — el sidebar quedaba más ancho
+       que su columna y el texto se cortaba contra el borde («Login de asesor (Cognito) y el wizard abre
+       en el»). Se ve como un `overflow` mal puesto y es la regla de UA del fieldset. Vale igual para el
+       del header. */
+    .side-body, .tbcfg { min-width: 0; min-inline-size: 0 }
+    .side-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; border: 0; margin: 0 }
+
+    /* Dentro de un sidebar las tarjetas dejan de ser tarjetas: sin caja propia, separadas por una
+       línea. Una caja dentro de otra caja dentro de un panel es ruido de borde, no jerarquía. */
+    .side .card, .side details.card { background: transparent; border: 0; border-bottom: 1px solid var(--line);
+      border-radius: 0; padding: 12px 12px 14px; margin: 0; box-shadow: none }
+    .side .card h2 { margin-top: 0 }
+    /* Los `01/02/03` numeraban una SECUENCIA que este layout ya no tiene —y el 01 se disolvió al subir
+       ambiente y front al header, así que la serie empezaba en 02—. Un número que no ordena nada
+       desorienta más que ayudar; el título se queda. */
+    .side .card h2 b { display: none }
+    /* El sidebar ya dice COMERCIOS arriba: repetirlo adentro es una etiqueta gastada en nada. */
+    /* ⚠ `:first-of-type` y no `:first-child`: el primer hijo del `.side-body` es el `<legend>` del
+       fieldset, así que la regla no matcheaba nada y el título repetido seguía a la vista. */
+    .sl .side-body > p.grouplbl:first-of-type { display: none }
+    .side .grid { grid-template-columns: 1fr }
+
+    .stage {
+      min-height: 0; min-width: 0; overflow: auto; padding: 12px; background: var(--bg);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    /* El mapa ES el centro: ocupa lo que sobre. Antes vivía dentro de un <details> plegado Y con
+       display:none — dos capas de ocultamiento sobre lo único que explica el recorrido. */
+    /* El mapa ES el centro: ocupa todo lo que sobra y se reencuadra al cambiar de tamaño (el
+       `ResizeObserver` de la cáscara). `min-height` chico a propósito: con el Caso de vuelta en el
+       sidebar, lo único que puede aparecer arriba es la tarjeta de actividad durante una corrida, y ahí
+       vale más que el mapa ceda que un scroll en el centro. */
+    .stage > #tren { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; margin: 0 }
+    .stage > #tren[hidden] { display: none }
+    /* ═══ EL MAPA, SIN TARJETA ════════════════════════════════════════════════════════════════════
+       En el centro el mapa no necesita presentarse: es lo único que hay. Se le saca el marco, el fondo
+       y la cabecera «Mapa del recorrido · Referencia del flujo» — un título que rotula la única cosa
+       de su zona es ancho gastado.
+       ⚠ PERO LA CABECERA GUARDABA EL AVISO. `#trenwarn` es donde el mapa dice lo que NO pudo dibujar
+       («N rutas del mapa ya no existen»), y esconderla lo escondía con ella: un mapa incompleto se
+       vería igual que uno completo, que es el modo de falla que ese aviso vino a evitar. Así que la
+       cabecera no se borra: se muestra SÓLO cuando hay algo que avisar. */
+    .stage > #tren > summary { display: none }
+    .stage > #tren > summary:has(#trenwarn:not(:empty)) {
+      display: flex; align-items: center; flex: 0 0 auto; padding: 0 0 8px;
+      text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--warn);
+    }
+    .stage > #tren > summary .tren-hint { display: none }
+    .stage > #tren { background: transparent; border: 0; padding: 0 }
+    .stage > #tren #trenvias { background: transparent; border: 0; border-radius: 0 }
+    /* ⚠ EL LIENZO NO CRECÍA, Y NO ERA EL `flex`. Chrome envuelve el contenido de un `<details>` en el
+       pseudo-elemento `::details-content`, así que `#trenvias` NO es hijo flex directo: el item es esa
+       caja intermedia y el `flex: 1` de adentro no tenía a quién pedirle espacio. Medido acá mismo: con
+       esta regla el lienzo pasó de 152 px a ocupar la zona. En navegadores sin el pseudo-elemento la
+       regla no matchea y los hijos ya son directos, así que el caso queda cubierto por los dos lados. */
+    .stage > #tren::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
+    .stage > #tren #trenvias { flex: 1 1 auto; height: auto; min-height: 0 }
+    .stage-empty { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 6px; color: var(--mut); text-align: center;
+      border: 1px dashed var(--line2); border-radius: var(--radius); padding: 24px }
+    .stage-empty b { color: var(--txt); font-size: 14px }
+    .stage-empty span { font-size: 12.5px; max-width: 42ch }
+
+    /* ── panel inferior: las consolas ──────────────────────────────────────────────────────── */
+    .bottom { min-height: 0; overflow: hidden; background: var(--panel); border-top: 1px solid var(--line);
+      display: flex; flex-direction: column }
+    .bottom > .logcard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+      margin: 0; border: 0; border-radius: 0; background: transparent; padding: 0 }
+    .bottom > .logcard > h2 { margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line);
+      flex: 0 0 auto; display: flex; align-items: center; gap: 6px }
+    .bottom > .logcard > h2 > b { display: none }            /* el ▸ decoraba un título que ya no existe */
+    .bottom > .logcard .logacts { margin-left: auto; display: flex; gap: 6px; float: none }
+    .bottom > .logcard > pre { flex: 1 1 auto; min-height: 0; max-height: none; margin: 0; border: 0;
+      border-radius: 0; background: transparent; padding: 10px 12px }
+    /* 240 px de negro sin una línea se leen como «se rompió». La zona existe siempre, así que dice qué
+       va a aparecer ahí en vez de no decir nada. */
+    .bottom > .logcard > pre:empty::before { content: attr(data-vacio); color: var(--mut); font-style: italic }
+
+    /* ── barra de estado ───────────────────────────────────────────────────────────────────── */
+    .statusbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; min-width: 0;
+      font-size: 11.5px; color: var(--mut); background: var(--panel); border-top: 1px solid var(--line);
+      white-space: nowrap; overflow: hidden }
+    .statusbar strong { color: var(--txt); font-weight: 600; flex: 0 0 auto }
+    .statusbar .sumry { overflow: hidden; text-overflow: ellipsis }
+
+    /* ── manijas de ajuste ─────────────────────────────────────────────────────────────────── */
+    .rsz { background: transparent; position: relative; z-index: 5 }
+    .rsz-l, .rsz-r { cursor: col-resize }
+    .rsz-b { cursor: row-resize }
+    .rsz::after { content: ''; position: absolute; inset: 0; background: transparent; transition: background .12s }
+    .rsz:hover::after, .rsz.on::after { background: var(--acc) }
+    .rsz-l::after, .rsz-r::after { left: 1px; right: 1px }
+    .rsz-b::after { top: 1px; bottom: 1px }
+
+    /* el dock viejo ya no existe: lo que queda de él es la barra de estado */
+    .dock { display: none }
+
+    /* La media query de la columna angosta sigue en el archivo y ya no aplica a nada: acá el ancho
+       lo manda el grid. Se neutraliza para que no reviva el padding del layout viejo. */
+    .wrap { max-width: none; margin: 0; padding: 0 }
+
+    /* En pantallas chicas los sidebars se apilan: tres columnas de 300px no entran en un portátil
+       de 13" con el navegador a media pantalla, y colapsar es mejor que scrollear en horizontal. */
+    @media (max-width: 1180px) {
+      .shell { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; overflow: auto }
+      .rsz-l, .rsz-r { display: none }
+      .side { max-height: 40vh }
+    }
+
+
+    /* ═══════════════════════════════════════════════════════════════════════════════════════════
+       CROMO EN GRISES · el acento deja de ser un color y pasa a ser CONTRASTE
+       ═══════════════════════════════════════════════════════════════════════════════════════════
+       Vercel no pinta la interfaz: lo seleccionado es lo más CLARO y lo demás se apaga. Acá el verde
+       hacía dos trabajos a la vez —cromo (pastilla activa, botón, foco, pestaña) y ESTADO (sesión ok,
+       servicio arriba, entidad ON, corriendo)—, y volverlo todo gris de un saque habría apagado
+       también la única señal que hay. Así que se parte en dos tokens: `--acc` es el cromo y ahora es
+       casi blanco; `--ok` es el estado y se queda verde. Un panel donde todo grita no deja ver nada,
+       pero uno donde nada grita tampoco. */
+    :root {
+      --acc: #ededed;     /* selección / acción primaria — Vercel: blanco sobre negro */
+      --acc-d: #a1a1a6;   /* su variante apagada (hover, bordes) */
+      --ok: #22c55e;      /* ESTADO: corre · ON · servicio arriba */
+      --ok-d: #16a34a;
+      --sel: #1f1f22;     /* superficie de lo seleccionado cuando no lleva relleno claro */
+    }
+
+    /* texto sobre el acento: era verde oscuro porque el fondo era verde */
+    .pill.on, .seg button.on, .go, .altapie button { color: #000 }
+    .go:hover { background: #fff }
+    .seg button.on, .pill.on { font-weight: 600 }
+
+    /* el logo era un degradado de dos colores: en esta paleta es una marca, no un adorno */
+    .logo { background: var(--acc); color: #000 }
+
+    /* ── lo que SIGUE teniendo color, porque informa ──────────────────────────────────────────── */
+    .dot.run { background: var(--ok) }
+    .sdot.ok { background: var(--ok) }
+    .st-ok .v { color: var(--ok) }
+    .activity.running { border-left: 3px solid var(--ok) }
+    .tipear button.copiado { border-color: var(--ok); color: var(--ok) }
+
+    /* ── pestañas de la consola: estilo editor, no pastilla rellena ───────────────────────────── */
+    /* Con el acento casi blanco, «fondo del acento + texto blanco» sería texto invisible. Y la forma
+       de pestaña se lee mejor acá: es una barra de pestañas de verdad. */
+    .bottom .pest { background: transparent; border: 0; border-radius: 0; color: var(--mut);
+      padding: 5px 10px; border-bottom: 2px solid transparent }
+    .bottom .pest.on { background: transparent; color: var(--txt); border-bottom-color: var(--acc) }
+    .bottom .pest:hover { color: var(--txt) }
+
+    /* La tarjeta elegida tenía relleno verde oscuro (#132018) porque el acento era verde. En grises,
+       lo seleccionado se distingue por ser MÁS CLARO, no por tener otro tinte. */
+    .m.sel { background: var(--sel) }
+
+    /* la manija activa en blanco se ve demasiado; alcanza con un gris claro */
+    .rsz:hover::after, .rsz.on::after { background: var(--line2) }
+    .rsz.on::after { background: var(--acc-d) }
+
+
+    /* ═══ ÁRBOL DE COMERCIOS ══════════════════════════════════════════════════════════════════════
+       Filas de una línea, sangría por nivel y una guía vertical, como un explorador de archivos. La
+       densidad es el punto: la grilla de tarjetas gastaba ~68 px por sucursal y mostraba seis antes de
+       scrollear; acá entran veintitantas filas en el mismo alto, que es lo que hace usable un comercio
+       con 79 sucursales (Sonría, medido). */
+    .tree { display: block; margin-top: 10px; user-select: none }
+    .trow {
+      display: flex; align-items: center; gap: 6px; height: 24px; padding-right: 8px;
+      font-size: 12.5px; color: var(--txt); cursor: pointer; position: relative; white-space: nowrap;
+    }
+    .trow:hover { background: var(--panel2) }
+    .trow .tw { width: 11px; flex: 0 0 11px; color: var(--mut); font-size: 9px; text-align: center }
+    .trow .tnm { overflow: hidden; text-overflow: ellipsis }
+    .trow .tmeta { margin-left: auto; font-size: 10.5px; color: var(--mut); flex: 0 0 auto; padding-left: 10px }
+    .trow .tick { color: var(--txt); font-size: 11px; flex: 0 0 auto }
+    .tmerch { font-weight: 600 }
+    .tmerch.miss .tnm, .tmerch.miss .tmeta { color: var(--mut); font-style: italic }
+    /* La sucursal ELEGIDA es la que va a correr: se marca por contraste, no por color. */
+    .tbranch.sel { background: var(--sel) }
+    .tbranch.sel .tnm { font-weight: 600 }
+    .tbranch.off .tnm { color: var(--mut); text-decoration: line-through }
+    .tinfo { color: var(--mut); font-style: italic; cursor: default }
+    .tinfo:hover { background: transparent }
+    /* guía de sangría, como la del explorador */
+    .tbranch::before, .tinfo::before { content: ''; position: absolute; left: 14px; top: 0; bottom: 0; border-left: 1px solid var(--line) }
+    .trow .facc { margin-left: 8px; display: flex; gap: 2px; opacity: .45; flex: 0 0 auto }
+    .trow .facc:hover, .trow:hover .facc { opacity: 1 }
+    .trow .facc span { padding: 0 3px; font-size: 10px }
+
+    /* El nodo de entidades, cuando cuelga de una sucursal del árbol: sin caja propia y sin su resumen
+       —el twisty y el contador de la fila de arriba ya dicen lo mismo—. */
+    .tree > #environmentSettings { border: 0; border-bottom: 1px solid var(--line); padding: 2px 0 10px 28px;
+      background: var(--panel2) }
+    .tree > #environmentSettings > summary { display: none }
+    /* «Entidades vinculadas · F0548728» repetía el hash que la fila de la sucursal, justo arriba, ya
+       muestra. En una columna angosta cada línea repetida se paga. */
+    .tree > #environmentSettings > .grouplbl { display: none }
+    #entornoHolder > #environmentSettings { display: none }
+
+
+    /* ═══ ENTIDAD COMO ARCHIVO + MENÚ DEL CLICK DERECHO ═══════════════════════════════════════════ */
+    /* ⚠⚠ `flex-wrap: nowrap` Y NO ES REDUNDANTE. El diseño viejo tenía `.lrow { flex-wrap: wrap }`
+       SIN media query (la fila podía partirse en dos renglones), y **envolver gana sobre encoger**: por
+       eso el nombre nunca se recortaba —se iba a la línea de abajo—, y con el alto fijo de 24 px esa
+       línea se montaba encima de la fila siguiente. Se veía como filas superpuestas y datos pisados.
+       ⚠ Y `min-height` en vez de `height`: si algún día algo no entra, la fila CRECE en vez de
+       derramarse sobre su vecina. Un desborde que se ve es reparable; uno que se superpone, no.
+       ⚠ Mi detector de desbordes no lo veía: `.lrow` tiene `overflow: visible`, y ahí `scrollWidth`
+       no reporta a los hijos que se salen. Para comprobarlo hay que comparar los bordes derechos de
+       los hijos contra el del contenedor, no `scrollWidth`. */
+    .tree #lenderslist .lrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px;
+      height: auto; min-height: 24px; padding: 0 8px 0 0;
+      background: transparent; border: 0; border-radius: 0; font-size: 12.5px; cursor: default }
+    .tree #lenderslist .lrow:hover { background: var(--panel) }
+    .tree #lenderslist .lrow:focus-visible { outline: 1px solid var(--acc); outline-offset: -1px }
+    .lico { color: var(--mut); font-size: 9px; margin-right: 2px }
+    /* Una línea por entidad, siempre. Sin esto los nombres largos —«Credifamilia-addi», «Rent to Own»—
+       empujaban su chip de `rt` al renglón siguiente y la lista dejaba de leerse como una columna de
+       archivos, que es todo el punto. Lo que sobra se recorta; el `#id` y el `rt` van antes del corte
+       porque son lo que se busca. */
+    .tree #lenderslist .lrow .lnm { display: flex; align-items: center; gap: 5px; min-width: 0;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
+    .tree #lenderslist .lrow .lnm > .rtc, .tree #lenderslist .lrow .lnm > .lrt { flex: 0 0 auto }
+    /* Apagada = tachada y apagada, como un archivo ignorado. El dato sigue visible: si desapareciera,
+       «esta entidad no está» y «está pero apagada» se verían igual, y son cosas distintas. */
+    .lrow.off .lnm { color: var(--mut); text-decoration: line-through }
+    .lrow.off .lico { opacity: .4 }
+    /* La marca sólo aparece cuando el estado NO es el normal: un panel que etiqueta también lo esperado
+       obliga a leer diez etiquetas para encontrar la que importa. */
+    .pamark { font-size: 9.5px; padding: 1px 5px; border-radius: 999px; border: 1px solid var(--line2);
+      color: var(--mut); flex: 0 0 auto; margin-left: auto }
+    .pamark.rejected { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent) }
+    .pamark.pending { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent) }
+    .pamark.off { color: var(--mut); margin-left: 6px }
+
+    .ctxmenu { position: fixed; z-index: 999; min-width: 230px; padding: 4px;
+      background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--radius-sm);
+      box-shadow: 0 12px 32px rgba(0,0,0,.6); font-size: 12.5px }
+    .ctxhead { padding: 6px 9px 7px; color: var(--txt); font-weight: 600; border-bottom: 1px solid var(--line);
+      margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .ctxlbl { padding: 6px 9px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--mut) }
+    .ctxsep { height: 1px; background: var(--line); margin: 5px 0 0 }
+    .ctxitem { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 9px; background: transparent;
+      border: 0; border-radius: 4px; color: var(--txt); font: inherit; text-align: left; cursor: pointer }
+    .ctxitem:hover, .ctxitem:focus-visible { background: var(--sel); outline: none }
+    .ctxitem .ctxtick { width: 11px; flex: 0 0 11px; color: var(--acc); font-size: 10px }
+    .ctxitem.peligro:hover { background: color-mix(in srgb, var(--danger) 22%, var(--panel2)) }
+
+
+    /* ═══ FILA DE ENTIDAD COMPACTA ════════════════════════════════════════════════════════════════
+       La regla del sidebar: NADA se sale. Lo único elástico es el nombre —se recorta con ellipsis— y
+       todo lo demás tiene ancho fijo. Lo que se recorta no se pierde: vive en el `title`. */
+    .tree #lenderslist .lrow { gap: 5px }
+    .tree #lenderslist .lrow > .lnm { flex: 1 1 auto; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; display: block }
+    .lgrip { flex: 0 0 auto; color: var(--line2); font-size: 9px; cursor: grab }
+    .lid { flex: 0 0 auto; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums }
+    /* La INICIAL del producto, con el color que ese producto tiene en el mapa: una sola leyenda para
+       las dos vistas. `COLOR` en el script es la fuente. */
+    .lprod { flex: 0 0 auto; width: 18px; height: 15px; display: grid; place-items: center;
+      font-size: 9px; font-weight: 700; letter-spacing: .02em; border-radius: 3px;
+      background: rgba(255,255,255,.06); color: var(--mut) }
+    .pr-credit  { color: #4ade80; background: rgba(74,222,128,.12) }
+    .pr-renting { color: #eab308; background: rgba(234,179,8,.12) }
+    .pr-rto     { color: #fb923c; background: rgba(251,146,60,.12) }
+    /* El chip de rt pierde su texto y se queda en el número: el nombre largo vive en el tooltip. */
+    .tree #lenderslist .rtc { flex: 0 0 auto; font-size: 9.5px; padding: 1px 5px }
+    .tree #lenderslist .pamark { margin-left: 0 }
+
+    /* el aviso, en una línea */
+    /* `block` y no `flex`: en flex los hijos no se encogen y el `text-overflow` no llega a actuar —
+       la línea se salía igual. Así el recorte funciona de verdad, y es sólo la red: el texto ya entra. */
+    .scope-note { display: block; margin: 4px 0 8px; font-size: 11px; color: var(--mut);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: help }
+    .sn-warn { color: var(--warn); flex: 0 0 auto }
+
+    /* ⚠ EL ORDEN EN QUE CEDEN, que es lo que decide si la fila se puede leer al angostar. Antes el
+       nombre era lo ÚNICO que cedía y la meta tenía ancho fijo: medido, a 180 px de sidebar el nombre
+       de la sucursal quedaba en **35 px** —tres letras— con el hash entero al lado. Al revés de lo que
+       sirve: el nombre es lo que identifica la fila y el hash está en el tooltip.
+       Ahora: el nombre cede hasta un PISO (`min-width`), después cede la meta, y recién si nada alcanza
+       se recorta. Y un TECHO para que un nombre largo no empuje la meta fuera de la fila. */
+    .trow .tnm { flex: 0 1 auto; min-width: 9ch; max-width: 62%; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap }
+    .trow .tmeta { flex: 0 1 auto; min-width: 0; max-width: 52%; overflow: hidden; text-overflow: ellipsis }
+    /* La fila de entidad, igual: el nombre nunca baja de un piso legible. */
+    /* El nombre es lo ÚNICO elástico y puede achicarse hasta casi nada: con el sidebar angosto,
+       tres letras + tooltip es mejor que una fila deformada. El piso lo pone el sidebar, no el texto. */
+    .tree #lenderslist .lrow > .lnm { min-width: 3ch; flex: 1 1 0 }
+
+
+    /* ═══ FILAS «AGREGAR» ═════════════════════════════════════════════════════════════════════════
+       El equivalente del «archivo nuevo»: la del nivel 1 agrega otra sucursal de esa carpeta (abre el
+       alta con el comercio ya puesto); la de abajo agrega un comercio nuevo. Van apagadas hasta el
+       hover — son acciones, no contenido, y compiten con lo que sí hay que leer. */
+    .tadd { color: var(--mut); font-style: italic }
+    .tadd .tw { font-style: normal; font-weight: 700 }
+    .tadd:hover { color: var(--txt); background: var(--panel2) }
+    .tadd-top { margin-top: 4px; border-top: 1px solid var(--line) }
+
+
+    /* ═══ MENÚS Y ESTADO DEL HEADER ═══════════════════════════════════════════════════════════════ */
+    .hdrmenus { display: flex; align-items: center; gap: 6px; flex: 0 0 auto }
+    .hbtn { display: flex; align-items: center; gap: 6px; padding: 5px 9px; background: transparent;
+      border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--txt);
+      font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap }
+    .hbtn:hover { border-color: var(--line2); background: var(--panel2) }
+    .hbtn .hlbl { color: var(--mut); font-size: 11px }
+    .hbtn .hval { font-weight: 600 }
+    .hbtn .hcar { color: var(--mut); font-size: 9px }
+
+    /* El estado vive a la derecha, pegado a los controles de corrida: es la respuesta a «¿puedo correr?» */
+    .hsalud { display: flex; align-items: center; gap: 6px; padding: 4px 9px; background: transparent;
+      border: 1px solid var(--line); border-radius: 999px; color: var(--mut); font: inherit;
+      font-size: 11.5px; cursor: pointer; white-space: nowrap }
+    .hsalud:hover { border-color: var(--line2); color: var(--txt) }
+    .sdotx { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); flex: 0 0 auto }
+    .sdotx.bien { background: var(--ok) }
+    .sdotx.mal { background: var(--warn) }
+
+    /* Un ítem apagado se VE, con su motivo en el tooltip: esconderlo haría creer que no existe — la
+       misma regla que ya tenían los botones de canal. */
+    .ctxitem.apagado { opacity: .45; cursor: not-allowed }
+    .ctxitem.apagado:hover { background: transparent }
+    /* La pista del elemento elegido, dentro del menú: es prosa, no un ítem. */
+    .ctxnota { margin: 6px 9px 3px; padding-top: 7px; border-top: 1px solid var(--line);
+      font-size: 11px; line-height: 1.45; color: var(--mut); max-width: 340px; white-space: normal }
+    .ctxnota code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 10.5px }
+    .ctxmenu { max-width: 380px }
+    /* El panel de estado es más ancho: adentro van las tarjetas de servicios con sus comandos. */
+    .ctxsalud { min-width: 420px; max-width: 520px; max-height: 70vh; overflow: auto }
+    .ctxsalud > #healthDetails { border: 0; background: transparent; padding: 0; margin: 0 }
+    .ctxsalud > #healthDetails > summary { display: none }
+
+
+    /* ═══ SECCIONES DEL SIDEBAR ═══════════════════════════════════════════════════════════════════
+       Una fila de título por sección, siempre visible, y el cuerpo debajo. Cerradas ocupan 30 px, así
+       que los cuatro títulos entran juntos y se ve el mapa completo de lo que hay para configurar —
+       que era justo lo que 1.097 px de scroll no dejaban ver. */
+    .sec { border: 0; border-bottom: 1px solid var(--line); margin: 0; padding: 0; background: transparent }
+    .sec > summary { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+      cursor: pointer; list-style: none; color: var(--txt); font-size: 11.5px; letter-spacing: .04em;
+      text-transform: uppercase; user-select: none }
+    .sec > summary::-webkit-details-marker { display: none }
+    .sec > summary:hover { background: var(--panel2) }
+    .sectw { color: var(--mut); font-size: 9px; transition: transform .12s; flex: 0 0 auto }
+    .sec[open] > summary .sectw { transform: rotate(90deg) }
+    .sectit { font-weight: 600; flex: 0 0 auto }
+    /* El resumen dice CÓMO ESTÁ, no de qué se trata: cerrada, ésta es la única línea que vas a leer. */
+    .secsum { margin-left: auto; font-size: 10.5px; color: var(--mut); text-transform: none;
+      letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
+    .secbody { padding: 4px 12px 14px }
+    .sec .card, .sec .fold { border: 0; background: transparent; padding: 0; margin: 10px 0 }
+
+    /* ═══ PISTAS EN UNA LÍNEA ═════════════════════════════════════════════════════════════════════
+       La prosa que explica cada opción pasa al tooltip y deja un renglón. No se borra —es conocimiento
+       del dominio, y varias de esas frases son la única explicación de por qué una perilla hace lo que
+       hace—: se mueve a donde no cueste 3 líneas de alto permanente. */
+    .pista { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: help; font-size: 11px !important; margin: 6px 0 0 !important; color: var(--mut) !important }
+
+
+    /* ═══ LOS DOS CONTROLES DE LA FILA ════════════════════════════════════════════════════════════
+       A/P/R y el switch. El color acá SÍ informa —es estado, no cromo—, pero «aprobado» va NEUTRO a
+       propósito: es el caso normal y pintarlo de verde en las siete filas convierte la señal en fondo.
+       Lo que se destaca es lo que se sale de lo esperado. */
+    .lrow .pa { flex: 0 0 auto; width: 17px; height: 16px; padding: 0; display: grid; place-items: center;
+      font: 700 9.5px/1 inherit; border: 1px solid var(--line2); border-radius: 3px;
+      background: transparent; color: var(--mut); cursor: pointer }
+    .lrow .pa:hover:not(:disabled) { border-color: var(--acc); color: var(--txt) }
+    .pa-pending  { color: var(--warn) !important; border-color: color-mix(in srgb, var(--warn) 55%, transparent) !important }
+    .pa-rejected { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 55%, transparent) !important }
+    .pa-na { opacity: .3; cursor: not-allowed }
+
+    /* Un switch de verdad y no un «ON/OFF»: la forma dice el estado sin leer. */
+    .lrow .sw { flex: 0 0 auto; width: 24px; height: 14px; padding: 0; position: relative;
+      border: 1px solid var(--line2); border-radius: 999px; background: transparent; cursor: pointer }
+    .lrow .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px;
+      border-radius: 50%; background: var(--mut); transition: left .12s, background .12s }
+    .lrow .sw.on { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: rgba(34,197,94,.12) }
+    .lrow .sw.on::after { left: 12px; background: var(--ok) }
+    .lrow .sw:hover { border-color: var(--acc) }
+
+
+    /* El reloj de la demora: apagado cuando es 0 (el caso normal), marcado cuando hay espera puesta —
+       una corrida con 15 s de demora se explica sola si el botón lo dice. */
+    .hreloj .hlbl { font-size: 13px }
+    .hreloj.activo { border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn) }
+    .hreloj.activo .hlbl { color: var(--warn) }
+    .hbtn:disabled { opacity: .4; cursor: not-allowed }
+    .hbtn:disabled:hover { background: transparent; border-color: var(--line) }
+
+
+    .ctxdim { color: var(--mut); font-size: 10.5px }
+    /* Las que tenés guardadas en tu espacio se distinguen de las demás del comercio. */
+    .ctxitem.guardada > span:last-child::after { content: ' ★'; color: var(--mut); font-size: 9px }
+
+
+    .side { overflow: hidden }
+    .rsz { transition: background .12s }
+    .rsz-l, .rsz-r { min-width: var(--rsz) }
+    /* ⚠ EL ÁREA DE AGARRE ES MÁS ANCHA QUE LA LÍNEA. La manija se ve de 4 px —una línea, como en un
+       editor— pero apuntarle con el mouse a 4 px falla: probado, un arrastre real no la tomaba.
+       El `::before` le da 16 px de zona sensible sin engordar lo que se ve. Y ahora importa el doble:
+       con el panel colapsado a 0, esta manija es lo ÚNICO que lo trae de vuelta. */
+    .rsz::before { content: ''; position: absolute; z-index: 1 }
+    .rsz-l::before, .rsz-r::before { top: 0; bottom: 0; left: -6px; right: -6px }
+    .rsz-b::before { left: 0; right: 0; top: -6px; bottom: -6px }
+    /* Colapsado, la manija se marca sola: si no, queda una línea muerta que nadie sabe que se arrastra. */
+    .side:empty + .rsz, .rsz.plegado::after { background: var(--line2) }
+
+
+
+
+    /* ═══ PANEL DE PROPIEDADES (estilo Blender / Photoshop) ═══════════════════════════════════════
+       Cada propiedad es UNA FILA: etiqueta a la izquierda en una columna fija, control a la derecha.
+       Medido antes: cada `.field` medía **62 px** —etiqueta arriba, control abajo, margen— y diecisiete
+       campos daban 1.236 px de contenido en 546 visibles. La etiqueta arriba tiene sentido en un
+       formulario que se llena una vez; esto es un panel de herramientas que se ajusta muchas veces, y
+       ahí lo que importa es ver TODAS las perillas juntas. */
+    .sr .panelprops .field { display: grid; grid-template-columns: 102px 1fr; align-items: center;
+      gap: 8px; margin: 0 0 4px; min-height: 24px }
+    .sr .panelprops .field:empty { display: none }          /* el relleno del par impar no ocupa una fila */
+    .sr .panelprops .field > label,
+    .sr .panelprops .field > .field-label { margin: 0; font-size: 10.5px; line-height: 1.2; color: var(--mut);
+      text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default }
+    /* Los pares dejan de ir lado a lado: a 340 px, «Negativos 12m» + su input en media columna no entra.
+       Apilados como filas de 24 px ocupan menos que el par de 74 que eran. */
+    .sr .panelprops .two { display: block }
+    .sr .panelprops input[type=text], .sr .panelprops input[type=number], .sr .panelprops input[type=date],
+    .sr .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: 4px }
+    .sr .panelprops .money { display: block }
+    /* ⚠ El `$` de `.money` es un `::before` posicionado, y el input le deja 24 px de sangría para que no
+       se pisen. Mi `padding: 0 7px` compacto se los comió y el símbolo quedaba ENCIMA del número
+       («$2B000.000» en la captura). El padding izquierdo se restituye, sólo que proporcional al alto
+       nuevo de 24 px. */
+    .sr .panelprops .money input { width: 100%; padding-left: 19px }
+    .sr .panelprops .money::before { left: 8px; font-size: 11px }
+    /* Los segmentados pasan a CHIPS: la misma información en una fila de 24 px. */
+    .sr .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
+    .sr .panelprops .seg button { flex: 1 1 0; min-width: 0; padding: 3px 4px; font-size: 10.5px;
+      border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    /* La pista del campo ocupa la columna del control, no una fila propia. */
+    .sr .panelprops .field > .pista { grid-column: 2 }
+    .sr .panelprops > .pista, .sr .panelprops .field + .pista { margin: 2px 0 6px 110px !important }
+    .sr .panelprops .grouplbl { margin: 10px 0 5px; font-size: 9.5px }
+    /* La fila de sólo-lectura (el celular) medía 91 px: sus cuatro partes envolvían dentro del campo.
+       Se alinea con la MISMA columna de 102 px que el resto, y la aclaración larga —«bypass OTP · no
+       editable»— se va al tooltip, como todo lo demás que no cabe. */
+    .sr .panelprops .field > .ro { display: grid; grid-template-columns: 102px 1fr auto; align-items: center;
+      gap: 8px; min-height: 24px; padding: 0; background: transparent; border: 0; font-size: 11px }
+    .sr .panelprops .ro .k { text-align: right; font-size: 10.5px; color: var(--mut) }
+    .sr .panelprops .ro .v { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .sr .panelprops .ro > span:not(.k):not(.v) { display: none }
+    .sr .panelprops .fold > summary { padding: 4px 0; font-size: 11px }
+
+
+    /* El panel único: mismo ritmo de 24 px, separado por rótulos de grupo en vez de cabeceras. */
+    .panelprops { padding: 8px 12px 14px }
+    .panelprops > .grouplbl:first-child { margin-top: 0 }
+
+
+    /* El paso donde está parada la corrida: un halo que late. No cambia el color del nodo —ése dice el
+       PRODUCTO— sino que le agrega un borde, para que las dos cosas se lean juntas. */
+    #trencam .nodo.aqui circle { stroke: var(--txt); stroke-width: 3 }
+    #trencam .nodo.aqui .nlbl { fill: var(--txt); font-weight: 700 }
+    #trencam .nodo.aqui::after { content: '' }
+    #trencam .nodo.aqui > circle:first-of-type { filter: drop-shadow(0 0 6px rgba(255,255,255,.55)) }
+    @keyframes latido { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+    #trencam .nodo.aqui { animation: latido 1.6s ease-in-out infinite }
+    /* los valores a tipear, flotando sobre el mapa */
+    .stage > .tipear { flex: 0 0 auto; margin: 0 0 8px; padding: 6px 10px; background: var(--panel);
+      border: 1px solid var(--line); border-radius: var(--radius) }
+
+
+    /* ⚠ LAS PESTAÑAS VAN A LA IZQUIERDA, y no alcanzaba con `display:flex` en el `h2`: medido, quedaban
+       en x=333 y x=798 —dispersas— porque `.copy`/`.pest` traen estilos del diseño viejo que las hacían
+       crecer. Se fijan explícitamente: pestañas al inicio, acciones empujadas al final. */
+    .bottom > .logcard > h2 { display: flex !important; align-items: center; justify-content: flex-start;
+      gap: 2px; padding: 0 10px; height: 30px }
+    .bottom > .logcard > h2 > .pest { flex: 0 0 auto; margin: 0 }
+    .bottom > .logcard > h2 > .logacts { margin-left: auto; flex: 0 0 auto; display: flex; gap: 6px; float: none }
+
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <header>
-      <div class="logo">C</div>
-      <div><h1>Panel del harness</h1><p class="sub">Prepará un caso. Recorré el wizard. Mirá qué pasó.</p></div>
-      <span class="header-note">CreditOp · herramientas de prueba</span>
-    </header>
-    <section class="card activity" id="activity" hidden aria-label="Actividad de la corrida">
-      <div class="activity-head"><div><p class="eyebrow">Actividad de la corrida</p><h2 id="activityTitle">Preparando la corrida</h2></div><span id="activityTime" class="activity-time"></span></div>
-      <p id="activityContext" class="activity-context"></p>
-      <div class="activity-event"><span class="event-label" id="activityLabel">Última actividad</span><p id="activityMessage" role="status">Esperando información del proceso…</p></div>
-      <div id="tipear" class="tipear"></div>
-      <button class="copy" id="viewLog" type="button">Ver consola ↓</button>
-    </section>
-    <details class="card tren" id="tren" style="display:none">
-      <summary>Mapa del recorrido <span id="trenwarn"></span>
-        <span class="tren-hint">Referencia del flujo</span>
-      </summary>
-      <div id="trenvias">
-        <svg id="trensvg"><g id="trencam"></g></svg>
-        <div class="zoomctl">
-          <button id="zmas" title="acercar">+</button>
-          <button id="zmenos" title="alejar">−</button>
-          <button id="zfit" title="encuadrar">⤢</button>
-        </div>
+  <!-- ══ CÁSCARA TIPO EDITOR ══════════════════════════════════════════════════════════════════════
+       Cinco zonas fijas y ninguna scrollea a las otras: barra de título · sidebar IZQ (configuración) ·
+       centro (el mapa del recorrido) · sidebar DER (comercios) · panel inferior (consolas) · barra de
+       estado. Antes era UNA columna de 2.772 px: siempre estabas parado en un paso y los otros dos no
+       existían, y las dos cosas que más se miran —el mapa y la consola— arrancaban ocultas.
+       ⚠ TODO se mueve conservando los `id`: el script direcciona por id 225 veces y por estructura 2,
+       así que reubicar marcado no toca la lógica. Si algo de acá se reordena, esa sigue siendo la regla. -->
+  <div class="app">
+    <header class="titlebar">
+      <div class="brand"><div class="logo">C</div>
+        <div class="brandtxt"><b>Panel del harness</b><span>Prepará un caso · recorré el wizard · mirá qué pasó</span></div>
       </div>
-    </details>
-    <fieldset id="configFields" class="config-fields">
-    <legend class="sr-only">Configuración de la próxima corrida</legend>
-    <div class="cols">
-      <div class="col">
-        <section class="card" id="whereCard">
-          <h2><b>01</b> Dónde</h2>
-          <div class="environment-row"><span class="field-label">Ambiente</span><div class="targets" id="targets">
+      <!-- ⚠ LOS CONTROLES DE VERDAD SIGUEN ACÁ, OCULTOS, y los menús de arriba los CLICKEAN.
+           No es un rodeo: el gateo de canales pone `disabled`, opacidad y un `title` distinto por caso
+           (`applyCanal`), y el de ambiente arrastra el punto de sesión por target. Reimplementar eso en
+           el menú serían dos definiciones de la misma regla — y la del menú sería la que se olvida de
+           actualizarse. Así el menú es una VISTA de estos botones: lee su estado y les pasa el click.
+           Además siguen dentro del `fieldset.cfg`, o sea que la corrida los deshabilita igual. -->
+      <!-- ⚠ Las pastillas de ambiente y el switch de front viven DENTRO de un `fieldset.cfg`, igual que
+           antes vivían dentro de `#configFields`: durante una corrida toda la configuración se
+           deshabilita, y al subirlas al header había que traerse esa propiedad con ellas. -->
+      <fieldset class="cfg tbcfg" id="tbcfg" hidden><legend class="sr-only">Ambiente y frontend</legend>
+        <div class="environment-row"><span class="field-label">Ambiente</span><div class="targets" id="targets">
         <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
         <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
       </div><button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button></div>
-          <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
-      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
-      <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
-    </div><div class="field">
+          
+        <div class="field">
         <label>Frontend</label>
         <div class="seg" id="frontmode">
           <button data-v="ambiente">Del ambiente</button>
@@ -901,6 +1443,39 @@
         </div>
         <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div>
+          
+      </fieldset>
+      <div class="hdrmenus">
+        <button class="hbtn" id="btnEntorno" aria-haspopup="menu"><span class="hlbl">Entorno</span><span class="hval" id="valEntorno">local</span><span class="hcar">▾</span></button>
+        <button class="hbtn" id="btnCanal" aria-haspopup="menu"><span class="hlbl">Canal</span><span class="hval" id="valCanal">Asesor</span><span class="hcar">▾</span></button>
+        <!-- La demora del mock de pre-aprobados: un click cicla 0 → 3 → 5 → 10 → 15 s. Es de la CORRIDA
+             (viaja como `MOCK_PA_DELAY_MS`), no de la sucursal ni de la entidad — por eso vive acá y no
+             en una fila del árbol, que diría que cada sucursal tiene la suya. -->
+        <button class="hbtn" id="btnArranque" aria-haspopup="menu"><span class="hlbl">Arranque</span><span class="hval" id="valArranque">Inicio</span><span class="hcar">▾</span></button>
+        <button class="hbtn hreloj" id="btnDemora"><span class="hlbl">⏱</span><span class="hval" id="valDemora">0 s</span></button>
+      </div>
+      <div class="tbrun">
+        <!-- El estado de los servicios dejó de vivir plegado en un `<details>` del sidebar: es lo que
+             decide si una corrida puede cerrar, así que está siempre a la vista. El detalle (con los
+             comandos para levantar lo que falte) se abre desde acá. -->
+        <button class="hsalud" id="btnSalud" aria-haspopup="dialog" title="Estado de los servicios">
+          <span class="sdotx" id="saludDot"></span><span id="saludTxt">servicios…</span>
+        </button>
+        <span class="dot" id="dot"></span>
+        <span id="activityTime" class="activity-time"></span>
+        <button class="stop" id="stopBtn">Detener</button>
+        <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
+      </div>
+    </header>
+    <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
+      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
+      <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
+    </div>
+
+    <div class="shell">
+      <aside class="side sl" id="sideLeft">
+        <div class="side-head">Comercios</div>
+        <fieldset class="cfg side-body"><legend class="sr-only">Comercio y sucursal</legend>
           <p class="grouplbl">Comercio y sucursal</p><!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
            El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
            CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
@@ -925,12 +1500,76 @@
           <button id="altaadd">Agregar</button>
         </div>
       </div>
-      <div class="grid" id="results" style="margin-top:16px"></div>
+      <div class="tree" id="results" role="tree" aria-label="Comercios, sucursales y entidades"></div>
       
     
-        </section>
-        <section class="card" id="journeyCard"><h2><b>02</b> Qué recorrido</h2>
-          <div class="field" style="margin-top:16px">
+        
+        
+          <div id="entornoHolder"></div>
+          <details class="card environment-settings" id="environmentSettings">
+          <summary>Configuración del entorno <span id="entornoResumen">Entidades y respuestas simuladas</span></summary>
+          <p class="scope-note" title="A/P/R cicla la respuesta del mock de pre-aprobación (aprobado · pendiente · rechazado) y es una preferencia del panel: no toca la base. El switch enciende y apaga la entidad y SÍ escribe el estado GLOBAL del lender — afecta todas las sucursales de este ambiente y se conserva después de la corrida; en dev, staging y qa pide confirmación. El click derecho ofrece lo mismo con sus nombres completos."><b>A/P/R</b> cicla la pre-aprobación · el switch escribe <span class="sn-warn">⚠ global</span></p>
+          <p class="grouplbl">Entidades vinculadas <span id="lendersbranch"></span></p>
+          <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
+        </details>
+        </fieldset>
+      </aside>
+      <div class="rsz rsz-l" id="rszL" title="arrastrá para ajustar"></div>
+
+      <main class="stage" id="stage">
+        <!-- ⚠ ESTO NO ES LA TARJETA DE ACTIVIDAD: son los VALORES A TIPEAR (el OTP, el documento) que
+             el runner te va pasando durante la corrida. Vivía dentro de aquella tarjeta y se iba a ir con
+             ella; es lo único de ahí que hacía falta. Flota sobre el mapa y sólo aparece cuando tiene algo. -->
+        <div id="tipear" class="tipear"></div>
+        
+        
+        <details class="card tren" id="tren" open hidden>
+      <summary>Mapa del recorrido <span id="trenwarn"></span>
+        <span class="tren-hint">Referencia del flujo</span>
+      </summary>
+      <div id="trenvias">
+        <svg id="trensvg"><g id="trencam"></g></svg>
+      </div>
+    </details>
+        <div class="stage-empty" id="stageEmpty">
+          <b>El recorrido aparece acá</b>
+          <span>Elegí un comercio en el panel de la derecha y el mapa dibuja sus carriles.</span>
+        </div>
+        <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
+        <section id="webhookZona" class="wh" style="display:none"></section>
+      </main>
+
+      <div class="rsz rsz-r" id="rszR" title="arrastrá para ajustar"></div>
+      <aside class="side sr" id="sideRight">
+        <div class="side-head">Configuración</div>
+        <fieldset class="cfg side-body"><legend class="sr-only">Configuración de la próxima corrida</legend>
+          
+          <!-- ══ SECCIONES PLEGABLES ══════════════════════════════════════════════════════════════════
+         Medido el 2026-09-18: el sidebar tenía **1.097 px de contenido en 546 px visibles** —551 de
+         scroll, más de lo que se ve— y `personCard` sola medía **727 px**, más que el viewport, ya con
+         sus tres plegables cerrados. O sea que no faltaba plegar: faltaba ESTRUCTURA.
+
+         Cada sección recuerda si la dejaste abierta (localStorage, preferencia de esta máquina) y su
+         resumen dice **CÓMO está**, no de qué se trata — la misma regla que el panel ya aplicaba en
+         «Configuración del entorno»: un resumen que repite el título gasta la única línea que se ve
+         cuando la sección está cerrada.
+
+         ⚠ `.sintetico` reemplaza a `#synthbody` como blanco del atenuado por «Sin inyección»: son dos
+         bloques ahora (los datos de la persona y los números del buró) y el interruptor de modo queda
+         AFUERA, porque tiene que seguir clickeable. -->
+    
+
+    <!-- ══ UN SOLO PANEL ════════════════════════════════════════════════════════════════════════
+         Caso, Persona y Buró dejaron de ser tres plegables. Con «Arranque» en el header, «Caso» quedaba
+         en DOS filas —monto y cupo—, y una sección plegable con dos filas adentro gasta en su título y
+         su resumen más de lo que ahorra. Los rótulos de grupo (`.grouplbl`) alcanzan para separar.
+         ⚠ Lo que sí sigue plegado es **Identidad**: son ocho campos que casi nunca se tocan (tipo de
+         documento, nombre, cédula, género, edad, dos fechas, email) y desplegarlos duplica el alto del
+         panel. Su resumen dice lo elegido sin abrirlo. -->
+    <div class="panelprops">
+      <p class="grouplbl">Caso</p>
+      
+          <div class="field" id="canalField" hidden style="margin-top:16px">
         <label>Canal de entrada</label>
         <div class="seg" id="canal">
           <button class="on" data-c="asesor">Asesor</button>
@@ -950,7 +1589,7 @@
           <input type="checkbox" id="cupo" style="width:16px;height:16px;cursor:pointer" />
           <span>Cupo ya confirmado <span style="opacity:.7;font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
-      </div><div class="field">
+      </div><div id="arranqueHolder" hidden><div class="field">
         <label>Arranque</label>
         <!-- Solo DOS arranques (los intermedios phone/personal-info siguen por CLI: E2E_STEP_TARGET):
              Inicio = el wizard desde Monto (con Sintético el buró se inyecta invisible al llegar a Datos) ·
@@ -964,49 +1603,13 @@
         <!-- El "cupo ya confirmado" (firma del flujo → salta el buró) se controla desde el checkbox al pie del
              MONTO (arriba). Es INYECCIÓN de estado, no validación: sólo siembra el flujo already-confirmed-pre-approval.
              La VALIDACIÓN de que la omisión realmente ocurrió sigue fuera del panel, por CLI (dev/experian-check.ts). -->
-      </div>
-        </section>
-        <details class="card environment-settings" id="environmentSettings">
-          <summary>Configuración del entorno <span id="entornoResumen">Entidades y respuestas simuladas</span></summary>
-          <p class="scope-note">Los interruptores cambian el estado global de la entidad. Afectan todas las sucursales de este ambiente y se conservan después de la corrida.</p>
-          <p class="grouplbl">Entidades vinculadas <span id="lendersbranch"></span></p>
-          <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
-        </details>
-      </div>
-      <div class="col">
-        <section class="card" id="personCard"><h2><b>03</b> Con qué persona</h2>
-        <details class="fold profiles" id="profilesPanel">
-          <summary>Perfiles reutilizables <span class="foldsum" id="profilesCount">Guardá los valores que usás seguido</span></summary>
-          <p class="profile-help">Guardan ingreso, ocupación y buró en este navegador.</p>
-          <label class="field-label" for="savedProfiles">Aplicar un perfil</label>
-          <div class="profile-row"><select id="savedProfiles"><option value="">Elegí un perfil…</option></select><button class="copy" id="deleteProfile" type="button" disabled>Eliminar</button></div>
-          <label class="field-label" for="profileName">Guardar los valores actuales</label>
-          <div class="profile-row"><input id="profileName" type="text" maxlength="48" placeholder="Ej. Independiente · score 650" /><button class="copy" id="saveProfile" type="button">Guardar</button></div>
-          <p id="profileFeedback" class="profile-help" role="status"></p>
-        </details>
-        <div class="field">
-        <label>Modo del buró</label>
-        <div class="seg" id="injmode">
-          <button class="on" data-i="1">Buró inyectado</button>
-          <button data-i="0">Sin inyección</button>
-        </div>
-        <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
-      </div>
-
-      <!-- CANAL de entrada: por dónde ENTRA la solicitud. Asesor = login Cognito + wizard en /merchant.
-           Autogestión = el cliente entra solo por /self-service, sin login. Ecommerce = la tienda arma una
-           URL base64 con el pedido y el cliente aterriza redirigido. El usuario sintético es el MISMO en
-           todos: lo único que cambia es la puerta.
-           ⚠ Asesor y Autogestión montan el MISMO módulo del front para `solicitar`, así que la pantalla se
-           ve igual — pero `/merchant/*` está detrás de login y `/self-service/*` no, y con sesión el
-           backend resuelve punto de venta. Probar autogestión por el canal del asesor prueba otra cosa. -->
+      </div></div>
+        
       
-
-      <div id="synthbody">
-        <!-- Identidad COLAPSADA: 6 campos que se autogeneran (cédula/email) o casi nunca movés. El resumen
-             de la derecha muestra lo elegido sin desplegar; lo que sí tocás (ingreso/score) queda arriba. -->
-        <details class="fold" id="idfold">
-          <summary>Identidad <span class="foldsum" id="idsum"></span></summary>
+        
+        
+        <div class="sintetico">
+      <p class="grouplbl">Identidad</p>
       <div class="field">
         <label>Tipo de documento</label>
         <div class="seg" id="doctype">
@@ -1032,7 +1635,13 @@
       </div>
       <div class="field"><label for="email">Email</label><input id="email" type="text"
           placeholder="auto · synth-&lt;ur&gt;@creditop.com" /></div>
-        </details><!-- /identidad -->
+        <!-- /identidad -->
+
+      <div class="field" style="margin-top:14px">
+        <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span
+            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="copy"
+            data-copy="phone">copiar</button></div>
+      </div>
 
       <p class="grouplbl">Ingreso y empleo</p>
       <div class="two">
@@ -1049,7 +1658,31 @@
         </div>
       </div>
 
-      <p class="grouplbl buro">Buró · Datacrédito</p>
+      
+      </div>
+
+      <p class="grouplbl">Buró</p>
+      
+        <div class="field">
+        <label>Modo del buró</label>
+        <div class="seg" id="injmode">
+          <button class="on" data-i="1">Buró inyectado</button>
+          <button data-i="0">Sin inyección</button>
+        </div>
+        <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+      </div>
+
+      <!-- CANAL de entrada: por dónde ENTRA la solicitud. Asesor = login Cognito + wizard en /merchant.
+           Autogestión = el cliente entra solo por /self-service, sin login. Ecommerce = la tienda arma una
+           URL base64 con el pedido y el cliente aterriza redirigido. El usuario sintético es el MISMO en
+           todos: lo único que cambia es la puerta.
+           ⚠ Asesor y Autogestión montan el MISMO módulo del front para `solicitar`, así que la pantalla se
+           ve igual — pero `/merchant/*` está detrás de login y `/self-service/*` no, y con sesión el
+           backend resuelve punto de venta. Probar autogestión por el canal del asesor prueba otra cosa. -->
+      
+
+      
+        <div class="sintetico">
       <div class="two buro">
         <div class="field"><label for="score">Score</label><input id="score" type="number" value="700" step="10" /></div>
         <div class="field"><label for="negatives">Negativos 12m</label><input id="negatives" type="number" value="0" step="1" min="0" />
@@ -1061,15 +1694,15 @@
         <div class="field"></div>
       </div>
 
-      <div class="field" style="margin-top:14px">
-        <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span
-            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="copy"
-            data-copy="phone">copiar</button></div>
       </div>
-      </div><!-- /synthbody -->
-    </section>
-        <details class="card advanced" id="advancedSettings">
-          <summary>Opciones avanzadas <span id="advancedSummary">Sin demora de preaprobación</span></summary>
+      
+    </div>
+          <!-- ⚠ «Avanzadas» dejó de ser una sección: tenía UN control, así que gastaba un título entero
+         para una perilla. La demora subió al header —es de la CORRIDA, igual que Entorno y Canal—
+         y este bloque se queda acá oculto porque el botón del header lo clickea, tal como hacen
+         los otros menús: así `applyMockPAGate()` y `setSeg` siguen siendo los únicos que deciden. -->
+    <div id="avanzadasHolder" hidden><details class="sec advanced" id="advancedSettings">
+          <summary><span class="sectw">▸</span><span class="sectit">Avanzadas</span><span class="secsum" id="advancedSummary">Sin demora de preaprobación</span></summary>
           <div class="field" style="margin-bottom:0" id="padelayField">
         <label>Demora de preaprobación</label>
         <div class="seg" id="padelay">
@@ -1080,13 +1713,19 @@
           <button data-v="15000">15s</button>
         </div>
       </div>
-        </details>
-      </div>
+        </details></div>
+          <!-- El estado del entorno ya NO vive plegado en el sidebar: se muestra en el header y su
+         detalle se abre desde ahí. El nodo se queda acá, en un refugio oculto, porque es su CASA:
+         el menú lo toma prestado y lo devuelve al cerrarse, y `loadEstado()` le sigue escribiendo
+         esté donde esté. -->
+    <div id="saludHolder" hidden><details class="card health" id="healthDetails"><summary>Estado del entorno <span id="healthSummary">Consultando servicios…</span></summary><div class="stats" id="stats"></div><div class="dependency-list" id="missingServices"></div></details></div>
+        </fieldset>
+      </aside>
     </div>
-    </fieldset>
-    <details class="card health" id="healthDetails"><summary>Estado del entorno <span id="healthSummary">Consultando servicios…</span></summary><div class="stats" id="stats"></div><div class="dependency-list" id="missingServices"></div></details>
-    <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
-    <section id="webhookZona" class="wh" style="display:none"></section><section class="card logcard" id="logcard" style="display:none">
+
+    <div class="rsz rsz-b" id="rszB" title="arrastrá para ajustar"></div>
+    <section class="bottom" id="bottomPanel">
+      <section class="card logcard" id="logcard">
       
       <h2><b>▸</b>
         <button class="copy pest on" id="pestCorrida" title="lo que imprime el launcher de la corrida">Consola de la corrida</button>
@@ -1094,18 +1733,21 @@
         <span class="logacts">
           <button class="copy" id="ssrFiltro" title="mostrar sólo las llamadas salientes del SSR" hidden>☰ todo</button>
           <button class="copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
-          <button class="copy" id="logToggle">▼ plegar</button>
           <button class="copy" id="copyLog">📋 copiar</button>
         </span>
       </h2>
-      <pre id="log"></pre>
-      <pre id="logSsr" style="display:none"></pre>
+      <pre id="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></pre>
+      <pre id="logSsr" style="display:none" data-vacio="El stdout del wizard (SSR): sus llamadas salientes y sus errores. Es la ÚNICA vista de eso."></pre>
     </section>
+    </section>
+
+    <footer class="statusbar">
+      <strong id="caseTitle">Elegí un comercio</strong>
+      <span id="caseDetails"></span>
+      <span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span>
+      <button class="readiness-link" id="readinessLink" type="button" hidden></button>
+    </footer>
   </div>
-  <div class="dock"><div class="dockin">
-    <div class="launch-review"><strong id="caseTitle">Elegí un comercio</strong><span id="caseDetails"></span><span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span><button class="readiness-link" id="readinessLink" type="button" hidden></button></div>
-    <div class="launch-actions"><span class="dot" id="dot"></span><button class="stop" id="stopBtn">Detener</button><button class="go" id="go" disabled>Preparar + Lanzar ▶</button></div>
-  </div></div>
   <script>
     const $ = (id) => document.getElementById(id);
 
@@ -1259,32 +1901,129 @@
       renderMerchants();
     }
 
+    // ══ ÁRBOL DE COMERCIOS ════════════════════════════════════════════════════════════════════
+    // Comercio (carpeta) › sucursal (subcarpeta) › entidades (archivos). Reemplaza la grilla de
+    // tarjetas, y el motivo no es estético: **una tarjeta ya era una sucursal** —el hash de 8 hex que
+    // mostraba— con el comercio y la sucursal aplanados en una sola línea. El árbol sólo muestra la
+    // jerarquía que la base ya tiene.
+    //
+    // ⚠ SON TRES NIVELES Y NO DOS, y esto es lo que hay que respetar si alguien lo simplifica: las
+    // entidades cuelgan de la SUCURSAL, no del comercio, y las sucursales de un mismo comercio tienen
+    // listas distintas — medido el 2026-09-18: Motai PRINCIPAL tiene 6,8,158,168,169,170,173 y Motai
+    // Boyacá tiene 5,6,8,9,11,62; comparten dos. Un árbol comercio→entidades tendría que inventar una
+    // unión o elegir una sucursal por vos, y mostraría un conjunto que no existe en ningún lado. Es la
+    // misma trampa que ya documenta la skill: buscar «motai» devuelve MIN(hash), que es Boyacá.
+    //
+    // ⚠ Y LA REGLA DE LOS CLICKS, que es donde un árbol de archivos engaña: abrir un COMERCIO no elige
+    // nada (sólo lista sus sucursales), abrir una SUCURSAL la ELIGE —porque las entidades que se ven
+    // abajo son las de la corrida—, y una ENTIDAD **no es un archivo**: su interruptor escribe estado
+    // GLOBAL del lender, así que el click en la fila no lo toca. El interruptor sigue siendo un control
+    // explícito y aparte. Una fila que parece navegación y resulta ser escritura es una mina.
+    const abiertos = new Set();          // slugs de comercio desplegados
+
+    const escTxt = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+    /**
+     * Las entradas de TU ESPACIO DE TRABAJO: los curados (que viven en el código, por lo que ejercitan)
+     * más los que agregaste vos (`.flows.json`). Cada una es un par **(comercio, sucursal)**, que es
+     * exactamente lo que esa entrada siempre fue: `{ branch_hash, allied_id }`.
+     *
+     * ⚠ EL ÁRBOL NO ES UN EXPLORADOR DE LA BASE. No lista todos los comercios ni todas las sucursales:
+     * lista lo que agregaste. Desplegar Sonría volcaba sus **79** sucursales —y 498 pares (sucursal,
+     * entidad)— que nadie va a usar; agregar una es «archivo nuevo», y el buscador es el diálogo de
+     * abrir. Lo que sí se muestra es cuántas hay (`1 de 23`), para saber que se puede agregar más.
+     */
+    function entradasDelEspacio() {
+      const propios = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
+      return [...MERCHANTS, ...propios];
+    }
+
+
+    function filaArbol(cls, nivel, twisty, nombre, meta, extra = '') {
+      const d = document.createElement('div');
+      d.className = 'trow ' + cls;
+      d.style.paddingLeft = (8 + nivel * 14) + 'px';
+      d.innerHTML = `<span class="tw">${twisty}</span><span class="tnm">${nombre}</span>`
+        + (meta ? `<span class="tmeta">${meta}</span>` : '') + extra;
+      d.setAttribute('role', 'treeitem');
+      return d;
+    }
+
+
+
+
+
+    /**
+     * Una ENTRADA del espacio = una fila. Sin agrupar por comercio y sin selector de sucursal.
+     *
+     * ⚠ POR QUÉ NO HAY «CAMBIAR DE SUCURSAL». La sucursal se elige UNA VEZ, al agregar el comercio, y
+     * después no se toca: si querés otra, agregás el comercio de nuevo eligiendo esa. El mismo comercio
+     * puede estar varias veces —«Sonría · Restrepo» y «Sonría · Chapinero»— y por eso se puede
+     * RENOMBRAR: sin el rótulo no se distinguen. Es más simple que un selector con su estado, y encima
+     * deja las dos configuraciones **a la vista al mismo tiempo**, que es lo que sirve para compararlas.
+     * (Medido el 2026-09-18: Sonría tiene 8 juegos de entidades distintos entre sus 79 sucursales, así
+     * que compararlas es un caso real, no hipotético.)
+     */
+    function elegirEntrada(e) {
+      if (corridaRunning) return;
+      // Por SLUG: conserva la resolución `por_target` de `.flows.json` — el mismo comercio cambia de
+      // hash entre ambientes, y BCP Perú además cambia de slug.
+      sel = { slug: e.slug, name: e.name, allied_id: e.allied_id, hash: e.hash };
+      renderMerchants(); refresh(); loadLenders(); ensureAssignUI();
+    }
+
+    /** Despliega la entrada seleccionada: sin esto nada se ve elegido al abrir el panel. */
+    function revelarSeleccion() {
+      if (!sel) return;
+      const e = entradasDelEspacio().find((x) => x.slug === sel.slug || x.hash === sel.slug);
+      if (e && !abiertos.has(e.slug)) { abiertos.add(e.slug); renderMerchants(); }
+    }
+
     function renderMerchants() {
       const g = $('results');
+      // ⚠ RESCATE ANTES DE LIMPIAR: el nodo de entidades se MUEVE dentro de la entrada elegida, así que
+      // ya es hijo del árbol y `innerHTML = ''` lo destruiría con todo lo que `loadLenders()` le colgó.
+      const caja0 = $('environmentSettings'), refugio = $('entornoHolder');
+      if (caja0 && refugio) refugio.appendChild(caja0);
       g.innerHTML = '';
-      const propios = FAVS.filter((f) => !MERCHANTS.some((m) => m.slug === f.slug)).map((f) => ({ ...f, fav: true }));
-      for (const m of [...MERCHANTS, ...propios]) {
-        const d = document.createElement('div');
-        d.className = 'm' + (sel && sel.slug === m.slug ? ' sel' : '') + (m.missing ? ' miss' : '');
-        // `??` y no `||`: undefined = todavía no enriqueció (mostramos '…'); '' = falló el fetch (no
-        // mostramos nada). Con `||` el '' caía al slug y volvía el ruido que se quiso sacar.
-        d.innerHTML = `<span class="tick">✓</span><div class="nm">${m.name}${m.fav ? '<span class="estrella" title="favorito tuyo">★</span>' : ''}</div>
-      <div class="meta">${m.meta ?? (m.fav ? m.hash : '…')}</div>`;
-        if (m.fav) {
-          const acc = document.createElement('div');
-          acc.className = 'facc';
-          acc.innerHTML = '<span title="renombrar">✎</span><span title="quitar de favoritos">✕</span>';
-          acc.children[0].onclick = (e) => { e.stopPropagation(); renombrarFav(m); };
-          acc.children[1].onclick = (e) => { e.stopPropagation(); quitarFav(m); };
-          d.appendChild(acc);
-        }
-        d.setAttribute('role', 'button');
-        d.tabIndex = corridaRunning ? -1 : 0;
-        d.setAttribute('aria-pressed', String(sel?.slug === m.slug));
-        d.onclick = () => { if (corridaRunning) return; sel = m; renderMerchants(); refresh(); loadLenders(); ensureAssignUI(); };
-        d.onkeydown = (e) => { if (e.target === d && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); d.click(); } };
-        g.appendChild(d);
+
+      for (const e of entradasDelEspacio()) {
+        const abierto = abiertos.has(e.slug);
+        const elegida = !!sel && (sel.slug === e.slug || (e.hash && sel.slug === e.hash));
+        const fila = filaArbol('tmerch' + (elegida ? ' sel' : '') + (e.missing ? ' miss' : ''), 0,
+          abierto ? '▾' : '▸', escTxt(e.alias || e.name), e.missing ? (e.meta || '') : (e.hash || '…'),
+          elegida ? '<span class="tick">✓</span>' : '');
+        fila.title = `${e.alias || e.name}${e.hash ? ` · sucursal ${e.hash}` : ''}`
+          + (e.fav ? ' · agregado por vos' : ' · curado, vive en el código')
+          + (e.missing ? ` · ${e.meta || 'no está en este ambiente'}` : '');
+        fila.setAttribute('aria-expanded', String(abierto));
+        fila.tabIndex = corridaRunning ? -1 : 0;
+        fila.onclick = () => {
+          if (corridaRunning) return;
+          if (abiertos.has(e.slug)) abiertos.delete(e.slug); else abiertos.add(e.slug);
+          if (!elegida) elegirEntrada(e); else renderMerchants();
+        };
+        fila.onkeydown = (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); fila.click(); } };
+
+        // Renombrar: TODAS, porque el mismo comercio puede estar varias veces y el rótulo es lo único
+        // que las distingue. Borrar: sólo las tuyas — los curados viven en el código y desde acá no
+        // habría forma de traerlos de vuelta.
+        const acc = document.createElement('span');
+        acc.className = 'facc';
+        acc.innerHTML = '<span title="renombrar">✎</span>'
+          + (e.fav ? '<span title="quitar de tu espacio">✕</span>' : '');
+        acc.children[0].onclick = (ev) => { ev.stopPropagation(); renombrarFav(e); };
+        if (e.fav) acc.children[1].onclick = (ev) => { ev.stopPropagation(); quitarFav(e); };
+        fila.appendChild(acc);
+        g.appendChild(fila);
+
+        if (abierto && elegida) { const caja = $('environmentSettings'); if (caja) { caja.open = true; g.appendChild(caja); } }
       }
+
+      const nuevoC = filaArbol('tadd tadd-top', 0, '+', 'agregar comercio…', '');
+      nuevoC.title = 'Buscar un comercio, elegir su sucursal y agregarlo a tu espacio';
+      nuevoC.onclick = () => { if (!corridaRunning) $('buscom').focus(); };
+      g.appendChild(nuevoC);
     }
 
     async function favApi(body) {
@@ -1296,11 +2035,17 @@
     }
 
     async function renombrarFav(m) {
-      const n = prompt('Nombre para la tarjeta:', m.name);
-      if (n == null || !n.trim() || n.trim() === m.name) return;
+      const actual = m.alias || m.name;
+      const n = prompt('Nombre para esta entrada (el mismo comercio puede estar varias veces):', actual);
+      if (n == null || !n.trim() || n.trim() === actual) return;
       // El SLUG no cambia al renombrar (`bin/asesor <slug>` sigue funcionando igual); esto es la etiqueta.
       const r = await favApi({ accion: 'rename', slug: m.slug, name: n.trim() });
-      if (r.ok) { if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name }; await cargarFavs(); refresh(); }
+      if (r.ok) {
+        if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name };
+        const cur = MERCHANTS.find((x) => x.slug === m.slug);
+        if (cur) cur.alias = r.name;            // los curados no se recargan por `/api/favs`
+        await cargarFavs(); refresh();
+      }
     }
 
     async function quitarFav(m) {
@@ -1382,7 +2127,8 @@
       const nombre = $('altanombre').value.trim();
       if (!altaM || !b) return;
       if (!nombre) { $('altanombre').focus(); return; }
-      const r = await favApi({ accion: 'add', hash: b.hash, name: nombre, allied_id: altaM.allied_id, branch_id: b.id });
+      const r = await favApi({ accion: 'add', hash: b.hash, name: nombre, allied_id: altaM.allied_id,
+        branch_id: b.id, allied_name: altaM.name });
       if (!r.ok) return;
       sel = { slug: r.slug, name: r.name };
       cerrarAlta();
@@ -1432,6 +2178,7 @@
         loadCanales();             // qué canales de entrada aplican a ESTA sucursal (no bloquea el render)
         renderTren();
         loadEstado();
+      setTimeout(seguirCorridaEnMapa, 0);   // el mapa se redibujó: volver a marcar dónde va
         if (!ls.length) { box.innerHTML = '<p style="color:var(--mut);font-size:12px;margin:0">Sin lenders (¿branch en .flows.json?).</p>'; return; }
         box.innerHTML = '';
         for (const l of ls) {
@@ -1445,49 +2192,401 @@
           row.ondragend = onLenderDragEnd;
           row.ondrop = (e) => e.preventDefault();
           // chip de rt = la CONDUCTA del lender (rt2 in-platform · rt1 integración externa · rt0 estándar)
-          const RT = { 0: 'estándar', 1: 'integración', 2: 'in-platform', 3: 'rt3' };
-          row.innerHTML = `<span class="lnm"><span class="lgrip">⠿</span>${l.name} <span class="lrt">#${l.id} · ${l.product}</span><span class="rtc rt${l.rt}">rt${l.rt} ${RT[l.rt] || ''}</span></span>`;
-          const right = document.createElement('div');
-          right.style.cssText = 'display:flex;align-items:center;gap:8px';
-          // Dos condiciones para ofrecer el status de pre-aprobación:
-          //   · rt=0 (STANDARD) no consulta el MS de pre-aprobados → no hay nada que elegir.
-          //   · el selector solo manda si la corrida usa el MOCK local (:8095). `bin/asesor` lo levanta
-          //     y apunta el wizard ahí SOLO cuando el front es LOCAL (bin/asesor:132-164): con un front
-          //     REMOTO las VITE_* vienen del build desplegado y no puede llegar a localhost. Mostrarlo
-          //     ahí es una perilla que no mueve nada — peor que no tenerla, porque miente. Ver CAPS.
-          if (Number(l.rt) !== 0 && mockPA) {
-            const st = document.createElement('select');
-            st.className = 'pasel';
-            st.innerHTML = '<option value="approved">Aprobado</option><option value="rejected">Rechazado</option><option value="pending">Pendiente</option>';
-            st.value = paStatus[l.id] || 'approved';
-            st.draggable = false;
-            st.onchange = () => { paStatus[l.id] = st.value; savePaStatuses(); };
-            right.appendChild(st);
-          }
-          const btn = document.createElement('button');
-          btn.className = 'ltog ' + (on ? 'on' : 'off');
-          btn.textContent = on ? 'ON' : 'OFF';
-          btn.draggable = false;
-          btn.onclick = () => toggleLender(l.id, !(btn.classList.contains('on')), btn);
-          right.appendChild(btn);
-          row.appendChild(right);
+          // Sólo existen tres productos (medido: credit 157 · rto 3 · renting 2). Lo que no esté acá
+          // cae a «·» y el tooltip lo dice — `lenders.product` no existe en todos los ambientes.
+          const PRODUCTO = { credit: ['C', 'credit'], renting: ['R', 'renting'], rto: ['RO', 'rent to own'] };
+          // ⚠ 3 y 4 SIN etiqueta a propósito: existen (rt4 son 2 lenders, Credifamilia) pero no tengo un
+          // nombre verificado para ellos, y el tooltip cae a «response_type 4», que es cierto. Antes el
+          // 3 decía «rt3» —repetir el número no es una etiqueta— y el 4 no estaba: salía con un espacio
+          // colgando.
+          const RT = { 0: 'estándar', 1: 'integración', 2: 'in-platform' };
+          // ── LA ENTIDAD SE VE COMO UN ARCHIVO ────────────────────────────────────────────────────
+          // Sin interruptor ni selector a la vista: la fila es NAVEGACIÓN y nada más. Lo que escribe
+          // vive en el menú del click derecho, que es un gesto deliberado — y eso la hace más segura
+          // que el interruptor visible de antes, no menos: el estado del lender es GLOBAL del ambiente
+          // y se podía voltear con un click al pasar. Es la misma razón por la que un explorador de
+          // archivos no pone «borrar» al lado del nombre.
+          row.className = 'lrow' + (on ? '' : ' off');
+          row.tabIndex = 0;   // el menú tiene que alcanzarse sin mouse: Enter o la tecla de menú
+          const pa = paStatus[l.id] || 'approved';
+          const usaPa = Number(l.rt) !== 0 && mockPA;
+
+          // ⚠ TODO LO LARGO PASA A TOOLTIP. Un sidebar de 300 px no aguanta «#170 · rto» + «rt2
+          // in-platform» al lado de un nombre: la fila se salía y el chip quedaba cortado contra el
+          // borde, que es peor que no mostrarlo —se ve que hay un dato y no se puede leer—. El producto
+          // queda en una INICIAL con el color que ese mismo producto tiene en el mapa (`COLOR`), así la
+          // leyenda es una sola para las dos vistas; el `rt` queda en el número pelado. El texto entero
+          // vive en el `title` de cada uno.
+          const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+          const [ini, prodTxt] = PRODUCTO[l.product] || ['\u00b7', l.product ? String(l.product) : 'sin product en este ambiente'];
+          const rtTxt = `response_type ${l.rt}` + (RT[l.rt] ? ` \u00b7 ${RT[l.rt]}` : '');
+          // ── los dos controles de la fila ────────────────────────────────────────────────────────
+          // ⚠ NO SON LO MISMO, y por eso no se comportan igual:
+          //   · A/P/R es una preferencia del PANEL (`/api/pa-statuses`, lo que va a contestar el mock).
+          //     No toca la base, es reversible y es lo que más se gira probando reglas → un click y listo.
+          //   · el switch escribe `lenders.status` **GLOBAL del ambiente** y se conserva después de la
+          //     corrida. En `local` da igual; en dev/staging/qa lo ve todo el equipo, así que ahí PIDE
+          //     CONFIRMACIÓN. Un control que cuesta lo mismo en los dos casos es el que produce el
+          //     accidente — la asimetría del riesgo tiene que verse en el gesto.
+          row.innerHTML = `<span class="lgrip" title="arrastrá para reordenar el listado">⠿</span>`
+            + `<span class="lprod pr-${esc(l.product || 'na')}" title="${esc(prodTxt)}">${ini}</span>`
+            + `<span class="lnm" title="${esc(l.name)}">${esc(l.name)}</span>`
+            + `<span class="lid" title="id del lender">#${l.id}</span>`
+            + `<span class="rtc rt${l.rt}" title="${esc(rtTxt)}">rt${l.rt}</span>`;
+
+          const bPa = document.createElement('button');
+          bPa.className = 'pa pa-' + (usaPa ? pa : 'na');
+          bPa.textContent = usaPa ? PA_LETRA[pa] : '–';
+          bPa.draggable = false;
+          bPa.disabled = !usaPa;
+          // El tooltip dice el estado Y qué hace el click: «Aprobado» solo no explica para qué apretarlo.
+          bPa.title = tituloPa(pa, usaPa, l.rt);
+          bPa.onclick = (ev) => {
+            ev.stopPropagation();
+            // En el lugar: `paStatus` es estado del cliente y `savePaStatuses()` lo persiste. Pedir la
+            // lista de nuevo no traería nada distinto y cuesta un parpadeo.
+            paStatus[l.id] = PA_CICLO[(PA_CICLO.indexOf(paStatus[l.id] || 'approved') + 1) % 3];
+            savePaStatuses(); pintarEntidad(l.id);
+          };
+          row.appendChild(bPa);
+
+          const sw = document.createElement('button');
+          sw.className = 'sw' + (on ? ' on' : '');
+          sw.setAttribute('role', 'switch');
+          sw.setAttribute('aria-checked', String(on));
+          sw.draggable = false;
+          sw.title = tituloSwitch(on);
+          sw.onclick = (ev) => {
+            ev.stopPropagation();
+            // ⚠ EL ESTADO SE LEE AL CLICKEAR, NO SE CAPTURA AL RENDERIZAR. Con el repintado en el lugar
+            // la fila ya no se reconstruye, así que un `on` cerrado en el render queda VIEJO: el segundo
+            // click mandaba el mismo valor que el primero y el switch se veía trabado. Medido el
+            // 2026-09-18 — apagar y volver a encender dejaba la entidad apagada. Es el costo de repintar
+            // en vez de re-renderizar, y se paga acá: la verdad vive en `lendersDelComercio`.
+            const actual = Number((lendersDelComercio.find((x) => Number(x.id) === Number(l.id)) || {}).lender_status) === 1;
+            if (TARGET_COMPARTIDO.has(target)
+              && !confirm(`${actual ? 'Apagar' : 'Encender'} «${l.name}» en ${target.toUpperCase()}.\n\n`
+                + 'Es el estado GLOBAL del lender: afecta todas las sucursales de ese ambiente, lo ve el '
+                + 'resto del equipo y se conserva después de la corrida.')) return;
+            toggleLender(l.id, !actual);
+          };
+          row.appendChild(sw);
+          row.oncontextmenu = (e) => { e.preventDefault(); abrirMenuEntidad(e.clientX, e.clientY, l, row); };
+          row.onkeydown = (e) => {
+            if (e.key === 'ContextMenu' || (e.key === 'Enter' && e.target === row)) {
+              e.preventDefault();
+              const r = row.getBoundingClientRect();
+              abrirMenuEntidad(r.left + 24, r.bottom, l, row);
+            }
+          };
           box.appendChild(row);
         }
       } catch { box.innerHTML = '<p style="color:var(--danger);font-size:12px;margin:0">Error cargando lenders.</p>'; }
     }
-    async function toggleLender(id, status, btn) {
-      btn.disabled = true;
+    // ══ MENÚ DE ENTIDAD (click derecho) ═══════════════════════════════════════════════════════
+    // Las dos cosas que se pueden cambiar de una entidad —el estado que va a devolver el mock de
+    // pre-aprobados, y si la entidad está encendida— dejaron de estar en la fila y viven acá.
+    //
+    // ⚠ NO REIMPLEMENTA NADA: llama a `savePaStatuses()` y a `toggleLender()`, que son los mismos que
+    // usaban el `<select>` y el botón. Tener dos caminos que escriben lo mismo es como empiezan a
+    // divergir — y uno de los dos siempre se olvida de redibujar el mapa.
+    const PA_ETIQUETA = { approved: 'aprobado', rejected: 'rechazado', pending: 'pendiente' };
+    const PA_CICLO = ['approved', 'pending', 'rejected'];
+    const PA_LETRA = { approved: 'A', pending: 'P', rejected: 'R' };
+
+    /** El tooltip del A/P/R: dice el estado Y qué hace el SIGUIENTE click. */
+    const tituloPa = (pa, usaPa, rt) => usaPa
+      ? `Pre-aprobación simulada: ${PA_ETIQUETA[pa]} — clic para pasar a ${PA_ETIQUETA[PA_CICLO[(PA_CICLO.indexOf(pa) + 1) % 3]]}`
+      : (Number(rt) === 0 ? 'rt=0 no consulta pre-aprobación: no hay nada que dictar'
+                          : 'este target usa el microservicio real: el mock no decide');
+    const tituloSwitch = (on) => (on ? 'Encendida' : 'Apagada') + ' — estado GLOBAL del lender en ' + target
+      + (TARGET_COMPARTIDO.has(target) ? ' (ambiente COMPARTIDO: va a pedir confirmación)' : '');
+
+    /** El resumen de la sección, recalculado sin volver a pedir nada al servidor. */
+    function resumenEntidades() {
+      const ls = lendersDelComercio || [];
+      const activas = ls.filter((l) => Number(l.lender_status) === 1).length;
+      const r = $('entornoResumen');
+      if (!r) return;
+      r.textContent = ls.length
+        ? (activas ? `${activas} de ${ls.length} entidad(es) activas`
+                   : `⚠ ninguna de las ${ls.length} entidades está activa — el listado va a salir vacío`)
+        : '⚠ esta sucursal no tiene entidades vinculadas';
+      r.style.color = activas ? '' : 'var(--warn)';
+    }
+
+    /**
+     * Repinta UNA fila desde el estado que ya está en memoria.
+     *
+     * ⚠ EXISTE PARA NO LLAMAR A `loadLenders()` EN CADA CLICK. Esa función vuelve a pedir la lista
+     * al servidor y reconstruye el DOM entero: se ve como una recarga, parpadea y te mueve el
+     * scroll — con siete filas ya molesta, y en una sucursal con diez es insufrible. Nada de lo que
+     * `loadLenders()` trae cambia al tocar un control: el estado ya está en `lendersDelComercio` y
+     * en `paStatus`. Lo único que además hay que refrescar es el mapa (lo hace `toggleLender`) y el
+     * resumen de la sección (`resumenEntidades`).
+     */
+    function pintarEntidad(id) {
+      const l = (lendersDelComercio || []).find((x) => Number(x.id) === Number(id));
+      const fila = document.querySelector(`#lenderslist .lrow[data-id="${id}"]`);
+      if (!l || !fila) return;
+      const on = Number(l.lender_status) === 1;
+      const usaPa = Number(l.rt) !== 0 && mockPA;
+      const pa = paStatus[l.id] || 'approved';
+      fila.classList.toggle('off', !on);
+      const sw = fila.querySelector('.sw');
+      if (sw) { sw.classList.toggle('on', on); sw.setAttribute('aria-checked', String(on)); sw.title = tituloSwitch(on); }
+      const bPa = fila.querySelector('.pa');
+      if (bPa) {
+        bPa.className = 'pa pa-' + (usaPa ? pa : 'na');
+        bPa.textContent = usaPa ? PA_LETRA[pa] : '–';
+        bPa.title = tituloPa(pa, usaPa, l.rt);
+      }
+      resumenEntidades();
+    }
+    /** Los ambientes donde apagar una entidad lo ve el resto del equipo: dev, staging y qa
+     *  comparten la MISMA base (`inertia-dev`), así que el toggle ahí no es un experimento tuyo. */
+    const TARGET_COMPARTIDO = new Set(['dev', 'staging', 'qa']);
+
+    // ══ MENÚS DEL HEADER ══════════════════════════════════════════════════════════════════════
+    // Entorno y Canal dejaron de ser dos tiras de pastillas al lado del título. El header tenía cuatro
+    // targets + admin + dos botones de front + su pista, y eso empujaba todo lo demás; con dos menús
+    // queda «Entorno: local ▾ · Canal: Asesor ▾» y el resto del ancho se libera.
+    //
+    // ⚠ SON UNA VISTA DE LOS BOTONES REALES, que siguen en el DOM ocultos: el menú lee su estado
+    // (`.on`, `disabled`, `title`) y les pasa el click. Así el gateo de canales —«el que no aplica se
+    // deshabilita, no se esconde», con su motivo— y el punto de sesión por target siguen teniendo UNA
+    // sola definición, la de `applyCanal()` y compañía.
+
+    // ⚠ CADA NODO PRESTADO VUELVE A SU CASA, y hay que anotarla ANTES de moverlo por primera vez: si
+    // los tres volvieran al mismo lugar, `#fronthint` terminaría dentro del campo del canal y la pista
+    // del front aparecería bajo el rótulo equivocado — sin romper nada, que es lo peor.
+    const CASA = new Map(), CLASE_ORIGINAL = new Map();
+    for (const id of ['fronthint', 'canalhint', 'stephint', 'healthDetails']) {
+      const n = document.getElementById(id);
+      if (n) { CASA.set(id, n.parentElement); CLASE_ORIGINAL.set(id, n.className); }
+    }
+
+    /** Los ítems de un menú, derivados de un grupo de botones que ya existe. */
+    function itemsDeBotones(selector) {
+      return [...document.querySelectorAll(selector)].map((b) => ({
+        txt: (b.textContent || '').trim(),
+        activo: b.classList.contains('on'),
+        off: !!b.disabled,
+        motivo: b.title || '',
+        accion: () => b.click(),
+      }));
+    }
+
+    /** Arma el contenedor de un menú y lo ubica sin que se salga de la pantalla. */
+    function montarMenu(nodo, x, y, alineDerecha = false) {
+      document.body.appendChild(nodo);
+      const r = nodo.getBoundingClientRect();
+      const px = alineDerecha ? x - r.width : x;
+      nodo.style.left = Math.max(4, Math.min(px, window.innerWidth - r.width - 6)) + 'px';
+      nodo.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + 'px';
+      setTimeout(() => {
+        document.addEventListener('pointerdown', cerrarSiEsAfuera, true);
+        document.addEventListener('keydown', escMenu, true);
+      }, 0);
+      nodo.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+
+    function itemMenu(m, it) {
+      const b = document.createElement('button');
+      b.className = 'ctxitem' + (it.activo ? ' on' : '') + (it.off ? ' apagado' : '');
+      b.setAttribute('role', 'menuitem');
+      b.disabled = !!it.off;
+      if (it.motivo) b.title = it.motivo;
+      b.innerHTML = `<span class="ctxtick">${it.activo ? '✓' : ''}</span><span>${it.txt}</span>`;
+      b.onclick = () => { cerrarMenuEntidad(); it.accion(); };
+      m.appendChild(b);
+      return b;
+    }
+
+    function menuBase(id) {
+      cerrarMenuEntidad();
+      const m = document.createElement('div');
+      m.className = 'ctxmenu';
+      m.id = id;
+      m.setAttribute('role', 'menu');
+      return m;
+    }
+
+    function rotulo(m, txt) {
+      const t = document.createElement('div'); t.className = 'ctxlbl'; t.textContent = txt; m.appendChild(t); return t;
+    }
+
+    function abrirMenuEntorno(ancla) {
+      const m = menuBase('ctxEntidad');
+      rotulo(m, 'Ambiente');
+      for (const it of itemsDeBotones('#targets .pill:not(.admin-btn)')) itemMenu(m, it);
+      const sep = document.createElement('div'); sep.className = 'ctxsep'; m.appendChild(sep);
+      rotulo(m, 'Frontend');
+      for (const it of itemsDeBotones('#frontmode button')) itemMenu(m, it);
+      // La pista del front se MUEVE acá: es la explicación de lo que acabás de elegir, y en el header
+      // no entra (se recortaba a 22 caracteres).
+      const hint = $('fronthint');
+      if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
+      const sep2 = document.createElement('div'); sep2.className = 'ctxsep'; m.appendChild(sep2);
+      itemMenu(m, { txt: 'Abrir el admin ↗', activo: false, off: !!$('btn-admin')?.disabled,
+        motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
+      const r = ancla.getBoundingClientRect();
+      montarMenu(m, r.left, r.bottom + 4);
+    }
+
+    function abrirMenuCanal(ancla) {
+      const m = menuBase('ctxEntidad');
+      rotulo(m, 'Canal de entrada');
+      for (const it of itemsDeBotones('#canal button')) itemMenu(m, it);
+      const hint = $('canalhint');
+      if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
+      const r = ancla.getBoundingClientRect();
+      montarMenu(m, r.left, r.bottom + 4);
+    }
+
+    function abrirSalud(ancla) {
+      const m = menuBase('ctxEntidad');
+      m.classList.add('ctxsalud');
+      const caja = $('healthDetails');
+      if (caja) { caja.open = true; m.appendChild(caja); }
+      const r = ancla.getBoundingClientRect();
+      montarMenu(m, r.right, r.bottom + 4, true);
+    }
+
+    /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
+    function sincronizarHeader() {
+      const act = (sel2) => [...document.querySelectorAll(sel2)].find((b) => b.classList.contains('on'));
+      const t = act('#targets .pill:not(.admin-btn)');
+      if (t) $('valEntorno').textContent = (t.textContent || '').trim();
+      const c = act('#canal button');
+      if (c) $('valCanal').textContent = (c.textContent || '').trim();
+      const p2 = act('#step button');
+      if (p2) $('valArranque').textContent = (p2.textContent || '').trim();
+    }
+
+    function cerrarMenuEntidad() {
+      const m = $('ctxEntidad');
+      // ⚠ DEVOLVER LO PRESTADO ANTES DE BORRAR: los menús del header MUEVEN nodos que viven en otro
+      // lado (`#fronthint`, `#canalhint`, `#healthDetails`). Si el menú se remueve con ellos adentro,
+      // desaparecen del documento y el código que los actualiza escribe en la nada — sin fallar.
+      if (m) {
+        for (const id of ['fronthint', 'canalhint', 'stephint', 'healthDetails']) {
+          const n = m.querySelector('#' + id);
+          if (n) { n.className = CLASE_ORIGINAL.get(id) ?? ''; (CASA.get(id) || document.body).appendChild(n); }
+        }
+        m.remove();
+      }
+      document.removeEventListener('pointerdown', cerrarSiEsAfuera, true);
+      document.removeEventListener('keydown', escMenu, true);
+    }
+    function escMenu(e) { if (e.key === 'Escape') { e.preventDefault(); cerrarMenuEntidad(); } }
+
+    /**
+     * ⚠⚠ EL CIERRE POR CLICK-AFUERA TIENE QUE PREGUNTAR SI FUE AFUERA. Antes se registraba
+     * `cerrarMenuEntidad` directo en `document` y en fase de CAPTURA, así que **cualquier** `pointerdown`
+     * —incluido el del ítem que ibas a elegir— cerraba el menú. Y `pointerdown` ocurre ANTES que `click`:
+     * para cuando el navegador resolvía el click, el ítem ya no estaba en el documento y su acción no
+     * corría nunca. Síntoma exacto: «los menús del header no hacen nada».
+     *
+     * ⚠ Y EL `stopPropagation` DEL MENÚ NO ALCANZABA: está en fase de burbujeo y el cierre corría en
+     * captura, o sea antes. Por eso el bug sobrevivió a tener esa línea puesta.
+     *
+     * ⚠ Y POR QUÉ NO LO VI PROBANDO: mis pruebas clickeaban con `elemento.click()`, que **no dispara
+     * `pointerdown`** — el menú no se cerraba y la acción corría. Verde en la prueba, muerto con el
+     * mouse. Para un menú, la prueba tiene que despachar la secuencia real (pointerdown → pointerup →
+     * click) o mover el mouse de verdad.
+     */
+    function cerrarSiEsAfuera(e) {
+      const m = $('ctxEntidad');
+      if (m && m.contains(e.target)) return;
+      cerrarMenuEntidad();
+    }
+
+    function abrirMenuEntidad(x, y, l, row) {
+      cerrarMenuEntidad();
+      if (corridaRunning) return;   // con la corrida andando la configuración no se toca (igual que el resto)
+
+      const on = Number(l.lender_status) === 1;
+      const usaPa = Number(l.rt) !== 0 && mockPA;
+      const pa = paStatus[l.id] || 'approved';
+
+      const m = document.createElement('div');
+      m.className = 'ctxmenu';
+      m.id = 'ctxEntidad';
+      m.setAttribute('role', 'menu');
+
+      const cab = document.createElement('div');
+      cab.className = 'ctxhead';
+      cab.textContent = `${l.name}  ·  #${l.id}`;
+      m.appendChild(cab);
+
+      const item = (txt, activo, accion, cls = '') => {
+        const b = document.createElement('button');
+        b.className = 'ctxitem ' + cls + (activo ? ' on' : '');
+        b.setAttribute('role', 'menuitem');
+        b.innerHTML = `<span class="ctxtick">${activo ? '✓' : ''}</span><span>${txt}</span>`;
+        b.onclick = () => { cerrarMenuEntidad(); accion(); };
+        m.appendChild(b);
+        return b;
+      };
+
+      if (usaPa) {
+        const t = document.createElement('div');
+        t.className = 'ctxlbl';
+        t.textContent = 'Respuesta del mock de pre-aprobación';
+        m.appendChild(t);
+        for (const [v, txt] of [['approved', 'Aprobado'], ['rejected', 'Rechazado'], ['pending', 'Pendiente']]) {
+          item(txt, pa === v, () => { paStatus[l.id] = v; savePaStatuses(); loadLenders(); });
+        }
+      } else {
+        // Decirlo, en vez de mostrar una opción que no haría nada: con rt=0 la entidad no consulta el
+        // microservicio, y con el MS real el mock no manda. Es la misma regla de `CAPS`.
+        const t = document.createElement('div');
+        t.className = 'ctxlbl';
+        t.textContent = Number(l.rt) === 0
+          ? 'rt=0: no consulta pre-aprobación — no hay nada que dictar'
+          : 'este target usa el MS real: el mock no decide';
+        m.appendChild(t);
+      }
+
+      const sep = document.createElement('div'); sep.className = 'ctxsep'; m.appendChild(sep);
+      const t2 = document.createElement('div');
+      t2.className = 'ctxlbl';
+      t2.textContent = 'Estado de la entidad · GLOBAL del ambiente';
+      m.appendChild(t2);
+      item(on ? 'Apagar entidad' : 'Encender entidad', false,
+        () => toggleLender(l.id, !on), on ? 'peligro' : '');
+
+      document.body.appendChild(m);
+      // Se ubica DESPUÉS de medirlo: cerca del borde derecho o de abajo, un menú que se sale de la
+      // pantalla queda con la mitad de las opciones inalcanzables.
+      const r = m.getBoundingClientRect();
+      m.style.left = Math.max(4, Math.min(x, window.innerWidth - r.width - 6)) + 'px';
+      m.style.top = Math.max(4, Math.min(y, window.innerHeight - r.height - 6)) + 'px';
+      (m.querySelector('.ctxitem') || m).focus?.();
+
+      // `true` (captura) para cerrarlo antes de que el click llegue a nada de abajo.
+      setTimeout(() => {
+        document.addEventListener('pointerdown', cerrarSiEsAfuera, true);
+        document.addEventListener('keydown', escMenu, true);
+      }, 0);
+      m.addEventListener('pointerdown', (e) => e.stopPropagation());
+    }
+
+    async function toggleLender(id, status) {
+      // El tercer parámetro (`btn`) se fue: lo pasaba el botón ON/OFF que la fila ya no tiene, y los dos
+      // llamadores que quedan —el switch y el menú— lo mandaban en `null`. Un parámetro que todos pasan
+      // vacío es una rama que nadie ejercita.
       try {
         const r = await (await fetch('/api/lender-toggle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ slug: sel.slug, target, lenderId: id, status }) })).json();
         if (r && r.ok) {
-          btn.className = 'ltog ' + (status ? 'on' : 'off'); btn.textContent = status ? 'ON' : 'OFF';
           // el mapa de arriba dibuja solo los carriles con entidades prendidas → hay que redibujarlo
           const l = lendersDelComercio.find(x => Number(x.id) === Number(id));
           if (l) { l.lender_status = status ? 1 : 0; renderTren(); }
+          pintarEntidad(id);
         }
         else alert((r && r.msg) || 'no se pudo togglear');
       } catch { alert('error de red'); }
-      btn.disabled = false;
     }
 
     // drag para reordenar lenders → guarda lenders_by_allieds.sort (se respeta en /lenders dentro de cada bucket de probabilidad).
@@ -1573,6 +2672,15 @@
         const down = e.mocks.filter(m => !m.arriba);
         const criticos = down.filter(m => necesita(m.para));
         $('healthSummary').textContent = criticos.length ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')}` : 'Servicios necesarios disponibles';
+        // El mismo dato, en el header: es lo que decide si una corrida puede cerrar, así que no puede
+        // vivir sólo dentro de un plegable.
+        $('saludTxt').textContent = criticos.length
+          ? (criticos.length === 1 ? `falta ${criticos[0].nombre}` : `faltan ${criticos.length} servicios`)
+          : 'servicios ok';
+        $('saludDot').className = 'sdotx ' + (criticos.length ? 'mal' : 'bien');
+        $('btnSalud').title = criticos.length
+          ? `Falta iniciar: ${criticos.map(m => m.nombre).join(', ')} — clic para ver los comandos`
+          : 'Todos los servicios necesarios responden';
         $('healthDetails').classList.toggle('needs-attention', criticos.length > 0);
         if (criticos.length) {
           $('readinessLink').textContent = `Falta iniciar ${criticos.length === 1 ? criticos[0].nombre : `${criticos.length} servicios`} · ver comandos`;
@@ -1746,7 +2854,7 @@
     const riel = (d, color) => el('path', { d, stroke: color, 'stroke-width': 6, 'stroke-linecap': 'round', fill: 'none' });
 
     function nodoSVG(p, x, y, color) {
-      const g = el('g', { class: 'nodo', transform: `translate(${x},${y})` });
+      const g = el('g', { class: 'nodo', 'data-paso': p.id || '', transform: `translate(${x},${y})` });
       const nf = (p.front || []).length, nb = (p.back || []).length;
       const files = [...(p.front || []).map(f => 'front  ' + f), ...(p.back || []).map(f => 'back   ' + f)];
       // el label del nodo es CORTO a propósito (legibilidad del grafo); el nombre descriptivo y el
@@ -1764,8 +2872,10 @@
 
     function renderTren() {
       const box = $('tren'), cam = $('trencam');
-      if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.style.display = 'none'; return; }
-      box.style.display = 'block';
+      // ⚠ `hidden`, NO `style.display`: el centro necesita que el CSS decida el display (flex, para que
+      // el lienzo llene la zona) y una declaración inline le gana a la hoja de estilos siempre.
+      if (!STEPS || !sel || !STEPS.tronco?.length || !cam) { if (box) box.hidden = true; return; }
+      box.hidden = false;
       const ch = STEPS.chequeo || {};
 
       // El recorrido describe la LÓGICA de CreditOp para este comercio, así que NO se filtra por
@@ -1892,6 +3002,12 @@
     }
     function encuadrar(w, y1, y2) {
       if (w) { cam.w = w; cam.y1 = y1; cam.y2 = y2; }
+      // ⚠ SIN DIBUJO NO HAY ENCUADRE. `cam.w` lo fija `renderTren` al terminar de dibujar; pedir un
+      // encuadre antes divide por `undefined` y escribe `transform="translate(10,NaN) scale(NaN)"` en
+      // el SVG — el mapa desaparece y la consola tira ocho errores seguidos. Antes no pasaba porque los
+      // dos únicos llamadores (el botón ⤢ y la apertura del <details>) siempre venían después de un
+      // dibujo; con el observador de tamaño de la cáscara nueva, el primer disparo llega antes.
+      if (!cam.w) return;
       const svg = $('trensvg'); if (!svg) return;
       const r = svg.getBoundingClientRect();
       const alto = (cam.y2 - cam.y1) + 60;
@@ -1918,9 +3034,10 @@
         zoomEn(e.deltaY < 0 ? 1.12 : 1 / 1.12, e.clientX - r.left, e.clientY - r.top);
       }, { passive: false });
       svg.addEventListener('dblclick', () => encuadrar());
-      $('zmas').onclick = () => zoomEn(1.2);
-      $('zmenos').onclick = () => zoomEn(1 / 1.2);
-      $('zfit').onclick = () => encuadrar();
+      // ⚠ SIN BOTONES DE ZOOM, y el mapa NO queda sin forma de acercar: la rueda con ⌘/ctrl hace zoom
+      // y el doble clic encuadra (los dos, arriba). Los botones eran de cuando la rueda pelada estaba
+      // secuestrada por el canvas; desde que el zoom pide modificador, sobran. Y con el mapa ocupando
+      // todo el centro y reencuadrándose al cambiar de tamaño, el caso normal ya no necesita tocarlos.
       $('tren').addEventListener('toggle', () => { if ($('tren').open) requestAnimationFrame(() => encuadrar()); });
     })();
 
@@ -1933,6 +3050,7 @@
         const info = await (await fetch('/api/branches?slugs=' + encodeURIComponent(slugs) + '&target=' + target)).json();
         for (const m of MERCHANTS) {
           const b = info[m.slug];
+          if (b && b.alias) m.alias = b.alias;
           if (!b || b.sinFlows) { m.meta = '— sin branch_hash en .flows.json'; m.missing = true; }
           else if (!b.allied_name) { m.meta = `${b.hash} — no está en ${target}`; m.missing = true; }
           // Resuelto por NOMBRE porque el hash declarado no existe en este ambiente. Se avisa: la
@@ -1940,11 +3058,15 @@
           // comercio tiene varias con flujos distintos. Para fijarla, `por_target` en `.flows.json`.
           else if (b.porSlug) { m.meta = `${b.hash} · por nombre (el hash de .flows.json no está en ${target})`; m.missing = false; }
           else { m.meta = `${b.hash} · ${b.lenders} entidad${b.lenders === 1 ? '' : 'es'}`; m.missing = false; }
+          // El árbol pide las sucursales con el `allied_id`, y compara el `hash` para saber cuál es la
+          // DECLARADA —la única que se elige por slug, para no perder la resolución `por_target`—.
+          if (b) { m.allied_id = b.allied_id; m.hash = b.hash; m.alias = b.alias || ''; }
         }
       } catch {
         for (const m of MERCHANTS) m.meta = '';
       }
       renderMerchants();
+      revelarSeleccion();   // recién acá se conocen `allied_id` y `hash`, que es lo que hace falta
     }
 
     function setSeg(groupId, val) {
@@ -1994,6 +3116,7 @@
             + 'mismas pantallas del QR. Se apaga por no ser el recorrido real; si lo necesitás, por CLI: bin/asesor <comercio>.)'
           : 'Este canal no aplica a este comercio.');
       });
+      sincronizarHeader();
       $('canalhint').innerHTML = canal === 'asesor'
         ? 'Login de asesor (Cognito) y el wizard abre en monto, en el tronco <code>/merchant</code>.'
         : canal === 'autogestion'
@@ -2038,8 +3161,8 @@
 
     function setRunningUI(running) {
       corridaRunning = running;
-      $('configFields').disabled = running;
-      $('activity').classList.toggle('running', running);
+      // Eran un fieldset; ahora son tres (header · sidebar izq · sidebar der) y la regla no cambió.
+      document.querySelectorAll('fieldset.cfg').forEach((f) => { f.disabled = running; });
       $('readinessLink').hidden = running || !$('readinessLink').textContent;
       document.querySelectorAll('#results .m').forEach(m => {
         m.setAttribute('aria-disabled', String(running));
@@ -2047,25 +3170,90 @@
       });
     }
 
+
+    // ══ DÓNDE VA LA CORRIDA, EN EL MAPA ═══════════════════════════════════════════════════════════
+    // El mapa describía el recorrido POSIBLE y no sabía nada de la corrida en curso: para saber dónde
+    // ibas había que leer la consola. Ahora se marca el paso actual, que es lo que la tarjeta de
+    // «Actividad» intentaba decir con palabras.
+    //
+    // ⚠ EL DATO YA ESTABA, sólo que en texto. Cada navegación que imprime `pkg/trace.ts` empieza con
+    // el número de paso y la RUTA: `03 A /merchant/f0548728/466851/personal-info   │ BD 1 «Creada»`.
+    // Acá se toma la ÚLTIMA de esas líneas y se cruza contra las rutas de `steps.json`.
+    //
+    // ⚠ Y las rutas del mapa son PLANTILLAS (`/{flow}/{hash}/solicitar`): se comparan convirtiéndolas a
+    // expresión regular, donde cada `{...}` es un segmento cualquiera. Comparar por igualdad no
+    // matchearía nunca — el hash y el id de la solicitud son de cada corrida.
+    const rutaARegex = (r) => new RegExp('^' + String(r || '')
+      .replace(/[.*+?^${}()|[\]\\]/g, (c) => (c === '{' || c === '}' ? c : '\\' + c))
+      .replace(/\{[^}]*\}/g, '[^/]+') + '/?$');
+
+    let PASOS_PLANOS = null;
+    function pasosPlanos() {
+      if (PASOS_PLANOS || !STEPS) return PASOS_PLANOS;
+      const out = [];
+      const juntar = (arr) => { for (const p of arr || []) if (p && p.id && p.ruta) out.push({ id: p.id, re: rutaARegex(p.ruta) }); };
+      // ⚠ Sólo `tronco` y `bypass` son LISTAS de pasos. `ramales`, `desvios` y `extensiones` son
+      // diccionarios de OBJETOS —`{label, cuando, pasos}`— y los pasos están en `.pasos`. Asumir que
+      // eran listas reventaba con «(arr || []) is not iterable».
+      juntar(STEPS.tronco);
+      juntar(STEPS.bypass);
+      for (const grupo of ['ramales', 'desvios', 'extensiones']) {
+        for (const r of Object.values(STEPS[grupo] || {})) juntar(r && r.pasos);
+      }
+      // ⚠ `terminales` NO se dibuja en el mapa —son pantallas a las que se llega desde varios puntos—
+      // pero sí entra al índice: sirve para RECONOCER dónde está la corrida aunque no haya nodo que
+      // marcar. Sin esto, `request-canceled` volvía a leerse como «ruta desconocida».
+      juntar(STEPS.terminales && STEPS.terminales.pasos);
+      PASOS_PLANOS = out;
+      return out;
+    }
+
+    /** El id del paso que corresponde a una ruta navegada, o null. */
+    function pasoDeRuta(ruta) {
+      const limpia = String(ruta || '').split('?')[0].replace(/\.data$/, '');
+      if (!limpia.startsWith('/')) return null;
+      return (pasosPlanos() || []).find((p) => p.re.test(limpia))?.id ?? null;
+    }
+
+    /** Pinta la marca en el nodo (y la saca de los demás). `null` limpia. */
+    function marcarPasoEnMapa(id) {
+      for (const g of document.querySelectorAll('#trencam .nodo')) g.classList.toggle('aqui', !!id && g.dataset.paso === id);
+    }
+
+    /** Lee las líneas de la corrida y marca el último paso reconocido. */
+    function seguirCorridaEnMapa() {
+      // De atrás para adelante: la última navegación reconocida es dónde está parada la corrida.
+      for (let i = logLineas.length - 1; i >= 0; i--) {
+        // ⚠ EL PANEL DECORA CADA LÍNEA DEL RUNNER CON «▸ », así que la línea real es
+        //   `  ▸ 03 A /merchant/<hash>/<ureq>/personal-info   │ BD 1 «Creada»`
+        // y no `03 A /…`. Anclar el número al principio no matcheaba NUNCA — lo destapó la primera
+        // corrida de verdad, con el mapa sin marcar mientras la consola mostraba seis navegaciones.
+        // ⚠ Y el decorador se enumera explícito para NO tragarse las subpeticiones, que empiezan con
+        // `↪` y llevan un código HTTP donde iría el número de paso (`↪ 200 /merchant/…`).
+        // ⚠ `[^\s│]+` Y NO `\S+`: cuando la ruta es larga, el relleno hasta la columna de BD desaparece
+        // y el separador queda PEGADO —`…/abaco/platform-otp-validation│`—, así que `\S+` se lo tragaba y
+        // esa ruta no matcheaba ninguna plantilla. Lo destapó la primera corrida real: las rutas cortas
+        // andaban y las largas no, que es el peor modo de falla porque parece funcionar.
+        const m = /^[\s▸]*(\d{2})\s+(?:[AB]\s+)?([^\s│]+)/.exec(logLineas[i]);
+        if (!m) continue;
+        const id = pasoDeRuta(m[2]);
+        if (id) { marcarPasoEnMapa(id); return id; }
+      }
+      return null;
+    }
+
+    // La tarjeta «Actividad de la corrida» se quitó: repetía lo que ya dicen la consola (el mensaje
+    // del runner, completo), la barra de estado (el contexto) y el header (el cronómetro). Lo que sí
+    // faltaba —dónde va la corrida— ahora lo muestra el MAPA, marcando el paso actual.
     function renderActivity(status) {
-      if (!status.slug) return; // abrir el panel sin corridas no inventa una actividad.
-      $('activity').hidden = false;
-      $('activity').classList.toggle('interrupted', !status.running && status.code !== 0);
-      $('activityTitle').textContent = status.running ? (status.finishedAt ? 'Recopilando evidencia' : 'Corrida en curso') : status.code === 0 ? 'Proceso terminado' : 'Proceso interrumpido';
+      if (!status.slug) return;
       $('stopBtn').disabled = !!(status.running && status.finishedAt);
       const context = activeCaseSummary || [status.slug, CHANNEL_LABELS[status.canal], status.target,
         status.inject === false ? 'Sin inyección' : status.inject === true ? 'Buró inyectado' : ''].filter(Boolean).join(' · ');
-      $('activityContext').textContent = context;
       if (status.startedAt) {
         const seconds = Math.max(0, Math.floor(((status.finishedAt || Date.now()) - status.startedAt) / 1000));
-        $('activityTime').textContent = `${Math.floor(seconds / 60)} min ${String(seconds % 60).padStart(2, '0')} s`;
+        $('activityTime').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
       }
-      const latest = [...logLineas].reverse().find(l => /👉|▸|▶|▲|✗|⚠|■/.test(l));
-      $('activityLabel').textContent = status.running ? 'Último mensaje del runner' : 'Cierre del proceso';
-      $('activityMessage').textContent = status.running
-        ? (status.finishedAt ? 'El wizard terminó. Se está consultando la base de datos para completar la evidencia de esta corrida.' : latest?.trim() || 'Preparando el wizard. Las instrucciones aparecerán acá.')
-        : (status.code === 0 ? 'El proceso terminó. Consultá la consola para ver el desenlace y la evidencia de la solicitud.'
-          : `El proceso se interrumpió${status.code == null ? '' : ` (código ${status.code})`}. Revisá la última actividad en la consola.`);
       if (status.running) {
         $('sumry').textContent = status.finishedAt ? 'Recopilando evidencia de la corrida…' : 'Corrida en curso · seguí las instrucciones del wizard.';
         $('caseTitle').textContent = context;
@@ -2111,61 +3299,10 @@
     }
 
     // resumen de la Identidad colapsada: lo elegido, visible sin desplegar el fold.
-    function updateIdSum() {
-      const nm = $('name').value.trim() || 'SYNTH TEST USER';
-      $('idsum').textContent = `${doctype} ${$('document').value.trim()} · ${nm} · ${gender} · ${$('age').value}a`;
-    }
+    // El resumen de Identidad existía porque el grupo estaba PLEGADO: decía lo elegido sin abrirlo.
+    // Con los ocho campos a la vista no hay nada que resumir — se ven.
+    function updateIdSum() { }
     const refresh = () => { updateGo(); updateIdSum(); };
-
-    // Perfiles FINANCIEROS locales: no guardan identidad, credenciales ni cambian el ambiente.
-    const PROFILE_KEY = 'creditop-harness.financial-profiles.v1';
-    const PROFILE_FIELDS = ['income', 'occupation', 'score', 'negatives', 'consulted'];
-    let savedProfiles = [];
-    const validProfile = p => p && typeof p.name === 'string' && p.name.trim().length > 0 && p.name.length <= 48
-      && ['Empleado', 'Independiente', 'Pensionado'].includes(p.values?.occupation)
-      && ['income', 'score', 'negatives', 'consulted'].every(k => Number.isFinite(p.values?.[k]) && p.values[k] >= 0);
-    try {
-      const stored = JSON.parse(localStorage.getItem(PROFILE_KEY) || '[]');
-      savedProfiles = Array.isArray(stored) ? stored.filter(validProfile).slice(0, 20) : [];
-    } catch { $('profileFeedback').textContent = 'No se pudieron leer los perfiles de este navegador.'; }
-    function renderProfiles(selected = '') {
-      $('savedProfiles').replaceChildren(new Option('Elegí un perfil…', ''));
-      for (const p of savedProfiles) $('savedProfiles').append(new Option(p.name, p.name));
-      $('savedProfiles').value = selected;
-      $('deleteProfile').disabled = !selected;
-      $('profilesCount').textContent = savedProfiles.length ? `${savedProfiles.length} guardado${savedProfiles.length === 1 ? '' : 's'}` : 'Guardá los valores que usás seguido';
-    }
-    function persistProfiles(next) {
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); savedProfiles = next; return true; }
-      catch { $('profileFeedback').textContent = 'El navegador no permitió guardar. Tus valores siguen en el formulario.'; return false; }
-    }
-    $('saveProfile').onclick = () => {
-      const name = $('profileName').value.trim();
-      const values = Object.fromEntries(PROFILE_FIELDS.map(k => [k, k === 'income' ? moneyNum(k) : k === 'occupation' ? $(k).value : Number($(k).value)]));
-      const profile = { name, values };
-      if (!validProfile(profile)) { $('profileFeedback').textContent = 'Escribí un nombre y usá valores numéricos válidos, sin negativos.'; return; }
-      const previous = savedProfiles.find(p => p.name.toLowerCase() === name.toLowerCase());
-      if (!previous && savedProfiles.length >= 20) { $('profileFeedback').textContent = 'Ya hay 20 perfiles. Eliminá uno o actualizá uno existente.'; return; }
-      const next = previous ? savedProfiles.map(p => p === previous ? profile : p) : [...savedProfiles, profile];
-      if (persistProfiles(next)) { renderProfiles(name); $('profileFeedback').textContent = `Perfil «${name}» ${previous ? 'actualizado' : 'guardado'}.`; }
-    };
-    $('savedProfiles').onchange = () => {
-      const profile = savedProfiles.find(p => p.name === $('savedProfiles').value);
-      $('deleteProfile').disabled = !profile;
-      if (!profile) return;
-      for (const k of PROFILE_FIELDS) $(k).value = k === 'income' ? fmt(profile.values[k]) : profile.values[k];
-      $('profileName').value = profile.name;
-      $('profileFeedback').textContent = `Perfil «${profile.name}» aplicado.${!inject ? ' Activá Buró inyectado para usarlo en la corrida.' : doctype === 'PEP' ? ' El documento PEP omite el buró.' : ''}`;
-      refresh();
-    };
-    $('deleteProfile').onclick = () => {
-      const name = $('savedProfiles').value;
-      if (persistProfiles(savedProfiles.filter(p => p.name !== name))) {
-        renderProfiles(); $('profileName').value = '';
-        $('profileFeedback').textContent = 'Perfil eliminado. Sus valores siguen en el formulario y podés guardarlos de nuevo.';
-      }
-    };
-    renderProfiles();
 
     async function launch() {
       if (!sel) return;
@@ -2214,17 +3351,13 @@
         activeCaseSummary = '';
         return;
       }
-      $('activity').hidden = false;
-      $('activityTitle').textContent = 'Preparando la corrida';
-      $('activityContext').textContent = activeCaseSummary;
-      $('activityMessage').textContent = 'Preparando el wizard. Las instrucciones aparecerán acá.';
       $('activityTime').textContent = '';
       $('tipear').replaceChildren();
+      marcarPasoEnMapa(null);   // el mapa arranca sin marca: todavía no navegó a ningún lado
       $('lastResult').hidden = true;
       $('webhookZona').style.display = 'none';
       showLog(false); $('stopBtn').classList.add('on');
       $('tren').open = true;
-      $('activity').scrollIntoView({ behavior: 'instant', block: 'start' });
       startPoll();
     }
 
@@ -2236,11 +3369,14 @@
      * `hidden` en la pestaña) sobre los mismos elementos. Se unificó en `style.display`: uno solo. */
     function showLog(on) {
       logOpen = on;
-      $('logcard').style.display = 'block';
+      // Cadena vacía y no 'block': BORRA la declaración inline en vez de imponer una, así el
+      // layout del panel inferior (columna flex, para que el <pre> llene) lo sigue decidiendo el CSS.
+      $('logcard').style.display = '';
       const esSsr = $('pestSsr').classList.contains('on');
       $('log').style.display = on && !esSsr ? 'block' : 'none';
       $('logSsr').style.display = on && esSsr ? 'block' : 'none';
-      $('logToggle').textContent = on ? '▼ plegar' : '▲ desplegar';
+      // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
+      //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
 
     // La consola se pinta con NODOS DE TEXTO (nunca innerHTML del log: es salida de procesos) y, bajo
@@ -2413,12 +3549,12 @@
           clearInterval(poll); poll = null;
         }
         renderActivity(j);
+        seguirCorridaEnMapa();
         } catch {
           // Una desconexión no significa que terminó el proceso: conservá Detener y reintentá.
           $('sumry').textContent = 'Sin conexión con el panel. Reintentando consultar la corrida…';
           if (corridaRunning) {
-            $('activityLabel').textContent = 'Conexión interrumpida';
-            $('activityMessage').textContent = 'No se puede confirmar el estado actual. El proceso puede seguir ejecutándose.';
+            $('sumry').textContent = 'Conexión interrumpida: no se puede confirmar el estado. El proceso puede seguir corriendo.';
           }
         } finally { pollBusy = false; }
       };
@@ -2465,6 +3601,7 @@
      *                      «Inicio» (que es el no-salto) y se explica.
      */
     function applyPasoGate() {
+      setTimeout(sincronizarHeader, 0);
       const soloInicio = canal === 'ecommerce' || canal === 'qr';
       const bInicio = document.querySelector('#step button[data-v="monto"]');
       const bLenders = document.querySelector('#step button[data-v="lenders"]');
@@ -2493,18 +3630,58 @@
       applyCupoGate();
     }
     document.querySelectorAll('#step button').forEach(b => b.onclick = () => { if (b.disabled) return; step = b.dataset.v; setSeg('step', step); updateStepHint(); applyCupoGate(); refresh(); });
+    document.querySelectorAll('#step button').forEach(b => b.addEventListener('click', () => setTimeout(sincronizarHeader, 0)));
     updateStepHint();
 
     // espera del mock de pre-aprobados (para VER el loader de las cards rt≠0)
-    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setSeg('padelay', b.dataset.v); refresh(); });
+    document.querySelectorAll('#padelay button').forEach(b => b.onclick = () => { padelay = +b.dataset.v; setTimeout(sincronizarDemora, 0); setSeg('padelay', b.dataset.v); refresh(); });
 
     // switcher de target (local | dev | staging). dev y staging escriben data COMPARTIDA (la misma BD:
     // en legacy-backend staging no es un entorno aparte, solo lo es el frontend) → aviso + re-enrich.
+    $('btnEntorno').onclick = () => abrirMenuEntorno($('btnEntorno'));
+    $('btnCanal').onclick = () => abrirMenuCanal($('btnCanal'));
+    $('btnSalud').onclick = () => abrirSalud($('btnSalud'));
+    $('btnArranque').onclick = () => {
+      const m = menuBase('ctxEntidad');
+      rotulo(m, 'Desde dónde arranca la corrida');
+      for (const it of itemsDeBotones('#step button')) itemMenu(m, it);
+      // La pista se MUEVE al menú, igual que las de Entorno y Canal: es la explicación de lo elegido.
+      const hint = $('stephint');
+      if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
+      const r = $('btnArranque').getBoundingClientRect();
+      montarMenu(m, r.left, r.bottom + 4);
+    };
+
+    // ⚠ CICLA CLICKEANDO EL BOTÓN REAL, igual que los menús: `#padelay` sigue siendo quien fija
+    // `padelay`, resetea el seg y actualiza el resumen. Si el header escribiera la variable por su
+    // cuenta habría dos caminos para lo mismo, y uno se olvidaría del reseteo que hace el gate.
+    const DEMORAS = [0, 3000, 5000, 10000, 15000];
+    $('btnDemora').onclick = () => {
+      if ($('btnDemora').disabled) return;
+      const sig = DEMORAS[(DEMORAS.indexOf(padelay) + 1) % DEMORAS.length];
+      document.querySelector(`#padelay button[data-v="${sig}"]`)?.click();
+      sincronizarDemora();
+    };
+
+    /** El rótulo del reloj y su gate. `mockPA` lo decide `E2E_REAL_PREAPPROVALS` por target, no el panel. */
+    function sincronizarDemora() {
+      const b = $('btnDemora'); if (!b) return;
+      $('valDemora').textContent = `${padelay / 1000} s`;
+      b.classList.toggle('activo', padelay > 0);
+      b.disabled = !mockPA;
+      // Deshabilitado CON su motivo, no escondido: una perilla que desaparece hace creer que no existe.
+      b.title = mockPA
+        ? `Demora del mock de pre-aprobación: ${padelay ? padelay / 1000 + ' s' : 'sin espera'} — clic para pasar a `
+          + `${DEMORAS[(DEMORAS.indexOf(padelay) + 1) % DEMORAS.length] / 1000} s. Sirve para ver el loader de las tarjetas.`
+        : 'Este target usa el microservicio real de pre-aprobados: el mock no corre y su demora no aplica.';
+    }
+
     document.querySelectorAll('#targets .pill:not(.dim)').forEach(b => b.onclick = () => {
       target = b.dataset.t;
       document.querySelectorAll('#targets .pill').forEach(p => p.classList.toggle('on', p.dataset.t === target));
       $('devwarn').style.display = target === 'local' ? 'none' : '';   // dev y staging comparten BD
       $('warntarget').textContent = target;
+      sincronizarHeader();
       updateInjModeForTarget();   // en local no hay Real (sin OTP/burós)
       loadFront();                // qué fronts tiene ESTE target (y default: el desplegado si existe)
       enrichMerchants();
@@ -2615,7 +3792,9 @@
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
     function applyInjMode() {
       document.querySelectorAll('#injmode button').forEach(b => b.classList.toggle('on', (b.dataset.i === '1') === inject));
-      $('synthbody').classList.toggle('buro-off', !inject);
+      // `.sintetico` y no `#synthbody`: ahora son DOS bloques (persona y buró) y el interruptor
+      // de modo quedó afuera a propósito — atenuarlo lo volvería inclickeable.
+      document.querySelectorAll('.sintetico').forEach((e) => e.classList.toggle('buro-off', !inject));
       $('injhint').textContent = inject
         ? 'Se inyecta el buró (salta la consulta real); la identidad la llenás vos en el wizard.'
         : 'Completás los datos en el wizard. Se usan los proveedores configurados en este ambiente; los campos sintéticos de abajo no se aplican.';
@@ -2644,6 +3823,7 @@
       const f = $('padelayField'); if (!f) return;
       f.style.display = mockPA ? '' : 'none';
       if (!mockPA && padelay !== 0) { padelay = 0; setSeg('padelay', '0'); }   // MS real: reseteo el delay que no se usará
+      sincronizarDemora();
     }
     document.querySelectorAll('#injmode button').forEach(b => b.onclick = () => { if (b.disabled) return; inject = b.dataset.i === '1'; applyInjMode(); });
     // `canalTocado` fija que el canal de ESTE comercio ya lo decidiste vos: la sugerencia del servidor
@@ -2702,9 +3882,9 @@
     ['name', 'document', 'age', 'dob', 'expedition', 'email', 'occupation', 'score', 'negatives', 'consulted']
       .forEach(id => $(id).addEventListener('input', refresh));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
-    $('viewLog').onclick = () => { showLog(true); $('logcard').scrollIntoView({ behavior: 'instant', block: 'start' }); };
+    // (el botón «Ver consola ↓» vivía en la tarjeta de actividad, que ya no existe: la consola
+    //  es una zona fija del layout y siempre está a la vista)
     $('readinessLink').onclick = () => { $('healthDetails').open = true; $('healthDetails').scrollIntoView({ behavior: 'instant', block: 'start' }); };
-    $('logToggle').onclick = () => showLog(!logOpen);
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
     $('logFiltro').onclick = () => {
       soloImportante = !soloImportante;
@@ -2715,10 +3895,19 @@
     };
 
     // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
+    // ⚠ COPIA LAS DOS CONSOLAS, no la que estés mirando. Pegar un problema en Slack sin el stdout del
+    // SSR es pegar la mitad: las llamadas salientes del servidor —`[outbound]`, con su código y su
+    // duración— NO están en el log de la corrida, y son justo lo que explica un 500 o un timeout.
+    // Van separadas por un encabezado para que se entienda de dónde salió cada bloque.
     $('copyLog').onclick = async () => {
       let text = '';
       try { text = await (await fetch('/api/log')).text(); } catch {}
       if (!text) text = $('log').textContent || '';
+      try {
+        const r = await (await fetch('/api/ssr')).json();
+        const ssr = (r && r.lines || []).join('\n') || $('logSsr').textContent || '';
+        if (ssr.trim()) text = `── CONSOLA DE LA CORRIDA ──\n${text}\n\n── SSR DEL WIZARD ──\n${ssr}`;
+      } catch { }
       try { await navigator.clipboard.writeText(text); const b = $('copyLog'), o = b.textContent; b.textContent = '✓ copiado'; setTimeout(() => b.textContent = o, 1200); }
       catch { alert('No pude copiar al portapapeles.'); }
     };
@@ -2766,6 +3955,135 @@
       // para que nadie apriete dos veces y termine con dos navegadores.
       setTimeout(() => { btnAdmin.disabled = false; btnAdmin.textContent = textoOriginal; }, 6000);
     };
+
+    // ══ CÁSCARA TIPO EDITOR ═══════════════════════════════════════════════════════════════════════
+    // Tres cosas que el layout nuevo necesita y el viejo no: manijas de ajuste, re-encuadre del mapa
+    // cuando cambia su caja, y un estado vacío en el centro. Va al final del script a propósito —
+    // `encuadrar()` está declarada más arriba en este mismo alcance.
+    (function cascara() {
+      const raiz = document.documentElement;
+
+      // ── manijas ────────────────────────────────────────────────────────────────────────────────
+      // El ancho queda en localStorage: es preferencia de ESTA máquina, no estado de la corrida.
+      const ajustables = [
+        { id: 'rszL', varCss: '--w-left',   eje: 'x', signo: +1, min: 240, max: 560, llave: 'panel.wLeft' },
+        { id: 'rszR', varCss: '--w-right',  eje: 'x', signo: -1, min: 220, max: 520, llave: 'panel.wRight' },
+        { id: 'rszB', varCss: '--h-bottom', eje: 'y', signo: -1, min: 90,  max: 620, llave: 'panel.hBottom' },
+      ];
+      for (const a of ajustables) {
+        try { const v = localStorage.getItem(a.llave); if (v) raiz.style.setProperty(a.varCss, v); } catch { }
+        const m = $(a.id); if (!m) continue;
+        m.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          m.classList.add('on'); m.setPointerCapture(e.pointerId);
+          const desde = a.eje === 'x' ? e.clientX : e.clientY;
+          const base = parseFloat(getComputedStyle(raiz).getPropertyValue(a.varCss));
+          const mover = (ev) => {
+            const d = ((a.eje === 'x' ? ev.clientX : ev.clientY) - desde) * a.signo;
+            const crudo = base + d;
+            // ⚠ POR DEBAJO DEL MÍNIMO SE COLAPSA A 0, no se queda trabado en el mínimo. Un panel que se
+            // resiste a cerrarse obliga a convivir con él; y un sidebar a medio achicar deforma las
+            // filas sin llegar a desaparecer, que es lo peor de los dos mundos. La histéresis (el
+            // umbral de cierre está 28 px por DEBAJO del mínimo) evita que se cierre de un temblor.
+            const px = crudo < a.min - 28 ? 0 : Math.max(a.min, Math.min(a.max, crudo));
+            raiz.style.setProperty(a.varCss, px + 'px');
+          };
+          const soltar = () => {
+            m.classList.remove('on');
+            document.removeEventListener('pointermove', mover);
+            document.removeEventListener('pointerup', soltar);
+            try { localStorage.setItem(a.llave, getComputedStyle(raiz).getPropertyValue(a.varCss).trim()); } catch { }
+          };
+          document.addEventListener('pointermove', mover);
+          document.addEventListener('pointerup', soltar);
+        });
+      }
+
+      // ── la manija se marca cuando su panel está colapsado ──────────────────────────────────────
+      // Una línea de 4 px contra un borde no se lee como «acá hay algo que arrastrar». Marcada, sí.
+      const marcarPlegados = () => {
+        for (const a of ajustables) {
+          const m = $(a.id); if (!m) continue;
+          const v = parseFloat(getComputedStyle(raiz).getPropertyValue(a.varCss));
+          m.classList.toggle('plegado', !v);
+          m.title = v ? 'arrastrá para ajustar' : 'arrastrá para abrir el panel';
+        }
+      };
+      new MutationObserver(marcarPlegados).observe(raiz, { attributes: true, attributeFilter: ['style'] });
+      marcarPlegados();
+
+      // ── el mapa se re-encuadra cuando cambia su caja ───────────────────────────────────────────
+      // ⚠ SIN ESTO EL MAPA "SE ROMPE" AL MOVER UNA MANIJA, y no se rompe: `encuadrar()` calcula la
+      // escala contra el `getBoundingClientRect()` del SVG, así que un contenedor que cambia de tamaño
+      // deja el dibujo fuera de vista. En la columna vieja el ancho era fijo y el caso no existía.
+      const vias = $('trenvias');
+      if (vias && 'ResizeObserver' in window) {
+        let t = 0;
+        new ResizeObserver(() => { clearTimeout(t); t = setTimeout(() => { try { encuadrar(); } catch { } }, 80); })
+          .observe(vias);
+      }
+
+      // ── la consola arranca ABIERTA ─────────────────────────────────────────────────────────────
+      // En la columna vieja la consola era una tarjeta más y plegarla ganaba scroll; acá es una ZONA de
+      // alto fijo, así que plegada deja 240 px en negro y el panel parece roto. Además el marcado ya
+      // decía «▼ plegar» —o sea abierto— mientras el estado interno arrancaba cerrado: se corrige la
+      // discrepancia poniendo el estado del lado del marcado, que es el que el usuario ve.
+      showLog(true);
+
+      // ── estado vacío del centro ────────────────────────────────────────────────────────────────
+      // `renderTren()` decide si hay mapa poniendo `display` en el nodo; se lo observa en vez de
+      // tocar esa función, para no tener dos lugares que decidan lo mismo.
+      const tren = $('tren'), vacio = $('stageEmpty');
+      const sincronizar = () => { if (vacio && tren) vacio.style.display = tren.hidden ? 'flex' : 'none'; };
+      if (tren) { new MutationObserver(sincronizar).observe(tren, { attributes: true, attributeFilter: ['hidden'] }); }
+      sincronizar();
+    })();
+
+
+    // ══ SECCIONES DEL SIDEBAR: memoria y resúmenes ════════════════════════════════════════════════
+    (function secciones() {
+
+      // ── las pistas largas pasan a una línea + tooltip ────────────────────────────────────────
+      // ⚠ El `title` se sincroniza con el TEXTO, no se escribe a mano: estas pistas las reescribe el
+      // panel cada vez que cambiás la opción (`applyCanal`, el modo de buró, el arranque), así que un
+      // tooltip fijo diría lo de la elección anterior — que es peor que no tenerlo.
+      const pistas = ['injhint', 'stephint'];
+      const sincronizarPistas = () => {
+        for (const id of pistas) {
+          const n = $(id); if (!n) continue;
+          n.classList.add('pista');
+          const t = (n.textContent || '').trim();
+          if (t && n.title !== t) n.title = t;
+        }
+      };
+      for (const id of pistas) {
+        const n = $(id); if (!n) continue;
+        new MutationObserver(sincronizarPistas).observe(n, { childList: true, characterData: true, subtree: true });
+      }
+      sincronizarPistas();
+
+    })();
+
+
+    // Las etiquetas quedaron en una columna de 102 px, así que las largas —«Ingreso mensual (COP)»,
+    // «Documento / cédula»— se recortan. El texto completo va al `title`: mismo criterio que las pistas,
+    // y sincronizado desde el TEXTO para que no envejezca si alguien lo cambia.
+    (function titulosDeEtiqueta() {
+      for (const l of document.querySelectorAll('.sr .panelprops .field > label, .sr .panelprops .field > .field-label')) {
+        const t = (l.textContent || '').trim();
+        if (t && !l.title) l.title = t;
+      }
+    })();
+
+
+    // La aclaración del campo de sólo-lectura no se pierde al ocultarla: pasa al tooltip de su fila.
+    (function notaDeSoloLectura() {
+      for (const ro of document.querySelectorAll('.sr .panelprops .ro')) {
+        const nota = [...ro.children].find((c) => !c.classList.contains('k') && !c.classList.contains('v') && c.tagName === 'SPAN');
+        if (nota && !ro.title) ro.title = `${(ro.querySelector('.k')?.textContent || '').trim()} — ${nota.textContent.trim()}`;
+      }
+    })();
+
 </script>
 </body>
 

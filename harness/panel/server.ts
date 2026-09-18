@@ -457,16 +457,28 @@ async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean
     if (!hash) return { ok: false, detail: `no sé el hash de la sucursal de '${slug}'` };
     const key = `${target}|${hash}`;
     if (assignOk.has(key)) return { ok: true, already: true, detail: 'permiso ya confirmado' };
+
+    // ⚠ UN ASESOR ESTÁ EN UNA SOLA SUCURSAL A LA VEZ, así que este cache no puede acumular hashes del
+    // mismo target: recordar «ya asigné a A» **y** «ya asigné a B» hace que volver a A conteste «permiso
+    // ya confirmado» SIN escribir, y el asesor se queda en B. El panel muestra A, habilita Lanzar y la
+    // corrida pega contra B — que es el modo de falla más caro de esta herramienta, porque la evidencia
+    // sale con el nombre del comercio equivocado. Medido el 2026-09-18 alternando sucursales de Motai:
+    // PRINCIPAL → Boyacá → PRINCIPAL dejó al asesor en Boyacá.
+    // Se vuelve trivialmente correcto si el cache guarda A LO SUMO UNA sucursal por target.
+    const recordar = () => {
+        for (const k of [...assignOk]) if (k.startsWith(`${target}|`)) assignOk.delete(k);
+        assignOk.add(key);
+    };
     const sub = await asesorSub(target);
     if (!sub) return { ok: false, detail: `sin asesor para ${target}: definí E2E_ASESOR_SUB en .env.${target} (o asesor.sub en .flows.json)` };
     const cur = await dbopsJson(['whois', sub], target);
     if (cur?.matches?.[0]?.allied_branch_hash === hash) {
-        assignOk.add(key);
+        recordar();
         return { ok: true, already: true, detail: 'el asesor ya estaba en esta sucursal — sin write' };
     }
     const r = await dbopsJson(['assign', sub, slug, hash, sub], target);
     if (!r || r.error) return { ok: false, detail: r?.error || 'el assign falló (mirá la consola del panel)' };
-    assignOk.add(key);
+    recordar();
     return { ok: true, detail: `asesor asignado a la sucursal ${hash}` };
 }
 
@@ -1009,11 +1021,16 @@ const server = createServer(async (req, res) => {
             if (encontrado?.hash) rescatados[s] = { hash: encontrado.hash, allied_name: encontrado.name, porSlug: true };
         }
 
+        // ⚠ EL NOMBRE QUE LE PUSISTE VIAJA ACÁ. Los diez curados tienen su rótulo en el CÓDIGO, así que
+        // renombrarlos sólo se ve si el override de `.flows.json` llega al cliente por este endpoint —
+        // el de favoritos no los incluye (filtra por `fav`).
+        const puestos = leerFlows()?.merchants ?? {};
         return json(res, 200, Object.fromEntries(slugs.map((s) => {
             const h = porSlug[s];
-            if (h && info[h]?.allied_name) return [s, { hash: h, ...info[h] }];
-            if (rescatados[s]) return [s, rescatados[s]];
-            return [s, h ? { hash: h, existe: false } : { hash: '', sinFlows: true }];
+            const alias = puestos[s]?.name ? { alias: String(puestos[s].name) } : {};
+            if (h && info[h]?.allied_name) return [s, { hash: h, ...info[h], ...alias }];
+            if (rescatados[s]) return [s, { ...rescatados[s], ...alias }];
+            return [s, h ? { hash: h, existe: false, ...alias } : { hash: '', sinFlows: true, ...alias }];
         })));
     }
 
@@ -1035,9 +1052,15 @@ const server = createServer(async (req, res) => {
     // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
     if (path === '/api/favs') {
         const m = leerFlows()?.merchants ?? {};
+        // ⚠ `allied_id` y `allied_name` VIAJAN: el árbol agrupa las entradas por comercio, y sin el id
+        // cada sucursal agregada abriría su propia carpeta — dos sucursales del mismo comercio se verían
+        // como dos comercios. Se guardaban desde siempre; lo que faltaba era devolverlos.
         return json(res, 200, Object.entries(m)
             .filter(([, v]: [string, any]) => v && v.fav)
-            .map(([slug, v]: [string, any]) => ({ slug, name: v.name || slug, hash: v.branch_hash || '' })));
+            .map(([slug, v]: [string, any]) => ({
+                slug, name: v.name || slug, hash: v.branch_hash || '',
+                allied_id: v.allied_id || 0, allied_name: v.allied_name || '',
+            })));
     }
 
     if (path === '/api/fav' && req.method === 'POST') {
@@ -1054,6 +1077,9 @@ const server = createServer(async (req, res) => {
                 branch_hash: hash,
                 ...(b.allied_id ? { allied_id: Number(b.allied_id) } : {}),
                 ...(b.branch_id ? { branch_id: Number(b.branch_id) } : {}),
+                // El nombre del COMERCIO, aparte del que le pusiste a la sucursal: es el rótulo de la
+                // carpeta en el árbol, y deducirlo del nombre libre no funciona (lo podés renombrar).
+                ...(b.allied_name ? { allied_name: String(b.allied_name) } : {}),
                 name: nombre, fav: true,
             };
             escribirFlows(flows);
@@ -1061,7 +1087,12 @@ const server = createServer(async (req, res) => {
         }
         const slug = String(b.slug || '').trim();
         const cur = flows.merchants[slug];
-        if (!cur || !cur.fav) return json(res, 400, { ok: false, msg: 'solo se pueden editar los favoritos que agregaste' });
+        if (!cur) return json(res, 400, { ok: false, msg: `no conozco '${slug}'` });
+        // ⚠ RENOMBRAR SE PERMITE EN TODAS, BORRAR SÓLO EN LAS TUYAS. El nombre es una etiqueta de ESTA
+        // máquina (`.flows.json` está gitignoreado), y hace falta poder cambiarlo porque el mismo
+        // comercio puede estar varias veces con distintas sucursales —«Sonría · Restrepo» y «Sonría ·
+        // Chapinero»— y sin renombrar no se distinguen. Borrar es otra cosa: los diez curados están en
+        // el CÓDIGO por lo que ejercitan, y desde la UI no habría forma de traerlos de vuelta.
         if (accion === 'rename') {
             const nombre = String(b.name || '').trim();
             if (!nombre) return json(res, 400, { ok: false, msg: 'falta nombre' });
@@ -1071,7 +1102,9 @@ const server = createServer(async (req, res) => {
             escribirFlows(flows);
             return json(res, 200, { ok: true, slug, name: nombre });
         }
-        if (accion === 'remove') { delete flows.merchants[slug]; escribirFlows(flows); return json(res, 200, { ok: true }); }
+        if (accion === 'remove') {
+            if (!cur.fav) return json(res, 400, { ok: false, msg: 'los comercios curados no se borran: viven en el código' });
+            delete flows.merchants[slug]; escribirFlows(flows); return json(res, 200, { ok: true }); }
         return json(res, 400, { ok: false, msg: `acción desconocida: ${accion}` });
     }
 

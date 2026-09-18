@@ -16,6 +16,42 @@ revirtió: mezclarlos confunde para qué sirve cada uno.
 ⚠ **No te quedes con el puerto :5195.** Si dejás una instancia tuya corriendo, el `npm run dev` de Miguel
 no arranca. Ya pasó dos veces. Levantalo solo si lo vas a usar, y bajalo.
 
+## La cáscara: cinco zonas fijas, y el contrato es el `id`
+
+Desde el 2026-09-18 el panel tiene forma de editor y no de página: **barra de título** (ambiente · front ·
+Lanzar) · **sidebar izq = comercios** · **centro = el mapa** · **sidebar der = configuración** ·
+**panel inferior = las consolas** · **barra de estado**. Ninguna zona scrollea a las otras. Antes era una
+columna de 2.772 px donde el mapa vivía dentro de un `<details>` plegado **y** en `display:none`, y la
+consola no existía hasta que había corrida: las dos cosas que más se miran, escondidas.
+
+**Lo que hace barato reordenarlo, y hay que conservarlo:** el script direcciona el DOM por `id` **225**
+veces y por estructura **2**. O sea que mover marcado no toca la lógica — *mientras los `id` no cambien*.
+Si agregás algo, engancharlo por `id`.
+
+**Cuatro cosas que ya costaron un rato y no se ven venir:**
+
+- **La configuración se deshabilita durante la corrida, y ahora son TRES `fieldset.cfg`** (header,
+  sidebar de config, sidebar de comercios) en vez de uno. Un control de configuración que quede fuera de
+  alguno de esos tres **se puede tocar con la corrida andando**. No es una clase decorativa.
+- **Cada zona declara su `grid-row` explícito.** `#devwarn` vive en `display:none` casi siempre y un
+  elemento así **no ocupa celda**: con auto-placement, todo lo de abajo se corría un renglón y el panel
+  de consolas heredaba los 4 px de una manija. Se veía como «la consola desapareció».
+- **El CSS manda el `display`, no el script.** El mapa se oculta con `hidden` y `showLog` *borra* la
+  declaración inline (`style.display = ''`) en vez de imponer `block`. Una declaración inline le gana
+  siempre a la hoja de estilos, y ahí el layout de la zona deja de funcionar.
+- **Chrome envuelve el contenido de un `<details>` en `::details-content`**, así que `#trenvias` no es
+  hijo flex directo del `#tren`: sin una regla sobre ese pseudo-elemento el lienzo se queda en su alto
+  de contenido (152 px) y el `flex: 1` no tiene a quién pedirle espacio.
+
+**El color dice estado, no jerarquía.** El cromo va en grises (lo seleccionado es lo más CLARO); el verde
+quedó reservado para `--ok` — corre · sesión ok · servicio arriba · entidad ON —, y ámbar y rojo para lo
+suyo. Si pintás cromo con `--ok`, la única señal del panel deja de leerse.
+
+**Lo que NO está hecho:** el mapa **no se mueve durante la corrida**. `renderTren()` se llama al elegir
+comercio y al prender/apagar una entidad, nada más — o sea que es una vista de planeamiento previo. Un
+minimapa encima de eso sería decoración; lo que le daría sentido es encender el nodo actual cruzando las
+rutas que el log ya trae contra las de `steps.json`.
+
 ## El mapa del recorrido (`panel/steps.json`)
 
 Canvas SVG **vertical** y arrastrable (drag · rueda = zoom · doble clic = encuadrar), estilo grafo de
@@ -78,6 +114,262 @@ Dos mecanismos, y **no son intercambiables**:
 - **el mapa sin carriles** → esa sucursal no tiene entidades en ese target.
 - **los CreditopX en un solo carril `rt2`** → ese ambiente no tiene la columna `lenders.product` (hoy dev)
   y no se pueden separar por producto. Ver **F-64**.
+
+## El panel inferior: dos pestañas a la izquierda y un copiar que copia las DOS
+
+Pestañas `Consola de la corrida` · `SSR del wizard` pegadas al borde izquierdo, y a la derecha el filtro
+y `📋 copiar`. **Sin botón de plegar**: la consola es una ZONA del layout con su propia manija de alto,
+no una tarjeta que compita por espacio con lo de arriba.
+
+⚠ Ponerlas a la izquierda **no salió con `display:flex` a secas**: medido, quedaban en x=333 y x=798
+—dispersas— porque `.copy`/`.pest` arrastran estilos del diseño viejo. Hay que fijarlo explícito
+(`justify-content: flex-start` + `flex: 0 0 auto` en las pestañas + `margin-left:auto` en las acciones).
+
+⚠⚠ **`copiar` copia LAS DOS consolas, no la que estés mirando.** Pegar un problema sin el stdout del SSR
+es pegar la mitad: las llamadas salientes del servidor (`[outbound]`, con código y duración) **no están**
+en el log de la corrida y son justo lo que explica un 500 o un timeout. Van con un encabezado cada una
+(`── CONSOLA DE LA CORRIDA ──` / `── SSR DEL WIZARD ──`) para que se sepa de dónde salió cada bloque.
+Medido: 19.370 caracteres con las dos.
+
+## El mapa marca DÓNDE VA la corrida
+
+`seguirCorridaEnMapa()` lee la última navegación del log y le pone un halo al nodo correspondiente. Eso
+reemplazó a la tarjeta «Actividad de la corrida», que se quitó: repetía lo que ya dicen la consola (el
+mensaje del runner, completo), la barra de estado (el contexto) y el header (el cronómetro) — lo único
+que le faltaba al panel era **dónde va**, y eso se ve mejor en el mapa que descrito con palabras.
+
+⚠ **El dato ya estaba, sólo que en texto.** Cada navegación que imprime `pkg/trace.ts` arranca con el
+número de paso y la RUTA (`03 A /merchant/<hash>/<ureq>/personal-info  │ BD 1 «Creada»`), y `steps.json`
+tiene la ruta de cada nodo. El cruce son 21 pasos indexados.
+
+⚠ **Las rutas del mapa son PLANTILLAS** (`/{flow}/{hash}/solicitar`): se comparan convirtiéndolas a
+expresión regular con `{...}` → `[^/]+`. Por igualdad no matchearían nunca, porque el hash y el id de la
+solicitud cambian en cada corrida.
+
+⚠⚠ **DOS DEFECTOS DEL PARSEO QUE SÓLO UNA CORRIDA REAL MOSTRÓ** (2026-09-18, Motai/local, 17
+navegaciones):
+
+1. **El panel DECORA cada línea del runner con `▸ `**, así que la línea es `  ▸ 03 A /merchant/…`, no
+   `03 A /…`. Anclar el número al principio no matcheaba **nunca**: la consola mostraba seis navegaciones
+   y el mapa seguía sin marcar.
+2. **Cuando la ruta es larga, el separador `│` de la columna de BD queda PEGADO** —
+   `…/abaco/platform-otp-validation│`— así que capturar con `\S+` se lo tragaba y esa ruta no matcheaba
+   ninguna plantilla. Va `[^\s│]+`. Peor modo de falla: las rutas cortas andaban y las largas no, o sea
+   parecía funcionar.
+
+**Resultado con la corrida real:** 12 de 17 navegaciones reconocidas, y el recorrido reconstruido es
+`monto → otp → personal-info → lenders → confirmation → abaco-init → abaco-otp`. Las 5 que no son huecos
+de `steps.json` —`/continue`, `/abaco`, `/identity-validation-instructions`, `/request-canceled`—, no
+fallas del cruce: son pantallas reales que el mapa no tiene como nodo. ⚠ Y `identity-validation` **no
+está vieja**: los dos caminos existen en `main`, el mapa tiene uno y la corrida pasó por el otro.
+
+**Los cuatro nodos que faltaban se agregaron** (2026-09-18, a partir de esa corrida): `continue` (el
+handoff al celular del cliente, al final del tronco), `abaco-entrada` (el índice del desvío, el que puede
+SALTEARLO), `identity-validation-instructions` (en el ramal `creditopx`, justo antes de
+`identity-validation` — son DOS pantallas y las dos existen en `main`) y `request-canceled`. Con eso,
+**11 de 11** rutas distintas de una corrida real se ubican.
+
+⚠ **`request-canceled` NO va en el tronco ni en un ramal: va en `terminales`, una sección nueva.** Se
+llega desde varios puntos, así que dibujarla en una secuencia diría que todo el mundo pasa por ahí. El
+mapa no la dibuja; el índice del panel sí la usa (para reconocer dónde está la corrida aunque no haya
+nodo que marcar) y **`steps-check` valida sus archivos igual que los demás** — una sección que no se
+valida se pudre en silencio. Su nota registra lo importante: **su loader CANCELA** (`CancelLoanRequestUc`),
+no informa una cancelación ya ocurrida; es el mecanismo de F-50.
+
+⚠ **Un paso dibujado en VARIOS carriles se marca en todos.** `confirmation` y compañía aparecen 3 veces
+(una por carril) y los de Ábaco 2. Marcar uno solo sería inventar en cuál carril va la corrida —dato que
+el log no da—; marcarlos todos dice «estás en este paso» sin mentir sobre la rama.
+
+⚠ **`tronco` y `bypass` son listas de pasos; `ramales`, `desvios` y `extensiones` NO** — son
+diccionarios de `{label, cuando, pasos}` y los pasos están en `.pasos`. Asumir que eran listas revienta
+con «(arr || []) is not iterable».
+
+⚠ **`#tipear` NO era parte de esa tarjeta aunque viviera adentro**: son los valores que el runner te pasa
+para tipear (el OTP, el documento). Se rescató como franja flotante sobre el mapa. Borrarlo con la
+tarjeta habría sacado lo único de ahí que hacía falta.
+
+## El centro es el MAPA, y plegar un sidebar es su zoom-out
+
+**Sin tarjeta**: ni marco, ni fondo, ni la cabecera «Mapa del recorrido · Referencia del flujo». Un
+título que rotula la única cosa de su zona es ancho gastado. ⚠ **Pero esa cabecera guardaba
+`#trenwarn`** —donde el mapa dice lo que NO pudo dibujar—, y esconderla lo escondía con ella: un mapa
+incompleto se vería igual que uno completo, que es justo el modo de falla que ese aviso evita. Así que
+no se borró: se muestra **sólo cuando hay algo que avisar** (`summary:has(#trenwarn:not(:empty))`).
+Verificado en los dos sentidos.
+
+El mapa ocupa el centro entero y se reencuadra solo al cambiar de tamaño (`ResizeObserver` → `encuadrar()`).
+**Sin botones de zoom**: la rueda con **⌘/ctrl** acerca y el **doble clic** encuadra —los dos ya estaban—,
+así que los botones eran de cuando la rueda pelada la secuestraba el canvas.
+
+⚠ **La escala se clava en 0,55 y NO es un bug: es el piso.** Medido con Motai: el mapa mide **2.026 px**
+de ancho natural y el centro flanqueado por los dos sidebars son **724** — para que entrara entero haría
+falta **0,36**, y a esa escala las etiquetas quedan en ~4 px. Lo que sí resuelve el problema es **plegar
+un sidebar**, que ahora se puede:
+
+| | lienzo | escala | ¿entra entero? |
+|---|---|---|---|
+| con los dos paneles | 724 px | 0,55 (piso) | no |
+| sin el izquierdo | 1.024 px | 0,55 | no |
+| **sin ninguno** | **1.364 px** | **0,64** | **sí** |
+
+O sea que el colapso a 0 no es sólo para ganar lugar: es la forma de ver el recorrido completo.
+
+## Lo que se sacó del panel, y por qué
+
+**«Perfiles reutilizables» (borrado el 2026-09-18).** Guardaba ingreso, ocupación, email, score,
+negativos y consultas con un nombre, en el `localStorage` del navegador. Se sacó **no** por estar sin
+usar —eso no se puede probar desde acá: el navegador del agente no es el de Miguel— sino porque
+**`harness/suites/*.json` cubre la misma necesidad y mejor**: guarda los mismos valores **más lo que se
+espera**, está versionado en git, se comparte con el equipo y se corre por consola con veredicto
+(`make harness-suite`). Ya hay ocho suites escritas. Un perfil en `localStorage` no es ninguna de esas
+cosas: es por navegador, invisible desde afuera y se pierde al limpiar datos del sitio.
+
+Si aparece de nuevo la necesidad de «un juego de valores que uso seguido», el lugar es una suite, no una
+perilla del panel.
+
+## El sidebar derecho: UN panel de propiedades, sin secciones
+
+**Cuatro grupos, todo a la vista, sin un solo plegable:** `Caso` (monto · cupo) · `Identidad` (los ocho
+campos + celular) · `Ingreso y empleo` · `Buró` (modo + los tres de Datacrédito). Dejaron de ser
+plegables cuando **«Arranque» subió al header**: sin él «Caso» quedaba en dos filas, y una sección
+plegable con dos filas adentro gasta en su título y su resumen más de lo que ahorra.
+
+⚠ Y con las filas de 24 px **entra todo sin scroll**: 20 filas, contenido 696 = alto visible, `scroll 0`.
+Por eso se pudo desplegar Identidad —que estaba plegada justamente porque antes no entraba— y su
+resumen (`updateIdSum`) quedó vacío a propósito: con los ocho campos a la vista no hay nada que
+resumir.
+
+⚠⚠ **LECCIÓN DE MÉTODO, y costó tres reparaciones:** este archivo se editó cortando HTML por marcadores
+(«desde tal `<div>` hasta el último `</div>`»), y eso **no respeta el anidado**. El resultado fue perder
+tres campos (`income`, `occupation`, `phone`), después duplicar el bloque de Datacrédito, y al final
+descubrir que el `<details>` de Identidad y el `.field` del email habían quedado **sin cerrar** — el
+navegador no protesta, simplemente anida mal y las filas se pisan. Lo que sí funcionó: **reconstruir el
+bloque desde `git show HEAD:…`** en vez de seguir parchando. Antes de dar por buena una cirugía de
+marcado acá, contá las etiquetas del tramo:
+
+    <div: N   </div>: N   ·   <details: M   </details>: M
+
+## El sidebar derecho: panel de PROPIEDADES, no formulario
+
+Cada propiedad es **una fila de 24 px**: etiqueta a la izquierda en una columna fija de 102 px, control a
+la derecha — como un panel de herramientas de Blender o Photoshop. ⚠ **Medido:** cada `.field` medía
+**62 px** (etiqueta arriba, control abajo, margen) y diecisiete campos daban **1.236 px** de contenido en
+546 visibles. Ahora el sidebar **cerrado mide 546 = exactamente lo que se ve, scroll 0**, y con TODAS las
+secciones abiertas 808.
+
+La etiqueta arriba del control tiene sentido en un formulario que se llena una vez; esto es un panel que
+se ajusta muchas veces, y ahí lo que importa es ver **todas las perillas juntas**. Los segmentados pasan
+a chips que caben en la fila, los pares (`.two`) se apilan —a 340 px, «Negativos 12m» + su input en media
+columna no entra— y las etiquetas largas se recortan con su texto completo en el `title`.
+
+⚠ Una fila que se sale de los 24 px es una señal, no un detalle: la de sólo-lectura del celular medía
+**91** porque sus cuatro partes envolvían dentro del campo. Se alinea con la misma columna y la
+aclaración larga se va al tooltip. La única que queda alta a propósito es «Modo del buró» (51 px:
+etiqueta + chips + su pista de una línea).
+
+## Las secciones, y el resumen dice CÓMO está
+
+`Caso` · `Persona` · `Buró` · `Avanzadas`, cada una plegable y recordando su estado (localStorage, por
+máquina). **Medido antes:** 1.097 px de contenido en 546 px visibles —551 de scroll, más de lo que se
+ve— y `personCard` sola medía **727 px**, más que el viewport, **ya con sus tres plegables cerrados**. O
+sea que no faltaba plegar, faltaba estructura. **Después: 644 px y 98 de scroll.**
+
+⚠ **El resumen de una sección dice CÓMO ESTÁ, no de qué se trata** —`$2.000.000 · inicio`, `score 700`,
+`sin inyección — lo decide el ambiente`—: cerrada, esa es la única línea que se lee. Es la misma regla
+que el panel ya aplicaba en «Configuración del entorno». Lo recalcula **un oyente delegado** sobre el
+sidebar más una llamada en `refresh()`: enganchar campo por campo es la forma de que el día que se
+agregue uno, su resumen quede viejo sin que nadie lo note.
+
+⚠ **`.sintetico` reemplazó a `#synthbody`** como blanco del atenuado por «Sin inyección». Ahora son DOS
+bloques (los datos de la persona y los números del buró) y **el interruptor de modo quedó afuera a
+propósito**: atenuarlo lo vuelve inclickeable y no habría forma de volver. Verificado en los dos
+sentidos. ⚠ En `local` ese botón está deshabilitado (no hay burós reales), así que probarlo clickeando
+ahí no concluye nada — hay que llamar a `applyInjMode()` con `inject` cambiado.
+
+**Las pistas largas viven en el tooltip y dejan un renglón** (`.pista`, 17 px). No se borran: varias son
+la única explicación de por qué una perilla hace lo que hace. ⚠ El `title` se **sincroniza con el
+texto** por `MutationObserver`, no se escribe a mano: el panel las reescribe cada vez que cambiás la
+opción, y un tooltip fijo diría lo de la elección anterior.
+
+## El header: dos menús y un estado, no una tira de pastillas
+
+`Entorno ▾` · `Canal ▾` a la izquierda, y a la derecha —pegado a Lanzar— el **estado de los servicios**
+(`● falta minio/documentos`), que abre el detalle completo con sus comandos. Antes el header llevaba
+cuatro pastillas de ambiente + admin + dos botones de front + su pista recortada a 22 caracteres, y el
+estado vivía plegado en un `<details>` del sidebar — o sea que **la respuesta a «¿puedo correr?» estaba
+escondida** detrás de un click, cuando es lo primero que hay que saber.
+
+**El CASO (monto · cupo · arranque) vive en el CENTRO, arriba del mapa** — no en el sidebar. Es lo que
+define la corrida y el mapa de abajo dibuja ese mismo recorrido: leerlos juntos es la mitad del sentido.
+⚠ Va envuelto en **su propio `fieldset.cfg`**: al salir del sidebar tuvo que llevarse consigo la
+propiedad de deshabilitarse mientras la corrida anda, o se podría cambiar el monto con el wizard abierto.
+
+**Las manijas colapsan el panel a 0 al pasarse del mínimo** (con 28 px de histéresis, para que no se
+cierre de un temblor), y la manija se marca sola cuando su panel está plegado — si no, queda una línea
+muerta que nadie sabe que se arrastra. ⚠ **La zona de agarre son 16 px aunque la línea se vea de 4**
+(`::before` con `left:-6/right:-6`): medido con `elementFromPoint`, apuntarle a 4 px falla, y ahora es lo
+ÚNICO que trae de vuelta un panel colapsado.
+
+**El header lleva cuatro perillas de la corrida:** `Entorno ▾` · `Canal ▾` · `Arranque ▾` · `⏱`. Las
+cuatro son de la CORRIDA, no del comercio ni de la entidad — por eso viven juntas ahí.
+
+⚠⚠ **LOS MENÚS SON UNA VISTA DE LOS BOTONES REALES, que siguen en el DOM ocultos** (`#tbcfg`,
+`#canalField`). El menú lee su estado (`.on`, `disabled`, `title`) y les pasa el `click()`. No es un
+rodeo: el gateo de canales pone `disabled` + opacidad + **un `title` distinto por caso** (`applyCanal`,
+con el párrafo largo de por qué en Corbeta el asesor no está roto), y reimplementarlo en el menú serían
+dos definiciones de la misma regla — y la del menú sería la que se olvida de actualizarse. Verificado: el
+menú muestra «QR en caja» apagado con su motivo íntegro, y «Del ambiente» apagado cuando el target no
+tiene front desplegado. Y siguen dentro del `fieldset.cfg`, así que la corrida los deshabilita igual.
+
+**El reloj ⏱ cicla la demora del mock de pre-aprobación** (0 → 3 → 5 → 10 → 15 s) y reemplazó a la
+sección «Avanzadas», que gastaba un título entero para una sola perilla.
+
+⚠ **Está en el HEADER y no en una fila del árbol a propósito.** La demora es **de la corrida** —viaja
+como una sola `MOCK_PA_DELAY_MS` al lanzar—, no de la sucursal ni de la entidad. Un reloj en la fila de
+una sucursal diría que cada sucursal tiene la suya, que es falso; es la misma clase de mentira que el
+panel evita con `CAPS`. Y respeta el gate que ya existía: con el **MS real** `applyMockPAGate()` lo
+resetea a 0 y el botón queda **deshabilitado con su motivo** en el tooltip, no escondido.
+
+⚠⚠ **EL CIERRE POR CLICK-AFUERA TIENE QUE PREGUNTAR SI FUE AFUERA** (`cerrarSiEsAfuera`). Registrar
+`cerrarMenuEntidad` directo en `document` y en fase de CAPTURA hacía que **cualquier** `pointerdown`
+—incluido el del ítem que ibas a elegir— cerrara el menú; y `pointerdown` ocurre ANTES que `click`, así
+que para cuando el navegador resolvía el click el ítem ya no estaba en el documento y su acción **no
+corría nunca**. Síntoma: «los menús del header no hacen nada». Afectaba a los cuatro y al del click
+derecho.
+
+⚠ Y el `stopPropagation` del propio menú **no alcanzaba**: está en burbujeo y el cierre corría en
+captura, o sea antes. Por eso el bug sobrevivió a tener esa línea puesta.
+
+⚠⚠ **Y POR QUÉ NO LO ATRAPÉ PROBANDO, que es la lección transferible:** las pruebas clickeaban con
+`elemento.click()`, que **no dispara `pointerdown`** — el menú no se cerraba y la acción corría. Verde en
+la prueba, muerto con el mouse. **Para probar un menú hay que despachar la secuencia real**
+(`pointerdown` → `pointerup` → `click`) o mover el mouse de verdad; `.click()` solo no prueba nada de un
+componente que reacciona a `pointerdown`.
+
+⚠ **Tres nodos se PRESTAN a los menús** —`#fronthint`, `#canalhint`, `#healthDetails`— en vez de
+duplicarse, y `cerrarMenuEntidad()` **los devuelve a su casa antes de borrar el menú**. La casa se anota
+al arrancar (`CASA`), porque si los tres volvieran al mismo lugar la pista del front terminaría bajo el
+rótulo del canal: no rompe nada, que es lo peor que puede pasar. Si el menú se removiera con ellos
+adentro, desaparecen del documento y `loadEstado()` sigue escribiendo en la nada, sin fallar.
+
+## El árbol: una ENTRADA por fila, con su sucursal fija
+
+Una entrada del espacio = **un par (comercio, sucursal) con tu nombre** = una fila, y adentro sus
+entidades. Dos niveles.
+
+⚠ **NO hay «cambiar de sucursal», a propósito.** La sucursal se elige UNA VEZ, al agregar el comercio, y
+después no se toca: si querés otra, agregás el comercio de nuevo eligiendo esa. Por eso el mismo comercio
+puede estar varias veces —«Sonría · Restrepo» y «Sonría · Chapinero»—, y por eso se puede **RENOMBRAR**:
+sin el rótulo no se distinguen. Es menos lógica que un selector con su estado y encima deja las dos
+configuraciones **a la vista al mismo tiempo**, que es lo que sirve para compararlas. Y comparar es un
+caso real: medido el 2026-09-18, Sonría tiene **8 juegos de entidades distintos** entre sus 79 sucursales
+(Alkosto, 23 sucursales, tiene **uno**).
+
+⚠ **Renombrar: TODAS. Borrar: sólo las tuyas.** El nombre es una etiqueta de esta máquina
+(`.flows.json` está gitignoreado) y hace falta para distinguir repetidos, así que el guard del servidor
+se relajó para `rename` y se endureció para `remove`: los diez curados viven en el CÓDIGO por lo que
+ejercitan, y desde la UI no habría forma de traerlos de vuelta. ⚠ El alias de un curado viaja por
+**`/api/branches`** y no por `/api/favs`, que filtra por `fav` — sin eso el renombre se guarda y no se ve.
 
 ## Elegir comercio: los curados y el buscador
 
