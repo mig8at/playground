@@ -56,6 +56,30 @@ const UA_MOVIL = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWe
  *  fallaron. Se recolecta SIEMPRE (cuesta nada) y se imprime sólo si el caso sale mal. */
 export type Evidencia = { consola: string[]; red: string[] };
 
+/**
+ * ¿Es ruido conocido del ambiente LOCAL, y por lo tanto no es evidencia de nada?
+ *
+ * Vive acá y se exporta porque **la usan los dos caminadores con navegador** (éste y `caminar-qr.ts`).
+ * Tener dos listas era la forma segura de que una aprendiera algo que la otra no: pasó: la del canal QR
+ * no conocía `ws.credito` y tapaba su informe con cuatro líneas de WebSocket.
+ *
+ * ⚠ Recibe el mensaje COMPLETO, nunca uno recortado — ver el comentario del handler de consola.
+ *
+ * ⚠ Y la hidratación va ACOTADA AL `nonce`, no entera. Antes el patrón era `hydrat` a secas y se comía
+ * TODOS los avisos de hidratación, que es justo el modo de falla nº1 de este canal: si el DOM del
+ * servidor y el del cliente no coinciden, react-hook-form monta con sus defaults, el formulario queda
+ * inválido y **el botón nunca se habilita, sin un solo mensaje de error**. Lo único que de verdad es
+ * ruido es el `nonce`, y está medido por qué (2026-09-18): `applySecurityHeaders` hace
+ * `if (!import.meta.env.PROD) return`, así que `react-router dev` no manda cabecera CSP; el navegador
+ * sólo vacía el atributo `nonce` cuando hay una CSP entregada por cabecera; y el cliente renderiza
+ * `nonce=""` porque `useNonce()` no tiene proveedor fuera del servidor. Desplegado no pasa.
+ */
+export function esRuidoDeLocal(mensajeCompleto: string): boolean {
+    if (/hydrat/i.test(mensajeCompleto)) return /nonce/.test(mensajeCompleto);
+    return /React DevTools|PostHog|Lit is in dev|react-scan|react-grab|Download the React|Select is changing|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|ERR_FAILED|favicon/i
+        .test(mensajeCompleto);
+}
+
 export async function abrirContexto(browser: Browser, baseURL: string, opts: { traza?: string; storageState?: string } = {})
 : Promise<{ ctx: BrowserContext; page: Page; evidencia: Evidencia }> {
     const ctx = await browser.newContext({
@@ -85,15 +109,16 @@ export async function abrirContexto(browser: Browser, baseURL: string, opts: { t
             if (i >= 0) evidencia[donde][i] = `${linea}   ×${n}`;
         }
     };
-    // El ruido conocido de LOCAL, el mismo que filtra el runner visual: sin esto cuatro errores de
-    // WebSocket a `ws.credito` (Echo/Pusher, que en local no resuelve) copan el cupo y tapan la línea
-    // que sí importa — pasó en la primera corrida real y por poco no vemos el «No routes matched».
-    const RUIDO = /React DevTools|PostHog|Lit is in dev|react-scan|react-grab|Download the React|hydrat|nonce|Select is changing|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|ERR_FAILED/i;
     page.on('console', (m) => {
         if (m.type() !== 'error' && m.type() !== 'warning') return;
-        const txt = m.text().slice(0, 220);
-        if (RUIDO.test(txt)) return;                       // el ruido conocido de local no es evidencia
-        if (evidencia.consola.length < 40) anotar('consola', `${m.type()}: ${txt}`);
+        // ⚠ SE DECIDE SOBRE EL TEXTO COMPLETO Y SE RECORTA DESPUÉS. Antes se recortaba a 220 y se
+        // filtraba sobre eso: funcionaba de casualidad porque los patrones caían al principio, pero
+        // cualquier regla que mire más adentro del mensaje —como la del `nonce`, que aparece en el diff
+        // de React pasado el carácter 400— no mordería nunca. Y un filtro que no filtra no falla: deja
+        // pasar el ruido y parece que la regla no sirve.
+        const completo = m.text();
+        if (esRuidoDeLocal(completo)) return;
+        if (evidencia.consola.length < 40) anotar('consola', `${m.type()}: ${completo.slice(0, 220)}`);
     });
     page.on('pageerror', (e) => {
         if (evidencia.consola.length < 40) anotar('consola', `pageerror: ${String(e.message).slice(0, 220)}`);

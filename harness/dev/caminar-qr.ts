@@ -23,6 +23,7 @@ import { chromium, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr.ts';
 import { autorrellenarQr } from '../pkg/qr-steps.ts';
+import { esRuidoDeLocal } from '../pkg/wizard-navegador.ts';
 import { scrubphone } from '../pkg/asesor.ts';
 import { close } from '../pkg/db.ts';
 import { latestUserRequestId } from '../pkg/inject.ts';
@@ -133,23 +134,15 @@ const BASURA = /\bundefined\b|\bNaN\b|Invalid Date|\[object Object\]|\{\{|\$\{/;
 
 page.on('console', (m) => {
     if (m.type() !== 'error') return;
-    // ⚠ SE FILTRA SOBRE EL MENSAJE COMPLETO Y SE RECORTA DESPUÉS, no al revés. Recortar primero hacía
-    // que el filtro del `nonce` no mordiera nunca —el diff de React aparece pasado el carácter 400—, y
-    // un filtro que no filtra no falla: deja pasar el ruido y parece que la regla no sirve.
+    // ⚠ EL FILTRO ES EL COMPARTIDO (`pkg/wizard-navegador.ts`), no una copia. Acá había una lista propia
+    // y duró exactamente una sesión: no conocía `ws.credito` —el WebSocket de Echo que en local no
+    // resuelve— y cuatro líneas suyas tapaban el informe entero, mientras el OTRO caminador ya lo
+    // filtraba desde hacía semanas. Dos listas es la forma segura de que una aprenda lo que la otra no.
+    //
+    // ⚠ Recibe el mensaje COMPLETO: decidir sobre el texto ya recortado hacía que la regla del `nonce`
+    // no mordiera nunca, porque el diff de React aparece pasado el carácter 400.
     const completo = m.text().replace(/\s+/g, ' ');
-    // El ruido conocido de local no cuenta: no es del producto y taparía lo que sí importa.
-    if (/favicon|DevTools|React Router.*devtools|Download the React/i.test(completo)) return;
-    // ⚠ EL MISMATCH DE HIDRATACIÓN DEL `nonce` ES RUIDO DE LOCAL, y sólo de local — medido el
-    // 2026-09-18, y averiguarlo costó un rato, así que queda escrito con su porqué:
-    //   · `applySecurityHeaders` hace `if (!import.meta.env.PROD) return`, o sea que `react-router dev`
-    //     NO manda ninguna cabecera CSP;
-    //   · el navegador sólo vacía el atributo `nonce` del DOM cuando hay una CSP entregada POR CABECERA
-    //     (Report-Only incluida), así que en local no lo vacía;
-    //   · y el cliente renderiza `nonce=""` porque `useNonce()` no tiene proveedor fuera del servidor.
-    // Desplegado no pasa. ⚠ El filtro pide `nonce` A PROPÓSITO: un mismatch de hidratación de CUALQUIER
-    // otro atributo sí tiene que verse — es la trampa nº1 de este canal (el form que nunca se habilita).
-    if (/hydrated/i.test(completo) && /nonce/.test(completo)) return;
-
+    if (esRuidoDeLocal(completo)) return;
     // 400 y no 160: los avisos de hidratación traen el diff DESPUÉS del encabezado, y cortarlos deja el
     // mensaje genérico sin el dato que sirve («qué atributo, en qué componente»).
     const t = completo.slice(0, 400);
