@@ -85,6 +85,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«esa pantalla está en blanco y no se puede hacer nada»** | **F-232** |
 | **«el botón no hace nada, y sólo en móvil»** · **«el caminador dice que clickeó y no pasó nada»** | **F-233** |
 | **«el forense dice cero anclas y la solicitud existe»** | **F-234** |
+| **«en local esa entidad no preaprueba y en dev sí»** · **«400 invalid lending product key»** | **F-235** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -395,6 +396,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-235 | La clave que el front manda al microservicio de preaprobaciones **ES el slug del lender**, y en el dump local los slugs de Bancolombia 68/100 son los ESPAÑOLES con guion (`bancolombia-compra-y-paga-despues`) mientras prod tiene `bancolombia_bnpl`/`bancolombia_consumer_loan`. El microservicio no reconoce la clave, contesta 400, y el loader del marketplace lo TRAGA: la entidad no preaprueba y nada se pone rojo. 942 y 435 sucursales locales | ABIERTO · deriva del dump |
 | F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
 | F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickearAvanzar`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
 | F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
@@ -5842,3 +5844,45 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **La lección, que no es sobre Loki:** un default de entorno que sirve para la mayoría de los comandos
   —`dev`— es una trampa en los que **comparan contra algo que vos acabás de crear**. Ahí el default
   correcto es el ambiente donde lo creaste.
+
+### F-235 · La clave de preaprobación es el SLUG del lender, y en el dump local dos de ellos derivaron
+
+- **Síntoma:** ninguno visible. El marketplace lista normal y la entidad simplemente no queda
+  preaprobada. El error vive **sólo** en el stdout del SSR:
+
+      [PostHog log] error POST /v1/preapprovals/check returned 400
+        body: {"error":"invalid lending product key","details":"lending product not found: bancolombia"}
+
+  No está en el log de la corrida ni en la consola del navegador —es una llamada del SERVIDOR— así que
+  hasta que el harness no mostró esa consola, no había forma de verlo.
+- **Causa raíz:** el front arma `lending_product_key` con **el slug del lender**
+  (`fetch-lender-preapproval.ts:179`, `key: … config.lender.slug`; sólo CreditopX y Welli están
+  cableados aparte). Y los slugs **difieren entre la base local y producción**:
+
+      lender 68   local `bancolombia-compra-y-paga-despues`   prod `bancolombia_bnpl`
+      lender 100  local `bancolombia-credito-de-consumo`      prod `bancolombia_consumer_loan`
+
+  El microservicio resuelve por su registro, no encuentra la clave y devuelve **400**. El adaptador lo
+  registra y sigue: **no hay pantalla roja, no hay estado malo, no hay nada**.
+- **Alcance, medido (2026-09-18):** en la base local esas dos entidades están habilitadas en **942 y 435
+  sucursales**. Comparados los 13 lenders locales con rt∈{1,3,4} cuyo slug no está en el catálogo del
+  mock, **sólo esos dos derivaron de verdad** — los otros once tienen el mismo slug en prod, así que la
+  lista del mock es la que está corta para ellos, no la base.
+- **⚠ Y NO ES LA PRIMERA VEZ: es la misma trampa, otra entidad.** El propio `mock-preapprovals/server.mjs`
+  documenta el caso de BCP —`bcp-consumo`/`bcp-vehicular` con guion medio en local, guion BAJO en dev y
+  prod— con esta frase: «el registro de la decisión no llegaba a ningún lado sin que nada se pusiera
+  rojo». **Se arregló la instancia y no se barrió la clase.**
+- **Dos derivas más del mismo dump, que aparecieron en el mismo barrido:**
+  - **lender 8** (`bancolombia`) está en prod como **«Bancolombia (No activo)»** y en local sigue
+    habilitado en **200 sucursales**. Su 400 es CORRECTO: el microservicio no lo conoce porque ya no es
+    un producto. Lo que está mal es que local lo siga ofreciendo.
+  - **lenders 5 (Banco de Bogotá) y 11 (Su+pay)** son **rt=1 en local y rt=0 en prod**. El
+    `response_type` decide si pasan por preaprobación, así que local los enruta por un camino que en
+    producción no recorren.
+- **Cómo se detecta en general, sin depender del mock:** comparar el slug de local contra el de prod para
+  los lenders con `rt≠0` habilitados en alguna sucursal. Es una consulta y no necesita el catálogo del
+  microservicio, que también puede estar incompleto.
+- **Lo que NO se hizo:** cambiar los slugs en el dump local. Un slug es un identificador y tocarlo puede
+  arrastrar otras cosas; y el canal QR de esas dos entidades **no** se ve afectado, porque su
+  preaprobación la resuelve el backend contra el banco (`PreApprovedLenderService`), no este
+  microservicio. Lo que queda roto en local es el camino del **marketplace**.
