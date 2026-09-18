@@ -86,7 +86,18 @@ const TRAMO_CLIENTE = UN_SOLO_DISPOSITIVO ? 'el cliente sigue acá (un solo disp
 const AMOUNT = Number(arg('amount', '2000000'));
 const INCOME = Number(arg('income', '2500000'));
 const SCORE = Number(arg('score', '700'));
-const CUOTAS = Number(arg('cuotas', '4'));
+/**
+ * El plazo a elegir en el plan de pagos. SIN valor por defecto a propósito.
+ *
+ * ⚠ Antes era `4`, y ninguna entidad de este sistema ofrece 4 —dan `1,3,6,12`, o `1..6`
+ * Sistecrédito—, así que el pedido no matcheaba nunca y se caía al respaldo. Y el respaldo era
+ * `planes[0]`: como el plan llega ASCENDENTE, eso es **1 cuota**. O sea que todas las corridas
+ * cerraban con un solo pago, que es el caso que menos ejercita: sin amortización entre períodos, sin
+ * seguro por cuota, sin los factores de ajuste de capital. Cerraban en verde sin probar el plazo.
+ *
+ * Sin `--cuotas`, ahora se toma el MÁS LARGO que la entidad ofrezca: es el que más maquinaria mueve.
+ */
+const CUOTAS = arg('cuotas') ? Number(arg('cuotas')) : null;
 /** La CUOTA INICIAL que el asesor carga en el listado. Va en 0 por defecto porque es lo que hace
  *  el grueso de las corridas, pero **tiene que poder no serlo**: con `initial_fee > 0` el action de
  *  `available-lenders` toma una rama entera que con 0 no se ejecuta nunca —el cobro por pasarela—,
@@ -431,7 +442,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
             // cálculo de garantía que hace el cliente (financedAmountWithGuarantee) no se replica acá.
             form = {
                 lender_id: lenderElegido.id, lender_name: lenderElegido.name,
-                fee_number: lenderElegido.fee_number ?? CUOTAS, original_amount: amount, amount,
+                fee_number: lenderElegido.fee_number ?? CUOTAS ?? 0, original_amount: amount, amount,
                 initial_fee: CUOTA_INICIAL, productId: q.get('productId') ?? '',
                 rate: lenderElegido.credit_lines?.rate ?? 0, response_type: lenderElegido.response_type,
                 is_recommended: lenderElegido.isRecommended ? 'true' : 'false',
@@ -447,8 +458,18 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
         } else if (hoja === 'payment-schedule') {
             const planes: any[] = res.datos?.response?.payload?.paymentSchedule ?? [];
             if (!planes.length) return terminar('trabado', `payment-schedule sin planes: ${JSON.stringify(res.datos?.response).slice(0, 160)}`);
-            const elegido = planes.find((p) => Number(p.fee_number) === CUOTAS) ?? planes[0];
-            if (Number(elegido.fee_number) !== CUOTAS) log(`⚠ el plazo pedido (${CUOTAS}) no está entre los ofrecidos [${planes.map((p) => p.fee_number).join(', ')}]: se cierra con ${elegido.fee_number}`);
+            const ofrecidos = planes.map((p) => Number(p.fee_number));
+            // El más largo, no el primero: `planes[0]` es el mínimo y un crédito de un pago no
+            // ejercita casi nada. Ver la nota de `CUOTAS`.
+            const elMasLargo = planes.reduce((a, b) => (Number(b.fee_number) > Number(a.fee_number) ? b : a));
+            const pedido = CUOTAS !== null ? planes.find((p) => Number(p.fee_number) === CUOTAS) : undefined;
+            const elegido = pedido ?? elMasLargo;
+
+            if (CUOTAS !== null && !pedido) {
+                log(`⚠ el plazo pedido (${CUOTAS}) NO está entre los ofrecidos [${ofrecidos.join(', ')}]: se cierra con ${elegido.fee_number}`);
+            } else if (CUOTAS === null) {
+                log(`plazo: ${elegido.fee_number} cuota(s) — el más largo de [${ofrecidos.join(', ')}]`);
+            }
             form = { paymentSchedule: elegido.fee_number };
         } else if (hoja === 'otp-validation') {
             form = { _action: 'verify', otp: tel.slice(-6) };
