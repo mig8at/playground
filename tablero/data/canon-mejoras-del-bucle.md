@@ -126,9 +126,18 @@ vuelve y «falta registro», las tres señales al elegir una entidad, y los work
 paralelo en local. Las cuatro verificadas contra `main` hoy y dictadas por la API (#239): una la rechazó la
 red de regresión por competir con una pregunta del banco y se reescribió sin esas palabras.
 
-**El próximo paso es:** mergear #238 y #239 (los dos sin mergear, esperando a Miguel) y, si el harness
-sigue dando, verificar contra `main` el hecho que quedó afuera: la entidad sigue en el listado tras un
-crédito cerrado — se gasta el cupo, no la elegibilidad (suite `cliente-recurrente`).
+**#238 y #239 mergeados** (08:22 y 08:26). Y llegó una propuesta de tema `infraestructura/` (AWS,
+cuentas, peering, ECS, Cognito): se validó contra `infrastructure@main` de hoy —los 18 archivos existen y
+las 32 afirmaciones concretas aparecen en el repo; es una paráfrasis de `docs/dev-account-migration.md`—,
+con tres imprecisiones (el destino del OTel no está donde dice, «más de 20 servicios» no se cuenta así, el
+guardrail cita un literal que en el código es una variable) y un hallazgo colateral: el workflow de plan de
+dev sigue asumiendo el rol legacy mientras `root.hcl` exige la cuenta dev. Y está escrito como `context.md`
+con rutas e identificadores: el lint lo rechazaría; su clase es `operar`.
+
+**El próximo paso es:** decidir con Miguel si `infraestructura/operar.md` entra —y si entra, por el dictado
+y sólo con las trampas que no se deducen leyendo el `.tf` (dev en la cuenta equivocada, el peering como
+primera comprobación, «Read-only file system», «Access Denied» en el trigger de Cognito, dónde corre canon)—
+y verificar contra `main` el hecho del cliente que vuelve que quedó afuera.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -416,6 +425,10 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#238 y #239 en `main`.** Y la propuesta de tema `infraestructura/` validada contra el repo de hoy: real
+  en lo concreto (18/18 archivos, 32/32 afirmaciones), con tres imprecisiones y mal clasificada (`context`
+  con rutas; va en `operar`). Colateral: el plan de dev asume el rol legacy con un `root.hcl` que exige la
+  cuenta dev.
 - **El harness le enseñó cuatro cosas a canon** (#239, por el dictado): el árbol real del asistente
   contado sobre el enrutador de `main`, el atajo del cliente que vuelve, las tres señales al elegir
   entidad y los workers de PHP en local. La red de regresión rechazó una por competir con una pregunta
