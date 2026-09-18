@@ -135,10 +135,14 @@ el rol legacy— y era falso: ese workflow planea la carpeta vieja `environments
 legacy; la nueva la despliega otro workflow con el rol de desarrollo.)* Y está escrito como `context.md`
 con rutas e identificadores: el lint lo rechazaría; su clase es `operar`.
 
-**El próximo paso es:** decidir con Miguel si `infraestructura/operar.md` entra —y si entra, por el dictado
-y sólo con las trampas que no se deducen leyendo el `.tf` (dev en la cuenta equivocada, el peering como
-primera comprobación, «Read-only file system», «Access Denied» en el trigger de Cognito, dónde corre canon)—
-y verificar contra `main` el hecho del cliente que vuelve que quedó afuera.
+**`infraestructura/operar` nació, dictado** (PR abierto, sin mergear): cinco secciones —las trampas, no el
+inventario—, cada una con su área y el hash de `infrastructure@main` de hoy, enlazado desde ambientes,
+observabilidad y repos. Las cinco piezas pasaron la red de regresión a la primera. Y #239 llegó a prod a las
+08:40.
+
+**El próximo paso es:** que Miguel revise y mergee el PR de infraestructura, y verificar contra `main` el
+hecho del cliente que vuelve que sigue afuera (la entidad queda en el listado tras un crédito cerrado; se
+gasta el cupo, no la elegibilidad).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -426,6 +430,9 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **Nace `infraestructura/operar`**, por el dictado, de una propuesta que venía como `context` con rutas y
+  hashes inventados: validada contra el repo de hoy (real en lo concreto), reclasificada a `operar`, y
+  reducida a las cinco trampas que no se deducen leyendo el Terraform. Cinco de cinco piezas a la primera.
 - **#238 y #239 en `main`.** Y la propuesta de tema `infraestructura/` validada contra el repo de hoy: real
   en lo concreto (18/18 archivos, 32/32 afirmaciones), con tres imprecisiones y mal clasificada (`context`
   con rutas; va en `operar`). El «colateral» del plan de dev con rol legacy era falso: planea la carpeta
