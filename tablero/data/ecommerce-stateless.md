@@ -11,151 +11,18 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
-(migrado del nodo-tarea `ecommerce-web-stateless` del árbol de context, 2026-07-21)
-
-CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, sin llegar a main), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
 
 ## Si retomás esto sin contexto, empezá acá
 
-**TODO está en `qa` y desplegado, y el 17/9 se comprobó corriéndolo.** Al 16/9 19:18: backend
-**#1409** (el flujo por origen) y **#1388**, y front **#995**, los tres con su despliegue en verde,
-encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban. El **17/9** se sumaron, ya
-mergeados, **#1024** (el botón que vuelve a la tienda) y **legacy-application#169** (el checkout de los
-comercios entrando al wizard).
+**Estado documentado al 17/9:** el recorrido está desplegado en `qa`. Se comprobaron los canales:
+tienda y autogestión terminan en confirmación; con asesor aparece la pantalla de entrega.
 
-✔ **Y el 17/9 la conducta por canal quedó MEDIDA en base, no deducida:** mismo comercio, misma entidad
-y mismo desenlace, sólo cambia el canal — y el WhatsApp de entrega aparece **únicamente** con asesor.
-La tabla, con las cuatro solicitudes, en el Registro del 17/9 (3).
+**El próximo paso es:** que QA recorra los tres canales en `qa`, siguiendo «Cómo validar» de la tarea
+publicable y sin sesión de asesor al probar tienda o autogestión (incógnito o logout previo).
 
-**El próximo paso es:** que QA recorra los tres canales en `qa`. El guion está en
-§«Cómo validar», y lo importante es el aviso de arriba de esa sección: **sin sesión de asesor** —
-ventana de incógnito o logout previo—, porque el wizard sirve los tres canales desde el mismo dominio
-y una sesión abierta hace que la compra se comporte como mostrador. Eso fue lo que hizo fallar las
-pruebas del 15 y el 16.
-
-**Lo que se espera ver:** compra desde la tienda y autogestión **siguen en la pantalla de
-confirmación**; con asesor **sí** aparece la pantalla de entrega, que ahí es lo correcto.
-
-⚠ **Hay UN PR abierto que no es de ecommerce pero salió de probar esto: #1027** — una promesa de
-pre-aprobado rechazada rompía el listado entero en vez de mostrar el error de su tarjeta (**F-221**).
-Toca entidades **agregadoras**, así que no cambia nada de lo de arriba, pero conviene que entre con el
-resto.
-
-### `main` queda para después, y a propósito
-
-Nada va a `main` hasta que QA apruebe: cuando eso pase, la promoción `qa`→`main` se lleva todo lo de
-arriba sin PRs extra.
-
-⚠ **La única excepción es #1016, y no es de criterio.** Medido: `6fa13ae5` (#997) y `f443ecad` (#1005)
-**figuran como ancestros de `main`** —subieron con `Qa (#1007)` el 14/9— pero Abel revirtió su
-CONTENIDO con #1013 esa misma noche, así que `apps/…/ecommerce/checkout.tsx` **no existe en `main`**.
-Git los da por mergeados: la promoción no tiene nada que traer. Por eso #1016 repone el contenido como
-commits nuevos, y por eso necesita su propio PR.
-
-✔ **Y #1016 ya tiene #1018 portado**: cherry-pick limpio, commit `33649662` sobre `f474b237`, con el
-build verde. **Falta pushearlo** (va por SHA: la rama está tomada por el worktree de otra sesión).
-
-⚠ **Orden cuando llegue el momento:** primero #1016, después la promoción `qa`→`main`. #1016 repone
-la entrada de ecommerce y lleva el arreglo del rebote; promover antes deja `main` con rutas que apuntan
-a archivos que todavía no existen.
-
-### Tres cosas abiertas, ninguna bloqueante
-
-- **El hueco de la credencial**: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
-  así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
-  base de qa, los tres con Credifamilia.
-- **19 archivos de prueba que no corren**: el `include` de vitest del wizard cubre
-  `lenders-marketplace/src/lib/utils/**` y hay 20 pruebas bajo `src/lib/**`. Ensancharlo lleva de 492 a
-  703 pruebas y destapa 4 fallas reales. Registro del 16/9 (10).
-- **La siembra del caminador**: no puede ejercitar una rt=2 porque siembra antes del formulario y el
-  `action` la pisa. Registro del 16/9 (3).
-
-### Lo de antes, que sigue valiendo
-
-**El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
-`Qa (#1007)` el 14/9 a las 18:58 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`,
-20:52). El backend #1392 **no** se revirtió y sigue en `main`. El motivo del revert es un defecto real
-y ya diagnosticado: en el flujo del **asesor**, con cuota inicial > 0, elegir entidad rebota a
-`/solicitar` — los cinco eslabones, medidos, en §«El rebote a `/solicitar`». Se arregló con **#1015**,
-que ya está en `qa`; **#1016** repone la entrada del checkout en `main` y **sigue ABIERTO**.
-
-✔ **El arreglo del rebote ya estaba escrito desde junio** (#665): #997 se rehizo partiendo de #551
-(11/6) y no se llevó los cinco PRs de corrección posteriores. Ver §«La cola de junio que el rebuild no
-se llevó» — de esa cola siguen faltando en `qa` **#582, #661 y #663**.
-
-
-# Ecommerce web stateless (→ wizard sin cookie) · task
-> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1007)`
-> (`48246d68`, 14/9 18:58 — una promoción de **40 commits**, no un PR de esta tarea) y Abel lo sacó dos
-> horas después, el 14/9 20:52, con
-> [frontend-monorepo#1013](https://github.com/Creditop-SAS/frontend-monorepo/pull/1013) (merge
-> `77796a4f`), que deshace **#997 y #1005 enteros** — 27 archivos, −1.062 líneas.
->
-> **La causa es un defecto real del PR, no un accidente del merge**, y está diagnosticada y medida en
-> §«El rebote a `/solicitar`». Lo reportó Joel (QA) por DM el 15/9 08:38: *«cuando uno da click en el
-> botón de "Validar Pre aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de
-> solicitar»*.
->
-> ⚠ **Y el revert dejó las dos puntas desparejas otra vez:** sólo se revirtió el **front**. El backend
-> [#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) **sigue en `main`** (la ruta
-> `ecommerce-status` resuelve contra `origin/main`). Es la misma forma del par de junio —backend
-> adelante, front atrás— repetida tres meses después.
->
-> `qa` **conserva los tres PRs**: el revert se hizo sobre `main`, no sobre `qa`. O sea que el defecto
-> **sigue vivo en `qa`**.
->
-> ⚠ **PERO una promoción `qa` → `main` NO lo vuelve a subir — y eso es un problema, no un alivio.**
-> Medido el 2026-09-15: `merge-base(origin/main, origin/qa)` **es la punta de `qa`**, o sea que `qa` ya
-> está entera dentro de `main`; y `6fa13ae5` (#997) y `f443ecad` (#1005) **son ancestros de `main`**
-> aunque su contenido no esté. Es el problema clásico de revertir un merge: git los da por mergeados,
-> así que **ninguna promoción futura los trae de vuelta**. El revert es pegajoso.
->
-> **Consecuencia práctica para el arreglo:** no alcanza con corregir en `qa` y esperar la promoción. Para
-> que esto vuelva a `main` hay que **revertir el revert** (`git revert 77796a4f`) o rehacer el cambio
-> como commits NUEVOS. Y las dos piezas —la reposición y el arreglo del rebote— conviene que viajen
-> juntas, o `main` queda con la ventana rota abierta entre una y otra.
->
-> **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
->
-> ✔ **DOS PRs abiertos, un commit cada uno** (el #1014 se cerró por arrastrar 56 archivos ajenos — ver
-> §«El PR que arrastraba trabajo de otros»):
->
-> | PR | → | qué | tamaño |
-> |---|---|---|---|
-> | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
-> | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch · Sonar ✅ · **sólo espera revisor** |
->
-> **EL ORDEN, y la DECISIÓN de Miguel (2026-09-15):**
->
-> 1. ~~#1015 → `qa`~~ — ✅ **hecho el 15/9.**
-> 2. **#1016 → `main`: se mergea CUANDO QA dé el visto bueno de ecommerce en `qa`**, no antes.
->    Decidido por Miguel. El motivo: **es la única forma de volver a meter el código después del
->    revert**, así que conviene que entre ya validado — no hay apuro por riesgo, porque `main` hoy no
->    tiene la funcionalidad y por lo tanto tampoco el defecto.
-> 3. La promoción `qa` → `main` (Laura y Oscar) — después del 2. **Medido: limpia, sin conflictos**, y
->    los cuatro archivos de ecommerce sobreviven.
->
-> ⚠ **Si la promoción del paso 3 ocurre ANTES de #1016, da conflicto** en `routes.ts` y
-> `available-lenders.tsx`, y resolviéndolo a favor de `qa` deja `routes.ts` apuntando a cuatro archivos
-> inexistentes → build roto. Es lo que hay que avisarle a quien promueve.
->
-> ⚠ **Y que no confunda a nadie: `main` NO está roto, está VACÍO.** Medido el 15/9 contra
-> `origin/main`: el `if (initial_fee > 0)`, la ruta `initial-fee-payment` y el archivo
-> `initial-fee-payment.tsx` **no existen**. El revert no borró el bug, borró la funcionalidad entera.
-> Por eso #1016 **no es un arreglo**: es la reposición. Y si nunca se mergea, nada se rompe — sólo que
-> el trabajo no llega a producción y los 14.160 checkouts siguen entrando por el monolito.
->
-> ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
-> revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
-> `git merge-base --is-ancestor` da verdadero aunque el código ya no esté. Es la **inversa** del falso
-> «falta» que este mismo archivo anotó para #551 — y el desempate es el mismo: **el contenido, no el
-> SHA**. Acá, `git ls-tree -r --name-only origin/main -- …/ecommerce/checkout.tsx` → vacío.
->
-> Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
-> (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
-> (🟡 **nunca llegó a `main`** — ver §«Cómo aterrizarlo»).
->
-> Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
+**Salida a producción:** esperar el visto bueno de QA; después, primero #1016 para reponer el contenido
+revertido y luego la promoción `qa`→`main`. El port de #1018 a #1016 está documentado como pendiente de push.
+El PR #1027 y las comprobaciones pendientes se detallan en el Registro. Esta síntesis no actualiza estados externos.
 
 ## El rebote a `/solicitar`: por qué se revirtió de `main` (2026-09-15)
 
@@ -784,6 +651,169 @@ regresión pero señalaba al lugar equivocado. Arreglado en el harness.
 - Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
 
 ## Registro
+
+### 2026-09-18 · organización editorial del documento
+
+Se dejó una sola retoma breve y se reunieron los recordatorios repetidos de salida a producción.
+Este cambio ordena la documentación; no comprueba despliegues, no cierra pendientes y no cambia Jira.
+Las dos portadas anteriores y los recordatorios originales se conservan a continuación como antecedentes.
+
+#### Procedencia del documento
+
+(migrado del nodo-tarea `ecommerce-web-stateless` del árbol de context, 2026-07-21)
+
+CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, sin llegar a main), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
+
+#### Retoma extensa conservada (estado documentado al 17/9)
+
+**TODO está en `qa` y desplegado, y el 17/9 se comprobó corriéndolo.** Al 16/9 19:18: backend
+**#1409** (el flujo por origen) y **#1388**, y front **#995**, los tres con su despliegue en verde,
+encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban. El **17/9** se sumaron, ya
+mergeados, **#1024** (el botón que vuelve a la tienda) y **legacy-application#169** (el checkout de los
+comercios entrando al wizard).
+
+✔ **Y el 17/9 la conducta por canal quedó MEDIDA en base, no deducida:** mismo comercio, misma entidad
+y mismo desenlace, sólo cambia el canal — y el WhatsApp de entrega aparece **únicamente** con asesor.
+La tabla, con las cuatro solicitudes, en el Registro del 17/9 (3).
+
+**El próximo paso es:** que QA recorra los tres canales en `qa`. El guion está en
+§«Cómo validar», y lo importante es el aviso de arriba de esa sección: **sin sesión de asesor** —
+ventana de incógnito o logout previo—, porque el wizard sirve los tres canales desde el mismo dominio
+y una sesión abierta hace que la compra se comporte como mostrador. Eso fue lo que hizo fallar las
+pruebas del 15 y el 16.
+
+**Lo que se espera ver:** compra desde la tienda y autogestión **siguen en la pantalla de
+confirmación**; con asesor **sí** aparece la pantalla de entrega, que ahí es lo correcto.
+
+⚠ **Hay UN PR abierto que no es de ecommerce pero salió de probar esto: #1027** — una promesa de
+pre-aprobado rechazada rompía el listado entero en vez de mostrar el error de su tarjeta (**F-221**).
+Toca entidades **agregadoras**, así que no cambia nada de lo de arriba, pero conviene que entre con el
+resto.
+
+##### `main` queda para después, y a propósito
+
+Nada va a `main` hasta que QA apruebe: cuando eso pase, la promoción `qa`→`main` se lleva todo lo de
+arriba sin PRs extra.
+
+⚠ **La única excepción es #1016, y no es de criterio.** Medido: `6fa13ae5` (#997) y `f443ecad` (#1005)
+**figuran como ancestros de `main`** —subieron con `Qa (#1007)` el 14/9— pero Abel revirtió su
+CONTENIDO con #1013 esa misma noche, así que `apps/…/ecommerce/checkout.tsx` **no existe en `main`**.
+Git los da por mergeados: la promoción no tiene nada que traer. Por eso #1016 repone el contenido como
+commits nuevos, y por eso necesita su propio PR.
+
+✔ **Y #1016 ya tiene #1018 portado**: cherry-pick limpio, commit `33649662` sobre `f474b237`, con el
+build verde. **Falta pushearlo** (va por SHA: la rama está tomada por el worktree de otra sesión).
+
+⚠ **Orden cuando llegue el momento:** primero #1016, después la promoción `qa`→`main`. #1016 repone
+la entrada de ecommerce y lleva el arreglo del rebote; promover antes deja `main` con rutas que apuntan
+a archivos que todavía no existen.
+
+##### Tres cosas abiertas, ninguna bloqueante
+
+- **El hueco de la credencial**: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
+  así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
+  base de qa, los tres con Credifamilia.
+- **19 archivos de prueba que no corren**: el `include` de vitest del wizard cubre
+  `lenders-marketplace/src/lib/utils/**` y hay 20 pruebas bajo `src/lib/**`. Ensancharlo lleva de 492 a
+  703 pruebas y destapa 4 fallas reales. Registro del 16/9 (10).
+- **La siembra del caminador**: no puede ejercitar una rt=2 porque siembra antes del formulario y el
+  `action` la pisa. Registro del 16/9 (3).
+
+##### Lo de antes, que sigue valiendo
+
+**El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
+`Qa (#1007)` el 14/9 a las 18:58 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`,
+20:52). El backend #1392 **no** se revirtió y sigue en `main`. El motivo del revert es un defecto real
+y ya diagnosticado: en el flujo del **asesor**, con cuota inicial > 0, elegir entidad rebota a
+`/solicitar` — los cinco eslabones, medidos, en §«El rebote a `/solicitar`». Se arregló con **#1015**,
+que ya está en `qa`; **#1016** repone la entrada del checkout en `main` y **sigue ABIERTO**.
+
+✔ **El arreglo del rebote ya estaba escrito desde junio** (#665): #997 se rehizo partiendo de #551
+(11/6) y no se llevó los cinco PRs de corrección posteriores. Ver §«La cola de junio que el rebuild no
+se llevó» — de esa cola siguen faltando en `qa` **#582, #661 y #663**.
+
+#### Portada anterior (estado registrado al 15/9)
+
+> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1007)`
+> (`48246d68`, 14/9 18:58 — una promoción de **40 commits**, no un PR de esta tarea) y Abel lo sacó dos
+> horas después, el 14/9 20:52, con
+> [frontend-monorepo#1013](https://github.com/Creditop-SAS/frontend-monorepo/pull/1013) (merge
+> `77796a4f`), que deshace **#997 y #1005 enteros** — 27 archivos, −1.062 líneas.
+>
+> **La causa es un defecto real del PR, no un accidente del merge**, y está diagnosticada y medida en
+> §«El rebote a `/solicitar`». Lo reportó Joel (QA) por DM el 15/9 08:38: *«cuando uno da click en el
+> botón de "Validar Pre aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de
+> solicitar»*.
+>
+> ⚠ **Y el revert dejó las dos puntas desparejas otra vez:** sólo se revirtió el **front**. El backend
+> [#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) **sigue en `main`** (la ruta
+> `ecommerce-status` resuelve contra `origin/main`). Es la misma forma del par de junio —backend
+> adelante, front atrás— repetida tres meses después.
+>
+> `qa` **conserva los tres PRs**: el revert se hizo sobre `main`, no sobre `qa`. O sea que el defecto
+> **sigue vivo en `qa`**.
+>
+> ⚠ **PERO una promoción `qa` → `main` NO lo vuelve a subir — y eso es un problema, no un alivio.**
+> Medido el 2026-09-15: `merge-base(origin/main, origin/qa)` **es la punta de `qa`**, o sea que `qa` ya
+> está entera dentro de `main`; y `6fa13ae5` (#997) y `f443ecad` (#1005) **son ancestros de `main`**
+> aunque su contenido no esté. Es el problema clásico de revertir un merge: git los da por mergeados,
+> así que **ninguna promoción futura los trae de vuelta**. El revert es pegajoso.
+>
+> **Consecuencia práctica para el arreglo:** no alcanza con corregir en `qa` y esperar la promoción. Para
+> que esto vuelva a `main` hay que **revertir el revert** (`git revert 77796a4f`) o rehacer el cambio
+> como commits NUEVOS. Y las dos piezas —la reposición y el arreglo del rebote— conviene que viajen
+> juntas, o `main` queda con la ventana rota abierta entre una y otra.
+>
+> **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
+>
+> ✔ **DOS PRs abiertos, un commit cada uno** (el #1014 se cerró por arrastrar 56 archivos ajenos — ver
+> §«El PR que arrastraba trabajo de otros»):
+>
+> | PR | → | qué | tamaño |
+> |---|---|---|---|
+> | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
+> | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch · Sonar ✅ · **sólo espera revisor** |
+>
+> **EL ORDEN, y la DECISIÓN de Miguel (2026-09-15):**
+>
+> 1. ~~#1015 → `qa`~~ — ✅ **hecho el 15/9.**
+> 2. **#1016 → `main`: se mergea CUANDO QA dé el visto bueno de ecommerce en `qa`**, no antes.
+>    Decidido por Miguel. El motivo: **es la única forma de volver a meter el código después del
+>    revert**, así que conviene que entre ya validado — no hay apuro por riesgo, porque `main` hoy no
+>    tiene la funcionalidad y por lo tanto tampoco el defecto.
+> 3. La promoción `qa` → `main` (Laura y Oscar) — después del 2. **Medido: limpia, sin conflictos**, y
+>    los cuatro archivos de ecommerce sobreviven.
+>
+> ⚠ **Si la promoción del paso 3 ocurre ANTES de #1016, da conflicto** en `routes.ts` y
+> `available-lenders.tsx`, y resolviéndolo a favor de `qa` deja `routes.ts` apuntando a cuatro archivos
+> inexistentes → build roto. Es lo que hay que avisarle a quien promueve.
+>
+> ⚠ **Y que no confunda a nadie: `main` NO está roto, está VACÍO.** Medido el 15/9 contra
+> `origin/main`: el `if (initial_fee > 0)`, la ruta `initial-fee-payment` y el archivo
+> `initial-fee-payment.tsx` **no existen**. El revert no borró el bug, borró la funcionalidad entera.
+> Por eso #1016 **no es un arreglo**: es la reposición. Y si nunca se mergea, nada se rompe — sólo que
+> el trabajo no llega a producción y los 14.160 checkouts siguen entrando por el monolito.
+>
+> ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
+> revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
+> `git merge-base --is-ancestor` da verdadero aunque el código ya no esté. Es la **inversa** del falso
+> «falta» que este mismo archivo anotó para #551 — y el desempate es el mismo: **el contenido, no el
+> SHA**. Acá, `git ls-tree -r --name-only origin/main -- …/ecommerce/checkout.tsx` → vacío.
+>
+> Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
+> (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
+> (🟡 **nunca llegó a `main`** — ver §«Cómo aterrizarlo»).
+>
+> Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
+
+#### Recordatorios de entrega unificados
+
+> - [ ] ~~Promover #551 (front) a main~~ → **el camino es rama nueva desde `qa`** (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
+
+> - [ ] ~~viejo~~ **Promover la entrada stateless** — hasta que llegue a `main` no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
+
+> - [ ] ⚠ **PROMOVER `qa` → `main`** — es lo único que separa esto de producción. Verificado el 2026-09-14: `checkout.tsx` y la ruta `ecommerce-status` están en `origin/qa` y **no** en `origin/main`. Mientras tanto la tarea **no gradúa** a `context/` (la vara del árbol es `main`) y los 14.160 checkouts siguen esperando.
+
 
 ### 2026-09-17 (5) · los cuatro canales en paralelo de nuevo: el listado se cae por config, no por el canal
 
@@ -2074,8 +2104,6 @@ Tres cosas que este día deja anotadas y valen más que el bug:
       inicio. Es el hallazgo más transversal del día: aplica a las 3 ramas de `routes.ts`, no a ecommerce.
 - [ ] **Agregar al caminado el canal ASESOR con cuota inicial > 0** — la corrida del 14/9 pasó en verde
       porque recorrió el único canal inmune.
-- [ ] ~~Promover #551 (front) a main~~ → **el camino es rama nueva desde `qa`** (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
-- [ ] ~~viejo~~ **Promover la entrada stateless** — hasta que llegue a `main` no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
 - [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en `main`, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
 - [ ] **Rescatar lo que quede de #503 y #363** — los dos se **cerraron el 14/9 sin merge**, y cerrarlos no trajo su contenido. Revisarlo archivo por archivo contra `main` antes de rescatar.
 - [ ] **Redirect de borde en `aliados.creditop.com/checkout/*`** — pedido a Infra, 302 con query verbatim. ⚠ Bloqueado por que `/ecommerce/{hash}/checkout` llegue a `main`, y **tiene que excluir los hashes de Corbeta** o secuestra el tráfico que hoy convierte al 18,7 %. Lista de hashes en §«Los CUATRO PRs».
@@ -2093,7 +2121,7 @@ Tres cosas que este día deja anotadas y valen más que el bug:
 - [ ] **F-215: el arreglo es un carácter** (`window.ENV?.APP_ENV` en `entry.client.tsx:14`) y toca una rama ajena a esta tarea. Está en `main` y en `qa`. No se comprobó si el botón «Volver a intentar» queda inerte.
 - [ ] **F-216: el fallback mudo sigue abierto** — el front no distingue «este comercio va por el legacy» de «no pude preguntarlo». En local se tapó sembrando la setting (`make harness-kyc-flow`).
 - [x] ~~Pedir revisor en #997 y #1392~~ → **MERGEADOS a `qa`** el 2026-09-14 15:30 (merges `6fa13ae5` y `3cd20e34`).
-- [ ] ⚠ **PROMOVER `qa` → `main`** — es lo único que separa esto de producción. Verificado el 2026-09-14: `checkout.tsx` y la ruta `ecommerce-status` están en `origin/qa` y **no** en `origin/main`. Mientras tanto la tarea **no gradúa** a `context/` (la vara del árbol es `main`) y los 14.160 checkouts siguen esperando.
+- [ ] **Promover `qa` → `main` después de #1016 y del visto bueno de QA.** La reposición y la promoción son pasos distintos; no promover antes de reponer el contenido revertido.
 - [ ] **Confirmar con producto el ORDEN del cobro de cuota inicial** en autogestión — la única decisión de criterio del #997, comentada en el código.
 - [ ] ⚠ **Promover a F-xx, y es el hallazgo más transversal del día: la guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) sólo cubre las escrituras por `pkg/db.ts`.** Todo lo que escribe **por la API** contra dev pasa sin pedir permiso — así los specs de `channel/` crearon filas en el compartido durante meses sin que nada avisara. Tapado el caso de Playwright (`playwright.config.ts` fija el target), pero el agujero sigue.
 - [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.

@@ -13,6 +13,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import TaskPanel from './TaskPanel.vue';
 import { readPreference, savePreference, groupTasks } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
+import { jiraPreview } from './jira-preview.js';
 
 // La URL del server, parametrizable para poder levantar una SEGUNDA instancia sin tocar el código:
 // `npm run dev` usa `concurrently -k`, así que reiniciar el server para probar un cambio tumba también
@@ -635,7 +636,10 @@ const resumenDe = (key) => {
 };
 
 const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
-const indiceCuerpo = computed(() => documentSections.value.filter(section => section.title));
+const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml));
+const pendingSections = computed(() => documentSections.value.filter(section => section.pendingHtml));
+const jiraDocument = computed(() => jiraPreview(active.value));
+const indiceCuerpo = computed(() => summarySections.value.filter(section => section.title));
 function irASeccion(id) {
   const section = document.getElementById(id);
   if (section?.tagName === 'DETAILS') section.open = true;
@@ -852,6 +856,7 @@ const taskTabs = computed(() => {
   const key = active.value?.Key;
   return [
     { id: 'resumen', label: 'Resumen' },
+    { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
     { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
     { id: 'ramas', label: 'Ramas', count: ramasCuenta(key) },
@@ -1598,23 +1603,14 @@ onMounted(async () => {
             </button>
           </div>
 
-          <p class="empty">El <b>cuerpo técnico</b> de la tarea: qué se hizo, cómo se llegó a cada
-            conclusión, en qué ramas vive y cómo se integra en cada repo. Es privado — nombra repos,
-            rutas y hallazgos, y no sale a Jira.
-            <a v-if="site && active && !active._local" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">lo que ve el equipo, en Jira ↗</a>
-          </p>
+          <p class="empty">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
 
-          <section v-if="active && retomaDe(active.Key)" class="retoma-panel">
-            <div class="retoma-label">Para retomar ahora</div>
-            <p class="retoma-estado">{{ resumenDe(active.Key) }}</p>
-            <p v-if="proximoDe(active.Key)" class="retoma-paso"><b>Próximo paso:</b> {{ proximoDe(active.Key) }}</p>
             <div v-if="effortDe(active.Key)?.contextNodes" class="retoma-contextos">
               <span>Contexto local:</span>
               <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
                 :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
                 :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
             </div>
-          </section>
 
           <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
                convertir el índice de retoma en una lista cronológica. -->
@@ -1623,23 +1619,43 @@ onMounted(async () => {
                     @click="irASeccion(h.id)">{{ h.title }}</button>
           </nav>
 
-          <div v-if="documentSections.length" class="desc cuerpo-md">
-            <template v-for="section in documentSections" :key="section.id">
+          <div v-if="summarySections.length" class="desc cuerpo-md">
+            <template v-for="section in summarySections" :key="section.id">
               <details v-if="section.history" :id="section.id" class="document-history">
                 <summary>{{ section.title }} <span>· historial de trabajo</span></summary>
-                <div v-html="section.html"></div>
+                <div v-html="section.summaryHtml"></div>
               </details>
-              <section v-else :id="section.id" class="document-section" v-html="section.html"></section>
+              <section v-else :id="section.id" class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
             </template>
           </div>
-          <p v-else class="desc none">Esta tarea no tiene cuerpo técnico todavía — se escribe en su
-            archivo <code>tablero/data/&lt;slug&gt;.md</code>.</p>
+          <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene un resumen privado.' }}</p>
 
+      </div>
+      <div v-if="panelTab === 'jira'" class="task-tab-body">
+        <p v-if="active._local" class="empty">Esta tarea es local y todavía no está publicada en Jira.</p>
+        <template v-else>
+          <div class="jira-heading">
+            <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+            <a v-if="site" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">Abrir {{ active.Key }} en Jira ↗</a>
+          </div>
+          <p class="empty">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
+          <iframe v-if="jiraDocument" class="jira-preview" :srcdoc="jiraDocument"
+            sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
+            :title="'Descripción de ' + active.Key + ' en Jira'"></iframe>
+          <p v-else class="desc none">Jira no devolvió una descripción para esta tarea.</p>
+        </template>
       </div>
       <div v-if="panelTab === 'pendientes'" class="task-tab-body">
 
-          <p class="empty">Salen de las casillas del cuerpo de la tarea. Se escriben y se tildan ahí.</p>
-          <p v-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
+          <p class="empty">Pendientes del documento privado, con sus notas y enlaces.</p>
+          <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
+            <section v-for="section in pendingSections" :key="section.id" class="document-section">
+              <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
+              <div v-html="section.pendingHtml"></div>
+            </section>
+          </div>
+          <p v-else-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
+          <template v-else>
           <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
             <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
             <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
@@ -1647,6 +1663,7 @@ onMounted(async () => {
               <p class="pque">{{ p.que }}</p>
             </article>
           </section>
+          </template>
 
       </div>
       <div v-if="panelTab === 'hallazgos'" class="task-tab-body">
@@ -2253,6 +2270,10 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .move-task { margin-left: auto }
 .document-section { scroll-margin-top: 12px }
 .document-section + .document-section { margin-top: 22px }
+.retoma-contextos { margin-bottom: 16px }
+.pending-document :deep(input[type=checkbox]) { accent-color: var(--acc); margin-right: 7px }
+.jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
+.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel) }
 .document-history { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; scroll-margin-top: 12px }
 .document-history > summary { cursor: pointer; font-weight: 600; font-size: 13px }
 .document-history > summary span { font-weight: 400; color: var(--mut); font-size: 11px }

@@ -28,6 +28,29 @@ test('títulos repetidos conservan destinos únicos y los nombres históricos se
   assert.deepEqual(organizeDocument(''), []);
 });
 
+test('pendientes se muestran una sola vez y conservan continuaciones, enlaces y sublistas', () => {
+  const sections = organizeDocument('## Pendientes\nNota de entrega.\n\n- [ ] Preparar [PR](https://example.com)\n  Continuación necesaria.\n  - revisar primero\n\n## Plan\nExplicación vigente.\n\n- [x] Trabajo hecho\n- Material de referencia\n');
+  const pending = sections.map(s => s.pendingHtml).join('');
+  const summary = sections.map(s => s.summaryHtml).join('');
+  assert.match(pending, /Nota de entrega/);
+  assert.match(pending, /Continuación necesaria/);
+  assert.match(pending, /revisar primero/);
+  assert.match(pending, /href="https:\/\/example.com"/);
+  assert.match(pending, /Trabajo hecho/);
+  assert.doesNotMatch(summary, /Preparar|Trabajo hecho|Nota de entrega/);
+  assert.match(summary, /Explicación vigente/);
+  assert.match(summary, /Material de referencia/);
+});
+
+test('hallazgos marcados salen del resumen, las citas normales y el código se conservan', () => {
+  const sections = organizeDocument('## Decisiones\n> **DECISIÓN · 2026-09-18** — Acuerdo\n> Evidencia\n\n> Una cita normal\n\n~~~md\n- [ ] Ejemplo de código\n~~~\n');
+  assert.doesNotMatch(sections[0].summaryHtml, /Acuerdo|Evidencia/);
+  assert.match(sections[0].summaryHtml, /Una cita normal/);
+  assert.match(sections[0].summaryHtml, /Ejemplo de código/);
+  assert.equal(sections[0].pendingHtml, '');
+  assert.match(sections[0].html, /Acuerdo/); // la representación completa sigue disponible
+});
+
 test('agrupar conserva todas las tareas y el orden dentro de cada estado', () => {
   const tasks = [{ id: 1, bucket: 'terminada' }, { id: 2, bucket: 'iniciada' },
     { id: 3, bucket: 'bloqueada' }, { id: 4, bucket: 'iniciada' }, { id: 5, bucket: 'pruebas' }, { id: 6, bucket: 'sin-iniciar' }];

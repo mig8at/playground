@@ -127,9 +127,10 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       Registro                                   ← append-only, lo nuevo arriba
       ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
 
-  La vista **Resumen** prioriza retoma, pendientes y decisiones; deja el plan y el material juntos,
-  después las referencias y al final el historial plegado. Esto ordena la lectura sin reescribir
-  archivos existentes. La plantilla se aplica al crear o actualizar una tarea abierta.
+  La vista **Resumen** muestra una sola retoma, el plan, el material y las referencias, con el historial
+  plegado. Los pendientes y las anotaciones con marcador viven en el archivo y se proyectan en sus
+  pestañas; no se duplican en el resumen. **Jira** lee la descripción recibida del issue, no la sección
+  publicable local. La plantilla se aplica al crear o actualizar una tarea abierta.
 
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
   1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si

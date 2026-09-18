@@ -59,7 +59,7 @@ async function tabKey(event, index) {
 function keydown(event) {
   if (event.key === 'Escape') { event.preventDefault(); emit('close'); return; }
   if (event.key !== 'Tab') return;
-  const focusable = [...panel.value.querySelectorAll('button, a[href], input, select, textarea, summary, [tabindex]')]
+  const focusable = [...panel.value.querySelectorAll('button, a[href], input, select, textarea, summary, iframe, [tabindex]')]
     .filter(el => !el.disabled && el.tabIndex >= 0 && el.getClientRects().length);
   const first = focusable[0], last = focusable.at(-1);
   if (!first) { event.preventDefault(); return; }
