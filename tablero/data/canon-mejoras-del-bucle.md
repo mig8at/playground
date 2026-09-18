@@ -73,9 +73,27 @@ a los 60.** La primera corrida de esta misma verificación volvió **504** por `
 problema. O sea que la guarda no rompe la pantalla, pero sí empeora la ruta pelada para preguntas
 anchas, que es justo la que usa la receta de validación del README.
 
-**El próximo paso es:** decidir qué hacer con ese 504 — la receta de «cómo se prueba un cambio» del
-README manda `curl` a `POST /api/pregunta`, y para una pregunta ancha esa ruta ahora se cae más
-seguido. Lo barato es que la receta use el stream; lo otro sería mirar el timeout del balanceador.
+**Y la noche del 17 cerró con un método nuevo, que es el hallazgo grande.** Sin Gemini local (la llave da
+`403` a nivel proyecto), se simuló al agente de canon con **Sonnet 5 local —el mismo modelo que prod—** sobre
+el mismo corpus y la misma API, con el guion de canon como prompt, y yo (Fable) evaluando cada respuesta
+contra las secciones citadas. Dos preguntas, tres vueltas, 17 citas comprobadas. Resultado: **mismo modelo,
+mismo corpus, mucho mejor respuesta que prod** (titular 17-20 palabras contra 39; 200 palabras contra 323;
+tabla cuando tocaba; 4-5 llamadas sin una ancla inventada contra 21 pasos con 4). O sea que el corpus ya
+sostiene respuestas amenas; lo que las estropea en prod es el bucle. Y de las corridas salieron tres
+correcciones de corpus, medidas (rama de #236, sin mergear): la primera línea de «No le salió nada» con
+las palabras del reclamo (bench 94 → 95), el bullet de tipo 2 diciendo qué significa «decide la casa» (la
+imprecisión desapareció en la segunda vuelta), y «el vacío de verdad» reescrito de 32,5 a 19,5 palabras
+por oración con los mismos hechos — y la respuesta que lo lee bajó de 35,3 a 24,0. **El corpus entero
+está a 26,3 por oración de mediana: el modelo hereda esa densidad.**
+
+⚠ **El despliegue de #235 nunca llegó a prod**: la imagen `3255706` es el merge correcto, la task
+definition `canon-production:177` salió «Deployment Successful», y una hora después prod seguía sirviendo
+los resúmenes viejos (#233 y #234 sí están). Es de ECS; hay que mirar el servicio `internal-tools`.
+
+**El próximo paso es:** aplicar la misma receta —mismo ancla, mismos hechos, oraciones que se leen— a la
+siguiente sección densa que carga peso (`motai` la calculadora, 30 por oración y 10 citas reales;
+`preaprobado` la llamada, 35,6 y 463 palabras), y comprobarla con el bucle local de Sonnet: una pregunta,
+la respuesta antes y después.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -363,6 +381,18 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-17
 
+- **El agente de canon, simulado en local con Sonnet 5 y evaluado por Fable.** Sin Gemini (403), un
+  subagente Sonnet con el guion de canon y curl contra la API local contestó dos preguntas nuevas en
+  tres vueltas. Mismo modelo que prod, mismo corpus: titular 17-20 palabras, 200 palabras, tabla cuando
+  la pregunta comparaba, 4-5 llamadas sin anclas inventadas. **El corpus sostiene; el bucle de prod
+  estropea.** Tres correcciones salieron de ahí y están medidas en #236.
+- **El modelo hereda la densidad de lo que lee.** Corpus a 26,3 palabras por oración de mediana. Una
+  sección reescrita de 32,5 a 19,5 —mismos hechos, mismo ancla— bajó la respuesta que la lee de 35,3 a
+  24,0. Es la palanca de contenido para «ameno y claro».
+- **`content/.rino/`**, una carpeta de otra herramienta (ignorada por el gitignore global), hacía que
+  canon cayera al corpus embebido sin que se notara: el loader trata cualquier carpeta como tema. Movida
+  aparte; el loader debería saltear carpetas con punto, como hace `go:embed`.
+- **#235 no llegó a prod** aunque el workflow dijo éxito. Task def 177 registrada, tasks en la 176.
 - **La guarda del titular, comprobada en prod con la misma pregunta.** 43 palabras → rechazo con el
   motivo escrito → 25 palabras y mejor titular, en dos llamadas a `contestar`. El tope de UN rebote
   funcionó. ⚠ Pero el turno extra la llevó de 49 s a 74 s y la primera corrida volvió **504**: el
