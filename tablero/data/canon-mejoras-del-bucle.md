@@ -409,6 +409,9 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#237 en prod a las 07:56, nueve minutos después del merge**, 12 sondas seguidas: los tres resúmenes
+  nuevos ya son lo que lee el modelo en el mapa del prompt. Con eso los tres despliegues del día llegaron
+  en 8-9 minutos; el «incidente» nunca existió.
 - **La alarma de ECS era falsa, y el error fue mío.** #235 editó `title`/`summary` de nivel superior; el
   nodo se lee de `documents["context.md"]`. El despliegue llegó; el cambio no existía donde se lee. Lo
   destapó la sonda de #236 (prosa nueva, 8 minutos). #237 lo corrige en la clave correcta, verificado en
