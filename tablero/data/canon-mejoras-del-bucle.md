@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -36,8 +36,23 @@ backoffice, datos, arquitectura, fronteras, internacionalizacion, servicios) que
 propósito**, porque no describen un camino. `Creditop-SAS/playground#230` y `#231`, los dos en `main` y
 comprobados en prod.
 
-**El próximo paso es:** medir si el recorrido se usa —el mismo criterio de siempre: que el camino se
-recorra, no que la herramienta funcione—. La franja nunca llegó a esa medición y se fue antes.
+**Y al 2026-09-17, tarde: la RESPUESTA del chat se lee de un vistazo.** Antes de tocar nada se
+midieron las **46 respuestas reales** de `canon_turnos`, y el diagnóstico no era el que yo esperaba:
+el largo está bien —mediana de 142 palabras, la regla de parada ya lo había bajado— y lo que pesa es
+la **densidad**: 21,8 palabras por oración, 25 en la primera, 12 de 46 en voz impersonal, 6 con el
+relleno que el guion ya prohíbe, y **0 tablas**. Tres cambios, todos del lado de la herramienta: el
+esquema de `contestar` dejó de pedir «dos o tres párrafos» —contradecía al guion, y gana el esquema
+porque es lo que el modelo lee mientras llena el campo—; nació **`en_una_linea`**, un campo
+obligatorio de hasta 20 palabras que va arriba y más grande, porque el campo aparte es lo único que el
+modelo no puede diluir; y el chat **dibuja tablas**, que hasta hoy no dibujaba —de ahí el 0 de 46: el
+camino estaba cerrado de los dos lados, y escribir una tabla castigaba al modelo con sopa de barras—.
+`Creditop-SAS/playground#233`.
+
+**El próximo paso es:** conseguir una llave de modelo que ande —la de Gemini local devuelve `403
+PERMISSION_DENIED`— y correr **dos preguntas nuevas**, que miden de una sola vez las dos cosas que
+quedaron sin medir: si el titular nuevo hace encoger el texto largo, y si el recorrido se recorre. El
+criterio es el de siempre —que el camino se use, no que la herramienta funcione— y es el que la franja
+nunca alcanzó antes de irse.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -325,6 +340,24 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-17
 
+- **La respuesta del chat se parte en dos campos, y el chat aprende a dibujar tablas.** Lo que decidió
+  todo fue medir primero: 46 respuestas reales, y el problema no era el largo sino 21,8 palabras por
+  oración y 25 en la primera. Tres cambios de HERRAMIENTA —la descripción del campo, `en_una_linea`,
+  las tablas—, ninguno de guion salvo para que el guion no contradiga al esquema. `#233`.
+- **Dos cosas que sólo aparecieron al verificar, y valen más que el código.** (1) La prueba de las
+  tablas estaba en VERDE y la pantalla mostraba sopa de barras: los bloques se cortan por línea en
+  blanco, el modelo pega la tabla debajo del párrafo sin dejar una, y `lineas[0]` era prosa. Lo vi
+  abriendo la respuesta en el navegador, no corriendo la prueba. (2) El impostor no cumplía el
+  contrato nuevo, así que el camino feliz quedaba sin forma de ensayarse sin gastar una pregunta
+  contra un modelo de verdad — un falso que no satisface el esquema no sirve de falso.
+- **El esquema de `contestar` salió de adentro de la función para que una prueba lo pueda leer.** Ahí
+  vivió semanas una contradicción con el guion («dos o tres párrafos» contra «tres es el techo») que
+  nadie podía mirar sin gastar una pregunta. Lo que no se puede leer sin pagar, no se lee.
+- **Lo que NO se pudo comprobar:** las dos preguntas nuevas contra un modelo de verdad. La llave de
+  Gemini local da `403`, así que el camino feliz se ensayó con el impostor. Queda como próximo paso.
+- **Anotado aparte:** con `POSTGRES_*` exportadas —que es lo que el README manda para que corra la
+  prueba de integración— falla `TestElPanelDePreguntasSinAlmacenDiceQueNoHayYNoFalla`, que afirma el
+  estado «sin almacén». Una prueba que depende del `.env` de quien la corre.
 - **El recorrido de un área se declara, y la franja se va.** Dos PRs: `#230` trajo el mecanismo
   —`flow.json` con rutas y estaciones, la validación en el lint, el dibujo en la Sala y Motai como
   primer recorrido— y `#231` lo hizo por defecto: 17 temas más, la franja borrada y un aviso del lint.
