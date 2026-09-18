@@ -145,7 +145,12 @@ export async function abrirContexto(browser: Browser, baseURL: string, opts: { t
         // pasar el ruido y parece que la regla no sirve.
         const completo = m.text();
         if (esRuidoDeLocal(completo)) return;
-        if (evidencia.consola.length < 40) anotar('consola', `${m.type()}: ${completo.slice(0, 220)}`);
+        // ⚠ 600 Y NO 220. Los errores de React que MÁS sirven —«cannot contain a nested», los avisos de
+        // hidratación— ponen la pila de componentes DESPUÉS del encabezado, así que 220 daba el título y
+        // se comía el único dato que ubica el problema. Medido el 2026-09-18: un `<button>` anidado en la
+        // tarjeta de entidad se pudo ver pero no localizar. No hay riesgo de volumen: esto deduplica con
+        // contador y corta a 40 entradas.
+        if (evidencia.consola.length < 40) anotar('consola', `${m.type()}: ${completo.slice(0, 600)}`);
     });
     page.on('pageerror', (e) => {
         if (evidencia.consola.length < 40) anotar('consola', `pageerror: ${String(e.message).slice(0, 220)}`);

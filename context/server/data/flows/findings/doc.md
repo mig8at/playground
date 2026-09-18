@@ -81,6 +81,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el código de depuración quedó en producción» · «esto logueaba un token»** | **F-228** |
 | **«la corrida anterior andaba y esta no» · «de golpe la entidad no tiene cupo»** | **F-229** |
 | **«la pantalla no tiene botón para seguir» · «No routes matched» en una ruta de un proveedor** | **F-230** |
+| **«el harness falla unas veces sí y otras no» · «dice que el teléfono no es válido y lo es»** | **F-231** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -391,6 +392,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
 | F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
 | F-229 | `caminar-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
 | F-227 | La pantalla del código de compra dice «(Vence hoy a las 8:30 p.m.)» **siempre**: es un default quemado que `SuccessView` nunca pasa. El contador está bien; el texto miente en toda compra cerrada después de las 20:30, que es cuando el plazo se corre al día siguiente. Medido en prod: **14 de 507** (2,8 %) en 180 días, y está en `main` | ABIERTO |
@@ -5714,3 +5716,25 @@ regla «por un rato», vale más dejar el ruido.
 - **Cómo se reconoce en general:** ante un «No routes matched» de una ruta que suena a proveedor externo
   (`validar-persona`, `redirect`, `callback`), sospechá de un `*_HOST` vacío antes que del router. El
   delator es que la ruta viva bajo el origen del wizard en vez de bajo el dominio del proveedor.
+\n
+### F-231 · El harness generaba teléfonos que el front rechaza, y sólo en algunas corridas
+
+- **Síntoma:** el canal de ASESOR muere en la **primera** pantalla. La pantalla dice «Ingresa un número
+  de teléfono colombiano válido» sobre un número que se ve perfectamente colombiano —`3609420000`, diez
+  dígitos, empieza en 3—. Y no pasa siempre: unas corridas sí y otras no.
+- **Causa raíz:** `FORMA_DEL_CELULAR.COL` declaraba `prefijo: '3'`, o sea que fijaba **un solo dígito**.
+  El resto lo rellena la base de la corrida, así que el SEGUNDO dígito era efectivamente arbitrario. El
+  front valida con `COLOMBIAN_PHONE_REGEX = /^3[0-5][0-9]{8}$/`
+  (`packages/shared/utils/src/phone/config.ts:37`): el segundo dígito **tiene que ser 0-5**. Con un 6, 7,
+  8 o 9 el número es rechazado.
+- **Por qué costó verlo:** el fallo es **intermitente por construcción** — depende de la base, que cambia
+  entre corridas—, y el mensaje es del producto, así que se lee como una validación del front portándose
+  mal. Es el peor modo: no se reproduce cuando lo vas a mirar.
+- **Evidencia (2026-09-18, local):** con `3609420000` el recorrido de asesor murió en `solicitar` sin
+  botón habilitado; con el prefijo corregido, el mismo caso llegó al listado en 115 s.
+- **Arreglo:** `prefijo: '31'` — dos dígitos, válido por construcción y además un prefijo real (Claro).
+- **Y la parte que evita que vuelva:** `telefonos.spec.ts` genera 100 casos y los valida contra la
+  expresión, **y además compara su copia de la regla contra el archivo real del front**, avisando si
+  derivan. El harness es otro repo y no puede importar de `@creditop/*`, así que la copia era inevitable;
+  lo que no era inevitable es que envejeciera en silencio. ⚠ Si el front se vuelve MÁS estricto y nadie
+  lo nota acá, las corridas vuelven a morir en la primera pantalla por una razón que no es del producto.

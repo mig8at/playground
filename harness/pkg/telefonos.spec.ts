@@ -7,6 +7,15 @@
 // tenía una prueba que lo dijera.
 import { expect, test } from '@playwright/test';
 import { FORMA_DEL_CELULAR, telefonoDelCodeudor, telefonoSintetico } from './telefonos.ts';
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+/** La regla del FRONT. Es una copia — el harness es otro repo y no puede importar de `@creditop/*` —,
+ *  así que más abajo hay un caso que la compara contra el archivo real y avisa si derivó. */
+const COLOMBIAN_PHONE_REGEX = /^3[0-5][0-9]{8}$/;
+const FUENTE_DE_LA_REGLA = join(
+      homedir(), 'Desktop/CREDITOP/github/frontend-monorepo/packages/shared/utils/src/phone/config.ts');
 
 const BASE = 1_094_719_876;
 
@@ -75,5 +84,54 @@ test.describe('el teléfono del codeudor', () => {
             expect(codeudor).toHaveLength(titular.length);
             expect(codeudor).toBe(telefonoDelCodeudor(titular));
             expect(codeudor.endsWith('99')).toBe(true);
+      });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// El número generado tiene que pasar la validación DEL FRONT, no sólo parecerse a un móvil.
+//
+// El caso que lo motivó (2026-09-18): con el prefijo en `3`, el segundo dígito salía de la base de la
+// corrida y podía caer entre 6 y 9 — `3609420000`—. El front valida `^3[0-5][0-9]{8}$`, así que lo
+// rechazaba y el canal de asesor moría en la PRIMERA pantalla con «Ingresa un número de teléfono
+// colombiano válido». Y como depende de la base, fallaba unas corridas sí y otras no: el peor modo,
+// porque se lee como un problema del producto y no se reproduce cuando lo vas a mirar.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+test.describe('el móvil colombiano pasa la validación del front', () => {
+      // 🔴 Contra la expresión REAL del front, reexportada por `telefonos.ts` — no contra una copia. Una
+      // copia se queda vieja el día que el front acepte un prefijo nuevo, y este test diría que sí.
+      test('cien casos seguidos, todos válidos', () => {
+            for (let i = 0; i < 100; i++) {
+                  const tel = telefonoSintetico('COL', i, 1095360942);
+                  expect(tel, `caso ${i}`).toMatch(COLOMBIAN_PHONE_REGEX);
+            }
+      });
+
+      // 🔴 El que rompió: una base cuyos dígitos empujaban el segundo carácter fuera de 0-5.
+      test('la base de la corrida no puede sacar el segundo dígito de rango', () => {
+            for (const base of [1095360942, 1099999999, 1096666666, 1098888888]) {
+                  expect(telefonoSintetico('COL', 7, base)).toMatch(COLOMBIAN_PHONE_REGEX);
+            }
+      });
+
+      // 🔴 Y sigue habiendo uno distinto por caso, que es la condición para correr en paralelo.
+      test('cada caso mantiene su número propio', () => {
+            const cien = new Set(Array.from({ length: 100 }, (_, i) => telefonoSintetico('COL', i, 1095360942)));
+
+            expect(cien.size).toBe(100);
+      });
+
+      // 🔴 EL caso que evita que esta copia envejezca en silencio. Si el front acepta un prefijo nuevo y
+      // acá no nos enteramos, el generador va a seguir produciendo números válidos —no rompe— pero
+      // vamos a estar probando un subconjunto sin saberlo. Y al revés es peor: si el front se vuelve
+      // MÁS estricto, las corridas empiezan a morir en la primera pantalla por una razón que no es del
+      // producto, que es exactamente lo que acaba de pasar.
+      test('la copia de la regla sigue igual a la del front', () => {
+            test.skip(!existsSync(FUENTE_DE_LA_REGLA), `no está el monorepo en ${FUENTE_DE_LA_REGLA}`);
+
+            const fuente = readFileSync(FUENTE_DE_LA_REGLA, 'utf8');
+            const declarada = /COLOMBIAN_PHONE_REGEX\s*=\s*(\/[^\n;]+\/)/.exec(fuente)?.[1];
+
+            expect(declarada, 'no encontré COLOMBIAN_PHONE_REGEX en el archivo del front').toBeTruthy();
+            expect(declarada).toBe(String(COLOMBIAN_PHONE_REGEX));
       });
 });

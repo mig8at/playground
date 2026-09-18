@@ -28,7 +28,14 @@ const { query } = await import('./db.ts');
  * tiene que tocar esta tabla. El `prefijo`, en cambio, no está en ninguna columna: eso sí vive acá.
  */
 export const FORMA_DEL_CELULAR: Record<string, { prefijo: string; largo: number }> = {
-    COL: { prefijo: '3', largo: 10 },
+    // ⚠ '31' Y NO '3': el front valida con `COLOMBIAN_PHONE_REGEX = /^3[0-5][0-9]{8}$/`, o sea que el
+    // SEGUNDO dígito tiene que ser 0-5. Con el prefijo en '3' ese dígito salía de la base de la corrida
+    // y podía caer 6-9: el número se veía perfectamente colombiano, la corrida moría en la PRIMERA
+    // pantalla con «Ingresa un número de teléfono colombiano válido», y como depende de la base, fallaba
+    // unas corridas sí y otras no. Medido el 2026-09-18: `3609420000` mató el canal de asesor entero.
+    // `31` es además un prefijo real (Claro). La regla la fija `telefonos.spec.ts` contra la MISMA
+    // expresión del front, que este archivo ya reexporta.
+    COL: { prefijo: '31', largo: 10 },
     DOM: { prefijo: '809', largo: 10 },   // 809/829/849 — ver el encabezado: el área ES el país
     PER: { prefijo: '9', largo: 9 },
 };
