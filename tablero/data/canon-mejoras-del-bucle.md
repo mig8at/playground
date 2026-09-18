@@ -105,9 +105,17 @@ oración—: la palanca de densidad mueve la respuesta cuando el modelo **parafr
 (vacío de verdad 30,9 → 22,2; motai 28,6 → 15,4) y no cuando la **reestructura** (preaprobado). La sección
 legible vale igual para quien la lee sin modelo, pero el efecto sobre la respuesta no es automático.
 
-**El próximo paso es:** decidir con Miguel si la receta sigue por `datos` «Hay dos filas de unión» (29,0) y
-`credifamilia` «No aparece en el listado, primero mirá qué puerta» (30,0), o si primero se revisa y mergea
-#236, que ya lleva la matriz y cinco correcciones medidas.
+**Datos y credifamilia cerraron la serie, y #236 se mergeó** (18/9 a la mañana, siete correcciones del
+corpus más la matriz de triaje). Las dos secciones quedaron legibles con los mismos hechos (29,0 → 18,2 y
+30,0 → 21,2), y la respuesta: datos 27,9 → 25,2 (en tabla, baja poco); credifamilia 16,2 → 20,1 (sin
+mejora: el modelo ya la reestructuraba solo). **Balance de la receta sobre cinco secciones: dos movieron la
+respuesta (vacío de verdad, motai), tres no.** La palanca sirve cuando el modelo parafrasea de cerca; la
+legibilidad de la sección vale igual para la Sala y para quien lee sin modelo. Trece corridas simuladas
+con Sonnet 5 local, todas las citas comprobadas a mano.
+
+**El próximo paso es:** comprobar con la sonda gratis que #236 llegue a prod — si no llega, es la
+segunda vez en un día (#235 sigue sin llegar) y hay que mirar el servicio `canon` en ECS
+(`internal-tools`, task def 177 registrada y tasks en 176) antes de seguir mergeando.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -395,6 +403,9 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **Datos y credifamilia, y el balance de la receta.** Dos secciones más legibles (29,0 → 18,2; 30,0 →
+  21,2); la respuesta bajó poco en datos (tabla) y nada en credifamilia (ya venía a 16,2). Sobre cinco
+  secciones: dos movieron la respuesta, tres no. #236 mergeado con siete correcciones y la matriz.
 - **Preaprobado con la receta, y el primer caso en que la respuesta NO baja.** Sección de 35,6 a 20,5
   por oración; la respuesta, de 20,9 a 21,6 — ya venía en viñetas propias del modelo. La palanca mueve la
   respuesta cuando el modelo parafrasea de cerca, no cuando reestructura. Con la métrica corregida (una
