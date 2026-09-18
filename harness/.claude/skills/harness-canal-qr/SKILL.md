@@ -101,6 +101,25 @@ Y en el `.env` del **backend** (eso no lo hace el harness):
 **Consumo, 10 pasos.** Mismo esqueleto y **dos pantallas propias** que BNPL no tiene, así que "es lo
 mismo con otro convenio" es **falso**: `consumo/loan-summary-review` y `consumo/personal-info`.
 
+⚠ **Y Consumo tiene una TERCERA rama que ningún runner entraba, de 14 pasos.** Cuando la compuerta del
+banco contesta **`Pending`** y todavía no corrió `enable_offers`
+(`BancolombiaLoanController.php:349` → `response_in_front = true`), `loan-info` no sigue de largo: salta a
+**`consumo/terms`** → **`consumo/loan-offer-evaluation`** (son DOS pasos: ingresos, y después «Completa tu
+registro») → **`consumo/credit-approved`** → y recién ahí vuelve a `loan-info`. Las cuatro se ven con:
+
+    E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto consumo --escenario '{"producto":"pendiente"}' --max 24
+
+⚠ **Mirá las capturas, no el conteo de pasos.** El caminador guarda una por pantalla en
+`.runs/caminar-<producto>/NN-<pantalla>.png`. Que el recorrido diga «14 pantallas» sólo prueba que
+cargan — F-227 vivió dos meses en la única que se capturaba.
+
+⚠ **Lo que salta a la vista al mirarlas, y es pregunta para producto/riesgo, no un bug:** en el segundo
+paso de `loan-offer-evaluation` los campos marcados obligatorios (`*`) **vienen pre-respondidos y el
+formulario nace válido** — `civilStatus: "006"` y `residenceType: "VIV_01"` son «No informa»,
+`peopleInCharge: 0`, y `occupation: "OCP_01"` es **«Empleado»**, que junto a «Tiempo en el empleo: 0
+meses» arma una declaración incoherente que la pantalla acepta (`PersonalStep.tsx:31-39`). O sea que el
+camino de menor resistencia manda el formulario de riesgo sin que el cliente conteste nada.
+
 - **`processing` no tiene botón: es pantalla de espera.** POSTea la originación y navega sola. Un
   caminador que busque el botón primario se rinde ahí y parece un muro cuando ya está cerrando.
 - **`bnpl/business-error` es exclusiva de ecommerce**: solo se navega desde `bnpl/redirect.tsx:91`
