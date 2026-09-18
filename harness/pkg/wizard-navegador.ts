@@ -82,6 +82,23 @@ export type Evidencia = { consola: string[]; red: string[] };
  * sólo vacía el atributo `nonce` cuando hay una CSP entregada por cabecera; y el cliente renderiza
  * `nonce=""` porque `useNonce()` no tiene proveedor fuera del servidor. Desplegado no pasa.
  */
+/**
+ * Bloquea las herramientas de DEPURACIÓN que el front carga sólo en dev.
+ *
+ * ⚠ NO ES COSMÉTICO: `react-scan` monta un `<div id="react-scan-root">` que cubre el viewport y
+ * **INTERCEPTA LOS CLICKS**. Medido el 2026-09-18 en `entidad/simulador` con viewport de 420×900: el
+ * botón estaba visible, habilitado y estable, y Playwright reintentó 15 veces hasta el timeout con
+ * «<div id="react-scan-root"></div> intercepts pointer events». A ancho de escritorio el mismo click
+ * funcionaba, así que parecía un defecto de MÓVIL del producto — y no lo era.
+ *
+ * Y el argumento de fondo: `entry.client.tsx` lo inyecta bajo `import.meta.env.DEV`, o sea que **en
+ * producción ese script no existe**. Caminar con él cargado es probar una pantalla que ningún cliente
+ * ve. Bloquearlo no es hacerle trampa al test: es acercarlo a lo real.
+ */
+export async function bloquearHerramientasDeDev(page: Page): Promise<void> {
+    await page.route(/react-scan|react-grab/, (ruta) => ruta.abort()).catch(() => {});
+}
+
 export function esRuidoDeLocal(mensajeCompleto: string): boolean {
     if (/hydrat/i.test(mensajeCompleto)) return /nonce/.test(mensajeCompleto);
     return /React DevTools|PostHog|Lit is in dev|react-scan|react-grab|Download the React|Select is changing|ws\.credito|WebSocket connection|ERR_NAME_NOT_RESOLVED|ERR_FAILED|favicon/i
@@ -126,6 +143,7 @@ export async function abrirContexto(browser: Browser, baseURL: string, opts: { t
     // falla (quien llama decide en `cerrarContexto`).
     if (opts.traza) await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }).catch(() => {});
     const page = await ctx.newPage();
+    await bloquearHerramientasDeDev(page);
 
     // ⚠ ESTO FALTABA Y SE NOTÓ EN LA PRIMERA CORRIDA REAL (2026-09-03): el caminador reportó «Error al
     // cargar los documentos» —un muro que el motor HTTP no ve— y no pudo decir POR QUÉ, porque no
@@ -227,7 +245,7 @@ export async function elegirEntidad(page: Page, nombre: string): Promise<{ ok: b
  *  está enviando el botón queda deshabilitado, así que un caminador que mira una sola vez concluye
  *  «sin botón para avanzar» sobre una pantalla que está funcionando. Y si tras el reintento sigue sin
  *  haberlo, devuelve los MENSAJES DE VALIDACIÓN, que es lo que dice qué campo falta. */
-export async function avanzar(page: Page, d: DatosWizard, hoja = ''): Promise<{ ok: boolean; hechos: string[]; boton?: string; candidatos?: string[]; errores?: string[] }> {
+export async function avanzar(page: Page, d: DatosWizard, hoja = ''): Promise<{ ok: boolean; hechos: string[]; boton?: string; candidatos?: string[]; errores?: string[]; motivo?: string }> {
     // `preferirRadio: /^no$/i` — la pregunta de «confirmación de cupo» se contesta NO, que es el flujo
     // estándar y lo mismo que manda el motor HTTP (`confirmQuota: 'no'`). Contestar «Sí» sería probar otro
     // flujo sin haberlo pedido: firma `already-confirmed-pre-approval`, salta el buró y recorta el listado.
@@ -242,7 +260,7 @@ export async function avanzar(page: Page, d: DatosWizard, hoja = ''): Promise<{ 
         av = await clickearAvanzar(page);
     }
     if (av.ok) return { ok: true, hechos, boton: av.nombre };
-    return { ok: false, hechos, candidatos: av.candidatos, errores: await erroresDeValidacion(page).catch(() => []) };
+    return { ok: false, hechos, candidatos: av.candidatos, motivo: av.motivo, errores: await erroresDeValidacion(page).catch(() => []) };
 }
 
 /** Espera a que la pantalla cambie después de un click. Devuelve la URL nueva, o null si no se movió

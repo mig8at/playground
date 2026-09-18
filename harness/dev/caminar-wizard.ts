@@ -776,7 +776,9 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
         const av = await avanzar(page, { tel, doc, amount: AMOUNT, income: INCOME }, hoja);
         if (av.hechos.length) log(`   ▸ autorrelleno: ${av.hechos.join(' · ')}`);
         if (!av.ok) {
-            return terminar('trabado', `${hoja}: sin botón habilitado para avanzar`
+            // Un click que falló NO es «sin botón habilitado»: el botón estaba y era el correcto.
+            // Decirlo distinto es la diferencia entre depurar el harness y depurar el producto.
+            return terminar('trabado', `${hoja}: ${av.motivo ?? 'sin botón habilitado para avanzar'}`
                 + (av.errores?.length ? ` · lo que dice la pantalla: ${av.errores.slice(0, 4).join(' | ')}` : '')
                 + (av.candidatos?.length ? ` · botones: ${av.candidatos.slice(0, 6).join(' · ')}` : ' · ningún botón de avance en la pantalla'));
         }

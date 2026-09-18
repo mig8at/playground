@@ -23,7 +23,7 @@ import { chromium, type Page } from '@playwright/test';
 import { mkdirSync } from 'node:fs';
 import { qrEntryUrl, corbetaBranch, sucursalUsable } from '../pkg/qr.ts';
 import { autorrellenarQr } from '../pkg/qr-steps.ts';
-import { esRuidoDeLocal } from '../pkg/wizard-navegador.ts';
+import { bloquearHerramientasDeDev, esRuidoDeLocal } from '../pkg/wizard-navegador.ts';
 import { scrubphone } from '../pkg/asesor.ts';
 import { close } from '../pkg/db.ts';
 import { latestUserRequestId } from '../pkg/inject.ts';
@@ -93,6 +93,8 @@ console.log(`  scrub ${TEL}: ${JSON.stringify(await scrubphone(TEL))}`);
 
 const browser = await chromium.launch({ headless: !flag('headed') });
 const page = await browser.newPage();
+// El overlay de `react-scan` intercepta clicks en viewport angosto — ver `bloquearHerramientasDeDev`.
+await bloquearHerramientasDeDev(page);
 const puesto = { url: '' };
 const errores: string[] = [];
 page.on('pageerror', (e) => errores.push(e.message.slice(0, 140)));

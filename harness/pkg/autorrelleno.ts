@@ -334,7 +334,7 @@ export const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|
  * moría por timeout con el nombre ya leído — parecía un muro de la pantalla cuando era el caminador
  * eligiendo mal. Devuelve el nombre del botón clickeado, o los candidatos que encontró si ninguno servía.
  */
-export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ ok: true; nombre: string } | { ok: false; candidatos: string[] }> {
+export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ ok: true; nombre: string } | { ok: false; candidatos: string[]; motivo?: string }> {
     const cand = page.getByRole('button', { name: patron });
     const n = await cand.count().catch(() => 0);
     for (let i = 0; i < n; i++) {
@@ -342,7 +342,23 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.isEnabled().catch(() => false))) continue;
         const nombre = ((await c.textContent().catch(() => '')) ?? '').trim();
-        await c.click({ timeout: 15_000 }).catch(() => {});
+        /* ⚠ EL CLICK NO PUEDE FALLAR EN SILENCIO. Acá había `.catch(() => {})` y un `ok: true` fijo
+         * debajo: si el click se caía por timeout —el botón tapado, la pantalla repintándose, un
+         * overlay— la función contestaba que TODO BIEN y con el nombre del botón puesto. El caminador
+         * imprimía `↳ click «X»` sin haber clickeado nada, y el síntoma quedaba en «la pantalla no
+         * avanza», que manda a buscar un bug del producto.
+         *
+         * Medido el 2026-09-18 en `entidad/simulador` del vehicular de BCP: cuatro «clicks» seguidos en
+         * el log, ninguno real, 480 s hasta el tope — y el botón, clickeado a mano en un navegador,
+         * navegaba a la primera. Es F-03 otra vez: el `.catch` vacío en el paso que da sentido a la
+         * corrida. */
+        const falla = await c.click({ timeout: 15_000 }).then(() => null)
+            // 300 y no 110: cuando Playwright no puede clickear, el dato que sirve —«<div …> intercepts
+            // pointer events», «element is not stable»— viene DESPUÉS de «Timeout exceeded», así que
+            // recortar corto deja el síntoma sin la causa. Es el mismo error que ya se cometió con los
+            // mensajes de consola.
+            .catch((e) => String(e?.message ?? e).replace(/\s+/g, ' ').slice(0, 300));
+        if (falla) return { ok: false, candidatos: [nombre], motivo: `el click sobre «${nombre}» falló: ${falla}` };
         return { ok: true, nombre };
     }
     // ⚠ CUANDO NO MATCHEA NADA, LOS BOTONES DE LA PANTALLA — no los que pasaron el patrón, que por

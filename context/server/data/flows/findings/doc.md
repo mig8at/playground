@@ -83,6 +83,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la pantalla no tiene botón para seguir» · «No routes matched» en una ruta de un proveedor** | **F-230** |
 | **«el harness falla unas veces sí y otras no» · «dice que el teléfono no es válido y lo es»** | **F-231** |
 | **«esa pantalla está en blanco y no se puede hacer nada»** | **F-232** |
+| **«el botón no hace nada, y sólo en móvil»** · **«el caminador dice que clickeó y no pasó nada»** | **F-233** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -393,6 +394,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickearAvanzar`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
 | F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
 | F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
 | F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
@@ -5773,3 +5775,41 @@ regla «por un rato», vale más dejar el ruido.
   anduvo» y «se cayó a la URL pelada» dejan de verse igual.
 - **Lo que NO se tocó:** el comentario del front. Vive en `frontend-monorepo` y corregirlo es un cambio
   aparte — pero mientras siga ahí, va a seguir convenciendo a quien lo lea.
+\n
+### F-233 · El botón que «no funciona en móvil» era el overlay de una herramienta de dev — y el caminador mentía
+
+- **Síntoma:** el paso `entidad/simulador` del vehicular de BCP no avanza. El caminador imprime
+  `↳ click «Completar datos y continuar»` **cuatro veces** y se queda ahí hasta el tope de 480 s. Clickeado
+  a mano en un navegador ancho, el mismo botón navega a la primera. La lectura obvia —y equivocada— es
+  «el botón está roto en móvil».
+- **Dos causas apiladas, y la primera es del harness:**
+
+  **1 · El caminador decía haber clickeado sin clickear.** `clickearAvanzar` hacía
+  `await c.click(...).catch(() => {})` y devolvía `{ ok: true, nombre }` **fijo**, así que un click caído
+  por timeout se reportaba como éxito, con el nombre del botón puesto. Es **F-03** otra vez: el `.catch`
+  vacío justo en el paso que le da sentido a la corrida. Mientras eso estuvo así, el síntoma visible era
+  «la pantalla no avanza» — que manda a depurar el producto.
+
+  **2 · Lo que de verdad bloqueaba:** `react-scan`. Con el click ya reportando su motivo, Playwright lo
+  dijo entero:
+
+      - element is visible, enabled and stable
+      - scrolling into view if needed
+      - <div id="react-scan-root"></div> intercepts pointer events
+
+  `entry.client.tsx` inyecta `react-scan` bajo `import.meta.env.DEV`, sin bandera para apagarlo. Su root
+  cubre el viewport y se come el click cuando la pantalla es angosta.
+- **Evidencia (2026-09-18):** experimento controlado sobre la MISMA solicitud (466831) cambiando sólo el
+  ancho — a ancho de escritorio el click navega a `entidad/resultado`; a **420×900** no pasa nada, sin
+  ninguna excepción en consola. Reproducido en dos herramientas independientes (el caminador con
+  Playwright y el navegador del panel).
+- **Arreglo:** `bloquearHerramientasDeDev()` aborta las peticiones a `react-scan`/`react-grab` en los dos
+  caminadores. **No es hacerle trampa al test: es acercarlo a lo real** — en producción ese script no se
+  carga, así que caminar con él era probar una pantalla que ningún cliente ve. Y `clickearAvanzar` pasa a
+  devolver `ok: false` con el motivo, así que un click que falla ya no se disfraza de pantalla trabada.
+- **Comprobado:** con las dos cosas, el recorrido pasa el simulador y llega a `entidad/resultado`.
+
+⚠ **Lo que esto obliga a revisar hacia atrás:** cualquier «pantalla trabada» reportada antes del
+2026-09-18 por un caminador con navegador es sospechosa. El overlay tapa según dónde caiga el botón, así
+que el mismo flujo podía trabarse en una pantalla y no en otra, y el log afirmaba haber clickeado en las
+dos. **No se sabe cuántos diagnósticos viejos eran esto.**
