@@ -40,7 +40,9 @@ abiertas, **12 están enteras en `main`** y 18 no se pueden medir porque no decl
 **Al 18/9 el mismo criterio salió del tablero y llegó a las herramientas que lo alimentan:** el
 trazador ahora cierra cada corrida con el comando que la reproduce (`↻ make trazador-… TARGET=…`) y
 con `MD=1` emite directamente la anotación fechada que la pestaña Hallazgos consume. Y las **dos
-forenses se nombran entre ellas** (`↔`), con el target puesto porque sus defaults son opuestos. Antes eso se
+forenses se nombran entre ellas** (`↔`), con el target puesto porque sus defaults son opuestos.
+El lazo cierra en el panel: **Hallazgos ahora muestra con QUÉ se comprobó cada uno** —y, sobre todo,
+cuántos **no traen con qué**—, derivado del `Cómo` sin que nadie mantenga una lista. Antes eso se
 escribía a mano en cada tarea, que es la misma clase de «depende de acordarse» que esta tarea vino a
 sacar. De paso aparecieron cuatro modos que vivían sólo en el binario y **TEL=**, que no estaba en el
 Makefile y sin el cual el timeline del navegador se ve por la mitad.
@@ -110,6 +112,32 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 > `make cierre DIA=2026-09-10`
 
 ## Registro
+
+### 2026-09-18 (3) · el panel dice con qué se concluyó cada hallazgo, y las tablas dejan de estirarse
+
+Dos pedidos de Miguel, y el primero cierra el lazo que venía armándose todo el día: las herramientas
+emiten el comando, las anotaciones lo guardan, y ahora **el panel lo lee**. El server deriva del `Cómo`
+dos cosas que no son la misma: **con qué** se comprobó (harness · trazador · SQL · Loki · PostHog · git
+· HTTP · navegador · receta) y **contra qué ambiente**, que se pinta distinto porque cambia cuánto pesa
+lo afirmado. Lo primero que se ve no son las herramientas sino el hueco: «5 de 16 dicen cómo volver a
+comprobarlos · 11 sin cómo».
+
+> **DECISIÓN · 2026-09-18** — el ambiente sale del **comando** (`TARGET=`) y nunca de la prosa. «En
+> producción son 14.160 checkouts» habla DE prod pero no se midió CONTRA prod, y confundirlo le daría
+> peso de producción a una medición que no lo tiene. Queda fijado con una prueba.
+
+⚠ **Y las etiquetas no se declaran, se derivan.** Un campo en el frontmatter sería otra lista que
+mantener a mano, y una lista a mano miente en silencio en cuanto alguien cambia el comando — el mismo
+criterio que ya usan los pendientes, las ramas y las anotaciones.
+
+**Lo segundo: las tablas del cuerpo dejaron de estirarse.** `display: block` las volvía block-level, así
+que una tabla de dos columnas cortas ocupaba los 771 px del panel con celdas enormes. Con
+`width: fit-content` las cortas caen a ~350 y las anchas siguen scrolleando. ⚠ Se probaron anchos
+mínimos y máximos por columna: las hacen **más altas** sin ganar nada, así que no entraron — medido, no
+opinado.
+
+⚠ **Para verlo con datos de verdad hay que reiniciar `npm run dev`**: el server corre con `go run` y el
+que está arriba es de las 11:05. Se verificó contra una instancia aparte, sin tocar la de Miguel.
 
 ### 2026-09-18 (2) · el cruce entre las dos forenses, y una etiqueta que no existe
 
