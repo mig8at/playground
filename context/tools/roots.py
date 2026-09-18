@@ -42,3 +42,88 @@ ROOTS = {
 EXTS = {".php", ".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue"}
 
 EXCLUDE = {"node_modules", "vendor", ".git", ".next", "coverage", ".turbo", ".idea", ".vscode"}
+
+
+# ─── QUÉ REF SE INDEXA, Y POR QUÉ NO ALCANZA CON DECIR «main» ───────────────────────────────────────
+#
+# Todo el índice de `workers/` se deriva de `main` — así lo anuncia el CLAUDE.md del repo— y hasta hoy
+# eso significaba el `main` LOCAL de cada clon, que nadie actualiza al indexar. Medido el 2026-09-18:
+# `legacy-backend` estaba **14 commits detrás** de `origin/main`, así que `logs.json` (y con él la
+# resolución mensaje→archivo del trazador) describía un código de hace días. No falla: devuelve menos
+# mensajes, y «menos» se lee igual que «no existe».
+#
+# ⚠ PERO «usar siempre origin/main» ES IGUAL DE FALSO, y los datos lo muestran: `harness` y `trazador`
+# son subdirectorios de **playground**, cuyo `origin/main` va DETRÁS del local a propósito —el push lo
+# decide Miguel—. Medido el mismo día: playground estaba +5 commits sobre su origin. Indexar `origin/main`
+# ahí borraría del índice el trabajo del día.
+#
+# La regla que sirve para los dos casos es la relación, no el nombre: **se indexa la ref que CONTIENE a
+# la otra**. Si el local es ancestro del remoto, el remoto trae todo lo del local y más; si no lo es
+# —porque el local está adelante o porque divergieron— manda el local, que es lo que la persona ve.
+import concurrent.futures
+import subprocess
+
+
+def _git(root, *args, timeout=30):
+    try:
+        r = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True, timeout=timeout)
+        return r.returncode, r.stdout.strip()
+    except (subprocess.TimeoutExpired, OSError):
+        return 1, ""
+
+
+def refrescar_remotos(roots=None, timeout=30, verboso=False):
+    """`git fetch` de cada repo, EN PARALELO. Devuelve los alias que fallaron.
+
+    Es de solo lectura: actualiza las refs remotas y no toca ni el working tree ni ninguna rama local,
+    así que es seguro con ramas y stashes en curso. En serie son ~2 s por repo (medido) y con doce eso
+    son veinte segundos de espera; en paralelo es el más lento de todos.
+
+    ⚠ Un fetch que falla NO rompe nada: se sigue con lo que haya en disco y se devuelve el alias para
+    que quien llame lo pueda decir. Un índice construido sin red es legítimo; uno construido sin red y
+    presentado como al día, no.
+    """
+    roots = roots or ROOTS
+    reales = {a: r for a, r in roots.items() if os.path.isdir(os.path.join(r, ".git"))}
+    fallaron = []
+    if not reales:
+        return fallaron
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        futs = {ex.submit(_git, r, "fetch", "--quiet", "origin", timeout=timeout): a
+                for a, r in reales.items()}
+        for f in concurrent.futures.as_completed(futs):
+            alias = futs[f]
+            code, _ = f.result()
+            if code != 0:
+                fallaron.append(alias)
+    if verboso and fallaron:
+        print(f"  ⚠ no se pudo actualizar: {', '.join(sorted(fallaron))} — se indexa lo que hay en disco")
+    return fallaron
+
+
+def ref_a_indexar(root, rama="main"):
+    """La ref de git que hay que recorrer: la que CONTIENE a la otra (ver la nota de arriba).
+
+    Devuelve `(ref, motivo)`. El motivo existe para poder imprimirlo: un índice que no dice de qué ref
+    salió no se puede contrastar con nada.
+    """
+    remoto = f"origin/{rama}"
+    hay_local = _git(root, "rev-parse", "--verify", "--quiet", rama)[0] == 0
+    hay_remoto = _git(root, "rev-parse", "--verify", "--quiet", remoto)[0] == 0
+
+    if not hay_local and not hay_remoto:
+        return None, f"no existe ni {rama} ni {remoto}"
+    if not hay_remoto:
+        return rama, "sin remoto"
+    if not hay_local:
+        return remoto, "sin rama local"
+
+    # ¿El local está contenido en el remoto? Entonces el remoto trae todo y más.
+    if _git(root, "merge-base", "--is-ancestor", rama, remoto)[0] == 0:
+        n = _git(root, "rev-list", "--count", f"{rama}..{remoto}")[1] or "0"
+        return remoto, ("al día" if n == "0" else f"el local va {n} detrás")
+    n = _git(root, "rev-list", "--count", f"{remoto}..{rama}")[1] or "0"
+    atras = _git(root, "rev-list", "--count", f"{rama}..{remoto}")[1] or "0"
+    if atras != "0":
+        return rama, f"DIVERGEN (local +{n} / remoto +{atras}) — se indexa el local"
+    return rama, f"el local va {n} adelante"

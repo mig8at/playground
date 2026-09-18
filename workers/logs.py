@@ -27,7 +27,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI.parent / "context" / "tools"))
-from roots import ROOTS  # noqa: E402
+from roots import ROOTS, ref_a_indexar, refrescar_remotos  # noqa: E402
 import extraer as _extraer  # noqa: E402
 
 MAPA = AQUI / "logs.json"
@@ -60,9 +60,32 @@ def _normalizar(m):
     return " ".join(m.split()).rstrip(" :.-,")
 
 
-def construir(verboso=True):
-    """Recorre `main` de cada repo y saca todos los mensajes de log con su archivo."""
+def construir(verboso=True, fetch=True):
+    """Recorre `main` de cada repo y saca todos los mensajes de log con su archivo.
+
+    ⚠ ACTUALIZA LAS REFS REMOTAS ANTES DE RECORRER, y no es una comodidad. Hasta el 2026-09-18 esto
+    indexaba el `main` LOCAL de cada clon, que nadie actualiza al construir el índice: medido ese día,
+    **cinco de los diez repos estaban detrás** —`application` 22 commits, `financial-health-service` 21,
+    `legacy-backend` 20, `frontend-monorepo` 11, `customer-service` 10— así que el índice describía un
+    código de días atrás. Y no falla: devuelve MENOS mensajes, y «menos» se lee igual que «no existe».
+    Lo caro es dónde se nota: el trazador resuelve mensaje→archivo con este mapa en CADA traza.
+
+    El `git fetch` es de solo lectura (no toca working tree ni ramas locales), va en paralelo y cuesta
+    ~4 s para los doce. Con `fetch=False` se salta, para construir sin red — pero entonces el resumen lo
+    dice, porque un índice viejo presentado como al día es peor que no tenerlo.
+
+    Qué ref se recorre lo decide `ref_a_indexar`: la que CONTIENE a la otra. No es siempre `origin/main`
+    —`harness` y `trazador` viven en playground, que va ADELANTE de su origin a propósito— ni siempre la
+    local. Ver la nota en `context/tools/roots.py`.
+    """
     mapa = {}
+    if fetch:
+        fallaron = refrescar_remotos(verboso=verboso)
+        if verboso and not fallaron:
+            print("  refs remotas actualizadas")
+    elif verboso:
+        print("  ⚠ sin actualizar refs (fetch=False): se indexa lo que hay en disco")
+    refs = {}
     for alias, root in ROOTS.items():
         # ⚠ `-i`, y costó encontrarlo. El prefiltro de git grep era case-SENSITIVE mientras los
         # patrones de Python usan `re.I`, o sea que el filtro rápido era MÁS ESTRICTO que el matcher
@@ -72,8 +95,14 @@ def construir(verboso=True):
         # el resultado se ve completo y le falta la mitad.
         # ⚠ `-e` antes del patrón, y NO es opcional: el patrón empieza con `-` (`->log(`) y sin `-e`
         # git lo toma como bandera —«unknown switch `>`»— y sale con 129.
+        ref, motivo = ref_a_indexar(root)
+        if ref is None:
+            if verboso:
+                print(f"  ⚠ {alias}: {motivo} — queda FUERA del índice", file=sys.stderr)
+            continue
+        refs[alias] = (ref, motivo)
         r = subprocess.run(["git", "-C", root, "grep", "-n", "--no-color", "-I", "-i", "-E",
-                            "-e", r"->log\(|Log::|logger\(\)->|logger\.|slog\.", "main"],
+                            "-e", r"->log\(|Log::|logger\(\)->|logger\.|slog\.", ref],
                            capture_output=True, text=True, timeout=300)
         # ⚠ Y un fallo del grep se REPORTA. Antes era `continue` a secas: el repo entero quedaba
         # fuera del mapa sin una línea de aviso, y el resultado —«0 mensajes»— se leía como «este
@@ -85,7 +114,7 @@ def construir(verboso=True):
             continue
         n = 0
         for linea in r.stdout.splitlines():
-            sin = linea.replace("main:", "", 1)
+            sin = linea.replace(f"{ref}:", "", 1)
             ruta, _, resto = sin.partition(":")
             num, _, texto = resto.partition(":")
             if "/vendor/" in ruta or "/node_modules/" in ruta:
@@ -99,7 +128,7 @@ def construir(verboso=True):
                                                    "es_test": "test" in ruta.lower()})
                     n += 1
         if verboso and n:
-            print(f"  {alias:24} {n:5} mensajes")
+            print(f"  {alias:24} {n:5} mensajes   {ref} ({motivo})")
     # El `h` se calcula una vez acá y no en cada consulta: es el identificador con el que responde
     # todo el resto del sistema.
     for k, v in mapa.items():
