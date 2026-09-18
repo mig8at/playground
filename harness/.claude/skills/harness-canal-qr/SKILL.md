@@ -311,6 +311,14 @@ la venta que cierra en CAJA. Los otros tres están en `.flows.json` por nombre (
 - `channel/qr-corbeta-purchase-code.spec.ts` — **7 casos**: emisión, idempotencia, ya-facturada, los 3
   guards, proveedor caído. Es el registro del comportamiento **observado**, no un oráculo de corrección.
 - `channel/qr-corbeta-pantallas.spec.ts` — 3 casos, incluido el contrato del autorrelleno.
+- `channel/qr-purchase-code-vencimiento.spec.ts` — **2 casos** (BNPL y Consumo): el contador de la
+  pantalla del código y la fecha que anuncia tienen que decir lo mismo. Es el guardián de **F-227**.
+  ⚠ **HOY FALLA a propósito** contra `main` y `qa`: el arreglo está en
+  `Creditop-SAS/frontend-monorepo#1028`, sin mergear. No se saltea — un caso que se saltea se lee como
+  verde. ⚠ Y **atrasa el reloj del navegador 24 h**, sin lo cual sería verde mentiroso: el plazo lo
+  calcula el servidor y la etiqueta el cliente, así que el defecto sólo aparece cuando caen en días
+  distintos de Bogotá (entre 20:30 y 23:59, el 15 % del día). Medido: la primera versión, corrida a las
+  07:14, pasó contra el front CON el bug.
 - `channel/qr-bancolombia-gateway.spec.ts` — **18 casos**: la seguridad del gateway del *billing code*
   tal como la midió el sandbox. Es **puro** (levanta el mock en su propio puerto, sin BD ni navegador,
   680 ms) y su último caso fija una **divergencia deliberada**: `retrieve-order-details` contesta el 404
