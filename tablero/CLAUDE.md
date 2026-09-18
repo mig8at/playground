@@ -4,8 +4,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 
 ## Plantilla por pestaña
 
-El orden fijo es **Trabajo · Jira · Pendientes · Hallazgos · Ramas · Bitácora**. Los números son
-contadores calculados por el tablero, nunca parte del nombre. Cada dato tiene una fuente; las pestañas
+El orden fijo es **Trabajo · Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora**. Los números
+son contadores calculados por el tablero, nunca parte del nombre. Cada dato tiene una fuente; las pestañas
 son vistas de esas fuentes. Al crear una tarea, copiá `PLANTILLA-TAREA.md`; al retomar una abierta,
 actualizá sus secciones existentes. No agregues una segunda lista ni otro estado de la misma cosa.
 
@@ -16,6 +16,7 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 | Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
 | Hallazgos | ¿Qué sabemos, decidimos o debemos resolver? | Anotaciones fechadas del cuerpo privado |
 | Ramas | ¿Dónde está el cambio y hasta dónde llegó? | Patrón `ramas:` + medición de Git y PRs |
+| Registro | ¿Qué pasó cada día? | La sección `## Registro` del cuerpo privado |
 | Bitácora | ¿En qué se usó el tiempo? | Entradas de tiempo en `data/entries/` |
 
 ### Trabajo
@@ -25,9 +26,22 @@ líneas: **qué se busca → estado real → qué ya se comprobó → cómo veri
 `**El próximo paso es:**` y una acción concreta. Se reescribe con el estado de hoy.
 
 Después van objetivo, dónde se toca, plan, alternativas descartadas, límites, material de validación
-y referencias, en el orden de la plantilla. El `## Registro` conserva los hechos de cada día y se
-muestra plegado. En Trabajo no se repiten listas de pendientes ni anotaciones: el tablero las lleva
-a sus pestañas. Puede señalar un bloqueo o la siguiente acción, sin copiar todo su detalle.
+y referencias, en el orden de la plantilla. En Trabajo no se repiten listas de pendientes ni
+anotaciones: el tablero las lleva a sus pestañas. Puede señalar un bloqueo o la siguiente acción, sin
+copiar todo su detalle.
+
+⚠ **El `## Registro` ya no se muestra acá** (2026-09-18, a pedido de Miguel): contesta otra pregunta
+—qué pasó cada día, no dónde estoy— y en una tarea larga se come el resto. Medido sobre la #6: era el
+**45 %** del cuerpo. Vive en su pestaña, y en el archivo sigue exactamente donde estaba: lo que cambió
+es dónde se lee, no dónde se escribe.
+
+### Registro
+
+La sección `## Registro` del cuerpo, entera y sin plegar, con lo más nuevo arriba. El contador de la
+pestaña son los **días** que registra (un `###` por jornada), que es lo que dice de un vistazo si una
+tarea se trabajó una tarde o dos meses. Va pegada a Bitácora porque son parientes y se leen juntas:
+una cuenta **qué pasó** ese día y la otra **cuánto tiempo** llevó. Sigue siendo append-only — una
+entrada vieja no se edita.
 
 ### Jira
 
@@ -80,7 +94,7 @@ completo. `## Registro` cuenta qué pasó; Bitácora contabiliza el tiempo. No c
 el Markdown de una tarea nueva.
 
 **Prototipos** es una pestaña adicional sólo cuando existen artefactos; sigue la convención de
-`data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las seis pestañas principales.
+`data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las siete pestañas principales.
 
 ## Reglas de trabajo
 

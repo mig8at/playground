@@ -636,7 +636,15 @@ const resumenDe = (key) => {
 };
 
 const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
-const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml));
+// TRABAJO contesta «¿dónde estoy y cómo sigo?», así que el REGISTRO no vive acá: es la otra pregunta
+// —«¿qué pasó cada día?»— y en una tarea de dos meses se come el resto. Medido sobre la #6: 45% del
+// cuerpo. Desde el 2026-09-18 tiene su propia pestaña, al lado de Bitácora, que es su pariente: una
+// cuenta QUÉ pasó y la otra CUÁNTO tiempo llevó.
+const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml && !section.history));
+const historySections = computed(() => documentSections.value.filter(section => section.summaryHtml && section.history));
+// El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
+// si esto se trabajó una tarde o dos meses.
+const diasDeRegistro = computed(() => historySections.value.reduce((n, s) => n + (s.entries || 0), 0));
 const pendingSections = computed(() => documentSections.value.filter(section => section.pendingHtml));
 const jiraDocument = computed(() => jiraPreview(active.value));
 const indiceCuerpo = computed(() => summarySections.value.filter(section => section.title));
@@ -885,6 +893,9 @@ const taskTabs = computed(() => {
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
     { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
     { id: 'ramas', label: 'Ramas', count: ramasCuenta(key) },
+    // Registro va ANTES de Bitácora y pegado a ella a propósito: las dos son cronológicas y se leen
+    // juntas — qué pasó ese día, y cuánto tiempo llevó.
+    ...(historySections.value.length ? [{ id: 'registro', label: 'Registro', count: diasDeRegistro.value }] : []),
     { id: 'bitacora', label: 'Bitácora', count: ofActive.value.length },
     ...(protosDe(key).length ? [{ id: 'prototipos', label: 'Prototipos', count: protosDe(key).length }] : []),
   ];
@@ -1645,13 +1656,8 @@ onMounted(async () => {
           </nav>
 
           <div v-if="summarySections.length" class="desc cuerpo-md">
-            <template v-for="section in summarySections" :key="section.id">
-              <details v-if="section.history" :id="section.id" class="document-history">
-                <summary>{{ section.title }} <span>· historial de trabajo</span></summary>
-                <div v-html="section.summaryHtml"></div>
-              </details>
-              <section v-else :id="section.id" class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
-            </template>
+            <section v-for="section in summarySections" :key="section.id" :id="section.id"
+                     class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
           </div>
           <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
 
@@ -1779,6 +1785,15 @@ onMounted(async () => {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+      </div>
+      <div v-if="panelTab === 'registro'" class="task-tab-body">
+
+          <p class="empty">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
+          <div class="desc cuerpo-md">
+            <section v-for="section in historySections" :key="section.id" :id="section.id"
+                     class="document-section" v-html="section.summaryHtml"></section>
           </div>
 
       </div>

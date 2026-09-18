@@ -14,12 +14,13 @@ jira_title: ""
   ⚠ NO vive en `data/`: ahí todo `.md` se lee como una tarea, así que la plantilla aparecería en el
   tablero como una tarea fantasma.
 
-  Protocolo: CLAUDE.md → «Plantilla por pestaña». Las seis pestañas usan estas fuentes:
+  Protocolo: CLAUDE.md → «Plantilla por pestaña». Las siete pestañas usan estas fuentes:
     · TRABAJO    retoma, objetivo, plan, alternativas, límites, material y referencias.
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
     · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
     · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
+    · REGISTRO   la sección «Registro» de este archivo — ya NO se muestra dentro de Trabajo.
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
   Reescribí el estado y el plan; mantené el material reproducible. Los hechos de cada día se agregan

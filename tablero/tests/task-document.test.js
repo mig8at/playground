@@ -11,6 +11,16 @@ test('retoma, pendientes y decisiones preceden al material; historial al final',
   assert.match(sections.at(-1).html, /Detalle/);
 });
 
+test('el historial cuenta los DÍAS que registra, que es lo que muestra su pestaña', () => {
+  const sections = organizeDocument('## Objetivo\nPlan\n\n## Registro\n### 2026-09-18\nUno\n### 2026-09-17\nDos\n### 2026-09-16\nTres');
+  const hist = sections.find(s => s.history);
+  assert.equal(hist.entries, 3);
+  // Una sección que no es historial no aporta al contador de la pestaña.
+  assert.equal(sections.find(s => !s.history).entries, 0);
+  // Y un registro sin días partidos cuenta cero: la pestaña dice «0» en vez de inventar una entrada.
+  assert.equal(organizeDocument('## Registro\nTodo junto, sin fechas').find(s => s.history).entries, 0);
+});
+
 test('código y citas con encabezados permanecen en su sección; enlaces por referencia siguen funcionando', () => {
   const sections = organizeDocument('## Objetivo\n[Consulta][ref]\n\n~~~sh\n## Registro\necho ejemplo\n~~~\n\n> ## Pendientes\n> Una cita\n\n## Enlaces\n[ref]: https://example.com\n');
   assert.equal(sections.length, 2);
