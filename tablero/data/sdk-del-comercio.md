@@ -11,32 +11,96 @@ jira_title: "El SDK del comercio: el onboarding dentro de la tienda"
 
 # El SDK del comercio: el onboarding dentro de la tienda
 
-> **estado:** EXPLORACIÓN, no comprometida. Nada de esto está construido ni prometido.
->
-> **Si retomás esto sin contexto, empezá acá:** la pregunta es si el flujo de originación puede
-> SALIR de CreditOp y correr dentro de la página del comercio, para que el comprador no se vaya de
-> la tienda. Se evaluaron dos formas: el **iframe está muerto** (cuatro bloqueos independientes en
-> `main`, medidos) y el **SDK en el DOM del comercio sobrevive** — y se probó corriéndolo. Lo que
-> falta es una decisión de producto, no más investigación.
->
-> **El próximo paso es:** medir cuántos comercios ecommerce mapean el campo documento. Eso decide si
-> la experiencia sin fricción es real o sólo una demo.
+## Si retomás esto sin contexto, empezá acá
+
+**Estado:** EXPLORACIÓN, no comprometida. Nada de esto está construido ni prometido.
+
+La pregunta es si el flujo de originación puede SALIR de CreditOp y correr dentro de la página del
+comercio, para que el comprador no se vaya de la tienda. Se evaluaron dos formas: el **iframe está
+muerto** (cuatro bloqueos independientes en `main`, medidos) y el **SDK en el DOM del comercio
+sobrevive** — y se probó corriéndolo. Lo que falta es una decisión de producto, no más investigación.
+
+**El próximo paso es:** medir cuántos comercios ecommerce mapean el campo documento. Eso decide si la
+experiencia sin fricción es real o sólo una demo.
 
 ⚠ **NO es la migración del canal.** Aquella es la tarea **#6 · Ecommerce web stateless** (CORE-30):
 llevar el checkout de la tienda al wizard nuevo, con sus PRs abiertos. Esta explora una capa NUEVA
 encima. Se separaron el 2026-09-14 a pedido de Miguel, porque venían creciendo en el mismo archivo y
 son dos trabajos con dos horizontes distintos.
 
-## Lo que esta tarea HEREDA de la #6, y no repite
+## Lo que el comercio ya entrega, y cómo reacciona hoy el formulario
 
-- **Los seis campos que el comercio ya entrega** (`prefill`: email, phone, firstName, lastName,
-  documentNumber, documentType) y sus cuatro trampas — apellidos con el mapeo muerto, `document_type`
-  no mapeable, dirección y ciudad que viajan y se tiran, y el `'CC'` quemado en una de las dos puntas.
-- **Que esos seis cubren los cinco obligatorios de `personal-info`**, así que el piso de fricción
-  puede ser cero.
-- **Que el formulario ya reacciona a medias** (`visibleOptionalFields` oculta, `lockedFields` bloquea).
+*(Medido mientras esto vivía dentro de la tarea #6; movido acá el 2026-09-18, porque describe la
+materia prima de este hilo y no la migración del canal. La #6 conserva sólo el comportamiento que
+entrega —los campos llegan llenos y bloqueados—, sin este detalle.)*
 
-Todo eso está medido y escrito en la #6. Acá sólo se usa.
+### Qué datos del usuario ya tiene el comercio (2026-09-14)
+
+`EcommerceRequestService` lee del contrato base64 y devuelve **exactamente seis**: `email`, `phone`,
+`firstName`, `lastName`, `documentNumber`, `documentType` — en `main`, en las dos puntas (`ERS003` al
+entrar y `ERS005` al rehidratar). WooCommerce manda el pedido entero y deja mapear nombres de campo
+personalizados (`config`: nombres, apellidos, documento, dirección, ciudad, teléfono); VTEX normaliza
+a los nombres canónicos y manda `config: []`.
+
+**Y no es casualidad que sean esos seis: cubren los CINCO obligatorios de `personal-info`**
+(`document.type`, `document.number`, `email`, `name`, `surname`) más el teléfono del registro.
+`document.expedition` y `birth` son **`nullable`** en el validador — la expedición sólo se exige donde
+`should_collect_expedition_date` la pide. O sea: **para un comercio que mapee todo, el piso de fricción
+puede ser cero.** *(Corrige lo que dije antes en este mismo hilo, que el piso nunca era cero.)*
+
+**Cuatro trampas verificadas:**
+1. **`address` y `city` viajan y se tiran** — el plugin las deja mapear, llegan en `config`, y `prefill`
+   no las lee. `personal-info` acepta `address`.
+2. **El fallback por config de *apellidos* está muerto**: el plugin guarda la clave como `surname` y
+   `getBillingField` pregunta por `$config->last_name`. Un comercio que renombró ese campo **no lo puede
+   mapear**; funciona sólo porque el `billing` nativo de Woo ya trae `last_name`.
+3. **`document_type` no es mapeable** — no está entre los seis del plugin.
+4. **Los dos endpoints difieren en el default**: `create` devuelve `documentNumber ?? ''` y
+   `documentType ?? 'CC'`; `detail` no pone default. VTEX también quema `'CC'` (`billingFrom:213`).
+   Engancha con #71 y #68.
+
+✔ El front ya se defiende: `real()` descarta vacíos y placeholders `---`, y `lockedFields =
+Object.keys(prefill)` bloquea **sólo lo que llegó** — ignora el `readonlyFields` del backend. **No está
+en `main`.**
+
+### Que el formulario reaccione a lo que recibe: ya está a medio cablear
+
+Tres piezas vivas y una tirada:
+1. **Reacciona a quién es el comercio**: `GET /api/v2/onboarding/personal-info/{branch}/config` →
+   `visibleOptionalFields`, y el form **oculta** (`{showBirthDate && …}`), no sólo bloquea.
+2. **Reacciona a qué mandó la tienda**: `lockedFields`. El lock es por **CSS, no `disabled`** — el
+   comentario dice por qué: «*which would drop the value from the submit*».
+3. **Dos flags que el backend ya manda y el front tira**: el docblock de `GetPersonalInfoConfigService`
+   dice que v1 devuelve `should_collect_expedition_date` y `should_collect_employment_info` y que «*the
+   wizard's own schema does not even parse*» — y ya existe `shouldCollectExpeditionDateForAllied`
+   (`OnboardingController:1800`).
+
+⚠ **Pero el recálculo va en el BACKEND, no en el front.** El mismo archivo trae la advertencia: «*two
+independent readings of "does this merchant need a stratum" is how a screen ends up not asking for
+something the save then rejects*». Si el form decide solo qué saltear y `StorePersonalInfoService`
+valida por su cuenta, el guardado rechaza lo que la pantalla nunca pidió. Y hay una segunda razón:
+`should_use_manual_birth_date` no sale del comercio sino de **si la sucursal ofrece una entidad que lo
+exige** — el front no puede saberlo.
+
+Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_date`, que ya viaja;
+**(b)** mover la decisión al backend espejando el gate de escritura, como se hizo con el estrato;
+**(c)** recién ahí evaluar el form dinámico (`form-service`, `@creditop/backend-driven-form`,
+`packages/form-engine` ya existen).
+
+### Dos trampas que costaron tiempo hoy, y no eran del producto
+
+- ⚠ **El contenedor local corre el WORKING TREE, no `main`.** El prototipo daba **HTTP 500 / `OBV21002`**
+  en `personal-info`. La causa: la rama `feat/lenders-tabla-cards` trae el validador viejo con `$this`
+  dentro de un método `static` («Using $this when not in object context»), que revienta en el closure de
+  `document.type`. **En `main` está arreglado** (captura `$partnerBranchId` en variable) y el propio
+  archivo documenta ese mismo fatal como un bug ya corregido una vez. No es un defecto de `main`: es la
+  rama local atrasada.
+- ⚠ **En local, la causa de un `OBV21002` es INVISIBLE.** `runServiceMethod` atrapa todo y loguea con el
+  tracer → `Log::channel('loki')` → `host.docker.internal:3100`, que en local no existe; el handler se
+  traga su propio fallo y **el fallback a `Log::channel()` nunca dispara**. Para verla hay que levantar
+  un receptor en el 3100 y repetir la llamada. *(Candidato a F-xx.)*
+- Y un detalle del contrato: el wizard manda `document.number` como **número**
+  (`Number(input.documentNumber)`), no string.
 
 ## Las dos formas evaluadas, y por qué sólo una sobrevive
 
@@ -152,4 +216,19 @@ quedó en `4f9c9319` y el working tree limpio. Y el v1 exige **fecha de nacimien
 - [ ] **Medir cuántos comercios ecommerce mapean el campo documento** (`allied_ecommerce_credentials` + los `ecommerce_requests.data` ya guardados). Es lo que decide si la experiencia sin fricción es real o es una demo: sin documento no hay identificación y la entidad del propio comercio no aparece.
 - [ ] **Antes de cualquier piloto**: clave pública por comercio + allowlist de origen + rate limit por origen en `api/onboarding`. Hoy no hay nada de eso.
 - [ ] **Decidir el gatillo del buró**: la oferta del propio comercio exige una consulta que se paga por comprador que la dispare, califique o no. No es «¿pedimos datos?».
+- [ ] **Arreglar el mapeo muerto de apellidos** (el plugin guarda `surname` y `getBillingField` pregunta por `$config->last_name`, así que un comercio que renombró ese campo no lo puede mapear) y decidir si `address`/`city` dejan de tirarse. *(Venía de la #6; se mudó con el conocimiento del prefill el 2026-09-18.)*
+- [ ] **Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran** — el cutover del monolito sigue siendo el array quemado `[24,209,210,211,311]`. Si el grueso sigue ahí, un SDK contra `api/onboarding` le sirve a la minoría. *(Venía de la #6.)*
 - [ ] Renombrar CORE-543 en Jira, que sigue diciendo «Inicio paso refactor ecommerce» (`make jira-edit`). Lo decide Miguel: escribe hacia afuera.
+
+## Registro
+
+### 2026-09-18 · llega el conocimiento del prefill, que estaba en la tarea #6
+
+Limpiando la tarea **#6 · Ecommerce web stateless** se movió acá lo que era de este hilo y vivía allá:
+los seis campos que el comercio entrega con sus cuatro trampas, que esos seis cubren los cinco
+obligatorios de `personal-info`, cómo reacciona hoy el formulario a medias, y las dos trampas del
+entorno local que aparecieron prototipando (el contenedor corre el working tree, y un `OBV21002` no
+deja rastro). Con ellos se mudaron dos pendientes: el mapeo muerto de apellidos y medir por qué mundo
+entran hoy los comercios ecommerce. La sección «Lo que esta tarea HEREDA de la #6» desaparece: ya no
+hereda nada, lo tiene. *(Los minutos de ese trabajo están en la bitácora de la #6, que es donde se
+hizo; acá no se trabajó hoy.)*

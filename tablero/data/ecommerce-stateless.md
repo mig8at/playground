@@ -14,806 +14,342 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 
 ## Si retomás esto sin contexto, empezá acá
 
-**Estado documentado al 17/9:** el recorrido está desplegado en `qa`. Se comprobaron los canales:
-tienda y autogestión terminan en confirmación; con asesor aparece la pantalla de entrega.
+**Qué se busca:** que una compra iniciada en la tienda entre al wizard nuevo **sin cookie** —la llave del
+pedido viaja en la URL y cada pantalla la relee en su fuente— y que al cerrarse, el comercio reciba el
+veredicto de su pedido.
 
-**El próximo paso es:** que QA recorra los tres canales en `qa`, siguiendo «Cómo validar» de la tarea
-publicable y sin sesión de asesor al probar tienda o autogestión (incógnito o logout previo).
+**Estado real (18/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
+entró el 14/9 con la promoción `Qa (#1007)` y Abel lo revirtió esa misma noche (#1013); el backend #1392 no
+se revirtió y sí quedó. Reponerlo es **#1016**, el único PR abierto, y tiene que entrar **antes** de la
+próxima promoción `qa`→`main`.
 
-**Salida a producción:** esperar el visto bueno de QA; después, primero #1016 para reponer el contenido
-revertido y luego la promoción `qa`→`main`. El port de #1018 a #1016 está documentado como pendiente de push.
-El PR #1027 y las comprobaciones pendientes se detallan en el Registro. Esta síntesis no actualiza estados externos.
+**Ya comprobado, corriéndolo contra `qa`** (no hace falta volver a investigarlo): los tres canales cierran, y
+el discriminante quedó medido **en la base** — mismo comercio, misma entidad, mismo desenlace, y el WhatsApp
+de entrega aparece **sólo** con asesor. Lo que no cerró en esos barridos es del ambiente (F-180) o de
+configuración del comercio (F-223), no del canal.
 
-## El rebote a `/solicitar`: por qué se revirtió de `main` (2026-09-15)
+**Cómo se verifica:** las corridas de §«Cómo se comprueba», leyendo el desenlace en la base y no en la consola.
 
-> **MEDICIÓN · 2026-09-15** — el síntoma que reportó QA es **del asesor**, no de ecommerce, y lo
-> produce una ruta que #997 registró en **un solo** árbol de rutas.
-> **Cómo se vuelve a comprobar:** los cinco eslabones de abajo se leen en `origin/qa`, y el único que no
-> se lee —el matcheo— se mide llamando a `matchRoutes` de **react-router 7.13.1** (la versión que
-> declara `apps/loan-request-wizard/package.json`) con una réplica del árbol de `routes.ts`.
+**El próximo paso es:** que QA recorra los tres canales en `qa` siguiendo «Cómo validar» de la tarea
+publicable, **sin sesión de asesor** — ventana de incógnito o logout previo.
 
-**El síntoma:** el asesor elige una entidad, hace click en **«Validar Pre aprobado»** y el wizard lo
-devuelve a `/solicitar`, la primera pantalla. Sin error, sin toast, sin nada en consola.
+## Pendientes
 
-**La cadena, eslabón por eslabón:**
+**La entrega**
 
-1. **«Validar Pre aprobado» es el copy de `response_type` 2 y 3**
-   (`lender-response.mapper.ts:137-140`). O sea CreditopX / in-platform.
-2. El action de `available-lenders.tsx` (qa:637) hace
-   `if (Number(initial_fee) > 0) return routeHelpers.redirect(ROUTE_PATHS.initialFeePayment(…))`.
-   Ese `initial_fee` **no lo pide la entidad: lo escribe el asesor** en el campo del listado
-   (`formData.get("initial_fee")`, qa:384), que aparece cuando el comercio tiene el toggle
-   `allied.initial_fee` prendido.
-3. `routeHelpers.redirect` **prefija el flujo**: en el árbol del asesor `params.flow` no existe, así
-   que `createRouteHelpers` cae a `detectRouteContext(pathname)` → `merchant`, y el destino queda
-   **`/merchant/{hash}/{lrid}/initial-fee-payment`**.
-4. **Esa ruta no existe en el árbol del asesor.** #997 la agregó —junto con
-   `down-payment-validation/:transaction_id`— **sólo** bajo `route(":flow", "layouts/public-layout.tsx")`.
-   El bloque `route("merchant", "layouts/default-layout.tsx")` no la tiene.
-5. Y acá está lo que no se ve leyendo: **React Router no tira 404, se cae al árbol de al lado.** Como
-   `:flow` es dinámico, `/merchant/…/initial-fee-payment` **matchea `public-layout` con
-   `flow = "merchant"`**. Medido:
+- [ ] **Pushear el port de #1018 a #1016** — cherry-pick limpio, commit `33649662` sobre `f474b237`, build
+      verde. Va **por SHA**: la rama está tomada por el worktree de otra sesión. Termina cuando el PR muestra
+      los 9 `minimumInitialFee` que tiene `qa`.
+- [ ] **Mergear #1016 cuando QA valide ecommerce en `qa`** — decisión de Miguel del 15/9. Es la única vía de
+      reponer el código en `main` después del revert, porque el revert es pegajoso: los commits de #997 y
+      #1005 siguen siendo ancestros de `main`, así que ninguna promoción los trae de vuelta. Termina cuando
+      `apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx` resuelve en `origin/main`.
+      Depende de: QA — el visto bueno de los tres canales.
+- [ ] **Promover `qa` → `main`, después de #1016** (la promoción la llevan Laura y Oscar). Medido: con #1016
+      aplicado el merge es limpio; sin él da conflicto en `routes.ts` y `available-lenders.tsx`, y resolverlo
+      a favor de `qa` deja `routes.ts` apuntando a cuatro archivos inexistentes → build roto.
+- [ ] **Cerrar la cola de junio: queda mirar #582.** Re-medido el 18/9 contra `origin/qa` — **#665 y #661 ya
+      volvieron** (el guard `!response.data.standBy` en `available-lenders`, con el comentario que lo explica,
+      y `continue` declarado en los **dos** árboles por `sharedFlowRoutes()`), **#600** se rehizo dentro de
+      #997 y **#663** se descartó a propósito. Falta decidir **#582** —el cierre in-platform de CreditopX—,
+      cuyo resultado hoy lo da la decisión por origen. Termina cuando esa lista quede vacía o cerrada.
+- [ ] **Decidir qué pasa con el backend #1392, que quedó solo en `main`** — el revert no lo tocó. Revertirlo
+      también, o dejarlo esperando al front. Es la misma asimetría del par de junio.
+- [ ] **Llevar a producción el redirect del checkout viejo** — ya no hace falta pedírselo a Infra:
+      `legacy-application#169` lo hace en el monolito y está en su `develop`. ⚠ No puede ir antes de que
+      `/ecommerce/{hash}/checkout` exista en `main` del wizard, y tiene que seguir dejando afuera a Corbeta
+      (`[24,209,210,211,311]`), que es el tráfico que hoy mejor convierte.
+- [ ] Extender el cutover al resto del ecommerce no-Corbeta (el array quemado del `WoocommerceController`).
+- [ ] Borrar la lógica ecommerce duplicada en `legacy-application` una vez completo en `main`.
 
-   | URL | rama que matchea |
-   |---|---|
-   | `/merchant/<h>/<id>/lenders` | `merchant-root` → … → `merchant-lenders` ✅ |
-   | `/merchant/<h>/<id>/initial-fee-payment` | **`public-layout`** → … → `pub-initial-fee` 🔴 |
-   | `/merchant/<h>/<id>/down-payment-validation/tx1` | **`public-layout`** 🔴 |
-   | `/merchant/<h>/<id>/ruta-inexistente` | **SIN MATCH (404)** ← el control |
+**Lo que quedó abierto al probar**
 
-   La última fila es la que prueba que no es «cualquier ruta rara rebota»: una ruta que no existe en
-   **ningún** árbol sí da 404. Rebota exactamente la que #997 puso en el árbol equivocado.
-6. `public-layout.tsx:20-22`: `if (flow !== "ecommerce" && flow !== "self-service") return redirect("/")`.
-7. `home.tsx` → `redirect("/merchant")`.
-8. `default-layout.tsx:80,108`: sin `params.partner_hash` →
-   `redirect("/merchant/{userAlliedBranchHash}/solicitar")`.
+- [ ] **El hueco de la credencial:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
+      así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
+      base de `qa`, los tres con Credifamilia.
+- [ ] **Confirmar con producto el ORDEN del cobro de cuota inicial** en autogestión — la única decisión de
+      criterio de #997, comentada en el código.
+      Depende de: producto — en qué momento se cobra cuando el comprador sigue solo.
+- [ ] **Ensanchar el `include` de vitest del wizard** — cubre `lenders-marketplace/src/lib/utils/**` y hay 20
+      archivos de prueba bajo `src/lib/**`: **19 no corren nunca**. Medido: ensancharlo lleva de 492 a 703
+      pruebas y destapa **4 fallas reales**. Es otra entrega, con su propio riesgo.
+- [ ] **El caminador siembra antes del `action` de `personal-info`** — se destrabó con resiembra dirigida
+      (16/9), pero el arreglo de fondo es que `sembrar()` corra DESPUÉS y reciba `c.lender`.
+- [ ] **F-214 (producto):** un comercio sin ninguna entidad `rt=0` no debería ofrecer «Confirmación de cupo»,
+      o la pantalla vacía debería dejar volver atrás. Hoy el cliente queda sin salida.
+- [ ] **F-215:** el arreglo es un carácter (`window.ENV?.APP_ENV` en `entry.client.tsx:14`) y toca una rama
+      ajena a esta tarea. Está en `main` y en `qa`.
+- [ ] **F-216:** el fallback mudo sigue abierto — el front no distingue «este comercio va por el legacy» de
+      «no pude preguntarlo».
+- [ ] **F-223:** con una entidad habilitada en la sucursal y sin fila de orden en el comercio, el listado
+      devuelve 500 y tumba la pantalla entera. Diagnosticado el 17/9, **no es de esta tarea**: queda decidir
+      quién lo toma. Igual en `main` y en `qa`.
 
-→ **`/solicitar`.** Cuatro 302 legítimos encadenados: por eso no hay error en ningún lado y por eso
-se lee como «se devuelve al comienzo» y no como «se rompió».
+**Por promover a F-xx**
 
-### Lo que esto significa para el alcance
-
-⚠ **No es sólo rt=2/3.** El `if` de la línea 637 está **antes** de las ramas de renting/RTO, Nequi,
-`validateLenderOtp`, `postRedirect` y modal. Sólo lo esquivan las dos que van arriba —gestión manual
-(`path_id === 3`) y autogestión (`continueUrl`)—. O sea: **en el flujo del asesor, poner una cuota
-inicial > 0 rompe la selección de casi cualquier entidad.** «Validar Pre aprobado» es lo que Joel
-tocó, no el límite del defecto.
-
-✔ **Y por eso ecommerce no lo ve:** #997 fuerza `initialFeeAllowed = false` cuando `isEcommerce`, así
-que ahí `initial_fee` llega en 0 y el `if` no dispara. El canal que el PR venía a arreglar es el único
-inmune; el que rompe es el que no estaba en su título.
-
-### Ya nos había pasado — y el arreglo de entonces ya no aplica
-
-El mismo rebote se diagnosticó el **2026-06-26** sobre la rama local `continue`: mismo `if`, misma
-línea, mismo síntoma, mismo canal. El arreglo de entonces fue guardar la línea con
-`&& !response.data.standBy`. **Hoy ese arreglo no se puede copiar: `standBy` ya no existe** — cero
-ocurrencias en `apps/loan-request-wizard` y `modules/loan-request-wizard`. El camino de CreditopX hoy
-es la rama `showModal && isNil(url)` → `/continue?url=qrUrl` (qa:810).
-
-⚠ **Lo que NO se re-verificó hoy** y vale para decidir el arreglo: en junio quedó medido que el
-backend **403ea** `POST /api/loans/requests/initial-fee-payment/{ur}` para CreditopX, porque esa cuota
-inicial se cobra **in-platform** (continue → confirmation → `down-payment-validation`), no por Wompi.
-Si eso sigue siendo cierto, **registrar la ruta en el árbol del asesor no alcanza**: llevaría al asesor
-a una pantalla de cobro que el backend rechaza. Son dos defectos apilados — uno de ruteo y uno de
-criterio de negocio— y el segundo hay que medirlo antes de arreglar.
-
-### Por qué no lo atajó nada de lo que corrimos
-
-Build, `typecheck`, `biome` y Sonar pasaron los tres PRs en verde, y el caminado de punta a punta del
-14/9 recorrió **ecommerce**, que es justo el canal inmune. **Una ruta registrada en un árbol y no en el
-otro no falla en ningún lado**: `ROUTE_PATHS.initialFeePayment` compila igual, y el fall-through de
-React Router la hace matchear en el árbol equivocado en silencio. Es la **cuarta** vez en esta tarea que
-algo pasa build + tipos + lint y sólo aparece corriéndolo — y la primera en la que correr **tampoco**
-alcanzó, porque se corrió el canal que no era. Candidato firme a **F-xx**.
-
-## Contextos que usa
-- **ecommerce** — el canal (contrato base64, credencial `allied_ecommerce_credentials`, `/vtex/*`, "volver al comercio"). Esta task lo lleva al wizard nuevo en modo stateless; el nodo describe el canal, la task el cambio.
-- **onboarding** — el formulario del wizard (teléfono/OTP, datos personales, `init-loan-request`) se adapta para hidratarse del contexto ecommerce sin cookie.
-- **payments** — la task suma las rutas de **cuota inicial** al wizard (`initial-fee-payment.tsx` + `.server.ts`) y `down-payment-validation`; el enganche pasa por acá.
-- **architecture** — es la costura `application → legacy-backend + frontend`; "stateless (no cookie)" es la misma dirección que el V1→V2: **el estado y la orquestación viven en el front**, el backend solo expone endpoints de contexto.
+- [ ] **Una ruta registrada en UN árbol de `routes.ts` y no en el otro no falla en ningún lado:** compila,
+      pasa lint, y React Router la matchea en el árbol vecino en silencio hasta rebotar al inicio. Pasó
+      **tres** veces (`continue`, `initial-fee-payment`, `validate-lender-otp`). En `qa` el mecanismo ya
+      está cerrado por `sharedFlowRoutes()`, pero la clase merece su hallazgo.
+- [ ] El `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en
+      `strict-origin-when-cross-origin`; endurecerla rompe el prefill **en silencio**.
+- [ ] En local, un `OBV21002` no deja rastro: el tracer escribe a un Loki inexistente y el fallback al log de
+      Laravel nunca dispara.
+- [ ] La guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) **sólo cubre las escrituras por `pkg/db.ts`**: todo
+      lo que escribe por la API contra dev pasa sin pedir permiso.
+- [ ] Corregir el nodo `context/…/onboarding`: dice que G3 (`OnboardingV2`) no tiene consumidores, y el
+      wizard en `main` ya le pega a `api/v2/onboarding/otp-auth/validate`.
 
 ## Objetivo
-Que el checkout de una tienda entre al wizard nuevo SIN depender de cookie/sesión: el front (`ecommerce/checkout.tsx`) recibe el contrato, y en cada paso rehidrata desde endpoints de contexto del backend (`ecommerce-context.server.ts` → `EcommerceRequestController`). Motivación técnica del "no cookie": el SSR del wizard cruza hosts/ambientes y la cookie se perdía. No re-explica el canal (ver **ecommerce**).
 
-## Lo que se mergeó: el libro mayor de los PRs
+Que el checkout de una tienda entre al wizard nuevo **sin depender de cookie ni de sesión**: el front recibe
+el contrato en base64, crea el `ecommerce_request` y en cada paso rehidrata desde los endpoints de contexto
+del backend. Al cerrarse el crédito, el comercio recibe el veredicto de su pedido. Y que sea **el canal**
+—no la sesión que haya abierta en el navegador— el que decida si el proceso se le entrega al cliente.
 
-> Medido el 2026-09-14 con `gh` y `git merge-base --is-ancestor`, no de memoria. Las horas son de
-> Colombia (`gh` las devuelve en UTC). Esta sección es ESTADO: se reescribe, no se apila.
-> **Sólo lo de esta tarea, sólo lo mío y sólo lo MERGEADO** — lo que mergeó otra gente vive en SU
-> tarea, y lo que no mergeó no se hizo. *(Reemplaza a la tabla «Ramas y PRs por repo», que estaba
-> verificada al 2026-07-18 y se quedó en los dos PRs de junio.)*
+El motivo técnico del «sin cookie»: el SSR del wizard cruza hosts y ambientes y la cookie se perdía; además
+el handoff a celular exige que el contexto sobreviva un cambio de dispositivo, y una copia en cookie no lo
+hace. El canal en sí no se re-explica acá — está en el nodo **ecommerce**.
 
-**Los CATORCE PRs, en orden.** ⚠ La versión anterior de esta tabla listaba **cinco** y daba mal el
-nombre de dos ramas. Faltaba entera la **cola de arreglos de junio** — que es justo la que explica el
-revert de septiembre (ver §«La cola de junio que el rebuild no se llevó»).
+## Dónde se toca
 
-| | PR | rama | tamaño | → | cuándo | merge |
-|---|---|---|---|---|---|---|
-| back | **#770** originación web stateless | `feature/onboarding/ecommerce-web-origination` | +63/−0 · 3 arch | ⚪ fuera de la vía | 9/6 10:34 | `53f2b794` |
-| back | **#795** endpoints de contexto para el wizard sin cookie | `feat/onboarding/ecommerce-stateless-detail` | +131/−5 · 4 arch | ⚪ fuera de la vía | 11/6 08:37 | `bb14a8ff` |
-| front | **#551** la entrada ecommerce stateless | `feature/onboarding/ecommerce-web-origination` | +585/−31 · 21 arch | ⚪ fuera de la vía | 11/6 08:38 | `d2242469` |
-| front | **#582** cierre CreditopX in-platform: honrar `standBy` → `/confirmation` | `fix/ecommerce/creditopx-standby-confirmation` | +37/−6 · 4 arch | ⚪ fuera de la vía | 12/6 12:26 | `84d4b1ad` |
-| front | **#600** no importar código `.server` en el cliente — rompía el build | `fix/ecommerce/down-payment-build` | +6/−6 · 2 arch | ⚪ fuera de la vía | 16/6 15:08 | `8f49a297` |
-| back | **#834** unificar el base64 del canal (VTEX) | `feature/onboarding/ecommerce-unify-base64-vtex` | +997/−191 · 27 arch | ⚪ fuera de la vía | 17/6 13:15 | `afb3f990` |
-| back | **#838** simulador de resultado de agregador | `feature/onboarding/ecommerce-unify-base64-vtex` | +93/−0 · 3 arch | ⚪ fuera de la vía | 17/6 14:36 | `e0707d8d` |
-| front | **#661** registrar `/ecommerce/…/continue` (faltaba en el árbol público → 404) | `feature/onboarding/ecommerce-continue-route` | +4/−1 · 1 arch | ⚪ fuera de la vía | 25/6 15:17 | `771e4850` |
-| front | **#663** el handoff se renderiza distinto según el flujo | `continue` | +20/−8 · 2 arch | ⚪ fuera de la vía | 25/6 17:51 | `b8c30a10` |
-| front | **#665** 🔴 **no mandar CreditopX a Wompi cuando hay cuota inicial** | `fix/ecommerce/creditopx-initial-fee-bounce` | +5/−2 · 1 arch | ⚪ fuera de la vía | 26/6 11:56 | `9206b28c` |
-| back | **#1392** la sala de espera del veredicto | `feat/sala-de-espera-ecommerce` | +93/−0 · 2 arch | `qa` | 14/9 15:30 | `3cd20e34` |
-| front | **#997** la entrada del checkout y la cuota inicial | `feat/ecommerce-stateless-checkout` | +762/−26 · 21 arch | `qa` | 14/9 15:30 | `6fa13ae5` |
-| front | ~~#998~~ la cuota inicial aparte | `feat/cuota-inicial-en-el-wizard` | +315/−0 · 6 arch | — | **CERRADO** | consolidado en #997 |
-| front | **#1005** bienvenida del canal, datos editables, cuota inicial fuera del listado, ancho de móvil | `feat/ecommerce-bienvenida-campos-y-cuota-inicial` | +303/−149 · 9 arch | `qa` | 14/9 18:10 | `f443ecad` |
-| front | ~~#1014~~ el rebote + la reposición | `fix/ecommerce/cuota-inicial-rebote-asesor` | 60 arch, **56 ajenos** | — | **CERRADO** 15/9 | reemplazado por #1015 |
-| front | **#1015** el rebote a `/solicitar` del asesor con cuota inicial | `fix/ecommerce/cuota-inicial-rebote-asesor-qa` | +54/−9 · **3 arch** | `qa` | 15/9 · **MERGEADO** | — |
-| front | **#1016** repone la entrada del checkout y la bienvenida, con el rebote arreglado | `restore/ecommerce-checkout-y-rebote` | +1.136/−176 · 28 arch | `main` | 15/9 · **ABIERTO** | — |
+**`legacy-backend`** — los endpoints de contexto (#795, en `main` desde junio), la sala de espera (#1392) y
+el canal como valor con nombre (#1402 · #1409):
 
-*(Medido el 2026-09-15 con `gh pr list --author mig-creditop --state all` filtrando por
-`ecommerce|checkout|cuota|stateless|sala` en título y rama. Horas de Colombia.)*
+- `Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php` · `App/Services/EcommerceRequestService.php` · `App/Http/Requests/FetchEcommerceRequestByUserRequestRequest.php` · `routes/api.php`
+- `Modules/Onboarding/App/Services/UserRequestService.php` — donde se decide si el proceso se entrega
+- `Modules/Onboarding/App/Services/lenders/OnboardingOrigin.php` · `lenders/LenderTabBehaviorResolver.php`, con `Modules/Onboarding/tests/Unit/LenderTabBehaviorResolverTest.php`
+- `Modules/Loans/routes/api.php` — `ecommerce-status`, **en el grupo `device`**: colgada del grupo padre responde 403 a todo comprador de escritorio, que es exactamente quien compra en una tienda
 
-⚠ **La rama de #663 se llama `continue` a secas**, así que **no entra en `ramas:`**: como patrón
-capturaría media docena de ramas ajenas. Es la única de las catorce que el tablero no puede medir
-sola — su estado hay que mirarlo a mano (`gh pr view 663`).
+**`frontend-monorepo`** — la entrada y la cuota inicial. ⚠ **Los cinco net-new existen en `qa` y NO en
+`main`** (el revert los borró; los repone #1016):
 
-⚠ **#834 y #838 son del CANAL, no de la entrada stateless** — unifican el base64 y el conector VTEX.
-Están acá porque no tienen tarea propia en el tablero y son trabajo mío mergeado; si se les abre una,
-se mudan.
+- `apps/loan-request-wizard/app/routes/ecommerce/checkout.tsx` — la entrada `/ecommerce/{hash}/checkout`
+- `apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts` — el contexto sin cookie
+- `apps/loan-request-wizard/app/routes/initial-fee-payment.tsx` + `app/server/services/initial-fee-payment.server.ts`
+- `apps/loan-request-wizard/app/routes/down-payment-validation.tsx`
 
-### ⚠ Esto NO está todo en el mismo lugar, y esa es la parte que engaña
+Y lo que se toca alrededor:
 
-| PR | `qa` | `staging` | `main` |
-|---|---|---|---|
-| back #795 | ✅ | ✅ | ✅ |
-| front #551 | ✅ *(por contenido)* | ❌ | ❌ |
-| back #1392 | ✅ | ❌ | ✅ **sí** |
-| front #997 · front #1005 | ✅ | ❌ | 🔴 **entraron y se revirtieron** (#1013) |
+- `app/routes.ts` · `app/entry.client.tsx` · `app/utils/route-helpers.ts`
+- `app/utils/backend-auth-headers.server.ts` — **por acá se cuela la sesión**: decide sólo por si hay usuario
+  en la petición, sin mirar en qué árbol está la ruta
+- `app/utils/security-headers.server.ts` — de esto depende que el `Referer` siga trayendo el `erId`
+- `app/routes/lenders-marketplace/available-lenders.tsx` · `app/routes/loan-approved.tsx` · `app/routes/bancolombia/no-preapproved.tsx`
+- `app/routes/loan-application-form/{phone-number,loan-request-form,otp-verification}.tsx`
+- `modules/loan-request-wizard/loan-application-form/src/components/{amount-form,phone-number-step-form,phone-number,init-loan-request}.tsx` · `components/forms/personal-info-form.tsx` · `lib/application/verify-phone-otp.uc.ts`
+- `modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts` y su gemelo
+  `phone-otp-legacy.repository.ts` — **el camino v1 es por donde van los 7 comercios medidos en `qa`**
+- `modules/loan-request-wizard/lenders-marketplace/src/lib/utils/never-rejects.ts` — la guarda de frontera del listado (#1027)
 
-*(Re-medido el 2026-09-15 con `git ls-tree -r --name-only origin/<rama> -- <ruta>` sobre
-`checkout.tsx` e `initial-fee-payment.tsx`, y `git grep -c ecommerce-status origin/<rama> --
-Modules/Loans/routes/api.php`. ⚠ El primer intento usó un `for b in …; do git cat-file -e
-origin/$b:<ruta>` y **devolvió `no` para las cuatro ramas, incluida `qa`, donde el archivo SÍ está**:
-en zsh el `:` pegado a `$b` no expande como uno espera. Un chequeo que contesta «no hay» sin haber
-mirado, otra vez — misma clase que el `git grep -E '\s'` de legacy-backend.)*
+**`legacy-application`** (el monolito viejo) — `app/Http/Controllers/Customer/WoocommerceController.php` y
+`app/Services/NewFrontendUrlService.php`: la pantalla vieja de checkout redirige al wizard **reenviando el
+query string verbatim** (#169, en su `develop`). Re-encodearlo corrompe el base64 sin dar error.
 
-**El par de junio está PARTIDO**: el backend llegó hasta `main`, el front **no**. O sea
-que en producción hay endpoints de contexto stateless **sin la entrada del front que los usa**. Eso no
-lo arregla lo de septiembre, que vive sólo en `qa`.
+## Cómo se ataca
 
-> ⚠ **Y ojo con cómo se mide.** `git merge-base --is-ancestor` dice que el merge de **#551 NO está en
-> `qa`**, y es falso: los cuatro archivos net-new de ese PR —`ecommerce/checkout.tsx`,
-> `down-payment-validation.tsx`, `initial-fee-payment.tsx`, `ecommerce-context.server.ts`— **existen en
-> `qa`**. El contenido llegó por otro camino y el SHA no. Es la segunda vez en el día que la medición
-> por commit da un falso «falta» (la otra fue #983, en Alta). **El desempate es el contenido, no el
-> SHA.**
+La vía de entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**. Un
+merge a `develop` ya no dice nada sobre lo entregado.
 
-### La cola de junio que el rebuild no se llevó — y es la causa del revert (2026-09-15)
+1. **QA valida los tres canales en `qa`.** Es lo único que falta para decidir; el código ya está desplegado.
+2. **#1016 a `main`** — repone la entrada del checkout y la bienvenida, con el arreglo del rebote y el port
+   de #1018. Va **antes** de la promoción: promover primero deja `main` con rutas apuntando a archivos que
+   no existen.
+3. **Promoción `qa` → `main`**, que se lleva todo lo demás sin PRs extra.
+4. **Recién entonces, el redirect del monolito a producción** y el refresh de las otras ramas desde `main`
+   —con la cola de junio rescatada antes, o se pierde.
 
-> **MEDICIÓN · 2026-09-15** — #997 se rehizo sobre `qa` partiendo de **#551 (11/6)**, y **no se llevó
-> los cinco PRs de arreglo que vinieron DESPUÉS**. Cuatro de los cinco **no están en `qa`**.
-> **Cómo se vuelve a comprobar:** `git grep -c standBy origin/qa -- apps/loan-request-wizard
-> modules/loan-request-wizard` (da 0) y, sobre el `routes.ts` de cada rama,
-> `route("continue"` dentro del bloque `:flow`.
+## Lo que se evaluó y NO se eligió
 
-| arreglo de junio | qué tapaba | ¿existe fuera de `main`? | `qa` |
-|---|---|---|---|
-| **#665** no mandar CreditopX a Wompi con cuota inicial | 🔴 **el rebote a `/solicitar`** | ✅ | ❌ |
-| **#582** honrar `standBy` → `/confirmation` | el cierre in-platform de CreditopX | ✅ | ❌ |
-| **#661** registrar `continue` en el árbol público | un 404 en ecommerce | ✅ | ❌ |
-| **#663** el handoff se pinta distinto por flujo | QR vs. WhatsApp | ✅ | ❌ |
-| **#600** no importar `.server` desde el cliente | el build roto | ✅ | ✔ rehecho en #997 |
+**Abril: el contexto en una cookie** (`legacy-backend#503` + `frontend-monorepo#363`, los dos cerrados sin
+merge el 14/9). `checkout-redirection.tsx` guardaba todo en `session.set("ecommerce_session", …)` y las
+pantallas leían la copia. No se descartó por estilo: la cookie es justo lo que se perdía cruzando hosts, y
+con el handoff a celular el segundo dispositivo llegaría sin monto ni prefill. De esos dos PRs se rescató la
+sala de espera; el resto hay que revisarlo archivo por archivo contra `main` antes de tocarlo.
 
-⚠ **#665 es literalmente el arreglo del defecto que causó el revert**, escrito el **26/6**, tres meses
-antes. Su comentario en el código lo dice con todas las letras: *«el backend responde
-"continue-link-sent" (HTTP 4xx) en /initial-fee-payment para Creditop X, así que mandarlo a Wompi rompe
-el flujo y **rebota a /solicitar**»*. Son cinco líneas: `if (Number(initial_fee) > 0 &&
-!response.data.standBy)`.
+**Dos PRs por concern (entrada / cuota inicial).** Se armó así y **Miguel lo descartó el 14/9**: quería un PR
+por repo. Se consolidó en #997 y se cerró el #998. El argumento del split queda anotado como riesgo asumido:
+revertir un fallo del checkout en producción se lleva puesta la cuota inicial.
 
-✔ **Y de paso contesta la pregunta que dejé abierta ayer.** No hace falta medir si el backend sigue
-403eando: en junio quedó medido **y escrito en el propio código** que `/initial-fee-payment` no sirve
-para CreditopX. Lo que sí hay que decidir es la FORMA del arreglo hoy, porque `standBy` ya no existe en
-el wizard — el equivalente actual es la rama `showModal && isNil(url)`.
+**Que autogestión con asesor también continúe en el lugar.** Evaluado y descartado por alcance, con el motivo
+escrito en el docblock de `LenderTabBehaviorResolver::continuesInPlace`: de 39 comercios con el flag, sólo dos
+tienen volumen en `rt=2` en 90 días, y a My Tech (305) le cambiaría el 100 % de sus solicitudes. Es otra tarea.
 
-⚠ **Y #661 es el MISMO defecto de ruteo, espejado.** En junio faltaba `continue` en el árbol
-**público** y daba 404 en ecommerce; en septiembre falta `initial-fee-payment` en el árbol
-**merchant** y rebota en asesor. Dos veces el mismo error de clase, en direcciones opuestas, con tres
-meses de distancia. Y `continue` **sigue faltando hoy en `qa`**: #661 tampoco sobrevivió.
+**Copiar el código de #663** (que el handoff se pinte distinto por flujo). Traía una URL de demo quemada y `qa`
+ya usa el `qrUrl` real: vale la intención, no el código.
 
-**Por qué pasó, y cómo no repetirlo.** Rehacer el trabajo sobre `qa` era correcto. Lo que falló es
-**de dónde se copió**: se tomó el PR de la funcionalidad (#551) y no el **estado final de la rama**,
-que son #551 más cinco
-correcciones. La regla que queda: **cuando se rehace trabajo viejo sobre una rama nueva, la base no es
-el PR — es `git log <la rama donde vivió> -- <rutas>` desde ese PR hasta hoy.**
+**Que el flujo corra dentro de la página del comercio.** Se separó el 14/9 a la tarea `sdk-del-comercio.md`
+(CORE-543): son dos horizontes distintos — ésta migra el canal que ya existe, aquélla explora una capa nueva.
+El conocimiento del prefill que aquélla usa también vive allá desde el 18/9.
 
-### Los dos PRs de abril ya NO están abiertos
+## Lo que está decidido
 
-> **MEDICIÓN · 2026-09-14** — `legacy-backend#503` y `frontend-monorepo#363` están **CLOSED**, sin
-> merge. Se cerraron después de la medición de más abajo, que los dio por abiertos ese mismo día.
-> Por eso no entran al libro mayor: no se hicieron. Lo que había que **rescatar** de ellos sigue
-> valiendo y está en «Los CUATRO PRs de la migración».
+> **DECISIÓN · 2026-09-14 · Miguel** — un PR por REPO, no por concern. Se consolidó #998 dentro de #997.
 
+> **DECISIÓN · 2026-09-15 · Miguel** — #1016 se mergea **cuando QA dé el visto bueno en `qa`**, no antes.
+> Es la única forma de volver a meter el código después del revert, así que conviene que entre ya validado;
+> y no hay apuro por riesgo, porque `main` hoy no tiene la funcionalidad ni, por lo tanto, el defecto.
 
-## Lo que se hizo
-### Backend #795 (`bb14a8ff`, en main) — endpoints de contexto stateless (4 archivos)
-- `Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php` + `App/Services/EcommerceRequestService.php` + `routes/api.php`: exponen el contexto de la `EcommerceRequest` para que el wizard lo consulte sin cookie.
-- **NET-NEW**: `App/Http/Requests/FetchEcommerceRequestByUserRequestRequest.php` (fetch del contexto por `user_request`). *(Este sí resuelve en el índice → confirma que está en main.)*
+> **DECISIÓN · 2026-09-16 · Miguel** — `opensNewTab` queda **congelado**. Arreglar el dato del canal
+> destapaba un cambio de conducta en producción (Welli 19 sucursales, Medicredit 18, Wompi 11, Su+pay 4,
+> Addi 1 pasarían de modal a pestaña nueva), así que el método vuelve a su firma original y se suma una
+> prueba que **fija** el congelamiento. El blast radius del PR queda en uno.
 
-### Frontend #551 (`d2242469`) — la entrada stateless (21 archivos)
-- **NET-NEW (5, NO en el índice de main — evidencia de que #551 no promovió):**
-  - `app/routes/ecommerce/checkout.tsx` — **la entrada unificada** `/ecommerce/{hash}/checkout` que el nodo `ecommerce` marcaba como "no está en main" (efectivamente: no está).
-  - `app/server/services/ecommerce-context.server.ts` — el fetch del contexto server-side (reemplaza la cookie).
-  - `app/routes/initial-fee-payment.tsx` + `app/server/services/initial-fee-payment.server.ts` — la cuota inicial en el wizard.
-  - `app/routes/down-payment-validation.tsx`.
-- **Modificados (16):** `entry.client`, `routes.ts`, `route-helpers.ts`, `available-lenders`, `loan-approved`, `bancolombia/no-preapproved`, y el `loan-application-form` (phone/OTP/personal-info/init-loan-request/amount-form/verify-phone-otp/phone-otp.repository) adaptados a la hidratación por contexto.
+> **DECISIÓN · 2026-09-16** — la regla del canal queda en **«entrega SÓLO el mostrador»**: con asesor el
+> proceso se entrega, sin asesor —tienda o autogestión— continúa en el lugar. El riesgo se midió antes en
+> prod, 90 días y entidades `rt` 2/3/4: autogestión sobre un comercio sin ninguna marca son **0 comercios
+> y 0 solicitudes**, o sea que el caso que cambia no le pasa hoy a nadie.
 
-## Quién hizo qué, y qué lleva tráfico hoy (verificado 2026-09-14)
+> **DECISIÓN · 2026-09-17** — `develop` sale de la vía de entrega. La entrega es `qa → main` y después el
+> resto de las ramas se pone al día desde `main`.
 
-> **MEDICIÓN · 2026-09-14** — hay **DOS** migraciones de ecommerce al mundo nuevo y se confunden.
-> La de esta tarea **todavía no lleva tráfico**.
-> **Cómo se vuelve a comprobar:** `git log main --reverse -- <ruta>` sobre `CorbetaCheckoutController.php`
-> y `git log main -S'revisionCorbeta' -- WoocommerceController.php`; y
-> `git ls-tree -r --name-only main apps/loan-request-wizard/app/routes/ecommerce/` en el front.
+## Lo que está bloqueado
 
-| pieza | quién · cuándo | qué migra | ¿en `main`? | ¿lleva tráfico? |
-|---|---|---|---|---|
-| **Corbeta / Bancolombia retail** — `CorbetaCheckoutController` + el array `revisionCorbeta` `[24,209,210,211,311]` | **jose guzman** · feb-2026 | **sólo** esos 5 comercios | ✅ sí | ✅ **sí** — 2.583 checkouts en 6 meses |
-| **Ecommerce web stateless** (ESTA tarea) — PRs [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) + [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | **Miguel** (`mig-creditop`) · **11-jun-2026** | la entrada **genérica**, todos los demás comercios | 🟡 backend sí, **front NO** | ❌ **no** |
+> **PREGUNTA · 2026-09-15 · QA (Joel)** — ¿los tres canales pasan en `qa`? Es lo único que falta para
+> mergear #1016 y promover. El guion está en «Cómo validar», y lo esencial es hacerlo **sin sesión de
+> asesor**: el wizard sirve los tres canales desde el mismo dominio y una sesión abierta hace que la compra
+> se comporte como mostrador. Eso fue lo que hizo fallar las pruebas del 15 y el 16.
 
-Los dos commits squash están firmados `mig-creditop <miguel@creditop.com>` con **7 segundos de
-diferencia** (`bb14a8ff` 08:37:57 y `d2242469` 08:38:04 del 11-jun-2026): los dos PRs se mergearon juntos.
+> **PREGUNTA · 2026-09-14 · producto** — ¿en qué momento se cobra la cuota inicial cuando el comprador
+> continúa solo? Hoy quedó después de gestión manual y autogestión —ahí el comprador ya no está en la
+> pantalla— y antes del resto, y después de la analítica para no perder `lender_selection_result`.
 
-**Por qué importa la distinción:** es fácil leer «ecommerce ya corre en legacy-backend» y darla por
-hecha. Lo que corre es la pieza de Corbeta, que es **por comercio y hardcodeada**. La entrada genérica
-—la de esta tarea— sigue esperando que #551 llegue a `main`, y mientras tanto **el 85 % de los checkouts
-los sigue sirviendo el monolito**.
+## Riesgos
 
-**Lo que está en juego, medido el mismo día contra prod:** los **14.160 checkouts en 6 meses** que hoy
-pasan por el monolito son exactamente el tráfico que esta migración tomaría — y son los que convierten
-al **1,9 %** contra el **18,7 %** del mundo nuevo. Promover #551 no es «terminar una tarea vieja»: es
-mover el canal que peor convierte al camino que mejor convierte.
+> **RIESGO · 2026-09-15** — **el revert es pegajoso.** `6fa13ae5` (#997) y `f443ecad` (#1005) siguen siendo
+> ancestros de `main` aunque su contenido no esté, así que ninguna promoción los devuelve y
+> `make tareas-ramas` va a seguir diciendo «en main, qa» para esas dos ramas. El desempate es el CONTENIDO,
+> no el SHA: `git ls-tree -r --name-only origin/main -- …/ecommerce/checkout.tsx` → vacío.
 
-⚠ **Y CORE-30 parece ser el MISMO trabajo que CORE-543.** El texto de CORE-30 en Jira es literal: «*Se
-debe pasar el flujo de ecommerce al refactor y validar que funcione de la misma forma en la que está
-funcionando actualmente*» — que es la definición de esta tarea. Hoy vive como archivo aparte
-(`revision-de-flujo-ecommerce-v1.md`, id 42, 8 puntos, la reporta Manuela Romero) con la pregunta
-abierta escrita adentro. **RESUELTO el 2026-09-14:** esta tarea toma **CORE-30**, que es la que describe este trabajo, y el
-archivo aparte (`revision-de-flujo-ecommerce-v1.md`, id 42) se borró. **CORE-543** pasó a la tarea del
-SDK. ⚠ Su título en Jira sigue diciendo «Inicio paso refactor ecommerce»: renombrarlo es una escritura
-a Jira y la decide Miguel (`make jira-edit`).
+> **RIESGO · 2026-09-17** — poner las ramas al día **desde `main`** destruye lo que sólo vive fuera de
+> `main`, así que rescatar lo que falte es prerrequisito del refresh y no una limpieza posterior.
+> ⚠ **La lista de qué falta era vieja.** Re-medida el **2026-09-18** contra `origin/qa`: de los cinco
+> arreglos de junio que #997 no se llevó, **#665 y #661 ya volvieron** —los repuso #1015— y #600 se rehizo
+> dentro de #997; queda #582 por mirar y #663 descartado a propósito. El riesgo del refresh sigue; la lista
+> es más corta de lo que este archivo venía diciendo desde el 15/9.
+> **Cómo se vuelve a comprobar:** `git grep -c standBy origin/qa -- apps/loan-request-wizard modules/loan-request-wizard`
+> (hoy da 4, no 0) y `git show origin/qa:apps/loan-request-wizard/app/routes.ts | grep sharedFlowRoutes`.
 
-## Por qué el enfoque de junio es mejor: el dato del comercio NO se copia
+> **RIESGO · 2026-09-15** — el backend #1392 quedó **solo en `main`**, sin el front que lo usa. Es la misma
+> forma del par de junio —backend adelante, front atrás— repetida tres meses después.
 
-El resumen «sin cookie» se queda corto. Lo que cambia es la **forma del dato**, y la primera línea de
-`ecommerce-context.server.ts` lo dice literal:
+> **RIESGO · 2026-09-16** — el despliegue de `qa` **no corre migraciones** (`main-qa.yaml` sólo invoca el
+> deploy de ECS). Ya pasó una vez: la tabla `cards` de #1388 no existía y el listado daba 500 para todo el
+> equipo. Va a volver a pasar con la próxima migración de cualquiera, y esa puede no ser aditiva.
 
-> *«Stateless ecommerce context from legacy (no cookie): key = erId in the URL (pre-OTP) /
-> loan_request_id (post-OTP).»*
+## Lo que NO entra
 
-- **Abril**: una lectura en la puerta → copia entera al cookie
-  (`session.set("ecommerce_session", {ecommerceRequestId, amount, prefill, readonlyFields})`) → todas
-  las pantallas leen **la copia**.
-- **Junio**: viaja **la llave** (`?erId=` pre-OTP, el `loan_request_id` del path post-OTP) y el dato se
-  **relee en su fuente** en cada paso. **Seis loaders** lo piden por su cuenta (`phone-number`,
-  `loan-request-form`, `available-lenders`, `lender-result`, `loan-approved`…), sin caché: `fetch` pelado.
-  Los dos endpoints que lo habilitan (`ecommerce-request/detail/{id}` y `by-user-request/{ur}`) son los
-  que puso #795 y **ya están en `main`**.
+- **La PANTALLA de la sala de espera.** El backend se rescató (#1392: `ecommerce-status` en el grupo
+  `device`); el `ecommerce-continue.tsx` montado en `waiting-room` que traía #363 **no** entra en esta tarea.
+- **El SDK del comercio** — tarea aparte (`sdk-del-comercio.md`, CORE-543).
+- **El flujo de Corbeta / Bancolombia retail**, que ya tiene su propio camino desde febrero y es el tráfico
+  que mejor convierte. Ni el redirect ni el cutover lo tocan.
+- **Cambiar el recorrido del asesor**: sigue entregándole el proceso al cliente igual que siempre.
 
-⚠ **Y eso es lo que hace posible el handoff a celular.** Cuando `RedirectIdValidationIfDesktop` manda
-el QR + SMS para seguir en el teléfono, ese teléfono **no tiene la cookie**: con el enfoque de abril
-llegaría sin prefill ni monto. La versión stateless no es sólo más limpia — es la única de las dos que
-sobrevive el cambio de dispositivo que el propio producto exige.
+## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-⚠ **Costura frágil que conviene conocer — candidata a F-xx.** Las acciones POST pierden el query string,
-así que `readErIdFromRequest` cae a leer el `erId` del header **`Referer`**. Funciona porque el wizard
-manda `Referrer-Policy: strict-origin-when-cross-origin` (`security-headers.server.ts:139`), que en
-navegación *same-origin* envía la URL completa. **Si alguien endurece esa cabecera a `no-referrer` o
-`origin`, el prefill pre-OTP se rompe EN SILENCIO** — sin error, simplemente sin datos del comercio.
-Es un acoplamiento entre dos archivos que nada declara.
-✔ Degrada bien, eso sí: `if (!res.ok) return null` y el catch también, con el comentario *«Non-fatal:
-no prefill/context on network error»*. Un fallo del contexto deja al comprador sin prellenado, no lo bloquea.
+*(Verificado el 2026-09-17 contra `qa`.)*
 
-## Cómo aterrizarlo: rama desde `qa`, y NO son dos PRs por repo
+⚠ **Antes que nada, la trampa que hizo fallar dos días de pruebas:** el wizard sirve los tres canales desde
+el **mismo dominio**, así que las cookies de una sesión de asesor viajan también en `/ecommerce/*` y el
+backend deja de ver un comprador anónimo. Se prueba **en incógnito o con logout previo**. Una solicitud con
+`corporate_user_id` distinto de NULL no es una compra de tienda, aunque se haya entrado por la tienda.
 
-> **La vía es `qa → main`, y después el resto de las ramas se pone al día DESDE `main`.** `qa` sí
-> llega a main (merge `Qa (#961)`, 4-sep) y **el backend ya está completo en `qa`**.
-> **Cómo se vuelve a comprobar:** `git log origin/main --merges` y
-> `git cat-file -e origin/qa:<los 4 archivos de #795>`.
+**El desenlace se lee en la base, no en la consola.** Las dos mitades del mismo booleano:
 
-| | estado |
+    SELECT ur.id, ur.user_request_status_id, ur.corporate_user_id,
+           (SELECT COUNT(*) FROM twilio_logs t
+             WHERE t.user_request_id = ur.id AND t.method = 'sendSelfManagement') AS whatsapp
+      FROM user_requests ur WHERE ur.id IN (…);
+
+Sin asesor: `corporate_user_id` NULL y **cero** filas de WhatsApp. Con asesor: el id del asesor y **una**.
+
+**Los tres canales, por consola:**
+
+    E2E_TARGET=qa node dev/caminar-wizard.ts --casos '#13874eb6:77' --flow ecommerce     --cerrar --manual
+    E2E_TARGET=qa node dev/caminar-wizard.ts --casos '#13874eb6:77' --flow self-service  --cerrar --manual
+    E2E_TARGET=qa node dev/caminar-wizard.ts --casos '#13874eb6:77' --flow merchant      --cerrar --manual
+
+⚠ El canal del asesor pide sesión de Cognito viva: se renueva por consola con
+`E2E_TARGET=qa npx playwright test dev/warm-session.spec.ts --headed --project=chromium` (**headed**
+obligatorio, F-66; el caminador no la renueva solo, sólo lee el cache).
+
+**El contrato de la tienda, sin navegador** — 8 comprobaciones, de armar el base64 al vínculo con el pedido:
+
+    E2E_TARGET=qa CFE_TARGET=qa make harness-ecommerce TEL=3112345678
+
+⚠ `TEL=` no es opcional contra `qa`: el OTP sólo es predecible si el teléfono está en `qa_otp_bypass_phones`.
+Con un teléfono al azar la corrida muere en `otp-validate` con **200 sin `user_request_id`**, que se lee como
+un fallo del canal siendo de la herramienta.
+
+**Los comercios que sirven, y los que no:**
+
+| comercio | qué prueba |
 |---|---|
-| `qa` | último commit **hoy** · 17 de main le faltan, 29 propios · **de acá sí se llega a main** |
-| backend #795 en `qa` | ✅ **los 4 archivos, con `prefill`/`readonlyFields`** |
-| front: los 5 net-new en `qa` | ❌ ninguno |
+| **Amoblando Pullman** (94) · CrediPullman (77, `rt=2`) | el caso completo: cierra en plataforma y el comercio tiene `initial_fee` prendido |
+| **Creditop** (`bb534d6a`) · Creditop X (37) | **el par que discrimina**: los dos flags apagados, así que sólo cambia el canal |
+| Tienda Fisio · CrediFis X · Alpeluche · Compubit | el barrido en paralelo, cinco entidades en plataforma distintas |
+| ❌ **Amoblar** (38) | no tiene ninguna entidad en plataforma: nunca hay a dónde continuar |
+| ❌ Amoblando Pullman **con Credifamilia** (24) | el par no está marcado: ir a `/continue` ahí es lo correcto |
 
-**Corrección 1 · el backend no necesita PR.** Ya está en las cuatro ramas. Un PR de backend sólo se
-justifica si además se rescata la sala de espera (`AdvisorStatusController@checkLoanStatus` +
-`loans/ecommerce-check`), que eso sí no está en ninguna.
+⚠ **Y correr el canal que no es da verde igualmente:** ecommerce es **inmune** al rebote de la cuota inicial
+(#997 fuerza `initialFeeAllowed = false`), así que el caminado del 14/9 pasó en verde sobre el bug que
+provocó el revert. El canal que rompe es el del asesor con cuota inicial > 0 (`CUOTA=` en el caminador).
 
-> **DESENLACE · 2026-09-14, 15:30** — los dos PRs **mergeados a `qa`**. Antes del merge se corrieron los
-> tres canales por el front sobre la rama (ecommerce, autogestión de Alta y asesor), con una corrida de
-> control sobre `qa` sin los cambios para separar lo nuevo de lo que ya fallaba. Lo que apareció ahí
-> está abajo, en §«Lo que encontró validar antes de mergear».
+**Sondas de URL, sin escribir nada** (contra `originaciones-qa.dev.creditop.com`):
 
-**Corrección 2 · ~~los dos PRs son por CONCERN~~ — ⚠ DESCARTADA por Miguel (2026-09-14):** quería
-**un PR por REPO**, no por concern. Se consolidó todo en [#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)
-(20 archivos, +749/−26, **un commit**) y se cerró el #998. El cherry-pick entró limpio y build,
-typecheck y Sonar siguen en verde con los dos concerns juntos. **El argumento del split se queda
-anotado como riesgo asumido:** revertir un fallo del checkout en prod se lleva puesta la cuota inicial.
-Lo que sigue abajo describe por qué se propuso separarlos.
+| ruta | lo correcto |
+|---|---|
+| `/merchant/…/initial-fee-payment` | **302 → login** *(cayó en el árbol del asesor; con el código viejo, 302 → `/`)* |
+| `/ecommerce/…/continue` · `/self-service/…/continue` | **200** *(con el viejo, 404)* |
+| `/merchant/…/ruta-que-no-existe` | **404** ← el control: una ruta que no existe en NINGÚN árbol sí da 404 |
 
-~~Los dos PRs son por concern, y los dos van en el front.~~ #551 empaquetó dos cosas:
+⚠ **`loki-trace` no separa `dev` de `qa`:** la etiqueta `environment` de ese stack sólo tiene `development`,
+`local` y `testing`, así que `E2E_TARGET=qa` contesta «el uReq no es de este target» sin que eso signifique
+nada. Para el error real del listado, pegarle al endpoint con `dev/listado.ts --v2`.
 
-| concern (ambos van juntos en #997) | archivos | líneas |
-|---|---|---|
-| **entrada stateless de ecommerce** | `ecommerce/checkout.tsx` +90 · `ecommerce-context.server.ts` +60 · y ~16 retoques | ~336 |
-| **cuota inicial** (payments) | `down-payment-validation.tsx` +109 · `initial-fee-payment.tsx` +93 · `.server.ts` +47 | **249 (43 %)** |
+## Referencias
 
-`checkout.tsx` **no menciona** la cuota inicial; se tocan sólo en `routes.ts`, `route-helpers.ts` y
-`available-lenders.tsx`. Son separables. Y si van en un commit único juntas, revertir un fallo del
-checkout en prod se lleva puesta la cuota inicial.
-
-**El orden:** (1) ✅ **HECHO** — rama `feat/ecommerce-stateless-checkout` desde `qa`, **PR
-[#997](https://github.com/Creditop-SAS/frontend-monorepo/pull/997)**, un commit, 16 archivos
-(+371/−26). Build en verde; `typecheck` da 220 errores preexistentes de `qa` y **ninguno** en los
-archivos del cambio. ⚠ Y el camino dejó **dos cosas que sólo aparecen rehaciéndolo**: el build atrapó
-que `routes.ts` se había traído las rutas de la cuota inicial sin sus archivos, y —lo caro— el PR
-original mandaba `ecommerce_request_id` en **snake_case al endpoint v1**, mientras `qa` ya usa
-OnboardingV2, que lo valida como **`ecommerceRequestId`**: copiado tal cual, el backend lo ignoraba, la
-solicitud nacía sin vincular al pedido y **el comercio nunca recibía el veredicto**, sin ningún error
-visible. (2) ✅ **HECHO, y consolidado en #997** — la cuota inicial se armó primero
-como PR #998 aparte y Miguel pidió un PR por repo, así que se cherry-pickeó al #997 y el #998 se cerró.
-Backend ya presente en las cuatro ramas. ⚠ Trajo **una decisión de criterio** que el PR de junio no enfrentaba porque esas
-ramas no existían: dónde va el cobro en la cadena de navegación de `available-lenders`. Quedó después
-de gestión manual y autogestión —ahí el comprador ya no está en la pantalla— y antes del resto; y
-después de la analítica, para no perder `lender_selection_result`, que el early-return original se
-salteaba. **Falta confirmarlo con producto.** (3) La sala de espera, aparte y después: es
-rescate, no migración.
-
-⚠ **Y un bloqueante que no es de código:** aunque el PR llegue a `main`,
-`originaciones.creditop.com/ecommerce/{hash}/checkout` tiene que **responder en prod** para que el
-redirect de borde sirva. Eso es deploy/ingress del front.
-
-### Estado de CI de los dos PRs (2026-09-14) — ✅ LOS DOS EN VERDE
-
-| | #997 checkout | #998 cuota inicial |
-|---|---|---|
-| commits | 1 | 1 |
-| `turbo run build` | ✅ | ✅ |
-| `typecheck` (errores propios) | ✅ 0 | ✅ 0 |
-| **SonarCloud** | ✅ **SUCCESS** | ✅ **SUCCESS** |
-
-Sonar **pasa** en los PRs vecinos (#991, #993, #994), así que es del código nuevo, no del repo.
-Se endurecieron cuatro puntos de la misma clase —todos correctos por sí mismos, independientemente
-de Sonar— y **el rating siguió en B**:
-
-1. `checkout.tsx` — el `partner_hash` viene de la URL y entraba sin validar tanto en la ruta del
-   fetch a legacy como en el destino del `redirect`. Ahora se valida contra la forma real de
-   `allied_branches.hash`.
-2. `ecommerce-context.server.ts` — `erId` y `loan_request_id` entraban en la ruta de un fetch **del
-   servidor**; un id con `/` o `..` reescribía el path. Ahora sólo ids numéricos.
-3. `loan-approved.tsx` — la `return_url` la elige el COMERCIO y termina siendo un destino de
-   navegación. Ahora sólo `http(s)` absolutas.
-4. `initial-fee-payment.tsx` (#998) — `redirect(checkout_url)` con la URL que devuelve la pasarela.
-   Idem.
-
-✅ **La causa era otra, y la trajo Miguel del dashboard:** el literal
-`|| "http://legacy-backend.inertia-develop"` del `getApiUrl()` — *«Using http protocol is insecure»*.
-Está repetido en decenas de archivos del repo, pero Sonar sólo lo mira en **código nuevo**, y mis dos
-archivos nuevos lo arrastraban del PR de junio.
-
-**Y el arreglo correcto no era ponerle `https`:** ese host es interno y responde por http. Lo correcto
-era **borrar el respaldo**, porque `VITE_API_URL` **ya es obligatoria** —`env.server.ts` la declara en
-su esquema zod y `init()` aborta el arranque si falta—. O sea que ese `||` no protegía de nada: con la
-variable ausente la app ni arranca, y lo único que podía hacer era mandar tráfico **en claro al cluster
-de desarrollo** si alguien rompía esa validación. Ahora tira un error explícito.
-
-⚠ **Y quitarlo destapó el split servidor/cliente otra vez.** Al centralizar la base en el servicio,
-`down-payment-validation.tsx` —que consulta `check-status` desde el CLIENTE— quedó importando de un
-módulo `.server`, y el build murió con *«Removal of server code»*. **El archivo ya avisaba en su propio
-comentario** y lo rompí igual. `typecheck` y `biome` lo dejaron pasar; **sólo el build lo vio**. Es
-exactamente [[frontend-el-build-es-la-vara]], otra vez y en el mismo día.
-
-> **MEDICIÓN · 2026-09-14** — ⚠ **Un chequeo que contesta «ninguno» sin haber mirado.** Verifiqué los
-> tipos de #997 con la lista de `git status --porcelain`, y para un archivo nuevo dentro de un
-> DIRECTORIO nuevo eso lista **el directorio**, no el archivo: `checkout.tsx` nunca entró en la lista y
-> el chequeo dijo «0 errores propios» **teniendo uno**. Lo encontró Sonar, no yo.
-> **Cómo se hace bien:** la lista sale de `git show --name-only --format= HEAD`, que enumera archivos.
-> Es el mismo defecto que el `git grep -E '\s'` de `legacy-backend`: una verificación que no sabe
-> buscar es peor que no tenerla, porque se lee como garantía.
-
-### El PR de backend: la sala de espera (2026-09-14)
-
-**[legacy-backend #1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392)** ·
-`feat/sala-de-espera-ecommerce`, desde `qa`, **un commit**, 2 archivos (+93).
-
-Rescata del #503 el `checkLoanStatus` de `AdvisorStatusController` —que **sí existía** en `qa`, pero
-sólo con sus dos hermanos `checkSigningStatus` / `checkEnrollmentStatus`— y lo rutea como
-`GET api/loans/requests/device/ecommerce-status/{user_request_id}`.
-
-⚠ **La ubicación de la ruta es el cambio, no un detalle.** Va en el grupo `device`, que excluye
-`onlyMobileValidation`. Colgada del grupo padre respondería **403 a todo comprador de escritorio** — y
-el checkout de una tienda es exactamente eso. **Medido:** con user-agent de escritorio el endpoint
-nuevo da 200 y su hermano del grupo padre da 403.
-
-No se copió del #503 tal cual: ése leía el vínculo con la tienda con un **join crudo** por Query
-Builder; acá se usa el repositorio que ya existe (`UserRequestsByEcommerceRequestRepository`, que
-además ya trae la relación cargada). También salieron un log de depuración y las clases con ruta
-completa.
-
-### Caminado de punta a punta contra el harness (2026-09-14)
-
-> **MEDICIÓN · 2026-09-14** — la entrada de ecommerce del #997 **funciona**, y caminarla encontró un
-> defecto que el build, `typecheck` y Sonar dejaban pasar.
-> **Cómo se vuelve a comprobar:** levantar el wizard de la rama del PR, generar la URL con
-> `buildEcommerceUrl` de `harness/pkg/ecommerce.ts` (que ya apunta a `/ecommerce/{hash}/checkout`) y
-> abrirla. ⚠ Un worktree nuevo **no tiene los `.env`** (gitignoreados): hay que copiarlos, y el del
-> repo apunta a `legacy-backend.inertia-develop/api` — host de dev **y con `/api` incluido**, que el
-> código no espera.
-
-Lo que se comprobó, con el comercio **Amoblar** (`d63f05e7`) y un contrato base64 real:
-
-1. `/ecommerce/{hash}/checkout` decodifica el contrato, crea el `ecommerce_request` (**6898**) y
-   redirige a `/ecommerce/{hash}/solicitar?amount=2000000&erId=6898`. **La llave viaja en la URL.**
-2. El monto del pedido llega **prellenado y bloqueado** (`pointer-events-none opacity-60`).
-3. El paso del celular llega con **3134886296** —el del billing— en `readOnly` y bloqueado.
-4. El `erId` sobrevive el paso de monto → celular.
-
-⚠⚠ **EL DEFECTO: el botón quedaba DESHABILITADO con el dato correcto puesto.** Un campo bloqueado
-nunca dispara `onChange`, así que su valor no se validaba y el paso quedaba sin salida. El `trigger()`
-estaba en el componente PADRE y no alcanzaba: su efecto corre **antes** de que el formulario hijo se
-suscriba a `formState`, así que el `isValid` que lee el botón no se enteraba. **Movido adentro de
-`AmountForm` y `PhoneNumberStepForm`, el botón se habilita.** Medido en el navegador antes y después.
-
-**Y es la tercera vez en el día que algo pasa build + tipos + lint y sólo se ve corriéndolo.** Las
-otras dos fueron el `ecommerce_request_id` en snake_case y el import de un módulo `.server` desde
-cliente.
-
-## Los CUATRO PRs de la migración, y qué rescatar (2026-09-14)
-
-> **MEDICIÓN · 2026-09-14** — los PRs de abril (#503/#363) **siguen ABIERTOS**, no cerrados, y tienen
-> **dos piezas que no existen hoy en ningún lado**.
-> ⚠ **Caducó el mismo día: los dos se CERRARON** (re-medido el 2026-09-14 por la tarde). Lo que no
-> caduca es la segunda mitad — las dos piezas siguen sin existir en ningún lado, y cerrarlos no las
-> trajo. Que el PR se cierre no rescata su contenido.
-> **Cómo se vuelve a comprobar:** `gh pr view <n> --json state,baseRefName,files` en cada repo, y
-> `git grep "ecommerce-check" main` y `git ls-tree -r --name-only origin/main …/routes/ | grep waiting`.
-
-| PR | estado | tamaño | qué es |
-|---|---|---|---|
-| `legacy-backend` [#503](https://github.com/Creditop-SAS/legacy-backend/pull/503) | 🔴 **CERRADO** sin merge *(se cerró el 14/9, después de la medición de acá arriba)* | 15 arch · +295/−31 | «checkout integration», abril |
-| `frontend-monorepo` [#363](https://github.com/Creditop-SAS/frontend-monorepo/pull/363) | 🔴 **CERRADO** sin merge *(ídem)* | 15 arch · +342/−57 | idem, front |
-| `legacy-backend` [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795) | ⚪ mergeado en su día, **fuera de la vía de entrega** | 4 arch · +131/−5 | endpoints de contexto stateless |
-| `frontend-monorepo` [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) | ⚪ mergeado en su día, **fuera de la vía de entrega** | 21 arch · +585/−31 | entrada stateless |
-
-⚠ **`develop` ya no es destino de nada de esta tarea.** La entrega va `qa → main`, y después el resto de las ramas se pone al día **desde `main`**. Estos PRs se listan sólo como **fuente del código a rescatar**: dónde mergearon en su momento no dice a dónde va el trabajo.
-
-*(Corrige lo que decía este archivo: «quedaron sin merge» se leía como cerrados. Están abiertos, y #503
-apunta a `main` directo.)*
-
-**Cuál resuelve mejor: junio (#795+#551), y la razón está en el código de abril.**
-`checkout-redirection.tsx` de #363 guarda el contexto en una **cookie**
-(`session.set("ecommerce_session", {…})`) — exactamente la cookie que se perdía cruzando hosts y que
-motivó el enfoque stateless. Abril no está superado por estilo: lo está por el bug que lo originó.
-
-**Lo rescatable, y es concreto — dos piezas que NO están en `main` ni en ninguna rama viva:**
-1. **Backend #503**: `GET loans/ecommerce-check/{user_request_id}` → `AdvisorStatusController@checkLoanStatus`
-   (38 líneas). Verificado: `git grep "ecommerce-check" main` no devuelve nada.
-2. **Front #363**: `ecommerce-continue.tsx` montado en la ruta **`waiting-room`** (90 líneas) — polling
-   cada 5 s hasta `user_request_status_id === 11`, y al aprobar pinta `RequestStatus`.
-
-Juntas son **la sala de espera del veredicto**, y hoy eso existe **sólo para Bancolombia**
-(`bancolombia/ecommerce/ecommerce-loan-processing.tsx`). Engancha con lo medido en prod: **2.167
-solicitudes del monolito quedan en estado 3 «Seleccionó entidad»** — eligieron entidad y no volvieron.
-Ese es el hueco que la sala de espera tapa.
-
-El resto de #503 (TusDatos, DocumentSigning, OtpValidation, RequestCompletion, AlliedProductService,
-Experian, BancolombiaBnpl) son cambios dispersos de abril: hay que revisarlos uno por uno contra `main`
-antes de rescatarlos — buena parte probablemente ya llegó por otras vías.
-
-### El redirect de borde en `aliados.creditop.com/checkout/*`
-
-Lo verificado que **da la razón** a la propuesta: el prerrequisito bloqueante es real
-(`/ecommerce/{hash}/checkout` **no está en `main`** → 404 en prod); el 302 y el
-query verbatim son correctos, y el código ya lo asume — el monolito documenta que reenvía
-`getQueryString()` con los `+` como `%20` y que legacy los revierte aguas abajo
-(`str_replace(' ', '+', …)` en `unserializeCreateEcommerceRequest`). Re-encodear en el borde rompería
-el base64.
-
-⚠ **Lo que falta en la propuesta: la regla `/checkout/*` SECUESTRA a Corbeta.** El monolito no manda a
-todos al mismo destino — para los allieds `[24,209,210,211,311]` llama a `buildLegacyCheckoutRedirectUrl`,
-que resuelve `NewFrontendUrlService::ecommerceResolveCheckout` (→ `/bancolombia/ecommerce/resolve-checkout`)
-o cae a `legacy-api.creditop.com/api/onboarding/checkout/{hash}`. Un 302 de borde plano los mandaría a la
-entrada **genérica**, que no conoce el flujo Corbeta — y ése es justo el tráfico que funciona: **2.583
-checkouts al 18,7 %** contra el 1,9 % del resto.
-
-**Hashes de sucursal a excluir** (los que tienen credencial ecommerce, medido en prod):
-`f61bb559` Alkosto (2.193 checkouts/6m) · `9909ad59` Alkomprar (142) · `88cbd88b` K-TRONIX (138) ·
-`b8e4f63b` Kalley (110) · y los de Creditop 24 sin tráfico: `bb534d6a`, `96f5da12`, `eeddcc1c`,
-`638bd7f1`, `4e803739`, `d9c122ff`.
-
-✔ **Y un dato que reduce el alcance del problema:** el plugin de Woo **ya está migrado** — su ajuste
-`base_url` tiene por defecto `https://originaciones.creditop.com` y arma el path nuevo
-`/ecommerce/{hash}/checkout` (v1.0.20, `class-creditop-gateway.php:508`). El redirect de borde es para
-la **base instalada vieja**, que es exactamente el planteo; pero conviene decirlo, porque abre una
-segunda palanca (empujar la actualización del plugin) para los comercios que sí actualizan.
-
-## El SDK del comercio se separó (2026-09-14)
-
-La exploración de «que el flujo corra dentro de la página del comercio» **ya no vive acá**: es la
-tarea `sdk-del-comercio.md` (**CORE-543**). Son dos trabajos con dos horizontes: esta migra el canal
-que YA existe y tiene PRs abiertos; aquélla explora una capa nueva encima y no está comprometida.
-
-Lo que esta tarea conserva es el **conocimiento del canal** que aquélla usa pero no le pertenece: qué
-datos entrega el comercio, y cómo reacciona hoy el formulario.
-
-### Qué datos del usuario ya tiene el comercio (2026-09-14)
-
-`EcommerceRequestService` lee del contrato base64 y devuelve **exactamente seis**: `email`, `phone`,
-`firstName`, `lastName`, `documentNumber`, `documentType` — en `main`, en las dos puntas (`ERS003` al
-entrar y `ERS005` al rehidratar). WooCommerce manda el pedido entero y deja mapear nombres de campo
-personalizados (`config`: nombres, apellidos, documento, dirección, ciudad, teléfono); VTEX normaliza
-a los nombres canónicos y manda `config: []`.
-
-**Y no es casualidad que sean esos seis: cubren los CINCO obligatorios de `personal-info`**
-(`document.type`, `document.number`, `email`, `name`, `surname`) más el teléfono del registro.
-`document.expedition` y `birth` son **`nullable`** en el validador — la expedición sólo se exige donde
-`should_collect_expedition_date` la pide. O sea: **para un comercio que mapee todo, el piso de fricción
-puede ser cero.** *(Corrige lo que dije antes en este mismo hilo, que el piso nunca era cero.)*
-
-**Cuatro trampas verificadas:**
-1. **`address` y `city` viajan y se tiran** — el plugin las deja mapear, llegan en `config`, y `prefill`
-   no las lee. `personal-info` acepta `address`.
-2. **El fallback por config de *apellidos* está muerto**: el plugin guarda la clave como `surname` y
-   `getBillingField` pregunta por `$config->last_name`. Un comercio que renombró ese campo **no lo puede
-   mapear**; funciona sólo porque el `billing` nativo de Woo ya trae `last_name`.
-3. **`document_type` no es mapeable** — no está entre los seis del plugin.
-4. **Los dos endpoints difieren en el default**: `create` devuelve `documentNumber ?? ''` y
-   `documentType ?? 'CC'`; `detail` no pone default. VTEX también quema `'CC'` (`billingFrom:213`).
-   Engancha con #71 y #68.
-
-✔ El front ya se defiende: `real()` descarta vacíos y placeholders `---`, y `lockedFields =
-Object.keys(prefill)` bloquea **sólo lo que llegó** — ignora el `readonlyFields` del backend. **No está
-en `main`.**
-
-### Que el formulario reaccione a lo que recibe: ya está a medio cablear
-
-Tres piezas vivas y una tirada:
-1. **Reacciona a quién es el comercio**: `GET /api/v2/onboarding/personal-info/{branch}/config` →
-   `visibleOptionalFields`, y el form **oculta** (`{showBirthDate && …}`), no sólo bloquea.
-2. **Reacciona a qué mandó la tienda**: `lockedFields`. El lock es por **CSS, no `disabled`** — el
-   comentario dice por qué: «*which would drop the value from the submit*».
-3. **Dos flags que el backend ya manda y el front tira**: el docblock de `GetPersonalInfoConfigService`
-   dice que v1 devuelve `should_collect_expedition_date` y `should_collect_employment_info` y que «*the
-   wizard's own schema does not even parse*» — y ya existe `shouldCollectExpeditionDateForAllied`
-   (`OnboardingController:1800`).
-
-⚠ **Pero el recálculo va en el BACKEND, no en el front.** El mismo archivo trae la advertencia: «*two
-independent readings of "does this merchant need a stratum" is how a screen ends up not asking for
-something the save then rejects*». Si el form decide solo qué saltear y `StorePersonalInfoService`
-valida por su cuenta, el guardado rechaza lo que la pantalla nunca pidió. Y hay una segunda razón:
-`should_use_manual_birth_date` no sale del comercio sino de **si la sucursal ofrece una entidad que lo
-exige** — el front no puede saberlo.
-
-Orden propuesto, de barato a caro: **(a)** parsear `should_collect_expedition_date`, que ya viaja;
-**(b)** mover la decisión al backend espejando el gate de escritura, como se hizo con el estrato;
-**(c)** recién ahí evaluar el form dinámico (`form-service`, `@creditop/backend-driven-form`,
-`packages/form-engine` ya existen).
-
-### Dos trampas que costaron tiempo hoy, y no eran del producto
-
-- ⚠ **El contenedor local corre el WORKING TREE, no `main`.** El prototipo daba **HTTP 500 / `OBV21002`**
-  en `personal-info`. La causa: la rama `feat/lenders-tabla-cards` trae el validador viejo con `$this`
-  dentro de un método `static` («Using $this when not in object context»), que revienta en el closure de
-  `document.type`. **En `main` está arreglado** (captura `$partnerBranchId` en variable) y el propio
-  archivo documenta ese mismo fatal como un bug ya corregido una vez. No es un defecto de `main`: es la
-  rama local atrasada.
-- ⚠ **En local, la causa de un `OBV21002` es INVISIBLE.** `runServiceMethod` atrapa todo y loguea con el
-  tracer → `Log::channel('loki')` → `host.docker.internal:3100`, que en local no existe; el handler se
-  traga su propio fallo y **el fallback a `Log::channel()` nunca dispara**. Para verla hay que levantar
-  un receptor en el 3100 y repetir la llamada. *(Candidato a F-xx.)*
-- Y un detalle del contrato: el wizard manda `document.number` como **número**
-  (`Number(input.documentNumber)`), no string.
-
-## Lo que encontró validar antes de mergear (2026-09-14)
-
-Correr los tres canales antes del merge encontró **un agujero real en el propio PR**, y lo encontró
-porque se recorrió el FRONT, no la API.
-
-**El anclaje al pedido sólo funcionaba para una minoría de comercios.** `otp-verification.tsx` elige
-entre dos repositorios de OTP según `resolveKycFlow`: v2 si el comercio está en la lista
-`kyc_pipeline_allieds`, v1 —el legacy del monolito— si no. **Cada endpoint lee el id del pedido con su
-propia forma** (v2 `ecommerceRequestId`, v1 `ecommerce_request_id`) y el otro lo ignora sin un solo
-error. El PR original arreglaba el camino v2; el repositorio **v1 no mandaba el campo en ninguna forma
-pese a recibirlo**. Medido contra el ambiente **qa**: de los 7 comercios consultados, **los 7 responden
-`usesPipeline=false`** — o sea que v1 no era el caso de borde, era el camino de todos.
-
-Sin ese anclaje se caían **tres cosas a la vez**, y ninguna daba error: el comercio no recibía el
-veredicto, el formulario no se prellenaba con lo que el comercio ya sabía, y **por lo tanto tampoco se
-bloqueaba ningún campo** — `lockedFields` llegaba vacío y el cliente podía reescribir sus propios datos.
-Arreglado dentro del mismo PR (tres líneas en `phone-otp-legacy.repository.ts`) y comprobado corriendo:
-el payload sale con el campo, el puente `user_requests_by_ecommerce_request` queda creado, y el loader
-de personal-info pasa de `lockedFields: []` a los cinco campos. El spec que lo verifica **borra el cookie
-`_session` en cada paso**, así que también deja medido que el camino v1 es stateless: el id llega por el
-request, no por la sesión.
-
-**Tres hallazgos transversales salieron de la misma validación** y se registraron en `findings`:
-**F-214** (con `flow_id=2` el listado se recorta a `rt=0` y un comercio sin ninguna queda con la pantalla
-vacía — es lo que se vio al probar la UI), **F-215** (cualquier 404 del wizard deja una página que no
-hidrata, en `main` y `qa`) y **F-216** (una setting ausente da 500 y el front cae al OTP v1 sin avisar).
-
-**Y el canal asesor no fallaba por el PR: fallaba el harness.** El motor HTTP de `harness-caminar` nunca
-cargaba la sesión de Cognito, así que `--flow merchant` iba siempre al login y moría en un «/login: HTTP
-500» que no decía nada. La corrida de control sobre `qa` daba idéntico, lo que probaba que no era
-regresión pero señalaba al lugar equivocado. Arreglado en el harness.
-
-## Cómo probar / validar
-- Flujo E2E de ecommerce: `bin/ecommerce` de **harness** (ver nodo **harness**). El front vive en `qa`: apuntá el harness ahí, no a main.
-- ⚠ Gotcha (nodo `ecommerce`): la entrada ecommerce se degrada en local por Mixed Content — el motivo mismo del rediseño stateless.
-- Verdicto: el wizard rehidrata el monto/prefill desde `ecommerce-context.server.ts` sin cookie y cierra a Estado 11.
+- **Nodos de contexto:** `ecommerce` (el canal: contrato base64, credencial, `/vtex/*`, «volver al comercio»)
+  · `onboarding` (el formulario que se hidrata sin cookie) · `payments` (cuota inicial y
+  `down-payment-validation`) · `architecture` (la costura `application → legacy-backend + frontend`).
+- **Tareas vecinas:** `sdk-del-comercio.md` (CORE-543) — el flujo dentro de la tienda, y el conocimiento del
+  prefill del comercio.
+- **Hallazgos que salieron de acá:** F-214, F-215, F-216 (14/9) · F-221 (17/9) · F-223 (17/9).
+- **Los PRs y sus ambientes no se listan acá: los mide la pestaña Ramas** (`make tareas-ramas N=6`). Lo único
+  que esa medición **no** puede saber está arriba, en Riesgos: el revert dejó a #997 y #1005 como ancestros
+  de `main` sin su contenido.
+- PRs de origen, de junio: [legacy-backend #795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
+  (en `main`) · [frontend-monorepo #551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551) (nunca
+  llegó a `main`).
 
 ## Registro
 
-### 2026-09-18 · organización editorial del documento
+### 2026-09-18 · limpieza del archivo: lo que no era de la tarea, y lo que ya lo dice una pestaña
 
-Se dejó una sola retoma breve y se reunieron los recordatorios repetidos de salida a producción.
-Este cambio ordena la documentación; no comprueba despliegues, no cierra pendientes y no cambia Jira.
-Las dos portadas anteriores y los recordatorios originales se conservan a continuación como antecedentes.
+Miguel señaló tres clases de ruido y se sacaron las tres. **(1) Lo que no es de esta tarea:** la sección del
+SDK del comercio y el conocimiento del prefill que usaba se **mudaron** a `sdk-del-comercio.md`, que es donde
+ese hilo vive desde el 14/9 — acá quedó sólo el comportamiento que esta tarea entrega (los campos llegan
+llenos y bloqueados), sin el detalle de los seis campos ni el roadmap del formulario dinámico. **(2) Lo que
+ya lo dice otra pestaña:** se borraron el `## Bitácora` del cuerpo (el tiempo vive en `data/entries/` y lo
+muestra su pestaña) y las cuatro tablas de PRs y ambientes, que son exactamente lo que mide
+`make tareas-ramas` — de ellas quedó sólo lo que la medición **no** puede saber, que el revert dejó a #997 y
+#1005 como ancestros de `main` sin su contenido. **(3) Lo viejo:** la historia de las ramas mergeadas a
+`develop` en junio, que dejó de ser la vía de entrega el 17/9; de esa cola sobrevive lo único vivo, que es
+que #582, #661 y #663 **siguen faltando en `qa`** y que el refresh desde `main` los destruiría.
 
-#### Procedencia del documento
+El cuerpo pasó a la forma de la plantilla —estado, pendientes, objetivo, dónde se toca, plan, alternativas,
+decisiones, riesgos, límites y material— y los hechos con fecha quedaron como anotaciones, que es lo que
+alimenta la pestaña Hallazgos. El Registro del 17 y el 18 queda íntegro; **el del 15 y el 16 se condensó a
+una entrada por día**, decisión de Miguel: eran 27 entradas entre los dos días, con el paso a paso de cada
+intento, y lo que queda cierto entra en dos. El detalle completo sigue en el historial de git.
 
-(migrado del nodo-tarea `ecommerce-web-stateless` del árbol de context, 2026-07-21)
+⚠ **Y de paso cayó una afirmación que el archivo repetía desde el 15/9**: que de la cola de junio faltaban
+#582, #661 y #663 en `qa`. Re-medido hoy contra `origin/qa`, **#665 y #661 ya volvieron** (los repuso
+#1015) y #600 se rehizo dentro de #997 — queda #582, y #663 estaba descartado. Corregido en Riesgos y en
+el pendiente, con cómo volver a medirlo.
 
-CUÁNDO APLICA: Cuando la tarea toca la migración de la originación de ecommerce (VTEX/Woo/self) al wizard STATELESS (sin cookie) en legacy-backend + frontend: PRs 795 (backend, en main) / 551 (frontend, sin llegar a main), el entry ecommerce/checkout, los endpoints de contexto, o el estado 'backend en main, front aún en develop'.
-
-#### Retoma extensa conservada (estado documentado al 17/9)
-
-**TODO está en `qa` y desplegado, y el 17/9 se comprobó corriéndolo.** Al 16/9 19:18: backend
-**#1409** (el flujo por origen) y **#1388**, y front **#995**, los tres con su despliegue en verde,
-encima de **#1402 · #1018 · #1015 · #997 · #1005 · #1392** que ya estaban. El **17/9** se sumaron, ya
-mergeados, **#1024** (el botón que vuelve a la tienda) y **legacy-application#169** (el checkout de los
-comercios entrando al wizard).
-
-✔ **Y el 17/9 la conducta por canal quedó MEDIDA en base, no deducida:** mismo comercio, misma entidad
-y mismo desenlace, sólo cambia el canal — y el WhatsApp de entrega aparece **únicamente** con asesor.
-La tabla, con las cuatro solicitudes, en el Registro del 17/9 (3).
-
-**El próximo paso es:** que QA recorra los tres canales en `qa`. El guion está en
-§«Cómo validar», y lo importante es el aviso de arriba de esa sección: **sin sesión de asesor** —
-ventana de incógnito o logout previo—, porque el wizard sirve los tres canales desde el mismo dominio
-y una sesión abierta hace que la compra se comporte como mostrador. Eso fue lo que hizo fallar las
-pruebas del 15 y el 16.
-
-**Lo que se espera ver:** compra desde la tienda y autogestión **siguen en la pantalla de
-confirmación**; con asesor **sí** aparece la pantalla de entrega, que ahí es lo correcto.
-
-⚠ **Hay UN PR abierto que no es de ecommerce pero salió de probar esto: #1027** — una promesa de
-pre-aprobado rechazada rompía el listado entero en vez de mostrar el error de su tarjeta (**F-221**).
-Toca entidades **agregadoras**, así que no cambia nada de lo de arriba, pero conviene que entre con el
-resto.
-
-##### `main` queda para después, y a propósito
-
-Nada va a `main` hasta que QA apruebe: cuando eso pase, la promoción `qa`→`main` se lleva todo lo de
-arriba sin PRs extra.
-
-⚠ **La única excepción es #1016, y no es de criterio.** Medido: `6fa13ae5` (#997) y `f443ecad` (#1005)
-**figuran como ancestros de `main`** —subieron con `Qa (#1007)` el 14/9— pero Abel revirtió su
-CONTENIDO con #1013 esa misma noche, así que `apps/…/ecommerce/checkout.tsx` **no existe en `main`**.
-Git los da por mergeados: la promoción no tiene nada que traer. Por eso #1016 repone el contenido como
-commits nuevos, y por eso necesita su propio PR.
-
-✔ **Y #1016 ya tiene #1018 portado**: cherry-pick limpio, commit `33649662` sobre `f474b237`, con el
-build verde. **Falta pushearlo** (va por SHA: la rama está tomada por el worktree de otra sesión).
-
-⚠ **Orden cuando llegue el momento:** primero #1016, después la promoción `qa`→`main`. #1016 repone
-la entrada de ecommerce y lleva el arreglo del rebote; promover antes deja `main` con rutas que apuntan
-a archivos que todavía no existen.
-
-##### Tres cosas abiertas, ninguna bloqueante
-
-- **El hueco de la credencial**: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
-  así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
-  base de qa, los tres con Credifamilia.
-- **19 archivos de prueba que no corren**: el `include` de vitest del wizard cubre
-  `lenders-marketplace/src/lib/utils/**` y hay 20 pruebas bajo `src/lib/**`. Ensancharlo lleva de 492 a
-  703 pruebas y destapa 4 fallas reales. Registro del 16/9 (10).
-- **La siembra del caminador**: no puede ejercitar una rt=2 porque siembra antes del formulario y el
-  `action` la pisa. Registro del 16/9 (3).
-
-##### Lo de antes, que sigue valiendo
-
-**El trabajo llegó a `main` y lo sacaron.** Los tres PRs del front (#997, #1005) subieron con
-`Qa (#1007)` el 14/9 a las 18:58 y Abel los revirtió esa misma noche con **#1013** (`77796a4f`,
-20:52). El backend #1392 **no** se revirtió y sigue en `main`. El motivo del revert es un defecto real
-y ya diagnosticado: en el flujo del **asesor**, con cuota inicial > 0, elegir entidad rebota a
-`/solicitar` — los cinco eslabones, medidos, en §«El rebote a `/solicitar`». Se arregló con **#1015**,
-que ya está en `qa`; **#1016** repone la entrada del checkout en `main` y **sigue ABIERTO**.
-
-✔ **El arreglo del rebote ya estaba escrito desde junio** (#665): #997 se rehizo partiendo de #551
-(11/6) y no se llevó los cinco PRs de corrección posteriores. Ver §«La cola de junio que el rebuild no
-se llevó» — de esa cola siguen faltando en `qa` **#582, #661 y #663**.
-
-#### Portada anterior (estado registrado al 15/9)
-
-> **estado (2026-09-15):** 🔴 **llegó a `main` y lo REVIRTIERON.** El front entró con `Qa (#1007)`
-> (`48246d68`, 14/9 18:58 — una promoción de **40 commits**, no un PR de esta tarea) y Abel lo sacó dos
-> horas después, el 14/9 20:52, con
-> [frontend-monorepo#1013](https://github.com/Creditop-SAS/frontend-monorepo/pull/1013) (merge
-> `77796a4f`), que deshace **#997 y #1005 enteros** — 27 archivos, −1.062 líneas.
->
-> **La causa es un defecto real del PR, no un accidente del merge**, y está diagnosticada y medida en
-> §«El rebote a `/solicitar`». Lo reportó Joel (QA) por DM el 15/9 08:38: *«cuando uno da click en el
-> botón de "Validar Pre aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de
-> solicitar»*.
->
-> ⚠ **Y el revert dejó las dos puntas desparejas otra vez:** sólo se revirtió el **front**. El backend
-> [#1392](https://github.com/Creditop-SAS/legacy-backend/pull/1392) **sigue en `main`** (la ruta
-> `ecommerce-status` resuelve contra `origin/main`). Es la misma forma del par de junio —backend
-> adelante, front atrás— repetida tres meses después.
->
-> `qa` **conserva los tres PRs**: el revert se hizo sobre `main`, no sobre `qa`. O sea que el defecto
-> **sigue vivo en `qa`**.
->
-> ⚠ **PERO una promoción `qa` → `main` NO lo vuelve a subir — y eso es un problema, no un alivio.**
-> Medido el 2026-09-15: `merge-base(origin/main, origin/qa)` **es la punta de `qa`**, o sea que `qa` ya
-> está entera dentro de `main`; y `6fa13ae5` (#997) y `f443ecad` (#1005) **son ancestros de `main`**
-> aunque su contenido no esté. Es el problema clásico de revertir un merge: git los da por mergeados,
-> así que **ninguna promoción futura los trae de vuelta**. El revert es pegajoso.
->
-> **Consecuencia práctica para el arreglo:** no alcanza con corregir en `qa` y esperar la promoción. Para
-> que esto vuelva a `main` hay que **revertir el revert** (`git revert 77796a4f`) o rehacer el cambio
-> como commits NUEVOS. Y las dos piezas —la reposición y el arreglo del rebote— conviene que viajen
-> juntas, o `main` queda con la ventana rota abierta entre una y otra.
->
-> **La tarea no gradúa a `context/`:** la vara del árbol es `main`, y ahí hoy no hay nada del front.
->
-> ✔ **DOS PRs abiertos, un commit cada uno** (el #1014 se cerró por arrastrar 56 archivos ajenos — ver
-> §«El PR que arrastraba trabajo de otros»):
->
-> | PR | → | qué | tamaño |
-> |---|---|---|---|
-> | **[#1015](https://github.com/Creditop-SAS/frontend-monorepo/pull/1015)** | `qa` | el arreglo del rebote | 1 commit · **3 arch** · ✅ **MERGEADO 15/9** |
-> | **[#1016](https://github.com/Creditop-SAS/frontend-monorepo/pull/1016)** | `main` | repone #997/#1005 **+** el arreglo | 1 commit · 28 arch · Sonar ✅ · **sólo espera revisor** |
->
-> **EL ORDEN, y la DECISIÓN de Miguel (2026-09-15):**
->
-> 1. ~~#1015 → `qa`~~ — ✅ **hecho el 15/9.**
-> 2. **#1016 → `main`: se mergea CUANDO QA dé el visto bueno de ecommerce en `qa`**, no antes.
->    Decidido por Miguel. El motivo: **es la única forma de volver a meter el código después del
->    revert**, así que conviene que entre ya validado — no hay apuro por riesgo, porque `main` hoy no
->    tiene la funcionalidad y por lo tanto tampoco el defecto.
-> 3. La promoción `qa` → `main` (Laura y Oscar) — después del 2. **Medido: limpia, sin conflictos**, y
->    los cuatro archivos de ecommerce sobreviven.
->
-> ⚠ **Si la promoción del paso 3 ocurre ANTES de #1016, da conflicto** en `routes.ts` y
-> `available-lenders.tsx`, y resolviéndolo a favor de `qa` deja `routes.ts` apuntando a cuatro archivos
-> inexistentes → build roto. Es lo que hay que avisarle a quien promueve.
->
-> ⚠ **Y que no confunda a nadie: `main` NO está roto, está VACÍO.** Medido el 15/9 contra
-> `origin/main`: el `if (initial_fee > 0)`, la ruta `initial-fee-payment` y el archivo
-> `initial-fee-payment.tsx` **no existen**. El revert no borró el bug, borró la funcionalidad entera.
-> Por eso #1016 **no es un arreglo**: es la reposición. Y si nunca se mergea, nada se rompe — sólo que
-> el trabajo no llega a producción y los 14.160 checkouts siguen entrando por el monolito.
->
-> ⚠ **Y `make tareas-ramas` va a seguir diciendo «en qa, main» para las dos ramas, y es FALSO.** Un
-> revert no borra commits: los de #997 y #1392 siguen siendo ancestros de `main`, así que
-> `git merge-base --is-ancestor` da verdadero aunque el código ya no esté. Es la **inversa** del falso
-> «falta» que este mismo archivo anotó para #551 — y el desempate es el mismo: **el contenido, no el
-> SHA**. Acá, `git ls-tree -r --name-only origin/main -- …/ecommerce/checkout.tsx` → vacío.
->
-> Los PRs viejos quedan como historia: backend [#795](https://github.com/Creditop-SAS/legacy-backend/pull/795)
-> (✅ en main desde junio) · frontend [#551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551)
-> (🟡 **nunca llegó a `main`** — ver §«Cómo aterrizarlo»).
->
-> Llevar la originación de ecommerce (VTEX / WooCommerce / self) al **wizard STATELESS (sin cookie)**: el front arma la entrada `ecommerce/checkout` y lee el contexto de la solicitud vía endpoints de contexto del backend (no por sesión/cookie). Es la versión que reemplazó al intento anterior "web-origination" de abril (PRs 503/363, que quedaron sin merge).
-
-#### Recordatorios de entrega unificados
-
-> - [ ] ~~Promover #551 (front) a main~~ → **el camino es rama nueva desde `qa`** (ver §«Cómo aterrizarlo»). El pendiente sigue vivo, cambia el método.
-
-> - [ ] ~~viejo~~ **Promover la entrada stateless** — hasta que llegue a `main` no corre en prod. ⚠ **Medido el 2026-09-14: son 14.160 checkouts en 6 meses esperando del otro lado**, los que hoy convierten al 1,9 % contra el 18,7 % del mundo nuevo. Es el pendiente con más impacto de esta tarea.
-
-> - [ ] ⚠ **PROMOVER `qa` → `main`** — es lo único que separa esto de producción. Verificado el 2026-09-14: `checkout.tsx` y la ruta `ecommerce-status` están en `origin/qa` y **no** en `origin/main`. Mientras tanto la tarea **no gradúa** a `context/` (la vara del árbol es `main`) y los 14.160 checkouts siguen esperando.
-
+Esto ordena la documentación: no comprueba despliegues, no cierra pendientes y no toca Jira.
 
 ### 2026-09-17 (5) · los cuatro canales en paralelo de nuevo: el listado se cae por config, no por el canal
 
@@ -992,1169 +528,135 @@ Acá: la tabla de los cuatro PRs pierde la columna `base`, la matriz de presenci
 
 ⚠ **Y una consecuencia del plan que hay que mirar ANTES de ejecutarlo:** poner las ramas al día desde `main` **destruye lo que sólo vive fuera de `main`** — los CINCO arreglos de junio (#582, #600, #661, #663, #665) que #997 no se llevó. **#665 es literalmente el arreglo del defecto que causó el revert de septiembre.** Esa lista se dejó más visible, no menos: rescatarlos es prerrequisito del refresh.
 
-### 2026-09-16 (14) · CINCO comercios en paralelo en `qa`: los cinco a `/confirmation`
-
-> **MEDICIÓN · 2026-09-16** — barrido por el canal de la tienda, cinco comercios con **cinco entidades
-> en plataforma distintas**, en paralelo contra `qa`.
-> **Cómo se vuelve a comprobar:**
-> `node dev/caminar-wizard.ts --casos '#bb534d6a:37;#13874eb6:77;#38299332:70;#e80531af:87;#414f789f:103' --flow ecommerce --paralelo --cerrar --manual`
-
-| comercio | entidad | `usm` | destino | BD |
-|---|---|---|---|---|
-| **Creditop** | Creditop X (37) | **0** | `/confirmation` | 10 |
-| **Amoblando Pullman** | CrediPullman (77) | 1 | `/confirmation` | 10 |
-| **Tienda Fisio** | CrediFis X (70) | 1 | `/confirmation` | **11** |
-| **Compubit** | Compucredit (87) | 1 | `/confirmation` | 10 |
-| **Alpeluche** | Alpeluche X Consumo (103) | 1 | `/confirmation` | 10 |
-
-**Los cinco con `corporate_user_id` NULL y CERO filas de `sendSelfManagement`.** Incluido Creditop, que
-tiene los dos flags del mostrador apagados — el caso donde autogestión y ecommerce se separan.
-
-⚠ **Los cuatro que quedaron en 10 cortaron en la FIRMA con 504, y no es el flujo: es la capacidad de
-`qa`.** Repetidos **dos** en paralelo en vez de cinco, los dos cerraron en **11** con 13 pantallas
-(uReq 502408 y 502409). Es F-180 —¼ de vCPU y el ALB cortando a los 60 s— agravado por los ~16 s que
-cuesta cada PDF. La decisión del canal, que es lo que este trabajo cambia, salió bien en **5 de 5**.
-
-### Y para poder barrer hubo que arreglar el caminador
-
-La siembra se pisaba con el formulario y los cinco morían en «la entidad no salió en el listado».
-Arreglado con una **resiembra dirigida**: si la entidad pedida falta, se resiembra con
-`synthFill(ur, { lender })` y se vuelve a pedir el listado, **una sola vez** — si tampoco aparece, la
-exclusión sí es del comercio. El detalle y lo que costó, en `harness/CLAUDE.md`.
-
-### 2026-09-16 (13) · la matriz COMPLETA en `qa`, y el bloqueo de la sesión resuelto por consola
-
-> **MEDICIÓN · 2026-09-16** — los tres canales, contra `qa`, con la aplicación haciendo el redirect.
-> **Cómo se vuelve a comprobar:** las tres filas de abajo, y si la sesión caducó,
-> `E2E_TARGET=qa npx playwright test dev/warm-session.spec.ts --headed --project=chromium`
-
-| uReq | canal | asesor | WhatsApp | destino |
-|---|---|---|---|---|
-| 502395 | ecommerce | NULL | 0 | **`/self-service/13874eb6/502395/confirmation`** |
-| 502396 | autogestión | NULL | 0 | **`/self-service/13874eb6/502396/confirmation`** |
-| 502397 | **asesor** | 1828388 | **1** | **`/merchant/ec977139/502397/continue`** |
-
-Las dos puntas coinciden: los dos sin asesor no dispararon el WhatsApp y siguieron en la pantalla de
-confirmación; el del asesor lo disparó y fue a la de entrega. **Los flujos se respetan.**
-
-### El bloqueo de la sesión NO era un bloqueo: era una herramienta sin documentar
-
-La sesión de Cognito de `qa` estaba vencida y el caminador cortaba con «entrá una vez por el panel».
-Pero el pre-login **ya existe por consola** —`dev/warm-session.spec.ts`, que es lo que el panel corre por
-debajo—. Renovó en 22 s: `WARM_OK qa`.
-
-⚠ **Va HEADED contra `qa`**: el Managed Login de `auth.merchant` corta la automatización por fingerprint
-y en headless queda colgado en `/verifyPassword` (F-66). ⚠ Y el caminador **no lo dispara solo**: sólo
-lee el cache. Las dos cosas quedaron documentadas en la tabla de herramientas de `harness/CLAUDE.md`.
-
-### La herramienta que faltaba, y el error que la enseñó
-
-El caminador no podía llegar a la selección en el canal del asesor —su siembra deja la entidad fuera del
-listado—, así que se agregó **`dev/asesor-destino.spec.ts`**: abre el listado con la sesión cacheada,
-elige la entidad y reporta a dónde llevó la aplicación. Nada más.
-
-⚠ **Y la primera versión mintió en verde.** Con un localizador propio
-(`locator('div').filter({hasText}).last()` y `getByRole('button').last()`) el click pegó en otro botón:
-la corrida dijo **«1 passed»**, imprimió como destino la misma URL del listado, y en la base el
-`lender_id` de la uReq 502397 quedó en **NULL** — o sea que no se había elegido nada. Lo delató mirar la
-BD, no el runner. Se reescribió usando `elegirEntidad` de `pkg/wizard-navegador.ts`, que además devuelve
-los botones que VIO, que es lo que permite explicar un fallo en vez de sólo reportarlo.
-
-### 2026-09-16 (12) · PROBADO EN `qa`: los dos canales sin asesor caen en `/confirmation`
-
-> **MEDICIÓN · 2026-09-16** — desbloqueado el listado, corrida la matriz contra `qa` en el navegador.
-> **Cómo se vuelve a comprobar:** crear la solicitud con el caminador, resembrar con
-> `synthFill(ur, { lender })` **después** del formulario, y abrir `/…/<ureq>/lenders` sin sesión.
-
-| caso | uReq | destino | asesor | WhatsApp |
-|---|---|---|---|---|
-| **A · ecommerce sin sesión** | 502395 | **`/self-service/13874eb6/502395/confirmation`** ✅ | NULL | 0 |
-| **B · autogestión sin sesión** | 502396 | **`/self-service/13874eb6/502396/confirmation`** ✅ | NULL | 0 |
-| **C · con asesor** | — | ⬜ **no se pudo** | — | — |
-
-El redirect lo hizo **la aplicación**, en el navegador, sin el arnés en el medio. Y el rastro coincide:
-cero filas de `sendSelfManagement`, que es el mismo booleano que puebla `continueUrl`.
-
-⚠ **El caso del asesor quedó sin probar en `qa`**: la sesión de Cognito cacheada
-(`.auth/cognito-state.qa.json`, del 13:26) **está vencida** y el front manda a `/login`. Renovarla pide
-entrar por el panel con credenciales. Lo que sí está: el mismo caso **caminado en local** esa tarde
-(AltaX sobre un comercio `self_managed=1` → `/merchant/…/continue` con handoff) y la tabla de pruebas
-del resolver, que lo fija.
-
-### El desbloqueo, y lo que dejó
-
-La tabla `cards` se creó en la base compartida **acotando el alcance**: sólo ese `CREATE TABLE`, con el
-DDL que Laravel había generado en local (`SHOW CREATE TABLE`), idempotente, y registrando la fila en
-`migrations` (lote 268) para que el próximo deploy no la reintente. **No se usó `artisan migrate`**: a
-secas corre todas las pendientes —el mecanismo de CORE-431— y con credenciales por la shell daba
-`Access denied` porque se manglean. La capa del harness las lee del `.env` por su cuenta.
-
-⚠ **Y la causa de fondo sigue abierta: el despliegue de `qa` no corre migraciones.** `main-qa.yaml`
-sólo invoca `config-ci/deploy-ecs-service.yaml`. Va a volver a pasar con la próxima migración de
-cualquiera — esta vez fue una sola y aditiva; la próxima puede no serlo.
-
-### 2026-09-16 (11) · 🔴 BLOQUEADO: `lenders-v2` da 500 en `qa` — falta una migración, y no es de esta tarea
-
-> **MEDICIÓN · 2026-09-16** — al arrancar las pruebas en `qa`, el listado **no carga**:
-> `GET /api/onboarding/loan-application/lenders-v2/<ureq>` → **HTTP 500**.
-> `SQLSTATE[42S02]: Table 'creditop.cards' doesn't exist`.
-> **Cómo se vuelve a comprobar:**
-> `I_KNOW_THIS_TOUCHES_SHARED_DEV=1 E2E_TARGET=qa node dev/listado.ts --branch 13874eb6 --v2`
-
-**La causa, medida:** el PR **legacy-backend#1388** («la tarjeta viaja en la respuesta») **sí trae** su
-migración —`database/migrations/2026_09_13_120000_create_cards_table.php`— pero **la tabla no existe**
-en la base compartida (`information_schema` devuelve 0). El código se desplegó y la migración no corrió:
-`main-qa.yaml` sólo invoca el deploy de ECS (`config-ci/deploy-ecs-service.yaml`), sin paso de
-migraciones.
-
-⚠ **Esto bloquea a TODO el equipo, no sólo a esta tarea**: el listado está en todos los flujos, así que
-en `qa` nadie pasa de ahí. Y el front usa `lenders-v2`, que es justo el que revienta.
-
-⚠ **No se corrió la migración desde acá, a propósito.** Aplicar migraciones a mano contra la base
-compartida desde un contenedor local es exactamente la práctica que dejó la BD de dev+staging vacía el
-2026-08-19 (CORE-431). Le corresponde a quien despliega, en el ambiente.
-
-**Cómo se descubrió, que vale como método:** el backend no dejó rastro en Loki (cero errores en 45
-minutos) y el navegador mostraba sólo «Error al obtener las opciones de financiamiento». La causa
-apareció en **PostHog** —`available-lenders.tsx loader GET …/lenders-v2/502391 returned 500`— y el
-mensaje exacto sólo salió pegándole al endpoint con `listado.ts`. Las tres fuentes, y cada una aportó
-una pieza distinta.
-
-### 2026-09-16 (10) · #1018 portado a #1016 — y 19 archivos de prueba que no corren
-
-> **MEDICIÓN · 2026-09-16** — `#1409`, `#1388` y `#995` ya están en `qa`. Falta #1016, y se le portó
-> #1018 con un cherry-pick **limpio, sin conflictos** (6 archivos, 150+/10−). Commit `33649662` sobre
-> `f474b237`. Build verde, pruebas iguales a la base.
-> **Cómo se vuelve a comprobar:**
-> `git show origin/qa:<validate-loan-amount.uc.ts> | grep -c minimumInitialFee` → 9, y lo mismo en la rama.
-
-| | `minimumInitialFee` |
-|---|---|
-| `qa` | 9 |
-| `main` | 5 |
-| #1016 **antes** | 5 |
-| #1016 **ahora** | **9** ✅ |
-
-De los 6 archivos de #1018, **cuatro quedaron idénticos a `qa`**; los otros dos difieren **sólo en el
-estilo de import** —`qa` usa rutas profundas por el refactor de #995, que va a `qa` y todavía no a
-`main`—. La lógica es la misma.
-
-### ⚠ Y de paso: la prueba que trae #1018 NO CORRE, ni acá ni en `qa`
-
-El `include` de vitest del wizard cubre `lenders-marketplace/src/lib/**utils**/**/*.test.ts`, y el
-archivo de #1018 vive en `src/lib/**application**/`. **Mismo `include` en `qa` y en `main`**, así que
-esa prueba entró a `qa` sin ejecutarse nunca.
-
-**No es un archivo: son 19.** Bajo `lenders-marketplace/src/lib/**` hay **20** archivos de prueba y el
-`include` cubre **uno** (`utils/submit-post-redirect.test.ts`).
-
-✔ **Medido qué pasaría al ensancharlo** a `src/lib/**`: de **492 a 703 pruebas** (+211), y aparecen
-**4 fallas reales** que hoy están a oscuras —el polling de Credifamilia (`fetch-lender-preapproval`) y
-tres del `action-text` de Nequi—. La de #1018 **pasa**.
-
-Es otro cambio, con su propio riesgo: no entra en #1016. Pero conviene abrirlo, porque hoy cualquier
-prueba que se escriba ahí adentro es decorativa. ⚠ Y es la misma lección que con `opensNewTab`:
-**arreglar el alcance de algo destapa todo lo que estaba detrás.**
-
-### Nota de método
-
-La rama de #1016 estaba tomada por el worktree de **otra sesión** (`fm-probe`), limpio y en el mismo
-commit. No se tocó: el cherry-pick se hizo en un worktree propio. Por eso el push va **por SHA** y no
-por nombre de rama.
-
-### 2026-09-16 (9) · PR abierto: legacy-backend#1409 → `qa`
-
-> **MEDICIÓN · 2026-09-16** — la rama `fix/flujo-por-origen` se subió y el PR está abierto:
-> [legacy-backend#1409](https://github.com/Creditop-SAS/legacy-backend/pull/1409) → `qa`,
-> **MERGEABLE/CLEAN**. Cuatro commits, sólo backend, 20 pruebas del resolver en verde y los cuatro
-> caminos caminados en local.
-
-**El orden de merge de lo que queda:**
-
-| | PR | → | estado |
-|---|---|---|---|
-| 1 | **#1409** el flujo por origen | `qa` | ✅ abierto, limpio — desbloquea a QA |
-| 2 | **#1388** el backend de la tarjeta | `qa` | `MERGEABLE/CLEAN` |
-| 3 | **#995** el front de la tarjeta | `qa` | rebaseado en local; se pone verde al pushear |
-| 4 | el backend a producción | `main` | promoción `qa`→`main`, o PR propio |
-| 5 | **#1016** repone la entrada del checkout | `main` | ⚠ **le falta portarle #1018** |
-
-⚠ **Dos órdenes que no son cosméticos.** El backend de la tarjeta va **antes** que su front (#1388 antes
-que #995): agrega un campo que nadie lee todavía, y al revés rompe. Y el backend llega a `main` **antes**
-que #1016, porque si no producción estrena la entrada de ecommerce con el backend viejo y el comprador
-cae en `/continue?url=null` — que es exactamente el bug que esto viene a arreglar.
-
-### 2026-09-16 (8) · la MATRIZ: cada comercio por los dos caminos, y por qué la tabla anterior engañaba
-
-> **MEDICIÓN · 2026-09-16** — Miguel señaló que la tabla anterior tenía a Alta Fleet sólo en la fila del
-> asesor, y que eso **no dice qué pasa cuando el cliente va solo**. Tenía razón: cada fila probaba UN
-> camino de UN comercio, y de ahí no sale la regla. Corrida la matriz entera.
-> **Cómo se vuelve a comprobar:** el asesor local está atado a una sucursal, así que para recorrer los
-> demás hay que moverlo — `node bin/dbops.ts assign <cognito_id> <comercio> <hash> <cognito_id>`, y
-> **devolverlo al terminar** (quedó en Alta Fleet, como estaba).
-
-| comercio (config) | autogestión | asesor |
-|---|---|---|
-| **Alta Fleet** · `self_managed=1` | **`/confirmation`** | `/merchant/…/continue` |
-| **Mediarte** · `usm=1` | `/confirmation` → estado 11 | `/merchant/…/continue?url=null` → estado 11 |
-| **Amoblando** · `usm=1` | ecommerce → `/confirmation` → estado 11 | `/merchant/…/continue?url=null` → estado 11 |
-| **Creditop** · los dos apagados | `/confirmation` · ecommerce `/confirmation` | ⚠ error previo (ver abajo) |
-
-✔ **La regla se sostiene en los cuatro, con tres configuraciones distintas del comercio**: sin asesor
-va a `confirmation`, con asesor va a `continue`. Y el `?url=null` aparece justo donde tiene que
-aparecer — en el handoff del mostrador, que es el único lugar donde hay a quién entregarle algo.
-
-⚠ **Creditop por asesor da «No se pudo procesar la solicitud» al seleccionar.** Verificado con A/B: se
-reproduce **idéntico con el código de `qa`**, así que es previo y del comercio interno de pruebas.
-
-### Dos cosas del método, que costaron corridas
-
-⚠ **Una tabla con un comercio por fila y un camino por comercio no prueba una regla, la insinúa.** La
-versión anterior mostraba Alta Fleet sólo con asesor y Mediarte sólo sin asesor: de ahí no se puede
-saber si lo que manda es el canal o el comercio. Hacen falta las dos celdas del mismo comercio.
-
-⚠ **Y en el canal del asesor la sucursal NO la decide el caso, la decide el BACKEND** según a dónde
-esté asignado el asesor de la sesión — el propio caminador lo avisa en un comentario. Pedirle
-`--casos '#13874eb6:77' --flow merchant` mientras el asesor está en otra sucursal corre contra la OTRA
-y el listado sale distinto sin que nada falle. *(Primero lo atribuí a la cookie `merchant_context` de
-F-190; **es falso** —no hay ninguna cookie de ese tipo en el `storageState`—, era que la corrida se
-cruzó con la reasignación.)*
-
-### 2026-09-16 (7) · autogestión también sigue en el lugar: la regla queda en «entrega SÓLO el mostrador»
-
-> **MEDICIÓN · 2026-09-16** — Miguel señaló que autogestión también debería caer en `/confirmation`, y
-> tiene el mismo argumento que ya aceptamos para ecommerce: **si no hay asesor, no hay a quién
-> entregarle nada**. Chocaba con una decisión escrita de #1402, así que se midió antes de darla vuelta.
-> **Cómo se vuelve a comprobar:**
-> `E2E_TARGET=local node dev/caminar-wizard.ts --casos '#bb534d6a:37' --flow self-service --cerrar --manual`
-
-**Lo que había.** `continuesInPlace` exigía `allieds.self_managed || lenders_by_allieds.user_self_management`
-para autogestión. Sin ninguno de los dos, el cliente terminaba en `/continue?url=null`: la pantalla que
-dice «recibirás un link por WhatsApp» cuando **no se envió nada y no hay asesor a quien esperar**. Le
-mentía.
-
-**La objeción de #1402 estaba escrita, y no aplica.** Decía: *«silenciar el mensaje sin poblar
-`continueUrl` dejaría al cliente sin aviso Y sin destino»*. Acá justamente **se puebla** `continueUrl`,
-así que destino hay. La objeción era contra silenciar a secas, no contra continuar en el lugar.
-
-### El riesgo, medido en prod antes de tocarlo — 90 días, entidades rt 2/3/4
-
-| caso | comercios | solicitudes |
-|---|---|---|
-| con asesor | 40 | 6.078 |
-| ecommerce | 2 | 2.050 |
-| autogestión · comercio marcado | 1 | 3 |
-| autogestión · entidad marcada | 8 | 36 |
-| **autogestión · ninguno marcado** | **0** | **0** ← el caso que cambia |
-
-**Nadie llega hoy por `/self-service/*` a un comercio no marcado.** El caso que en local mostraba la
-pantalla de entrega es un artefacto del dump, no un escenario de producción. ⚠ Y el cero se validó con
-el desglose: una consulta que devuelve cero sin mostrar la población de al lado no prueba nada — es la
-misma clase de error que el `git grep -E '\s'` de legacy-backend.
-
-### Lo que queda
-
-La regla es una línea —`$origin->isCustomerPresent()`— y el método **deja de recibir los dos flags**:
-no eran su pregunta. ⚠ **Pero los flags NO quedan sin trabajo**: siguen decidiendo el envío del
-WhatsApp y siguen gobernando `opensNewTab`. Y para una entidad **externa** (rt 0/1) no hay continuación
-en plataforma, así que el caller ni llega al resolver y el modal «continuá con el asesor comercial»
-sale igual que siempre — que es donde esa regla de negocio vive de verdad.
-
-| canal | caso | destino | antes |
-|---|---|---|---|
-| **autogestión, flags apagados** | Creditop X | **`/confirmation`** | `/continue?url=null` |
-| autogestión, entidad marcada | Mediarte X | `/confirmation` → estado 11 | igual |
-| ecommerce | CrediPullman | `/confirmation` → estado 11 | igual |
-| **asesor** sobre comercio marcado | AltaX | `/continue` con handoff | igual |
-
-Pruebas: **18** (44 aserciones) — son menos que antes en ese tramo porque la regla dejó de tener
-permutaciones de flags que probar. ⚠ Y la divergencia con la copia de
-`NequiPaymentService::isSelfManagement()` pasa de **una fila a dos**: queda asertada, con las dos
-marcadas.
-
-**Cuatro commits en la rama.** El cuerpo del PR está actualizado con esta tabla de prod, para que quien
-revise vea el cambio de criterio antes de aprobar.
-
-### 2026-09-16 (6) · más pruebas en local: el par que discrimina, el congelamiento, y un 404 que no es nuestro
-
-> **MEDICIÓN · 2026-09-16** — tercera pasada sobre `fix/flujo-por-origen`. Aparecieron **dos cosas que
-> no estaban en el plan**: un efecto colateral del arreglo que había que acotar, y un 404 previo.
-> **Cómo se vuelve a comprobar:** las tres corridas de abajo, más
-> `./vendor/bin/sail artisan test Modules/Onboarding/tests/Unit/LenderTabBehaviorResolverTest.php`
-
-### 1 · El par que prueba que el origen DISCRIMINA
-
-Todas las corridas anteriores usaban comercios con `usm=1`, donde autogestión y ecommerce contestan
-**lo mismo** — o sea que no probaban nada del canal. El par que sí lo prueba es el mismo comercio y la
-misma entidad con **los dos flags apagados** (Creditop X sobre Creditop), cambiando sólo el canal:
-
-| canal | uReq | destino |
-|---|---|---|
-| ecommerce | 466734 | **`/confirmation`** |
-| autogestión | 466735 | `/continue?url=null` — **sin cambio**, y es lo correcto ahí |
-
-Y la cadena entera contra la BD real, con el vínculo persistido:
-
-| uReq | vínculo | sesión | origen | ¿sigue acá? |
-|---|---|---|---|---|
-| 466734 compra de tienda | sí | sin sesión | `ecommerce` | **sí** |
-| 466734 compra de tienda | sí | **con sesión colada** | `ecommerce` | **sí** ← el bug reportado |
-| 466735 autogestión | no | sin sesión | `self_service` | no |
-| 466735 autogestión | no | con sesión | `advisor` | no |
-
-### 2 · ⚠ El efecto colateral que hubo que ACOTAR
-
-`opensNewTab` recibía `isEcommerce` del mismo campo que nunca viaja, así que llegaba **siempre false**
-y ecommerce caía en la rama de autogestión. Al arreglar el dato, se destapaba — y eso **cambia
-producción**. Medido contra prod, sucursales con credencial de ecommerce y comercio no autogestionado
-pasarían de modal a **pestaña nueva**: **Welli** (19 sucursales), **Medicredit** (18), **Wompi** (11),
-**Su+pay** (4), **Addi** (1). Bancolombia no (va por `postRedirect`, ya forzado a false); Compensar,
-Sistecrédito y Meddipay tampoco (lista de exclusión).
-
-**Decisión de Miguel: congelarlo.** El método vuelve a su firma original, sus 9 pruebas quedan tal cual
-—son la red que prueba que no se tocó— y se suma **una que FIJA el congelamiento**: si alguien lo migra
-sin abrir esa entrega, se pone roja. El blast radius del PR queda en UNO.
-
-⚠ **Y la lección generaliza: arreglar un dato roto destapa todo lo que lo consumía.** El primer commit
-«funcionaba» sin cambiar nada; el segundo, al arreglar de dónde sale el canal, movió dos ramas — una
-buscada y otra no. Antes de arreglar un campo que nunca llegó, hay que listar quién lo lee.
-
-### 3 · Un 404 que apareció probando, y es PREVIO
-
-Elegir **Sistecrédito** por ecommerce lleva a `/ecommerce/<hash>/<ureq>/validate-lender-otp` → **404**.
-Verificado con A/B contra el código de `qa`: **se reproduce idéntico**. Es la **tercera vez** el mismo
-defecto de clase —una ruta declarada en un árbol de `routes.ts` y no en el otro—, después de `continue`
-(faltaba en el público) y `initial-fee-payment` (faltaba en el del asesor). Candidato a F-xx.
-
-### El estado de la rama
-
-Tres commits sobre `origin/qa`, sólo backend. Pruebas **14 → 20** (47 aserciones). El cuerpo del PR
-está escrito. **El push quedó bloqueado por el clasificador de permisos de la sesión**, así que lo sube
-Miguel.
-
-### 2026-09-16 (5) · rama `fix/flujo-por-origen`: el canal como valor con nombre, y el campo que nunca viajó
-
-> **MEDICIÓN · 2026-09-16** — rama desde `origin/qa` (`7b1f45f0`), dos commits, **sólo backend**.
-> Probado en local con el A/B del mismo comercio y la misma entidad, antes y después.
-> **Cómo se vuelve a comprobar:**
-> `E2E_TARGET=local node dev/caminar-wizard.ts --casos '#bb534d6a:37' --flow ecommerce --cerrar --manual`
-
-**Qué cambia.** El canal deja de deducirse de dos booleanos sueltos y pasa a ser un valor con nombre,
-`OnboardingOrigin`, resuelto **una vez** y compartido por las tres decisiones que antes lo deducían por
-separado (el modal «continuá con el asesor», si el proceso se entrega, y si la selección abre pestaña):
-
-| canal | ¿el flujo sigue acá? |
-|---|---|
-| `ECOMMERCE` | **sí**, siempre — la compra existe y el comprador está en su propio dispositivo |
-| `ADVISOR` | **no** — es punto de venta, el handoff es lo que corresponde |
-| `SELF_SERVICE` | sólo si el comercio o la entidad están marcados, igual que antes |
-
-Y **el pedido de la tienda gana sobre la sesión**, que es el arreglo: antes la primera pregunta era
-`auth()->user() !== null`, así que una sesión colada convertía una compra en flujo de mostrador.
-
-### ⚠ El hallazgo que no esperaba, y es anterior a esta rama
-
-**`$request->ecommerce_request_id` es SIEMPRE null en `update-user-request`.** El payload del front es
-`{lender_id, fee_number, original_amount, amount, initial_fee, rate, transaction_data}`
-(`LoanRequestPayload`) — ese campo no está. Consecuencias, las dos medidas:
-
-1. mi primera versión del arreglo **no hacía nada**, porque el origen nunca podía dar `ECOMMERCE`;
-2. **y la guarda que ya existía tampoco.** La condición del modal «continuá el proceso con el asesor
-   comercial» dice `&& !isset($ecommerceRequestId)` — o sea que **nunca excluyó a ecommerce**, y una
-   compra de tienda recibía ese modal igual. Eso es lo que produce el `/continue?url=null`.
-
-✔ **El dato bueno está persistido desde el checkout, y vive en TRES lugares** —
-`ecommerce_requests.user_request_id`, `.original_user_request_id` y la tabla puente
-`user_requests_by_ecommerce_request`—, que es el mismo trío que ya excluye
-`UserRequestRepository::findWithEcommerceExclusions()`. Queda como predicado con nombre,
-`EcommerceRequest::existsForUserRequest()`, en vez de una cuarta copia suelta.
-
-### El A/B, y los tres canales
-
-| caso | antes (`origin/qa`) | después |
-|---|---|---|
-| **ecommerce, los dos flags apagados** (Creditop X) | `/ecommerce/…/continue?url=null` | **`/confirmation`** ✅ |
-| autogestión (Mediarte X, `usm=1`) | `/confirmation` → estado 11 | igual |
-| ecommerce (CrediPullman, `usm=1`) | `/confirmation` → estado 11 | igual |
-| asesor sobre comercio `self_managed=1` (AltaX) | `/continue` con handoff | igual |
-
-Pruebas del resolver: **14 → 19** (46 aserciones), incluida la regresión de la sesión colada.
-
-### Tres cosas que quedan escritas y NO se hicieron acá
-
-- ⚠ **QR de Corbeta no es un `case` aparte**, a propósito: entra por el mismo endpoint que la tienda
-  web (`checkout/{allied_branch_hash}`, `CorbetaCheckoutController`) y crea la misma fila, así que hoy
-  no se distingue — y para esta decisión da lo mismo. Separarlo pide una marca al crear el pedido.
-- ⚠ **Autogestión con una sesión colada sigue leyéndose como asesor.** Desde el backend no hay con qué
-  distinguirla: el árbol de la ruta sólo lo sabe el front, que ya tiene `resolveOnboardingChannel`.
-  Cerrarlo pide mandar el canal en el payload — otra entrega, y toca los dos repos.
-- ⚠ **`NequiPaymentService::isSelfManagement()` tiene una copia del mismo trío** y sigue preguntando
-  primero por la sesión. No se tocó: contesta otra pregunta. La divergencia queda **asertada** en la
-  tabla de pruebas, con la fila que se separa marcada, en vez de quedar en silencio.
-
-### 2026-09-16 (4) · ECOMMERCE también cae en `/confirmation` — y por qué la prueba de QA no
-
-> **MEDICIÓN · 2026-09-16** — el canal **ecommerce sin sesión** hace lo correcto: visto en el navegador,
-> uReq **502378** (sucursal 659 `13874eb6`, `corporate_user_id = NULL`) salta del listado a
-> `/self-service/13874eb6/502378/confirmation`. La prueba de QA en ese mismo canal (**502370**) tenía
-> `corporate_user_id = 276231`, y por eso se comportó como el canal del asesor.
-> **Cómo se vuelve a comprobar:** abrir `/ecommerce/13874eb6/<ureq>/lenders?amount=…` en un navegador
-> **sin** sesión y apretar «Validar Pre aprobado».
-
-⚠ **Y la sesión NO tiene por qué estar ahí: se cuela.** `buildBackendAuthHeaders(request)`
-(`apps/loan-request-wizard/app/utils/backend-auth-headers.server.ts`) decide **sólo** por si hay usuario
-en la petición — **no mira en qué árbol está la ruta**. Como el wizard sirve los tres canales desde el
-MISMO dominio, las cookies `_at`/`_rt` viajan también en `/ecommerce/*`, el action reenvía el `Bearer`, y
-para legacy `auth()->user()` deja de ser null.
-
-**Y ahí hay una asimetría en el resolver, que es donde se arreglaría:**
-
-| método | ¿recibe el canal? |
-|---|---|
-| `LenderTabBehaviorResolver::opensNewTab(..., bool $isEcommerce, ...)` | **sí** |
-| `LenderTabBehaviorResolver::continuesInPlace($isAuthenticated, $alliedSelfManaged, $userSelfManagement)` | **no** |
-
-El propio `UserRequestService` ya excluye ecommerce en la rama de al lado
-(`else if (… && !isset($ecommerceRequestId) …)`), así que el criterio existe — simplemente no llega al
-método que decide si el proceso se entrega. **En ecommerce no hay asesor por definición: el que está
-frente a la pantalla es el comprador.** Que una sesión abierta en otra pestaña le cambie el flujo es
-efecto colateral, no decisión.
-
-⚠ **En producción esto no es sólo un artefacto de prueba:** el empleado del comercio que tiene el panel
-abierto y prueba la tienda en el mismo navegador reproduce exactamente esto. El comprador desde su casa
-no, porque no tiene sesión.
-
-### El estado de los TRES canales, hoy
-
-| canal | qué hace | cómo se verificó |
-|---|---|---|
-| **autogestión** (`/self-service`, sin sesión) | → `/confirmation` ✅ | **visto** en el navegador (502380) |
-| **ecommerce** (`/ecommerce`, sin sesión) | → `/confirmation` ✅ | **visto** en el navegador (502378) |
-| **ecommerce con sesión de asesor colada** | → `/continue` ⚠ | 502370, `corporate_user_id = 276231` — **es lo que vio QA** |
-| **asesor** (`/merchant`) | → `/continue` con handoff, **lo diseñado** | 6 solicitudes con asesor y las 6 con `sendSelfManagement`; **no** lo caminé en navegador (los cookies de sesión son httpOnly y no se inyectan desde JS) |
-
-✔ **Falsa alarma descartada de paso:** el QR de la pantalla de confirmación se veía roto en la primera
-carga de 502378 (`naturalWidth = 0`). Al recargar dio **HTTP 200 y 1113 px** — es una carrera entre la
-generación del PNG en S3 y el render, no un defecto.
-
-### 2026-09-16 (3) · VISTO en el navegador: el front de `qa` redirige a `/confirmation` — sin arnés en el medio
-
-> **MEDICIÓN · 2026-09-16** — la entrada (2) probó el arreglo por el RASTRO (la fila de `twilio_logs`
-> que no se escribió), no por el redirect. Miguel pidió verlo **dejando que redirija la aplicación**, y
-> eso es otra cosa: `caso.ts` pega contra la API y **no pasa por el front**, así que ahí no hay redirect
-> que observar. Ahora sí está visto.
-> **Cómo se vuelve a comprobar:** abrir
-> `https://originaciones-qa.dev.creditop.com/self-service/ec977139/<ureq>/lenders?amount=2000000` en un
-> navegador **sin sesión de asesor** y apretar «Validar Pre aprobado» en CrediPullman.
-
-**Lo que hizo la aplicación, sola:** del listado saltó a
-`https://originaciones-qa.dev.creditop.com/self-service/ec977139/502380/**confirmation**` y pintó el paso
-de identidad (Identidad · Pasos · Firmas, con el QR). No `/continue`. Y la solicitud quedó con
-`corporate_user_id = NULL` y **cero** filas de `sendSelfManagement`: las dos mitades del mismo booleano,
-coherentes.
-
-### Para llegar ahí hubo que destrabar el caminador, y el motivo es un defecto suyo
-
-⚠ **`dev/caminar-wizard.ts` siembra el perfil ANTES de enviar el formulario, y el `action` de
-`personal-info` lo pisa.** Medido comparando las dos solicitudes de hoy, las dos sin asesor y en la
-misma sucursal:
-
-| | field 29 (ocupación) | field 87 (ingreso) | ¿sale 77 en el listado? |
-|---|---|---|---|
-| 502379 (`caso.ts`) | **Empleado** | **2.320.000** | ✅ `[77, 6, 212, 192, 32]` |
-| 502380 (caminador) | **Desempleado** | **0** | ❌ `[212, 192, 6, 32]` |
-
-Con «Desempleado» e ingreso 0, CrediPullman queda fuera por regla DURA — tan afuera que el backend **ni
-siquiera evalúa el cupo** (cero líneas `QUOTA_CHECK` en Loki para esa uReq). O sea que el runner
-reportaba «la entidad 77 no salió en el listado» como si fuera un hecho del comercio, cuando era su
-propia siembra. **Tres corridas se perdieron así** (502377, 502378, 502380) antes de verlo.
-
-✔ **El destrabe, sin tocar el runner:** volver a llamar `synthFill(ur, { lender: 77 })` **después** de que
-el formulario ya se envió, y recién entonces abrir `/lenders` en el navegador. `synthFill` con `lender`
-deriva el perfil que cumple las reglas de esa entidad (`deriveSynthReq`); sin él usa uno genérico.
-
-**El arreglo de fondo, para cuando se toque:** que `sembrar()` corra DESPUÉS del `action` de
-`personal-info` —o que vuelva a sembrar antes de pedir `/lenders`— y que le pase `c.lender` a
-`synthFill`, que ya está en alcance. Hoy la línea es
-`synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true })`.
-
-⚠ **Y ojo con culpar al score:** el primer intento fue subirlo a 750 (el `max(min_score)` de 77 es 700 y
-`deriveSynthReq` habría usado 750). **No cambió nada** — la exclusión era por ocupación e ingreso. Una
-corrida que falla por la siembra se parece mucho a una que falla por la regla.
-
-### 2026-09-16 (2) · CORRIDO contra `qa`: el arreglo FUNCIONA — las pruebas que fallan llevan asesor
-
-> **MEDICIÓN · 2026-09-16** — corrido contra `qa` con CrediPullman (77) sobre Amoblando Pullman (94).
-> **Sin sesión de asesor el arreglo dispara**; las seis corridas que QA reporta como falladas tienen
-> todas `corporate_user_id = 276231` (`oscar+pullman@creditop.com`, «CREDITOP TEST»), y con asesor ir a
-> `/continue` es **el comportamiento diseñado**.
-> **Cómo se vuelve a comprobar (solo lectura):**
-> `SELECT ur.id, ur.corporate_user_id, (SELECT COUNT(*) FROM twilio_logs t WHERE t.user_request_id=ur.id AND t.method='sendSelfManagement') FROM user_requests ur WHERE ur.lender_id=77 AND ur.allied_id=94`
-
-**La prueba es el rastro del WhatsApp, no el ojo.** `NotificationService::sendSelfManagement` escribe una
-fila en `twilio_logs`, y ese envío es justo lo que #1402 suprime. Como el MISMO booleano
-(`$continuaEnEstaPantalla`) decide el envío y el `continueUrl`, la fila contesta las dos cosas:
-
-| uReq | UTC | suc | asesor | WhatsApp |
-|---|---|---|---|---|
-| 502320 · 502335 · 502345 · 502352 | 15/9 | 390 | **276231** | **sí** |
-| 502367 | 16/9 15:28 | 390 | **276231** | **sí** |
-| 502370 | 16/9 16:38 | **659 ecommerce** | **276231** | **sí** |
-| **502379** *(corrida propia, `caso.ts`)* | 16/9 17:08 | 390 | **NULL** | **no** — cerró en 11 |
-
-⚠ **Y la 502370 es la que más dice: es del canal ECOMMERCE y lleva asesor igual.** O sea que el
-navegador con el que se prueba tiene la sesión de «CREDITOP TEST» viva y el wizard la usa aunque se
-entre por la tienda. Un comprador real no la tiene — pero el empleado del comercio que prueba, sí.
-
-✔ **Qué pedirle a QA:** repetir en una **sesión limpia** (ventana de incógnito o logout previo), por
-`/self-service/ec977139/solicitar` o por el checkout de la tienda. Ahí el flujo debe caer en
-`/self-service/<hash>/<ureq>/confirmation`.
-
-⚠ **Y si lo que se quiere es que TAMBIÉN continúe en el lugar con asesor, eso NO es un bug: es una
-decisión de producto ya evaluada y descartada por alcance**, y está escrita en el docblock de
-`LenderTabBehaviorResolver::continuesInPlace` — medido en prod, de 39 comercios con el flag sólo dos
-tienen volumen en rt=2 en 90 días, y a My Tech (305) le cambiaría el 100% de sus solicitudes. La línea
-a tocar está señalada ahí. Es otra tarea, con su propia prueba.
-
-### Dos cosas que la corrida dejó de paso
-
-⚠ **El caminador no puede ejercitar una entidad rt=2 en este comercio: su siembra no la deja salir en
-el listado.** `dev/caminar-wizard.ts` llama `synthFill(ur, {income, score, skipIdentity})` **sin
-`lender`**, y además siembra ANTES de enviar el formulario, así que el `action` de `personal-info` pisa
-el perfil. Resultado: dos corridas (502377 self-service, 502378 ecommerce) murieron en «la entidad 77 no
-salió en el listado» sin haber probado nada. `caso.ts` sí la ve —listado `[77, 6, 212, 192, 32]` contra
-el mismo backend— porque dicta el buró aparte. **Un runner que se traba en la siembra reporta igual que
-uno que encontró un defecto**, y esta vez costó dos corridas contra la base compartida.
-
-⚠ **`loki-trace` no puede separar `dev` de `qa`.** La etiqueta `environment` del stack compartido sólo
-tiene `development`, `local` y `testing` — **no hay valor `qa`**, así que `E2E_TARGET=qa` contesta «el
-uReq no es de este target» para solicitudes que sí atendió qa. Con `E2E_TARGET=dev` se ven igual, pero
-sin poder decir cuál de los dos backends respondió.
-
-### 2026-09-16 · «no llegó a qa» era falso: llegó y está desplegado — lo que falla es OTRA cosa
-
-> **MEDICIÓN · 2026-09-16** — los dos lados del arreglo de autogestión (front #1015/#1018 y back
-> #1402) están en `origin/qa` **y desplegados**, con la corrida de despliegue en verde. La hipótesis
-> «no se subió» queda descartada.
-> **Cómo se vuelve a comprobar:**
-> `gh run list --branch qa --limit 8` en los dos repos · `git show origin/qa:Modules/Onboarding/App/Services/UserRequestService.php | grep -c continuaEnEstaPantalla`
-
-| pieza | rama | merge | despliegue a QA |
-|---|---|---|---|
-| front **#1015** el rebote a `/solicitar` | `qa` `a58d861a` | 15/9 10:49 | ✅ 15/9 10:49 |
-| front **#1018** el botón muerto del listado | `qa` `7e5774c8` | 15/9 14:59 | ✅ 15/9 14:59 |
-| back **#1402** autogestión sin entrega | `qa` `7b1f45f0` | 15/9 15:58 | ✅ 15/9 15:58 |
-
-**Y el alcance por rama, que es la primera trampa.** `continuaEnEstaPantalla` (la guarda de #1402)
-aparece **5 veces en `qa` y CERO en `staging`**; `continueUrl` en el
-`UserRequestService`, **4 en `qa` y 3 en `main`**. O sea que **probar contra
-`originaciones.dev.creditop.com` (dev) o contra staging devuelve el comportamiento viejo**, y las dos
-URLs se diferencian en un token. ⚠ Y no se puede desempatar por logs: la etiqueta `environment` de
-Loki en ese stack sólo tiene `development`, `local` y `testing` — **no hay valor `qa`**, así que
-`dev/loki-trace.ts` con `E2E_TARGET=qa` dice «no es de este target» sin que eso signifique nada.
-
-### Las TRES condiciones del arreglo, y el hueco que no está escrito
-
-`$data['continueUrl']` se puebla sólo si se cumplen las tres a la vez:
-
-1. **sin sesión de asesor** — `continuesInPlace()` devuelve `false` con asesor autenticado, a propósito;
-2. **el par (comercio, entidad) marcado** — `allieds.self_managed` **o** `lenders_by_allieds.user_self_management`;
-3. **`$inPlatformContinueUrl !== null`** — que es donde está el problema.
-
-⚠ **Hueco medido: `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`.** En la
-rama CON credencial, `case 4` prende `standBy` pero **no** puebla esa url, y **rt=2 y rt=3 ni siquiera
-tienen `case`**. Así que una entidad en plataforma con credencial cableada **nunca** dispara el
-arreglo: se le sigue mandando el WhatsApp, eso prende `showModal`, y el front aterriza en `/continue`.
-**Tres pares reales en la base de qa caen ahí** — Ramguiflex SAS (26), Mediarte (91) y DENTIX (189),
-los tres con **Credifamilia (24, rt=4)** y credencial a nivel comercio.
-
-### Y los dos comercios con los que se venía probando NO sirven para ver el arreglo
-
-| comercio | `self_managed` | entidades en plataforma (rt 2/3/4) | ¿dispara? |
-|---|---|---|---|
-| **Amoblar** (38) | 1 | **ninguna** | ❌ nunca hay a dónde continuar |
-| **Amoblando Pullman** (94) | 0 | Credifamilia 24 (`usm=0`) | ❌ **por diseño** — el par no está marcado |
-| | | CrediPullman 77 (`usm=1`) · Cierre X 201 (`usm=1`) | ✅ debería |
-
-O sea: **con Credifamilia sobre Amoblando Pullman, ir a `/continue` es el comportamiento correcto**, no
-el bug. El caso que sí ejercita el arreglo es CrediPullman (77) o Cierre X (201) sobre Amoblando
-Pullman, **sin sesión de asesor**, contra `originaciones-qa.dev.creditop.com`.
-
-**Lo que NO se verificó:** contra qué URL, con qué comercio y con qué entidad se corrió la prueba que
-falló. Sin eso no se puede elegir entre las tres explicaciones — y las tres tienen arreglo distinto.
-
-### 2026-09-15 (11) · el botón de validar no hace nada cuando la entidad pide cuota inicial
-Probando el canal en el ambiente de pruebas apareció una tarjeta con «La cuota inicial mínima es
-$321.000» y el botón **no hace nada**: ni avanza, ni muestra un error, ni deja rastro en consola.
-Medido: la solicitud quedó sin entidad elegida y sin moverse de estado, y no salió ni una petición —
-o sea que el freno es del navegador, no del backend.
-
-**La causa es mía, del cambio del 14/9 que sacó la cuota inicial del listado en este canal.** Esconder
-el campo no elimina el mínimo que exige la entidad: lo vuelve insatisfacible. El botón evalúa «esta
-entidad pide cuota inicial y no hay valor», escribe el mensaje «Ingresa la cuota inicial para
-continuar» **dentro del formulario que acabamos de esconder**, hace scroll hacia ese formulario oculto
-y corta. Desde el lado del cliente eso es un botón muerto, y desde el lado del comprador es un
-callejón: ya pagó su carrito y no puede terminar de financiar.
-
-⚠ **El propio comentario del cambio dice lo que debería pasar** —«primero elige entidad, y la cuota
-inicial se resuelve después si esa entidad la exige»— y afirma que el cobro posterior no se toca
-porque «el valor llega en 0 y el redirect no dispara solo». Eso último es justo lo que falla: el
-redirect no dispara porque **el envío nunca ocurre**. La condición que bloquea tiene que mirar si el
-canal ofrece el campo; si no lo ofrece, dejar pasar la elección y cobrar en su pantalla.
-
-**Alcance, medido.** En producción **no es alcanzable hoy**: el despliegue vigente es el revert y la
-línea no está en la punta de la rama principal. Pero la configuración de producción tiene **7
-sucursales de ecommerce con 6 entidades** que tienen al menos una categoría con cuota inicial — una se
-llama «Refurbicredit ecommerce». O sea que **entra en producción el día que se reinserte el trabajo**.
-
-⚠ **Y eso lo vuelve un bloqueante del PR de reinserción**, que es justo el que espera el visto bueno de
-QA sobre este canal: es un defecto que QA encuentra apretando un botón.
-
-**Cómo se confirmó que en producción todavía no pasa** (y por qué el primer número era engañoso): el
-evento de selección fallida por cuota inicial tiene **170 ocurrencias en producción en 30 días**, que
-leídas solas parecen un incendio. Separadas por canal son **170 del asesor y 0 de ecommerce** — y en el
-del asesor el campo SÍ se muestra, así que ese mensaje es la interacción normal, no un callejón. La
-primera consulta de alcance también fue un falso negativo: buscó el mínimo en la tabla del par
-comercio-entidad y el mínimo real vive en la **categoría** de la entidad, como porcentaje.
-
-### 2026-09-15 (12) · PR #1018 · el botón muerto, arreglado
-Rama limpia desde `qa` al día, **un commit, 6 archivos, +150/−10**, todo dentro del módulo del
-marketplace: [#1018](https://github.com/Creditop-SAS/frontend-monorepo/pull/1018) → `qa`.
-
-**Lo que se arregló y por qué esa forma.** Había **una sola** idea —«¿este canal pide la cuota inicial
-acá?»— escrita en **un solo lugar**: la condición que decide si el campo se renderiza. Las otras dos
-cosas que dependen de ella no la miraban: el botón, que exigía un valor igual, y el aviso de la
-tarjeta, que hablaba de un mínimo incumplido. De ese desacuerdo salía el botón muerto. Ahora la idea
-tiene nombre y las tres la usan.
-
-Cuando el canal no ofrece el campo, **la elección pasa**. Eso se pudo decidir con un dato, no con una
-opinión: en la configuración de producción, las seis entidades con categoría que pide cuota inicial en
-sucursales de ecommerce son **todas de las que cierran en plataforma**, y ésas cobran la cuota por el
-camino de adentro. O sea que dejar pasar no saltea el cobro: lo devuelve a donde corresponde.
-
-Y el aviso pasa de error bloqueante a informativo —«No olvides que en un paso posterior debes realizar
-el pago de $X»—, que es lo que Miguel describió como el comportamiento buscado. **En el canal del
-asesor no cambia nada**: ahí el campo existe, y el error accionable que lleva a él sigue igual.
-
-⚠ **La prueba que se agregó no cubre el botón, cubre el modo de fallar SILENCIOSO.** El aviso
-informativo se muestra sólo si el mínimo es mayor que cero; si alguien deja de poblar ese número,
-`undefined > 0` es falso, el aviso **desaparece sin ningún error** y el comprador elige entidad sin
-enterarse de que tiene un pago pendiente. Cuatro casos fijan que el número viaje en las tres ramas de
-la validación y que un cero llegue como cero — «no pide cuota inicial» y «no sé cuánto pide» no pueden
-ser el mismo valor.
-
-**Tres cosas de la verificación que vale registrar:**
-- **el build atrapó lo que el chequeo de tipos no vio**: un reexport que faltaba en el índice del
-  contexto. Es la razón por la que en este repo la vara es el build y no el typecheck;
-- **lint y pruebas de ese módulo ya fallaban en `qa`** antes de tocar nada — se midió con y sin los
-  cambios para no atribuirse deuda ajena ni esconder deuda propia: lint pasa de 20 hallazgos a 19, la
-  complejidad del componente queda igual, y de los 4 tests que fallan ninguno es de lo tocado;
-- **las pruebas del módulo no corren en esta máquina** por deriva del árbol instalado (dos versiones
-  de vite y dos de vitest). Pre-existente y también en `qa` limpio. Se corrieron con la versión que
-  declara el lock, y **no se reinstaló nada a propósito**: el servidor de desarrollo estaba en uso.
-
-**Orden de merge: este PR ANTES del de reinserción.** Hoy en producción el callejón no es alcanzable
-—el despliegue vigente es el revert—, pero la configuración de producción tiene 7 sucursales de
-ecommerce expuestas, así que entra el día que se reinserte el trabajo del canal. Reinsertar primero
-sería publicar el botón muerto.
-
-### 2026-09-15 (13) · PR legacy-backend#1402 · el flujo sin asesor ya no entrega el proceso al que está mirando
-Rama limpia desde `qa`, **un commit, un archivo, cuatro líneas efectivas**:
-[legacy-backend#1402](https://github.com/Creditop-SAS/legacy-backend/pull/1402) → `qa`.
-
-**Lo que se arregló.** Elegir una entidad en plataforma sin asesor dejaba al cliente en la pantalla de
-entrega en vez de continuar. Ya existía la rama que hace lo correcto —su propio comentario dice que en
-autogestión no hay a quién entregarle nada—, pero antes corría el envío del mensaje, y para una entidad
-en plataforma **el link que manda es nuestra propia pantalla de confirmación**. O sea que se le avisaba
-al cliente por WhatsApp que siguiera en la página que estaba mirando, y ese aviso marcaba «ya se le
-entregó algo», que es justo la condición que la rama de continuar exige que NO esté. La misma marca
-habilitaba y impedía.
-
-Ahora la decisión se calcula **una vez y antes** de los avisos, y la comparten los tres lugares que
-dependían de ella por separado. Es el mismo patrón que el PR del listado: una idea que estaba escrita en
-un solo lugar y que otros dos consultaban de memoria.
-
-⚠ **Y la primera versión de este arreglo iba a romper otro caso.** Suprimir el mensaje «a secas» dejaba
-sin aviso a un par que hoy sí lo recibe y que NO continúa en el lugar: quedaba sin mensaje y sin destino.
-Por eso la decisión se calcula con el resolver completo y no con «no hay asesor». Se vio pensándolo, no
-corriéndolo — pero se vio antes de escribirlo.
-
-**Verificación: los tres canales, antes y después.** El del asesor queda idéntico (medido: sigue yendo a
-su pantalla de entrega con el handoff, y las 14 pruebas del resolver siguen verdes). Los dos sin asesor
-pasan a la confirmación. Y el de la tienda **cierra entero en un solo recorrido: doce pantallas hasta
-«Autorizada»**, que es exactamente lo que Miguel pidió.
-
-⚠ **No se agregó prueba automatizada, y el motivo queda escrito:** el idiom del repositorio para esta
-zona recorre el camino por HTTP sobre un esquema propio, y armarlo para este endpoint era desproporcionado
-para cuatro líneas. La guarda de regresión es el arnés, que al caminar cualquiera de los dos canales avisa
-si el front vuelve a aterrizar en la pantalla de entrega sin nada que entregar.
-
-**Orden:** este PR y el del listado (#1018) son independientes — tocan repos distintos y no se pisan.
-
-### 2026-09-15 (10) · los selects pegados eran el AUTORRELLENO: creía que el plazo era una fecha
-
-> **MEDICIÓN · 2026-09-15** — la entrada (9) se quedó a mitad de camino: acertó que las dos listas
-> abiertas eran de tarjetas distintas, pero no dijo **quién las abría**. Es el autorrelleno del harness.
-> **Cómo se vuelve a comprobar:** `parteDeCombo('12 cuotas','',0,MESES)` — daba `'dia'`.
-
-**`pkg/fecha-trio.ts` tenía un fallback POR POSICIÓN que adivinaba sin mirar el contenido**: índice 0 =
-día, 1 = mes, 2 = año. En `/lenders` hay **un selector de plazo por entidad**, así que con tres
-tarjetas los tres salían `["dia","mes","anio"]` y `esTrioDeFecha` devolvía **`true`**. El autorrelleno
-abría **los tres** buscando un día y un mes adentro — y ninguno los tiene (Crédito 365: `3,6,9,12` ·
-Addi: `3…24` · Vanti: `2…60`).
-
-⚠ **El archivo ya avisaba de esto y la guarda no estaba:** *«un selector de cuotas también cae en uno o
-dos dígitos y no es un día»*. El aviso cubría los pasos 1 y 2 (por valor y por etiqueta); el que
-fallaba era el 3.
-
-**Y dos fugas más en `elegirEnPopover`, que son por qué quedaban ABIERTOS:**
-
-1. las opciones se buscaban con `document.querySelectorAll('[role=option]')`, **global**. Con dos
-   popovers abiertos juntaba las de los dos y `opciones[0]` podía ser **de otra tarjeta**.
-2. se cerraba con un **segundo `trigger.click()`**, y con el contenido abierto radix atrapa el foco: un
-   click sintético no siempre le llega. Ahora cierra con **Escape**, lo verifica por `aria-expanded` y
-   cae a un `pointerdown` afuera como último recurso.
-
-**Arreglado y con la regresión fijada** (`057dc11`): la posición sólo decide si el combo está vacío o
-muestra un placeholder. Los cinco casos reales del trío siguen detectándose — **14/14 en verde**, y dos
-de esas pruebas comprueban que la versión **inyectada al navegador** se porta igual que el módulo, o sea
-que el arreglo viaja.
-
-✔ **Y esto cierra el porqué del «no se cierran»**, que la entrada (9) dejó como «capa/posicionamiento»:
-no era z-index, era que **nadie los cerraba**.
-
-### 2026-09-15 (9) · el «bucle» del selector de plazo: no era un bucle, era una tarjeta tapando a otra
-
-> **MEDICIÓN · 2026-09-15** — pedido el listado real de la solicitud de esa corrida (uReq **502328**,
-> sucursal `ec977139`) a `lenders-v2`, los plazos de cada entidad son:
-> **Cómo se vuelve a comprobar:**
-> `GET /api/onboarding/loan-application/lenders-v2/<ur>?amount=<monto>` y mirar `credit_lines.fee_numbers`.
-
-| entidad | plazos que ofrece | default |
-|---|---|---|
-| **#212 Crédito 365** (rt=1) | **`3, 6, 9, 12`** | **12** |
-| #6 Addi (rt=0) | `3,6,9,12,18,24` | 24 |
-| **#32 Vanti** (rt=0) | **`2,3,4,5,6,7,8,9,10,11,12,15,17,18,24,36,40,45,50,55,60`** | 60 |
-
-**La lista abierta en la captura empieza en `2` y sigue 3,4,…9 con más abajo: es la de VANTI.** Crédito
-365 sólo tiene cuatro opciones y ninguna es `2`. O sea que el «12 cuotas» que no cambiaba es el
-**default de Crédito 365** y el «3 cuotas» marcado es el de **Vanti** — **dos tarjetas distintas**.
-
-✔ **No hay bucle de estado.** El desplegable de una tarjeta de «Otras opciones» se dibuja **encima de
-la tarjeta destacada**, así que se elige en una lista y el valor visible —que es de la otra— no se mueve.
-Se lee como «se quedó pegado» y se vuelve a elegir. Es un problema de **capa/posicionamiento**, no de
-estado. *(Descartado adversarialmente: el `Select` toma el label Y el check del mismo
-`selectedFeeNumber`, así que dentro de UNA tarjeta no pueden discrepar; `usePaymentPlanOptions` está
-gateado a Credifamilia; `useLenderAmountUpdate` se dispara por MONTO, no por plazo; y
-`amount_conditions` —el filtro que dejaría una sola opción— **no existe como tabla en `qa`**.)*
-
-⚠ **Lo que SÍ es un bucle, y está documentado en el código:** `useInstallmentOptions` coerciona el
-plazo al **último** de la lista cuando el elegido no está
-(`getValidSelectedFeeNumber` → `installmentOptions[length-1]`), y hay **tres** escritores de
-`setSelectedFeeNumber`. El propio archivo cuenta que eso ya produjo *«un ciclo que no converge (React
-#185, Maximum update depth exceeded)»* con renting/RTO, y se tapó salteándose la coerción para esos.
-No es lo de esta captura, pero el mecanismo sigue ahí para cualquier entidad cuyo plazo elegido caiga
-fuera de sus opciones.
-
-### ⚠ Y el panel anunció las entidades de OTRA sucursal
-
-La corrida imprimió `CrediPullman #77 · Cierre X #201 · Sistecrédito #9`, que son de la sucursal
-**`13874eb6`**. Pero la sesión del asesor redirige a **`ec977139`** —se ve en el log:
-`302 /merchant/13874eb6/solicitar → /merchant/ec977139/solicitar`— y ahí las entidades son **Addi,
-Crédito 365 y Vanti**. El panel describió un montaje que no era el que se probó. Es la misma clase que
-los otros tres defectos del harness de hoy: **la herramienta afirmando lo que no midió.**
-
-### 2026-09-15 (8) · ecommerce VALIDADO en `qa`, y qué falta todavía
-
-> **MEDICIÓN · 2026-09-15** — el canal ecommerce cierra **entero** contra `qa`, y el arreglo de #1015
-> **ya está desplegado** ahí.
-> **Cómo se vuelve a comprobar:**
-> `E2E_TARGET=qa CFE_TARGET=qa make harness-ecommerce TEL=3112345678`
-
-**1 · El arreglo está vivo en el despliegue de `qa`**, medido con sondas de URL contra
-`originaciones-qa.dev.creditop.com` (lectura pura, sin escribir nada):
-
-| ruta | qa desplegado |
-|---|---|
-| `/merchant/…/initial-fee-payment` | **302 → login** ✅ *(cayó en el árbol del asesor; con el código viejo daría 302 → `/`)* |
-| `/ecommerce/…/continue` · `/self-service/…/continue` | **200** ✅ *(con el viejo, 404)* |
-| `/merchant/…/ruta-que-no-existe` | 404 — el control |
-
-**2 · El canal, de punta a punta por API — las 8 comprobaciones en verde**, en los dos casos de la
-suite (comercio **Amoblar**, sucursal `d63f05e7`, `ecommerce_request` 7341 y 7342):
-
-    ✓ contrato armado          ✓ checkout aceptado        ✓ prefill 6/6 campos
-    ✓ contexto por erId        ✓ camino del OTP (v1)      ✓ solicitud creada (uReq 502319)
-    ✓ vínculo comercio ↔ crédito · fila y puente          ✓ listado · 1 entidad
-
-El **vínculo** es el que importa: es lo que hace que el comercio reciba el veredicto de su compra, y
-es justo lo que se había arreglado dentro del #997.
-
-### ⚠ Y la primera corrida FALLÓ por la herramienta, no por el canal
-
-`dev/ecommerce.ts` derivaba el teléfono **al azar**, que en local alcanza porque el driver de OTP no
-lo mira. Contra `qa` no: el OTP sólo es predecible si el teléfono está en `qa_otp_bypass_phones` (48
-entradas, **39** con forma de celular colombiano). Pasaba las cinco comprobaciones previas y moría en
-`otp-validate` con **HTTP 200 sin `user_request_id`** — que se lee como un fallo del canal siendo de
-la corrida. Agregado `TEL=`; es la cuarta vez en el día que la herramienta dice algo que no midió.
-
-### Lo que NO queda validado en `qa`, y por qué
-
-- **Las PANTALLAS.** Este runner valida el **contrato** entre front y legacy, no el render — lo dice su
-  propia cabecera. Para pantallas hace falta el wizard corriendo.
-- **El canal ASESOR con cuota inicial > 0**, que es donde estaba el defecto. Lo valida
-  `caminar-wizard`, que **escribe en la BD** (siembra el buró y amplía la lista del bypass) — y la BD
-  de `qa` es el **RDS compartido** `inertia-dev`. Eso pide `I_KNOW_THIS_TOUCHES_SHARED_DEV=1`
-  exportado a mano (F-53) y **no se corrió**: queda como decisión de Miguel. En local ese caso está
-  medido antes y después (0/1 → 1/1 en estado 11).
-- ⚠ **Y un matiz del `TEL=`:** al reusar un teléfono registrado se reusa un usuario que ya existe en
-  `qa`, así que los dos casos reportaron **el mismo uReq 502319** y el listado dio **1 entidad** (en
-  local daba 4). El vínculo se mide igual porque es por pedido, pero el prefill puede traer los datos
-  de ese usuario y no los del contrato.
-
-### 2026-09-15 (7) · #1015 MERGEADO a `qa`, y los 6 hallazgos de Sonar en #1016
-
-**#1015 está en `qa`** (mergeado por Miguel; al cierre de esta entrada el despliegue aún no terminó).
-
-**#1016 tenía 6 hallazgos de Sonar, y la compuerta caía por UNO solo:** «B Security Rating on New
-Code», del literal `|| "http://legacy-backend.inertia-develop"` en el `getApiUrl()` de
-`phone-otp-legacy.repository.ts`.
-
-⚠ **Y ese literal no lo introduce el PR: `qa` tiene la misma línea.** Aparece como «código nuevo»
-porque el revert-del-revert repone el archivo entero. **Es un costo inherente de un PR de
-reposición**: todo lo que vuelve cuenta como nuevo, incluidos los problemas viejos que arrastraba.
-
-**Arreglado con el patrón que ya usa el repo** (`nequi-payment`, `lender-return`, `user-request`): la
-base sale de `VITE_API_URL` **sin respaldo** y falla explícito si falta. Ese `||` no protegía de nada
-—`VITE_API_URL` ya es obligatoria, `env.server.ts` la declara en zod y `init()` aborta el arranque si
-falta— y lo único que podía hacer era mandar tráfico **en claro al cluster de desarrollo**. Aplicado
-también a su gemelo **`phone-otp.repository.ts`**, que tenía la misma línea y Sonar **no** había
-reportado — porque su línea 7 no cae en el código nuevo del PR. Un problema real que la herramienta
-no marcó.
-
-De los otros cinco, dos se arreglaron por ser de cinco minutos y estar en archivos que el PR ya toca:
-props como `Readonly` en `Landing.tsx` y `\D` en vez de `[^0-9]` en `phone-number-step-form.tsx`.
-
-### ⚠ Dos de los seis eran FALSOS POSITIVOS, y la causa es el idioma
-
-`loan-request-form:419` y `loan-option.entity:234` los marcaba como «Complete the task associated to
-this "TODO" comment». No hay ningún TODO: **Sonar matchea la palabra española «todo» dentro de
-prosa** — *«por qué no es TODO lo que llega»*, *«resuelve TODO acá»—. Es un costo recurrente de
-escribir los comentarios en español, que es la convención del repo: no se cambia, se sabe.
-
-El tercero —`amount-form:205`— **sí es un TODO de verdad**, y lo que pide es confirmar un copy **con
-Lau y Oscar**. Borrarlo para callar a Sonar sería perder la pregunta. Los tres quedan, y son Info: no
-tocan la compuerta.
-
-### 2026-09-15 (6) · los dos PRs finales, un commit cada uno, y el orden de merge medido
-
-**#1015 → `qa`** (3 archivos) y **#1016 → `main`** (28, la reposición + el arreglo). Un commit cada
-uno, con el mensaje contando todo lo que se trabajó en la rama.
-
-⚠ **Sonar rechazó la primera versión de #1015 por DUPLICACIÓN: 30,8 %** (máximo 20). La causa: las dos
-rutas que agregué al árbol del asesor son idénticas a las del público, y sobre 39 líneas nuevas eso es
-un tercio. **#1014 no lo había mostrado** porque sus 982 líneas diluían el mismo bloque — o sea que el
-PR grande también escondía esto.
-
-✔ **Y el arreglo de Sonar resultó ser el arreglo de fondo:** las tres rutas que tienen que existir en
-los dos árboles quedan declaradas **una sola vez** en `sharedFlowRoutes(idPrefix?)` y se despliegan en
-ambos. No es DRY por prolijidad: mientras se declaren por separado, **olvidar una no falla en ningún
-lado** — es el mecanismo del bug, y ya había pasado dos veces en direcciones opuestas. Con esto no
-puede volver a pasar por olvido. Re-verificado: las 8 sondas de URL correctas y el caminado
-**1/1 en estado 11**.
-
-**El orden de merge, medido y no supuesto:**
-
-| paso | qué | ¿importa el orden? |
-|---|---|---|
-| 1 | #1015 → `qa` | no |
-| 2 | **#1016 → `main`** | **SÍ: antes del paso 3** |
-| 3 | promoción `qa` → `main` | ✅ medido limpio si el 2 ya pasó |
-
-Simulado el paso 3 con el 2 aplicado: *«Automatic merge went well»*, **cero conflictos**, y los cuatro
-archivos de ecommerce sobreviven. Simulado **sin** el 2: conflicto en `routes.ts` y
-`available-lenders.tsx`, y resolviéndolo a favor de `qa`, `routes.ts` queda apuntando a cuatro archivos
-inexistentes → build roto.
-
-### 2026-09-15 (5) · el PR que arrastraba trabajo de otros, y por qué pasó
-
-> **MEDICIÓN · 2026-09-15** — #1014 mostraba **15 commits y 60 archivos**. Desglosados por origen:
-> **3** el arreglo, **3** la reposición, **56 cambios de `main` que `qa` no tiene** — los PRs
-> **#1000-#1004** (lint y design-system: `.oxlintrc.jsonc`, `AGENTS.md`, `CLAUDE.md`, rutas de Ábaco,
-> codeudor, entidad…). El 93 % del PR era trabajo ajeno, y **no aportaba nada al arreglo**.
-> **Cómo se vuelve a comprobar:** `comm -12` entre `git diff --name-only origin/qa HEAD` y los archivos
-> de `git show --name-only 77796a4f` (el revert) y del commit del arreglo.
-
-**El error, y vale nombrarlo:** la rama salió de `main` y apuntaba a `qa`. Como `qa` está **13 commits
-por detrás** de `main`, el diff se llevó ese desfase entero. Y la reposición de #997/#1005 **se
-cancela contra `qa`** —que ya tiene ese código—, así que lo único que quedó viajando fue trabajo de
-otra gente. Lo detectó Miguel mirando el contador del PR.
-
-**Corregido:** #1014 cerrado, **#1015** abierto desde `qa` con **1 commit y 3 archivos**.
-
-### ⚠ Y lo que NO resuelve #1015, que es de otro
-
-`main` no recupera #997/#1005 con una promoción. Medido simulando el merge:
-
-    CONFLICT (content): apps/loan-request-wizard/app/routes.ts
-    CONFLICT (content): .../available-lenders.tsx
-
-Y resolviendo a favor de `qa`, `main` queda con **`routes.ts` apuntando a 4 archivos inexistentes**
-(`ecommerce/checkout.tsx`, `initial-fee-payment.tsx`, `down-payment-validation.tsx`,
-`ecommerce-context.server.ts`) → el build se rompe. Es el mismo fallo que #997 ya se comió el 14/9.
-
-**Eso pide un `git revert 77796a4f` explícito contra `main`**, y no es de esta tarea: la promoción
-`qa` → `main` la llevan **Laura y Oscar**, y el revert lo hizo **Abel**. Queda escrito en la
-descripción de #1015 para que no se lo encuentren de sorpresa.
-
-**La regla que queda:** una rama para `qa` sale **de `qa`**. Salir de `main` apuntando a `qa` mete el
-desfase entre las dos ramas dentro del PR, y el contador de archivos es donde se ve.
-
-### 2026-09-15 (4) · corrido: el bug reproducido y el arreglo comprobado — y el harness no podía verlo
-
-> **MEDICIÓN · 2026-09-15** — dos wizards en paralelo contra la **misma** base local: `:5174` con el
-> código de `qa` (el bug) y `:5177` con la rama del arreglo. Mismo comercio, misma entidad, mismo caso.
-> **Cómo se vuelve a comprobar:**
-> `E2E_TARGET=local E2E_BASE_URL=http://localhost:<puerto> make harness-caminar CASOS='#13874eb6:77' FLOW=merchant CUOTA=300000 CERRAR=1 MANUAL=1`
-
-**El caso de reproducción ya existía en local:** **Amoblando Pullman** (`13874eb6`) tiene
-`allieds.initial_fee = 1` y ofrece **CrediPullman (77, `rt=2`)**. Es el mismo par de junio.
-
-**El rebote, paso por paso, en la app de verdad:**
-
-    ⚠ CrediPullman (rt=2) NO mandó al handoff: el front redirigió a .../initial-fee-payment
-    ▸ 35 /merchant/13874eb6/466660/initial-fee-payment   [202 → /]
-    ▸ 36 /                                                [202 → /merchant]
-    ▸ 37 /merchant                                        [202 → /merchant/13874eb6/solicitar]
-    ▸ 38 /merchant/13874eb6/solicitar                     [200]   ← la pantalla del monto
-
-Y después **vuelve a empezar**: abre otra solicitud, elige otra vez, rebota otra vez, hasta el tope de
-pasos. Cada vuelta deja una `user_request` en estado 3 — que es exactamente el hueco de las **2.167
-solicitudes en «Seleccionó entidad»** que este mismo archivo tenía medido en prod.
-
-**El antes y el después:**
-
-| caso (canal asesor, cuota inicial 300.000) | `:5174` con el bug | `:5177` arreglado |
-|---|---|---|
-| **CrediPullman `rt=2`** (cierra en plataforma) | 🔴 **0/1** — rebota a `/solicitar` y cicla | ✅ **1/1**, estado **11 «Autorizada»**, 11 pantallas |
-| **Bancolombia `rt=1`** (sí cobra por pasarela) | 🔴 **0/1** — rebota igual | ✅ la pantalla de cobro **responde 200** |
-| self-service, sin cuota inicial | — | ✅ **1/1**, estado 11 |
-| ecommerce, sin cuota inicial | — | ✅ **1/1**, estado 11 |
-
-✔ **La fila de `rt=1` es la que prueba que el alcance era más ancho que CreditopX**: con el bug,
-**cualquier** entidad con cuota inicial rebotaba en el canal del asesor.
-
-Y a nivel URL, sobre los dos servidores corriendo:
-
-| | `:5174` | `:5177` |
-|---|---|---|
-| `/merchant/…/initial-fee-payment` | **302 → `/`** | 302 → login (o sea: cayó en el árbol del asesor) |
-| `/merchant/…/down-payment-validation/tx1` | **302 → `/`** | 302 → login |
-| `/ecommerce/…/continue` · `/self-service/…/continue` | **404** | **200** |
-| `/merchant/…/ruta-que-no-existe` | 404 | 404 *(el control: una ruta que no existe en NINGÚN árbol sí da 404)* |
-
-### ⚠ Y lo que más vale del día: el caminador NO PODÍA ver este bug
-
-Tres defectos del propio `dev/caminar-wizard.ts`, los tres de la misma clase —**daba verde sin haber
-mirado**— y los tres arreglados (commit `a16b5c2`):
-
-1. **`initial_fee` estaba QUEMADO en 0.** La rama entera del cobro por pasarela no se ejecutaba nunca.
-   Por eso la validación del 14/9 dio verde en el canal del asesor. Ahora hay `CUOTA=`.
-2. **El handoff usaba el prefijo del flujo en curso** (`/merchant/…/confirmation`), y esa ruta **no
-   existe en el árbol merchant en ninguna rama**. Rebotaba, abría otra solicitud y cicíaba hasta el
-   tope, reportando «se pasó de 40 pasos» — que se lee como fallo del producto siendo del runner. La
-   continuación la abre el CLIENTE: va fija a `/self-service/…`.
-3. **El atajo del handoff se tomaba mirando sólo el `response_type`**, sin importar a dónde hubiera
-   redirigido el front — así que saltaba por encima del `/initial-fee-payment` y **cerraba en estado 11
-   igual, con el flujo roto**. Medido: el mismo caso pasaba de «1/1 cerró» (falso) a 0/1 con los cuatro
-   saltos impresos. Ahora el atajo exige que el front haya mandado a `/continue`.
-
-⚠ **El punto 3 es el que asusta**: no era que la herramienta no mirara, es que **miraba y contestaba
-que estaba bien**. Un runner que se saltea el paso que falla y después declara «cerró» es peor que no
-tenerlo — la misma forma que el `git grep -E '\s'` y que mi propia sonda de `git cat-file` de esta
-mañana.
-
-### 2026-09-15 (3) · el arreglo, armado y probado — listo en local, sin abrir
-
-Elegido **el camino simple**, y resultó más simple de lo que parecía: `qa` es **ancestro estricto** de
-`main` (`merge-base(main, qa)` = la punta de `qa`, y `main..qa` da **0 commits**). Entonces una rama
-**desde `main`** ya contiene todo lo que `qa` tiene, y el `git revert 77796a4f` que repone #997/#1005
-**aplica limpio** — medido: 27 archivos, +1.062/−172, el inverso exacto del revert.
-
-**La forma: UN PR, rama desde `origin/main`, destino `qa`.** Hace tres cosas que `qa` necesita igual
-—sincroniza con `main`, repone lo revertido y arregla el rebote— y después la promoción
-`qa` → `main` es normal: el revert-del-revert es un commit **nuevo**, así que ya no lo frena el
-«git los da por mergeados».
-
-**Rama:** `fix/ecommerce/cuota-inicial-rebote-asesor`, dos commits — el revert-del-revert y el arreglo
-(3 archivos, +39/−5). **No pusheada, sin PR.**
-
-**Qué arregla, y son dos defectos apilados:**
-
-1. **Ruteo.** `initial-fee-payment` y `down-payment-validation` quedan registradas **también en el
-   árbol `merchant`**. Y de yapa `continue` en el árbol **público** — el mismo defecto espejado, que
-   **ya estaba vivo en `qa` aparte del bug de Joel**: `available-lenders` redirige a `continue` para
-   renting/RTO y para CreditopX, y en `/ecommerce` y `/self-service` esa ruta no existía → 404.
-2. **Negocio.** Vuelve el guard `&& !response.data.standBy`. ✔ **El backend SÍ sigue mandando
-   `standBy`** — `UserRequestService.php` lo pone en `false` por defecto y en `true` en las dos ramas
-   in-platform; el front había dejado de leerlo. Se vuelve a declarar en `LoanRequestResponse`.
-
-**Medido antes de dar nada por bueno:**
-
-| | resultado |
-|---|---|
-| `matchRoutes` (react-router 7.13.1) | `/merchant/…/initial-fee-payment` pasa de `public-layout` a **`merchant-initial-fee-payment`**; `/ecommerce/…/continue` y `/self-service/…/continue` pasan de **404** a resolver |
-| `turbo run build --filter=loan-request-wizard` | ✅ **2/2**, servidor y cliente |
-| `typecheck` | ✅ **0 errores** |
-| `biome` sobre los 3 archivos | 2 warnings de complejidad — **idénticos en la versión de `qa` sin el cambio**, o sea pre-existentes |
-
-⚠ **Lo que el PR arrastra:** al salir de `main`, el diff contra `qa` son ~57 archivos, de los cuales
-**sólo 3 son el arreglo**. El resto es la sincronización `main`→`qa` (los PRs **#1000-#1004**, lint y
-design-system, que fueron **directo a `main`** y `qa` no tiene). Es trabajo que `qa` necesita igual y el
-equipo ya hace ese merge de rutina (`a3548673`), pero conviene decirlo en la descripción del PR para que
-el revisor sepa dónde mirar.
-
-⚠ **Lo que NO entra a propósito:** el intento de **#663** (que el handoff se pinte distinto en asesor
-que en autogestión). Ese PR traía una URL de demo quemada y `qa` ya usa el `qrUrl` real; vale la
-intención, no el código. Queda como pendiente aparte.
-
-**Falta:** correr el canal **asesor con cuota inicial > 0** (el caso que rompe) y **ecommerce o
-self-service con renting/CreditopX** (el 404 de `continue`) antes de abrir el PR.
-
-### 2026-09-15 (2) · los catorce PRs, y el arreglo que ya existía desde junio
-
-El libro mayor listaba **cinco** PRs y el `ramas:` del frontmatter declaraba **dos** patrones, así que
-el tablero medía dos ramas. Barridos los dos repos con
-`gh pr list --author mig-creditop --state all` filtrando por `ecommerce|checkout|cuota|stateless|sala`:
-son **catorce**. Declaradas once en `ramas:` (la de #663 se llama `continue` a secas y no se puede
-capturar sin arrastrar ramas ajenas); `make tareas-ramas` ahora mide once y **corrobora solo** lo de
-abajo.
-
-**Y lo que apareció al listarlos vale más que el listado.** Después de #551 (11/6) hubo **cinco PRs de
-corrección** —#582, #600, #661, #663, #665— y **#997 no se los llevó**. Cuatro no están
-en `qa`, medido con `git grep -c standBy origin/qa` (da 0) y con el bloque `:flow`
-del `routes.ts` de cada rama.
-
-**#665 (26/6) es literalmente el arreglo del defecto que causó el revert de septiembre**, cinco líneas,
-y su comentario nombra el síntoma: *«mandarlo a Wompi rompe el flujo y rebota a /solicitar»*. O sea que
-el bug no es nuevo: es un arreglo perdido. Eso **cierra la pregunta que había dejado abierta** — no hace
-falta medir el 403, junio ya lo midió y lo dejó escrito en el código.
-
-**Y #661 es el mismo defecto de ruteo, espejado:** en junio faltaba `continue` en el árbol público
-(404 en ecommerce); en septiembre falta `initial-fee-payment` en el árbol merchant (rebote en asesor).
-`continue` **sigue faltando hoy en `qa`**.
-
-La regla que queda: **rehacer trabajo viejo sobre una rama nueva no se copia del PR, se copia del
-estado final de la rama donde vivió** — `git log <esa rama> -- <rutas>` desde ese PR hasta hoy.
-
-### 2026-09-15 · el revert de `main`, y la causa medida
-
-Miguel trae por Slack el reporte de **Joel (QA)**: *«cuando uno da click en el botón de "Validar Pre
-aprobado" en la tarjeta del lender … lo devuelve a uno a la pantalla de solicitar»*. Buscando el
-estado apareció primero lo que nadie había escrito: **los PRs entraron a `main` y Abel los revirtió**
-(#1013, `77796a4f`, 14/9 20:52), y el revert **no tocó el backend**, que quedó solo en `main`.
-
-La causa se cerró leyendo `origin/qa` y midiendo el único eslabón que no se lee: el matcheo de rutas.
-`/merchant/<h>/<id>/initial-fee-payment` **no cae en el árbol del asesor sino en `public-layout`**,
-porque #997 registró esa ruta sólo bajo `:flow` — y de ahí salen cuatro 302 encadenados hasta
-`/solicitar`. El control (`/merchant/<h>/<id>/ruta-inexistente` → sin match) descarta que sea
-«cualquier ruta rara rebota».
-
-Tres cosas que este día deja anotadas y valen más que el bug:
-
-1. **Correr no alcanza si se corre el canal que no es.** El caminado del 14/9 recorrió ecommerce, que
-   es el único canal **inmune** (ahí `initialFeeAllowed` se fuerza a `false`). El que rompe es el del
-   asesor, que el PR no venía a tocar.
-2. **Ya lo habíamos diagnosticado el 2026-06-26** — mismo `if`, misma línea, mismo síntoma. El arreglo
-   de entonces (`&& !response.data.standBy`) **ya no se puede copiar**: `standBy` no existe más en el
-   wizard.
-3. **Y una sonda maía mintió**: `for b in …; do git cat-file -e origin/$b:<ruta>` dio «no» para las
-   cuatro ramas, incluida `qa`, donde el archivo sí está. Se rehizo con `git ls-tree`.
-
-## Bitácora
-- **2026-04** — 1er intento "web-origination" (PRs 503/363, rama `feature/onboarding/ecommerce-web-origination`): quedó **sin merge**, superado por el enfoque stateless.
-- **2026-06-11** — mergeados los squash `bb14a8ff` (#795) y `d2242469` (#551).
-- **2026-07-18** — registrado como task (corrige la versión previa de este nodo, que apuntaba por error a 503/363). Estado de merge verificado contra las ramas remotas: backend en main, front en develop. Superficie = 20 archivos que resuelven; 5 net-new del front + los adds van en prosa.
-- **2026-09-14 · tarde** — **los dos PRs mergeados a `qa`** (#997 `6fa13ae5` · #1392 `3cd20e34`), un
-  commit cada uno. Antes del merge se validaron los tres canales por el front, con control sobre `qa`
-  sin los cambios: ahí apareció que el anclaje al pedido sólo cubría el camino v2 del OTP, y que **los 7
-  comercios consultados en qa van por el v1** — se arregló dentro del mismo PR y se comprobó corriendo
-  (puente creado, `lockedFields` de `[]` a 5). Salieron **F-214/F-215/F-216**. Y cinco arreglos al
-  harness, todos del mismo defecto: afirmaba resultados que no había medido (el panel no miraba el
-  vínculo, el runner de ecommerce pegaba al endpoint que el front no usa, «frontend reusado» describía
-  un proceso que ya no corría, el caminar no cargaba la sesión del asesor, y el contrato de la tienda
-  no llevaba el caso del panel). **Pendiente el salto `qa` → `main`: hasta eso, no corre en prod.**
-- **2026-09-14** — se le ata **CORE-543** («Inicio paso refactor ecommerce»), que estaba en el sprint sin archivo en el tablero. Se abre el hilo «el flujo dentro de la tienda»: descartado el iframe contra `main` (4 bloqueos), prototipado el SDK y **corrido** — tres llamadas 200 desde otro origen, 6 entidades y no 7, y falta la rt=2. Re-verificado también que #551 sigue **sin** llegar a `main` (está MERGED contra `develop`).
-
-## Pendientes
-- [ ] **Mergear #1016 cuando QA valide ecommerce en `qa`** — decisión de Miguel del 15/9. Es la única
-      vía para reponer el código en `main` después del revert; sin apuro porque `main` no tiene hoy ni
-      la funcionalidad ni el defecto. ⚠ Tiene que entrar **antes** de la próxima promoción `qa`→`main`.
-- [x] ~~🔴 **ARREGLAR EL REBOTE Y REPONER EL PR** — es lo que bloquea todo lo demás de esta tarea.
-      (a) medir si el backend sigue 403eando `initial-fee-payment/{ur}` para `rt=2`; (b) registrar
-      `initial-fee-payment` y `down-payment-validation/:transaction_id` en el árbol `merchant` de
-      `routes.ts`; (c) si el 403 sigue, guardar el `if` de qa:637.~~ → **HECHO**: #1015 en `qa`, #1016 abierto.
-- [ ] ⚠ **El defecto está VIVO en `qa`**, y `main` NO lo recupera solo: el revert es pegajoso (los
-      commits son ancestros de `main`). Reponerlo pide `git revert 77796a4f` o commits nuevos — junto
-      con el arreglo, no después.
-- [ ] **El backend #1392 quedó solo en `main`** (front revertido, `ecommerce-status` no). Decidir:
-      revertirlo también o dejarlo esperando al front. Es la misma asimetría del par de junio.
-- [ ] **Promover a F-xx: una ruta registrada en UN árbol y no en el otro no falla en ningún lado** —
-      compila, pasa lint, y React Router la matchea en el árbol vecino en silencio hasta rebotar al
-      inicio. Es el hallazgo más transversal del día: aplica a las 3 ramas de `routes.ts`, no a ecommerce.
-- [ ] **Agregar al caminado el canal ASESOR con cuota inicial > 0** — la corrida del 14/9 pasó en verde
-      porque recorrió el único canal inmune.
-- [ ] **Rescatar la sala de espera de abril** — `AdvisorStatusController@checkLoanStatus` (#503) + `ecommerce-continue.tsx` en `waiting-room` (#363). No existen en `main`, y tapan el hueco de las 2.167 solicitudes que quedan en estado 3.
-- [ ] **Rescatar lo que quede de #503 y #363** — los dos se **cerraron el 14/9 sin merge**, y cerrarlos no trajo su contenido. Revisarlo archivo por archivo contra `main` antes de rescatar.
-- [ ] **Redirect de borde en `aliados.creditop.com/checkout/*`** — pedido a Infra, 302 con query verbatim. ⚠ Bloqueado por que `/ecommerce/{hash}/checkout` llegue a `main`, y **tiene que excluir los hashes de Corbeta** o secuestra el tráfico que hoy convierte al 18,7 %. Lista de hashes en §«Los CUATRO PRs».
-- [ ] Extender el cutover al resto del ecommerce no-Corbeta (sigue el array `[24,209,210,211,311]` en `WoocommerceController` del monolito).
-- [ ] Borrar la lógica ecommerce duplicada en `application` una vez completo en main.
-- [x] ~~Decidir el alcance del SDK~~ → **medido, y la pregunta era otra**: no es «¿pedimos datos?» sino **«¿pagamos una consulta de buró dentro de la tienda, y con qué gatillo?»**. Ver §MEDIDO. Queda decidirlo, ya con el dato.
-- [x] ~~Parsear `should_collect_expedition_date`~~ → **YA ESTÁ**, verificado en `qa` el 2026-09-14: `personal-info-config-v2.repository.ts:112` lo lee con test propio, y `loan-request-form` lo usa como `showExpeditionDate` con `?? true` (fallar hacia el paso de MÁS, que es recuperable). El docblock de `GetPersonalInfoConfigService` que decía «the wizard's own schema does not even parse» quedó viejo.
-- [ ] Arreglar el mapeo muerto de apellidos (`surname` en el plugin vs `last_name` en `getBillingField`) y decidir si `address`/`city` dejan de tirarse.
-- [ ] Promover a F-xx: el `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en `strict-origin-when-cross-origin`; endurecerla rompe el prefill en silencio. ⚠ **Y ahora hay dato:** medido el 2026-09-14, el POST del OTP sale con `referer: —` (vacío) y el anclaje funciona igual porque el id viaja en el **body**; lo que depende del Referer es `readErIdFromRequest` cuando la URL del action no lo trae.
-- [ ] Promover a F-xx: en local, un `OBV21002` no deja rastro (tracer → Loki inexistente, sin fallback al log de Laravel).
-- [x] ~~Promover a F-xx el listado vacío del flujo de cupo confirmado~~ → **F-214** (2026-09-14).
-- [x] ~~Promover a F-xx la hidratación muerta en los 404~~ → **F-215** (2026-09-14).
-- [x] ~~Promover a F-xx el 500 del `kyc-flow` que el front traga~~ → **F-216** (2026-09-14).
-- [ ] **Decidir qué hacer con F-214 (producto)** — un comercio sin ninguna entidad `rt=0` no debería ofrecer «Confirmación de cupo», o la pantalla vacía debería dejar volver atrás. Hoy el cliente queda sin salida y sin poder corregir su respuesta.
-- [ ] **F-215: el arreglo es un carácter** (`window.ENV?.APP_ENV` en `entry.client.tsx:14`) y toca una rama ajena a esta tarea. Está en `main` y en `qa`. No se comprobó si el botón «Volver a intentar» queda inerte.
-- [ ] **F-216: el fallback mudo sigue abierto** — el front no distingue «este comercio va por el legacy» de «no pude preguntarlo». En local se tapó sembrando la setting (`make harness-kyc-flow`).
-- [x] ~~Pedir revisor en #997 y #1392~~ → **MERGEADOS a `qa`** el 2026-09-14 15:30 (merges `6fa13ae5` y `3cd20e34`).
-- [ ] **Promover `qa` → `main` después de #1016 y del visto bueno de QA.** La reposición y la promoción son pasos distintos; no promover antes de reponer el contenido revertido.
-- [ ] **Confirmar con producto el ORDEN del cobro de cuota inicial** en autogestión — la única decisión de criterio del #997, comentada en el código.
-- [ ] ⚠ **Promover a F-xx, y es el hallazgo más transversal del día: la guarda `I_KNOW_THIS_TOUCHES_SHARED_DEV` (F-53) sólo cubre las escrituras por `pkg/db.ts`.** Todo lo que escribe **por la API** contra dev pasa sin pedir permiso — así los specs de `channel/` crearon filas en el compartido durante meses sin que nada avisara. Tapado el caso de Playwright (`playwright.config.ts` fija el target), pero el agujero sigue.
-- [ ] Medir cuántos comercios ecommerce hay en prod y por cuál mundo entran (el cutover es el array quemado `[24,209,210,211,311]`). Si el grueso sigue en el monolito, un SDK contra `api/onboarding` le sirve a la minoría.
-- [ ] **Decidir si CORE-30 y CORE-543 se unifican** — el texto de CORE-30 describe este mismo trabajo. Ver §«Quién hizo qué».
-- [ ] Corregir el nodo `context/…/onboarding`: dice que G3 (`OnboardingV2`) no tiene consumidores, y el wizard en `main` ya le pega a `api/v2/onboarding/otp-auth/validate`.
-
-## Enlaces
-- PRs: [legacy-backend #795](https://github.com/Creditop-SAS/legacy-backend/pull/795) · [frontend-monorepo #551](https://github.com/Creditop-SAS/frontend-monorepo/pull/551).
-- Canal: **ecommerce** · fase: **onboarding** · enganche: **payments** · costura: **architecture**.
-
-
-## Rutas del código (20)
-- legacy-backend/Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php
-- legacy-backend/Modules/Onboarding/App/Services/EcommerceRequestService.php
-- legacy-backend/Modules/Onboarding/routes/api.php
-- legacy-backend/Modules/Onboarding/App/Http/Requests/FetchEcommerceRequestByUserRequestRequest.php
-- frontend-monorepo/apps/loan-request-wizard/app/entry.client.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes.ts
-- frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/no-preapproved.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/routes/loan-approved.tsx
-- frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/forms/personal-info-form.tsx
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/init-loan-request.tsx
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number-step-form.tsx
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/phone-number.tsx
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/application/verify-phone-otp.uc.ts
-- frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp.repository.ts
-
+### 2026-09-16 · el canal como valor con nombre, y los tres canales corridos contra `qa`
+
+*(Condensado el 18/9 de las catorce entradas del día; el paso a paso está en el historial de git.)*
+
+> **MEDICIÓN · 2026-09-16** — los tres canales contra `qa`, con la aplicación haciendo el redirect:
+> `502395` ecommerce y `502396` autogestión caen en `/self-service/…/confirmation` con `corporate_user_id`
+> NULL y cero WhatsApp; `502397` con asesor va a `/merchant/…/continue` y sí lo dispara.
+> **Cómo se vuelve a comprobar:** las tres corridas de §«Cómo se comprueba», y el desenlace en la base.
+
+**El trabajo del día fue la rama `fix/flujo-por-origen`** (backend, desde `origin/qa`) →
+[legacy-backend#1409](https://github.com/Creditop-SAS/legacy-backend/pull/1409). El canal deja de deducirse
+de dos booleanos sueltos y pasa a ser un valor con nombre, `OnboardingOrigin`, resuelto **una vez** y
+compartido por las tres decisiones que antes lo deducían por separado. **Y el pedido de la tienda gana sobre
+la sesión**, que es el arreglo: antes la primera pregunta era `auth()->user() !== null`, así que una sesión
+colada convertía una compra en flujo de mostrador. Pruebas del resolver: **14 → 20** (47 aserciones).
+
+⚠ **El hallazgo que lo destrabó es anterior a la rama: `$request->ecommerce_request_id` es SIEMPRE null en
+`update-user-request`** — el payload del front no lo trae. Dos consecuencias medidas: mi primera versión del
+arreglo no hacía nada, **y la guarda que ya existía tampoco** (`&& !isset($ecommerceRequestId)` nunca excluyó
+a ecommerce, que es lo que producía el `/continue?url=null`). El dato bueno está persistido desde el checkout
+en tres lugares, y quedó como predicado con nombre: `EcommerceRequest::existsForUserRequest()`.
+
+**De dónde sale la sesión colada:** `buildBackendAuthHeaders` decide **sólo** por si hay usuario en la
+petición, sin mirar en qué árbol está la ruta; como el wizard sirve los tres canales desde el mismo dominio,
+las cookies viajan también en `/ecommerce/*`. Es exactamente lo que vio QA — su solicitud `502370` es del
+canal ecommerce y lleva `corporate_user_id = 276231`. En producción no es sólo un artefacto de prueba: el
+empleado del comercio con el panel abierto reproduce lo mismo.
+
+**Dos cosas que el día dejó decididas** y viven arriba como anotaciones: la regla queda en «entrega SÓLO el
+mostrador» (medido en prod, 90 días: autogestión sin ninguna marca son 0 comercios y 0 solicitudes), y
+`opensNewTab` queda **congelado** con una prueba que fija el congelamiento, para que el blast radius del PR
+sea uno.
+
+**Lo que costó el día, y no era del producto:**
+
+- 🔴 **`lenders-v2` daba 500 en todo `qa`** — `Table 'creditop.cards' doesn't exist`: el PR #1388 trae su
+  migración y **el despliegue de `qa` no corre migraciones**. Se creó sólo esa tabla, con el DDL que Laravel
+  genera, idempotente y registrando la fila en `migrations`; **no** se corrió `artisan migrate`, que es el
+  mecanismo de CORE-431. La causa de fondo queda abierta, arriba en Riesgos. Se descubrió con PostHog, no
+  con Loki: el backend no dejó rastro.
+- **El caminador sembraba antes del `action` de `personal-info`** y el formulario pisaba el perfil, así que
+  reportaba «la entidad no salió en el listado» como si fuera del comercio. Tres corridas perdidas antes de
+  verlo; destrabado resembrando con `synthFill(ur, { lender })` **después** del formulario.
+- **`dev/asesor-destino.spec.ts` mintió en verde** en su primera versión: con un localizador propio el click
+  pegó en otro botón, la corrida dijo «1 passed» e imprimió como destino la misma URL del listado — y en la
+  base el `lender_id` quedó **NULL**. Lo delató mirar la BD, no el runner. Reescrito sobre `elegirEntidad`.
+- **La sesión de Cognito de `qa` no era un bloqueo**: el pre-login ya existía por consola
+  (`dev/warm-session.spec.ts`, headed). Renovó en 22 s.
+
+**Y dos cosas del método, que costaron corridas.** Una tabla con un comercio por fila y un camino por
+comercio **no prueba una regla, la insinúa**: hacen falta las dos celdas del mismo comercio, y el par que
+discrimina es el de los dos flags apagados. Y en el canal del asesor **la sucursal la decide el backend**
+según a dónde esté asignado el asesor de la sesión, no el caso que se pide.
+
+**De paso, dos cosas que no son de esta tarea:** un 404 previo al elegir Sistecrédito por ecommerce
+(`validate-lender-otp`, reproducido con A/B contra `qa` — **tercera** vez la misma clase de defecto de
+ruteo), y que el `include` de vitest del wizard deja **19 archivos de prueba sin correr**. Los dos quedaron
+como pendientes.
+
+**#1018 portado a #1016** con cherry-pick limpio (commit `33649662` sobre `f474b237`, build verde). Va por
+SHA porque la rama está tomada por el worktree de otra sesión.
+
+### 2026-09-15 · el revert de `main`, la causa medida, y los PRs que la reponen
+
+*(Condensado el 18/9 de las trece entradas del día; el paso a paso está en el historial de git.)*
+
+> **MEDICIÓN · 2026-09-15** — el síntoma que reportó QA es **del asesor**, no de ecommerce, y lo produce una
+> ruta que #997 registró en **un solo** árbol de rutas: `/merchant/…/initial-fee-payment` no existe en el
+> árbol del asesor, y como `:flow` es dinámico **React Router no tira 404: la matchea en `public-layout`**,
+> de donde salen cuatro 302 encadenados hasta `/solicitar`. El control —una ruta que no existe en ningún
+> árbol— sí da 404, así que no es «cualquier ruta rara rebota».
+> **Cómo se vuelve a comprobar:** llamar a `matchRoutes` de react-router 7.13.1 con una réplica del árbol de
+> `routes.ts` de `origin/qa`, y las sondas de URL de §«Cómo se comprueba».
+
+**Lo que apareció buscando el estado:** los PRs **entraron a `main`** con la promoción `Qa (#1007)` (14/9
+18:58) y **Abel los revirtió** esa noche con #1013 (`77796a4f`, 20:52). El revert **no tocó el backend**.
+Lo reportó Joel (QA) por DM: *«al dar click en "Validar Pre aprobado" … lo devuelve a la pantalla de
+solicitar»*.
+
+⚠ **El alcance era más ancho que el título del PR.** El `if (initial_fee > 0)` está **antes** de casi todas
+las ramas de `available-lenders`, así que en el canal del asesor una cuota inicial > 0 rompía la selección de
+casi cualquier entidad — medido después corriendo: con Bancolombia (`rt=1`) rebotaba igual. Y **ecommerce es
+el canal inmune** (#997 fuerza `initialFeeAllowed = false`), que es por qué el caminado del 14/9 había dado
+verde.
+
+**El arreglo ya estaba escrito desde junio, y eso es lo que más vale del día.** Barridos los dos repos con
+`gh pr list --author mig-creditop --state all`, después de #551 (11/6) hubo **cinco PRs de corrección** y
+**#997 no se los llevó**: **#665** (26/6) es literalmente el arreglo de este defecto —su comentario nombra el
+síntoma— y **#661** es el mismo defecto de ruteo espejado (en junio faltaba `continue` en el árbol público).
+La regla que queda: **rehacer trabajo viejo sobre una rama nueva no se copia del PR, se copia del estado
+final de la rama donde vivió.**
+
+**Tres PRs, y dos reglas que costaron uno entero.** #1014 se cerró: mostraba 15 commits y 60 archivos, y
+**56 eran trabajo ajeno** —salió de `main` apuntando a `qa`, así que arrastró el desfase entre las dos ramas—.
+Lo detectó Miguel mirando el contador del PR. **Una rama para `qa` sale de `qa`**: así salió **#1015**, un
+commit y 3 archivos, mergeado ese día. **#1016** va a `main` con la reposición más el arreglo.
+
+✔ **Y el arreglo de fondo lo encontró Sonar**, rechazando #1015 por duplicación (30,8 %): las rutas que
+tienen que existir en los dos árboles quedan declaradas **una sola vez** en `sharedFlowRoutes()`. No es DRY
+por prolijidad — mientras se declaren por separado, olvidar una **no falla en ningún lado**, que es el
+mecanismo del bug y ya había pasado dos veces. *(De los 6 hallazgos de Sonar en #1016, dos eran falsos
+positivos: matchea la palabra española «todo» como si fuera un TODO. Y el que caía la compuerta era el
+literal `|| "http://legacy-backend.inertia-develop"`, que se borró: `VITE_API_URL` ya es obligatoria.)*
+
+**Corrido, no deducido:** dos wizards en paralelo contra la misma base local, `:5174` con el código de `qa`
+y `:5177` con el arreglo, mismo comercio y misma entidad. CrediPullman `rt=2` pasa de **0/1 —rebota y cicla,
+dejando una `user_request` en estado 3 por vuelta—** a **1/1 en estado 11** con 11 pantallas.
+
+⚠ **Y el caminador NO PODÍA ver este bug.** Tres defectos suyos, los tres de la misma clase —daba verde sin
+haber mirado— y los tres arreglados (`a16b5c2`): `initial_fee` estaba **quemado en 0**, el handoff usaba el
+prefijo del flujo en curso (ruta que no existe en el árbol merchant), y **el atajo se tomaba mirando sólo el
+`response_type`**, así que se salteaba el paso que fallaba y **cerraba en estado 11 igual, con el flujo
+roto**. Un runner que se saltea el paso que falla y después declara «cerró» es peor que no tenerlo.
+
+**Otros dos PRs salieron del mismo día, los dos de probar el canal:**
+[#1018](https://github.com/Creditop-SAS/frontend-monorepo/pull/1018) —el botón de validar no hacía nada
+cuando la entidad pide cuota inicial y el canal esconde el campo: la idea «¿este canal pide la cuota inicial
+acá?» estaba escrita en un solo lugar y los otros dos la consultaban de memoria— y
+[legacy-backend#1402](https://github.com/Creditop-SAS/legacy-backend/pull/1402) —sin asesor ya no se entrega
+el proceso al que está mirando: el WhatsApp que se enviaba marcaba «ya se le entregó algo», que es justo la
+condición que impedía continuar—.
+
+**El canal, validado por API contra `qa`**: las 8 comprobaciones en verde, del contrato al vínculo con el
+pedido. ⚠ La primera corrida falló **por la herramienta**: derivaba el teléfono al azar y contra `qa` el OTP
+sólo es predecible si está en `qa_otp_bypass_phones`. Se agregó `TEL=`.
+
+*(Y el «bucle» del selector de plazo no era un bucle: era el autorrelleno del harness abriendo tres popovers,
+por un fallback **por posición** en `pkg/fecha-trio.ts` que leía «12 cuotas» como un día. Arreglado con la
+regresión fijada, 14/14 en verde.)*
 
 ## Tarea (publicable)
 
