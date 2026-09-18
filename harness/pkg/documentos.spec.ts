@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { LARGO_DEL_DOCUMENTO, documentoSintetico } from './documentos.ts';
+import { LARGO_DEL_DOCUMENTO, TECHO_DEL_DOCUMENTO, documentoSintetico } from './documentos.ts';
 
 /**
  * Qué se fija acá: que el documento sintético tenga el largo del PAÍS.
@@ -43,6 +43,55 @@ test.describe('el documento sale del país', () => {
             for (let i = 0; i < 100; i++) {
                   const d = documentoSintetico('DOM', i, BASE);
                   expect(d, `caso ${i}`).toMatch(/^[1-9][0-9]*$/);
+            }
+      });
+});
+
+/**
+ * Y que CAIGA EN EL RANGO que el proveedor de KYC exige, que es una regla aparte del largo.
+ *
+ * ⚠ Esto no estaba, y el `BASE` de arriba —`1_095_449_405`, el mismo que ya usaban los casos del largo—
+ * producía `9544940503`: tres veces por encima del techo. O sea que la suite fijaba la forma y dejaba
+ * pasar el valor, y el caminador murió por eso el 2026-09-18 con un síntoma que no nombraba el
+ * documento. Un test que mide una sola de las dos reglas no protege la otra: la hace parecer cubierta.
+ */
+test.describe('el documento cae en el rango que el backend acepta', () => {
+      const TECHO = TECHO_DEL_DOCUMENTO.COL;
+
+      // 🔴 EL caso. Barrido, no un valor de muestra: el defecto dependía de QUÉ dígito quedaba primero
+      // al cortar la cola, así que un solo ejemplo puede acertar de casualidad — de hecho el de arriba
+      // fallaba y el de otro día habría pasado.
+      test('ninguna base ni ningún índice se pasa del techo', () => {
+            for (const base of [1_095_449_405, 1_090_000_000, 1_098_999_999, 1_030_000_003, 999_999_999]) {
+                  for (const i of [0, 1, 7, 42, 99]) {
+                        const doc = documentoSintetico('COL', i, base);
+                        const n = Number(doc);
+
+                        expect(n, `documentoSintetico('COL', ${i}, ${base}) = ${doc} se pasa del techo`)
+                              .toBeLessThanOrEqual(TECHO);
+                        expect(n, `documentoSintetico('COL', ${i}, ${base}) = ${doc} está por debajo del piso`)
+                              .toBeGreaterThanOrEqual(10_000);
+                        expect(doc).toHaveLength(LARGO_DEL_DOCUMENTO.COL);
+                  }
+            }
+      });
+
+      // El techo es de un `CC` colombiano y de nadie más: el backend lo condiciona a `$type === 'CC'`.
+      // Si mañana alguien lo copia a los otros países «por simetría», el dominicano de 11 dígitos —que
+      // por largo SIEMPRE supera 3e9— quedaría recortado a la fuerza y nadie lo notaría.
+      test('el techo es sólo de Colombia: RD conserva sus 11 dígitos', () => {
+            expect(TECHO_DEL_DOCUMENTO.DOM).toBeUndefined();
+            expect(documentoSintetico('DOM', 3, 1_095_449_405)).toHaveLength(11);
+      });
+
+      // Sigue valiendo lo que ya protegía la línea del `1`: un 0 adelante pierde el largo al leerse
+      // como número. La corrección del techo reusa ese mismo lugar y no podía romperlo.
+      test('el primer dígito nunca es 0', () => {
+            for (const base of [1_000_000_000, 1_090_000_000, 100_000_000]) {
+                  for (const i of [0, 5, 99]) {
+                        expect(documentoSintetico('COL', i, base).startsWith('0')).toBe(false);
+                        expect(documentoSintetico('PER', i, base).startsWith('0')).toBe(false);
+                  }
             }
       });
 });

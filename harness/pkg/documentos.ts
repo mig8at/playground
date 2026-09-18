@@ -25,6 +25,22 @@ export const LARGO_DEL_DOCUMENTO: Record<string, number> = {
       PER: 8,    // DNI
 };
 
+/**
+ * El TECHO numérico, que es una regla distinta del largo y por eso va en su propia tabla.
+ *
+ * ⚠ NO ES DEL DOCUMENTO: es del proveedor de KYC (TusDatos), y el backend lo dice con todas las letras
+ * en los DOS módulos —`Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php:125` y
+ * `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:164`, verificados contra `main` el
+ * 2026-09-18—. Aplica **sólo a un `CC` numérico**, que hoy existe únicamente en Colombia; por eso la
+ * tabla tiene una sola entrada y no hay que rellenarla «por simetría» con los otros países.
+ *
+ * El piso (10.000) lo cumple cualquier número de 5 dígitos o más con el primero distinto de 0, así que
+ * no hace falta tabularlo: lo garantiza el armado.
+ */
+export const TECHO_DEL_DOCUMENTO: Record<string, number> = {
+      COL: 3_000_000_000,
+};
+
 /** El largo por defecto cuando el país no está en la tabla: el respaldo que usa el front. */
 export const LARGO_POR_DEFECTO = 10;
 
@@ -43,7 +59,28 @@ export function documentoSintetico(iso: string, indice: number, base: number): s
       const digitos = String(base).replace(/\D/g, '').repeat(3);
       const cuerpo = digitos.slice(digitos.length - Math.max(largo - idx.length, 0));
 
-      // ⚠ El primer dígito no puede ser 0: varios validadores lo leen como número y el largo se pierde.
       const armado = (cuerpo + idx).slice(-largo);
-      return (armado.startsWith('0') ? `1${armado.slice(1)}` : armado);
+
+      // ⚠ EL PRIMER DÍGITO SE CORRIGE POR DOS MOTIVOS DISTINTOS, y el segundo costó una corrida entera.
+      //
+      //   1. no puede ser 0: varios validadores lo leen como número y el largo se pierde;
+      //   2. y donde hay TECHO tampoco puede ser cualquiera. Tomar la COLA de la base es justo lo que
+      //      tira el prefijo que la hacía válida: el caminador arranca de `BASE_DOC ≈ 1.09e9` —elegida
+      //      dentro del rango— y la cola de 8 dígitos de `1095536491` es `95536491`, o sea un documento
+      //      de **9.553.649.100**, tres veces por encima del techo.
+      //
+      // Cómo se veía, el 2026-09-18 contra un comercio colombiano: `personal-info` devolvía **200** en
+      // vez del 202 de redirección, con `errors.document_number` en el cuerpo, y la pantalla **no
+      // mostraba nada** —el campo del documento vive en un sub-paso anterior del mismo formulario—. El
+      // caminador reportaba «5 intentos sin que la pantalla avance» y citaba el texto de la casilla de
+      // identidad, que mandaba a depurar el gate de identidad y los mocks de centrales. Es el mismo modo
+      // de falla de F-231 y del caso dominicano de arriba: un hueco del arnés con cara de bug del
+      // producto — sólo que esta vez ni siquiera había mensaje.
+      //
+      // Forzar el `1` alcanza mientras el techo esté por encima de 2·10^(largo-1) (con 10 dígitos, todo
+      // lo que empiece en 1 es < 2e9 < 3e9). `documentos.spec.ts` fija el rango, no esta línea.
+      const techo = TECHO_DEL_DOCUMENTO[(iso || '').toUpperCase()];
+      const seExcede = techo !== undefined && Number(armado) > techo;
+
+      return (armado.startsWith('0') || seExcede) ? `1${armado.slice(1)}` : armado;
 }
