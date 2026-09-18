@@ -130,8 +130,9 @@ red de regresión por competir con una pregunta del banco y se reescribió sin e
 cuentas, peering, ECS, Cognito): se validó contra `infrastructure@main` de hoy —los 18 archivos existen y
 las 32 afirmaciones concretas aparecen en el repo; es una paráfrasis de `docs/dev-account-migration.md`—,
 con tres imprecisiones (el destino del OTel no está donde dice, «más de 20 servicios» no se cuenta así, el
-guardrail cita un literal que en el código es una variable) y un hallazgo colateral: el workflow de plan de
-dev sigue asumiendo el rol legacy mientras `root.hcl` exige la cuenta dev. Y está escrito como `context.md`
+guardrail cita un literal que en el código es una variable). *(Anoté primero un «colateral» —el plan de dev con
+el rol legacy— y era falso: ese workflow planea la carpeta vieja `environments/dev`, que sí vive en la cuenta
+legacy; la nueva la despliega otro workflow con el rol de desarrollo.)* Y está escrito como `context.md`
 con rutas e identificadores: el lint lo rechazaría; su clase es `operar`.
 
 **El próximo paso es:** decidir con Miguel si `infraestructura/operar.md` entra —y si entra, por el dictado
@@ -427,8 +428,8 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 - **#238 y #239 en `main`.** Y la propuesta de tema `infraestructura/` validada contra el repo de hoy: real
   en lo concreto (18/18 archivos, 32/32 afirmaciones), con tres imprecisiones y mal clasificada (`context`
-  con rutas; va en `operar`). Colateral: el plan de dev asume el rol legacy con un `root.hcl` que exige la
-  cuenta dev.
+  con rutas; va en `operar`). El «colateral» del plan de dev con rol legacy era falso: planea la carpeta
+  vieja, que sí es legacy.
 - **El harness le enseñó cuatro cosas a canon** (#239, por el dictado): el árbol real del asistente
   contado sobre el enrutador de `main`, el atajo del cliente que vuelve, las tres señales al elegir
   entidad y los workers de PHP en local. La red de regresión rechazó una por competir con una pregunta
