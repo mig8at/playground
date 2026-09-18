@@ -173,11 +173,14 @@ vieja de `local/` de una corrida anterior ya mergeada; compuso la pieza encima, 
 componer y commiteó los archivos enteros — o sea, la versión vieja más la pieza. PR #243 cerrado con el motivo; la
 rama quedó con ese commit malo encima de `main` y hay que borrarla o resetearla antes de dictar de nuevo.
 
-**El próximo paso es:** arreglar el publicador —traer `main` a la rama ANTES de componer (al abrir el borrador y al
-empezar el cierre, no sólo antes de commitear), con una prueba en el ensayo que siembre una rama rancia—, borrar
-`canon/contexto`, y volver a dictar la corrección de `local/operar` (verificada hoy: el test del backoffice se
-MOVIÓ a `tests/` en minúscula el 6/9, los seis del codeudor SÍ siguen comentados enteros, los cinco de dispositivos
-suman 43). Y avisarle a quien mantenga el arnés
+**El arreglo del publicador está en #244 (10:26, CI corriendo) y `canon/contexto` ya se borró.** `PonerAlDia` trae
+`main` a la rama al abrir el borrador y al empezar el cierre; el ensayo siembra una rama rancia contra un servidor
+sin disco y comprueba que el paquete conserva lo de `main` (84/84). De paso cayó el fallo suelto de la mañana: era
+mi test del enlace, que comparaba hashes en orden de mapa.
+
+**El próximo paso es:** mergear #244 cuando pase el CI, esperar el despliegue (la sonda: abrir un borrador y ver
+`rama_al_dia`), y volver a dictar la corrección de `local/operar`. Y avisarle a quien mantenga el arnés que la nota
+de `suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -465,6 +468,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#244: el publicador trae `main` a la rama ANTES de componer.** `codebase.PonerAlDia` + el gancho
+  `api.AntesDeComponer` al abrir y al cerrar; el chequeo de «¿se movió el piso?» hace el resto. Tres tests, y el
+  ensayo con un segundo servidor sin disco y una rama rancia sembrada en el GitHub falso: 84/84. Rama `canon/contexto`
+  borrada (tenía el commit malo de #243 encima de `main`). El fallo suelto de la suite era mi test del enlace
+  (orden de mapa), corregido.
 - **La dictada de prueba a prod encontró una pérdida de datos en el publicador.** Las dos piezas entraron bien —la
   respuesta ya dice «queda ENLAZADA» (#242 desplegado) y el retiro de la ruta muerta salió con su etiqueta honesta—,
   pero el PR #243 traía la copia rancia de `local/` de la rama `canon/contexto`: seis secciones borradas y el mapa
