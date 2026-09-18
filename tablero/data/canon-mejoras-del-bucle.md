@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -195,7 +195,10 @@ inventaba nada, **copiaba** el `citar` que la propia búsqueda le entrega para l
 en la herramienta que sólo usa el modelo, así que se comprueba la próxima vez que alguien pregunte algo que caiga
 en un área — no hay señal que leer sin gastar.
 
-**El próximo paso es:** avisarle a quien
+**#247 abierto (12:44): la sala con cuerdas.** Medido antes de tocar nada: 265 aristas sobre 33 temas es el 50%
+de los pares posibles, y 84 de las 156 deducidas se apoyan en un solo archivo. Curvar por curvar no arreglaba eso.
+
+**El próximo paso es:** mergear #247 cuando pase el CI, y avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -484,6 +487,12 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#247: la sala deja de ser una madeja de rectas.** Las aristas pasan a ser cuerdas que salen hacia afuera —una
+  recta entre dos puntos de la bola cruza justo por el racimo más denso—, cada clase se arquea hacia un lado para
+  separar los 46 pares que están unidos por las dos, el peso de cada arista se ve por fin (iba sólo en la distancia
+  del layout: compartir 17 archivos se dibujaba igual que compartir 1) y hay perilla para apagar las de un archivo.
+  120 cuadros por segundo con todo encendido, lo mismo que las rectas de prod. Y de paso, los comentarios del `ids`
+  plural, que decían que nadie lo usaba.
 - **#246 mergeado (12:18).** `leer` entiende el `citar` de un área. La causa no era la que anoté hace un rato: `buscar` entrega cada
   área con su cita ya armada (`tema/clase#n=K`) para que el modelo COPIE en vez de componer, y esa cadena tiene la
   misma forma que el `leer` de una sección — así que copió la que tenía a mano y la mandó al lector equivocado. El
