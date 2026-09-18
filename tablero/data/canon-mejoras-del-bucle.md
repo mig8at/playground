@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -161,10 +161,13 @@ llegan al listado»): con «oferta» en vez de «listado», 115/115.
 nuevas del corpus (#236, #237, #239, #241), el lint de los dos títulos (#238) y el tema `infraestructura/operar`
 (#240). Siete PRs, siete despliegues en 8-9 minutos, todos comprobados con la sonda gratis.
 
-**El próximo paso es:** avisarle a quien mantenga el arnés que la nota de `suites/cliente-recurrente.json` da
-la razón equivocada (la conclusión sí es cierta), y arreglar en el dictado los dos defectos que aparecieron
-hoy: que no enlaza la sección a un área existente cuando el archivo ya estaba declarado, y que sube el hash de
-esa área ajena.
+**Los dos defectos del dictado, arreglados en #242 (09:52, PR abierto, sin mergear).** Y un tercero que
+apareció al probar: dos piezas `verificado` sobre el mismo tema se pisaban las subidas. El ensayo de punta a
+punta (`dev/dictado.py`) pasa 78 de 78 —tiene un paso nuevo para este caso— y su paso del retiro, que venía
+fallando en `main` por asumir `context` y `onboarding`, sigue ahora al tema que declara el archivo.
+
+**El próximo paso es:** que Miguel revise y mergee #242, y avisarle a quien mantenga el arnés que la nota de
+`suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -452,6 +455,12 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#242: el dictado enlaza en vez de subir el hash ajeno.** Una pieza con prosa que nombraba un archivo ya
+  declarado le subía el hash a esa área —«releí el área», que nadie hizo— y dejaba la sección sin área. Ahora
+  la pieza no sube nada y al cerrar la sección entra en el `secciones` de cada área que declara sus archivos
+  (`spliceEnlaces`, texto quirúrgico, comprobado parseando). Tercer defecto encontrado por el ensayo: dos
+  `verificado` sobre el mismo tema se pisaban las subidas; ahora se suman. El ensayo: 78/78; su paso del
+  retiro fallaba en `main` por el arnés (7), verificado desde `origin/main`, y quedó corregido.
 - **#241 en `main` y en prod ocho minutos después**, comprobado con la sonda gratis: la frase nueva del aviso
   de creditopx no estaba antes y está desde las 09:23. Cierre del día: siete PRs en `main` (#235 a #241), siete
   despliegues detectados sin gastar modelo, y cuatro preguntas de modelo en total contra prod. Lo que queda
