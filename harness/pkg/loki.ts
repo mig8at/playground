@@ -122,17 +122,40 @@ export type Linea = {
 
 const ns = (ms: number) => `${Math.round(ms)}000000`;
 
+/** Sin credenciales no se manda el header: un Loki local rechaza un Basic vacío en vez de ignorarlo. */
+const cabeceras = (c: LokiConfig): Record<string, string> => (c.user && c.token
+    ? { Authorization: `Basic ${Buffer.from(`${c.user}:${c.token}`).toString('base64')}` }
+    : {});
+
+/**
+ * Los valores REALES de una etiqueta en la ventana. Existe para poder contestar la pregunta que un
+ * filtro vacío no contesta: ¿no hay líneas, o el filtro no puede encontrarlas?
+ *
+ * ⚠ Loki devuelve los valores de la VENTANA pedida, no del stack: una etiqueta cuyo servicio no logueó
+ * en esas horas no aparece. Por eso esto sólo sirve para DESMENTIR un filtro (si el valor no está en una
+ * ventana donde sí hay líneas, ese filtro no matcheó nada acá), no para afirmar que no existe nunca.
+ */
+async function valoresDeEtiqueta(c: LokiConfig, etiqueta: string, fromMs: number, toMs: number): Promise<string[]> {
+    try {
+        const qs = new URLSearchParams({ start: ns(fromMs), end: ns(toMs) });
+        const res = await fetch(`${c.url}/loki/api/v1/label/${etiqueta}/values?${qs}`, {
+            headers: cabeceras(c), signal: AbortSignal.timeout(20_000),
+        });
+        if (!res.ok) return [];
+        const body = await res.json() as { data?: string[] };
+        return (body.data ?? []).sort();
+    } catch {
+        return [];   // el diagnóstico es un extra: si falla, se sigue como antes
+    }
+}
+
 async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number, limit = 5000): Promise<Linea[]> {
     const qs = new URLSearchParams({
         query: logql, start: ns(fromMs), end: ns(toMs),
         limit: String(limit), direction: 'forward',
     });
-    // Sin credenciales no se manda el header: un Loki local rechaza un Basic vacío en vez de ignorarlo.
-    const headers: Record<string, string> = c.user && c.token
-        ? { Authorization: `Basic ${Buffer.from(`${c.user}:${c.token}`).toString('base64')}` }
-        : {};
     const res = await fetch(`${c.url}/loki/api/v1/query_range?${qs}`, {
-        headers, signal: AbortSignal.timeout(60_000),
+        headers: cabeceras(c), signal: AbortSignal.timeout(60_000),
     });
     if (!res.ok) {
         // El cuerpo puede ser el HTML de error de Cloudflare (hostname inexistente → 530/1016). Volcarlo
@@ -182,6 +205,17 @@ export type Cobertura = {
     ambientes: Record<string, number>;
     /** El filtro que se aplicó, para poder decir qué se dejó afuera. */
     filtroEnv: string;
+    /**
+     * El filtro CONFIGURADO, cuando resultó no existir como valor de `environment` en este stack.
+     *
+     * Existe porque un filtro que no matchea nada no falla: devuelve vacío, y el vacío se lee como «el
+     * backend no logueó». Medido el 2026-09-18: `E2E_LOKI_ENV=qa` —el que traen `.env.staging` y
+     * `.env.qa`— no existe entre los valores del stack (`development`, `local`, `testing`), así que esos
+     * targets leían CERO siempre y el runner lo atribuía a «la atendió otra rama de código».
+     */
+    filtroInexistente?: string;
+    /** Los valores reales de `environment` en la ventana, cuando hubo que desmentir al filtro. */
+    valoresEnv?: string[];
     /** true = no había `trace_id`, así que solo se ven las líneas que nombran el uReq (ver `anclar`). */
     degradado: boolean;
     /** true = correlación por VENTANA DE TIEMPO, no por uReq. Solo con Loki local (ver `forense`). */
@@ -221,6 +255,26 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
 
     const { crudas, anclas, sinTrace } = await anclar(c, id, fromMs, toMs);
     const traces = Object.keys(anclas);
+
+    /**
+     * Filtra por ambiente, y si el filtro se lleva TODO por delante pregunta si ese valor existe.
+     *
+     * La consulta extra se paga sólo cuando cambiaría la respuesta: si el filtro dejó algo, no hay nada
+     * que desmentir. Y cuando no existe se cae a NO filtrar —un filtro que no matchea nada es peor que
+     * ninguno— y se deja escrito en la cobertura para que el resumen lo diga en vez de dejar creer que
+     * el backend no logueó. Es la misma guarda que el trazador ya tenía y a este runner le faltaba.
+     */
+    const porAmbiente = async (ls: Linea[]): Promise<{ lineas: Linea[]; extra: Partial<Cobertura> }> => {
+        if (!c.env || !ls.length) return { lineas: ls, extra: { filtroEnv: c.env } };
+        const re = new RegExp(`^(?:${c.env})$`);
+        const filtradas = ls.filter((l) => re.test(ambienteDe(l)));
+        if (filtradas.length) return { lineas: filtradas, extra: { filtroEnv: c.env } };
+        const valores = await valoresDeEtiqueta(c, 'environment', fromMs, toMs);
+        if (valores.length && !c.env.split('|').some((v) => valores.includes(v.trim()))) {
+            return { lineas: ls, extra: { filtroEnv: '', filtroInexistente: c.env, valoresEnv: valores } };
+        }
+        return { lineas: filtradas, extra: { filtroEnv: c.env } };
+    };
     const vacia = (extra: Partial<Cobertura> = {}): Cobertura => ({
         lineasConTexto: crudas.length, anclas: {}, traces: [], lineas: 0,
         ambientes: {}, filtroEnv: c.env, degradado: false, porVentana: false, ...extra,
@@ -258,13 +312,12 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
         if (!sinTrace.length) return { lineas: [] as Linea[], cobertura: vacia() };
         const ambientes: Record<string, number> = {};
         for (const l of sinTrace) { const a = ambienteDe(l); ambientes[a] = (ambientes[a] ?? 0) + 1; }
-        const re = c.env ? new RegExp(`^(?:${c.env})$`) : null;
-        const lineas = re ? sinTrace.filter((l) => re.test(ambienteDe(l))) : sinTrace;
+        const { lineas, extra } = await porAmbiente(sinTrace);
         return {
             lineas,
             cobertura: {
                 lineasConTexto: crudas.length, anclas: {}, traces: [],
-                lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: true, porVentana: false,
+                lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: true, porVentana: false, ...extra,
             },
         };
     }
@@ -278,12 +331,14 @@ export async function forense(c: LokiConfig, ureq: string | number, ventanaMs: n
         const a = ambienteDe(l);
         ambientes[a] = (ambientes[a] ?? 0) + 1;
     }
-    const re = c.env ? new RegExp(`^(?:${c.env})$`) : null;
-    const lineas = re ? todas.filter((l) => re.test(ambienteDe(l))) : todas;
+    const { lineas, extra } = await porAmbiente(todas);
 
     return {
         lineas,
-        cobertura: { lineasConTexto: crudas.length, anclas, traces, lineas: lineas.length, ambientes, filtroEnv: c.env, degradado: false, porVentana: false },
+        cobertura: {
+            lineasConTexto: crudas.length, anclas, traces, lineas: lineas.length, ambientes,
+            filtroEnv: c.env, degradado: false, porVentana: false, ...extra,
+        },
     };
 }
 
@@ -635,11 +690,22 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
     const amb = Object.entries(r.cobertura.ambientes);
     log(gray(`   ambientes: ${amb.map(([k, v]) => `${k} ${v}`).join(' · ') || '(ninguno)'}` +
         (r.cobertura.filtroEnv ? `  · filtro E2E_LOKI_ENV=${r.cobertura.filtroEnv}` : '  · sin filtro')));
+    // ⚠ EL FILTRO QUE NO MATCHEA NADA. Va ANTES que el resto porque cambia qué significan las otras dos
+    // líneas: sin esto, un `E2E_LOKI_ENV` que no existe se lee como «esta solicitud no dejó rastro en tu
+    // ambiente» —y peor, el runner lo atribuía a que la atendió otra rama de código—. No es hipotético:
+    // `.env.staging` y `.env.qa` traen `qa`, que no es un valor de `environment` en este stack.
+    if (r.cobertura.filtroInexistente) {
+        log(yellow(`   ⚠ E2E_LOKI_ENV=${r.cobertura.filtroInexistente} NO existe como valor de \`environment\` en esta ventana`));
+        log(yellow(`     (los que hay: ${(r.cobertura.valoresEnv ?? []).join(' · ') || '(ninguno)'}) — se consultó SIN filtrar.`));
+        log(yellow('     Un filtro que no matchea nada devuelve vacío y ese vacío se lee como «no logueó»: por eso'));
+        log(yellow(`     esto se dice en vez de contestar cero. Arreglalo en harness/.env.${TARGET}, o dejalo vacío.`));
+        log(yellow('     ⚠ Y mientras tanto estás viendo dev y qa MEZCLADOS: comparten stack y no hay etiqueta que los separe.'));
+    }
     const fuera = amb.filter(([k]) => r.cobertura.filtroEnv && !new RegExp(`^(?:${r.cobertura.filtroEnv})$`).test(k));
     if (fuera.length) {
         log(yellow(`   ⚠ este uReq TAMBIÉN tiene líneas en ${fuera.map(([k, v]) => `${k} (${v})`).join(', ')} — `
             + 'dev y staging comparten la BD, así que lo tocaron dos ramas de código. Filtradas acá.'));
-    } else if (amb.length > 1 && !r.cobertura.filtroEnv) {
+    } else if (amb.length > 1 && !r.cobertura.filtroEnv && !r.cobertura.filtroInexistente) {
         log(yellow('   ⚠ hay más de un ambiente y no hay filtro: estás mirando dos ramas de código mezcladas. '
             + 'Definí E2E_LOKI_ENV para este target.'));
     }

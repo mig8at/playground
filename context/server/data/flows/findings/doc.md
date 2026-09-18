@@ -86,6 +86,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el botón no hace nada, y sólo en móvil»** · **«el caminador dice que clickeó y no pasó nada»** | **F-233** |
 | **«el forense dice cero anclas y la solicitud existe»** | **F-234** |
 | **«en local esa entidad no preaprueba y en dev sí»** · **«400 invalid lending product key»** | **F-235** |
+| **«la pantalla está llena y el botón no avanza, sin ningún mensaje»** · **«el caminador se para en `personal-info`»** | **F-236** |
+| **«el forense dice que la solicitud la atendió OTRA rama»** · **«contra staging o qa nunca hay logs»** | **F-237** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -396,6 +398,8 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-237 | El valor `qa` que `.env.staging` y `.env.qa` usan para filtrar por ambiente **no existe** entre los valores de la etiqueta `environment` del stack de logs de dev, así que esos targets leían CERO y las herramientas lo atribuían a que la solicitud «la atendió otra rama de código». Medido con su control: `{environment="qa"}` sobre 30 días no devuelve nada y `{environment="development"}` sobre 24 h da 33.599 líneas | ARREGLADO el aviso · ⏳ el filtro correcto es una decisión |
+| F-236 | El documento sintético del harness tenía el LARGO del país pero no su RANGO: `documentoSintetico` toma la COLA de la base y tira el prefijo `10…` que la hacía válida, así que un `CC` colombiano salía de diez dígitos empezando en 9 — sobre el techo de **3.000.000.000** que exige TusDatos y que validan los DOS monolitos. `personal-info` contestaba **200** (no el 202 de redirección) con `errors.document_number`, y el caminador informaba «5 intentos sin que la pantalla avance» citando la casilla de identidad. **Ningún recorrido colombiano podía pasar esa pantalla** | ARREGLADO |
 | F-235 | La clave que el front manda al microservicio de preaprobaciones **ES el slug del lender**, y en el dump local los slugs de Bancolombia 68/100 son los ESPAÑOLES con guion (`bancolombia-compra-y-paga-despues`) mientras prod tiene `bancolombia_bnpl`/`bancolombia_consumer_loan`. El microservicio no reconoce la clave, contesta 400, y el loader del marketplace lo TRAGA: la entidad no preaprueba y nada se pone rojo. 942 y 435 sucursales locales | ABIERTO · deriva del dump |
 | F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
 | F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickearAvanzar`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
@@ -5882,7 +5886,125 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Cómo se detecta en general, sin depender del mock:** comparar el slug de local contra el de prod para
   los lenders con `rt≠0` habilitados en alguna sucursal. Es una consulta y no necesita el catálogo del
   microservicio, que también puede estar incompleto.
-- **Lo que NO se hizo:** cambiar los slugs en el dump local. Un slug es un identificador y tocarlo puede
-  arrastrar otras cosas; y el canal QR de esas dos entidades **no** se ve afectado, porque su
-  preaprobación la resuelve el backend contra el banco (`PreApprovedLenderService`), no este
-  microservicio. Lo que queda roto en local es el camino del **marketplace**.
+- **Corregido en el dump local el 2026-09-18, después de comprobar contra prod cuál era el valor bueno**
+  —`SELECT id, name, slug FROM lenders WHERE slug LIKE '%bancolombia%'` en producción, sólo lectura—:
+
+      UPDATE lenders SET slug='bancolombia_bnpl'          WHERE id=68  AND slug='bancolombia-compra-y-paga-despues';
+      UPDATE lenders SET slug='bancolombia_consumer_loan' WHERE id=100 AND slug='bancolombia-credito-de-consumo';
+
+  Verificado por los tres eslabones: la base, el payload que recibe el front
+  (`lenders-v2` devuelve `slug: bancolombia_bnpl`) y el microservicio (`bancolombia_bnpl` → **200
+  approved**; el slug viejo → **400**). *(Acá decía «lo que NO se hizo: cambiar los slugs en el dump
+  local». Se hicieron, con el valor de prod y acotando el `UPDATE` por `id` **y** por el slug viejo para
+  que no toque nada más.)* El canal QR de esas dos entidades nunca estuvo afectado: su preaprobación la
+  resuelve el backend contra el banco (`PreApprovedLenderService`), no este microservicio — lo que estaba
+  roto era el camino del **marketplace**.
+- **Y sobre la entidad 8, medido en prod el 2026-09-18:** está habilitada en **2 sucursales de 1
+  comercio** (contra 1.335 de la 68 y 807 de la 100). O sea que el 400 correcto de «Bancolombia (No
+  activo)» sí llega a clientes reales, pero de un solo comercio. En local seguía habilitada en 200
+  sucursales, que es lo desproporcionado.
+
+### F-236 · Un documento de diez dígitos válido por LARGO y rechazado por RANGO: el arnés no podía pasar `personal-info` en Colombia
+
+- **Síntoma:** el caminador muere en `personal-info` con
+
+      NO cerró: personal-info: 5 intentos sin que la pantalla avance ·
+      lo que dice: ¿Confirmas que eres CARLOS RUIZ el titular del documento 9553649100? | No corresponde
+
+  y el screenshot muestra la pantalla **impecable**: fecha de expedición puesta, casilla de identidad
+  marcada, «Continuar» habilitado. El texto citado manda derecho al gate de identidad y a los mocks de
+  centrales —que es donde NO está el problema—. **No hay ningún mensaje de error a la vista.**
+- **Causa raíz:** el número de documento superaba el techo del proveedor de KYC. Un `CC` colombiano
+  numérico tiene que caer entre **10.000 y 3.000.000.000**, y lo validan los dos monolitos con la misma
+  regla —`Modules/Onboarding/App/Http/Requests/PersonalInfoRequest.php:125` y
+  `Modules/OnboardingV2/App/Http/Requests/StorePersonalInfoRequest.php:164`, verificados contra `main`—.
+  El arnés generaba `9553649100`: nueve mil quinientos millones.
+- **Por qué salía así, que es lo que vale para la próxima:** `documentoSintetico` conocía **media regla**.
+  Sabía el LARGO por país (10 en Colombia) y no el RANGO, y para variar el número entre corridas toma la
+  **cola** de la base — que es justo lo que tira el prefijo que la hacía válida:
+
+      BASE_DOC = 1_090_000_000 + …   (elegida a propósito dentro del rango)
+      cola de 8 de 1095536491        →  95536491
+      + índice del caso «00»         →  9553649100   ✗
+
+  No era intermitente como F-231: la cola de ocho dígitos de **cualquier** `109…` empieza en 9, así que
+  **ningún recorrido colombiano podía pasar esa pantalla** desde que el generador entró, ese mismo día.
+- **Por qué costó verlo, y el dato que lo resuelve en un minuto:** el `action` contesta **HTTP 200**. En
+  el protocolo `.data` de React Router una redirección es **202** con el destino en el cuerpo, así que
+  **200 significa «me quedé acá y devuelvo errores»** — y el cuerpo los trae:
+
+      [{"_1":2},"data",{…},"errors",{…},"document_number",[7],
+       "El número de documento debe estar entre 10000 y 3000000000.","message"]
+
+  Ante una pantalla que no avanza, mirar el código del POST al `.data` distingue en un vistazo «no se
+  envió» de «se envió y lo rechazaron».
+- **⚠ Y el front NO tiene la culpa, aunque lo parezca.** `init-loan-request.tsx:352` vuelve solo al paso
+  de identificación cuando el error es de un campo de ese paso (`document_number` está en
+  `identificationServerFields`) y pinta el mensaje bajo el campo. Lo que pasa es que el formulario tiene
+  **dos sub-pasos bajo una misma URL**: el caminador volvía a llenar, avanzaba otra vez a la fecha y
+  reposteaba —5 clicks, **2 POST**—, y tanto el último screenshot como el lector de mensajes de
+  validación agarraban el sub-paso equivocado. Se llegó a redactar el hallazgo «el error no se muestra
+  nunca» antes de leer ese archivo; era falso.
+- **Arreglo:** `TECHO_DEL_DOCUMENTO` en `harness/pkg/documentos.ts` —tabla aparte del largo, con una sola
+  entrada, porque el backend condiciona la regla a `$type === 'CC'`— y el primer dígito forzado a `1`
+  cuando el armado se pasa. `pkg/documentos.spec.ts` fija el rango barriendo bases e índices.
+  ⚠ **El spec que ya existía no lo habría atrapado:** medía sólo el largo, y su propio `BASE`
+  (`1_095_449_405`) producía `9544940503` —tres veces por encima del techo— pasando en verde. Un test que
+  cubre una de las dos reglas hace parecer cubierta la otra.
+- **Evidencia (2026-09-18, local, Motai PRINCIPAL `#f0548728`):** con el arreglo, el recorrido de asesor
+  con navegador pasa `personal-info` y llega al listado en **149,7 s**.
+
+### F-237 · El filtro de ambiente apuntaba a un valor que no existe: contra `staging` y `qa` el forense leía CERO y le echaba la culpa a la otra rama
+
+- **Síntoma:** contra `staging` (o `qa`), el forense de logs contesta que la solicitud existe pero no es
+  de este ambiente, y manda a probar con otro target:
+
+      ▸ el uReq 502463 SÍ tiene logs, pero no en el ambiente de este target.
+      ▸ target 'staging' filtra E2E_LOKI_ENV=qa · encontrado: development (256 líneas)
+      ▸ dev y staging comparten la BD, así que la solicitud existe en los dos pero la
+      ▸ atendió otra rama de código.
+
+  Se lee como un hecho sobre esa solicitud —«la atendió `legacy-backend-stg`»— y no lo es: **le pasa a
+  todas**. Con la ventana por defecto (12 h) ni siquiera llega a decir eso: contesta «cero anclas», que
+  es la forma en que este defecto se disfraza de solicitud vieja.
+- **Causa raíz:** `environment` **no tiene el valor `qa`** en el stack de logs de desarrollo. Los que hay
+  son `development`, `local` y `testing` — verificado en ventanas de 1 h, 24 h, 7 d y 30 d, siempre los
+  mismos tres. Y los dos lados configuran justamente ése: `harness/.env.staging` y `harness/.env.qa`
+  traen `E2E_LOKI_ENV=qa`, y `trazador/.env.staging` trae `LOKI_ENV=qa`. Un selector
+  `{environment=~"qa"}` no falla: devuelve vacío. Y el vacío se lee como «el backend no logueó».
+- **Evidencia (2026-09-18), con su control al lado — que es lo que vuelve creíble a un cero:**
+
+      {environment="qa"}          sobre 720 h  →  nada
+      {environment="development"} sobre  24 h  →  33.599 líneas
+      service_name="legacy-backend-stg" sobre 168 h  →  no existe
+
+  Y el desempate definitivo: pidiéndole a Loki los valores de la etiqueta, `qa` no aparece en ninguna
+  ventana. El servicio de staging, o no empuja a Loki, o lo hace bajo `legacy-backend` con
+  `environment=development` como el resto.
+- **Por qué sobrevivió tanto, y es lo que generaliza:** las dos herramientas se creyeron su propia
+  configuración. Nadie compara el filtro contra los valores REALES de la etiqueta, así que un filtro
+  muerto se ve exactamente igual que una solicitud sin logs — y como el mensaje de fallback sugería otro
+  target (`E2E_TARGET=dev`), que sí funciona, el atajo tapaba la causa cada vez. **Un filtro que no
+  matchea nada es peor que ninguno: no falla, y su vacío miente.**
+- **Arreglo:** las dos herramientas comprueban ahora el filtro contra los valores reales antes de
+  concluir de una ausencia, caen a **no filtrar** y **lo dicen**:
+
+      ⚠ E2E_LOKI_ENV=qa NO existe como valor de `environment` en esta ventana
+        (los que hay: development · local · testing) — se consultó SIN filtrar.
+        ⚠ Y mientras tanto estás viendo dev y qa MEZCLADOS: comparten stack y no hay etiqueta que los separe.
+
+  El trazador ya lo tenía (`traerLineas` en `trazador/server/etapas.go`, con `valoresDeEtiqueta`); lo que
+  faltaba era el harness, que ahora hace lo mismo en `harness/pkg/loki.ts`. ⚠ La consulta extra se paga
+  **sólo cuando cambiaría la respuesta** —si el filtro dejó algo, no hay nada que desmentir—, así que no
+  encarece las corridas sanas. Medido: la misma consulta que devolvía «cero anclas» ahora devuelve **256
+  líneas** y el aviso.
+- **⏳ Lo que queda es una DECISIÓN, no un arreglo:** qué filtro corresponde a `staging`/`qa`.
+  `development|develop` devuelve las líneas pero **mezcla dev y qa**, y hoy no hay ninguna etiqueta que
+  las separe (`deployment_environment` tiene `develop` y `development`, tampoco `qa`). Es elegir entre un
+  cero mudo y un resultado ambiguo — y lo segundo, **dicho**, es mejor que lo primero en silencio. Por eso
+  el aviso entra ya y el `.env` no se tocó.
+- **Cómo se vuelve a comprobar:**
+
+      make trazador-acceso TARGET=dev SINCE=720h
+      make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'
+      make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="development"} [24h]))'

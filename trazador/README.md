@@ -357,11 +357,17 @@ el 2026-09-18 con su control al lado: los valores de `environment` en `creditopd
 `sum(count_over_time({environment="qa"} [720h]))` **no devuelve nada** mientras el mismo conteo sobre
 `development` da **33.599 líneas en 24 h**. `legacy-backend-stg` tampoco existe como `service_name`.
 
-**Y eso rompe el target `staging` en silencio**, acá y en el harness: `trazador/.env.staging` filtra
+**Y eso apunta al target `staging` de las dos herramientas**: `trazador/.env.staging` filtra
 `LOKI_ENV=qa` y `harness/.env.staging` / `.env.qa` filtran `E2E_LOKI_ENV=qa`, o sea **un valor que no
-matchea nada**. Las dos herramientas presentan ese cero como «no hay logs para esta solicitud», que es
-la conclusión equivocada: no es que no haya logs, es que el filtro no puede encontrarlos. Para volver a
-medirlo:
+matchea nada**.
+
+✔ **Acá no rompe, y por eso está escrito abajo:** `traerLineas` compara el filtro contra los valores
+reales de la etiqueta, cae a NO filtrar y lo dice en las notas de la traza. *(Al escribir esta sección
+se afirmó que las dos herramientas callaban el cero. Falso: ésta ya avisaba desde que se descubrió con
+la uReq 464709. La que no comprobaba era la del harness, y se le agregó la misma guarda el 2026-09-18
+— ver **F-237**.)*
+
+Para volver a medirlo:
 
     make trazador-acceso TARGET=dev SINCE=720h
     make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'
