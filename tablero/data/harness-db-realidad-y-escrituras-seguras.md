@@ -3,7 +3,7 @@ id: 86
 title: "Harness: que refleje la BD real y no catálogos que mienten, y escrituras seguras con funciones definidas"
 clase: proyecto
 stage: work
-ramas: main
+ramas: 
 created: "2026-09-15T17:00:00-05:00"
 context_nodes: [harness, findings]
 jira: []
