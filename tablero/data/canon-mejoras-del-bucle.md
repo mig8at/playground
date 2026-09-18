@@ -208,11 +208,11 @@ al stream, con el código listo para pegar: `~/Desktop/credibot-canon-stream.md`
 falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y contra prod con una pregunta real:
 21,2 s, respaldada, y entró por `recorrido`.
 
-**#250 abierto (14:59): el aviso del recorrido, arreglado dos veces.** Miraba sólo el balde de la prosa —y por
+**#250 mergeado (15:04): el aviso del recorrido, arreglado dos veces.** Trece PRs hoy. Miraba sólo el balde de la prosa —y por
 eso la pregunta de documentos costó 21 llamadas— pero además **ya era papel tapiz**: medido sobre los 167 casos
 de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo esta mañana sin medirlo.
 
-**El próximo paso es:** mergear #250 cuando pase el CI, y avisarle a quien mantenga el arnés
+**El próximo paso es:** avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -500,7 +500,7 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
-- **#250: el aviso del recorrido no avisaba nada.** Dos defectos, los dos míos y de hoy. Miraba sólo la prosa, así
+- **#250 mergeado (15:04).** El aviso del recorrido no avisaba nada. Dos defectos, los dos míos y de hoy. Miraba sólo la prosa, así
   que a «flujo de subida de archivos» no le dijo que `documentos` tiene camino escrito —vino dos veces por el
   balde del mapa— y esa pregunta costó 21 llamadas y 87 s. Y sumarle el mapa a secas lo empeoraba: medido sobre
   los 167 casos de los bancos, sólo prosa salía en el **98%** de las preguntas con 4,0 temas y prosa+mapa en el
