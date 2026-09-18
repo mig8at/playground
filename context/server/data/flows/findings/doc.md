@@ -76,6 +76,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«oculté el dato en pantalla, ¿alcanza?»** | **F-224** |
 | **«desplegué el permiso y al que SÍ debe entrar le da 403»** | **F-224** |
 | **«la prueba contra el proveedor externo falla ENTERA, todos los casos igual»** | **F-226** |
+| **«la pantalla se contradice a sí misma» · «dice que venció y el contador sigue corriendo»** | **F-227** |
+| **«agrupé por hora y la curva no tiene sentido» · «me da CERO y no puede ser»** | **F-227** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -385,6 +387,7 @@ distinto según con qué pregunta llegues.
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
+| F-227 | La pantalla del código de compra dice «(Vence hoy a las 8:30 p.m.)» **siempre**: es un default quemado que `SuccessView` nunca pasa. El contador está bien; el texto miente en toda compra cerrada después de las 20:30, que es cuando el plazo se corre al día siguiente. Medido en prod: **14 de 507** (2,8 %) en 180 días, y está en `main` | ABIERTO |
 | F-226 | `make harness-sandbox` da «20 casos se apartaron de lo medido» y NINGUNO es del contrato: el WAF (Imperva) delante del gateway de Bancolombia devuelve **503 a todo** desde esta red, incluido `HEAD /health` pelado. El único oráculo capaz de contradecir nuestros mocks quedó fuera de alcance | ABIERTO · mitigado con `channel/qr-bancolombia-gateway.spec.ts` |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
 
@@ -5587,3 +5590,43 @@ cliente corrige (¿se reescribe la solicitud, o la corrección exige rehacer el 
   —que contesta `200` a toda ruta no mapeada— y por lo tanto `BancolombiaBillingCode::health()` devolvía
   **`true` siempre** en local. Una sonda que sólo sabe contestar que sí es peor que no tenerla, y local
   es justo donde se la probaría.
+
+### F-227 · «Vence hoy a las 8:30 p.m.» es una frase fija, y contradice al contador que tiene al lado
+
+- **Síntoma:** en la última pantalla del canal QR —la del código que el cliente presenta en caja— el
+  contador dice **«Tiempo restante: 22:47:15»** y justo debajo **«(Vence hoy a las 8:30 p.m.)»**. Con 22
+  horas por delante no puede vencer hoy, y a las 21:00 esa hora **ya pasó**. Las dos frases están a tres
+  renglones de distancia diciendo cosas incompatibles.
+- **Causa raíz:** `CountdownDisplay.tsx:12` declara `expirationLabel` con un **valor por defecto
+  quemado**, y `SuccessView.tsx:62` lo monta con `<CountdownDisplay {...remainingTime} />` — el spread
+  lleva `hours`/`minutes`/`seconds` y **nunca pasa el label**. O sea que la frase no se calcula: es una
+  constante que ve todo el mundo, tenga el plazo que tenga.
+- **El contador, en cambio, está bien.** `calculateDeadlineTimestamp()` fija el plazo en **01:30 UTC**
+  (= 20:30 de Bogotá, o sea las 8:30 p.m. que dice el texto) y lo corre al día siguiente si ya pasó. Usa
+  `setUTCHours`/`getUTCHours`, que son absolutos, así que no depende del reloj del dispositivo. **El
+  defecto es sólo la frase.**
+- **Cuándo miente, exactamente:** en toda compra cerrada entre las **20:30 y las 23:59** de Bogotá, que
+  es justo cuando el plazo se corre. Antes de las 20:30 la frase acierta por casualidad.
+- **Y el daño va en la peor dirección.** A las 21:00 el cliente lee que su código «vence hoy a las 8:30
+  p.m.» —media hora ANTES— y la conclusión razonable es que ya no sirve. En realidad le quedan ~23 horas.
+  Está parado en la caja, con el producto en la mano, y el texto lo empuja a abandonar una compra válida.
+- **Evidencia (2026-09-17):** caminado en local con `make harness-walk PRODUCT=consumo`, 10/10 pantallas
+  hasta `purchase-code`. A las 21:43 de Bogotá la pantalla mostró `22:47:15` + «Vence hoy». Verificado
+  contra `origin/main`: `calculateDeadlineTimestamp` y el default quemado están los dos ahí, o sea **vivo
+  en producción**.
+- **Alcance, medido en prod (180 días):** **14 de 507** códigos de compra (**2,8 %**) se emitieron en esa
+  ventana. Poco en porcentaje, pero son personas concretas en una caja.
+- **Por qué NINGÚN runner lo encontró antes:** `qr-corbeta.ts` cierra en estado 25 con código y es ciego
+  a la pantalla; `contrato:bancolombia` valida los 16 esquemas zod y este texto no viaja en ninguna
+  respuesta —lo escribe el front—; y el caminador reporta «10 pantallas, última `purchase-code`», que es
+  verde. Es exactamente el eje de **F-88**: hay que MIRAR la pantalla.
+
+⚠ **Y la trampa de medición que casi hace descartar el hallazgo, que vale por separado:**
+`purchase_codes.created_at` se escribe en **hora de Bogotá**, mientras la sesión de MySQL reporta
+**UTC** — `NOW()` y las filas van corridos 5 horas. Convertir con
+`CONVERT_TZ(created_at,'+00:00','-05:00')` «para pasarlo a Bogotá» da **0 afectados** y una curva de
+03:00 a 16:00. El cero es falso y la curva es el delator: implicaría **33 compras entre las 3 y las 5 de
+la mañana en una caja de Alkosto**. La curva cruda va de **08:00 a 21:00 con pico a las 19:00** — una
+jornada de tienda exacta. **Antes de convertir zonas en esta base, mirá si la curva cruda ya tiene forma
+de negocio**: `config/app.php` toma la zona de `env('TZ', 'UTC')`, así que el valor efectivo lo pone el
+contenedor y no se puede deducir del repositorio.
