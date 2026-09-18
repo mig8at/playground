@@ -201,9 +201,11 @@ de los pares posibles, y 84 de las 156 deducidas se apoyan en un solo archivo. C
 **#247 mergeado (12:56) y #248 abierto (13:04): el recorrido como herramienta.** La pregunta que se llevó un 504
 en Slack tenía la respuesta ESCRITA en el corpus y el agente no podía pedirla.
 
-**El próximo paso es:** mergear #248 cuando pase el CI; avisarle a Duncan que CrediBot llame al stream —el
-balanceador corta el POST plano a los 60 s y 21 de cada 100 preguntas pasan de ahí—; y avisarle a quien
-mantenga el arnés
+**#248 mergeado (13:09), CI verde. Once PRs en `main` hoy.** Y para Duncan quedó escrito el cambio de CrediBot
+al stream, con el código listo para pegar: `~/Desktop/credibot-canon-stream.md`.
+
+**El próximo paso es:** que Duncan pase CrediBot al stream —el balanceador corta el POST plano a los 60 s y
+21 de cada 100 preguntas pasan de ahí—, y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -491,6 +493,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#248 en `main` (13:09), y el traspaso a Duncan escrito.** El bot ya tiene la mitad hecha sin saberlo:
+  `progreso.Aviso` es un mensaje de Slack que se actualiza solo, con latido y límite de una edición cada 3 s, y
+  hoy muestra UNA frase fija durante los 35-75 s que tarda canon. El stream manda `paso` y `resultado`, y el
+  `resumen` de cada resultado lo calcula canon —«8 secciones · 3 áreas», «412 palabras»—, así que el paso a paso
+  en Slack sale casi gratis: el documento tiene el diff de `canon.py` y la línea de `progreso.py`.
 - **#248: el recorrido, que estaba escrito y nadie podía pedir.** El 504 de CrediBot no era canon caído: 19 temas
   declaran su `flow.json` y el bucle no tenía herramienta para leerlo, así que el modelo reconstruía el camino a
   mano hasta que el balanceador cortaba a los 60 s. Medido sobre las 204 preguntas guardadas: mediana 35,8 s, p90
