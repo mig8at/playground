@@ -87,6 +87,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el forense dice cero anclas y la solicitud existe»** | **F-234** |
 | **«en local esa entidad no preaprueba y en dev sí»** · **«400 invalid lending product key»** | **F-235** |
 | **«la pantalla está llena y el botón no avanza, sin ningún mensaje»** · **«el caminador se para en `personal-info`»** | **F-236** |
+| **«el panel dice un comercio y la corrida usó otro»** · **«cambié de sucursal y volví»** | **F-238** |
 | **«el forense dice que la solicitud la atendió OTRA rama»** · **«contra staging o qa nunca hay logs»** | **F-237** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
@@ -399,6 +400,7 @@ distinto según con qué pregunta llegues.
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
 | F-237 | El valor `qa` que `.env.staging` y `.env.qa` usan para filtrar por ambiente **no existe** entre los valores de la etiqueta `environment` del stack de logs de dev, así que esos targets leían CERO y las herramientas lo atribuían a que la solicitud «la atendió otra rama de código». Medido con su control: `{environment="qa"}` sobre 30 días no devuelve nada y `{environment="development"}` sobre 24 h da 33.599 líneas | ARREGLADO el aviso · ⏳ el filtro correcto es una decisión |
+| F-238 | El panel cachea en memoria «ya asigné el asesor a este hash» y el cache ACUMULA: un asesor está en UNA sola sucursal, así que al volver a una ya visitada contesta «permiso ya confirmado» **sin escribir** y el asesor se queda en la anterior. El panel muestra A, habilita Lanzar y la corrida pega contra B — con la evidencia saliendo con el nombre equivocado | ARREGLADO |
 | F-236 | El documento sintético del harness tenía el LARGO del país pero no su RANGO: `documentoSintetico` toma la COLA de la base y tira el prefijo `10…` que la hacía válida, así que un `CC` colombiano salía de diez dígitos empezando en 9 — sobre el techo de **3.000.000.000** que exige TusDatos y que validan los DOS monolitos. `personal-info` contestaba **200** (no el 202 de redirección) con `errors.document_number`, y el caminador informaba «5 intentos sin que la pantalla avance» citando la casilla de identidad. **Ningún recorrido colombiano podía pasar esa pantalla** | ARREGLADO |
 | F-235 | La clave que el front manda al microservicio de preaprobaciones **ES el slug del lender**, y en el dump local los slugs de Bancolombia 68/100 son los ESPAÑOLES con guion (`bancolombia-compra-y-paga-despues`) mientras prod tiene `bancolombia_bnpl`/`bancolombia_consumer_loan`. El microservicio no reconoce la clave, contesta 400, y el loader del marketplace lo TRAGA: la entidad no preaprueba y nada se pone rojo. 942 y 435 sucursales locales | ABIERTO · deriva del dump |
 | F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
@@ -6008,3 +6010,35 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
       make trazador-acceso TARGET=dev SINCE=720h
       make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'
       make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="development"} [24h]))'
+
+### F-238 · Volver a una sucursal ya visitada NO reasigna al asesor: el panel muestra una y la corrida usa otra
+
+- **Síntoma:** elegís la sucursal A, después la B, después volvés a A. El panel muestra A, la barra de
+  estado dice A, el botón **Lanzar se habilita** con «permiso ya confirmado»… y el asesor sigue en B. La
+  corrida entera —pantallas, solicitud, evidencia en `.runs/`— sale con el comercio equivocado, y no hay
+  ningún error en ninguna parte.
+- **Causa raíz:** `panel/server.ts`, `ensureAssign()`. El primer paso es un cache en memoria
+
+      const key = `${target}|${hash}`;
+      if (assignOk.has(key)) return { ok: true, already: true, detail: 'permiso ya confirmado' };
+
+  y ese `Set` **acumula una entrada por cada sucursal visitada**. La suposición que lo hace incorrecto es
+  silenciosa: un asesor está en **una sola** sucursal a la vez, así que «ya asigné a A» deja de ser cierto
+  en cuanto se asigna a B — pero la entrada de A sigue en el `Set` y corta el chequeo antes del `whois`
+  que lo habría descubierto.
+- **Por qué costó verlo, y por qué importa más que antes:** el cache existe para no escribir en la base en
+  cada click, así que en el camino feliz —elegir una sucursal y correr— es correcto. Sólo falla al
+  **volver**, y eso era raro cuando cada sucursal era una tarjeta que había que dar de alta a mano. Con el
+  árbol de comercios (comercio › sucursal › entidades) alternar sucursales es un click, así que el camino
+  que lo dispara pasó de excepcional a normal. El bug es anterior al árbol; el árbol lo vuelve alcanzable.
+- **Evidencia (2026-09-18, local, Motai):** con el panel abierto, PRINCIPAL (`f0548728`) → Boyacá
+  (`5cb92b54`) → PRINCIPAL dejó al asesor en **867 / `5cb92b54`**, comprobado con
+  `dbops whois`. Es la misma clase de error que la skill del panel ya marcaba para el buscador —«resolver
+  una sucursal cualquiera ya causó que la card mostrara una y el flujo corriera contra otra»—, pero por
+  otro camino.
+- **Arreglo:** el cache guarda **a lo sumo una sucursal por target**. Antes de registrar una asignación se
+  borran las otras entradas de ese mismo target, con lo que `assignOk.has(key)` vuelve a ser una respuesta
+  confiable en vez de una memoria de todo lo visitado. Verificado alternando cuatro veces: las cuatro
+  escribieron.
+- **⚠ Pide reiniciar el panel.** `panel/index.html` se lee del disco en cada pedido, pero `server.ts` se
+  carga una sola vez: un panel que ya estaba abierto sigue corriendo el código viejo.
