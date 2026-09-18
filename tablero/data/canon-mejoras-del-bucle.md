@@ -161,12 +161,12 @@ llegan al listado»): con «oferta» en vez de «listado», 115/115.
 nuevas del corpus (#236, #237, #239, #241), el lint de los dos títulos (#238) y el tema `infraestructura/operar`
 (#240). Siete PRs, siete despliegues en 8-9 minutos, todos comprobados con la sonda gratis.
 
-**Los dos defectos del dictado, arreglados en #242 (09:52, PR abierto, sin mergear).** Y un tercero que
+**Los dos defectos del dictado, arreglados en #242 (mergeado a las 09:58, CI verde: `revisar` 4′55″ y CodeBuild).** Y un tercero que
 apareció al probar: dos piezas `verificado` sobre el mismo tema se pisaban las subidas. El ensayo de punta a
 punta (`dev/dictado.py`) pasa 78 de 78 —tiene un paso nuevo para este caso— y su paso del retiro, que venía
 fallando en `main` por asumir `context` y `onboarding`, sigue ahora al tema que declara el archivo.
 
-**El próximo paso es:** que Miguel revise y mergee #242, y avisarle a quien mantenga el arnés que la nota de
+**El próximo paso es:** avisarle a quien mantenga el arnés que la nota de
 `suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -455,6 +455,8 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#242 en `main` (09:58).** Ocho PRs hoy. Sin sonda: el cambio es del camino de escritura, que pide la llave, así que se
+  comprueba la próxima vez que alguien dicte.
 - **#242: el dictado enlaza en vez de subir el hash ajeno.** Una pieza con prosa que nombraba un archivo ya
   declarado le subía el hash a esa área —«releí el área», que nadie hizo— y dejaba la sección sin área. Ahora
   la pieza no sube nada y al cerrar la sección entra en el `secciones` de cada área que declara sus archivos
