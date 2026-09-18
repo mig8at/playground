@@ -86,9 +86,13 @@ imprecisión desapareció en la segunda vuelta), y «el vacío de verdad» reesc
 por oración con los mismos hechos — y la respuesta que lo lee bajó de 35,3 a 24,0. **El corpus entero
 está a 26,3 por oración de mediana: el modelo hereda esa densidad.**
 
-⚠ **El despliegue de #235 nunca llegó a prod**: la imagen `3255706` es el merge correcto, la task
-definition `canon-production:177` salió «Deployment Successful», y una hora después prod seguía sirviendo
-los resúmenes viejos (#233 y #234 sí están). Es de ECS; hay que mirar el servicio `internal-tools`.
+⚠ **«#235 no llegó a prod» fue una alarma FALSA, y era mía.** El despliegue llegó; lo que no cambió fue
+lo que #235 editó: escribió título y resumen en `title`/`summary` de nivel superior del `map.json`, y el
+nodo se arma desde `documents["context.md"]`. La sonda buscaba una frase que esa imagen no podía servir,
+y yo lo leí como ECS. Lo delató #236: su sección nueva de prosa llegó en 8 minutos. Corregido en #237
+(los mismos textos, en la clave que sí se lee; verificado en local por `/api/index`). Lección de método:
+**una sonda de despliegue tiene que mirar algo que el cambio produce por el camino que de verdad se
+lee** — y antes de reportar un incidente, comprobar la misma señal en local.
 
 **Motai ya está hecho con esa receta** (18/9, a la mañana): la puerta del tema, de 36,6 a 20,4 por
 oración, y la calculadora, de 30,1 a 18,8 — mismos hechos, mismas anclas, 439→428 y 211→207 palabras. La
@@ -113,9 +117,11 @@ respuesta (vacío de verdad, motai), tres no.** La palanca sirve cuando el model
 legibilidad de la sección vale igual para la Sala y para quien lee sin modelo. Trece corridas simuladas
 con Sonnet 5 local, todas las citas comprobadas a mano.
 
-**El próximo paso es:** comprobar con la sonda gratis que #236 llegue a prod — si no llega, es la
-segunda vez en un día (#235 sigue sin llegar) y hay que mirar el servicio `canon` en ECS
-(`internal-tools`, task def 177 registrada y tasks en 176) antes de seguir mergeando.
+**El próximo paso es:** cerrar la pregunta que dejó #237 — `title`/`summary` de nivel superior y
+`documents[].title/summary` son dos lugares para el mismo hecho y nada obliga a que coincidan; o el lint
+exige igualdad, o el nivel superior se va. Y al reanudar la receta de densidad, elegir por dónde con el
+criterio medido: rinde en la respuesta cuando el modelo parafrasea de cerca (2 de 5), y siempre en la
+lectura humana.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -403,6 +409,10 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **La alarma de ECS era falsa, y el error fue mío.** #235 editó `title`/`summary` de nivel superior; el
+  nodo se lee de `documents["context.md"]`. El despliegue llegó; el cambio no existía donde se lee. Lo
+  destapó la sonda de #236 (prosa nueva, 8 minutos). #237 lo corrige en la clave correcta, verificado en
+  local. Dos lugares para el mismo hecho: uno miente.
 - **Datos y credifamilia, y el balance de la receta.** Dos secciones más legibles (29,0 → 18,2; 30,0 →
   21,2); la respuesta bajó poco en datos (tabla) y nada en credifamilia (ya venía a 16,2). Sobre cinco
   secciones: dos movieron la respuesta, tres no. #236 mergeado con siete correcciones y la matriz.
