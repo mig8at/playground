@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: credibot/el-stream-y-el-paso-a-paso, canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -204,8 +204,11 @@ en Slack tenía la respuesta ESCRITA en el corpus y el agente no podía pedirla.
 **#248 mergeado (13:09), CI verde. Once PRs en `main` hoy.** Y para Duncan quedó escrito el cambio de CrediBot
 al stream, con el código listo para pegar: `~/Desktop/credibot-canon-stream.md`.
 
-**El próximo paso es:** que Duncan pase CrediBot al stream —el balanceador corta el POST plano a los 60 s y
-21 de cada 100 preguntas pasan de ahí—, y avisarle a quien mantenga el arnés
+**Duncan dio vía libre y el cambio de CrediBot está hecho: #249 (13:20, CI corriendo).** Probado con el modelo
+falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y contra prod con una pregunta real:
+21,2 s, respaldada, y entró por `recorrido`.
+
+**El próximo paso es:** mergear #249 cuando pase el CI, y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -493,6 +496,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#249: CrediBot al stream, con el paso a paso en Slack.** El bot ya tenía la mitad hecha —un mensaje que se
+  actualiza solo— y lo único que le faltaba era la fuente de eventos. El callback va por HILO, no en una variable
+  de módulo: el bot atiende una pregunta por hilo y un global le mostraría a alguien los pasos de otro. Probado
+  gratis con el modelo falso de canon (incluidos dos hilos a la vez) y con una pregunta real contra prod: **21,2 s
+  y entró por `recorrido`** — la misma clase de pregunta que ayer se llevaba un 504 y quince búsquedas.
 - **#248 en `main` (13:09), y el traspaso a Duncan escrito.** El bot ya tiene la mitad hecha sin saberlo:
   `progreso.Aviso` es un mensaje de Slack que se actualiza solo, con latido y límite de una edición cada 3 s, y
   hoy muestra UNA frase fija durante los 35-75 s que tarda canon. El stream manda `paso` y `resultado`, y el
