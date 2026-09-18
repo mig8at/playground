@@ -333,8 +333,15 @@ export async function renovarSesion(): Promise<{ ok: boolean; motivo: string }> 
     if (!cognitoCreds.user || !cognitoCreds.pass) {
         return { ok: false, motivo: 'no hay credenciales Cognito configuradas (.cognito.json o E2E_COGNITO_USER/PASS)' };
     }
-    if (FRONT_LOCAL) {
-        return { ok: false, motivo: 'el pre-login navega al front local (:5174), que esta corrida no levanta' };
+    // ⚠ LA CONDICIÓN ES QUE EL FRONT RESPONDA, no que el target sea local. Al principio esto excluía
+    // `local` entero, razonando que el pre-login navega al `:5174` y el runner no lo levanta. Falso a
+    // medias: si alguien YA lo tiene arriba —que es lo normal mientras se trabaja— el pre-login anda
+    // perfecto. Comprobado el 2026-09-17 contra local: `WARM_OK local`. Excluir por el nombre del
+    // ambiente dejaba afuera un caso que funciona; preguntarle al front cuesta una petición.
+    try {
+        await fetch(config.feBaseUrl, { signal: AbortSignal.timeout(4000) });
+    } catch {
+        return { ok: false, motivo: `el front de este target (${config.feBaseUrl}) no responde, y el pre-login necesita navegarlo` };
     }
 
     const { spawn } = await import('node:child_process');

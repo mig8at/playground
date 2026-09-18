@@ -792,7 +792,9 @@ if (aviso) console.log(`  ${aviso}\n`);
 // ⚠ Y VA ANTES DEL BYPASS, no después. Puesto después, esta corrida registraba sus teléfonos y se
 // iba por `process.exit` sin pasar por el `finally` que los limpia: dos teléfonos de prueba
 // quedaban en la lista compartida por cada intento con la sesión vencida. Medido corriéndolo.
-if (FLOW === 'merchant' && TARGET !== 'local') {
+// Antes esto excluía `local`. La sesión de asesor hace falta en local IGUAL —el wizard la pide— y
+// el pre-login funciona si el front está arriba, así que el chequeo vale para todos los targets.
+if (FLOW === 'merchant') {
     let sesion = saludDeLaSesion();
 
     // ⚠ SE RENUEVA SOLA, y el orden importa tanto como el hecho: el token de acceso vive ~4 minutos,
