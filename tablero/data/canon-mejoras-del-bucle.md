@@ -59,10 +59,23 @@ pregunta siendo explícitamente comparativa: la contestó con viñetas. O sea qu
 descripción no alcanza, que es otra vez lo mismo — una instrucción es una sugerencia, una guarda es
 una guarda.
 
-**El próximo paso es:** hacer que `contestar` **rechace** un `en_una_linea` que se pase del techo, con
-el motivo escrito, igual que ya rechaza un ancla que no existe —se ve funcionando en la traza de la
-primera pregunta: cuatro rechazos y el modelo se recuperó solo—. Es la misma palanca de siempre: la
-herramienta, no el guion.
+**Y la guarda ya está en prod, comprobada con la misma pregunta** (`#234`, desplegado 21:00). El
+modelo entregó un titular de **43 palabras**, el servidor se lo rechazó con el motivo escrito, y
+volvió a entregar con **25** y el mismo contenido: «Las de la casa resuelven en el momento; las
+externas mandan la solicitud afuera y el cliente espera un aviso que puede tardar o fallar.» Dos
+llamadas a `contestar`, un rebote, aceptado en la segunda — el tope de un rebote hizo exactamente lo
+que tenía que hacer. Queda demostrado lo que ya se sabía y ahora tiene un caso más: **un techo escrito
+en una descripción se ignora; el mismo techo como guarda se cumple.**
+
+⚠ **Y tiene un costo que hay que saber: el turno extra la llevó de 49 s a 74 s, y el balanceador corta
+a los 60.** La primera corrida de esta misma verificación volvió **504** por `POST /api/pregunta`; por
+`/api/pregunta/stream` —la ruta del front, que manda un evento por paso y nunca queda muda— pasó sin
+problema. O sea que la guarda no rompe la pantalla, pero sí empeora la ruta pelada para preguntas
+anchas, que es justo la que usa la receta de validación del README.
+
+**El próximo paso es:** decidir qué hacer con ese 504 — la receta de «cómo se prueba un cambio» del
+README manda `curl` a `POST /api/pregunta`, y para una pregunta ancha esa ruta ahora se cae más
+seguido. Lo barato es que la receta use el stream; lo otro sería mirar el timeout del balanceador.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -350,6 +363,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-17
 
+- **La guarda del titular, comprobada en prod con la misma pregunta.** 43 palabras → rechazo con el
+  motivo escrito → 25 palabras y mejor titular, en dos llamadas a `contestar`. El tope de UN rebote
+  funcionó. ⚠ Pero el turno extra la llevó de 49 s a 74 s y la primera corrida volvió **504**: el
+  balanceador corta a los 60. Por el stream pasó. La pantalla está bien; la ruta pelada, peor para
+  preguntas anchas — y es la que manda la receta del README.
 - **Medido contra prod, y el resultado está partido.** `en_una_linea` funciona: vino en las dos
   preguntas, contesta en vez de anunciar, y el texto largo no la repite. Lo que NO funcionó son los
   dos límites: 39 y 30 palabras contra un techo de 20, y cero tablas en una pregunta explícitamente
