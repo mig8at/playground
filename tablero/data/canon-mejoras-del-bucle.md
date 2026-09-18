@@ -215,7 +215,7 @@ de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo e
 **#251 mergeado (15:19): las SIETE herramientas con plural lo ofrecen en su primera línea.** No era sólo
 `archivo`: la prueba destapó cinco más (`codigo`, `grep`, `historia`, `tablas`, `ubicar`). Catorce PRs hoy.
 
-**Corrida la pregunta de documentos con #251 puesto (15:42): 24 llamadas, 70,4 s, y `archivo` agrupó CERO
+**Corrida la pregunta de documentos con #251 puesto (15:29): 24 llamadas, 70,4 s, y `archivo` agrupó CERO
 de 10.** El cambio de descripción no movió la conducta — es el cuarto intento por el lado del texto que se mide
 sin efecto. Lo que sí bajó el tiempo fue el paralelismo del mismo turno: 23 llamadas en 14 turnos. Y con 70 s
 habría muerto otra vez con el POST plano, así que lo que la salva es el stream.
