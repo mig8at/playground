@@ -61,11 +61,26 @@ from functools import lru_cache
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oracle import del_ref  # misma definición de "qué existe en main" que el oráculo
-from roots import ROOTS
+from roots import ROOTS, ref_a_indexar
 
 CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FLOWS = os.path.join(CTX, "server", "data", "flows")
-REF_HOY = "main"  # contra qué se compara el "hoy": el árbol describe main, no tu working tree
+# Contra qué se compara el «hoy»: el árbol describe main, no tu working tree.
+#
+# ⚠ NO ES UNA CONSTANTE, y por eso es una función: la ref correcta se decide POR REPO. El `main` local
+# de un clon que nadie actualiza va detrás del remoto —medido el 2026-09-18, cinco de diez repos, hasta
+# 22 commits— y comparar contra él mide la deriva de las citas contra CÓDIGO VIEJO: una cita que ya se
+# rompió en main sale verde, que es el falso negativo que esta herramienta existe para no dar. Pero
+# `origin/main` tampoco vale para todos: `harness` y `trazador` viven en playground, que va ADELANTE de
+# su origin a propósito. `ref_a_indexar` elige la que CONTIENE a la otra (ver `context/tools/roots.py`),
+# cachea por proceso y NO hace fetch.
+def ref_hoy(alias):
+    root = ROOTS.get(alias)
+    if not root:
+        return "main"
+    ref, _ = ref_a_indexar(root)
+    return ref or "main"
+
 CERCA = 0        # el ancla es TEXTO EXACTO: o está en esa línea o no está. La tolerancia de ±3 venía
                  # del método viejo (buscaba un símbolo "cerca") y acá miente: con ±3, un bloque
                  # corrido 2 líneas se reportaba como «inicio bien, fin movido» — media verdad.
@@ -123,15 +138,21 @@ def repo_de(alias):
 
 @lru_cache(maxsize=None)
 def sha_en(repo, fecha):
-    """El commit de `main` al cierre de ese día — el estado que el nodo dice haber verificado."""
-    out = git(repo, "rev-list", "-1", f"--before={fecha} 23:59:59", "main")
+    """El commit al cierre de ese día — el estado que el nodo dice haber verificado.
+
+    ⚠ `repo` acá es el TOPLEVEL del clon, no un alias, así que la ref se resuelve desde la ruta. Contra
+    un `main` local atrasado el «cierre de hoy» cae en un commit de días atrás y toda la comparación se
+    corre con él."""
+    ref, _ = ref_a_indexar(repo)
+    out = git(repo, "rev-list", "-1", f"--before={fecha} 23:59:59", ref or "main")
     return out.strip() if out and out.strip() else None
 
 
 @lru_cache(maxsize=None)
 def renombres(repo, sha):
     """{ruta_hoy: ruta_cuando_se_selló}, siguiendo cadenas (un archivo pudo renombrarse dos veces)."""
-    out = git(repo, "log", "--diff-filter=R", "-M", "--name-status", "--format=", f"{sha}..main")
+    ref, _ = ref_a_indexar(repo)
+    out = git(repo, "log", "--diff-filter=R", "-M", "--name-status", "--format=", f"{sha}..{ref or 'main'}")
     directo = {}
     for ln in (out or "").splitlines():
         p = ln.split("\t")
@@ -271,8 +292,11 @@ def por_ancla(alias, rel, n, fin, fecha, hoy):
     return (grado, f"{alias}: está en :{ini}{extra}{cola}")
 
 
-def indice(ref="main"):
-    """Mapas para resolver una cita: por relpath completo y por basename."""
+def indice(ref=None):
+    """Mapas para resolver una cita: por relpath completo y por basename.
+
+    `ref=None` es el modo automático de `oracle.del_ref`: cada repo se mira con la ref que contiene a
+    la otra. Un valor explícito se respeta tal cual."""
     existen, _, _ = del_ref(ref)
     por_rel, por_base = defaultdict(list), defaultdict(list)
     for f in existen:
@@ -324,7 +348,7 @@ def evaluar(cita, n, fin, base_cita, idx):
 
     veredictos = []
     for alias, rel in sorted({(a, r) for a, r in cands}):
-        hoy = en_ref(alias, REF_HOY, rel)
+        hoy = en_ref(alias, ref_hoy(alias), rel)
         if hoy is None:
             continue
         hoy = list(hoy)
