@@ -12,6 +12,9 @@
 //   POST {base}/api/projects/{projectSlug}/documents/{serviceDocName}/generate   body = payload JSON
 //        → 2xx y **el BODY de la respuesta SON LOS BYTES DEL PDF** (no un JSON con una url).
 //   GET  {base}/api/projects/{projectSlug}/documents/{serviceDocName}/status
+//        → { doc, status: { "<doc>.json": bool, "<doc>.pdf": bool }, updatedAt }  ← la forma la
+//          exige `pdf:health-check`, que NO mira un `available` (ver el comentario en la ruta).
+//   GET  {base}/health   ← liveness; sin esto `pdf:health-check` aborta antes de mirar nada.
 //   Un 5xx del micro → DocumentGenerationUnavailableException; 404 → TemplateNotFoundException.
 //
 // Uso:  node mock-pdf-mapper/server.mjs   (o  bin/mock-pdf-mapper start)
@@ -33,6 +36,16 @@ const server = http.createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/') {
         res.writeHead(200, { 'content-type': 'application/json' });
         return res.end(JSON.stringify({ mock: 'pdf-mapper-service', port: PORT, fail: FAIL }));
+    }
+
+    // `/health` es la SONDA DEL PRODUCTO, no una comodidad del mock: `artisan pdf:health-check` la pega
+    // primero y, si no contesta 2xx, ABORTA sin llegar a mirar ningún documento. Sin esta ruta el
+    // chequeo decía «pdf-mapper-service /health returned HTTP 404» — que se lee como «el servicio está
+    // mal cableado» cuando lo único que pasaba era que el mock no implementaba la ruta. Medido el
+    // 2026-09-18 contra `PdfMapperClient::checkHealth()` (`$this->baseUrl.'/health'`).
+    if (url.pathname === '/health') {
+        res.writeHead(FAIL ? 503 : 200, { 'content-type': 'application/json' });
+        return res.end(JSON.stringify({ status: FAIL ? 'down' : 'ok', mock: true }));
     }
 
     let body = '';
@@ -68,8 +81,19 @@ const server = http.createServer((req, res) => {
 
         if (accion === 'status') {
             log(`status proyecto=${slug} doc=${doc}`);
+            // ⚠ LA FORMA IMPORTA, y la primera versión de este mock la inventó. Devolvía
+            // `{project, document, available: true}` y `pdf:health-check` lo leía como NO
+            // bootstrappeado: el comando no mira `available`, busca DOS CLAVES cuyo nombre incluye el
+            // del documento (`PdfHealthCheck.php:202-207`, verificado contra `main` el 2026-09-18):
+            //     { doc, status: { "<doc>.json": bool, "<doc>.pdf": bool }, updatedAt }
+            // Un mock que contesta 200 con la forma equivocada es peor que uno que no contesta: el 404
+            // se ve, y este se lee como «el mapper de ese documento no está subido».
             res.writeHead(200, { 'content-type': 'application/json' });
-            return res.end(JSON.stringify({ project: slug, document: doc, available: true }));
+            return res.end(JSON.stringify({
+                doc,
+                status: { [`${doc}.json`]: !FAIL, [`${doc}.pdf`]: !FAIL },
+                updatedAt: Math.floor(Date.now() / 1000),
+            }));
         }
 
         if (FAIL) {

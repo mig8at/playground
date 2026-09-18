@@ -923,10 +923,38 @@ const server = createServer(async (req, res) => {
             } catch { return { puerto: 9000, etiqueta: 'minio' }; }
         };
 
+        // ⚠ QUÉ GENERA LOS DOCUMENTOS, que es una perilla del `.env` de OTRO repo y por eso es
+        // invisible desde acá. El factor depende de cuántos workers tenga PHP —la tabla está en
+        // `CLAUDE.md` §«Corridas 4× más rápidas»—; con el `harness-caso` de un caso suelto, medido el
+        // 2026-09-18, son **65,7 s con Blade contra 9,8 s con el mock**. Lo que se paga a cambio es que
+        // la corrida DEJA DE EJERCITAR las plantillas Blade — o sea que deja de atrapar la clase de bug
+        // de F-150 (un builder que produce claves que la plantilla no espera revienta EN PLENO RENDER y
+        // tumba la firma; ya pasó en producción). Prendido mientras iterás reglas es razonable;
+        // dejarlo prendido para validar documentos convierte el verde en mentira. Por eso se muestra.
+        const docGen = (() => {
+            try {
+                const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
+                const v = [...env.matchAll(/^DOC_GEN_\w+=(\w+)/gm)].map((m) => m[1]);
+                if (!v.length) return { modo: 'blade', detalle: 'sin DOC_GEN_* en el .env: Blade (el default)' };
+                const unico = [...new Set(v)];
+                return unico.length === 1
+                    ? { modo: unico[0], detalle: unico[0] === 'microservice'
+                        ? 'mock pdf-mapper — rápido, pero NO ejercita las plantillas Blade (F-150)'
+                        : 'plantillas Blade — lento (un caso: 65,7 s vs 9,8 s) y es lo que corre en producción' }
+                    : { modo: 'mixto', detalle: `mezclado: ${v.join(' · ')}` };
+            } catch { return { modo: '?', detalle: 'no se pudo leer el .env de legacy-backend' }; }
+        })();
+
         const MOCKS: Array<[string, number, string]> = [
             ['pre-aprobaciones', 8095, 'todos'], ['redirect', 8096, 'ecommerce'],
             ['payvalida', 8097, 'todos'], ['mdm/IMEI', 8098, 'smartpay'],
-            ['entidades', 8099, 'rt1'], ['pdf-mapper', 8100, 'rt4'],
+            ['entidades', 8099, 'rt1'],
+            // ⚠ A QUIÉN le hace falta este mock DEPENDE del `.env` del backend, no del flujo.
+            // Con los `DOC_GEN_*` en Blade sólo lo usa rt=4 (`vinculacion` no tiene plantilla y
+            // es 'microservice' por diseño); con `DOC_GEN_*=microservice` lo usan TODOS, porque
+            // el pagaré, el consentimiento y el FGA salen por ahí. Decir 'rt4' con el micro
+            // prendido manda a creer que apagarlo no afecta al resto — y lo tumba entero.
+            ['pdf-mapper', 8100, docGen.modo === 'blade' ? 'rt4' : 'todos'],
             ['forms', 8101, 'todos'], ['ábaco', 8102, 'motai'],
             ['corbeta/fondos', 8103, 'qr'], ['bancolombia', 8104, 'qr'],
             ['centrales', 8105, 'todos'],
@@ -950,25 +978,6 @@ const server = createServer(async (req, res) => {
             req.on('error', () => ok(false));
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
-        // ⚠ QUÉ GENERA LOS DOCUMENTOS, que es una perilla del `.env` de OTRO repo y por eso es
-        // invisible desde acá. Con `microservice` la corrida sale 4× más rápida y DEJA DE EJERCITAR las
-        // plantillas Blade — o sea que deja de atrapar la clase de bug de F-150 (un builder que produce
-        // claves que la plantilla no espera revienta EN PLENO RENDER y tumba la firma; ya pasó en
-        // producción). Prendido mientras iterás reglas es razonable; dejarlo prendido para validar
-        // documentos convierte el verde en mentira. Por eso se muestra en vez de suponerse.
-        const docGen = (() => {
-            try {
-                const env = readFileSync(join(homedir(), 'Desktop/CREDITOP/github/legacy-backend/.env'), 'utf8');
-                const v = [...env.matchAll(/^DOC_GEN_\w+=(\w+)/gm)].map((m) => m[1]);
-                if (!v.length) return { modo: 'blade', detalle: 'sin DOC_GEN_* en el .env: Blade (el default)' };
-                const unico = [...new Set(v)];
-                return unico.length === 1
-                    ? { modo: unico[0], detalle: unico[0] === 'microservice'
-                        ? 'mock pdf-mapper — rápido, pero NO ejercita las plantillas Blade (F-150)'
-                        : 'plantillas Blade — lento (~16 s por documento) y es lo que corre en producción' }
-                    : { modo: 'mixto', detalle: `mezclado: ${v.join(' · ')}` };
-            } catch { return { modo: '?', detalle: 'no se pudo leer el .env de legacy-backend' }; }
-        })();
 
         const estados = await Promise.all(MOCKS.map(async ([n, p, para]) => ({
             nombre: n, puerto: p, para, arriba: await vivo(p),

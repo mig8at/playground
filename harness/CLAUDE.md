@@ -335,9 +335,28 @@ monohilo»): las dos perillas juntas son la diferencia entre una tanda de minuto
 El paso de la firma solo baja de **28 s a 2,7 s**: ahí estaba el costo. Seis casos completos, de punta a
 punta y en estado 11, en menos de lo que tardaba uno.
 
-⚠ **Pide el slug también en local, y sólo Credifamilia lo tiene en el dump.** Sin
+⚠ **Pide el slug también en local, y el dump trae SÓLO el de Credifamilia.** Sin
 `lenders.pdf_mapper_project_slug` el flujo corta con `Lender N is not configured for pdf-mapper-service`.
-El mock acepta cualquier valor, así que para medir se le puso `harness-local` al 77. Es config de PRUEBA.
+El mock acepta cualquier valor. *(Acá decía que para medir «se le puso `harness-local` al 77»; hoy —
+2026-09-18— hay **once** entidades con slug en esta base: la 24 con el real `credifamilia`, la 77 con
+`harness-local` y las otras nueve —6, 8, 152, 158, 168, 169, 170, 173, 211— con `demo-local`. Que
+convivan dos nombres inventados no rompe nada, porque al mock le da igual, pero es config de PRUEBA y no
+se replica a ningún otro ambiente.)*
+
+**Y hay una sonda que contesta de una si esto quedó bien cableado**, sin correr un flujo:
+
+    docker exec legacy-backend-laravel.test-1 php artisan pdf:health-check
+
+Recorre **cada tupla (documento, entidad) que hoy enruta a `microservice`** y dice cuál no tiene el
+mapper subido. Es el chequeo del producto, no del harness: usa las mismas rutas que usaría en producción.
+
+⚠ **Y por eso el mock tiene que contestar `/health` y el `/status` con SU forma exacta.** Las dos se
+agregaron el 2026-09-18 porque faltaban, y las dos fallaban de un modo que manda a mirar donde no es:
+sin `/health` el comando aborta con «pdf-mapper-service /health returned HTTP 404» antes de revisar un
+solo documento, y con el `/status` que el mock traía —`{project, document, available: true}`, inventado—
+contestaba 200 y el comando lo leía como **mapper no bootstrappeado**, porque no mira `available` sino
+dos claves llamadas `<doc>.json` y `<doc>.pdf` (`PdfHealthCheck.php:202-207`). Un mock que responde 200
+con la forma equivocada es peor que uno que no responde: el 404 se ve.
 
 ⚠ **La perilla vive en el `.env` de OTRO repo, así que los runners la IMPRIMEN.** `avisoDocGen()` en
 `pkg/config.ts` lee ese `.env` y el caminador saca una línea de advertencia en su cabecera cuando los PDF
