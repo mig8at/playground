@@ -188,7 +188,8 @@ publicador quedan comprobados contra producción, no sólo en pruebas.
 cambió de carpeta y que contar comentarios con una expresión regular miente, no «doce archivos vivos». En `main`
 quedan la sección enlazada sin tocar hashes, la ruta muerta retirada y las diez secciones del tema intactas.
 
-**El próximo paso es:** avisarle a quien
+**El próximo paso es:** mirar por qué el modelo arma anclas `#n=1` (dos turnos perdidos en una de las dos
+preguntas de hoy), y avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -477,6 +478,14 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **Dos preguntas nuevas contra prod, con todo lo de hoy adentro (11:59).** La del módulo del codeudor —lo dictado
+  hace una hora— salió **perfecta**: 22,6 s, tres citas, respaldada, y contesta lo que hay que saber (la carpeta
+  hereda el borrado desde su `Pest.php`, hoy no corre ninguno, y la guarda te protege igual). La de los recorridos
+  del onboarding también salió correcta y respaldada, con nueve citas y el material del arnés adentro, pero costó
+  49 s y trece lecturas. **Y dejó ver un defecto del bucle**: el modelo inventó dos anclas con la forma `#n=1` y
+  `#n=9` —parece confundir el campo `n` del resultado de búsqueda con el ancla—, que la herramienta rechazó bien
+  pero costaron dos turnos. Los dos titulares salieron de 28 palabras exactas, que es el techo: el modelo escribe
+  pegado al límite.
 - **#245 mergeado (11:47).** Cierra el día: nueve PRs en `main`. La dictada repetida contra prod salió limpia. Con #244 desplegado, el borrador abre diciendo
   `rama_al_dia` y compone sobre `main`. La corrección de `local/operar` quedó verificada de nuevo contra
   `legacy-backend` de hoy: el conteo correcto es 43 tests vivos en los cinco de dispositivos y 0 en los seis del
