@@ -118,12 +118,18 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
 
       Si retomás esto sin contexto, empezá acá   ← se reescribe SIEMPRE. Es la sección obligatoria.
       El próximo paso es: …                      ← UNA acción, no una lista
+      Pendientes                                 ← casillas concretas, lo abierto y lo cerrado
       Objetivo · Dónde se toca · Cómo se ataca
       Lo que se evaluó y NO se eligió            ← lo que evita re-proponer lo que ya falló
       Lo que está decidido · bloqueado · Riesgos ← ANOTACIONES con fecha, no prosa
       Lo que NO entra · Cómo se comprueba
+      Referencias                                ← contexto estable, PRs y enlaces
       Registro                                   ← append-only, lo nuevo arriba
       ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
+
+  La vista **Resumen** prioriza retoma, pendientes y decisiones; deja el plan y el material juntos,
+  después las referencias y al final el historial plegado. Esto ordena la lectura sin reescribir
+  archivos existentes. La plantilla se aplica al crear o actualizar una tarea abierta.
 
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
   1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si

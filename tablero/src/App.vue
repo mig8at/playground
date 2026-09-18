@@ -10,7 +10,9 @@
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { marked } from 'marked';
+import TaskPanel from './TaskPanel.vue';
+import { readPreference, savePreference, groupTasks } from './ui-state.js';
+import { organizeDocument } from './task-document.js';
 
 // La URL del server, parametrizable para poder levantar una SEGUNDA instancia sin tocar el código:
 // `npm run dev` usa `concurrently -k`, así que reiniciar el server para probar un cambio tumba también
@@ -27,6 +29,15 @@ const sprints = ref([]);      // los más recientes, del actual hacia atrás —
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
 const site = ref('');         // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
+const panelTab = ref('');
+const journeyOpen = ref(readPreference('journey-open', true) === true);
+watch(journeyOpen, value => savePreference('journey-open', value));
+const collapsedGroups = ref(new Set(['terminada']));
+function toggleGroup(id) {
+  const next = new Set(collapsedGroups.value);
+  next.has(id) ? next.delete(id) : next.add(id);
+  collapsedGroups.value = next;
+}
 const active = ref(null);     // tarea sobre la que se está registrando
 
 // ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
@@ -229,7 +240,7 @@ const localesSueltas = computed(() => {
       Key: `LOCAL-${e.id}`,
       Summary: e.title,
       Status: 'local',
-      StatusCategory: 'new',
+      StatusCategory: e.stage === 'work' ? 'indeterminate' : 'new',
       Points: 0,
       _local: true,
       _esfuerzoId: e.id,
@@ -243,13 +254,8 @@ const cuantasLocales = computed(() => {
   return efforts.value.filter(e => e.id && !ligados.has(e.id) && !e.archived).length;
 });
 
-const groupedIssues = computed(() => {
-  // UNA sola grilla, sin agrupaciones. Antes se agrupaba por esfuerzo con un encabezado por grupo, y eso
-  // cortaba la grilla en bloques: con `auto-fill` cada bloque arranca en línea nueva, así que una fila de
-  // 4 columnas quedaba con 1 tarjeta y el resto vacío. Decisión de Miguel (2026-08-19): tarjetas SUELTAS.
-  //
-  // El dato del grupo NO se pierde — viaja como chip en cada tarjeta (`_esfuerzo` / `_sprint`), que es
-  // donde se lee sin partir la grilla. Es el mismo criterio que el chip del sprint en la vista ancha.
+const visibleTasks = computed(() => {
+  // Conserva la deduplicación y el origen antes de agrupar por estado.
   if (vistaAncha.value) {
     // Una tarea ARRASTRADA entre sprints viene en el listado de cada sprint que la incluyó. Agrupada eso
     // era correcto (una fila por grupo); suelta son tarjetas DUPLICADAS — CORE-365 salía tres veces, una
@@ -263,7 +269,7 @@ const groupedIssues = computed(() => {
         porKey.set(i.Key, { ...i, _sprint: nombreCorto(g.sprint.name), _arrastres: 1 });
       }
     }
-    return [{ id: 0, title: '', tasks: conFiltro([...porKey.values(), ...localesSueltas.value]) }];
+    return conFiltro([...porKey.values(), ...localesSueltas.value]);
   }
   // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
   const conEsfuerzo = issues.value.map((i) => {
@@ -271,8 +277,9 @@ const groupedIssues = computed(() => {
     const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
     return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
   });
-  return [{ id: 0, title: '', tasks: conFiltro([...conEsfuerzo, ...localesSueltas.value]) }];
+  return conFiltro([...conEsfuerzo, ...localesSueltas.value]);
 });
+const groupedIssues = computed(() => groupTasks(visibleTasks.value, bucketDe));
 // El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
 // Las casillas y el buscador se combinan con Y, que es lo que uno espera: buscar dentro de lo que
 // quedó visible, no que escribir en la caja reviva lo que se destildó.
@@ -296,11 +303,10 @@ const sinFiltrar = computed(() => {
 const conteoFiltro = computed(() => {
   const n = {};
   for (const f of FILTROS) n[f.id] = 0;
-  for (const i of sinFiltrar.value) n[bucketDe(i)]++;
+  for (const i of [...sinFiltrar.value, ...localesSueltas.value]) n[bucketDe(i)]++;
   return n;
 });
 
-// Ya no hay encabezados de grupo: la grilla es una sola y el grupo se lee en el chip de la tarjeta.
 // El MÉTODO de trabajo, explícito: primero se evalúa, después se trabaja, y las tareas de Jira se
 // escriben AL FINAL — recién ahí hay contexto completo para definirlas bien.
 const STAGES = [
@@ -328,12 +334,6 @@ const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blan
 // los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que la bitácora
 const protosDe = (key) => artifactsOf(esfuerzoDe(key));
-const protosAbiertos = ref(false);
-function verProtos(i) {
-  if (protosAbiertos.value && active.value?.Key === i.Key) { protosAbiertos.value = false; return; }
-  active.value = i; protosAbiertos.value = true; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false;
-  ramasAbiertas.value = false; descAbierta.value = false;
-}
 
 // ── RAMAS: en qué ramas vive la tarea y hasta dónde llegó cada una ──────────────────────────────
 // No se miden acá: el snapshot lo deja `make tareas-ramas` (varias invocaciones de git por repo, hacerlo
@@ -399,12 +399,6 @@ const etiquetaPR = (pr) => {
   if (pr.revision === 'REVIEW_REQUIRED') return 'esperando revisión';
   return 'sin revisor pedido';
 };
-const ramasAbiertas = ref(false);
-function verRamas(i) {
-  if (ramasAbiertas.value && active.value?.Key === i.Key) { ramasAbiertas.value = false; return; }
-  active.value = i; ramasAbiertas.value = true;
-  protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; descAbierta.value = false;
-}
 // "hace cuánto se midió", que es la mitad del dato. Sin esto, una medición de la semana pasada se lee
 // como el estado de ahora.
 const haceCuanto = (iso) => {
@@ -505,7 +499,8 @@ async function cargarUltimos4() {
 // Total de tarjetas visibles: va en el encabezado porque "4 sprints" no dice cuánto trabajo es.
 // Cuenta TARJETAS, no filas de sprint: sumar `g.issues.length` daba 24 cuando en pantalla había 16,
 // porque las arrastradas venían repetidas. El contador y la grilla salen ahora de la misma lista.
-const visibles = computed(() => groupedIssues.value[0]?.tasks.length || 0);
+const visibles = computed(() => visibleTasks.value.length);
+const totalTasks = computed(() => sinFiltrar.value.length + localesSueltas.value.length);
 
 async function alternarVista() {
   vistaAncha.value = !vistaAncha.value;
@@ -575,15 +570,6 @@ const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.dele
 // La descripción completa vive en un CAJÓN, igual que Bitácora / Ramas / Prototipos / Hallazgos: es un
 // bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
 // tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
-const descAbierta = ref(false);
-// Las acciones de consulta quedan bajo «Más»: una tarjeta se lee primero y se actúa después. Así no
-// compiten seis botones con el estado y el próximo paso.
-const accionesAbiertas = ref(new Set());
-const alternarAcciones = (key) => {
-  const s = new Set(accionesAbiertas.value);
-  s.has(key) ? s.delete(key) : s.add(key);
-  accionesAbiertas.value = s;
-};
 
 // ── el CUERPO TÉCNICO de la tarea, que es lo que de verdad se quiere leer ──────────────────────────
 //
@@ -648,48 +634,12 @@ const resumenDe = (key) => {
   return limpiarMarkdown(retoma.replace(/\*\*El pr[óo]ximo paso es:?\*\*[\s\S]*$/i, ''), 240);
 };
 
-const cuerpoHTML = computed(() => {
-  const md = active.value ? cuerpoDe(active.value.Key) : '';
-  if (!md) return '';
-  // `marked` no pone ids en los encabezados, y sin ids el índice no enlaza a nada. Se los ponemos con
-  // el MISMO slug que calcula el índice, para que los dos lados no puedan divergir.
-  const renderer = new marked.Renderer();
-  renderer.heading = function ({ tokens, depth }) {
-    const texto = this.parser.parseInline(tokens);
-    const plano = tokens.map(t => t.raw ?? '').join('');
-    return `<h${depth} id="sec-${slugTitulo(plano)}">${texto}</h${depth}>`;
-  };
-  return marked.parse(md, { gfm: true, breaks: false, renderer });
-});
-
-// El índice de secciones principales. Estos cuerpos pasan de las mil líneas: sin un índice, el cajón
-// es un muro; incluir las entradas `###` del Registro lo convertía otra vez en el diario entero.
-const indiceCuerpo = computed(() => {
-  const md = active.value ? cuerpoDe(active.value.Key) : '';
-  if (!md) return [];
-  const out = [];
-  let enBloque = false;
-  for (const linea of md.split('\n')) {
-    if (linea.trimStart().startsWith('```')) { enBloque = !enBloque; continue; }
-    if (enBloque) continue;
-    // Las entradas del Registro usan `###`: mostrarlas todas convertía el índice en el diario y
-    // escondía las secciones que sirven para volver a trabajar. El Registro sigue completo abajo.
-    const m = /^(#{2})\s+(.+?)\s*$/.exec(linea);
-    if (m) out.push({ nivel: m[1].length, texto: m[2], id: slugTitulo(m[2]) });
-  }
-  return out;
-});
-
-// El mismo id que le pone `marked` a los encabezados, para que el índice enlace de verdad.
-function slugTitulo(t) {
-  return t.toLowerCase().trim()
-    .replace(/[`*_~\[\]()]/g, '')
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .replace(/\s+/g, '-');
-}
-
+const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
+const indiceCuerpo = computed(() => documentSections.value.filter(section => section.title));
 function irASeccion(id) {
-  document.getElementById('sec-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const section = document.getElementById(id);
+  if (section?.tagName === 'DETAILS') section.open = true;
+  section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function abrirContexto(nodo) {
@@ -834,12 +784,8 @@ async function alPortapapeles(txt) {
 }
 
 // Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
-watch(descAbierta, (abierto) => { if (!abierto) { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; } });
-function verDesc(i) {
-  if (descAbierta.value && active.value?.Key === i.Key) { descAbierta.value = false; return; }
-  active.value = i; descAbierta.value = true;
-  ramasAbiertas.value = false; protosAbiertos.value = false; bitacoraAbierta.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false;
-}
+watch([panelTab, () => active.value?.Key], () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
+function openTask(task) { active.value = task; panelTab.value = 'resumen'; }
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
 const entriesPorTarea = computed(() => {
@@ -856,8 +802,6 @@ const entriesPorTarea = computed(() => {
 
 // Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
 // tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
-// los dos cajones son excluyentes: abrir uno cierra el otro, o quedan montados los dos encima
-const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; protosAbiertos.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; };
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
@@ -867,11 +811,6 @@ const verBitacora = (i) => { active.value = i; bitacoraAbierta.value = true; pro
 // que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
 // eso es lo único que la prosa no puede hacer.
 const hallazgosDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.anotaciones || [];
-const hallazgosAbiertos = ref(false);
-const verHallazgos = (i) => {
-  if (hallazgosAbiertos.value && active.value?.Key === i.Key) { hallazgosAbiertos.value = false; return; }
-  active.value = i; hallazgosAbiertos.value = true; pendientesAbiertos.value = false; bitacoraAbierta.value = false; protosAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false;
-};
 const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
 // mes antes de sospechar, pero una pregunta sin responder a los 7 días ya está frenando algo.
@@ -897,13 +836,6 @@ const pendientesDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?
 // Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
 // nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
 const quedan = (key) => pendientesDe(key).filter(p => !p.hecho).length;
-const pendientesAbiertos = ref(false);
-const verPendientes = (i) => {
-  if (pendientesAbiertos.value && active.value?.Key === i.Key) { pendientesAbiertos.value = false; return; }
-  active.value = i; pendientesAbiertos.value = true;
-  hallazgosAbiertos.value = false; bitacoraAbierta.value = false; protosAbiertos.value = false;
-  ramasAbiertas.value = false; descAbierta.value = false;
-};
 // Agrupados por el encabezado bajo el que se escribieron: en una tarea larga los pendientes vienen de
 // frentes distintos («Pendientes», «Cerrar con negocio», «Al retomar»), y en una lista plana se leen
 // todos como si fueran lo mismo.
@@ -917,39 +849,21 @@ const pendientesPorSeccion = (key) => {
   return grupos;
 };
 
-// La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
-// que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
-// Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
-// botón de "La tarea" y sigue a la tarea activa: cambiar de tarea con el cajón abierto muestra la suya.
-const bitacoraAbierta = ref(false);
-const anchosDeCajon = ref({});
-let detenerResize = null;
-const estiloCajon = (nombre) => anchosDeCajon.value[nombre] ? { width: `${anchosDeCajon.value[nombre]}px` } : {};
-const iniciarResize = (nombre, evento) => {
-  if (evento.button !== 0) return;
-  detenerResize?.();
-  const panel = evento.currentTarget.parentElement;
-  const inicial = panel.getBoundingClientRect().width;
-  const xInicial = evento.clientX;
-  const mover = (e) => {
-    const maximo = Math.floor(window.innerWidth * .94);
-    const ancho = Math.min(Math.max(inicial + xInicial - e.clientX, 340), maximo);
-    anchosDeCajon.value = { ...anchosDeCajon.value, [nombre]: ancho };
-  };
-  const soltar = () => {
-    window.removeEventListener('pointermove', mover);
-    window.removeEventListener('pointerup', soltar);
-    detenerResize = null;
-  };
-  detenerResize = soltar;
-  window.addEventListener('pointermove', mover);
-  window.addEventListener('pointerup', soltar);
-};
-// Esc cierra. Va en `window` y no en el elemento: el cajón nace sin foco, así que un @keydown local sólo
-// respondería después de hacerle clic — que es justo cuando ya no hace falta el atajo.
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { bitacoraAbierta.value = false; protosAbiertos.value = false; hallazgosAbiertos.value = false; pendientesAbiertos.value = false; ramasAbiertas.value = false; descAbierta.value = false; mover.value = null; } };
+// Las pestañas comparten la tarea activa y sus fuentes de consulta.
+const taskTabs = computed(() => {
+  const key = active.value?.Key;
+  return [
+    { id: 'resumen', label: 'Resumen' },
+    { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
+    { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
+    { id: 'ramas', label: 'Ramas', count: ramasCuenta(key) },
+    { id: 'bitacora', label: 'Bitácora', count: ofActive.value.length },
+    ...(protosDe(key).length ? [{ id: 'prototipos', label: 'Prototipos', count: protosDe(key).length }] : []),
+  ];
+});
+const cerrarConEsc = (e) => { if (e.key === 'Escape') { panelTab.value = ''; mover.value = null; } };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
-onUnmounted(() => { window.removeEventListener('keydown', cerrarConEsc); detenerResize?.(); });
+onUnmounted(() => { window.removeEventListener('keydown', cerrarConEsc); clearTimeout(copiadoTimer); });
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── mi jornada: los últimos días × horas laborales ──────────────────────────────────────────────
@@ -1371,9 +1285,11 @@ onMounted(async () => {
       </p>
 
       <section class="card">
-        <h2>Mi jornada
+        <h2 class="journey-heading"><button class="section-toggle" :aria-expanded="journeyOpen" aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
+          <span aria-hidden="true">{{ journeyOpen ? '⌄' : '›' }}</span> Mi jornada
           <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
-        </h2>
+        </button></h2>
+        <div id="journey-content" v-show="journeyOpen">
         <p class="empty" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
           «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
           <code>make pulso-install</code>.</p>
@@ -1411,6 +1327,7 @@ onMounted(async () => {
           <i class="n0"></i><span>sin registro</span>
           <span class="note">se llena con los tramos en que hubo cambios en los repos de la compañía — no con lo que uno cree que trabajó</span>
         </div>
+        </div>
       </section>
 
       <!-- MIS TAREAS. Antes había ADEMÁS una tarjeta "La tarea" con el detalle de la seleccionada, y
@@ -1425,8 +1342,7 @@ onMounted(async () => {
           {{ vistaAncha ? `Mis tareas · últimos ${porSprint.length} sprints` : 'Mis tareas' }}
           <!-- Con filtro puesto dice las DOS mitades («9 / 16»): sólo el número filtrado hace pensar que
                se perdieron tareas, y sólo el total contradice lo que se ve en la grilla. -->
-          <span v-if="vistaAncha && !cargandoAncha" class="cnt">{{ ocultos.size || buscaNorm
-            ? `${visibles} / ${sinFiltrar.length}` : visibles }}</span>
+          <span v-if="!cargandoAncha" class="cnt">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
         </h2>
         <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
         <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde.
@@ -1437,7 +1353,7 @@ onMounted(async () => {
              Cada casilla lleva su conteo porque un filtro sin conteo obliga a clickear para descubrir
              que está vacío. Las que no tienen nada se deshabilitan en vez de esconderse: que «en
              pruebas 0» se vea es información. -->
-        <div class="filtros" v-if="!cargandoAncha && sinFiltrar.length">
+        <div class="filtros" v-if="!cargandoAncha && totalTasks">
           <label v-for="f in FILTROS" :key="f.id" class="fpill"
             :class="{ off: ocultos.has(f.id), bloq: f.id === 'bloqueada', vacio: !conteoFiltro[f.id] }"
             :title="ocultos.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`">
@@ -1464,31 +1380,42 @@ onMounted(async () => {
         </div>
         <!-- Sin resultados NO puede ser una grilla vacía a secas: se lee como «no tengo tareas», que es
              otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
-        <p v-if="!cargandoAncha && sinFiltrar.length && !visibles" class="empty">
+        <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
           Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
             v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
           <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
         </p>
         <template v-for="g in groupedIssues" :key="g.id">
-          <!-- varias columnas según el ancho: `auto-fill` con un mínimo, así el número de columnas lo
-               decide la pantalla y no un breakpoint escrito a mano -->
-          <div class="tgrid">
+          <h3 class="task-group-heading">
+            <button class="section-toggle" :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
+              :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
+              <span aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
+              {{ g.title }}<span class="group-count">{{ g.tasks.length }}</span>
+            </button>
+          </h3>
+          <div class="tgrid" :id="'group-' + g.id" v-show="buscaNorm || !collapsedGroups.has(g.id)">
             <div v-for="i in g.tasks" :key="i.Key" class="task"
               :class="{ sel: active?.Key === i.Key, wide: qa?.key === i.Key, done: i.StatusCategory === 'done' }"
               @click="active = i">
               <div class="tl">
-                <!-- Una tarea LOCAL no tiene enlace a Jira porque no está en Jira: se marca como tal
-                     en vez de dar un enlace roto. Publicarla es una decisión que se pide aparte. -->
-                <!-- La ETAPA. En una tarjeta de Jira viaja dentro del chip del esfuerzo; en una local no
-                     había dónde, y es de los pocos datos estructurados que tiene una tarea —dice si esto
-                     se está evaluando, trabajando o ya es una tarea armada—. Sin ella las 16 locales se
-                     leían todas iguales. -->
                 <span v-if="i._local" class="key local" title="tarea local — todavía no está en Jira">local · {{ i._esfuerzoId }}</span>
                 <a v-else-if="site" class="key link" :href="jiraLink(i.Key)" target="_blank" rel="noopener"
                   @click.stop :title="`Abrir ${i.Key} en Jira`">{{ i.Key }} <span class="ext">↗</span></a>
                 <span v-else class="key">{{ i.Key }}</span>
                 <span v-if="!i._local" class="status" :class="statusClass(i.StatusCategory)">{{ i.Status }}</span>
                 <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
+              </div>
+              <div class="tt">{{ i.Summary }}</div>
+
+              <!-- Estado actual breve; el próximo paso tiene su propia línea debajo. -->
+              <p v-if="resumenDe(i.Key)" class="jd" :title="resumenDe(i.Key)">{{ resumenDe(i.Key) }}</p>
+              <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
+              <p v-else class="jd none">sin cuerpo técnico todavía</p>
+
+              <p class="next-step" :class="{ missing: !proximoDe(i.Key) }" :title="proximoDe(i.Key)">
+                <span>Próximo paso</span>{{ proximoDe(i.Key) || 'Por definir en la retoma' }}
+              </p>
+              <div class="task-meta">
                 <i v-if="i._local && stageOf(i._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(i._esfuerzoId)?.id">{{ stageOf(i._esfuerzoId)?.label }}</i>
                 <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
                      que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
@@ -1512,16 +1439,6 @@ onMounted(async () => {
                 <span v-if="i._arrastres > 1" class="spchip drag"
                   :title="`aparece en ${i._arrastres} sprints — viene arrastrada`">{{ i._arrastres }}.º sprint</span>
               </div>
-              <div class="tt">{{ i.Summary }}</div>
-
-              <!-- EN QUÉ ESTÁ la tarea, en una línea, sacado de su propio cuerpo. Antes acá iba la
-                   descripción de Jira recortada, que es la información equivocada para este tablero:
-                   dice qué HAY que hacer, no en qué se está — y además ya se lee en Jira. El cuerpo
-                   completo va al cajón; acá sólo su primera frase, que es donde se escribe el estado. -->
-              <p v-if="resumenDe(i.Key)" class="jd" :title="resumenDe(i.Key)">{{ resumenDe(i.Key) }}</p>
-              <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
-              <p v-else class="jd none">sin cuerpo técnico todavía</p>
-
               <div class="tm">
                 <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
                 <span v-if="i.OriginSprint" class="orig" :class="{ carried: i.CarriedOver }"
@@ -1534,63 +1451,17 @@ onMounted(async () => {
                 <span class="mine" v-if="minutesOf(i.Key)">{{ minHhmm(minutesOf(i.Key)) }} sin subir</span>
               </div>
 
-              <!-- Las acciones de la tarea, donde está la tarea. `@click.stop` en todas: la tarjeta
-                   entera selecciona, y un botón no puede además hacer eso por accidente. -->
+              <!-- Una entrada al contexto y la acción explícita de cambiar estado. -->
               <div class="tacts" @click.stop>
-                <button class="tact principal" :class="{ act: descAbierta && active?.Key === i.Key }"
-                  :disabled="!cuerpoDe(i.Key)" @click="verDesc(i)">
-                  {{ cuerpoDe(i.Key) ? 'Retomar' : 'Sin contexto' }}
-                </button>
-                <button class="tact" :class="{ act: accionesAbiertas.has(i.Key) }" @click="alternarAcciones(i.Key)">
-                  {{ accionesAbiertas.has(i.Key) ? 'menos' : 'más' }}
-                </button>
-                <div v-if="accionesAbiertas.has(i.Key)" class="mas-acciones">
-                <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
-                  Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
-                </button>
-                <!-- los prototipos de la tarea: sólo si los hay, y se abren en un panel aparte porque
-                     suelen ser varios y con nombres largos -->
-                <button v-if="protosDe(i.Key).length" class="tact" :class="{ act: protosAbiertos && active?.Key === i.Key }"
-                  @click="verProtos(i)">
-                  Prototipos<span class="cnt">{{ protosDe(i.Key).length }}</span>
-                </button>
-                <!-- en qué ramas vive la tarea. Sólo si hay medición para ella: sin snapshot el botón no
-                     aparece, en vez de abrir un cajón vacío que parece un error. -->
-                <button v-if="ramasCuenta(i.Key)" class="tact" :class="{ act: ramasAbiertas && active?.Key === i.Key }"
-                  @click="verRamas(i)">
-                  Ramas<span class="cnt">{{ ramasCuenta(i.Key) }}</span>
-                  <!-- la entrega, sin abrir el cajón: es la pregunta que uno le hace al tablero -->
-                  <span v-if="entregaDe(i.Key)" class="entrega" :class="entregaDe(i.Key).clase"
-                    :title="entregaDe(i.Key).titulo">{{ entregaDe(i.Key).texto }}</span>
-                </button>
-                <!-- los hechos con fecha que declara el cuerpo. El punto rojo avisa que alguno venció
-                     sin abrir el cajón: es lo que hace que una pregunta de hace 10 días se note. -->
-                <button v-if="hallazgosDe(i.Key).length" class="tact" :class="{ act: hallazgosAbiertos && active?.Key === i.Key }"
-                  @click="verHallazgos(i)">
-                  Hallazgos<span class="cnt">{{ hallazgosDe(i.Key).length }}</span><span
-                    v-if="hallazgosDe(i.Key).some(vencido)" class="alerta" title="Hay algo que pide revisión">●</span>
-                </button>
-                <!-- lo que queda por hacer, de las casillas del cuerpo. El conteo son los ABIERTOS: los
-                     tildados ya no son trabajo. El punto rojo es la señal que hoy no existe en ningún
-                     lado — la tarea se dio por terminada y sus pendientes quedaron sin dueño. -->
-                <button v-if="pendientesDe(i.Key).length" class="tact" :class="{ act: pendientesAbiertos && active?.Key === i.Key }"
-                  @click="verPendientes(i)">
-                  Pendientes<span class="cnt">{{ quedan(i.Key) }}</span><span
-                    v-if="i.StatusCategory === 'done' && quedan(i.Key)" class="alerta"
-                    title="La tarea está terminada y todavía quedan pendientes">●</span>
-                </button>
-                <!-- Un solo botón para mover de estado. No dice a dónde: eso lo contesta Jira al abrirlo,
-                     que es justamente el arreglo — el botón anterior anunciaba «A pruebas» y en 5 de los
-                     6 estados esa transición no existía. -->
-                <!-- ⚠ NO va en una tarjeta local: «Mover» le pide las transiciones a Jira y después
-                     ESCRIBE. Con una clave `LOCAL-…` eso sólo puede dar un error confuso, y es además
-                     el único botón de la tarjeta que toca Jira. Una tarea local no toca Jira: cuando
-                     valga la pena publicarla, se pide. -->
-                <button v-if="!i._local" class="tact go" :class="{ act: mover?.key === i.Key }"
+                <button class="tact principal" @click="openTask(i)">Retomar</button>
+                <span v-if="quedan(i.Key)" class="card-note" :class="{ warn: i.StatusCategory === 'done' }">
+                  {{ quedan(i.Key) }} pendiente{{ quedan(i.Key) === 1 ? '' : 's' }}
+                </span>
+                <span v-if="hallazgosDe(i.Key).some(vencido)" class="card-note warn">Revisar hallazgos</span>
+                <button v-if="!i._local" class="tact move-task" :class="{ act: mover?.key === i.Key }"
                   :disabled="moverBusy || qa?.key === i.Key" @click="abrirMover(i)">
                   {{ moverBusy && active?.Key === i.Key ? 'Consultando Jira…' : '⇢ Mover' }}
                 </button>
-                </div>
               </div>
 
               <!-- Handoff a QA, dentro de SU tarjeta. El mensaje se previsualiza y se puede editar: nunca
@@ -1710,94 +1581,11 @@ onMounted(async () => {
       </section>
     </template>
 
-    <!-- BITÁCORA: cajón lateral, no una card del flujo. Es material de CONSULTA —lo escribe el asistente
-         y quien lo lee seguido es un modelo para retomar contexto—, así que ocupar una columna fija del
-         tablero era ruido permanente. Como cajón: se abre cuando se necesita, tapa el tablero mientras
-         se lee, y al cerrarlo el tablero queda como estaba.
-
-         Va FUERA de las cards a propósito: `position: fixed` dentro de una card con `overflow` o
-         `transform` se ancla a la card en vez de a la ventana, y el cajón aparecería recortado. -->
-    <!-- PROTOTIPOS de la tarea. Panel aparte y no botones sueltos: una tarea puede tener varias
-         propuestas, y verlas listadas con su descripción es lo que permite elegir cuál abrir. -->
-    <!-- HALLAZGOS: lo mismo que el cuerpo ya dice, pero ordenado por tipo y con la EDAD a la vista.
-         No duplica el texto — lo lee de los marcadores del propio cuerpo, así que no se desincroniza. -->
-    <!-- PENDIENTES: se LEEN acá, se escriben en el `.md`. No hay checkbox para tildar a propósito —
-         el cuerpo es el archivo, y dejarlo editable por dos caminos es cómo se desincronizan las cosas
-         (mismo criterio que la bitácora y los hallazgos). -->
-    <div v-if="pendientesAbiertos" class="drawer">
-      <div class="drawer-bg" @click="pendientesAbiertos = false"></div>
-      <aside class="drawer-p" :style="estiloCajon('pendientes')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de pendientes" @pointerdown.prevent="iniciarResize('pendientes', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>Pendientes</h3>
-            <p v-if="active">de {{ active.Key }} · {{ quedan(active.Key) }} sin cerrar
-              <span v-if="pendientesDe(active.Key).length - quedan(active.Key)">·
-                {{ pendientesDe(active.Key).length - quedan(active.Key) }} ya hecho</span></p>
-          </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="pendientesAbiertos = false">✕</button>
-        </header>
-        <div class="drawer-b">
-          <p class="empty">Salen de las casillas del cuerpo de la tarea. Se escriben y se tildan ahí.</p>
-          <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
-            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
-            <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
-              <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
-              <p class="pque">{{ p.que }}</p>
-            </article>
-          </section>
-        </div>
-      </aside>
-    </div>
-
-    <div v-if="hallazgosAbiertos" class="drawer">
-      <div class="drawer-bg" @click="hallazgosAbiertos = false"></div>
-      <aside class="drawer-p" :style="estiloCajon('hallazgos')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de hallazgos" @pointerdown.prevent="iniciarResize('hallazgos', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>Hallazgos</h3>
-            <p v-if="active">de {{ active.Key }} · {{ hallazgosDe(active.Key).length }}
-              {{ hallazgosDe(active.Key).length === 1 ? 'anotación' : 'anotaciones' }}</p>
-          </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="hallazgosAbiertos = false">✕</button>
-        </header>
-        <div class="drawer-b">
-          <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
-          <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
-            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
-            <p class="hpie">{{ g.pie }}</p>
-            <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
-              <div class="hmeta">
-                <span class="hfecha">{{ a.fecha }}</span>
-                <span class="hedad">{{ edadTxt(a) }}</span>
-                <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
-              </div>
-              <p class="hque">{{ a.que }}</p>
-              <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
-                   cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
-              <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
-            </article>
-          </section>
-        </div>
-      </aside>
-    </div>
-
-    <!-- DESCRIPCIÓN completa de Jira. Cajón y no expansión de la tarjeta: son párrafos, y ensanchar la
-         tarjeta a la fila entera rompía la grilla. Es SOLO LECTURA — lo que dice Jira hoy. -->
-    <div v-if="descAbierta" class="drawer">
-      <div class="drawer-bg" @click="descAbierta = false"></div>
-      <aside class="drawer-p ancho" :style="estiloCajon('tarea')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de la tarea" @pointerdown.prevent="iniciarResize('tarea', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>{{ active?.Key }}</h3>
-            <p v-if="active">{{ active.Summary }}</p>
-          </div>
-          <!-- DOS copiados, y la diferencia no es cosmética: «compartir» es para otra persona y
-               «todo» es para mí cuando retomo. Van en el encabezado y no al pie porque estos cuerpos
-               pasan de las mil líneas y un botón al final no se encuentra. -->
-          <div v-if="cuerpoHTML" class="drawer-cps">
+    <TaskPanel v-if="panelTab && active" :key="active.Key" v-model:tab="panelTab"
+      :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
+      :tabs="taskTabs" @close="panelTab = ''">
+      <div v-if="panelTab === 'resumen'" class="task-tab-body">
+          <div v-if="documentSections.length" class="drawer-cps">
             <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
                     title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
                     @click="copiarCuerpo('compartir')">
@@ -1811,13 +1599,11 @@ onMounted(async () => {
               {{ copiadoCual === 'todo' && copiado === 'ok' ? 'copiado' : copiadoCual === 'todo' && copiado === 'error' ? 'no se pudo' : 'todo' }}
             </button>
           </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="descAbierta = false">✕</button>
-        </header>
-        <div class="drawer-b">
+
           <p class="empty">El <b>cuerpo técnico</b> de la tarea: qué se hizo, cómo se llegó a cada
             conclusión, en qué ramas vive y cómo se integra en cada repo. Es privado — nombra repos,
             rutas y hallazgos, y no sale a Jira.
-            <a v-if="site && active" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">lo que ve el equipo, en Jira ↗</a>
+            <a v-if="site && active && !active._local" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">lo que ve el equipo, en Jira ↗</a>
           </p>
 
           <section v-if="active && retomaDe(active.Key)" class="retoma-panel">
@@ -1834,36 +1620,63 @@ onMounted(async () => {
           <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
                convertir el índice de retoma en una lista cronológica. -->
           <nav v-if="indiceCuerpo.length > 2" class="toc">
-            <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i" :class="{ sub: h.nivel === 3 }"
-                    @click="irASeccion(h.id)">{{ h.texto }}</button>
+            <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i"
+                    @click="irASeccion(h.id)">{{ h.title }}</button>
           </nav>
 
-          <div v-if="cuerpoHTML" class="desc cuerpo-md" v-html="cuerpoHTML"></div>
+          <div v-if="documentSections.length" class="desc cuerpo-md">
+            <template v-for="section in documentSections" :key="section.id">
+              <details v-if="section.history" :id="section.id" class="document-history">
+                <summary>{{ section.title }} <span>· historial de trabajo</span></summary>
+                <div v-html="section.html"></div>
+              </details>
+              <section v-else :id="section.id" class="document-section" v-html="section.html"></section>
+            </template>
+          </div>
           <p v-else class="desc none">Esta tarea no tiene cuerpo técnico todavía — se escribe en su
             archivo <code>tablero/data/&lt;slug&gt;.md</code>.</p>
-        </div>
-      </aside>
-    </div>
 
-    <!-- RAMAS: cajón propio. Comparte el estilo del de prototipos (misma familia) pero con su propio
-         wrapper: meterlo adentro del de prototipos lo dejaba invisible, porque manda el `v-if` del padre. -->
-    <div v-if="ramasAbiertas" class="drawer">
-      <div class="drawer-bg" @click="ramasAbiertas = false"></div>
-      <aside class="drawer-p ancho" :style="estiloCajon('ramas')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de ramas" @pointerdown.prevent="iniciarResize('ramas', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>Ramas</h3>
-            <p v-if="active">de {{ active.Key }} · patrón <code>{{ ramasDe(active.Key)?.patron }}</code>
-              <!-- la fecha de ESTA tarea: el snapshot se actualiza de a una (`ramas -n 62`), así que la
-                   fecha global haría ver fresca una medición de la semana pasada -->
-              · medido {{ haceCuanto(ramasDe(active.Key)?.medidoEn || ramasSnap.medidoEn) }}
-              <!-- un snapshot que calla lo que le falta se lee como entero: si la medición se venció, lo dice -->
-              <span v-if="ramasSnap.incompletas?.length" class="warn">· ⚠ {{ ramasSnap.incompletas.length }} tarea(s) sin medir (se venció el tiempo)</span></p>
-          </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="ramasAbiertas = false">✕</button>
-        </header>
-        <div class="drawer-b">
+      </div>
+      <div v-if="panelTab === 'pendientes'" class="task-tab-body">
+
+          <p class="empty">Salen de las casillas del cuerpo de la tarea. Se escriben y se tildan ahí.</p>
+          <p v-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
+          <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
+            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
+            <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
+              <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
+              <p class="pque">{{ p.que }}</p>
+            </article>
+          </section>
+
+      </div>
+      <div v-if="panelTab === 'hallazgos'" class="task-tab-body">
+
+          <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
+          <p v-if="!hallazgosDe(active?.Key).length" class="empty">Esta tarea no tiene hallazgos registrados.</p>
+          <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
+            <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
+            <p class="hpie">{{ g.pie }}</p>
+            <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
+              <div class="hmeta">
+                <span class="hfecha">{{ a.fecha }}</span>
+                <span class="hedad">{{ edadTxt(a) }}</span>
+                <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
+              </div>
+              <p class="hque">{{ a.que }}</p>
+              <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
+                   cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
+              <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
+            </article>
+          </section>
+
+      </div>
+      <div v-if="panelTab === 'ramas'" class="task-tab-body">
+
+          <p v-if="!ramasCuenta(active?.Key)" class="empty">No hay ramas medidas para esta tarea.</p>
+          <p v-if="ramasCuenta(active?.Key)" class="empty">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
+            <span v-if="ramasSnap.incompletas?.length" class="warn">· {{ ramasSnap.incompletas.length }} tarea(s) sin medir</span>
+          </p>
           <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
             <span class="entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
             {{ entregaDe(active?.Key).titulo }}
@@ -1913,48 +1726,10 @@ onMounted(async () => {
               </tbody>
             </table>
           </div>
-        </div>
-      </aside>
-    </div>
 
-    <div v-if="protosAbiertos" class="drawer">
-      <div class="drawer-bg" @click="protosAbiertos = false"></div>
-      <aside class="drawer-p" :style="estiloCajon('prototipos')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de prototipos" @pointerdown.prevent="iniciarResize('prototipos', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>Prototipos</h3>
-            <p v-if="active">de {{ active.Key }} · {{ protosDe(active.Key).length }}
-              {{ protosDe(active.Key).length === 1 ? 'propuesta' : 'propuestas' }}</p>
-          </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="protosAbiertos = false">✕</button>
-        </header>
-        <div class="drawer-b">
-          <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
-          <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
-            <span class="proto-play">▶</span>
-            <span class="proto-txt">
-              <b>{{ a.label }}</b>
-              <span class="proto-file">{{ a.file }}</span>
-            </span>
-            <span class="proto-ext">↗</span>
-          </button>
-        </div>
-      </aside>
-    </div>
+      </div>
+      <div v-if="panelTab === 'bitacora'" class="task-tab-body">
 
-    <div v-if="bitacoraAbierta" class="drawer">
-      <div class="drawer-bg" @click="bitacoraAbierta = false"></div>
-      <aside class="drawer-p" :style="estiloCajon('bitacora')">
-        <button class="drawer-resize" aria-label="Cambiar ancho de bitácora" @pointerdown.prevent="iniciarResize('bitacora', $event)"></button>
-        <header class="drawer-h">
-          <div>
-            <h3>Bitácora</h3>
-            <p v-if="active">de {{ active.Key }} · {{ ofActive.length }} {{ ofActive.length === 1 ? 'entrada' : 'entradas' }}</p>
-          </div>
-          <button class="drawer-x" title="Cerrar (Esc)" @click="bitacoraAbierta = false">✕</button>
-        </header>
-        <div class="drawer-b">
           <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
           <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
           <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
@@ -1974,9 +1749,22 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-        </div>
-      </aside>
-    </div>
+
+      </div>
+      <div v-if="panelTab === 'prototipos'" class="task-tab-body">
+
+          <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
+          <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
+            <span class="proto-play">▶</span>
+            <span class="proto-txt">
+              <b>{{ a.label }}</b>
+              <span class="proto-file">{{ a.file }}</span>
+            </span>
+            <span class="proto-ext">↗</span>
+          </button>
+
+      </div>
+    </TaskPanel>
   </div>
 </template>
 
@@ -2068,10 +1856,12 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
    hay barra de sprint que ya ocupe el margen automático */
 
-.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px }
-.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 15px 16px }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 12px;
+  border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+.stat { background: var(--panel); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
+.stat:last-child { border-right: 0 }
 .stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
-.stat .v { font-size: 27px; font-weight: 800; margin: 6px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
+.stat .v { font-size: 22px; font-weight: 600; margin: 3px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
 .stat .s { font-size: 11.5px; color: var(--mut) }
 .stat.alert .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
@@ -2084,19 +1874,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
-/* MASONRY con `columns`, no con grid. El grid alineaba por FILA, así que una tarjeta corta al lado de una
-   larga dejaba un hueco vertical hasta la fila siguiente — bien visible con las que no tienen descripción.
-   `columns` las apila por columna y no queda aire.
-   Se usa `column-width` y no un número de columnas: el navegador decide cuántas caben, igual que hacía
-   `auto-fill` — el layout sigue siendo del ancho y no de un breakpoint escrito a mano.
-   ⚠ El costo: el orden de lectura pasa a ser por COLUMNA (arriba→abajo) en vez de por fila. Se acepta
-   porque acá se BUSCA una tarjeta, no se lee una secuencia. */
-.tgrid { columns: 320px; column-gap: 10px; margin-bottom: 10px }
-.tgrid > .task { break-inside: avoid; margin: 0 0 10px }
-/* El panel de QA no cabe en una columna: se saca del flujo y toma el ancho completo. */
-.tgrid > .task.wide { column-span: all }
-/* El panel de QA toma el ancho completo (ver `column-span: all` arriba): es un textarea y un par de
-   controles, y leerlos en una columna de 320px es peor que no tenerlos. */
+/* Las filas mantienen la misma jerarquía de lectura dentro de cada estado. */
+.tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-bottom: 18px; align-items: start }
+.tgrid > .task.wide { grid-column: 1 / -1 }
 .task { border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; cursor: pointer; transition: .12s }
 .task:hover { border-color: #737373 }
 .task.sel { border-color: var(--acc); background: #1a1a1a }
@@ -2109,13 +1889,13 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
    `filter` es seguro acá porque la card no tiene descendientes `fixed` — el cajón vive FUERA, por eso. */
 .task.done { filter: grayscale(1); opacity: .55 }
 .task.done:hover, .task.done.sel, .task.done.wide { filter: none; opacity: 1 }
-.tl { display: flex; align-items: center; gap: 9px; margin-bottom: 5px }
+.tl { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 9px; flex-wrap: wrap }
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 .status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }
 .e-ok { color: #d4d4d4; border-color: #404040; background: #181818 }
 .e-doing { color: #fff; border-color: #737373; background: #242424 }
 .e-todo { color: #a3a3a3; border-color: #333; background: #181818 }
-.tt { font-size: 13.5px; line-height: 1.35; margin-bottom: 6px }
+.tt { font-size: 14px; font-weight: 600; line-height: 1.45; margin-bottom: 8px }
 /* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
 .jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
@@ -2184,35 +1964,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .jira-html :deep(a:hover) { text-decoration: underline }
 .jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
 .jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
-/* ── el cajón de la bitácora ──────────────────────────────────────────────────────────────────────
-   Cubre la ventana entera (`inset: 0`) y el panel se ancla a la derecha. El fondo oscurece el tablero
-   en vez de solo captar el clic: mientras se lee la bitácora, el tablero es contexto, no competencia.
-   `min(520px, 92vw)` — ancho fijo cómodo para párrafos largos, pero sin desbordar en pantalla chica. */
-.drawer { position: fixed; inset: 0; z-index: 60 }
-.drawer-bg { position: absolute; inset: 0; background: #000000a6 }
-/* El de RAMAS es el único con tabla —7 columnas— y a 520px el nombre de la rama quedaba en 76px.
-   No es un cajón distinto: es el mismo con más ancho, sólo donde el contenido lo pide. */
-.drawer-p.ancho { width: min(820px, 95vw) }
-.drawer-p { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 92vw); min-width: min(340px, 92vw); max-width: 94vw;
-  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #00000080;
-  display: flex; flex-direction: column }
-.drawer-resize { position: absolute; z-index: 2; top: 0; bottom: 0; left: -5px; width: 9px; padding: 0;
-  border: 0; background: transparent; cursor: col-resize; touch-action: none }
-.drawer-resize::after { content: ''; position: absolute; top: 50%; left: 3px; width: 2px; height: 34px;
-  border-radius: 2px; background: transparent; transform: translateY(-50%); transition: background .12s }
-.drawer-resize:hover::after, .drawer-resize:focus-visible::after { background: #737373 }
-.drawer-h { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px;
-  border-bottom: 1px solid var(--line) }
-.drawer-h h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut);
-  font-weight: 700 }
-.drawer-h p { margin: 4px 0 0; font-size: 12.5px; color: var(--acc) }
-.drawer-x { margin-left: auto; border: 0; background: none; color: var(--mut); font: inherit; font-size: 15px;
-  cursor: pointer; padding: 0 2px; line-height: 1 }
-.drawer-x:hover { color: var(--txt) }
 /* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
    dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
-.drawer-cps { margin-left: auto; display: flex; gap: 6px }
-.drawer-cps + .drawer-x { margin-left: 8px }
+.drawer-cps { display: flex; gap: 6px; margin-bottom: 16px }
 .drawer-cp { display: inline-flex; align-items: center; gap: 5px;
   border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--mut);
   font: inherit; font-size: 11.5px; cursor: pointer; padding: 3px 8px; line-height: 1.4;
@@ -2220,7 +1974,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .drawer-cp:hover { color: var(--txt); border-color: var(--mut) }
 .drawer-cp.ok { color: #4ade80; border-color: currentColor }
 .drawer-cp.error { color: var(--bad); border-color: currentColor }
-.drawer-cp + .drawer-x { margin-left: 8px }
 /* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
@@ -2233,27 +1986,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px }
 .proto-ext { color: var(--mut); font-size: 12px }
 .proto-row:hover .proto-ext { color: var(--acc) }
-/* el cuerpo scrollea solo: el encabezado queda fijo y no se pierde de qué tarea es lo que se está leyendo */
-.drawer-b { flex: 1; overflow-y: auto; padding: 0 18px 18px }
-.drawer-b .empty { margin-top: 14px }
-
-/* Animación con @keyframes en vez del <transition> de Vue: acá sólo hace falta la entrada, y con
-   keyframes el estado de REPOSO del panel es el correcto (pegado a la derecha) en vez de depender de que
-   Vue quite una clase en el frame siguiente. El precio es que no hay animación de salida — cerrar es
-   instantáneo, que además se siente mejor.
-
-   Va SIN `fill-mode` a propósito: `both`/`backwards` harían que el elemento sostenga el fotograma
-   inicial (fuera de pantalla) mientras la animación no arranque. Sin fill-mode, apenas termina —o si
-   nunca corre— manda el estilo normal.
-
-   ⚠ Con la pestaña en segundo plano el reloj de animaciones se congela y el panel se queda en el primer
-   fotograma hasta volver a ella. Es cosa del navegador, no del cajón: pasa igual con <transition>. */
-.drawer-p { animation: drawer-in .22s ease }
-.drawer-bg { animation: drawer-fade .22s ease }
-@keyframes drawer-in { from { transform: translateX(100%) } to { transform: none } }
-@keyframes drawer-fade { from { opacity: 0 } to { opacity: 1 } }
-@media (prefers-reduced-motion: reduce) { .drawer-p, .drawer-bg { animation: none } }
-
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
    abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
@@ -2277,10 +2009,6 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* el guard: si el aviso menciona algo interno, se listan los motivos y el envío queda rechazado */
 .qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: 12px; color: var(--bad) }
 
-/* encabezado de grupo de esfuerzo en el listado */
-/* El encabezado de grupo (.grp) se eliminó el 2026-08-19: la grilla es una sola y el grupo se lee
-   en el chip de cada tarjeta. Un encabezado por grupo cortaba `auto-fill` en bloques y dejaba filas a
-   medias, desperdiciando el ancho. */
 /* etapa del esfuerzo: evaluar → trabajar → crear las tareas */
 .stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
@@ -2504,4 +2232,39 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .status.sin-jira { background: transparent; border: 1px dashed var(--line); color: var(--mut) }
 /* la etapa suelta (tarjeta local): mismo chip que dentro del esfuerzo, sin el contenedor */
 .stg.suelto { font-style: normal }
+
+/* Estructura compacta del tablero y de las tarjetas. */
+.section-toggle { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; padding: 0;
+  background: none; color: inherit; text-align: left; font: inherit; cursor: pointer }
+.section-toggle > span:first-child { width: 12px; color: var(--mut); flex: none }
+.card h2.journey-heading { margin-bottom: 0 }
+#journey-content { padding-top: 16px }
+.task-group-heading { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--line);
+  font-size: 13px; font-weight: 600 }
+.group-count { margin-left: 3px; color: var(--mut); font: 11px ui-monospace, monospace }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 10px 0 8px }
+.task-meta .spchip { margin-left: 0; max-width: 100% }
+.task-meta:empty { display: none }
+.next-step { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--txt);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.next-step > span { display: block; color: var(--mut); font-size: 10px; margin-bottom: 3px }
+.next-step.missing { color: var(--mut) }
+.card-note { color: var(--mut); font-size: 10.5px }
+.card-note.warn { color: var(--warn) }
+.move-task { margin-left: auto }
+.document-section { scroll-margin-top: 12px }
+.document-section + .document-section { margin-top: 22px }
+.document-history { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; scroll-margin-top: 12px }
+.document-history > summary { cursor: pointer; font-weight: 600; font-size: 13px }
+.document-history > summary span { font-weight: 400; color: var(--mut); font-size: 11px }
+.document-history[open] > summary { margin-bottom: 18px }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
+@media (max-width: 650px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }
+  .stat:nth-child(2) { border-right: 0 }
+  .stat:nth-child(-n+2) { border-bottom: 1px solid var(--line) }
+  .fbusca { margin-left: 0; width: 100% }
+  .fbusca input { width: 100%; min-width: 0 }
+  .section-toggle { flex-wrap: wrap }
+}
 </style>

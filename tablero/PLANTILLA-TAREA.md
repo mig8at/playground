@@ -51,6 +51,13 @@ jira_title: ""
 
 **El próximo paso es:** <!-- UNA acción concreta, no una lista. Si hay tres, elegí la primera. -->
 
+## Pendientes
+
+<!-- Casillas concretas y verificables. El próximo paso de arriba elige UNA; acá vive la lista completa.
+     - [ ] Acción pendiente
+     - [x] Acción cerrada
+-->
+
 ## Objetivo
 
 <!-- Qué tiene que ser CIERTO cuando esto esté hecho. No cómo se logra: eso es «Cómo se ataca». -->
@@ -108,6 +115,11 @@ jira_title: ""
 > **MEDICIÓN · 2026-08-20** — 86,6% de las consultas no pasa por el contador.
 > `SELECT count(*) FROM kyc_name_checks WHERE ...`
 -->
+
+## Referencias
+
+<!-- Nodos de contexto, PRs y enlaces útiles para retomar. El conocimiento estable vive en context/;
+     acá sólo se enlaza. No copies el historial dentro de esta sección. -->
 
 ## Registro
 

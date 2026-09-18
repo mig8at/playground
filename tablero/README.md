@@ -10,7 +10,7 @@
 | Si necesitás… | Abrí… |
 |---|---|
 | retomar una tarea concreta | `make retomar N=<id|slug>` o **Retomar** en el tablero |
-| decidir qué mover hoy | `make hoy` o **En foco hoy** |
+| decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
 | crear o actualizar una tarea | `PLANTILLA-TAREA.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
 | encontrar conocimiento estable del producto | `../context/docs/ROUTE-MAP.md` |
@@ -25,7 +25,20 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 | `cmd/web` | servidor WebSocket (`:8787`) que alimenta el dashboard | `npm run dev` |
 | `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
-| `src/` (Vue) | agenda de hoy, tareas de los últimos 4 sprints, retoma, entrega y actividad | `npm run dev` → `:5191` |
+| `src/` (Vue) | tareas por estado de los últimos 4 sprints, retoma, entrega y actividad | `npm run dev` → `:5191` |
+
+## Usar el tablero
+
+- **Mis tareas** agrupa En curso, Bloqueadas, En pruebas, Por empezar y Terminadas. Cada grupo se
+  puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
+- **Retomar** abre un panel con Resumen, Pendientes, Hallazgos, Ramas y Bitácora. Si hay prototipos,
+  aparece también su pestaña. **Mover** conserva la consulta y confirmación del cambio de estado en Jira.
+- El panel recuerda su ancho. Arrastrá el borde izquierdo; doble clic lo restablece. Con foco en ese
+  borde, las flechas ajustan el ancho (Shift acelera) y Enter o Inicio lo restablecen. Escape cierra.
+- **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
+- El Resumen prioriza retoma, pendientes y decisiones. Plan, material y referencias siguen disponibles;
+  Registro, Bitácora del documento e Historial quedan plegados al final. Copiar conserva el Markdown
+  original; la vista no reescribe tareas existentes.
 
 ## La forma de una tarea
 
@@ -90,6 +103,7 @@ npm run server:build   # compila server/bin/{web,slack-mcp,jira-mcp,pulso}
 npm run server:jira    # corre jira-mcp por stdio (para probar suelto)
 npm run server:slack   # corre slack-mcp por stdio
 npm run build          # vite build → dist/
+npm test               # organización del documento, grupos y comportamiento del panel sin navegador
 cd server && go test ./...   # parser, store, guard, conectores y cierre
 ```
 
