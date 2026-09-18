@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/el-aviso-del-recorrido-mira-los-dos-baldes, credibot/el-stream-y-el-paso-a-paso, canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/archivo-empieza-por-el-plural, canon/el-aviso-del-recorrido-mira-los-dos-baldes, credibot/el-stream-y-el-paso-a-paso, canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -212,8 +212,11 @@ falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y 
 eso la pregunta de documentos costó 21 llamadas— pero además **ya era papel tapiz**: medido sobre los 167 casos
 de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo esta mañana sin medirlo.
 
-**El próximo paso es:** que la descripción de `archivo` empiece por el plural, como la de `leer` — es una línea
-con una base medida en 0%. Y avisarle a quien mantenga el arnés
+**#251 mergeado (15:19): las SIETE herramientas con plural lo ofrecen en su primera línea.** No era sólo
+`archivo`: la prueba destapó cinco más (`codigo`, `grep`, `historia`, `tablas`, `ubicar`). Catorce PRs hoy.
+
+**El próximo paso es:** correr la pregunta de documentos cuando despliegue —el antes es 21 llamadas, 87 s,
+15 de lectura y 0 agrupadas— y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -501,6 +504,12 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#251: la primera línea de una descripción decide cómo se usa la herramienta.** `archivo` aceptaba `rutas`
+  desde siempre —su esquema decía «cuesta UN turno en vez de tres»— y el modelo no lo usó NUNCA: 0 de 31
+  llamadas. Lo que decidía era que arrancaba con «Lee UN archivo». Medido contra las últimas 20 preguntas de
+  prod: `leer` empieza «VARIAS secciones» y agrupa el 49%; `codigo` el 20%; `archivo`, el 0%. Al escribir la
+  prueba aparecieron **cinco más** con el mismo defecto, que es lo que importa — el README ya tenía escrito que
+  la versatilidad se adopta cuando es PAREJA. Las siete arrancan ahora por el plural.
 - **⚠ CORRECCIÓN sobre #250, mirando la traza de verdad.** Lo que mandé como «el aviso miraba el balde
   equivocado» era falso, y lo era porque probé con una consulta que INVENTÉ en vez de la que el modelo usó.
   Con la suya —`Bancolombia documentos subida archivos`— la regla vieja también anunciaba los dos temas, y la
