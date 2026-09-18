@@ -31,7 +31,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 
 - **Mis tareas** agrupa En curso, Bloqueadas, En pruebas, Por empezar y Terminadas. Cada grupo se
   puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
-- **Retomar** abre un panel con Resumen, Jira, Pendientes, Hallazgos, Ramas y Bitácora. Si hay prototipos,
+- **Retomar** abre un panel con Trabajo, Jira, Pendientes, Hallazgos, Ramas y Bitácora. Si hay prototipos,
   aparece también su pestaña. **Mover** conserva la consulta y confirmación del cambio de estado en Jira.
 - El panel recuerda su ancho. Arrastrá el borde izquierdo; doble clic lo restablece. Con foco en ese
   borde, las flechas ajustan el ancho (Shift acelera) y Enter o Inicio lo restablecen. Escape cierra.
@@ -39,8 +39,8 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - Los enlaces **Contexto local** abren los nodos de `../context/` en `localhost:5193`, no canon.
   Levantá esa vista con `make context` desde la raíz del playground, en otra terminal; `make tablero`
   sólo levanta el tablero. Los enlaces usan `?node=<id>` para seleccionar el nodo exacto.
-- **Resumen** muestra la retoma una sola vez, junto al plan, el material y las referencias. Las listas
-  de pendientes y los hallazgos con marcador tienen sus propias pestañas; no se repiten en el resumen.
+- **Trabajo** muestra la retoma una sola vez, junto al plan, el material y las referencias. Las listas
+  de pendientes y los hallazgos con marcador tienen sus propias pestañas; no se repiten en Trabajo.
   Los pendientes conservan sus continuaciones y enlaces. El historial queda plegado al final.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
@@ -48,6 +48,9 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - Copiar conserva el Markdown original; la organización de las pestañas no reescribe los archivos.
 
 ## La forma de una tarea
+
+La [plantilla por pestaña](CLAUDE.md#plantilla-por-pestaña) define qué escribir, dónde vive cada dato
+y cómo actualizarlo durante el trabajo diario.
 
 `PLANTILLA-TAREA.md` (en esta carpeta, **no** en `data/`: ahí todo `.md` se lee como tarea) es el
 esqueleto canónico. Copialo para una tarea nueva. Su regla estructural, y el porqué de cada sección,
@@ -375,8 +378,8 @@ Y una tarea suele tener **más de una propuesta** — otro actor, otro camino po
 vale `data/artifacts/<slug>.<variante>.html`: la variante es la etiqueta con que aparece. Verlas al
 lado es lo que permite decidir entre ellas.
 
-Si hay al menos uno, la tarjeta de la tarea muestra el botón **Prototipos** junto a Bitácora, que abre
-un cajón con la lista; cada uno se abre en una pestaña, servido por el propio server
+Si hay al menos uno, el panel de la tarea muestra la pestaña **Prototipos** después de Bitácora,
+con la lista; cada artefacto se abre en una pestaña del navegador, servido por el propio server
 (`GET /artifacts/<archivo>`).
 
 No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se

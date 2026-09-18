@@ -2,6 +2,88 @@
 
 Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las tareas.
 
+## Plantilla por pestaña
+
+El orden fijo es **Trabajo · Jira · Pendientes · Hallazgos · Ramas · Bitácora**. Los números son
+contadores calculados por el tablero, nunca parte del nombre. Cada dato tiene una fuente; las pestañas
+son vistas de esas fuentes. Al crear una tarea, copiá `PLANTILLA-TAREA.md`; al retomar una abierta,
+actualizá sus secciones existentes. No agregues una segunda lista ni otro estado de la misma cosa.
+
+| Pestaña | Pregunta que responde | Fuente |
+|---|---|---|
+| Trabajo | ¿Dónde estoy y cómo sigo? | Cuerpo privado de `data/<tarea>.md` |
+| Jira | ¿Qué ve el equipo en el issue? | Estado y descripción recibidos de Jira |
+| Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
+| Hallazgos | ¿Qué sabemos, decidimos o debemos resolver? | Anotaciones fechadas del cuerpo privado |
+| Ramas | ¿Dónde está el cambio y hasta dónde llegó? | Patrón `ramas:` + medición de Git y PRs |
+| Bitácora | ¿En qué se usó el tiempo? | Entradas de tiempo en `data/entries/` |
+
+### Trabajo
+
+La primera sección conserva el título `## Si retomás esto sin contexto, empezá acá` y ocupa 5–8
+líneas: **qué se busca → estado real → qué ya se comprobó → cómo verificarlo**. Termina con
+`**El próximo paso es:**` y una acción concreta. Se reescribe con el estado de hoy.
+
+Después van objetivo, dónde se toca, plan, alternativas descartadas, límites, material de validación
+y referencias, en el orden de la plantilla. El `## Registro` conserva los hechos de cada día y se
+muestra plegado. En Trabajo no se repiten listas de pendientes ni anotaciones: el tablero las lleva
+a sus pestañas. Puede señalar un bloqueo o la siguiente acción, sin copiar todo su detalle.
+
+### Jira
+
+Esta pestaña muestra lo recibido de Jira al cargar el sprint; no es una vista previa del borrador.
+Si no hay issue o descripción, se indica esa ausencia. El borrador local conserva la frontera exacta
+`## Tarea (publicable)` y usa las secciones de `PLANTILLA-TAREA.md`: **En una línea · Por qué · Qué
+cambia · Alcance · Dónde probar · Cómo validar · Cambios en datos · Criterios de aceptación ·
+Dependencias / contraparte**. Producto y QA deben poder entenderlo sin las herramientas privadas.
+Editar el archivo no publica nada: la revisión y autorización para publicar siguen siendo necesarias.
+Los proyectos (`clase: proyecto`) no llevan sección publicable.
+
+### Pendientes
+
+Una lista canónica bajo `## Pendientes`. Cada casilla empieza con una acción y dice cómo se sabe que
+terminó; una dependencia agrega de quién se espera qué. El detalle puede continuar debajo de la
+casilla. Ejemplo de formato, para reemplazar por datos reales:
+
+```markdown
+- [ ] Validar el flujo en staging; termina cuando el caso acordado pasa y queda evidencia.
+  Depende de: nombre — dato o respuesta necesaria.
+- [x] Acción completada — comprobación o enlace a la evidencia.
+```
+
+No copies estas casillas en Trabajo o Registro. El próximo paso elige una; la lista guarda el resto.
+Marcá completado sólo lo verificado. Los criterios públicos para QA pertenecen a Jira.
+
+### Hallazgos
+
+Usá `> **TIPO · YYYY-MM-DD** — hecho y consecuencia`, con la fecha real. Los tipos admitidos son
+**MEDICIÓN, DECISIÓN, PREGUNTA y RIESGO**. Una pregunta identifica a quien debe responder:
+`> **PREGUNTA · YYYY-MM-DD · Nombre** — pregunta concreta`. La evidencia y el método continúan con
+`>` en el mismo bloque. Escribí cada hallazgo una vez, en su sección de decisiones, bloqueos, riesgos
+o validación; la pestaña los reúne. No crees otra lista manual de hallazgos.
+
+### Ramas
+
+Declaración mínima: `ramas: patron-de-la-rama` en el frontmatter, sólo cuando exista; varios patrones
+se separan por coma. Actualizá la medición con `make tareas-ramas N=<id>` desde la raíz del playground.
+Repositorio, rama, PR, ambientes y fecha de medición vienen del snapshot. No mantengas una segunda
+tabla de estados en Markdown ni presentes una medición antigua como una comprobación de hoy. Si el
+trabajo no tiene rama propia, no inventes un patrón para llenar esta pestaña.
+
+### Bitácora
+
+Una entrada por tramo de trabajo, ligada a la tarea y con tiempo medido. La nota sigue la forma
+**acción realizada → resultado → validación**; los detalles reproducibles quedan en Trabajo.
+Se registra con `make bitacora-add TAREA=<id>` y una fuente de tiempo (`LAPSO`, `PULSO` o `MIN` con
+`FUENTE`), según la regla de cierre de sesión de abajo. No inventes minutos ni copies aquí el diario
+completo. `## Registro` cuenta qué pasó; Bitácora contabiliza el tiempo. No crees `## Bitácora` en
+el Markdown de una tarea nueva.
+
+**Prototipos** es una pestaña adicional sólo cuando existen artefactos; sigue la convención de
+`data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las seis pestañas principales.
+
+## Reglas de trabajo
+
 - **Una tarea = un archivo suelto**: `data/<tarea>.md`. `ls data/` responde *¿en qué se está
   trabajando?* — no crees carpetas por tarea ni por categoría (los 11 esfuerzos reales no
   clasificaban por ningún eje; la clasificación es `context_nodes`, que es una lista). El nombre
@@ -127,10 +209,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
       Registro                                   ← append-only, lo nuevo arriba
       ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
 
-  La vista **Resumen** muestra una sola retoma, el plan, el material y las referencias, con el historial
-  plegado. Los pendientes y las anotaciones con marcador viven en el archivo y se proyectan en sus
-  pestañas; no se duplican en el resumen. **Jira** lee la descripción recibida del issue, no la sección
-  publicable local. La plantilla se aplica al crear o actualizar una tarea abierta.
+  La distribución en la interfaz sigue la [plantilla por pestaña](#plantilla-por-pestaña).
+  Se aplica al crear o actualizar una tarea abierta.
 
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
   1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si
@@ -203,8 +283,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   2. **Apilá la entrada del Registro** con fecha: qué se hizo, **contra qué se midió** y a qué conclusión
      se llegó. Lo que se descartó va también, y va aunque no se haya elegido.
   3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
-     patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin esa línea el
-     cajón de ramas de la tarjeta no existe — no está vacío: no aparece.
+     patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin patrón,
+     la pestaña Ramas no tiene una medición propia de la tarea.
   4. **Escribí la bitácora con `make bitacora-add`**, no a mano: pone el id, el día y la hora, resuelve
      la tarea por id o slug, y **los minutos salen de UNA fuente que queda escrita en la nota**:
      `LAPSO=HH:MM-HH:MM` (la sesión), `PULSO=HH:MM` (tramos de 5′ con cambios desde esa hora) o
@@ -293,8 +373,8 @@ Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las 
   `data/artifacts/*.html` y `settings.json` **sí** se versionan. No lo cambies.
 - **PROTOTIPOS: `data/artifacts/<slug>.html`**, con el mismo slug que el `.md` de la tarea — y
   `<slug>.<variante>.html` cuando hay **varias propuestas** para la misma tarea (la variante es la
-  etiqueta). La tarjeta de la tarea muestra entonces el botón **Prototipos**, al lado de Bitácora, que
-  abre un cajón con la lista; cada uno se sirve en `GET /artifacts/<archivo>`. El vínculo es el
+  etiqueta). El panel de la tarea muestra entonces la pestaña **Prototipos**, después de Bitácora,
+  con la lista; cada uno se sirve en `GET /artifacts/<archivo>`. El vínculo es el
   **nombre**, no una entrada en el frontmatter: una convención de nombre no se desincroniza, una lista
   escrita a mano sí. Tres reglas:
   1. **Un HTML autocontenido, sin build.** Si necesita `npm install`, no es un artefacto: es una

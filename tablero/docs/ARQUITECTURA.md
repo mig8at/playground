@@ -23,9 +23,9 @@ No existe una segunda copia editable de esos datos.
 
 1. Abrir **Mis tareas**, agrupadas por estado, con Terminadas plegado inicialmente. Los filtros y
    la búsqueda se aplican antes de agrupar; buscar muestra también coincidencias en grupos plegados.
-2. Elegir **Retomar**: un panel único muestra la tarea, con pestañas de Resumen, Jira, Pendientes, Hallazgos,
+2. Elegir **Retomar**: un panel único muestra la tarea, con pestañas de Trabajo, Jira, Pendientes, Hallazgos,
    Ramas, Bitácora y, cuando existen, Prototipos.
-3. El Resumen muestra una sola retoma y pliega el historial al final. Las listas de pendientes se
+3. Trabajo muestra una sola retoma y pliega el historial al final. Las listas de pendientes se
    proyectan con sus notas en Pendientes; los marcadores de anotación se consultan en Hallazgos.
    El índice abre la sección histórica al seleccionarla. El archivo original y los copiados conservan su orden.
 4. Al cerrar, reescribir la retoma y el próximo paso; el Registro conserva la historia.

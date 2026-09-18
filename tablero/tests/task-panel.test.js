@@ -49,12 +49,12 @@ test('panel: pestañas, teclado, ancho persistente, cancelación y devolución d
   globalThis.localStorage = { getItem: key => preferences.get(key) ?? null, setItem: (key, value) => preferences.set(key, value) };
   const opener = node('button');
   globalThis.document = { activeElement: opener, body: { style: { overflow: 'auto' } } };
-  const selected = Vue.ref('resumen');
+  const selected = Vue.ref('trabajo');
   let closeCount = 0;
   const root = node('root');
   const app = renderer.createApp({ setup: () => () => Vue.h(TaskPanel, {
     title: 'Tarea de prueba', taskKey: 'CORE-1', tab: selected.value,
-    tabs: [{ id: 'resumen', label: 'Resumen' }, { id: 'pendientes', label: 'Pendientes', count: 3 }],
+    tabs: [{ id: 'trabajo', label: 'Trabajo' }, { id: 'pendientes', label: 'Pendientes', count: 3 }],
     'onUpdate:tab': value => { selected.value = value; }, onClose: () => { closeCount++; },
   }) });
   app.mount(root);

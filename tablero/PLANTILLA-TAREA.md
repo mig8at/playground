@@ -14,17 +14,17 @@ jira_title: ""
   ⚠ NO vive en `data/`: ahí todo `.md` se lee como una tarea, así que la plantilla aparecería en el
   tablero como una tarea fantasma.
 
-  Para qué existe esta forma: para que RETOMAR una tarea en frío sea rápido. La medición que la
-  justifica (2026-08-19, sobre las 41 tareas del tablero) es que las dos más grandes —130 KB con 60
-  secciones y 84 KB con 55— son ilegibles no por largas, sino porque MEZCLAN el estado actual con el
-  registro cronológico: cada día se apiló una sección nueva y ya no se sabe qué sigue vigente.
+  Protocolo: CLAUDE.md → «Plantilla por pestaña». Las seis pestañas usan estas fuentes:
+    · TRABAJO    retoma, objetivo, plan, alternativas, límites, material y referencias.
+    · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
+    · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
+    · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
+    · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
+    · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
-  De ahí la única regla estructural: hay DOS clases de contenido y no se tocan entre sí.
-    · ESTADO ACTUAL (todo hasta «Registro») — se REESCRIBE. Siempre dice lo de HOY.
-    · REGISTRO (al final)                   — se APILA. Nunca se edita lo viejo.
-
-  El orden de las secciones no es estético: es el orden en que las necesita alguien que llega sin
-  contexto. Por eso lo primero es dónde pararse, y lo último es la historia.
+  Reescribí el estado y el plan; mantené el material reproducible. Los hechos de cada día se agregan
+  al Registro (lo nuevo arriba, sin editar lo viejo). El conocimiento estable gradúa a context/.
+  No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
 <!--
   El frontmatter va SIN comentarios en la línea: el parser toma todo lo que sigue a los dos puntos y
@@ -44,18 +44,21 @@ jira_title: ""
 
 <!-- ESTA sección se REESCRIBE cada vez que se trabaja. Es la más importante del archivo y la única
      que alguien lee obligatoriamente. Cuatro cosas, en 5-8 líneas:
-       · qué es esto, en una frase
-       · en qué estado está de verdad (no el de Jira)
-       · qué NO hay que volver a investigar, porque ya se hizo
-       · con qué se comprueba que sigue andando -->
+       · Qué se busca: una frase.
+       · Estado real: qué funciona y qué falta para avanzar.
+       · Ya comprobado: qué NO hay que volver a investigar.
+       · Validación: con qué se comprueba que sigue andando.
+     Podés señalar un bloqueo; su hallazgo y la lista completa de pendientes viven una sola vez. -->
 
 **El próximo paso es:** <!-- UNA acción concreta, no una lista. Si hay tres, elegí la primera. -->
 
 ## Pendientes
 
-<!-- Casillas concretas y verificables. El próximo paso de arriba elige UNA; acá vive la lista completa.
-     - [ ] Acción pendiente
-     - [x] Acción cerrada
+<!-- Pestaña Pendientes. Cada casilla lleva una acción y su condición de cierre.
+     El próximo paso de arriba elige UNA; acá vive la lista completa. No la copies al Registro.
+     - [ ] Acción pendiente; termina cuando [resultado verificable].
+       Depende de: [nombre] — [dato o respuesta], si aplica.
+     - [x] Acción cerrada — [evidencia de la comprobación].
 -->
 
 ## Objetivo
@@ -79,7 +82,8 @@ jira_title: ""
 
 ## Lo que está decidido
 
-<!-- Como ANOTACIONES, no como prosa: llevan fecha, salen en la card y se pueden ver envejecer.
+<!-- Pestaña Hallazgos: una anotación por decisión, con fecha real y el motivo. No la dupliques
+     como prosa en Trabajo. Los ejemplos de fecha y contenido deben reemplazarse.
 > **DECISIÓN · 2026-08-20** — el filtro va por comercio, no por asesor.
 -->
 
@@ -130,11 +134,15 @@ jira_title: ""
      en el tablero es el registro de TIEMPO (`data/entries/`, el botón Bitácora de la card, lo que
      sube al worklog de Jira). Esto es el registro de QUÉ PASÓ. Para tareas nuevas: «Registro». -->
 
-### 2026-08-20
+<!-- Formato de entrada (reemplazá la fecha y el contenido):
+### YYYY-MM-DD
+Qué se hizo → evidencia de la ejecución → conclusión.
+-->
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA. Pasa el guard (ni repos, ni rutas, ni F-xx) y
-     cambia de idioma: producto y QA, no implementación.
+     cambia de idioma: producto y QA, no implementación. Es un BORRADOR: editarlo no publica nada
+     ni cambia lo que muestra la pestaña Jira. En clase: proyecto, eliminá toda esta parte publicable.
      ───────────────────────────────────────────────────────────────────────────────────────────── -->
 
 ## Tarea (publicable)

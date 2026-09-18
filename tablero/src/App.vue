@@ -787,7 +787,7 @@ async function alPortapapeles(txt) {
 
 // Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
 watch([panelTab, () => active.value?.Key], () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
-function openTask(task) { active.value = task; panelTab.value = 'resumen'; }
+function openTask(task) { active.value = task; panelTab.value = 'trabajo'; }
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
 const entriesPorTarea = computed(() => {
@@ -855,7 +855,7 @@ const pendientesPorSeccion = (key) => {
 const taskTabs = computed(() => {
   const key = active.value?.Key;
   return [
-    { id: 'resumen', label: 'Resumen' },
+    { id: 'trabajo', label: 'Trabajo' },
     { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
     { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
@@ -1587,7 +1587,7 @@ onMounted(async () => {
     <TaskPanel v-if="panelTab && active" :key="active.Key" v-model:tab="panelTab"
       :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
       :tabs="taskTabs" @close="panelTab = ''">
-      <div v-if="panelTab === 'resumen'" class="task-tab-body">
+      <div v-if="panelTab === 'trabajo'" class="task-tab-body">
           <div v-if="documentSections.length" class="drawer-cps">
             <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
                     title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
@@ -1628,7 +1628,7 @@ onMounted(async () => {
               <section v-else :id="section.id" class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
             </template>
           </div>
-          <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene un resumen privado.' }}</p>
+          <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
 
       </div>
       <div v-if="panelTab === 'jira'" class="task-tab-body">
