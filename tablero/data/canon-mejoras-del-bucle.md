@@ -117,11 +117,18 @@ respuesta (vacío de verdad, motai), tres no.** La palanca sirve cuando el model
 legibilidad de la sección vale igual para la Sala y para quien lee sin modelo. Trece corridas simuladas
 con Sonnet 5 local, todas las citas comprobadas a mano.
 
-**El próximo paso es:** cerrar la pregunta que dejó #237 — `title`/`summary` de nivel superior y
-`documents[].title/summary` son dos lugares para el mismo hecho y nada obliga a que coincidan; o el lint
-exige igualdad, o el nivel superior se va. Y al reanudar la receta de densidad, elegir por dónde con el
-criterio medido: rinde en la respuesta cuando el modelo parafrasea de cerca (2 de 5), y siempre en la
-lectura humana.
+**Cerrado lo de #237 en #238**: el lint exige que `title`/`summary` de nivel superior coincidan con
+`documents[]`, y midiendo antes de escribir la regla salieron siete temas que ya diferían — igualados al que
+se lee. **Y el harness sí le sirve a canon**: leído sin tocarlo, y corriendo su `dev/pantallas.ts` (deriva el
+recorrido del enrutador de `main`), salieron cuatro secciones que canon no tenía — la forma real del árbol
+(175 direcciones: 57 compartidas, 38 del asesor, 45 de Bancolombia, las puertas de BCP), el cliente que
+vuelve y «falta registro», las tres señales al elegir una entidad, y los workers de PHP para correr en
+paralelo en local. Las cuatro verificadas contra `main` hoy y dictadas por la API (#239): una la rechazó la
+red de regresión por competir con una pregunta del banco y se reescribió sin esas palabras.
+
+**El próximo paso es:** mergear #238 y #239 (los dos sin mergear, esperando a Miguel) y, si el harness
+sigue dando, verificar contra `main` el hecho que quedó afuera: la entidad sigue en el listado tras un
+crédito cerrado — se gasta el cupo, no la elegibilidad (suite `cliente-recurrente`).
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -409,6 +416,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **El harness le enseñó cuatro cosas a canon** (#239, por el dictado): el árbol real del asistente
+  contado sobre el enrutador de `main`, el atajo del cliente que vuelve, las tres señales al elegir
+  entidad y los workers de PHP en local. La red de regresión rechazó una por competir con una pregunta
+  del banco; reescrita sin esas palabras, entró. Y #238: el lint exige que los dos lugares del título
+  coincidan — siete temas ya diferían.
 - **#237 en prod a las 07:56, nueve minutos después del merge**, 12 sondas seguidas: los tres resúmenes
   nuevos ya son lo que lee el modelo en el mapa del prompt. Con eso los tres despliegues del día llegaron
   en 8-9 minutos; el «incidente» nunca existió.
