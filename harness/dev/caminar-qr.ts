@@ -109,6 +109,45 @@ const mote = (ruta: string) =>
 const CARPETA = `.runs/caminar-${PRODUCTO}`;
 mkdirSync(CARPETA, { recursive: true });
 
+// ── LA REVISIÓN DE CADA PANTALLA ──────────────────────────────────────────────────────────────────
+// Hasta acá el caminador probaba que las pantallas CARGAN y avanzan. Eso deja pasar todo lo que se
+// renderiza mal sin romperse: un `undefined` en medio de una frase, una imagen que no llega, un error de
+// JavaScript que el usuario no ve pero que apagó media pantalla. F-227 se encontró con un humano mirando
+// un PNG — esto es lo que se puede mirar SOLO. No reemplaza mirar: reduce lo que hay que mirar.
+//
+// ⚠ Es DESCRIPTIVO, no un oráculo: no sabe si el texto de la pantalla es correcto, sólo si tiene la
+// pinta de estar roto. Un hallazgo acá es «andá a mirar esa captura», no «esto está mal».
+//
+// ⚠ LA PANTALLA QUE SE LE ATRIBUYE A UN ERROR DE CONSOLA ES APROXIMADA. Los eventos de consola y de red
+// llegan de forma asíncrona, así que uno disparado al final de una pantalla puede contarse en la
+// siguiente. Sirve para saber POR DÓNDE mirar, no como evidencia de en cuál ocurrió — medido: un aviso
+// de hidratación de React apareció atribuido a `_autenticacion`, que es una página del mock y no tiene
+// React. Para fijar la pantalla de verdad hay que reproducir el paso a mano.
+type Sospecha = { pantalla: string; que: string; detalle: string };
+const sospechas: Sospecha[] = [];
+let pantallaActual = '(arranque)';
+
+// La basura que delata un render roto. NO se incluye «null» a secas: aparece dentro de payloads
+// legítimos embebidos en el HTML y ahogaría la señal con falsos positivos.
+const BASURA = /\bundefined\b|\bNaN\b|Invalid Date|\[object Object\]|\{\{|\$\{/;
+
+page.on('console', (m) => {
+    if (m.type() !== 'error') return;
+    // 400 y no 160: los avisos de hidratación de React traen el diff DESPUÉS del encabezado, y cortarlos
+    // deja el mensaje genérico sin el dato que sirve («qué atributo, en qué componente»).
+    const t = m.text().replace(/\s+/g, ' ').slice(0, 400);
+    // El ruido conocido de local no cuenta: no es del producto y taparía lo que sí importa.
+    if (/favicon|DevTools|React Router.*devtools|Download the React/i.test(t)) return;
+    sospechas.push({ pantalla: pantallaActual, que: 'consola', detalle: t });
+});
+
+page.on('response', (r) => {
+    if (r.status() < 400) return;
+    const u = r.url();
+    if (/favicon|__manifest|\.map$/.test(u)) return;
+    sospechas.push({ pantalla: pantallaActual, que: `HTTP ${r.status()}`, detalle: u.replace(/^https?:\/\/[^/]+/, '').slice(0, 110) });
+});
+
 const T0 = new Date();
 const uReqBase = (await latestUserRequestId(suc.hash)) ?? 0;
 await page.goto(qrEntryUrl(suc.hash), { waitUntil: 'domcontentloaded' });
@@ -122,8 +161,27 @@ for (let paso = 1; paso <= MAX; paso++) {
     // que de un recorrido de 14 pantallas se podían mirar 1. F-227 —el «vence hoy» que contradecía a su
     // propio contador— vivió meses justamente porque estaba en la única que se veía; las otras trece
     // nadie las había mirado nunca. Un caminador que no deja mirar sólo prueba que la pantalla CARGA.
-    await page.screenshot({ path: `${CARPETA}/${String(paso).padStart(2, '0')}-${mote(url)}.png`, fullPage: true })
+    pantallaActual = mote(url);
+    await page.screenshot({ path: `${CARPETA}/${String(paso).padStart(2, '0')}-${pantallaActual}.png`, fullPage: true })
         .catch(() => {});
+
+    // El texto VISIBLE, no el HTML: lo que el HTML trae embebido (payloads, estado del router) no es lo
+    // que el cliente lee, y buscarlo ahí da falsos positivos a montones.
+    const textoVisible = await page.locator('body').innerText().catch(() => '');
+    for (const linea of textoVisible.split('\n')) {
+        if (BASURA.test(linea)) {
+            sospechas.push({ pantalla: pantallaActual, que: 'texto', detalle: linea.trim().slice(0, 110) });
+        }
+    }
+
+    // Imágenes que no llegaron: `naturalWidth === 0` ya cargada es el único chequeo fiable — un `src`
+    // presente no dice nada. Es lo que delata un `codeImageUrl` apuntando a un bucket vacío (F-174).
+    const rotas = await page.evaluate(() => Array.from(document.images)
+        .filter((i) => i.complete && i.naturalWidth === 0)
+        .map((i) => i.currentSrc || i.src)).catch(() => [] as string[]);
+    for (const src of rotas) {
+        sospechas.push({ pantalla: pantallaActual, que: 'imagen', detalle: String(src).slice(0, 110) });
+    }
 
     const banner = await page.getByText(/Error al cargar|no pudimos|hubo un problema|intenta de nuevo/i)
         .first().textContent({ timeout: 500 }).catch(() => null);
@@ -174,6 +232,27 @@ const shot = `.runs/caminar-${PRODUCTO}.png`;
 await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
 console.log(`\n${recorrido.length} pantalla(s) · última: ${recorrido.at(-1)} · 📸 ${shot}`);
 console.log(`   una captura por pantalla en ${CARPETA}/ — miralas, no alcanza con que hayan cargado`);
+
+if (sospechas.length) {
+    console.log(`\n  ── REVISIÓN · ${sospechas.length} cosa(s) con pinta de estar rotas ──`);
+    console.log('     (descriptivo, no veredicto: andá a mirar esas capturas)');
+    const porPantalla = new Map<string, Sospecha[]>();
+    for (const s of sospechas) porPantalla.set(s.pantalla, [...(porPantalla.get(s.pantalla) ?? []), s]);
+    for (const [pantalla, lista] of porPantalla) {
+        console.log(`\n     ${pantalla}`);
+        // Deduplicado: un error de consola que se repite en cada render es UN problema, no veinte.
+        const vistas = new Set<string>();
+        for (const s of lista) {
+            const clave = `${s.que}|${s.detalle}`;
+            if (vistas.has(clave)) continue;
+            vistas.add(clave);
+            const repes = lista.filter((x) => `${x.que}|${x.detalle}` === clave).length;
+            console.log(`       ${s.que.padEnd(9)} ${s.detalle}${repes > 1 ? `  ×${repes}` : ''}`);
+        }
+    }
+} else {
+    console.log('  ✓ revisión: ninguna pantalla mostró basura, imágenes rotas ni errores de consola');
+}
 if (errores.length) console.log(`⚠ ${errores.length} error(es) de página:\n   ${[...new Set(errores)].join('\n   ')}`);
 
 // LA TERCERA FUENTE, como pista y no como consulta. Este caminador usa navegador de verdad, así que
