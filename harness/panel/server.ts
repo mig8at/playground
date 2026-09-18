@@ -760,8 +760,12 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
 
             // El POR QUÉ, anclado a la solicitud que la comprobación acaba de identificar. Si no hubo
             // solicitud no hay nada que anclar y no se dice nada: un bloque vacío es ruido.
-            const ur = info?.veredicto?.solicitud;
-            if (ur && Number(ur) > 0) {
+            /* ⚠ `veredicto.solicitud` viene FORMATEADO para leerse —`#466839`, con almohadilla—, así que
+             * `Number()` da NaN y el bloque no se disparaba NUNCA. Lo encontró la primera corrida real:
+             * el cierre imprimía la comprobación de BD con la solicitud a la vista y debajo no había
+             * nada. Se extraen los dígitos en vez de confiar en la forma del campo. */
+            const ur = String(info?.veredicto?.solicitud ?? '').replace(/\D/g, '');
+            if (ur) {
                 append(Buffer.from('\n── Por qué terminó así (logs) ──\n'));
                 append(Buffer.from(`${pistaPostHog(ur, current?.target || 'local', new Date(current?.startedAt ?? Date.now()))}\n`));
                 append(Buffer.from(await forenseDeLogs(ur, current?.target || 'local') + '\n'));
