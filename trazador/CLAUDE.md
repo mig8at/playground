@@ -89,6 +89,60 @@ donde la pregunta «¿cuánto?» tiene respuesta verdadera.
   del profiler» cuando el número real era **9,2 %**. Para contar, la expresión métrica:
   `QUERY='sum(count_over_time({service_name="x", level="error"} [24h]))'`.
 
+## Cómo se sabe que el mapa sigue siendo cierto (dos chequeos, y no son lo mismo)
+
+El peor modo de falla de esta herramienta **no es que se caiga**: es que el mapa deje de describir el
+sistema y el diagnóstico salga igual de prolijo, pero equivocado. Contra eso hay dos redes, y la
+diferencia entre ellas es **qué necesitan para correr**:
+
+| | qué mira | qué pide | cuándo |
+|---|---|---|---|
+| `make trazador-chequeo` | coherencia interna, el vocabulario de ramales que comparte con el harness, y —con `TARGET`— que las tablas declaradas existan | **nada** | siempre que se toque el mapa |
+| `make trazador-validar CORPUS=…` | solapes entre patrones, matchers mudos, cobertura por etapa | un corpus de líneas reales | al tocar los `matchers` |
+
+⚠ **El segundo existe desde antes y casi no se corre, justamente porque pide un corpus.** Esa es la
+razón de ser del primero: hay una clase entera de mentiras del mapa que no necesita líneas para
+detectarse. La idea no es original — es `bin/steps-check.ts` del harness, cuya nota lo dice mejor que
+cualquier resumen: *«el mapa dice "este paso toca N archivos"; ese número sólo vale si los archivos
+existen de verdad. Si alguien mueve o renombra uno, el panel seguiría mostrando el conteo viejo —dato
+con cara de verdad— y nadie se enteraría.»* Acá el equivalente son **las tablas** que cada etapa declara
+como su evidencia y **los ids de ramal**.
+
+Tres cosas que hay que respetar si lo tocás:
+
+- **El chequeo NO abre la fuente por defecto.** El default de `-target` es `prod`, así que un `-chequeo`
+  pelado salía a consultar PRODUCCIÓN para leer el `information_schema` — lectura inocua, pero sigue
+  siendo prod, y el esquema es el mismo en cualquier ambiente. Se mira sólo si el target se pidió a
+  mano (`flag.Visit` distingue eso del valor por omisión).
+- **Lo que no se pudo comprobar se DICE.** Sin target, las tablas quedan «SIN comprobar» en la salida en
+  vez de omitirse: un chequeo que calla lo que no miró es el falso verde que esta herramienta existe
+  para no dar.
+- **El chequeo viaja con `/api/mapa`, y la pantalla avisa SÓLO lo grave.** Un comando que hay que
+  acordarse de correr termina como `-validar`. Los avisos (▲) —por ejemplo que `credifamilia` sea
+  *ramal* acá y *extensión* en el harness— quedan para la consola: un cartel permanente deja de leerse
+  y tapa a los que sí importan. Misma regla que el panel del harness.
+
+## Las pruebas: la lógica que ya dio un diagnóstico equivocado
+
+`go test ./server/...`. El criterio de qué se cubre es el de las diez specs de `pkg/` del harness —las
+que no tocan browser ni BD—: **no cobertura por cobertura, sino la lógica cuyo error no rompe nada y
+sale prolijo.**
+
+- `desenlaceDe` — existe porque HABÍA DOS definiciones y no coincidían (una contemplaba el estado 7
+  «abandonado» y la otra no, así que la misma solicitud salía «en curso» en la lista y «abandonado» al
+  abrirla). La prueba fija los cuatro desenlaces y, aparte, que **ningún estado esté en `sellados` y en
+  `malos` a la vez**: ahí gana el orden del `switch` y una solicitud negada saldría verde.
+- `ramalDeRT` — cada ramal que el código devuelve tiene que estar declarado en `ramales.json`. Si no, sus
+  etapas quedan sin clasificar y se dibujan como «podía pasar y no pasó» cuando ahí no se pasa nunca.
+- Y queda escrito que **Credifamilia se decide por `id == 24`**, o sea por IDENTIDAD y no por
+  configuración: deuda conocida (la clase que cataloga `workers/cli.py quemado`), que miente en silencio
+  el día que ese lender cambie de id. La prueba no la arregla; la deja a la vista para que el cambio sea
+  deliberado.
+
+⚠ **Y las pruebas se comprueban mutando el código, no mirando el verde.** `go test` imprime `ok` igual
+para un test que pasa que para uno que se salta. Al agregar una, rompé a propósito lo que dice proteger
+y mirá que falle con el mensaje que esperabas.
+
 ## Qué deja esto en la tarea
 
 Lo que el trazador devuelve **no se resume a mano**: se emite ya escrito con `MD=1`

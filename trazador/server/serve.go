@@ -60,13 +60,20 @@ func servir(addr string) error {
 			Bloques    []*BloqueDef `json:"bloques,omitempty"`
 			Decisiones int          `json:"decisiones"`
 		}
+		// EL CHEQUEO VIAJA CON EL MAPA. Un chequeo que sólo vive en un comando es un chequeo que nadie
+		// corre —le pasó a `-validar`, que pide corpus— y un mapa que dejó de resolver produce un
+		// diagnóstico PROLIJO Y EQUIVOCADO, que es el peor modo de falla de esta herramienta. Se manda
+		// siempre y la vista decide si molestar; el de tablas queda afuera porque exige una fuente y
+		// esto responde en cada carga de la página.
 		out := struct {
-			Version    string      `json:"version"`
-			SubVersion string      `json:"subVersion"`
-			Nota       string      `json:"nota"`
-			Etapas     []etapaUI   `json:"etapas"`
-			Ramales    []*RamalDef `json:"ramales"`
-		}{Version: m.Version, SubVersion: sub.Version, Nota: m.Nota, Ramales: m.Ramales}
+			Version    string           `json:"version"`
+			SubVersion string           `json:"subVersion"`
+			Nota       string           `json:"nota"`
+			Etapas     []etapaUI        `json:"etapas"`
+			Ramales    []*RamalDef      `json:"ramales"`
+			Chequeo    []map[string]any `json:"chequeo"`
+		}{Version: m.Version, SubVersion: sub.Version, Nota: m.Nota, Ramales: m.Ramales,
+			Chequeo: ParaLaUI(ChequeoDelMapa(nil))}
 		for _, e := range m.Etapas {
 			out.Etapas = append(out.Etapas, etapaUI{
 				ID: e.ID, Label: e.Label, Orden: e.Orden, Porque: e.Porque,

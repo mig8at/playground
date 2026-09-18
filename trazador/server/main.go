@@ -627,6 +627,7 @@ func main() {
 	anclas := flag.Bool("anclas", false, "con -ureq: mide cuánto se puede AFIRMAR de cada línea (cierta · probable · por traza · contaminada)")
 	spans := flag.Bool("spans", false, "con -ureq: mide si el `span_id` alcanza para ubicar las líneas que el texto no reclama")
 	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
+	chequeo := flag.Bool("chequeo", false, "valida el mapa SIN corpus: coherencia interna, el vocabulario de ramales que comparte con el harness y (con -target) las tablas declaradas — ver chequeo.go")
 	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
 	jsonOut := flag.Bool("json", false, "con -ureq o -buscar: salida estructurada, para encadenar o para un modelo")
 	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
@@ -679,6 +680,44 @@ func main() {
 				cmdMake("trazador-ureq", *target, "UREQ", siHay(*ureq), "TEL", *tel, "MD", "1")))
 		}
 		pie(cmdMake("trazador-posthog", *target, "UREQ", siHay(*ureq), "TEL", *tel))
+		os.Exit(code)
+	}
+	if *chequeo {
+		// Las tablas sólo se pueden comprobar si hay una fuente a mano. Cuando no la hay, se pasa nil y
+		// el chequeo DECLARA que quedaron sin mirar — omitirlo en silencio sería el falso verde que esta
+		// herramienta existe para no dar.
+		//
+		// ⚠ Y NO SE ABRE LA FUENTE POR DEFECTO. El default de `-target` es `prod`, así que un `-chequeo`
+		// pelado salía a consultar PRODUCCIÓN para mirar el `information_schema` — lectura inocua, pero
+		// sigue siendo prod, y la regla de la casa es elegir el ambiente más chico que conteste la
+		// pregunta: el esquema es el mismo en todos. Se mira sólo si el target se pidió A MANO, que es lo
+		// que `flag.Visit` sabe distinguir del valor por omisión.
+		pidioTarget := false
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name == "target" {
+				pidioTarget = true
+			}
+		})
+		var tablas map[string]bool
+		if fuente, err := abrirFuente(c); pidioTarget && err == nil {
+			defer fuente.Close()
+			if filas, err := fuente.Filas("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"); err == nil {
+				tablas = map[string]bool{}
+				for _, f := range filas {
+					for _, v := range f {
+						if s, ok := v.(string); ok {
+							tablas[strings.ToLower(s)] = true
+						}
+					}
+				}
+			}
+		}
+		code := Chequear(tablas)
+		reproducir := ""
+		if pidioTarget {
+			reproducir = *target
+		}
+		pie(cmdMake("trazador-chequeo", reproducir))
 		os.Exit(code)
 	}
 	if *validar != "" {

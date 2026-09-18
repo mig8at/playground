@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useTrazador } from './stores/trazador'
 import { trazaATexto } from './trazaTexto'
 import Buscador from './components/Buscador.vue'
@@ -20,6 +20,12 @@ onMounted(async () => {
 // nada —hora, salto, subs, eventos— y el mapa contesta «¿por dónde fue y dónde se cortó?», que una lista
 // no puede. Reemplazar una por otra antes de saber cuál se usa es tirar algo que funciona: si el mapa
 // gana, la lista se va sola, y eso se decide mirándolo, no ahora.
+// EL MAPA PUEDE HABER DEJADO DE RESOLVER, y eso no se ve mirando la pantalla: el diagnóstico sale
+// igual de prolijo, sólo que equivocado. Se muestra SÓLO lo grave (una etapa que nadie declara, una
+// tabla que ya no existe) — los avisos de «mirá esto» viven en `make trazador-chequeo`, porque un
+// cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
+const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
+
 const vista = ref(localStorage.getItem('trazador.vista') || 'lista')
 watch(vista, (v) => localStorage.setItem('trazador.vista', v))
 
@@ -83,6 +89,9 @@ async function copiar() {
       · canal {{ t.traza.origen }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span>
     </p>
     <p v-if="t.error" class="err">{{ t.error }}</p>
+    <p v-for="h in chequeoGrave" :key="h.texto" class="err mapaRoto">
+      ⚠ el mapa dejó de resolver: {{ h.texto }} — <code>make trazador-chequeo</code>
+    </p>
   </header>
 
   <!-- La historia de la persona: sus solicitudes como chips por día. Reemplaza la lista vertical de
@@ -121,6 +130,7 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
 .meta { color:var(--dim); font-size:13px; margin:10px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
+.mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
 .cols { display:grid; grid-template-columns:290px minmax(0,1fr); min-height:60vh }
 /* El mapa necesita más ancho que la lista: con 290px las cajas y sus sub-pasos no entran y el grafo se
    lee peor que la lista a la que vino a complementar. */
