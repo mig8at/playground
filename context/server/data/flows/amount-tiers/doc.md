@@ -95,5 +95,40 @@ nodo (vive en servicing).
 - **Front Vue** (application): `resources/js/pages/customer/lenders/list/v2/ListLenders.vue:1946` (prop `amountConditions`, `required: true`) · `:3238-3252` (`getFeeNumbers`, matchea con `amount − initialFee`) · `:3518-3531` (`getInitialFeePercentage`). Lo renderiza `app/Http/Controllers/Customer/ListLenderController.php:232`/`:289`.
 - **Tests**: `Modules/Loans/tests/Feature/CreditopXQuotaControllerTest.php:386-413` (topea a `max−1`) · `:419-450` (tramo con plazo > categoría se filtra y **no** topea). Es la única cobertura automatizada del concepto en los 3 repos.
 
+## El LISTADO publicaba otro plazo que el PLAN DE PAGOS, y nadie lo cruzaba
+
+Todo lo de arriba —el tope del tramo, el de la categoría, el `mandatory`— describe cómo el **plan de
+pagos** recorta los plazos. El **listado** no hacía nada de eso: publicaba el techo de la ENTIDAD, tal
+cual, sin mirar a quién tenía enfrente.
+
+`LenderRetrievalService.php` asignaba `$lender->fee_number = $lender->creditLines->max_fee_number`, y
+esos tres campos viajaban sin filtrar en la respuesta de `/lenders-v2`: `fee_number`,
+`credit_lines.max_fee_number` y la lista `credit_lines.fee_numbers`.
+
+> **MEDICIÓN · 2026-09-17** — misma solicitud, los dos servicios:
+>
+> | servicio | plazos |
+> |---|---|
+> | `/lenders-v2` | `fee_number = 12` · `fee_numbers = 1,3,6,12` |
+> | `/payment-schedule` | **[1, 3, 6]** |
+>
+> La entidad declara `1,3,6,12` con máximo 12; el cliente está en una categoría con
+> `max_fee_number = 6`. **Ninguno de los dos calculaba mal**: el listado contestaba otra pregunta.
+> **Cómo se vuelve a comprobar:** pedir los dos endpoints para la misma solicitud y comparar el mayor.
+
+⚠ **El efecto es una promesa que el flujo no cumple**: la tarjeta ofrece un plazo que dos pantallas
+después no existe. No es un error de cálculo, es una incoherencia entre dos respuestas — y por eso no
+lo atrapaba ninguna prueba: las dos, por separado, estaban bien.
+
+⏳ **PENDIENTE DE MERGE** (`legacy-backend#1432`, en `qa`): el listado aplica ahora el mismo tope de
+categoría, en el mismo bloque donde ya recortaba el FGA —que venía con el comentario «espejando
+PromissoryNoteController (payment-schedule)», o sea que la mitad del espejo ya existía—. Recorta **los
+tres** campos, nunca amplía por encima de lo que la entidad declara, y si el recorte deja la lista
+vacía conserva la original (mismo criterio que `PaymentCalculationService::applyProductFilters`).
+
+⚠ **La lección que generaliza, y que este nodo no decía:** cuando dos servicios publican el mismo
+concepto, describir sólo a uno deja la contradicción invisible. El plazo lo publican DOS, con fuentes
+distintas —la entidad y el cliente—, y hasta este arreglo nadie los cruzaba.
+
 ## Lo que NO está verificado
 - Volumen real de filas y quién las carga: no hay CRUD en los tres repos ni dump local — se contesta con una query a staging.
