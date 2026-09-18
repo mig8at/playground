@@ -105,6 +105,25 @@
       ],
       "nota": "Loader = GET .../lenders-v2/{ur} (LenderListingController@index → LenderListingService::getLenders). La pre-aprobación de los rt≠0 NO la resuelve legacy: la pide el CLIENTE uno a uno al microservicio de pre-aprobaciones (available-lenders.tsx:144 lee VITE_PREAPPROVALS_ENDPOINT, POST /v1/preapprovals/check). Action = POST .../update-user-request/{ur} → ListLenderController@updateUserRequest → UserRequestService::updateUserRequest: ahí está el switch por lenders.response_type (UserRequestService.php:441 sin credencial, :466 con credencial) que abre los tres ramales.",
       "detalle": "Listado de entidades (marketplace) y elección"
+    },
+    {
+      "id": "continue",
+      "label": "Handoff",
+      "ruta": "/{flow}/{hash}/{ur}/continue",
+      "condicional": true,
+      "front": [
+        "apps/loan-request-wizard/app/routes/loan-continue.tsx",
+        "modules/loan-request-wizard/lenders-marketplace/src/lib/application/generate-qr.uc.ts",
+        "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/qr.repository.impl.ts",
+        "modules/loan-request-wizard/abaco/src/application/use-cases/check-abaco-requirement.uc.ts"
+      ],
+      "back": [
+        "Modules/Onboarding/App/Http/Controllers/QrController.php",
+        "Modules/Onboarding/App/Http/Controllers/AbacoRequirementController.php",
+        "Modules/Onboarding/App/Services/AbacoRequirementService.php"
+      ],
+      "detalle": "Entrega del proceso al celular del cliente (QR + link)",
+      "nota": "Es donde el canal de ASESOR deja de ser de asesor: la solicitud sigue en el dispositivo del cliente, y por eso las pantallas que vienen después son `/self-service/...` aunque la corrida haya entrado por `/merchant/...`. Acá también se pregunta si hace falta Ábaco (check-requirement), que es lo que decide si el recorrido toma ese desvío."
     }
   ],
   "ramales": {
@@ -130,6 +149,21 @@
           ],
           "nota": "Loader = GET /api/loans/customer/requests/{ur} (ContinueUserFlowController@index); action = POST .../requests/confirm (@confirm), cuyo step_details.type rutea el siguiente paso (loan-confirmation.tsx:218-239: aws_validation→identity-validation, ado/crosscore→identity-validation-instructions, evidente→additional-identity-validation, no_validation_required→salta directo a first-payment-date). ÁBACO (Motai renting): ANTES del confirm la action llama POST /api/onboarding/motai/check-abaco-requirement y si da REQUIRED desvía a /{ur}/abaco (routes/abaco/*), no a la validación de identidad. Al COMPLETAR Ábaco el flujo SIGUE al cierre: platform-otp-validation.tsx:251 rutea no_validation_required → first-payment-date (verificado en vivo: uReq 464499 cerró en Estado 11). Distinto es identity-validation-status.tsx:188 buildCompletionPath, que manda a /request-sent cuando la identidad termina y Ábaco todavía está PENDIENTE — son dos salidas, no una.",
           "detalle": "Confirmación de la entidad y las condiciones"
+        },
+        {
+          "id": "identity-validation-instructions",
+          "label": "Identidad: cómo",
+          "ruta": "/{flow}/{hash}/{ur}/identity-validation-instructions",
+          "condicional": true,
+          "front": [
+            "apps/loan-request-wizard/app/routes/identity-validation-instructions.tsx",
+            "modules/loan-request-wizard/identity-validation/src/lib/infrastructure/identity-validation.repository.ts"
+          ],
+          "back": [
+            "Modules/Identity/App/Http/Controllers/Customer/ValidateIdentityController.php"
+          ],
+          "detalle": "Explica cómo va a ser la validación antes de empezarla",
+          "nota": "⚠ NO es `identity-validation`: son DOS pantallas distintas y las dos existen en `main`. Ésta es la antesala; la otra es la validación en sí. Faltaba en el mapa, y por eso una corrida real que pasaba por acá no se podía ubicar."
         },
         {
           "id": "identity-validation",
@@ -323,6 +357,24 @@
       "hasta": "first-payment-date",
       "pasos": [
         {
+          "id": "abaco-entrada",
+          "label": "Ábaco",
+          "ruta": "/{flow}/{hash}/{ur}/abaco",
+          "condicional": true,
+          "front": [
+            "apps/loan-request-wizard/app/routes/abaco/layout.tsx",
+            "apps/loan-request-wizard/app/routes/abaco/index.tsx",
+            "modules/loan-request-wizard/abaco/src/application/use-cases/skip-abaco.uc.ts",
+            "modules/loan-request-wizard/abaco/src/infrastructure/repositories/abaco.repository.ts"
+          ],
+          "back": [
+            "Modules/Onboarding/App/Http/Controllers/AbacoSkipController.php",
+            "Modules/Onboarding/App/Services/AbacoSkipService.php"
+          ],
+          "detalle": "Entrada al desvío de Ábaco: sigue o lo saltea",
+          "nota": "El índice del desvío, antes de las plataformas. Es el que puede SALTEARLO (`skip`), así que una corrida que pasa por acá y no aparece en `abaco-init` no se perdió: se la saltó."
+        },
+        {
           "id": "abaco-init",
           "label": "Plataformas",
           "ruta": "/{flow}/{hash}/{ur}/abaco/platforms",
@@ -425,5 +477,25 @@
         }
       ]
     }
+  },
+  "terminales": {
+    "_comentario": "Pantallas REALES del wizard que no pertenecen a un camino: se alcanzan desde varios puntos. El mapa NO las dibuja —no tienen un lugar honesto en una secuencia— pero el panel las usa para ubicar dónde está parada una corrida, y `steps-check` valida sus archivos igual que los demás.",
+    "pasos": [
+      {
+        "id": "request-canceled",
+        "label": "Cancelada",
+        "ruta": "/{flow}/{hash}/{ur}/request-canceled",
+        "condicional": true,
+        "front": [
+          "apps/loan-request-wizard/app/routes/request-canceled.tsx",
+          "modules/loan-request-wizard/identity-validation/src/lib/infrastructure/identity-validation.repository.ts"
+        ],
+        "back": [
+          "Modules/Identity/App/Http/Controllers/Customer/ValidateIdentityController.php"
+        ],
+        "detalle": "Fin del camino: la solicitud queda cancelada (estado 8)",
+        "nota": "⚠⚠ SU LOADER CANCELA: no es una pantalla que informe una cancelación ya ocurrida, la PRODUCE (`CancelLoanRequestUc` en el loader). Es el mecanismo de F-50 — el front cancelaba con el backend haciendo todo bien. ⚠ Y no siempre dispara: si quien llega es el CODEUDOR no cancela, porque el servicio cancela la solicitud del TITULAR. ⚠ Vive en `terminales` y no en el tronco ni en un ramal a propósito: se llega desde varios puntos distintos, así que dibujarla en una secuencia diría que todo el mundo pasa por acá."
+      }
+    ]
   }
 }

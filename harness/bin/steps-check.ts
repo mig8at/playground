@@ -56,6 +56,9 @@ revisar('tronco', mapa.tronco);
 for (const [id, ram] of Object.entries(mapa.ramales)) revisar(id, ram.pasos);
 for (const [id, d] of Object.entries(mapa.desvios ?? {})) revisar(`desvío:${id}`, d.pasos);
 for (const [id, e] of Object.entries(mapa.extensiones ?? {})) revisar(`extensión:${id}`, e.pasos);
+// `terminales` son pantallas reales que el mapa NO dibuja (se llega desde varios puntos), pero sus
+// archivos rotan igual que los demás: si no se validan acá, se pudren en silencio.
+revisar('terminales', (mapa as any).terminales?.pasos ?? []);
 
 // Un desvío que sale o entra en un paso inexistente dibujaría una curva a la nada: se valida igual
 // que las rutas de archivo, porque es el mismo tipo de mentira.
@@ -72,7 +75,10 @@ for (const [tramo, campo, val] of anclas) {
 const pasos = mapa.tronco.length
     + Object.values(mapa.ramales).reduce((n, r) => n + r.pasos.length, 0)
     + Object.values(mapa.desvios ?? {}).reduce((n, d) => n + d.pasos.length, 0)
-    + Object.values(mapa.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0);
+    + Object.values(mapa.extensiones ?? {}).reduce((n, e) => n + e.pasos.length, 0)
+    // `terminales` cuenta como paso aunque el mapa no lo dibuje: si el total dijera menos pasos de los
+    // que el archivo tiene, el número dejaría de servir para notar que se agregó o se perdió uno.
+    + ((mapa as any).terminales?.pasos?.length ?? 0);
 
 if (jsonOut) {
     console.log(JSON.stringify({ ok: rotas.length === 0, pasos, archivos: total, rotas }, null, 2));
