@@ -36,7 +36,8 @@ BALDES, y separarlos es lo que hace que se le pueda creer:
   · sin ancla  NO se pudo anclar (línea en blanco al sellar, ancla demasiado corta para ser única, el
                archivo no existía, o el nodo no tiene sello). Se cae al chequeo de rango, que es
                débil — y por eso va en su propio balde en vez de disfrazarse de ✓.
-  ? ambigua    el nombre matchea varios archivos y ninguno valida.
+  ? ambigua    el nombre matchea varios archivos y NINGUNO valida: el destino dependería de cuál
+               se elija, así que no se ofrece corrección. Se listan los veredictos de todos.
   ? corta      `` `:123` `` relativa al contexto: NADIE la valida. Son la mitad de las citas con
                número de línea del árbol, así que el resumen las declara — un verde que cubre el 50 %
                y no lo dice es la misma trampa que el chequeo débil de antes. Se arreglan escribiendo
@@ -364,10 +365,29 @@ def evaluar(cita, n, fin, base_cita, idx):
     if not veredictos:
         return "no-existe", "no se pudo leer"
     clave, nota = min(veredictos, key=lambda v: orden.index(v[0]))
-    if clave in ("reescrita", "fuera") and len(cands) > 1:
-        clave, nota = "ambigua", f"{len(cands)} candidatos y ninguno valida: {nota}"
-    elif len(cands) > 1:
-        nota += f" · {len(cands)} candidatos"
+
+    if len(cands) > 1:
+        if clave not in ("movida", "reescrita", "fuera"):
+            # ALGUNO valida (`ok`/`corrida`), o el chequeo fue débil y NO propone ningún destino
+            # (`sin-ancla`). En los dos casos no hay corrección que pueda salir del candidato
+            # equivocado, que es lo único que esta rama tiene que evitar. Cuántos había se dice igual,
+            # porque saber que el nombre es compartido cambia cómo se lee la cita.
+            nota += f" · {len(cands)} candidatos"
+        else:
+            # ⚠ NINGUNO VALIDA, Y ACÁ LA CORRECCIÓN NO SE PUEDE OFRECER. El destino que saldría es el
+            # del candidato que el ranking puso primero, no el que la evidencia señala — y aplicarlo
+            # rompe citas buenas. Medido el 2026-09-18 en el nodo `actors`: cinco citas a
+            # `app/Models/User.php` (que existe en los DOS monolitos) salían como «movidas» a
+            # `application`, con saltos de ~54 líneas; eran de `legacy-backend` y estaban corridas +1.
+            # La corrección automática las habría roto.
+            #
+            # Antes esto sólo se marcaba `ambigua` cuando el mejor veredicto era `reescrita`/`fuera`, o
+            # sea cuando ni siquiera había número que ofrecer. El caso peligroso es el otro: cuando SÍ
+            # hay número y parece confiable. Ahora se listan los veredictos de TODOS los candidatos, que
+            # es lo que deja decidir a quien lee — y para eso la sección ya dice que piden juicio.
+            clave = "ambigua"
+            detalle = " · ".join(f"[{k}] {t}" for k, t in sorted(veredictos, key=lambda v: orden.index(v[0])))
+            nota = f"{len(cands)} candidatos y ninguno valida — {detalle}"
     return clave, nota
 
 
@@ -416,7 +436,7 @@ def main():
            ("corrida", f"· CORRIDAS ≤{LEVE} líneas — desalineadas pero apuntan al mismo bloque"),
            ("reescrita", "⚠ REESCRITAS — la línea de entonces ya no está: hay que leer y decidir"),
            ("fuera", "⚠ FUERA DE RANGO — la línea no existe"),
-           ("ambigua", "? AMBIGUAS — el nombre matchea varios archivos, no se puede afirmar"),
+           ("ambigua", "? AMBIGUAS — el nombre vive en varios repos y ninguno valida: la corrección dependería de cuál se elija"),
            ("sin-ancla", "· SIN ANCLA — solo se verificó que la línea existe (chequeo débil)"),
            ("corta", "? CORTAS `:NNN` — relativas al contexto, FUERA del chequeo: nadie las valida. "
                      "Convertí a ruta completa las que sostengan una afirmación importante"),
