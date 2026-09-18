@@ -304,9 +304,24 @@ provocó el revert. El canal que rompe es el del asesor con cuota inicial > 0 (`
 | `/ecommerce/…/continue` · `/self-service/…/continue` | **200** *(con el viejo, 404)* |
 | `/merchant/…/ruta-que-no-existe` | **404** ← el control: una ruta que no existe en NINGÚN árbol sí da 404 |
 
-⚠ **`loki-trace` no separa `dev` de `qa`:** la etiqueta `environment` de ese stack sólo tiene `development`,
-`local` y `testing`, así que `E2E_TARGET=qa` contesta «el uReq no es de este target» sin que eso signifique
-nada. Para el error real del listado, pegarle al endpoint con `dev/listado.ts --v2`.
+### Cuando una corrida falla y no dice por qué: las TRES fuentes, y qué aporta cada una
+
+Medido el 16/9 y vale como método, no como anécdota: el listado devolvía 500 en `qa` y **el backend no
+dejó rastro** —111 líneas en Loki para esa solicitud y un solo error, el `ONB002` inofensivo—, el
+navegador sólo decía «Error al obtener las opciones de financiamiento», y el mensaje real
+(`Table 'creditop.cards' doesn't exist`) apareció **pegándole al endpoint**. Ninguna de las tres sobra.
+
+| fuente | con qué | qué contesta | la trampa |
+|---|---|---|---|
+| **el forense de la solicitud** | `make harness-loki UREQ=<id> TARGET=qa` | qué hizo el backend con ESA solicitud, paso por paso | ⚠ el target **por defecto es `local`**: sin `TARGET` contesta «cero anclas» con los logs ahí mismo, o peor, te muestra la corrida de otro con el mismo id (**F-234**). Y en este stack **no hay valor `qa`** en la etiqueta `environment`, así que no se puede desempatar qué backend respondió |
+| **lo que vio el cliente** | el caminador ya consulta PostHog cuando un caso sale mal; `FORENSE=1` lo fuerza aunque cierre bien. Para una solicitud suelta, `make trazador-posthog UREQ=<id>` | en qué PANTALLA se rompió y con qué error del loader | es lo único que ve el front: acá apareció `available-lenders.tsx loader GET …/lenders-v2/502391 returned 500` cuando Loki no tenía nada |
+| **el mensaje crudo** | `I_KNOW_THIS_TOUCHES_SHARED_DEV=1 E2E_TARGET=qa node dev/listado.ts --branch <hash> --v2` | el error exacto del endpoint, sin la capa del front encima | escribe contra la base compartida, así que pide el permiso a mano (F-53) |
+
+**Y para decidir, no para depurar: `make trazador-sql`, sólo lectura.** Es con lo que se midió el riesgo en
+producción **antes** de cambiar una conducta —los 90 días de entidades `rt` 2/3/4 que dieron 0 comercios y 0
+solicitudes en el caso que cambia, los 170 eventos de cuota inicial repartidos 170 del asesor y 0 de
+ecommerce, los 14.160 checkouts del monolito—. ⚠ **Un cero no prueba nada sin la población de al lado**: la
+misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa» de «no supe buscar».
 
 ## Referencias
 
@@ -348,6 +363,13 @@ intento, y lo que queda cierto entra en dos. El detalle completo sigue en el his
 #582, #661 y #663 en `qa`. Re-medido hoy contra `origin/qa`, **#665 y #661 ya volvieron** (los repuso
 #1015) y #600 se rehizo dentro de #997 — queda #582, y #663 estaba descartado. Corregido en Riesgos y en
 el pendiente, con cómo volver a medirlo.
+
+**Y se decidió qué hacer con el rastro de las herramientas**, que era la pregunta de fondo: entra, pero
+como **MATERIAL** —la receta que alguien vuelve a correr— y no como diario de invocaciones, que es lo
+que infló este archivo. Con ese criterio se sumó a «Cómo se comprueba» el **camino de diagnóstico**
+medido el 16/9: el forense de la solicitud, lo que vio el cliente en pantalla y el mensaje crudo del
+endpoint, cada uno con lo que aporta y con su trampa. Lo que corrí ESE día y qué dio sigue yendo al
+Registro o a una anotación con su `Cómo`.
 
 Esto ordena la documentación: no comprueba despliegues, no cierra pendientes y no toca Jira.
 
