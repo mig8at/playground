@@ -830,6 +830,31 @@ const hallazgosPorTipo = (key) => TIPOS
   .map(t => ({ ...t, items: hallazgosDe(key).filter(a => a.tipo === t.id) }))
   .filter(g => g.items.length);
 
+// CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/fuentes.go`) del
+// `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
+// dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
+const esAmbiente = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
+
+// El resumen de arriba contesta de un vistazo «¿cómo se concluyó lo que dice esta tarea?». Lo que más
+// importa no son las herramientas: es cuántas anotaciones NO traen con qué volver a comprobarlas.
+const procedenciaDe = (key) => {
+  const as = hallazgosDe(key);
+  const cuenta = {};
+  let sinComo = 0;
+  for (const a of as) {
+    const fs = a.fuentes || [];
+    if (!fs.length) { sinComo++; continue; }
+    for (const f of fs) cuenta[f] = (cuenta[f] || 0) + 1;
+  }
+  return {
+    total: as.length,
+    sinComo,
+    conComo: as.length - sinComo,
+    // el ambiente primero: pesa más que la herramienta a la hora de creerle a una medición
+    fuentes: Object.entries(cuenta).sort((a, b) => (esAmbiente(b[0]) - esAmbiente(a[0])) || b[1] - a[1]),
+  };
+};
+
 // ── PENDIENTES ───────────────────────────────────────────────────────────────────────────────────
 // Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pendientes.go` para el parser y el
 // porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
@@ -1670,6 +1695,16 @@ onMounted(async () => {
 
           <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
           <p v-if="!hallazgosDe(active?.Key).length" class="empty">Esta tarea no tiene hallazgos registrados.</p>
+          <!-- CON QUÉ SE CONCLUYÓ. Un hallazgo sin `Cómo` no es menos cierto, pero nadie puede volver a
+               comprobarlo — y eso es lo que se ve primero acá, antes que el catálogo de herramientas. -->
+          <div v-if="hallazgosDe(active?.Key).length" class="proc">
+            <span class="proc-cuenta">{{ procedenciaDe(active?.Key).conComo }} de {{ procedenciaDe(active?.Key).total }}
+              dicen cómo volver a comprobarlos</span>
+            <span v-for="[f, n] in procedenciaDe(active?.Key).fuentes" :key="f"
+                  class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
+            <span v-if="procedenciaDe(active?.Key).sinComo" class="fchip sin"
+                  title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active?.Key).sinComo }} sin cómo</span>
+          </div>
           <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
             <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
             <p class="hpie">{{ g.pie }}</p>
@@ -1682,6 +1717,9 @@ onMounted(async () => {
               <p class="hque">{{ a.que }}</p>
               <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
                    cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
+              <p v-if="a.fuentes?.length" class="hfuentes">
+                <span v-for="f in a.fuentes" :key="f" class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
+              </p>
               <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
             </article>
           </section>
@@ -2190,6 +2228,21 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
          word-break: break-word; opacity: .8; }
 
+/* CON QUÉ SE COMPROBÓ. Las etiquetas las deriva el server del `Cómo`; acá sólo se pintan.
+   Dos pesos distintos a propósito: la HERRAMIENTA es un dato de contexto y va apagada; el AMBIENTE
+   lleva el color de acento porque cambia cuánto vale lo que se afirma — «medido en prod» y «medido en
+   local» no son la misma frase. Y «sin cómo» va en rojo apagado: no es un error, es una deuda. */
+.proc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 14px;
+        padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.proc-cuenta { font-size: 11.5px; opacity: .65; margin-right: 2px; }
+.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px; border-radius: 5px;
+         background: rgba(127,127,127,.12); border: 1px solid transparent; opacity: .85; white-space: nowrap; }
+.fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
+.fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
+             background: color-mix(in srgb, var(--acc) 10%, transparent); opacity: 1; }
+.fchip.sin { color: #e5534b; border-color: rgba(229,83,75,.35); background: rgba(229,83,75,.08); }
+.hfuentes { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; }
+
 /* PUNTOS ---------------------------------------------------------------------------------------- */
 .stat .v .de { opacity: .4; font-size: .62em; font-weight: 500; margin-left: 1px; }
 /* la marca de por dónde va el sprint, sobre la barra de lo entregado */
@@ -2236,9 +2289,13 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
                                background: var(--panel2); border-radius: 0 8px 8px 0 }
 .cuerpo-md :deep(blockquote p:last-child) { margin-bottom: 0 }
-/* las tablas son la mitad del valor de estos cuerpos: scrollean solas antes que romper el cajón */
+/* las tablas son la mitad del valor de estos cuerpos: scrollean solas antes que romper el cajón.
+   ⚠ `width: fit-content` y no el ancho del cajón: `display: block` las volvía block-level, así que una
+   tabla de dos columnas cortas se ESTIRABA hasta los 771 px del panel y quedaba con celdas enormes y
+   vacías. Medido: las de contenido corto pasan de 771 a ~350; las que de verdad necesitan más siguen
+   en el tope y scrollean, que es para lo que está el `max-width`. */
 .cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: 11.5px; display: block;
-                          overflow-x: auto; max-width: 100% }
+                          overflow-x: auto; width: fit-content; max-width: 100% }
 .cuerpo-md :deep(th), .cuerpo-md :deep(td) { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top }
 .cuerpo-md :deep(th) { background: var(--panel2); font-weight: 600; white-space: nowrap }
 .cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }

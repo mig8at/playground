@@ -31,6 +31,10 @@ type Anotacion struct {
 	Quien string `json:"quien"` // sólo pregunta: de quién se espera la respuesta
 	Que   string `json:"que"`   // la afirmación, una línea
 	Como  string `json:"como"`  // opcional: la consulta o el comando que la vuelve a comprobar
+	// Fuentes: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `Como` (ver fuentes.go). Vacío
+	// cuando no hay `Como` o cuando no matchea ninguna herramienta conocida — que es un dato, no un
+	// hueco: dice que esa afirmación no trae con qué volver a comprobarla.
+	Fuentes []string `json:"fuentes,omitempty"`
 }
 
 var (
@@ -73,6 +77,7 @@ func Anotaciones(cuerpo string) []Anotacion {
 			i = j
 		}
 		a.Como = strings.TrimSpace(strings.Join(como, "\n"))
+		a.Fuentes = FuentesDe(a.Como)
 		if a.Que != "" {
 			out = append(out, a)
 		}
