@@ -39,7 +39,8 @@ abiertas, **12 están enteras en `main`** y 18 no se pueden medir porque no decl
 
 **Al 18/9 el mismo criterio salió del tablero y llegó a las herramientas que lo alimentan:** el
 trazador ahora cierra cada corrida con el comando que la reproduce (`↻ make trazador-… TARGET=…`) y
-con `MD=1` emite directamente la anotación fechada que la pestaña Hallazgos consume. Antes eso se
+con `MD=1` emite directamente la anotación fechada que la pestaña Hallazgos consume. Y las **dos
+forenses se nombran entre ellas** (`↔`), con el target puesto porque sus defaults son opuestos. Antes eso se
 escribía a mano en cada tarea, que es la misma clase de «depende de acordarse» que esta tarea vino a
 sacar. De paso aparecieron cuatro modos que vivían sólo en el binario y **TEL=**, que no estaba en el
 Makefile y sin el cual el timeline del navegador se ve por la mitad.
@@ -109,6 +110,27 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 > `make cierre DIA=2026-09-10`
 
 ## Registro
+
+### 2026-09-18 (2) · el cruce entre las dos forenses, y una etiqueta que no existe
+
+Las dos herramientas que contestan «¿qué le pasó a esta solicitud?» se elegían por accidente. Ahora
+cada una imprime el comando de la otra al terminar, con el `TARGET=` escrito —sus defaults son
+**opuestos**, `local` una y `prod` la otra—, y la sugerencia **no aparece contra prod**, que la del
+harness no mira. Donde más rinde es en el vacío: «cero anclas» no es «no se sabe hasta dónde llegó», y
+eso ahora lo dice en sus tres finales, porque las etapas salen de la BD y no dependen de que haya logs.
+
+> **MEDICIÓN · 2026-09-18** — **la etiqueta `environment` del stack de dev NO tiene valor `qa`**, así
+> que los targets que filtran por él leen CERO siempre y las dos herramientas lo presentan como «no hay
+> logs para esta solicitud». Valores reales en ventanas de 1 h, 24 h, 7 d y 30 d: `development`,
+> `local`, `testing`. `legacy-backend-stg` tampoco existe como `service_name`.
+> **Cómo se vuelve a comprobar (con su control al lado, que es lo que vuelve creíble al cero):**
+> `make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'` → nada, y
+> `make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="development"} [24h]))'` → 33.599.
+
+⚠ **Queda una decisión, y es de Miguel:** `trazador/.env.staging` filtra `LOKI_ENV=qa` y
+`harness/.env.staging` y `.env.qa` filtran `E2E_LOKI_ENV=qa`. Cambiarlos a `development|develop`
+devuelve las líneas pero **mezcla dev y qa**, y hoy no hay etiqueta que las separe: es elegir entre un
+cero mudo y un resultado ambiguo. No se tocó ningún `.env`.
 
 ### 2026-09-18 · el criterio sale del tablero: las herramientas emiten su propia anotación
 
