@@ -29,6 +29,17 @@
 // el número él mismo y pasa igual, porque el validador del servidor exige el campo pero no mira si es
 // editable. O sea que un verde acá no dice que la pantalla se pueda pasar en un navegador: eso hay que
 // mirarlo en un navegador.
+//
+// ✔ YA SE MIRÓ, Y LA RESPUESTA ES QUE SÍ (2026-09-18). Con
+// `make harness-caminar CASOS='#50e007e4:207' MOTOR=navegador MONTO=60000` la pantalla se pasa sin
+// tocar «Monto a financiar»: basta llenar la cuota inicial y el renderer lo calcula solo — el
+// caminador salió a `entidad/simulador?amount=48000`, o sea 60.000 − 12.000, hecho por el cliente.
+// Este runner puede seguir mandando el número él mismo; lo que ya no hace falta es dudar de si la
+// pantalla es pasable.
+//
+// ⚠ Y lo que ese recorrido dejó al descubierto: `entidad/simulador` es un IFRAME al simulador REAL de
+// BCP (`VITE_BCP_SIMULATOR_URL`, por defecto un Azure del banco), y en local no hay mock — la pantalla
+// es una caja vacía con su botón debajo. Se llega, pero no hay nada que mirar ni con qué interactuar.
 process.env.E2E_TARGET ||= 'local';
 export {};
 

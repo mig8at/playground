@@ -148,9 +148,8 @@ export async function autorrellenar(page: Page, campos: Campo[],
             /* EN ORDEN, y no en paralelo: en este trío el siguiente combo se habilita al elegir el
                anterior (día → mes → año), así que saltárselo deja los dos últimos deshabilitados. */
             for (const { p, i } of candidatos) {
-                indicesDeFecha.add(i);
                 const buscado = valorBuscado(p!, fecha, MESES);
-                if (yaMuestra(textos[i], buscado)) continue;   // idempotente: ya está elegido
+                if (yaMuestra(textos[i], buscado)) { indicesDeFecha.add(i); continue; }   // idempotente: ya está elegido
                 const cb = combos.nth(i);
                 if (!(await cb.isEnabled().catch(() => false))) continue;
                 await cb.click({ timeout: t }).catch(() => {});
@@ -167,35 +166,70 @@ export async function autorrellenar(page: Page, campos: Campo[],
                     const ok = await opcion.click({ timeout: t }).then(() => true).catch(() => false);
                     if (ok) { elegido = cand; break; }
                 }
-                if (elegido) hechos.push(`fecha ${p}→${elegido}`);
+                if (elegido) { hechos.push(`fecha ${p}→${elegido}`); indicesDeFecha.add(i); }
                 else {
                     // No se inventa otro valor: se cierra y se reporta, que es lo que deja ver el hueco.
                     await page.keyboard.press('Escape').catch(() => {});
                     hechos.push(`⚠fecha ${p}: no encontré ninguno de «${buscado.join('» «')}»`);
+                    /* ⚠ Y NO SE MARCA COMO PROPIO. Antes `indicesDeFecha.add(i)` estaba arriba del todo,
+                     * o sea que este trío reclamaba el combo ANTES de saber si podía llenarlo — y el
+                     * bucle genérico de abajo lo salteaba para siempre.
+                     *
+                     * Medido el 2026-09-18 en el formulario del vehículo de BCP: sus cuatro selects en
+                     * cascada (marca → modelo → versión → año) fueron detectados como un trío de fecha
+                     * —«Selecciona el año» matchea `anio`—, el trío no encontró «14/mayo/1990» en ellos,
+                     * y como ya los había reclamado, nadie más los tocó. Los cuatro quedaban vacíos, la
+                     * pantalla decía «Selecciona una opción» y el recorrido moría ahí. Esa pantalla nunca
+                     * se había caminado con navegador, y ésta era una de las dos razones.
+                     *
+                     * La detección se deja como está —sirve a las pantallas de fecha de verdad— y lo que
+                     * se arregla es que FALLAR NO ABSORBA: si el trío no pudo, que lo intente el genérico. */
                 }
                 await page.waitForTimeout(150).catch(() => {});
             }
         }
     }
 
-    for (let i = 0; i < cuantosCombos; i += 1) {
-        if (indicesDeFecha.has(i)) continue;   // ya lo resolvió el trío de fecha
-        const cb = combos.nth(i);
-        // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
-        const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
-            || !(await cb.textContent().catch(() => ''))?.trim();
-        if (!vacio) continue;
-        if (!(await cb.isEnabled().catch(() => false))) continue;   // día→mes→año: el siguiente se habilita al elegir el anterior
-        await cb.click({ timeout: t }).catch(() => {});
-        const opcion = page.locator('[role="option"]:visible').first();
-        if (await opcion.count().catch(() => 0)) {
-            const etiqueta = (await opcion.textContent().catch(() => '')) ?? '';
-            await opcion.click({ timeout: t })
-                .then(() => hechos.push(`combo→${etiqueta.trim().slice(0, 18)}`))
-                .catch(() => {});
-        } else {
-            await page.keyboard.press('Escape').catch(() => {});   // no dejar el listbox abierto tapando el resto
+    /* ── LOS COMBOS, EN VARIAS PASADAS — y la repetición es lo que los hace servir ────────────────
+     * Una sola pasada ya conocía las cascadas («el siguiente se habilita al elegir el anterior») pero
+     * no alcanzaba, porque el dependiente no se habilita al instante: sus opciones salen de una
+     * llamada a la API. Al elegir «Marca», el bucle llegaba a «Modelo» un milisegundo después, lo
+     * encontraba deshabilitado, lo salteaba — y ya no volvía nunca.
+     *
+     * Medido el 2026-09-18 en el formulario del vehículo de BCP (marca → modelo → versión → año):
+     * quedaban los cuatro vacíos, la pantalla decía «Selecciona una opción» y el recorrido moría ahí.
+     * Es la razón por la que esa pantalla nunca se había caminado con navegador.
+     *
+     * Se corta cuando una pasada no llena nada: sin progreso no hay cascada que esperar, y así un
+     * formulario sin dependencias sigue costando una sola vuelta. */
+    for (let pasada = 0; pasada < 4; pasada += 1) {
+        let llenados = 0;
+        const cuantos = await combos.count().catch(() => 0);
+        for (let i = 0; i < cuantos; i += 1) {
+            // El trío de fecha ya está resuelto; sus índices sólo son fiables mientras la lista no cambie
+            // de tamaño (una cascada puede agregar combos y correrlos). Después manda el chequeo de vacío,
+            // que es el que de verdad decide.
+            if (cuantos === cuantosCombos && indicesDeFecha.has(i)) continue;
+            const cb = combos.nth(i);
+            // Con valor elegido, Radix pone `data-placeholder` sólo cuando está VACÍO: es la señal de "sin elegir".
+            const vacio = (await cb.getAttribute('data-placeholder').catch(() => null)) !== null
+                || !(await cb.textContent().catch(() => ''))?.trim();
+            if (!vacio) continue;
+            if (!(await cb.isEnabled().catch(() => false))) continue;
+            await cb.click({ timeout: t }).catch(() => {});
+            const opcion = page.locator('[role="option"]:visible').first();
+            if (await opcion.count().catch(() => 0)) {
+                const etiqueta = (await opcion.textContent().catch(() => '')) ?? '';
+                await opcion.click({ timeout: t })
+                    .then(() => { hechos.push(`combo→${etiqueta.trim().slice(0, 18)}`); llenados += 1; })
+                    .catch(() => {});
+            } else {
+                await page.keyboard.press('Escape').catch(() => {});   // no dejar el listbox abierto tapando el resto
+            }
         }
+        if (!llenados) break;
+        // Lo que tarda el dependiente en traer sus opciones de la API.
+        await page.waitForTimeout(700).catch(() => {});
     }
 
     // Radios NATIVOS: el primero de cada grupo.
@@ -286,7 +320,11 @@ export async function leerHastaElFinal(page: Page): Promise<number> {
 // ⚠ `solicit` y no `solicitar`: el botón de entrada del wizard dice «Iniciar soliciTUD» y con `solicitar`
 // no matcheaba — el caminador se paraba en la PRIMERA pantalla diciendo «ningún botón de avance», que es
 // exactamente el mensaje que manda a buscar el problema en el front (2026-09-03).
-export const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar/i;
+// ⚠ Y `enviar`, por lo MISMO y dos semanas después: el formulario del vehículo de BCP —el G2, que se
+// arma desde el esquema que manda el backend— cierra con «Enviar», así que el caminador se paraba ahí
+// diciendo «ningún botón de avance». Esa pantalla nunca se había caminado con navegador, y el motivo
+// era esta palabra. Medido el 2026-09-18.
+export const AVANZAR = /continuar|siguiente|aceptar|validar|verificar|confirmar|firmar|autenticarme|solicit|entendido|finalizar|ver mi|empezar|comenzar|activar|iniciar|enviar/i;
 
 /**
  * El botón para avanzar: el primero VISIBLE y HABILITADO de verdad.
@@ -307,8 +345,26 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
         await c.click({ timeout: 15_000 }).catch(() => {});
         return { ok: true, nombre };
     }
-    const candidatos = (await cand.allTextContents().catch(() => [])).map((x) => x.trim()).filter(Boolean);
-    return { ok: false, candidatos };
+    // ⚠ CUANDO NO MATCHEA NADA, LOS BOTONES DE LA PANTALLA — no los que pasaron el patrón, que por
+    // definición son cero. Antes se reportaba `cand.allTextContents()`, o sea el resultado del MISMO
+    // filtro que acababa de fallar: el mensaje quedaba en «ningún botón de avance en la pantalla», que
+    // suena a pantalla rota y manda a buscar un bug del front. Con la lista de verdad, el diagnóstico
+    // se lee solo: «los botones eran: Enviar» dice que falta una palabra en `AVANZAR`, no que el
+    // producto esté mal. Es lo que costó descubrir por qué el formulario de BCP nunca se caminó.
+    const delPatron = (await cand.allTextContents().catch(() => [])).map((x) => x.trim()).filter(Boolean);
+    if (delPatron.length) return { ok: false, candidatos: delPatron };
+
+    const todos = page.getByRole('button');
+    const n2 = await todos.count().catch(() => 0);
+    const visibles: string[] = [];
+    for (let i = 0; i < n2 && visibles.length < 8; i++) {
+        const b = todos.nth(i);
+        if (!(await b.isVisible().catch(() => false))) continue;
+        const t = ((await b.textContent().catch(() => '')) ?? '').trim();
+        const apagado = !(await b.isEnabled().catch(() => true));
+        if (t) visibles.push(apagado ? `${t} (deshabilitado)` : t);
+    }
+    return { ok: false, candidatos: visibles };
 }
 
 /**
@@ -317,12 +373,16 @@ export async function clickearAvanzar(page: Page, patron = AVANZAR): Promise<{ o
  * cuando lo que falta es un campo que el caminador no supo llenar.
  */
 export async function erroresDeValidacion(page: Page): Promise<string[]> {
+    // ⚠ Los marcadores de «campo obligatorio» comparten clase con los mensajes de error, así que un `*`
+    // suelto entraba a la lista y a veces era lo ÚNICO que se reportaba: el caminador decía
+    // «lo que dice: *» teniendo «Cuota Inicial es requerido» en la misma pantalla. Medido el 2026-09-18.
+    const trivial = (t: string) => t.replace(/[\s*·.:-]/g, '').length < 3;
     const vistos = new Set<string>();
     for (const sel of ['[role="alert"]', '[aria-invalid="true"]', '[data-slot="form-message"]', '.text-destructive', 'p.text-red-500']) {
         const loc = page.locator(`${sel}:visible`);
         for (let i = 0; i < Math.min(await loc.count().catch(() => 0), 8); i++) {
             const txt = ((await loc.nth(i).textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim();
-            if (txt && txt.length < 120) vistos.add(txt);
+            if (txt && txt.length < 120 && !trivial(txt)) vistos.add(txt);
         }
     }
     return [...vistos];

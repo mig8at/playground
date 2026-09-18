@@ -40,6 +40,14 @@ export const CAMPOS_WIZARD = (d: DatosWizard, hoja = ''): Campo[] => [
     { testId: 'email-input', label: /correo|email/i, name: 'email', valor: d.email ?? `qa${d.doc}@gmail.com` },
     { label: /direcci[oó]n/i, name: 'address', valor: d.direccion ?? 'Calle 1 # 2-3' },
     { testId: 'monthly-income-input', label: /ingreso/i, name: 'monthlyIncome', valor: String(d.income), tecleado: true },
+    /* La CUOTA INICIAL del formulario del vehículo (BCP). Va un 20 % del valor — el runner por HTTP usa
+     * 10.000 absolutos sobre 60.000, que es del mismo orden; acá tiene que escalar porque el caminador
+     * corre con el monto que le pidan.
+     *
+     * ⚠ NO se llena «Monto a financiar» a propósito: `bcp-volver.ts` anota que ese campo lo calcula el
+     * JAVASCRIPT DEL CLIENTE, que es justo lo que el camino HTTP no puede ver. Dejarlo vacío convierte
+     * al caminador en la prueba de si de verdad se autocalcula — llenarlo a mano taparía la respuesta. */
+    { label: /cuota inicial/i, name: 'down_payment', valor: String(Math.round(d.amount * 0.2)), tecleado: true },
 ];
 
 /** Un navegador para toda la tanda; UN CONTEXTO POR CASO.
