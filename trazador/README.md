@@ -24,17 +24,61 @@ etapa falló» y en el primer cambio se contradirían.
 
 ## Los modos de consola
 
-| | |
-|---|---|
-| `go run . -serve 127.0.0.1:5199` | la API que consume la Vue |
-| `go run . -buscar <cédula\|teléfono\|uReq>` | la **historia de la persona**, no sólo lo que coincidió |
-| `go run . -ureq <n> [-html f.html] [-json]` | la traza por etapas |
-| `go run . -validar <corpus>` | audita el mapa: solapes, patrones mudos, decisiones que no resuelven |
-| `go run . -slack <días>` | lee #tech-ops y clasifica los reportes (**solo lectura**) |
-| `go run . -posthog [-ureq <n>]` | **qué VIO el cliente en el navegador** — sonda de acceso + censo; con `-ureq`, su timeline |
-| `go run .` | la sonda de acceso: ¿puedo leer los logs de este ambiente? |
+**La puerta es `make`, desde la raíz del playground** — es lo que el catálogo anuncia y lo que los pies
+de esta herramienta imprimen. La bandera está al lado para cuando se corre desde `trazador/server/`.
 
-Todos aceptan `-target local|dev|staging|prod`.
+| `make` | bandera | qué contesta |
+|---|---|---|
+| `trazador-buscar Q=…` | `-buscar <cédula\|teléfono\|uReq>` | la **historia de la persona**, no sólo lo que coincidió |
+| `trazador-ureq UREQ=…` | `-ureq <n> [-tel] [-html f.html] [-json]` | la traza por etapas |
+| `trazador-posthog [UREQ=…] [TEL=…]` | `-posthog [-ureq <n>] [-tel <celular>]` | **qué VIO el cliente en el navegador** — sonda + censo; con `-ureq`, su timeline |
+| `trazador-sql SQL='…'` | `-sql '<SELECT …>' [-csv]` | UNA consulta de solo lectura contra la fuente del target |
+| `trazador-acceso [QUERY=…]` | *(sin bandera)* | la sonda de acceso: ¿puedo leer los logs de este ambiente? |
+| `trazador-diag UREQ=… MODO=…` | `-campos` · `-anclas` · `-spans` | el diagnóstico fino: qué se puede **afirmar** de cada línea |
+| `trazador-validar CORPUS=…` | `-validar <corpus>` | audita el mapa: solapes, patrones mudos, decisiones que no resuelven |
+| `trazador-slack DIAS=…` | `-slack <días>` | lee #tech-ops y clasifica los reportes (**solo lectura**) |
+| `trazador-hilos DIAS=…` | `-incidencias <días>` | los mismos reportes **con su hilo**, para contrastar |
+| *(no va por `make`)* | `-serve 127.0.0.1:5199` | la API que consume la Vue — la levanta `npm run dev` |
+
+Todos aceptan `TARGET=local|dev|staging|prod` (`-target`).
+
+⚠ **Los cuatro últimos existían en el binario y NO en el catálogo** hasta el 2026-09-18, o sea que para
+quien lee `make` —una persona nueva, o un modelo— no existían. Si se agrega un modo, va acá **y** al
+Makefile: el repo tiene escrito que `make` es la puerta única, y un modo fuera de esa puerta es trabajo
+hecho que nadie encuentra.
+
+### Cada salida dice cómo se la vuelve a sacar
+
+Toda corrida termina con el comando que la reproduce, **con el target adentro**:
+
+```
+     ↻ make trazador-ureq UREQ=519245 TARGET=prod
+```
+
+No es decoración. Una medición que se pega en una tarea sin su comando envejece sin avisar: nadie sabe
+cómo volver a tomarla, así que nadie la desmiente. El target va siempre —aunque sea el default— porque
+`dev` y `qa` comparten stack de Grafana y base de datos, y una salida sin ambiente no se puede
+contrastar. Y lo que se imprime es el comando de `make`, no la bandera: `-ureq 519245` no se puede
+correr desde la raíz, que es desde donde se corre todo lo demás.
+
+### `MD=1`: la salida como anotación, lista para pegar
+
+`trazador-ureq`, `trazador-buscar` y `trazador-sql` aceptan `MD=1` y en vez de la vista humana emiten
+la anotación que consume el tablero — el marcador con **la fecha real del día**, la evidencia, y el
+comando como `Cómo se vuelve a comprobar`:
+
+```markdown
+> **MEDICIÓN · 2026-09-18** — uReq 466846 en `local`: en curso · estado 9 «Formulario de perfil» · Amoblando Pullman.
+> ✘ authorization › Redirección tras el OTP — temporal user without corbeta onboarding
+> Fuentes: db · loki.
+> **Cómo se vuelve a comprobar:** `make trazador-ureq UREQ=466846 TARGET=local`
+```
+
+Con `-sql` agrega además la tabla en markdown, **fuera** de la cita: adentro de `>` no se renderiza
+como tabla y la pestaña Hallazgos la muestra con los pipes a la vista.
+
+El tipo es siempre `MEDICIÓN`, y es a propósito: eso sale de correr algo. Una `DECISIÓN` o un `RIESGO`
+los escribe una persona — una herramienta que los generara estaría inventando el juicio.
 
 ### Buscar devuelve la persona, no la coincidencia
 

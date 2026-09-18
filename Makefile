@@ -54,7 +54,8 @@ define subcomandos
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq
+.PHONY: status context tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq \
+	trazador-diag trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@cd context && python3 tools/alinear.py --ver | tail -n 25
 	@echo ""
@@ -154,13 +155,33 @@ panel: ## @dia abre el panel del harness para probar flujos (:5195)
 trazador: ## @dia ¿QUÉ LE PASÓ a esta solicitud? el flujo por etapas, del sistema real (:5192)
 	@cd trazador && npm run dev
 
-trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1]
+trazador-buscar: ## @dia la HISTORIA de una persona por cédula, teléfono o solicitud. Q=1012345678 [TARGET=prod] [JSON=1] [MD=1 anotación para pegar en la tarea]
 	@test -n "$(Q)" || { echo "falta Q=<cédula|teléfono|uReq>  ·  ej: make trazador-buscar Q=1012345678"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json)
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -buscar $(Q) $(if $(JSON),-json) $(if $(MD),-md)
 
-trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [HTML=f.html] [JSON=1]
+trazador-ureq: ## @dia la traza por etapas de UNA solicitud. UREQ=519245 [TARGET=prod] [TEL=3001234567 suma la fase de AUTH, que es la MITAD de los eventos del navegador] [HTML=f.html] [JSON=1] [MD=1]
 	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-ureq UREQ=519245"; exit 2; }
-	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(HTML),-html $(HTML)) $(if $(JSON),-json)
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) $(if $(TEL),-tel $(TEL)) $(if $(HTML),-html $(HTML)) $(if $(JSON),-json) $(if $(MD),-md)
+
+# Los modos que el binario ya tenía y el catálogo no mostraba. Que existan en el código no alcanza: si
+# no están acá no están en la ayuda, y lo que no está en la ayuda no existe para quien (o lo que) lee
+# el catálogo al arrancar — que es justo la regla que este repo tiene escrita en su CLAUDE.md.
+trazador-diag: ## @dia el diagnóstico FINO de una traza: qué se puede AFIRMAR de cada línea. UREQ=519245 MODO=campos|anclas|spans [TARGET=prod]
+	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make trazador-diag UREQ=519245 MODO=anclas"; exit 2; }
+	@case "$(MODO)" in campos|anclas|spans) ;; *) echo "falta MODO=campos|anclas|spans  (campos: qué llaves trae el contexto · anclas: cuánto se puede afirmar de cada línea · spans: si el span_id alcanza para ubicarlas)"; exit 2;; esac
+	@cd trazador/server && go run . -target $(or $(TARGET),prod) -ureq $(UREQ) -$(MODO)
+
+trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solapes, patrones mudos, decisiones que no resuelven. CORPUS=<tsv|ndjson>
+	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
+	@cd trazador/server && go run . -validar $(CORPUS)
+
+trazador-slack: ## @dia lee #tech-ops de los últimos N días y CLASIFICA los reportes (solo lectura). DIAS=7
+	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-slack DIAS=7"; exit 2; }
+	@cd trazador/server && go run . -slack $(DIAS)
+
+trazador-hilos: ## @dia los reportes de #tech-ops CON SU HILO de respuestas: contrasta lo reportado con lo que pasó (solo lectura). DIAS=7
+	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-hilos DIAS=7"; exit 2; }
+	@cd trazador/server && go run . -incidencias $(DIAS)
 
 # ── PULSO ────────────────────────────────────────────────────────────────────────────────────────
 # Cuándo toqué los repos de la compañía, en tramos de 5'. Alimenta «Mi jornada» del tablero y se
@@ -396,8 +417,12 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 trazador-acceso: ## @har SONDA Loki: ¿puedo leer? ⚠ MUESTRA líneas, no las cuentes. Para CONTAR: QUERY='sum(count_over_time({...}[24h]))'. [TARGET=…] QUERY='{...}' SINCE=1h
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
 
-trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo (TARGET=prod UREQ=n)
-	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(LIMIT),-limit $(LIMIT))
+# ⚠ TEL no es un lujo: la fase de AUTH ocurre ANTES de que exista la solicitud, así que PostHog la
+# identifica por `phone_<e164>` y no por `loan_request_<n>`. Medido sobre 7 días, el teléfono identifica
+# 47.792 eventos y la solicitud 24.006 — sin TEL se ve la mitad, y un recorrido que arranca en «monto»
+# se lee como que el cliente entró por ahí. El binario siempre tuvo `-tel`; acá faltaba.
+trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sonda de acceso + censo. [TARGET=prod] [UREQ=n] [TEL=3001234567 ⚠ sin esto se ve la MITAD: la fase de AUTH se identifica por teléfono] [LIMIT=n]
+	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(TEL),-tel $(TEL)) $(if $(LIMIT),-limit $(LIMIT))
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
 # está en Confluence. El script ya existía en `context/tools/` desde antes, pero fuera del Makefile —
@@ -406,13 +431,13 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
 	@cd context && python3 tools/confluence.py $(CMD)
 
-trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1]
+trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía
 	@# con cualquier consulta que llevara comillas DOBLES (`WHERE x = "y"`), porque make expande antes
 	@# que el shell y las dobles del dato cerraban las del test. Fallaba con «binary operator expected»
 	@# y el mensaje de ayuda hacía creer que faltaba SQL, cuando SQL estaba y era válido.
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
-	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv)
+	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv) $(if $(MD),-md)
 
 # Los agentes de workers: el bucle a la vista, contra Gemini. La receta de CÓMO combinarlos —cuántos
 # ángulos, cuántos archivos, cuándo medir en vez de leer— está en `workers/README.md` §«Cómo se orquesta».

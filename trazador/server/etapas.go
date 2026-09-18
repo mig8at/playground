@@ -2780,7 +2780,7 @@ func Resolver(r Runner, valor string) ([]Coincidencia, []string, error) {
 	return resolverFuente(r, valor)
 }
 
-func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string) int {
+func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string, mdOut bool) int {
 	// Render-only: el armado vive en ArmarTraza, que es el MISMO camino del server y del HTML. Este modo
 	// duplicaba ese cuerpo entero — la clase de deriva que este repo señala en trace.ts/veredicto().
 	t, s, err := ArmarTraza(target, ureq)
@@ -2804,7 +2804,13 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 		fmt.Println(string(b))
 		return 0
 	}
+	cmd := cmdMake("trazador-ureq", target, "UREQ", fmt.Sprint(ureq), "TEL", tel)
+	if mdOut {
+		fmt.Print(anotacionMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
+		return 0
+	}
 	imprimirTraza(t, s)
+	pie(cmd)
 	if htmlOut != "" {
 		if err := escribirHTML(t, s, htmlOut); err != nil {
 			fmt.Fprintf(os.Stderr, "  no pude escribir %s: %v\n", htmlOut, err)
@@ -2817,7 +2823,7 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 
 // modoBuscar lista los intentos que coinciden con lo que se escribió. Es la puerta natural del soporte:
 // quien llama dice su cédula o su celular, no un `user_request_id`.
-func modoBuscar(c config, target, valor string, comoJSON bool) int {
+func modoBuscar(c config, target, valor string, comoJSON, mdOut bool) int {
 	fuente, err := abrirFuente(c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s sin BD para «%s»: %v\n\n", paint("31", "✘"), target, err)
@@ -2832,7 +2838,24 @@ func modoBuscar(c config, target, valor string, comoJSON bool) int {
 	if comoJSON {
 		return buscarJSON(valor, cs, como, target)
 	}
+	cmd := cmdMake("trazador-buscar", target, "Q", valor)
+	if mdOut {
+		// ⚠ El valor buscado NO entra en el resumen: es una cédula o un celular de producción, y lo que
+		// se pega en una tarea queda en git. El comando sí lo lleva —hace falta para repetirlo— pero la
+		// afirmación se escribe sobre las solicitudes, que es de lo que habla la medición.
+		resumen := fmt.Sprintf("la persona detrás de esta búsqueda en `%s`: %s.", target,
+			strings.TrimRight(resumirHistoria(cs), "."))
+		if len(cs) == 0 {
+			resumen = fmt.Sprintf("sin coincidencias en `%s`.", target)
+		}
+		fmt.Print(anotacionMD(resumen, cmd, "Coincidió como "+strings.Join(como, " y ")+"."))
+		if len(cs) == 0 {
+			return 2
+		}
+		return 0
+	}
 	imprimirCoincidencias(valor, cs, como, target)
+	pie(cmd)
 	if len(cs) == 0 {
 		return 2
 	}
@@ -3186,7 +3209,11 @@ func imprimirCoincidencias(valor string, cs []Coincidencia, como []string, targe
 		fmt.Printf("   %s%-8d %s  %-11s %-24s %s\n", marca, c.UReq, c.Creada.Local().Format("2006-01-02 15:04"),
 			res, trim(c.Comercio, 24), gray(trim(c.Lender, 26)))
 	}
-	fmt.Printf("\n     %s\n", gray(fmt.Sprintf("para ver una: -ureq <número>  (target %s)", target)))
+	// El comando, no la bandera: `-ureq <n>` obliga a traducir a mano lo que la herramienta ya sabe —y
+	// a acordarse del target, que acá no es un detalle porque dev y qa comparten base. Y con el PRIMER
+	// resultado puesto, no con un `<número>` de relleno: un ejemplo que se pega y corre ahorra el paso
+	// de elegir, y de paso muestra la forma exacta del comando.
+	fmt.Printf("\n     %s\n", gray("para ver una: "+cmdMake("trazador-ureq", target, "UREQ", fmt.Sprint(cs[0].UReq))))
 }
 
 // ─── el árbol de caminos ────────────────────────────────────────────────────────────────────────────

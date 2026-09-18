@@ -104,7 +104,7 @@ func sinComentarios(q string) string {
 }
 
 // modoSQL corre UNA consulta de lectura y la imprime. Exit: 0 ok · 1 falló la consulta · 2 rechazada.
-func modoSQL(c config, target, consulta string, comoCSV bool) int {
+func modoSQL(c config, target, consulta string, comoCSV, mdOut bool) int {
 	if motivo := esSoloLectura(consulta); motivo != "" {
 		fmt.Fprintf(os.Stderr, "  %s consulta rechazada: %s\n\n  %s\n\n",
 			paint("31", "✘"), motivo, strings.TrimSpace(consulta))
@@ -118,7 +118,7 @@ func modoSQL(c config, target, consulta string, comoCSV bool) int {
 	}
 	defer fuente.Close()
 
-	if !comoCSV {
+	if !comoCSV && !mdOut {
 		step("Consulta de solo lectura")
 		detail("target   %s", target)
 		detail("fuente   %s", fuente.Nombre())
@@ -137,8 +137,14 @@ func modoSQL(c config, target, consulta string, comoCSV bool) int {
 		fmt.Fprintf(os.Stderr, "  %s la consulta falló: %v\n", paint("31", "✘"), err)
 		return 1
 	}
+	cmd := cmdMake("trazador-sql", target, "SQL", strings.Join(strings.Fields(consulta), " "))
 	if len(filas) == 0 {
-		if !comoCSV {
+		switch {
+		case mdOut:
+			// Un cero se pega igual que cualquier otro número, y es el que más se malinterpreta: sin la
+			// consulta al lado no se distingue «no pasa» de «no supe buscar».
+			fmt.Print(anotacionMD(fmt.Sprintf("cero filas en `%s`.", target), cmd))
+		case !comoCSV:
 			fmt.Println("       (sin filas)")
 		}
 		return 0
@@ -148,8 +154,14 @@ func modoSQL(c config, target, consulta string, comoCSV bool) int {
 	if comoCSV {
 		return imprimirCSV(cols, filas)
 	}
+	if mdOut {
+		fmt.Print(anotacionMD(fmt.Sprintf("%d fila(s) en `%s`.", len(filas), target), cmd))
+		fmt.Print("\n" + tablaMD(cols, filas))
+		return 0
+	}
 	imprimirTabla(cols, filas)
 	fmt.Printf("\n       %s\n", gray(fmt.Sprintf("%d fila(s)", len(filas))))
+	pie(cmd)
 	return 0
 }
 

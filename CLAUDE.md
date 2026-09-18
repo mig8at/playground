@@ -36,9 +36,9 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿quién llama a esto?** · **¿difieren los dos monolitos?** | herramientas de los agentes (`quien_usa`, `gemelos`); a mano, `workers/cli.py gemelos` |
 | **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |
 | **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo. Con agente: `make agente-datos TARGET=prod` |
-| **¿qué le pasó a ESTA solicitud?** | `make harness-loki UREQ=…` · `make trazador-acceso` |
+| **¿qué le pasó a ESTA solicitud?** | `make trazador-ureq UREQ=…` — la traza por etapas (BD + logs + PostHog + qué archivos dejaron rastro). Si sólo tenés la cédula o el celular, `make trazador-buscar Q=…` primero. Para el forense de una corrida del harness, `make harness-loki UREQ=…`. ⚠ `trazador-acceso` **no** es esto: es la sonda de «¿puedo leer los logs?» |
 | **leí un error, ¿de qué archivo salió?** | `workers/cli.py logs "<mensaje>"` — el mapa va del mensaje al archivo y su línea. Para una corrida entera, la herramienta `archivos_de_la_traza` del agente que mide |
-| **¿qué VIO el cliente en pantalla?** | `make trazador-posthog` |
+| **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…` — ⚠ **sin `TEL` ves la mitad**: la fase de AUTH ocurre antes de que exista la solicitud, así que PostHog la identifica por teléfono (medido: 47.792 eventos por teléfono contra 24.006 por solicitud) |
 | **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. `context/` explica la CASCADA; esto contesta el CASO |
 | **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
 | **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
@@ -64,7 +64,9 @@ en ningún nodo. **Cuando el árbol no diga nada de algo que debería existir, n
 a `workers/`, que se deriva del código.**
 
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
-verifica casi siempre existe ya. Y la salida de un agente **también se verifica** —contra `main`, con
+verifica casi siempre existe ya. Y cuando la verificás, **la anotación no se escribe a mano**: el
+trazador la emite con `MD=1` (`trazador-ureq` · `trazador-buscar` · `trazador-sql`), con la fecha real y
+el comando que la reproduce adentro — que es lo que hace que la medición se pueda desmentir mañana. Y la salida de un agente **también se verifica** —contra `main`, con
 `git show main:<ruta>`, nunca contra el working tree: los repos viven en ramas.
 
 ### Contra qué ambiente

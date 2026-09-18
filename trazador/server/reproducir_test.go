@@ -1,0 +1,94 @@
+package main
+
+import (
+	"strings"
+	"testing"
+	"time"
+)
+
+// Lo que se prueba acá es lo que el usuario PEGA: si el comando sale mal entrecomillado o sin target,
+// el error no aparece al correr esta herramienta sino tres semanas después, cuando alguien intenta
+// repetir la medición y no le da lo mismo.
+
+func TestCmdMakeLlevaSiempreElTarget(t *testing.T) {
+	got := cmdMake("trazador-ureq", "prod", "UREQ", "519245")
+	want := "make trazador-ureq UREQ=519245 TARGET=prod"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestCmdMakeOmiteLosVacios(t *testing.T) {
+	// Un `TEL=` colgando se copia tal cual y falla; peor, se lee como si el dato no existiera.
+	got := cmdMake("trazador-posthog", "qa", "UREQ", "", "TEL", "")
+	if got != "make trazador-posthog TARGET=qa" {
+		t.Fatalf("un par vacío se coló: %q", got)
+	}
+}
+
+func TestCmdMakeEntrecomillaLoQueElShellPartiria(t *testing.T) {
+	casos := []struct{ valor, quiere string }{
+		{"SELECT id FROM countries LIMIT 3", `'SELECT id FROM countries LIMIT 3'`},
+		{`{service_name="legacy-backend"}`, `'{service_name="legacy-backend"}'`},
+		{"519245", "519245"},
+		{"2026-09-18", "2026-09-18"},
+		// La comilla simple adentro es el caso que rompe el pegado: se cierra, se escapa y se reabre.
+		{"WHERE name = 'x'", `'WHERE name = '\''x'\'''`},
+	}
+	for _, c := range casos {
+		got := cmdMake("trazador-sql", "prod", "SQL", c.valor)
+		if !strings.Contains(got, "SQL="+c.quiere) {
+			t.Errorf("valor %q → %q; esperaba SQL=%s", c.valor, got, c.quiere)
+		}
+	}
+}
+
+func TestAnotacionMDTieneLaFormaQueElTableroParsea(t *testing.T) {
+	// El parser del tablero (store.Anotaciones) exige el marcador con tipo y fecha al principio de la
+	// línea, dentro de una cita. Si esto cambia, la anotación se pega y la pestaña Hallazgos no la ve.
+	md := anotacionMD("uReq 1 en `prod`: ROTA.", "make trazador-ureq UREQ=1 TARGET=prod", "✘ algo falló")
+	hoy := time.Now().Format("2006-01-02")
+	if !strings.HasPrefix(md, "> **MEDICIÓN · "+hoy+"** — ") {
+		t.Fatalf("el marcador no arranca la primera línea:\n%s", md)
+	}
+	for _, l := range strings.Split(strings.TrimSpace(md), "\n") {
+		if !strings.HasPrefix(l, ">") {
+			t.Fatalf("una línea se salió de la cita y rompe el bloque: %q", l)
+		}
+	}
+	if !strings.Contains(md, "**Cómo se vuelve a comprobar:** `make trazador-ureq UREQ=1 TARGET=prod`") {
+		t.Fatalf("falta el comando que la reproduce:\n%s", md)
+	}
+}
+
+func TestTablaMDEscapaElPipe(t *testing.T) {
+	// Sin escapar, una celda con `|` corre todas las columnas una posición: un dato equivocado con cara
+	// de dato bueno, que es el peor modo de fallar de una tabla que se pega en una tarea.
+	got := tablaMD([]string{"a", "b"}, []Fila{{"a": "x|y", "b": 2}})
+	if !strings.Contains(got, `x\|y`) {
+		t.Fatalf("el pipe no se escapó:\n%s", got)
+	}
+	if lineas := strings.Count(strings.TrimSpace(got), "\n") + 1; lineas != 3 {
+		t.Fatalf("esperaba encabezado, separador y una fila; salieron %d líneas:\n%s", lineas, got)
+	}
+}
+
+func TestResumenTrazaNombraDondeSeRompio(t *testing.T) {
+	s := &Solicitud{Estado: 3, EstadoN: "Seleccionó entidad", Comercio: "Amoblando", Lender: "CrediPullman", LenderRT: 2}
+	got := resumenTraza(Traza{UReq: 502463, Target: "qa", Outcome: "roto", BrokeAt: "validación de identidad"}, s)
+	for _, quiere := range []string{"502463", "`qa`", "ROTA", "validación de identidad", "estado 3", "CrediPullman"} {
+		if !strings.Contains(got, quiere) {
+			t.Errorf("el resumen no dice %q: %s", quiere, got)
+		}
+	}
+}
+
+func TestSiHayOmiteElCero(t *testing.T) {
+	// `UREQ=0` se copia y se corre igual, y contesta por una solicitud que no existe.
+	if siHay(0) != "" {
+		t.Fatal("el cero tiene que desaparecer del comando")
+	}
+	if siHay(519245) != "519245" {
+		t.Fatal("un uReq real no puede perderse")
+	}
+}

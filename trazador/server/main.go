@@ -634,6 +634,7 @@ func main() {
 	sqlCSV := flag.Bool("csv", false, "con -sql: salida en CSV en vez de tabla")
 	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
 	tel := flag.String("tel", "", "con -posthog -ureq: el celular del cliente, para ver además la fase de AUTH (distinct_id phone_<e164>)")
+	mdOut := flag.Bool("md", false, "con -ureq, -buscar o -sql: la salida como ANOTACIÓN fechada para pegar en una tarea del tablero (ver reproducir.go)")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -668,19 +669,31 @@ func main() {
 	// Va ANTES del despacho de `-ureq`: `-posthog -ureq N` pregunta por los eventos del NAVEGADOR de esa
 	// solicitud, no por la traza de etapas.
 	if *posthog {
-		os.Exit(modoPostHog(c, *target, *ureq, *tel, *limit))
+		code := modoPostHog(c, *target, *ureq, *tel, *limit)
+		// El pie va aunque el modo haya fallado, y a propósito: casi todas sus salidas de error son
+		// «falta un dato de configuración», y lo que uno quiere después de arreglarlo es volver a correr
+		// exactamente lo mismo. La anotación, en cambio, sale de la traza: `-md` con -ureq la trae con
+		// las pantallas adentro, así que acá sólo se dice dónde está en vez de escribir una a medias.
+		if *mdOut {
+			fmt.Printf("\n     %s\n", gray("para la anotación con el timeline adentro: "+
+				cmdMake("trazador-ureq", *target, "UREQ", siHay(*ureq), "TEL", *tel, "MD", "1")))
+		}
+		pie(cmdMake("trazador-posthog", *target, "UREQ", siHay(*ureq), "TEL", *tel))
+		os.Exit(code)
 	}
 	if *validar != "" {
-		os.Exit(ValidarContra(*validar))
+		code := ValidarContra(*validar)
+		pie(cmdMake("trazador-validar", "", "CORPUS", *validar))
+		os.Exit(code)
 	}
 	if *sqlQuery != "" {
-		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV))
+		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV, *mdOut))
 	}
 	if *buscar != "" {
-		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut))
+		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut, *mdOut))
 	}
 	if *ureq > 0 {
-		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut))
+		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut))
 	}
 
 	if c.token == "" {
@@ -951,6 +964,9 @@ func main() {
 	}
 
 	fmt.Println()
+	// La sonda también se pega en una tarea —«¿se puede leer prod desde acá?» es una medición— así que
+	// cierra igual que los demás modos: con el comando que la repite, selector y ventana incluidos.
+	defer pie(cmdMake("trazador-acceso", *target, "QUERY", selector, "SINCE", since.String()))
 	if got {
 		fmt.Printf("%s acceso de LECTURA CONFIRMADO contra %s.\n", paint("32", "VEREDICTO:"), winner.base)
 		fmt.Printf("Autentica con %s, resuelve etiquetas y devuelve líneas. Se puede construir encima.\n", winner.label())
@@ -968,6 +984,7 @@ func main() {
 	fmt.Printf("líneas para %s. Eso ya NO es un problema de acceso: o el selector no es el correcto\n", selector)
 	fmt.Println("(mirá los valores del paso 3 y volvé a correr con -query), o ese servicio no está")
 	fmt.Println("empujando logs en esta ventana.")
+	pie(cmdMake("trazador-acceso", *target, "QUERY", selector, "SINCE", since.String()))
 	os.Exit(1)
 }
 
