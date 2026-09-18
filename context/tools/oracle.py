@@ -36,7 +36,7 @@ import sys
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from roots import EXTS, ROOTS  # noqa: E402
+from roots import EXTS, ROOTS, ref_a_indexar  # noqa: E402
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IDX = os.path.join(ROOT_DIR, "tools", "index.txt")
@@ -49,12 +49,32 @@ def git(root, *args):
 
 def del_ref(ref):
     """Archivos que existen en `ref`, como `alias/relpath`. Devuelve además los roots que NO se
-    pudieron consultar (para no contarlos como si estuvieran bien) y los refs viejos."""
+    pudieron consultar (para no contarlos como si estuvieran bien) y los refs viejos.
+
+    ⚠ CON EL DEFAULT, LA REF SE RESUELVE POR REPO Y NO ES EL LITERAL `main`. Acá abajo había un aviso
+    —«el ref main de X es de hace N días, puede estar detrás de origin»— que describía el problema sin
+    resolverlo: el `main` local de un clon que nadie actualiza va detrás del remoto, y un `ls-tree` ahí
+    devuelve MENOS archivos, con lo cual una ruta recién mergeada se reporta **DROP**. Ése es el peor
+    veredicto que puede dar el oráculo, porque manda a borrar de un nodo una cita que sí existe.
+
+    `ref_a_indexar` elige, por repo, la ref que CONTIENE a la otra: `origin/main` donde el local va
+    detrás, y `main` en `harness`/`trazador`, que viven en playground y van ADELANTE de su origin a
+    propósito. No hace fetch — el aviso de rancio se queda justamente para eso.
+
+    ⚠ Un `--ref` explícito NO se toca: si alguien pide `qa`, quiere `qa`.
+    """
     have, sin_verificar, viejos = set(), [], []
+    auto = ref is None
     for alias, root in ROOTS.items():
         if not os.path.isdir(root):
             sin_verificar.append((alias, "el directorio no existe"))
             continue
+        if auto:
+            ref, _ = ref_a_indexar(root)
+            if ref is None:
+                sin_verificar.append((alias, "no existe ni `main` ni `origin/main`"))
+                ref = None
+                continue
         # sin --full-name A PROPÓSITO: las rutas vienen relativas al DIRECTORIO consultado, que es
         # exactamente el `relpath` con el que el índice arma `alias/relpath`. Por eso `harness`,
         # que es un subdirectorio de playground y no un repo propio, funciona sin caso especial.
@@ -71,7 +91,11 @@ def del_ref(ref):
         if f.returncode == 0 and f.stdout.strip().isdigit():
             edad = datetime.now(timezone.utc) - datetime.fromtimestamp(int(f.stdout.strip()), timezone.utc)
             if edad.days >= DIAS_RANCIO:
-                viejos.append((alias, edad.days))
+                # La ref se guarda con el alias: con el default cada repo puede haber resuelto una
+                # distinta, y un aviso que nombra «main» cuando se miró `origin/main` desorienta.
+                viejos.append((alias, edad.days, ref))
+        if auto:
+            ref = None
     return have, sin_verificar, viejos
 
 
@@ -86,7 +110,9 @@ def main():
     if not args:
         sys.exit(__doc__)
 
-    ref, worktree = "main", False
+    # `None` = automático: la ref la elige `ref_a_indexar` por repo (ver `del_ref`). No es lo mismo que
+    # `--ref main`, que fuerza el literal — y que sigue estando para cuando alguien quiera exactamente eso.
+    ref, worktree = None, False
     if "--worktree" in args:
         worktree = True
         args.remove("--worktree")
@@ -114,7 +140,8 @@ def main():
         else:
             dropped.append(f)
 
-    contra = "el working tree" if worktree else f"`{ref}`"
+    contra = ("el working tree" if worktree
+              else (f"`{ref}`" if ref else "la ref al día de cada repo (`main` u `origin/main`)"))
     print(f"KEPT {len(kept)} / DROPPED {len(dropped)} (of {len(files)}) — contra {contra}")
     for x in dropped:
         print("  DROP:", x)
@@ -128,9 +155,17 @@ def main():
             if alias in usados:
                 print(f"  · {alias}: {motivo}")
 
-    for alias, dias in viejos:
-        print(f"⚠ el ref `{ref}` de {alias} es de hace {dias} días — puede estar detrás de origin "
-              f"(no se hace fetch solo; si importa: git -C <repo> fetch)")
+    # ⚠ EL AVISO DICE COSAS DISTINTAS SEGÚN LA REF, y con un texto solo mentía. Sobre una rama LOCAL,
+    # «viejo» significa que puede haber quedado detrás del remoto. Sobre `origin/*` eso es imposible —
+    # es el remoto—, y lo viejo es otra cosa: o nadie fetcheó hace tiempo, o ese repo no tuvo commits.
+    # Las dos no se distinguen sin fetch, así que se nombran las dos en vez de afirmar una.
+    for alias, dias, refv in viejos:
+        if refv.startswith("origin/"):
+            print(f"⚠ `{refv}` de {alias} es de hace {dias} días — o el último fetch es viejo, o ese "
+                  f"repo no tuvo commits (no se distingue sin red: git -C <repo> fetch)")
+        else:
+            print(f"⚠ el ref `{refv}` de {alias} es de hace {dias} días y es una rama LOCAL — puede "
+                  f"estar detrás de origin (no se hace fetch solo; si importa: git -C <repo> fetch)")
 
     return 2 if ciegos else (1 if dropped else 0)
 
