@@ -312,3 +312,48 @@ export function comoRenovarLaSesion(s: SaludDeLaSesion): string {
     return `${s.motivo}\n     renovala con:  E2E_TARGET=${TARGET} npx playwright test dev/warm-session.spec.ts --headed --project=chromium`
         + `\n     (va HEADED a propósito contra qa/staging: el Managed Login corta la automatización por fingerprint — F-66)`;
 }
+
+/**
+ * Renueva la sesión corriendo el pre-login, sin que nadie tenga que acordarse.
+ *
+ * ⚠ VA HEADED, y no es una preferencia: el Managed Login de `auth.merchant` corta la automatización
+ * por fingerprint y en headless queda colgado en `/verifyPassword` (**F-66**). Así que esto ABRE UNA
+ * VENTANA en la máquina de quien corre. Se avisa antes, porque una ventana que aparece sola sin
+ * explicación se lee como que algo se rompió.
+ *
+ * ⚠ Y LA VENTANA ES CHICA AL LADO DEL OTRO PROBLEMA: el token de acceso vive ~4 minutos, así que
+ * entre renovar y arrancar no puede haber nada. Por eso esto se llama desde el runner y no se le pide
+ * a una persona que corra un comando y después otro — medido el 2026-09-17: la sesión recién acuñada
+ * reportó «válida por 5 min».
+ *
+ * No renueva en `local` ni contra un front local: ahí el pre-login navega al `:5174`, que este
+ * proceso no levanta, y el fallo sería más confuso que el problema.
+ */
+export async function renovarSesion(): Promise<{ ok: boolean; motivo: string }> {
+    if (!cognitoCreds.user || !cognitoCreds.pass) {
+        return { ok: false, motivo: 'no hay credenciales Cognito configuradas (.cognito.json o E2E_COGNITO_USER/PASS)' };
+    }
+    if (FRONT_LOCAL) {
+        return { ok: false, motivo: 'el pre-login navega al front local (:5174), que esta corrida no levanta' };
+    }
+
+    const { spawn } = await import('node:child_process');
+    const raiz = new URL('..', import.meta.url).pathname;
+
+    const salio = await new Promise<number>((resolve) => {
+        const p = spawn(
+            'npx',
+            ['playwright', 'test', 'dev/warm-session.spec.ts', '--headed', '--project=chromium'],
+            { cwd: raiz, env: { ...process.env, E2E_TARGET: TARGET }, stdio: 'ignore' },
+        );
+        p.on('close', (code) => resolve(code ?? 1));
+        p.on('error', () => resolve(1));
+    });
+
+    if (salio !== 0) return { ok: false, motivo: `el pre-login salió con código ${salio}` };
+
+    const despues = saludDeLaSesion();
+    return despues.sirve
+        ? { ok: true, motivo: despues.motivo }
+        : { ok: false, motivo: `el pre-login corrió pero la sesión sigue sin servir: ${despues.motivo}` };
+}

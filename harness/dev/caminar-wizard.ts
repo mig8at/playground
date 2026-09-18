@@ -59,7 +59,7 @@ const { abrirNavegador, abrirContexto, cerrarContexto, avanzar, elegirEntidad, b
     await import('../pkg/wizard-navegador.ts');
 const { erroresDeValidacion: erroresEnPantalla } = await import('../pkg/autorrelleno.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
-const { cognitoStorageState, COGNITO_STATE_PATH, saludDeLaSesion, comoRenovarLaSesion } = await import('../pkg/cognito.ts');
+const { cognitoStorageState, COGNITO_STATE_PATH, saludDeLaSesion, comoRenovarLaSesion, renovarSesion } = await import('../pkg/cognito.ts');
 const { branchToken, ecommerceContract } = await import('../pkg/ecommerce.ts');
 const { registrarBypass, restaurarBypass } = await import('../pkg/otp-bypass.ts');
 
@@ -772,13 +772,39 @@ if (aviso) console.log(`  ${aviso}\n`);
 // iba por `process.exit` sin pasar por el `finally` que los limpia: dos teléfonos de prueba
 // quedaban en la lista compartida por cada intento con la sesión vencida. Medido corriéndolo.
 if (FLOW === 'merchant' && TARGET !== 'local') {
-    const sesion = saludDeLaSesion();
+    let sesion = saludDeLaSesion();
+
+    // ⚠ SE RENUEVA SOLA, y el orden importa tanto como el hecho: el token de acceso vive ~4 minutos,
+    // así que entre renovar y arrancar no puede haber una persona leyendo un mensaje y tipeando un
+    // comando. Antes esto cortaba y pedía correr el pre-login a mano; en la práctica, para cuando
+    // alguien lo hacía y volvía, la sesión nueva ya se estaba muriendo.
+    //
+    // ⚠ ABRE UNA VENTANA, y se avisa ANTES de abrirla: el Managed Login corta la automatización
+    // headless por fingerprint (F-66), así que el pre-login va headed. Una ventana que aparece sola y
+    // sin explicación se lee como que algo se rompió.
+    //
+    // `--sin-warm` lo apaga, para quien no quiera una ventana en el medio.
+    if (!sesion.sirve && !flag('sin-warm')) {
+        console.log(`  ⟳ la sesión de asesor no sirve (${sesion.motivo.split(' —')[0]}).`);
+        console.log('     Renovándola: se va a abrir una ventana — el login de Cognito no se puede automatizar sin ella (F-66).\n');
+
+        const renovada = await renovarSesion();
+        if (renovada.ok) {
+            console.log(`  ✓ sesión renovada · ${renovada.motivo}\n`);
+            sesion = saludDeLaSesion();
+        } else {
+            console.log(`  ⚠ no se pudo renovar sola: ${renovada.motivo}\n`);
+        }
+    }
+
     if (!sesion.sirve) {
         console.log(`  ✗ el canal de asesor pide sesión y la que hay no sirve.\n     ${comoRenovarLaSesion(sesion)}\n`);
         process.exit(2);
     }
     // Una sesión que vive 3 minutos pasa el chequeo y se muere a mitad de la tanda: se avisa, porque
-    // ese fallo se lee igual que el otro y no tiene por qué.
+    // ese fallo se lee igual que el otro y no tiene por qué. Y con el token durando ~4 minutos, esto
+    // salta CASI SIEMPRE justo después de renovar: es correcto, y es el recordatorio de que en este
+    // canal la tanda tiene que ser corta.
     if (sesion.minutos !== null && sesion.minutos < 15) {
         console.log(`  ⚠ ${sesion.motivo} — puede vencerse en plena tanda\n`);
     }
