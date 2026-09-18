@@ -78,6 +78,8 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la prueba contra el proveedor externo falla ENTERA, todos los casos igual»** | **F-226** |
 | **«la pantalla se contradice a sí misma» · «dice que venció y el contador sigue corriendo»** | **F-227** |
 | **«agrupé por hora y la curva no tiene sentido» · «me da CERO y no puede ser»** | **F-227** |
+| **«el código de depuración quedó en producción» · «esto logueaba un token»** | **F-228** |
+| **«la corrida anterior andaba y esta no» · «de golpe la entidad no tiene cupo»** | **F-229** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -387,6 +389,8 @@ distinto según con qué pregunta llegues.
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
+| F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-229 | `caminar-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
 | F-227 | La pantalla del código de compra dice «(Vence hoy a las 8:30 p.m.)» **siempre**: es un default quemado que `SuccessView` nunca pasa. El contador está bien; el texto miente en toda compra cerrada después de las 20:30, que es cuando el plazo se corre al día siguiente. Medido en prod: **14 de 507** (2,8 %) en 180 días, y está en `main` | ABIERTO |
 | F-226 | `make harness-sandbox` da «20 casos se apartaron de lo medido» y NINGUNO es del contrato: el WAF (Imperva) delante del gateway de Bancolombia devuelve **503 a todo** desde esta red, incluido `HEAD /health` pelado. El único oráculo capaz de contradecir nuestros mocks quedó fuera de alcance | ABIERTO · mitigado con `channel/qr-bancolombia-gateway.spec.ts` |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
@@ -5630,3 +5634,54 @@ la mañana en una caja de Alkosto**. La curva cruda va de **08:00 a 21:00 con pi
 jornada de tienda exacta. **Antes de convertir zonas en esta base, mirá si la curva cruda ya tiene forma
 de negocio**: `config/app.php` toma la zona de `env('TZ', 'UTC')`, así que el valor efectivo lo pone el
 contenedor y no se puede deducir del repositorio.
+\n
+### F-228 · Cinco `console.log` de depuración llevan dos meses en producción, y uno escribe el código del banco
+
+- **Síntoma:** ninguno visible. No rompe el flujo, no ensucia la pantalla del cliente y nadie lo reporta.
+  Se encuentra sólo leyendo el archivo — que es exactamente por qué sobrevivió dos meses.
+- **Qué es:** cinco `console.log("[DEBUG-RF] …")` en el flujo de crédito de Consumo de Bancolombia, dos
+  archivos: `routes/bancolombia/loan/loan-info-view.tsx` (cuatro) y el caso de uso
+  `redirect-validate.uc.ts` (uno).
+- **Dónde corren, que es lo que decide la gravedad:** dentro de `loaderHandler`, o sea el **loader** de
+  React Router — **servidor, no navegador**. No van a la consola del cliente: van a los **logs de la
+  aplicación**.
+- **Qué escriben:** `authCode` —el `code` que el banco devuelve en el redirect, la credencial que el
+  backend canjea con Bancolombia— y las respuestas COMPLETAS con `JSON.stringify` (`redirect-validate res`
+  y `uc raw`), más el `body` y los `error_details` del error. En cada carga de `loan-info` de Consumo.
+- **Causa raíz:** son depuración temporal que nunca se retiró. Y no pasó desapercibida por accidente: el
+  linter **la habría frenado** —hay una regla `lint/suspicious/noConsole`— y se la silenció a mano con un
+  `// biome-ignore lint/suspicious/noConsole: DEBUG-RF temporary` **encima de cada uno de los cinco**. La
+  palabra «temporary» está escrita cinco veces en código que lleva dos meses en `main`.
+- **Evidencia (2026-09-17):** `git log -S "DEBUG-RF"` contra `origin/main` da un solo commit,
+  `a37aee25a` del **2026-07-15**, PR #702. O sea que no es depuración en curso de nadie: está olvidada.
+- **Arreglo:** se quitan los cinco, y con ellos el `try/catch` que existía sólo para loguear y relanzar
+  (su propio comentario decía «comportamiento idéntico»). El camino de error ya llamaba a
+  `captureServerException` en la línea siguiente, así que no se pierde observabilidad — se pierde el
+  volcado en claro.
+
+⚠ **La lección que generaliza, y es la que importa:** un `biome-ignore` con la palabra «temporary» es una
+**fecha de vencimiento que nadie va a mirar**. El linter era la única guarda que podía atrapar esto y se
+apagó explícitamente; a partir de ahí sólo quedaba que alguien leyera el archivo. Antes de silenciar una
+regla «por un rato», vale más dejar el ruido.
+
+### F-229 · El caminador dejaba el mock sin cupo, y la corrida SIGUIENTE parecía un fallo del producto
+
+- **Síntoma:** una corrida de BNPL que venía cerrando en 9 pantallas de golpe muere en **3**, en
+  `no-preapproved`. Se lee como «la entidad se quedó sin cupo» o «se rompió la compuerta», y manda a
+  depurar el producto.
+- **Causa raíz:** `dev/caminar-qr.ts` restauraba el escenario del mock con una lista **a mano**
+  —`producto`, `errorCode`, `errorEn`— y esa lista se quedó vieja: **no incluía `hasQuota`**. Así que
+  correr con `--escenario '{"hasQuota":false}'` dejaba la perilla puesta en el mock **después** de
+  terminar, y la contaminaba a la siguiente. Nada lo avisa: el mock no distingue una perilla pedida de
+  una heredada.
+- **Lo irónico, y por eso vale anotarlo:** el comentario que había justo encima explicaba que restaurar
+  sólo `producto` había causado este mismo problema con `errorCode`. Se arregló el caso conocido
+  agregando dos claves a la lista, y la lista volvió a quedarse corta con la siguiente perilla.
+- **Evidencia (2026-09-17):** tras una corrida con `hasQuota:false`, `GET :8104/` seguía devolviendo
+  `hasQuota: False`; la corrida limpia siguiente cerró en `no-preapproved` a los 3 pasos.
+- **Arreglo:** el caminador **fotografía el escenario entero antes de tocarlo** (`GET /` → `escenario`) y
+  al terminar lo devuelve tal cual. Una perilla nueva queda cubierta sola. Comprobado corriendo: con la
+  foto, `hasQuota` vuelve a `true` y la corrida siguiente cierra en 9.
+- **El patrón, que ya nos pasó en otra forma:** estado compartido que sobrevive a la corrida que lo puso
+  (ver **F-190**, la cookie de comercio dentro del `storageState`). **Restaurar por lista enumerada
+  caduca; restaurar por instantánea, no.**

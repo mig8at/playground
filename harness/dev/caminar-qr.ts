@@ -48,6 +48,14 @@ const ESPERA = /processing|procesando|espera/;
 /** Fin del recorrido (los dos productos y el canal ecommerce). */
 const FINAL = /purchase-code|payment-success|response|no-preapproved|no-quota|business-error|Error$/i;
 
+/** El escenario tal como estaba ANTES de que esta corrida lo tocara, para poder devolverlo entero. */
+let escenarioOriginal: Record<string, unknown> | null = null;
+
+const fotografiarEscenario = async () => {
+    escenarioOriginal = await fetch(`${MOCK}/`)
+        .then((x) => x.json()).then((j) => j.escenario ?? null).catch(() => null);
+};
+
 const escenario = async (cambios: Record<string, unknown>) => {
     const r = await fetch(`${MOCK}/_control/escenario`, {
         method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(cambios),
@@ -76,6 +84,7 @@ if (!suc) throw new Error('no hay sucursal Corbeta con los dos lenders (68/100) 
 if (!(await sucursalUsable(suc.hash))) throw new Error(`la sucursal ${suc.id} no sirve para este canal`);
 console.log(`▶ CAMINADOR QR · sucursal ${suc.id} (allied ${suc.alliedId}) · producto ${PRODUCTO} · target ${process.env.E2E_TARGET ?? 'dev'}`);
 
+await fotografiarEscenario();
 await escenario({ producto: PRODUCTO, ...(arg('escenario') ? JSON.parse(arg('escenario')) : {}) });
 console.log(`  escenario del mock: producto=${PRODUCTO}${arg('escenario') ? ` + ${arg('escenario')}` : ''}`);
 console.log(`  scrub ${TEL}: ${JSON.stringify(await scrubphone(TEL))}`);
@@ -168,8 +177,14 @@ if (noPostHog) {
 }
 
 await browser.close();
-// SE DEJA EL MOCK LIMPIO, y eso incluye el `errorCode`: restaurar sólo `producto` dejaba el error forzado
-// vivo en el mock y la siguiente corrida (o `npm run contrato:bancolombia`) fallaba por un escenario que
-// nadie pidió. Un mock con estado pegado es un falso negativo esperando.
-await escenario({ producto: 'ambos', errorCode: null, errorEn: null });
+// SE DEJA EL MOCK COMO ESTABA. Un mock con estado pegado es un falso negativo esperando.
+//
+// ⚠ Antes acá había una lista a mano —`producto`, `errorCode`, `errorEn`— y se quedó vieja: no incluía
+// `hasQuota`, así que una corrida con `--escenario '{"hasQuota":false}'` dejaba al mock SIN CUPO y la
+// siguiente moría en `no-preapproved` a los 3 pasos. Medido el 2026-09-17, y se lee como «BNPL perdió el
+// cupo», que manda a depurar el producto en vez del harness.
+//
+// Por eso ahora se restaura la FOTO completa: una perilla nueva queda cubierta sola, sin que nadie se
+// acuerde de agregarla acá. Si la foto falló, se cae a los valores por defecto, que es mejor que nada.
+await escenario(escenarioOriginal ?? { producto: 'ambos', errorCode: null, errorEn: null, hasQuota: true });
 await close();
