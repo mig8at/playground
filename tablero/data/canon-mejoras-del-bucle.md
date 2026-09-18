@@ -191,7 +191,11 @@ quedan la sección enlazada sin tocar hashes, la ruta muerta retirada y las diez
 **Lo del ancla, arreglado en #246 (12:13, PR abierto).** Y el diagnóstico de la mañana estaba mal: el modelo no
 inventaba nada, **copiaba** el `citar` que la propia búsqueda le entrega para las áreas.
 
-**El próximo paso es:** mergear #246 cuando pase el CI, y avisarle a quien
+**#246 mergeado (12:18), CI verde.** Diez PRs en `main` hoy. ⚠ Éste **no tiene sonda gratis**: el cambio vive
+en la herramienta que sólo usa el modelo, así que se comprueba la próxima vez que alguien pregunte algo que caiga
+en un área — no hay señal que leer sin gastar.
+
+**El próximo paso es:** avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -480,7 +484,7 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
-- **#246: `leer` entiende el `citar` de un área.** La causa no era la que anoté hace un rato: `buscar` entrega cada
+- **#246 mergeado (12:18).** `leer` entiende el `citar` de un área. La causa no era la que anoté hace un rato: `buscar` entrega cada
   área con su cita ya armada (`tema/clase#n=K`) para que el modelo COPIE en vez de componer, y esa cadena tiene la
   misma forma que el `leer` de una sección — así que copió la que tenía a mano y la mandó al lector equivocado. El
   resto del sistema ya entendía ese formato (`resolverCita`); el único que no era `leer`. Ahora contesta con el
