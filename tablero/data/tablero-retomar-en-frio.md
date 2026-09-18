@@ -37,6 +37,13 @@ editado le cambia el patch-id y `git cherry` deja de reconocerlo—, así que ah
 abiertas, **12 están enteras en `main`** y 18 no se pueden medir porque no declaran `ramas:`
 (`make tareas-ramas SUGERIR=1` propone patrón: sólo una de las 18 tiene rama de verdad).
 
+**Al 18/9 el mismo criterio salió del tablero y llegó a las herramientas que lo alimentan:** el
+trazador ahora cierra cada corrida con el comando que la reproduce (`↻ make trazador-… TARGET=…`) y
+con `MD=1` emite directamente la anotación fechada que la pestaña Hallazgos consume. Antes eso se
+escribía a mano en cada tarea, que es la misma clase de «depende de acordarse» que esta tarea vino a
+sacar. De paso aparecieron cuatro modos que vivían sólo en el binario y **TEL=**, que no estaba en el
+Makefile y sin el cual el timeline del navegador se ve por la mitad.
+
 **El próximo paso es:** correr una jornada entera con esto puesto y anotar qué molestó (el hook de
 `Stop` frenando en el medio del trabajo es el riesgo conocido) antes de tocar nada más.
 
@@ -102,6 +109,32 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 > `make cierre DIA=2026-09-10`
 
 ## Registro
+
+### 2026-09-18 · el criterio sale del tablero: las herramientas emiten su propia anotación
+
+Miguel preguntó qué mejoras le haría al trazador, con una intuición: que sean comandos de consola que
+**dejen registrado el comando**, en vez de mandar a abrir una UI. Medido antes de tocar nada, sobre las
+68 tareas abiertas: sólo **14** tienen la sección «Cómo se comprueba» y **10** un comando copiable,
+pero **27** nombran el harness, el trazador, Loki, PostHog o Redash —233 menciones— y el **74 %** de
+esas menciones ya cae arriba del Registro. O sea: el material se escribe; lo que falta es la casilla.
+
+**Tres arreglos, y el primero es un defecto, no una mejora.** `make trazador-posthog` nunca expuso
+`-tel`, y el propio README del trazador ya tenía medido que sin el teléfono se ve la mitad del
+recorrido —47.792 eventos identificados por `phone_<e164>` contra 24.006 por `loan_request_<n>`,
+porque la fase de AUTH ocurre antes de que exista la solicitud—. Por el camino documentado, entonces,
+**siempre se veía media historia**, y un timeline que arranca en «monto» se lee como si el cliente
+hubiera entrado por ahí. Segundo: cuatro modos vivían sólo en el binario (`-validar`, `-slack`,
+`-incidencias` y los tres diagnósticos finos), o sea que no existían para quien lee el catálogo — que
+es la regla que este repo tiene escrita. Y tercero, el que contesta la pregunta: **el pie
+reproducible** (`↻ make trazador-… TARGET=…`, el comando y no la bandera, con el target siempre
+porque dev y qa comparten stack y base) y **`MD=1`**, que en `trazador-ureq`, `trazador-buscar` y
+`trazador-sql` emite la anotación con su fecha real y el comando como «Cómo se vuelve a comprobar».
+
+⚠ **Y el pegado se probó de verdad**, que era donde esto se podía caer: una consulta con comillas
+simples adentro sale impresa, se pega tal cual —a través del escapado de `make`— y vuelve a correr.
+
+*(De paso, en `CLAUDE.md`: la fila «¿qué le pasó a ESTA solicitud?» mandaba a `trazador-acceso`, que
+es la sonda de «¿puedo leer los logs?», no la traza.)*
 
 ### 2026-09-15
 
