@@ -43,8 +43,12 @@ const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 100
 
 /** Las claves que el contrato del front declara (`buildVehicleSimulatorParams`). Todo lo que llegue
  *  fuera de esta lista se muestra aparte: es la señal de que el contrato cambió y nadie avisó. */
+// ⚠ MEDIDOS, no deducidos del tipo. La primera versión de esta lista decía `brand`/`model` leyendo
+// `buildVehicleSimulatorParams`, y la primera corrida real mostró que viajan como `vehicleBrand` y
+// `vehicleModel` (el nombre de la clave lo pone el tipo, no el nombre de la variable). Que el mock
+// cante «no están en el contrato» es justamente lo que lo dejó ver.
 const ESPERADOS = [
-    'origin', 'productType', 'brand', 'model', 'version',
+    'origin', 'productType', 'vehicleBrand', 'vehicleModel', 'version',
     'insuranceType', 'commissionRate', 'vehicleValue', 'financingAmount',
 ];
 

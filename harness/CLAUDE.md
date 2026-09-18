@@ -712,6 +712,26 @@ en la card; acá no puede, porque el slug también cambia.
 ⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
 La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
 
+### Las cuatro variables del WIZARD sin las que el vehicular no se ve (2026-09-18)
+
+El recorrido con navegador llega igual, pero **degrada en silencio**: sin ellas el formulario del
+vehículo tira «Oops! Algo salió mal» o el simulador abre con la URL pelada, que se ve idéntica a un
+prellenado correcto. Van en `apps/loan-request-wizard/.env.local`, que es la capa que trae el wizard a
+local — el `.env` apunta a `inertia-develop`:
+
+    VITE_API_URL=http://localhost                         # ⚠ el `.env` dice `…inertia-develop/api`
+    VITE_FORM_SERVICE_BASE_URL=http://localhost:8109      # el mock G2; el `.env` dice :8082, que está muerto
+    VITE_BCP_VEHICLE_FORM_TYPE_ID=8                       # `SELECT id FROM form_types WHERE name='bcp-vehiculo-paso-1'`
+    VITE_BCP_SIMULATOR_URL=http://localhost:8110/simulador # bin/mock-cuotealo
+
+⚠⚠ **Y lo que esto destapó: `.env.local` puede NO EXISTIR.** `bin/asesor` lo escribe y lo restaura en su
+`trap EXIT`; si muere mal, queda sólo `.env.local.asesor-bak` y el wizard pasa a leer el `.env`, que
+apunta al **backend compartido de dev**. Un servidor de Vite ya levantado no se entera —tiene la config
+en memoria— así que el problema aparece recién al reiniciarlo, y puede llevar días ahí. Medido el
+2026-09-18: lo único que impidió que el wizard local escribiera contra dev fue que ese `VITE_API_URL`
+termina en `/api` y el código le antepone otro, dando `api/api/…` y un 404. **Antes de reiniciar el
+wizard, mirá si `.env.local` está.**
+
 ⚠ El país 167 en esa base **ya está completo** (`dial_code 51`, `phone_code +51`, largo 9, `PEN`,
 `es-PE`) salvo `nationality`, que sigue en NULL.
 
