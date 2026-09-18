@@ -1808,7 +1808,49 @@ async function main(): Promise<number> {
     const urs = res.map((r) => r.ur).filter(Boolean);
     if (new Set(urs).size !== urs.length) console.log('  ⚠ DOS CASOS COMPARTIERON SOLICITUD — se pisaron');
     console.log();
+    await anotar(res, malos);
     return malos ? 1 : 0;
+}
+
+/**
+ * LA CORRIDA COMO ANOTACIÓN, con `MD=1`. El porqué completo en `pkg/anotacion.ts`.
+ *
+ * ⚠ LO QUE SE RESUME ES EL DESENLACE, NO EL CONTEO. «3/3 cerraron» no dice nada que sirva dentro de una
+ * tarea tres semanas después: lo que se pega tiene que decir QUÉ entidades salieron y DÓNDE terminó
+ * cada caso, que es lo que alguien va a querer contrastar. El conteo va igual, pero de segundo.
+ */
+async function anotar(res: Res[], malos: number): Promise<void> {
+    if (process.env.MD !== '1') return;
+    const { anotacionMD, cmdMake } = await import('../pkg/anotacion.ts');
+    // El target sale del env, que es donde este runner lo fija (arriba, con `||=`): no hay una
+    // constante que importar, y leer otra cosa sería inventar un segundo lugar donde vive el ambiente.
+    const TARGET = process.env.E2E_TARGET || 'local';
+    const conCierre = res.filter((r) => r.cierre);
+    const cerraron = conCierre.filter((r) => r.cierre!.cerro).length;
+
+    const resumen = `${res.length - malos}/${res.length} caso(s) en \`${TARGET}\``
+        + (conCierre.length ? ` · ${cerraron}/${conCierre.length} cerraron en estado 11` : ' (sin `CERRAR`: llega al listado)')
+        + '.';
+    // Una línea por caso: qué se pidió, qué le salió y dónde terminó. El listado va con los ids porque
+    // es la respuesta a «¿por qué a este comercio le sale ESA entidad?», que es para lo que se corre.
+    const evidencia = res.map((r) => {
+        const partes = [`${r.ok ? '✔' : '✘'} ${r.caso.comercio}`];
+        if (r.caso.lender) partes.push(`entidad ${r.caso.lender}`);
+        if (r.ur) partes.push(`uReq ${r.ur}`);
+        if (r.listado?.length) partes.push(`listado [${r.listado.join(', ')}]`);
+        if (r.cierre) {
+            partes.push(r.cierre.cerro
+                ? `cerró${r.cierre.estado ? ` en estado ${r.cierre.estado}` : ''}`
+                : `NO cerró: ${r.cierre.motivo}`);
+        }
+        if (!r.ok && r.detalle) partes.push(r.detalle);
+        return partes.join(' · ');
+    });
+    console.log(anotacionMD(resumen, cmdMake('harness-caso', TARGET, {
+        SUITE: arg('suite'), CASOS: arg('casos'), COMERCIO: arg('comercio'), LENDER: arg('lender'),
+        MONTO: arg('amount'), PAR: flag('paralelo') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
+        PRE: flag('preaprobados') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
+    }), evidencia));
 }
 
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });

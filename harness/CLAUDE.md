@@ -864,6 +864,23 @@ de un juguete personal. El guard del tablero frena `make <target>`, `E2E_TARGET`
 la regla entera, con qué poner en su lugar, está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La
 frontera del guard está DENTRO del archivo».
 
-**Lo que todavía no hace, y se nota:** el trazador emite su anotación ya escrita (`MD=1`, con fecha,
-evidencia y comando adentro) y el arnés no tiene equivalente — por eso su evidencia se escribe a mano y
-sale prosa. Es el hueco más grande entre las dos herramientas.
+**Y no hace falta escribirla a mano: `MD=1` la emite.** Lo aceptan `harness-caso`, `harness-listado`,
+`harness-caminar` y `harness-suite`, y devuelven la anotación completa —marcador con la fecha real,
+una línea de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para
+copiarla sin recortar:
+
+    make harness-caso CASOS='pullman' CERRAR=1 MD=1
+
+    > **MEDICIÓN · 2026-09-18** — 1/1 caso(s) en `local` · 1/1 cerraron en estado 11.
+    > ✔ pullman · uReq 466858 · listado [100, 39, 77, 6, 9, 32, 68] · cerró en estado 11
+    > **Cómo se vuelve a comprobar:** `make harness-caso CASOS=pullman LAMBDA=1 CERRAR=1 MANUAL=1 TARGET=local`
+
+⚠ **El contrato lo fija el parser del tablero, no el gusto de acá**: el marcador arranca la primera
+línea, TODAS las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si
+deriva, la anotación se pega, se ve bien y la pestaña Hallazgos no la muestra. `pkg/anotacion.spec.ts`
+lo fija leyendo el **regex real** de `store.Anotaciones` — no una copia: un mock no puede contradecir
+el documento del que nació.
+
+⚠ **Y lo que se resume es el DESENLACE, no el conteo.** «3/3 cerraron» no sirve dentro de una tarea tres
+semanas después; qué entidades salieron y dónde terminó cada caso, sí. En `harness-listado` la
+evidencia son las que NO salieron **con su causa**, que es la pregunta por la que se corre.

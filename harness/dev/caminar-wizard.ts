@@ -975,9 +975,41 @@ console.log(`  ${cerraron}/${resultados.length} ${flag('cerrar') ? 'cerraron' : 
  * que existen. */
 const lineas = lineasDeEscrituras('  ');
 if (lineas.length) { console.log(''); for (const l of lineas) console.log(l); }
+
 // Ruta relativa al repo, igual que el resto de la evidencia del runner (`.runs/caminar-…`).
 const volcado = `.runs/escrituras-${new Date(t0).toISOString().slice(0, 19).replace(/[:T]/g, '')}.json`;
 if (volcarEscrituras(volcado)) console.log(`     detalle sentencia por sentencia → ${volcado}`);
+
+/* LA CORRIDA COMO ANOTACIÓN, con `MD=1`. Ver el porqué completo en `pkg/anotacion.ts`: el tablero
+ * parsea la evidencia de una anotación y deriva con QUÉ se comprobó, pero sólo si lo que se pega trae
+ * el comando — y medido, el 86 % no lo trae. Emitirla es lo que hace que salga el comando en vez de
+ * prosa.
+ *
+ * ⚠ SE IMPRIME AL FINAL Y SOLA, sin el resto del informe: el destino es un `Ctrl-C` hacia el `.md` de
+ * una tarea, y mezclarla con las cien líneas de la corrida obliga a recortar a mano — que es
+ * exactamente la fricción que hace que nadie la pegue. */
+if (process.env.MD === '1') {
+      const cerró = (r: Resultado) => r.fin === 'cerro' || r.fin === 'listo';
+      const resumen = `${cerraron}/${resultados.length} ${flag('cerrar') ? 'cerraron' : 'listaron'}`
+            + ` en \`${TARGET}\` · motor ${MOTOR} · ${casos.length} caso(s)`
+            + (flag('cerrar') ? '' : ' (sin `CERRAR`: llega al listado, no al desenlace)') + '.';
+      // Una línea por caso: qué se pidió y dónde terminó. El `uReq` va porque es la llave con la que
+      // se sigue investigando (el trazador entra por ahí), y el motivo porque «no cerró» sin el motivo
+      // manda a repetir la corrida para volver a leerlo.
+      const evidencia = resultados.map((r) => {
+            const donde = cerró(r)
+                  ? `cerró${r.estado !== null ? ` en estado ${r.estado}` : ''}`
+                  : `NO cerró: ${r.motivo || 'sin motivo registrado'}`;
+            return `${cerró(r) ? '✔' : '✘'} ${r.caso}${r.ur ? ` (uReq ${r.ur})` : ''} — ${r.pantallas} pantalla(s), ${donde}`;
+      });
+      const { anotacionMD, cmdMake } = await import('../pkg/anotacion.ts');
+      console.log('\n' + anotacionMD(resumen, cmdMake('harness-caminar', TARGET, {
+            CASOS: arg('casos'), COMERCIO: arg('casos') ? '' : arg('comercio'), LENDER: arg('casos') ? '' : arg('lender'),
+            MONTO: AMOUNT === 2000000 ? '' : AMOUNT, CUOTA: CUOTA_INICIAL, PLAZO: CUOTAS ?? '',
+            FLOW: FLOW === 'self-service' ? '' : FLOW, MOTOR: MOTOR === 'http' ? '' : MOTOR,
+            PAR: flag('paralelo') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
+      }), evidencia));
+}
 console.log('');
 await close();
 process.exit(cerraron === resultados.length ? 0 : 1);

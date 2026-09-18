@@ -217,6 +217,30 @@ async function main(): Promise<number> {
     console.log(`\n    ● salió en el listado   ○ no salió\n`);
     console.log(`  la solicitud queda viva: uReq ${ur}  ·  seguila con`);
     console.log(`      make trazador-ureq UREQ=${ur} TARGET=local\n`);
+
+    /* LA CORRIDA COMO ANOTACIÓN, con `MD=1`. El porqué en `pkg/anotacion.ts`.
+     *
+     * ⚠ ACÁ LO QUE SE PEGA ES EL «POR QUÉ NO», no el listado. Que salgan 7 de 12 no explica nada; que
+     * la 141 no salga «por cupo rt=2» es la respuesta que alguien pegó la tarea para tener. Por eso la
+     * evidencia lista las que NO salieron con su causa, y las que sí sólo como ids. */
+    if (process.env.MD === '1') {
+        const { anotacionMD, cmdMake } = await import('../pkg/anotacion.ts');
+        const target = process.env.E2E_TARGET || 'local';
+        const fuera = universo.filter((l) => !salieron.has(l.id));
+        const evidencia = [
+            `Salieron: [${universo.filter((l) => salieron.has(l.id)).map((l) => l.id).join(', ') || '—'}].`,
+            ...fuera.map((l) => {
+                const c = causas.get(l.id) ?? [];
+                return `✘ ${l.id} ${l.nombre} (rt=${l.rt}) — ${c.length ? c.join(' · ') : 'sin causa verificable acá'}`;
+            }),
+        ];
+        console.log(anotacionMD(
+            `${salieron.size} de ${universo.length} entidades cableadas salieron en el listado de `
+            + `${arg('comercio', 'pullman')} en \`${target}\` (uReq ${ur}).`,
+            cmdMake('harness-listado', target, {
+                COMERCIO: arg('comercio'), MONTO: arg('amount'), BRANCH: arg('branch'),
+            }), evidencia));
+    }
     return 0;
 }
 

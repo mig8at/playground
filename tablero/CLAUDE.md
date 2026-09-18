@@ -127,10 +127,10 @@ sin comando es un número que nadie puede volver a tomar — así que nadie lo d
 haciéndose pasar por cierto.
 
 **Lo que más rinde para cerrar ese hueco es que la herramienta emita la anotación**, en vez de que
-alguien la escriba. Hoy sólo lo hace el trazador (`MD=1` en `trazador-ureq` · `-buscar` · `-sql`), que
-la devuelve con la fecha real, la evidencia y el comando adentro, lista para pegar. El harness aparece
-en **33 de 68** tareas —el doble que el trazador— y no tiene equivalente: ahí la evidencia se escribe a
-mano, y por eso sale prosa.
+alguien la escriba: donde hay que escribirla a mano sale prosa, y donde la emite la herramienta sale el
+comando. **`MD=1` lo hacen las dos** — el trazador (`trazador-ureq` · `-buscar` · `-sql`) y, desde el
+2026-09-18, el arnés (`harness-caso` · `-listado` · `-caminar` · `-suite`), que era el hueco más
+grande: aparece en **33 de 68** tareas, el doble que el trazador.
 
 ⚠ **Y lo que NO cambia es la frontera.** La medición se publica; la herramienta, no. Eso ya está
 resuelto arriba, en «La frontera del guard está DENTRO del archivo»: a `## Tarea (publicable)` va *«se
