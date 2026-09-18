@@ -55,7 +55,7 @@
 //   devuelve `errors: []` en un éxito, el flujo se cae igual.)
 
 import http from 'node:http';
-import { randomUUID, randomBytes } from 'node:crypto';
+import { createVerify, randomUUID, randomBytes, X509Certificate } from 'node:crypto';
 import { statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -65,6 +65,10 @@ import { fileURLToPath } from 'node:url';
 const CODIGO = Math.floor(statSync(fileURLToPath(import.meta.url)).mtimeMs / 1000);
 
 const PORT = Number(process.env.MOCK_BC_PORT || 8104);
+// El mock NO lee la base, así que no conoce la credencial. Si se le DICE cuál es el secreto que debe
+// aceptar, reproduce el 401 que el banco devuelve ante uno equivocado; si no se le dice, sólo exige que
+// la cabecera venga. Se declara antes que nada porque `seguridadDelGateway` lo consulta.
+const SECRETO_ESPERADO = process.env.MOCK_BC_CLIENT_SECRET || null;
 const FAIL = process.env.MOCK_BC_FAIL === '1';
 const log = (...a) => console.log(new Date().toISOString(), ...a);
 
@@ -164,6 +168,100 @@ const err = (res, status, code, detail) => json(res, status, {
 const txDelBody = (b) => b?.data?.security?.transactionId ?? b?.transactionId ?? b?.bnplTransactionId
     ?? b?.data?.info?.bnplTransactionId ?? null;
 
+// ── LA SEGURIDAD DEL GATEWAY, COMO LA DEVOLVIÓ EL BANCO ───────────────────────────────────────────
+// Esto NO sale del OpenAPI: sale de las 20 respuestas MEDIDAS contra `gw-sandbox-qa` el 2026-08-04 y
+// congeladas en `dev/sandbox-bancolombia.ts`. Se reproduce acá porque ese script hoy **no se puede
+// correr**: desde la red de CreditOp el WAF (Imperva) devuelve 503 a todo, incluido `HEAD /health`
+// pelado, así que el único oráculo que podía contradecirnos quedó fuera de alcance (F-226).
+//
+// QUÉ SE REPRODUCE Y QUÉ NO — la distinción es lo que hace que esto valga:
+//
+//   ✔ SÍ, porque es el GATEWAY (APIC) y va a comportarse igual en Development, Testing y producción:
+//       · `Client-Secret` equivocado ................ 401
+//       · sin `json-web-token` ...................... 403 SA403
+//       · JWT ilegible, FIRMADO CON OTRA LLAVE o vencido  403 SA403
+//       · sin `x-client-certificate` ................ 400 SA500  (sí, 400 con código SA500)
+//       · sin `message-id`, o `message-id` que no es UUID v4  400 SA400
+//       · `HEAD /health` sin cabeceras .............. 401 · con Client-Id **y** Client-Secret → 200
+//
+//   ✘ NO, porque es el DISPATCHER del catálogo `Sandbox` (Microcks) y no el banco:
+//       · los `billingCode` enlatados (`6cc5078c…`) — acá el código es determinista por transactionId
+//       · el 409 `BP12700001`, que es su `DefaultResponse` («no te conozco»), no un conflicto de negocio
+//       · el `SA409` de `retrieve-order-details`, que sólo dice que ese catálogo no tiene backend
+//     Copiar estos TRES haría el mock MENOS parecido a la realidad, no más. Si alguien cruza el mock
+//     contra el sandbox y «corrige» estas diferencias, las está rompiendo.
+//
+// POR QUÉ IMPORTA QUE VERIFIQUE LA FIRMA DE VERDAD. Que el gateway rechace un JWT firmado con otra
+// llave (403) prueba que valida la firma contra NUESTRO certificado. Verificarla acá es lo único que
+// puede atrapar en local una regresión de `Bancolombia::generateJsonWebToken` — cambiar el algoritmo,
+// romper el base64url, firmar con la llave de otra credencial. Antes eso sólo lo veía el sandbox.
+//
+// ⚠ NO HAY PERILLA PARA APAGAR ESTO, a propósito. Este archivo ya tiene el precedente escrito unos
+// renglones más arriba: el `type` con valor `-` se agregó porque el mock era MÁS PERMISIVO que el
+// banco en un campo, y por eso el recorrido cerraba en verde en local y moría en producción.
+//
+// ⚠ LO QUE NO ESTÁ MEDIDO ES EL ORDEN. Cada caso del sandbox varía UNA sola cosa, así que con dos
+// cabeceras mal a la vez no sabemos cuál gana. Acá se evalúa autenticación (401) → certificado →
+// firma (403) → `message-id` → cuerpo, que es el orden convencional de un gateway, no un hecho.
+
+/** Rearma el PEM que viaja en `x-client-certificate`: `getCertificateBase64` manda los saltos de línea
+ *  como ESPACIOS, y los marcadores («BEGIN CERTIFICATE») también llevan espacios — por eso se extrae el
+ *  cuerpo entre marcadores y se reenvuelve, en vez de deshacer el reemplazo. */
+const certificadoDelHeader = (valor) => {
+    const m = /-----BEGIN CERTIFICATE-----([\s\S]*?)-----END CERTIFICATE-----/.exec(valor || '');
+    if (!m) return null;
+    const cuerpo = m[1].replace(/\s+/g, '');
+    if (!cuerpo) return null;
+    try {
+        return new X509Certificate(
+            `-----BEGIN CERTIFICATE-----\n${cuerpo.match(/.{1,64}/g).join('\n')}\n-----END CERTIFICATE-----\n`,
+        );
+    } catch { return null; }
+};
+
+const desB64url = (s) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+
+/** ¿El JWT está firmado con la llave del certificado que vino en la misma petición, y sigue vigente? */
+const firmaValida = (token, cert) => {
+    const partes = String(token).split('.');
+    if (partes.length !== 3) return false;
+    const [h, p, f] = partes;
+    try {
+        if (JSON.parse(desB64url(h).toString()).alg !== 'RS256') return false;
+        const payload = JSON.parse(desB64url(p).toString());
+        if (typeof payload.exp === 'number' && payload.exp <= Math.floor(Date.now() / 1000)) return false;
+        return createVerify('RSA-SHA256').update(`${h}.${p}`).verify(cert.publicKey, desB64url(f));
+    } catch { return false; }
+};
+
+/** Los 5 headers del contrato del billing code. Devuelve `null` si pasa, o el error que dio el banco. */
+const seguridadDelGateway = (req) => {
+    const h = (n) => req.headers[n];
+
+    if (!h('client-id') || !h('client-secret')) return { status: 401, detail: 'falta Client-Id o Client-Secret' };
+    if (SECRETO_ESPERADO && h('client-secret') !== SECRETO_ESPERADO) {
+        return { status: 401, detail: 'Client-Secret incorrecto' };
+    }
+
+    if (!h('x-client-certificate')) return { status: 400, code: 'SA500', detail: 'falta x-client-certificate' };
+    const cert = certificadoDelHeader(h('x-client-certificate'));
+    if (!cert) return { status: 400, code: 'SA500', detail: 'x-client-certificate no es un PEM legible' };
+
+    if (!h('json-web-token')) return { status: 403, code: 'SA403', detail: 'falta json-web-token' };
+    if (!firmaValida(h('json-web-token'), cert)) {
+        return { status: 403, code: 'SA403',
+            detail: 'json-web-token inválido: ilegible, vencido, o no firmado con la llave de ESE certificado'
+                + ' — mirá generateJsonWebToken, no el mock' };
+    }
+
+    const mid = h('message-id');
+    if (!mid) return { status: 400, code: 'SA400', detail: 'falta message-id' };
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(mid)) {
+        return { status: 400, code: 'SA400', detail: `message-id no es UUID v4: ${mid} (¿orderedUuid?)` };
+    }
+    return null;
+};
+
 const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const path = url.pathname.replace(/\/+$/, '') || '/';
@@ -230,15 +328,37 @@ const server = http.createServer(async (req, res) => {
     // respuesta pone el código en `data.billingCode` (1-30). Se valida acá lo mismo que valida el banco
     // —el sobre y los 5 headers— para que un sobre plano NO pase en local y sí falle contra el banco.
     // El 409 BP21000 no necesita código propio: `?errorCode=BP21000&errorEn=generateBillingCode`.
-    if (tail('/generateBillingCode') && req.method === 'POST') {
-        const faltan = ['Client-Id', 'Client-Secret', 'json-web-token', 'x-client-certificate', 'message-id']
-            .filter((h) => !req.headers[h.toLowerCase()]);
-        if (faltan.length) return err(res, 400, 'SA400', `faltan headers: ${faltan.join(', ')}`);
-
-        const mid = req.headers['message-id'];
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(mid)) {
-            return err(res, 400, 'SA400', `message-id no es UUID v4: ${mid}`);
+// ── LA SONDA DE CONECTIVIDAD ──────────────────────────────────────────────────────────────────
+    // ⚠ HASTA HOY ESTA RUTA NO EXISTÍA ACÁ, y el efecto era el peor posible: caía en el catch-all, que
+    // contesta `200 {"data":{"status":"OK"}}`, así que `BancolombiaBillingCode::health()` devolvía
+    // **`true` siempre** en local — con la credencial equivocada, con el host mal puesto, con el mock
+    // abajo no (ahí no resuelve) pero con cualquier ruta escrita mal, sí. Una sonda que sólo sabe
+    // contestar que sí es peor que no tenerla, y local es justo donde alguien la probaría.
+    //
+    // Lo medido el 2026-08-04: pelada → 401 · sólo `Client-Id` → 401 · con Client-Id **y**
+    // Client-Secret → 200. El contrato del banco declara `HEAD /health` SIN parámetros y en eso miente;
+    // por eso la primera versión del método daba `false` con el servicio sano.
+    //
+    // Deliberadamente NO exige el JWT ni el certificado: si los exigiera, una firma mala haría fallar la
+    // sonda y se perdería la discriminación que la justifica (lo dice su propio docblock).
+    if (tail('/health') && (req.method === 'HEAD' || req.method === 'GET')) {
+        const autenticado = req.headers['client-id'] && req.headers['client-secret']
+            && (!SECRETO_ESPERADO || req.headers['client-secret'] === SECRETO_ESPERADO);
+        if (req.method === 'HEAD') {
+            res.writeHead(autenticado ? 200 : 401, { 'content-type': 'application/json' });
+            return res.end();
         }
+        return autenticado
+            ? json(res, 200, { data: { status: 'UP' } })
+            : err(res, 401, undefined, 'falta Client-Id o Client-Secret');
+    }
+
+    if (tail('/generateBillingCode') && req.method === 'POST') {
+        // Antes acá los cinco headers faltantes daban TODOS `400 SA400`. El banco los distingue —401,
+        // 403 SA403 y 400 SA500 según cuál falle— y esa distinción es la que usa `health()` para separar
+        // «el canal está mal» de «mi firma está mal». Ver `seguridadDelGateway`.
+        const mal = seguridadDelGateway(req);
+        if (mal) return err(res, mal.status, mal.code, mal.detail);
 
         const tx = body?.data?.security?.transactionId;
         const ci = body?.data?.customer?.contactInformation;
@@ -261,6 +381,11 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (tail('/retrieve-order-details') && req.method === 'GET') {
+        // Los mismos 5 headers que el POST: `BancolombiaBillingCode::billingHeaders` los arma una sola
+        // vez y los usa en los dos métodos.
+        const malGet = seguridadDelGateway(req);
+        if (malGet) return err(res, malGet.status, malGet.code, malGet.detail);
+
         const code = url.searchParams.get('billingCode');
         const orden = emitidos.get(code);
         if (!orden) return err(res, 404, 'BP40421052', `sin orden para billingCode ${code}`);

@@ -34,13 +34,25 @@ compuerta de BNPL**.
 | `dev/qr-corbeta.ts` | backend + BD: cierra en 25 con código | **los esquemas zod del front** |
 | `dev/caminar-qr.ts` | las pantallas: cargan y avanzan | no valida negocio ni que la pantalla esté *bien* |
 | `npm run contrato:bancolombia` | el mock vs los zod **reales** del monorepo | no prueba el recorrido |
-| **`make harness-sandbox`** | **el gateway REAL del banco**: sobre, 5 headers, firma RS256, `maxLength` | el **negocio**: en el catálogo `Sandbox` el emisor es Microcks |
+| **`make harness-sandbox`** | **el gateway REAL del banco**: sobre, 5 headers, firma RS256, `maxLength` ⚠ **hoy NO LLEGA** (ver abajo) | el **negocio**: en el catálogo `Sandbox` el emisor es Microcks |
 
 ⚠ **Los tres primeros son NUESTRA lectura del contrato, y por eso pueden coincidir en el error.** Pasó:
 el sobre PLANO pasaba 8 tests con `Http::fake` en verde porque comprobaban la misma suposición con la que
 se escribió el código, sacada del mismo documento equivocado. **Un mock no puede contradecir la
 documentación de la que nació.** `make harness-sandbox` es el único que deja que el banco contradiga —
 mandale el sobre plano y contesta `SA400 · Parámetro security requerido`.
+
+⚠⚠ **Y HOY ESE CAMINO ESTÁ TAPADO (2026-09-17, F-226).** Desde esta red el WAF de Bancolombia
+(Imperva) devuelve **503 a todo** antes de llegar a APIC, así que el script reporta **«20 casos se
+apartaron de lo medido»** y **ninguno es del contrato**. Antes de creerle a esa salida, mirá el caso E:
+si `HEAD /health` **pelado** también da 503, no mandaste nada que pudiera estar mal y el problema no es
+nuestro. La huella del WAF está en las cabeceras (`x-iinfo`, `visid_incap_*`, cuerpo HTML con
+`/_Incapsula_Resource`), no en un JSON con `errors[0].code`. Sin determinar: si es por IP o por
+detección de bot.
+
+**Mientras tanto**, lo aprendido está congelado en `channel/qr-bancolombia-gateway.spec.ts`, que
+comprueba que `mock-bancolombia` reproduce esas 20 respuestas —firma RS256 incluida, verificada de
+verdad contra el certificado de la petición—. **No lo confundas con el sandbox**: conserva, no descubre.
 
 ## Recetas
 
@@ -264,3 +276,8 @@ la venta que cierra en CAJA. Los otros tres están en `.flows.json` por nombre (
 - `channel/qr-corbeta-purchase-code.spec.ts` — **7 casos**: emisión, idempotencia, ya-facturada, los 3
   guards, proveedor caído. Es el registro del comportamiento **observado**, no un oráculo de corrección.
 - `channel/qr-corbeta-pantallas.spec.ts` — 3 casos, incluido el contrato del autorrelleno.
+- `channel/qr-bancolombia-gateway.spec.ts` — **18 casos**: la seguridad del gateway del *billing code*
+  tal como la midió el sandbox. Es **puro** (levanta el mock en su propio puerto, sin BD ni navegador,
+  680 ms) y su último caso fija una **divergencia deliberada**: `retrieve-order-details` contesta el 404
+  de negocio y **no** el `SA409` del catálogo `Sandbox`, que es una limitación de Microcks. Si alguien
+  cruza el mock contra el sandbox y «corrige» eso, lo rompe.

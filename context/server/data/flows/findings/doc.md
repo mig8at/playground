@@ -71,10 +71,11 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el listado da *Unexpected Server Error* y por el navegador sí lista»** | **F-221** |
 | **«fallaron TODOS los casos en la misma pantalla, debe ser el ambiente»** | **F-222** |
 | **«el listado da 500 / *Error al obtener las opciones de financiamiento*»** | **F-223** |
-| **«corregí un dato y el flujo siguió bien, pero quedó guardado el viejo»** | **F-224** |
+| **«corregí un dato y el flujo siguió bien, pero quedó guardado el viejo»** | **F-225** |
 | **«ve algo que su rol no debería» · «tiene un permiso de más»** | **F-224** |
 | **«oculté el dato en pantalla, ¿alcanza?»** | **F-224** |
 | **«desplegué el permiso y al que SÍ debe entrar le da 403»** | **F-224** |
+| **«la prueba contra el proveedor externo falla ENTERA, todos los casos igual»** | **F-226** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -383,7 +384,8 @@ distinto según con qué pregunta llegues.
 | F-221 | Una promesa RECHAZADA dentro del stream del loader no muestra el error de su tarjeta: rompe el listado entero. El `allSettled` que ya estaba cubre el `await`, no el valor que viaja | ARREGLADO ⏳ PENDIENTE DE MERGE |
 | F-222 | Un `catch` cambió el error de la guarda de escrituras por un aviso fijo, y el síntoma reapareció dos pantallas después como falla del proveedor de OTP: 9 casos muertos y una hipótesis equivocada | ARREGLADO · permisos angostos (sentencia + ámbito por usuario) y el aviso nombra la causa |
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
-| F-224 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
+| F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
+| F-226 | `make harness-sandbox` da «20 casos se apartaron de lo medido» y NINGUNO es del contrato: el WAF (Imperva) delante del gateway de Bancolombia devuelve **503 a todo** desde esta red, incluido `HEAD /health` pelado. El único oráculo capaz de contradecir nuestros mocks quedó fuera de alcance | ABIERTO · mitigado con `channel/qr-bancolombia-gateway.spec.ts` |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
 
 ---
@@ -5483,7 +5485,7 @@ haber promesas. El texto del runner nombra el desenlace, no la causa.
   commits de un lado, 7 del otro). Y en prod el permiso **tampoco lo tiene nadie**, así que el día que
   llegue hay que asegurar que la migración corra o los 39 Administradores quedan afuera.
 
-### F-224 · Corregir el vehículo pasado el gate cambia la pantalla pero NO la solicitud: el monto guardado queda en el viejo
+### F-225 · Corregir el vehículo pasado el gate cambia la pantalla pero NO la solicitud: el monto guardado queda en el viejo
 
 **Síntoma.** En el flujo vehicular de BCP, con el gate ya pasado, se corrige el valor del vehículo. La
 pantalla responde como debe —invalida la simulación vieja y vuelve al simulador con el monto nuevo— y
@@ -5536,3 +5538,42 @@ divergencia porque no hay una línea de código que la declare, es lo que FALTA.
 **Arreglo:** no aplicado. Son dos decisiones de producto antes que de código — qué cifra manda cuando el
 cliente corrige (¿se reescribe la solicitud, o la corrección exige rehacer el tramo?), y qué significa
 «monto» en la pantalla del marketplace de este flujo.
+
+### F-226 · Veinte casos «fallando» contra Bancolombia y ninguno era del contrato: el WAF nunca nos dejó llegar
+
+- **Síntoma:** `make harness-sandbox` reporta **20 de 20 casos** apartados de lo medido. Se lee como una
+  regresión del contrato del *In Store Billing Code* —el sobre, la firma, los 5 headers—, que es
+  exactamente lo que ese script existe para vigilar.
+- **Causa raíz:** el **503 no lo emite el gateway (APIC), sino Imperva/Incapsula**, el WAF que está
+  delante. Nunca se llega a hablar con el banco. La huella está en las cabeceras de la respuesta:
+  `x-iinfo`, `set-cookie: visid_incap_*` / `incap_ses_*`, y un cuerpo HTML con un iframe a
+  `/_Incapsula_Resource` — no un JSON con `errors[0].code`.
+- **Cómo se descarta en una línea, y por qué esa línea alcanza:** el caso E del script es
+  `HEAD /health` **pelado**, sin sobre, sin JWT y sin certificado. Si *ese* también da 503, no hay
+  ninguna hipótesis de contrato que lo explique: no mandamos nada que pudiera estar mal.
+
+      curl -sI --max-time 30 'https://gw-sandbox-qa.apps.ambientesbc.com/public-partner/sb/v1/operations/product-specific/loans/consumer-loan/in-store-billing-code/code-management/health'
+
+- **Evidencia (2026-09-17):** los 20 casos en 503, `retry-after: 5` y tres reintentos respetándolo con el
+  mismo resultado. Comprobado **desde la terminal de la máquina, no sólo desde el sandbox del agente**:
+  la IP de salida es `3.151.190.239` (rango de **AWS**, no una red de CreditOp) y el WAF la reporta como
+  `cip` en el incidente. La medición base del script es del **2026-08-04**, así que algo cambió entre
+  medio.
+- **Lo que NO está determinado, y no conviene suponerlo:** si el bloqueo es **por IP** (la de salida
+  dejó de estar en la lista blanca de Bancolombia) o es **detección de bot** (el 503 con iframe de
+  desafío es el patrón clásico, y `curl` y el `fetch` de Node no lo resuelven). Se separa pidiendo el
+  mismo endpoint desde un navegador real: misma IP, otra huella.
+- **Por qué importa más de lo que parece:** ese script es **el único oráculo del canal que puede
+  contradecirnos**. Los otros tres —`qr-corbeta.ts`, `caminar-qr.ts` y `npm run contrato:bancolombia`—
+  son *nuestra* lectura del contrato, y por eso pueden coincidir en el mismo error: un mock no puede
+  contradecir la documentación de la que nació. Ya pasó una vez (el sobre PLANO pasaba 8 tests con
+  `Http::fake` en verde). Mientras el WAF esté así, **ese modo de falla vuelve a quedar sin vigilancia**.
+- **Mitigación aplicada (no arreglo):** `channel/qr-bancolombia-gateway.spec.ts` toma las 20 respuestas
+  que el banco YA dio —congeladas como `espera:` en el script del sandbox— y comprueba que
+  `mock-bancolombia` las reproduce, incluida la verificación **real** de la firma RS256 contra el
+  certificado que viaja en la petición. Eso conserva lo aprendido; **no** descubre nada nuevo. Cuando el
+  WAF deje pasar, el sandbox sigue siendo el que hace la pregunta que ningún mock puede hacerse.
+- **Y arregló un agujero que el WAF dejó ver:** `/health` no existía en el mock, caía en su catch-all
+  —que contesta `200` a toda ruta no mapeada— y por lo tanto `BancolombiaBillingCode::health()` devolvía
+  **`true` siempre** en local. Una sonda que sólo sabe contestar que sí es peor que no tenerla, y local
+  es justo donde se la probaría.
