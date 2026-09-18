@@ -140,9 +140,16 @@ inventario—, cada una con su área y el hash de `infrastructure@main` de hoy, 
 observabilidad y repos. Las cinco piezas pasaron la red de regresión a la primera. Y #239 llegó a prod a las
 08:40.
 
-**El próximo paso es:** que Miguel revise y mergee el PR de infraestructura, y verificar contra `main` el
-hecho del cliente que vuelve que sigue afuera (la entidad queda en el listado tras un crédito cerrado; se
-gasta el cupo, no la elegibilidad).
+**`infraestructura/operar` en prod a las 08:56 (8 minutos), y probado con dos preguntas nuevas.** «Me sale
+read-only file system en un contenedor de ECS, ¿es de permisos?»: **8 s, dos pasos, respaldada**, una cita a la
+sección nueva, titular de 21 palabras y una línea de qué hacer — la mejor respuesta del día. «Un servicio en dev
+no se conecta a la base, qué reviso primero»: contenido correcto (el peering antes que las credenciales, las
+dos cuentas, la ruta) leído de las dos secciones nuevas, pero **sin respaldo**: el modelo pegó el marcado de su
+llamada dentro del texto y las citas no llegaron — el bucle lo limpió y lo anotó. Y necesitó dos búsquedas
+porque la sección dice «no llega» y la gente dice «no se conecta».
+
+**El próximo paso es:** sumar «no se conecta» a la sección del peering (cuesta una frase y ahorra una
+búsqueda), y verificar contra `main` el hecho del cliente que vuelve que sigue afuera.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -430,6 +437,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#240 en prod en 8 minutos, y dos preguntas nuevas contra prod.** La de «read-only file system» salió
+  perfecta (8 s, dos pasos, respaldada, cita a la sección nueva). La de «no se conecta a la base» salió
+  correcta pero sin respaldo: el modelo metió el marcado de la llamada en el texto y perdió las citas —
+  defecto del bucle, no del corpus—, y buscó dos veces porque la sección dice «no llega» y la pregunta
+  «no se conecta».
 - **Nace `infraestructura/operar`**, por el dictado, de una propuesta que venía como `context` con rutas y
   hashes inventados: validada contra el repo de hoy (real en lo concreto), reclasificada a `operar`, y
   reducida a las cinco trampas que no se deducen leyendo el Terraform. Cinco de cinco piezas a la primera.
