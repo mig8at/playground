@@ -69,6 +69,17 @@ E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto bnpl      # o consumo
 # 2. las pantallas, clickeando solo — ¿qué vistas existen y en qué orden?
 E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto consumo
 #    --escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}' · --headed · --max 24
+#    ⚠ `errorEn` matchea por SUBCADENA DEL PATH, y si no matchea NO AVISA: la corrida sale verde
+#      como si el banco no hubiera fallado. `retrieve-quota` es de BNPL. Medido el 2026-09-17, las
+#      rutas que Consumo llama de verdad son:
+#        /prospect-validation/validate-quota · /customers/validate · /customers/authenticate
+#        /enable-offers/preapproved · /terms/retrieve · /simulations · /accounts/retrieve
+#        /customers/eSignDocument · /disbursements · /disbursements/confirm
+#        /electronic-signature-management/origination
+#      Para saber qué pidió TU corrida: `curl -s localhost:8104/ | python3 -m json.tool` → `llamadas`.
+#    ⚠ Y un error a mitad de camino NO lleva a ninguna pantalla de error: `loan-info` contesta con un
+#      `toast.error("Error al procesar la solicitud")` y deja al cliente donde estaba. El caminador
+#      ahí da vueltas reclickeando «Solicitar» hasta agotar `--max`, que se lee como muro y no lo es.
 
 # 3. el contrato mock ↔ front (16 esquemas, sin browser ni BD)
 npm run contrato:bancolombia
