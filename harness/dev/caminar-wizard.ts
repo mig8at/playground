@@ -798,7 +798,7 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
         }
 
         const antes = page.url();
-        const av = await avanzar(page, { tel, doc, amount: AMOUNT, income: INCOME }, hoja);
+        const av = await avanzar(page, { tel, doc, amount: AMOUNT, income: INCOME, cuotaInicial: CUOTA_INICIAL || undefined }, hoja);
         if (av.hechos.length) log(`   ▸ autorrelleno: ${av.hechos.join(' · ')}`);
         if (!av.ok) {
             /* UN GATE MANUAL NO ES UNA PANTALLA TRABADA. `entidad/resultado` no ofrece «Continuar»:

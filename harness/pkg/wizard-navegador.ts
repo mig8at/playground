@@ -21,6 +21,8 @@ import { autorrellenar, clickearAvanzar, erroresDeValidacion, leerHastaElFinal, 
 export type DatosWizard = {
     tel: string; doc: string; amount: number; income: number;
     nombre?: string; apellido?: string; email?: string; direccion?: string;
+    /** La cuota inicial que pide el caso (`--cuota-inicial`). Sin ella se cae al 20 % — ver el campo. */
+    cuotaInicial?: number;
 };
 
 /** El mapa de campos del wizard. Lo específico del canal; el motor de llenado es compartido.
@@ -51,7 +53,15 @@ export const CAMPOS_WIZARD = (d: DatosWizard, hoja = ''): Campo[] => [
      * ⚠ NO se llena «Monto a financiar» a propósito: `bcp-volver.ts` anota que ese campo lo calcula el
      * JAVASCRIPT DEL CLIENTE, que es justo lo que el camino HTTP no puede ver. Dejarlo vacío convierte
      * al caminador en la prueba de si de verdad se autocalcula — llenarlo a mano taparía la respuesta. */
-    { label: /cuota inicial/i, name: 'down_payment', valor: String(Math.round(d.amount * 0.2)), tecleado: true },
+    /* ⚠ EL 20 % ES UN RESPALDO, NO LA REGLA — y cuando el caso pide un valor, MANDA EL CASO.
+     * `--cuota-inicial` existía y este motor la ignoraba en silencio: la bandera sólo alimentaba el
+     * payload que arma el camino HTTP, así que con navegador se tecleaba igual el 20 % pasara lo que
+     * pasara. Medido el 2026-09-18 contra Motai C (168): sobre $2.000.000 la entidad exige **36 %**, el
+     * caminador escribía $400.000 y la pantalla repetía «La cuota inicial mínima es $ 720.000» hasta
+     * agotar los intentos — con `CUOTA=720000` puesto en la línea de comandos. Una perilla documentada
+     * que no mueve nada es peor que no tenerla: manda a buscar el problema en el producto.
+     * El respaldo se queda porque el vehicular de BCP no declara mínimo y ahí cualquier valor sirve. */
+    { label: /cuota inicial/i, name: 'down_payment', valor: String(d.cuotaInicial ?? Math.round(d.amount * 0.2)), tecleado: true },
     /* Los dos campos del SEGUNDO formulario del vehículo de BCP (`bcp-vehiculo-paso-2`), el que va
      * DESPUÉS del gate manual. Su esquema los declara `text` sin regex y con `minLength: 1`, así que
      * cualquier cadena sirve; se les da igual la FORMA de un chasis y un motor de verdad —17 caracteres
@@ -106,8 +116,15 @@ export type Evidencia = { consola: string[]; red: string[] };
  * producción ese script no existe**. Caminar con él cargado es probar una pantalla que ningún cliente
  * ve. Bloquearlo no es hacerle trampa al test: es acercarlo a lo real.
  */
+/**
+ * Lo que el caminador aborta A PROPÓSITO. Una sola definición para las dos cosas que la usan —el
+ * bloqueo y el filtro del informe de red—, porque tenerla escrita dos veces es exactamente como
+ * empiezan a derivar: se agrega una herramienta al bloqueo y su aborto reaparece como «falla».
+ */
+const HERRAMIENTAS_DE_DEV = /react-scan|react-grab/;
+
 export async function bloquearHerramientasDeDev(page: Page): Promise<void> {
-    await page.route(/react-scan|react-grab/, (ruta) => ruta.abort()).catch(() => {});
+    await page.route(HERRAMIENTAS_DE_DEV, (ruta) => ruta.abort()).catch(() => {});
 }
 
 export function esRuidoDeLocal(mensajeCompleto: string): boolean {
@@ -193,6 +210,12 @@ export async function abrirContexto(browser: Browser, baseURL: string, opts: { t
         if (evidencia.consola.length < 40) anotar('consola', `pageerror: ${String(e.message).slice(0, 220)}`);
     });
     page.on('requestfailed', (r) => {
+        // ⚠ LO QUE ABORTAMOS NOSOTROS NO ES UNA FALLA, y reportarlo cuesta caro: el informe de la
+        // corrida del 2026-09-18 encabezaba «llamadas que FALLARON» con
+        // `falló GET /react-scan/dist/auto.global.js — net::ERR_FAILED`, que es el bloqueo del arreglo
+        // de F-233 haciendo su trabajo. Un caminador que denuncia su propia decisión como un fallo del
+        // producto gasta la atención justo donde se mira primero.
+        if (HERRAMIENTAS_DE_DEV.test(r.url())) return;
         if (evidencia.red.length < 40) anotar('red', `falló ${r.method()} ${acortar(r.url())} — ${r.failure()?.errorText ?? '?'}`);
     });
     page.on('response', (r) => {
