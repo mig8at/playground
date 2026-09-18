@@ -60,3 +60,44 @@ func TestSeccionRetomaReconoceTitulosNumeradosYEnMayusculas(t *testing.T) {
 		t.Error("sin sección tiene que dar vacío")
 	}
 }
+
+/*
+UNA TAREA TERMINADA NO LA REABRE UNA RAMA.
+
+	El caso real: la #67 cerró el 2026-09-07 declarando el patrón `canon/`, que es subcadena de las
+	sesenta y siete ramas de esa herramienta. Diez días después, una rama nueva de canon la reclamó y
+	el cierre pidió un `### 2026-09-17` en el Registro de una tarea cerrada — o sea, escribir historia
+	falsa para que el guard se calle.
+
+	Lo que esta prueba fija son las tres mitades del arreglo: la cerrada no se reabre, la VIVA que
+	declara la misma rama sí, y una rama que SÓLO reclama una tarea cerrada no se da por declarada —
+	sale a la lista de huérfanas, que es el pedido correcto: declarala en la tarea viva.
+*/
+func TestUnaTareaArchivadaNoLaReabreUnaRama(t *testing.T) {
+	cerrada := tarea{ID: 67, Slug: "canon-compartido", Archived: true, Ramas: []string{"canon/"}}
+	viva := tarea{ID: 72, Slug: "canon-mejoras", Ramas: []string{"canon/la-respuesta-de-un-vistazo"}}
+	ramas := []string{"playground/canon/la-respuesta-de-un-vistazo"}
+
+	motivos, conTarea := atribuir([]tarea{cerrada, viva}, map[string]bool{}, ramas)
+	if len(motivos["canon-compartido"]) != 0 {
+		t.Errorf("la tarea cerrada quedó reclamada por una rama: %v", motivos["canon-compartido"])
+	}
+	if len(motivos["canon-mejoras"]) != 1 {
+		t.Errorf("la tarea viva tiene que quedar reclamada: %v", motivos["canon-mejoras"])
+	}
+	if !conTarea[ramas[0]] {
+		t.Error("la rama la declara una tarea viva: no puede salir como huérfana")
+	}
+
+	// Sin la tarea viva, la misma rama queda SIN declarar: es lo que hay que ir a arreglar.
+	_, solaCerrada := atribuir([]tarea{cerrada}, map[string]bool{}, ramas)
+	if solaCerrada[ramas[0]] {
+		t.Error("una tarea cerrada no declara una rama: taparla es el mismo error con otra cara")
+	}
+
+	// Pero editar su archivo sí la sigue reclamando: si hoy se escribió ahí, algo se está haciendo.
+	editada, _ := atribuir([]tarea{cerrada}, map[string]bool{"canon-compartido": true}, ramas)
+	if len(editada["canon-compartido"]) != 1 || editada["canon-compartido"][0] != "archivo" {
+		t.Errorf("el motivo «archivo» tiene que seguir valiendo para una archivada: %v", editada["canon-compartido"])
+	}
+}

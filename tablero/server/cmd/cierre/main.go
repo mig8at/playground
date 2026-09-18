@@ -297,6 +297,51 @@ func ramasDelDia(datos, dia string) (ramas []string, minutos int, ok bool) {
 	return ramas, minutos, ok
 }
 
+/*
+atribuir: por qué tarea hay que pasar hoy —por su archivo o por una rama— y qué ramas no las declara
+
+	ninguna. Está afuera de `main` para que lo pruebe una prueba: es la regla que el 2026-09-17 pidió
+	escribir historia falsa, y una regla que nadie puede ejercer sin terminar una jornada entera es una
+	regla que se arregla a ciegas.
+
+	⚠ UNA TAREA TERMINADA NO LA REABRE UNA RAMA. Los patrones se declaran como SUBCADENA —`canon/`
+	cubre las sesenta y siete ramas de esa herramienta— y mientras la tarea vive eso es justo lo que
+	hace que declarar cueste una línea. Pero cuando cierra, el patrón queda pescando el futuro: ese día
+	una rama nueva de canon reclamó la #67, terminada diez días antes, y el cierre pidió un
+	`### 2026-09-17` en el Registro de una tarea cerrada. Eso no es cerrar: es escribir historia falsa
+	para que el guard se calle. Una tarea con `archived:` no tiene día que registrar.
+
+	Y la rama tampoco queda DECLARADA por ella: si lo único que la reclama es una tarea cerrada, sale
+	en «ramas que ninguna tarea declara», que es exactamente lo que hay que hacer con ella —declararla
+	en la tarea viva que continúa el trabajo—. Darla por declarada la taparía con la misma línea que ya
+	no corresponde, que es el mismo error con otra cara.
+
+	Lo que SÍ sigue valiendo para una tarea archivada es el motivo «archivo»: si hoy se editó su texto,
+	algo se está haciendo ahí y el cierre lo pregunta igual.
+*/
+func atribuir(tareas []tarea, tocadas map[string]bool, ramas []string) (map[string][]string, map[string]bool) {
+	motivos := map[string][]string{}
+	ramaConTarea := map[string]bool{}
+	for _, t := range tareas {
+		if tocadas[t.Slug] {
+			motivos[t.Slug] = append(motivos[t.Slug], "archivo")
+		}
+		if t.Archived {
+			continue
+		}
+		for _, r := range ramas {
+			for _, p := range t.Ramas {
+				if strings.Contains(r, p) {
+					ramaConTarea[r] = true
+					motivos[t.Slug] = append(motivos[t.Slug], "rama "+r)
+					break
+				}
+			}
+		}
+	}
+	return motivos, ramaConTarea
+}
+
 func main() {
 	var (
 		dia      = flag.String("dia", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
@@ -328,23 +373,7 @@ func main() {
 	minPorTarea, sinTarea, totalBit, nBit := bitacora(datos, *dia)
 	inf.BitacoraMin, inf.BitacoraN, inf.SinTareaMin = totalBit, nBit, sinTarea
 
-	// ramas → tareas, por los patrones declarados (subcadena, igual que `ramas`)
-	ramaConTarea := map[string]bool{}
-	motivos := map[string][]string{}
-	for _, t := range tareas {
-		if tocadas[t.Slug] {
-			motivos[t.Slug] = append(motivos[t.Slug], "archivo")
-		}
-		for _, r := range ramas {
-			for _, p := range t.Ramas {
-				if strings.Contains(r, p) {
-					ramaConTarea[r] = true
-					motivos[t.Slug] = append(motivos[t.Slug], "rama "+r)
-					break
-				}
-			}
-		}
-	}
+	motivos, ramaConTarea := atribuir(tareas, tocadas, ramas)
 	for _, r := range ramas {
 		if !ramaConTarea[r] && !esRamaBase(r) {
 			inf.RamasSinTarea = append(inf.RamasSinTarea, r)
