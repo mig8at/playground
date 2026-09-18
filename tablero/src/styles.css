@@ -1,17 +1,17 @@
 /* Tablero — una base neutra para que el contenido, no la interfaz, lleve el peso visual. */
 :root {
-  --bg: #ffffff;
-  --panel: #ffffff;
-  --panel2: #fafafa;
-  --line: #eaeaea;
-  --line2: #d4d4d4;
-  --txt: #171717;
-  --mut: #737373;
-  --acc: #171717;
-  --warn: #a16207;
-  --bad: #b91c1c;
+  --bg: #0a0a0a;
+  --panel: #111111;
+  --panel2: #181818;
+  --line: #2a2a2a;
+  --line2: #404040;
+  --txt: #ededed;
+  --mut: #a3a3a3;
+  --acc: #ffffff;
+  --warn: #fbbf24;
+  --bad: #f87171;
 
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }

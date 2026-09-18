@@ -2058,12 +2058,12 @@ onMounted(async () => {
 .spchip.proyecto { margin-left: 4px; color: #60a5fa; border-color: #60a5fa55; background: #60a5fa12 }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; font-weight: 800;
-  color: #fff; font-size: 17px; background: #171717 }
+  color: #171717; font-size: 17px; background: #fff }
 h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .sub { color: var(--mut); font-size: 13px; margin: 2px 0 0 }
 .sp { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px }
 .chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
-.chip.warn { color: var(--warn); border-color: #f0d6a5; background: #fffaf0 }
+.chip.warn { color: var(--warn); border-color: #5a4313; background: #211907 }
 
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
    hay barra de sprint que ya ocupe el margen automático */
@@ -2098,8 +2098,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* El panel de QA toma el ancho completo (ver `column-span: all` arriba): es un textarea y un par de
    controles, y leerlos en una columna de 320px es peor que no tenerlos. */
 .task { border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; cursor: pointer; transition: .12s }
-.task:hover { border-color: #a3a3a3 }
-.task.sel { border-color: var(--acc); background: #fafafa }
+.task:hover { border-color: #737373 }
+.task.sel { border-color: var(--acc); background: #1a1a1a }
 /* Terminada = sigue en la grilla, pero deja de competir por la atención: en gris y apagada, como algo
    que ya no está vivo. Se apaga la tarjeta ENTERA (`filter`) y no cada color a mano — así el chip verde
    de estado, el punto del sprint de origen y los chips de esfuerzo se van juntos, sin mantener una lista
@@ -2112,9 +2112,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .tl { display: flex; align-items: center; gap: 9px; margin-bottom: 5px }
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 .status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }
-.e-ok { color: #404040; border-color: #d4d4d4; background: #fafafa }
-.e-doing { color: #171717; border-color: #a3a3a3; background: #f5f5f5 }
-.e-todo { color: #737373; border-color: #e5e5e5; background: #fafafa }
+.e-ok { color: #d4d4d4; border-color: #404040; background: #181818 }
+.e-doing { color: #fff; border-color: #737373; background: #242424 }
+.e-todo { color: #a3a3a3; border-color: #333; background: #181818 }
 .tt { font-size: 13.5px; line-height: 1.35; margin-bottom: 6px }
 /* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
@@ -2133,31 +2133,31 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   display: inline-flex; align-items: center; gap: 6px }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
-.tact.act { color: var(--acc); border-color: #a3a3a3; background: #f5f5f5 }
-.tact.principal { color: #fff; border-color: #171717; background: #171717; }
-.tact.principal:hover:not(:disabled) { background: #404040; }
+.tact.act { color: var(--acc); border-color: #737373; background: #242424 }
+.tact.principal { color: #171717; border-color: #fff; background: #fff; }
+.tact.principal:hover:not(:disabled) { background: #d4d4d4; }
 .mas-acciones { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
-.tact.go { color: #fff; border-color: #171717; background: #171717 }
-.tact.go:hover:not(:disabled) { background: #404040; color: #fff }
+.tact.go { color: #171717; border-color: #fff; background: #fff }
+.tact.go:hover:not(:disabled) { background: #d4d4d4; color: #171717 }
 /* La entrega dentro del botón de ramas: verde cuando todo está en main, ámbar a medio camino, y
    gris cuando todavía no llegó nada. El color hace el trabajo de un vistazo; el texto, el de precisar. */
 .entrega { margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em;
   padding: 1px 5px; border-radius: 999px; border: 1px solid transparent }
-.entrega.ok { color: #404040; border-color: #d4d4d4; background: #fafafa }
+.entrega.ok { color: #d4d4d4; border-color: #404040; background: #181818 }
 .entrega.medio { color: #fbbf24; border-color: #fbbf2455; background: #fbbf2412 }
 .entrega.espera { color: var(--mut); border-color: var(--line); background: var(--panel2) }
 .resumen-entrega { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--txt); font-size: 12.5px }
 .resumen-entrega .entrega { margin-left: 0 }
 /* la columna que importa: `main` es la vara con la que se mide el contexto */
-.ramas th.ppal, .ramas td.ppal { background: #fafafa; border-left: 1px solid var(--line) }
+.ramas th.ppal, .ramas td.ppal { background: #181818; border-left: 1px solid var(--line) }
 .ramas th.ppal { color: var(--txt); font-weight: 800 }
 .comomide span[title] { border-bottom: 1px dotted var(--line); cursor: help }
 /* un ✓ que se supo por el PR y no por el patch-id: se marca para que el dato pueda explicarse */
 .amb .si.via-pr { color: #4ade80cc; border-bottom: 1px dotted #4ade8077 }
 .tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 999px }
-.tact.act .cnt { background: var(--acc); color: #fff }
+.tact.act .cnt { background: var(--acc); color: #171717 }
 /* la descripción desplegada dentro de la tarjeta: separada del resto, no pegada al título */
 .task .desc { margin: 2px 0 8px }
 /* origen de la tarea: el punto dice si cerró en su sprint (verde) o la arrastraron (rojo) */
@@ -2189,18 +2189,18 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
    en vez de solo captar el clic: mientras se lee la bitácora, el tablero es contexto, no competencia.
    `min(520px, 92vw)` — ancho fijo cómodo para párrafos largos, pero sin desbordar en pantalla chica. */
 .drawer { position: fixed; inset: 0; z-index: 60 }
-.drawer-bg { position: absolute; inset: 0; background: #17171726 }
+.drawer-bg { position: absolute; inset: 0; background: #000000a6 }
 /* El de RAMAS es el único con tabla —7 columnas— y a 520px el nombre de la rama quedaba en 76px.
    No es un cajón distinto: es el mismo con más ancho, sólo donde el contenido lo pide. */
 .drawer-p.ancho { width: min(820px, 95vw) }
 .drawer-p { position: absolute; top: 0; right: 0; bottom: 0; width: min(520px, 92vw); min-width: min(340px, 92vw); max-width: 94vw;
-  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #00000014;
+  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px #00000080;
   display: flex; flex-direction: column }
 .drawer-resize { position: absolute; z-index: 2; top: 0; bottom: 0; left: -5px; width: 9px; padding: 0;
   border: 0; background: transparent; cursor: col-resize; touch-action: none }
 .drawer-resize::after { content: ''; position: absolute; top: 50%; left: 3px; width: 2px; height: 34px;
   border-radius: 2px; background: transparent; transform: translateY(-50%); transition: background .12s }
-.drawer-resize:hover::after, .drawer-resize:focus-visible::after { background: #a3a3a3 }
+.drawer-resize:hover::after, .drawer-resize:focus-visible::after { background: #737373 }
 .drawer-h { display: flex; align-items: flex-start; gap: 12px; padding: 18px 18px 14px;
   border-bottom: 1px solid var(--line) }
 .drawer-h h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut);
@@ -2225,7 +2225,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
   font: inherit; color: var(--txt) }
-.proto-row:hover { border-color: var(--acc); background: #fafafa }
+.proto-row:hover { border-color: var(--acc); background: #242424 }
 .proto-play { color: var(--acc); font-size: 12px }
 .proto-txt { flex: 1; min-width: 0 }
 .proto-txt b { display: block; font-size: 13.5px; font-weight: 600; text-transform: capitalize }
@@ -2257,9 +2257,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
    abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
-.qa-go { border: 1px solid #171717; background: #171717; color: #fff; font: inherit; font-size: 12.5px;
+.qa-go { border: 1px solid #fff; background: #fff; color: #171717; font: inherit; font-size: 12.5px;
   font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer }
-.qa-go:hover:not(:disabled) { background: #404040 }
+.qa-go:hover:not(:disabled) { background: #d4d4d4 }
 .qa-go:disabled { opacity: .45; cursor: default }
 .qa-no { border: 1px solid var(--line); background: none; color: var(--mut); font: inherit;
   font-size: 12.5px; padding: 7px 13px; border-radius: 9px; cursor: pointer }
@@ -2285,7 +2285,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
 .s-work { color: #f6c667; border-color: #4a3a16; background: #241a08 }
-.s-tasks { color: #404040; border-color: #d4d4d4; background: #fafafa }
+.s-tasks { color: #d4d4d4; border-color: #404040; background: #181818 }
 /* el prototipo de la tarea: sólo aparece si el html existe, así que no hay estado vacío que diseñar */
 .proto { font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .3px; text-transform: none;
   padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
@@ -2317,14 +2317,14 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
    ojo sobre cuánto tiempo hubo ahí */
 .cel.weekend.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
-.n0 { background: repeating-linear-gradient(-45deg, #e5e5e5 0 3px, transparent 3px 6px), var(--panel2) }
-.n1 { background: #d4d4d4 } .n2 { background: #a3a3a3 } .n3 { background: #737373 } .n4 { background: #171717 }
+.n0 { background: repeating-linear-gradient(-45deg, #ffffff14 0 3px, transparent 3px 6px), var(--panel2) }
+.n1 { background: #333 } .n2 { background: #525252 } .n3 { background: #737373 } .n4 { background: #d4d4d4 }
 /* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que la bitácora,
    pero conservar una sola familia visual evita que el color compita con el contenido.
    `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
    reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y la bitácora no. */
 .c0 { background: var(--panel2) }
-.c1 { background: #e5e5e5 } .c2 { background: #bdbdbd } .c3 { background: #8a8a8a } .c4 { background: #404040 }
+.c1 { background: #292929 } .c2 { background: #474747 } .c3 { background: #696969 } .c4 { background: #a3a3a3 }
 /* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
    después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
    (horas, totales, fechas) para que las columnas no se desalineen. */
@@ -2343,7 +2343,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   border-radius: 5px 5px 0 0; background: var(--panel2);
   box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
-.jspan.sel { color: var(--acc); background: #f5f5f5;
+.jspan.sel { color: var(--acc); background: #242424;
   box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
 .jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }
@@ -2383,7 +2383,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
-.icon { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex: none; background: #f5f5f5 }
+.icon { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex: none; background: #242424 }
 .t-finding { color: var(--warn) } .t-test { color: #4ade80 } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
 .body { min-width: 0 }
 .meta { display: flex; gap: 10px; font-size: 11px; color: var(--mut); margin-bottom: 3px }
@@ -2468,14 +2468,14 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
          background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
 .toc-i:hover { background: var(--line) }
 .toc-i.sub { opacity: .62; font-size: 10px }
-.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #d4d4d4; border-radius: 8px;
-  background: #fafafa; }
+.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #404040; border-radius: 8px;
+  background: #181818; }
 .retoma-label { color: var(--acc); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
 .retoma-paso { margin: 0; color: var(--txt); line-height: 1.55; }
 .retoma-contextos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--mut); font-size: 12px; }
-.ctx-link { border: 1px solid #d4d4d4; color: var(--acc); background: #fff; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; }
-.ctx-link:hover { background: #f5f5f5; }
+.ctx-link { border: 1px solid #404040; color: var(--acc); background: #111; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; }
+.ctx-link:hover { background: #242424; }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
