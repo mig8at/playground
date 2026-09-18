@@ -96,10 +96,18 @@ respuesta a «qué diferencia hay entre renting y rent to own» pasó de 143 pal
 123 a **17,6**, con las mismas cuatro citas. Tercera vez que se confirma: **el modelo hereda la densidad
 de lo que lee.** Va en la rama de #236, sin mergear.
 
-**El próximo paso es:** la siguiente sección densa que carga peso, `preaprobado` «La llamada del
-preaprobado se hace en un servicio aparte» (35,6 por oración, 463 palabras, 5 estaciones del recorrido la
-apuntan: el ancla no se toca), con la misma receta y la misma comprobación — una pregunta local con
-Sonnet, antes y después.
+**Preaprobado también, y con una matiz que vale más que el número.** La sección más densa del corpus
+entre las que cargan peso (463 palabras a 35,6 por oración; 5 estaciones del recorrido la apuntan) quedó
+a 20,5 con los mismos hechos. Pero la respuesta a «en qué momento se le pregunta a cada entidad y por qué
+unas tarjetas tardan más» **no se movió**: 188 palabras a 20,9 antes, 194 a 21,6 después. El modelo ya la
+venía resumiendo en viñetas propias. Medido con la misma métrica en los dos lados —una viñeta cuenta como
+oración—: la palanca de densidad mueve la respuesta cuando el modelo **parafrasea de cerca** la sección
+(vacío de verdad 30,9 → 22,2; motai 28,6 → 15,4) y no cuando la **reestructura** (preaprobado). La sección
+legible vale igual para quien la lee sin modelo, pero el efecto sobre la respuesta no es automático.
+
+**El próximo paso es:** decidir con Miguel si la receta sigue por `datos` «Hay dos filas de unión» (29,0) y
+`credifamilia` «No aparece en el listado, primero mirá qué puerta» (30,0), o si primero se revisa y mergea
+#236, que ya lleva la matriz y cinco correcciones medidas.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -387,6 +395,10 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **Preaprobado con la receta, y el primer caso en que la respuesta NO baja.** Sección de 35,6 a 20,5
+  por oración; la respuesta, de 20,9 a 21,6 — ya venía en viñetas propias del modelo. La palanca mueve la
+  respuesta cuando el modelo parafrasea de cerca, no cuando reestructura. Con la métrica corregida (una
+  viñeta cuenta como oración) los otros dos casos siguen bajando: 30,9 → 22,2 y 28,6 → 15,4.
 - **Motai con la receta de densidad, medido con la misma pregunta antes y después.** Dos
   secciones, mismas anclas y hechos: 36,6→20,4 y 30,1→18,8 por oración. La respuesta que las lee:
   143 palabras a 28,6 → 123 a 17,6, mismas cuatro citas. Tres confirmaciones ya de que la densidad de la
