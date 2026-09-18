@@ -184,7 +184,11 @@ ENLAZADA al área que ya declaraba `phpunit.xml` **sin tocarle el hash** (#242 f
 ruta muerta, y un área nueva sólo con los siete archivos que no estaban. Los dos defectos del dictado y el del
 publicador quedan comprobados contra producción, no sólo en pruebas.
 
-**El próximo paso es:** que Miguel revise y mergee #245 (es corpus: lo revisa una persona). Y avisarle a quien
+**#245 mergeado por Miguel a las 11:47**, con el título corregido: lo verificado es que el test del backoffice
+cambió de carpeta y que contar comentarios con una expresión regular miente, no «doce archivos vivos». En `main`
+quedan la sección enlazada sin tocar hashes, la ruta muerta retirada y las diez secciones del tema intactas.
+
+**El próximo paso es:** avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -473,7 +477,7 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
-- **La dictada repetida contra prod salió limpia: PR #245.** Con #244 desplegado, el borrador abre diciendo
+- **#245 mergeado (11:47).** Cierra el día: nueve PRs en `main`. La dictada repetida contra prod salió limpia. Con #244 desplegado, el borrador abre diciendo
   `rama_al_dia` y compone sobre `main`. La corrección de `local/operar` quedó verificada de nuevo contra
   `legacy-backend` de hoy: el conteo correcto es 43 tests vivos en los cinco de dispositivos y 0 en los seis del
   codeudor —la sección tenía razón—, y lo único falso era la RUTA del test del backoffice, que se movió a `tests/`
