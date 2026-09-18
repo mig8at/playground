@@ -113,6 +113,20 @@ Publicar a Jira desde la tarjeta, ni ningún botón que escriba en Jira: decisi�
 
 ## Registro
 
+### 2026-09-18 (4) · el Registro sale de Trabajo
+
+Miguel propuso sacar el `## Registro` de la pestaña Trabajo, y coincide con el contrato que la propia
+doc ya declaraba: Trabajo contesta **dónde estoy y cómo sigo**, y el Registro contesta otra cosa. En la
+#6 era el **45 %** del cuerpo, plegado justo dentro de la pestaña que uno abre para retomar.
+
+Ahora tiene la suya, entre Ramas y Bitácora —pegada a ella porque son parientes: una cuenta **qué pasó**
+ese día y la otra **cuánto tiempo** llevó—, y el contador son los **días** registrados, que dicen de un
+vistazo si algo se trabajó una tarde o dos meses (la #6 marca 8). Aparece sólo si la tarea tiene
+Registro.
+
+⚠ **En el archivo no cambia nada**: la sección sigue donde estaba y se escribe igual. Lo que cambió es
+dónde se lee. Se actualizaron el contrato de pestañas y la plantilla, que declaraban seis.
+
 ### 2026-09-18 (3) · el panel dice con qué se concluyó cada hallazgo, y las tablas dejan de estirarse
 
 Dos pedidos de Miguel, y el primero cierra el lazo que venía armándose todo el día: las herramientas
