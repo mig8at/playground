@@ -642,9 +642,7 @@ function irASeccion(id) {
   section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function abrirContexto(nodo) {
-  window.open('http://localhost:5193/?q=' + encodeURIComponent(nodo), '_blank', 'noopener');
-}
+const contextLink = (node) => 'http://localhost:5193/?node=' + encodeURIComponent(node);
 
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
@@ -1611,9 +1609,10 @@ onMounted(async () => {
             <p class="retoma-estado">{{ resumenDe(active.Key) }}</p>
             <p v-if="proximoDe(active.Key)" class="retoma-paso"><b>Próximo paso:</b> {{ proximoDe(active.Key) }}</p>
             <div v-if="effortDe(active.Key)?.contextNodes" class="retoma-contextos">
-              <span>Contextos:</span>
-              <button v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-                :key="n" class="ctx-link" @click="abrirContexto(n)">{{ n }} ↗</button>
+              <span>Contexto local:</span>
+              <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
+                :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
+                :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
             </div>
           </section>
 
@@ -2202,7 +2201,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
 .retoma-paso { margin: 0; color: var(--txt); line-height: 1.55; }
 .retoma-contextos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--mut); font-size: 12px; }
-.ctx-link { border: 1px solid #404040; color: var(--acc); background: #111; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; }
+.ctx-link { border: 1px solid #404040; color: var(--acc); background: #111; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; text-decoration: none; }
 .ctx-link:hover { background: #242424; }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }

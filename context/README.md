@@ -25,6 +25,10 @@ cd context && npm install && npm run dev   # viz read-only (puerto: .claude/laun
 Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` por `import.meta.glob` y los
 renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
 
+Desde la raíz del playground también se levanta con `make context` en `http://localhost:5193`.
+Un enlace `/?node=motai` selecciona el nodo exacto; `/?q=texto` inicia una búsqueda libre.
+Los enlaces del tablero apuntan a esta vista local. Canon es el corpus compartido y se consulta aparte.
+
 **El buscador de la viz muestra la VECINDAD, no una lista.** Busca en cuatro lados —el nombre, los
 síntomas, los archivos declarados y el cuerpo del `doc.md`— y dice en cuál pegó. El árbol se recorta a
 lo encontrado (con aro), **las conexiones más cercanas del nodo abierto** (más apagadas) y los

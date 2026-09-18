@@ -111,7 +111,9 @@ const collapsed = ref(new Set())
 const toggle = (id) => { const s = new Set(collapsed.value); s.has(id) ? s.delete(id) : s.add(id); collapsed.value = s }
 
 // Qué nodo está abierto. Se declara acá arriba porque el buscador lo mueve (un solo resultado se abre).
-const sel = ref('creditop')
+const initialParams = new URLSearchParams(window.location.search)
+const requestedNode = initialParams.get('node') || ''
+const sel = ref(byId.value[requestedNode] ? requestedNode : 'creditop')
 const select = (id) => { sel.value = id }
 
 /* ── EL BUSCADOR ─────────────────────────────────────────────────────────────────────────────────
@@ -122,9 +124,9 @@ const select = (id) => { sel.value = id }
  *
  * Busca en cuatro lados y DICE en cuál pegó, que es la mitad del valor: `403` pega en el cuerpo de un
  * doc y `LenderRetrievalService.php` en los archivos declarados, y son dos preguntas distintas. */
-// `tablero` puede abrir un nodo concreto al retomar una tarea. La búsqueda sigue funcionando igual
-// para quien llega directo; el parámetro sólo evita tener que volver a escribir el slug.
-const q = ref(new URLSearchParams(window.location.search).get('q') || '')
+// Un enlace de tarea selecciona el nodo exacto, aunque su nombre coincida también con otros.
+// Si el id dejó de existir, la búsqueda permite encontrar su reemplazo.
+const q = ref(requestedNode || initialParams.get('q') || '')
 /* ⚠ LOS CUATRO LUGARES NO PESAN IGUAL, y esto se midió acá. Buscando «rotativo» con el texto del doc
  * al mismo nivel salen 17 resultados de 39: los docs se nombran entre sí todo el tiempo, así que
  * «lo menciona» es casi todo el árbol y el buscador vuelve a contestar «está en todas partes». Hay una

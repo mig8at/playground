@@ -36,6 +36,9 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - El panel recuerda su ancho. Arrastrá el borde izquierdo; doble clic lo restablece. Con foco en ese
   borde, las flechas ajustan el ancho (Shift acelera) y Enter o Inicio lo restablecen. Escape cierra.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
+- Los enlaces **Contexto local** abren los nodos de `../context/` en `localhost:5193`, no canon.
+  Levantá esa vista con `make context` desde la raíz del playground, en otra terminal; `make tablero`
+  sólo levanta el tablero. Los enlaces usan `?node=<id>` para seleccionar el nodo exacto.
 - El Resumen prioriza retoma, pendientes y decisiones. Plan, material y referencias siguen disponibles;
   Registro, Bitácora del documento e Historial quedan plegados al final. Copiar conserva el Markdown
   original; la vista no reescribe tareas existentes.
