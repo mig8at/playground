@@ -253,6 +253,46 @@ function dbopsJson(args: string[], target: string): Promise<any> {
     });
 }
 
+/**
+ * POR QUÉ TERMINÓ ASÍ — el post-mortem de los LOGS, anclado a la solicitud de esta corrida.
+ *
+ * La comprobación de BD dice QUÉ quedó; esto dice POR QUÉ. Una regla que excluyó una entidad no mueve
+ * ningún estado, así que es invisible para la foto de la base: sólo está en los logs.
+ *
+ * ⚠ VA COMO PROCESO HIJO, no importando `pkg/loki.ts`, y no es capricho: ese módulo resuelve `TARGET` al
+ * EVALUARSE, así que un import ataría el forense al target con que arrancó el panel y no al de la corrida
+ * — que es **F-187** con otra ropa. Un hijo con `envFor(target)` es lo mismo que ya hace `dbopsJson`, y
+ * además imprime EXACTAMENTE lo que verías por consola, porque es literalmente el mismo comando.
+ *
+ * ⚠ Y PostHog NO se consulta acá aunque esté disponible. Su forense sondea la ingesta en tandas de 15 s
+ * hasta estabilizar (`pkg/posthog.ts`: «la ingesta tarda, y no un poco»), y el panel no marca la corrida
+ * como terminada hasta que el cierre vuelve — o sea que bloquearía el arranque de la siguiente por
+ * minutos. Se resuelve diciendo la verdad: en local y dev se imprime POR QUÉ no hay nada que mirar, y en
+ * qa/staging se deja el comando listo con el uReq y la hora ya puestos.
+ */
+function forenseDeLogs(ureq: number | string, target: string): Promise<string> {
+    return new Promise((ok) => {
+        execFile('node', ['dev/loki-trace.ts', String(ureq)],
+            { cwd: ROOT, env: envFor(target), timeout: 60_000, maxBuffer: 4 * 1024 * 1024 },
+            (err, stdout, stderr) => {
+                const txt = String(stdout || '').trim() || String(stderr || '').trim();
+                // `loki-trace` sale ≠0 cuando no pudo MIRAR (sin anclas, sin acceso). Eso no es un fallo
+                // del cierre y su texto ya explica el motivo: se muestra igual.
+                ok(txt || (err ? `  ▸ (el forense de logs no devolvió nada: ${err.message.slice(0, 120)})` : ''));
+            });
+    });
+}
+
+/** Lo que el panel puede decir de PostHog sin bloquearse esperando la ingesta. */
+function pistaPostHog(ureq: number | string, target: string, desde: Date): string {
+    // Se replica el motivo en vez de importar `porQueNo`, por lo mismo que arriba: importar ataría el
+    // target. Son dos casos y están medidos — `pkg/posthog.ts` los documenta con su fecha.
+    if (target === 'local') return '  ▸ PostHog: no hay nada que mirar — el front local no escribe (APP_ENV=local apaga getServerPostHog)';
+    if (target === 'dev') return '  ▸ PostHog: no hay nada que mirar — el target dev sirve el front LOCAL, que tampoco escribe';
+    return `  ▸ PostHog: disponible, pero su ingesta tarda minutos y bloquearía este cierre.\n`
+        + `  ▸   make harness-posthog UREQ=${ureq} DESDE=${new Date(desde.getTime() - 60_000).toISOString()}`;
+}
+
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/asesor). Es ese branch
 // el que hay que togglear — NO el de `dbops list` (que puede devolver otra sucursal del mismo comercio).
 /**
@@ -717,6 +757,15 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             // (queda "passed"), así que hay que CANTARLO en el cierre o pasa inadvertido.
             const uiErrors = (fullLog().match(/FALLO EN PANTALLA/g) || []).length;
             append(Buffer.from(comprobacionTexto(info, bitacora.eventos.size, uiErrors)));
+
+            // El POR QUÉ, anclado a la solicitud que la comprobación acaba de identificar. Si no hubo
+            // solicitud no hay nada que anclar y no se dice nada: un bloque vacío es ruido.
+            const ur = info?.veredicto?.solicitud;
+            if (ur && Number(ur) > 0) {
+                append(Buffer.from('\n── Por qué terminó así (logs) ──\n'));
+                append(Buffer.from(`${pistaPostHog(ur, current?.target || 'local', new Date(current?.startedAt ?? Date.now()))}\n`));
+                append(Buffer.from(await forenseDeLogs(ur, current?.target || 'local') + '\n'));
+            }
         } catch (e) {
             append(Buffer.from(`  ⚠ no se pudo comprobar la BD al cerrar: ${e instanceof Error ? e.message : String(e)}\n`));
         } finally {

@@ -84,6 +84,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el harness falla unas veces sí y otras no» · «dice que el teléfono no es válido y lo es»** | **F-231** |
 | **«esa pantalla está en blanco y no se puede hacer nada»** | **F-232** |
 | **«el botón no hace nada, y sólo en móvil»** · **«el caminador dice que clickeó y no pasó nada»** | **F-233** |
+| **«el forense dice cero anclas y la solicitud existe»** | **F-234** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -394,6 +395,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
 | F-233 | El overlay de `react-scan` —que el wizard inyecta sólo en dev— cubre el viewport e INTERCEPTA LOS CLICKS con viewport angosto. Parecía un defecto de móvil del producto y no lo era. Lo tapaba además un `.catch` vacío en `clickearAvanzar`, que devolvía `ok: true` aunque el click fallara: el log decía «click «X»» sin haber clickeado | ARREGLADO |
 | F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
 | F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
@@ -5813,3 +5815,30 @@ regla «por un rato», vale más dejar el ruido.
 2026-09-18 por un caminador con navegador es sospechosa. El overlay tapa según dónde caiga el botón, así
 que el mismo flujo podía trabarse en una pantalla y no en otra, y el log afirmaba haber clickeado en las
 dos. **No se sabe cuántos diagnósticos viejos eran esto.**
+
+### F-234 · «Cero anclas» con los logs ahí mismo: el forense preguntaba en el ambiente equivocado
+
+- **Síntoma:** `make harness-loki UREQ=466837` contesta **«cero anclas para uReq 466837 en la ventana
+  pedida · 0 líneas contenían el texto»** y sugiere ampliar la ventana. Se lee como que la solicitud no
+  dejó rastro — o sea que el backend no logueó, que es una conclusión cara y falsa.
+- **Causa raíz:** ese target del Makefile era `node dev/loki-trace.ts $(UREQ)`, **sin `E2E_TARGET`**. El
+  default del harness es **`dev`** (`pkg/db.ts`), así que el forense preguntaba al Loki **compartido** por
+  una solicitud que vivía en **local**. Los otros runners de consola sí lo fijan
+  (`harness-bcp-volver` usa `E2E_TARGET=$(or $(TARGET),local)`); éste se quedó afuera.
+- **Evidencia (2026-09-18):** el mismo uReq, el mismo script, lo único distinto el ambiente —
+
+      make harness-loki UREQ=466837            → «cero anclas»
+      E2E_TARGET=local node dev/loki-trace.ts 466837
+                                               → 36 líneas en 3 traces · info 23 · debug 8 · warning 4 · error 1
+
+- **⚠ Y el «cero» fue suerte.** Los ids de `user_requests` avanzan en el mismo rango en local y en dev
+  —la base local es un dump de dev—, así que ese número **puede existir allá**. El día que exista, el
+  forense no dice «cero»: te muestra **la corrida de otra persona**, con la misma cara de respuesta
+  correcta. Es la misma trampa que `pkg/loki.ts:porQueNo` ya bloquea para el caso inverso (apuntar
+  `local` al Loki de dev), y que el `CLAUDE.md` del harness describe para la BD.
+- **Arreglo:** `E2E_TARGET=$(or $(TARGET),local)`, como el resto. El default pasa a **local** a propósito:
+  una herramienta de diagnóstico que contesta sobre otro ambiente sin avisar es peor que una que no
+  contesta.
+- **La lección, que no es sobre Loki:** un default de entorno que sirve para la mayoría de los comandos
+  —`dev`— es una trampa en los que **comparan contra algo que vos acabás de crear**. Ahí el default
+  correcto es el ambiente donde lo creaste.

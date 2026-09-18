@@ -366,8 +366,8 @@ harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con 
 	if [ -n "$(SEGUIR)" ]; then tail -n $(or $(N),120) -f "$$f" | grep -E --line-buffered "$$filtro"; \
 	else tail -n $(or $(N),120) "$$f" | grep -E "$$filtro"; fi
 
-harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [SINCE=12h]
-	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
+harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [TARGET=local|dev|staging|qa — por defecto LOCAL: sin esto caía al default `dev` y consultaba el Loki COMPARTIDO buscando un uReq local, que en el mejor caso da «cero anclas» y en el peor te muestra la corrida de OTRO con el mismo id] [SINCE=12h]
+	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
 harness-paises: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
 	@cd harness && node dev/paises.ts $(if $(SQL),--sql,)
