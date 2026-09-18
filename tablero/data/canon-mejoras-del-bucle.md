@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -198,7 +198,11 @@ en un área — no hay señal que leer sin gastar.
 **#247 abierto (12:44): la sala con cuerdas.** Medido antes de tocar nada: 265 aristas sobre 33 temas es el 50%
 de los pares posibles, y 84 de las 156 deducidas se apoyan en un solo archivo. Curvar por curvar no arreglaba eso.
 
-**El próximo paso es:** mergear #247 cuando pase el CI, y avisarle a quien
+**#247 mergeado (12:56) y #248 abierto (13:04): el recorrido como herramienta.** La pregunta que se llevó un 504
+en Slack tenía la respuesta ESCRITA en el corpus y el agente no podía pedirla.
+
+**El próximo paso es:** mergear #248 cuando pase el CI; avisarle a Duncan que CrediBot llame al stream —el
+balanceador corta el POST plano a los 60 s y 21 de cada 100 preguntas pasan de ahí—; y avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -487,6 +491,13 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#248: el recorrido, que estaba escrito y nadie podía pedir.** El 504 de CrediBot no era canon caído: 19 temas
+  declaran su `flow.json` y el bucle no tenía herramienta para leerlo, así que el modelo reconstruía el camino a
+  mano hasta que el balanceador cortaba a los 60 s. Medido sobre las 204 preguntas guardadas: mediana 35,8 s, p90
+  65,6 s, **21 de 100 por encima de 60**, y las más caras de 15 a 26 pasos. La otra mitad eran los ARCHIVOS: el
+  recorrido dice qué pasa en qué orden y las áreas dicen qué código lo sostiene, y nadie unía las dos —**186 de
+  187 estaciones (99%) tienen archivos detrás**—. Ahora sale en una llamada de ~12 KB, menos que UNA búsqueda.
+- **#247 mergeado (12:56).** La sala con cuerdas, el peso visible y las esferas despegadas.
 - **#247: la sala deja de ser una madeja de rectas.** Las aristas pasan a ser cuerdas que salen hacia afuera —una
   recta entre dos puntos de la bola cruza justo por el racimo más denso—, cada clase se arquea hacia un lado para
   separar los 46 pares que están unidos por las dos, el peso de cada arista se ve por fin (iba sólo en la distancia
