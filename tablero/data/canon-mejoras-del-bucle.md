@@ -90,10 +90,16 @@ está a 26,3 por oración de mediana: el modelo hereda esa densidad.**
 definition `canon-production:177` salió «Deployment Successful», y una hora después prod seguía sirviendo
 los resúmenes viejos (#233 y #234 sí están). Es de ECS; hay que mirar el servicio `internal-tools`.
 
-**El próximo paso es:** aplicar la misma receta —mismo ancla, mismos hechos, oraciones que se leen— a la
-siguiente sección densa que carga peso (`motai` la calculadora, 30 por oración y 10 citas reales;
-`preaprobado` la llamada, 35,6 y 463 palabras), y comprobarla con el bucle local de Sonnet: una pregunta,
-la respuesta antes y después.
+**Motai ya está hecho con esa receta** (18/9, madrugada): la puerta del tema, de 36,6 a 20,4 por
+oración, y la calculadora, de 30,1 a 18,8 — mismos hechos, mismas anclas, 439→428 y 211→207 palabras. La
+respuesta a «qué diferencia hay entre renting y rent to own» pasó de 143 palabras a 28,6 por oración a
+123 a **17,6**, con las mismas cuatro citas. Tercera vez que se confirma: **el modelo hereda la densidad
+de lo que lee.** Va en la rama de #236, sin mergear.
+
+**El próximo paso es:** la siguiente sección densa que carga peso, `preaprobado` «La llamada del
+preaprobado se hace en un servicio aparte» (35,6 por oración, 463 palabras, 5 estaciones del recorrido la
+apuntan: el ancla no se toca), con la misma receta y la misma comprobación — una pregunta local con
+Sonnet, antes y después.
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -378,6 +384,13 @@ curl -s :8080/api/pr | jq                                               # el PR 
 Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-soporte`.
 
 ## Registro
+
+### 2026-09-18
+
+- **Motai con la receta de densidad, medido con la misma pregunta antes y después.** Dos
+  secciones, mismas anclas y hechos: 36,6→20,4 y 30,1→18,8 por oración. La respuesta que las lee:
+  143 palabras a 28,6 → 123 a 17,6, mismas cuatro citas. Tres confirmaciones ya de que la densidad de la
+  respuesta es la de la sección. Bench, soporte y lint sin cambio.
 
 ### 2026-09-17
 
