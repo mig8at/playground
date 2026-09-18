@@ -6,7 +6,7 @@ stage: work
 created: "2026-09-01T15:30:00-05:00"
 context_nodes: []
 jira: []
-ramas: credibot/el-stream-y-el-paso-a-paso, canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
+ramas: canon/el-aviso-del-recorrido-mira-los-dos-baldes, credibot/el-stream-y-el-paso-a-paso, canon/el-recorrido-como-herramienta, canon/la-sala-con-cuerdas-y-la-evidencia-visible, canon/el-citar-de-un-area-no-es-un-ancla, canon/main-se-trae-antes-de-componer, canon/el-dictado-enlaza-y-no-toca-el-hash-ajeno, canon/no-se-conecta-y-el-cliente-que-vuelve, canon/infraestructura-las-trampas-que-no-se-deducen, canon/lo-que-el-harness-sabia, canon/el-titulo-se-escribe-una-vez, canon/el-escaparate-en-la-llave-que-si-se-lee, canon/un-reclamo-llega-por-lo-que-se-vio, canon/el-escaparate-dice-lo-que-dice-la-prosa, canon/el-titular-que-no-entra-se-rechaza, canon/la-respuesta-de-un-vistazo, canon/el-recorrido-como-minimapa, canon/el-recorrido-se-dibuja, canon/el-recorrido-por-defecto, feature/canon-franja-de-repos, canon/la-ronda-en-cero, canon/contexto-de-lo-que-entro, agentes/el-declarar-lleva-su-seccion, agentes/paso-4-adelgazar, escritura/para-el-equipo, lectura/consultar-barato, equipo/capa-operar, datos/diccionario-de-tablas, corpus/la-cuota-y-el-aval, corpus/la-tabla-que-nadie-escribe, fix/el-primer-area-de-un-tema-abierto
 jira_title: ""
 ---
 
@@ -208,7 +208,11 @@ al stream, con el código listo para pegar: `~/Desktop/credibot-canon-stream.md`
 falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y contra prod con una pregunta real:
 21,2 s, respaldada, y entró por `recorrido`.
 
-**El próximo paso es:** avisarle a quien mantenga el arnés
+**#250 abierto (14:59): el aviso del recorrido, arreglado dos veces.** Miraba sólo el balde de la prosa —y por
+eso la pregunta de documentos costó 21 llamadas— pero además **ya era papel tapiz**: medido sobre los 167 casos
+de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo esta mañana sin medirlo.
+
+**El próximo paso es:** mergear #250 cuando pase el CI, y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -496,6 +500,12 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#250: el aviso del recorrido no avisaba nada.** Dos defectos, los dos míos y de hoy. Miraba sólo la prosa, así
+  que a «flujo de subida de archivos» no le dijo que `documentos` tiene camino escrito —vino dos veces por el
+  balde del mapa— y esa pregunta costó 21 llamadas y 87 s. Y sumarle el mapa a secas lo empeoraba: medido sobre
+  los 167 casos de los bancos, sólo prosa salía en el **98%** de las preguntas con 4,0 temas y prosa+mapa en el
+  **100%** con 6,3. La regla pasa a ser la REPETICIÓN —el tema al que la búsqueda vuelve dos veces—: 2,8 temas,
+  menos que antes de tocar nada, y caza el caso. Lección para la próxima: un aviso se mide antes de mandarlo.
 - **#249 mergeado (13:25).** El bot de Slack al stream, con el paso a paso. El bot ya tenía la mitad hecha —un mensaje que se
   actualiza solo— y lo único que le faltaba era la fuente de eventos. El callback va por HILO, no en una variable
   de módulo: el bot atiende una pregunta por hilo y un global le mostraría a alguien los pasos de otro. Probado
