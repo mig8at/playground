@@ -178,9 +178,14 @@ rama quedó con ese commit malo encima de `main` y hay que borrarla o resetearla
 sin disco y comprueba que el paquete conserva lo de `main` (84/84). De paso cayó el fallo suelto de la mañana: era
 mi test del enlace, que comparaba hashes en orden de mapa.
 
-**El próximo paso es:** mergear #244 cuando pase el CI, esperar el despliegue (la sonda: abrir un borrador y ver
-`rama_al_dia`), y volver a dictar la corrección de `local/operar`. Y avisarle a quien mantenga el arnés que la nota
-de `suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
+**#244 mergeado (10:31) y en prod (10:39), y la dictada repetida salió bien: PR #245 (11:42).** El diff es de tres
+líneas de prosa y un párrafo nuevo —las 10 secciones del tema intactas, ninguna perdida— y en el mapa: la sección
+ENLAZADA al área que ya declaraba `phpunit.xml` **sin tocarle el hash** (#242 funcionando en prod), el retiro de la
+ruta muerta, y un área nueva sólo con los siete archivos que no estaban. Los dos defectos del dictado y el del
+publicador quedan comprobados contra producción, no sólo en pruebas.
+
+**El próximo paso es:** que Miguel revise y mergee #245 (es corpus: lo revisa una persona). Y avisarle a quien
+mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -468,6 +473,13 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **La dictada repetida contra prod salió limpia: PR #245.** Con #244 desplegado, el borrador abre diciendo
+  `rama_al_dia` y compone sobre `main`. La corrección de `local/operar` quedó verificada de nuevo contra
+  `legacy-backend` de hoy: el conteo correcto es 43 tests vivos en los cinco de dispositivos y 0 en los seis del
+  codeudor —la sección tenía razón—, y lo único falso era la RUTA del test del backoffice, que se movió a `tests/`
+  en minúscula el 6/9. De paso entró una trampa nueva y medida: descartar comentarios con una expresión regular
+  miente sobre esos archivos, porque `'*/device-locking/batch/*'` trae `*/` y `/*` adentro de un string (me dio 36
+  en vez de 43, y 1 de 8 en un archivo).
 - **#244: el publicador trae `main` a la rama ANTES de componer.** `codebase.PonerAlDia` + el gancho
   `api.AntesDeComponer` al abrir y al cerrar; el chequeo de «¿se movió el piso?» hace el resto. Tres tests, y el
   ensayo con un segundo servidor sin disco y una rama rancia sembrada en el GitHub falso: 84/84. Rama `canon/contexto`
