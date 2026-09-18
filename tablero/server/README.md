@@ -2,18 +2,21 @@
 
 Servidores [MCP](https://modelcontextprotocol.io) escritos por nosotros, en Go.
 La idea: en vez de usar los conectores pre-armados, controlamos cada llamada a
-la API del servicio (Slack, y más adelante Jira) con nuestro propio token.
+la API del servicio (Slack y Jira) con nuestro propio token.
 
-Primer conector: **`slack-mcp`**, con una tool para **crear canales de Slack**.
+Hay dos conectores: **`slack-mcp`** (`slack_create_channel`, `slack_post_message`,
+`slack_archive_channel`) y **`jira-mcp`** (lectura, búsqueda, creación y borrado de issues).
 
 ```
-tools/
+server/
 ├── cmd/slack-mcp/      # ejecutable: arma el server MCP y registra las tools
 │   ├── main.go         #   wiring (lee token, crea server, corre stdio)
 │   └── tools.go        #   definición de cada tool (input/output + handler)
-└── internal/slack/     # cliente HTTP mínimo de la Slack Web API
+├── cmd/jira-mcp/       # ejecutable MCP de Jira
+├── internal/slack/     # cliente HTTP mínimo de la Slack Web API
     ├── client.go       #   POST genérico con Bearer token
-    └── conversations.go#   conversations.create
+    └── conversations.go#   conversaciones y mensajes
+└── internal/atlassian/ # cliente Jira Cloud API v3 + Agile
 ```
 
 ## 1. Crear la Slack App y obtener el token
@@ -34,6 +37,7 @@ cp .env.example .env      # y pega tu token en SLACK_BOT_TOKEN
 
 ```bash
 go build -o bin/slack-mcp ./cmd/slack-mcp
+go build -o bin/jira-mcp ./cmd/jira-mcp
 ```
 
 ## 3. Probar suelto (sin Claude)
@@ -56,9 +60,8 @@ Para crear un canal de verdad, agrega una llamada `tools/call`:
 ## 4. Registrar en Claude Code
 
 ```bash
-claude mcp add creditop-tools \
-  --env SLACK_BOT_TOKEN=xoxb-... \
-  -- /Users/miguelochoa/Desktop/CREDITOP/playground/tools/bin/slack-mcp
+claude mcp add creditop-tools -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/slack-mcp
+claude mcp add creditop-jira -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/jira-mcp
 ```
 
 Luego, en una sesión: *"crea un canal de Slack llamado equipo-loan-origination"*
@@ -68,8 +71,8 @@ Para quitarlo: `claude mcp remove creditop-tools`.
 
 ## Agregar más tools
 
-1. Nuevo método en `internal/slack/` (ej. `PostMessage` → `chat.postMessage`).
-2. Nueva función `registerXxx(server, client)` en `cmd/slack-mcp/tools.go` con
+1. Nuevo método en `internal/slack/` o `internal/atlassian/`.
+2. Nueva función `registerXxx(server, client)` en el `tools.go` correspondiente con
    sus structs de input/output (los tags `jsonschema` documentan cada campo).
 3. Llamarla desde `main.go`.
 

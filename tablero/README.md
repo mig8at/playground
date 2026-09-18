@@ -5,14 +5,27 @@
 > cierto después de mergear**, es contexto; si deja de tener sentido porque hablaba de una decisión, un
 > riesgo o una pregunta abierta, es tarea y va acá.
 
-Un proyecto con **tres ejecutables Go y un frontend Vue**, todos apoyados en los mismos clientes HTTP:
+## Elegí la lectura por la pregunta
+
+| Si necesitás… | Abrí… |
+|---|---|
+| retomar una tarea concreta | `make retomar N=<id|slug>` o **Retomar** en el tablero |
+| decidir qué mover hoy | `make hoy` o **En foco hoy** |
+| crear o actualizar una tarea | `PLANTILLA-TAREA.md` y después `CLAUDE.md` |
+| entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
+| encontrar conocimiento estable del producto | `../context/docs/ROUTE-MAP.md` |
+
+El README conserva operación, integraciones y referencias; las reglas vigentes para editar tareas viven
+en `CLAUDE.md`. Así no hace falta leer ambos completos para una pregunta cotidiana.
+
+Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los mismos clientes HTTP:
 
 | Pieza | Qué es | Cómo se corre |
 |---|---|---|
 | `cmd/web` | servidor WebSocket (`:8787`) que alimenta el dashboard | `npm run dev` |
 | `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
-| `src/` (Vue) | mis tareas de los **últimos 4 sprints** en una grilla masonry + indicadores del sprint activo + heatmap de actividad | `npm run dev` → `:5191` |
+| `src/` (Vue) | agenda de hoy, tareas de los últimos 4 sprints, retoma, entrega y actividad | `npm run dev` → `:5191` |
 
 ## La forma de una tarea
 
@@ -77,7 +90,7 @@ npm run server:build   # compila server/bin/{web,slack-mcp,jira-mcp,pulso}
 npm run server:jira    # corre jira-mcp por stdio (para probar suelto)
 npm run server:slack   # corre slack-mcp por stdio
 npm run build          # vite build → dist/
-cd server && go test ./...   # solo hay tests de NormalizeChannelName
+cd server && go test ./...   # parser, store, guard, conectores y cierre
 ```
 
 ## Mapa
@@ -86,7 +99,7 @@ cd server && go test ./...   # solo hay tests de NormalizeChannelName
 tools/
 ├── package.json  vite.config.js  index.html
 ├── src/
-│   ├── App.vue            ← TODO el dashboard (WS + heatmap + estilos), ~325 líneas
+│   ├── App.vue            ← dashboard y paneles de consulta
 │   ├── main.js  styles.css
 │   └── scorecards/        ← Rocks & Scorecards Q3 2026 — HUÉRFANO, nadie lo importa
 └── server/
@@ -561,11 +574,8 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 ## Docs relacionados
 
-- [`server/README.md`](server/README.md) — guía paso a paso para crear la Slack App y sacar el token, y el
-  ejemplo de `tools/call` por stdio. **Ojo: está desactualizado** — describe slack-mcp como "el primer
-  conector" con una sola tool, dice que Jira viene "más adelante" (ya está), y su árbol de carpetas y el
-  `claude mcp add` omiten el nivel `server/` (dicen `tools/bin/slack-mcp`, la ruta real es
-  `tools/server/bin/slack-mcp`).
+- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — mapa corto de datos, UI, consola y contexto.
+- [`server/README.md`](server/README.md) — instalar y probar los conectores MCP de Jira y Slack.
 - `../context/` — árbol de contexto de CreditOp (mapa estático `ROUTE-MAP.md` + toolkit Python). Nada que
   ver con estos conectores, pero es el otro proyecto grande del playground.
 - `playground/docs/` **ya no existe** (absorbido por `context/`): si algún doc apunta ahí, es puntero roto.

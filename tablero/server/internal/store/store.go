@@ -299,6 +299,8 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
 	// `TechNotes`. No pasan por el guard porque no salen a Jira.
 	e.Anotaciones = Anotaciones(notas)
+	e.Retoma = Retoma(notas)
+	e.ProximoPaso = ProximoPaso(notas)
 	// Del mismo cuerpo privado, y por la misma razón: las casillas de la publicable son criterios de
 	// aceptación de QA, no pendientes.
 	e.Pendientes = Pendientes(notas)
@@ -669,6 +671,10 @@ type Effort struct {
 	// acá, por eso puede nombrar archivos y repos — justo lo que el borrador de Jira tiene prohibido.
 	// Es el CUERPO del archivo de la tarea.
 	TechNotes string `json:"techNotes"`
+	// Campos derivados del cuerpo privado. La UI ya no adivina cuál párrafo de un documento largo
+	// describe el estado actual: lee la misma retoma y el mismo próximo paso que se usan en consola.
+	Retoma      string `json:"retoma"`
+	ProximoPaso string `json:"proximoPaso"`
 	// slugs de los nodos de contexto que toca, separados por coma (el mapa del código vive allá).
 	// En el archivo son una lista YAML; acá van como cadena porque así lo consume la UI.
 	ContextNodes string `json:"contextNodes"`

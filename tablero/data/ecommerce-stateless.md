@@ -55,9 +55,9 @@ commits nuevos, y por eso necesita su propio PR.
 ✔ **Y #1016 ya tiene #1018 portado**: cherry-pick limpio, commit `33649662` sobre `f474b237`, con el
 build verde. **Falta pushearlo** (va por SHA: la rama está tomada por el worktree de otra sesión).
 
-⚠ **Orden cuando llegue el momento:** primero la promoción `qa`→`main`, después #1016. Al revés,
-producción estrena la entrada de ecommerce con el backend viejo y el comprador cae en
-`/continue?url=null` — justo el bug que esto arregla.
+⚠ **Orden cuando llegue el momento:** primero #1016, después la promoción `qa`→`main`. #1016 repone
+la entrada de ecommerce y lleva el arreglo del rebote; promover antes deja `main` con rutas que apuntan
+a archivos que todavía no existen.
 
 ### Tres cosas abiertas, ninguna bloqueante
 

@@ -1,7 +1,7 @@
 <script setup>
 // Tablero — mi sprint, con registro de tiempo y bitácora.
 //
-// El registro persiste en SQLite del lado del server (internal/store). Lo de arriba (sprint, tareas)
+// El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
 // sale de /api/sprint (Jira Agile 1.0); la bitácora, de /api/entries.
 //
 // LA REGLA QUE ATRAVIESA TODO: lo que se escribe acá termina en Jira, donde lo lee el equipo. Nunca
@@ -44,7 +44,7 @@ const KINDS = [
   { id: 'test', label: 'Prueba', icon: '✓' },
   { id: 'blocker', label: 'Bloqueo', icon: '■' },
 ];
-// La bitácora vive en SQLite del lado del server. Acá se mapea al shape que usa la UI: `date` es el
+// La bitácora vive en JSONL del lado del server. Acá se mapea al shape que usa la UI: `date` es el
 // INICIO del bloque trabajado (Date real; el mapa de jornada reparte por horas), `sprint` ata la
 // entrada al sprint donde se registró.
 const fromApi = (r) => ({ id: r.id, key: r.taskKey, kind: r.kind, min: r.minutes,
@@ -576,6 +576,14 @@ const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.dele
 // bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
 // tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
 const descAbierta = ref(false);
+// Las acciones de consulta quedan bajo «Más»: una tarjeta se lee primero y se actúa después. Así no
+// compiten seis botones con el estado y el próximo paso.
+const accionesAbiertas = ref(new Set());
+const alternarAcciones = (key) => {
+  const s = new Set(accionesAbiertas.value);
+  s.has(key) ? s.delete(key) : s.add(key);
+  accionesAbiertas.value = s;
+};
 
 // ── el CUERPO TÉCNICO de la tarea, que es lo que de verdad se quiere leer ──────────────────────────
 //
@@ -591,14 +599,8 @@ const cuerpoDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.tec
 // Markdown de verdad y no una regex a mano: estos cuerpos usan tablas, citas, bloques de código y
 // enlaces, y una tabla mal renderizada es peor que no mostrarla. El contenido es un archivo local
 // escrito por nosotros, así que `v-html` acá no toma nada de afuera.
-// EN QUÉ ESTÁ la tarea, en una línea, para la tarjeta.
-//
-// La convención de estos cuerpos es `# Título` y enseguida el estado, y el estado se escribe como CITA
-// (`> **ESTADO (fecha)** — …`) justamente porque es lo que envejece. Saltear las citas —que fue lo
-// primero que hice— deja pescando una frase cualquiera de mil líneas más abajo, que es peor que no
-// mostrar nada: parece un resumen y no lo es.
-//
-// Así que se toma la PRIMERA prosa después del título, venga como cita o como párrafo, y se para ahí.
+// `estadoDe` queda sólo como respaldo para los archivos sin sección de retoma. Las tarjetas vivas usan
+// la retoma y el próximo paso declarados, que son el estado vigente y no una inferencia del historial.
 const estadoDe = (key) => {
   const md = cuerpoDe(key);
   if (!md) return '';
@@ -618,6 +620,34 @@ const estadoDe = (key) => {
   return '';
 };
 
+// La tarjeta no toma la primera línea del archivo: puede ser una nota de migración o historia vieja.
+// La portada de una tarea es «Si retomás esto sin contexto», y el server la expone como dato derivado.
+const limpiarMarkdown = (s, limite = 240) => (s || '')
+  .replace(/<!--[^]*?-->/g, '')
+  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+  .replace(/[*\`_]/g, '')
+  .replace(/^>\s?/gm, '')
+  .replace(/\s+/g, ' ').trim().slice(0, limite);
+const retomaLocal = (md) => {
+  const m = /^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n/mi.exec(md || '');
+  if (!m) return '';
+  const resto = (md || '').slice(m.index + m[0].length);
+  const corte = resto.search(/^##\s/m);
+  return resto.slice(0, corte < 0 ? resto.length : corte).trim();
+};
+const proximoLocal = (md) => {
+  const m = /\*\*El pr[óo]ximo paso es:?\*\*\s*(.*?)(?:\n\s*\n|\n##|$)/is.exec(md || '');
+  return m ? limpiarMarkdown(m[1], 280).replace(/^[:·\s]+/, '') : '';
+};
+const effortDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key));
+const retomaDe = (key) => effortDe(key)?.retoma || retomaLocal(cuerpoDe(key));
+const proximoDe = (key) => effortDe(key)?.proximoPaso || proximoLocal(cuerpoDe(key));
+const resumenDe = (key) => {
+  const retoma = retomaDe(key);
+  if (!retoma) return estadoDe(key);
+  return limpiarMarkdown(retoma.replace(/\*\*El pr[óo]ximo paso es:?\*\*[\s\S]*$/i, ''), 240);
+};
+
 const cuerpoHTML = computed(() => {
   const md = active.value ? cuerpoDe(active.value.Key) : '';
   if (!md) return '';
@@ -632,8 +662,8 @@ const cuerpoHTML = computed(() => {
   return marked.parse(md, { gfm: true, breaks: false, renderer });
 });
 
-// El índice de secciones. Estos cuerpos pasan de las mil líneas: sin un índice, el cajón es un muro y
-// se deja de abrir. Sale de los propios `##`/`###`, así que no se desincroniza con el texto.
+// El índice de secciones principales. Estos cuerpos pasan de las mil líneas: sin un índice, el cajón
+// es un muro; incluir las entradas `###` del Registro lo convertía otra vez en el diario entero.
 const indiceCuerpo = computed(() => {
   const md = active.value ? cuerpoDe(active.value.Key) : '';
   if (!md) return [];
@@ -642,7 +672,9 @@ const indiceCuerpo = computed(() => {
   for (const linea of md.split('\n')) {
     if (linea.trimStart().startsWith('```')) { enBloque = !enBloque; continue; }
     if (enBloque) continue;
-    const m = /^(#{2,3})\s+(.+?)\s*$/.exec(linea);
+    // Las entradas del Registro usan `###`: mostrarlas todas convertía el índice en el diario y
+    // escondía las secciones que sirven para volver a trabajar. El Registro sigue completo abajo.
+    const m = /^(#{2})\s+(.+?)\s*$/.exec(linea);
     if (m) out.push({ nivel: m[1].length, texto: m[2], id: slugTitulo(m[2]) });
   }
   return out;
@@ -658,6 +690,10 @@ function slugTitulo(t) {
 
 function irASeccion(id) {
   document.getElementById('sec-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function abrirContexto(nodo) {
+  window.open('http://localhost:5193/?q=' + encodeURIComponent(nodo), '_blank', 'noopener');
 }
 
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
@@ -880,6 +916,26 @@ const pendientesPorSeccion = (key) => {
   }
   return grupos;
 };
+
+// La primera pantalla responde «¿qué tengo que mover ahora?». El sprint sigue siendo la fuente, pero
+// se ordena por lo que pide acción: bloqueos y preguntas vencidas antes que el resto; después, el
+// próximo paso. Los proyectos propios sólo entran si ya están en etapa de trabajo y no tienen issue.
+const preguntasVencidasDe = (key) => hallazgosDe(key).filter(a => a.tipo === 'pregunta' && vencido(a));
+const focoHoy = computed(() => {
+  const localesEnTrabajo = efforts.value
+    .filter(e => e.stage === 'work' && e.clase !== 'proyecto' && !e.archived && !Object.values(taskLocals.value).some(t => t?.effortId === e.id))
+    .map(e => ({ Key: `LOCAL-${e.id}`, Summary: e.title, Status: 'local', StatusCategory: 'new', _local: true, _esfuerzoId: e.id }));
+  return [...issues.value, ...localesEnTrabajo]
+    .filter(i => i.StatusCategory !== 'done')
+    .map(i => {
+      const key = i.Key, preguntas = preguntasVencidasDe(key), dias = diasSinTocar(esfuerzoDe(key));
+      return { ...i, preguntas, dias, proximo: proximoDe(key), estado: estadoDe(key),
+        prioridad: bloqueada(i) ? 0 : preguntas.length ? 1 : dias >= DORMIDA_DIAS ? 2 : 3 };
+    })
+    .sort((a, b) => a.prioridad - b.prioridad || (b.preguntas.length - a.preguntas.length) || (b.dias - a.dias) || a.Summary.localeCompare(b.Summary))
+    .slice(0, 8);
+});
+function abrirRetoma(i) { verDesc(i); }
 // La bitácora vive en un CAJÓN, no en una card del tablero: son notas largas que escribe el asistente y
 // que el humano consulta de vez en cuando (quien la lee seguido es un modelo, para retomar contexto).
 // Ocupando una columna fija era ruido permanente por algo que no se mira en cada carga. Se abre desde el
@@ -1310,6 +1366,26 @@ onMounted(async () => {
         <span v-if="sinPuntos.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ sinPuntos.join(' · ') }}</span>
       </p>
 
+      <section class="card foco" v-if="focoHoy.length">
+        <h2>En foco hoy <span class="mut">· lo que pide una acción antes de seguir mirando métricas</span></h2>
+        <div class="foco-grid">
+          <article v-for="i in focoHoy" :key="i.Key" class="foco-item" :class="{ bloqueada: bloqueada(i), dormida: i.dias >= DORMIDA_DIAS }">
+            <div class="foco-head">
+              <span class="key">{{ i._local ? `local · ${i._esfuerzoId}` : i.Key }}</span>
+              <span class="status" :class="statusClass(i.StatusCategory)">{{ i._local ? 'sin publicar' : i.Status }}</span>
+              <span v-if="bloqueada(i)" class="foco-alerta">bloqueada</span>
+              <span v-else-if="i.preguntas.length" class="foco-alerta">{{ i.preguntas.length }} pregunta{{ i.preguntas.length === 1 ? '' : 's' }} vencida{{ i.preguntas.length === 1 ? '' : 's' }}</span>
+              <span v-else-if="i.dias >= DORMIDA_DIAS" class="foco-alerta">{{ i.dias }} d sin tocar</span>
+            </div>
+            <h3>{{ i.Summary }}</h3>
+            <p v-if="i.proximo" class="foco-paso"><b>Sigue:</b> {{ i.proximo }}</p>
+            <p v-else-if="i.estado" class="foco-estado">{{ i.estado }}</p>
+            <p v-else class="foco-estado falta">Falta escribir la retoma y un próximo paso.</p>
+            <button class="tact principal" :disabled="!cuerpoDe(i.Key)" @click="abrirRetoma(i)">{{ cuerpoDe(i.Key) ? 'Retomar' : 'Sin contexto' }}</button>
+          </article>
+        </div>
+      </section>
+
       <section class="card">
         <h2>Mi jornada
           <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
@@ -1458,7 +1534,7 @@ onMounted(async () => {
                    descripción de Jira recortada, que es la información equivocada para este tablero:
                    dice qué HAY que hacer, no en qué se está — y además ya se lee en Jira. El cuerpo
                    completo va al cajón; acá sólo su primera frase, que es donde se escribe el estado. -->
-              <p v-if="estadoDe(i.Key)" class="jd" :title="estadoDe(i.Key)">{{ estadoDe(i.Key) }}</p>
+              <p v-if="resumenDe(i.Key)" class="jd" :title="resumenDe(i.Key)">{{ resumenDe(i.Key) }}</p>
               <p v-else-if="i.Description" class="jd" :title="i.Description">{{ i.Description }}</p>
               <p v-else class="jd none">sin cuerpo técnico todavía</p>
 
@@ -1477,9 +1553,14 @@ onMounted(async () => {
               <!-- Las acciones de la tarea, donde está la tarea. `@click.stop` en todas: la tarjeta
                    entera selecciona, y un botón no puede además hacer eso por accidente. -->
               <div class="tacts" @click.stop>
-                <button class="tact" :class="{ act: descAbierta && active?.Key === i.Key }" @click="verDesc(i)">
-                  Cuerpo técnico
+                <button class="tact principal" :class="{ act: descAbierta && active?.Key === i.Key }"
+                  :disabled="!cuerpoDe(i.Key)" @click="verDesc(i)">
+                  {{ cuerpoDe(i.Key) ? 'Retomar' : 'Sin contexto' }}
                 </button>
+                <button class="tact" :class="{ act: accionesAbiertas.has(i.Key) }" @click="alternarAcciones(i.Key)">
+                  {{ accionesAbiertas.has(i.Key) ? 'menos' : 'más' }}
+                </button>
+                <div v-if="accionesAbiertas.has(i.Key)" class="mas-acciones">
                 <button class="tact" :class="{ act: bitacoraAbierta && active?.Key === i.Key }" @click="verBitacora(i)">
                   Bitácora<span v-if="entriesPorTarea[i.Key]" class="cnt">{{ entriesPorTarea[i.Key] }}</span>
                 </button>
@@ -1525,6 +1606,7 @@ onMounted(async () => {
                   :disabled="moverBusy || qa?.key === i.Key" @click="abrirMover(i)">
                   {{ moverBusy && active?.Key === i.Key ? 'Consultando Jira…' : '⇢ Mover' }}
                 </button>
+                </div>
               </div>
 
               <!-- Handoff a QA, dentro de SU tarjeta. El mensaje se previsualiza y se puede editar: nunca
@@ -1751,7 +1833,19 @@ onMounted(async () => {
             <a v-if="site && active" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">lo que ve el equipo, en Jira ↗</a>
           </p>
 
-          <!-- el índice: estos cuerpos pasan de las mil líneas y sin él el cajón no se abre dos veces -->
+          <section v-if="active && retomaDe(active.Key)" class="retoma-panel">
+            <div class="retoma-label">Para retomar ahora</div>
+            <p class="retoma-estado">{{ resumenDe(active.Key) }}</p>
+            <p v-if="proximoDe(active.Key)" class="retoma-paso"><b>Próximo paso:</b> {{ proximoDe(active.Key) }}</p>
+            <div v-if="effortDe(active.Key)?.contextNodes" class="retoma-contextos">
+              <span>Contextos:</span>
+              <button v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
+                :key="n" class="ctx-link" @click="abrirContexto(n)">{{ n }} ↗</button>
+            </div>
+          </section>
+
+          <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
+               convertir el índice de retoma en una lista cronológica. -->
           <nav v-if="indiceCuerpo.length > 2" class="toc">
             <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i" :class="{ sub: h.nivel === 3 }"
                     @click="irASeccion(h.id)">{{ h.texto }}</button>
@@ -2002,6 +2096,20 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
+/* La agenda es la entrada del día: pocas tarjetas, con la acción pendiente arriba de las métricas de
+   actividad. No duplica el tablero completo; deriva sus alertas de las mismas tareas. */
+.foco-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; }
+.foco-item { border: 1px solid var(--line); border-radius: 10px; padding: 13px; background: var(--panel2); }
+.foco-item.bloqueada { border-color: #f8717177; }
+.foco-item.dormida { border-color: #a8a29e66; }
+.foco-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.foco-head .status { margin-left: auto; }
+.foco-item h3 { margin: 8px 0 6px; font-size: 14px; line-height: 1.35; }
+.foco-paso, .foco-estado { margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; color: var(--mut); }
+.foco-paso { color: var(--txt); }
+.foco-estado.falta { font-style: italic; }
+.foco-alerta { color: #fca5a5; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+
 /* MASONRY con `columns`, no con grid. El grid alineaba por FILA, así que una tarjeta corta al lado de una
    larga dejaba un hueco vertical hasta la fila siguiente — bien visible con las que no tienen descripción.
    `columns` las apila por columna y no queda aire.
@@ -2052,6 +2160,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
 .tact.act { color: var(--acc); border-color: #4c3d8f; background: #a78bfa1f }
+.tact.principal { color: var(--txt); border-color: #6d5cad; background: #a78bfa24; }
+.tact.principal:hover:not(:disabled) { background: #a78bfa36; }
+.mas-acciones { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
 .tact.go { color: #4ade80; border-color: #2a5f43; background: #0e2718 }
 .tact.go:hover:not(:disabled) { background: #123420; color: #4ade80 }
@@ -2378,6 +2489,14 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
          background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
 .toc-i:hover { background: var(--line) }
 .toc-i.sub { opacity: .62; font-size: 10px }
+.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #6d5cad66; border-radius: 9px;
+  background: #a78bfa0c; }
+.retoma-label { color: var(--acc); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
+.retoma-paso { margin: 0; color: var(--txt); line-height: 1.55; }
+.retoma-contextos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--mut); font-size: 12px; }
+.ctx-link { border: 1px solid #a78bfa55; color: var(--acc); background: transparent; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; }
+.ctx-link:hover { background: #a78bfa1f; }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
