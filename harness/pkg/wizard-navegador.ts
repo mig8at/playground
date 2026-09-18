@@ -48,6 +48,13 @@ export const CAMPOS_WIZARD = (d: DatosWizard, hoja = ''): Campo[] => [
      * JAVASCRIPT DEL CLIENTE, que es justo lo que el camino HTTP no puede ver. Dejarlo vacío convierte
      * al caminador en la prueba de si de verdad se autocalcula — llenarlo a mano taparía la respuesta. */
     { label: /cuota inicial/i, name: 'down_payment', valor: String(Math.round(d.amount * 0.2)), tecleado: true },
+    /* Los dos campos del SEGUNDO formulario del vehículo de BCP (`bcp-vehiculo-paso-2`), el que va
+     * DESPUÉS del gate manual. Su esquema los declara `text` sin regex y con `minLength: 1`, así que
+     * cualquier cadena sirve; se les da igual la FORMA de un chasis y un motor de verdad —17 caracteres
+     * el primero— porque una captura con «CARLOS RUIZ» en el número de chasis no se puede mirar y
+     * decir si la pantalla está bien. Derivados del documento: distintos por caso y reproducibles. */
+    { label: /n[uú]mero de chasis/i, name: 'chassis_number', valor: `9BWZZZ377VT${d.doc.slice(-6)}`, tecleado: true },
+    { label: /n[uú]mero de motor/i, name: 'engine_number', valor: `ABC${d.doc.slice(-9)}`, tecleado: true },
 ];
 
 /** Un navegador para toda la tanda; UN CONTEXTO POR CASO.

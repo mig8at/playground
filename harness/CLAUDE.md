@@ -712,6 +712,26 @@ en la card; acá no puede, porque el slug también cambia.
 ⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
 La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
 
+### El vehicular de BCP, caminado con NAVEGADOR de punta a punta (2026-09-18)
+
+Nueve pantallas, ~160 s, y las nueve se pueden MIRAR (`.runs/caminar-…/ultima.png` + la traza):
+
+    make harness-caminar CASOS='#50e007e4:207' MOTOR=navegador MONTO=60000 GATE=aprobado
+
+    solicitar → celular → OTP → datos personales → formulario/pre →
+    entidad/simulador → entidad/resultado (gate) → formulario/post → lenders
+
+⚠ **`GATE=` es obligatorio acá y no tiene default a propósito.** `entidad/resultado` no ofrece
+«Continuar»: ofrece **«Aprobado» / «Rechazado»**, porque ahí decide una persona. Sin la bandera el
+caminador se detiene —no elige por nadie— y con `GATE=rechazado` la solicitud queda **NEGADA**, que en
+una base compartida es basura que queda. Mismo criterio que el `--niega` del runner por HTTP.
+
+⚠ **Antes esto no se podía caminar, y ninguna de las razones era del producto:** el botón del formulario
+dice «Enviar» y no estaba en el patrón de avance; los selects del vehículo son una CASCADA y se llenaban
+en una sola pasada; el trío de fecha los reclamaba sin poder llenarlos; el overlay de `react-scan`
+interceptaba los clicks (**F-233**); y `clickearAvanzar` decía haber clickeado aunque fallara. El
+recorrido es la prueba de que las cinco están arregladas.
+
 ### Las cuatro variables del WIZARD sin las que el vehicular no se ve (2026-09-18)
 
 El recorrido con navegador llega igual, pero **degrada en silencio**: sin ellas el formulario del

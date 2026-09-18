@@ -84,6 +84,22 @@ const UN_SOLO_DISPOSITIVO = FLOW === 'self-service' || FLOW === 'ecommerce';
 /** Cómo se NOMBRA el tramo del cliente en el rastro: el arnés dice lo que hay, no lo que supone. */
 const TRAMO_CLIENTE = UN_SOLO_DISPOSITIVO ? 'el cliente sigue acá (un solo dispositivo)' : 'B (celular): handoff';
 const AMOUNT = Number(arg('amount', '2000000'));
+/**
+ * Qué contestar en un GATE MANUAL — una pantalla que no tiene «Continuar» sino una DECISIÓN
+ * («Aprobado» / «Rechazado»), como `entidad/resultado` del vehicular de BCP.
+ *
+ * ⚠ SIN BANDERA EL CAMINADOR SE DETIENE, y es a propósito. Adivinar acá no es avanzar: es tomar por su
+ * cuenta la decisión que la pantalla existe para pedirle a una persona, y cada rama deja la solicitud en
+ * un estado distinto (aprobar sigue el flujo; rechazar la deja NEGADA). El runner por HTTP usa el mismo
+ * criterio con `--niega`.
+ *
+ * ⚠ Y «rechazado» fuera de LOCAL deja basura en una base COMPARTIDA: por eso se exige nombrarlo.
+ */
+const GATE = arg('gate').trim().toLowerCase();
+if (GATE && !['aprobado', 'rechazado'].includes(GATE)) {
+    console.log(`\n  ✗ --gate sólo acepta «aprobado» o «rechazado» (vino «${GATE}»)\n`);
+    process.exit(2);
+}
 const INCOME = Number(arg('income', '2500000'));
 const SCORE = Number(arg('score', '700'));
 /**
@@ -776,6 +792,26 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
         const av = await avanzar(page, { tel, doc, amount: AMOUNT, income: INCOME }, hoja);
         if (av.hechos.length) log(`   ▸ autorrelleno: ${av.hechos.join(' · ')}`);
         if (!av.ok) {
+            /* UN GATE MANUAL NO ES UNA PANTALLA TRABADA. `entidad/resultado` no ofrece «Continuar»:
+             * ofrece «Aprobado» y «Rechazado», porque ahí decide una persona. Sin `--gate` esto sigue
+             * cortando —y está bien, el caminador no elige por nadie—, pero con la bandera puesta el
+             * recorrido puede llegar hasta el final.
+             *
+             * Se busca por NOMBRE ACCESIBLE y sólo si el botón de verdad está: si la pantalla cambió y
+             * ya no ofrece esa opción, corta como siempre en vez de clickear cualquier cosa. */
+            if (GATE && !av.motivo) {
+                const decision = page.getByRole('button', { name: new RegExp(`^\\s*${GATE}\\s*$`, 'i') }).first();
+                if (await decision.count().catch(() => 0) && await decision.isEnabled().catch(() => false)) {
+                    const falla = await decision.click({ timeout: 15_000 }).then(() => null)
+                        .catch((e) => String(e?.message ?? e).replace(/\s+/g, ' ').slice(0, 200));
+                    if (!falla) {
+                        log(`   ⚖ gate manual: marqué «${GATE}»`);
+                        await esperarCambio(page, antes, 20_000);
+                        continue;
+                    }
+                    log(`   ⚠ gate «${GATE}»: el click falló: ${falla}`);
+                }
+            }
             // Un click que falló NO es «sin botón habilitado»: el botón estaba y era el correcto.
             // Decirlo distinto es la diferencia entre depurar el harness y depurar el producto.
             return terminar('trabado', `${hoja}: ${av.motivo ?? 'sin botón habilitado para avanzar'}`
