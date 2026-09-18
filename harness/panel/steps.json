@@ -125,8 +125,8 @@
             "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
             "Modules/Loans/App/Services/CreditopXFlowService.php",
             "Modules/Loans/App/Services/ResponseBuilderService.php",
-            "Modules/Onboarding/App/Http/Controllers/MotaiValidationController.php",
-            "Modules/Onboarding/App/Services/MotaiValidationService.php"
+            "Modules/Onboarding/App/Http/Controllers/AbacoRequirementController.php",
+            "Modules/Onboarding/App/Services/AbacoRequirementService.php"
           ],
           "nota": "Loader = GET /api/loans/customer/requests/{ur} (ContinueUserFlowController@index); action = POST .../requests/confirm (@confirm), cuyo step_details.type rutea el siguiente paso (loan-confirmation.tsx:218-239: aws_validation→identity-validation, ado/crosscore→identity-validation-instructions, evidente→additional-identity-validation, no_validation_required→salta directo a first-payment-date). ÁBACO (Motai renting): ANTES del confirm la action llama POST /api/onboarding/motai/check-abaco-requirement y si da REQUIRED desvía a /{ur}/abaco (routes/abaco/*), no a la validación de identidad. Al COMPLETAR Ábaco el flujo SIGUE al cierre: platform-otp-validation.tsx:251 rutea no_validation_required → first-payment-date (verificado en vivo: uReq 464499 cerró en Estado 11). Distinto es identity-validation-status.tsx:188 buildCompletionPath, que manda a /request-sent cuando la identidad termina y Ábaco todavía está PENDIENTE — son dos salidas, no una.",
           "detalle": "Confirmación de la entidad y las condiciones"

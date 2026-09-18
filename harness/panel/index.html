@@ -967,7 +967,7 @@
       </div>
         </section>
         <details class="card environment-settings" id="environmentSettings">
-          <summary>Configuración del entorno <span>Entidades y respuestas simuladas</span></summary>
+          <summary>Configuración del entorno <span id="entornoResumen">Entidades y respuestas simuladas</span></summary>
           <p class="scope-note">Los interruptores cambian el estado global de la entidad. Afectan todas las sucursales de este ambiente y se conservan después de la corrida.</p>
           <p class="grouplbl">Entidades vinculadas <span id="lendersbranch"></span></p>
           <div id="lenderslist"><p style="color:var(--mut);font-size:12px;margin:0">Elegí un comercio…</p></div>
@@ -1410,6 +1410,22 @@
         $('lendersbranch').textContent = r.hash ? '· ' + r.hash : (r.msg || '');
         paStatus = (await (await fetch('/api/pa-statuses')).json().catch(() => ({}))) || {};
         const ls = r.lenders || [];
+        /* EL RESUMEN DE UN PLEGABLE TIENE QUE DECIR CÓMO ESTÁ, NO DE QUÉ SE TRATA. Acá decía «Entidades y
+         * respuestas simuladas» —una categoría— cuando lo que hay adentro es lo que DECIDE el desenlace de
+         * la corrida: cuántas entidades va a listar este comercio. El resto del panel ya lo hace así
+         * («Falta iniciar: minio», «⚠ 2 rutas ya no existen»); esta sección se había quedado afuera.
+         *
+         * Y el caso de CERO se avisa fuerte: un listado vacío es el desenlace más confuso que hay — la
+         * corrida llega hasta el marketplace y no muestra nada, y eso se depura como un bug del backend
+         * cuando la respuesta estaba acá, plegada. */
+        const activas = ls.filter((l) => Number(l.lender_status) === 1).length;
+        const resumen = $('entornoResumen');
+        if (resumen) {
+          resumen.textContent = ls.length
+            ? (activas ? `${activas} de ${ls.length} entidad(es) activas` : `⚠ ninguna de las ${ls.length} entidades está activa — el listado va a salir vacío`)
+            : '⚠ esta sucursal no tiene entidades vinculadas';
+          resumen.style.color = activas ? '' : 'var(--warn)';
+        }
         mockPA = r.mockPA !== false;   // lo decide E2E_REAL_PREAPPROVALS por target, no el panel
         applyMockPAGate();             // con MS real "Espera pre-aprobados" no aplica → se oculta (como los estados por lender)
         lendersDelComercio = ls;   // el mapa de tren dibuja los ramales según el rt de estos
