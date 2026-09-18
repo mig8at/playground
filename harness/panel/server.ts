@@ -18,6 +18,16 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de harness
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
+/* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/asesor:500` ya lanza `pnpm dev` con
+ * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
+ * la sesión actual del wizard, y que `total` baje significa «arrancó otro», el mismo contrato que el log
+ * de la corrida.
+ *
+ * POR QUÉ VALE LA PENA MOSTRARLO: ahí viven las líneas `[outbound]`, que dicen a qué servicio llamó el
+ * SSR, con qué URL, con qué código y cuánto tardó. Es la única vista de eso — la consola del navegador no
+ * la tiene (son llamadas del servidor) y el log de la corrida tampoco. Sin esto, «el formulario no carga»
+ * obliga a adivinar si el que falló fue form-service, el backend o el mock. */
+const SSR_LOG = '/tmp/asesor-wizard.log';
 const PA_STATUS_FILE = '/tmp/mock-pa-statuses.json'; // status por lender del mock de pre-aprobados (mismo path que lee server.mjs)
 const TARGETS = new Set(['local', 'dev', 'staging', 'qa']);
 
@@ -727,12 +737,14 @@ function tailLog(): string {
 // payload (tailLog ya recorta a 120 líneas y son ~7 KB): es porque el cliente pinta una MINIATURA por
 // cada línea 📸, y reconstruir ese DOM cada 2s recrea todas las <img>. Con cursor sólo se agrega lo nuevo.
 // `total` es el conteo absoluto: si baja, el RUN_LOG se reescribió (corrida nueva) → el cliente resetea.
-function logDesde(from: number): { total: number; from: number; lines: string[] } {
-    if (!existsSync(RUN_LOG)) return { total: 0, from: 0, lines: [] };
-    const todas = readFileSync(RUN_LOG, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
+function lineasDesde(archivo: string, from: number): { total: number; from: number; lines: string[] } {
+    if (!existsSync(archivo)) return { total: 0, from: 0, lines: [] };
+    const todas = readFileSync(archivo, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n');
     const desde = from > 0 && from <= todas.length ? from : 0;
     return { total: todas.length, from: desde, lines: todas.slice(desde) };
 }
+
+const logDesde = (from: number) => lineasDesde(RUN_LOG, from);
 
 // log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
 // vuelca al stdout del hijo (page.on('console')/pageerror → líneas "⚠ …" / "⚠ FALLO EN PANTALLA …"), que va al RUN_LOG.
@@ -1252,6 +1264,22 @@ const server = createServer(async (req, res) => {
         // Con `?from=N` va incremental (el cliente appendea). Sin él, el log recortado de siempre —
         // así cualquier consumidor viejo sigue funcionando igual.
         return json(res, 200, from === null ? { ...base, log: tailLog() } : { ...base, ...logDesde(Number(from) || 0) });
+    }
+
+    /* La consola del SSR. Misma forma que `/api/status` a propósito: sin `from` devuelve la COLA (para
+     * tener algo de contexto al abrir la pestaña) y con `from` va incremental.
+     *
+     * ⚠ La cola es de 120 líneas y no el archivo entero, y no es por ahorro: este log llega a MEGABYTES
+     * en una sesión de wizard (medido: 2,9 MB), casi todo ruido de Vite. Volcarlo completo tapa lo que se
+     * vino a ver. El filtro fino lo hace el cliente, que es quien sabe si el usuario pidió sólo
+     * `[outbound]`. */
+    if (path === '/api/ssr') {
+        const desde = url.searchParams.get('from');
+        if (desde === null) {
+            const todo = lineasDesde(SSR_LOG, 0);
+            return json(res, 200, { hay: existsSync(SSR_LOG), total: todo.total, lines: todo.lines.slice(-120) });
+        }
+        return json(res, 200, { hay: existsSync(SSR_LOG), ...lineasDesde(SSR_LOG, Number(desde) || 0) });
     }
 
     if (path === '/api/log') {

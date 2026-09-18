@@ -354,6 +354,18 @@ harness-check: ## @har typecheck del harness
 # acepta TARGET — va por `E2E_TARGET`, que por defecto es **dev**. Pedirle una solicitud de prod
 # devuelve CERO anclas sin decir por qué, y eso se lee como «no hay logs» en vez de «buscaste en otro
 # lado». Para producción: `make trazador-acceso TARGET=prod`.
+harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con qué código y cuánto tardó (`[outbound]`). SOLO=1 filtra a lo saliente y los errores · N=120 líneas de cola · SEGUIR=1 se queda mirando. ⚠ lo escribe `bin/asesor` al levantar el wizard: si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal
+	@f=/tmp/asesor-wizard.log; \
+	if [ ! -f "$$f" ]; then \
+	  echo "  ✗ no existe $$f"; \
+	  echo "     lo escribe bin/asesor al levantar el wizard (lo trunca en cada arranque)."; \
+	  echo "     Si levantaste el wizard a mano con 'pnpm dev', su salida se fue a ESA terminal y acá no hay nada que mirar."; \
+	  exit 1; \
+	fi; \
+	filtro='.'; [ -n "$(SOLO)" ] && filtro='\[outbound\]|[Ee]rror|ELIFECYCLE|ECONN|failed'; \
+	if [ -n "$(SEGUIR)" ]; then tail -n $(or $(N),120) -f "$$f" | grep -E --line-buffered "$$filtro"; \
+	else tail -n $(or $(N),120) "$$f" | grep -E "$$filtro"; fi
+
 harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los logs. ⚠ dev/staging/local, NO prod. UREQ=519245 [SINCE=12h]
 	@cd harness && node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 

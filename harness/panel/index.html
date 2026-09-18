@@ -6,6 +6,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panel del harness · CreditOp</title>
   <style>
+    /* Pestañas de la consola: el botón activo se marca, el otro queda apagado pero VISIBLE — que se vea
+       que existe es la mitad del valor (si no, nadie descubre que hay un log del SSR). */
+    .pest { font-weight: 600 }
+    .pest.on { background: var(--acc, #4f46e5); color: #fff; border-color: transparent }
     :root {
       /* Paleta NEUTRA (zinc), no azulada. El color queda reservado para lo semántico —verde = corre/ON,
          ámbar = mirá esto, rojo = roto— y todo el chrome va en grises. En un panel tan denso, es lo que
@@ -1084,14 +1088,18 @@
     <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
     <section id="webhookZona" class="wh" style="display:none"></section><section class="card logcard" id="logcard" style="display:none">
       
-      <h2><b>▸</b> Consola de la corrida
+      <h2><b>▸</b>
+        <button class="copy pest on" id="pestCorrida" title="lo que imprime el launcher de la corrida">Consola de la corrida</button>
+        <button class="copy pest" id="pestSsr" title="el stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR del wizard</button>
         <span class="logacts">
+          <button class="copy" id="ssrFiltro" title="mostrar sólo las llamadas salientes del SSR" hidden>☰ todo</button>
           <button class="copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
           <button class="copy" id="logToggle">▼ plegar</button>
           <button class="copy" id="copyLog">📋 copiar</button>
         </span>
       </h2>
       <pre id="log"></pre>
+      <pre id="logSsr" style="display:none"></pre>
     </section>
   </div>
   <div class="dock"><div class="dockin">
@@ -2207,10 +2215,15 @@
     // consola como DRAWER del dock (no empuja el layout). Recuerda si la plegaste durante la corrida.
     // La consola es una CARD: mostrarla = mostrar la card. Plegar deja la card con su header visible,
     // así el botón de copiar sigue a mano sin tener el volcado entero en pantalla.
+    /* ⚠ PLEGAR TIENE QUE SABER QUÉ PESTAÑA ESTÁ ACTIVA. Antes esto sólo tocaba `#log`; con dos paneles,
+     * plegar dejaba el del SSR a la vista — dos mecanismos distintos (`style.display` acá, el atributo
+     * `hidden` en la pestaña) sobre los mismos elementos. Se unificó en `style.display`: uno solo. */
     function showLog(on) {
       logOpen = on;
       $('logcard').style.display = 'block';
-      $('log').style.display = on ? 'block' : 'none';
+      const esSsr = $('pestSsr').classList.contains('on');
+      $('log').style.display = on && !esSsr ? 'block' : 'none';
+      $('logSsr').style.display = on && esSsr ? 'block' : 'none';
       $('logToggle').textContent = on ? '▼ plegar' : '▲ desplegar';
     }
 
@@ -2295,6 +2308,66 @@
       $('log').appendChild(frag);
       renderTipear(logLineas.join('\n'));
     }
+
+    /* ── LA CONSOLA DEL SSR ──────────────────────────────────────────────────────────────────────
+     * El stdout del wizard, que `bin/asesor` ya venía guardando en `/tmp/asesor-wizard.log` sin que nadie
+     * lo mirara. Lo que se viene a ver son las líneas `[outbound]`: a qué servicio llamó el SSR, con qué
+     * URL, con qué código y cuánto tardó. Eso no está en ningún otro lado — la consola del navegador no
+     * ve las llamadas del SERVIDOR, y el log de la corrida tampoco.
+     *
+     * ⚠ SE POLLEA SÓLO MIENTRAS LA PESTAÑA ESTÁ A LA VISTA. Este archivo crece a megabytes y el panel ya
+     * consulta la BD al cerrar cada corrida; sumar un poll permanente sería gastar por algo que nadie
+     * está mirando. Es la misma razón por la que se sacó el polleo de `dbops activity` en 2026-07-22.
+     *
+     * ⚠ Y arranca desde la COLA, no desde el principio: una consola sirve para ver lo que pasa DESDE QUE
+     * la abriste. Volcar el historial entero la vuelve ilegible justo cuando la necesitás. */
+    let ssrCursor = 0, ssrPoll = null, ssrSolo = false, ssrLineas = [];
+    const ES_SALIENTE = /\[outbound\]|error|Error|ELIFECYCLE|ECONN|failed/;
+
+    function repintarSsr() {
+      const pre = $('logSsr');
+      pre.replaceChildren();
+      const frag = document.createDocumentFragment();
+      for (const l of ssrLineas) {
+        if (ssrSolo && !ES_SALIENTE.test(l)) continue;
+        frag.appendChild(document.createTextNode(l + '\n'));
+      }
+      pre.appendChild(frag);
+      pre.scrollTop = pre.scrollHeight;
+    }
+
+    async function tickSsr() {
+      try {
+        const j = await (await fetch(ssrCursor ? `/api/ssr?from=${ssrCursor}` : '/api/ssr')).json();
+        if (!j.hay) { ssrLineas = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/asesor` al levantar el wizard;',
+                                   ' si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal)']; return repintarSsr(); }
+        // `total` baja ⇒ `bin/asesor` truncó el archivo al relanzar el wizard: es OTRA sesión, se resetea.
+        if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLineas = []; ssrCursor = 0; return; }
+        if (j.lines && j.lines.length) { ssrLineas.push(...j.lines); repintarSsr(); }
+        if (typeof j.total === 'number') ssrCursor = j.total;
+      } catch { /* el panel sigue andando sin esto */ }
+    }
+
+    function mostrarPestana(cual) {
+      const esSsr = cual === 'ssr';
+      // Mismo mecanismo que `showLog` —`style.display`, no el atributo `hidden`— para que plegar y
+      // cambiar de pestaña no se pisen.
+      $('log').style.display = esSsr || !logOpen ? 'none' : 'block';
+      $('logSsr').style.display = esSsr && logOpen ? 'block' : 'none';
+      $('pestCorrida').classList.toggle('on', !esSsr);
+      $('pestSsr').classList.toggle('on', esSsr);
+      $('logFiltro').hidden = esSsr; $('ssrFiltro').hidden = !esSsr;
+      if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
+      if (esSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
+    }
+
+    $('pestCorrida').onclick = () => mostrarPestana('corrida');
+    $('pestSsr').onclick = () => mostrarPestana('ssr');
+    $('ssrFiltro').onclick = () => {
+      ssrSolo = !ssrSolo;
+      $('ssrFiltro').textContent = ssrSolo ? '⇅ salientes' : '☰ todo';
+      repintarSsr();
+    };
 
     function startPoll() {
       runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
