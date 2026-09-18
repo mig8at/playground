@@ -232,6 +232,47 @@ export async function autorrellenar(page: Page, campos: Campo[],
         await page.waitForTimeout(700).catch(() => {});
     }
 
+    /* ── SELECTORES BUSCABLES («Buscar celular…») ────────────────────────────────────────────────
+     * No son Radix ni `<select>`: son un componente propio (`packages/ui/searchable-select.tsx`) — un
+     * `<input>` de texto que al abrirse despliega las opciones como `<button type="button">` sueltos,
+     * SIN roles ARIA. Los dos bloques de arriba no los ven, y el `name` vive en un `<input type=hidden>`
+     * espejo, así que llenar por nombre tampoco sirve (la misma trampa que ya documenta el canal QR).
+     *
+     * Es el muro del funnel DINÁMICO de los comercios de RD: «Selecciona tu celular» queda vacío, el
+     * form no valida y la pantalla repite «Selecciona un celular para continuar» sin que nada más falle.
+     *
+     * ⚠ La opción se elige POR POSICIÓN —la primera que aparece debajo del input— y no por clase: las
+     * clases de Tailwind de ese desplegable cambian con cualquier retoque visual, y un selector atado a
+     * ellas se rompe sin que nadie lo note. La geometría es lo estable. */
+    const buscables = page.locator('input[placeholder*="Buscar" i]:visible');
+    for (let i = 0; i < Math.min(await buscables.count().catch(() => 0), 4); i += 1) {
+        const inp = buscables.nth(i);
+        if ((await inp.inputValue().catch(() => 'x'))?.trim()) continue;   // ya tiene algo elegido
+        const cajaInput = await inp.boundingBox().catch(() => null);
+        if (!cajaInput) continue;
+
+        await inp.click({ timeout: t }).catch(() => {});
+        await page.waitForTimeout(500).catch(() => {});
+
+        const opciones = page.locator('button[type="button"]:visible');
+        const n = await opciones.count().catch(() => 0);
+        let elegida: string | null = null;
+        for (let k = 0; k < n && !elegida; k += 1) {
+            const b = opciones.nth(k);
+            const caja = await b.boundingBox().catch(() => null);
+            // Debajo del input y cerca: eso es el desplegable, no un botón del resto de la pantalla.
+            if (!caja || caja.y <= cajaInput.y || caja.y - cajaInput.y > 420) continue;
+            const txt = ((await b.textContent().catch(() => '')) ?? '').trim();
+            if (!txt) continue;
+            if (await b.click({ timeout: t }).then(() => true).catch(() => false)) elegida = txt;
+        }
+        if (elegida) hechos.push(`buscable→${elegida.slice(0, 22)}`);
+        else {
+            await page.keyboard.press('Escape').catch(() => {});
+            hechos.push('⚠buscable: se abrió y no había opciones debajo');
+        }
+    }
+
     // Radios NATIVOS: el primero de cada grupo.
     const grupos = new Set(await page.locator('input[type=radio]:visible').evaluateAll((els) =>
         els.map((e) => (e as HTMLInputElement).name).filter(Boolean)).catch(() => []));

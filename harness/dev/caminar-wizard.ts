@@ -51,7 +51,7 @@ const { SesionFront, PROHIBIDAS } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, lineasDeEscrituras, volcarEscrituras } = await import('../pkg/db.ts');
 const { synthFill, validacionManual } = await import('../pkg/inject.ts');
 const { config, avisoDocGen, avisoLogsDelBackend } = await import('../pkg/config.ts');
-const { telefonoDeLaSucursal, telefonoSintetico } = await import('../pkg/telefonos.ts');
+const { documentoDeLaSucursal, telefonoDeLaSucursal, telefonoSintetico } = await import('../pkg/telefonos.ts');
 const { buscarSucursal: buscarSucursalEn, tipoDeDocumentoDelComercio: tipoDeDocumento } = await import('../pkg/merchants.ts');
 const { forensePostHog } = await import('../pkg/posthog.ts');
 const { crearTraza, ESTADO_ESPERADO } = await import('../pkg/trace.ts');
@@ -158,6 +158,7 @@ const cedulaDe = (i: number) => String(BASE_DOC + i);
  * de la misma tabla, así que lo peor que pasa es que use el país por defecto y no una forma inventada.
  */
 const telefonoDe = (i: number) => telefonoSintetico('COL', i, BASE_DOC);
+const documentoDelComercio = (hash: string, i: number) => documentoDeLaSucursal(hash, i, BASE_DOC);
 
 /**
  * ⚠ EL TELÉFONO Y EL DOCUMENTO SALEN DEL COMERCIO, no de acá.
@@ -222,7 +223,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
     const t0 = Date.now();
     // Provisorio: el definitivo sale del país del comercio, y para eso hay que resolverlo primero.
     let tel = telefonoDe(i);
-    const doc = cedulaDe(i);
+    let doc = cedulaDe(i);
     const lineas: string[] = [];
     const log = (s: string) => lineas.push(`  ▸ ${s}`);
     const r: Resultado = { caso: c.ref + (c.lender ? `:${c.lender}` : ''), ur: null, tel, doc, pantallas: 0,
@@ -258,6 +259,10 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
     // El teléfono y el documento salen del PAÍS del comercio: ver `telefonoDelComercio`.
     tel = await telefonoDelComercio(br.hash, i).catch(() => tel);
     r.tel = tel;
+    // ⚠ El documento también sale del PAÍS, no sólo el teléfono: contra un comercio dominicano un
+    // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
+    doc = await documentoDelComercio(br.hash, i).catch(() => doc);
+    r.doc = doc;
     const docTipo = await tipoDeDocumentoDelComercio(br.hash);
 
     const s = new SesionFront();
@@ -590,7 +595,7 @@ async function correr(c: Caso, i: number): Promise<Resultado> {
 async function correrNavegador(c: Caso, i: number, browser: any): Promise<Resultado> {
     const t0 = Date.now();
     let tel = telefonoDe(i);
-    const doc = cedulaDe(i);
+    let doc = cedulaDe(i);
     const lineas: string[] = [];
     const log = (s: string) => lineas.push(`  ▸ ${s}`);
     const r: Resultado = { caso: c.ref + (c.lender ? `:${c.lender}` : ''), ur: null, tel, doc, pantallas: 0,
@@ -603,6 +608,10 @@ async function correrNavegador(c: Caso, i: number, browser: any): Promise<Result
     if (!br) { r.motivo = `no encontré la sucursal «${c.ref}»`; r.ms = Date.now() - t0; return r; }
     tel = await telefonoDelComercio(br.hash, i).catch(() => tel);
     r.tel = tel;
+    // ⚠ El documento también sale del PAÍS, no sólo el teléfono: contra un comercio dominicano un
+    // documento de 10 dígitos muere en `request-personal-info` con «la cédula debe tener exactamente 11».
+    doc = await documentoDelComercio(br.hash, i).catch(() => doc);
+    r.doc = doc;
     // EL CANAL DE ASESOR pide sesión de Cognito. No se loguea acá: se REUSA el storageState que dejó el
     // panel (`pkg/cognito.ts`), y los N contextos de una tanda cargan EL MISMO archivo — un solo login
     // para todos, que es lo que evita golpear el pool.

@@ -19,6 +19,7 @@
 // PREFIJO sale de la tabla, que es donde vive lo que el largo no captura.
 
 const { query } = await import('./db.ts');
+const { documentoSintetico } = await import('./documentos.ts');
 
 /**
  * La forma del móvil por país. Es chica a propósito: sólo los países donde el arnés corre.
@@ -93,6 +94,16 @@ export async function telefonoDeLaSucursal(branchHash: string, semilla = 3131010
     const { iso, largo } = await formaDeLaSucursal(branchHash);
     const digitos = String(semilla).replace(/\D/g, '');
     return telefonoSintetico(iso, Number(digitos.slice(-2)), Number(digitos) || 3131010101, largo);
+}
+
+/**
+ * El DOCUMENTO con la forma del país de esa sucursal. Vive acá —al lado del teléfono y no dentro de un
+ * runner— por el mismo motivo: los dos se derivan del país y los dos rompieron ya una vez por no hacerlo
+ * (F-231 el teléfono, el documento el 2026-09-18 contra CeluRD).
+ */
+export async function documentoDeLaSucursal(branchHash: string, indice: number, base: number): Promise<string> {
+    const { iso } = await formaDeLaSucursal(branchHash);
+    return documentoSintetico(iso, indice, base);
 }
 
 /**

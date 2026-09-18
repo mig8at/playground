@@ -34,7 +34,11 @@ export const CAMPOS_WIZARD = (d: DatosWizard, hoja = ''): Campo[] => [
     // criterio en su cierre). Con 4 dígitos en la pantalla de firma el campo se llena, no da error, y el
     // botón simplemente nunca se habilita: se lee como «pantalla trabada» (2026-09-03).
     { testId: 'otp-input', name: 'otp', valor: hoja === 'otp-validation' ? d.tel.slice(-6) : d.tel.slice(-4) },
-    { testId: 'docnum-input', label: /n[uú]mero de documento/i, name: 'documentNumber', valor: d.doc, tecleado: true },
+    /* ⚠ El documento NO se llama igual en todos lados: Colombia dice «Número de documento» y el funnel
+     * dinámico de RD dice «Número de identidad». Con el patrón atado a «documento», el recorrido de
+     * CeluRD moría en `request-personal-info` repitiendo «Ingresa tu número de identidad para
+     * continuar» — un mensaje del producto para un hueco del harness. Medido el 2026-09-18. */
+    { testId: 'docnum-input', label: /n[uú]mero de (documento|identidad)|c[eé]dula/i, name: 'documentNumber', valor: d.doc, tecleado: true },
     { testId: 'name-input', label: /^nombre/i, name: 'name', valor: d.nombre ?? 'CARLOS' },
     { testId: 'surname-input', label: /apellido/i, name: 'surname', valor: d.apellido ?? 'RUIZ' },
     { testId: 'email-input', label: /correo|email/i, name: 'email', valor: d.email ?? `qa${d.doc}@gmail.com` },

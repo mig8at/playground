@@ -712,6 +712,25 @@ en la card; acá no puede, porque el slug también cambia.
 ⚠ Y el **recorrido B deja una solicitud NEGADA**, así que fuera de local hay que pedirlo con `NIEGA=1`.
 La base es COMPARTIDA por dev, qa y staging: lo que se ensucie ahí lo ve el equipo.
 
+### El funnel DINÁMICO de RD (CeluRD/SmartPay) camina, y dónde vive el IMEI (2026-09-18)
+
+    E2E_TARGET=local node bin/dbops.ts assign <sub> celurd 1bfb8cd0 <sub>   # la sesión manda sobre la sucursal
+    make harness-caminar CASOS='#1bfb8cd0:152' FLOW=merchant MOTOR=navegador
+
+Siete pantallas hasta el listado: `solicitar` → `request-amount` → `request-phone` → `request-otp` →
+`request-personal-info` → `request-financial-info` → `lenders`. Antes moría en la SEGUNDA.
+
+⚠ **`dbops assign` contra LOCAL no necesita `I_KNOW_THIS_TOUCHES_SHARED_DEV`** — el flag que imprime el
+caminador aparece porque `bin/dbops.ts` apunta a **dev** por defecto (F-53). Con `E2E_TARGET=local`
+explícito es una escritura local y reversible; **devolvé la asignación al terminar**.
+
+⚠ **Y las pantallas de IMEI no están de este lado.** Al elegir SmartPay el flujo salta a un **handoff por
+QR** («Escanea este código QR · usa tu celular para continuar»): `imei`, `imei/scan` y `imei/scan/success`
+viven en el SEGUNDO dispositivo, que es coherente con que el escaneo use la cámara. Para caminarlas hace
+falta seguir el handoff, como hace el guiado con sus ventanas A/B — el motor de navegador todavía no.
+⚠ Ojo con el mensaje de esa corrida: dice «la entidad no está en el listado» cuando en realidad **la
+pantalla ya avanzó sola** al QR. Es engañoso y todavía no está arreglado.
+
 ### El vehicular de BCP, caminado con NAVEGADOR de punta a punta (2026-09-18)
 
 Nueve pantallas, ~160 s, y las nueve se pueden MIRAR (`.runs/caminar-…/ultima.png` + la traza):
