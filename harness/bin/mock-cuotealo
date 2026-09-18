@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Mock del SIMULADOR DE CUOTÉALO (BCP Perú) — el iframe del paso `entidad/simulador`.
+#
+# Contra BCP ese iframe está EN BLANCO EN TODOS LOS AMBIENTES: su host responde
+# `X-Frame-Options: SAMEORIGIN` y el navegador se niega a renderizarlo dentro del wizard (lo documenta
+# el propio `routes/entidad/simulador.tsx`). Este mock se deja embeber y, sobre todo, MUESTRA LOS
+# PARÁMETROS QUE RECIBIÓ: el prellenado del front es «mudo» —si falla, la URL sale pelada y la pantalla
+# se ve igual— así que ésta es la única forma de saber si anduvo.
+#
+# Apuntá el WIZARD (frontend-monorepo/apps/loan-request-wizard/.env). ⚠ Acá SÍ va `localhost` y no
+# `host.docker.internal`: el que carga el iframe es el NAVEGADOR, no un contenedor.
+#   VITE_BCP_SIMULATOR_URL=http://localhost:8110/simulador
+#
+#   curl -s localhost:8110 | jq        # estado + las últimas llamadas con sus parámetros
+#   curl -sX POST localhost:8110/_control/reset
+#
+# uso: bin/mock-cuotealo [start|stop|status|logs]
+#   env: MOCK_CUOTEALO_PORT (8110)
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PORT="${MOCK_CUOTEALO_PORT:-8110}"
+LOG=/tmp/mock-cuotealo.log
+
+up() { curl -s -o /dev/null --max-time 2 "http://localhost:$PORT" 2>/dev/null; }
+
+case "${1:-start}" in
+  start)
+    # mtime del código en disco, para no reusar un proceso con la versión vieja en memoria (F-87).
+    WANT_CODE="$(stat -f %m "$DIR/mock-cuotealo/server.mjs" 2>/dev/null || echo 0)"
+    if up; then
+      CUR_CODE="$(curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{process.stdout.write(String(JSON.parse(s).codigo??0))}catch{process.stdout.write("0")}})')"
+      if [ "${CUR_CODE:-0}" = "$WANT_CODE" ]; then echo "✓ mock-cuotealo ya arriba (:$PORT)"; exit 0; fi
+      echo "↻ reinicio mock-cuotealo: el proceso tiene código viejo en memoria (server.mjs cambió)"
+      lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null || true
+      for _ in $(seq 1 10); do up || break; sleep 0.2; done
+    fi
+    rm -f "$LOG"
+    nohup env MOCK_CUOTEALO_PORT="$PORT" node "$DIR/mock-cuotealo/server.mjs" < /dev/null > "$LOG" 2>&1 &
+    for _ in $(seq 1 25); do up && { echo "✓ mock-cuotealo :$PORT"; exit 0; }; sleep 0.3; done
+    echo "✗ no levantó"; tail -8 "$LOG" 2>/dev/null; exit 1;;
+  stop)
+    lsof -ti:"$PORT" 2>/dev/null | xargs kill -9 2>/dev/null && echo "⏹ detenido (:$PORT)" || echo "no estaba corriendo";;
+  status)
+    if up; then curl -s --max-time 2 "http://localhost:$PORT" 2>/dev/null; echo ""; else echo "○ off (:$PORT)"; fi;;
+  logs)
+    tail -n "${2:-40}" "$LOG" 2>/dev/null || echo "(sin log)";;
+  *)
+    echo "uso: bin/mock-cuotealo [start|stop|status|logs]";;
+esac

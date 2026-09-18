@@ -82,6 +82,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«la corrida anterior andaba y esta no» · «de golpe la entidad no tiene cupo»** | **F-229** |
 | **«la pantalla no tiene botón para seguir» · «No routes matched» en una ruta de un proveedor** | **F-230** |
 | **«el harness falla unas veces sí y otras no» · «dice que el teléfono no es válido y lo es»** | **F-231** |
+| **«esa pantalla está en blanco y no se puede hacer nada»** | **F-232** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
 | **«¿qué significa de verdad esta tabla/columna?»** | F-19 · F-24 · F-93 · F-96 · F-97 · F-100 · F-101 · F-103 · F-105 · F-106 |
 | **«los logs no me dicen de qué solicitud son»** | F-20 · F-98 · F-99 · F-102 |
@@ -392,6 +393,7 @@ distinto según con qué pregunta llegues.
 | F-223 | El listado sale de la SUCURSAL y el orden del COMERCIO: una entidad habilitada abajo y sin fila arriba deja un null que tumba `/lenders-v2` con 500. En `main` y en `qa`, y sin rastro en Loki | ARREGLADO en el codigo ⏳ PENDIENTE DE MERGE · la guarda de configuracion, ABIERTA |
 | F-225 | Corregir el vehículo pasado el gate recotiza la pantalla pero NO reescribe `user_requests.amount`: el flujo sigue con 63.000 y la solicitud queda en 60.000. Y el marketplace cotiza sobre el valor del vehículo, no sobre el financiado | ABIERTO |
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
+| F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
 | F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
 | F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
 | F-229 | `caminar-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
@@ -5738,3 +5740,36 @@ regla «por un rato», vale más dejar el ruido.
   derivan. El harness es otro repo y no puede importar de `@creditop/*`, así que la copia era inevitable;
   lo que no era inevitable es que envejeciera en silencio. ⚠ Si el front se vuelve MÁS estricto y nadie
   lo nota acá, las corridas vuelven a morir en la primera pantalla por una razón que no es del producto.
+\n
+### F-232 · «El simulador no se puede embeber» dejó de ser cierto, y el código sigue diciendo que sí
+
+- **Síntoma:** el paso `entidad/simulador` del flujo vehicular de BCP se ve como una **caja vacía** con
+  su botón debajo. La explicación está escrita en el propio `routes/entidad/simulador.tsx`: *«hoy el host
+  responde `X-Frame-Options: SAMEORIGIN` … para que esto funcione BCP tiene que permitir nuestro origen
+  (`frame-ancestors` en su CSP, sin XFO); no hay nada que podamos hacer del lado del front»*. Con eso
+  escrito ahí, la conclusión natural es que la pantalla está en blanco en todos lados y que hay que
+  esperar a BCP.
+- **Lo medido (2026-09-18):** ese host **no manda `X-Frame-Options` en absoluto** —cero— y su CSP dice
+  exactamente lo que el comentario pedía:
+
+      content-security-policy: frame-ancestors 'self' https://originaciones.creditop.com
+        https://originaciones-stg.dev.creditop.com https://originaciones-qa.dev.creditop.com …
+
+  O sea que **BCP ya hizo el cambio**. El paso debería renderizar hoy en qa, staging y producción.
+- **Qué queda sin resolver, y es otra cosa:** `localhost:5174` no está en esa lista y no va a estarlo,
+  así que en LOCAL el iframe seguirá en blanco. Producción además está detrás del WAF de BCP (sólo IPs
+  de Perú), que es un bloqueo distinto y sigue en pie.
+- **Por qué importa más que un comentario viejo:** nadie lo comprobó porque el comentario cerraba la
+  pregunta — decía «no hay nada que podamos hacer». Un comentario que explica un bloqueo **apaga la
+  curiosidad**, y por eso envejece peor que el código: el código falla cuando queda viejo, el comentario
+  simplemente sigue convenciendo. Se comprueba en una línea:
+
+      curl -sI https://wapceu2pxtid01.azurewebsites.net/simulador | grep -i frame
+
+- **Lo que se hizo:** `bin/mock-cuotealo` (:8110) sirve el simulador en local, se deja embeber y —lo que
+  ningún ambiente da— **muestra los parámetros que recibió**. El front arma esa URL con marca, modelo,
+  versión, seguro, comisión, valor y monto a financiar, y si algo falta devuelve la URL **pelada** y la
+  pantalla degrada sin decir nada (su propio código lo llama «fallo MUDO»). Con el mock, «el prellenado
+  anduvo» y «se cayó a la URL pelada» dejan de verse igual.
+- **Lo que NO se tocó:** el comentario del front. Vive en `frontend-monorepo` y corregirlo es un cambio
+  aparte — pero mientras siga ahí, va a seguir convenciendo a quien lo lea.
