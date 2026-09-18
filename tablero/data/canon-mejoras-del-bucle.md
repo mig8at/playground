@@ -204,11 +204,11 @@ en Slack tenía la respuesta ESCRITA en el corpus y el agente no podía pedirla.
 **#248 mergeado (13:09), CI verde. Once PRs en `main` hoy.** Y para Duncan quedó escrito el cambio de CrediBot
 al stream, con el código listo para pegar: `~/Desktop/credibot-canon-stream.md`.
 
-**Duncan dio vía libre y el cambio de CrediBot está hecho: #249 (13:20, CI corriendo).** Probado con el modelo
+**Duncan dio vía libre y el cambio del bot está hecho y mergeado: #249 (13:25, CI verde).** Doce PRs hoy. Probado con el modelo
 falso —respuesta idéntica, paso a paso en orden, dos hilos sin cruzarse— y contra prod con una pregunta real:
 21,2 s, respaldada, y entró por `recorrido`.
 
-**El próximo paso es:** mergear #249 cuando pase el CI, y avisarle a quien mantenga el arnés
+**El próximo paso es:** avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -496,7 +496,7 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
-- **#249: CrediBot al stream, con el paso a paso en Slack.** El bot ya tenía la mitad hecha —un mensaje que se
+- **#249 mergeado (13:25).** El bot de Slack al stream, con el paso a paso. El bot ya tenía la mitad hecha —un mensaje que se
   actualiza solo— y lo único que le faltaba era la fuente de eventos. El callback va por HILO, no en una variable
   de módulo: el bot atiende una pregunta por hilo y un global le mostraría a alguien los pasos de otro. Probado
   gratis con el modelo falso de canon (incluidos dos hilos a la vez) y con una pregunta real contra prod: **21,2 s
