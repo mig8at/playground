@@ -188,8 +188,10 @@ publicador quedan comprobados contra producción, no sólo en pruebas.
 cambió de carpeta y que contar comentarios con una expresión regular miente, no «doce archivos vivos». En `main`
 quedan la sección enlazada sin tocar hashes, la ruta muerta retirada y las diez secciones del tema intactas.
 
-**El próximo paso es:** mirar por qué el modelo arma anclas `#n=1` (dos turnos perdidos en una de las dos
-preguntas de hoy), y avisarle a quien
+**Lo del ancla, arreglado en #246 (12:13, PR abierto).** Y el diagnóstico de la mañana estaba mal: el modelo no
+inventaba nada, **copiaba** el `citar` que la propia búsqueda le entrega para las áreas.
+
+**El próximo paso es:** mergear #246 cuando pase el CI, y avisarle a quien
 mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
@@ -478,6 +480,12 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **#246: `leer` entiende el `citar` de un área.** La causa no era la que anoté hace un rato: `buscar` entrega cada
+  área con su cita ya armada (`tema/clase#n=K`) para que el modelo COPIE en vez de componer, y esa cadena tiene la
+  misma forma que el `leer` de una sección — así que copió la que tenía a mano y la mandó al lector equivocado. El
+  resto del sistema ya entendía ese formato (`resolverCita`); el único que no era `leer`. Ahora contesta con el
+  objetivo del área, sus archivos, las secciones que respalda —con su `leer` armado, que es lo que venía a buscar— y
+  con qué se abre el código. El código no viaja por ahí: serían cinco veces más tokens.
 - **Dos preguntas nuevas contra prod, con todo lo de hoy adentro (11:59).** La del módulo del codeudor —lo dictado
   hace una hora— salió **perfecta**: 22,6 s, tres citas, respaldada, y contesta lo que hay que saber (la carpeta
   hereda el borrado desde su `Pest.php`, hoy no corre ninguno, y la guarda te protege igual). La de los recorridos
