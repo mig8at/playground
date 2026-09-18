@@ -47,8 +47,13 @@ mandale el sobre plano y contesta `SA400 · Parámetro security requerido`.
 apartaron de lo medido»** y **ninguno es del contrato**. Antes de creerle a esa salida, mirá el caso E:
 si `HEAD /health` **pelado** también da 503, no mandaste nada que pudiera estar mal y el problema no es
 nuestro. La huella del WAF está en las cabeceras (`x-iinfo`, `visid_incap_*`, cuerpo HTML con
-`/_Incapsula_Resource`), no en un JSON con `errors[0].code`. Sin determinar: si es por IP o por
-detección de bot.
+`/_Incapsula_Resource`), no en un JSON con `errors[0].code`.
+
+**NO gastes tiempo en disfrazar al cliente de navegador**: está medido que no es eso. Un Chromium
+real, misma IP, da 503 las cinco veces —incluso tras cargar el recurso del desafío con 200 y sus
+cookies puestas—, y la **raíz pelada del host** también da 503. Lo que queda abierto es del lado del
+banco (lista blanca de IP o regla del WAF); el dato que hay que llevarles es el `cip` que el propio
+WAF reporta.
 
 **Mientras tanto**, lo aprendido está congelado en `channel/qr-bancolombia-gateway.spec.ts`, que
 comprueba que `mock-bancolombia` reproduce esas 20 respuestas —firma RS256 incluida, verificada de

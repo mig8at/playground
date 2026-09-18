@@ -5559,10 +5559,20 @@ cliente corrige (¿se reescribe la solicitud, o la corrección exige rehacer el 
   la IP de salida es `3.151.190.239` (rango de **AWS**, no una red de CreditOp) y el WAF la reporta como
   `cip` en el incidente. La medición base del script es del **2026-08-04**, así que algo cambió entre
   medio.
-- **Lo que NO está determinado, y no conviene suponerlo:** si el bloqueo es **por IP** (la de salida
-  dejó de estar en la lista blanca de Bancolombia) o es **detección de bot** (el 503 con iframe de
-  desafío es el patrón clásico, y `curl` y el `fetch` de Node no lo resuelven). Se separa pidiendo el
-  mismo endpoint desde un navegador real: misma IP, otra huella.
+- **NO es detección de bot, y no hay que perder tiempo ahí — medido.** El 503 llega con el iframe de
+  desafío de Incapsula, que es el patrón clásico de «sos un robot», así que la hipótesis obvia es que
+  `curl` y el `fetch` de Node no lo resuelven. **Es falsa.** Un Chromium de verdad, desde la misma IP:
+  pidió el endpoint **cinco veces y las cinco dieron 503**, *incluso después* de haber cargado el
+  recurso del desafío (`/_Incapsula_Resource` → **200**) y con sus cookies puestas. Un desafío que se
+  resuelve deja pasar; éste no. Así que **disfrazar al cliente de navegador no sirve**: ni user-agent,
+  ni cookies, ni Playwright.
+- **Y tampoco es la ruta:** la **raíz pelada del host** (`GET /`) también da **503**. Lo que nos rechaza
+  es el host entero, no el servicio del billing code — o sea que ninguna hipótesis sobre el sobre, los
+  headers o la credencial puede explicarlo.
+- **Lo que queda abierto es del otro lado, y no se puede cerrar desde acá:** si la IP de salida dejó de
+  estar en la lista blanca de Bancolombia o si hay una regla del WAF más ancha. Es conversación con el
+  banco (y con Dani), no depuración nuestra. El dato que hay que llevar es el `cip` que el propio WAF
+  reporta: **`3.151.190.239`**, más el `incident_id` de cualquiera de los bloqueos.
 - **Por qué importa más de lo que parece:** ese script es **el único oráculo del canal que puede
   contradecirnos**. Los otros tres —`qr-corbeta.ts`, `caminar-qr.ts` y `npm run contrato:bancolombia`—
   son *nuestra* lectura del contrato, y por eso pueden coincidir en el mismo error: un mock no puede
