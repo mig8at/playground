@@ -137,6 +137,112 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 		}
 	}
 
+	// 5 · LOS MATCHERS CONTRA LOS MENSAJES QUE EL CÓDIGO DE VERDAD EMITE.
+	hs = append(hs, matchersContraElCodigo(m)...)
+
+	return hs
+}
+
+// matchersContraElCodigo cruza los patrones del mapa con `workers/logs.json`, que es el índice de los
+// mensajes que el código EMITE (derivado de los repos, no de una corrida).
+//
+// POR QUÉ ESTE CORPUS Y NO EL DE `-validar`. Aquél son líneas de UNA corrida: si un patrón no captura
+// nada puede ser que ese tramo no se ejecutó, así que el mudo es ambiguo. Éste sale del CÓDIGO y está
+// siempre en el repo, o sea que un patrón que no captura ningún literal es una afirmación sobre un
+// mensaje que nadie escribe — casi siempre un texto que se renombró y que el mapa sigue esperando. Es el
+// mismo movimiento que `npm run contrato:bancolombia` en el harness: contrastar lo que declaramos contra
+// la fuente real en vez de contra otra copia nuestra.
+//
+// ⚠ SE SEPARA «NO LO ENCONTRÉ» DE «NO PUEDO BUSCARLO», que es la misma distinción que el trazador hace
+// en todo el árbol (`skip` vs `no-aplica`). Hay dos clases de patrón que este corpus NO puede juzgar, y
+// meterlos con los mudos fue la primera versión de esto — daban ocho acusaciones falsas de quince:
+//
+//   · los que miran un CAMPO del context: no son mensajes;
+//   · los que buscan un IDENTIFICADOR DEL CÓDIGO (`ValidateOtpAuthService`, `updateAsyncLender`). El
+//     mensaje de runtime sí los lleva —se ven en cualquier traza, como `OnboardingController::validate…`—
+//     pero el LITERAL del código no, porque la clase y el método se componen en ejecución. Medido: de
+//     seis patrones así, `logs.json` no contiene ninguno ni siquiera como substring. Se reconocen porque
+//     no tienen espacios: un mensaje de log los tiene; un identificador, no.
+//
+// ⚠ Y POR QUÉ LOS MUDOS SON AVISOS Y NO FALLAS. El literal del código es un PREFIJO de lo que llega en
+// runtime (el resto son valores interpolados), así que un matcher escrito con el mensaje COMPLETO de una
+// corrida no encuentra su literal y saldría acusado sin tener la culpa. Además `logs.json` cubre los
+// repos indexados y nada más. Se informa para que alguien mire, no para romper el build — la precisión
+// de este chequeo no da para lo segundo, y decirlo es parte del chequeo.
+func matchersContraElCodigo(m *Mapa) []hallazgo {
+	logs := cargarMapaLogs()
+	if logs == nil {
+		return []hallazgo{{false, "no se encontró workers/logs.json: los matchers quedan SIN cruzar contra el código"}}
+	}
+	literales := make([]string, 0, len(logs.porMensaje))
+	for k := range logs.porMensaje {
+		literales = append(literales, k)
+	}
+
+	var hs []hallazgo
+	mudos, verificados, noAplican := 0, 0, 0
+	// dueños por literal, para detectar el solape sobre mensajes REALES.
+	duenos := map[string][]string{}
+
+	for _, e := range m.Etapas {
+		for _, mt := range e.Matchers {
+			// Los que este corpus no puede juzgar: no es que estén mudos, es que no habla de ellos.
+			if mt.Campo != "" || !strings.Contains(strings.TrimSpace(mt.Patron), " ") {
+				noAplican++
+				continue
+			}
+			n := 0
+			for _, lit := range literales {
+				// ⚠ LA COMPARACIÓN VA EN LAS DOS DIRECCIONES, y con una sola daba falsos positivos.
+				// `logs.json` guarda el literal NORMALIZADO (`_normalizar` le corta el `.` final y
+				// colapsa espacios) y el matcher está escrito contra el mensaje de RUNTIME, que además
+				// trae los valores interpolados. O sea que ninguna de las dos cadenas contiene a la otra
+				// por defecto: «No risk central data found.» (el matcher) contra «No risk central data
+				// found» (el índice) no coincide en ningún sentido ingenuo. Se prueba el matcher sobre el
+				// literal —lo natural— y, para los patrones que son texto y no regex, también si el
+				// literal es el PREFIJO normalizado de lo que el matcher busca.
+				if mt.coincide(lit, nil) || (mt.Tipo != "regex" && strings.HasPrefix(normalizarMsg(mt.Patron), lit)) {
+					n++
+					if !contiene(duenos[lit], e.ID) {
+						duenos[lit] = append(duenos[lit], e.ID)
+					}
+				}
+			}
+			switch {
+			case n > 0:
+				// Si además estaba marcado `soloEnCodigo`, el índice CONFIRMA la marca: dice justamente
+				// «existe en el código aunque no haya salido en las corridas medidas». No se avisa nada.
+				verificados++
+			default:
+				mudos++
+				// ⚠ `soloEnCodigo` es una afirmación ESCRITA A MANO —«lo verifiqué en el código»— y hasta
+				// hoy nadie podía contrastarla. Un patrón que la lleva y que el índice del código no
+				// conoce es el caso que más vale mirar: o el mensaje se renombró después de aquella
+				// verificación, o la verificación nunca fue cierta.
+				if mt.SoloEnCodigo {
+					hs = append(hs, hallazgo{false, fmt.Sprintf(
+						"etapa %s: el patrón %q se declara `soloEnCodigo` («verificado en el código») y logs.json NO lo conoce",
+						e.ID, trim(mt.Patron, 50))})
+					continue
+				}
+				hs = append(hs, hallazgo{false, fmt.Sprintf(
+					"etapa %s: el patrón %q no coincide con ningún literal de logs.json — ¿se renombró el mensaje?",
+					e.ID, trim(mt.Patron, 50))})
+			}
+		}
+	}
+
+	for lit, ds := range duenos {
+		if len(ds) > 1 {
+			sort.Strings(ds)
+			hs = append(hs, hallazgo{true, fmt.Sprintf(
+				"el mensaje %q lo reclaman %s: la evidencia se reparte mal y el diagnóstico sale prolijo y equivocado",
+				trim(lit, 55), strings.Join(ds, " y "))})
+		}
+	}
+
+	fmt.Printf("     %s %d patrones contra %d mensajes del código: %d encontrados · %d sin match · %d no juzgables (campo del context o identificador)\n",
+		gray("·"), verificados+mudos, len(literales), verificados, mudos, noAplican)
 	return hs
 }
 

@@ -122,6 +122,45 @@ Tres cosas que hay que respetar si lo tocás:
   *ramal* acá y *extensión* en el harness— quedan para la consola: un cartel permanente deja de leerse
   y tapa a los que sí importan. Misma regla que el panel del harness.
 
+### Los matchers contra el código, y los tres desajustes que hay que conocer
+
+`make trazador-chequeo` cruza cada patrón del mapa con **`workers/logs.json`**, el índice de los mensajes
+que el código EMITE. Es el movimiento de `npm run contrato:bancolombia` del harness: contrastar lo que
+declaramos contra la fuente real, no contra otra copia nuestra. Y a diferencia de `-validar`, el corpus
+está siempre en el repo, así que un patrón que no captura nada **no es ambiguo**: es un mensaje que nadie
+escribe.
+
+⚠ **Pero el índice y el mapa hablan idiomas distintos, y las tres diferencias dan falsos positivos.** Las
+tres están resueltas en `matchersContraElCodigo`; si la tocás, no las deshagas:
+
+1. **El índice guarda el literal NORMALIZADO** (`_normalizar` colapsa espacios y corta ` :.-,` del final)
+   y el matcher está escrito contra el mensaje de RUNTIME. «No risk central data found**.**» y «No risk
+   central data found» no coinciden en ningún sentido ingenuo: la comparación va en **las dos
+   direcciones**.
+2. **El literal es un PREFIJO del runtime** (el resto son valores interpolados), nunca al revés.
+3. **Hay patrones que este corpus no puede juzgar**, y meterlos con los mudos daba **ocho acusaciones
+   falsas de quince**: los que miran un `campo` del context, y los que buscan un IDENTIFICADOR del código
+   (`ValidateOtpAuthService`). El mensaje de runtime sí los lleva —se ven en cualquier traza— pero el
+   literal no, porque la clase y el método se componen en ejecución. Se reconocen porque **no tienen
+   espacios**: un mensaje de log los tiene; un identificador, no.
+
+**Lo que encontró la primera corrida, y ya está arreglado:** cinco matchers anclados al NÚMERO de un
+stage del pipeline de Experian. Medido contra `origin/main` el 2026-09-18, el código los renumeró
+—«Frequency review» pasó de 2 a 4, «Check flow omitions» de 3 a 2, «Bypass rules review» de 4 a 3— y los
+cinco quedaron mudos **sin que nada avisara**: un matcher que no captura no falla, sus líneas caen en «sin
+ubicar» y la etapa se dibuja más vacía de lo que fue. Ahora van por REGEX CON EL NOMBRE
+(`^STAGE \d+ — Frequency review`), que sobrevive a cualquier renumeración y además no se come los STAGE
+0-2 de `FlowSignatureService`, que son otro pipeline. `TestNingunMatcherSeAnclaAlNumeroDeUnStage` lo fija.
+También se acortó «Persisting fetched report», cuyo mensaje se extendió, y se borraron dos patrones que
+**ningún repo indexado emite** — buscados en los diez de `ROOTS`, no en uno.
+
+⚠⚠ **Y la vara misma envejece: `logs.json` está gitignoreado y se construye de `main` LOCAL.** El que
+había tenía un mes (17/8, 1.576 mensajes); regenerado con `python3 workers/cli.py logs --construir` dio
+**1.978**. Antes de creerle a una acusación del chequeo, mirá la fecha del archivo — y ojo con que
+`construir()` recorre `main` local, que puede estar detrás de `origin/main` (lo estaba por 14 commits).
+Esto no es sólo del chequeo: **`archivos.go` usa ese mismo índice en cada traza** para decir qué código
+dejó rastro.
+
 ## Las pruebas: la lógica que ya dio un diagnóstico equivocado
 
 `go test ./server/...`. El criterio de qué se cubre es el de las diez specs de `pkg/` del harness —las

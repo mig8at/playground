@@ -308,29 +308,29 @@
           "porque": "OnboardingService.php:127 — jala el score antes de validar. Texto único."
         },
         {
-          "tipo": "exacto",
-          "patron": "STAGE 0 — User request data (obtain & validate)",
-          "porque": "TRAMPA: 'STAGE N' NO es exclusivo del buró. Modules/UserRequestV1/App/Services/FlowSignatureService.php emite 'STAGE 0 — User request existence', 'STAGE 1 — User request validations' y 'STAGE 2 — Persist the signed flow id'. Un prefijo 'STAGE ' o regex '^STAGE [0-4]' se comería la firma de flujo. Sólo exacto con el suf"
+          "tipo": "regex",
+          "patron": "^STAGE \\d+ — User request data \\(obtain & validate\\)",
+          "porque": "TRAMPA: 'STAGE N' NO es exclusivo del buró. Modules/UserRequestV1/App/Services/FlowSignatureService.php emite 'STAGE 0 — User request existence', 'STAGE 1 — User request validations' y 'STAGE 2 — Persist the signed flow id'. Un prefijo 'STAGE ' o regex '^STAGE [0-4]' se comería la firma de flujo. Sólo exacto con el suf ⚠ Va por NOMBRE y no por número: los stages se renumeraron en el código (2026-09-18) y los matchers anclados al número quedaron mudos sin que nada avisara. El nombre distingue además este pipeline (CheckExperianTriggerService) del de FlowSignatureService, que tiene sus propios STAGE 0-2."
         },
         {
-          "tipo": "exacto",
-          "patron": "STAGE 1 — Existing risk-central data review",
-          "porque": "Ídem: exacto obligatorio por el choque con FlowSignatureService (STAGE 1 — User request validations)."
+          "tipo": "regex",
+          "patron": "^STAGE \\d+ — Existing risk-central data review",
+          "porque": "Ídem: exacto obligatorio por el choque con FlowSignatureService (STAGE 1 — User request validations). ⚠ Va por NOMBRE y no por número: los stages se renumeraron en el código (2026-09-18) y los matchers anclados al número quedaron mudos sin que nada avisara. El nombre distingue además este pipeline (CheckExperianTriggerService) del de FlowSignatureService, que tiene sus propios STAGE 0-2."
         },
         {
-          "tipo": "exacto",
-          "patron": "STAGE 2 — Frequency review",
-          "porque": "Ídem: choca con 'STAGE 2 — Persist the signed flow id' de FlowSignatureService."
+          "tipo": "regex",
+          "patron": "^STAGE \\d+ — Frequency review",
+          "porque": "Ídem: choca con 'STAGE 2 — Persist the signed flow id' de FlowSignatureService. ⚠ Va por NOMBRE y no por número: los stages se renumeraron en el código (2026-09-18) y los matchers anclados al número quedaron mudos sin que nada avisara. El nombre distingue además este pipeline (CheckExperianTriggerService) del de FlowSignatureService, que tiene sus propios STAGE 0-2."
         },
         {
-          "tipo": "exacto",
-          "patron": "STAGE 3 — Check flow omitions",
-          "porque": "Etapa del pipeline de CheckExperianTriggerService (RiskV2). Exacto por consistencia con las otras STAGE."
+          "tipo": "regex",
+          "patron": "^STAGE \\d+ — Check flow omitions",
+          "porque": "Etapa del pipeline de CheckExperianTriggerService (RiskV2). Exacto por consistencia con las otras STAGE. ⚠ Va por NOMBRE y no por número: los stages se renumeraron en el código (2026-09-18) y los matchers anclados al número quedaron mudos sin que nada avisara. El nombre distingue además este pipeline (CheckExperianTriggerService) del de FlowSignatureService, que tiene sus propios STAGE 0-2."
         },
         {
-          "tipo": "exacto",
-          "patron": "STAGE 4 — Bypass rules review",
-          "porque": "Ídem. En código existen además STAGE 5/6/7 del mismo servicio, no medidas en el censo (no las invento)."
+          "tipo": "regex",
+          "patron": "^STAGE \\d+ — Bypass rules review",
+          "porque": "Ídem. En código existen además STAGE 5/6/7 del mismo servicio, no medidas en el censo (no las invento). ⚠ Va por NOMBRE y no por número: los stages se renumeraron en el código (2026-09-18) y los matchers anclados al número quedaron mudos sin que nada avisara. El nombre distingue además este pipeline (CheckExperianTriggerService) del de FlowSignatureService, que tiene sus propios STAGE 0-2."
         },
         {
           "tipo": "prefijo",
@@ -518,24 +518,14 @@
           "porque": "Experian.php:378 — borra el reporte previo del producto antes de guardar el nuevo."
         },
         {
-          "tipo": "exacto",
-          "patron": "Persisting fetched report (data + request)",
-          "porque": "Experian.php:527 — persistencia del reporte del buró."
-        },
-        {
-          "tipo": "exacto",
-          "patron": "Computing additional_info from the aggregated payload",
-          "porque": "Experian.php:532."
+          "tipo": "prefijo",
+          "patron": "Persisting fetched report",
+          "porque": "Experian.php:527 — persistencia del reporte del buró. ⚠ Se acortó al tramo estable: el mensaje completo pasó a «(data + request + score + additional_info)» y el patrón exacto anterior dejó de capturarlo."
         },
         {
           "tipo": "exacto",
           "patron": "Projecting report through updateUserSummary",
           "porque": "Experian.php:541 — proyecta el reporte al user_summary que después consumen cupo y listado."
-        },
-        {
-          "tipo": "exacto",
-          "patron": "Computed averaged score, persisting",
-          "porque": "Experian.php:547 — el score que queda guardado."
         },
         {
           "tipo": "exacto",

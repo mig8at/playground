@@ -8,7 +8,10 @@ package main
 // equivocado**. No es cobertura por cobertura — son las dos funciones cuyo error no rompe nada y sale
 // prolijo, que es la clase de bug más cara de esta herramienta.
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // desenlaceDe existe porque HABÍA DOS DEFINICIONES y no coincidían: `ArmarTraza` contemplaba
 // `abandonado` (estado 7) y el buscador de la API no, así que la misma solicitud salía «en curso» en la
@@ -92,5 +95,34 @@ func TestCredifamiliaSeDecidePorIdentidadYNoPorSuResponseType(t *testing.T) {
 	}
 	if got := ramalDeRT(24, 2); got != "credifamilia" {
 		t.Errorf("el id gana sobre el rt: el 24 con rt=2 debería seguir en credifamilia, dio %q", got)
+	}
+}
+
+// ⚠ UN MATCHER NO SE ANCLA EN EL NÚMERO DE UN STAGE, y esto costó seis patrones mudos.
+//
+// El pipeline de Experian numera sus pasos (`STAGE 2 — Frequency review`) y esos números son el ORDEN,
+// que cambia cuando alguien reordena. Medido el 2026-09-18 contra `origin/main`: «Frequency review» pasó
+// de 2 a 4, «Check flow omitions» de 3 a 2 y «Bypass rules review» de 4 a 3 — y los cinco matchers
+// anclados al número quedaron mudos **sin que nada avisara**, porque un matcher que no captura no falla:
+// sus líneas caen en «sin ubicar» y la etapa se dibuja más vacía de lo que fue.
+//
+// Lo estable es el NOMBRE. Y el nombre además distingue este pipeline del de `FlowSignatureService`, que
+// tiene sus propios STAGE 0-2 con otros nombres: un `^STAGE \d+` a secas se los comería.
+func TestNingunMatcherSeAnclaAlNumeroDeUnStage(t *testing.T) {
+	m, err := Cargar()
+	if err != nil {
+		t.Fatalf("el mapa no carga: %v", err)
+	}
+	for _, e := range m.Etapas {
+		for _, mt := range e.Matchers {
+			if mt.Tipo == "regex" {
+				continue // `^STAGE \d+ — Nombre` es justamente la forma correcta
+			}
+			if len(mt.Patron) > 7 && strings.HasPrefix(mt.Patron, "STAGE ") && mt.Patron[6] >= '0' && mt.Patron[6] <= '9' {
+				t.Errorf("etapa %s: el patrón %q ancla en el NÚMERO del stage; usá regex con el nombre "+
+					"(`^STAGE \\d+ — ...`), porque el número es el orden del pipeline y se renumera",
+					e.ID, mt.Patron)
+			}
+		}
 	}
 }
