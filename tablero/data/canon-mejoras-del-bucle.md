@@ -215,8 +215,12 @@ de los bancos, salía en el 98% de las preguntas con 4 temas. Eso lo mandé yo e
 **#251 mergeado (15:19): las SIETE herramientas con plural lo ofrecen en su primera línea.** No era sólo
 `archivo`: la prueba destapó cinco más (`codigo`, `grep`, `historia`, `tablas`, `ubicar`). Catorce PRs hoy.
 
-**El próximo paso es:** correr la pregunta de documentos cuando despliegue —el antes es 21 llamadas, 87 s,
-15 de lectura y 0 agrupadas— y avisarle a quien mantenga el arnés
+**Corrida la pregunta de documentos con #251 puesto (15:42): 24 llamadas, 70,4 s, y `archivo` agrupó CERO
+de 10.** El cambio de descripción no movió la conducta — es el cuarto intento por el lado del texto que se mide
+sin efecto. Lo que sí bajó el tiempo fue el paralelismo del mismo turno: 23 llamadas en 14 turnos. Y con 70 s
+habría muerto otra vez con el POST plano, así que lo que la salva es el stream.
+
+**El próximo paso es:** avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -504,6 +508,23 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **MEDIDO Y DESCARTADO: adelantarle al modelo lo que va a pedir.** Después de que la descripción no moviera
+  nada, se exploraron dos cambios del lado de la herramienta y **los dos se cayeron con números**. Queda escrito
+  para que nadie los vuelva a intentar desde cero:
+  - **«Al devolver el esquema, entregar ya los bloques de las 2-3 declaraciones más parecidas a la pregunta»:
+    acertaría 1 de 7 veces (14%), mediana puesto 8.** Y el motivo vale más que el número: cuando el modelo llega
+    a ese archivo ya leyó prosa, mapa y otro código — **decide con un contexto que la herramienta no vio**, así
+    que ninguna herramienta puede adivinarlo desde las palabras de la pregunta.
+  - **«Adelantar los esquemas de los archivos vecinos del área»: 38%.** De 13 aperturas posteriores sólo 5 caen
+    en un área ya tocada; 8 son de otra. En las trazas se ve por qué: el modelo salta del front al back y vuelve
+    **siguiendo el flujo del negocio, no la estructura del mapa**.
+  - Y lo más importante: el patrón `esquema → rango` **es la herramienta funcionando bien**, no un defecto.
+    Cuesta un turno y es el precio de que el modelo elija en vez de tragarse el archivo entero — que es lo que
+    se arregló cuando `codigo` devolvía 65.000 tokens de una.
+  - De los 15 turnos de ahorro teórico, **13 están en pedir varios ARCHIVOS juntos**, y ahí ya hay **cuatro
+    intentos medidos sin efecto** (los tres que documenta `codigo` más el de hoy). La conclusión de aquel
+    comentario sigue en pie: este modelo hace una cosa por turno y no planifica, se le ofrezca lo que se le
+    ofrezca. El quinto intento por el mismo lado sería terco.
 - **#251: la primera línea de una descripción decide cómo se usa la herramienta.** `archivo` aceptaba `rutas`
   desde siempre —su esquema decía «cuesta UN turno en vez de tres»— y el modelo no lo usó NUNCA: 0 de 31
   llamadas. Lo que decidía era que arrancaba con «Lee UN archivo». Medido contra las últimas 20 preguntas de
