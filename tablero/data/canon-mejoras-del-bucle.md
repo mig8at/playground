@@ -166,8 +166,18 @@ apareció al probar: dos piezas `verificado` sobre el mismo tema se pisaban las 
 punta (`dev/dictado.py`) pasa 78 de 78 —tiene un paso nuevo para este caso— y su paso del retiro, que venía
 fallando en `main` por asumir `context` y `onboarding`, sigue ahora al tema que declara el archivo.
 
-**El próximo paso es:** avisarle a quien mantenga el arnés que la nota de
-`suites/cliente-recurrente.json` da la razón equivocada (la conclusión sí es cierta).
+**⛔ El publicador de prod compone sobre la rama del bucle aunque esté RANCIA (encontrado a las 10:11).** La
+primera dictada real contra prod después de #242 salió como PR #243 y **borraba seis secciones de `local/operar.md`**
+y revertía su mapa: la instancia desplegada lee el documento base de la rama `canon/contexto`, que tenía una copia
+vieja de `local/` de una corrida anterior ya mergeada; compuso la pieza encima, trajo `main` a la rama *después* de
+componer y commiteó los archivos enteros — o sea, la versión vieja más la pieza. PR #243 cerrado con el motivo; la
+rama quedó con ese commit malo encima de `main` y hay que borrarla o resetearla antes de dictar de nuevo.
+
+**El próximo paso es:** arreglar el publicador —traer `main` a la rama ANTES de componer (al abrir el borrador y al
+empezar el cierre, no sólo antes de commitear), con una prueba en el ensayo que siembre una rama rancia—, borrar
+`canon/contexto`, y volver a dictar la corrección de `local/operar` (verificada hoy: el test del backoffice se
+MOVIÓ a `tests/` en minúscula el 6/9, los seis del codeudor SÍ siguen comentados enteros, los cinco de dispositivos
+suman 43). Y avisarle a quien mantenga el arnés
 
 Canon (`Creditop-SAS/playground`, `tools/canon`, `canon.playground.creditop.com`) tiene un bucle de
 cinco labores que mantiene el corpus al día con `main`: triaje → planificador → redactor → integrador
@@ -455,6 +465,11 @@ Los portones, siempre: `go test -race ./...` · `canon -lint` · `-bench` · `-s
 
 ### 2026-09-18
 
+- **La dictada de prueba a prod encontró una pérdida de datos en el publicador.** Las dos piezas entraron bien —la
+  respuesta ya dice «queda ENLAZADA» (#242 desplegado) y el retiro de la ruta muerta salió con su etiqueta honesta—,
+  pero el PR #243 traía la copia rancia de `local/` de la rama `canon/contexto`: seis secciones borradas y el mapa
+  revertido. Cerrado sin mergear. La prueba del enlace quedó inconclusa por la base rancia (el área que ya tenía el
+  ancla es la única que declaraba `phpunit.xml` en la copia vieja).
 - **#242 en `main` (09:58).** Ocho PRs hoy. Sin sonda: el cambio es del camino de escritura, que pide la llave, así que se
   comprueba la próxima vez que alguien dicte.
 - **#242: el dictado enlaza en vez de subir el hash ajeno.** Una pieza con prosa que nombraba un archivo ya
