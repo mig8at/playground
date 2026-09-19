@@ -28,14 +28,27 @@ en los specs de contrato negativo. La flota de mocks, sus puertos y quién levan
 - **El eje ecommerce se ejercita contra dev, no local** (la entrada del front está PENDIENTE DE MERGE →
   nodo `ecommerce`; F-54). En local el checkout SSR se degrada.
 - **Timeouts**: el wizard usa lenders-v1 (pre-aprobación sincrónica lenta) → «Server Timeout» del
-  `streamTimeout` (fix por env). `PICK_TIMEOUT` (default 300s) espera tu click por pantalla del guiado.
+  `streamTimeout` (fix por env). `PICK_TIMEOUT` (default 300 s) espera tu click por pantalla del guiado — ⚠ la constante se llama así en el código pero **la variable de entorno que la mueve es `E2E_PICK_TIMEOUT_MS`** (`harness/dev/guided.spec.ts:79`); exportar `PICK_TIMEOUT` no hace nada. El test entero tiene su propio tope de 900 s (`:196`).
 - **`MoneyInput` pierde `fill()` por hidratación**: `seedField` reintenta tecla a tecla.
 - **Mutex de la cuenta 1827080**: Motai y SmartPay la necesitan ligada a comercios distintos;
   `pkg/account-lock.ts` (mkdir atómico) los serializa bajo `fullyParallel` y restaura a Motai al final.
 - **SmartPay teléfono internacional** (`+57…`): `create-temporary-user` guarda el phone crudo pero
   `check-user-exists` normaliza a `+`+dígitos — sin el `+` da `BDUS004` (usuario no encontrado).
-- **`X-Dev-Session`/`DEV_SESSION_KEY` obsoletos**: el gate de `/merchant/*` hoy es Cognito; el flag
-  existe con comentario pero sin consumidor.
+- **`X-Dev-Session`/`DEV_SESSION_KEY` obsoletos, y más muertos de lo que decía este nodo**: el gate de
+  `/merchant/*` hoy es Cognito, y —medido el 2026-09-19— esos nombres aparecen **cero veces en
+  `legacy-backend` y cero en `legacy-application`**. No es «existe sin consumidor»: **del lado del
+  backend no existe**. Lo único que sobrevive es el comentario en el `.env.local` del arnés y las dos
+  menciones de `harness/docs/` que ya lo marcan como obsoleto.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 14 afirmaciones auditadas contra el código del arnés y de
+los dos monolitos, cero chequeos débiles y ninguna falsa. Exactos: **los ocho archivos que cita existen**
+(`wompi-mock`, `account-lock`, `inject`, `laravel-crypt`, `mock-control`, `sweep`, `qr-corbeta`,
+`close-lender`), los tres `field_id` que inyecta `synthFill` (**29** ocupación · **87** ingreso · **160**
+reportado), el mutex por `mkdir` atómico con su comentario, el `IPHONE_UA`, los puertos **:5174** y
+**:5195**, y el tope de **300 s** por pantalla del guiado. ✔ **Y la advertencia sobre los stashes se
+confirmó en vivo**: hoy están en `{3}`, `{4}` y `{5}` — se volvieron a correr. Lo afinado: el flag
+`X-Dev-Session` no es «sin consumidor», **no existe** del lado de los backends; y la variable que mueve
+el timeout del guiado no se llama como la constante.
 
 ## La frontera de inyectabilidad (rt por rt) — el eje central
 
@@ -61,7 +74,9 @@ viven en **stashes locales sin commitear** que tocan `AppServiceProvider.php`.
 
 ⚠ **NO están aplicados por default** (working tree limpio en `main`) y **⚠ citá los stashes por
 MENSAJE, nunca por índice**: cualquier `git stash` corre todos los números — este doc decía
-`stash@{0}`/`{1}` y un día fueron `{3}`/`{4}`.
+`stash@{0}`/`{1}` y un día fueron `{3}`/`{4}`. ✔ **Comprobado otra vez el 2026-09-19: los tres siguen
+existiendo y hoy están en `{3}`, `{4}` y `{5}`.** Se corrieron de nuevo, exactamente como esta
+advertencia anticipaba — es la mejor prueba de que la receta por mensaje es la correcta.
 
 ```bash
 cd ~/Desktop/CREDITOP/github/legacy-backend
