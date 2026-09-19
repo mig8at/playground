@@ -11,7 +11,7 @@
 > - **El camino IMEI NO es SmartPay.** En prod lo tienen **cinco** entidades rt=2: SmartPay (160, RD) y cuatro colombianas —Crédito Directo X (162), Credimovil (164), My tech ya (172), Crédito Directo X LB (187)—. De los 494 equipos con historial en `device_locks`, **452 son de Credimovil** y 14 de SmartPay. La pregunta «¿corre también en Colombia?» que este nodo dejaba abierta: **sí, y es donde está el volumen**. Lo que sólo tiene SmartPay se decide por el id 160: skip-AML, desembolso diferido, mailer, recordatorios 09:30 Santo Domingo, sin encuesta, tema del PDF.
 > - **Los sitios que deciden el id son NUEVE, no cuatro**: tres por entorno (160/152), uno por config (160/153) y cinco con el 160 pelado (recordatorios, `registerAttempt` al listar, skip de encuesta, lista `[46,94,160]` del backoffice, tema del PDF).
 > - **El `disburse` lo dispara el ASESOR, no el cliente**: la misma acción del scanner, tras `register`, llama al desembolso (`apps/loan-request-wizard/app/routes/imei/imei.tsx`); el cliente sólo espera en `security-validation` sondeando `client-status`.
-> - **Son CUATRO crons + un segundo motor**: `sync-device-locks` 03:00 (nuevo), lock 04:00 **sólo si el motor no es v1**, unlock 05:00, unroll 06:00; y el módulo `Modules/DeviceLockingV1` (merge 2026-09-03) con umbral de mora **por aliado**, piso 1 día y tope 500/corrida, que reemplaza sólo el LOCK. El job consulta el MDM antes de bloquear y hay guard único de lock activo (`2026_08_24_170100`); `failed` sigue sin bloquear la reelección (prod hoy: 1.290 filas `failed` sobre 106 equipos).
+> - **Son CUATRO crons + un segundo motor**: `sync-device-locks` 03:00 (nuevo), lock 04:00 **sólo si el motor no es v1**, unlock 05:00, unroll 06:00; y el módulo `Modules/DeviceLockingV1` (merge 2026-09-03) con umbral de mora **por aliado**, piso 1 día y tope 500/corrida, que reemplaza sólo el LOCK. El job consulta el MDM antes de bloquear y hay guard único de lock activo (`2026_08_24_170100`); `failed` sigue sin bloquear la reelección, y eso producía una tormenta de reintentos que **paró el 2026-09-18** (ver «Antes de concluir»): acumuladas hay 15.449 filas `failed` sobre 284 equipos, medido en prod ese día.
 
 ## Qué es
 **SmartPay NO es un lender ni un `response_type` nuevos: es un CANAL** (branding + mailer propios) montado sobre un **lender CreditopX in-platform con `path='IMEI'`**. El producto financiado es un celular y **el celular ES la garantía**: en vez del pagaré Deceval + garantía + Netco de un CreditopX estándar, el cliente firma un único **"Acuerdo de bloqueo de dispositivo"** (`CreditopXConsent` tipo 3, contrato Pro Consumidor). Post-desembolso el equipo queda inscrito en un **MDM** (API `device-locking` del merchant-gateway, "Trustonic") que lo **bloquea por mora y lo desbloquea al pagar** — la cobranza es enforcement por hardware. Es de lo poco de **servicing ya migrado a `legacy-backend`** (el resto de la cartera CreditopX sigue en `application`).
@@ -24,6 +24,21 @@ Como subcontexto de **Merchants**, hereda el tronco rt=2 CreditopX del hermano *
 - **`response_type` ambiguo.** El `SmartPayTestSeeder` crea el lender con **rt=1**, pero negocio/memoria lo tratan como rt=2; el flujo device NO se gatea por rt. Efecto lateral: `cancelOtherClientLoansIfOneDisbursed` corre SIEMPRE en `disburseImeiRequest` (`:296`), vs solo-si-rt==2 en el `authorize` normal. El rt del lender de **prod (160) no lo fija ningún seeder**.
 - **Flujo documentado ≠ cableado.** El seeder documenta rutas `validate-imei`/`associate-imei`/`agreement`, pero las reales son solo `device/register` y `device/{id}/disburse`; la **validación Luhn NO corre en legacy** (`enroll` va directo, la valida el gateway).
 - **Servicing NO autónomo en legacy.** La causación de mora solo está agendada en `application`; con legacy solo, nada se bloquea. Existe una copia del comando en legacy **no agendada**.
+- ✅ **La tormenta de reintentos de bloqueo: dos causas, las dos corregidas el 2026-09-18 — y se ve en
+  producción.** (a) Los candidatos salen **uno por CUOTA vencida**, así que un crédito con tres cuotas
+  en mora despachaba tres pedidos para el MISMO equipo; el guard de lock activo sólo frena mientras el
+  primero está `pending`, y en cuanto termina `failed` los demás pasan y vuelven a llamar al proveedor
+  (`legacy-backend/Modules/DeviceLockingV1/App/Services/SelectAndDispatchLocksService.php:87` deduplica
+  por crédito y por corrida). (b) Un equipo APAGADO hace que la plataforma encole el bloqueo; la
+  reconciliación de las 03:00 veía «no bloqueado», borraba la fila y a las 04:00 el equipo volvía a ser
+  candidato — todos los días, hasta que la cola resolvía sola y el equipo quedaba bloqueado igual
+  (`legacy-backend/app/Console/Commands/SyncDeviceLocksCommand.php:176` conserva la fila cuando hay una
+  transición encolada).
+  ⚠ **Medido contra prod el 2026-09-18, y el corte es nítido:** del 12 al 17 de septiembre, entre 973 y
+  1.425 filas `failed` por día sobre 91-142 equipos — **~11 por equipo**. El 18, con el arreglo en pie:
+  **97 filas sobre 97 equipos, exactamente 1,0**. O sea que eran ~1.000 llamadas desperdiciadas por día
+  al proveedor. Al leer una serie histórica de `device_locks`, todo lo anterior a esa fecha está
+  inflado por esto.
 - **Enroll destructivo.** Si el `update` del IMEI devuelve 0 filas, `AlliedProductService::enroll` **borra todos los `user_request_products`** de la solicitud y crea uno nuevo (se pierden accesorios).
 - **Inconsistencias menores**: `PRO_CONSUMIDOR_NUMBER='XXX/20XX'` (placeholder, se sustituye por `request_number`); `releaseDevices` usa prefijo `/api/v1/` distinto al resto; los correos de excepción de los jobs van a destinatarios hardcodeados.
 - **Tres preguntas que este nodo tenía abiertas, medidas el 2026-08-22 y ya cerradas:**
