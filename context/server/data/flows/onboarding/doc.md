@@ -16,8 +16,8 @@ Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-
 
 ## Antes de concluir
 
-**Bugs verificados en el camino feliz**
-- `UserRequestController.php:1516` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
+**Bugs verificados en el camino feliz** — ⚠ **los dos siguen vivos, recomprobados contra `main` el 2026-09-18.** Un bullet de bug sin fecha manda a perseguir algo que puede haberse arreglado; éstos no.
+- `UserRequestController.php:1517` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
 - `PersonalInfoController.php:1044` — la URL de delegación interpola `$userRequestIdSessionKey` (la **clave** `'user_request_id_v2'`) en vez de `$user_request_id` (asignado en `PersonalInfoController.php:1019` y nunca usado). La llamada a `laboral-info/{hash}/user_request_id_v2` no puede resolver → cae siempre al `catch` y al método local. La delegación de laboral-info está **rota en silencio**.
 
 **Parallel-run: qué delega y qué no** (application → legacy, verificado uno por uno)
@@ -116,8 +116,14 @@ piezas, y el orden importa porque la `user_request` todavía no existe cuando el
    simplemente se queda en el flujo estándar con Experian.
 
 Consecuencias que ya están documentadas en otros nodos: en ese flujo **Experian se omite temprano**
-(nodo `kyc`) y el listado **se recorta a `response_type == 0`, dejando CreditopX afuera** (nodo
-`creditopx`).
+(nodo `kyc`, hoy Stage 2 del disparador) y el listado **se recorta a `response_type == 0`, dejando
+CreditopX afuera** (nodo `creditopx`, donde además se corrigió que el recorte ya no vive en el
+controller).
+
+⚠ **Y conviene saber lo raro que es antes de explicar nada con él.** Medido contra producción el
+2026-09-18: de **560.589** solicitudes, **458 entraron por este flujo** —el 0,08 %— y 557.133 no
+declaran flujo en absoluto. O sea que explica casos puntuales y casi nunca es la causa de un reclamo
+general: si a un comercio le pasa con todos sus clientes, el flujo no es la respuesta.
 
 ### 4. Dónde nace la `user_request`
 **No nace en el simulador ni al capturar el monto.** Nace al **validar el OTP** (o, en el camino Inertia, al guardar la info personal). Los tres gemelos hacen lo mismo con diferencias reales:
@@ -192,7 +198,7 @@ referencia + ajuste de timeouts en los loaders del wizard.
 - `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:57` (`getRegistrationData`: partner + `partner_modes` + branch + sucursales) · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:78` (`processCellPhoneRegistration`) · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:413-419` `createTemporalUser` · `Modules/Onboarding/App/Services/RegisterCellPhoneService.php:594-597` `isTemporaryUser`.
 - `Modules/Onboarding/App/Services/CommerceService.php:127-130` — `ecommerce` vs `traditional` según `allied_ecommerce_credentials` (COM002).
 - `Modules/Onboarding/App/Services/DynamicFormsService.php:35-58` constantes + mapa de campos 162-172 · `Modules/Onboarding/App/Services/DynamicFormsService.php:68-77` catálogo DYFS1001-1005 · `Modules/Onboarding/App/Services/DynamicFormsService.php:546-568` crea la UR reusando `UserRequestService`.
-- `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:18-22` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
+- `Modules/Onboarding/App/Http/Controllers/LenderListingController.php:17-21` — `index` y el **default 180000** (idem `ListLenderController.php:43`); el origen del número es `Modules/Onboarding/App/Services/lenders/Welli/WelliService.php:36` (`MINIMUM_AMOUNT`).
 
 **Nueva arquitectura (G3)**
 - `Modules/OnboardingV2/App/Providers/RouteServiceProvider.php:24` — prefijo `api/v2/onboarding`.
