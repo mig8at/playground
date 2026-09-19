@@ -17,7 +17,7 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 | ¿Simulable? | Sí para in-platform: sembrar `PaymentGatewayTransaction` en `APPROVED` o `dispatchSync(StatusCheck)`. El seam de aplicar el pago es de `servicing`. |
 
 ## Antes de concluir
-- 🐞 **`dd($exception)` vivo** en `Wompi::getMerchant` (app:79 / legacy:78) — ver sección P0.
+- 🐞 **`dd($exception)` vivo** en `Wompi::getMerchant` (app:79 / legacy:78) — ver sección P0. ⚠ **Recomprobado contra `main` el 2026-09-18: sigue en los DOS repos, en esas mismas líneas.** Un P0 sin fecha se lee como viejo; éste no lo es.
 - **Wompi NO tiene webhook** — todo es polling (`StatusCheck` + reconcile). Un job muerto = pago "colgado" hasta la reconciliación (o para siempre si la reconciliación no lo cubre; el cron 00:02 está hardcodeado a `lender_id=52`, ver servicing).
 - **`status_id` hardcodeados `22`/`21`** en `InitialFeePaymentController` (app) en vez de resolver por nombre — frágil si cambian los ids de `LenderTransactionStatus`.
 - **Idempotencia asimétrica app↔legacy:** los 3 candados anti-doble-cobro solo están en `application`. La copia de legacy tiene un `mockUpdateStatus` (staging) pero su path real no replica los guards → riesgo de re-imputar si se activara.
@@ -25,6 +25,7 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 - **`user_request_id=0` = cupo rotativo** (sentinel, no null) en `PaymentGatewayTransaction` — ramifica todo el `updateStatus`/`WompiController`.
 - **Auth Wompi inconsistente**: crear con `wompi_public`, consultar con `wompi_private`, y algunos GET sin token (documentado como rareza de Wompi en comentarios del código).
 - **Payvalida webhook empuja originación** (a Estado 11 + voucher + Woocommerce) — es más "desembolso/aprobación" que "recaudo"; cruza con el nodo de originación/agregadores. El `generateVoucher`/`updateDisbursedLender` que dispara son de esos nodos.
+- ✅ **Dos cosas que el cliente veía mal y se arreglaron el 2026-09-18.** (a) Un enlace de pago inválido devolvía **la pantalla genérica de 500 en vez de un 404**: el código lanzaba la excepción `NotFound` del cliente HTTP de Flare —la que esa librería usa para hablar con SU API—, que extiende `BadResponseCode` y no `HttpException`, así que Laravel nunca la mapeaba a un 404. Hoy es `abort(404)` (`application/app/Http/Controllers/Customer/WompiController.php:64`). (b) Un comercio **sin credencial de Wompi** hacía estallar la búsqueda con `findOrFail`; hoy devuelve un aviso de «no hay pagos en línea» con el nombre del comercio (`:160`, resuelto por `:205`). Las dos son de forma, no de fondo: el cobro sigue necesitando la credencial.
 - **Costos administrativos** se recalculan al aprobar la cuota inicial (`administrative_costs_percentage` de `LendersByAllied`) — cambia `final_amount`/`amount` del crédito; efecto de negocio escondido en `Wompi::updateStatus`.
 
 ## Contenido
