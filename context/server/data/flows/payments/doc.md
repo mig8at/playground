@@ -53,6 +53,25 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 - `application`: `PaymentLink` + `UserRequestByPaymentLink`, `Customer/PaymentLinkController` + `Admin/PaymentLinkController`.
 - `legacy-backend` `Modules/Payments`: módulo Laravel-Modules propio (`PaymentLinkController` CRUD admin, `CustomerPaymentLinkController` acceso público por token, `PaymentLinkService`/`CustomerPaymentService`/`PaymentLinkUrlService`). ⚠ Crea/gestiona links pero **no imputa al ledger** (eso es servicing).
 
+## `origin_channel`: existe desde septiembre, y NO sirve para segmentar los pagos
+
+Desde el 2026-09-02 los pagos registrados llevan un **canal de origen**. Viaja de
+`payment_gateway_transactions` a `creditop_x_payment_register` y se puebla por dos caminos: el endpoint
+de Wompi lo toma del request y cae en `'web'` si no viene
+(`application/app/Http/Controllers/Customer/WompiController.php:171`), y el registro del pago lo copia de
+la transacción de pasarela **sólo si hay una** (`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:106-107`).
+
+⚠ **Y esa condición es la que lo vuelve inservible para contar.** Medido en prod el 2026-09-18, **desde
+que la columna existe**: **1.920 pagos sin canal contra 1.698 con canal** — o sea que **más de la mitad
+de los pagos nuevos sigue llegando en `NULL`**, no por el histórico. Los valores reales son sólo dos
+(`web` 1.274, `mobile_app` 424); el histórico previo son otros 30.311 nulos. **Un informe que agrupe por
+`origin_channel` está describiendo el 47 % del recaudo y no lo dice.**
+
+⚠ Además el campo es **texto libre** (`nullable`, `string`, `max:255` —
+`application/app/Http/Requests/Customer/WompiRequest.php:42-46`): no hay enum ni catálogo, así que nada
+impide que mañana aparezca un tercer valor escrito distinto. Y las dos migraciones que lo agregan viven
+**sólo en `legacy-application`**, no en `legacy-backend` (ver `architecture`).
+
 ## Estados y códigos
 - **`PaymentGatewayTransaction`** (Wompi): `status_id`→`LenderTransactionStatus` (nombres `PENDING/APPROVED/DECLINED/VOIDED/ERROR`, filtrados por `lender_id=52`). Campos clave: `creditop_x_payment_type_id` (**1 = cuota inicial**, otro = pago), `principal_payment_type_id` (a capital/cuota), `user_request_id` (0 si es cupo rotativo), `creditop_x_revolving_credit_id`, `order_id` (= `reference` UUID que Wompi ecoa).
 - **`PayvalidaTransaction`** → `PayvalidaTransactionStatus` (`PENDIENTE/APROBADA/ANULADA/VENCIDA/CANCELADA`, español); mapea a `user_request_statuses` (11/6/7/10/8).
