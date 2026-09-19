@@ -94,8 +94,14 @@ async function copiar() {
 </script>
 
 <template>
-  <header>
-    <div class="fila1">
+  <!-- TITLEBAR · una sola fila: quién sos, qué estás mirando y la acción principal. El buscador va
+       ACÁ y no en un renglón aparte porque es lo ÚNICO que hace esta herramienta —escribís un id y
+       ves la traza—, o sea es la barra de comandos, no un filtro sobre algo que ya está en
+       pantalla. En dos filas costaba 97px de alto; el mapa es lo que uno vino a mirar.
+
+       ⚠ `height: auto` y `overflow: visible` contra la regla compartida: ésta envuelve a dos filas
+       en ventana angosta y la regla —pensada para una barra de una línea— la recortaría. -->
+  <header class="titlebar">
       <h1>Trazador <span class="dim">· CreditOp</span></h1>
       <span v-if="t.traza" class="ico big" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
       <span v-if="t.traza" class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
@@ -104,8 +110,13 @@ async function copiar() {
               title="La traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.">
         {{ copiado ? '✓ copiado' : '⧉ copiar traza' }}
       </button>
-    </div>
+    <Buscador />
+  </header>
 
+  <!-- BANNER · lo que sólo aparece A VECES: la espera, los datos de la solicitud y los errores.
+       Región propia para que el titlebar no cambie de alto según el estado — un encabezado que
+       crece y se achica mueve todo lo de abajo cada vez que buscás. -->
+  <div v-if="t.fase || t.traza || t.error || chequeoGrave.length" class="banner">
     <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner mudo
          tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en información. -->
     <div v-if="t.fase" class="cargando">
@@ -113,7 +124,6 @@ async function copiar() {
       <span>{{ t.fase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
       <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
     </div>
-    <Buscador />
     <p v-if="t.traza" class="meta">
       {{ t.traza.comercio }} · {{ t.traza.sucursal }}
       <template v-if="t.traza.lender"> · {{ t.traza.lender }} (rt={{ t.traza.rt }})</template>
@@ -125,7 +135,7 @@ async function copiar() {
     <p v-for="h in chequeoGrave" :key="h.texto" class="err mapaRoto">
       ⚠ el mapa dejó de resolver: {{ h.texto }} — <code>make trazador-chequeo</code>
     </p>
-  </header>
+  </div>
 
   <!-- La historia de la persona: sus solicitudes como chips por día. Reemplaza la lista vertical de
        botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
@@ -152,6 +162,22 @@ async function copiar() {
     <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
     <Detalle v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoSidebar)}px` }" />
   </div>
+
+  <!-- STATUSBAR · lo que vale para TODA la pantalla y nunca scrollea: contra qué ambiente estás
+       mirando, qué carril tomó la solicitud y cómo se recorre el mapa.
+
+       ⚠ Esto flotaba ENCIMA del mapa, abajo a la izquierda. Un texto sobre el lienzo compite con lo
+       dibujado y se pisa con los rótulos de los carriles de abajo; en una barra propia se lee sin
+       taparle nada al mapa, y el ambiente deja de estar escondido dentro del buscador. -->
+  <footer class="statusbar">
+    <!-- ⚠ Acá NO va la solicitud: ya está en el titlebar, a 30px de acá. Un statusbar que repite lo
+         que está arriba gasta el único renglón que tiene. Lleva lo que el titlebar no dice. -->
+    <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
+    <span v-if="t.traza?.ramal">carril <b>{{ t.traza.ramal }}</b></span>
+    <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
+    <span class="sb-pista">clic abre la etapa · ←/→ recorren</span>
+  </footer>
+
 </template>
 
 <style scoped>
@@ -162,9 +188,33 @@ async function copiar() {
    contenedor. Sin color, la profundidad es lo único que separa una capa de otra.
 
    La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
-header { padding:12px 18px 14px; border-bottom:1px solid var(--line); flex:0 0 auto;
-  background:var(--card) }
-.fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px }
+/* El titlebar toma de `taller.css` el fondo y el borde; acá sólo lo propio. ⚠ `height: auto` y
+   `overflow: visible` porque en ventana angosta envuelve a dos filas y la regla compartida —pensada
+   para una barra de una línea— la recortaría. */
+header.titlebar { height:auto; overflow:visible; padding:10px 18px; gap:12px; flex-wrap:wrap }
+/* `display: contents` y no un contenedor: así el título, el desenlace y el buscador son hermanos
+   directos del titlebar y el `margin-left:auto` del buscador funciona contra el borde real. */
+.fila1 { display:contents }
+/* ⚠ El buscador NO envuelve dentro del titlebar. Su regla propia es `flex-wrap: wrap` —correcto
+   cuando era una fila entera para él— y acá partía la caja del `prod ▾ buscar` a un segundo renglón:
+   el encabezado terminaba MÁS alto (107px) que las dos filas que vino a reemplazar (97px). */
+header.titlebar :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
+header.titlebar :deep(.buscador input) { flex:1 1 auto; min-width:0 }
+
+/* El BANNER: sólo aparece cuando hay algo que decir, así que no puede traer alto propio cuando no. */
+.banner { flex:0 0 auto; display:block; padding:8px 18px 10px; background:var(--card);
+  border-bottom:1px solid var(--line) }
+
+/* ⚠ El alto sale del token compartido a mano: `taller.css` se lo pone a `.workbench > .statusbar`,
+   y el trazador arma su layout con `#app` en flex, no con la grilla. Sin esto quedaba en 18px contra
+   los 26 de las otras tres — el mismo elemento con dos alturas según la herramienta. */
+.statusbar { height:var(--statusbar-h) }
+.statusbar strong { color:var(--dim); font-weight:600; text-transform:uppercase; letter-spacing:.06em;
+  font-size:10.5px }
+.statusbar strong.prod { color:var(--warn) }
+.statusbar b { color:var(--txt); font-weight:600 }
+/* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
+.sb-pista { margin-left:auto; color:var(--tenue) }
 /* ⚠ El título NO compite: con 18px en negrita era lo más pesado de la pantalla, y el título de una
    herramienta es lo que uno menos necesita leer. Manda la solicitud que se está mirando. */
 h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }

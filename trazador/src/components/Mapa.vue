@@ -394,11 +394,6 @@ watch(() => props.cerrado, () => nextTick(medir))
       </g>
     </svg>
 
-    <div class="pie">
-      <span v-if="t.traza?.ramal" class="ramal">carril <b>{{ t.traza.ramal }}</b></span>
-      <span v-else-if="t.traza" class="dim">sin carril todavía — se decide al elegir entidad</span>
-      <span class="dim">clic abre la etapa · ←/→ recorren</span>
-    </div>
   </div>
 </template>
 
@@ -445,10 +440,6 @@ watch(() => props.cerrado, () => nextTick(medir))
 .afuera { font:11px system-ui; fill:var(--dim) }
 .corte { font:600 10px system-ui; fill:var(--fail); text-anchor:middle }
 
-.pie { position:absolute; left:0; right:0; bottom:0; display:flex; gap:12px; align-items:center;
-  padding:8px 14px; font-size:11px; color:var(--tenue);
-  background:linear-gradient(transparent,var(--panel2) 55%) }
-.ramal { color:var(--txt) } .ramal b { color:var(--info) }
 .dim { color:var(--dim) }
 .recorte { color:var(--warn) }
 </style>
