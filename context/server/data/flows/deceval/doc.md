@@ -20,7 +20,7 @@ Tres palabras que hay que tener claras porque el SOAP las usa todo el tiempo:
 - **Pagaré** — el título. Se crea a nombre del depositante, no de CreditOp.
 
 Es una **capacidad de la plataforma, no un desarrollo por lender**: se habilita configurando, no
-programando. En producción hoy: **Credifamilia y Dentix**.
+programando. ⚠ **En producción hoy son CINCO, no dos** (medido el 2026-09-19 contra `lenders.promissory_type_id`): **Credifamilia (24)**, **Creditop X (37)**, **DENTIX FINANCIAL SERVICES (139)**, **DFS ORTODONCIA (181)** y **Alta te financia (199)**. Las otras **194** entidades activas usan `ownership` — o sea el pagaré tradicional. *(Acá decía «Credifamilia y Dentix»; la capacidad se habilitó en tres más desde entonces, y una de ellas es la propia cuenta de la casa.)*
 
 ## Antes de concluir
 
@@ -47,10 +47,22 @@ programando. En producción hoy: **Credifamilia y Dentix**.
   **valida menos que producción** (por ejemplo no verifica la clave de firma): la paridad no está
   garantizada, así que «pasó en certificación» no es «pasa en prod».
 - **El número del pagaré sale del id de la fila**, no de un contador propio:
-  `{promissory_note.id}-{id en 6 dígitos}` (`:67`). Borrar y recrear la fila cambia el número del título
+  `{promissory_note.id}-{id en 6 dígitos}`, en
+  `legacy-backend/Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php:67`
+  (verificado el 2026-09-19; el `:67` era correcto pero no decía de qué archivo, y el contexto invitaba
+  a buscarlo en `DecevalSoap.php`, donde esa línea es otra cosa). Borrar y recrear la fila cambia el número del título
   ante Deceval.
 - ⚠ **El guard de `createGirador` está bien en `legacy-backend` y ROTO en `legacy-application`**, que
-  sigue sirviendo el flujo. Ver **F-122** — es la diferencia entre `||` y `&&`.
+  sigue sirviendo el flujo (**F-122**). Re-verificado el 2026-09-19, y el detalle importa porque es
+  **peor que un operador cambiado**: el nuevo dice
+  `count() === 0 || item(0)->textContent !== 'true'`
+  (`legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php:387`) y el viejo dice **`&&`**
+  (`application/app/Actions/DecevalSoap.php:294`). Con `&&` el guard **no puede disparar nunca**: si hay
+  respuesta, la primera condición es falsa y la conjunción también —**aunque Deceval haya contestado
+  `exitoso = false`**—; y si no hay respuesta, el segundo operando revienta leyendo `item(0)` sobre
+  `null`. O sea que un girador rechazado **pasa de largo**. ⚠ Y hay una segunda pérdida: el nuevo
+  levanta la `descripcion` que manda Deceval y la usa como mensaje (`:388`, `:390`); el viejo lanza
+  siempre el genérico, así que **el motivo real del rechazo se descarta** justo donde más falta hace.
 
 **(2026-08-28)** Los controladores del pagaré (OTP incluido) ahora pasan por la compuerta del
 codeudor antes de firmar: si la política de la categoría exige codeudor y no hay uno aprobado, **no se
@@ -61,6 +73,13 @@ controlador del viejo NO la tiene (su cambio reciente es otro: el corte semanal 
 patrón que la guarda del girador (F-122): el gemelo que sirve el flujo, sin la protección. El juego de
 documentos del nuevo además se resuelve por catálogo (`SigningDocumentResolver`/`Recorder` +
 `CatalogDocumentGenerator`).
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 12 afirmaciones auditadas —9 de código contra `main` y 3
+de dato contra producción—, cero chequeos débiles. **Una quedó desactualizada y es la de alcance**: el
+nodo decía dos entidades con Deceval y hoy son cinco. Lo demás se sostuvo, y F-122 resultó **más grave
+de lo que el nodo resumía**: el `&&` del monolito viejo no es un guard con la lógica invertida, es un
+guard **que no puede dispararse**, y de paso descarta el motivo que manda Deceval. Exactos también el
+formato del número del pagaré y el ruteo por `promissory_types` con su excepción explícita.
 
 ## El flujo, y dónde está en el embudo
 
