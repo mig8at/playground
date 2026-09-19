@@ -18,20 +18,31 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 pedido viaja en la URL y cada pantalla la relee en su fuente— y que al cerrarse, el comercio reciba el
 veredicto de su pedido.
 
-**Estado real (18/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
+**Estado real (19/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
 entró el 14/9 con la promoción `Qa (#1007)` y Abel lo revirtió esa misma noche (#1013); el backend #1392 no
 se revirtió y sí quedó. Reponerlo es **#1016**, el único PR abierto, y tiene que entrar **antes** de la
 próxima promoción `qa`→`main`.
+
+**Y hay un segundo PR que espera, de hoy:** la rama `fix/listado-tramo-por-monto` de `legacy-backend`
+(commit `9b956475`, **sin pushear**) termina de alinear el plazo que anuncia la tarjeta con el que da el
+plan de pagos. #1432 cerró la capa de la CATEGORÍA; ésta cierra la del TRAMO POR MONTO, que está viva en
+producción con Motai X —89 de 227 solicitudes (39 %) en 90 días discrepando, y 31 créditos a un plazo que
+la entidad no declara—. Va contra `qa`, como todo lo demás.
 
 **Ya comprobado, corriéndolo contra `qa`** (no hace falta volver a investigarlo): los tres canales cierran, y
 el discriminante quedó medido **en la base** — mismo comercio, misma entidad, mismo desenlace, y el WhatsApp
 de entrega aparece **sólo** con asesor. Lo que no cerró en esos barridos es del ambiente (F-180) o de
 configuración del comercio (F-223), no del canal.
 
+**Y el ticket de «las cuotas del listado no coinciden con el plan de pagos» está CERRADO en `qa`** — no lo
+vuelvas a investigar. Verificado el 19/9 pidiéndole a `qa` los dos endpoints de la solicitud 502446: los dos
+dicen `[1, 3, 6]`. Lo que sigue abierto de ese hilo es otra cosa y está arriba: el tramo por monto.
+
 **Cómo se verifica:** las corridas de §«Cómo se comprueba», leyendo el desenlace en la base y no en la consola.
 
 **El próximo paso es:** que QA recorra los tres canales en `qa` siguiendo «Cómo validar» de la tarea
-publicable, **sin sesión de asesor** — ventana de incógnito o logout previo.
+publicable, **sin sesión de asesor** — ventana de incógnito o logout previo. En paralelo, y sin depender de
+eso: pushear `fix/listado-tramo-por-monto` y abrirle el PR contra `qa`.
 
 ## Pendientes
 
