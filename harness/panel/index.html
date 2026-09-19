@@ -13,6 +13,10 @@
        enteras, que es justo lo que se quiere. Lo que SÍ aplica son los tokens, que es de
        donde sale el tema. -->
   <link rel="stylesheet" href="/tema.css">
+  <!-- EL TALLER: cómo se divide la pantalla, con los nombres de VS Code. Igual que el tema,
+       es idéntico en las cuatro herramientas. Va DESPUÉS del tema (usa sus tokens) y ANTES
+       del <style> de abajo, que es donde este panel se desvía de lo genérico. -->
+  <link rel="stylesheet" href="/taller.css">
   <style>
     /* Pestañas de la consola: el botón activo se marca, el otro queda apagado pero VISIBLE — que se vea
        que existe es la mitad del valor (si no, nadie descubre que hay un log del SSR). */
@@ -33,7 +37,6 @@
        que este bloque viene a terminar. */
     :root {
       --bg: var(--background);
-      --panel: var(--card);
       --panel2: var(--muted);        /* superficie elevada: filas, inputs, tarjetas */
       --line: var(--border);         /* borde de 1px, apenas visible */
       --line2: var(--accent);        /* borde en hover/foco */
@@ -155,7 +158,7 @@
       padding: 5px 11px;
       border-radius: 999px;
       border: 1px solid var(--line);
-      background: var(--panel);
+      background: var(--card);
       color: var(--mut);
       font-size: 12px;
       font-weight: 500;
@@ -192,7 +195,7 @@
     .sdot.checking { background: var(--warn); animation: sdotpulse 1s ease-in-out infinite; }
     @keyframes sdotpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
-    .warnbar {
+    .banner {
       margin: 14px 0 0;
       padding: 10px 14px;
       border-radius: 10px;
@@ -203,7 +206,7 @@
     }
 
     .card {
-      background: var(--panel);
+      background: var(--card);
       border: 1px solid var(--line);
       border-radius: var(--radius);
       padding: 20px;
@@ -705,7 +708,7 @@
        —ocupa 1 de N columnas y deja el resto vacío—. Con flex-grow la última fila se reparte sola. */
     .stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 18px 0 0 }
     .stat {
-      background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
       padding: 15px 16px; display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1 1 148px
     }
     .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
@@ -779,7 +782,7 @@
     .altafila label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); }
     .altafila select, .altafila input {
       width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: var(--radius-sm);
-      border: 1px solid var(--line); background: var(--panel); color: inherit; font-size: 13px;
+      border: 1px solid var(--line); background: var(--card); color: inherit; font-size: 13px;
       font-family: inherit; outline: none;
     }
     .altafila select:focus, .altafila input:focus { border-color: var(--line2); }
@@ -795,7 +798,7 @@
     .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
     .m .facc span:hover { background: var(--line); color: inherit; }
     .m .estrella { color: #fbbf24; font-size: 9px; margin-left: 5px; vertical-align: middle; }
-    .pasel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
+    .pasel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
     /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
     [hidden] { display: none !important; }
     .header-note { margin-left: auto; color: var(--mut); font-size: 12px; }
@@ -878,12 +881,6 @@
        ojo encuentre; volverlo monocromo por estética sería perder la única señal que hay. */
     /* Sólo MEDIDAS: los colores que este bloque redefinía se fueron al puente de arriba. */
     :root {
-      --h-top: 52px;
-      --h-status: 26px;
-      --w-left: 300px;    /* comercios: una lista */
-      --w-right: 340px;   /* configuración: formularios */
-      --h-bottom: 240px;
-      --rsz: 4px;
     }
 
     /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
@@ -902,25 +899,29 @@
     html, body { height: 100% }
     body { overflow: hidden }
 
-    .app {
-      height: 100vh;
-      display: grid;
-      grid-template-rows: var(--h-top) auto 1fr var(--rsz) var(--h-bottom) var(--h-status);
+    /* Este panel SE DESVÍA del grid de `taller.css`, y por una razón concreta: mete sus tres regiones
+       del medio adentro de un `.shell` (para poder redimensionarlas con manijas propias) y agrega una
+       fila para la manija de abajo. O sea tiene una columna sola y seis filas, no la grilla de cuatro
+       columnas del taller. Lo compartido sigue valiendo: los NOMBRES, las medidas y el contrato de
+       scroll; esto sólo redefine la plantilla.
+
+       ⚠ Y las filas van por NOMBRE, no por número. Antes eran índices (`grid-row: 3`) y `#devwarn`
+       —que vive en `display:none` casi siempre— no ocupa celda: el auto-placement corría todo un
+       renglón hacia arriba y la consola heredaba los 4 px de la manija. Se veía como «la consola
+       desapareció». Con áreas nombradas eso no puede pasar: un área sin elemento colapsa a 0 y nadie
+       se corre. */
+    .workbench {
+      grid-template-columns: 1fr;
+      grid-template-areas: "titlebar" "banner" "shell" "rszpanel" "panel" "statusbar";
+      grid-template-rows: var(--titlebar-h) auto 1fr var(--rsz) var(--panel-h) var(--statusbar-h);
     }
-    /* ⚠ CADA ZONA DICE SU FILA, y no es redundante: `#devwarn` vive en `display:none` casi siempre, y
-       un elemento así NO ocupa celda — el auto-placement corría todo lo de abajo un renglón y el panel
-       de consolas heredaba los 4 px de la manija. Se veía como «la consola desapareció». */
-    .app > .titlebar  { grid-row: 1 }
-    .app > .warnbar   { grid-row: 2 }
-    .app > .shell     { grid-row: 3 }
-    .app > .rsz-b     { grid-row: 4 }
-    .app > .bottom    { grid-row: 5 }
-    .app > .statusbar { grid-row: 6 }
+    .workbench > .shell { grid-area: shell }
+    .workbench > .rsz-b { grid-area: rszpanel }
 
     /* ── barra de título ───────────────────────────────────────────────────────────────────── */
     .titlebar {
       display: flex; align-items: center; gap: 16px; padding: 0 12px; min-width: 0;
-      background: var(--panel); border-bottom: 1px solid var(--line);
+      background: var(--card); border-bottom: 1px solid var(--line);
     }
     .titlebar .brand { display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
     .titlebar .logo { width: 26px; height: 26px; display: grid; place-items: center; font-size: 13px }
@@ -942,16 +943,16 @@
     .tbrun .stop { padding: 7px 12px; font-size: 12.5px }
 
     /* el aviso de ambiente compartido: banda a todo lo ancho, debajo del header */
-    .app > .warnbar { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
+    .workbench > .banner { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
 
     /* ── las tres columnas ─────────────────────────────────────────────────────────────────── */
     .shell {
       display: grid;
-      grid-template-columns: var(--w-left) var(--rsz) 1fr var(--rsz) var(--w-right);
+      grid-template-columns: var(--sidebar-w) var(--rsz) 1fr var(--rsz) var(--auxiliarybar-w);
       min-height: 0; overflow: hidden;
     }
-    .side { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel) }
-    .side-head {
+    .sidebar, .auxiliarybar { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--card) }
+    .region-head {
       height: 32px; display: flex; align-items: center; padding: 0 12px; flex: 0 0 auto;
       font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--mut);
       border-bottom: 1px solid var(--line);
@@ -961,25 +962,25 @@
        que su columna y el texto se cortaba contra el borde («Login de asesor (Cognito) y el wizard abre
        en el»). Se ve como un `overflow` mal puesto y es la regla de UA del fieldset. Vale igual para el
        del header. */
-    .side-body, .tbcfg { min-width: 0; min-inline-size: 0 }
-    .side-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; border: 0; margin: 0 }
+    .region-body, .tbcfg { min-width: 0; min-inline-size: 0 }
+    .region-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; border: 0; margin: 0 }
 
     /* Dentro de un sidebar las tarjetas dejan de ser tarjetas: sin caja propia, separadas por una
        línea. Una caja dentro de otra caja dentro de un panel es ruido de borde, no jerarquía. */
-    .side .card, .side details.card { background: transparent; border: 0; border-bottom: 1px solid var(--line);
+    .sidebar .card, .auxiliarybar .card, .sidebar details.card , .auxiliarybar details.card { background: transparent; border: 0; border-bottom: 1px solid var(--line);
       border-radius: 0; padding: 12px 12px 14px; margin: 0; box-shadow: none }
-    .side .card h2 { margin-top: 0 }
+    .sidebar .card h2 , .auxiliarybar .card h2 { margin-top: 0 }
     /* Los `01/02/03` numeraban una SECUENCIA que este layout ya no tiene —y el 01 se disolvió al subir
        ambiente y front al header, así que la serie empezaba en 02—. Un número que no ordena nada
        desorienta más que ayudar; el título se queda. */
-    .side .card h2 b { display: none }
+    .sidebar .card h2 b , .auxiliarybar .card h2 b { display: none }
     /* El sidebar ya dice COMERCIOS arriba: repetirlo adentro es una etiqueta gastada en nada. */
-    /* ⚠ `:first-of-type` y no `:first-child`: el primer hijo del `.side-body` es el `<legend>` del
+    /* ⚠ `:first-of-type` y no `:first-child`: el primer hijo del `.region-body` es el `<legend>` del
        fieldset, así que la regla no matcheaba nada y el título repetido seguía a la vista. */
-    .sl .side-body > p.grouplbl:first-of-type { display: none }
-    .side .grid { grid-template-columns: 1fr }
+    .sidebar .region-body > p.grouplbl:first-of-type { display: none }
+    .sidebar .grid , .auxiliarybar .grid { grid-template-columns: 1fr }
 
-    .stage {
+    .editor {
       min-height: 0; min-width: 0; overflow: auto; padding: 12px; background: var(--bg);
       display: flex; flex-direction: column; gap: 10px;
     }
@@ -989,8 +990,8 @@
        `ResizeObserver` de la cáscara). `min-height` chico a propósito: con el Caso de vuelta en el
        sidebar, lo único que puede aparecer arriba es la tarjeta de actividad durante una corrida, y ahí
        vale más que el mapa ceda que un scroll en el centro. */
-    .stage > #tren { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; margin: 0 }
-    .stage > #tren[hidden] { display: none }
+    .editor > #tren { flex: 1 1 auto; min-height: 220px; display: flex; flex-direction: column; margin: 0 }
+    .editor > #tren[hidden] { display: none }
     /* ═══ EL MAPA, SIN TARJETA ════════════════════════════════════════════════════════════════════
        En el centro el mapa no necesita presentarse: es lo único que hay. Se le saca el marco, el fondo
        y la cabecera «Mapa del recorrido · Referencia del flujo» — un título que rotula la única cosa
@@ -999,21 +1000,21 @@
        («N rutas del mapa ya no existen»), y esconderla lo escondía con ella: un mapa incompleto se
        vería igual que uno completo, que es el modo de falla que ese aviso vino a evitar. Así que la
        cabecera no se borra: se muestra SÓLO cuando hay algo que avisar. */
-    .stage > #tren > summary { display: none }
-    .stage > #tren > summary:has(#trenwarn:not(:empty)) {
+    .editor > #tren > summary { display: none }
+    .editor > #tren > summary:has(#trenwarn:not(:empty)) {
       display: flex; align-items: center; flex: 0 0 auto; padding: 0 0 8px;
       text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--warn);
     }
-    .stage > #tren > summary .tren-hint { display: none }
-    .stage > #tren { background: transparent; border: 0; padding: 0 }
-    .stage > #tren #trenvias { background: transparent; border: 0; border-radius: 0 }
+    .editor > #tren > summary .tren-hint { display: none }
+    .editor > #tren { background: transparent; border: 0; padding: 0 }
+    .editor > #tren #trenvias { background: transparent; border: 0; border-radius: 0 }
     /* ⚠ EL LIENZO NO CRECÍA, Y NO ERA EL `flex`. Chrome envuelve el contenido de un `<details>` en el
        pseudo-elemento `::details-content`, así que `#trenvias` NO es hijo flex directo: el item es esa
        caja intermedia y el `flex: 1` de adentro no tenía a quién pedirle espacio. Medido acá mismo: con
        esta regla el lienzo pasó de 152 px a ocupar la zona. En navegadores sin el pseudo-elemento la
        regla no matchea y los hijos ya son directos, así que el caso queda cubierto por los dos lados. */
-    .stage > #tren::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
-    .stage > #tren #trenvias { flex: 1 1 auto; height: auto; min-height: 0 }
+    .editor > #tren::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
+    .editor > #tren #trenvias { flex: 1 1 auto; height: auto; min-height: 0 }
     .stage-empty { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
       justify-content: center; gap: 6px; color: var(--mut); text-align: center;
       border: 1px dashed var(--line2); border-radius: var(--radius); padding: 24px }
@@ -1021,23 +1022,23 @@
     .stage-empty span { font-size: 12.5px; max-width: 42ch }
 
     /* ── panel inferior: las consolas ──────────────────────────────────────────────────────── */
-    .bottom { min-height: 0; overflow: hidden; background: var(--panel); border-top: 1px solid var(--line);
+    .panel { min-height: 0; overflow: hidden; background: var(--card); border-top: 1px solid var(--line);
       display: flex; flex-direction: column }
-    .bottom > .logcard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
+    .panel > .logcard { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0;
       margin: 0; border: 0; border-radius: 0; background: transparent; padding: 0 }
-    .bottom > .logcard > h2 { margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line);
+    .panel > .logcard > h2 { margin: 0; padding: 6px 10px; border-bottom: 1px solid var(--line);
       flex: 0 0 auto; display: flex; align-items: center; gap: 6px }
-    .bottom > .logcard > h2 > b { display: none }            /* el ▸ decoraba un título que ya no existe */
-    .bottom > .logcard .logacts { margin-left: auto; display: flex; gap: 6px; float: none }
-    .bottom > .logcard > pre { flex: 1 1 auto; min-height: 0; max-height: none; margin: 0; border: 0;
+    .panel > .logcard > h2 > b { display: none }            /* el ▸ decoraba un título que ya no existe */
+    .panel > .logcard .logacts { margin-left: auto; display: flex; gap: 6px; float: none }
+    .panel > .logcard > pre { flex: 1 1 auto; min-height: 0; max-height: none; margin: 0; border: 0;
       border-radius: 0; background: transparent; padding: 10px 12px }
     /* 240 px de negro sin una línea se leen como «se rompió». La zona existe siempre, así que dice qué
        va a aparecer ahí en vez de no decir nada. */
-    .bottom > .logcard > pre:empty::before { content: attr(data-vacio); color: var(--mut); font-style: italic }
+    .panel > .logcard > pre:empty::before { content: attr(data-vacio); color: var(--mut); font-style: italic }
 
     /* ── barra de estado ───────────────────────────────────────────────────────────────────── */
     .statusbar { display: flex; align-items: center; gap: 10px; padding: 0 12px; min-width: 0;
-      font-size: 11.5px; color: var(--mut); background: var(--panel); border-top: 1px solid var(--line);
+      font-size: 11.5px; color: var(--mut); background: var(--card); border-top: 1px solid var(--line);
       white-space: nowrap; overflow: hidden }
     .statusbar strong { color: var(--txt); font-weight: 600; flex: 0 0 auto }
     .statusbar .sumry { overflow: hidden; text-overflow: ellipsis }
@@ -1063,7 +1064,7 @@
     @media (max-width: 1180px) {
       .shell { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; overflow: auto }
       .rsz-l, .rsz-r { display: none }
-      .side { max-height: 40vh }
+      .sidebar, .auxiliarybar { max-height: 40vh }
     }
 
 
@@ -1096,10 +1097,10 @@
     /* ── pestañas de la consola: estilo editor, no pastilla rellena ───────────────────────────── */
     /* Con el acento casi blanco, «fondo del acento + texto blanco» sería texto invisible. Y la forma
        de pestaña se lee mejor acá: es una barra de pestañas de verdad. */
-    .bottom .pest { background: transparent; border: 0; border-radius: 0; color: var(--mut);
+    .panel .pest { background: transparent; border: 0; border-radius: 0; color: var(--mut);
       padding: 5px 10px; border-bottom: 2px solid transparent }
-    .bottom .pest.on { background: transparent; color: var(--txt); border-bottom-color: var(--acc) }
-    .bottom .pest:hover { color: var(--txt) }
+    .panel .pest.on { background: transparent; color: var(--txt); border-bottom-color: var(--acc) }
+    .panel .pest:hover { color: var(--txt) }
 
     /* La tarjeta elegida tenía relleno verde oscuro (#132018) porque el acento era verde. En grises,
        lo seleccionado se distingue por ser MÁS CLARO, no por tener otro tinte. */
@@ -1163,7 +1164,7 @@
     .tree #lenderslist .lrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px;
       height: auto; min-height: 24px; padding: 0 8px 0 0;
       background: transparent; border: 0; border-radius: 0; font-size: 12.5px; cursor: default }
-    .tree #lenderslist .lrow:hover { background: var(--panel) }
+    .tree #lenderslist .lrow:hover { background: var(--card) }
     .tree #lenderslist .lrow:focus-visible { outline: 1px solid var(--acc); outline-offset: -1px }
     .lico { color: var(--mut); font-size: 9px; margin-right: 2px }
     /* Una línea por entidad, siempre. Sin esto los nombres largos —«Credifamilia-addi», «Rent to Own»—
@@ -1348,7 +1349,7 @@
     .ctxitem.guardada > span:last-child::after { content: ' ★'; color: var(--mut); font-size: 9px }
 
 
-    .side { overflow: hidden }
+    .sidebar, .auxiliarybar { overflow: hidden }
     .rsz { transition: background .12s }
     .rsz-l, .rsz-r { min-width: var(--rsz) }
     /* ⚠ EL ÁREA DE AGARRE ES MÁS ANCHA QUE LA LÍNEA. La manija se ve de 4 px —una línea, como en un
@@ -1359,7 +1360,7 @@
     .rsz-l::before, .rsz-r::before { top: 0; bottom: 0; left: -6px; right: -6px }
     .rsz-b::before { left: 0; right: 0; top: -6px; bottom: -6px }
     /* Colapsado, la manija se marca sola: si no, queda una línea muerta que nadie sabe que se arrastra. */
-    .side:empty + .rsz, .rsz.plegado::after { background: var(--line2) }
+    .sidebar:empty + .rsz, .auxiliarybar:empty + .rsz, .rsz.plegado::after { background: var(--line2) }
 
 
 
@@ -1370,41 +1371,41 @@
        campos daban 1.236 px de contenido en 546 visibles. La etiqueta arriba tiene sentido en un
        formulario que se llena una vez; esto es un panel de herramientas que se ajusta muchas veces, y
        ahí lo que importa es ver TODAS las perillas juntas. */
-    .sr .panelprops .field { display: grid; grid-template-columns: 102px 1fr; align-items: center;
+    .auxiliarybar .panelprops .field { display: grid; grid-template-columns: 102px 1fr; align-items: center;
       gap: 8px; margin: 0 0 4px; min-height: 24px }
-    .sr .panelprops .field:empty { display: none }          /* el relleno del par impar no ocupa una fila */
-    .sr .panelprops .field > label,
-    .sr .panelprops .field > .field-label { margin: 0; font-size: 10.5px; line-height: 1.2; color: var(--mut);
+    .auxiliarybar .panelprops .field:empty { display: none }          /* el relleno del par impar no ocupa una fila */
+    .auxiliarybar .panelprops .field > label,
+    .auxiliarybar .panelprops .field > .field-label { margin: 0; font-size: 10.5px; line-height: 1.2; color: var(--mut);
       text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default }
     /* Los pares dejan de ir lado a lado: a 340 px, «Negativos 12m» + su input en media columna no entra.
        Apilados como filas de 24 px ocupan menos que el par de 74 que eran. */
-    .sr .panelprops .two { display: block }
-    .sr .panelprops input[type=text], .sr .panelprops input[type=number], .sr .panelprops input[type=date],
-    .sr .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: 4px }
-    .sr .panelprops .money { display: block }
+    .auxiliarybar .panelprops .two { display: block }
+    .auxiliarybar .panelprops input[type=text], .auxiliarybar .panelprops input[type=number], .auxiliarybar .panelprops input[type=date],
+    .auxiliarybar .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: 4px }
+    .auxiliarybar .panelprops .money { display: block }
     /* ⚠ El `$` de `.money` es un `::before` posicionado, y el input le deja 24 px de sangría para que no
        se pisen. Mi `padding: 0 7px` compacto se los comió y el símbolo quedaba ENCIMA del número
        («$2B000.000» en la captura). El padding izquierdo se restituye, sólo que proporcional al alto
        nuevo de 24 px. */
-    .sr .panelprops .money input { width: 100%; padding-left: 19px }
-    .sr .panelprops .money::before { left: 8px; font-size: 11px }
+    .auxiliarybar .panelprops .money input { width: 100%; padding-left: 19px }
+    .auxiliarybar .panelprops .money::before { left: 8px; font-size: 11px }
     /* Los segmentados pasan a CHIPS: la misma información en una fila de 24 px. */
-    .sr .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
-    .sr .panelprops .seg button { flex: 1 1 0; min-width: 0; padding: 3px 4px; font-size: 10.5px;
+    .auxiliarybar .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
+    .auxiliarybar .panelprops .seg button { flex: 1 1 0; min-width: 0; padding: 3px 4px; font-size: 10.5px;
       border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     /* La pista del campo ocupa la columna del control, no una fila propia. */
-    .sr .panelprops .field > .pista { grid-column: 2 }
-    .sr .panelprops > .pista, .sr .panelprops .field + .pista { margin: 2px 0 6px 110px !important }
-    .sr .panelprops .grouplbl { margin: 10px 0 5px; font-size: 9.5px }
+    .auxiliarybar .panelprops .field > .pista { grid-column: 2 }
+    .auxiliarybar .panelprops > .pista, .auxiliarybar .panelprops .field + .pista { margin: 2px 0 6px 110px !important }
+    .auxiliarybar .panelprops .grouplbl { margin: 10px 0 5px; font-size: 9.5px }
     /* La fila de sólo-lectura (el celular) medía 91 px: sus cuatro partes envolvían dentro del campo.
        Se alinea con la MISMA columna de 102 px que el resto, y la aclaración larga —«bypass OTP · no
        editable»— se va al tooltip, como todo lo demás que no cabe. */
-    .sr .panelprops .field > .ro { display: grid; grid-template-columns: 102px 1fr auto; align-items: center;
+    .auxiliarybar .panelprops .field > .ro { display: grid; grid-template-columns: 102px 1fr auto; align-items: center;
       gap: 8px; min-height: 24px; padding: 0; background: transparent; border: 0; font-size: 11px }
-    .sr .panelprops .ro .k { text-align: right; font-size: 10.5px; color: var(--mut) }
-    .sr .panelprops .ro .v { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-    .sr .panelprops .ro > span:not(.k):not(.v) { display: none }
-    .sr .panelprops .fold > summary { padding: 4px 0; font-size: 11px }
+    .auxiliarybar .panelprops .ro .k { text-align: right; font-size: 10.5px; color: var(--mut) }
+    .auxiliarybar .panelprops .ro .v { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .auxiliarybar .panelprops .ro > span:not(.k):not(.v) { display: none }
+    .auxiliarybar .panelprops .fold > summary { padding: 4px 0; font-size: 11px }
 
 
     /* El panel único: mismo ritmo de 24 px, separado por rótulos de grupo en vez de cabeceras. */
@@ -1421,28 +1422,28 @@
     @keyframes latido { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
     #trencam .nodo.aqui { animation: latido 1.6s ease-in-out infinite }
     /* los valores a tipear, flotando sobre el mapa */
-    .stage > .tipear { flex: 0 0 auto; margin: 0 0 8px; padding: 6px 10px; background: var(--panel);
+    .editor > .tipear { flex: 0 0 auto; margin: 0 0 8px; padding: 6px 10px; background: var(--card);
       border: 1px solid var(--line); border-radius: var(--radius) }
 
 
     /* ⚠ LAS PESTAÑAS VAN A LA IZQUIERDA, y no alcanzaba con `display:flex` en el `h2`: medido, quedaban
        en x=333 y x=798 —dispersas— porque `.copy`/`.pest` traen estilos del diseño viejo que las hacían
        crecer. Se fijan explícitamente: pestañas al inicio, acciones empujadas al final. */
-    .bottom > .logcard > h2 { display: flex !important; align-items: center; justify-content: flex-start;
+    .panel > .logcard > h2 { display: flex !important; align-items: center; justify-content: flex-start;
       gap: 2px; padding: 0 10px; height: 30px }
-    .bottom > .logcard > h2 > .pest { flex: 0 0 auto; margin: 0 }
-    .bottom > .logcard > h2 > .logacts { margin-left: auto; flex: 0 0 auto; display: flex; gap: 6px; float: none }
+    .panel > .logcard > h2 > .pest { flex: 0 0 auto; margin: 0 }
+    .panel > .logcard > h2 > .logacts { margin-left: auto; flex: 0 0 auto; display: flex; gap: 6px; float: none }
 
 
     /* ═══ RESPIRO ═════════════════════════════════════════════════════════════════════════════════
        La densidad estaba bien —24 px por fila— pero todo arrancaba pegado al borde y los grupos no se
        separaban entre sí. Esto no agrega alto por fila: agrega MÁRGENES, que es lo que deja leer una
        columna densa sin que parezca un volcado. */
-    .side-head { padding: 0 14px; letter-spacing: .1em }
-    .sl .side-body, .sr .side-body { padding-top: 4px; padding-bottom: 10px }
+    .region-head { padding: 0 14px; letter-spacing: .1em }
+    .sidebar .region-body, .auxiliarybar .region-body { padding-top: 4px; padding-bottom: 10px }
 
     /* el buscador, con aire alrededor y no pegado al título */
-    .sl .side-body > .bus { margin: 2px 12px 10px }
+    .sidebar .region-body > .bus { margin: 2px 12px 10px }
     .tree { margin-top: 2px }
     .trow { padding-right: 12px }
     .tadd-top { margin-top: 8px; padding-top: 2px }
@@ -1460,15 +1461,15 @@
     .panelprops .grouplbl { margin: 10px 0 5px; padding-top: 7px; border-top: 1px solid var(--line);
       color: var(--mut); letter-spacing: .09em }
     .panelprops > .grouplbl:first-child { margin-top: 2px; padding-top: 0; border-top: 0 }
-    .sr .panelprops .field { margin-bottom: 3px }
-    .sr .panelprops .field > label, .sr .panelprops .field > .field-label { padding-right: 2px }
+    .auxiliarybar .panelprops .field { margin-bottom: 3px }
+    .auxiliarybar .panelprops .field > label, .auxiliarybar .panelprops .field > .field-label { padding-right: 2px }
 
     /* La barra de estado y el header, con el mismo gutter que las columnas. */
     .statusbar { padding: 0 14px }
     .titlebar { padding: 0 14px }
-    .bottom > .logcard > h2 { padding: 0 14px }
-    .bottom > .logcard > pre { padding: 10px 14px 12px }
-    .stage { padding: 12px 14px 14px }
+    .panel > .logcard > h2 { padding: 0 14px }
+    .panel > .logcard > pre { padding: 10px 14px 12px }
+    .editor { padding: 12px 14px 14px }
 
   </style>
 </head>
@@ -1481,7 +1482,7 @@
        existían, y las dos cosas que más se miran —el mapa y la consola— arrancaban ocultas.
        ⚠ TODO se mueve conservando los `id`: el script direcciona por id 225 veces y por estructura 2,
        así que reubicar marcado no toca la lógica. Si algo de acá se reordena, esa sigue siendo la regla. -->
-  <div class="app">
+  <div class="workbench">
     <header class="titlebar">
       <div class="brand"><div class="logo">C</div>
         <div class="brandtxt"><b>Panel del harness</b><span>Prepará un caso · recorré el wizard · mirá qué pasó</span></div>
@@ -1535,15 +1536,15 @@
         <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
       </div>
     </header>
-    <div class="warnbar" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
+    <div class="banner" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
       datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
       <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
     </div>
 
     <div class="shell">
-      <aside class="side sl" id="sideLeft">
-        <div class="side-head">Comercios</div>
-        <fieldset class="cfg side-body"><legend class="sr-only">Comercio y sucursal</legend>
+      <aside class="sidebar" id="sideLeft">
+        <div class="region-head">Comercios</div>
+        <fieldset class="cfg region-body"><legend class="sr-only">Comercio y sucursal</legend>
           <p class="grouplbl">Comercio y sucursal</p><!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
            El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
            CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
@@ -1584,7 +1585,7 @@
       </aside>
       <div class="rsz rsz-l" id="rszL" title="arrastrá para ajustar"></div>
 
-      <main class="stage" id="stage">
+      <main class="editor" id="stage">
         <!-- ⚠ ESTO NO ES LA TARJETA DE ACTIVIDAD: son los VALORES A TIPEAR (el OTP, el documento) que
              el runner te va pasando durante la corrida. Vivía dentro de aquella tarjeta y se iba a ir con
              ella; es lo único de ahí que hacía falta. Flota sobre el mapa y sólo aparece cuando tiene algo. -->
@@ -1608,9 +1609,9 @@
       </main>
 
       <div class="rsz rsz-r" id="rszR" title="arrastrá para ajustar"></div>
-      <aside class="side sr" id="sideRight">
-        <div class="side-head">Configuración</div>
-        <fieldset class="cfg side-body"><legend class="sr-only">Configuración de la próxima corrida</legend>
+      <aside class="auxiliarybar" id="sideRight">
+        <div class="region-head">Configuración</div>
+        <fieldset class="cfg region-body"><legend class="sr-only">Configuración de la próxima corrida</legend>
           
           <!-- ══ SECCIONES PLEGABLES ══════════════════════════════════════════════════════════════════
          Medido el 2026-09-18: el sidebar tenía **1.097 px de contenido en 546 px visibles** —551 de
@@ -1792,7 +1793,7 @@
     </div>
 
     <div class="rsz rsz-b" id="rszB" title="arrastrá para ajustar"></div>
-    <section class="bottom" id="bottomPanel">
+    <section class="panel" id="bottomPanel">
       <section class="card logcard" id="logcard">
       
       <h2><b>▸</b>
@@ -2344,7 +2345,7 @@
             if (e.key === 'ContextMenu' || (e.key === 'Enter' && e.target === row)) {
               e.preventDefault();
               const r = row.getBoundingClientRect();
-              abrirMenuEntidad(r.left + 24, r.bottom, l, row);
+              abrirMenuEntidad(r.left + 24, r.panel, l, row);
             }
           };
           box.appendChild(row);
@@ -2499,7 +2500,7 @@
       itemMenu(m, { txt: 'Abrir el admin ↗', activo: false, off: !!$('btn-admin')?.disabled,
         motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      montarMenu(m, r.left, r.panel + 4);
     }
 
     function abrirMenuCanal(ancla) {
@@ -2509,7 +2510,7 @@
       const hint = $('canalhint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      montarMenu(m, r.left, r.panel + 4);
     }
 
     function abrirSalud(ancla) {
@@ -2518,7 +2519,7 @@
       const caja = $('healthDetails');
       if (caja) { caja.open = true; m.appendChild(caja); }
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.right, r.bottom + 4, true);
+      montarMenu(m, r.right, r.panel + 4, true);
     }
 
     /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
@@ -3726,7 +3727,7 @@
       const hint = $('stephint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
       const r = $('btnArranque').getBoundingClientRect();
-      montarMenu(m, r.left, r.bottom + 4);
+      montarMenu(m, r.left, r.panel + 4);
     };
 
     // ⚠ CICLA CLICKEANDO EL BOTÓN REAL, igual que los menús: `#padelay` sigue siendo quien fija
@@ -4043,9 +4044,9 @@
       // ── manijas ────────────────────────────────────────────────────────────────────────────────
       // El ancho queda en localStorage: es preferencia de ESTA máquina, no estado de la corrida.
       const ajustables = [
-        { id: 'rszL', varCss: '--w-left',   eje: 'x', signo: +1, min: 240, max: 560, llave: 'panel.wLeft' },
-        { id: 'rszR', varCss: '--w-right',  eje: 'x', signo: -1, min: 220, max: 520, llave: 'panel.wRight' },
-        { id: 'rszB', varCss: '--h-bottom', eje: 'y', signo: -1, min: 90,  max: 620, llave: 'panel.hBottom' },
+        { id: 'rszL', varCss: '--sidebar-w',   eje: 'x', signo: +1, min: 240, max: 560, llave: 'panel.wLeft' },
+        { id: 'rszR', varCss: '--auxiliarybar-w',  eje: 'x', signo: -1, min: 220, max: 520, llave: 'panel.wRight' },
+        { id: 'rszB', varCss: '--panel-h', eje: 'y', signo: -1, min: 90,  max: 620, llave: 'panel.hBottom' },
       ];
       for (const a of ajustables) {
         try { const v = localStorage.getItem(a.llave); if (v) raiz.style.setProperty(a.varCss, v); } catch { }
@@ -4146,7 +4147,7 @@
     // «Documento / cédula»— se recortan. El texto completo va al `title`: mismo criterio que las pistas,
     // y sincronizado desde el TEXTO para que no envejezca si alguien lo cambia.
     (function titulosDeEtiqueta() {
-      for (const l of document.querySelectorAll('.sr .panelprops .field > label, .sr .panelprops .field > .field-label')) {
+      for (const l of document.querySelectorAll('.auxiliarybar .panelprops .field > label, .auxiliarybar .panelprops .field > .field-label')) {
         const t = (l.textContent || '').trim();
         if (t && !l.title) l.title = t;
       }
@@ -4155,7 +4156,7 @@
 
     // La aclaración del campo de sólo-lectura no se pierde al ocultarla: pasa al tooltip de su fila.
     (function notaDeSoloLectura() {
-      for (const ro of document.querySelectorAll('.sr .panelprops .ro')) {
+      for (const ro of document.querySelectorAll('.auxiliarybar .panelprops .ro')) {
         const nota = [...ro.children].find((c) => !c.classList.contains('k') && !c.classList.contains('v') && c.tagName === 'SPAN');
         if (nota && !ro.title) ro.title = `${(ro.querySelector('.k')?.textContent || '').trim()} — ${nota.textContent.trim()}`;
       }

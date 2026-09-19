@@ -23,8 +23,8 @@ function resetWeights() { STABILITY.components.forEach((c, i) => (rows[i].weight
   <transition name="drawer">
     <aside v-if="open" class="drawer">
       <div class="backdrop" @click="emit('close')"></div>
-      <div class="panel">
-        <header class="panel-head">
+      <div class="drawer-sheet">
+        <header class="drawer-head">
           <div>
             <div class="eyebrow">Rock · Oscar Rincón · Detalle {{ STABILITY.week }}</div>
             <h2>Disponibilidad de flujos críticos — Semana 29-jun a 5-jul 2026</h2>
@@ -32,7 +32,7 @@ function resetWeights() { STABILITY.components.forEach((c, i) => (rows[i].weight
           <button class="close" @click="emit('close')">✕</button>
         </header>
 
-        <div class="panel-body">
+        <div class="drawer-body">
           <!-- Índice de estabilidad (compuesto, pesos editables) -->
           <section class="block">
             <div class="block-title">
@@ -169,7 +169,7 @@ function resetWeights() { STABILITY.components.forEach((c, i) => (rows[i].weight
 <style scoped>
 .drawer { position: fixed; inset: 0; z-index: 50; }
 .backdrop { position: absolute; inset: 0; background: rgba(15, 20, 35, 0.45); }
-.panel {
+.drawer-sheet {
   position: absolute;
   top: 0; right: 0; bottom: 0;
   width: min(760px, 96vw);
@@ -178,7 +178,7 @@ function resetWeights() { STABILITY.components.forEach((c, i) => (rows[i].weight
   display: flex;
   flex-direction: column;
 }
-.panel-head {
+.drawer-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -188,9 +188,9 @@ function resetWeights() { STABILITY.components.forEach((c, i) => (rows[i].weight
   background: var(--surface);
 }
 .eyebrow { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); }
-.panel-head h2 { font-size: 16px; margin: 4px 0 0; }
+.drawer-head h2 { font-size: 16px; margin: 4px 0 0; }
 .close { border: 0; background: transparent; font-size: 18px; cursor: pointer; color: var(--ink-soft); }
-.panel-body { overflow-y: auto; padding: 20px 22px 40px; }
+.drawer-body { overflow-y: auto; padding: 20px 22px 40px; }
 
 .block { margin-bottom: 26px; }
 .block h3 { font-size: 14px; margin: 0 0 4px; }
@@ -257,8 +257,8 @@ tr.nocount { opacity: 0.55; }
 .sources { display: flex; align-items: center; gap: 8px; }
 .src { font-size: 12px; color: var(--info); }
 
-.drawer-enter-active .panel, .drawer-leave-active .panel { transition: transform 0.25s ease; }
-.drawer-enter-from .panel, .drawer-leave-to .panel { transform: translateX(100%); }
+.drawer-enter-active .drawer-sheet, .drawer-leave-active .drawer-sheet { transition: transform 0.25s ease; }
+.drawer-enter-from .drawer-sheet, .drawer-leave-to .drawer-sheet { transform: translateX(100%); }
 .drawer-enter-active .backdrop, .drawer-leave-active .backdrop { transition: opacity 0.25s ease; }
 .drawer-enter-from .backdrop, .drawer-leave-to .backdrop { opacity: 0; }
 </style>

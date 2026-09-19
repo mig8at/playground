@@ -842,9 +842,9 @@ const server = createServer(async (req, res) => {
        `context`, `tablero` y `trazador` — `make estilo-check` compara los md5. `no-store` como el
        index: es una herramienta local, y una hoja cacheada mientras se ajusta un tema es una
        pérdida de tiempo garantizada. */
-    if (path === '/tema.css') {
-        const f = join(HERE, 'tema.css');
-        if (!existsSync(f)) return json(res, 500, { error: 'falta panel/tema.css' });
+    if (path === '/tema.css' || path === '/taller.css') {
+        const f = join(HERE, path.slice(1));
+        if (!existsSync(f)) return json(res, 500, { error: `falta panel${path}` });
         res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-store' });
         return res.end(readFileSync(f, 'utf8'));
     }

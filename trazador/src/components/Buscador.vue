@@ -63,7 +63,7 @@ input:focus, select:focus, button:focus-visible { outline:none; border-color:var
   box-shadow:0 0 0 3px var(--sel) }
 
 select, button { padding:8px 13px; border:1px solid var(--line); border-radius:var(--r);
-  background:var(--panel); color:var(--txt); cursor:pointer; transition:background .12s, border-color .12s }
+  background:var(--card); color:var(--txt); cursor:pointer; transition:background .12s, border-color .12s }
 select:hover, button:hover:not(:disabled) { background:var(--elev); border-color:var(--line-fuerte) }
 button { font-weight:500 }
 button:disabled { opacity:.45; cursor:default }

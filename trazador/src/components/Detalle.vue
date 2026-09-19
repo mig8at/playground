@@ -354,7 +354,7 @@ main { padding:18px 20px; min-width:0 }
 .crumb { color:var(--txt); font-size:13px; font-weight:600; margin-bottom:3px; word-break:break-word;
   letter-spacing:-.01em }
 .sub2 { color:var(--dim); font-size:13px; margin-bottom:12px }
-.regla { border-left:2px solid var(--line-fuerte); background:var(--panel); padding:10px 13px;
+.regla { border-left:2px solid var(--line-fuerte); background:var(--card); padding:10px 13px;
   border-radius:0 var(--r) var(--r) 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
   color:var(--info); font-size:12px; text-align:left }
@@ -423,7 +423,7 @@ tr.hit td { background:var(--sel) }
 tr.hit td:not(.ln) { font-weight:600 }
 
 .why { color:var(--fail); font-family:ui-monospace,Menlo,monospace; font-size:12px;
-  background:var(--panel); border-left:3px solid var(--fail); border-radius:0 var(--r) var(--r) 0;
+  background:var(--card); border-left:3px solid var(--fail); border-radius:0 var(--r) var(--r) 0;
   padding:9px 12px; margin:0 0 12px; white-space:pre-wrap; word-break:break-word }
 .log { background:var(--panel2); border-top:1px solid var(--line); overflow-x:auto;
   font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace }

@@ -134,6 +134,10 @@ async function copiar() {
   <div class="cols" :class="{ midiendo: redimensionando, cerrado }">
     <!-- El mapa NO lleva el ancho del sidebar: sólo si está abierto o no. Así se recalcula una vez, al
          abrir o cerrar, y no en cada píxel del arrastre. -->
+    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`. El mapa
+         no lleva la clase `.editor` a propósito: su regla propia ya dice todo lo que la compartida
+         diría, y lo único que agregaría es un `display:flex` que hoy no tiene. Un nombre que no
+         cambia nada es un nombre que alguien va a borrar sin saber qué se lleva. -->
     <Mapa :cerrado="cerrado" />
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
@@ -146,7 +150,7 @@ async function copiar() {
          @dblclick="anchoSidebar = cerrado ? SIDEBAR_BASE : 0" />
 
     <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
-    <Detalle v-show="!cerrado" class="panel" :style="{ width: `${Math.round(anchoSidebar)}px` }" />
+    <Detalle v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoSidebar)}px` }" />
   </div>
 </template>
 
@@ -159,14 +163,14 @@ async function copiar() {
 
    La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
 header { padding:12px 18px 14px; border-bottom:1px solid var(--line); flex:0 0 auto;
-  background:var(--panel) }
+  background:var(--card) }
 .fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px }
 /* ⚠ El título NO compite: con 18px en negrita era lo más pesado de la pantalla, y el título de una
    herramienta es lo que uno menos necesita leer. Manda la solicitud que se está mirando. */
 h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
 .ureq { color:var(--dim); font-size:13px; font-variant-numeric:tabular-nums }
 .copiar { margin-left:auto; padding:6px 12px; font-size:12px; border:1px solid var(--line);
-  border-radius:var(--r); background:var(--panel); color:var(--dim); cursor:pointer;
+  border-radius:var(--r); background:var(--card); color:var(--dim); cursor:pointer;
   transition:color .12s, background .12s, border-color .12s }
 .copiar:hover { color:var(--txt); background:var(--elev); border-color:var(--line-fuerte) }
 .copiar.ok { color:var(--ok); border-color:var(--ok) }
@@ -196,8 +200,8 @@ h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
 
 /* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
    leerse como algo que está encima y no como otra zona del mismo plano. */
-.panel { position:absolute; top:0; right:0; bottom:0; z-index:2;
-  background:var(--panel); border-left:1px solid var(--line);
+.auxiliarybar { position:absolute; top:0; right:0; bottom:0; z-index:2;
+  background:var(--card); border-left:1px solid var(--line);
   overflow-y:auto; scrollbar-gutter:stable }
 
 .cols.midiendo { cursor:col-resize; user-select:none }

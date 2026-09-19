@@ -16,6 +16,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./tema.css";
+@import "./taller.css";
 
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    ⚠ `--accent` no está acá, y no es un olvido: en el tema es una SUPERFICIE (#404040, con su propio
@@ -23,7 +24,6 @@
    texto #404040 sobre fondo #1a1a1a — ilegible, y sin fallar. Ese uso se renombró a `--info`. */
 :root {
   --bg: var(--background);
-  --panel: var(--card);
   --line: var(--border);
   --hueco: var(--background);   /* lo hundido dentro de una card: contadores, código, callouts */
   --fg: var(--foreground);
@@ -76,7 +76,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 header h1 { margin: 0; font-size: 20px; font-weight: 700; }
 header .sub { color: var(--mut); font-weight: 400; }
 .stats { display: flex; gap: 8px; margin: 10px 0 4px; }
-.pill { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 12px; color: var(--mut); }
+.pill { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 12px; color: var(--mut); }
 .pill.ctx { color: var(--ctx); } .pill.task { color: var(--task); }
 .hint { color: var(--mut); font-size: 12.5px; margin: 4px 0 14px; }
 
@@ -92,7 +92,7 @@ header .sub { color: var(--mut); font-weight: 400; }
 .buscar input::placeholder { color: var(--tenue); }
 .vec-chip { background: color-mix(in oklab, var(--info) 18%, var(--card)); border: 1px solid color-mix(in oklab, var(--info) 45%, var(--card)); color: var(--info); border-radius: 999px;
             padding: 3px 11px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
-.vec-chip.off { background: var(--panel); border-color: var(--line); color: var(--mut); }
+.vec-chip.off { background: var(--card); border-color: var(--line); color: var(--mut); }
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
 
@@ -111,7 +111,7 @@ header .sub { color: var(--mut); font-weight: 400; }
 .conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
 .cols { display: flex; gap: 18px; align-items: flex-start; }
-.tree { flex: 0 0 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px; max-height: 82vh; overflow: auto; }
+.tree { flex: 0 0 380px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px; max-height: 82vh; overflow: auto; }
 .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); padding: 8px 8px 4px; }
 .tasks-lbl { margin-top: 10px; border-top: 1px solid var(--line); }
 
@@ -134,7 +134,7 @@ header .sub { color: var(--mut); font-weight: 400; }
 .chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 14%, var(--card)); border: 1px solid color-mix(in oklab, var(--task) 38%, var(--card)); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
 .chip:hover { background: color-mix(in oklab, var(--task) 26%, var(--card)); }
 
-.detail { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; max-height: 82vh; overflow: auto; min-width: 0; }
+.detail { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; max-height: 82vh; overflow: auto; min-width: 0; }
 .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-head h2 { margin: 0; font-size: 18px; }
 .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }

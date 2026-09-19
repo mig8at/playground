@@ -9,7 +9,7 @@ export function savePreference(key, value) {
   catch { /* memoria disponible durante esta visita */ }
 }
 
-export function panelWidth(width, viewport) {
+export function drawerWidth(width, viewport) {
   const maximum = Math.max(0, Math.floor(viewport * .96));
   return Math.min(Math.max(Number.isFinite(width) ? width : 820, Math.min(340, maximum)), maximum);
 }

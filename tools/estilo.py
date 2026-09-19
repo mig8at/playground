@@ -30,6 +30,9 @@ import hashlib, math, pathlib, re, sys
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 TEMAS = ['context/src/tema.css', 'harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css']
+TALLERES = ['context/src/taller.css', 'harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css']
+REGIONES = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
+            'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 HOJAS = {
     'context':  ['context/src/styles.css'],
     'harness':  ['harness/panel/index.html'],
@@ -125,6 +128,10 @@ def css_de(ruta: pathlib.Path) -> str:
         t = '\n'.join(re.findall(r'<style[^>]*>(.*?)</style>', t, re.S))
     return re.sub(r'/\*.*?\*/', '', t, flags=re.S)
 
+def css_de_texto(t: str) -> str:
+    bloques = re.findall(r'<style[^>]*>(.*?)</style>', t, re.S)
+    return re.sub(r'/\*.*?\*/', '', '\n'.join(bloques) if bloques else t, flags=re.S)
+
 def declaraciones(cuerpo):
     return dict(re.findall(r'([a-z-]+)\s*:\s*([^;]+)', cuerpo))
 
@@ -133,6 +140,9 @@ def tabla_de(tool):
     tema = css_de(RAIZ / TEMAS[0])   # los cuatro son idénticos — el chequeo 1 es lo que lo garantiza
     tabla = {}
     for bloque in re.findall(r'\.dark\s*\{([^{}]*)\}', tema):
+        tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
+    # y las MEDIDAS, que viven en el otro compartido
+    for bloque in re.findall(r':root\s*\{([^{}]*)\}', css_de(RAIZ / TALLERES[0])):
         tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
     for ruta in HOJAS[tool]:
         for sel, cuerpo in re.findall(r'([^{}]+)\{([^{}]*)\}', css_de(RAIZ / ruta)):
@@ -145,17 +155,34 @@ def archivos_de(tool):
         return sorted(p for p in (RAIZ / ARBOLES[tool]).rglob('*') if p.suffix in ('.vue', '.css'))
     return [RAIZ / r for r in HOJAS[tool]]
 
+COMPARTIDOS = {'tema.css', 'taller.css'}
+
+def propios_de(tool):
+    """lo que escribió ESTA herramienta, sin los dos archivos compartidos.
+
+    ⚠ Preguntarle a una herramienta «¿usás .workbench?» leyendo el archivo que DEFINE `.workbench`
+    contesta que sí siempre. Un chequeo que se lee a sí mismo no mide nada — pasó en la primera
+    corrida: context y tablero aparecían usando las nueve regiones sin usar ninguna."""
+    return [p for p in archivos_de(tool) if p.name not in COMPARTIDOS]
+
 # ── chequeos ─────────────────────────────────────────────────────────────────────────────────────
 def main():
     fallo = False
-    print('\n  1 · ¿el tema es el MISMO en las cuatro?')
-    md5 = {}
-    for r in TEMAS:
-        p = RAIZ / r
-        if not p.exists(): print(f'      ✗ falta {r}'); fallo = True; continue
-        md5[r] = hashlib.md5(p.read_bytes()).hexdigest()
+    print('\n  1 · ¿los archivos COMPARTIDOS son los mismos en las cuatro?')
+    for etiqueta, lista in (('tema.css  (el color)', TEMAS), ('taller.css (la estructura)', TALLERES)):
+        m = {}
+        for r in lista:
+            q = RAIZ / r
+            if not q.exists(): print(f'      ✗ falta {r}'); fallo = True; continue
+            m[r] = hashlib.md5(q.read_bytes()).hexdigest()
+        if len(set(m.values())) == 1 and len(m) == len(lista):
+            print(f'      ✓ {etiqueta:26} las {len(m)}, md5 {list(m.values())[0][:12]}')
+        else:
+            print(f'      ✗ {etiqueta} NO coinciden — ya no hay uno, hay varios:')
+            for r, h in m.items(): print(f'         {h[:12]}  {r}')
+            fallo = True
+    md5 = {r: hashlib.md5((RAIZ / r).read_bytes()).hexdigest() for r in TEMAS if (RAIZ / r).exists()}
     if len(set(md5.values())) == 1 and len(md5) == len(TEMAS):
-        print(f'      ✓ las {len(md5)}, md5 {list(md5.values())[0][:12]}')
         tema = css_de(RAIZ / TEMAS[0])
         bloques = re.findall(r'(?::root|\.dark)\s*\{([^{}]*)\}', tema)
         for fam in ('--font-sans', '--font-mono'):
@@ -215,6 +242,38 @@ def main():
             fallo = True
         else:
             print(f'      ✓ {tool:9} {len(usadas)} usadas, todas declaradas')
+
+    print('\n  5 · el contrato de scroll: la app ocupa la ventana y scrollea cada región')
+    for tool in HOJAS:
+        css = '\n'.join(css_de(p) for p in propios_de(tool))
+        usa_wb = 'class="workbench"' in ''.join(p.read_text() for p in propios_de(tool))
+        alto = bool(re.search(r'html[^{]*body[^{]*\{[^}]*height:\s*100%', css))
+        oculto = any(re.search(r'overflow:\s*hidden', b) for sel, b in
+                     re.findall(r'([^{}]+)\{([^{}]*)\}', css) if re.search(r'(^|,)\s*body\s*(,|$)', sel))
+        cumple = alto and oculto
+        # ⚠ el atajo que el taller prohíbe: fingir el contrato con una altura en vh. El día que el
+        #    header crezca una línea, ese número miente y la columna se corta sin que nadie lo note.
+        fingido = [] if cumple else [(q.name, m) for q in propios_de(tool)
+                                     for m in re.findall(r'max-height:\s*\d+vh', css_de(q))]
+        if cumple:
+            print(f'      ✓ {tool:9} lo cumple{" (con la grilla `.workbench`)" if usa_wb else " (con su propio layout)"}')
+        elif usa_wb:
+            # declarar la grilla y no sostener el contrato SÍ es un error: el statusbar se va abajo
+            # del borde de la ventana y nadie lo ve.
+            print(f'      ✗ {tool:9} declara `.workbench` pero NO lo cumple · html+body 100%: {"sí" if alto else "NO"} · body overflow:hidden: {"sí" if oculto else "NO"}')
+            fallo = True
+        else:
+            print(f'      · {tool:9} página que scrollea — legítimo, es una vista de lectura')
+        for n, m in fingido:
+            print(f'          ▲ {n}: `{m}` finge el contrato de scroll')
+
+    print('\n  6 · qué región usa cada herramienta')
+    for tool in HOJAS:
+        texto = '\n'.join(p.read_text() for p in propios_de(tool))
+        usa = [r for r in REGIONES
+               if re.search(r'class="[^"]*(?<![-\w])' + re.escape(r) + r'(?![-\w])', texto)
+               or re.search(r'(?<![-\w])\.' + re.escape(r) + r'(?![-\w])', css_de_texto(texto))]
+        print(f'      {tool:9} {" · ".join(usa) if usa else "(ninguna todavía)"}')
 
     print()
     return 1 if fallo else 0

@@ -181,6 +181,37 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
    texto. `trazador` y `context` lo usaban como el azul de los enlaces: aliasarlo dejaba texto #404040
    sobre fondo #1a1a1a. Ese uso se llama `--info` ahora.
 
+### Y cómo se DIVIDE la pantalla: los nombres son los de VS Code
+
+Hermano de lo anterior, y el mismo mecanismo: **`taller.css`, idéntico en las cuatro**, al lado de
+`tema.css`. El tema dice de qué COLOR es cada cosa; el taller dice QUÉ COSA ES. Son dos ejes y por eso
+son dos archivos — un tema se reemplaza entero y el taller no, porque ahí hay decisiones (cuánto mide
+un sidebar, qué scrollea) que ningún export de tweakcn trae.
+
+Las regiones: `titlebar` · `banner` · `activitybar` · `sidebar` · `editor` · `panel` (la consola de
+abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de cada una `region-head` y
+`region-body`.
+
+- ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Es lo que separa un
+  vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor que no
+  tenerlo. Hoy el panel del harness usa las siete; el trazador, una (`auxiliarybar`); `context` y
+  `tablero` ninguna — son vistas de lectura y está bien así.
+- ⚠ **Y un nombre que no cambia nada es un nombre que alguien va a borrar.** Se probó etiquetar el
+  mapa del trazador como `.editor`: su regla propia ya decía todo lo que la compartida diría, y lo
+  único que sumaba era un `display:flex` que no tenía. Se sacó.
+- **El contrato de scroll**: `.workbench` ocupa la ventana y **cada región scrollea sola; la página
+  nunca scrollea**. Es opt-in, y `make estilo-check` lo verifica — incluido el atajo prohibido de
+  fingirlo con `max-height: 82vh`, que el día que el header crezca una línea miente.
+- El panel del harness es la **implementación de referencia**: el vocabulario se extrajo de ahí, no se
+  inventó. Ya tenía el grid, las medidas en tokens y hasta los nombres (`.titlebar`, `.statusbar`).
+  Se desvía en una cosa, declarada: mete sus tres columnas del medio en un `.shell` propio para poder
+  redimensionarlas.
+
+⚠ **Y la colisión que hubo que resolver primero, que es el mismo error de `--accent`:** en VS Code
+`panel` es **la consola de abajo**, y en las cuatro herramientas `--panel` era un **color** (la
+superficie de card) mientras `.panel` era un cajón. Tres significados para un nombre. Hoy el color es
+`--card` (que ya venía del tema), los cajones son `.drawer`, y `panel` significa una sola cosa.
+
 ### ⛔ La suite de PHPUnit de `legacy-backend` NO se corre entera. Nunca, en ningún ambiente
 
 **El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz medida:

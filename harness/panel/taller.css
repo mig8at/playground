@@ -1,0 +1,172 @@
+/* EL TALLER: cómo se divide la pantalla, con los nombres de VS Code.
+ *
+ * Hermano de `tema.css` y con la misma regla: es IDÉNTICO en las cuatro herramientas y `make
+ * estilo-check` compara los md5. Si se separan, el chequeo lo dice.
+ *
+ * `tema.css` dice de qué COLOR es cada cosa. Este dice QUÉ COSA ES. Son dos ejes distintos y por eso
+ * son dos archivos: un tema se reemplaza entero y esto no, porque acá hay decisiones del taller
+ * —cuánto mide un sidebar, qué scrollea— que ningún export trae.
+ *
+ * ── LAS REGIONES ────────────────────────────────────────────────────────────────────────────────
+ *
+ *   ┌───────────────────────────────────────────────┐
+ *   │ titlebar      el nombre y las acciones globales│
+ *   ├───────────────────────────────────────────────┤
+ *   │ banner        avisos que valen para TODO       │
+ *   ├────┬─────────┬──────────────────┬─────────────┤
+ *   │ a  │ sidebar │ editor           │ auxiliary   │
+ *   │ c  │         │ lo que viniste   │ bar         │
+ *   │ t  │ el      │ a mirar          │             │
+ *   │ i  │ árbol,  ├──────────────────┤ el detalle  │
+ *   │ v  │ la      │ panel            │ de lo       │
+ *   │ b  │ lista   │ la consola       │ elegido     │
+ *   ├────┴─────────┴──────────────────┴─────────────┤
+ *   │ statusbar     el target, el estado. NO scrollea│
+ *   └───────────────────────────────────────────────┘
+ *
+ * ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Esa es la regla, y es lo que
+ * separa un vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor
+ * que no tenerlo. Una herramienta de lectura puede ser `titlebar` + `editor` y ya está bien.
+ *
+ * ⚠ Y la región que NO ponés en el markup **no cuesta nada**: sus pistas son `auto`, así que colapsan
+ * a 0. Por eso el ancho va en el ELEMENTO (`.sidebar { width }`) y no en la pista del grid — con la
+ * medida en la pista, un sidebar ausente seguiría ocupando sus 300 px.
+ *
+ * ⚠ Cada elemento declara SU área por nombre, nunca su número de fila. El panel del harness aprendió
+ * esto a los golpes: tenía las filas por índice y un aviso en `display:none` —que no ocupa celda—
+ * corría todo un renglón hacia arriba; se veía como «la consola desapareció». Con áreas nombradas
+ * eso no puede pasar.
+ *
+ * ── EL CONTRATO DE SCROLL ───────────────────────────────────────────────────────────────────────
+ *
+ * `.workbench` ocupa la ventana y **cada región scrollea sola; la página nunca scrollea**. Es lo que
+ * hace que leer un log largo no te empuje el mapa fuera de la vista.
+ *
+ * Es OPT-IN: una herramienta que es una página de lectura usa los nombres sin `.workbench` y sigue
+ * scrolleando como una página. Lo que no se vale es fingirlo con `max-height: 82vh` — el día que el
+ * header crezca una línea, ese 82 miente y la columna se corta sin que nadie lo note.
+ */
+
+/* ── MEDIDAS ──────────────────────────────────────────────────────────────────────────────────── */
+:root {
+  --titlebar-h: 52px;
+  --statusbar-h: 26px;
+  --banner-h: auto;
+  --activitybar-w: 48px;
+  --sidebar-w: 300px;      /* navegación: una lista, un árbol */
+  --auxiliarybar-w: 340px; /* detalle: formularios, logs */
+  --panel-h: 240px;
+  --rsz: 4px;              /* el grosor de una manija de redimensionar */
+}
+
+/* ── EL GRID ──────────────────────────────────────────────────────────────────────────────────── */
+.workbench {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto auto;
+  grid-template-areas:
+    "titlebar    titlebar  titlebar  titlebar"
+    "banner      banner    banner    banner"
+    "activitybar sidebar   editor    auxiliarybar"
+    "activitybar sidebar   panel     auxiliarybar"
+    "statusbar   statusbar statusbar statusbar";
+}
+.workbench > .titlebar     { grid-area: titlebar }
+.workbench > .banner       { grid-area: banner }
+.workbench > .activitybar  { grid-area: activitybar }
+.workbench > .sidebar      { grid-area: sidebar }
+.workbench > .editor       { grid-area: editor }
+.workbench > .panel        { grid-area: panel }
+.workbench > .auxiliarybar { grid-area: auxiliarybar }
+.workbench > .statusbar    { grid-area: statusbar }
+
+/* ⚠ `min-height: 0` es LA trampa de grid y flex, y es la que rompe esto más seguido: sin ella el
+   tamaño mínimo de un hijo es su CONTENIDO, así que una región con un log largo estira el grid en vez
+   de scrollear — y el statusbar se va abajo del borde de la ventana. Va en los dos ejes. */
+.workbench > * { min-height: 0; min-width: 0 }
+
+/* ⚠ Las MEDIDAS cuelgan del grid compartido, no del elemento suelto. Es lo que hace que una región
+   que no ponés en el markup no cueste nada —su pista es `auto`, colapsa a 0—, y a la vez deja en paz
+   a la herramienta que arma su propio contenedor: el panel del harness mete sus tres columnas dentro
+   de un `.shell` con pistas propias, y abajo de 1080px las apila. Con la medida suelta en el
+   elemento, ese apilado quedaba con el sidebar secundario de 340 px de ancho y 0 de alto. */
+.workbench > .titlebar     { height: var(--titlebar-h) }
+.workbench > .statusbar    { height: var(--statusbar-h) }
+.workbench > .activitybar  { width: var(--activitybar-w) }
+.workbench > .sidebar      { width: var(--sidebar-w) }
+.workbench > .auxiliarybar { width: var(--auxiliarybar-w) }
+.workbench > .panel        { height: var(--panel-h) }
+
+/* ── LAS REGIONES ─────────────────────────────────────────────────────────────────────────────── */
+.titlebar {
+  flex: none;
+  display: flex; align-items: center; gap: 16px; padding: 0 12px;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+.banner {
+  display: flex; align-items: center; gap: 10px; padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.activitybar {
+  flex: none;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0;
+  background: var(--sidebar); border-right: 1px solid var(--sidebar-border);
+  overflow: hidden;
+}
+.sidebar {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--sidebar); color: var(--sidebar-foreground);
+  border-right: 1px solid var(--sidebar-border);
+}
+.auxiliarybar {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--sidebar); color: var(--sidebar-foreground);
+  border-left: 1px solid var(--sidebar-border);
+}
+.editor {
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--background);
+}
+.panel {
+  flex: none;
+  display: flex; flex-direction: column; min-height: 0;
+  background: var(--card); border-top: 1px solid var(--border);
+}
+.statusbar {
+  flex: none;
+  display: flex; align-items: center; gap: 14px; padding: 0 12px;
+  font-size: 11.5px;
+  /* ⚠ NO `--muted-foreground`: en un tema neutro ese es el escalón MÁS BAJO legible (medido: 4,13:1
+     contra la card) y el statusbar dice el target y el estado, que se leen. La rampa cuelga del
+     foreground, igual que en la hoja de cada herramienta. */
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  background: var(--card); border-top: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* ── LO QUE VA ADENTRO DE UNA REGIÓN ──────────────────────────────────────────────────────────── */
+/* Dos nombres, y sirven en CUALQUIER región — `region-head` y no `sidebar-header`/`panel-header`/…:
+   cuatro nombres paralelos para lo mismo es justo lo que este archivo viene a terminar.
+
+   ⚠ Lo que scrollea es el CUERPO, no la región. Si scrolleara la región, su `region-head` se iría
+   con el contenido y perderías de vista qué estás mirando. */
+.region-head {
+  flex: none; display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted-foreground); border-bottom: 1px solid var(--border);
+}
+.region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
+
+/* ── LA MANIJA no está acá, y es a propósito ──────────────────────────────────────────────────── */
+/* Una manija no es una región: pertenece a lo que redimensiona, y cada herramienta la ubica distinto.
+   El panel del harness tiene TRES, como pistas de su propio grid; el trazador tiene una, en capa
+   encima del mapa porque ahí el mapa no se deforma. Una regla compartida no las abarca, y el intento
+   ya chocó: el panel dibuja su línea con `::after` y la versión compartida con `::before` — las dos
+   hubieran pintado, o sea dos líneas. Lo único compartido es el GROSOR (`--rsz`), que sí es una
+   decisión de taller: una línea de 1px se ve pero no se agarra, así que la zona de agarre es más
+   ancha que la línea. */

@@ -1856,7 +1856,7 @@ onMounted(async () => {
 .mv-h { margin: 0 0 7px; font-size: 11.5px; color: var(--mut) }
 .mv-h b { color: var(--txt); font-weight: 600 }
 .mv-opts { display: flex; flex-wrap: wrap; gap: 5px }
-.mv-o { border: 1px solid var(--line2); background: var(--panel); color: var(--txt); font: inherit;
+.mv-o { border: 1px solid var(--line2); background: var(--card); color: var(--txt); font: inherit;
   font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 7px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 5px; transition: .12s }
 .mv-o:hover:not(:disabled) { border-color: color-mix(in srgb, var(--acc) 55%, transparent) }
@@ -1871,7 +1871,7 @@ onMounted(async () => {
 /* Tildada = se ve, que es el estado normal: por eso la tildada va en tono fuerte y la destildada se
    apaga. Al revés (resaltar la que está oculta) el tablero se leería como si el trabajo estuviera
    apagado. */
-.fpill { border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--panel);
+.fpill { border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--card);
   color: var(--txt); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px;
   border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
   transition: .12s }
@@ -1894,7 +1894,7 @@ onMounted(async () => {
   border: 1px solid var(--line); background: var(--panel2); border-radius: 999px;
   padding: 3px 6px 3px 10px; transition: .12s }
 .fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
-  background: var(--panel) }
+  background: var(--card) }
 .fbusca .lupa { color: var(--mut); font-size: 13px; line-height: 1 }
 .fbusca input { border: 0; background: transparent; color: var(--txt); font: inherit; font-size: 12px;
   width: 190px; outline: none; padding: 1px 0 }
@@ -1934,7 +1934,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 12px;
   border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
-.stat { background: var(--panel); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
+.stat { background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
 .stat:last-child { border-right: 0 }
 .stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
 .stat .v { font-size: 22px; font-weight: 600; margin: 3px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
@@ -1942,7 +1942,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .stat.alert .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 16px }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 16px }
 .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700;
   display: flex; align-items: center; gap: 6px }
 /* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
@@ -2076,7 +2076,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   background: var(--panel2) }
 .qa-head { font-size: 12.5px; color: var(--mut); margin: 0 0 11px }
 .qa-head b { color: var(--txt); font-weight: 600 }
-.qa-box textarea { width: 100%; box-sizing: border-box; background: var(--panel); color: var(--txt);
+.qa-box textarea { width: 100%; box-sizing: border-box; background: var(--card); color: var(--txt);
   border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 12.5px;
   line-height: 1.5; resize: vertical }
 .qa-acts { display: flex; gap: 8px; margin-top: 11px }
@@ -2172,7 +2172,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
                  background: var(--line) }
 .entry:first-of-type::before { top: 18px }
 .entry:last-of-type::before { bottom: auto; height: 18px }
-.entry .icon { position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--panel) }
+.entry .icon { position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--card) }
 /* El párrafo nace CORTADO a 3 líneas: las notas son largas a propósito (traen el porqué completo) y
    enteras convierten la bitácora en un muro que se deja de escanear. El detalle está a un clic. */
 .entry p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
@@ -2358,7 +2358,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .retoma-contextos { margin-bottom: 16px }
 .pending-document :deep(input[type=checkbox]) { accent-color: var(--acc); margin-right: 7px }
 .jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
-.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel) }
+.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--card) }
 .document-history { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; scroll-margin-top: 12px }
 .document-history > summary { cursor: pointer; font-weight: 600; font-size: 13px }
 .document-history > summary span { font-weight: 400; color: var(--mut); font-size: 11px }

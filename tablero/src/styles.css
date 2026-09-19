@@ -17,6 +17,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./tema.css";
+@import "./taller.css";
 
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    Los nombres que ya usan los componentes, apuntando a los tokens del tema.
@@ -29,7 +30,6 @@
    barrido de usadas-contra-declaradas sobre `src/`. Declararlas es lo que la vuelve a encender. */
 :root {
   --bg: var(--background);
-  --panel: var(--card);
   --panel2: var(--muted);         /* superficie que se levanta un escalón */
   --surface: var(--card);         /* el nombre que usa scorecards/ para lo mismo que --panel */
   --head: var(--secondary);       /* encabezados de tabla y chips */

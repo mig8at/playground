@@ -21,6 +21,7 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./tema.css";
+@import "./taller.css";
 
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    Los nombres que ya usan los componentes, apuntando a los tokens del tema. Está acá y no repartido
@@ -34,7 +35,6 @@
 :root {
   /* superficies, de atrás hacia adelante */
   --bg: var(--background);
-  --panel: var(--card);
   --panel2: var(--input);     /* la superficie de los controles */
   --elev: var(--popover);
   --line: var(--border);
