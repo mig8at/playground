@@ -33,10 +33,29 @@ reemplazarse. La lista es mejor para **«¿qué pasó en cada etapa?»** —hora
 mapa es el único que contesta **«¿por dónde fue, dónde se cortó y cuánto faltaba?»**. Si con el tiempo una
 gana, la otra se va sola; decidirlo antes de mirarlas es tirar algo que funciona.
 
-⚠ **El mapa NO es una copia del mapa del harness, y copiarlo hubiera sido el error.** Aquél dibuja las 26
-**pantallas** que un comercio PUEDE recorrer; éste, las 9 **etapas de negocio** que UNA solicitud recorrió
-de verdad. Lo único compartido, a propósito, es el vocabulario de ramales (`creditopx` · `agregador` ·
-`redirect`), que ya estaba compartido en `ramales.json`.
+⚠ **EL CONTENIDO NO ES EL DEL HARNESS; LA FORMA SÍ, Y ESO FUE LO CORRECTO.** Aquél dibuja las 26
+**pantallas** que un comercio PUEDE recorrer; éste, las 9 **etapas de negocio** que UNA solicitud
+recorrió. Pero el layout —tronco horizontal que se abre en un carril por ramal— se copió del suyo, y la
+primera versión de este mapa (una sola columna vertical) estaba peor justamente por no hacerlo: mencionaba
+el carril en un pie de página en vez de dibujarlo, o sea perdía la única dimensión que el trazador sabe y
+la lista no puede mostrar. *(Acá decía «copiarlo hubiera sido el error». Era confundir el contenido con el
+estilo: son cosas distintas y sólo una de las dos no se comparte.)*
+
+Lo que se tomó del harness, punto por punto: el tronco común que se bifurca **donde de verdad se decide**
+(acá, `seleccion`: antes no existe el ramal), un carril por variante, el nodo **hueco = condicional /
+sólido = siempre ocurre**, y el carril que no aplica **atenuado en vez de ausente**. El vocabulario de
+ramales ya estaba compartido en `ramales.json`.
+
+⚠ **Lo que hubo que cambiar, y es la diferencia real entre las dos herramientas: EL COLOR YA ESTABA
+OCUPADO.** En el harness el color dice *qué carril* (verde credit, ámbar renting…); acá tiene que decir
+*cómo salió* (verde ok, rojo falló, gris no pasó). No se puede usar el mismo canal para las dos cosas, así
+que se separó: **la arista lleva el color del carril y el nodo lleva el del estado.**
+
+⚠⚠ **Y EL ESTADO SE PINTA SÓLO EN EL CARRIL QUE SE RECORRIÓ.** El `status` y el `detail` de una etapa
+salen de ESTA traza, que fue por UN ramal: pintarlos en los otros afirma sobre un camino que no ocurrió.
+Se vio corriéndolo — `biometria` aparecía en el carril `creditopx` con «no aplica a ramal redirect», que
+en creditopx es falso. Los carriles inactivos muestran la FORMA y nada más: son contexto, no
+diagnóstico.
 
 Tres reglas si lo tocás, y las tres salieron de correrlo contra trazas reales:
 

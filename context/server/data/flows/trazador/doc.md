@@ -133,10 +133,15 @@ invita a armar una línea de tiempo con lo que no es una.
 fue, dónde se cortó y cuánto faltaba?», que una lista no puede: no muestra que había otros carriles, ni
 cuánto quedaba después del corte, ni el salto de tiempo como distancia.
 
-⚠ **El mapa del trazador NO es el del harness**, y copiarlo hubiera sido el error: aquél dibuja las 26
-**pantallas** que un comercio PUEDE recorrer; éste, las 9 **etapas de negocio** que UNA solicitud
-recorrió de verdad. Lo único compartido a propósito es el vocabulario de ramales, que ya estaba
-compartido en `ramales.json` — y que desde el 2026-09-18 el `-chequeo` verifica en vez de suponer.
+⚠ **El CONTENIDO del mapa no es el del harness, pero la FORMA sí**: aquél dibuja las 26 **pantallas**
+que un comercio PUEDE recorrer y éste las 9 **etapas de negocio** que UNA solicitud recorrió, y sin
+embargo el layout —tronco horizontal que se abre en un carril por ramal, nodo hueco si es condicional,
+carril que no aplica atenuado en vez de ausente— se tomó del suyo. La diferencia que sí obligó a
+cambiar algo: **el color ya estaba ocupado**. Allá dice qué carril; acá tiene que decir cómo salió, así
+que la arista lleva el carril y el nodo el estado. Y el estado se pinta **sólo en el carril recorrido**:
+el `status` de una etapa sale de ESTA traza, que fue por un ramal, y mostrarlo en los otros afirma sobre
+un camino que no ocurrió. El vocabulario de ramales ya estaba compartido en `ramales.json` — y desde el
+2026-09-18 el `-chequeo` lo verifica en vez de suponerlo.
 
 **La corrida se puede pegar en una tarea sin reescribirla:** `MD=1` en `-ureq`, `-buscar` y `-sql`
 emite la anotación que consume el tablero, con la fecha real, la evidencia y el comando adentro. El

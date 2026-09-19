@@ -35,61 +35,107 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
   'sin-evidencia':'var(--unknown)', 'sin-registro':'var(--skip)', 'no-aplica':'var(--skip)',
   condicional:'var(--skip)', pendiente:'var(--skip)' }
 
-const ANCHO = 210, ALTO = 34, X = 96, BASE = 30   // el nodo, y la separación mínima entre dos etapas
+const RADIO = 9, PASO = 150, CARRIL = 92, Y0 = 46
 
-// El detalle entra en 210px a 11px de system-ui: ~34 caracteres. Cortar en 30 a secas partía palabras
-// («ramal credifami») y perdía el final de frases que sí entraban. Se corta en el último espacio.
-const corto = (txt) => {
-  const s = String(txt || '')
-  if (s.length <= 34) return s
-  const c = s.slice(0, 34)
-  const i = c.lastIndexOf(' ')
-  return (i > 20 ? c.slice(0, i) : c) + '…'
+/** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
+ *  a secas partía palabras («ramal credifami») y perdía el final de frases que sí entraban. */
+const corto = (txt, tope = 34) => {
+      const s = String(txt || '')
+      if (s.length <= tope) return s
+      const c = s.slice(0, tope)
+      const i = c.lastIndexOf(' ')
+      return (i > tope * 0.6 ? c.slice(0, i) : c) + '…'
 }
 
 const aMin = (hhmmss) => {
-  if (!hhmmss) return null
-  const [h, m, s] = String(hhmmss).split(':').map(Number)
-  return h * 60 + m + (s || 0) / 60
+      if (!hhmmss) return null
+      const [h, m, s] = String(hhmmss).split(':').map(Number)
+      return h * 60 + m + (s || 0) / 60
 }
 
-// EL LARGO DE LA ARISTA NO ES PROPORCIONAL AL TIEMPO, y tiene que no serlo: una solicitud retomada al
-// día siguiente tiene un salto de 900 minutos y con escala lineal el mapa mediría diez pantallas de
-// alto, que es peor que no dibujarlo. Va por logaritmo y con tope, así que la diferencia entre 2 y 40
-// minutos se ve —que es la que importa— y la de 40 a 900 se satura, con el número al lado para el que
-// quiera el dato exacto.
-const largoDelSalto = (min) => (min === null || min < 1 ? 0 : Math.min(60, Math.round(18 * Math.log10(1 + min))))
+/**
+ * EL LARGO DE LA ARISTA NO ES PROPORCIONAL AL TIEMPO, y tiene que no serlo: una solicitud retomada al
+ * día siguiente tiene un salto de 900 minutos y con escala lineal el mapa mediría diez pantallas. Va
+ * por logaritmo y con tope, así que la diferencia entre 2 y 40 minutos se ve —que es la que importa— y
+ * la de 40 a 900 se satura, con el número al lado para el que quiera el dato exacto.
+ */
+const largoDelSalto = (min) => (min === null || min < 1 ? 0 : Math.min(90, Math.round(26 * Math.log10(1 + min))))
 
-const nodos = computed(() => {
-  const es = t.etapas
-  if (!es.length) return []
-  const out = []
-  let y = 26, previa = null
-  for (const e of es) {
-    const ahora = aMin(e.vivo?.at)
-    let saltoMin = null
-    if (ahora !== null && previa !== null && ahora - previa >= 1) saltoMin = Math.round(ahora - previa)
-    if (ahora !== null) previa = ahora
-    const extra = largoDelSalto(saltoMin)
-    y += (out.length ? BASE + extra : 0)
-    out.push({
-      ...e, y, saltoMin, extra,
-      // Los subs se dibujan como puntos a la derecha: es el grano que hace que «se rompió en listado»
-      // pase a «se rompió consultando ESTA entidad» sin abrir nada.
-      subs: (e.vivo?.subs || []).slice(0, 7),
-      subsDe: (e.vivo?.subs || []).length,
-      roto: t.traza?.brokeAt === e.id,
-    })
-    y += ALTO
-  }
-  return out
+/** El estado de cada etapa, por id, salga o no en el recorrido de este ramal. */
+const porEtapa = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
+
+/**
+ * DÓNDE SE ABRE EL MAPA. El tronco llega hasta `seleccion` y ahí se bifurca, y no es una elección
+ * estética: **el ramal SALE del `response_type` del lender ya sellado en la solicitud**, así que antes
+ * de que el cliente elija no existe. Bifurcar más temprano dibujaría una decisión que todavía no se
+ * tomó; más tarde, escondería la única parte donde los caminos de verdad difieren.
+ */
+const CORTE = 'seleccion'
+
+const tronco = computed(() => {
+      const es = t.etapas
+      const i = es.findIndex((e) => e.id === CORTE)
+      return i < 0 ? es : es.slice(0, i + 1)
 })
 
-const alto = computed(() => (nodos.value.length ? nodos.value[nodos.value.length - 1].y + ALTO + 26 : 200))
+/** Las etapas de un ramal DESPUÉS del corte, en el orden del flujo. `obligatorio:false` = condicional. */
+function pasosDeRamal(r) {
+      const iCorte = t.etapas.findIndex((e) => e.id === CORTE)
+      const orden = Object.fromEntries(t.etapas.map((e, i) => [e.id, i]))
+      return (r.pasos || [])
+            .filter((p) => (orden[p.id] ?? -1) > iCorte)
+            .sort((a, b) => (orden[a.id] ?? 0) - (orden[b.id] ?? 0))
+            .map((p) => ({ ...p, etapa: porEtapa.value[p.id] }))
+}
 
-// Qué etapas NO ocurren en el ramal que esta solicitud tomó. Sale del mapa declarado, no de la traza:
-// es una afirmación sobre el flujo, no sobre este caso.
-const ramal = computed(() => (t.mapa?.ramales || []).find((r) => r.id === t.traza?.ramal) || null)
+/** Un color por carril, estable por posición: el del harness, que ya se aprendió leyendo su mapa. */
+const COLOR_CARRIL = ['#3fb950', '#d29922', '#f0883e', '#58a6ff', '#a371f7']
+
+const carriles = computed(() => {
+      const rs = t.mapa?.ramales || []
+      return rs.map((r, i) => ({
+            id: r.id,
+            label: r.label || r.id,
+            color: COLOR_CARRIL[i % COLOR_CARRIL.length],
+            activo: t.traza?.ramal === r.id,
+            pasos: pasosDeRamal(r),
+      }))
+})
+
+/** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
+const nodosTronco = computed(() => {
+      let x = 40, previa = null
+      return tronco.value.map((e, i) => {
+            const ahora = aMin(e.vivo?.at)
+            let saltoMin = null
+            if (ahora !== null && previa !== null && ahora - previa >= 1) saltoMin = Math.round(ahora - previa)
+            if (ahora !== null) previa = ahora
+            if (i) x += PASO + largoDelSalto(saltoMin)
+            return { ...e, x, y: Y0, saltoMin, roto: t.traza?.brokeAt === e.id }
+      })
+})
+
+const xCorte = computed(() => (nodosTronco.value.at(-1)?.x ?? 40))
+
+/** Cada carril arranca una columna después del corte y no vuelve nunca hacia atrás. */
+const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
+      ...c,
+      y: Y0 + (ci + 1) * CARRIL,
+      nodos: c.pasos.map((p, i) => ({
+            id: p.id,
+            etapa: p.etapa,
+            condicional: p.obligatorio === false,
+            x: xCorte.value + PASO * (i + 1),
+            y: Y0 + (ci + 1) * CARRIL,
+            roto: t.traza?.brokeAt === p.id,
+      })),
+})))
+
+const ancho = computed(() => {
+      const maxCarril = Math.max(0, ...nodosPorCarril.value.map((c) => c.nodos.at(-1)?.x ?? 0))
+      return Math.max(xCorte.value, maxCarril) + 180
+})
+const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL)
 
 // ── LA CÁMARA ────────────────────────────────────────────────────────────────────────────────────
 const cam = ref({ x: 0, y: 0, k: 1, w: 0, h: 0 })
@@ -101,15 +147,17 @@ function encuadrar() {
   if (!el) return
   const w = el.clientWidth, h = el.clientHeight
   if (!w || !h) return                       // antes del primer layout: un scale(NaN) borra el dibujo
-  const k = Math.min(1.1, (h - 20) / alto.value)
-  cam.value = { ...cam.value, w, h, k, x: (w - (X + ANCHO + 150) * k) / 2, y: 10 }
+  // Encuadra por el eje que APRIETA: un mapa ancho con pocos carriles lo limita el ancho, y uno con
+  // muchos carriles, el alto. Mirar uno solo deja la mitad del dibujo afuera.
+  const k = Math.min(1.05, (h - 30) / alto.value, (w - 30) / ancho.value)
+  cam.value = { ...cam.value, w, h, k, x: 14, y: Math.max(8, (h - alto.value * k) / 2) }
 }
 onMounted(() => { encuadrar(); new ResizeObserver(encuadrar).observe(lienzo.value) })
 // ⚠ LA CLAVE ES UN STRING: con `() => [ureq, largo]` el getter devuelve un ARRAY NUEVO en cada
 // evaluación y Vue compara por referencia, así que el watcher se dispara en cada re-render en vez de
 // cuando cambió la traza. (No era la causa del zoom muerto —esa está abajo, en el CSS— pero re-encuadrar
 // de más es igual de falso.)
-watch(() => `${t.traza?.ureq}:${nodos.value.length}`, encuadrar)
+watch(() => `${t.traza?.ureq}:${nodosTronco.value.length}:${carriles.value.length}`, encuadrar)
 
 function rueda(ev) {
   ev.preventDefault()
@@ -132,55 +180,82 @@ function abajo(ev) {
 <template>
   <div class="mapa" ref="lienzo" @wheel="rueda" @pointerdown.self="abajo" @dblclick="encuadrar"
        :class="{ move: arrastrando }">
-    <div v-if="!nodos.length" class="vacio">el mapa se dibuja al cargar una solicitud</div>
+    <div v-if="!nodosTronco.length" class="vacio">el mapa se dibuja al cargar una solicitud</div>
 
     <svg v-else :width="cam.w" :height="cam.h">
       <g :transform="`translate(${cam.x},${cam.y}) scale(${cam.k})`">
-        <!-- LAS ARISTAS primero, para que los nodos queden encima -->
-        <g v-for="(n, i) in nodos.slice(1)" :key="'a'+n.id">
-          <line :x1="X - 30" :y1="nodos[i].y + ALTO" :x2="X - 30" :y2="n.y"
-                :stroke="n.estado === 'pendiente' || n.estado === 'no-aplica' ? 'var(--line)' : COLOR[nodos[i].estado]"
-                stroke-width="2" :stroke-dasharray="n.estado === 'no-aplica' ? '3 4' : null" />
-          <!-- El salto SÓLO cuando lo hay: un «+0m» en cada arista es ruido que tapa los que importan -->
-          <text v-if="n.saltoMin" :x="X - 24" :y="nodos[i].y + ALTO + n.extra / 2 + BASE / 2 + 3"
-                class="salto">+{{ n.saltoMin >= 60 ? Math.floor(n.saltoMin/60)+'h '+(n.saltoMin%60)+'m' : n.saltoMin+'m' }}</text>
+        <!-- ── EL TRONCO: lo que ocurre antes de que exista un ramal ── -->
+        <g v-for="(n, i) in nodosTronco.slice(1)" :key="'ta'+n.id">
+          <line :x1="nodosTronco[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
+                :stroke="n.estado === 'no-aplica' ? 'var(--line)' : COLOR[nodosTronco[i].estado]"
+                :stroke-dasharray="n.estado === 'no-aplica' ? '4 5' : null" />
+          <!-- el salto SÓLO cuando lo hay: un «+0m» en cada arista tapa a los que importan -->
+          <text v-if="n.saltoMin" :x="(nodosTronco[i].x + n.x) / 2" :y="Y0 - 12" class="salto">
+            +{{ n.saltoMin >= 60 ? Math.floor(n.saltoMin/60)+'h '+(n.saltoMin%60)+'m' : n.saltoMin+'m' }}
+          </text>
         </g>
 
-        <g v-for="n in nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
+        <!-- ── LAS CURVAS DE BIFURCACIÓN: cortas, porque salen DEL corte y no del principio ── -->
+        <path v-for="c in nodosPorCarril" :key="'c'+c.id" class="arista"
+              :d="`M ${xCorte} ${Y0} C ${xCorte + PASO * 0.5} ${Y0}, ${xCorte + PASO * 0.5} ${c.y}, ${xCorte + PASO} ${c.y}`"
+              fill="none" :stroke="c.activo ? c.color : 'var(--line)'" :opacity="c.activo ? 1 : 0.45" />
+
+        <!-- ── LOS CARRILES ── -->
+        <g v-for="c in nodosPorCarril" :key="c.id" :class="{ apagado: !c.activo }">
+          <line v-if="c.nodos.length > 1" :x1="c.nodos[0].x" :y1="c.y"
+                :x2="c.nodos.at(-1).x" :y2="c.y" class="arista"
+                :stroke="c.activo ? c.color : 'var(--line)'" />
+          <text :x="xCorte + PASO" :y="c.y - 22" class="clbl" :fill="c.activo ? c.color : 'var(--dim)'">
+            {{ c.id }}<tspan v-if="c.activo" class="aqui"> ← por acá fue</tspan>
+          </text>
+          <!-- ⚠ UN CARRIL SIN PASOS NO ES UN ERROR DE DIBUJO: es el dato. `redirect` no tiene ninguna
+               etapa después de elegir porque el desenlace ocurre AFUERA, y verlo cortado ahí lo dice
+               mejor que cualquier nota al pie. -->
+          <text v-if="!c.nodos.length" :x="xCorte + PASO" :y="c.y + 5" class="afuera">
+            — sin etapas propias: el desenlace ocurre afuera
+          </text>
+
+          <g v-for="n in c.nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id }"
+             @click="t.etapaSel = n.id">
+            <circle v-if="n.roto" :cx="n.x" :cy="n.y" r="17" fill="none" stroke="var(--fail)"
+                    stroke-width="2" opacity=".6" />
+            <!-- hueco = CONDICIONAL (puede saltearse) · sólido = siempre ocurre en este ramal. Es la
+                 convención del mapa del harness, y acá vale igual: dibujar todo sólido muestra el peor
+                 caso como si fuera el único. -->
+            <!-- ⚠ EL ESTADO ES DEL CARRIL QUE SE RECORRIÓ, Y SÓLO DE ÉSE. El `estado` y el `detail`
+                 de una etapa salen de ESTA traza, que fue por UN ramal: pintarlos en los otros
+                 carriles afirma sobre un camino que no se recorrió. Se vio corriéndolo — `biometria`
+                 aparecía en el carril `creditopx` con «no aplica a ramal redirect», que en creditopx
+                 es falso. Los carriles inactivos muestran la FORMA (qué etapas tiene y cuáles son
+                 condicionales) y nada más: es contexto, no diagnóstico. -->
+            <circle :cx="n.x" :cy="n.y" :r="n.condicional ? 8 : RADIO"
+                    :fill="n.condicional ? 'var(--panel2)' : (c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : 'var(--skip)')"
+                    :stroke="c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : 'var(--skip)'"
+                    :stroke-width="n.condicional ? 3 : 0" />
+            <text v-if="!n.condicional && c.activo" :x="n.x" :y="n.y + 5" class="glifo">{{ GLIFO[n.etapa?.estado] }}</text>
+            <text :x="n.x" :y="n.y + 28" class="nlbl">{{ n.id }}</text>
+            <text v-if="c.activo" :x="n.x" :y="n.y + 41" class="ndet">{{ corto(n.etapa?.vivo?.detail || n.etapa?.label, 22) }}</text>
+          </g>
+        </g>
+
+        <!-- los nodos del tronco van AL FINAL para quedar encima de las curvas -->
+        <g v-for="n in nodosTronco" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
            @click="t.etapaSel = n.id">
-          <!-- DÓNDE SE CORTÓ. Un halo solo NO alcanza, y se vio corriéndolo: la vista abre sola la etapa
-               que rompió (`indiceInteresante`), así que el halo cae exactamente encima del borde de
-               selección y los dos resaltados se leen como uno. Por eso además va ROTULADO — «se cortó
-               acá» no se confunde con «esto es lo que estás mirando», que es otra cosa. -->
           <g v-if="n.roto">
-            <rect :x="X - 6" :y="n.y - 6" :width="ANCHO + 12" :height="ALTO + 12" rx="10"
-                  fill="none" stroke="var(--fail)" stroke-width="2" opacity=".6" />
-            <rect :x="X + ANCHO + 14" :y="n.y + 7" width="86" height="20" rx="5" fill="var(--fail)" opacity=".16" />
-            <text :x="X + ANCHO + 20" :y="n.y + 21" class="corte">se cortó acá</text>
+            <circle :cx="n.x" :cy="Y0" r="17" fill="none" stroke="var(--fail)" stroke-width="2" opacity=".6" />
+            <text :x="n.x" :y="Y0 - 24" class="corte">se cortó acá</text>
           </g>
-          <circle :cx="X - 30" :cy="n.y + ALTO / 2" r="9" :fill="'var(--bg)'" :stroke="COLOR[n.estado]" stroke-width="2" />
-          <text :x="X - 30" :y="n.y + ALTO / 2 + 4" class="glifo" :fill="COLOR[n.estado]">{{ GLIFO[n.estado] }}</text>
-
-          <rect :x="X" :y="n.y" :width="ANCHO" :height="ALTO" rx="7" class="caja" :stroke="COLOR[n.estado]" />
-          <text :x="X + 11" :y="n.y + 15" class="lab">{{ n.id }}</text>
-          <text :x="X + 11" :y="n.y + 27" class="det">{{ corto(n.vivo?.detail || n.label) }}</text>
-          <text v-if="n.vivo?.at" :x="X + ANCHO - 10" :y="n.y + 15" class="hora">{{ n.vivo.at }}</text>
-          <text v-if="n.vivo?.lineas" :x="X + ANCHO - 10" :y="n.y + 27" class="hora">{{ n.vivo.lineas }} líneas</text>
-
-          <!-- LOS SUB-PASOS como puntos. Es lo que convierte «se rompió en listado» en «se rompió
-               consultando ESTA entidad» sin tener que abrir la etapa. -->
-          <g v-for="(s, j) in n.subs" :key="j">
-            <circle :cx="X + ANCHO + (n.roto ? 108 : 16) + j * 13" :cy="n.y + ALTO / 2" r="3.5" :fill="COLOR[s.status] || 'var(--skip)'">
-              <title>{{ s.label }}{{ s.detail ? ' — ' + s.detail : '' }}</title>
-            </circle>
-          </g>
-          <text v-if="n.subsDe > 7" :x="X + ANCHO + (n.roto ? 108 : 16) + 7 * 13" :y="n.y + ALTO / 2 + 4" class="mas">+{{ n.subsDe - 7 }}</text>
+          <circle :cx="n.x" :cy="Y0" :r="RADIO" :fill="COLOR[n.estado]" />
+          <text :x="n.x" :y="Y0 + 5" class="glifo">{{ GLIFO[n.estado] }}</text>
+          <text :x="n.x" :y="Y0 + 28" class="nlbl">{{ n.id }}</text>
+          <text :x="n.x" :y="Y0 + 41" class="ndet">{{ corto(n.vivo?.detail || n.label, 22) }}</text>
+          <text v-if="n.vivo?.at" :x="n.x" :y="Y0 - 16" class="hora">{{ n.vivo.at }}</text>
         </g>
       </g>
     </svg>
 
     <div class="pie">
-      <span v-if="t.traza?.ramal" class="ramal" :title="ramal?.label">carril <b>{{ t.traza.ramal }}</b></span>
+      <span v-if="t.traza?.ramal" class="ramal">carril <b>{{ t.traza.ramal }}</b></span>
       <span v-else-if="t.traza" class="dim">sin carril todavía — se decide al elegir entidad</span>
       <span class="dim">arrastrar · rueda para acercar · doble clic encuadra</span>
     </div>
@@ -188,33 +263,41 @@ function abajo(ev) {
 </template>
 
 <style scoped>
-/* ⚠ EL ALTO NO PUEDE SALIR DEL CONTENIDO, y esto costó un rato de buscar el bug en el lugar equivocado.
-   El `<svg>` toma su alto de `cam.h`, y `cam.h` se lee del contenedor con `clientHeight`: si el SVG es
-   un hijo en flujo normal, el SVG estira al div, el div dispara el ResizeObserver, `encuadrar()` vuelve
-   a leer un alto más grande y lo escribe otra vez en el SVG. Medido: el contenedor llegó a **17.601 px**
-   y seguía creciendo 200 px cada 300 ms. El síntoma NO es un error —no hay ninguno en consola— sino que
-   la rueda y el arrastre se ven MUERTOS: el zoom sí se aplicaba, y el re-encuadre del bucle lo pisaba en
-   el mismo tick. Dos candados para que no vuelva: alto atado a la VENTANA (nunca al contenido) y el SVG
+/* ⚠ EL ALTO NO PUEDE SALIR DEL CONTENIDO. El `<svg>` toma su alto de `cam.h`, y `cam.h` se lee del
+   contenedor con `clientHeight`: si el SVG es un hijo en flujo normal, el SVG estira al div, el div
+   dispara el ResizeObserver, `encuadrar()` lee un alto mayor y lo escribe otra vez. Medido: el
+   contenedor llegó a 17.601 px creciendo 200 px cada 300 ms. El síntoma NO es un error —la consola
+   queda limpia— sino que la rueda y el arrastre se ven MUERTOS, porque el zoom sí se aplica y el
+   re-encuadre del bucle lo pisa en el mismo tick. Dos candados: alto atado a la VENTANA y el SVG
    fuera del flujo. La regla general: un canvas que LEE su tamaño del padre no puede ESCRIBIRLO en un
    hijo en flujo. */
-.mapa { position:relative; height:calc(100vh - 215px); min-height:360px; overflow:hidden;
-  background:var(--panel2); border-right:1px solid var(--line); cursor:grab; user-select:none }
+/* Alto fijo por VIEWPORT y no por contenido (ver la nota de arriba), y de banda: el mapa ocupa el
+   ancho entero y el detalle va debajo. */
+.mapa { position:relative; height:44vh; min-height:300px; overflow:hidden;
+  background:var(--panel2); border-bottom:1px solid var(--line); cursor:grab; user-select:none }
 .mapa svg { position:absolute; inset:0 }
 .mapa.move { cursor:grabbing }
 .vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
-.caja { fill:var(--panel); stroke-width:1.5 }
+
+.arista { stroke-width:3; stroke-linecap:round }
 .nodo { cursor:pointer }
-.nodo:hover .caja { fill:var(--sel) }
-.nodo.sel .caja { fill:var(--sel); stroke-width:2.5 }
-/* Atenuado, NO escondido: «acá esto no ocurre nunca» es un dato del diagnóstico. */
+.nodo:hover .nlbl { fill:var(--accent) }
+.nodo.sel .nlbl { fill:var(--accent); font-weight:700 }
+/* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
 .nodo.fuera { opacity:.38 }
-.glifo { font:600 11px ui-monospace,monospace; text-anchor:middle }
-.lab { font:600 12px ui-monospace,monospace; fill:var(--txt) }
-.det { font:11px system-ui; fill:var(--dim) }
-.hora { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:end }
-.salto { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:end }
-.mas { font:10px system-ui; fill:var(--dim) }
-.corte { font:600 10px system-ui; fill:var(--fail) }
+/* Un carril que esta solicitud no tomó se ve, pero no compite: es contexto, no recorrido. */
+.apagado { opacity:.42 }
+
+.glifo { font:600 11px ui-monospace,monospace; text-anchor:middle; fill:var(--bg) }
+.nlbl { font:600 12px ui-monospace,monospace; fill:var(--txt); text-anchor:middle }
+.ndet { font:10.5px system-ui; fill:var(--dim); text-anchor:middle }
+.hora { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:middle }
+.salto { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:middle }
+.clbl { font:700 12px system-ui }
+.aqui { font-weight:400; font-size:11px; fill:var(--dim) }
+.afuera { font:11px system-ui; fill:var(--dim) }
+.corte { font:600 10px system-ui; fill:var(--fail); text-anchor:middle }
+
 .pie { position:absolute; left:0; right:0; bottom:0; display:flex; gap:12px; align-items:center;
   padding:6px 10px; font-size:11px; background:linear-gradient(transparent,var(--panel2) 40%) }
 .ramal { color:var(--txt) } .ramal b { color:var(--accent) }
