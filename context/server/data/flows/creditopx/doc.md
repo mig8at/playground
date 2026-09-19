@@ -23,8 +23,8 @@ Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, inte
 - **rt=3 sin fila de catálogo.** El seeder solo siembra `response_type` 0/1/2; rt=3 (rotativo) existe en código y en el front (`CREDITOP_X_REVOLVING`) pero no como fila sembrada.
 - **App↔legacy divergen (parallel-run).** `getLenders(UserRequest $userRequest)` (app) vs `getLenders(int $userRequestId, …)` (legacy); `getLenderUserCategory($user OBJETO)` vs `(int $userId)`; el gate `no_more` está **vivo en application** y **`= false` (TODO-a-quitar) en legacy**. Misma lógica, dos repos; application sigue siendo el default (memoria `migracion-application-a-legacy-estado`).
 - **Riesgo chequeado dos veces.** Score/negativos/consultas/maduración corren en el datacrédito temprano Y de nuevo dentro de la categoría/cupo al final; la maduración usa comparadores divergentes entre motores (memoria `datacredito-rules-per-lender`).
-- **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `environment()==='production'` (:231/:244); en local/dev el ranking difiere, y rt=2/3 igual se fuerzan arriba (`weighted_score=1`). El porqué de la lentitud del ML (timeout de 15 s por intento, el fallback que NO son las matrices): **→ `profiling` §perfilador ML** (F-104).
-- **Hardcodes.** `response_type == 2/3` comparado como literal en varios servicios; buckets de monto-por-score quemados en `LenderSpecialGrantingService`. Inventario: `159906a:docs/codigo/LOGICA-QUEMADA.md`.
+- **Perfilamiento/orden SOLO en producción.** `getProfilingData`/`applyProfiling`/`usort` gated a `app()->environment() === 'production'` — **cuatro** gates en `application/app/Services/lenders/LenderRetrievalService.php`: `:235`, `:244`, `:248` y `:282` (re-verificados el 2026-09-19; acá decía `:231/:244` y eran dos); en local/dev el ranking difiere, y rt=2/3 igual se fuerzan arriba (`weighted_score=1`). El porqué de la lentitud del ML (timeout de 15 s por intento, el fallback que NO son las matrices): **→ `profiling` §perfilador ML** (F-104).
+- **Hardcodes.** `response_type == 2/3` comparado como literal en **17 archivos** de `application` (re-contado el 2026-09-19); buckets de monto-por-score quemados en `LenderSpecialGrantingService`. Inventario: `159906a:docs/codigo/LOGICA-QUEMADA.md`.
 
 ## ⚠ «No apareció» significa cosas distintas según el `response_type`
 
@@ -169,6 +169,14 @@ el proveedor recibió la petición **no descarta** que la entidad haya muerto ah
 
 **Y la mitad del front es una pantalla TERMINAL, sin acciones a propósito.** Cuando la política post-validación devuelve `next_step: "manual_approval"` —o sea cuando la entidad tiene `lender_requirements.manual_approval` prendido— y el backend ya dejó la solicitud en «Pendiente aprobación manual», el titular aterriza en `frontend-monorepo/apps/loan-request-wizard/app/routes/manual-approval-pending.tsx`. **No ofrece ningún botón, y está razonado:** el titular ya hizo todo lo que le tocaba y de ahí en adelante la solicitud avanza **cuando un asesor la revise**; poner un «continuar» sería mentirle, porque no hay nada que pueda hacer todavía. Es el mismo criterio que la pantalla de vuelta del checkout de entidad (nodo `redirect`): **cuando el siguiente paso es de otro, la pantalla no finge que es del cliente.**
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 16 afirmaciones auditadas —13 de código contra `main` y 3
+de dato contra producción—, cero chequeos débiles. **Una resultó FALSA**, y es la que más engaña: el
+título de la última sección decía que el front «todavía no lee» `can_check_preapproval`, y lo lee en
+tres lugares desde hace semanas, con un mecanismo que vale la pena conocer. Lo demás se sostuvo: el
+`'Probabilidad muy baja'` en su línea, el gate de producción del perfilamiento (que resultó ser
+**cuatro** gates y no dos), y el reparto de familias medido en prod — **rt=0: 57 activas · rt=1: 15 ·
+rt=2: 108 · rt=3: 18 · rt=4: 1**, o sea que esta familia es, sola, **el 58 % del catálogo activo**.
+
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
 
@@ -236,13 +244,15 @@ Medido contra prod ese día: ese flujo son 458 solicitudes de 560.589, el 0,08 %
 ## Lo que NO está verificado
 - La regla GENÉRICA del `DatacreditoRuleEvaluator`: el fail-closed está verificado (`:48`); el `whereNull(allied_branch_id)` exacto, no.
 
-## `can_check_preapproval` — el flag fail-closed que el front todavía no lee
+## `can_check_preapproval` — el flag fail-closed, y el front YA lo lee
 
 Entró a `main` el **2026-08-10** (`3a6d59de`, Santiago). Es un booleano **por entidad** que el listado
 **v2** agrega a cada card para decirle al front si debe disparar la consulta al microservicio de
 pre-aprobados para ESA entidad. Su mensaje de commit lo resume: *«el front necesita saber si debe
 disparar la consulta al microservicio de pre-aprobados para cada entidad, según las políticas de
 datacrédito del lender»*.
+
+⚠ **Acá decía «el front todavía no lo lee». Ya no es cierto — verificado contra `main` el 2026-09-19.** El front lo consume en tres lugares: el campo está tipado en `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts:280`, hay un `preapproval-gate.service` **con sus tests**, y el marketplace lo aplica en `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:165-170`. **Y lo que hace con él es lo interesante:** a las entidades con `can_check_preapproval === false` no las consulta —esperable— pero **tampoco las deja sin Promise**, porque eso haría que el adaptador emitiera `missing_preapproval_stream` y pintara **un error con botón de reintento** sobre una entidad que simplemente no aplica. En su lugar les **siembra el estado terminal ya resuelto**, que el hook recibe en el primer tick, pisa el `processing` inicial y deja **la card inerte**. Es la diferencia entre «no aplica» y «se rompió», resuelta del lado del front.
 
 **Nace en `false` y se siembra ANTES de cualquier bifurcación** (`LenderListingService`, sobre la
 colección recién traída y antes del branch de `$hasGroupRules`), porque las dos ramas derivan de esas
