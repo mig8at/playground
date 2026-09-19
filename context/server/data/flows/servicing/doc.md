@@ -209,6 +209,17 @@ reusa este mismo servicio en vez de reimplementarlo, y le agrega dos cosas que l
 tiene: sólo créditos de `response_type = 2` (`App/Services/ClientLookupService.php`) y el monto de la
 cuota resuelto en el backend.
 
+⚠ **Y la extracción destapó un hueco de consentimiento que llevaba años abierto.** La lógica salió de
+`Consumer\CreditChangeController` y `Customer\CreditChangeController`, que eran **copias literales** una
+de otra (~430 líneas cada una, con tres diferencias), y las dos escribían **`otp_id => 0`** en
+`creditop_x_changes_log` con el comentario «OTP validation handled by mobile app authentication». O sea
+que **el registro del cambio no guardaba ninguna prueba de que el dueño del crédito lo autorizó** — sólo
+de que alguien autenticado en la app lo pidió. Hoy el `otpId` es parámetro del servicio
+(`legacy-backend/Modules/Loans/App/Services/CreditChangeService.php:57`, `:102`) y cada consumidor pasa
+lo que de verdad tiene: la app móvil sigue pasando `0` porque autentica por su cuenta, y el canal de
+WhatsApp pasa **el id del código que la persona escribió**. Al leer ese log, un `0` no significa «sin
+OTP»: significa «la autorización se resolvió afuera de este registro».
+
 *(Acá había una marca `⏳ PENDIENTE DE MERGE` que decía «vive en `develop`/`staging`, no en `main`».
 Caducó: verificado el 2026-09-18, el módulo está en `origin/main` y su último commit ahí es del
 **2026-09-06**. La marca sobrevivió doce días a su propio merge — y una marca de pendiente vencida no

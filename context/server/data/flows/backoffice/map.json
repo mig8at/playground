@@ -132,6 +132,8 @@
     "legacy-backend/Modules/Backoffice/App/Services/LenderRulesWriterService.php",
     "legacy-backend/Modules/Backoffice/App/Services/UsersService.php",
     "legacy-backend/Modules/Backoffice/routes/backoffice.php",
+    "legacy-backend/app/Models/LenderRulesChangeset.php",
+    "legacy-backend/app/Models/LenderRulesSnapshot.php",
     "legacy-backend/config/app.php"
   ]
 }

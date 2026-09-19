@@ -135,6 +135,10 @@ donde la entidad **ya está habilitada** (`bootstrapBranchGroups`, y sólo cuand
 previa). O sea: **primero se habilita la entidad en la sucursal, después se escribe la política.** Al
 revés quedan las reglas sin clonar y la entidad lista a medias.
 
+**Cada escritura deja rastro inmutable, y contesta «¿quién cambió esta regla y cuándo?».** El servicio no sólo escribe: por cada guardado crea un **snapshot** (`lender_rules_snapshots` — `version`, el `state` completo en JSON, quién lo cambió por id, nombre y correo, y cuántas sucursales quedaron afectadas) y **una fila por campo modificado** en `lender_rules_changesets` (`scope`, `subject`, `field`, `label`, `action`, `old_value`, `new_value`, `message`), escritas desde `legacy-backend/Modules/Backoffice/App/Services/LenderRulesWriterService.php:615`. ⚠ **Son de sólo escritura**: el modelo declara `UPDATED_AT = null` (`legacy-backend/app/Models/LenderRulesChangeset.php:18`), así que una fila de cambio no se edita nunca — es bitácora, no estado.
+
+**Y se está usando, no sólo desplegado.** Medido en prod el 2026-09-18: **13 snapshots** sobre **5 entidades** y **59 cambios** individuales, el último el 2026-09-16. Es poco volumen, pero es real: antes de esto un cambio de reglas no dejaba ninguna constancia de autor.
+
 ### `LenderReadinessService` — «listo para operar» no es opinión
 
 Cinco chequeos, y uno de ellos **no bloquea a propósito**:
