@@ -16,11 +16,18 @@ El censo del eje, el mismo día: **rt=0 → 57 · rt=1 → 15 · rt=2 → 108 ·
 - **Bug guard muerto** (`application/app/Http/Controllers/Api/SelfManagerController.php:87`, recomprobado el 2026-09-18: sigue vivo): `if ($purchaseCode->barcode_checked && ($lender->id == 68 && $lender->id == 133))` — un id no puede ser 68 **Y** 133; el guard de 'código ya utilizado' nunca dispara ahí.
 - **Consumo (100) se muestra sin cupo real**: el `else` de `validatePreApproveLender` lo empuja con 'Probabilidad media'/sort=2 (hay un `// ToDo` del propio código admitiendo que debería mostrar solo pre-aprobados).
 - **Filtro `[12,23,141,142,166]` es TEMPORAL, no negocio** (`legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php:275`, TODO en `:271`): saca Prami + variantes Welli + lender 166 del preaprobado v1 porque erroran por falta de datos previos en `employment-info`. Coincide con la frontera de inyectabilidad.
-- **Welli `STATUS_MAP` `pendiente_desembolso→11`** (`Welli.php:40`): marca desembolsado un crédito que aún no lo está (application lo mapea a estado propio 28) → puede disparar `final_amount` prematuro.
-- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre: nuevo `order_id` por request).
+- **Welli `STATUS_MAP` `pendiente_desembolso→11`** (`legacy-backend/app/Actions/Lenders/Welli.php:40`): marca desembolsado un crédito que aún no lo está — `application` lo mapea a su estado propio **28** (`app/Actions/Lenders/Welli.php:32`). ✔ **La divergencia está RECONOCIDA en el código**: el propio archivo del monolito nuevo lleva un `TODO: [PARIDAD]` en `:37` que la nombra. No es un descuido; es una deuda anotada → puede disparar `final_amount` prematuro.
+- ⚠ **Acá decía «Meddipay nunca cachea (`ShouldCheckAgain=true` siempre: nuevo `order_id` por request)». Ya no es cierto.** Verificado el 2026-09-19: **`ShouldCheckAgain` no existe en ninguno de los dos repos**, y `Meddipay::register` (`application/app/Actions/Lenders/Meddipay.php:52-82`) **reusa** la `LenderTransaction` que ya exista para ese `(user_request_id, lender 39)` y manda **su** `order_id`; sólo crea una nueva cuando no hay. O sea que hoy **sí hay reuso**, justo lo contrario de lo que este bullet advertía. ⚠ Y de paso, una inconsistencia en el mismo método: la **búsqueda** usa el id **39 quemado** (`:59`) mientras la **creación** y el estado usan `$request->lender_id` (`:62`, `:69`).
 - **Cruce Corbeta frágil por string**: por PIN (`verification_token`) con `LIKE` sobre `type_data`; renombrar el barcode lo rompe en silencio. La ventana del cron BNPL usa `maxDate=hoy 03:30` con `setTime` (no `endOfDay`) → riesgo de perder facturas del día.
 - **Espejo a legacy best-effort**: si el webhook `lender-result` falla, se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste `displayed_lenders`. Un `pending` no repuebla (mantiene la misma fila por Replace).
 - **Colisiones de id**: `24` Credifamilia (rt=4; el `application` viejo hardcodeaba rt=1 para el 24 — **NO extrapolar** a Bancolombia, rt=1 genuino) · allied 153 Energiteca vs lender 153 SmartPay · `100` Bancolombia Consumo vs un allied.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 15 afirmaciones auditadas —11 de código contra `main` y 4
+de dato contra producción—, cero chequeos débiles. **Una resultó caduca**: la de Meddipay, que hoy
+reusa la transacción en vez de crear una por request. ✔ Lo demás se sostuvo, incluido lo más específico:
+el **guard imposible** de `SelfManagerController.php:87` —`$lender->id == 68 && $lender->id == 133`, que
+ningún id puede satisfacer— **sigue vivo**; el filtro temporal `[12, 23, 141, 142, 166]` sigue en `:275`
+con su `TODO [TEMPORAL]` en `:271`; y el censo del eje volvió a dar **57 · 15 · 108 · 18 · 1**.
 
 ## Contenido
 Dos capas independientes sobre el tronco común (entrada → OTP → datos → marketplace `/lenders`):
