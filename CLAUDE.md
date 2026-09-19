@@ -161,11 +161,18 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 - ⚠ **Y el chequeo de contraste tiene un TECHO que hay que conocer: sólo ve reglas que fijan color Y
   fondo en la misma regla** —11 a 37 por herramienta—. Todo el resto del texto hereda el color de un
   ancestro y el fondo de otro, y eso no se resuelve leyendo CSS. Para eso está **`tools/contraste.js`**:
-  se pega en la consola con la herramienta abierta, recorre el DOM, resuelve el fondo efectivo subiendo
-  por los ancestros y mide cada nodo con texto propio. La primera corrida sobre las cuatro encontró 22
-  nodos abajo del umbral —10 casos distintos— que el estático no podía ver: dos botones que habían <!-- lint:ok -->
+  recorre el DOM, resuelve el fondo efectivo subiendo por los ancestros y mide cada nodo con texto
+  propio (también se puede pegar en la consola, con la herramienta abierta). La primera corrida sobre
+  las cuatro encontró 22 nodos abajo del umbral —10 casos distintos— que el estático no veía: dos <!-- lint:ok -->
   quedado con la piel POR DEFECTO del navegador (#efefef sobre fondo oscuro), una manija de arrastre en
   **1,38:1** pintada con un token de borde, y tres textos con `opacity` apilada encima de la rampa.
+  **Está cableado: `make estilo-contraste`** lo corre en las cuatro con el Chromium del harness. ⚠ NO
+  levanta servidores —los puertos son tuyos— así que audita lo que esté corriendo y lo que no sale
+  `SIN VERIFICAR` con exit 2, nunca en verde. Probado al revés con un `#555` inventado: sale ✗ y con 1.
+  ⚠ Y tres trampas que costaron una corrida cada una: **Vite escucha sólo en IPv6**, así que sondear
+  `127.0.0.1` da «no hay nada» sobre un servidor sano; **`networkidle` no llega nunca** en el panel,
+  que pollea; y **las tareas del tablero llegan por WebSocket**, así que con 600ms de espera el
+  barrido medía una app vacía y decía ✓.
   ⚠ Dos trampas medidas al construirlo: **Chrome deja `oklch()` sin resolver en el computed style**
   (parsear esos números como RGB da 1,00 en todo — hay que pintar el color en un canvas y leer el
   píxel), y **`opacity` se apila sobre el color** sin que el chequeo estático lo vea, porque la regla

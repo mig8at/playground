@@ -58,8 +58,10 @@ window.__contraste = () => {
   }
   const vivos = malos.filter(m => !m.inactivo);
   const p = {}; for (const m of vivos) if (!p[m.cls] || p[m.cls].k > m.k) p[m.cls] = m;
-  console.table(Object.values(p).sort((a,b) => a.k - b.k));
+  const detalle = Object.values(p).sort((a,b) => a.k - b.k);
+  if (typeof console.table === 'function') console.table(detalle);
+  /* `detalle` va en el retorno además de la tabla: `tools/contraste.mjs` lo corre sin consola. */
   return { nodos: malos.length, activos: vivos.length, inactivos: malos.length - vivos.length,
-           unicos: Object.keys(p).length };
+           unicos: detalle.length, detalle };
 };
 window.__contraste()
