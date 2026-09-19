@@ -1659,17 +1659,17 @@ onMounted(async () => {
             <div class="k">Tareas</div>
             <div class="v">{{ done }}/{{ issues.length }}</div>
             <!-- La barra dice de un vistazo lo que el número obliga a dividir mentalmente. -->
-            <div class="bar" v-if="issues.length"><i :style="{ width: (100 * done / issues.length) + '%' }"></i></div>
+            <div class="progress progress-xs bar" v-if="issues.length"><i :style="{ width: (100 * done / issues.length) + '%' }"></i></div>
             <div class="s">terminadas en el sprint</div>
           </div>
           <!-- PUNTOS: ya no es opcional. La empresa los pide desde el 2026-08-18, así que el check que
                los escondía se retiró. -->
-          <div class="stat" :class="{ alert: sinPuntos.length }">
+          <div class="stat" :class="{ mal: sinPuntos.length }">
             <div class="k">Puntos que cuentan</div>
             <div class="v">{{ ptsCuentan }}<span class="de">/{{ ptsComprometidos }}</span></div>
             <!-- la barra es lo que ya cuenta; la marca, por dónde va el sprint. Relleno a la izquierda
                  de la marca = vas atrás, y cuánto se lee sin hacer la cuenta. -->
-            <div class="bar" v-if="ptsComprometidos">
+            <div class="progress progress-xs bar" v-if="ptsComprometidos">
               <i :style="{ width: (100 * ptsCuentan / ptsComprometidos) + '%' }"></i>
               <u v-if="ritmo" :style="{ left: ritmo.consumido + '%' }" :title="`el sprint va por el ${ritmo.consumido}%`"></u>
             </div>
@@ -1678,7 +1678,7 @@ onMounted(async () => {
             <div class="s" v-else-if="ritmo">al día con el calendario</div>
             <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
           </div>
-          <div class="stat" :class="{ alert: jiraTime === 0 }">
+          <div class="stat" :class="{ mal: jiraTime === 0 }">
             <div class="k">Tiempo en Jira</div>
             <div class="v">{{ hhmm(jiraTime) }}</div>
             <div class="s">{{ jiraTime === 0 ? 'sin registrar: nadie ve el trabajo' : 'registrado' }}</div>
@@ -1703,10 +1703,14 @@ onMounted(async () => {
           <span v-if="sinPuntos.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ sinPuntos.join(' · ') }}</span>
         </p>
         <section class="card">
-          <h2 class="journey-heading"><button class="section-toggle" :aria-expanded="journeyOpen" aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
-            <span aria-hidden="true">{{ journeyOpen ? '⌄' : '›' }}</span> Mi jornada
-            <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
-          </button></h2>
+          <!-- `region-head grupo` de `taller.css`: la misma barra que los grupos del árbol, en vez de
+               un `<h2>` con su propia banda. Y el encabezado ES el botón —antes era un `<button>`
+               ADENTRO de un `<h2>`, o sea dos elementos para una sola cosa. -->
+          <button type="button" class="region-head grupo section-toggle" :aria-expanded="journeyOpen"
+                  aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
+            <span class="gh"><span class="chev" aria-hidden="true">{{ journeyOpen ? '⌄' : '›' }}</span> Mi jornada
+              <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span></span>
+          </button>
           <div id="journey-content" v-show="journeyOpen">
           <p class="nota" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
             «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
@@ -1754,7 +1758,9 @@ onMounted(async () => {
              una tarea local. Va al final y colapsada porque es mantenimiento del registro, no la
              operación del día: se abre cuando arranca un sprint o cuando alguien te asigna algo. -->
         <section class="card">
-          <h2>Traer de Jira <span class="mut">· lo que está a mi nombre en CORE y no en el registro local</span></h2>
+          <div class="region-head grupo">
+            <span class="gh">Traer de Jira <span class="mut">· lo que está a mi nombre en CORE y no en el registro local</span></span>
+          </div>
           <div class="sync-h">
             <button class="btn qa-go" :disabled="inboxBusy" @click="loadInbox()">
               {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
@@ -2344,20 +2350,29 @@ onMounted(async () => {
 .stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
 .stat .v { font-size: 22px; font-weight: 600; margin: 3px 0 2px; letter-spacing: -.5px; font-variant-numeric: tabular-nums }
 .stat .s { font-size: 11.5px; color: var(--mut) }
-.stat.alert .v { color: var(--warn) }
+/* ⚠ Este modificador se llamaba `.alert` y el componente compartido se lo comió: `taller.css`
+   declara `.alert` como el AVISO de shadcn, que es `display: grid` con una primera columna de 16px
+   para el icono. Un `.stat.alert` quedaba convertido en esa grilla y sus hijos caían en la columna
+   angosta: el rótulo y la leyenda medían **0 px de ancho** y se leían una letra por renglón. No falla
+   nada, no hay error en consola — se ve como un diseño roto. Es el mismo choque que `.empty`, y la
+   regla que deja es la misma: cuando un nombre del bloque compartido coincide con uno propio, se
+   resuelve EL DÍA que se agrega el componente. Hoy lo chequea `make estilo-check`. */
+.stat.mal .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 
 /* ⚠ Misma corrección que en el panel del trazador: una sección no necesita fondo propio, marco Y
    radio para decir que es una pieza. Lo dice su ENCABEZADO, que ahora sale a sangre contra el padding
    del editor (`margin: 0 -24px`) y se lee como una banda de lado a lado en vez de como otra tarjeta. */
 .card { padding: 0 0 18px; margin-bottom: 20px }
-.card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--mut);
-  margin: 0 -24px 14px; padding: 9px 24px; font-weight: 600; background: var(--card);
-  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 6px }
-/* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
-   (`.tabs`) pero más chico — es un cambio de lente, no una navegación. */
-.card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
+/* Sobre `.region-head.grupo` de `taller.css`, que ya trae la forma (11px, mayúsculas, apagado), el
+   color y el pegado. Acá sólo van las dos desviaciones: sale A SANGRE contra los 24px del editor —una
+   banda de lado a lado se lee como encabezado, una barra con aire a los costados como otra tarjeta— y
+   lleva borde arriba, porque estas secciones se apilan sin lista de por medio. */
+.card .region-head.grupo { margin: 0 -24px 14px; padding: 8px 24px; width: auto;
+  border-top: 1px solid var(--line) }
+.card .region-head.grupo .gh { display: flex; align-items: center; gap: 9px; min-width: 0 }
+/* La aclaración al lado del título vuelve a minúsculas: es prosa, no un rótulo. */
+.card .region-head.grupo .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
 /* ⚠ Acá vivían `.tgrid` y `.task`: la grilla de tarjetas y la tarjeta. Se fueron con la
    reestructuración — las tareas son filas del árbol en el sidebar (`.tree-row`) y su contenido es el
@@ -2554,10 +2569,10 @@ onMounted(async () => {
 .entry .meta b.t-finding { color: var(--warn) } .entry .meta b.t-test { color: var(--ok) }
 .entry .meta b.t-blocker { color: var(--bad) } .entry .meta b.t-progress { color: var(--acc) }
 
-/* ── Barras de progreso ───────────────────────────────────────────────────────────────────────── */
-.bar { height: 3px; border-radius: 999px; background: var(--sel); margin: 2px 0 7px; overflow: hidden }
-.bar i { display: block; height: 100%; background: var(--acc); border-radius: 999px;
-         transition: width .3s ease }
+/* ── Barras de progreso ─────────────────────────────────────────────────────────────────────────
+   `progress progress-xs` de `taller.css`. Lo propio es el aire: acá la barra va DEBAJO de un número
+   y arriba de su leyenda, así que lo que queda es su margen. */
+.bar { margin: 2px 0 7px }
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
@@ -2706,10 +2721,10 @@ onMounted(async () => {
 .stg.suelto { font-style: normal }
 
 /* Estructura compacta del tablero y de las tarjetas. */
-.section-toggle { display: flex; align-items: center; gap: 9px; width: 100%; border: 0; padding: 0;
-  background: none; color: inherit; text-align: left; font: inherit; cursor: pointer }
-.section-toggle > span:first-child { width: 12px; color: var(--mut); flex: none }
-.card h2.journey-heading { margin-bottom: 0 }
+/* El reset del `<button>` como encabezado vive en `taller.css` (`button.region-head`). */
+.section-toggle { user-select: none }
+.section-toggle .chev { width: 12px; color: var(--mut); flex: none }
+.card button.section-toggle { margin-bottom: 0 }
 #journey-content { padding-top: 16px }
 /* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.grupo`, y su
    conteo usa el mismo `.cnt` que el encabezado de la vista.) */

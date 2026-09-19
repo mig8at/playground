@@ -195,14 +195,22 @@ const apagados = computed(() => {
 
     <!-- LOS SUB-PASOS. Cada uno se abre y muestra SUS líneas. -->
     <section v-if="vivos.length" class="sec">
-      <h3><span class="ico" :class="e.estado === 'fail' ? 'fail' : (hayDatos ? 'ok' : 'pendiente')">{{
-        e.estado === 'fail' ? '✕' : (hayDatos ? '✓' : '·') }}</span>
-        {{ hayDatos ? 'Pasos' : 'Nada medido acá' }} <span class="badge badge-outline badge-xs src">{{ vivos.length }}</span>
-        <input v-model="filtro" class="buscar" type="search" placeholder="buscar en los logs…"
+      <!-- `region-head grupo` de `taller.css`: la misma barra que el árbol de `context` y los grupos
+           del tablero. Era un `<h3>` propio de 12,5px con banda y dos bordes — la misma idea escrita
+           a mano. Lo que SUMA el componente es que se PEGA arriba: recorrés trescientas líneas de log
+           y seguís viendo de qué paso son, que es justo lo que uno necesita ahí.
+           ⚠ El icono va DENTRO del rótulo: `region-head > :first-child` se lleva el `flex: 1`, así
+           que suelto se estiraba él y el texto quedaba contra el conteo. -->
+      <div class="region-head grupo">
+        <span class="gh"><span class="ico" :class="e.estado === 'fail' ? 'fail' : (hayDatos ? 'ok' : 'pendiente')">{{
+          e.estado === 'fail' ? '✕' : (hayDatos ? '✓' : '·') }}</span>
+          {{ hayDatos ? 'Pasos' : 'Nada medido acá' }}</span>
+        <span class="badge badge-outline badge-xs src">{{ vivos.length }}</span>
+        <input v-model="filtro" class="input input-xs buscar" type="search" placeholder="buscar en los logs…"
                aria-label="Buscar dentro de esta etapa" />
         <span v-if="filtro.trim()" class="badge badge-outline badge-xs src" :class="{ ok: totalCoincidencias }">
           {{ totalCoincidencias }} coincidencia{{ totalCoincidencias === 1 ? '' : 's' }}</span>
-      </h3>
+      </div>
       <div class="tabla">
         <template v-for="(s, i) in vivos" :key="i">
           <div class="fila" :class="{ clic: abrible(s), ab: abierto === i, hit: coincidencias(s) }">
@@ -299,11 +307,15 @@ const apagados = computed(() => {
 
     <!-- Lo técnico: el backlog de pasos por declarar. También se abre por renglón. -->
     <section v-if="tecnico" class="sec">
-      <h3 class="click" @click="abrirTecnico = !abrirTecnico">
-        <span class="cr" :class="{ on: abrirTecnico }">▸</span>
-        <span class="ico pendiente">·</span> {{ tecnico.label }}
+      <!-- ⚠ Era un `<h3 @click>`: el teclado no llega a un encabezado y un lector de pantalla no lo
+           anuncia como algo que se aprieta. Un `<button>` real con `aria-expanded`, con la misma piel
+           de barra de grupo. -->
+      <button type="button" class="region-head grupo click" :aria-expanded="abrirTecnico"
+              @click="abrirTecnico = !abrirTecnico">
+        <span class="gh"><span class="cr" :class="{ on: abrirTecnico }">▸</span>
+          <span class="ico pendiente">·</span> {{ tecnico.label }}</span>
         <span class="badge badge-outline badge-xs src">sin nombre de negocio</span>
-      </h3>
+      </button>
       <div v-if="abrirTecnico" class="tabla">
         <template v-for="(h, j) in (tecnico.hijos || [])" :key="j">
           <div class="fila hijo" :class="{ clic: h.eventos?.length, ab: abierto === 't' + j,
@@ -337,7 +349,10 @@ const apagados = computed(() => {
     <!-- Sin traza: el árbol declarado, apagado -->
     <template v-if="!t.traza">
       <section v-for="b in (e.bloques || [])" :key="b.id" class="sec">
-        <h3><span class="ico pendiente">·</span> {{ b.label }} <span class="badge badge-outline badge-xs src">{{ b.tipo }}</span></h3>
+        <div class="region-head grupo">
+          <span class="gh"><span class="ico pendiente">·</span> {{ b.label }}</span>
+          <span class="badge badge-outline badge-xs src">{{ b.tipo }}</span>
+        </div>
         <div class="tabla">
           <div v-for="h in (b.hitos || [])" :key="h.id" class="fila">
             <span class="cr" /><span class="dot skip" /><span class="l dim">{{ h.label }}</span>
@@ -397,11 +412,16 @@ main { display:flex; flex-direction:column; min-height:0; height:100%; min-width
    El encabezado sale a sangre (`margin: 0 -20px` contra el padding del cuerpo): una banda de lado a
    lado se lee como encabezado; una barra con 20px de aire a los costados, como otra tarjeta. */
 .sec { margin-bottom:16px }
-h3 { display:flex; align-items:center; gap:9px; margin:0 -20px; padding:9px 20px; font-size:12.5px;
-  font-weight:500; letter-spacing:-.01em; background:var(--card);
-  border-top:1px solid var(--line); border-bottom:1px solid var(--line) }
-h3.click { cursor:pointer; user-select:none }
-h3.click:hover { background:var(--sel) }
+/* Sobre `.region-head.grupo` de `taller.css`, que ya trae la forma, el color y el pegado. Lo que se
+   declara acá son las dos desviaciones: sale A SANGRE (contra los 20px del cuerpo) porque una banda
+   de lado a lado se lee como encabezado y una barra con aire a los costados como otra tarjeta; y
+   lleva un borde arriba, porque acá los grupos se apilan sin lista de por medio. */
+.region-head.grupo { margin:0 -20px; padding:7px 20px; width:auto;
+  border-top:1px solid var(--line) }
+.region-head.grupo .gh { display:flex; align-items:center; gap:9px; min-width:0 }
+/* El reset del `<button>` vive en `taller.css` (`button.region-head`): acá sólo lo que es de esta
+   barra, que es que arrastrarla no seleccione el texto. */
+button.region-head.grupo { user-select:none }
 .nota { padding:7px 13px; color:var(--dim); font-size:11px; margin:0 }
 
 /* La grilla: caret · punto · nombre · detalle · fuente. `tabular-nums` para que ×24 y las horas no bailen. */
@@ -433,7 +453,7 @@ h3.click:hover { background:var(--sel) }
    distingue de las píldoras redondas que SÍ se pueden apretar. */
 .src { color:var(--tenue); border-radius:var(--r-sm);
   padding:0 5px; white-space:nowrap; justify-self:end }
-h3 .src { justify-self:auto }
+.region-head.grupo .src { justify-self:auto }
 
 .chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; align-items:center }
 /* ⚠ El borde PUNTEADO se queda: es la seña de «esta etapa está apagada», no decoración. */
@@ -441,10 +461,10 @@ h3 .src { justify-self:auto }
   border-radius:var(--r-full); padding:2px 10px }
 .pie { font-size:11px; color:var(--dim); margin:0 }
 
-.buscar { margin-left:auto; width:170px; padding:2px 8px; font-size:12px; border:1px solid var(--line);
-  border-radius:var(--r-sm); background:var(--bg); color:var(--txt); font-weight:400 }
-.buscar:focus { outline:1px solid var(--info); outline-offset:-1px }
-h3 .src.ok { color:var(--info); border-color:var(--info) }
+/* Sobre `.input.input-xs` de `taller.css` (el anillo, el borde y el alto salen de ahí). Lo propio es
+   que no ocupa el ancho: vive DENTRO de la barra del grupo, al borde derecho. */
+.buscar { margin-left:auto; width:170px; flex:none; font-weight:400 }
+.region-head.grupo .src.ok { color:var(--info); border-color:var(--info) }
 .marca { color:var(--info); border-color:currentColor;
   padding:0 6px; white-space:nowrap }
 /* El conteo de errores va en la fila CERRADA: `eventosDe` dice cuántas líneas hay, no cuántas fallaron, y

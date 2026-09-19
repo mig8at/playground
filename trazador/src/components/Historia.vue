@@ -12,15 +12,17 @@
 //
 // Como todo en la Vue: acá NO se decide nada. El desenlace de cada solicitud y los totales vienen del
 // server (`desenlaceDe`/`armarHistoria` en Go), que es el único lugar donde «roto» está definido.
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useTrazador } from '../stores/trazador'
 const t = useTrazador()
 
-// La tira arranca recortada: 40 solicitudes son 29 días, y desplegarlos todos empuja el árbol de etapas
-// fuera de la pantalla — el problema que esta vista vino a arreglar. Recortada, pero DICIENDO cuánto falta:
-// un scroll sin borde visible esconde la mitad de la historia y nadie lo busca.
-const todo = ref(false)
-const TOPE = 6 // días visibles cuando está recortada
+// ⚠ Acá vivía un RECORTE a 6 días con su botón «ver los N días», y el motivo escrito era: «40
+// solicitudes son 29 días, y desplegarlos todos empuja el árbol de etapas fuera de la pantalla».
+// Ese motivo se murió cuando esta vista se mudó al sidebar izquierdo (2026-09-19): en una columna que
+// scrollea sola no hay nada que empujar, y el recorte pasó a ser lo que antes evitaba — media historia
+// escondida. Se fueron el `todo`, el `TOPE`, el botón y el `max-height: 45vh` de la tira.
+// La lección, que vale para cualquier «ver más»: un recorte es la respuesta a un problema de LAYOUT;
+// cuando el layout cambia, hay que volver a preguntarse si el problema sigue existiendo.
 
 const GLIFO = { aprobado: '✓', roto: '✕', abandonado: '!', 'en-curso': '·' }
 const CLASE = { aprobado: 'ok', roto: 'fail', abandonado: 'warn', 'en-curso': 'skip' }
@@ -73,9 +75,18 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
       <span v-if="h.truncada">sólo se ven las {{ h.total }} más recientes: hay más.</span>
     </p>
 
-    <div class="tira" :class="{ abierta: todo }">
-      <div v-for="g in (todo ? dias : dias.slice(0, TOPE))" :key="g.fecha" class="grupo">
-        <span class="fecha">{{ dia(g.fecha) }}</span>
+    <!-- ⚠ El día pasó de ser una COLUMNA de 72px a la izquierda a ser el encabezado de su grupo
+         (`region-head.grupo` de `taller.css`, o sea el mismo que el árbol de `context` y las vistas
+         del tablero). En una franja horizontal la columna funcionaba; en 300px dejaba 190 para los
+         chips —uno y medio por renglón— y la fecha se repetía en cada línea del wrap. De paso el
+         encabezado se PEGA arriba, así que recorriendo 29 días siempre sabés en cuál estás. -->
+    <div class="tira">
+      <div v-for="g in dias" :key="g.fecha" class="grupo">
+        <div class="region-head grupo">
+          <span>{{ dia(g.fecha) }}</span>
+          <span class="badge badge-secondary badge-xs">{{ g.chips.length }}</span>
+        </div>
+        <div class="chips">
         <button v-for="i in g.chips" :key="i.ureq"
                 :class="['badge', 'badge-outline', 'chip', CLASE[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
                 :title="tip(i)" @click="t.verTraza(i.ureq)">
@@ -85,13 +96,11 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
                con 12 intentos, las 12 son directas y marcarlas todas no distingue nada: es ruido. -->
           <span v-if="i.directa && h.expandidas" class="q" aria-label="lo que buscaste">◂</span>
         </button>
+        </div>
       </div>
     </div>
 
     <p class="pie">
-      <button v-if="dias.length > TOPE" class="badge badge-outline mas" @click="todo = !todo">
-        {{ todo ? 'ver menos' : `ver los ${dias.length} días` }}
-      </button>
       <span class="ok">✓ aprobada</span><span class="fail">✕ rota</span>
       <span class="warn">! abandonada</span><span class="dim">· en curso</span>
       <span v-if="h.expandidas" class="dim"><b class="q">◂</b> lo que buscaste — las otras
@@ -101,20 +110,23 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 </template>
 
 <style scoped>
-.historia { padding:11px 20px; border-bottom:1px solid var(--line) }
-.linea { margin:0 0 6px; font-size:13px; color:var(--dim) }
+/* Ya no lleva padding ni borde propios: es un bloque más del cuerpo del sidebar, que pone los dos. */
+.historia { min-width:0 }
+.linea { margin:0 0 6px; font-size:12.5px; color:var(--dim) }
 .linea b { color:var(--txt) }
 .t { margin-left:9px; font-weight:600 }
 .alerta { margin:0 0 8px; font-size:12px; color:var(--warn); display:flex; gap:10px; flex-wrap:wrap }
 .alerta .fail { color:var(--fail); font-weight:600 }
 
-/* Agrupado por día: el día a la izquierda y sus intentos al lado. Que un día tenga cuatro chips ES la
-   señal de reintento — no hay que leer ninguna fecha para verla. */
-.tira { display:flex; flex-direction:column; gap:4px }
-.tira.abierta { max-height:45vh; overflow-y:auto }
-.grupo { display:flex; align-items:center; gap:6px; flex-wrap:wrap }
-.fecha { font-size:11px; color:var(--dim); width:72px; flex:0 0 72px; text-align:right;
-  font-variant-numeric:tabular-nums }
+/* Agrupado por día: su encabezado y debajo sus intentos. Que un día tenga cuatro chips ES la señal de
+   reintento — no hay que leer ninguna fecha para verla. */
+.tira { display:flex; flex-direction:column }
+/* Sobre `.region-head.grupo`: sale A SANGRE contra los 14px del cuerpo del sidebar (una banda de lado
+   a lado se lee como encabezado; con aire a los costados, como otra tarjeta) y en minúsculas, porque
+   «18 ago ’26» es un dato y no un rótulo. */
+.grupo > .region-head.grupo { margin:6px -14px 4px; padding:4px 14px; width:auto;
+  text-transform:none; letter-spacing:normal; font-variant-numeric:tabular-nums }
+.chips { display:flex; flex-wrap:wrap; gap:4px }
 
 /* Sobre `.badge.badge-outline`: un intento de la persona es una ETIQUETA que además se aprieta. */
 .chip { gap:5px; padding:2px 8px; font-size:12px; color:var(--dim);
@@ -134,6 +146,4 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
   align-items:center }
 .pie .ok { color:var(--ok) } .pie .fail { color:var(--fail) } .pie .warn { color:var(--warn) }
 .pie .q { color:var(--info) }
-.mas { font-size:11px; color:var(--info); padding:1px 9px; cursor:pointer }
-.mas:hover { background:var(--sel) }
 </style>

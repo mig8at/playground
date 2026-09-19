@@ -25,6 +25,13 @@ onMounted(async () => {
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
 const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
 
+// La columna de la izquierda existe SÓLO cuando tiene algo adentro. Sin consultar nada, el mapa se
+// queda con el ancho entero — que es la pantalla en la que uno lee el árbol declarado.
+// ⚠ `items` y no `traza`: una búsqueda por cédula trae la historia de la persona ANTES de que haya
+// una traza abierta, y ése es justo el momento en que la columna sirve para elegir cuál mirar.
+const hayColumna = computed(() => Boolean(
+  t.fase || t.traza || t.error || chequeoGrave.value.length || t.resultados?.items?.length))
+
 /**
  * EL SIDEBAR SE MONTA SOBRE EL MAPA; NO LO EMPUJA.
  *
@@ -95,45 +102,72 @@ async function copiar() {
 
 <template>
 
-  <!-- BANNER · lo que sólo aparece A VECES: la espera, los datos de la solicitud y los errores.
-       Región propia para que la barra del mapa no cambie de alto según el estado — un encabezado
-       que crece y se achica mueve todo lo de abajo cada vez que buscás. -->
-  <div v-if="t.fase || t.traza || t.error || chequeoGrave.length" class="banner">
-    <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner mudo
-         tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en información. -->
-    <div v-if="t.fase" class="cargando">
-      <div class="barra"><i /></div>
-      <span>{{ t.fase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
-      <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
-    </div>
-    <p v-if="t.traza" class="meta">
-      {{ t.traza.comercio }} · {{ t.traza.sucursal }}
-      <template v-if="t.traza.lender"> · {{ t.traza.lender }} (rt={{ t.traza.rt }})</template>
-      · monto {{ Math.round(t.traza.monto).toLocaleString('es-CO') }}
-      · doc {{ t.traza.documento }}
-      · canal {{ t.traza.origen }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span>
-    </p>
-    <!-- AVISOS (`alert` de `taller.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
-         hicimos con los callouts de prosa: un alert es un mensaje que tiene que despegarse de lo que
-         lo rodea, no una cita adentro de un texto. La grilla de dos columnas alinea el título con la
-         descripción aunque el icono mida distinto. -->
-    <div v-if="t.error" class="alert alert-destructive" role="alert">
-      <span class="alert-icon" aria-hidden="true">✕</span>
-      <div class="alert-title">No se pudo armar la traza</div>
-      <div class="alert-desc">{{ t.error }}</div>
-    </div>
-    <div v-for="h in chequeoGrave" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
-      <span class="alert-icon" aria-hidden="true">⚠</span>
-      <div class="alert-title">El mapa dejó de resolver</div>
-      <div class="alert-desc">{{ h.texto }} — <code>make trazador-chequeo</code></div>
-    </div>
-  </div>
-
-  <!-- La historia de la persona: sus solicitudes como chips por día. Reemplaza la lista vertical de
-       botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
-  <Historia />
-
   <div class="cols" :class="{ midiendo: redimensionando, cerrado }">
+    <!-- LA PERSONA · el sidebar izquierdo. Acá vive todo lo que NO es el recorrido: qué solicitud
+         estás mirando, de quién es, y qué más intentó esa persona.
+
+         ⚠ Esto era un BANNER a lo ancho de la ventana, arriba de todo — o sea un encabezado, que es
+         justo lo que las cuatro herramientas terminaron de sacar. Tenía dos problemas medidos y los
+         dos son del formato, no del contenido:
+           · **le cobraba su alto al mapa y al panel de logs**, que no lo usan. Con una traza cargada
+             eran ~170px de los que el mapa no veía uno;
+           · **cambiaba de alto según el estado** —la espera, los datos, los avisos, la historia— así
+             que el mapa se movía hacia abajo en cuanto buscabas. La regla que había escrita acá
+             («región propia para que la barra del mapa no cambie de alto») trataba el síntoma:
+             mientras sea una franja horizontal, lo que crezca empuja.
+         En una columna, lo que crece scrollea y no mueve nada. Y de paso el contenido mejora: la
+         ficha se lee como filas y la historia como una lista, que es lo que son.
+
+         La columna aparece SÓLO cuando hay algo que decir: sin consultar, el mapa se queda con el
+         ancho entero. Una columna vacía porque «está en la lista» es peor que no tenerla. -->
+    <aside v-if="hayColumna" class="sidebar">
+      <div class="region-head">
+        <span>{{ t.traza ? 'Solicitud' : 'Buscando' }}</span>
+        <span v-if="t.traza" class="badge badge-outline badge-xs ureq-b">{{ t.traza.ureq }}</span>
+      </div>
+      <div class="region-body">
+        <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner
+             mudo tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en
+             información. Va acá, que es donde va a aparecer la respuesta. -->
+        <div v-if="t.fase" class="cargando">
+          <div class="progress progress-xs progress-ind barra"><i /></div>
+          <span>{{ t.fase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
+          <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
+        </div>
+
+        <!-- AVISOS (`alert` de `taller.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
+             hicimos con los callouts de prosa: un alert es un mensaje que tiene que despegarse de lo
+             que lo rodea, no una cita adentro de un texto. -->
+        <div v-if="t.error" class="alert alert-destructive" role="alert">
+          <span class="alert-icon" aria-hidden="true">✕</span>
+          <div class="alert-title">No se pudo armar la traza</div>
+          <div class="alert-desc">{{ t.error }}</div>
+        </div>
+        <div v-for="h in chequeoGrave" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
+          <span class="alert-icon" aria-hidden="true">⚠</span>
+          <div class="alert-title">El mapa dejó de resolver</div>
+          <div class="alert-desc">{{ h.texto }} — <code>make trazador-chequeo</code></div>
+        </div>
+
+        <!-- LA FICHA. ⚠ Era un párrafo de una línea con seis datos separados por `·`: en 300px eso es
+             un muro de cuatro renglones donde hay que buscar dónde empieza cada campo. Una fila por
+             dato, con el rótulo apagado a la izquierda, se recorre con el ojo sin leer. -->
+        <dl v-if="t.traza" class="meta">
+          <div><dt>comercio</dt><dd>{{ t.traza.comercio }}</dd></div>
+          <div><dt>sucursal</dt><dd>{{ t.traza.sucursal }}</dd></div>
+          <div v-if="t.traza.lender"><dt>entidad</dt>
+            <dd>{{ t.traza.lender }} <span class="dim">rt={{ t.traza.rt }}</span></dd></div>
+          <div><dt>monto</dt><dd>{{ Math.round(t.traza.monto).toLocaleString('es-CO') }}</dd></div>
+          <div><dt>documento</dt><dd>{{ t.traza.documento }}</dd></div>
+          <div><dt>canal</dt><dd>{{ t.traza.origen
+            }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span></dd></div>
+        </dl>
+
+        <!-- La historia de la persona: sus solicitudes agrupadas por día. -->
+        <Historia />
+      </div>
+    </aside>
+
     <!-- El mapa NO lleva el ancho del sidebar: sólo si está abierto o no. Así se recalcula una vez, al
          abrir o cerrar, y no en cada píxel del arrastre. -->
     <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`.
@@ -236,10 +270,6 @@ async function copiar() {
 .editor-mapa :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
 .editor-mapa :deep(.buscador input) { flex:1 1 auto; min-width:0 }
 
-/* El BANNER: sólo aparece cuando hay algo que decir, así que no puede traer alto propio cuando no. */
-.banner { flex:0 0 auto; display:block; padding:8px 18px 10px; background:var(--card);
-  border-bottom:1px solid var(--line) }
-
 /* ⚠ El alto sale del token compartido a mano: `taller.css` se lo pone a `.workbench > .statusbar`,
    y el trazador arma su layout con `#app` en flex, no con la grilla. Sin esto quedaba en 18px contra
    los 26 de las otras tres — el mismo elemento con dos alturas según la herramienta. */
@@ -260,18 +290,34 @@ async function copiar() {
 .copiar:hover { color:var(--txt) }
 .copiar.ok { color:var(--ok) }
 
-.cargando { display:flex; align-items:center; gap:10px; margin-top:10px; font-size:12px; color:var(--dim) }
-.barra { width:120px; height:3px; background:var(--line); border-radius:var(--r-full); overflow:hidden; flex:0 0 120px }
-/* Indeterminada a propósito: no sabemos cuánto falta (la cola de Redash no lo dice), y una barra que
-   fabrica un porcentaje miente. Esta sólo comunica «sigue vivo». */
-.barra i { display:block; width:40%; height:100%; background:var(--info);
-  animation:corre 1.1s ease-in-out infinite; border-radius:var(--r-full) }
-@keyframes corre { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
-@media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
-.meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
-/* Sobre `.alert`: sólo el aire contra lo de arriba y el tamaño, que en el banner es más chico. */
-.banner .alert { margin-top:10px; font-size:12.5px }
-.banner .alert-desc { font-size:12.5px }
+/* ── LA COLUMNA DE LA IZQUIERDA ─────────────────────────────────────────────────────────────────
+   `sidebar` de `taller.css` le pone el fondo y la columna flex; acá va sólo su ancho y el aire.
+   ⚠ El ancho es FIJO y no arrastrable, a diferencia del panel de logs. No es un olvido: lo que hay
+   acá tiene un largo conocido —seis campos y una lista de chips— así que ensancharla no muestra más.
+   El panel de logs sí, porque adentro hay líneas de largo arbitrario. */
+.sidebar { flex:0 0 var(--sidebar-w); border-right:1px solid var(--line) }
+.sidebar > .region-body { padding:10px 14px 16px; display:flex; flex-direction:column; gap:12px }
+.ureq-b { font-variant-numeric:tabular-nums }
+
+/* LA FICHA, en filas. El rótulo apagado y angosto a la izquierda; el valor ocupa lo que queda y
+   envuelve. ⚠ `min-width:0` en el valor: sin él, un nombre de comercio largo ensancha la fila y se
+   sale de la columna en vez de partirse. */
+.meta { margin:0; display:flex; flex-direction:column; gap:3px; font-size:12.5px }
+.meta > div { display:flex; gap:8px; align-items:baseline }
+.meta dt { flex:0 0 68px; color:var(--tenue); font-size:11px; text-transform:uppercase;
+  letter-spacing:.05em }
+.meta dd { margin:0; min-width:0; color:var(--txt); overflow-wrap:anywhere }
+
+.cargando { display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--dim) }
+/* `progress progress-xs progress-ind` de `taller.css` — la pista, el filete de 3px y el movimiento
+   indeterminado salen de ahí. Lo único propio es que NO ocupa el ancho: vive en un renglón junto al
+   texto de la espera, así que es un ancho fijo y no crece con él.
+   *(Acá el relleno era `--info`, el azul. Se fue con el componente: era decoración, no significado —
+   lo que la barra dice, «sigue vivo», ya lo dice el movimiento.)* */
+.barra { width:120px; flex:0 0 120px }
+/* Sobre `.alert`: sólo el tamaño, que en una columna de 300px es más chico. */
+.sidebar .alert { font-size:12.5px }
+.sidebar .alert-desc { font-size:12.5px }
 .mapaRoto code { background:var(--elev); padding:1px 6px;
   border-radius:var(--r-sm); font-size:11.5px }
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.
@@ -281,9 +327,14 @@ async function copiar() {
    ⚠ `flex:1` + `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
    contenido y el `overflow:auto` de adentro no se activa nunca — la página vuelve a estirarse y el
    mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
-.cols { position:relative; flex:1; min-height:0 }
-.cols > :first-child { width:calc(100% - 380px); height:100% }
-.cols.cerrado > :first-child { width:100% }
+.cols { position:relative; flex:1; min-height:0; display:flex }
+/* ⚠ Al mapa se le deja lugar con `margin-right` y no con `width: calc(…)`, y esa es la pieza que
+   mantiene el invariante de arriba: el panel está EN CAPA, así que el mapa sigue teniendo dos anchos
+   y nada más —todo, o todo menos la base— y se recalcula al abrir o cerrar, no en cada píxel del
+   arrastre. (Antes el reparto colgaba de `> :first-child`, que era el mapa; con la columna de la
+   izquierda delante, ese selector pasaba a apuntarle a ELLA.) */
+.editor-mapa { flex:1 1 0; min-width:0; margin-right:380px }
+.cols.cerrado .editor-mapa { margin-right:0 }
 
 /* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
    leerse como algo que está encima y no como otra zona del mismo plano. */
@@ -298,5 +349,7 @@ async function copiar() {
   cursor:col-resize; background:transparent; display:flex; justify-content:center }
 .tirador::before { content:''; width:5px; background:var(--line); transition:background .12s }
 .tirador:hover::before, .cols.midiendo .tirador::before { background:var(--info) }
-@media (max-width:860px) { .cols { grid-template-columns:1fr } }
+/* (Acá había un `@media (max-width:860px) { .cols { grid-template-columns:1fr } }`. Era cromo muerto:
+   `.cols` no es un grid —el panel va EN CAPA y el mapa en flujo—, así que esa declaración no tenía a
+   quién aplicarle. Se fue con el barrido de estilos viejos.) */
 </style>

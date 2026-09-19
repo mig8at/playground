@@ -319,7 +319,58 @@ def main():
         else:
             print(f'      ✓ {tool:9} ninguna')
 
-    print('\n  8 · qué región usa cada herramienta')
+    print('\n  8 · dos componentes en el MISMO elemento (el choque de nombres)')
+    # ⚠ Este chequeo existe porque el mismo error se cometió DOS VECES, y las dos veces en silencio:
+    #   `.empty`  el tablero llamaba así a una nota de una línea; el componente se la comió y 16 notas
+    #             salieron centradas a media columna.
+    #   `.alert`  el tablero lo usaba como modificador de `.stat`; el componente es `display: grid`
+    #             con una primera columna de 16px, así que el rótulo y la leyenda de dos indicadores
+    #             midieron **0 px de ancho** y se leían una letra por renglón.
+    # Ninguno de los dos falla: se ven como un diseño feo. Lo que los delata es el MARKUP, y el markup
+    # está en el selector — `.stat.alert` dice que un elemento lleva las dos clases.
+    #
+    # La condición, y cada parte saca un falso positivo que hubo de verdad:
+    #   · las dos son RAÍZ (se declaran solas, o sea cada una trae su propia forma);
+    #   · la del bloque compartido impone LAYOUT (`display`, `position`, `grid-template-*`,
+    #     `flex-direction`). Es lo que convierte al elemento en otra cosa y lo que hizo el daño las dos
+    #     veces; un componente que sólo pone un borde —`.accordion-item`— no se lleva a nadie puesto,
+    #     y sin esta parte el chequeo acusaba a `.bdq.accordion-item`, que es el patrón CORRECTO;
+    #   · y la de la herramienta NO se nombra en el compartido ni una vez, que es lo que deja pasar
+    #     `.region-head.grupo`: ahí el nombre es vocabulario prestado, no una coincidencia.
+    taller = css_de(RAIZ / TALLERES[0])
+    LAYOUT = ('display', 'position', 'grid-template-columns', 'grid-template-rows', 'flex-direction')
+    def raices(css, exigir_layout=False):
+        out = set()
+        for sel, cuerpo in re.findall(r'([^{}]+)\{([^{}]*)\}', css):
+            if exigir_layout and not any(re.search(r'(?:^|;)\s*' + k + r'\s*:', cuerpo) for k in LAYOUT):
+                continue
+            for parte in sel.split(','):
+                parte = parte.strip()
+                if re.fullmatch(r'\.[a-z][a-z0-9-]*', parte): out.add(parte[1:])
+        return out
+    raiz_comp = raices(taller, exigir_layout=True)
+    nombra_taller = set(re.findall(r'\.([a-z][a-z0-9-]*)', taller))
+    for tool in HOJAS:
+        css_tool = '\n'.join(css_de(q) for q in propios_de(tool))
+        propias = {c for c in raices(css_tool) if c not in nombra_taller}
+        choques = []
+        for sel, _ in re.findall(r'([^{}]+)\{([^{}]*)\}', css_tool):
+            for compuesto in re.findall(r'\.[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+', sel):
+                cls = compuesto.split('.')[1:]
+                dueno = [c for c in cls if c in propias]
+                invitada = [c for c in cls if c in raiz_comp]
+                if dueno and invitada:
+                    choques.append((' '.join(sel.split())[:44], dueno[0], invitada[0]))
+        if choques:
+            print(f'      ✗ {tool}: {len(choques)}')
+            for sel, d, i in choques[:6]:
+                print(f'          {sel:46} — `.{d}` ya era un componente de la herramienta y `.{i}` le cae encima')
+            print('          Renombrá el de la herramienta: el compartido lo usan las cuatro.')
+            fallo = True
+        else:
+            print(f'      ✓ {tool:9} ninguno')
+
+    print('\n  9 · qué región usa cada herramienta')
     for tool in HOJAS:
         texto = '\n'.join(p.read_text() for p in propios_de(tool))
         texto = re.sub(r'<!--.*?-->', '', texto, flags=re.S)   # lo comentado no cuenta como usado

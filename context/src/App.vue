@@ -410,12 +410,19 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
       </aside>
 
       <main class="detail editor" v-if="byId[sel]">
-        <div class="d-head">
-          <span class="dot" :class="kindOf(sel)"></span>
-          <h2>{{ nameOf(sel) }}</h2>
+        <!-- LA BARRA DEL DETALLE · era un encabezado de 18px DENTRO del scroll, o sea que a las tres
+             pantallas de doc ya no sabías en qué nodo estabas — el mismo problema que el árbol tenía
+             resuelto desde antes y esta columna no. Ahora es la barra de la región: misma forma que
+             la del árbol, fuera del scroll, y lo que scrollea es el cuerpo.
+
+             ⚠ El punto va DENTRO del nombre y no al lado: `.region-head > :first-child` se lleva el
+             `flex: 1`, así que suelto se estiraba él y el nombre quedaba pegado a las pastillas. -->
+        <div class="region-head">
+          <span class="nodo"><span class="dot" :class="kindOf(sel)"></span>{{ nameOf(sel) }}</span>
           <span class="badge badge-outline kind" :class="kindOf(sel)">{{ kindOf(sel) }}</span>
-          <span class="badge badge-secondary badge-xs cnt big" v-if="filesOf(sel)">{{ filesOf(sel) }} archivos</span>
+          <span class="badge badge-secondary badge-xs cnt" v-if="filesOf(sel)">{{ filesOf(sel) }} archivos</span>
         </div>
+        <div class="region-body">
         <p class="when" v-if="whenOf(sel)"><b>Cuándo:</b> {{ whenOf(sel) }}</p>
 
         <!-- ALINEACIÓN del nodo seleccionado: el estado, contra qué se verificó y QUÉ archivos cambiaron -->
@@ -498,6 +505,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           <span class="badge chip" v-for="cx in byId[sel].contexts" :key="cx" @click="select(cx)">{{ cx }}</span>
         </div>
         <div class="doc" v-html="selDoc"></div>
+        </div>
       </main>
     </div>
 

@@ -203,6 +203,21 @@
   border-bottom: 0;
 }
 
+/* Y el encabezado puede SER el botón que pliega su grupo —la jornada del tablero, el bloque técnico
+   del trazador—. Un `<button>` trae piel propia: borde 3D a los costados, fondo, su propia familia y
+   el texto centrado. Se le quita todo eso y se le deja lo único que aporta, que es ser alcanzable por
+   teclado y anunciarse como algo que se aprieta (`aria-expanded`).
+
+   ⚠ Va acá y no en cada hoja porque las dos herramientas lo necesitaron el mismo día y lo escribieron
+   distinto — y la que olvidó `border-left/right` se llevó dos rayas grises a los costados de la
+   banda, que se leen como un error de dibujo y no como un botón. */
+button.region-head {
+  width: 100%; border-left: 0; border-right: 0; background: none; color: inherit;
+  font: inherit; font-size: 11px; font-weight: 600; text-align: left; cursor: pointer;
+}
+button.region-head:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
+button.region-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ring) }
+
 /* Cada región declara SU superficie. Lo necesita cualquier hijo `sticky`: para no dejar pasar el
    contenido por debajo tiene que pintarse opaco, y el color correcto es el de la región donde esté,
    no uno fijo. */
@@ -399,6 +414,10 @@ body.redimensionando { cursor: col-resize; user-select: none }
 .input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
 textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vertical }
 .input-sm { height: 32px; font-size: 13px }
+/* Extensión declarada: shadcn corta en `sm`. Hace falta un escalón más para el campo que vive
+   DENTRO de una barra —el buscador de una etapa, el filtro de un grupo—, donde 32px empujan la
+   barra a 50 y dejan de leerse como barra. Es el mismo 24px de `.btn-xs`. */
+.input-xs { height: 24px; padding: 0 8px; font-size: 12px }
 
 /* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
    queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
@@ -477,6 +496,35 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   border-top-color: currentColor; border-radius: 999px; animation: spinner .7s linear infinite }
 @keyframes spinner { to { transform: rotate(360deg) } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s } }
+
+/* ── BARRA DE AVANCE ────────────────────────────────────────────────────────────────────────────
+   shadcn `Progress`: una PISTA teñida con el primario y un INDICADOR opaco encima. El indicador es
+   un hijo cualquiera (`i`, o `.progress-bar`) — así las dos implementaciones que ya existían a mano
+   entran sin reescribir su markup.
+
+   ⚠ La pista va teñida con el mismo color del relleno (`--primary` al 20 %) y NO con `--border`.
+   Sobre un tema neutro las dos se ven casi igual con la barra a la mitad; con un avance del 3 % la
+   teñida se sigue leyendo como UNA barra con dos partes, y la otra como una raya con una mota. */
+.progress { position: relative; width: 100%; height: 8px; overflow: hidden; flex: none;
+  border-radius: var(--radius-full, 999px);
+  background: color-mix(in oklab, var(--primary) 20%, transparent) }
+.progress > i, .progress > .progress-bar {
+  display: block; height: 100%; width: 100%; border-radius: inherit;
+  background: var(--primary); transition: width .3s ease }
+
+/* Dos extensiones declaradas —shadcn no las trae— y las dos ya existían a mano en dos herramientas:
+
+   `-xs`   un filete de 3px DEBAJO de un número. A los 8px de shadcn la barra compite con el dato en
+           vez de acompañarlo; es el alto que tenían el tablero y el trazador.
+   `-ind`  INDETERMINADA: no sabemos cuánto falta. Es la misma decisión que el `.spinner` de arriba —
+           una barra que se llena sola fabrica un porcentaje y miente; ésta sólo dice «sigue vivo». */
+.progress-xs { height: 3px }
+.progress-ind > i, .progress-ind > .progress-bar {
+  width: 40%; animation: progress-ind 1.1s ease-in-out infinite }
+@keyframes progress-ind { 0% { transform: translateX(-100%) } 100% { transform: translateX(250%) } }
+@media (prefers-reduced-motion: reduce) {
+  .progress-ind > i, .progress-ind > .progress-bar { animation: none; width: 100%; opacity: .5 }
+}
 
 /* ── VACÍO ──────────────────────────────────────────────────────────────────────────────────────
    Las cuatro tenían estados vacíos con cuatro formas distintas. Esta es la del original: medio,
