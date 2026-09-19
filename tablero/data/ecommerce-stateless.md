@@ -7,7 +7,7 @@ context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
 jira_title: "Revisión de flujo ecommerce V1"
-ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada
+ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada, fix/listado-tramo-por-monto
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -63,6 +63,26 @@ publicable, **sin sesión de asesor** — ventana de incógnito o logout previo.
 - [ ] Borrar la lógica ecommerce duplicada en `legacy-application` una vez completo en `main`.
 
 **Lo que quedó abierto al probar**
+
+- [ ] **Decidir con negocio con QUÉ MONTO se elige la banda de `creditop_x_conditions_by_amount_by_lender`.**
+      Hoy el plan de pagos usa `user_requests.amount`, que viene inflado por el factor del plazo MÁXIMO
+      porque el cliente todavía no eligió; el front usa `original_amount − initial_fee`. Con
+      `fix/listado-tramo-por-monto` los dos ya contestan lo mismo —así que la tarjeta no miente— pero el
+      monto que manda sigue siendo el inflado. Corregirlo **cambia el plazo que recibe el 39 % de Motai X
+      en producción** (89 de 227 en 90 días), así que no es un refactor.
+      Depende de: negocio / riesgo.
+- [ ] **Decidir qué se hace con los 31 créditos de Motai X a 18 cuotas**, un plazo que la entidad no
+      declara (`fee_numbers = 6,12,24,36`). Sale de la rama `mandatory_fee_number`, que devuelve el techo
+      de la banda **aunque no esté en la lista** — está así en producción desde siempre y el arreglo lo
+      conserva a propósito, para que la tarjeta diga lo mismo que el plan. Si 18 no es un plazo válido,
+      el arreglo es del dato (la fila del tramo), no del código.
+      Depende de: negocio.
+- [ ] **La tercera capa: `PaymentCalculationService::applyProductFilters` (`products.max_term`) tampoco
+      la aplica el listado.** Medido en prod: sólo 4 productos tienen `max_term` y suman **22** usos
+      históricos, todos de «N sesiones». Es el mismo defecto con impacto casi nulo — se cierra con el
+      mismo patrón cuando toque, no antes.
+- [ ] **Pushear `fix/listado-tramo-por-monto` y abrir el PR contra `qa`** (commit `9b956475`). No se
+      pusheó: los repos reales no se tocan sin permiso explícito.
 
 - [ ] **El hueco de la credencial:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
       así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
@@ -339,6 +359,103 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-19 · el ticket de cuotas de ecommerce: ya estaba cerrado en `qa`, y abajo había otro más grande
+
+**El ticket** («la pantalla de lenders muestra X opciones y el plan de pagos de Creditop X sólo 3»,
+comercio `13874eb6`, solicitud 502446, $1.500.000) **ya no se reproduce.** Es el caso que motivó #1432,
+que mergeó a `qa` el 18/9 a las 00:32 UTC y se desplegó ese mismo día. Verificado hoy pidiéndole a `qa`
+los dos endpoints de la MISMA solicitud, que es la comprobación que el nodo `amount-tiers` prescribe:
+
+| servicio | plazos |
+|---|---|
+| `GET /api/onboarding/loan-application/lenders-v2/502446?amount=1500000` | `fee_numbers = 1,3,6` · `fee_number = 6` |
+| `GET /api/loans/requests/promissory-note/502446/simulate-payment-schedule` | **[1, 3, 6]** |
+
+Los dos dicen tres. El dato que lo explica, medido contra la base de `qa`: la entidad es `Cierre X (test)`
+(lender 201, rt=2) y declara `1,3,6,12` con máximo 12; el usuario 1828458 está en la categoría
+«Segunda oportunidad» (id 168, `max_fee_number = 6`). Ninguno de los dos calculaba mal — el listado
+contestaba otra pregunta.
+
+⚠ **Pero el defecto sigue vivo en producción:** #1432 está en `qa` y **no en `main`**
+(`git log origin/main -S aplicarTopeDePlazoDeLaCategoria` da cero). Se va con la promoción `qa` → `main`
+que esta tarea ya tiene en «Cómo se ataca»; no hace falta nada aparte.
+
+**Lo que apareció al verificar, y que el ticket no vio.** El plan de pagos recorta los plazos por **tres**
+capas —producto (`products.max_term`), categoría y **tramo por monto**
+(`creditop_x_conditions_by_amount_by_lender`)— y el listado sólo había aprendido la segunda. La tercera
+está **viva en producción y pega más fuerte**, en Motai X (lender 62): sus cuatro bandas tienen
+`mandatory_fee_number = 1`, así que cada lado ofrece **un** plazo único… y cada lado elige la banda con un
+monto distinto. El front usa `original_amount − initial_fee`; el plan usa `user_requests.amount`, que
+viene inflado por el factor del plazo MÁXIMO porque el cliente todavía no eligió (está documentado en el
+docblock de `RegularPaymentScheduleService::lenderPricesByTerm`).
+
+> **MEDICIÓN · 2026-09-19** — 8 fila(s) en `prod`.
+> **Cómo se vuelve a comprobar:** `make trazador-sql SQL='SELECT c_front.max_fee_number AS plazo_tarjeta, c_back.max_fee_number AS plazo_plan, COUNT(*) AS solicitudes FROM user_requests ur LEFT JOIN creditop_x_conditions_by_amount_by_lender c_front ON c_front.lender_id = ur.lender_id AND (ur.original_amount - COALESCE(ur.initial_fee,0)) >= c_front.min_amount AND (ur.original_amount - COALESCE(ur.initial_fee,0)) < c_front.max_amount LEFT JOIN creditop_x_conditions_by_amount_by_lender c_back ON c_back.lender_id = ur.lender_id AND ur.amount >= c_back.min_amount AND ur.amount < c_back.max_amount WHERE ur.lender_id = 62 AND ur.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) GROUP BY c_front.max_fee_number, c_back.max_fee_number ORDER BY solicitudes DESC' TARGET=prod`
+
+| plazo_plan | plazo_tarjeta | solicitudes |
+|---|---|---|
+| 24 | 24 | 56 |
+| 24 | 18 | 45 |
+| 18 | 18 | 31 |
+| 36 | 24 | 31 |
+| 36 | 36 | 26 |
+| 12 | 12 | 25 |
+| 18 | 12 | 13 |
+| 12 | NULL | 1 |
+
+**89 de 227 solicitudes (39 %) en 90 días** con la tarjeta y el plan en bandas distintas: 18→24 (45),
+24→36 (31), 12→18 (13). Y el plan gana siempre, así que el desenlace se ve en los plazos cerrados —
+**31 créditos a 18 cuotas, un plazo que la entidad NO declara** (`fee_numbers = 6,12,24,36`), porque con
+`mandatory` el plan devuelve el techo de la banda aunque no esté en la lista:
+
+> **MEDICIÓN · 2026-09-19** — `prod`, lender 62, 90 días.
+> **Cómo se vuelve a comprobar:** `make trazador-sql SQL='SELECT ur.fee_number, COUNT(*) AS solicitudes FROM user_requests ur WHERE ur.lender_id=62 AND ur.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) GROUP BY ur.fee_number ORDER BY ur.fee_number' TARGET=prod`
+
+| fee_number | solicitudes |
+|---|---|
+| 6 | 2 |
+| 12 | 31 |
+| **18** | **31** |
+| 24 | 109 |
+| 36 | 55 |
+
+*(Creditop X (37) también tiene tramos y da **0** divergencias: sus bandas son anchas respecto de sus
+montos. DHI X (63) no tuvo solicitudes. O sea que esto es de Motai X, no del mecanismo en general.)*
+
+**Lo que se hizo** — rama `fix/listado-tramo-por-monto` sobre `qa`, commit `9b956475`, **sin pushear**:
+el listado aplica el tramo por monto con el **mismo** monto que el plan. La elección de banda, el
+desempate de bandas solapadas y el `mandatory` se mudaron a
+`Modules/Loans/App/Services/PaymentSchedule/AmountConditionTermPolicy.php` y **los dos servicios la
+llaman**. Copiar el bloque al listado lo habría cerrado hoy y reabierto la primera vez que alguien tocara
+uno de los dos — es la regla de la vara del `CLAUDE.md` raíz: lo que una herramienta afirma sobre otra se
+cablea, no se escribe.
+
+Verificado **corriéndolo** en local, misma solicitud (466860, Motai X, $4.000.000, banda [2.800.001,
+5.000.001) → 12 obligatorio):
+
+| | listado (la tarjeta) | plan de pagos |
+|---|---|---|
+| **sin el arreglo** | `6,12,24,36` · `fee_number = 36` | **[12]** |
+| **con el arreglo** | `12` · `fee_number = 12` | **[12]** |
+
+> **CORRIDA · 2026-09-19** — `make harness-caminar CASOS='#5cb92b54:62' MONTO=4000000 CERRAR=1` en
+> `local`, y después los dos endpoints sobre el uReq que dejó.
+
+18 pruebas verdes (`Modules/Loans/tests/Unit/AmountConditionTermPolicyTest.php` +
+`Modules/Onboarding/tests/Unit/ListadoTopeDePlazoPorCategoriaTest.php`). La única falla de
+`Modules/Loans/tests/Unit/PaymentScheduleServiceTest.php` es **previa**: falla igual con el cambio
+aislado en un stash, y ese test no toca `getPossibleFeeNumbers`.
+
+⚠ **Una propiedad que quedó y conviene conocer:** el front sigue re-filtrando por su cuenta en
+`useInstallmentOptions.ts`, pero **ya no puede contradecir al servidor** — cuando su filtro deja la lista
+vacía cae a `baseOptions`, que ahora es la lista recortada. El recorte del servidor pasó a ser el piso.
+
+⚠ **Lo que NO se tocó, a propósito:** cuál de los dos montos es el correcto para elegir la banda.
+Cambiarlo cambia el plazo que recibe el 39 % de Motai X en producción — es decisión de negocio, no de
+refactor. Hoy los dos servicios contestan lo mismo con el monto que el plan usa desde siempre, así que la
+tarjeta deja de prometer lo que el plan no da **sin cambiarle el crédito a nadie**. Queda en Pendientes.
+
 
 ### 2026-09-18 · limpieza del archivo: lo que no era de la tarea, y lo que ya lo dice una pestaña
 
