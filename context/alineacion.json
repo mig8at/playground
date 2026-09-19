@@ -2,209 +2,13 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 22,
-    "deriva-alta": 9,
+    "al-dia": 23,
+    "deriva-alta": 8,
     "deriva": 6,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
   "nodos": [
-    {
-      "id": "microservicios",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 13,
-      "deriva": {
-        "cambiados": 8,
-        "pct": 67,
-        "hubs": 1,
-        "archivos": [
-          {
-            "ruta": "customer-service/cmd/http-server/main.go",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "financial-health-service/cmd/http-server/main.go",
-            "ultimo_cambio": "2026-09-11",
-            "hub": false
-          },
-          {
-            "ruta": "financial-health-service/internal/infra/handlers/http/financial_health/http_handler.go",
-            "ultimo_cambio": "2026-09-11",
-            "hub": false
-          },
-          {
-            "ruta": "financial-health-service/internal/infra/handlers/http/financial_profile/http_handler.go",
-            "ultimo_cambio": "2026-09-11",
-            "hub": false
-          },
-          {
-            "ruta": "customer-profiling-service/internal/core/domain/pipeline.go",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "customer-profiling-service/internal/core/workflows/legacykycpipeline/walk.go",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "customer-profiling-service/internal/core/workflows/legacykycpipeline/workflow.go",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "customer-profiling-service/internal/infra/storage/postgres/pipeline_repository.go",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 16,
-        "autores": {
-          "Yamid Viloria": 7,
-          "joseesco24-creditop": 6,
-          "Oscar Rincon": 3
-        },
-        "lista": [
-          {
-            "sha": "89727bd",
-            "fecha": "2026-09-17",
-            "autor": "Yamid Viloria",
-            "asunto": "New workflow: When an user is deleted from the pool the cognito_id is cleaned.",
-            "repo": "customer-service"
-          },
-          {
-            "sha": "ed3a0cb",
-            "fecha": "2026-09-11",
-            "autor": "joseesco24-creditop",
-            "asunto": "perf: cache and settings reading improvements",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "cc41c82",
-            "fecha": "2026-09-11",
-            "autor": "joseesco24-creditop",
-            "asunto": "docs: documentation updates",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "96eda46",
-            "fecha": "2026-09-10",
-            "autor": "Yamid Viloria",
-            "asunto": "refactor(kyc-pipeline): dejar el lint completo en cero",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "f7f6f2e",
-            "fecha": "2026-09-10",
-            "autor": "joseesco24-creditop",
-            "asunto": "refactor: more ms refactoring and first new financial health api preview implementation",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "42ae74a",
-            "fecha": "2026-09-09",
-            "autor": "Yamid Viloria",
-            "asunto": "feat(kyc-pipeline): elegir el grafo por tipo y país, con el tipo decidido por solicitud",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "af2913f",
-            "fecha": "2026-09-09",
-            "autor": "joseesco24-creditop",
-            "asunto": "refactor: more refactoring",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "8b04344",
-            "fecha": "2026-09-09",
-            "autor": "joseesco24-creditop",
-            "asunto": "refactor: remove unused api's",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "51a511b",
-            "fecha": "2026-09-09",
-            "autor": "joseesco24-creditop",
-            "asunto": "refactor: initial refactoring",
-            "repo": "financial-health-service"
-          },
-          {
-            "sha": "5b0fb69",
-            "fecha": "2026-09-08",
-            "autor": "Yamid Viloria",
-            "asunto": "Fix documents",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "4fea05a",
-            "fecha": "2026-09-08",
-            "autor": "Yamid Viloria",
-            "asunto": "Add some missed features",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "7309b07",
-            "fecha": "2026-09-01",
-            "autor": "Yamid Viloria",
-            "asunto": "feat(kyc-pipeline): elegir el grafo también por país",
-            "repo": "customer-profiling-service"
-          },
-          {
-            "sha": "12ccc2600",
-            "fecha": "2026-09-01",
-            "autor": "Oscar Rincon",
-            "asunto": "El comercio decide si pide ocupación e ingresos",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "cd9ff97c0",
-            "fecha": "2026-09-01",
-            "autor": "Oscar Rincon",
-            "asunto": "El comercio decide si pide la fecha de expedición del documento",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "341cd52",
-            "fecha": "2026-08-31",
-            "autor": "Yamid Viloria",
-            "asunto": "feat(kyc-pipeline): decir en qué intento de corrección va una pausa",
-            "repo": "customer-profiling-service"
-          }
-        ]
-      },
-      "huerfanos": [
-        "customer-profiling-service/internal/core/domain/country_test.go",
-        "customer-profiling-service/internal/core/domain/pipeline_type.go",
-        "customer-profiling-service/internal/core/domain/pipeline_type_test.go",
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/creditopx_test.go",
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/graph_specs_test.go",
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/parity_test.go",
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/providers_test.go",
-        "customer-profiling-service/internal/core/workflows/legacykycpipeline/resolve_graph_test.go",
-        "customer-profiling-service/internal/infra/storage/postgres/pipeline_graph_integration_test.go",
-        "customer-profiling-service/internal/infra/storage/postgres/pipeline_repository_test.go",
-        "customer-service/cmd/http-server/main_test.go",
-        "financial-health-service/internal/infra/handlers/http/financial_health/constants.go",
-        "financial-health-service/internal/infra/handlers/http/financial_health/validators.go",
-        "financial-health-service/internal/infra/handlers/http/financial_profile/constants.go",
-        "financial-health-service/internal/infra/handlers/http/financial_profile/validators.go"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
     {
       "id": "onboarding",
       "estado": "deriva-alta",
@@ -4809,6 +4613,26 @@
         "source": "manual"
       },
       "archivos": 89,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "microservicios",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 13,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
