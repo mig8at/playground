@@ -16,6 +16,7 @@
   ],
   "files": [
     "application/app/Actions/CreditopX/CondoneCreditBalances.php",
+    "application/app/Actions/CreditopX/PredictStandingAfterCore.php",
     "application/app/Actions/CreditopX/RecomputeBackdatedPaymentDate.php",
     "application/app/Actions/Lenders/Payvalida.php",
     "application/app/Actions/Lenders/Wompi.php",
@@ -92,11 +93,13 @@
     "legacy-backend/Modules/Payments/App/Services/CustomerPaymentService.php",
     "legacy-backend/Modules/Payments/App/Services/PaymentLinkService.php",
     "legacy-backend/Modules/System/App/Http/Controllers/Admin/EndOfMonthReportController.php",
+    "legacy-backend/app/Console/Commands/AuditCreditopXHealthCommand.php",
     "legacy-backend/app/Console/Kernel.php",
     "legacy-backend/app/Models/CreditopXChangesLog.php",
     "legacy-backend/app/Models/CreditopXReminderMessage.php",
     "legacy-backend/app/Models/ReminderDispatchLog.php",
     "legacy-backend/app/Repositories/PullmanRepository.php",
-    "legacy-backend/app/Services/PullmanService.php"
+    "legacy-backend/app/Services/PullmanService.php",
+    "legacy-backend/config/audit.php"
   ]
 }

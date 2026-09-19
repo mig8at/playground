@@ -51,6 +51,7 @@
     "legacy-backend/Modules/Onboarding/App/Services/KycValidationOutcome.php",
     "legacy-backend/Modules/RiskV2/App/Services/CheckExperianTriggerService.php",
     "legacy-backend/Modules/RiskV2/App/Services/CheckIfAbleToOmitService.php",
+    "legacy-backend/Modules/RiskV2/App/Services/RiskCentralCacheManagementService.php",
     "legacy-backend/Modules/UserRequestV1/App/Constants/Flow.php",
     "legacy-backend/app/Actions/RiskCentrals/Abaco.php",
     "legacy-backend/app/Actions/RiskCentrals/Experian.php",
