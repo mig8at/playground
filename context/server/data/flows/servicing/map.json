@@ -93,6 +93,8 @@
     "legacy-backend/Modules/System/App/Http/Controllers/Admin/EndOfMonthReportController.php",
     "legacy-backend/app/Console/Kernel.php",
     "legacy-backend/app/Models/CreditopXChangesLog.php",
+    "legacy-backend/app/Models/CreditopXReminderMessage.php",
+    "legacy-backend/app/Models/ReminderDispatchLog.php",
     "legacy-backend/app/Repositories/PullmanRepository.php",
     "legacy-backend/app/Services/PullmanService.php"
   ]

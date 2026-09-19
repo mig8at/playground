@@ -97,6 +97,12 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 
 (`incentive-revolving-credits` ~10:00 está **DESACTIVADO** — SIDs de Twilio sin aprobar.)
 
+⚠ **Y hay un cron de recordatorios MÁS, que está puesto y no manda nada: el semanal.** `app:reminder-weekly-loans` corre **diario a las 09:00 de Bogotá**, `withoutOverlapping`, agendado en el Kernel del monolito **nuevo** (`legacy-backend/app/Console/Kernel.php:41`), y es para **Motai Renting y Rent to Own** (CRED-226). Está desplegado **pero dormido**, y la llave de encendido es **activar las plantillas**. Medido en prod el 2026-09-18: **22 plantillas `weekly_*` sembradas, todas con `status = 0`, cero envíos**, todas con `cutoff_type_id = 3` (semanal); las **8 activas** no tienen `cutoff_type_id` y son las que hoy mandan lo que sí sale. Encenderlas pide además la guarda de corte desplegada en `legacy-application` y las plantillas registradas en `messaging-service`. **Que el cron corra no significa que comunique**: acá corre todos los días y no manda una sola.
+
+**Cómo se lee `reminder_dispatch_log`**, que es donde queda el rastro (medido en prod: **70.320 enviados, 76.237 omitidos y 1.760 fallidos** en 59 corridas desde el 2026-07-06): la columna `channels` guarda **sólo los canales que efectivamente salieron** —no los que se intentaron— y el canal que falló va en `error` con su motivo, también cuando el envío fue parcial. Contar canales intentados con esa columna subestima.
+
+⚠ **Una trampa del comando que generaliza a cualquiera que acepte `--date`:** `Carbon::createFromFormat` **normaliza en silencio** las fechas que no existen (`2026-02-30` → `2026-03-02`). Con `--force` eso manda recordatorios reales del día equivocado, así que la fecha se acepta sólo si vuelve idéntica al formatearla de nuevo.
+
 ⚠ **El cron de las 03:30 ahora deja rastro de lo que NO aplicó** (`UpdateCreditopXApplyPaymentCommand.php`,
 2026-07-30). Antes un pago retenido que no se podía aplicar se perdía en silencio; hoy hay dos casos
 explícitos, cada uno con `DB::rollBack()` **de esa transacción sola** y una fila en `logs`:

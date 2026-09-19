@@ -14,6 +14,8 @@
     "«no tiene permisos» / «ve un panel mutilado»"
   ],
   "files": [
+    "application/app/Console/Commands/GrantPermissionCommand.php",
+    "application/app/Console/Commands/RegisterPaymentPermissionCommand.php",
     "application/app/Exports/CreditopXRequestsReportExport.php",
     "application/app/Http/Controllers/Admin/AlliedCorporateUserController.php",
     "application/app/Http/Controllers/Admin/AlliedModulesController.php",
