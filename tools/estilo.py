@@ -270,6 +270,7 @@ def main():
     print('\n  6 · qué región usa cada herramienta')
     for tool in HOJAS:
         texto = '\n'.join(p.read_text() for p in propios_de(tool))
+        texto = re.sub(r'<!--.*?-->', '', texto, flags=re.S)   # lo comentado no cuenta como usado
         usa = [r for r in REGIONES
                if re.search(r'class="[^"]*(?<![-\w])' + re.escape(r) + r'(?![-\w])', texto)
                or re.search(r'(?<![-\w])\.' + re.escape(r) + r'(?![-\w])', css_de_texto(texto))]

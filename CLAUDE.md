@@ -194,8 +194,8 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 
 - ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Es lo que separa un
   vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor que no
-  tenerlo. Hoy: el panel del harness usa las siete · `context` dos (`sidebar` el árbol, `editor` el
-  detalle) · `tablero` una (`titlebar`) · el trazador una (`auxiliarybar`). `make estilo-check` lo
+  tenerlo. Hoy: el panel del harness y el tablero son workbenches completos · `context` usa dos
+  (`sidebar` el árbol, `editor` el detalle) · el trazador una (`auxiliarybar`). `make estilo-check` lo
   lista, así que se ve de un vistazo quién adoptó qué.
 - ⚠ **Adoptar una región es SOLTARLE a la herramienta lo que la regla compartida ya dice**, no
   agregarle una clase encima. En `context` fue soltar el `background` del árbol: ahora lo pone

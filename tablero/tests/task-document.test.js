@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { organizeDocument } from '../src/task-document.js';
-import { groupTasks, panelWidth, readPreference, savePreference } from '../src/ui-state.js';
+import { groupTasks, readPreference, savePreference } from '../src/ui-state.js';
 
 test('retoma, pendientes y decisiones preceden al material; historial al final', () => {
   const sections = organizeDocument('## Registro\nPasado\n### Día uno\nDetalle\n\n## Enlaces\nReferencia\n\n## Objetivo\nPlan\n\n## Decisiones\nElegido\n\n## Pendientes\n- [ ] Acción\n\n## 1 · Si retomás esto sin contexto\nActual');
@@ -71,12 +71,11 @@ test('agrupar conserva todas las tareas y el orden dentro de cada estado', () =>
   assert.deepEqual(groupTasks([], t => t.bucket), []);
 });
 
-test('ancho se limita al viewport, incluso en móvil y con preferencias inválidas', () => {
-  assert.equal(panelWidth(100, 1200), 340);
-  assert.equal(panelWidth(2000, 1200), 1152);
-  assert.equal(panelWidth(820, 320), 307);
-  assert.equal(panelWidth('corrupto', 1200), 820);
-});
+/* ⚠ Acá vivía «ancho se limita al viewport, incluso en móvil y con preferencias inválidas», que
+   probaba `panelWidth`. Se fue con el cajón: la tarea vive en el `editor` del workbench y su ancho lo
+   decide el grid de `taller.css`, no una preferencia guardada. Borrar el helper sin borrar su prueba
+   dejaba la suite entera sin arrancar (`does not provide an export named 'panelWidth'`), que es la
+   forma más cara de enterarse. */
 
 test('preferencias sobreviven a recargas y toleran almacenamiento bloqueado o corrupto', () => {
   const values = new Map();

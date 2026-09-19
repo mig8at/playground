@@ -91,8 +91,16 @@
 
 * { box-sizing: border-box; }
 
+/* ⚠ EL CONTRATO DE SCROLL (ver `taller.css`): la app ocupa la ventana y **scrollea cada región, nunca
+   la página**. Antes el tablero era una página larga: al abrir una tarea el cajón tapaba todo y al
+   cerrarlo volvías a donde estabas por suerte, no por diseño. Ahora el árbol scrollea de un lado y la
+   tarea del otro, y ninguno mueve al otro. `#app` también va al 100%: es el contenedor que Vue monta
+   entre `body` y el workbench, y sin él la cadena de alturas se corta ahí. */
+html, body, #app { height: 100% }
+
 body {
   margin: 0;
+  overflow: hidden;
   background: var(--background);
   color: var(--foreground);
   font: 15px/1.5 var(--font-sans);

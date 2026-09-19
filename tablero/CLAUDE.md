@@ -2,6 +2,32 @@
 
 Qué es y cómo se corre: `README.md`. Acá solo las reglas al trabajar con las tareas.
 
+## Dónde está cada cosa en pantalla
+
+El tablero es un **workbench** (ver el `CLAUDE.md` raíz, §«Y cómo se DIVIDE la pantalla»), no una
+página que scrollea:
+
+| Región | Qué tiene |
+|---|---|
+| `titlebar` | el nombre, el sprint y el selector de vista |
+| `activitybar` | dos modos: **T** = mi sprint · **J** = traer de Jira |
+| `sidebar` | los filtros y **el árbol de tareas**, agrupado por estado. Una fila = una tarea |
+| `editor` | **sin tarea elegida, el sprint** (los 4 indicadores + Mi jornada). Con una elegida, la tarea con sus 8 pestañas |
+| `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
+| `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
+
+⚠ **Antes esto era otra cosa, y el vocabulario de este archivo todavía la nombra.** Las tareas eran
+una GRILLA DE TARJETAS y al elegir una se abría un CAJÓN encima. Donde abajo se lee «la tarjeta»,
+leé: la **fila del árbol** si habla de elegir o de ver de un vistazo, y **el editor** si habla del
+detalle. Los botones que vivían en la tarjeta —«⇢ Mover», el handoff a QA— están hoy en el
+encabezado del editor; lo que la tarjeta mostraba de un vistazo (próximo paso, chips, tiempos) es la
+`.ficha`, arriba de la pestaña Trabajo.
+
+⚠ **Y al entrar NO hay ninguna tarea seleccionada, a propósito.** Antes sí —quedaba la que estaba en
+curso— porque `active` sólo decía «sobre cuál se registra el tiempo». Ahora `active` es **lo que
+muestra el editor**, así que autoseleccionar significaba entrar directo a una tarea y no ver nunca el
+sprint.
+
 ## Plantilla por pestaña
 
 El orden fijo es **Trabajo · Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora**. Los números
