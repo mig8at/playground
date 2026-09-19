@@ -4,7 +4,7 @@
 ## Qué es
 La formalización arranca cuando el cliente **ya eligió entidad** (`user_requests.user_request_status_id = 3`, "Selección de entidad") y termina en el **Estado 11 "Autorizada"** (o en un terminal 6/7/8). Es la fase que produce **papel firmado y plata**: fija el plazo y la primera fecha de pago, calcula la amortización real, genera y firma pagaré / consentimiento / FGA / plan de pagos, y recién ahí escribe el 11 más el primer registro del ledger.
 
-Vive casi entera en **`legacy-backend/Modules/Loans`** (el módulo más grande del repo: ~320 archivos), se consume desde el wizard React (`frontend-monorepo/apps/loan-request-wizard`) y tiene un **gemelo completo y vivo en `application`** (Inertia, rutas en español) por el parallel-run.
+Vive casi entera en **`legacy-backend/Modules/Loans`** (el módulo más grande del repo por lejos: **470 archivos**, contra 282 del segundo, `Onboarding` — re-contado el 2026-09-18; decía ~320), se consume desde el wizard React (`frontend-monorepo/apps/loan-request-wizard`) y tiene un **gemelo completo y vivo en `application`** (Inertia, rutas en español) por el parallel-run.
 
 Frontera con los hermanos: acá va el **journey de cierre**. La familia del lender (**creditopx** rt=2/3, **aggregator** rt=1, **redirect** rt=0), la biometría (**kyc**), la categoría que fija enganche/cupo/plazo/FGA (**profiling**) y el bloqueo por hardware (**smartpay**) son nodos propios.
 
@@ -16,7 +16,7 @@ Frontera con los hermanos: acá va el **journey de cierre**. La familia del lend
   2026-08-07), así que la discrepancia sólo se encuentra abriendo el PDF y comparando a ojo — que es como
   se encontró el incidente de diciembre de 2025. Ver **F-121**.
 - **El estado 30 «Autorizado pendiente desembolso» es un WAYPOINT, no un desenlace.** Lo escribe
-  `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:434 transitionToIntermediate`
+  `legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php:663 transitionToIntermediate`
   —«Transition to intermediate status after OTP verification. Applies to all flows (IMEI and
   default)»— y deja el comentario «OTP verificado - pendiente autorización» en el historial. También
   lo escribe `AdvisorStatusController.php:43` y `:91` por acción del asesor. Una solicitud parada ahí
@@ -30,8 +30,8 @@ Frontera con los hermanos: acá va el **journey de cierre**. La familia del lend
   invariante 4 (un estado dice dónde está, no qué se completó). ⚠ La ruta exacta del cambio manual y
   la validación del voucher NO se verificaron en código: por ahora es el testimonio de quien lo
   diagnosticó, no una lectura del repo.
-- **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` (checkout Wompi, `staging` auto-aprueba, `:116-122`) están portados a legacy-backend y ruteados (`routes/api.php:60-67`), pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
-- **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero `grep -r standBy` sobre todo `frontend-monorepo` da **0 resultados**. El wizard entra a `/confirmation` por su propio ruteo.
+- **El enganche NO es un paso del journey nuevo.** `InitialFeePaymentController` + `InitialFeePaymentService` están portados a legacy-backend y ruteados (`routes/api.php:61`). ⚠ **Y su «`staging` auto-aprueba» (`:116-117`) hoy NO se dispara nunca:** el guard es `config('app.env') === 'staging'` y los cuatro ambientes que no son producción construyen la imagen con `APP_ENV=develop` — la comparación de Laravel es de cadena exacta. O sea que el HACK que este nodo anunciaba **está inerte**, y quien cuente con él para probar el enganche en staging va a esperar un pago real. Es el mismo caso que el `CLAUDE.md` raíz nombra en su disputa sobre el `APP_ENV` de staging, pero **ningún archivo del wizard React referencia `initial-fee-payment`** (grep = 0). El checkout hospedado vive solo en `application` (`/pago-cuota-inicial`). En el wizard, `initial_fee` es un campo del marketplace que se **resta del capital financiado**. El % sí lo fija la categoría de perfilamiento (`InitialFeePaymentService.php:77-78`, `category->min_initial_fee`).
+- **`standBy` es campo muerto en el front nuevo**: el backend lo sigue emitiendo para rt=2/3/4, pero en todo `frontend-monorepo` **no lo lee ni una línea de código** — re-contado el 2026-09-18, su única aparición está en un **documento de contrato** (`docs/lenders/nequi/CONTRATOS.md`), no en el wizard. *(Acá decía «0 resultados» a secas; hoy es 0 en código y 1 en prosa.)* El wizard entra a `/confirmation` por su propio ruteo.
 - **`soft-update.tsx` es una ruta huérfana**: existe el archivo (`apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/soft-update.tsx`) pero **no está registrada en `routes.ts`** → código muerto.
 ⚠ **El envío de OTP ya no habla con Twilio/SNS: pasa por el MS del módulo System.** `OtpService`
 perdió `Twilio\Rest\Client`, `Aws\Sns\SnsClient` y `LoanMessagingServiceRepository`, y hoy recibe
@@ -152,6 +152,17 @@ plan de pagos ganó **periodicidad semanal** con la calculadora como primer eval
 `PaymentScheduleServiceFactory:22-32`); el catálogo configurable de documentos de firma con sus
 compuertas de política (detalle en el nodo codeudor); la relación Eloquent `promissoryNote` de
 `UserRequest` corregida; y un endpoint post-Ábaco con consulta a Datacrédito para Credifamilia.
+
+**(2026-09-18) Nodo RE-VERIFICADO entero.** 16 afirmaciones auditadas —14 de código contra `main` y
+2 de dato contra producción—, cero chequeos débiles y ninguna falsa. ✔ Las tres afirmaciones de
+«cero» se sostuvieron donde importa: el wizard **no referencia** `initial-fee-payment`,
+`soft-update.tsx` **existe y sigue sin estar en `routes.ts`**, y **no hay ninguna tabla que audite
+cambios de `users`** en prod (re-medido hoy: las únicas con nombre de auditoría son
+`device_locking_config_audits` y `users_category_log`, y ninguna guarda la identidad del cliente — o
+sea que **F-121 sigue sin red**). Lo corregido: `transitionToIntermediate` se había corrido **229
+líneas**, el módulo creció de ~320 a **470** archivos, `standBy` dejó de ser cero absoluto, y —lo que
+más cambia una prueba— el auto-aprobado de `staging` del enganche **está inerte**, porque ningún
+ambiente no-productivo corre con ese `APP_ENV`.
 
 ## Dónde mirar
 - **Autorización / Estado 11** (legacy-backend): `Modules/Loans/App/Services/LoanAuthorizationService.php:84` `authorize`, `:384` `authorizeRequest`, `:424` `transitionToIntermediate`, `:471` `resolveAuthorizationStatusId` (`return 11`), `:252` `disburseImeiRequest`, `:194` formalización rt=4.
