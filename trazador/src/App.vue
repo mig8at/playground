@@ -152,26 +152,37 @@ async function copiar() {
 
 <style scoped>
 /* Compacto: cada píxel de arriba se lo come el mapa, que es lo que uno mira. */
-header { padding:10px 16px 12px; border-bottom:1px solid var(--line); flex:0 0 auto }
-.fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px }
-h1 { font-size:18px; margin:0; font-weight:600 }
-.ureq { color:var(--dim); font-size:13px }
-.copiar { margin-left:auto; padding:4px 12px; font-size:12px; border:1px solid var(--line);
-  border-radius:6px; background:var(--panel); color:var(--txt); cursor:pointer }
-.copiar:hover { background:var(--sel); border-color:var(--accent) }
+/* ⚠ LAS SUPERFICIES TIENEN QUE ESCALONARSE, y medirlo es la única forma de saber si pasa. La primera
+   versión de esto puso `--panel2` en el header, el mapa Y el panel: los tres quedaron en la misma
+   luminancia (12 sobre 255) y con ellos el input, que se supone HUNDIDO, dejó de distinguirse de su
+   contenedor. Sin color, la profundidad es lo único que separa una capa de otra.
+
+   La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
+header { padding:12px 18px 14px; border-bottom:1px solid var(--line); flex:0 0 auto;
+  background:var(--panel) }
+.fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px }
+/* ⚠ El título NO compite: con 18px en negrita era lo más pesado de la pantalla, y el título de una
+   herramienta es lo que uno menos necesita leer. Manda la solicitud que se está mirando. */
+h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
+.ureq { color:var(--dim); font-size:13px; font-variant-numeric:tabular-nums }
+.copiar { margin-left:auto; padding:6px 12px; font-size:12px; border:1px solid var(--line);
+  border-radius:var(--r); background:var(--panel); color:var(--dim); cursor:pointer;
+  transition:color .12s, background .12s, border-color .12s }
+.copiar:hover { color:var(--txt); background:var(--elev); border-color:var(--line-fuerte) }
 .copiar.ok { color:var(--ok); border-color:var(--ok) }
 
 .cargando { display:flex; align-items:center; gap:10px; margin-top:10px; font-size:12px; color:var(--dim) }
-.barra { width:120px; height:3px; background:var(--line); border-radius:2px; overflow:hidden; flex:0 0 120px }
+.barra { width:120px; height:3px; background:var(--line); border-radius:var(--r-full); overflow:hidden; flex:0 0 120px }
 /* Indeterminada a propósito: no sabemos cuánto falta (la cola de Redash no lo dice), y una barra que
    fabrica un porcentaje miente. Esta sólo comunica «sigue vivo». */
-.barra i { display:block; width:40%; height:100%; background:var(--accent); border-radius:2px;
-  animation:corre 1.1s ease-in-out infinite }
+.barra i { display:block; width:40%; height:100%; background:var(--accent);
+  animation:corre 1.1s ease-in-out infinite; border-radius:var(--r-full) }
 @keyframes corre { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
 .meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
-.err { color:var(--fail); font-size:13px; margin:10px 0 0 }
-.mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
+.err { color:var(--fail); font-size:12.5px; margin:10px 0 0 }
+.mapaRoto code { background:var(--elev); border:1px solid var(--line); padding:1px 6px;
+  border-radius:var(--r-sm); font-size:11.5px }
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.
    El mapa sólo tiene dos anchos —todo, o todo menos la base del sidebar—, así que su dibujo se
    recalcula al abrir o cerrar y no en cada píxel del arrastre. Un grid haría lo contrario: cada
@@ -183,9 +194,10 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .cols > :first-child { width:calc(100% - 380px); height:100% }
 .cols.cerrado > :first-child { width:100% }
 
-/* En capa, pegado a la derecha y por encima del mapa. */
+/* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
+   leerse como algo que está encima y no como otra zona del mismo plano. */
 .panel { position:absolute; top:0; right:0; bottom:0; z-index:2;
-  background:var(--bg); border-left:1px solid var(--line);
+  background:var(--panel); border-left:1px solid var(--line);
   overflow-y:auto; scrollbar-gutter:stable }
 
 .cols.midiendo { cursor:col-resize; user-select:none }

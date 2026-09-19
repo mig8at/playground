@@ -351,16 +351,20 @@ const apagados = computed(() => {
 
 <style scoped>
 main { padding:18px 20px; min-width:0 }
-.crumb { color:var(--accent); font-size:15px; font-weight:600; margin-bottom:2px; word-break:break-word }
+.crumb { color:var(--txt); font-size:13px; font-weight:600; margin-bottom:3px; word-break:break-word;
+  letter-spacing:-.01em }
 .sub2 { color:var(--dim); font-size:13px; margin-bottom:12px }
-.regla { border-left:3px solid var(--accent); background:var(--panel); padding:10px 12px;
-  border-radius:0 6px 6px 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
+.regla { border-left:2px solid var(--line-fuerte); background:var(--panel); padding:10px 13px;
+  border-radius:0 var(--r) var(--r) 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
   color:var(--accent); font-size:12px; text-align:left }
 .link:hover { text-decoration:underline }
-.sec { border:1px solid var(--line); border-radius:8px; margin-bottom:12px; overflow:hidden;
-  background:var(--panel) }
-h3 { display:flex; align-items:center; gap:9px; padding:10px 13px; margin:0; font-size:13px; font-weight:600 }
+/* La tarjeta se ELEVA sobre el panel: un punto más clara y con el borde sutil. En una paleta sin
+   color es la única forma de decir «esto es una pieza» sin dibujar una caja fuerte. */
+.sec { border:1px solid var(--line); border-radius:var(--r-lg); margin-bottom:14px; overflow:hidden;
+  background:var(--elev) }
+h3 { display:flex; align-items:center; gap:9px; padding:11px 14px; margin:0; font-size:12.5px;
+  font-weight:500; letter-spacing:-.01em }
 h3.click { cursor:pointer; user-select:none }
 h3.click:hover { background:var(--sel) }
 .nota { padding:7px 13px; color:var(--dim); font-size:11px; margin:0 }
@@ -372,7 +376,7 @@ h3.click:hover { background:var(--sel) }
 .fila:first-child { border-top:0 }
 .fila.hijo { padding-left:30px }
 .fila.clic:hover { background:var(--sel) }
-.fila.ab { background:var(--sel); font-weight:600 }
+.fila.ab { background:var(--sel); font-weight:500 }
 /* Marca de coincidencia del filtro: un borde, no un relleno — el relleno competiría con `ab` (abierto) y
    con el rojo de error, que dicen cosas más importantes. */
 .fila.hit { box-shadow:inset 2px 0 0 var(--accent) }
@@ -386,31 +390,32 @@ h3.click:hover { background:var(--sel) }
 .abre:focus-visible { outline:2px solid var(--accent); outline-offset:-2px }
 .cr { color:var(--dim); font-size:10px; display:inline-block; transition:transform .12s }
 .cr.on { transform:rotate(90deg) }
-.dot { width:8px; height:8px; border-radius:50%; background:var(--skip); justify-self:center }
+.dot { width:8px; height:8px; border-radius:var(--r-full); background:var(--skip); justify-self:center }
 .dot.ok{background:var(--ok)} .dot.fail{background:var(--fail)} .dot.warn{background:var(--warn)}
 .l { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .l.mono { font-family:ui-monospace,Menlo,monospace; font-size:12px }
 .d { color:var(--dim); font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums }
-.src { font-size:10px; color:var(--dim); border:1px solid var(--line); border-radius:4px;
+.src { font-size:10px; color:var(--tenue); border:1px solid var(--line); border-radius:var(--r-sm);
   padding:0 5px; white-space:nowrap; justify-self:end }
 h3 .src { justify-self:auto }
 
 .chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; align-items:center }
-.chip { font-size:12px; color:var(--dim); border:1px dashed var(--line); border-radius:999px; padding:2px 10px }
+.chip { font-size:11.5px; color:var(--tenue); border:1px dashed var(--line);
+  border-radius:var(--r-full); padding:2px 10px }
 .pie { font-size:11px; color:var(--dim); margin:0 }
 
 .buscar { margin-left:auto; width:170px; padding:2px 8px; font-size:12px; border:1px solid var(--line);
-  border-radius:5px; background:var(--bg); color:var(--txt); font-weight:400 }
+  border-radius:var(--r-sm); background:var(--bg); color:var(--txt); font-weight:400 }
 .buscar:focus { outline:1px solid var(--accent); outline-offset:-1px }
 h3 .src.ok { color:var(--accent); border-color:var(--accent) }
-.marca { font-size:10px; color:var(--accent); border:1px solid var(--accent); border-radius:999px;
+.marca { font-size:10px; color:var(--accent); border:1px solid var(--accent); border-radius:var(--r-full);
   padding:0 6px; white-space:nowrap }
 /* El conteo de errores va en la fila CERRADA: `eventosDe` dice cuántas líneas hay, no cuántas fallaron, y
    ese es el número que decide si vale la pena abrir. */
-.errn { font-size:10px; color:var(--fail); border:1px solid var(--fail); border-radius:3px; padding:0 5px;
+.errn { font-size:10px; color:var(--fail); border:1px solid var(--fail); border-radius:var(--r-sm); padding:0 5px;
   white-space:nowrap; font-variant-numeric:tabular-nums }
 .cp { border:0; background:none; color:var(--dim); cursor:pointer; font-size:12px; padding:2px 4px;
-  border-radius:4px; opacity:0; transition:opacity .1s }
+  border-radius:var(--r-sm); opacity:0; transition:opacity .1s }
 .fila:hover .cp, .cp:focus-visible, .cp.ok { opacity:1 }
 .cp:hover { color:var(--accent); background:var(--sel) }
 .cp.ok { color:var(--ok) }
@@ -418,7 +423,7 @@ tr.hit td { background:var(--sel) }
 tr.hit td:not(.ln) { font-weight:600 }
 
 .why { color:var(--fail); font-family:ui-monospace,Menlo,monospace; font-size:12px;
-  background:var(--panel); border-left:3px solid var(--fail); border-radius:0 6px 6px 0;
+  background:var(--panel); border-left:3px solid var(--fail); border-radius:0 var(--r) var(--r) 0;
   padding:9px 12px; margin:0 0 12px; white-space:pre-wrap; word-break:break-word }
 .log { background:var(--panel2); border-top:1px solid var(--line); overflow-x:auto;
   font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace }
@@ -432,13 +437,13 @@ tr:hover td { background:var(--sel) }
 
 /* LA BD, deliberadamente distinta del log: fondo propio, sin numerar y sin columna de hora. Si se pareciera
    a una tabla de logs, una fila de estado se leería como un evento del flujo. */
-.bd { margin: 0 0 2px 26px; padding: 8px 10px; border-left: 2px solid var(--bd, #8b6cc1);
+.bd { margin: 0 0 2px 26px; padding: 8px 10px; border-left: 2px solid var(--bd, var(--unknown));
       background: color-mix(in srgb, currentColor 4%, transparent); border-radius: 0 3px 3px 0; }
 .bdh { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .65; margin-bottom: 5px; }
 .bdf { margin: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 .bdq { margin-top: 6px; font-size: 11px; opacity: .7; }
 .bdq summary { cursor: pointer; }
 .bdq pre { margin: 4px 0 0; padding: 6px 8px; overflow-x: auto; font-size: 11px; line-height: 1.5;
-           background: color-mix(in srgb, currentColor 5%, transparent); border-radius: 3px; }
+           background: color-mix(in srgb, currentColor 5%, transparent); border-radius:var(--r-sm); }
 
 </style>

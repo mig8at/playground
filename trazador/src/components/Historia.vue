@@ -117,7 +117,7 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
   font-variant-numeric:tabular-nums }
 
 .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; font-size:12px;
-  border:1px solid var(--line); border-radius:999px; background:var(--panel); color:var(--txt);
+  border:1px solid var(--line); border-radius:var(--r-full); background:var(--panel); color:var(--dim);
   cursor:pointer; font-variant-numeric:tabular-nums; white-space:nowrap }
 .chip:hover { background:var(--sel) }
 .chip .g { font-weight:700 }
@@ -135,6 +135,6 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 .pie .ok { color:var(--ok) } .pie .fail { color:var(--fail) } .pie .warn { color:var(--warn) }
 .pie .q { color:var(--accent) }
 .mas { font-size:11px; color:var(--accent); background:none; border:1px solid var(--line);
-  border-radius:999px; padding:1px 9px; cursor:pointer }
+  border-radius:var(--r-full); padding:1px 9px; cursor:pointer }
 .mas:hover { background:var(--sel) }
 </style>

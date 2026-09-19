@@ -48,18 +48,31 @@ const t = useTrazador()
 </template>
 
 <style scoped>
+/* Controles al estilo shadcn: el input se hunde (fondo más oscuro que el panel) y los botones se
+   elevan. Es la única señal que hace falta para distinguir «acá escribís» de «acá apretás», y
+   funciona sin un solo borde de color. */
 .buscador { display:flex; gap:8px; flex-wrap:wrap; align-items:center }
-input { flex:1 1 320px; min-width:0; padding:7px 11px; border:1px solid var(--line); border-radius:6px;
-  background:var(--panel); color:var(--txt) }
-input:focus { outline:2px solid var(--accent); outline-offset:-1px }
-select, button { padding:7px 12px; border:1px solid var(--line); border-radius:6px;
-  background:var(--panel); color:var(--txt); cursor:pointer }
-button { font-weight:600 }
-button:disabled { opacity:.5; cursor:default }
-.como { font-size:13px; color:var(--dim); margin:10px 0 0 }
-.ojo { color:var(--warn); font-weight:600 }
+
+input { flex:1 1 320px; min-width:0; padding:8px 12px; border:1px solid var(--line);
+  border-radius:var(--r); background:var(--panel2); color:var(--txt);
+  transition:border-color .12s, box-shadow .12s }
+input::placeholder { color:var(--tenue) }
+input:hover { border-color:var(--line-fuerte) }
+/* El foco es un ANILLO, no un outline grueso: se ve igual de claro y no corre el layout un píxel. */
+input:focus, select:focus, button:focus-visible { outline:none; border-color:var(--ring);
+  box-shadow:0 0 0 3px var(--sel) }
+
+select, button { padding:8px 13px; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--panel); color:var(--txt); cursor:pointer; transition:background .12s, border-color .12s }
+select:hover, button:hover:not(:disabled) { background:var(--elev); border-color:var(--line-fuerte) }
+button { font-weight:500 }
+button:disabled { opacity:.45; cursor:default }
+
+.como { font-size:12.5px; color:var(--dim); margin:10px 0 0 }
+.ojo { color:var(--warn); font-weight:500 }
 .recientes { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:10px 0 0; font-size:12px }
-.chip { font-size:12px; color:var(--txt); background:var(--panel); border:1px solid var(--line);
-  border-radius:999px; padding:2px 10px; cursor:pointer; font-variant-numeric:tabular-nums }
-.chip:hover { background:var(--sel); border-color:var(--accent) }
+.chip { font-size:12px; color:var(--dim); background:transparent; border:1px solid var(--line);
+  border-radius:var(--r-full); padding:3px 11px; cursor:pointer; font-variant-numeric:tabular-nums;
+  transition:color .12s, background .12s, border-color .12s }
+.chip:hover { color:var(--txt); background:var(--elev); border-color:var(--line-fuerte) }
 </style>

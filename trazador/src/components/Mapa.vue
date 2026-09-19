@@ -151,8 +151,9 @@ function pasosDeRamal(r) {
             .map((p) => ({ ...p, etapa: porEtapa.value[p.id] }))
 }
 
-/** Un color por carril, estable por posición: el del harness, que ya se aprendió leyendo su mapa. */
-const COLOR_CARRIL = ['#3fb950', '#d29922', '#f0883e', '#58a6ff', '#a371f7']
+/** Un color por carril, estable por posición. Los valores viven en `estilo.css` y no acá: son parte de
+ *  la paleta, no de la lógica del mapa — y así el tema claro los cambia sin tocar este archivo. */
+const COLOR_CARRIL = ['var(--carril1)', 'var(--carril2)', 'var(--carril3)', 'var(--carril4)', 'var(--carril5)']
 
 const carriles = computed(() => {
       const rs = t.mapa?.ramales || []
@@ -420,7 +421,7 @@ watch(() => props.cerrado, () => nextTick(medir))
   background:var(--panel2); border-right:1px solid var(--line); user-select:none }
 .vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
 
-.arista { stroke-width:3; stroke-linecap:round }
+.arista { stroke-width:2.5; stroke-linecap:round }
 .nodo { cursor:pointer }
 .nodo:hover .nlbl { fill:var(--accent) }
 .nodo:focus { outline:none }
@@ -432,17 +433,18 @@ watch(() => props.cerrado, () => nextTick(medir))
 .apagado { opacity:.42 }
 
 .glifo { font:600 11px ui-monospace,monospace; text-anchor:middle; fill:var(--bg) }
-.nlbl { font:600 12px ui-monospace,monospace; fill:var(--txt); text-anchor:middle }
-.ndet { font:10.5px system-ui; fill:var(--dim); text-anchor:middle }
-.hora { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:middle }
-.salto { font:10px ui-monospace,monospace; fill:var(--dim); text-anchor:middle }
-.clbl { font:700 12px system-ui }
+.nlbl { font:500 12px ui-monospace,monospace; fill:var(--txt); text-anchor:middle; letter-spacing:-.01em }
+.ndet { font:10.5px system-ui; fill:var(--tenue); text-anchor:middle }
+.hora { font:10px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
+.salto { font:10px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
+.clbl { font:600 12px system-ui; letter-spacing:-.01em }
 .aqui { font-weight:400; font-size:11px; fill:var(--dim) }
-.afuera { font:11px system-ui; fill:var(--dim) }
+.afuera { font:11px system-ui; fill:var(--tenue) }
 .corte { font:600 10px system-ui; fill:var(--fail); text-anchor:middle }
 
 .pie { position:absolute; left:0; right:0; bottom:0; display:flex; gap:12px; align-items:center;
-  padding:6px 10px; font-size:11px; background:linear-gradient(transparent,var(--panel2) 40%) }
+  padding:8px 14px; font-size:11px; color:var(--tenue);
+  background:linear-gradient(transparent,var(--panel2) 55%) }
 .ramal { color:var(--txt) } .ramal b { color:var(--accent) }
 .dim { color:var(--dim) }
 .recorte { color:var(--warn) }
