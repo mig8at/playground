@@ -413,7 +413,10 @@ watch(() => props.cerrado, () => nextTick(medir))
    adentro. */
 .mapa { position:relative; height:100%; min-height:260px;
   overflow:auto; scrollbar-gutter:stable;
-  background:var(--panel2); border-right:1px solid var(--line); user-select:none }
+  /* ⚠ Sin `border-right`: el panel de logs ya trae su `border-left`, y las dos pintaban una al lado
+     de la otra — medido, el mapa en 546–547 y el panel en 547–548, o sea una costura de 2px donde va
+     un pelo de 1. Con el panel cerrado esa línea quedaba además pegada al borde de la ventana. */
+  background:var(--panel2); user-select:none }
 .vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
 
 .arista { stroke-width:2.5; stroke-linecap:round }

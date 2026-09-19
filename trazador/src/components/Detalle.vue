@@ -366,23 +366,29 @@ main { display:flex; flex-direction:column; min-height:0; height:100%; min-width
   letter-spacing:-.01em }
 .sub2 { color:var(--dim); font-size:13px; padding-bottom:12px; margin:0;
   border-bottom:1px solid var(--line) }
+/* ⚠ Un callout de barra izquierda va CUADRADO. El `border-radius: 0 r r 0` —esquinas redondeadas
+   sólo del lado de afuera— era la silueta de la tarjeta vieja: redondea justo el lado que no tiene
+   nada, y deja la barra recta peleando con una esquina curva a 2px. Vale para los tres. */
 .regla { border-left:2px solid var(--line-fuerte); background:var(--card); padding:10px 13px;
-  border-radius:0 var(--r) var(--r) 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
+  font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
   color:var(--info); font-size:12px; text-align:left }
 .link:hover { text-decoration:underline }
-/* La tarjeta se ELEVA sobre el panel: un punto más clara y con el borde sutil. En una paleta sin
-   color es la única forma de decir «esto es una pieza» sin dibujar una caja fuerte. */
-.sec { border:1px solid var(--line); border-radius:var(--r-lg); margin-bottom:14px; overflow:hidden;
-  background:var(--elev) }
-h3 { display:flex; align-items:center; gap:9px; padding:11px 14px; margin:0; font-size:12.5px;
-  font-weight:500; letter-spacing:-.01em }
+/* ⚠ Acá decía que la tarjeta «se eleva sobre el panel» con borde, radio y fondo propio, y que era la
+   única forma de decir «esto es una pieza» en una paleta sin color. Eran TRES señales para lo mismo,
+   en una columna donde todo son piezas apiladas. Lo que separa una sección de la siguiente es su
+   ENCABEZADO, y el marco sólo angostaba el contenido y dibujaba cuatro esquinas.
+   El encabezado sale a sangre (`margin: 0 -20px` contra el padding del cuerpo): una banda de lado a
+   lado se lee como encabezado; una barra con 20px de aire a los costados, como otra tarjeta. */
+.sec { margin-bottom:16px }
+h3 { display:flex; align-items:center; gap:9px; margin:0 -20px; padding:9px 20px; font-size:12.5px;
+  font-weight:500; letter-spacing:-.01em; background:var(--card);
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line) }
 h3.click { cursor:pointer; user-select:none }
 h3.click:hover { background:var(--sel) }
 .nota { padding:7px 13px; color:var(--dim); font-size:11px; margin:0 }
 
 /* La grilla: caret · punto · nombre · detalle · fuente. `tabular-nums` para que ×24 y las horas no bailen. */
-.tabla { border-top:1px solid var(--line) }
 .fila { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto 52px 24px; align-items:center;
   gap:9px; padding:0 13px; border-top:1px solid var(--line); font-size:13px }
 .fila:first-child { border-top:0 }
@@ -435,7 +441,7 @@ tr.hit td { background:var(--sel) }
 tr.hit td:not(.ln) { font-weight:600 }
 
 .why { color:var(--fail); font-family:ui-monospace,Menlo,monospace; font-size:12px;
-  background:var(--card); border-left:3px solid var(--fail); border-radius:0 var(--r) var(--r) 0;
+  background:var(--card); border-left:3px solid var(--fail);
   padding:9px 12px; margin:0 0 12px; white-space:pre-wrap; word-break:break-word }
 .log { background:var(--panel2); border-top:1px solid var(--line); overflow-x:auto;
   font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace }
@@ -450,7 +456,7 @@ tr:hover td { background:var(--sel) }
 /* LA BD, deliberadamente distinta del log: fondo propio, sin numerar y sin columna de hora. Si se pareciera
    a una tabla de logs, una fila de estado se leería como un evento del flujo. */
 .bd { margin: 0 0 2px 26px; padding: 8px 10px; border-left: 2px solid var(--bd, var(--unknown));
-      background: color-mix(in srgb, currentColor 4%, transparent); border-radius: 0 3px 3px 0; }
+      background: color-mix(in srgb, currentColor 4%, transparent); }
 .bdh { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .65; margin-bottom: 5px; }
 .bdf { margin: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 .bdq { margin-top: 6px; font-size: 11px; opacity: .7; }

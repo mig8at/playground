@@ -117,7 +117,7 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
   font-variant-numeric:tabular-nums }
 
 .chip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; font-size:12px;
-  border:1px solid var(--line); border-radius:var(--r-full); background:var(--card); color:var(--dim);
+  border:1px solid var(--line); border-radius:var(--r-full); background:transparent; color:var(--dim);
   cursor:pointer; font-variant-numeric:tabular-nums; white-space:nowrap }
 .chip:hover { background:var(--sel) }
 .chip .g { font-weight:700 }

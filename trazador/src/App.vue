@@ -259,7 +259,7 @@ async function copiar() {
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
 .meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
 .err { color:var(--fail); font-size:12.5px; margin:10px 0 0 }
-.mapaRoto code { background:var(--elev); border:1px solid var(--line); padding:1px 6px;
+.mapaRoto code { background:var(--elev); padding:1px 6px;
   border-radius:var(--r-sm); font-size:11.5px }
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.
    El mapa sólo tiene dos anchos —todo, o todo menos la base del sidebar—, así que su dibujo se
