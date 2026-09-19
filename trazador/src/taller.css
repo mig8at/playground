@@ -465,3 +465,45 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .empty-desc { font-size: 13px; line-height: 1.6; color: var(--muted-foreground) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
   flex-direction: column; align-items: center; gap: 16px; font-size: 13px }
+
+/* ── ALTERNADOR ─────────────────────────────────────────────────────────────────────────────────
+   El `toggle-group` del original: N opciones, una encendida. Dos formas —sueltas o UNIDAS— y la
+   unida es la que el panel del harness ya usaba a mano como `.seg`. El estado encendido es una
+   SUPERFICIE (`--accent`), no un color de texto: es lo que hace que se vea cuál está sin pintar. */
+.toggle-group { display: inline-flex; align-items: center; width: fit-content; gap: 4px }
+.toggle {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 36px; min-width: 36px; padding: 0 8px;
+  border: 1px solid transparent; border-radius: var(--radius); background: transparent;
+  font: inherit; font-size: 14px; font-weight: 500; color: inherit; white-space: nowrap;
+  cursor: pointer; transition: color .12s, background .12s, border-color .12s, box-shadow .12s;
+}
+/* ⚠ El original es `hover:bg-muted hover:text-muted-foreground`, y es la TERCERA vez que ese par
+   falla en este tema: `--muted-foreground` sobre `--muted` mide 3,63:1. Va la rampa del 74% que ya
+   usan `region-head` y `.kbd`. No es que shadcn esté mal — es que su paleta de referencia tiene más
+   separación entre esos dos escalones que la nuestra, y por eso los colores se vuelven a medir. */
+.toggle:hover { background: var(--muted);
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background)) }
+.toggle[aria-pressed="true"], .toggle.on, .toggle[data-state="on"] {
+  background: var(--accent); color: var(--accent-foreground);
+}
+.toggle:disabled { pointer-events: none; opacity: .5 }
+.toggle:focus-visible { outline: none; border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.toggle-outline > .toggle { border-color: var(--input); box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
+.toggle-outline > .toggle:hover { background: var(--accent); color: var(--accent-foreground) }
+/* Unidas: un solo bloque con los bordes internos colapsados. Sin esto se ven N botones sueltos y
+   deja de leerse como «elegí UNA de estas». */
+.toggle-joined { gap: 0 }
+.toggle-joined > .toggle { border-radius: 0; margin-left: -1px }
+.toggle-joined > .toggle:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0 }
+.toggle-joined > .toggle:last-child { border-radius: 0 var(--radius) var(--radius) 0 }
+.toggle-joined > .toggle:only-child { border-radius: var(--radius) }
+.toggle-joined > .toggle:focus-visible { z-index: 1 }
+.toggle-sm > .toggle, .toggle.toggle-sm { height: 32px; min-width: 32px; padding: 0 6px; font-size: 13px }
+.toggle-xs > .toggle, .toggle.toggle-xs { height: 24px; min-width: 24px; padding: 0 8px; font-size: 11.5px }
+
+/* El tamaño `sm` del interruptor, que es el que cabe en una fila densa (el original también lo trae). */
+.switch-sm { width: 28px; height: 14px }
+.switch-sm::after { width: 10px; height: 10px }
+.switch-sm[aria-checked="true"]::after { transform: translateX(14px) }

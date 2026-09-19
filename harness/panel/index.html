@@ -194,29 +194,33 @@
       margin-right: 7px
     }
 
+    /* ⚠ El fondo propio se va: un campo de shadcn es TRANSPARENTE y lo delimita su borde. Con
+       superficie propia, un formulario se lee como una pila de cajitas — justo lo que sacamos del
+       resto del panel. El radio pasa a `--radius` (el del tema) en vez de 10px a mano, y el alto a
+       36px, que es el del sistema; la capa densa del sidebar los sigue bajando a 24, que es una
+       decisión propia y declarada. */
     input[type=text],
     input[type=number],
     input[type=date],
     select {
-      background: var(--panel2);
-      border: 1px solid var(--line);
+      background: transparent;
+      border: 1px solid var(--input);
       color: var(--txt);
-      padding: 10px 12px;
-      border-radius: 10px;
+      height: 36px;
+      padding: 0 12px;
+      border-radius: var(--radius);
       font-size: 14px;
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+      transition: color .12s, border-color .12s, box-shadow .12s;
       width: 100%
     }
+    input::placeholder { color: var(--muted-foreground) }
+    input:disabled, select:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 
     input[type=date],
     select {
       color-scheme: dark;
       cursor: pointer
-    }
-
-    input:focus,
-    select:focus {
-      outline: none;
-      border-color: var(--acc)
     }
 
     .grid {
@@ -327,47 +331,26 @@
       pointer-events: none
     }
 
-    .seg {
-      display: inline-flex;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      overflow: hidden
-    }
+    /* ⚠ `.seg` ES un `toggle-group` unido (`taller.css`): N opciones, una encendida. Tenía su propio
+       marco con `overflow:hidden` para recortar las esquinas de los hijos; el compartido redondea el
+       primero y el último y colapsa los bordes internos, que es lo mismo sin recortar nada. */
+    .seg { display: inline-flex; align-items: center; width: fit-content }
 
     /* El botón del admin NO es un ambiente: se separa y se pinta distinto para que no parezca uno más
        de la fila de targets, que sí cambian contra qué corre el flujo. */
     .admin-btn { margin-right: .9rem; border-style: dashed; opacity: .85; }
     .admin-btn:hover { opacity: 1; }
 
-    .seg button {
-      background: var(--panel2);
-      color: var(--mut);
-      border: none;
-      border-right: 1px solid var(--line);
-      padding: 8px 17px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: .1s
-    }
+    /* Sobre `.toggle`: sólo el ancho propio de esta barra. El alto, el radio, el hover, el encendido
+       (`--accent` como SUPERFICIE) y el anillo de foco salen de la hoja compartida. */
+    .seg button { padding: 0 17px; font-size: 13px }
 
-    .seg button:last-child {
-      border-right: none
-    }
-
-    .seg button.on {
-      background: var(--acc);
-      color: var(--background)
-    }
-
-    .seg button:hover:not(.on) {
-      color: var(--txt)
-    }
-
-    .seg button:disabled {
-      opacity: .4;
-      cursor: not-allowed
-    }
+    /* ⚠ DESVIACIÓN DECLARADA: el encendido del panel es el ACENTO (casi blanco), no el `--accent`
+       de shadcn (#404040, una superficie sutil). Es la regla de cromo que este panel ya tenía escrita
+       —«lo seleccionado es lo más CLARO y lo demás se apaga»— y acá vale más que la del sistema:
+       estos segmentados eligen CONTRA QUÉ corre el flujo, y esa respuesta tiene que verse de lejos.
+       El hover, el deshabilitado y el anillo de foco sí salen de `.toggle`. */
+    .seg button.on { background: var(--acc); color: var(--background) }
 
     .buro-off {
       opacity: .38;
@@ -396,21 +379,9 @@
       font-variant-numeric: tabular-nums
     }
 
-    .copy {
-      margin-left: auto;
-      background: none;
-      border: 1px solid var(--line);
-      color: var(--mut);
-      border-radius: 7px;
-      padding: 3px 9px;
-      font-size: 11.5px;
-      cursor: pointer
-    }
-
-    .copy:hover {
-      color: var(--txt);
-      border-color: var(--acc)
-    }
+    /* Sobre `.btn.btn-outline.btn-xs`: sólo el margen que lo empuja al borde de la barra. */
+    .copy { margin-left: auto; color: var(--mut); font-size: 11.5px }
+    .copy:hover { color: var(--txt) }
 
     .launch {
       display: flex;
@@ -419,41 +390,16 @@
       flex-wrap: wrap
     }
 
-    .go {
-      background: var(--acc);
-      color: var(--background);
-      border: none;
-      border-radius: var(--radius-sm);
-      padding: 11px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer
-    }
+    /* Sobre `.btn` (variante por defecto = la acción primaria). Acá sólo el peso: es el único botón
+       de la pantalla que dispara algo, y en una barra con cuatro perillas al lado tiene que ganar. */
+    .go { font-weight: 600 }
+    /* ⚠ Deshabilitado NO se pinta de gris: el sistema lo baja a opacidad .5, que conserva la FORMA.
+       Repintarlo con otro fondo lo convertía en un botón secundario que igual se puede apretar. */
 
-    .go:hover {
-      background: var(--acc-d)
-    }
-
-    .go:disabled {
-      background: var(--panel2);
-      color: var(--mut);
-      cursor: not-allowed
-    }
-
-    .stop {
-      background: none;
-      border: 1px solid var(--danger);
-      color: var(--danger);
-      border-radius: 10px;
-      padding: 11px 16px;
-      font-weight: 700;
-      cursor: pointer;
-      display: none
-    }
-
-    .stop.on {
-      display: inline-block
-    }
+    /* Sobre `.btn.btn-outline`: el contorno en rojo, que es el contorno destructivo de shadcn. */
+    .stop { border-color: var(--danger); color: var(--danger); font-weight: 600; display: none }
+    .stop:hover { background: color-mix(in oklab, var(--danger) 14%, transparent); color: var(--danger) }
+    .stop.on { display: inline-flex }
 
     .sumry {
       color: var(--mut);
@@ -696,14 +642,15 @@
     .lrow .lnm { font-size: 13px; color: var(--txt); }
 
     /* ── buscador de comercios + favoritos ── */
-    .bus { position: relative; }
-    .bus input { width: 100%; box-sizing: border-box; padding: 9px 32px 9px 30px; border-radius: 10px;
-      border: 1px solid var(--line); background: var(--panel2); color: inherit; font-size: 13px; outline: none; }
-    .bus input:focus { border-color: var(--acc); }
-    .bus .lupa, .bus .limpiar { position: absolute; top: 50%; transform: translateY(-50%); color: var(--mut); font-size: 12px; }
-    .bus .lupa { left: 10px; pointer-events: none; }
-    .bus .limpiar { right: 6px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
-    .bus .limpiar:hover { background: var(--line); color: inherit; }
+    /* ⚠ Es un `input-group` (`taller.css`): la lupa y la ✕ van ADENTRO del control y el borde lo
+       lleva el grupo, no el campo. Antes eran dos absolutos flotando sobre un input con padding
+       calculado a mano (30px a la izquierda, 32 a la derecha) — si cambiaba el icono, había que
+       recalcular el hueco. Y el foco ahora enciende el grupo entero (`:focus-within`), que es lo que
+       hace que se lea como UN control. */
+    .bus { font-size: 13px }
+    .bus .lupa { pointer-events: none }
+    .bus .limpiar { cursor: pointer; padding: 0 4px; border-radius: var(--radius-sm, 3px); color: var(--mut) }
+    .bus .limpiar:hover { background: var(--accent); color: var(--accent-foreground) }
     .res { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
     .rr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px;
       border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: .12s; }
@@ -725,12 +672,11 @@
       border: 1px solid var(--line); background: var(--card); color: inherit; font-size: 13px;
       font-family: inherit; outline: none;
     }
-    .altafila select:focus, .altafila input:focus { border-color: var(--line2); }
     .altapie { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .altapie span { font-size: 11px; color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .altapie button { background: var(--acc); color: var(--background); border: 0; border-radius: var(--radius-sm);
-      padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
-    .altapie button:hover { filter: brightness(1.08); }
+    /* Sobre `.btn.btn-sm`. (El `filter: brightness()` del hover se va: el sistema aclara con un
+       `color-mix` sobre el token, así que sigue al tema en vez de aclarar lo que haya.) */
+    .altapie button { font-size: 12px; font-weight: 600 }
     /* Acciones del favorito SIEMPRE visibles: escondidas en hover no se descubren, y borrar una tarjeta
        que agregaste vos tiene que estar a la vista. Van tenues para no competir con el nombre. */
     .m .facc { position: absolute; top: 5px; right: 5px; display: flex; gap: 1px; opacity: .45; transition: .12s; }
@@ -752,7 +698,14 @@
     .card > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--txt); }
     .card > summary span { font-size: 12px; font-weight: 400; color: var(--mut); margin-left: 8px; }
     .card[open] > summary { margin-bottom: 18px; }
-    .card > summary:focus-visible, button:focus-visible, [role=button]:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
+    /* ⚠ Era `outline: 2px solid var(--acc); outline-offset: 4px` — un marco grueso a 4px del control,
+       que en una fila densa se mete arriba del vecino. El anillo del sistema (`taller.css`) es borde
+       teñido + halo de 3px pegado, y es el mismo en las cuatro herramientas. */
+    .card > summary:focus-visible, button:focus-visible, [role=button]:focus-visible,
+    input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: none; border-color: var(--ring);
+      box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+    }
     .scope-note { font-size: 13px; color: var(--warn); line-height: 1.6; margin: 0 0 18px; }
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
@@ -941,11 +894,10 @@
        regla no matchea y los hijos ya son directos, así que el caso queda cubierto por los dos lados. */
     .editor > #tren::details-content { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column }
     .editor > #tren #trenvias { flex: 1 1 auto; height: auto; min-height: 0 }
-    .stage-empty { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 6px; color: var(--mut); text-align: center;
-      border: 1px dashed var(--line2); border-radius: var(--radius); padding: 24px }
-    .stage-empty b { color: var(--txt); font-size: 14px }
-    .stage-empty span { font-size: 12.5px; max-width: 42ch }
+    /* Sobre `.empty` (`taller.css`): medio, título y descripción, la misma anatomía que el estado
+       vacío del trazador. ⚠ El marco punteado se va con el resto de los marcos: un rectángulo de
+       rayas alrededor de un mensaje centrado no dice nada que el mensaje no diga. */
+    .stage-empty { flex: 1 1 auto }
 
     /* ── panel inferior: las consolas ──────────────────────────────────────────────────────── */
     .panel { min-height: 0; overflow: hidden; background: var(--card); border-top: 1px solid var(--line);
@@ -1227,14 +1179,16 @@
     .pa-rejected { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 55%, transparent) !important }
     .pa-na { opacity: .3; cursor: not-allowed }
 
-    /* Un switch de verdad y no un «ON/OFF»: la forma dice el estado sin leer. */
-    .lrow .sw { flex: 0 0 auto; width: 24px; height: 14px; padding: 0; position: relative;
-      border: 1px solid var(--line2); border-radius: 999px; background: transparent; cursor: pointer }
-    .lrow .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px;
-      border-radius: 50%; background: var(--mut); transition: left .12s, background .12s }
-    .lrow .sw.on { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in oklab, var(--ok) 12%, transparent) }
-    .lrow .sw.on::after { left: 12px; background: var(--ok) }
-    .lrow .sw:hover { border-color: var(--acc) }
+    /* Un switch de verdad y no un «ON/OFF»: la forma dice el estado sin leer. Es `.switch.switch-sm`
+       de `taller.css` —el tamaño `sm` que el original también trae—, con `role="switch"` y
+       `aria-checked`, que es lo que lo hace un interruptor y no dos divs.
+       ⚠ Acá sólo queda el VERDE: en el panel «encendido» es un estado del ambiente, no una selección,
+       así que se pinta con `--ok` y no con `--primary`. */
+    .lrow .switch { flex: 0 0 auto; width: 24px; height: 14px; border-color: var(--line2) }
+    .lrow .switch::after { width: 8px; height: 8px; margin-left: 2px; background: var(--mut) }
+    .lrow .switch[aria-checked="true"] { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in oklab, var(--ok) 12%, transparent) }
+    .lrow .switch[aria-checked="true"]::after { transform: translateX(10px); background: var(--ok) }
+    .lrow .switch:hover { border-color: var(--acc) }
 
 
     /* El reloj de la demora: apagado cuando es 0 (el caso normal), marcado cuando hay espera puesta —
@@ -1288,9 +1242,14 @@
        nuevo de 24 px. */
     .auxiliarybar .panelprops .money input { width: 100%; padding-left: 19px }
     .auxiliarybar .panelprops .money::before { left: 8px; font-size: 11px }
-    /* Los segmentados pasan a CHIPS: la misma información en una fila de 24 px. */
+    /* Los segmentados pasan a CHIPS: la misma información en una fila de 24 px.
+       ⚠ Acá se DESARMA el `toggle-joined` a propósito: el compartido pega los botones (radio sólo en
+       las puntas y `margin-left: -1px` para colapsar los bordes internos), y a este ancho lo que entra
+       son chips sueltos. Sin cancelar ese margen negativo, el `gap: 3px` quedaba en 2 y las esquinas
+       de adentro salían cuadradas. Es una desviación declarada, no un olvido. */
     .auxiliarybar .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
-    .auxiliarybar .panelprops .seg button { flex: 1 1 0; min-width: 0; padding: 3px 4px; font-size: 10.5px;
+    .auxiliarybar .panelprops .seg button { flex: 1 1 0; min-width: 0; height: 24px; margin-left: 0;
+      padding: 3px 4px; font-size: 10.5px;
       border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     /* La pista del campo ocupa la columna del control, no una fila propia. */
     .auxiliarybar .panelprops .field > .pista { grid-column: 2 }
@@ -1398,9 +1357,9 @@
            El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
            CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
            genérica no da. Flujo: comercio → sucursal → nombre → Agregar. -->
-      <div class="bus">
-        <span class="lupa">⌕</span>
-        <input id="buscom" type="text" placeholder="buscá un comercio por nombre…" autocomplete="off" />
+      <div class="bus input-group">
+        <span class="lupa ico-txt">⌕</span>
+        <input id="buscom" class="input" type="text" placeholder="buscá un comercio por nombre…" autocomplete="off" />
         <span class="limpiar" id="buslimpiar" title="limpiar">✕</span>
       </div>
       <div class="res" id="busres"></div>
@@ -1415,7 +1374,7 @@
         </div>
         <div class="altapie">
           <span id="altahint"></span>
-          <button id="altaadd">Agregar</button>
+          <button class="btn btn-sm" id="altaadd">Agregar</button>
         </div>
       </div>
       <div class="tree" id="results" role="tree" aria-label="Comercios, sucursales y entidades"></div>
@@ -1473,9 +1432,9 @@
           
           <div class="field">
           <label>Frontend</label>
-          <div class="seg" id="frontmode">
-            <button data-v="ambiente">Del ambiente</button>
-            <button data-v="local">Local :5174</button>
+          <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="frontmode">
+            <button class="toggle" data-v="ambiente">Del ambiente</button>
+            <button class="toggle" data-v="local">Local :5174</button>
           </div>
           <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
         </div>
@@ -1499,8 +1458,8 @@
           </button>
           <span class="dot" id="dot"></span>
           <span id="activityTime" class="activity-time"></span>
-          <button class="stop" id="stopBtn">Detener</button>
-          <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
+          <button class="btn btn-outline stop" id="stopBtn">Detener</button>
+          <button class="btn go" id="go" disabled>Preparar + Lanzar ▶</button>
         </div>
         </div>
       <main class="editor" id="stage">
@@ -1518,9 +1477,12 @@
         <svg id="trensvg"><g id="trencam"></g></svg>
       </div>
     </details>
-        <div class="stage-empty" id="stageEmpty">
-          <b>El recorrido aparece acá</b>
-          <span>Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</span>
+        <div class="stage-empty empty" id="stageEmpty">
+          <div class="empty-head">
+            <div class="empty-media">⤳</div>
+            <p class="empty-title">El recorrido aparece acá</p>
+            <p class="empty-desc">Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</p>
+          </div>
         </div>
         <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
         <section id="webhookZona" class="wh" style="display:none"></section>
@@ -1559,11 +1521,11 @@
       
           <div class="field" id="canalField" hidden style="margin-top:16px">
         <label>Canal de entrada</label>
-        <div class="seg" id="canal">
-          <button class="on" data-c="asesor">Asesor</button>
-          <button data-c="autogestion">Autogestión</button>
-          <button data-c="ecommerce">Tienda online</button>
-          <button data-c="qr">QR en caja</button>
+        <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="canal">
+          <button class="toggle on" data-c="asesor">Asesor</button>
+          <button class="toggle" data-c="autogestion">Autogestión</button>
+          <button class="toggle" data-c="ecommerce">Tienda online</button>
+          <button class="toggle" data-c="qr">QR en caja</button>
         </div>
         <p id="canalhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div><div class="field">
@@ -1583,9 +1545,9 @@
              Inicio = el wizard desde Monto (con Sintético el buró se inyecta invisible al llegar a Datos) ·
              Lenders = seed headless + salto directo al marketplace (exige Sintético: sin inyección no hay
              usuario que sembrar, por eso Real lo deshabilita). -->
-        <div class="seg" id="step">
-          <button class="on" data-v="monto">Inicio</button>
-          <button data-v="lenders">Entidades</button>
+        <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="step">
+          <button class="toggle on" data-v="monto">Inicio</button>
+          <button class="toggle" data-v="lenders">Entidades</button>
         </div>
         <p id="stephint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
         <!-- El "cupo ya confirmado" (firma del flujo → salta el buró) se controla desde el checkbox al pie del
@@ -1600,10 +1562,10 @@
       <p class="grouplbl">Identidad</p>
       <div class="field">
         <label>Tipo de documento</label>
-        <div class="seg" id="doctype">
-          <button class="on" data-v="CC">CC</button>
-          <button data-v="CE">CE</button>
-          <button data-v="PEP">PEP</button>
+        <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="doctype">
+          <button class="toggle on" data-v="CC">CC</button>
+          <button class="toggle" data-v="CE">CE</button>
+          <button class="toggle" data-v="PEP">PEP</button>
         </div>
       </div>
       <div class="two">
@@ -1613,7 +1575,7 @@
       </div>
       <div class="two">
         <div class="field"><label>Género</label>
-          <div class="seg" id="gender"><button class="on" data-v="M">M</button><button data-v="F">F</button></div>
+          <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="gender"><button class="toggle on" data-v="M">M</button><button class="toggle" data-v="F">F</button></div>
         </div>
         <div class="field"><label for="age">Edad</label><input id="age" type="number" value="35" step="1" min="18" /></div>
       </div>
@@ -1653,9 +1615,9 @@
       
         <div class="field">
         <label>Modo del buró</label>
-        <div class="seg" id="injmode">
-          <button class="on" data-i="1">Buró inyectado</button>
-          <button data-i="0">Sin inyección</button>
+        <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="injmode">
+          <button class="toggle on" data-i="1">Buró inyectado</button>
+          <button class="toggle" data-i="0">Sin inyección</button>
         </div>
         <p id="injhint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
       </div>
@@ -1693,12 +1655,12 @@
           <summary><span class="sectw">▸</span><span class="sectit">Avanzadas</span><span class="secsum" id="advancedSummary">Sin demora de preaprobación</span></summary>
           <div class="field" style="margin-bottom:0" id="padelayField">
         <label>Demora de preaprobación</label>
-        <div class="seg" id="padelay">
-          <button class="on" data-v="0">Sin espera</button>
-          <button data-v="3000">3s</button>
-          <button data-v="5000">5s</button>
-          <button data-v="10000">10s</button>
-          <button data-v="15000">15s</button>
+        <div class="seg toggle-group toggle-joined toggle-outline toggle-sm" id="padelay">
+          <button class="toggle on" data-v="0">Sin espera</button>
+          <button class="toggle" data-v="3000">3s</button>
+          <button class="toggle" data-v="5000">5s</button>
+          <button class="toggle" data-v="10000">10s</button>
+          <button class="toggle" data-v="15000">15s</button>
         </div>
       </div>
         </details></div>
@@ -1719,9 +1681,9 @@
         <button class="copy pest on" id="pestCorrida" title="lo que imprime el launcher de la corrida">Consola de la corrida</button>
         <button class="copy pest" id="pestSsr" title="el stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR del wizard</button>
         <span class="logacts">
-          <button class="copy" id="ssrFiltro" title="mostrar sólo las llamadas salientes del SSR" hidden>☰ todo</button>
-          <button class="copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
-          <button class="copy" id="copyLog">📋 copiar</button>
+          <button class="btn btn-outline btn-xs copy" id="ssrFiltro" title="mostrar sólo las llamadas salientes del SSR" hidden>☰ todo</button>
+          <button class="btn btn-outline btn-xs copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
+          <button class="btn btn-outline btn-xs copy" id="copyLog">📋 copiar</button>
         </span>
       </h2>
       <pre id="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></pre>
@@ -2239,7 +2201,9 @@
           row.appendChild(bPa);
 
           const sw = document.createElement('button');
-          sw.className = 'sw' + (on ? ' on' : '');
+          // ⚠ Sin clase `on`: el estado ya viaja en `aria-checked`, que es lo que lee el CSS
+          // compartido. Tener las dos era el mismo dato escrito dos veces.
+          sw.className = 'switch';
           sw.setAttribute('role', 'switch');
           sw.setAttribute('aria-checked', String(on));
           sw.draggable = false;
@@ -2321,7 +2285,7 @@
       const usaPa = Number(l.rt) !== 0 && mockPA;
       const pa = paStatus[l.id] || 'approved';
       fila.classList.toggle('off', !on);
-      const sw = fila.querySelector('.sw');
+      const sw = fila.querySelector('.switch');
       if (sw) { sw.classList.toggle('on', on); sw.setAttribute('aria-checked', String(on)); sw.title = tituloSwitch(on); }
       const bPa = fila.querySelector('.pa');
       if (bPa) {
