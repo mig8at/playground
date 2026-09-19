@@ -132,11 +132,11 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
 .mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
 .cols { display:grid; grid-template-columns:290px minmax(0,1fr); min-height:60vh }
-/* ⚠ EL MAPA NO VA EN UNA COLUMNA, va en una BANDA. Es horizontal —tronco a lo largo y un carril por
-   ramal— así que en los 470px de una columna lateral entraba entero pero ilegible: el encuadre lo
-   achicaba hasta que los nombres no se leían. Con la vista `mapa` el grid pasa a DOS FILAS, igual que
-   el mapa del harness, que también ocupa el ancho completo de su panel. La lista sigue en columna:
-   es vertical y ahí sí conviene tenerla al lado del detalle. */
-.cols.ancha { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr) }
+/* ⚠ CON EL MAPA, EL DETALLE ES UN SIDEBAR DERECHO — no una fila debajo.
+   El mapa es horizontal (tronco a lo largo, un carril por ramal), así que lo que necesita es ANCHO, y
+   el detalle es una lista de logs, que necesita ALTO. Ponerlos en dos filas le daba al mapa el ancho
+   completo pero dejaba los logs en una tira baja donde no entra nada; al lado, cada uno crece por
+   donde le sirve. La lista sigue con su propio reparto: es vertical y compite por el mismo eje. */
+.cols.ancha { grid-template-columns:minmax(0,1fr) minmax(320px, 34%) }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>

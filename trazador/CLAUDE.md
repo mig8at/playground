@@ -51,6 +51,17 @@ OCUPADO.** En el harness el color dice *qué carril* (verde credit, ámbar renti
 *cómo salió* (verde ok, rojo falló, gris no pasó). No se puede usar el mismo canal para las dos cosas, así
 que se separó: **la arista lleva el color del carril y el nodo lleva el del estado.**
 
+⚠ **EL MAPA VA A LA IZQUIERDA Y EL DETALLE ES UN SIDEBAR DERECHO**, y el reparto no es estético: el
+mapa es horizontal y lo que necesita es ANCHO; el detalle es una lista de logs y necesita ALTO. Con el
+mapa como banda arriba, los logs quedaban en una tira baja donde no entra nada. Clickear un nodo abre
+esa etapa en el sidebar, con sus sub-pasos y sus líneas.
+
+⚠ **Y LAS MEDIDAS DEL DIBUJO ESTÁN ELEGIDAS PARA QUE ENTRE SIN ACHICARSE.** Con `PASO = 150` medía
+1.488 px y el encuadre lo escalaba a **0,65**: entraba entero y no se leía, que es la peor de las dos
+cosas. Compacto (`PASO = 112`) entra a ~0,98 en una pantalla de 1600 — se ve quieto porque no hace
+falta moverlo, no porque no se pueda. Y el encuadre tiene **piso en 0,8**: más vale un mapa que no
+entra y se arrastra, que uno entero e ilegible.
+
 ⚠⚠ **Y EL ESTADO SE PINTA SÓLO EN EL CARRIL QUE SE RECORRIÓ.** El `status` y el `detail` de una etapa
 salen de ESTA traza, que fue por UN ramal: pintarlos en los otros afirma sobre un camino que no ocurrió.
 Se vio corriéndolo — `biometria` aparecía en el carril `creditopx` con «no aplica a ramal redirect», que

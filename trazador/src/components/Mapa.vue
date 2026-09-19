@@ -35,7 +35,12 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
   'sin-evidencia':'var(--unknown)', 'sin-registro':'var(--skip)', 'no-aplica':'var(--skip)',
   condicional:'var(--skip)', pendiente:'var(--skip)' }
 
-const RADIO = 9, PASO = 150, CARRIL = 92, Y0 = 46
+// ⚠ ESTAS MEDIDAS SE ELIGIERON PARA QUE EL MAPA ENTRE SIN ACHICARSE, que es lo que lo volvía
+// ilegible. Con `PASO = 150` el dibujo medía 1.488 px y el encuadre lo escalaba a **0,65** — los
+// nombres dejaban de leerse y había que acercar a mano cada vez. Compacto entra a escala ~1 en una
+// pantalla normal, que es lo que hace que se vea quieto: no es que no se pueda mover, es que no hace
+// falta.
+const RADIO = 9, PASO = 112, CARRIL = 82, Y0 = 44
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
  *  a secas partía palabras («ramal credifami») y perdía el final de frases que sí entraban. */
@@ -59,7 +64,7 @@ const aMin = (hhmmss) => {
  * por logaritmo y con tope, así que la diferencia entre 2 y 40 minutos se ve —que es la que importa— y
  * la de 40 a 900 se satura, con el número al lado para el que quiera el dato exacto.
  */
-const largoDelSalto = (min) => (min === null || min < 1 ? 0 : Math.min(90, Math.round(26 * Math.log10(1 + min))))
+const largoDelSalto = (min) => (min === null || min < 1 ? 0 : Math.min(52, Math.round(18 * Math.log10(1 + min))))
 
 /** El estado de cada etapa, por id, salga o no en el recorrido de este ramal. */
 const porEtapa = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
@@ -104,7 +109,7 @@ const carriles = computed(() => {
 
 /** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
 const nodosTronco = computed(() => {
-      let x = 40, previa = null
+      let x = 30, previa = null
       return tronco.value.map((e, i) => {
             const ahora = aMin(e.vivo?.at)
             let saltoMin = null
@@ -133,7 +138,7 @@ const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
 
 const ancho = computed(() => {
       const maxCarril = Math.max(0, ...nodosPorCarril.value.map((c) => c.nodos.at(-1)?.x ?? 0))
-      return Math.max(xCorte.value, maxCarril) + 180
+      return Math.max(xCorte.value, maxCarril) + 120
 })
 const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL)
 
@@ -149,7 +154,11 @@ function encuadrar() {
   if (!w || !h) return                       // antes del primer layout: un scale(NaN) borra el dibujo
   // Encuadra por el eje que APRIETA: un mapa ancho con pocos carriles lo limita el ancho, y uno con
   // muchos carriles, el alto. Mirar uno solo deja la mitad del dibujo afuera.
-  const k = Math.min(1.05, (h - 30) / alto.value, (w - 30) / ancho.value)
+  // ⚠ CON PISO. Encuadrar sin mínimo es lo que daba el 0,65 ilegible: más vale un mapa que no entra
+  // entero y se arrastra, que uno entero que no se puede leer. Por debajo de 0,8 el label de 12px
+  // queda en menos de 10 y deja de servir para lo único que el mapa tiene que hacer — que se
+  // reconozca cada etapa de un vistazo.
+  const k = Math.max(0.8, Math.min(1.05, (h - 30) / alto.value, (w - 30) / ancho.value))
   cam.value = { ...cam.value, w, h, k, x: 14, y: Math.max(8, (h - alto.value * k) / 2) }
 }
 onMounted(() => { encuadrar(); new ResizeObserver(encuadrar).observe(lienzo.value) })
@@ -273,8 +282,8 @@ function abajo(ev) {
    hijo en flujo. */
 /* Alto fijo por VIEWPORT y no por contenido (ver la nota de arriba), y de banda: el mapa ocupa el
    ancho entero y el detalle va debajo. */
-.mapa { position:relative; height:44vh; min-height:300px; overflow:hidden;
-  background:var(--panel2); border-bottom:1px solid var(--line); cursor:grab; user-select:none }
+.mapa { position:relative; height:calc(100vh - 190px); min-height:340px; overflow:hidden;
+  background:var(--panel2); border-right:1px solid var(--line); cursor:grab; user-select:none }
 .mapa svg { position:absolute; inset:0 }
 .mapa.move { cursor:grabbing }
 .vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
