@@ -223,3 +223,21 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
   proxy, no una prueba de identidad.
 - `actualizar_json` sigue sin fuente y ahora **sin ningún invocador conocido**: se descartó que la
   llame un event, otra rutina o una vista. Coherente con que sea un script de migración que quedó.
+
+**(2026-09-18) Los dos archivos que este nodo declara cambiaron, y NINGUNO de los dos cambios es de
+este nodo.** Vale anotarlo porque es la forma más común de gastar una revisión: la deriva se mide por
+archivos tocados, y un archivo puede estar acá por UNA razón (invoca una rutina) y cambiar por otra.
+
+Verificado sobre el diff entero de los dos: **ni una sola línea tocada contiene `CALL`, `SP_` ni
+`FN_`** — las llamadas a los procedimientos quedaron intactas, y lo que este nodo describe sigue
+valiendo igual.
+
+Adónde fue cada cambio, para que el que llegue acá siguiendo la deriva no lo busque dos veces:
+
+- `MareiguaService.php` — **el nombre que devuelve la central ahora GANA sobre el tecleado**. Es un
+  cambio de la cascada de identidad: va al nodo `kyc`.
+- `ProfilerMLController.php` — los dos caminos del perfilador empezaron a medir su duración. Va al
+  nodo `profiling`. ⚠ Su motivo sí es un dato duro para cualquiera que mire lentitud: **los dos tienen
+  timeout de 15 s, así que encadenarlos da 30 s** — que es lo que tarda el listado en dev cuando el
+  primario expira. Antes la línea decía qué camino se tomó y nunca cuánto tardó, así que «el primario
+  resolvió» tapaba por igual un acierto en 200 ms y uno en 14,9 s.

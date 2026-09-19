@@ -204,6 +204,39 @@ necesariamente lo que se usa, y **no hay una consulta canónica** que se pueda s
 la liquidación. Después alguien lo baja a Excel y hace los descuentos a mano. Qué puede y qué no puede
 Redash acá: → `db-routines`.
 
+**(2026-09-18) Y el 11 de septiembre se APAGARON casi todos los reportes automáticos**, lo que
+confirma lo de arriba por la vía de los hechos. Verificado contra `origin/main` de `application`
+(`app/Console/Kernel.php`): **8 reportes periódicos desprogramados**, entre ellos el semanal por
+comercio, el diario a comercios (con WhatsApp los lunes), el diario interno a admins, el semanal de
+créditos de consumo, el diario a Tuboleta —destinatarios EXTERNOS— y el de desembolsos por lender.
+
+**El único que sigue activo es la conciliación de Corbeta** (`app:corbeta-conciliation-report-command`),
+junto con los crons de operación de CreditopX y de facturación, que no son reportes.
+
+⚠ **Las líneas quedaron COMENTADAS, no borradas, a propósito**: es la trazabilidad de qué se enviaba, a
+qué hora y con qué periodicidad. El propio código deja el `TODO` de qué hay que arrastrar el día que se
+borren de verdad — sus comandos, jobs, exports, notificaciones y los métodos de
+`EndOfMonthReportController` que sólo usan ellos. Si alguien pregunta «¿por qué dejó de llegarme el
+reporte?», la respuesta es ésta y tiene fecha.
+
+## Lo que el admin puede cambiarle a una ENTIDAD, y el freno que no es un capricho
+
+**(2026-09-18, verificado en `application/app/Models/Lender.php`)** Cambiarle el país a una entidad
+desde el admin **la saca del listado de todos los comercios del país viejo, de un saque**: el listado
+filtra las entidades por el país del comercio (`LenderRetrievalService`). El orden de magnitud es el
+que hace la regla: **Credifamilia-addi está en 136 comercios con 130.167 solicitudes**. Con operación
+encima, eso ya no es corregir un dato — es mover la operación de país.
+
+⚠ **Pero hay una salvedad que importa más que la regla: 158 de las 159 entidades arrastran el país
+id 1**, un default histórico de cuando el país no existía acá. Corregir eso SÍ es una corrección, y
+tiene que poder hacerse aunque la entidad tenga comercios; si no, la única salida sería SQL a mano,
+que es justo lo que ese trabajo vino a sacar.
+
+⚠ Y un detalle de la misma tanda que explica un síntoma feo del admin: `document_types` necesita
+**cast a array** en los modelos (`Lender`, `LendersByAllied`). Sin él llega como string JSON y el
+selector lo toma como UN valor: se veía un chip que decía literalmente `["CC", "CE"]` al lado de los
+chips reales. Aplica igual a una columna propia que a un alias de subconsulta.
+
 ## La promesa que hoy no se cumple: la autogestión
 Se le vende al comercio que **puede configurar sus propias políticas**, y en la práctica casi todo pasa
 por el equipo técnico. Es la brecha más citable del negocio, y le da destino a dos cosas que ya están

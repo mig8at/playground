@@ -26,14 +26,37 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   que un segundo apellido mal **no afecta** a Experian, porque no se lo manda. *(Leído del código; no
   hay un caso observado que lo confirme. Es medible: buscar personas a las que se les corrigió el primer
   apellido y ver si su consulta a Experian fallaba antes.)*
-- **La cascada de identidad es una COMPUERTA, no una FUENTE.** Ágil, Mareigua y TusDatos devuelven los
-  tres `'names' => $form_name` (`AgildataService.php:169` · `MareiguaService.php:195` ·
-  `TusDatosService.php:258`): **te devuelven lo que les mandaste**. Pueden **vetar** el nombre, nunca
-  completarlo ni corregirlo — ni siquiera cuando ellos tienen la versión correcta.
+- **La cascada de identidad YA NO es sólo una compuerta: DOS de las tres corrigen el nombre.** Ya
+  mergeó (los PR #1098 y #1103 que este nodo daba por pendientes), y lo que queda de la regla vieja es
+  sólo TusDatos:
 
-  > ⏳ **PENDIENTE DE MERGE** — esto se INVIERTE en `staging` (PR #1098, #1103): la central que
-  > resuelve la cédula pasa a corregir la ortografía del nombre tecleado, con un techo de distancia
-  > para no escribir encima el nombre de otra persona. Sigue siendo cierto en `main`.
+  | central | qué devuelve |
+  |---|---|
+  | **Ágil** | el nombre que ella resolvió si es adoptable (`AgildataService.php:122`), si no lo tecleado (`:169`) — desde el **2026-08-18** |
+  | **Mareigua** | ídem (`MareiguaService.php:126` · `:195`) — desde después del 2026-08-28 |
+  | **TusDatos** | siempre lo tecleado (`TusDatosService.php:258` · `:393`): **sigue siendo compuerta pura** |
+
+  ⚠ **Lo que cambia en la práctica es que un desacuerdo de nombre ya NO frena la solicitud.** Antes
+  devolvía «Debes ingresar tus apellidos completos tal como aparecen en el documento» y el cliente
+  quedaba trabado; ahora se adopta la versión de la central y sigue. Ese mensaje **no desapareció**:
+  vive en las tres y es el camino de «no adoptable» — la central no trajo nombre, o el que trajo no es
+  de esta persona.
+
+  ⚠ **El techo es `NameSimilarity`, y es lo único que impide escribirle encima el nombre de un
+  TERCERO** cuando la cédula no era de quien decía: 13 casos medidos ahí. La comparación va por
+  separado para nombres y apellidos, porque las centrales los devuelven separados.
+
+  **Medido en prod sobre 3 semanas (según la decisión de producto del 2026-08-13): adoptar acierta 232
+  veces y se equivoca 126** — 2 a 1, y ese 126 es el costo asumido a cambio de no trabar al resto.
+
+  ⚠⚠ **Y EL ALCANCE LO DECIDE LA CASCADA, no la central.** Corta en la PRIMERA que resuelve, así que
+  con Ágil respondiendo, lo de Mareigua **no se ejecuta nunca**. Antes de medir el efecto de la
+  adopción de una central, hay que saber cuántas veces le llega el turno.
+
+  **Por qué a este cliente no se le corrigió el apellido** lo contesta una sola línea: el log
+  `name_adoption` (`OnboardingLogger`, componente KYC), con `decision` en `adopted` o `kept_entered` y
+  las distancias. Va anclado en `user_request_id` — sin esa clave la línea no se ata a ninguna
+  solicitud (**F-102**), y viaja la FORMA de la decisión, nunca los nombres.
   > **Re-verificado el 2026-08-28**: los dos PRs mergearon el 15/8 **a `staging`**, no a `main` —
   > `NameSimilarity.php` no existe en `main`. La marca sigue vigente.
   > Al mergear a `main`: re-verificar con el oráculo, reescribir este punto y **borrar esta marca**.
