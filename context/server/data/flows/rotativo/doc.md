@@ -23,6 +23,9 @@ SQL, y una tabla de cuota inicial + FGA por nivel.
   {3, 4, 5}` — y el 3 sólo cuando el promedio cae en `(3, 4)`. Los 13 lenders tienen configurados los 5
   niveles: **26 de las 65 filas son configuración muerta**. Al leer un tablero de configuración, los
   niveles 1 y 2 se ven activos y no lo están.
+- ✅ **El selector de fecha de pago pasó a respetar la periodicidad del prestamista (2026-09-18), y hoy no cambia nada.** Antes ofrecía siempre los mismos tres días del mes y «corte + 5 días», sin mirar el corte configurado: para un prestamista de corte **semanal** eso son días que su ciclo no tiene, y para uno **quincenal** uno de los tres no existe. Hoy los días salen del calendario de cortes —tres en mensual, dos en quincenal, **ninguno en semanal**, que paga siempre el mismo día— y el desfase corte→pago también (5 días en mensual y quincenal, 2 en semanal).
+  ⚠ **Medido contra producción el 2026-09-18: los 18 rotativos activos son de corte MENSUAL**, ninguno semanal ni quincenal. O sea que esto todavía no cambia ninguna pantalla — cambia la regla, y deja de ser una bomba para el día que se configure el primero.
+  ⚠ Y una observación al pasar, que **no es una conclusión**: entre esos 18 hay uno cuyo nombre dice «cuota quincenal» y tiene el corte **mensual** configurado. Puede que el nombre hable de la cuota y no del corte; vale mirarlo antes de suponer cualquiera de las dos cosas.
 - ⚠ **El nivel 5 casi tampoco.** `(int)` **trunca**: `4,99 → 4`. Para caer en el nivel 5 hace falta un
   promedio **exactamente** 5,0, o sea las seis variables en su puntaje máximo.
 - ⚠ **Las dos implementaciones dan resultados distintos para el mismo cliente.** El PHP otorga y el SP
