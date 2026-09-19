@@ -8,6 +8,9 @@ Importa porque es la frontera entre *lo que se puede cambiar por config* y *lo q
 
 ## Antes de concluir
 - **"Dynamic form" ≠ formulario configurable.** En G1 el nombre engaña dos veces: los campos están hardcodeados en React, y "dynamic" en las rutas quiere decir **República Dominicana**. El seed de este nodo decía que el front "arma el formulario dinámicamente" desde el config de personal-info: es falso, ese config devuelve dos booleanos.
+  ⚠ **Y desde el 2026-09-18 hay una v2 de ese config, con TRES booleanos y otra llave.** `GET /api/v2/onboarding/personal-info/{partnerBranchId}/config` (serie `OBV24XXX`) dice qué campos OPCIONALES recoge la pantalla de datos personales para ese comercio: estrato, fecha de nacimiento manual y fecha de expedición —esta última **opcional en el esquema del front**, así que si el backend la omite llega indefinida—. Sigue sin armar el formulario: sigue siendo una lista de interruptores, ahora de tres.
+  ⚠ **La llave es la SUCURSAL, no la solicitud, y eso corrige una rareza de la v1**: la ruta vieja recibe un `userRequestId` que **nunca usa**, porque la respuesta depende sólo del comercio. Quien copie la firma de la v1 va a pasar un dato que no hace nada.
+  ⚠ **Y si el código de respuesta no es el esperado, el front registra la excepción y devuelve `null`** — o sea que una config rota **degrada en silencio** hacia «sin campos opcionales», que es indistinguible de un comercio que de verdad no los pide.
 - **Tres endpoints para un mismo servicio.** `/dynamic/{hash}/schema` (front G1), `/v1/dynamic/full/{hash}/schema` (backend G1) y `/v1/dynamic-form/{formTypeId}/schema` (front G2), bajo **dos variables de entorno distintas** en el mismo frontend (`VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL`). En G1 el esquema se baja **dos veces** —una para pintar, otra para validar— por endpoints distintos: si divergen, el usuario completa un formulario que el backend después rechaza.
 - **`VITE_ONBOARDING_FORM_SERVICE` no está en `.env.example`.** Si falta, el loader tira 500 "Dynamic schema service is not configured". Solo está documentado `VITE_FORM_SERVICE_BASE_URL`.
 - **Toda falla de validación sale como HTTP 500.** `DYFS1002` mapea a `INTERNAL_SERVER_ERROR` y el facade lo devuelve tanto para errores de infraestructura como para validación estática o dinámica fallida. Solo los conflictos de identidad (`DYFS1003/1004/1005`) son 422. Un campo mal escrito es indistinguible de una caída del proveedor.
@@ -165,11 +168,11 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Envelope de entrada**: `Modules/Onboarding/App/Http/Requests/DynamicForms.php:10-22` (id uuid / hash / data) · `:36-43` (hash 4-16 alfanumérico).
 - **Ruta**: `Modules/Onboarding/routes/api.php:193-195`.
 - **Config**: `Modules/Onboarding/config/config.php:12-14` (`ONBOARDING_FORMS_SERVICE_BASE_URL`), fusionada por `Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:268`.
-- **Sesión en Redis**: `Modules/Partner/App/Services/DynamicFormSessionService.php:10-11` (prefijo + TTL) · `:54` (refresco) · rutas en `Modules/Partner/routes/api.php:218-222`.
+- **Sesión en Redis**: `Modules/Partner/App/Services/DynamicFormSessionService.php:10-11` (prefijo + TTL) · `:54` (refresco) · rutas en `Modules/Partner/routes/api.php:222`.
 
 **G1 — wizard RD, frontend**
-- **El gate de país**: `apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx:65-71` (`alliedCountry === 60` → `/request-amount`).
-- **Fetch del esquema**: `apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx:40` (`VITE_ONBOARDING_FORM_SERVICE`) · `:60` (`/dynamic/{partner_hash}/schema`).
+- **El gate de país**: `apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx:73` (`alliedCountry === 60` → `/request-amount`).
+- **Fetch del esquema**: `apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx:42` (`VITE_ONBOARDING_FORM_SERVICE`) · `:60` (`/dynamic/{partner_hash}/schema`).
 - **Que es RD**: `modules/loan-request-wizard/dynamic-form/src/ui/components/financial-info-options.ts:1-8` y `:44-51` (rangos `RD$`) · `modules/loan-request-wizard/dynamic-form/src/lib/utils/dynamic-step-one.ts:22-24` (CED/CI_VE/PAS) · `:17-18` (18-100 años).
 - **Sesión (forma fija)**: `modules/loan-request-wizard/dynamic-form/src/lib/types/dynamic-form-session.ts:13-21`; cliente en `apps/loan-request-wizard/app/context/DynamicFormContext.tsx:34` / `:76` / `:95`.
 - **Rutas del wizard**: `apps/loan-request-wizard/app/routes.ts:91-96`.
@@ -184,13 +187,13 @@ onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 - **Hardcode de país**: `apps/loan-request-wizard/app/routes/additional-info-form.tsx:33` (`PAIS_POR_OMISION = 47` — se llamaba `COUNTRY_ID`) · `apps/loan-request-wizard/app/routes/additional-info-form.tsx:220` (submit) · `apps/loan-request-wizard/app/routes/additional-info-form.tsx:208` (→ firmar documentos).
 
 **G0 y el EAV**
-- **Definición**: `database/migrations/2023_04_20_225944_create_fields_table.php` · `..._230613_create_forms_table.php:17` · `..._230159_create_field_options_table.php` · `..._225653_create_field_categories_table.php` · `..._225816_create_form_types_table.php` + `2026_05_14_030659_add_lender_id_to_form_types_table.php`.
+- **Definición**: `database/migrations/2023_04_20_225944_create_fields_table.php` · `legacy-backend/database/migrations/2023_04_20_230613_create_forms_table.php:17` · `..._230159_create_field_options_table.php` · `..._225653_create_field_categories_table.php` · `..._225816_create_form_types_table.php` + `2026_05_14_030659_add_lender_id_to_form_types_table.php`.
 - **Tabla EAV**: `database/migrations/2023_04_20_230901_create_user_field_values_table.php:14-27` (sin FKs ni unique) · coerción numérica en `app/Models/UserFieldValue.php:31` y `:62`.
 - **EAV → decisión**: `Modules/Loans/App/Services/LenderUserCategoryService.php:346-351` (scoring por campo) · `:384-389` (87 como salario) · `:409` (29 como ocupación) · tabla en `database/migrations/2026_02_19_214838_create_table_lender_user_fields_scoring_policy.php`.
 - **Los ids del perfilamiento** (application, vivo): `app/Http/Controllers/Customer/GenericFormController.php:20` (form_type 4) · `:36` (estado 9) · `:74`/`:91`/`:125` (29/87/160) · rutas en `routes/customer.php:143-144`.
 - **Los ids del complementario** (application, vivo): `app/Http/Controllers/Customer/CreditopXFormController.php` (25/158/70) · `routes/customer.php:276-277` · gate por entidad en `database/migrations/2024_08_28_212910_add_complementary_form_to_lenders_table.php`.
 - **Estrato y fecha manual**: `Modules/Onboarding/App/Services/OnboardingService.php:1287` · `:1214` · `:1239` (field 30) · constantes en `Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php:20-23`.
-- **El "config" de dos booleanos**: `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1616-1634`; cliente en `apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts:14`.
+- **El "config" de dos booleanos (v1; la v2 son TRES y la llave es la sucursal — ver «Antes de concluir»)**: `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:1795-1799`; cliente en `apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts:14`.
 
 ## Lo que NO está verificado
 - ¿`ONBOARDING_FORMS_SERVICE_BASE_URL`, `VITE_ONBOARDING_FORM_SERVICE` y `VITE_FORM_SERVICE_BASE_URL` apuntan al mismo host? Solo el último está en `.env.example`; sin confirmar en despliegue.
