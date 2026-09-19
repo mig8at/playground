@@ -2273,8 +2273,7 @@ onMounted(async () => {
 
 /* Menú de estados. Las opciones son las que devolvió Jira, así que el ancho lo decide el contenido:
    fijar columnas cortaría nombres como «Se devuelve a pruebas». */
-.mv { margin: 8px 0 0; padding: 9px 10px; background: var(--panel2); border: 1px solid var(--line);
-  border-radius: 9px }
+.mv { margin: 8px 0 0; padding: 9px 10px; background: var(--panel2) }
 .mv-h { margin: 0 0 7px; font-size: 11.5px; color: var(--mut) }
 .mv-h b { color: var(--txt); font-weight: 600 }
 .mv-opts { display: flex; flex-wrap: wrap; gap: 5px }
@@ -2359,8 +2358,12 @@ onMounted(async () => {
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
    hay barra de sprint que ya ocupe el margen automático */
 
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 12px;
-  border: 1px solid var(--line); border-radius: 8px; overflow: hidden }
+/* ⚠ Los cuatro indicadores ya se separan ENTRE SÍ con el `border-right` de cada celda: el marco de
+   afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
+   `overflow: hidden` para que las esquinas recortaran lo de adentro. Queda una banda, cerrada abajo
+   por una línea. */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 16px;
+  border-bottom: 1px solid var(--line) }
 .stat { background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
 .stat:last-child { border-right: 0 }
 .stat .k { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut) }
@@ -2369,8 +2372,13 @@ onMounted(async () => {
 .stat.alert .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 16px }
-.card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .8px; color: var(--mut); margin: 0 0 14px; font-weight: 700;
+/* ⚠ Misma corrección que en el panel del trazador: una sección no necesita fondo propio, marco Y
+   radio para decir que es una pieza. Lo dice su ENCABEZADO, que ahora sale a sangre contra el padding
+   del editor (`margin: 0 -24px`) y se lee como una banda de lado a lado en vez de como otra tarjeta. */
+.card { padding: 0 0 18px; margin-bottom: 20px }
+.card h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .09em; color: var(--mut);
+  margin: 0 -24px 14px; padding: 9px 24px; font-weight: 600; background: var(--card);
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   display: flex; align-items: center; gap: 6px }
 /* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
    (`.tabs`) pero más chico — es un cambio de lente, no una navegación. */
@@ -2489,8 +2497,7 @@ onMounted(async () => {
 .qa-no { border: 1px solid var(--line); background: none; color: var(--mut); font: inherit;
   font-size: 12.5px; padding: 7px 13px; border-radius: 9px; cursor: pointer }
 .qa-no:hover:not(:disabled) { color: var(--txt) }
-.qa-box { border: 1px solid var(--line); border-radius: 11px; padding: 13px; margin-top: 10px;
-  background: var(--panel2) }
+.qa-box { padding: 13px; margin-top: 10px; background: var(--panel2) }
 .qa-head { font-size: 12.5px; color: var(--mut); margin: 0 0 11px }
 .qa-head b { color: var(--txt); font-weight: 600 }
 .qa-box textarea { width: 100%; box-sizing: border-box; background: var(--card); color: var(--txt);
@@ -2704,13 +2711,15 @@ onMounted(async () => {
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
    como un muro gris y el cajón deja de abrirse. Lo que se busca acá es ESCANEO, no lectura lineal.
    Va con `:deep()` porque el HTML lo inyecta `v-html` y el estilo del componente es `scoped`. */
-.toc { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 14px; padding: 10px; border-radius: 8px;
-       background: var(--panel2); border: 1px solid var(--line); max-height: 132px; overflow: auto }
+.toc { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 14px; padding: 10px;
+       background: var(--panel2); max-height: 132px; overflow: auto }
 .toc-i { font: inherit; font-size: 11px; line-height: 1.3; padding: 3px 8px; border-radius: 999px; cursor: pointer;
          background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
 .toc-i:hover { background: var(--line) }
 .toc-i.sub { opacity: .62; font-size: 10px }
-.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid var(--line2); border-radius: 8px;
+/* Es un callout —«si retomás esto sin contexto»—: barra de color y tinte, cuadrado. El marco completo
+   alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
+.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
 .retoma-label { color: var(--acc); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
@@ -2728,7 +2737,7 @@ onMounted(async () => {
 .cuerpo-md :deep(li) { margin: 3px 0 }
 .cuerpo-md :deep(code) { font-size: 11.5px; padding: 1px 4px; border-radius: 4px; background: var(--panel2) }
 .cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: 8px; background: var(--panel2);
-                        border: 1px solid var(--line); margin: 0 0 12px }
+                        margin: 0 0 12px }
 .cuerpo-md :deep(pre code) { padding: 0; background: none }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
 .cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
@@ -2741,8 +2750,12 @@ onMounted(async () => {
    en el tope y scrollean, que es para lo que está el `max-width`. */
 .cuerpo-md :deep(table) { border-collapse: collapse; margin: 0 0 12px; font-size: 11.5px; display: block;
                           overflow-x: auto; width: fit-content; max-width: 100% }
-.cuerpo-md :deep(th), .cuerpo-md :deep(td) { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top }
-.cuerpo-md :deep(th) { background: var(--panel2); font-weight: 600; white-space: nowrap }
+/* ⚠ Cada celda tenía su propio marco: una grilla de rectángulos de 1px que pesa más que los datos, y
+   en una tabla de diez columnas es lo único que se ve. Con una línea por FILA las columnas se siguen
+   leyendo —las alinea el texto— y el dibujo desaparece. Mismo cambio que en `context`. */
+.cuerpo-md :deep(th), .cuerpo-md :deep(td) { border-bottom: 1px solid var(--line); padding: 5px 12px 5px 0; text-align: left; vertical-align: top }
+.cuerpo-md :deep(tr:last-child td) { border-bottom: 0 }
+.cuerpo-md :deep(th) { color: var(--mut); font-weight: 600; white-space: nowrap }
 .cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
 
 /* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
@@ -2775,7 +2788,7 @@ onMounted(async () => {
 .pending-document :deep(input[type=checkbox]) { accent-color: var(--acc); margin-right: 7px }
 .jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
 .jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--card) }
-.document-history { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; scroll-margin-top: 12px }
+.document-history { margin-top: 20px; padding: 14px 0 0; border-top: 1px solid var(--line); scroll-margin-top: 12px }
 .document-history > summary { cursor: pointer; font-weight: 600; font-size: 13px }
 .document-history > summary span { font-weight: 400; color: var(--mut); font-size: 11px }
 .document-history[open] > summary { margin-bottom: 18px }
