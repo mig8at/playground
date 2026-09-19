@@ -21,8 +21,8 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 - **Wompi NO tiene webhook** — todo es polling (`StatusCheck` + reconcile). Un job muerto = pago "colgado" hasta la reconciliación (o para siempre si la reconciliación no lo cubre; el cron 00:02 está hardcodeado a `lender_id=52`, ver servicing).
 - **`status_id` hardcodeados `22`/`21`** en `InitialFeePaymentController` (app) en vez de resolver por nombre — frágil si cambian los ids de `LenderTransactionStatus`.
 - **Idempotencia asimétrica app↔legacy:** los 3 candados anti-doble-cobro solo están en `application`. La copia de legacy tiene un `mockUpdateStatus` (staging) pero su path real no replica los guards → riesgo de re-imputar si se activara.
-- **Wompi = lender 52 mágico** disperso (updateStatus, reconcile, cron): la pasarela se modela como un "lender" en `LenderTransactionStatus`/`LenderAlliedCredential`. Otra pasarela nueva requeriría clonar ese acoplamiento.
-- **`user_request_id=0` = cupo rotativo** (sentinel, no null) en `PaymentGatewayTransaction` — ramifica todo el `updateStatus`/`WompiController`.
+- **Wompi = lender 52 mágico** disperso (updateStatus, reconcile, cron): la pasarela se modela como un "lender" en `LenderTransactionStatus`/`LenderAlliedCredential`. Otra pasarela nueva requeriría clonar ese acoplamiento. ⚠ **Y el 52 convive con su propia alternativa, en el mismo flujo:** `application/app/Actions/Lenders/Wompi.php` lo tiene **quemado** (`:265`, `:297`, `:315`) mientras `WompiController.php:167` resuelve la misma entidad **por NOMBRE** (`Lender::firstWhere('name', 'Wompi')`). Dos formas de decir lo mismo a metros de distancia: la de por nombre sobrevive a un cambio de id, la del literal no.
+- **`user_request_id=0` = cupo rotativo** (sentinel, **no null**) en `PaymentGatewayTransaction`: lo escribe `application/app/Http/Controllers/Customer/WompiController.php:165` con `$userRequest?->id ?? 0`, y el cupo va aparte en `creditop_x_revolving_credit_id` (`:166`). Ramifica todo el `updateStatus`/`WompiController`. ⚠ **Consecuencia para consultas:** un `WHERE user_request_id IS NULL` no encuentra los pagos a cupo — hay que buscar el **cero**.
 - **Auth Wompi inconsistente**: crear con `wompi_public`, consultar con `wompi_private`, y algunos GET sin token (documentado como rareza de Wompi en comentarios del código).
 - **Payvalida webhook empuja originación** (a Estado 11 + voucher + Woocommerce) — es más "desembolso/aprobación" que "recaudo"; cruza con el nodo de originación/agregadores. El `generateVoucher`/`updateDisbursedLender` que dispara son de esos nodos.
 - ✅ **Dos cosas que el cliente veía mal y se arreglaron el 2026-09-18.** (a) Un enlace de pago inválido devolvía **la pantalla genérica de 500 en vez de un 404**: el código lanzaba la excepción `NotFound` del cliente HTTP de Flare —la que esa librería usa para hablar con SU API—, que extiende `BadResponseCode` y no `HttpException`, así que Laravel nunca la mapeaba a un 404. Hoy es `abort(404)` (`application/app/Http/Controllers/Customer/WompiController.php:64`). (b) Un comercio **sin credencial de Wompi** hacía estallar la búsqueda con `findOrFail`; hoy devuelve un aviso de «no hay pagos en línea» con el nombre del comercio (`:160`, resuelto por `:205`). Las dos son de forma, no de fondo: el cobro sigue necesitando la credencial.
@@ -41,7 +41,7 @@ El mismo `PaymentGatewayTransaction` (tabla propia de Wompi) transporta los dos 
 
 **Flujo Payvalida (webhook):**
 - `Payvalida::register` crea la orden (`POST {host}/api/v3/porders`, checksum SHA512, método default `bnplbancolombia`) y devuelve la `url` de checkout.
-- `PayvalidaController::webhook` (`:73`) recibe el `po_id`, re-consulta la orden, y si `user_request_status_id != 11` mapea `DATA.STATE`: `APROBADA`→**11** (+ `generateVoucher` + `updateDisbursedLender(...,8)` + `Woocommerce::process` si ecommerce), `ANULADA`→6, `VENCIDA`→7, `PENDIENTE`→10, `CANCELADA`→8. Notifica al usuario (`TransactionStatusChanged`).
+- `PayvalidaController::webhook` (`application/app/Http/Controllers/Api/PayvalidaController.php:30`; el `switch` de estados arranca en `:75`) recibe el `po_id`, re-consulta la orden, y si `user_request_status_id != 11` mapea `DATA.STATE`: `APROBADA`→**11** (+ `generateVoucher` + `updateDisbursedLender(...,8)` + `Woocommerce::process` si ecommerce), `ANULADA`→6, `VENCIDA`→7, `PENDIENTE`→10, `CANCELADA`→8. Notifica al usuario (`TransactionStatusChanged`).
 
 **Reconciliación / red de seguridad:**
 - **`legacy-backend` `ReconcileWompiTransactionsCommand`** (`app:reconcile-wompi-transactions --hours --dry-run`): NUEVO en legacy; barre `PaymentGatewayTransaction` PENDING de las últimas N horas y re-consulta Wompi (usuario pagó pero no volvió / job murió). `usleep(200ms)` entre llamadas.
@@ -91,11 +91,22 @@ Desde el 2026-08-14 el wizard puede cobrar por **Nequi** desde la pantalla de en
 
 **Y el mismo patrón del «error ya traducido» aparece en la selección de entidad.** En `lender-selection-error-copy.ts`, **la PRESENCIA del título** que manda el action es la señal de «este error ya está traducido, mostralo tal cual»: el servidor tenía un motivo concreto que la persona necesita leer. **Ausente = fallo inesperado**, y ahí se usa el copy genérico, porque el cliente no sabe de qué entidad ni de qué flujo vino el error. Es el mismo mecanismo que Nequi usa para el motivo del backend — vale la pena reconocerlo como patrón y no reimplementarlo.
 
+**(2026-09-18) Nodo RE-VERIFICADO entero.** 18 afirmaciones auditadas —14 de código contra `main` y
+4 de dato contra producción—, cero chequeos débiles y ninguna falsa. 🐞 **El P0 sigue vivo**, y se
+volvió a comprobar línea por línea: `dd($exception);` en `application/app/Actions/Lenders/Wompi.php:79`
+y `legacy-backend/app/Actions/Lenders/Wompi.php:78`, con el `return $this->handleException(...)`
+inalcanzable justo debajo. También exactos: los `status_id` **22/21 quemados** (`:57`, `:97`, `:215`),
+los **tres candados** de idempotencia y que **sólo están en `application`**, el `ttl = 18000` y el
+`release(10)` del polling, la firma SHA256 con `wompi_integrity`, y el sentinel del cupo rotativo. Lo
+corregido: la cita del webhook de Payvalida apuntaba 43 líneas más abajo de su método, y se agregaron
+las citas que faltaban al sentinel, a los candados y al doble trato del id 52 — **quemado en un archivo
+y resuelto por nombre en el de al lado**.
+
 ## Estados y códigos
 - **`PaymentGatewayTransaction`** (Wompi): `status_id`→`LenderTransactionStatus` (nombres `PENDING/APPROVED/DECLINED/VOIDED/ERROR`, filtrados por `lender_id=52`). Campos clave: `creditop_x_payment_type_id` (**1 = cuota inicial**, otro = pago), `principal_payment_type_id` (a capital/cuota), `user_request_id` (0 si es cupo rotativo), `creditop_x_revolving_credit_id`, `order_id` (= `reference` UUID que Wompi ecoa).
 - **`PayvalidaTransaction`** → `PayvalidaTransactionStatus` (`PENDIENTE/APROBADA/ANULADA/VENCIDA/CANCELADA`, español); mapea a `user_request_statuses` (11/6/7/10/8).
 - **`status_id` mágicos en `InitialFeePaymentController` (app):** `22` = aprobado, `21` = pending — **hardcodeados** (no vía nombre). Diverge del resto que resuelve por `LenderTransactionStatus::where('name',...)`.
-- **Idempotencia (solo en app `Wompi::updateStatus`):** 3 candados antes de aplicar — `previousStatusId===status` (ya estaba APPROVED), existe `CreditopXPaymentRegister`, existe `LogReturnWompiInitialFee`. La copia de `legacy-backend` **no** tiene estos candados en su path real (tiene en cambio un `mockUpdateStatus` de staging).
+- **Idempotencia (solo en app `Wompi::updateStatus`, `application/app/Actions/Lenders/Wompi.php:248`):** 3 candados antes de aplicar — `previousStatusId===status` (`:361`, ya estaba APPROVED), existe `CreditopXPaymentRegister` (`:364`), existe `LogReturnWompiInitialFee` (`:371`, y otra vez en `:391`). La copia de `legacy-backend` **no** tiene estos candados en su path real (tiene en cambio un `mockUpdateStatus` de staging).
 - Catálogo de `user_request_statuses` (11 Autorizada, etc.) → raíz / `servicing`.
 
 ## Sistemas externos
