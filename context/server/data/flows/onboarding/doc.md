@@ -161,6 +161,21 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 ### 8. Qué gatea el salto a laboral-info
 `OnboardingService::isForm1Completed($userId)` exige **tres** `user_field_values` con `form_id = 1`: **29** (situación laboral), **87** (ingreso) y **160**. El 160 **no es un dato**: los dos repos lo escriben con el literal `'no'` — es de facto un marcador de "el formulario 1 se envió". El detalle del esquema EAV es del subcontexto **Dynamic Forms**; acá importa sólo porque decide el ruteo.
 
+### El país del cliente: la columna no estaba vacía, estaba afirmando Afganistán
+
+`users.country_id` y `allieds.country_id` son **NOT NULL con DEFAULT 1**, y la fila 1 de `countries` es **Afghanistan**. Ninguno de los dos se escribía en todos los caminos — y como el default no es nulo, el efecto no fue una columna en blanco sino **una columna que contesta mal**. ⚠ **Medido en prod el 2026-09-18: 389.749 usuarios dicen ser de Afganistán**, contra 21.167 de Colombia y 5 de Perú. Es el caso de libro de por qué un `DEFAULT` sobre un dato que nadie escribe es peor que un `NULL`: el `NULL` se ve, el default miente con cara de dato.
+
+**Los dos rodeos que existían por eso ya estaban escritos en el código, y son el síntoma.** `PhoneRoutingService` (CORE-443) resuelve el país recorriendo `user_requests → allieds → countries` y su propio docblock explica por qué **no** lee `users.country_id`; y el OTP **por correo**, que no tiene solicitud de dónde colgarse, caía a un `'+57'` literal escrito **ocho veces en el mismo archivo**.
+
+**Qué hace el arreglo (2026-09-01), en cuatro piezas, todas en `legacy-backend/Modules/Onboarding`:**
+
+- `MerchantCountryService` resuelve **sucursal → comercio → país** en un solo lugar.
+- Los **dos** caminos que crean la ficha en blanco le graban ese país al cliente: el registro de celular (`legacy-backend/Modules/Onboarding/App/Services/RegisterCellPhoneService.php:420`, donde además queda dicho que **el país sale del COMERCIO y no del teléfono**) y `UserService::getOrCreateUser`, que es por donde entra SmartPay.
+- El OTP por correo lee esa columna **primero** y sólo rodea por la última solicitud para los que nacieron antes — un puente hasta que haya backfill hacia atrás, que **todavía no corrió**.
+- El indicativo de último recurso salió del código a `config('onboarding.dial_code_fallback')` (`legacy-backend/config/onboarding.php:103`, default `+57`), porque **es una suposición** y una suposición configurable se puede corregir sin desplegar.
+
+⚠ **Y la cobertura es PARCIAL: todos los días siguen naciendo fichas en el default.** Medido por día en prod: desde el 2026-09-09 cada jornada trae ~600-760 fichas con país real **y ~280-350 en Afganistán**. No es una fecha de corte pendiente —el reparto es el mismo todos los días—, así que hay al menos un camino de creación que no pasa por esas dos piezas. Un candidato verificado: en `legacy-application` el `country_id` se escribe **sólo** para comercios y entidades desde el admin; **ninguno de sus cuatro puntos que crean un `User` lo setea**. **Conclusión práctica: `users.country_id` sirve hacia adelante y sólo para parte del tráfico — no lo uses para segmentar la base histórica.**
+
 ## Subcontextos
 - **KYC** — el estudio del cliente (burós): Experian/Datacrédito da el único score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso; Quanto ingreso estimado. Se dispara desde `personal-info` y desde el orquestador de OTP (`userViability`).
 

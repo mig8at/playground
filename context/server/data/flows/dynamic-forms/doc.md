@@ -160,6 +160,17 @@ primaria del salario** — el ingreso lo unifica `MonthlyIncomeResolver` (formal
 Ábaco/Quanto) y el 87 quedó de **fallback** cuando la suma da vacío. Más: el contexto de codeudor en
 onboarding/préstamos, y el prefijo de país por comercio en el wizard de RD.
 
+### La CUARTA fuente, que es la que va a quedar: `dynamic_form_placements`
+
+Desde el 2026-08-26 la configuración de qué formulario va en qué punto del funnel tiene un destino único, y un resolvedor con nombre que decide de dónde sale: `legacy-backend/Modules/Onboarding/App/Services/LenderFormPlacementResolver.php`. Antes vivía **en dos tablas según el punto**: `lender_requirements.dynamic_form_type_id` para el paso del flujo CreditopX y `form_types.lender_id` para el gate previo a la firma. Tener la precedencia en un solo lugar es lo que hace que esto sea **estrangulamiento** y no dos fuentes de verdad empatadas.
+
+- **La tabla central gana.** Sólo cuando **no** tiene ninguna fila para ese prestamista y ese punto se cae al respaldo legacy. Migrar un prestamista es **agregarle una fila**: toma efecto de inmediato y sin desplegar.
+- ⚠ **AUSENCIA ≠ APAGADO, y es la trampa que hay que saber.** Sin fila, la configuración **se hereda** del respaldo legacy. Para decir «acá no va ningún formulario» hace falta una fila con **`is_enabled = false`**: es una decisión explícita y **corta la herencia**. Sin esa distinción, apagar un formulario que existe en la fuente legacy no tendría ningún efecto y la bandera sería decorativa.
+- **Si las dos fuentes están configuradas y apuntan a formularios DISTINTOS, se registra una advertencia.** Cuando coinciden, o cuando sólo una tiene datos, silencio — eso sería ruido.
+- **La condición de salida está escrita:** cuando `lender_requirements.dynamic_form_type_id` y `form_types.lender_id` estén vacías en todos los ambientes, el respaldo es código muerto y se retira junto con esas dos columnas y su relación.
+
+**El alcance, medido en prod el 2026-09-18: seis filas.** Dos `post_lender_selection` sobre entidades, dos `pre_sign_documents` sobre una entidad —**una encendida y otra apagada**, o sea el caso del apagado explícito ya en uso— y dos de comercio (`pre_alternate_flow` y `post_alternate_flow`). O sea que el estrangulamiento **recién empezó**: para casi todos los prestamistas la respuesta sigue saliendo del respaldo legacy, y este nodo describe ese camino. Los cuatro puntos posibles son `pre_alternate_flow`, `post_alternate_flow`, `post_lender_selection` y `pre_sign_documents`, y el alcance puede ser **entidad, comercio o sucursal** (`legacy-backend/app/Models/DynamicFormPlacement.php:13-21`).
+
 ## Dónde mirar
 
 **G1 — wizard RD, backend**
