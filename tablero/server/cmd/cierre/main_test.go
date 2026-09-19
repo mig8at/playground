@@ -24,7 +24,7 @@ func TestSeccionRetomaCortaEnElProximoTitulo(t *testing.T) {
 func TestLeerFrontmatterArchivadoEsFechaYRamasVanPorComa(t *testing.T) {
 	dir := t.TempDir()
 	ruta := filepath.Join(dir, "x.md")
-	fm := "---\nid: 76\ntitle: \"Alta\"\nstage: work\narchived: \"2026-09-11T11:55:00-05:00\"\nramas: feat/la-card, CRED-352\n---\n\ncuerpo\n"
+	fm := "---\nid: 76\ntitle: \"Alta\"\nclase: proyecto\nstage: work\narchived: \"2026-09-11T11:55:00-05:00\"\nramas: feat/la-card, CRED-352\n---\n\ncuerpo\n"
 	if err := os.WriteFile(ruta, []byte(fm), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestLeerFrontmatterArchivadoEsFechaYRamasVanPorComa(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if tr.ID != 76 || !tr.Archived || tr.Stage != "work" {
+	if tr.ID != 76 || !tr.Archived || tr.Stage != "work" || tr.Clase != "proyecto" {
 		t.Errorf("frontmatter mal leído: %+v", tr)
 	}
 	if len(tr.Ramas) != 2 || tr.Ramas[0] != "feat/la-card" || tr.Ramas[1] != "CRED-352" {
@@ -40,6 +40,22 @@ func TestLeerFrontmatterArchivadoEsFechaYRamasVanPorComa(t *testing.T) {
 	}
 	if !esRamaBase("legacy-backend/qa") || esRamaBase("legacy-backend/feat/qa-tools") {
 		t.Error("esRamaBase mira la rama entera, no una subcadena")
+	}
+}
+
+func TestElAltaDeUnContenedorNoFingeTrabajoEnLaHerramienta(t *testing.T) {
+	contenedor := tarea{Slug: "trazador", Clase: "proyecto"}
+	if !esSoloAltaDeContenedor(contenedor, []string{"archivo"}, false) {
+		t.Fatal("el primer archivo del contenedor es organización del tablero")
+	}
+	if esSoloAltaDeContenedor(contenedor, []string{"archivo"}, true) {
+		t.Fatal("los cambios posteriores del contenedor sí se cierran")
+	}
+	if esSoloAltaDeContenedor(contenedor, []string{"archivo", "rama trazador/feat"}, false) {
+		t.Fatal("si también hubo rama, existió trabajo real en la herramienta")
+	}
+	if esSoloAltaDeContenedor(tarea{Slug: "producto"}, []string{"archivo"}, false) {
+		t.Fatal("una tarea de producto nueva sí exige cierre")
 	}
 }
 

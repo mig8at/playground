@@ -112,17 +112,16 @@
     <div class="rsz resize-right" id="rightResize"></div><div class="region-head"><span>Referencia rápida</span></div>
     <div class="region-body"><p>Este catálogo usa el mismo CSS y el mismo ajuste de paneles que las herramientas.</p><h2>Superficies</h2>
       <div class="token"><code>background</code><i style="background:var(--background)"></i></div><div class="token"><code>sidebar</code><i style="background:var(--sidebar)"></i></div><div class="token"><code>card</code><i style="background:var(--card)"></i></div><div class="token"><code>accent</code><i style="background:var(--accent)"></i></div>
-      <h2>Ajustar regiones</h2><p>Arrastra un separador o enfócalo con Tab.</p><p><kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> 16 px<br><kbd class="kbd">Shift</kbd> + flecha 48 px<br><kbd class="kbd">Home</kbd> ocultar<br><kbd class="kbd">End</kbd> ampliar<br><kbd class="kbd">Enter</kbd> alternar</p><p>Doble clic restablece la medida inicial.</p>
+      <h2>Ajustar regiones</h2><p>Arrastra un separador o enfócalo con Tab.</p><p><kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> 16 px<br><kbd class="kbd">Shift</kbd> + flecha 48 px<br><kbd class="kbd">Home</kbd> ocultar<br><kbd class="kbd">End</kbd> ampliar<br><kbd class="kbd">Enter</kbd> alternar</p>
       <h2>Fuente</h2><p><code>tools/ui/</code></p><p>Distribuir: <code>make estilo-sync</code><br>Verificar: <code>make estilo-check</code></p>
     </div>
   </aside>
-  <section class="panel" id="console" aria-label="Consola de ejemplos"><div class="rsz resize-bottom" id="bottomResize"></div><div class="region-head"><span>Consola de ejemplos</span><div class="toolbar"><button class="region-action" title="Ocultar consola" aria-label="Ocultar consola" id="closePanel"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div></div><pre class="region-body" id="output" role="log">UI lista. Prueba los controles, ajusta las regiones y restablece la disposición desde el pie.
+  <section class="panel" id="console" aria-label="Consola de ejemplos"><div class="rsz resize-bottom" id="bottomResize"></div><div class="region-head"><span>Consola de ejemplos</span><div class="toolbar"><button class="region-action" title="Ocultar consola" aria-label="Ocultar consola" id="closePanel"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div></div><pre class="region-body" id="output" role="log">UI lista. Prueba los controles y ajusta las regiones libremente con los separadores o los botones del pie.
 Los ejemplos son locales y no ejecutan operaciones en las herramientas.</pre></section>
-  <footer class="statusbar"><span>CreditOp · UI compartida</span><div class="layout-controls" role="group" aria-label="Disposición">
-    <button class="region-action" id="toggleLeft" title="Alternar navegación" aria-label="Alternar navegación"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
-    <button class="region-action" id="toggleBottom" title="Alternar consola" aria-label="Alternar consola"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
-    <button class="region-action" id="toggleRight" title="Alternar detalle" aria-label="Alternar detalle"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
-    <button class="region-action" id="reset" title="Restablecer disposición" aria-label="Restablecer disposición"><span class="ui-icon" data-icon="reset" aria-hidden="true"></span></button>
+  <footer class="statusbar"><span>CreditOp · UI compartida</span><div class="layout-controls" role="group" aria-label="Regiones visibles">
+    <button class="region-action" id="toggleLeft" title="Mostrar u ocultar navegación" aria-label="Mostrar u ocultar navegación" aria-controls="navigation"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+    <button class="region-action" id="toggleBottom" title="Mostrar u ocultar consola" aria-label="Mostrar u ocultar consola" aria-controls="console"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
+    <button class="region-action" id="toggleRight" title="Mostrar u ocultar detalle" aria-label="Mostrar u ocultar detalle" aria-controls="inspector"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
   </div></footer>
 </div>
 <script type="module">
@@ -131,15 +130,15 @@ const wb=document.getElementById('workbench');
 const regions=[['leftResize','toggleLeft','navigation','--sidebar-w',224,160,400,1],['rightResize','toggleRight','inspector','--auxiliarybar-w',252,180,420,-1],['bottomResize','toggleBottom','console','--panel-h',152,80,360,-1,'y']];
 const controls=regions.map(([id,toggle,region,css,initial,min,max,sign,axis])=>{
   const el=document.getElementById(region),button=document.getElementById(toggle);
+  let last=initial;
   const get=()=>parseFloat(getComputedStyle(wb).getPropertyValue(css));
-  const set=(v)=>{wb.style.setProperty(css,v+'px');el.style.visibility=v?'visible':'hidden';button.setAttribute('aria-pressed',String(v>0));};
+  const set=(v,remember=true)=>{if(v&&remember)last=v;wb.style.setProperty(css,v+'px');el.style.visibility=v?'visible':'hidden';button.setAttribute('aria-pressed',String(v>0));};
   const c=bindResize(document.getElementById(id),{label:axis?'Alto de consola':'Ancho de '+region,min,max,sign,axis,defaultValue:initial,collapsible:true,get,set});
-  button.onclick=()=>{set(get()?0:initial);c.sync();};
-  button.setAttribute('aria-pressed',String(get()>0));
-  return ()=>{set(initial);c.sync();};
+  const toggle=()=>{set(get()?0:last);c.sync();};
+  button.onclick=toggle; button.setAttribute('aria-pressed','true');
+  return { close:()=>{set(0,false);c.sync();}, toggle };
 });
-document.getElementById('reset').onclick=()=>controls.forEach(reset=>reset());
-document.getElementById('closePanel').onclick=()=>{document.getElementById('toggleBottom').click();document.getElementById('toggleBottom').focus();};
+document.getElementById('closePanel').onclick=()=>{controls[2].close();document.getElementById('toggleBottom').focus();};
 document.querySelectorAll('a[href^="#"]').forEach(link=>link.onclick=(e)=>{e.preventDefault();document.querySelectorAll('#content > section').forEach(s=>s.hidden='#'+s.id!==link.hash);document.querySelectorAll('a[href^="#"]').forEach(a=>a.removeAttribute('aria-current'));link.setAttribute('aria-current','page');document.getElementById('content').scrollTop=0;});
 document.querySelectorAll('[data-demo]').forEach(button=>button.onclick=()=>{document.getElementById('output').textContent+='\nEjemplo: '+button.dataset.demo;});
 let filtered = false;

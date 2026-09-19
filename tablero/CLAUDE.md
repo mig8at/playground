@@ -156,6 +156,10 @@ Repositorio, rama, PR, ambientes y fecha de medición vienen del snapshot. No ma
 tabla de estados en Markdown ni presentes una medición antigua como una comprobación de hoy. Si el
 trabajo no tiene rama propia, no inventes un patrón para llenar esta pestaña.
 
+Los siete contenedores locales no declaran una lista histórica de ramas: agrupan mejoras sucesivas y
+una rama vieja deja de representar su estado. Si una mejora activa necesita seguimiento de entrega,
+se anota dentro de su frente mientras exista; una tarea de producto en `work` sí mantiene `ramas:`.
+
 ### Bitácora
 
 Una entrada por tramo de trabajo, ligada a la tarea y con tiempo medido. La nota sigue la forma
@@ -211,52 +215,25 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
 
 ## Reglas de trabajo
 
-- **Una tarea = un archivo suelto**: `data/<tarea>.md`. `ls data/` responde *¿en qué se está
-  trabajando?* — no crees carpetas por tarea ni por categoría (los 11 esfuerzos reales no
-  clasificaban por ningún eje; la clasificación es `context_nodes`, que es una lista). El nombre
-  del archivo es el slug y se puede renombrar a mano: el `id` vive en el frontmatter.
-- ⚠ **ANTES de crear un archivo de tarea, buscá el que ya la cubre: `make tareas TODAS=1`.** Y si el
-  trabajo es la continuación de algo, escribí EN ESE archivo — no en uno nuevo «de esta tanda».
-
-  **Medido el 2026-08-27, y costó ocho días de invisibilidad.** La campaña de país terminó repartida en
-  **tres** archivos: `internacionalizacion-onboarding.md` (id 43, ligado a CORE-365 — **el único que el
-  tablero muestra**) y dos nuevos con `id: 0`. Todo el avance se escribió en los de id 0, así que la
-  tablero siguió mostrando el estado del **19/8** mientras se mergeaban PRs y se corrían
-  migraciones. Nadie lo notó hasta que Miguel preguntó por qué no veía el avance.
-
-  **Y la causa de fondo ya está arreglada (2026-08-27):** la plantilla decía «`id` — lo reasigna el
-  tablero al cargar» y era mentira, nadie lo reasignaba. Peor: el store indexa `slugs[e.ID]`, así que
-  **varios archivos en 0 se pisaban entre sí y sólo sobrevivía el último**. Ahora `cargar()` les asigna un
-  id de verdad y **lo persiste en el archivo**, así que poner `id: 0` en una tarea nueva vuelve a ser
-  correcto — lo que NO es correcto es escribir el avance de una tarea en un archivo distinto del suyo.
-
-  **Las tareas locales ya aparecen en el árbol**, con su cuerpo, su bitácora, sus ramas y sus hallazgos. Se
-  distinguen con `local · <id>`, el estado **«sin publicar»** y su **etapa** (evaluando / trabajando /
-  tarea) — que en una tarea de Jira viaja dentro del chip del esfuerzo y en una local no tenía dónde.
-
-  ⚠ **La píldora «locales» del filtro arranca APAGADA.** El tablero es, antes que nada, el sprint: son
-  16 locales contra 7 del sprint (2026-08-27), y encendidas por defecto ahogaban justo lo que uno viene
-  a mirar. Filtra por ORIGEN, que es otro eje que las casillas de estado — por eso va separada.
-
-  ⚠ **Que aparezcan en el árbol NO las publica, y eso es a propósito.** Publicar a Jira es una decisión que se
-  **PIDE** —`make jira-create JSON=…`, o pedírselo al asistente—; no hay ni habrá un botón que lo haga
-  desde el tablero. Por la misma razón, «⇢ Mover» **no aparece** en una tarea local: es el único botón
-  que escribe en Jira. Una tarea local es material de trabajo; el día que valga la pena compartirla se
-  decide, no se filtra por estar en pantalla.
-
-- ⚠ **DOS COSAS DISTINTAS VIVEN EN `data/`, y `clase:` las separa.** `clase: tarea` (el default) es el
-  trabajo del día a día sobre CreditOp: va, o irá, a Jira, y alguien del otro lado lo espera.
-  `clase: proyecto` es lo propio — las herramientas del playground, el corpus técnico, una exploración,
-  una mejora a futuro— y **no va a Jira nunca**.
-
-  Medido el 2026-09-15: **23 de las 40 abiertas no tienen clave de Jira**, y 8 son proyectos. Tratarlas
-  igual tenía dos costos: el tablero les pedía sección publicable a cosas que nadie del equipo va a leer,
-  y los proyectos competían en la lista con el trabajo que sí tiene a alguien esperándolo. Ahora
-  `make hoy` los lista aparte, la ficha los marca y el lint avisa si un proyecto conserva publicable.
-
-  ⚠ **No se deduce, se declara.** No alcanza con «no tiene clave de Jira» (una tarea local puede ser
-  trabajo real sin publicar todavía) ni con «toca el playground»: hay trabajo sobre las herramientas que
-  SÍ se publicó (CORE-421). Es una decisión de Miguel, y por eso es una línea del frontmatter.
+- **Una tarea de producto o del equipo = un archivo ligado a Jira.** Si todavía no se decidió publicar
+  un frente general, se trabaja dentro de `playground.md`; al comprometerlo, se crea o vincula Jira y
+  sale de esa lista. No se crea un archivo local intermedio por cada idea.
+- **Sólo existen siete tareas locales permanentes:** `canon.md`, `context.md`, `harness.md`,
+  `tablero.md`, `trazador.md`, `workers.md` y `playground.md`. Una mejora de una herramienta se agrega
+  a su archivo; una mejora transversal o sin destino va a `playground`. El lint y `make tareas` validan
+  esta lista para que no dependa de acordarse.
+- **El estado vigente se reescribe y los frentes se consolidan.** No apiles una tarea nueva por cada
+  mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo, siguiente
+  acción y condición de cierre; al terminar se resume en Registro y se retira de los pendientes.
+- **JSON es una proyección, no otro archivo para editar.** `make tarea-json N=<slug|id>` deriva el
+  contrato `tablero.tarea.v1` desde el Markdown. Jev, workers y automatizaciones consumen esa vista;
+  la explicación y la evidencia siguen teniendo una sola fuente. No crees sidecars manuales.
+- **Las tareas locales son `clase: proyecto`, nunca llevan Jira ni sección publicable.** Las tareas
+  ligadas a Jira usan `clase: tarea` —el default— y pueden conservar el cuerpo privado y el borrador
+  publicable. El botón «Mover» sólo aparece para Jira.
+- ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Para trabajo local casi siempre
+  hay que editar uno de los siete contenedores. Para trabajo de producto, primero verificá si el issue
+  ya está registrado.
 
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`, default `tarea`) · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
   `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
@@ -457,6 +434,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
       make tareas                       las abiertas, con etapa, Jira y nodos
       make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
       make tareas STAGE=work TODAS=1 JSON=1
+      make tarea-json N=tablero         una tarea en el contrato tipado `tablero.tarea.v1`
       make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
       make sprint                       el sprint activo con puntos, del SNAPSHOT
       make bitacora DAYS=7              el tiempo registrado, por día

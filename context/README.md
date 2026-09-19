@@ -61,6 +61,13 @@ python3 tools/build-route-map.py                          # regenera el índice
 make context-salud                                        # ¿el árbol SIRVE para un LLM?
 ```
 
+## Evaluar Jev en local
+
+`make context-jev ARGS='route "pregunta"'` sugiere entradas por búsqueda local. Con `--live`
+compara con Jev mediante su API; las decisiones quedan en reportes locales revisables. El protocolo,
+los datos enviados, la preselección compacta y el modo experimental `make agente-analisis JEV=1`
+están en [`docs/JEV.md`](docs/JEV.md).
+
 ## El modelo
 
 - **`tree.json`** = el wiring (qué nodo cuelga de cuál). **`ROUTE-MAP.md` es GENERADO**: el `Cuándo`

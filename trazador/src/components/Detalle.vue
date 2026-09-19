@@ -174,7 +174,24 @@ function detailAction(id) {
 </script>
 
 <template>
-  <main v-if="e">
+  <main class="detail-panel">
+    <header class="detail-topbar">
+      <span>Inspector</span>
+      <span v-if="t.traza" class="toolbar-note">#{{ t.traza.ureq }}</span>
+      <button type="button" class="region-action" title="Ocultar panel" aria-label="Ocultar logs" @click="emit('close')">
+        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+      </button>
+    </header>
+
+    <div class="panel-views">
+      <section class="panel-view abierta detail-panel-view">
+        <header class="view-heading">
+          <span>Detalle</span>
+          <span v-if="t.traza && e" class="view-stage">{{ e.label }}</span>
+          <span v-else class="view-hint">Elegí una solicitud</span>
+        </header>
+
+        <div v-if="t.traza && e" id="panel-detalle" class="panel-view-body detail-view-body">
     <!-- Migas (`breadcrumb` de `taller.css`): esto ya era un camino escrito con barras. Lo que suma
          el componente es que la ETAPA ACTUAL se distingue del camino que lleva hasta ella —va en el
          color del texto y el resto apagado—, así que se lee dónde estás sin contar separadores. -->
@@ -188,17 +205,14 @@ function detailAction(id) {
     </nav>
     <div class="region-actions toolbar" role="group" aria-label="Acciones de la etapa">
       <RegionMenu title="Opciones de la etapa" :items="detailMenu" :active="abrirPorque || verApagados || abrirTecnico" @select="detailAction" />
-      <button type="button" class="region-action" title="Ocultar logs" aria-label="Ocultar logs" @click="emit('close')">
-        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-      </button>
     </div>
     </div>
     <div class="sub2">
-      {{ ESTADO[e.estado] || e.estado }}
-      <template v-if="e.vivo?.at"> · a las {{ e.vivo.at }}</template>
-      <template v-if="e.vivo?.source"> · fuente <b>{{ FUENTE[e.vivo.source] || '—' }}</b></template>
-      <template v-if="e.vivo?.eventosDe"> · {{ e.vivo.eventosDe }} líneas</template>
-      <template v-if="!e.esqueleto"> · <span class="unknown">la BD no puede probar esta etapa</span></template>
+      <span>{{ ESTADO[e.estado] || e.estado }}</span>
+      <span v-if="e.vivo?.at">a las {{ e.vivo.at }}</span>
+      <span v-if="e.vivo?.source">fuente <b>{{ FUENTE[e.vivo.source] || '—' }}</b></span>
+      <span v-if="e.vivo?.eventosDe">{{ e.vivo.eventosDe }} líneas</span>
+      <span v-if="!e.esqueleto" class="unknown">la BD no puede probar esta etapa</span>
     </div>
 
     <!-- ⚠ El encabezado sale del scroll. Antes `main` scrolleaba ENTERO dentro del sidebar, así que
@@ -246,7 +260,7 @@ function detailAction(id) {
             </button>
             <span v-if="coincidencias(s)" class="badge badge-outline badge-xs marca">{{ coincidencias(s) }}</span>
             <span v-if="errores(s)" class="badge badge-outline badge-xs errn" :title="errores(s) + ' líneas de error'">{{ errores(s) }} err</span>
-            <span class="d">{{ s.detail }}</span>
+            <span class="d" :title="s.detail">{{ s.detail }}</span>
             <span class="badge badge-outline badge-xs src">{{ FUENTE[s.source] || '' }}</span>
             <button v-if="abrible(s) || s.hijos?.length" class="region-action cp" :class="{ ok: copiadoSub === i }"
                     :aria-label="'Copiar ' + s.label" :title="'Copiar «' + s.label + '» con sus logs'" @click.stop="copiarSub(s, i)">
@@ -287,7 +301,7 @@ function detailAction(id) {
               </button>
               <span v-if="coincidencias(h)" class="badge badge-outline badge-xs marca">{{ coincidencias(h) }}</span>
               <span v-if="errores(h)" class="badge badge-outline badge-xs errn" :title="errores(h) + ' líneas de error'">{{ errores(h) }} err</span>
-              <span class="d">{{ h.detail }}</span>
+              <span class="d" :title="h.detail">{{ h.detail }}</span>
               <span class="badge badge-outline badge-xs src">{{ FUENTE[h.source] || '' }}</span>
               <button v-if="abrible(h)" class="region-action cp" :class="{ ok: copiadoSub === i + '-' + j }"
                       :aria-label="'Copiar ' + h.label" :title="'Copiar «' + h.label + '» con sus logs'" @click.stop="copiarSub(h, i + '-' + j)">
@@ -350,7 +364,7 @@ function detailAction(id) {
             </button>
             <span v-if="coincidencias(h)" class="badge badge-outline badge-xs marca">{{ coincidencias(h) }}</span>
             <span v-if="errores(h)" class="badge badge-outline badge-xs errn">{{ errores(h) }} err</span>
-            <span class="d">{{ h.detail }}</span>
+            <span class="d" :title="h.detail">{{ h.detail }}</span>
             <button v-if="h.eventos?.length" class="region-action cp" :class="{ ok: copiadoSub === 't' + j }"
                     :aria-label="'Copiar ' + h.label" :title="'Copiar «' + h.label + '»'" @click.stop="copiarSub(h, 't' + j)">
               <span class="ui-icon" :data-icon="copiadoSub === 't' + j ? 'check' : 'copy'" aria-hidden="true"></span>
@@ -367,62 +381,64 @@ function detailAction(id) {
         </template>
       </div>
     </section>
-
-    <!-- Sin traza: el árbol declarado, apagado -->
-    <template v-if="!t.traza">
-      <section v-for="b in (e.bloques || [])" :key="b.id" class="sec">
-        <div class="region-head grupo">
-          <span class="gh"><span class="ico pendiente">·</span> {{ b.label }}</span>
-          <span class="badge badge-outline badge-xs src">{{ b.tipo }}</span>
+    </div>
         </div>
-        <div class="tabla">
-          <div v-for="h in (b.hitos || [])" :key="h.id" class="fila">
-            <span class="cr" /><span class="dot skip" /><span class="l dim">{{ h.label }}</span>
-            <span class="d">{{ h.matcher ? '' : 'se infiere por ausencia' }}</span>
-          </div>
-          <div v-for="v in (b.valores || [])" :key="v.id" class="fila">
-            <span class="cr" /><span class="dot skip" /><span class="l dim">{{ v.label }}</span>
-            <span class="d">{{ v.rt ? 'rt ' + v.rt.join('/') : '' }}</span>
-          </div>
-          <div v-for="c in (b.conocidos || [])" :key="c.id" class="fila">
-            <span class="cr" /><span class="dot skip" /><span class="l dim">{{ c.label }}</span>
-            <span class="d">{{ c.nota || '' }}</span>
+        <div v-else class="empty inspector-vacio">
+          <div class="empty-head">
+            <div class="empty-media" aria-hidden="true">⌁</div>
+            <p class="empty-title">Elegí una solicitud</p>
+            <p class="empty-desc">El diagnóstico de la corrida se mostrará en este inspector.</p>
           </div>
         </div>
       </section>
-      <!-- ESTE es el estado vacío que de verdad ocurre —el del mapa no, porque las etapas salen del
-           árbol declarado y nunca vienen en cero—. Con la anatomía de `.empty`: medio, título y qué
-           hacer, en vez de un párrafo tenue metido entre las secciones. -->
-      <div class="empty">
-        <div class="empty-head">
-          <div class="empty-media">⌕</div>
-          <p class="empty-title">Todavía no consultaste nada</p>
-          <p class="empty-desc">Esto es el árbol <b>declarado</b>. Buscá una cédula, un teléfono o un número
-            de solicitud y las etapas se encienden con lo que la corrida confirme.</p>
-        </div>
-      </div>
-    </template>
     </div>
   </main>
 </template>
 
 <style scoped>
-main { display:flex; flex-direction:column; min-height:0; height:100%; min-width:0 }
+/* La referencia aporta un panel de tarjetas sobrias: borde fino, radio generoso y superficies por
+   capas. Acá esos rasgos delimitan VISTAS del inspector, sin convertir el diagnóstico en un dashboard. */
+.detail-panel { display:flex; flex-direction:column; min-height:0; height:100%; min-width:0; padding:10px;
+  gap:8px; overflow:hidden; container-type:inline-size; background:var(--panel2) }
+.detail-topbar { flex:none; display:flex; align-items:center; gap:8px; min-height:32px; padding:0 3px;
+  color:var(--dim); font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+.detail-topbar > :first-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.detail-topbar .toolbar-note { color:var(--txt); letter-spacing:0; text-transform:none; font-variant-numeric:tabular-nums }
+.detail-topbar .region-action { border:1px solid var(--line); border-radius:var(--r-sm); background:var(--card) }
+.detail-topbar .region-action:hover { color:var(--primary); border-color:var(--primary);
+  background:color-mix(in srgb, var(--primary) 8%, var(--card)) }
+
+.panel-views { display:flex; flex:1; flex-direction:column; min-height:0 }
+.panel-view { display:flex; flex:none; flex-direction:column; min-height:0; overflow:hidden;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg) }
+.panel-view.abierta { flex:1 }
+.view-heading { flex:none; display:flex; align-items:center; gap:8px; min-height:42px; padding:0 12px;
+  color:var(--txt); border-bottom:1px solid var(--line);
+  background:color-mix(in srgb, var(--primary) 9%, var(--card)); box-shadow:inset 2px 0 0 var(--primary) }
+.view-stage, .view-hint { min-width:0; margin-left:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11px; font-weight:400 }
+.view-stage { color:var(--dim) }.view-hint { color:var(--tenue) }
+.panel-view-body { flex:1; min-height:0 }
+.detail-panel-view { container-type:inline-size }
+.detail-view-body { display:flex; flex-direction:column; overflow:hidden }
+.inspector-vacio { min-height:100%; padding:20px 10px }
 /* El encabezado no scrollea; el cuerpo sí. El padding se mudó del `main` a los dos, porque un
    encabezado fijo con el padding del contenedor se despega del borde. */
-.crumb, .sub2 { flex:none; padding-left:20px; padding-right:20px }
-.crumb { padding-top:16px }
-.region-body { padding:0 20px 18px }
+.detail-view-body .crumb, .detail-view-body .sub2 { flex:none; padding-left:12px; padding-right:12px }
+.detail-view-body .crumb { padding-top:10px }
+.detail-view-body .region-body { padding:0 12px 12px }
 /* Sobre `.breadcrumb`: sólo el tamaño y el peso que esta columna angosta necesita. El reparto de
    color —camino apagado, destino en el color del texto— lo pone la clase compartida. */
 .crumb { font-size:13px; margin-bottom:3px; letter-spacing:-.01em }
 .crumb .breadcrumb-page { font-weight:600 }
-.sub2 { color:var(--dim); font-size:13px; padding-bottom:12px; margin:0;
-  border-bottom:1px solid var(--line) }
+.sub2 { display:flex; flex-wrap:wrap; column-gap:8px; row-gap:3px; color:var(--dim); font-size:12px;
+  padding-bottom:12px; margin:0; border-bottom:1px solid var(--line) }
+.sub2 > span { min-width:0; overflow-wrap:anywhere }
+.sub2 > span + span::before { content:'·'; color:var(--tenue); margin-right:8px }
 /* ⚠ Un callout de barra izquierda va CUADRADO. El `border-radius: 0 r r 0` —esquinas redondeadas
    sólo del lado de afuera— era la silueta de la tarjeta vieja: redondea justo el lado que no tiene
    nada, y deja la barra recta peleando con una esquina curva a 2px. Vale para los tres. */
-.regla { border-left:2px solid var(--line-fuerte); background:var(--card); padding:10px 13px;
+.regla { border-left:2px solid var(--primary); background:color-mix(in srgb, var(--primary) 5%, var(--card)); padding:10px 13px;
   font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
   color:var(--info); font-size:12px; text-align:left }
@@ -438,7 +454,7 @@ main { display:flex; flex-direction:column; min-height:0; height:100%; min-width
    declara acá son las dos desviaciones: sale A SANGRE (contra los 20px del cuerpo) porque una banda
    de lado a lado se lee como encabezado y una barra con aire a los costados como otra tarjeta; y
    lleva un borde arriba, porque acá los grupos se apilan sin lista de por medio. */
-.region-head.grupo { margin:0 -20px; padding:7px 20px; width:auto;
+.region-head.grupo { margin:0 -12px; padding:7px 12px; width:calc(100% + 24px);
   border-top:1px solid var(--line) }
 .region-head.grupo .gh { display:flex; align-items:center; gap:9px; min-width:0 }
 /* El reset del `<button>` vive en `taller.css` (`button.region-head`): acá sólo lo que es de esta
@@ -447,12 +463,12 @@ button.region-head.grupo { user-select:none }
 .nota { padding:7px 13px; color:var(--dim); font-size:11px; margin:0 }
 
 /* La grilla: caret · punto · nombre · detalle · fuente. `tabular-nums` para que ×24 y las horas no bailen. */
-.fila { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto 52px 24px; align-items:center;
-  gap:9px; padding:0 13px; border-top:1px solid var(--line); font-size:13px }
+.fila { display:grid; grid-template-columns:minmax(112px,1.1fr) max-content max-content minmax(64px,.75fr) 52px 24px;
+  align-items:center; gap:7px; padding:0 13px; border-top:1px solid var(--line); font-size:13px }
 .fila:first-child { border-top:0 }
 .fila.hijo { padding-left:30px }
-.fila.clic:hover { background:var(--sel) }
-.fila.ab { background:var(--sel); font-weight:500 }
+.fila.clic:hover { background:color-mix(in srgb, var(--primary) 6%, var(--card)) }
+.fila.ab { background:color-mix(in srgb, var(--primary) 9%, var(--card)); box-shadow:inset 2px 0 0 var(--primary); font-weight:500 }
 /* Marca de coincidencia del filtro: un borde, no un relleno — el relleno competiría con `ab` (abierto) y
    con el rojo de error, que dicen cosas más importantes. */
 .fila.hit { box-shadow:inset 2px 0 0 var(--info) }
@@ -470,7 +486,8 @@ button.region-head.grupo { user-select:none }
 .dot.ok{background:var(--ok)} .dot.fail{background:var(--fail)} .dot.warn{background:var(--warn)}
 .l { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .l.mono { font-family:ui-monospace,Menlo,monospace; font-size:12px }
-.d { color:var(--dim); font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums }
+.d { min-width:0; overflow:hidden; text-overflow:ellipsis; color:var(--dim); font-size:12px;
+  white-space:nowrap; font-variant-numeric:tabular-nums }
 /* Sobre `.badge.badge-outline.badge-xs`: la fuente de un dato es una etiqueta, y el radio chico la
    distingue de las píldoras redondas que SÍ se pueden apretar. */
 .src { color:var(--tenue); border-radius:var(--r-sm);
@@ -507,7 +524,7 @@ tr.hit td:not(.ln) { font-weight:600 }
   font:12px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace }
 table { border-collapse:collapse; width:100% }
 td { padding:0 8px; vertical-align:top; white-space:pre-wrap; word-break:break-word }
-td.ln { width:1%; text-align:right; color:var(--skip); user-select:none; white-space:nowrap;
+td.ln { width:1%; text-align:right; color:var(--texto-2); user-select:none; white-space:nowrap;
   position:sticky; left:0; background:var(--panel2) }
 td.tm { width:1%; color:var(--dim); white-space:nowrap; font-variant-numeric:tabular-nums }
 tr.err td:not(.ln) { color:var(--fail) }
@@ -528,7 +545,25 @@ tr:hover td { background:var(--sel) }
 .bdq pre { margin: 4px 0 0; padding: 6px 8px; overflow-x: auto; font-size: 11px; line-height: 1.5;
            background: color-mix(in srgb, currentColor 5%, transparent); border-radius:var(--r-sm); }
 
-.detail-toolbar { padding: var(--space-2) 0; min-height: var(--region-head-h); border-bottom: 0; }
-.detail-toolbar .crumb { margin: 0; flex: 1; min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+.detail-toolbar { padding:10px 12px 4px; min-height:var(--region-head-h); border-bottom:0; background:transparent }
+.detail-toolbar .crumb { margin:0; padding:0; flex:1; min-width:0; flex-wrap:nowrap; overflow:hidden }
 .detail-toolbar .breadcrumb-page { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* El panel puede bajar hasta 280px mientras se redimensiona. En vez de hacer las seis columnas cada
+   vez más angostas —hasta que rótulos y badges se monten— el detalle pasa a una segunda línea con su
+   propia reserva. La información sigue disponible y no aparece una barra horizontal para una fila. */
+@container (max-width: 430px) {
+  .detail-view-body .crumb, .detail-view-body .sub2 { padding-left:10px; padding-right:10px }
+  .detail-view-body .region-body { padding:0 10px 10px }
+  .region-head.grupo { margin-left:-10px; margin-right:-10px; width:calc(100% + 20px); padding-left:10px; padding-right:10px;
+    flex-wrap:wrap; row-gap:6px }
+  .buscar { order:3; flex:1 0 100%; width:100%; margin-left:0 }
+  .fila { grid-template-columns:minmax(0,1fr) max-content max-content 24px; gap:6px; padding:0 10px }
+  .fila.hijo { padding-left:22px }
+  .d { grid-column:1 / -1; grid-row:2; padding:0 0 8px 31px }
+  .src { display:none }
+  .cp { grid-column:4; grid-row:1 }
+  .bd { margin-left:20px }
+  td { padding-left:6px; padding-right:6px }
+}
 </style>

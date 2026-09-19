@@ -12,7 +12,7 @@
 //
 // Como todo en la Vue: acá NO se decide nada. El desenlace de cada solicitud y los totales vienen del
 // server (`desenlaceDe`/`armarHistoria` en Go), que es el único lugar donde «roto» está definido.
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useTrazador } from '../stores/trazador'
 const t = useTrazador()
 
@@ -50,6 +50,17 @@ const dia = (f) => {
 }
 const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio, i.lender,
   i.directa ? 'lo que buscaste' : 'misma persona'].filter(Boolean).join(' · ')
+
+// Una fecha por vez mantiene el sidebar como índice: se ve el volumen de todos los días, pero sólo
+// se gastan líneas en el bloque que estás inspeccionando. Cuando abrís otra solicitud, su día se abre
+// solo para no obligarte a encontrarlo otra vez dentro de la historia.
+const diaAbierto = ref(null)
+watch([dias, () => t.traza?.ureq], ([grupos]) => {
+  const activo = grupos.find((g) => g.chips.some((i) => i.ureq === t.traza?.ureq))
+  if (activo) diaAbierto.value = activo.fecha
+  else if (!grupos.some((g) => g.fecha === diaAbierto.value)) diaAbierto.value = grupos[0]?.fecha || null
+}, { immediate: true })
+const alternarDia = (fecha) => { diaAbierto.value = diaAbierto.value === fecha ? null : fecha }
 </script>
 
 <template>
@@ -75,18 +86,17 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
       <span v-if="h.truncada">sólo se ven las {{ h.total }} más recientes: hay más.</span>
     </p>
 
-    <!-- ⚠ El día pasó de ser una COLUMNA de 72px a la izquierda a ser el encabezado de su grupo
-         (`region-head.grupo` de `taller.css`, o sea el mismo que el árbol de `context` y las vistas
-         del tablero). En una franja horizontal la columna funcionaba; en 300px dejaba 190 para los
-         chips —uno y medio por renglón— y la fecha se repetía en cada línea del wrap. De paso el
-         encabezado se PEGA arriba, así que recorriendo 29 días siempre sabés en cuál estás. -->
+    <!-- Los días son el acordeón de las corridas. En 300px una historia larga no puede estar abierta
+         por completo: el encabezado conserva fecha + cantidad y el grupo de la corrida activa se abre
+         automáticamente. Así se puede comparar volumen sin convertir el sidebar en una pared de chips. -->
     <div class="tira">
       <div v-for="g in dias" :key="g.fecha" class="grupo">
-        <div class="region-head grupo">
-          <span>{{ dia(g.fecha) }}</span>
+        <button type="button" class="region-head grupo" :aria-expanded="diaAbierto === g.fecha"
+                @click="alternarDia(g.fecha)">
+          <span class="gh"><span class="cr" :class="{ on: diaAbierto === g.fecha }">▸</span>{{ dia(g.fecha) }}</span>
           <span class="badge badge-secondary badge-xs">{{ g.chips.length }}</span>
-        </div>
-        <div class="chips">
+        </button>
+        <div v-if="diaAbierto === g.fecha" class="chips">
         <button v-for="i in g.chips" :key="i.ureq"
                 :class="['badge', 'badge-outline', 'chip', CLASE[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
                 :title="tip(i)" @click="t.verTraza(i.ureq)">
@@ -111,7 +121,7 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 
 <style scoped>
 /* Ya no lleva padding ni borde propios: es un bloque más del cuerpo del sidebar, que pone los dos. */
-.historia { min-width:0 }
+.historia { --historia-gutter:14px; --historia-gutter-doble:28px; min-width:0 }
 .linea { margin:0 0 6px; font-size:12.5px; color:var(--dim) }
 .linea b { color:var(--txt) }
 .t { margin-left:9px; font-weight:600 }
@@ -121,12 +131,18 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 /* Agrupado por día: su encabezado y debajo sus intentos. Que un día tenga cuatro chips ES la señal de
    reintento — no hay que leer ninguna fecha para verla. */
 .tira { display:flex; flex-direction:column }
-/* Sobre `.region-head.grupo`: sale A SANGRE contra los 14px del cuerpo del sidebar (una banda de lado
-   a lado se lee como encabezado; con aire a los costados, como otra tarjeta) y en minúsculas, porque
-   «18 ago ’26» es un dato y no un rótulo. */
-.grupo > .region-head.grupo { margin:6px -14px 4px; padding:4px 14px; width:auto;
-  text-transform:none; letter-spacing:normal; font-variant-numeric:tabular-nums }
-.chips { display:flex; flex-wrap:wrap; gap:4px }
+/* Sobre `.region-head.grupo`: esta vez no se pega al hacer scroll. Es un acordeón, no el título de una
+   lista abierta; su valor es mostrar todos los días cerrados de una vez. */
+.grupo > .region-head.grupo { margin:8px calc(0px - var(--historia-gutter)) 4px; padding:5px var(--historia-gutter);
+  width:calc(100% + var(--historia-gutter-doble)); position:relative; top:auto; text-transform:none; letter-spacing:normal;
+  font-variant-numeric:tabular-nums; background:var(--card); border:1px solid var(--line); border-radius:var(--r-sm) }
+.grupo > .region-head.grupo:hover { border-color:var(--primary) }
+.grupo > .region-head.grupo[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 9%, var(--card));
+  border-color:var(--primary); box-shadow:inset 2px 0 0 var(--primary) }
+.grupo > .region-head.grupo .gh { display:flex; align-items:center; gap:7px; min-width:0 }
+.grupo > .region-head.grupo .cr { color:var(--dim); font-size:10px; transition:transform .12s }
+.grupo > .region-head.grupo .cr.on { transform:rotate(90deg) }
+.chips { display:flex; flex-wrap:wrap; gap:4px; padding:0 0 3px }
 
 /* Sobre `.badge.badge-outline`: un intento de la persona es una ETIQUETA que además se aprieta. */
 .chip { gap:5px; padding:2px 8px; font-size:12px; color:var(--dim);

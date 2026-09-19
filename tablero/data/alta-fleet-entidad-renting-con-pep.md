@@ -62,7 +62,7 @@ lado: las lee un modelo y decide mal.
 
 **El próximo paso es:** nada en esta tarea. Si alguien vuelve acá es por una de dos — promover `qa` a
 `main` (y entonces borrar las dos marcas ⏳), o retomar la tarjeta parametrizable, que **no es de acá**:
-se fue a la tarea 80 el 13/9.
+quedó como frente general dentro de `playground.md` hasta que tenga una tarea de Jira propia.
 
 ## Lo que se mergeó: el libro mayor de los PRs
 
@@ -230,9 +230,8 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 
 ## La tarjeta de cada entidad: por capacidad y no por id
 
-> ⏩ **Desde el 2026-09-13 este frente vive en la tarea 80** (`lenders-tarjeta-y-verbos-desde-el-back`),
-> y su fuente de verdad está allá. Lo de abajo se conserva porque es donde se midió por primera vez,
-> pero **no se actualiza más acá**.
+> ⏩ **Este frente vive en `playground.md`** hasta que se convierta en Jira. Lo de abajo se conserva
+> porque es donde se midió por primera vez, pero **no se actualiza más acá**.
 
 
 Frente nuevo, incorporado a ESTA tarea el 2026-09-11 por decisión de Miguel: la tarjeta parametrizable
@@ -890,6 +889,11 @@ Y los dos chequeos que no son un comando:
 
 ## Registro
 
+### 2026-09-19 · el frente local de la tarjeta pasa al contenedor general
+
+Las referencias a la tarea local retirada se actualizaron para apuntar a `playground`. El alcance,
+la entrega y el próximo paso propios de Alta Fleet no cambiaron.
+
 ### 2026-09-15
 
 **Llegó a `main`, y se supo por un arreglo de la medición.** El barrido de entrega (tarea 84) destapó
@@ -952,8 +956,8 @@ más de un plan —medido: las dos únicas entidades con calculadora en prod tra
 cambia ninguna pantalla— y las dos historias de Storybook que la card de alquiler no tenía. Se probó en
 local poniendo a AltaX en un solo plan: el renglón «Plan» desaparece y la cuota se conserva. Miguel lo
 verá mañana. Lo que faltaba para el diseño de Alta —ocultar «Monto total», el texto del botón— quedó
-bloqueado en decisiones de diseño y **pasa entero a la tarea 80** junto con todo el frente de la
-tarjeta parametrizable. Esta tarea no crece más por ese lado.
+bloqueado en decisiones de diseño y **pasa al frente general de `playground.md`** junto con la tarjeta
+parametrizable. Esta tarea no crece más por ese lado.
 
 
 ### 2026-09-11 (cierre 2) · la pantalla lenta no era el SQL: son 30 segundos esperando al perfilador

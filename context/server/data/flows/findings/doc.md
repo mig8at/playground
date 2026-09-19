@@ -2067,15 +2067,26 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Un control negativo que NO sirve:** apuntar el `*_MOCK_HOST` a un puerto muerto **no prueba
   nada**. El Action hace `->throw()`, cae al **fixture en silencio** y el flujo termina igual de
   rápido. La única evidencia válida de que la lambda participó es el log `source=lambda`.
+- **Cómo probar hoy con la lambda:** dictar en el admin de Mockoon la respuesta de cada central bajo
+  la clave de esa central y una **cédula nueva** (`agildata_<cédula>`, `mareigua_<cédula>`,
+  `tusdatos_<cédula>` y la variante de Experian que corresponda); correr
+  `register → otp-validate → personal-info`; comprobar en los logs `source=lambda`; y purgar el estado
+  del admin al terminar. La cédula debe ser nueva o hay que borrar su fila de
+  `risk_central_user_data`, porque esa caché dura un mes y evita la llamada al mock. El teléfono de
+  bypass también debe estar libre de usuarios y solicitudes abiertas; su OTP son los últimos cuatro
+  dígitos. Para usuarios temporales, `otp-validate` entrega `user_request_id` dentro de
+  `errors.payload`. Mockoon acepta JSON roto y lo devuelve con 200, por lo que hay que validarlo antes
+  de guardarlo. TusDatos exige `status: "success"`; para CC, la coincidencia se decide mediante
+  `data.findings.<campo>.match_code`, donde `0` significa que no coincide.
 - **Arreglo:** para ejercitar centrales de verdad en local, los tres tienen que estar alineados: los
   cuatro `ONBOARDING_DRIVER_*` de KYC en `real`, los cuatro `*_MOCK_HOST` apuntando a la lambda, y
   `php artisan config:clear`. **No aplicado en el repo** — es configuración de `.env`, que no se
-  versiona. La receta de qué dictar está en `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`.
+  versiona.
 - **Estado:** vivo en `main`, pero **resuelto por decisión** (Miguel, 2026-08-18): los drivers fake de
   burós quedan **sin usar** y el mecanismo es el lambda, que cubre lo mismo y se dicta por cédula sin
   desplegar. Los de OTP y CACHE siguen en `fake` — el de OTP no pasa por `Http::fake` y el lambda no
-  lo reemplaza. Detalle y lo que queda abierto (4 specs del harness que inyectan escenarios de burós):
-  `tablero/data/mocks-de-centrales-un-solo-mecanismo.md` §«DECISIÓN». La regla general: **cuando tres
+  lo reemplaza. Queda migrar los specs del harness que todavía inyectan escenarios de burós para que
+  usen la lambda. La regla general: **cuando tres
   mecanismos resuelven lo mismo y ninguno declara su precedencia, el que gana es el que intercepta más arriba** — y como todos devuelven algo
   plausible, la única forma de saber cuál contestó es que cada uno deje su marca en el log.
 

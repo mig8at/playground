@@ -1,0 +1,197 @@
+<script setup>
+// La consola inferior es navegación de trabajo: no repite el inspector ni ocupa la barra del mapa.
+// Guarda las últimas corridas del navegador, para retomar una sin volver a buscarla.
+import { computed, ref, watch } from 'vue'
+import { useTrazador } from '../stores/trazador'
+
+const emit = defineEmits(['close'])
+const t = useTrazador()
+const datos = (reciente) => {
+  const total = Number.isInteger(reciente.total) ? reciente.total : null
+  return {
+    clave: `${reciente.target}:${reciente.q}`,
+    target: reciente.target,
+    consulta: reciente.q,
+    meta: total === null ? reciente.target : `${reciente.target} · ${total} ${total === 1 ? 'solicitud' : 'solicitudes'}`,
+  }
+}
+const claveActiva = computed(() => t.resultados && t.q.trim() ? `${t.target}:${t.q.trim()}` : '')
+const descripcion = computed(() => t.recientes.length
+  ? 'Elegí una consulta para volver a abrir su grupo de solicitudes.'
+  : 'Las consultas que abras quedarán disponibles en este navegador.')
+const enCurso = computed(() => (t.resultados?.items || [])
+  .filter((item) => item.desenlace === 'en-curso' || /en curso/i.test(item.estadoN || ''))
+  .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
+const historial = computed(() => [...(t.resultados?.items || [])]
+  .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
+const vistaPrincipal = ref('en-curso')
+watch(() => t.resultados, () => { vistaPrincipal.value = enCurso.value.length ? 'en-curso' : 'historial' })
+const filas = computed(() => vistaPrincipal.value === 'en-curso' ? enCurso.value : historial.value)
+const fecha = (item) => [item.fecha, item.hora].filter(Boolean).join(' · ') || 'sin fecha'
+// Abrir una fila no es una nueva consulta: carga esta solicitud dentro del grupo que ya está abierto.
+const abrirEnCurso = (item) => t.verTraza(item.ureq)
+const estado = (item) => item.estadoN || item.desenlace?.replace('-', ' ') || '—'
+const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
+</script>
+
+<template>
+  <section class="recientes-console" aria-label="Consultas recientes">
+    <header class="console-head">
+      <div class="console-tabs" role="tablist" aria-label="Panel inferior">
+        <span class="console-tab" role="tab" aria-selected="true">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+          Recientes
+          <span class="console-count">{{ t.recientes.length }}</span>
+        </span>
+      </div>
+      <p class="console-note">{{ descripcion }}</p>
+      <div class="region-actions toolbar">
+        <button type="button" class="region-action" title="Ocultar recientes" aria-label="Ocultar recientes" @click="emit('close')">
+          <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+        </button>
+      </div>
+    </header>
+
+    <div class="console-body">
+      <div class="console-stage" aria-live="polite">
+        <section v-if="t.resultados" class="solicitudes-curso" aria-label="Solicitudes de la búsqueda">
+          <header class="curso-head">
+            <div class="curso-tabs" role="tablist" aria-label="Solicitudes de la búsqueda">
+              <button type="button" role="tab" :aria-selected="vistaPrincipal === 'en-curso'" @click="vistaPrincipal = 'en-curso'">
+                En curso <span>{{ enCurso.length }}</span>
+              </button>
+              <button type="button" role="tab" :aria-selected="vistaPrincipal === 'historial'" @click="vistaPrincipal = 'historial'">
+                Historial <span>{{ historial.length }}</span>
+              </button>
+            </div>
+            <span>más reciente primero</span>
+          </header>
+          <div v-if="filas.length" class="curso-tabla" role="table" :aria-label="`${vistaPrincipal === 'en-curso' ? 'Solicitudes en curso' : 'Historial de solicitudes'} ordenado de forma descendente`">
+            <div class="curso-fila curso-columnas" role="row">
+              <span role="columnheader">Solicitud</span><span role="columnheader">Comercio</span>
+              <span role="columnheader">Fecha</span><span role="columnheader">Estado</span>
+            </div>
+            <button v-for="item in filas" :key="item.ureq" type="button" class="curso-fila curso-dato" role="row"
+                    :title="`Abrir solicitud ${item.ureq}`" @click="abrirEnCurso(item)">
+              <span class="curso-ureq" role="cell">{{ item.ureq }}</span>
+              <span class="curso-comercio" role="cell">{{ item.comercio || '—' }}</span>
+              <span class="curso-fecha" role="cell">{{ fecha(item) }}</span>
+              <span class="curso-estado" :class="claseEstado(item)" role="cell">{{ estado(item) }}</span>
+            </button>
+          </div>
+          <div v-else class="curso-vacio">No hay solicitudes {{ vistaPrincipal === 'en-curso' ? 'en curso' : 'en el historial' }}.</div>
+        </section>
+        <div v-else class="stage-vacio">
+          <span class="prompt-mark" aria-hidden="true">›</span>
+          <div>
+            <p class="stage-title">{{ t.resultados ? 'No hay solicitudes en curso' : 'Esperando una consulta' }}</p>
+            <p class="stage-copy">{{ t.resultados ? 'Esta búsqueda no tiene solicitudes abiertas.' : 'Buscá una persona para ver sus solicitudes en curso.' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="console-sidebar" aria-label="Navegador de consultas recientes">
+        <header class="console-sidebar-head">
+          <span>Consultas</span>
+          <span class="sidebar-count">{{ t.recientes.length }}</span>
+        </header>
+        <div v-if="t.recientes.length" class="lista-recientes" aria-label="Consultas recientes guardadas">
+          <div v-for="reciente in t.recientes" :key="datos(reciente).clave" class="reciente" :class="{ activa: datos(reciente).clave === claveActiva }">
+            <button type="button" class="abrir-reciente" :aria-current="datos(reciente).clave === claveActiva ? 'page' : undefined"
+                    :title="`Abrir ${datos(reciente).consulta} en ${datos(reciente).target}`" @click="t.abrirReciente(reciente)">
+              <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+              <span class="reciente-texto">
+                <span class="reciente-consulta">{{ datos(reciente).consulta }}</span>
+                <span class="reciente-meta">{{ datos(reciente).meta }}</span>
+              </span>
+            </button>
+            <button type="button" class="borrar-reciente" :aria-label="`Borrar consulta ${datos(reciente).consulta}`"
+                    :title="`Borrar ${datos(reciente).consulta} de este navegador`" @click="t.eliminarReciente(reciente)">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div v-else class="sidebar-vacio">No hay corridas guardadas.</div>
+      </aside>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.recientes-console { display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; container-type:inline-size;
+  background:var(--card); border-top:1px solid var(--line) }
+.console-head { flex:none; display:flex; align-items:center; min-height:38px; gap:12px; padding:0 10px;
+  border-bottom:1px solid var(--line); background:var(--panel2) }
+.console-tabs { align-self:stretch; display:flex; align-items:stretch }
+.console-tab { display:flex; align-items:center; gap:6px; min-width:0; padding:0 4px; color:var(--txt);
+  border-bottom:2px solid var(--primary); font-size:12px; font-weight:600 }
+.console-tab .ui-icon { width:14px; height:14px; color:var(--primary) }
+.console-count { display:grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:var(--r-full);
+  color:var(--secondary-foreground); background:var(--secondary); font-size:10px; font-variant-numeric:tabular-nums }
+.console-note { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--dim); font-size:11px }
+.console-head .region-actions { margin-left:auto }
+.console-head .region-action { border:1px solid transparent; border-radius:var(--r-sm) }
+.console-head .region-action:hover { color:var(--primary); border-color:var(--line); background:var(--card) }
+.console-body { flex:1; display:flex; min-width:0; min-height:0; overflow:hidden }
+.console-stage { flex:1 1 0; min-width:0; min-height:0; background:color-mix(in srgb, var(--panel2) 42%, var(--card)); color:var(--dim) }
+.solicitudes-curso { display:flex; flex-direction:column; min-width:0; height:100% }
+.curso-head { flex:none; display:flex; align-items:center; gap:10px; min-height:32px; padding:0 12px; border-bottom:1px solid var(--line) }
+.curso-head > :last-child { margin-left:auto; color:var(--tenue); font-size:10px; white-space:nowrap }
+.curso-tabs { align-self:stretch; display:flex; align-items:stretch; gap:3px }
+.curso-tabs button { display:flex; align-items:center; gap:5px; padding:0 7px; color:var(--tenue); background:none; border:0; border-bottom:2px solid transparent;
+  font:600 10px/1 var(--font-sans); cursor:pointer }
+.curso-tabs button:hover { color:var(--txt) }.curso-tabs button[aria-selected="true"] { color:var(--txt); border-bottom-color:var(--primary) }
+.curso-tabs button:focus-visible { outline:2px solid var(--primary); outline-offset:-2px }
+.curso-tabs button span { display:grid; place-items:center; min-width:16px; height:16px; padding:0 4px; color:var(--secondary-foreground); background:var(--secondary);
+  border-radius:var(--r-full); font-size:9px; font-variant-numeric:tabular-nums }
+.curso-tabla { min-height:0; overflow:auto }
+.curso-fila { display:grid; grid-template-columns:106px minmax(120px, 1fr) 132px 62px; align-items:center; gap:8px; min-width:0; width:100%; padding:0 12px;
+  text-align:left; font-size:11px }
+.curso-columnas { position:sticky; top:0; z-index:1; min-height:25px; color:var(--dim); background:var(--panel2); border-bottom:1px solid var(--line);
+  font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase }
+.curso-dato { min-height:34px; color:var(--dim); background:transparent; border:0; border-bottom:1px solid var(--line); cursor:pointer }
+.curso-dato:hover { color:var(--txt); background:color-mix(in srgb, var(--primary) 7%, var(--panel2)); box-shadow:inset 2px 0 0 var(--primary) }
+.curso-dato:focus-visible { outline:2px solid var(--primary); outline-offset:-2px }
+.curso-fila > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.curso-ureq { color:var(--txt); font-family:var(--font-mono); font-size:12px }
+.curso-comercio { color:var(--dim) }.curso-fecha { color:var(--tenue); font-variant-numeric:tabular-nums }
+.curso-estado { color:var(--dim); font-size:10px; font-weight:600 }.curso-estado.estado-en-curso { color:var(--ok) }
+.curso-estado.estado-aprobado { color:var(--ok) }.curso-estado.estado-roto { color:var(--fail) }
+.curso-estado.estado-abandonado { color:var(--warn) }.curso-vacio { padding:14px 12px; color:var(--dim); font-size:11px }
+.stage-vacio { display:flex; align-items:center; justify-content:center; gap:10px; min-width:0; height:100%; padding:16px }
+.prompt-mark { flex:none; color:var(--primary); font:24px/1 var(--font-mono) }
+.stage-title, .stage-copy { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.stage-title { color:var(--txt); font:600 12px/1.45 var(--font-mono) }
+.stage-copy { margin-top:2px; font-size:11px }
+.console-sidebar { flex:0 0 224px; display:flex; flex-direction:column; min-width:0; min-height:0;
+  background:var(--panel2); border-left:1px solid var(--line) }
+.console-sidebar-head { flex:none; display:flex; align-items:center; gap:7px; min-height:32px; padding:0 10px;
+  color:var(--dim); border-bottom:1px solid var(--line); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+.sidebar-count { display:grid; place-items:center; min-width:17px; height:17px; padding:0 4px; border-radius:var(--r-full);
+  color:var(--secondary-foreground); background:var(--secondary); font-size:10px; letter-spacing:0; font-variant-numeric:tabular-nums }
+.lista-recientes { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:2px; padding:6px }
+.reciente { display:flex; align-items:center; min-width:0; min-height:38px;
+  color:var(--dim); background:transparent; border:1px solid transparent; border-radius:var(--r-sm) }
+.reciente:hover { color:var(--txt); background:color-mix(in srgb, var(--primary) 7%, var(--panel2)); border-color:var(--line) }
+.reciente.activa { color:var(--txt); background:color-mix(in srgb, var(--primary) 12%, var(--panel2));
+  border-color:color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow:inset 2px 0 0 var(--primary) }
+.abrir-reciente { flex:1; display:flex; align-items:center; gap:8px; min-width:0; min-height:36px; padding:6px 3px 6px 7px;
+  color:inherit; text-align:left; font:12px/1.2 inherit; font-variant-numeric:tabular-nums; background:none; border:0; cursor:pointer }
+.abrir-reciente:focus-visible, .borrar-reciente:focus-visible { outline:2px solid var(--primary); outline-offset:-1px }
+.abrir-reciente .ui-icon { flex:none; width:15px; height:15px; color:var(--secondary) }
+.reciente.activa .ui-icon { color:var(--primary) }
+.reciente-texto { display:flex; flex-direction:column; gap:2px; min-width:0 }
+.reciente-consulta, .reciente-meta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.reciente-consulta { color:inherit; font-family:var(--font-mono); font-size:12px }
+.reciente-meta { color:var(--tenue); font-size:10px }
+.borrar-reciente { flex:none; display:grid; place-items:center; width:24px; height:24px; margin-right:4px; padding:0;
+  color:var(--tenue); background:none; border:0; border-radius:var(--r-sm); cursor:pointer; opacity:.55 }
+.borrar-reciente:hover { color:var(--fail); background:color-mix(in srgb, var(--fail) 10%, transparent); opacity:1 }
+.sidebar-vacio { padding:12px 10px; color:var(--dim); font-size:11px }
+@container (max-width: 520px) {
+  .console-note { display:none }
+  .console-stage { display:none }
+  .console-sidebar { flex:1; border-left:0 }
+}
+</style>

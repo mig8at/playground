@@ -15,6 +15,48 @@
 | entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
 | encontrar conocimiento estable del producto | `../context/docs/ROUTE-MAP.md` |
 
+## Laboratorio Jev
+
+`tablero` tiene un experimento local y opt-in para interpretar una retoma con las tres primitivas de
+Jev en una sola llamada: `Choice` sugiere el tipo de siguiente acción, `Noul` estima si existe un
+bloqueo externo y `Score` ubica la urgencia operativa en cuatro niveles descriptivos. No modifica la
+tarea, Jira ni el orden de `make hoy`; fechas, días sin tocar, conteos y cierre siguen en Go.
+
+```bash
+make tablero-jev ARGS='bench'                 # valida y previsualiza 8 casos sintéticos, sin red
+make tablero-jev ARGS='bench --live'          # envía sólo esos casos sintéticos a TypeSafe
+make tablero-jev ARGS='triage 89'             # muestra el payload mínimo de una tarea, sin red
+make tablero-jev ARGS='triage 89 --live --allow-internal'
+make tablero-jev ARGS='label tablero/.runs/jev/REPORTE.json --action ejecutar --external-blocker false --urgency 1'
+make tablero-jev ARGS='stats'
+make tablero-jev-test
+```
+
+El triage real solo extrae título, etapa, días sin tocar, próximo paso, conteos de preguntas y
+pendientes, y nombres de piezas faltantes. Omite id, slug, cuerpo, registro, preguntas, pendientes,
+ramas y bitácora. Aun así, título y próximo paso son información interna; por eso `--live` se niega a
+enviarlos si la misma invocación no incluye `--allow-internal`. La clave se reutiliza desde
+`context/.env`. Los reportes quedan locales, ignorados por Git y con permiso `0600` en
+`tablero/.runs/jev/`.
+
+La etiqueta se registra después de revisar la retoma: acción, bloqueo externo y urgencia esperados.
+No modifica la tarea ni entrena a Jev. `stats` cuenta las retomas revisadas; una preview sin respuesta
+de Jev aporta una etiqueta, pero nunca se presenta como acierto del modelo.
+
+El banco sintético sirve para decidir si el juicio es consistente, no para certificar producción.
+La política solo convierte `Choice` en sugerencia cuando supera probabilidad, confianza y margen;
+si no, devuelve revisión manual. Score y Noul se muestran como señales, no mueven ni archivan tareas.
+El diseño general, las restricciones de privacidad y la comparación con el router de `context` están
+en [`../context/docs/JEV.md`](../context/docs/JEV.md).
+
+Medido el 2026-09-19 con los ocho casos repetidos dos veces: `Choice` acertó 16/16, `Noul` separó el
+bloqueo externo en 16/16 y el `Score` redondeó al nivel esperado en 16/16, con error absoluto medio
+de 0,286 niveles. La política emitió 15 sugerencias, ninguna incorrecta, y mandó un caso a revisión.
+La mediana fue 528 ms, p95 689 ms y el uso total 11.944 tokens de entrada y 1.768 de salida. Es un
+banco pequeño, explícito y sintético. Hay una primera retoma real etiquetada en preview, todavía sin
+respuesta de Jev; hace falta una muestra representativa antes de comparar o activar el juicio en la
+agenda.
+
 El README conserva operación, integraciones y referencias; las reglas vigentes para editar tareas viven
 en `CLAUDE.md`. Así no hace falta leer ambos completos para una pregunta cotidiana.
 
@@ -78,6 +120,8 @@ que es lo que sirve cuando quien pregunta es un modelo, o cuando no hay ganas de
 make tareas                      # las abiertas, con etapa, Jira y nodos
 make tareas N=kyc-segundo        # una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
 make tareas STAGE=work TODAS=1 JSON=1
+make tarea-json N=tablero        # estado operativo tipado, sin copiar cuerpos largos
+make tarea-json N=tablero CONTENIDO=1  # agrega el borrador publicable cuando se necesita
 make tareas-guard F=<archivo>    # ¿este texto puede salir a Jira? SALE 1 si no
 make sprint                      # el sprint activo con puntos, del SNAPSHOT (dice cuándo se tomó)
 make bitacora DAYS=7             # el tiempo registrado, por día
@@ -335,6 +379,22 @@ data/
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
   tareas-locales.json        anotaciones de tareas, sólo si hay alguna
 ```
+
+Los archivos locales siguen una lista cerrada: `canon`, `context`, `harness`, `tablero`, `trazador`,
+`workers` y `playground`. Cada herramienta acumula sus mejoras en su único contenedor; lo transversal
+o todavía sin Jira va a `playground`. Una tarea de producto nueva nace ligada a Jira o se mantiene
+como frente dentro de `playground` hasta que se decida. `make tareas` avisa y el lint falla si aparece
+otra tarea local.
+
+La API tampoco acepta crear esfuerzos locales sueltos: una tarea de producto se importa desde Jira y
+una mejora interna se escribe en el contenedor ya existente.
+
+`make tarea-json N=<slug|id>` deriva una vista `tablero.tarea.v1` desde ese mismo Markdown: identidad,
+retoma, próximo paso, conteos, pendientes, anotaciones, índice de secciones y estado del borrador para
+Jira. No guarda sidecars. El contrato está en [`schemas/tarea.v1.schema.json`](schemas/tarea.v1.schema.json).
+Esta es la forma recomendada para Jev, workers y automatizaciones; el cuerpo privado completo se abre
+sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrador publicable; el modo
+normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.
 
 **Por qué archivos y no una base:** para que el detalle técnico de una tarea se lea **sin levantar
 nada** —como `context/`, que es markdown que lee cualquiera— y para que los esfuerzos tengan **historia

@@ -4,8 +4,11 @@ import { vResize, readSize, saveSize } from './workbench.js'
 import tree from '../tree.json'
 import RegionMenu from './RegionMenu.vue'
 
-// Disposición local: el árbol conserva su ancho y siempre puede reabrirse desde el pie.
-const treeWidth = ref(readSize('context.sidebar', 300))
+// Disposición local: cerrar el árbol no descarta el ancho que la persona eligió. El botón del pie y
+// el tirador lo devuelven exactamente donde estaba, sin necesitar una acción de «restablecer».
+const savedTreeWidth = readSize('context.sidebar', 300)
+const treeWidth = ref(savedTreeWidth)
+const lastTreeWidth = ref(readSize('context.sidebar.last-open', savedTreeWidth || 300))
 const explorerToggle = ref(null)
 const viewportWidth = ref(window.innerWidth)
 const maxTreeWidth = computed(() => Math.max(160, Math.min(560, viewportWidth.value - 280)))
@@ -14,14 +17,25 @@ const treeResize = computed(() => ({
   label: 'Ancho del explorador', min: 200, max: maxTreeWidth.value,
   defaultValue: 300, collapsible: true,
   get: () => visibleTreeWidth.value,
-  set: (v) => { treeWidth.value = v },
-  commit: (v) => saveSize('context.sidebar', v),
+  set: (v) => {
+    treeWidth.value = v
+    if (v > 0) lastTreeWidth.value = v
+  },
+  commit: (v) => {
+    saveSize('context.sidebar', v)
+    if (v > 0) saveSize('context.sidebar.last-open', v)
+  },
 }))
 function toggleTree() {
-  treeWidth.value = treeWidth.value ? 0 : Math.min(300, maxTreeWidth.value)
+  if (treeWidth.value) {
+    lastTreeWidth.value = treeWidth.value
+    saveSize('context.sidebar.last-open', treeWidth.value)
+    treeWidth.value = 0
+  } else {
+    treeWidth.value = Math.min(lastTreeWidth.value || 300, maxTreeWidth.value)
+  }
   saveSize('context.sidebar', treeWidth.value)
 }
-function resetLayout() { treeWidth.value = 300; saveSize('context.sidebar', 300) }
 const resizeWindow = () => { viewportWidth.value = window.innerWidth }
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => window.removeEventListener('resize', resizeWindow))
@@ -355,14 +369,12 @@ const explorerMenu = computed(() => [
   { id: 'limpiar', label: 'Limpiar búsqueda', icon: 'close', disabled: !q.value },
   { separador: true },
   { id: 'ocultar', label: 'Ocultar explorador', icon: 'sidebar' },
-  { id: 'restablecer', label: 'Restablecer disposición', icon: 'reset' },
 ])
 function explorerAction(id) {
   if (id === 'vecinas') alternarVecinas()
   if (id === 'menciones') alternarMenciones()
   if (id === 'limpiar') q.value = ''
   if (id === 'ocultar') { toggleTree(); explorerToggle.value?.focus() }
-  if (id === 'restablecer') resetLayout()
 }
 
 </script>
@@ -570,13 +582,10 @@ function explorerAction(id) {
       </span>
       <span class="sb-ro"
             title="La estructura vive en tree.json; para agregar una task, un LLM edita ese JSON (+ flows/&lt;id&gt;/) y esto se actualiza.">sólo lectura</span>
-      <div class="layout-controls" role="group" aria-label="Disposición del contexto">
+      <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <button ref="explorerToggle" type="button" class="region-action" :aria-pressed="!!visibleTreeWidth" aria-controls="context-sidebar"
                 aria-label="Mostrar u ocultar el explorador" title="Mostrar u ocultar el explorador" @click="toggleTree">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
-        </button>
-        <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
-          <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
         </button>
       </div>
     </footer>

@@ -1695,11 +1695,10 @@
       <span id="caseDetails"></span>
       <span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span>
       <button class="readiness-link" id="readinessLink" type="button" hidden></button>
-      <div class="layout-controls" role="group" aria-label="Disposición del harness">
+      <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <button class="region-action" id="toggleSidebar" title="Mostrar u ocultar comercios" aria-label="Mostrar u ocultar comercios" aria-controls="sideLeft"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
         <button class="region-action" id="toggleConsole" title="Mostrar u ocultar consola" aria-label="Mostrar u ocultar consola" aria-controls="bottomPanel"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
         <button class="region-action" id="toggleDetail" title="Mostrar u ocultar configuración" aria-label="Mostrar u ocultar configuración" aria-controls="sideRight"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
-        <button class="region-action" id="resetLayout" title="Restablecer disposición" aria-label="Restablecer disposición"><span class="ui-icon" data-icon="reset" aria-hidden="true"></span></button>
       </div>
     </footer>
   </div>
@@ -4030,7 +4029,7 @@ export function bindResize(handle, options) {
     const max = Math.max(0, number(o.max));
     return { min: Math.min(number(o.min), max), max };
   };
-  function sync() {
+  function syncAttributes() {
     const { min, max } = bounds();
     handle.setAttribute('role', 'separator');
     handle.setAttribute('tabindex', '0');
@@ -4038,19 +4037,31 @@ export function bindResize(handle, options) {
     handle.setAttribute('aria-label', o.label);
     handle.setAttribute('aria-valuemin', String(o.collapsible ? 0 : min));
     handle.setAttribute('aria-valuemax', String(Math.round(max)));
-    handle.setAttribute('aria-valuenow', String(Math.round(o.get())));
-    handle.setAttribute('aria-valuetext', o.get() ? `${Math.round(o.get())} píxeles` : 'Oculto');
-    handle.title = `${o.label} · arrastra o usa las flechas · doble clic para restablecer`;
+    handle.title = `${o.label} · arrastra para ajustar o usa las flechas`;
+    syncValues();
   }
+  function syncValues() {
+    const val = Math.round(o.get());
+    handle.setAttribute('aria-valuenow', String(val));
+    handle.setAttribute('aria-valuetext', val ? `${val} píxeles` : 'Oculto');
+  }
+  function sync() { syncAttributes(); }
   function set(value, collapse = false) {
     const { min, max } = bounds();
-    const next = o.collapsible && (value === 0 || (collapse && value < min - 28))
-      ? 0 : Math.max(min, Math.min(max, value));
+    let next;
+    if (o.collapsible) {
+      if (value === 0 || (collapse && value < min - 24)) {
+        next = 0;
+      } else {
+        next = Math.max(min, Math.min(max, value));
+      }
+    } else {
+      next = Math.max(min, Math.min(max, value));
+    }
     o.set(Math.round(next));
-    sync();
+    syncValues();
   }
   const finish = () => o.commit?.(o.get());
-  function reset() { set(number(o.defaultValue)); finish(); }
   function keydown(e) {
     const vertical = o.axis === 'y';
     const decrement = vertical ? 'ArrowUp' : 'ArrowLeft';
@@ -4059,8 +4070,7 @@ export function bindResize(handle, options) {
     if (![decrement, increment, 'Home', 'End', 'Enter'].includes(e.key)) return;
     e.preventDefault();
     if (e.key === 'Enter') {
-      if (o.collapsible) set(o.get() ? 0 : number(o.defaultValue));
-      else set(number(o.defaultValue));
+      if (o.collapsible) set(o.get() ? 0 : Math.max(min, number(o.defaultValue)));
     } else if (e.key === 'Home') set(o.collapsible ? 0 : min);
     else if (e.key === 'End') set(max);
     else set(o.get() + (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16), true);
@@ -4074,15 +4084,36 @@ export function bindResize(handle, options) {
     handle.setPointerCapture(e.pointerId);
     const start = o.axis === 'y' ? e.clientY : e.clientX;
     const initial = o.get();
+    const { min } = bounds();
+    let rafId = null;
+    let pendingVal = null;
+
     const move = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
-      set(initial + ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1), true);
+      const delta = ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1);
+      let nextVal;
+      if (initial === 0 && o.collapsible) {
+        nextVal = delta > 16 ? Math.max(min, delta) : 0;
+      } else {
+        nextVal = initial + delta;
+      }
+      pendingVal = nextVal;
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          if (pendingVal !== null) {
+            set(pendingVal, true);
+          }
+        });
+      }
     };
     const end = (ev) => { if (ev.pointerId === e.pointerId) stop(); };
     handle.classList.add('on');
     document.body.classList.add('redimensionando');
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      if (pendingVal !== null) { set(pendingVal, true); pendingVal = null; }
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
       handle.removeEventListener('pointercancel', end);
@@ -4101,7 +4132,6 @@ export function bindResize(handle, options) {
   }
   handle.addEventListener('keydown', keydown);
   handle.addEventListener('pointerdown', pointerdown);
-  handle.addEventListener('dblclick', reset);
   sync();
   return {
     update(next) { o = next; sync(); },
@@ -4110,7 +4140,6 @@ export function bindResize(handle, options) {
       stop();
       handle.removeEventListener('keydown', keydown);
       handle.removeEventListener('pointerdown', pointerdown);
-      handle.removeEventListener('dblclick', reset);
     },
   };
 }
@@ -4245,10 +4274,11 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
 // </workbench-shared>
     const root = document.documentElement;
     const configs = [
-      { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', min: 240, limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },
-      { id: 'rszR', button: 'toggleDetail', region: 'sideRight', css: '--auxiliarybar-w', key: 'panel.wRight', min: 220, limit: 520, initial: 340, sign: -1, label: 'Ancho de configuración' },
-      { id: 'rszB', button: 'toggleConsole', region: 'bottomPanel', css: '--panel-h', key: 'panel.hBottom', min: 90, limit: 620, initial: 240, sign: -1, axis: 'y', label: 'Alto de consola' },
+      { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', lastKey: 'panel.wLeft.last-open', min: 240, limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },
+      { id: 'rszR', button: 'toggleDetail', region: 'sideRight', css: '--auxiliarybar-w', key: 'panel.wRight', lastKey: 'panel.wRight.last-open', min: 220, limit: 520, initial: 340, sign: -1, label: 'Ancho de configuración' },
+      { id: 'rszB', button: 'toggleConsole', region: 'bottomPanel', css: '--panel-h', key: 'panel.hBottom', lastKey: 'panel.hBottom.last-open', min: 90, limit: 620, initial: 240, sign: -1, axis: 'y', label: 'Alto de consola' },
     ];
+    for (const a of configs) a.last = readSize(a.lastKey, a.initial);
     const controllers = [];
     const getSize = (a) => parseFloat(getComputedStyle(root).getPropertyValue(a.css));
     function maxSize(a) {
@@ -4256,14 +4286,22 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const other = configs.find((b) => b.axis !== 'y' && b !== a);
       return Math.max(160, Math.min(a.limit, innerWidth - getSize(other) - 328));
     }
-    function setSize(a, value) {
+    function setSize(a, value, remember = true) {
       root.style.setProperty(a.css, value + 'px');
+      if (value > 0 && remember) { a.last = value; saveSize(a.lastKey, value); }
       document.getElementById(a.button).setAttribute('aria-pressed', String(value > 0));
       document.getElementById(a.region).style.visibility = value ? '' : 'hidden';
       document.getElementById(a.id).classList.toggle('plegado', !value);
     }
+    function toggleRegion(index) {
+      const a = configs[index];
+      const current = getSize(a);
+      setSize(a, current ? 0 : Math.min(a.last || a.initial, maxSize(a)));
+      saveSize(a.key, getSize(a));
+      controllers[index].sync();
+    }
     function fit() {
-      for (const a of configs) if (getSize(a) > maxSize(a)) setSize(a, maxSize(a));
+      for (const a of configs) if (getSize(a) > maxSize(a)) setSize(a, maxSize(a), false);
       controllers.forEach((c) => c.sync());
     }
     for (const a of configs) setSize(a, readSize(a.key, a.initial));
@@ -4275,53 +4313,33 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         get: () => getSize(a), set: (v) => setSize(a, v), commit: (v) => saveSize(a.key, v),
       });
       controllers.push(controller);
-      let previous = getSize(a) || a.initial;
-      document.getElementById(a.button).addEventListener('click', () => {
-        const current = getSize(a);
-        if (current) previous = current;
-        setSize(a, current ? 0 : Math.min(previous, maxSize(a)));
-        saveSize(a.key, getSize(a));
-        controller.sync();
-      });
+      document.getElementById(a.button).addEventListener('click', () => toggleRegion(configs.indexOf(a)));
     }
     document.getElementById('closeConsole').addEventListener('click', () => {
-      document.getElementById('toggleConsole').click();
+      toggleRegion(2);
       document.getElementById('toggleConsole').focus();
-    });
-    document.getElementById('resetLayout').addEventListener('click', () => {
-      for (const a of configs) { setSize(a, a.initial); saveSize(a.key, a.initial); }
-      fit();
     });
     addEventListener('resize', fit);
 
-    function restoreRegion(index) {
-      const a = configs[index];
-      setSize(a, Math.min(a.initial, maxSize(a))); saveSize(a.key, getSize(a));
-      controllers[index].sync();
-    }
-    function hideRegion(button) { document.getElementById(button).click(); document.getElementById(button).focus(); }
     document.getElementById('collapseMerchants').onclick = () => { abiertos.clear(); renderMerchants(); };
     bindMenu(document.getElementById('merchantsMenu'), {
       label: 'Opciones de comercios',
       getItems: () => [
         { id: 'buscar', label: 'Buscar o agregar comercio', icon: 'search' },
         { separador: true },
-        { id: 'ancho', label: 'Restablecer ancho', icon: 'reset' },
         { id: 'ocultar', label: 'Ocultar comercios', icon: 'sidebar' },
       ],
       onSelect: (id) => {
         if (id === 'buscar') document.getElementById('buscom').focus();
-        if (id === 'ancho') restoreRegion(0);
-        if (id === 'ocultar') hideRegion('toggleSidebar');
+        if (id === 'ocultar') { toggleRegion(0); document.getElementById('toggleSidebar').focus(); }
       },
     });
     bindMenu(document.getElementById('configMenu'), {
       label: 'Opciones de configuración',
       getItems: () => [
-        { id: 'ancho', label: 'Restablecer ancho', icon: 'reset' },
         { id: 'ocultar', label: 'Ocultar configuración', icon: 'detail' },
       ],
-      onSelect: (id) => { if (id === 'ancho') restoreRegion(1); if (id === 'ocultar') hideRegion('toggleDetail'); },
+      onSelect: (id) => { if (id === 'ocultar') { toggleRegion(1); document.getElementById('toggleDetail').focus(); } },
     });
     const isSsr = () => document.getElementById('pestSsr').classList.contains('on');
     const consoleOptions = bindMenu(document.getElementById('consoleMenu'), {
@@ -4330,14 +4348,12 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
         { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrSolo : soloImportante },
         { id: 'final', label: 'Ir al final', icon: 'bottom' },
         { separador: true },
-        { id: 'alto', label: 'Restablecer altura', icon: 'reset' },
         { id: 'ocultar', label: 'Ocultar consola', icon: 'console' },
       ],
       onSelect: (id) => {
         if (id === 'filtrar') { (isSsr() ? toggleSsrFilter : toggleLogFilter)(); reflectConsoleFilter(); }
         if (id === 'final') { const log = document.getElementById(isSsr() ? 'logSsr' : 'log'); log.scrollTop = log.scrollHeight; }
-        if (id === 'alto') restoreRegion(2);
-        if (id === 'ocultar') hideRegion('toggleConsole');
+        if (id === 'ocultar') { toggleRegion(2); document.getElementById('toggleConsole').focus(); }
       },
     });
     function reflectConsoleFilter() {

@@ -19,15 +19,20 @@ QUÉ VE, y por qué no más. La superficie de RUTEO, no el conocimiento entero:
     ROUTE-MAP.md                 ~8.661 tokens   ← el índice: síntomas + el «cuándo» de cada nodo
     diccionario de negocio       ~1.796 tokens   ← lenders, comercios, rt, estados, tablas, marcas
 
-~10k tokens para decidir la forma de todo lo que viene. El detalle lo leen los que siguen: éste
-decide POR DÓNDE, no QUÉ.
+~10k tokens para decidir la forma de todo lo que viene. Con `CONTEXT_JEV=1`, una sugerencia que pasa
+los umbrales sustituye el ROUTE-MAP por 2 a 4 entradas. La opción está apagada por defecto porque la
+pregunta se envía a TypeSafe. El detalle lo leen los que siguen: éste decide POR DÓNDE, no QUÉ.
 """
 import json
+import os
 import sys
 from pathlib import Path
 
 import gemini
 from contexto import CONTEXT
+
+sys.path.insert(0, str(CONTEXT / "tools"))
+import jev as context_jev  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 
@@ -109,14 +114,52 @@ Al final llamá a `entregar_plan`.
 """
 
 
-def _superficie():
-    """Lo único que ve: el índice de ruteo y el vocabulario. Ver el docstring del módulo."""
-    rm = (CONTEXT / "docs" / "ROUTE-MAP.md").read_text(encoding="utf-8")
+def _ruteo_jev(pregunta):
+    """Pista local y acotada. Un fallo devuelve None y conserva el ROUTE-MAP de siempre."""
+    if os.environ.get("CONTEXT_JEV", "0").lower() not in ("1", "true", "yes"):
+        return None
+    try:
+        nodes = context_jev.catalog()
+        row = context_jev.route(pregunta, nodes, live=True, env_file=CONTEXT / ".env")
+        if "jev" not in row or row["decision"]["action"] != "suggest":
+            return None
+        probabilities = row["jev"]["probabilities"]
+        ranked = [n for n, p in sorted(probabilities.items(), key=lambda item: (-item[1], item[0]))
+                  if n != context_jev.NONE and p >= .01]
+        if row["decision"]["node"] and row["decision"]["node"] not in ranked:
+            ranked.insert(0, row["decision"]["node"])
+        # Si la distribución es muy concentrada puede haber un solo nodo. Se suman los candidatos
+        # locales hasta llegar a cuatro, sin volver a enviar el mapa entero al LLM generativo.
+        for item in row["baseline"]:
+            if item["node"] not in ranked:
+                ranked.append(item["node"])
+        ranked = ranked[:4]
+        return {
+            "decision": row["decision"], "needs_case_data": row["jev"]["needs_case_data"],
+            "nodes": [{"id": n, "probability": probabilities.get(n), **nodes[n]} for n in ranked],
+            "jev_input_tokens": row["jev"]["usage"]["input_tokens"], "ms": row["ms"],
+            "candidate_mode": row["candidate_mode"],
+        }
+    except (context_jev.JevError, OSError, ValueError, KeyError, TypeError):
+        return None
+
+
+def _superficie(pregunta):
+    """Ruteo compacto con Jev; el índice completo queda como recuperación local."""
+    routing = _ruteo_jev(pregunta)
     d = json.loads((AQUI / "creditop.json").read_text(encoding="utf-8"))
     vocab = {k: v for k, v in d.items() if not k.startswith("_")}
-    return (f"# EL MAPA DE RUTAS (índice del árbol de contexto)\n\n{rm}\n\n"
-            f"# EL VOCABULARIO DEL NEGOCIO (ids reales, y las trampas marcadas con ⚠)\n\n"
-            f"{json.dumps(vocab, ensure_ascii=False, indent=1)}")
+    if routing:
+        route_surface = ("# RUTEO DE CONTEXT\n\nJev propuso estas entradas. Son pistas para decidir el plan, "
+                         "no una respuesta ni una verificación:\n\n" +
+                         json.dumps(routing, ensure_ascii=False, indent=1))
+    else:
+        rm = (CONTEXT / "docs" / "ROUTE-MAP.md").read_text(encoding="utf-8")
+        route_surface = "# EL MAPA DE RUTAS (índice completo; Jev no estuvo disponible)\n\n" + rm
+    surface = (route_surface + "\n\n# EL VOCABULARIO DEL NEGOCIO "
+               "(ids reales, y las trampas marcadas con ⚠)\n\n" +
+               json.dumps(vocab, ensure_ascii=False, indent=1))
+    return surface, routing
 
 
 def main():
@@ -127,8 +170,9 @@ def main():
     pregunta = args[0]
     try:
         cfg = gemini.config()
-        sup = _superficie()
-        print(f"\n¿? {pregunta}\n\nplan: viendo el mapa + el vocabulario (~{len(sup)//4:,} tokens)\n")
+        sup, routing = _superficie(pregunta)
+        fuente = "ruteo compacto de Jev" if routing else "mapa completo (recuperación)"
+        print(f"\n¿? {pregunta}\n\nplan: {fuente} + vocabulario (~{len(sup)//4:,} tokens)\n")
         r = gemini.correr(f"PREGUNTA: {pregunta}\n\n{sup}", HERRAMIENTAS, INSTRUCCIONES, cfg,
                           terminales=("entregar_plan",))
         if isinstance(r, str):
@@ -150,6 +194,8 @@ def main():
             print(f"⚠ AMBIGÜEDAD: {r['ambiguedad']}\n")
 
         r["pregunta"] = pregunta  # verbatim, para que los de abajo usen ÉSTA y no una versión mía
+        if routing:
+            r["jev_routing"] = routing
         (AQUI / "_plan.json").write_text(json.dumps(r, ensure_ascii=False, indent=2), encoding="utf-8")
         print("(guardado en _plan.json — lo consume `analisis.py`)")
         return 0

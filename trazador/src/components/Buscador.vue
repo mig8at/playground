@@ -37,15 +37,6 @@ const t = useTrazador()
   </p>
   <p v-else-if="t.resultados" class="como dim">sin coincidencias en {{ t.resultados.target }}</p>
 
-  <!-- Las últimas búsquedas. En soporte se vuelve al mismo puñado de solicitudes todo el día, y volver a
-       tipear el número es fricción pura. Sólo se ven cuando no hay nada abierto: con una traza en pantalla
-       serían ruido compitiendo con los chips de la persona. -->
-  <p v-if="t.recientes.length && !t.traza && !t.resultados" class="recientes">
-    <span class="dim">recientes:</span>
-    <button v-for="r in t.recientes" :key="r" class="badge badge-outline chip" @click="t.abrirReciente(r)">
-      {{ r.split(':')[1] }}<span class="dim"> · {{ r.split(':')[0] }}</span>
-    </button>
-  </p>
 </template>
 
 <style scoped>
@@ -59,14 +50,4 @@ const t = useTrazador()
 
 .como { font-size:12.5px; color:var(--dim); margin:10px 0 0 }
 .ojo { color:var(--warn); font-weight:500 }
-/* ⚠ UNA fila, y si no entran se recorre de costado. Con `flex-wrap: wrap` ocho recientes hacían dos
-   renglones —el segundo con un chip solo— y la barra del mapa pasaba de 60px a 100: un atajo para
-   volver a lo último que miraste no puede costar el alto de una etapa del recorrido. */
-.recientes { display:flex; align-items:center; gap:6px; flex-wrap:nowrap; margin:10px 0 0; font-size:12px;
-  overflow-x:auto; scrollbar-width:none; padding-bottom:2px }
-.recientes::-webkit-scrollbar { display:none }
-.recientes .dim { flex:none }
-/* Sobre `.badge.badge-outline`: sólo lo que un reciente tiene de distinto a una píldora cualquiera. */
-.chip { cursor:pointer; font-variant-numeric:tabular-nums; padding:3px 11px }
-.chip:hover { color:var(--txt); background:var(--accent) }
 </style>

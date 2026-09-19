@@ -426,6 +426,7 @@ que decidía es una receta, y una receta se lee mejor de un archivo que de un ag
 
 ```bash
 make agente-analisis PREGUNTA='…'     # la fila entera; es la entrada normal
+make agente-analisis JEV=1 PREGUNTA='…' # experimento: sólo preguntas sin datos sensibles
 ```
 
     plan  →  N seleccionadores (uno por ángulo, cada uno evitando a los anteriores)  →  lector
@@ -434,6 +435,13 @@ make agente-analisis PREGUNTA='…'     # la fila entera; es la entrada normal
 RUTEO (ROUTE-MAP + el vocabulario de negocio ≈ 10k tokens; los 38 `doc.md` enteros serían **208.636**,
 el 70% de la ventana del lector) y devuelve: qué **clase** de pregunta es, los **ángulos** —uno por
 seleccionador—, el **puente español→código**, los nodos y la **ambigüedad** si la hay.
+
+Con `JEV=1`, antes del plan se envían a TypeSafe la pregunta y una preselección local del catálogo
+(`name`, `when`, `sintomas`). Una sugerencia que supera los umbrales reemplaza el ROUTE-MAP por dos a
+cuatro entradas y los seleccionadores empiezan por ellas; pueden pedir el mapa como recuperación si
+no corresponden o no alcanzan. Una abstención o error usa el mapa completo desde el plan. Está apagado
+por defecto: no usarlo con ids de cliente, teléfonos, correos, secretos o datos de una solicitud.
+Contrato y medidas: [`context/docs/JEV.md`](../context/docs/JEV.md).
 
 > ⚠ **No reescribe la pregunta**, y es deliberado. La tentación era «mejorarla» antes de pasarla: es
 > una mala idea con forma de buena, porque si el refinador la entiende mal, el error lo heredan TODOS

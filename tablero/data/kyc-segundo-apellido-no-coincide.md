@@ -11,7 +11,7 @@ jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 
 ## Si retomás esto sin contexto, empezá acá
 
-> **MEDICIÓN · 2026-09-15** — el arreglo está en **`staging`** (PRs #1098 y #1103 mergeados) y la rama del trasplante, PR `legacy-backend#1127`, sigue **abierta y SIN destino**; nada de esto llegó a `main`. 26 días sin tocar la tarea. El carril visual quedó listo salvo la suite parqueada (ver «Listo para el carril VISUAL»).
+> **MEDICIÓN · 2026-09-15** — el arreglo está en **`staging`** (PRs #1098 y #1103 mergeados) y la rama del trasplante, PR `legacy-backend#1127`, sigue **abierta y SIN destino**; nada de esto llegó a `main`. El carril visual quedó listo salvo la suite parqueada (ver «Listo para el carril VISUAL»). La receta vigente de mocks de centrales está en `context`, hallazgo F-139.
 > `make retomar N=47`
 
 **El próximo paso es:** **redefinir a dónde va el PR #1127.** Estaba abierto contra `develop`, que salió
@@ -29,7 +29,7 @@ Detalle en § «El trasplante».
 dos cosas se habían quedado sólo en `staging` y no habían bajado. Ver la sección nueva.
 
 Lo único abierto de terceros sigue siendo la fecha del TusDatos nuevo (Joel). ⚠ Ya NO hacen falta
-variables de Dani para los mocks — esa afirmación era falsa, ver la tarea 49.
+variables de Dani para los mocks — el mecanismo vigente y sus condiciones están en `context`, F-139.
 
 ## El caso
 
@@ -289,6 +289,11 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
   el fetch a `9a972697`.
 
 ## Registro
+
+### 2026-09-19 · la receta vigente deja de depender de una tarea local retirada
+
+Se reemplazaron las referencias a la antigua tarea de mocks por F-139 de `context`, que conserva el
+mecanismo actual, su precedencia y la receta de prueba. El spike descartado queda sólo en Git.
 
 ### 2026-09-17 · el próximo paso ya no es mergear: es decidir a dónde va
 
@@ -738,9 +743,8 @@ centrales, hechos por tres personas en tres meses (`mock_rules` de José, el lam
 Joel, y los drivers fake + `X-Fake-Scenario`). Se hizo un spike que los unifica en uno solo dictado
 por header — local, sin commitear, 0 tests rotos de 509.
 
-Vive en su propia tarea: **`mocks-de-centrales-un-solo-mecanismo.md` (id 49)**. Ahí están el
-inventario de los tres, los 7 casos de cascada que se probaron, el hueco de QA por el front y las
-tres conversaciones pendientes (José, Joel, Duncan).
+El mecanismo vigente y su receta viven en **`context/server/data/flows/findings/doc.md`, F-139**. El
+spike anterior sigue disponible en la historia de Git.
 
 #### Preguntas abiertas
 

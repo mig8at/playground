@@ -335,7 +335,8 @@ func main() {
 		json.NewEncoder(w).Encode(store.LeerSnapshotRamas(filepath.Join(a.dataDir, "cache")))
 	})
 
-	// esfuerzos privados (agrupan tareas). GET lista · POST crea {title}. El título es privado → sin guard.
+	// esfuerzos privados (agrupan tareas). GET lista. Una tarea nueva entra importada desde Jira; el
+	// trabajo local se agrega a uno de los siete contenedores y no crea archivos sueltos.
 	mux.HandleFunc("/api/efforts", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		switch r.Method {
@@ -349,27 +350,8 @@ func main() {
 			}
 			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
 		case http.MethodPost:
-			var in struct {
-				Title string `json:"title"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
-				return
-			}
-			in.Title = strings.TrimSpace(in.Title)
-			if in.Title == "" {
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "el esfuerzo necesita un nombre"})
-				return
-			}
-			e, err := a.st.CreateEffort(in.Title)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(map[string]any{"effort": e})
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			json.NewEncoder(w).Encode(map[string]any{"error": "las mejoras locales van al contenedor de su herramienta o a playground; las tareas de producto se importan desde Jira"})
 		case http.MethodPut: // guardar el BORRADOR de la tarea de Jira sobre un esfuerzo
 			var in struct {
 				ID              int64   `json:"id"`

@@ -4,9 +4,9 @@ import { vResize, readSize, saveSize } from './workbench.js'
 import { useTrazador } from './stores/trazador'
 import { trazaATexto } from './trazaTexto'
 import Buscador from './components/Buscador.vue'
-import Historia from './components/Historia.vue'
 import Mapa from './components/Mapa.vue'
 import Detalle from './components/Detalle.vue'
+import Recientes from './components/Recientes.vue'
 
 const t = useTrazador()
 // El mapa primero y solo: no toca ninguna fuente, así que el árbol se dibuja al instante y la app no
@@ -26,46 +26,91 @@ onMounted(async () => {
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
 const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
 
-// La columna de la izquierda existe SÓLO cuando tiene algo adentro. Sin consultar nada, el mapa se
-// queda con el ancho entero — que es la pantalla en la que uno lee el árbol declarado.
-// ⚠ `items` y no `traza`: una búsqueda por cédula trae la historia de la persona ANTES de que haya
-// una traza abierta, y ése es justo el momento en que la columna sirve para elegir cuál mirar.
-const hayColumna = computed(() => Boolean(
-  t.fase || t.traza || t.error || chequeoGrave.value.length || t.resultados?.items?.length))
+// La persona siempre tiene una región preparada: evita que el mapa salte de ancho al empezar una
+// búsqueda y deja claro desde el arranque dónde van a aparecer la ficha y las solicitudes. Cerrarla
+// sigue siendo una preferencia explícita del operador, guardada en localStorage.
+const hayColumna = computed(() => true)
+const tituloPersona = computed(() => {
+  if (t.traza) return 'Solicitud'
+  if (t.fase) return 'Buscando'
+  if (t.resultados?.items?.length) return 'Solicitudes'
+  return 'Persona'
+})
 
-/**
- * EL SIDEBAR SE MONTA SOBRE EL MAPA; NO LO EMPUJA.
- *
- * ⚠ El mapa tiene **dos anchos y nada más**: el 100 % con el sidebar cerrado, y el 100 % menos
- * `SIDEBAR_BASE` con el sidebar abierto. Ensanchar el sidebar más allá de su base **no reduce el
- * mapa**: lo tapa.
- *
- * Por qué, y es la diferencia con la versión anterior: el mapa se redibuja cuando cambia su ancho —la
- * separación entre nodos se recalcula—, así que si el sidebar lo empuja, **el dibujo entero se re-arma
- * en cada píxel del arrastre**. Se ve como un grafo que late mientras uno mueve el tirador, y además
- * la posición de cada nodo deja de ser estable justo cuando uno está mirándola. Con el sidebar como
- * capa, el mapa queda quieto: se recalcula UNA vez, al abrir o cerrar.
- */
+/* El panel sigue en capa para que el mapa no tenga que relocalizar su DOM, pero el editor deja justo
+   el ancho que el panel ocupa AHORA. Reservar siempre 380px hacía que, al achicar los logs, quedara un
+   pasillo negro inútil entre ambos. El resizer ya publica cambios por frame y Mapa mide ese ancho en
+   el siguiente frame: la estación conserva su celda y el lienzo recupera espacio de forma continua. */
 const SIDEBAR_BASE = 380
-const anchoSidebar = ref(readSize('trazador.sidebar', window.innerWidth < 900 ? 0 : SIDEBAR_BASE))
+const savedSidebarWidth = readSize('trazador.sidebar', SIDEBAR_BASE)
+const anchoSidebar = ref(savedSidebarWidth)
+const ultimoAnchoSidebar = ref(readSize('trazador.sidebar.last-open', savedSidebarWidth || SIDEBAR_BASE))
 const viewportWidth = ref(window.innerWidth)
+const viewportHeight = ref(window.innerHeight)
 const verPersona = ref(readSize('trazador.persona', 1) !== 0)
 const logsToggle = ref(null)
 const personaToggle = ref(null)
-function hideLogs() { anchoSidebar.value = 0; logsToggle.value?.focus() }
+const recientesToggle = ref(null)
+function hideLogs() {
+  if (anchoSidebar.value) {
+    ultimoAnchoSidebar.value = anchoSidebar.value
+    saveSize('trazador.sidebar.last-open', anchoSidebar.value)
+  }
+  anchoSidebar.value = 0
+  logsToggle.value?.focus()
+}
+function toggleLogs() {
+  if (anchoSidebar.value) hideLogs()
+  else anchoSidebar.value = Math.min(ultimoAnchoSidebar.value || SIDEBAR_BASE, maxSidebar.value)
+}
 function hidePersona() { verPersona.value = false; personaToggle.value?.focus() }
 const maxSidebar = computed(() => Math.max(180, viewportWidth.value - (hayColumna.value && verPersona.value ? 300 : 0) - 220))
 const anchoVisible = computed(() => Math.min(anchoSidebar.value, maxSidebar.value))
 const cerrado = computed(() => anchoVisible.value < 1)
-watch(anchoSidebar, (v) => saveSize('trazador.sidebar', v))
+watch(anchoSidebar, (v) => {
+  saveSize('trazador.sidebar', v)
+  if (v > 0) {
+    ultimoAnchoSidebar.value = v
+    saveSize('trazador.sidebar.last-open', v)
+  }
+})
 watch(verPersona, (v) => saveSize('trazador.persona', v ? 1 : 0))
 const detailResize = computed(() => ({
   label: 'Ancho del panel de logs', sign: -1, min: 280,
   max: maxSidebar.value, defaultValue: SIDEBAR_BASE, collapsible: true,
   get: () => anchoVisible.value, set: (v) => { anchoSidebar.value = v },
 }))
-function resetLayout() { anchoSidebar.value = SIDEBAR_BASE; verPersona.value = true }
-const resizeWindow = () => { viewportWidth.value = window.innerWidth }
+const PANEL_BASE = 184
+const altoPanel = ref(readSize('trazador.recientes', PANEL_BASE))
+const ultimoAltoPanel = ref(readSize('trazador.recientes.last-open', altoPanel.value || PANEL_BASE))
+const maxPanel = computed(() => Math.max(116, viewportHeight.value - 300))
+const altoPanelVisible = computed(() => Math.min(altoPanel.value, maxPanel.value))
+const recientesCerrados = computed(() => altoPanelVisible.value < 1)
+function hideRecientes() {
+  if (altoPanel.value) {
+    ultimoAltoPanel.value = altoPanel.value
+    saveSize('trazador.recientes.last-open', altoPanel.value)
+  }
+  altoPanel.value = 0
+  recientesToggle.value?.focus()
+}
+function toggleRecientes() {
+  if (altoPanel.value) hideRecientes()
+  else altoPanel.value = Math.min(ultimoAltoPanel.value || PANEL_BASE, maxPanel.value)
+}
+watch(altoPanel, (v) => {
+  saveSize('trazador.recientes', v)
+  if (v > 0) {
+    ultimoAltoPanel.value = v
+    saveSize('trazador.recientes.last-open', v)
+  }
+})
+const panelResize = computed(() => ({
+  axis: 'y', label: 'Altura de recientes', sign: -1, min: 116, max: maxPanel.value,
+  defaultValue: PANEL_BASE, collapsible: true,
+  get: () => altoPanelVisible.value, set: (v) => { altoPanel.value = v },
+}))
+const resizeWindow = () => { viewportWidth.value = window.innerWidth; viewportHeight.value = window.innerHeight }
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => window.removeEventListener('resize', resizeWindow))
 
@@ -96,7 +141,7 @@ async function copiar() {
 
 <template>
 
-  <div class="cols" :class="{ cerrado }" :style="{ '--detail-base': Math.min(SIDEBAR_BASE, maxSidebar) + 'px' }">
+  <div class="cols" :class="{ cerrado }" :style="{ '--detail-width': `${Math.round(anchoVisible)}px` }">
     <!-- LA PERSONA · el sidebar izquierdo. Acá vive todo lo que NO es el recorrido: qué solicitud
          estás mirando, de quién es, y qué más intentó esa persona.
 
@@ -112,11 +157,11 @@ async function copiar() {
          En una columna, lo que crece scrollea y no mueve nada. Y de paso el contenido mejora: la
          ficha se lee como filas y la historia como una lista, que es lo que son.
 
-         La columna aparece SÓLO cuando hay algo que decir: sin consultar, el mapa se queda con el
-         ancho entero. Una columna vacía porque «está en la lista» es peor que no tenerla. -->
-    <aside v-if="hayColumna" v-show="verPersona" class="sidebar" aria-label="Persona y solicitudes">
+         La columna queda abierta desde el arranque: el estado inicial explica qué hacer y reserva
+         un lugar estable para la ficha y la historia, sin hacer que el mapa salte al buscar. -->
+    <aside v-if="hayColumna" v-show="verPersona" class="sidebar persona-panel" aria-label="Persona y solicitudes">
       <div class="region-head">
-        <span>{{ t.traza ? 'Solicitud' : 'Buscando' }}</span>
+        <span>{{ tituloPersona }}</span>
         <span v-if="t.traza" class="toolbar-note ureq-b">{{ t.traza.ureq }}</span>
         <div class="region-actions toolbar">
           <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePersona">
@@ -125,6 +170,11 @@ async function copiar() {
         </div>
       </div>
       <div class="region-body">
+        <div v-if="!t.fase && !t.error && !t.traza && !t.resultados" class="persona-vacia">
+          <div class="empty-media" aria-hidden="true">⌕</div>
+          <p>Buscá una cédula, teléfono o solicitud.</p>
+          <span>La ficha y las corridas de esa persona aparecerán acá.</span>
+        </div>
         <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner
              mudo tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en
              información. Va acá, que es donde va a aparecer la respuesta. -->
@@ -162,18 +212,17 @@ async function copiar() {
             }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span></dd></div>
         </dl>
 
-        <!-- La historia de la persona: sus solicitudes agrupadas por día. -->
-        <Historia />
       </div>
     </aside>
 
-    <!-- El mapa NO lleva el ancho del sidebar: sólo si está abierto o no. Así se recalcula una vez, al
-         abrir o cerrar, y no en cada píxel del arrastre. -->
+    <!-- El mapa recibe el ancho visible del panel para recuperar exactamente el espacio que se libera
+         al arrastrarlo. Sus estaciones tienen celdas mínimas, de modo que nunca se aplastan. -->
     <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`.
          ⚠ Acá decía que el mapa NO lleva la clase `.editor` a propósito, porque «su regla propia ya
          dice todo lo que la compartida diría». Era cierto mientras era un bloque solo: desde que
          tiene una barra arriba que no scrollea con él, la columna flex de `.editor` es exactamente
          lo que hace falta y el nombre sí cambia algo. -->
+    <div class="workspace-main" :style="{ '--recent-height': `${Math.round(altoPanelVisible)}px` }">
     <section class="editor editor-mapa">
       <!-- EL ENCABEZADO DEL MAPA · acá vive lo que antes era el titlebar a lo ancho de la ventana.
            El buscador es lo ÚNICO que hace esta herramienta —escribís un id y ves la traza—, o sea
@@ -194,8 +243,14 @@ async function copiar() {
           </button>
         </div>
       </div>
-      <Mapa :cerrado="cerrado" />
+      <Mapa :cerrado="cerrado" :ancho-panel="anchoVisible" />
     </section>
+
+    <!-- Recientes ocupa la consola inferior: es navegación de corridas, no contexto del inspector. -->
+    <div v-show="!recientesCerrados" class="tirador tirador-consola rsz" v-resize="panelResize" />
+    <Recientes id="trazador-recientes" v-show="!recientesCerrados" class="panel recientes-console"
+               :style="{ height: `${Math.round(altoPanelVisible)}px` }" @close="hideRecientes" />
+    </div>
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
          sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
@@ -203,7 +258,7 @@ async function copiar() {
          :style="{ right: `${Math.round(anchoVisible)}px` }" />
 
     <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
-    <Detalle @close="hideLogs" v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoVisible)}px` }" />
+    <Detalle id="trazador-logs" @close="hideLogs" v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoVisible)}px` }" />
   </div>
 
   <!-- STATUSBAR · lo que vale para TODA la pantalla y nunca scrollea: contra qué ambiente estás
@@ -226,17 +281,18 @@ async function copiar() {
     <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
     <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
     <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
-    <div class="layout-controls" role="group" aria-label="Disposición del trazador">
+    <div class="layout-controls" role="group" aria-label="Regiones visibles">
       <button ref="personaToggle" v-if="hayColumna" type="button" class="region-action" :aria-pressed="verPersona"
               aria-label="Mostrar u ocultar la persona" title="Mostrar u ocultar la persona" @click="verPersona = !verPersona">
         <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
       </button>
-      <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!cerrado" aria-label="Mostrar u ocultar los logs"
-              title="Mostrar u ocultar los logs" @click="anchoSidebar = cerrado ? SIDEBAR_BASE : 0">
+      <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!cerrado" aria-controls="trazador-logs"
+              aria-label="Mostrar u ocultar los logs" title="Mostrar u ocultar los logs" @click="toggleLogs">
         <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
       </button>
-      <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
-        <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
+      <button ref="recientesToggle" type="button" class="region-action" :aria-pressed="!recientesCerrados" aria-controls="trazador-recientes"
+              aria-label="Mostrar u ocultar recientes" title="Mostrar u ocultar recientes" @click="toggleRecientes">
+        <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
       </button>
     </div>
   </footer>
@@ -303,15 +359,30 @@ async function copiar() {
    ⚠ El ancho es FIJO y no arrastrable, a diferencia del panel de logs. No es un olvido: lo que hay
    acá tiene un largo conocido —seis campos y una lista de chips— así que ensancharla no muestra más.
    El panel de logs sí, porque adentro hay líneas de largo arbitrario. */
-.sidebar { flex:0 0 var(--sidebar-w); border-right:1px solid var(--line) }
-.sidebar > .region-body { padding:10px 14px 16px; display:flex; flex-direction:column; gap:12px }
+.sidebar.persona-panel { flex:0 0 var(--sidebar-w); padding:10px; gap:8px; background:var(--panel2);
+  border-right:1px solid var(--line) }
+.persona-panel > .region-head { min-height:42px; padding:0 12px; color:var(--txt); background:var(--card);
+  border:1px solid var(--line); border-radius:var(--r-lg) }
+.persona-panel > .region-head > :first-child { font-size:13px; font-weight:650 }
+.persona-panel > .region-head .region-action { border:1px solid var(--line); border-radius:var(--r-sm); background:var(--panel2) }
+.persona-panel > .region-head .region-action:hover { color:var(--primary); border-color:var(--primary);
+  background:color-mix(in srgb, var(--primary) 8%, var(--card)) }
+.persona-panel > .region-body { --historia-gutter:12px; --historia-gutter-doble:24px; padding:12px;
+  display:flex; flex-direction:column; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg) }
 .ureq-b { font-variant-numeric:tabular-nums }
+.persona-vacia { margin:auto 0; display:flex; flex-direction:column; align-items:center; gap:7px;
+  padding:20px 8px; color:var(--dim); text-align:center; font-size:12px; line-height:1.5 }
+.persona-vacia .empty-media { margin:0 0 3px; width:32px; height:32px; font-size:15px }
+.persona-vacia p { margin:0; color:var(--txt); font-weight:500 }
+.persona-vacia span { max-width:220px }
 
 /* LA FICHA, en filas. El rótulo apagado y angosto a la izquierda; el valor ocupa lo que queda y
    envuelve. ⚠ `min-width:0` en el valor: sin él, un nombre de comercio largo ensancha la fila y se
    sale de la columna en vez de partirse. */
-.meta { margin:0; display:flex; flex-direction:column; gap:3px; font-size:12.5px }
-.meta > div { display:flex; gap:8px; align-items:baseline }
+.meta { margin:0; display:flex; flex-direction:column; gap:0; padding:2px 8px; font-size:12.5px;
+  background:color-mix(in srgb, var(--panel2) 60%, var(--card)); border:1px solid var(--line); border-radius:var(--r-sm) }
+.meta > div { display:flex; gap:8px; align-items:baseline; padding:6px 0 }
+.meta > div + div { border-top:1px solid var(--line) }
 .meta dt { flex:0 0 68px; color:var(--tenue); font-size:11px; text-transform:uppercase;
   letter-spacing:.05em }
 .meta dd { margin:0; min-width:0; color:var(--txt); overflow-wrap:anywhere }
@@ -328,21 +399,18 @@ async function copiar() {
 .sidebar .alert-desc { font-size:12.5px }
 .mapaRoto code { background:var(--elev); padding:1px 6px;
   border-radius:var(--r-sm); font-size:11.5px }
-/* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.
-   El mapa sólo tiene dos anchos —todo, o todo menos la base del sidebar—, así que su dibujo se
-   recalcula al abrir o cerrar y no en cada píxel del arrastre. Un grid haría lo contrario: cada
-   movimiento del tirador cambiaría la columna del mapa y el grafo se re-armaría entero, latiendo.
-   ⚠ `flex:1` + `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
+/* ⚠ NO ES UN GRID DE TRES COLUMNAS: el mapa y la consola están en flujo; el inspector sigue en capa.
+   El área central deja lugar al inspector, sin una franja muerta al redimensionarlo. `flex:1` +
+   `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
    contenido y el `overflow:auto` de adentro no se activa nunca — la página vuelve a estirarse y el
    mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
 .cols { position:relative; flex:1; min-height:0; display:flex }
-/* ⚠ Al mapa se le deja lugar con `margin-right` y no con `width: calc(…)`, y esa es la pieza que
-   mantiene el invariante de arriba: el panel está EN CAPA, así que el mapa sigue teniendo dos anchos
-   y nada más —todo, o todo menos la base— y se recalcula al abrir o cerrar, no en cada píxel del
-   arrastre. (Antes el reparto colgaba de `> :first-child`, que era el mapa; con la columna de la
-   izquierda delante, ese selector pasaba a apuntarle a ELLA.) */
-.editor-mapa { flex:1 1 0; min-width:0; margin-right:var(--detail-base, 380px) }
-.cols.cerrado .editor-mapa { margin-right:0 }
+/* El margen vive en el área central, no en el mapa: la consola comparte exactamente el mismo ancho
+   útil y ninguna de las dos regiones queda por debajo del inspector. */
+.workspace-main { flex:1 1 0; display:flex; flex-direction:column; min-width:0; min-height:0;
+  margin-right:var(--detail-width, 0px) }
+.workspace-main .editor-mapa { flex:1 1 0; min-width:0; min-height:220px; height:auto; margin-right:0 }
+.workspace-main .recientes-console { flex:none; min-height:0 }
 
 /* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
    leerse como algo que está encima y no como otra zona del mismo plano. */
@@ -352,6 +420,11 @@ async function copiar() {
 
 .tirador { position:absolute; top:0; bottom:0; width:var(--rsz); margin-right:-2px; z-index:3 }
 .tirador::before { left:-3px; right:-3px }
+/* El segundo tirador es horizontal: arriba de la consola. Arrastrar hacia arriba le da más espacio a
+   las corridas; el mapa conserva el resto y sigue midiendo su alto real. */
+.tirador-consola { position:relative; top:auto; right:auto !important; bottom:auto; width:auto; height:var(--rsz);
+  flex:none; margin:0; z-index:1 }
+.tirador-consola::before { top:-3px; bottom:-3px; left:0; right:0 }
 @media (max-width: 760px) {
   .statusbar .sb-pista { display: none }
   .editor-mapa > .region-head { padding: var(--space-2); gap: var(--space-2) }

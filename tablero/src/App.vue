@@ -971,15 +971,6 @@ function resizeOptions(varCss, sign) {
     commit: (v) => savePreference(key, v),
   };
 }
-function resetLayout() {
-  preferido['--sidebar-w'] = 300;
-  preferido['--auxiliarybar-w'] = 340;
-  savePreference('sidebar-w', 300);
-  savePreference('aux-w', 340);
-  verSidebar.value = true;
-  verAux.value = true;
-  nextTick(aplicarAnchos);
-}
 
 // Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
 // que es cuando cambia cuánto hay para repartir.
@@ -1473,7 +1464,6 @@ onMounted(async () => {
   cargarUltimos4();
 });
 
-const detailToggle = ref(null)
 const documentMenu = computed(() => [
   { id: 'copiar-todo', label: 'Copiar completo para retomar', icon: 'copy', disabled: !documentSections.value.length,
     title: 'Incluye el registro de trabajo y los comandos de reproducción' },
@@ -1486,6 +1476,7 @@ function documentAction(id) {
   if (id === 'detalle') verAux.value = !verAux.value
   if (id === 'cerrar' && active.value) cerrarPestana(active.value.Key)
 }
+const detailToggle = ref(null)
 const detailMenu = [
   { id: 'plegar', label: 'Plegar todas las secciones', icon: 'collapse' },
   { id: 'ocultar', label: 'Ocultar detalle', icon: 'detail' },
@@ -1932,11 +1923,10 @@ function detailAction(id) {
             </p>
             <div class="task-meta">
               <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-              <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
-                   que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
-                   una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
+              <!-- CONTENEDOR LOCAL: una herramienta o playground. No va a Jira, así que no se le pide
+                   sección publicable ni se lo cuenta como trabajo comprometido con el equipo. -->
               <span v-if="esProyecto(active._esfuerzoId)" class="badge badge-outline spchip proyecto"
-                title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
+                title="contenedor local: una herramienta o playground. No sale a Jira">local</span>
               <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
                    partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
               <span v-if="active._esfuerzo" class="badge badge-outline spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
@@ -2174,7 +2164,7 @@ function detailAction(id) {
         : `quedan ${sprintDays.remaining} d · ${sprintDays.pct}% consumido` }}</span>
       <span v-if="!cargandoAncha">{{ visibles }} tarea{{ visibles === 1 ? '' : 's' }} a la vista</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
-    <div class="layout-controls" role="group" aria-label="Disposición del tablero">
+      <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <button type="button" class="region-action" :aria-pressed="verSidebar" aria-controls="tasks-sidebar"
                 aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="verSidebar = !verSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
@@ -2182,9 +2172,6 @@ function detailAction(id) {
         <button ref="detailToggle" type="button" class="region-action" :aria-pressed="verAux && !!active" :disabled="!active"
                 aria-label="Mostrar u ocultar el detalle" title="Mostrar u ocultar el detalle" @click="verAux = !verAux">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-        </button>
-        <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
-          <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
         </button>
       </div>
     </footer>
@@ -2411,7 +2398,7 @@ function detailAction(id) {
    el estado — los mismos tres nombres pintan también el PUNTO del árbol, que no es una píldora. */
 .status { font-size: 10.5px; padding: 2px 8px }
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
-.e-doing { color: var(--txt); border-color: var(--line2); background: var(--secondary) }
+.e-doing { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
 /* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
@@ -2431,7 +2418,7 @@ function detailAction(id) {
 .tact { height: 23px; font-size: 11.5px; font-weight: 600 }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
-.tact.act { color: var(--acc); border-color: var(--line2); background: var(--secondary) }
+.tact.act { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
 .tact.go { color: var(--acc-ink); border-color: var(--acc); background: var(--acc) }
 .tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
@@ -2562,7 +2549,7 @@ function detailAction(id) {
   border-radius: var(--radius-md) 5px 0 0; background: var(--panel2);
   box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
-.jspan.sel { color: var(--acc); background: var(--secondary);
+.jspan.sel { color: var(--accent-foreground); background: var(--accent);
   box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
 .jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }

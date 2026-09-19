@@ -11,6 +11,10 @@ jira_title: ""
 <!--
   PLANTILLA DE TAREA — copiá este archivo a `data/<slug>.md` y borrá los comentarios.
 
+  Esta plantilla es para una tarea ligada a Jira. Las mejoras locales NO crean archivos desde esta
+  plantilla: van a canon.md, context.md, harness.md, tablero.md, trazador.md, workers.md o
+  playground.md. El lint rechaza cualquier otro slug sin Jira.
+
   ⚠ NO vive en `data/`: ahí todo `.md` se lee como una tarea, así que la plantilla aparecería en el
   tablero como una tarea fantasma.
 

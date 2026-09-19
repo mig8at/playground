@@ -140,6 +140,32 @@ def _opt(args, nombre, defecto=None):
     return args[args.index(nombre) + 1] if nombre in args else defecto
 
 
+def _aplicar_plan(pregunta, plan_data, instr):
+    """Suma vocabulario y ruteo solo si el plan pertenece a esta misma pregunta."""
+    herramientas = dict(HERRAMIENTAS)
+    if plan_data.get("pregunta") != pregunta:
+        return herramientas, instr, []
+
+    terminos = plan_data.get("terminos") or []
+    if terminos:
+        lineas = "\n".join(f"  «{t.get('dice','')}» se llama {t.get('en_el_codigo','')}"
+                            for t in terminos)
+        instr += ("\n⚠ CÓMO SE LLAMA EN EL CÓDIGO lo que la pregunta nombra en español. "
+                  "Buscá por estos términos, no por los del enunciado:\n" + lineas + "\n")
+
+    # El plan ya pagó el ruteo. Pedir otra vez el ROUTE-MAP entero a cada seleccionador reintroduce
+    # justo los tokens que Jev permitió sacar. La herramienta queda disponible como recuperación:
+    # una sugerencia fuerte también puede equivocarse y no debe encerrar al agente en esos nodos.
+    jev_nodes = [n.get("id") for n in plan_data.get("jev_routing", {}).get("nodes", [])
+                 if n.get("id")]
+    if jev_nodes:
+        instr += ("\nRUTEO YA HECHO. Empezá por estos nodos de context, en orden: " +
+                  ", ".join(jev_nodes) + ". Abrilos directamente y NO llames `mapa_de_rutas` de "
+                  "entrada. Si no corresponden o no alcanzan, el mapa completo sigue disponible "
+                  "como recuperación; usalo y explicá el hueco.\n")
+    return herramientas, instr, jev_nodes
+
+
 def main():
     args = sys.argv[1:]
     if args and args[0] in ("-h", "--help"):
@@ -179,16 +205,13 @@ def main():
         # «cupo» nunca a `available_amount`— y hasta acá se parcheaba a mano en el glosario cada vez
         # que aparecía. El plan lo resuelve donde corresponde: ANTES de buscar, y para esta pregunta.
         plan = PLAYGROUND / "workers" / "_plan.json"
+        plan_data = {}
         if plan.exists():
             try:
-                terminos = json.loads(plan.read_text(encoding="utf-8")).get("terminos") or []
+                plan_data = json.loads(plan.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
-                terminos = []
-            if terminos:
-                lineas = "\n".join(f"  «{t.get('dice','')}» se llama {t.get('en_el_codigo','')}"
-                                   for t in terminos)
-                instr += ("\n⚠ CÓMO SE LLAMA EN EL CÓDIGO lo que la pregunta nombra en español. "
-                          "Buscá por estos términos, no por los del enunciado:\n" + lineas + "\n")
+                plan_data = {}
+        herramientas, instr, jev_nodes = _aplicar_plan(pregunta, plan_data, instr)
 
         if angulo:
             instr += (f"\n⚠ TU ÁNGULO: {angulo}\nOtros agentes están mirando esto desde otros lados. "
@@ -204,8 +227,9 @@ def main():
         if angulo:
             print(f"   ángulo: {angulo}")
         print(f"\nmodelo: {cfg['modelo']}  ·  sólo índices  ·  objetivo {minimo}-{maximo} archivos"
-              + (f"  ·  evitando {len(ya)}" if ya else "") + "\n")
-        r = gemini.correr(entrada, HERRAMIENTAS, instr, cfg, terminales=("entregar_seleccion",))
+              + (f"  ·  evitando {len(ya)}" if ya else "")
+              + (f"  ·  Jev: {len(jev_nodes)} nodos" if jev_nodes else "") + "\n")
+        r = gemini.correr(entrada, herramientas, instr, cfg, terminales=("entregar_seleccion",))
         if isinstance(r, str):
             print(r)
             return 1

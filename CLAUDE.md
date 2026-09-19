@@ -152,7 +152,7 @@ su servidor. Catálogo: `make estilo-guia` → http://127.0.0.1:5198; contrato a
 
 **Preferencia de Miguel:** sin titlebar ni banners globales. Las acciones pertenecen al toolbar del
 editor o de su región. El aviso de ambiente compartido del harness vive dentro del editor. El pie
-ofrece recuperar regiones ocultas y restablecer disposición. Los separadores admiten puntero y teclado.
+ofrece alternar las regiones visibles conservando la última medida elegida. Los separadores admiten puntero y teclado con arrastre orgánico.
 Las acciones frecuentes usan iconos con tooltip; las secundarias van en el menú de tres puntos de
 cada región. El menú compartido admite teclado y marca las opciones activas. Los filtros de consola
 indican «Filtrada» aun con el menú cerrado; entorno y canal conservan sus valores a la vista.
@@ -165,9 +165,10 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 `--danger`—, así que no había forma de cambiarles el aspecto sin tocar las cuatro. Hoy:
 
 - **`tema.css` es el archivo que se cambia, y es el MISMO en las cuatro** (`context/src` ·
-  `harness/panel` · `tablero/src` · `trazador/src`). Es un export de [tweakcn](https://tweakcn.com/)
-  tal cual: elegís un tema ahí, copiás su bloque y **pisás el archivo**. Nada más. No se edita a mano
-  y no lleva ni una regla propia de ninguna herramienta.
+  `harness/panel` · `tablero/src` · `trazador/src`). La fuente vigente es el tema Darkmatter de
+  [ShadcnThemer](https://shadcnthemer.com/themes/278e858e-7c4c-4407-a4bc-2d48faadc5c8): al cambiar
+  de tema se reemplaza el bloque de tokens y luego se ejecuta `make estilo-sync`. No lleva reglas
+  propias de ninguna herramienta.
 - **`make estilo-check`** es lo que hace que eso sea cierto y no una intención. Ocho chequeos, y cada
   uno nació de un error medido: md5 de los dos archivos compartidos · `in oklch` prohibido · contraste
   de las reglas que fijan color y fondo · variables usadas y nunca declaradas · el contrato de scroll ·
@@ -192,16 +193,14 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   (parsear esos números como RGB da 1,00 en todo — hay que pintar el color en un canvas y leer el
   píxel), y **`opacity` se apila sobre el color** sin que el chequeo estático lo vea, porque la regla
   sola es correcta.
-- ⛔ **`--muted-foreground` NO se usa para texto, y está medido:** en este tema es #808080 y **no llega
-  a 4,5:1 en ninguna superficie**, ni siquiera sobre el fondo (4,41). La rampa que sí pasa vive en
-  `taller.css` y cuelga de `--foreground`: `--texto-2` (74%) y `--texto-3` (70%). El tercer escalón es
-  70 y no 66 porque la superficie que manda es #303030 —`--input` = `--secondary`—, donde 66% daba
-  4,23. ⚠ Y `--accent` (#404040) **no es superficie de texto**: lo que va encima es
-  `--accent-foreground`.
+- **La tinta compacta usa la rampa de `taller.css`, no `--muted-foreground`:** los temas cambian su
+  contraste relativo. `--texto-2` (74%) y `--texto-3` (70%) se derivan de `--foreground`; cualquier
+  combinación explícita de tinta y superficie se verifica con `make estilo-check`. `--accent` es una
+  superficie, así que su texto siempre usa `--accent-foreground`.
 - Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
   los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
   etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `tema.css`
-  a propósito**: un export de tweakcn no lo trae, así que pegar un tema nuevo encima lo borraría.
+  a propósito**: el export de un tema no lo trae, así que pegar uno nuevo encima lo borraría.
 - Las tres apps de Vite además tienen **Tailwind v4** enchufado (`@tailwindcss/vite`), con los tokens
   ya mapeados a utilidades por el `@theme inline` del tema. ⚠ Las utilidades van en `@layer
   utilities` y **el CSS sin capa —todo lo que ya existe— les gana**: sirven para markup nuevo, y para
@@ -502,9 +501,9 @@ aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
    leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
    ⚠ **Y en local/dev/staging las centrales de riesgo NO las atiende el proveedor**, sino un lambda de
    mocks de la empresa (`Creditop-SAS/risk-services-mockery-lambda`, un Mockoon; no está entre los
-   repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta, con sus trampas, en
-   `tablero/data/mocks-de-centrales-un-solo-mecanismo.md`. Sin saber esto, una prueba de identidad ahí
-   siempre devuelve la misma persona y parece que el código está roto.
+   repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta vigente y sus trampas
+   están en `context/server/data/flows/findings/doc.md`, F-139. Sin saber esto, una prueba de identidad
+   ahí siempre devuelve la misma persona y parece que el código está roto.
 5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
    funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
    Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
@@ -561,7 +560,8 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
 
 ## Git
 
-- **Este repo** (`playground`) se commitea local. El push lo decide Miguel — no pushees por tu cuenta.
+- **Este repo** (`playground`) se trabaja directamente sobre `main` y se commitea local. No crees ramas
+  para sus mejoras. El push lo decide Miguel — no pushees por tu cuenta.
 - **Los repos reales** (`legacy-backend`, `frontend-monorepo`, `legacy-application`) trabajan en ramas y
   stashes locales. **No armes PRs ni pushees ahí sin pedir permiso explícito.**
 

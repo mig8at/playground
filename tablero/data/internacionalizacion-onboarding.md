@@ -41,14 +41,12 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 > así que ahora sí se puede quitar; es un cambio de esquema y merece su propia decisión. Y quedan
 > **19.618 fichas de cliente** con ese default: por eso el OTP conserva su rodeo por la última solicitud.
 >
-> **El próximo paso es:** correr las pruebas reales de QA sobre lo mergeado en `qa` y llevar la campaña
-> a producción, que es lo único que todavía no vio nada.
->
-> 📄 **El detalle vive en dos archivos hermanos, y no se copia acá para que no se desincronice:**
-> `tablero/data/pais-fuera-del-codigo.md` (la ejecución: el modelo de país, el orden por ambiente) y
-> `tablero/data/lo-que-queda-de-pais-quemado.md` (el censo de lo que todavía asume Colombia, con sus
-> mediciones contra producción). **El historial día por día de toda la campaña sí está acá**, en
-> §«Bitácora» — es lo único que no se desincroniza, porque lleva fecha.
+**El próximo paso es:** correr las pruebas reales de QA sobre lo mergeado en `qa` y llevar la campaña
+a producción, que es lo único que todavía no vio nada.
+
+📄 Los dos frentes locales de ejecución y censo se consolidaron en `playground.md`. El detalle
+anterior sigue en Git; el estado comprometido de la campaña y su historial permanecen en esta tarea
+ligada a Jira.
 
 > **ESTADO (2026-08-27) — segunda tanda: el país sale del código.** Lo de abajo, del 19/8, es la PRIMERA
 > tanda y sigue siendo cierto. Esto es lo que pasó después.
@@ -75,7 +73,7 @@ ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombia
 > — la tarjeta de identidad **sin país** que reemplaza a `IdBack` (reverso de la cédula colombiana) y
 > `PepCard` (PEP). Un archivo, sin dependencias, editable en vivo; se ve con `make soporte-qa`, que sirve
 > esa carpeta. Estructura tomada de ICAO 9303 TD1. La ficha de los dos componentes que reemplaza y el
-> hallazgo de la MRZ están en `tablero/data/lo-que-queda-de-pais-quemado.md`.
+> hallazgo de la MRZ quedaron en el frente general de `playground.md` y en la historia de Git.
 >
 > ⚠ **Y un bloqueante de Perú que no cabe en estos PRs:** el número de documento es único en TODA la
 > tabla, sin mirar tipo ni país. **84.656 DNI peruanos ya están ocupados** por documentos colombianos de
@@ -144,8 +142,8 @@ estorba, se cierra; no se mergea.
 | `legacy-application` | `feature/pais-como-dato-onto-develop` | ⚪ **fuera de la vía** | ✅ **mergeada** (PR #68, 19/8, la mergeó Miguel sin revisión: `develop` no tiene ruleset) |
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | ✅ **mergeada** (PR #834, 19/8 15:22, la apretó sanvipi-ctop) y desplegada a `loan-request-wizard-stg` |
 
-**Segunda tanda — «el país es configuración» (2026-08-24).** El detalle vive en la tarea
-`pais-fuera-del-codigo.md`; acá queda el estado de las ramas para que esta tabla no mienta.
+**Segunda tanda — «el país es configuración» (2026-08-24).** El frente local se consolidó en
+`playground.md`; acá queda el estado de las ramas para que esta tabla no mienta.
 
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
@@ -1290,6 +1288,11 @@ dicen «COLOMBIANA». No falta funcionalidad: falta que el país sea un dato que
 
 ## Registro
 
+### 2026-09-19 · los frentes locales se consolidan sin cambiar el compromiso de Jira
+
+Los archivos locales de ejecución y censo se absorbieron en `playground`; esta tarea conserva el
+estado comprometido, las ramas y el próximo paso de la campaña internacional.
+
 ### 2026-09-17 · `develop` sale de la vía de entrega
 
 Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después el resto de las ramas se pone al día **desde `main`**, así que un merge a `develop` ya no dice nada sobre lo entregado. **No se tocó el Registro con fecha** (es lo que pasó, no lo que falta), ni los nombres de ambiente/infraestructura (`legacy-backend-develop:199`, `…develop.internal.creditop.com`, `APP_ENV=development`), ni el repo `infrastructure`, que no entra en ese flujo. Los **PRs abiertos se conservan** marcados «sin destino»: hay que re-apuntarlos o rehacer la rama sobre `qa`.
@@ -1804,7 +1807,7 @@ está en la tarea 84 del tablero, que es la que la hizo.
 
 - **2026-08-24** — **La tarea se cerró y se volvió a abrir el mismo día, con el alcance ampliado**: pasa
   de «onboarding por país» a **Internacionalización de CreditOp**. El detalle de la ejecución vive en la
-  tarea `pais-fuera-del-codigo.md`; acá queda el hilo para que ésta no envejezca.
+  tarea local hoy absorbida por `playground.md`; acá queda el hilo para que ésta no envejezca.
 
   **De dónde salió.** De una pregunta sobre **moneda por país**. La respuesta fue que la moneda ya viaja
   en el payload del comercio (`country {…, currency, locale}`, que puso esta misma tarea) pero **nadie la

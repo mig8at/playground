@@ -149,6 +149,12 @@ func leer(datos, ruta string, sucios map[string]bool) tarea {
 
 func (t tarea) dias() int { return int(time.Since(t.Toque).Hours() / 24) }
 
+func requiereRamas(t tarea) bool {
+	// Los contenedores locales agrupan mejoras sucesivas y pueden no tener una rama activa. Una tarea
+	// de producto en work sí debe declarar por dónde se entrega.
+	return t.Stage == "work" && t.Clase != "proyecto"
+}
+
 func (t tarea) proximoPaso() string {
 	m := reProximo.FindStringSubmatch(t.Cuerpo)
 	if m == nil {
@@ -402,10 +408,9 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 	for _, f := range filas {
 		nVenc += len(f.Vencidas)
 		nPend += f.Pendientes
-		// LOS PROYECTOS VAN APARTE. Son herramientas propias, exploraciones y mejoras a futuro: no son
-		// el día a día sobre CreditOp y mezclarlos ahogaba lo que uno viene a mirar — medido el
-		// 2026-09-15, 8 de las 40 abiertas. Se listan igual, abajo y sin el detalle: se retoman con
-		// `make retomar`, pero no compiten con el trabajo que sí tiene a alguien esperándolo.
+		// LOS CONTENEDORES LOCALES VAN APARTE. Son seis herramientas y playground: no son el día a día
+		// comprometido en Jira y mezclarlos ahoga lo que alguien del equipo está esperando. Se listan
+		// igual, abajo y sin detalle: se retoman con `make retomar`.
 		if f.Clase == "proyecto" {
 			proyectos = append(proyectos, f)
 			continue
@@ -419,7 +424,7 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 			vivas = append(vivas, f)
 		}
 	}
-	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d proyecto(s) propios · %d pregunta(s) vencida(s) · %d pendiente(s)\n",
+	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d contenedor(es) local(es) · %d pregunta(s) vencida(s) · %d pendiente(s)\n",
 		time.Now().Format("2006-01-02"), len(filas)-len(proyectos), nWork, len(dormidas), diasDormida, len(proyectos), nVenc, nPend)
 	if snap.MedidoEn != "" {
 		fmt.Printf("  entrega según `make tareas-ramas` del %s", snap.MedidoEn[:10])
@@ -440,7 +445,7 @@ func agenda(tareas []tarea, snap snapRamas, stage string, comoJSON bool) int {
 		}
 	}
 	if len(proyectos) > 0 {
-		fmt.Println("\n  PROYECTOS PROPIOS — herramientas, exploraciones y mejoras a futuro. No van a Jira")
+		fmt.Println("\n  CONTENEDORES LOCALES — una tarea por herramienta y playground para lo transversal. No van a Jira")
 		for _, f := range proyectos {
 			cuando := fmt.Sprintf("%d d", f.Dias)
 			if f.Dias == 0 {
@@ -628,7 +633,7 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	if regFecha == "" {
 		faltan = append(faltan, "un Registro con fecha (`### YYYY-MM-DD`)")
 	}
-	if len(t.Ramas) == 0 && t.Stage == "work" {
+	if len(t.Ramas) == 0 && requiereRamas(*t) {
 		faltan = append(faltan, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")
 	}
 	if len(bit) == 0 {
@@ -671,6 +676,8 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	fmt.Println(" ──")
 	rs := snap.Tareas[strconv.Itoa(t.ID)].Ramas
 	switch {
+	case len(t.Ramas) == 0 && t.Clase == "proyecto":
+		fmt.Println("  · contenedor local: no requiere una rama permanente")
 	case len(t.Ramas) == 0:
 		fmt.Println("  ✗ la tarea no declara `ramas:`")
 	case len(rs) == 0:

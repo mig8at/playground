@@ -1,0 +1,106 @@
+[
+  {
+    "id": "accion-concreta",
+    "state": {
+      "title": "Actualizar el contrato del formulario",
+      "stage": "work",
+      "days_without_touch": 0,
+      "next_step": "Ejecutar las pruebas de contrato y corregir la transformación que no coincide.",
+      "overdue_questions": 0,
+      "open_pending": 2,
+      "missing_pieces": []
+    },
+    "expected": {"action": "ejecutar", "external_blocker": false, "urgency": 1}
+  },
+  {
+    "id": "respuesta-externa",
+    "state": {
+      "title": "Habilitación del proveedor de identidad",
+      "stage": "work",
+      "days_without_touch": 8,
+      "next_step": "Pedir al proveedor la aprobación de acceso; no se puede continuar sin esa respuesta.",
+      "overdue_questions": 1,
+      "open_pending": 1,
+      "missing_pieces": []
+    },
+    "expected": {"action": "pedir-respuesta", "external_blocker": true, "urgency": 2}
+  },
+  {
+    "id": "bloqueo-interno",
+    "state": {
+      "title": "Recuperar la compilación del panel",
+      "stage": "work",
+      "days_without_touch": 1,
+      "next_step": "Corregir la dependencia local que impide compilar y volver a correr la suite.",
+      "overdue_questions": 0,
+      "open_pending": 3,
+      "missing_pieces": []
+    },
+    "expected": {"action": "desbloquear", "external_blocker": false, "urgency": 2}
+  },
+  {
+    "id": "decision-de-alcance",
+    "state": {
+      "title": "Elegir estrategia para el nuevo flujo",
+      "stage": "evaluation",
+      "days_without_touch": 3,
+      "next_step": "Comparar las dos alternativas y decidir cuál alcance se implementará.",
+      "overdue_questions": 0,
+      "open_pending": 2,
+      "missing_pieces": []
+    },
+    "expected": {"action": "decidir", "external_blocker": false, "urgency": 1}
+  },
+  {
+    "id": "trabajo-obsoleto",
+    "state": {
+      "title": "Prototipo sustituido por la solución actual",
+      "stage": "evaluation",
+      "days_without_touch": 52,
+      "next_step": "Confirmar si todavía existe un objetivo vigente; la solución ya fue reemplazada.",
+      "overdue_questions": 0,
+      "open_pending": 0,
+      "missing_pieces": []
+    },
+    "expected": {"action": "archivar-o-replantear", "external_blocker": false, "urgency": 0}
+  },
+  {
+    "id": "incidente-activo",
+    "state": {
+      "title": "Usuarios no pueden completar la firma",
+      "stage": "work",
+      "days_without_touch": 0,
+      "next_step": "Reproducir el error de producción y desplegar una corrección; no existe alternativa para los usuarios afectados.",
+      "overdue_questions": 0,
+      "open_pending": 1,
+      "missing_pieces": []
+    },
+    "expected": {"action": "ejecutar", "external_blocker": false, "urgency": 3}
+  },
+  {
+    "id": "espera-segura",
+    "state": {
+      "title": "Renovación programada del certificado",
+      "stage": "tasks",
+      "days_without_touch": 5,
+      "next_step": "Esperar el certificado que el proveedor se comprometió a entregar la próxima semana; el actual sigue vigente.",
+      "overdue_questions": 0,
+      "open_pending": 1,
+      "missing_pieces": []
+    },
+    "expected": {"action": "pedir-respuesta", "external_blocker": true, "urgency": 0}
+  },
+  {
+    "id": "retoma-incompleta",
+    "state": {
+      "title": "Revisar una idea antigua sin alcance actual",
+      "stage": "evaluation",
+      "days_without_touch": 40,
+      "next_step": "",
+      "overdue_questions": 0,
+      "open_pending": 0,
+      "missing_pieces": ["falta una retoma vigente", "falta un próximo paso concreto"]
+    },
+    "expected": {"action": "archivar-o-replantear", "external_blocker": false, "urgency": 0}
+  }
+]

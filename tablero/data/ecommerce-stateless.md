@@ -209,9 +209,9 @@ tienen volumen en `rt=2` en 90 días, y a My Tech (305) le cambiaría el 100 % d
 **Copiar el código de #663** (que el handoff se pinte distinto por flujo). Traía una URL de demo quemada y `qa`
 ya usa el `qrUrl` real: vale la intención, no el código.
 
-**Que el flujo corra dentro de la página del comercio.** Se separó el 14/9 a la tarea `sdk-del-comercio.md`
-(CORE-543): son dos horizontes distintos — ésta migra el canal que ya existe, aquélla explora una capa nueva.
-El conocimiento del prefill que aquélla usa también vive allá desde el 18/9.
+**Que el flujo corra dentro de la página del comercio.** Es el frente «SDK del comercio» dentro de
+`playground.md` hasta que tenga Jira: son dos horizontes distintos — ésta migra el canal que ya existe,
+aquél explora una capa nueva.
 
 ## Lo que está decidido
 
@@ -272,7 +272,7 @@ El conocimiento del prefill que aquélla usa también vive allá desde el 18/9.
 
 - **La PANTALLA de la sala de espera.** El backend se rescató (#1392: `ecommerce-status` en el grupo
   `device`); el `ecommerce-continue.tsx` montado en `waiting-room` que traía #363 **no** entra en esta tarea.
-- **El SDK del comercio** — tarea aparte (`sdk-del-comercio.md`, CORE-543).
+- **El SDK del comercio** — frente general en `playground.md` hasta que tenga Jira.
 - **El flujo de Corbeta / Bancolombia retail**, que ya tiene su propio camino desde febrero y es el tráfico
   que mejor convierte. Ni el redirect ni el cutover lo tocan.
 - **Cambiar el recorrido del asesor**: sigue entregándole el proceso al cliente igual que siempre.
@@ -359,8 +359,8 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 - **Nodos de contexto:** `ecommerce` (el canal: contrato base64, credencial, `/vtex/*`, «volver al comercio»)
   · `onboarding` (el formulario que se hidrata sin cookie) · `payments` (cuota inicial y
   `down-payment-validation`) · `architecture` (la costura `application → legacy-backend + frontend`).
-- **Tareas vecinas:** `sdk-del-comercio.md` (CORE-543) — el flujo dentro de la tienda, y el conocimiento del
-  prefill del comercio.
+- **Frentes vecinos:** «SDK del comercio» en `playground.md` — el flujo dentro de la tienda y el
+  conocimiento del prefill del comercio.
 - **Hallazgos que salieron de acá:** F-214, F-215, F-216 (14/9) · F-221 (17/9) · F-223 (17/9).
 - **Los PRs y sus ambientes no se listan acá: los mide la pestaña Ramas** (`make tareas-ramas N=6`). Lo único
   que esa medición **no** puede saber está arriba, en Riesgos: el revert dejó a #997 y #1005 como ancestros
@@ -471,8 +471,8 @@ tarjeta deja de prometer lo que el plan no da **sin cambiarle el crédito a nadi
 ### 2026-09-18 · limpieza del archivo: lo que no era de la tarea, y lo que ya lo dice una pestaña
 
 Miguel señaló tres clases de ruido y se sacaron las tres. **(1) Lo que no es de esta tarea:** la sección del
-SDK del comercio y el conocimiento del prefill que usaba se **mudaron** a `sdk-del-comercio.md`, que es donde
-ese hilo vive desde el 14/9 — acá quedó sólo el comportamiento que esta tarea entrega (los campos llegan
+SDK del comercio y el conocimiento del prefill que usaba se **mudaron** al frente general de
+`playground.md` — acá quedó sólo el comportamiento que esta tarea entrega (los campos llegan
 llenos y bloqueados), sin el detalle de los seis campos ni el roadmap del formulario dinámico. **(2) Lo que
 ya lo dice otra pestaña:** se borraron el `## Bitácora` del cuerpo (el tiempo vive en `data/entries/` y lo
 muestra su pestaña) y las cuatro tablas de PRs y ambientes, que son exactamente lo que mide

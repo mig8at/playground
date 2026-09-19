@@ -20,7 +20,7 @@ export function bindResize(handle, options) {
     const max = Math.max(0, number(o.max));
     return { min: Math.min(number(o.min), max), max };
   };
-  function sync() {
+  function syncAttributes() {
     const { min, max } = bounds();
     handle.setAttribute('role', 'separator');
     handle.setAttribute('tabindex', '0');
@@ -28,19 +28,31 @@ export function bindResize(handle, options) {
     handle.setAttribute('aria-label', o.label);
     handle.setAttribute('aria-valuemin', String(o.collapsible ? 0 : min));
     handle.setAttribute('aria-valuemax', String(Math.round(max)));
-    handle.setAttribute('aria-valuenow', String(Math.round(o.get())));
-    handle.setAttribute('aria-valuetext', o.get() ? `${Math.round(o.get())} píxeles` : 'Oculto');
-    handle.title = `${o.label} · arrastra o usa las flechas · doble clic para restablecer`;
+    handle.title = `${o.label} · arrastra para ajustar o usa las flechas`;
+    syncValues();
   }
+  function syncValues() {
+    const val = Math.round(o.get());
+    handle.setAttribute('aria-valuenow', String(val));
+    handle.setAttribute('aria-valuetext', val ? `${val} píxeles` : 'Oculto');
+  }
+  function sync() { syncAttributes(); }
   function set(value, collapse = false) {
     const { min, max } = bounds();
-    const next = o.collapsible && (value === 0 || (collapse && value < min - 28))
-      ? 0 : Math.max(min, Math.min(max, value));
+    let next;
+    if (o.collapsible) {
+      if (value === 0 || (collapse && value < min - 24)) {
+        next = 0;
+      } else {
+        next = Math.max(min, Math.min(max, value));
+      }
+    } else {
+      next = Math.max(min, Math.min(max, value));
+    }
     o.set(Math.round(next));
-    sync();
+    syncValues();
   }
   const finish = () => o.commit?.(o.get());
-  function reset() { set(number(o.defaultValue)); finish(); }
   function keydown(e) {
     const vertical = o.axis === 'y';
     const decrement = vertical ? 'ArrowUp' : 'ArrowLeft';
@@ -49,8 +61,7 @@ export function bindResize(handle, options) {
     if (![decrement, increment, 'Home', 'End', 'Enter'].includes(e.key)) return;
     e.preventDefault();
     if (e.key === 'Enter') {
-      if (o.collapsible) set(o.get() ? 0 : number(o.defaultValue));
-      else set(number(o.defaultValue));
+      if (o.collapsible) set(o.get() ? 0 : Math.max(min, number(o.defaultValue)));
     } else if (e.key === 'Home') set(o.collapsible ? 0 : min);
     else if (e.key === 'End') set(max);
     else set(o.get() + (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16), true);
@@ -64,15 +75,36 @@ export function bindResize(handle, options) {
     handle.setPointerCapture(e.pointerId);
     const start = o.axis === 'y' ? e.clientY : e.clientX;
     const initial = o.get();
+    const { min } = bounds();
+    let rafId = null;
+    let pendingVal = null;
+
     const move = (ev) => {
       if (ev.pointerId !== e.pointerId) return;
-      set(initial + ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1), true);
+      const delta = ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1);
+      let nextVal;
+      if (initial === 0 && o.collapsible) {
+        nextVal = delta > 16 ? Math.max(min, delta) : 0;
+      } else {
+        nextVal = initial + delta;
+      }
+      pendingVal = nextVal;
+      if (!rafId) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          if (pendingVal !== null) {
+            set(pendingVal, true);
+          }
+        });
+      }
     };
     const end = (ev) => { if (ev.pointerId === e.pointerId) stop(); };
     handle.classList.add('on');
     document.body.classList.add('redimensionando');
     document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
     stop = () => {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      if (pendingVal !== null) { set(pendingVal, true); pendingVal = null; }
       handle.removeEventListener('pointermove', move);
       handle.removeEventListener('pointerup', end);
       handle.removeEventListener('pointercancel', end);
@@ -91,7 +123,6 @@ export function bindResize(handle, options) {
   }
   handle.addEventListener('keydown', keydown);
   handle.addEventListener('pointerdown', pointerdown);
-  handle.addEventListener('dblclick', reset);
   sync();
   return {
     update(next) { o = next; sync(); },
@@ -100,7 +131,6 @@ export function bindResize(handle, options) {
       stop();
       handle.removeEventListener('keydown', keydown);
       handle.removeEventListener('pointerdown', pointerdown);
-      handle.removeEventListener('dblclick', reset);
     },
   };
 }

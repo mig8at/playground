@@ -74,6 +74,10 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
 	@cd tablero/server && go run ./cmd/tareas $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
 
+tarea-json: ## @dia proyección JSON tipada de UNA tarea, derivada del Markdown. N=<slug|id> · CONTENIDO=1 incluye borrador Jira
+	@test -n "$(N)" || { echo "falta N=<slug|id>  ·  ej: make tarea-json N=tablero"; exit 2; }
+	@cd tablero/server && go run ./cmd/tareas -n "$(N)" -json $(if $(CONTENIDO),-contenido)
+
 # ⚠ Lee el SNAPSHOT de Jira, no el estado vivo — e imprime cuándo se tomó, porque un tablero
 # presentado como actual siendo de hace días es peor que no tenerlo: se decide sobre él.
 sprint: ## @dia el sprint activo con sus tareas y puntos, del snapshot (dice cuándo se tomó). JSON=1
@@ -227,6 +231,20 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint
+.PHONY: context-jev context-jev-test tablero-jev tablero-jev-test
+context-jev: ## @ctx laboratorio local de Jev: ARGS='route "pregunta" [--live]' | 'bench [--live]' | 'label reporte --expected nodo' | stats
+	@python3 context/tools/jev.py $(or $(ARGS),--help)
+
+context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s workers -p test_jev_routing.py
+
+tablero-jev: ## @ctx laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
+	@python3 tablero/tools/jev.py $(or $(ARGS),--help)
+
+tablero-jev-test: ## @ctx pruebas offline de Choice + Noul + Score y minimización del payload de tablero
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev.py
+
 context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)
 	@cd context && python3 tools/alinear.py
 
@@ -473,13 +491,13 @@ agente-seleccion: ## @wrk NO contesta: dice QUÉ ARCHIVOS habría que leer y por
 agente-contraste: ## @wrk PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
 	@cd workers && python3 contraste.py
 
-agente-plan: ## @wrk NO busca: decide cuántos ángulos y cómo se dice en el código. PREGUNTA='…'
+agente-plan: ## @wrk NO busca: decide cuántos ángulos y cómo se dice en el código. PREGUNTA='…' [JEV=1 envía pregunta sin datos sensibles a TypeSafe]
 	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd workers && python3 plan.py "$(PREGUNTA)"
+	@cd workers && CONTEXT_JEV=$(if $(filter 1 yes true,$(JEV)),1,0) python3 plan.py "$(PREGUNTA)"
 
-agente-analisis: ## @wrk LA FILA ENTERA: plan → N seleccionadores por ángulo → lector. PREGUNTA='…'
+agente-analisis: ## @wrk LA FILA ENTERA: plan → N seleccionadores por ángulo → lector. PREGUNTA='…' [JEV=1 experimental]
 	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd workers && python3 analisis.py "$(PREGUNTA)"
+	@cd workers && CONTEXT_JEV=$(if $(filter 1 yes true,$(JEV)),1,0) python3 analisis.py "$(PREGUNTA)"
 
 agente-lector: ## @wrk PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
 	@cd workers && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")

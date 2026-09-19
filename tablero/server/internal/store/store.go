@@ -5,8 +5,9 @@
 // tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
 // `context/` es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
-// UNA TAREA = UN ARCHIVO, suelto en `data/<tarea>.md`. Sin carpeta intermedia: `ls data/` muestra en
-// qué se está trabajando, que es la pregunta que el tablero contesta.
+// UNA TAREA DE JIRA = UN ARCHIVO, suelto en `data/<tarea>.md`. El trabajo local se concentra en siete
+// contenedores permanentes (una herramienta por archivo y playground para lo transversal), validados
+// por cmd/tareas. Así `ls data/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
 //	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
 //	frontmatter             id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title · ramas?
@@ -685,7 +686,7 @@ type Effort struct {
 	// CLASE: qué es esto, que es otra pregunta que en qué etapa está.
 	//
 	//	"tarea"     (default) trabajo del día a día sobre CreditOp. Va, o irá, a Jira.
-	//	"proyecto"  herramienta propia, exploración o mejora a futuro. NO va a Jira nunca.
+	//	"proyecto"  uno de los siete contenedores locales canónicos. NO va a Jira nunca.
 	//
 	// Existe porque el tablero las trataba igual y no lo son: medido el 2026-09-15, 23 de las 40
 	// abiertas no tienen clave de Jira, y buena parte son proyectos propios (las herramientas del
@@ -816,9 +817,8 @@ func (s *Store) EffortsAll() []EffortRef {
 	return out
 }
 
-// nuevoEffort reserva id y slug para un esfuerzo y lo deja en memoria SIN escribirlo: quien llama
-// termina de llenarlo y escribe. Asume el lock tomado. Lo comparten la creación a mano y la
-// importación desde Jira, que solo se diferencian en con qué nace el archivo.
+// nuevoEffort reserva id y slug para un esfuerzo importado desde Jira y lo deja en memoria SIN
+// escribirlo: quien llama termina de llenarlo y escribe. Asume el lock tomado.
 func (s *Store) nuevoEffort(title, stage string) Effort {
 	var max int64
 	usados := map[string]bool{}
@@ -839,18 +839,6 @@ func (s *Store) nuevoEffort(title, stage string) Effort {
 	s.slugs[e.ID] = slugDe(title, e.ID, usados) + ".md"
 	s.archived[e.ID] = ""
 	return e
-}
-
-// CreateEffort crea la tarea local (su archivo `data/<slug>.md`) y la devuelve.
-func (s *Store) CreateEffort(title string) (Effort, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	e := s.nuevoEffort(title, "evaluation")
-	if err := s.escribirEffort(e.ID); err != nil {
-		return Effort{}, err
-	}
-	return e, nil
 }
 
 // ImportIssue es un issue de Jira listo para volverse tarea local. Lo arma el server desde lo que trajo

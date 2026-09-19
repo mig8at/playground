@@ -47,6 +47,7 @@ type tarea struct {
 	ID       int
 	Title    string
 	Stage    string
+	Clase    string
 	Archived bool
 	Ramas    []string // los patrones de `ramas:`, ya partidos por coma
 	Cuerpo   string
@@ -131,6 +132,8 @@ func leer(ruta string) (tarea, error) {
 			t.Title = valor(l)
 		case strings.HasPrefix(l, "stage:"):
 			t.Stage = valor(l)
+		case strings.HasPrefix(l, "clase:"):
+			t.Clase = valor(l)
 		case strings.HasPrefix(l, "archived:"):
 			v := valor(l)
 			t.Archived = v != "" && v != "false" && v != "null"
@@ -235,6 +238,10 @@ func cuerpoAntes(datos, dia, slug string) (string, bool) {
 func soloMetadatos(datos, dia, slug, cuerpoHoy string) bool {
 	antes, ok := cuerpoAntes(datos, dia, slug)
 	return ok && strings.TrimSpace(antes) == strings.TrimSpace(cuerpoHoy)
+}
+
+func esSoloAltaDeContenedor(t tarea, motivos []string, existiaAntes bool) bool {
+	return len(motivos) == 1 && motivos[0] == "archivo" && t.Clase == "proyecto" && !existiaAntes
 }
 
 type entrada struct {
@@ -392,6 +399,14 @@ func main() {
 		}
 		// Si lo único que cambió hoy es el frontmatter y no hay trabajo en ramas, no hay nada que cerrar.
 		if len(m) == 1 && m[0] == "archivo" && soloMetadatos(datos, *dia, t.Slug, t.Cuerpo) {
+			continue
+		}
+		// Crear el contenedor permanente de una herramienta es organización del tablero, no trabajo en
+		// esa herramienta. Si además se tocó una rama declarada, sí se cierra como trabajo real. Esta
+		// excepción sólo aplica el primer día del archivo; después cualquier cambio de cuerpo vuelve a
+		// exigir retoma, Registro y bitácora como siempre.
+		_, existiaAntes := cuerpoAntes(datos, *dia, t.Slug)
+		if esSoloAltaDeContenedor(t, m, existiaAntes) {
 			continue
 		}
 		rv := Revision{ID: t.ID, Slug: t.Slug, Title: t.Title, Motivos: m}

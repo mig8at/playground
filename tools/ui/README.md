@@ -24,7 +24,7 @@ La página no scrollea; cada región sí. Una división usa una línea, no dos m
 
 ## Fuente y distribución
 
-- `tema.css`: tokens de color y radio, compatibles con el export de tweakcn.
+- `tema.css`: tokens de color, tipografía y radio del tema compartido de ShadcnThemer.
 - `taller.css`: regiones, controles, espaciado, foco e iconos vectoriales.
 - `workbench.js`: ajuste por puntero y teclado, menús con `bindMenu` y adaptador opcional `vResize` para Vue.
 - `RegionMenu.vue`: adaptador Vue del mismo menú usado por el HTML del harness.
@@ -51,9 +51,9 @@ El texto secundario usa `--texto-2` y `--texto-3`, medidos sobre las superficies
 
 ## Disposición y teclado
 
-El pie siempre contiene controles para recuperar las regiones ocultas y restablecer la disposición. Los anchos y la altura de consola se guardan localmente; no cambian datos de trabajo. Los máximos se ajustan al espacio disponible.
+El pie siempre contiene controles para alternar las regiones visibles. Al reabrir una región recupera la última medida elegida, no una medida “por defecto”. Los anchos y la altura de consola se guardan localmente; no cambian datos de trabajo. Los máximos se ajustan al espacio disponible.
 
-En un separador enfocado con Tab: flechas ajustan 16 px; Shift + flecha, 48 px; Home lleva al mínimo (u oculta si el panel lo admite); End amplía; Enter alterna regiones plegables o restaura la medida. Doble clic restaura la medida inicial. El arrastre cancela limpiamente ante `pointercancel` o pérdida de captura.
+En un separador enfocado con Tab: flechas ajustan 16 px; Shift + flecha, 48 px; Home lleva al mínimo (u oculta si el panel lo admite); End amplía; Enter alterna regiones plegables. El arrastre es fluido e inmediato, cancelando limpiamente ante `pointercancel` o pérdida de captura.
 
 ## Toolbars y menús
 
