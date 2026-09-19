@@ -19,13 +19,16 @@ a afirmar algo que los contradice, medilo primero.
    flujo **ni siquiera llama**. Por eso «Bancolombia falla» casi nunca es cierto: falla *Bancolombia en
    ese comercio*. Explica de una sola vez F-25, F-26 y F-28 → **F-34**.
 2. **No hay herencia viva: la configuración se COPIA.** entidad → comercio → sucursal → categoría, y la
-   copia se dispara al habilitar la entidad (~37.000 filas por sucursal). Cambiar la regla «del lender»
+   copia se dispara al habilitar la entidad. ⚠ **Re-medido en prod el 2026-09-19 y se DUPLICÓ: 74.012 filas** de reglas copiadas (`lender_rules` 52.690 · `group_rules` 11.020 · `lender_datacredito_rules` 10.302) sobre **7.453** pares sucursal×entidad; la medición anterior daba ~37.000. Cambiar la regla «del lender»
    no cambia las copias que ya existen.
 3. **Un comercio puede cambiar la FORMA del flujo, no sólo sus reglas.** El setting `corbeta_allieds`
    salta el formulario y **fabrica** la info laboral — y como el buró se dispara al guardar lo laboral,
    ese comercio no consulta buró. Buscar «por qué no consultó» en el motor de buró es el camino
-   equivocado. (⚠ La lista de allieds «Corbeta» DIVERGE según quién pregunta — setting vs varios
-   hardcodes → `corbeta` §el gate.)
+   equivocado. (⚠ La lista de allieds «Corbeta» DIVERGE según quién
+   pregunta — setting vs varios hardcodes → `corbeta` §el gate. **Pero ojo con el alcance de esa
+   divergencia:** medido en prod el 2026-09-19, el setting tiene **una sola fila** y **ya incluye el
+   311**, así que ahí coincide con la lista del redirect; la divergencia real es contra `User.php` y
+   contra el prefijo de Bancolombia.)
 4. **Un estado dice DÓNDE está la solicitud, nunca QUÉ completó.** El 10 pertenece al tramo de cierre y
    significa «adentro, sin firmar» (**F-103**); la fila del 9 **se escribe al CREAR** la solicitud
    (**F-106**); y `user_request_records` **no registra todas las transiciones** — los estados 1 y 10
@@ -55,6 +58,15 @@ calendarios de corte, checkout Corbeta al front nuevo, SmartPay multi-ambiente, 
 ciudades en admin, y en el front el middleware de auth con token Cognito, cacheo SSR y las rutas de
 saga/Cuotéalo.
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 17 afirmaciones auditadas —10 de código contra `main` y 7
+de dato medidas contra producción—, cero chequeos débiles y ninguna falsa. **Los ocho invariantes se
+sostienen**, que es lo que más importa de este nodo: los verifiqué uno por uno, y varios están además
+confirmados por las auditorías de los nodos hijos hechas estos dos días. Lo que se movió son cifras:
+**la copia de reglas se DUPLICÓ** (de ~37.000 a 74.012 filas), y siete citas de modelos se corrieron
+—ninguna más de nueve líneas, pero eran siete—. ⚠ Y una precisión que llega desde `corbeta`: la
+divergencia de la lista de allieds del invariante 3 **es más chica en producción de lo que el cuadro
+sugiere** — ahí el setting ya incluye el 311 y coincide con el redirect.
+
 ## Dónde mirar · LA ARISTA (comercio × lender)
 
 CreditOp es un **muchos-a-muchos**: un comercio ofrece varios lenders y un lender está en varios
@@ -62,20 +74,21 @@ comercios. El invariante 1 dice que **la conducta vive en la ARISTA**, no en los
 tablas que la representan son la puerta de entrada más rentable de todo el árbol. Todas en
 `application/app/Models/`:
 
-- **`application/app/Models/LendersByAllied.php:12`** (tabla `lenders_by_allieds`; las columnas de la calculadora, en `:19 $fillable`) — **la calculadora completa** de reglas
+- **`application/app/Models/LendersByAllied.php:8`** (tabla `lenders_by_allieds`; las columnas de la calculadora, en `:24 $fillable`) — **la calculadora completa** de reglas
   comercio × entidad. Si una regla «del lender» no se aplica como esperabas, la fila que manda está
   acá, no en `lenders`.
-- **`LendersByAlliedBranch.php:12`** (tabla `lenders_by_allied_branches`; `:14 $fillable`) — la capa de SUCURSAL: `url_utm`,
+- **`LendersByAlliedBranch.php:8`** (tabla `lenders_by_allied_branches`; `:14 $fillable`) — la capa de SUCURSAL: `url_utm`,
   `sort`, `status`. Es la que decide si la entidad **se ve** y en qué orden.
 - **`LenderAlliedCredential.php:20`** ($fillable) — la credencial del par. **Su existencia decide si la integración
   se invoca o si el flujo ni siquiera llama** (F-34). Es la tabla que explica «esta entidad funciona en
   un comercio y no en otro».
-- Los nodos: **`Allied.php:13`** (comercio) → **`AlliedBranch.php:12`** (sucursal, la puerta por `hash`)
-  → **`Lender.php:12`** (entidad; el `response_type` que despacha todo está en su `:27 $fillable`) →
-  **`UserRequest.php:18`** (la solicitud: el evento que une los dos lados).
+- Los nodos: **`Allied.php:9`** (comercio) → **`AlliedBranch.php:8`** (sucursal, la puerta por `hash`)
+  → **`Lender.php:8`** (entidad; el `response_type` que despacha todo está en su `:36 $fillable`) →
+  **`UserRequest.php:14`** (la solicitud: el evento que une los dos lados). *(Las siete citas de esta
+  sección se realinearon el 2026-09-19; ninguna se había movido más de 9 líneas, pero eran siete.)*
 
 ⚠ **No hay herencia viva: se COPIA** (invariante 2). La copia se dispara al habilitar la entidad en el
-comercio, desde el admin de `application` — ~37.000 filas por sucursal. Cambiar la config «del lender»
+comercio, desde el admin de `application` — **74.012 filas** hoy (ver el invariante 2). Cambiar la config «del lender»
 NO toca las copias existentes.
 
 Para la lógica que LEE estas tablas: `creditopx` (la cascada rt=2), `merchants` (config por comercio),
