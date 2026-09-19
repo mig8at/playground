@@ -52,8 +52,13 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
  * SIEMPRE y **el texto nunca cambia de tamaño**. El mínimo existe porque por debajo los labels se
  * pisan entre sí; si ni con el mínimo entra, el contenedor scrollea, que es lo honesto.
  */
-const RADIO = 9, Y0 = 44
-const PASO_MIN = 74, MARGEN_X = 30, COLA = 118
+// ⚠ EL MARGEN IZQUIERDO NO ES EL DEL NODO, ES EL DE SU TEXTO. El label y el detalle van CENTRADOS
+// bajo el círculo, así que un detalle de 22 caracteres a 10,5px mide ~115 px y sobresale ~57 a cada
+// lado: con el nodo a 30 px del borde, el texto se salía por la izquierda. El margen tiene que cubrir
+// la mitad del texto más ancho, no el radio del círculo. Medido con `getBBox()`: con 68 el contenido
+// arrancaba en x=10; con 88 queda a ~30 del borde, que es lo que se ve como aire y no como recorte.
+const RADIO = 9, Y0 = 60
+const PASO_MIN = 74, MARGEN_X = 88, COLA = 132
 const CARRIL_MIN = 74, CARRIL_MAX = 130
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
@@ -214,7 +219,9 @@ const ancho = computed(() => {
 const CARRIL = computed(() => {
       const filas = carriles.value.length + 1
       if (!altoCaja.value || !filas) return CARRIL_MIN
-      return Math.max(CARRIL_MIN, Math.min(CARRIL_MAX, Math.floor((altoCaja.value - Y0 - 30) / filas)))
+      // El `- Y0 - 46`: arriba el margen propio y abajo el alto de los labels del último carril, que
+      // cuelgan del nodo y sin esa reserva quedan cortados contra el borde.
+      return Math.max(CARRIL_MIN, Math.min(CARRIL_MAX, Math.floor((altoCaja.value - Y0 - 46) / filas)))
 })
 
 const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL.value)
