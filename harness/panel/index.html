@@ -194,14 +194,13 @@
       font-size: 12.5px
     }
 
-    .card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 20px;
-      margin-bottom: 0
-      /* el gap de .col separa las cards */
-    }
+    /* ⚠ `.card` YA NO PINTA UNA CAJA, y lo importante es que hacía rato que no la pintaba: tenía
+       fondo, borde de 1px, radio y 20px de padding, y TRES bloques más abajo se los quitaban uno por
+       uno —el del sidebar, el del `.sec` y el del mapa—. Medido: de los cuatro `.card` que quedan en
+       pantalla, ninguno dibujaba su marco. Eso es cromo muerto sostenido por anuladores: el que
+       agregue el quinto `.card` en un lugar nuevo se lleva la caja vieja sin pedirla.
+       Queda como lo que de verdad es: un nombre para agrupar, sin forma propia. */
+    .card { margin-bottom: 0 }
 
     .card h2 {
       font-size: 11px;
@@ -520,17 +519,21 @@
     /* El control del webhook: aparece SOLO si la corrida quedó esperando a la entidad. No es un
        control más del dock — es la continuación de una corrida que quedó a medias, así que va pegado
        a la tira de estado y desaparece cuando no aplica. */
-    .wh { border: 1px solid var(--bd, var(--line)); border-left: 3px solid #d8a657; border-radius: 8px;
-          padding: .7rem .85rem; margin: .6rem 0; background: rgba(216,166,87,.06); }
+    /* Callout: barra de color a la izquierda y un tinte, cuadrado. El marco completo alrededor no
+       decía nada que el tinte no diga, y el radio peleaba con la barra recta.
+       ⚠ Y los colores salen del tema: eran `#d8a657` y `rgba(216,166,87,…)` a mano, de la paleta que
+       había antes — pegar un tema nuevo encima los dejaba intactos, que es como se destiñe una UI. */
+    .wh { border-left: 3px solid var(--warn); padding: .7rem .85rem; margin: .6rem 0;
+          background: color-mix(in oklab, var(--warn) 9%, transparent); }
     .wh .wh-t { font-size: .9rem; margin-bottom: .5rem; }
     .wh .wh-b { display: flex; gap: .4rem; flex-wrap: wrap; }
     .wh .wh-b button { padding: .3rem .7rem; border-radius: 6px; cursor: pointer;
                        border: 1px solid var(--bd, var(--line)); background: transparent; color: inherit; }
-    .wh .wh-b button:hover { background: rgba(216,166,87,.16); }
+    .wh .wh-b button:hover { background: color-mix(in oklab, var(--warn) 18%, transparent); }
     .wh .wh-n { font-size: .74rem; opacity: .62; margin-top: .45rem; }
     .wh .wh-r { font-size: .84rem; margin-top: .45rem; min-height: 1.1em; }
-    .wh .wh-r.ok  { color: #89b482; }
-    .wh .wh-r.mal { color: #ea6962; }
+    .wh .wh-r.ok  { color: var(--ok); }
+    .wh .wh-r.mal { color: var(--danger); }
     /* estado de la corrida, SIEMPRE visible (antes solo existía al fondo del panel) */
     .dot {
       width: 8px;
@@ -563,7 +566,7 @@
     /* miniatura de screenshot en la consola: reemplaza a "andá a buscar el png". Click = tamaño real. */
     pre#log img.shotmini {
       display: block; max-height: 150px; max-width: 420px; margin: 5px 0 9px 20px;
-      border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in; background: #fff;
+      border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in;
     }
     pre#log img.shotmini:hover { border-color: var(--acc); }
     pre#log span.shotfail { color: #f4776a; }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
@@ -582,14 +585,16 @@
     .tipear button .k { color: var(--mut); font-weight: 400; }
     .tipear button.copiado { border-color: var(--acc); color: var(--acc); }
     pre#log {
-      background: #0a0c10;
-      border: 1px solid var(--line);
-      border-radius: 11px;
+      /* ⚠ Era una tarjeta adentro del panel: fondo propio (#0a0c10, un negro azulado de la paleta
+         vieja que ningún token nombra), borde de 1px y radio de 11. Es el CUERPO de la región de
+         abajo — la región ya trae su línea y su superficie, y el `pre` sólo tiene que ser el hueco
+         donde cae el texto. El `max-height: 42vh` también se va: es el atajo que el `CLAUDE.md`
+         prohíbe para fingir el contrato de scroll, y ya estaba anulado más abajo. */
+      background: var(--bg);
       padding: 13px 15px;
       margin: 0;
       color: var(--txt);
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-      max-height: 42vh;
       overflow: auto;
       white-space: pre-wrap;
       display: none
@@ -597,8 +602,6 @@
 
     /* ───────── fold: Identidad colapsada (defaults auto — casi nunca la editás) ───────── */
     .fold {
-      border: 1px solid var(--line);
-      border-radius: 11px;
       background: var(--panel2);
       padding: 0 13px;
       margin: 14px 0
@@ -738,7 +741,9 @@
     .nquien { font-size: 10px; fill: var(--mut) }
     .nodo { cursor: default }
     .nodo:hover .nlbl { font-weight: 700 }
-    .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; cursor: grab; }
+    /* Una fila del árbol de entidades: fila, no tarjeta. Tenía borde y radio de 10 —doce cajitas
+       apiladas dentro de una columna que ya es una lista—, y el bloque del árbol se los quitaba. */
+    .lrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 11px; margin-top: 6px; cursor: grab; }
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
     .lrow .lnm { font-size: 13px; color: var(--txt); }
@@ -764,7 +769,7 @@
     .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 10px; }
     /* ALTA: sucursal → nombre → agregar. Aparece recién al elegir comercio, para que el paso 1 sea
        una sola cosa (buscar) y no un formulario entero pidiendo datos que todavía no tenés. */
-    .alta { margin-top: 10px; padding: 12px 13px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    .alta { margin-top: 10px; padding: 12px 13px;
       background: var(--panel2); display: flex; flex-direction: column; gap: 10px; }
     .alta[hidden] { display: none; }
     .altafila { display: flex; flex-direction: column; gap: 5px; }
@@ -975,8 +980,8 @@
 
     /* Dentro de un sidebar las tarjetas dejan de ser tarjetas: sin caja propia, separadas por una
        línea. Una caja dentro de otra caja dentro de un panel es ruido de borde, no jerarquía. */
-    .sidebar .card, .auxiliarybar .card, .sidebar details.card , .auxiliarybar details.card { background: transparent; border: 0; border-bottom: 1px solid var(--line);
-      border-radius: 0; padding: 12px 12px 14px; margin: 0; box-shadow: none }
+    .sidebar .card, .auxiliarybar .card, .sidebar details.card , .auxiliarybar details.card { border-bottom: 1px solid var(--line);
+      padding: 12px 12px 14px }
     .sidebar .card h2 , .auxiliarybar .card h2 { margin-top: 0 }
     /* Los `01/02/03` numeraban una SECUENCIA que este layout ya no tiene —y el 01 se disolvió al subir
        ambiente y front al header, así que la serie empezaba en 02—. Un número que no ordena nada
@@ -1014,7 +1019,7 @@
       text-transform: none; letter-spacing: 0; font-size: 12px; color: var(--warn);
     }
     .editor > #tren > summary .tren-hint { display: none }
-    .editor > #tren { background: transparent; border: 0; padding: 0 }
+    .editor > #tren { padding: 0 }
     .editor > #tren #trenvias { background: transparent; border: 0; border-radius: 0 }
     /* ⚠ EL LIENZO NO CRECÍA, Y NO ERA EL `flex`. Chrome envuelve el contenido de un `<details>` en el
        pseudo-elemento `::details-content`, así que `#trenvias` NO es hijo flex directo: el item es esa
@@ -1289,7 +1294,7 @@
     .ctxmenu { max-width: 380px }
     /* El panel de estado es más ancho: adentro van las tarjetas de servicios con sus comandos. */
     .ctxsalud { min-width: 420px; max-width: 520px; max-height: 70vh; overflow: auto }
-    .ctxsalud > #healthDetails { border: 0; background: transparent; padding: 0; margin: 0 }
+    .ctxsalud > #healthDetails { padding: 0; margin: 0 }
     .ctxsalud > #healthDetails > summary { display: none }
 
 
@@ -1310,7 +1315,7 @@
     .secsum { margin-left: auto; font-size: 10.5px; color: var(--mut); text-transform: none;
       letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
     .secbody { padding: 4px 12px 14px }
-    .sec .card, .sec .fold { border: 0; background: transparent; padding: 0; margin: 10px 0 }
+    .sec .card, .sec .fold { padding: 0; margin: 10px 0 }
 
     /* ═══ PISTAS EN UNA LÍNEA ═════════════════════════════════════════════════════════════════════
        La prosa que explica cada opción pasa al tooltip y deja un renglón. No se borra —es conocimiento
