@@ -2,8 +2,8 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 20,
-    "deriva-alta": 11,
+    "al-dia": 21,
+    "deriva-alta": 10,
     "deriva": 6,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
@@ -201,193 +201,6 @@
         "financial-health-service/internal/infra/handlers/http/financial_health/validators.go",
         "financial-health-service/internal/infra/handlers/http/financial_profile/constants.go",
         "financial-health-service/internal/infra/handlers/http/financial_profile/validators.go"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "trazador",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 16,
-      "deriva": {
-        "cambiados": 10,
-        "pct": 62,
-        "hubs": 0,
-        "archivos": [
-          {
-            "ruta": "trazador/src/App.vue",
-            "ultimo_cambio": "2026-09-19",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Detalle.vue",
-            "ultimo_cambio": "2026-09-19",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Historia.vue",
-            "ultimo_cambio": "2026-09-19",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Mapa.vue",
-            "ultimo_cambio": "2026-09-19",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/server/chequeo.go",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/server/etapas.go",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/server/main.go",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/server/serve.go",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/server/sql.go",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Buscador.vue",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 20,
-        "autores": {
-          "Miguel Ochoa": 20
-        },
-        "lista": [
-          {
-            "sha": "f4886f8",
-            "fecha": "2026-09-19",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: la sección del panel deja de ser una tarjeta, y la costura entre mapa y logs vuelve a ser una línea",
-            "repo": "trazador"
-          },
-          {
-            "sha": "a0956bd",
-            "fecha": "2026-09-19",
-            "autor": "Miguel Ochoa",
-            "asunto": "context y trazador: fuera el header de arriba — su contenido baja a la barra de su región",
-            "repo": "trazador"
-          },
-          {
-            "sha": "38b5bf1",
-            "fecha": "2026-09-19",
-            "autor": "Miguel Ochoa",
-            "asunto": "context y trazador: el encabezado de una columna deja de irse con el scroll",
-            "repo": "trazador"
-          },
-          {
-            "sha": "67ac3e6",
-            "fecha": "2026-09-19",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: titlebar, banner y statusbar — el mapa gana 47px y la pista deja de flotar sobre él",
-            "repo": "trazador"
-          },
-          {
-            "sha": "bc4aa91",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "taller: las divisiones de la pantalla, con los nombres de VS Code",
-            "repo": "trazador"
-          },
-          {
-            "sha": "b9336a0",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "estilo: un tema para las cuatro UIs, y un chequeo que lo sostiene",
-            "repo": "trazador"
-          },
-          {
-            "sha": "35cbc52",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: paleta neutra y una sola escala de formas — el estilo de tweakcn",
-            "repo": "trazador"
-          },
-          {
-            "sha": "8ac934c",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: la reserva del mapa sale del contenido — y la fija tenía un caso que se salía",
-            "repo": "trazador"
-          },
-          {
-            "sha": "85ad994",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: aire alrededor del mapa — el margen es el del TEXTO, no el del nodo",
-            "repo": "trazador"
-          },
-          {
-            "sha": "6bee5a7",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el panel de logs se monta sobre el mapa, no lo empuja",
-            "repo": "trazador"
-          },
-          {
-            "sha": "274ae07",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el mapa llena el ancho que le queda — el tope lo frenaba",
-            "repo": "trazador"
-          },
-          {
-            "sha": "9c7dfce",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: sin zoom — el mapa se ajusta cambiando el layout, no la escala",
-            "repo": "trazador"
-          },
-          {
-            "sha": "fd7304c",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el sidebar se puede ensanchar, y el mapa queda como única vista",
-            "repo": "trazador"
-          },
-          {
-            "sha": "bc98441",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el mapa entra sin achicarse, y los logs van al sidebar derecho",
-            "repo": "trazador"
-          },
-          {
-            "sha": "288948c",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el mapa pasa a tronco + carriles, como el del harness",
-            "repo": "trazador"
-          }
-        ]
-      },
-      "huerfanos": [
-        "trazador/server/desenlace_test.go",
-        "trazador/server/reproducir.go",
-        "trazador/server/reproducir_test.go"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -5416,6 +5229,26 @@
         "source": "manual"
       },
       "archivos": 86,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "trazador",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 16,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
