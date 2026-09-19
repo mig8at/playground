@@ -866,11 +866,53 @@ async function alPortapapeles(txt) {
 
 // Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
 watch([panelTab, () => active.value?.Key], () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
-function openTask(task) {
-  // el mismo clic ELIGE y ABRE: en el árbol no hay un segundo gesto de «Retomar», la fila es el gesto.
-  active.value = active.value?.Key === task.Key ? null : task;
+/* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
+ * Varias tareas abiertas a la vez, como los archivos en VS Code.
+ *
+ * ⚠ LA PIEZA QUE HACE QUE ESTO SIRVA ES LA PESTAÑA EN PREVISTA, y es la que se suele saltear. Un clic
+ * en el árbol abre la tarea en PREVISTA (en itálica) y el siguiente clic la REEMPLAZA en vez de sumar
+ * otra: recorrer 35 tareas deja UNA pestaña, no 35. Se FIJA con doble clic en la fila, con un clic en
+ * su propia pestaña, o sola en cuanto hacés algo sobre esa tarea. Sin esto, «abrir varias» se
+ * convierte en «tener veinte y no encontrar ninguna» a los diez minutos.
+ *
+ * Se guardan los OBJETOS y no las claves: una tarea abierta tiene que sobrevivir a que un filtro la
+ * saque del árbol. El computed la re-resuelve contra los datos vivos cuando sigue estando. */
+const pestanas = ref([]);     // tareas abiertas, en orden
+const previa = ref('');       // la clave de la que está en previsualización, si hay alguna
+const pestanasAbiertas = computed(() =>
+  pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
+
+function openTask(task, fijar = false) {
+  const ya = pestanas.value.some((t) => t.Key === task.Key);
+  if (!ya) {
+    pestanas.value = previa.value && !fijar
+      ? pestanas.value.map((t) => (t.Key === previa.value ? task : t))
+      : [...pestanas.value, task];
+    previa.value = fijar ? '' : task.Key;
+  } else if (fijar && previa.value === task.Key) {
+    previa.value = '';
+  }
+  active.value = task;
   panelTab.value = 'trabajo';
 }
+const fijarPestana = (k) => { if (previa.value === k) previa.value = ''; };
+function cerrarPestana(k) {
+  const i = pestanas.value.findIndex((t) => t.Key === k);
+  if (i < 0) return;
+  pestanas.value = pestanas.value.filter((t) => t.Key !== k);
+  if (previa.value === k) previa.value = '';
+  // Al cerrar la activa se enfoca la VECINA —la de la derecha, y si no hay, la de la izquierda—, no se
+  // cae al sprint: cerrar una de cinco y perder el contexto de las otras cuatro sería un castigo.
+  if (active.value?.Key === k) {
+    const sig = pestanas.value[i] || pestanas.value[i - 1] || null;
+    active.value = sig || null;
+  }
+}
+// ⚠ Cualquier camino que enfoque una tarea tiene que dejarle su pestaña: `abrirMover` y el handoff a
+// QA setean `active` directo, y sin esto el editor mostraría una tarea que no está en la barra.
+watch(active, (t) => {
+  if (t && !pestanas.value.some((x) => x.Key === t.Key)) pestanas.value = [...pestanas.value, t];
+});
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
 const entriesPorTarea = computed(() => {
@@ -1393,7 +1435,7 @@ onMounted(async () => {
                target de 28px de alto se acierta sin mirar. -->
           <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
             :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
-            :title="i.Summary" @click="openTask(i)">
+            :title="i.Summary" @click="openTask(i)" @dblclick="openTask(i, true)">
             <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
             <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
             <span class="tr-tt">{{ i.Summary }}</span>
@@ -1435,6 +1477,22 @@ onMounted(async () => {
 
     <!-- EDITOR: sin tarea elegida, el sprint. Con una elegida, la tarea. -->
     <main class="editor">
+      <!-- LAS PESTAÑAS ABIERTAS. ⚠ La que está en PREVISTA va en itálica y es la que el próximo clic
+           del árbol reemplaza; se fija con doble clic en la fila o con un clic acá. Sin eso, recorrer
+           el árbol deja una pestaña por tarea mirada. -->
+      <nav v-if="pestanasAbiertas.length" class="editor-tabs" aria-label="Tareas abiertas">
+        <div v-for="t in pestanasAbiertas" :key="t.Key" class="et"
+             :class="{ act: active?.Key === t.Key, previa: previa === t.Key }">
+          <button type="button" class="et-b" :title="t.Summary"
+                  :aria-current="active?.Key === t.Key ? 'true' : undefined"
+                  @click="active = t; fijarPestana(t.Key)" @auxclick.middle.prevent="cerrarPestana(t.Key)">
+            <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
+            <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
+          </button>
+          <button type="button" class="et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
+                  @click="cerrarPestana(t.Key)">×</button>
+        </div>
+      </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
       <TaskEditor v-else-if="active" :key="active.Key" v-model:tab="panelTab"
@@ -1976,6 +2034,29 @@ onMounted(async () => {
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
 
 .sb-act { margin-left: auto; font: 11px var(--font-mono); color: var(--txt) }
+
+/* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
+   La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
+   es sin depender de que el ojo compare fondos, y el fondo la une con el contenido de abajo. */
+.editor-tabs { display: flex; flex: none; overflow-x: auto; background: var(--panel2);
+  border-bottom: 1px solid var(--line); scrollbar-width: thin }
+.et { display: flex; align-items: center; flex: none; max-width: 200px;
+  border-right: 1px solid var(--line); position: relative }
+.et::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: transparent }
+.et.act::before { background: var(--acc) }
+.et.act { background: var(--background) }
+.et-b { display: flex; align-items: center; gap: 7px; min-width: 0; border: 0; background: none;
+  color: var(--mut); font: inherit; font-size: 12px; padding: 8px 4px 8px 11px; cursor: pointer }
+.et.act .et-b { color: var(--txt) }
+/* ⚠ La PREVISTA en itálica, igual que VS Code: es la única señal de que el próximo clic en el árbol
+   la va a reemplazar. Sin marca, el reemplazo se lee como que la pestaña «se perdió». */
+.et.previa .et-k { font-style: italic }
+.et-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
+  font-size: 11px }
+.et-x { border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 15px; line-height: 1;
+  padding: 2px 8px 4px; border-radius: var(--radius); opacity: 0 }
+.et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
+.et-x:hover { background: var(--sel); color: var(--txt) }
 
 /* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
    viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el

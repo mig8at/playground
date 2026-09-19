@@ -10,7 +10,7 @@ página que scrollea:
 | Región | Qué tiene |
 |---|---|
 | `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
-| `editor` | con una tarea elegida, la tarea y sus 8 pestañas. Sin tarea, manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
+| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo la tarea enfocada con sus 8 pestañas. Sin ninguna abierta manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
 | `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
 
@@ -18,6 +18,13 @@ página que scrollea:
 gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
 acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
 se tocan poco.
+
+⚠ **Se abren VARIAS tareas a la vez, y la pieza que hace que eso sirva es la pestaña en PREVISTA.**
+Un clic en el árbol abre la tarea en previsualización —en itálica— y el siguiente clic **la reemplaza**
+en vez de sumar otra: recorrer 35 tareas deja UNA pestaña, no 35. Se fija con doble clic en la fila o
+con un clic en su propia pestaña. Cerrar la activa enfoca la vecina, no vuelve al sprint; cerrar todas
+sí. Si algún día se saca el modo previsualización «para simplificar», en diez minutos hay veinte
+pestañas y ninguna se encuentra — es la mitad del patrón, no un adorno.
 
 ⚠ **Los cinco estados se nombran en UN solo lugar**: `TASK_GROUPS`, en `ui-state.js`. `FILTROS` sólo
 declara el ORDEN, que es distinto a propósito — el filtro se lee como un flujo (sin empezar →
