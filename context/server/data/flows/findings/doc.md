@@ -87,6 +87,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el forense dice cero anclas y la solicitud existe»** | **F-234** |
 | **«en local esa entidad no preaprueba y en dev sí»** · **«400 invalid lending product key»** | **F-235** |
 | **«la pantalla está llena y el botón no avanza, sin ningún mensaje»** · **«el caminador se para en `personal-info`»** | **F-236** |
+| **«esta pantalla tarda muchísimo y no da ningún error»** · **«cómo sé si hay un N+1»** | **F-239** |
 | **«el panel dice un comercio y la corrida usó otro»** · **«cambié de sucursal y volví»** | **F-238** |
 | **«el forense dice que la solicitud la atendió OTRA rama»** · **«contra staging o qa nunca hay logs»** | **F-237** |
 | **«el dato parece corrupto / hay que normalizarlo»** | **F-124** |
@@ -401,6 +402,7 @@ distinto según con qué pregunta llegues.
 | F-228 | Cinco `console.log` marcados «DEBUG-RF temporary» viven en `main` desde el 2026-07-15 en el flujo de crédito de Consumo. Corren **en el servidor** (dentro del `loader`) y escriben en los logs el `code` de autorización del banco y las respuestas enteras con `JSON.stringify`. El linter estaba silenciado a mano con `biome-ignore` en cada uno | ARREGLADO · ⏳ PR abierto, sin mergear |
 | F-237 | El valor `qa` que `.env.staging` y `.env.qa` usan para filtrar por ambiente **no existe** entre los valores de la etiqueta `environment` del stack de logs de dev, así que esos targets leían CERO y las herramientas lo atribuían a que la solicitud «la atendió otra rama de código». Medido con su control: `{environment="qa"}` sobre 30 días no devuelve nada y `{environment="development"}` sobre 24 h da 33.599 líneas | ARREGLADO el aviso · ⏳ el filtro correcto es una decisión |
 | F-238 | El panel cachea en memoria «ya asigné el asesor a este hash» y el cache ACUMULA: un asesor está en UNA sola sucursal, así que al volver a una ya visitada contesta «permiso ya confirmado» **sin escribir** y el asesor se queda en la anterior. El panel muestra A, habilita Lanzar y la corrida pega contra B — con la evidencia saliendo con el nombre equivocado | ARREGLADO |
+| F-239 | Cinco peticiones en 6 h hacen entre 20.507 y 35.455 consultas **repetidas** de sólo 15-18 distintas —66 a 187 s de base— dominadas por un `find` por id sobre `lender_transactions`, hasta 4.241 veces en UNA petición. Sin error ni alerta: sólo se ve en el resumen por petición que entró el 2026-09-11. El resumen sale sin `trace_id`, así que no dice de qué endpoint salió | ⏳ ABIERTO · causa raíz hipótesis |
 | F-236 | El documento sintético del harness tenía el LARGO del país pero no su RANGO: `documentoSintetico` toma la COLA de la base y tira el prefijo `10…` que la hacía válida, así que un `CC` colombiano salía de diez dígitos empezando en 9 — sobre el techo de **3.000.000.000** que exige TusDatos y que validan los DOS monolitos. `personal-info` contestaba **200** (no el 202 de redirección) con `errors.document_number`, y el caminador informaba «5 intentos sin que la pantalla avance» citando la casilla de identidad. **Ningún recorrido colombiano podía pasar esa pantalla** | ARREGLADO |
 | F-235 | La clave que el front manda al microservicio de preaprobaciones **ES el slug del lender**, y en el dump local los slugs de Bancolombia 68/100 son los ESPAÑOLES con guion (`bancolombia-compra-y-paga-despues`) mientras prod tiene `bancolombia_bnpl`/`bancolombia_consumer_loan`. El microservicio no reconoce la clave, contesta 400, y el loader del marketplace lo TRAGA: la entidad no preaprueba y nada se pone rojo. 942 y 435 sucursales locales | ABIERTO · deriva del dump |
 | F-234 | `make harness-loki` no fijaba `E2E_TARGET`, así que caía al default **dev** y consultaba el Loki COMPARTIDO buscando un uReq **local**: contestaba «cero anclas» con los logs ahí mismo. Y el modo de falla peor es el otro — un uReq local puede EXISTIR en dev y devolverte la corrida de otra persona | ARREGLADO |
@@ -577,10 +579,14 @@ Llegó a **1,2 GB** de `Driver [loki] is not supported`: `GRAFANA_LOKI_ENABLED=f
 **Causa raíz — una inconsistencia dentro del propio código:**
 
 ```php
-// app/Models/UserRequest.php:189
+// legacy-backend/app/Models/UserRequest.php:208-220
 public function isSmartPay(): bool
 {
-    return $this->isImeiPath() && (int) $this->lender?->id === 160; // hardcode
+    // desde el 2026-08-19 el id quemado depende del ambiente, y el propio comentario
+    // del código dice que «la solución real es sacar este id a configuración».
+    $smartpayLenderId = app()->environment('production') ? 160 : 152;
+
+    return $this->isImeiPath() && (int) $this->lender?->id === $smartpayLenderId;
 }
 ```
 
@@ -1728,7 +1734,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** un comercio ve dos cifras distintas del neto que le queda por el mismo crédito según
   desde qué pantalla lo mire. Nadie lo reporta como bug porque cada pantalla es internamente coherente.
 - **Causa raíz (verificada 2026-08-09):** la comisión sale de un único accessor,
-  `application/app/Models/UserRequest.php:125` (`getCommissionValueAttribute`) =
+  `application/app/Models/UserRequest.php:126` (`getCommissionValueAttribute`) =
   `(comission_percentage / 100) × final_amount`. Pero al restarla, las vistas no usan la misma base:
   - `resources/js/components/requests/RequestInfoCard.vue:187` → `final_amount - commission_value`
   - `resources/js/pages/customer/requests/ResponseRequestRegistration.vue:44` → `final_amount - commission_value`
@@ -1913,7 +1919,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   los ejecuta después es `handlePostDisbursementSideEffects:323` (`Modules/Loans/App/Services/LoanAuthorizationService.php:343` el voucher), dentro de
   `disburseImeiRequest` — y `Modules/Loans/App/Http/Controllers/Customer/DeviceController.php:102`
   sólo llega ahí si `isSmartPay()`, que es
-  `isImeiPath() && lender->id === 160` (`app/Models/UserRequest.php:190`). Un lender con `path_id=2`
+  `isImeiPath() && lender->id === $smartpayLenderId` —160 en producción, 152 fuera— (`legacy-backend/app/Models/UserRequest.php:217-219`). Un lender con `path_id=2`
   que **no** sea el 160 se cierra por `authorize()`, o sea por la rama que acaba de saltear el voucher.
   El que **saltea** mira el path; el que **ejecuta** mira el id. Es el hardcode de **F-21** visto desde
   producción: allá impedía probar SmartPay fuera de prod, acá deja sin voucher a otro lender real.
@@ -6049,3 +6055,31 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   escribieron.
 - **⚠ Pide reiniciar el panel.** `panel/index.html` se lee del disco en cada pedido, pero `server.ts` se
   carga una sola vez: un panel que ya estaba abierto sigue corriendo el código viejo.
+
+### F-239 · Cinco peticiones por turno hacen 35.000 consultas repetidas contra `lender_transactions`, y el único síntoma es que tardan tres minutos
+
+- **Síntoma:** ninguno accionable. No hay error, no hay alerta, no hay excepción: la petición
+  responde, tarde. Estuvo invisible hasta que alguien instrumentó la base — y después siguió
+  invisible una semana más, porque el instrumento estaba puesto y nadie lo había mirado.
+- **Causa raíz (`hipótesis, sin confirmar`):** un N+1 clásico — un `LenderTransaction::find($id)`
+  dentro de un bucle sobre una colección ya cargada. **Lo verificado es la forma de la consulta y su
+  repetición, no el sitio del bucle:** el único `find` por id del repositorio está en
+  `legacy-backend/Modules/Loans/App/Repositories/LenderTransactionRepository.php:13`, y sus dos
+  consumidores —`OnboardingPayloadBuilder` y `LoanAuthorizationService`— no explican por sí solos
+  4.241 vueltas. Falta identificar el endpoint, y **el resumen no lo dice** (ver abajo).
+- **Por qué no se puede saber de qué endpoint salió:** el resumen se emite desde
+  `app->terminating()`, o sea después de que el span cerró, así que sale **sin `trace_id`** — medido:
+  ninguno de los 24.272 resúmenes de 6 h lo trae. Y el `trace_id` tampoco ayudaría por otro lado:
+  hoy sólo el **0,13 %** de las líneas del monolito lo lleva, porque `otel` es un alias de middleware
+  aplicado por diez grupos de rutas y no por el stack global (detalle en el nodo `architecture`).
+- **Evidencia (2026-09-18, prod, Loki stack `creditop`, ventana de 6 h):** cinco peticiones con
+  **20.507 a 35.455 consultas repetidas** de sólo **15 a 18 distintas**, entre **66 y 187 segundos**
+  de tiempo de base, y siempre la misma dominante —`select * from lender_transactions where id = ?
+  limit 1`— hasta **4.241 veces en una sola petición**. Se reproduce con:
+
+      make trazador-acceso TARGET=prod SINCE=6h QUERY='{service_name="legacy-backend", environment="production"} |~ `Consultas de la petici` | json | context_consultas_repetidas > 5000 | line_format `{{.context_consultas_repetidas}} de {{.context_consultas_total}} · {{.context_consultas_ms}} ms · x{{.context_consultas_mas_repetida_veces}}: {{.context_consultas_mas_repetida}}`'
+
+- **Arreglo:** sin hacer. El paso que desbloquea es **poder atribuir el resumen a su petición**: darle
+  al resumen la ruta y el método (que el listener ya puede leer del `Request`), o emitirlo antes de
+  que el span cierre. Con eso, el N+1 se arregla con un `with()` o un `whereIn` y se comprueba con
+  la misma consulta de arriba.
