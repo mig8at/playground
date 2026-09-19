@@ -72,8 +72,14 @@ que hacer; y ponerle un piso a la escala sólo cambiaba el problema, porque abaj
 cortaba y había que arrastrar.
 
 Ahora la separación entre nodos (`PASO`) y entre carriles (`CARRIL`) se calculan con el espacio
-disponible, dentro de un mínimo y un máximo. El dibujo entra siempre y **el texto nunca cambia de
-tamaño**. Medido moviendo el tirador del sidebar: `PASO` fue 120 → 82 → 74 → 103 y el label se quedó en
+disponible. El dibujo entra siempre y **el texto nunca cambia de tamaño**.
+
+⚠ **Y el `PASO` NO tiene tope superior, a propósito: el mapa tiene que LLENAR el ancho que le queda.**
+Con un máximo fijo el dibujo dejaba de crecer pasados los ~1.250 px de caja y el resto quedaba como
+fondo vacío — en una pantalla de 1.900 sobraban **696 px**, y se leía como que el mapa «no se estira»
+al mover el sidebar: se estiraba el panel, lo que no crecía era el dibujo. Medido después del cambio:
+sobran 1, 6 y 2 px en tres anchos distintos. El MÍNIMO sí se queda (74): por debajo los labels se pisan
+y ahí conviene scrollear. Medido moviendo el tirador del sidebar: `PASO` fue 120 → 82 → 74 → 103 y el label se quedó en
 **12px** en los cuatro. Si ni con el mínimo entra, el contenedor scrollea, que es lo honesto.
 
 ⚠ **Y las dos realimentaciones que este patrón invita, las dos evitadas a propósito:** el SVG mide lo

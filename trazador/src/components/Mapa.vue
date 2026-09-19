@@ -52,8 +52,8 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
  * pisan entre sí; si ni con el mínimo entra, el contenedor scrollea, que es lo honesto.
  */
 const RADIO = 9, Y0 = 44
-const PASO_MIN = 74, PASO_MAX = 132, MARGEN_X = 30, COLA = 118
-const CARRIL_MIN = 74, CARRIL_MAX = 112
+const PASO_MIN = 74, MARGEN_X = 30, COLA = 118
+const CARRIL_MIN = 74, CARRIL_MAX = 130
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
  *  a secas partía palabras («ramal credifami») y perdía el final de frases que sí entraban. */
@@ -89,10 +89,17 @@ const altoCaja = ref(0)
 const columnas = computed(() =>
       Math.max(1, tronco.value.length - 1 + Math.max(0, ...carriles.value.map((c) => c.pasos.length))))
 
+/**
+ * ⚠ SIN TOPE SUPERIOR, Y ÉSE ES EL PUNTO: el mapa tiene que LLENAR el ancho que le queda, igual que el
+ * del harness. Con un `PASO_MAX` fijo el dibujo dejaba de crecer pasados los ~1.250 px de caja y el
+ * sobrante quedaba como fondo vacío a la derecha — en una pantalla de 1.900 sobraban **696 px**, y se
+ * veía como que el mapa «no se estira» al mover el sidebar (se estiraba; lo que no crecía era el
+ * dibujo). El mínimo sí se queda: por debajo los labels se pisan y ahí conviene scrollear.
+ */
 const PASO = computed(() => {
-      if (!anchoCaja.value) return PASO_MAX
+      if (!anchoCaja.value) return 120
       const util = anchoCaja.value - MARGEN_X - COLA
-      return Math.max(PASO_MIN, Math.min(PASO_MAX, Math.floor(util / columnas.value)))
+      return Math.max(PASO_MIN, Math.floor(util / columnas.value))
 })
 
 /**
