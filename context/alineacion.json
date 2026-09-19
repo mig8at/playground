@@ -2,9 +2,9 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 13,
-    "deriva": 10,
-    "deriva-alta": 14,
+    "al-dia": 15,
+    "deriva": 9,
+    "deriva-alta": 13,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
@@ -225,6 +225,11 @@
             "hub": false
           },
           {
+            "ruta": "trazador/src/components/Detalle.vue",
+            "ultimo_cambio": "2026-09-19",
+            "hub": false
+          },
+          {
             "ruta": "trazador/src/components/Mapa.vue",
             "ultimo_cambio": "2026-09-19",
             "hub": false
@@ -260,11 +265,6 @@
             "hub": false
           },
           {
-            "ruta": "trazador/src/components/Detalle.vue",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
             "ruta": "trazador/src/components/Historia.vue",
             "ultimo_cambio": "2026-09-18",
             "hub": false
@@ -272,11 +272,25 @@
         ]
       },
       "commits": {
-        "total": 17,
+        "total": 19,
         "autores": {
-          "Miguel Ochoa": 17
+          "Miguel Ochoa": 19
         },
         "lista": [
+          {
+            "sha": "a0956bd",
+            "fecha": "2026-09-19",
+            "autor": "Miguel Ochoa",
+            "asunto": "context y trazador: fuera el header de arriba — su contenido baja a la barra de su región",
+            "repo": "trazador"
+          },
+          {
+            "sha": "38b5bf1",
+            "fecha": "2026-09-19",
+            "autor": "Miguel Ochoa",
+            "asunto": "context y trazador: el encabezado de una columna deja de irse con el scroll",
+            "repo": "trazador"
+          },
           {
             "sha": "67ac3e6",
             "fecha": "2026-09-19",
@@ -366,20 +380,6 @@
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "trazador: los matchers contra el código — cinco estaban mudos y nadie se enteraba",
-            "repo": "trazador"
-          },
-          {
-            "sha": "8648f55",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el chequeo que corre sin insumos, copiado del harness",
-            "repo": "trazador"
-          },
-          {
-            "sha": "f3d3fef",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: el recorrido como mapa — por dónde fue, dónde se cortó y cuánto faltaba",
             "repo": "trazador"
           }
         ]
@@ -2356,236 +2356,6 @@
         "legacy-backend/app/Console/Commands/ReverseExpiredNequiIntentsCommand.php",
         "legacy-backend/app/Console/Commands/SyncLenderRuleClonesCommand.php",
         "legacy-backend/app/Console/Commands/TestNequiPushCommand.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "harness",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 44,
-      "deriva": {
-        "cambiados": 15,
-        "pct": 34,
-        "hubs": 0,
-        "archivos": [
-          {
-            "ruta": "harness/panel/server.ts",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/cognito.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/db.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/inject.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/dev/guided.spec.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/close.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/config.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/ecommerce.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
-          },
-          {
-            "ruta": "harness/channel/ecommerce-local-real.spec.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "harness/channel/ecommerce-notify.spec.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "harness/channel/vtex-checkout.spec.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "harness/playwright.config.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/asesor.ts",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "harness/mock-preapprovals/server.mjs",
-            "ultimo_cambio": "2026-09-09",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/windows.ts",
-            "ultimo_cambio": "2026-09-09",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 48,
-        "autores": {
-          "Miguel Ochoa": 48
-        },
-        "lista": [
-          {
-            "sha": "bc4aa91",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "taller: las divisiones de la pantalla, con los nombres de VS Code",
-            "repo": "harness"
-          },
-          {
-            "sha": "b9336a0",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "estilo: un tema para las cuatro UIs, y un chequeo que lo sostiene",
-            "repo": "harness"
-          },
-          {
-            "sha": "3af568a",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el mock de documentos contestaba 200 con la forma equivocada",
-            "repo": "harness"
-          },
-          {
-            "sha": "36f0c6b",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el aviso de S3 mentía siempre, y el generador de documentos era invisible",
-            "repo": "harness"
-          },
-          {
-            "sha": "3e2580f",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el panel deja de ser una columna y pasa a ser un editor",
-            "repo": "harness"
-          },
-          {
-            "sha": "64b1352",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el bloque forense del panel, verificado con una corrida real (y no andaba)",
-            "repo": "harness"
-          },
-          {
-            "sha": "7032ddc",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el panel dice POR QUE termino asi, y F-234 (el forense preguntaba en dev)",
-            "repo": "harness"
-          },
-          {
-            "sha": "357223f",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: la consola del SSR — pestaña en el panel y `make harness-ssr`",
-            "repo": "harness"
-          },
-          {
-            "sha": "087de3b",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: la renovacion de sesion le pregunta al front, no al nombre del ambiente",
-            "repo": "harness"
-          },
-          {
-            "sha": "9a5163c",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el canal de asesor renueva su sesion solo",
-            "repo": "harness"
-          },
-          {
-            "sha": "12e90fd",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el frasco de cookies BORRA lo que el servidor manda borrar",
-            "repo": "harness"
-          },
-          {
-            "sha": "3e73412",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: saber si la sesion de asesor sirve, ANTES de salir a caminar",
-            "repo": "harness"
-          },
-          {
-            "sha": "f860b3c",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el arnes corre contra la compartida sin abrir TODA la shell",
-            "repo": "harness"
-          },
-          {
-            "sha": "c6d29ff",
-            "fecha": "2026-09-15",
-            "autor": "Miguel Ochoa",
-            "asunto": "asd",
-            "repo": "harness"
-          },
-          {
-            "sha": "60cd87f",
-            "fecha": "2026-09-15",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el camino visual aprueba la identidad cuando el proveedor no esta configurado, y lo dice",
-            "repo": "harness"
-          }
-        ]
-      },
-      "huerfanos": [
-        "harness/dev/bcp-volver.ts",
-        "harness/dev/caminar-wizard.ts",
-        "harness/dev/ecommerce.ts",
-        "harness/dev/loki-lineas.ts",
-        "harness/dev/montar-comercio.ts",
-        "harness/dev/montar-kyc-flow.ts",
-        "harness/dev/posthog-errores.ts",
-        "harness/dev/posthog-ureq.ts",
-        "harness/pkg/anotacion.ts",
-        "harness/pkg/autorelleno.ts",
-        "harness/pkg/autorrelleno.ts",
-        "harness/pkg/db-safe.ts",
-        "harness/pkg/documentos.ts",
-        "harness/pkg/fecha-trio.ts",
-        "harness/pkg/front.ts",
-        "harness/pkg/http.ts",
-        "harness/pkg/otp-bypass.ts",
-        "harness/pkg/posthog.ts",
-        "harness/pkg/preflight-sucursal.ts",
-        "harness/pkg/telefonos.ts",
-        "harness/pkg/wizard-navegador.ts"
       ],
       "rutas_muertas": [],
       "pendiente_merge": null
@@ -5443,214 +5213,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "rotativo",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-07",
-        "source": "cabecera"
-      },
-      "archivos": 15,
-      "deriva": {
-        "cambiados": 2,
-        "pct": 13,
-        "hubs": 0,
-        "archivos": [
-          {
-            "ruta": "application/app/Http/Controllers/Admin/RevolvingCreditsController.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Helpers/CutoffCalendar.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 12,
-        "autores": {
-          "Abel Arismendy": 8,
-          "Joel": 2,
-          "Luis Romero": 1,
-          "lhCabra-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "399819a43",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-364): modo de usuarios comerciales de tres estados (incluidos, excluidos, solo)",
-            "repo": "application"
-          },
-          {
-            "sha": "cc6bd2e3b",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-364): modo \"solo usuarios comerciales\" en dashboard, listado de solicitudes y exports",
-            "repo": "application"
-          },
-          {
-            "sha": "a4caaa267",
-            "fecha": "2026-09-10",
-            "autor": "Joel",
-            "asunto": "refactor(CRED-127): mover la derivación del ciclo a CutoffCalendar",
-            "repo": "application"
-          },
-          {
-            "sha": "de1d0ed71",
-            "fecha": "2026-08-31",
-            "autor": "Luis Romero",
-            "asunto": "fix(creditopx): make the revolving credits and funnel reports respect the filters",
-            "repo": "application"
-          },
-          {
-            "sha": "220bb36d3",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-180): snapshot de portafolio primero con filtros propios incrustados",
-            "repo": "application"
-          },
-          {
-            "sha": "971c69ca3",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-180): una sola fila de filtros con vínculo visual al portafolio",
-            "repo": "application"
-          },
-          {
-            "sha": "cef0fe1a1",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "revert(CRED-180): dejar el portafolio dentro del tablero de cupos",
-            "repo": "application"
-          },
-          {
-            "sha": "aba3f813a",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-180): mover el portafolio de cupos rotativos a página propia",
-            "repo": "application"
-          },
-          {
-            "sha": "8db5330a0",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-180): separar filtros del snapshot y de pestañas, y renombrar métricas",
-            "repo": "application"
-          },
-          {
-            "sha": "7849c1453",
-            "fecha": "2026-08-20",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-180): separar cupos rotativos en pestañas de otorgamientos y utilizaciones",
-            "repo": "application"
-          },
-          {
-            "sha": "0ad75a517",
-            "fecha": "2026-08-11",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(creditopx): add weekly cutoff support to the credit lifecycle",
-            "repo": "application"
-          },
-          {
-            "sha": "be99e03d6",
-            "fecha": "2026-08-10",
-            "autor": "Joel",
-            "asunto": "fix (CRED-127): correccion de la aplicacion de pagos",
-            "repo": "application"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/Loans/App/Http/Requests/BackfillAdoImagesRequest.php",
-        "legacy-backend/app/Models/CreditopXLenderResidualBalance.php",
-        "legacy-backend/app/Models/LenderUsersCategoryType.php",
-        "legacy-backend/database/migrations/2026_07_14_000000_create_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_000000_add_dynamic_form_type_id_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_16_010000_add_dynamic_form_is_enabled_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_07_22_000000_add_signer_role_to_netco_signing_documents_table.php",
-        "legacy-backend/database/migrations/2026_07_23_000000_make_cosigner_user_id_nullable_in_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_07_30_120000_create_lender_users_category_types_table.php",
-        "legacy-backend/database/migrations/2026_07_30_120100_add_lender_users_category_type_id_to_policy_tables.php",
-        "legacy-backend/database/migrations/2026_07_31_000000_add_amount_accepted_at_to_cosigners_table.php",
-        "legacy-backend/database/migrations/2026_08_04_120100_create_lender_rules_changesets_table.php",
-        "legacy-backend/database/migrations/2026_08_06_000000_add_income_breakdown_fields_to_fields_table.php",
-        "legacy-backend/database/migrations/2026_08_06_120000_add_regenerate_request_voucher_permission.php",
-        "legacy-backend/database/migrations/2026_08_08_100000_populate_phone_code_from_dial_code.php",
-        "legacy-backend/database/migrations/2026_08_08_110000_seed_dominican_republic_cities.php",
-        "legacy-backend/database/migrations/2026_08_08_120000_add_nationality_to_countries_table.php",
-        "legacy-backend/database/migrations/2026_08_12_120000_add_nequi_columns_to_lender_transactions.php",
-        "legacy-backend/database/migrations/2026_08_13_150000_create_support_bot_enrollments_table.php",
-        "legacy-backend/database/migrations/2026_08_13_150100_create_support_bot_sessions_table.php",
-        "legacy-backend/database/migrations/2026_08_13_150200_create_user_data_change_requests_table.php",
-        "legacy-backend/database/migrations/2026_08_13_220000_add_abaco_customer_id_to_user_summaries_table.php",
-        "legacy-backend/database/migrations/2026_08_13_233000_backfill_abaco_customer_id_on_user_summaries.php",
-        "legacy-backend/database/migrations/2026_08_14_120000_add_user_request_id_to_user_data_change_requests_table.php",
-        "legacy-backend/database/migrations/2026_08_15_120000_disable_payment_date_selection_for_renting_and_rto.php",
-        "legacy-backend/database/migrations/2026_08_16_100200_seed_renting_signing_documents_catalog.php",
-        "legacy-backend/database/migrations/2026_08_18_000000_rename_colombian_holidays_to_holidays.php",
-        "legacy-backend/database/migrations/2026_08_18_100000_add_branding_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_18_100100_drop_legacy_color_columns_from_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_19_000000_seed_do_and_co_holidays.php",
-        "legacy-backend/database/migrations/2026_08_19_115900_add_merchant_event_id_to_products_table.php",
-        "legacy-backend/database/migrations/2026_08_19_120100_seed_default_products_for_dominican_republic.php",
-        "legacy-backend/database/migrations/2026_08_20_000000_rename_holidays_back_to_colombian_holidays.php",
-        "legacy-backend/database/migrations/2026_08_20_120000_add_requires_preapproval_gate_to_lenders_table.php",
-        "legacy-backend/database/migrations/2026_08_20_130000_set_motai_payment_schedule_template.php",
-        "legacy-backend/database/migrations/2026_08_22_120000_add_show_alternate_flow_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_24_100000_paises_como_configuracion.php",
-        "legacy-backend/database/migrations/2026_08_24_170000_create_device_locking_configs_table.php",
-        "legacy-backend/database/migrations/2026_08_24_170100_add_active_lock_guard_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_create_dynamic_form_placements_table.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_paises_backfill_del_default_historico.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_set_rent_to_own_product_to_rto.php",
-        "legacy-backend/database/migrations/2026_08_25_120100_backfill_dynamic_form_placements_from_lender_requirements.php",
-        "legacy-backend/database/migrations/2026_08_26_100000_add_branch_scope_to_dynamic_form_placements.php",
-        "legacy-backend/database/migrations/2026_08_26_100000_documentos_suben_de_la_sucursal_a_la_entidad.php",
-        "legacy-backend/database/migrations/2026_08_26_120000_disable_sign_gate_for_forms_served_elsewhere.php",
-        "legacy-backend/database/migrations/2026_08_26_140000_agregar_whatsapp_handoff_sent_at_a_user_requests.php",
-        "legacy-backend/database/migrations/2026_08_28_100000_add_country_scope_to_risk_centrals.php",
-        "legacy-backend/database/migrations/2026_08_28_120000_add_otp_service_created_at_to_otps.php",
-        "legacy-backend/database/migrations/2026_08_28_120000_paises_seed_de_banderas.php",
-        "legacy-backend/database/migrations/2026_08_31_120000_add_always_show_to_dynamic_form_placements.php",
-        "legacy-backend/database/migrations/2026_09_01_120000_add_collect_expedition_date_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_01_130000_add_collect_employment_info_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_01_130000_telefonos_pierden_el_indicativo_pegado.php",
-        "legacy-backend/database/migrations/2026_09_01_140000_add_lock_amount_to_allied_branches_table.php",
-        "legacy-backend/database/migrations/2026_09_01_150000_add_amount_label_to_allied_branches_table.php",
-        "legacy-backend/database/migrations/2026_09_01_160000_remove_amount_fields_from_bcp_vehicle_forms.php",
-        "legacy-backend/database/migrations/2026_09_02_200000_add_outcome_tracking_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_09_02_200100_add_last_run_summary_to_device_locking_configs.php",
-        "legacy-backend/database/migrations/2026_09_03_100000_add_weekly_cadence_columns_to_creditop_x_reminder_messages.php",
-        "legacy-backend/database/migrations/2026_09_03_100100_create_or_extend_reminder_dispatch_log_table.php",
-        "legacy-backend/database/migrations/2026_09_03_100200_add_cash_payment_text_to_payment_methods_by_lender.php",
-        "legacy-backend/database/migrations/2026_09_03_100300_plantillas_semanales_motai.php",
-        "legacy-backend/database/migrations/2026_09_03_100400_plantillas_semanales_cierran_con_frase_fija.php",
-        "legacy-backend/database/migrations/2026_09_03_120000_add_financed_amount_to_bcp_vehicle_form.php",
-        "legacy-backend/database/migrations/2026_09_03_120000_ciudades_de_rd_y_peru_y_sucursales_en_pais_equivocado.php",
-        "legacy-backend/database/migrations/2026_09_03_190000_align_bcp_vehicle_amounts_screen.php",
-        "legacy-backend/database/migrations/2026_09_04_100000_create_document_types_table.php",
-        "legacy-backend/database/migrations/2026_09_04_120000_add_amount_limits_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_08_120000_seed_credi_asyco_signing_documents_catalog.php",
-        "legacy-backend/database/migrations/2026_09_08_130000_add_seized_accounts_to_lender_users_category_rules.php",
-        "legacy-backend/database/migrations/2026_09_09_190000_add_pages_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_10_180000_add_request_trace_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_09_11_120000_add_manual_approval_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_09_11_120100_add_manual_approval_statuses.php",
-        "legacy-backend/database/migrations/2026_09_14_120000_cuota_inicial_y_bono_opcionales_en_bcp_vehiculo_paso_1.php",
-        "legacy-backend/database/migrations/2026_09_14_140000_chasis_y_motor_del_vehicular_con_el_largo_que_bcp_acepta.php",
-        "legacy-backend/database/seeders/CosignerStatusesSeeder.php",
-        "legacy-backend/database/seeders/CrossCoreSettingsSeeder.php",
-        "legacy-backend/database/seeders/DeviceLockingTestSeeder.php",
-        "legacy-backend/database/seeders/NequiTransactionStatusSeeder.php",
-        "legacy-backend/database/seeders/SolicitaCodeudorStatusSeeder.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "credifamilia",
       "estado": "deriva",
       "verificado": {
@@ -6961,6 +6523,26 @@
       "pendiente_merge": null
     },
     {
+      "id": "harness",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 44,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "pullman",
       "estado": "al-dia",
       "verificado": {
@@ -6989,6 +6571,26 @@
         "source": "manual"
       },
       "archivos": 31,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "rotativo",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 15,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
