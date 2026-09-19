@@ -8,7 +8,8 @@
 - **Tres ids que se confunden**: comercio **allied 94** (Amoblando Pullman, en código), lender **77** (CrediPullman, en BD) y lender **94** (Mediarte x 0%, otro namespace).
 - **La edad NO es el corte duro** (corrige el doc previo): el group rule de edad **clasifica** (rt=2 + `have_ctopx`); quien corta es la **categoría cat14** (edad 0-78). Y hay dos topes de edad distintos: group rule ≤69 vs cupo ≤78.
 - **El datacrédito genérico 400 es inocuo** (corrige MEMORY "no hay fila para #77"): **sí** hay fila (dc-gen 400 + 111 por-sucursal), pero 400 es tan laxo que nunca rechaza; las por-sucursal quedan **inertes** en el cupo (el motor nuevo lee solo la genérica).
-- **`have_ctopx` sin confirmar para allied 94**: el dump muestra allied 94 **sin** `have_ctopx=1` (§9), pero el path rt=2 asume `have_ctopx` para no excluir → ¿otra señal, o §9 del dump truncada? (pregunta abierta).
+- ✅ **`have_ctopx` de allied 94 es CERO — la pregunta que este nodo dejaba abierta está contestada, y cambia el encuadre.** Medido contra producción el 2026-09-19: `allieds.id = 94` («Amoblando Pullman») tiene **`have_ctopx = 0`**. El dump no estaba viejo. ⚠ **Y eso invierte lo que decían los dos bullets de arriba:** la rama que salva a un rt=2 fallido de caer en `false_lenders` es `if ($lender->response_type == 2) { if (!$allied->have_ctopx) { $false_lenders[] = $lender; } }` (`application/app/Services/lenders/LenderValidationService.php:311-325`) — o sea que **sólo con `have_ctopx` VERDADERO el rt=2 se salva**. Con `have_ctopx = 0`, como es el caso de Pullman, **el rt=2 que falla las reglas duras SÍ se excluye**. Para este comercio, las reglas de grupo **no clasifican: cortan**.
+  ⚠ **Y la excepción es más rara de lo que parece:** de **346 comercios** en prod, **sólo 11 tienen `have_ctopx = 1`** (10 activos). O sea que «rt=2 clasifica y no excluye» describe al **3 %** del padrón — no al caso general, y no a Pullman, que es el sujeto de este nodo.
 - **La regla de edad del `datacredito_trigger` de sucursal es un no-op**: está escrita `age <= min_age && age >= max_age`, solo dispara con rango invertido (`min >= max`).
 - **Orden solo en producción**: el perfilamiento (ranking) está gated a `production` y el ML está corto-circuitado → en local/dev el orden difiere y cae a matrices internas.
 
@@ -36,12 +37,22 @@ Además, allied 94 está en `DatacreditoFrequency` (`every=1`) → el gate datac
 
 **Cierre**: idéntico al tronco CreditopX — KYC/ADO → firma pagaré → cobro enganche (Wompi) → **Estado 11**. El enganche real sale de `category.min_initial_fee` (ver CreditopX), no del 10% que modela el simulador (`CREDITOPX_CALCULADORA`).
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 15 afirmaciones auditadas —10 de código contra `main` y 5
+de dato contra producción—, cero chequeos débiles. **Se cerró la pregunta abierta y el resultado da
+vuelta el encuadre del nodo**: `have_ctopx` de Pullman es 0, así que sus reglas de grupo **cortan**, no
+clasifican. Exactos: los tres ids que se confunden (94 Amoblando Pullman · 77 CrediPullman · 94
+Mediarte x 0% Interés), el `unset` de Meddipay por `allied_id == 94`, y el `!$isPullman` que neutraliza
+la pre-aprobación. ✔ También quedó confirmada la corrección que el propio nodo ya traía sobre la regla
+horaria: el chequeo de `available_until` está en **tres** puntos del mismo servicio (`:186`, `:212`,
+`:534`) y sólo el último mira el 94 — la hora afecta a todos, la desaparición de la card es lo
+exclusivo. Corregidas cuatro citas corridas hasta 12 líneas.
+
 ## Dónde mirar
 **Hardcodes por `allied_id==94`** (lo propio de Pullman):
-- **Monto mínimo** (legacy): `Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:86` `case 94:` → `:90` `amount <= 600000` → `:92` `pullman_min_amount`.
-- **Salto pre-aprobados + Experian aciertaQuanto** (legacy): `Modules/Onboarding/App/Services/OnboardingService.php:682-684` (`!$isPullman` neutraliza `consultPreApproveLender`) · `Modules/Onboarding/App/Services/OnboardingService.php:858`, `Modules/Onboarding/App/Services/OnboardingService.php:869` (`$experianMethod = $isPullman ? 'aciertaQuanto' : 'quanto'`).
+- **Monto mínimo** (legacy): `Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:98` `case 94:` → `:102` `amount <= 600000` → `:104` `pullman_min_amount` (re-verificadas el 2026-09-19; se habían corrido 12 líneas).
+- **Salto pre-aprobados + Experian aciertaQuanto** (legacy): `Modules/Onboarding/App/Services/OnboardingService.php:682-684` (`!$isPullman` neutraliza `consultPreApproveLender`; ⚠ hay una **segunda** definición de `$isPullman` en `:849` que este nodo no citaba) · `Modules/Onboarding/App/Services/OnboardingService.php:858`, `Modules/Onboarding/App/Services/OnboardingService.php:869` (`$experianMethod = $isPullman ? 'aciertaQuanto' : 'quanto'`).
 - **Meddipay por hora** (application): `app/Services/lenders/PreApprovedLenderService.php:536` (`allied_id == 94` ⇒ `unset`).
-- **SMS Credipullman** (application): `app/Services/lenders/CreditopXNotificationService.php:48`.
+- **SMS Credipullman** (application): `app/Services/lenders/CreditopXNotificationService.php:49`.
 
 **El gate (lender 77)**:
 - **rt=2 clasifica-no-excluye** (application): `app/Services/lenders/LenderValidationService.php:176` (`response_type == 2`) · `:311-324` (`have_ctopx` no manda el rt=2 fallido a `false_lenders`) · `:376-377` (`unset` de todo rt=2 de la lista de baja).
