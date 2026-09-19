@@ -123,7 +123,7 @@
 
     .pill {
       padding: 5px 11px;
-      border-radius: 999px;
+      border-radius: var(--radius);
       border: 1px solid var(--line);
       background: var(--card);
       color: var(--mut);
@@ -165,7 +165,7 @@
     .banner {
       margin: 14px 0 0;
       padding: 10px 14px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       border: 1px solid color-mix(in oklab, var(--warn) 34%, var(--card));
       background: color-mix(in oklab, var(--warn) 18%, var(--card));
       color: var(--warn);
@@ -364,7 +364,7 @@
       gap: 8px;
       background: var(--panel2);
       border: 1px dashed var(--line);
-      border-radius: 10px;
+      border-radius: var(--radius);
       padding: 9px 12px
     }
 
@@ -451,7 +451,7 @@
     .dot {
       width: 8px;
       height: 8px;
-      border-radius: 999px;
+      border-radius: var(--radius);
       background: var(--mut);
       flex: none
     }
@@ -479,7 +479,7 @@
     /* miniatura de screenshot en la consola: reemplaza a "andá a buscar el png". Click = tamaño real. */
     pre#log img.shotmini {
       display: block; max-height: 150px; max-width: 420px; margin: 5px 0 9px 20px;
-      border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in;
+      border: 1px solid var(--line); border-radius: var(--radius); cursor: zoom-in;
     }
     pre#log img.shotmini:hover { border-color: var(--acc); }
     pre#log span.shotfail { color: var(--danger); }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
@@ -492,7 +492,7 @@
     .tipear button {
       font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
       background: var(--bg); color: var(--txt); border: 1px solid var(--line);
-      border-radius: 7px; padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+      border-radius: var(--radius); padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
     }
     .tipear button:hover { border-color: var(--acc); color: var(--txt); }
     .tipear button .k { color: var(--mut); font-weight: 400; }
@@ -556,7 +556,7 @@
     .rtc {
       display: inline-block;
       padding: 1px 7px;
-      border-radius: 999px;
+      border-radius: var(--radius);
       font-size: 10.5px;
       font-weight: 700;
       border: 1px solid;
@@ -602,7 +602,7 @@
     }
     .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
     .stat .ico {
-      width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+      width: 26px; height: 26px; border-radius: var(--radius); display: grid; place-items: center;
       font-size: 13px; background: var(--sel); flex: none
     }
     .stat .k { font-size: 10.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--mut) }
@@ -657,13 +657,13 @@
     .bus .limpiar:hover { background: var(--accent); color: var(--accent-foreground) }
     .res { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
     .rr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px;
-      border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: .12s; }
+      border: 1px solid var(--line); border-radius: var(--radius); cursor: pointer; transition: .12s; }
     .rr:hover { border-color: var(--acc); background: var(--panel2); }
     .rr .rn { font-size: 13px; }
     .rr .rc { color: var(--mut); font-size: 11px; display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
     .rr.off { opacity: .5; }
     .rr.volver { border-style: dashed; }
-    .chip { border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; font-size: 10px; }
+    .chip { border: 1px solid var(--line); border-radius: var(--radius); padding: 1px 7px; font-size: 10px; }
     /* ALTA: sucursal → nombre → agregar. Aparece recién al elegir comercio, para que el paso 1 sea
        una sola cosa (buscar) y no un formulario entero pidiendo datos que todavía no tenés. */
     .alta { margin-top: 10px; padding: 12px 13px;
@@ -685,7 +685,7 @@
        que agregaste vos tiene que estar a la vista. Van tenues para no competir con el nombre. */
     .m .facc { position: absolute; top: 5px; right: 5px; display: flex; gap: 1px; opacity: .45; transition: .12s; }
     .m:hover .facc { opacity: 1; }
-    .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
+    .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: var(--radius-md); }
     .m .facc span:hover { background: var(--line); color: inherit; }
     /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
     [hidden] { display: none !important; }
@@ -714,7 +714,7 @@
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
     .dependency-list { display: grid; gap: 8px; margin: 14px 0 0; }
-    .dependency { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel2); padding: 10px 12px; border-radius: 7px; }
+    .dependency { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--panel2); padding: 10px 12px; border-radius: var(--radius); }
     .dependency code { overflow-wrap: anywhere; font-size: 12px; flex: 1; }
     .health .stats { margin-top: 0; }
     .last-result { margin-top: 18px; }
@@ -1050,7 +1050,7 @@
     .ctxlbl { padding: 6px 9px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--mut) }
     .ctxsep { height: 1px; background: var(--line); margin: 5px 0 0 }
     .ctxitem { display: flex; align-items: center; gap: 7px; width: 100%; padding: 5px 9px; background: transparent;
-      border: 0; border-radius: 4px; color: var(--txt); font: inherit; text-align: left; cursor: pointer }
+      border: 0; border-radius: var(--radius-md); color: var(--txt); font: inherit; text-align: left; cursor: pointer }
     .ctxitem:hover, .ctxitem:focus-visible { background: var(--sel); outline: none }
     .ctxitem .ctxtick { width: 11px; flex: 0 0 11px; color: var(--acc); font-size: 10px }
     .ctxitem.peligro:hover { background: color-mix(in srgb, var(--danger) 22%, var(--panel2)) }
@@ -1067,7 +1067,7 @@
     /* La INICIAL del producto, con el color que ese producto tiene en el mapa: una sola leyenda para
        las dos vistas. `COLOR` en el script es la fuente. */
     .lprod { flex: 0 0 auto; width: 18px; height: 15px; display: grid; place-items: center;
-      font-size: 9px; font-weight: 700; letter-spacing: .02em; border-radius: 3px;
+      font-size: 9px; font-weight: 700; letter-spacing: .02em; border-radius: var(--radius-sm);
       background: var(--sel); color: var(--mut) }
     .pr-credit  { color: var(--prod-credit);  background: color-mix(in oklab, var(--prod-credit) 14%, transparent) }
     .pr-renting { color: var(--prod-renting); background: color-mix(in oklab, var(--prod-renting) 14%, transparent) }
@@ -1121,7 +1121,7 @@
 
     /* El estado vive a la derecha, pegado a los controles de corrida: es la respuesta a «¿puedo correr?» */
     .hsalud { display: flex; align-items: center; gap: 6px; padding: 4px 9px; background: transparent;
-      border: 1px solid var(--line); border-radius: 999px; color: var(--mut); font: inherit;
+      border: 1px solid var(--line); border-radius: var(--radius); color: var(--mut); font: inherit;
       font-size: 11.5px; cursor: pointer; white-space: nowrap }
     .hsalud:hover { border-color: var(--line2); color: var(--txt) }
     .sdotx { width: 7px; height: 7px; border-radius: 50%; background: var(--line2); flex: 0 0 auto }
@@ -1135,7 +1135,7 @@
     /* La pista del elemento elegido, dentro del menú: es prosa, no un ítem. */
     .ctxnota { margin: 6px 9px 3px; padding-top: 7px; border-top: 1px solid var(--line);
       font-size: 11px; line-height: 1.45; color: var(--mut); max-width: 340px; white-space: normal }
-    .ctxnota code { background: var(--bg); padding: 1px 4px; border-radius: 3px; font-size: 10.5px }
+    .ctxnota code { background: var(--bg); padding: 1px 4px; border-radius: var(--radius-sm); font-size: 10.5px }
     .ctxmenu { max-width: 380px }
     /* El panel de estado es más ancho: adentro van las tarjetas de servicios con sus comandos. */
     .ctxsalud { min-width: 420px; max-width: 520px; max-height: 70vh; overflow: auto }
@@ -1174,7 +1174,7 @@
        propósito: es el caso normal y pintarlo de verde en las siete filas convierte la señal en fondo.
        Lo que se destaca es lo que se sale de lo esperado. */
     .lrow .pa { flex: 0 0 auto; width: 17px; height: 16px; padding: 0; display: grid; place-items: center;
-      font: 700 9.5px/1 inherit; border: 1px solid var(--line2); border-radius: 3px;
+      font: 700 9.5px/1 inherit; border: 1px solid var(--line2); border-radius: var(--radius-sm);
       background: transparent; color: var(--mut); cursor: pointer }
     .lrow .pa:hover:not(:disabled) { border-color: var(--acc); color: var(--txt) }
     .pa-pending  { color: var(--warn) !important; border-color: color-mix(in srgb, var(--warn) 55%, transparent) !important }
@@ -1236,7 +1236,7 @@
        Apilados como filas de 24 px ocupan menos que el par de 74 que eran. */
     .auxiliarybar .panelprops .two { display: block }
     .auxiliarybar .panelprops input[type=text], .auxiliarybar .panelprops input[type=number], .auxiliarybar .panelprops input[type=date],
-    .auxiliarybar .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: 4px }
+    .auxiliarybar .panelprops select { height: 24px; min-height: 0; padding: 0 7px; font-size: 12px; border-radius: var(--radius-md) }
     .auxiliarybar .panelprops .money { display: block }
     /* ⚠ El `$` de `.money` es un `::before` posicionado, y el input le deja 24 px de sangría para que no
        se pisen. Mi `padding: 0 7px` compacto se los comió y el símbolo quedaba ENCIMA del número
@@ -1252,7 +1252,7 @@
     .auxiliarybar .panelprops .seg { display: flex; gap: 3px; flex-wrap: nowrap; min-width: 0 }
     .auxiliarybar .panelprops .seg button { flex: 1 1 0; min-width: 0; height: 24px; margin-left: 0;
       padding: 3px 4px; font-size: 10.5px;
-      border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+      border-radius: var(--radius-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     /* La pista del campo ocupa la columna del control, no una fila propia. */
     .auxiliarybar .panelprops .field > .pista { grid-column: 2 }
     .auxiliarybar .panelprops > .pista, .auxiliarybar .panelprops .field + .pista { margin: 2px 0 6px 110px !important }

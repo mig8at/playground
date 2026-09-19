@@ -1509,11 +1509,11 @@ onMounted(async () => {
       <!-- El buscador NO se movió al menú: se usa todo el tiempo, es una sola fila y vale para las
            cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
       <div class="filtros" v-if="!cargandoAncha && totalTasks">
-        <label class="fbusca" :class="{ act: !!buscaNorm }">
+        <label class="fbusca input-group" :class="{ act: !!buscaNorm }">
           <span class="lupa" aria-hidden="true">⌕</span>
-          <input v-model="busca" type="search" placeholder="buscar por título…"
+          <input v-model="busca" class="input" type="search" placeholder="buscar por título…"
                  aria-label="Buscar tarea por título o clave">
-          <button v-if="busca" class="fx" type="button" title="limpiar" @click="busca = ''">×</button>
+          <button v-if="busca" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="busca = ''">×</button>
         </label>
       </div>
       <!-- Sin resultados NO puede ser una lista vacía a secas: se lee como «no tengo tareas», que es
@@ -1521,7 +1521,7 @@ onMounted(async () => {
       <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
         Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
           v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
-        <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
+        <button class="btn-link lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
       </p>
 
       <!-- UNA VISTA POR ESTADO. ⚠ Con búsqueda puesta se abren TODAS: buscar y que el resultado
@@ -1565,7 +1565,7 @@ onMounted(async () => {
           <span v-if="inbox" class="cnt" :class="{ filtrando: inbox.pending }">{{ inbox.pending }}</span>
         </div>
         <div v-if="abierta('jira')" class="region-body sidebar-jira">
-          <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
+          <button class="btn qa-go" :disabled="inboxBusy" @click="loadInbox()">
           {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
           </button>
           <label class="sync-all checkbox-row">
@@ -1595,10 +1595,10 @@ onMounted(async () => {
             <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
             <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
           </button>
-          <button type="button" class="et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
+          <button type="button" class="btn btn-ghost btn-icon btn-xs et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
                   @click="cerrarPestana(t.Key)">×</button>
         </div>
-        <button type="button" class="et-aux" :class="{ act: verAux }" :aria-pressed="verAux"
+        <button type="button" class="btn btn-ghost btn-icon btn-xs et-aux" :class="{ act: verAux }" :aria-pressed="verAux"
                 title="Mostrar u ocultar el detalle de la tarea"
                 aria-label="Mostrar u ocultar el detalle" @click="verAux = !verAux">◨</button>
       </nav>
@@ -1615,14 +1615,14 @@ onMounted(async () => {
              en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
              excluyentes — mirar una rama mientras leés el documento era imposible. -->
 
-        <div v-if="documentSections.length" class="drawer-cps">
-          <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
+        <div v-if="documentSections.length" class="btn btn-outline btn-xs drawer-cps">
+          <button class="btn btn-outline btn-xs drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
                   title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
                   @click="copiarCuerpo('compartir')">
             <span aria-hidden="true">{{ copiadoCual === 'compartir' && copiado === 'ok' ? '✓' : copiadoCual === 'compartir' && copiado === 'error' ? '✕' : '⧉' }}</span>
             {{ copiadoCual === 'compartir' && copiado === 'ok' ? 'copiado' : copiadoCual === 'compartir' && copiado === 'error' ? 'no se pudo' : 'compartir' }}
           </button>
-          <button class="drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
+          <button class="btn btn-outline btn-xs drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
                   title="Copiar el cuerpo ENTERO, con el registro y los comandos — para retomar la tarea"
                   @click="copiarCuerpo('todo')">
             <span aria-hidden="true">{{ copiadoCual === 'todo' && copiado === 'ok' ? '✓' : copiadoCual === 'todo' && copiado === 'error' ? '✕' : '⧉' }}</span>
@@ -1753,7 +1753,7 @@ onMounted(async () => {
         <section class="card">
           <h2>Traer de Jira <span class="mut">· lo que está a mi nombre en CORE y no en el registro local</span></h2>
           <div class="sync-h">
-            <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
+            <button class="btn qa-go" :disabled="inboxBusy" @click="loadInbox()">
               {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
             </button>
             <label class="sync-all checkbox-row">
@@ -1774,8 +1774,8 @@ onMounted(async () => {
             <template v-else>
               <div class="sync-acts">
                 <span class="mut">{{ picked.length }} de {{ inboxPending.length }} elegidas</span>
-                <button class="lnk" @click="pickAll('new')">todas como tarea nueva</button>
-                <button class="lnk" @click="pickAll('')">ninguna</button>
+                <button class="btn-link lnk" @click="pickAll('new')">todas como tarea nueva</button>
+                <button class="btn-link lnk" @click="pickAll('')">ninguna</button>
               </div>
 
               <div v-for="f in inboxPending" :key="f.issue.key" class="sync-row" :class="{ off: !picks[f.issue.key] }">
@@ -1805,7 +1805,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <button class="qa-go" :disabled="!picked.length || importBusy" @click="runImport()">
+              <button class="btn qa-go" :disabled="!picked.length || importBusy" @click="runImport()">
                 {{ importBusy ? 'Registrando…' : `Traer ${picked.length}` }}
               </button>
             </template>
@@ -1856,7 +1856,7 @@ onMounted(async () => {
           <div class="region-actions">
               <a v-if="site && !active._local" class="key link" :href="jiraLink(active.Key)" target="_blank"
                  rel="noopener" :title="`Abrir ${active.Key} en Jira`">Jira <span class="ext">↗</span></a>
-              <button v-if="!active._local" class="tact move-task" :class="{ act: mover?.key === active.Key }"
+              <button v-if="!active._local" class="btn btn-outline btn-xs tact move-task" :class="{ act: mover?.key === active.Key }"
                 :disabled="moverBusy || qa?.key === active.Key" @click="alternarAux('detalle', true); abrirMover(active)">
                 {{ moverBusy ? 'Consultando Jira…' : '⇢ Mover' }}
               </button>
@@ -1865,8 +1865,8 @@ onMounted(async () => {
         <div v-if="abiertaAux('detalle')" class="region-body aux-ficha">
           <div v-if="mover?.key === active.Key" class="mv" @click.stop>
             <p class="mv-h">Desde <b>{{ active.Status }}</b>, Jira deja ir a:</p>
-            <div class="mv-opts">
-              <button v-for="t in mover.transitions" :key="t.id" class="mv-o"
+            <div class="btn btn-outline btn-xs mv-opts">
+              <button v-for="t in mover.transitions" :key="t.id" class="btn btn-outline btn-xs mv-o"
                 :class="{ qa: esHaciaPruebas(t) }" :disabled="moverBusy"
                 :title="`transición «${t.name}»`" @click="aplicarTransicion(t)">
                 {{ t.to }}<span v-if="esHaciaPruebas(t)" class="mv-tag">+ aviso</span>
@@ -1888,10 +1888,10 @@ onMounted(async () => {
                 <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
               </ul>
               <div class="qa-acts">
-                <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
+                <button class="btn qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
                   {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
                 </button>
-                <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
+                <button class="btn btn-outline qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
               </div>
             </div>
           </template>
@@ -1944,7 +1944,7 @@ onMounted(async () => {
             <h4 class="aux-lbl">Contexto</h4>
             <span>Contexto local:</span>
             <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-              :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
+              :key="n" class="badge badge-outline ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
               :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
           </template>
         </div>
@@ -2244,14 +2244,16 @@ onMounted(async () => {
 .et.previa .et-k { font-style: italic }
 .et-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono);
   font-size: 11px }
-.et-x { border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 15px; line-height: 1;
-  padding: 2px 8px 4px; border-radius: var(--radius); opacity: 0 }
+/* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: la ✕ de la pestaña aparece al pasar por encima. */
+.et-x { color: var(--mut); font-size: 15px; line-height: 1; opacity: 0 }
 .et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
 .et-x:hover { background: var(--sel); color: var(--txt) }
 /* El interruptor de la ficha, al borde: `margin-left: auto` lo manda a la derecha y `position:
    sticky` lo deja visible aunque la barra scrollee con muchas pestañas. */
-.et-aux { margin-left: auto; position: sticky; right: 0; flex: none; border: 0; cursor: pointer;
-  background: var(--panel2); color: var(--mut); font-size: 13px; padding: 0 10px; align-self: stretch }
+/* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: pegado a la derecha de la barra de pestañas, con el fondo
+   de la barra para que no se despegue al scrollearlas. */
+.et-aux { margin-left: auto; position: sticky; right: 0; background: var(--panel2);
+  color: var(--mut); font-size: 13px; width: auto; padding: 0 10px; align-self: stretch }
 .et-aux:hover { color: var(--txt) }
 .et-aux.act { color: var(--txt) }
 
@@ -2275,9 +2277,8 @@ onMounted(async () => {
 .mv-h { margin: 0 0 7px; font-size: 11.5px; color: var(--mut) }
 .mv-h b { color: var(--txt); font-weight: 600 }
 .mv-opts { display: flex; flex-wrap: wrap; gap: 5px }
-.mv-o { border: 1px solid var(--line2); background: var(--card); color: var(--txt); font: inherit;
-  font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 7px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 5px; transition: .12s }
+/* Sobre `.btn.btn-outline.btn-xs`: los destinos del menú de estados. */
+.mv-o { height: 25px; font-size: 12px; font-weight: 600; border-color: var(--line2) }
 .mv-o:hover:not(:disabled) { border-color: color-mix(in srgb, var(--acc) 55%, transparent) }
 .mv-o:disabled { opacity: .5; cursor: default }
 /* El que dispara el aviso a QA se distingue: no es sólo un cambio de estado, además le escribe a alguien. */
@@ -2290,27 +2291,27 @@ onMounted(async () => {
 /* El buscador vive en la fila de las casillas y con la misma pastilla: es el mismo tipo de cosa —una
    vista sobre la lista—, no un control aparte. `margin-left: auto` lo empuja al final para que las
    casillas queden juntas y se lean como un grupo. */
-.fbusca { display: inline-flex; align-items: center; gap: 5px; margin-left: auto;
-  border: 1px solid var(--line); background: var(--panel2); border-radius: 999px;
-  padding: 3px 6px 3px 10px; transition: .12s }
+/* ⚠ Era una PÍLDORA (radio 999) con fondo propio, y ya tenía la forma de un `input-group`: la lupa
+   y la ✕ adentro y el borde en la etiqueta. Le falta sólo ser el componente — así el foco lo enciende
+   entero, como en el panel del harness y en el trazador. */
+.fbusca { margin-left: auto; height: 28px; padding: 0 6px 0 10px }
 .fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
   background: var(--card) }
 .fbusca .lupa { color: var(--mut); font-size: 13px; line-height: 1 }
-.fbusca input { border: 0; background: transparent; color: var(--txt); font: inherit; font-size: 12px;
-  width: 190px; outline: none; padding: 1px 0 }
-.fbusca input::placeholder { color: var(--mut) }
+/* Adentro del grupo el campo va DESNUDO: el borde y el anillo los lleva la etiqueta. */
+.fbusca .input { font-size: 12px; width: 190px }
+.fbusca .input::placeholder { color: var(--mut) }
 /* La X nativa de `type=search` no existe en todos los navegadores: se pone una propia y se esconde. */
 .fbusca input::-webkit-search-cancel-button { display: none }
-.fx { border: 0; background: transparent; color: var(--mut); font: inherit; font-size: 15px;
-  line-height: 1; cursor: pointer; padding: 0 4px; border-radius: 999px }
-.fx:hover { color: var(--txt) }
+/* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: sólo el glifo, que es más grande que el texto del botón. */
+.fx { color: var(--mut); font-size: 15px; line-height: 1 }
 /* «ver todas» del estado vacío: un enlace, no un botón — deshacer un filtro no compite con nada. */
 .lnk { border: 0; background: transparent; color: var(--acc); font: inherit; font-size: inherit;
   cursor: pointer; padding: 0; margin-left: 6px; text-decoration: underline }
 
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
 .spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
-  border-radius: 5px; padding: 1px 5px; white-space: nowrap }
+  border-radius: var(--radius-md); padding: 1px 5px; white-space: nowrap }
 /* El chip del esfuerzo puede ser largo (es un título): se recorta en vez de empujar la línea. */
 .spchip.esf { max-width: 46%; overflow: hidden; text-overflow: ellipsis; color: var(--acc);
   border-color: color-mix(in srgb, var(--acc) 35%, transparent); display: inline-flex; gap: 5px; align-items: center }
@@ -2372,9 +2373,10 @@ onMounted(async () => {
 
 /* acciones de la tarjeta: la fila que reemplazó a la card "La tarea". Van al pie y en tono bajo — la
    tarjeta se lee primero y se actúa después; botones fuertes acá competirían con el contenido. */
-.tact { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font: inherit;
-  font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px }
+/* ⚠ Las acciones de la tarea eran PÍLDORAS (radio 999) con fondo propio: un botón redondo se lee
+   como una etiqueta, no como algo que se aprieta. Son `.btn.btn-outline.btn-xs`; acá queda el peso
+   —van en negrita porque son las acciones de lo que estás mirando— y el alto de esta barra. */
+.tact { height: 23px; font-size: 11.5px; font-weight: 600 }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
 .tact.act { color: var(--acc); border-color: var(--line2); background: var(--secondary) }
@@ -2415,16 +2417,13 @@ onMounted(async () => {
 /* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
    dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
 .drawer-cps { display: flex; gap: 6px; margin-bottom: 16px }
-.drawer-cp { display: inline-flex; align-items: center; gap: 5px;
-  border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--mut);
-  font: inherit; font-size: 11.5px; cursor: pointer; padding: 3px 8px; line-height: 1.4;
-  white-space: nowrap; transition: color .12s, border-color .12s }
+.drawer-cp { height: 24px; font-size: 11.5px; color: var(--mut) }
 .drawer-cp:hover { color: var(--txt); border-color: var(--mut) }
 .drawer-cp.ok { color: var(--ok); border-color: currentColor }
 .drawer-cp.error { color: var(--bad); border-color: currentColor }
 /* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
-  background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
+  background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 9px;
   font: inherit; color: var(--txt) }
 .proto-row:hover { border-color: var(--acc); background: var(--secondary) }
 .proto-play { color: var(--acc); font-size: 12px }
@@ -2437,18 +2436,17 @@ onMounted(async () => {
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
    abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
-.qa-go { border: 1px solid var(--acc); background: var(--acc); color: var(--acc-ink); font: inherit; font-size: 12.5px;
-  font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer }
+/* La única acción del tablero que escribe afuera: es la PRIMARIA, o sea `.btn` a secas. */
+.qa-go { height: 32px; font-size: 12.5px; font-weight: 600 }
 .qa-go:hover:not(:disabled) { background: var(--acc) }
 .qa-go:disabled { opacity: .45; cursor: default }
-.qa-no { border: 1px solid var(--line); background: none; color: var(--mut); font: inherit;
-  font-size: 12.5px; padding: 7px 13px; border-radius: 9px; cursor: pointer }
+.qa-no { height: 32px; font-size: 12.5px; color: var(--mut) }
 .qa-no:hover:not(:disabled) { color: var(--txt) }
 .qa-box { padding: 13px; margin-top: 10px; background: var(--panel2) }
 .qa-head { font-size: 12.5px; color: var(--mut); margin: 0 0 11px }
 .qa-head b { color: var(--txt); font-weight: 600 }
 .qa-box textarea { width: 100%; box-sizing: border-box; background: var(--card); color: var(--txt);
-  border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 12.5px;
+  border: 1px solid var(--line); border-radius: var(--radius); padding: 9px 11px; font: inherit; font-size: 12.5px;
   line-height: 1.5; resize: vertical }
 .qa-acts { display: flex; gap: 8px; margin-top: 11px }
 .qa-done { font-size: 12.5px; color: var(--ok); margin: 9px 0 0 }
@@ -2481,7 +2479,7 @@ onMounted(async () => {
 .jrow { display: flex; align-items: center; gap: var(--gap) }
 .jhl { width: var(--jhl); flex: none; font-size: 10.5px; font-weight: 700; color: var(--mut); text-align: right;
   font-variant-numeric: tabular-nums }
-.cel { width: var(--cel); height: 21px; border-radius: 5px; flex: none; transition: .12s }
+.cel { width: var(--cel); height: 21px; border-radius: var(--radius-md); flex: none; transition: .12s }
 /* el finde solo atenúa el FONDO: si una celda tiene registro, el color no se toca — sería mentirle al
    ojo sobre cuánto tiempo hubo ahí */
 .cel.weekend.n0 { opacity: .45 }
@@ -2511,7 +2509,7 @@ onMounted(async () => {
 .jband { position: relative; height: 17px; margin-bottom: 3px }
 .jspan { position: absolute; top: 0; height: 100%; display: flex; align-items: center; padding: 0 7px;
   font-size: 10px; font-weight: 700; color: var(--mut); white-space: nowrap; overflow: hidden;
-  border-radius: 5px 5px 0 0; background: var(--panel2);
+  border-radius: var(--radius-md) 5px 0 0; background: var(--panel2);
   box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
 .jspan.sel { color: var(--acc); background: var(--secondary);
@@ -2521,7 +2519,7 @@ onMounted(async () => {
 .jaxis .cel { height: auto; background: none; font-size: 10px; color: var(--mut); text-align: center }
 .jtot .cel:hover, .jaxis .cel:hover { outline: none }
 .legend { display: flex; align-items: center; gap: 5px; margin-top: 12px; font-size: 11px; color: var(--mut) }
-.legend i { width: 13px; height: 13px; border-radius: 4px; display: inline-block }
+.legend i { width: 13px; height: 13px; border-radius: var(--radius-md); display: inline-block }
 .legend .note { margin-left: 12px }
 
 /* ── Bitácora como TIMELINE ────────────────────────────────────────────────────────────────────
@@ -2551,7 +2549,7 @@ onMounted(async () => {
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
-.icon { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex: none; background: var(--secondary) }
+.icon { width: 24px; height: 24px; border-radius: var(--radius-md); display: grid; place-items: center; font-size: 11px; flex: none; background: var(--secondary) }
 .t-finding { color: var(--warn) } .t-test { color: var(--ok) } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
 .body { min-width: 0 }
 .meta { display: flex; gap: 10px; font-size: 11px; color: var(--mut); margin-bottom: 3px }
@@ -2575,7 +2573,7 @@ onMounted(async () => {
 .lnk:hover { text-decoration: underline }
 .sync-row { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line) }
 .sync-row.off { opacity: .45 }
-.sync-row select { flex: none; width: 240px; font-size: 12px; padding: 5px 7px; border-radius: 8px;
+.sync-row select { flex: none; width: 240px; font-size: 12px; padding: 5px 7px; border-radius: var(--radius);
   border: 1px solid var(--line); background: var(--panel2); color: var(--txt) }
 .sync-i { min-width: 0 }
 .sync-t { margin: 0; font-size: 13px; line-height: 1.45; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
@@ -2609,7 +2607,7 @@ onMounted(async () => {
 .pitem.hecho { opacity: .45; }
 .pitem.hecho .pmark { color: var(--mut); }
 .pitem.hecho .pque { text-decoration: line-through; }
-.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--sel);
+.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--sel);
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
          word-break: break-word; opacity: .8; }
 
@@ -2620,7 +2618,7 @@ onMounted(async () => {
 .proc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 14px;
         padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .proc-cuenta { font-size: 11.5px; opacity: .65; margin-right: 2px; }
-.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px; border-radius: 5px;
+.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px; border-radius: var(--radius-md);
          background: var(--sel); border: 1px solid transparent; opacity: .85; white-space: nowrap; }
 .fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
 .fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
@@ -2633,7 +2631,7 @@ onMounted(async () => {
 /* la marca de por dónde va el sprint, sobre la barra de lo entregado */
 .stat .bar { position: relative; }
 .stat .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: currentColor;
-               opacity: .55; border-radius: 1px; }
+               opacity: .55; border-radius: var(--radius-sm); }
 .pts-detalle { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
                margin: -6px 0 18px; font-size: 12.5px; opacity: .75; }
 .pd-k { opacity: .6; }
@@ -2653,7 +2651,8 @@ onMounted(async () => {
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
-.ctx-link { border: 1px solid var(--line2); color: var(--acc); background: var(--card); border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; text-decoration: none; }
+/* Un nodo de `context/` es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
+.ctx-link { color: var(--acc); border-color: var(--line2); text-decoration: none }
 .ctx-link:hover { background: var(--secondary); }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
@@ -2663,8 +2662,8 @@ onMounted(async () => {
 .cuerpo-md :deep(p) { margin: 0 0 10px }
 .cuerpo-md :deep(ul), .cuerpo-md :deep(ol) { margin: 0 0 10px; padding-left: 20px }
 .cuerpo-md :deep(li) { margin: 3px 0 }
-.cuerpo-md :deep(code) { font-size: 11.5px; padding: 1px 4px; border-radius: 4px; background: var(--panel2) }
-.cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: 8px; background: var(--panel2);
+.cuerpo-md :deep(code) { font-size: 11.5px; padding: 1px 4px; border-radius: var(--radius-md); background: var(--panel2) }
+.cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
                         margin: 0 0 12px }
 .cuerpo-md :deep(pre code) { padding: 0; background: none }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
@@ -2718,7 +2717,7 @@ onMounted(async () => {
 .cuerpo-md :deep(input[type=checkbox]) {
   appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center;
   width: 14px; height: 14px; margin: 0 7px 0 0; vertical-align: -2px;
-  border: 1px solid var(--line2); border-radius: 4px; background: transparent; color: var(--acc-ink);
+  border: 1px solid var(--line2); border-radius: var(--radius-md); background: transparent; color: var(--acc-ink);
 }
 .pending-document :deep(input[type=checkbox])::after,
 .cuerpo-md :deep(input[type=checkbox])::after {
@@ -2730,7 +2729,7 @@ onMounted(async () => {
 .pending-document :deep(input[type=checkbox]:checked)::after,
 .cuerpo-md :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
 .jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
-.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--card) }
+.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card) }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
 @media (max-width: 650px) {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }

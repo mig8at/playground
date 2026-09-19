@@ -345,7 +345,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              la ventana, encima de las DOS columnas: el detalle pagaba 47px de alto por una caja que
              sólo filtra el árbol. Acá arriba de lo que filtra, y el detalle se los queda. -->
         <div class="buscar">
-          <input v-model="q" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
+          <input v-model="q" class="input input-sm" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
                  title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
           <!-- Las perillas aparecen cuando hay algo escrito, que es cuando significan algo. Y van a la
                VISTA y no a un menú ⋯: cambian QUÉ filas se listan, y un filtro escondido se olvida

@@ -120,12 +120,12 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
    300px de ancho empujaban el input a 40 caracteres. */
 .tree .buscar { flex: none; display: flex; flex-direction: column; gap: 6px;
                 padding: 8px; border-bottom: 1px solid var(--line); }
-.tree .buscar input { width: 100%; box-sizing: border-box; }
+
 .buscar-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.buscar input { background: var(--hueco); border: 1px solid var(--line); color: var(--fg);
-                border-radius: 999px; padding: 5px 13px; font-size: 12.5px; }
-.buscar input:focus { outline: none; border-color: var(--info); }
-.buscar input::placeholder { color: var(--tenue); }
+/* ⚠ El buscador era una PÍLDORA de 27px con fondo propio: 999px de radio, `--hueco` de fondo y su
+   propio foco. Un campo no es una píldora —eso es una etiqueta— y el radio redondo lo hacía leerse
+   como un chip clickeable. Es `.input.input-sm` de `taller.css`: fondo transparente, el radio del
+   tema y el anillo de foco de las otras tres. */
 /* ⚠ Una píldora es un RELLENO o un CONTORNO, no las dos cosas. Tenían fondo teñido Y borde teñido del
    mismo color: el borde no agrega información, sólo un anillo que la engorda. Encendida = relleno;
    apagada = contorno, que es la pareja «default / outline» de shadcn y además dice el estado con la
@@ -179,7 +179,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* (`.section-label` se fue: los dos rótulos son `region-head.grupo` de `taller.css`.) */
 .tree .region-head.grupo ~ .region-head.grupo { margin-top: 10px; border-top: 1px solid var(--line); }
 
-.row { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.row { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap; }
 .row:hover { background: var(--sel); }
 .row.sel { background: color-mix(in oklab, var(--info) 22%, var(--card)); outline: 1px solid var(--info); }
 .row.hl { background: color-mix(in oklab, var(--task) 22%, var(--card)); }
@@ -193,7 +193,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* ⚠ Las tasks eran TARJETAS adentro de un árbol de filas: dos formas para dos cosas que se eligen
    igual y se leen en la misma lista. Ahora son filas con dos renglones — el mismo hover, el mismo
    radio y el mismo resalte de selección que `.row`. */
-.taskcard { padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.taskcard { padding: 5px 8px; border-radius: var(--radius-md); cursor: pointer; }
 .taskcard:hover { background: var(--sel); }
 .taskcard.sel { background: color-mix(in oklab, var(--task) 22%, var(--card)); outline: 1px solid var(--task); }
 .tc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
