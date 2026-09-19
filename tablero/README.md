@@ -124,8 +124,8 @@ tools/
 ├── package.json  vite.config.js  index.html
 ├── src/
 │   ├── App.vue            ← dashboard y paneles de consulta
-│   ├── main.js  styles.css
-│   └── scorecards/        ← Rocks & Scorecards Q3 2026 — HUÉRFANO, nadie lo importa
+│   ├── main.js  styles.css  tema.css  taller.css
+│   └── TaskEditor.vue  RegionMenu.vue  ui-state.js  task-document.js
 └── server/
     ├── go.mod (module creditop/tablero/server) · .env · .env.example
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
@@ -588,9 +588,10 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
   creada** (fuera del sprint) y el resultado no marca error. Vale para el MCP y para el WS.
 - **`/rest/api/3/search` (el viejo) devuelve 410 desde oct-2025.** Por eso todo va a `/search/jql`, que
   además exige JQL restringida: una consulta sin filtros es rechazada por el endpoint.
-- **`src/scorecards/` está huérfano**: 4 componentes + `data.js` con los Rocks de Tecnología Q3 2026, que
-  nadie importa. El único rastro vivo es el `<title>` de `index.html`, que sigue diciendo
-  "Rocks & Scorecards" mientras la app muestra "Mi sprint". `dist/` es un build viejo (gitignoreado).
+- *(Acá decía que `src/scorecards/` estaba huérfano —4 componentes + `data.js` con los Rocks de
+  Tecnología Q3 2026 que nadie importaba—. Se borró el 2026-09-19, con los ocho alias de color que
+  existían sólo para él. Si hace falta recuperarlo: `git show bc4aa91:tablero/src/scorecards/…`.)*
+  `dist/` sigue siendo un build viejo (gitignoreado).
 - **Ninguno de los dos conectores está registrado hoy** — `claude mcp list` (2026-07-19) solo muestra los
   remotos de claude.ai. Hay que correr el `claude mcp add` de arriba antes de esperar que un modelo los use.
 - **`server/.env` tiene secretos reales** y está en `.gitignore` junto con `node_modules/`, `dist/` y

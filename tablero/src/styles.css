@@ -22,25 +22,20 @@
 /* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
    Los nombres que ya usan los componentes, apuntando a los tokens del tema.
 
-   ⚠ Y acá hay una reparación, no sólo un alias. `scorecards/` estaba escrito contra OTRA paleta —una
-   clara— y usaba diez nombres que el tablero nunca declaró: `--ink-soft`, `--surface`, `--red-bg`,
-   `--red-ink`, `--green-bg`, `--yellow-bg`, `--head`, `--border-strong` y `--border`. Una variable sin
-   declarar hace que el navegador TIRE la declaración entera sin decir nada, así que esa vista venía
-   renderizando sin superficies, sin bordes y sin semáforo: 60 declaraciones muertas. Medido con un
-   barrido de usadas-contra-declaradas sobre `src/`. Declararlas es lo que la vuelve a encender. */
+   *(Acá vivían ocho nombres más —`--surface`, `--head`, `--border-strong`, `--ink-soft`, `--red-bg`,
+   `--yellow-bg`, `--green-bg`, `--red-ink`— que existían sólo para `src/scorecards/`, una vista
+   HUÉRFANA que nadie importaba. La carpeta se borró el 2026-09-19 y con ella esos alias: medido, cero
+   usos fuera de ella. La lección de por qué se habían declarado sigue valiendo y está abajo, en
+   `--bad`: una variable sin declarar hace que el navegador tire la declaración ENTERA sin decir nada.)* */
 :root {
   --bg: var(--background);
   --panel2: var(--muted);         /* superficie que se levanta un escalón */
-  --surface: var(--card);         /* el nombre que usa scorecards/ para lo mismo que --panel */
-  --head: var(--secondary);       /* encabezados de tabla y chips */
   --line: var(--border);
   --line2: var(--accent);
-  --border-strong: var(--accent);
   --txt: var(--foreground);
   /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el muted
      es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el del medio. */
   --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
-  --ink-soft: var(--mut);         /* el nombre que usa scorecards/ para lo mismo */
   --tenue: var(--muted-foreground);
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
   /* La acción primaria: en este tema es un chip CLARO con texto oscuro (el par primary/foreground de
@@ -57,23 +52,14 @@
 :root {
   --ok:   #4ade80;
   --warn: #fbbf24;
+  /* ⚠ Y una medición que sobrevive a la vista que la motivó, porque es del TEMA y no de ella: el par
+     «tinte suave + texto del mismo color» —el patrón de shadcn para las pastillas— con este rojo NO
+     llega a 4,5:1 en NINGÚN porcentaje. `--destructive` es #e06666, un rojo medio y desaturado, así
+     que se queda cerca en luminancia de cualquier tinte de sí mismo (4,32:1 al 10%, 3,62:1 al 22%).
+     Si alguna vez hace falta ese patrón, la palanca no está acá: está en el `--destructive` de
+     `tema.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
   --bad:  var(--destructive);
   --info: #60a5fa;
-  /* Los fondos del semáforo: tintes del mismo color sobre la card, así siguen al tema. Antes eran
-     pasteles de paleta CLARA (#ffd7d1, #fff3c4) con texto oscuro encima — de cuando scorecards/ vivía
-     en otro lado. */
-  /* ⚠ 35%, y el texto encima va en `--foreground`. Medido: el par «tinte suave + texto del mismo
-     color» —el patrón de shadcn para las pastillas— con este rojo NO llega a 4,5:1 en NINGÚN
-     porcentaje: `--destructive` es #e06666, un rojo medio y desaturado, así que se queda cerca en
-     luminancia de cualquier tinte de sí mismo (4,32:1 al 10%, 3,62:1 al 22%). Con un tinte del 35% la
-     celda se lee CLARAMENTE roja/ámbar/verde —que es lo que un semáforo tiene que hacer— y el texto
-     claro encima mide 5,2–7,0:1. Es además el equivalente oscuro de lo que scorecards/ hacía en claro:
-     pastel + tinta oscura. Si algún día se quiere el patrón de pastilla suave, la palanca no está acá:
-     está en el `--destructive` de `tema.css`. */
-  --red-bg:    color-mix(in oklab, var(--bad) 35%, var(--card));
-  --yellow-bg: color-mix(in oklab, var(--warn) 35%, var(--card));
-  --green-bg:  color-mix(in oklab, var(--ok) 35%, var(--card));
-  --red-ink:   var(--bad);   /* el rojo COMO TINTA, sobre una card normal (4,7:1) — no sobre --red-bg */
 }
 
 /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
