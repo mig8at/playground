@@ -87,6 +87,7 @@
     "legacy-backend/Modules/Loans/App/Services/CreditChangeService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php",
     "legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php",
+    "legacy-backend/Modules/Loans/App/Services/StatementOfAccountService.php",
     "legacy-backend/Modules/Onboarding/App/Services/EcommerceRequestService.php",
     "legacy-backend/Modules/Payments/App/Services/CustomerPaymentService.php",
     "legacy-backend/Modules/Payments/App/Services/PaymentLinkService.php",
