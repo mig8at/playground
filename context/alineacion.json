@@ -2,9 +2,9 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 17,
+    "al-dia": 18,
     "deriva-alta": 13,
-    "deriva": 7,
+    "deriva": 6,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
@@ -4855,187 +4855,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "corbeta",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 28,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 13,
-        "hubs": 4,
-        "archivos": [
-          {
-            "ruta": "application/app/Exports/UserRequestsCorbetaExport.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/config/services.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "application/config/services.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php",
-            "ultimo_cambio": "2026-09-08",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/CorbetaUserRequestService.php",
-            "ultimo_cambio": "2026-09-08",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 39,
-        "autores": {
-          "Abel Arismendy": 9,
-          "sanvipi-ctop": 7,
-          "lhCabra-creditop": 7,
-          "jose guzman": 5,
-          "Oscar Rincon": 4,
-          "mig-creditop": 2,
-          "joseesco24-creditop": 1,
-          "Luis Romero": 1,
-          "yamid-creditop": 1,
-          "Joel": 1,
-          "dsanchezops": 1
-        },
-        "lista": [
-          {
-            "sha": "dd0a0632d",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-334): ancla de fecha creación/desembolso en solicitudes, conciliación y descarga",
-            "repo": "application"
-          },
-          {
-            "sha": "399819a43",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-364): modo de usuarios comerciales de tres estados (incluidos, excluidos, solo)",
-            "repo": "application"
-          },
-          {
-            "sha": "cc6bd2e3b",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-364): modo \"solo usuarios comerciales\" en dashboard, listado de solicitudes y exports",
-            "repo": "application"
-          },
-          {
-            "sha": "f547eb903",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-363): permiso para ver usuarios comerciales en métricas y alinear exclusión en exports",
-            "repo": "application"
-          },
-          {
-            "sha": "96211634f",
-            "fecha": "2026-09-11",
-            "autor": "Oscar Rincon",
-            "asunto": "Apaga los reportes periódicos salvo la conciliación de Corbeta",
-            "repo": "application"
-          },
-          {
-            "sha": "e8e251307",
-            "fecha": "2026-09-10",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(creditopx): desbloquear el celular al pagar si el core dejará el crédito al día",
-            "repo": "application"
-          },
-          {
-            "sha": "87cea77e6",
-            "fecha": "2026-09-09",
-            "autor": "joseesco24-creditop",
-            "asunto": "feat: new experian open info api",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "183a6db63",
-            "fecha": "2026-09-08",
-            "autor": "sanvipi-ctop",
-            "asunto": "fix(corbeta-checkout): crear una solicitud por pedido (order_key), no por cliente",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "d4e951746",
-            "fecha": "2026-09-07",
-            "autor": "mig-creditop",
-            "asunto": "fix(bcp): el id del lender de consumo sale de configuración, no quemado en 206",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "f0d512f13",
-            "fecha": "2026-09-04",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(bcp): take the merchant data from the allied when the credential has none",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "5b5a1ff10",
-            "fecha": "2026-09-03",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(cuotealo): el bloque `cuotealo` duplicado anulaba las URLs de vuelta",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "fa06222f5",
-            "fecha": "2026-09-03",
-            "autor": "jose guzman",
-            "asunto": "fix-min-days",
-            "repo": "application"
-          },
-          {
-            "sha": "14aaba06b",
-            "fecha": "2026-09-02",
-            "autor": "Luis Romero",
-            "asunto": "Exclude test and internal users from the requests list and its Corbeta export",
-            "repo": "application"
-          },
-          {
-            "sha": "609157fc2",
-            "fecha": "2026-09-01",
-            "autor": "jose guzman",
-            "asunto": "fix -environment-vars",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "1a46edb71",
-            "fecha": "2026-09-01",
-            "autor": "yamid-creditop",
-            "asunto": "Feat/flujo kyc por comercio (#1283)",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "application/app/Services/DocumentTypesService.php",
-        "legacy-backend/Modules/AlliedBranchV1/App/Commands/GetAlliedCollectFlagsCommand.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "findings",
       "estado": "deriva",
       "verificado": {
@@ -5904,6 +5723,26 @@
         "source": "manual"
       },
       "archivos": 70,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "corbeta",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 28,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
