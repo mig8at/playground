@@ -9,11 +9,21 @@ página que scrollea:
 
 | Región | Qué tiene |
 |---|---|
-| `titlebar` | el nombre, el sprint y el selector de vista |
-| `sidebar` | un **acordeón de dos vistas**. *Mis tareas*: el buscador y el árbol agrupado por estado, una fila = una tarea; en su encabezado **⊟** colapsa/despliega los grupos y **⋯** abre los filtros (con tilde y conteo) + «locales» + «ver todas». *Traer de Jira*: arranca **cerrada** —una fila— y al abrirla el editor pasa a sus filas |
+| `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
 | `editor` | con una tarea elegida, la tarea y sus 8 pestañas. Sin tarea, manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
 | `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
+
+⚠ **No hay titlebar, a propósito.** Decía «Tablero · Sprint N · registro de tiempo y hallazgos» y
+gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
+acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
+se tocan poco.
+
+⚠ **Los cinco estados se nombran en UN solo lugar**: `TASK_GROUPS`, en `ui-state.js`. `FILTROS` sólo
+declara el ORDEN, que es distinto a propósito — el filtro se lee como un flujo (sin empezar →
+terminada) y el acordeón por atención (lo que está en vuelo primero). Tenían dos juegos de etiquetas
+para los mismos ids y no molestaba mientras vivían lejos; desde que el menú ⋯ y las vistas comparten
+una columna de 300px, el menú decía «iniciada 2» pegado a una vista que decía «En curso 2».
 
 ⚠ **Antes esto era otra cosa, y el vocabulario de este archivo todavía la nombra.** Las tareas eran
 una GRILLA DE TARJETAS y al elegir una se abría un CAJÓN encima. Donde abajo se lee «la tarjeta»,

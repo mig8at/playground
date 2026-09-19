@@ -12,7 +12,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import RegionMenu from './RegionMenu.vue';
-import { readPreference, savePreference, groupTasks } from './ui-state.js';
+import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { jiraPreview } from './jira-preview.js';
 
@@ -39,7 +39,9 @@ const panelTab = ref('trabajo');
 // ⚠ `alternarSeccion` y no `alternarVista`: ese nombre ya lo tiene el botón del titlebar que cambia
 // el ANCHO del sprint (sólo este sprint / últimos N). Dos cosas distintas con el mismo verbo es como
 // se llega a llamar a la equivocada.
-const secciones = ref(new Set(['tareas']));
+// `iniciada` es «En curso»: lo que estás haciendo hoy. Las demás arrancan cerradas — cerradas cuestan
+// una fila, así que los cinco estados con su conteo quedan a la vista igual.
+const secciones = ref(new Set(['iniciada']));
 const abierta = (id) => secciones.value.has(id);
 function alternarSeccion(id) {
   const n = new Set(secciones.value);
@@ -51,12 +53,10 @@ function alternarSeccion(id) {
 }
 const journeyOpen = ref(readPreference('journey-open', true) === true);
 watch(journeyOpen, value => savePreference('journey-open', value));
-const collapsedGroups = ref(new Set(['terminada']));
-function toggleGroup(id) {
-  const next = new Set(collapsedGroups.value);
-  next.has(id) ? next.delete(id) : next.add(id);
-  collapsedGroups.value = next;
-}
+/* ⚠ Acá vivían `collapsedGroups` y `toggleGroup`. Se fueron: cada grupo es ahora una VISTA del
+   acordeón, así que «qué grupo está abierto» y «qué vista está abierta» eran el mismo estado escrito
+   dos veces — y dos estados para una cosa es como se llega a que el chevron diga una y el contenido
+   otra. Lo lleva `secciones`. */
 const active = ref(null);     // tarea sobre la que se está registrando
 
 // ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
@@ -191,13 +191,16 @@ async function runImport() {
 //
 // PARTICIONAN: toda tarea cae en exactamente uno. Un filtro cuyos buckets no cubren todo esconde tareas
 // en silencio, que es peor que no tener filtro. Medido el 2026-08-19 con 16 tarjetas: 1+3+1+2+9 = 16.
-const FILTROS = [
-  { id: 'sin-iniciar', label: 'sin iniciar' },
-  { id: 'iniciada', label: 'iniciada' },
-  { id: 'bloqueada', label: 'bloqueada' },
-  { id: 'pruebas', label: 'en pruebas' },
-  { id: 'terminada', label: 'terminada' },
-];
+// ⚠ Los cinco estados se nombran en UN solo lugar: `TASK_GROUPS` (en `ui-state.js`). Acá va sólo el
+// ORDEN, que es distinto a propósito — el filtro se lee como un FLUJO (sin empezar → terminada) y el
+// acordeón por ATENCIÓN (lo que está en vuelo primero).
+//
+// Tenían dos juegos de etiquetas para los mismos cinco ids («iniciada» acá, «En curso» allá) y no
+// molestaba mientras vivían lejos: las pastillas arriba de la grilla y los encabezados adentro. Desde
+// que el acordeón puso las vistas y el menú ⋯ en la misma columna de 300px, el menú decía «iniciada 2»
+// pegado a una vista que decía «En curso 2».
+const ORDEN_FILTROS = ['sin-iniciar', 'iniciada', 'bloqueada', 'pruebas', 'terminada'];
+const FILTROS = ORDEN_FILTROS.map((id) => ({ id, label: TASK_GROUPS.find((g) => g.id === id).title }));
 // ⚠ Los dos tests por NOMBRE están acá a propósito, y no por comodidad:
 //
 //   · «bloqueada» — el board de CORE la declara en la categoría `new`, así que sin este test una tarea
@@ -240,6 +243,13 @@ const menuFiltros = computed(() => {
   its.push({ id: '_locales', label: 'locales', count: cuantasLocales.value, checked: verLocales.value,
              disabled: !cuantasLocales.value,
              title: verLocales.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
+  // El ancho del sprint es otro eje más: se alterna y se toca poco, que es justo lo que va al menú.
+  // Vivía en el titlebar, que ya no existe.
+  its.push({ separador: true });
+  its.push({ id: '_ancha', label: `últimos ${sprintTabs.value.length} sprints`,
+             checked: vistaAncha.value,
+             title: vistaAncha.value ? `ver sólo ${sprint.value?.name || 'el sprint activo'}`
+                                     : 'ver mis tareas de los últimos sprints' });
   if (ocultos.value.size || busca.value) {
     its.push({ separador: true });
     its.push({ id: '_todas', label: 'ver todas', checked: false, title: 'quitar todos los filtros' });
@@ -248,14 +258,16 @@ const menuFiltros = computed(() => {
 });
 function desdeMenu(id) {
   if (id === '_locales') { verLocales.value = !verLocales.value; return; }
+  if (id === '_ancha') { alternarVista(); return; }
   if (id === '_todas') { busca.value = ''; ocultos.value = new Set(); return; }
   alternarFiltro(id);
 }
 // Colapsar TODO o desplegar todo, según cómo esté: un botón que sólo colapsa deja de servir apenas
-// lo usaste una vez.
+// lo usaste una vez. ⚠ No toca la vista de Jira: es de otro eje y se pliega sola.
 function colapsarTodo() {
   const ids = groupedIssues.value.map(g => g.id);
-  collapsedGroups.value = ids.every(id => collapsedGroups.value.has(id)) ? new Set() : new Set(ids);
+  const jira = secciones.value.has('jira') ? ['jira'] : [];
+  secciones.value = new Set(ids.every(id => secciones.value.has(id)) ? jira : [...ids, ...jira]);
 }
 
 // ── buscador por título ──────────────────────────────────────────────────────────────────────────
@@ -1318,108 +1330,78 @@ onMounted(async () => {
        `sidebar`, lo elegido en el `editor`, y sin nada elegido el editor muestra el sprint — que es
        la pestaña de bienvenida. El cajón se fue: su contenido ES el editor. -->
   <div class="workbench" :class="{ ancha: vistaAncha }">
-    <header class="titlebar">
-      <div class="logo">T</div>
-      <div>
-        <h1>Tablero</h1>
-        <!-- Nombra el sprint ACTIVO: los indicadores de abajo son suyos, y sin las pestañas nada más
-             lo decía. Que la lista muestre 4 sprints no cambia a cuál miden las métricas. -->
-        <p class="sub">{{ sprint ? nombreCorto(sprint.name) : 'Mi sprint' }} · registro de tiempo y hallazgos</p>
-      </div>
-      <div class="sp" v-if="sprint">
-        <!-- El único botón de vista que queda: enfocar SÓLO el sprint activo. El default es al revés
-             (todo lo de la ventana), que es lo que uno mira el 90% del tiempo. -->
-        <button class="tact vista" :class="{ act: !vistaAncha }" @click="alternarVista"
-          :title="vistaAncha ? `ver sólo ${sprint?.name || 'el sprint activo'}` : 'ver mis tareas de los últimos sprints'">
-          {{ vistaAncha ? 'sólo este sprint' : `últimos ${sprintTabs.length} sprints` }}
-        </button>
-        <span v-if="sprintDays?.state === 'upcoming'" class="chip">arranca en {{ sprintDays.startsIn }} día{{ sprintDays.startsIn === 1 ? '' : 's' }}</span>
-        <span v-else-if="sprintDays?.state === 'closed'" class="chip warn">cerrado hace {{ sprintDays.endedAgo }} día{{ sprintDays.endedAgo === 1 ? '' : 's' }}</span>
-        <span v-else-if="sprintDays?.state === 'ongoing'" class="chip chip-bar">{{ sprintDays.remaining }} día{{ sprintDays.remaining === 1 ? '' : 's' }} restante{{ sprintDays.remaining === 1 ? '' : 's' }}<i class="mini"><b :style="{ width: sprintDays.pct + '%' }"></b></i></span>
-      </div>
-    </header>
+    <!-- ⚠ SIN TITLEBAR, a propósito. Decía «Tablero · Sprint N · registro de tiempo y
+         hallazgos» y se comía 77px de alto para repetir lo que ya dicen la pestaña del
+         navegador y el statusbar. Su única acción —«sólo este sprint»— se fue al menú ⋯ del
+         sidebar, que es donde viven las cosas que se alternan y se tocan poco. -->
 
-    <!-- SIDEBAR: un ACORDEÓN, como el sidebar primario de VS Code. Dos vistas apiladas, y la de
-         abajo arranca cerrada. Antes esto era un activitybar con dos modos, y era un rodeo: el
-         propio comentario de «Traer de Jira» ya decía «va al final y COLAPSADA porque es
-         mantenimiento del registro, no la operación del día». Eso es una vista de acordeón, no un
-         modo — un modo tapa al otro, y acá las dos tienen que poder verse de un vistazo. -->
+    <!-- SIDEBAR · el título arriba y debajo el ACORDEÓN, como el Explorer de VS Code: «EXPLORER»
+         y bajo él las vistas apiladas. Acá el título lleva lo que vale para TODAS —el conteo, el
+         plegado y el menú ⋯— y cada GRUPO de estado es una vista propia. Arranca abierta sólo
+         «En curso»: es lo que estás haciendo hoy.
+
+         ⚠ Cinco vistas cerradas cuestan 5 filas (~160px), y eso se paga a gusto: los cinco estados
+         con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
+         grupo para saber cuántas tenía. -->
     <aside class="sidebar">
-      <!-- VISTA · las tareas del sprint. Es la operación del día, así que se lleva el alto. -->
-      <section class="view" :class="{ abierta: abierta('tareas') }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="abierta('tareas')"
-                  @click="alternarSeccion('tareas')">
-            <span class="chev" aria-hidden="true">{{ abierta('tareas') ? '⌄' : '›' }}</span>
-            <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
-          </button>
-          <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido
-               que nadie ve es un filtro que se olvida encendido, y después la tarea que falta se
-               lee como «no existe». En cuanto algo queda afuera pasa de «9» a «9 / 16». -->
-          <span v-if="!cargandoAncha" class="cnt" :class="{ filtrando: ocultos.size || buscaNorm }"
-                :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
-          <div v-if="abierta('tareas') && !cargandoAncha && totalTasks" class="region-actions">
-            <button type="button" class="region-action" title="Colapsar todos los grupos"
-                    @click.stop="colapsarTodo">⊟</button>
-            <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
-          </div>
+      <div class="region-head">
+        <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
+        <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
+             nadie ve se olvida encendido, y después la tarea que falta se lee como «no existe». -->
+        <span v-if="!cargandoAncha" class="cnt" :class="{ filtrando: ocultos.size || buscaNorm }"
+              :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
+        <div v-if="!cargandoAncha && totalTasks" class="region-actions">
+          <button type="button" class="region-action" title="Colapsar o desplegar todos los grupos"
+                  @click="colapsarTodo">⊟</button>
+          <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
         </div>
-        <template v-if="abierta('tareas')">
-          <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
-          <!-- ⚠ Acá vivían las seis casillas de filtro: tres renglones de pastillas antes de la
-          primera tarea. Se fueron al menú ⋯ del encabezado (el patrón del Explorer de VS Code:
-          lo que se ALTERNA y se toca poco va al menú; lo que se HACE y es frecuente queda como
-          icono). Lo que NO se movió es el buscador — se usa todo el tiempo y es una sola fila.
-          Nada del razonamiento viejo se perdió: siguen siendo CASILLAS y no una selección
-          única (la pregunta es «¿cuáles saco de la vista?», no «¿cuál quiero ver?»), siguen
-          llevando su conteo, y las que están en cero siguen deshabilitadas y VISIBLES en vez de
-          esconderse — que «en pruebas 0» se vea es información. -->
-          <div class="filtros" v-if="!cargandoAncha && totalTasks">
-          <label class="fbusca" :class="{ act: !!buscaNorm }">
+      </div>
+
+      <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
+      <!-- El buscador NO se movió al menú: se usa todo el tiempo, es una sola fila y vale para las
+           cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
+      <div class="filtros" v-if="!cargandoAncha && totalTasks">
+        <label class="fbusca" :class="{ act: !!buscaNorm }">
           <span class="lupa" aria-hidden="true">⌕</span>
           <input v-model="busca" type="search" placeholder="buscar por título…"
-          aria-label="Buscar tarea por título o clave">
+                 aria-label="Buscar tarea por título o clave">
           <button v-if="busca" class="fx" type="button" title="limpiar" @click="busca = ''">×</button>
-          </label>
-          </div>
-          <!-- Sin resultados NO puede ser una grilla vacía a secas: se lee como «no tengo tareas», que es
-          otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
-          <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
-          Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
+        </label>
+      </div>
+      <!-- Sin resultados NO puede ser una lista vacía a secas: se lee como «no tengo tareas», que es
+           otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
+      <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
+        Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
           v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
-          <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
-          </p>
-          <div class="region-body">
-          <template v-for="g in groupedIssues" :key="g.id">
-            <!-- MISMA cabecera que la de la vista (`region-head` + `view-tog`), y a propósito: un
-                 grupo que se ve más fuerte que la vista que lo contiene invierte la jerarquía. Eran
-                 `<h3>` a 17px en blanco debajo de un «MIS TAREAS» a 11px apagado. -->
-            <div class="region-head grupo">
-              <button type="button" class="view-tog"
-                      :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
-                      :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
-                <span class="chev" aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
-                <span>{{ g.title }}</span>
-              </button>
-              <span class="cnt">{{ g.tasks.length }}</span>
-            </div>
-          <div :id="'group-' + g.id" v-show="buscaNorm || !collapsedGroups.has(g.id)">
-          <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
-          target de 28px de alto se acierta sin mirar. -->
-          <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
-          :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
-          :title="i.Summary" @click="openTask(i)">
-          <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
-          <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
-          <span class="tr-tt">{{ i.Summary }}</span>
-          <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`">{{ quedan(i.Key) }}</span>
-          <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
-          :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+        <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
+      </p>
+
+      <!-- UNA VISTA POR ESTADO. ⚠ Con búsqueda puesta se abren TODAS: buscar y que el resultado
+           quede escondido detrás de un grupo plegado es la forma más rápida de creer que no está. -->
+      <section v-for="g in groupedIssues" :key="g.id" class="view"
+               :class="{ abierta: abierta(g.id) || !!buscaNorm }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="abierta(g.id) || !!buscaNorm"
+                  :aria-controls="'group-' + g.id" @click="alternarSeccion(g.id)">
+            <span class="chev" aria-hidden="true">{{ abierta(g.id) || buscaNorm ? '⌄' : '›' }}</span>
+            <span>{{ g.title }}</span>
           </button>
-          </div>
-          </template>
-          </div>
-        </template>
+          <span class="cnt">{{ g.tasks.length }}</span>
+        </div>
+        <div v-if="abierta(g.id) || buscaNorm" :id="'group-' + g.id" class="region-body">
+          <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
+               target de 28px de alto se acierta sin mirar. -->
+          <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
+            :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
+            :title="i.Summary" @click="openTask(i)">
+            <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
+            <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
+            <span class="tr-tt">{{ i.Summary }}</span>
+            <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`">{{ quedan(i.Key) }}</span>
+            <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
+                  :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+          </button>
+        </div>
       </section>
 
       <!-- VISTA · traer de Jira. Arranca CERRADA y cerrada cuesta UNA FILA, no cero: así se ve que
@@ -2089,18 +2071,10 @@ onMounted(async () => {
    que la banda vaya de borde a borde (si no, queda una barra flotando con 22px de aire a los lados);
    `overflow: visible` porque acá SÍ envuelve a dos filas en pantallas angostas, y la regla compartida
    la recorta; y el alto es `auto` por lo mismo. */
-/* El titlebar toma de `taller.css` el fondo y el borde; acá sólo se declara lo propio. ⚠ `height:
-   auto` y `overflow: visible` porque este envuelve a dos filas en pantallas angostas y la regla
-   compartida —pensada para una barra de una línea— lo recortaría. */
-header.titlebar {
-  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; row-gap: 10px;
-  height: auto; overflow: visible; padding: 12px 16px;
-}
-.logo { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; font-weight: 800;
-  color: var(--acc-ink); font-size: 17px; background: var(--acc) }
-h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
-.sub { color: var(--mut); font-size: 13px; margin: 2px 0 0 }
-.sp { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px }
+/* ⚠ Acá vivían `header.titlebar`, `.logo`, `h1`, `.sub` y `.sp`. El titlebar se fue: decía
+   «Tablero · Sprint N · registro de tiempo y hallazgos» y gastaba 77px de alto en repetir lo que ya
+   dicen la pestaña del navegador y el statusbar. Su única acción —«sólo este sprint»— está en el
+   menú ⋯ del sidebar. */
 .chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
 .chip.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, var(--card)); background: color-mix(in oklab, var(--warn) 14%, var(--card)) }
 
