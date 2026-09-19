@@ -76,6 +76,10 @@ Corbeta desacoplada vía JSON con sus pantallas de error en el wizard nuevo (COR
 hilos ya verificados cruzando por archivos compartidos (rutas de onboarding con codeudor/Ábaco/listing
 v2, vouchers admin). Confirmado contra `main`.
 
+**Qué es CORB015, en concreto, y qué pasaba antes.** Es el código con que el checkout de ecommerce falla por **conflicto de datos del cliente**. Hasta el 2026-08-27 ese caso caía en una **ruta rota** (`/bancolombia/invalid/start/demo`) que **descartaba el mensaje del backend** y mostraba el genérico «Algo salió mal» — o sea que el error más informativo del flujo llegaba al cliente como el menos informativo. Hoy rutea a una pantalla real (`/bancolombia/ecommerce/checkout-error`, en `frontend-monorepo/apps/loan-request-wizard/app/routes/bancolombia/ecommerce/checkout-error.tsx`) que muestra el **mensaje enmascarado que arma el backend** y un botón «Volver al comercio» que **sólo redirige al `return_url`, sin cancelar nada** — porque en ese punto todavía no hay solicitud que cancelar.
+
+⚠ **El ruteo es ADITIVO y está gateado por el código:** la pantalla lee `message`, `code` y `return_url` del query **sólo si el código es CORB015**, trunca el mensaje y valida el esquema del `return_url`; cualquier otro `error_code` conserva el comportamiento de antes. Y cuelga de `origination-layout` **sin loader**, a propósito: así no puede tirar un 400 y dejar al cliente sin pantalla justo cuando el flujo ya venía fallando.
+
 ## Dónde mirar
 
 **Contrato + entrada unificada (legacy-backend, mundo nuevo):**
