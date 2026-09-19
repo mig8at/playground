@@ -1391,13 +1391,18 @@ onMounted(async () => {
           </p>
           <div class="region-body">
           <template v-for="g in groupedIssues" :key="g.id">
-          <h3 class="tree-group">
-          <button class="section-toggle" :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
-          :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
-          <span aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
-          {{ g.title }}<span class="group-count">{{ g.tasks.length }}</span>
-          </button>
-          </h3>
+            <!-- MISMA cabecera que la de la vista (`region-head` + `view-tog`), y a propósito: un
+                 grupo que se ve más fuerte que la vista que lo contiene invierte la jerarquía. Eran
+                 `<h3>` a 17px en blanco debajo de un «MIS TAREAS» a 11px apagado. -->
+            <div class="region-head grupo">
+              <button type="button" class="view-tog"
+                      :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
+                      :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
+                <span class="chev" aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
+                <span>{{ g.title }}</span>
+              </button>
+              <span class="cnt">{{ g.tasks.length }}</span>
+            </div>
           <div :id="'group-' + g.id" v-show="buscaNorm || !collapsedGroups.has(g.id)">
           <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
           target de 28px de alto se acierta sin mirar. -->
@@ -1957,8 +1962,8 @@ onMounted(async () => {
 
 /* EL ÁRBOL — una fila por tarea. La fila ENTERA es el botón: elegir es el único gesto de esta
    columna, así que el target es la fila y no un enlace adentro. 28px de alto se acierta sin mirar. */
-.tree-group { margin: 10px 0 2px; padding: 0 }
-.tree-group .section-toggle { width: 100%; text-align: left }
+/* (El encabezado de cada grupo es `.region-head.grupo` de `taller.css`: misma forma que el de la
+   vista, pegajoso mientras se recorre el grupo.) */
 .tree-row { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 28px;
   padding: 4px 10px 4px 8px; border: 0; background: none; color: inherit; font: inherit;
   cursor: pointer; text-align: left; border-left: 2px solid transparent }
@@ -2500,9 +2505,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .section-toggle > span:first-child { width: 12px; color: var(--mut); flex: none }
 .card h2.journey-heading { margin-bottom: 0 }
 #journey-content { padding-top: 16px }
-.task-group-heading { margin: 22px 0 12px; padding-top: 18px; border-top: 1px solid var(--line);
-  font-size: 13px; font-weight: 600 }
-.group-count { margin-left: 3px; color: var(--mut); font: 11px ui-monospace, monospace }
+/* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.grupo`, y su
+   conteo usa el mismo `.cnt` que el encabezado de la vista.) */
 .task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 10px 0 8px }
 .task-meta .spchip { margin-left: 0; max-width: 100% }
 .task-meta:empty { display: none }

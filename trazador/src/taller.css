@@ -165,6 +165,28 @@
   border-bottom: 1px solid var(--border);
 }
 .region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
+
+/* ── EL ENCABEZADO DE UN GRUPO, DENTRO DE UNA VISTA ──────────────────────────────────────────────
+   Misma forma que el de la región —11px, mayúsculas, apagado, con su chevron— y a propósito: un grupo
+   que se ve MÁS fuerte que la vista que lo contiene invierte la jerarquía, y era justo lo que pasaba
+   en el tablero (los grupos eran `<h3>` a 17px en blanco debajo de un «MIS TAREAS» a 11px apagado).
+
+   Lo que los distingue no es el tamaño sino el COMPORTAMIENTO: el de la región está fijo y el del
+   grupo scrollea con la lista — pero se PEGA arriba, así que mientras recorrés un grupo largo siempre
+   sabés en cuál estás. Sin borde abajo: con uno, cinco grupos dibujan cinco rayas y la lista se ve
+   como una tabla. */
+.region-head.grupo {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--region-bg, var(--background));
+  border-bottom: 0;
+}
+
+/* Cada región declara SU superficie. Lo necesita cualquier hijo `sticky`: para no dejar pasar el
+   contenido por debajo tiene que pintarse opaco, y el color correcto es el de la región donde esté,
+   no uno fijo. */
+.sidebar, .auxiliarybar, .activitybar { --region-bg: var(--sidebar) }
+.editor { --region-bg: var(--background) }
+.titlebar, .panel, .statusbar { --region-bg: var(--card) }
 /* El título empuja a las acciones al borde. `min-width: 0` para que un título largo se recorte en vez
    de sacar los botones fuera de la región. (En una vista de acordeón el primer hijo es `.view-tog`,
    que ya trae su propio `flex: 1`.) */

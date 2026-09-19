@@ -206,6 +206,12 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   pliega es un `.view`**: esto es para vistas que se reparten el alto de una región de alto fijo. Para
   secciones dentro de un cuerpo que scrollea, el elemento correcto es `<details>`, que no necesita JS
   (el panel del harness ya tiene ocho así).
+- **Un grupo dentro de una vista lleva el MISMO encabezado** (`.region-head.grupo`), y no uno más
+  grande: un grupo que se ve más fuerte que la vista que lo contiene invierte la jerarquía. Lo que los
+  distingue no es el tamaño sino el comportamiento — el de la región está fijo y el del grupo scrollea
+  con la lista, pero **se pega arriba**, así que mientras recorrés un grupo largo siempre sabés en
+  cuál estás. Por eso cada región declara su superficie (`--region-bg`): un hijo pegajoso tiene que
+  pintarse opaco con el color de DONDE ESTÁ, no con uno fijo.
 - **El encabezado de una región lleva barra de acciones y menú `⋯`**, como el Explorer de VS Code, y
   la división es lo que lo hace funcionar: en la **barra** lo que se HACE y es frecuente (iconos
   siempre a la vista); en el **menú** lo que se ALTERNA y se toca poco, con su tilde y su conteo.
