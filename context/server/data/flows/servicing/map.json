@@ -38,6 +38,7 @@
     "application/app/Exports/CreditopXRequestsReportExport.php",
     "application/app/Exports/DailyReportExport.php",
     "application/app/Exports/RevolvingCreditsExport.php",
+    "application/app/Helpers/CutoffCalendar.php",
     "application/app/Http/Controllers/Admin/CorbetaConciliationReportController.php",
     "application/app/Http/Controllers/Admin/CreditopXPaymentController.php",
     "application/app/Http/Controllers/Admin/CreditopXPaymentManageController.php",

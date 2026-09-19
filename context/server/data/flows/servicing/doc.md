@@ -16,11 +16,25 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). En legacy corren 3 crons de device-lock (SmartPay) que **consumen** el ledger (ver F-39); el resto de la cartera se prueba contra `application`. |
 
 ## Antes de concluir
-- 🔴 **BUG VIVO: reversar un pago RETENIDO revienta con un fatal.** `reversePayment:1378` resuelve el
-  tipo con `where('name','PAGO REVERSADO')`, y la fila de la tabla se llama **`REVERSADO`** (id 8) —
-  `first()` devuelve `null` y `null->id` tira `Attempt to read property "id" on null`. Solo dispara en
-  esa rama (`:1377`, pagos aún sin aplicar); las otras dos —ya aplicado, ya reversado— funcionan. En el
-  dump local hay **56 pagos en RETENIDO**, o sea que es alcanzable. Ver **F-126**.
+- 🔴 **BUG VIVO: reversar un pago RETENIDO revienta con un fatal.**
+  `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1450` resuelve el tipo con
+  `where('name','PAGO REVERSADO')`, y la fila de la tabla se llama **`REVERSADO`** (id 8) — `first()`
+  devuelve `null` y `null->id` tira `Attempt to read property "id" on null`. Solo dispara en esa rama
+  (`:1449`, pagos aún sin aplicar); las otras dos —ya aplicado, ya reversado— funcionan. Ver **F-126**.
+  ⚠ **Medido contra PRODUCCIÓN el 2026-09-18, no contra el dump: hay 732 pagos en RETENIDO y el último
+  entró ese mismo día a las 19:05**, y los nueve nombres de la tabla confirman que `PAGO REVERSADO` no
+  existe. *(Acá decía «56 en el dump local». El dump subestimaba por trece veces: era alcanzable, pero
+  no se veía cuánto.)*
+- 🔴 **Cambiar la fecha de pago sin mover el corte la revierte sola.** La fecha de pago está APAREADA
+  con una fecha de corte, y el motor la recalcula **a partir del corte**
+  (`application/app/Helpers/CutoffCalendar.php:118`, `billingDateForPaymentDate`): cambiar una sin la otra deja el ciclo inconsistente y el recálculo
+  devuelve la anterior — el cambio se deshace sin que nadie lo toque (**CRED-127**). Es el mecanismo
+  detrás de «cambiamos la fecha y volvió a aparecer la anterior». Desde el 2026-09-18 la pantalla de
+  administración declara si el cambio se puede hacer y por qué no, con la misma pregunta que hace el
+  guardado, así vista y POST no discrepan. Y los días elegibles dependen de la periodicidad
+  (`application/app/Helpers/CutoffCalendar.php:99`): mensual tres, quincenal **dos** —el tercero no existe en su ciclo— y
+  semanal **ninguno**, porque paga siempre el mismo día de la semana. Ofrecer un día que el ciclo no
+  tiene es la otra forma de que el cambio no quede. Leído en `main` el 2026-09-18.
 - ⚠ **`movement_type` del ledger está vacío en el 90 % de las filas** (194.113 de ~214.700 en el dump
   local). Reconstruir la historia de un crédito filtrando por `movement_type` pierde casi todo: los
   nombres (`FECHA DE CORTE` 7.050 · `APLICACIÓN DE PAGO` 5.894 · `CONDONACIÓN DE COLILLAS` 4.897 ·
@@ -96,7 +110,7 @@ que ya tiene registro, el método hace `return` **sin excepción, sin log y sin 
 «que se perdió», descartá esto primero mirando `creditop_x_payment_register` por esa transacción.
 
 **3 · Reversar NO borra: reescribe cuál fila del ledger es la vigente.**
-`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1377` (`reversePayment`) marca la
+`application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1440` (`reversePayment`) marca la
 fila actual `status=0`, la del pago `status=5`, **restaura la anterior a `status=1`** y arrastra el
 `next_register` a 5. Por eso el saldo de un crédito es siempre «la fila con `status=1`», nunca la
 última por fecha — y por eso una reversa mal cortada deja dos filas vigentes o ninguna.
@@ -162,11 +176,15 @@ septiembre de 2025 que pregunta *«¿Puedo cambiar la fecha de pago?»* y *«¿P
 preguntas, sin la respuesta. O sea: los 6 meses y los días 5/16/28 son **decisiones de implementación sin
 política escrita detrás**. Y F-147 es la prueba de que el código no es una copia fiel de la intención.
 
-> ⏳ **PENDIENTE DE MERGE** — un tercer llamador, el canal de soporte por WhatsApp
-> (`Modules/SupportBot`), reusa este mismo servicio en vez de reimplementarlo, y le agrega dos cosas que
-> la ruta de la app no tiene: sólo créditos de `response_type = 2` y el monto de la cuota resuelto en el
-> backend. Vive en `develop`/`staging`, **no en `main`**. La tarea:
-> `tablero/data/agente-soporte-modificacion-datos.md`. Al mergear: re-verificar y **borrar esta marca**.
+**Y hay un TERCER llamador, que ya mergeó.** El canal de soporte por WhatsApp (`Modules/SupportBot`)
+reusa este mismo servicio en vez de reimplementarlo, y le agrega dos cosas que la ruta de la app no
+tiene: sólo créditos de `response_type = 2` (`App/Services/ClientLookupService.php`) y el monto de la
+cuota resuelto en el backend.
+
+*(Acá había una marca `⏳ PENDIENTE DE MERGE` que decía «vive en `develop`/`staging`, no en `main`».
+Caducó: verificado el 2026-09-18, el módulo está en `origin/main` y su último commit ahí es del
+**2026-09-06**. La marca sobrevivió doce días a su propio merge — y una marca de pendiente vencida no
+avisa, se lee como cierta.)*
 
 **(2026-08-28)** `main` sumó **tres comandos de REPARACIÓN del rotativo** (en `application`, que es
 donde corre el servicing): `revolving:apply-unapplied-payments` (aplica dinero recaudado que no llegó a
