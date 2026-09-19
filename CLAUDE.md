@@ -197,6 +197,14 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   tenerlo. Hoy: el panel del harness y el tablero son workbenches completos · `context` usa dos
   (`sidebar` el árbol, `editor` el detalle) · el trazador una (`auxiliarybar`). `make estilo-check` lo
   lista, así que se ve de un vistazo quién adoptó qué.
+- **El encabezado de una región lleva barra de acciones y menú `⋯`**, como el Explorer de VS Code, y
+  la división es lo que lo hace funcionar: en la **barra** lo que se HACE y es frecuente (iconos
+  siempre a la vista); en el **menú** lo que se ALTERNA y se toca poco, con su tilde y su conteo.
+  ⚠ Y hay **una condición para mandar un filtro al menú: el encabezado tiene que delatar que está
+  puesto.** Un filtro escondido que nadie ve se olvida encendido, y después lo que falta se lee como
+  «no existe». En el tablero eso lo dice el contador, que pasa de `9` a `9 / 16` en ámbar; sin esa
+  señal, el filtro se queda a la vista. Primer uso: las seis casillas de estado del tablero, que eran
+  tres renglones de pastillas antes de la primera tarea.
 - ⚠ **Adoptar una región es SOLTARLE a la herramienta lo que la regla compartida ya dice**, no
   agregarle una clase encima. En `context` fue soltar el `background` del árbol: ahora lo pone
   `--sidebar` (#1f1f1f), un escalón por detrás del `--card` (#202020) del detalle, y las dos columnas

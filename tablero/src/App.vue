@@ -11,6 +11,7 @@
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import TaskEditor from './TaskEditor.vue';
+import RegionMenu from './RegionMenu.vue';
 import { readPreference, savePreference, groupTasks } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { jiraPreview } from './jira-preview.js';
@@ -217,6 +218,40 @@ const bucketDe = (i) => {
 // como "perdí trabajo", no como "hay un filtro puesto". Arranca siempre con todo visible.
 const ocultos = ref(new Set());
 const alternarFiltro = (id) => { ocultos.value.has(id) ? ocultos.value.delete(id) : ocultos.value.add(id) };
+
+// ── EL MENÚ ⋯ DEL SIDEBAR ───────────────────────────────────────────────────────────────────────
+// Los filtros dejaron de ser tres renglones de pastillas arriba de la lista y pasaron al menú del
+// encabezado (el patrón del Explorer de VS Code). Los datos son los MISMOS —`FILTROS`, `conteoFiltro`,
+// `ocultos`, `verLocales`—: sólo cambió dónde se dibujan.
+const menuFiltros = computed(() => {
+  const its = FILTROS.map(f => ({
+    id: f.id, label: f.label, count: conteoFiltro.value[f.id],
+    checked: !ocultos.value.has(f.id), disabled: !conteoFiltro.value[f.id],
+    title: ocultos.value.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`,
+  }));
+  // Las LOCALES son otro eje —las de arriba filtran por ESTADO, esto por ORIGEN—, así que van
+  // separadas. Y arranca apagada: el tablero es el sprint primero.
+  its.push({ separador: true });
+  its.push({ id: '_locales', label: 'locales', count: cuantasLocales.value, checked: verLocales.value,
+             disabled: !cuantasLocales.value,
+             title: verLocales.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
+  if (ocultos.value.size || busca.value) {
+    its.push({ separador: true });
+    its.push({ id: '_todas', label: 'ver todas', checked: false, title: 'quitar todos los filtros' });
+  }
+  return its;
+});
+function desdeMenu(id) {
+  if (id === '_locales') { verLocales.value = !verLocales.value; return; }
+  if (id === '_todas') { busca.value = ''; ocultos.value = new Set(); return; }
+  alternarFiltro(id);
+}
+// Colapsar TODO o desplegar todo, según cómo esté: un botón que sólo colapsa deja de servir apenas
+// lo usaste una vez.
+function colapsarTodo() {
+  const ids = groupedIssues.value.map(g => g.id);
+  collapsedGroups.value = ids.every(id => collapsedGroups.value.has(id)) ? new Set() : new Set(ids);
+}
 
 // ── buscador por título ──────────────────────────────────────────────────────────────────────────
 // Se le quitan los ACENTOS a los dos lados: los títulos vienen de Jira con tildes y nadie las escribe
@@ -1311,39 +1346,32 @@ onMounted(async () => {
          el editor, que es donde hay ancho para leerlo. -->
     <aside class="sidebar">
       <div class="region-head">
-        {{ modo === "jira" ? "Traer de Jira" : vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}
-        <span v-if="modo === 'sprint' && !cargandoAncha" class="cnt">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
+        <span>{{ modo === "jira" ? "Traer de Jira" : vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
+        <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
+             nadie ve es un filtro que se olvida encendido, y después la tarea que falta se lee como
+             «no existe». En cuanto algo queda afuera esto pasa de «9» a «9 / 16» y lo delata. -->
+        <span v-if="modo === 'sprint' && !cargandoAncha" class="cnt"
+              :class="{ filtrando: ocultos.size || buscaNorm }"
+              :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
+        <div v-if="modo === 'sprint' && !cargandoAncha && totalTasks" class="region-actions">
+          <button type="button" class="region-action" title="Colapsar todos los grupos"
+                  @click="colapsarTodo">⊟</button>
+          <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
+        </div>
       </div>
 
       <template v-if="modo === 'sprint'">
           <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
-          <!-- Filtro LOCAL: no vuelve a pedirle nada al server, sólo tapa lo que no corresponde.
-               CHECKBOXES y no una pastilla activa a la vez: la pregunta real no es «¿cuál quiero ver?»
-               sino «¿cuáles quiero sacar de la vista?», y esas dos se responden distinto — ocultar sólo
-               las terminadas era imposible con selección única. Tildado = se ve. Por eso ya no hay
-               «todas»: es el estado en que arranca, y como opción sólo repetía el default.
-               Cada casilla lleva su conteo porque un filtro sin conteo obliga a clickear para descubrir
-               que está vacío. Las que no tienen nada se deshabilitan en vez de esconderse: que «en
-               pruebas 0» se vea es información. -->
+          <!-- ⚠ Acá vivían las seis casillas de filtro: tres renglones de pastillas antes de la
+               primera tarea. Se fueron al menú ⋯ del encabezado (el patrón del Explorer de VS Code:
+               lo que se ALTERNA y se toca poco va al menú; lo que se HACE y es frecuente queda como
+               icono). Lo que NO se movió es el buscador — se usa todo el tiempo y es una sola fila.
+               Nada del razonamiento viejo se perdió: siguen siendo CASILLAS y no una selección
+               única (la pregunta es «¿cuáles saco de la vista?», no «¿cuál quiero ver?»), siguen
+               llevando su conteo, y las que están en cero siguen deshabilitadas y VISIBLES en vez de
+               esconderse — que «en pruebas 0» se vea es información. -->
           <div class="filtros" v-if="!cargandoAncha && totalTasks">
-            <label v-for="f in FILTROS" :key="f.id" class="fpill"
-              :class="{ off: ocultos.has(f.id), bloq: f.id === 'bloqueada', vacio: !conteoFiltro[f.id] }"
-              :title="ocultos.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`">
-              <input type="checkbox" :checked="!ocultos.has(f.id)" :disabled="!conteoFiltro[f.id]"
-                @change="alternarFiltro(f.id)">
-              {{ f.label }}<span class="cnt">{{ conteoFiltro[f.id] }}</span>
-            </label>
-            <!-- LAS LOCALES son otro eje: las casillas de arriba filtran por ESTADO, esto por ORIGEN.
-                 Va separada por eso, y arranca APAGADA — el tablero es el sprint primero. -->
-            <label class="fpill origen" :class="{ off: !verLocales, vacio: !cuantasLocales }"
-              :title="verLocales ? 'ocultar las tareas locales' : 'mostrar también las tareas locales (no están en Jira)'">
-              <input type="checkbox" v-model="verLocales" :disabled="!cuantasLocales">
-              locales<span class="cnt">{{ cuantasLocales }}</span>
-            </label>
-            <!-- Buscador por título (y por clave: pegar «CORE-431» es la otra forma de buscar una tarea).
-                 Va en la MISMA fila que las casillas porque es lo mismo —una vista sobre la lista— y
-                 separarlo haría pensar que son dos filtros independientes cuando se combinan con Y. -->
-            <label class="fbusca" :class="{ act: !!buscaNorm }">
+          <label class="fbusca" :class="{ act: !!buscaNorm }">
               <span class="lupa" aria-hidden="true">⌕</span>
               <input v-model="busca" type="search" placeholder="buscar por título…"
                 aria-label="Buscar tarea por título o clave">
@@ -1932,9 +1960,6 @@ onMounted(async () => {
 .tr-n { font-size: 10px; font-weight: 700; color: var(--warn); flex: none }
 .tr-z { font-size: 10px; color: var(--mut); flex: none }
 
-/* Los filtros viven arriba del árbol y no en una barra aparte: son una vista SOBRE esta lista. En
-   300px envuelven, que es lo esperado — por eso las pastillas ya eran `flex-wrap`. */
-.sidebar :deep(.filtros) { padding: 8px 10px; margin: 0; border-bottom: 1px solid var(--line) }
 .sidebar-jira { padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start }
 .sidebar-jira .mut { font-size: 11.5px; line-height: 1.5 }
 
@@ -1947,6 +1972,15 @@ onMounted(async () => {
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
 
 .sb-act { margin-left: auto; font: 11px var(--font-mono); color: var(--txt) }
+
+/* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
+   viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el
+   filtro se olvida encendido y la tarea que falta se lee como «no existe». */
+.region-head .cnt { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--mut); flex: none }
+.region-head .cnt.filtrando { color: var(--warn) }
+/* Con las casillas afuera, `.filtros` es sólo la fila del buscador. */
+.sidebar :deep(.filtros) { padding: 8px 10px; margin: 0; border-bottom: 1px solid var(--line) }
 
 /* ⚠ Ya no hay `.wrap` de ancho máximo: el workbench ocupa la ventana y quien acota el ancho de
    lectura es cada región. El `max-width: 1180px` vivía acá porque TODO era una columna de texto;

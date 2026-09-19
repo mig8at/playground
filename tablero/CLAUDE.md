@@ -11,7 +11,7 @@ página que scrollea:
 |---|---|
 | `titlebar` | el nombre, el sprint y el selector de vista |
 | `activitybar` | dos modos: **T** = mi sprint · **J** = traer de Jira |
-| `sidebar` | los filtros y **el árbol de tareas**, agrupado por estado. Una fila = una tarea |
+| `sidebar` | el buscador y **el árbol de tareas**, agrupado por estado. Una fila = una tarea. En su encabezado: **⊟** colapsa/despliega todos los grupos y **⋯** abre los filtros de estado (con su tilde y su conteo) + «locales» + «ver todas» |
 | `editor` | **sin tarea elegida, el sprint** (los 4 indicadores + Mi jornada). Con una elegida, la tarea con sus 8 pestañas |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
 | `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
@@ -22,6 +22,10 @@ leé: la **fila del árbol** si habla de elegir o de ver de un vistazo, y **el e
 detalle. Los botones que vivían en la tarjeta —«⇢ Mover», el handoff a QA— están hoy en el
 encabezado del editor; lo que la tarjeta mostraba de un vistazo (próximo paso, chips, tiempos) es la
 `.ficha`, arriba de la pestaña Trabajo.
+
+⚠ **El contador del encabezado es la única señal de que hay un filtro puesto**, ahora que las
+casillas viven en el `⋯`. Pasa de `9` a `9 / 16` y se pone ámbar. Si algún día se agrega un filtro que
+el contador no refleje, ese filtro **no puede ir al menú**: tiene que quedar a la vista.
 
 ⚠ **Y al entrar NO hay ninguna tarea seleccionada, a propósito.** Antes sí —quedaba la que estaba en
 curso— porque `active` sólo decía «sobre cuál se registra el tiempo». Ahora `active` es **lo que

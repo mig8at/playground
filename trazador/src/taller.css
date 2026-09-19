@@ -165,6 +165,53 @@
   border-bottom: 1px solid var(--border);
 }
 .region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
+/* El título empuja a las acciones al borde. `min-width: 0` para que un título largo se recorte en vez
+   de sacar los botones fuera de la región. */
+.region-head > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* ── LA BARRA DE ACCIONES DE UNA REGIÓN ──────────────────────────────────────────────────────────
+   El patrón del Explorer de VS Code, y la división es lo que lo hace funcionar:
+
+     en la BARRA   lo que se HACE y es frecuente (nuevo, refrescar, colapsar) — iconos, siempre a mano
+     en el MENÚ …  lo que se ALTERNA y se toca poco (qué se ve, qué se filtra) — con su tilde
+
+   ⚠ Y hay una condición para mandar un filtro al menú: **el encabezado tiene que delatar que está
+   puesto.** Un filtro escondido que nadie ve es un filtro que se olvida encendido, y después la tarea
+   que falta se lee como «no existe». En el tablero eso lo dice el contador, que pasa a «9 / 16» en
+   cuanto algo queda afuera. Sin esa señal, el filtro se queda a la vista. */
+.region-actions { display: flex; align-items: center; gap: 2px; flex: none }
+.region-action {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+  border: 0; border-radius: var(--radius); background: none; cursor: pointer;
+  color: inherit; font: inherit; font-size: 13px; line-height: 1;
+}
+.region-action:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }
+.region-action[aria-expanded="true"] { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)); color: var(--foreground) }
+
+/* ── EL MENÚ … ───────────────────────────────────────────────────────────────────────────────────
+   Se dibuja FUERA de la región (teleportado al `body`) y se ubica por coordenadas. ⚠ No es un
+   capricho: `region-body` tiene `overflow: auto`, y un hijo posicionado dentro de un contenedor con
+   overflow queda recortado contra su borde — el menú se cortaría contra el canto del sidebar. */
+.region-menu {
+  position: fixed; z-index: 50; min-width: 200px; padding: 4px;
+  border: 1px solid var(--border); border-radius: var(--radius-xl, 10px);
+  background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 10px 30px #0008;
+  font-size: 12.5px; font-weight: 400; text-transform: none; letter-spacing: 0;
+}
+.region-menu-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 6px 9px; border: 0; border-radius: var(--radius); background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.region-menu-item:hover:not(:disabled) { background: var(--accent); color: var(--accent-foreground) }
+.region-menu-item:disabled { opacity: .4; cursor: default }
+/* La tilde ocupa su lugar SIEMPRE, marcada o no: si apareciera y desapareciera, el texto de cada
+   fila bailaría un carácter al tildar. */
+.region-menu-item .tick { width: 12px; flex: none; text-align: center }
+.region-menu-item .label { flex: 1; min-width: 0 }
+.region-menu-item .n { flex: none; font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums }
+.region-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0 }
 
 /* ── LA MANIJA no está acá, y es a propósito ──────────────────────────────────────────────────── */
 /* Una manija no es una región: pertenece a lo que redimensiona, y cada herramienta la ubica distinto.
