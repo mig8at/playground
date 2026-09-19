@@ -6,7 +6,7 @@
   "when": "Cuando el plazo se recorta o el cupo se topea según el MONTO pedido: los tramos por monto de rt=2, en `creditop_x_conditions_by_amount_by_lender` (con `amount_conditions`, `below_min_amount`). Síntoma típico: «pidió X y le ofrecieron menos plazo del que esperaba». Ojo: los tramos NO tocan el enganche — eso es de la categoría, y va en `profiling`.",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-19",
     "source": "manual"
   },
   "sintomas": [
