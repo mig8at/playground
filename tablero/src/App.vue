@@ -1568,8 +1568,8 @@ onMounted(async () => {
           <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
           {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
           </button>
-          <label class="sync-all">
-          <input type="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
+          <label class="sync-all checkbox-row">
+          <input type="checkbox" class="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
           <span>incluir terminadas <em>nacen archivadas</em></span>
           </label>
           <p v-if="inbox" class="chip">
@@ -1756,8 +1756,8 @@ onMounted(async () => {
             <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
               {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
             </button>
-            <label class="sync-all">
-              <input type="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
+            <label class="sync-all checkbox-row">
+              <input type="checkbox" class="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
               <span>incluir terminadas <em>nacen archivadas</em></span>
             </label>
             <span v-if="inbox" class="chip">
@@ -2710,7 +2710,25 @@ onMounted(async () => {
 .move-task { margin-left: auto }
 .document-section { scroll-margin-top: 12px }
 .document-section + .document-section { margin-top: 22px }
-.pending-document :deep(input[type=checkbox]) { accent-color: var(--acc); margin-right: 7px }
+/* ⚠ Las casillas de los Pendientes salen de un `- [ ]` de markdown, así que no se les puede poner
+   clase: se les da la piel por ELEMENTO. Es la misma que `.checkbox` de `taller.css` —16px, radio 4,
+   marcada en `--primary` con el tilde dibujado con dos bordes—; `accent-color` sólo teñía la casilla
+   nativa del sistema y dejaba su forma, que cambia con el SO. */
+.pending-document :deep(input[type=checkbox]),
+.cuerpo-md :deep(input[type=checkbox]) {
+  appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center;
+  width: 14px; height: 14px; margin: 0 7px 0 0; vertical-align: -2px;
+  border: 1px solid var(--line2); border-radius: 4px; background: transparent; color: var(--acc-ink);
+}
+.pending-document :deep(input[type=checkbox])::after,
+.cuerpo-md :deep(input[type=checkbox])::after {
+  content: ""; width: 3px; height: 7px; margin-top: -2px;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0);
+}
+.pending-document :deep(input[type=checkbox]:checked),
+.cuerpo-md :deep(input[type=checkbox]:checked) { background: var(--acc); border-color: var(--acc) }
+.pending-document :deep(input[type=checkbox]:checked)::after,
+.cuerpo-md :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
 .jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
 .jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--card) }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }

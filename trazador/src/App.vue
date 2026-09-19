@@ -113,10 +113,20 @@ async function copiar() {
       · doc {{ t.traza.documento }}
       · canal {{ t.traza.origen }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span>
     </p>
-    <p v-if="t.error" class="err">{{ t.error }}</p>
-    <p v-for="h in chequeoGrave" :key="h.texto" class="err mapaRoto">
-      ⚠ el mapa dejó de resolver: {{ h.texto }} — <code>make trazador-chequeo</code>
-    </p>
+    <!-- AVISOS (`alert` de `taller.css`). ⚠ Y acá SÍ va el marco, que es lo contrario de lo que
+         hicimos con los callouts de prosa: un alert es un mensaje que tiene que despegarse de lo que
+         lo rodea, no una cita adentro de un texto. La grilla de dos columnas alinea el título con la
+         descripción aunque el icono mida distinto. -->
+    <div v-if="t.error" class="alert alert-destructive" role="alert">
+      <span class="alert-icon" aria-hidden="true">✕</span>
+      <div class="alert-title">No se pudo armar la traza</div>
+      <div class="alert-desc">{{ t.error }}</div>
+    </div>
+    <div v-for="h in chequeoGrave" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
+      <span class="alert-icon" aria-hidden="true">⚠</span>
+      <div class="alert-title">El mapa dejó de resolver</div>
+      <div class="alert-desc">{{ h.texto }} — <code>make trazador-chequeo</code></div>
+    </div>
   </div>
 
   <!-- La historia de la persona: sus solicitudes como chips por día. Reemplaza la lista vertical de
@@ -259,7 +269,9 @@ async function copiar() {
 @keyframes corre { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
 .meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
-.err { color:var(--fail); font-size:12.5px; margin:10px 0 0 }
+/* Sobre `.alert`: sólo el aire contra lo de arriba y el tamaño, que en el banner es más chico. */
+.banner .alert { margin-top:10px; font-size:12.5px }
+.banner .alert-desc { font-size:12.5px }
 .mapaRoto code { background:var(--elev); padding:1px 6px;
   border-radius:var(--r-sm); font-size:11.5px }
 /* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.

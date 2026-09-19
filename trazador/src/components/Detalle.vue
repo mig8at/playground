@@ -156,9 +156,16 @@ const apagados = computed(() => {
 
 <template>
   <main v-if="e">
-    <div class="crumb">
-      {{ t.traza?.target || t.target }} / {{ t.traza?.ureq ?? '—' }} / {{ e.label }}
-    </div>
+    <!-- Migas (`breadcrumb` de `taller.css`): esto ya era un camino escrito con barras. Lo que suma
+         el componente es que la ETAPA ACTUAL se distingue del camino que lleva hasta ella —va en el
+         color del texto y el resto apagado—, así que se lee dónde estás sin contar separadores. -->
+    <nav class="crumb breadcrumb" aria-label="ubicación">
+      <span class="breadcrumb-item">{{ t.traza?.target || t.target }}</span>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="breadcrumb-item">{{ t.traza?.ureq ?? '—' }}</span>
+      <span class="breadcrumb-sep" aria-hidden="true">/</span>
+      <span class="breadcrumb-item breadcrumb-page" aria-current="page">{{ e.label }}</span>
+    </nav>
     <div class="sub2">
       {{ ESTADO[e.estado] || e.estado }}
       <template v-if="e.vivo?.at"> · a las {{ e.vivo.at }}</template>
@@ -220,7 +227,7 @@ const apagados = computed(() => {
           <div v-if="abierto === i && s.evidencia" class="bd">
             <div class="bdh">BD · {{ s.evidencia.fuente }}</div>
             <p v-for="(f, k) in s.evidencia.filas" :key="k" class="bdf">{{ f }}</p>
-            <details class="bdq"><summary>la consulta que corrió</summary><pre>{{ s.evidencia.sql }}</pre></details>
+            <details class="bdq accordion-item"><summary class="accordion-trigger">la consulta que corrió<span class="accordion-chev">⌄</span></summary><pre class="accordion-content">{{ s.evidencia.sql }}</pre></details>
           </div>
           <!-- Los logs DE ESTE PASO -->
           <div v-if="abierto === i && s.eventos?.length" class="log">
@@ -258,7 +265,7 @@ const apagados = computed(() => {
             <div v-if="abierto === i + '-' + j && h.evidencia" class="bd">
               <div class="bdh">BD · {{ h.evidencia.fuente }}</div>
               <p v-for="(f, k) in h.evidencia.filas" :key="k" class="bdf">{{ f }}</p>
-              <details class="bdq"><summary>la consulta que corrió</summary><pre>{{ h.evidencia.sql }}</pre></details>
+              <details class="bdq accordion-item"><summary class="accordion-trigger">la consulta que corrió<span class="accordion-chev">⌄</span></summary><pre class="accordion-content">{{ h.evidencia.sql }}</pre></details>
             </div>
             <div v-if="abierto === i + '-' + j && h.eventos?.length" class="log">
               <table>
@@ -362,8 +369,10 @@ main { display:flex; flex-direction:column; min-height:0; height:100%; min-width
 .crumb, .sub2 { flex:none; padding-left:20px; padding-right:20px }
 .crumb { padding-top:16px }
 .region-body { padding:0 20px 18px }
-.crumb { color:var(--txt); font-size:13px; font-weight:600; margin-bottom:3px; word-break:break-word;
-  letter-spacing:-.01em }
+/* Sobre `.breadcrumb`: sólo el tamaño y el peso que esta columna angosta necesita. El reparto de
+   color —camino apagado, destino en el color del texto— lo pone la clase compartida. */
+.crumb { font-size:13px; margin-bottom:3px; letter-spacing:-.01em }
+.crumb .breadcrumb-page { font-weight:600 }
 .sub2 { color:var(--dim); font-size:13px; padding-bottom:12px; margin:0;
   border-bottom:1px solid var(--line) }
 /* ⚠ Un callout de barra izquierda va CUADRADO. El `border-radius: 0 r r 0` —esquinas redondeadas
@@ -460,7 +469,11 @@ tr:hover td { background:var(--sel) }
 .bdh { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; opacity: .65; margin-bottom: 5px; }
 .bdf { margin: 0; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
 .bdq { margin-top: 6px; font-size: 11px; opacity: .7; }
-.bdq summary { cursor: pointer; }
+/* Sobre `.accordion-trigger`: acá el disparador vive dentro de un bloque de 11px, así que se le
+   baja el alto y el tamaño. Lo que se adopta es el CHEVRON que rota y el anillo de foco. */
+.bdq .accordion-trigger { padding: 0; font-size: 11px; font-weight: 400 }
+.bdq .accordion-content { padding: 0 }
+.bdq.accordion-item { border-bottom: 0 }
 .bdq pre { margin: 4px 0 0; padding: 6px 8px; overflow-x: auto; font-size: 11px; line-height: 1.5;
            background: color-mix(in srgb, currentColor 5%, transparent); border-radius:var(--r-sm); }
 

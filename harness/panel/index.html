@@ -428,19 +428,23 @@
     /* El control del webhook: aparece SOLO si la corrida quedó esperando a la entidad. No es un
        control más del dock — es la continuación de una corrida que quedó a medias, así que va pegado
        a la tira de estado y desaparece cuando no aplica. */
-    /* Callout: barra de color a la izquierda y un tinte, cuadrado. El marco completo alrededor no
-       decía nada que el tinte no diga, y el radio peleaba con la barra recta.
-       ⚠ Y los colores salen del tema: eran `#d8a657` y `rgba(216,166,87,…)` a mano, de la paleta que
-       había antes — pegar un tema nuevo encima los dejaba intactos, que es como se destiñe una UI. */
-    .wh { border-left: 3px solid var(--warn); padding: .7rem .85rem; margin: .6rem 0;
-          background: color-mix(in oklab, var(--warn) 9%, transparent); }
-    .wh .wh-t { font-size: .9rem; margin-bottom: .5rem; }
-    .wh .wh-b { display: flex; gap: .4rem; flex-wrap: wrap; }
-    .wh .wh-b button { padding: .3rem .7rem; border-radius: 6px; cursor: pointer;
-                       border: 1px solid var(--bd, var(--line)); background: transparent; color: inherit; }
+    /* Sobre `.alert`: el aviso del webhook es un mensaje sobre una condición de la corrida, así que
+       usa el componente. Lo propio es el ÁMBAR — `--warn` es color semántico y por eso no vive en la
+       hoja compartida, que sólo trae las dos variantes del original (normal y destructiva).
+       ⚠ Acá decía que un callout va sin marco, con barra y tinte. Sigue valiendo para una CITA dentro
+       de un texto; esto no lo es. */
+    .wh { grid-template-columns: 16px 1fr; column-gap: 12px;
+          border-color: color-mix(in oklab, var(--warn) 45%, transparent);
+          color: var(--warn); margin: .6rem 0; }
+    .wh .alert-desc { color: color-mix(in oklab, var(--warn) 88%, var(--card)) }
+    .wh .wh-t { grid-column: 2; font-size: .9rem; margin-bottom: .5rem; font-weight: 500 }
+    .wh .wh-b { grid-column: 2; display: flex; gap: .4rem; flex-wrap: wrap; }
+    .wh .wh-b button { padding: .3rem .7rem; border-radius: var(--radius); cursor: pointer;
+                       border: 1px solid currentColor; background: transparent; color: inherit;
+                       font: inherit; font-size: .8rem; }
     .wh .wh-b button:hover { background: color-mix(in oklab, var(--warn) 18%, transparent); }
-    .wh .wh-n { font-size: .74rem; opacity: .62; margin-top: .45rem; }
-    .wh .wh-r { font-size: .84rem; margin-top: .45rem; min-height: 1.1em; }
+    .wh .wh-n { grid-column: 2; font-size: .74rem; opacity: .62; margin-top: .45rem; }
+    .wh .wh-r { grid-column: 2; font-size: .84rem; margin-top: .45rem; min-height: 1.1em; }
     .wh .wh-r.ok  { color: var(--ok); }
     .wh .wh-r.mal { color: var(--danger); }
     /* estado de la corrida, SIEMPRE visible (antes solo existía al fondo del panel) */
@@ -1342,9 +1346,16 @@
        ⚠ TODO se mueve conservando los `id`: el script direcciona por id 225 veces y por estructura 2,
        así que reubicar marcado no toca la lógica. Si algo de acá se reordena, esa sigue siendo la regla. -->
   <div class="workbench">
-    <div class="banner" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
-      datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
-      <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
+    <!-- El aviso de base compartida es un ALERT (`taller.css`), no un párrafo con un ⚠ adelante: el
+         icono va en su columna y el título se separa del detalle, así que se puede leer sólo el
+         título y saber qué pasa. ⚠ Acá el marco SÍ corresponde — es un mensaje sobre una condición,
+         no una caja alrededor de contenido. -->
+    <div class="banner alert" id="devwarn" style="display:none" role="alert">
+      <span class="alert-icon" aria-hidden="true">⚠</span>
+      <div class="alert-title"><b><span id="warntarget">dev</span></b> = data COMPARTIDA</div>
+      <div class="alert-desc">El flujo escribe datos sintéticos (assign · scrub · buró) en la DB de dev.
+        El login es Cognito real y podés tardar más (RDS remoto).
+        <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.</div>
     </div>
 
     <div class="shell">
@@ -1483,7 +1494,7 @@
           </div>
         </div>
         <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
-        <section id="webhookZona" class="wh" style="display:none"></section>
+        <section id="webhookZona" class="wh alert" style="display:none" role="status"></section>
       </main>
       </section>
 
@@ -1533,8 +1544,10 @@
              (flow_id=2). Es INYECTAR el estado del cupo, NO validar nada (la validación de la omisión sigue por
              CLI: dev/experian-check.ts). Efecto real: el backend no consulta el buró y /lenders lista SOLO rt=0.
              Sólo aplica al salto a Lenders en Sintético (ahí corre el seed headless que firma) → se gatea en applyCupoGate. -->
-        <label id="cupolbl" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--mut);cursor:pointer">
-          <input type="checkbox" id="cupo" style="width:16px;height:16px;cursor:pointer" />
+        <!-- Casilla del sistema (`checkbox` + `checkbox-row` de `taller.css`). Tenía el tamaño y el
+             cursor escritos INLINE, o sea fuera del alcance de cualquier tema. -->
+        <label id="cupolbl" class="checkbox-row" style="margin-top:10px;font-size:13px;color:var(--mut)">
+          <input type="checkbox" class="checkbox" id="cupo" />
           <span>Cupo ya confirmado <span style="opacity:.7;font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
       </div><div id="arranqueHolder" hidden><div class="field">

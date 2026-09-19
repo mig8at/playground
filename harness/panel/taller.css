@@ -507,3 +507,92 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .switch-sm { width: 28px; height: 14px }
 .switch-sm::after { width: 10px; height: 10px }
 .switch-sm[aria-checked="true"]::after { transform: translateX(14px) }
+
+/* ── ACORDEÓN ───────────────────────────────────────────────────────────────────────────────────
+   ⚠ NO es el `.view` de más arriba, y la diferencia importa: `.view` reparte el ALTO de una región
+   de alto fijo (el sidebar primario de VS Code); esto es contenido que se abre y se cierra dentro de
+   un cuerpo que scrollea. La regla vieja sigue valiendo — para lo segundo el elemento correcto es
+   `<details>`, que no necesita JS—, así que estas clases se ponen SOBRE `<details>`/`<summary>`.
+   Del original: separador por ítem, disparador de 14px con el chevron a la derecha que rota 180°,
+   y el cuerpo sin padding arriba. */
+.accordion-item { border-bottom: 1px solid var(--border) }
+.accordion-item:last-child { border-bottom: 0 }
+.accordion-trigger {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; width: 100%;
+  padding: 16px 0; border: 1px solid transparent; border-radius: var(--radius);
+  background: none; color: inherit; font: inherit; font-size: 14px; font-weight: 500;
+  text-align: left; cursor: pointer; list-style: none; transition: all .12s; outline: none;
+}
+.accordion-trigger::-webkit-details-marker { display: none }
+.accordion-trigger:hover { text-decoration: underline }
+.accordion-trigger:focus-visible { border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.accordion-trigger:disabled, .accordion-trigger[aria-disabled="true"] { pointer-events: none; opacity: .5 }
+/* El chevron es lo único que dice si está abierto, así que la rotación no es decoración. */
+.accordion-chev { pointer-events: none; flex: none; width: 16px; text-align: center;
+  color: var(--muted-foreground); transition: transform .2s; transform: translateY(2px) }
+[open] > .accordion-trigger .accordion-chev,
+.accordion-trigger[aria-expanded="true"] .accordion-chev { transform: translateY(2px) rotate(180deg) }
+.accordion-content { overflow: hidden; padding: 0 0 16px; font-size: 14px }
+
+/* ── AVISO ──────────────────────────────────────────────────────────────────────────────────────
+   Una grilla de dos columnas —icono y texto— para que el título y la descripción queden alineados
+   entre sí aunque el icono mida distinto. Sin icono, la primera columna es 0 y no deja hueco.
+   ⚠ Sólo las dos variantes del original. El ámbar y el verde NO van acá: son color SEMÁNTICO, que
+   vive en la hoja de cada herramienta (un export de tweakcn no los trae y pegarlo los borraría). */
+.alert {
+  position: relative; display: grid; grid-template-columns: 0 1fr; align-items: start;
+  row-gap: 2px; width: 100%; padding: 12px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--card); color: var(--card-foreground); font-size: 14px;
+}
+.alert:has(> .alert-icon) { grid-template-columns: 16px 1fr; column-gap: 12px }
+.alert-icon { grid-column: 1; width: 16px; height: 16px; line-height: 16px; text-align: center;
+  transform: translateY(2px); color: currentColor }
+.alert-title { grid-column: 2; min-height: 16px; font-weight: 500; letter-spacing: -.01em;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
+  font-size: 14px; color: var(--muted-foreground) }
+.alert-desc p { margin: 0; line-height: 1.6 }
+.alert-destructive { color: var(--destructive) }
+.alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
+
+/* ── MIGAS ──────────────────────────────────────────────────────────────────────────────────────
+   El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
+   texto; el resto, apagado. Es lo que hace que se lea dónde estás sin contar los separadores. */
+.breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  font-size: 14px; color: var(--muted-foreground); word-break: break-word }
+.breadcrumb-item { display: inline-flex; align-items: center; gap: 6px }
+.breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
+  font: inherit; cursor: pointer; transition: color .12s }
+.breadcrumb-link:hover { color: var(--foreground) }
+.breadcrumb-page { font-weight: 400; color: var(--foreground) }
+.breadcrumb-sep { flex: none; font-size: .78em; opacity: .7; user-select: none }
+
+/* ── CASILLA ────────────────────────────────────────────────────────────────────────────────────
+   Sobre un `<input type=checkbox>` de verdad: el navegador ya trae el estado, el teclado y el
+   `indeterminate`. Lo único que se reemplaza es la piel.
+   ⚠ El tilde se dibuja con dos bordes rotados 45°, no con un carácter: un ✓ de la tipografía cambia
+   de forma y de peso con cada tema, y a 16px eso se ve. */
+.checkbox {
+  appearance: none; -webkit-appearance: none; flex: none; display: grid; place-content: center;
+  width: 16px; height: 16px; margin: 0;
+  border: 1px solid var(--input); border-radius: 4px; background: transparent; color: var(--primary-foreground);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); cursor: pointer;
+  transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.checkbox::after { content: ""; width: 4px; height: 8px; margin-top: -2px;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) scale(0);
+  transition: transform .1s }
+.checkbox:checked { background: var(--primary); border-color: var(--primary) }
+.checkbox:checked::after { transform: rotate(45deg) scale(1) }
+.checkbox:indeterminate { background: var(--primary); border-color: var(--primary) }
+.checkbox:indeterminate::after { width: 8px; height: 0; margin: 0; border-width: 0 0 2px 0;
+  transform: none }
+.checkbox:focus-visible { outline: none; border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.checkbox:disabled { cursor: not-allowed; opacity: .5 }
+/* La etiqueta al lado, que es como se usa siempre: el click en el texto también marca. */
+.checkbox-row { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  font-size: 14px; line-height: 1 }
+.checkbox-row:has(> .checkbox:disabled) { cursor: not-allowed; opacity: .5 }

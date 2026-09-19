@@ -483,7 +483,17 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           </span>
         </div>
 
-        <p class="path"><code>server/data/flows/{{ sel }}/</code> · doc.md + map.json</p>
+        <!-- La ruta del nodo son MIGAS (`breadcrumb` de `taller.css`): el camino apagado y el nodo
+             actual en el color del texto, en vez de una línea entera en gris donde hay que leer las
+             barras para saber dónde termina. -->
+        <nav class="path breadcrumb" aria-label="ruta del nodo">
+          <span class="breadcrumb-item">server</span><span class="breadcrumb-sep" aria-hidden="true">/</span>
+          <span class="breadcrumb-item">data</span><span class="breadcrumb-sep" aria-hidden="true">/</span>
+          <span class="breadcrumb-item">flows</span><span class="breadcrumb-sep" aria-hidden="true">/</span>
+          <span class="breadcrumb-item breadcrumb-page" aria-current="page"><code>{{ sel }}</code></span>
+          <span class="breadcrumb-sep" aria-hidden="true">·</span>
+          <span class="breadcrumb-item">doc.md + map.json</span>
+        </nav>
         <div class="chips" v-if="byId[sel].contexts">
           <span class="chip" v-for="cx in byId[sel].contexts" :key="cx" @click="select(cx)">{{ cx }}</span>
         </div>

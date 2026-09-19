@@ -216,7 +216,9 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* Un callout es una BARRA DE COLOR y un fondo, no una caja: el marco alrededor no dice nada que el
    fondo no diga ya, y el radio pelea con la barra recta de la izquierda. */
 .when { color: var(--fg); background: var(--hueco); border-left: 2px solid var(--info); padding: 8px 12px; }
-.path { color: var(--mut); font-size: 12.5px; }
+/* Sobre `.breadcrumb`: sólo el tamaño. El reparto de color lo pone la clase compartida. */
+.path { font-size: 12.5px; }
+.path code { background: none; padding: 0; }
 
 /* La medida de lectura vive ACÁ y no en un `max-width` de toda la app: lo que se lee en renglones es
    la prosa; el encabezado, la ficha de alineación y las tablas se quedan con el ancho de la región. */
