@@ -1255,7 +1255,7 @@ onMounted(async () => {
 
 <template>
   <div class="wrap" :class="{ ancha: vistaAncha }">
-    <header>
+    <header class="titlebar">
       <div class="logo">T</div>
       <div>
         <h1>Tablero</h1>
@@ -1920,7 +1920,18 @@ onMounted(async () => {
 .spchip.drag { margin-left: 4px; color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent) }
 .spchip.dormida { margin-left: 4px; color: var(--mut); border-color: color-mix(in oklab, var(--mut) 34%, transparent); font-style: italic }
 .spchip.proyecto { margin-left: 4px; color: var(--info); border-color: color-mix(in oklab, var(--info) 34%, transparent); background: color-mix(in oklab, var(--info) 8%, transparent) }
-header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
+/* El encabezado es el TITLEBAR (`taller.css`): el nombre y las acciones globales. Adoptarlo le da la
+   banda —fondo de card y borde abajo— que lo separa del contenido; hasta ahora flotaba sobre el mismo
+   fondo y no se leía como una barra.
+   Tres desviaciones, las tres declaradas: los márgenes negativos cancelan el padding del `.wrap` para
+   que la banda vaya de borde a borde (si no, queda una barra flotando con 22px de aire a los lados);
+   `overflow: visible` porque acá SÍ envuelve a dos filas en pantallas angostas, y la regla compartida
+   la recorta; y el alto es `auto` por lo mismo. */
+header.titlebar {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap; row-gap: 10px;
+  height: auto; overflow: visible;
+  margin: -26px -22px 22px; padding: 16px 22px;
+}
 .logo { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; font-weight: 800;
   color: var(--acc-ink); font-size: 17px; background: var(--acc) }
 h1 { font-size: 20px; margin: 0; letter-spacing: .2px }

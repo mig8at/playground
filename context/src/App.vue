@@ -356,7 +356,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
     </header>
 
     <div class="cols">
-      <aside class="tree">
+      <aside class="tree sidebar">
         <div class="section-label">Contextos</div>
         <div v-for="r in rows" :key="r.id"
              class="row" :class="[claseDe(r.id), { sel: sel === r.id, hl: highlighted.has(r.id) }]"
@@ -392,7 +392,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         </div>
       </aside>
 
-      <main class="detail" v-if="byId[sel]">
+      <main class="detail editor" v-if="byId[sel]">
         <div class="d-head">
           <span class="dot" :class="kindOf(sel)"></span>
           <h2>{{ nameOf(sel) }}</h2>

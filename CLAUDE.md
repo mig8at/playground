@@ -194,8 +194,16 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 
 - ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Es lo que separa un
   vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor que no
-  tenerlo. Hoy el panel del harness usa las siete; el trazador, una (`auxiliarybar`); `context` y
-  `tablero` ninguna — son vistas de lectura y está bien así.
+  tenerlo. Hoy: el panel del harness usa las siete · `context` dos (`sidebar` el árbol, `editor` el
+  detalle) · `tablero` una (`titlebar`) · el trazador una (`auxiliarybar`). `make estilo-check` lo
+  lista, así que se ve de un vistazo quién adoptó qué.
+- ⚠ **Adoptar una región es SOLTARLE a la herramienta lo que la regla compartida ya dice**, no
+  agregarle una clase encima. En `context` fue soltar el `background` del árbol: ahora lo pone
+  `--sidebar` (#1f1f1f), un escalón por detrás del `--card` (#202020) del detalle, y las dos columnas
+  dejan de ser la misma superficie. En `tablero` fue dejar que el encabezado tome la banda —fondo y
+  borde abajo— que lo separa del contenido. Las desviaciones se DECLARAN en la hoja de cada una: en
+  `context` las dos columnas son tarjetas dentro de una página, no regiones a sangre, así que se
+  quedan con su borde y su radio.
 - ⚠ **Y un nombre que no cambia nada es un nombre que alguien va a borrar.** Se probó etiquetar el
   mapa del trazador como `.editor`: su regla propia ya decía todo lo que la compartida diría, y lo
   único que sumaba era un `display:flex` que no tenía. Se sacó.
