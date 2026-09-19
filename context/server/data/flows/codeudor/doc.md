@@ -15,12 +15,31 @@ La lógica está repartida en dos módulos y conviene saber cuál abrir: **`Modu
 - **Titular y codeudor firman EL MISMO archivo, y por eso el documento se RE-RENDERIZA.** La firma es electrónica —una constancia impresa dentro del PDF, no un trazo sobre él—, así que la única forma de tener las dos es volver a generarlo con ambas llaves. **La url del titular también se actualiza**: dejarlo apuntando al render de una sola firma sería conservar como prueba una versión que ya no es la vigente. Que ambos firmen el mismo documento es requisito legal (Código de Comercio art. 632, «en un mismo grado»), no una decisión de implementación.
 - **Sin filas de catálogo para esa entidad, TODO esto es no-op.** `SigningDocumentResolver` devuelve vacío, no se difiere, no se re-renderiza y el flujo queda como estaba. **La ausencia de configuración ES el fallback** — por eso una entidad nueva necesita su migración de seed antes de que el codeudor funcione ahí, y por eso «no pasa nada» es un síntoma de config faltante, no de código roto.
 - **Una fila por INTENTO de codeudor, con un único activo por solicitud.** «Usar otro codeudor» cierra la fila anterior en el estado terminal `Replaced` y crea una nueva. **El deep link vale solo mientras el estado NO sea terminal** y el token no haya expirado: un link que «dejó de funcionar» probablemente esté mirando una fila reemplazada.
-- **El guard `cosigner.token` es SOFT.** Sin el header `X-Cosigner-Token` hace `next()` y el flujo del titular pasa byte a byte igual; con token, expone el contexto del codeudor y el controlador decide. Por eso pudo montarse en rutas **compartidas** del onboarding (celular/OTP/formulario) sin tocar la autogestión. La variante dura es otra clase (`RequireCosignerToken`) — no las confundas al leer una ruta.
+- **El guard `cosigner.token` es SOFT — y tiene un hermano DURO que este nodo no nombraba.** El blando es `ResolveCosignerToken` (`legacy-backend/Modules/UserRequestV1/App/Http/Middleware/ResolveCosignerToken.php:24-26`): sin el header `X-Cosigner-Token`, o con él vacío, **llama a `next()` sin fijar contexto y sin rechazar**, así que el flujo del titular pasa byte a byte igual; con token, expone el contexto del codeudor. Es el alias que usan las rutas de identidad (`Modules/Identity/routes/api.php:32`, `:90`, `:92`, con «(soft)» escrito en el comentario). ⚠ **Pero existe `RequireCosignerToken`**, que delega en el blando y **rechaza con `URV1CT401`** si no quedó `cosigner_actor` (`.../RequireCosignerToken.php:52-53`). Son dos middlewares con nombres parecidos y políticas opuestas: leer sólo el blando hace creer que **todas** las rutas de codeudor son permisivas.
 - **La elegibilidad del codeudor es SOLO LECTURA por contrato.** `CosignerEligibilityService` **no** dispara TusDatos, Experian ni ADO: esas consultas ya corrieron en el onboarding del codeudor y quedaron persistidas; acá solo se leen. Disparar de nuevo duplicaría consultas **facturables**. Y la política es **el cupo de codeudor (type 3)** del lender: si Riesgo necesita más criterios, van dentro del motor de cupo, no en este servicio.
 - ⚠ **DataCrédito del codeudor se lee por su `user_id`, no por `user_request_id`** — Experian no ata el resultado a la solicitud. Dos personas conviven en la misma `user_request` sin colisión porque el vínculo lo resuelve la tabla `cosigners`.
 - **El OTP de la FIRMA del codeudor no es el OTP del monolito: lo sirve un microservicio.** `SendCosignerSignatureOtpService` baja a `Modules/AuthV1` y de ahí a `OtpClient`, que hace `Http::baseUrl(config('services.otp_service.host'))`. Dos consecuencias prácticas: el código **no queda en la base** (la fila de `otps` guarda el literal `delegated-to-otp-service`, así que no se puede leer de ahí para probar), y si ese host no está configurado el paso muere con un 500 opaco (**F-151**). El OTP del onboarding —el que linkea al codeudor con su `User`— es el de siempre y sí es local: son dos mecanismos distintos en el mismo recorrido.
 
 - ⚠ **`docs/cosigner/*.md` (en el repo) va ATRASADO respecto del código.** Su tabla de fases marca la firma técnica del codeudor como ⛔ bloqueada por proveedor; en `main` existe `CosignerSignatureCloser`, que re-renderiza con las dos firmas y termina la autorización. Son 10 documentos muy buenos para entender **el porqué de cada decisión** — pero para saber **qué corre hoy**, el código manda.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 14 afirmaciones auditadas —9 de código contra `main` y 5
+de dato medidas contra producción—, cero chequeos débiles y ninguna falsa. Exactos: el diferimiento con
+`deferred_for_cosigner` (`Modules/Loans/App/Services/LoanAuthorizationService.php:185`, consumido en
+`ValidateOtpPromissoryNoteController.php:387`), el guard blando, y la cadena del OTP —
+`SendCosignerSignatureOtpService` baja a `Modules\AuthV1\App\Services\SendOtpService`, tal como
+dice—. Lo agregado: el **hermano duro** del guard, que el nodo no nombraba.
+
+**Cuánto de esto se usa, medido el 2026-09-19 — y es poco, con una forma clara.** La política la exigen
+**8 de 236 categorías** (3,4 %), en **dos entidades y ambas de la misma familia**: **Motai Renting
+(158)** y **Rent to Own (193)**. En toda la historia hay **27 filas en `cosigners`**: **10
+`Formalized`**, **7 `Replaced`**, **6 `Not eligible`** y **4 `Pending`** (las cuatro activas, la última
+del 2026-09-06). O sea que el circuito **cierra de verdad** —más de un tercio llega a formalizarse—, que
+«usar otro codeudor» **se usa** (7 reemplazos) y que la validación **rechaza** (6 no elegibles): las
+tres ramas que este nodo describe están ejercitadas en producción.
+
+⚠ **Un detalle que cambia cómo se consulta esa tabla:** el invariante de «un único activo por solicitud»
+se sostiene poniendo `is_active` en **`NULL`** para las filas terminales, **no en 0**. Un
+`WHERE is_active = 0` no devuelve ninguna.
 
 ## El recorrido, y quién decide en cada punto
 
