@@ -65,7 +65,7 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
 **Las puertas desde el código**, por responsabilidad:
 
 - **Features del perfilador ML** — `legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php:306`
-  (`CALL SP_AgilData_Mareigua_Extract_Data`) y `:290` (`CALL SP_Experian_Extract_Data`). Esos dos
+  (`CALL SP_AgilData_Mareigua_Extract_Data`) y `:335` (`CALL SP_Experian_Extract_Data`). Esos dos
   procedimientos son el paraguas: adentro llaman a las **23 `FN_Experian_*`**
   (`CC_Debt_Balance`, `CC_Vector_Overdue`, `CC_Is_Delinquent`, `Liabilities_*`, `Savings_Is_Seized`…),
   que ninguna se invoca desde PHP. **Son los ~20 campos `EX_*` que el nodo `kyc` dice que «se calculan
@@ -74,9 +74,12 @@ por la regla de extensiones). Define **38 de las 42** — las otras 4 no tienen 
   `legacy-backend/Modules/Onboarding/App/Services/ExperianProfileService.php:42` (`FN_User_Income_Average`),
   `:46` (`FN_User_Occupation`), `:102` (`FN_CreditopX_Profiling_Fixed_Expense_Perc`). El gemelo por
   lender: `legacy-backend/app/Actions/Lenders/Prami.php:378` · `:384` · `:497`.
-- **Mareigua** — `legacy-backend/Modules/Identity/App/Services/MareiguaService.php:339`
-  (`FN_Mareigua_Incomes_Average`, el `approximate_real_salary`). El extractor V2 y su advertencia:
-  `legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/MareiguaExtractor.php:23` · `:66`.
+- **Mareigua** — `legacy-backend/Modules/Identity/App/Services/MareiguaService.php:403`
+  (`FN_Mareigua_Incomes_Average`, el `approximate_real_salary`). El extractor V2 y sus **dos**
+  advertencias: `legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/MareiguaExtractor.php:23`
+  («NOT defined in the repository's migrations») y **`:183`, que es la más dura** — *«this call will
+  throw until it is created in the DB»*. O sea que el código no sólo sabe que la función le falta al
+  repo: sabe que **en un ambiente nuevo esa llamada revienta**.
 - **Revolvente rt=3** — `legacy-backend/Modules/Loans/App/Repositories/RevolvingCreditRepository.php:115`
   (`CALL SP_CreditopX_Revolving_Credit`) y
   `application/app/Services/lenders/RevolvingLoanConfigService.php:80`
@@ -113,10 +116,12 @@ apareció **un** event en `creditop` — uno solo, y es de los objetos de más c
 Redash es una **réplica de lectura** (`@@read_only = 1`, medido), y una réplica siempre muestra así un
 event que está activo en el primario. Leer ese estado como «no corre» es el error natural acá.
 
-**La prueba de que corre son los datos, no la columna:** `user_request_risk_central_user_data` tiene
-**969.866 filas y UNA sola fecha distinta** — todas escritas entre las 04:50:00 y las 04:50:16 de esa
-madrugada (medido en prod el 2026-08-15). Dieciséis segundos para casi un millón de filas es la firma
-de un `TRUNCATE` + reconstrucción total.
+**La prueba de que corre son los datos, no la columna**, y se volvió a medir: `user_request_risk_central_user_data`
+tiene **1.059.276 filas y UNA sola fecha distinta** — todas escritas entre las **04:50:00 y las 04:50:19
+de esa misma madrugada** (medido en prod el **2026-09-18**; el 2026-08-15 eran 969.866 en 16 segundos).
+Diecinueve segundos para más de un millón de filas es la firma de un `TRUNCATE` + reconstrucción total,
+y **la medición a cinco semanas de distancia confirma que sigue corriendo todas las noches**: creció
+89.410 filas y volvió a quedar con una sola fecha.
 
 **Y `migrate.sql` describe lo contrario de lo que corre.** Su versión del SP (último commit
 **2025-08-15**, un año) hace lo **incremental**: arma una tabla temporal `user_request_missing`, une por
@@ -222,6 +227,16 @@ Cuatro cosas de su diseño que cambian cómo se lee la columna:
 - **Requisito de servidor:** con binlog activo, `CREATE TRIGGER` exige `SUPER` o `log_bin_trust_function_creators = 1` (error 1419); en RDS va en el parameter group. Si una migración de trigger falla con 1419, es eso y no permisos del usuario.
 
 **Y el histórico está reconstruido, que es la salvedad que decide si se puede contar.** Medido en prod el 2026-09-18: **114.546 de 560.727** solicitudes tienen `disbursed_at`, desde 2023-08-02 hasta ese mismo día. Todo lo anterior al trigger lo llenó `user-requests:backfill-disbursed-at` con **dos fuentes en orden**: el primer `user_request_records` con el estado autorizado —la hora real del evento, que cubre **~77%**— y, para el resto, **`updated_at` como proxy**, porque las entidades que cambian el estado por webhook (Sistecredito, Bancolombia BNPL, Meddipay, Welli) **no dejan record**. El proxy coincide con el record al minuto en el 97% de los casos medidos, pero es una aproximación: **~23% del histórico no es la hora real del desembolso**, y esa distinción vive en el CSV de la corrida, no en la base.
+
+**(2026-09-18) Nodo RE-VERIFICADO entero.** 17 afirmaciones auditadas —9 de código contra `main` y
+**8 de dato re-medidas contra producción**—, cero chequeos débiles y ninguna falsa. Este nodo es casi
+todo medición, así que re-medirlo es la única forma de auditarlo, y **todos los conteos se sostuvieron
+exactos**: 42 rutinas, 1 event, 28 vistas, 38 definidas en `migrate.sql`, las 4 sin fuente siguen sin
+fuente, y el event sigue con su cadencia, su definer y su `SLAVESIDE_DISABLED`. Lo único que se movió
+es lo que tenía que moverse: la tabla que el event reconstruye pasó de 969.866 a **1.059.276 filas** y
+sigue quedando con **una sola fecha**, lo que confirma a cinco semanas de distancia que el mecanismo
+corre. Se corrigieron dos citas que habían derivado 45 y 64 líneas, y se agregó la **segunda**
+advertencia del extractor de Mareigua, que es más dura que la citada.
 
 ## Lo que NO está verificado
 - ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).
