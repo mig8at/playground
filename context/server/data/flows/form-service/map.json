@@ -4,7 +4,7 @@
   "when": "Cuando la tarea toca el microservicio `form-service` (Go): el formulario dinámico G2 'backend-driven' (pantalla `additional-info`), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (`user_field_values`, EAV), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo sin escribir código. Credifamilia es el `form_type` 6. Síntoma: «formulario no encontrado» = el flujo dinámico sin su schema (F-41).",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-18",
     "source": "manual"
   },
   "sintomas": [
