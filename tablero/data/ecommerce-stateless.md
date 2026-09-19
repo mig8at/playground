@@ -23,9 +23,8 @@ entró el 14/9 con la promoción `Qa (#1007)` y Abel lo revirtió esa misma noch
 se revirtió y sí quedó. Reponerlo es **#1016**, el único PR abierto, y tiene que entrar **antes** de la
 próxima promoción `qa`→`main`.
 
-**Y hay un segundo PR que espera, de hoy:** la rama `fix/listado-tramo-por-monto` de `legacy-backend`
-(commit `9b956475`, **sin pushear**) termina de alinear el plazo que anuncia la tarjeta con el que da el
-plan de pagos. #1432 cerró la capa de la CATEGORÍA; ésta cierra la del TRAMO POR MONTO, que está viva en
+**Y hay un segundo PR abierto, de hoy: #1441** (rama `fix/listado-tramo-por-monto` de `legacy-backend`)
+termina de alinear el plazo que anuncia la tarjeta con el que da el plan de pagos. #1432 cerró la capa de la CATEGORÍA; ésta cierra la del TRAMO POR MONTO, que está viva en
 producción con Motai X —89 de 227 solicitudes (39 %) en 90 días discrepando, y 31 créditos a un plazo que
 la entidad no declara—. Va contra `qa`, como todo lo demás.
 
@@ -42,7 +41,7 @@ dicen `[1, 3, 6]`. Lo que sigue abierto de ese hilo es otra cosa y está arriba:
 
 **El próximo paso es:** que QA recorra los tres canales en `qa` siguiendo «Cómo validar» de la tarea
 publicable, **sin sesión de asesor** — ventana de incógnito o logout previo. En paralelo, y sin depender de
-eso: pushear `fix/listado-tramo-por-monto` y abrirle el PR contra `qa`.
+eso: que revisen **#1441**.
 
 ## Pendientes
 
@@ -92,8 +91,9 @@ eso: pushear `fix/listado-tramo-por-monto` y abrirle el PR contra `qa`.
       la aplica el listado.** Medido en prod: sólo 4 productos tienen `max_term` y suman **22** usos
       históricos, todos de «N sesiones». Es el mismo defecto con impacto casi nulo — se cierra con el
       mismo patrón cuando toque, no antes.
-- [ ] **Pushear `fix/listado-tramo-por-monto` y abrir el PR contra `qa`** (commit `9b956475`). No se
-      pusheó: los repos reales no se tocan sin permiso explícito.
+- [ ] **Mergear #1441 cuando lo revisen** — ya está abierto contra `qa` (rama
+      `fix/listado-tramo-por-monto`, commit `9b956475`). Termina cuando el tramo por monto recorte la
+      tarjeta en `qa`; después viaja a `main` con la misma promoción que el resto.
 
 - [ ] **El hueco de la credencial:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
       así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
@@ -434,7 +434,7 @@ docblock de `RegularPaymentScheduleService::lenderPricesByTerm`).
 *(Creditop X (37) también tiene tramos y da **0** divergencias: sus bandas son anchas respecto de sus
 montos. DHI X (63) no tuvo solicitudes. O sea que esto es de Motai X, no del mecanismo en general.)*
 
-**Lo que se hizo** — rama `fix/listado-tramo-por-monto` sobre `qa`, commit `9b956475`, **sin pushear**:
+**Lo que se hizo** — rama `fix/listado-tramo-por-monto` sobre `qa`, commit `9b956475`, PR **#1441**:
 el listado aplica el tramo por monto con el **mismo** monto que el plan. La elección de banda, el
 desempate de bandas solapadas y el `mandatory` se mudaron a
 `Modules/Loans/App/Services/PaymentSchedule/AmountConditionTermPolicy.php` y **los dos servicios la
