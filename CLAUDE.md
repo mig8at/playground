@@ -153,9 +153,11 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   `harness/panel` · `tablero/src` · `trazador/src`). Es un export de [tweakcn](https://tweakcn.com/)
   tal cual: elegís un tema ahí, copiás su bloque y **pisás el archivo**. Nada más. No se edita a mano
   y no lleva ni una regla propia de ninguna herramienta.
-- **`make estilo-check`** es lo que hace que eso sea cierto y no una intención: compara los md5 de los
-  cuatro, prohíbe las mezclas `in oklch`, mide el contraste de las reglas que fijan color y fondo, y
-  lista las variables usadas y nunca declaradas. Corrélo después de tocar estilos.
+- **`make estilo-check`** es lo que hace que eso sea cierto y no una intención. Ocho chequeos, y cada
+  uno nació de un error medido: md5 de los dos archivos compartidos · `in oklch` prohibido · contraste
+  de las reglas que fijan color y fondo · variables usadas y nunca declaradas · el contrato de scroll ·
+  **color literal adentro de una regla** · **reglas y media queries vacías** · qué región usa cada
+  herramienta. Corrélo después de tocar estilos; sale ≠0 si algo está mal.
 - Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
   los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
   etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `tema.css`
@@ -298,12 +300,16 @@ selects, iframes, imágenes y píldoras, que son objetos, no contenedores.
 5. **Una píldora es relleno O contorno, nunca los dos.** Fondo teñido + borde teñido del mismo color
    es un anillo que la engorda sin agregar información. Encendida = relleno, apagada = contorno: la
    pareja default/outline de shadcn, que además dice el estado con la FORMA.
-6. ⛔ **El cromo muerto se BORRA, no se anula.** El caso del harness: `.card` tenía fondo, borde, radio
+6. ⛔ **El cromo muerto se BORRA, no se anula** —y una regla que quedó VACÍA es su forma más visible,
+   por eso la caza el chequeo 7. El caso del harness: `.card` tenía fondo, borde, radio
    y 20px de padding, y **tres bloques más abajo se los quitaban uno por uno**. Ninguno de los cuatro
    `.card` de la pantalla dibujaba su caja — pero el que agregue el quinto en un lugar nuevo se lleva
    la caja vieja sin pedirla. El anulador conserva lo que AGREGA y pierde lo que niega.
 7. **Un color literal no sobrevive a un cambio de tema.** `#d8a657`, `#0a0c10`, `#fbbf24`, `#fff`: un
    export de tweakcn pegado encima los deja intactos, y así se destiñe una UI de a un detalle por vez.
+   Lo que SÍ lleva un literal es la **declaración de un token** (`--ok: #22c55e`) y la sombra de un
+   popover, que es negra en cualquier tema. Los demás se declaran: los `response_type` y los productos
+   del harness son tokens desde hoy, igual que los carriles del trazador. **Cableado** en el chequeo 6.
    ⚠ Y al pasarlos a token, **el token tiene que existir en ESA herramienta**: puse `var(--fail)` en el
    harness por costumbre del trazador y ahí se llama `--danger`; el navegador habría tirado la
    declaración entera sin decir nada. Lo cazó `make estilo-check`.

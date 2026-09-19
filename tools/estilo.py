@@ -267,7 +267,51 @@ def main():
         for n, m in fingido:
             print(f'          ▲ {n}: `{m}` finge el contrato de scroll')
 
-    print('\n  6 · qué región usa cada herramienta')
+    # ── 6 · COLOR LITERAL ────────────────────────────────────────────────────────────────────────
+    #    Un `#d8a657` o un `rgba(23,26,33,.93)` escrito adentro de una regla NO lo alcanza un tema
+    #    nuevo: pegar un export de tweakcn encima lo deja intacto, y así se destiñe una UI de a un
+    #    detalle por vez. Declararlo como token es lo que pone la palanca en un solo lugar.
+    #    ⚠ Dos excepciones, y son reales: la DECLARACIÓN de un token (`--ok: #22c55e`) es
+    #    precisamente dónde va el literal, y la sombra de un popover es negra en cualquier tema.
+    print('\n  6 · color literal adentro de una regla (un tema nuevo no lo alcanza)')
+    LITERAL = re.compile(r'#[0-9a-fA-F]{3,8}\b|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)')
+    for tool in HOJAS:
+        sueltos = []
+        for q in propios_de(tool):
+            css = re.sub(r'/\*.*?\*/', '', css_de(q), flags=re.S)
+            for n, linea in enumerate(css.split('\n'), 1):
+                if not LITERAL.search(linea): continue
+                if re.match(r'\s*--[\w-]+\s*:', linea): continue        # declara un token
+                if 'box-shadow' in linea or 'drop-shadow' in linea: continue
+                sueltos.append((q.name, ' '.join(linea.split())[:66]))
+        if sueltos:
+            print(f'      ✗ {tool}: {len(sueltos)}')
+            for n, l in sueltos[:6]: print(f'          {n:18} {l}')
+            if len(sueltos) > 6: print(f'          … y {len(sueltos)-6} más')
+            fallo = True
+        else:
+            print(f'      ✓ {tool:9} sin literales sueltos')
+
+    # ── 7 · REGLAS VACÍAS ────────────────────────────────────────────────────────────────────────
+    #    Una regla sin declaraciones es cromo que alguien anuló en vez de borrar, o un bloque que se
+    #    quedó sin contenido al mudar sus valores. Se lee como intención y no hace nada.
+    print('\n  7 · reglas y media queries que quedaron vacías')
+    for tool in HOJAS:
+        vacias = []
+        for q in propios_de(tool):
+            css = re.sub(r'/\*.*?\*/', ' ', css_de(q), flags=re.S)
+            for m in re.finditer(r'(?m)^[ \t]*([^{}\n][^{}]*?)\{\s*\}', css):
+                vacias.append((q.name, ' '.join(m.group(1).split())[:56]))
+            for m in re.finditer(r'@media([^{]*)\{\s*\}', css):
+                vacias.append((q.name, '@media' + ' '.join(m.group(1).split())[:50]))
+        if vacias:
+            print(f'      ✗ {tool}: {len(vacias)}')
+            for n, sel in vacias[:6]: print(f'          {n:18} {sel} {{ }}')
+            fallo = True
+        else:
+            print(f'      ✓ {tool:9} ninguna')
+
+    print('\n  8 · qué región usa cada herramienta')
     for tool in HOJAS:
         texto = '\n'.join(p.read_text() for p in propios_de(tool))
         texto = re.sub(r'<!--.*?-->', '', texto, flags=re.S)   # lo comentado no cuenta como usado

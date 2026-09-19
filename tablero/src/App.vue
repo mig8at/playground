@@ -2264,12 +2264,10 @@ onMounted(async () => {
 /* Con las casillas afuera, `.filtros` es sólo la fila del buscador. */
 .sidebar :deep(.filtros) { padding: 8px 10px; margin: 0; border-bottom: 1px solid var(--line) }
 
-/* ⚠ Ya no hay `.wrap` de ancho máximo: el workbench ocupa la ventana y quien acota el ancho de
-   lectura es cada región. El `max-width: 1180px` vivía acá porque TODO era una columna de texto;
-   con el árbol a un lado y el editor al otro, acotar el contenedor dejaría aire muerto a la derecha. */
-.workbench.ancha { }
-/* Vista ancha: la página se suelta. Los 1180px son para leer UNA columna de tarjetas; con cuatro sprints
-   a la vez lo que se quiere es abarcar, y la grilla ya es `auto-fill` — sólo hay que dejarla crecer. */
+/* ⚠ `.workbench.ancha` ya no tiene regla, y es a propósito: no hay `.wrap` de ancho máximo porque el
+   workbench ocupa la ventana y quien acota el ancho de lectura es cada región. El `max-width: 1180px`
+   que vivía acá era de cuando TODO era una columna de texto. La clase sigue puesta en el marcado —la
+   usa el JS para saber en qué vista está—, pero como CSS estaba VACÍA desde entonces. */
 
 /* Menú de estados. Las opciones son las que devolvió Jira, así que el ancho lo decide el contenido:
    fijar columnas cortaría nombres como «Se devuelve a pruebas». */
@@ -2289,25 +2287,6 @@ onMounted(async () => {
 /* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
    CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
 .filtros { display: flex; gap: 5px; flex-wrap: wrap; margin: 0 0 12px }
-/* Tildada = se ve, que es el estado normal: por eso la tildada va en tono fuerte y la destildada se
-   apaga. Al revés (resaltar la que está oculta) el tablero se leería como si el trabajo estuviera
-   apagado. */
-.fpill { border: 1px solid color-mix(in srgb, var(--acc) 45%, transparent); background: var(--card);
-  color: var(--txt); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 10px;
-  border-radius: 999px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
-  transition: .12s }
-.fpill:hover { border-color: var(--line2) }
-.fpill input { accent-color: var(--acc); margin: 0; cursor: inherit }
-/* Destildada = oculta: se apaga igual que una tarea terminada, y por lo mismo — sigue estando, pero
-   ya no participa de lo que se está mirando. */
-.fpill.off { color: var(--mut); background: var(--panel2); border-color: var(--line) }
-/* Bloqueada en rojo aunque esté destildada: es la única del filtro que pide una acción de OTRA persona,
-   así que tiene que verse incluso cuando se la sacó de la vista. */
-.fpill.bloq { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 27%, transparent) }
-.fpill.bloq:not(.off) { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 67%, transparent) }
-/* Sin tareas: la casilla no hace nada; el conteo en 0 se muestra igual, que es información. */
-.fpill.vacio { opacity: .38; cursor: default }
-.fpill .cnt { font-size: 10.5px; opacity: .8; font-weight: 700 }
 /* El buscador vive en la fila de las casillas y con la misma pastilla: es el mismo tipo de cosa —una
    vista sobre la lista—, no un control aparte. `margin-left: auto` lo empuja al final para que las
    casillas queden juntas y se lean como un grupo. */
@@ -2341,22 +2320,12 @@ onMounted(async () => {
 .spchip.drag { margin-left: 4px; color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent) }
 .spchip.dormida { margin-left: 4px; color: var(--mut); border-color: color-mix(in oklab, var(--mut) 34%, transparent); font-style: italic }
 .spchip.proyecto { margin-left: 4px; color: var(--info); border-color: color-mix(in oklab, var(--info) 34%, transparent); background: color-mix(in oklab, var(--info) 8%, transparent) }
-/* El encabezado es el TITLEBAR (`taller.css`): el nombre y las acciones globales. Adoptarlo le da la
-   banda —fondo de card y borde abajo— que lo separa del contenido; hasta ahora flotaba sobre el mismo
-   fondo y no se leía como una barra.
-   Tres desviaciones, las tres declaradas: los márgenes negativos cancelan el padding del `.wrap` para
-   que la banda vaya de borde a borde (si no, queda una barra flotando con 22px de aire a los lados);
-   `overflow: visible` porque acá SÍ envuelve a dos filas en pantallas angostas, y la regla compartida
-   la recorta; y el alto es `auto` por lo mismo. */
 /* ⚠ Acá vivían `header.titlebar`, `.logo`, `h1`, `.sub` y `.sp`. El titlebar se fue: decía
    «Tablero · Sprint N · registro de tiempo y hallazgos» y gastaba 77px de alto en repetir lo que ya
    dicen la pestaña del navegador y el statusbar. Su única acción —«sólo este sprint»— está en el
    menú ⋯ del sidebar. */
 .chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
 .chip.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, var(--card)); background: color-mix(in oklab, var(--warn) 14%, var(--card)) }
-
-/* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
-   hay barra de sprint que ya ocupe el margen automático */
 
 /* ⚠ Los cuatro indicadores ya se separan ENTRE SÍ con el `border-right` de cada celda: el marco de
    afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
@@ -2382,21 +2351,17 @@ onMounted(async () => {
   display: flex; align-items: center; gap: 6px }
 /* selector de fuente de la jornada: a la derecha del título, mismo control que el selector de sprints
    (`.tabs`) pero más chico — es un cambio de lente, no una navegación. */
-.card h2 .on { color: var(--acc); margin-left: 6px }
 .card h2 .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 
-/* Las filas mantienen la misma jerarquía de lectura dentro de cada estado. */
 /* ⚠ Acá vivían `.tgrid` y `.task`: la grilla de tarjetas y la tarjeta. Se fueron con la
    reestructuración — las tareas son filas del árbol en el sidebar (`.tree-row`) y su contenido es el
    editor. Lo que la tarjeta mostraba de un vistazo vive ahora en `.ficha`, que reusa sus mismas
    clases internas (`.jd`, `.next-step`, `.task-meta`, `.tm`), por eso esas siguen abajo. */
-.tl { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 9px; flex-wrap: wrap }
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 .status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .e-doing { color: var(--txt); border-color: var(--line2); background: var(--secondary) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
-.tt { font-size: 14px; font-weight: 600; line-height: 1.45; margin-bottom: 8px }
 /* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
 .jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
@@ -2407,17 +2372,12 @@ onMounted(async () => {
 
 /* acciones de la tarjeta: la fila que reemplazó a la card "La tarea". Van al pie y en tono bajo — la
    tarjeta se lee primero y se actúa después; botones fuertes acá competirían con el contenido. */
-.tacts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px;
-  padding-top: 9px; border-top: 1px solid var(--line) }
 .tact { border: 1px solid var(--line); background: var(--panel2); color: var(--mut); font: inherit;
   font-size: 11.5px; font-weight: 600; padding: 4px 9px; border-radius: 999px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
 .tact.act { color: var(--acc); border-color: var(--line2); background: var(--secondary) }
-.tact.principal { color: var(--acc-ink); border-color: var(--acc); background: var(--acc); }
-.tact.principal:hover:not(:disabled) { background: var(--acc); }
-.mas-acciones { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
 .tact.go { color: var(--acc-ink); border-color: var(--acc); background: var(--acc) }
 .tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
@@ -2452,19 +2412,6 @@ onMounted(async () => {
 /* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
-/* descripción renderizada por Jira (HTML). El scoped no llega al v-html → :deep(). SOLO LECTURA:
-   el tablero es visual; el asistente actualiza en Jira. Los checkboxes se ven pero no se togglean. */
-.desc.jira-html { white-space: normal }
-.jira-html :deep(h1), .jira-html :deep(h2), .jira-html :deep(h3), .jira-html :deep(h4) {
-  font-size: 13px; font-weight: 700; color: var(--txt); text-transform: none; letter-spacing: 0; margin: 15px 0 5px }
-.jira-html :deep(h1:first-child), .jira-html :deep(h2:first-child), .jira-html :deep(h3:first-child) { margin-top: 0 }
-.jira-html :deep(p) { margin: 6px 0 }
-.jira-html :deep(ul), .jira-html :deep(ol) { margin: 6px 0; padding-left: 20px }
-.jira-html :deep(li) { margin: 3px 0 }
-.jira-html :deep(a) { color: var(--acc); text-decoration: none }
-.jira-html :deep(a:hover) { text-decoration: underline }
-.jira-html :deep(code) { background: var(--panel2); padding: 1px 5px; border-radius: 5px; font-size: 12px }
-.jira-html :deep(input) { pointer-events: none; accent-color: var(--acc); margin-right: 5px }
 /* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
    dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
 .drawer-cps { display: flex; gap: 6px; margin-bottom: 16px }
@@ -2514,12 +2461,6 @@ onMounted(async () => {
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
 .s-work { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 28%, var(--card)); background: color-mix(in oklab, var(--warn) 18%, var(--card)) }
 .s-tasks { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
-/* el prototipo de la tarea: sólo aparece si el html existe, así que no hay estado vacío que diseñar */
-.proto { font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .3px; text-transform: none;
-  padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
-  border: 1px solid var(--line); background: transparent; color: var(--mut) }
-.proto:hover { color: var(--acc); border-color: var(--acc) }
-
 
 /* la clave de la tarea abre Jira; la flecha aparece al pasar por encima para no ensuciar el listado */
 .link { text-decoration: none; color: inherit; cursor: pointer }
@@ -2546,10 +2487,6 @@ onMounted(async () => {
 .cel.weekend.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, var(--sel) 0 3px, transparent 3px 6px), var(--panel2) }
-.n1 { background: color-mix(in oklab, var(--acc) 22%, var(--panel2)) }
-.n2 { background: color-mix(in oklab, var(--acc) 42%, var(--panel2)) }
-.n3 { background: color-mix(in oklab, var(--acc) 66%, var(--panel2)) }
-.n4 { background: var(--acc) }
 /* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que la bitácora,
    pero conservar una sola familia visual evita que el color compita con el contenido.
    `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
@@ -2611,9 +2548,6 @@ onMounted(async () => {
 .bar { height: 3px; border-radius: 999px; background: var(--sel); margin: 2px 0 7px; overflow: hidden }
 .bar i { display: block; height: 100%; background: var(--acc); border-radius: 999px;
          transition: width .3s ease }
-.chip-bar { display: inline-flex; align-items: center; gap: 8px }
-.chip-bar .mini { display: block; width: 34px; height: 3px; border-radius: 999px; background: var(--sel) }
-.chip-bar .mini b { display: block; height: 100%; border-radius: 999px; background: var(--mut) }
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
@@ -2655,7 +2589,6 @@ onMounted(async () => {
 .sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
 
 /* HALLAZGOS ------------------------------------------------------------------------------------ */
-.alerta { color: var(--bad); margin-left: 4px; font-size: 10px; line-height: 1; }
 .hgrupo { margin-bottom: 22px; }
 .hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 .hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); opacity: .55; border: 1px solid currentColor;
@@ -2676,7 +2609,7 @@ onMounted(async () => {
 .pitem.hecho { opacity: .45; }
 .pitem.hecho .pmark { color: var(--mut); }
 .pitem.hecho .pque { text-decoration: line-through; }
-.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: rgba(127,127,127,.1);
+.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: 6px; background: var(--sel);
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
          word-break: break-word; opacity: .8; }
 
@@ -2688,11 +2621,11 @@ onMounted(async () => {
         padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .proc-cuenta { font-size: 11.5px; opacity: .65; margin-right: 2px; }
 .fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px; border-radius: 5px;
-         background: rgba(127,127,127,.12); border: 1px solid transparent; opacity: .85; white-space: nowrap; }
+         background: var(--sel); border: 1px solid transparent; opacity: .85; white-space: nowrap; }
 .fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
 .fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
              background: color-mix(in srgb, var(--acc) 10%, transparent); opacity: 1; }
-.fchip.sin { color: var(--bad); border-color: rgba(229,83,75,.35); background: rgba(229,83,75,.08); }
+.fchip.sin { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 35%, transparent); background: color-mix(in oklab, var(--bad) 8%, transparent); }
 .hfuentes { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; }
 
 /* PUNTOS ---------------------------------------------------------------------------------------- */
@@ -2716,15 +2649,10 @@ onMounted(async () => {
 .toc-i { font: inherit; font-size: 11px; line-height: 1.3; padding: 3px 8px; border-radius: 999px; cursor: pointer;
          background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
 .toc-i:hover { background: var(--line) }
-.toc-i.sub { opacity: .62; font-size: 10px }
 /* Es un callout —«si retomás esto sin contexto»—: barra de color y tinte, cuadrado. El marco completo
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
-.retoma-label { color: var(--acc); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
-.retoma-paso { margin: 0; color: var(--txt); line-height: 1.55; }
-.retoma-contextos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--mut); font-size: 12px; }
 .ctx-link { border: 1px solid var(--line2); color: var(--acc); background: var(--card); border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; text-decoration: none; }
 .ctx-link:hover { background: var(--secondary); }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
@@ -2779,19 +2707,12 @@ onMounted(async () => {
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
 .next-step > span { display: block; color: var(--mut); font-size: 10px; margin-bottom: 3px }
 .next-step.missing { color: var(--mut) }
-.card-note { color: var(--mut); font-size: 10.5px }
-.card-note.warn { color: var(--warn) }
 .move-task { margin-left: auto }
 .document-section { scroll-margin-top: 12px }
 .document-section + .document-section { margin-top: 22px }
-.retoma-contextos { margin-bottom: 16px }
 .pending-document :deep(input[type=checkbox]) { accent-color: var(--acc); margin-right: 7px }
 .jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
 .jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: 8px; background: var(--card) }
-.document-history { margin-top: 20px; padding: 14px 0 0; border-top: 1px solid var(--line); scroll-margin-top: 12px }
-.document-history > summary { cursor: pointer; font-weight: 600; font-size: 13px }
-.document-history > summary span { font-weight: 400; color: var(--mut); font-size: 11px }
-.document-history[open] > summary { margin-bottom: 18px }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
 @media (max-width: 650px) {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }

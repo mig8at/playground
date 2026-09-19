@@ -63,6 +63,19 @@
       --ok-d: #16a34a;
       --warn: #f59e0b;     /* mirá esto */
       --danger: var(--destructive);
+
+      /* Los colores del DOMINIO. Estaban escritos a mano dentro de las reglas —`.rt1 { color: #60a5fa }`,
+         `.pr-renting { color: #eab308 }`— y por eso un tema nuevo no los podía tocar ni había dónde
+         mirar cuál era cuál. Son tokens por lo mismo que `--carril1..5` en el trazador: significan
+         algo del negocio, no del tema.
+         `response_type`: cómo decide la entidad. `product`: qué se financia. */
+      --rt0: #94a3b8;      /* sin integración */
+      --rt1: #60a5fa;      /* agregador */
+      --rt2: var(--ok);    /* in-platform (CreditopX) */
+      --rt3: #c084fc;      /* externo con API */
+      --prod-credit:  var(--ok);
+      --prod-renting: #eab308;
+      --prod-rto:     #fb923c;
     }
 
     * {
@@ -83,39 +96,10 @@
       color: var(--acc)
     }
 
-    .wrap {
-      max-width: 1320px;
-      margin: 0 auto;
-      /* padding-bottom deja aire para el DOCK fijo (barra de lanzamiento) */
-      padding: 26px 22px 96px
-    }
-
-    /* 2 columnas en pantallas anchas: IZQ = comercio + lenders (lo que mirás) · DER = usuario + lanzar (lo que tocás).
-       Debajo de 1080px colapsa a una sola columna (el orden del DOM ya es el correcto). */
     /* Ritmo vertical entre los bloques de nivel superior. La tira de estado, el mapa y las dos columnas
        son hermanos y NINGUNO traía margen propio → quedaban pegados. El espaciado vive acá, en un solo
        lugar, y no repartido por cada card. */
     #tren { margin-top: 18px }
-    .cols {
-      margin-top: 18px;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 18px;
-      align-items: start
-    }
-
-    .col {
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      min-width: 0
-    }
-
-    @media (max-width: 1080px) {
-      .cols {
-        grid-template-columns: minmax(0, 1fr)
-      }
-    }
 
     header {
       display: flex;
@@ -124,12 +108,6 @@
       margin-bottom: 6px
     }
 
-
-    h1 {
-      font-size: 20px;
-      margin: 0;
-      letter-spacing: .2px
-    }
 
     .sub {
       color: var(--mut);
@@ -190,7 +168,7 @@
       border-radius: 10px;
       border: 1px solid color-mix(in oklab, var(--warn) 34%, var(--card));
       background: color-mix(in oklab, var(--warn) 18%, var(--card));
-      color: #f6c667;
+      color: var(--warn);
       font-size: 12.5px
     }
 
@@ -265,7 +243,7 @@
 
     .m.sel {
       border-color: var(--acc);
-      background: #132018
+      background: color-mix(in oklab, var(--ok) 14%, var(--card))
     }
 
     .m.miss {
@@ -274,11 +252,6 @@
 
     .m.miss .meta {
       color: var(--warn)
-    }
-
-    .m .nm {
-      font-weight: 700;
-      font-size: 15px
     }
 
     .m .meta {
@@ -500,20 +473,10 @@
       right: 0;
       bottom: 0;
       z-index: 50;
-      background: rgba(23, 26, 33, .93);
+      background: color-mix(in oklab, var(--bg) 93%, transparent);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-top: 1px solid var(--line)
-    }
-
-    .dockin {
-      max-width: 1320px;
-      margin: 0 auto;
-      padding: 12px 22px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap
     }
 
     /* El control del webhook: aparece SOLO si la corrida quedó esperando a la entidad. No es un
@@ -569,7 +532,7 @@
       border: 1px solid var(--line); border-radius: 8px; cursor: zoom-in;
     }
     pre#log img.shotmini:hover { border-color: var(--acc); }
-    pre#log span.shotfail { color: #f4776a; }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
+    pre#log span.shotfail { color: var(--danger); }   /* 📸 ✗ — el screenshot falló: que se vea, no que se infiera */
 
     /* Tira de datos para TIPEAR durante la corrida. Nace de un fallo real: se tipeó un teléfono que no era
        el del bypass y el OTP no llegaba nunca. El dato estaba en el log, pero enterrado. */
@@ -578,7 +541,7 @@
     .tipear .lbl { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .06em; }
     .tipear button {
       font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      background: #14161c; color: var(--txt); border: 1px solid var(--line);
+      background: var(--bg); color: var(--txt); border: 1px solid var(--line);
       border-radius: 7px; padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
     }
     .tipear button:hover { border-color: var(--acc); color: var(--txt); }
@@ -639,22 +602,6 @@
       transform: rotate(90deg)
     }
 
-    .foldsum {
-      margin-left: auto;
-      text-transform: none;
-      letter-spacing: 0;
-      font-weight: 500;
-      font-size: 12px;
-      color: var(--mut);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap
-    }
-
-    .fold[open] .foldsum {
-      display: none
-    }
-
     /* chip de response_type: el eje que decide la CONDUCTA del lender (rt2 in-platform / rt1 integración / rt0 estándar) */
     .rtc {
       display: inline-block;
@@ -668,27 +615,27 @@
     }
 
     .rt0 {
-      color: #94a3b8;
+      color: var(--rt0);
       border-color: var(--line2);
       background: var(--panel2)
     }
 
     .rt1 {
-      color: #60a5fa;
-      border-color: color-mix(in oklab, #60a5fa 45%, var(--card));
-      background: #11203a
+      color: var(--rt1);
+      border-color: color-mix(in oklab, var(--rt1) 45%, var(--card));
+      background: color-mix(in oklab, var(--rt1) 18%, var(--card))
     }
 
     .rt2 {
-      color: #4ade80;
-      border-color: color-mix(in oklab, var(--ok) 45%, var(--card));
-      background: #0e2718
+      color: var(--rt2);
+      border-color: color-mix(in oklab, var(--rt2) 45%, var(--card));
+      background: color-mix(in oklab, var(--rt2) 18%, var(--card))
     }
 
     .rt3 {
-      color: #c084fc;
-      border-color: color-mix(in oklab, #c084fc 45%, var(--card));
-      background: color-mix(in oklab, #c084fc 18%, var(--card))
+      color: var(--rt3);
+      border-color: color-mix(in oklab, var(--rt3) 45%, var(--card));
+      background: color-mix(in oklab, var(--rt3) 18%, var(--card))
     }
     /* ── TARJETAS DE ESTADO ────────────────────────────────────────────────────────────────────────
        Numero grande + contexto, al estilo del dashboard de referencia. TODO sale de algo real:
@@ -747,13 +694,12 @@
     .lrow.drag { opacity: .4; }
     .lgrip { color: var(--mut); margin-right: 7px; cursor: grab; }
     .lrow .lnm { font-size: 13px; color: var(--txt); }
-    .lrow .lrt { color: var(--mut); font-size: 11px; margin-left: 6px; }
 
     /* ── buscador de comercios + favoritos ── */
     .bus { position: relative; }
     .bus input { width: 100%; box-sizing: border-box; padding: 9px 32px 9px 30px; border-radius: 10px;
       border: 1px solid var(--line); background: var(--panel2); color: inherit; font-size: 13px; outline: none; }
-    .bus input:focus { border-color: #4ade80; }
+    .bus input:focus { border-color: var(--acc); }
     .bus .lupa, .bus .limpiar { position: absolute; top: 50%; transform: translateY(-50%); color: var(--mut); font-size: 12px; }
     .bus .lupa { left: 10px; pointer-events: none; }
     .bus .limpiar { right: 6px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
@@ -761,7 +707,7 @@
     .res { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
     .rr { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 11px;
       border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: .12s; }
-    .rr:hover { border-color: #4ade80; background: var(--panel2); }
+    .rr:hover { border-color: var(--acc); background: var(--panel2); }
     .rr .rn { font-size: 13px; }
     .rr .rc { color: var(--mut); font-size: 11px; display: flex; gap: 5px; align-items: center; flex-shrink: 0; }
     .rr.off { opacity: .5; }
@@ -791,12 +737,8 @@
     .m:hover .facc { opacity: 1; }
     .m .facc span { color: var(--mut); cursor: pointer; font-size: 11px; padding: 2px 5px; border-radius: 6px; }
     .m .facc span:hover { background: var(--line); color: inherit; }
-    .m .estrella { color: #fbbf24; font-size: 9px; margin-left: 5px; vertical-align: middle; }
-    .pasel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; color: var(--txt); font-size: 11px; padding: 3px 6px; cursor: pointer; }
     /* Configurar y observar: una sola corrida, con el contexto siempre a la vista. */
     [hidden] { display: none !important; }
-    .header-note { margin-left: auto; color: var(--mut); font-size: 12px; }
-    .config-fields { min-width: 0; padding: 0; margin: 0; border: 0; }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
     .card h2 { font-size: 12px; letter-spacing: .7px; }
     .grouplbl, .altafila label { font-size: 12px; }
@@ -807,12 +749,11 @@
     #devwarn { margin: 0 0 16px; }
     #results { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
     #results .m { padding: 10px 12px; }
-    #results .nm { font-size: 14px; }
     .card > summary { cursor: pointer; font-size: 14px; font-weight: 600; color: var(--txt); }
     .card > summary span { font-size: 12px; font-weight: 400; color: var(--mut); margin-left: 8px; }
     .card[open] > summary { margin-bottom: 18px; }
     .card > summary:focus-visible, button:focus-visible, [role=button]:focus-visible { outline: 2px solid var(--acc); outline-offset: 4px; }
-    .scope-note { font-size: 13px; color: #d8b77a; line-height: 1.6; margin: 0 0 18px; }
+    .scope-note { font-size: 13px; color: var(--warn); line-height: 1.6; margin: 0 0 18px; }
     .health { margin-top: 18px; }
     .health.needs-attention > summary span { color: var(--warn); }
     .dependency-list { display: grid; gap: 8px; margin: 14px 0 0; }
@@ -823,36 +764,16 @@
     .last-result .stat { max-width: none; }
     .activity { margin-top: 20px; border-color: var(--line2); scroll-margin-top: 20px; }
     .activity.running { border-left: 3px solid var(--acc); }
-    .activity.interrupted { border-left: 3px solid var(--warn); }
-    .activity-head { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
-    .eyebrow { color: var(--mut); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 5px; }
     .activity h2 { text-transform: none; color: var(--txt); letter-spacing: -.3px; font-size: 22px; margin: 0; }
     .activity-time { font-size: 14px; color: var(--mut); white-space: nowrap; }
-    .activity-context { color: var(--mut); font-size: 13px; margin: 8px 0 16px; }
-    .activity-event { padding: 12px 15px; background: var(--panel2); border-radius: var(--radius-sm); margin-bottom: 14px; }
-    .event-label { color: var(--mut); font-size: 12px; }
     #activityMessage { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 14px; }
-    .dockin { flex-wrap: nowrap; justify-content: space-between; }
-    .launch-review { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-    .launch-review strong { font-size: 14px; }
-    .launch-review > span { font-size: 12px; color: var(--mut); }
-    .launch-review .sumry:empty { display: none; }
     .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
     .readiness-link:hover { text-decoration: underline; }
-    .launch-actions { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
-    .wrap { padding-bottom: 140px; }
-    .config-fields:disabled .cols { opacity: .65; }
-    .config-fields:disabled .m, .config-fields:disabled .lrow { pointer-events: none; }
     .seg { flex-wrap: wrap; }
     .lrow { flex-wrap: wrap; }
     .logcard { scroll-margin-top: 18px; }
     @media (max-width: 700px) {
-      .wrap { padding: 18px 14px 195px; }
-      .header-note { display: none; }
       .card { padding: 16px; }
-      .dockin { padding: 12px 14px; flex-direction: column; align-items: stretch; gap: 10px; }
-      .launch-actions { justify-content: flex-end; }
-      .launch-actions .go { flex: 1; }
       .two { gap: 9px; }
       .card > summary span { display: block; margin: 5px 0 0; }
       .logacts { flex-wrap: wrap; gap: 4px; }
@@ -862,20 +783,12 @@
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; } }
 
-    /* ═══════════════════════════════════════════════════════════════════════════════════════════
-       CÁSCARA TIPO EDITOR · paleta Vercel dark
-       ═══════════════════════════════════════════════════════════════════════════════════════════
-       Va al FINAL del bloque de estilos a propósito: misma especificidad, gana el último. Así el CSS
-       de las tarjetas queda intacto y esto sólo redefine el marco — si mañana se quiere volver atrás,
-       se borra este bloque y el panel vuelve a ser la columna de antes.
-
-       El negro es negro de verdad (#000) y los bordes son de un pelo: en una herramienta de lectura densa, el
-       contraste tiene que gastarse en el CONTENIDO. Lo que NO cambia es el significado del color:
-       verde = corre/ON, ámbar = mirá esto, rojo = roto. Eso ya estaba decidido y es lo que hace que el
-       ojo encuentre; volverlo monocromo por estética sería perder la única señal que hay. */
-    /* Sólo MEDIDAS: los colores que este bloque redefinía se fueron al puente de arriba. */
-    :root {
-    }
+    /* *(Acá había un tercer `:root` —«CÁSCARA TIPO EDITOR · paleta Vercel dark»— que redefinía la
+       paleta al final del archivo para ganar por orden. Sus colores se mudaron al puente de arriba
+       cuando el tema pasó a ser un archivo, y desde entonces el bloque estaba VACÍO con veinte
+       renglones de comentario describiendo un negro #000 que ya no existe. Lo que sigue valiendo de
+       ese texto —verde = corre/ON, ámbar = mirá esto, rojo = roto— vive en el puente, donde están los
+       tokens.)* */
 
     /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
        Los neutros de un tema de tweakcn son `oklch(L 0 0)`: croma 0 y **hue 0**. `oklch` es un espacio
@@ -1068,10 +981,6 @@
     /* el dock viejo ya no existe: lo que queda de él es la barra de estado */
     .dock { display: none }
 
-    /* La media query de la columna angosta sigue en el archivo y ya no aplica a nada: acá el ancho
-       lo manda el grid. Se neutraliza para que no reviva el padding del layout viejo. */
-    .wrap { max-width: none; margin: 0; padding: 0 }
-
     /* En pantallas chicas los sidebars se apilan: tres columnas de 300px no entran en un portátil
        de 13" con el navegador a media pantalla, y colapsar es mejor que scrollear en horizontal. */
     @media (max-width: 1180px) {
@@ -1138,14 +1047,6 @@
     .trow .tick { color: var(--txt); font-size: 11px; flex: 0 0 auto }
     .tmerch { font-weight: 600 }
     .tmerch.miss .tnm, .tmerch.miss .tmeta { color: var(--mut); font-style: italic }
-    /* La sucursal ELEGIDA es la que va a correr: se marca por contraste, no por color. */
-    .tbranch.sel { background: var(--sel) }
-    .tbranch.sel .tnm { font-weight: 600 }
-    .tbranch.off .tnm { color: var(--mut); text-decoration: line-through }
-    .tinfo { color: var(--mut); font-style: italic; cursor: default }
-    .tinfo:hover { background: transparent }
-    /* guía de sangría, como la del explorador */
-    .tbranch::before, .tinfo::before { content: ''; position: absolute; left: 14px; top: 0; bottom: 0; border-left: 1px solid var(--line) }
     .trow .facc { margin-left: 8px; display: flex; gap: 2px; opacity: .45; flex: 0 0 auto }
     .trow .facc:hover, .trow:hover .facc { opacity: 1 }
     .trow .facc span { padding: 0 3px; font-size: 10px }
@@ -1176,25 +1077,16 @@
       background: transparent; border: 0; border-radius: 0; font-size: 12.5px; cursor: default }
     .tree #lenderslist .lrow:hover { background: var(--card) }
     .tree #lenderslist .lrow:focus-visible { outline: 1px solid var(--acc); outline-offset: -1px }
-    .lico { color: var(--mut); font-size: 9px; margin-right: 2px }
     /* Una línea por entidad, siempre. Sin esto los nombres largos —«Credifamilia-addi», «Rent to Own»—
        empujaban su chip de `rt` al renglón siguiente y la lista dejaba de leerse como una columna de
        archivos, que es todo el punto. Lo que sobra se recorta; el `#id` y el `rt` van antes del corte
        porque son lo que se busca. */
     .tree #lenderslist .lrow .lnm { display: flex; align-items: center; gap: 5px; min-width: 0;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
-    .tree #lenderslist .lrow .lnm > .rtc, .tree #lenderslist .lrow .lnm > .lrt { flex: 0 0 auto }
+    .tree #lenderslist .lrow .lnm > .rtc { flex: 0 0 auto }
     /* Apagada = tachada y apagada, como un archivo ignorado. El dato sigue visible: si desapareciera,
        «esta entidad no está» y «está pero apagada» se verían igual, y son cosas distintas. */
     .lrow.off .lnm { color: var(--mut); text-decoration: line-through }
-    .lrow.off .lico { opacity: .4 }
-    /* La marca sólo aparece cuando el estado NO es el normal: un panel que etiqueta también lo esperado
-       obliga a leer diez etiquetas para encontrar la que importa. */
-    .pamark { font-size: 9.5px; padding: 1px 5px; border-radius: 999px; border: 1px solid var(--line2);
-      color: var(--mut); flex: 0 0 auto; margin-left: auto }
-    .pamark.rejected { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent) }
-    .pamark.pending { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent) }
-    .pamark.off { color: var(--mut); margin-left: 6px }
 
     .ctxmenu { position: fixed; z-index: 999; min-width: 230px; padding: 4px;
       background: var(--panel2); border: 1px solid var(--line2); border-radius: var(--radius-sm);
@@ -1222,13 +1114,12 @@
        las dos vistas. `COLOR` en el script es la fuente. */
     .lprod { flex: 0 0 auto; width: 18px; height: 15px; display: grid; place-items: center;
       font-size: 9px; font-weight: 700; letter-spacing: .02em; border-radius: 3px;
-      background: rgba(255,255,255,.06); color: var(--mut) }
-    .pr-credit  { color: #4ade80; background: rgba(74,222,128,.12) }
-    .pr-renting { color: #eab308; background: rgba(234,179,8,.12) }
-    .pr-rto     { color: #fb923c; background: rgba(251,146,60,.12) }
+      background: var(--sel); color: var(--mut) }
+    .pr-credit  { color: var(--prod-credit);  background: color-mix(in oklab, var(--prod-credit) 14%, transparent) }
+    .pr-renting { color: var(--prod-renting); background: color-mix(in oklab, var(--prod-renting) 14%, transparent) }
+    .pr-rto     { color: var(--prod-rto);     background: color-mix(in oklab, var(--prod-rto) 14%, transparent) }
     /* El chip de rt pierde su texto y se queda en el número: el nombre largo vive en el tooltip. */
     .tree #lenderslist .rtc { flex: 0 0 auto; font-size: 9.5px; padding: 1px 5px }
-    .tree #lenderslist .pamark { margin-left: 0 }
 
     /* el aviso, en una línea */
     /* `block` y no `flex`: en flex los hijos no se encogen y el `text-overflow` no llega a actuar —
@@ -1314,7 +1205,6 @@
     /* El resumen dice CÓMO ESTÁ, no de qué se trata: cerrada, ésta es la única línea que vas a leer. */
     .secsum { margin-left: auto; font-size: 10.5px; color: var(--mut); text-transform: none;
       letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
-    .secbody { padding: 4px 12px 14px }
     .sec .card, .sec .fold { padding: 0; margin: 10px 0 }
 
     /* ═══ PISTAS EN UNA LÍNEA ═════════════════════════════════════════════════════════════════════
@@ -1342,7 +1232,7 @@
       border: 1px solid var(--line2); border-radius: 999px; background: transparent; cursor: pointer }
     .lrow .sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 8px; height: 8px;
       border-radius: 50%; background: var(--mut); transition: left .12s, background .12s }
-    .lrow .sw.on { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: rgba(34,197,94,.12) }
+    .lrow .sw.on { border-color: color-mix(in srgb, var(--ok) 55%, transparent); background: color-mix(in oklab, var(--ok) 12%, transparent) }
     .lrow .sw.on::after { left: 12px; background: var(--ok) }
     .lrow .sw:hover { border-color: var(--acc) }
 
@@ -1354,9 +1244,6 @@
     .hreloj.activo .hlbl { color: var(--warn) }
     .hbtn:disabled { opacity: .4; cursor: not-allowed }
     .hbtn:disabled:hover { background: transparent; border-color: var(--line) }
-
-
-    .ctxdim { color: var(--mut); font-size: 10.5px }
     /* Las que tenés guardadas en tu espacio se distinguen de las demás del comercio. */
     .ctxitem.guardada > span:last-child::after { content: ' ★'; color: var(--mut); font-size: 9px }
 
@@ -1430,7 +1317,7 @@
     #trencam .nodo.aqui circle { stroke: var(--txt); stroke-width: 3 }
     #trencam .nodo.aqui .nlbl { fill: var(--txt); font-weight: 700 }
     #trencam .nodo.aqui::after { content: '' }
-    #trencam .nodo.aqui > circle:first-of-type { filter: drop-shadow(0 0 6px rgba(255,255,255,.55)) }
+    #trencam .nodo.aqui > circle:first-of-type { filter: drop-shadow(0 0 6px color-mix(in oklab, var(--foreground) 55%, transparent)) }
     @keyframes latido { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
     #trencam .nodo.aqui { animation: latido 1.6s ease-in-out infinite }
     /* los valores a tipear, flotando sobre el mapa */
