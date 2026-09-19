@@ -106,7 +106,7 @@ Redash: **→ nodo `rotativo`** (el dueño). Acá solo importa la frontera: lo d
 ## Un crédito activo BLOQUEA el cupo — y el corte es por ENTIDAD, no por comercio
 
 Antes de calcular cupo, `POST lender/available-quota` corre **tres evaluadores en orden**
-(`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:189` · `:214` · `:239`): crédito activo → reglas del lender → datacrédito. El primero que falla
+(`legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:187` · `:214` · `:239`): crédito activo → reglas del lender → datacrédito. El primero que falla
 corta, así que el motivo que se ve es el primero, no todos.
 
 **El primero es el que sorprende.** `ActiveCreditRuleEvaluator` rechaza con `active_credit_exists`
@@ -196,14 +196,24 @@ método asistido.
 - **Cupo / enganche-inflado** (application): `app/Services/lenders/LenderUserCategoryService.php:21 getLenderUserCategory` · `:47-50` cupo (ceil·min) · `:334` PV francesa por capacidad de pago.
 - **Special granting / buckets de score** (application `app/Services/lenders/LenderSpecialGrantingService.php`; legacy `Modules/Loans/App/Services/LenderSpecialGrantingService.php` ~`:198-203` buckets quemados 1.2M/15M — el gemelo de Onboarding ya usa tabla).
 - **Motor datacrédito NUEVO rt=2** (legacy): `Modules/Loans/App/Services/DatacreditoRuleEvaluator.php:19 evaluate` · `:48` fail-closed (sin score→rechaza; un score real de 0 sí pasa) · `:80` score`>=` · `:85` negativos. Umbral por-lender: `application/app/Models/LenderDatacreditoRule.php`.
-- **Gemelo migrado del listado** (legacy): `Modules/Onboarding/App/Http/Controllers/LenderListingController.php` (`lenders-v2`) → `Modules/Onboarding/App/Services/lenders/LenderListingService.php:53 getLenders` · `:298-310` sello (card sólo si `available_amount>0`) · `:356 no_more=false` (TODO)
+- **Gemelo migrado del listado** (legacy): `Modules/Onboarding/App/Http/Controllers/LenderListingController.php` (`lenders-v2`) → `Modules/Onboarding/App/Services/lenders/LenderListingService.php:55 getLenders` · `:298-310` sello (card sólo si `available_amount>0`) · `:356 no_more=false` (TODO)
 
-⚠ **En el flujo «confirmación de cupo» CreditopX NO se lista.** `LenderListingController::filterLendersByResponseTypeForFlow`
-(`:57-73`) recorta el listado a **solo `response_type == 0`** cuando `user_request.flow_id ==
-Flow::ALREADY_CONFIRMED_PRE_APPROVAL` (=2, `Modules/UserRequestV1/App/Constants/Flow.php:24`); para
-cualquier otro flujo devuelve la lista intacta. Como CreditopX es rt=2, **queda excluido**: ese flujo
-salta Experian y solo ofrece los lenders sin integración directa. Vale para `lenders-v2`; el filtro
-vive en el controller, no en `LenderListingService`.. Categoría/cupo Ctopx: `Modules/Loans/App/Services/LenderUserCategoryService.php` (firma `getLenderUserCategory(int $userId, id)` — diverge de application, que pasa el objeto `$user`).
+⚠ **En el flujo «confirmación de cupo» CreditopX NO se lista.** El recorte deja **solo
+`response_type == 0`** cuando `user_request.flow_id == Flow::ALREADY_CONFIRMED_PRE_APPROVAL` (=2,
+`Modules/UserRequestV1/App/Constants/Flow.php:24`); para cualquier otro flujo la lista queda intacta.
+Como CreditopX es rt=2, **queda excluido**: ese flujo salta Experian y solo ofrece los lenders sin
+integración directa. Vale para `lenders-v2`.
+
+⚠⚠ **Y el recorte SE MUDÓ del controller al servicio el 2026-09-18** — acá decía que vivía en el
+controller, y ya no: `LenderListingController::filterLendersByResponseTypeForFlow` fue borrado y hoy
+recorta `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php:179`, con la
+regla en `:404`. **La diferencia no es de ubicación, es de alcance:** antes el recorte corría sobre la
+lista YA armada, así que el pipeline entero pasaba por las entidades que el flujo iba a descartar — el
+perfilador las recibía, se podía **sellar el desenlace y registrar un intento de pre-aprobación de una
+entidad CreditopX que ese flujo no ofrece**, y la foto de lo mostrado quedaba grabada con entidades que
+nadie vio. Ahora recorta antes de todo eso. Consecuencia para leer datos viejos: **una solicitud de ese
+flujo anterior al 18/9 puede tener rastro de CreditopX sin que su pantalla lo haya mostrado nunca.**
+Medido contra prod ese día: ese flujo son 458 solicitudes de 560.589, el 0,08 %.. Categoría/cupo Ctopx: `Modules/Loans/App/Services/LenderUserCategoryService.php` (firma `getLenderUserCategory(int $userId, id)` — diverge de application, que pasa el objeto `$user`).
 - **Endpoint autoritativo del cupo** (legacy): `Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:81 getAvailableQuota` · `:239` datacrédito · `:268` categoría · `:326` `scoring_policy_fallback_blocked` · `:452/:468` cupo + tope por tramo.
 - **El marcador de log del rechazo por cupo es `QUOTA_CHECK_REJECTED`** — y el mismo controller lo emite desde **más de una decena** de puntos de salida distintos (`:98`, `:119`, `:143`, `:175`, `:199`, y sigue hasta `:693`; contalos con grep, no confíes en una lista escrita). O sea que el marcador **solo no dice cuál compuerta cortó**: hay que mirar el payload. Sale a nivel `info` (a diferencia del `debug` de `CATEGORY_RULE_REJECTED` → ver **Profiling § El vocabulario del CÓDIGO**, que tiene la tabla completa de marcadores de categoría). El equivalente rt=3 es `REVOLVING_CREDIT_REJECTED` → ver **rotativo**.
 - **Discriminadores** (legacy `database/seeders/ResponseTypesTableSeeder.php:24-35`; `legacy-backend/app/Models/Lender.php:88 isSmartpayChannel` vía `config('lenders.smartpay_lender_id')`; frontend `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:56/134/143/146`).
