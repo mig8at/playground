@@ -128,10 +128,11 @@ corrió (con el `?` ya resuelto, para pegar en Redash) y las filas que produjero
 renderiza aparte de los logs a propósito: una fila de BD es un ESTADO, no un evento — pintarla como log
 invita a armar una línea de tiempo con lo que no es una.
 
-**DOS VISTAS DEL MISMO RECORRIDO, y las dos se quedan (2026-09-18).** `lista` (`Etapas.vue`) contesta
-«¿qué pasó en cada etapa?» —hora, salto, sub-pasos, eventos— y `mapa` (`Mapa.vue`) contesta «¿por dónde
-fue, dónde se cortó y cuánto faltaba?», que una lista no puede: no muestra que había otros carriles, ni
-cuánto quedaba después del corte, ni el salto de tiempo como distancia.
+**EL RECORRIDO SE VE EN UNA SOLA VISTA: EL MAPA (2026-09-18).** Hubo dos —una lista de etapas al
+estilo de un run de CI y el mapa— y la lista se borró: el mapa contesta lo mismo y además «¿por dónde
+fue, dónde se cortó y cuánto faltaba?», que una lista no puede. Lo único que hubo que traerse de ella
+es el recorrido por TECLADO (←/→ y foco), porque un `<g @click>` de SVG es invisible para el teclado y
+para un lector de pantalla.
 
 ⚠ **El CONTENIDO del mapa no es el del harness, pero la FORMA sí**: aquél dibuja las 26 **pantallas**
 que un comercio PUEDE recorrer y éste las 9 **etapas de negocio** que UNA solicitud recorrió, y sin

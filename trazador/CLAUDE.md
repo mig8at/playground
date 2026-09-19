@@ -26,12 +26,16 @@ no un dato, y el costo de equivocarse es construir para un caso que no existe �
 Antes de escribir un número sobre el comportamiento del sistema, medilo: la herramienta ya está cableada
 y una `SELECT` contra prod tarda segundos.
 
-## Dos vistas del mismo recorrido, y las dos se quedan
+## El recorrido se ve en UNA vista: el mapa
 
-`lista` (`Etapas.vue`) y `mapa` (`Mapa.vue`) contestan preguntas distintas, y por eso conviven en vez de
-reemplazarse. La lista es mejor para **«¿qué pasó en cada etapa?»** —hora, salto, sub-pasos, eventos—; el
-mapa es el único que contesta **«¿por dónde fue, dónde se cortó y cuánto faltaba?»**. Si con el tiempo una
-gana, la otra se va sola; decidirlo antes de mirarlas es tirar algo que funciona.
+*(Acá hubo un tiempo dos —`lista` y `mapa`, con un toggle— y esta sección decía que convivían «hasta
+saber cuál se usa». Se supo: Miguel miró el mapa con carriles y pidió quedarse sólo con él. La lista
+(`Etapas.vue`) se borró el 2026-09-18; git la guarda.)*
+
+⚠ **Al borrarla hubo que traerse lo único que hacía y el mapa no: el recorrido por TECLADO.** Un
+`<g @click>` de SVG no recibe foco ni se anuncia a un lector de pantalla, así que cada nodo lleva
+`tabindex`, rol de botón y ←/→ para moverse por el orden del flujo. Sin eso, cambiar de vista habría
+sido dejar la herramienta sin más forma de navegarla que el mouse.
 
 ⚠ **EL CONTENIDO NO ES EL DEL HARNESS; LA FORMA SÍ, Y ESO FUE LO CORRECTO.** Aquél dibuja las 26
 **pantallas** que un comercio PUEDE recorrer; éste, las 9 **etapas de negocio** que UNA solicitud

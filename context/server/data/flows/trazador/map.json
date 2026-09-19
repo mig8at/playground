@@ -23,7 +23,6 @@
     "trazador/server/slack.go",
     "trazador/server/main.go",
     "trazador/src/App.vue",
-    "trazador/src/components/Etapas.vue",
     "trazador/src/components/Detalle.vue",
     "trazador/src/components/Buscador.vue",
     "trazador/src/components/Historia.vue",

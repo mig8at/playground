@@ -4,7 +4,6 @@ import { useTrazador } from './stores/trazador'
 import { trazaATexto } from './trazaTexto'
 import Buscador from './components/Buscador.vue'
 import Historia from './components/Historia.vue'
-import Etapas from './components/Etapas.vue'
 import Mapa from './components/Mapa.vue'
 import Detalle from './components/Detalle.vue'
 
@@ -26,8 +25,31 @@ onMounted(async () => {
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
 const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
 
-const vista = ref(localStorage.getItem('trazador.vista') || 'lista')
-watch(vista, (v) => localStorage.setItem('trazador.vista', v))
+// EL ANCHO DEL SIDEBAR, que el usuario mueve y la app recuerda. Es por VIEWER y no una preferencia del
+// producto: en una pantalla ancha conviene darle aire al mapa y en una angosta, a los logs.
+//
+// ⚠ Con try/catch: en una ventana privada o con las cookies bloqueadas el acceso a localStorage TIRA, y
+// un layout que no arranca por no poder leer una preferencia es peor que uno que arranca con el default.
+const ANCHO_MIN = 300, ANCHO_MAX_PCT = 0.62
+const leerAncho = () => { try { return Number(localStorage.getItem('trazador.sidebar')) || 520 } catch { return 520 } }
+const anchoSidebar = ref(leerAncho())
+watch(anchoSidebar, (v) => { try { localStorage.setItem('trazador.sidebar', String(Math.round(v))) } catch { /* sin storage */ } })
+
+const redimensionando = ref(false)
+function tomarTirador() {
+  redimensionando.value = true
+  // El ancho se mide desde el BORDE DERECHO de la ventana, no como delta del arrastre: así el tirador
+  // queda pegado al cursor aunque el puntero se salga del elemento o se mueva más rápido que el render.
+  const mover = (e) => {
+    anchoSidebar.value = Math.min(window.innerWidth * ANCHO_MAX_PCT,
+                                  Math.max(ANCHO_MIN, window.innerWidth - e.clientX))
+  }
+  const soltar = () => {
+    redimensionando.value = false
+    removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar)
+  }
+  addEventListener('pointermove', mover); addEventListener('pointerup', soltar)
+}
 
 const GLIFO = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
 const CLASE = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
@@ -61,12 +83,6 @@ async function copiar() {
       <span v-if="t.traza" class="ico big" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
       <span v-if="t.traza" class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
       <span v-if="t.traza" class="ureq">solicitud {{ t.traza.ureq }}</span>
-      <span class="vistas" role="group" aria-label="Cómo ver el recorrido">
-        <button :class="{ on: vista === 'lista' }" @click="vista = 'lista'"
-                title="Las etapas como un run de CI: hora, salto y sub-pasos al abrir">lista</button>
-        <button :class="{ on: vista === 'mapa' }" @click="vista = 'mapa'"
-                title="El recorrido como grafo: el carril que tomó, dónde se cortó y cuánto faltaba">mapa</button>
-      </span>
       <button v-if="t.traza" class="copiar" :class="{ ok: copiado }" @click="copiar"
               title="La traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.">
         {{ copiado ? '✓ copiado' : '⧉ copiar traza' }}
@@ -98,9 +114,13 @@ async function copiar() {
        botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
   <Historia />
 
-  <div class="cols" :class="{ ancha: vista === 'mapa' }">
-    <Etapas v-if="vista === 'lista'" />
-    <Mapa v-else />
+  <div class="cols" :class="{ midiendo: redimensionando }"
+       :style="{ gridTemplateColumns: `minmax(0,1fr) 5px ${Math.round(anchoSidebar)}px` }">
+    <Mapa :ancho-sidebar="anchoSidebar" />
+    <!-- El tirador es un `<div>` con rol de separador y no un borde: hay que poder AGARRARLO, y 5px de
+         zona activa es el mínimo con el que no se falla el click. Doble clic vuelve al ancho de fábrica. -->
+    <div class="tirador" role="separator" aria-orientation="vertical" aria-label="Ancho del panel de logs"
+         @pointerdown.prevent="tomarTirador" @dblclick="anchoSidebar = 520" />
     <Detalle />
   </div>
 </template>
@@ -110,12 +130,7 @@ header { padding:16px 20px; border-bottom:1px solid var(--line) }
 .fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px }
 h1 { font-size:18px; margin:0; font-weight:600 }
 .ureq { color:var(--dim); font-size:13px }
-.vistas { margin-left:auto; display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden }
-.vistas button { padding:4px 11px; font-size:12px; border:0; background:var(--panel); color:var(--dim); cursor:pointer }
-.vistas button + button { border-left:1px solid var(--line) }
-.vistas button:hover { color:var(--txt) }
-.vistas button.on { background:var(--sel); color:var(--accent) }
-.copiar { margin-left:10px; padding:4px 12px; font-size:12px; border:1px solid var(--line);
+.copiar { margin-left:auto; padding:4px 12px; font-size:12px; border:1px solid var(--line);
   border-radius:6px; background:var(--panel); color:var(--txt); cursor:pointer }
 .copiar:hover { background:var(--sel); border-color:var(--accent) }
 .copiar.ok { color:var(--ok); border-color:var(--ok) }
@@ -131,7 +146,14 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .meta { color:var(--dim); font-size:13px; margin:10px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
 .mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
-.cols { display:grid; grid-template-columns:290px minmax(0,1fr); min-height:60vh }
+/* Tres columnas: mapa · tirador · logs. El ancho de la tercera lo pone el usuario (inline, desde el
+   estado), así que acá sólo va el default por si el estilo se aplica antes que el script. */
+.cols { display:grid; grid-template-columns:minmax(0,1fr) 5px 520px; min-height:60vh }
+/* Mientras se arrastra, el cursor manda en TODA la página: sin esto, al pasar el puntero sobre el mapa
+   o sobre el texto de los logs el cursor cambia y el arrastre se siente roto aunque siga funcionando. */
+.cols.midiendo { cursor:col-resize; user-select:none }
+.tirador { cursor:col-resize; background:var(--line); transition:background .12s }
+.tirador:hover, .cols.midiendo .tirador { background:var(--accent) }
 /* ⚠ CON EL MAPA, EL DETALLE ES UN SIDEBAR DERECHO — no una fila debajo.
    El mapa es horizontal (tronco a lo largo, un carril por ramal), así que lo que necesita es ANCHO, y
    el detalle es una lista de logs, que necesita ALTO. Ponerlos en dos filas le daba al mapa el ancho

@@ -22,8 +22,12 @@
 // ⚠ Y LA REGLA DE `Etapas.vue` SE RESPETA IGUAL: se atenúa lo que NO EXISTE, nunca lo que está VACÍO.
 // Una etapa sin evidencia es justo donde el flujo se pudo cortar; despintarla convierte la herramienta
 // en una que nunca muestra el problema.
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, nextTick, ref, watch, onMounted } from 'vue'
 import { useTrazador } from '../stores/trazador'
+
+// El ancho del panel de logs, que el usuario mueve. Llega como prop y NO se lee del DOM: ver la nota
+// de `encuadrar`.
+const props = defineProps({ anchoSidebar: { type: Number, default: 520 } })
 
 const t = useTrazador()
 
@@ -107,6 +111,26 @@ const carriles = computed(() => {
       }))
 })
 
+/**
+ * EL RECORRIDO POR TECLADO, que venía de la lista y se trajo al borrarla.
+ *
+ * ⚠ Un `<g @click>` de SVG es invisible para el teclado y para un lector de pantalla: no recibe foco ni
+ * anuncia que se puede activar. Por eso cada nodo lleva `tabindex` y rol de botón, y ←/→ recorren el
+ * orden del flujo. Sin esto, quitar la lista no habría sido cambiar una vista por otra: habría sido
+ * dejar la herramienta sin forma de navegarla que no fuera el mouse.
+ */
+const enOrden = computed(() => [...nodosTronco.value.map((n) => n.id),
+      ...nodosPorCarril.value.flatMap((c) => c.nodos.map((n) => n.id))])
+
+function mover(paso) {
+      const ids = enOrden.value
+      const i = ids.indexOf(t.etapaSel)
+      const j = (i < 0 ? 0 : i + paso)
+      if (j < 0 || j >= ids.length) return
+      t.etapaSel = ids[j]
+      lienzo.value?.querySelector(`[data-etapa="${ids[j]}"]`)?.focus()
+}
+
 /** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
 const nodosTronco = computed(() => {
       let x = 30, previa = null
@@ -136,6 +160,10 @@ const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
       })),
 })))
 
+/** ¿El dibujo entra entero en la caja con la escala de ahora? Si no, hay que DECIRLO: un grafo cortado
+ *  en el borde se lee como un grafo que termina ahí, y el que mira no tiene forma de saber que falta. */
+const entraEntero = computed(() => ancho.value * cam.value.k <= cam.value.w + 4)
+
 const ancho = computed(() => {
       const maxCarril = Math.max(0, ...nodosPorCarril.value.map((c) => c.nodos.at(-1)?.x ?? 0))
       return Math.max(xCorte.value, maxCarril) + 120
@@ -162,6 +190,19 @@ function encuadrar() {
   cam.value = { ...cam.value, w, h, k, x: 14, y: Math.max(8, (h - alto.value * k) / 2) }
 }
 onMounted(() => { encuadrar(); new ResizeObserver(encuadrar).observe(lienzo.value) })
+
+// ⚠ EL `ResizeObserver` NO ALCANZA, y hay que re-encuadrar por ESTADO cuando el usuario mueve el
+// tirador del sidebar. Medido el 2026-09-18: al arrastrarlo, el `.mapa` pasó de 869 a 984 px y el
+// observer —incluso uno nuevo, creado a mano sobre el mismo elemento— **no disparó ni una vez**;
+// `cam.w` se quedó en el ancho viejo y el dibujo salía cortado (1.044 px escalados dentro de 869).
+// Forzar `encuadrar()` lo arreglaba, así que el cálculo estaba bien y lo que faltaba era el disparo.
+//
+// ⚠ NO SE PUDO DISTINGUIR si el observer falla siempre o sólo con el panel del navegador oculto, que
+// es donde se midió y donde tampoco se componen frames. Da igual para la decisión: el ancho del
+// sidebar es ESTADO de la app, no una consecuencia del layout, así que observarlo es determinista y
+// no depende de que el navegador llegue a hacer el ciclo. El observer se queda para el resize de la
+// VENTANA, que sí es puro layout.
+watch(() => props.anchoSidebar, () => nextTick(encuadrar))
 // ⚠ LA CLAVE ES UN STRING: con `() => [ureq, largo]` el getter devuelve un ARRAY NUEVO en cada
 // evaluación y Vue compara por referencia, así que el watcher se dispara en cada re-render en vez de
 // cuando cambió la traza. (No era la causa del zoom muerto —esa está abajo, en el CSS— pero re-encuadrar
@@ -225,7 +266,9 @@ function abajo(ev) {
           </text>
 
           <g v-for="n in c.nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id }"
-             @click="t.etapaSel = n.id">
+             :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
+             @click="t.etapaSel = n.id" @keydown.enter.prevent="t.etapaSel = n.id"
+             @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
             <circle v-if="n.roto" :cx="n.x" :cy="n.y" r="17" fill="none" stroke="var(--fail)"
                     stroke-width="2" opacity=".6" />
             <!-- hueco = CONDICIONAL (puede saltearse) · sólido = siempre ocurre en este ramal. Es la
@@ -249,7 +292,9 @@ function abajo(ev) {
 
         <!-- los nodos del tronco van AL FINAL para quedar encima de las curvas -->
         <g v-for="n in nodosTronco" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
-           @click="t.etapaSel = n.id">
+           :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
+           @click="t.etapaSel = n.id" @keydown.enter.prevent="t.etapaSel = n.id"
+           @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
           <g v-if="n.roto">
             <circle :cx="n.x" :cy="Y0" r="17" fill="none" stroke="var(--fail)" stroke-width="2" opacity=".6" />
             <text :x="n.x" :y="Y0 - 24" class="corte">se cortó acá</text>
@@ -266,7 +311,8 @@ function abajo(ev) {
     <div class="pie">
       <span v-if="t.traza?.ramal" class="ramal">carril <b>{{ t.traza.ramal }}</b></span>
       <span v-else-if="t.traza" class="dim">sin carril todavía — se decide al elegir entidad</span>
-      <span class="dim">arrastrar · rueda para acercar · doble clic encuadra</span>
+      <span v-if="!entraEntero" class="recorte">⚠ no entra entero — arrastrá para ver el resto</span>
+      <span class="dim">clic abre la etapa · ←/→ recorren · arrastrar · rueda · doble clic encuadra</span>
     </div>
   </div>
 </template>
@@ -291,6 +337,8 @@ function abajo(ev) {
 .arista { stroke-width:3; stroke-linecap:round }
 .nodo { cursor:pointer }
 .nodo:hover .nlbl { fill:var(--accent) }
+.nodo:focus { outline:none }
+.nodo:focus-visible .nlbl { fill:var(--accent); text-decoration:underline }
 .nodo.sel .nlbl { fill:var(--accent); font-weight:700 }
 /* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
 .nodo.fuera { opacity:.38 }
@@ -311,4 +359,5 @@ function abajo(ev) {
   padding:6px 10px; font-size:11px; background:linear-gradient(transparent,var(--panel2) 40%) }
 .ramal { color:var(--txt) } .ramal b { color:var(--accent) }
 .dim { color:var(--dim) }
+.recorte { color:var(--warn) }
 </style>
