@@ -39,10 +39,10 @@
         "date": "2026-09-14",
         "source": "manual"
       },
-      "archivos": 51,
+      "archivos": 58,
       "deriva": {
-        "cambiados": 6,
-        "pct": 13,
+        "cambiados": 13,
+        "pct": 24,
         "hubs": 1,
         "archivos": [
           {
@@ -52,6 +52,21 @@
           },
           {
             "ruta": "harness/panel/server.ts",
+            "ultimo_cambio": "2026-09-18",
+            "hub": false
+          },
+          {
+            "ruta": "harness/pkg/anotacion.ts",
+            "ultimo_cambio": "2026-09-18",
+            "hub": false
+          },
+          {
+            "ruta": "harness/pkg/documentos.ts",
+            "ultimo_cambio": "2026-09-18",
+            "hub": false
+          },
+          {
+            "ruta": "harness/pkg/telefonos.ts",
             "ultimo_cambio": "2026-09-18",
             "hub": false
           },
@@ -66,7 +81,22 @@
             "hub": false
           },
           {
+            "ruta": "harness/pkg/db-safe.ts",
+            "ultimo_cambio": "2026-09-17",
+            "hub": false
+          },
+          {
+            "ruta": "harness/pkg/http.ts",
+            "ultimo_cambio": "2026-09-17",
+            "hub": false
+          },
+          {
             "ruta": "harness/pkg/inject.ts",
+            "ultimo_cambio": "2026-09-17",
+            "hub": false
+          },
+          {
+            "ruta": "harness/pkg/otp-bypass.ts",
             "ultimo_cambio": "2026-09-17",
             "hub": false
           },
@@ -79,13 +109,18 @@
             "ruta": "harness/dev/guided.spec.ts",
             "ultimo_cambio": "2026-09-15",
             "hub": false
+          },
+          {
+            "ruta": "harness/pkg/preflight-sucursal.ts",
+            "ultimo_cambio": "2026-09-15",
+            "hub": false
           }
         ]
       },
       "commits": {
-        "total": 27,
+        "total": 34,
         "autores": {
-          "Miguel Ochoa": 26,
+          "Miguel Ochoa": 33,
           "Oscar Rincon": 1
         },
         "lista": [
@@ -101,6 +136,13 @@
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "estilo: un tema para las cuatro UIs, y un chequeo que lo sostiene",
+            "repo": "harness"
+          },
+          {
+            "sha": "3d131a5",
+            "fecha": "2026-09-18",
+            "autor": "Miguel Ochoa",
+            "asunto": "harness: `MD=1` — la corrida se escribe sola como anotación del tablero",
             "repo": "harness"
           },
           {
@@ -125,6 +167,13 @@
             "repo": "harness"
           },
           {
+            "sha": "5a6ff5c",
+            "fecha": "2026-09-18",
+            "autor": "Miguel Ochoa",
+            "asunto": "harness: F-236 — el documento sintético violaba el techo de TusDatos",
+            "repo": "harness"
+          },
+          {
             "sha": "64b1352",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
@@ -143,6 +192,20 @@
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: la consola del SSR — pestaña en el panel y `make harness-ssr`",
+            "repo": "harness"
+          },
+          {
+            "sha": "722f15f",
+            "fecha": "2026-09-18",
+            "autor": "Miguel Ochoa",
+            "asunto": "harness: el funnel dinamico de RD camina, y el IMEI esta detras de un handoff",
+            "repo": "harness"
+          },
+          {
+            "sha": "84fa950",
+            "fecha": "2026-09-18",
+            "autor": "Miguel Ochoa",
+            "asunto": "harness: el canal de ASESOR estaba bloqueado por un telefono invalido (F-231)",
             "repo": "harness"
           },
           {
@@ -165,46 +228,10 @@
             "autor": "Miguel Ochoa",
             "asunto": "harness: el frasco de cookies BORRA lo que el servidor manda borrar",
             "repo": "harness"
-          },
-          {
-            "sha": "3e73412",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: saber si la sesion de asesor sirve, ANTES de salir a caminar",
-            "repo": "harness"
-          },
-          {
-            "sha": "8262ed3",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: un solo cliente HTTP, con bitacora y que sabe si tardo o si se cayo",
-            "repo": "harness"
-          },
-          {
-            "sha": "f0f454a",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el telefono sintetico, en un solo lugar y con la forma de su pais",
-            "repo": "harness"
-          },
-          {
-            "sha": "f860b3c",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el arnes corre contra la compartida sin abrir TODA la shell",
-            "repo": "harness"
           }
         ]
       },
-      "huerfanos": [
-        "harness/pkg/anotacion.ts",
-        "harness/pkg/db-safe.ts",
-        "harness/pkg/documentos.ts",
-        "harness/pkg/http.ts",
-        "harness/pkg/otp-bypass.ts",
-        "harness/pkg/preflight-sucursal.ts",
-        "harness/pkg/telefonos.ts"
-      ],
+      "huerfanos": [],
       "rutas_muertas": [],
       "pendiente_merge": null
     },

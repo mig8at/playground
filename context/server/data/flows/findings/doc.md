@@ -19,7 +19,7 @@ donde el daño de un hallazgo desactualizado es que manda a alguien a perseguir 
   mantiene **51 de 51** rutas. Para un documento de este tamaño y esta edad, es el mejor resultado del
   árbol.
 - ⚠ **La única cita que `context-refs` marca como «no existe» es un FALSO POSITIVO**, y conviene dejarlo
-  escrito para que nadie la «arregle»: `class-creditop-gateway.php:507` **existe y dice exactamente lo
+  escrito para que nadie la «arregle»: la del plugin de WooCommerce, en su línea 507, **existe y dice exactamente lo
   que el hallazgo afirma** (el comentario sobre `/ecommerce/{hash}/checkout`). La herramienta no la
   encuentra porque el archivo vive en `playground/creditop-woocommerce/`, que **no es uno de los repos
   indexados**. Verificado a mano: el archivo tiene 522 líneas y la 507 es esa.
@@ -1159,7 +1159,7 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 **Solución (aplicada).** Una **cuenta de asesor por pool**, y que todo lo de Cognito sea **por target**:
 
 - `pkg/config.ts` — `loadCognitoCreds()` pasó de `process.env` pelado a la cadena `env()`, así que las credenciales viven en `harness/.env.<target>` (gitignored) en vez de un `.cognito.json` único que habría que pisar para alternar.
-- `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<target>.json`. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
+- `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: es `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET` (`harness/pkg/cognito.ts:32-33`), así que **con el front local dos targets comparten un mismo archivo de sesión**. Recomprobado el 2026-09-19. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
 - `bin/asesor` — `E2E_ASESOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
 
 En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
@@ -3612,8 +3612,11 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   `127.0.0.1`. Se ve también en la primera línea que imprime: antes del arreglo la API era
   `http://legacy-backend.inertia-develop`, después `http://localhost`.
 - **⚠ Y no era sólo lectura.** `dev/listado.ts` registra un teléfono y hace `INSERT INTO user_requests`
-  **sin** `assertWriteAllowed()` (la guarda vive dentro de `pkg/inject.ts`, tres llamadas más
-  adelante). O sea que la corrida alcanzaba a crear usuario y solicitud en la base compartida y recién
+  **sin** `assertWriteAllowed()` — la guarda se DEFINE en `harness/pkg/db.ts:165` y a `listado.ts`
+  sólo le llega tres llamadas más adelante, a través de `pkg/inject.ts`. *(Acá decía «vive dentro de
+  `pkg/inject.ts`», que se lee como si estuviera definida ahí; `inject.ts` es de los doce archivos que
+  la LLAMAN.* ⚠ *Recomprobado el 2026-09-19: `dev/listado.ts` sigue sin llamarla y sigue teniendo su
+  `INSERT INTO user_requests` crudo en `:146`, así que el hallazgo está VIVO.)* O sea que la corrida alcanzaba a crear usuario y solicitud en la base compartida y recién
   después abortaba por la guarda, dejando huérfanos.
 - **Alcance medido:** dos runners, `dev/listado.ts` y `dev/sweep.ts`. El barrido es
   `for f in dev/*.ts` comparando la línea del primer `import … from '../pkg/…'` contra la del
