@@ -2345,7 +2345,7 @@
             if (e.key === 'ContextMenu' || (e.key === 'Enter' && e.target === row)) {
               e.preventDefault();
               const r = row.getBoundingClientRect();
-              abrirMenuEntidad(r.left + 24, r.panel, l, row);
+              abrirMenuEntidad(r.left + 24, r.bottom, l, row);
             }
           };
           box.appendChild(row);
@@ -2500,7 +2500,7 @@
       itemMenu(m, { txt: 'Abrir el admin ↗', activo: false, off: !!$('btn-admin')?.disabled,
         motivo: $('btn-admin')?.title || '', accion: () => $('btn-admin').click() });
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.panel + 4);
+      montarMenu(m, r.left, r.bottom + 4);
     }
 
     function abrirMenuCanal(ancla) {
@@ -2510,7 +2510,7 @@
       const hint = $('canalhint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.left, r.panel + 4);
+      montarMenu(m, r.left, r.bottom + 4);
     }
 
     function abrirSalud(ancla) {
@@ -2519,7 +2519,7 @@
       const caja = $('healthDetails');
       if (caja) { caja.open = true; m.appendChild(caja); }
       const r = ancla.getBoundingClientRect();
-      montarMenu(m, r.right, r.panel + 4, true);
+      montarMenu(m, r.right, r.bottom + 4, true);
     }
 
     /** El header refleja lo elegido. Se llama desde donde ya se aplica cada cosa, no en un timer. */
@@ -3727,7 +3727,7 @@
       const hint = $('stephint');
       if (hint) { hint.className = 'ctxnota'; m.appendChild(hint); }
       const r = $('btnArranque').getBoundingClientRect();
-      montarMenu(m, r.left, r.panel + 4);
+      montarMenu(m, r.left, r.bottom + 4);
     };
 
     // ⚠ CICLA CLICKEANDO EL BOTÓN REAL, igual que los menús: `#padelay` sigue siendo quien fija
