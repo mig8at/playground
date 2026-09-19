@@ -1,5 +1,5 @@
 # MS Pre-approvals · contexto
-> **estado:** al día con main · MS Go hexagonal (`pre-approvals-service`, **AHORA INDEXADO** — 133 nodos Go en el árbol). Resuelve la pre-aprobación de lenders rt≠0 (principalmente rt=1) del wizard nuevo contra las APIs externas, vía un workflow de 4 etapas, cachea en DynamoDB y espeja el resultado a legacy. Este nodo cubre **ambos lados**: el CLIENTE (front/legacy que consume el MS) y el SERVIDOR (el microservicio Go real).
+> **estado:** al día con main · MS Go hexagonal (`pre-approvals-service`). Resuelve la pre-aprobación de lenders rt≠0 (principalmente rt=1) del wizard nuevo contra las APIs externas, vía un workflow de 4 etapas, **persiste** en DynamoDB y espeja el resultado a legacy. ⚠ **Ya no CACHEA** — ver «Antes de concluir». Este nodo cubre **ambos lados**: el CLIENTE (front/legacy que consume el MS) y el SERVIDOR (el microservicio Go real).
 
 ## Qué es
 Microservicio **Go** de arquitectura **hexagonal estricta** (`pre-approvals-service`, módulo `github.com/Creditop-SAS/go-template`; Go 1.24 · Gin · Uber FX · Viper `platform/config` · DynamoDB · OTel · `shopspring/decimal`). Resuelve la **pre-aprobación de lenders de integración (rt≠0)** para el wizard nuevo: recibe un `POST /v1/preapprovals/check` **por lender**, resuelve credenciales del comercio, se autentica, golpea la **API externa del proveedor** (Welli, Meddipay, Prami, Bancolombia BNPL/Consumo, Sistecrédito, Credifamilia, CreditopX), canoniza el veredicto a `approved`/`rejected`/`pending`, lo **cachea en DynamoDB** y, best-effort, **espeja el resultado terminal a legacy** para el perfilamiento.
@@ -12,12 +12,37 @@ Coexiste con el path viejo (`PreApprovedLenderService` PHP en application/legacy
 - **Coarsening HTTP**: la taxonomía fina de `LenderError` (20 códigos × 4 stages) **NO llega al status HTTP** — todo fallo de proveedor es `500` para el front (→ card oculta). Las 4xx/422 que ve el front son **validación pre-workflow** (key/amount/hash/mínimo) o applicant-not-found (404). Un **rechazo de negocio** del proveedor NO es error: es HTTP 200 `status:"rejected"` (chip suave).
 - **Dos mundos paralelos que divergen**: Welli id **166 solo existe en application**; en legacy/MS es 23/141/142 — y el MS colapsa 141/142→23 pero **NO** 166.
 - **El espejo a legacy es best-effort**: si `/lender-result` falla se loguea pero no bloquea → posible deriva entre lo que ve el usuario y lo que persiste el profiling. Y **`pending` NO repuebla `displayed_lenders`** (solo approved/rejected disparan el notify).
-- **Meddipay nunca cachea** (`ShouldCheckAgain=true` siempre → nuevo `order_id`). **CreditopX cachea 60min** (TTL corto). El resto expira a 30 días (salvo lo que diga la fecha del proveedor, ej. Meddipay `dateExpiration`).
-- **Credifamilia es el único async**: el único adapter que emite `StatusPending` (status 0/1/2/4); el front tolera más que el `write_timeout=30s` a propósito (abortar mid-flight duplicaba transacciones) y hace polling.
+- ⛔ **EL CACHÉ SE FUE, y con él la regla entera que este nodo documentaba.** Acá decía que un `check` consultaba DynamoDB y **se ahorraba la llamada** si `ShouldCheckAgain` decía que no (Meddipay siempre re-consulta · `pending` siempre · `rejected` si cambió el monto o pasaron 12 h · `approved` válido mientras `ExpiresAt` fuera futuro y el monto no cambiara). Verificado contra `main` el 2026-09-19: **`ShouldCheckAgain` ya no existe** como función en ningún archivo, y **`RejectedRetryHours` no aparece ni una vez** en el repo. **Todo `check` sale al proveedor.**
+  Lo que quedó en su lugar es **otra cosa, y hay que entenderla como otra cosa**: la fila anterior se sigue buscando (`check_preapproval.go:82 FindLatestPreApproval`), pero **no corta el flujo** — se le pasa al adapter dentro del request como `PreviousRawResponse` + `PreviousRequestedAmount`, y **cada lender decide qué hacer con ella**. Hoy la leen dos: `credifamilia/client.go` (para retomar el handshake `/radicacion → /estado` con el mismo `transactionId`) y `welli/client.go` (para reusar `get_app` en vez de `run_risk`). ⚠ La diferencia práctica: **antes el ahorro era del servicio y valía para todos; ahora es del adapter y sólo existe donde alguien lo programó.**
+  ⚠ **Y quedó superficie MUERTA que se lee como viva**: `FindActivePreApproval` —el finder con `expires_at > :now`, o sea el del caché— **sigue declarado en el puerto** (`internal/core/ports/preapproval_repository.go:14`) e implementado (`preapproval_repository.go:214`) con **cero llamadores**; `PreApproval.IsActive()` (`internal/core/domain/preapproval.go:45`) tampoco lo llama nadie; y el `//nolint` de `Execute` (`check_preapproval.go:65`) **todavía nombra «cache lookup with ShouldCheckAgain»**, una función que ya no existe. Tres rastros que hacen creer que el caché sigue ahí.
+- **`ExpiresAt` sobrevive, pero ya no decide nada del lado del servicio**: lo fija cada adapter —**60 min** en `creditop_x`, `bcp_consumo` y `bcp_vehicular`; **30 días** en los dos Bancolombia y Credifamilia— y hoy sólo viaja a la fila de DynamoDB. Que un `approved` esté «vigente» no evita la llamada al proveedor.
+- ⚠ **Una fila `pending` le gana a cualquier otra, aunque sea MÁS VIEJA** (`preapproval_repository.go:332 isMoreRecent`, regla en `:335`, desde el 2026-09-04). `FindLatestPreApproval` no devuelve la más reciente: devuelve la `pending` si la hay. El motivo es Credifamilia — un `approved` viejo tapando la `pending` en curso hacía que el front no pudiera reusar el `transactionId` y **radicara de nuevo**. Si estás depurando «por qué me devuelve una fila vieja», ésta es la razón y es deliberada.
+- **Credifamilia ya NO es el único async**: emiten `StatusPending` **dos** adapters —`credifamilia/adapter.go` y **`flamingo/adapter.go`**, este último cuando el proveedor no trae oferta pero sí una URL de autogestión—. El de Credifamilia sigue siendo el que manda el front a hacer polling (status 0/1/2); el front tolera más que el `write_timeout=30s` a propósito (abortar mid-flight duplicaba transacciones) y hace polling.
 - **Bancolombia Consumo trae un challenge**: su `transaction_data` (`urlAuthenticate`/`customerValidateKey`) es una **autenticación del cliente** que fluye verbatim al front — matiza la creencia de que el `frontend_response`/`encrypt_code` es puro legacy PHP; el MS también forwardea un blob de challenge para consumer_loan.
-- **Estados que el MS NO emite**: su core enum son 3 (`approved`/`rejected`/`pending`). El front reconoce además `not_eligible` (sin emisor en el core; defensivo). `transaction_data` es un **blob por-lender sin contrato** (`json.RawMessage`) que fluye verbatim al front.
+- **El enum de estados son CINCO, no tres.** Acá decía que el core emitía sólo `approved`/`rejected`/`pending` y que `not_eligible` era defensivo del front «sin emisor en el core». Hoy los cinco están declarados en `internal/core/domain/lending_product.go:89-101`: los tres de siempre, **`not_eligible`** (`:96`, que Welli sí emite) y **`error`** (`:101`), que marca un intercambio fallido con el proveedor y **se persiste como fila de auditoría** (`check_preapproval.go:205 persistLenderError`), con `HTTPStatus` y `ErrorCode` poblados sólo en esas filas (`preapproval.go:33`). ⚠ Una fila `error` **nunca** se arrastra como veredicto previo (`check_preapproval.go:90-93`): es una traza de falla, no una decisión. `transaction_data` sigue siendo un **blob por-lender sin contrato** (`json.RawMessage`) que fluye verbatim al front.
 - **`creditop_x` es una de las 8 keys del factory** (available-quota rt=2 hardcodeada, NoAuth+NoOpCreds), pero el cupo rt=2 productivo se sella en legacy `/available-quota`; no confundir el nodo (rt≠0/integración) con esa key.
+- ⚠ **Hay una familia de lenders que NO consulta ninguna API: los MANUALES.** `bcp_consumo` y `bcp_vehicular` (`internal/core/usecases/preapproval/lender_decision.go:30`) resuelven su veredicto con un **`lender_decision` que manda el llamador** en el propio request. El contrato es de polling y está en `check_preapproval.go:106`: **con** decisión fresca, se sobreescribe la fila; **sin** decisión, se devuelve tal cual la última fila no-`error` de esa key; y si no hay ninguna, sigue de largo y el workflow persiste un `rejected` de fallback. Es el único lugar del MS donde una respuesta sale sin haber salido a la red — no lo confundas con el caché que ya no existe.
+- **`flamingo` es un PILOTO a medio confirmar, y el código lo dice.** Su cliente pega a `/credito/consulta` con el **id de tienda quemado** («hardcoded for the pilot»), y el `TODO(CORE-10)` de su adapter deja escrito que **la forma de la respuesta todavía no está validada contra Flamingo** y que el unmarshal es tolerante a propósito. Si algo de Flamingo no cuadra, empezá por ahí y no por el workflow.
 - **`/v1/lender-attempts` es surface nuevo**: store idempotente de intentos por lender (SUCCESS/FAIL/TIMEOUT), separado del `check`. El `check` registra attempts internamente; el POST expuesto permite registrarlos desde afuera y el GET los lista paginados (trazabilidad de intentos por entidad).
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 24 afirmaciones auditadas contra `origin/main` del MS
+(traído con `git fetch`: el clon local estaba 14 días atrás), cero chequeos débiles. **El nodo describía
+un mecanismo que ya no existe**: el caché con `ShouldCheckAgain`, que era su sección central. Hoy todo
+`check` sale al proveedor, la fila previa sólo viaja al adapter, y del caché quedaron **tres rastros
+muertos** que se leen como vivos —un finder en el puerto sin llamadores, un `IsActive()` sin llamadores
+y un `//nolint` que todavía nombra la función borrada—. Corregido además todo lo que creció por los
+lados: **8 → 11 keys** (`flamingo` + los dos BCP **manuales**, que resuelven con un `lender_decision`
+del request y no consultan ninguna API), **3 → 5 estados** (`not_eligible` ya es del core y `error` se
+persiste como fila de auditoría), Credifamilia dejó de ser el único que emite `pending`, y una fila
+`pending` ahora **le gana a una más nueva** en el desempate del repositorio. Exactos: los cinco
+mínimos por lender, las guardas del notify, las dos anclas del handler de intentos y el override
+141/142→23 con el 166 sin colapsar.
+
+⚠ **Y el nodo no podía verse envejecer, que es lo que más vale de esta pasada:** **15 de sus 40 citas
+estaban en formato corto `:NNN`**, que `context-refs` declara fuera del chequeo — el peor del árbol, con
+61% de cobertura. Las que quedaron obsoletas —tres del handler, tres del use case y la de `ShouldCheckAgain`— eran **todas** de ese grupo, así que la herramienta informaba «0
+movidas» sobre un nodo que había derivado entero. Se convirtieron a ruta completa las que sostienen una
+afirmación.
 
 ## Arquitectura cliente → MS → proveedor
 ```
@@ -26,7 +51,7 @@ available-lenders.tsx (loader)   ──POST──▶  Handler.Check (handler.go:
   · lee VITE_PREAPPROVALS_ENDPOINT          · valida key + amount/hash/minimum (:103)
   · 1 Promise por lender rt≠0               · factory.CreateLendingProduct (factory.go:45)
   · fallback lenders esperan el batch       · CheckPreApprovalUseCase.Execute (:56)
-fetch-lender-preapproval.ts (POST)            ├─ cache DynamoDB ShouldCheckAgain (:81)
+fetch-lender-preapproval.ts (POST)            ├─ lee la fila previa, NO corta (:82)
   · status→estado UI, hide 5xx, 422           ├─ GetApplicant → legacy user-service ────▶ /api/onboarding/user/{id} (Experian)
                                                ├─ Welli 141/142→23 override (:122)
                                                └─ PreApprovalWorkflow.CheckPreApproval (workflow.go:52)
@@ -42,18 +67,18 @@ ListLenderController::storeLenderResult ◀────  (solo approved|rejected
 
 ## Contrato del servicio (endpoints reales)
 Rutas registradas en `main.go` (grupo `/v1`) + `/docs`:
-- **`POST /v1/preapprovals/check`** (`handler.go:45 Check`) — server-to-server, sin CORS. **Request** (`openapi.PreApprovalRequest`, tipos en `internal/openapi/types.gen.go`): `applicant_id`, `merchant_id`, `lending_product_key` (enum de 8), `lending_product_id` (numérico = el id del lender en BD), `amount`/`allied_branch_hash`/`allied_branch_id` (opcionales, requeridos por algunos lenders), `user_request_id` (opcional → dispara **attempt** + **notify** a legacy). **Response 200** (`PreApprovalResponse` vía `mapper.go:10`): `id`, `applicant_id`, `lending_product_key`, `lending_product_id`, `status`, `approved_amount` (string), `available` (cupo float), `probability`/`probability_color`/`sort`, `pre_approved_lender`, `transaction_id`, `transaction_data` (blob por-lender), `checked_at`. **NO viajan** `expires_at`/`created_at`/`raw_response` (internos de DynamoDB).
-- **`POST /v1/preapprovals/me/check`** (`handler.go:146 CheckMe`) — variante self-service: toma el `applicant_id` del header **`X-User-Id`** (falta → `401 unauthorized`); resto idéntico.
+- **`POST /v1/preapprovals/check`** (`pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:45 Check`) — server-to-server, sin CORS. **Request** (`openapi.PreApprovalRequest`, tipos en `internal/openapi/types.gen.go`): `applicant_id`, `merchant_id`, `lending_product_key` (enum de 11), `lending_product_id` (numérico = el id del lender en BD), `amount`/`allied_branch_hash`/`allied_branch_id` (opcionales, requeridos por algunos lenders), `user_request_id` (opcional → dispara **attempt** + **notify** a legacy). **Response 200** (`PreApprovalResponse` vía `mapper.go:10`): `id`, `applicant_id`, `lending_product_key`, `lending_product_id`, `status`, `approved_amount` (string), `available` (cupo float), `probability`/`probability_color`/`sort`, `pre_approved_lender`, `transaction_id`, `transaction_data` (blob por-lender), `checked_at`. **NO viajan** `expires_at`/`created_at`/`raw_response` (internos de DynamoDB).
+- **`POST /v1/preapprovals/me/check`** (`pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:151 CheckMe`) — variante self-service: toma el `applicant_id` del header **`X-User-Id`** (falta → `401 unauthorized`); resto idéntico.
 - **`POST /v1/lender-attempts`** (`lender_attempts/handler.go:42 Register`) — **NUEVO surface**. Registra un intento (`lender_id`, `user_request_id`, `allied_branch_id`, `status` opcional SUCCESS/FAIL/TIMEOUT). `201 Created`; duplicado idempotente → `409 conflict` (`ErrLenderAttemptAlreadyExists`).
 - **`GET /v1/lender-attempts/by-lender/:lender`** (`:112 ListByLender`) — lista paginada de intentos por lender; query `from`/`to` (RFC3339), `limit`, `next_token`. Alimenta métricas/trazabilidad de intentos por entidad.
 - **`GET /docs`** + **`GET /docs/spec`** (`handlers/docs/http_handler.go`) — Swagger UI + el `openapi.yaml` servido (swagger habilitable por `http_server.swagger.enabled`).
 
-**Errores del `check`**: `400` (JSON inválido / `invalid lending product key` / `amount is required` / `allied_branch_hash is required`), `422` `amount_below_minimum` + `minimum_amount` (`handler.go:121`), `401` (auth), `404` (applicant no encontrado), `500` (todo lo demás). **OJO — coarsening deliberado**: dentro del workflow cada fallo produce un `LenderError` con taxonomía fina (ver abajo), pero el handler `executeCheckPreApproval` (`:221`) lo colapsa: solo mapea las sentinelas `ErrNotFound→404`, `ErrInvalidInput→400`, `ErrAuthenticationFailed→401`; **cualquier fallo de proveedor (transport/5xx/4xx upstream) cae a `500`** porque su `Cause` es `ErrLendingProductUnavailable` (no está en esos sets). La taxonomía rica vive **solo en logs/spans OTel**, no en el status HTTP.
+**Errores del `check`**: `400` (JSON inválido / `invalid lending product key` / `amount is required` / `allied_branch_hash is required`), `422` `amount_below_minimum` + `minimum_amount` (`pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:108 validateLenderRequirements`), `401` (auth), `404` (applicant no encontrado), `500` (todo lo demás). **OJO — coarsening deliberado**: dentro del workflow cada fallo produce un `LenderError` con taxonomía fina (ver abajo), pero el handler `executeCheckPreApproval` (`pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:231`) lo colapsa: solo mapea las sentinelas `ErrNotFound→404`, `ErrInvalidInput→400`, `ErrAuthenticationFailed→401`; **cualquier fallo de proveedor (transport/5xx/4xx upstream) cae a `500`** porque su `Cause` es `ErrLendingProductUnavailable` (no está en esos sets). La taxonomía rica vive **solo en logs/spans OTel**, no en el status HTTP.
 
 ## Requisitos por lender (validación de entrada, `domain/lending_product.go`)
-- **8 keys válidas**: `bancolombia_bnpl`, `bancolombia_consumer_loan`, `sistecredito`, `meddipay`, `creditop_x`, `welli`, `credifamilia`, `prami`. Key desconocida (ej. `banco-de-bogota`) → `400`.
+- **11 keys válidas** (`lending_product.go:8-24`): las ocho de siempre —`bancolombia_bnpl`, `bancolombia_consumer_loan`, `sistecredito`, `meddipay`, `creditop_x`, `welli`, `credifamilia`, `prami`— más **`flamingo`**, **`bcp_consumo`** y **`bcp_vehicular`**. Key desconocida (ej. `banco-de-bogota`) → `400`. *(Acá decían ocho.)*
 - **RequiresAmount**: `bancolombia_consumer_loan`, `meddipay`, `prami`, `welli`.
-- **RequiresAlliedBranchHash**: `meddipay`, `prami`, `welli` (arman payload con datos de sucursal).
+- **RequiresAlliedBranchHash**: `meddipay`, `prami`, `welli` y **`flamingo`** (arman payload con datos de sucursal). *(Acá eran tres.)*
 - **MinimumAmount** (→ `422`): consumer_loan `1.000.000`, bnpl `100.000`, meddipay `50.000`, prami `300.000`, welli `180.000`. (creditop_x, sistecredito, credifamilia sin mínimo declarado.)
 - **CredentialScope**: **Merchant** (una credencial por comercio, ignora el hash) = Bancolombia BNPL/Consumo, Meddipay; **Branch** (por sucursal, reenvía `allied_branch_hash`) = Sistecrédito, CreditopX, Welli, Prami, Credifamilia. (`workflow.go:69` limpia el hash si scope=Merchant y no lo requiere.)
 
@@ -74,6 +99,9 @@ Todos viven en `internal/infra/lending_products/<lender>/` con la tripleta `clie
 | `prami` | Branch | API key (`api_key_strategy.go`) | `/v1/creditop/{evaluate,quota-options,confirm-credit}` (combinado) | `Evaluate.MaxApprovedAmount>0` | `maxApprovedAmount` | `transaction_data`=`{quotas,order_id,maxApprovedAmount}` |
 | `credifamilia` | Branch | OAuth2 **password grant** (`oauth2_strategy.go`) | preapproval REST combinada | `status==3 && statusDetail=="APROBADO"`; `status∈{0,1,2,4}`→**PENDING**; else rejected | `ValorDisponibleParaComprar` | **ÚNICO que emite `pending`** (async, front hace polling); timeout **30s** (resto 10s); `lender_data.go` = blob rico (cuotas, tasas, seguros, `checkout_url`) |
 
+| `flamingo` | Branch | OAuth2 (`oauth2_strategy.go`; la api-key viaja en `AuthToken.Metadata`) | `/credito/consulta` | la mejor oferta de `data.credits` con `MaxAmount>0`; sin oferta pero con `data.url` → **PENDING** | la mejor `MaxAmount` | ⚠ **piloto**: id de tienda QUEMADO y forma de respuesta sin confirmar (`TODO(CORE-10)`) |
+| `bcp_consumo` · `bcp_vehicular` | — | **NoAuth + NoOpCredentials** | **ninguna** — el veredicto llega en el `lender_decision` del request | `lender_decision.approved` | del propio decision | **manuales**: sin `lender_decision` devuelven la última fila no-`error`; `ExpiresAt` 60 min |
+
 `BuildContractFields` (`contract_fields.go:20`) fija el contrato de presentación con el front: approved → `'Pre aprobado'`/`text-success`/`sort=1`/`pre_approved_lender=true`; else → `'Rechazado'`/`text-info`/`sort=2`. Credifamilia tiene su propio `buildContractFields` (`lender_data.go:19`) que agrega un tercer estado `'En validación'` para el pending.
 
 ## Taxonomía de errores (`domain/lender_error.go`)
@@ -84,10 +112,9 @@ Todos viven en `internal/infra/lending_products/<lender>/` con la tripleta `clie
   hace el front (`preapproval-retry.tsx`). `failStage` emite código+stage como atributos de span.
 
 ## Use case / cache / notify (`usecases/preapproval/check_preapproval.go`)
-`Execute(:56)`: coerción amount/branch → **cache lookup** `FindLatestPreApproval` → `ShouldCheckAgain` (`preapproval.go:42`) → si sirve, devuelve cacheado + registra attempt; si no, `GetApplicant` (legacy, trae `ExperianProfile` con score/estimated_income/bucket_mora/edad/sectores) → **override Welli 141/142→'23'** (`:122`; **166 NO se colapsa**) → workflow → `Save` (nueva fila, preserva historial) o `Replace` (si el previo era `pending`: mantiene ID/CreatedAt para no romper el polling) → `registerAttempt` (si hay `user_request_id`) → `notifyLenderResult`.
-- **`ShouldCheckAgain`**: **Meddipay siempre re-consulta** (`:45`); `pending` siempre (`:49`); `rejected` si cambió el monto o pasó `RejectedRetryHours=12h` (`:53`); `approved` válido si `ExpiresAt` futuro **y** el monto no cambió (`:61`).
+`Execute` (`pre-approvals-service/internal/core/usecases/preapproval/check_preapproval.go:66`): coerción amount/branch → **lectura de la fila previa** `FindLatestPreApproval` (`check_preapproval.go:82`) — que **ya no corta el flujo**, sólo alimenta `PreviousRawResponse`/`PreviousRequestedAmount` (ver «Antes de concluir») → **corto circuito de lender manual** (`check_preapproval.go:106`) → `GetApplicant` (legacy, trae `ExperianProfile` con score/estimated_income/bucket_mora/edad/sectores) → **override Welli 141/142→'23'** (`check_preapproval.go:142`; **166 NO se colapsa**) → workflow (`check_preapproval.go:147`) → `Save` (nueva fila, preserva historial) o `Replace` (si el previo era `pending`: mantiene ID/CreatedAt para no romper el polling) → `registerAttempt` (`check_preapproval.go:154`, si hay `user_request_id`) → `notifyLenderResult` (`check_preapproval.go:194`).
 - **`registerAttempt`**: idempotente por `user_request_id+lender_id+allied_branch_id`; parsea `lending_product_id`→lender_id; status `SUCCESS`. Se registra **también en cache-hit** (todo check cuenta como intento).
-- **`notifyLenderResult`** (`lender_result_service.go:41`): `POST {legacy}/api/onboarding/loan-application/{ur}/lender-result` con `{lender_id, is_approved, available_amount}`. Guardas: **solo** si hay `user_request_id` **Y** status `approved`|`rejected` (**`pending` y sin-UR se saltan**); best-effort (falla = log, no bloquea). En legacy lo recibe `ListLenderController::storeLenderResult` (`:88`) que repuebla `profiling_reviews.displayed_lenders`; ruta backend-to-backend **sin Cognito**, `withoutMiddleware(AddOriginationFlowType)` (`webhooks.php:44-46`).
+- **`notifyLenderResult`** (guardas en `pre-approvals-service/internal/core/usecases/preapproval/check_preapproval.go:285`; el POST en `pre-approvals-service/internal/infra/services/lender_result_service.go:41 NotifyLenderResult`, url en `:56`): `POST {legacy}/api/onboarding/loan-application/{ur}/lender-result` con `{lender_id, is_approved, available_amount}`. Guardas: **solo** si hay `user_request_id` **Y** status `approved`|`rejected` (**`pending` y sin-UR se saltan**); best-effort (falla = log, no bloquea). En legacy lo recibe `ListLenderController::storeLenderResult` (`:88`) que repuebla `profiling_reviews.displayed_lenders`; ruta backend-to-backend **sin Cognito**, `withoutMiddleware(AddOriginationFlowType)` (`webhooks.php:44-46`).
 
 ## Servicios de plataforma (infra) hacia legacy
 - **CredentialsService** (`credentials_service.go`): `POST {legacy}/api/onboarding/credentials/get-by-lender` con `{lender_id, merchant_id, allied_branch_hash?}`; respuesta `data`=`domain.Credentials` (mapa opaco de claves por-lender). Cache in-memory `sync.Map` por `key:id:merchant:hash` con `ClearCache`. Vacío → `ErrInvalidCredentials`.
@@ -105,7 +132,7 @@ Todos viven en `internal/infra/lending_products/<lender>/` con la tripleta `clie
 El loader de `available-lenders.tsx` lee `VITE_PREAPPROVALS_ENDPOINT` (`:147`) y **sin endpoint / `user_id` / `allied_id` salta TODO el bloque** (`:185`) → todos los rt≠0 quedan "No pudimos consultar esta entidad". Dispara una `Promise` por lender: los no-fallback en paralelo, los `is_fallback_lender` **esperan al batch primario** (`Promise.allSettled`, `:235`), y Welli usa un consult-lender especial (`:206-226`). El cliente `fetch-lender-preapproval.ts` hace `POST` y mapea `status` → estado UI: `approved` → card pre-aprobado; `rejected` → chip "Sin cupo disponible" (soft, **no oculta**); `pending` → skeleton (Credifamilia hace polling); error `http_5xx` → **card OCULTA** (`SERVER_ERROR_REASON=/^http_5\d{2}$/`; `isServerErrorResolution` en `AvailableLenders.tsx:459`); error `http_4xx` (negocio) → "No pudimos consultar" + **Reintentar** (`preapproval-retry.tsx` re-golpea el MS). El `422` se mapea a `below_minimum`+`minimumAmount`. El front postea `visibleLoanOptions` de vuelta a legacy vía `/lender-results` **plural** (`storeLenderResults`) — relay distinto del notify singular del MS. `validate-preapproved-loan.uc.ts` valida al SELECCIONAR la entidad.
 
 ## Contraparte legacy (parallel-run)
-`PreApprovedLenderService::validatePreApproveLender` (`:41`): switch **bifurcado por `lender->id`** (no polimórfico) que consulta la misma API externa y **empuja** a `$approvedLenders` (sort=1) **o excluye** con `unset`. Filtro **temporal** en `LenderRetrievalService.php:252` `[12, 23, 141, 142, 166]` (Prami + variantes Welli + 166; `// TODO: [TEMPORAL]` en `:248`) los saca del preaprobado sincrónico porque erroran por falta de datos en `employment-info`.
+`PreApprovedLenderService::validatePreApproveLender` (`:41`): switch **bifurcado por `lender->id`** (no polimórfico) que consulta la misma API externa y **empuja** a `$approvedLenders` (sort=1) **o excluye** con `unset`. Filtro **temporal** en `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php:275` `[12, 23, 141, 142, 166]` (Prami + variantes Welli + 166; `// TODO: [TEMPORAL]` en `:271`) — ⚠ **vive en legacy-backend, no en application**: acá se citaba sin repo y a `:252`, y el nombre existe en los dos monolitos los saca del preaprobado sincrónico porque erroran por falta de datos en `employment-info`.
 
 **(2026-08-28) Re-verificación asistida de los 12 archivos derivados** (worker → 7; las 2 que
 invalidaban, verificadas — ciertas): **Welli reusa `get_app`** para consultar estado cuando ya existía
@@ -124,20 +151,23 @@ está en el handler.
 
 - **Punto de entrada HTTP** — `pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:45 Check`
   (llamada del backend) y `:146 CheckMe` (llamada del propio usuario). Las rutas se registran en
-  `:252 RegisterRoutes` → `:255 POST /preapprovals/check` · `:256 POST /preapprovals/me/check`. Los dos
-  desembocan en `:221 executeCheckPreApproval`, así que un bug de orquestación afecta a ambos.
-- **La validación que responde 4xx** — `handler.go:103 validateLenderRequirements`. ⚠ Es la única fuente
+  `:262 RegisterRoutes` → `:266 POST /preapprovals/me/check`. Los dos
+  desembocan en `:231 executeCheckPreApproval`, así que un bug de orquestación afecta a ambos.
+- **La validación que responde 4xx** — `pre-approvals-service/internal/infra/handlers/preapprovals/handler.go:108 validateLenderRequirements`. ⚠ Es la única fuente
   de 4xx/422: todo fallo del PROVEEDOR sale 500 (ver Gotchas). Si el front muestra un 422, el problema
   es de entrada (key/amount/hash), no del lender.
-- **El orquestador** — `internal/core/usecases/preapproval/check_preapproval.go:56 Execute`:
-  `:72 FindLatestPreApproval` (busca el caché) · `:126 cmd.LendingProduct.CheckPreApproval` (la llamada
-  real al proveedor, el único punto donde se sale a la red) · `:131 registerAttempt` (el intento queda
-  registrado SIEMPRE, aunque se haya servido del caché — ver `:89`) · `:160 notifyLenderResult`.
-- **La regla del caché** — `internal/core/domain/preapproval.go:42 ShouldCheckAgain`. Acá se decide si
-  se re-consulta: `pending` **siempre** re-consulta, `rejected` re-consulta sólo si cambió el monto, y
-  **Meddipay re-consulta siempre** (tiene un `TODO` en el código: necesita `order_id` nuevo en cada
-  request). Si un lender «no actualiza su respuesta», empezá acá y no en el adapter.
-- **Los intentos por lender** — `internal/infra/handlers/lender_attempts/handler.go:42 Register` ·
+- **El orquestador** — `pre-approvals-service/internal/core/usecases/preapproval/check_preapproval.go:66 Execute`:
+  `:82 FindLatestPreApproval` (lee la fila previa, **no corta**) · `:106` el corto circuito de los
+  lenders manuales, que es el único que devuelve sin salir a la red · `:147 cmd.LendingProduct.CheckPreApproval`
+  (la llamada real al proveedor) · `:154 registerAttempt` · `:194 notifyLenderResult` ·
+  `:205 persistLenderError` (la fila `error` de auditoría).
+- ⛔ **La regla del caché YA NO EXISTE** — acá decía `internal/core/domain/preapproval.go:42 ShouldCheckAgain`,
+  que es una función borrada. Si un lender «no actualiza su respuesta», hoy el orden de sospecha es
+  otro: (1) el **adapter**, que es quien decide qué hace con `PreviousRawResponse`; (2) el
+  **desempate del repositorio** (`pre-approvals-service/internal/infra/storage/dynamodb/preapproval_repository.go:332 isMoreRecent`),
+  donde una `pending` le gana a una fila más nueva; y (3) si es `bcp_consumo`/`bcp_vehicular`, el
+  contrato manual, donde **sin `lender_decision` se devuelve la fila anterior a propósito**.
+- **Los intentos por lender** — `pre-approvals-service/internal/infra/handlers/lender_attempts/handler.go:42 Register` ·
   `:112 ListByLender`. Es lo que responde «¿cuántas veces se le preguntó a esta entidad?».
 - **Persistencia** — `internal/infra/storage/dynamodb/preapproval_repository.go` (DynamoDB, no MySQL:
   por eso esta decisión NO se puede auditar con una consulta a la BD del monolito).
