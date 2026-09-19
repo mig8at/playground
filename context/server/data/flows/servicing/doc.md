@@ -35,6 +35,32 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
   (`application/app/Helpers/CutoffCalendar.php:99`): mensual tres, quincenal **dos** —el tercero no existe en su ciclo— y
   semanal **ninguno**, porque paga siempre el mismo día de la semana. Ofrecer un día que el ciclo no
   tiene es la otra forma de que el cambio no quede. Leído en `main` el 2026-09-18.
+- 🔴 **La otra mitad de CRED-127 es la que costó plata: un pago parcial podía dejar al cliente PEOR.**
+  Al aplicar un pago parcial sobre un crédito **en mora**, la fecha de pago se recalculaba
+  retrocediendo **un mes fijo** — y en un prestamista **quincenal** eso es un ciclo entero de más. La
+  fecha caía en el pasado y la fila se guardaba declarando el crédito **al día** (`days_past_due = 0`);
+  a la mañana siguiente el proceso diario veía la fecha vencida y lo devolvía a mora, **y de ahí no
+  salía solo**, porque la fecha únicamente avanza cuando se paga el mínimo completo. El cliente pagaba
+  y quedaba peor que antes. ✔ **La causa está corregida en `main`:**
+  `application/app/Helpers/CutoffCalendar.php:142-164` — `currentCyclePaymentDate` retrocede con
+  `previousBillingDate`; en mensual conserva el día que eligió el cliente (`:155-163`), y en semanal y
+  quincenal manda el derivado, porque ahí el día lo fija el corte y no hay día del mes que preservar.
+- ✔ **Y la reparación ya corrió en producción — medido, no deducido.** El 2026-09-16 entre las 22:07 y
+  las 22:10: **83 créditos** con la fecha corregida (`creditop_x_log`, `type = 'SANEAMIENTO'`, «Fecha de
+  pago corregida tras quedar movida hacia atrás») y **25 condonados** por
+  `creditop_x_requests_history.movement_type = 'CONDONACIÓN POR CORRECCIÓN DE FECHA DE PAGO'`, por un
+  total de **382.419,81** — la mora y los gastos de cobranza que disparó la fecha fantasma. Tres cosas
+  del diseño que valen para cualquier saneamiento futuro y que el comando
+  (`application/app/Console/Commands/CorrectBackdatedPaymentDate.php`) hace explícitas:
+  **(1)** la fecha se reconstruye desde el corte **agendado al momento del pago**, no el de hoy —
+  usar el de hoy borra mora real: una primera pasada dejó en 19 días un crédito con 175;
+  **(2)** los días de mora se recalculan pero **nunca se suben** por encima de lo que el crédito ya
+  cargaba, porque subirlos puede cruzar un umbral de gasto de cobranza — cobrarle más a alguien por
+  haber pagado, para arreglar un error nuestro; **(3)** corre **en seco por defecto** y sólo escribe
+  con `--apply`, una transacción por crédito releyendo la fila bajo lock.
+  ⚠ **La condonación NO declara al día a nadie:** de los 25, **24 conservan mora que sí se ganaron**,
+  así que `leave_up_to_date` queda en falso y el estado es el que dejó la corrección de fecha. Se
+  perdona lo que generó el error, no lo que el cliente debe.
 - ⚠ **`movement_type` del ledger está vacío en el 90 % de las filas** (194.113 de ~214.700 en el dump
   local). Reconstruir la historia de un crédito filtrando por `movement_type` pierde casi todo: los
   nombres (`FECHA DE CORTE` 7.050 · `APLICACIÓN DE PAGO` 5.894 · `CONDONACIÓN DE COLILLAS` 4.897 ·
@@ -91,7 +117,9 @@ acumulan y se registran juntos al final de la corrida. Si un pago "desapareció"
 4. **Mora (00:30, si `next_payment_date < hoy`):** `days_past_due += 1`, `status_id=2`, interés de mora + **gasto de cobranza fijo por rango** (`LenderCollectionChargeService`, una vez al entrar al rango). Recuperación: `2 → 1` si se cubre el exigible.
 5. **Ingreso de pago (evento, NO cron):** Wompi/Payvalida se confirman por **polling** (`Jobs/Lenders/Wompi/StatusCheck`, `tries=60`), luego `CreditopXPaymentController::processPayment` aplica en **cascada de imputación**: `gasto de cobranza → mora → interés → seguro de vida → seguro de garantía → capital` (el excedente reduce capital).
 6. **Paz y salvo:** cuando `total_payment_amount == 0`, `applyPayment` fija `status=3` + `creditop_x_requests_status_id=3`.
-7. **Cupo rotativo (rt=3):** al pagar capital libera cupo para reuso con **FGA proporcional** (`corresponding_fga = paid_principal − paid_principal × used_limit/billing_used_limit`); el cron 04:00 resuelve mora del cupo pero NO toca `used_limit`.
+7. **Cupo rotativo (rt=3):** al pagar capital libera cupo para reuso con **FGA proporcional** (`corresponding_fga = paid_principal − paid_principal × used_limit/billing_used_limit`). ⚠ **Acá decía que «el cron 04:00 resuelve mora del cupo pero NO toca `used_limit`». Desde el 2026-08-26 ya no.** `used_limit` y `billing_used_limit` venían siendo **acumuladores que nadie reconciliaba**: cada pago los restaba sin piso ni techo, así que una razón `used/billing` por encima de 1 —un pago aplicado dos veces, un ajuste manual— se comía más cupo del que el cliente pagó, y con `billing_used_limit` en 0 la fórmula dividía por cero. De ahí salieron **cupos en 0 con utilizaciones vivas que además quedaban fuera de la consolidación para siempre**, porque el cron los seleccionaba justamente por `used_limit > 0`. Hoy: la liberación en el pago sigue siendo **inmediata** —el cliente debe ver el cupo liberado de una vez— pero **acotada** (razón limitada a `[0,1]`, cada campo contra su propio saldo, ninguno negativo), y la **consolidación nocturna DERIVA los dos campos de las utilizaciones activas**, que son la fuente de verdad: `application/app/Services/CreditopX/RevolvingCreditAggregates.php` (aritmética pura, sin Eloquent, para poder probarla sin base), llamada desde `application/app/Console/Commands/UpdateCreditopXRevolvingCreditsCommand.php`. El mismo cron recalcula `installment_amount` como **suma de las cuotas** —antes sólo se tocaba al originar y al pagar, así que entre una utilización y otra el cliente veía una cuota que ya no correspondía— y toma `next_payment_date`/`next_billing_date` de la utilización **más temprana**; antes el cupo sólo rodaba su fecha por mora, o sea que **quien pagaba a tiempo veía una fecha vencida**. Y la selección dejó de ser `used_limit > 0`: ahora entra cualquier cupo con al menos una utilización activa (`:186-188`), que es lo que rescata a los que quedaron en 0.
+   ⚠ **Se autocorrige, pero la deriva no se acabó.** Medido en prod: el día que entró (**2026-08-31**) el cron corrigió **11 cupos de una sola vez** —la deriva acumulada— y desde entonces corrige **uno cada dos o tres días** (17/9, 14/9, 11/9). Para dimensionarla sin escribir nada: `php artisan creditopx:auditar-rotativos --solo-con-deriva`, que compara cupo por cupo lo guardado contra lo derivado y **no escribe**.
+   ⚠ **Y un tercer efecto del mismo arreglo, que explica un síntoma aparte:** la colección de utilizaciones se materializa con `get()` antes de recorrerla (`:195-197`), porque **un Builder no es `Traversable`** — con el `foreach` sobre el Builder no se iteraba nada y **la condonación de colillas de las utilizaciones simplemente no ocurría**.
 
 ### El pago por dentro (`CreditopXPaymentController`, 1.696 líneas — leído 2026-08-08)
 
