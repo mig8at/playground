@@ -2,9 +2,9 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 24,
+    "al-dia": 25,
     "deriva-alta": 7,
-    "deriva": 6,
+    "deriva": 5,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
@@ -2294,283 +2294,6 @@
       }
     },
     {
-      "id": "frontend-monorepo",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 84,
-      "deriva": {
-        "cambiados": 18,
-        "pct": 24,
-        "hubs": 7,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/navbar-layout.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-continue.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/analytics-taxonomy.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/packages/shared/utils/src/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/form-preview.tsx",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/utils/security-headers.server.ts",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/vite-env.d.ts",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config.repository.ts",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/server/services/session.server.ts",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
-            "ultimo_cambio": "2026-09-02",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/layouts/public-layout.tsx",
-            "ultimo_cambio": "2026-09-02",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
-            "ultimo_cambio": "2026-09-02",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 50,
-        "autores": {
-          "lhCabra-creditop": 11,
-          "sanvipi-ctop": 8,
-          "Abel Arismendy": 6,
-          "Oscar Rincon": 6,
-          "Miguel Ochoa": 4,
-          "jose guzman": 4,
-          "Yamid Viloria": 4,
-          "Luis Romero": 3,
-          "yamid-creditop": 3,
-          "Joel": 1
-        },
-        "lista": [
-          {
-            "sha": "77796a4f9",
-            "fecha": "2026-09-14",
-            "autor": "Abel Arismendy",
-            "asunto": "revert(ecommerce): stateless checkout entry and channel welcome (#997, #1005) (#1013)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "fd93a11b9",
-            "fecha": "2026-09-14",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(ecommerce): bienvenida propia del canal, datos editables, la cuota inicial fuera del listado y el wizard en ancho de móvil",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "8eecdc805",
-            "fecha": "2026-09-14",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(ecommerce): la entrada del checkout y la cuota inicial, sin cookie y sobre qa",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "27367eddc",
-            "fecha": "2026-09-13",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(tarjeta): el selector de plan aparece cuando hay algo que elegir",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "638b6c3fd",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(analytics): whatsapp handoff event, funnel renames, timeout, segmentation, retry and approval dedup",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "f7aede909",
-            "fecha": "2026-09-11",
-            "autor": "jose guzman",
-            "asunto": "validacion pantallas",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "ecd3ee591",
-            "fecha": "2026-09-11",
-            "autor": "Oscar Rincon",
-            "asunto": "La comisión se escribe y el monto a financiar se valida contra el rango del comercio",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "b8466f5f9",
-            "fecha": "2026-09-10",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(alta-fleet): dibuja las páginas del comercio, y en autogestión no muestra el handoff",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "88839e982",
-            "fecha": "2026-09-04",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(entidad): la URL del simulador sale del ambiente, no del código",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "b2e4d7972",
-            "fecha": "2026-09-04",
-            "autor": "Oscar Rincon",
-            "asunto": "El rango del comercio se mapea en su propia función",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "9dcf04eee",
-            "fecha": "2026-09-04",
-            "autor": "Oscar Rincon",
-            "asunto": "El monto respeta el rango que declara el comercio",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "3e9006356",
-            "fecha": "2026-09-04",
-            "autor": "yamid-creditop",
-            "asunto": "Staging (#952)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "42254425f",
-            "fecha": "2026-09-04",
-            "autor": "jose guzman",
-            "asunto": "fix-longitudDocuments2",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "46759ce88",
-            "fecha": "2026-09-04",
-            "autor": "jose guzman",
-            "asunto": "fix-longitudDocuments",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "6813ed555",
-            "fecha": "2026-09-03",
-            "autor": "lhCabra-creditop",
-            "asunto": "En el punto de venta se pide el celular DEL CLIENTE",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "huerfanos": [
-        "frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/infrastructure/repositories/form-response-answers.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/holder-name.service.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/nequi-polling.service.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/lender-return.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/nequi-payment.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/kyc-flow.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/personal-info-legacy.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/phone-otp-legacy.repository.ts",
-        "frontend-monorepo/packages/shared/utils/src/network/kyc-field-errors.ts"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "entities",
       "estado": "deriva",
       "verificado": {
@@ -4261,6 +3984,26 @@
         "source": "manual"
       },
       "archivos": 88,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "frontend-monorepo",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 84,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
