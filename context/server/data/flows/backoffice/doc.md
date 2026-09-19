@@ -21,20 +21,29 @@ legacy-backend → **`legacy-backend`**. El monorepo y el wizard → **`frontend
 
 **La API: `/api/backoffice`, todo detrás de `cognito.token:staff`.** Tres recursos —`/me`, `users/*`,
 `applications/*`— definidos en `Modules/Backoffice/routes/backoffice.php`. Bajo `users/{user}` cuelgan
-`requests`, `documents`, `validation`, `central-responses`, `otps`, `otps/{otp}/log` y el POST
-`manual-validation`; bajo `applications`, `filter-options`, `filter-options/points-of-sale`,
-`{userRequest}` y `{userRequest}/profiling`.
+`requests`, `documents`, `validation`, **`cognito-status`**, `central-responses`, `otps`,
+`otps/{otp}/log` y el POST `manual-validation`; bajo `applications`, `filter-options`,
+`filter-options/points-of-sale`, `{userRequest}` y `{userRequest}/profiling`. ⚠ El grupo lleva **un
+segundo middleware además del guard**, `UseColombiaTimezone`: las fechas que devuelve esta API ya vienen
+convertidas, así que no hay que volver a convertirlas al compararlas con una consulta cruda a la BD.
 
 **La autenticación NO es la del admin viejo, y tampoco es `auth.cognito`.** `Modules/Auth` expone
-`/api/auth` (login, register, confirm, verify, resend, forgot, exists) con `ForceJsonResponse` + `otel`
-+ `throttle:auth`, y los endpoints sensibles con `throttle:auth-sensitive`. El guard de la API es
+`/api/auth` con `ForceJsonResponse` + `otel` + `throttle:auth` como paraguas por IP. **Diez endpoints van
+además con `throttle:auth-sensitive`** (login, register, register/confirm, exists, verify, verify-code,
+resend, forgot, forgot/confirm, reset) y **dos quedan afuera a propósito** —`change-password` y
+`refresh`—, porque **los consume el BFF con tokens ya emitidos** y limitarlos cortaría la renovación
+normal de sesiones. El guard de la API es
 **`EnsureCognitoAccessToken`** (alias `cognito.token`), que valida el JWT contra el **JWKS público** del
 pool —no necesita IAM— comprobando `token_use=access` y el `client_id` del app client. Toma el pool
 como parámetro: `cognito.token:staff`.
 
 **Dos pools, configurados por env** (`Modules/Auth/config/config.php`): **`staff`**
 (`BACKOFFICE_AWS_COGNITO_*`, con `userProfileId: 2` = Administrador) y **`comercios`**
-(`MERCHANT_AWS_COGNITO_*`). Son pools separados: una cuenta de uno no entra por el otro.
+(`MERCHANT_AWS_COGNITO_*`). Son pools separados: una cuenta de uno no entra por el otro, y el `userProfileId` filtra `users` para
+validar que el contacto corresponda a la audiencia (**2 = staff, 4 = comercios**). ⚠ **Y hay un TERCER
+pool que este módulo NO usa a propósito: el de mobile (`AWS_COGNITO_*`), que es phone-username.** Por eso
+acá **no hay fallback** a esas variables: si el prefijo del pool que corresponde no está seteado, el login
+falla — que es lo correcto — en vez de caer silenciosamente al pool equivocado.
 
 **El proxy BFF, y por qué existe.** El front declara `route("api/backoffice/*",
 "routes/api-backoffice-proxy.ts")`: los dataProviders de Refine pegan **al mismo origen** y el proxy
@@ -88,8 +97,8 @@ los tiers vive en **profiling**; acá solo que existe la pantalla y con qué cui
 `lenders_by_allied_branches.status = 0`, la pantalla dice que *«no se evaluaron reglas ni categoría»*
 por estar apagada en el punto de venta. Pero las tres ramas de
 `Modules/Onboarding/App/Services/lenders/LenderListingService.php` `resolveLenderIdsByBranch` arman la
-base con `where('allied_branch_id', …)->pluck('lender_id')` **sin filtrar por `status`** (verificado
-contra `main`) — así que el `status = 0` no es lo que impidió la evaluación. Es una explicación
+base con `where('allied_branch_id', …)->pluck('lender_id')` **sin filtrar por `status`** —y memoizada
+30 s en el cache de array del proceso— (verificado contra `main`) — así que el `status = 0` no es lo que impidió la evaluación. Es una explicación
 plausible presentada como hecho: dársela al comercio tal cual puede ser darle un motivo equivocado.
 Concuerda con lo que ya dice **merchants**: apagar una entidad en una sucursal es una operación
 solo-BD que el camino principal no lee.
@@ -141,19 +150,34 @@ revés quedan las reglas sin clonar y la entidad lista a medias.
 
 ### `LenderReadinessService` — «listo para operar» no es opinión
 
-Cinco chequeos, y uno de ellos **no bloquea a propósito**:
+Cinco chequeos, y **dos** pueden no bloquear:
 
 | # | chequeo | qué pasa si falta |
 |---|---|---|
 | 1 | **identidad** — `lenders.originator_nit` cargado | la pasarela rechaza los pagos |
 | 2 | **validación** — un proveedor ACTIVO en `order 1` | el flujo lanza excepción |
-| 3 | **pagos** — al menos un comercio con cuenta de Wompi lista | no se puede cobrar |
+| 3 | **pagos** — al menos un comercio con cuenta de Wompi lista | no se puede cobrar · ⚠ **salvo cobranza externa** (ver abajo) |
 | 4 | **perfiles** — al menos un perfil con fila en `lender_users_category_rules` | *«una categoría sin criterios no existe para el motor»* |
 | 5 | **política dura** | se reporta el conteo, con **`blocking: false`** |
+
+⚠ **El tercero deja de bloquear cuando `lenders.externally_serviced` está prendido:** si el ciclo de
+vida del crédito no lo gestiona CreditOp, **no hay recaudo que configurar**. El chequeo se devuelve igual
+—con `applicable: false`— para que el listado, el flujo guiado y el admin viejo **sigan viendo las mismas
+cinco claves**, pero no pide cuenta ni bloquea. Quien lea «Pagos: no aplica» no está viendo un chequeo
+roto: está viendo una entidad con cobranza externa.
 
 El quinto es la decisión que conviene no revertir por prolijidad: *«un lender sin reglas no está
 incompleto, está sin filtros»*. Un lender sin política dura **opera** — lista para todos. Marcarlo como
 bloqueante convertiría un default deliberado en un error.
+
+**(2026-09-18) Nodo RE-VERIFICADO entero.** 20 afirmaciones auditadas —19 de código leídas contra `main`
+y 1 de dato medida contra producción—, **cero chequeos débiles y ninguna afirmación falsa**. Los cuatro
+huecos que aparecieron ya están incorporados arriba: el endpoint `cognito-status` que faltaba en el
+listado, el middleware `UseColombiaTimezone` que el grupo lleva además del guard, el **tercer pool de
+Cognito** que este módulo se niega a usar sin fallback, y —el que más importa— que **el chequeo de pagos
+tampoco bloquea** cuando la entidad es de cobranza externa, contra lo que decía «uno de ellos». También
+se completó la lista de endpoints de `Auth`, que omitía cinco y no distinguía los dos que quedan fuera
+del throttle sensible a propósito.
 
 ## Dónde mirar
 
