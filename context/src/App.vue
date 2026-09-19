@@ -326,34 +326,6 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
 
 <template>
   <div class="wrap">
-    <!-- TITLEBAR · el nombre y el buscador en una fila. Eran cuatro renglones apilados —título,
-         contadores, buscador y el aviso de sólo-lectura— que sumaban 157px antes del árbol.
-
-         ⚠ `height: auto` y `overflow: visible` contra la regla compartida: el buscador crece con
-         chips («+ vecinas», el contador de resultados) y en ventana angosta envuelve. -->
-    <header class="titlebar">
-      <h1>context <span class="sub">· organización</span></h1>
-      <div class="buscar">
-        <input v-model="q" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
-               title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
-        <!-- La perilla aparece cuando hay algo escrito, que es cuando significa algo. -->
-        <button v-if="busqueda" class="vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
-                :title="conVecinas
-                  ? 'Se muestran también los nodos con los que se une (padre, hijo, task y archivo compartido). Clic para ver sólo lo encontrado.'
-                  : 'Sólo lo encontrado. Clic para traer los nodos vecinos.'">+ vecinas</button>
-        <button v-if="busqueda && busqueda.menciones" class="vec-chip off" @click="alternarMenciones"
-                title="Nodos que lo nombran en la prosa sin declararlo. No son la respuesta, pero a veces es lo que buscás.">
-          + {{ busqueda.menciones }} que lo mencionan
-        </button>
-        <button v-if="busqueda && verMenciones" class="vec-chip" @click="alternarMenciones"
-                title="Volver a los nodos que lo declaran (nombre, síntoma o archivo).">menciones incluidas</button>
-        <span v-if="busqueda" class="cuenta">
-          {{ busqueda.pega.size }} resultado(s)<template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
-          <!-- la nota del modo mención sólo tiene sentido si HAY algo; con cero decía las dos cosas -->
-          <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
-        </span>
-      </div>
-    </header>
 
     <div class="cols">
       <aside class="tree sidebar">
@@ -361,11 +333,39 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              alto, y «Contextos» se iba a −291px — recorrías la mitad del árbol sin saber si seguías
              en contextos o ya estabas en tasks. -->
         <div class="region-head">
-          <span>Árbol</span>
+          <span>context</span>
           <span class="cnt">{{ rows.length }}</span>
           <div class="region-actions">
             <button type="button" class="region-action" :title="todoPlegado ? 'Desplegar todo' : 'Plegar todo'"
                     @click="plegarTodo">⊟</button>
+          </div>
+        </div>
+
+        <!-- EL BUSCADOR, dentro del árbol y fuera de su scroll. Estaba en un titlebar a lo ancho de
+             la ventana, encima de las DOS columnas: el detalle pagaba 47px de alto por una caja que
+             sólo filtra el árbol. Acá arriba de lo que filtra, y el detalle se los queda. -->
+        <div class="buscar">
+          <input v-model="q" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
+                 title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
+          <!-- Las perillas aparecen cuando hay algo escrito, que es cuando significan algo. Y van a la
+               VISTA y no a un menú ⋯: cambian QUÉ filas se listan, y un filtro escondido se olvida
+               encendido — después lo que falta se lee como «no existe». -->
+          <div v-if="busqueda" class="buscar-sub">
+            <button class="vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
+                    :title="conVecinas
+                      ? 'Se muestran también los nodos con los que se une (padre, hijo, task y archivo compartido). Clic para ver sólo lo encontrado.'
+                      : 'Sólo lo encontrado. Clic para traer los nodos vecinos.'">+ vecinas</button>
+            <button v-if="busqueda.menciones" class="vec-chip off" @click="alternarMenciones"
+                    title="Nodos que lo nombran en la prosa sin declararlo. No son la respuesta, pero a veces es lo que buscás.">
+              + {{ busqueda.menciones }} que lo mencionan
+            </button>
+            <button v-if="verMenciones" class="vec-chip" @click="alternarMenciones"
+                    title="Volver a los nodos que lo declaran (nombre, síntoma o archivo).">menciones incluidas</button>
+            <span class="cuenta">
+              {{ busqueda.pega.size }} resultado(s)<template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
+              <!-- la nota del modo mención sólo tiene sentido si HAY algo; con cero decía las dos cosas -->
+              <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
+            </span>
           </div>
         </div>
         <div class="region-body">

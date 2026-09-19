@@ -25,6 +25,11 @@
 :root {
   --bg: var(--background);
   --line: var(--border);
+  /* El borde que se NOTA: el subrayado punteado de «sólo lectura», que es la señal de que eso tiene
+     una explicación al pasar por encima. ⚠ Se usaba sin declarar, así que el navegador tiraba la
+     declaración entera —el subrayado no existía— y no fallaba nada. Lo cazó `make estilo-check`.
+     Mismo valor que en el trazador, que es la otra que lo usa. */
+  --line-fuerte: var(--accent);
   --hueco: var(--background);   /* lo hundido dentro de una card: contadores, código, callouts */
   --fg: var(--foreground);
   /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el muted
@@ -86,18 +91,13 @@ body { margin: 0; overflow: hidden; background: var(--background); color: var(--
 code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco); padding: 1px 5px;
        border-radius: var(--radius); color: var(--fg); }
 
-/* El `.wrap` ya NO lleva el padding arriba/abajo: el titlebar y el statusbar van a sangre, como en
-   las otras tres. El aire lateral se lo queda `.cols`. */
+/* El `.wrap` ya NO lleva el padding arriba/abajo: el statusbar va a sangre, como en las otras tres.
+   El aire lateral se lo queda `.cols`. */
 .wrap { max-width: 1400px; margin: 0 auto; flex: 1; min-height: 0;
         display: flex; flex-direction: column; }
-/* El titlebar toma de `taller.css` el fondo y el borde; acá sólo lo propio. ⚠ `height: auto` y
-   `overflow: visible` porque el buscador crece con sus chips («+ vecinas», el contador) y en ventana
-   angosta envuelve; la regla compartida, pensada para una barra de una línea, lo recortaría. */
-header.titlebar { height: auto; overflow: visible; padding: 8px 22px; gap: 14px; flex-wrap: wrap; }
-header h1 { margin: 0; font-size: 15px; font-weight: 700; flex: none; }
-/* ⚠ El buscador NO envuelve dentro del titlebar: su regla propia lo deja crecer y partía la fila. */
-header.titlebar .buscar { flex: 1 1 360px; min-width: 0; margin: 0; flex-wrap: nowrap; }
-header.titlebar .buscar input { flex: 1 1 auto; min-width: 0; }
+/* (El `header.titlebar` se fue: el nombre lo lleva el encabezado del árbol y el buscador vive
+   adentro del árbol, que es lo único que filtra. Lo que decía el h1 —«context · organización»— no
+   lo decía nadie más que la pestaña del navegador, y costaba una barra a lo ancho de la ventana.) */
 
 .statusbar { height: var(--statusbar-h); padding: 0 22px; }
 .statusbar strong { color: var(--fg); font-weight: 600; }
@@ -106,7 +106,6 @@ header.titlebar .buscar input { flex: 1 1 auto; min-width: 0; }
 .sb-ro { margin-left: auto; color: var(--tenue); border-bottom: 1px dotted var(--line-fuerte);
          cursor: help; }
 .cols { padding: 14px 22px 0; }
-header .sub { color: var(--mut); font-weight: 400; }
 .stats { display: flex; gap: 8px; margin: 10px 0 4px; }
 .pill { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 12px; color: var(--mut); }
 .pill.ctx { color: var(--ctx); } .pill.task { color: var(--task); }
@@ -117,8 +116,16 @@ header .sub { color: var(--mut); font-weight: 400; }
    porque distinguirlo por opacidad obliga a comparar contra la fila de al lado), VEC es con qué se
    une —está para leerse, así que no se apaga tanto— y RUTA es sólo el camino del árbol: ni resultado
    ni vecina, y se cuenta como ninguno de los dos. */
-.buscar { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; }
-.buscar input { flex: 0 1 380px; background: var(--hueco); border: 1px solid var(--line); color: var(--fg);
+/* ⚠ El buscador vive DENTRO del árbol, entre su encabezado y su cuerpo — no arriba de las dos
+   columnas. `flex: none` para que no entre en el reparto de alto (si entrara, la lista se lo comería)
+   y el borde de abajo para que se lea como parte de la barra y no como la primera fila de la lista.
+   En columna y no en fila: las perillas aparecen y desaparecen con la búsqueda, y en una fila de
+   300px de ancho empujaban el input a 40 caracteres. */
+.tree .buscar { flex: none; display: flex; flex-direction: column; gap: 6px;
+                padding: 8px; border-bottom: 1px solid var(--line); }
+.tree .buscar input { width: 100%; box-sizing: border-box; }
+.buscar-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.buscar input { background: var(--hueco); border: 1px solid var(--line); color: var(--fg);
                 border-radius: 999px; padding: 5px 13px; font-size: 12.5px; }
 .buscar input:focus { outline: none; border-color: var(--info); }
 .buscar input::placeholder { color: var(--tenue); }

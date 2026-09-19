@@ -94,28 +94,10 @@ async function copiar() {
 </script>
 
 <template>
-  <!-- TITLEBAR · una sola fila: quién sos, qué estás mirando y la acción principal. El buscador va
-       ACÁ y no en un renglón aparte porque es lo ÚNICO que hace esta herramienta —escribís un id y
-       ves la traza—, o sea es la barra de comandos, no un filtro sobre algo que ya está en
-       pantalla. En dos filas costaba 97px de alto; el mapa es lo que uno vino a mirar.
-
-       ⚠ `height: auto` y `overflow: visible` contra la regla compartida: ésta envuelve a dos filas
-       en ventana angosta y la regla —pensada para una barra de una línea— la recortaría. -->
-  <header class="titlebar">
-      <h1>Trazador <span class="dim">· CreditOp</span></h1>
-      <span v-if="t.traza" class="ico big" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
-      <span v-if="t.traza" class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
-      <span v-if="t.traza" class="ureq">solicitud {{ t.traza.ureq }}</span>
-      <button v-if="t.traza" class="copiar" :class="{ ok: copiado }" @click="copiar"
-              title="La traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.">
-        {{ copiado ? '✓ copiado' : '⧉ copiar traza' }}
-      </button>
-    <Buscador />
-  </header>
 
   <!-- BANNER · lo que sólo aparece A VECES: la espera, los datos de la solicitud y los errores.
-       Región propia para que el titlebar no cambie de alto según el estado — un encabezado que
-       crece y se achica mueve todo lo de abajo cada vez que buscás. -->
+       Región propia para que la barra del mapa no cambie de alto según el estado — un encabezado
+       que crece y se achica mueve todo lo de abajo cada vez que buscás. -->
   <div v-if="t.fase || t.traza || t.error || chequeoGrave.length" class="banner">
     <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner mudo
          tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en información. -->
@@ -144,11 +126,33 @@ async function copiar() {
   <div class="cols" :class="{ midiendo: redimensionando, cerrado }">
     <!-- El mapa NO lleva el ancho del sidebar: sólo si está abierto o no. Así se recalcula una vez, al
          abrir o cerrar, y no en cada píxel del arrastre. -->
-    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`. El mapa
-         no lleva la clase `.editor` a propósito: su regla propia ya dice todo lo que la compartida
-         diría, y lo único que agregaría es un `display:flex` que hoy no tiene. Un nombre que no
-         cambia nada es un nombre que alguien va a borrar sin saber qué se lleva. -->
-    <Mapa :cerrado="cerrado" />
+    <!-- El mapa es el EDITOR y `Detalle` el AUXILIARYBAR, en el vocabulario de `taller.css`.
+         ⚠ Acá decía que el mapa NO lleva la clase `.editor` a propósito, porque «su regla propia ya
+         dice todo lo que la compartida diría». Era cierto mientras era un bloque solo: desde que
+         tiene una barra arriba que no scrollea con él, la columna flex de `.editor` es exactamente
+         lo que hace falta y el nombre sí cambia algo. -->
+    <section class="editor editor-mapa">
+      <!-- EL ENCABEZADO DEL MAPA · acá vive lo que antes era el titlebar a lo ancho de la ventana.
+           El buscador es lo ÚNICO que hace esta herramienta —escribís un id y ves la traza—, o sea
+           es la barra de comandos del mapa, no un filtro sobre algo que ya está en pantalla.
+
+           ⚠ El panel de logs pagaba por esta barra sin usarla: estaba arriba de las DOS columnas, así
+           que el sidebar empezaba 44px más abajo por un buscador que no es suyo. -->
+      <div class="region-head">
+        <span>Trazador</span>
+        <Buscador />
+        <div class="region-actions">
+          <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
+               24×24, y el texto se le parte adentro — el primer intento quedó con «copi / traz» en
+               dos renglones, tapado por el panel de logs. Lo que dice, lo dice el `title`. -->
+          <button v-if="t.traza" class="region-action copiar" :class="{ ok: copiado }" @click="copiar"
+                  :title="copiado ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
+            {{ copiado ? '✓' : '⧉' }}
+          </button>
+        </div>
+      </div>
+      <Mapa :cerrado="cerrado" />
+    </section>
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
          sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
@@ -170,9 +174,15 @@ async function copiar() {
        dibujado y se pisa con los rótulos de los carriles de abajo; en una barra propia se lee sin
        taparle nada al mapa, y el ambiente deja de estar escondido dentro del buscador. -->
   <footer class="statusbar">
-    <!-- ⚠ Acá NO va la solicitud: ya está en el titlebar, a 30px de acá. Un statusbar que repite lo
-         que está arriba gasta el único renglón que tiene. Lleva lo que el titlebar no dice. -->
+    <!-- ⚠ La solicitud y su desenlace VIVEN ACÁ desde que no hay titlebar. Antes estaban arriba y este
+         renglón los evitaba a propósito para no repetirlos; ahora son justo lo que le falta — qué
+         estás mirando y cómo terminó, sin gastar una barra entera en decirlo. -->
     <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
+    <template v-if="t.traza">
+      <span class="ico" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
+      <span class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
+      <span class="ureq">solicitud {{ t.traza.ureq }}</span>
+    </template>
     <span v-if="t.traza?.ramal">carril <b>{{ t.traza.ramal }}</b></span>
     <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
     <span class="sb-pista">clic abre la etapa · ←/→ recorren</span>
@@ -188,18 +198,32 @@ async function copiar() {
    contenedor. Sin color, la profundidad es lo único que separa una capa de otra.
 
    La escalera, medida:  fondo 9  ·  lienzo del mapa 12  ·  header y panel 19  ·  tarjeta 24. */
-/* El titlebar toma de `taller.css` el fondo y el borde; acá sólo lo propio. ⚠ `height: auto` y
-   `overflow: visible` porque en ventana angosta envuelve a dos filas y la regla compartida —pensada
-   para una barra de una línea— la recortaría. */
-header.titlebar { height:auto; overflow:visible; padding:10px 18px; gap:12px; flex-wrap:wrap }
-/* `display: contents` y no un contenedor: así el título, el desenlace y el buscador son hermanos
-   directos del titlebar y el `margin-left:auto` del buscador funciona contra el borde real. */
-.fila1 { display:contents }
-/* ⚠ El buscador NO envuelve dentro del titlebar. Su regla propia es `flex-wrap: wrap` —correcto
+/* EL MAPA ES UNA REGIÓN, con su encabezado y su cuerpo. La clase `.editor` le trae de `taller.css`
+   la columna flex; lo de acá es lo propio.
+   ⚠ Acá decía que etiquetarlo `.editor` no agregaba nada y por eso se había sacado. Era cierto
+   mientras el mapa era un solo bloque: hoy tiene una barra arriba que NO tiene que scrollear con él,
+   y eso es exactamente lo que la regla compartida resuelve. */
+.editor-mapa { height:100%; background:var(--panel2) }
+/* ⚠ `height:auto` y `flex:1`: `.mapa` se dibuja con `height:100%`, que dentro de una columna flex
+   con alto definido significa «todo el alto del contenedor» — o sea el encabezado de arriba, por
+   encima. Se ve como un mapa recortado abajo, no como un error. */
+.editor-mapa > :deep(.mapa) { height:auto; flex:1 1 0; min-height:0 }
+/* El encabezado se queda con la superficie del viejo titlebar (el escalón 19 de la escalera de
+   arriba), para que siga leyéndose como una barra y no como el lienzo. ⚠ `height:auto` y
+   `overflow:visible` contra la regla compartida: el buscador suma renglones —«coincidió como…», los
+   recientes— y una barra de una línea los recortaría. */
+.editor-mapa > .region-head { height:auto; overflow:visible; background:var(--card);
+  padding:10px 18px; gap:12px; flex-wrap:wrap; text-transform:none; letter-spacing:normal;
+  font-size:14px }
+/* El nombre NO se queda con el espacio: lo quiere el buscador. (La regla compartida le da `flex:1`
+   al primer hijo, que es lo correcto cuando el primer hijo es el título de una lista.) */
+.editor-mapa > .region-head > :first-child { flex:none; font-weight:600; letter-spacing:-.01em;
+  color:var(--txt) }
+/* ⚠ El buscador NO envuelve dentro de la barra. Su regla propia es `flex-wrap: wrap` —correcto
    cuando era una fila entera para él— y acá partía la caja del `prod ▾ buscar` a un segundo renglón:
    el encabezado terminaba MÁS alto (107px) que las dos filas que vino a reemplazar (97px). */
-header.titlebar :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
-header.titlebar :deep(.buscador input) { flex:1 1 auto; min-width:0 }
+.editor-mapa :deep(.buscador) { flex:1 1 340px; min-width:0; flex-wrap:nowrap }
+.editor-mapa :deep(.buscador input) { flex:1 1 auto; min-width:0 }
 
 /* El BANNER: sólo aparece cuando hay algo que decir, así que no puede traer alto propio cuando no. */
 .banner { flex:0 0 auto; display:block; padding:8px 18px 10px; background:var(--card);
@@ -215,15 +239,15 @@ header.titlebar :deep(.buscador input) { flex:1 1 auto; min-width:0 }
 .statusbar b { color:var(--txt); font-weight:600 }
 /* La pista de teclado al borde: es ayuda, no estado — lo último que se lee. */
 .sb-pista { margin-left:auto; color:var(--tenue) }
-/* ⚠ El título NO compite: con 18px en negrita era lo más pesado de la pantalla, y el título de una
-   herramienta es lo que uno menos necesita leer. Manda la solicitud que se está mirando. */
-h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
+/* El desenlace en el statusbar: el icono baja de 20 a 16px y la píldora pierde aire. En sus tamaños
+   de tarjeta no entran en los 26px de la barra y la estiran, que es justo lo que esa barra no hace. */
+.statusbar .ico { flex:0 0 16px; height:16px; font-size:10px }
+.statusbar .badge { padding:1px 8px; font-size:10.5px }
 .ureq { color:var(--dim); font-size:13px; font-variant-numeric:tabular-nums }
-.copiar { margin-left:auto; padding:6px 12px; font-size:12px; border:1px solid var(--line);
-  border-radius:var(--r); background:var(--card); color:var(--dim); cursor:pointer;
-  transition:color .12s, background .12s, border-color .12s }
-.copiar:hover { color:var(--txt); background:var(--elev); border-color:var(--line-fuerte) }
-.copiar.ok { color:var(--ok); border-color:var(--ok) }
+/* El resto lo pone `.region-action` (24×24, sin borde). Acá sólo el verde del acuse. */
+.copiar { color:var(--dim); transition:color .12s }
+.copiar:hover { color:var(--txt) }
+.copiar.ok { color:var(--ok) }
 
 .cargando { display:flex; align-items:center; gap:10px; margin-top:10px; font-size:12px; color:var(--dim) }
 .barra { width:120px; height:3px; background:var(--line); border-radius:var(--r-full); overflow:hidden; flex:0 0 120px }
