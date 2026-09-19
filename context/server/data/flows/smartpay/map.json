@@ -21,6 +21,7 @@
     "application/app/Models/DeviceLockingConfigAudit.php",
     "application/app/Services/Api/DeviceLockApiClient.php",
     "application/app/Services/Api/DeviceLockingConfigApiClient.php",
+    "application/database/migrations/2026_09_02_120000_create_device_locking_config_audits_table.php",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/imei/application/register-device-imei.uc.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/imei/index.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/imei/infrastructure/device-imei.repository.ts",

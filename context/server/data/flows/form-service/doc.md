@@ -82,6 +82,16 @@ entero (booleans, decimales, arrays seguían rechazados por la forma de la colum
 acepta entero o decimal. Un *«no me deja guardar el valor»* con un número con coma era esto. Y
 `FormTypeService` recibió un fix de forms (16/8, chico). Verificado contra `main`.
 
+### Tres reglas del renderizador que explican fallas que no dan error
+
+Las tres viven en `frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/application/` y cada una existe por un síntoma que **no se ve como error**.
+
+**1 · Respuestas guardadas con la ETIQUETA en vez de la clave** (`normalize-answers-to-options.ts`). Hay respuestas persistidas como `"Endosado"` donde la opción es `{ key: "endosado" }`. El select **no encuentra a qué opción corresponde** y se muestra **sin selección**; como el campo es obligatorio, el formulario no deja continuar. ⚠ El síntoma que reporta el asesor es **«el formulario está completo y el botón no avanza»**, sin nada que corregir en pantalla. Medido el 2026-08-31 sobre la solicitud **501915**: `252: 'Endosado'` con claves `bana | endosado`.
+
+**2 · Los roles del cálculo del monto van en `data_source`, NO por id de campo** (`amount-roles.ts`). Es la misma columna que ya identifica el árbol de vehículos y los `settings.*`. El motivo es concreto: **los ids de `fields` son `AUTO_INCREMENT` y difieren por ambiente**, así que una fórmula escrita con ids **se rompe en silencio al pasar de dev a prod**. Un formulario que no declare ninguno de esos tokens se comporta exactamente como antes: todo lo que cuelga de ahí pregunta primero por el rol y se va sin hacer nada si no lo encuentra.
+
+**3 · Los decimales del porcentaje escrito a mano NO salen del sufijo de `data_source`** (`percent-input.ts`), y es deliberado. Ese sufijo es el **PASO del selector**; reusarlo como precisión acopla dos cosas que se configuran por motivos distintos. Con un ejemplo medido: para tener dos decimales habría que poner `field_options.percent.0.01`, y con el rango de la comisión (0 a 6) eso son **601 opciones**, recortadas a `MAX_OPTIONS` — así que volver al selector devolvería un campo que **sólo llega hasta 1,99% sin avisar**. Con la precisión aparte, el sufijo sigue siendo la granularidad válida del selector y el rollback es **cambiar una sola columna**.
+
 ## Dónde mirar
 - **Wiring / entrada** (form-service): `cmd/http-server/main.go`, `internal/infra/storage/module.go` (repos), `internal/core/usecases/module.go`.
 - **Schema (armado + cache-aside)**: `internal/core/usecases/dynamic_forms/get_schema/usecase.go` y `create_schema/usecase.go` (reorg 2026-08: ya no hay `schema_builder.go`/`schema_persistence.go`), `internal/core/mappers/dynamic_form_schema_mapper.go`.

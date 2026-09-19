@@ -231,6 +231,15 @@ Lo que costó creerle está en el mismo archivo: se construyó un segundo camino
 
 **La BD de producción se lee por Redash** (`redash.creditop.com`, fuente `id=1 "Live"`, permiso `execute_query`), que es la única puerta: no hay acceso directo. Tres cosas que conviene saber antes de usarla: es **asíncrona** (job → polling → resultado), queda **auditada a nombre del dueño del token**, y devuelve los `datetime` en hora **local**, no UTC (ver **F-98** para el efecto de equivocarse con eso). El ELB es **interno**: sin VPN el síntoma es un *timeout*, no un 401.
 
+## Usuarios REALES de Perú operan sobre QA — y de ahí sale una regla de enrutamiento de mensajes
+
+No es una hipótesis de ambiente: está asumido en el código. `legacy-backend/Modules/Onboarding/App/Services/QaMessageRoutingService.php` existe porque **en QA conviven dos cosas que hay que distinguir**: los mensajes de usuarios reales peruanos **tienen que llegarles de verdad**, y los de las pruebas **no pueden salir al proveedor**.
+
+- **La señal es la VALIDEZ del número, no una convención.** Un móvil peruano **empieza con 9**, así que cualquier otro es imposible que sea de un usuario real: QA puede generar los que quiera sin riesgo de desviar a nadie. ⚠ Y está razonado por qué **no** se usa una marca tipo «cinco cincos»: `955555123` la cumple **y es un móvil válido** — una marca así desviaría a una persona real.
+- **Sólo actúa en `local` y `development`.** En cualquier otro entorno devuelve el envío **intacto**, así que una configuración mal puesta no puede desviar tráfico real. El destino se configura en el setting `qa_message_redirects`.
+
+⚠ **Lo que esto implica para cualquier prueba:** un mensaje que «no llegó» en QA puede haber sido **desviado a propósito**, y uno que sí llegó a un número peruano válido **salió al proveedor de verdad**. Antes de concluir que la mensajería está rota en un ambiente de pruebas, mirá por cuál de las dos ramas cayó el número. Y ojo con el `APP_ENV` de staging —`develop`, que **no** es `development`—: ahí este servicio **no actúa**.
+
 ## Lo que NO está verificado
 - Qué apunta a qué en producción: la BD compartida está probada por código (migraciones y modelos idénticos), no por config verificada contra el despliegue.
 - Los dos puertos del MS de pre-aprobación (`PRE_APPROVALS_BASE_URL` default `:8086` vs `VITE_PREAPPROVALS_ENDPOINT`): sin verificar si son el mismo despliegue.

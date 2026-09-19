@@ -58,6 +58,7 @@
     "legacy-backend/Modules/Loans/routes/api.php",
     "legacy-backend/Modules/Onboarding/App/Providers/RouteServiceProvider.php",
     "legacy-backend/Modules/Onboarding/App/Repositories/GenerateServiceRepository.php",
+    "legacy-backend/Modules/Onboarding/App/Services/QaMessageRoutingService.php",
     "legacy-backend/Modules/Onboarding/routes/api.php",
     "legacy-backend/Modules/Onboarding/routes/webhooks.php",
     "legacy-backend/Modules/OnboardingV2/routes/api.php",

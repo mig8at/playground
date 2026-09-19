@@ -134,6 +134,7 @@
     "legacy-backend/Modules/Backoffice/routes/backoffice.php",
     "legacy-backend/app/Models/LenderRulesChangeset.php",
     "legacy-backend/app/Models/LenderRulesSnapshot.php",
-    "legacy-backend/config/app.php"
+    "legacy-backend/config/app.php",
+    "legacy-backend/database/migrations/2026_08_04_120000_create_lender_rules_snapshots_table.php"
   ]
 }

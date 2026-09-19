@@ -31,6 +31,7 @@
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/get-lender-return-status.uc.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/application/process-lender-return.uc.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+    "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/lender-return.entity.ts",
     "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderPostRedirectController.php",
     "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",

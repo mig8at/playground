@@ -218,6 +218,17 @@ Tres cosas de esa tabla que no son obvias:
 - **`OBV21006` («la solicitud ya fue verificada y no se puede modificar») muestra el texto del backend sin taparlo.** El repositorio del v2 ya escribió en español qué hacer —iniciar una solicitud nueva—, y reemplazarlo por «intentá nuevamente» **deja a la persona reintentando algo que nunca va a pasar**.
 
 ## Subcontextos
+
+### Qué campos OPCIONALES pide cada comercio, y por qué la copia es deliberada
+
+Dos campos del onboarding son opcionales **por comercio**: la fecha de expedición del documento y la información laboral (`allieds.collect_expedition_date` y `allieds.collect_employment_info`). Quien los contesta para los módulos de arquitectura nueva es `legacy-backend/Modules/AlliedBranchV1/App/Services/GetAlliedCollectFlagsService.php`, un servicio **interno** (sin ruta HTTP) que devuelve el sobre `{ code, message, data }` de la serie `ABV14XXX` y atrapa cualquier error como `ABV14004` en vez de propagarlo.
+
+⚠ **Es una COPIA de `OnboardingFieldsGate::collectsFlag` del v1, no un refactor** —el original vive en `app/` junto al onboarding legacy y lee Eloquent directo, así que los módulos nuevos no pueden importarlo— y **dos cosas se reproducen a propósito** para que los dos flujos no puedan discrepar sobre el mismo comercio:
+
+- **El DEFAULT.** Fila de comercio ausente **o** celda en `NULL` significan las dos **«sí, pedilo»**: las columnas se agregaron con `default(true)` y todos los lectores del v1 hacen `?? true`.
+- **La LLAVE DE CACHE**, `allieds:{columna}:{alliedId}` a 300 segundos, **byte por byte la misma del v1**. Compartirla es lo que garantiza que cuando alguien cambia la bandera **los dos flujos vean el cambio en el mismo instante**, en vez de que uno sirva una respuesta vieja hasta cinco minutos más que el otro. ⚠ Si alguien «limpia» esa llave por parecer del módulo viejo, rompe justamente eso.
+
+**Cuánto se usa, medido en prod el 2026-09-18: casi nada, y conviene saberlo.** De **346** comercios, **344 piden los dos campos** y ninguno tiene la celda en `NULL`. O sea que el camino por defecto —pedir ambos— es el de prácticamente todo el padrón, y un comercio que no los pida es la excepción, no un caso a asumir.
 - **KYC** — el estudio del cliente (burós): Experian/Datacrédito da el único score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso; Quanto ingreso estimado. Se dispara desde `personal-info` y desde el orquestador de OTP (`userViability`).
 
 **(2026-08-28) Re-verificación asistida de los 37 archivos derivados** (worker digirió el diff en 8
