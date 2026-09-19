@@ -58,7 +58,7 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
 // la mitad del texto más ancho, no el radio del círculo. Medido con `getBBox()`: con 68 el contenido
 // arrancaba en x=10; con 88 queda a ~30 del borde, que es lo que se ve como aire y no como recorte.
 const RADIO = 9, Y0 = 60
-const PASO_MIN = 74, MARGEN_X = 88, COLA = 132
+const PASO_MIN = 74, MARGEN_X = 88, MARGEN_DER = 30
 const CARRIL_MIN = 74, CARRIL_MAX = 130
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
@@ -104,7 +104,15 @@ const columnas = computed(() =>
  */
 const PASO = computed(() => {
       if (!anchoCaja.value) return 120
-      const util = anchoCaja.value - MARGEN_X - COLA
+      // ⚠ ACÁ VA UNA ESTIMACIÓN DE LA RESERVA DERECHA, NO LA REAL, y tiene que ser así: la reserva
+      // sale de dónde terminan los textos, los textos se corren con el PASO, y el PASO saldría de la
+      // reserva — `PASO → ancho → PASO`. La estimación rompe el ciclo.
+      //
+      // Calibrada midiendo: con 150 sobraban 77 px de lienzo sin usar; con 96 el borde derecho real
+      // queda en ~30-40, que es el mismo aire que tiene la izquierda. Si en algún caso queda corta, el
+      // lienzo sale unos píxeles más ancho que la caja y el contenedor scrollea — que es preferible a
+      // recortar un texto.
+      const util = anchoCaja.value - MARGEN_X - 96
       return Math.max(PASO_MIN, Math.floor(util / columnas.value))
 })
 
@@ -206,10 +214,52 @@ const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
       })),
 })))
 
-const ancho = computed(() => {
-      const maxCarril = Math.max(0, ...nodosPorCarril.value.map((c) => c.nodos.at(-1)?.x ?? 0))
-      return Math.max(xCorte.value, maxCarril) + COLA
+/** El texto del carril que no tiene etapas propias. Como constante porque hay que MEDIRLO. */
+const TEXTO_AFUERA = '— sin etapas propias: el desenlace ocurre afuera'
+
+/**
+ * Cuánto ocupa un texto, estimado por caracteres. No es exacto y no hace falta que lo sea: se usa para
+ * reservar espacio, y quedarse corto se ve (texto contra el borde) mientras que pasarse no.
+ *
+ * ⚠ Medirlo de verdad con `getBBox()` sería circular: el ancho del lienzo sale de esto, y el bbox sale
+ * de dibujar en ese lienzo. La estimación rompe el ciclo.
+ */
+const anchoTexto = (txt, pxPorChar) => String(txt || '').length * pxPorChar
+const PX_MONO = 7.2, PX_DETALLE = 5.3, PX_CARRIL = 6.6, PX_AFUERA = 5.5
+
+/**
+ * ⚠ LA RESERVA DERECHA SE CALCULA DEL CONTENIDO, no es una constante — y la constante tenía un caso
+ * donde NO alcanzaba. Los textos no terminan donde termina el último nodo:
+ *
+ *   · el label y el detalle van CENTRADOS, así que sobresalen media anchura a la derecha;
+ *   · el rótulo del carril («credifamilia ← por acá fue») arranca en su PRIMER nodo y se extiende;
+ *   · y el peor: «— sin etapas propias…» mide ~260 px desde el primer nodo de un carril VACÍO, que no
+ *     cuenta para `maxCarril` porque no tiene nodos. Con la reserva fija de 132 y un `PASO` chico ese
+ *     texto se salía del lienzo. Hoy no se veía por casualidad: con `PASO = 124` terminaba 2 px antes
+ *     que el carril más largo.
+ *
+ * Se toma el extremo derecho de TODOS y se le suma el mismo aire que lleva la izquierda.
+ */
+const bordeDerecho = computed(() => {
+      let max = xCorte.value
+      for (const c of nodosPorCarril.value) {
+            const x0 = xCorte.value + PASO.value
+            max = Math.max(max, x0 + anchoTexto(`${c.id} ← por acá fue`, PX_CARRIL))
+            if (!c.nodos.length) max = Math.max(max, x0 + anchoTexto(TEXTO_AFUERA, PX_AFUERA))
+            for (const n of c.nodos) {
+                  const det = c.activo ? corto(n.etapa?.vivo?.detail || n.etapa?.label, 22) : ''
+                  max = Math.max(max, n.x + anchoTexto(n.id, PX_MONO) / 2,
+                                      n.x + anchoTexto(det, PX_DETALLE) / 2)
+            }
+      }
+      for (const n of nodosTronco.value) {
+            max = Math.max(max, n.x + anchoTexto(n.id, PX_MONO) / 2,
+                                n.x + anchoTexto(corto(n.vivo?.detail || n.label, 22), PX_DETALLE) / 2)
+      }
+      return max
 })
+
+const ancho = computed(() => bordeDerecho.value + MARGEN_DER)
 /**
  * La separación entre carriles se reparte igual que el `PASO`: con espacio de sobra los carriles
  * respiran, y con poco se juntan hasta el mínimo. Antes era una constante y el dibujo quedaba pegado
@@ -224,7 +274,14 @@ const CARRIL = computed(() => {
       return Math.max(CARRIL_MIN, Math.min(CARRIL_MAX, Math.floor((altoCaja.value - Y0 - 46) / filas)))
 })
 
-const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL.value)
+/**
+ * El alto también sale del CONTENIDO, con el mismo criterio que el ancho: el último carril más lo que
+ * cuelga de sus nodos (label a +28 y detalle a +41) más el aire. Con `(carriles + 1) * CARRIL` sobraban
+ * 99 px abajo contra 30 arriba — una reserva de una fila entera para un texto de dos renglones.
+ */
+const ALTO_ETIQUETAS = 46
+const alto = computed(() =>
+      Y0 + Math.max(1, carriles.value.length) * CARRIL.value + ALTO_ETIQUETAS + MARGEN_DER)
 
 // ── LA MEDIDA DEL LIENZO ─────────────────────────────────────────────────────────────────────────
 //
@@ -290,7 +347,7 @@ watch(() => props.cerrado, () => nextTick(medir))
                etapa después de elegir porque el desenlace ocurre AFUERA, y verlo cortado ahí lo dice
                mejor que cualquier nota al pie. -->
           <text v-if="!c.nodos.length" :x="xCorte + PASO" :y="c.y + 5" class="afuera">
-            — sin etapas propias: el desenlace ocurre afuera
+            {{ TEXTO_AFUERA }}
           </text>
 
           <g v-for="n in c.nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id }"
