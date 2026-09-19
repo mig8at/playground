@@ -197,8 +197,23 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   tenerlo. Hoy: el panel del harness y el tablero son workbenches completos —el tablero con el
   sidebar en acordeón y sin activitybar, porque con UN solo contenedor de vistas esa columna no cambia
   nada— · `context` usa dos
-  (`sidebar` el árbol, `editor` el detalle) · el trazador una (`auxiliarybar`). `make estilo-check` lo
-  lista, así que se ve de un vistazo quién adoptó qué.
+  (`sidebar` el árbol, `editor` el detalle) · el trazador dos (`editor` el mapa, `auxiliarybar` los
+  logs). `make estilo-check` lo lista, así que se ve de un vistazo quién adoptó qué.
+- ⛔ **NINGUNA usa `titlebar`, y eso es el resultado de medirlo cuatro veces.** Una barra a lo ancho de
+  la ventana le cobra su alto a TODAS las regiones, incluidas las que no usan nada de lo que hay ahí —
+  y casi siempre lo que hay ahí le pertenece a UNA. Lo que se hizo en las cuatro es lo mismo: **su
+  contenido baja a la barra de la región de la que habla**, y lo que quedaba —el nombre de la
+  herramienta— se va, porque eso lo dice la pestaña del navegador. Medido, en px de alto ganados:
+
+      tablero    titlebar 77  →  el editor y los dos sidebars se lo reparten
+      context    titlebar 44  →  el buscador baja al ÁRBOL (es lo único que filtra); el detalle +43
+      trazador   titlebar 60  →  el buscador baja al MAPA; el panel de logs +60, el mapa igual
+      harness    titlebar 52  →  perillas y correr bajan al RECORRIDO; los dos sidebars +52 c/u
+
+  El patrón que se repite en las cuatro: **la región que usaba la barra no gana ni pierde** (paga lo
+  mismo, ahora en su propia cabecera) **y las demás ganan el alto entero**. El nombre sigue en
+  `taller.css` porque es el vocabulario de VS Code y una herramienta futura puede necesitarlo; que hoy
+  no lo use nadie **no es un olvido**.
 - **Una región puede tener VARIAS VISTAS apiladas** (`.view`), como el sidebar primario de VS Code:
   el árbol arriba y OUTLINE/TIMELINE colapsadas abajo. ⚠ **Una vista cerrada cuesta UNA FILA, no
   cero** — es la misma regla que el canal deshabilitado del panel del harness: verla apagada dice que
@@ -221,6 +236,9 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 - **El encabezado de una región lleva barra de acciones y menú `⋯`**, como el Explorer de VS Code, y
   la división es lo que lo hace funcionar: en la **barra** lo que se HACE y es frecuente (iconos
   siempre a la vista); en el **menú** lo que se ALTERNA y se toca poco, con su tilde y su conteo.
+  ⚠ Y un botón de la barra es un **icono de 24×24** (`.region-action`): un texto adentro se parte en
+  dos renglones y se sale de la región — «⧉ copiar traza» quedó como «copi / traz» tapado por el panel
+  de al lado. Lo que dice el botón lo dice su `title`.
   ⚠ Y hay **una condición para mandar un filtro al menú: el encabezado tiene que delatar que está
   puesto.** Un filtro escondido que nadie ve se olvida encendido, y después lo que falta se lee como
   «no existe». En el tablero eso lo dice el contador, que pasa de `9` a `9 / 16` en ámbar; sin esa
@@ -243,6 +261,12 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   inventó. Ya tenía el grid, las medidas en tokens y hasta los nombres (`.titlebar`, `.statusbar`).
   Se desvía en una cosa, declarada: mete sus tres columnas del medio en un `.shell` propio para poder
   redimensionarlas.
+- ⚠ **Y una regla que costó dos intentos: una cabecera que junta varias cosas ENVUELVE, no desborda.**
+  Adentro de una región, el ancho ya no es el de la ventana — depende de cuánto midan los sidebars de
+  al lado, que se arrastran. La fila del recorrido del harness pide 823px: a 1512 entra en un renglón
+  y a 1440 «Preparar + Lanzar» terminaba **17px debajo del sidebar vecino**, sin que nada fallara. Va
+  `flex-wrap: wrap` **más `height: auto`**: `.region-head` fija `height: 32px`, y un `min-height`
+  encima da una caja FIJA —no una que crece—, así que el segundo renglón queda afuera igual.
 
 ⚠ **Y la colisión que hubo que resolver primero, que es el mismo error de `--accent`:** en VS Code
 `panel` es **la consola de abajo**, y en las cuatro herramientas `--panel` era un **color** (la
