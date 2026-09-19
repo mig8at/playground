@@ -722,18 +722,11 @@
     #activityMessage { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 14px; }
     .readiness-link { border: 0; padding: 0; background: none; color: var(--warn); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
     .readiness-link:hover { text-decoration: underline; }
-    .seg { flex-wrap: wrap; }
-    .lrow { flex-wrap: wrap; }
     .logcard { scroll-margin-top: 18px; }
-    @media (max-width: 700px) {
-      .card { padding: 16px; }
-      .two { gap: 9px; }
-      .card > summary span { display: block; margin: 5px 0 0; }
-      .logacts { flex-wrap: wrap; gap: 4px; }
-      .logcard h2 { align-items: flex-start; gap: 8px; }
-      .tren-hint { display: none !important; }
-      pre#log img.shotmini { max-width: 90%; }
-    }
+    /* (Acá había un `@media (max-width: 700px)` con siete ajustes de teléfono. Se fue con el de 1180
+       por lo mismo: el panel no se usa en un teléfono. Y con él los dos `flex-wrap: wrap` sueltos de
+       `.seg` y `.lrow`, que eran del diseño viejo y que dos reglas de más abajo ya anulaban con
+       `nowrap` —una de ellas con un ⚠⚠ explicando por qué—.) */
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; scroll-behavior: auto !important; } }
 
     /* *(Acá había un tercer `:root` —«CÁSCARA TIPO EDITOR · paleta Vercel dark»— que redefinía la
@@ -825,10 +818,14 @@
     .workbench > .banner { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
 
     /* ── las tres columnas ─────────────────────────────────────────────────────────────────── */
+    /* ⚠ La columna del medio es `minmax(320px, 1fr)` y el shell scrollea en horizontal: sin eso, al
+       angostar la ventana el `1fr` se achica hasta 0 y el recorrido desaparece entre los dos
+       sidebars. Con un piso, lo que sobra se recorre de costado — que es lo que hace una herramienta
+       de escritorio cuando no entra, en vez de reacomodarse sola. */
     .shell {
       display: grid;
-      grid-template-columns: var(--sidebar-w) var(--rsz) 1fr var(--rsz) var(--auxiliarybar-w);
-      min-height: 0; overflow: hidden;
+      grid-template-columns: var(--sidebar-w) var(--rsz) minmax(320px, 1fr) var(--rsz) var(--auxiliarybar-w);
+      min-height: 0; overflow-x: auto; overflow-y: hidden;
     }
     .sidebar, .auxiliarybar { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--card) }
     .region-head {
@@ -933,13 +930,14 @@
     /* el dock viejo ya no existe: lo que queda de él es la barra de estado */
     .dock { display: none }
 
-    /* En pantallas chicas los sidebars se apilan: tres columnas de 300px no entran en un portátil
-       de 13" con el navegador a media pantalla, y colapsar es mejor que scrollear en horizontal. */
-    @media (max-width: 1180px) {
-      .shell { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; overflow: auto }
-      .rsz-l, .rsz-r { display: none }
-      .sidebar, .auxiliarybar { max-height: 40vh }
-    }
+    /* ⛔ NO HAY VERSIÓN ANGOSTA, y es una decisión. Acá había un `@media (max-width: 1180px)` que
+       apilaba las tres columnas en filas y escondía las manijas. Esto es una herramienta de
+       ESCRITORIO: se usa con el wizard al lado en otra ventana, y las tres columnas —comercios,
+       recorrido, configuración— son el punto. Apiladas, el panel deja de ser un workbench y vuelve a
+       ser la columna de 2.772px que este layout vino a reemplazar, con el agravante de que los
+       `max-height: 40vh` recortaban cada región sin que nadie lo pidiera.
+       Si la ventana no da, se angosta el sidebar (las manijas están para eso) o se scrollea de
+       costado — ver el `overflow-x` de `.shell`. */
 
 
     /* ═══════════════════════════════════════════════════════════════════════════════════════════
