@@ -35,9 +35,11 @@ etapa, y cuando no se puede afirmar nada la etapa sale `sin-evidencia` en vez de
   dos de ellas (`compare_face_logs`, `ocr_logs`) **declaran `user_request_id` y nunca lo escriben**:
   usarlas devolvería vacío siempre.
 - **Hay evidencia en la BD que este trazador NO mira**: 14 tablas de log de auditoría. Medido: sólo
-  `deceval_logs` ata al 100 % por `user_request_id` (1.404 filas / 174 solicitudes) y es candidata
-  limpia para el tramo del pagaré; `otp_logs` sólo al 1 %; y `compare_face_logs` / `ocr_logs`
-  **declaran la columna y nunca la escriben** (0 de 8.115 y 0 de 10.633) — usarlas por solicitud
+  `deceval_logs` ata al **100 %** por `user_request_id` y es candidata limpia para el tramo del pagaré;
+  `otp_logs` sólo al **1,25 %**; y `compare_face_logs` / `ocr_logs` **declaran la columna y nunca la
+  escriben**. ⚠ **Re-medido el 2026-09-19 y las cuatro se sostienen, con los volúmenes crecidos**:
+  `deceval_logs` **5.473 filas sobre 597 solicitudes**, todas atadas (eran 1.404 / 174) · `otp_logs`
+  **13.604 de 1.084.837** · `compare_face_logs` **0 de 8.582** · `ocr_logs` **0 de 10.667** — usarlas por solicitud
   devolvería vacío siempre y se leería como «no pasó». Ver **F-108**.
 - **Las funciones SQL no loguean.** 42 rutinas de MySQL calculan cosas del negocio (el ingreso, la
   ocupación, los features del ML) y no escriben una línea: este árbol puede mostrar la entrada y la
@@ -60,10 +62,22 @@ etapa, y cuando no se puede afirmar nada la etapa sale `sin-evidencia` en vez de
 - **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la
   UI mostrando el mapa viejo. Es la confusión más frecuente al iterar.
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 15 afirmaciones auditadas —9 contra el código del trazador
+y 6 de dato re-medidas contra producción—, cero chequeos débiles y **ninguna falsa**. Es el nodo que
+mejor resistió de los veintidós: la estructura del mapa está exacta —`go:embed mapa/*.json` en
+`server/mapa.go:30`, los tres JSON, las nueve etapas en su orden, y `bd.estados` / `bd.cierran` /
+`bd.detienen` en las cuatro etapas que los tienen—, y **las cuatro mediciones de atribución se
+sostuvieron todas**: `deceval_logs` sigue al 100 %, las dos mudas siguen en cero. Lo único agregado es
+la distinción `id` contra `label`, que me hizo tropezar al verificarlo. ⚠ Un conteo para mirar cuando
+se retome F-108: hoy hay **19 tablas** cuyo nombre termina en `_log`/`_logs` (10 en plural, 9 en
+singular); este nodo trabaja sobre un subconjunto de 14.
+
 ## Contenido
 
 **Las 9 etapas** (el orden es de FLUJO, no de hora) usan el vocabulario del wizard, porque el reporte de
 soporte llega en ese idioma («falló en firma de documentos», no «falló en formalization»):
+
+⚠ **Y cuidado al buscarlas en el JSON: los nueve nombres de abajo son el `label`, no el `id`.** En `mapa/etapas.json` cada etapa tiene un `id` en castellano —`origen`, `registro`, `formulario`, `cupo`, `listado`, `seleccion`, `respuesta-lender`, `biometria`, `desembolso`— y el `label` es el vocabulario del wizard. Grepear el mapa por `amount` encuentra un label; el id de esa etapa es `origen`. (El `orden` tampoco es 1-9: va de 10 en 10, con `75`/`78` intercalados.)
 
 `amount` → `authorization` → `personal-info` (incluye burós) → `profiler` → `lenders` →
 `selected lender` → `lender response` → `validation` → `disbursement`
