@@ -124,17 +124,6 @@
       margin-bottom: 6px
     }
 
-    .logo {
-      width: 38px;
-      height: 38px;
-      border-radius: 11px;
-      background: linear-gradient(135deg, var(--acc), #0ea5e9);
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      color: var(--background);
-      font-size: 20px
-    }
 
     h1 {
       font-size: 20px;
@@ -912,37 +901,56 @@
        se corre. */
     .workbench {
       grid-template-columns: 1fr;
-      grid-template-areas: "titlebar" "banner" "shell" "rszpanel" "panel" "statusbar";
-      grid-template-rows: var(--titlebar-h) auto 1fr var(--rsz) var(--panel-h) var(--statusbar-h);
+      grid-template-areas: "banner" "shell" "rszpanel" "panel" "statusbar";
+      grid-template-rows: auto 1fr var(--rsz) var(--panel-h) var(--statusbar-h);
     }
     .workbench > .shell { grid-area: shell }
     .workbench > .rsz-b { grid-area: rszpanel }
 
-    /* ── barra de título ───────────────────────────────────────────────────────────────────── */
-    .titlebar {
-      display: flex; align-items: center; gap: 16px; padding: 0 12px; min-width: 0;
+    /* ── la cabecera del RECORRIDO ─────────────────────────────────────────────────────────────
+       Era `.titlebar`, a lo ancho de la ventana. Hoy es el encabezado de la columna del medio: las
+       mismas medidas (el alto sigue saliendo de `--titlebar-h`, que es lo que esa barra medía) pero
+       cobrándoselas a UNA región en vez de a las cinco. */
+    .editorbox { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--bg) }
+    /* ⚠ `flex: 1 1 0` + `min-height: 0`: `.editor` ya traía `overflow:auto`, pero como hijo de una
+       columna flex sin esto NO se achica por debajo de su contenido y el scroll no se activa nunca —
+       el mapa vuelve a empujar la cabecera fuera de la pantalla. */
+    .editorbox > .editor { flex: 1 1 0; min-height: 0 }
+    /* ⚠ `.region-head.stagehead` y no `.stagehead` a secas: `.region-head { height: 32px }` vive más
+       abajo en la hoja y empata en especificidad, así que ganaba por orden y la cabecera salía de 32px
+       con los botones de correr adentro. */
+    .region-head.stagehead {
+      /* ⚠ `min-height` y no `height`: si alguien ensancha los dos sidebars, la columna del medio se
+         angosta y una fila que no envuelve mete sus botones DEBAJO del sidebar de al lado. Con
+         `wrap` crece un renglón, que se ve. Es la misma decisión que en context y en el trazador. */
+      /* ⚠ `height: auto` EXPLÍCITO: `.region-head { height: 32px }` sigue aplicando, y un `min-height`
+         encima da una caja FIJA de 52 — no una que crece. La fila envolvía y el segundo renglón
+         quedaba fuera de la barra, con «Preparar + Lanzar» pisando el mapa. */
+      height: auto; min-height: var(--titlebar-h); flex: 0 0 auto;
+      display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; min-width: 0;
       background: var(--card); border-bottom: 1px solid var(--line);
     }
-    .titlebar .brand { display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
-    .titlebar .logo { width: 26px; height: 26px; display: grid; place-items: center; font-size: 13px }
-    .brandtxt { display: flex; flex-direction: column; line-height: 1.15 }
-    .brandtxt b { font-size: 13px; letter-spacing: -.01em }
-    .brandtxt span { font-size: 10.5px; color: var(--mut) }
+    /* Las perillas envuelven con la barra, en vez de salirse de ella. */
+    .region-head.stagehead .runmenus { flex-wrap: wrap; gap: 6px }
+    /* El nombre de la región NO se queda con el ancho: lo quieren las perillas. (La regla compartida
+       le da `flex: 1` al primer hijo, que es lo correcto cuando ese hijo es el título de una lista.) */
+    .region-head.stagehead > :first-child { flex: 0 0 auto; font-size: 10.5px; letter-spacing: .09em;
+      text-transform: uppercase; color: var(--mut) }
     /* El fieldset del header es transparente: existe por el `disabled`, no por su caja. */
-    .tbcfg { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; gap: 14px; flex: 1 1 auto }
-    .tbcfg .environment-row { margin: 0; display: flex; align-items: center; gap: 8px }
-    .tbcfg .field { margin: 0; display: flex; align-items: center; gap: 8px }
-    .tbcfg .field > label { font-size: 11px; color: var(--mut); margin: 0; white-space: nowrap }
+    .runcfg { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; gap: 14px; flex: 1 1 auto }
+    .runcfg .environment-row { margin: 0; display: flex; align-items: center; gap: 8px }
+    .runcfg .field { margin: 0; display: flex; align-items: center; gap: 8px }
+    .runcfg .field > label { font-size: 11px; color: var(--mut); margin: 0; white-space: nowrap }
     /* La pista del front es la línea que más crece: en el header se recorta en vez de empujar. */
-    .tbcfg #fronthint { margin: 0 !important; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-    .tbcfg .field-label { display: none }
-    .titlebar .seg button, .titlebar .pill { padding: 4px 9px; font-size: 11.5px }
-    .tbrun { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
-    .tbrun .activity-time { font-size: 11.5px; color: var(--mut); min-width: 0 }
-    .tbrun .go { padding: 7px 14px; font-size: 12.5px }
-    .tbrun .stop { padding: 7px 12px; font-size: 12.5px }
+    .runcfg #fronthint { margin: 0 !important; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+    .runcfg .field-label { display: none }
+    .region-head.stagehead .seg button, .region-head.stagehead .pill { padding: 4px 9px; font-size: 11.5px }
+    .runbtns { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
+    .runbtns .activity-time { font-size: 11.5px; color: var(--mut); min-width: 0 }
+    .runbtns .go { padding: 7px 14px; font-size: 12.5px }
+    .runbtns .stop { padding: 7px 12px; font-size: 12.5px }
 
-    /* el aviso de ambiente compartido: banda a todo lo ancho, debajo del header */
+    /* el aviso de ambiente compartido: banda a todo lo ancho, arriba de todo */
     .workbench > .banner { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
 
     /* ── las tres columnas ─────────────────────────────────────────────────────────────────── */
@@ -962,7 +970,7 @@
        que su columna y el texto se cortaba contra el borde («Login de asesor (Cognito) y el wizard abre
        en el»). Se ve como un `overflow` mal puesto y es la regla de UA del fieldset. Vale igual para el
        del header. */
-    .region-body, .tbcfg { min-width: 0; min-inline-size: 0 }
+    .region-body, .runcfg { min-width: 0; min-inline-size: 0 }
     .region-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 0; border: 0; margin: 0 }
 
     /* Dentro de un sidebar las tarjetas dejan de ser tarjetas: sin caja propia, separadas por una
@@ -1083,9 +1091,6 @@
     .pill.on, .seg button.on, .go, .altapie button { color: var(--acc-ink) }
     .go:hover { background: var(--acc) }
     .seg button.on, .pill.on { font-weight: 600 }
-
-    /* el logo era un degradado de dos colores: en esta paleta es una marca, no un adorno */
-    .logo { background: var(--acc); color: var(--acc-ink) }
 
     /* ── lo que SIGUE teniendo color, porque informa ──────────────────────────────────────────── */
     .dot.run { background: var(--ok) }
@@ -1253,7 +1258,9 @@
 
 
     /* ═══ MENÚS Y ESTADO DEL HEADER ═══════════════════════════════════════════════════════════════ */
-    .hdrmenus { display: flex; align-items: center; gap: 6px; flex: 0 0 auto }
+    /* (se llamaban `tbcfg`/`tbrun`/`hdrmenus` por la barra de título; esa barra ya no existe y el
+       prefijo mandaba a buscarla. Hoy son las perillas, los botones y la config de la CORRIDA.) */
+    .runmenus { display: flex; align-items: center; gap: 6px; flex: 0 0 auto }
     .hbtn { display: flex; align-items: center; gap: 6px; padding: 5px 9px; background: transparent;
       border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--txt);
       font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap }
@@ -1466,7 +1473,7 @@
 
     /* La barra de estado y el header, con el mismo gutter que las columnas. */
     .statusbar { padding: 0 14px }
-    .titlebar { padding: 0 14px }
+    .region-head.stagehead { padding: 0 14px }
     .panel > .logcard > h2 { padding: 0 14px }
     .panel > .logcard > pre { padding: 10px 14px 12px }
     .editor { padding: 12px 14px 14px }
@@ -1476,66 +1483,16 @@
 
 <body>
   <!-- ══ CÁSCARA TIPO EDITOR ══════════════════════════════════════════════════════════════════════
-       Cinco zonas fijas y ninguna scrollea a las otras: barra de título · sidebar IZQ (configuración) ·
-       centro (el mapa del recorrido) · sidebar DER (comercios) · panel inferior (consolas) · barra de
+       Cinco zonas fijas y ninguna scrollea a las otras: sidebar IZQ (comercios) · centro (el
+       recorrido, con su barra) · sidebar DER (configuración) · panel inferior (consolas) · barra de
        estado. Antes era UNA columna de 2.772 px: siempre estabas parado en un paso y los otros dos no
        existían, y las dos cosas que más se miran —el mapa y la consola— arrancaban ocultas.
+       ⚠ Y ya NO hay barra de título: lo que tenía vive en la barra del recorrido. Acá decía «sidebar
+       IZQ (configuración) … sidebar DER (comercios)», al revés de lo que hay — un comentario que
+       describe la pantalla envejece sin que nada falle.
        ⚠ TODO se mueve conservando los `id`: el script direcciona por id 225 veces y por estructura 2,
        así que reubicar marcado no toca la lógica. Si algo de acá se reordena, esa sigue siendo la regla. -->
   <div class="workbench">
-    <header class="titlebar">
-      <div class="brand"><div class="logo">C</div>
-        <div class="brandtxt"><b>Panel del harness</b><span>Prepará un caso · recorré el wizard · mirá qué pasó</span></div>
-      </div>
-      <!-- ⚠ LOS CONTROLES DE VERDAD SIGUEN ACÁ, OCULTOS, y los menús de arriba los CLICKEAN.
-           No es un rodeo: el gateo de canales pone `disabled`, opacidad y un `title` distinto por caso
-           (`applyCanal`), y el de ambiente arrastra el punto de sesión por target. Reimplementar eso en
-           el menú serían dos definiciones de la misma regla — y la del menú sería la que se olvida de
-           actualizarse. Así el menú es una VISTA de estos botones: lee su estado y les pasa el click.
-           Además siguen dentro del `fieldset.cfg`, o sea que la corrida los deshabilita igual. -->
-      <!-- ⚠ Las pastillas de ambiente y el switch de front viven DENTRO de un `fieldset.cfg`, igual que
-           antes vivían dentro de `#configFields`: durante una corrida toda la configuración se
-           deshabilita, y al subirlas al header había que traerse esa propiedad con ellas. -->
-      <fieldset class="cfg tbcfg" id="tbcfg" hidden><legend class="sr-only">Ambiente y frontend</legend>
-        <div class="environment-row"><span class="field-label">Ambiente</span><div class="targets" id="targets">
-        <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
-        <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
-      </div><button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button></div>
-          
-        <div class="field">
-        <label>Frontend</label>
-        <div class="seg" id="frontmode">
-          <button data-v="ambiente">Del ambiente</button>
-          <button data-v="local">Local :5174</button>
-        </div>
-        <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
-      </div>
-          
-      </fieldset>
-      <div class="hdrmenus">
-        <button class="hbtn" id="btnEntorno" aria-haspopup="menu"><span class="hlbl">Entorno</span><span class="hval" id="valEntorno">local</span><span class="hcar">▾</span></button>
-        <button class="hbtn" id="btnCanal" aria-haspopup="menu"><span class="hlbl">Canal</span><span class="hval" id="valCanal">Asesor</span><span class="hcar">▾</span></button>
-        <!-- La demora del mock de pre-aprobados: un click cicla 0 → 3 → 5 → 10 → 15 s. Es de la CORRIDA
-             (viaja como `MOCK_PA_DELAY_MS`), no de la sucursal ni de la entidad — por eso vive acá y no
-             en una fila del árbol, que diría que cada sucursal tiene la suya. -->
-        <button class="hbtn" id="btnArranque" aria-haspopup="menu"><span class="hlbl">Arranque</span><span class="hval" id="valArranque">Inicio</span><span class="hcar">▾</span></button>
-        <button class="hbtn hreloj" id="btnDemora"><span class="hlbl">⏱</span><span class="hval" id="valDemora">0 s</span></button>
-      </div>
-      <div class="tbrun">
-        <!-- El estado de los servicios dejó de vivir plegado en un `<details>` del sidebar: es lo que
-             decide si una corrida puede cerrar, así que está siempre a la vista. El detalle (con los
-             comandos para levantar lo que falte) se abre desde acá. -->
-        <button class="hsalud" id="btnSalud" aria-haspopup="dialog" title="Estado de los servicios">
-          <span class="sdotx" id="saludDot"></span><span id="saludTxt">servicios…</span>
-        </button>
-        <span class="dot" id="dot"></span>
-        <span id="activityTime" class="activity-time"></span>
-        <button class="stop" id="stopBtn">Detener</button>
-        <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
-      </div>
-    </header>
     <div class="banner" id="devwarn" style="display:none">⚠ <b><span id="warntarget">dev</span></b> = data COMPARTIDA: el flujo escribe
       datos sintéticos (assign · scrub · buró) en la DB de dev. El login es Cognito real y podés tardar más (RDS remoto).
       <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.
@@ -1585,6 +1542,75 @@
       </aside>
       <div class="rsz rsz-l" id="rszL" title="arrastrá para ajustar"></div>
 
+      <!-- EL RECORRIDO ES UNA REGIÓN, y su encabezado es lo que antes era la barra de título a lo
+           ancho de la ventana. Los dos sidebars pagaban 52px por una barra que no usan; acá se la
+           cobra la columna que sí la usa — es donde se dibuja el recorrido y donde se lo ve pasar.
+
+           ⚠ Las cuatro perillas y los dos botones de correr van JUNTOS, y eso es una decisión: son
+           los parámetros de la próxima corrida y el botón que la dispara. Se probó repartirlos —las
+           perillas al sidebar de «Configuración», que es de lo que hablan— y sale peor por dos
+           motivos medidos: deja el «Preparar + Lanzar» lejos de lo que lanza, y en 340px las cuatro
+           envuelven a dos renglones que le cuestan 86px al cuerpo de ese sidebar, que es justamente
+           el que ya tiene 1.097px de contenido en 546 visibles.
+
+           ⚠ Y la barra ENVUELVE (`flex-wrap`), no desborda: la fila pide 823px, así que en una
+           ventana de 1440 con los dos sidebars abiertos la columna queda en 792 y «Preparar +
+           Lanzar» terminaba 17px DEBAJO del sidebar de al lado. Envolviendo se ve; desbordando, no.
+
+           ⚠ El brand se fue con la barra («Panel del harness · Prepará un caso…»): era decoración, y
+           el nombre de la herramienta ya lo dice la pestaña del navegador. -->
+      <section class="editorbox">
+        <div class="region-head stagehead">
+          <span>Recorrido</span>
+        <!-- ⚠ LOS CONTROLES DE VERDAD SIGUEN ACÁ, OCULTOS, y los menús de arriba los CLICKEAN.
+             No es un rodeo: el gateo de canales pone `disabled`, opacidad y un `title` distinto por caso
+             (`applyCanal`), y el de ambiente arrastra el punto de sesión por target. Reimplementar eso en
+             el menú serían dos definiciones de la misma regla — y la del menú sería la que se olvida de
+             actualizarse. Así el menú es una VISTA de estos botones: lee su estado y les pasa el click.
+             Además siguen dentro del `fieldset.cfg`, o sea que la corrida los deshabilita igual. -->
+        <!-- ⚠ Las pastillas de ambiente y el switch de front viven DENTRO de un `fieldset.cfg`, igual que
+             antes vivían dentro de `#configFields`: durante una corrida toda la configuración se
+             deshabilita, y al subirlas al header había que traerse esa propiedad con ellas. -->
+        <fieldset class="cfg runcfg" id="tbcfg" hidden><legend class="sr-only">Ambiente y frontend</legend>
+          <div class="environment-row"><span class="field-label">Ambiente</span><div class="targets" id="targets">
+          <button class="pill on" data-t="local">local<span class="sdot" data-sd="local" title="sesión: sin verificar"></span></button>
+          <button class="pill" data-t="dev" title="Data COMPARTIDA — escribe datos sintéticos en dev">dev<span class="sdot" data-sd="dev" title="sesión: sin verificar"></span></button>
+          <button class="pill" data-t="staging" title="Front originaciones-stg + backend legacy-backend-stg (rama staging) — BD COMPARTIDA con dev">staging<span class="sdot" data-sd="staging" title="sesión: sin verificar"></span></button>
+          <button class="pill" data-t="qa" title="Front originaciones-qa + backend legacy-backend-qa (rama qa, Motai) — BD COMPARTIDA con dev">qa<span class="sdot" data-sd="qa" title="sesión: sin verificar"></span></button>
+        </div><button class="pill admin-btn" id="btn-admin" title="Abre el admin de legacy-application del target elegido, en su propia ventana">admin ↗</button></div>
+          
+          <div class="field">
+          <label>Frontend</label>
+          <div class="seg" id="frontmode">
+            <button data-v="ambiente">Del ambiente</button>
+            <button data-v="local">Local :5174</button>
+          </div>
+          <p id="fronthint" style="color:var(--mut);font-size:12px;margin:8px 0 0"></p>
+        </div>
+          
+        </fieldset>
+        <div class="runmenus">
+          <button class="hbtn" id="btnEntorno" aria-haspopup="menu"><span class="hlbl">Entorno</span><span class="hval" id="valEntorno">local</span><span class="hcar">▾</span></button>
+          <button class="hbtn" id="btnCanal" aria-haspopup="menu"><span class="hlbl">Canal</span><span class="hval" id="valCanal">Asesor</span><span class="hcar">▾</span></button>
+          <!-- La demora del mock de pre-aprobados: un click cicla 0 → 3 → 5 → 10 → 15 s. Es de la CORRIDA
+               (viaja como `MOCK_PA_DELAY_MS`), no de la sucursal ni de la entidad — por eso vive acá y no
+               en una fila del árbol, que diría que cada sucursal tiene la suya. -->
+          <button class="hbtn" id="btnArranque" aria-haspopup="menu"><span class="hlbl">Arranque</span><span class="hval" id="valArranque">Inicio</span><span class="hcar">▾</span></button>
+          <button class="hbtn hreloj" id="btnDemora"><span class="hlbl">⏱</span><span class="hval" id="valDemora">0 s</span></button>
+        </div>
+        <div class="runbtns">
+          <!-- El estado de los servicios dejó de vivir plegado en un `<details>` del sidebar: es lo que
+               decide si una corrida puede cerrar, así que está siempre a la vista. El detalle (con los
+               comandos para levantar lo que falte) se abre desde acá. -->
+          <button class="hsalud" id="btnSalud" aria-haspopup="dialog" title="Estado de los servicios">
+            <span class="sdotx" id="saludDot"></span><span id="saludTxt">servicios…</span>
+          </button>
+          <span class="dot" id="dot"></span>
+          <span id="activityTime" class="activity-time"></span>
+          <button class="stop" id="stopBtn">Detener</button>
+          <button class="go" id="go" disabled>Preparar + Lanzar ▶</button>
+        </div>
+        </div>
       <main class="editor" id="stage">
         <!-- ⚠ ESTO NO ES LA TARJETA DE ACTIVIDAD: son los VALORES A TIPEAR (el OTP, el documento) que
              el runner te va pasando durante la corrida. Vivía dentro de aquella tarjeta y se iba a ir con
@@ -1602,11 +1628,12 @@
     </details>
         <div class="stage-empty" id="stageEmpty">
           <b>El recorrido aparece acá</b>
-          <span>Elegí un comercio en el panel de la derecha y el mapa dibuja sus carriles.</span>
+          <span>Elegí un comercio en la columna de la izquierda y el mapa dibuja sus carriles.</span>
         </div>
         <section class="last-result" id="lastResult" hidden aria-label="Última evidencia guardada"></section>
         <section id="webhookZona" class="wh" style="display:none"></section>
       </main>
+      </section>
 
       <div class="rsz rsz-r" id="rszR" title="arrastrá para ajustar"></div>
       <aside class="auxiliarybar" id="sideRight">
