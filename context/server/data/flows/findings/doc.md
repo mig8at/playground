@@ -1831,8 +1831,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   **198** validaciones pasaron con un no-coincide declarado — 87 de segundo apellido, 87 de segundo
   nombre, 24 de segundo apellido sin segundo nombre. Caso testigo uReq 523201: `{first_name: 1,
   middle_name: null, first_surname: 1, second_surname: 0}` y `passed = 1`.
-- **Arreglo:** `=== null`. ⏳ **PENDIENTE DE MERGE en `main`** — mergeado a **`staging`** el 2026-08-15
-  (PR #1098, `eb429dda`; la rama original sobre `main` quedó como respaldo y su PR #1082 se cerró).
+- **Arreglo:** `=== null`. **YA EN `main`** — `TusDatosService.php:203`, verificado el 2026-09-18.
+  Mergeó primero a `staging` el 2026-08-15 (PR #1098, `eb429dda`; la rama original sobre `main` quedó
+  como respaldo y su PR #1082 se cerró), y de ahí llegó. *(La marca `⏳ PENDIENTE DE MERGE` estuvo un
+  mes de más.)*
   El manual del proveedor lo confirma desde su lado («Verificación exprés» v1.0, 2025-07-24):
   `0` = **no coincide** (<89,9 % de similitud) y `null` = no proporcionado. No eran lo mismo.
 - **Estado:** vivo en `main`. ⚠ **El arreglo NO cierra el agujero**, solo tapa la fuga de la última
@@ -4563,7 +4565,12 @@ más cara.
 
 ---
 
-**2026-09-12 · EL SIGUIENTE OBJETIVO, MEDIDO EN QA.** ⏳ PENDIENTE DE MERGE *(en `qa`, no en `main`)*
+**2026-09-12 · EL SIGUIENTE OBJETIVO, MEDIDO EN QA.** ⏳ **PENDIENTE DE MERGE — pero ya sólo A MEDIAS**,
+y la mitad importa. Verificado el 2026-09-18: `LenderAlliedCredential::findOrFailByLenderAndAlly` ya
+acepta `Lender|AlliedBranch` en `main` (el archivo es **idéntico** a `qa`), así que las dos consultas
+que resolvía de más **ya no se hacen**. Lo que sigue en `qa` y no en `main` es el llamador,
+`LenderListingService` — 37 líneas de diferencia. Las cifras de abajo se midieron con las dos partes
+puestas, así que hoy `main` está en algún punto intermedio que nadie contó.
 
 Con el perfilamiento en ~300 ms, la etapa más cara pasó a ser **`orden_y_condiciones`**. Adentro
 había un N+1: `processLendersWithAdditionalInfo` gastaba **cuatro consultas por entidad** para llenar
