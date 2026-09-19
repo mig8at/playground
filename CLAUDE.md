@@ -158,6 +158,24 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   de las reglas que fijan color y fondo · variables usadas y nunca declaradas · el contrato de scroll ·
   **color literal adentro de una regla** · **reglas y media queries vacías** · qué región usa cada
   herramienta. Corrélo después de tocar estilos; sale ≠0 si algo está mal.
+- ⚠ **Y el chequeo de contraste tiene un TECHO que hay que conocer: sólo ve reglas que fijan color Y
+  fondo en la misma regla** —11 a 37 por herramienta—. Todo el resto del texto hereda el color de un
+  ancestro y el fondo de otro, y eso no se resuelve leyendo CSS. Para eso está **`tools/contraste.js`**:
+  se pega en la consola con la herramienta abierta, recorre el DOM, resuelve el fondo efectivo subiendo
+  por los ancestros y mide cada nodo con texto propio. La primera corrida sobre las cuatro encontró 22
+  nodos abajo del umbral —10 casos distintos— que el estático no podía ver: dos botones que habían <!-- lint:ok -->
+  quedado con la piel POR DEFECTO del navegador (#efefef sobre fondo oscuro), una manija de arrastre en
+  **1,38:1** pintada con un token de borde, y tres textos con `opacity` apilada encima de la rampa.
+  ⚠ Dos trampas medidas al construirlo: **Chrome deja `oklch()` sin resolver en el computed style**
+  (parsear esos números como RGB da 1,00 en todo — hay que pintar el color en un canvas y leer el
+  píxel), y **`opacity` se apila sobre el color** sin que el chequeo estático lo vea, porque la regla
+  sola es correcta.
+- ⛔ **`--muted-foreground` NO se usa para texto, y está medido:** en este tema es #808080 y **no llega
+  a 4,5:1 en ninguna superficie**, ni siquiera sobre el fondo (4,41). La rampa que sí pasa vive en
+  `taller.css` y cuelga de `--foreground`: `--texto-2` (74%) y `--texto-3` (70%). El tercer escalón es
+  70 y no 66 porque la superficie que manda es #303030 —`--input` = `--secondary`—, donde 66% daba
+  4,23. ⚠ Y `--accent` (#404040) **no es superficie de texto**: lo que va encima es
+  `--accent-foreground`.
 - Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
   los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
   etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `tema.css`

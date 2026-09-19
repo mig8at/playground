@@ -32,10 +32,11 @@
   --line-fuerte: var(--accent);
   --hueco: var(--background);   /* lo hundido dentro de una card: contadores, código, callouts */
   --fg: var(--foreground);
-  /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el muted
-     es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el del medio. */
-  --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
-  --tenue: var(--muted-foreground);
+  /* ⚠ La rampa de texto vive en `taller.css` y está MEDIDA: `--muted-foreground` es #808080 y no
+     llega a 4,5:1 en ninguna superficie de este tema, ni siquiera sobre el fondo (4,41). Los dos
+     escalones que sí pasan son `--texto-2` (74%) y `--texto-3` (66%). */
+  --mut: var(--texto-2);
+  --tenue: var(--texto-3);
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
 }
 

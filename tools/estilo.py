@@ -133,7 +133,11 @@ def css_de_texto(t: str) -> str:
     return re.sub(r'/\*.*?\*/', '', '\n'.join(bloques) if bloques else t, flags=re.S)
 
 def declaraciones(cuerpo):
-    return dict(re.findall(r'([a-z-]+)\s*:\s*([^;]+)', cuerpo))
+    # ⚠ `[a-z0-9-]` y no `[a-z-]`: sin el dígito, cualquier token con número en el nombre es INVISIBLE
+    # para el chequeo. Lo encontró `--texto-2` de la rampa, que salía como «usada y nunca declarada»
+    # estando declarada tres líneas más arriba. Un chequeo que no ve un nombre no lo reporta mal: lo
+    # reporta al revés.
+    return dict(re.findall(r'([a-z0-9-]+)\s*:\s*([^;]+)', cuerpo))
 
 def tabla_de(tool):
     """los tokens del tema (bloque .dark) + el puente de esa herramienta"""
@@ -141,7 +145,11 @@ def tabla_de(tool):
     tabla = {}
     for bloque in re.findall(r'\.dark\s*\{([^{}]*)\}', tema):
         tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
-    # y las MEDIDAS, que viven en el otro compartido
+    # ⚠ Y el `@theme inline` del tema, que es donde tweakcn pone los derivados (`--radius-sm/md/lg`,
+    #    los `--color-*`). Leyendo sólo `.dark` quedaban afuera y salían como no declarados.
+    for bloque in re.findall(r'@theme[^{]*\{([^{}]*)\}', tema):
+        tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
+    # y las MEDIDAS y la rampa de texto, que viven en el otro compartido
     for bloque in re.findall(r':root\s*\{([^{}]*)\}', css_de(RAIZ / TALLERES[0])):
         tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
     for ruta in HOJAS[tool]:

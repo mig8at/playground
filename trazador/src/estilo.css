@@ -44,8 +44,8 @@
      se puede leer, no el del medio. Colgando de él, el tercer escalón daba 2,8:1 y los rótulos de
      10,5px del mapa (`amount`, `personal-info`) quedaban ilegibles. Medido en el navegador. */
   --txt: var(--foreground);
-  --dim: color-mix(in oklab, var(--foreground) 74%, var(--background));
-  --tenue: var(--muted-foreground);
+  --dim: var(--texto-2);
+  --tenue: var(--texto-3);
   /* tinte de lo seleccionado: derivado del texto, así sigue al tema */
   --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
   /* forma: un solo radio, del que salen los demás */
@@ -66,7 +66,9 @@
   --ok: #4ade80;
   --warn: #fbbf24;
   --fail: var(--destructive);
-  --skip: var(--muted-foreground);
+  /* ⚠ `--skip` es TEXTO además de punto («no ocurre acá», los rótulos apagados del mapa), así que
+     sale de la rampa y no de `--muted-foreground`, que no llega a 4,5:1 en ninguna superficie. */
+  --skip: var(--texto-3);
   --unknown: #c084fc;
   --info: var(--primary);   /* enlaces, foco, lo interactivo */
 }

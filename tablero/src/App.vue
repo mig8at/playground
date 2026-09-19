@@ -2367,7 +2367,9 @@ onMounted(async () => {
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
 .jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
-.jd.none { font-style: italic; opacity: .6 }
+/* ⚠ Sin `opacity: .6`: apilada sobre `--mut` dejaba «sin cuerpo técnico todavía» en 3,2:1. Lo que
+   dice «esto está vacío» es la itálica y el escalón de la rampa, no un velo encima. */
+.jd.none { font-style: italic; color: var(--texto-3) }
 .tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut); flex-wrap: wrap }
 .tm .mine { color: var(--acc) }
 

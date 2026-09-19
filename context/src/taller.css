@@ -57,6 +57,28 @@
   --auxiliarybar-w: 340px; /* detalle: formularios, logs */
   --panel-h: 240px;
   --rsz: 4px;              /* el grosor de una manija de redimensionar */
+
+  /* ── LA RAMPA DE TEXTO ────────────────────────────────────────────────────────────────────────
+     ⛔ `--muted-foreground` NO SE USA PARA TEXTO, y está MEDIDO, no opinado: en este tema es #808080
+     y **no llega a 4,5:1 en ninguna superficie**, ni siquiera sobre el fondo. Medido pintando cada
+     color en un canvas y leyendo el píxel — Chrome deja `oklch()` sin resolver en el computed style,
+     así que parsearlo a mano da cualquier cosa (mi primer intento dio 1,00 en todo).
+
+                       fondo  sidebar  card   muted   #303030   accent
+        --muted-fg      4,41   4,17    4,13   3,63     3,63      2,63   ⛔ no pasa en ningún lado
+        --texto-3 70%   6,19   5,86    5,79   5,10     4,69      3,68
+        --texto-2 74%   6,82   6,46    6,38   5,62     5,17      4,06
+        --foreground   12,33  11,68   11,54  10,17     9,32      7,35
+
+     #303030 es `--input` = `--secondary` = el `--panel2` del trazador, y es la superficie que MANDA:
+     con 66% daba 4,23 y los números de línea del log quedaban abajo del umbral. Por eso el tercer
+     escalón es 70 y no 66 — el número sale de la superficie más ajustada, no de que se vea lindo.
+
+     ⚠ `--accent` (#404040) NO es superficie de texto: lo que va encima es `--accent-foreground`.
+     ⚠ Y OJO con apilar `opacity` sobre la rampa: un `--texto-3` al 70% cae a 3,3 y el chequeo
+     estático no lo ve, porque la regla sola es correcta. Si hace falta bajar más, se baja el TAMAÑO. */
+  --texto-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --texto-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
 }
 
 /* ── EL GRID ──────────────────────────────────────────────────────────────────────────────────── */
@@ -143,7 +165,7 @@
   /* ⚠ NO `--muted-foreground`: en un tema neutro ese es el escalón MÁS BAJO legible (medido: 4,13:1
      contra la card) y el statusbar dice el target y el estado, que se leen. La rampa cuelga del
      foreground, igual que en la hoja de cada herramienta. */
-  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  color: var(--texto-2);
   background: var(--card); border-top: 1px solid var(--border);
   overflow: hidden;
 }
@@ -161,7 +183,7 @@
   /* ⚠ NO `--muted-foreground`: en un tema neutro es el escalón más bajo legible, y sobre el fondo del
      sidebar mide 4,17:1 — abajo de AA para 11px en mayúsculas, que ya es el texto más difícil de la
      pantalla. Misma rampa que el statusbar y que la hoja de cada herramienta. Medido. */
-  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  color: var(--texto-2);
   border-bottom: 1px solid var(--border);
 }
 .region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
@@ -371,7 +393,7 @@ body.redimensionando { cursor: col-resize; user-select: none }
   box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
   outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
 }
-.input::placeholder { color: var(--muted-foreground) }
+.input::placeholder { color: var(--texto-3) }
 .input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
 .input[aria-invalid="true"] { border-color: var(--destructive) }
 .input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
@@ -387,12 +409,12 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
 .input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
 .input-group > .input:focus-visible { box-shadow: none }
-.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--muted-foreground) }
+.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--texto-3) }
 
 /* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
 .field { display: flex; flex-direction: column; gap: 6px }
 .field > label, .label { font-size: 14px; font-weight: 500; line-height: 1; color: var(--foreground) }
-.field-hint { font-size: 12px; color: var(--muted-foreground); line-height: 1.4 }
+.field-hint { font-size: 12px; color: var(--texto-3); line-height: 1.4 }
 .field-error { font-size: 12px; color: var(--destructive) }
 
 /* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
@@ -409,7 +431,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
 .badge-destructive { background: var(--destructive); color: var(--background) }
 .badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
-.badge-ghost { background: transparent; color: var(--muted-foreground) }
+.badge-ghost { background: transparent; color: var(--texto-3) }
 
 /* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
    Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
@@ -421,7 +443,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   /* ⚠ El original es `text-muted-foreground`, que acá mide 3,63:1 sobre `--muted`. En este tema el
      muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
      que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
-  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  color: var(--texto-2);
   font: inherit; font-size: 12px; font-weight: 500;
 }
 
@@ -462,7 +484,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
   width: 40px; height: 40px; margin-bottom: 8px; border-radius: var(--radius);
   background: var(--muted); color: var(--foreground); font-size: 18px }
 .empty-title { font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--foreground) }
-.empty-desc { font-size: 13px; line-height: 1.6; color: var(--muted-foreground) }
+.empty-desc { font-size: 13px; line-height: 1.6; color: var(--texto-2) }
 .empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
   flex-direction: column; align-items: center; gap: 16px; font-size: 13px }
 
@@ -482,8 +504,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
    falla en este tema: `--muted-foreground` sobre `--muted` mide 3,63:1. Va la rampa del 74% que ya
    usan `region-head` y `.kbd`. No es que shadcn esté mal — es que su paleta de referencia tiene más
    separación entre esos dos escalones que la nuestra, y por eso los colores se vuelven a medir. */
-.toggle:hover { background: var(--muted);
-  color: color-mix(in oklab, var(--foreground) 74%, var(--background)) }
+.toggle:hover { background: var(--muted); color: var(--texto-2) }
 .toggle[aria-pressed="true"], .toggle.on, .toggle[data-state="on"] {
   background: var(--accent); color: var(--accent-foreground);
 }
@@ -530,7 +551,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .accordion-trigger:disabled, .accordion-trigger[aria-disabled="true"] { pointer-events: none; opacity: .5 }
 /* El chevron es lo único que dice si está abierto, así que la rotación no es decoración. */
 .accordion-chev { pointer-events: none; flex: none; width: 16px; text-align: center;
-  color: var(--muted-foreground); transition: transform .2s; transform: translateY(2px) }
+  color: var(--texto-3); transition: transform .2s; transform: translateY(2px) }
 [open] > .accordion-trigger .accordion-chev,
 .accordion-trigger[aria-expanded="true"] .accordion-chev { transform: translateY(2px) rotate(180deg) }
 .accordion-content { overflow: hidden; padding: 0 0 16px; font-size: 14px }
@@ -552,7 +573,7 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .alert-title { grid-column: 2; min-height: 16px; font-weight: 500; letter-spacing: -.01em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .alert-desc { grid-column: 2; display: grid; justify-items: start; gap: 4px;
-  font-size: 14px; color: var(--muted-foreground) }
+  font-size: 14px; color: var(--texto-2) }
 .alert-desc p { margin: 0; line-height: 1.6 }
 .alert-destructive { color: var(--destructive) }
 .alert-destructive .alert-desc { color: color-mix(in oklab, var(--destructive) 90%, var(--card)) }
@@ -561,13 +582,14 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
    El camino hasta lo que estás mirando. La página ACTUAL no es un enlace y va en el color del
    texto; el resto, apagado. Es lo que hace que se lea dónde estás sin contar los separadores. */
 .breadcrumb { display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
-  font-size: 14px; color: var(--muted-foreground); word-break: break-word }
+  font-size: 14px; color: var(--texto-3); word-break: break-word }
 .breadcrumb-item { display: inline-flex; align-items: center; gap: 6px }
 .breadcrumb-link { color: inherit; text-decoration: none; background: none; border: 0; padding: 0;
   font: inherit; cursor: pointer; transition: color .12s }
 .breadcrumb-link:hover { color: var(--foreground) }
 .breadcrumb-page { font-weight: 400; color: var(--foreground) }
-.breadcrumb-sep { flex: none; font-size: .78em; opacity: .7; user-select: none }
+/* ⚠ Sin `opacity`: sobre `--texto-3` lo dejaba en 2,8:1. Un separador es tenue por su TAMAÑO. */
+.breadcrumb-sep { flex: none; font-size: .78em; user-select: none }
 
 /* ── CASILLA ────────────────────────────────────────────────────────────────────────────────────
    Sobre un `<input type=checkbox>` de verdad: el navegador ya trae el estado, el teclado y el

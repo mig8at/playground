@@ -41,11 +41,11 @@
       --line: var(--border);         /* borde de 1px, apenas visible */
       --line2: var(--accent);        /* borde en hover/foco */
       --txt: var(--foreground);
-      /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el
-         muted es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el
-         del medio. */
-      --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
-      --tenue: var(--muted-foreground);
+      /* ⚠ La rampa de texto vive en `taller.css` y está MEDIDA: `--muted-foreground` es #808080 y
+         no llega a 4,5:1 en NINGUNA superficie de este tema, ni siquiera sobre el fondo (4,41). Los
+         dos escalones que sí pasan son `--texto-2` (74%) y `--texto-3` (66%). */
+      --mut: var(--texto-2);
+      --tenue: var(--texto-3);
       --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
       /* El cromo: lo seleccionado es lo más CLARO y lo demás se apaga. En shadcn eso es el par
          primary/primary-foreground, que es justo la inversión que el panel ya hacía a mano. */
@@ -1062,7 +1062,10 @@
     .tree #lenderslist .lrow { gap: 5px }
     .tree #lenderslist .lrow > .lnm { flex: 1 1 auto; min-width: 0; overflow: hidden;
       text-overflow: ellipsis; white-space: nowrap; display: block }
-    .lgrip { flex: 0 0 auto; color: var(--line2); font-size: 9px; cursor: grab }
+    /* ⚠ Usaba `--line2` —que es `--accent`, un token de SUPERFICIE— como color de texto: #404040
+       sobre #2a2a2a mide 1,38:1, o sea la manija de arrastre era invisible. Es el mismo error que el
+       `CLAUDE.md` ya documenta con `--accent`, cometido en otro lado. Va la rampa. */
+    .lgrip { flex: 0 0 auto; color: var(--texto-3); font-size: 9px; cursor: grab }
     .lid { flex: 0 0 auto; font-size: 10.5px; color: var(--mut); font-variant-numeric: tabular-nums }
     /* La INICIAL del producto, con el color que ese producto tiene en el mapa: una sola leyenda para
        las dos vistas. `COLOR` en el script es la fuente. */
@@ -1179,7 +1182,9 @@
     .lrow .pa:hover:not(:disabled) { border-color: var(--acc); color: var(--txt) }
     .pa-pending  { color: var(--warn) !important; border-color: color-mix(in srgb, var(--warn) 55%, transparent) !important }
     .pa-rejected { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 55%, transparent) !important }
-    .pa-na { opacity: .3; cursor: not-allowed }
+    /* .5 y no .3: es el valor con el que shadcn apaga lo deshabilitado. WCAG exime a los controles
+       inactivos, pero a .3 el guion ni se adivina y no se entiende que HAY un control ahí. */
+    .pa-na { opacity: .5; cursor: not-allowed }
 
     /* Un switch de verdad y no un «ON/OFF»: la forma dice el estado sin leer. Es `.switch.switch-sm`
        de `taller.css` —el tamaño `sm` que el original también trae—, con `role="switch"` y
@@ -1548,7 +1553,9 @@
              cursor escritos INLINE, o sea fuera del alcance de cualquier tema. -->
         <label id="cupolbl" class="checkbox-row" style="margin-top:10px;font-size:13px;color:var(--mut)">
           <input type="checkbox" class="checkbox" id="cupo" />
-          <span>Cupo ya confirmado <span style="opacity:.7;font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
+          <!-- ⚠ Era `opacity:.7` inline sobre el texto ya apagado: 3,85:1. Apilar opacidad sobre la
+               rampa es la trampa que `taller.css` advierte — lo que baja es el TAMAÑO, no la opacidad. -->
+          <span>Cupo ya confirmado <span style="color:var(--texto-3);font-size:11px">— siembra el flujo con cupo, salta el buró</span></span>
         </label>
       </div><div id="arranqueHolder" hidden><div class="field">
         <label>Arranque</label>
@@ -1600,7 +1607,7 @@
 
       <div class="field" style="margin-top:14px">
         <div class="ro"><span class="k">Celular</span><span class="v" id="phone">3131010101</span><span
-            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="copy"
+            style="color:var(--mut);font-size:11.5px">bypass OTP · no editable</span><button class="btn btn-outline btn-xs copy"
             data-copy="phone">copiar</button></div>
       </div>
 
