@@ -47,7 +47,7 @@ const PREPARAR = {
     /* Y el contexto de Playwright arranca SIN localStorage, así que el acordeón no está como lo
      * dejaste vos: sólo «En curso» abierta. Se abren todas antes de buscar una fila. */
     for (const v of await page.locator('.sidebar .view-tog').all()) {
-      if (!(await v.innerText()).startsWith('⌄')) await v.click().catch(() => {});
+      if ((await v.getAttribute('aria-expanded')) !== 'true') await v.click().catch(() => {});
     }
     const fila = page.locator('.sidebar .region-body button').filter({ hasText: /CORE-\d+|local · \d+/ }).first();
     if (!(await fila.count())) return 'sin tareas en el sidebar';

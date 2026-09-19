@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI · CreditOp</title>
+  <link rel="stylesheet" href="tema.css"><link rel="stylesheet" href="taller.css">
+  <style>
+    * { box-sizing: border-box } html, body { height: 100%; margin: 0 }
+    body { color: var(--foreground); background: var(--background); font: 14px/1.6 var(--font-sans); overflow: hidden }
+    .workbench { --sidebar-w: 224px; --auxiliarybar-w: 252px; --panel-h: 152px }
+    .sidebar, .auxiliarybar, .panel { position: relative }
+    .region-body { padding: var(--space-4) }
+    .sidebar .region-body { padding: var(--space-2) }
+    .sidebar a { display: block; padding: 8px 12px; color: var(--texto-2); text-decoration: none; border-radius: var(--radius) }
+    .sidebar a:hover, .sidebar a[aria-current] { background: var(--accent); color: var(--accent-foreground) }
+    .sidebar small { display: block; color: var(--texto-3); padding: 16px 12px 4px }
+    .editor > .region-body { padding: 28px clamp(16px, 4vw, 56px) }
+    h1 { font-size: 28px; line-height: 1.25; letter-spacing: -.03em; margin: 8px 0 12px }
+    h2 { font-size: 16px; margin: 32px 0 12px; font-weight: 600 }
+    p { margin: 8px 0; color: var(--texto-2); max-width: 72ch }
+    .eyebrow { color: var(--texto-3); font-size: 12px }
+    .samples { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin: 16px 0 }
+    .anatomy { display: grid; grid-template-columns: 1fr 2fr 1fr; grid-template-rows: 100px 48px 28px; margin: 24px 0; border: 1px solid var(--border); font-size: 12px }
+    .anatomy > div { display: grid; place-content: center; text-align: center }
+    .anatomy span { display: block; color: var(--texto-3); font-size: 11px }
+    .a-side { grid-row: 1 / 3; background: var(--sidebar); border-right: 1px solid var(--border) }
+    .a-edit { background: var(--background) }.a-aux { grid-row: 1 / 3; grid-column: 3; background: var(--sidebar); border-left: 1px solid var(--border) }
+    .a-panel { grid-row: 2; grid-column: 2; border-top: 1px solid var(--border); background: var(--card) }
+    .a-status { grid-row: 3; grid-column: 1 / -1; border-top: 1px solid var(--border); background: var(--card) }
+    table { border-collapse: collapse; width: 100%; font-size: 13px } th { text-align: left; color: var(--texto-3); font-weight: 500 }
+    td, th { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--border); vertical-align: top }
+    code { font: 12px var(--font-mono); color: var(--foreground) }
+    .auxiliarybar p { font-size: 12px }.token { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px }
+    .token i { width: 20px; height: 20px; border: 1px solid var(--border); border-radius: 4px }
+    .panel pre { font: 12px/1.8 var(--font-mono); margin: 0; white-space: pre-wrap; color: var(--texto-2) }
+    .resize-left, .resize-right { position: absolute; top: 0; bottom: 0; width: 6px }
+    .resize-left { right: -3px }.resize-right { left: -3px }
+    .resize-bottom { position: absolute; top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize }
+    .panel .region-head { min-height: 36px }
+    .callout { border-left: 2px solid var(--ring); padding: 8px 12px; background: var(--card); margin: 20px 0; font-size: 13px }
+    .sample-input { max-width: 300px }.accordion-item { max-width: 640px }
+    @media (max-width: 900px) { .workbench { --auxiliarybar-w: 0px } .auxiliarybar { visibility: hidden } }
+  </style>
+</head>
+<body>
+<div class="workbench" id="workbench">
+  <aside class="sidebar" id="navigation" aria-label="Secciones de la guía">
+    <div class="region-head"><span>UI / CreditOp</span><span class="badge badge-secondary badge-xs">01</span></div>
+    <nav class="region-body">
+      <small>Fundamentos</small>
+      <a href="#layout" aria-current="page">Disposición</a><a href="#components">Controles</a><a href="#tokens">Medidas y contraste</a>
+      <small>Herramientas</small>
+      <a href="http://localhost:5193" target="_blank" rel="noopener">Context <span aria-hidden="true">↗</span></a>
+      <a href="http://localhost:5191" target="_blank" rel="noopener">Tablero <span aria-hidden="true">↗</span></a>
+      <a href="http://localhost:5192" target="_blank" rel="noopener">Trazador <span aria-hidden="true">↗</span></a>
+      <a href="http://localhost:5195" target="_blank" rel="noopener">Harness <span aria-hidden="true">↗</span></a>
+    </nav>
+    <div class="rsz resize-left" id="leftResize"></div>
+  </aside>
+  <main class="editor">
+    <div class="region-head"><span>Guía de interfaz</span><div class="toolbar" role="group" aria-label="Acciones de la guía"><span class="badge badge-outline badge-xs">Fuente compartida</span></div></div>
+    <div class="region-body" id="content">
+      <section id="layout">
+        <span class="eyebrow">DISPOSICIÓN</span>
+        <h1>El contenido ocupa el centro.</h1>
+        <p>Una estructura común para explorar contexto, trabajar con tareas, leer trazas y ejecutar pruebas. Cada acción vive junto al contenido sobre el que actúa.</p>
+        <div class="anatomy" aria-label="Sidebar a la izquierda, editor al centro, detalle a la derecha, consola debajo del editor y estado al pie">
+          <div class="a-side">Sidebar<span>Navegación</span></div><div class="a-edit">Editor<span>Toolbar + contenido</span></div><div class="a-aux">Auxiliary bar<span>Detalle</span></div><div class="a-panel">Panel · Consola</div><div class="a-status">Status bar</div>
+        </div>
+        <table><thead><tr><th>Concepto</th><th>Responsabilidad</th></tr></thead><tbody>
+          <tr><td><code>sidebar</code></td><td>Árbol, listado o navegación. Se puede ocultar y ajustar.</td></tr>
+          <tr><td><code>editor</code></td><td>Documento, mapa o recorrido que estás usando.</td></tr>
+          <tr><td><code>toolbar</code></td><td>Acciones de la región. Iconos para acciones frecuentes; texto para la acción principal.</td></tr>
+          <tr><td><code>auxiliarybar</code></td><td>Detalle, propiedades o información de apoyo.</td></tr>
+          <tr><td><code>panel</code></td><td>Consola inferior cuando hay salida que seguir.</td></tr>
+          <tr><td><code>statusbar</code></td><td>Estado breve y controles para recuperar regiones ocultas.</td></tr>
+          <tr><td><code>region-head / region-body</code></td><td>Encabezado fijo y contenido con scroll independiente.</td></tr>
+        </tbody></table>
+        <p class="callout">Sin titlebar ni banners globales. Los avisos del entorno pertenecen al editor. Una región aparece cuando tiene contenido útil.</p>
+      </section>
+      <section id="components" hidden>
+        <span class="eyebrow">CONTROLES</span><h1>La misma acción, la misma forma.</h1>
+        <p>Superficies neutras, un borde discreto y estados claros. El color semántico se reserva para resultados, alertas e identidad.</p>
+        <h2>Botones</h2>
+        <div class="samples"><button class="btn btn-sm" data-demo="Acción principal">Acción principal</button><button class="btn btn-outline btn-sm" data-demo="Acción secundaria">Secundaria</button><button class="btn btn-ghost btn-sm" data-demo="Acción discreta">Discreta</button><button class="btn btn-sm" disabled>Deshabilitada</button></div>
+        <h2>Toolbar</h2><div class="toolbar" role="group" aria-label="Ejemplo de acciones">
+          <button class="region-action" title="Copiar" aria-label="Copiar" data-demo="Copiar"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
+          <button class="region-action" title="Plegar" aria-label="Plegar" data-demo="Plegar"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button><span class="toolbar-separator" aria-hidden="true"></span>
+          <button class="region-action" title="Más opciones" aria-label="Más opciones" id="exampleMenu"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
+        </div>
+        <p>Las acciones frecuentes usan iconos con tooltip. El menú reúne las opciones secundarias y muestra sus nombres completos. Un punto indica opciones activas.</p>
+        <h2>Campos</h2><label class="field sample-input"><span class="label">Buscar</span><span class="input-group"><span class="ui-icon" data-icon="search" aria-hidden="true"></span><input class="input" placeholder="Nombre, clave o contenido…"></span><span class="field-hint">Una etiqueta clara y foco visible.</span></label>
+        <h2>Acordeón</h2><details class="accordion-item"><summary class="accordion-trigger">Opciones adicionales<span class="accordion-chev" aria-hidden="true">⌄</span></summary><div class="accordion-content">Usa details para contenido desplegable dentro de una región. Usa view cuando las secciones se reparten el alto del sidebar.</div></details>
+      </section>
+      <section id="tokens" hidden>
+        <span class="eyebrow">MEDIDAS Y CONTRASTE</span><h1>Menos decisiones sueltas.</h1>
+        <p>Las medidas pertenecen al sistema; cada herramienta conserva los colores y comportamientos que tienen significado en su dominio.</p>
+        <table><thead><tr><th>Escala</th><th>Valores</th><th>Uso</th></tr></thead><tbody>
+          <tr><td>Espacio</td><td>4 / 8 / 12 / 16 / 20 / 24 px</td><td>Gaps, márgenes y padding</td></tr>
+          <tr><td>Controles</td><td>24 / 32 / 36 / 40 px</td><td>Compacto / pequeño / normal / grande</td></tr>
+          <tr><td>Iconos</td><td>16 px · trazo 1,75</td><td>Acciones con etiqueta accesible y tooltip</td></tr>
+          <tr><td>Encabezado</td><td>40 px mínimo</td><td>Puede crecer cuando el toolbar envuelve</td></tr>
+          <tr><td>Estado</td><td>30 px</td><td>Una línea, siempre visible</td></tr>
+          <tr><td>Bordes</td><td>1 px</td><td>Una línea entre regiones, sin marcos anidados</td></tr>
+          <tr><td>Texto</td><td>11 / 12 / 13 / 14 px</td><td>Metadatos / controles / listas / lectura</td></tr>
+        </tbody></table>
+        <p class="callout">El contraste se verifica sobre el fondo real. Usa foreground, texto-2 y texto-3; evita reducir la opacidad de texto que se debe leer.</p>
+      </section>
+    </div>
+  </main>
+  <aside class="auxiliarybar" id="inspector" aria-label="Referencia rápida">
+    <div class="rsz resize-right" id="rightResize"></div><div class="region-head"><span>Referencia rápida</span></div>
+    <div class="region-body"><p>Este catálogo usa el mismo CSS y el mismo ajuste de paneles que las herramientas.</p><h2>Superficies</h2>
+      <div class="token"><code>background</code><i style="background:var(--background)"></i></div><div class="token"><code>sidebar</code><i style="background:var(--sidebar)"></i></div><div class="token"><code>card</code><i style="background:var(--card)"></i></div><div class="token"><code>accent</code><i style="background:var(--accent)"></i></div>
+      <h2>Ajustar regiones</h2><p>Arrastra un separador o enfócalo con Tab.</p><p><kbd class="kbd">←</kbd> <kbd class="kbd">→</kbd> 16 px<br><kbd class="kbd">Shift</kbd> + flecha 48 px<br><kbd class="kbd">Home</kbd> ocultar<br><kbd class="kbd">End</kbd> ampliar<br><kbd class="kbd">Enter</kbd> alternar</p><p>Doble clic restablece la medida inicial.</p>
+      <h2>Fuente</h2><p><code>tools/ui/</code></p><p>Distribuir: <code>make estilo-sync</code><br>Verificar: <code>make estilo-check</code></p>
+    </div>
+  </aside>
+  <section class="panel" id="console" aria-label="Consola de ejemplos"><div class="rsz resize-bottom" id="bottomResize"></div><div class="region-head"><span>Consola de ejemplos</span><div class="toolbar"><button class="region-action" title="Ocultar consola" aria-label="Ocultar consola" id="closePanel"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></div></div><pre class="region-body" id="output" role="log">UI lista. Prueba los controles, ajusta las regiones y restablece la disposición desde el pie.
+Los ejemplos son locales y no ejecutan operaciones en las herramientas.</pre></section>
+  <footer class="statusbar"><span>CreditOp · UI compartida</span><div class="layout-controls" role="group" aria-label="Disposición">
+    <button class="region-action" id="toggleLeft" title="Alternar navegación" aria-label="Alternar navegación"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+    <button class="region-action" id="toggleBottom" title="Alternar consola" aria-label="Alternar consola"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
+    <button class="region-action" id="toggleRight" title="Alternar detalle" aria-label="Alternar detalle"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+    <button class="region-action" id="reset" title="Restablecer disposición" aria-label="Restablecer disposición"><span class="ui-icon" data-icon="reset" aria-hidden="true"></span></button>
+  </div></footer>
+</div>
+<script type="module">
+import { bindResize, bindMenu } from './workbench.js';
+const wb=document.getElementById('workbench');
+const regions=[['leftResize','toggleLeft','navigation','--sidebar-w',224,160,400,1],['rightResize','toggleRight','inspector','--auxiliarybar-w',252,180,420,-1],['bottomResize','toggleBottom','console','--panel-h',152,80,360,-1,'y']];
+const controls=regions.map(([id,toggle,region,css,initial,min,max,sign,axis])=>{
+  const el=document.getElementById(region),button=document.getElementById(toggle);
+  const get=()=>parseFloat(getComputedStyle(wb).getPropertyValue(css));
+  const set=(v)=>{wb.style.setProperty(css,v+'px');el.style.visibility=v?'visible':'hidden';button.setAttribute('aria-pressed',String(v>0));};
+  const c=bindResize(document.getElementById(id),{label:axis?'Alto de consola':'Ancho de '+region,min,max,sign,axis,defaultValue:initial,collapsible:true,get,set});
+  button.onclick=()=>{set(get()?0:initial);c.sync();};
+  button.setAttribute('aria-pressed',String(get()>0));
+  return ()=>{set(initial);c.sync();};
+});
+document.getElementById('reset').onclick=()=>controls.forEach(reset=>reset());
+document.getElementById('closePanel').onclick=()=>{document.getElementById('toggleBottom').click();document.getElementById('toggleBottom').focus();};
+document.querySelectorAll('a[href^="#"]').forEach(link=>link.onclick=(e)=>{e.preventDefault();document.querySelectorAll('#content > section').forEach(s=>s.hidden='#'+s.id!==link.hash);document.querySelectorAll('a[href^="#"]').forEach(a=>a.removeAttribute('aria-current'));link.setAttribute('aria-current','page');document.getElementById('content').scrollTop=0;});
+document.querySelectorAll('[data-demo]').forEach(button=>button.onclick=()=>{document.getElementById('output').textContent+='\nEjemplo: '+button.dataset.demo;});
+let filtered = false;
+const menuButton = document.getElementById('exampleMenu');
+bindMenu(menuButton, {
+  label: 'Opciones del ejemplo',
+  getItems: () => [
+    { id: 'filter', label: 'Mostrar sólo eventos importantes', checked: filtered },
+    { separador: true },
+    { id: 'clear', label: 'Limpiar consola de ejemplos', icon: 'close' },
+  ],
+  onSelect: (id) => {
+    if (id === 'filter') {
+      filtered = !filtered;
+      menuButton.classList.toggle('has-options', filtered);
+      document.getElementById('output').textContent += '\nEjemplo: filtro ' + (filtered ? 'activo' : 'desactivado');
+    }
+    if (id === 'clear') document.getElementById('output').textContent = 'Consola de ejemplos limpia.';
+  },
+});
+</script>
+</body></html>

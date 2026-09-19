@@ -16,6 +16,8 @@
 // ensamblado Go.
 import { computed, ref, watch } from 'vue'
 import { useTrazador } from '../stores/trazador'
+import RegionMenu from '../RegionMenu.vue'
+const emit = defineEmits(['close'])
 const t = useTrazador()
 const GLIFO = { ok:'✓', warn:'!', fail:'✕', skip:'·', 'sin-evidencia':'?', 'sin-registro':'~',
   'no-aplica':'∅', condicional:'·', pendiente:'·' }
@@ -152,6 +154,23 @@ const apagados = computed(() => {
   }
   return out
 })
+
+const detailMenu = computed(() => [
+  { id: 'contexto', label: 'Mostrar explicación de la etapa', checked: abrirPorque.value,
+    disabled: (e.value?.vivo?.detail || e.value?.porque || '').length < 120 },
+  { id: 'inactivos', label: 'Mostrar pasos sin actividad', count: apagados.value.length,
+    checked: verApagados.value, disabled: !apagados.value.length || !t.traza },
+  { id: 'tecnico', label: 'Mostrar eventos técnicos', checked: abrirTecnico.value, disabled: !tecnico.value },
+  { separador: true },
+  { id: 'plegar', label: 'Plegar todos los pasos', icon: 'collapse' },
+])
+function detailAction(id) {
+  if (id === 'contexto') abrirPorque.value = !abrirPorque.value
+  if (id === 'inactivos') verApagados.value = !verApagados.value
+  if (id === 'tecnico') abrirTecnico.value = !abrirTecnico.value
+  if (id === 'plegar') { abierto.value = null; abrirTecnico.value = false; abrirPorque.value = false; verApagados.value = false }
+}
+
 </script>
 
 <template>
@@ -159,6 +178,7 @@ const apagados = computed(() => {
     <!-- Migas (`breadcrumb` de `taller.css`): esto ya era un camino escrito con barras. Lo que suma
          el componente es que la ETAPA ACTUAL se distingue del camino que lleva hasta ella —va en el
          color del texto y el resto apagado—, así que se lee dónde estás sin contar separadores. -->
+    <div class="region-head detail-toolbar">
     <nav class="crumb breadcrumb" aria-label="ubicación">
       <span class="breadcrumb-item">{{ t.traza?.target || t.target }}</span>
       <span class="breadcrumb-sep" aria-hidden="true">/</span>
@@ -166,6 +186,13 @@ const apagados = computed(() => {
       <span class="breadcrumb-sep" aria-hidden="true">/</span>
       <span class="breadcrumb-item breadcrumb-page" aria-current="page">{{ e.label }}</span>
     </nav>
+    <div class="region-actions toolbar" role="group" aria-label="Acciones de la etapa">
+      <RegionMenu title="Opciones de la etapa" :items="detailMenu" :active="abrirPorque || verApagados || abrirTecnico" @select="detailAction" />
+      <button type="button" class="region-action" title="Ocultar logs" aria-label="Ocultar logs" @click="emit('close')">
+        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+      </button>
+    </div>
+    </div>
     <div class="sub2">
       {{ ESTADO[e.estado] || e.estado }}
       <template v-if="e.vivo?.at"> · a las {{ e.vivo.at }}</template>
@@ -186,9 +213,6 @@ const apagados = computed(() => {
     <template v-if="e.vivo?.detail || e.porque">
       <p v-if="(e.vivo?.detail || e.porque).length < 120" class="regla">{{ e.vivo?.detail || e.porque }}</p>
       <template v-else>
-        <button class="link" @click="abrirPorque = !abrirPorque">
-          {{ abrirPorque ? '− ocultar' : '+ por qué' }}
-        </button>
         <p v-if="abrirPorque" class="regla">{{ e.vivo?.detail || e.porque }}</p>
       </template>
     </template>
@@ -224,9 +248,9 @@ const apagados = computed(() => {
             <span v-if="errores(s)" class="badge badge-outline badge-xs errn" :title="errores(s) + ' líneas de error'">{{ errores(s) }} err</span>
             <span class="d">{{ s.detail }}</span>
             <span class="badge badge-outline badge-xs src">{{ FUENTE[s.source] || '' }}</span>
-            <button v-if="abrible(s) || s.hijos?.length" class="cp" :class="{ ok: copiadoSub === i }"
-                    :title="'Copiar «' + s.label + '» con sus logs'" @click.stop="copiarSub(s, i)">
-              {{ copiadoSub === i ? '✓' : '⧉' }}
+            <button v-if="abrible(s) || s.hijos?.length" class="region-action cp" :class="{ ok: copiadoSub === i }"
+                    :aria-label="'Copiar ' + s.label" :title="'Copiar «' + s.label + '» con sus logs'" @click.stop="copiarSub(s, i)">
+              <span class="ui-icon" :data-icon="copiadoSub === i ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
           </div>
           <!-- LA BD PRIMERO Y APARTE: es un ESTADO, no un evento. Va sin número de línea y sin hora en la
@@ -265,9 +289,9 @@ const apagados = computed(() => {
               <span v-if="errores(h)" class="badge badge-outline badge-xs errn" :title="errores(h) + ' líneas de error'">{{ errores(h) }} err</span>
               <span class="d">{{ h.detail }}</span>
               <span class="badge badge-outline badge-xs src">{{ FUENTE[h.source] || '' }}</span>
-              <button v-if="abrible(h)" class="cp" :class="{ ok: copiadoSub === i + '-' + j }"
-                      :title="'Copiar «' + h.label + '» con sus logs'" @click.stop="copiarSub(h, i + '-' + j)">
-                {{ copiadoSub === i + '-' + j ? '✓' : '⧉' }}
+              <button v-if="abrible(h)" class="region-action cp" :class="{ ok: copiadoSub === i + '-' + j }"
+                      :aria-label="'Copiar ' + h.label" :title="'Copiar «' + h.label + '» con sus logs'" @click.stop="copiarSub(h, i + '-' + j)">
+                <span class="ui-icon" :data-icon="copiadoSub === i + '-' + j ? 'check' : 'copy'" aria-hidden="true"></span>
               </button>
             </div>
             <div v-if="abierto === i + '-' + j && h.evidencia" class="bd">
@@ -293,9 +317,7 @@ const apagados = computed(() => {
 
     <!-- Por acá NO pasó, plegado: es media respuesta, no la principal -->
     <template v-if="apagados.length && t.traza">
-      <button class="link" @click="verApagados = !verApagados">
-        {{ verApagados ? '−' : '+' }} {{ apagados.length }} paso{{ apagados.length === 1 ? '' : 's' }} sin actividad
-      </button>
+      <p v-if="verApagados" class="toolbar-note">{{ apagados.length }} pasos sin actividad · visibles desde Opciones de la etapa</p>
       <div v-if="verApagados" class="chips">
         <span v-for="h in apagados" :key="h.id" class="badge badge-outline chip"
               :title="h.porque || (h.matcher ? '' : 'se infiere por ausencia')">
@@ -329,9 +351,9 @@ const apagados = computed(() => {
             <span v-if="coincidencias(h)" class="badge badge-outline badge-xs marca">{{ coincidencias(h) }}</span>
             <span v-if="errores(h)" class="badge badge-outline badge-xs errn">{{ errores(h) }} err</span>
             <span class="d">{{ h.detail }}</span>
-            <button v-if="h.eventos?.length" class="cp" :class="{ ok: copiadoSub === 't' + j }"
-                    :title="'Copiar «' + h.label + '»'" @click.stop="copiarSub(h, 't' + j)">
-              {{ copiadoSub === 't' + j ? '✓' : '⧉' }}
+            <button v-if="h.eventos?.length" class="region-action cp" :class="{ ok: copiadoSub === 't' + j }"
+                    :aria-label="'Copiar ' + h.label" :title="'Copiar «' + h.label + '»'" @click.stop="copiarSub(h, 't' + j)">
+              <span class="ui-icon" :data-icon="copiadoSub === 't' + j ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
           </div>
           <div v-if="abierto === 't' + j && h.eventos?.length" class="log">
@@ -471,8 +493,7 @@ button.region-head.grupo { user-select:none }
    ese es el número que decide si vale la pena abrir. */
 .errn { color:var(--fail); border-color:currentColor; border-radius:var(--r-sm); padding:0 5px;
   white-space:nowrap; font-variant-numeric:tabular-nums }
-.cp { border:0; background:none; color:var(--dim); cursor:pointer; font-size:12px; padding:2px 4px;
-  border-radius:var(--r-sm); opacity:0; transition:opacity .1s }
+.cp { color:var(--dim); opacity:0; transition:opacity .1s }
 .fila:hover .cp, .cp:focus-visible, .cp.ok { opacity:1 }
 .cp:hover { color:var(--info); background:var(--sel) }
 .cp.ok { color:var(--ok) }
@@ -507,4 +528,7 @@ tr:hover td { background:var(--sel) }
 .bdq pre { margin: 4px 0 0; padding: 6px 8px; overflow-x: auto; font-size: 11px; line-height: 1.5;
            background: color-mix(in srgb, currentColor 5%, transparent); border-radius:var(--r-sm); }
 
+.detail-toolbar { padding: var(--space-2) 0; min-height: var(--region-head-h); border-bottom: 0; }
+.detail-toolbar .crumb { margin: 0; flex: 1; min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+.detail-toolbar .breadcrumb-page { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>

@@ -144,6 +144,21 @@ es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, 
 
 ### Las cuatro UIs comparten UN tema, y es un archivo
 
+**Fuente canónica (2026-09-19):** `tools/ui/tema.css`, `tools/ui/taller.css` y
+`tools/ui/workbench.js` y `tools/ui/RegionMenu.vue`. Editar allí y ejecutar `make estilo-sync`; `make estilo-check` detecta
+cualquier copia desincronizada. El harness recibe el JS incrustado por el mismo comando, sin reiniciar
+su servidor. Catálogo: `make estilo-guia` → http://127.0.0.1:5198; contrato actual en
+[`tools/ui/README.md`](tools/ui/README.md).
+
+**Preferencia de Miguel:** sin titlebar ni banners globales. Las acciones pertenecen al toolbar del
+editor o de su región. El aviso de ambiente compartido del harness vive dentro del editor. El pie
+ofrece recuperar regiones ocultas y restablecer disposición. Los separadores admiten puntero y teclado.
+Las acciones frecuentes usan iconos con tooltip; las secundarias van en el menú de tres puntos de
+cada región. El menú compartido admite teclado y marca las opciones activas. Los filtros de consola
+indican «Filtrada» aun con el menú cerrado; entorno y canal conservan sus valores a la vista.
+Los encabezados de región usan 12px, mayúscula inicial y 40px mínimos; el pie mide 30px. Esto reemplaza
+las medidas y el uso de mayúsculas descritos en las notas históricas de abajo.
+
 `context` (:5193), `harness/panel` (:5195), `tablero` (:5191) y `trazador` (:5192) tenían cuatro
 paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el texto apagado era `--dim`,
 `--mut` y `--mut`; el acento era `--accent`, `--acc` y `--acc`; el rojo era `--fail`, `--bad` y

@@ -162,18 +162,11 @@
     .sdot.checking { background: var(--warn); animation: sdotpulse 1s ease-in-out infinite; }
     @keyframes sdotpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
-    /* ⚠ El `margin`, el `border-radius` y el `border` se fueron: la regla venía de cuando esto era una
-       CAJA suelta en una columna, y hoy es la REGIÓN `banner` del workbench —una banda a todo lo
-       ancho— más un `alert`. El grid la resetea (`.workbench > .banner { margin: 0; border-radius: 0;
-       border-*: 0 }`), así que eran cuatro declaraciones que nadie veía: cromo muerto sostenido por
-       un anulador, la regla 6 del barrido. Lo que queda es lo único que aporta: el ámbar. */
-    .banner {
-      padding: 10px 14px;
-      background: color-mix(in oklab, var(--warn) 18%, var(--card));
-      color: var(--warn);
-      font-size: 12.5px
-    }
-    .banner .alert-desc { color: color-mix(in oklab, var(--warn) 88%, var(--card)) }
+    /* Aviso contextual: pertenece al entorno de la corrida, dentro del editor. */
+    .run-warning { flex: none; padding: var(--space-2) var(--space-3); border: 0; border-radius: 0;
+      border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--warn) 18%, var(--card));
+      color: var(--warn); font-size: var(--text-sm) }
+    .run-warning .alert-desc { color: var(--texto-2); font-size: var(--text-sm) }
 
     /* ⚠ `.card` YA NO PINTA UNA CAJA, y lo importante es que hacía rato que no la pintaba: tenía
        fondo, borde de 1px, radio y 20px de padding, y TRES bloques más abajo se los quitaban uno por
@@ -772,8 +765,8 @@
        se corre. */
     .workbench {
       grid-template-columns: 1fr;
-      grid-template-areas: "banner" "shell" "rszpanel" "panel" "statusbar";
-      grid-template-rows: auto 1fr var(--rsz) var(--panel-h) var(--statusbar-h);
+      grid-template-areas: "shell" "rszpanel" "panel" "statusbar";
+      grid-template-rows: minmax(0, 1fr) var(--rsz) var(--panel-h) var(--statusbar-h);
     }
     .workbench > .shell { grid-area: shell }
     .workbench > .rsz-b { grid-area: rszpanel }
@@ -797,16 +790,15 @@
       /* ⚠ `height: auto` EXPLÍCITO: `.region-head { height: 32px }` sigue aplicando, y un `min-height`
          encima da una caja FIJA de 52 — no una que crece. La fila envolvía y el segundo renglón
          quedaba fuera de la barra, con «Preparar + Lanzar» pisando el mapa. */
-      height: auto; min-height: var(--titlebar-h); flex: 0 0 auto;
-      display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 0 12px; min-width: 0;
+      height: auto; min-height: var(--region-head-h); flex: 0 0 auto;
+      display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); min-width: 0;
       background: var(--card); border-bottom: 1px solid var(--line);
     }
     /* Las perillas envuelven con la barra, en vez de salirse de ella. */
     .region-head.stagehead .runmenus { flex-wrap: wrap; gap: 6px }
     /* El nombre de la región NO se queda con el ancho: lo quieren las perillas. (La regla compartida
        le da `flex: 1` al primer hijo, que es lo correcto cuando ese hijo es el título de una lista.) */
-    .region-head.stagehead > :first-child { flex: 0 0 auto; font-size: 10.5px; letter-spacing: .09em;
-      text-transform: uppercase; color: var(--mut) }
+    .region-head.stagehead > :first-child { flex: 0 0 auto; color: var(--mut) }
     /* El fieldset del header es transparente: existe por el `disabled`, no por su caja. */
     .runcfg { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; gap: 14px; flex: 1 1 auto }
     .runcfg .environment-row { margin: 0; display: flex; align-items: center; gap: 8px }
@@ -816,13 +808,12 @@
     .runcfg #fronthint { margin: 0 !important; max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
     .runcfg .field-label { display: none }
     .region-head.stagehead .seg button, .region-head.stagehead .pill { padding: 4px 9px; font-size: 11.5px }
-    .runbtns { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: 0 0 auto }
+    .runbtns { margin-left: auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); flex: 0 1 auto; max-width: 100% }
     .runbtns .activity-time { font-size: 11.5px; color: var(--mut); min-width: 0 }
     .runbtns .go { padding: 7px 14px; font-size: 12.5px }
     .runbtns .stop { padding: 7px 12px; font-size: 12.5px }
 
     /* el aviso de ambiente compartido: banda a todo lo ancho, arriba de todo */
-    .workbench > .banner { margin: 0; border-radius: 0; border-left: 0; border-right: 0; border-top: 0 }
 
     /* ── las tres columnas ─────────────────────────────────────────────────────────────────── */
     /* ⚠ La columna del medio es `minmax(320px, 1fr)` y el shell scrollea en horizontal: sin eso, al
@@ -835,11 +826,7 @@
       min-height: 0; overflow-x: auto; overflow-y: hidden;
     }
     .sidebar, .auxiliarybar { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--card) }
-    .region-head {
-      height: 32px; display: flex; align-items: center; padding: 0 12px; flex: 0 0 auto;
-      font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--mut);
-      border-bottom: 1px solid var(--line);
-    }
+
     /* ⚠ `min-inline-size: 0` NO ES DECORATIVO: un `<fieldset>` trae `min-inline-size: min-content` de
        fábrica, así que se NIEGA a angostarse por debajo de su contenido — el sidebar quedaba más ancho
        que su columna y el texto se cortaba contra el borde («Login de asesor (Cognito) y el wizard abre
@@ -1116,14 +1103,10 @@
     /* ═══ MENÚS Y ESTADO DEL HEADER ═══════════════════════════════════════════════════════════════ */
     /* (se llamaban `tbcfg`/`tbrun`/`hdrmenus` por la barra de título; esa barra ya no existe y el
        prefijo mandaba a buscarla. Hoy son las perillas, los botones y la config de la CORRIDA.) */
-    .runmenus { display: flex; align-items: center; gap: 6px; flex: 0 0 auto }
-    .hbtn { display: flex; align-items: center; gap: 6px; padding: 5px 9px; background: transparent;
-      border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--txt);
-      font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap }
-    .hbtn:hover { border-color: var(--line2); background: var(--panel2) }
-    .hbtn .hlbl { color: var(--mut); font-size: 11px }
-    .hbtn .hval { font-weight: 600 }
-    .hbtn .hcar { color: var(--mut); font-size: 9px }
+    .runmenus { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 100% }
+    .hbtn .hval { font-weight: 500 }
+    .logacts .toolbar-note { text-transform: none; letter-spacing: normal }
+    .hbtn .ui-icon[data-icon="down"] { width: 12px; height: 12px; color: var(--texto-2) }
 
     /* El estado vive a la derecha, pegado a los controles de corrida: es la respuesta a «¿puedo correr?» */
     .hsalud { display: flex; align-items: center; gap: 6px; padding: 4px 9px; background: transparent;
@@ -1307,7 +1290,6 @@
        La densidad estaba bien —24 px por fila— pero todo arrancaba pegado al borde y los grupos no se
        separaban entre sí. Esto no agrega alto por fila: agrega MÁRGENES, que es lo que deja leer una
        columna densa sin que parezca un volcado. */
-    .region-head { padding: 0 14px; letter-spacing: .1em }
     .sidebar .region-body, .auxiliarybar .region-body { padding-top: 4px; padding-bottom: 10px }
 
     /* el buscador, con aire alrededor y no pegado al título */
@@ -1333,8 +1315,6 @@
     .auxiliarybar .panelprops .field > label, .auxiliarybar .panelprops .field > .field-label { padding-right: 2px }
 
     /* La barra de estado y el header, con el mismo gutter que las columnas. */
-    .statusbar { padding: 0 14px }
-    .region-head.stagehead { padding: 0 14px }
     .panel > .logcard > h2 { padding: 0 14px }
     .panel > .logcard > pre { padding: 10px 14px 12px }
     .editor { padding: 12px 14px 14px }
@@ -1354,30 +1334,18 @@
        ⚠ TODO se mueve conservando los `id`: el script direcciona por id 225 veces y por estructura 2,
        así que reubicar marcado no toca la lógica. Si algo de acá se reordena, esa sigue siendo la regla. -->
   <div class="workbench">
-    <!-- El aviso de base compartida es un ALERT (`taller.css`), no un párrafo con un ⚠ adelante: el
-         icono va en su columna y el título se separa del detalle, así que se puede leer sólo el
-         título y saber qué pasa. ⚠ Acá el marco SÍ corresponde — es un mensaje sobre una condición,
-         no una caja alrededor de contenido. -->
-    <div class="banner alert" id="devwarn" style="display:none" role="alert">
-      <span class="alert-icon" aria-hidden="true">⚠</span>
-      <div class="alert-title"><b><span id="warntarget">dev</span></b> = data COMPARTIDA</div>
-      <div class="alert-desc">El flujo escribe datos sintéticos (assign · scrub · buró) en la DB de dev.
-        El login es Cognito real y podés tardar más (RDS remoto).
-        <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.</div>
-    </div>
-
     <div class="shell">
       <aside class="sidebar" id="sideLeft">
-        <div class="region-head">Comercios</div>
+        <div class="region-head"><span>Comercios</span><div class="region-actions toolbar" role="group" aria-label="Acciones de comercios"><button type="button" class="region-action" id="collapseMerchants" title="Plegar comercios" aria-label="Plegar comercios"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button><button type="button" class="region-action" id="merchantsMenu" title="Opciones de comercios" aria-label="Opciones de comercios"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div></div>
         <fieldset class="cfg region-body"><legend class="sr-only">Comercio y sucursal</legend>
           <p class="grouplbl">Comercio y sucursal</p><!-- ALTA arriba y tarjetas abajo: buscar es la ENTRADA, las tarjetas son el resultado acumulado.
            El buscador va contra la BD del target y NO reemplaza a los curados (Motai=renting/RTO,
            CeluRD=SmartPay/IMEI, Sonría=el listado más rico): eso es conocimiento que una búsqueda
            genérica no da. Flujo: comercio → sucursal → nombre → Agregar. -->
       <div class="bus input-group">
-        <span class="lupa ico-txt">⌕</span>
-        <input id="buscom" class="input" type="text" placeholder="buscá un comercio por nombre…" autocomplete="off" />
-        <span class="limpiar" id="buslimpiar" title="limpiar">✕</span>
+        <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+        <input aria-label="Buscar comercio" id="buscom" class="input" type="text" placeholder="buscá un comercio por nombre…" autocomplete="off" />
+        <button type="button" class="region-action limpiar" id="buslimpiar" title="Limpiar búsqueda" aria-label="Limpiar búsqueda"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
       </div>
       <div class="res" id="busres"></div>
       <div class="alta" id="alta" hidden>
@@ -1428,7 +1396,7 @@
            ⚠ El brand se fue con la barra («Panel del harness · Prepará un caso…»): era decoración, y
            el nombre de la herramienta ya lo dice la pestaña del navegador. -->
       <section class="editorbox">
-        <div class="region-head stagehead">
+        <div class="region-head stagehead toolbar" aria-label="Herramientas de la corrida">
           <span>Recorrido</span>
         <!-- ⚠ LOS CONTROLES DE VERDAD SIGUEN ACÁ, OCULTOS, y los menús de arriba los CLICKEAN.
              No es un rodeo: el gateo de canales pone `disabled`, opacidad y un `title` distinto por caso
@@ -1458,13 +1426,13 @@
           
         </fieldset>
         <div class="runmenus">
-          <button class="hbtn" id="btnEntorno" aria-haspopup="menu"><span class="hlbl">Entorno</span><span class="hval" id="valEntorno">local</span><span class="hcar">▾</span></button>
-          <button class="hbtn" id="btnCanal" aria-haspopup="menu"><span class="hlbl">Canal</span><span class="hval" id="valCanal">Asesor</span><span class="hcar">▾</span></button>
+          <button class="btn btn-ghost btn-xs hbtn" id="btnEntorno" aria-haspopup="menu"><span class="ui-icon" data-icon="server" aria-hidden="true"></span><span class="hval" id="valEntorno">local</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
+          <button class="btn btn-ghost btn-xs hbtn" id="btnCanal" aria-haspopup="menu"><span class="ui-icon" data-icon="channel" aria-hidden="true"></span><span class="hval" id="valCanal">Asesor</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
           <!-- La demora del mock de pre-aprobados: un click cicla 0 → 3 → 5 → 10 → 15 s. Es de la CORRIDA
                (viaja como `MOCK_PA_DELAY_MS`), no de la sucursal ni de la entidad — por eso vive acá y no
                en una fila del árbol, que diría que cada sucursal tiene la suya. -->
-          <button class="hbtn" id="btnArranque" aria-haspopup="menu"><span class="hlbl">Arranque</span><span class="hval" id="valArranque">Inicio</span><span class="hcar">▾</span></button>
-          <button class="hbtn hreloj" id="btnDemora"><span class="hlbl">⏱</span><span class="hval" id="valDemora">0 s</span></button>
+          <button class="btn btn-ghost btn-xs hbtn" id="btnArranque" aria-haspopup="menu"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span class="hval" id="valArranque">Inicio</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
+          <button class="btn btn-ghost btn-xs hbtn hreloj" id="btnDemora"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span><span class="hval" id="valDemora">0 s</span></button>
         </div>
         <div class="runbtns">
           <!-- El estado de los servicios dejó de vivir plegado en un `<details>` del sidebar: es lo que
@@ -1479,6 +1447,15 @@
           <button class="btn go" id="go" disabled>Preparar + Lanzar ▶</button>
         </div>
         </div>
+          <div class="run-warning alert" id="devwarn" style="display:none" role="alert">
+      <span class="alert-icon" aria-hidden="true">⚠</span>
+      <div class="alert-title"><b><span id="warntarget">dev</span></b> = data COMPARTIDA</div>
+      <div class="alert-desc">El flujo escribe datos sintéticos (assign · scrub · buró) en la DB de dev.
+        El login es Cognito real y podés tardar más (RDS remoto).
+        <b>Dev, staging y qa comparten la base</b>, aunque sus servicios son distintos.</div>
+    </div>
+
+
       <main class="editor" id="stage">
         <!-- ⚠ ESTO NO ES LA TARJETA DE ACTIVIDAD: son los VALORES A TIPEAR (el OTP, el documento) que
              el runner te va pasando durante la corrida. Vivía dentro de aquella tarjeta y se iba a ir con
@@ -1508,7 +1485,7 @@
 
       <div class="rsz rsz-r" id="rszR" title="arrastrá para ajustar"></div>
       <aside class="auxiliarybar" id="sideRight">
-        <div class="region-head">Configuración</div>
+        <div class="region-head"><span>Configuración</span><div class="region-actions toolbar"><button type="button" class="region-action" id="configMenu" title="Opciones de configuración" aria-label="Opciones de configuración"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button></div></div>
         <fieldset class="cfg region-body"><legend class="sr-only">Configuración de la próxima corrida</legend>
           
           <!-- ══ SECCIONES PLEGABLES ══════════════════════════════════════════════════════════════════
@@ -1699,12 +1676,13 @@
       <section class="card logcard" id="logcard">
       
       <h2><b>▸</b>
-        <button class="copy pest on" id="pestCorrida" title="lo que imprime el launcher de la corrida">Consola de la corrida</button>
-        <button class="copy pest" id="pestSsr" title="el stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR del wizard</button>
-        <span class="logacts">
-          <button class="btn btn-outline btn-xs copy" id="ssrFiltro" title="mostrar sólo las llamadas salientes del SSR" hidden>☰ todo</button>
-          <button class="btn btn-outline btn-xs copy" id="logFiltro" title="mostrar sólo transiciones de BD, alertas y el cierre">☰ todo</button>
-          <button class="btn btn-outline btn-xs copy" id="copyLog">📋 copiar</button>
+        <button class="copy pest on" id="pestCorrida" title="lo que imprime el launcher de la corrida" aria-pressed="true">Corrida</button>
+        <button class="copy pest" id="pestSsr" title="el stdout del wizard (SSR): sus llamadas salientes y sus errores" aria-pressed="false">SSR</button>
+        <span class="logacts toolbar" role="group" aria-label="Acciones de consola">
+          <span id="consoleFilterState" class="toolbar-note" hidden>Filtrada</span>
+          <button class="region-action" id="copyLog" title="Copiar ambas consolas completas" aria-label="Copiar ambas consolas completas"><span class="ui-icon" data-icon="copy" aria-hidden="true"></span></button>
+          <button type="button" class="region-action" id="consoleMenu" title="Opciones de consola" aria-label="Opciones de consola"><span class="ui-icon" data-icon="more" aria-hidden="true"></span></button>
+          <button class="region-action" id="closeConsole" title="Ocultar consola" aria-label="Ocultar consola"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </span>
       </h2>
       <pre id="log" data-vacio="Sin corrida todavía. Acá sale, línea por línea, lo que imprime el launcher."></pre>
@@ -1717,6 +1695,12 @@
       <span id="caseDetails"></span>
       <span class="sumry" id="sumry" role="status">Elegí un comercio primero.</span>
       <button class="readiness-link" id="readinessLink" type="button" hidden></button>
+      <div class="layout-controls" role="group" aria-label="Disposición del harness">
+        <button class="region-action" id="toggleSidebar" title="Mostrar u ocultar comercios" aria-label="Mostrar u ocultar comercios" aria-controls="sideLeft"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button class="region-action" id="toggleConsole" title="Mostrar u ocultar consola" aria-label="Mostrar u ocultar consola" aria-controls="bottomPanel"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
+        <button class="region-action" id="toggleDetail" title="Mostrar u ocultar configuración" aria-label="Mostrar u ocultar configuración" aria-controls="sideRight"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+        <button class="region-action" id="resetLayout" title="Restablecer disposición" aria-label="Restablecer disposición"><span class="ui-icon" data-icon="reset" aria-hidden="true"></span></button>
+      </div>
     </footer>
   </div>
   <script>
@@ -2435,6 +2419,10 @@
       if (c) $('valCanal').textContent = (c.textContent || '').trim();
       const p2 = act('#step button');
       if (p2) $('valArranque').textContent = (p2.textContent || '').trim();
+      for (const [button, value, label] of [['btnEntorno', 'valEntorno', 'Entorno'], ['btnCanal', 'valCanal', 'Canal'], ['btnArranque', 'valArranque', 'Arranque']]) {
+        const text = label + ': ' + $(value).textContent;
+        $(button).title = text; $(button).setAttribute('aria-label', text);
+      }
     }
 
     function cerrarMenuEntidad() {
@@ -3490,18 +3478,18 @@
       $('logSsr').style.display = esSsr && logOpen ? 'block' : 'none';
       $('pestCorrida').classList.toggle('on', !esSsr);
       $('pestSsr').classList.toggle('on', esSsr);
-      $('logFiltro').hidden = esSsr; $('ssrFiltro').hidden = !esSsr;
+      $('pestCorrida').setAttribute('aria-pressed', String(!esSsr));
+      $('pestSsr').setAttribute('aria-pressed', String(esSsr));
       if (ssrPoll) { clearInterval(ssrPoll); ssrPoll = null; }
       if (esSsr) { tickSsr(); ssrPoll = setInterval(tickSsr, 2000); }
     }
 
     $('pestCorrida').onclick = () => mostrarPestana('corrida');
     $('pestSsr').onclick = () => mostrarPestana('ssr');
-    $('ssrFiltro').onclick = () => {
+    function toggleSsrFilter() {
       ssrSolo = !ssrSolo;
-      $('ssrFiltro').textContent = ssrSolo ? '⇅ salientes' : '☰ todo';
       repintarSsr();
-    };
+    }
 
     function startPoll() {
       runStamp = Date.now();   // buster por corrida: mismo nombre de archivo, imagen nueva
@@ -3650,6 +3638,7 @@
       const b = $('btnDemora'); if (!b) return;
       $('valDemora').textContent = `${padelay / 1000} s`;
       b.classList.toggle('activo', padelay > 0);
+      b.setAttribute('aria-label', `Demora de preaprobación: ${padelay / 1000} segundos`);
       b.disabled = !mockPA;
       // Deshabilitado CON su motivo, no escondido: una perilla que desaparece hace creer que no existe.
       b.title = mockPA
@@ -3868,13 +3857,11 @@
     //  es una zona fija del layout y siempre está a la vista)
     $('readinessLink').onclick = () => { $('healthDetails').open = true; $('healthDetails').scrollIntoView({ behavior: 'instant', block: 'start' }); };
     // Filtro de la consola: re-pinta desde el array en memoria (no vuelve a pedir nada al server).
-    $('logFiltro').onclick = () => {
+    function toggleLogFilter() {
       soloImportante = !soloImportante;
-      $('logFiltro').textContent = soloImportante ? '☰ sólo lo importante' : '☰ todo';
-      $('logFiltro').classList.toggle('on', soloImportante);
       repintarLog();
       $('log').scrollTop = $('log').scrollHeight;
-    };
+    }
 
     // copiar consola: trae el log COMPLETO de /api/log (incluye los ⚠ del navegador que el spec vuelca); fallback a lo visible.
     // ⚠ COPIA LAS DOS CONSOLAS, no la que estés mirando. Pegar un problema en Slack sin el stdout del
@@ -3890,7 +3877,7 @@
         const ssr = (r && r.lines || []).join('\n') || $('logSsr').textContent || '';
         if (ssr.trim()) text = `── CONSOLA DE LA CORRIDA ──\n${text}\n\n── SSR DEL WIZARD ──\n${ssr}`;
       } catch { }
-      try { await navigator.clipboard.writeText(text); const b = $('copyLog'), o = b.textContent; b.textContent = '✓ copiado'; setTimeout(() => b.textContent = o, 1200); }
+      try { await navigator.clipboard.writeText(text); const icon = $('copyLog').querySelector('.ui-icon'); icon.dataset.icon = 'check'; $('copyLog').setAttribute('aria-label', 'Consola copiada'); setTimeout(() => { icon.dataset.icon = 'copy'; $('copyLog').setAttribute('aria-label', 'Copiar ambas consolas completas'); }, 1200); }
       catch { alert('No pude copiar al portapapeles.'); }
     };
     // SOLO los .copy con data-copy (copian el texto de otro elemento). El selector `.copy` a secas PISABA el
@@ -3943,56 +3930,7 @@
     // cuando cambia su caja, y un estado vacío en el centro. Va al final del script a propósito —
     // `encuadrar()` está declarada más arriba en este mismo alcance.
     (function cascara() {
-      const raiz = document.documentElement;
-
-      // ── manijas ────────────────────────────────────────────────────────────────────────────────
-      // El ancho queda en localStorage: es preferencia de ESTA máquina, no estado de la corrida.
-      const ajustables = [
-        { id: 'rszL', varCss: '--sidebar-w',   eje: 'x', signo: +1, min: 240, max: 560, llave: 'panel.wLeft' },
-        { id: 'rszR', varCss: '--auxiliarybar-w',  eje: 'x', signo: -1, min: 220, max: 520, llave: 'panel.wRight' },
-        { id: 'rszB', varCss: '--panel-h', eje: 'y', signo: -1, min: 90,  max: 620, llave: 'panel.hBottom' },
-      ];
-      for (const a of ajustables) {
-        try { const v = localStorage.getItem(a.llave); if (v) raiz.style.setProperty(a.varCss, v); } catch { }
-        const m = $(a.id); if (!m) continue;
-        m.addEventListener('pointerdown', (e) => {
-          e.preventDefault();
-          m.classList.add('on'); m.setPointerCapture(e.pointerId);
-          const desde = a.eje === 'x' ? e.clientX : e.clientY;
-          const base = parseFloat(getComputedStyle(raiz).getPropertyValue(a.varCss));
-          const mover = (ev) => {
-            const d = ((a.eje === 'x' ? ev.clientX : ev.clientY) - desde) * a.signo;
-            const crudo = base + d;
-            // ⚠ POR DEBAJO DEL MÍNIMO SE COLAPSA A 0, no se queda trabado en el mínimo. Un panel que se
-            // resiste a cerrarse obliga a convivir con él; y un sidebar a medio achicar deforma las
-            // filas sin llegar a desaparecer, que es lo peor de los dos mundos. La histéresis (el
-            // umbral de cierre está 28 px por DEBAJO del mínimo) evita que se cierre de un temblor.
-            const px = crudo < a.min - 28 ? 0 : Math.max(a.min, Math.min(a.max, crudo));
-            raiz.style.setProperty(a.varCss, px + 'px');
-          };
-          const soltar = () => {
-            m.classList.remove('on');
-            document.removeEventListener('pointermove', mover);
-            document.removeEventListener('pointerup', soltar);
-            try { localStorage.setItem(a.llave, getComputedStyle(raiz).getPropertyValue(a.varCss).trim()); } catch { }
-          };
-          document.addEventListener('pointermove', mover);
-          document.addEventListener('pointerup', soltar);
-        });
-      }
-
-      // ── la manija se marca cuando su panel está colapsado ──────────────────────────────────────
-      // Una línea de 4 px contra un borde no se lee como «acá hay algo que arrastrar». Marcada, sí.
-      const marcarPlegados = () => {
-        for (const a of ajustables) {
-          const m = $(a.id); if (!m) continue;
-          const v = parseFloat(getComputedStyle(raiz).getPropertyValue(a.varCss));
-          m.classList.toggle('plegado', !v);
-          m.title = v ? 'arrastrá para ajustar' : 'arrastrá para abrir el panel';
-        }
-      };
-      new MutationObserver(marcarPlegados).observe(raiz, { attributes: true, attributeFilter: ['style'] });
-      marcarPlegados();
+      // Las manijas y controles de disposición usan el módulo compartido al final del documento.
 
       // ── el mapa se re-encuadra cuando cambia su caja ───────────────────────────────────────────
       // ⚠ SIN ESTO EL MAPA "SE ROMPE" AL MOVER UNA MANIJA, y no se rompe: `encuadrar()` calcula la
@@ -4067,6 +4005,353 @@
     })();
 
 </script>
+
+  <script type="module">
+// <workbench-shared>
+/* Interacción compartida, sin dependencia de Vue ni de un bundler.
+ * El consumidor decide las regiones; este módulo sólo ajusta sus medidas. */
+export function readSize(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    const n = raw === null ? NaN : Number.parseFloat(raw);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  } catch { return fallback; }
+}
+
+export function saveSize(key, value) {
+  try { localStorage.setItem(key, String(value)); } catch { /* Preferencias opcionales. */ }
+}
+
+export function bindResize(handle, options) {
+  let o = options;
+  let stop = () => {};
+  const number = (v) => Number(typeof v === 'function' ? v() : v);
+  const bounds = () => {
+    const max = Math.max(0, number(o.max));
+    return { min: Math.min(number(o.min), max), max };
+  };
+  function sync() {
+    const { min, max } = bounds();
+    handle.setAttribute('role', 'separator');
+    handle.setAttribute('tabindex', '0');
+    handle.setAttribute('aria-orientation', o.axis === 'y' ? 'horizontal' : 'vertical');
+    handle.setAttribute('aria-label', o.label);
+    handle.setAttribute('aria-valuemin', String(o.collapsible ? 0 : min));
+    handle.setAttribute('aria-valuemax', String(Math.round(max)));
+    handle.setAttribute('aria-valuenow', String(Math.round(o.get())));
+    handle.setAttribute('aria-valuetext', o.get() ? `${Math.round(o.get())} píxeles` : 'Oculto');
+    handle.title = `${o.label} · arrastra o usa las flechas · doble clic para restablecer`;
+  }
+  function set(value, collapse = false) {
+    const { min, max } = bounds();
+    const next = o.collapsible && (value === 0 || (collapse && value < min - 28))
+      ? 0 : Math.max(min, Math.min(max, value));
+    o.set(Math.round(next));
+    sync();
+  }
+  const finish = () => o.commit?.(o.get());
+  function reset() { set(number(o.defaultValue)); finish(); }
+  function keydown(e) {
+    const vertical = o.axis === 'y';
+    const decrement = vertical ? 'ArrowUp' : 'ArrowLeft';
+    const increment = vertical ? 'ArrowDown' : 'ArrowRight';
+    const { min, max } = bounds();
+    if (![decrement, increment, 'Home', 'End', 'Enter'].includes(e.key)) return;
+    e.preventDefault();
+    if (e.key === 'Enter') {
+      if (o.collapsible) set(o.get() ? 0 : number(o.defaultValue));
+      else set(number(o.defaultValue));
+    } else if (e.key === 'Home') set(o.collapsible ? 0 : min);
+    else if (e.key === 'End') set(max);
+    else set(o.get() + (e.key === increment ? 1 : -1) * (o.sign ?? 1) * (e.shiftKey ? 48 : 16), true);
+    finish();
+  }
+  function pointerdown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    stop();
+    handle.focus({ preventScroll: true });
+    handle.setPointerCapture(e.pointerId);
+    const start = o.axis === 'y' ? e.clientY : e.clientX;
+    const initial = o.get();
+    const move = (ev) => {
+      if (ev.pointerId !== e.pointerId) return;
+      set(initial + ((o.axis === 'y' ? ev.clientY : ev.clientX) - start) * (o.sign ?? 1), true);
+    };
+    const end = (ev) => { if (ev.pointerId === e.pointerId) stop(); };
+    handle.classList.add('on');
+    document.body.classList.add('redimensionando');
+    document.body.style.cursor = o.axis === 'y' ? 'row-resize' : 'col-resize';
+    stop = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      handle.removeEventListener('lostpointercapture', end);
+      if (handle.hasPointerCapture(e.pointerId)) handle.releasePointerCapture(e.pointerId);
+      handle.classList.remove('on');
+      document.body.classList.remove('redimensionando');
+      document.body.style.removeProperty('cursor');
+      finish();
+      stop = () => {};
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+    handle.addEventListener('lostpointercapture', end);
+  }
+  handle.addEventListener('keydown', keydown);
+  handle.addEventListener('pointerdown', pointerdown);
+  handle.addEventListener('dblclick', reset);
+  sync();
+  return {
+    update(next) { o = next; sync(); },
+    sync,
+    destroy() {
+      stop();
+      handle.removeEventListener('keydown', keydown);
+      handle.removeEventListener('pointerdown', pointerdown);
+      handle.removeEventListener('dblclick', reset);
+    },
+  };
+}
+
+// Directiva opcional para las tres apps Vue. El harness usa bindResize directamente.
+const bindings = new WeakMap();
+export function refreshResizers(container) {
+  container.querySelectorAll('[role="separator"]').forEach((el) => bindings.get(el)?.sync());
+}
+export const vResize = {
+  mounted(el, { value }) { bindings.set(el, bindResize(el, value)); },
+  updated(el, { value }) { bindings.get(el)?.update(value); },
+  beforeUnmount(el) { bindings.get(el)?.destroy(); bindings.delete(el); },
+};
+
+// Un único menú para Vue y HTML: se monta en body para no cortarse por el scroll
+// de una región. Los datos se leen al abrir; los controles de negocio no se duplican.
+let menuSequence = 0;
+let closeCurrentMenu = null;
+export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' }) {
+  let menu = null;
+  const id = `workbench-menu-${++menuSequence}`;
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-controls', id);
+  const focusable = () => [...(menu?.querySelectorAll('[role^="menuitem"]:not(:disabled)') || [])];
+  function position() {
+    if (!menu) return;
+    const anchor = trigger.getBoundingClientRect();
+    menu.style.maxWidth = `${Math.max(0, innerWidth - 16)}px`;
+    menu.style.maxHeight = `${Math.max(0, innerHeight - 16)}px`;
+    const box = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(anchor.right - box.width, innerWidth - box.width - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(anchor.bottom + 4, innerHeight - box.height - 8))}px`;
+  }
+  function close(restoreFocus = false) {
+    if (!menu) return;
+    menu.remove(); menu = null;
+    trigger.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', outside, true);
+    document.removeEventListener('focusin', focusOutside);
+    document.removeEventListener('scroll', scrolled, true);
+    window.removeEventListener('resize', position);
+    if (closeCurrentMenu === close) closeCurrentMenu = null;
+    if (restoreFocus && trigger.isConnected) trigger.focus({ preventScroll: true });
+  }
+  function outside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
+  function focusOutside(e) { if (!menu?.contains(e.target) && !trigger.contains(e.target)) close(); }
+  function scrolled(e) { if (!menu?.contains(e.target)) close(); }
+  function icon(name) {
+    const span = document.createElement('span');
+    span.className = 'ui-icon'; span.dataset.icon = name; span.setAttribute('aria-hidden', 'true');
+    return span;
+  }
+  function refresh() {
+    if (!menu) return;
+    const focused = document.activeElement?.dataset.menuId;
+    menu.replaceChildren();
+    for (const item of getItems()) {
+      if (item.separador) {
+        const separator = document.createElement('hr'); separator.setAttribute('role', 'separator');
+        menu.appendChild(separator); continue;
+      }
+      const checkbox = Object.hasOwn(item, 'checked');
+      const link = !item.disabled && item.href && /^(https?:\/\/|\/)/.test(item.href);
+      const control = document.createElement(link ? 'a' : 'button');
+      control.className = 'region-menu-item';
+      control.dataset.menuId = item.id;
+      control.setAttribute('role', checkbox ? 'menuitemcheckbox' : 'menuitem');
+      control.tabIndex = -1;
+      if (checkbox) control.setAttribute('aria-checked', String(!!item.checked));
+      if (link) { control.href = item.href; control.target = item.target || '_blank'; control.rel = 'noopener noreferrer'; }
+      else { control.type = 'button'; control.disabled = !!item.disabled; }
+      if (item.title) control.title = item.title;
+      const glyph = icon(checkbox ? 'check' : (item.icon || 'more'));
+      if (checkbox && !item.checked) glyph.style.visibility = 'hidden';
+      control.appendChild(glyph);
+      const text = document.createElement('span'); text.className = 'menu-label'; text.textContent = item.label;
+      control.appendChild(text);
+      if (item.count !== undefined) {
+        const count = document.createElement('span'); count.className = 'n'; count.textContent = item.count;
+        control.appendChild(count);
+      }
+      control.addEventListener('click', () => {
+        if (!checkbox) close(!link);
+        onSelect?.(item.id);
+        if (checkbox) queueMicrotask(refresh);
+      });
+      menu.appendChild(control);
+    }
+    position();
+    if (focused) focusable().find((el) => el.dataset.menuId === focused)?.focus({ preventScroll: true });
+  }
+  function keys(e) {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); return; }
+    if (e.key === 'Tab') { close(true); return; }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const items = focusable();
+    const current = items.indexOf(document.activeElement);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1
+      : (current + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+    items[next]?.focus();
+  }
+  function open(last = false) {
+    if (menu) return;
+    closeCurrentMenu?.(); closeCurrentMenu = close;
+    menu = document.createElement('div'); menu.id = id; menu.className = 'region-menu';
+    menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', label);
+    menu.addEventListener('keydown', keys);
+    document.body.appendChild(menu);
+    trigger.setAttribute('aria-expanded', 'true');
+    refresh();
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('focusin', focusOutside);
+    document.addEventListener('scroll', scrolled, true);
+    window.addEventListener('resize', position);
+    const items = focusable(); items[last ? items.length - 1 : 0]?.focus({ preventScroll: true });
+  }
+  function toggle() { if (menu) close(true); else open(); }
+  function triggerKeys(e) {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); open(e.key === 'ArrowUp'); }
+    if (e.key === 'Escape') close(true);
+  }
+  trigger.addEventListener('click', toggle);
+  trigger.addEventListener('keydown', triggerKeys);
+  return { open, close, refresh, destroy() {
+    close(); trigger.removeEventListener('click', toggle); trigger.removeEventListener('keydown', triggerKeys);
+  } };
+}
+
+// </workbench-shared>
+    const root = document.documentElement;
+    const configs = [
+      { id: 'rszL', button: 'toggleSidebar', region: 'sideLeft', css: '--sidebar-w', key: 'panel.wLeft', min: 240, limit: 560, initial: 300, sign: 1, label: 'Ancho de comercios' },
+      { id: 'rszR', button: 'toggleDetail', region: 'sideRight', css: '--auxiliarybar-w', key: 'panel.wRight', min: 220, limit: 520, initial: 340, sign: -1, label: 'Ancho de configuración' },
+      { id: 'rszB', button: 'toggleConsole', region: 'bottomPanel', css: '--panel-h', key: 'panel.hBottom', min: 90, limit: 620, initial: 240, sign: -1, axis: 'y', label: 'Alto de consola' },
+    ];
+    const controllers = [];
+    const getSize = (a) => parseFloat(getComputedStyle(root).getPropertyValue(a.css));
+    function maxSize(a) {
+      if (a.axis === 'y') return Math.max(90, Math.min(a.limit, innerHeight - 250));
+      const other = configs.find((b) => b.axis !== 'y' && b !== a);
+      return Math.max(160, Math.min(a.limit, innerWidth - getSize(other) - 328));
+    }
+    function setSize(a, value) {
+      root.style.setProperty(a.css, value + 'px');
+      document.getElementById(a.button).setAttribute('aria-pressed', String(value > 0));
+      document.getElementById(a.region).style.visibility = value ? '' : 'hidden';
+      document.getElementById(a.id).classList.toggle('plegado', !value);
+    }
+    function fit() {
+      for (const a of configs) if (getSize(a) > maxSize(a)) setSize(a, maxSize(a));
+      controllers.forEach((c) => c.sync());
+    }
+    for (const a of configs) setSize(a, readSize(a.key, a.initial));
+    fit();
+    for (const a of configs) {
+      const handle = document.getElementById(a.id);
+      const controller = bindResize(handle, {
+        ...a, defaultValue: a.initial, collapsible: true, max: () => maxSize(a),
+        get: () => getSize(a), set: (v) => setSize(a, v), commit: (v) => saveSize(a.key, v),
+      });
+      controllers.push(controller);
+      let previous = getSize(a) || a.initial;
+      document.getElementById(a.button).addEventListener('click', () => {
+        const current = getSize(a);
+        if (current) previous = current;
+        setSize(a, current ? 0 : Math.min(previous, maxSize(a)));
+        saveSize(a.key, getSize(a));
+        controller.sync();
+      });
+    }
+    document.getElementById('closeConsole').addEventListener('click', () => {
+      document.getElementById('toggleConsole').click();
+      document.getElementById('toggleConsole').focus();
+    });
+    document.getElementById('resetLayout').addEventListener('click', () => {
+      for (const a of configs) { setSize(a, a.initial); saveSize(a.key, a.initial); }
+      fit();
+    });
+    addEventListener('resize', fit);
+
+    function restoreRegion(index) {
+      const a = configs[index];
+      setSize(a, Math.min(a.initial, maxSize(a))); saveSize(a.key, getSize(a));
+      controllers[index].sync();
+    }
+    function hideRegion(button) { document.getElementById(button).click(); document.getElementById(button).focus(); }
+    document.getElementById('collapseMerchants').onclick = () => { abiertos.clear(); renderMerchants(); };
+    bindMenu(document.getElementById('merchantsMenu'), {
+      label: 'Opciones de comercios',
+      getItems: () => [
+        { id: 'buscar', label: 'Buscar o agregar comercio', icon: 'search' },
+        { separador: true },
+        { id: 'ancho', label: 'Restablecer ancho', icon: 'reset' },
+        { id: 'ocultar', label: 'Ocultar comercios', icon: 'sidebar' },
+      ],
+      onSelect: (id) => {
+        if (id === 'buscar') document.getElementById('buscom').focus();
+        if (id === 'ancho') restoreRegion(0);
+        if (id === 'ocultar') hideRegion('toggleSidebar');
+      },
+    });
+    bindMenu(document.getElementById('configMenu'), {
+      label: 'Opciones de configuración',
+      getItems: () => [
+        { id: 'ancho', label: 'Restablecer ancho', icon: 'reset' },
+        { id: 'ocultar', label: 'Ocultar configuración', icon: 'detail' },
+      ],
+      onSelect: (id) => { if (id === 'ancho') restoreRegion(1); if (id === 'ocultar') hideRegion('toggleDetail'); },
+    });
+    const isSsr = () => document.getElementById('pestSsr').classList.contains('on');
+    const consoleOptions = bindMenu(document.getElementById('consoleMenu'), {
+      label: 'Opciones de consola',
+      getItems: () => [
+        { id: 'filtrar', label: isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes', checked: isSsr() ? ssrSolo : soloImportante },
+        { id: 'final', label: 'Ir al final', icon: 'bottom' },
+        { separador: true },
+        { id: 'alto', label: 'Restablecer altura', icon: 'reset' },
+        { id: 'ocultar', label: 'Ocultar consola', icon: 'console' },
+      ],
+      onSelect: (id) => {
+        if (id === 'filtrar') { (isSsr() ? toggleSsrFilter : toggleLogFilter)(); reflectConsoleFilter(); }
+        if (id === 'final') { const log = document.getElementById(isSsr() ? 'logSsr' : 'log'); log.scrollTop = log.scrollHeight; }
+        if (id === 'alto') restoreRegion(2);
+        if (id === 'ocultar') hideRegion('toggleConsole');
+      },
+    });
+    function reflectConsoleFilter() {
+      const filtered = isSsr() ? ssrSolo : soloImportante;
+      const label = document.getElementById('consoleFilterState');
+      label.hidden = !filtered;
+      label.title = isSsr() ? 'Sólo llamadas salientes' : 'Sólo eventos importantes';
+      document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
+      consoleOptions.refresh();
+    }
+    for (const id of ['pestCorrida', 'pestSsr']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    reflectConsoleFilter();
+  </script>
+
 </body>
 
 </html>

@@ -440,9 +440,11 @@ watch(() => props.cerrado, () => nextTick(medir))
 .nodo:focus-visible .nlbl { fill:var(--info); text-decoration:underline }
 .nodo.sel .nlbl { fill:var(--info); font-weight:700 }
 /* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
-.nodo.fuera { opacity:.38 }
+.nodo.fuera circle { opacity:.38 }
+.nodo.fuera .nlbl { fill:var(--texto-3) }
 /* Un carril que esta solicitud no tomó se ve, pero no compite: es contexto, no recorrido. */
-.apagado { opacity:.42 }
+.apagado circle, .apagado line { opacity:.42 }
+.apagado .nlbl { fill:var(--texto-3) }
 
 .glifo { font:600 11px ui-monospace,monospace; text-anchor:middle; fill:var(--bg) }
 .nlbl { font:500 12px ui-monospace,monospace; fill:var(--txt); text-anchor:middle; letter-spacing:-.01em }

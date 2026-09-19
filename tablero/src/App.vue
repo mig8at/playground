@@ -1,4 +1,5 @@
 <script setup>
+import { vResize, refreshResizers } from './workbench.js';
 // Tablero — mi sprint, con registro de tiempo y bitácora.
 //
 // El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
@@ -251,7 +252,7 @@ const menuFiltros = computed(() => {
                                      : 'ver mis tareas de los últimos sprints' });
   if (ocultos.value.size || busca.value) {
     its.push({ separador: true });
-    its.push({ id: '_todas', label: 'ver todas', checked: false, title: 'quitar todos los filtros' });
+    its.push({ id: '_todas', label: 'ver todas', icon: 'filter', title: 'quitar todos los filtros' });
   }
   return its;
 });
@@ -886,6 +887,7 @@ const previa = ref('');       // la clave de la que está en previsualización, 
 // vuelva a abrir, cerrarla sería un camino de ida. Vive en la barra de pestañas, al borde derecho,
 // que es donde VS Code pone el suyo — y acá además es la única barra que hay a esa altura.
 const verAux = ref(readPreference('aux-visible', true) !== false);
+const verSidebar = ref(readPreference('sidebar-visible', true) !== false);
 /* ── EL ACORDEÓN DEL SIDEBAR DERECHO ──────────────────────────────────────────────────────────────
  * Las siete vistas que antes eran pestañas del editor, más la ficha. Es un estado APARTE del acordeón
  * izquierdo y no un prefijo sobre el mismo: los dos tienen una vista llamada `jira` y significan cosas
@@ -941,51 +943,51 @@ function aplicarAnchos() {
   // o una vista de impresión informan `innerWidth: 0`. El `resize` vuelve a llamar cuando haya.
   if (!wb || !window.innerWidth) return;
   const hayAux = !!document.querySelector('.auxiliarybar');
-  let sb = Math.min(ANCHOS['--sidebar-w'][2], preferido['--sidebar-w']);
+  let sb = verSidebar.value ? Math.min(ANCHOS['--sidebar-w'][2], preferido['--sidebar-w']) : 0;
   let aux = hayAux ? Math.min(ANCHOS['--auxiliarybar-w'][2], preferido['--auxiliarybar-w']) : 0;
   let falta = sb + aux + MIN_EDITOR - window.innerWidth;
   if (falta > 0 && hayAux) {
     const recorte = Math.min(falta, aux - ANCHOS['--auxiliarybar-w'][1]);
     if (recorte > 0) { aux -= recorte; falta -= recorte; }
   }
-  if (falta > 0) sb = Math.max(ANCHOS['--sidebar-w'][1], sb - falta);
+  if (falta > 0 && verSidebar.value) sb = Math.max(160, sb - falta);
   wb.style.setProperty('--sidebar-w', sb + 'px');
   wb.style.setProperty('--auxiliarybar-w', aux + 'px');
+  refreshResizers(wb);
 }
 
-function arrastrar(e, varCss, signo) {
-  if (e.button !== 0) return;
-  const wb = e.currentTarget.closest('.workbench');
-  const [llave, min, tope] = ANCHOS[varCss];
-  const otra = varCss === '--sidebar-w' ? '.auxiliarybar' : '.sidebar';
-  const inicial = parseFloat(getComputedStyle(wb).getPropertyValue(varCss));
-  const anchoOtra = document.querySelector(otra)?.getBoundingClientRect().width || 0;
-  const max = Math.max(min, Math.min(tope, window.innerWidth - anchoOtra - MIN_EDITOR));
-  const x0 = e.clientX;
-  const mover = (ev) => {
-    const n = Math.max(min, Math.min(max, inicial + signo * (ev.clientX - x0)));
-    wb.style.setProperty(varCss, n + 'px');
-    preferido[varCss] = n;   // arrastrar SÍ cambia lo preferido; acomodar no
+function resizeOptions(varCss, sign) {
+  const [key, min, limit] = ANCHOS[varCss];
+  const root = () => document.querySelector('.workbench');
+  return {
+    label: varCss === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho del detalle',
+    min, sign, defaultValue: varCss === '--sidebar-w' ? 300 : 340,
+    max: () => {
+      const other = document.querySelector(varCss === '--sidebar-w' ? '.auxiliarybar' : '.sidebar');
+      return Math.max(160, Math.min(limit, window.innerWidth - (other?.getBoundingClientRect().width || 0) - MIN_EDITOR));
+    },
+    get: () => parseFloat(getComputedStyle(root()).getPropertyValue(varCss)),
+    set: (v) => { preferido[varCss] = v; root().style.setProperty(varCss, v + 'px'); },
+    commit: (v) => savePreference(key, v),
   };
-  const soltar = () => {
-    window.removeEventListener('pointermove', mover);
-    window.removeEventListener('pointerup', soltar);
-    window.removeEventListener('pointercancel', soltar);
-    document.body.classList.remove('redimensionando');
-    savePreference(llave, preferido[varCss]);
-  };
-  document.body.classList.add('redimensionando');
-  window.addEventListener('pointermove', mover);
-  window.addEventListener('pointerup', soltar);
-  window.addEventListener('pointercancel', soltar);
+}
+function resetLayout() {
+  preferido['--sidebar-w'] = 300;
+  preferido['--auxiliarybar-w'] = 340;
+  savePreference('sidebar-w', 300);
+  savePreference('aux-w', 340);
+  verSidebar.value = true;
+  verAux.value = true;
+  nextTick(aplicarAnchos);
 }
 
 // Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
 // que es cuando cambia cuánto hay para repartir.
 onMounted(() => { aplicarAnchos(); window.addEventListener('resize', aplicarAnchos); });
 onUnmounted(() => window.removeEventListener('resize', aplicarAnchos));
-watch([() => !!active.value, verAux], () => nextTick(aplicarAnchos));
+watch([() => !!active.value, verAux, verSidebar], () => nextTick(aplicarAnchos));
 watch(verAux, (v) => savePreference('aux-visible', v));
+watch(verSidebar, (v) => savePreference('sidebar-visible', v));
 const pestanasAbiertas = computed(() =>
   pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
 
@@ -1470,6 +1472,29 @@ onMounted(async () => {
   // Sin await: la vista pinta el sprint activo primero y las otras tarjetas entran cuando llegan.
   cargarUltimos4();
 });
+
+const detailToggle = ref(null)
+const documentMenu = computed(() => [
+  { id: 'copiar-todo', label: 'Copiar completo para retomar', icon: 'copy', disabled: !documentSections.value.length,
+    title: 'Incluye el registro de trabajo y los comandos de reproducción' },
+  { separador: true },
+  { id: 'detalle', label: 'Mostrar detalle de la tarea', checked: verAux.value },
+  { id: 'cerrar', label: 'Cerrar tarea', icon: 'close' },
+])
+function documentAction(id) {
+  if (id === 'copiar-todo') copiarCuerpo('todo')
+  if (id === 'detalle') verAux.value = !verAux.value
+  if (id === 'cerrar' && active.value) cerrarPestana(active.value.Key)
+}
+const detailMenu = [
+  { id: 'plegar', label: 'Plegar todas las secciones', icon: 'collapse' },
+  { id: 'ocultar', label: 'Ocultar detalle', icon: 'detail' },
+]
+function detailAction(id) {
+  if (id === 'plegar') seccionesAux.value = new Set()
+  if (id === 'ocultar') { verAux.value = false; detailToggle.value?.focus() }
+}
+
 </script>
 
 <template>
@@ -1491,20 +1516,18 @@ onMounted(async () => {
          ⚠ Cinco vistas cerradas cuestan 5 filas (~160px), y eso se paga a gusto: los cinco estados
          con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
          grupo para saber cuántas tenía. -->
-    <aside class="sidebar">
-      <div class="rsz rsz-sb" role="separator" aria-orientation="vertical"
-           aria-label="Ancho de la lista de tareas" title="Arrastrar para ajustar"
-           @pointerdown.prevent="arrastrar($event, '--sidebar-w', 1)"></div>
+    <aside id="tasks-sidebar" class="sidebar" v-show="verSidebar" aria-label="Lista de tareas">
+      <div class="rsz rsz-sb" v-resize="resizeOptions('--sidebar-w', 1)"></div>
       <div class="region-head">
         <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
         <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
              nadie ve se olvida encendido, y después la tarea que falta se lee como «no existe». -->
         <span v-if="!cargandoAncha" class="cnt" :class="{ filtrando: ocultos.size || buscaNorm }"
               :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
-        <div v-if="!cargandoAncha && totalTasks" class="region-actions">
+        <div v-if="!cargandoAncha && totalTasks" class="region-actions toolbar">
           <button type="button" class="region-action" title="Colapsar o desplegar todos los grupos"
-                  @click="colapsarTodo">⊟</button>
-          <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
+                  @click="colapsarTodo" aria-label="Colapsar o desplegar todos los grupos"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
+          <RegionMenu :items="menuFiltros" :active="!!ocultos.size || !!buscaNorm" title="Qué tareas se ven" @toggle="desdeMenu" />
         </div>
       </div>
 
@@ -1513,10 +1536,10 @@ onMounted(async () => {
            cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
       <div class="filtros" v-if="!cargandoAncha && totalTasks">
         <label class="fbusca input-group" :class="{ act: !!buscaNorm }">
-          <span class="lupa" aria-hidden="true">⌕</span>
+          <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
           <input v-model="busca" class="input" type="search" placeholder="buscar por título…"
                  aria-label="Buscar tarea por título o clave">
-          <button v-if="busca" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="busca = ''">×</button>
+          <button v-if="busca" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="busca = ''" aria-label="Limpiar búsqueda"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </label>
       </div>
       <!-- Sin resultados NO puede ser una lista vacía a secas: se lee como «no tengo tareas», que es
@@ -1534,7 +1557,7 @@ onMounted(async () => {
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="abierta(g.id) || !!buscaNorm"
                   :aria-controls="'group-' + g.id" @click="alternarSeccion(g.id)">
-            <span class="chev" aria-hidden="true">{{ abierta(g.id) || buscaNorm ? '⌄' : '›' }}</span>
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>{{ g.title }}</span>
           </button>
           <span class="cnt">{{ g.tasks.length }}</span>
@@ -1562,7 +1585,7 @@ onMounted(async () => {
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="abierta('jira')"
                   @click="alternarSeccion('jira')">
-            <span class="chev" aria-hidden="true">{{ abierta('jira') ? '⌄' : '›' }}</span>
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>Traer de Jira</span>
           </button>
           <span v-if="inbox" class="cnt" :class="{ filtrando: inbox.pending }">{{ inbox.pending }}</span>
@@ -1599,11 +1622,11 @@ onMounted(async () => {
             <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
           </button>
           <button type="button" class="btn btn-ghost btn-icon btn-xs et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
-                  @click="cerrarPestana(t.Key)">×</button>
+                  @click="cerrarPestana(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
         <button type="button" class="btn btn-ghost btn-icon btn-xs et-aux" :class="{ act: verAux }" :aria-pressed="verAux"
                 title="Mostrar u ocultar el detalle de la tarea"
-                aria-label="Mostrar u ocultar el detalle" @click="verAux = !verAux">◨</button>
+                aria-label="Mostrar u ocultar el detalle" @click="verAux = !verAux"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
@@ -1618,22 +1641,16 @@ onMounted(async () => {
              en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
              excluyentes — mirar una rama mientras leés el documento era imposible. -->
 
-        <div v-if="documentSections.length" class="btn btn-outline btn-xs drawer-cps">
-          <button class="btn btn-outline btn-xs drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
-                  title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
-                  @click="copiarCuerpo('compartir')">
-            <span aria-hidden="true">{{ copiadoCual === 'compartir' && copiado === 'ok' ? '✓' : copiadoCual === 'compartir' && copiado === 'error' ? '✕' : '⧉' }}</span>
-            {{ copiadoCual === 'compartir' && copiado === 'ok' ? 'copiado' : copiadoCual === 'compartir' && copiado === 'error' ? 'no se pudo' : 'compartir' }}
-          </button>
-          <button class="btn btn-outline btn-xs drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
-                  title="Copiar el cuerpo ENTERO, con el registro y los comandos — para retomar la tarea"
-                  @click="copiarCuerpo('todo')">
-            <span aria-hidden="true">{{ copiadoCual === 'todo' && copiado === 'ok' ? '✓' : copiadoCual === 'todo' && copiado === 'error' ? '✕' : '⧉' }}</span>
-            {{ copiadoCual === 'todo' && copiado === 'ok' ? 'copiado' : copiadoCual === 'todo' && copiado === 'error' ? 'no se pudo' : 'todo' }}
-          </button>
-        </div>
-
-        <p class="nota">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
+        <template #acciones>
+          <div class="toolbar" role="group" aria-label="Acciones del documento">
+            <span v-if="copiado" class="toolbar-note" role="status">{{ copiado === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
+            <button v-if="documentSections.length" class="region-action" title="Copiar para compartir (sin registro ni comandos)"
+                    aria-label="Copiar para compartir" @click="copiarCuerpo('compartir')">
+              <span class="ui-icon" :data-icon="copiado === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button>
+            <RegionMenu title="Opciones del documento" :items="documentMenu" @select="documentAction" />
+          </div>
+        </template>
 
         <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
              convertir el índice de retoma en una lista cronológica. -->
@@ -1708,7 +1725,7 @@ onMounted(async () => {
                ADENTRO de un `<h2>`, o sea dos elementos para una sola cosa. -->
           <button type="button" class="region-head grupo section-toggle" :aria-expanded="journeyOpen"
                   aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
-            <span class="gh"><span class="chev" aria-hidden="true">{{ journeyOpen ? '⌄' : '›' }}</span> Mi jornada
+            <span class="gh"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span> Mi jornada
               <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span></span>
           </button>
           <div id="journey-content" v-show="journeyOpen">
@@ -1847,28 +1864,28 @@ onMounted(async () => {
          ⚠ Es REDIMENSIONABLE a propósito, y no es un lujo: «Ramas» es una tabla (repo · rama · PR ·
          ambientes) y «Bitácora» otra. En 340px degradan a scroll horizontal; arrastrando el borde
          se leen. Por eso el ancho se guarda. -->
-    <aside v-if="active && verAux" class="auxiliarybar">
-      <div class="rsz rsz-aux" role="separator" aria-orientation="vertical"
-           aria-label="Ancho del detalle" title="Arrastrar para ajustar"
-           @pointerdown.prevent="arrastrar($event, '--auxiliarybar-w', -1, 'aux-w')"></div>
+    <aside id="task-detail" v-if="active && verAux" class="auxiliarybar" aria-label="Detalle de la tarea">
+      <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <section class="view" :class="{ abierta: abiertaAux('detalle') }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="abiertaAux('detalle')"
                   @click="alternarAux('detalle')">
-            <span class="chev" aria-hidden="true">{{ abiertaAux('detalle') ? '⌄' : '›' }}</span>
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>Detalle</span>
           </button>
           <!-- LA BARRA DE LA VISTA. ⚠ Va acá y no en el encabezado del editor por dos razones:
                mover de estado es actuar sobre lo que ESTA vista muestra (el estado está tres
                renglones más abajo), y el encabezado de una vista plegada SIGUE VIÉNDOSE — o sea
                los botones quedan a mano aunque el Detalle esté cerrado. -->
-          <div class="region-actions">
-              <a v-if="site && !active._local" class="key link" :href="jiraLink(active.Key)" target="_blank"
-                 rel="noopener" :title="`Abrir ${active.Key} en Jira`">Jira <span class="ext">↗</span></a>
-              <button v-if="!active._local" class="btn btn-outline btn-xs tact move-task" :class="{ act: mover?.key === active.Key }"
+          <div class="region-actions toolbar">
+              <a v-if="site && !active._local" class="region-action" aria-label="Abrir tarea en Jira" :href="jiraLink(active.Key)" target="_blank"
+                 rel="noopener" :title="`Abrir ${active.Key} en Jira`"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a>
+              <button v-if="!active._local" class="region-action move-task" :aria-pressed="mover?.key === active.Key"
+                :title="moverBusy ? 'Consultando transiciones…' : 'Mover tarea de estado'" aria-label="Mover tarea de estado"
                 :disabled="moverBusy || qa?.key === active.Key" @click="alternarAux('detalle', true); abrirMover(active)">
-                {{ moverBusy ? 'Consultando Jira…' : '⇢ Mover' }}
+                <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
               </button>
+              <RegionMenu title="Opciones del detalle" :items="detailMenu" @select="detailAction" />
           </div>
         </div>
         <div v-if="abiertaAux('detalle')" class="region-body aux-ficha">
@@ -1964,7 +1981,7 @@ onMounted(async () => {
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="abiertaAux(v.id)"
                   @click="alternarAux(v.id)">
-            <span class="chev" aria-hidden="true">{{ abiertaAux(v.id) ? '⌄' : '›' }}</span>
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>{{ v.label }}</span>
           </button>
           <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
@@ -2157,6 +2174,19 @@ onMounted(async () => {
         : `quedan ${sprintDays.remaining} d · ${sprintDays.pct}% consumido` }}</span>
       <span v-if="!cargandoAncha">{{ visibles }} tarea{{ visibles === 1 ? '' : 's' }} a la vista</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
+    <div class="layout-controls" role="group" aria-label="Disposición del tablero">
+        <button type="button" class="region-action" :aria-pressed="verSidebar" aria-controls="tasks-sidebar"
+                aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="verSidebar = !verSidebar">
+          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button ref="detailToggle" type="button" class="region-action" :aria-pressed="verAux && !!active" :disabled="!active"
+                aria-label="Mostrar u ocultar el detalle" title="Mostrar u ocultar el detalle" @click="verAux = !verAux">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
+          <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
+        </button>
+      </div>
     </footer>
   </div>
 </template>
@@ -2181,8 +2211,8 @@ onMounted(async () => {
 /* ⚠ Lo seleccionado se marca con una BARRA a la izquierda además del fondo: sólo con fondo, en una
    lista de 40 filas grises, hay que comparar contra la vecina para saber cuál está activa. */
 .tree-row.sel { background: var(--sel); border-left-color: var(--acc) }
-.tree-row.done { opacity: .5 }
-.tree-row.done.sel, .tree-row.done:hover { opacity: 1 }
+.tree-row.done { color: var(--texto-3) }
+.tree-row.done.sel, .tree-row.done:hover { color: var(--txt) }
 .tr-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--mut) }
 .tr-dot.e-ok { background: var(--ok) } .tr-dot.e-doing { background: var(--acc) }
 .tr-key { font: 10.5px var(--font-mono); color: var(--mut); flex: none }
@@ -2221,8 +2251,6 @@ onMounted(async () => {
 .aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
 /* En una barra de región los botones son CHICOS: compiten con el título de la vista, no con el
    contenido. El `⇢ Mover` que venía del encabezado del editor traía tamaño de botón de formulario. */
-.auxiliarybar .region-actions :deep(.tact),
-.auxiliarybar .region-actions :deep(.key.link) { padding: 2px 7px; font-size: 11px; border-radius: var(--radius) }
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
    `taller.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
@@ -2439,11 +2467,6 @@ onMounted(async () => {
 .desc.none { color: var(--mut); font-style: italic }
 /* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
    dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
-.drawer-cps { display: flex; gap: 6px; margin-bottom: 16px }
-.drawer-cp { height: 24px; font-size: 11.5px; color: var(--mut) }
-.drawer-cp:hover { color: var(--txt); border-color: var(--mut) }
-.drawer-cp.ok { color: var(--ok); border-color: currentColor }
-.drawer-cp.error { color: var(--bad); border-color: currentColor }
 /* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 9px;

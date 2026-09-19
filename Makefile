@@ -174,7 +174,17 @@ trazador-diag: ## @dia el diagnóstico FINO de una traza: qué se puede AFIRMAR 
 trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus y sin tocar nada: coherencia interna, el vocabulario de ramales que comparte con el harness y, con TARGET, las tablas declaradas. [TARGET=local|dev]
 	@cd trazador/server && go run . -chequeo $(if $(TARGET),-target $(TARGET))
 
+estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las cuatro UIs encendidas; Jira usa datos de prueba
+	@node tools/ui-check.mjs
+
+estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
+	@python3 -m http.server 5198 --bind 127.0.0.1 --directory tools/ui
+
+estilo-sync: ## @dia distribuye tools/ui a las cuatro herramientas
+	@python3 tools/ui-sync.py
+
 estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `tema.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
+	@python3 tools/ui-sync.py --check
 	@python3 tools/estilo.py
 
 estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta>

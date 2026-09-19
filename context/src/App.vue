@@ -1,6 +1,31 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { vResize, readSize, saveSize } from './workbench.js'
 import tree from '../tree.json'
+import RegionMenu from './RegionMenu.vue'
+
+// Disposición local: el árbol conserva su ancho y siempre puede reabrirse desde el pie.
+const treeWidth = ref(readSize('context.sidebar', 300))
+const explorerToggle = ref(null)
+const viewportWidth = ref(window.innerWidth)
+const maxTreeWidth = computed(() => Math.max(160, Math.min(560, viewportWidth.value - 280)))
+const visibleTreeWidth = computed(() => treeWidth.value ? Math.min(treeWidth.value, maxTreeWidth.value) : 0)
+const treeResize = computed(() => ({
+  label: 'Ancho del explorador', min: 200, max: maxTreeWidth.value,
+  defaultValue: 300, collapsible: true,
+  get: () => visibleTreeWidth.value,
+  set: (v) => { treeWidth.value = v },
+  commit: (v) => saveSize('context.sidebar', v),
+}))
+function toggleTree() {
+  treeWidth.value = treeWidth.value ? 0 : Math.min(300, maxTreeWidth.value)
+  saveSize('context.sidebar', treeWidth.value)
+}
+function resetLayout() { treeWidth.value = 300; saveSize('context.sidebar', 300) }
+const resizeWindow = () => { viewportWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', resizeWindow))
+onUnmounted(() => window.removeEventListener('resize', resizeWindow))
+
 
 // ── Data: estructura del árbol (tree.json) + contenido por nodo (map.json/doc.md) ──
 // Sin backend: todo se importa del repo. Editar tree.json (o agregar un flows/<id>/)
@@ -322,22 +347,43 @@ function md(src) {
   closeList(); closeTbl(); return o.join('\n')
 }
 const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
+
+const explorerMenu = computed(() => [
+  { id: 'vecinas', label: 'Incluir nodos vecinos', checked: conVecinas.value, disabled: !busqueda.value },
+  { id: 'menciones', label: 'Incluir menciones en el documento', checked: verMenciones.value,
+    disabled: !busqueda.value || (!busqueda.value.menciones && !verMenciones.value) },
+  { id: 'limpiar', label: 'Limpiar búsqueda', icon: 'close', disabled: !q.value },
+  { separador: true },
+  { id: 'ocultar', label: 'Ocultar explorador', icon: 'sidebar' },
+  { id: 'restablecer', label: 'Restablecer disposición', icon: 'reset' },
+])
+function explorerAction(id) {
+  if (id === 'vecinas') alternarVecinas()
+  if (id === 'menciones') alternarMenciones()
+  if (id === 'limpiar') q.value = ''
+  if (id === 'ocultar') { toggleTree(); explorerToggle.value?.focus() }
+  if (id === 'restablecer') resetLayout()
+}
+
 </script>
 
 <template>
   <div class="wrap">
 
     <div class="cols">
-      <aside class="tree sidebar">
+      <aside id="context-sidebar" class="tree sidebar" v-show="visibleTreeWidth" :style="{ flexBasis: visibleTreeWidth + 'px' }" aria-label="Explorador de contexto">
         <!-- ⚠ El encabezado sale del scroll. Medido: el árbol tiene 1215px de contenido en 675 de
              alto, y «Contextos» se iba a −291px — recorrías la mitad del árbol sin saber si seguías
              en contextos o ya estabas en tasks. -->
         <div class="region-head">
-          <span>context</span>
+          <span>Explorador</span>
           <span class="badge badge-secondary badge-xs cnt">{{ rows.length }}</span>
-          <div class="region-actions">
+          <div class="region-actions toolbar" role="group" aria-label="Acciones del explorador">
             <button type="button" class="region-action" :title="todoPlegado ? 'Desplegar todo' : 'Plegar todo'"
-                    @click="plegarTodo">⊟</button>
+                    :aria-label="todoPlegado ? 'Desplegar todo' : 'Plegar todo'"
+                    @click="plegarTodo"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
+            <RegionMenu title="Opciones del explorador" :items="explorerMenu"
+                        :active="!!busqueda && (!conVecinas || verMenciones)" @select="explorerAction" />
           </div>
         </div>
 
@@ -345,24 +391,15 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              la ventana, encima de las DOS columnas: el detalle pagaba 47px de alto por una caja que
              sólo filtra el árbol. Acá arriba de lo que filtra, y el detalle se los queda. -->
         <div class="buscar">
-          <input v-model="q" class="input input-sm" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
+          <label class="input-group search-field">
+          <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+          <input v-model="q" aria-label="Buscar en el contexto" class="input input-sm" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
                  title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
-          <!-- Las perillas aparecen cuando hay algo escrito, que es cuando significan algo. Y van a la
-               VISTA y no a un menú ⋯: cambian QUÉ filas se listan, y un filtro escondido se olvida
-               encendido — después lo que falta se lee como «no existe». -->
+          </label>
+          <!-- Los filtros viven en el menú; el conteo y las menciones activas siguen visibles. -->
           <div v-if="busqueda" class="buscar-sub">
-            <button class="badge vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
-                    :title="conVecinas
-                      ? 'Se muestran también los nodos con los que se une (padre, hijo, task y archivo compartido). Clic para ver sólo lo encontrado.'
-                      : 'Sólo lo encontrado. Clic para traer los nodos vecinos.'">+ vecinas</button>
-            <button v-if="busqueda.menciones" class="badge vec-chip off" @click="alternarMenciones"
-                    title="Nodos que lo nombran en la prosa sin declararlo. No son la respuesta, pero a veces es lo que buscás.">
-              + {{ busqueda.menciones }} que lo mencionan
-            </button>
-            <button v-if="verMenciones" class="badge vec-chip" @click="alternarMenciones"
-                    title="Volver a los nodos que lo declaran (nombre, síntoma o archivo).">menciones incluidas</button>
             <span class="cuenta">
-              {{ busqueda.pega.size }} resultado(s)<template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
+              {{ busqueda.pega.size }} resultado(s)<template v-if="verMenciones"> · menciones incluidas</template><template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
               <!-- la nota del modo mención sólo tiene sentido si HAY algo; con cero decía las dos cosas -->
               <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
             </span>
@@ -376,11 +413,14 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              class="row" :class="[claseDe(r.id), { sel: sel === r.id, hl: highlighted.has(r.id) }]"
              :title="motivoDe(r.id)"
              :style="{ paddingLeft: (8 + r.depth * 18) + 'px' }" @click="select(r.id)">
-          <span class="tog" @click.stop="r.hasKids && toggle(r.id)">{{ r.hasKids ? (collapsed.has(r.id) ? '▸' : '▾') : '·' }}</span>
+          <button v-if="r.hasKids" type="button" class="tog tree-toggle" :aria-expanded="!collapsed.has(r.id)"
+                :aria-label="(collapsed.has(r.id) ? 'Desplegar ' : 'Plegar ') + nameOf(r.id)"
+                @keydown.stop @click.stop="toggle(r.id)"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span></button>
+          <span v-else class="tog" aria-hidden="true"></span>
           <!-- el relleno ES el estado de salud (ver estadoOf) -->
           <span class="dot" :class="kindOf(r.id)" :data-alin="estadoOf(r.id)"
                 :title="ETIQ[estadoOf(r.id)] || ''"></span>
-          <span class="nm">{{ nameOf(r.id) }}</span>
+          <button class="nm tree-select" type="button" :aria-pressed="sel === r.id" @click.stop="select(r.id)">{{ nameOf(r.id) }}</button>
           <!-- El badge dice por qué algo ES resultado. En una vecina engaña: una vecina que además
                menciona la palabra se leía como resultado (pasó con `doc` en tres filas). -->
           <span class="badge badge-xs pega" v-if="busqueda && busqueda.pega.has(r.id)">{{ busqueda.donde[r.id].join('·') }}</span>
@@ -408,6 +448,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         </div>
         </div>
       </aside>
+      <div class="rsz context-resizer" v-resize="treeResize"></div>
 
       <main class="detail editor" v-if="byId[sel]">
         <!-- LA BARRA DEL DETALLE · era un encabezado de 18px DENTRO del scroll, o sea que a las tres
@@ -529,6 +570,15 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
       </span>
       <span class="sb-ro"
             title="La estructura vive en tree.json; para agregar una task, un LLM edita ese JSON (+ flows/&lt;id&gt;/) y esto se actualiza.">sólo lectura</span>
+      <div class="layout-controls" role="group" aria-label="Disposición del contexto">
+        <button ref="explorerToggle" type="button" class="region-action" :aria-pressed="!!visibleTreeWidth" aria-controls="context-sidebar"
+                aria-label="Mostrar u ocultar el explorador" title="Mostrar u ocultar el explorador" @click="toggleTree">
+          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
+          <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
+        </button>
+      </div>
     </footer>
   </div>
 </template>

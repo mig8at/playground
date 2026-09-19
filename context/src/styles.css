@@ -133,15 +133,12 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
    forma, no sólo con el color. */
 /* Sobre `.badge`: encendida es RELLENO teñido de `--info`, apagada es contorno. La pareja
    default/outline del sistema, con el color que acá significa «interactivo». */
-.vec-chip { background: color-mix(in oklab, var(--info) 22%, var(--card)); color: var(--info);
-            padding: 3px 11px; font-size: 11.5px; cursor: pointer; }
-.vec-chip.off { background: transparent; border-color: var(--line); color: var(--mut); }
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
 
 .row.res { background: color-mix(in oklab, var(--ctx) 18%, var(--card)); box-shadow: inset 0 0 0 1px var(--ctx); }
-.row.vec { opacity: .72; }
-.row.ruta { opacity: .38; }
+.row.vec { color: var(--texto-2); }
+.row.ruta { color: var(--texto-3); }
 /* Sobre `.badge.badge-xs`: el porqué de que una fila sea resultado. */
 .pega { color: var(--ctx); background: color-mix(in oklab, var(--ctx) 20%, var(--card)); }
 
@@ -172,7 +169,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
    de leerse como una barra. */
 .tree .region-body { padding: 8px; }
 /* El encabezado del árbol va a ras del borde redondeado de la tarjeta. */
-.tree .region-head:not(.grupo) { padding: 7px 10px; }
+.tree .region-head:not(.grupo) { padding: var(--space-2) var(--space-3); }
 .tree .region-head .cnt { font-size: 10.5px; font-weight: 700; color: var(--mut); flex: none; }
 /* Los dos grupos —Contextos y Tasks— se pegan arriba mientras recorrés el suyo. Sin borde: con uno,
    dos grupos dibujan dos rayas y el árbol se lee como una tabla. */
@@ -288,3 +285,16 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .alin-commit { margin: 2px 0; }
 .alin-autor { display: inline-block; min-width: 118px; color: var(--mut); }
 .alin-cmd { margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line); }
+
+.context-resizer { position: relative; flex: 0 0 var(--rsz); margin-left: calc(-1 * var(--rsz)); }
+.context-resizer::before { left: -3px; right: -3px; }
+.search-field { height: var(--control-sm); }
+.tree-toggle { display: grid; place-items: center; border: 0; background: none; padding: 0; cursor: pointer; }
+.tree-toggle .ui-icon { width: 12px; height: 12px; }
+@media (max-width: 680px) {
+  .detail .region-body { padding: var(--space-3); }
+  .statusbar .sb-alin, .statusbar .sb-ro { display: none; }
+  .detail .region-head { flex-wrap: wrap; }
+}
+
+.tree-select { border: 0; background: none; padding: 0; text-align: left; font: inherit; color: inherit; cursor: pointer; }

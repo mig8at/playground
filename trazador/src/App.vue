@@ -1,5 +1,6 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { vResize, readSize, saveSize } from './workbench.js'
 import { useTrazador } from './stores/trazador'
 import { trazaATexto } from './trazaTexto'
 import Buscador from './components/Buscador.vue'
@@ -46,34 +47,27 @@ const hayColumna = computed(() => Boolean(
  * capa, el mapa queda quieto: se recalcula UNA vez, al abrir o cerrar.
  */
 const SIDEBAR_BASE = 380
-const leerAncho = () => { try { const v = Number(localStorage.getItem('trazador.sidebar')); return Number.isFinite(v) && v >= 0 ? v : SIDEBAR_BASE } catch { return SIDEBAR_BASE } }
-const anchoSidebar = ref(leerAncho())
-// ⚠ Con try/catch: en una ventana privada o con las cookies bloqueadas el acceso a localStorage TIRA, y
-// un layout que no arranca por no poder leer una preferencia es peor que uno que arranca con el default.
-watch(anchoSidebar, (v) => { try { localStorage.setItem('trazador.sidebar', String(Math.round(v))) } catch { /* sin storage */ } })
-
-/** Cerrado = 0. Es lo único que cambia el ancho del mapa, así que el mapa se entera de ESTO y no del
- *  ancho: ver `SIDEBAR_BASE` arriba. */
-const cerrado = computed(() => anchoSidebar.value < 1)
-
-const redimensionando = ref(false)
-function tomarTirador() {
-  redimensionando.value = true
-  const mover = (e) => {
-    // Se mide desde el BORDE DERECHO de la ventana, no como delta: así el tirador queda pegado al
-    // cursor aunque el puntero se salga del elemento o se mueva más rápido que el render.
-    const w = window.innerWidth - e.clientX
-    // ⚠ Arrastrarlo hasta el borde CIERRA, y hay un umbral en vez de exigir el cero exacto: un sidebar
-    // de 40px no sirve para nada y es imposible de agarrar de nuevo. Por debajo de la mitad de la base
-    // se colapsa entero y el mapa pasa a ocupar todo.
-    anchoSidebar.value = w < SIDEBAR_BASE / 2 ? 0 : Math.min(window.innerWidth - 220, Math.max(SIDEBAR_BASE, w))
-  }
-  const soltar = () => {
-    redimensionando.value = false
-    removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar)
-  }
-  addEventListener('pointermove', mover); addEventListener('pointerup', soltar)
-}
+const anchoSidebar = ref(readSize('trazador.sidebar', window.innerWidth < 900 ? 0 : SIDEBAR_BASE))
+const viewportWidth = ref(window.innerWidth)
+const verPersona = ref(readSize('trazador.persona', 1) !== 0)
+const logsToggle = ref(null)
+const personaToggle = ref(null)
+function hideLogs() { anchoSidebar.value = 0; logsToggle.value?.focus() }
+function hidePersona() { verPersona.value = false; personaToggle.value?.focus() }
+const maxSidebar = computed(() => Math.max(180, viewportWidth.value - (hayColumna.value && verPersona.value ? 300 : 0) - 220))
+const anchoVisible = computed(() => Math.min(anchoSidebar.value, maxSidebar.value))
+const cerrado = computed(() => anchoVisible.value < 1)
+watch(anchoSidebar, (v) => saveSize('trazador.sidebar', v))
+watch(verPersona, (v) => saveSize('trazador.persona', v ? 1 : 0))
+const detailResize = computed(() => ({
+  label: 'Ancho del panel de logs', sign: -1, min: 280,
+  max: maxSidebar.value, defaultValue: SIDEBAR_BASE, collapsible: true,
+  get: () => anchoVisible.value, set: (v) => { anchoSidebar.value = v },
+}))
+function resetLayout() { anchoSidebar.value = SIDEBAR_BASE; verPersona.value = true }
+const resizeWindow = () => { viewportWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', resizeWindow))
+onUnmounted(() => window.removeEventListener('resize', resizeWindow))
 
 const GLIFO = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
 const CLASE = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
@@ -102,7 +96,7 @@ async function copiar() {
 
 <template>
 
-  <div class="cols" :class="{ midiendo: redimensionando, cerrado }">
+  <div class="cols" :class="{ cerrado }" :style="{ '--detail-base': Math.min(SIDEBAR_BASE, maxSidebar) + 'px' }">
     <!-- LA PERSONA · el sidebar izquierdo. Acá vive todo lo que NO es el recorrido: qué solicitud
          estás mirando, de quién es, y qué más intentó esa persona.
 
@@ -120,10 +114,15 @@ async function copiar() {
 
          La columna aparece SÓLO cuando hay algo que decir: sin consultar, el mapa se queda con el
          ancho entero. Una columna vacía porque «está en la lista» es peor que no tenerla. -->
-    <aside v-if="hayColumna" class="sidebar">
+    <aside v-if="hayColumna" v-show="verPersona" class="sidebar" aria-label="Persona y solicitudes">
       <div class="region-head">
         <span>{{ t.traza ? 'Solicitud' : 'Buscando' }}</span>
-        <span v-if="t.traza" class="badge badge-outline badge-xs ureq-b">{{ t.traza.ureq }}</span>
+        <span v-if="t.traza" class="toolbar-note ureq-b">{{ t.traza.ureq }}</span>
+        <div class="region-actions toolbar">
+          <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePersona">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
       </div>
       <div class="region-body">
         <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner
@@ -185,13 +184,13 @@ async function copiar() {
       <div class="region-head">
         <span>Trazador</span>
         <Buscador />
-        <div class="region-actions">
+        <div class="region-actions toolbar">
           <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
                24×24, y el texto se le parte adentro — el primer intento quedó con «copi / traz» en
                dos renglones, tapado por el panel de logs. Lo que dice, lo dice el `title`. -->
-          <button v-if="t.traza" class="region-action copiar" :class="{ ok: copiado }" @click="copiar"
+          <button v-if="t.traza" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copiado }" @click="copiar"
                   :title="copiado ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
-            {{ copiado ? '✓' : '⧉' }}
+            <span class="ui-icon" :data-icon="copiado ? 'check' : 'copy'" aria-hidden="true"></span>
           </button>
         </div>
       </div>
@@ -200,15 +199,11 @@ async function copiar() {
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
          sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
-    <div class="tirador" role="separator" aria-orientation="vertical"
-         :aria-label="cerrado ? 'Abrir el panel de logs' : 'Ancho del panel de logs'"
-         :style="{ right: `${Math.round(anchoSidebar)}px` }"
-         :title="cerrado ? 'abrir los logs' : 'arrastrar para ensanchar · doble clic para cerrar'"
-         @pointerdown.prevent="tomarTirador"
-         @dblclick="anchoSidebar = cerrado ? SIDEBAR_BASE : 0" />
+    <div class="tirador rsz" v-resize="detailResize"
+         :style="{ right: `${Math.round(anchoVisible)}px` }" />
 
     <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
-    <Detalle v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoSidebar)}px` }" />
+    <Detalle @close="hideLogs" v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoVisible)}px` }" />
   </div>
 
   <!-- STATUSBAR · lo que vale para TODA la pantalla y nunca scrollea: contra qué ambiente estás
@@ -231,6 +226,19 @@ async function copiar() {
     <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
     <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
     <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
+    <div class="layout-controls" role="group" aria-label="Disposición del trazador">
+      <button ref="personaToggle" v-if="hayColumna" type="button" class="region-action" :aria-pressed="verPersona"
+              aria-label="Mostrar u ocultar la persona" title="Mostrar u ocultar la persona" @click="verPersona = !verPersona">
+        <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+      </button>
+      <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!cerrado" aria-label="Mostrar u ocultar los logs"
+              title="Mostrar u ocultar los logs" @click="anchoSidebar = cerrado ? SIDEBAR_BASE : 0">
+        <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="region-action" aria-label="Restablecer disposición" title="Restablecer disposición" @click="resetLayout">
+        <span class="ui-icon" data-icon="reset" aria-hidden="true"></span>
+      </button>
+    </div>
   </footer>
 
 </template>
@@ -258,7 +266,7 @@ async function copiar() {
    `overflow:visible` contra la regla compartida: el buscador suma renglones —«coincidió como…», los
    recientes— y una barra de una línea los recortaría. */
 .editor-mapa > .region-head { height:auto; overflow:visible; background:var(--card);
-  padding:10px 18px; gap:12px; flex-wrap:wrap; text-transform:none; letter-spacing:normal;
+  padding:var(--space-2) var(--space-3); gap:var(--space-2); flex-wrap:wrap; text-transform:none; letter-spacing:normal;
   font-size:14px }
 /* El nombre NO se queda con el espacio: lo quiere el buscador. (La regla compartida le da `flex:1`
    al primer hijo, que es lo correcto cuando el primer hijo es el título de una lista.) */
@@ -333,7 +341,7 @@ async function copiar() {
    y nada más —todo, o todo menos la base— y se recalcula al abrir o cerrar, no en cada píxel del
    arrastre. (Antes el reparto colgaba de `> :first-child`, que era el mapa; con la columna de la
    izquierda delante, ese selector pasaba a apuntarle a ELLA.) */
-.editor-mapa { flex:1 1 0; min-width:0; margin-right:380px }
+.editor-mapa { flex:1 1 0; min-width:0; margin-right:var(--detail-base, 380px) }
 .cols.cerrado .editor-mapa { margin-right:0 }
 
 /* En capa, pegado a la derecha y por encima del mapa, y un punto MÁS CLARO que él: es lo que lo hace
@@ -342,13 +350,12 @@ async function copiar() {
   background:var(--card); border-left:1px solid var(--line);
   overflow-y:auto; scrollbar-gutter:stable }
 
-.cols.midiendo { cursor:col-resize; user-select:none }
-/* El tirador va sobre el panel (z-index mayor) y con una zona de agarre más ancha que su línea: 5px de
-   línea se ven bien y se agarran mal. */
-.tirador { position:absolute; top:0; bottom:0; width:11px; margin-right:-3px; z-index:3;
-  cursor:col-resize; background:transparent; display:flex; justify-content:center }
-.tirador::before { content:''; width:5px; background:var(--line); transition:background .12s }
-.tirador:hover::before, .cols.midiendo .tirador::before { background:var(--info) }
+.tirador { position:absolute; top:0; bottom:0; width:var(--rsz); margin-right:-2px; z-index:3 }
+.tirador::before { left:-3px; right:-3px }
+@media (max-width: 760px) {
+  .statusbar .sb-pista { display: none }
+  .editor-mapa > .region-head { padding: var(--space-2); gap: var(--space-2) }
+}
 /* (Acá había un `@media (max-width:860px) { .cols { grid-template-columns:1fr } }`. Era cromo muerto:
    `.cols` no es un grid —el panel va EN CAPA y el mapa en flujo—, así que esa declaración no tenía a
    quién aplicarle. Se fue con el barrido de estilos viejos.) */

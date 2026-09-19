@@ -423,6 +423,7 @@ def repartir(origen=None):
                 if len(val.split(',')) < 3:
                     print(f'  ▲ {fam} = {val.strip()} — sin cadena del sistema. En macOS cae en Helvetica:')
                     print('     agregale `-apple-system, BlinkMacSystemFont, "Segoe UI", …` antes de la genérica.')
+    (RAIZ / 'tools/ui/tema.css').write_text(txt)
     for r in TEMAS:
         (RAIZ / r).write_text(txt)
     print(f'  ✓ repartido a las {len(TEMAS)} · md5 {hashlib.md5(txt.encode()).hexdigest()[:12]}')
