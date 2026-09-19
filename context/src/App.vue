@@ -318,20 +318,13 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
 
 <template>
   <div class="wrap">
-    <header>
+    <!-- TITLEBAR · el nombre y el buscador en una fila. Eran cuatro renglones apilados —título,
+         contadores, buscador y el aviso de sólo-lectura— que sumaban 157px antes del árbol.
+
+         ⚠ `height: auto` y `overflow: visible` contra la regla compartida: el buscador crece con
+         chips («+ vecinas», el contador de resultados) y en ventana angosta envuelve. -->
+    <header class="titlebar">
       <h1>context <span class="sub">· organización</span></h1>
-      <div class="stats">
-        <span class="pill ctx">{{ nContext }} contextos</span>
-        <span class="pill task">{{ nTask }} tasks</span>
-        <span class="pill">{{ nFiles }} archivos</span>
-        <span class="pill alin-pill" v-if="alin.generado" :data-alin="alin.resumen['rutas-muertas'] || alin.resumen['marca-ya-mergeada'] ? 'rutas-muertas' : (alin.resumen['deriva-alta'] ? 'deriva-alta' : (alin.resumen['deriva'] ? 'deriva' : 'al-dia'))"
-              :title="'Calculado por tools/alinear.py el ' + alin.generado + ' contra ' + alin.ref">
-          {{ alin.resumen['al-dia'] || 0 }} al día
-          <template v-if="alin.resumen['deriva'] || alin.resumen['deriva-alta']">
-            · {{ (alin.resumen['deriva'] || 0) + (alin.resumen['deriva-alta'] || 0) }} con deriva
-          </template>
-        </span>
-      </div>
       <div class="buscar">
         <input v-model="q" type="search" placeholder="Buscar nodo, síntoma, archivo o texto del doc…"
                title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md" />
@@ -352,7 +345,6 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
         </span>
       </div>
-      <p class="hint">Read-only. La estructura vive en <code>tree.json</code>; para agregar una task, un LLM edita ese JSON (+ <code>flows/&lt;id&gt;/</code>) y esto se actualiza.</p>
     </header>
 
     <div class="cols">
@@ -473,5 +465,27 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         <div class="doc" v-html="selDoc"></div>
       </main>
     </div>
+
+    <!-- STATUSBAR · el estado del ÁRBOL, que es lo que vale para toda la pantalla: cuántos nodos
+         hay, cuántos archivos cubren y cuántos quedaron viejos. Eran pastillas en una fila propia
+         del encabezado, y son estado, no navegación.
+
+         ⚠ El «read-only» era un párrafo permanente de 19px. Un aviso que está siempre se deja de
+           leer; acá es una palabra con el detalle en el `title`, que es donde se busca cuando hace
+           falta y no antes. -->
+    <footer class="statusbar">
+      <strong>{{ nContext }} contextos</strong>
+      <span v-if="nTask">{{ nTask }} tasks</span>
+      <span>{{ nFiles }} archivos</span>
+      <span v-if="alin.generado" class="sb-alin" :data-alin="alin.resumen['rutas-muertas'] ? 'rutas-muertas' : 'al-dia'"
+            :title="'Calculado por tools/alinear.py el ' + alin.generado + ' contra ' + alin.ref">
+        {{ alin.resumen['al-dia'] || 0 }} al día
+        <template v-if="alin.resumen['deriva'] || alin.resumen['deriva-alta']">
+          · {{ (alin.resumen['deriva'] || 0) + (alin.resumen['deriva-alta'] || 0) }} con deriva
+        </template>
+      </span>
+      <span class="sb-ro"
+            title="La estructura vive en tree.json; para agregar una task, un LLM edita ese JSON (+ flows/&lt;id&gt;/) y esto se actualiza.">sólo lectura</span>
+    </footer>
   </div>
 </template>
