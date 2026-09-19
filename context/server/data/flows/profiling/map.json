@@ -40,6 +40,7 @@
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderSpecialGrantingService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/ProfilingRulesService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
+    "legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
     "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
     "legacy-backend/app/Models/LenderPaymentCapacityScoringPolicy.php",
     "legacy-backend/app/Models/LenderUserCategoryScoringPolicyRule.php",

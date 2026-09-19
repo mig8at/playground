@@ -25,6 +25,19 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
 - **Los INSUMOS de la categoría los calcula la BD, no PHP.** El ingreso promedio y la ocupación —dos de las cuatro variables de las reglas— salen de `FN_User_Income_Average` y `FN_User_Occupation`, funciones almacenadas de MySQL invocadas con `DB::scalar` desde `ExperianProfileService.php:42` y `Modules/Onboarding/App/Services/ExperianProfileService.php:46` (y su gemelo `Prami.php:378` · `app/Actions/Lenders/Prami.php:384`). El porcentaje de gasto fijo, igual: `FN_CreditopX_Profiling_Fixed_Expense_Perc` (`Modules/Onboarding/App/Services/ExperianProfileService.php:102`). ⚠ Grepear el nombre del campo en el código NO llega a la fórmula: se invocan como string. Y **cambiarlas no deja rastro en ningún repo** — un perfilamiento que cambió sin deploy se explica ahí. Nodo **db-routines**.
 - **Parallel-run**: la lógica corre en `application` (default) y `legacy-backend` (migración). Las líneas citadas son de **legacy** (donde el análisis fuente verificó); el gemelo application tiene la misma mecánica en otras líneas.
 - **El ORDEN del listado lo decide una cadena de DOS perfiladores, y el primero está apagado por configuración.** `ProfilerMLController::mlModelV1` tiene la estrategia cableada como `new_then_legacy`: primario `NewProfilerMLService`, respaldo el modelo H2O de siempre (`makePrediction`, `->timeout(15)`). Pero `NewProfilerMLService` sale por una guarda `if ($host === '')` cuando falta `NEW_PROFILER_ML_HOST`, que en prod **no está puesta** — así que el primario falla en el 100 % de las solicitudes y la huella queda en `ML_predictions.previous_attempt`. Y el respaldo H2O también se cae: **timeoutea a los 15 s** contra `profiler.inertia-production:8000` (medido 2026-08-06: 4 timeouts en una sola solicitud, uReq 521997 — un listado lento no es «ML apagado», son 15 s de espera por intento). ⚠ Por eso `fallback_triggered: true` **no** significa «lo ordenaron las matrices»: significa que respondió el perfilador viejo, que sigue siendo un modelo (F-104).
+- ✅ **Y hasta el 2026-09-18 el listado corría el perfilador DOS VECES, lo que duplicaba esos timeouts.**
+  Quien guarda el snapshot no recibía el perfilamiento que el listado acababa de calcular: llegaba en
+  `null` y **volvía a correr el perfilador entero**, con su propia llamada y su propio timeout
+  (`legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php:165`). O
+  sea que los «4 timeouts en una sola solicitud» de arriba son **dos ejecuciones completas de la
+  cadena**, no una que reintentó. Medido el 2026-09-11 contra dev por el otro lado: el listado tardaba
+  **32 s** y el mismo endpoint saltándoselo contestaba en **1,2 s** — ~30 de esos 32 segundos nacían
+  ahí. Hoy se le pasa el ya calculado, y si alguna vía vuelve a llamarlo queda una línea de aviso
+  explícita (`:174`, nivel `warning`).
+  ⚠ **La consecuencia que sobrevive en los datos: el snapshot anterior a esa fecha NO es el
+  perfilamiento que vio el cliente**, es el de una segunda corrida independiente. Dos corridas de la
+  misma cadena no tienen por qué coincidir, así que una `ML_predictions` vieja puede discrepar de
+  `displayed_lenders` sin que nadie haya tocado nada.
 - **`ML_predictions` tiene TRES formas porque la escriben DOS sistemas.** `legacy-backend` guarda un ARRAY (una entrada por entidad, con `perfilador`) o un OBJETO con `error` cuando ninguno respondió; `legacy-application` guarda la respuesta CRUDA de H2O (`{data,status,message}`) **sin transformar y sin `perfilador`** — por eso esas filas no pueden decir quién ordenó. Leer una sola forma hace que justo el caso que interesa se lea como «sin datos».
 
 ## Contenido
