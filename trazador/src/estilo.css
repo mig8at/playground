@@ -119,9 +119,11 @@ code, kbd, pre, samp { font-family: var(--font-mono) }
 .ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
 .ico.big{flex:0 0 26px; height:26px; font-size:15px}
 
-/* (`.badge` se fue a `taller.css`: es el mismo de las cuatro. Acá se usa como `badge badge-outline`
-   y el color lo pone la clase de estado —`ok`/`fail`/`warn`/`skip`— sobre `currentColor`.) */
-.badge.badge-outline { border-color:currentColor }
+/* (`.badge` se fue a `taller.css`: es el mismo de las cuatro.)
+   ⚠ El aro en `currentColor` es SÓLO para la píldora del desenlace, donde el color ES el dato —verde
+   aprobado, rojo roto—. Puesto sobre `.badge-outline` a secas se lo llevaban también los chips de
+   recientes, que quedaban con un aro casi blanco pidiendo una atención que no les corresponde. */
+.statusbar .badge.badge-outline { border-color:currentColor }
 .src { font-size:10px; color:var(--dim); border:1px solid var(--line); border-radius:var(--r-sm); padding:0 5px;
   white-space:nowrap }
 .dim { color:var(--dim) }

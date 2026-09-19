@@ -353,10 +353,17 @@ const apagados = computed(() => {
           </div>
         </div>
       </section>
-      <p class="regla dim">
-        Todavía no consultaste nada: esto es el árbol <b>declarado</b>. Buscá una cédula, un teléfono o un
-        número de solicitud y las etapas se van a encender con lo que la corrida confirme.
-      </p>
+      <!-- ESTE es el estado vacío que de verdad ocurre —el del mapa no, porque las etapas salen del
+           árbol declarado y nunca vienen en cero—. Con la anatomía de `.empty`: medio, título y qué
+           hacer, en vez de un párrafo tenue metido entre las secciones. -->
+      <div class="empty">
+        <div class="empty-head">
+          <div class="empty-media">⌕</div>
+          <p class="empty-title">Todavía no consultaste nada</p>
+          <p class="empty-desc">Esto es el árbol <b>declarado</b>. Buscá una cédula, un teléfono o un número
+            de solicitud y las etapas se encienden con lo que la corrida confirme.</p>
+        </div>
+      </div>
     </template>
     </div>
   </main>
