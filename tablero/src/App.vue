@@ -9,7 +9,7 @@
 // Por eso el campo de nota tiene un GUARD que BLOQUEA el botón, en vez de solo advertir.
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import RegionMenu from './RegionMenu.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
@@ -912,47 +912,75 @@ const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'
 // arrastrando en una ventana de 927px — con la ficha en 463 el editor quedaba en 164px, o sea el
 // documento en una columna de veinte caracteres. El máximo se calcula contra la ventana y el ancho
 // de la OTRA columna, así que el editor nunca baja de `MIN_EDITOR`.
+/* ── EL ANCHO DE LOS DOS SIDEBARS ────────────────────────────────────────────────────────────────
+ * ⚠ El ancho PREFERIDO y el APLICADO son dos cosas distintas, y confundirlos era el bug: si para que
+ * entre achico la variable CSS, la próxima vez que la ventana crezca la columna se queda chica — tu
+ * elección se perdió sin que la cambiaras. `preferido` es lo que vos elegiste (y lo que se guarda);
+ * lo que se pinta es `min(preferido, lo que hay)`.
+ *
+ * Y el reparto tiene orden: cuando no entra, se achica primero el AUXILIARYBAR —es el accesorio— y
+ * sólo si aún no alcanza se toca el de las tareas, que es por donde se navega. */
 const MIN_EDITOR = 320;
 const ANCHOS = {
-  '--sidebar-w': ['sidebar-w', 200, 520, '--auxiliarybar-w'],
-  '--auxiliarybar-w': ['aux-w', 260, 760, '--sidebar-w'],
+  '--sidebar-w': ['sidebar-w', 200, 520],
+  '--auxiliarybar-w': ['aux-w', 260, 760],
 };
+const preferido = {
+  '--sidebar-w': readPreference('sidebar-w', 0) || 300,
+  '--auxiliarybar-w': readPreference('aux-w', 0) || 340,
+};
+
+function aplicarAnchos() {
+  const wb = document.querySelector('.workbench');
+  // ⚠ Sin layout no hay nada que repartir, y repartir cero colapsa las dos columnas a su mínimo y las
+  // deja ahí. Pasa de verdad: una pestaña oculta, una página restaurada de la caché de atrás/adelante
+  // o una vista de impresión informan `innerWidth: 0`. El `resize` vuelve a llamar cuando haya.
+  if (!wb || !window.innerWidth) return;
+  const hayAux = !!document.querySelector('.auxiliarybar');
+  let sb = Math.min(ANCHOS['--sidebar-w'][2], preferido['--sidebar-w']);
+  let aux = hayAux ? Math.min(ANCHOS['--auxiliarybar-w'][2], preferido['--auxiliarybar-w']) : 0;
+  let falta = sb + aux + MIN_EDITOR - window.innerWidth;
+  if (falta > 0 && hayAux) {
+    const recorte = Math.min(falta, aux - ANCHOS['--auxiliarybar-w'][1]);
+    if (recorte > 0) { aux -= recorte; falta -= recorte; }
+  }
+  if (falta > 0) sb = Math.max(ANCHOS['--sidebar-w'][1], sb - falta);
+  wb.style.setProperty('--sidebar-w', sb + 'px');
+  wb.style.setProperty('--auxiliarybar-w', aux + 'px');
+}
+
 function arrastrar(e, varCss, signo) {
   if (e.button !== 0) return;
   const wb = e.currentTarget.closest('.workbench');
-  const [llave, min, tope, otra] = ANCHOS[varCss];
-  const cs = getComputedStyle(wb);
-  const inicial = parseFloat(cs.getPropertyValue(varCss));
-  const anchoOtra = document.querySelector(otra === '--sidebar-w' ? '.sidebar' : '.auxiliarybar')
-    ?.getBoundingClientRect().width || 0;
+  const [llave, min, tope] = ANCHOS[varCss];
+  const otra = varCss === '--sidebar-w' ? '.auxiliarybar' : '.sidebar';
+  const inicial = parseFloat(getComputedStyle(wb).getPropertyValue(varCss));
+  const anchoOtra = document.querySelector(otra)?.getBoundingClientRect().width || 0;
   const max = Math.max(min, Math.min(tope, window.innerWidth - anchoOtra - MIN_EDITOR));
   const x0 = e.clientX;
   const mover = (ev) => {
     const n = Math.max(min, Math.min(max, inicial + signo * (ev.clientX - x0)));
     wb.style.setProperty(varCss, n + 'px');
+    preferido[varCss] = n;   // arrastrar SÍ cambia lo preferido; acomodar no
   };
   const soltar = () => {
     window.removeEventListener('pointermove', mover);
     window.removeEventListener('pointerup', soltar);
     window.removeEventListener('pointercancel', soltar);
     document.body.classList.remove('redimensionando');
-    savePreference(llave, parseFloat(wb.style.getPropertyValue(varCss)));
+    savePreference(llave, preferido[varCss]);
   };
   document.body.classList.add('redimensionando');
   window.addEventListener('pointermove', mover);
   window.addEventListener('pointerup', soltar);
   window.addEventListener('pointercancel', soltar);
 }
-// al arrancar, los anchos guardados
-onMounted(() => {
-  const wb = document.querySelector('.workbench');
-  for (const [varCss, [llave, min, tope]] of Object.entries(ANCHOS)) {
-    const v = readPreference(llave, 0);
-    // ⚠ Se re-acota al abrir: la ventana pudo achicarse desde la última vez, y restaurar un ancho
-    // guardado en una pantalla grande dejaría el editor en nada sin que nadie haya arrastrado nada.
-    if (v) wb?.style.setProperty(varCss, Math.max(min, Math.min(tope, v)) + 'px');
-  }
-});
+
+// Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
+// que es cuando cambia cuánto hay para repartir.
+onMounted(() => { aplicarAnchos(); window.addEventListener('resize', aplicarAnchos); });
+onUnmounted(() => window.removeEventListener('resize', aplicarAnchos));
+watch([() => !!active.value, verAux], () => nextTick(aplicarAnchos));
 watch(verAux, (v) => savePreference('aux-visible', v));
 const pestanasAbiertas = computed(() =>
   pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
