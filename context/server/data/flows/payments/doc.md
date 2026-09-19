@@ -72,6 +72,19 @@ de los pagos nuevos sigue llegando en `NULL`**, no por el histórico. Los valore
 impide que mañana aparezca un tercer valor escrito distinto. Y las dos migraciones que lo agregan viven
 **sólo en `legacy-application`**, no en `legacy-backend` (ver `architecture`).
 
+## Nequi: el cobro desde la pantalla de entidades, y lo que dejó a medias
+
+Desde el 2026-08-14 el wizard puede cobrar por **Nequi** desde la pantalla de entidades. Cuatro cosas del mecanismo, y dos deudas.
+
+- ⚠ **La entidad de Nequi se reconoce por un id QUEMADO en el front:** `NEQUI_LENDER_ID = 192` (`frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:32`). La deuda quedó anotada por quien la escribió: **el arreglo correcto es que el backend emita una señal en el payload de `lenders-v2`**, no que el front sepa el número.
+- **Lo que pasaba antes de interceptar la selección** dice mucho de cómo fallan estas pantallas: el caso caía en una rama **no manejada**, así que le mostraba un error al asesor **aunque la selección sí se había guardado**, y disparaba una excepción a PostHog **en cada clic**. El espejo en analítica se extrajo a un archivo hermano para poder probarlo — sin él, **cada cobro exitoso se reportaba como caso no manejado**.
+- **El circuito:** el intento se crea en el action y **si el cobro nace terminal el asesor no navega**: se queda en el marketplace con el motivo. El loader consulta estado y hace polling con **cadencia fija**, con las reglas de parada extraídas como función pura, y una política de errores que **reintenta el polling pero NUNCA el cobro**. La ruta de pago está declarada en **los dos árboles** de `routes.ts` con su helper en `ROUTE_PATHS` — que es la forma correcta, porque una ruta declarada en un solo árbol no da 404: React Router la matchea en el vecino.
+- **Los `error_code` son una unión de literales en Zod** derivada del contrato, para que el compilador atrape una desincronización; y el **motivo real del backend** llega al asesor en lugar del copy genérico, por un campo opcional **cuya presencia indica que el error ya viene traducido**. Los dos mecanismos son genéricos, no un caso especial de Nequi.
+
+**Y de ahí salió una perilla que sirve para cualquier entidad:** `additional_data.action_text` (`frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts:62-65`) **pisa el copy del CTA** de la tarjeta si llega con contenido; ausente o vacío deja el comportamiento por defecto. Es configuración desde la base, sin desplegar.
+
+⚠ **Cuánto se usa y cuánto falla, medido en prod el 2026-09-18** sobre las últimas 200.000 filas de `logs`: **102 cobros recibidos y 35 errores de negocio** — **cerca de uno de cada tres intentos termina en error de negocio**. Dos advertencias sobre esa medición: esa tabla **no tiene índices ni retención**, así que una consulta sin acotar por `id` **expira a los 60 segundos** (comprobado); y es la tabla que el diagnóstico de Nequi eligió como **única** vía de observación, sobre la premisa —falsa— de que Grafana no recibe nada (ver `architecture`).
+
 ## Estados y códigos
 - **`PaymentGatewayTransaction`** (Wompi): `status_id`→`LenderTransactionStatus` (nombres `PENDING/APPROVED/DECLINED/VOIDED/ERROR`, filtrados por `lender_id=52`). Campos clave: `creditop_x_payment_type_id` (**1 = cuota inicial**, otro = pago), `principal_payment_type_id` (a capital/cuota), `user_request_id` (0 si es cupo rotativo), `creditop_x_revolving_credit_id`, `order_id` (= `reference` UUID que Wompi ecoa).
 - **`PayvalidaTransaction`** → `PayvalidaTransactionStatus` (`PENDIENTE/APROBADA/ANULADA/VENCIDA/CANCELADA`, español); mapea a `user_request_statuses` (11/6/7/10/8).

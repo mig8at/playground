@@ -176,6 +176,13 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 
 ⚠ **Y la cobertura es PARCIAL: todos los días siguen naciendo fichas en el default.** Medido por día en prod: desde el 2026-09-09 cada jornada trae ~600-760 fichas con país real **y ~280-350 en Afganistán**. No es una fecha de corte pendiente —el reparto es el mismo todos los días—, así que hay al menos un camino de creación que no pasa por esas dos piezas. Un candidato verificado: en `legacy-application` el `country_id` se escribe **sólo** para comercios y entidades desde el admin; **ninguno de sus cuatro puntos que crean un `User` lo setea**. **Conclusión práctica: `users.country_id` sirve hacia adelante y sólo para parte del tráfico — no lo uses para segmentar la base histórica.**
 
+### El sobre de OnboardingV2 NO es el de v1, y el front lo lee crudo
+
+`OnboardingV2` responde `{ code, message, data: { payload } }`; el v1 responde `{ success, data }`. No es un detalle de estilo: el repositorio v2 del front **lee la respuesta cruda y se ramifica por el `code`** en vez de reusar el parseo del v1 (`frontend-monorepo/apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config-v2.repository.ts:21-23`). Dos decisiones de ese repositorio que conviene no deshacer:
+
+- **El esquema es `passthrough` a propósito:** si el backend agrega una bandera nueva, un build viejo **no** tiene por qué romperse por no conocerla.
+- ⚠ **No hay URL de respaldo, igual que en el repositorio v1 del mismo módulo.** Si falta la variable de entorno **tiene que sonar**: un default apuntando a un ambiente concreto convierte un error de configuración en **peticiones silenciosas contra el sitio equivocado**. Es la misma regla que ya costó caro con `E2E_TARGET` (F-187): un default cómodo esconde de qué ambiente estás hablando.
+
 ## Subcontextos
 - **KYC** — el estudio del cliente (burós): Experian/Datacrédito da el único score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso; Quanto ingreso estimado. Se dispara desde `personal-info` y desde el orquestador de OTP (`userViability`).
 

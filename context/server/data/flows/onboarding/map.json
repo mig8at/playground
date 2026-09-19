@@ -37,6 +37,7 @@
     "application/database/migrations/2023_04_20_230901_create_user_field_values_table.php",
     "application/database/migrations/2024_04_08_135431_create_allied_ecommerce_credentials_table.php",
     "application/routes/customer.php",
+    "frontend-monorepo/apps/loan-request-wizard/app/modules/personal-info-config/infrastructure/personal-info-config-v2.repository.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/types/request-status.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/dynamic/request-amount.tsx",

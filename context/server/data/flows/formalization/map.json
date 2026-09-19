@@ -17,6 +17,7 @@
     "«¿dónde se trabó?»"
   ],
   "files": [
+    "application/app/Http/Controllers/Admin/UserRequestVoucherController.php",
     "application/app/Http/Controllers/Customer/InitialFeePaymentController.php",
     "application/app/Http/Controllers/Customer/PromissoryNoteController.php",
     "application/app/Http/Controllers/Customer/StandByController.php",
@@ -92,6 +93,7 @@
     "legacy-backend/app/Http/Middleware/RedirectIdValidationIfDesktop.php",
     "legacy-backend/app/Http/Middleware/ValidateAuthorizedStatus.php",
     "legacy-backend/app/Models/NetcoSigningDocument.php",
+    "legacy-backend/app/Models/PromissoryNote.php",
     "legacy-backend/app/Models/UserRequest.php",
     "legacy-backend/app/Observers/UserRequestObserver.php",
     "legacy-backend/app/Services/Pdf/CredifamiliaFormalizationService.php",
@@ -102,7 +104,6 @@
     "legacy-backend/database/migrations/2026_02_20_110000_add_authorized_pending_disbursement_status.php",
     "legacy-backend/database/migrations/2026_05_21_120300_create_netco_signing_documents_table.php",
     "legacy-backend/database/migrations/2026_06_30_210000_add_lease_agreement_consent_type.php",
-    "legacy-backend/resources/views/creditopxpdf/lenders/arrendamientos/arrendamiento_164.blade.php",
-    "legacy-backend/app/Models/PromissoryNote.php"
+    "legacy-backend/resources/views/creditopxpdf/lenders/arrendamientos/arrendamiento_164.blade.php"
   ]
 }

@@ -154,6 +154,21 @@ nueve.**
 **antes de cualquier llamada HTTP** —falta de credencial, ocupación fuera del enum—, así que mirar si
 el proveedor recibió la petición **no descarta** que la entidad haya muerto ahí.
 
+## El cupo EXTENDIDO (type 2) puede pararse a esperar a un asesor — y el porqué es una lección sobre idempotencia
+
+`POST /api/loans/lender/available-quota/extended` evalúa las mismas variables que el cupo normal (type 1), con una diferencia: si la entidad exige **aprobación manual**, la solicitud **se detiene a esperar a un asesor** en vez de seguir por la política de cupo. La tabla de decisión vive aparte y es **pura** —no toca base ni contenedor, para poder probar cada fila sin esquema—: `legacy-backend/Modules/Loans/App/Services/ManualApprovalNextStepResolver.php`, llamada desde `legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:1113`.
+
+**La regla, en orden:**
+
+1. **Sin cupo → `rejected`.** Sin cupo no hay nada que un asesor apruebe.
+2. Entidad con aprobación manual **y solicitud en un estado DE ENTRADA** → `manual_approval`, y se marca «Pendiente aprobación manual».
+3. Entidad con aprobación manual **y solicitud YA en «Pendiente aprobación manual»** → sigue `manual_approval` **sin escribir**: idempotente para recargas y reintentos.
+4. Cualquier otro caso → la política de categoría (`cosigner` o `first_payment_date`). Ahí cae «Pendiente de formalización» **y todo estado posterior**: una solicitud avanzada **nunca vuelve** a aprobación manual.
+
+⚠ **Por qué la regla mira el ESTADO y no sólo el flag.** La primera versión decidía con el flag de la entidad y escribía con un `!= destino`. **Eso no es idempotencia: es «pisá cualquier estado que no sea éste».** Y el propio flujo lo ejercitaba: el asesor aprueba, la solicitud pasa a «Pendiente de formalización», el titular vuelve por su link, el front vuelve a pedir el paso — y **la aprobación se borra**. La decisión tiene que mirar en qué estado está la solicitud, y la escritura sólo puede ocurrir **desde los estados de entrada**.
+
+**Y la mitad del front es una pantalla TERMINAL, sin acciones a propósito.** Cuando la política post-validación devuelve `next_step: "manual_approval"` —o sea cuando la entidad tiene `lender_requirements.manual_approval` prendido— y el backend ya dejó la solicitud en «Pendiente aprobación manual», el titular aterriza en `frontend-monorepo/apps/loan-request-wizard/app/routes/manual-approval-pending.tsx`. **No ofrece ningún botón, y está razonado:** el titular ya hizo todo lo que le tocaba y de ahí en adelante la solicitud avanza **cuando un asesor la revise**; poner un «continuar» sería mentirle, porque no hay nada que pueda hacer todavía. Es el mismo criterio que la pantalla de vuelta del checkout de entidad (nodo `redirect`): **cuando el siguiente paso es de otro, la pantalla no finge que es del cliente.**
+
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
 
