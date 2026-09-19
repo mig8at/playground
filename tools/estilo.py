@@ -219,5 +219,58 @@ def main():
     print()
     return 1 if fallo else 0
 
+def repartir(origen=None):
+    """el tema de las cuatro, de un solo archivo
+
+    Existe porque «reemplazá `tema.css`» son en realidad CUATRO copias, y copiar cuatro veces a mano es
+    exactamente como empiezan a derivar — que es el problema que todo esto vino a resolver. Sin `DE`
+    no escribe nada: dice cuál está puesto."""
+    if not origen:
+        tema = (RAIZ / TEMAS[0]).read_text()
+        pal = {}
+        for b in re.findall(r'\.dark\s*\{([^{}]*)\}', tema):
+            pal.update(declaraciones(b))
+        tabla = {k: v for k, v in pal.items() if k.startswith('--')}
+        print('\n  el tema puesto hoy (modo oscuro, resuelto a hex):\n')
+        for n in ('--background', '--foreground', '--card', '--primary', '--secondary', '--muted',
+                  '--muted-foreground', '--accent', '--destructive', '--border', '--input', '--ring'):
+            v = tabla.get(n, '')
+            print(f'      {n:20} {resolver(v, tabla) or v.strip()}')
+        print(f"\n      --radius {tabla.get('--radius','').strip()}   ·   md5 "
+              f"{hashlib.md5((RAIZ / TEMAS[0]).read_bytes()).hexdigest()[:12]}")
+        print('\n  para cambiarlo:  make estilo-tema DE=<el .css que copiaste de tweakcn.com>\n')
+        return 0
+    src = pathlib.Path(origen)
+    if not src.is_absolute(): src = RAIZ / src
+    if not src.exists():
+        print(f'  ✗ no existe {src}'); return 1
+    txt = src.read_text()
+    faltan = [b for b in (':root', '.dark', '@theme inline') if b not in txt]
+    if faltan:
+        print(f"  ✗ {src.name} no parece un export de tweakcn: le falta {', '.join(faltan)}")
+        print('     (pegá el bloque COMPLETO, con :root, .dark y @theme inline)')
+        return 1
+    if '@import "tailwindcss"' in txt:
+        print('  ▲ le saco el `@import "tailwindcss"`: en el panel del harness no hay bundler y ese')
+        print('     import daría 404. Cada app de Vite ya lo importa en su propia hoja.')
+        txt = re.sub(r'@import\s+"tailwindcss"[^;]*;\s*', '', txt)
+    for fam in ('--font-sans', '--font-mono'):
+        for b in re.findall(r'(?::root|\.dark)\s*\{([^{}]*)\}', txt):
+            for val in re.findall(re.escape(fam) + r':\s*([^;]+)', b):
+                if len(val.split(',')) < 3:
+                    print(f'  ▲ {fam} = {val.strip()} — sin cadena del sistema. En macOS cae en Helvetica:')
+                    print('     agregale `-apple-system, BlinkMacSystemFont, "Segoe UI", …` antes de la genérica.')
+    for r in TEMAS:
+        (RAIZ / r).write_text(txt)
+    print(f'  ✓ repartido a las {len(TEMAS)} · md5 {hashlib.md5(txt.encode()).hexdigest()[:12]}')
+    print('     ⚠ el color SEMÁNTICO no viene en el export y no se toca: vive en la hoja de cada')
+    print('       herramienta (estado de una etapa, carril de un ramal, semáforo). Revisalo si el')
+    print('       tema nuevo cambia mucho de luminancia — `make estilo-check` mide el contraste.')
+    return 0
+
+
 if __name__ == '__main__':
+    if '--tema' in sys.argv:
+        i = sys.argv.index('--tema')
+        sys.exit(repartir(sys.argv[i + 1] if len(sys.argv) > i + 1 else None))
     sys.exit(main())

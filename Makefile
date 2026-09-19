@@ -177,6 +177,9 @@ trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus
 estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `tema.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
 	@python3 tools/estilo.py
 
+estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
+	@python3 tools/estilo.py --tema $(if $(DE),$(DE))
+
 trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solapes, patrones mudos, decisiones que no resuelven. CORPUS=<tsv|ndjson>
 	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
 	@cd trazador/server && go run . -validar $(CORPUS)
