@@ -2,8 +2,8 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 21,
-    "deriva-alta": 10,
+    "al-dia": 22,
+    "deriva-alta": 9,
     "deriva": 6,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
@@ -1538,366 +1538,6 @@
         "application/app/Http/Requests/Admin/CreditopX/RegisterPaymentRequest.php",
         "application/app/Jobs/UnlockDeviceIfUpToDate.php",
         "application/app/Services/DocumentTypesService.php",
-        "legacy-backend/app/Console/Commands/ReminderWeeklyLoansCommand.php",
-        "legacy-backend/app/Console/Commands/ReverseExpiredNequiIntentsCommand.php",
-        "legacy-backend/app/Console/Commands/SyncLenderRuleClonesCommand.php",
-        "legacy-backend/app/Console/Commands/TestNequiPushCommand.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "legacy-backend",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 89,
-      "deriva": {
-        "cambiados": 22,
-        "pct": 33,
-        "hubs": 18,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-            "ultimo_cambio": "2026-09-15",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/CommonsV1/App/Services/BaseService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/api.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/webhooks.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/RiskV2/App/Constants/RiskCentral.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/RiskV2/routes/api.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Actions/RiskCentrals/Experian.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Http/Kernel.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteFlowService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Support/Onboarding/External/Http/HttpFakeRegistrar.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/config/services.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
-            "ultimo_cambio": "2026-09-13",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "application/config/services.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/OnboardingV2/routes/api.php",
-            "ultimo_cambio": "2026-09-10",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
-            "ultimo_cambio": "2026-09-09",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/OnboardingV2/App/Services/StorePersonalInfoService.php",
-            "ultimo_cambio": "2026-09-08",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/UsersV1/App/Repositories/UserRepository.php",
-            "ultimo_cambio": "2026-09-07",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Providers/OnboardingServiceProvider.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/ListLenderController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/PersonalInfoController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Partner/App/Services/AlliedManagementService.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/System/App/Repositories/OtpServiceRepository.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/config/onboarding.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/routes/api.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Partner/routes/api.php",
-            "ultimo_cambio": "2026-09-02",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/CommonsV1/App/Providers/CommonsV1ServiceProvider.php",
-            "ultimo_cambio": "2026-09-01",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Identity/App/Services/ValidationStatusService.php",
-            "ultimo_cambio": "2026-09-01",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 93,
-        "autores": {
-          "Abel Arismendy": 15,
-          "lhCabra-creditop": 14,
-          "mig-creditop": 12,
-          "jose guzman": 12,
-          "Oscar Rincon": 11,
-          "Joel": 9,
-          "sanvipi-ctop": 8,
-          "yamid-creditop": 4,
-          "Luis Romero": 2,
-          "joseesco24-creditop": 2,
-          "hans peter": 1,
-          "Miguel Ochoa": 1,
-          "Jose Escobar": 1,
-          "dsanchezops": 1
-        },
-        "lista": [
-          {
-            "sha": "002d9117f",
-            "fecha": "2026-09-17",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(onboarding): narrow the lender universe by flow before profiling",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "50206c142",
-            "fecha": "2026-09-15",
-            "autor": "Joel",
-            "asunto": "fix(loans): dejar pasar al asesor en el guard de propiedad del cupo extendido",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "894f356c5",
-            "fecha": "2026-09-14",
-            "autor": "mig-creditop",
-            "asunto": "feat(ecommerce): la sala de espera del veredicto, para todas las entidades",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e31a641cd",
-            "fecha": "2026-09-14",
-            "autor": "jose guzman",
-            "asunto": "fix-comentarios",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9a7663a40",
-            "fecha": "2026-09-13",
-            "autor": "Joel",
-            "asunto": "fix(CORE-527): Meddipay confirms a condition the customer was actually offered",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "d94989252",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(loans): flag and timestamp whatsapp self-management handoff",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "b094c4a22",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "fix(evidente): answer the questionnaire with the question order, not the catalog id",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "96211634",
-            "fecha": "2026-09-11",
-            "autor": "Oscar Rincon",
-            "asunto": "Apaga los reportes periódicos salvo la conciliación de Corbeta",
-            "repo": "application"
-          },
-          {
-            "sha": "1143f293e",
-            "fecha": "2026-09-11",
-            "autor": "mig-creditop",
-            "asunto": "perf(listado): las cuatro consultas por entidad, en tres para todas",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "c8a485028",
-            "fecha": "2026-09-11",
-            "autor": "mig-creditop",
-            "asunto": "fix(listado): el perfilador se calcula UNA vez — y el snapshot deja de auditar otra corrida",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "b06fd4e51",
-            "fecha": "2026-09-11",
-            "autor": "mig-creditop",
-            "asunto": "obs(listado): cuánto tarda cada etapa — y el hallazgo que apareció al instrumentarlo",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "f1d4b327b",
-            "fecha": "2026-09-11",
-            "autor": "jose guzman",
-            "asunto": "fix-dinamic-form-alta",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e8e25130",
-            "fecha": "2026-09-10",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(creditopx): desbloquear el celular al pagar si el core dejará el crédito al día",
-            "repo": "application"
-          },
-          {
-            "sha": "32e22122b",
-            "fecha": "2026-09-10",
-            "autor": "mig-creditop",
-            "asunto": "feat(alta-fleet): las páginas del comercio, la autogestión sin handoff, y el arreglo que la deja firmar",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "441408761",
-            "fecha": "2026-09-10",
-            "autor": "yamid-creditop",
-            "asunto": "feat(onboarding-v2): tipo de grafo del pipeline en kyc-requirements (#1355)",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/CommonsV1/App/Services/GenderService.php",
-        "legacy-backend/Modules/Identity/App/Services/NameSimilarity.php",
-        "legacy-backend/Modules/OnboardingV2/App/Services/CompleteKycService.php",
-        "legacy-backend/Modules/OnboardingV2/App/Services/GetPersonalInfoConfigService.php",
-        "legacy-backend/Modules/OnboardingV2/App/Services/ResolveEmploymentRequirementService.php",
-        "legacy-backend/Modules/OnboardingV2/App/Services/ResolveKycRequirementsService.php",
-        "legacy-backend/Modules/RiskV2/App/Constants/RiskCentralCacheManagementServiceConstants.php",
-        "legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/ExperianOpenCustomerInfoExtractor.php",
-        "legacy-backend/Modules/UserRequestV1/App/Services/GetPreApprovalPayloadService.php",
         "legacy-backend/app/Console/Commands/ReminderWeeklyLoansCommand.php",
         "legacy-backend/app/Console/Commands/ReverseExpiredNequiIntentsCommand.php",
         "legacy-backend/app/Console/Commands/SyncLenderRuleClonesCommand.php",
@@ -5149,6 +4789,26 @@
         "source": "manual"
       },
       "archivos": 44,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "legacy-backend",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 89,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
