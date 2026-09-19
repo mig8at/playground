@@ -12,12 +12,24 @@ página que scrollea:
 | `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
 | `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, **sólo su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
-| `auxiliarybar` | un **acordeón** con todo lo que NO es el documento: *Detalle* (resumen, próximo paso, chips, tiempos, enlaces a `context/`) y las siete que antes eran pestañas del editor — *Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora · Prototipos*, con su conteo. Sólo aparece con una tarea abierta y se apaga con el **◨** de la barra de pestañas |
+| `auxiliarybar` | un **acordeón EXCLUSIVO** (abrir una cierra las demás) con todo lo que NO es el documento: *Detalle* —resumen, próximo paso, chips, tiempos, `context/`, y en su barra **Jira ↗** y **⇢ Mover**— y las siete que antes eran pestañas: *Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora · Prototipos*, con su conteo. Sólo aparece con una tarea abierta; el **◨** de la barra de pestañas lo apaga |
 
 ⚠ **No hay titlebar, a propósito.** Decía «Tablero · Sprint N · registro de tiempo y hallazgos» y
 gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
 acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
 se tocan poco.
+
+⚠ **Las acciones sobre la tarea viven en la barra de la vista *Detalle*, no en el encabezado del
+editor**: mover de estado es actuar sobre lo que esa vista muestra —el estado está tres renglones más
+abajo— y el encabezado de una vista plegada **sigue viéndose**, así que los botones quedan a mano
+aunque el Detalle esté cerrado. Pedir «Mover» con el Detalle plegado lo ABRE (si lo alternara, las
+transiciones aparecerían en un cuerpo oculto).
+
+⚠ **El acordeón derecho es EXCLUSIVO y el izquierdo no**, y la diferencia no es un descuido: a la
+izquierda las vistas son cinco ESTADOS de una lista y querés ver varios a la vez; a la derecha son
+siete caras de UNA tarea, que se miran de a una — y además Ramas y Bitácora son tablas que con otra
+vista abierta se quedan sin alto. Cerrar las otras no esconde nada: su encabezado sigue mostrando el
+conteo.
 
 ⚠ **El editor muestra el DOCUMENTO y nada más; todo lo demás vive al costado.** Tuvo ocho pestañas
 y eran EXCLUYENTES: mirar una rama mientras leés el documento era imposible. En el acordeón derecho se

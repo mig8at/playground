@@ -889,10 +889,17 @@ const verAux = ref(readPreference('aux-visible', true) !== false);
  * compartido los habría atado. */
 const seccionesAux = ref(new Set(['detalle']));
 const abiertaAux = (id) => seccionesAux.value.has(id);
-function alternarAux(id) {
-  const n = new Set(seccionesAux.value);
-  n.has(id) ? n.delete(id) : n.add(id);
-  seccionesAux.value = n;
+/* ⚠ EXCLUSIVO: abrir una cierra las demás. El de la IZQUIERDA no lo es, y la diferencia no es un
+ * descuido: allá las vistas son cinco ESTADOS de una lista y querés ver varios a la vez («¿qué tengo
+ * en curso y qué bloqueado?»); acá son siete caras de UNA tarea, que se miran de a una — y además hay
+ * tablas (Ramas, Bitácora) que con otra vista abierta se quedan sin alto.
+ *
+ * ⚠ Una vista cerrada igual muestra su encabezado con su conteo, así que cerrar las otras no esconde
+ * información: seguís viendo que hay 16 hallazgos y 11 ramas sin abrir nada. */
+function alternarAux(id, forzarAbrir = false) {
+  // `forzarAbrir` lo usa la barra de acciones: pedir «Mover» tiene que ABRIR el Detalle, no
+  // alternarlo — si estaba abierto y lo cerrara, las transiciones aparecerían en un cuerpo oculto.
+  seccionesAux.value = !forzarAbrir && seccionesAux.value.has(id) ? new Set() : new Set([id]);
 }
 // Las siete: el mismo conteo y el mismo aviso que llevaban como pestañas.
 const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'));
@@ -1575,50 +1582,6 @@ onMounted(async () => {
           <span v-if="!active._local" class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
-        <template #acciones>
-          <a v-if="site && !active._local" class="key link" :href="jiraLink(active.Key)" target="_blank"
-             rel="noopener" :title="`Abrir ${active.Key} en Jira`">Jira <span class="ext">↗</span></a>
-          <button v-if="!active._local" class="tact move-task" :class="{ act: mover?.key === active.Key }"
-            :disabled="moverBusy || qa?.key === active.Key" @click="abrirMover(active)">
-            {{ moverBusy ? 'Consultando Jira…' : '⇢ Mover' }}
-          </button>
-        </template>
-        <template #paneles>
-          <div v-if="mover?.key === active.Key" class="mv" @click.stop>
-            <p class="mv-h">Desde <b>{{ active.Status }}</b>, Jira deja ir a:</p>
-            <div class="mv-opts">
-              <button v-for="t in mover.transitions" :key="t.id" class="mv-o"
-                :class="{ qa: esHaciaPruebas(t) }" :disabled="moverBusy"
-                :title="`transición «${t.name}»`" @click="aplicarTransicion(t)">
-                {{ t.to }}<span v-if="esHaciaPruebas(t)" class="mv-tag">+ aviso</span>
-              </button>
-            </div>
-          </div>
-          <p v-if="moverError" class="qa-err">{{ moverError }}</p>
-
-          <template v-if="qa?.key === active.Key">
-            <p v-if="qaError" class="qa-err">{{ qaError }}</p>
-            <div class="qa-box" @click.stop>
-              <p class="qa-head">
-                <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
-                <span v-else class="qa-err">{{ qa.blocked }}</span>
-              </p>
-              <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
-              <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
-              <ul v-if="qaProblems.length" class="qa-bad">
-                <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
-              </ul>
-              <div class="qa-acts">
-                <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
-                  {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
-                </button>
-                <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
-              </div>
-            </div>
-          </template>
-          <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
-          <p v-else-if="qaError && !qa" class="qa-err">{{ qaError }}</p>
-        </template>
         <!-- El EDITOR es el documento y nada más. Las otras siete vistas están al costado,
              en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
              excluyentes — mirar una rama mientras leés el documento era imposible. -->
@@ -1857,8 +1820,54 @@ onMounted(async () => {
             <span class="chev" aria-hidden="true">{{ abiertaAux('detalle') ? '⌄' : '›' }}</span>
             <span>Detalle</span>
           </button>
+          <!-- LA BARRA DE LA VISTA. ⚠ Va acá y no en el encabezado del editor por dos razones:
+               mover de estado es actuar sobre lo que ESTA vista muestra (el estado está tres
+               renglones más abajo), y el encabezado de una vista plegada SIGUE VIÉNDOSE — o sea
+               los botones quedan a mano aunque el Detalle esté cerrado. -->
+          <div class="region-actions">
+              <a v-if="site && !active._local" class="key link" :href="jiraLink(active.Key)" target="_blank"
+                 rel="noopener" :title="`Abrir ${active.Key} en Jira`">Jira <span class="ext">↗</span></a>
+              <button v-if="!active._local" class="tact move-task" :class="{ act: mover?.key === active.Key }"
+                :disabled="moverBusy || qa?.key === active.Key" @click="alternarAux('detalle', true); abrirMover(active)">
+                {{ moverBusy ? 'Consultando Jira…' : '⇢ Mover' }}
+              </button>
+          </div>
         </div>
         <div v-if="abiertaAux('detalle')" class="region-body aux-ficha">
+          <div v-if="mover?.key === active.Key" class="mv" @click.stop>
+            <p class="mv-h">Desde <b>{{ active.Status }}</b>, Jira deja ir a:</p>
+            <div class="mv-opts">
+              <button v-for="t in mover.transitions" :key="t.id" class="mv-o"
+                :class="{ qa: esHaciaPruebas(t) }" :disabled="moverBusy"
+                :title="`transición «${t.name}»`" @click="aplicarTransicion(t)">
+                {{ t.to }}<span v-if="esHaciaPruebas(t)" class="mv-tag">+ aviso</span>
+              </button>
+            </div>
+          </div>
+          <p v-if="moverError" class="qa-err">{{ moverError }}</p>
+
+          <template v-if="qa?.key === active.Key">
+            <p v-if="qaError" class="qa-err">{{ qaError }}</p>
+            <div class="qa-box" @click.stop>
+              <p class="qa-head">
+                <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
+                <span v-else class="qa-err">{{ qa.blocked }}</span>
+              </p>
+              <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
+              <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
+              <ul v-if="qaProblems.length" class="qa-bad">
+                <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
+              </ul>
+              <div class="qa-acts">
+                <button class="qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
+                  {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
+                </button>
+                <button class="qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
+              </div>
+            </div>
+          </template>
+          <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
+          <p v-else-if="qaError && !qa" class="qa-err">{{ qaError }}</p>
             <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
             <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
             <p v-else class="jd none">sin cuerpo técnico todavía</p>
@@ -2172,6 +2181,10 @@ onMounted(async () => {
    de margen es uno menos de contenido. */
 .aux-vista { padding: 12px 14px 20px }
 .aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
+/* En una barra de región los botones son CHICOS: compiten con el título de la vista, no con el
+   contenido. El `⇢ Mover` que venía del encabezado del editor traía tamaño de botón de formulario. */
+.auxiliarybar .region-actions :deep(.tact),
+.auxiliarybar .region-actions :deep(.key.link) { padding: 2px 7px; font-size: 11px; border-radius: var(--radius) }
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
    `taller.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
