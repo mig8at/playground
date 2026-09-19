@@ -879,6 +879,11 @@ watch([panelTab, () => active.value?.Key], () => { clearTimeout(copiadoTimer); c
  * saque del árbol. El computed la re-resuelve contra los datos vivos cuando sigue estando. */
 const pestanas = ref([]);     // tareas abiertas, en orden
 const previa = ref('');       // la clave de la que está en previsualización, si hay alguna
+// La ficha se puede ocultar. ⚠ Hace falta un interruptor y no sólo un «cerrar»: sin algo que la
+// vuelva a abrir, cerrarla sería un camino de ida. Vive en la barra de pestañas, al borde derecho,
+// que es donde VS Code pone el suyo — y acá además es la única barra que hay a esa altura.
+const verAux = ref(readPreference('aux-visible', true) !== false);
+watch(verAux, (v) => savePreference('aux-visible', v));
 const pestanasAbiertas = computed(() =>
   pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
 
@@ -1492,6 +1497,9 @@ onMounted(async () => {
           <button type="button" class="et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
                   @click="cerrarPestana(t.Key)">×</button>
         </div>
+        <button type="button" class="et-aux" :class="{ act: verAux }" :aria-pressed="verAux"
+                title="Mostrar u ocultar el detalle de la tarea"
+                aria-label="Mostrar u ocultar el detalle" @click="verAux = !verAux">◨</button>
       </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
@@ -1547,52 +1555,6 @@ onMounted(async () => {
           <p v-else-if="qaError && !qa" class="qa-err">{{ qaError }}</p>
         </template>
         <div v-if="panelTab === 'trabajo'" class="task-tab-body">
-          <!-- LA FICHA: lo que la tarjeta mostraba de un vistazo. En la grilla competía con otras
-               veinte; acá tiene el ancho del editor y se lee de una. -->
-          <div class="ficha">
-            <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
-            <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
-            <p v-else class="jd none">sin cuerpo técnico todavía</p>
-
-            <p class="next-step" :class="{ missing: !proximoDe(active.Key) }" :title="proximoDe(active.Key)">
-              <span>Próximo paso</span>{{ proximoDe(active.Key) || 'Por definir en la retoma' }}
-            </p>
-            <div class="task-meta">
-              <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-              <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
-                   que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
-                   una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
-              <span v-if="esProyecto(active._esfuerzoId)" class="spchip proyecto"
-                title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
-              <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
-                   partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
-              <span v-if="active._esfuerzo" class="spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
-                {{ active._esfuerzo }}
-                <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-              </span>
-              <span v-if="active._sprint" class="spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
-              <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
-                   DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
-              <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
-                :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
-                {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
-              <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
-                   quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
-              <span v-if="active._arrastres > 1" class="spchip drag"
-                :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
-            </div>
-            <div class="tm">
-              <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
-              <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
-                :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
-                <i></i>{{ active.OriginSprint }}
-              </span>
-              <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
-              <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
-              <span>{{ hhmm(active.SpentSecs) }} en Jira</span>
-              <span class="mine" v-if="minutesOf(active.Key)">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
-            </div>
-          </div>
 
             <div v-if="documentSections.length" class="drawer-cps">
               <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
@@ -1610,13 +1572,6 @@ onMounted(async () => {
             </div>
 
             <p class="empty">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
-
-              <div v-if="effortDe(active.Key)?.contextNodes" class="retoma-contextos">
-                <span>Contexto local:</span>
-                <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-                  :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
-                  :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
-              </div>
 
             <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
                  convertir el índice de retoma en una lista cronológica. -->
@@ -1980,6 +1935,71 @@ onMounted(async () => {
       </div>
     </main>
 
+    <!-- AUXILIARYBAR · LA FICHA DE LA TAREA. Estaba adentro de la pestaña «Trabajo», así que
+         desaparecía en las otras SIETE: mirabas Ramas o Hallazgos y perdías de vista el próximo
+         paso, el sprint y los puntos. Acá acompaña a la tarea esté donde esté — que es para lo que
+         existe el sidebar secundario en VS Code: las propiedades de lo que estás editando, no otro
+         lugar donde editar.
+
+         ⚠ Sólo se renderiza con una tarea enfocada, y se puede apagar con el ◨ de la barra de
+         pestañas. Sin tarea no hay ficha, y una columna de 340px vacía al costado del sprint sería
+         espacio perdido: el grid la colapsa a 0 sola. -->
+    <aside v-if="active && verAux" class="auxiliarybar">
+      <div class="region-head"><span>Detalle</span></div>
+      <div class="region-body aux-ficha">
+          <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
+          <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
+          <p v-else class="jd none">sin cuerpo técnico todavía</p>
+
+          <p class="next-step" :class="{ missing: !proximoDe(active.Key) }" :title="proximoDe(active.Key)">
+            <span>Próximo paso</span>{{ proximoDe(active.Key) || 'Por definir en la retoma' }}
+          </p>
+          <div class="task-meta">
+            <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+            <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
+                 que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
+                 una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
+            <span v-if="esProyecto(active._esfuerzoId)" class="spchip proyecto"
+              title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
+            <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
+                 partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
+            <span v-if="active._esfuerzo" class="spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
+              {{ active._esfuerzo }}
+              <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+            </span>
+            <span v-if="active._sprint" class="spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
+            <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
+                 DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
+            <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
+              :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
+              {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
+            <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
+                 quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
+            <span v-if="active._arrastres > 1" class="spchip drag"
+              :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
+          </div>
+          <div class="tm">
+            <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
+            <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
+              :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
+              <i></i>{{ active.OriginSprint }}
+            </span>
+            <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
+            <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
+            <span>{{ hhmm(active.SpentSecs) }} en Jira</span>
+            <span class="mine" v-if="minutesOf(active.Key)">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
+          </div>
+
+        <template v-if="effortDe(active.Key)?.contextNodes">
+          <h4 class="aux-lbl">Contexto</h4>
+          <span>Contexto local:</span>
+          <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
+            :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
+            :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
+        </template>
+      </div>
+    </aside>
+
     <!-- AUXILIARYBAR: el vocabulario la tiene y el grid la deja lista, pero NO se renderiza — una
          columna vacía de 340px no es «libre», es espacio perdido. El día que haya qué poner:
          <aside class="auxiliarybar"><div class="region-head">…</div><div class="region-body">…</div></aside> -->
@@ -2039,6 +2059,17 @@ onMounted(async () => {
 
 .sb-act { margin-left: auto; font: 11px var(--font-mono); color: var(--txt) }
 
+/* ── LA FICHA, EN EL SIDEBAR SECUNDARIO ──────────────────────────────────────────────────────────
+   Los mismos bloques que estaban dentro de «Trabajo» (`.jd`, `.next-step`, `.task-meta`, `.tm`), pero
+   en una columna de 340px: apilados y con aire entre sí, no compitiendo en una fila. */
+.aux-ficha { padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 14px }
+.aux-ficha > * { margin: 0 }
+.aux-ficha :deep(.task-meta), .aux-ficha :deep(.tm) { margin: 0 }
+/* La etiqueta de una sección de la ficha: misma forma que un `region-head` pero SIN su barra — acá
+   no encabeza una región, separa dos bloques dentro de una. */
+.aux-lbl { margin: 4px 0 0; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--tenue) }
+
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
    La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
    es sin depender de que el ojo compare fondos, y el fondo la une con el contenido de abajo. */
@@ -2061,6 +2092,12 @@ onMounted(async () => {
   padding: 2px 8px 4px; border-radius: var(--radius); opacity: 0 }
 .et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
 .et-x:hover { background: var(--sel); color: var(--txt) }
+/* El interruptor de la ficha, al borde: `margin-left: auto` lo manda a la derecha y `position:
+   sticky` lo deja visible aunque la barra scrollee con muchas pestañas. */
+.et-aux { margin-left: auto; position: sticky; right: 0; flex: none; border: 0; cursor: pointer;
+  background: var(--panel2); color: var(--mut); font-size: 13px; padding: 0 10px; align-self: stretch }
+.et-aux:hover { color: var(--txt) }
+.et-aux.act { color: var(--txt) }
 
 /* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
    viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el

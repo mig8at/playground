@@ -12,12 +12,18 @@ página que scrollea:
 | `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
 | `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo la tarea enfocada con sus 8 pestañas. Sin ninguna abierta manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
-| `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
+| `auxiliarybar` | **la ficha de la tarea enfocada**: resumen, próximo paso, chips de esfuerzo y sprint, tiempos y los enlaces a `context/`. Sólo aparece con una tarea abierta y se apaga con el **◨** de la barra de pestañas (se recuerda) |
 
 ⚠ **No hay titlebar, a propósito.** Decía «Tablero · Sprint N · registro de tiempo y hallazgos» y
 gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
 acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
 se tocan poco.
+
+⚠ **La ficha vive al COSTADO, no dentro de una pestaña.** Estaba adentro de «Trabajo», así que
+desaparecía en las otras siete: mirabas Ramas o Hallazgos y perdías de vista el próximo paso, el
+sprint y los puntos. Para eso existe el sidebar secundario — las propiedades de lo que estás
+editando, no otro lugar donde editar. Y **el editor de la tarea no tiene botón de cerrar**: lo tiene
+su pestaña, que es donde uno lo busca; `Esc` hace lo mismo.
 
 ⚠ **Se abren VARIAS tareas a la vez, y la pieza que hace que eso sirva es la pestaña en PREVISTA.**
 Un clic en el árbol abre la tarea en previsualización —en itálica— y el siguiente clic **la reemplaza**
