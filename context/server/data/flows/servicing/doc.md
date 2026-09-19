@@ -83,6 +83,17 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 - **Copias en legacy con imports colgantes** (`use App\Http\Controllers\Admin\CreditopXPaymentController` — namespace equivocado): no es "migración parcial funcional", es código muerto que reventaría.
 - **Riesgo trigger huérfano**: apagar `application` rompería la cartera — el cron que mueve el ledger vive solo ahí.
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 12 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa — y **cero deriva de citas** (10 ancladas, ninguna movida ni corrida).
+Exactos, carácter por carácter: el bug de `PAGO REVERSADO` contra la fila `REVERSADO`
+(`CreditopXPaymentController.php:1450`, dentro de la rama `RETENIDO` de `:1449`),
+`CutoffCalendar::billingDateForPaymentDate` en `:118`, y **los tres crons de device-lock de SmartPay
+siguen agendados y sin comentar** en `legacy-backend/app/Console/Kernel.php:30`, `:32` y `:33`.
+⚠ **Eso último merece decirse porque el mismo día se comprobó lo contrario en el otro monolito**: el
+commit del 2026-09-11 que apagó los reportes periódicos tocó el `Kernel.php` de `application`, no el de
+`legacy-backend`. Los dos schedulers se mueven por separado, así que «los crons están apagados» nunca
+es una afirmación del sistema: es de un repo.
+
 ## Contenido
 **Los 6 crons diarios** (`app/Console/Kernel.php`, en orden de cadencia):
 

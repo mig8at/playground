@@ -9,8 +9,8 @@ Lo que hay que entender antes de tocar nada: **esta fase está implementada TRES
 | Generación | Dónde | Estado real (verificado) |
 |---|---|---|
 | **G1 · Inertia** | `application/app/Http/Controllers/Customer/*` | Viva y por defecto. Delega a G2 **paso por paso**, con allowlist y fallback local. |
-| **G2 · módulo Onboarding** | `legacy-backend/Modules/Onboarding` (198 archivos: 38 controllers, 63 services, 18 repositories, 29 form-requests, 14 tests) | Viva. Es la que consume **el wizard React** y a la que G1 delega. Prefijo `api/onboarding`. |
-| **G3 · nueva arquitectura** | `Modules/OnboardingV2` + `Modules/UserRequestV1` (`api/v2/onboarding`) | Registrada y activa, **sin ningún consumidor en los 3 repos**. `otp-auth/validate` está implementada; `personal-info` **YA ESTÁ VIVA** — el early-return de 501 se retiró y el guardado real corre (fechas calendario, sólo usuarios temporales, dirección y estrato a `user_field_values`, sin consultar centrales). El código OBV21000 quedó en el mapa **sin referencias**, como interruptor de apagado (`StorePersonalInfoService:39`). ⚠ El docblock del CONTROLADOR todavía dice «always responds 501» — está viejo; manda el servicio. (Corregido dos veces el 2026-08-28: primero leí el comentario del controlador y afirmé que seguía 501.) |
+| **G2 · módulo Onboarding** | `legacy-backend/Modules/Onboarding` (**268** archivos: **44** controllers, **73** services, **22** repositories, **31** form-requests, **47** tests — re-contado el 2026-09-19; acá decía 198/38/63/18/29/14, o sea que el módulo creció ~35 % y sus tests se **triplicaron**) | Viva. Es la que consume **el wizard React** y a la que G1 delega. Prefijo `api/onboarding`. |
+| **G3 · nueva arquitectura** | `Modules/OnboardingV2` + `Modules/UserRequestV1` (`api/v2/onboarding`) | Registrada y activa, **sin ningún consumidor en los 3 repos**. `otp-auth/validate` está implementada; `personal-info` **YA ESTÁ VIVA** — el early-return de 501 se retiró y el guardado real corre (fechas calendario, sólo usuarios temporales, dirección y estrato a `user_field_values`, sin consultar centrales). El código OBV21000 quedó en el mapa **sin referencias**, como interruptor de apagado (`legacy-backend/Modules/OnboardingV2/App/Services/StorePersonalInfoService.php:48`, y su entrada en el mapa de códigos en `:212`; acá se citaba `:39`). ⚠ El docblock del CONTROLADOR todavía dice «always responds 501» — **recomprobado el 2026-09-19: sigue ahí, y en DOS lugares** (`legacy-backend/Modules/OnboardingV2/App/Http/Controllers/StorePersonalInfoController.php:19` y `:37`, los dos fechados «disabled since 24-06-2026»). Está viejo; manda el servicio. (Corregido dos veces el 2026-08-28: primero leí el comentario del controlador y afirmé que seguía 501.) |
 
 Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-monorepo/apps/loan-request-wizard`). El corte entre uno y otro NO es por repo ni por deploy: es un **allowlist en BD** que se lee en `SimulatorController::indexV2` y decide si redirige al wizard nuevo o renderiza la pantalla vieja.
 
@@ -46,6 +46,16 @@ Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-
 - Autofill hardcodeado: para los allieds `[209,210,211]` (Corbeta) sin info laboral, el orquestador de OTP escribe **ingreso 1.500.000 y "Empleado"**.
 - `OnboardingService.php:129` — `Experian::creditScore($user_request)` está comentado, pero el log inmediatamente anterior sigue afirmando que corre "unconditionally". No confiar en ese trace.
 - `Modules/Onboarding/tests/Unit/*FreezeTest.php` son tests de **congelamiento**: fijan rarezas actuales (ONB001/002/004/006 con HTTP 200, el ternario muerto `corbeta ? 'ONB006' : 'ONB002'`, el centinela `[]` de `createUserRequest`). Cambiar comportamiento rompe estos tests **a propósito**.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 11 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa. **Los dos bugs del camino feliz siguen vivos, carácter por carácter**:
+el `&&` metido dentro del segundo `str_contains` (`UserRequestController.php:1517`) y la URL de
+delegación que interpola la CLAVE de sesión en vez del id (`PersonalInfoController.php:1044`, con el
+`$user_request_id` correcto asignado en `:1019` y nunca usado). Eso importa más que cualquier conteo:
+son dos guardas que no guardan nada y llevan meses así. Lo corregido: una cita corrida y, sobre todo,
+**el tamaño de G2** —el módulo pasó de 198 a **268** archivos y sus tests de 14 a **47**—, que es la
+medida de que la generación «de transición» siguió creciendo. Y el docblock que este nodo ya había
+desmentido una vez **sigue mintiendo, ahora en dos lugares**.
 
 ## Contenido
 

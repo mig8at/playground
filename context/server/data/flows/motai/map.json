@@ -6,7 +6,7 @@
   "when": "Cuando la tarea es del comercio Motai (allied 158): sus productos renting / rent-to-own / compra (`lenders.product`), Ábaco (validación de ingresos de apps gig) y cómo se prende por lender en `lender_requirements`, el flujo self-service dirigido por `next_step`, la calculadora del renting y del rent-to-own (precio vs interés, y por qué toca el techo de usura), o por qué el selector de tipo de documento no ofrece PEP en una sucursal. OJO si buscás `modos`, `isMotaiRenting`, `merchant_mode` o `partner_modes`: se borraron en la des-motaización (v2) — acá está el modelo nuevo, que es el que corre en producción desde el 2026-08-19. Si la tarea es del SEGUNDO firmante, el nodo es `codeudor`.",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-19",
     "source": "manual"
   },
   "sintomas": [

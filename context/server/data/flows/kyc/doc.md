@@ -8,12 +8,17 @@ KYC es la etapa que, disparada desde el formulario personal/laboral (Onboarding)
 Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.data` (**cifrado AES-256-CBC con APP_KEY**), un **espejo** normalizado en `user_summaries`, y **EAV** en `user_field_values` (87 ingreso, 29 ocupación, 160 reportado-en-centrales, 90 egresos, 161 continuidad). En **local/dev el buró se MOCKEA** (`ExperianFixture`, 212 KB → score sintético 654 / Acierta+Quanto 707), así que el score de dev no es real. Sobre estos datos deciden **dos motores de datacrédito** con campos y comparadores distintos (viejo rt≠2 vs nuevo rt=2) — el detalle vive en **Profiling**.
 
 ## Antes de concluir
-- **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`Experian.php:374`) y `160='no'` (`Experian.php:390`) **hardcodeados** → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
+- **EAV forzados**: al procesar Quanto se escribe `29='Empleado'` (`application/app/Actions/RiskCentrals/Experian.php:354` el `field_id`, `:360` el valor) y `160='no'` (`:370` y `:376`) **hardcodeados** — ⚠ *acá se citaban `:374` y `:390`, **y sin repo**: el mismo archivo existe en `legacy-backend`, donde esas líneas son otra cosa. La misma cita mal estaba en el nodo `credifamilia`, corregida el mismo día* → un usuario sin central queda marcado Empleado/no-reportado artificialmente. Encima, **`field 160` es auto-declarado por el usuario, no del buró**.
 - **Solo `data` cifra**: `additional_info`, `request` y todo `user_summaries` van **PLANOS**. Ágil Data escribe TODO en `additional_info` (sin cifrar), y los derivados de Experian (`negativeAccounts`, `maturationSince`) también. Un INSERT de JSON plano en `data` rompe el descifrado → gate **fail-closed**. Sin el **APP_KEY** correcto Laravel no descifra y el listado falla en silencio.
 - **`users.age` es COLUMNA real** (no accessor de `date_of_birth`): se calcula al capturar la persona (`PersonalInfoController.php:158`); es el gate de edad (Pullman).
 - **Caché 1 mes**: Experian/Mareigua/Ágil reusan `risk_central_user_data < 1 mes` sin reconsultar (`Experian.php:73`); una fila inyectada se reusa (borrar la fila para refrescar).
 - **`verifyCoincidence` (match de nombres) SIEMPRE true** en local/development
-  (`MareiguaService.php:437` · `AgildataService.php:432` · `TusDatosService.php:486`). ⚠ Y la consecuencia
+  (`legacy-backend/Modules/Identity/App/Services/MareiguaService.php:437` ·
+  `…/AgildataService.php:432` · `…/TusDatosService.php:486` — los tres **exactos**). ⚠ Y son **siete
+  copias, no tres**: `application` tiene el mismo método cuatro veces más, en
+  `app/Http/Controllers/Customer/{AgildataController.php:713, MareiguaController.php:320,
+  TusDatosController.php:569, PersonalInfoController.php:1726}`. Arreglarlo en un servicio de Identity
+  no cambia nada del monolito que hoy sirve el tráfico. ⚠ Y la consecuencia
   que no es obvia: **el único entorno donde se pueden inyectar fakes es el único donde la comparación
   está apagada**, así que el match estricto de nombres **no se puede reproducir en local**. No es un
   detalle de comodidad — es por lo que **F-132** vivió meses. Para probarlo hay que salir de
@@ -90,6 +95,16 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
 - **Dos motores, mismo reporte, campos/comparadores distintos** (maduración `<=` viejo rt≠2 vs `<` nuevo rt=2) — el detalle vive en **Profiling**.
 - **Mapper de récord = application**: legacy-backend tiene una copia parallel-run (`app/Actions/RiskCentrals/`) + el rewrite modular (`Modules/Risk*`). El microservicio `kyc-gateway` (Go, **fuera de los 3 repos indexados**) reimplementa los clientes de buró (experian/agildata/mareigua) pero **no es** el mapper que corre.
 - **Dos "PEP"**: el del tipo de doc = Permiso Especial de Permanencia (migratorio); el de AML/TusDatos = Persona Expuesta Políticamente.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 10 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa. Exactos: la caché de un mes del reporte de buró
+(`application/app/Actions/RiskCentrals/Experian.php:73`), `users.age` como **columna** escrita al
+capturar la persona (`PersonalInfoController.php:158`) y las tres `verifyCoincidence` de
+`Modules/Identity`. Dos correcciones, y las dos son de **alcance**: el hardcode de los EAV se citaba
+en `:374`/`:390` **sin repo** —el archivo existe en los dos monolitos y ahí esas líneas son otra
+cosa—, y `verifyCoincidence` no está en tres lugares sino en **siete**, con cuatro copias en el
+monolito que hoy sirve el tráfico. Un nodo que dice «está en estos tres archivos» invita a arreglarlo
+en tres y creer que terminó.
 
 ## Contenido
 **La forma de cada consulta — qué le das y qué te devuelve.** Es el encuadre que explica el resto del

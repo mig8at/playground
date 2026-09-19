@@ -1,7 +1,7 @@
 # Motai · contexto
 > **verificado contra `main` el 2026-08-20.** `qa` se mergeó a `main` el 2026-08-19/20 (backend PR #1150 y #1169 · front #856 y #861), así que **la v2 que este nodo describe es lo que corre**. Se re-leyeron en `main`: `AbacoStepResolver`, `AbacoConsultRepository`, `IncomeBreakdownService`, `MonthlyIncomeResolver`, `LenderCalculator`/`FormulaCalculator`, `CalculatorPaymentScheduleService`, `AlliedInfoController`, `RegisterCellPhoneService::storeTermsAndConditions` y las rutas de Ábaco; y se midió contra la **BD de producción** el padrón de entidades, la configuración por sucursal y el ledger de migraciones. Lo que no se re-auditó línea por línea (los códigos `ABAC*` endpoint por endpoint, el detalle del front) viene de la verificación del 2026-07-29 contra `qa`, que hoy es ancestro de `main`.
 >
-> Comercio aliado **158**, con **un lender por producto** (`lenders.product`) y **Ábaco** (ingresos de apps gig) como paso **configurable por lender**. Ya **no hay modos**: `allied_modes`/`user_request_modes` se borraron (código y tablas). Si venís de la v1 y buscás `isMotaiRenting`, `merchant_mode` o `partner_modes`, **no existen**.
+> Comercio aliado **158**, con **un lender por producto** (`lenders.product`) y **Ábaco** (ingresos de apps gig) como paso **configurable por lender**. Ya **no hay modos**: `allied_modes`/`user_request_modes` se borraron (código y tablas). Si venís de la v1 y buscás `isMotaiRenting`, `merchant_mode` o `partner_modes`, **no existen** como código. ⚠ **Pero grepear el nombre SÍ devuelve resultados, y son comentarios**: cuatro servicios de `Modules/Onboarding` (`AbacoRequirementService.php:98`, `RegisterCellPhoneService.php:67`, `lenders/LenderListingService.php:213`, `lenders/LenderRetrievalService.php:233`) llevan una nota «Des-motaización: … se dejó de usar» justo donde estaba el filtro por modo. Un `git grep allied_modes` sin abrir el archivo hace creer que el mecanismo sigue vivo; es su epitafio.
 
 ## Qué es
 **Motai** es un **COMERCIO** aliado colombiano (`allied_id = 158`), no un lender ni un `response_type`. Ofrece **varias líneas de producto** sobre el mismo wizard de originación. Apunta a población **gig/migrante** (trabajadores de plataformas Rappi/DiDi/Uber y migrantes con **PEP = Permiso Especial de Permanencia**) que no tiene historial en el buró colombiano; por eso su rasgo central es un **underwriting alternativo por ingresos gig (Ábaco)**.
@@ -35,6 +35,21 @@
 - **Que el lender esté asociado a la sucursal NO alcanza para que liste**: si no tiene `group_rules` propias en esa sucursal, el listado sale **vacío** (ver `findings` **F-75**). Es config de datos, no código.
 - ⚠ **Renting y Rent to Own NO se diferencian por `product` ni por la calculadora: se diferencian por el CATÁLOGO DE DOCUMENTOS.** Los dos corren como `product = 'renting'` con matriz `plans`, mismo `response_type`, mismo wizard y mismo `next_step`. Si vas a buscar la diferencia en el código del flujo, no está ahí — está en `lender_signing_documents` y en la política de codeudor de las categorías. → § «Renting y Rent to Own».
 - **IMEI / device-lock (MDM)** es el cierre de la **compra de celulares** del allied Motai, árbol separado sin cruce con Ábaco — fuera de este nodo (patrón afín en **SmartPay**).
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 12 afirmaciones auditadas —7 medidas contra el esquema de
+**prod** y 5 leídas en `origin/main`—, cero chequeos débiles y ninguna falsa. **Es el nodo más limpio de
+la barrida**: toda la v2 que describe existe tal cual. Confirmado en prod: `lenders.product` y
+`lenders.calculator`, `lender_requirements.abaco_is_enabled`,
+`lenders_by_allied_branches.document_types`, y las tablas `allied_documents` y
+`lender_signing_documents` (esta última con sus columnas de codeudor: `requires_cosigner`,
+`signed_by_applicant`, `signed_by_cosigner`, `signer_role`). Y lo que el nodo declara muerto **está
+muerto de verdad**: `allied_modes` y `user_request_modes` **no existen como tablas en producción**.
+Lo único agregado es una advertencia de método —los cuatro comentarios que sobreviven con el nombre
+viejo—, porque un grep los encuentra y parecen código vivo.
+
+⚠ **Y una limitación del nodo que conviene decir**: no tiene **ni una sola cita con número de línea**,
+así que `context-refs` no puede medirle deriva — informa 0 de 0. Que nunca aparezca en el ranking de
+nodos derivados no significa que esté al día; significa que la herramienta no tiene por dónde agarrarlo.
 
 ## El padrón de entidades y su config difieren POR AMBIENTE — y no solo los ids
 Esto ya confundió más de una vez, y en agosto se volvió más peligroso porque ahora lo que difiere es **la fórmula que cotiza**, no solo el número:
