@@ -11,16 +11,17 @@ const t = useTrazador()
       placeholder="cédula, teléfono o número de solicitud"
       inputmode="numeric"
       autocomplete="off"
+      class="input"
       aria-label="Buscar" />
     <!-- El target se elige acá y no en una config: en soporte se salta de un ambiente a otro, y tener
          que reiniciar para cambiarlo hace que nadie lo cambie. -->
-    <select v-model="t.target" aria-label="Ambiente" @change="t.aURL()">
+    <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.aURL()">
       <option value="prod">prod</option>
       <option value="staging">staging</option>
       <option value="dev">dev</option>
       <option value="local">local</option>
     </select>
-    <button type="submit" :disabled="t.buscando || !t.q.trim()">
+    <button type="submit" class="btn btn-outline" :disabled="t.buscando || !t.q.trim()">
       {{ t.buscando ? 'buscando…' : 'buscar' }}
     </button>
   </form>
@@ -48,31 +49,18 @@ const t = useTrazador()
 </template>
 
 <style scoped>
-/* Controles al estilo shadcn: el input se hunde (fondo más oscuro que el panel) y los botones se
-   elevan. Es la única señal que hace falta para distinguir «acá escribís» de «acá apretás», y
-   funciona sin un solo borde de color. */
+/* ⚠ Acá vivían el input, el select, el botón y su anillo de foco, escritos a mano. Son `.input` y
+   `.btn.btn-outline` de `taller.css`, o sea los mismos que las otras tres: el alto, el radio, el
+   anillo de 3px y los estados salen de un solo lugar. Lo único que queda es lo que esta barra tiene
+   de propio — que el input se estire y que el `prod ▾ buscar` no envuelva. */
 .buscador { display:flex; gap:8px; flex-wrap:wrap; align-items:center }
-
-input { flex:1 1 320px; min-width:0; padding:8px 12px; border:1px solid var(--line);
-  border-radius:var(--r); background:var(--panel2); color:var(--txt);
-  transition:border-color .12s, box-shadow .12s }
-input::placeholder { color:var(--tenue) }
-input:hover { border-color:var(--line-fuerte) }
-/* El foco es un ANILLO, no un outline grueso: se ve igual de claro y no corre el layout un píxel. */
-input:focus, select:focus, button:focus-visible { outline:none; border-color:var(--ring);
-  box-shadow:0 0 0 3px var(--sel) }
-
-select, button { padding:8px 13px; border:1px solid var(--line); border-radius:var(--r);
-  background:var(--card); color:var(--txt); cursor:pointer; transition:background .12s, border-color .12s }
-select:hover, button:hover:not(:disabled) { background:var(--elev); border-color:var(--line-fuerte) }
-button { font-weight:500 }
-button:disabled { opacity:.45; cursor:default }
+.buscador .input { flex:1 1 320px; width:auto }
+.buscador select.btn { padding-right:8px }
 
 .como { font-size:12.5px; color:var(--dim); margin:10px 0 0 }
 .ojo { color:var(--warn); font-weight:500 }
 .recientes { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:10px 0 0; font-size:12px }
-.chip { font-size:12px; color:var(--dim); background:transparent; border:1px solid var(--line);
-  border-radius:var(--r-full); padding:3px 11px; cursor:pointer; font-variant-numeric:tabular-nums;
-  transition:color .12s, background .12s, border-color .12s }
-.chip:hover { color:var(--txt); background:var(--elev); border-color:var(--line-fuerte) }
+/* Sobre `.badge.badge-outline`: sólo lo que un reciente tiene de distinto a una píldora cualquiera. */
+.chip { cursor:pointer; font-variant-numeric:tabular-nums; padding:3px 11px }
+.chip:hover { color:var(--txt); background:var(--accent) }
 </style>

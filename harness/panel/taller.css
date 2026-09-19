@@ -289,3 +289,179 @@
 /* Mientras se arrastra, el cursor manda en TODA la ventana: si no, al salirse del elemento vuelve a
    la flecha y parece que el arrastre se soltó. */
 body.redimensionando { cursor: col-resize; user-select: none }
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+   LOS CONTROLES · la anatomía de shadcn, en CSS plano
+   ═══════════════════════════════════════════════════════════════════════════════════════════════
+   El tema dice de qué COLOR es cada cosa y las regiones de arriba dicen QUÉ COSA ES. Esto es la
+   tercera capa: cómo se ve un botón, un campo, una píldora. Las cuatro herramientas los tenían
+   escritos a mano y distintos — medido: 19 reglas de `button` en el panel, 6 en el trazador, 1 en el
+   tablero y 0 en context, cada juego con su alto, su radio y su foco.
+
+   ⚠ NO se instala shadcn y no se puede: es React + Radix, y el panel del harness no tiene bundler
+   —su `npm run dev` es `node panel/server.ts` sobre un HTML suelto— así que consume este archivo por
+   `<link>` crudo. Por eso acá no hay `@apply` ni `@utility`: sería CSS que el panel no entiende.
+   Lo que se copia es la ANATOMÍA y las variantes, leídas de la fuente de shadcn (new-york-v4) y
+   traducidas a los tokens que ya tenemos. Las tres apps de Vite además siguen teniendo las utilidades
+   de Tailwind disponibles para marcado nuevo.
+
+   ⚠ Y esta hoja va ANTES que la de cada herramienta, así que lo propio sigue ganando. Es a propósito:
+   estas clases son la BASE y el destino de la migración, no un cambio de golpe. Para adoptar una, se
+   le borra la regla local — no se le compite. */
+
+/* El anillo de foco es lo más reconocible del sistema, y es UNO solo para todo lo que se enfoca:
+   el borde se tiñe y afuera va un halo de 3px al 50%. Nada de `outline` del navegador. */
+.btn:focus-visible, .input:focus-visible, .switch:focus-visible,
+.badge:focus-visible, .region-action:focus-visible {
+  outline: none;
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
+}
+
+/* ── BOTÓN ──────────────────────────────────────────────────────────────────────────────────────
+   Base + seis variantes + cuatro tamaños, como el `cva` del original. El tamaño por defecto es
+   `h-9` (36px) y el radio `--radius`; `shadow-xs` es la sombra de un pelo que separa el control de
+   su fondo sin dibujarle un marco. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  flex-shrink: 0; white-space: nowrap; border: 1px solid transparent;
+  height: 36px; padding: 0 16px;
+  border-radius: var(--radius);
+  font: inherit; font-size: 14px; font-weight: 500; line-height: 20px;
+  background: var(--primary); color: var(--primary-foreground);
+  cursor: pointer; transition: background .12s, color .12s, border-color .12s, box-shadow .12s;
+}
+.btn:hover { background: color-mix(in oklab, var(--primary) 90%, transparent) }
+.btn:disabled, .btn[aria-disabled="true"] { pointer-events: none; opacity: .5 }
+
+.btn-secondary { background: var(--secondary); color: var(--secondary-foreground) }
+.btn-secondary:hover { background: color-mix(in oklab, var(--secondary) 80%, transparent) }
+.btn-outline { background: transparent; color: var(--foreground); border-color: var(--border);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05) }
+.btn-outline:hover { background: var(--accent); color: var(--accent-foreground) }
+.btn-ghost { background: transparent; color: inherit }
+.btn-ghost:hover { background: var(--accent); color: var(--accent-foreground) }
+/* ⚠ El original pone `text-white` sobre destructive, y ACÁ NO SIRVE: `--destructive` es #e06666, un
+   rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make estilo-check` sobre este mismo archivo.
+   Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
+   ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
+.btn-destructive { background: var(--destructive); color: var(--background) }
+.btn-destructive:hover { background: color-mix(in oklab, var(--destructive) 90%, transparent) }
+.btn-destructive:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
+/* El de enlace no es un botón disfrazado de texto: es texto que se comporta como enlace. */
+.btn-link { height: auto; padding: 0; background: none; border: 0; color: var(--primary);
+  text-underline-offset: 4px }
+.btn-link:hover { background: none; text-decoration: underline }
+
+.btn-xs { height: 24px; padding: 0 8px; gap: 4px; font-size: 12px }
+.btn-sm { height: 32px; padding: 0 12px; gap: 6px }
+.btn-lg { height: 40px; padding: 0 24px }
+/* Los de icono son CUADRADOS: un botón de icono con padding horizontal se lee como un botón vacío. */
+.btn-icon { width: 36px; padding: 0 } .btn-icon.btn-xs { width: 24px }
+.btn-icon.btn-sm { width: 32px } .btn-icon.btn-lg { width: 40px }
+
+/* ── CAMPO ──────────────────────────────────────────────────────────────────────────────────────
+   Fondo TRANSPARENTE, no una superficie propia: el campo se apoya en donde está, y lo que lo
+   delimita es el borde. Es lo que hace que un formulario no se vea como una pila de cajitas. */
+.input {
+  display: block; width: 100%; min-width: 0; height: 36px;
+  padding: 0 12px; border: 1px solid var(--input); border-radius: var(--radius);
+  background: transparent; color: var(--foreground);
+  font: inherit; font-size: 14px; line-height: 20px;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+  outline: none; transition: color .12s, border-color .12s, box-shadow .12s;
+}
+.input::placeholder { color: var(--muted-foreground) }
+.input:disabled { pointer-events: none; cursor: not-allowed; opacity: .5 }
+.input[aria-invalid="true"] { border-color: var(--destructive) }
+.input[aria-invalid="true"]:focus-visible { box-shadow: 0 0 0 3px color-mix(in oklab, var(--destructive) 40%, transparent) }
+textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vertical }
+.input-sm { height: 32px; font-size: 13px }
+
+/* Un campo con algo adentro —una lupa, una ✕, una unidad—. El borde lo lleva el GRUPO y el input
+   queda desnudo adentro: si lo llevan los dos, se ven dos marcos concéntricos. */
+.input-group { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px;
+  border: 1px solid var(--input); border-radius: var(--radius); background: transparent;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: border-color .12s, box-shadow .12s }
+.input-group:focus-within { border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent) }
+.input-group > .input { height: auto; border: 0; box-shadow: none; padding: 0; flex: 1 }
+.input-group > .input:focus-visible { box-shadow: none }
+.input-group > svg, .input-group > .ico-txt { flex: none; color: var(--muted-foreground) }
+
+/* La etiqueta de un campo y su pista, que es lo que `field` del original resuelve. */
+.field { display: flex; flex-direction: column; gap: 6px }
+.field > label, .label { font-size: 14px; font-weight: 500; line-height: 1; color: var(--foreground) }
+.field-hint { font-size: 12px; color: var(--muted-foreground); line-height: 1.4 }
+.field-error { font-size: 12px; color: var(--destructive) }
+
+/* ── PÍLDORA ────────────────────────────────────────────────────────────────────────────────────
+   Relleno O contorno, nunca los dos: es la regla del barrido de marcos y también la del original,
+   donde el borde de las variantes rellenas es `transparent`. */
+.badge {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  width: fit-content; flex-shrink: 0; overflow: hidden; white-space: nowrap;
+  padding: 2px 8px; border: 1px solid transparent; border-radius: var(--radius-full, 999px);
+  font-size: 12px; font-weight: 500; line-height: 16px;
+  background: var(--primary); color: var(--primary-foreground);
+  transition: color .12s, box-shadow .12s;
+}
+.badge-secondary { background: var(--secondary); color: var(--secondary-foreground) }
+.badge-destructive { background: var(--destructive); color: var(--background) }
+.badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
+.badge-ghost { background: transparent; color: var(--muted-foreground) }
+
+/* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
+   Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
+.kbd {
+  pointer-events: none; user-select: none;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  height: 20px; min-width: 20px; width: fit-content; padding: 0 4px;
+  border-radius: var(--radius-sm, 3px); background: var(--muted);
+  /* ⚠ El original es `text-muted-foreground`, que acá mide 3,63:1 sobre `--muted`. En este tema el
+     muted es el escalón MÁS BAJO legible, no el del medio: la rampa cuelga de `--foreground`, igual
+     que en `region-head`. Es la misma corrección de siempre y la volvió a encontrar el chequeo. */
+  color: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  font: inherit; font-size: 12px; font-weight: 500;
+}
+
+/* ── INTERRUPTOR ────────────────────────────────────────────────────────────────────────────────
+   Con `role="switch"` y `aria-checked`, que es lo que lo hace un interruptor y no dos divs. */
+.switch {
+  position: relative; display: inline-flex; align-items: center; flex-shrink: 0;
+  width: 32px; height: 18px; padding: 0; border: 1px solid transparent; border-radius: 999px;
+  background: var(--input); cursor: pointer;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transition: background .12s, box-shadow .12s;
+}
+.switch::after { content: ""; display: block; width: 14px; height: 14px; margin-left: 1px;
+  border-radius: 999px; background: var(--foreground); transition: transform .12s }
+.switch[aria-checked="true"] { background: var(--primary) }
+.switch[aria-checked="true"]::after { transform: translateX(14px); background: var(--primary-foreground) }
+.switch:disabled { cursor: not-allowed; opacity: .5 }
+
+/* ── SEPARADOR ──────────────────────────────────────────────────────────────────────────────────
+   Un pelo, y el mismo en las cuatro. Horizontal por defecto. */
+.separator { flex-shrink: 0; background: var(--border); height: 1px; width: 100%; border: 0 }
+.separator[aria-orientation="vertical"] { height: 100%; width: 1px }
+
+/* ── GIRO ───────────────────────────────────────────────────────────────────────────────────────
+   «Sigue vivo», sin fabricar un porcentaje que no sabemos. */
+.spinner { display: inline-block; width: 16px; height: 16px; flex: none;
+  border: 2px solid color-mix(in oklab, currentColor 25%, transparent);
+  border-top-color: currentColor; border-radius: 999px; animation: spinner .7s linear infinite }
+@keyframes spinner { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s } }
+
+/* ── VACÍO ──────────────────────────────────────────────────────────────────────────────────────
+   Las cuatro tenían estados vacíos con cuatro formas distintas. Esta es la del original: medio,
+   título, descripción y acción, centrados, sin marco. */
+.empty { display: flex; flex: 1; min-width: 0; flex-direction: column;
+  align-items: center; justify-content: center; gap: 24px; padding: 24px; text-align: center }
+.empty-head { display: flex; max-width: 24rem; flex-direction: column; align-items: center; gap: 8px }
+.empty-media { display: flex; align-items: center; justify-content: center; flex: none;
+  width: 40px; height: 40px; margin-bottom: 8px; border-radius: var(--radius);
+  background: var(--muted); color: var(--foreground); font-size: 18px }
+.empty-title { font-size: 16px; font-weight: 500; letter-spacing: -.01em; color: var(--foreground) }
+.empty-desc { font-size: 13px; line-height: 1.6; color: var(--muted-foreground) }
+.empty-content { display: flex; width: 100%; max-width: 24rem; min-width: 0;
+  flex-direction: column; align-items: center; gap: 16px; font-size: 13px }

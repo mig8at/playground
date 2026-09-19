@@ -180,12 +180,13 @@ async function copiar() {
     <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
     <template v-if="t.traza">
       <span class="ico" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
-      <span class="badge" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
+      <span class="badge badge-outline" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
       <span class="ureq">solicitud {{ t.traza.ureq }}</span>
     </template>
     <span v-if="t.traza?.ramal">carril <b>{{ t.traza.ramal }}</b></span>
     <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
-    <span class="sb-pista">clic abre la etapa · ←/→ recorren</span>
+    <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
+    <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
   </footer>
 
 </template>

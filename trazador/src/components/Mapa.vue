@@ -314,7 +314,19 @@ watch(() => props.cerrado, () => nextTick(medir))
 
 <template>
   <div class="mapa" ref="lienzo">
-    <div v-if="!nodosTronco.length" class="vacio">el mapa se dibuja al cargar una solicitud</div>
+    <!-- ⚠ ESTO NO ES «TODAVÍA NO BUSCASTE NADA»: esa pantalla no existe. `etapas` es un getter que
+         SIEMPRE devuelve el mapa declarado —el trazador dibuja las etapas en gris antes de que haya
+         consulta, a propósito—, así que esta rama sólo se alcanza si `mapa.etapas` viene vacío, o sea
+         si el mapa no cargó. Decía «el mapa se dibuja al cargar una solicitud», que describe un
+         estado que nunca ocurre; ahora dice lo que pasó de verdad.
+         La anatomía es la compartida (`.empty` de `taller.css`): medio, título y descripción. -->
+    <div v-if="!nodosTronco.length" class="vacio empty">
+      <div class="empty-head">
+        <div class="empty-media">⚠</div>
+        <p class="empty-title">El mapa del flujo no cargó</p>
+        <p class="empty-desc">Sin etapas declaradas no hay nada que dibujar. Comprobalo con <code>make trazador-chequeo</code>.</p>
+      </div>
+    </div>
 
     <!-- El SVG mide lo que mide el DIBUJO, no la caja: si por algún motivo no entra (muchos carriles
          en una ventana baja), el contenedor scrollea y no hay nada escondido detrás de un borde. -->
@@ -417,7 +429,9 @@ watch(() => props.cerrado, () => nextTick(medir))
      de la otra — medido, el mapa en 546–547 y el panel en 547–548, o sea una costura de 2px donde va
      un pelo de 1. Con el panel cerrado esa línea quedaba además pegada al borde de la ventana. */
   background:var(--panel2); user-select:none }
-.vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
+/* Sobre `.empty`: sólo que ocupe el lienzo entero. El resto —el centrado, los tamaños, el medio— lo
+   pone la clase compartida. */
+.vacio { position:absolute; inset:0 }
 
 .arista { stroke-width:2.5; stroke-linecap:round }
 .nodo { cursor:pointer }
