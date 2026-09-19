@@ -97,7 +97,9 @@ volvió a comprobar línea por línea: `dd($exception);` en `application/app/Act
 y `legacy-backend/app/Actions/Lenders/Wompi.php:78`, con el `return $this->handleException(...)`
 inalcanzable justo debajo. También exactos: los `status_id` **22/21 quemados** (`:57`, `:97`, `:215`),
 los **tres candados** de idempotencia y que **sólo están en `application`**, el `ttl = 18000` y el
-`release(10)` del polling, la firma SHA256 con `wompi_integrity`, y el sentinel del cupo rotativo. Lo
+`release(10)` del polling, la firma SHA256 con `wompi_integrity`, y el sentinel del cupo rotativo. ✔ **Y la marca `⏳ PENDIENTE DE MERGE` de Recaudo BHD sigue vigente**, verificada como manda el
+protocolo: la rama `origin/feature/CRED-101-recaudo-bhd-inbound-api` existe, **su último commit sigue
+siendo el del 2026-08-03** y en `main` no hay una sola línea de ese recaudo. La marca se queda. Lo
 corregido: la cita del webhook de Payvalida apuntaba 43 líneas más abajo de su método, y se agregaron
 las citas que faltaban al sentinel, a los candados y al doble trato del id 52 — **quemado en un archivo
 y resuelto por nombre en el de al lado**.
