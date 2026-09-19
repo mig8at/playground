@@ -107,7 +107,15 @@ function conexionesDe(id) {
 // ── Árbol de CONTEXTOS (las tasks van aparte, aunque cuelguen de la raíz) ──
 const childrenOf = (id) => combos.filter(c => c.parent === id && kindOf(c.id) !== 'task').map(c => c.id).sort()
 const roots = combos.filter(c => !c.parent).map(c => c.id).sort()
+// Plegar TODO o desplegar todo según cómo esté: un botón que sólo pliega deja de servir apenas lo
+// usaste una vez. ⚠ Va DESPUÉS de `childrenOf`, que es un `const` y no se hoistea — la primera
+// versión lo llamaba desde arriba con nombres que no existen en este archivo y el botón no hacía
+// nada, sin un solo error en consola.
+const conHijos = computed(() => combos.filter((c) => childrenOf(c.id).length).map((c) => c.id))
+const todoPlegado = computed(() => conHijos.value.length > 0 && conHijos.value.every((id) => collapsed.value.has(id)))
+function plegarTodo() { collapsed.value = todoPlegado.value ? new Set() : new Set(conHijos.value) }
 const collapsed = ref(new Set())
+
 const toggle = (id) => { const s = new Set(collapsed.value); s.has(id) ? s.delete(id) : s.add(id); collapsed.value = s }
 
 // Qué nodo está abierto. Se declara acá arriba porque el buscador lo mueve (un solo resultado se abre).
@@ -349,7 +357,21 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
 
     <div class="cols">
       <aside class="tree sidebar">
-        <div class="section-label">Contextos</div>
+        <!-- ⚠ El encabezado sale del scroll. Medido: el árbol tiene 1215px de contenido en 675 de
+             alto, y «Contextos» se iba a −291px — recorrías la mitad del árbol sin saber si seguías
+             en contextos o ya estabas en tasks. -->
+        <div class="region-head">
+          <span>Árbol</span>
+          <span class="cnt">{{ rows.length }}</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" :title="todoPlegado ? 'Desplegar todo' : 'Plegar todo'"
+                    @click="plegarTodo">⊟</button>
+          </div>
+        </div>
+        <div class="region-body">
+        <div class="region-head grupo">
+          <span>Contextos</span><span class="cnt">{{ nContext }}</span>
+        </div>
         <div v-for="r in rows" :key="r.id"
              class="row" :class="[claseDe(r.id), { sel: sel === r.id, hl: highlighted.has(r.id) }]"
              :title="motivoDe(r.id)"
@@ -375,12 +397,15 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           del <code>doc.md</code>.
         </p>
 
-        <div class="section-label tasks-lbl">Tasks</div>
+        <div class="region-head grupo">
+          <span>Tasks</span><span class="cnt">{{ nTask }}</span>
+        </div>
         <div v-for="t in tasks" :key="t" class="taskcard" :class="{ sel: sel === t }" @click="select(t)">
           <div class="tc-name"><span class="dot task"></span>{{ nameOf(t) }}</div>
           <div class="chips">
             <span v-for="cx in (byId[t].contexts || [])" :key="cx" class="chip" @click.stop="select(cx)">{{ cx }}</span>
           </div>
+        </div>
         </div>
       </aside>
 

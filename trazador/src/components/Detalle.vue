@@ -167,6 +167,11 @@ const apagados = computed(() => {
       <template v-if="!e.esqueleto"> · <span class="unknown">la BD no puede probar esta etapa</span></template>
     </div>
 
+    <!-- ⚠ El encabezado sale del scroll. Antes `main` scrolleaba ENTERO dentro del sidebar, así que
+         recorrías trescientas líneas de log y perdías de vista de qué etapa eran — que es justo lo
+         que uno necesita tener delante mientras las lee. -->
+    <div class="region-body">
+
     <!-- El motivo de un fallo va SIEMPRE visible: es la respuesta a «¿por qué se cortó?» -->
     <pre v-if="e.vivo?.reason" class="why">{{ e.vivo.reason }}</pre>
 
@@ -346,14 +351,21 @@ const apagados = computed(() => {
         número de solicitud y las etapas se van a encender con lo que la corrida confirme.
       </p>
     </template>
+    </div>
   </main>
 </template>
 
 <style scoped>
-main { padding:18px 20px; min-width:0 }
+main { display:flex; flex-direction:column; min-height:0; height:100%; min-width:0 }
+/* El encabezado no scrollea; el cuerpo sí. El padding se mudó del `main` a los dos, porque un
+   encabezado fijo con el padding del contenedor se despega del borde. */
+.crumb, .sub2 { flex:none; padding-left:20px; padding-right:20px }
+.crumb { padding-top:16px }
+.region-body { padding:0 20px 18px }
 .crumb { color:var(--txt); font-size:13px; font-weight:600; margin-bottom:3px; word-break:break-word;
   letter-spacing:-.01em }
-.sub2 { color:var(--dim); font-size:13px; margin-bottom:12px }
+.sub2 { color:var(--dim); font-size:13px; padding-bottom:12px; margin:0;
+  border-bottom:1px solid var(--line) }
 .regla { border-left:2px solid var(--line-fuerte); background:var(--card); padding:10px 13px;
   border-radius:0 var(--r) var(--r) 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
