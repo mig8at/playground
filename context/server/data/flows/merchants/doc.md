@@ -17,19 +17,43 @@ El nodo se documentó **leyendo código** (no hay doc fuente). La verdad estruct
 - **Copia = snapshot único.** Cambiar la plantilla (`allied_branch_id IS NULL`) después de habilitar no re-sincroniza las copias. De ahí la deriva entre sucursales del mismo comercio.
 - **Fallback silencioso a BdB (lender 5).** Una entidad sin plantilla de datacrédito hereda los umbrales de Banco de Bogotá sin ninguna marca visible (`LenderDatacreditoRulesController.php:102`, `LenderRuleRepository.php:146`).
 - **Los errores de copia se tragan** (mail a `santiago@creditop.com`): una sucursal puede quedar habilitada **sin reglas** y no hay señal en UI.
-- **El gemelo legacy de la copia está roto.** `AlliedManagementService.php:239-240` (y `Modules/Partner/App/Services/AlliedManagementService.php:1384-1385`) hace `new LenderDatacreditoRulesController()` / `new LenderRulesController()` **sin argumentos**, pero ambos controllers exigen `LenderRuleManagementService` en el constructor → `ArgumentCountError`, que **no** es `\Exception` y por lo tanto **no lo atrapan** los `catch` de alrededor. Ese camino fatalea si se invoca.
+- **El `new` sin argumentos está en CUATRO lugares, no en dos — y ninguno es el que este nodo citaba.**
+  `new LenderDatacreditoRulesController()` / `new LenderRulesController()` **sin argumentos** cuando
+  ambos exigen `LenderRuleManagementService` en el constructor → `ArgumentCountError`, que **no** es
+  `\Exception` y por lo tanto **no lo atrapan** los `catch` de alrededor: ese camino fatalea si se
+  invoca. Verificado contra `origin/main` el 2026-09-19:
+  - **legacy-backend** — `Modules/Partner/App/Services/AlliedManagementService.php:239-240` **y**
+    `:1387-1388` *(acá decía `:1384-1385`)*.
+  - **application** — ⚠ **`AlliedManagementService` NO EXISTE en ese repo**, así que la primera cita
+    del nodo apuntaba a un archivo inexistente. Los dos sitios reales son
+    `app/Http/Controllers/Admin/AlliedAlliedBranchController.php:185-186` y
+    `app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php:62-63`.
+  ⚠ **La lección es la de siempre y volvió a morder acá**: la cita se escribió **sin repo**, se asumió
+  que el archivo de un monolito existía en el otro, y quedó mandando a la nada justo en el repo que
+  hoy sirve el tráfico.
 - **`min_amount` es fantasma.** Está en `LendersByAllied::$fillable` en ambos repos y en la migración, pero **ningún controller lo escribe y nadie lo lee**. El `min_amount` que sí decide es el de `credit_line_by_lenders` (nivel entidad). `max_amount` sí manda: pisa el cupo de la entidad si es no-nulo (`LenderRetrievalService.php:542`), y solo lo escribe el `update` (`AlliedLenderController:249`), nunca el `store`.
 - **Colisión de hash.** Comercio y sucursal usan `hash('crc32', date('Y-m-d H:i:s'))` — 8 hex derivados **solo del segundo actual**, y `allied_branches.hash` **no tiene índice único**. Dos sucursales creadas en el mismo segundo comparten la llave de entrada al flujo.
-- **`AlliedController::update` no usa `validated()`** (`app/Http/Controllers/Admin/AlliedController.php:185`, con la línea correcta comentada justo arriba): mass-assign desde el request crudo, contenido solo por el `->only([...])`.
+- **`AlliedController::update` no usa `validated()`** (`application/app/Http/Controllers/Admin/AlliedController.php:184` — `collect($request)` —, con la línea correcta comentada justo arriba en `:183`): mass-assign desde el request crudo, contenido solo por el `->only([...])`.
 - **`AlliedController::store` descarta campos validados.** `Allied/StoreRequest` exige `price` (y acepta `initial_fee`, `self_managed`), pero el `create` no los escribe: solo se pueden setear después, por update.
 - **`AlliedModulesController::store` borra fuera de la transacción** (`app/Http/Controllers/Admin/AlliedModulesController.php:70-71` vs `DB::beginTransaction()` en `app/Http/Controllers/Admin/AlliedModulesController.php:77`): un fallo a mitad deja al comercio **sin ninguna** fila en `status_per_profiles`.
-- **El rango de edad del disparador es un no-op.** `DatacreditoQueryByAlliedController.php:136` evalúa `age <= min_age && age >= max_age`; con el default (25/55) es imposible que dispare. El propio docblock (`Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:31-33`) lo documenta.
+- **El rango de edad del disparador es un no-op.** `legacy-backend/Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:148` evalúa `age <= min_age && age >= max_age`; con el default (25/55) es imposible que dispare. El propio docblock (`Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php:31-33`) lo documenta.
 - **`allieds.country_id` tiene default `1`, pero `Country::COLOMBIA_ID = 47`.** Filas viejas o creadas fuera del panel caen en el default y **saltean** la creación de reglas de datacrédito (`addNewRule:80`). `Country` solo define la constante en `application`; legacy no la tiene.
 - **`AlliedRulesController` (application) es código muerto**: 237 líneas sin ruta ni referencia; además no es de "reglas" sino métricas de efectividad de perfilamiento, con `allied_id != 24` quemado tres veces.
 - **`allied_branches.external_id` es solo-lectura**: no está en `$fillable`, ningún código lo escribe, y se consume como "código de tienda" en los exports de Corbeta/Bancolombia. Se llena a mano en BD.
 - **`allied_modes` no tiene seeder ni CRUD**: se crea a mano. La migración se llama `create_merchant_modes_table` pero crea `allied_modes`; el modelo `AlliedMode` solo se **lee** (`findById`) y `application` ni siquiera declara la relación.
 - **Deriva de esquema por parallel-run.** Los dos repos comparten BD pero tienen sets de migraciones distintos: **5 migraciones de comercio solo en application** (`aws_arn`, `production_date`, `guarantee_insurance_per_million`, …) y **14 solo en legacy-backend** (`nit`, `trustonic_tenant_key`, `senary_color`, los 4 `show_*` de 2026, `allied_modes`, …). El caso más filoso: `application` **escribe** `lenders_by_allieds.hide_probability` (`app/Http/Controllers/Admin/AlliedLenderController.php:161`, `app/Http/Controllers/Admin/AlliedLenderController.php:239`) pero la migración que crea esa columna vive **solo en legacy-backend** (`2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php`) — el panel vivo depende de que el otro repo haya migrado.
 - **El `__construct` de los controllers de comercio tiene una rama muerta**: `AlliedController.php:32-36` y `AlliedAlliedBranchController.php:32-36` leen `front_url_local` bajo `local_env == 1` y acto seguido lo **pisan incondicionalmente** con `front_url`. Encima difieren en la forma (`->value` vs `->value['url']`).
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 13 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa. Es de los nodos más sanos del árbol: **126 de 140 referencias
+ancladas, cero movidas y cero corridas**. Exactos, y son los que sostienen el nodo entero: el
+`$no_more = false; // TODO quitar definitivamente` que vuelve NO-OP a `have_ctopx` en legacy
+(`LenderListingService.php:621`) contra el gemelo de `application` que **sí** lo calcula
+(`LenderRetrievalService.php:126`), el `max_amount` de la sucursal pisando el de la entidad (`:542`),
+el borrado fuera de la transacción de `AlliedModulesController` y el rango de edad invertido que el
+propio docblock documenta. Lo corregido son **tres citas**, y la peor vuelve a ser del mismo tipo: el
+`new` sin argumentos se citaba en `application/…/AlliedManagementService.php`, **un archivo que no
+existe en ese repo** — los sitios reales son cuatro y están en otros dos controladores.
 
 ## Contenido
 

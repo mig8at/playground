@@ -17,13 +17,22 @@ Este nodo cubre la **frontera**: qué repos hay, cómo se enganchan y dónde est
 ## Antes de concluir
 - **`auth.cognito` no autentica** (el detalle del middleware y quiénes lo usan → `actors`). Lo que importa acá: la barrera real es **de red/gateway, no de código** — y por eso el puente S2 funciona pese a no mandar `Authorization`.
 - **Tres mecanismos de cutover distintos y sin relación** — filas de `settings` (originación), array PHP hardcodeado (checkout Corbeta) y `config/documents.php` (generación de PDFs). No hay un feature-flag único; para saber qué corre para un comercio hay que mirar los tres.
-- **Ningún repo tiene el esquema completo** (47 + 67 migraciones exclusivas). Explica los "no lista el lender" al levantar local con un solo repo.
+- **Ningún repo tiene el esquema completo, y la brecha se ENSANCHÓ**: medido el 2026-09-19 sobre `origin/main`, hay **51 migraciones exclusivas de `application` y 171 exclusivas de `legacy-backend`** (286 comparten nombre). Acá decía **47 + 67**: el lado de legacy se multiplicó por 2,5 en el mismo período en que se dejó de copiar. Explica los «no lista el lender» al levantar local con un solo repo — y hoy explica muchos más.
 - **Las migraciones se copiaban a mano** (286 byte-idénticas) — y **la copia ya se dejó de hacer**: medido el 2026-09-18, en agosto entraron **53** migraciones a `legacy-backend` y **0** a `application`; en septiembre, **28 contra 3**. La regla del equipo hoy es declararlas en `legacy-backend` aunque la funcionalidad viva en el otro monolito (CORE-442 lo dice y lo cumple: la tabla `default_products_by_country` se declara en `legacy-backend` y la usan un modelo y un controlador de `application`). ⚠ Pero **no es absoluta**: las tres de septiembre en `application` —`device_locking_config_audits`, `origin_channel` en el registro de pagos y `disbursed_at` en `user_requests`— **no existen** en `legacy-backend`. O sea que la deriva de esquema dejó de ser un riesgo futuro y es el estado actual, en los dos sentidos.
 - **Deriva de gemelos en ambos sentidos** sobre la misma tabla `lenders`: el hardcode de Credifamilia solo en application, `isSmartpayChannel()` solo en legacy. Leer un modelo en un repo **no** dice cómo se comporta el otro.
-- **`app/Http/Controllers` de legacy-backend es una copia mayormente muerta**: 33 controladores, pero **no hay `routes/web.php`** y la raíz solo monta el ping + exceptions. Los únicos alcanzables por ruta son los **dos** de `Api/CredifamiliaV2` (`CrossCoreController`, `EvidenteController`), que además son código nuevo, no heredado.
-- **Share de Inertia muerto:** `application/app/Http/Middleware/HandleInertiaRequests.php:75-80` publica `newFrontendBaseUrl` y `newFrontendBranchHashes` a las páginas Vue, pero `newFrontend` aparece **0 veces** en `resources/`.
+- **`app/Http/Controllers` de legacy-backend es una copia mayormente muerta**: **38** controladores *(acá decían 33)*, pero **no hay `routes/web.php`** y la raíz solo monta el ping + exceptions. Los únicos alcanzables por ruta son los **dos** de `Api/CredifamiliaV2` (`CrossCoreController`, `EvidenteController`), que además son código nuevo, no heredado.
+- **Share de Inertia muerto — y está en los DOS repos.** `application/app/Http/Middleware/HandleInertiaRequests.php:75-80` publica `newFrontendBaseUrl` y `newFrontendBranchHashes` a las páginas Vue, pero `newFrontend` aparece **0 veces** en `resources/`. ⚠ Y `legacy-backend/app/Http/Middleware/HandleInertiaRequests.php:75-80` tiene **el mismo bloque, línea por línea** — acá se atribuía sólo a `application`. Es otro caso de la copia que nadie volvió a mirar: muerto dos veces.
 - **`product_type` es fantasma**: no existe la columna; usar `response_type` + `path_id`.
 - Los prefijos de ruta del wizard están **duplicados a mano** en PHP y TS (`NewFrontendUrlService` ↔ `ROUTE_PREFIXES`); nada los mantiene sincronizados.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 10 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa. Exactos: `legacy-backend` **sigue sin `routes/web.php`** y los únicos
+controladores alcanzables por ruta en esa carpeta siguen siendo los **dos** de `Api/CredifamiliaV2`; y
+el share de Inertia sigue publicando un dato que **ninguna vista lee**. Lo corregido son conteos que
+crecieron, y uno de ellos cuenta una historia: las migraciones exclusivas pasaron de **47 + 67** a
+**51 + 171**, o sea que el lado de `legacy-backend` se multiplicó por **2,5** justo en el período en
+que se dejó de copiarlas. Los 33 controladores son **38**. Y el share muerto no estaba sólo en
+`application`: el mismo bloque está, línea por línea, en `legacy-backend`.
 
 ## Contenido
 

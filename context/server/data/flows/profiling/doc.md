@@ -9,17 +9,29 @@ En lenguaje de negocio es la **"segmentación de clientes"** (de *premium* a *ma
 En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bróker**); en rt=0 redirige. Perfilar es exclusivo del sombrero operador (rt=2/3).
 
 ## Antes de concluir
-- ⚠ **La compuerta de capacidad de endeudamiento corre en 35 de 195 tiers (18 %)** y **no mira los
-  gastos declarados por el cliente**: usa `salario − (cuota_mensual_datacrédito − deuda_ignorada)`
-  (`LenderUserCategoryService.php:709`). Sólo se evalúa si el tier declara `min_debt_capacity > 0`
-  **Y** `debt_capacity_amount_validation == 0` — 133 tiers declaran el mínimo pero **98 de ellos lo
-  tienen inerte** por el segundo flag. Y lo que se llama «capacidad» en `calculatePaymentCapacity`
+- ⚠ **La compuerta de capacidad de endeudamiento corre en 45 de 229 tiers (19,7 %)** —re-medido en
+  prod el 2026-09-19; acá decía 35 de 195— y **no mira los gastos declarados por el cliente**: usa
+  `salario − (cuota_mensual_datacrédito_ajustada − deuda_ignorada)`
+  (`legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:990`, dentro de
+  `validateDebtCapacity` en `:957`; acá se citaba `:709`, que no es esta función). ⚠ **Y el mínimo con
+  el que se compara es un PORCENTAJE DEL SALARIO**, no un monto: `(min_debt_capacity / 100) × salario`
+  (`:993`) — o sea que el campo se configura en puntos porcentuales y leerlo como pesos da un umbral
+  absurdo. Sólo se evalúa si el tier declara `min_debt_capacity > 0` (`:980`) **Y**
+  `debt_capacity_amount_validation == 0` (`:996`) — **156** tiers declaran el mínimo pero **111 de
+  ellos lo tienen inerte** por el segundo flag. Y lo que se llama «capacidad» en `calculatePaymentCapacity`
   (`Modules/Loans/App/Services/LenderUserCategoryService.php:380`) es OTRA cosa: un PORCENTAJE `(ingreso−gastos)/ingreso` que alimenta el scoring, no la
   compuerta. Negocio y motor llaman «capacidad» a dos cosas distintas — ver **F-112**.
 - **BUG `min_income` NO-OP — MUERTO EN UN MONOLITO, VIVO EN EL OTRO.** *Acá decía «vivo» a secas, y el mismo nodo lo desmiente más abajo (re-verificación del 2026-08-28): quedó contradiciéndose. Re-medido contra `origin/main` el 2026-09-17, y ninguna de las dos versiones era exacta.* En **legacy-backend** `evaluateEligibility` **ya lee bien** (`Modules/Loans/App/Services/LenderUserCategoryService.php:513`: `$criteria['min_income'] = $salary >= $rule->monthly_income`). En **`application`** el gemelo `app/Services/lenders/LenderUserCategoryService.php:111` **sigue comparando contra `$lenderUserCategoryRule->min_income`** —atributo inexistente → `null` → `$salary >= null` es **siempre true** en PHP—, así que ahí el piso de ingreso **sigue sin filtrar**. ⚠ Y el docblock de `Modules/Backoffice/App/Support/LenderRulesMap.php:275-277` **todavía afirma que está muerta en los DOS**, que es lo que mantiene `monthlyIncome` como sólo-lectura en el backoffice: esa justificación ya sólo vale para la mitad. [MEMORY flow-reorg-y-mapa-atributos]
 - **Tier laxo admite, primer tier (menor id, suele el más estricto) da la economía** — el `max_amount`/`min_initial_fee` NO salen del tier que "más fácil" pasa.
-- **FAIL-CLOSED por buró ausente**: la categoría SIEMPRE exige la fila `datacredito` (`Modules/Loans/App/Services/LenderUserCategoryService.php:429`); sin ella, ni un tier "pasa-todo de score" aprueba (aunque tenga todos los sub-checks sin umbral).
-- **`consulted_last_6_months` se apaga si el umbral del tier ≥100** (`validateConsultedLast6Months:607`) → las consultas solo gatean donde el tier fija `<100`.
+- **FAIL-CLOSED por buró ausente — pero ya NO es «siempre».** Sin fila `datacredito` la categoría no
+  aprueba, ni con un tier «pasa-todo de score»
+  (`legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:547`; acá se citaba `:429`).
+  ⚠ Lo que el nodo no decía es que **hay DOS escapes declarados** justo arriba: `$skipBureauByAbaco`
+  (`:541`, la entidad valida ingreso con Ábaco) y `$skipBureauByCountry` (`:542-543`, el país del
+  comercio no tiene centrales de riesgo activas — el caso Perú). Con cualquiera de los dos, el flujo
+  sigue **sin buró**. Si estás depurando «aprobó sin Datacrédito», la respuesta está en esas dos líneas
+  y no en el tier.
+- **`consulted_last_6_months` se apaga si el umbral del tier ≥100** (`validateConsultedLast6Months`, invocada en `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:609`) → las consultas solo gatean donde el tier fija `<100`.
 - **Categoría de USUARIO ≠ categoría de PRODUCTO**: `lender_users_categories` segmenta **usuarios**; la "categoría de lender/producto" del plan Motai v2 (crédito/arrendamiento) es **otra cosa que aún no existe** en BD (ver **Motai v2**). No confundir.
 - **`scoring_policy_fallback_blocked`**: aprobar por scoring tras fallar todas las reglas de tier NO da cupo — solo `scoring_is_primary` (lender sin tiers, ej. SmartPay) usa scoring como diseño.
 - **Los INSUMOS de la categoría los calcula la BD, no PHP.** El ingreso promedio y la ocupación —dos de las cuatro variables de las reglas— salen de `FN_User_Income_Average` y `FN_User_Occupation`, funciones almacenadas de MySQL invocadas con `DB::scalar` desde `ExperianProfileService.php:42` y `Modules/Onboarding/App/Services/ExperianProfileService.php:46` (y su gemelo `Prami.php:378` · `app/Actions/Lenders/Prami.php:384`). El porcentaje de gasto fijo, igual: `FN_CreditopX_Profiling_Fixed_Expense_Perc` (`Modules/Onboarding/App/Services/ExperianProfileService.php:102`). ⚠ Grepear el nombre del campo en el código NO llega a la fórmula: se invocan como string. Y **cambiarlas no deja rastro en ningún repo** — un perfilamiento que cambió sin deploy se explica ahí. Nodo **db-routines**.
@@ -39,6 +51,16 @@ En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bró
   misma cadena no tienen por qué coincidir, así que una `ML_predictions` vieja puede discrepar de
   `displayed_lenders` sin que nadie haya tocado nada.
 - **`ML_predictions` tiene TRES formas porque la escriben DOS sistemas.** `legacy-backend` guarda un ARRAY (una entrada por entidad, con `perfilador`) o un OBJETO con `error` cuando ninguno respondió; `legacy-application` guarda la respuesta CRUDA de H2O (`{data,status,message}`) **sin transformar y sin `perfilador`** — por eso esas filas no pueden decir quién ordenó. Leer una sola forma hace que justo el caso que interesa se lea como «sin datos».
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 11 afirmaciones auditadas —8 contra `origin/main` y 3
+medidas en prod—, cero chequeos débiles y ninguna falsa. Exactos y con el matiz intacto: el **BUG
+`min_income`** sigue muerto en un monolito y vivo en el otro (`legacy-backend` compara bien en `:513`,
+el gemelo de `application` sigue contra un atributo inexistente en `:111`) **y el docblock de
+`LenderRulesMap.php:275-277` sigue afirmando que está muerta en los DOS**, que es lo que mantiene
+`monthlyIncome` como sólo-lectura en el backoffice. Corregidas dos anclas y **dos cosas de fondo que el
+nodo no decía**: el mínimo de capacidad es un **porcentaje del salario**, no un monto, y el fail-closed
+por buró tiene **dos escapes** (Ábaco y país sin centrales activas). Los conteos se re-midieron: los
+tiers pasaron de 195 a **229** y la compuerta viva de 35 a **45**.
 
 ## Contenido
 
