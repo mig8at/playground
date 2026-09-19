@@ -32,18 +32,23 @@ const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los dem
 const site = ref('');         // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
 const panelTab = ref('trabajo');
-// ── EL MODO del activitybar: qué mira el sidebar ────────────────────────────────────────────────
-// No son dos vistas del mismo dato: «sprint» mira por SPRINT y «jira» por ASIGNACIÓN, que es la
-// única que ve tareas tuyas que todavía no están en el registro local.
-const MODOS = [
-  { id: 'sprint', icon: 'T', title: 'Mi sprint — las tareas del sprint activo' },
-  { id: 'jira', icon: 'J', title: 'Traer de Jira — lo que está a mi nombre y no está en el registro' },
-];
-const modo = ref('sprint');
-// ⚠ Cambiar de modo SUELTA la tarea. Sin esto, el sidebar pasaba a «traer de Jira» y el editor seguía
-// mostrando la tarea abierta, así que las filas del import no se veían nunca — el editor es donde
-// viven. Son dos preguntas distintas, no dos vistas del mismo dato.
-watch(modo, () => { active.value = null; });
+// ── EL ACORDEÓN DEL SIDEBAR: qué vistas están abiertas ──────────────────────────────────────────
+// Dos vistas apiladas, no dos modos: un modo tapa al otro, y acá las dos tienen que poder verse de un
+// vistazo. `jira` arranca cerrada —es mantenimiento del registro, no la operación del día— y cerrada
+// ocupa UNA FILA, que es lo que la deja descubrible.
+// ⚠ `alternarSeccion` y no `alternarVista`: ese nombre ya lo tiene el botón del titlebar que cambia
+// el ANCHO del sprint (sólo este sprint / últimos N). Dos cosas distintas con el mismo verbo es como
+// se llega a llamar a la equivocada.
+const secciones = ref(new Set(['tareas']));
+const abierta = (id) => secciones.value.has(id);
+function alternarSeccion(id) {
+  const n = new Set(secciones.value);
+  n.has(id) ? n.delete(id) : n.add(id);
+  secciones.value = n;
+  // ⚠ Abrir «traer de Jira» SUELTA la tarea. Sus filas viven en el editor —no entran en 300px—, así
+  // que sin esto abrís la vista y el editor sigue mostrando la tarea: las filas no se ven nunca.
+  if (id === 'jira' && n.has('jira')) active.value = null;
+}
 const journeyOpen = ref(readPreference('journey-open', true) === true);
 watch(journeyOpen, value => savePreference('journey-open', value));
 const collapsedGroups = ref(new Set(['terminada']));
@@ -1334,100 +1339,111 @@ onMounted(async () => {
       </div>
     </header>
 
-    <!-- ACTIVITYBAR: cambia QUÉ muestra el sidebar, como en VS Code. Dos modos, y son dos
-         preguntas distintas: «mi sprint» mira por SPRINT y «traer de Jira» por ASIGNACIÓN. -->
-    <nav class="activitybar" aria-label="Modos">
-      <button v-for="m in MODOS" :key="m.id" class="ab-b" :class="{ act: modo === m.id }"
-              :title="m.title" :aria-pressed="modo === m.id" @click="modo = m.id">{{ m.icon }}</button>
-    </nav>
-
-    <!-- SIDEBAR: el árbol. Una fila por tarea, agrupadas por esfuerzo — el mismo agrupado que tenía
-         la grilla. La fila dice lo MÍNIMO para elegir (clave, estado, título); todo lo demás vive en
-         el editor, que es donde hay ancho para leerlo. -->
+    <!-- SIDEBAR: un ACORDEÓN, como el sidebar primario de VS Code. Dos vistas apiladas, y la de
+         abajo arranca cerrada. Antes esto era un activitybar con dos modos, y era un rodeo: el
+         propio comentario de «Traer de Jira» ya decía «va al final y COLAPSADA porque es
+         mantenimiento del registro, no la operación del día». Eso es una vista de acordeón, no un
+         modo — un modo tapa al otro, y acá las dos tienen que poder verse de un vistazo. -->
     <aside class="sidebar">
-      <div class="region-head">
-        <span>{{ modo === "jira" ? "Traer de Jira" : vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
-        <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
-             nadie ve es un filtro que se olvida encendido, y después la tarea que falta se lee como
-             «no existe». En cuanto algo queda afuera esto pasa de «9» a «9 / 16» y lo delata. -->
-        <span v-if="modo === 'sprint' && !cargandoAncha" class="cnt"
-              :class="{ filtrando: ocultos.size || buscaNorm }"
-              :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
-        <div v-if="modo === 'sprint' && !cargandoAncha && totalTasks" class="region-actions">
-          <button type="button" class="region-action" title="Colapsar todos los grupos"
-                  @click="colapsarTodo">⊟</button>
-          <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
+      <!-- VISTA · las tareas del sprint. Es la operación del día, así que se lleva el alto. -->
+      <section class="view" :class="{ abierta: abierta('tareas') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="abierta('tareas')"
+                  @click="alternarSeccion('tareas')">
+            <span class="chev" aria-hidden="true">{{ abierta('tareas') ? '⌄' : '›' }}</span>
+            <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
+          </button>
+          <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido
+               que nadie ve es un filtro que se olvida encendido, y después la tarea que falta se
+               lee como «no existe». En cuanto algo queda afuera pasa de «9» a «9 / 16». -->
+          <span v-if="!cargandoAncha" class="cnt" :class="{ filtrando: ocultos.size || buscaNorm }"
+                :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
+          <div v-if="abierta('tareas') && !cargandoAncha && totalTasks" class="region-actions">
+            <button type="button" class="region-action" title="Colapsar todos los grupos"
+                    @click.stop="colapsarTodo">⊟</button>
+            <RegionMenu :items="menuFiltros" title="Qué tareas se ven" @toggle="desdeMenu" />
+          </div>
         </div>
-      </div>
-
-      <template v-if="modo === 'sprint'">
+        <template v-if="abierta('tareas')">
           <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
           <!-- ⚠ Acá vivían las seis casillas de filtro: tres renglones de pastillas antes de la
-               primera tarea. Se fueron al menú ⋯ del encabezado (el patrón del Explorer de VS Code:
-               lo que se ALTERNA y se toca poco va al menú; lo que se HACE y es frecuente queda como
-               icono). Lo que NO se movió es el buscador — se usa todo el tiempo y es una sola fila.
-               Nada del razonamiento viejo se perdió: siguen siendo CASILLAS y no una selección
-               única (la pregunta es «¿cuáles saco de la vista?», no «¿cuál quiero ver?»), siguen
-               llevando su conteo, y las que están en cero siguen deshabilitadas y VISIBLES en vez de
-               esconderse — que «en pruebas 0» se vea es información. -->
+          primera tarea. Se fueron al menú ⋯ del encabezado (el patrón del Explorer de VS Code:
+          lo que se ALTERNA y se toca poco va al menú; lo que se HACE y es frecuente queda como
+          icono). Lo que NO se movió es el buscador — se usa todo el tiempo y es una sola fila.
+          Nada del razonamiento viejo se perdió: siguen siendo CASILLAS y no una selección
+          única (la pregunta es «¿cuáles saco de la vista?», no «¿cuál quiero ver?»), siguen
+          llevando su conteo, y las que están en cero siguen deshabilitadas y VISIBLES en vez de
+          esconderse — que «en pruebas 0» se vea es información. -->
           <div class="filtros" v-if="!cargandoAncha && totalTasks">
           <label class="fbusca" :class="{ act: !!buscaNorm }">
-              <span class="lupa" aria-hidden="true">⌕</span>
-              <input v-model="busca" type="search" placeholder="buscar por título…"
-                aria-label="Buscar tarea por título o clave">
-              <button v-if="busca" class="fx" type="button" title="limpiar" @click="busca = ''">×</button>
-            </label>
+          <span class="lupa" aria-hidden="true">⌕</span>
+          <input v-model="busca" type="search" placeholder="buscar por título…"
+          aria-label="Buscar tarea por título o clave">
+          <button v-if="busca" class="fx" type="button" title="limpiar" @click="busca = ''">×</button>
+          </label>
           </div>
           <!-- Sin resultados NO puede ser una grilla vacía a secas: se lee como «no tengo tareas», que es
-               otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
+          otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
           <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
-            Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
-              v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
-            <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
+          Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
+          v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
+          <button class="lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
           </p>
-        <div class="region-body">
+          <div class="region-body">
           <template v-for="g in groupedIssues" :key="g.id">
-            <h3 class="tree-group">
-              <button class="section-toggle" :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
-                :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
-                <span aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
-                {{ g.title }}<span class="group-count">{{ g.tasks.length }}</span>
-              </button>
-            </h3>
-            <div :id="'group-' + g.id" v-show="buscaNorm || !collapsedGroups.has(g.id)">
-              <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
-                   target de 28px de alto se acierta sin mirar. -->
-              <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
-                :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
-                :title="i.Summary" @click="openTask(i)">
-                <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
-                <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
-                <span class="tr-tt">{{ i.Summary }}</span>
-                <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`">{{ quedan(i.Key) }}</span>
-                <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
-                      :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
-              </button>
-            </div>
+          <h3 class="tree-group">
+          <button class="section-toggle" :aria-expanded="!!buscaNorm || !collapsedGroups.has(g.id)"
+          :aria-controls="'group-' + g.id" @click="toggleGroup(g.id)">
+          <span aria-hidden="true">{{ buscaNorm || !collapsedGroups.has(g.id) ? '⌄' : '›' }}</span>
+          {{ g.title }}<span class="group-count">{{ g.tasks.length }}</span>
+          </button>
+          </h3>
+          <div :id="'group-' + g.id" v-show="buscaNorm || !collapsedGroups.has(g.id)">
+          <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
+          target de 28px de alto se acierta sin mirar. -->
+          <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
+          :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
+          :title="i.Summary" @click="openTask(i)">
+          <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
+          <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
+          <span class="tr-tt">{{ i.Summary }}</span>
+          <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`">{{ quedan(i.Key) }}</span>
+          <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
+          :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+          </button>
+          </div>
           </template>
-        </div>
-      </template>
+          </div>
+        </template>
+      </section>
 
-      <!-- En modo Jira el sidebar lleva los CONTROLES y el editor las filas: cada fila del import
-           tiene un select y dos líneas de texto, y eso no entra en 300px. -->
-      <div v-else class="region-body sidebar-jira">
-        <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
+      <!-- VISTA · traer de Jira. Arranca CERRADA y cerrada cuesta UNA FILA, no cero: así se ve que
+           existe sin comerse la pantalla. Sus controles viven acá y sus filas en el editor — cada
+           fila del import lleva un select y dos líneas, y eso no entra en 300px. -->
+      <section class="view" :class="{ abierta: abierta('jira') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="abierta('jira')"
+                  @click="alternarSeccion('jira')">
+            <span class="chev" aria-hidden="true">{{ abierta('jira') ? '⌄' : '›' }}</span>
+            <span>Traer de Jira</span>
+          </button>
+          <span v-if="inbox" class="cnt" :class="{ filtrando: inbox.pending }">{{ inbox.pending }}</span>
+        </div>
+        <div v-if="abierta('jira')" class="region-body sidebar-jira">
+          <button class="qa-go" :disabled="inboxBusy" @click="loadInbox()">
           {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
-        </button>
-        <label class="sync-all">
+          </button>
+          <label class="sync-all">
           <input type="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
           <span>incluir terminadas <em>nacen archivadas</em></span>
-        </label>
-        <p v-if="inbox" class="chip">
+          </label>
+          <p v-if="inbox" class="chip">
           {{ inbox.pending }} sin registro
           <template v-if="inbox.registered"> · {{ inbox.registered }} ya registradas</template>
-        </p>
-        <p class="mut">Mira por <b>asignación</b>, no por sprint: es lo único que crea una tarea local.</p>
-      </div>
+          </p>
+          <p class="mut">Mira por <b>asignación</b>, no por sprint: es lo único que crea una tarea local.</p>
+          </div>
+      </section>
     </aside>
 
     <!-- EDITOR: sin tarea elegida, el sprint. Con una elegida, la tarea. -->
@@ -1741,7 +1757,9 @@ onMounted(async () => {
       </TaskEditor>
 
       <!-- LA PESTAÑA DE BIENVENIDA: el sprint. Es lo que se ve al entrar y al soltar una tarea. -->
-      <div v-else-if="modo === 'sprint'" class="region-body sprint-view">
+      <!-- ⚠ Sin tarea elegida manda LA VISTA ABIERTA: con «traer de Jira» abierta el editor lleva
+           sus filas (que en el sidebar no entran), y si no, el sprint. -->
+      <div v-else-if="!abierta('jira')" class="region-body editor-view">
         <div class="stats">
           <div class="stat">
             <div class="k">Tareas</div>
@@ -1837,7 +1855,7 @@ onMounted(async () => {
         </section>
       </div>
 
-      <div v-else class="region-body sprint-view">
+      <div v-else class="region-body editor-view">
         <!-- TRAER DE JIRA. La única vista que mira por ASIGNACIÓN y no por sprint, y la única que CREA
              una tarea local. Va al final y colapsada porque es mantenimiento del registro, no la
              operación del día: se abre cuando arranca un sprint o cuando alguien te asigna algo. -->
@@ -1933,12 +1951,9 @@ onMounted(async () => {
    `taller.css` pone el esqueleto (grid, superficies, el contrato de scroll); esto es lo que sólo
    significa algo acá: los dos modos, la fila del árbol y la vista de sprint. */
 
-/* ACTIVITYBAR — dos modos, dos preguntas distintas. Iconos de una letra: con dos entradas, un rótulo
-   sería más ancho que la columna y el `title` ya dice cuál es cuál. */
-.ab-b { width: 32px; height: 32px; flex: none; border: 0; border-radius: var(--radius); cursor: pointer;
-  background: transparent; color: var(--mut); font: 700 13px var(--font-mono) }
-.ab-b:hover { color: var(--txt); background: var(--sel) }
-.ab-b.act { color: var(--acc-ink); background: var(--acc) }
+/* ⚠ Acá vivía el `.ab-b` del activitybar. Se fue con el acordeón: con UN solo contenedor de vistas,
+   un activitybar de una entrada no cambia nada — en VS Code esa columna cambia de CONTENEDOR, y acá
+   sólo había uno. El vocabulario sigue en `taller.css` para el día que haya dos. */
 
 /* EL ÁRBOL — una fila por tarea. La fila ENTERA es el botón: elegir es el único gesto de esta
    columna, así que el target es la fila y no un enlace adentro. 28px de alto se acierta sin mirar. */
@@ -1963,10 +1978,12 @@ onMounted(async () => {
 .sidebar-jira { padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start }
 .sidebar-jira .mut { font-size: 11.5px; line-height: 1.5 }
 
-/* LA VISTA DE SPRINT — el editor sin tarea elegida. Acota el ancho de LECTURA (no el del
-   contenedor): una línea de 120 caracteres no se lee, y el editor puede ser muy ancho. */
-.sprint-view { padding: 22px 24px 40px }
-.sprint-view > * { max-width: 1100px }
+/* EL EDITOR SIN TAREA — el sprint o el import, según qué vista del acordeón esté abierta. Acota el
+   ancho de LECTURA (no el del contenedor): una línea de 120 caracteres no se lee, y el editor puede
+   ser muy ancho. ⚠ Se llamaba `.sprint-view` y la usaban las DOS ramas: un nombre que dice «sprint»
+   sobre la vista del import hace que hasta un chequeo escrito a propósito conteste mal. */
+.editor-view { padding: 22px 24px 40px }
+.editor-view > * { max-width: 1100px }
 
 /* LA FICHA — lo que la tarjeta mostraba de un vistazo, ahora con el ancho del editor. */
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }

@@ -166,8 +166,44 @@
 }
 .region-body { flex: 1; min-height: 0; min-width: 0; overflow: auto }
 /* El título empuja a las acciones al borde. `min-width: 0` para que un título largo se recorte en vez
-   de sacar los botones fuera de la región. */
+   de sacar los botones fuera de la región. (En una vista de acordeón el primer hijo es `.view-tog`,
+   que ya trae su propio `flex: 1`.) */
 .region-head > :first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* ── VARIAS VISTAS EN UNA REGIÓN: EL ACORDEÓN ────────────────────────────────────────────────────
+   El sidebar primario de VS Code no tiene UNA cosa: tiene varias apiladas —el árbol arriba, OUTLINE y
+   TIMELINE colapsadas abajo—. Cada una es un `.view`: su propio encabezado, su propio cuerpo y su
+   propio scroll.
+
+   ⚠ **Una vista cerrada cuesta UNA FILA, no cero**, y eso es la mitad del valor. Es la misma regla
+   que el canal deshabilitado del panel del harness: verla apagada dice que existe y que ahora no
+   corresponde; esconderla hace creer que no existe. Una vista que al cerrarse desaparece es una
+   funcionalidad que nadie vuelve a encontrar.
+
+   ⚠ **No todo lo que se pliega es un `.view`.** Esto es para vistas que SE REPARTEN EL ALTO de una
+   región de alto fijo: cerrar una le da el espacio a la otra. Para secciones que se pliegan dentro de
+   un cuerpo que scrollea —donde no hay alto que repartir— el elemento correcto es `<details>`, que no
+   necesita una línea de JS. El panel del harness ya tiene ocho así, y convertirlos por consistencia
+   sería cambiar algo que funciona sin JS por algo que lo necesita.
+
+   ⚠ Y NO hay manija entre vistas. Las abiertas se reparten el alto en partes iguales (`flex: 1 1 0`).
+   Arrastrar el borde entre dos vistas es bastante JS —dos alturas que persistir, un mínimo por vista,
+   qué pasa al colapsar la de arriba— para algo que con dos o tres vistas casi no se usa. Si algún día
+   una herramienta lo necesita, se agrega ahí y se sube acá cuando lo necesite la segunda. */
+.view { display: flex; flex-direction: column; min-height: 0; border-bottom: 1px solid var(--border) }
+.view.abierta { flex: 1 1 0 }
+.view:not(.abierta) { flex: none }
+.view:last-child { border-bottom: 0 }
+/* El chevron y el título son UN botón: el área de clic de un encabezado de acordeón es el encabezado
+   entero, no una flechita de 12px. Las acciones quedan afuera del botón para que no lo disparen. */
+.view-tog {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 5px;
+  border: 0; background: none; padding: 0; cursor: pointer;
+  color: inherit; font: inherit; text-align: left;
+}
+.view-tog > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.view-tog .chev { flex: none; width: 12px; font-size: 10px; opacity: .8 }
+.view-tog:hover { color: var(--foreground) }
 
 /* ── LA BARRA DE ACCIONES DE UNA REGIÓN ──────────────────────────────────────────────────────────
    El patrón del Explorer de VS Code, y la división es lo que lo hace funcionar:

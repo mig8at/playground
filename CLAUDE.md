@@ -194,9 +194,18 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 
 - ⚠ **Una región existe cuando tiene contenido propio Y scroll propio.** Es lo que separa un
   vocabulario de una ceremonia: un `activitybar` vacío porque «está en la lista» es peor que no
-  tenerlo. Hoy: el panel del harness y el tablero son workbenches completos · `context` usa dos
+  tenerlo. Hoy: el panel del harness y el tablero son workbenches completos —el tablero con el
+  sidebar en acordeón y sin activitybar, porque con UN solo contenedor de vistas esa columna no cambia
+  nada— · `context` usa dos
   (`sidebar` el árbol, `editor` el detalle) · el trazador una (`auxiliarybar`). `make estilo-check` lo
   lista, así que se ve de un vistazo quién adoptó qué.
+- **Una región puede tener VARIAS VISTAS apiladas** (`.view`), como el sidebar primario de VS Code:
+  el árbol arriba y OUTLINE/TIMELINE colapsadas abajo. ⚠ **Una vista cerrada cuesta UNA FILA, no
+  cero** — es la misma regla que el canal deshabilitado del panel del harness: verla apagada dice que
+  existe y que ahora no corresponde; esconderla hace creer que no existe. Y ⚠ **no todo lo que se
+  pliega es un `.view`**: esto es para vistas que se reparten el alto de una región de alto fijo. Para
+  secciones dentro de un cuerpo que scrollea, el elemento correcto es `<details>`, que no necesita JS
+  (el panel del harness ya tiene ocho así).
 - **El encabezado de una región lleva barra de acciones y menú `⋯`**, como el Explorer de VS Code, y
   la división es lo que lo hace funcionar: en la **barra** lo que se HACE y es frecuente (iconos
   siempre a la vista); en el **menú** lo que se ALTERNA y se toca poco, con su tilde y su conteo.

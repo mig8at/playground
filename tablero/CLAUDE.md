@@ -10,9 +10,8 @@ página que scrollea:
 | Región | Qué tiene |
 |---|---|
 | `titlebar` | el nombre, el sprint y el selector de vista |
-| `activitybar` | dos modos: **T** = mi sprint · **J** = traer de Jira |
-| `sidebar` | el buscador y **el árbol de tareas**, agrupado por estado. Una fila = una tarea. En su encabezado: **⊟** colapsa/despliega todos los grupos y **⋯** abre los filtros de estado (con su tilde y su conteo) + «locales» + «ver todas» |
-| `editor` | **sin tarea elegida, el sprint** (los 4 indicadores + Mi jornada). Con una elegida, la tarea con sus 8 pestañas |
+| `sidebar` | un **acordeón de dos vistas**. *Mis tareas*: el buscador y el árbol agrupado por estado, una fila = una tarea; en su encabezado **⊟** colapsa/despliega los grupos y **⋯** abre los filtros (con tilde y conteo) + «locales» + «ver todas». *Traer de Jira*: arranca **cerrada** —una fila— y al abrirla el editor pasa a sus filas |
+| `editor` | con una tarea elegida, la tarea y sus 8 pestañas. Sin tarea, manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
 | `auxiliarybar` | libre — el hueco está declarado en el markup, comentado |
 
