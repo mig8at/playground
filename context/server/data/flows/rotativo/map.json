@@ -2,16 +2,16 @@
   "name": "Rotativo (rt=3)",
   "kind": "flujo",
   "when": "Cuando la pregunta es sobre el OTORGAMIENTO del cupo rotativo (response_type=3): «¿por qué a este cliente el rotativo le dio cupo 0?», «¿de dónde sale el multiplicador?», «¿por qué la cuota inicial / el FGA de este cliente es esa?», «¿por qué las condiciones que vio en pantalla no son las del cupo que quedó?». Acá viven el multiplicador de riesgo 1-5 (promedio ponderado de 6 variables de Experian + continuidad laboral), el corte duro `multiplier <= 3`, las tablas `creditop_x_profiling_multiplier_risk_vars`/`_rangs`, la cuota inicial y el FGA por nivel (`creditop_x_profiling_down_payment_FGA`), el tope general `lenders.max_rev_credit`, y las DOS implementaciones que divergen (PHP en legacy-application otorga; el SP en SQL alimenta la pantalla de condiciones). NO es para lo que pasa DESPUÉS del desembolso —cartera, causación, cupo que se libera al pagar—: eso es `servicing`. Y NO es la categorización de consumo por tiers: eso es `profiling`.",
+  "verified": {
+    "ref": "main",
+    "date": "2026-09-19",
+    "source": "manual"
+  },
   "sintomas": [
     "«el rotativo le dio cupo 0 y no sé por qué»",
     "«las condiciones que vio no son las del cupo que quedó»",
     "«¿por qué esta cuota inicial / este FGA?»"
   ],
-  "verified": {
-    "ref": "main",
-    "date": "2026-08-07",
-    "source": "cabecera"
-  },
   "files": [
     "application/app/Helpers/CutoffCalendar.php",
     "application/app/Http/Controllers/Admin/RevolvingCreditsController.php",

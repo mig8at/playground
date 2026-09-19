@@ -12,16 +12,16 @@ aprueba *un crédito*, se le aprueba un **cupo** que puede usar, pagar y volver 
 al pagar) es `servicing`.
 
 Su rasgo distintivo, y la razón de que casi no aparezca en el código: **el rotativo NO usa el motor de
-tiers de consumo.** Medido en prod: de los **16 lenders rt=3 activos, 14 no tienen una sola fila** en
-`lender_users_category_rules`. En vez de tiers usa un **multiplicador de riesgo de 1 a 5** calculado en
+tiers de consumo.** Medido en prod el **2026-09-19**: de los **18 lenders rt=3 activos, 16 no tienen una sola fila** en
+`lender_users_category_rules` — o sea que **sólo dos** de la familia usan tiers. *(El 2026-08-07 eran 16 y 14; este mismo nodo ya traía el 18 más abajo, o sea que se contradecía a sí mismo.)* En vez de tiers usa un **multiplicador de riesgo de 1 a 5** calculado en
 SQL, y una tabla de cuota inicial + FGA por nivel.
 
 ## Antes de concluir
 
 - ⚠ **Los niveles 1 y 2 no se pueden alcanzar nunca.** El corte rechaza `multiplier <= 3` **antes** de
   leer la tabla de cuota inicial/FGA, así que la fila que se lee es siempre `(int) multiplicador ∈
-  {3, 4, 5}` — y el 3 sólo cuando el promedio cae en `(3, 4)`. Los 13 lenders tienen configurados los 5
-  niveles: **26 de las 65 filas son configuración muerta**. Al leer un tablero de configuración, los
+  {3, 4, 5}` — y el 3 sólo cuando el promedio cae en `(3, 4)`. Los lenders tienen configurados los 5
+  niveles cada uno, así que la cuenta de config muerta es de dos por lender: medido el **2026-09-19**, **30 de las 75 filas** de `creditop_x_profiling_down_payment_FGA` (15 lenders × 5) **son configuración muerta**. *(El 2026-08-07 eran 26 de 65 sobre 13 lenders: crecieron dos entidades y con ellas cuatro filas inalcanzables más.)* Al leer un tablero de configuración, los
   niveles 1 y 2 se ven activos y no lo están.
 - ✅ **El selector de fecha de pago pasó a respetar la periodicidad del prestamista (2026-09-18), y hoy no cambia nada.** Antes ofrecía siempre los mismos tres días del mes y «corte + 5 días», sin mirar el corte configurado: para un prestamista de corte **semanal** eso son días que su ciclo no tiene, y para uno **quincenal** uno de los tres no existe. Hoy los días salen del calendario de cortes —tres en mensual, dos en quincenal, **ninguno en semanal**, que paga siempre el mismo día— y el desfase corte→pago también (5 días en mensual y quincenal, 2 en semanal).
   ⚠ **Medido contra producción el 2026-09-18: los 18 rotativos activos son de corte MENSUAL**, ninguno semanal ni quincenal. O sea que esto todavía no cambia ninguna pantalla — cambia la regla, y deja de ser una bomba para el día que se configure el primero.
@@ -89,6 +89,15 @@ El otorgamiento vive en `RevolvingLoanConfigService::getRevolvingLoanConfig` y e
 9. **Cuota inicial y FGA** = fila de `creditop_x_profiling_down_payment_FGA` para
    `(lender_id, multiplier_risk = (int) multiplicador)`. Si el lender no tiene config, **quedan en 0**
    (fail-open explícito: el comentario nombra a Dentalpay).
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 13 afirmaciones auditadas —5 de código y **8 de dato
+re-medidas contra producción**—, cero chequeos débiles y ninguna falsa. ✔ **Los seis pesos del
+multiplicador dieron exactos y suman 100**: `EXPERIAN_SCORE` 30 · `CONTINUITY` 20 ·
+`CURRENT_NEGATIVE_CREDITS` 20 · `CREDIT_CARDS_QUANTITY` 10 · `HISTORICAL_QUERIES` 10 ·
+`HISTORICAL_NEGATIVE_CREDITS` 10. ✔ También se confirmó que **los 18 rotativos activos tienen un solo
+tipo de corte** (mensual), que es lo que sostiene el bullet del selector de fecha. ⚠ Lo que se movió
+son los conteos, y el nodo **se contradecía a sí mismo**: decía 16 activos arriba y 18 abajo. Hoy son
+**18 activos, 16 sin tiers**, y la config muerta pasó de 26 de 65 a **30 de 75**.
 
 ## El multiplicador: seis variables, promedio ponderado
 
