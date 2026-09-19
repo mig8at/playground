@@ -183,6 +183,40 @@ En G2 **el body gana**: `request()->input('amount') ?? session('amount') ?? 0`. 
 - **El esquema es `passthrough` a propósito:** si el backend agrega una bandera nueva, un build viejo **no** tiene por qué romperse por no conocerla.
 - ⚠ **No hay URL de respaldo, igual que en el repositorio v1 del mismo módulo.** Si falta la variable de entorno **tiene que sonar**: un default apuntando a un ambiente concreto convierte un error de configuración en **peticiones silenciosas contra el sitio equivocado**. Es la misma regla que ya costó caro con `E2E_TARGET` (F-187): un default cómodo esconde de qué ambiente estás hablando.
 
+### Qué tipos de documento puede elegir el cliente, y por qué el selector y el validador tienen que leer lo mismo
+
+`legacy-backend/app/Services/DocumentTypesService.php` existe por un bug que **sólo podía pasar teniendo la misma regla escrita dos veces**: el formulario resolvía los tipos por país y por entidad, y el `FormRequest` validaba contra un `in:CC,CE,PEP` escrito a mano. El selector empezó a ofrecer `CED` —que es correcto, es la cédula dominicana— y **el backend lo rechazaba con 422**. Hoy los dos leen del mismo servicio.
+
+**La regla, en orden:**
+
+1. Por cada **entidad ACTIVA** del punto de venta: lo que declare la entidad y, si no declara nada, lo que diga su fila de sucursal — respaldo de transición hasta que el backfill suba el dato.
+2. **Se UNEN.** El cliente elige el documento **antes de saber qué entidad le va a tocar**, así que si alguna lo acepta, tiene que poder elegirlo.
+3. Se **recorta con lo que existe en el país del comercio**. ⚠ **El país es el TECHO, no el último recurso**, y el motivo es un dato mal cargado desde siempre: las sucursales dominicanas declaran `CC/CE` —documentos **colombianos**— y como el cruce queda vacío, manda el país. Corrige el síntoma **sin tocar un solo dato**.
+4. Si no sobrevive nada, manda el catálogo del país; y si el país no tiene catálogo, `CC/CE`.
+
+**La identidad de un tipo es `(country_id, code)`, no el código solo** (`legacy-backend/app/Models/DocumentType.php:12-13`): el mismo `CE` existe en Colombia y en Perú con **largo, autoridad y alfabeto distintos**. Medido en prod el 2026-09-18, el catálogo son **siete tipos en tres países** —Colombia `CC,CE,PEP`; República Dominicana `CED,NUI`; Perú `CE,DNI`— y **los siete traen su regla de largo explícita**. Cuando un tipo no la trae, el servicio usa **5–10**, y ese rango tampoco es arbitrario: es lo que el `FormRequest` aceptaba para la cédula colombiana, y hay cédulas de 8 dígitos en circulación — un default más estricto rechazaría a gente que hoy entra.
+
+⚠ **Y hay una guarda por orden de despliegue:** el servicio mira **una vez por proceso** si la tabla `document_types` existe, para que si el código llega antes que la migración —o alguien la revierte— el selector y el validador sigan andando con el JSON de `countries.document_types`, que queda como respaldo mientras la columna exista.
+
+### A dónde manda cada error que NO es de un campo, en el paso de datos personales
+
+La tabla vive **fuera de la ruta para poder probarse** (`frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/post-save-error-routing.ts`), y el motivo está escrito: son decisiones puras, y **una equivocada saca a la persona del paso — o la deja adentro cuando el backend ya dijo que no puede seguir**.
+
+| código | a dónde va |
+|---|---|
+| `ONB040` (v1) · `OBV21009` (v2) | pantalla de **límite de intentos superado** |
+| `ONB021` · `ONB022` · `ONB023` | de vuelta a la raíz |
+| `ONB004` | **reemplaza** por el paso de información laboral |
+| `ABORTED` | no hace nada: se queda |
+| `OBV21006` | muestra **el mensaje del backend tal cual** |
+| cualquier otro | mensaje genérico (uno propio para `TIMEOUT`) |
+
+Tres cosas de esa tabla que no son obvias:
+
+- ⚠ **Sólo cuenta el CÓDIGO de negocio, nunca el status a secas.** El límite de intentos por documento llega como 429 — pero el throttle de Laravel, el CDN y el WAF **también responden 429**. Rutear por el status haría que **un doble clic terminara en «superaste el número de intentos»** sin pasar por los errores del formulario ni por el evento de analítica. **Un 429 sin código conocido se trata como cualquier otro error: se queda en el paso.**
+- **La misma regla tiene DOS códigos según el flujo** —`ONB040` en el v1 y `OBV21009` en OnboardingV2— y merece **la misma pantalla**, no un mensaje inline bajo el número de documento. Es el mismo patrón que el sobre distinto de v2: conviven dos vocabularios para lo mismo, y el que rutea tiene que conocer los dos.
+- **`OBV21006` («la solicitud ya fue verificada y no se puede modificar») muestra el texto del backend sin taparlo.** El repositorio del v2 ya escribió en español qué hacer —iniciar una solicitud nueva—, y reemplazarlo por «intentá nuevamente» **deja a la persona reintentando algo que nunca va a pasar**.
+
 ## Subcontextos
 - **KYC** — el estudio del cliente (burós): Experian/Datacrédito da el único score; TusDatos identidad+AML; Ágil Data/Mareigua ingreso; Quanto ingreso estimado. Se dispara desde `personal-info` y desde el orquestador de OTP (`userViability`).
 

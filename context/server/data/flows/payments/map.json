@@ -68,6 +68,7 @@
     "legacy-backend/Modules/Loans/App/Http/Requests/InitialFeePayment/InitiateInitialFeePaymentRequest.php",
     "legacy-backend/Modules/Loans/App/Http/Requests/InitialFeePayment/ShowInitialFeePaymentRequest.php",
     "legacy-backend/Modules/Loans/App/Services/InitialFeePaymentService.php",
+    "legacy-backend/Modules/Onboarding/App/Http/Controllers/NequiPaymentController.php",
     "legacy-backend/Modules/Payments/App/Http/Controllers/CustomerPaymentLinkController.php",
     "legacy-backend/Modules/Payments/App/Http/Controllers/PaymentController.php",
     "legacy-backend/Modules/Payments/App/Http/Controllers/PaymentLinkController.php",

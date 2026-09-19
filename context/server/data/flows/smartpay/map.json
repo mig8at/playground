@@ -19,6 +19,7 @@
     "application/app/Console/Kernel.php",
     "application/app/Http/Controllers/Admin/DeviceLockingConfigController.php",
     "application/app/Models/DeviceLockingConfigAudit.php",
+    "application/app/Services/Api/DeviceLockApiClient.php",
     "application/app/Services/Api/DeviceLockingConfigApiClient.php",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/imei/application/register-device-imei.uc.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/imei/index.ts",

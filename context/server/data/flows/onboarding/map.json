@@ -47,6 +47,7 @@
     "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/loan-request-form.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/otp-verification.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/phone-number.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/loan-application-form/post-save-error-routing.ts",
     "frontend-monorepo/apps/loan-request-wizard/app/utils/route-helpers.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
     "frontend-monorepo/modules/loan-request-wizard/loan-application-form/src/components/amount-form.tsx",
@@ -102,8 +103,10 @@
     "legacy-backend/Modules/OnboardingV2/routes/api.php",
     "legacy-backend/Modules/UserRequestV1/App/Constants/FindOrCreateServiceConstants.php",
     "legacy-backend/Modules/UserRequestV1/App/Services/FindOrCreateService.php",
+    "legacy-backend/app/Models/DocumentType.php",
     "legacy-backend/app/Models/UserRequest.php",
     "legacy-backend/app/Observers/UserRequestObserver.php",
+    "legacy-backend/app/Services/DocumentTypesService.php",
     "legacy-backend/config/onboarding.php",
     "legacy-backend/database/migrations/2026_07_09_130000_add_source_and_qa_bypass_to_otps.php",
     "legacy-backend/database/migrations/2026_07_17_100000_add_identifier_to_otps.php"
