@@ -55,9 +55,22 @@ OCUPADO.** En el harness el color dice *qué carril* (verde credit, ámbar renti
 *cómo salió* (verde ok, rojo falló, gris no pasó). No se puede usar el mismo canal para las dos cosas, así
 que se separó: **la arista lleva el color del carril y el nodo lleva el del estado.**
 
-⚠ **EL MAPA VA A LA IZQUIERDA Y EL DETALLE ES UN SIDEBAR DERECHO**, redimensionable con un tirador y
-con el ancho recordado por viewer. El reparto no es estético: el mapa es horizontal y necesita ANCHO;
-el detalle es una lista de logs y necesita ALTO. Clickear un nodo abre esa etapa en el sidebar.
+⚠ **EL PANEL DE LOGS SE MONTA SOBRE EL MAPA; NO LO EMPUJA.** El mapa tiene **dos anchos y nada más**:
+el 100 % con el panel cerrado y el 100 % menos su base (380 px) con el panel abierto. Ensancharlo más
+allá de la base **no reduce el mapa: lo tapa**.
+
+El motivo no es estético. El mapa se REDIBUJA cuando cambia su ancho —la separación entre nodos se
+recalcula—, así que con el panel empujándolo el dibujo entero se re-arma en cada píxel del arrastre: se
+ve como un grafo que late, y la posición de cada nodo deja de ser estable justo cuando uno la está
+mirando. Como capa, el mapa se recalcula UNA vez, al abrir o cerrar. Por eso el componente recibe
+`cerrado` y no el ancho: observar el ancho traería de vuelta el problema.
+
+Medido: con el panel en 380 el mapa mide 1.219 (`PASO` 133); cerrado, 1.599 (`PASO` 181); y al
+ensanchar el panel de 380 a 1.380 el mapa **no se movió**.
+
+⚠ **Cerrar no es un camino de ida:** el tirador queda pegado al borde derecho y sigue agarrable, con
+doble clic para abrir y cerrar. Y el arrastre colapsa por UMBRAL (media base) en vez de exigir el cero
+exacto: un panel de 40 px no sirve para nada y es imposible de volver a agarrar.
 
 ⚠ **Y LA PÁGINA NO SCROLLEA: SCROLLEA CADA PANEL.** La app es una columna flex de alto fijo. Sin eso,
 un detalle con cientos de líneas estiraba el documento y **empujaba el mapa fuera de la vista**: había

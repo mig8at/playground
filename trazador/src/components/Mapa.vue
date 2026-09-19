@@ -25,9 +25,10 @@
 import { computed, nextTick, ref, watch, onMounted } from 'vue'
 import { useTrazador } from '../stores/trazador'
 
-// El ancho del panel de logs, que el usuario mueve. Llega como prop y NO se lee del DOM: ver la nota
-// de `medir`.
-const props = defineProps({ anchoSidebar: { type: Number, default: 520 } })
+// ⚠ LLEGA SI EL PANEL ESTÁ CERRADO, NO SU ANCHO — y la diferencia es la que hace que el mapa no lata.
+// El ancho del mapa sólo cambia al abrir o cerrar el panel (cuando se ensancha, se monta encima), así
+// que observar el ancho lo haría recalcularse en cada píxel del arrastre sin que su caja cambie.
+const props = defineProps({ cerrado: { type: Boolean, default: false } })
 
 const t = useTrazador()
 
@@ -234,8 +235,7 @@ function medir() {
 
 onMounted(() => { medir(); new ResizeObserver(medir).observe(lienzo.value) })
 
-// ⚠ EL `ResizeObserver` NO ALCANZA, y hay que medir por ESTADO cuando el usuario mueve el tirador del
-// sidebar. Medido el 2026-09-18: al arrastrarlo, el `.mapa` pasó de 869 a 984 px y el observer **no
+// ⚠ EL `ResizeObserver` NO ALCANZA, y hay que medir por ESTADO cuando el panel se abre o se cierra. Medido el 2026-09-18: al arrastrarlo, el `.mapa` pasó de 869 a 984 px y el observer **no
 // disparó ni una vez** — ni el del componente ni uno nuevo creado a mano sobre el mismo elemento.
 //
 // ⚠ NO SE PUDO DISTINGUIR si falla siempre o sólo con el panel del navegador oculto, que es donde se
@@ -243,7 +243,7 @@ onMounted(() => { medir(); new ResizeObserver(medir).observe(lienzo.value) })
 // de la app, no una consecuencia del layout, así que observarlo es determinista y no depende de que el
 // navegador llegue a hacer el ciclo. El observer se queda para el resize de la VENTANA, que sí es puro
 // layout.
-watch(() => props.anchoSidebar, () => nextTick(medir))
+watch(() => props.cerrado, () => nextTick(medir))
 
 </script>
 

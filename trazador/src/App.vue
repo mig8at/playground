@@ -25,24 +25,41 @@ onMounted(async () => {
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
 const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
 
-// EL ANCHO DEL SIDEBAR, que el usuario mueve y la app recuerda. Es por VIEWER y no una preferencia del
-// producto: en una pantalla ancha conviene darle aire al mapa y en una angosta, a los logs.
-//
+/**
+ * EL SIDEBAR SE MONTA SOBRE EL MAPA; NO LO EMPUJA.
+ *
+ * ⚠ El mapa tiene **dos anchos y nada más**: el 100 % con el sidebar cerrado, y el 100 % menos
+ * `SIDEBAR_BASE` con el sidebar abierto. Ensanchar el sidebar más allá de su base **no reduce el
+ * mapa**: lo tapa.
+ *
+ * Por qué, y es la diferencia con la versión anterior: el mapa se redibuja cuando cambia su ancho —la
+ * separación entre nodos se recalcula—, así que si el sidebar lo empuja, **el dibujo entero se re-arma
+ * en cada píxel del arrastre**. Se ve como un grafo que late mientras uno mueve el tirador, y además
+ * la posición de cada nodo deja de ser estable justo cuando uno está mirándola. Con el sidebar como
+ * capa, el mapa queda quieto: se recalcula UNA vez, al abrir o cerrar.
+ */
+const SIDEBAR_BASE = 380
+const leerAncho = () => { try { const v = Number(localStorage.getItem('trazador.sidebar')); return Number.isFinite(v) && v >= 0 ? v : SIDEBAR_BASE } catch { return SIDEBAR_BASE } }
+const anchoSidebar = ref(leerAncho())
 // ⚠ Con try/catch: en una ventana privada o con las cookies bloqueadas el acceso a localStorage TIRA, y
 // un layout que no arranca por no poder leer una preferencia es peor que uno que arranca con el default.
-const ANCHO_MIN = 300, ANCHO_MAX_PCT = 0.62
-const leerAncho = () => { try { return Number(localStorage.getItem('trazador.sidebar')) || 520 } catch { return 520 } }
-const anchoSidebar = ref(leerAncho())
 watch(anchoSidebar, (v) => { try { localStorage.setItem('trazador.sidebar', String(Math.round(v))) } catch { /* sin storage */ } })
+
+/** Cerrado = 0. Es lo único que cambia el ancho del mapa, así que el mapa se entera de ESTO y no del
+ *  ancho: ver `SIDEBAR_BASE` arriba. */
+const cerrado = computed(() => anchoSidebar.value < 1)
 
 const redimensionando = ref(false)
 function tomarTirador() {
   redimensionando.value = true
-  // El ancho se mide desde el BORDE DERECHO de la ventana, no como delta del arrastre: así el tirador
-  // queda pegado al cursor aunque el puntero se salga del elemento o se mueva más rápido que el render.
   const mover = (e) => {
-    anchoSidebar.value = Math.min(window.innerWidth * ANCHO_MAX_PCT,
-                                  Math.max(ANCHO_MIN, window.innerWidth - e.clientX))
+    // Se mide desde el BORDE DERECHO de la ventana, no como delta: así el tirador queda pegado al
+    // cursor aunque el puntero se salga del elemento o se mueva más rápido que el render.
+    const w = window.innerWidth - e.clientX
+    // ⚠ Arrastrarlo hasta el borde CIERRA, y hay un umbral en vez de exigir el cero exacto: un sidebar
+    // de 40px no sirve para nada y es imposible de agarrar de nuevo. Por debajo de la mitad de la base
+    // se colapsa entero y el mapa pasa a ocupar todo.
+    anchoSidebar.value = w < SIDEBAR_BASE / 2 ? 0 : Math.min(window.innerWidth - 220, Math.max(SIDEBAR_BASE, w))
   }
   const soltar = () => {
     redimensionando.value = false
@@ -114,14 +131,22 @@ async function copiar() {
        botones anchos, que con 40 intentos empujaba el árbol de etapas fuera de la pantalla. -->
   <Historia />
 
-  <div class="cols" :class="{ midiendo: redimensionando }"
-       :style="{ gridTemplateColumns: `minmax(0,1fr) 5px ${Math.round(anchoSidebar)}px` }">
-    <Mapa :ancho-sidebar="anchoSidebar" />
-    <!-- El tirador es un `<div>` con rol de separador y no un borde: hay que poder AGARRARLO, y 5px de
-         zona activa es el mínimo con el que no se falla el click. Doble clic vuelve al ancho de fábrica. -->
-    <div class="tirador" role="separator" aria-orientation="vertical" aria-label="Ancho del panel de logs"
-         @pointerdown.prevent="tomarTirador" @dblclick="anchoSidebar = 520" />
-    <Detalle />
+  <div class="cols" :class="{ midiendo: redimensionando, cerrado }">
+    <!-- El mapa NO lleva el ancho del sidebar: sólo si está abierto o no. Así se recalcula una vez, al
+         abrir o cerrar, y no en cada píxel del arrastre. -->
+    <Mapa :cerrado="cerrado" />
+
+    <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
+         sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
+    <div class="tirador" role="separator" aria-orientation="vertical"
+         :aria-label="cerrado ? 'Abrir el panel de logs' : 'Ancho del panel de logs'"
+         :style="{ right: `${Math.round(anchoSidebar)}px` }"
+         :title="cerrado ? 'abrir los logs' : 'arrastrar para ensanchar · doble clic para cerrar'"
+         @pointerdown.prevent="tomarTirador"
+         @dblclick="anchoSidebar = cerrado ? SIDEBAR_BASE : 0" />
+
+    <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
+    <Detalle v-show="!cerrado" class="panel" :style="{ width: `${Math.round(anchoSidebar)}px` }" />
   </div>
 </template>
 
@@ -147,17 +172,28 @@ h1 { font-size:18px; margin:0; font-weight:600 }
 .meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
 .mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
-/* Tres columnas: mapa · tirador · logs. El ancho de la tercera lo pone el usuario (inline, desde el
-   estado), así que acá sólo va el default por si el estilo se aplica antes que el script.
+/* ⚠ NO ES UN GRID DE TRES COLUMNAS: es el mapa en flujo y el panel EN CAPA encima.
+   El mapa sólo tiene dos anchos —todo, o todo menos la base del sidebar—, así que su dibujo se
+   recalcula al abrir o cerrar y no en cada píxel del arrastre. Un grid haría lo contrario: cada
+   movimiento del tirador cambiaría la columna del mapa y el grafo se re-armaría entero, latiendo.
    ⚠ `flex:1` + `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
-   contenido y el `overflow:auto` de adentro no llega a activarse nunca — la página vuelve a estirarse
-   y el mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
-.cols { display:grid; grid-template-columns:minmax(0,1fr) 5px 520px; flex:1; min-height:0 }
-.cols > :last-child { overflow-y:auto; scrollbar-gutter:stable }
-/* Mientras se arrastra, el cursor manda en TODA la página: sin esto, al pasar el puntero sobre el mapa
-   o sobre el texto de los logs el cursor cambia y el arrastre se siente roto aunque siga funcionando. */
+   contenido y el `overflow:auto` de adentro no se activa nunca — la página vuelve a estirarse y el
+   mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
+.cols { position:relative; flex:1; min-height:0 }
+.cols > :first-child { width:calc(100% - 380px); height:100% }
+.cols.cerrado > :first-child { width:100% }
+
+/* En capa, pegado a la derecha y por encima del mapa. */
+.panel { position:absolute; top:0; right:0; bottom:0; z-index:2;
+  background:var(--bg); border-left:1px solid var(--line);
+  overflow-y:auto; scrollbar-gutter:stable }
+
 .cols.midiendo { cursor:col-resize; user-select:none }
-.tirador { cursor:col-resize; background:var(--line); transition:background .12s }
-.tirador:hover, .cols.midiendo .tirador { background:var(--accent) }
+/* El tirador va sobre el panel (z-index mayor) y con una zona de agarre más ancha que su línea: 5px de
+   línea se ven bien y se agarran mal. */
+.tirador { position:absolute; top:0; bottom:0; width:11px; margin-right:-3px; z-index:3;
+  cursor:col-resize; background:transparent; display:flex; justify-content:center }
+.tirador::before { content:''; width:5px; background:var(--line); transition:background .12s }
+.tirador:hover::before, .cols.midiendo .tirador::before { background:var(--accent) }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>
