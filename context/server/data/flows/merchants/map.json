@@ -24,6 +24,7 @@
     "application/app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
     "application/app/Http/Controllers/Admin/AlliedLenderController.php",
     "application/app/Http/Controllers/Admin/AlliedModulesController.php",
+    "application/app/Http/Controllers/Admin/AlliedProductsController.php",
     "application/app/Http/Controllers/Admin/AlliedRulesController.php",
     "application/app/Http/Controllers/Admin/AlliedZoneController.php",
     "application/app/Http/Controllers/Admin/LenderDatacreditoRulesController.php",
@@ -35,11 +36,13 @@
     "application/app/Models/AlliedBranch.php",
     "application/app/Models/AlliedEcommerceCredential.php",
     "application/app/Models/Country.php",
+    "application/app/Models/DefaultProductsByCountry.php",
     "application/app/Models/LenderGuaranteeCriteria.php",
     "application/app/Models/LendersByAllied.php",
     "application/app/Models/LendersByAlliedBranch.php",
     "application/app/Models/PaymentMethodsByLender.php",
     "application/app/Services/lenders/LenderRetrievalService.php",
+    "application/resources/js/pages/admin/allieds/allied-edit/AlliedEditTabProducts.vue",
     "application/routes/admin.php",
     "frontend-monorepo/apps/loan-request-wizard/app/layouts/default-layout.tsx",
     "frontend-monorepo/apps/loan-request-wizard/app/modules/allied-theme/infrastructure/allied-theme.repository.ts",
@@ -74,6 +77,7 @@
     "legacy-backend/database/migrations/2025_07_25_174150_add_external_id_to_allied_branches_table.php",
     "legacy-backend/database/migrations/2026_03_09_204622_create_merchant_modes_table.php",
     "legacy-backend/database/migrations/2026_06_22_171820_add_show_authorizations_to_allieds_table.php",
-    "legacy-backend/database/migrations/2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php"
+    "legacy-backend/database/migrations/2026_06_24_120000_add_hide_probability_to_lenders_by_allieds_table.php",
+    "legacy-backend/database/migrations/2026_08_19_120000_create_default_products_by_country_table.php"
   ]
 }

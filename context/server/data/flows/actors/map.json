@@ -17,6 +17,7 @@
     "application/app/Exports/CreditopXRequestsReportExport.php",
     "application/app/Http/Controllers/Admin/AlliedCorporateUserController.php",
     "application/app/Http/Controllers/Admin/AlliedModulesController.php",
+    "application/app/Http/Controllers/Admin/LenderCorporateUserController.php",
     "application/app/Http/Controllers/Admin/UserController.php",
     "application/app/Http/Controllers/Admin/UserRequestController.php",
     "application/app/Http/Controllers/Customer/AuthController.php",
