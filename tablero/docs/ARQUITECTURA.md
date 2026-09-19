@@ -30,14 +30,19 @@ No existe una segunda copia editable de esos datos.
    El índice abre la sección histórica al seleccionarla. El archivo original y los copiados conservan su orden.
 4. Al cerrar, reescribir la retoma y el próximo paso; el Registro conserva la historia.
 
-La preferencia de jornada plegada y el ancho del panel viven en `localStorage` bajo `tablero:`.
+La jornada plegada, el ancho de los DOS sidebars y si la ficha se ve viven en `localStorage`
+bajo `tablero:`.
 Si el almacenamiento está bloqueado, la interfaz sigue funcionando durante la visita. Los filtros
 de estado y los grupos plegados se reinician al recargar para hacer visible el trabajo disponible.
 
 ## Código
 
-- `src/App.vue`: interfaz y paneles de consulta.
-- `src/TaskPanel.vue`: panel común, pestañas, foco de teclado y redimensionamiento persistente.
+- `src/App.vue`: el workbench — árbol de tareas, editor y acordeón del detalle.
+- `src/{tema,taller}.css`: **compartidos e idénticos** con las otras tres herramientas; se
+  verifican con `make estilo-check`. El color y las regiones, respectivamente.
+- `src/TaskEditor.vue`: la tarea en el editor — encabezado y documento. (Fue `TaskPanel.vue`,
+  un cajón con pestañas, hasta el 2026-09-18.)
+- `src/RegionMenu.vue`: el menú `⋯` del encabezado de una región.
 - `src/task-document.js`: organiza tokens Markdown sin confundir títulos de código o citas con secciones.
 - `src/jira-preview.js`: presenta `DescriptionHTML` o `Description` del issue; nunca usa el borrador privado.
 - `src/ui-state.js`: preferencias, límites de ancho y agrupación por estado.

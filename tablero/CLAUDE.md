@@ -60,12 +60,10 @@ terminada) y el acordeón por atención (lo que está en vuelo primero). Tenían
 para los mismos ids y no molestaba mientras vivían lejos; desde que el menú ⋯ y las vistas comparten
 una columna de 300px, el menú decía «iniciada 2» pegado a una vista que decía «En curso 2».
 
-⚠ **Antes esto era otra cosa, y el vocabulario de este archivo todavía la nombra.** Las tareas eran
-una GRILLA DE TARJETAS y al elegir una se abría un CAJÓN encima. Donde abajo se lee «la tarjeta»,
-leé: la **fila del árbol** si habla de elegir o de ver de un vistazo, y **el editor** si habla del
-detalle. Los botones que vivían en la tarjeta —«⇢ Mover», el handoff a QA— están hoy en el
-encabezado del editor; lo que la tarjeta mostraba de un vistazo (próximo paso, chips, tiempos) es la
-`.ficha`, arriba de la pestaña Trabajo.
+⚠ **Esto era otra cosa hasta el 2026-09-18**, por si encontrás una captura vieja o un comentario que
+no coincide: las tareas eran una GRILLA DE TARJETAS y al elegir una se abría un CAJÓN encima de la
+página. Hoy no hay tarjetas ni cajón — hay filas en un árbol y un editor. El texto de acá abajo ya
+está al día; lo que puede no estarlo es un `.md` de tarea escrito antes.
 
 ⚠ **El contador del encabezado es la única señal de que hay un filtro puesto**, ahora que las
 casillas viven en el `⋯`. Pasa de `9` a `9 / 16` y se pone ámbar. Si algún día se agrega un filtro que
@@ -186,7 +184,7 @@ esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 ⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
 estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
 anotación, y de ahí `store.FuentesDe` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
-que la tarjeta pinta (`server/internal/store/fuentes.go`). El ambiente sale **sólo** de un `TARGET=`
+que pinta la vista **Hallazgos** (`server/internal/store/fuentes.go`). El ambiente sale **sólo** de un `TARGET=`
 escrito en el comando: «en producción son 14.160» menciona un ambiente sin decir dónde se midió.
 
 **Medido el 2026-09-18, y el problema no es el hábito de anotar:**
@@ -223,7 +221,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   **Medido el 2026-08-27, y costó ocho días de invisibilidad.** La campaña de país terminó repartida en
   **tres** archivos: `internacionalizacion-onboarding.md` (id 43, ligado a CORE-365 — **el único que el
   tablero muestra**) y dos nuevos con `id: 0`. Todo el avance se escribió en los de id 0, así que la
-  tarjeta del tablero siguió mostrando el estado del **19/8** mientras se mergeaban PRs y se corrían
+  tablero siguió mostrando el estado del **19/8** mientras se mergeaban PRs y se corrían
   migraciones. Nadie lo notó hasta que Miguel preguntó por qué no veía el avance.
 
   **Y la causa de fondo ya está arreglada (2026-08-27):** la plantilla decía «`id` — lo reasigna el
@@ -232,17 +230,17 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   id de verdad y **lo persiste en el archivo**, así que poner `id: 0` en una tarea nueva vuelve a ser
   correcto — lo que NO es correcto es escribir el avance de una tarea en un archivo distinto del suyo.
 
-  **Las tareas locales ya tienen tarjeta**, con su cuerpo, su bitácora, sus ramas y sus hallazgos. Se
+  **Las tareas locales ya aparecen en el árbol**, con su cuerpo, su bitácora, sus ramas y sus hallazgos. Se
   distinguen con `local · <id>`, el estado **«sin publicar»** y su **etapa** (evaluando / trabajando /
-  tarea) — que en una tarjeta de Jira viaja dentro del chip del esfuerzo y en una local no tenía dónde.
+  tarea) — que en una tarea de Jira viaja dentro del chip del esfuerzo y en una local no tenía dónde.
 
   ⚠ **La píldora «locales» del filtro arranca APAGADA.** El tablero es, antes que nada, el sprint: son
   16 locales contra 7 del sprint (2026-08-27), y encendidas por defecto ahogaban justo lo que uno viene
   a mirar. Filtra por ORIGEN, que es otro eje que las casillas de estado — por eso va separada.
 
-  ⚠ **Que tengan tarjeta NO las publica, y eso es a propósito.** Publicar a Jira es una decisión que se
+  ⚠ **Que aparezcan en el árbol NO las publica, y eso es a propósito.** Publicar a Jira es una decisión que se
   **PIDE** —`make jira-create JSON=…`, o pedírselo al asistente—; no hay ni habrá un botón que lo haga
-  desde la tarjeta. Por la misma razón, «⇢ Mover» **no aparece** en una tarjeta local: es el único botón
+  desde el tablero. Por la misma razón, «⇢ Mover» **no aparece** en una tarea local: es el único botón
   que escribe en Jira. Una tarea local es material de trabajo; el día que valga la pena compartirla se
   decide, no se filtra por estar en pantalla.
 
@@ -254,7 +252,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   Medido el 2026-09-15: **23 de las 40 abiertas no tienen clave de Jira**, y 8 son proyectos. Tratarlas
   igual tenía dos costos: el tablero les pedía sección publicable a cosas que nadie del equipo va a leer,
   y los proyectos competían en la lista con el trabajo que sí tiene a alguien esperándolo. Ahora
-  `make hoy` los lista aparte, la tarjeta los marca y el lint avisa si un proyecto conserva publicable.
+  `make hoy` los lista aparte, la ficha los marca y el lint avisa si un proyecto conserva publicable.
 
   ⚠ **No se deduce, se declara.** No alcanza con «no tiene clave de Jira» (una tarea local puede ser
   trabajo real sin publicar todavía) ni con «toca el playground»: hay trabajo sobre las herramientas que
@@ -442,7 +440,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   saca `▲ tocó código y no dice con QUÉ se comprobó`. Sale con `▲` y no con `✗` a propósito, y no suma
   a las piezas faltantes: hay tareas de diseño o de lectura donde no hay nada que correr, y convertir
   eso en un error enseña a ignorar el cierre entero, incluidas las cuatro que sí importan. La señal es
-  la misma que pinta la tarjeta (`store.FuentesDe`). Medido al escribirlo: de las 29 tareas con ramas,
+  la misma que pinta la vista **Hallazgos** (`store.FuentesDe`). Medido al escribirlo: de las 29 tareas con ramas,
   **6** lo dispararían.
 
   El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
@@ -491,15 +489,15 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   — es un retorno. El camino real es Por Hacer → En progreso → En revisión → Terminada.)*
   Y por consola es el único camino que **estima**: el del server crea y mete al sprint pero no tiene
   campo de puntos.
-- **Los estados NO se escriben en el código: se le preguntan a Jira.** La tarjeta tiene un botón
-  **⇢ Mover** que lista lo que `GET /api/transitions` devuelve para ESE issue en ESE estado, así que
+- **Los estados NO se escriben en el código: se le preguntan a Jira.** La barra de la vista
+  **Detalle** tiene un botón **⇢ Mover** que lista lo que `GET /api/transitions` devuelve para ESE issue en ESE estado, así que
   nunca puede ofrecer un movimiento que Jira va a rechazar. Es la lección de haberlo hecho al revés: el
   botón anterior estaba cableado a «A pruebas» y **fallaba en 5 de los 6 estados**, porque esa
   transición sólo existe desde «Terminada». Dos detalles del diseño:
   1. El destino que cae en el estado de pruebas **no se mueve directo**: entra al flujo de QA, donde
-     mover la tarjeta y avisarle a quien valida son un mismo acto y el mensaje se previsualiza (pasa el
+     mover el issue y avisarle a quien valida son un mismo acto y el mensaje se previsualiza (pasa el
      mismo guard que la bitácora). Se marca «+ aviso» en el menú para que no sorprenda.
-  2. El POST **re-lee las transiciones antes de aplicar**: si alguien movió la tarjeta desde Jira con el
+  2. El POST **re-lee las transiciones antes de aplicar**: si alguien movió el issue desde Jira con el
      menú abierto, el id queda viejo y Jira devuelve un 400 ilegible. Así se contesta 409 con el porqué.
 
   Los tres necesitan `ATLASSIAN_*` en `tablero/.env`. Tareas nuevas van al **sprint activo del board

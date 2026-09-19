@@ -415,9 +415,9 @@ const ramasDe = (key) => {
   return (ramasSnap.value.tareas || {})[String(eid)] || null;
 };
 const ramasCuenta = (key) => (ramasDe(key)?.ramas || []).length;
-// LA ENTREGA, EN LA TARJETA Y SIN ABRIR NADA. La pregunta que uno le hace al tablero es «¿esto ya
-// está en producción?», y hasta hoy había que abrir el cajón de ramas para contestarla. `main` es la
-// vara (context/ se mide contra main), así que el resumen habla de main y deja el resto para el cajón.
+// LA ENTREGA, SIN ABRIR NADA. La pregunta que uno le hace al tablero es «¿esto ya está en
+// producción?», y antes había que abrir la vista de ramas para contestarla. `main` es la vara
+// (context/ se mide contra main), así que el resumen habla de main y deja el resto para esa vista.
 const entregaDe = (key) => {
   const rs = ramasDe(key)?.ramas || [];
   if (!rs.length) return null;
@@ -629,9 +629,10 @@ const ofActive = computed(() => {
 const abiertas = ref(new Set());
 const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
 // Qué descripciones están desplegadas, POR TAREA (antes era un solo booleano, porque había una única
-// tarjeta de detalle). Colapsada por defecto: la descripción de Jira es material de referencia
-// —contexto, criterios, dependencias— y entera convierte la grilla de tarjetas en un muro.
-// La descripción completa vive en un CAJÓN, igual que Bitácora / Ramas / Prototipos / Hallazgos: es un
+// vista de detalle). Colapsada por defecto: la descripción de Jira es material de referencia
+// —contexto, criterios, dependencias— y entera convierte la lista en un muro.
+// La descripción completa vive en su VISTA del acordeón, igual que Bitácora / Ramas / Prototipos /
+// Hallazgos: es un
 // bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
 // tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
 
@@ -863,7 +864,7 @@ async function alPortapapeles(txt) {
   }
 }
 
-// Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
+// Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
 watch(() => active.value?.Key, () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
