@@ -17,6 +17,7 @@
   "files": [
     "application/app/Services/lenders/RevolvingLoanConfigService.php",
     "application/app/Support/UserRequestDateAnchor.php",
+    "application/database/migrations/2026_09_17_120000_add_disbursed_at_to_user_requests_table.php",
     "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
     "legacy-backend/Modules/Loans/App/Repositories/RevolvingCreditRepository.php",
     "legacy-backend/Modules/Onboarding/App/Services/ExperianProfileService.php",

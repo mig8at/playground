@@ -189,6 +189,14 @@ Los comercios **dominicanos** arrancaban con ~100 altas manuales de producto cad
 - ⚠ **La migración vive en el OTRO repo.** La tabla se declara en `legacy-backend/database/migrations/2026_08_19_120000_create_default_products_by_country_table.php`, mientras el modelo y el controlador viven en `legacy-application`. Es la regla del equipo hoy —toda migración nueva se declara en `legacy-backend`— y **cambia el supuesto del nodo `architecture`**, que describe las migraciones como copiadas a mano en los dos repos: eso es el histórico, no la práctica actual.
 - **Cuánto de esto está vivo, medido en prod el 2026-09-18:** exactamente **una** plantilla —`Catálogo base República Dominicana`, país 60, **100 productos**, activa desde el 2026-09-14—. Ningún otro país tiene: en Colombia el botón **no aparece**, porque sin plantilla activa el dato llega nulo y la columna entera se oculta.
 
+### 12. La ciudad de una sucursal puede ser de OTRO país, y ninguna pantalla lo delata
+
+Se rompió en silencio **durante cinco meses**: los **13 puntos de venta dominicanos** quedaron registrados en **«Santo Domingo» de Antioquia**, Colombia. **El nombre coincide**, así que ninguna pantalla lo muestra — hay que **cruzar tres tablas** (`allied_branches → country_cities → country_zones → countries`) y compararlo contra `allieds.country_id` para verlo.
+
+Por eso existe `legacy-backend/app/Console/Commands/AuditBranchCountryCommand.php`: **sólo lectura**, sirve antes de corregir, después (**tiene que dar cero**) y de forma periódica, y **sale con código 1 si encuentra algo**, para poder usarlo como compuerta en un pipeline.
+
+⚠ **Medido en prod el 2026-09-18: hoy NO da cero.** El caso dominicano está corregido, pero quedan **dos sucursales de un comercio PERUANO registradas en «Bogotá D.C.», Colombia**. O sea que la deriva no fue un incidente cerrado sino un modo de falla que sigue abierto — y es el mismo patrón que el país del cliente en `onboarding`: **un dato que nadie escribe bien y que, por parecerse al correcto, nadie ve.** La consulta que lo reproduce es la del comando: `country_zones.country_id <> allieds.country_id`, excluyendo la ciudad comodín `TODAS LAS CIUDADES`.
+
 ## Subcontextos
 - **Motai** — flujo Motai (comercio 158, in-platform rt=2): 3 productos CreditopX (crédito/renting/RTO) + Ábaco (info. complementaria, ingreso gig informativo).
 - **SmartPay** — canal in-platform (path IMEI): el celular como garantía, salta el AML de TusDatos, bloqueo por MDM.
