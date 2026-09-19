@@ -27,15 +27,25 @@ comercio. Si el piloto escala, es una fila nueva de esta tabla y no una variante
 ## Antes de concluir
 - **El lender de CreditopX ES la marca blanca del comercio, no una entidad financiera.** Pullman tiene
   su lender `CrediPullman`; el comercio le ofrece crédito a sus clientes **sobre los rieles de
-  CreditOp**. Medido: **71 de los 74 lenders rt=2 están habilitados en UN solo comercio**, y los
-  nombres lo confirman (`Mediarte X Tunja`, `MonteX`, `Dental Force X`, `Oral credit X`). Consecuencia
-  directa: para rt=2, **«configuración por lender» y «por comercio» son lo mismo** — y las 3
-  excepciones que sí comparten (`Crediteame` 3 comercios, `DENTIX FINANCIAL SERVICES` 2) son
-  exactamente donde esa equivalencia se rompe (**F-127**).
+  CreditOp**. **Re-medido en prod el 2026-09-19** (antes decía 71 de 74): hoy son **110 lenders rt=2**,
+  de los cuales **83 están en UN solo comercio** y **7 en más de uno**; los nombres siguen
+  confirmándolo (`Mediarte X Tunja`, `MonteX`, `Dental Force X`, `Oral credit X`). Consecuencia
+  directa: para rt=2, **«configuración por lender» y «por comercio» son lo mismo** — y las excepciones
+  son donde esa equivalencia se rompe (**F-127**). Hoy son **siete, y una desentona**: **SmartPay (160)
+  llega a 16 comercios**, mientras las otras seis tienen exactamente 2 (`Creditop X` 37 · `Motai X` 62 ·
+  `DENTIX FINANCIAL SERVICES` 139 · `Crediteame CC` 140 · `Motai Renting` 158 · `Rent to Own` 193).
+  ⚠ **Y 83 + 7 no da 110: quedan 20 lenders rt=2 sin UNA sola fila en `lenders_by_allieds`** — existen
+  como entidad y no están habilitados en ningún comercio. Al contar «marcas blancas activas», ese
+  resto no es ruido de medición: es catálogo muerto.
 - ⚠ **EL SISTEMA NO COBRA LA COMISIÓN: solo la MUESTRA** (verificado 2026-08-09, contra el código).
-  Se creía que se tomaba una parte de cada cuota; el código dice otra cosa. Hay **un solo lector** de
-  `comission_percentage` en los tres repos: el accessor `UserRequest::getCommissionValueAttribute`
-  (`application/app/Models/UserRequest.php:125`), que calcula
+  Se creía que se tomaba una parte de cada cuota; el código dice otra cosa. Hay **un solo lector que la
+  USA para calcular algo** —los demás sitios la escriben desde el panel, la declaran en el `$fillable`
+  o la siembran— y ⚠ **está DUPLICADO en los dos monolitos**, cosa que este nodo no decía:
+  `legacy-backend/app/Models/UserRequest.php:152` es el gemelo del accessor de abajo, con la misma
+  fórmula. *(Acá decía «un solo lector en los tres repos»: contando archivos que la nombran son 7 en
+  `application` y 6 en `legacy-backend`; en `frontend-monorepo`, cero.)* El accessor
+  `UserRequest::getCommissionValueAttribute`
+  (`application/app/Models/UserRequest.php:126`, la consulta en `:128`), que calcula
   **`(comission_percentage / 100) × final_amount`** — un porcentaje del **total del crédito**, una vez,
   no por cuota. Y sus únicos consumidores son **tres vistas del panel** que lo pintan; **la cascada de
   imputación no menciona comisión en ninguna línea**. O sea: el reparto de cada pago **no separa** la
@@ -78,6 +88,16 @@ comercio. Si el piloto escala, es una fila nueva de esta tabla y no una variante
   recién ahí alguien se entera y hay que ir a hablar con la entidad. Es el hueco que justifica el OKR de
   alertas de salud, y da el requisito real: la alerta útil no es «hay 5xx», es **«las solicitudes de
   este lender dejaron de cerrar»**.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 9 afirmaciones auditadas —5 medidas de nuevo contra **prod**
+y 4 leídas en `origin/main`—, cero chequeos débiles. Es un nodo de **negocio**, así que casi todo lo
+verificable son NÚMEROS, y los números se movieron: los lenders rt=2 pasaron de 74 a **110** y las
+excepciones multi-comercio de 3 a **7**, con SmartPay llegando a 16. La forma del argumento —«el lender
+rt=2 es la marca blanca de UN comercio»— **se sostiene y hasta se refuerza**. Lo corregido de fondo es
+otra cosa: el «un solo lector de `comission_percentage`» **se olvidaba del gemelo en legacy-backend**,
+que calcula exactamente lo mismo, y el reporte mensual de desembolsos —lo único automático del cierre—
+**se apagó el 2026-09-11**. Exacta y sin cambios, la afirmación cara del nodo: la comisión se calcula
+sobre `final_amount` **una vez**, no por cuota, y la cascada de imputación no la menciona.
 
 ## El producto, en el vocabulario de negocio
 De la capacitación de producto (Manuela Romero, 2026-06-05 — grabación y transcripción en el Drive del
@@ -192,10 +212,15 @@ estructurado, no que sea autoservicio.
 
 ## El ciclo de la plata: mensual, con cierre de mes
 El recaudo se le devuelve al comercio **mensualmente**, con cierre de mes. Lo que el sistema automatiza
-de eso es **poco**: la única entrada mensual del scheduler es
-`app:lender-disbursements-report-command`, que corre **el día 4 a las 05:00**
-(`app/Console/Kernel.php:48`) y es un reporte de **desembolsos**, no de liquidación. Todo el resto del
-cierre —consolidar, descontar la comisión, transferir— es manual.
+de eso es **poco** — y desde hace ocho días es **nada**. Acá decía que la única entrada mensual del
+scheduler era `app:lender-disbursements-report-command`, el día 4 a las 05:00, y que ya era un reporte
+de **desembolsos** y no de liquidación. Verificado el 2026-09-19: ese comando está **comentado**, igual
+que su variante semanal (`application/app/Console/Kernel.php:71` y `:65`), y **no queda NINGUNA entrada
+mensual viva** en el scheduler — lo que corre es todo diario o cada dos horas. Los apagó el commit
+`96211634` del **2026-09-11**, cuyo propio asunto lo dice: *«Apaga los reportes periódicos salvo la
+conciliación de Corbeta»*. O sea que el cierre con la entidad —consolidar, descontar la comisión,
+transferir— **es manual de punta a punta**, y el único rastro automático que quedaba se apagó sin que
+este nodo se enterara.
 
 ## La reportería real es Redash, no los exports
 ⚠ **Corrección importante para quien vaya a buscar «el reporte»** (Miguel, 2026-08-09): en la práctica
@@ -280,11 +305,11 @@ afirmación de arriba:
   comercio-entidad**: acá viven, juntas, la comisión de CreditOp (`comission_percentage`), el colchón
   del asegurador (`guarantee_fund_percentage`, `guarantee_insurance_per_million`,
   `guarantee_fixed_monthly_percentage`) y el seguro de vida. Si el negocio cambia, cambia esta fila.
-- `application/app/Http/Controllers/Admin/AlliedLenderController.php:254` — dónde se escribe ese
+- `application/app/Http/Controllers/Admin/AlliedLenderController.php:255` — dónde se escribe ese
   acuerdo desde el panel, y el borrado por `lender_id` que solo es inocuo gracias al 1:1 (**F-127**).
 - `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:62` (`processPayment`) — la
   cascada que reparte cada pago; **es donde habría que confirmar si la comisión se descuenta acá**.
-- `application/app/Models/Lender.php:27` (`$fillable`) — el `response_type` que elige el sombrero, más
+- `application/app/Models/Lender.php:30` (`$fillable`) — el `response_type` que elige el sombrero, más
   las columnas de branding que hacen posible la marca blanca.
 - `application/app/Services/lenders/LenderUserCategoryService.php` — la categoría que fija enganche y
   FGA: es donde el riesgo del comercio se convierte en condiciones para el cliente.

@@ -6,7 +6,7 @@
   "when": "Cuando la tarea toca Credifamilia (lender 24, el único response_type=4): radicación por SOAP, KYC V2 (Evidente/CrossCore/Jumio), plan de cuotas dinámico, o el gate local que hace que no aparezca en pruebas.",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-19",
     "source": "manual"
   },
   "sintomas": [

@@ -48,6 +48,17 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 - No confundir con **"Credifamilia-addi"** (entrada redirect del catálogo en algunas sucursales).
 - **El form_type 6 (additional-info) NO tiene seeder** — es data cargada a mano en dev/local. Un campo nuevo se agrega por migración/seeder en legacy-backend resolviendo por **NOMBRE** (los `field_id` son auto-increment y difieren por ambiente: "Ciudad de nacimiento" salió **233** en dev, 221/222 en local). Tras tocar la BD, **`PUT /v1/dynamic-form/6/schema`** para bustear el cache del form-service. Para VER el form: flow **`self-service`** (público), no `merchant`. Ver **form-service**.
 
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 14 afirmaciones auditadas contra `origin/main`, cero
+chequeos débiles y ninguna falsa. Exactos: `ENABLED_LENDERS_FOR_LEGAL = [24]`
+(`legacy-backend/Modules/LegalV1/App/Constants/SignAndSendTermsAndConditionsServiceConstants.php:16`),
+el gate del polling por `CREDIFAMILIA_LENDER_ID` con su techo de **180 s**
+(`frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/adapters/fetch-lender-preapproval.ts:80`),
+el plan de cuotas dinámico —cuyo propio comentario dice «hoy solo Credifamilia»— y las cinco constantes
+de estado del SOAP. Lo corregido son **cuatro citas**, y la más cara es de tipo: `Experian.php:374` se
+citaba **sin repo**, y ese nombre existe en los dos monolitos apuntando a cosas distintas. ⚠ Y el nodo
+sigue siendo el de peor higiene de citas del árbol: **12 de sus 21 referencias están en formato corto
+`:NNN`**, que `context-refs` no valida — 40% de cobertura.
+
 ## Contenido
 **Las 3 integraciones = 3 etapas:**
 1. **REST (pre-aprobación)** — Credifamilia es el ÚNICO lender con **polling** contra `/v1/preapprovals/check` (gateado por id=24, backoff 2/4/8/16/20s, 6 intentos, 180s) y el ÚNICO con **plan de cuotas dinámico** por backend (`supportsDynamicPaymentPlan(24)`).
@@ -91,7 +102,7 @@ asignada a otro lender. Al depurar cuotas que "no deberían salir", mirar acá a
 
 **Quién lo dispara.** No es un job ni un endpoint: `CredifamiliaConsumoService` implementa
 `LenderFinalizationServiceInterface` y está registrado en
-`Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:185`. Entra por `finalize()` — su
+`legacy-backend/Modules/Onboarding/App/Providers/OnboardingServiceProvider.php:188`. Entra por `finalize()` — su
 `consult()` **lanza `LogicException`** a propósito (la pre-aprobación viene por el REST, no por acá).
 Deja rastro con los marcadores `CredifamiliaConsumo finalize started` y `… finalize request built`.
 
@@ -116,7 +127,7 @@ Consecuencia de diseño: **el `\SoapClient` nativo de PHP no sirve** —no deja 
 send—, por eso el transporte es cURL directo con `CURLOPT_SSLCERT`/`SSLKEY` (`:448`). Se resuelve con PHP
 core (`DOMDocument::C14N` + `openssl_sign`), sin `robrichards/wse-php` ni `xmlseclibs`.
 
-**Estados e idempotencia** (`CredifamiliaConsumo.php:62-66`): `CREDIT_REGISTERED` (200) ·
+**Estados e idempotencia** (`CredifamiliaConsumo.php:64-68`): `CREDIT_REGISTERED` (200) ·
 `CREDIT_DUPLICATED` (409) · `CREDIT_INVALID` (400) · `CREDIT_ERROR` (500/SoapFault) · `CREDIT_COMPLETED`
 (tras el documento). ⚠ **Son otro namespace que los estados 40/41** de la tabla de arriba. `register()` no
 re-llama si ya existe una `LenderTransaction` `REGISTERED`/`DUPLICATED`/`COMPLETED` para ese
@@ -152,7 +163,7 @@ un usuario sin ese campo, o con cualquier otro valor, **no genera transacción**
 motivo no es de riesgo sino de dato faltante.
 
 ⚠ Y engancha con una trampa ya documentada en **kyc**: el campo 29 se escribe **`'Empleado'` hardcodeado**
-al procesar Quanto (`Experian.php:374`). Así que el valor puede existir sin que nadie lo haya declarado —
+al procesar Quanto (`application/app/Actions/RiskCentrals/Experian.php:360`; acá se citaba `:374` **sin repo**, y ese nombre existe en los dos monolitos — en `legacy-backend` la misma línea es un log de reuso de Acierta, así que la cita apuntaba a otro archivo). Así que el valor puede existir sin que nadie lo haya declarado —
 lo cual hace pasar la compuerta, no fallarla. Los dos comportamientos conviven.
 
 **2. Credifamilia puede devolver un APROBADO EN FALSO.** Con un correo que trae caracteres no válidos en la
@@ -167,7 +178,7 @@ la opción», que no se parece en nada a la causa.
 > respuesta). Se registra porque el síntoma es recurrente y la causa no se deduce de los logs.
 
 Sobre el correo hay un cambio en `main` que conviene no malinterpretar:
-`Modules/Onboarding/App/Services/DynamicFormsService.php:1499-1514` reemplazó la regex casera
+`legacy-backend/Modules/Onboarding/App/Services/DynamicFormsService.php:1503-1518` reemplazó la regex casera
 `[A-Za-z0-9._%+-]` por la regla `email` de Laravel (RFCValidation). Va en **dirección contraria** a
 «bloquear caracteres especiales»: acepta todos los que el RFC permite en la parte local y rechaza los que
 no. ⚠ No está confirmado que sea el cambio que cerró este incidente — vive en la ruta del **formulario
