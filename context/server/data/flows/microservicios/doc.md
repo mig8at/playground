@@ -28,8 +28,18 @@ pregunta que va antes de todas las demás.
   `~/github/microservices/onboarding-forms-service`), con contenidos parecidos y fechas distintas. El
   root apunta al de primer nivel, que es el más nuevo. No confundirlo con `form-service`, que es otro
   servicio y otro repo (ver el nodo `form-service`).
-- **`financial-health-service` tiene `feat/n8n` checkeada, no `main`.** El oráculo valida contra `main`
-  —que existe— así que no hay problema, pero al abrir el repo a mano se lee otra rama.
+- ✅ **`financial-health-service` ya está en `main`.** Este bullet avisaba que el clon tenía `feat/n8n` checkeada; verificado el 2026-09-19, hoy la rama local es `main`. El aviso queda como recordatorio de que **conviene mirar qué rama tiene checkeado un clon antes de leerlo**, no como un hecho vigente.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 13 afirmaciones auditadas —6 contra los clones y 7
+re-medidas contra producción—, cero chequeos débiles. **Dos quedaron obsoletas y las dos son buenas
+noticias**: los cuatro servicios que faltaba clonar **ya están clonados**, y `financial-health-service`
+ya no tiene una rama rara checkeada. ⚠ **Y el titular del nodo se invirtió**: hoy el que más loguea
+**sí es el monolito**, por un factor de treinta. ✔ Lo que se confirmó con fuerza es la advertencia que
+el propio nodo se hizo el 28/8: `self-manager-api` **movió 100 líneas en seis semanas** mientras el
+resto se multiplicaba o se derrumbaba — un número que no reacciona al tráfico no mide tráfico. Sigue
+valiendo, sin tocar, lo que este nodo tiene de más útil: **que la ausencia de un `service_name` no
+prueba que un servicio esté muerto**, y que **cada servicio tiene su propia base y varias son
+PostgreSQL**.
 
 ## El censo (producción, 2026-08-07)
 
@@ -47,7 +57,26 @@ que atiende tráfico del que apenas late.
 > `reportery-service`) **ya están clonados**; el quinto se llama `merchant-gateways`, no
 > `merchant-gateways-service`.
 
-| servicio | líneas / 24 h | clonado | lo indexa el árbol |
+⚠ **RE-MEDIDO el 2026-09-19, y la tabla de abajo hay que leerla como HISTORIA: el ranking se dio
+vuelta.** Mismo método, misma ventana de 24 h:
+
+| servicio | 2026-08-07 | **2026-09-19** | qué pasó |
+|---|---:|---:|---|
+| `legacy-backend` | 75.737 | **513.674** | ×6,8 — hoy es **el que más loguea, por lejos** |
+| `financial-health-service` | 86.350 | **17.398** | cayó al 20 % |
+| `self-manager-api` | 34.584 | **34.684** | ⚠ **plano: +0,3 % en seis semanas** |
+| `legacy-application` | 11.396 | **19.211** | ×1,7 |
+| `otp-service` | 1.647 | **5.917** | ×3,6 |
+| `merchant-api` | 35.840 | **346** | colapsó y se quedó ahí (el 28/8 ya marcaba 242) |
+
+**El titular de este nodo —«el servicio que más loguea en producción NO es el monolito»— dejó de ser
+cierto**: hoy `legacy-backend` loguea **treinta veces más** que `financial-health-service`. Y el dato
+que mejor cierra el argumento del propio nodo es `self-manager-api`: **movió 100 líneas en seis
+semanas** mientras todo lo demás se multiplicaba o se derrumbaba. Un número que no se mueve con el
+tráfico no está midiendo tráfico — **es el latido**, exactamente como decía la corrección del 28/8.
+**Corolario: esta tabla no sirve para priorizar. Sirve para saber quién existe.**
+
+| servicio | líneas / 24 h *(2026-08-07)* | clonado | lo indexa el árbol |
 |---|---:|---|---|
 | **`financial-health-service`** | **86.350** | ✓ `microservices/` | ✓ *(desde hoy)* |
 | `legacy-backend` | 75.737 | ✓ | ✓ |
@@ -71,9 +100,7 @@ que atiende tráfico del que apenas late.
   entrada es el header `X-User-Id`. Expone `financial-health`, `financial-tips` y `financial-profile`.
   **Hay un producto entero —el móvil— fuera del alcance de este árbol**, con su propio repo
   (`creditop_mobile`, que ni siquiera tiene archivos de las extensiones que indexamos).
-- ⚠ **Los servicios #3 y #4 por volumen (`merchant-api`, `self-manager-api`) no están ni clonados.**
-  Juntos hacen más ruido que `legacy-application`. Sin el repo no hay nada que indexar y este nodo no
-  puede decir más que su nombre.
+- ✅ **Los servicios #3 y #4 (`merchant-api`, `self-manager-api`) YA están clonados** —igual que `otp-service` y `reportery-service`, los cuatro en el primer nivel de `github/`—. El único del censo que **sigue sin clonar** es el quinto, que se llama **`merchant-gateways`** (no `merchant-gateways-service`). ⚠ Y el «juntos hacen más ruido que `legacy-application`» **dejó de ser cierto**, por el motivo que este nodo ya anticipaba: ver la re-medición de abajo.
 - **`customer-profiling-service` está vivo pero casi no se usa** (5 líneas en 24 h). Es la evidencia que
   faltaba para contestar si el pipeline de KYC en Temporal ya reemplazó al bloque síncrono del monolito:
   **todavía no**. Ver abajo.
