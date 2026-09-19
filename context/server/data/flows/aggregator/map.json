@@ -3,7 +3,7 @@
   "combination": "aggregator",
   "group": "entities",
   "kind": "reference",
-  "when": "Cuando el prestamista decide AFUERA por API (`response_type` 1): Bancolombia (BNPL 68 / Consumo 100), Sistecrédito, Welli, Addi, Meddipay (39), Banco de Bogotá. Pre-aprobación, webhook `lender-result`, cartera del tercero, y por qué no se puede simular en local. ⚠ El webhook NO registra su recepción: «no llegó» y «llegó y falló» se ven igual desde la BD (F-94), y la única huella es `profiling_reviews.disbursed_lender`.",
+  "when": "Cuando el prestamista decide AFUERA por API (`response_type` 1): Bancolombia (BNPL 68 / Consumo 100), Welli (23/141/142/166), Meddipay (39), Prami (12), Compensar (47). Pre-aprobación, webhook `lender-result`, cartera del tercero, y por qué no se puede simular en local. ⚠ Addi, Sistecrédito, Banco de Bogotá, Lagobo y Davivienda NO son de acá: son rt=0 (redirect), medido en prod el 2026-09-18. ⚠ El webhook NO registra su recepción: «no llegó» y «llegó y falló» se ven igual desde la BD (F-94), y la única huella es `profiling_reviews.disbursed_lender`.",
   "verified": {
     "ref": "main",
     "date": "2026-08-28",
