@@ -2,8 +2,8 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 11,
-    "deriva": 12,
+    "al-dia": 13,
+    "deriva": 10,
     "deriva-alta": 14,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
@@ -220,6 +220,16 @@
         "hubs": 0,
         "archivos": [
           {
+            "ruta": "trazador/src/App.vue",
+            "ultimo_cambio": "2026-09-19",
+            "hub": false
+          },
+          {
+            "ruta": "trazador/src/components/Mapa.vue",
+            "ultimo_cambio": "2026-09-19",
+            "hub": false
+          },
+          {
             "ruta": "trazador/server/chequeo.go",
             "ultimo_cambio": "2026-09-18",
             "hub": false
@@ -245,11 +255,6 @@
             "hub": false
           },
           {
-            "ruta": "trazador/src/App.vue",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
             "ruta": "trazador/src/components/Buscador.vue",
             "ultimo_cambio": "2026-09-18",
             "hub": false
@@ -263,20 +268,22 @@
             "ruta": "trazador/src/components/Historia.vue",
             "ultimo_cambio": "2026-09-18",
             "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Mapa.vue",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
           }
         ]
       },
       "commits": {
-        "total": 16,
+        "total": 17,
         "autores": {
-          "Miguel Ochoa": 16
+          "Miguel Ochoa": 17
         },
         "lista": [
+          {
+            "sha": "67ac3e6",
+            "fecha": "2026-09-19",
+            "autor": "Miguel Ochoa",
+            "asunto": "trazador: titlebar, banner y statusbar — el mapa gana 47px y la pista deja de flotar sobre él",
+            "repo": "trazador"
+          },
           {
             "sha": "bc4aa91",
             "fecha": "2026-09-18",
@@ -373,13 +380,6 @@
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "trazador: el recorrido como mapa — por dónde fue, dónde se cortó y cuánto faltaba",
-            "repo": "trazador"
-          },
-          {
-            "sha": "29faa6b",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador + harness: las dos forenses se nombran, y la etiqueta `qa` no existe",
             "repo": "trazador"
           }
         ]
@@ -5085,244 +5085,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "deceval",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 20,
-      "deriva": {
-        "cambiados": 3,
-        "pct": 15,
-        "hubs": 0,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Actions/DecevalSoap.php",
-            "ultimo_cambio": "2026-09-02",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/PromissoryNoteController.php",
-            "ultimo_cambio": "2026-08-31",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 8,
-        "autores": {
-          "hans peter": 6,
-          "lhCabra-creditop": 1,
-          "Joel": 1
-        },
-        "lista": [
-          {
-            "sha": "ec9c3280a",
-            "fecha": "2026-09-02",
-            "autor": "hans peter",
-            "asunto": "CRED-190 docs(deceval): restaurar el comentario del status 6 que se perdió en 8fab52fa",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "8fdc008a5",
-            "fecha": "2026-09-02",
-            "autor": "hans peter",
-            "asunto": "CRED-190 fix(deceval): recortar el pdf base64 y redactar el otp antes de persistir la bitácora",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "5e421bc5a",
-            "fecha": "2026-09-02",
-            "autor": "hans peter",
-            "asunto": "CRED-190 refactor(deceval): escapar de la transacción en la escritura y no en el modelo entero",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "6b98a32a",
-            "fecha": "2026-08-31",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(creditopx): recuperaciones, refinanciación y condonaciones desde el detalle del crédito",
-            "repo": "application"
-          },
-          {
-            "sha": "daa271ed6",
-            "fecha": "2026-08-27",
-            "autor": "Joel",
-            "asunto": "fix(otp): decidir el bypass del pagaré con el teléfono sin token de asesor",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "853f831e8",
-            "fecha": "2026-08-27",
-            "autor": "hans peter",
-            "asunto": "CRED-190 fix ocultar campo fechaDesembolso",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "4e2f4fb69",
-            "fecha": "2026-08-26",
-            "autor": "hans peter",
-            "asunto": "CRED-190 feat(loans): manda los XML de Deceval a Grafana y completa la bitácora",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "35aa8ac6b",
-            "fecha": "2026-08-25",
-            "autor": "hans peter",
-            "asunto": "CRED-190 new connection for deceval logs",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "pullman",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 13,
-      "deriva": {
-        "cambiados": 1,
-        "pct": 14,
-        "hubs": 3,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-            "ultimo_cambio": "2026-09-15",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php",
-            "ultimo_cambio": "2026-09-09",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 12,
-        "autores": {
-          "jose guzman": 3,
-          "Oscar Rincon": 3,
-          "Joel": 2,
-          "mig-creditop": 2,
-          "lhCabra-creditop": 1,
-          "Abel Arismendy": 1
-        },
-        "lista": [
-          {
-            "sha": "50206c142",
-            "fecha": "2026-09-15",
-            "autor": "Joel",
-            "asunto": "fix(loans): dejar pasar al asesor en el guard de propiedad del cupo extendido",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e31a641cd",
-            "fecha": "2026-09-14",
-            "autor": "jose guzman",
-            "asunto": "fix-comentarios",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "f1d4b327b",
-            "fecha": "2026-09-11",
-            "autor": "jose guzman",
-            "asunto": "fix-dinamic-form-alta",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "0d005103d",
-            "fecha": "2026-09-09",
-            "autor": "mig-creditop",
-            "asunto": "CORE-420 · el nombre del cliente: distinguir «no lo tiene» de «está mal», dejar que la central corrija, y que nada de esto se apague en silencio",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "a1db58460",
-            "fecha": "2026-09-08",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(loans): reject profiles by seized accounts from the bureau",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "12ccc2600",
-            "fecha": "2026-09-01",
-            "autor": "Oscar Rincon",
-            "asunto": "El comercio decide si pide ocupación e ingresos",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "a97e446c0",
-            "fecha": "2026-09-01",
-            "autor": "Oscar Rincon",
-            "asunto": "El criterio de edad no rechaza a quien no tiene edad por diseño del comercio",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "cd9ff97c0",
-            "fecha": "2026-09-01",
-            "autor": "Oscar Rincon",
-            "asunto": "El comercio decide si pide la fecha de expedición del documento",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "0dc93c5c5",
-            "fecha": "2026-08-31",
-            "autor": "jose guzman",
-            "asunto": "revision-flag-paises",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "28b05fe24",
-            "fecha": "2026-08-26",
-            "autor": "Joel",
-            "asunto": "fix(CORE-469): compute experian score before persisting the report",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "bda0c209c",
-            "fecha": "2026-08-26",
-            "autor": "mig-creditop",
-            "asunto": "El país es configuración, no un literal en el código",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "15a11d001",
-            "fecha": "2026-08-12",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CORE-368): configurar reglas de otorgamiento de lenders desde el backoffice",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "corbeta",
       "estado": "deriva",
       "verificado": {
@@ -7079,6 +6841,26 @@
       "pendiente_merge": null
     },
     {
+      "id": "deceval",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 20,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "dynamic-forms",
       "estado": "al-dia",
       "verificado": {
@@ -7167,6 +6949,26 @@
         "source": "manual"
       },
       "archivos": 101,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "pullman",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 13,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
