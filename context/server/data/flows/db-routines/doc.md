@@ -41,11 +41,14 @@ adentro de la base.
 - ⚠ **Las rutinas no son lo único invisible: hay un EVENT** que borra y reconstruye una tabla entera
   todas las noches, sin fuente en ningún repo. Ver «El EVENT» abajo — es el objeto de más riesgo del
   nodo, y el censo original no lo vio porque miró sólo `ROUTINES`.
-- **TRIGGERS: no hay.** Cero en el schema `creditop`, en prod y en dev (medido el 2026-08-15). Y es un
-  cero **firme**, no un artefacto de permisos: se verificó antes que el usuario tiene el privilegio
-  `TRIGGER` sobre el schema, que es el que filtra esa vista de `information_schema`. Los 14 triggers
-  que aparecen en dev son de RDS y de MySQL (`sys`, `mysql`), ninguno de la aplicación. **Nada dispara
-  en cada escritura**, y eso vale saberlo: descarta de entrada toda una familia de hipótesis.
+- ⚠ **TRIGGERS: ya no son cero — son DOS, y entraron el 2026-09-18.** Acá decía «no hay», con un cero
+  firme medido el 2026-08-15, y de ahí sacaba que «nada dispara en cada escritura». **Esa conclusión
+  caducó.** Medido en prod el 2026-09-18: `trg_user_requests_disbursed_at_bu` (BEFORE UPDATE) y
+  `trg_user_requests_disbursed_at_bi` (BEFORE INSERT), los dos sobre `user_requests`, creados ese
+  mismo día a las 20:15. El resto sigue valiendo: el usuario tiene el privilegio `TRIGGER` sobre el
+  schema —por eso el conteo es real y no un artefacto de permisos— y los 14 que aparecen en dev son
+  de RDS y de MySQL (`sys`, `mysql`), ninguno de la aplicación. Ver la sección de abajo: **al depurar
+  una escritura sobre `user_requests`, ahora hay un paso invisible desde el código**.
 
 **(2026-08-28)** Dos cambios leídos enteros: `MareiguaService` ganó un `bypassMocks` **marcado
 TEMPORAL** (existe sólo para `IdentityCentralRebuildService`, el backfill — borrar juntos) y un
@@ -206,6 +209,19 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
   `_rangs`. O sea que **la política de riesgo de un producto entero es una función sin versionar que
   lee dos tablas de configuración** — un `CREATE OR REPLACE` o un `UPDATE` cambian a quién se le presta
   sin un solo commit. Desarmada en el nodo **`rotativo`**.
+
+## Los DOS triggers de `user_requests`: por fin se pueden contar desembolsos
+
+Desde el 2026-09-18 `user_requests` tiene **`disbursed_at`**, y la llena un **trigger de MySQL**, no código de aplicación (`legacy-backend/database/migrations/2026_09_16_130000_add_disbursed_at_triggers_to_user_requests_table.php`). La razón de que sea un trigger está escrita y es buena: esa tabla **la escriben las dos aplicaciones** —`legacy-application` es donde entran los webhooks de las entidades— desde **más de veinte puntos**, con `->update([...])`, con asignación + `save()`, con query builder, y encima hay ajustes manuales en la base. Un hook de modelo habría cubierto una parte; el trigger es el único punto que cubre todos los caminos sin duplicar la regla.
+
+Cuatro cosas de su diseño que cambian cómo se lee la columna:
+
+- **Guarda la PRIMERA autorización y nunca pisa un valor.** Si la aplicación fija `disbursed_at` explícitamente —por ejemplo con la fecha real que reporta la entidad— el trigger no la toca; sólo rellena cuando viene `NULL`. Volver a pasar por el estado autorizado no la mueve.
+- **El id del estado va HORNEADO en el trigger**, resuelto **por nombre** al correr la migración, porque el catálogo `user_request_statuses` no está versionado y **ya divergió entre ambientes**. O sea que el trigger de cada ambiente lleva su propio número.
+- **La zona horaria se resuelve adentro**: si el UPDATE viene de Eloquent, `updated_at` cambia en la misma sentencia y se copia tal cual; si viene de SQL crudo, se toma `UTC_TIMESTAMP()` convertido a `-05:00`. Es seguro porque Colombia no tiene horario de verano.
+- **Requisito de servidor:** con binlog activo, `CREATE TRIGGER` exige `SUPER` o `log_bin_trust_function_creators = 1` (error 1419); en RDS va en el parameter group. Si una migración de trigger falla con 1419, es eso y no permisos del usuario.
+
+**Y el histórico está reconstruido, que es la salvedad que decide si se puede contar.** Medido en prod el 2026-09-18: **114.546 de 560.727** solicitudes tienen `disbursed_at`, desde 2023-08-02 hasta ese mismo día. Todo lo anterior al trigger lo llenó `user-requests:backfill-disbursed-at` con **dos fuentes en orden**: el primer `user_request_records` con el estado autorizado —la hora real del evento, que cubre **~77%**— y, para el resto, **`updated_at` como proxy**, porque las entidades que cambian el estado por webhook (Sistecredito, Bancolombia BNPL, Meddipay, Welli) **no dejan record**. El proxy coincide con el record al minuto en el 97% de los casos medidos, pero es una aproximación: **~23% del histórico no es la hora real del desembolso**, y esa distinción vive en el CSV de la corrida, no en la base.
 
 ## Lo que NO está verificado
 - ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).

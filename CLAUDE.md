@@ -411,7 +411,7 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
   columna equivocada hace creer que una solicitud cancelada está sana (F-50).
 - **El estado 11 es «Autorizada», y ES terminal**: medido en prod, de 10.182 solicitudes que lo
   tocaron en 90 días **3** avanzaron. El catálogo tiene estados posteriores (5 «Desembolsada», 20, 28,
-  30) pero el desembolso y la cartera se llevan en otro lado. **No cuentes desembolsos con esa columna.**
+  30) pero el desembolso y la cartera se llevan en otro lado. **No cuentes desembolsos con esa columna** — pero desde el **2026-09-18 sí hay una que sirve: `user_requests.disbursed_at`**, que llena un trigger de MySQL la primera vez que la solicitud pasa a autorizada (medido: 114.546 de 560.727 filas, desde 2023). ⚠ El histórico está **reconstruido**, y ~23% salió de `updated_at` como proxy porque las entidades que cambian el estado por webhook no dejan record. El detalle y sus cuatro trampas: nodo `db-routines`.
 - ⚠ **`make trazador-acceso` es una SONDA: te muestra una MUESTRA.** Con `-limit 200` trae 200 líneas
   e **imprime cuatro**, y las cuatro se ven idénticas a doscientas. Contarlas dio «46% de los errores
   son del profiler» cuando el número real era **9,2%**. Para contar, la expresión métrica:

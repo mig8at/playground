@@ -15,12 +15,16 @@
     "«cambió el resultado y no hubo deploy ni cambió el dato»"
   ],
   "files": [
-    "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
-    "legacy-backend/Modules/Onboarding/App/Services/ExperianProfileService.php",
+    "application/app/Services/lenders/RevolvingLoanConfigService.php",
+    "application/app/Support/UserRequestDateAnchor.php",
     "legacy-backend/Modules/Identity/App/Services/MareiguaService.php",
-    "legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/MareiguaExtractor.php",
     "legacy-backend/Modules/Loans/App/Repositories/RevolvingCreditRepository.php",
+    "legacy-backend/Modules/Onboarding/App/Services/ExperianProfileService.php",
+    "legacy-backend/Modules/Risk/App/Http/Controllers/ProfilerML/ProfilerMLController.php",
+    "legacy-backend/Modules/RiskV2/App/Extractors/RiskCentral/MareiguaExtractor.php",
     "legacy-backend/app/Actions/Lenders/Prami.php",
-    "application/app/Services/lenders/RevolvingLoanConfigService.php"
+    "legacy-backend/app/Console/Commands/BackfillUserRequestsDisbursedAtCommand.php",
+    "legacy-backend/database/migrations/2026_09_16_120000_add_disbursed_at_to_user_requests_table.php",
+    "legacy-backend/database/migrations/2026_09_16_130000_add_disbursed_at_triggers_to_user_requests_table.php"
   ]
 }
