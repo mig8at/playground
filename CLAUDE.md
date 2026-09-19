@@ -273,6 +273,45 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
 superficie de card) mientras `.panel` era un cajón. Tres significados para un nombre. Hoy el color es
 `--card` (que ya venía del tema), los cajones son `.drawer`, y `panel` significa una sola cosa.
 
+### Y con qué se separa una cosa de otra: SIETE reglas, las siete aplicadas en las cuatro
+
+El tema dice el color y el taller dice qué región es cada cosa. Falta la tercera pregunta, que es la
+que deja restos del diseño anterior: **¿con qué se separa un bloque del de al lado?** Antes se
+contestaba con una caja —fondo propio + borde de 1px + radio— y eso es lo que se barrió el 2026-09-19.
+La vara es medible y se toma en el navegador, no leyendo CSS: *¿cuántos elementos pintan un borde de
+**3 o 4 lados** y miden más que una píldora?* Antes: 21 en `context`, 24 en el documento del tablero,
+uno por cada `.card` del harness. Hoy: **cero contenedores** en las cuatro — lo que queda son inputs,
+selects, iframes, imágenes y píldoras, que son objetos, no contenedores.
+
+1. **Una región no lleva marco.** Lo que la separa es el escalón de fondo más UNA línea. Un borde
+   alrededor de algo que ocupa toda su columna no separa nada. ⚠ Y cuidado con la costura doble: si la
+   región de la izquierda pone `border-right` y la de la derecha `border-left`, hay 2px donde va 1 —
+   medido en el trazador, el mapa pintaba en 546–547 y el panel en 547–548.
+2. **Una sección dentro de una región se separa por su ENCABEZADO**, que sale **a sangre** (`margin: 0
+   -<padding>`) y se lee como una banda de lado a lado. Con aire a los costados vuelve a leerse como
+   otra tarjeta. Lo usan el panel del trazador y las vistas del tablero.
+3. **Un callout es una barra de color a la izquierda y un tinte, CUADRADO.** Ni marco completo —no
+   dice nada que el tinte no diga— ni `border-radius: 0 r r 0`, que redondea justo el lado que no
+   tiene nada y deja la barra recta peleando con una curva a 2px.
+4. **Una tabla son líneas por FILA, no una grilla de celdas.** El marco por celda pesa más que los
+   datos; las columnas las alinea el texto. (Y el encabezado se distingue en gris, no con fondo.)
+5. **Una píldora es relleno O contorno, nunca los dos.** Fondo teñido + borde teñido del mismo color
+   es un anillo que la engorda sin agregar información. Encendida = relleno, apagada = contorno: la
+   pareja default/outline de shadcn, que además dice el estado con la FORMA.
+6. ⛔ **El cromo muerto se BORRA, no se anula.** El caso del harness: `.card` tenía fondo, borde, radio
+   y 20px de padding, y **tres bloques más abajo se los quitaban uno por uno**. Ninguno de los cuatro
+   `.card` de la pantalla dibujaba su caja — pero el que agregue el quinto en un lugar nuevo se lleva
+   la caja vieja sin pedirla. El anulador conserva lo que AGREGA y pierde lo que niega.
+7. **Un color literal no sobrevive a un cambio de tema.** `#d8a657`, `#0a0c10`, `#fbbf24`, `#fff`: un
+   export de tweakcn pegado encima los deja intactos, y así se destiñe una UI de a un detalle por vez.
+   ⚠ Y al pasarlos a token, **el token tiene que existir en ESA herramienta**: puse `var(--fail)` en el
+   harness por costumbre del trazador y ahí se llama `--danger`; el navegador habría tirado la
+   declaración entera sin decir nada. Lo cazó `make estilo-check`.
+
+⚠ **Lo que NO se toca: el cromo de un OBJETO.** Un input, un select, un botón, un iframe con contenido
+ajeno y la miniatura de un screenshot sí llevan su marco y su radio — son cosas, no cajas alrededor de
+cosas. La pregunta que discrimina: *¿esto ENVUELVE contenido de la app, o es una pieza en sí misma?*
+
 ### ⛔ La suite de PHPUnit de `legacy-backend` NO se corre entera. Nunca, en ningún ambiente
 
 **El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz medida:
