@@ -5,14 +5,16 @@
 > pero eso confundía los dos ejes del marketplace. Misma regla que `motai` (comercio 158 en `merchants`)
 > vs MotaiX (su lender, en `entities`). **La relación con Bancolombia no es de contención en ninguna
 > dirección** (números verificados en BD el 2026-07-31): los tres retail Corbeta tienen **exactamente 2
-> lenders, 68 y 100** — para ellos Bancolombia no es el principal, es el **único**; pero Bancolombia está
-> habilitado en **109 de 230 comercios** (el 100 en 78), así que **no es "el lender de Corbeta"**. Se
+> lenders, 68 y 100** — para ellos Bancolombia no es el principal, es el **único** (y Kalley 311 también
+> tiene 2); pero Bancolombia está habilitado en **170 de 346 comercios** (el 100 en 139) — re-medido el
+> 2026-09-19; el 2026-07-31 eran 109 de 230, o sea que creció el padrón y la proporción se mantuvo—, así
+> que **no es «el lender de Corbeta»**. Se
 > cruzan: acá vive el lado COMERCIO (quién vende, cómo cierra la venta en caja, la conciliación); el lado
 > PRESTAMISTA vive en el nodo hermano **`bancolombia`** (bajo `aggregator`).
 
 Corbeta **no es un lender**: es un **grupo de comercios de retail físico** (Alkosto=209, K-Tronix=210,
-Alkomprar=211) con un **canal BATCH** propio. Ojo con el cuarto id del gate: **allied 24 = "Creditop"**,
-la cuenta propia de la casa (tiene 21 lenders habilitados, no 2) — está en `corbeta_allieds` y en el
+Alkomprar=211) con un **canal BATCH** propio. Ojo con el cuarto id del gate: **allied 24 = «Creditop»**,
+la cuenta propia de la casa (tiene **24** lenders habilitados, no 2 — re-contados el 2026-09-19) — está en `corbeta_allieds` y en el
 `switch` del código, pero **no es un retail Corbeta**; es el único `case` sin comentario en
 `CodeGenerationService.php:22`. En un webhook aparece además el 311. El crédito lo resuelve Bancolombia
 (rt=1) a través de dos productos — **BNPL (lender 68)** y
@@ -44,20 +46,42 @@ línea donde decide.
 
 - **¿Este comercio es Corbeta?** — `legacy-backend/Modules/AlliedBranchV1/App/Services/IsCorbetaOnboardingService.php:96 isCorbetaOnboardingOrchestrator`,
   que lee `settings.corbeta_allieds` (cache-aside). Es un servicio INTERNO: no tiene ruta HTTP.
-- **Dónde Corbeta cambia la FORMA del flujo** — `legacy-backend/Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php:317`
-  resuelve el flag (⚠ `:317` lo fuerza a `false` bajo Motai renting: los dos están cruzados). Y de ahí
-  cuelgan las tres consecuencias, en el mismo método: `:326` el usuario temporal **no** se enruta a
-  datos personales · `:335` la info laboral **se fabrica** (`storeDefaultEmploymentInformation`) ·
-  `:357` la respuesta sale con `OBV22007` en vez del `OBV22000` normal. **Éste es el archivo que
-  explica por qué un comercio Corbeta no consulta buró**: el buró se dispara al guardar lo laboral, y
-  acá lo laboral nunca se pide.
+- **Dónde Corbeta cambia la FORMA del flujo** — `legacy-backend/Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php:329`
+  resuelve el flag (adaptador en `:757`, respaldado por `settings.corbeta_allieds`). **Éste es el
+  archivo que explica por qué un comercio Corbeta no consulta buró**: el buró se dispara al guardar lo
+  laboral, y acá lo laboral nunca se pide — el autofill entra en `:894`.
+  ✔ **Y el archivo ganó algo que vale más que estas citas: un docblock de DOCE pasos** (`:223-233`) que
+  narra el mecanismo entero. De ahí, lo que conviene retener: corbeta **saltea dos compuertas** —el
+  usuario temporal no corta (paso 8) y el no-validado-en-riesgo tampoco (paso 11)—, **fabrica** la info
+  laboral si falta (paso 9), y la distinción viaja **sólo en el código de respuesta**, `OBV22007` contra
+  `OBV22000`: ⚠ **`corbetaOnboarding` NO va en el payload, a propósito** — el cliente decide leyendo el
+  código, no un booleano.
+  ⚠ **Acá decía que `:317` fuerza el flag a `false` bajo Motai renting. Ese cruce ya no está**
+  (re-verificado el 2026-09-19): la única mención de Motai en las 943 líneas del archivo es un docblock
+  que dice que el método «attaches the Motai mode», que es otra cosa.
 - **El código de compra en caja** — ver §3 (rama clásica, `application`) y §4 (checkout ecommerce,
   `legacy-backend`); son dos ramas distintas y el mismo canal.
-- ⚠ **La deuda está declarada en el propio código**: `ValidateOtpAuthService.php:311-312` dice que la
+- ⚠ **La deuda está declarada en el propio código**: `ValidateOtpAuthService.php:326` dice que la
   política de un comercio se filtró al orquestador general y que habría que ponerla detrás de una
-  abstracción por comercio. Si vas a tocar ese método, leé ese comentario primero.
+  **abstracción por comercio**, para que el orquestador le pregunte a una política genérica
+  («¿autofill? ¿qué código de respuesta?») en vez de conocer a Corbeta por su nombre. Si vas a tocar ese método, leé ese comentario primero.
 
 ---
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 16 afirmaciones auditadas —10 de código contra `main` y 6
+de dato medidas contra producción—, cero chequeos débiles. **Dos quedaron caducas**: el cruce del flag
+con Motai renting (ya no existe) y las cuatro citas de `ValidateOtpAuthService`, que se movieron cientos
+de líneas porque el archivo creció a 943. ✔ Lo que sí se sostuvo es la tesis del re-parentado: los tres
+retail siguen con **exactamente dos** lenders y Bancolombia sigue estando en **la mitad del padrón**
+(170 de 346), así que no es «el lender de Corbeta».
+
+⚠ **Y hay una corrección importante sobre la tabla de divergencia de abajo: EN PRODUCCIÓN NO DIVERGE
+ASÍ.** Ese cuadro se levantó contra la BD local, y dice que `settings.corbeta_allieds` vale
+`[24, 209, 210, 211]` **en dos filas** (ids 21 y 26). Medido en prod el 2026-09-19: hay **UNA sola
+fila** (id **21**, tocada el 2025-11-16) y su valor es **`[24, 209, 210, 211, 311]`** — o sea que **ya
+incluye Kalley**, y ahí el setting y la lista del redirect **coinciden**. La divergencia entre listas
+sigue siendo real para `User.php` y para el prefijo de Bancolombia, pero **la fila duplicada y el 311
+faltante son artefactos del dump de dev**, no del sistema que corre.
 
 ## 1. Configuración y gate de pertenencia
 
@@ -89,7 +113,7 @@ gate del setting y NO al del redirect (o al revés). Antes de afirmar pertenenci
     inyecta **datos laborales dummy** cuando el allied es Corbeta (salta captura real).
   - legacy-backend `merchants/PurchaseCodeService::isCorbetaAllied()` (mismo setting).
 - **`services.corbeta`** (idéntico en `application/config/services.php:215-222` y
-  `legacy-backend/config/services.php:303-310`): `host` (API Fondos), `nit` (=UserName+NitCliente),
+  `legacy-backend/config/services.php:378-385`): `host` (API Fondos), `nit` (=UserName+NitCliente),
   `password`, `user_id`, y los **dos convenios**: `convenio_bnpl` y `convenio_consumo`. El convenio
   se elige por un **ternario** — `lender_id==68 ? convenio_bnpl : convenio_consumo`
   (`application/app/Services/CodeGenerationService.php:51`) — ⚠ cuyo `else` captura al 100 **y a
