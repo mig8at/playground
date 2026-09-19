@@ -54,6 +54,10 @@ Eso invierte dos consecuencias que este nodo daba por ciertas:
 - **la rama `terms` de la calculadora SÍ se ejercita** — el 193 cotiza por matriz de plazos (`12/18/24`, `weeks 52/78/104`) y el 158 por planes semanales;
 - y **`product` ya distingue a los dos**, así que un despacho por `product` deja de ser equivalente a uno por la forma del `calculator`.
 
+✅ **Y el consejo de arriba —«mirá `lenders.product`»— dejó de ser un consejo: es el mecanismo.** Hasta el 2026-09-18 el armador del payload de los documentos se elegía **por id de entidad**, con el problema que esta sección describe: un mapa por id sólo puede estar bien en un ambiente a la vez. Ya había pasado — un arreglo apuntó el mapa al id de producción y con eso **lo rompió en dev/qa y en local**, donde el id no matcheaba y se caía al armador genérico. El modo de falla no es un documento con huecos: el genérico entrega `full_name` y `document_number` mientras las plantillas piden `nombre_cliente` y `placa`, así que **revienta al renderizar y quien firma ve un error del servidor**. Hoy se resuelve por `product`, que es lo que este nodo venía diciendo. El detalle vive en [[documentos/context]].
+
+✅ **Los dos de leasing son de corte SEMANAL, y desde el 2026-09-18 tienen su propio recordatorio.** Medido contra producción ese día: `158` Motai Renting y `193` Rent to Own tienen corte semanal, y `62` Motai X mensual — o sea que la cadencia semanal nueva apunta exactamente a los dos de leasing, y el comando que manda los recordatorios del resto ahora los excluye por corte para no pisarse. ⚠ **Pero todavía no manda nada**: sus plantillas están inactivas, y **activarlas es el interruptor real**. Mientras sigan apagadas, la corrida diaria existe y no envía.
+
 `SELECT id, name, product, LENGTH(calculator) FROM lenders WHERE id IN (62,158,193)` (prod, solo lectura). Lo que la migración **no** clona: categorías de usuario y sus reglas (ahí vive `min_initial_fee`), credenciales, ciudades, métodos de pago y requisitos — hay que configurarlos a mano.
 
 ## El flujo lo dirige el backend por `next_step`
