@@ -1497,16 +1497,20 @@ onMounted(async () => {
       <p v-else-if="error" class="msg bad">{{ error }}</p>
       <TaskEditor v-else-if="active" :key="active.Key" v-model:tab="panelTab"
         :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
-        :tabs="taskTabs" @close="active = null">
-        <template #acciones>
+        :tabs="taskTabs" @close="cerrarPestana(active.Key)">
+        <template #meta>
           <span v-if="!active._local" class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
+        </template>
+        <template #acciones>
           <a v-if="site && !active._local" class="key link" :href="jiraLink(active.Key)" target="_blank"
              rel="noopener" :title="`Abrir ${active.Key} en Jira`">Jira <span class="ext">↗</span></a>
           <button v-if="!active._local" class="tact move-task" :class="{ act: mover?.key === active.Key }"
             :disabled="moverBusy || qa?.key === active.Key" @click="abrirMover(active)">
             {{ moverBusy ? 'Consultando Jira…' : '⇢ Mover' }}
           </button>
+        </template>
+        <template #paneles>
           <div v-if="mover?.key === active.Key" class="mv" @click.stop>
             <p class="mv-h">Desde <b>{{ active.Status }}</b>, Jira deja ir a:</p>
             <div class="mv-opts">

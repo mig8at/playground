@@ -32,8 +32,8 @@ async function tabKey(event, index) {
   await nextTick();
   raiz.value?.querySelectorAll('[role=tab]')[next]?.focus();
 }
-// Escape suelta la tarea y el editor vuelve al sprint. Es el mismo gesto que cerraba el cajón, así
-// que el dedo ya lo sabe.
+// Escape CIERRA la pestaña enfocada — lo mismo que su ×. Antes sólo soltaba la tarea, y con pestañas
+// eso dejaba un estado raro: la barra mostrando pestañas y el editor mostrando el sprint.
 function keydown(event) {
   if (event.key === 'Escape') { event.preventDefault(); emit('close'); }
 }
@@ -43,16 +43,21 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 
 <template>
   <section ref="raiz" class="task-editor" :aria-label="`Tarea ${taskKey}`" tabindex="-1" @keydown="keydown">
+    <!-- LA CABECERA, en dos renglones y siempre los mismos: arriba QUÉ ES (clave + estado) y QUÉ SE
+         PUEDE HACER, alineado al borde; abajo DE QUÉ SE TRATA. Antes eran tres renglones apilados a la
+         izquierda —clave, título, acciones— que dejaban media pantalla de ancho sin usar.
+
+         ⚠ Y NO hay botón de cerrar. Lo tiene la pestaña de arriba, que es donde uno ya lo busca porque
+         es donde está en cualquier editor; dos botones para lo mismo, uno al lado del otro, sólo
+         obligan a decidir cuál. `Esc` sigue cerrando la pestaña enfocada. -->
     <header class="te-head">
-      <div class="te-heading">
-        <span>{{ taskKey }}</span>
-        <h2>{{ title }}</h2>
-        <!-- Lo que se puede HACER con la tarea va en el encabezado y no dentro de una pestaña: mover
-             a otro estado vale desde cualquiera de las ocho. -->
+      <div class="te-linea">
+        <span class="te-k">{{ taskKey }}</span>
+        <slot name="meta" />
         <div class="te-acts"><slot name="acciones" /></div>
       </div>
-      <button class="te-close" aria-label="Volver al sprint" title="Volver al sprint (Esc)"
-              @click="emit('close')">×</button>
+      <h2>{{ title }}</h2>
+      <slot name="paneles" />
     </header>
     <nav class="te-tabs" role="tablist" aria-label="Secciones de la tarea">
       <button v-for="(item, index) in tabs" :key="item.id" :id="'task-tab-' + item.id" role="tab"
@@ -69,15 +74,14 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 
 <style scoped>
 .task-editor { display: flex; flex-direction: column; min-height: 0; height: 100%; outline: none }
-.te-head { display: flex; align-items: flex-start; gap: 20px; padding: 18px 24px 14px; flex: none }
-.te-heading { flex: 1; min-width: 0 }
-.te-heading > span { font: 11px var(--font-mono); color: var(--mut) }
-.te-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px }
+.te-head { display: flex; flex-direction: column; gap: 8px; padding: 16px 24px 12px; flex: none }
+.te-linea { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0 }
+.te-k { font: 11px var(--font-mono); color: var(--mut); flex: none }
+/* Las acciones al BORDE derecho: es el único sitio donde el ojo las busca sin leer, y deja el
+   renglón de la izquierda para lo que identifica la tarea. */
+.te-acts { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .te-acts:empty { display: none }
-h2 { margin: 6px 0 0; font-size: 17px; line-height: 1.4; font-weight: 600; overflow-wrap: anywhere }
-.te-close { background: none; border: 1px solid var(--line); color: var(--mut); border-radius: var(--radius);
-  width: 30px; height: 30px; flex: none; cursor: pointer; font-size: 22px; line-height: 1 }
-.te-close:hover { color: var(--txt); background: var(--panel2) }
+h2 { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
 .te-tabs { display: flex; gap: 18px; padding: 0 24px; overflow-x: auto; flex: none;
   border-bottom: 1px solid var(--line) }
 .te-tabs button { display: flex; align-items: center; gap: 6px; white-space: nowrap; border: 0;
