@@ -34,10 +34,17 @@ entidad, abrí estas tres y vas a saber en minutos si te toca tocar código o al
 
 - **Puerta 1 · el god-method del dispatch por id** —
   `legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php`: el if-chain
-  con una rama por lender rt=1. Las ramas vivas, con su línea: `:79` Addi (9) · `:167` Bancolombia
-  BNPL (68) · `:193` Bancolombia Consumo (100) · `:307` Credifamilia (24) · `:453` Meddipay (39) ·
-  `:535` Prami (12). **Sumar un agregador = agregar un `if` acá.** ⚠ La ironía está en el mismo repo:
-  `lender->action` YA existe como clase polimórfica y este método no la usa.
+  con una rama por lender rt=1. **Son OCHO ramas vivas** (re-verificadas contra `main` el 2026-09-18):
+  `:79` Addi (9) · `:167` Bancolombia BNPL (68) · `:193` Bancolombia Consumo (100) · `:265` Welli (23) ·
+  `:307` Credifamilia (24) · `:453` Meddipay (39) · `:542` Prami (12) · `:593` Banco de Bogotá/CeroPay
+  (133). *(Acá se listaban seis: faltaban Welli y Banco de Bogotá —los dos sí están en la tabla de
+  abajo— y Prami se había corrido de `:535`.)* **Sumar un agregador = agregar un `if` acá.**
+  ⚠ **La ironía está en el mismo repo, y ahora con su cita:** `lenders.action` es una **columna que
+  guarda un nombre de clase**, y el camino polimórfico ya está construido —
+  `legacy-backend/Modules/Onboarding/App/Services/lenders/LegacyLenderService.php:48-54` hace
+  `$lenderClass = $lender->action` → `class_exists($lenderClass)` → `new $lenderClass()`, y lo mismo en
+  `:77` y en `Modules/Onboarding/App/Services/UserRequestService.php:544`. **Existe, funciona, y este
+  método no lo usa.**
 - **Puerta 2 · los arrays de ids quemados** — no tienen un solo archivo, pero sí una firma para
   grepear: `[24,209,210,211,311]` (Corbeta, y ojo que el setting `corbeta_allieds` existe y es la
   fuente correcta), `[218,219,221,222]` (Pash), Welli `[23,141,142,166]`.
@@ -46,14 +53,21 @@ entidad, abrí estas tres y vas a saber en minutos si te toca tocar código o al
   ⚠ **`MOTAI_LENDER_IDS` ya NO es una de esas firmas — no lo grepees esperando código.** Re-verificado
   contra `main` el 2026-09-14: quedan **dos** apariciones y las dos son COMENTARIOS que cuentan que se
   retiró (`apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts` y su
-  test). La regla viva se escribe por PRODUCTO: `isCalculatorProduct(product)` en
-  `frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts:46-48`.
+  test). La regla viva se escribe por PRODUCTO: `isCalculatorProduct(product)`, **definida** en
+  `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts:70`
+  y **consumida** en `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts:72`.
+  *(Acá se citaba `available-lenders.helpers.ts:46-48`, que es el archivo que la usa y ni siquiera la
+  línea donde la usa.)*
   Los dos archivos que este nodo citaba —`AvailableLenders.tsx:555` y `hooks/useLenderSelection.ts:8`—
   **siguen existiendo pero ya no forkean por ese array**: la cita quedó señalando otra cosa.
 - **Puerta 3 · el branch por NOMBRE** —
-  `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php`: decide la UX
-  post-selección comparando `lender.name` como string. Se rompe con un renombre en el admin, sin que
-  falle nada visible.
+  `legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php:28`: decide la UX
+  post-selección comparando `lender.name` como string —
+  `NON_NEW_TAB_LENDER_NAMES = ['Compensar', 'Sistecrédito', 'Meddipay']`—. Se rompe con un renombre en el
+  admin, sin que falle nada visible. ⚠ **Son TRES nombres acá, no seis:** Lagobo y Davivienda también
+  branchean por nombre pero **en otro archivo** (`Modules/Onboarding/App/Services/UserRequestService.php:736`
+  y `:746`, ver el nodo `redirect`), y Prami lo hace por id. La fila de la tabla los junta a todos porque
+  el síntoma es el mismo; el sitio a tocar, no.
 
 ⚠ **Lo que este nodo NO te da**: la línea exacta de los 101 sitios del catálogo. Ésas viven en el
 `map.json` (la columna `sitios` de la tabla las cuenta). Las tres puertas de arriba son el atajo para
@@ -69,7 +83,7 @@ archivos del mapa.
 | **Bancolombia** | 68 BNPL, 100 Consumo | dispatch por id en PreApprovedLenderService (`if id==68 → BancolombiaBnpl`; `id==100 → amount=1000000 + ConsumerLoan`); secuencia multi-step propia | 12 | P1 |
 | **Corbeta** | allied 209/210/211 | onboarding entero: rama self-management (salta confirmación de desembolso) + datos laborales DUMMY | 11 | P1 |
 | **Credifamilia** | lender 24 (+ OnVacation 179 co-listado) | radicación SOAP `register()` + response_type por accessor, solo si `id==24` | 7 | P1 |
-| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **salta el MOTOR DE REGLAS ENTERO, no sólo el gate datacrédito**: si `document_type==='CE' && id===84` asigna la **categoría 22 quemada** (`find(22)`) y retorna sin evaluar un solo tier — las políticas configuradas de esa entidad no se aplican. ~~El gemelo de `Modules/Loans` tiene el bloque comentado, así que los dos motores tratan distinto al mismo cliente~~ **(corregido 2026-08-28: la copia de Onboarding se RETIRÓ — el motor quedó uno solo, en Loans, y el bypass corre activo ahí (`findById(22)`), ahora consistente)**. Ver **F-120** | 2 | P1 |
+| **Magnocell + CE** | lender 84 + doc `CE` | ⚠ **salta el MOTOR DE REGLAS ENTERO, no sólo el gate datacrédito**: si `document_type==='CE' && id===84` (`Modules/Loans/App/Services/LenderUserCategoryService.php:400-403`) asigna la **categoría 22 quemada** (`findById(22)`, `:407`) y retorna sin evaluar un solo tier — las políticas configuradas de esa entidad no se aplican. ~~El gemelo de `Modules/Loans` tiene el bloque comentado, así que los dos motores tratan distinto al mismo cliente~~ **(corregido 2026-08-28: la copia de Onboarding se RETIRÓ — el motor quedó uno solo, en Loans, y el bypass corre activo ahí (`findById(22)`), ahora consistente)**. Ver **F-120** | 2 | P1 |
 | **Meddipay** | lender 39 | toda la integración Meddipay detrás de `id==39` (`new Meddipay->consult`) | 4 | P1 |
 | **Motai (Renting)** | lender 158 · ~~allied_mode 2~~ · `motai-renting` | ~~TODO el pipeline (15 hardcodes)~~ **la v2 los retiró casi todos** (2026-08-28): producto por `lenders.product`, precio por `lenders.calculator`, modos borrados. Queda lo del canal del formulario dinámico (id por ambiente) | ~2 | P2 |
 | **Pash** | allied 218/219/221/222 | `[218,219,221,222]` → `session('isPash')` → pantalla de bienvenida distinta + fork de onboarding | 4 | P1 |
@@ -98,7 +112,7 @@ Estos 7 no bloquean: ya leen BD/setting/columna, o son globales. **Importan porq
 - **`response_type`** (0-4) — enum estructural de despacho; quemado pero es el eje del sistema, no un acoplamiento a un externo puntual.
 
 > **El selector de plan se decide por CANTIDAD, no por entidad** — `offersPlanChoice(plans)` en
-> `lenders-marketplace/src/lib/domain/constants/lender.constants.ts` es literalmente
+> `lenders-marketplace/src/lib/domain/constants/lender.constants.ts:120-122` es literalmente
 > `Array.isArray(plans) && plans.length > 1`. Vale como patrón más allá de la pantalla: la pregunta
 > «¿hay algo que elegir?» se le hace al DATO, así que una entidad que cotice un plazo único queda
 > cubierta sin tocar código y la que cotice varios conserva su selector. Es el movimiento 2 de
@@ -122,7 +136,23 @@ El patrón **se está replicando en tiempo real**: **ONVACATION** (lender 313 / 
 El crítico de completitud levantó 3 que ni entraron al conteo:
 - **Approbe** (lender 139): integración entera propia con cifrador **AES-128-CBC bespoke** (IV cero, sin padding), controller + webhook + estado intermedio 4.
 - **Payvalida** (pasarela): tablas/modelos/webhook dedicados, checksum SHA-512 — hermana de Wompi, nunca enumerada.
-- **Blades por-id** (`consent_139/152/164`, `payment_schedules/lender_{id}`): el mecanismo "archivo nombrado por número de lender" es su propia superficie de acoplamiento.
+- **Blades por-id**: el mecanismo «archivo nombrado por número de lender» es su propia superficie de
+  acoplamiento, y **creció**. Contados contra `main` el 2026-09-18: **NUEVE** consentimientos —`139`,
+  `140`, `152`, `162`, `164`, `167`, `172`, `187`, `189`— cuando acá se nombraban tres. ⚠ En cambio
+  `payment_schedules/lender_{id}` es **uno solo** (`lender_139`) y vive en `legacy-application`, el
+  monolito viejo — y ese mecanismo **ya tiene reemplazo en curso**: la migración
+  `2026_08_20_130000_set_motai_payment_schedule_template.php` mueve el plan de pagos a una **columna
+  `template`**. Es la dirección que este censo espera, hecha en chico.
+
+**(2026-09-18) Nodo RE-VERIFICADO entero.** 16 afirmaciones auditadas —14 de código leídas contra `main`
+y 2 de dato medidas contra producción—, **cero chequeos débiles y ninguna afirmación falsa**: el censo
+describe bien la deuda. Lo que apareció es que **el censo se quedaba corto en tres conteos**, y los tres
+hacia arriba: el if-chain tiene **ocho** ramas y acá se listaban seis, los consentimientos por id son
+**nueve** y se nombraban tres, y `lender->action` —la solución a medio construir— resultó estar **más
+construida de lo que decía**: es una columna con nombre de clase que ya se instancia en tres sitios.
+✔ Y las **101 rutas del mapa siguen resolviendo sin un solo drop**, que es el dato que sostiene el
+«sitios» de la tabla. ⚠ Dos citas apuntaban a otra cosa: `isCalculatorProduct` se citaba en el archivo
+que la consume y no donde se define, y Prami se había corrido siete líneas.
 
 ## Fronteras / Enlaces
 - El **detalle por entidad** vive en sus nodos: **aggregator** (rt=1, el god-method), **motai** / **smartpay** / **pullman** / **credifamilia** / **corbeta**, **entities** (backbone de lenders), **merchants** (comercios/allieds). Este nodo es la LENTE transversal de acoplamiento, no reemplaza esos docs.
