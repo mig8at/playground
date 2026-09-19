@@ -68,11 +68,26 @@
    canal de hue, así que no hay nada que interpolar. Medido en el navegador el 2026-09-18. */
 
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 var(--font-sans); }
+/* ⚠ EL CONTRATO DE SCROLL (ver `taller.css`): la app ocupa la ventana y scrollea CADA columna, nunca
+   la página. Antes las dos columnas se acotaban con `max-height: 82vh`, y eso sólo acierta a una
+   altura: el cromo de arriba es FIJO (157px medidos) y el 82% es proporcional, así que el error crece
+   en las dos direcciones. Medido a tres alturas —el ancho no lo mueve:
+
+       ventana 620   quedan 463   el 82vh pide 508   →  +46 de más, la página scrollea 63px
+       ventana 860   quedan 703   el 82vh pide 705   →   +2, casi acierta (acá se calibró)
+       ventana 1100  quedan 943   el 82vh pide 902   →  −41 de menos, columnas más cortas de lo que caben
+
+   En ventana baja el ÁRBOL se va hacia arriba mientras leés el detalle, que es exactamente lo que el
+   contrato evita. Con `flex: 1` las columnas reciben lo que queda, sea lo que sea. */
+html, body, #app { height: 100% }
+body { margin: 0; overflow: hidden; background: var(--background); color: var(--foreground);
+       font: 14px/1.5 var(--font-sans); }
+#app { display: flex; flex-direction: column; min-height: 0 }
 code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco); padding: 1px 5px;
        border-radius: var(--radius); color: var(--fg); }
 
-.wrap { max-width: 1400px; margin: 0 auto; padding: 18px 22px; }
+.wrap { max-width: 1400px; margin: 0 auto; padding: 18px 22px; flex: 1; min-height: 0;
+        display: flex; flex-direction: column; }
 header h1 { margin: 0; font-size: 20px; font-weight: 700; }
 header .sub { color: var(--mut); font-weight: 400; }
 .stats { display: flex; gap: 8px; margin: 10px 0 4px; }
@@ -110,7 +125,9 @@ header .sub { color: var(--mut); font-weight: 400; }
 .conex-n:hover { background: color-mix(in oklab, var(--ctx) 24%, var(--card)); }
 .conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
-.cols { display: flex; gap: 18px; align-items: flex-start; }
+/* `align-items: stretch` (el default) y no `flex-start`: las dos columnas tienen que llegar hasta
+   abajo, que es lo que reemplaza al `82vh`. */
+.cols { display: flex; gap: 18px; flex: 1; min-height: 0; }
 /* ⚠ El árbol es el SIDEBAR (`taller.css`), y adoptarlo de verdad fue SOLTARLE el `background`: ahora
    lo pone la regla compartida con `--sidebar` (#1f1f1f), un escalón por detrás del `--card` (#202020)
    del detalle. Eso es la convención de shadcn y acá gana algo concreto — las dos columnas dejan de ser
@@ -119,7 +136,7 @@ header .sub { color: var(--mut); font-weight: 400; }
    página que scrollea, no regiones a sangre. La regla compartida propone `border-right`; acá gana la
    propia, y es una desviación declarada, no un olvido. */
 .tree { flex: 0 0 var(--sidebar-w); border: 1px solid var(--line); border-radius: 10px; padding: 8px;
-        max-height: 82vh; overflow: auto; }
+        overflow: auto; }
 .section-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); padding: 8px 8px 4px; }
 .tasks-lbl { margin-top: 10px; border-top: 1px solid var(--line); }
 
@@ -146,7 +163,7 @@ header .sub { color: var(--mut); font-weight: 400; }
    compartida propone el lienzo (`--background`), que acá haría desaparecer la tarjeta dentro de la
    página. Misma desviación declarada que el árbol. */
 .detail { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-          padding: 16px 20px; max-height: 82vh; overflow: auto; min-width: 0; }
+          padding: 16px 20px; overflow: auto; min-width: 0; }
 .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-head h2 { margin: 0; font-size: 18px; }
 .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
