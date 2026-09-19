@@ -81,7 +81,7 @@ Todo aterriza en tres lugares: el **reporte crudo** en `risk_central_user_data.d
   - **Confirmado con `MOCK_HOST` en staging**: Ágil, Mareigua y Experian (2026-08-15, traza en Loki).
     De TusDatos no hay evidencia todavía — no llegó a correr.
 - **Caché de 1 mes, y muerde en las pruebas**: si el usuario ya tiene fila en `risk_central_user_data`
-  de menos de un mes, el servicio la reusa y **ni siquiera llama al mock** (`Agildata.php:27-43`). Al
+  de menos de un mes, el servicio la reusa y **ni siquiera llama al mock** (`Agildata.php:28-44`). Al
   preparar un caso hay que borrar esa fila, o el escenario que armaste no se nota.
 - **El mock se puede DICTAR en caliente** desde el 2026-08-15 (PR #27/#28 del lambda): una variable
   global cuya clave lleva la cédula. → ver la tarea 49 del tablero para la receta completa.
@@ -117,7 +117,7 @@ de producción (`additional_info` de Ágil va plano; consulta por Redash, fuente
 
 **Ágil Data** — `codRespuesta`, 11 valores observados entre 2024-07 y 2026-08. **Sólo `01` y `21`
 traen bloque `respuesta`**; los otros nueve vienen con `respuesta: null`, y por eso
-`AgildataService.php:50` acepta exactamente esos dos:
+`AgildataService.php:51` acepta exactamente esos dos:
 
 | cód | qué es | filas (prod, 2 años) |
 |---|---|---|
@@ -135,7 +135,7 @@ la tienen. ⚠ Y el manual **está desactualizado**: no lista el `98`, que sí a
 
 **Mareigua** — `respuesta_id` (Anexo 2 del manual MaCIA v25.0, 2024-09-15). Sus respuestas van
 **cifradas** en `data`, así que el catálogo no se puede censar desde la BD: sale del manual. `4` =
-Exitosa, y `MareiguaService.php:50` acepta sólo ese. Los otros: `1` no contiene información · `5`
+Exitosa, y `MareiguaService.php:51` acepta sólo ese. Los otros: `1` no contiene información · `5`
 datos incompletos · `2` datos erróneos · `3` error de forma · `6` falló la comunicación con los
 operadores · `7` error del servidor · `11` ambiente no autorizado · **`16` alcanzó el máximo de
 consultas del día sobre la misma identificación**.
@@ -290,15 +290,30 @@ Hay **dos mecanismos independientes** que evitan pagar la consulta:
 al responder que sí se firma el flujo y la solicitud queda con `flow_id = 2`
 (`Flow::ALREADY_CONFIRMED_PRE_APPROVAL`). El **corte real** está en `app/Actions/RiskCentrals/Experian.php`:
 retorna `null` antes de consultar, en **los tres modos** (Acierta · Quanto · Acierta+Quanto). La
-arquitectura nueva lo espeja en `CheckExperianTriggerService` Stage 3 → `RKV24029`. Como el supuesto es
+arquitectura nueva lo espeja en `CheckExperianTriggerService` **Stage 2** → `RKV24029` (era Stage 3 hasta el 2026-09-18). Como el supuesto es
 que el cupo viene de una entidad **sin** integración directa, el listado se recorta a `response_type = 0`
 (`Modules/Onboarding/App/Http/Controllers/LenderListingController.php`).
 
 **2. Frecuencia por comercio.** Contador de consultas por allied con regla de `every`/módulo
 (`GetExperianQueryCountByAlliedIdService` lee sin avanzar · `IncrementExperianQueryCountByAlliedIdService`
-avanza). **El contador sube solo justo antes de consultar de verdad**, así que refleja consultas reales.
-Sin regla → `RKV24023`; `count % every !== 0` → `RKV24024`. Ahorra **incluso fuera** del flujo de
-pre-aprobado.
+avanza). Sin regla → `RKV24023`; `count % every !== 0` → `RKV24024`. Ahorra **incluso fuera** del flujo
+de pre-aprobado.
+
+⚠ **El contador NO refleja consultas reales** — acá decía que sube «solo justo antes de consultar de
+verdad», y es al revés de lo que importa: **también sube cuando la ventana BLOQUEA la consulta**
+(`legacy-backend/Modules/RiskV2/App/Services/CheckExperianTriggerService.php:500` y `:517`, las dos
+ramas que terminan en `RKV24024`), a propósito, para que la ventana siga corriendo. Quien mida compras
+de buró con ese contador **sobrecuenta**: incluye los intentos frenados. Leído en `main` el 2026-09-18.
+
+⚠⚠ **Y el ORDEN cambió el 2026-09-18: las reglas de salto pasaron DELANTE de la ventana.** Las reglas
+de salto existen para comprar el reporte igual, sin mirar la frecuencia. Con la ventana adelante esos
+casos morían antes de llegar —por no tener regla (`RKV24023`) o por una ventana tan alta que nunca se
+cumple—, y **una sucursal con entidad CreditopX se evaluaba sin su reporte**. Hoy las reglas de salto
+corren primero y **no tocan el contador**, así que un comercio con sucursales mixtas ya no gasta su
+ventana con las que compran de todas formas. Hay además un veredicto propio para ese caso —`RKV24030`,
+«el comercio tiene una entidad CreditopX»— y cuando cualquiera de las reglas de salto dispara **el
+producto comprado queda forzado** al que trae puntaje y capacidad, sea cual sea el que venía pedido:
+antes de conciliar consumos de Experian, esa sucursal no compra lo que su configuración dice.
 
 ⚠ **Deuda viva (F-58)**: al firmar el flujo, el rechazo `URV13004` viaja en **HTTP 200** y el front lo
 toma como éxito → la solicitud queda en `flow_id = 1` y **se consulta Experian** sin dejar rastro. Hoy no
@@ -370,7 +385,7 @@ Tres cosas que no se deducen de la lista y cambian cómo se lee una consulta:
 - **Los REINTENTOS quedan en la BD, soft-deleted.** La misma 519245 tiene **cinco** filas de `TusDatos - Identidad`: cuatro con `deleted_at` y una viva. Cada reintento de la cascada escribe fila nueva y borra la anterior. Consecuencia práctica: «¿cuántos intentos hubo?» **sí** se responde desde la BD (contando con `deleted_at IS NOT NULL`), no sólo desde los logs — matiza F-97. Y cualquier consulta que filtre `deleted_at IS NULL` —como debe— ve el último intento, no la historia.
 - **El catálogo varía por ambiente.** Cualquier vista que liste centrales tiene que leerlo de la BD del target, no de una lista fija.
 
-Y para la pregunta "¿por qué no hay fila de buró nueva?", el backend **ya declara su propio pipeline** de decisión con cinco mensajes de log —`STAGE 0 — User request data`, `STAGE 1 — Existing risk-central data review`, `STAGE 2 — Frequency review`, `STAGE 3 — Check flow omitions`, `STAGE 4 — Bypass rules review`—, más `Experian frequency…`, `The allied is in the Experian trigger bypass list` y `The allied is not allowed to omit the requested risk central`. Es el vocabulario del código: usar otro agrega una capa de traducción. Leerlos en orden dice **en qué compuerta se cortó**, que es exactamente lo que F-60 obliga a descartar antes de afirmar que se omitió el buró.
+Y para la pregunta "¿por qué no hay fila de buró nueva?", el backend **ya declara su propio pipeline** de decisión en los registros. ⚠ **Son OCHO etapas, no cinco, y el orden de las tres del medio CAMBIÓ el 2026-09-18** — acá decía cinco en el orden viejo, y las dos cosas mandan a leer mal la traza. Leído en `main` el 2026-09-18: `STAGE 0 — User request data (obtain & validate)`, `STAGE 1 — Existing risk-central data review`, **`STAGE 2 — Check flow omitions`**, **`STAGE 3 — Bypass rules review`**, **`STAGE 4 — Frequency review`**, `STAGE 5 — Gather & validate the data needed for the evaluation`, `STAGE 6 — Commerce and entity-specific rules review`, `STAGE 7 — Point-of-sale (allied branch) specific rules review`; más `Experian frequency…`, `The allied is in the Experian trigger bypass list` y `The allied is not allowed to omit the requested risk central`. Las tres últimas son donde cortan las reglas de negocio, así que **quien deja de leer en la quinta se pierde justo las compuertas que más cortan**. Es el vocabulario del código: usar otro agrega una capa de traducción. Leerlos en orden dice **en qué compuerta se cortó**, que es exactamente lo que F-60 obliga a descartar antes de afirmar que se omitió el buró.
 
 > Mostrar el catálogo COMPLETO con las no consultadas marcadas no es cosmético: una ausencia sin universo no se puede interpretar. "No se consultó Mareigua" sólo significa algo si sabés que Mareigua existía como opción.
 
