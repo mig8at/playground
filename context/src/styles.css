@@ -1,10 +1,76 @@
+/* EL VOCABULARIO VISUAL DE CONTEXT.
+ *
+ * Tres capas, y el orden importa:
+ *   1. Tailwind      utilidades, para lo que se escriba de acá en adelante
+ *   2. `tema.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
+ *                    idéntico en las cuatro herramientas. No se edita.
+ *   3. esta hoja     el PUENTE (los nombres viejos apuntando a los tokens) + lo que sólo significa
+ *                    algo acá: el kind de un nodo y su estado de alineación.
+ *
+ * ⚠ Las utilidades van en `@layer utilities`, y el CSS SIN capa —todo lo de abajo— le gana a
+ * cualquier capa, sin importar la especificidad. Es a propósito: agregar Tailwind no mueve nada de lo
+ * que ya funciona, y para migrar un bloque hay que BORRAR su regla, no competirle.
+ *
+ * ⚠ Sin preflight de Tailwind: es un reset fuerte y acá abajo ya hay uno propio.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./tema.css";
+
+/* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
+   ⚠ `--accent` no está acá, y no es un olvido: en el tema es una SUPERFICIE (#404040, con su propio
+   `--accent-foreground`), mientras que acá era el color del texto de enlace. Aliasarlo habría dejado
+   texto #404040 sobre fondo #1a1a1a — ilegible, y sin fallar. Ese uso se renombró a `--info`. */
 :root {
-  --bg: #0f1115; --panel: #161922; --line: #262b36; --fg: #e6e9ef; --mut: #8b93a3;
-  --ctx: #56d68a; --task: #a78bfa; --root: #f5c451; --accent: #4a9eff;
+  --bg: var(--background);
+  --panel: var(--card);
+  --line: var(--border);
+  --hueco: var(--background);   /* lo hundido dentro de una card: contadores, código, callouts */
+  --fg: var(--foreground);
+  /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el muted
+     es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el del medio. */
+  --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --tenue: var(--muted-foreground);
+  --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
 }
+
+/* ── LO SEMÁNTICO ─────────────────────────────────────────────────────────────────────────────────
+   Vive acá y no en `tema.css` por dos razones: un export de tweakcn no trae estos tokens (pegarlo
+   encima los borraría), y el tema de hoy es monocromo a propósito — pero «nodo de referencia» contra
+   «nodo-tarea», y la escala de deriva verde→amarillo→naranja→rojo, no pueden ser cinco grises. El
+   color acá es IDENTIDAD y GRADO, no decoración. */
+:root {
+  --ctx:  #56d68a;          /* nodo de referencia */
+  --task: #a78bfa;          /* nodo-tarea */
+  --root: #f5c451;          /* la raíz del árbol */
+  --info: var(--primary);   /* enlaces, foco, lo interactivo */
+  /* La escala de alineación: al día → deriva → deriva alta → hay que actuar. El violeta va aparte
+     porque NO es un grado: es «esto describe una rama, no main» — y por eso es el MISMO violeta del
+     nodo-tarea, no un quinto color. */
+  --al-dia:     var(--ctx);
+  --al-deriva:  #d8c65a;
+  --al-alta:    #f5a04a;
+  --al-muerta:  #f2585b;
+  --al-rama:    var(--task);
+}
+
+/* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
+   Los neutros de un tema de tweakcn son `oklch(L 0 0)`: croma 0 y **hue 0**. `oklch` es un espacio
+   POLAR, así que un `color-mix` interpola el hue — y el hue 0 es el ROJO. Mezclar cualquier color con
+   una superficie del tema arrastra el matiz hacia el rojo sin que nada falle:
+
+       color-mix(in oklch, #4ade80 20%, var(--card))  →  #4d3530   un marrón rojizo
+       color-mix(in oklab, #4ade80 20%, var(--card))  →  #2d4132   el verde que uno pedía
+
+   Pasa con los cuatro: el ámbar da #4e3737, el azul #42323c, el violeta #44303a. La prueba de que la
+   causa es el hue: escribiendo la superficie como `oklch(0.2435 0 none)` —hue impotente— el `oklch`
+   devuelve #2d4132, idéntico al de oklab. `oklab` es el mismo espacio en forma rectangular: no tiene
+   canal de hue, así que no hay nada que interpolar. Medido en el navegador el 2026-09-18. */
+
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .88em; background: #0b0d12; padding: 1px 5px; border-radius: 4px; color: #cdd4e0; }
+body { margin: 0; background: var(--background); color: var(--foreground); font: 14px/1.5 var(--font-sans); }
+code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco); padding: 1px 5px;
+       border-radius: var(--radius); color: var(--fg); }
 
 .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 22px; }
 header h1 { margin: 0; font-size: 20px; font-weight: 700; }
@@ -20,28 +86,28 @@ header .sub { color: var(--mut); font-weight: 400; }
    une —está para leerse, así que no se apaga tanto— y RUTA es sólo el camino del árbol: ni resultado
    ni vecina, y se cuenta como ninguno de los dos. */
 .buscar { display: flex; align-items: center; gap: 8px; margin: 10px 0 2px; }
-.buscar input { flex: 0 1 380px; background: #0b0d12; border: 1px solid var(--line); color: var(--fg);
+.buscar input { flex: 0 1 380px; background: var(--hueco); border: 1px solid var(--line); color: var(--fg);
                 border-radius: 999px; padding: 5px 13px; font-size: 12.5px; }
-.buscar input:focus { outline: none; border-color: var(--accent); }
-.buscar input::placeholder { color: #6d7686; }
-.vec-chip { background: #16233a; border: 1px solid #2b4a75; color: var(--accent); border-radius: 999px;
+.buscar input:focus { outline: none; border-color: var(--info); }
+.buscar input::placeholder { color: var(--tenue); }
+.vec-chip { background: color-mix(in oklab, var(--info) 18%, var(--card)); border: 1px solid color-mix(in oklab, var(--info) 45%, var(--card)); color: var(--info); border-radius: 999px;
             padding: 3px 11px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
 .vec-chip.off { background: var(--panel); border-color: var(--line); color: var(--mut); }
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
 
-.row.res { background: #122a1e; box-shadow: inset 0 0 0 1px var(--ctx); }
+.row.res { background: color-mix(in oklab, var(--ctx) 18%, var(--card)); box-shadow: inset 0 0 0 1px var(--ctx); }
 .row.vec { opacity: .72; }
 .row.ruta { opacity: .38; }
-.pega { font-size: 10px; color: var(--ctx); background: #0b0d12; border: 1px solid #2a4a38;
+.pega { font-size: 10px; color: var(--ctx); background: var(--hueco); border: 1px solid color-mix(in oklab, var(--ctx) 42%, var(--card));
         padding: 0 5px; border-radius: 999px; white-space: nowrap; }
 
 /* ── CON QUÉ SE UNE (grafo derivado de los archivos compartidos) ── */
 .conex { margin: 10px 0 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .conex-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
-.conex-n { font-size: 12px; color: var(--ctx); background: #12201a; border: 1px solid #2a4a38;
+.conex-n { font-size: 12px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 14%, var(--card)); border: 1px solid color-mix(in oklab, var(--ctx) 42%, var(--card));
            border-radius: 999px; padding: 1px 9px; cursor: pointer; }
-.conex-n:hover { background: #172c22; }
+.conex-n:hover { background: color-mix(in oklab, var(--ctx) 24%, var(--card)); }
 .conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
 .cols { display: flex; gap: 18px; align-items: flex-start; }
@@ -50,40 +116,40 @@ header .sub { color: var(--mut); font-weight: 400; }
 .tasks-lbl { margin-top: 10px; border-top: 1px solid var(--line); }
 
 .row { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
-.row:hover { background: #1d2230; }
-.row.sel { background: #223049; outline: 1px solid var(--accent); }
-.row.hl { background: #2a2340; }
+.row:hover { background: var(--sel); }
+.row.sel { background: color-mix(in oklab, var(--info) 22%, var(--card)); outline: 1px solid var(--info); }
+.row.hl { background: color-mix(in oklab, var(--task) 22%, var(--card)); }
 .tog { width: 12px; color: var(--mut); font-size: 11px; text-align: center; flex: 0 0 12px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--mut); }
 .dot.reference { background: var(--ctx); } .dot.task { background: var(--task); } .dot.root { background: var(--root); }
 .nm { overflow: hidden; text-overflow: ellipsis; }
-.cnt { margin-left: auto; font-size: 11px; color: var(--mut); background: #0b0d12; padding: 0 6px; border-radius: 999px; }
+.cnt { margin-left: auto; font-size: 11px; color: var(--mut); background: var(--hueco); padding: 0 6px; border-radius: 999px; }
 .cnt.big { margin-left: 0; }
 
 .taskcard { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 4px; cursor: pointer; }
 .taskcard:hover { border-color: var(--task); }
-.taskcard.sel { outline: 1px solid var(--task); background: #1d1830; }
+.taskcard.sel { outline: 1px solid var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); }
 .tc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.chip { font-size: 11px; color: var(--task); background: #1a1730; border: 1px solid #2f2a48; border-radius: 999px; padding: 1px 8px; cursor: pointer; }
-.chip:hover { background: #241f42; }
+.chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 14%, var(--card)); border: 1px solid color-mix(in oklab, var(--task) 38%, var(--card)); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.chip:hover { background: color-mix(in oklab, var(--task) 26%, var(--card)); }
 
 .detail { flex: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px 20px; max-height: 82vh; overflow: auto; min-width: 0; }
 .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-head h2 { margin: 0; font-size: 18px; }
 .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
-.kind.reference { color: var(--ctx); border-color: #2a4a38; } .kind.task { color: var(--task); border-color: #3a3358; } .kind.root { color: var(--root); }
-.when { color: #c7cede; background: #12151d; border-left: 2px solid var(--accent); padding: 8px 12px; border-radius: 4px; }
+.kind.reference { color: var(--ctx); border-color: color-mix(in oklab, var(--ctx) 42%, var(--card)); } .kind.task { color: var(--task); border-color: color-mix(in oklab, var(--task) 45%, var(--card)); } .kind.root { color: var(--root); }
+.when { color: var(--fg); background: var(--hueco); border-left: 2px solid var(--info); padding: 8px 12px; border-radius: 4px; }
 .path { color: var(--mut); font-size: 12.5px; }
 
 .doc { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; overflow-x: auto; }
-.doc h1 { font-size: 18px; } .doc h2 { font-size: 16px; margin-top: 18px; } .doc h3 { font-size: 14px; color: #cdd4e0; } .doc h4 { font-size: 13px; color: var(--mut); }
+.doc h1 { font-size: 18px; } .doc h2 { font-size: 16px; margin-top: 18px; } .doc h3 { font-size: 14px; color: var(--fg); } .doc h4 { font-size: 13px; color: var(--mut); }
 .doc p { margin: 7px 0; } .doc ul, .doc ol { margin: 6px 0; padding-left: 22px; } .doc li { margin: 2px 0; }
 .doc blockquote { border-left: 2px solid var(--line); margin: 8px 0; padding: 2px 12px; color: var(--mut); }
 .doc hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .doc table { border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
 .doc td { border: 1px solid var(--line); padding: 4px 9px; vertical-align: top; }
-.doc strong { color: #fff; }
+.doc strong { color: var(--fg); }
 
 /* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
    EL CÍRCULO ENTERO es el estado de salud, no el kind. Se probó con el kind en el relleno y la
@@ -93,44 +159,44 @@ header .sub { color: var(--mut); font-weight: 400; }
    dentro del árbol. La escala se lee de un tirón: verde → amarillo → naranja → rojo. El violeta va
    aparte porque NO es un grado de deriva: es "esto describe una rama, no main". */
 .dot[data-alin="al-dia"] { background: var(--ctx); }
-.dot[data-alin="deriva"] { background: #d8c65a; }
-.dot[data-alin="deriva-alta"] { background: #f5a04a; }
-.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] { background: #f2585b; }
-.dot[data-alin="rama-sin-mergear"] { background: #a78bfa; }
+.dot[data-alin="deriva"] { background: var(--al-deriva); }
+.dot[data-alin="deriva-alta"] { background: var(--al-alta); }
+.dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] { background: var(--al-muerta); }
+.dot[data-alin="rama-sin-mergear"] { background: var(--al-rama); }
 /* el estado que exige ACTUAR lleva halo: un rojo entre 31 filas se puede pasar por alto */
 .dot[data-alin="rutas-muertas"], .dot[data-alin="marca-ya-mergeada"] {
-  box-shadow: 0 0 0 3px rgba(242, 88, 91, .28);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--al-muerta) 32%, transparent);
 }
 
-.deriva { font-size: 10px; padding: 0 5px; border-radius: 999px; background: #0b0d12; color: var(--mut); }
-.deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: #f2585b; }
-.deriva[data-alin="deriva-alta"] { color: #f5a04a; }
-.deriva[data-alin="deriva"] { color: #d8c65a; }
-.deriva[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+.deriva { font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--hueco); color: var(--mut); }
+.deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: var(--al-muerta); }
+.deriva[data-alin="deriva-alta"] { color: var(--al-alta); }
+.deriva[data-alin="deriva"] { color: var(--al-deriva); }
+.deriva[data-alin="rama-sin-mergear"] { color: var(--al-rama); }
 
 .alin { border: 1px solid var(--line); border-left: 3px solid var(--mut); border-radius: 6px;
-        padding: 9px 12px; margin: 10px 0; background: #12151d; }
-.alin[data-alin="rutas-muertas"], .alin[data-alin="marca-ya-mergeada"] { border-left-color: #f2585b; }
-.alin[data-alin="deriva-alta"] { border-left-color: #f5a04a; }
-.alin[data-alin="deriva"] { border-left-color: #d8c65a; }
-.alin[data-alin="rama-sin-mergear"] { border-left-color: #a78bfa; }
+        padding: 9px 12px; margin: 10px 0; background: var(--hueco); }
+.alin[data-alin="rutas-muertas"], .alin[data-alin="marca-ya-mergeada"] { border-left-color: var(--al-muerta); }
+.alin[data-alin="deriva-alta"] { border-left-color: var(--al-alta); }
+.alin[data-alin="deriva"] { border-left-color: var(--al-deriva); }
+.alin[data-alin="rama-sin-mergear"] { border-left-color: var(--al-rama); }
 .alin[data-alin="al-dia"] { border-left-color: var(--ctx); }
 .alin-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
 .alin-badge { font-size: 12px; font-weight: 600; }
-.alin-badge[data-alin="rutas-muertas"], .alin-badge[data-alin="marca-ya-mergeada"] { color: #f2585b; }
-.alin-badge[data-alin="deriva-alta"] { color: #f5a04a; }
-.alin-badge[data-alin="deriva"] { color: #d8c65a; }
-.alin-badge[data-alin="rama-sin-mergear"] { color: #a78bfa; }
+.alin-badge[data-alin="rutas-muertas"], .alin-badge[data-alin="marca-ya-mergeada"] { color: var(--al-muerta); }
+.alin-badge[data-alin="deriva-alta"] { color: var(--al-alta); }
+.alin-badge[data-alin="deriva"] { color: var(--al-deriva); }
+.alin-badge[data-alin="rama-sin-mergear"] { color: var(--al-rama); }
 .alin-badge[data-alin="al-dia"] { color: var(--ctx); }
 .alin-meta { font-size: 11.5px; color: var(--mut); }
-.alin-meta em { color: #f5a04a; font-style: normal; }
+.alin-meta em { color: var(--al-alta); font-style: normal; }
 .alin-lista { margin-top: 7px; font-size: 12px; color: var(--mut); }
 .alin-lista b { color: var(--fg); font-weight: 600; }
-.alin-fecha { display: inline-block; width: 78px; color: #6d7686; font-size: 11px; }
+.alin-fecha { display: inline-block; width: 78px; color: var(--mut); font-size: 11px; }
 .alin-commit { margin: 2px 0; }
-.alin-autor { display: inline-block; min-width: 118px; color: #8fa2c4; }
+.alin-autor { display: inline-block; min-width: 118px; color: var(--mut); }
 .alin-cmd { margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line); }
-.alin-pill[data-alin="rutas-muertas"] { color: #f2585b; }
-.alin-pill[data-alin="deriva-alta"] { color: #f5a04a; }
-.alin-pill[data-alin="deriva"] { color: #d8c65a; }
+.alin-pill[data-alin="rutas-muertas"] { color: var(--al-muerta); }
+.alin-pill[data-alin="deriva-alta"] { color: var(--al-alta); }
+.alin-pill[data-alin="deriva"] { color: var(--al-deriva); }
 .alin-pill[data-alin="al-dia"] { color: var(--ctx); }

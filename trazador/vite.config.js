@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 
 // :5192 era el puerto del `soporte` que se borró — el trazador es su sucesor, así que hereda el número en
 // vez de inventar uno nuevo. Ocupados hoy: 5190 flow · 5191 tablero · 5193 context · 5194 dict ·
@@ -8,7 +9,7 @@ import vue from '@vitejs/plugin-vue'
 // El PROXY evita CORS y, más importante, hace que la app viva en un solo origen: el día que se sirva el
 // `dist/` desde el propio Go, las rutas `/api/…` siguen valiendo sin cambiar una línea.
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), tailwindcss()],
   server: {
     port: 5192,
     proxy: {

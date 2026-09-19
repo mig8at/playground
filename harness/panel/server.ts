@@ -837,6 +837,18 @@ const server = createServer(async (req, res) => {
         return res.end(readFileSync(f, 'utf8'));
     }
 
+    /* EL TEMA. Es un archivo aparte y no un bloque más dentro del index porque tiene que poder
+       REEMPLAZARSE entero (es un export de tweakcn) y porque es byte a byte el mismo que usan
+       `context`, `tablero` y `trazador` — `make estilo-check` compara los md5. `no-store` como el
+       index: es una herramienta local, y una hoja cacheada mientras se ajusta un tema es una
+       pérdida de tiempo garantizada. */
+    if (path === '/tema.css') {
+        const f = join(HERE, 'tema.css');
+        if (!existsSync(f)) return json(res, 500, { error: 'falta panel/tema.css' });
+        res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'no-store' });
+        return res.end(readFileSync(f, 'utf8'));
+    }
+
     // Estado de la sesión Cognito precargada (dot verde/gris en los botones de ambiente). Chequeo REAL
     // (bin/session-check), cacheado por target para no pegarle al front en cada render. `force=1` lo salta.
     if (path === '/api/session-status') {

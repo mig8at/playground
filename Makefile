@@ -174,6 +174,9 @@ trazador-diag: ## @dia el diagnóstico FINO de una traza: qué se puede AFIRMAR 
 trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus y sin tocar nada: coherencia interna, el vocabulario de ramales que comparte con el harness y, con TARGET, las tablas declaradas. [TARGET=local|dev]
 	@cd trazador/server && go run . -chequeo $(if $(TARGET),-target $(TARGET))
 
+estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `tema.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
+	@python3 tools/estilo.py
+
 trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solapes, patrones mudos, decisiones que no resuelven. CORPUS=<tsv|ndjson>
 	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
 	@cd trazador/server && go run . -validar $(CORPUS)

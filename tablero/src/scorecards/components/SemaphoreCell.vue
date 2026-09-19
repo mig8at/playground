@@ -64,7 +64,7 @@ function pick(status) {
 .s-green { background: var(--green-bg); }
 .s-yellow { background: var(--yellow-bg); }
 .s-red { background: var(--red-bg); }
-.s-red .val { color: var(--red-ink); }
+.s-red .val { color: var(--foreground); }
 
 .picker {
   position: absolute;

@@ -68,7 +68,7 @@ const emit = defineEmits(['set', 'detail'])
   height: 34px;
   border-radius: 9px;
   background: var(--accent);
-  color: #fff;
+  color: var(--accent-foreground);
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -106,7 +106,7 @@ tbody td.cell { border-bottom: 1px solid var(--border); }
   margin-top: 6px;
   background: transparent;
   border: 0;
-  color: var(--accent);
+  color: var(--info);
   font-size: 12px;
   cursor: pointer;
   padding: 0;

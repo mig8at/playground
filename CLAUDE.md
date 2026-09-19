@@ -142,6 +142,45 @@ Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` 
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
 `proyecto-verbo`.
 
+### Las cuatro UIs comparten UN tema, y es un archivo
+
+`context` (:5193), `harness/panel` (:5195), `tablero` (:5191) y `trazador` (:5192) tenían cuatro
+paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el texto apagado era `--dim`,
+`--mut` y `--mut`; el acento era `--accent`, `--acc` y `--acc`; el rojo era `--fail`, `--bad` y
+`--danger`—, así que no había forma de cambiarles el aspecto sin tocar las cuatro. Hoy:
+
+- **`tema.css` es el archivo que se cambia, y es el MISMO en las cuatro** (`context/src` ·
+  `harness/panel` · `tablero/src` · `trazador/src`). Es un export de [tweakcn](https://tweakcn.com/)
+  tal cual: elegís un tema ahí, copiás su bloque y **pisás el archivo**. Nada más. No se edita a mano
+  y no lleva ni una regla propia de ninguna herramienta.
+- **`make estilo-check`** es lo que hace que eso sea cierto y no una intención: compara los md5 de los
+  cuatro, prohíbe las mezclas `in oklch`, mide el contraste de las reglas que fijan color y fondo, y
+  lista las variables usadas y nunca declaradas. Corrélo después de tocar estilos.
+- Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
+  los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
+  etapa, el carril de un ramal, el semáforo de un scorecard—. **Ese color semántico NO va en `tema.css`
+  a propósito**: un export de tweakcn no lo trae, así que pegar un tema nuevo encima lo borraría.
+- Las tres apps de Vite además tienen **Tailwind v4** enchufado (`@tailwindcss/vite`), con los tokens
+  ya mapeados a utilidades por el `@theme inline` del tema. ⚠ Las utilidades van en `@layer
+  utilities` y **el CSS sin capa —todo lo que ya existe— les gana**: sirven para markup nuevo, y para
+  migrar un bloque hay que borrarle la regla, no competirle. El panel del harness **no** tiene
+  Tailwind: no tiene bundler (`npm run dev` es `node panel/server.ts`), así que consume el mismo
+  `tema.css` por `<link>` y listo.
+
+⚠ **Tres trampas medidas el 2026-09-18, las tres silenciosas** (ninguna hace fallar nada):
+
+1. **Un tinte se mezcla `in oklab`, NUNCA `in oklch`.** Los neutros de tweakcn son `oklch(L 0 0)`:
+   croma 0 y **hue 0, que es el rojo**. `oklch` es polar, así que `color-mix` interpola ese hue y
+   arrastra el matiz — `color-mix(in oklch, #4ade80 20%, var(--card))` da **#4d3530**, un marrón
+   rojizo, donde `in oklab` da **#2d4132**. Pasa con los cuatro colores. `make estilo-check` lo frena.
+2. **Una variable sin declarar hace que el navegador tire la declaración ENTERA, sin decir nada.**
+   `scorecards/` del tablero venía de otra paleta y usaba diez nombres que nadie declaraba: 60
+   declaraciones muertas, o sea una vista sin superficies, sin bordes y sin semáforo. Se ve como un
+   diseño feo, no como un error.
+3. **`--accent` en shadcn es una SUPERFICIE** (#404040, con su `--accent-foreground`), no un color de
+   texto. `trazador` y `context` lo usaban como el azul de los enlaces: aliasarlo dejaba texto #404040
+   sobre fondo #1a1a1a. Ese uso se llama `--info` ahora.
+
 ### ⛔ La suite de PHPUnit de `legacy-backend` NO se corre entera. Nunca, en ningún ambiente
 
 **El 2026-08-19 la BD compartida de dev+staging quedó vacía.** La causa raíz medida:

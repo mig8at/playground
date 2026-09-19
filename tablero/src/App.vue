@@ -597,7 +597,14 @@ const estadoDe = (key) => {
     if (l.startsWith('```')) { enBloque = !enBloque; continue; }
     if (enBloque || !l) continue;
     if (l.startsWith('#')) { pasoElTitulo = true; continue; }
-    if (l.startsWith('|') || l.startsWith('<!--') || l.startsWith('---')) continue;
+    // ⚠ `\x3C!--` y no `<!--`, y las dos veces (acá y en `limpiarMarkdown`). El escáner de
+    // dependencias de Vite saca el <script> del .vue con una regex de HTML, así que ve ese `<!--`
+    // como la apertura de un comentario y se come TODO hasta el `-->` de más abajo — trece líneas de
+    // código. El resultado es `Unterminated string literal` en una línea que está perfecta, y el dev
+    // server arranca sin pre-bundlear. No se ve hasta que Vite re-escanea (cambió el lockfile, se
+    // limpió `node_modules/.vite`), que es por qué puede pasar meses dormido. `\x3C` es el mismo
+    // carácter para JS y deja de serlo para el escáner.
+    if (l.startsWith('|') || l.startsWith('\x3C!--') || l.startsWith('---')) continue;
     const texto = l.replace(/^>\s?/, '').trim();
     if (!texto || texto.startsWith('|')) continue;
     // Sin título arriba no hay convención que valga: se cae a la primera prosa, como antes.
@@ -610,7 +617,7 @@ const estadoDe = (key) => {
 // La tarjeta no toma la primera línea del archivo: puede ser una nota de migración o historia vieja.
 // La portada de una tarea es «Si retomás esto sin contexto», y el server la expone como dato derivado.
 const limpiarMarkdown = (s, limite = 240) => (s || '')
-  .replace(/<!--[^]*?-->/g, '')
+  .replace(/\x3C!--[^]*?-->/g, '')   // ⚠ `\x3C`: ver la nota de arriba, en `primeraProsa`
   .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
   .replace(/[*\`_]/g, '')
   .replace(/^>\s?/gm, '')
@@ -1855,8 +1862,8 @@ onMounted(async () => {
 .mv-o:hover:not(:disabled) { border-color: color-mix(in srgb, var(--acc) 55%, transparent) }
 .mv-o:disabled { opacity: .5; cursor: default }
 /* El que dispara el aviso a QA se distingue: no es sólo un cambio de estado, además le escribe a alguien. */
-.mv-o.qa { border-color: #4ade8055 }
-.mv-tag { font-size: 9.5px; font-weight: 700; color: #4ade80; text-transform: uppercase; letter-spacing: .3px }
+.mv-o.qa { border-color: color-mix(in oklab, var(--ok) 34%, transparent) }
+.mv-tag { font-size: 9.5px; font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .3px }
 
 /* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
    CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
@@ -1875,8 +1882,8 @@ onMounted(async () => {
 .fpill.off { color: var(--mut); background: var(--panel2); border-color: var(--line) }
 /* Bloqueada en rojo aunque esté destildada: es la única del filtro que pide una acción de OTRA persona,
    así que tiene que verse incluso cuando se la sacó de la vista. */
-.fpill.bloq { color: #f87171; border-color: #f8717144 }
-.fpill.bloq:not(.off) { color: #fca5a5; border-color: #f87171aa }
+.fpill.bloq { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 27%, transparent) }
+.fpill.bloq:not(.off) { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 67%, transparent) }
 /* Sin tareas: la casilla no hace nada; el conteo en 0 se muestra igual, que es información. */
 .fpill.vacio { opacity: .38; cursor: default }
 .fpill .cnt { font-size: 10.5px; opacity: .8; font-weight: 700 }
@@ -1910,17 +1917,17 @@ onMounted(async () => {
 .spchip.esf .stg { font-style: normal; font-size: 9.5px; opacity: .8 }
 /* Arrastre: va PEGADO al chip del sprint (el `margin-left:auto` es del primero, que ya empujó los dos
    al borde) y en ámbar, porque es un aviso — no el mismo tono que el dato neutro de al lado. */
-.spchip.drag { margin-left: 4px; color: #fbbf24; border-color: #fbbf2455 }
-.spchip.dormida { margin-left: 4px; color: #a8a29e; border-color: #a8a29e55; font-style: italic }
-.spchip.proyecto { margin-left: 4px; color: #60a5fa; border-color: #60a5fa55; background: #60a5fa12 }
+.spchip.drag { margin-left: 4px; color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent) }
+.spchip.dormida { margin-left: 4px; color: var(--mut); border-color: color-mix(in oklab, var(--mut) 34%, transparent); font-style: italic }
+.spchip.proyecto { margin-left: 4px; color: var(--info); border-color: color-mix(in oklab, var(--info) 34%, transparent); background: color-mix(in oklab, var(--info) 8%, transparent) }
 header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; row-gap: 10px }
 .logo { width: 34px; height: 34px; border-radius: 7px; display: grid; place-items: center; font-weight: 800;
-  color: #171717; font-size: 17px; background: #fff }
+  color: var(--acc-ink); font-size: 17px; background: var(--acc) }
 h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .sub { color: var(--mut); font-size: 13px; margin: 2px 0 0 }
 .sp { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px }
 .chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
-.chip.warn { color: var(--warn); border-color: #5a4313; background: #211907 }
+.chip.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, var(--card)); background: color-mix(in oklab, var(--warn) 14%, var(--card)) }
 
 /* engranaje de ajustes: los checks de campos de la empresa. `pushed` lo empuja a la derecha cuando no
    hay barra de sprint que ya ocupe el margen automático */
@@ -1947,8 +1954,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-bottom: 18px; align-items: start }
 .tgrid > .task.wide { grid-column: 1 / -1 }
 .task { border: 1px solid var(--line); border-radius: 8px; padding: 12px 13px; cursor: pointer; transition: .12s }
-.task:hover { border-color: #737373 }
-.task.sel { border-color: var(--acc); background: #1a1a1a }
+.task:hover { border-color: var(--line2) }
+.task.sel { border-color: var(--acc); background: var(--background) }
 /* Terminada = sigue en la grilla, pero deja de competir por la atención: en gris y apagada, como algo
    que ya no está vivo. Se apaga la tarjeta ENTERA (`filter`) y no cada color a mano — así el chip verde
    de estado, el punto del sprint de origen y los chips de esfuerzo se van juntos, sin mantener una lista
@@ -1961,9 +1968,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .tl { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-bottom: 9px; flex-wrap: wrap }
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 .status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }
-.e-ok { color: #d4d4d4; border-color: #404040; background: #181818 }
-.e-doing { color: #fff; border-color: #737373; background: #242424 }
-.e-todo { color: #a3a3a3; border-color: #333; background: #181818 }
+.e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
+.e-doing { color: var(--txt); border-color: var(--line2); background: var(--secondary) }
+.e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
 .tt { font-size: 14px; font-weight: 600; line-height: 1.45; margin-bottom: 8px }
 /* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
    (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
@@ -1982,36 +1989,36 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   display: inline-flex; align-items: center; gap: 6px }
 .tact:hover:not(:disabled) { color: var(--txt) }
 .tact:disabled { opacity: .45; cursor: default }
-.tact.act { color: var(--acc); border-color: #737373; background: #242424 }
-.tact.principal { color: #171717; border-color: #fff; background: #fff; }
-.tact.principal:hover:not(:disabled) { background: #d4d4d4; }
+.tact.act { color: var(--acc); border-color: var(--line2); background: var(--secondary) }
+.tact.principal { color: var(--acc-ink); border-color: var(--acc); background: var(--acc); }
+.tact.principal:hover:not(:disabled) { background: var(--acc); }
 .mas-acciones { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; width: 100%; }
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
-.tact.go { color: #171717; border-color: #fff; background: #fff }
-.tact.go:hover:not(:disabled) { background: #d4d4d4; color: #171717 }
+.tact.go { color: var(--acc-ink); border-color: var(--acc); background: var(--acc) }
+.tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
 /* La entrega dentro del botón de ramas: verde cuando todo está en main, ámbar a medio camino, y
    gris cuando todavía no llegó nada. El color hace el trabajo de un vistazo; el texto, el de precisar. */
 .entrega { margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em;
   padding: 1px 5px; border-radius: 999px; border: 1px solid transparent }
-.entrega.ok { color: #d4d4d4; border-color: #404040; background: #181818 }
-.entrega.medio { color: #fbbf24; border-color: #fbbf2455; background: #fbbf2412 }
+.entrega.ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
+.entrega.medio { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent); background: color-mix(in oklab, var(--warn) 8%, transparent) }
 .entrega.espera { color: var(--mut); border-color: var(--line); background: var(--panel2) }
 .resumen-entrega { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--txt); font-size: 12.5px }
 .resumen-entrega .entrega { margin-left: 0 }
 /* la columna que importa: `main` es la vara con la que se mide el contexto */
-.ramas th.ppal, .ramas td.ppal { background: #181818; border-left: 1px solid var(--line) }
+.ramas th.ppal, .ramas td.ppal { background: var(--panel2); border-left: 1px solid var(--line) }
 .ramas th.ppal { color: var(--txt); font-weight: 800 }
 .comomide span[title] { border-bottom: 1px dotted var(--line); cursor: help }
 /* un ✓ que se supo por el PR y no por el patch-id: se marca para que el dato pueda explicarse */
-.amb .si.via-pr { color: #4ade80cc; border-bottom: 1px dotted #4ade8077 }
+.amb .si.via-pr { color: var(--ok); border-bottom: 1px dotted color-mix(in oklab, var(--ok) 47%, transparent) }
 .tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 999px }
-.tact.act .cnt { background: var(--acc); color: #171717 }
+.tact.act .cnt { background: var(--acc); color: var(--acc-ink) }
 /* la descripción desplegada dentro de la tarjeta: separada del resto, no pegada al título */
 .task .desc { margin: 2px 0 8px }
 /* origen de la tarea: el punto dice si cerró en su sprint (verde) o la arrastraron (rojo) */
 .orig { display: inline-flex; align-items: center; gap: 5px }
-.orig i { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex: none }
+.orig i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none }
 .orig.carried { color: var(--bad) }
 .orig.carried i { background: var(--bad) }
 
@@ -2041,13 +2048,13 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   font: inherit; font-size: 11.5px; cursor: pointer; padding: 3px 8px; line-height: 1.4;
   white-space: nowrap; transition: color .12s, border-color .12s }
 .drawer-cp:hover { color: var(--txt); border-color: var(--mut) }
-.drawer-cp.ok { color: #4ade80; border-color: currentColor }
+.drawer-cp.ok { color: var(--ok); border-color: currentColor }
 .drawer-cp.error { color: var(--bad); border-color: currentColor }
 /* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
 .proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: 9px; padding: 12px 14px; margin-bottom: 9px;
   font: inherit; color: var(--txt) }
-.proto-row:hover { border-color: var(--acc); background: #242424 }
+.proto-row:hover { border-color: var(--acc); background: var(--secondary) }
 .proto-play { color: var(--acc); font-size: 12px }
 .proto-txt { flex: 1; min-width: 0 }
 .proto-txt b { display: block; font-size: 13.5px; font-weight: 600; text-transform: capitalize }
@@ -2058,9 +2065,9 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
    abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
-.qa-go { border: 1px solid #fff; background: #fff; color: #171717; font: inherit; font-size: 12.5px;
+.qa-go { border: 1px solid var(--acc); background: var(--acc); color: var(--acc-ink); font: inherit; font-size: 12.5px;
   font-weight: 600; padding: 7px 13px; border-radius: 9px; cursor: pointer }
-.qa-go:hover:not(:disabled) { background: #d4d4d4 }
+.qa-go:hover:not(:disabled) { background: var(--acc) }
 .qa-go:disabled { opacity: .45; cursor: default }
 .qa-no { border: 1px solid var(--line); background: none; color: var(--mut); font: inherit;
   font-size: 12.5px; padding: 7px 13px; border-radius: 9px; cursor: pointer }
@@ -2073,7 +2080,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 12.5px;
   line-height: 1.5; resize: vertical }
 .qa-acts { display: flex; gap: 8px; margin-top: 11px }
-.qa-done { font-size: 12.5px; color: #4ade80; margin: 9px 0 0 }
+.qa-done { font-size: 12.5px; color: var(--ok); margin: 9px 0 0 }
 .qa-err { font-size: 12.5px; color: var(--bad); margin: 9px 0 0 }
 /* el guard: si el aviso menciona algo interno, se listan los motivos y el envío queda rechazado */
 .qa-bad { margin: 9px 0 0; padding-left: 18px; font-size: 12px; color: var(--bad) }
@@ -2081,8 +2088,8 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 /* etapa del esfuerzo: evaluar → trabajar → crear las tareas */
 .stg { font-size: 9.5px; font-weight: 700; letter-spacing: .3px; padding: 2px 7px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); text-transform: none; white-space: nowrap }
-.s-work { color: #f6c667; border-color: #4a3a16; background: #241a08 }
-.s-tasks { color: #d4d4d4; border-color: #404040; background: #181818 }
+.s-work { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 28%, var(--card)); background: color-mix(in oklab, var(--warn) 18%, var(--card)) }
+.s-tasks { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 /* el prototipo de la tarea: sólo aparece si el html existe, así que no hay estado vacío que diseñar */
 .proto { font: inherit; font-size: 9.5px; font-weight: 700; letter-spacing: .3px; text-transform: none;
   padding: 2px 8px; border-radius: 999px; cursor: pointer; white-space: nowrap;
@@ -2114,14 +2121,20 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
    ojo sobre cuánto tiempo hubo ahí */
 .cel.weekend.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
-.n0 { background: repeating-linear-gradient(-45deg, #ffffff14 0 3px, transparent 3px 6px), var(--panel2) }
-.n1 { background: #333 } .n2 { background: #525252 } .n3 { background: #737373 } .n4 { background: #d4d4d4 }
+.n0 { background: repeating-linear-gradient(-45deg, var(--sel) 0 3px, transparent 3px 6px), var(--panel2) }
+.n1 { background: color-mix(in oklab, var(--acc) 22%, var(--panel2)) }
+.n2 { background: color-mix(in oklab, var(--acc) 42%, var(--panel2)) }
+.n3 { background: color-mix(in oklab, var(--acc) 66%, var(--panel2)) }
+.n4 { background: var(--acc) }
 /* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que la bitácora,
    pero conservar una sola familia visual evita que el color compita con el contenido.
    `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
    reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y la bitácora no. */
 .c0 { background: var(--panel2) }
-.c1 { background: #292929 } .c2 { background: #474747 } .c3 { background: #696969 } .c4 { background: #a3a3a3 }
+.c1 { background: color-mix(in oklab, var(--mut) 22%, var(--panel2)) }
+.c2 { background: color-mix(in oklab, var(--mut) 42%, var(--panel2)) }
+.c3 { background: color-mix(in oklab, var(--mut) 66%, var(--panel2)) }
+.c4 { background: var(--mut) }
 /* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
    después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
    (horas, totales, fechas) para que las columnas no se desalineen. */
@@ -2140,7 +2153,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
   border-radius: 5px 5px 0 0; background: var(--panel2);
   box-shadow: inset 0 -2px 0 var(--line), inset 2px 0 0 var(--line), inset -2px 0 0 var(--line) }
 /* el sprint que estás viendo arriba se resalta acá, para atar el mapa al selector */
-.jspan.sel { color: var(--acc); background: #242424;
+.jspan.sel { color: var(--acc); background: var(--secondary);
   box-shadow: inset 0 -2px 0 var(--acc), inset 2px 0 0 var(--acc), inset -2px 0 0 var(--acc) }
 .jtot .cel { height: 16px; background: none; font-size: 9.5px; color: var(--mut); text-align: center;
   font-variant-numeric: tabular-nums }
@@ -2167,21 +2180,21 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .entry.abierta p { display: block; overflow: visible }
 .entry .mas { border: 0; background: none; color: var(--acc); cursor: pointer; font-size: 11.5px;
               padding: 3px 0 0; font-weight: 600 }
-.entry .meta b.t-finding { color: var(--warn) } .entry .meta b.t-test { color: #4ade80 }
+.entry .meta b.t-finding { color: var(--warn) } .entry .meta b.t-test { color: var(--ok) }
 .entry .meta b.t-blocker { color: var(--bad) } .entry .meta b.t-progress { color: var(--acc) }
 
 /* ── Barras de progreso ───────────────────────────────────────────────────────────────────────── */
-.bar { height: 3px; border-radius: 999px; background: #ffffff14; margin: 2px 0 7px; overflow: hidden }
+.bar { height: 3px; border-radius: 999px; background: var(--sel); margin: 2px 0 7px; overflow: hidden }
 .bar i { display: block; height: 100%; background: var(--acc); border-radius: 999px;
          transition: width .3s ease }
 .chip-bar { display: inline-flex; align-items: center; gap: 8px }
-.chip-bar .mini { display: block; width: 34px; height: 3px; border-radius: 999px; background: #ffffff1f }
+.chip-bar .mini { display: block; width: 34px; height: 3px; border-radius: 999px; background: var(--sel) }
 .chip-bar .mini b { display: block; height: 100%; border-radius: 999px; background: var(--mut) }
 .entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
   opacity: 0; transition: .12s; padding: 0 2px }
 .entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
-.icon { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex: none; background: #242424 }
-.t-finding { color: var(--warn) } .t-test { color: #4ade80 } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
+.icon { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-size: 11px; flex: none; background: var(--secondary) }
+.t-finding { color: var(--warn) } .t-test { color: var(--ok) } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
 .body { min-width: 0 }
 .meta { display: flex; gap: 10px; font-size: 11px; color: var(--mut); margin-bottom: 3px }
 .meta b { color: var(--txt) }
@@ -2218,17 +2231,17 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
 
 /* HALLAZGOS ------------------------------------------------------------------------------------ */
-.alerta { color: #e5534b; margin-left: 4px; font-size: 10px; line-height: 1; }
+.alerta { color: var(--bad); margin-left: 4px; font-size: 10px; line-height: 1; }
 .hgrupo { margin-bottom: 22px; }
 .hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 .hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); opacity: .55; border: 1px solid currentColor;
         border-radius: 99px; padding: 2px 6px; }
 .hpie { font-size: 11.5px; opacity: .5; margin: 0 0 10px; }
 .hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; opacity: .85; }
-.hitem.vencido { border-left-color: #e5534b; opacity: 1; }
+.hitem.vencido { border-left-color: var(--bad); opacity: 1; }
 .hmeta { display: flex; gap: 9px; flex-wrap: wrap; align-items: baseline;
          font: 11px/1.4 var(--mono, ui-monospace, monospace); opacity: .6; margin-bottom: 3px; }
-.hitem.vencido .hedad { color: #e5534b; opacity: 1; font-weight: 600; }
+.hitem.vencido .hedad { color: var(--bad); opacity: 1; font-weight: 600; }
 .hquien { opacity: .8; }
 .hque { margin: 0; font-size: 13.5px; line-height: 1.5; }
 /* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
@@ -2255,7 +2268,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
 .fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
 .fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
              background: color-mix(in srgb, var(--acc) 10%, transparent); opacity: 1; }
-.fchip.sin { color: #e5534b; border-color: rgba(229,83,75,.35); background: rgba(229,83,75,.08); }
+.fchip.sin { color: var(--bad); border-color: rgba(229,83,75,.35); background: rgba(229,83,75,.08); }
 .hfuentes { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; }
 
 /* PUNTOS ---------------------------------------------------------------------------------------- */
@@ -2268,7 +2281,7 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
                margin: -6px 0 18px; font-size: 12.5px; opacity: .75; }
 .pd-k { opacity: .6; }
 .pd-i b { font-weight: 600; }
-.pd-mal { color: #e5534b; opacity: 1; }
+.pd-mal { color: var(--bad); opacity: 1; }
 
 /* ── el CUERPO TÉCNICO en el cajón ───────────────────────────────────────────────────────────────
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
@@ -2280,14 +2293,14 @@ h1 { font-size: 20px; margin: 0; letter-spacing: .2px }
          background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
 .toc-i:hover { background: var(--line) }
 .toc-i.sub { opacity: .62; font-size: 10px }
-.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid #404040; border-radius: 8px;
-  background: #181818; }
+.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border: 1px solid var(--line2); border-radius: 8px;
+  background: var(--panel2); }
 .retoma-label { color: var(--acc); font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .retoma-estado { margin: 6px 0 8px; color: var(--txt); line-height: 1.55; }
 .retoma-paso { margin: 0; color: var(--txt); line-height: 1.55; }
 .retoma-contextos { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 11px; color: var(--mut); font-size: 12px; }
-.ctx-link { border: 1px solid #404040; color: var(--acc); background: #111; border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; text-decoration: none; }
-.ctx-link:hover { background: #242424; }
+.ctx-link { border: 1px solid var(--line2); color: var(--acc); background: var(--card); border-radius: 999px; padding: 2px 7px; cursor: pointer; font: inherit; text-decoration: none; }
+.ctx-link:hover { background: var(--secondary); }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }

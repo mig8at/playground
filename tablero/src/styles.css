@@ -1,30 +1,106 @@
-/* Tablero — una base neutra para que el contenido, no la interfaz, lleve el peso visual. */
-:root {
-  --bg: #0a0a0a;
-  --panel: #111111;
-  --panel2: #181818;
-  --line: #2a2a2a;
-  --line2: #404040;
-  --txt: #ededed;
-  --mut: #a3a3a3;
-  --acc: #ffffff;
-  --warn: #fbbf24;
-  --bad: #f87171;
+/* EL VOCABULARIO VISUAL DEL TABLERO.
+ *
+ * Tres capas, y el orden importa:
+ *   1. Tailwind      utilidades, para lo que se escriba de acá en adelante
+ *   2. `tema.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
+ *                    idéntico en las cuatro herramientas. No se edita.
+ *   3. esta hoja     el PUENTE (los nombres viejos apuntando a los tokens) + lo que sólo significa
+ *                    algo acá: el estado de una tarea, el semáforo de un scorecard.
+ *
+ * ⚠ Las utilidades van en `@layer utilities`, y el CSS SIN capa —todo lo de abajo y todos los
+ * `<style scoped>` de los componentes— le gana a cualquier capa, sin importar la especificidad. Es a
+ * propósito: agregar Tailwind no mueve nada de lo que ya funciona, y para migrar un bloque hay que
+ * BORRAR su regla, no competirle.
+ *
+ * ⚠ Sin preflight de Tailwind: es un reset fuerte y acá abajo ya hay uno propio.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./tema.css";
 
-  color-scheme: dark;
+/* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
+   Los nombres que ya usan los componentes, apuntando a los tokens del tema.
+
+   ⚠ Y acá hay una reparación, no sólo un alias. `scorecards/` estaba escrito contra OTRA paleta —una
+   clara— y usaba diez nombres que el tablero nunca declaró: `--ink-soft`, `--surface`, `--red-bg`,
+   `--red-ink`, `--green-bg`, `--yellow-bg`, `--head`, `--border-strong` y `--border`. Una variable sin
+   declarar hace que el navegador TIRE la declaración entera sin decir nada, así que esa vista venía
+   renderizando sin superficies, sin bordes y sin semáforo: 60 declaraciones muertas. Medido con un
+   barrido de usadas-contra-declaradas sobre `src/`. Declararlas es lo que la vuelve a encender. */
+:root {
+  --bg: var(--background);
+  --panel: var(--card);
+  --panel2: var(--muted);         /* superficie que se levanta un escalón */
+  --surface: var(--card);         /* el nombre que usa scorecards/ para lo mismo que --panel */
+  --head: var(--secondary);       /* encabezados de tabla y chips */
+  --line: var(--border);
+  --line2: var(--accent);
+  --border-strong: var(--accent);
+  --txt: var(--foreground);
+  /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el muted
+     es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el del medio. */
+  --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --ink-soft: var(--mut);         /* el nombre que usa scorecards/ para lo mismo */
+  --tenue: var(--muted-foreground);
+  --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
+  /* La acción primaria: en este tema es un chip CLARO con texto oscuro (el par primary/foreground de
+     shadcn), que es justo la inversión que el tablero ya hacía a mano con #d4d4d4 sobre #171717. */
+  --acc: var(--primary);
+  --acc-ink: var(--primary-foreground);
+  --mono: var(--font-mono);
 }
+
+/* ── LO SEMÁNTICO ─────────────────────────────────────────────────────────────────────────────────
+   Vive acá y no en `tema.css`: un export de tweakcn no trae estos tokens (pegarlo encima los
+   borraría), y el tema de hoy es monocromo a propósito — pero un semáforo no puede ser tres grises.
+   `--bad` sale del tema (`destructive`), así que cuando un tema traiga su propio rojo lo adopta solo. */
+:root {
+  --ok:   #4ade80;
+  --warn: #fbbf24;
+  --bad:  var(--destructive);
+  --info: #60a5fa;
+  /* Los fondos del semáforo: tintes del mismo color sobre la card, así siguen al tema. Antes eran
+     pasteles de paleta CLARA (#ffd7d1, #fff3c4) con texto oscuro encima — de cuando scorecards/ vivía
+     en otro lado. */
+  /* ⚠ 35%, y el texto encima va en `--foreground`. Medido: el par «tinte suave + texto del mismo
+     color» —el patrón de shadcn para las pastillas— con este rojo NO llega a 4,5:1 en NINGÚN
+     porcentaje: `--destructive` es #e06666, un rojo medio y desaturado, así que se queda cerca en
+     luminancia de cualquier tinte de sí mismo (4,32:1 al 10%, 3,62:1 al 22%). Con un tinte del 35% la
+     celda se lee CLARAMENTE roja/ámbar/verde —que es lo que un semáforo tiene que hacer— y el texto
+     claro encima mide 5,2–7,0:1. Es además el equivalente oscuro de lo que scorecards/ hacía en claro:
+     pastel + tinta oscura. Si algún día se quiere el patrón de pastilla suave, la palanca no está acá:
+     está en el `--destructive` de `tema.css`. */
+  --red-bg:    color-mix(in oklab, var(--bad) 35%, var(--card));
+  --yellow-bg: color-mix(in oklab, var(--warn) 35%, var(--card));
+  --green-bg:  color-mix(in oklab, var(--ok) 35%, var(--card));
+  --red-ink:   var(--bad);   /* el rojo COMO TINTA, sobre una card normal (4,7:1) — no sobre --red-bg */
+}
+
+/* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
+   Los neutros de un tema de tweakcn son `oklch(L 0 0)`: croma 0 y **hue 0**. `oklch` es un espacio
+   POLAR, así que un `color-mix` interpola el hue — y el hue 0 es el ROJO. Mezclar cualquier color con
+   una superficie del tema arrastra el matiz hacia el rojo sin que nada falle:
+
+       color-mix(in oklch, #4ade80 20%, var(--card))  →  #4d3530   un marrón rojizo
+       color-mix(in oklab, #4ade80 20%, var(--card))  →  #2d4132   el verde que uno pedía
+
+   Pasa con los cuatro: el ámbar da #4e3737, el azul #42323c, el violeta #44303a. La prueba de que la
+   causa es el hue: escribiendo la superficie como `oklch(0.2435 0 none)` —hue impotente— el `oklch`
+   devuelve #2d4132, idéntico al de oklab. `oklab` es el mismo espacio en forma rectangular: no tiene
+   canal de hue, así que no hay nada que interpolar. Medido en el navegador el 2026-09-18. */
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--txt);
-  font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  font: 15px/1.5 var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3 { color: var(--txt); font-weight: 700; }
+code, kbd, pre, samp { font-family: var(--font-mono); }
 
 /* ── Ramas de una tarea (cajón) ─────────────────────────────────────────────────────────────────
    Una fila por rama, una columna por ambiente. Tres estados y no dos: `✓` está, `·` no está, y `—`

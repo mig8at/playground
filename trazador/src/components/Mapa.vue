@@ -423,10 +423,10 @@ watch(() => props.cerrado, () => nextTick(medir))
 
 .arista { stroke-width:2.5; stroke-linecap:round }
 .nodo { cursor:pointer }
-.nodo:hover .nlbl { fill:var(--accent) }
+.nodo:hover .nlbl { fill:var(--info) }
 .nodo:focus { outline:none }
-.nodo:focus-visible .nlbl { fill:var(--accent); text-decoration:underline }
-.nodo.sel .nlbl { fill:var(--accent); font-weight:700 }
+.nodo:focus-visible .nlbl { fill:var(--info); text-decoration:underline }
+.nodo.sel .nlbl { fill:var(--info); font-weight:700 }
 /* Atenuado, NO escondido: «acá esto no ocurre nunca» es parte del diagnóstico. */
 .nodo.fuera { opacity:.38 }
 /* Un carril que esta solicitud no tomó se ve, pero no compite: es contexto, no recorrido. */
@@ -434,18 +434,21 @@ watch(() => props.cerrado, () => nextTick(medir))
 
 .glifo { font:600 11px ui-monospace,monospace; text-anchor:middle; fill:var(--bg) }
 .nlbl { font:500 12px ui-monospace,monospace; fill:var(--txt); text-anchor:middle; letter-spacing:-.01em }
-.ndet { font:10.5px system-ui; fill:var(--tenue); text-anchor:middle }
+/* ⚠ `--dim` y no `--tenue`: el detalle del nodo es la RUTA de la etapa, o sea información que se
+   lee. `--tenue` es el `muted-foreground` del tema y contra este fondo mide 4,41:1 — abajo de AA para
+   10,5px. Medido en el navegador. `--tenue` queda para lo que de verdad es accesorio. */
+.ndet { font:10.5px system-ui; fill:var(--dim); text-anchor:middle }
 .hora { font:10px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
 .salto { font:10px ui-monospace,monospace; fill:var(--tenue); text-anchor:middle }
 .clbl { font:600 12px system-ui; letter-spacing:-.01em }
 .aqui { font-weight:400; font-size:11px; fill:var(--dim) }
-.afuera { font:11px system-ui; fill:var(--tenue) }
+.afuera { font:11px system-ui; fill:var(--dim) }
 .corte { font:600 10px system-ui; fill:var(--fail); text-anchor:middle }
 
 .pie { position:absolute; left:0; right:0; bottom:0; display:flex; gap:12px; align-items:center;
   padding:8px 14px; font-size:11px; color:var(--tenue);
   background:linear-gradient(transparent,var(--panel2) 55%) }
-.ramal { color:var(--txt) } .ramal b { color:var(--accent) }
+.ramal { color:var(--txt) } .ramal b { color:var(--info) }
 .dim { color:var(--dim) }
 .recorte { color:var(--warn) }
 </style>

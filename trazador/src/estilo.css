@@ -1,41 +1,95 @@
-/* EL VOCABULARIO VISUAL, EN UN SOLO LUGAR.
+/* EL VOCABULARIO VISUAL DEL TRAZADOR.
  *
- * ⚠ Antes era la paleta de GitHub Actions, y se eligió por una buena razón —check verde, paso que se
- * abre, log con números de línea: el equipo ya lo lee sin que nadie lo explique—. Lo que no se sostuvo
- * fue el resto: sus grises tiran a AZUL (#0d1117, #161b22) y con ellos conviven mal los colores de los
- * carriles del mapa, que compiten con el fondo en vez de apoyarse en él.
+ * Tres capas, y el orden importa:
+ *   1. Tailwind      utilidades, para lo que se escriba de acá en adelante
+ *   2. `tema.css`    los tokens de shadcn/tweakcn. Es el archivo que se REEMPLAZA para re-tematizar,
+ *                    idéntico en las cuatro herramientas. No se edita.
+ *   3. esta hoja     el PUENTE (los nombres viejos apuntando a los tokens) + lo que sólo significa
+ *                    algo acá: el estado de una etapa y el carril que tomó la solicitud.
  *
- * Ahora la base es GRIS NEUTRO (la escala `zinc`), al estilo de shadcn/tweakcn: el fondo no tiene
- * temperatura, así que el único color de la pantalla es el que SIGNIFICA algo — el estado de una etapa
- * y el carril que tomó la solicitud. La semántica no cambió: verde sigue siendo bien y rojo, roto.
+ * ⚠ Las utilidades de Tailwind van en `@layer utilities`, y el CSS SIN capa —todo lo de abajo y todos
+ * los `<style scoped>` de los componentes— le gana a cualquier capa, sin importar la especificidad.
+ * O sea: una clase `p-4` en el template NO pisa un `padding` que ya escriba una regla propia. Es a
+ * propósito, y es lo que hace que agregar Tailwind no mueva nada de lo que ya funciona: las utilidades
+ * sirven para markup nuevo, y para migrar un bloque hay que BORRAR su regla, no competirle.
  *
- * ⚠ Y EL RADIO ES UNO SOLO, del que derivan los demás. Había SIETE valores sueltos (999, 8, 6, 5, 4, 3
- * y 2 px) puestos uno por uno según el día; eso es lo que hace que una interfaz se vea "hecha a mano"
- * aunque cada pieza esté bien. Tres escalones alcanzan para todo, más el `full` de los chips.
+ * ⚠ Y NO se importa el preflight de Tailwind. Es un reset fuerte (márgenes, tipografía de los
+ * encabezados, listas, bordes) y acá abajo ya hay uno propio; encimar el segundo sobre ~340 líneas que
+ * hoy funcionan sólo compra una cacería de layouts corridos. Cuando una vista se reescriba entera en
+ * utilidades, ese es el momento de sumarlo.
  */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./tema.css";
+
+/* ── EL PUENTE ────────────────────────────────────────────────────────────────────────────────────
+   Los nombres que ya usan los componentes, apuntando a los tokens del tema. Está acá y no repartido
+   para que se pueda leer de un vistazo qué es cada cosa — y para que el día que una vista se reescriba
+   en utilidades, se le pueda borrar el alias y ver qué se rompe.
+
+   ⚠ `--accent` NO está en esta lista, y no es un olvido: en el tema es una SUPERFICIE (#404040, con su
+   propio `--accent-foreground`), mientras que acá se usaba como el color del texto de enlace. Aliasarlo
+   habría dejado texto #404040 sobre fondo #1a1a1a — ilegible, y sin fallar. Ese uso se renombró a
+   `--info`, que es lo que de verdad era. */
 :root {
   /* superficies, de atrás hacia adelante */
-  --bg:#09090b; --panel:#131316; --panel2:#0c0c0f; --elev:#18181b;
-  --line:#27272a; --line-fuerte:#3f3f46;
-  /* texto */
-  --txt:#fafafa; --dim:#a1a1aa; --tenue:#71717a;
-  /* semánticos: el único color con significado */
-  --ok:#4ade80; --warn:#fbbf24; --fail:#f87171; --skip:#52525b; --unknown:#c084fc; --accent:#60a5fa;
-  --sel:#fafafa14; --ring:#52525b;
-  /* los carriles del mapa, acá y no en el componente: son parte de la paleta, no de su lógica */
-  --carril1:#4ade80; --carril2:#fbbf24; --carril3:#fb923c; --carril4:#60a5fa; --carril5:#c084fc;
-  /* forma */
-  --r-sm:4px; --r:8px; --r-lg:12px; --r-full:999px;
+  --bg: var(--background);
+  --panel: var(--card);
+  --panel2: var(--input);     /* la superficie de los controles */
+  --elev: var(--popover);
+  --line: var(--border);
+  --line-fuerte: var(--accent);
+  /* Texto, tres escalones. ⚠ La rampa cuelga de `--foreground` y NO de `--muted-foreground`: en este
+     tema el muted es #808080, que ya está en 4,6:1 contra el fondo — o sea es el ESCALÓN MÁS BAJO que
+     se puede leer, no el del medio. Colgando de él, el tercer escalón daba 2,8:1 y los rótulos de
+     10,5px del mapa (`amount`, `personal-info`) quedaban ilegibles. Medido en el navegador. */
+  --txt: var(--foreground);
+  --dim: color-mix(in oklab, var(--foreground) 74%, var(--background));
+  --tenue: var(--muted-foreground);
+  /* tinte de lo seleccionado: derivado del texto, así sigue al tema */
+  --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
+  /* forma: un solo radio, del que salen los demás */
+  --r-sm: calc(var(--radius) - 2px);
+  --r: var(--radius);
+  --r-lg: calc(var(--radius) + 4px);
+  --r-full: 999px;
 }
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg:#ffffff; --panel:#fafafa; --panel2:#f4f4f5; --elev:#ffffff;
-    --line:#e4e4e7; --line-fuerte:#d4d4d8;
-    --txt:#09090b; --dim:#52525b; --tenue:#71717a;
-    --ok:#16a34a; --warn:#ca8a04; --fail:#dc2626; --skip:#a1a1aa; --unknown:#9333ea; --accent:#2563eb;
-    --sel:#09090b0f; --ring:#a1a1aa;
-    --carril1:#16a34a; --carril2:#ca8a04; --carril3:#ea580c; --carril4:#2563eb; --carril5:#9333ea;
-  }
+
+/* ── LO SEMÁNTICO: el único color que SIGNIFICA algo ──────────────────────────────────────────────
+   Vive acá y no en `tema.css` por dos razones. Una: un export de tweakcn no trae estos tokens, así que
+   pegar un tema nuevo encima los borraría. Y dos: el tema de hoy es monocromo a propósito, y "bien" y
+   "roto" no pueden ser dos grises.
+
+   `--fail` y `--skip` SÍ salen del tema (son `destructive` y `muted-foreground`): cuando un tema traiga
+   su propio rojo, el trazador lo adopta solo. */
+:root {
+  --ok: #4ade80;
+  --warn: #fbbf24;
+  --fail: var(--destructive);
+  --skip: var(--muted-foreground);
+  --unknown: #c084fc;
+  --info: var(--primary);   /* enlaces, foco, lo interactivo */
+}
+
+/* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
+   Los neutros de un tema de tweakcn son `oklch(L 0 0)`: croma 0 y **hue 0**. `oklch` es un espacio
+   POLAR, así que un `color-mix` interpola el hue — y el hue 0 es el ROJO. Mezclar cualquier color con
+   una superficie del tema arrastra el matiz hacia el rojo sin que nada falle:
+
+       color-mix(in oklch, #4ade80 20%, var(--card))  →  #4d3530   un marrón rojizo
+       color-mix(in oklab, #4ade80 20%, var(--card))  →  #2d4132   el verde que uno pedía
+
+   Pasa con los cuatro: el ámbar da #4e3737, el azul #42323c, el violeta #44303a. La prueba de que la
+   causa es el hue: escribiendo la superficie como `oklch(0.2435 0 none)` —hue impotente— el `oklch`
+   devuelve #2d4132, idéntico al de oklab. `oklab` es el mismo espacio en forma rectangular: no tiene
+   canal de hue, así que no hay nada que interpolar. Medido en el navegador el 2026-09-18. */
+
+/* Los carriles del mapa. ⚠ NO salen de `--chart-1..5` aunque ese sea su lugar natural: en un tema
+   monocromo los cinco charts son cuatro grises y un verdeazulado, y a 2px de trazo no se distinguen
+   entre sí. El carril no es decoración — es QUÉ RAMAL tomó la solicitud, o sea identidad. Si algún día
+   el tema trae cinco tonos distinguibles, esto se borra y se apunta a `--chart-N`. */
+:root {
+  --carril1: #4ade80; --carril2: #fbbf24; --carril3: #fb923c; --carril4: #60a5fa; --carril5: #c084fc;
 }
 
 * { box-sizing: border-box }
@@ -44,19 +98,21 @@
    documento y empujaba el mapa fuera de la vista: había que subir para volver a verlo, que es
    exactamente lo que uno no quiere mientras lee un log buscando en qué paso se rompió. */
 html, body, #app { height:100% }
-body { margin:0; background:var(--bg); color:var(--txt); overflow:hidden;
-  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif }
+body { margin:0; background:var(--background); color:var(--foreground); overflow:hidden;
+  font:14px/1.5 var(--font-sans) }
 #app { display:flex; flex-direction:column; min-height:0 }
 button { font: inherit; color: inherit }
 input { font: inherit }
+code, kbd, pre, samp { font-family: var(--font-mono) }
 
 /* estados: un solo juego de clases para etapas, hitos y puntos */
 .ok{color:var(--ok)} .warn{color:var(--warn)} .fail{color:var(--fail)}
 .skip{color:var(--skip)} .unknown{color:var(--unknown)} .pendiente{color:var(--skip)}
 
 .ico { flex:0 0 20px; height:20px; border-radius:var(--r-full); display:grid; place-items:center;
-  font-size:12px; font-weight:700; color:#fff }
-.ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)} .ico.fail{background:var(--fail)}
+  font-size:12px; font-weight:700; color:var(--background) }
+.ico.ok{background:var(--ok)} .ico.warn{background:var(--warn)}
+.ico.fail{background:var(--fail); color:var(--destructive-foreground)}
 .ico.skip,.ico.pendiente{background:transparent; color:var(--skip); border:1px solid var(--line)}
 .ico.unknown{background:transparent; color:var(--unknown); border:1px dashed var(--unknown)}
 .ico.big{flex:0 0 26px; height:26px; font-size:15px}

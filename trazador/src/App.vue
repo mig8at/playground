@@ -175,7 +175,7 @@ h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
 .barra { width:120px; height:3px; background:var(--line); border-radius:var(--r-full); overflow:hidden; flex:0 0 120px }
 /* Indeterminada a propósito: no sabemos cuánto falta (la cola de Redash no lo dice), y una barra que
    fabrica un porcentaje miente. Esta sólo comunica «sigue vivo». */
-.barra i { display:block; width:40%; height:100%; background:var(--accent);
+.barra i { display:block; width:40%; height:100%; background:var(--info);
   animation:corre 1.1s ease-in-out infinite; border-radius:var(--r-full) }
 @keyframes corre { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
@@ -206,6 +206,6 @@ h1 { font-size:14px; margin:0; font-weight:600; letter-spacing:-.01em }
 .tirador { position:absolute; top:0; bottom:0; width:11px; margin-right:-3px; z-index:3;
   cursor:col-resize; background:transparent; display:flex; justify-content:center }
 .tirador::before { content:''; width:5px; background:var(--line); transition:background .12s }
-.tirador:hover::before, .cols.midiendo .tirador::before { background:var(--accent) }
+.tirador:hover::before, .cols.midiendo .tirador::before { background:var(--info) }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>

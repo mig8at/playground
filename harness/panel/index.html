@@ -1,33 +1,65 @@
 <!doctype html>
-<html lang="es">
+<html lang="es" class="dark">
 
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panel del harness · CreditOp</title>
+  <!-- EL TEMA: idéntico en las cuatro herramientas, se reemplaza entero para re-tematizar.
+       Va ANTES del <style> de abajo a propósito: esa hoja es el puente y tiene que poder
+       apoyarse en estos tokens. ⚠ El panel no tiene bundler —`npm run dev` es `node
+       panel/server.ts` y nada compila—, así que acá no hay Tailwind: el `@theme inline` y el
+       `@custom-variant` de `tema.css` son at-rules desconocidas y el navegador las descarta
+       enteras, que es justo lo que se quiere. Lo que SÍ aplica son los tokens, que es de
+       donde sale el tema. -->
+  <link rel="stylesheet" href="/tema.css">
   <style>
     /* Pestañas de la consola: el botón activo se marca, el otro queda apagado pero VISIBLE — que se vea
        que existe es la mitad del valor (si no, nadie descubre que hay un log del SSR). */
     .pest { font-weight: 600 }
-    .pest.on { background: var(--acc, #4f46e5); color: #fff; border-color: transparent }
+    .pest.on { background: var(--acc); color: var(--acc-ink); border-color: transparent }
+    /* ── EL PUENTE ─────────────────────────────────────────────────────────────────────────────
+       Los nombres que usa este panel, apuntando a los tokens de `tema.css` (el <link> de arriba).
+       Ese archivo es el que se REEMPLAZA para re-tematizar y es idéntico en las cuatro herramientas.
+
+       ⚠ Acá había TRES `:root` —este, el del marco de tres paneles (~l.840) y el del cromo en grises
+       (~l.1030)—, cada restyle apilando el suyo al final en vez de editar el anterior. Funcionaba por
+       «gana el último», pero para saber de qué color era algo había que leer los tres, y no coincidían:
+       `--bg` era #09090b acá y #000 allá, `--acc` era verde acá y casi blanco allá. Ahora la paleta se
+       declara UNA vez; los otros dos bloques quedaron sólo con lo suyo (medidas y comentarios).
+
+       ⚠ `--radius` NO se declara acá: ya viene del tema. Redeclararlo lo pisaría (este `:root` es
+       posterior al <link>, y a igual especificidad gana el último) — que es exactamente el problema
+       que este bloque viene a terminar. */
     :root {
-      /* Paleta NEUTRA (zinc), no azulada. El color queda reservado para lo semántico —verde = corre/ON,
-         ámbar = mirá esto, rojo = roto— y todo el chrome va en grises. En un panel tan denso, es lo que
-         hace que el ojo encuentre lo que importa: si todo grita, nada resalta. */
-      --bg: #09090b;
-      --panel: #0f0f12;      /* superficie de card */
-      --panel2: #17171b;     /* superficie elevada: filas, inputs, tarjetas */
-      --line: #232327;       /* borde de 1px, apenas visible */
-      --line2: #35353b;      /* borde en hover/foco */
-      --txt: #fafafa;
-      --mut: #8b8b93;
-      --acc: #22c55e;
-      --acc-d: #16a34a;
-      --warn: #f59e0b;
-      --danger: #ef4444;
-      /* Radios chicos: 14px daba aire de app de consumo. Esto es una herramienta densa. */
-      --radius: 10px;
-      --radius-sm: 7px;
+      --bg: var(--background);
+      --panel: var(--card);
+      --panel2: var(--muted);        /* superficie elevada: filas, inputs, tarjetas */
+      --line: var(--border);         /* borde de 1px, apenas visible */
+      --line2: var(--accent);        /* borde en hover/foco */
+      --txt: var(--foreground);
+      /* ⚠ La rampa de texto cuelga de `--foreground` y NO de `--muted-foreground`: en este tema el
+         muted es #808080, que ya mide 4,6:1 contra el fondo — es el escalón MÁS BAJO legible, no el
+         del medio. */
+      --mut: color-mix(in oklab, var(--foreground) 74%, var(--background));
+      --tenue: var(--muted-foreground);
+      --sel: color-mix(in oklab, var(--foreground) 10%, transparent);
+      /* El cromo: lo seleccionado es lo más CLARO y lo demás se apaga. En shadcn eso es el par
+         primary/primary-foreground, que es justo la inversión que el panel ya hacía a mano. */
+      --acc: var(--primary);
+      --acc-ink: var(--primary-foreground);
+      --acc-d: var(--muted-foreground);
+      --radius-sm: calc(var(--radius) - 2px);
+
+      /* ── LO SEMÁNTICO: el único color que SIGNIFICA algo ──────────────────────────────────────
+         Vive acá y no en `tema.css` por dos razones: un export de tweakcn no trae estos tokens (pegar
+         un tema nuevo encima los borraría), y el tema de hoy es monocromo a propósito — pero «corre» y
+         «roto» no pueden ser dos grises. `--danger` sale del tema (`destructive`), así que cuando un
+         tema traiga su propio rojo el panel lo adopta solo. */
+      --ok: #22c55e;       /* ESTADO: corre · ON · servicio arriba */
+      --ok-d: #16a34a;
+      --warn: #f59e0b;     /* mirá esto */
+      --danger: var(--destructive);
     }
 
     * {
@@ -97,7 +129,7 @@
       display: grid;
       place-items: center;
       font-weight: 800;
-      color: #03130a;
+      color: var(--background);
       font-size: 20px
     }
 
@@ -132,7 +164,7 @@
     }
 
     .pill.on {
-      color: #03130a;
+      color: var(--background);
       background: var(--acc);
       border-color: var(--acc)
     }
@@ -164,8 +196,8 @@
       margin: 14px 0 0;
       padding: 10px 14px;
       border-radius: 10px;
-      border: 1px solid #4a3a16;
-      background: #241a08;
+      border: 1px solid color-mix(in oklab, var(--warn) 34%, var(--card));
+      background: color-mix(in oklab, var(--warn) 18%, var(--card));
       color: #f6c667;
       font-size: 12.5px
     }
@@ -361,7 +393,7 @@
 
     .seg button.on {
       background: var(--acc);
-      color: #03130a
+      color: var(--background)
     }
 
     .seg button:hover:not(.on) {
@@ -425,7 +457,7 @@
 
     .go {
       background: var(--acc);
-      color: #03130a;
+      color: var(--background);
       border: none;
       border-radius: var(--radius-sm);
       padding: 11px 20px;
@@ -496,12 +528,12 @@
     /* El control del webhook: aparece SOLO si la corrida quedó esperando a la entidad. No es un
        control más del dock — es la continuación de una corrida que quedó a medias, así que va pegado
        a la tira de estado y desaparece cuando no aplica. */
-    .wh { border: 1px solid var(--bd, #2a3444); border-left: 3px solid #d8a657; border-radius: 8px;
+    .wh { border: 1px solid var(--bd, var(--line)); border-left: 3px solid #d8a657; border-radius: 8px;
           padding: .7rem .85rem; margin: .6rem 0; background: rgba(216,166,87,.06); }
     .wh .wh-t { font-size: .9rem; margin-bottom: .5rem; }
     .wh .wh-b { display: flex; gap: .4rem; flex-wrap: wrap; }
     .wh .wh-b button { padding: .3rem .7rem; border-radius: 6px; cursor: pointer;
-                       border: 1px solid var(--bd, #2a3444); background: transparent; color: inherit; }
+                       border: 1px solid var(--bd, var(--line)); background: transparent; color: inherit; }
     .wh .wh-b button:hover { background: rgba(216,166,87,.16); }
     .wh .wh-n { font-size: .74rem; opacity: .62; margin-top: .45rem; }
     .wh .wh-r { font-size: .84rem; margin-top: .45rem; min-height: 1.1em; }
@@ -551,10 +583,10 @@
     .tipear .lbl { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .06em; }
     .tipear button {
       font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-      background: #14161c; color: #cdd6e4; border: 1px solid var(--line);
+      background: #14161c; color: var(--txt); border: 1px solid var(--line);
       border-radius: 7px; padding: 6px 9px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
     }
-    .tipear button:hover { border-color: var(--acc); color: #fff; }
+    .tipear button:hover { border-color: var(--acc); color: var(--txt); }
     .tipear button .k { color: var(--mut); font-weight: 400; }
     .tipear button.copiado { border-color: var(--acc); color: var(--acc); }
     pre#log {
@@ -563,7 +595,7 @@
       border-radius: 11px;
       padding: 13px 15px;
       margin: 0;
-      color: #cdd6e4;
+      color: var(--txt);
       font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
       max-height: 42vh;
       overflow: auto;
@@ -642,26 +674,26 @@
 
     .rt0 {
       color: #94a3b8;
-      border-color: #3a4453;
-      background: #1b212b
+      border-color: var(--line2);
+      background: var(--panel2)
     }
 
     .rt1 {
       color: #60a5fa;
-      border-color: #29456e;
+      border-color: color-mix(in oklab, #60a5fa 45%, var(--card));
       background: #11203a
     }
 
     .rt2 {
       color: #4ade80;
-      border-color: #256b41;
+      border-color: color-mix(in oklab, var(--ok) 45%, var(--card));
       background: #0e2718
     }
 
     .rt3 {
       color: #c084fc;
-      border-color: #573a7a;
-      background: #21133a
+      border-color: color-mix(in oklab, #c084fc 45%, var(--card));
+      background: color-mix(in oklab, #c084fc 18%, var(--card))
     }
     /* ── TARJETAS DE ESTADO ────────────────────────────────────────────────────────────────────────
        Numero grande + contexto, al estilo del dashboard de referencia. TODO sale de algo real:
@@ -679,15 +711,15 @@
     .stat .top { display: flex; align-items: center; gap: 8px; margin-bottom: 5px }
     .stat .ico {
       width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
-      font-size: 13px; background: #ffffff0d; flex: none
+      font-size: 13px; background: var(--sel); flex: none
     }
     .stat .k { font-size: 10.5px; font-weight: 500; letter-spacing: .8px; text-transform: uppercase; color: var(--mut) }
     .stat .v { font-size: clamp(20px, 2.1vw, 25px); overflow-wrap: anywhere; font-weight: 600; line-height: 1.15; letter-spacing: -.02em; font-variant-numeric: tabular-nums }
     .stat .sub { font-size: 11.5px; color: var(--mut); line-height: 1.35 }
     .stat .sub b { font-weight: 700 }
-    .st-ok .v { color: var(--acc) }      .st-ok .ico { background: #22c55e1f }
-    .st-warn .v { color: var(--warn) }   .st-warn .ico { background: #f59e0b1f }
-    .st-bad .v { color: var(--danger) }  .st-bad .ico { background: #ef44441f }
+    .st-ok .v { color: var(--acc) }      .st-ok .ico { background: color-mix(in oklab, var(--ok) 12%, transparent) }
+    .st-warn .v { color: var(--warn) }   .st-warn .ico { background: color-mix(in oklab, var(--warn) 12%, transparent) }
+    .st-bad .v { color: var(--danger) }  .st-bad .ico { background: color-mix(in oklab, var(--danger) 12%, transparent) }
     .st-mut .v { color: var(--txt) }
     /* ── RECORRIDO DEL WIZARD · canvas vertical arrastrable ──────────────────────────────────────
        VERTICAL a propósito. En horizontal la bifurcación cae al final del tronco y los ramales
@@ -753,7 +785,7 @@
     .altafila select:focus, .altafila input:focus { border-color: var(--line2); }
     .altapie { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
     .altapie span { font-size: 11px; color: var(--mut); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .altapie button { background: var(--acc); color: #06240f; border: 0; border-radius: var(--radius-sm);
+    .altapie button { background: var(--acc); color: var(--background); border: 0; border-radius: var(--radius-sm);
       padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; font-family: inherit; }
     .altapie button:hover { filter: brightness(1.08); }
     /* Acciones del favorito SIEMPRE visibles: escondidas en hover no se descubren, y borrar una tarjeta
@@ -844,16 +876,8 @@
        contraste tiene que gastarse en el CONTENIDO. Lo que NO cambia es el significado del color:
        verde = corre/ON, ámbar = mirá esto, rojo = roto. Eso ya estaba decidido y es lo que hace que el
        ojo encuentre; volverlo monocromo por estética sería perder la única señal que hay. */
+    /* Sólo MEDIDAS: los colores que este bloque redefinía se fueron al puente de arriba. */
     :root {
-      --bg: #000;
-      --panel: #0a0a0a;
-      --panel2: #111113;
-      --line: #1f1f22;
-      --line2: #2e2e33;
-      --txt: #ededed;
-      --mut: #a1a1a6;
-      --radius: 8px;
-      --radius-sm: 6px;
       --h-top: 52px;
       --h-status: 26px;
       --w-left: 300px;    /* comercios: una lista */
@@ -861,6 +885,19 @@
       --h-bottom: 240px;
       --rsz: 4px;
     }
+
+    /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
+       Los neutros de un tema de tweakcn son `oklch(L 0 0)`: croma 0 y **hue 0**. `oklch` es un espacio
+       POLAR, así que un `color-mix` interpola el hue — y el hue 0 es el ROJO. Mezclar cualquier color con
+       una superficie del tema arrastra el matiz hacia el rojo sin que nada falle:
+
+           color-mix(in oklch, #4ade80 20%, var(--card))  →  #4d3530   un marrón rojizo
+           color-mix(in oklab, #4ade80 20%, var(--card))  →  #2d4132   el verde que uno pedía
+
+       Pasa con los cuatro: el ámbar da #4e3737, el azul #42323c, el violeta #44303a. La prueba de que la
+       causa es el hue: escribiendo la superficie como `oklch(0.2435 0 none)` —hue impotente— el `oklch`
+       devuelve #2d4132, idéntico al de oklab. `oklab` es el mismo espacio en forma rectangular: no tiene
+       canal de hue, así que no hay nada que interpolar. Medido en el navegador el 2026-09-18. */
 
     html, body { height: 100% }
     body { overflow: hidden }
@@ -1039,21 +1076,15 @@
        también la única señal que hay. Así que se parte en dos tokens: `--acc` es el cromo y ahora es
        casi blanco; `--ok` es el estado y se queda verde. Un panel donde todo grita no deja ver nada,
        pero uno donde nada grita tampoco. */
-    :root {
-      --acc: #ededed;     /* selección / acción primaria — Vercel: blanco sobre negro */
-      --acc-d: #a1a1a6;   /* su variante apagada (hover, bordes) */
-      --ok: #22c55e;      /* ESTADO: corre · ON · servicio arriba */
-      --ok-d: #16a34a;
-      --sel: #1f1f22;     /* superficie de lo seleccionado cuando no lleva relleno claro */
-    }
+    /* (los tokens de este bloque viven ahora en el puente, arriba del todo.) */
 
     /* texto sobre el acento: era verde oscuro porque el fondo era verde */
-    .pill.on, .seg button.on, .go, .altapie button { color: #000 }
-    .go:hover { background: #fff }
+    .pill.on, .seg button.on, .go, .altapie button { color: var(--acc-ink) }
+    .go:hover { background: var(--acc) }
     .seg button.on, .pill.on { font-weight: 600 }
 
     /* el logo era un degradado de dos colores: en esta paleta es una marca, no un adorno */
-    .logo { background: var(--acc); color: #000 }
+    .logo { background: var(--acc); color: var(--acc-ink) }
 
     /* ── lo que SIGUE teniendo color, porque informa ──────────────────────────────────────────── */
     .dot.run { background: var(--ok) }

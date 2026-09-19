@@ -126,15 +126,15 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 .chip.warn .g { color:var(--warn) } .chip.skip .g { color:var(--skip) }
 /* «lo que buscaste» va como GLIFO y no como borde: el borde ya lo usa `act` (la traza abierta), y la
    solicitud que buscaste suele ser justo la que está abierta — un borde para las dos se pisa a sí mismo. */
-.chip .q { color:var(--accent); font-size:10px }
-.chip.act { border-color:var(--accent); background:var(--sel); font-weight:600 }
-.chip:focus-visible { outline:2px solid var(--accent); outline-offset:1px }
+.chip .q { color:var(--info); font-size:10px }
+.chip.act { border-color:var(--info); background:var(--sel); font-weight:600 }
+.chip:focus-visible { outline:2px solid var(--info); outline-offset:1px }
 
 .pie { margin:7px 0 0; font-size:11px; color:var(--dim); display:flex; gap:11px; flex-wrap:wrap;
   align-items:center }
 .pie .ok { color:var(--ok) } .pie .fail { color:var(--fail) } .pie .warn { color:var(--warn) }
-.pie .q { color:var(--accent) }
-.mas { font-size:11px; color:var(--accent); background:none; border:1px solid var(--line);
+.pie .q { color:var(--info) }
+.mas { font-size:11px; color:var(--info); background:none; border:1px solid var(--line);
   border-radius:var(--r-full); padding:1px 9px; cursor:pointer }
 .mas:hover { background:var(--sel) }
 </style>

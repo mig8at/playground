@@ -357,7 +357,7 @@ main { padding:18px 20px; min-width:0 }
 .regla { border-left:2px solid var(--line-fuerte); background:var(--panel); padding:10px 13px;
   border-radius:0 var(--r) var(--r) 0; font-size:12px; color:var(--dim); margin:0 0 12px; line-height:1.55 }
 .link { display:block; margin:0 0 12px; padding:0; background:none; border:0; cursor:pointer;
-  color:var(--accent); font-size:12px; text-align:left }
+  color:var(--info); font-size:12px; text-align:left }
 .link:hover { text-decoration:underline }
 /* La tarjeta se ELEVA sobre el panel: un punto más clara y con el borde sutil. En una paleta sin
    color es la única forma de decir «esto es una pieza» sin dibujar una caja fuerte. */
@@ -379,7 +379,7 @@ h3.click:hover { background:var(--sel) }
 .fila.ab { background:var(--sel); font-weight:500 }
 /* Marca de coincidencia del filtro: un borde, no un relleno — el relleno competiría con `ab` (abierto) y
    con el rojo de error, que dicen cosas más importantes. */
-.fila.hit { box-shadow:inset 2px 0 0 var(--accent) }
+.fila.hit { box-shadow:inset 2px 0 0 var(--info) }
 
 /* El disparador es un <button> real (antes `div @click`): teclado y lectores lo ven. Se le quita la piel
    de botón, no el comportamiento. `:disabled` cuando el paso no tiene logs — así el Tab no se detiene en
@@ -387,7 +387,7 @@ h3.click:hover { background:var(--sel) }
 .abre { display:grid; grid-template-columns:12px 10px minmax(0,1fr); align-items:center; gap:9px;
   width:100%; padding:6px 0; border:0; background:none; text-align:left; cursor:pointer; min-width:0 }
 .abre:disabled { cursor:default }
-.abre:focus-visible { outline:2px solid var(--accent); outline-offset:-2px }
+.abre:focus-visible { outline:2px solid var(--info); outline-offset:-2px }
 .cr { color:var(--dim); font-size:10px; display:inline-block; transition:transform .12s }
 .cr.on { transform:rotate(90deg) }
 .dot { width:8px; height:8px; border-radius:var(--r-full); background:var(--skip); justify-self:center }
@@ -406,9 +406,9 @@ h3 .src { justify-self:auto }
 
 .buscar { margin-left:auto; width:170px; padding:2px 8px; font-size:12px; border:1px solid var(--line);
   border-radius:var(--r-sm); background:var(--bg); color:var(--txt); font-weight:400 }
-.buscar:focus { outline:1px solid var(--accent); outline-offset:-1px }
-h3 .src.ok { color:var(--accent); border-color:var(--accent) }
-.marca { font-size:10px; color:var(--accent); border:1px solid var(--accent); border-radius:var(--r-full);
+.buscar:focus { outline:1px solid var(--info); outline-offset:-1px }
+h3 .src.ok { color:var(--info); border-color:var(--info) }
+.marca { font-size:10px; color:var(--info); border:1px solid var(--info); border-radius:var(--r-full);
   padding:0 6px; white-space:nowrap }
 /* El conteo de errores va en la fila CERRADA: `eventosDe` dice cuántas líneas hay, no cuántas fallaron, y
    ese es el número que decide si vale la pena abrir. */
@@ -417,7 +417,7 @@ h3 .src.ok { color:var(--accent); border-color:var(--accent) }
 .cp { border:0; background:none; color:var(--dim); cursor:pointer; font-size:12px; padding:2px 4px;
   border-radius:var(--r-sm); opacity:0; transition:opacity .1s }
 .fila:hover .cp, .cp:focus-visible, .cp.ok { opacity:1 }
-.cp:hover { color:var(--accent); background:var(--sel) }
+.cp:hover { color:var(--info); background:var(--sel) }
 .cp.ok { color:var(--ok) }
 tr.hit td { background:var(--sel) }
 tr.hit td:not(.ln) { font-weight:600 }

@@ -228,34 +228,34 @@ table.mini input {
 .log td .note { display: block; color: var(--ink-soft); font-size: 11px; margin-top: 3px; line-height: 1.4; }
 .nowrap { white-space: nowrap; }
 tr.nocount { opacity: 0.55; }
-.tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 5px; background: #eee; margin-right: 4px; }
-.t-A { background: #ffd7d1; color: #8a1c0f; }
-.t-AB { background: #ffe6c9; color: #8a530f; }
-.t-B { background: #fff3c4; color: #7a5c00; }
+.tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 5px; background: var(--secondary); margin-right: 4px; }
+.t-A { background: var(--red-bg); color: var(--foreground); }
+.t-AB { background: var(--yellow-bg); color: var(--foreground); }
+.t-B { background: var(--yellow-bg); color: var(--foreground); }
 .cause { font-size: 10px; padding: 1px 5px; border-radius: 5px; }
-.c-tercero { background: #e9defd; color: #5b32a8; }
-.c-interna { background: #dbeafe; color: #1e4fa3; }
-.c-negocio { background: #e5e7eb; color: #4b5563; }
+.c-tercero { background: color-mix(in oklab, #a78bfa 20%, var(--card)); color: #a78bfa; }
+.c-interna { background: color-mix(in oklab, var(--info) 20%, var(--card)); color: var(--info); }
+.c-negocio { background: var(--secondary); color: var(--mut); }
 
 .yn { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 5px; }
-.yn.yes { background: #ffd7d1; color: #8a1c0f; }
-.yn.no { background: #d3f0dc; color: #1c6b3a; }
+.yn.yes { background: var(--red-bg); color: var(--foreground); }
+.yn.no { background: var(--green-bg); color: var(--foreground); }
 
 .kpi-pills, .chips { margin-top: 10px; }
 .kpi-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .pill { font-size: 12px; padding: 5px 10px; border-radius: 8px; font-weight: 600; }
-.pill.red { background: var(--red-bg); color: var(--red-ink); }
+.pill.red { background: var(--red-bg); color: var(--foreground); }
 .badge { font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px; width: fit-content; }
-.badge.s-red { background: var(--red-ink); color: #fff; }
-.badge.s-yellow { background: #b8860b; color: #fff; }
-.badge.s-green { background: #1c6b3a; color: #fff; }
+.badge.s-red { background: var(--red-ink); color: var(--destructive-foreground); }
+.badge.s-yellow { background: var(--warn); color: var(--acc-ink); }
+.badge.s-green { background: var(--ok); color: var(--acc-ink); }
 .dot-red { color: var(--red-ink); }
 
-.callout-danger { background: var(--red-bg); border: 1px solid #f3c2ba; border-radius: 12px; padding: 14px 16px; }
+.callout-danger { background: var(--red-bg); border: 1px solid color-mix(in oklab, var(--bad) 40%, var(--card)); border-radius: 12px; padding: 14px 16px; }
 .callout-danger p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; }
 .ghost { border: 1px solid var(--border-strong); background: transparent; border-radius: 7px; font-size: 11px; padding: 3px 8px; cursor: pointer; color: var(--ink-soft); }
 .sources { display: flex; align-items: center; gap: 8px; }
-.src { font-size: 12px; color: var(--accent); }
+.src { font-size: 12px; color: var(--info); }
 
 .drawer-enter-active .panel, .drawer-leave-active .panel { transition: transform 0.25s ease; }
 .drawer-enter-from .panel, .drawer-leave-to .panel { transform: translateX(100%); }
