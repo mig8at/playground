@@ -1,43 +1,31 @@
 <script setup>
-/* LA TAREA, EN EL EDITOR.
+/* LA TAREA EN EL EDITOR — sólo su DOCUMENTO.
  *
- * Era un CAJÓN (`TaskPanel.vue`): overlay, backdrop, `role=dialog`, trampa de foco, manija de ancho y
- * `body.overflow = hidden` mientras estaba abierto. Todo eso existía porque flotaba ENCIMA de la
- * página; acá vive en el `editor` del workbench, así que se va entero:
+ * Tuvo dos formas antes de esta. Primero fue un CAJÓN flotando sobre la página (`TaskPanel`), con
+ * overlay, trampa de foco y manija de ancho; después un editor con OCHO pestañas adentro. Hoy el
+ * editor muestra una sola cosa —el documento de la tarea— y las otras siete vistas (Jira, Pendientes,
+ * Hallazgos, Ramas, Registro, Bitácora, Prototipos) viven en el sidebar derecho, como un acordeón.
  *
- *   - sin overlay ni backdrop: no tapa nada, ES la vista;
- *   - sin trampa de foco ni `aria-modal`: no es un modal, y encerrar el tabulador en algo que no lo es
- *     rompe el recorrido con teclado de toda la app;
- *   - sin manija de ancho: el ancho lo decide el grid del taller, no el componente;
- *   - sin tocar `body.overflow`: el contrato de scroll ya lo sostiene el workbench.
+ * ⚠ Eso vale la pena entenderlo antes de «devolver» las pestañas: con pestañas, mirar una rama
+ * MIENTRAS leés el documento era imposible — eran excluyentes. Al costado se ven a la vez, que es lo
+ * que uno hace de verdad al retomar una tarea.
  *
- * Lo que SÍ se queda es lo que hacía falta por la tarea y no por el cajón: las pestañas con su
- * navegación por teclado (←/→/Home/End, `roving tabindex`) y el scroll al tope al cambiar de pestaña
- * —si no, entrás a «ramas» a mitad de la tabla porque venías de «hallazgos», que es desorientador.
+ * Queda el encabezado (identidad + estado + acciones) y el cuerpo, que scrollea solo. `Esc` cierra la
+ * pestaña de la tarea, lo mismo que su ×.
  */
-import { ref, nextTick, watch } from 'vue';
+import { ref, watch } from 'vue';
 
-const props = defineProps({ title: String, taskKey: String, tab: String, tabs: Array });
-const emit = defineEmits(['close', 'update:tab']);
+const props = defineProps({ title: String, taskKey: String });
+const emit = defineEmits(['close']);
 const raiz = ref(null);
 const content = ref(null);
-
-async function tabKey(event, index) {
-  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
-  event.preventDefault();
-  const count = props.tabs.length;
-  const next = event.key === 'Home' ? 0 : event.key === 'End' ? count - 1
-    : (index + (event.key === 'ArrowRight' ? 1 : -1) + count) % count;
-  emit('update:tab', props.tabs[next].id);
-  await nextTick();
-  raiz.value?.querySelectorAll('[role=tab]')[next]?.focus();
-}
 // Escape CIERRA la pestaña enfocada — lo mismo que su ×. Antes sólo soltaba la tarea, y con pestañas
 // eso dejaba un estado raro: la barra mostrando pestañas y el editor mostrando el sprint.
 function keydown(event) {
   if (event.key === 'Escape') { event.preventDefault(); emit('close'); }
 }
-watch(() => props.tab, () => { if (content.value) content.value.scrollTop = 0; });
+// Cambiar de tarea vuelve al tope: si no, entrás a una tarea nueva a mitad del documento porque
+// venías scrolleado en la anterior.
 watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 0; });
 </script>
 
@@ -59,22 +47,14 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
       <h2>{{ title }}</h2>
       <slot name="paneles" />
     </header>
-    <nav class="te-tabs" role="tablist" aria-label="Secciones de la tarea">
-      <button v-for="(item, index) in tabs" :key="item.id" :id="'task-tab-' + item.id" role="tab"
-        :aria-selected="tab === item.id" :tabindex="tab === item.id ? 0 : -1"
-        aria-controls="task-editor-content" @click="emit('update:tab', item.id)" @keydown="tabKey($event, index)">
-        {{ item.label }}<span v-if="item.count !== undefined">{{ item.count }}</span>
-        <i v-if="item.alert" aria-label="Requiere revisión">●</i>
-      </button>
-    </nav>
-    <div ref="content" id="task-editor-content" class="te-body region-body" role="tabpanel"
-         :aria-labelledby="'task-tab-' + tab" tabindex="0"><slot /></div>
+    <div ref="content" class="te-body region-body" tabindex="0"><slot /></div>
   </section>
 </template>
 
 <style scoped>
 .task-editor { display: flex; flex-direction: column; min-height: 0; height: 100%; outline: none }
-.te-head { display: flex; flex-direction: column; gap: 8px; padding: 16px 24px 12px; flex: none }
+.te-head { display: flex; flex-direction: column; gap: 8px; padding: 16px 24px 12px; flex: none;
+  border-bottom: 1px solid var(--line) }
 .te-linea { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0 }
 .te-k { font: 11px var(--font-mono); color: var(--mut); flex: none }
 /* Las acciones al BORDE derecho: es el único sitio donde el ojo las busca sin leer, y deja el
@@ -82,15 +62,7 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 .te-acts { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .te-acts:empty { display: none }
 h2 { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
-.te-tabs { display: flex; gap: 18px; padding: 0 24px; overflow-x: auto; flex: none;
-  border-bottom: 1px solid var(--line) }
-.te-tabs button { display: flex; align-items: center; gap: 6px; white-space: nowrap; border: 0;
-  border-bottom: 2px solid transparent; background: none; color: var(--mut); padding: 12px 0;
-  font: inherit; font-size: 12px; cursor: pointer }
-.te-tabs button[aria-selected=true] { color: var(--txt); border-bottom-color: var(--txt) }
-.te-tabs span { font-size: 10px; background: var(--panel2); padding: 0 5px; border-radius: var(--r-sm, 4px) }
-.te-tabs i { color: var(--warn); font-style: normal; font-size: 8px }
 .te-body { padding: 20px 24px 32px; overflow-wrap: anywhere }
 :focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
-@media (max-width: 600px) { .te-head, .te-body { padding: 16px } .te-tabs { padding: 0 16px; gap: 14px } }
+@media (max-width: 600px) { .te-head, .te-body { padding: 16px } }
 </style>

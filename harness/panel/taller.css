@@ -271,11 +271,21 @@
 .region-menu-item .n { flex: none; font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums }
 .region-menu hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0 }
 
-/* ── LA MANIJA no está acá, y es a propósito ──────────────────────────────────────────────────── */
-/* Una manija no es una región: pertenece a lo que redimensiona, y cada herramienta la ubica distinto.
-   El panel del harness tiene TRES, como pistas de su propio grid; el trazador tiene una, en capa
-   encima del mapa porque ahí el mapa no se deforma. Una regla compartida no las abarca, y el intento
-   ya chocó: el panel dibuja su línea con `::after` y la versión compartida con `::before` — las dos
-   hubieran pintado, o sea dos líneas. Lo único compartido es el GROSOR (`--rsz`), que sí es una
-   decisión de taller: una línea de 1px se ve pero no se agarra, así que la zona de agarre es más
-   ancha que la línea. */
+/* ── LA MANIJA ────────────────────────────────────────────────────────────────────────────────────
+   Acá vivía una nota que decía que esto NO se compartía «hasta que lo necesite la segunda
+   herramienta». Ya son dos —el panel del harness y el tablero—, así que sube: lo que se repite es el
+   ASPECTO, que es una decisión de taller. Una línea de 1px se ve pero no se agarra, así que la zona
+   de agarre es más ancha que la línea y sólo se pinta al pasar por encima.
+
+   ⚠ Lo que NO sube es dónde va: el panel la tiene como pista de su propio grid, el trazador en capa
+   sobre el mapa (ahí el mapa no se deforma) y el tablero pegada al borde de cada sidebar. Por eso acá
+   no hay `position` ni `inset`: eso lo pone cada una.
+
+   ⚠ Y el panel del harness dibuja su línea con `::after`. Esta usa `::before` a propósito: si usara
+   la misma, en el panel pintarían las DOS y se verían dos líneas. */
+.rsz { z-index: 5; touch-action: none; cursor: col-resize }
+.rsz::before { content: ""; position: absolute; inset: 0; background: transparent; transition: background .12s }
+.rsz:hover::before, .rsz:focus-visible::before, body.redimensionando .rsz::before { background: var(--ring) }
+/* Mientras se arrastra, el cursor manda en TODA la ventana: si no, al salirse del elemento vuelve a
+   la flecha y parece que el arrastre se soltó. */
+body.redimensionando { cursor: col-resize; user-select: none }

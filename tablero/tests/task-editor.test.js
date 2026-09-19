@@ -7,14 +7,14 @@ import * as state from '../src/ui-state.js';
 
 // Ejecuta el componente real con un renderer en memoria: no abre un navegador ni llama a las APIs.
 //
-// ⚠ Este archivo reemplaza a `task-panel.test.js`. Aquel probaba el CAJÓN, y la mitad de lo que
-// probaba —ancho persistente, `body.overflow`, devolución del foco, limpieza de listeners— existía
-// porque flotaba encima de la página. La tarea vive ahora en el `editor` del workbench y nada de eso
-// aplica: probarlo sería congelar una decisión que ya se revirtió.
+// ⚠ Este archivo ya reemplazó una vez a `task-panel.test.js` (el cajón) y ahora se recorta otra vez:
+// el editor TENÍA ocho pestañas y ya no tiene ninguna — las siete que no son el documento viven en el
+// acordeón del sidebar derecho. Probar su teclado sería congelar una decisión revertida.
 //
-// Lo que SÍ se prueba es lo que sigue siendo del componente y no del cajón: la navegación por teclado
-// de las pestañas (con su `roving tabindex`), que Escape suelte la tarea, y que el cuerpo vuelva al
-// tope al cambiar de pestaña — si no, entrás a «ramas» a mitad de tabla porque venías de otra.
+// Queda lo que el componente sigue siendo: un encabezado con la identidad de la tarea, un cuerpo que
+// scrollea y vuelve al tope al CAMBIAR DE TAREA (si no, entrás a una tarea nueva a mitad del
+// documento porque venías scrolleado en la anterior), Escape que la cierra, y la comprobación de que
+// no es un modal — que es lo que lo distingue del cajón que fue.
 const { descriptor } = parse(readFileSync(new URL('../src/TaskEditor.vue', import.meta.url), 'utf8'));
 const compiled = compileScript(descriptor, { id: 'editor-test', inlineTemplate: true }).content
   .replace(/import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"];?/g, (_, names, source) =>
@@ -49,57 +49,41 @@ const renderer = Vue.createRenderer({
   setScopeId() {},
 });
 
-test('editor de la tarea: pestañas por teclado, roving tabindex, Escape y scroll al tope', async () => {
+test('editor de la tarea: encabezado, Escape, scroll al tope y que NO es un modal', async () => {
   const opener = node('button');
   globalThis.document = { activeElement: opener };
-  const selected = Vue.ref('trabajo');
+  const clave = Vue.ref('CORE-1');
   let closeCount = 0;
   const root = node('root');
-  const tabs3 = [{ id: 'trabajo', label: 'Trabajo' },
-                 { id: 'pendientes', label: 'Pendientes', count: 3 },
-                 { id: 'ramas', label: 'Ramas', count: 2 }];
   const app = renderer.createApp({ setup: () => () => Vue.h(TaskEditor, {
-    title: 'Tarea de prueba', taskKey: 'CORE-1', tab: selected.value, tabs: tabs3,
-    'onUpdate:tab': value => { selected.value = value; }, onClose: () => { closeCount++; },
+    title: 'Tarea de prueba', taskKey: clave.value, onClose: () => { closeCount++; },
   }) });
   app.mount(root);
   const find = predicate => descendants(root).find(predicate);
   const seccion = find(n => n.props['aria-label'] === 'Tarea CORE-1');
-  const tabs = descendants(root).filter(n => n.props.role === 'tab');
-  const cuerpo = find(n => n.props.role === 'tabpanel');
+  const cuerpo = find(n => n.props.class === 'te-body region-body');
   const key = key => ({ key, preventDefault() {}, stopPropagation() {} });
 
-  // ── no hace NADA de lo que hacía el cajón ────────────────────────────────────────────────────
+  // ── no es un modal, y no quedó nada del cajón ni de las pestañas ─────────────────────────────
+  assert.ok(seccion, 'la sección lleva el aria-label con la clave');
   assert.equal(seccion.props['aria-modal'], undefined, 'no es un modal');
   assert.equal(seccion.props.role, undefined, 'no es un dialog');
   assert.equal(find(n => n.props.role === 'separator'), undefined, 'no tiene manija de ancho');
-  assert.equal(seccion.props.style?.width, undefined, 'el ancho lo decide el grid, no el componente');
+  assert.equal(find(n => n.props.role === 'tab'), undefined, 'ya no tiene pestañas');
+  assert.equal(find(n => n.props.role === 'tablist'), undefined, 'ni su barra');
 
-  // ── pestañas: ←/→ circulan, Home y End van a los extremos ────────────────────────────────────
-  assert.equal(tabs.length, 3);
-  await tabs[0].props.onKeydown(key('ArrowRight'));
-  assert.equal(selected.value, 'pendientes');
-  assert.equal(document.activeElement, tabs[1]);
-  assert.equal(tabs[1].props['aria-selected'], true);
-  // roving tabindex: sólo la activa es tabulable
-  assert.equal(tabs[1].props.tabindex, 0);
-  assert.equal(tabs[0].props.tabindex, -1);
-  await tabs[1].props.onKeydown(key('End'));
-  assert.equal(selected.value, 'ramas');
-  await tabs[2].props.onKeydown(key('ArrowRight'));
-  assert.equal(selected.value, 'trabajo', 'desde la última, → vuelve a la primera');
-  await tabs[0].props.onKeydown(key('Home'));
-  assert.equal(selected.value, 'trabajo');
-
-  // ── el cuerpo vuelve al tope al cambiar de pestaña Y al cambiar de tarea ──────────────────────
+  // ── el cuerpo vuelve al tope al cambiar DE TAREA ─────────────────────────────────────────────
+  assert.ok(cuerpo, 'el cuerpo existe');
   cuerpo.scrollTop = 900;
-  selected.value = 'ramas';
+  clave.value = 'CORE-2';
   await Vue.nextTick();
-  assert.equal(cuerpo.scrollTop, 0, 'cambiar de pestaña vuelve al tope');
+  assert.equal(cuerpo.scrollTop, 0);
 
-  // ── Escape suelta la tarea ───────────────────────────────────────────────────────────────────
+  // ── Escape cierra ────────────────────────────────────────────────────────────────────────────
   seccion.props.onKeydown(key('Escape'));
   assert.equal(closeCount, 1);
+  seccion.props.onKeydown(key('a'));
+  assert.equal(closeCount, 1, 'cualquier otra tecla no cierra');
 
   app.unmount();
   delete globalThis.document;

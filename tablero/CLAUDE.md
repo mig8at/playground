@@ -10,14 +10,24 @@ página que scrollea:
 | Región | Qué tiene |
 |---|---|
 | `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
-| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo la tarea enfocada con sus 8 pestañas. Sin ninguna abierta manda **la vista abierta del acordeón**: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
+| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, **sólo su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
-| `auxiliarybar` | **la ficha de la tarea enfocada**: resumen, próximo paso, chips de esfuerzo y sprint, tiempos y los enlaces a `context/`. Sólo aparece con una tarea abierta y se apaga con el **◨** de la barra de pestañas (se recuerda) |
+| `auxiliarybar` | un **acordeón** con todo lo que NO es el documento: *Detalle* (resumen, próximo paso, chips, tiempos, enlaces a `context/`) y las siete que antes eran pestañas del editor — *Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora · Prototipos*, con su conteo. Sólo aparece con una tarea abierta y se apaga con el **◨** de la barra de pestañas |
 
 ⚠ **No hay titlebar, a propósito.** Decía «Tablero · Sprint N · registro de tiempo y hallazgos» y
 gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
 acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
 se tocan poco.
+
+⚠ **El editor muestra el DOCUMENTO y nada más; todo lo demás vive al costado.** Tuvo ocho pestañas
+y eran EXCLUYENTES: mirar una rama mientras leés el documento era imposible. En el acordeón derecho se
+ven a la vez, que es lo que uno hace de verdad al retomar. Antes de «devolver» las pestañas, tener eso
+presente.
+
+⚠ **Los dos sidebars se arrastran, y el tope NO es un número fijo**: se calcula contra la ventana y el
+ancho de la otra columna para que el editor nunca baje de 320px. Medido — con la ficha en 463 sobre
+una ventana de 927 el editor quedaba en 164, o sea el documento en veinte caracteres de ancho. Los
+anchos se guardan y se vuelven a acotar al abrir, porque la ventana pudo achicarse desde la última vez.
 
 ⚠ **La ficha vive al COSTADO, no dentro de una pestaña.** Estaba adentro de «Trabajo», así que
 desaparecía en las otras siete: mirabas Ramas o Hallazgos y perdías de vista el próximo paso, el

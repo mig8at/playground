@@ -206,6 +206,12 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   pliega es un `.view`**: esto es para vistas que se reparten el alto de una región de alto fijo. Para
   secciones dentro de un cuerpo que scrollea, el elemento correcto es `<details>`, que no necesita JS
   (el panel del harness ya tiene ocho así).
+- **Las manijas de redimensionar comparten el ASPECTO pero no dónde van** (`.rsz` en `taller.css`):
+  una línea de 1px se ve pero no se agarra, así que la zona de agarre es más ancha y sólo se pinta al
+  pasar por encima. Dónde va la pone cada herramienta —el panel del harness las tiene como pistas de
+  su grid, el trazador en capa sobre el mapa, el tablero pegadas al borde de cada sidebar. ⚠ Y el tope
+  de un arrastre **no puede ser un número fijo**: se calcula contra la ventana y el ancho de la otra
+  columna, o la región del medio se queda sin ancho usable.
 - **Un grupo dentro de una vista lleva el MISMO encabezado** (`.region-head.grupo`), y no uno más
   grande: un grupo que se ve más fuerte que la vista que lo contiene invierte la jerarquía. Lo que los
   distingue no es el tamaño sino el comportamiento — el de la región está fijo y el del grupo scrollea

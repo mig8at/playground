@@ -31,7 +31,6 @@ const sprints = ref([]);      // los más recientes, del actual hacia atrás —
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
 const site = ref('');         // https://<site>.atlassian.net — lo manda el server, sale de su .env
 const issues = ref([]);
-const panelTab = ref('trabajo');
 // ── EL ACORDEÓN DEL SIDEBAR: qué vistas están abiertas ──────────────────────────────────────────
 // Dos vistas apiladas, no dos modos: un modo tapa al otro, y acá las dos tienen que poder verse de un
 // vistazo. `jira` arranca cerrada —es mantenimiento del registro, no la operación del día— y cerrada
@@ -865,7 +864,7 @@ async function alPortapapeles(txt) {
 }
 
 // Cerrar el cajón limpia el estado: si no, se vuelve a abrir mostrando un ✓ de la vez pasada.
-watch([panelTab, () => active.value?.Key], () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
+watch(() => active.value?.Key, () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
  *
@@ -883,6 +882,70 @@ const previa = ref('');       // la clave de la que está en previsualización, 
 // vuelva a abrir, cerrarla sería un camino de ida. Vive en la barra de pestañas, al borde derecho,
 // que es donde VS Code pone el suyo — y acá además es la única barra que hay a esa altura.
 const verAux = ref(readPreference('aux-visible', true) !== false);
+/* ── EL ACORDEÓN DEL SIDEBAR DERECHO ──────────────────────────────────────────────────────────────
+ * Las siete vistas que antes eran pestañas del editor, más la ficha. Es un estado APARTE del acordeón
+ * izquierdo y no un prefijo sobre el mismo: los dos tienen una vista llamada `jira` y significan cosas
+ * distintas —«traer de Jira» a la izquierda, «lo que el equipo ve del issue» a la derecha—, y un id
+ * compartido los habría atado. */
+const seccionesAux = ref(new Set(['detalle']));
+const abiertaAux = (id) => seccionesAux.value.has(id);
+function alternarAux(id) {
+  const n = new Set(seccionesAux.value);
+  n.has(id) ? n.delete(id) : n.add(id);
+  seccionesAux.value = n;
+}
+// Las siete: el mismo conteo y el mismo aviso que llevaban como pestañas.
+const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'));
+
+/* ── LAS MANIJAS DE LOS DOS SIDEBARS ──────────────────────────────────────────────────────────────
+ * ⚠ El ancho se escribe en el `.workbench`, no en `:root`: así es de ESTA herramienta y no pisa el
+ * default que declara `taller.css` para las demás. Y se persiste — un ancho que se pierde al refrescar
+ * es peor que no poder cambiarlo, porque lo volvés a ajustar cada vez. */
+// ⚠ El tope NO puede ser un número fijo: tiene que dejarle al EDITOR un ancho usable. Medido
+// arrastrando en una ventana de 927px — con la ficha en 463 el editor quedaba en 164px, o sea el
+// documento en una columna de veinte caracteres. El máximo se calcula contra la ventana y el ancho
+// de la OTRA columna, así que el editor nunca baja de `MIN_EDITOR`.
+const MIN_EDITOR = 320;
+const ANCHOS = {
+  '--sidebar-w': ['sidebar-w', 200, 520, '--auxiliarybar-w'],
+  '--auxiliarybar-w': ['aux-w', 260, 760, '--sidebar-w'],
+};
+function arrastrar(e, varCss, signo) {
+  if (e.button !== 0) return;
+  const wb = e.currentTarget.closest('.workbench');
+  const [llave, min, tope, otra] = ANCHOS[varCss];
+  const cs = getComputedStyle(wb);
+  const inicial = parseFloat(cs.getPropertyValue(varCss));
+  const anchoOtra = document.querySelector(otra === '--sidebar-w' ? '.sidebar' : '.auxiliarybar')
+    ?.getBoundingClientRect().width || 0;
+  const max = Math.max(min, Math.min(tope, window.innerWidth - anchoOtra - MIN_EDITOR));
+  const x0 = e.clientX;
+  const mover = (ev) => {
+    const n = Math.max(min, Math.min(max, inicial + signo * (ev.clientX - x0)));
+    wb.style.setProperty(varCss, n + 'px');
+  };
+  const soltar = () => {
+    window.removeEventListener('pointermove', mover);
+    window.removeEventListener('pointerup', soltar);
+    window.removeEventListener('pointercancel', soltar);
+    document.body.classList.remove('redimensionando');
+    savePreference(llave, parseFloat(wb.style.getPropertyValue(varCss)));
+  };
+  document.body.classList.add('redimensionando');
+  window.addEventListener('pointermove', mover);
+  window.addEventListener('pointerup', soltar);
+  window.addEventListener('pointercancel', soltar);
+}
+// al arrancar, los anchos guardados
+onMounted(() => {
+  const wb = document.querySelector('.workbench');
+  for (const [varCss, [llave, min, tope]] of Object.entries(ANCHOS)) {
+    const v = readPreference(llave, 0);
+    // ⚠ Se re-acota al abrir: la ventana pudo achicarse desde la última vez, y restaurar un ancho
+    // guardado en una pantalla grande dejaría el editor en nada sin que nadie haya arrastrado nada.
+    if (v) wb?.style.setProperty(varCss, Math.max(min, Math.min(tope, v)) + 'px');
+  }
+});
 watch(verAux, (v) => savePreference('aux-visible', v));
 const pestanasAbiertas = computed(() =>
   pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
@@ -898,7 +961,6 @@ function openTask(task, fijar = false) {
     previa.value = '';
   }
   active.value = task;
-  panelTab.value = 'trabajo';
 }
 const fijarPestana = (k) => { if (previa.value === k) previa.value = ''; };
 function cerrarPestana(k) {
@@ -1022,7 +1084,7 @@ const taskTabs = computed(() => {
     ...(protosDe(key).length ? [{ id: 'prototipos', label: 'Prototipos', count: protosDe(key).length }] : []),
   ];
 });
-const cerrarConEsc = (e) => { if (e.key === 'Escape') { panelTab.value = ''; mover.value = null; } };
+const cerrarConEsc = (e) => { if (e.key === 'Escape') mover.value = null; };
 onMounted(() => window.addEventListener('keydown', cerrarConEsc));
 onUnmounted(() => { window.removeEventListener('keydown', cerrarConEsc); clearTimeout(copiadoTimer); });
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -1391,6 +1453,9 @@ onMounted(async () => {
          con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
          grupo para saber cuántas tenía. -->
     <aside class="sidebar">
+      <div class="rsz rsz-sb" role="separator" aria-orientation="vertical"
+           aria-label="Ancho de la lista de tareas" title="Arrastrar para ajustar"
+           @pointerdown.prevent="arrastrar($event, '--sidebar-w', 1)"></div>
       <div class="region-head">
         <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
         <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
@@ -1503,9 +1568,9 @@ onMounted(async () => {
       </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
-      <TaskEditor v-else-if="active" :key="active.Key" v-model:tab="panelTab"
+      <TaskEditor v-else-if="active" :key="active.Key"
         :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
-        :tabs="taskTabs" @close="cerrarPestana(active.Key)">
+        @close="cerrarPestana(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
@@ -1554,210 +1619,40 @@ onMounted(async () => {
           <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
           <p v-else-if="qaError && !qa" class="qa-err">{{ qaError }}</p>
         </template>
-        <div v-if="panelTab === 'trabajo'" class="task-tab-body">
+        <!-- El EDITOR es el documento y nada más. Las otras siete vistas están al costado,
+             en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
+             excluyentes — mirar una rama mientras leés el documento era imposible. -->
 
-            <div v-if="documentSections.length" class="drawer-cps">
-              <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
-                      title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
-                      @click="copiarCuerpo('compartir')">
-                <span aria-hidden="true">{{ copiadoCual === 'compartir' && copiado === 'ok' ? '✓' : copiadoCual === 'compartir' && copiado === 'error' ? '✕' : '⧉' }}</span>
-                {{ copiadoCual === 'compartir' && copiado === 'ok' ? 'copiado' : copiadoCual === 'compartir' && copiado === 'error' ? 'no se pudo' : 'compartir' }}
-              </button>
-              <button class="drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
-                      title="Copiar el cuerpo ENTERO, con el registro y los comandos — para retomar la tarea"
-                      @click="copiarCuerpo('todo')">
-                <span aria-hidden="true">{{ copiadoCual === 'todo' && copiado === 'ok' ? '✓' : copiadoCual === 'todo' && copiado === 'error' ? '✕' : '⧉' }}</span>
-                {{ copiadoCual === 'todo' && copiado === 'ok' ? 'copiado' : copiadoCual === 'todo' && copiado === 'error' ? 'no se pudo' : 'todo' }}
-              </button>
-            </div>
-
-            <p class="empty">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
-
-            <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
-                 convertir el índice de retoma en una lista cronológica. -->
-            <nav v-if="indiceCuerpo.length > 2" class="toc">
-              <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i"
-                      @click="irASeccion(h.id)">{{ h.title }}</button>
-            </nav>
-
-            <div v-if="summarySections.length" class="desc cuerpo-md">
-              <section v-for="section in summarySections" :key="section.id" :id="section.id"
-                       class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
-            </div>
-            <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
-
+        <div v-if="documentSections.length" class="drawer-cps">
+          <button class="drawer-cp" :class="copiadoCual === 'compartir' ? copiado : ''"
+                  title="Copiar SIN el registro de trabajo ni los comandos de reproducción — para mandárselo a alguien"
+                  @click="copiarCuerpo('compartir')">
+            <span aria-hidden="true">{{ copiadoCual === 'compartir' && copiado === 'ok' ? '✓' : copiadoCual === 'compartir' && copiado === 'error' ? '✕' : '⧉' }}</span>
+            {{ copiadoCual === 'compartir' && copiado === 'ok' ? 'copiado' : copiadoCual === 'compartir' && copiado === 'error' ? 'no se pudo' : 'compartir' }}
+          </button>
+          <button class="drawer-cp" :class="copiadoCual === 'todo' ? copiado : ''"
+                  title="Copiar el cuerpo ENTERO, con el registro y los comandos — para retomar la tarea"
+                  @click="copiarCuerpo('todo')">
+            <span aria-hidden="true">{{ copiadoCual === 'todo' && copiado === 'ok' ? '✓' : copiadoCual === 'todo' && copiado === 'error' ? '✕' : '⧉' }}</span>
+            {{ copiadoCual === 'todo' && copiado === 'ok' ? 'copiado' : copiadoCual === 'todo' && copiado === 'error' ? 'no se pudo' : 'todo' }}
+          </button>
         </div>
-        <div v-if="panelTab === 'jira'" class="task-tab-body">
-          <p v-if="active._local" class="empty">Esta tarea es local y todavía no está publicada en Jira.</p>
-          <template v-else>
-            <div class="jira-heading">
-              <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
-              <a v-if="site" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">Abrir {{ active.Key }} en Jira ↗</a>
-            </div>
-            <p class="empty">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
-            <iframe v-if="jiraDocument" class="jira-preview" :srcdoc="jiraDocument"
-              sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
-              :title="'Descripción de ' + active.Key + ' en Jira'"></iframe>
-            <p v-else class="desc none">Jira no devolvió una descripción para esta tarea.</p>
-          </template>
+
+        <p class="empty">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
+
+        <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
+             convertir el índice de retoma en una lista cronológica. -->
+        <nav v-if="indiceCuerpo.length > 2" class="toc">
+          <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i"
+                  @click="irASeccion(h.id)">{{ h.title }}</button>
+        </nav>
+
+        <div v-if="summarySections.length" class="desc cuerpo-md">
+          <section v-for="section in summarySections" :key="section.id" :id="section.id"
+                   class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
         </div>
-        <div v-if="panelTab === 'pendientes'" class="task-tab-body">
+        <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
 
-            <p class="empty">Pendientes del documento privado, con sus notas y enlaces.</p>
-            <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
-              <section v-for="section in pendingSections" :key="section.id" class="document-section">
-                <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
-                <div v-html="section.pendingHtml"></div>
-              </section>
-            </div>
-            <p v-else-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
-            <template v-else>
-            <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
-              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
-              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
-                <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
-                <p class="pque">{{ p.que }}</p>
-              </article>
-            </section>
-            </template>
-
-        </div>
-        <div v-if="panelTab === 'hallazgos'" class="task-tab-body">
-
-            <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
-            <p v-if="!hallazgosDe(active?.Key).length" class="empty">Esta tarea no tiene hallazgos registrados.</p>
-            <!-- CON QUÉ SE CONCLUYÓ. Un hallazgo sin `Cómo` no es menos cierto, pero nadie puede volver a
-                 comprobarlo — y eso es lo que se ve primero acá, antes que el catálogo de herramientas. -->
-            <div v-if="hallazgosDe(active?.Key).length" class="proc">
-              <span class="proc-cuenta">{{ procedenciaDe(active?.Key).conComo }} de {{ procedenciaDe(active?.Key).total }}
-                dicen cómo volver a comprobarlos</span>
-              <span v-for="[f, n] in procedenciaDe(active?.Key).fuentes" :key="f"
-                    class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
-              <span v-if="procedenciaDe(active?.Key).sinComo" class="fchip sin"
-                    title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active?.Key).sinComo }} sin cómo</span>
-            </div>
-            <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
-              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
-              <p class="hpie">{{ g.pie }}</p>
-              <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
-                <div class="hmeta">
-                  <span class="hfecha">{{ a.fecha }}</span>
-                  <span class="hedad">{{ edadTxt(a) }}</span>
-                  <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
-                </div>
-                <p class="hque">{{ a.que }}</p>
-                <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
-                     cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
-                <p v-if="a.fuentes?.length" class="hfuentes">
-                  <span v-for="f in a.fuentes" :key="f" class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
-                </p>
-                <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
-              </article>
-            </section>
-
-        </div>
-        <div v-if="panelTab === 'ramas'" class="task-tab-body">
-
-            <p v-if="!ramasCuenta(active?.Key)" class="empty">No hay ramas medidas para esta tarea.</p>
-            <p v-if="ramasCuenta(active?.Key)" class="empty">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
-              <span v-if="ramasSnap.incompletas?.length" class="warn">· {{ ramasSnap.incompletas.length }} tarea(s) sin medir</span>
-            </p>
-            <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
-              <span class="entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
-              {{ entregaDe(active?.Key).titulo }}
-            </p>
-            <!-- El cómo se mide explicado en UNA línea: el párrafo largo empujaba la tabla, que es lo que
-                 se viene a mirar. El detalle queda a un hover de distancia. -->
-            <p class="empty comomide">
-              <span title="`git cherry` compara por patch-id, así que un cambio que llegó por squash de UN commit cuenta como mergeado aunque la rama ya no exista.">Medido por <b>patch-id</b></span>,
-              y cuando el squash cambió el patch —mensaje o contenido editados al mergear— por el
-              <span title="Si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el cambio está aunque el patch-id no coincida. Sin esta segunda señal, un PR squasheado que YA estaba en main salía como «no llegó».">
-                <b>commit del PR</b> (<span class="si via-pr">✓</span>)</span>.
-              Refrescar: <code>make tareas-ramas</code>.</p>
-            <div class="tabla-wrap">
-              <table class="ramas">
-                <thead>
-                  <tr>
-                    <th>repo</th><th>rama</th><th>PR</th>
-                    <th v-for="a in ambientesDe(active?.Key)" :key="a" :class="{ ppal: a === 'main' }">{{ a }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
-                    <td>{{ r.repo }}</td>
-                    <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span>
-                      <!-- «local» no quiere decir "sin pushear": al aprobar un PR la remota se borra y queda
-                           la copia local. Las columnas de ambiente dicen cuál de las dos es. -->
-                      <span v-if="r.local" class="solo-local"
-                        title="la rama sólo existe en esta máquina — puede ser que nunca se pusheó, o que se borró al mergear el PR">local</span></td>
-                    <!-- El PR es lo que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN sin
-                         revisión dice "nadie lo miró", que no es lo mismo que "falta trabajo". -->
-                    <td class="prcol">
-                      <a v-if="r.pr" class="link" :href="r.pr.url" target="_blank" rel="noopener"
-                        :title="`${r.pr.estado} → ${r.pr.base}${r.pr.revision ? ' · ' + r.pr.revision : ''}`">#{{ r.pr.numero }}</a>
-                      <span v-if="r.pr" class="prst" :class="'pr-' + r.pr.estado.toLowerCase()">{{ etiquetaPR(r.pr) }}</span>
-                      <span v-else class="na">sin PR</span>
-                    </td>
-                    <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
-                         mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
-                         desplegar algo en un repo que no tiene ese ambiente. -->
-                    <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb" :class="{ ppal: a === 'main' }">
-                      <span v-if="!(a in (r.propios || {}))" class="na" title="ese ambiente no existe en este repo">—</span>
-                      <span v-else-if="r.en?.[a]" class="si" :class="{ 'via-pr': r.como?.[a] === 'pr' }"
-                        :title="COMO_TEXTO[r.como?.[a]] || 'el cambio ya está acá'">✓</span>
-                      <span v-else class="no" title="el cambio todavía no está acá">·</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-        </div>
-        <div v-if="panelTab === 'registro'" class="task-tab-body">
-
-            <p class="empty">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
-            <div class="desc cuerpo-md">
-              <section v-for="section in historySections" :key="section.id" :id="section.id"
-                       class="document-section" v-html="section.summaryHtml"></section>
-            </div>
-
-        </div>
-        <div v-if="panelTab === 'bitacora'" class="task-tab-body">
-
-            <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
-            <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
-            <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
-                 como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
-            <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
-              <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
-              <div class="body">
-                <div class="meta">
-                  <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
-                  <span>{{ when(e.date) }}</span>
-                  <span class="min" v-if="e.min">{{ e.min }} min</span>
-                  <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
-                </div>
-                <p @click="alternar(e.id)">{{ e.text }}</p>
-                <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
-                  {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
-                </button>
-              </div>
-            </div>
-
-        </div>
-        <div v-if="panelTab === 'prototipos'" class="task-tab-body">
-
-            <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
-            <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
-              <span class="proto-play">▶</span>
-              <span class="proto-txt">
-                <b>{{ a.label }}</b>
-                <span class="proto-file">{{ a.file }}</span>
-              </span>
-              <span class="proto-ext">↗</span>
-            </button>
-
-        </div>
       </TaskEditor>
 
       <!-- LA PESTAÑA DE BIENVENIDA: el sprint. Es lo que se ve al entrar y al soltar una tarea. -->
@@ -1944,60 +1839,264 @@ onMounted(async () => {
          ⚠ Sólo se renderiza con una tarea enfocada, y se puede apagar con el ◨ de la barra de
          pestañas. Sin tarea no hay ficha, y una columna de 340px vacía al costado del sprint sería
          espacio perdido: el grid la colapsa a 0 sola. -->
+    <!-- AUXILIARYBAR · un ACORDEÓN con todo lo que NO es el documento: la ficha y las siete vistas
+         que antes eran pestañas del editor. Al costado se ven a la vez que el documento; en
+         pestañas eran excluyentes.
+
+         ⚠ Es REDIMENSIONABLE a propósito, y no es un lujo: «Ramas» es una tabla (repo · rama · PR ·
+         ambientes) y «Bitácora» otra. En 340px degradan a scroll horizontal; arrastrando el borde
+         se leen. Por eso el ancho se guarda. -->
     <aside v-if="active && verAux" class="auxiliarybar">
-      <div class="region-head"><span>Detalle</span></div>
-      <div class="region-body aux-ficha">
-          <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
-          <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
-          <p v-else class="jd none">sin cuerpo técnico todavía</p>
+      <div class="rsz rsz-aux" role="separator" aria-orientation="vertical"
+           aria-label="Ancho del detalle" title="Arrastrar para ajustar"
+           @pointerdown.prevent="arrastrar($event, '--auxiliarybar-w', -1, 'aux-w')"></div>
+      <section class="view" :class="{ abierta: abiertaAux('detalle') }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="abiertaAux('detalle')"
+                  @click="alternarAux('detalle')">
+            <span class="chev" aria-hidden="true">{{ abiertaAux('detalle') ? '⌄' : '›' }}</span>
+            <span>Detalle</span>
+          </button>
+        </div>
+        <div v-if="abiertaAux('detalle')" class="region-body aux-ficha">
+            <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
+            <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
+            <p v-else class="jd none">sin cuerpo técnico todavía</p>
 
-          <p class="next-step" :class="{ missing: !proximoDe(active.Key) }" :title="proximoDe(active.Key)">
-            <span>Próximo paso</span>{{ proximoDe(active.Key) || 'Por definir en la retoma' }}
-          </p>
-          <div class="task-meta">
-            <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-            <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
-                 que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
-                 una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
-            <span v-if="esProyecto(active._esfuerzoId)" class="spchip proyecto"
-              title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
-            <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
-                 partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
-            <span v-if="active._esfuerzo" class="spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
-              {{ active._esfuerzo }}
-              <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-            </span>
-            <span v-if="active._sprint" class="spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
-            <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
-                 DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
-            <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
-              :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
-              {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
-            <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
-                 quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
-            <span v-if="active._arrastres > 1" class="spchip drag"
-              :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
-          </div>
-          <div class="tm">
-            <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
-            <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
-              :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
-              <i></i>{{ active.OriginSprint }}
-            </span>
-            <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
-            <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
-            <span>{{ hhmm(active.SpentSecs) }} en Jira</span>
-            <span class="mine" v-if="minutesOf(active.Key)">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
-          </div>
+            <p class="next-step" :class="{ missing: !proximoDe(active.Key) }" :title="proximoDe(active.Key)">
+              <span>Próximo paso</span>{{ proximoDe(active.Key) || 'Por definir en la retoma' }}
+            </p>
+            <div class="task-meta">
+              <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+              <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
+                   que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
+                   una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
+              <span v-if="esProyecto(active._esfuerzoId)" class="spchip proyecto"
+                title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
+              <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
+                   partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
+              <span v-if="active._esfuerzo" class="spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
+                {{ active._esfuerzo }}
+                <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+              </span>
+              <span v-if="active._sprint" class="spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
+              <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
+                   DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
+              <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
+                :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
+                {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
+              <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
+                   quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
+              <span v-if="active._arrastres > 1" class="spchip drag"
+                :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
+            </div>
+            <div class="tm">
+              <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
+              <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
+                :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
+                <i></i>{{ active.OriginSprint }}
+              </span>
+              <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
+              <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
+              <span>{{ hhmm(active.SpentSecs) }} en Jira</span>
+              <span class="mine" v-if="minutesOf(active.Key)">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
+            </div>
 
-        <template v-if="effortDe(active.Key)?.contextNodes">
-          <h4 class="aux-lbl">Contexto</h4>
-          <span>Contexto local:</span>
-          <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-            :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
-            :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
-        </template>
-      </div>
+          <template v-if="effortDe(active.Key)?.contextNodes">
+            <h4 class="aux-lbl">Contexto</h4>
+            <span>Contexto local:</span>
+            <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
+              :key="n" class="ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
+              :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
+          </template>
+        </div>
+      </section>
+
+      <!-- Las siete, con el mismo conteo y el mismo aviso que llevaban como pestañas. -->
+      <section v-for="v in vistasAux" :key="v.id" class="view" :class="{ abierta: abiertaAux(v.id) }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="abiertaAux(v.id)"
+                  @click="alternarAux(v.id)">
+            <span class="chev" aria-hidden="true">{{ abiertaAux(v.id) ? '⌄' : '›' }}</span>
+            <span>{{ v.label }}</span>
+          </button>
+          <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
+          <span v-if="v.count !== undefined" class="cnt">{{ v.count }}</span>
+        </div>
+        <div v-if="abiertaAux(v.id)" class="region-body aux-vista">
+          <template v-if="v.id === 'jira'">
+            <p v-if="active._local" class="empty">Esta tarea es local y todavía no está publicada en Jira.</p>
+            <template v-else>
+              <div class="jira-heading">
+                <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+                <a v-if="site" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">Abrir {{ active.Key }} en Jira ↗</a>
+              </div>
+              <p class="empty">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
+              <iframe v-if="jiraDocument" class="jira-preview" :srcdoc="jiraDocument"
+                sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
+                :title="'Descripción de ' + active.Key + ' en Jira'"></iframe>
+              <p v-else class="desc none">Jira no devolvió una descripción para esta tarea.</p>
+            </template>
+          </template>
+          <template v-if="v.id === 'pendientes'">
+
+            <p class="empty">Pendientes del documento privado, con sus notas y enlaces.</p>
+            <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
+              <section v-for="section in pendingSections" :key="section.id" class="document-section">
+                <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
+                <div v-html="section.pendingHtml"></div>
+              </section>
+            </div>
+            <p v-else-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
+            <template v-else>
+            <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
+              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
+              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
+                <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
+                <p class="pque">{{ p.que }}</p>
+              </article>
+            </section>
+            </template>
+
+          </template>
+          <template v-if="v.id === 'hallazgos'">
+
+            <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
+            <p v-if="!hallazgosDe(active?.Key).length" class="empty">Esta tarea no tiene hallazgos registrados.</p>
+            <!-- CON QUÉ SE CONCLUYÓ. Un hallazgo sin `Cómo` no es menos cierto, pero nadie puede volver a
+                 comprobarlo — y eso es lo que se ve primero acá, antes que el catálogo de herramientas. -->
+            <div v-if="hallazgosDe(active?.Key).length" class="proc">
+              <span class="proc-cuenta">{{ procedenciaDe(active?.Key).conComo }} de {{ procedenciaDe(active?.Key).total }}
+                dicen cómo volver a comprobarlos</span>
+              <span v-for="[f, n] in procedenciaDe(active?.Key).fuentes" :key="f"
+                    class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
+              <span v-if="procedenciaDe(active?.Key).sinComo" class="fchip sin"
+                    title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active?.Key).sinComo }} sin cómo</span>
+            </div>
+            <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
+              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
+              <p class="hpie">{{ g.pie }}</p>
+              <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
+                <div class="hmeta">
+                  <span class="hfecha">{{ a.fecha }}</span>
+                  <span class="hedad">{{ edadTxt(a) }}</span>
+                  <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
+                </div>
+                <p class="hque">{{ a.que }}</p>
+                <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
+                     cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
+                <p v-if="a.fuentes?.length" class="hfuentes">
+                  <span v-for="f in a.fuentes" :key="f" class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
+                </p>
+                <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
+              </article>
+            </section>
+
+          </template>
+          <template v-if="v.id === 'ramas'">
+
+            <p v-if="!ramasCuenta(active?.Key)" class="empty">No hay ramas medidas para esta tarea.</p>
+            <p v-if="ramasCuenta(active?.Key)" class="empty">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
+              <span v-if="ramasSnap.incompletas?.length" class="warn">· {{ ramasSnap.incompletas.length }} tarea(s) sin medir</span>
+            </p>
+            <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
+              <span class="entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
+              {{ entregaDe(active?.Key).titulo }}
+            </p>
+            <!-- El cómo se mide explicado en UNA línea: el párrafo largo empujaba la tabla, que es lo que
+                 se viene a mirar. El detalle queda a un hover de distancia. -->
+            <p class="empty comomide">
+              <span title="`git cherry` compara por patch-id, así que un cambio que llegó por squash de UN commit cuenta como mergeado aunque la rama ya no exista.">Medido por <b>patch-id</b></span>,
+              y cuando el squash cambió el patch —mensaje o contenido editados al mergear— por el
+              <span title="Si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el cambio está aunque el patch-id no coincida. Sin esta segunda señal, un PR squasheado que YA estaba en main salía como «no llegó».">
+                <b>commit del PR</b> (<span class="si via-pr">✓</span>)</span>.
+              Refrescar: <code>make tareas-ramas</code>.</p>
+            <div class="tabla-wrap">
+              <table class="ramas">
+                <thead>
+                  <tr>
+                    <th>repo</th><th>rama</th><th>PR</th>
+                    <th v-for="a in ambientesDe(active?.Key)" :key="a" :class="{ ppal: a === 'main' }">{{ a }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
+                    <td>{{ r.repo }}</td>
+                    <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span>
+                      <!-- «local» no quiere decir "sin pushear": al aprobar un PR la remota se borra y queda
+                           la copia local. Las columnas de ambiente dicen cuál de las dos es. -->
+                      <span v-if="r.local" class="solo-local"
+                        title="la rama sólo existe en esta máquina — puede ser que nunca se pusheó, o que se borró al mergear el PR">local</span></td>
+                    <!-- El PR es lo que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN sin
+                         revisión dice "nadie lo miró", que no es lo mismo que "falta trabajo". -->
+                    <td class="prcol">
+                      <a v-if="r.pr" class="link" :href="r.pr.url" target="_blank" rel="noopener"
+                        :title="`${r.pr.estado} → ${r.pr.base}${r.pr.revision ? ' · ' + r.pr.revision : ''}`">#{{ r.pr.numero }}</a>
+                      <span v-if="r.pr" class="prst" :class="'pr-' + r.pr.estado.toLowerCase()">{{ etiquetaPR(r.pr) }}</span>
+                      <span v-else class="na">sin PR</span>
+                    </td>
+                    <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
+                         mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
+                         desplegar algo en un repo que no tiene ese ambiente. -->
+                    <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb" :class="{ ppal: a === 'main' }">
+                      <span v-if="!(a in (r.propios || {}))" class="na" title="ese ambiente no existe en este repo">—</span>
+                      <span v-else-if="r.en?.[a]" class="si" :class="{ 'via-pr': r.como?.[a] === 'pr' }"
+                        :title="COMO_TEXTO[r.como?.[a]] || 'el cambio ya está acá'">✓</span>
+                      <span v-else class="no" title="el cambio todavía no está acá">·</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+          </template>
+          <template v-if="v.id === 'registro'">
+
+            <p class="empty">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
+            <div class="desc cuerpo-md">
+              <section v-for="section in historySections" :key="section.id" :id="section.id"
+                       class="document-section" v-html="section.summaryHtml"></section>
+            </div>
+
+          </template>
+          <template v-if="v.id === 'bitacora'">
+
+            <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
+            <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
+            <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
+                 como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
+            <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
+              <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
+              <div class="body">
+                <div class="meta">
+                  <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
+                  <span>{{ when(e.date) }}</span>
+                  <span class="min" v-if="e.min">{{ e.min }} min</span>
+                  <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
+                </div>
+                <p @click="alternar(e.id)">{{ e.text }}</p>
+                <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
+                  {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
+                </button>
+              </div>
+            </div>
+
+          </template>
+          <template v-if="v.id === 'prototipos'">
+
+            <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
+            <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
+              <span class="proto-play">▶</span>
+              <span class="proto-txt">
+                <b>{{ a.label }}</b>
+                <span class="proto-file">{{ a.file }}</span>
+              </span>
+              <span class="proto-ext">↗</span>
+            </button>
+
+          </template>
+        </div>
+      </section>
     </aside>
 
     <!-- AUXILIARYBAR: el vocabulario la tiene y el grid la deja lista, pero NO se renderiza — una
@@ -2069,6 +2168,21 @@ onMounted(async () => {
    no encabeza una región, separa dos bloques dentro de una. */
 .aux-lbl { margin: 4px 0 0; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
   letter-spacing: .06em; color: var(--tenue) }
+/* El cuerpo de una vista del acordeón derecho. Menos padding que el editor: son 340px y cada píxel
+   de margen es uno menos de contenido. */
+.aux-vista { padding: 12px 14px 20px }
+.aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
+
+/* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
+   `taller.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
+   sobre él. ⚠ Se salen 3px hacia afuera (`margin`) para que la zona de agarre cubra el borde de
+   verdad y no haya que apuntarle a un píxel. */
+.sidebar, .auxiliarybar { position: relative }
+.rsz-sb, .rsz-aux { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
+.rsz-sb { right: -3px }
+.rsz-aux { left: -3px }
+.rsz-sb::before { left: 3px; right: auto; width: 1px }
+.rsz-aux::before { left: auto; right: 3px; width: 1px }
 
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
    La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
