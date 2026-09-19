@@ -2,9 +2,9 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 15,
-    "deriva": 9,
+    "al-dia": 17,
     "deriva-alta": 13,
+    "deriva": 7,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
@@ -230,6 +230,11 @@
             "hub": false
           },
           {
+            "ruta": "trazador/src/components/Historia.vue",
+            "ultimo_cambio": "2026-09-19",
+            "hub": false
+          },
+          {
             "ruta": "trazador/src/components/Mapa.vue",
             "ultimo_cambio": "2026-09-19",
             "hub": false
@@ -263,20 +268,22 @@
             "ruta": "trazador/src/components/Buscador.vue",
             "ultimo_cambio": "2026-09-18",
             "hub": false
-          },
-          {
-            "ruta": "trazador/src/components/Historia.vue",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
           }
         ]
       },
       "commits": {
-        "total": 19,
+        "total": 20,
         "autores": {
-          "Miguel Ochoa": 19
+          "Miguel Ochoa": 20
         },
         "lista": [
+          {
+            "sha": "f4886f8",
+            "fecha": "2026-09-19",
+            "autor": "Miguel Ochoa",
+            "asunto": "trazador: la sección del panel deja de ser una tarjeta, y la costura entre mapa y logs vuelve a ser una línea",
+            "repo": "trazador"
+          },
           {
             "sha": "a0956bd",
             "fecha": "2026-09-19",
@@ -373,13 +380,6 @@
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "trazador: el mapa pasa a tronco + carriles, como el del harness",
-            "repo": "trazador"
-          },
-          {
-            "sha": "238cd08",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "trazador: los matchers contra el código — cinco estaban mudos y nadie se enteraba",
             "repo": "trazador"
           }
         ]
@@ -5461,493 +5461,6 @@
       "pendiente_merge": null
     },
     {
-      "id": "aggregator",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 106,
-      "deriva": {
-        "cambiados": 6,
-        "pct": 7,
-        "hubs": 16,
-        "archivos": [
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/LenderCardProcessing.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/api.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/UserRequestService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderTabBehaviorResolver.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/webhooks.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/config/services.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-transaction-data.service.ts",
-            "ultimo_cambio": "2026-09-13",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
-            "ultimo_cambio": "2026-09-13",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Actions/Lenders/Meddipay.php",
-            "ultimo_cambio": "2026-09-13",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Console/Kernel.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "application/config/services.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Models/Lender.php",
-            "ultimo_cambio": "2026-09-07",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Models/LenderTransaction.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/ListLenderController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/Lender.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Services/lenders/LenderRetrievalService.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 80,
-        "autores": {
-          "Abel Arismendy": 15,
-          "lhCabra-creditop": 14,
-          "sanvipi-ctop": 11,
-          "mig-creditop": 9,
-          "Joel": 7,
-          "Oscar Rincon": 7,
-          "jose guzman": 6,
-          "Miguel Ochoa": 4,
-          "Luis Romero": 2,
-          "joseesco24-creditop": 2,
-          "yamid-creditop": 1,
-          "hans peter": 1,
-          "dsanchezops": 1
-        },
-        "lista": [
-          {
-            "sha": "77796a4f9",
-            "fecha": "2026-09-14",
-            "autor": "Abel Arismendy",
-            "asunto": "revert(ecommerce): stateless checkout entry and channel welcome (#997, #1005) (#1013)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "0b9e28f24",
-            "fecha": "2026-09-14",
-            "autor": "Abel Arismendy",
-            "asunto": "refactor(wizard): remove the text-md class, which generates no CSS",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "fd93a11b9",
-            "fecha": "2026-09-14",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(ecommerce): bienvenida propia del canal, datos editables, la cuota inicial fuera del listado y el wizard en ancho de móvil",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "8eecdc805",
-            "fecha": "2026-09-14",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(ecommerce): la entrada del checkout y la cuota inicial, sin cookie y sobre qa",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "894f356c5",
-            "fecha": "2026-09-14",
-            "autor": "mig-creditop",
-            "asunto": "feat(ecommerce): la sala de espera del veredicto, para todas las entidades",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e31a641cd",
-            "fecha": "2026-09-14",
-            "autor": "jose guzman",
-            "asunto": "fix-comentarios",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "cd4bb751d",
-            "fecha": "2026-09-13",
-            "autor": "Joel",
-            "asunto": "fix: removed comments",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "9a7663a40",
-            "fecha": "2026-09-13",
-            "autor": "Joel",
-            "asunto": "fix(CORE-527): Meddipay confirms a condition the customer was actually offered",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "638b6c3fd",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(analytics): whatsapp handoff event, funnel renames, timeout, segmentation, retry and approval dedup",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "d94989252",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(loans): flag and timestamp whatsapp self-management handoff",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "96211634f",
-            "fecha": "2026-09-11",
-            "autor": "Oscar Rincon",
-            "asunto": "Apaga los reportes periódicos salvo la conciliación de Corbeta",
-            "repo": "application"
-          },
-          {
-            "sha": "1143f293e",
-            "fecha": "2026-09-11",
-            "autor": "mig-creditop",
-            "asunto": "perf(listado): las cuatro consultas por entidad, en tres para todas",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "b06fd4e51",
-            "fecha": "2026-09-11",
-            "autor": "mig-creditop",
-            "asunto": "obs(listado): cuánto tarda cada etapa — y el hallazgo que apareció al instrumentarlo",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e8e251307",
-            "fecha": "2026-09-10",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(creditopx): desbloquear el celular al pagar si el core dejará el crédito al día",
-            "repo": "application"
-          },
-          {
-            "sha": "b8466f5f9",
-            "fecha": "2026-09-10",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(alta-fleet): dibuja las páginas del comercio, y en autogestión no muestra el handoff",
-            "repo": "frontend-monorepo"
-          }
-        ]
-      },
-      "huerfanos": [
-        "application/app/Services/DocumentTypesService.php",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/holder-name.service.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/nequi-polling.service.ts",
-        "legacy-backend/app/Actions/Lenders/Nequi.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "codeudor",
-      "estado": "deriva",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 70,
-      "deriva": {
-        "cambiados": 4,
-        "pct": 6,
-        "hubs": 2,
-        "archivos": [
-          {
-            "ruta": "legacy-backend/app/Models/UserRequestStatus.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Loans/routes/api.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/UserRequestV1/App/Services/SendCosignerSignatureOtpService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/cosigner/cosigner-phone.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/cosigner/signature/otp.tsx",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          }
-        ]
-      },
-      "commits": {
-        "total": 15,
-        "autores": {
-          "Abel Arismendy": 5,
-          "sanvipi-ctop": 3,
-          "mig-creditop": 2,
-          "jose guzman": 2,
-          "Miguel Ochoa": 1,
-          "Joel": 1,
-          "lhCabra-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "a5cf165d2",
-            "fecha": "2026-09-17",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(loans): llenar disbursed_at con un trigger cuando la solicitud pasa a autorizada",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "894f356c5",
-            "fecha": "2026-09-14",
-            "autor": "mig-creditop",
-            "asunto": "feat(ecommerce): la sala de espera del veredicto, para todas las entidades",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "e31a641cd",
-            "fecha": "2026-09-14",
-            "autor": "jose guzman",
-            "asunto": "fix-comentarios",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "0b9e28f24",
-            "fecha": "2026-09-14",
-            "autor": "Abel Arismendy",
-            "asunto": "refactor(wizard): remove the text-md class, which generates no CSS",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "f1d4b327b",
-            "fecha": "2026-09-11",
-            "autor": "jose guzman",
-            "asunto": "fix-dinamic-form-alta",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "32e22122b",
-            "fecha": "2026-09-10",
-            "autor": "mig-creditop",
-            "asunto": "feat(alta-fleet): las páginas del comercio, la autogestión sin handoff, y el arreglo que la deja firmar",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "b8466f5f9",
-            "fecha": "2026-09-10",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(alta-fleet): dibuja las páginas del comercio, y en autogestión no muestra el handoff",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "3e110aeb8",
-            "fecha": "2026-08-28",
-            "autor": "Joel",
-            "asunto": "feat(CORE-443): resolver el pais del telefono desde el aliado, no desde el numero",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "62b352748",
-            "fecha": "2026-08-27",
-            "autor": "lhCabra-creditop",
-            "asunto": "feat(lenders): hand POST-redirect checkouts over to the front",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "3e3ea507e",
-            "fecha": "2026-08-19",
-            "autor": "sanvipi-ctop",
-            "asunto": "feat(onboarding): exponer resolución de checkout Corbeta como endpoint JSON",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "1b421e7b0",
-            "fecha": "2026-08-18",
-            "autor": "Abel Arismendy",
-            "asunto": "refactor(branding): quitar endpoint lender-flow, el flow sale del endpoint legacy",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "064153d92",
-            "fecha": "2026-08-18",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(branding): restaurar import de AlliedInfoController y nullsafe en lender-flow",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "a6c6f7eaf",
-            "fecha": "2026-08-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(branding): partner branding con theme_key y token_overrides semanticos",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "53030ddb8",
-            "fecha": "2026-08-13",
-            "autor": "sanvipi-ctop",
-            "asunto": "feat(nequi): sella el user_request al aprobarse el pago, cancelación y QR local",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "f7f6dcdb5",
-            "fecha": "2026-08-13",
-            "autor": "sanvipi-ctop",
-            "asunto": "feat(nequi): normaliza el celular y el monto, y hace configurable el TTL",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "legacy-backend/Modules/UserRequestV1/App/Http/Controllers/GetPreApprovalPayloadController.php",
-        "legacy-backend/Modules/UserRequestV1/App/Services/GetPreApprovalPayloadService.php",
-        "legacy-backend/database/migrations/2026_08_04_120100_create_lender_rules_changesets_table.php",
-        "legacy-backend/database/migrations/2026_08_08_100000_populate_phone_code_from_dial_code.php",
-        "legacy-backend/database/migrations/2026_08_08_110000_seed_dominican_republic_cities.php",
-        "legacy-backend/database/migrations/2026_08_08_120000_add_nationality_to_countries_table.php",
-        "legacy-backend/database/migrations/2026_08_12_120000_add_nequi_columns_to_lender_transactions.php",
-        "legacy-backend/database/migrations/2026_08_13_150000_create_support_bot_enrollments_table.php",
-        "legacy-backend/database/migrations/2026_08_13_150100_create_support_bot_sessions_table.php",
-        "legacy-backend/database/migrations/2026_08_13_150200_create_user_data_change_requests_table.php",
-        "legacy-backend/database/migrations/2026_08_14_120000_add_user_request_id_to_user_data_change_requests_table.php",
-        "legacy-backend/database/migrations/2026_08_18_100000_add_branding_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_18_100100_drop_legacy_color_columns_from_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_19_115900_add_merchant_event_id_to_products_table.php",
-        "legacy-backend/database/migrations/2026_08_19_120100_seed_default_products_for_dominican_republic.php",
-        "legacy-backend/database/migrations/2026_08_20_120000_add_requires_preapproval_gate_to_lenders_table.php",
-        "legacy-backend/database/migrations/2026_08_22_120000_add_show_alternate_flow_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_08_24_100000_paises_como_configuracion.php",
-        "legacy-backend/database/migrations/2026_08_24_170000_create_device_locking_configs_table.php",
-        "legacy-backend/database/migrations/2026_08_24_170100_add_active_lock_guard_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_create_dynamic_form_placements_table.php",
-        "legacy-backend/database/migrations/2026_08_25_120000_paises_backfill_del_default_historico.php",
-        "legacy-backend/database/migrations/2026_08_25_120100_backfill_dynamic_form_placements_from_lender_requirements.php",
-        "legacy-backend/database/migrations/2026_08_26_100000_add_branch_scope_to_dynamic_form_placements.php",
-        "legacy-backend/database/migrations/2026_08_26_100000_documentos_suben_de_la_sucursal_a_la_entidad.php",
-        "legacy-backend/database/migrations/2026_08_26_120000_disable_sign_gate_for_forms_served_elsewhere.php",
-        "legacy-backend/database/migrations/2026_08_26_140000_agregar_whatsapp_handoff_sent_at_a_user_requests.php",
-        "legacy-backend/database/migrations/2026_08_28_100000_add_country_scope_to_risk_centrals.php",
-        "legacy-backend/database/migrations/2026_08_28_120000_add_otp_service_created_at_to_otps.php",
-        "legacy-backend/database/migrations/2026_08_28_120000_paises_seed_de_banderas.php",
-        "legacy-backend/database/migrations/2026_08_31_120000_add_always_show_to_dynamic_form_placements.php",
-        "legacy-backend/database/migrations/2026_09_01_120000_add_collect_expedition_date_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_01_130000_add_collect_employment_info_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_01_130000_telefonos_pierden_el_indicativo_pegado.php",
-        "legacy-backend/database/migrations/2026_09_01_140000_add_lock_amount_to_allied_branches_table.php",
-        "legacy-backend/database/migrations/2026_09_01_150000_add_amount_label_to_allied_branches_table.php",
-        "legacy-backend/database/migrations/2026_09_01_160000_remove_amount_fields_from_bcp_vehicle_forms.php",
-        "legacy-backend/database/migrations/2026_09_02_200000_add_outcome_tracking_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_09_02_200100_add_last_run_summary_to_device_locking_configs.php",
-        "legacy-backend/database/migrations/2026_09_03_100000_add_weekly_cadence_columns_to_creditop_x_reminder_messages.php",
-        "legacy-backend/database/migrations/2026_09_03_100100_create_or_extend_reminder_dispatch_log_table.php",
-        "legacy-backend/database/migrations/2026_09_03_100200_add_cash_payment_text_to_payment_methods_by_lender.php",
-        "legacy-backend/database/migrations/2026_09_03_100300_plantillas_semanales_motai.php",
-        "legacy-backend/database/migrations/2026_09_03_100400_plantillas_semanales_cierran_con_frase_fija.php",
-        "legacy-backend/database/migrations/2026_09_03_120000_add_financed_amount_to_bcp_vehicle_form.php",
-        "legacy-backend/database/migrations/2026_09_03_120000_ciudades_de_rd_y_peru_y_sucursales_en_pais_equivocado.php",
-        "legacy-backend/database/migrations/2026_09_03_190000_align_bcp_vehicle_amounts_screen.php",
-        "legacy-backend/database/migrations/2026_09_04_100000_create_document_types_table.php",
-        "legacy-backend/database/migrations/2026_09_04_120000_add_amount_limits_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_08_120000_seed_credi_asyco_signing_documents_catalog.php",
-        "legacy-backend/database/migrations/2026_09_08_130000_add_seized_accounts_to_lender_users_category_rules.php",
-        "legacy-backend/database/migrations/2026_09_09_190000_add_pages_to_allieds_table.php",
-        "legacy-backend/database/migrations/2026_09_10_180000_add_request_trace_to_device_locks.php",
-        "legacy-backend/database/migrations/2026_09_11_120000_add_manual_approval_to_lender_requirements_table.php",
-        "legacy-backend/database/migrations/2026_09_11_120100_add_manual_approval_statuses.php",
-        "legacy-backend/database/migrations/2026_09_14_120000_cuota_inicial_y_bono_opcionales_en_bcp_vehiculo_paso_1.php",
-        "legacy-backend/database/migrations/2026_09_14_140000_chasis_y_motor_del_vehicular_con_el_largo_que_bcp_acepta.php"
-      ],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
       "id": "bancolombia",
       "estado": "deriva",
       "verificado": {
@@ -6343,6 +5856,26 @@
       "pendiente_merge": null
     },
     {
+      "id": "aggregator",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 106,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
       "id": "backoffice",
       "estado": "al-dia",
       "verificado": {
@@ -6351,6 +5884,26 @@
         "source": "manual"
       },
       "archivos": 123,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "codeudor",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 70,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
