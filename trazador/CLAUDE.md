@@ -55,16 +55,32 @@ OCUPADO.** En el harness el color dice *qué carril* (verde credit, ámbar renti
 *cómo salió* (verde ok, rojo falló, gris no pasó). No se puede usar el mismo canal para las dos cosas, así
 que se separó: **la arista lleva el color del carril y el nodo lleva el del estado.**
 
-⚠ **EL MAPA VA A LA IZQUIERDA Y EL DETALLE ES UN SIDEBAR DERECHO**, y el reparto no es estético: el
-mapa es horizontal y lo que necesita es ANCHO; el detalle es una lista de logs y necesita ALTO. Con el
-mapa como banda arriba, los logs quedaban en una tira baja donde no entra nada. Clickear un nodo abre
-esa etapa en el sidebar, con sus sub-pasos y sus líneas.
+⚠ **EL MAPA VA A LA IZQUIERDA Y EL DETALLE ES UN SIDEBAR DERECHO**, redimensionable con un tirador y
+con el ancho recordado por viewer. El reparto no es estético: el mapa es horizontal y necesita ANCHO;
+el detalle es una lista de logs y necesita ALTO. Clickear un nodo abre esa etapa en el sidebar.
 
-⚠ **Y LAS MEDIDAS DEL DIBUJO ESTÁN ELEGIDAS PARA QUE ENTRE SIN ACHICARSE.** Con `PASO = 150` medía
-1.488 px y el encuadre lo escalaba a **0,65**: entraba entero y no se leía, que es la peor de las dos
-cosas. Compacto (`PASO = 112`) entra a ~0,98 en una pantalla de 1600 — se ve quieto porque no hace
-falta moverlo, no porque no se pueda. Y el encuadre tiene **piso en 0,8**: más vale un mapa que no
-entra y se arrastra, que uno entero e ilegible.
+⚠ **Y LA PÁGINA NO SCROLLEA: SCROLLEA CADA PANEL.** La app es una columna flex de alto fijo. Sin eso,
+un detalle con cientos de líneas estiraba el documento y **empujaba el mapa fuera de la vista**: había
+que subir para volver a verlo, justo mientras uno lee el log buscando en qué paso se rompió. La parte
+que siempre se olvida de este patrón es el `min-height:0` en el hijo flex — sin él no se achica por
+debajo de su contenido y el `overflow:auto` de adentro no llega a activarse nunca.
+
+⚠⚠ **NO HAY ZOOM NI ARRASTRE: EL MAPA SE AJUSTA CAMBIANDO EL LAYOUT.** Es la decisión que más afecta
+cómo se lee. Hubo dos intentos antes y los dos fallaban por lo mismo: con `scale()`, **el texto escala
+con el dibujo** — a 0,65 los nombres de las etapas dejaban de leerse, que es lo único que el mapa tiene
+que hacer; y ponerle un piso a la escala sólo cambiaba el problema, porque abajo del piso el dibujo se
+cortaba y había que arrastrar.
+
+Ahora la separación entre nodos (`PASO`) y entre carriles (`CARRIL`) se calculan con el espacio
+disponible, dentro de un mínimo y un máximo. El dibujo entra siempre y **el texto nunca cambia de
+tamaño**. Medido moviendo el tirador del sidebar: `PASO` fue 120 → 82 → 74 → 103 y el label se quedó en
+**12px** en los cuatro. Si ni con el mínimo entra, el contenedor scrollea, que es lo honesto.
+
+⚠ **Y las dos realimentaciones que este patrón invita, las dos evitadas a propósito:** el SVG mide lo
+que mide el DIBUJO (no la caja, o el div crece y el observer entra en bucle — llegó a 17.601 px), y el
+contenedor lleva `scrollbar-gutter: stable`, porque de su `clientWidth` sale el `PASO`: sin el gutter,
+al aparecer la barra el ancho baja, el dibujo entra, la barra se va y el mapa oscila. **Lo que se MIDE
+del contenedor no puede depender de lo que se DIBUJA adentro.**
 
 ⚠⚠ **Y EL ESTADO SE PINTA SÓLO EN EL CARRIL QUE SE RECORRIÓ.** El `status` y el `detail` de una etapa
 salen de ESTA traza, que fue por UN ramal: pintarlos en los otros afirma sobre un camino que no ocurrió.

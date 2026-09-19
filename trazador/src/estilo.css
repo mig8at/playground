@@ -11,8 +11,14 @@
     --sel:#0969da14; }
 }
 * { box-sizing: border-box }
-body { margin:0; background:var(--bg); color:var(--txt);
+/* ⚠ LA APP OCUPA LA VENTANA Y NO CRECE: es una columna flex de alto fijo, y quien scrollea es CADA
+   panel, no la página. Sin esto el detalle —que puede traer cientos de líneas de log— estiraba el
+   documento y empujaba el mapa fuera de la vista: había que subir para volver a verlo, que es
+   exactamente lo que uno no quiere mientras lee un log buscando en qué paso se rompió. */
+html, body, #app { height:100% }
+body { margin:0; background:var(--bg); color:var(--txt); overflow:hidden;
   font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif }
+#app { display:flex; flex-direction:column; min-height:0 }
 button { font: inherit; color: inherit }
 input { font: inherit }
 

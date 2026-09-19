@@ -126,8 +126,9 @@ async function copiar() {
 </template>
 
 <style scoped>
-header { padding:16px 20px; border-bottom:1px solid var(--line) }
-.fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px }
+/* Compacto: cada píxel de arriba se lo come el mapa, que es lo que uno mira. */
+header { padding:10px 16px 12px; border-bottom:1px solid var(--line); flex:0 0 auto }
+.fila1 { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px }
 h1 { font-size:18px; margin:0; font-weight:600 }
 .ureq { color:var(--dim); font-size:13px }
 .copiar { margin-left:auto; padding:4px 12px; font-size:12px; border:1px solid var(--line);
@@ -143,22 +144,20 @@ h1 { font-size:18px; margin:0; font-weight:600 }
   animation:corre 1.1s ease-in-out infinite }
 @keyframes corre { 0%{transform:translateX(-100%)} 100%{transform:translateX(250%)} }
 @media (prefers-reduced-motion:reduce) { .barra i { animation:none; width:100% ; opacity:.5 } }
-.meta { color:var(--dim); font-size:13px; margin:10px 0 0 }
+.meta { color:var(--dim); font-size:12.5px; margin:7px 0 0 }
 .err { color:var(--fail); font-size:13px; margin:10px 0 0 }
 .mapaRoto code { background:var(--panel); padding:1px 5px; border-radius:4px; font-size:12px }
 /* Tres columnas: mapa · tirador · logs. El ancho de la tercera lo pone el usuario (inline, desde el
-   estado), así que acá sólo va el default por si el estilo se aplica antes que el script. */
-.cols { display:grid; grid-template-columns:minmax(0,1fr) 5px 520px; min-height:60vh }
+   estado), así que acá sólo va el default por si el estilo se aplica antes que el script.
+   ⚠ `flex:1` + `min-height:0`: sin el `min-height`, un hijo flex NO se achica por debajo de su
+   contenido y el `overflow:auto` de adentro no llega a activarse nunca — la página vuelve a estirarse
+   y el mapa se va para arriba. Es la parte que siempre se olvida de este patrón. */
+.cols { display:grid; grid-template-columns:minmax(0,1fr) 5px 520px; flex:1; min-height:0 }
+.cols > :last-child { overflow-y:auto; scrollbar-gutter:stable }
 /* Mientras se arrastra, el cursor manda en TODA la página: sin esto, al pasar el puntero sobre el mapa
    o sobre el texto de los logs el cursor cambia y el arrastre se siente roto aunque siga funcionando. */
 .cols.midiendo { cursor:col-resize; user-select:none }
 .tirador { cursor:col-resize; background:var(--line); transition:background .12s }
 .tirador:hover, .cols.midiendo .tirador { background:var(--accent) }
-/* ⚠ CON EL MAPA, EL DETALLE ES UN SIDEBAR DERECHO — no una fila debajo.
-   El mapa es horizontal (tronco a lo largo, un carril por ramal), así que lo que necesita es ANCHO, y
-   el detalle es una lista de logs, que necesita ALTO. Ponerlos en dos filas le daba al mapa el ancho
-   completo pero dejaba los logs en una tira baja donde no entra nada; al lado, cada uno crece por
-   donde le sirve. La lista sigue con su propio reparto: es vertical y compite por el mismo eje. */
-.cols.ancha { grid-template-columns:minmax(0,1fr) minmax(320px, 34%) }
 @media (max-width:860px) { .cols { grid-template-columns:1fr } }
 </style>

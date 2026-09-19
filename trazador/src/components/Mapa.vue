@@ -26,7 +26,7 @@ import { computed, nextTick, ref, watch, onMounted } from 'vue'
 import { useTrazador } from '../stores/trazador'
 
 // El ancho del panel de logs, que el usuario mueve. Llega como prop y NO se lee del DOM: ver la nota
-// de `encuadrar`.
+// de `medir`.
 const props = defineProps({ anchoSidebar: { type: Number, default: 520 } })
 
 const t = useTrazador()
@@ -39,12 +39,21 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
   'sin-evidencia':'var(--unknown)', 'sin-registro':'var(--skip)', 'no-aplica':'var(--skip)',
   condicional:'var(--skip)', pendiente:'var(--skip)' }
 
-// ⚠ ESTAS MEDIDAS SE ELIGIERON PARA QUE EL MAPA ENTRE SIN ACHICARSE, que es lo que lo volvía
-// ilegible. Con `PASO = 150` el dibujo medía 1.488 px y el encuadre lo escalaba a **0,65** — los
-// nombres dejaban de leerse y había que acercar a mano cada vez. Compacto entra a escala ~1 en una
-// pantalla normal, que es lo que hace que se vea quieto: no es que no se pueda mover, es que no hace
-// falta.
-const RADIO = 9, PASO = 112, CARRIL = 82, Y0 = 44
+/**
+ * ⚠ EL MAPA SE AJUSTA CAMBIANDO EL LAYOUT, NO LA ESCALA — y ésa es toda la diferencia.
+ *
+ * Antes esto tenía zoom: el dibujo medía lo que medía y un `scale()` lo metía en la caja. El problema
+ * es que **el texto escala con él**: a 0,65 los nombres de las etapas dejaban de leerse, que es lo
+ * único que el mapa tiene que hacer. Poner un piso a la escala tampoco alcanzaba — abajo del piso el
+ * dibujo se cortaba y había que arrastrar.
+ *
+ * Ahora la separación entre nodos (`PASO`) se calcula con el ancho disponible, así que el mapa entra
+ * SIEMPRE y **el texto nunca cambia de tamaño**. El mínimo existe porque por debajo los labels se
+ * pisan entre sí; si ni con el mínimo entra, el contenedor scrollea, que es lo honesto.
+ */
+const RADIO = 9, Y0 = 44
+const PASO_MIN = 74, PASO_MAX = 132, MARGEN_X = 30, COLA = 118
+const CARRIL_MIN = 74, CARRIL_MAX = 112
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
  *  a secas partía palabras («ramal credifami») y perdía el final de frases que sí entraban. */
@@ -68,7 +77,31 @@ const aMin = (hhmmss) => {
  * por logaritmo y con tope, así que la diferencia entre 2 y 40 minutos se ve —que es la que importa— y
  * la de 40 a 900 se satura, con el número al lado para el que quiera el dato exacto.
  */
-const largoDelSalto = (min) => (min === null || min < 1 ? 0 : Math.min(52, Math.round(18 * Math.log10(1 + min))))
+/** El ancho útil del lienzo, que es lo que manda sobre la separación entre nodos. */
+const anchoCaja = ref(0)
+/** Y el alto, que reparte los carriles: con pocos, respiran; con muchos, se juntan hasta el mínimo. */
+const altoCaja = ref(0)
+
+/**
+ * Cuántas columnas tiene la fila más larga: el tronco hasta el corte, más el carril con más etapas.
+ * Es lo que hay que hacer entrar.
+ */
+const columnas = computed(() =>
+      Math.max(1, tronco.value.length - 1 + Math.max(0, ...carriles.value.map((c) => c.pasos.length))))
+
+const PASO = computed(() => {
+      if (!anchoCaja.value) return PASO_MAX
+      const util = anchoCaja.value - MARGEN_X - COLA
+      return Math.max(PASO_MIN, Math.min(PASO_MAX, Math.floor(util / columnas.value)))
+})
+
+/**
+ * El salto de tiempo alarga la arista, pero NO puede competir con el ajuste: si se lo deja fijo, tres
+ * saltos grandes empujan el dibujo fuera de la caja aunque el `PASO` ya se haya achicado al mínimo.
+ * Va por logaritmo (una espera de un día no puede medir diez pantallas) y con tope proporcional.
+ */
+const largoDelSalto = (min) => (min === null || min < 1 ? 0
+      : Math.min(Math.round(PASO.value * 0.45), Math.round(18 * Math.log10(1 + min))))
 
 /** El estado de cada etapa, por id, salga o no en el recorrido de este ramal. */
 const porEtapa = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
@@ -133,13 +166,13 @@ function mover(paso) {
 
 /** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
 const nodosTronco = computed(() => {
-      let x = 30, previa = null
+      let x = MARGEN_X, previa = null
       return tronco.value.map((e, i) => {
             const ahora = aMin(e.vivo?.at)
             let saltoMin = null
             if (ahora !== null && previa !== null && ahora - previa >= 1) saltoMin = Math.round(ahora - previa)
             if (ahora !== null) previa = ahora
-            if (i) x += PASO + largoDelSalto(saltoMin)
+            if (i) x += PASO.value + largoDelSalto(saltoMin)
             return { ...e, x, y: Y0, saltoMin, roto: t.traza?.brokeAt === e.id }
       })
 })
@@ -149,91 +182,72 @@ const xCorte = computed(() => (nodosTronco.value.at(-1)?.x ?? 40))
 /** Cada carril arranca una columna después del corte y no vuelve nunca hacia atrás. */
 const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
       ...c,
-      y: Y0 + (ci + 1) * CARRIL,
+      y: Y0 + (ci + 1) * CARRIL.value,
       nodos: c.pasos.map((p, i) => ({
             id: p.id,
             etapa: p.etapa,
             condicional: p.obligatorio === false,
-            x: xCorte.value + PASO * (i + 1),
-            y: Y0 + (ci + 1) * CARRIL,
+            x: xCorte.value + PASO.value * (i + 1),
+            y: Y0 + (ci + 1) * CARRIL.value,
             roto: t.traza?.brokeAt === p.id,
       })),
 })))
 
-/** ¿El dibujo entra entero en la caja con la escala de ahora? Si no, hay que DECIRLO: un grafo cortado
- *  en el borde se lee como un grafo que termina ahí, y el que mira no tiene forma de saber que falta. */
-const entraEntero = computed(() => ancho.value * cam.value.k <= cam.value.w + 4)
-
 const ancho = computed(() => {
       const maxCarril = Math.max(0, ...nodosPorCarril.value.map((c) => c.nodos.at(-1)?.x ?? 0))
-      return Math.max(xCorte.value, maxCarril) + 120
+      return Math.max(xCorte.value, maxCarril) + COLA
 })
-const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL)
+/**
+ * La separación entre carriles se reparte igual que el `PASO`: con espacio de sobra los carriles
+ * respiran, y con poco se juntan hasta el mínimo. Antes era una constante y el dibujo quedaba pegado
+ * arriba dejando un tercio de la caja vacío — el espacio que sobra no es neutro, es espacio que el
+ * grafo podría estar usando para leerse mejor.
+ */
+const CARRIL = computed(() => {
+      const filas = carriles.value.length + 1
+      if (!altoCaja.value || !filas) return CARRIL_MIN
+      return Math.max(CARRIL_MIN, Math.min(CARRIL_MAX, Math.floor((altoCaja.value - Y0 - 30) / filas)))
+})
 
-// ── LA CÁMARA ────────────────────────────────────────────────────────────────────────────────────
-const cam = ref({ x: 0, y: 0, k: 1, w: 0, h: 0 })
-const lienzo = ref(null)
-const arrastrando = ref(false)
+const alto = computed(() => Y0 + (carriles.value.length + 1) * CARRIL.value)
 
-function encuadrar() {
-  const el = lienzo.value
-  if (!el) return
-  const w = el.clientWidth, h = el.clientHeight
-  if (!w || !h) return                       // antes del primer layout: un scale(NaN) borra el dibujo
-  // Encuadra por el eje que APRIETA: un mapa ancho con pocos carriles lo limita el ancho, y uno con
-  // muchos carriles, el alto. Mirar uno solo deja la mitad del dibujo afuera.
-  // ⚠ CON PISO. Encuadrar sin mínimo es lo que daba el 0,65 ilegible: más vale un mapa que no entra
-  // entero y se arrastra, que uno entero que no se puede leer. Por debajo de 0,8 el label de 12px
-  // queda en menos de 10 y deja de servir para lo único que el mapa tiene que hacer — que se
-  // reconozca cada etapa de un vistazo.
-  const k = Math.max(0.8, Math.min(1.05, (h - 30) / alto.value, (w - 30) / ancho.value))
-  cam.value = { ...cam.value, w, h, k, x: 14, y: Math.max(8, (h - alto.value * k) / 2) }
-}
-onMounted(() => { encuadrar(); new ResizeObserver(encuadrar).observe(lienzo.value) })
-
-// ⚠ EL `ResizeObserver` NO ALCANZA, y hay que re-encuadrar por ESTADO cuando el usuario mueve el
-// tirador del sidebar. Medido el 2026-09-18: al arrastrarlo, el `.mapa` pasó de 869 a 984 px y el
-// observer —incluso uno nuevo, creado a mano sobre el mismo elemento— **no disparó ni una vez**;
-// `cam.w` se quedó en el ancho viejo y el dibujo salía cortado (1.044 px escalados dentro de 869).
-// Forzar `encuadrar()` lo arreglaba, así que el cálculo estaba bien y lo que faltaba era el disparo.
+// ── LA MEDIDA DEL LIENZO ─────────────────────────────────────────────────────────────────────────
 //
-// ⚠ NO SE PUDO DISTINGUIR si el observer falla siempre o sólo con el panel del navegador oculto, que
-// es donde se midió y donde tampoco se componen frames. Da igual para la decisión: el ancho del
-// sidebar es ESTADO de la app, no una consecuencia del layout, así que observarlo es determinista y
-// no depende de que el navegador llegue a hacer el ciclo. El observer se queda para el resize de la
-// VENTANA, que sí es puro layout.
-watch(() => props.anchoSidebar, () => nextTick(encuadrar))
-// ⚠ LA CLAVE ES UN STRING: con `() => [ureq, largo]` el getter devuelve un ARRAY NUEVO en cada
-// evaluación y Vue compara por referencia, así que el watcher se dispara en cada re-render en vez de
-// cuando cambió la traza. (No era la causa del zoom muerto —esa está abajo, en el CSS— pero re-encuadrar
-// de más es igual de falso.)
-watch(() => `${t.traza?.ureq}:${nodosTronco.value.length}:${carriles.value.length}`, encuadrar)
+// Ya no hay cámara: no hay zoom ni arrastre, y el dibujo se adapta cambiando la SEPARACIÓN entre nodos
+// (ver la nota de `PASO`). Lo único que hay que saber del DOM es cuánto ancho hay.
+const lienzo = ref(null)
 
-function rueda(ev) {
-  ev.preventDefault()
-  const k = Math.min(2.4, Math.max(0.35, cam.value.k * (ev.deltaY < 0 ? 1.12 : 0.89)))
-  // Zoom hacia el cursor: si no, acercarse aleja lo que estabas mirando.
-  const r = lienzo.value.getBoundingClientRect()
-  const mx = ev.clientX - r.left, my = ev.clientY - r.top
-  const f = k / cam.value.k
-  cam.value = { ...cam.value, k, x: mx - (mx - cam.value.x) * f, y: my - (my - cam.value.y) * f }
+function medir() {
+      const el = lienzo.value
+      if (!el) return
+      const w = el.clientWidth, h = el.clientHeight
+      if (w) anchoCaja.value = w
+      if (h) altoCaja.value = h
 }
-function abajo(ev) {
-  arrastrando.value = true
-  const x0 = ev.clientX - cam.value.x, y0 = ev.clientY - cam.value.y
-  const mover = (e) => { cam.value = { ...cam.value, x: e.clientX - x0, y: e.clientY - y0 } }
-  const soltar = () => { arrastrando.value = false; removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar) }
-  addEventListener('pointermove', mover); addEventListener('pointerup', soltar)
-}
+
+onMounted(() => { medir(); new ResizeObserver(medir).observe(lienzo.value) })
+
+// ⚠ EL `ResizeObserver` NO ALCANZA, y hay que medir por ESTADO cuando el usuario mueve el tirador del
+// sidebar. Medido el 2026-09-18: al arrastrarlo, el `.mapa` pasó de 869 a 984 px y el observer **no
+// disparó ni una vez** — ni el del componente ni uno nuevo creado a mano sobre el mismo elemento.
+//
+// ⚠ NO SE PUDO DISTINGUIR si falla siempre o sólo con el panel del navegador oculto, que es donde se
+// midió y donde tampoco se componen frames. Da igual para la decisión: el ancho del sidebar es ESTADO
+// de la app, no una consecuencia del layout, así que observarlo es determinista y no depende de que el
+// navegador llegue a hacer el ciclo. El observer se queda para el resize de la VENTANA, que sí es puro
+// layout.
+watch(() => props.anchoSidebar, () => nextTick(medir))
+
 </script>
 
 <template>
-  <div class="mapa" ref="lienzo" @wheel="rueda" @pointerdown.self="abajo" @dblclick="encuadrar"
-       :class="{ move: arrastrando }">
+  <div class="mapa" ref="lienzo">
     <div v-if="!nodosTronco.length" class="vacio">el mapa se dibuja al cargar una solicitud</div>
 
-    <svg v-else :width="cam.w" :height="cam.h">
-      <g :transform="`translate(${cam.x},${cam.y}) scale(${cam.k})`">
+    <!-- El SVG mide lo que mide el DIBUJO, no la caja: si por algún motivo no entra (muchos carriles
+         en una ventana baja), el contenedor scrollea y no hay nada escondido detrás de un borde. -->
+    <svg v-else :width="ancho" :height="alto">
+      <g>
         <!-- ── EL TRONCO: lo que ocurre antes de que exista un ramal ── -->
         <g v-for="(n, i) in nodosTronco.slice(1)" :key="'ta'+n.id">
           <line :x1="nodosTronco[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
@@ -311,27 +325,28 @@ function abajo(ev) {
     <div class="pie">
       <span v-if="t.traza?.ramal" class="ramal">carril <b>{{ t.traza.ramal }}</b></span>
       <span v-else-if="t.traza" class="dim">sin carril todavía — se decide al elegir entidad</span>
-      <span v-if="!entraEntero" class="recorte">⚠ no entra entero — arrastrá para ver el resto</span>
-      <span class="dim">clic abre la etapa · ←/→ recorren · arrastrar · rueda · doble clic encuadra</span>
+      <span class="dim">clic abre la etapa · ←/→ recorren</span>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ⚠ EL ALTO NO PUEDE SALIR DEL CONTENIDO. El `<svg>` toma su alto de `cam.h`, y `cam.h` se lee del
-   contenedor con `clientHeight`: si el SVG es un hijo en flujo normal, el SVG estira al div, el div
-   dispara el ResizeObserver, `encuadrar()` lee un alto mayor y lo escribe otra vez. Medido: el
-   contenedor llegó a 17.601 px creciendo 200 px cada 300 ms. El síntoma NO es un error —la consola
-   queda limpia— sino que la rueda y el arrastre se ven MUERTOS, porque el zoom sí se aplica y el
-   re-encuadre del bucle lo pisa en el mismo tick. Dos candados: alto atado a la VENTANA y el SVG
-   fuera del flujo. La regla general: un canvas que LEE su tamaño del padre no puede ESCRIBIRLO en un
-   hijo en flujo. */
-/* Alto fijo por VIEWPORT y no por contenido (ver la nota de arriba), y de banda: el mapa ocupa el
-   ancho entero y el detalle va debajo. */
-.mapa { position:relative; height:calc(100vh - 190px); min-height:340px; overflow:hidden;
-  background:var(--panel2); border-right:1px solid var(--line); cursor:grab; user-select:none }
-.mapa svg { position:absolute; inset:0 }
-.mapa.move { cursor:grabbing }
+/* ⚠ EL ALTO NO PUEDE SALIR DEL CONTENIDO, y el ancho tampoco puede depender de la barra de scroll.
+   Son dos realimentaciones distintas y las dos ya mordieron o estuvieron cerca:
+
+   1. Con el SVG dimensionado desde el contenedor —como en la versión con zoom— el SVG estiraba al div,
+      el div disparaba el ResizeObserver y el cálculo leía un alto mayor y lo escribía otra vez. Medido:
+      el contenedor llegó a 17.601 px creciendo 200 px cada 300 ms, SIN un solo error en consola. Hoy el
+      SVG mide lo que mide el DIBUJO y el div tiene alto de viewport, así que no se realimentan.
+   2. `scrollbar-gutter: stable` es contra la otra: `clientWidth` se achica cuando aparece la barra, y de
+      ese ancho sale `PASO` — sin el gutter, el dibujo entraría, la barra desaparecería, el ancho
+      volvería a crecer y el mapa oscilaría. Reservar el canal de una vez corta el ciclo.
+
+   La regla que sirve para las dos: lo que se MIDE del contenedor no puede depender de lo que se DIBUJA
+   adentro. */
+.mapa { position:relative; height:100%; min-height:260px;
+  overflow:auto; scrollbar-gutter:stable;
+  background:var(--panel2); border-right:1px solid var(--line); user-select:none }
 .vacio { position:absolute; inset:0; display:grid; place-items:center; color:var(--dim); font-size:12px }
 
 .arista { stroke-width:3; stroke-linecap:round }
