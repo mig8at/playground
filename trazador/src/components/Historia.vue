@@ -77,7 +77,7 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
       <div v-for="g in (todo ? dias : dias.slice(0, TOPE))" :key="g.fecha" class="grupo">
         <span class="fecha">{{ dia(g.fecha) }}</span>
         <button v-for="i in g.chips" :key="i.ureq"
-                :class="['chip', CLASE[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
+                :class="['badge', 'badge-outline', 'chip', CLASE[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
                 :title="tip(i)" @click="t.verTraza(i.ureq)">
           <span class="g">{{ GLIFO[i.desenlace] }}</span>{{ i.hora }}
           <span class="n">{{ i.ureq }}</span>
@@ -89,7 +89,7 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
     </div>
 
     <p class="pie">
-      <button v-if="dias.length > TOPE" class="mas" @click="todo = !todo">
+      <button v-if="dias.length > TOPE" class="badge badge-outline mas" @click="todo = !todo">
         {{ todo ? 'ver menos' : `ver los ${dias.length} días` }}
       </button>
       <span class="ok">✓ aprobada</span><span class="fail">✕ rota</span>
@@ -116,9 +116,9 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 .fecha { font-size:11px; color:var(--dim); width:72px; flex:0 0 72px; text-align:right;
   font-variant-numeric:tabular-nums }
 
-.chip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; font-size:12px;
-  border:1px solid var(--line); border-radius:var(--r-full); background:transparent; color:var(--dim);
-  cursor:pointer; font-variant-numeric:tabular-nums; white-space:nowrap }
+/* Sobre `.badge.badge-outline`: un intento de la persona es una ETIQUETA que además se aprieta. */
+.chip { gap:5px; padding:2px 8px; font-size:12px; color:var(--dim);
+  cursor:pointer; font-variant-numeric:tabular-nums }
 .chip:hover { background:var(--sel) }
 .chip .g { font-weight:700 }
 .chip .n { color:var(--dim); font-size:11px }
@@ -134,7 +134,6 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
   align-items:center }
 .pie .ok { color:var(--ok) } .pie .fail { color:var(--fail) } .pie .warn { color:var(--warn) }
 .pie .q { color:var(--info) }
-.mas { font-size:11px; color:var(--info); background:none; border:1px solid var(--line);
-  border-radius:var(--r-full); padding:1px 9px; cursor:pointer }
+.mas { font-size:11px; color:var(--info); padding:1px 9px; cursor:pointer }
 .mas:hover { background:var(--sel) }
 </style>

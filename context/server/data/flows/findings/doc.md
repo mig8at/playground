@@ -4,6 +4,39 @@
 > síntoma → causa raíz verificada → evidencia → arreglo → estado. **Antes de depurar un muro, buscá
 > tu síntoma en el índice de abajo** — buena parte de lo que parece un bug del producto ya está acá.
 
+## ⚠ Qué se verificó de este nodo el 2026-09-19 — y qué NO
+
+Los otros **38 nodos** del árbol se re-verificaron enteros y se sellaron ese día. **Éste no se sella, y
+la razón es que sellar significa «lo revisé entero»**: son 239 hallazgos y ~77.000 palabras, y eso no
+es lo que se hizo. Decirlo explícitamente vale más que un sello que prometa de más — sobre todo acá,
+donde el daño de un hallazgo desactualizado es que manda a alguien a perseguir un fantasma.
+
+**Lo que SÍ se comprobó, mecánicamente y entero:**
+
+- **Integridad de referencias: perfecta.** Las **239** `F-xx` que el árbol cita en sus nodos están las
+  **239** definidas acá. Cero referencias colgadas en las dos direcciones.
+- **Citas de código: cero deriva.** 119 referencias ancladas, **0 movidas y 0 corridas**; el oráculo
+  mantiene **51 de 51** rutas. Para un documento de este tamaño y esta edad, es el mejor resultado del
+  árbol.
+- ⚠ **La única cita que `context-refs` marca como «no existe» es un FALSO POSITIVO**, y conviene dejarlo
+  escrito para que nadie la «arregle»: `class-creditop-gateway.php:507` **existe y dice exactamente lo
+  que el hallazgo afirma** (el comentario sobre `/ecommerce/{hash}/checkout`). La herramienta no la
+  encuentra porque el archivo vive en `playground/creditop-woocommerce/`, que **no es uno de los repos
+  indexados**. Verificado a mano: el archivo tiene 522 líneas y la 507 es esa.
+
+**Lo que NO se verificó, y es lo que importa al usar este nodo:** **el ESTADO de cada hallazgo.** No hay
+un campo de estado por entrada —«ABIERTO» y «ARREGLADO» aparecen en la prosa, no en una ficha—, así que
+no se puede barrer con una herramienta ni saber de un vistazo cuántos siguen vivos. **Antes de actuar
+sobre un F-xx, recomprobá contra `main` que el defecto sigue ahí**; la fecha del hallazgo dice cuándo se
+vio, no que siga vigente. Los que SÍ se recomprobaron en la barrida, por haber caído en el camino de
+otro nodo: **F-122** (la guarda de Deceval que no puede dispararse), **F-158** (la ocupación pisada con
+`Empleado`), **F-187**, **F-188** y **F-234** siguen vivos; el borrado de la BD compartida de dev
+(CORE-431) está contenido por la guarda de `CreatesApplication`, pero `make fresh` sigue afuera.
+
+**La mejora que este nodo pide, y no se hizo acá**: una ficha de estado por hallazgo —una línea
+`- **Estado:** abierto | arreglado (`<commit>`, `<fecha>`)`— convertiría «¿cuáles siguen vivos?» en un
+grep. Hoy es una lectura de 77.000 palabras, que es por lo que nadie la hace.
+
 ## Protocolo
 
 - **El `F-xx` es un identificador PÚBLICO** (lo citan `harness/`, `trazador/`, `tablero/` y varios

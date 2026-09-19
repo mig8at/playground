@@ -162,15 +162,18 @@
     .sdot.checking { background: var(--warn); animation: sdotpulse 1s ease-in-out infinite; }
     @keyframes sdotpulse { 0%, 100% { opacity: 1 } 50% { opacity: .3 } }
 
+    /* ⚠ El `margin`, el `border-radius` y el `border` se fueron: la regla venía de cuando esto era una
+       CAJA suelta en una columna, y hoy es la REGIÓN `banner` del workbench —una banda a todo lo
+       ancho— más un `alert`. El grid la resetea (`.workbench > .banner { margin: 0; border-radius: 0;
+       border-*: 0 }`), así que eran cuatro declaraciones que nadie veía: cromo muerto sostenido por
+       un anulador, la regla 6 del barrido. Lo que queda es lo único que aporta: el ámbar. */
     .banner {
-      margin: 14px 0 0;
       padding: 10px 14px;
-      border-radius: var(--radius);
-      border: 1px solid color-mix(in oklab, var(--warn) 34%, var(--card));
       background: color-mix(in oklab, var(--warn) 18%, var(--card));
       color: var(--warn);
       font-size: 12.5px
     }
+    .banner .alert-desc { color: color-mix(in oklab, var(--warn) 88%, var(--card)) }
 
     /* ⚠ `.card` YA NO PINTA UNA CAJA, y lo importante es que hacía rato que no la pintaba: tenía
        fondo, borde de 1px, radio y 20px de padding, y TRES bloques más abajo se los quitaban uno por

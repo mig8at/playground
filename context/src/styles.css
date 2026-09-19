@@ -131,9 +131,10 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
    mismo color: el borde no agrega información, sólo un anillo que la engorda. Encendida = relleno;
    apagada = contorno, que es la pareja «default / outline» de shadcn y además dice el estado con la
    forma, no sólo con el color. */
-.vec-chip { background: color-mix(in oklab, var(--info) 22%, var(--card)); border: 1px solid transparent;
-            color: var(--info); border-radius: 999px;
-            padding: 3px 11px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+/* Sobre `.badge`: encendida es RELLENO teñido de `--info`, apagada es contorno. La pareja
+   default/outline del sistema, con el color que acá significa «interactivo». */
+.vec-chip { background: color-mix(in oklab, var(--info) 22%, var(--card)); color: var(--info);
+            padding: 3px 11px; font-size: 11.5px; cursor: pointer; }
 .vec-chip.off { background: transparent; border-color: var(--line); color: var(--mut); }
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
@@ -141,14 +142,14 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .row.res { background: color-mix(in oklab, var(--ctx) 18%, var(--card)); box-shadow: inset 0 0 0 1px var(--ctx); }
 .row.vec { opacity: .72; }
 .row.ruta { opacity: .38; }
-.pega { font-size: 10px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 20%, var(--card));
-        padding: 0 5px; border-radius: 999px; white-space: nowrap; }
+/* Sobre `.badge.badge-xs`: el porqué de que una fila sea resultado. */
+.pega { color: var(--ctx); background: color-mix(in oklab, var(--ctx) 20%, var(--card)); }
 
 /* ── CON QUÉ SE UNE (grafo derivado de los archivos compartidos) ── */
 .conex { margin: 10px 0 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .conex-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
 .conex-n { font-size: 12px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 18%, var(--card));
-           border-radius: 999px; padding: 1px 9px; cursor: pointer; }
+           padding: 1px 9px; cursor: pointer; }
 .conex-n:hover { background: color-mix(in oklab, var(--ctx) 24%, var(--card)); }
 .conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
@@ -188,7 +189,8 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--mut); }
 .dot.reference { background: var(--ctx); } .dot.task { background: var(--task); } .dot.root { background: var(--root); }
 .nm { overflow: hidden; text-overflow: ellipsis; }
-.cnt { margin-left: auto; font-size: 11px; color: var(--mut); background: var(--hueco); padding: 0 6px; border-radius: 999px; }
+/* Sobre `.badge.badge-secondary.badge-xs`: un conteo es una etiqueta, y va al borde de su fila. */
+.cnt { margin-left: auto; font-size: 11px; }
 .cnt.big { margin-left: 0; }
 
 /* ⚠ Las tasks eran TARJETAS adentro de un árbol de filas: dos formas para dos cosas que se eligen
@@ -199,7 +201,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .taskcard.sel { background: color-mix(in oklab, var(--task) 22%, var(--card)); outline: 1px solid var(--task); }
 .tc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); padding: 1px 8px; cursor: pointer; }
 .chip:hover { background: color-mix(in oklab, var(--task) 26%, var(--card)); }
 
 /* El detalle es el EDITOR: lo que viniste a mirar, y ahora sobre el LIENZO (`--background`, #1a1a1a),
@@ -212,7 +214,8 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .detail { flex: 1; --hueco: var(--card); padding: 16px 20px; overflow: auto; min-width: 0; }
 .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-head h2 { margin: 0; font-size: 18px; }
-.kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
+/* Sobre `.badge.badge-outline`: el TIPO de nodo. Va en versalitas, que es lo único que le suma. */
+.kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
 .kind.reference { color: var(--ctx); border-color: color-mix(in oklab, var(--ctx) 42%, var(--card)); } .kind.task { color: var(--task); border-color: color-mix(in oklab, var(--task) 45%, var(--card)); } .kind.root { color: var(--root); }
 /* Un callout es una BARRA DE COLOR y un fondo, no una caja: el marco alrededor no dice nada que el
    fondo no diga ya, y el radio pelea con la barra recta de la izquierda. */
@@ -254,7 +257,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--al-muerta) 32%, transparent);
 }
 
-.deriva { font-size: 10px; padding: 0 5px; border-radius: 999px; background: var(--hueco); color: var(--mut); }
+.deriva { color: var(--mut); }
 .deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: var(--al-muerta); }
 .deriva[data-alin="deriva-alta"] { color: var(--al-alta); }
 .deriva[data-alin="deriva"] { color: var(--al-deriva); }

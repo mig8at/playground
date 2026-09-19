@@ -334,7 +334,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              en contextos o ya estabas en tasks. -->
         <div class="region-head">
           <span>context</span>
-          <span class="cnt">{{ rows.length }}</span>
+          <span class="badge badge-secondary badge-xs cnt">{{ rows.length }}</span>
           <div class="region-actions">
             <button type="button" class="region-action" :title="todoPlegado ? 'Desplegar todo' : 'Plegar todo'"
                     @click="plegarTodo">⊟</button>
@@ -351,15 +351,15 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
                VISTA y no a un menú ⋯: cambian QUÉ filas se listan, y un filtro escondido se olvida
                encendido — después lo que falta se lee como «no existe». -->
           <div v-if="busqueda" class="buscar-sub">
-            <button class="vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
+            <button class="badge vec-chip" :class="{ off: !conVecinas }" @click="alternarVecinas"
                     :title="conVecinas
                       ? 'Se muestran también los nodos con los que se une (padre, hijo, task y archivo compartido). Clic para ver sólo lo encontrado.'
                       : 'Sólo lo encontrado. Clic para traer los nodos vecinos.'">+ vecinas</button>
-            <button v-if="busqueda.menciones" class="vec-chip off" @click="alternarMenciones"
+            <button v-if="busqueda.menciones" class="badge vec-chip off" @click="alternarMenciones"
                     title="Nodos que lo nombran en la prosa sin declararlo. No son la respuesta, pero a veces es lo que buscás.">
               + {{ busqueda.menciones }} que lo mencionan
             </button>
-            <button v-if="verMenciones" class="vec-chip" @click="alternarMenciones"
+            <button v-if="verMenciones" class="badge vec-chip" @click="alternarMenciones"
                     title="Volver a los nodos que lo declaran (nombre, síntoma o archivo).">menciones incluidas</button>
             <span class="cuenta">
               {{ busqueda.pega.size }} resultado(s)<template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
@@ -370,7 +370,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         </div>
         <div class="region-body">
         <div class="region-head grupo">
-          <span>Contextos</span><span class="cnt">{{ nContext }}</span>
+          <span>Contextos</span><span class="badge badge-secondary badge-xs cnt">{{ nContext }}</span>
         </div>
         <div v-for="r in rows" :key="r.id"
              class="row" :class="[claseDe(r.id), { sel: sel === r.id, hl: highlighted.has(r.id) }]"
@@ -383,13 +383,13 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           <span class="nm">{{ nameOf(r.id) }}</span>
           <!-- El badge dice por qué algo ES resultado. En una vecina engaña: una vecina que además
                menciona la palabra se leía como resultado (pasó con `doc` en tres filas). -->
-          <span class="pega" v-if="busqueda && busqueda.pega.has(r.id)">{{ busqueda.donde[r.id].join('·') }}</span>
-          <span class="deriva" v-if="alinOf(r.id) && alinOf(r.id).deriva.cambiados"
+          <span class="badge badge-xs pega" v-if="busqueda && busqueda.pega.has(r.id)">{{ busqueda.donde[r.id].join('·') }}</span>
+          <span class="badge badge-secondary badge-xs deriva" v-if="alinOf(r.id) && alinOf(r.id).deriva.cambiados"
                 :data-alin="estadoOf(r.id)"
                 :title="alinOf(r.id).deriva.cambiados + ' de ' + alinOf(r.id).archivos + ' archivos cambiaron en main desde ' + (alinOf(r.id).verificado.date || '?')">
             {{ alinOf(r.id).deriva.pct }}%
           </span>
-          <span class="cnt" v-if="filesOf(r.id)">{{ filesOf(r.id) }}</span>
+          <span class="badge badge-secondary badge-xs cnt" v-if="filesOf(r.id)">{{ filesOf(r.id) }}</span>
         </div>
 
         <p class="vacio" v-if="busqueda && !rows.length">
@@ -398,12 +398,12 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         </p>
 
         <div class="region-head grupo">
-          <span>Tasks</span><span class="cnt">{{ nTask }}</span>
+          <span>Tasks</span><span class="badge badge-secondary badge-xs cnt">{{ nTask }}</span>
         </div>
         <div v-for="t in tasks" :key="t" class="taskcard" :class="{ sel: sel === t }" @click="select(t)">
           <div class="tc-name"><span class="dot task"></span>{{ nameOf(t) }}</div>
           <div class="chips">
-            <span v-for="cx in (byId[t].contexts || [])" :key="cx" class="chip" @click.stop="select(cx)">{{ cx }}</span>
+            <span v-for="cx in (byId[t].contexts || [])" :key="cx" class="badge chip" @click.stop="select(cx)">{{ cx }}</span>
           </div>
         </div>
         </div>
@@ -413,8 +413,8 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
         <div class="d-head">
           <span class="dot" :class="kindOf(sel)"></span>
           <h2>{{ nameOf(sel) }}</h2>
-          <span class="kind" :class="kindOf(sel)">{{ kindOf(sel) }}</span>
-          <span class="cnt big" v-if="filesOf(sel)">{{ filesOf(sel) }} archivos</span>
+          <span class="badge badge-outline kind" :class="kindOf(sel)">{{ kindOf(sel) }}</span>
+          <span class="badge badge-secondary badge-xs cnt big" v-if="filesOf(sel)">{{ filesOf(sel) }} archivos</span>
         </div>
         <p class="when" v-if="whenOf(sel)"><b>Cuándo:</b> {{ whenOf(sel) }}</p>
 
@@ -477,7 +477,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
              (ver `grafo`), más el árbol y las tasks. Es lo que se lee DESPUÉS de este nodo. -->
         <div class="conex" v-if="conexionesSel.length">
           <div class="conex-lbl">Se une con</div>
-          <span v-for="[otro, motivos] in conexionesSel" :key="otro" class="conex-n" @click="select(otro)"
+          <span v-for="[otro, motivos] in conexionesSel" :key="otro" class="badge conex-n" @click="select(otro)"
                 :title="'motivo: ' + motivos.join(' · ')">
             {{ nameOf(otro) }}<em>{{ motivos.join('·') }}</em>
           </span>
@@ -495,7 +495,7 @@ const selDoc = computed(() => md(docs[sel.value] || '_(sin doc.md)_'))
           <span class="breadcrumb-item">doc.md + map.json</span>
         </nav>
         <div class="chips" v-if="byId[sel].contexts">
-          <span class="chip" v-for="cx in byId[sel].contexts" :key="cx" @click="select(cx)">{{ cx }}</span>
+          <span class="badge chip" v-for="cx in byId[sel].contexts" :key="cx" @click="select(cx)">{{ cx }}</span>
         </div>
         <div class="doc" v-html="selDoc"></div>
       </main>

@@ -590,6 +590,9 @@ const minHhmm = (m) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')
 // Link real a la tarea en Jira. Va como <a href> y no como window.open() a propósito: así funcionan
 // cmd-clic, clic del medio y "copiar dirección del enlace", que es como uno pega una tarea en Slack.
 const jiraLink = (key) => site.value ? `${site.value}/browse/${key}` : '';
+/* ⚠ Devuelve SÓLO el estado, sin las clases del componente: los mismos tres nombres pintan una
+   píldora en el encabezado de la tarea y un PUNTO de 7px en el árbol. Metiéndole `badge` acá, los
+   puntos se volvían píldoras. La clase del componente la pone cada sitio, que es el que sabe qué es. */
 const statusClass = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-doing' : 'e-todo';
 const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
 
@@ -1505,7 +1508,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <p v-if="vistaAncha && cargandoAncha" class="empty">trayendo los sprints…</p>
+      <p v-if="vistaAncha && cargandoAncha" class="nota">trayendo los sprints…</p>
       <!-- El buscador NO se movió al menú: se usa todo el tiempo, es una sola fila y vale para las
            cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
       <div class="filtros" v-if="!cargandoAncha && totalTasks">
@@ -1518,7 +1521,7 @@ onMounted(async () => {
       </div>
       <!-- Sin resultados NO puede ser una lista vacía a secas: se lee como «no tengo tareas», que es
            otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
-      <p v-if="!cargandoAncha && totalTasks && !visibles" class="empty">
+      <p v-if="!cargandoAncha && totalTasks && !visibles" class="nota">
         Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
           v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
         <button class="btn-link lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
@@ -1572,7 +1575,7 @@ onMounted(async () => {
           <input type="checkbox" class="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
           <span>incluir terminadas <em>nacen archivadas</em></span>
           </label>
-          <p v-if="inbox" class="chip">
+          <p v-if="inbox" class="badge badge-outline chip">
           {{ inbox.pending }} sin registro
           <template v-if="inbox.registered"> · {{ inbox.registered }} ya registradas</template>
           </p>
@@ -1608,8 +1611,8 @@ onMounted(async () => {
         :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
         @close="cerrarPestana(active.Key)">
         <template #meta>
-          <span v-if="!active._local" class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
-          <span v-else class="status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
+          <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+          <span v-else class="badge badge-outline status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
         <!-- El EDITOR es el documento y nada más. Las otras siete vistas están al costado,
              en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
@@ -1630,12 +1633,12 @@ onMounted(async () => {
           </button>
         </div>
 
-        <p class="empty">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
+        <p class="nota">Contexto privado de la tarea. Los pendientes y hallazgos están en sus pestañas.</p>
 
         <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
              convertir el índice de retoma en una lista cronológica. -->
         <nav v-if="indiceCuerpo.length > 2" class="toc">
-          <button v-for="h in indiceCuerpo" :key="h.id" class="toc-i"
+          <button v-for="h in indiceCuerpo" :key="h.id" class="badge badge-outline toc-i"
                   @click="irASeccion(h.id)">{{ h.title }}</button>
         </nav>
 
@@ -1705,10 +1708,10 @@ onMounted(async () => {
             <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span>
           </button></h2>
           <div id="journey-content" v-show="journeyOpen">
-          <p class="empty" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
+          <p class="nota" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
             «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
             <code>make pulso-install</code>.</p>
-          <p class="empty" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
+          <p class="nota" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
           <!-- `gridEl` es lo que mide el ResizeObserver: de su ancho sale cuántos días entran. -->
           <div class="jm" ref="gridEl" :style="gridVars">
             <div class="jband">
@@ -1760,7 +1763,7 @@ onMounted(async () => {
               <input type="checkbox" class="checkbox" v-model="inboxAll" @change="inbox && loadInbox()" />
               <span>incluir terminadas <em>nacen archivadas</em></span>
             </label>
-            <span v-if="inbox" class="chip">
+            <span v-if="inbox" class="badge badge-outline chip">
               {{ inbox.pending }} sin registro
               <template v-if="inbox.registered"> · {{ inbox.registered }} ya registradas</template>
             </span>
@@ -1791,7 +1794,7 @@ onMounted(async () => {
                     <a v-if="site" class="key link" :href="jiraLink(f.issue.key)" target="_blank" rel="noopener"
                       @click.stop>{{ f.issue.key }} <span class="ext">↗</span></a>
                     <span v-else class="key">{{ f.issue.key }}</span>
-                    <b :class="statusClass(f.issue.category)">{{ f.issue.status }}</b>
+                    <b class="badge badge-outline badge-xs" :class="statusClass(f.issue.category)">{{ f.issue.status }}</b>
                     {{ f.issue.summary }}
                   </p>
                   <p class="sync-m">
@@ -1814,7 +1817,7 @@ onMounted(async () => {
               <li v-for="r in importResults" :key="r.key" :class="{ bad: r.action === 'error' }">
                 <b>{{ r.key }}</b> {{ ACTION_LABEL[r.action] || r.action }}
                 <span class="mut">{{ r.file || r.error }}</span>
-                <span v-if="r.archived" class="chip">archivada</span>
+                <span v-if="r.archived" class="badge badge-outline chip">archivada</span>
               </li>
             </ul>
           </template>
@@ -1909,23 +1912,23 @@ onMounted(async () => {
               <!-- PROYECTO PROPIO: herramienta, exploración o mejora a futuro. No va a Jira nunca, así
                    que no se le pide sección publicable ni se lo cuenta como trabajo del día a día. Es
                    una decisión declarada (`clase:`), no algo que se deduzca de si tiene clave. -->
-              <span v-if="esProyecto(active._esfuerzoId)" class="spchip proyecto"
+              <span v-if="esProyecto(active._esfuerzoId)" class="badge badge-outline spchip proyecto"
                 title="proyecto propio: herramienta, exploración o mejora a futuro. No sale a Jira">proyecto</span>
               <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
                    partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
-              <span v-if="active._esfuerzo" class="spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
+              <span v-if="active._esfuerzo" class="badge badge-outline spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
                 {{ active._esfuerzo }}
                 <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
               </span>
-              <span v-if="active._sprint" class="spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
+              <span v-if="active._sprint" class="badge badge-outline spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
               <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
                    DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
-              <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="spchip dormida"
+              <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="badge badge-outline spchip dormida"
                 :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
                 {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
               <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
                    quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
-              <span v-if="active._arrastres > 1" class="spchip drag"
+              <span v-if="active._arrastres > 1" class="badge badge-outline spchip drag"
                 :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
             </div>
             <div class="tm">
@@ -1963,13 +1966,13 @@ onMounted(async () => {
         </div>
         <div v-if="abiertaAux(v.id)" class="region-body aux-vista">
           <template v-if="v.id === 'jira'">
-            <p v-if="active._local" class="empty">Esta tarea es local y todavía no está publicada en Jira.</p>
+            <p v-if="active._local" class="nota">Esta tarea es local y todavía no está publicada en Jira.</p>
             <template v-else>
               <div class="jira-heading">
-                <span class="status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+                <span class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
                 <a v-if="site" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">Abrir {{ active.Key }} en Jira ↗</a>
               </div>
-              <p class="empty">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
+              <p class="nota">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
               <iframe v-if="jiraDocument" class="jira-preview" :srcdoc="jiraDocument"
                 sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
                 :title="'Descripción de ' + active.Key + ' en Jira'"></iframe>
@@ -1978,17 +1981,17 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'pendientes'">
 
-            <p class="empty">Pendientes del documento privado, con sus notas y enlaces.</p>
+            <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
             <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
               <section v-for="section in pendingSections" :key="section.id" class="document-section">
                 <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
                 <div v-html="section.pendingHtml"></div>
               </section>
             </div>
-            <p v-else-if="!pendientesDe(active?.Key).length" class="empty">Esta tarea no tiene pendientes registrados.</p>
+            <p v-else-if="!pendientesDe(active?.Key).length" class="nota">Esta tarea no tiene pendientes registrados.</p>
             <template v-else>
             <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
-              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
+              <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
               <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
                 <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
                 <p class="pque">{{ p.que }}</p>
@@ -1999,20 +2002,20 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'hallazgos'">
 
-            <p class="empty">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
-            <p v-if="!hallazgosDe(active?.Key).length" class="empty">Esta tarea no tiene hallazgos registrados.</p>
+            <p class="nota">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
+            <p v-if="!hallazgosDe(active?.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
             <!-- CON QUÉ SE CONCLUYÓ. Un hallazgo sin `Cómo` no es menos cierto, pero nadie puede volver a
                  comprobarlo — y eso es lo que se ve primero acá, antes que el catálogo de herramientas. -->
             <div v-if="hallazgosDe(active?.Key).length" class="proc">
               <span class="proc-cuenta">{{ procedenciaDe(active?.Key).conComo }} de {{ procedenciaDe(active?.Key).total }}
                 dicen cómo volver a comprobarlos</span>
               <span v-for="[f, n] in procedenciaDe(active?.Key).fuentes" :key="f"
-                    class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
-              <span v-if="procedenciaDe(active?.Key).sinComo" class="fchip sin"
+                    class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
+              <span v-if="procedenciaDe(active?.Key).sinComo" class="badge badge-outline fchip sin"
                     title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active?.Key).sinComo }} sin cómo</span>
             </div>
             <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
-              <h4>{{ g.tit }}<span class="hcnt">{{ g.items.length }}</span></h4>
+              <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
               <p class="hpie">{{ g.pie }}</p>
               <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
                 <div class="hmeta">
@@ -2024,7 +2027,7 @@ onMounted(async () => {
                 <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
                      cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
                 <p v-if="a.fuentes?.length" class="hfuentes">
-                  <span v-for="f in a.fuentes" :key="f" class="fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
+                  <span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
                 </p>
                 <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
               </article>
@@ -2033,17 +2036,17 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'ramas'">
 
-            <p v-if="!ramasCuenta(active?.Key)" class="empty">No hay ramas medidas para esta tarea.</p>
-            <p v-if="ramasCuenta(active?.Key)" class="empty">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
+            <p v-if="!ramasCuenta(active?.Key)" class="nota">No hay ramas medidas para esta tarea.</p>
+            <p v-if="ramasCuenta(active?.Key)" class="nota">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
               <span v-if="ramasSnap.incompletas?.length" class="warn">· {{ ramasSnap.incompletas.length }} tarea(s) sin medir</span>
             </p>
             <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
-              <span class="entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
+              <span class="badge badge-outline badge-xs entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
               {{ entregaDe(active?.Key).titulo }}
             </p>
             <!-- El cómo se mide explicado en UNA línea: el párrafo largo empujaba la tabla, que es lo que
                  se viene a mirar. El detalle queda a un hover de distancia. -->
-            <p class="empty comomide">
+            <p class="nota comomide">
               <span title="`git cherry` compara por patch-id, así que un cambio que llegó por squash de UN commit cuenta como mergeado aunque la rama ya no exista.">Medido por <b>patch-id</b></span>,
               y cuando el squash cambió el patch —mensaje o contenido editados al mergear— por el
               <span title="Si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el cambio está aunque el patch-id no coincida. Sin esta segunda señal, un PR squasheado que YA estaba en main salía como «no llegó».">
@@ -2090,7 +2093,7 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'registro'">
 
-            <p class="empty">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
+            <p class="nota">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
             <div class="desc cuerpo-md">
               <section v-for="section in historySections" :key="section.id" :id="section.id"
                        class="document-section" v-html="section.summaryHtml"></section>
@@ -2099,7 +2102,7 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'bitacora'">
 
-            <p class="empty">La escribe el asistente al analizar la tarea; acá se lee.</p>
+            <p class="nota">La escribe el asistente al analizar la tarea; acá se lee.</p>
             <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
             <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
                  como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
@@ -2122,7 +2125,7 @@ onMounted(async () => {
           </template>
           <template v-if="v.id === 'prototipos'">
 
-            <p class="empty">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
+            <p class="nota">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
             <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
               <span class="proto-play">▶</span>
               <span class="proto-txt">
@@ -2310,8 +2313,10 @@ onMounted(async () => {
   cursor: pointer; padding: 0; margin-left: 6px; text-decoration: underline }
 
 /* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
-.spchip { margin-left: auto; font-size: 10.5px; color: var(--mut); border: 1px solid var(--line);
-  border-radius: var(--radius-md); padding: 1px 5px; white-space: nowrap }
+/* Sobre `.badge.badge-outline`: de qué sprint es. Radio chico, que es lo que separa un RÓTULO de una
+   píldora que se aprieta. */
+.spchip { margin-left: auto; font-size: 10.5px; color: var(--mut);
+  border-radius: var(--radius-md); padding: 1px 5px }
 /* El chip del esfuerzo puede ser largo (es un título): se recorta en vez de empujar la línea. */
 .spchip.esf { max-width: 46%; overflow: hidden; text-overflow: ellipsis; color: var(--acc);
   border-color: color-mix(in srgb, var(--acc) 35%, transparent); display: inline-flex; gap: 5px; align-items: center }
@@ -2325,7 +2330,7 @@ onMounted(async () => {
    «Tablero · Sprint N · registro de tiempo y hallazgos» y gastaba 77px de alto en repetir lo que ya
    dicen la pestaña del navegador y el statusbar. Su única acción —«sólo este sprint»— está en el
    menú ⋯ del sidebar. */
-.chip { padding: 4px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); font-size: 12px; white-space: nowrap }
+.chip { padding: 4px 11px; color: var(--mut); font-size: 12px; gap: 6px }
 .chip.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, var(--card)); background: color-mix(in oklab, var(--warn) 14%, var(--card)) }
 
 /* ⚠ Los cuatro indicadores ya se separan ENTRE SÍ con el `border-right` de cada celda: el marco de
@@ -2359,7 +2364,9 @@ onMounted(async () => {
    editor. Lo que la tarjeta mostraba de un vistazo vive ahora en `.ficha`, que reusa sus mismas
    clases internas (`.jd`, `.next-step`, `.task-meta`, `.tm`), por eso esas siguen abajo. */
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
-.status { font-size: 10.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid }
+/* Sobre `.badge.badge-outline`: el estado en Jira. El color lo pone `statusClass`, que devuelve sólo
+   el estado — los mismos tres nombres pintan también el PUNTO del árbol, que no es una píldora. */
+.status { font-size: 10.5px; padding: 2px 8px }
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .e-doing { color: var(--txt); border-color: var(--line2); background: var(--secondary) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
@@ -2387,8 +2394,7 @@ onMounted(async () => {
 .tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
 /* La entrega dentro del botón de ramas: verde cuando todo está en main, ámbar a medio camino, y
    gris cuando todavía no llegó nada. El color hace el trabajo de un vistazo; el texto, el de precisar. */
-.entrega { margin-left: 6px; font-size: 10px; font-weight: 700; letter-spacing: .02em;
-  padding: 1px 5px; border-radius: 999px; border: 1px solid transparent }
+.entrega { margin-left: 6px; font-weight: 700; letter-spacing: .02em; padding: 1px 5px }
 .entrega.ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .entrega.medio { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent); background: color-mix(in oklab, var(--warn) 8%, transparent) }
 .entrega.espera { color: var(--mut); border-color: var(--line); background: var(--panel2) }
@@ -2468,7 +2474,11 @@ onMounted(async () => {
 .ext { opacity: 0; font-size: .82em; transition: .12s }
 .link:hover .ext { opacity: .75 }
 
-.empty { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
+/* ⚠ Esto se llamaba `.empty` y el componente compartido se lo comió: `.empty` de `taller.css` es el
+   estado vacío ENTERO —columna centrada, alto completo, medio de 40px— y estos son NOTAS de una
+   línea que explican una vista. Renombrado a `.nota`, que es lo que son. La colisión la vi al agregar
+   el componente y no la resolví; apareció centrada en la vista Ramas dos días después. */
+.nota { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
    Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = FOCO (minutos de la tarea
@@ -2579,8 +2589,7 @@ onMounted(async () => {
   border: 1px solid var(--line); background: var(--panel2); color: var(--txt) }
 .sync-i { min-width: 0 }
 .sync-t { margin: 0; font-size: 13px; line-height: 1.45; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap }
-.sync-t b { font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 999px; border: 1px solid;
-  white-space: nowrap }
+.sync-t b { font-weight: 700; padding: 2px 7px }
 .sync-m { margin: 3px 0 0; font-size: 11px; color: var(--mut) }
 .sync-sug { margin-left: 8px; color: var(--acc) }
 .sync-res { list-style: none; margin: 14px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line);
@@ -2591,8 +2600,10 @@ onMounted(async () => {
 /* HALLAZGOS ------------------------------------------------------------------------------------ */
 .hgrupo { margin-bottom: 22px; }
 .hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
-.hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); opacity: .55; border: 1px solid currentColor;
-        border-radius: 99px; padding: 2px 6px; }
+/* ⚠ Sin `opacity: .55`: apilada sobre el color dejaba el conteo abajo del umbral. El escalón lo da
+   la rampa, no un velo. */
+.hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
+        border-color: currentColor; padding: 2px 6px; }
 .hpie { font-size: 11.5px; opacity: .5; margin: 0 0 10px; }
 .hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; opacity: .85; }
 .hitem.vencido { border-left-color: var(--bad); opacity: 1; }
@@ -2620,8 +2631,10 @@ onMounted(async () => {
 .proc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 14px;
         padding-bottom: 12px; border-bottom: 1px solid var(--line); }
 .proc-cuenta { font-size: 11.5px; opacity: .65; margin-right: 2px; }
-.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px; border-radius: var(--radius-md);
-         background: var(--sel); border: 1px solid transparent; opacity: .85; white-space: nowrap; }
+/* Sobre `.badge.badge-outline`: con qué se comprobó. Monoespaciada porque son COMANDOS, y radio
+   chico porque es un rótulo. ⚠ Sin `opacity: .85`, que se apilaba sobre el color. */
+.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px;
+         border-radius: var(--radius-md); background: var(--sel); border-color: transparent; }
 .fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
 .fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
              background: color-mix(in srgb, var(--acc) 10%, transparent); opacity: 1; }
@@ -2646,8 +2659,7 @@ onMounted(async () => {
    Va con `:deep()` porque el HTML lo inyecta `v-html` y el estilo del componente es `scoped`. */
 .toc { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 14px; padding: 10px;
        background: var(--panel2); max-height: 132px; overflow: auto }
-.toc-i { font: inherit; font-size: 11px; line-height: 1.3; padding: 3px 8px; border-radius: 999px; cursor: pointer;
-         background: transparent; border: 1px solid var(--line); color: var(--txt); white-space: nowrap }
+.toc-i { font-size: 11px; line-height: 1.3; padding: 3px 8px; cursor: pointer; color: var(--txt) }
 .toc-i:hover { background: var(--line) }
 /* Es un callout —«si retomás esto sin contexto»—: barra de color y tinte, cuadrado. El marco completo
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
@@ -2689,7 +2701,7 @@ onMounted(async () => {
 
 /* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
 .key.local { color: var(--mut); font-style: normal; letter-spacing: .02em }
-.status.sin-jira { background: transparent; border: 1px dashed var(--line); color: var(--mut) }
+.status.sin-jira { border-style: dashed; color: var(--mut) }
 /* la etapa suelta (tarjeta local): mismo chip que dentro del esfuerzo, sin el contenedor */
 .stg.suelto { font-style: normal }
 

@@ -126,6 +126,7 @@ code, kbd, pre, samp { font-family: var(--font-mono) }
    aprobado, rojo roto—. Puesto sobre `.badge-outline` a secas se lo llevaban también los chips de
    recientes, que quedaban con un aro casi blanco pidiendo una atención que no les corresponde. */
 .statusbar .badge.badge-outline { border-color:currentColor }
-.src { font-size:10px; color:var(--dim); border:1px solid var(--line); border-radius:var(--r-sm); padding:0 5px;
-  white-space:nowrap }
+/* Sobre `.badge.badge-outline.badge-xs` de `taller.css`: sólo el radio chico, que es lo que la
+   distingue de una píldora redonda —ésas se aprietan, ésta es un rótulo—. */
+.src { color:var(--dim); border-radius:var(--r-sm); padding:0 5px }
 .dim { color:var(--dim) }

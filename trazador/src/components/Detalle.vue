@@ -197,10 +197,10 @@ const apagados = computed(() => {
     <section v-if="vivos.length" class="sec">
       <h3><span class="ico" :class="e.estado === 'fail' ? 'fail' : (hayDatos ? 'ok' : 'pendiente')">{{
         e.estado === 'fail' ? '✕' : (hayDatos ? '✓' : '·') }}</span>
-        {{ hayDatos ? 'Pasos' : 'Nada medido acá' }} <span class="src">{{ vivos.length }}</span>
+        {{ hayDatos ? 'Pasos' : 'Nada medido acá' }} <span class="badge badge-outline badge-xs src">{{ vivos.length }}</span>
         <input v-model="filtro" class="buscar" type="search" placeholder="buscar en los logs…"
                aria-label="Buscar dentro de esta etapa" />
-        <span v-if="filtro.trim()" class="src" :class="{ ok: totalCoincidencias }">
+        <span v-if="filtro.trim()" class="badge badge-outline badge-xs src" :class="{ ok: totalCoincidencias }">
           {{ totalCoincidencias }} coincidencia{{ totalCoincidencias === 1 ? '' : 's' }}</span>
       </h3>
       <div class="tabla">
@@ -212,10 +212,10 @@ const apagados = computed(() => {
               <span class="dot" :class="s.status" />
               <span class="l" :title="s.label">{{ s.label }}</span>
             </button>
-            <span v-if="coincidencias(s)" class="marca">{{ coincidencias(s) }}</span>
-            <span v-if="errores(s)" class="errn" :title="errores(s) + ' líneas de error'">{{ errores(s) }} err</span>
+            <span v-if="coincidencias(s)" class="badge badge-outline badge-xs marca">{{ coincidencias(s) }}</span>
+            <span v-if="errores(s)" class="badge badge-outline badge-xs errn" :title="errores(s) + ' líneas de error'">{{ errores(s) }} err</span>
             <span class="d">{{ s.detail }}</span>
-            <span class="src">{{ FUENTE[s.source] || '' }}</span>
+            <span class="badge badge-outline badge-xs src">{{ FUENTE[s.source] || '' }}</span>
             <button v-if="abrible(s) || s.hijos?.length" class="cp" :class="{ ok: copiadoSub === i }"
                     :title="'Copiar «' + s.label + '» con sus logs'" @click.stop="copiarSub(s, i)">
               {{ copiadoSub === i ? '✓' : '⧉' }}
@@ -253,10 +253,10 @@ const apagados = computed(() => {
                 <span class="dot" :class="h.status" />
                 <span class="l" :title="h.label">{{ h.label }}</span>
               </button>
-              <span v-if="coincidencias(h)" class="marca">{{ coincidencias(h) }}</span>
-              <span v-if="errores(h)" class="errn" :title="errores(h) + ' líneas de error'">{{ errores(h) }} err</span>
+              <span v-if="coincidencias(h)" class="badge badge-outline badge-xs marca">{{ coincidencias(h) }}</span>
+              <span v-if="errores(h)" class="badge badge-outline badge-xs errn" :title="errores(h) + ' líneas de error'">{{ errores(h) }} err</span>
               <span class="d">{{ h.detail }}</span>
-              <span class="src">{{ FUENTE[h.source] || '' }}</span>
+              <span class="badge badge-outline badge-xs src">{{ FUENTE[h.source] || '' }}</span>
               <button v-if="abrible(h)" class="cp" :class="{ ok: copiadoSub === i + '-' + j }"
                       :title="'Copiar «' + h.label + '» con sus logs'" @click.stop="copiarSub(h, i + '-' + j)">
                 {{ copiadoSub === i + '-' + j ? '✓' : '⧉' }}
@@ -289,7 +289,7 @@ const apagados = computed(() => {
         {{ verApagados ? '−' : '+' }} {{ apagados.length }} paso{{ apagados.length === 1 ? '' : 's' }} sin actividad
       </button>
       <div v-if="verApagados" class="chips">
-        <span v-for="h in apagados" :key="h.id" class="chip"
+        <span v-for="h in apagados" :key="h.id" class="badge badge-outline chip"
               :title="h.porque || (h.matcher ? '' : 'se infiere por ausencia')">
           {{ h.label }}<template v-if="h.soloEnCodigo"> *</template>
         </span>
@@ -302,7 +302,7 @@ const apagados = computed(() => {
       <h3 class="click" @click="abrirTecnico = !abrirTecnico">
         <span class="cr" :class="{ on: abrirTecnico }">▸</span>
         <span class="ico pendiente">·</span> {{ tecnico.label }}
-        <span class="src">sin nombre de negocio</span>
+        <span class="badge badge-outline badge-xs src">sin nombre de negocio</span>
       </h3>
       <div v-if="abrirTecnico" class="tabla">
         <template v-for="(h, j) in (tecnico.hijos || [])" :key="j">
@@ -314,8 +314,8 @@ const apagados = computed(() => {
               <span class="dot" :class="h.status" />
               <span class="l mono" :title="h.label">{{ h.label }}</span>
             </button>
-            <span v-if="coincidencias(h)" class="marca">{{ coincidencias(h) }}</span>
-            <span v-if="errores(h)" class="errn">{{ errores(h) }} err</span>
+            <span v-if="coincidencias(h)" class="badge badge-outline badge-xs marca">{{ coincidencias(h) }}</span>
+            <span v-if="errores(h)" class="badge badge-outline badge-xs errn">{{ errores(h) }} err</span>
             <span class="d">{{ h.detail }}</span>
             <button v-if="h.eventos?.length" class="cp" :class="{ ok: copiadoSub === 't' + j }"
                     :title="'Copiar «' + h.label + '»'" @click.stop="copiarSub(h, 't' + j)">
@@ -337,7 +337,7 @@ const apagados = computed(() => {
     <!-- Sin traza: el árbol declarado, apagado -->
     <template v-if="!t.traza">
       <section v-for="b in (e.bloques || [])" :key="b.id" class="sec">
-        <h3><span class="ico pendiente">·</span> {{ b.label }} <span class="src">{{ b.tipo }}</span></h3>
+        <h3><span class="ico pendiente">·</span> {{ b.label }} <span class="badge badge-outline badge-xs src">{{ b.tipo }}</span></h3>
         <div class="tabla">
           <div v-for="h in (b.hitos || [])" :key="h.id" class="fila">
             <span class="cr" /><span class="dot skip" /><span class="l dim">{{ h.label }}</span>
@@ -429,12 +429,15 @@ h3.click:hover { background:var(--sel) }
 .l { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .l.mono { font-family:ui-monospace,Menlo,monospace; font-size:12px }
 .d { color:var(--dim); font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums }
-.src { font-size:10px; color:var(--tenue); border:1px solid var(--line); border-radius:var(--r-sm);
+/* Sobre `.badge.badge-outline.badge-xs`: la fuente de un dato es una etiqueta, y el radio chico la
+   distingue de las píldoras redondas que SÍ se pueden apretar. */
+.src { color:var(--tenue); border-radius:var(--r-sm);
   padding:0 5px; white-space:nowrap; justify-self:end }
 h3 .src { justify-self:auto }
 
 .chips { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px; align-items:center }
-.chip { font-size:11.5px; color:var(--tenue); border:1px dashed var(--line);
+/* ⚠ El borde PUNTEADO se queda: es la seña de «esta etapa está apagada», no decoración. */
+.chip { font-size:11.5px; color:var(--tenue); border-style:dashed;
   border-radius:var(--r-full); padding:2px 10px }
 .pie { font-size:11px; color:var(--dim); margin:0 }
 
@@ -442,11 +445,11 @@ h3 .src { justify-self:auto }
   border-radius:var(--r-sm); background:var(--bg); color:var(--txt); font-weight:400 }
 .buscar:focus { outline:1px solid var(--info); outline-offset:-1px }
 h3 .src.ok { color:var(--info); border-color:var(--info) }
-.marca { font-size:10px; color:var(--info); border:1px solid var(--info); border-radius:var(--r-full);
+.marca { color:var(--info); border-color:currentColor;
   padding:0 6px; white-space:nowrap }
 /* El conteo de errores va en la fila CERRADA: `eventosDe` dice cuántas líneas hay, no cuántas fallaron, y
    ese es el número que decide si vale la pena abrir. */
-.errn { font-size:10px; color:var(--fail); border:1px solid var(--fail); border-radius:var(--r-sm); padding:0 5px;
+.errn { color:var(--fail); border-color:currentColor; border-radius:var(--r-sm); padding:0 5px;
   white-space:nowrap; font-variant-numeric:tabular-nums }
 .cp { border:0; background:none; color:var(--dim); cursor:pointer; font-size:12px; padding:2px 4px;
   border-radius:var(--r-sm); opacity:0; transition:opacity .1s }

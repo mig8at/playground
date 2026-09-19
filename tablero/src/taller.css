@@ -432,6 +432,10 @@ textarea.input { height: auto; min-height: 64px; padding: 8px 12px; resize: vert
 .badge-destructive { background: var(--destructive); color: var(--background) }
 .badge-outline { background: transparent; color: var(--foreground); border-color: var(--border) }
 .badge-ghost { background: transparent; color: var(--texto-3) }
+/* ⚠ `badge-xs` NO está en el original, y es una extensión DECLARADA: estas herramientas son densas y
+   tienen ~25 etiquetas de 10px —la fuente de un dato, el conteo de errores, la etapa de un esfuerzo—
+   que a 12px empujan la fila a otro renglón. Es el mismo componente, un escalón abajo. */
+.badge-xs { padding: 0 6px; font-size: 10px; line-height: 15px; gap: 3px }
 
 /* ── TECLA ──────────────────────────────────────────────────────────────────────────────────────
    Las pistas de teclado eran texto plano («←/→ recorren», «⌥R»). Una tecla se lee como tecla. */
