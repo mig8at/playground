@@ -91,24 +91,21 @@ body { margin: 0; overflow: hidden; background: var(--background); color: var(--
 code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco); padding: 1px 5px;
        border-radius: var(--radius); color: var(--fg); }
 
-/* El `.wrap` ya NO lleva el padding arriba/abajo: el statusbar va a sangre, como en las otras tres.
-   El aire lateral se lo queda `.cols`. */
-.wrap { max-width: 1400px; margin: 0 auto; flex: 1; min-height: 0;
-        display: flex; flex-direction: column; }
+/* ⚠ El `.wrap` ya no centra ni limita: NO es una página, es la ventana. Tenía `max-width: 1400px` y
+   `margin: 0 auto` —el encuadre de una página de documentación— y con las columnas a sangre eso deja
+   dos franjas muertas a los costados en cualquier pantalla ancha. La medida de lectura es un problema
+   del TEXTO, no de la app, y se resuelve abajo con un `max-width` en `.doc`. */
+.wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 /* (El `header.titlebar` se fue: el nombre lo lleva el encabezado del árbol y el buscador vive
    adentro del árbol, que es lo único que filtra. Lo que decía el h1 —«context · organización»— no
    lo decía nadie más que la pestaña del navegador, y costaba una barra a lo ancho de la ventana.) */
 
-.statusbar { height: var(--statusbar-h); padding: 0 22px; }
+.statusbar { height: var(--statusbar-h); padding: 0 12px; }
 .statusbar strong { color: var(--fg); font-weight: 600; }
 .sb-alin[data-alin="rutas-muertas"] { color: var(--al-muerta); }
 /* «Sólo lectura» al borde y en tenue: es una propiedad de la herramienta, no una alerta. */
 .sb-ro { margin-left: auto; color: var(--tenue); border-bottom: 1px dotted var(--line-fuerte);
          cursor: help; }
-.cols { padding: 14px 22px 0; }
-.stats { display: flex; gap: 8px; margin: 10px 0 4px; }
-.pill { background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; font-size: 12px; color: var(--mut); }
-.pill.ctx { color: var(--ctx); } .pill.task { color: var(--task); }
 /* (`.hint` se fue: el «read-only» vive en el statusbar, en una palabra con su `title`.) */
 
 /* ── EL BUSCADOR ──────────────────────────────────────────────────────────────────────────────────
@@ -129,38 +126,45 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
                 border-radius: 999px; padding: 5px 13px; font-size: 12.5px; }
 .buscar input:focus { outline: none; border-color: var(--info); }
 .buscar input::placeholder { color: var(--tenue); }
-.vec-chip { background: color-mix(in oklab, var(--info) 18%, var(--card)); border: 1px solid color-mix(in oklab, var(--info) 45%, var(--card)); color: var(--info); border-radius: 999px;
+/* ⚠ Una píldora es un RELLENO o un CONTORNO, no las dos cosas. Tenían fondo teñido Y borde teñido del
+   mismo color: el borde no agrega información, sólo un anillo que la engorda. Encendida = relleno;
+   apagada = contorno, que es la pareja «default / outline» de shadcn y además dice el estado con la
+   forma, no sólo con el color. */
+.vec-chip { background: color-mix(in oklab, var(--info) 22%, var(--card)); border: 1px solid transparent;
+            color: var(--info); border-radius: 999px;
             padding: 3px 11px; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
-.vec-chip.off { background: var(--card); border-color: var(--line); color: var(--mut); }
+.vec-chip.off { background: transparent; border-color: var(--line); color: var(--mut); }
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
 
 .row.res { background: color-mix(in oklab, var(--ctx) 18%, var(--card)); box-shadow: inset 0 0 0 1px var(--ctx); }
 .row.vec { opacity: .72; }
 .row.ruta { opacity: .38; }
-.pega { font-size: 10px; color: var(--ctx); background: var(--hueco); border: 1px solid color-mix(in oklab, var(--ctx) 42%, var(--card));
+.pega { font-size: 10px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 20%, var(--card));
         padding: 0 5px; border-radius: 999px; white-space: nowrap; }
 
 /* ── CON QUÉ SE UNE (grafo derivado de los archivos compartidos) ── */
 .conex { margin: 10px 0 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .conex-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
-.conex-n { font-size: 12px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 14%, var(--card)); border: 1px solid color-mix(in oklab, var(--ctx) 42%, var(--card));
+.conex-n { font-size: 12px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 18%, var(--card));
            border-radius: 999px; padding: 1px 9px; cursor: pointer; }
 .conex-n:hover { background: color-mix(in oklab, var(--ctx) 24%, var(--card)); }
 .conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
 /* `align-items: stretch` (el default) y no `flex-start`: las dos columnas tienen que llegar hasta
    abajo, que es lo que reemplaza al `82vh`. */
-.cols { display: flex; gap: 18px; flex: 1; min-height: 0; }
-/* ⚠ El árbol es el SIDEBAR (`taller.css`), y adoptarlo de verdad fue SOLTARLE el `background`: ahora
-   lo pone la regla compartida con `--sidebar` (#1f1f1f), un escalón por detrás del `--card` (#202020)
-   del detalle. Eso es la convención de shadcn y acá gana algo concreto — las dos columnas dejan de ser
-   la misma superficie y se lee cuál es navegación y cuál contenido.
-   Lo que NO se suelta es el borde y el radio: en `context` las dos columnas son TARJETAS dentro de una
-   página que scrollea, no regiones a sangre. La regla compartida propone `border-right`; acá gana la
-   propia, y es una desviación declarada, no un olvido. */
-.tree { flex: 0 0 var(--sidebar-w); border: 1px solid var(--line); border-radius: 10px;
-        overflow: hidden; }
+/* ⚠ Sin `gap`: el aire entre columnas era lo que hacía falta cuando eran dos tarjetas flotando. Con
+   las regiones a sangre, ese hueco deja ver el fondo de la ventana en una franja de 18px que no es
+   ninguna de las dos — lo que separa es la línea del sidebar. */
+.cols { display: flex; flex: 1; min-height: 0; }
+/* El árbol es el SIDEBAR (`taller.css`): fondo `--sidebar` (#1f1f1f) y UNA línea a la derecha, las
+   dos de la regla compartida.
+   ⚠ Acá decía que el borde y el radio se conservaban a propósito, «porque en `context` las dos
+   columnas son TARJETAS dentro de una página». Ya no lo son: eran el último resto del diseño viejo —
+   dos rectángulos redondeados flotando en 22px de aire, cada uno con su marco, adentro de una ventana
+   que ya está dividida en regiones. Un marco alrededor de algo que ocupa toda su columna no separa
+   nada; lo que separa es el escalón de fondo, que ya estaba puesto. */
+.tree { flex: 0 0 var(--sidebar-w); overflow: hidden; }
 /* ⚠ El padding se mudó del ASIDE a su cuerpo. En el aside empujaba también al encabezado, y un
    encabezado de región va pegado al borde — si no, la línea de abajo no llega a los costados y deja
    de leerse como una barra. */
@@ -186,33 +190,48 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .cnt { margin-left: auto; font-size: 11px; color: var(--mut); background: var(--hueco); padding: 0 6px; border-radius: 999px; }
 .cnt.big { margin-left: 0; }
 
-.taskcard { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 4px; cursor: pointer; }
-.taskcard:hover { border-color: var(--task); }
-.taskcard.sel { outline: 1px solid var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); }
+/* ⚠ Las tasks eran TARJETAS adentro de un árbol de filas: dos formas para dos cosas que se eligen
+   igual y se leen en la misma lista. Ahora son filas con dos renglones — el mismo hover, el mismo
+   radio y el mismo resalte de selección que `.row`. */
+.taskcard { padding: 5px 8px; border-radius: 6px; cursor: pointer; }
+.taskcard:hover { background: var(--sel); }
+.taskcard.sel { background: color-mix(in oklab, var(--task) 22%, var(--card)); outline: 1px solid var(--task); }
 .tc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 14%, var(--card)); border: 1px solid color-mix(in oklab, var(--task) 38%, var(--card)); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
 .chip:hover { background: color-mix(in oklab, var(--task) 26%, var(--card)); }
 
-/* El detalle es el EDITOR: lo que viniste a mirar. Conserva su `background` de tarjeta — la regla
-   compartida propone el lienzo (`--background`), que acá haría desaparecer la tarjeta dentro de la
-   página. Misma desviación declarada que el árbol. */
-.detail { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-          padding: 16px 20px; overflow: auto; min-width: 0; }
+/* El detalle es el EDITOR: lo que viniste a mirar, y ahora sobre el LIENZO (`--background`, #1a1a1a),
+   que es lo que propone la regla compartida. El escalón queda al revés que antes y es el correcto de
+   shadcn: el contenido es la base y la navegación se levanta un punto.
+   ⚠ Y por eso `--hueco` se REDEFINE acá. Es el token de «un escalón de diferencia», y un escalón es
+   relativo: en el sidebar significa hundirse (#1a1a1a sobre #1f1f1f) y en el lienzo significa
+   levantarse (#202020 sobre #1a1a1a). Redefinirlo en la región es una línea; corregir uno por uno los
+   seis lugares que lo usan —code, .cnt, .when, .alin— es donde se olvida uno. */
+.detail { flex: 1; --hueco: var(--card); padding: 16px 20px; overflow: auto; min-width: 0; }
 .d-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .d-head h2 { margin: 0; font-size: 18px; }
 .kind { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--mut); }
 .kind.reference { color: var(--ctx); border-color: color-mix(in oklab, var(--ctx) 42%, var(--card)); } .kind.task { color: var(--task); border-color: color-mix(in oklab, var(--task) 45%, var(--card)); } .kind.root { color: var(--root); }
-.when { color: var(--fg); background: var(--hueco); border-left: 2px solid var(--info); padding: 8px 12px; border-radius: 4px; }
+/* Un callout es una BARRA DE COLOR y un fondo, no una caja: el marco alrededor no dice nada que el
+   fondo no diga ya, y el radio pelea con la barra recta de la izquierda. */
+.when { color: var(--fg); background: var(--hueco); border-left: 2px solid var(--info); padding: 8px 12px; }
 .path { color: var(--mut); font-size: 12.5px; }
 
-.doc { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; overflow-x: auto; }
+/* La medida de lectura vive ACÁ y no en un `max-width` de toda la app: lo que se lee en renglones es
+   la prosa; el encabezado, la ficha de alineación y las tablas se quedan con el ancho de la región. */
+.doc { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; overflow-x: auto;
+       max-width: 92ch; }
 .doc h1 { font-size: 18px; } .doc h2 { font-size: 16px; margin-top: 18px; } .doc h3 { font-size: 14px; color: var(--fg); } .doc h4 { font-size: 13px; color: var(--mut); }
 .doc p { margin: 7px 0; } .doc ul, .doc ol { margin: 6px 0; padding-left: 22px; } .doc li { margin: 2px 0; }
 .doc blockquote { border-left: 2px solid var(--line); margin: 8px 0; padding: 2px 12px; color: var(--mut); }
 .doc hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .doc table { border-collapse: collapse; margin: 10px 0; font-size: 12.5px; }
-.doc td { border: 1px solid var(--line); padding: 4px 9px; vertical-align: top; }
+/* ⚠ Cada celda tenía su propio marco: una grilla de rectángulos de 1px que pesa más que los datos.
+   Con una línea por FILA se leen igual las columnas —las alinea el texto— y desaparece el dibujo. */
+.doc td, .doc th { border-bottom: 1px solid var(--line); padding: 5px 12px 5px 0; vertical-align: top; }
+.doc th { text-align: left; color: var(--mut); font-weight: 600; }
+.doc tr:last-child td { border-bottom: 0; }
 .doc strong { color: var(--fg); }
 
 /* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
@@ -238,8 +257,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .deriva[data-alin="deriva"] { color: var(--al-deriva); }
 .deriva[data-alin="rama-sin-mergear"] { color: var(--al-rama); }
 
-.alin { border: 1px solid var(--line); border-left: 3px solid var(--mut); border-radius: 6px;
-        padding: 9px 12px; margin: 10px 0; background: var(--hueco); }
+.alin { border-left: 3px solid var(--mut); padding: 9px 12px; margin: 10px 0; background: var(--hueco); }
 .alin[data-alin="rutas-muertas"], .alin[data-alin="marca-ya-mergeada"] { border-left-color: var(--al-muerta); }
 .alin[data-alin="deriva-alta"] { border-left-color: var(--al-alta); }
 .alin[data-alin="deriva"] { border-left-color: var(--al-deriva); }
@@ -260,7 +278,3 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .alin-commit { margin: 2px 0; }
 .alin-autor { display: inline-block; min-width: 118px; color: var(--mut); }
 .alin-cmd { margin-top: 6px; padding-top: 5px; border-top: 1px dashed var(--line); }
-.alin-pill[data-alin="rutas-muertas"] { color: var(--al-muerta); }
-.alin-pill[data-alin="deriva-alta"] { color: var(--al-alta); }
-.alin-pill[data-alin="deriva"] { color: var(--al-deriva); }
-.alin-pill[data-alin="al-dia"] { color: var(--ctx); }
