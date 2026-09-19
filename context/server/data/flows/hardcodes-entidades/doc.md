@@ -41,6 +41,8 @@ entidad, abrí estas tres y vas a saber en minutos si te toca tocar código o al
 - **Puerta 2 · los arrays de ids quemados** — no tienen un solo archivo, pero sí una firma para
   grepear: `[24,209,210,211,311]` (Corbeta, y ojo que el setting `corbeta_allieds` existe y es la
   fuente correcta), `[218,219,221,222]` (Pash), Welli `[23,141,142,166]`.
+  ⚠ **Y desde el 2026-09 el array de Corbeta vive en DOS lados a propósito.** `OnboardingV2` reproduce los literales de v1 en una clase de constantes —`legacy-backend/Modules/OnboardingV2/App/Constants/KycParityConstants.php`, `DEFAULT_EMPLOYMENT_ALLIED_IDS = [209, 210, 211]`— y su docblock dice que **v1 no se modifica**: son los mismos literales que ya usa. O sea que la deuda **no se movió, se duplicó**, y hoy grepear un solo repo o un solo módulo ya no alcanza. ⚠ Peor: esa lista es **independiente del setting `corbeta_allieds`**, que v1 **también** honra en su Flow B — **las dos aplican**, así que sacar un comercio de la config no lo saca del comportamiento. Ahí hay que tocar las dos.
+
   ⚠ **`MOTAI_LENDER_IDS` ya NO es una de esas firmas — no lo grepees esperando código.** Re-verificado
   contra `main` el 2026-09-14: quedan **dos** apariciones y las dos son COMENTARIOS que cuentan que se
   retiró (`apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts` y su

@@ -105,6 +105,7 @@
     "legacy-backend/Modules/OnboardingV2/routes/api.php",
     "legacy-backend/Modules/UserRequestV1/App/Constants/FindOrCreateServiceConstants.php",
     "legacy-backend/Modules/UserRequestV1/App/Services/FindOrCreateService.php",
+    "legacy-backend/app/Console/Commands/BackfillUsersCountryIdCommand.php",
     "legacy-backend/app/Models/DocumentType.php",
     "legacy-backend/app/Models/UserRequest.php",
     "legacy-backend/app/Observers/UserRequestObserver.php",

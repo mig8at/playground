@@ -59,6 +59,7 @@
     "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
     "legacy-backend/Modules/Partner/App/Http/Controllers/LenderDatacreditoRulesController.php",
     "legacy-backend/Modules/Partner/App/Http/Controllers/LenderRulesController.php",
+    "legacy-backend/Modules/Partner/App/Http/Controllers/PartnerBrandingController.php",
     "legacy-backend/Modules/Partner/App/Providers/RouteServiceProvider.php",
     "legacy-backend/Modules/Partner/App/Repositories/LenderRuleRepository.php",
     "legacy-backend/Modules/Partner/App/Services/AlliedManagementService.php",

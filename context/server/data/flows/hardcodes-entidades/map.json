@@ -103,6 +103,7 @@
     "legacy-backend/Modules/Onboarding/App/Services/lenders/RiskCentralValidationService.php",
     "legacy-backend/Modules/Onboarding/App/Services/lenders/Welli/WelliService.php",
     "legacy-backend/Modules/Onboarding/App/Services/merchants/PurchaseCodeService.php",
+    "legacy-backend/Modules/OnboardingV2/App/Constants/KycParityConstants.php",
     "legacy-backend/Modules/OnboardingV2/App/Constants/ValidateOtpAuthServiceConstants.php",
     "legacy-backend/Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
     "legacy-backend/Modules/Partner/App/Services/UserRequestManagementService.php",
