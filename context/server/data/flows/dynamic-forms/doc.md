@@ -19,10 +19,10 @@ Importa porque es la frontera entre *lo que se puede cambiar por config* y *lo q
 - **Las respuestas de G2 SÍ están en CreditOp — las escribe el form-service.** Van a `POST /v1/dynamic-form/{id}/response/{userRequestId}`; no hay endpoint receptor en legacy, pero el MS **escribe directo en `user_field_values`** (`form_id=form_type_id`, patrón **DELETE+INSERT** de la terna form/user/request). Verificado contra `github/form-service` (nodo **form-service**) + POST real en dev. Corrige el seed que decía "no toca CreditOp".
 - **El form-service NO valida semántica al guardar** (solo estructura): no chequea que el `field_id` pertenezca al `form_type`, ni tipo, ni requeridos → confía en el cliente. Y decimales/multiselect no pasan salvo como string. Detalle en el nodo **form-service**.
 - **El ingreso derivado de rangos puede quedar muy por debajo del real.** "Más de RD$60,000" se persiste como **65000** en el `field_id` 87 — el mismo campo que después el motor de categorías compara contra `min_income`. El tope abierto se aplasta a un número fijo.
-- **`user_field_values` no tiene unique ni FKs.** La terna (`field_id`,`user_id`,`user_request_id`) es única solo por convención del código, y hay **tres repositorios paralelos** sobre la misma tabla (Onboarding, Identity, Loans) con nombres distintos para la misma operación (`createOrUpdate` vs `updateOrCreate`), más ~37 accesos directos al modelo.
-- **`form_id` es basura.** El perfilamiento renderiza `form_type = 4` pero escribe `form_id = 1`; el complementario escribe `form_id = 5`; el form RD escribe siempre `1`. La columna no es confiable como discriminador.
+- **`user_field_values` no tiene unique ni FKs.** Medido en prod el 2026-09-19: **cero foreign keys**, y el único índice único es la **PK sobre `id`** — la terna (`field_id`,`user_id`,`user_request_id`) es única solo por convención del código. ⚠ Lo que sí tiene, y este nodo no decía, son **tres índices simples**, uno por cada columna de la terna (`idx_user_field_values_{field_id,user_id,user_request_id}`): buscar por una de ellas es barato, pero nada impide el duplicado, y hay **tres repositorios paralelos** sobre la misma tabla (Onboarding, Identity, Loans) con nombres distintos para la misma operación (`createOrUpdate` vs `updateOrCreate`), más ~37 accesos directos al modelo.
+- **`form_id` es basura, y ahora está medido.** El perfilamiento renderiza `form_type = 4` pero escribe `form_id = 1`; el complementario escribe `5`; el form RD escribe siempre `1`. ⚠ **En prod el 2026-09-19: de 1.669.882 filas, 1.660.797 llevan `form_id = 1` — el 99,5 %**, repartidas en apenas 24 `field_id` distintos. Los otros seis valores (`2`, `5`, `6`, `7`, `8`, `9`) suman 9.085 filas entre todos. **Agrupar por esa columna es agrupar por «casi todo» y «casi nada»**, no por formulario.
 - **Claves de payload muertas.** Los controladores viejos pasan `files`, `file_names`, `file_sizes`, `file_mime_types`, que **no existen** en el `$fillable` (las columnas son `file` y `file_name`, singulares): se descartan en silencio.
-- **Código muerto verificado**: `createTemporaryUserEntity` en `DynamicFormsService.php:847` nunca se llama (el orquestador tira excepción si no encuentra usuario por teléfono). `Modules/Identity/App/Repositories/FormRepository.php:16-25` está registrado en el contenedor pero sus dos consultas filtran por una columna **inexistente** (`form_type`; la tabla tiene `form_type_id`) — reventaría si alguien la invocara.
+- **Código muerto: uno se limpió, el otro sigue.** ✔ `createTemporaryUserEntity` **ya no existe** en `main` (re-verificado el 2026-09-19; el archivo sigue, con 1.674 líneas, pero el método se retiró). ⚠ En cambio `Modules/Identity/App/Repositories/FormRepository.php:16-25` **sigue igual**: está registrado en el contenedor y sus dos consultas filtran por una columna **inexistente** —`Form::where('form_type', …)` cuando la tabla tiene `form_type_id`—, así que reventaría si alguien la invocara.
 - **Gemelos no invocados** (patrón conocido del strangler): `GenericFormController` y `CreditopXFormController` existen en `legacy-backend` **sin rutas**; las rutas vivas están solo en `application` (`/formulario-perfilamiento`, `/formulario-complementario`).
 - **Dos archivos de config bajo el mismo namespace.** `config/onboarding.php` (drivers/fakes/logging) y `Modules/Onboarding/config/config.php` (dynamic_forms/abaco/redis) se fusionan ambos en `config('onboarding.*')` vía `mergeConfigFrom`. Hoy no chocan; el día que compartan una clave, gana el de raíz.
 - **Detalles menores pero reales**: el docblock del repositorio dice `OFS1001` mientras la constante exige `OFS1000`; el endpoint upstream de información suplementaria tiene un typo (`/v1/suplementary-info/`, con una sola `p`) que el cliente replica a propósito; `COUNTRY_ID = 47` está hardcodeado en la ruta de información adicional; y `field_id` 159 (estrato) quedó huérfano tras ser reemplazado por el 30.
@@ -66,7 +66,7 @@ Que es RD se prueba en los datos, no en el nombre:
 - Los tipos de documento son **CED** (cédula dominicana, exactamente 11 dígitos), **CI_VE** (6-11 dígitos, cédula venezolana), **PAS** / **PAS_VE** (pasaporte, `[A-Z0-9]{6,9}`). **No** son CC/CE/PEP — ese juego es del flujo colombiano clásico.
 - Edad admitida 18-100.
 
-Aunque el loader baja un `FormSchema` remoto, **los formularios están escritos a mano**: `PersonalInfoForm.tsx` (896 líneas), `FinancialInfoForm.tsx` (577) y las opciones son constantes TS en `financial-info-options.ts`. La sesión también es de forma fija (`stepOneData` con exactamente name/lastName/email/city/documentType/document/issueDay/Month/Year). El esquema remoto aporta tema, logo y textos; **no** la lista de campos.
+Aunque el loader baja un `FormSchema` remoto, **los formularios están escritos a mano**: `frontend-monorepo/modules/loan-request-wizard/dynamic-form/src/ui/components/PersonalInfoForm.tsx` (**896** líneas, re-contadas el 2026-09-19) y su `FinancialInfoForm.tsx` (**577**). ⚠ Ojo al grepear por nombre: hay **otro** par homónimo en `bancolombia-origination` (234 y 100 líneas) que no es éste y las opciones son constantes TS en `financial-info-options.ts`. La sesión también es de forma fija (`stepOneData` con exactamente name/lastName/email/city/documentType/document/issueDay/Month/Year). El esquema remoto aporta tema, logo y textos; **no** la lista de campos.
 
 **El estado del wizard vive en Redis**, no en BD: `Modules/Partner/App/Services/DynamicFormSessionService.php`, prefijo `dynamic-form:`, **TTL 3600 s**, y el TTL **se refresca en cada lectura**. Tres rutas bajo `api/partners/dynamic-form/session/{transactionId}`: POST (upsert), GET, DELETE.
 
@@ -77,7 +77,7 @@ Aunque el loader baja un `FormSchema` remoto, **los formularios están escritos 
 
 Tipos validados en el backend (11): `email, checkbox, choice, radio, select, text, phone, otp, lastname, dateSelect, file`. `text` tope 60 caracteres; `phone` 10-15 dígitos; `dateSelect` `yyyy-mm-dd` con validez de calendario; **`otp` no valida nada** (`validateOtpField` devuelve `null` siempre).
 
-Además, al crear el usuario el servicio **llama a una API externa de género** (`api.genderapi.io`, `country=CO`) para derivar `users.gender` del nombre de pila.
+Además, al crear el usuario se **llama a una API externa de género** (`api.genderapi.io`) para derivar `users.gender` del nombre de pila. ⚠ **Y eso dejó de estar embebido acá:** desde el módulo transversal `CommonsV1` lo expone `legacy-backend/Modules/CommonsV1/App/Services/GenderService.php`, con el `PendingRequest` construido **una vez en el constructor** y reusado. Si buscás la llamada dentro del servicio de formularios, ya no está ahí.
 
 ### G2 — `backend-driven-form`: información adicional por entidad
 Esta sí es genuinamente backend-driven. Corre **después** de elegir entidad, dentro del journey (`/merchant/{hash}/{loan_request_id}/additional-info`):
@@ -113,6 +113,17 @@ de `main` a `develop` sin reinstalar mata el wizard con un `ERR_CONNECTION_REFUS
 **→ `frontend-monorepo` §form-engine**, el dueño del paquete. Acá lo único que importa: el motor de
 formularios que **sí** corre es el de las tres piezas de arriba (G0 legacy · G1 `dynamic-form` · G2
 `backend-driven-form` + `form-service`). Si buscás «el form dinámico», es ése.
+
+**(2026-09-19) Nodo RE-VERIFICADO entero.** 17 afirmaciones auditadas —13 de código contra `main` y
+4 de dato medidas contra producción—, cero chequeos débiles y ninguna falsa. ✔ Se sostuvieron todas las
+afirmaciones de «cero», que son las que más fácil caducan: **no hay seeders** de `fields`/`field_options`
+en ninguno de los tres repos, **ningún archivo del front llama a `create-user`**, y los dos gemelos
+—`GenericFormController` y `CreditopXFormController`— **siguen definidos y sin una sola ruta**. También
+exactos el TTL de 3600 con su refresco en cada lectura, el `FormRepository` que filtra por una columna
+inexistente, y los tamaños de los dos formularios escritos a mano. Lo corregido: **un código muerto se
+limpió** (`createTemporaryUserEntity` ya no existe), la llamada de género **se mudó** a un módulo
+transversal, y las dos afirmaciones sobre el EAV ganaron su medición — con el dato que más cambia cómo
+se lo consulta: **el 99,5 % de sus 1,67 millones de filas lleva el mismo `form_id`**.
 
 ### El EAV `user_field_values` y su censo de `field_id`
 Tabla plana: `field_id`, `user_id`, `user_request_id`, `form_id`, `value` (text), `file`, `file_name`, `status`. **Sin foreign keys y sin índice único** sobre la terna (`field_id`,`user_id`,`user_request_id`) — la unicidad la sostiene solo el `updateOrCreate` del código.
