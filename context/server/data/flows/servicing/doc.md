@@ -254,6 +254,16 @@ tasa mensual (`((1+i)^(7/30)-1)/7`): devengar proporcional sobrecobraría inter�
 quincenal no cambian de comportamiento (leído el 2026-08-28 en el commit y su helper, con suite
 propia).
 
+### Las tres operaciones que ESCRIBEN sobre un crédito, y la foto que las hace auditables
+
+Las tres acciones viven en `application/app/Actions/CreditopX/` — el monolito VIEJO, donde vive el servicing— y el comando de saneamiento, en cambio, está en el NUEVO.
+
+- **Refinanciar** (`RefinanceCredit.php`): condona todo lo que **no sea capital** y arma un plan nuevo. ⚠ **La trampa está en qué es «capital»:** del saldo vigente sobrevive `principal_amount_balance`, **que ya incluye el fondo de garantía** — `guarantee_amount_balance` es su **desglose informativo, no una deuda aparte**, y por eso **NO se suma otra vez**. Sumarlo duplicaría el FGA en el plan nuevo. Deja el movimiento `CONDONACIÓN POR REFINANCIACIÓN`; medido en prod el 2026-09-18: **46 créditos**, el último ese mismo día.
+- **Condonar a paz y salvo** (`CondoneCreditToSettled.php`): todos los saldos a 0 —capital con su FGA adentro, intereses corrientes, mora, seguros y gastos de cobranza— y el crédito pasa a **status 3**, *el mismo estado y la misma forma* que deja un crédito que termina de pagarse por aplicación de pago. ⚠ **Los acumulados `paid_*` NO se tocan, y es deliberado: una condonación no es un pago del cliente.** Quien cuente recaudo con esas columnas no se come las condonaciones — que es justamente el punto.
+- **Sanear historias duplicadas** (`legacy-backend/app/Console/Commands/FixCreditopXDuplicateHistoriesCommand.php`): anula (`status = 5`) la cadena que sobra cuando un crédito quedó con más de una historia activa. **Lo detecta la auditoría** —el chequeo `duplicate-active-request-history`— y esto es **el brazo que lo arregla**; cubre sólo los dos casos en que la decisión **no requiere criterio**. Es el patrón que conviene copiar: el que detecta avisa, y el que corrige se limita a lo mecánico.
+
+**Y las tres dejan rastro con la misma pieza:** `CreditStateSnapshot.php` guarda una **foto del antes y otra del después** en la columna `response` de `creditop_x_log`, y en `request` lo que se pidió **junto con quién lo ejecutó**. Por eso el log de estas operaciones se audita **sin reconstruir el estado desde el histórico ni cruzar con la tabla de usuarios** — que es lo que hace practicable revisar una condonación meses después.
+
 ## Estados y códigos
 
 ### Dos herramientas de solo lectura sobre la cartera que conviene conocer antes de tocar nada
