@@ -6,7 +6,7 @@
   "when": "Cuando la pregunta es qué ES un prestamista como dato: la fila `lenders`, sus tablas de configuración, y sobre todo el `response_type` (0 redirect/UTM · 1 agregador por API · 2 y 3 CreditopX in-platform · 4 Credifamilia SOAP) que despacha toda la plataforma. Alta de una entidad nueva. También `lender_identity_validation_types` (qué camino de identidad le toca). ⚠ El `response_type` CAMBIA según el ambiente: verificarlo contra local miente (F-95).",
   "verified": {
     "ref": "main",
-    "date": "2026-08-28",
+    "date": "2026-09-19",
     "source": "manual"
   },
   "sintomas": [
@@ -31,12 +31,20 @@
     "application/resources/js/pages/admin/lenders/lender-create/LenderCreate.vue",
     "application/resources/js/pages/admin/lenders/lender-edit/LenderEdit.vue",
     "application/routes/admin.php",
+    "frontend-monorepo/apps/backoffice/app/providers/lender-config/lender-config.repository.ts",
+    "frontend-monorepo/apps/backoffice/app/routes/lenders.config.tsx",
+    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts",
     "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+    "legacy-backend/Modules/Backoffice/App/Http/Controllers/LenderConfigController.php",
+    "legacy-backend/Modules/Backoffice/App/Services/LenderConfigService.php",
+    "legacy-backend/Modules/Backoffice/routes/backoffice.php",
+    "legacy-backend/Modules/Identity/App/Repositories/LenderRepository.php",
     "legacy-backend/Modules/Identity/App/Services/ValidationStatusService.php",
     "legacy-backend/Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
     "legacy-backend/Modules/Loans/App/Http/Middleware/AddOriginationFlowType.php",
+    "legacy-backend/Modules/Loans/App/Repositories/LenderRepository.php",
     "legacy-backend/Modules/Loans/App/Services/LoanAuthorizationService.php",
     "legacy-backend/Modules/Loans/App/Services/PaymentDateService.php",
     "legacy-backend/Modules/Loans/App/Services/PaymentSchedule/ExternallyManagedPaymentScheduleService.php",
@@ -63,7 +71,6 @@
     "legacy-backend/database/migrations/2026_02_19_200000_create_paths_table.php",
     "legacy-backend/database/migrations/2026_02_19_200001_add_path_id_to_lenders_table.php",
     "legacy-backend/database/migrations/2026_07_04_000000_add_externally_serviced_to_lenders_table.php",
-    "legacy-backend/database/seeders/ResponseTypesTableSeeder.php",
-    "frontend-monorepo/apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts"
+    "legacy-backend/database/seeders/ResponseTypesTableSeeder.php"
   ]
 }
