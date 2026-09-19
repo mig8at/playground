@@ -2,8 +2,8 @@
   "generado": "2026-09-19",
   "ref": null,
   "resumen": {
-    "al-dia": 18,
-    "deriva-alta": 13,
+    "al-dia": 19,
+    "deriva-alta": 12,
     "deriva": 6,
     "solo-hubs": 1,
     "rama-sin-mergear": 1
@@ -1340,332 +1340,6 @@
         ]
       },
       "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "creditop",
-      "estado": "deriva-alta",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-08-28",
-        "source": "manual"
-      },
-      "archivos": 59,
-      "deriva": {
-        "cambiados": 14,
-        "pct": 42,
-        "hubs": 21,
-        "archivos": [
-          {
-            "ruta": "application/app/Models/User.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-09-18",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "application/routes/admin.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Admin/AlliedController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Admin/AlliedLenderController.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/Allied.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "application/routes/customer.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/backend-driven-form/src/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-request.repository.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/packages/shared/utils/src/index.ts",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Models/Allied.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/app/Models/UserRequest.php",
-            "ultimo_cambio": "2026-09-14",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/PreApprovedLenderService.php",
-            "ultimo_cambio": "2026-09-13",
-            "hub": true
-          },
-          {
-            "ruta": "application/config/services.php",
-            "ultimo_cambio": "2026-09-11",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/app/Models/Lender.php",
-            "ultimo_cambio": "2026-09-07",
-            "hub": true
-          },
-          {
-            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/index.ts",
-            "ultimo_cambio": "2026-09-04",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/routes/api.php",
-            "ultimo_cambio": "2026-09-04",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Http/Controllers/Customer/ListLenderController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/Lender.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/LendersByAllied.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Models/LendersByAlliedBranch.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "application/app/Services/lenders/LenderRetrievalService.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Partner/App/Http/Controllers/AlliedController.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "legacy-backend/routes/api.php",
-            "ultimo_cambio": "2026-09-03",
-            "hub": false
-          },
-          {
-            "ruta": "frontend-monorepo/packages/shared/utils/src/network/http-client.ts",
-            "ultimo_cambio": "2026-09-02",
-            "hub": false
-          },
-          {
-            "ruta": "application/app/Models/AlliedBranch.php",
-            "ultimo_cambio": "2026-09-01",
-            "hub": true
-          },
-          {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Services/lenders/ProfilingRulesService.php",
-            "ultimo_cambio": "2026-09-01",
-            "hub": false
-          }
-        ]
-      },
-      "commits": {
-        "total": 89,
-        "autores": {
-          "lhCabra-creditop": 14,
-          "Oscar Rincon": 12,
-          "Abel Arismendy": 11,
-          "Miguel Ochoa": 11,
-          "sanvipi-ctop": 9,
-          "Joel": 7,
-          "mig-creditop": 7,
-          "jose guzman": 6,
-          "Luis Romero": 4,
-          "yamid-creditop": 3,
-          "Yamid Viloria": 3,
-          "hans peter": 1,
-          "joseesco24-creditop": 1
-        },
-        "lista": [
-          {
-            "sha": "dd0a0632d",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-334): ancla de fecha creación/desembolso en solicitudes, conciliación y descarga",
-            "repo": "application"
-          },
-          {
-            "sha": "bd97b65b6",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(CRED-363): las cuentas comerciales de prueba se excluyen siempre, también con el permiso",
-            "repo": "application"
-          },
-          {
-            "sha": "975e76420",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "fix(CRED-363): excluir clientes cuya cédula coincide con una cuenta comercial de prueba",
-            "repo": "application"
-          },
-          {
-            "sha": "f547eb903",
-            "fecha": "2026-09-18",
-            "autor": "Abel Arismendy",
-            "asunto": "feat(CRED-363): permiso para ver usuarios comerciales en métricas y alinear exclusión en exports",
-            "repo": "application"
-          },
-          {
-            "sha": "6f286a86d",
-            "fecha": "2026-09-17",
-            "autor": "Oscar Rincon",
-            "asunto": "feat(admin): create the users of an entity from the entity itself",
-            "repo": "application"
-          },
-          {
-            "sha": "002d9117f",
-            "fecha": "2026-09-17",
-            "autor": "Oscar Rincon",
-            "asunto": "fix(onboarding): narrow the lender universe by flow before profiling",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "c24b93161",
-            "fecha": "2026-09-16",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(creditopx): put the collection charge into the credit's total balance",
-            "repo": "application"
-          },
-          {
-            "sha": "8a3ee846d",
-            "fecha": "2026-09-14",
-            "autor": "Joel",
-            "asunto": "fix(CORE-581): el precio que escribe el admin al crear un comercio se guarda",
-            "repo": "application"
-          },
-          {
-            "sha": "550187c7d",
-            "fecha": "2026-09-14",
-            "autor": "lhCabra-creditop",
-            "asunto": "fix(creditopx): add the collection charge to the minimum payment at the cutoff",
-            "repo": "application"
-          },
-          {
-            "sha": "77796a4f9",
-            "fecha": "2026-09-14",
-            "autor": "Abel Arismendy",
-            "asunto": "revert(ecommerce): stateless checkout entry and channel welcome (#997, #1005) (#1013)",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "8eecdc805",
-            "fecha": "2026-09-14",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(ecommerce): la entrada del checkout y la cuota inicial, sin cookie y sobre qa",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "27367eddc",
-            "fecha": "2026-09-13",
-            "autor": "Miguel Ochoa",
-            "asunto": "feat(tarjeta): el selector de plan aparece cuando hay algo que elegir",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "9a7663a40",
-            "fecha": "2026-09-13",
-            "autor": "Joel",
-            "asunto": "fix(CORE-527): Meddipay confirms a condition the customer was actually offered",
-            "repo": "legacy-backend"
-          },
-          {
-            "sha": "638b6c3fd",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(analytics): whatsapp handoff event, funnel renames, timeout, segmentation, retry and approval dedup",
-            "repo": "frontend-monorepo"
-          },
-          {
-            "sha": "d94989252",
-            "fecha": "2026-09-12",
-            "autor": "Luis Romero",
-            "asunto": "feat(loans): flag and timestamp whatsapp self-management handoff",
-            "repo": "legacy-backend"
-          }
-        ]
-      },
-      "huerfanos": [
-        "application/app/Services/DocumentTypesService.php",
-        "frontend-monorepo/apps/loan-request-wizard/app/modules/request-management/currency-display.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/lender-return.repository.ts",
-        "frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/nequi-payment.repository.ts",
-        "frontend-monorepo/packages/shared/utils/src/network/kyc-field-errors.ts"
-      ],
       "rutas_muertas": [],
       "pendiente_merge": null
     },
@@ -5743,6 +5417,26 @@
         "source": "manual"
       },
       "archivos": 28,
+      "deriva": {
+        "cambiados": 0,
+        "pct": 0,
+        "hubs": 0,
+        "archivos": []
+      },
+      "commits": null,
+      "huerfanos": [],
+      "rutas_muertas": [],
+      "pendiente_merge": null
+    },
+    {
+      "id": "creditop",
+      "estado": "al-dia",
+      "verificado": {
+        "ref": "main",
+        "date": "2026-09-19",
+        "source": "manual"
+      },
+      "archivos": 59,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
