@@ -362,7 +362,7 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 - **Frentes vecinos:** «SDK del comercio» en `playground.md` — el flujo dentro de la tienda y el
   conocimiento del prefill del comercio.
 - **Hallazgos que salieron de acá:** F-214, F-215, F-216 (14/9) · F-221 (17/9) · F-223 (17/9).
-- **Los PRs y sus ambientes no se listan acá: los mide la pestaña Ramas** (`make tareas-ramas N=6`). Lo único
+- **Los PRs y sus ambientes no se listan acá: los mide la consola Ramas** (`make tareas-ramas N=6`). Lo único
   que esa medición **no** puede saber está arriba, en Riesgos: el revert dejó a #997 y #1005 como ancestros
   de `main` sin su contenido.
 - PRs de origen, de junio: [legacy-backend #795](https://github.com/Creditop-SAS/legacy-backend/pull/795)

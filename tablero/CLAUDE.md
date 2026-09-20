@@ -9,43 +9,48 @@ página que scrollea:
 
 | Región | Qué tiene |
 |---|---|
-| `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
-| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, **sólo su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
+| `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Cada fila Jira lleva al borde el icono para **avanzar al paso siguiente**. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
+| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, una cabecera con estado, sprint, puntos, tiempo, Jira y `context/`, seguida por **su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
+| `panel` | la consola de ramas de la tarea enfocada: tabla del repo elegido y selector a la derecha con **sólo los repos trabajados en esa tarea**. Está abierta por defecto y **Ramas** queda visible en el pie cuando se cierra. Lee `data/cache/ramas.json`, no corre Git al renderizar y se puede redimensionar; sin ramas se reduce a una franja informativa |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
-| `auxiliarybar` | un **acordeón EXCLUSIVO** (abrir una cierra las demás) con todo lo que NO es el documento: *Detalle* —resumen, próximo paso, chips, tiempos, `context/`, y en su barra **Jira ↗** y **⇢ Mover**— y las siete que antes eran pestañas: *Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora · Prototipos*, con su conteo. Sólo aparece con una tarea abierta; el **◨** de la barra de pestañas lo apaga |
+| `auxiliarybar` | un riel horizontal de **pestañas** con las vistas de consulta *Jira · Pendientes · Hallazgos · Registro · Bitácora · Prototipos* y sus conteos. Una sola ocupa todo el cuerpo; Jira abre primero y muestra el issue completo sin marco de tarjeta. No repite una ficha de Detalle. Sólo aparece con una tarea abierta; el control del pie lo apaga y lo recupera |
+
+En ventanas de hasta 1050 px las vistas derechas arrancan plegadas para conservar el ancho de lectura.
+El control del pie lo abre de forma temporal; esa decisión no cambia la preferencia de las ventanas
+grandes.
+
+⚠ **La gramática visual es una sola en todas las regiones.** Filas y repos activos usan una
+superficie suave con radio corto; las dos barras de pestañas comparten el mismo estado seleccionado;
+los controles de disposición forman un grupo compacto. Los bordes separan regiones y filas de datos,
+pero no envuelven otra vez cada elemento. Un conteo se muestra una sola vez junto a su nombre.
 
 ⚠ **No hay titlebar, a propósito.** Decía «Tablero · Sprint N · registro de tiempo y hallazgos» y
 gastaba 77px de alto en repetir lo que ya dicen la pestaña del navegador y el statusbar. Su única
 acción —«sólo este sprint»— vive en el **⋯** del sidebar, que es donde van las cosas que se alternan y
 se tocan poco.
 
-⚠ **Las acciones sobre la tarea viven en la barra de la vista *Detalle*, no en el encabezado del
-editor**: mover de estado es actuar sobre lo que esa vista muestra —el estado está tres renglones más
-abajo— y el encabezado de una vista plegada **sigue viéndose**, así que los botones quedan a mano
-aunque el Detalle esté cerrado. Pedir «Mover» con el Detalle plegado lo ABRE (si lo alternara, las
-transiciones aparecerían en un cuerpo oculto).
+⚠ **Avanzar de estado vive en la fila de la tarea.** El icono consulta las transiciones permitidas por
+Jira y ofrece sólo el paso siguiente del flujo normal, no bloqueos, invalidaciones ni retrocesos. El
+clic derecho conserva el mismo acceso como atajo de teclado/ratón; una tarea terminada no muestra el
+icono porque no tiene un avance normal.
 
-⚠ **El acordeón derecho es EXCLUSIVO y el izquierdo no**, y la diferencia no es un descuido: a la
+⚠ **A la derecha hay pestañas y a la izquierda un acordeón**, porque responden a usos distintos: a la
 izquierda las vistas son cinco ESTADOS de una lista y querés ver varios a la vez; a la derecha son
-siete caras de UNA tarea, que se miran de a una — y además Ramas y Bitácora son tablas que con otra
-vista abierta se quedan sin alto. Cerrar las otras no esconde nada: su encabezado sigue mostrando el
-conteo.
+caras de UNA tarea, que se leen de a una. El riel conserva siempre los conteos y deja todo el alto
+para Jira, Bitácora o la vista activa, sin apilar seis encabezados.
 
-⚠ **El editor muestra el DOCUMENTO y nada más; todo lo demás vive al costado.** Tuvo ocho pestañas
-y eran EXCLUYENTES: mirar una rama mientras leés el documento era imposible. En el acordeón derecho se
-ven a la vez, que es lo que uno hace de verdad al retomar. Antes de «devolver» las pestañas, tener eso
-presente.
+⚠ **El editor usa la cabecera para los datos breves y el cuerpo para el DOCUMENTO.** Las vistas de
+consulta viven al costado y las ramas abajo, donde la tabla puede cruzar el editor y el sidebar
+derecho sin convertirse en otra pestaña lateral.
 
 ⚠ **Los dos sidebars se arrastran, y el tope NO es un número fijo**: se calcula contra la ventana y el
-ancho de la otra columna para que el editor nunca baje de 320px. Medido — con la ficha en 463 sobre
+ancho de la otra columna para que el editor nunca baje de 320px. Medido — con las vistas en 463 sobre
 una ventana de 927 el editor quedaba en 164, o sea el documento en veinte caracteres de ancho. Los
 anchos se guardan y se vuelven a acotar al abrir, porque la ventana pudo achicarse desde la última vez.
 
-⚠ **La ficha vive al COSTADO, no dentro de una pestaña.** Estaba adentro de «Trabajo», así que
-desaparecía en las otras siete: mirabas Ramas o Hallazgos y perdías de vista el próximo paso, el
-sprint y los puntos. Para eso existe el sidebar secundario — las propiedades de lo que estás
-editando, no otro lugar donde editar. Y **el editor de la tarea no tiene botón de cerrar**: lo tiene
-su pestaña, que es donde uno lo busca; `Esc` hace lo mismo.
+⚠ **No hay una ficha duplicada al costado.** Sprint, puntos, tiempo, Jira y contexto local viven bajo
+el título y siguen visibles mientras cambia la vista auxiliar. **El editor de la tarea no tiene botón
+de cerrar**: lo tiene su pestaña, que es donde uno lo busca; `Esc` hace lo mismo.
 
 ⚠ **Se abren VARIAS tareas a la vez, y la pieza que hace que eso sirva es la pestaña en PREVISTA.**
 Un clic en el árbol abre la tarea en previsualización —en itálica— y el siguiente clic **la reemplaza**
@@ -74,12 +79,13 @@ curso— porque `active` sólo decía «sobre cuál se registra el tiempo». Aho
 muestra el editor**, así que autoseleccionar significaba entrar directo a una tarea y no ver nunca el
 sprint.
 
-## Plantilla por pestaña
+## Plantilla por vista
 
-El orden fijo es **Trabajo · Jira · Pendientes · Hallazgos · Ramas · Registro · Bitácora**. Los números
-son contadores calculados por el tablero, nunca parte del nombre. Cada dato tiene una fuente; las pestañas
-son vistas de esas fuentes. Al crear una tarea, copiá `PLANTILLA-TAREA.md`; al retomar una abierta,
-actualizá sus secciones existentes. No agregues una segunda lista ni otro estado de la misma cosa.
+**Trabajo** ocupa el editor central. En el sidebar derecho el orden fijo es **Jira · Pendientes ·
+Hallazgos · Registro · Bitácora · Prototipos**. Los números son contadores calculados por el tablero,
+nunca parte del nombre. Cada dato tiene una fuente; las pestañas son vistas de esas fuentes. Al crear
+una tarea, copiá `PLANTILLA-TAREA.md`; al retomar una abierta, actualizá sus secciones existentes. No
+agregues una segunda lista ni otro estado de la misma cosa.
 
 | Pestaña | Pregunta que responde | Fuente |
 |---|---|---|
@@ -87,7 +93,6 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 | Jira | ¿Qué ve el equipo en el issue? | Estado y descripción recibidos de Jira |
 | Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
 | Hallazgos | ¿Qué sabemos, decidimos o debemos resolver? | Anotaciones fechadas del cuerpo privado |
-| Ramas | ¿Dónde está el cambio y hasta dónde llegó? | Patrón `ramas:` + medición de Git y PRs |
 | Registro | ¿Qué pasó cada día? | La sección `## Registro` del cuerpo privado |
 | Bitácora | ¿En qué se usó el tiempo? | Entradas de tiempo en `data/entries/` |
 
@@ -117,8 +122,10 @@ entrada vieja no se edita.
 
 ### Jira
 
-Esta pestaña muestra lo recibido de Jira al cargar el sprint; no es una vista previa del borrador.
-Si no hay issue o descripción, se indica esa ausencia. El borrador local conserva la frontera exacta
+Esta pestaña abre primero y usa todo el alto del sidebar para mostrar lo recibido de Jira al cargar el
+sprint; no es una vista previa del borrador ni una tarjeta dentro de otra tarjeta. Una franja compacta
+conserva el estado y el enlace al issue. Si no hay issue o descripción, se indica esa ausencia. El
+borrador local conserva la frontera exacta
 `## Tarea (publicable)` y usa las secciones de `PLANTILLA-TAREA.md`: **En una línea · Por qué · Qué
 cambia · Alcance · Dónde probar · Cómo validar · Cambios en datos · Criterios de aceptación ·
 Dependencias / contraparte**. Producto y QA deben poder entenderlo sin las herramientas privadas.
@@ -148,17 +155,36 @@ Usá `> **TIPO · YYYY-MM-DD** — hecho y consecuencia`, con la fecha real. Los
 `>` en el mismo bloque. Escribí cada hallazgo una vez, en su sección de decisiones, bloqueos, riesgos
 o validación; la pestaña los reúne. No crees otra lista manual de hallazgos.
 
-### Ramas
+### Consola de ramas
 
 Declaración mínima: `ramas: patron-de-la-rama` en el frontmatter, sólo cuando exista; varios patrones
 se separan por coma. Actualizá la medición con `make tareas-ramas N=<id>` desde la raíz del playground.
 Repositorio, rama, PR, ambientes y fecha de medición vienen del snapshot. No mantengas una segunda
 tabla de estados en Markdown ni presentes una medición antigua como una comprobación de hoy. Si el
-trabajo no tiene rama propia, no inventes un patrón para llenar esta pestaña.
+trabajo no tiene rama propia, no inventes un patrón para llenar la consola.
 
 Los siete contenedores locales no declaran una lista histórica de ramas: agrupan mejoras sucesivas y
 una rama vieja deja de representar su estado. Si una mejora activa necesita seguimiento de entrega,
 se anota dentro de su frente mientras exista; una tarea de producto en `work` sí mantiene `ramas:`.
+
+La consola inferior agrupa la medición de la tarea enfocada: la tabla ocupa el área principal y el
+selector derecho contiene únicamente los repos que aparecen en sus ramas. Al cambiar de tarea cambia
+la consola. Si no existe `ramas:` o todavía no se midió, muestra un estado vacío; nunca rellena el
+hueco con todos los repos del workspace. **Ramas no aparece entre las pestañas derechas.** Las columnas
+Rama y PR permanecen fijas al desplazar ambientes, la cabecera explica los tres estados y la fecha se
+lee de forma relativa con el instante exacto al pasar el cursor.
+
+Cada tarea tiene una ruta copiable: `#/tareas/context` para los contenedores locales y
+`#/tareas/core-543` para Jira. La ruta abre las locales aunque el filtro «locales» estuviera apagado,
+se restaura al recargar y participa de atrás/adelante. Se usa hash routing para no depender de un
+fallback del servidor estático.
+
+La recarga sigue el patrón **cache-first + stale-while-revalidate**: `tablero:bootstrap:v1` conserva
+durante siete días el último sprint, sus tareas y la ventana de cuatro sprints. Se pinta y restaura la
+ruta en el primer frame; después Jira se consulta por `fetch` en paralelo y reemplaza la caché. Un
+estado viejo nunca se presenta como sincronizado: el pie dice `actualizando Jira…` o `Jira sin
+actualizar`. Efforts, capas locales, pulso y ramas también se piden en paralelo y no bloquean Jira.
+La caché del navegador es sólo de arranque; las fuentes siguen siendo Jira y los archivos locales.
 
 ### Bitácora
 
@@ -169,8 +195,8 @@ Se registra con `make bitacora-add TAREA=<id>` y una fuente de tiempo (`LAPSO`, 
 completo. `## Registro` cuenta qué pasó; Bitácora contabiliza el tiempo. No crees `## Bitácora` en
 el Markdown de una tarea nueva.
 
-**Prototipos** es una pestaña adicional sólo cuando existen artefactos; sigue la convención de
-`data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las siete pestañas principales.
+**Prototipos** es una vista adicional sólo cuando existen artefactos; sigue la convención de
+`data/artifacts/` descrita abajo. No cambia el orden ni las fuentes de las vistas principales.
 
 ## De dónde sale lo que se escribe acá
 
@@ -388,7 +414,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
      se llegó. Lo que se descartó va también, y va aunque no se haya elegido.
   3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
      patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin patrón,
-     la pestaña Ramas no tiene una medición propia de la tarea.
+     la consola Ramas no tiene una medición propia de la tarea.
   4. **Escribí la bitácora con `make bitacora-add`**, no a mano: pone el id, el día y la hora, resuelve
      la tarea por id o slug, y **los minutos salen de UNA fuente que queda escrita en la nota**:
      `LAPSO=HH:MM-HH:MM` (la sesión), `PULSO=HH:MM` (tramos de 5′ con cambios desde esa hora) o
@@ -467,11 +493,12 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   — es un retorno. El camino real es Por Hacer → En progreso → En revisión → Terminada.)*
   Y por consola es el único camino que **estima**: el del server crea y mete al sprint pero no tiene
   campo de puntos.
-- **Los estados NO se escriben en el código: se le preguntan a Jira.** La barra de la vista
-  **Detalle** tiene un botón **⇢ Mover** que lista lo que `GET /api/transitions` devuelve para ESE issue en ESE estado, así que
-  nunca puede ofrecer un movimiento que Jira va a rechazar. Es la lección de haberlo hecho al revés: el
-  botón anterior estaba cableado a «A pruebas» y **fallaba en 5 de los 6 estados**, porque esa
-  transición sólo existe desde «Terminada». Dos detalles del diseño:
+- **Las transiciones disponibles se le preguntan a Jira.** El icono de la fila llama a
+  `GET /api/transitions` para ESE issue y reduce las salidas al único avance normal de CORE:
+  *Por Hacer → En progreso → En revisión → Terminada*; Bloqueada y En pruebas se reincorporan al
+  cauce. No ofrece invalidar, pausar ni retroceder. Es la lección de haberlo hecho al revés: el botón
+  anterior estaba cableado a «A pruebas» y **fallaba en 5 de los 6 estados**, porque esa transición
+  sólo existe desde «Terminada». Dos detalles del diseño:
   1. El destino que cae en el estado de pruebas **no se mueve directo**: entra al flujo de QA, donde
      mover el issue y avisarle a quien valida son un mismo acto y el mensaje se previsualiza (pasa el
      mismo guard que la bitácora). Se marca «+ aviso» en el menú para que no sorprenda.

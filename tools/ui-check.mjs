@@ -12,11 +12,32 @@ const apps = [
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const sample = {
   '/api/sprints': { sprints: [sprint] },
-  '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo',
-    Status: 'En curso', StatusCategory: 'indeterminate', Points: 3, Description: 'Datos de prueba de interfaz.' }] },
-  '/api/efforts': { efforts: [{ id: 1, title: 'Validar interfaz', stage: 'work',
-    techNotes: '# Interfaz\n\n## Criterios\n\n' + Array(60).fill('- El documento conserva su scroll independiente.').join('\n') }] },
-  '/api/task-locals': { taskLocals: { 'UI-1': { effortId: 1 } } },
+  '/api/sprint': { sprint, issues: [
+    { Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En revisión', StatusCategory: 'indeterminate',
+      Points: 3, HasPoints: true, OriginSprint: 'Sprint UI', SpentSecs: 5400,
+      Description: 'Datos de prueba de interfaz.' },
+    { Key: 'UI-2', Summary: 'Tarea todavía sin ramas', Status: 'En curso', StatusCategory: 'indeterminate', Points: 2,
+      Description: 'Comprueba el estado vacío.' },
+  ] },
+  '/api/efforts': { efforts: [
+    { id: 1, title: 'Validar interfaz', stage: 'work', contextNodes: 'architecture, onboarding',
+      techNotes: '# Interfaz\n\n## Criterios\n\n' + Array(60).fill('- El documento conserva su scroll independiente.').join('\n')
+        + '\n\n## Pendientes\n\n- [ ] Confirmar la interfaz',
+      pendientes: [{ texto: 'Confirmar la interfaz', seccion: 'Pendientes', hecho: false }] },
+    { id: 2, title: 'Tarea sin ramas', stage: 'work', techNotes: '' },
+  ] },
+  '/api/task-locals': { taskLocals: { 'UI-1': { effortId: 1 }, 'UI-2': { effortId: 2 } } },
+  '/api/transitions': { transitions: [
+    { id: '31', name: 'Finalizar', to: 'Terminado' },
+    { id: '41', name: 'Enviar a pruebas', to: 'En pruebas' },
+  ], testing: 'pruebas' },
+  '/api/ramas': { medidoEn: '2026-09-19T20:00:00-05:00', tareas: { '1': { patron: 'ui', medidoEn: '2026-09-19T20:00:00-05:00', ramas: [
+    { repo: 'playground', rama: 'feat/ui', commit: 'abc1234', asunto: 'Validar consola',
+      en: { qa: true, main: false }, propios: { qa: 0, main: 1 }, como: { qa: 'patch', main: 'no' },
+      pr: { numero: 10, estado: 'OPEN', base: 'main', url: 'https://example.test/pr/10', revision: 'REVIEW_REQUIRED' } },
+    { repo: 'tablero-api', rama: 'feat/ui-api', commit: 'def5678', asunto: 'Agregar rutas',
+      en: { qa: true, main: true }, propios: { qa: 0, main: 0 }, como: { qa: 'patch', main: 'pr' } },
+  ] } } },
 };
 // La prueba de interfaz no consulta Redash ni necesita una solicitud real. Este esqueleto conserva
 // nombres largos y tres ramales para detectar el fallo visual más fácil de reintroducir: que las
@@ -95,6 +116,7 @@ try {
     const errors = [];
     let trazasPedidas = 0;
     let busquedasPedidas = 0;
+    let bloquearJira = false;
     page.on('pageerror', (e) => errors.push(e.message));
     if (name === 'trazador') {
       await page.addInitScript(() => {
@@ -107,7 +129,10 @@ try {
     await page.route('**/api/**', (route) => {
       if (route.request().method() !== 'GET') return route.abort();
       const path = new URL(route.request().url()).pathname;
-      if (name === 'tablero') return route.fulfill({ json: sample[path] || {} });
+      if (name === 'tablero') {
+        if (bloquearJira && (path === '/api/sprints' || path === '/api/sprint')) return new Promise(() => {});
+        return route.fulfill({ json: sample[path] || {} });
+      }
       if (name === 'trazador') {
         if (path === '/api/mapa') return route.fulfill({ json: trazadorFixture });
         if (path === '/api/buscar') {
@@ -126,8 +151,63 @@ try {
     await page.goto(url);
     await page.locator('.statusbar').waitFor();
     if (name === 'tablero') {
+      assert.match(await page.locator('.tree-row').first().textContent(), /1\s*pend\./,
+        'Tablero: el conteo del árbol explica que se trata de pendientes');
       await page.locator('.tree-row').first().click();
       await page.locator('.auxiliarybar').waitFor();
+      assert.equal(await page.locator('.ramas-panel').isVisible(), true,
+        'Tablero: la consola de ramas de la tarea está abierta al enfocarla');
+      assert.equal(await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).isVisible(), true,
+        'Tablero: la consola muestra como tabla las ramas del repo seleccionado');
+      assert.equal(await page.getByRole('listbox', { name: 'Repositorios trabajados en la tarea' }).getByRole('option').count(), 2,
+        'Tablero: el sidebar lista sólo los repos asociados a la tarea');
+      assert.match(await page.locator('.repo-sidebar > header').textContent(), /Repos de esta tarea/,
+        'Tablero: el encabezado deja explícito el alcance del selector');
+      assert.match(await page.locator('.console-head').textContent(), /medido hace|medido recién/,
+        'Tablero: la medición se presenta como antigüedad legible');
+      assert.equal(await page.getByLabel('Leyenda de ambientes: llegó, pendiente, no aplica').isVisible(), true,
+        'Tablero: la consola explica los tres símbolos de ambientes');
+      assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Ramas', exact: true }).count(), 0,
+        'Tablero: ramas ya no se duplica en el sidebar derecho');
+      assert.match(await page.locator('.task-head-facts').textContent(), /Sprint UI.*3 pts.*1h 30m en Jira/s,
+        'Tablero: sprint, puntos y tiempo de Jira viven en la cabecera');
+      assert.match(await page.locator('.task-head-context').textContent(), /Contexto local:.*architecture.*onboarding/s,
+        'Tablero: la cabecera muestra los nodos de contexto local');
+      assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Detalle', exact: true }).count(), 0,
+        'Tablero: el sidebar derecho ya no repite una ficha de detalle');
+      const jiraTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true });
+      assert.equal(await jiraTab.getAttribute('aria-selected'), 'true',
+        'Tablero: Jira ocupa por defecto el cuerpo único del sidebar derecho');
+      assert.equal(await page.locator('.auxiliarybar .view-tog').count(), 0,
+        'Tablero: las vistas derechas son pestañas y no encabezados de acordeón');
+      const jiraPanel = await page.locator('.jira-tab-panel').evaluate((panel) => {
+        const frame = panel.querySelector('.jira-preview');
+        const style = getComputedStyle(frame);
+        const panelBox = panel.getBoundingClientRect();
+        const frameBox = frame.getBoundingClientRect();
+        return {
+          border: style.borderTopWidth,
+          radius: style.borderTopLeftRadius,
+          alto: frameBox.height,
+          llena: Math.abs(frameBox.bottom - panelBox.bottom) <= 1,
+        };
+      });
+      assert.equal(jiraPanel.border, '0px', 'Tablero: Jira no conserva el marco de tarjeta');
+      assert.equal(jiraPanel.radius, '0px', 'Tablero: Jira no conserva esquinas de tarjeta');
+      assert.equal(jiraPanel.llena, true, 'Tablero: Jira usa el alto completo de la pestaña');
+      assert(jiraPanel.alto > 250, 'Tablero: la descripción Jira conserva un área de lectura amplia');
+      assert.equal(await page.locator('.editor-tabs').getByRole('button', { name: 'Mostrar u ocultar vistas', exact: true }).count(), 0,
+        'Tablero: el editor no duplica el control de regiones que ya vive en el pie');
+      const estado = page.getByRole('button', { name: 'Avanzar UI-1 al siguiente estado', exact: true });
+      assert.equal(await estado.isVisible(), true, 'Tablero: cada tarea Jira ofrece el siguiente estado en su fila');
+      await estado.click();
+      const menuEstado = page.getByRole('menu', { name: 'Avanzar UI-1', exact: true });
+      await menuEstado.getByRole('menuitem', { name: 'Terminado', exact: true }).waitFor();
+      assert.equal(await menuEstado.getByRole('menuitem').count(), 1,
+        'Tablero: el acceso rápido ofrece sólo el paso siguiente, no todas las salidas de Jira');
+      await escapeMenu(page, estado);
+      assert.equal(new URL(page.url()).hash, '#/tareas/ui-1',
+        'Tablero: enfocar una tarea deja una ruta copiable');
     }
     if (name === 'trazador') {
       await page.locator('.mapa svg').waitFor();
@@ -154,6 +234,10 @@ try {
     await separator.press(name === 'trazador' ? 'ArrowLeft' : 'ArrowRight');
     const after = Number(await separator.getAttribute('aria-valuenow'));
     assert.equal(after, before + 16, `${name}: ajuste con teclado`);
+    if (name === 'tablero') {
+      await page.waitForFunction(() => localStorage.getItem('tablero:bootstrap:v1') !== null);
+      bloquearJira = true; // la recarga tiene que pintar aun si Jira todavía no respondió
+    }
     await page.reload();
     const restored = name === 'trazador'
       ? page.locator('.tirador:not(.tirador-consola)')
@@ -162,6 +246,15 @@ try {
     assert.equal(Number(await restored.getAttribute('aria-valuenow')), after, `${name}: persistencia`);
     assert.equal(await page.getByRole('button', { name: /Restablecer/ }).count(), 0,
       `${name}: no ofrece acciones de restablecer`);
+    if (name === 'tablero') {
+      await page.locator('.task-editor').waitFor({ timeout: 1000 });
+      assert.equal(await page.getByText('Cargando el sprint…', { exact: true }).count(), 0,
+        'Tablero: una recarga pinta el cache sin bloquearse en Jira');
+      assert.equal(await page.getByText('actualizando Jira…', { exact: true }).isVisible(), true,
+        'Tablero: la revalidación remota ocurre en segundo plano');
+      assert.equal(new URL(page.url()).hash, '#/tareas/ui-1',
+        'Tablero: la recarga restaura la tarea desde su ruta');
+    }
     if (name === 'harness') {
       const bottom = page.locator('#rszB');
       const height = Number(await bottom.getAttribute('aria-valuenow'));
@@ -174,9 +267,10 @@ try {
       const width = Number(await right.getAttribute('aria-valuenow'));
       await right.press('ArrowLeft');
       assert.equal(Number(await right.getAttribute('aria-valuenow')), width + 16);
-      await page.locator('.auxiliarybar .view-tog').nth(1).click();
-      assert.equal(await page.locator('.auxiliarybar .view-tog').nth(1).getAttribute('aria-expanded'), 'true');
-      assert.equal(await page.locator('.auxiliarybar .view-tog').first().getAttribute('aria-expanded'), 'false');
+      const pendientes = page.locator('.auxiliarybar').getByRole('tab', { name: /Pendientes/ });
+      await pendientes.click();
+      assert.equal(await pendientes.getAttribute('aria-selected'), 'true');
+      assert.equal(await page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true }).getAttribute('aria-selected'), 'false');
     }
     if (name === 'trazador') {
       const handle = page.locator('.tirador:not(.tirador-consola)');
@@ -205,6 +299,17 @@ try {
       assert(mapa.rieles > 0, 'Trazador: el recorrido conserva rieles visibles');
     }
     if (name === 'context') {
+      assert.equal(await page.locator('.ramas-console').isVisible(), true,
+        'Context: la consola de ramas está abierta al iniciar');
+      assert(await page.locator('.ramas-console .repo').count() > 1,
+        'Context: el sidebar de la consola lista los repos indexados');
+      assert(await page.locator('.ramas-console .rama-dato').count() > 0,
+        'Context: el área principal muestra las ramas del repo seleccionado');
+      const backendRepo = page.getByRole('option', { name: /legacy-backend/ });
+      await backendRepo.click(); await paint(page);
+      assert.equal(await backendRepo.getAttribute('aria-selected'), 'true');
+      assert(await page.getByRole('table', { name: 'Ramas de legacy-backend', exact: true }).isVisible(),
+        'Context: cambiar de repo cambia la tabla de ramas');
       await page.getByRole('searchbox', { name: 'Buscar en el contexto' }).fill('solicitud');
       const { trigger, menu } = await openMenu(page, 'Opciones del explorador');
       const neighbors = menu.getByRole('menuitemcheckbox', { name: 'Incluir nodos vecinos' });
@@ -227,6 +332,13 @@ try {
       assert(await explorer.evaluate((el) => el === document.activeElement), 'Ocultar devuelve el foco al alternador');
       await explorer.click(); await paint(page);
       assert.equal(await page.locator('#context-sidebar').isVisible(), true, 'El explorador vuelve desde el pie');
+      await page.getByRole('button', { name: 'Ocultar ramas', exact: true }).click(); await paint(page);
+      assert.equal(await page.locator('.ramas-console').isVisible(), false);
+      const branches = page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true });
+      assert.equal(await branches.getAttribute('aria-pressed'), 'false');
+      assert(await branches.evaluate((el) => el === document.activeElement), 'Ocultar ramas devuelve el foco al alternador');
+      await branches.click(); await paint(page);
+      assert.equal(await page.locator('.ramas-console').isVisible(), true, 'La consola de ramas vuelve desde el pie');
     }
     if (name === 'harness') {
       const { trigger, menu } = await openMenu(page, 'Opciones de consola');
@@ -262,14 +374,31 @@ try {
       assert(await page.getByRole('button', { name: 'Copiar para compartir', exact: true }).isVisible());
       const doc = await openMenu(page, 'Opciones del documento');
       assert(await doc.menu.getByRole('menuitem', { name: 'Copiar completo para retomar' }).isEnabled());
-      await doc.menu.getByRole('menuitemcheckbox', { name: 'Mostrar detalle de la tarea' }).click(); await paint(page);
-      assert.equal(await page.locator('.auxiliarybar').isVisible(), false);
       await escapeMenu(page, doc.trigger);
-      const detail = page.locator('.statusbar').getByRole('button', { name: 'Mostrar u ocultar el detalle', exact: true });
+      const detail = page.locator('.statusbar').getByRole('button', { name: 'Mostrar u ocultar vistas', exact: true });
+      await detail.click(); await paint(page);
+      assert.equal(await page.locator('.auxiliarybar').isVisible(), false);
       assert.equal(await detail.getAttribute('aria-pressed'), 'false');
       await detail.click(); await paint(page);
-      assert.equal(await page.locator('.auxiliarybar').isVisible(), true, 'El detalle vuelve desde el pie');
+      assert.equal(await page.locator('.auxiliarybar').isVisible(), true, 'Las vistas vuelven desde el pie');
       assert(await page.locator('.task-editor').isVisible(), 'Escape en menú no cierra la tarea');
+      await page.getByRole('button', { name: 'Ocultar ramas', exact: true }).click(); await paint(page);
+      assert.equal(await page.locator('.ramas-panel').isVisible(), false,
+        'Tablero: se puede cerrar la consola de la tarea');
+      const branches = page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true });
+      assert.equal(await branches.getAttribute('aria-pressed'), 'false');
+      assert.match(await branches.textContent(), /Ramas\s*2/,
+        'Tablero: el footer conserva un acceso textual con el total de ramas');
+      await branches.click(); await paint(page);
+      assert.equal(await page.locator('.ramas-panel').isVisible(), true,
+        'Tablero: la consola de la tarea vuelve desde el footer');
+      await page.locator('.tree-row').nth(1).click(); await paint(page);
+      const altoVacio = await page.locator('.ramas-panel').evaluate((panel) => panel.getBoundingClientRect().height);
+      assert(altoVacio <= 80, 'Tablero: una tarea sin ramas usa una consola compacta');
+      assert.equal(await page.locator('.repo-sidebar').count(), 0,
+        'Tablero: una tarea sin ramas no inventa un selector de repositorios');
+      await page.locator('.tree-row').first().click();
+      await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).waitFor();
     }
     if (name === 'trazador') {
       await page.getByRole('button', { name: 'Ocultar logs', exact: true }).click();
@@ -360,6 +489,30 @@ try {
       assert.equal(layout.overflow, false, `${name}: desborde a ${width}px`);
       assert.equal(layout.footer, 800, `${name}: pie visible a ${width}px`);
       assert(layout.editor >= 220, `${name}: editor usable a ${width}px`);
+      if (name === 'tablero') {
+        const consola = await page.locator('.ramas-panel').evaluate((panel) => {
+          const tabla = panel.querySelector('.console-main').getBoundingClientRect();
+          const repos = panel.querySelector('.repo-sidebar').getBoundingClientRect();
+          const rama = getComputedStyle(panel.querySelector('tbody td:first-child'));
+          const pr = getComputedStyle(panel.querySelector('tbody td:nth-child(2)'));
+          return {
+            tabla: tabla.width, repos: repos.width, reposALaDerecha: repos.left >= tabla.right - 1,
+            columnasFijas: rama.position === 'sticky' && pr.position === 'sticky',
+          };
+        });
+        assert(consola.tabla > 0 && consola.repos > 0 && consola.reposALaDerecha && consola.columnasFijas,
+          `tablero: tabla y sidebar de repos a la derecha a ${width}px`);
+        const vistas = page.locator('.auxiliarybar');
+        if (width === 1440) assert.equal(await vistas.isVisible(), true, 'tablero: las vistas acompañan al documento en ancho grande');
+        if (width === 1024) {
+          assert.equal(await vistas.isVisible(), false, 'tablero: las vistas se pliegan al entrar en ancho mediano');
+          const toggle = page.locator('.statusbar').getByRole('button', { name: 'Mostrar u ocultar vistas', exact: true });
+          await toggle.click(); await paint(page);
+          assert.equal(await vistas.isVisible(), true, 'tablero: las vistas se recuperan desde el pie en ancho mediano');
+          await toggle.click(); await paint(page);
+        }
+        if (width === 768) assert.equal(await vistas.isVisible(), false, 'tablero: el documento conserva el ancho en ventana angosta');
+      }
       if (name === 'harness') {
         const clipped = await page.locator('.stagehead').evaluate((head) => {
           const bounds = head.getBoundingClientRect();

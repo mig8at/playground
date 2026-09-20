@@ -230,7 +230,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulso uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint
+.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint context-ramas context-ramas-test
 .PHONY: context-jev context-jev-test tablero-jev tablero-jev-test
 context-jev: ## @ctx laboratorio local de Jev: ARGS='route "pregunta" [--live]' | 'bench [--live]' | 'label reporte --expected nodo' | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
@@ -238,6 +238,12 @@ context-jev: ## @ctx laboratorio local de Jev: ARGS='route "pregunta" [--live]' 
 context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s workers -p test_jev_routing.py
+
+context-ramas: ## @ctx actualiza la consola de repos y ramas desde Git local, sin fetch. JSON=1 imprime el snapshot
+	@cd context && python3 tools/ramas.py $(if $(JSON),--json)
+
+context-ramas-test: ## @ctx pruebas del estado de ramas: activa, cambios locales y fusionada
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_ramas.py
 
 tablero-jev: ## @ctx laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
 	@python3 tablero/tools/jev.py $(or $(ARGS),--help)

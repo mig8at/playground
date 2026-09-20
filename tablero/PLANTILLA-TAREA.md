@@ -18,7 +18,8 @@ jira_title: ""
   ⚠ NO vive en `data/`: ahí todo `.md` se lee como una tarea, así que la plantilla aparecería en el
   tablero como una tarea fantasma.
 
-  Protocolo: CLAUDE.md → «Plantilla por pestaña». Las siete pestañas usan estas fuentes:
+  Protocolo: CLAUDE.md → «Plantilla por vista». Las siete vistas usan estas fuentes; Trabajo va en el
+  editor, Jira/Pendientes/Hallazgos/Registro/Bitácora en pestañas laterales y Ramas en la consola:
     · TRABAJO    retoma, objetivo, plan, alternativas, límites, material y referencias.
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.

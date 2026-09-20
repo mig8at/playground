@@ -20,6 +20,12 @@ Está apagado por defecto, guarda reportes fuera del corpus y conserva el mapa c
 recuperación. La integración opcional de workers solo se usa con preguntas generales sin datos
 personales.
 
+Tablero mantiene una consola inferior de ramas para la tarea enfocada. Su sidebar derecho enumera
+sólo los repos asociados a las ramas de esa tarea y la tabla muestra rama, PR, ambientes y commit.
+Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirla. El inventario
+completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
+hacen `fetch` al renderizar.
+
 **El próximo paso es:** etiquetar qué nodo ayudó en consultas generales reales, comparar el recorrido
 completo cuando vuelva a existir una credencial válida para el LLM generativo y decidir si
 `findings` se revisa y sella por tandas explícitas.
@@ -27,13 +33,16 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 ## Frentes activos
 
 - **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos.
+- **Ramas:** usar la consola en el trabajo diario y ajustar la clasificación si aparece un estado que
+  la comparación actual no distingue.
 - **Jev:** comparar calidad, abstenciones, latencia y superficie enviada al modelo generativo.
 - **Findings:** mantener visible qué parte fue comprobada sin declarar revisado el nodo entero.
 
 ## Cómo se comprueba
 
-`make context-lint`, `make context-jev-test`, `make context-jev ARGS='bench'` y las herramientas de
-alineación y referencias. Una corrida Jev no verifica conocimiento ni renueva sellos.
+`make context-lint`, `make context-ramas`, `make context-ramas-test`, `make context-jev-test`,
+`make context-jev ARGS='bench'`, `make estilo-ui` y las herramientas de alineación y referencias. Una
+corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
 
@@ -41,3 +50,9 @@ alineación y referencias. Una corrida Jev no verifica conocimiento ni renueva s
 
 Se absorbió `context-arbol-al-dia`. El router Jev quedó optativo y medido; el estado vigente se redujo
 a esta tarea canónica y el detalle anterior permanece en Git.
+
+La vista de Context incorporó una consola redimensionable para recorrer el inventario completo sin
+salir del mapa. Tablero usa otro corte: su panel inferior agrupa únicamente las ramas medidas de la
+tarea enfocada, con tabla principal y selector de sus repos a la derecha. Se puede redimensionar y
+cerrar, y el pie mantiene visible cómo recuperarlo. Las tareas recibieron rutas restaurables para
+sobrevivir a una recarga.

@@ -159,6 +159,10 @@ type app struct {
 	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
 
 	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
+	// Snapshot operativo de Context: inventario de repos y ramas locales para la consola de la tarea
+	// `Context`. Se lee, nunca se genera desde el server; actualizarlo sigue siendo explícito con
+	// `make context-ramas`, para que abrir el tablero no ejecute git ni haga fetch.
+	contextRamas string
 }
 
 func main() {
@@ -200,6 +204,12 @@ func main() {
 	}
 	a.st = st
 	a.dataDir = dataDir
+	dataAbs, err := filepath.Abs(dataDir)
+	if err != nil {
+		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
+	}
+	a.contextRamas = envDefault("CONTEXT_RAMAS_SNAPSHOT",
+		filepath.Join(filepath.Dir(filepath.Dir(dataAbs)), "context", "ramas.json"))
 
 	integrations := a.connectIntegrations()
 
@@ -333,6 +343,40 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(store.LeerSnapshotRamas(filepath.Join(a.dataDir, "cache")))
+	})
+
+	// INVENTARIO local de repos y ramas para la consola de la tarea Context. Es otro contrato que
+	// `/api/ramas`: aquel liga ramas de entrega a una tarea mediante `ramas:`; éste describe todos los
+	// checkouts que Context consulta. Mezclarlos haría que un proyecto local pareciera declarar ramas
+	// de producto que no le pertenecen.
+	mux.HandleFunc("/api/repos-ramas", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		b, err := os.ReadFile(a.contextRamas)
+		if err != nil {
+			// La ausencia del snapshot es un estado normal en un clon nuevo. La UI conserva la consola y
+			// explica cómo generarlo, en vez de confundirlo con una caída del tablero.
+			json.NewEncoder(w).Encode(map[string]any{
+				"schemaVersion": "context.ramas.v1",
+				"fuente":        "git local; no hace fetch",
+				"repos":         []any{},
+				"resumen":       map[string]int{"repos": 0, "ramas": 0, "activas": 0, "conCambios": 0},
+			})
+			return
+		}
+		if !json.Valid(b) {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "context/ramas.json no contiene JSON válido"})
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(b)
 	})
 
 	// esfuerzos privados (agrupan tareas). GET lista. Una tarea nueva entra importada desde Jira; el

@@ -3,15 +3,16 @@
  *
  * Tuvo dos formas antes de esta. Primero fue un CAJÓN flotando sobre la página (`TaskPanel`), con
  * overlay, trampa de foco y manija de ancho; después un editor con OCHO pestañas adentro. Hoy el
- * editor muestra una sola cosa —el documento de la tarea— y las otras siete vistas (Jira, Pendientes,
- * Hallazgos, Ramas, Registro, Bitácora, Prototipos) viven en el sidebar derecho, como un acordeón.
+ * editor muestra una sola cosa —el documento de la tarea—; las vistas de consulta (Jira, Pendientes,
+ * Hallazgos, Registro, Bitácora y Prototipos) viven en pestañas del sidebar derecho, y las
+ * ramas viven en la consola inferior.
  *
  * ⚠ Eso vale la pena entenderlo antes de «devolver» las pestañas: con pestañas, mirar una rama
  * MIENTRAS leés el documento era imposible — eran excluyentes. Al costado se ven a la vez, que es lo
  * que uno hace de verdad al retomar una tarea.
  *
- * Queda el encabezado (identidad + estado + acciones) y el cuerpo, que scrollea solo. `Esc` cierra la
- * pestaña de la tarea, lo mismo que su ×.
+ * El encabezado reúne identidad, estado, datos de Jira y contexto local; el cuerpo scrollea solo.
+ * `Esc` cierra la pestaña de la tarea, lo mismo que su ×.
  */
 import { ref, watch } from 'vue';
 
@@ -53,7 +54,7 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 
 <style scoped>
 .task-editor { display: flex; flex-direction: column; min-height: 0; height: 100%; outline: none }
-.te-head { display: flex; flex-direction: column; gap: 8px; padding: 16px 24px 12px; flex: none;
+.te-head { display: flex; flex-direction: column; gap: 7px; padding: 14px 20px 11px; flex: none;
   border-bottom: 1px solid var(--line) }
 .te-linea { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0 }
 .te-k { font: 11px var(--font-mono); color: var(--mut); flex: none }
@@ -62,7 +63,7 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 .te-acts { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .te-acts:empty { display: none }
 h2 { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
-.te-body { padding: 20px 24px 32px; overflow-wrap: anywhere }
+.te-body { padding: 20px 20px 32px; overflow-wrap: anywhere }
 :focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
 @media (max-width: 600px) { .te-head, .te-body { padding: 16px } }
 </style>

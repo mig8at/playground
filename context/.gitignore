@@ -5,3 +5,4 @@ server/bin/
 .env
 server/.env
 tools/index.txt
+ramas.json

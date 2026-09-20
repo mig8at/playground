@@ -13,9 +13,11 @@ import { vResize, refreshResizers } from './workbench.js';
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import RegionMenu from './RegionMenu.vue';
+import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { jiraPreview } from './jira-preview.js';
+import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
 // La URL del server, parametrizable para poder levantar una SEGUNDA instancia sin tocar el código:
 // `npm run dev` usa `concurrently -k`, así que reiniciar el server para probar un cambio tumba también
@@ -25,13 +27,18 @@ import { jiraPreview } from './jira-preview.js';
 const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 
-const loading = ref(true);
+// Pintar primero, revalidar después: una recarga usa el último estado correcto y no espera a Jira para
+// restaurar la tarea y sus regiones. El cache se reemplaza en cada sincronización exitosa.
+const bootstrapCache = readBootstrapCache();
+const loading = ref(!bootstrapCache);
 const error = ref('');
-const sprint = ref(null);
-const sprints = ref([]);      // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
+const jiraSyncing = ref(false);
+const syncError = ref('');
+const sprint = ref(bootstrapCache?.sprint || null);
+const sprints = ref(bootstrapCache?.sprints || []); // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
 const SPRINT_TABS = 4;        // cuántos ofrece el selector del header (los demás sólo pintan banda)
-const site = ref('');         // https://<site>.atlassian.net — lo manda el server, sale de su .env
-const issues = ref([]);
+const site = ref(bootstrapCache?.site || ''); // https://<site>.atlassian.net — lo manda el server, sale de su .env
+const issues = ref(bootstrapCache?.issues || []);
 // ── EL ACORDEÓN DEL SIDEBAR: qué vistas están abiertas ──────────────────────────────────────────
 // Dos vistas apiladas, no dos modos: un modo tapa al otro, y acá las dos tienen que poder verse de un
 // vistazo. `jira` arranca cerrada —es mantenimiento del registro, no la operación del día— y cerrada
@@ -294,8 +301,7 @@ const buscaNorm = computed(() => sinTildes(busca.value).trim());
 // justo lo que uno viene a mirar. Se prenden cuando se las está trabajando.
 const verLocales = ref(false);
 
-const localesSueltas = computed(() => {
-  if (!verLocales.value) return [];
+const localesTodas = computed(() => {
   const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
   return efforts.value
     .filter(e => e.id && !ligados.has(e.id) && !e.archived)
@@ -311,6 +317,7 @@ const localesSueltas = computed(() => {
       _esfuerzoId: e.id,
     }));
 });
+const localesSueltas = computed(() => verLocales.value ? localesTodas.value : []);
 
 // Cuántas locales hay, se estén viendo o no: una píldora sin número obliga a prenderla para descubrir
 // si tiene algo, que es exactamente lo que las otras casillas ya evitan.
@@ -379,7 +386,6 @@ const STAGES = [
   { id: 'work', label: 'Trabajando' },
   { id: 'tasks', label: 'Tareas creadas' },
 ];
-const esProyecto = (id) => efforts.value.find(e => e.id === id)?.clase === 'proyecto';
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
 // DÍAS SIN TOCAR el archivo de la tarea, según git (el server lo calcula; ver store/toques.go). La etapa
 // dice si algo se está evaluando o trabajando, no si sigue vivo: medido el 2026-09-14, 22 de las 39
@@ -400,81 +406,21 @@ const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blan
 // esfuerzo por su clave, igual que la bitácora
 const protosDe = (key) => artifactsOf(esfuerzoDe(key));
 
-// ── RAMAS: en qué ramas vive la tarea y hasta dónde llegó cada una ──────────────────────────────
-// No se miden acá: el snapshot lo deja `make tareas-ramas` (varias invocaciones de git por repo, hacerlo
-// en cada render haría lenta la card). Por eso viene con `medidoEn` y la card muestra la antigüedad: un
-// estado de git sin fecha se lee como actual y no lo es.
+// ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
+// No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
+// tabla y su selector de repos EXCLUSIVAMENTE de la tarea enfocada; nunca muestra el inventario global.
 const ramasSnap = ref({ medidoEn: '', tareas: {} });
 async function cargarRamas() {
   try { ramasSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
   catch { /* sin snapshot todavía: la card lo dice, no es un error */ }
 }
-// Las ramas cuelgan del ESFUERZO (por id), pero se piden desde la tarjeta de una TAREA — mismo camino
-// que la bitácora y los prototipos.
 const ramasDe = (key) => {
   const eid = esfuerzoDe(key);
   return (ramasSnap.value.tareas || {})[String(eid)] || null;
 };
-const ramasCuenta = (key) => (ramasDe(key)?.ramas || []).length;
-// LA ENTREGA, SIN ABRIR NADA. La pregunta que uno le hace al tablero es «¿esto ya está en
-// producción?», y antes había que abrir la vista de ramas para contestarla. `main` es la vara
-// (context/ se mide contra main), así que el resumen habla de main y deja el resto para esa vista.
-const entregaDe = (key) => {
-  const rs = ramasDe(key)?.ramas || [];
-  if (!rs.length) return null;
-  const enMain = rs.filter(r => r.en?.main).length;
-  const abiertos = rs.filter(r => r.pr?.estado === 'OPEN');
-  if (enMain === rs.length) {
-    return { texto: '✓ main', clase: 'ok', titulo: `las ${rs.length === 1 ? 'rama está' : rs.length + ' ramas están'} en main` };
-  }
-  if (enMain > 0) {
-    return { texto: `${enMain}/${rs.length} main`, clase: 'medio', titulo: `${enMain} de ${rs.length} ramas llegaron a main` };
-  }
-  if (abiertos.length) {
-    const bases = [...new Set(abiertos.map(p => p.pr.base))].join(', ');
-    return { texto: `${abiertos.length} PR → ${bases}`, clase: 'espera', titulo: `nada en main todavía; ${abiertos.length} PR abierto(s) contra ${bases}` };
-  }
-  return { texto: 'sin llegar', clase: 'espera', titulo: 'ninguna rama llegó a main y no hay PR abierto' };
-};
-// Cómo se supo que el cambio está en un ambiente. `patch` es el patch-id de la punta (la señal fuerte);
-// `pr` es el commit del PR mergeado, que es lo que salva al squash con el mensaje o el contenido
-// editados — sin esa segunda señal, la tarea de Alta Fleet decía que nada suyo estaba en main.
-const COMO_TEXTO = {
-  patch: 'el cambio ya está acá (el patch-id de la punta aparece en el ambiente)',
-  pr: 'llegó por el PR: el patch-id no coincide (squash con el mensaje o el contenido editados), pero el commit del merge ya es ancestro de este ambiente',
-};
-// Los ambientes que aparecen en la medición, en orden de menor a mayor riesgo. Se derivan del dato y no
-// se fijan acá: un repo puede no tener `staging`, y listarlo vacío diría "no está mergeado" cuando la
-// verdad es "esa rama no existe en ese repo".
-const AMB_ORDEN = ['develop', 'staging', 'qa', 'main'];
-const ambientesDe = (key) => {
-  const vistos = new Set();
-  for (const r of ramasDe(key)?.ramas || []) for (const a of Object.keys(r.propios || {})) vistos.add(a);
-  return AMB_ORDEN.filter(a => vistos.has(a)).concat([...vistos].filter(a => !AMB_ORDEN.includes(a)).sort());
-};
-// Del PR interesa el DESENLACE, no el enum: "esperando revisión" y "aprobado" son dos situaciones que
-// el estado OPEN solo no distingue — y es justo la diferencia entre "falta trabajo" y "falta que alguien
-// lo mire".
-const etiquetaPR = (pr) => {
-  if (pr.draft) return 'borrador';
-  if (pr.estado === 'MERGED') return pr.mergeado ? `mergeado ${pr.mergeado.slice(0, 10)}` : 'mergeado';
-  if (pr.estado === 'CLOSED') return 'cerrado sin mergear';
-  if (pr.revision === 'APPROVED') return 'aprobado';
-  if (pr.revision === 'CHANGES_REQUESTED') return 'piden cambios';
-  if (pr.revision === 'REVIEW_REQUIRED') return 'esperando revisión';
-  return 'sin revisor pedido';
-};
-// "hace cuánto se midió", que es la mitad del dato. Sin esto, una medición de la semana pasada se lee
-// como el estado de ahora.
-const haceCuanto = (iso) => {
-  if (!iso) return '';
-  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (min < 2) return 'recién';
-  if (min < 60) return `hace ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `hace ${h} h`;
-  return `hace ${Math.round(h / 24)} d`;
-};
+const ramasTareaActiva = computed(() => active.value ? (ramasDe(active.value.Key) || {
+  patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '',
+}) : { patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '' });
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -545,19 +491,34 @@ const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 // siendo el de los indicadores (puntos, tiempo, días restantes) — eso no cambia con la vista.
 const vistaAncha = ref(true);
 const cargandoAncha = ref(false);
-const porSprint = ref([]);   // [{ sprint, issues }] en el orden de las pestañas
+const porSprint = ref(bootstrapCache?.porSprint || []); // [{ sprint, issues }] en el orden de las pestañas
+
+function guardarBootstrap() {
+  if (!sprint.value) return;
+  writeBootstrapCache({
+    sprint: sprint.value, sprints: sprints.value, issues: issues.value,
+    porSprint: porSprint.value, site: site.value,
+  });
+}
 
 async function cargarUltimos4() {
-  cargandoAncha.value = true;
+  // Con cache las filas permanecen visibles mientras se revalidan; el indicador de carga sólo ocupa
+  // el sitio de los datos cuando de verdad no existe todavía nada que mostrar.
+  cargandoAncha.value = !porSprint.value.length;
   try {
     // En PARALELO: son 4 llamadas a Jira y en serie se notaba la espera.
     const res = await Promise.all(sprintTabs.value.map(async (s) => {
+      // El sprint principal acaba de llegar por `/api/sprint`: volver a pedirlo acá duplicaba la
+      // llamada más costosa de cada recarga.
+      if (s.id === sprint.value?.id) return { sprint: s, issues: issues.value };
+      const anterior = porSprint.value.find((grupo) => grupo.sprint?.id === s.id);
       try {
         const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}&id=${s.id}`)).json();
-        return { sprint: s, issues: j.error ? [] : (j.issues || []) };
-      } catch { return { sprint: s, issues: [] }; }
+        return j.error ? (anterior || { sprint: s, issues: [] }) : { sprint: s, issues: j.issues || [] };
+      } catch { return anterior || { sprint: s, issues: [] }; }
     }));
     porSprint.value = res;
+    guardarBootstrap();
   } finally { cargandoAncha.value = false; }
 }
 
@@ -629,7 +590,7 @@ const ofActive = computed(() => {
 });
 // Qué entradas están desplegadas. Las notas de la bitácora son párrafos largos a propósito (las escribe
 // el asistente con el porqué completo); mostrarlas enteras convierte la lista en un muro y se deja de
-// escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice, y el detalle está a un clic.
+// escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice y se abren sólo al necesitarlas.
 const abiertas = ref(new Set());
 const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
 // Qué descripciones están desplegadas, POR TAREA (antes era un solo booleano, porque había una única
@@ -651,65 +612,7 @@ const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.dele
 // La de Jira sigue a un clic, en el enlace del encabezado: no se pierde, se despriorizó.
 const cuerpoDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.techNotes || '';
 
-// Markdown de verdad y no una regex a mano: estos cuerpos usan tablas, citas, bloques de código y
-// enlaces, y una tabla mal renderizada es peor que no mostrarla. El contenido es un archivo local
-// escrito por nosotros, así que `v-html` acá no toma nada de afuera.
-// `estadoDe` queda sólo como respaldo para los archivos sin sección de retoma. Las tarjetas vivas usan
-// la retoma y el próximo paso declarados, que son el estado vigente y no una inferencia del historial.
-const estadoDe = (key) => {
-  const md = cuerpoDe(key);
-  if (!md) return '';
-  let enBloque = false, pasoElTitulo = false;
-  for (const cruda of md.split('\n')) {
-    const l = cruda.trim();
-    if (l.startsWith('```')) { enBloque = !enBloque; continue; }
-    if (enBloque || !l) continue;
-    if (l.startsWith('#')) { pasoElTitulo = true; continue; }
-    // ⚠ `\x3C!--` y no `<!--`, y las dos veces (acá y en `limpiarMarkdown`). El escáner de
-    // dependencias de Vite saca el <script> del .vue con una regex de HTML, así que ve ese `<!--`
-    // como la apertura de un comentario y se come TODO hasta el `-->` de más abajo — trece líneas de
-    // código. El resultado es `Unterminated string literal` en una línea que está perfecta, y el dev
-    // server arranca sin pre-bundlear. No se ve hasta que Vite re-escanea (cambió el lockfile, se
-    // limpió `node_modules/.vite`), que es por qué puede pasar meses dormido. `\x3C` es el mismo
-    // carácter para JS y deja de serlo para el escáner.
-    if (l.startsWith('|') || l.startsWith('\x3C!--') || l.startsWith('---')) continue;
-    const texto = l.replace(/^>\s?/, '').trim();
-    if (!texto || texto.startsWith('|')) continue;
-    // Sin título arriba no hay convención que valga: se cae a la primera prosa, como antes.
-    if (!pasoElTitulo && cruda.startsWith('>')) continue;
-    return texto.replace(/[*`]/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').slice(0, 240);
-  }
-  return '';
-};
-
-// La tarjeta no toma la primera línea del archivo: puede ser una nota de migración o historia vieja.
-// La portada de una tarea es «Si retomás esto sin contexto», y el server la expone como dato derivado.
-const limpiarMarkdown = (s, limite = 240) => (s || '')
-  .replace(/\x3C!--[^]*?-->/g, '')   // ⚠ `\x3C`: ver la nota de arriba, en `primeraProsa`
-  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-  .replace(/[*\`_]/g, '')
-  .replace(/^>\s?/gm, '')
-  .replace(/\s+/g, ' ').trim().slice(0, limite);
-const retomaLocal = (md) => {
-  const m = /^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n/mi.exec(md || '');
-  if (!m) return '';
-  const resto = (md || '').slice(m.index + m[0].length);
-  const corte = resto.search(/^##\s/m);
-  return resto.slice(0, corte < 0 ? resto.length : corte).trim();
-};
-const proximoLocal = (md) => {
-  const m = /\*\*El pr[óo]ximo paso es:?\*\*\s*(.*?)(?:\n\s*\n|\n##|$)/is.exec(md || '');
-  return m ? limpiarMarkdown(m[1], 280).replace(/^[:·\s]+/, '') : '';
-};
 const effortDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key));
-const retomaDe = (key) => effortDe(key)?.retoma || retomaLocal(cuerpoDe(key));
-const proximoDe = (key) => effortDe(key)?.proximoPaso || proximoLocal(cuerpoDe(key));
-const resumenDe = (key) => {
-  const retoma = retomaDe(key);
-  if (!retoma) return estadoDe(key);
-  return limpiarMarkdown(retoma.replace(/\*\*El pr[óo]ximo paso es:?\*\*[\s\S]*$/i, ''), 240);
-};
-
 const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
 // TRABAJO contesta «¿dónde estoy y cómo sigo?», así que el REGISTRO no vive acá: es la otra pregunta
 // —«¿qué pasó cada día?»— y en una tarea de dos meses se come el resto. Medido sobre la #6: 45% del
@@ -883,32 +786,74 @@ watch(() => active.value?.Key, () => { clearTimeout(copiadoTimer); copiado.value
  * saque del árbol. El computed la re-resuelve contra los datos vivos cuando sigue estando. */
 const pestanas = ref([]);     // tareas abiertas, en orden
 const previa = ref('');       // la clave de la que está en previsualización, si hay alguna
-// La ficha se puede ocultar. ⚠ Hace falta un interruptor y no sólo un «cerrar»: sin algo que la
-// vuelva a abrir, cerrarla sería un camino de ida. Vive en la barra de pestañas, al borde derecho,
-// que es donde VS Code pone el suyo — y acá además es la única barra que hay a esa altura.
+// Las vistas auxiliares se pueden ocultar y siempre se recuperan desde el pie. En una ventana mediana
+// arrancan plegadas para que el documento conserve ancho; abrirlas ahí es una decisión temporal y no pisa la
+// preferencia que rige las ventanas grandes.
 const verAux = ref(readPreference('aux-visible', true) !== false);
-const verSidebar = ref(readPreference('sidebar-visible', true) !== false);
-/* ── EL ACORDEÓN DEL SIDEBAR DERECHO ──────────────────────────────────────────────────────────────
- * Las siete vistas que antes eran pestañas del editor, más la ficha. Es un estado APARTE del acordeón
- * izquierdo y no un prefijo sobre el mismo: los dos tienen una vista llamada `jira` y significan cosas
- * distintas —«traer de Jira» a la izquierda, «lo que el equipo ve del issue» a la derecha—, y un id
- * compartido los habría atado. */
-const seccionesAux = ref(new Set(['detalle']));
-const abiertaAux = (id) => seccionesAux.value.has(id);
-/* ⚠ EXCLUSIVO: abrir una cierra las demás. El de la IZQUIERDA no lo es, y la diferencia no es un
- * descuido: allá las vistas son cinco ESTADOS de una lista y querés ver varios a la vez («¿qué tengo
- * en curso y qué bloqueado?»); acá son siete caras de UNA tarea, que se miran de a una — y además hay
- * tablas (Ramas, Bitácora) que con otra vista abierta se quedan sin alto.
- *
- * ⚠ Una vista cerrada igual muestra su encabezado con su conteo, así que cerrar las otras no esconde
- * información: seguís viendo que hay 16 hallazgos y 11 ramas sin abrir nada. */
-function alternarAux(id, forzarAbrir = false) {
-  // `forzarAbrir` lo usa la barra de acciones: pedir «Mover» tiene que ABRIR el Detalle, no
-  // alternarlo — si estaba abierto y lo cerrara, las transiciones aparecerían en un cuerpo oculto.
-  seccionesAux.value = !forzarAbrir && seccionesAux.value.has(id) ? new Set() : new Set([id]);
+const UMBRAL_DETALLE_COMPACTO = 1050;
+const ventanaCompacta = ref(typeof window !== 'undefined' && window.innerWidth <= UMBRAL_DETALLE_COMPACTO);
+const detalleCompactoAbierto = ref(false);
+const mostrarAux = computed(() => !!active.value && verAux.value && (!ventanaCompacta.value || detalleCompactoAbierto.value));
+function alternarDetalle() {
+  if (ventanaCompacta.value) {
+    if (mostrarAux.value) detalleCompactoAbierto.value = false;
+    else { verAux.value = true; detalleCompactoAbierto.value = true; }
+    return;
+  }
+  verAux.value = !verAux.value;
 }
-// Las siete: el mismo conteo y el mismo aviso que llevaban como pestañas.
+const verSidebar = ref(readPreference('sidebar-visible', true) !== false);
+// La consola muestra sólo las ramas de la tarea enfocada. Su visibilidad y alto sobreviven al cambio
+// de tarea, y el botón textual del pie evita que el punto de entrada desaparezca cuando está cerrada.
+const verConsolaRamas = ref(readPreference('repos-console-visible', true) !== false);
+const altoConsolaRamas = ref(readPreference('ramas-panel-height', 260) || 260);
+const ramasPanelToggle = ref(null);
+const mostrarConsolaRamas = computed(() => verConsolaRamas.value && !!active.value);
+const ramasPanelResize = computed(() => ({
+  label: 'Alto de la consola de ramas', axis: 'y', sign: -1, min: 150,
+  max: () => Math.max(150, Math.min(560, window.innerHeight - 300)),
+  defaultValue: 260, collapsible: true,
+  get: () => altoConsolaRamas.value,
+  set: (v) => {
+    if (!v) verConsolaRamas.value = false;
+    else { altoConsolaRamas.value = v; verConsolaRamas.value = true; }
+  },
+  commit: (v) => {
+    if (v) savePreference('ramas-panel-height', v);
+    savePreference('repos-console-visible', !!v);
+  },
+}));
+function ocultarConsolaRamas() {
+  verConsolaRamas.value = false;
+  savePreference('repos-console-visible', false);
+  nextTick(() => ramasPanelToggle.value?.focus());
+}
+function mostrarPanelRamas() {
+  verConsolaRamas.value = true;
+  savePreference('repos-console-visible', true);
+}
+function alternarConsolaRamas() {
+  if (verConsolaRamas.value) ocultarConsolaRamas();
+  else mostrarPanelRamas();
+}
+/* ── LAS PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────────────────────
+ * Las vistas de consulta de UNA tarea comparten todo el alto de la región. Con acordeón, seis
+ * encabezados le quitaban espacio a Jira y la descripción terminaba dentro de una tarjeta pequeña;
+ * las pestañas dejan un solo riel compacto y un cuerpo continuo. */
+const vistaAuxActiva = ref('jira');
+const abiertaAux = (id) => vistaAuxActiva.value === id;
+function alternarAux(id) { vistaAuxActiva.value = id; }
 const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'));
+function tecladoPestanasAux(event, id) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const ids = vistasAux.value.map((vista) => vista.id);
+  const actual = ids.indexOf(id);
+  const siguiente = event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1
+    : (actual + (event.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
+  vistaAuxActiva.value = ids[siguiente];
+  nextTick(() => event.currentTarget.parentElement?.querySelector(`[data-vista="${ids[siguiente]}"]`)?.focus());
+}
 
 /* ── LAS MANIJAS DE LOS DOS SIDEBARS ──────────────────────────────────────────────────────────────
  * ⚠ El ancho se escribe en el `.workbench`, no en `:root`: así es de ESTA herramienta y no pisa el
@@ -960,7 +905,7 @@ function resizeOptions(varCss, sign) {
   const [key, min, limit] = ANCHOS[varCss];
   const root = () => document.querySelector('.workbench');
   return {
-    label: varCss === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho del detalle',
+    label: varCss === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho de las vistas de la tarea',
     min, sign, defaultValue: varCss === '--sidebar-w' ? 300 : 340,
     max: () => {
       const other = document.querySelector(varCss === '--sidebar-w' ? '.auxiliarybar' : '.sidebar');
@@ -974,9 +919,16 @@ function resizeOptions(varCss, sign) {
 
 // Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
 // que es cuando cambia cuánto hay para repartir.
-onMounted(() => { aplicarAnchos(); window.addEventListener('resize', aplicarAnchos); });
-onUnmounted(() => window.removeEventListener('resize', aplicarAnchos));
-watch([() => !!active.value, verAux, verSidebar], () => nextTick(aplicarAnchos));
+function actualizarDisposicion() {
+  if (menuTarea.value) cerrarMenuTarea();
+  const compacta = window.innerWidth <= UMBRAL_DETALLE_COMPACTO;
+  if (compacta && !ventanaCompacta.value) detalleCompactoAbierto.value = false;
+  ventanaCompacta.value = compacta;
+  aplicarAnchos();
+}
+onMounted(() => { actualizarDisposicion(); window.addEventListener('resize', actualizarDisposicion); });
+onUnmounted(() => window.removeEventListener('resize', actualizarDisposicion));
+watch([() => !!active.value, mostrarAux, verSidebar], () => nextTick(aplicarAnchos));
 watch(verAux, (v) => savePreference('aux-visible', v));
 watch(verSidebar, (v) => savePreference('sidebar-visible', v));
 const pestanasAbiertas = computed(() =>
@@ -994,7 +946,6 @@ function openTask(task, fijar = false) {
   }
   active.value = task;
 }
-const fijarPestana = (k) => { if (previa.value === k) previa.value = ''; };
 function cerrarPestana(k) {
   const i = pestanas.value.findIndex((t) => t.Key === k);
   if (i < 0) return;
@@ -1007,10 +958,60 @@ function cerrarPestana(k) {
     active.value = sig || null;
   }
 }
-// ⚠ Cualquier camino que enfoque una tarea tiene que dejarle su pestaña: `abrirMover` y el handoff a
-// QA setean `active` directo, y sin esto el editor mostraría una tarea que no está en la barra.
+
+/* ── RUTAS DE TAREA ──────────────────────────────────────────────────────────────────────────────
+ * El estado visible vive también en la URL: `#/tareas/context` o `#/tareas/core-543`. Se usa hash
+ * routing porque Tablero se sirve como archivos estáticos y una recarga de `/tareas/context`
+ * dependería de que cada servidor conociera el fallback a index.html. El hash sobrevive igual a una
+ * recarga, se puede copiar y funciona con atrás/adelante sin tocar el server.
+ *
+ * Los contenedores locales se nombran por su título canónico; las tareas de Jira por su clave. No se
+ * usa el id local porque puede renumerarse al consolidar archivos. */
+const slugRuta = (value) => sinTildes(value).trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const rutaDeTarea = (task) => task ? `#/tareas/${task._local ? slugRuta(task.Summary) : task.Key.toLowerCase()}` : '';
+const slugDeRuta = () => {
+  const m = window.location.hash.match(/^#\/tareas\/([^/?#]+)\/?$/);
+  try { return m ? decodeURIComponent(m[1]).toLowerCase() : ''; }
+  catch { return ''; }
+};
+const tareasParaRuta = () => {
+  const unicas = new Map();
+  for (const task of [...issues.value, ...porSprint.value.flatMap(g => g.issues || []), ...localesTodas.value]) {
+    if (!unicas.has(task.Key)) unicas.set(task.Key, task);
+  }
+  return [...unicas.values()];
+};
+let rutasListas = false;
+let restaurandoRuta = false;
+function escribirRuta(task) {
+  const hash = rutaDeTarea(task);
+  if (window.location.hash === hash) return;
+  window.history.pushState({}, '', `${window.location.pathname}${window.location.search}${hash}`);
+}
+function restaurarRuta() {
+  if (!rutasListas) return;
+  const slug = slugDeRuta();
+  restaurandoRuta = true;
+  if (!slug) {
+    active.value = null;
+  } else {
+    const task = tareasParaRuta().find(item => (item._local ? slugRuta(item.Summary) : item.Key.toLowerCase()) === slug);
+    if (task) {
+      if (task._local) verLocales.value = true;
+      openTask(task, true);
+    }
+  }
+  restaurandoRuta = false;
+}
+const alNavegarHistorial = () => restaurarRuta();
+onMounted(() => window.addEventListener('popstate', alNavegarHistorial));
+onUnmounted(() => window.removeEventListener('popstate', alNavegarHistorial));
+
+// ⚠ Cualquier camino que enfoque una tarea tiene que dejarle su pestaña y su ruta: el handoff a QA
+// setea `active` directo, y sin este punto único el editor y la URL podrían contradecirse.
 watch(active, (t) => {
   if (t && !pestanas.value.some((x) => x.Key === t.Key)) pestanas.value = [...pestanas.value, t];
+  if (rutasListas && !restaurandoRuta) escribirRuta(t);
 });
 
 // cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
@@ -1108,7 +1109,6 @@ const taskTabs = computed(() => {
     { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
     { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
-    { id: 'ramas', label: 'Ramas', count: ramasCuenta(key) },
     // Registro va ANTES de Bitácora y pegado a ella a propósito: las dos son cronológicas y se leen
     // juntas — qué pasó ese día, y cuánto tiempo llevó.
     ...(historySections.value.length ? [{ id: 'registro', label: 'Registro', count: diasDeRegistro.value }] : []),
@@ -1116,9 +1116,27 @@ const taskTabs = computed(() => {
     ...(protosDe(key).length ? [{ id: 'prototipos', label: 'Prototipos', count: protosDe(key).length }] : []),
   ];
 });
-const cerrarConEsc = (e) => { if (e.key === 'Escape') mover.value = null; };
-onMounted(() => window.addEventListener('keydown', cerrarConEsc));
-onUnmounted(() => { window.removeEventListener('keydown', cerrarConEsc); clearTimeout(copiadoTimer); });
+watch(vistasAux, (vistas) => {
+  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'jira';
+});
+const cerrarConEsc = (e) => { if (e.key === 'Escape' && menuTarea.value) cerrarMenuTarea(true); };
+const cerrarMenuTareaAfuera = (e) => {
+  if (menuTarea.value && !menuTareaEl.value?.contains(e.target) && !menuTareaOrigen?.contains(e.target)) cerrarMenuTarea();
+};
+const cerrarMenuTareaAlScroll = (e) => {
+  if (menuTarea.value && !menuTareaEl.value?.contains(e.target)) cerrarMenuTarea();
+};
+onMounted(() => {
+  window.addEventListener('keydown', cerrarConEsc);
+  document.addEventListener('pointerdown', cerrarMenuTareaAfuera, true);
+  document.addEventListener('scroll', cerrarMenuTareaAlScroll, true);
+});
+onUnmounted(() => {
+  window.removeEventListener('keydown', cerrarConEsc);
+  document.removeEventListener('pointerdown', cerrarMenuTareaAfuera, true);
+  document.removeEventListener('scroll', cerrarMenuTareaAlScroll, true);
+  clearTimeout(copiadoTimer);
+});
 const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 // ── mi jornada: los últimos días × horas laborales ──────────────────────────────────────────────
@@ -1330,55 +1348,129 @@ const qaProblems = ref([]);
 // En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso. Es por TAREA y no sobre la
 // activa: ahora cada tarjeta trae su propio botón.
 const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
-// (Acá vivía `yaPasoPorQA`, que decidía cuándo esconder el viejo botón «A pruebas». Se fue con el botón:
-// ya no hace falta adivinar dónde tiene sentido un movimiento — la lista de destinos la da Jira, y si
-// desde este estado no se puede ir a pruebas, ese destino simplemente no aparece.)
+// (Acá vivía `yaPasoPorQA`, que decidía cuándo esconder el viejo botón «A pruebas». Se fue con el
+// botón específico: el acceso de la fila consulta Jira y después conserva sólo el avance normal.)
 
-// ── mover de estado: los destinos los DEFINE JIRA, no una lista de acá ──────────────────────────
-// Medido el 2026-08-19 contra el workflow de CORE: el botón cableado a «pruebas» fallaba en todos los
-// estados salvo «Terminada», porque ninguna transición AVANZA a pruebas (la única que llega ahí sale de
-// Terminada y se llama «Se devuelve a pruebas»). Escribir los estados en el cliente garantiza volver a
-// equivocarse cuando alguien edite el workflow; preguntárselos a Jira, no.
-const mover = ref(null);   // null = menú cerrado; si no: { key, transitions:[{id,name,to}], testing }
-const moverBusy = ref(false);
-const moverError = ref('');
+// ── mover de estado desde el árbol: los destinos los DEFINE JIRA ───────────────────────────────
+// El cambio de estado pertenece a la tarea de la lista, así que aparece en el borde de esa fila (y
+// también con su menú contextual). El menú consulta Jira al abrirse y no obliga a abrir la tarea para
+// saber adónde puede ir desde su estado actual.
+const menuTarea = ref(null); // { task, x, y, transitions, testing, loading, error }
+const menuTareaEl = ref(null);
+let menuTareaOrigen = null;
+let consultaMenuTarea = 0;
+const nombreEstado = (texto) => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-async function abrirMover(i) {
-  if (mover.value?.key === i.Key) { mover.value = null; return; }
-  active.value = i; mover.value = null; moverError.value = ''; qa.value = null;
-  moverBusy.value = true;
-  try {
-    const j = await (await fetch(`${SERVER}/api/transitions?key=${i.Key}`)).json();
-    if (j.error) moverError.value = j.error;
-    // Sin transiciones no se abre un menú vacío: se dice por qué. Pasa de verdad — «Bloqueada» sólo
-    // sale a «En progreso» e «Invalidada», y un estado terminal no saldría a ninguna parte.
-    else if (!(j.transitions || []).length) moverError.value = `Jira no ofrece ninguna salida desde «${i.Status}»`;
-    else mover.value = { key: i.Key, transitions: j.transitions, testing: j.testing || 'pruebas' };
-  } catch { moverError.value = 'no se pudo hablar con el server'; }
-  finally { moverBusy.value = false; }
+// Jira devuelve todas las SALIDAS, pero el acceso rápido representa sólo AVANZAR. El orden es el
+// flujo vigente de CORE; se matchea por fragmentos y no por ids, emojis ni nombres de transición.
+// Bloqueada y En pruebas vuelven al cauce normal; Terminada no tiene un paso siguiente.
+function siguienteTransicion(task, transitions) {
+  const actual = nombreEstado(task.Status);
+  const destino = actual.includes('bloquead') ? 'progreso'
+    : actual.includes('pruebas') ? 'terminad'
+    : actual.includes('por hacer') ? 'progreso'
+    : actual.includes('progreso') ? 'revision'
+    : actual.includes('revision') ? 'terminad'
+    : '';
+  return destino ? transitions.find((t) => nombreEstado(t.to).includes(destino)) : null;
 }
 
-// El destino que coincide con el estado de pruebas NO se mueve directo: cae en el flujo de QA, donde
-// mover y avisarle a quien valida son un mismo acto (y el mensaje se previsualiza).
-const esHaciaPruebas = (t) => (t.to || '').toLowerCase().includes((mover.value?.testing || 'pruebas').toLowerCase());
+function cerrarMenuTarea(restaurarFoco = false) {
+  consultaMenuTarea += 1;
+  menuTarea.value = null;
+  if (restaurarFoco && menuTareaOrigen?.isConnected) menuTareaOrigen.focus({ preventScroll: true });
+  menuTareaOrigen = null;
+}
+
+async function enfocarYEncajarMenuTarea() {
+  await nextTick();
+  const menu = menuTareaEl.value;
+  if (!menu || !menuTarea.value) return;
+  const box = menu.getBoundingClientRect();
+  menuTarea.value.x = Math.max(8, Math.min(menuTarea.value.x, window.innerWidth - box.width - 8));
+  menuTarea.value.y = Math.max(8, Math.min(menuTarea.value.y, window.innerHeight - box.height - 8));
+  await nextTick();
+  (menu.querySelector('[role="menuitem"]:not(:disabled)') || menu).focus({ preventScroll: true });
+}
+
+async function abrirMenuTarea(event, task) {
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = event.currentTarget.getBoundingClientRect();
+  const teclado = event.type === 'keydown' || (!event.clientX && !event.clientY);
+  cerrarMenuTarea();
+  menuTareaOrigen = event.currentTarget;
+  const consulta = ++consultaMenuTarea;
+  menuTarea.value = {
+    task,
+    x: teclado ? (event.currentTarget.classList.contains('tree-state') ? rect.right : rect.left + 18) : event.clientX,
+    y: teclado ? rect.bottom + 2 : event.clientY,
+    transitions: [], testing: 'pruebas', loading: !task._local,
+    error: task._local ? 'La tarea local no usa estados de Jira' : '',
+  };
+  await enfocarYEncajarMenuTarea();
+  if (task._local) return;
+  try {
+    const j = await (await fetch(`${SERVER}/api/transitions?key=${task.Key}`)).json();
+    if (consulta !== consultaMenuTarea || menuTarea.value?.task.Key !== task.Key) return;
+    menuTarea.value.loading = false;
+    if (j.error) menuTarea.value.error = j.error;
+    else {
+      const siguiente = siguienteTransicion(task, j.transitions || []);
+      if (!siguiente) menuTarea.value.error = `Jira no ofrece un paso siguiente desde «${task.Status}»`;
+      else menuTarea.value.transitions = [siguiente];
+      menuTarea.value.testing = j.testing || 'pruebas';
+    }
+  } catch {
+    if (consulta === consultaMenuTarea && menuTarea.value?.task.Key === task.Key) {
+      menuTarea.value.loading = false;
+      menuTarea.value.error = 'No se pudo hablar con el server';
+    }
+  }
+  await enfocarYEncajarMenuTarea();
+}
+
+function abrirMenuTareaConTeclado(event, task) {
+  if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) abrirMenuTarea(event, task);
+}
+
+function teclasMenuTarea(event) {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cerrarMenuTarea(true); return; }
+  if (event.key === 'Tab') { cerrarMenuTarea(); return; }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const items = [...menuTareaEl.value.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+  if (!items.length) return;
+  const current = items.indexOf(document.activeElement);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+    : (current + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+  items[next]?.focus({ preventScroll: true });
+}
+
+// El destino que coincide con el estado de pruebas no se mueve directo: cae en el flujo de QA, donde
+// mover y avisarle a quien valida son un mismo acto y el mensaje se previsualiza.
+const esHaciaPruebas = (t, testing = menuTarea.value?.testing || 'pruebas') =>
+  (t.to || '').toLowerCase().includes(testing.toLowerCase());
 
 async function aplicarTransicion(t) {
-  const i = active.value;
-  if (esHaciaPruebas(t)) { mover.value = null; await openQA(i); return; }
-  moverBusy.value = true; moverError.value = '';
+  const estado = menuTarea.value;
+  if (!estado || estado.loading) return;
+  const task = estado.task;
+  if (esHaciaPruebas(t, estado.testing)) { cerrarMenuTarea(); await openQA(task); return; }
+  estado.loading = true; estado.error = '';
   try {
     const j = await (await fetch(`${SERVER}/api/transitions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: i.Key, id: t.id }),
+      body: JSON.stringify({ key: task.Key, id: t.id }),
     })).json();
-    if (j.error) { moverError.value = j.error; return; }
-    mover.value = null;
+    if (j.error) { estado.error = j.error; return; }
+    cerrarMenuTarea();
     // Se recarga desde Jira en vez de simular el cambio acá: el estado nuevo puede traer otras cosas
-    // (el workflow puede tocar campos) y una copia local sería una segunda verdad.
+    // y una copia local sería una segunda verdad.
     await loadSprint(sprint.value?.id);
     if (vistaAncha.value) await cargarUltimos4();
-  } catch { moverError.value = 'no se pudo hablar con el server'; }
-  finally { moverBusy.value = false; }
+  } catch { estado.error = 'No se pudo hablar con el server'; }
+  finally { if (menuTarea.value === estado) estado.loading = false; }
 }
 
 async function openQA(i) {
@@ -1422,11 +1514,15 @@ watch(active, () => { qa.value = null; qaDone.value = ''; qaError.value = ''; qa
 
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function loadSprint(id) {
-  loading.value = true;
-  error.value = '';
+  const teniaDatos = !!sprint.value;
+  if (!teniaDatos) { loading.value = true; error.value = ''; }
   try {
     const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}${id ? `&id=${id}` : ''}`)).json();
-    if (j.error) { error.value = j.error; }
+    if (j.error) {
+      if (teniaDatos) syncError.value = j.error;
+      else error.value = j.error;
+      return false;
+    }
     else {
       sprint.value = j.sprint;
       site.value = j.site || site.value;
@@ -1437,53 +1533,68 @@ async function loadSprint(id) {
       // directo a una tarea y no ver nunca el sprint. Todos los usos de `active` están guardados
       // (`if (!active.value)`, `active.value?.`), así que arrancar en null es seguro.
     }
-  } catch { error.value = 'no se pudo hablar con el server (¿está corriendo en :8787?)'; }
-  await loadEntries();
-  await loadTaskLocals(); // el grupo depende de las tareas visibles del sprint
-  loading.value = false;
+    // La bitácora es local y completa la vista después; no retrasa la primera pintura del sprint.
+    void loadEntries();
+    guardarBootstrap();
+    return true;
+  } catch {
+    const message = 'no se pudo hablar con el server (¿está corriendo en :8787?)';
+    if (teniaDatos) syncError.value = message;
+    else error.value = message;
+    return false;
+  } finally { loading.value = false; }
 }
 
-onMounted(async () => {
+async function loadSprints() {
   try {
     // Se piden más de los que el selector muestra: las bandas de «Mi jornada» cubren toda la ventana, y
     // esa ventana crece con el ancho de la pantalla. Con sólo 4, las columnas más viejas quedaban sin
     // banda y parecían días fuera de todo sprint, que es otra cosa.
     const j = await (await fetch(`${SERVER}/api/sprints?board=${BOARD}&n=12`)).json();
-    if (!j.error) { sprints.value = j.sprints || []; site.value = j.site || ''; }
-  } catch { /* si falla, el selector no aparece y se carga el activo igual */ }
+    if (j.error) { syncError.value ||= j.error; return false; }
+    sprints.value = j.sprints || [];
+    site.value = j.site || site.value;
+    return true;
+  } catch {
+    syncError.value ||= 'no se pudo actualizar la lista de sprints';
+    return false;
+  }
+}
 
-  await loadEfforts();
-  cargarRamas();   // el snapshot de ramas (sin await: si no está medido, el botón «Ramas» no aparece y listo)
-  await loadPulse();
+async function actualizarInicio() {
+  jiraSyncing.value = true;
+  syncError.value = '';
+  try {
+    // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
+    // pulso → sprint → bitácora → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
+    // la restauración de la ruta como si fuera una navegación completa.
+    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadPulse(), cargarRamas()]);
+    const [, sprintResult] = await Promise.allSettled([loadSprints(), loadSprint()]);
 
-  // Sin id: el server elige (activo, o el último cerrado, o el próximo). No lo re-derivamos acá para
-  // no tener dos definiciones de "cuál es el sprint por defecto".
-  await loadSprint();
-  // Los 4 sprints se traen al final: dependen de `sprintTabs`, que se llena con la lista de arriba.
-  // Sin await: la vista pinta el sprint activo primero y las otras tarjetas entran cuando llegan.
-  cargarUltimos4();
+    // El sprint principal basta para restaurar la mayoría de rutas; los otros tres llegan después.
+    rutasListas = true;
+    restaurarRuta();
+    if (sprintResult.status === 'fulfilled' && sprintResult.value) await cargarUltimos4();
+
+    await locales;
+    // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de porSprint.
+    restaurarRuta();
+    guardarBootstrap();
+  } finally { jiraSyncing.value = false; }
+}
+
+onMounted(() => {
+  // Con cache, la ruta y el editor aparecen en el primer frame. La revalidación no los desmonta.
+  if (bootstrapCache) { rutasListas = true; restaurarRuta(); }
+  void actualizarInicio();
 });
 
 const documentMenu = computed(() => [
   { id: 'copiar-todo', label: 'Copiar completo para retomar', icon: 'copy', disabled: !documentSections.value.length,
     title: 'Incluye el registro de trabajo y los comandos de reproducción' },
-  { separador: true },
-  { id: 'detalle', label: 'Mostrar detalle de la tarea', checked: verAux.value },
-  { id: 'cerrar', label: 'Cerrar tarea', icon: 'close' },
 ])
 function documentAction(id) {
   if (id === 'copiar-todo') copiarCuerpo('todo')
-  if (id === 'detalle') verAux.value = !verAux.value
-  if (id === 'cerrar' && active.value) cerrarPestana(active.value.Key)
-}
-const detailToggle = ref(null)
-const detailMenu = [
-  { id: 'plegar', label: 'Plegar todas las secciones', icon: 'collapse' },
-  { id: 'ocultar', label: 'Ocultar detalle', icon: 'detail' },
-]
-function detailAction(id) {
-  if (id === 'plegar') seccionesAux.value = new Set()
-  if (id === 'ocultar') { verAux.value = false; detailToggle.value?.focus() }
 }
 
 </script>
@@ -1493,7 +1604,7 @@ function detailAction(id) {
        como grilla de tarjetas y un CAJÓN encima al elegir una. Ahora: el árbol de tareas en el
        `sidebar`, lo elegido en el `editor`, y sin nada elegido el editor muestra el sprint — que es
        la pestaña de bienvenida. El cajón se fue: su contenido ES el editor. -->
-  <div class="workbench" :class="{ ancha: vistaAncha }">
+  <div class="workbench" :class="{ ancha: vistaAncha, 'con-consola-ramas': mostrarConsolaRamas }">
     <!-- ⚠ SIN TITLEBAR, a propósito. Decía «Tablero · Sprint N · registro de tiempo y
          hallazgos» y se comía 77px de alto para repetir lo que ya dicen la pestaña del
          navegador y el statusbar. Su única acción —«sólo este sprint»— se fue al menú ⋯ del
@@ -1556,16 +1667,25 @@ function detailAction(id) {
         <div v-if="abierta(g.id) || buscaNorm" :id="'group-' + g.id" class="region-body">
           <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
                target de 28px de alto se acierta sin mirar. -->
-          <button v-for="i in g.tasks" :key="i.Key" type="button" class="tree-row"
-            :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
-            :title="i.Summary" @click="openTask(i)" @dblclick="openTask(i, true)">
-            <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
-            <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
-            <span class="tr-tt">{{ i.Summary }}</span>
-            <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`">{{ quedan(i.Key) }}</span>
-            <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
-                  :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
-          </button>
+          <div v-for="i in g.tasks" :key="i.Key" class="tree-item">
+            <button type="button" class="tree-row"
+              :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
+              :title="i.Summary" @click="openTask(i)" @dblclick="openTask(i, true)"
+              @contextmenu="abrirMenuTarea($event, i)" @keydown="abrirMenuTareaConTeclado($event, i)">
+              <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
+              <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
+              <span class="tr-tt">{{ i.Summary }}</span>
+              <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`"
+                    :aria-label="`${quedan(i.Key)} pendientes`">{{ quedan(i.Key) }} pend.</span>
+              <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
+                    :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+            </button>
+            <button v-if="!i._local && i.StatusCategory !== 'done'" type="button" class="tree-state"
+                    :aria-label="`Avanzar ${i.Key} al siguiente estado`" :title="`Siguiente estado desde ${i.Status}`"
+                    @click="abrirMenuTarea($event, i)">
+              <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1598,6 +1718,32 @@ function detailAction(id) {
       </section>
     </aside>
 
+    <!-- El menú vive en `body`: el scroll del árbol recortaría cualquier elemento posicionado dentro
+         del sidebar. También se abre con la tecla Menú o Shift+F10 sobre la fila enfocada. -->
+    <Teleport to="body">
+      <div v-if="menuTarea" ref="menuTareaEl" class="region-menu task-context-menu"
+           role="menu" tabindex="-1" :aria-label="`Avanzar ${menuTarea.task.Key}`"
+           :style="{ left: menuTarea.x + 'px', top: menuTarea.y + 'px' }"
+           @keydown="teclasMenuTarea">
+        <p class="task-menu-head">Siguiente paso desde <b>{{ menuTarea.task.Status }}</b></p>
+        <button v-if="menuTarea.loading" type="button" class="region-menu-item" role="menuitem" disabled>
+          <span class="ui-icon" data-icon="more" aria-hidden="true"></span>
+          <span class="menu-label">Consultando Jira…</span>
+        </button>
+        <button v-for="t in menuTarea.transitions" :key="t.id" type="button"
+                class="region-menu-item task-transition" role="menuitem" :disabled="menuTarea.loading"
+                :title="`Transición «${t.name}»`" @click="aplicarTransicion(t)">
+          <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
+          <span class="menu-label">{{ t.to }}</span>
+          <span v-if="esHaciaPruebas(t, menuTarea.testing)" class="mv-tag">+ aviso</span>
+        </button>
+        <button v-if="menuTarea.error" type="button" class="region-menu-item task-menu-error" role="menuitem" disabled>
+          <span class="ui-icon" data-icon="more" aria-hidden="true"></span>
+          <span class="menu-label">{{ menuTarea.error }}</span>
+        </button>
+      </div>
+    </Teleport>
+
     <!-- EDITOR: sin tarea elegida, el sprint. Con una elegida, la tarea. -->
     <main class="editor">
       <!-- LAS PESTAÑAS ABIERTAS. ⚠ La que está en PREVISTA va en itálica y es la que el próximo clic
@@ -1608,16 +1754,13 @@ function detailAction(id) {
              :class="{ act: active?.Key === t.Key, previa: previa === t.Key }">
           <button type="button" class="et-b" :title="t.Summary"
                   :aria-current="active?.Key === t.Key ? 'true' : undefined"
-                  @click="active = t; fijarPestana(t.Key)" @auxclick.middle.prevent="cerrarPestana(t.Key)">
+                  @click="openTask(t, true)" @auxclick.middle.prevent="cerrarPestana(t.Key)">
             <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
             <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
           </button>
           <button type="button" class="btn btn-ghost btn-icon btn-xs et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
                   @click="cerrarPestana(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
-        <button type="button" class="btn btn-ghost btn-icon btn-xs et-aux" :class="{ act: verAux }" :aria-pressed="verAux"
-                title="Mostrar u ocultar el detalle de la tarea"
-                aria-label="Mostrar u ocultar el detalle" @click="verAux = !verAux"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
@@ -1628,18 +1771,67 @@ function detailAction(id) {
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="badge badge-outline status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
-        <!-- El EDITOR es el documento y nada más. Las otras siete vistas están al costado,
-             en el acordeón del sidebar derecho: al lado se ven a la vez, y en pestañas eran
-             excluyentes — mirar una rama mientras leés el documento era imposible. -->
+        <!-- El EDITOR conserva el documento como contenido principal. Los datos breves van en su
+             cabecera, las vistas de consulta al costado y las ramas en la consola inferior. -->
 
         <template #acciones>
-          <div class="toolbar" role="group" aria-label="Acciones del documento">
+          <div v-if="documentSections.length" class="toolbar" role="group" aria-label="Acciones del documento">
             <span v-if="copiado" class="toolbar-note" role="status">{{ copiado === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
-            <button v-if="documentSections.length" class="region-action" title="Copiar para compartir (sin registro ni comandos)"
+            <button class="region-action" title="Copiar para compartir (sin registro ni comandos)"
                     aria-label="Copiar para compartir" @click="copiarCuerpo('compartir')">
               <span class="ui-icon" :data-icon="copiado === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
             <RegionMenu title="Opciones del documento" :items="documentMenu" @select="documentAction" />
+          </div>
+        </template>
+
+        <template #paneles>
+          <div class="task-head-panels">
+            <div class="task-head-facts" aria-label="Datos de la tarea">
+              <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
+                :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
+                <i></i>{{ active.OriginSprint }}
+              </span>
+              <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
+              <span v-if="!active._local">{{ hhmm(active.SpentSecs) }} en Jira</span>
+              <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
+              <span v-if="minutesOf(active.Key)" class="mine">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
+              <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto"
+                 :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+              <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
+                 target="_blank" rel="noopener">Abrir en Jira ↗</a>
+            </div>
+            <div v-if="effortDe(active.Key)?.contextNodes" class="task-head-context">
+              <strong>Contexto local:</strong>
+              <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
+                 :key="n" class="badge badge-outline ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
+                 :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
+            </div>
+
+            <!-- Llegar a pruebas conserva el acto compuesto: primero se revisa el mensaje y sólo
+                 después el server mueve el issue y avisa a quien valida. -->
+            <template v-if="qa?.key === active.Key">
+              <p v-if="qaError" class="qa-err">{{ qaError }}</p>
+              <div class="qa-box" @click.stop>
+                <p class="qa-head">
+                  <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
+                  <span v-else class="qa-err">{{ qa.blocked }}</span>
+                </p>
+                <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
+                <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
+                <ul v-if="qaProblems.length" class="qa-bad">
+                  <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
+                </ul>
+                <div class="qa-acts">
+                  <button class="btn qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
+                    {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
+                  </button>
+                  <button class="btn btn-outline qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
+                </div>
+              </div>
+            </template>
+            <p v-if="qaDone" class="qa-done" role="status">{{ qaDone }}</p>
+            <p v-else-if="qaError && !qa" class="qa-err" role="alert">{{ qaError }}</p>
           </div>
         </template>
 
@@ -1839,145 +2031,34 @@ function detailAction(id) {
       </div>
     </main>
 
-    <!-- AUXILIARYBAR · LA FICHA DE LA TAREA. Estaba adentro de la pestaña «Trabajo», así que
-         desaparecía en las otras SIETE: mirabas Ramas o Hallazgos y perdías de vista el próximo
-         paso, el sprint y los puntos. Acá acompaña a la tarea esté donde esté — que es para lo que
-         existe el sidebar secundario en VS Code: las propiedades de lo que estás editando, no otro
-         lugar donde editar.
+    <!-- PANEL · ramas de la tarea enfocada. Cruza editor + vistas para conservar la tabla como área
+         principal y el selector de sus repos a la derecha incluso en ventanas medianas. -->
+    <section v-if="mostrarConsolaRamas" id="context-branches-panel" class="panel ramas-panel"
+             :class="{ 'sin-ramas': !ramasTareaActiva.ramas.length }"
+             :style="{ height: (ramasTareaActiva.ramas.length ? altoConsolaRamas : 76) + 'px' }">
+      <div v-if="ramasTareaActiva.ramas.length" class="rsz rsz-panel" v-resize="ramasPanelResize"></div>
+      <RepoBranches :snapshot="ramasTareaActiva" :task-label="active?.Summary || ''" @close="ocultarConsolaRamas" />
+    </section>
 
-         ⚠ Sólo se renderiza con una tarea enfocada, y se puede apagar con el ◨ de la barra de
-         pestañas. Sin tarea no hay ficha, y una columna de 340px vacía al costado del sprint sería
-         espacio perdido: el grid la colapsa a 0 sola. -->
-    <!-- AUXILIARYBAR · un ACORDEÓN con todo lo que NO es el documento: la ficha y las siete vistas
-         que antes eran pestañas del editor. Al costado se ven a la vez que el documento; en
-         pestañas eran excluyentes.
-
-         ⚠ Es REDIMENSIONABLE a propósito, y no es un lujo: «Ramas» es una tabla (repo · rama · PR ·
-         ambientes) y «Bitácora» otra. En 340px degradan a scroll horizontal; arrastrando el borde
-         se leen. Por eso el ancho se guarda. -->
-    <aside id="task-detail" v-if="active && verAux" class="auxiliarybar" aria-label="Detalle de la tarea">
+    <!-- AUXILIARYBAR · una pestaña usa todo el alto disponible. Jira queda como vista inicial porque
+         es la fuente externa completa; las otras pestañas son lecturas derivadas del trabajo local. -->
+    <aside id="task-views" v-if="mostrarAux" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
-      <section class="view" :class="{ abierta: abiertaAux('detalle') }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="abiertaAux('detalle')"
-                  @click="alternarAux('detalle')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-            <span>Detalle</span>
-          </button>
-          <!-- LA BARRA DE LA VISTA. ⚠ Va acá y no en el encabezado del editor por dos razones:
-               mover de estado es actuar sobre lo que ESTA vista muestra (el estado está tres
-               renglones más abajo), y el encabezado de una vista plegada SIGUE VIÉNDOSE — o sea
-               los botones quedan a mano aunque el Detalle esté cerrado. -->
-          <div class="region-actions toolbar">
-              <a v-if="site && !active._local" class="region-action" aria-label="Abrir tarea en Jira" :href="jiraLink(active.Key)" target="_blank"
-                 rel="noopener" :title="`Abrir ${active.Key} en Jira`"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></a>
-              <button v-if="!active._local" class="region-action move-task" :aria-pressed="mover?.key === active.Key"
-                :title="moverBusy ? 'Consultando transiciones…' : 'Mover tarea de estado'" aria-label="Mover tarea de estado"
-                :disabled="moverBusy || qa?.key === active.Key" @click="alternarAux('detalle', true); abrirMover(active)">
-                <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
-              </button>
-              <RegionMenu title="Opciones del detalle" :items="detailMenu" @select="detailAction" />
-          </div>
-        </div>
-        <div v-if="abiertaAux('detalle')" class="region-body aux-ficha">
-          <div v-if="mover?.key === active.Key" class="mv" @click.stop>
-            <p class="mv-h">Desde <b>{{ active.Status }}</b>, Jira deja ir a:</p>
-            <div class="btn btn-outline btn-xs mv-opts">
-              <button v-for="t in mover.transitions" :key="t.id" class="btn btn-outline btn-xs mv-o"
-                :class="{ qa: esHaciaPruebas(t) }" :disabled="moverBusy"
-                :title="`transición «${t.name}»`" @click="aplicarTransicion(t)">
-                {{ t.to }}<span v-if="esHaciaPruebas(t)" class="mv-tag">+ aviso</span>
-              </button>
-            </div>
-          </div>
-          <p v-if="moverError" class="qa-err">{{ moverError }}</p>
-
-          <template v-if="qa?.key === active.Key">
-            <p v-if="qaError" class="qa-err">{{ qaError }}</p>
-            <div class="qa-box" @click.stop>
-              <p class="qa-head">
-                <span v-if="qa.transition">Va a moverla: <b>{{ qa.transition.name }}</b> → <b>{{ qa.transition.to }}</b></span>
-                <span v-else class="qa-err">{{ qa.blocked }}</span>
-              </p>
-              <label class="fld">El mensaje <em>DM a {{ qa.name || qa.email }} — editalo si querés</em></label>
-              <textarea v-model="qa.text" rows="7" spellcheck="false"></textarea>
-              <ul v-if="qaProblems.length" class="qa-bad">
-                <li v-for="(p, n) in qaProblems" :key="n">{{ p.what }}: «{{ p.found }}»</li>
-              </ul>
-              <div class="qa-acts">
-                <button class="btn qa-go" :disabled="qaBusy || !qa.transition || !qa.text.trim()" @click="sendQA()">
-                  {{ qaBusy ? 'Enviando…' : 'Mover y avisar' }}
-                </button>
-                <button class="btn btn-outline qa-no" :disabled="qaBusy" @click="qa = null">Cancelar</button>
-              </div>
-            </div>
-          </template>
-          <p v-if="qaDone" class="qa-done">{{ qaDone }}</p>
-          <p v-else-if="qaError && !qa" class="qa-err">{{ qaError }}</p>
-            <p v-if="resumenDe(active.Key)" class="jd" :title="resumenDe(active.Key)">{{ resumenDe(active.Key) }}</p>
-            <p v-else-if="active.Description" class="jd" :title="active.Description">{{ active.Description }}</p>
-            <p v-else class="jd none">sin cuerpo técnico todavía</p>
-
-            <p class="next-step" :class="{ missing: !proximoDe(active.Key) }" :title="proximoDe(active.Key)">
-              <span>Próximo paso</span>{{ proximoDe(active.Key) || 'Por definir en la retoma' }}
-            </p>
-            <div class="task-meta">
-              <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-              <!-- CONTENEDOR LOCAL: una herramienta o playground. No va a Jira, así que no se le pide
-                   sección publicable ni se lo cuenta como trabajo comprometido con el equipo. -->
-              <span v-if="esProyecto(active._esfuerzoId)" class="badge badge-outline spchip proyecto"
-                title="contenedor local: una herramienta o playground. No sale a Jira">local</span>
-              <!-- El grupo al que pertenece la tarjeta, como chip: reemplaza al encabezado que antes
-                   partía la grilla. `_esfuerzo` en la vista del sprint, `_sprint` en la ancha. -->
-              <span v-if="active._esfuerzo" class="badge badge-outline spchip esf" :title="`esfuerzo: ${active._esfuerzo}`">
-                {{ active._esfuerzo }}
-                <i v-if="stageOf(active._esfuerzoId)" class="stg" :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
-              </span>
-              <span v-if="active._sprint" class="badge badge-outline spchip" :title="`del ${active._sprint}`">{{ active._sprint }}</span>
-              <!-- Cuánto hace que nadie toca el archivo de la tarea. Sólo aparece cuando ya es
-                   DORMIDA: una tarjeta que dice «hoy» en cada tarea viva es ruido. -->
-              <span v-if="active._esfuerzoId && diasSinTocar(active._esfuerzoId) >= DORMIDA_DIAS" class="badge badge-outline spchip dormida"
-                :title="`el archivo de la tarea no se toca desde ${efforts.find(e => e.id === active._esfuerzoId)?.tocadoEn} — ¿sigue viva? a los 30 días, archivar o anotar por qué espera`">
-                {{ diasSinTocar(active._esfuerzoId) }} d sin tocar{{ diasSinTocar(active._esfuerzoId) >= 30 ? ' · ¿archivar?' : '' }}</span>
-              <!-- El arrastre no es decoración: una tarea que va por su 3.er sprint es lo que uno
-                   quiere ver sin abrir nada. Sólo aparece cuando hay más de uno. -->
-              <span v-if="active._arrastres > 1" class="badge badge-outline spchip drag"
-                :title="`aparece en ${active._arrastres} sprints — viene arrastrada`">{{ active._arrastres }}.º sprint</span>
-            </div>
-            <div class="tm">
-              <!-- de qué sprint viene: verde = nació en su sprint · rojo = la arrastraron sin terminar -->
-              <span v-if="active.OriginSprint" class="orig" :class="{ carried: active.CarriedOver }"
-                :title="active.CarriedOver ? `Nació en ${active.OriginSprint} y se arrastró sin terminar` : `Nació en ${active.OriginSprint}`">
-                <i></i>{{ active.OriginSprint }}
-              </span>
-              <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
-              <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
-              <span>{{ hhmm(active.SpentSecs) }} en Jira</span>
-              <span class="mine" v-if="minutesOf(active.Key)">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
-            </div>
-
-          <template v-if="effortDe(active.Key)?.contextNodes">
-            <h4 class="aux-lbl">Contexto</h4>
-            <span>Contexto local:</span>
-            <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-              :key="n" class="badge badge-outline ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
-              :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
-          </template>
-        </div>
-      </section>
-
-      <!-- Las siete, con el mismo conteo y el mismo aviso que llevaban como pestañas. -->
-      <section v-for="v in vistasAux" :key="v.id" class="view" :class="{ abierta: abiertaAux(v.id) }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="abiertaAux(v.id)"
-                  @click="alternarAux(v.id)">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-            <span>{{ v.label }}</span>
-          </button>
+      <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
+        <button v-for="v in vistasAux" :key="v.id" type="button" role="tab" class="aux-tab"
+                :class="{ activa: abiertaAux(v.id) }" :data-vista="v.id"
+                :id="'aux-tab-' + v.id" :aria-controls="'aux-panel-' + v.id"
+                :aria-selected="abiertaAux(v.id)" :tabindex="abiertaAux(v.id) ? 0 : -1"
+                @click="alternarAux(v.id)" @keydown="tecladoPestanasAux($event, v.id)">
+          <span>{{ v.label }}</span>
           <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
-          <span v-if="v.count !== undefined" class="cnt">{{ v.count }}</span>
-        </div>
-        <div v-if="abiertaAux(v.id)" class="region-body aux-vista">
+          <span v-if="v.count !== undefined" class="aux-count">{{ v.count }}</span>
+        </button>
+      </nav>
+      <template v-for="v in vistasAux" :key="v.id">
+        <section v-if="abiertaAux(v.id)" class="region-body aux-vista aux-tab-panel"
+                 :class="{ 'jira-tab-panel': v.id === 'jira' }"
+                 role="tabpanel" :id="'aux-panel-' + v.id" :aria-labelledby="'aux-tab-' + v.id">
           <template v-if="v.id === 'jira'">
             <p v-if="active._local" class="nota">Esta tarea es local y todavía no está publicada en Jira.</p>
             <template v-else>
@@ -1985,7 +2066,6 @@ function detailAction(id) {
                 <span class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
                 <a v-if="site" class="link" :href="jiraLink(active.Key)" target="_blank" rel="noopener">Abrir {{ active.Key }} en Jira ↗</a>
               </div>
-              <p class="nota">Descripción recibida de Jira al cargar el sprint. El formato se adapta al tablero.</p>
               <iframe v-if="jiraDocument" class="jira-preview" :srcdoc="jiraDocument"
                 sandbox="allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"
                 :title="'Descripción de ' + active.Key + ' en Jira'"></iframe>
@@ -2047,63 +2127,6 @@ function detailAction(id) {
             </section>
 
           </template>
-          <template v-if="v.id === 'ramas'">
-
-            <p v-if="!ramasCuenta(active?.Key)" class="nota">No hay ramas medidas para esta tarea.</p>
-            <p v-if="ramasCuenta(active?.Key)" class="nota">Medido {{ haceCuanto(ramasDe(active?.Key)?.medidoEn || ramasSnap.medidoEn) }}
-              <span v-if="ramasSnap.incompletas?.length" class="warn">· {{ ramasSnap.incompletas.length }} tarea(s) sin medir</span>
-            </p>
-            <p v-if="entregaDe(active?.Key)" class="resumen-entrega">
-              <span class="badge badge-outline badge-xs entrega" :class="entregaDe(active?.Key).clase">{{ entregaDe(active?.Key).texto }}</span>
-              {{ entregaDe(active?.Key).titulo }}
-            </p>
-            <!-- El cómo se mide explicado en UNA línea: el párrafo largo empujaba la tabla, que es lo que
-                 se viene a mirar. El detalle queda a un hover de distancia. -->
-            <p class="nota comomide">
-              <span title="`git cherry` compara por patch-id, así que un cambio que llegó por squash de UN commit cuenta como mergeado aunque la rama ya no exista.">Medido por <b>patch-id</b></span>,
-              y cuando el squash cambió el patch —mensaje o contenido editados al mergear— por el
-              <span title="Si el PR se mergeó y su commit resultante ya es ancestro del ambiente, el cambio está aunque el patch-id no coincida. Sin esta segunda señal, un PR squasheado que YA estaba en main salía como «no llegó».">
-                <b>commit del PR</b> (<span class="si via-pr">✓</span>)</span>.
-              Refrescar: <code>make tareas-ramas</code>.</p>
-            <div class="tabla-wrap">
-              <table class="ramas">
-                <thead>
-                  <tr>
-                    <th>repo</th><th>rama</th><th>PR</th>
-                    <th v-for="a in ambientesDe(active?.Key)" :key="a" :class="{ ppal: a === 'main' }">{{ a }}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="r in ramasDe(active?.Key)?.ramas || []" :key="r.repo + r.rama">
-                    <td>{{ r.repo }}</td>
-                    <td><code :title="r.asunto">{{ r.rama }}</code> <span class="sha">{{ r.commit }}</span>
-                      <!-- «local» no quiere decir "sin pushear": al aprobar un PR la remota se borra y queda
-                           la copia local. Las columnas de ambiente dicen cuál de las dos es. -->
-                      <span v-if="r.local" class="solo-local"
-                        title="la rama sólo existe en esta máquina — puede ser que nunca se pusheó, o que se borró al mergear el PR">local</span></td>
-                    <!-- El PR es lo que git no sabe: contesta «¿por qué esto no avanza?». Un OPEN sin
-                         revisión dice "nadie lo miró", que no es lo mismo que "falta trabajo". -->
-                    <td class="prcol">
-                      <a v-if="r.pr" class="link" :href="r.pr.url" target="_blank" rel="noopener"
-                        :title="`${r.pr.estado} → ${r.pr.base}${r.pr.revision ? ' · ' + r.pr.revision : ''}`">#{{ r.pr.numero }}</a>
-                      <span v-if="r.pr" class="prst" :class="'pr-' + r.pr.estado.toLowerCase()">{{ etiquetaPR(r.pr) }}</span>
-                      <span v-else class="na">sin PR</span>
-                    </td>
-                    <!-- tres estados, no dos: `—` es "ese ambiente no existe en este repo", que no es lo
-                         mismo que "no está mergeado". Confundirlos fue lo que hizo creer que faltaba
-                         desplegar algo en un repo que no tiene ese ambiente. -->
-                    <td v-for="a in ambientesDe(active?.Key)" :key="a" class="amb" :class="{ ppal: a === 'main' }">
-                      <span v-if="!(a in (r.propios || {}))" class="na" title="ese ambiente no existe en este repo">—</span>
-                      <span v-else-if="r.en?.[a]" class="si" :class="{ 'via-pr': r.como?.[a] === 'pr' }"
-                        :title="COMO_TEXTO[r.como?.[a]] || 'el cambio ya está acá'">✓</span>
-                      <span v-else class="no" title="el cambio todavía no está acá">·</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-          </template>
           <template v-if="v.id === 'registro'">
 
             <p class="nota">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
@@ -2149,8 +2172,8 @@ function detailAction(id) {
             </button>
 
           </template>
-        </div>
-      </section>
+        </section>
+      </template>
     </aside>
 
     <!-- AUXILIARYBAR: el vocabulario la tiene y el grid la deja lista, pero NO se renderiza — una
@@ -2163,14 +2186,22 @@ function detailAction(id) {
         : sprintDays.state === 'closed' ? `cerrado hace ${sprintDays.endedAgo} d`
         : `quedan ${sprintDays.remaining} d · ${sprintDays.pct}% consumido` }}</span>
       <span v-if="!cargandoAncha">{{ visibles }} tarea{{ visibles === 1 ? '' : 's' }} a la vista</span>
+      <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
+      <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <button type="button" class="region-action" :aria-pressed="verSidebar" aria-controls="tasks-sidebar"
                 aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="verSidebar = !verSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button ref="detailToggle" type="button" class="region-action" :aria-pressed="verAux && !!active" :disabled="!active"
-                aria-label="Mostrar u ocultar el detalle" title="Mostrar u ocultar el detalle" @click="verAux = !verAux">
+        <button v-if="active" ref="ramasPanelToggle" type="button" class="region-action sb-console"
+                :aria-pressed="mostrarConsolaRamas" aria-controls="context-branches-panel"
+                aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="alternarConsolaRamas">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+          <span>Ramas</span><span class="sb-count">{{ ramasTareaActiva.ramas.length }}</span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="mostrarAux" :disabled="!active"
+                aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="alternarDetalle">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>
@@ -2191,20 +2222,27 @@ function detailAction(id) {
    columna, así que el target es la fila y no un enlace adentro. 28px de alto se acierta sin mirar. */
 /* (El encabezado de cada grupo es `.region-head.grupo` de `taller.css`: misma forma que el de la
    vista, pegajoso mientras se recorre el grupo.) */
-.tree-row { display: flex; align-items: center; gap: 7px; width: 100%; min-height: 28px;
-  padding: 4px 10px 4px 8px; border: 0; background: none; color: inherit; font: inherit;
-  cursor: pointer; text-align: left; border-left: 2px solid transparent }
+.tree-item { position: relative; min-width: 0 }
+.tree-row { display: flex; align-items: center; gap: 7px; width: calc(100% - 10px); min-height: 30px;
+  margin: 1px 5px; padding: 4px 31px 4px 9px; border: 0; border-radius: var(--radius-md);
+  background: none; color: inherit; font: inherit; cursor: pointer; text-align: left;
+  box-shadow: inset 2px 0 0 transparent }
 .tree-row:hover { background: var(--sel) }
 /* ⚠ Lo seleccionado se marca con una BARRA a la izquierda además del fondo: sólo con fondo, en una
    lista de 40 filas grises, hay que comparar contra la vecina para saber cuál está activa. */
-.tree-row.sel { background: var(--sel); border-left-color: var(--acc) }
+.tree-row.sel { background: color-mix(in oklab, var(--acc) 10%, var(--sel)); box-shadow: inset 2px 0 0 var(--acc) }
 .tree-row.done { color: var(--texto-3) }
 .tree-row.done.sel, .tree-row.done:hover { color: var(--txt) }
+.tree-state { position: absolute; z-index: 1; right: 8px; top: 50%; translate: 0 -50%; display: grid;
+  place-items: center; width: 23px; height: 23px; padding: 0; border: 0; border-radius: var(--radius);
+  background: transparent; color: var(--mut); cursor: pointer; opacity: .72 }
+.tree-state:hover, .tree-state:focus-visible, .tree-item:focus-within .tree-state { opacity: 1; color: var(--txt); background: var(--line) }
+.tree-state .ui-icon { width: 13px; height: 13px }
 .tr-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--mut) }
 .tr-dot.e-ok { background: var(--ok) } .tr-dot.e-doing { background: var(--acc) }
 .tr-key { font: 10.5px var(--font-mono); color: var(--mut); flex: none }
 .tr-tt { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.tr-n { font-size: 10px; font-weight: 700; color: var(--warn); flex: none }
+.tr-n { font-size: 9.5px; font-weight: 700; color: var(--warn); flex: none; white-space: nowrap }
 .tr-z { font-size: 10px; color: var(--mut); flex: none }
 
 .sidebar-jira { padding: 12px 10px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start }
@@ -2221,47 +2259,64 @@ function detailAction(id) {
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
 
 .sb-act { margin-left: auto; font: 11px var(--font-mono); color: var(--txt) }
+.sync-state { color: var(--mut); font-size: 10.5px }
+.sync-error { color: var(--warn) }
+.sync-state + .sb-act { margin-left: 0 }
+.sb-console { display:inline-flex; align-items:center; width:auto; gap:5px; padding:0 7px; font-size:10.5px }
+.sb-console .ui-icon { width:13px; height:13px }
+.sb-count { min-width:17px; padding:0 4px; color:var(--txt); background:var(--line2);
+  border-radius:999px; font-size:9px; font-variant-numeric:tabular-nums }
 
-/* ── LA FICHA, EN EL SIDEBAR SECUNDARIO ──────────────────────────────────────────────────────────
-   Los mismos bloques que estaban dentro de «Trabajo» (`.jd`, `.next-step`, `.task-meta`, `.tm`), pero
-   en una columna de 340px: apilados y con aire entre sí, no compitiendo en una fila. */
-.aux-ficha { padding: 14px 14px 24px; display: flex; flex-direction: column; gap: 14px }
-.aux-ficha > * { margin: 0 }
-.aux-ficha :deep(.task-meta), .aux-ficha :deep(.tm) { margin: 0 }
-/* La etiqueta de una sección de la ficha: misma forma que un `region-head` pero SIN su barra — acá
-   no encabeza una región, separa dos bloques dentro de una. */
-.aux-lbl { margin: 4px 0 0; font-size: 10.5px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--tenue) }
-/* El cuerpo de una vista del acordeón derecho. Menos padding que el editor: son 340px y cada píxel
-   de margen es uno menos de contenido. */
-.aux-vista { padding: 12px 14px 20px }
+/* El riel permanece en una sola línea: a 340px no caben seis nombres sin desplazar, y partirlo en dos
+   filas volvería a quitarle alto al contenido. La pestaña activa se une al cuerpo con la línea baja. */
+.aux-tabs { display: flex; flex: none; min-width: 0; gap: 2px; padding: 4px 6px;
+  overflow-x: auto; overflow-y: hidden; border-bottom: 1px solid var(--line);
+  background: var(--panel2); scrollbar-width: thin }
+.aux-tab { display: flex; align-items: center; gap: 5px; flex: none; height: 28px; padding: 0 9px;
+  border: 0; border-radius: var(--radius-md); background: none; color: var(--mut);
+  font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap }
+.aux-tab:hover { color: var(--txt); background: var(--sel) }
+.aux-tab.activa { color: var(--txt); background: var(--background); box-shadow: 0 1px 2px rgb(0 0 0 / .16) }
+.aux-count { min-width: 16px; padding: 0 4px; border-radius: 999px; background: var(--line2);
+  color: var(--txt); font-size: 9px; font-variant-numeric: tabular-nums; text-align: center }
+.aux-tab-panel { display: flex; flex-direction: column; padding: 12px 14px 20px }
 .aux-alerta { color: var(--warn); font-style: normal; font-size: 8px; flex: none }
-/* En una barra de región los botones son CHICOS: compiten con el título de la vista, no con el
-   contenido. El `⇢ Mover` que venía del encabezado del editor traía tamaño de botón de formulario. */
 
 /* ── LAS MANIJAS ─────────────────────────────────────────────────────────────────────────────────
    `taller.css` pone el aspecto; acá va DÓNDE: pegadas al borde interior de cada sidebar, en capa
    sobre él. ⚠ Se salen 3px hacia afuera (`margin`) para que la zona de agarre cubra el borde de
    verdad y no haya que apuntarle a un píxel. */
-.sidebar, .auxiliarybar { position: relative }
+.sidebar, .auxiliarybar, .ramas-panel { position: relative }
+.workbench.con-consola-ramas {
+  grid-template-areas:
+    "titlebar    titlebar  titlebar  titlebar"
+    "banner      banner    banner    banner"
+    "activitybar sidebar   editor    auxiliarybar"
+    "activitybar sidebar   panel     panel"
+    "statusbar   statusbar statusbar statusbar";
+}
 .rsz-sb, .rsz-aux { position: absolute; top: 0; bottom: 0; width: calc(var(--rsz) + 6px) }
 .rsz-sb { right: -3px }
 .rsz-aux { left: -3px }
 .rsz-sb::before { left: 3px; right: auto; width: 1px }
 .rsz-aux::before { left: auto; right: 3px; width: 1px }
+.ramas-panel { overflow: visible }
+.rsz-panel { position:absolute; inset:-3px 0 auto; height:calc(var(--rsz) + 6px) }
+.rsz-panel::before { top:3px; bottom:auto; height:1px }
 
 /* ── LAS PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────
    La activa se marca con una línea ARRIBA y el fondo del editor, como en VS Code: la línea dice cuál
    es sin depender de que el ojo compare fondos, y el fondo la une con el contenido de abajo. */
-.editor-tabs { display: flex; flex: none; overflow-x: auto; background: var(--panel2);
-  border-bottom: 1px solid var(--line); scrollbar-width: thin }
+.editor-tabs { display: flex; flex: none; gap: 2px; padding: 3px 6px 0; overflow-x: auto;
+  background: var(--panel2); border-bottom: 1px solid var(--line); scrollbar-width: thin }
 .et { display: flex; align-items: center; flex: none; max-width: 200px;
-  border-right: 1px solid var(--line); position: relative }
-.et::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: transparent }
+  border-radius: var(--radius-md) var(--radius-md) 0 0; position: relative }
+.et::before { content: ''; position: absolute; inset: auto 8px -1px; height: 2px;
+  border-radius: 2px 2px 0 0; background: transparent }
 .et.act::before { background: var(--acc) }
 .et.act { background: var(--background) }
 .et-b { display: flex; align-items: center; gap: 7px; min-width: 0; border: 0; background: none;
-  color: var(--mut); font: inherit; font-size: 12px; padding: 8px 4px 8px 11px; cursor: pointer }
+  color: var(--mut); font: inherit; font-size: 12px; padding: 7px 4px 7px 10px; cursor: pointer }
 .et.act .et-b { color: var(--txt) }
 /* ⚠ La PREVISTA en itálica, igual que VS Code: es la única señal de que el próximo clic en el árbol
    la va a reemplazar. Sin marca, el reemplazo se lee como que la pestaña «se perdió». */
@@ -2272,15 +2327,6 @@ function detailAction(id) {
 .et-x { color: var(--mut); font-size: 15px; line-height: 1; opacity: 0 }
 .et:hover .et-x, .et.act .et-x, .et-x:focus-visible { opacity: 1 }
 .et-x:hover { background: var(--sel); color: var(--txt) }
-/* El interruptor de la ficha, al borde: `margin-left: auto` lo manda a la derecha y `position:
-   sticky` lo deja visible aunque la barra scrollee con muchas pestañas. */
-/* Sobre `.btn.btn-ghost.btn-icon.btn-xs`: pegado a la derecha de la barra de pestañas, con el fondo
-   de la barra para que no se despegue al scrollearlas. */
-.et-aux { margin-left: auto; position: sticky; right: 0; background: var(--panel2);
-  color: var(--mut); font-size: 13px; width: auto; padding: 0 10px; align-self: stretch }
-.et-aux:hover { color: var(--txt) }
-.et-aux.act { color: var(--txt) }
-
 /* ⚠ El contador del encabezado es la ÚNICA señal de que hay un filtro puesto, ahora que las casillas
    viven en el menú. Cuando filtra, deja de ser un número apagado y se prende: si no se nota, el
    filtro se olvida encendido y la tarea que falta se lee como «no existe». */
@@ -2295,18 +2341,14 @@ function detailAction(id) {
    que vivía acá era de cuando TODO era una columna de texto. La clase sigue puesta en el marcado —la
    usa el JS para saber en qué vista está—, pero como CSS estaba VACÍA desde entonces. */
 
-/* Menú de estados. Las opciones son las que devolvió Jira, así que el ancho lo decide el contenido:
-   fijar columnas cortaría nombres como «Se devuelve a pruebas». */
-.mv { margin: 8px 0 0; padding: 9px 10px; background: var(--panel2) }
-.mv-h { margin: 0 0 7px; font-size: 11.5px; color: var(--mut) }
-.mv-h b { color: var(--txt); font-weight: 600 }
-.mv-opts { display: flex; flex-wrap: wrap; gap: 5px }
-/* Sobre `.btn.btn-outline.btn-xs`: los destinos del menú de estados. */
-.mv-o { height: 25px; font-size: 12px; font-weight: 600; border-color: var(--line2) }
-.mv-o:hover:not(:disabled) { border-color: color-mix(in srgb, var(--acc) 55%, transparent) }
-.mv-o:disabled { opacity: .5; cursor: default }
-/* El que dispara el aviso a QA se distingue: no es sólo un cambio de estado, además le escribe a alguien. */
-.mv-o.qa { border-color: color-mix(in oklab, var(--ok) 34%, transparent) }
+/* Menú contextual de una tarea. Las opciones son las que devolvió Jira; el rótulo conserva el estado
+   de origen para que una transición nunca parezca una acción genérica sobre toda la lista. */
+.task-context-menu { width: min(270px, calc(100vw - 16px)) }
+.task-menu-head { margin: 0 5px 4px; padding: 5px 5px 7px; border-bottom: 1px solid var(--line);
+  color: var(--mut); font-size: 11px }
+.task-menu-head b { color: var(--txt); font-weight: 600 }
+.task-transition .ui-icon { color: var(--mut) }
+.task-menu-error { white-space: normal; line-height: 1.35 }
 .mv-tag { font-size: 9.5px; font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .3px }
 
 /* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
@@ -2391,8 +2433,7 @@ function detailAction(id) {
 
 /* ⚠ Acá vivían `.tgrid` y `.task`: la grilla de tarjetas y la tarjeta. Se fueron con la
    reestructuración — las tareas son filas del árbol en el sidebar (`.tree-row`) y su contenido es el
-   editor. Lo que la tarjeta mostraba de un vistazo vive ahora en `.ficha`, que reusa sus mismas
-   clases internas (`.jd`, `.next-step`, `.task-meta`, `.tm`), por eso esas siguen abajo. */
+   editor. */
 .key { font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums }
 /* Sobre `.badge.badge-outline`: el estado en Jira. El color lo pone `statusClass`, que devuelve sólo
    el estado — los mismos tres nombres pintan también el PUNTO del árbol, que no es una píldora. */
@@ -2400,16 +2441,6 @@ function detailAction(id) {
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .e-doing { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
-/* descripción real de Jira: recortada a 3 líneas para que el listado siga siendo escaneable
-   (el texto completo va en el title). Vacía = aviso, porque falta definirla. */
-.jd { font-size: 12px; line-height: 1.45; color: var(--mut); margin: 0 0 7px;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
-/* ⚠ Sin `opacity: .6`: apilada sobre `--mut` dejaba «sin cuerpo técnico todavía» en 3,2:1. Lo que
-   dice «esto está vacío» es la itálica y el escalón de la rampa, no un velo encima. */
-.jd.none { font-style: italic; color: var(--texto-3) }
-.tm { display: flex; gap: 12px; font-size: 11.5px; color: var(--mut); flex-wrap: wrap }
-.tm .mine { color: var(--acc) }
-
 /* acciones de la tarjeta: la fila que reemplazó a la card "La tarea". Van al pie y en tono bajo — la
    tarjeta se lee primero y se actúa después; botones fuertes acá competirían con el contenido. */
 /* ⚠ Las acciones de la tarea eran PÍLDORAS (radio 999) con fondo propio: un botón redondo se lee
@@ -2422,20 +2453,6 @@ function detailAction(id) {
 /* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
 .tact.go { color: var(--acc-ink); border-color: var(--acc); background: var(--acc) }
 .tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
-/* La entrega dentro del botón de ramas: verde cuando todo está en main, ámbar a medio camino, y
-   gris cuando todavía no llegó nada. El color hace el trabajo de un vistazo; el texto, el de precisar. */
-.entrega { margin-left: 6px; font-weight: 700; letter-spacing: .02em; padding: 1px 5px }
-.entrega.ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
-.entrega.medio { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent); background: color-mix(in oklab, var(--warn) 8%, transparent) }
-.entrega.espera { color: var(--mut); border-color: var(--line); background: var(--panel2) }
-.resumen-entrega { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--txt); font-size: 12.5px }
-.resumen-entrega .entrega { margin-left: 0 }
-/* la columna que importa: `main` es la vara con la que se mide el contexto */
-.ramas th.ppal, .ramas td.ppal { background: var(--panel2); border-left: 1px solid var(--line) }
-.ramas th.ppal { color: var(--txt); font-weight: 800 }
-.comomide span[title] { border-bottom: 1px dotted var(--line); cursor: help }
-/* un ✓ que se supo por el PR y no por el patch-id: se marca para que el dato pueda explicarse */
-.amb .si.via-pr { color: var(--ok); border-bottom: 1px dotted color-mix(in oklab, var(--ok) 47%, transparent) }
 .tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
   padding: 1px 6px; border-radius: 999px }
 .tact.act .cnt { background: var(--acc); color: var(--acc-ink) }
@@ -2570,7 +2587,7 @@ function detailAction(id) {
 .entry:last-of-type::before { bottom: auto; height: 18px }
 .entry .icon { position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--card) }
 /* El párrafo nace CORTADO a 3 líneas: las notas son largas a propósito (traen el porqué completo) y
-   enteras convierten la bitácora en un muro que se deja de escanear. El detalle está a un clic. */
+   enteras convierten la bitácora en un muro que se deja de escanear. */
 .entry p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
            cursor: pointer }
 .entry.abierta p { display: block; overflow: visible }
@@ -2693,6 +2710,19 @@ function detailAction(id) {
 /* Un nodo de `context/` es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
 .ctx-link { color: var(--acc); border-color: var(--line2); text-decoration: none }
 .ctx-link:hover { background: var(--secondary); }
+/* Datos que identifican el trabajo actual. Viven junto al título porque siguen siendo ciertos al
+   cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
+.task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }
+.task-head-facts { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 10px;
+  min-width: 0; color: var(--mut); font-size: 11.5px }
+.task-head-facts .mine { color: var(--acc) }
+.task-jira-link { margin-left: auto; color: var(--acc); font-size: 11.5px; text-decoration: none }
+.task-jira-link:hover { text-decoration: underline }
+.task-head-context { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0;
+  color: var(--mut); font-size: 11px }
+.task-head-context strong { font-weight: 600; color: var(--mut) }
+.task-head-context .ctx-link { font-size: 10.5px }
+.task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }
@@ -2738,14 +2768,6 @@ function detailAction(id) {
 #journey-content { padding-top: 16px }
 /* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.grupo`, y su
    conteo usa el mismo `.cnt` que el encabezado de la vista.) */
-.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 10px 0 8px }
-.task-meta .spchip { margin-left: 0; max-width: 100% }
-.task-meta:empty { display: none }
-.next-step { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: var(--txt);
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
-.next-step > span { display: block; color: var(--mut); font-size: 10px; margin-bottom: 3px }
-.next-step.missing { color: var(--mut) }
-.move-task { margin-left: auto }
 .document-section { scroll-margin-top: 12px }
 .document-section + .document-section { margin-top: 22px }
 /* ⚠ Las casillas de los Pendientes salen de un `- [ ]` de markdown, así que no se les puede poner
@@ -2767,8 +2789,16 @@ function detailAction(id) {
 .cuerpo-md :deep(input[type=checkbox]:checked) { background: var(--acc); border-color: var(--acc) }
 .pending-document :deep(input[type=checkbox]:checked)::after,
 .cuerpo-md :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
-.jira-heading { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; flex-wrap: wrap }
-.jira-preview { width: 100%; height: 65vh; min-height: 360px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card) }
+.jira-tab-panel { padding: 0; overflow: hidden }
+.jira-heading { display: flex; align-items: center; gap: 12px; flex: none; padding: 10px 14px;
+  border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap }
+.jira-preview { display: block; flex: 1; min-height: 0; width: 100%; height: 100%; border: 0;
+  border-radius: 0; background: transparent }
+.sidebar > .region-head { min-height: 40px; padding: 7px 10px }
+.sidebar .view > .region-head { min-height: 32px; padding: 4px 10px; border-bottom: 0 }
+.sidebar .view > .region-body { padding-top: 3px; padding-bottom: 3px }
+.statusbar .layout-controls { gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--panel2) }
+.statusbar .layout-controls .region-action { border-radius: var(--radius-md) }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
 @media (max-width: 650px) {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }

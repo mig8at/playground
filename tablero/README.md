@@ -73,10 +73,10 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 
 - **Mis tareas** agrupa En curso, Bloqueadas, En pruebas, Por empezar y Terminadas. Cada grupo se
   puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
-- **Retomar** abre un panel con Trabajo, Jira, Pendientes, Hallazgos, Ramas y Bitácora. Si hay prototipos,
-  aparece también su pestaña. **Mover** conserva la consulta y confirmación del cambio de estado en Jira.
-- El panel recuerda su ancho. Arrastrá el borde izquierdo; doble clic lo restablece. Con foco en ese
-  borde, las flechas ajustan el ancho (Shift acelera) y Enter o Inicio lo restablecen. Escape cierra.
+- **Retomar** abre la tarea en el editor; Jira, Pendientes, Hallazgos, Registro y Bitácora viven en el
+  sidebar derecho y Ramas en la consola inferior. Si hay prototipos, aparece también su pestaña.
+- Los sidebars y la consola recuerdan sus medidas. Sus separadores se arrastran y también responden a
+  las flechas cuando reciben foco.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
 - Los enlaces **Contexto local** abren los nodos de `../context/` en `localhost:5193`, no canon.
   Levantá esa vista con `make context` desde la raíz del playground, en otra terminal; `make tablero`
@@ -87,11 +87,14 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
   local, lo indica; nunca sustituye el contenido publicado por el borrador local.
+- Al recargar se muestra inmediatamente el último estado correcto guardado en el navegador. Jira se
+  revalida por `fetch` en segundo plano; el pie informa mientras actualiza o si no pudo hacerlo. Las
+  demás APIs locales se consultan en paralelo y no desmontan el editor.
 - Copiar conserva el Markdown original; la organización de las pestañas no reescribe los archivos.
 
 ## La forma de una tarea
 
-La [plantilla por pestaña](CLAUDE.md#plantilla-por-pestaña) define qué escribir, dónde vive cada dato
+La [plantilla por vista](CLAUDE.md#plantilla-por-vista) define qué escribir, dónde vive cada dato
 y cómo actualizarlo durante el trabajo diario.
 
 `PLANTILLA-TAREA.md` (en esta carpeta, **no** en `data/`: ahí todo `.md` se lee como tarea) es el
@@ -468,6 +471,9 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
 - Un registro = un bloque de tiempo trabajado. El snapshot de Jira (`sprints`/`tasks`) es una **dimensión
   descartable** en `cache/`: se upsertea de pasada cada vez que el dashboard carga — navegar el tablero ES
   la sincronización.
+- El navegador conserva aparte `tablero:bootstrap:v1` en `localStorage` para la primera pintura. Es una
+  copia de lectura con vencimiento de siete días, no persistencia de negocio: cada apertura la revalida
+  contra Jira y la reemplaza sólo con una respuesta válida.
 - `startedAt` es cuándo **empezó el trabajo** (RFC3339 con offset local); `createdAt` es cuándo se anotó.
   La brecha entre ambos —cuánto tardás en registrar— también es un dato.
 - `day` y `hour` desnormalizan el instante en hora **local** y se calculan **al crear el registro**:

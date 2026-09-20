@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { vResize, readSize, saveSize } from './workbench.js'
 import tree from '../tree.json'
 import RegionMenu from './RegionMenu.vue'
+import Ramas from './Ramas.vue'
 
 // Disposición local: cerrar el árbol no descarta el ancho que la persona eligió. El botón del pie y
 // el tirador lo devuelven exactamente donde estaba, sin necesitar una acción de «restablecer».
@@ -11,6 +12,7 @@ const treeWidth = ref(savedTreeWidth)
 const lastTreeWidth = ref(readSize('context.sidebar.last-open', savedTreeWidth || 300))
 const explorerToggle = ref(null)
 const viewportWidth = ref(window.innerWidth)
+const viewportHeight = ref(window.innerHeight)
 const maxTreeWidth = computed(() => Math.max(160, Math.min(560, viewportWidth.value - 280)))
 const visibleTreeWidth = computed(() => treeWidth.value ? Math.min(treeWidth.value, maxTreeWidth.value) : 0)
 const treeResize = computed(() => ({
@@ -36,9 +38,48 @@ function toggleTree() {
   }
   saveSize('context.sidebar', treeWidth.value)
 }
-const resizeWindow = () => { viewportWidth.value = window.innerWidth }
+const resizeWindow = () => {
+  viewportWidth.value = window.innerWidth
+  viewportHeight.value = window.innerHeight
+}
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => window.removeEventListener('resize', resizeWindow))
+
+// La consola inferior muestra una medición local de Git. Como las otras regiones, recuerda su alto y
+// cerrarla no pierde la medida elegida. Se abre por defecto: es estado operativo, no un detalle oculto.
+const savedBranchesHeight = readSize('context.ramas.height', 260)
+const branchesHeight = ref(savedBranchesHeight)
+const lastBranchesHeight = ref(readSize('context.ramas.last-open', savedBranchesHeight || 260))
+const branchesToggle = ref(null)
+const maxBranchesHeight = computed(() => Math.max(140, Math.min(560, viewportHeight.value - 260)))
+const visibleBranchesHeight = computed(() => branchesHeight.value ? Math.min(branchesHeight.value, maxBranchesHeight.value) : 0)
+const branchesResize = computed(() => ({
+  label: 'Alto del panel de ramas', axis: 'y', sign: -1, min: 140, max: maxBranchesHeight.value,
+  defaultValue: 260, collapsible: true,
+  get: () => visibleBranchesHeight.value,
+  set: (v) => {
+    branchesHeight.value = v
+    if (v > 0) lastBranchesHeight.value = v
+  },
+  commit: (v) => {
+    saveSize('context.ramas.height', v)
+    if (v > 0) saveSize('context.ramas.last-open', v)
+  },
+}))
+function toggleBranches() {
+  if (branchesHeight.value) {
+    lastBranchesHeight.value = branchesHeight.value
+    saveSize('context.ramas.last-open', branchesHeight.value)
+    branchesHeight.value = 0
+  } else {
+    branchesHeight.value = Math.min(lastBranchesHeight.value || 260, maxBranchesHeight.value)
+  }
+  saveSize('context.ramas.height', branchesHeight.value)
+}
+function hideBranches() {
+  toggleBranches()
+  branchesToggle.value?.focus()
+}
 
 
 // ── Data: estructura del árbol (tree.json) + contenido por nodo (map.json/doc.md) ──
@@ -60,6 +101,12 @@ const alinRaw = Object.values(alinMods)[0]
 const alin = (alinRaw && (alinRaw.default || alinRaw)) || { nodos: [], resumen: {}, generado: null }
 const alinById = Object.fromEntries((alin.nodos || []).map(n => [n.id, n]))
 const alinOf = (id) => alinById[id] || null
+const branchMods = import.meta.glob('../ramas.json', { eager: true })
+const branchRaw = Object.values(branchMods)[0]
+const branchSnapshot = (branchRaw && (branchRaw.default || branchRaw)) || {
+  schemaVersion: 'context.ramas.v1', generado: null, repos: [],
+  resumen: { repos: 0, ramas: 0, activas: 0, conCambios: 0 },
+}
 // EL CÍRCULO ES UN INDICADOR DE SALUD, no de tipo. Antes el relleno decía el `kind` y la alineación
 // iba en un anillo, pero el kind no informaba nada en este árbol: son 1 `root` y 30 `reference`, o sea
 // un canal casi constante. Y había un choque de color: el root es amarillo, igual que la deriva.
@@ -381,7 +428,7 @@ function explorerAction(id) {
 
 <template>
   <div class="wrap">
-
+    <div class="context-workspace" :style="{ '--branches-height': `${Math.round(visibleBranchesHeight)}px` }">
     <div class="cols">
       <aside id="context-sidebar" class="tree sidebar" v-show="visibleTreeWidth" :style="{ flexBasis: visibleTreeWidth + 'px' }" aria-label="Explorador de contexto">
         <!-- ⚠ El encabezado sale del scroll. Medido: el árbol tiene 1215px de contenido en 675 de
@@ -562,6 +609,11 @@ function explorerAction(id) {
       </main>
     </div>
 
+    <div v-show="visibleBranchesHeight" class="context-panel-resizer rsz" v-resize="branchesResize"></div>
+    <Ramas id="context-branches" v-show="visibleBranchesHeight" :snapshot="branchSnapshot"
+           :style="{ height: `${Math.round(visibleBranchesHeight)}px` }" @close="hideBranches" />
+    </div>
+
     <!-- STATUSBAR · el estado del ÁRBOL, que es lo que vale para toda la pantalla: cuántos nodos
          hay, cuántos archivos cubren y cuántos quedaron viejos. Eran pastillas en una fila propia
          del encabezado, y son estado, no navegación.
@@ -573,6 +625,9 @@ function explorerAction(id) {
       <strong>{{ nContext }} contextos</strong>
       <span v-if="nTask">{{ nTask }} tasks</span>
       <span>{{ nFiles }} archivos</span>
+      <span v-if="branchSnapshot.generado" :title="`Medido ${branchSnapshot.generado}; ${branchSnapshot.fuente}`">
+        {{ branchSnapshot.resumen.repos }} repos · {{ branchSnapshot.resumen.activas }} ramas activas
+      </span>
       <span v-if="alin.generado" class="sb-alin" :data-alin="alin.resumen['rutas-muertas'] ? 'rutas-muertas' : 'al-dia'"
             :title="'Calculado por tools/alinear.py el ' + alin.generado + ' contra ' + alin.ref">
         {{ alin.resumen['al-dia'] || 0 }} al día
@@ -586,6 +641,10 @@ function explorerAction(id) {
         <button ref="explorerToggle" type="button" class="region-action" :aria-pressed="!!visibleTreeWidth" aria-controls="context-sidebar"
                 aria-label="Mostrar u ocultar el explorador" title="Mostrar u ocultar el explorador" @click="toggleTree">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button ref="branchesToggle" type="button" class="region-action" :aria-pressed="!!visibleBranchesHeight" aria-controls="context-branches"
+                aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="toggleBranches">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
       </div>
     </footer>

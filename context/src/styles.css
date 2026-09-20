@@ -155,6 +155,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* ⚠ Sin `gap`: el aire entre columnas era lo que hacía falta cuando eran dos tarjetas flotando. Con
    las regiones a sangre, ese hueco deja ver el fondo de la ventana en una franja de 18px que no es
    ninguna de las dos — lo que separa es la línea del sidebar. */
+.context-workspace { display:flex; flex:1; flex-direction:column; min-width:0; min-height:0 }
 .cols { display: flex; flex: 1; min-height: 0; }
 /* El árbol es el SIDEBAR (`taller.css`): fondo `--sidebar` (#1f1f1f) y UNA línea a la derecha, las
    dos de la regla compartida.
@@ -288,6 +289,8 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 
 .context-resizer { position: relative; flex: 0 0 var(--rsz); margin-left: calc(-1 * var(--rsz)); }
 .context-resizer::before { left: -3px; right: -3px; }
+.context-panel-resizer { position:relative; flex:0 0 var(--rsz); width:auto; height:var(--rsz); margin:0; z-index:2 }
+.context-panel-resizer::before { top:-3px; right:0; bottom:-3px; left:0 }
 .search-field { height: var(--control-sm); }
 .tree-toggle { display: grid; place-items: center; border: 0; background: none; padding: 0; cursor: pointer; }
 .tree-toggle .ui-icon { width: 12px; height: 12px; }

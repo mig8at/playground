@@ -22,12 +22,21 @@ leé los `Cuándo:` de cada nodo, elegí dos a cuatro que matcheen la tarea, y a
 cd context && npm install && npm run dev   # viz read-only (puerto: .claude/launch.json)
 ```
 
-Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` por `import.meta.glob` y los
-renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
+Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` + `ramas.json` por `import.meta.glob`
+y los renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
 
 Desde la raíz del playground también se levanta con `make context` en `http://localhost:5193`.
 Un enlace `/?node=motai` selecciona el nodo exacto; `/?q=texto` inicia una búsqueda libre.
 Los enlaces del tablero apuntan a esta vista local. Canon es el corpus compartido y se consulta aparte.
+
+La consola inferior muestra los repos que indexa Context y las ramas locales de cada uno. El sidebar
+elige el repo; la tabla muestra checkout actual, cambios sin commit, diferencia contra `main`, upstream
+y último commit. El snapshot dice cuándo se midió y no hace `fetch`; es local y queda fuera de Git
+porque contiene el estado de esta máquina. Se actualiza con:
+
+```bash
+make context-ramas
+```
 
 **El buscador de la viz muestra la VECINDAD, no una lista.** Busca en cuatro lados —el nombre, los
 síntomas, los archivos declarados y el cuerpo del `doc.md`— y dice en cuál pegó. El árbol se recorta a
@@ -95,7 +104,7 @@ del producto ya está diagnosticado ahí.
 - **`server/` no tiene código**: es la carpeta de datos que sobrevivió al MCP (retirado — el porqué
   y el «no lo reconstruyas» están en `CLAUDE.md`). **No muevas los directorios de `flows/`**: toda
   ruta citada en los docs apunta ahí.
-- **`ROUTE-MAP.md`, `tools/index.txt` y `alineacion.json` son GENERADOS** — un hook bloquea
+- **`ROUTE-MAP.md`, `tools/index.txt`, `alineacion.json` y `ramas.json` son GENERADOS** — un hook bloquea
   editarlos a mano.
 - **`kind` vive en el `map.json`** y gana sobre lo que se infiera de `tree.json`. Los campos
   `targets`/`baseline` (tree.json) y `combination`/`group` (map.json) están muertos: nadie los lee.
