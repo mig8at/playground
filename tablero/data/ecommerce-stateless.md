@@ -417,6 +417,47 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 
 ## Registro
 
+### 2026-09-21 (9) · EL CÓDIGO FUNCIONA: probado en local de punta a punta. Lo que falla es `qa`
+
+Con #1441 en `qa` y #1039 mergeado, el monto seguía editable en `qa`. Para separar «código» de
+«ambiente» se probó **en local**, con el mismo comercio y la misma sucursal, cambiando **sólo el
+canal**:
+
+| canal | uReq | `#amount-input` | importes |
+|---|---|---|---|
+| **tienda** (atada a un pedido) | 466883 | **`readOnly: true`** — bloqueado | $1.500.000 · $148.623 |
+| **autogestión** (misma sucursal) | 466884 | `readOnly: false` — editable | — |
+
+Eso es la pantalla, no la API: el candado llega hasta el input. **El código está bien.**
+
+**Y en `qa`, a la misma hora, la misma pantalla:** `lock_amount: false`, `readOnly: false`, importes
+en `-`. Medido a las 20:32:45Z y otra vez a las 20:35:04Z, esta última **justo después** de que
+terminara el despliegue del front de #1039 (20:34:20Z).
+
+**Lo que ya se descartó, cada uno con su medición** (ver las entradas del 21/9 (4) y (6)):
+
+- el código — **local lo prueba**;
+- el dato — la sucursal tiene la columna en 0, que es el caso que el canal debe cerrar;
+- el front — su build de `qa` apunta a `legacy-backend-qa`, su mapeo es directo y no toca
+  `fee_numbers`;
+- su caché — tres peticiones dan tres respuestas distintas, y una solicitud nunca cargada da igual;
+- un rollout parcial en el camino que yo alcanzo — 10 de 10 peticiones dan `true`, y el host resuelve
+  a **una sola IP**;
+- que sea otro backend — el front recibe `1,3,6`, que **sólo** produce `qa` (`develop` y `lab`
+  devuelven `1,3,6,12`).
+
+⚠ **Queda un solo hueco, y es el que hay que mirar desde ECS:** el mismo endpoint, el mismo host y la
+misma solicitud contestan `true` cuando pregunto yo y `false` cuando pregunta el front. Con la imagen
+correcta ya construida (`4f1852d`) y tres despliegues en verde —13:48Z, 19:33Z y el tuyo de 19:48Z—,
+la explicación que queda es que **el servicio tiene más de una tarea y no todas rotaron**, o que el
+proceso del front sostiene una conexión viva contra una tarea vieja.
+
+**Lo que lo resuelve de una:** en el servicio `legacy-backend-qa` del cluster `inertia-develop`,
+**Deployments** (cuántas tareas hay, cuántas en la revisión nueva) y **Events** (por qué no rotó la
+que falta). Y la mejora durable sigue siendo la misma: `wait-for-service-stability: true` en
+`config-ci`, para que un despliegue que no rota salga en rojo y no en verde.
+
+
 ### 2026-09-21 (8) · el arreglo de los importes, y el orden de entrega
 
 **PR `frontend-monorepo#1039`** contra `qa`, rama `fix/importes-de-la-tarjeta-en-ecommerce`
