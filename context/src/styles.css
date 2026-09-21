@@ -123,20 +123,26 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
                 padding: 8px; border-bottom: 1px solid var(--line); }
 
 .buscar-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.jev-privacy { margin:0; color:var(--tenue); font-size:10.5px; line-height:1.35; }
-.jev-route { display:flex; flex-wrap:wrap; align-items:center; gap:5px 7px; min-width:0;
-  padding:6px 0 0 8px; color:var(--mut); border-left:2px solid var(--line); font-size:11px; line-height:1.35; }
-.jev-route[data-phase="suggest"] { border-left-color:var(--info); background:color-mix(in oklab, var(--info) 7%, transparent); }
-.jev-route[data-phase="fallback"], .jev-route[data-phase="unavailable"], .jev-route[data-phase="blocked"] { border-left-color:var(--al-deriva); }
-.jev-route .spinner { width:12px; height:12px; border-width:1.5px; }
-.jev-label { font-weight:600; color:var(--fg); }
-.jev-open, .jev-alts button { min-width:0; padding:0; border:0; background:none; color:var(--info); font:inherit; font-weight:600;
-  text-align:left; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
-.jev-open:hover, .jev-alts button:hover { color:var(--fg); }
-.jev-open:focus-visible, .jev-alts button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; border-radius:var(--radius-sm); }
-.jev-score, .jev-case { color:var(--mut); }.jev-case { width:100%; color:var(--al-deriva); }
-.jev-alts { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 8px; color:var(--tenue); }
-.jev-alts button { color:var(--texto-2); font-weight:500; }
+/* ── ¿QUÉ CAMBIÓ? el veredicto bajo demanda, dentro del bloque de alineación ──
+   Sin marco ni tarjeta: lo separa del resto del bloque una línea arriba, que es la regla de las
+   secciones. El veredicto sí lleva barra de color a la izquierda —es un callout— y va CUADRADO. */
+.qcambio { margin-top:8px; padding-top:8px; border-top:1px solid var(--line); display:flex;
+           flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.qc-run { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border:1px solid var(--line);
+          border-radius:var(--radius-sm); background:var(--card); color:var(--fg); font:inherit;
+          font-size:11.5px; font-weight:600; cursor:pointer; }
+.qc-run:hover:not(:disabled) { border-color:var(--info); color:var(--info); }
+.qc-run:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.qc-run:disabled { color:var(--mut); cursor:progress; }
+.qc-run .spinner { width:11px; height:11px; border-width:1.5px; }
+.qc-veredicto { flex-basis:100%; margin:6px 0 0; padding:5px 9px; border-left:2px solid var(--mut);
+                background:color-mix(in oklab, var(--mut) 7%, transparent); font-size:11.5px; line-height:1.45; }
+.qc-veredicto[data-tono="alerta"] { border-left-color:var(--al-deriva);
+                background:color-mix(in oklab, var(--al-deriva) 9%, transparent); }
+.qc-veredicto[data-tono="ok"] { border-left-color:var(--al-dia);
+                background:color-mix(in oklab, var(--al-dia) 7%, transparent); }
+.qc-cita { flex-basis:100%; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; padding-left:9px; }
+.qc-resto { flex-basis:100%; margin:4px 0 0; padding-left:22px; color:var(--texto-2); font-size:11px; line-height:1.5; }
 /* ⚠ El buscador era una PÍLDORA de 27px con fondo propio: 999px de radio, `--hueco` de fondo y su
    propio foco. Un campo no es una píldora —eso es una etiqueta— y el radio redondo lo hacía leerse
    como un chip clickeable. Es `.input.input-sm` de `taller.css`: fondo transparente, el radio del
@@ -187,7 +193,12 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .tree .region-body { padding: 8px 0; }
 /* El encabezado del árbol va a ras del borde redondeado de la tarjeta. */
 .tree .region-head:not(.grupo) { padding: var(--space-2) var(--space-3); }
-.tree .region-head .cnt { font-size: 10.5px; font-weight: 700; color: var(--mut); flex: none; }
+/* ⚠ SIN `color` a propósito: el contador es `.badge-secondary`, o sea una SUPERFICIE, y una
+   superficie trae su propia tinta (`--secondary-foreground`). Pisarla con `--mut` dejaba gris
+   sobre el teal del relleno: **1,21:1**, medido con `make estilo-contraste` el 2026-09-21. No lo
+   veía el chequeo estático porque el color salía de acá y el fondo de `taller.css`. Es la misma
+   regla que `--accent`: si tiene relleno, su texto es el `-foreground` de ese relleno. */
+.tree .region-head .cnt { font-size: 10.5px; font-weight: 700; flex: none; }
 /* Los dos grupos —Contextos y Tasks— se pegan arriba mientras recorrés el suyo. Sin borde: con uno,
    dos grupos dibujan dos rayas y el árbol se lee como una tabla. */
 .tree .region-head.grupo { padding: 6px 12px; margin: 0; }
@@ -275,52 +286,6 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 
 /* JEV navega el contexto; no es un chat ni otra tarjeta. La izquierda conserva la sesión y la
    derecha es la lista explícita de evidencia. El scope no sale de la máquina hasta ejecutar guide. */
-.jev-console { flex:0 0 var(--panel-h); min-height:0; }
-.jev-console-head { gap:10px; font-size:12px; }
-.jev-console-title { display:flex; align-items:center; gap:7px; color:var(--fg); }
-.jev-console-title .ui-icon { width:15px; height:15px; color:var(--info); }
-.jev-console-close { margin-left:auto; }
-.jev-stage { color:var(--tenue); font-size:10.5px; font-weight:500; }
-.jev-stage b { color:var(--mut); font-variant-numeric:tabular-nums; }
-.jev-pending { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:11px; font-weight:400; }
-.jev-pending .spinner { width:12px; height:12px; border-width:1.5px; }
-.jev-console-body { display:grid; grid-template-columns:minmax(0, 1fr) minmax(250px, 340px); flex:1; min-height:0; }
-.jev-session { min-width:0; overflow:auto; padding:8px 12px 12px; }
-.jev-command { display:flex; align-items:center; gap:7px; }
-.jev-command .input { min-width:0; font-family:var(--font-mono); }
-.jev-prompt { flex:none; color:var(--info); font-family:var(--font-mono); font-size:12px; font-weight:600; }
-.jev-guard, .jev-error { margin:6px 0 0; font-size:10.5px; line-height:1.35; }
-.jev-guard { color:var(--tenue); }.jev-guard code { padding:0; background:none; color:var(--mut); }
-.jev-error { color:var(--destructive); }
-.jev-output { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 8px; margin-top:9px; padding:7px 9px;
-  border-left:2px solid var(--line-fuerte); background:var(--hueco); color:var(--mut); font-size:11px; line-height:1.4; }
-.jev-output-head { display:flex; flex-basis:100%; justify-content:space-between; gap:8px; color:var(--fg); }
-.jev-output-head > :last-child { color:var(--tenue); font-size:10.5px; font-weight:400; }
-.jev-output p { flex-basis:100%; margin:0; }.jev-help { flex-direction:column; align-items:flex-start; color:var(--mut); }
-.jev-help b { color:var(--fg); }.jev-help code { padding:0; background:none; color:var(--info); }
-.jev-link, .jev-candidates button { border:0; padding:0; background:none; color:var(--info); font:inherit; font-weight:600;
-  cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
-.jev-link:hover, .jev-candidates button:hover { color:var(--fg); }
-.jev-link:focus-visible, .jev-candidates button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
-.jev-muted { color:var(--tenue); }.jev-candidates { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 9px; }
-.jev-candidates button { color:var(--texto-2); font-weight:500; }.jev-facts, .jev-sections { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 8px; }
-.jev-facts { color:var(--tenue); font-size:10.5px; }.jev-sections span { color:var(--texto-2); font-size:10.5px; }
-.jev-sections span:not(:last-child)::after { content:'·'; margin-left:8px; color:var(--line-fuerte); }
-.jev-scope-output { display:block; }.jev-code-preview { margin-top:6px; border-top:1px solid var(--line); }
-.jev-code-preview:first-of-type { margin-top:0; border-top:0; }.jev-code-preview summary { display:flex; gap:8px; min-width:0; padding:5px 0;
-  cursor:pointer; color:var(--texto-2); }.jev-code-preview summary code { min-width:0; overflow:hidden; padding:0; background:none; text-overflow:ellipsis; white-space:nowrap; }
-.jev-code-preview summary span { margin-left:auto; flex:none; color:var(--tenue); font-size:10px; white-space:nowrap; }
-.jev-code-preview pre { max-height:150px; margin:0 0 6px; overflow:auto; padding:7px; background:var(--background); border:1px solid var(--line);
-  color:var(--texto-2); font:10px/1.4 var(--font-mono); white-space:pre; }
-.jev-case-note { color:var(--al-deriva); }.jev-evidence { min-width:0; overflow:auto; padding:8px 10px; border-left:1px solid var(--line); background:var(--sidebar); }
-.jev-evidence-head { display:flex; justify-content:space-between; gap:8px; color:var(--fg); font-size:11px; }.jev-evidence-head code { padding:0; background:none; color:var(--mut); }
-.jev-evidence > p { margin:6px 0 8px; color:var(--mut); font-size:10.5px; line-height:1.35; }.jev-evidence > p code { padding:0; background:none; }
-.jev-evidence-actions { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:var(--tenue); font-size:10.5px; }
-.jev-evidence-actions span { margin-left:auto; font-variant-numeric:tabular-nums; }.jev-file-option { display:flex; align-items:center; gap:7px; min-width:0;
-  min-height:27px; padding:3px 0; border-top:1px solid var(--line); cursor:pointer; }.jev-file-option input { flex:none; accent-color:var(--primary); }
-.jev-file-option code { min-width:0; overflow:hidden; padding:0; background:none; color:var(--texto-2); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
-.jev-file-option:hover code { color:var(--fg); }.jev-scope-button { width:100%; margin-top:8px; }
-.jev-console-resizer { flex:0 0 var(--rsz); margin-top:calc(-1 * var(--rsz)); }
 
 /* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
    EL CÍRCULO ENTERO es el estado de salud, no el kind. Se probó con el kind en el relleno y la
@@ -339,7 +304,14 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--al-muerta) 32%, transparent);
 }
 
-.deriva { color: var(--mut); }
+/* El badge de deriva dice su estado con COLOR, así que no puede además llevar el relleno teal de
+   `.badge-secondary`: la tinta del estado sobre ese fondo daba 2,29:1 (amarillo sobre teal, medido
+   el 2026-09-21). Es la regla de las píldoras —relleno O contorno, nunca los dos— y acá el estado
+   es la información, así que gana el contorno: fondo tenue del MISMO color y su borde.
+   ⚠ No se veía en ninguna corrida anterior del chequeo porque sólo se pinta cuando hay deriva, y
+   ese día no había ningún nodo con deriva. Un chequeo sobre lo que SE PINTA no ve lo que no está. */
+.deriva { color: var(--mut); background: color-mix(in oklab, currentColor 14%, var(--card));
+          border: 1px solid color-mix(in oklab, currentColor 38%, transparent); }
 .deriva[data-alin="rutas-muertas"], .deriva[data-alin="marca-ya-mergeada"] { color: var(--al-muerta); }
 .deriva[data-alin="deriva-alta"] { color: var(--al-alta); }
 .deriva[data-alin="deriva"] { color: var(--al-deriva); }

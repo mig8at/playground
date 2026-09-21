@@ -3,11 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { vResize, readSize, saveSize } from './workbench.js'
 import tree from '../tree.json'
 import RegionMenu from './RegionMenu.vue'
-import JevConsole from './JevConsole.vue'
 
-let jevTimer = null
-let jevAbort = null
-let jevSequence = 0
 
 // Disposición local: cerrar el árbol no descarta el ancho que la persona eligió. El botón del pie y
 // el tirador lo devuelven exactamente donde estaba, sin necesitar una acción de «restablecer».
@@ -86,45 +82,6 @@ function toggleReferences() {
   }
 }
 
-// JEV no reemplaza el documento: es una consola de navegación donde se prepara evidencia por capas.
-// Su alto recuerda la preferencia y se puede plegar al borde como las otras regiones de trabajo.
-const JEV_CONSOLE_BASE = 250
-const savedJevConsoleHeight = readSize('context.jev-console.height', JEV_CONSOLE_BASE)
-const jevConsoleHeight = ref(savedJevConsoleHeight)
-const lastJevConsoleHeight = ref(readSize('context.jev-console.last-open', savedJevConsoleHeight || JEV_CONSOLE_BASE))
-const jevConsoleToggle = ref(null)
-const maxJevConsoleHeight = computed(() => Math.max(140, Math.min(440, viewportHeight.value - 260)))
-const visibleJevConsoleHeight = computed(() => jevConsoleHeight.value
-  ? Math.min(jevConsoleHeight.value, maxJevConsoleHeight.value) : 0)
-const jevConsoleResize = computed(() => ({
-  label: 'Alto de la consola JEV', axis: 'y', sign: -1, min: 160, max: maxJevConsoleHeight.value,
-  defaultValue: JEV_CONSOLE_BASE, collapsible: true,
-  get: () => visibleJevConsoleHeight.value,
-  set: (value) => {
-    jevConsoleHeight.value = value
-    if (value > 0) lastJevConsoleHeight.value = value
-  },
-  commit: (value) => {
-    saveSize('context.jev-console.height', value)
-    if (value > 0) saveSize('context.jev-console.last-open', value)
-  },
-}))
-function hideJevConsole() {
-  if (jevConsoleHeight.value) {
-    lastJevConsoleHeight.value = jevConsoleHeight.value
-    saveSize('context.jev-console.last-open', jevConsoleHeight.value)
-  }
-  jevConsoleHeight.value = 0
-  saveSize('context.jev-console.height', 0)
-  jevConsoleToggle.value?.focus()
-}
-function toggleJevConsole() {
-  if (visibleJevConsoleHeight.value) hideJevConsole()
-  else {
-    jevConsoleHeight.value = Math.min(lastJevConsoleHeight.value || JEV_CONSOLE_BASE, maxJevConsoleHeight.value)
-    saveSize('context.jev-console.height', jevConsoleHeight.value)
-  }
-}
 const resizeWindow = () => {
   viewportWidth.value = window.innerWidth
   viewportHeight.value = window.innerHeight
@@ -132,8 +89,7 @@ const resizeWindow = () => {
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => {
   window.removeEventListener('resize', resizeWindow)
-  clearTimeout(jevTimer)
-  jevAbort?.abort()
+  abortarDeriva()
 })
 
 
@@ -170,6 +126,42 @@ const ETIQ = {
   'deriva': '🟡 deriva — algunos archivos cambiaron desde que se verificó',
   'solo-hubs': '⚪ solo hubs — lo único que se movió son archivos que comparte con medio árbol (api.php, routes.ts): nada propio que releer',
   'al-dia': '🟢 al día',
+}
+
+/* ── ¿QUÉ CAMBIÓ? el veredicto, bajo demanda y sólo donde hay deriva ────────────────────────────
+ *
+ * `alineacion.json` dice QUÉ archivos se movieron; esto contesta la pregunta que sigue y que decide
+ * si hay trabajo: **¿el cambio tocó las líneas que el doc CITA?** Si las tocó, la afirmación de al
+ * lado puede ser falsa hoy; si cambió otra parte del archivo, lo más probable es refactor.
+ *
+ * Es ARITMÉTICA —los rangos de los hunks contra los números de las citas—, no una opinión: no hay
+ * modelo ni red. Va bajo demanda porque corre git: pedirlo para los 37 nodos al abrir la página
+ * costaría segundos para una respuesta que casi siempre es «nada».
+ *
+ * ⚠ Y no escribe. Triar es una AFIRMACIÓN («esto se miró y no toca lo que el nodo dice») y la hace
+ * una persona: acá sale el comando, no un botón. Esta viz es de sólo lectura y eso no cambia porque
+ * ahora sepa más. */
+let derivaAbort = null
+const deriva = ref({ node: null, phase: 'idle', data: null })
+function abortarDeriva() { derivaAbort?.abort(); derivaAbort = null }
+const derivaDeSel = computed(() => deriva.value.node === sel.value ? deriva.value : { phase: 'idle' })
+async function verQueCambio() {
+  const node = sel.value
+  abortarDeriva()
+  derivaAbort = new AbortController()
+  deriva.value = { node, phase: 'loading', data: null }
+  try {
+    const response = await fetch('/api/deriva', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ node }), signal: derivaAbort.signal,
+    })
+    const data = await response.json()
+    if (deriva.value.node !== node) return
+    deriva.value = { node, phase: response.ok && !data.error ? 'ok' : 'error', data }
+  } catch (error) {
+    if (error.name === 'AbortError' || deriva.value.node !== node) return
+    deriva.value = { node, phase: 'error', data: null }
+  }
 }
 
 const combos = tree.combinations || []
@@ -288,66 +280,7 @@ watch(sel, () => { referenciaQ.value = '' })
 // Un enlace de tarea selecciona el nodo exacto, aunque su nombre coincida también con otros.
 // Si el id dejó de existir, la búsqueda permite encontrar su reemplazo.
 const q = ref(requestedNode || initialParams.get('q') || '')
-const JEV_DEBOUNCE_MS = 550
-const JEV_SENSITIVE_LIKE = /\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|\b\d[\d\s-]{4,}\d\b|\b(?:sk|ts|api|key)_[A-Za-z0-9_-]{12,}\b|\b(?:api[-_ ]?key|token|secret|password|contraseña)\s*[:=]\s*\S{6,}|\bbearer\s+[A-Za-z0-9._-]{12,}/i
-const jev = ref({ phase: 'idle', data: null })
-const jevSugerido = computed(() => jev.value.phase === 'suggest' ? jev.value.data?.decision?.node : null)
-const jevAlternativas = computed(() => {
-  const data = jev.value.data || {}
-  const candidates = data.jev?.top4 || data.baseline || []
-  return candidates.map((candidate) => Array.isArray(candidate)
-    ? { node: candidate[0], probability: candidate[1] }
-    : candidate)
-    .filter((candidate) => candidate.node && candidate.node !== jevSugerido.value && byId.value[candidate.node])
-    .slice(0, 3)
-})
-const jevNecesitaCaso = computed(() => Number(jev.value.data?.jev?.needs_case_data) >= .5)
-const pct = (value) => `${Math.round(Number(value || 0) * 100)}%`
 
-function abrirSugerenciaJev(node) {
-  if (!byId.value[node]) return
-  q.value = ''
-  select(node)
-}
-
-async function consultarJev(query, request) {
-  jevAbort?.abort()
-  jevAbort = new AbortController()
-  jev.value = { phase: 'loading', data: null }
-  try {
-    const response = await fetch('/api/jev/route', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query }), signal: jevAbort.signal,
-    })
-    const data = await response.json()
-    if (request !== jevSequence) return
-    if (!response.ok || data.error) {
-      jev.value = { phase: data.error === 'sensitive-query' ? 'blocked' : 'unavailable', data }
-    } else {
-      jev.value = { phase: data.decision?.action === 'suggest' ? 'suggest' : 'fallback', data }
-    }
-  } catch (error) {
-    if (error.name === 'AbortError' || request !== jevSequence) return
-    jev.value = { phase: 'unavailable', data: null }
-  }
-}
-
-watch(q, (value) => {
-  clearTimeout(jevTimer)
-  jevAbort?.abort()
-  const request = ++jevSequence
-  const query = value.trim()
-  if (!query || query.length < 3) {
-    jev.value = { phase: 'idle', data: null }
-    return
-  }
-  if (JEV_SENSITIVE_LIKE.test(query)) {
-    jev.value = { phase: 'blocked', data: null }
-    return
-  }
-  jev.value = { phase: 'waiting', data: null }
-  jevTimer = setTimeout(() => consultarJev(query, request), JEV_DEBOUNCE_MS)
-})
 /* ⚠ LOS CUATRO LUGARES NO PESAN IGUAL, y esto se midió acá. Buscando «rotativo» con el texto del doc
  * al mismo nivel salen 17 resultados de 39: los docs se nombran entre sí todo el tiempo, así que
  * «lo menciona» es casi todo el árbol y el buscador vuelve a contestar «está en todas partes». Hay una
@@ -579,52 +512,16 @@ function explorerAction(id) {
         <div class="buscar">
           <label class="input-group search-field">
           <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-          <input v-model="q" aria-label="Buscar en el contexto" aria-describedby="jev-privacy" class="input input-sm" type="search" placeholder="Buscar o describir el problema…"
-                 title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md; Jev propone una ruta semántica tras una pausa." />
+          <input v-model="q" aria-label="Buscar en el contexto" class="input input-sm" type="search" placeholder="Buscar o describir el problema…"
+                 title="Busca en el nombre, los síntomas, los archivos declarados y el cuerpo del doc.md." />
           </label>
-          <p id="jev-privacy" v-if="q" class="jev-privacy">No escribas cédulas, teléfonos, solicitudes ni secretos.</p>
-          <!-- Los filtros viven en el menú; el conteo y las menciones activas siguen visibles. -->
+                    <!-- Los filtros viven en el menú; el conteo y las menciones activas siguen visibles. -->
           <div v-if="busqueda" class="buscar-sub">
             <span class="cuenta">
               {{ busqueda.pega.size }} resultado(s)<template v-if="verMenciones"> · menciones incluidas</template><template v-if="vista.vec.size"> · {{ vista.vec.size }} vecina(s) de «{{ nameOf(sel) }}»</template>
               <!-- la nota del modo mención sólo tiene sentido si HAY algo; con cero decía las dos cosas -->
               <template v-if="busqueda.porMencion && busqueda.pega.size"> · sólo lo mencionan: nadie lo declara</template>
             </span>
-          </div>
-          <div v-if="jev.phase !== 'idle'" class="jev-route" :data-phase="jev.phase" role="status" aria-live="polite">
-            <template v-if="jev.phase === 'waiting' || jev.phase === 'loading'">
-              <span class="spinner" aria-hidden="true"></span><span>JEV busca una ruta de lectura…</span>
-            </template>
-            <template v-else-if="jev.phase === 'suggest'">
-              <span class="jev-label">JEV sugiere</span>
-              <button type="button" class="jev-open" @click="abrirSugerenciaJev(jevSugerido)">
-                {{ nameOf(jevSugerido) }}
-              </button>
-              <span class="jev-score">{{ pct(jev.data.jev.probability) }} · {{ pct(jev.data.jev.confidence) }} confianza</span>
-              <span v-if="jevNecesitaCaso" class="jev-case">puede requerir datos del caso</span>
-              <div v-if="jevAlternativas.length" class="jev-alts">
-                <span>Alternativas</span>
-                <button v-for="alternative in jevAlternativas" :key="alternative.node" type="button" @click="abrirSugerenciaJev(alternative.node)">
-                  {{ nameOf(alternative.node) }}
-                </button>
-              </div>
-            </template>
-            <template v-else-if="jev.phase === 'fallback'">
-              <span class="jev-label">JEV no propone una ruta segura</span>
-              <span class="jev-score">Usá los resultados locales.</span>
-              <div v-if="jevAlternativas.length" class="jev-alts">
-                <button v-for="alternative in jevAlternativas" :key="alternative.node" type="button" @click="abrirSugerenciaJev(alternative.node)">
-                  {{ nameOf(alternative.node) }}
-                </button>
-              </div>
-            </template>
-            <template v-else-if="jev.phase === 'blocked'">
-              <span class="jev-label">La consulta parece incluir datos sensibles.</span>
-            </template>
-            <template v-else>
-              <span class="jev-label">JEV no está disponible en este entorno.</span>
-              <span class="jev-score">La búsqueda local sigue funcionando.</span>
-            </template>
           </div>
         </div>
         <div class="region-body">
@@ -740,6 +637,54 @@ function explorerAction(id) {
               <span class="alin-fecha">{{ a.ultimo_cambio }}</span> <code>{{ a.ruta }}</code>
             </div>
           </div>
+
+          <!-- LA PREGUNTA QUE SIGUE, y es la que dice si hay trabajo. Aparece sólo con deriva: en un
+               nodo al día no hay nada que preguntar y el botón sería ceremonia. -->
+          <div v-if="alinOf(sel).deriva.cambiados" class="qcambio">
+            <button type="button" class="qc-run" :disabled="derivaDeSel.phase === 'loading'" @click="verQueCambio">
+              <span v-if="derivaDeSel.phase === 'loading'" class="spinner" aria-hidden="true"></span>
+              {{ derivaDeSel.phase === 'loading' ? 'mirando el diff…' : '¿tocó lo que este nodo AFIRMA?' }}
+            </button>
+            <span class="alin-meta">cruza el cambio contra las citas del doc · git y aritmética, sin modelo</span>
+
+            <template v-if="derivaDeSel.phase === 'ok'">
+              <p v-if="derivaDeSel.data.dentro.length" class="qc-veredicto" data-tono="alerta">
+                ⚠ {{ derivaDeSel.data.dentro.length }} cita(s) del doc quedaron DENTRO del cambio — lo que
+                dicen puede ser falso hoy. Leé estas primero:
+              </p>
+              <p v-else class="qc-veredicto" data-tono="ok">
+                Ninguna cita del doc cayó dentro de lo que se reescribió.
+              </p>
+              <div v-for="c in derivaDeSel.data.dentro" :key="c.archivo + c.linea" class="qc-cita">
+                <code>{{ c.archivo }}:{{ c.linea }}</code>
+                <span class="alin-meta">doc.md:{{ c.doc }}</span>
+              </div>
+              <ul class="qc-resto">
+                <li v-if="derivaDeSel.data.fuera">{{ derivaDeSel.data.fuera }} cita(s) en archivos que
+                  cambiaron, pero fuera de lo reescrito — probable refactor</li>
+                <li v-if="derivaDeSel.data.insercion.length">{{ derivaDeSel.data.insercion.length }}
+                  archivo(s) donde SÓLO se insertó código: nada citado se reescribió, pero puede haber algo nuevo</li>
+                <li v-if="derivaDeSel.data.mudos.length">{{ derivaDeSel.data.mudos.length }} archivo(s)
+                  cambiados que el doc no cita</li>
+                <li v-if="derivaDeSel.data.posteriores.length">{{ derivaDeSel.data.posteriores.length }}
+                  cita(s) escritas después del sello: su número no es comparable con este diff</li>
+              </ul>
+              <!-- Las dos salidas, y cuál corresponde lo dice el veredicto de arriba. -->
+              <div class="alin-meta alin-cmd">
+                <template v-if="derivaDeSel.data.dentro.length">
+                  leé y corregí → <code>make context-diff NODE={{ sel }}</code>
+                </template>
+                <template v-else>
+                  si al leerlo no toca lo que el nodo dice →
+                  <code>make context-triar NODE={{ sel }} VEREDICTO='…'</code>
+                  (deja dicho que se miró, sin sellar)
+                </template>
+              </div>
+            </template>
+            <p v-else-if="derivaDeSel.phase === 'error'" class="qc-veredicto" data-tono="alerta">
+              No se pudo mirar el diff acá. Por consola: <code>make context-diff NODE={{ sel }} CITAS=1</code>
+            </p>
+          </div>
         </div>
 
         <!-- CON QUÉ SE UNE. No está escrito en ningún lado: sale de los archivos que dos nodos declaran
@@ -806,12 +751,7 @@ function explorerAction(id) {
       </aside>
     </div>
 
-    <div class="rsz jev-console-resizer" v-show="visibleJevConsoleHeight" v-resize="jevConsoleResize"></div>
-    <JevConsole id="context-jev-console" v-show="visibleJevConsoleHeight"
-                :style="{ flexBasis: `${Math.round(visibleJevConsoleHeight)}px` }"
-                :node="sel" :node-name="nameOf(sel)" :files="archivosSel" :names="nodeNames"
-                @select-node="select" @close="hideJevConsole" />
-    </div>
+        </div>
 
     <!-- STATUSBAR · el estado del ÁRBOL, que es lo que vale para toda la pantalla: cuántos nodos
          hay, cuántos archivos cubren y cuántos quedaron viejos. Eran pastillas en una fila propia
@@ -842,11 +782,7 @@ function explorerAction(id) {
                 aria-label="Mostrar u ocultar referencias" title="Mostrar u ocultar referencias" @click="toggleReferences">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
-        <button ref="jevConsoleToggle" type="button" class="region-action" :aria-pressed="!!visibleJevConsoleHeight" aria-controls="context-jev-console"
-                aria-label="Mostrar u ocultar consola JEV" title="Mostrar u ocultar consola JEV" @click="toggleJevConsole">
-          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-        </button>
-      </div>
+              </div>
     </footer>
   </div>
 </template>

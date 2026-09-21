@@ -59,6 +59,19 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ### 2026-09-21
 
+La viz perdió la consola de Jev y el ruteo en vivo del buscador, y ganó la pregunta que sí se usa:
+**«¿el cambio tocó lo que este nodo AFIRMA?»**, dentro del bloque de alineación y sólo en un nodo con
+deriva. Corre `tools/diff.py --json` por un endpoint local —git y aritmética, sin modelo ni red— y
+ofrece las dos salidas: leer y corregir, o el comando para triar. La viz sigue siendo de sólo
+lectura: escribir es una afirmación de una persona.
+
+Al verificarlo en el navegador aparecieron **dos fallos de contraste preexistentes**, los dos del
+tipo que el chequeo estático no ve: el contador del encabezado del árbol heredaba la tinta gris del
+`region-head` sobre el relleno de su badge (**1,21:1**) y el badge de deriva pintaba el color del
+estado sobre ese mismo relleno (**2,29:1**). El segundo llevaba oculto porque sólo se pinta cuando
+hay deriva, y ese día no había ninguno. Los dos arreglados con la regla de las píldoras: una
+superficie trae su propia tinta, y el que dice su estado con color va de contorno.
+
 **Los nodos `harness` y `trazador` se retiraron del árbol.** El árbol describe CreditOp; cómo se usa
 una herramienta de acá vive en su `CLAUDE.md`, al lado del código y commiteado con él. Sus secciones
 operativas se movieron **tal cual** (13 KB al del trazador, 10 KB al del arnés) y el dominio a su

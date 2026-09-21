@@ -1,9 +1,9 @@
 {
-  "generado": "2026-09-19",
+  "generado": "2026-09-21",
   "ref": null,
   "resumen": {
-    "al-dia": 37,
-    "deriva": 1,
+    "al-dia": 35,
+    "solo-hubs": 1,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -16,6 +16,8 @@
         "source": "manual"
       },
       "archivos": 77,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -33,87 +35,24 @@
     },
     {
       "id": "findings",
-      "estado": "deriva",
+      "estado": "solo-hubs",
       "verificado": {
         "ref": "main",
         "date": "2026-09-14",
         "source": "manual"
       },
       "archivos": 58,
+      "triado": null,
+      "locales": 13,
       "deriva": {
-        "cambiados": 13,
-        "pct": 24,
+        "cambiados": 0,
+        "pct": 0,
         "hubs": 1,
         "archivos": [
-          {
-            "ruta": "harness/mock-pdf-mapper/server.mjs",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/panel/server.ts",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/anotacion.ts",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/documentos.ts",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/telefonos.ts",
-            "ultimo_cambio": "2026-09-18",
-            "hub": false
-          },
-          {
-            "ruta": "harness/dev/sweep.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/cognito.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/db-safe.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/http.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/inject.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/otp-bypass.ts",
-            "ultimo_cambio": "2026-09-17",
-            "hub": false
-          },
           {
             "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
             "ultimo_cambio": "2026-09-17",
             "hub": true
-          },
-          {
-            "ruta": "harness/dev/guided.spec.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
-          },
-          {
-            "ruta": "harness/pkg/preflight-sucursal.ts",
-            "ultimo_cambio": "2026-09-15",
-            "hub": false
           }
         ]
       },
@@ -125,105 +64,105 @@
         },
         "lista": [
           {
-            "sha": "bc4aa91",
+            "sha": "bc4aa91d",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "taller: las divisiones de la pantalla, con los nombres de VS Code",
             "repo": "harness"
           },
           {
-            "sha": "b9336a0",
+            "sha": "b9336a06",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "estilo: un tema para las cuatro UIs, y un chequeo que lo sostiene",
             "repo": "harness"
           },
           {
-            "sha": "3d131a5",
+            "sha": "3d131a53",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: `MD=1` — la corrida se escribe sola como anotación del tablero",
             "repo": "harness"
           },
           {
-            "sha": "3af568a",
+            "sha": "3af568a5",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el mock de documentos contestaba 200 con la forma equivocada",
             "repo": "harness"
           },
           {
-            "sha": "36f0c6b",
+            "sha": "36f0c6bd",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el aviso de S3 mentía siempre, y el generador de documentos era invisible",
             "repo": "harness"
           },
           {
-            "sha": "3e2580f",
+            "sha": "3e2580f5",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el panel deja de ser una columna y pasa a ser un editor",
             "repo": "harness"
           },
           {
-            "sha": "5a6ff5c",
+            "sha": "5a6ff5cc",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: F-236 — el documento sintético violaba el techo de TusDatos",
             "repo": "harness"
           },
           {
-            "sha": "64b1352",
+            "sha": "64b13523",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el bloque forense del panel, verificado con una corrida real (y no andaba)",
             "repo": "harness"
           },
           {
-            "sha": "7032ddc",
+            "sha": "7032ddca",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el panel dice POR QUE termino asi, y F-234 (el forense preguntaba en dev)",
             "repo": "harness"
           },
           {
-            "sha": "357223f",
+            "sha": "357223fe",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: la consola del SSR — pestaña en el panel y `make harness-ssr`",
             "repo": "harness"
           },
           {
-            "sha": "722f15f",
+            "sha": "722f15ff",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el funnel dinamico de RD camina, y el IMEI esta detras de un handoff",
             "repo": "harness"
           },
           {
-            "sha": "84fa950",
+            "sha": "84fa9502",
             "fecha": "2026-09-18",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el canal de ASESOR estaba bloqueado por un telefono invalido (F-231)",
             "repo": "harness"
           },
           {
-            "sha": "087de3b",
+            "sha": "087de3b0",
             "fecha": "2026-09-17",
             "autor": "Miguel Ochoa",
             "asunto": "harness: la renovacion de sesion le pregunta al front, no al nombre del ambiente",
             "repo": "harness"
           },
           {
-            "sha": "9a5163c",
+            "sha": "9a5163c5",
             "fecha": "2026-09-17",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el canal de asesor renueva su sesion solo",
             "repo": "harness"
           },
           {
-            "sha": "12e90fd",
+            "sha": "12e90fdc",
             "fecha": "2026-09-17",
             "autor": "Miguel Ochoa",
             "asunto": "harness: el frasco de cookies BORRA lo que el servidor manda borrar",
@@ -244,6 +183,8 @@
         "source": "manual"
       },
       "archivos": 75,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -264,6 +205,8 @@
         "source": "manual"
       },
       "archivos": 106,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -284,6 +227,8 @@
         "source": "manual"
       },
       "archivos": 33,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -304,6 +249,8 @@
         "source": "manual"
       },
       "archivos": 92,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -324,6 +271,8 @@
         "source": "manual"
       },
       "archivos": 82,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -344,6 +293,8 @@
         "source": "manual"
       },
       "archivos": 123,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -364,6 +315,8 @@
         "source": "manual"
       },
       "archivos": 145,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -384,6 +337,8 @@
         "source": "manual"
       },
       "archivos": 70,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -404,6 +359,8 @@
         "source": "manual"
       },
       "archivos": 28,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -424,6 +381,8 @@
         "source": "manual"
       },
       "archivos": 142,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -444,6 +403,8 @@
         "source": "manual"
       },
       "archivos": 59,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -464,6 +425,8 @@
         "source": "manual"
       },
       "archivos": 21,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -484,6 +447,8 @@
         "source": "manual"
       },
       "archivos": 12,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -504,6 +469,8 @@
         "source": "manual"
       },
       "archivos": 20,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -524,6 +491,8 @@
         "source": "manual"
       },
       "archivos": 87,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -544,6 +513,8 @@
         "source": "manual"
       },
       "archivos": 75,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -564,6 +535,8 @@
         "source": "manual"
       },
       "archivos": 59,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -584,6 +557,8 @@
         "source": "manual"
       },
       "archivos": 37,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -604,6 +579,8 @@
         "source": "manual"
       },
       "archivos": 88,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -624,6 +601,8 @@
         "source": "manual"
       },
       "archivos": 84,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -644,26 +623,8 @@
         "source": "manual"
       },
       "archivos": 101,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "harness",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-09-19",
-        "source": "manual"
-      },
-      "archivos": 44,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -684,6 +645,8 @@
         "source": "manual"
       },
       "archivos": 43,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -704,6 +667,8 @@
         "source": "manual"
       },
       "archivos": 89,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -724,6 +689,8 @@
         "source": "manual"
       },
       "archivos": 63,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -744,6 +711,8 @@
         "source": "manual"
       },
       "archivos": 13,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -764,6 +733,8 @@
         "source": "manual"
       },
       "archivos": 93,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -784,6 +755,8 @@
         "source": "manual"
       },
       "archivos": 78,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -804,6 +777,8 @@
         "source": "manual"
       },
       "archivos": 11,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -824,6 +799,8 @@
         "source": "manual"
       },
       "archivos": 99,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -844,6 +821,8 @@
         "source": "manual"
       },
       "archivos": 31,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -864,6 +843,8 @@
         "source": "manual"
       },
       "archivos": 13,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -884,6 +865,8 @@
         "source": "manual"
       },
       "archivos": 31,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -904,6 +887,8 @@
         "source": "manual"
       },
       "archivos": 15,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -924,6 +909,8 @@
         "source": "manual"
       },
       "archivos": 90,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,
@@ -944,26 +931,8 @@
         "source": "manual"
       },
       "archivos": 86,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "trazador",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-09-19",
-        "source": "manual"
-      },
-      "archivos": 16,
+      "triado": null,
+      "locales": 0,
       "deriva": {
         "cambiados": 0,
         "pct": 0,

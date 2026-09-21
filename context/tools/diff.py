@@ -36,6 +36,7 @@ USO
   python3 tools/diff.py <nodo>            # el mapa de citas + resumen por archivo + el diff completo
   python3 tools/diff.py <nodo> --citas    # SOLO el mapa: qué citas quedaron dentro del cambio
   python3 tools/diff.py <nodo> --desde-triaje   # sólo lo POSTERIOR al triaje (ver triar.py)
+  python3 tools/diff.py <nodo> --json     # el mapa como dato (lo consume la viz de context)
   python3 tools/diff.py <nodo> --stat     # solo el resumen (cuánto cambió cada archivo)
   python3 tools/diff.py <nodo> --files a.php b.tsx    # solo esos archivos del nodo
 
@@ -154,6 +155,21 @@ def clasificar_citas(citas, cambiados, sello):
     return dentro, fuera, posteriores
 
 
+def datos_del_mapa(nid, declarados, tocados, sello):
+    """El mapa como DATO, para que lo pinte quien quiera (la consola, la viz) sin re-derivarlo."""
+    citas = citas_del_doc(nid, declarados)
+    cambiados = rangos_por_declarado(tocados, declarados)
+    dentro, fuera, posteriores = clasificar_citas(citas, cambiados, sello)
+    return {
+        "nodo": nid, "desde": sello,
+        "dentro": [{"archivo": a, "linea": n, "doc": d} for a, n, d in sorted(dentro)],
+        "fuera": fuera,
+        "posteriores": [{"archivo": a, "linea": n, "doc": d} for a, n, d in posteriores],
+        "insercion": sorted(f for f, r in cambiados.items() if not r),
+        "mudos": sorted(f for f in cambiados if not any(c[0] == f for c in citas)),
+    }
+
+
 def mapa_de_citas(nid, declarados, tocados, sello):
     """Imprime qué citas del doc quedaron DENTRO del cambio. Devuelve cuántas."""
     citas = citas_del_doc(nid, declarados)
@@ -252,6 +268,14 @@ def main():
     archivos = [f for f in d.get("files", [])
                 if not filtro or any(x in f.partition("/")[2] for x in filtro)]
     por_repo = rutas_de(archivos)
+
+    if "--json" in sys.argv:
+        datos = recolectar(nid, None if desde == sello else desde)
+        salida = datos_del_mapa(nid, archivos, datos["tocados"], desde)
+        salida["procedencia"] = [p.strip() for p in datos["procedencia"]]
+        salida["archivos"] = len(archivos)
+        print(json.dumps(salida, ensure_ascii=False))
+        return 0
 
     print(f"╔═ {nid} · qué cambió en `{ref}` desde que {etiqueta}")
     print(f"╚═ sobre los {len(archivos)} archivos que el nodo declara"

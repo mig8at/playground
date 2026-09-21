@@ -162,6 +162,24 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    —el síntoma es con qué palabras LLEGA el problema, no el título del hallazgo—; lo que la máquina
    garantiza es que no falte.
 
+## La viz: qué pregunta contesta cada cosa
+
+`make context` abre el árbol en :5193. Es **sólo lectura** y eso no cambia porque sepa más: escribir
+—sellar, triar— es una afirmación de una persona y sale como comando para copiar, no como botón.
+
+Lo único que la viz calcula en vivo es **«¿el cambio tocó lo que este nodo AFIRMA?»**: aparece
+dentro del bloque de alineación y **sólo en un nodo con deriva**, porque en uno al día no hay nada
+que preguntar y el botón sería ceremonia. Corre `tools/diff.py --json` por un endpoint local: es git
+y aritmética, no sale nada de esta máquina. Sus dos salidas son las de siempre — si alguna cita cayó
+dentro del cambio, se lee y se corrige; si no, se tría.
+
+⚠ **Acá vivía la consola de Jev, y se retiró el 2026-09-21** junto con el ruteo en vivo del buscador.
+Las cuatro capas siguen en `make context-jev ARGS='…'`. El motivo: ninguna se usaba en el trabajo
+diario —`route` sirve para una tarea NUEVA y se corre por consola, `brief` lo consume
+`make retomar BRIEF=1`, y `scope`/`review` son el experimento—, y el ruteo del buscador mandaba a un
+tercero lo que se tipeaba, con un aviso de privacidad y un regex de datos sensibles como única
+defensa. Lo que sí hacía falta en la viz no necesitaba modelo.
+
 ## Confluence: hay oro, y hay specs disfrazadas de descripciones
 
 `python3 tools/confluence.py espacios | paginas <ESP> | leer <id> | buscar <texto>` (solo lectura;
