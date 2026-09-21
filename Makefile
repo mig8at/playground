@@ -201,9 +201,9 @@ trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solape
 	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
 	@cd trazador/server && go run . -validar $(CORPUS)
 
-trazador-slack: ## @dia lee #tech-ops de los últimos N días y CLASIFICA los reportes (solo lectura). DIAS=7
+trazador-slack: ## @dia lee #tech-ops de los últimos N días y CLASIFICA los reportes (solo lectura). DIAS=7 · SIN=1 lista los que ninguna regex reconoció (texto real del canal) — el veredicto los cuenta aparte, no como «fuera de alcance»
 	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-slack DIAS=7"; exit 2; }
-	@cd trazador/server && go run . -slack $(DIAS)
+	@cd trazador/server && go run . -slack $(DIAS) $(if $(SIN),-slack-sin)
 
 trazador-hilos: ## @dia los reportes de #tech-ops CON SU HILO de respuestas: contrasta lo reportado con lo que pasó (solo lectura). DIAS=7
 	@test -n "$(DIAS)" || { echo "falta DIAS=<n>  ·  ej: make trazador-hilos DIAS=7"; exit 2; }

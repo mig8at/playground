@@ -621,6 +621,7 @@ func main() {
 	limit := flag.Int("limit", 20, "máximo de líneas a pedir")
 	ureq := flag.Int64("ureq", 0, "número de solicitud: arma la TRAZA por etapas (BD + logs) en vez de probar el acceso")
 	slackDias := flag.Int("slack", 0, "lee #tech-ops de los últimos N días y clasifica los reportes (solo lectura)")
+	slackSin := flag.Bool("slack-sin", false, "con -slack: lista los reportes que ninguna regex reconoció (texto real del canal)")
 	serve := flag.String("serve", "", "levanta la API para la Vue (ej. 127.0.0.1:5199)")
 	incidencias := flag.Int("incidencias", 0, "vuelca los reportes de #tech-ops CON SU HILO de respuestas, para contrastar (solo lectura)")
 	campos := flag.Bool("campos", false, "con -ureq: censo de los campos del contexto de log, para ver qué llave estructural existe")
@@ -646,7 +647,7 @@ func main() {
 	// la BD (el esqueleto), un Loki local no pide credenciales, y si no hay logs la traza sale igual —
 	// solo sin el porqué. Exigirlo acá bloquearía el caso que más sirve.
 	if *slackDias > 0 {
-		os.Exit(modoSlack(*slackDias))
+		os.Exit(modoSlack(*slackDias, *slackSin))
 	}
 	if *serve != "" {
 		if err := servir(*serve); err != nil {

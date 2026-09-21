@@ -242,6 +242,12 @@ sale prolijo.**
   `malos` a la vez**: ahí gana el orden del `switch` y una solicitud negada saldría verde.
 - `ramalDeRT` — cada ramal que el código devuelve tiene que estar declarado en `ramales.json`. Si no, sus
   etapas quedan sin clasificar y se dibujan como «podía pasar y no pasó» cuando ahí no se pasa nunca.
+- `clasificarReportes` — el barrido de #tech-ops contaba los reportes que ninguna regex reconoce y los
+  **tiraba**, así que el veredicto («el trazador contesta el X %») se calculaba sobre los clasificados:
+  hablaba de las regex creyendo hablar del canal, y con la mitad sin reconocer habría dicho 100 %. La
+  prueba fija que un reporte sin categoría vuelva **con su texto** —contarlo no alcanza, hay que poder
+  mirarlo— y que entre al denominador. ⚠ Un reporte que ninguna regex reconoce **no es «fuera de
+  alcance»**: eso es un juicio. Es NO SE SABE, y es la única casilla que dice si conviene mejorar esto.
 - Y queda escrito que **Credifamilia se decide por `id == 24`**, o sea por IDENTIDAD y no por
   configuración: deuda conocida (la clase que cataloga `workers/cli.py quemado`), que miente en silencio
   el día que ese lender cambie de id. La prueba no la arregla; la deja a la vista para que el cambio sea

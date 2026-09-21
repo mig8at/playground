@@ -94,8 +94,49 @@ type mensajeSlack struct {
 	ReplyCount int `json:"reply_count"`
 }
 
+// hit es un reporte ya clasificado —o sin clasificar, que es el caso que importa acá.
+type hit struct {
+	cat  string
+	text string
+	ts   time.Time
+}
+
+// clasificarReportes es la parte PURA: separa los reportes del ruido y los reparte en categorías.
+// Está afuera de modoSlack para poder probarla sin red, porque lo que se equivocó vivía acá.
+//
+// ⚠ `sinCat` NO es un descarte: es lo que ninguna regex reconoció, y hasta el 2026-09-21 se contaba
+// y se tiraba. Eso hacía que el veredicto se calculara sobre los clasificados —o sea sobre lo que
+// alguien ya había pensado en cubrir— y un canal donde la mitad no matchea se leía igual que uno
+// cubierto entero. Es el patrón de siempre: devolver MENOS se lee igual que «no existe». Ahora los
+// reportes vuelven con su texto para poder MIRARLOS (`-slack-sin`), que es lo que dice si falta una
+// categoría o si es ruido.
+func clasificarReportes(msgs []mensajeSlack) (hits, sinCat []hit, porCat map[string]int) {
+	porCat = map[string]int{}
+	for _, m := range msgs {
+		// Un reporte = un mensaje que describe un síntoma. Se descartan los de una línea sin verbo (los
+		// «gracias», los «dale», las cédulas sueltas) porque inflarían el conteo sin ser incidentes.
+		if m.Bot != "" || len(strings.Fields(m.Text)) < 4 {
+			continue
+		}
+		encontrada := ""
+		for _, c := range categorias {
+			if c.re.MatchString(m.Text) {
+				encontrada = c.id
+				break
+			}
+		}
+		if encontrada == "" {
+			sinCat = append(sinCat, hit{"", m.Text, tsAt(m.TS)})
+			continue
+		}
+		porCat[encontrada]++
+		hits = append(hits, hit{encontrada, m.Text, tsAt(m.TS)})
+	}
+	return hits, sinCat, porCat
+}
+
 // modoSlack lee el canal y clasifica. Devuelve el exit code.
-func modoSlack(dias int) int {
+func modoSlack(dias int, listarSin bool) int {
 	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
 	if token == "" {
 		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN.\n", paint("31", "✘"))
@@ -111,34 +152,8 @@ func modoSlack(dias int) int {
 		return 2
 	}
 
-	// Un reporte = un mensaje que describe un síntoma. Se descartan los de una línea sin verbo (los
-	// «gracias», los «dale», las cédulas sueltas) porque inflarían el conteo sin ser incidentes.
-	type hit struct {
-		cat  string
-		text string
-		ts   time.Time
-	}
-	var hits []hit
-	porCat := map[string]int{}
-	sinClasificar := 0
-	for _, m := range msgs {
-		if m.Bot != "" || len(strings.Fields(m.Text)) < 4 {
-			continue
-		}
-		encontrada := ""
-		for _, c := range categorias {
-			if c.re.MatchString(m.Text) {
-				encontrada = c.id
-				break
-			}
-		}
-		if encontrada == "" {
-			sinClasificar++
-			continue
-		}
-		porCat[encontrada]++
-		hits = append(hits, hit{encontrada, m.Text, tsAt(m.TS)})
-	}
+	hits, sinCat, porCat := clasificarReportes(msgs)
+	sinClasificar := len(sinCat)
 
 	fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── #tech-ops · últimos %d días ──", dias)))
 	fmt.Printf("     %d mensajes · %d con síntoma clasificable · %d sin clasificar\n",
@@ -176,12 +191,31 @@ func modoSlack(dias int) int {
 		}
 	}
 
-	sum := tot["directa"] + tot["parcial"] + tot["fuera"]
+	// ⚠ El denominador son TODOS los reportes, no sólo los clasificados. Con los clasificados, los
+	// tres porcentajes sumaban 100 % y el veredicto se leía como una medida del canal cuando era una
+	// medida de las regex: un reporte que ninguna reconoce no es «fuera de alcance» —eso es un
+	// juicio— sino que NO SE SABE, y esa diferencia es justo la que decide si vale la pena mejorar
+	// esto. Por eso «sin clasificar» es un cuarto renglón y no un descarte silencioso.
+	sum := tot["directa"] + tot["parcial"] + tot["fuera"] + sinClasificar
 	if sum > 0 {
 		fmt.Printf("\n  %s\n", bold("── VEREDICTO ──"))
 		pc := func(n int) string { return fmt.Sprintf("%d (%.0f%%)", n, 100*float64(n)/float64(sum)) }
 		fmt.Printf("     %s contesta directo · %s a medias · %s fuera de alcance\n",
 			green(pc(tot["directa"])), paint("33", pc(tot["parcial"])), red(pc(tot["fuera"])))
+		fmt.Printf("     %s sin clasificar — ninguna regex los reconoció, así que de estos NO SE SABE\n", bold(pc(sinClasificar)))
+		fmt.Printf("     %s\n", gray("sobre "+strconv.Itoa(sum)+" reportes; los porcentajes son del canal, no de lo que las regex entendieron"))
+	}
+
+	// Lo que no matcheó, a la vista. Va OPT-IN porque es texto real del canal —con cédulas, teléfonos
+	// y nombres— y no tiene por qué aparecer en pantalla cada vez que alguien mira el resumen.
+	if listarSin && sinClasificar > 0 {
+		fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── SIN CLASIFICAR (%d) ──", sinClasificar)))
+		fmt.Printf("     %s\n", gray("o falta una categoría, o no son reportes. Leelos antes de agregar una regex —o un modelo."))
+		for _, h := range sinCat {
+			fmt.Printf("     %s  %s\n", gray(h.ts.Format("2006-01-02")), trim(strings.Join(strings.Fields(h.text), " "), 150))
+		}
+	} else if sinClasificar > 0 {
+		fmt.Printf("\n  %s\n", gray(fmt.Sprintf("los %d sin clasificar, uno por uno: make trazador-slack DIAS=%d SIN=1", sinClasificar, dias)))
 	}
 	fmt.Println()
 	return 0
