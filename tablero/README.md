@@ -39,6 +39,15 @@ enviarlos si la misma invocación no incluye `--allow-internal`. La clave se reu
 `context/.env`. Los reportes quedan locales, ignorados por Git y con permiso `0600` en
 `tablero/.runs/jev/`.
 
+### Orientación en la interfaz
+
+Una tarea que ya tiene documento local muestra **✦ Orientar** en su cabecera. Abrirlo no hace una
+llamada: explica la proyección que se enviaría. Sólo al elegir **Analizar con Jev** se invoca el
+triage live y se muestra una franja efímera con tipo de siguiente acción, urgencia y si parece haber
+una dependencia externa. Permite copiar la propuesta como borrador o ver alternativas; no edita el
+Markdown, pendientes, estado ni Jira. Si el modelo se abstiene, la franja pide revisión humana. La
+acción es explícita porque título y próximo paso son internos.
+
 La etiqueta se registra después de revisar la retoma: acción, bloqueo externo y urgencia esperados.
 No modifica la tarea ni entrena a Jev. `stats` cuenta las retomas revisadas; una preview sin respuesta
 de Jev aporta una etiqueta, pero nunca se presenta como acierto del modelo.

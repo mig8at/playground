@@ -123,6 +123,20 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
                 padding: 8px; border-bottom: 1px solid var(--line); }
 
 .buscar-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.jev-privacy { margin:0; color:var(--tenue); font-size:10.5px; line-height:1.35; }
+.jev-route { display:flex; flex-wrap:wrap; align-items:center; gap:5px 7px; min-width:0;
+  padding:6px 0 0 8px; color:var(--mut); border-left:2px solid var(--line); font-size:11px; line-height:1.35; }
+.jev-route[data-phase="suggest"] { border-left-color:var(--info); background:color-mix(in oklab, var(--info) 7%, transparent); }
+.jev-route[data-phase="fallback"], .jev-route[data-phase="unavailable"], .jev-route[data-phase="blocked"] { border-left-color:var(--al-deriva); }
+.jev-route .spinner { width:12px; height:12px; border-width:1.5px; }
+.jev-label { font-weight:600; color:var(--fg); }
+.jev-open, .jev-alts button { min-width:0; padding:0; border:0; background:none; color:var(--info); font:inherit; font-weight:600;
+  text-align:left; cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.jev-open:hover, .jev-alts button:hover { color:var(--fg); }
+.jev-open:focus-visible, .jev-alts button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; border-radius:var(--radius-sm); }
+.jev-score, .jev-case { color:var(--mut); }.jev-case { width:100%; color:var(--al-deriva); }
+.jev-alts { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 8px; color:var(--tenue); }
+.jev-alts button { color:var(--texto-2); font-weight:500; }
 /* ⚠ El buscador era una PÍLDORA de 27px con fondo propio: 999px de radio, `--hueco` de fondo y su
    propio foco. Un campo no es una píldora —eso es una etiqueta— y el radio redondo lo hacía leerse
    como un chip clickeable. Es `.input.input-sm` de `taller.css`: fondo transparente, el radio del
@@ -136,7 +150,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .cuenta { font-size: 11.5px; color: var(--mut); white-space: nowrap; }
 .vacio { color: var(--mut); font-size: 12.5px; padding: 6px 10px; margin: 0; }
 
-.row.res { background: color-mix(in oklab, var(--ctx) 18%, var(--card)); box-shadow: inset 0 0 0 1px var(--ctx); }
+.row.res:not(.sel) { background: color-mix(in oklab, var(--ctx) 13%, var(--card)); box-shadow: inset 2px 0 0 var(--ctx); }
 .row.vec { color: var(--texto-2); }
 .row.ruta { color: var(--texto-3); }
 /* Sobre `.badge.badge-xs`: el porqué de que una fila sea resultado. */
@@ -145,10 +159,12 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* ── CON QUÉ SE UNE (grafo derivado de los archivos compartidos) ── */
 .conex { margin: 10px 0 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .conex-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); }
-.conex-n { font-size: 12px; color: var(--ctx); background: color-mix(in oklab, var(--ctx) 18%, var(--card));
-           padding: 1px 9px; cursor: pointer; }
-.conex-n:hover { background: color-mix(in oklab, var(--ctx) 24%, var(--card)); }
-.conex-n em { color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
+.conex-n { font-size: 12px; color: var(--ctx); background: transparent;
+           border-color: color-mix(in oklab, var(--ctx) 40%, var(--card)); padding: 1px 9px; cursor: pointer;
+           max-width:100%; min-width:0; }
+.conex-n:hover { background: color-mix(in oklab, var(--ctx) 12%, var(--card)); }
+.conex-name, .conex-n em { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.conex-name { flex:0 1 auto; }.conex-n em { flex:0 1 auto; color: var(--mut); font-style: normal; font-size: 10.5px; margin-left: 6px; }
 
 /* `align-items: stretch` (el default) y no `flex-start`: las dos columnas tienen que llegar hasta
    abajo, que es lo que reemplaza al `82vh`. */
@@ -168,21 +184,22 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* ⚠ El padding se mudó del ASIDE a su cuerpo. En el aside empujaba también al encabezado, y un
    encabezado de región va pegado al borde — si no, la línea de abajo no llega a los costados y deja
    de leerse como una barra. */
-.tree .region-body { padding: 8px; }
+.tree .region-body { padding: 8px 0; }
 /* El encabezado del árbol va a ras del borde redondeado de la tarjeta. */
 .tree .region-head:not(.grupo) { padding: var(--space-2) var(--space-3); }
 .tree .region-head .cnt { font-size: 10.5px; font-weight: 700; color: var(--mut); flex: none; }
 /* Los dos grupos —Contextos y Tasks— se pegan arriba mientras recorrés el suyo. Sin borde: con uno,
    dos grupos dibujan dos rayas y el árbol se lee como una tabla. */
-.tree .region-head.grupo { padding: 6px 10px; margin: 0 -8px; }
+.tree .region-head.grupo { padding: 6px 12px; margin: 0; }
 .tree .region-head.grupo:first-child { margin-top: -8px; }
 /* (`.section-label` se fue: los dos rótulos son `region-head.grupo` de `taller.css`.) */
 .tree .region-head.grupo ~ .region-head.grupo { margin-top: 10px; border-top: 1px solid var(--line); }
 
-.row { display: flex; align-items: center; gap: 7px; padding: 4px 8px; border-radius: var(--radius-md); cursor: pointer; white-space: nowrap; }
+.row { display: flex; align-items: center; gap: 7px; min-height: 28px; padding: 4px 12px;
+       border-left: 2px solid transparent; cursor: pointer; white-space: nowrap; }
 .row:hover { background: var(--sel); }
-.row.sel { background: color-mix(in oklab, var(--info) 22%, var(--card)); outline: 1px solid var(--info); }
-.row.hl { background: color-mix(in oklab, var(--task) 22%, var(--card)); }
+.row.hl:not(.sel) { background: color-mix(in oklab, var(--task) 14%, var(--card)); }
+.row.sel { background: color-mix(in oklab, var(--info) 16%, var(--card)); border-left-color: var(--info); }
 .tog { width: 12px; color: var(--mut); font-size: 11px; text-align: center; flex: 0 0 12px; }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--mut); }
 .dot.reference { background: var(--ctx); } .dot.task { background: var(--task); } .dot.root { background: var(--root); }
@@ -190,14 +207,12 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 /* Sobre `.badge.badge-secondary.badge-xs`: un conteo es una etiqueta, y va al borde de su fila. */
 .cnt { margin-left: auto; font-size: 11px; }
 
-/* ⚠ Las tasks eran TARJETAS adentro de un árbol de filas: dos formas para dos cosas que se eligen
-   igual y se leen en la misma lista. Ahora son filas con dos renglones — el mismo hover, el mismo
-   radio y el mismo resalte de selección que `.row`. */
-.taskcard { padding: 5px 8px; border-radius: var(--radius-md); cursor: pointer; }
+/* Las tasks siguen la misma gramática de filas del árbol: sólo suman una segunda línea de contexto. */
+.taskcard { padding: 6px 12px; border-left: 2px solid transparent; cursor: pointer; }
 .taskcard:hover { background: var(--sel); }
-.taskcard.sel { background: color-mix(in oklab, var(--task) 22%, var(--card)); outline: 1px solid var(--task); }
+.taskcard.sel { background: color-mix(in oklab, var(--task) 15%, var(--card)); border-left-color: var(--task); }
 .tc-name { display: flex; align-items: center; gap: 7px; font-weight: 600; }
-.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
 .chip { font-size: 11px; color: var(--task); background: color-mix(in oklab, var(--task) 18%, var(--card)); padding: 1px 8px; cursor: pointer; }
 .chip:hover { background: color-mix(in oklab, var(--task) 26%, var(--card)); }
 
@@ -212,7 +227,7 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
    el `overflow: hidden` la columna crece con el doc y el `region-body` nunca llega a scrollear. */
 .detail { flex: 1; --hueco: var(--card); min-width: 0;
   display: flex; flex-direction: column; overflow: hidden; }
-.detail .region-body { padding: 16px 20px; }
+.detail .region-body { padding: 12px 16px; }
 /* El nombre del nodo con su punto. `.region-head` ya pone el tamaño, el color y las mayúsculas: acá
    sólo queda pegar el punto al texto. */
 .detail .nodo { display: flex; align-items: center; gap: 8px; }
@@ -241,6 +256,71 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 .doc th { text-align: left; color: var(--mut); font-weight: 600; }
 .doc tr:last-child td { border-bottom: 0; }
 .doc strong { color: var(--fg); }
+
+/* Las referencias son una lista de evidencia, no otra ficha: repo como rótulo y una línea por ruta. */
+.references { flex:0 0 var(--auxiliarybar-w); overflow:hidden; }
+.reference-filter { flex:none; padding:8px; border-bottom:1px solid var(--line); }
+.reference-search { height:var(--control-sm); }
+.reference-note { margin:0; padding:8px 12px; color:var(--mut); border-bottom:1px solid var(--line); font-size:11.5px; }
+.reference-note code { padding:0; background:none; }
+.reference-group-head { position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:8px; min-height:28px;
+  padding:0 12px; color:var(--mut); background:var(--sidebar); border-bottom:1px solid var(--line);
+  font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+.reference-group-head > :first-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.reference-file { min-width:0; min-height:28px; padding:5px 12px; color:var(--texto-2); border-bottom:1px solid var(--line);
+  font-size:11px; line-height:1.35; }
+.reference-file:hover { background:var(--sel); color:var(--foreground); }
+.reference-file code { display:block; overflow:hidden; padding:0; background:none; color:inherit; text-overflow:ellipsis; white-space:nowrap; }
+.reference-empty { margin:0; padding:12px; color:var(--mut); font-size:12px; }
+
+/* JEV navega el contexto; no es un chat ni otra tarjeta. La izquierda conserva la sesión y la
+   derecha es la lista explícita de evidencia. El scope no sale de la máquina hasta ejecutar guide. */
+.jev-console { flex:0 0 var(--panel-h); min-height:0; }
+.jev-console-head { gap:10px; font-size:12px; }
+.jev-console-title { display:flex; align-items:center; gap:7px; color:var(--fg); }
+.jev-console-title .ui-icon { width:15px; height:15px; color:var(--info); }
+.jev-console-close { margin-left:auto; }
+.jev-stage { color:var(--tenue); font-size:10.5px; font-weight:500; }
+.jev-stage b { color:var(--mut); font-variant-numeric:tabular-nums; }
+.jev-pending { display:flex; align-items:center; gap:6px; color:var(--mut); font-size:11px; font-weight:400; }
+.jev-pending .spinner { width:12px; height:12px; border-width:1.5px; }
+.jev-console-body { display:grid; grid-template-columns:minmax(0, 1fr) minmax(250px, 340px); flex:1; min-height:0; }
+.jev-session { min-width:0; overflow:auto; padding:8px 12px 12px; }
+.jev-command { display:flex; align-items:center; gap:7px; }
+.jev-command .input { min-width:0; font-family:var(--font-mono); }
+.jev-prompt { flex:none; color:var(--info); font-family:var(--font-mono); font-size:12px; font-weight:600; }
+.jev-guard, .jev-error { margin:6px 0 0; font-size:10.5px; line-height:1.35; }
+.jev-guard { color:var(--tenue); }.jev-guard code { padding:0; background:none; color:var(--mut); }
+.jev-error { color:var(--destructive); }
+.jev-output { display:flex; flex-wrap:wrap; align-items:baseline; gap:5px 8px; margin-top:9px; padding:7px 9px;
+  border-left:2px solid var(--line-fuerte); background:var(--hueco); color:var(--mut); font-size:11px; line-height:1.4; }
+.jev-output-head { display:flex; flex-basis:100%; justify-content:space-between; gap:8px; color:var(--fg); }
+.jev-output-head > :last-child { color:var(--tenue); font-size:10.5px; font-weight:400; }
+.jev-output p { flex-basis:100%; margin:0; }.jev-help { flex-direction:column; align-items:flex-start; color:var(--mut); }
+.jev-help b { color:var(--fg); }.jev-help code { padding:0; background:none; color:var(--info); }
+.jev-link, .jev-candidates button { border:0; padding:0; background:none; color:var(--info); font:inherit; font-weight:600;
+  cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.jev-link:hover, .jev-candidates button:hover { color:var(--fg); }
+.jev-link:focus-visible, .jev-candidates button:focus-visible { outline:2px solid var(--ring); outline-offset:2px; }
+.jev-muted { color:var(--tenue); }.jev-candidates { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 9px; }
+.jev-candidates button { color:var(--texto-2); font-weight:500; }.jev-facts, .jev-sections { display:flex; flex-basis:100%; flex-wrap:wrap; gap:4px 8px; }
+.jev-facts { color:var(--tenue); font-size:10.5px; }.jev-sections span { color:var(--texto-2); font-size:10.5px; }
+.jev-sections span:not(:last-child)::after { content:'·'; margin-left:8px; color:var(--line-fuerte); }
+.jev-scope-output { display:block; }.jev-code-preview { margin-top:6px; border-top:1px solid var(--line); }
+.jev-code-preview:first-of-type { margin-top:0; border-top:0; }.jev-code-preview summary { display:flex; gap:8px; min-width:0; padding:5px 0;
+  cursor:pointer; color:var(--texto-2); }.jev-code-preview summary code { min-width:0; overflow:hidden; padding:0; background:none; text-overflow:ellipsis; white-space:nowrap; }
+.jev-code-preview summary span { margin-left:auto; flex:none; color:var(--tenue); font-size:10px; white-space:nowrap; }
+.jev-code-preview pre { max-height:150px; margin:0 0 6px; overflow:auto; padding:7px; background:var(--background); border:1px solid var(--line);
+  color:var(--texto-2); font:10px/1.4 var(--font-mono); white-space:pre; }
+.jev-case-note { color:var(--al-deriva); }.jev-evidence { min-width:0; overflow:auto; padding:8px 10px; border-left:1px solid var(--line); background:var(--sidebar); }
+.jev-evidence-head { display:flex; justify-content:space-between; gap:8px; color:var(--fg); font-size:11px; }.jev-evidence-head code { padding:0; background:none; color:var(--mut); }
+.jev-evidence > p { margin:6px 0 8px; color:var(--mut); font-size:10.5px; line-height:1.35; }.jev-evidence > p code { padding:0; background:none; }
+.jev-evidence-actions { display:flex; align-items:center; gap:8px; margin-bottom:6px; color:var(--tenue); font-size:10.5px; }
+.jev-evidence-actions span { margin-left:auto; font-variant-numeric:tabular-nums; }.jev-file-option { display:flex; align-items:center; gap:7px; min-width:0;
+  min-height:27px; padding:3px 0; border-top:1px solid var(--line); cursor:pointer; }.jev-file-option input { flex:none; accent-color:var(--primary); }
+.jev-file-option code { min-width:0; overflow:hidden; padding:0; background:none; color:var(--texto-2); font-size:10px; text-overflow:ellipsis; white-space:nowrap; }
+.jev-file-option:hover code { color:var(--fg); }.jev-scope-button { width:100%; margin-top:8px; }
+.jev-console-resizer { flex:0 0 var(--rsz); margin-top:calc(-1 * var(--rsz)); }
 
 /* ── ALINEACIÓN: qué nodos quedaron viejos (datos de alineacion.json, calculados por alinear.py) ──
    EL CÍRCULO ENTERO es el estado de salud, no el kind. Se probó con el kind en el relleno y la
@@ -289,8 +369,9 @@ code { font-family: var(--font-mono); font-size: .88em; background: var(--hueco)
 
 .context-resizer { position: relative; flex: 0 0 var(--rsz); margin-left: calc(-1 * var(--rsz)); }
 .context-resizer::before { left: -3px; right: -3px; }
-.context-panel-resizer { position:relative; flex:0 0 var(--rsz); width:auto; height:var(--rsz); margin:0; z-index:2 }
-.context-panel-resizer::before { top:-3px; right:0; bottom:-3px; left:0 }
+.references-resizer { position:relative; flex:0 0 var(--rsz); }
+.references-resizer::before { left:-3px; right:0; }
+.references-resizer::after { right:0; left:-4px; }
 .search-field { height: var(--control-sm); }
 .tree-toggle { display: grid; place-items: center; border: 0; background: none; padding: 0; cursor: pointer; }
 .tree-toggle .ui-icon { width: 12px; height: 12px; }

@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -109,27 +110,42 @@ func servir(addr string) error {
 			return
 		}
 		type item struct {
-			UReq      int64  `json:"ureq"`
-			Fecha     string `json:"fecha"` // el día, para agrupar los chips
-			Hora      string `json:"hora"`
-			Estado    int    `json:"estado"`
-			EstadoN   string `json:"estadoN"`
-			Lender    string `json:"lender"`
-			Comercio  string `json:"comercio"`
-			Desenlace string `json:"desenlace"`
-			Directa   bool   `json:"directa"` // la trajo la búsqueda literal, no la expansión a la persona
+			UReq       int64  `json:"ureq"`
+			PersonaKey string `json:"personaKey,omitempty"`
+			Fecha      string `json:"fecha"` // el día, para agrupar los chips
+			Hora       string `json:"hora"`
+			Estado     int    `json:"estado"`
+			EstadoN    string `json:"estadoN"`
+			Lender     string `json:"lender"`
+			Comercio   string `json:"comercio"`
+			Desenlace  string `json:"desenlace"`
+			Directa    bool   `json:"directa"` // la trajo la búsqueda literal, no la expansión a la persona
+		}
+		type persona struct {
+			Key       string `json:"personaKey"`
+			Documento string `json:"documento,omitempty"`
+			Telefono  string `json:"telefono,omitempty"`
 		}
 		out := struct {
-			Target   string   `json:"target"`
-			Fuente   string   `json:"fuente"`
-			Como     []string `json:"como"`
-			Historia Historia `json:"historia"`
-			Items    []item   `json:"items"`
+			Target   string    `json:"target"`
+			Fuente   string    `json:"fuente"`
+			Como     []string  `json:"como"`
+			Historia Historia  `json:"historia"`
+			Personas []persona `json:"personas"`
+			Items    []item    `json:"items"`
 		}{Target: target, Fuente: fuente.Nombre(), Como: como, Historia: armarHistoria(cs)}
+		personas := map[string]bool{}
 		for _, x := range cs {
 			l := x.Creada.Local()
+			personaKey := clavePersona(target, x.UserID)
+			if personaKey != "" && !personas[personaKey] {
+				personas[personaKey] = true
+				out.Personas = append(out.Personas, persona{
+					Key: personaKey, Documento: x.Documento, Telefono: x.Telefono,
+				})
+			}
 			out.Items = append(out.Items, item{
-				UReq: x.UReq, Fecha: l.Format("2006-01-02"), Hora: l.Format("15:04"),
+				UReq: x.UReq, PersonaKey: personaKey, Fecha: l.Format("2006-01-02"), Hora: l.Format("15:04"),
 				Estado: x.Estado, EstadoN: x.EstadoN, Lender: x.Lender,
 				Comercio: x.Comercio, Desenlace: desenlaceDe(x.Estado), Directa: x.Directa,
 			})
@@ -154,23 +170,30 @@ func servir(addr string) error {
 			return
 		}
 		// Se agregan los datos de cabecera que la vista necesita y que no viven en `Traza` porque son de la
-		// solicitud, no del flujo. El PII va ENMASCARADO: esta API sirve datos de producción a un navegador.
+		// solicitud, no del flujo. Esta herramienta es de operación interna y escucha sólo en localhost.
 		jsonOK(w, struct {
 			Traza
-			Comercio       string  `json:"comercio"`
-			Sucursal       string  `json:"sucursal"`
-			Lender         string  `json:"lender"`
-			RT             int     `json:"rt"`
-			Estado         int     `json:"estado"`
-			EstadoN        string  `json:"estadoN"`
-			Monto          float64 `json:"monto"`
-			Documento      string  `json:"documento"`
-			Origen         string  `json:"origen"`
-			OrigenDerivado bool    `json:"origenDerivado"`
+			Comercio       string         `json:"comercio"`
+			Sucursal       string         `json:"sucursal"`
+			Lender         string         `json:"lender"`
+			RT             int            `json:"rt"`
+			Estado         int            `json:"estado"`
+			EstadoN        string         `json:"estadoN"`
+			Monto          float64        `json:"monto"`
+			Perfilamiento  string         `json:"perfilamiento"`
+			PerfilesCupo   []perfilCupoUI `json:"perfilesCupo"`
+			PersonaKey     string         `json:"personaKey,omitempty"`
+			Documento      string         `json:"documento"`
+			Telefono       string         `json:"telefono"`
+			Origen         string         `json:"origen"`
+			OrigenDerivado bool           `json:"origenDerivado"`
 		}{
 			Traza: t, Comercio: s.Comercio, Sucursal: s.Sucursal, Lender: s.Lender, RT: s.LenderRT,
 			Estado: s.Estado, EstadoN: s.EstadoN, Monto: s.Monto,
-			Documento: enmascararPII(s.Documento), Origen: s.Origen, OrigenDerivado: s.OrigenDerivado,
+			Perfilamiento: resumenPerfilamiento(s.Perfilamiento),
+			PerfilesCupo:  perfilesCupo(s),
+			PersonaKey:    clavePersona(target, s.UserID), Documento: s.Documento,
+			Telefono: s.Telefono, Origen: s.Origen, OrigenDerivado: s.OrigenDerivado,
 		})
 	})
 
@@ -214,13 +237,109 @@ func targetDe(r *http.Request) (string, error) {
 	return t, nil
 }
 
-// enmascararPII: la API sirve datos de PRODUCCIÓN a un navegador. La cédula completa no viaja — igual que
-// en la consola y en el HTML. Quien necesite el valor entero lo saca de la fuente, no de acá.
-func enmascararPII(v string) string {
-	if len(v) <= 6 {
-		return strings.Repeat("•", len(v))
+// clavePersona es estable dentro del target y sólo sirve para reunir consultas de la misma persona en
+// este navegador. La cédula queda disponible para el operador dentro de la herramienta; esta clave evita
+// usarla como llave de agrupación o de IndexedDB.
+func clavePersona(target string, userID int64) string {
+	if userID <= 0 {
+		return ""
 	}
-	return v[:3] + strings.Repeat("*", len(v)-6) + v[len(v)-3:]
+	return fmt.Sprintf("p-%s-%x", target, userID)
+}
+
+// resumenPerfilamiento es el titular de la corrida que cabe en la ficha lateral. El detalle —reglas,
+// puntajes y el motivo de cada entidad— sigue en la etapa "Listado de entidades"; acá sólo se expone
+// qué perfilador ordenó el listado, cuántas entidades llegó a mostrar y cuál fue la recomendada o la
+// desembolsada. Sale del snapshot de BD, nunca de una inferencia de la Vue.
+func resumenPerfilamiento(p *Perfilamiento) string {
+	if p == nil {
+		return "No llegó al perfilamiento"
+	}
+
+	var partes []string
+	if p.Perfilador != "" {
+		partes = append(partes, p.Perfilador)
+	}
+	if len(p.Mostrados) > 0 {
+		partes = append(partes, fmt.Sprintf("%d entidades mostradas", len(p.Mostrados)))
+	}
+	if nombre := lenderDePerfilamiento(p, p.Recomendado); nombre != "" {
+		partes = append(partes, "recomendada: "+nombre)
+	}
+	if nombre := lenderDePerfilamiento(p, p.Desembolsado); nombre != "" {
+		partes = append(partes, "desembolsada: "+nombre)
+	}
+	if len(partes) == 0 {
+		return "Sin resultado registrado"
+	}
+	return strings.Join(partes, " · ")
+}
+
+// perfilCupoUI es la parte de la evaluación de categorías que cabe en la ficha. No traduce ni inventa
+// niveles: la categoría (por ejemplo Premium o Standard) es la que configuró cada entidad. El detalle
+// de reglas, score e ingreso permanece en "Listado de entidades", donde se puede revisar sin comprimirlo.
+type perfilCupoUI struct {
+	Categoria string  `json:"categoria"`
+	Entidad   string  `json:"entidad"`
+	Cupo      float64 `json:"cupo"`
+}
+
+// perfilesCupo devuelve sólo categorías que podemos atribuir a ESTA corrida. `users_category_log` está
+// ligado al usuario, no a la solicitud; por eso una fila de otro intento del mismo cliente no puede
+// presentarse como su perfil actual. Una misma entidad puede registrarse más de una vez en la cascada,
+// así que se deduplica y se muestra primero la entidad de la solicitud abierta.
+func perfilesCupo(s *Solicitud) []perfilCupoUI {
+	if s == nil {
+		return []perfilCupoUI{}
+	}
+
+	perfiles := make([]perfilCupoUI, 0, len(s.Categorias))
+	vistos := make(map[string]bool)
+	for _, categoria := range s.Categorias {
+		if categoria.Ventana != "misma" || categoria.CatID <= 0 || strings.TrimSpace(categoria.CatNombre) == "" {
+			continue
+		}
+		entidad := strings.TrimSpace(categoria.Lender)
+		if entidad == "" {
+			entidad = fmt.Sprintf("entidad %d", categoria.LenderID)
+		}
+		perfil := perfilCupoUI{
+			Categoria: strings.TrimSpace(categoria.CatNombre),
+			Entidad:   entidad,
+			Cupo:      categoria.Cupo,
+		}
+		clave := fmt.Sprintf("%d|%d|%s|%.2f", categoria.LenderID, categoria.CatID, perfil.Categoria, perfil.Cupo)
+		if vistos[clave] {
+			continue
+		}
+		vistos[clave] = true
+		perfiles = append(perfiles, perfil)
+	}
+
+	sort.SliceStable(perfiles, func(i, j int) bool {
+		esActualI := perfiles[i].Entidad == s.Lender && s.Lender != ""
+		esActualJ := perfiles[j].Entidad == s.Lender && s.Lender != ""
+		if esActualI != esActualJ {
+			return esActualI
+		}
+		if perfiles[i].Entidad != perfiles[j].Entidad {
+			return perfiles[i].Entidad < perfiles[j].Entidad
+		}
+		return perfiles[i].Categoria < perfiles[j].Categoria
+	})
+	return perfiles
+}
+
+func lenderDePerfilamiento(p *Perfilamiento, id int64) string {
+	if p == nil || id <= 0 {
+		return ""
+	}
+	for _, lender := range p.Mostrados {
+		if lender.ID == id && lender.Nombre != "" {
+			return lender.Nombre
+		}
+	}
+	return ""
 }
 
 func jsonOK(w http.ResponseWriter, v any) {

@@ -22,21 +22,20 @@ leé los `Cuándo:` de cada nodo, elegí dos a cuatro que matcheen la tarea, y a
 cd context && npm install && npm run dev   # viz read-only (puerto: .claude/launch.json)
 ```
 
-Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` + `ramas.json` por `import.meta.glob`
-y los renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
+Lee `tree.json` + `flows/*/{map.json,doc.md}` + `alineacion.json` por `import.meta.glob` y los
+renderiza. Editás un `doc.md` y se actualiza por HMR. No hay nada que guardar desde la UI.
 
 Desde la raíz del playground también se levanta con `make context` en `http://localhost:5193`.
 Un enlace `/?node=motai` selecciona el nodo exacto; `/?q=texto` inicia una búsqueda libre.
 Los enlaces del tablero apuntan a esta vista local. Canon es el corpus compartido y se consulta aparte.
 
-La consola inferior muestra los repos que indexa Context y las ramas locales de cada uno. El sidebar
-elige el repo; la tabla muestra checkout actual, cambios sin commit, diferencia contra `main`, upstream
-y último commit. El snapshot dice cuándo se midió y no hace `fetch`; es local y queda fuera de Git
-porque contiene el estado de esta máquina. Se actualiza con:
+La interfaz no lista ramas: Context usa la alineación del nodo contra `main` como señal operativa.
+Los estados de deriva, rutas muertas o pendiente de merge dicen qué documento requiere atención sin
+mezclar el diagnóstico Git global con el contenido curado.
 
-```bash
-make context-ramas
-```
+Al abrir un nodo, el sidebar derecho lista los archivos declarados en su `map.json`, agrupados por
+repositorio y con filtro local. Así la prosa responde *qué entender* y la referencia lateral responde
+*qué abrir*.
 
 **El buscador de la viz muestra la VECINDAD, no una lista.** Busca en cuatro lados —el nombre, los
 síntomas, los archivos declarados y el cuerpo del `doc.md`— y dice en cuál pegó. El árbol se recorta a
@@ -76,6 +75,19 @@ make context-salud                                        # ¿el árbol SIRVE pa
 compara con Jev mediante su API; las decisiones quedan en reportes locales revisables. El protocolo,
 los datos enviados, la preselección compacta y el modo experimental `make agente-analisis JEV=1`
 están en [`docs/JEV.md`](docs/JEV.md).
+
+En desarrollo, el mismo buscador muestra primero el resultado local y, después de **550 ms sin
+teclear**, pide una sugerencia a Jev. La petición va al proceso local de Vite —nunca al navegador con
+una clave— y es efímera: no crea un reporte en `.runs/jev`. Sólo se envían la pregunta y el catálogo
+compacto de nodos (`name`, `when`, `sintomas`), no documentos, archivos ni datos de casos. El campo
+detecta y bloquea patrones de cédulas, teléfonos, solicitudes, correos y credenciales; de todas
+formas, no pegues datos sensibles. Si Jev no está configurado, la búsqueda local continúa normalmente.
+
+La consola inferior `JEV` usa el mismo principio, pero para profundizar: `brief` prepara una ficha
+general local del nodo; `scope` permite elegir hasta tres archivos ya declarados en el `map.json` y
+mostrar una versión de `main`/`origin/main` limitada y redactada; sólo `guide` envía esa evidencia
+acotada a Jev para que elija **qué revisar después**. No responde ni ejecuta código, y no guarda el
+scope. El detalle del contrato y los comandos equivalentes están en [`docs/JEV.md`](docs/JEV.md).
 
 ## El modelo
 

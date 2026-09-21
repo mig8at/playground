@@ -232,7 +232,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint context-ramas context-ramas-test
 .PHONY: context-jev context-jev-test tablero-jev tablero-jev-test
-context-jev: ## @ctx laboratorio local de Jev: ARGS='route "pregunta" [--live]' | 'bench [--live]' | 'label reporte --expected nodo' | stats
+context-jev: ## @ctx Jev: route/brief/scope/review [--live] | bench | label reporte --expected nodo | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
 
 context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev

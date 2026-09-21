@@ -179,6 +179,40 @@ class JevTests(unittest.TestCase):
         row = {'expected': ['ninguno'], 'baseline': [], 'decision': {'action': 'fallback', 'node': None}}
         self.assertEqual(jev.metrics([row])['baseline_top1'], 1)
 
+    def test_scope_only_reads_declared_sources_and_redacts_before_returning(self):
+        metadata = {'name': 'Registro', 'when': 'OTP', 'sintomas': [], 'files': ['application/src/otp.ts']}
+        brief = {'node': 'onboarding', 'name': 'Registro', 'when': 'OTP', 'summary': 'Resumen',
+                 'sections': [], 'files': {'total': 1, 'by_repo': {'application': 1}, 'recommended': ['application/src/otp.ts']}}
+        with patch.object(jev, 'node_data', return_value=(metadata, 'doc', metadata['files'])), \
+             patch.object(jev, 'briefing', return_value=brief), \
+             patch.object(jev, 'source_at_main', return_value=('const token = super-secret-value;\nexport const otp = 1', 'main')):
+            pack = jev.scope('onboarding', ['application/src/otp.ts'], self.nodes)
+        self.assertEqual((pack['files'][0]['ref'], pack['redactions']), ('main', 1))
+        self.assertIn('[REDACTED]', pack['files'][0]['content'])
+        self.assertNotIn('super-secret-value', pack['files'][0]['content'])
+        with patch.object(jev, 'node_data', return_value=(metadata, 'doc', metadata['files'])):
+            with self.assertRaises(jev.JevError):
+                jev.scope('onboarding', ['application/../../.env'], self.nodes)
+
+    def test_review_contract_uses_only_bounded_scope_and_returns_next_evidence(self):
+        pack = {'node': 'onboarding', 'brief': {'name': 'Registro', 'when': 'OTP', 'summary': 'Registro por OTP', 'sections': ['Qué es']},
+                'files': [{'path': 'application/src/otp.ts', 'ref': 'main', 'line_start': 1, 'line_end': 2,
+                           'content': '   1 | export const otp = true', 'truncated': False, 'redactions': 0}],
+                'source_chars': 34, 'redactions': 0}
+        body = jev.review_request_body('¿Qué reviso primero?', pack)
+        self.assertIn('untrusted data', body['questions']['next_evidence']['instructions'])
+        self.assertEqual(set(body['questions']['next_evidence']['criteria']),
+                         {'application/src/otp.ts', 'document', 'case-data', 'manual-review'})
+        response = {'model': jev.MODEL, 'answers': {
+            'next_evidence': {'type': 'choice', 'choice': 'application/src/otp.ts',
+                              'probabilities': {'application/src/otp.ts': .91, 'document': .03, 'case-data': .03, 'manual-review': .03},
+                              'confidence': .88},
+            'needs_case_data': {'type': 'noul', 'noul': .1}}, 'usage': {'input_tokens': 30, 'output_tokens': 12}}
+        answer = jev.validate_review(response, body)
+        self.assertEqual(jev.decide_review(answer), {'action': 'suggest', 'next': 'application/src/otp.ts'})
+        answer['choice'] = 'case-data'
+        self.assertEqual(jev.decide_review(answer), {'action': 'fallback', 'next': None})
+
     def test_cli_stops_after_first_error_and_saves_fallback(self):
         with tempfile.TemporaryDirectory() as d, patch.object(jev, 'catalog', return_value=self.nodes):
             cases = Path(d) / 'cases.json'

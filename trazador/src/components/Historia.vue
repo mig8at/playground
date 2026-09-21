@@ -133,16 +133,16 @@ const alternarDia = (fecha) => { diaAbierto.value = diaAbierto.value === fecha ?
 .tira { display:flex; flex-direction:column }
 /* Sobre `.region-head.grupo`: esta vez no se pega al hacer scroll. Es un acordeón, no el título de una
    lista abierta; su valor es mostrar todos los días cerrados de una vez. */
-.grupo > .region-head.grupo { margin:8px calc(0px - var(--historia-gutter)) 4px; padding:5px var(--historia-gutter);
+.grupo > .region-head.grupo { margin:8px calc(0px - var(--historia-gutter)) 0; padding:6px var(--historia-gutter);
   width:calc(100% + var(--historia-gutter-doble)); position:relative; top:auto; text-transform:none; letter-spacing:normal;
-  font-variant-numeric:tabular-nums; background:var(--card); border:1px solid var(--line); border-radius:var(--r-sm) }
-.grupo > .region-head.grupo:hover { border-color:var(--primary) }
+  font-variant-numeric:tabular-nums; background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0 }
+.grupo > .region-head.grupo:hover { background:var(--sel) }
 .grupo > .region-head.grupo[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 9%, var(--card));
-  border-color:var(--primary); box-shadow:inset 2px 0 0 var(--primary) }
+  box-shadow:inset 2px 0 0 var(--primary) }
 .grupo > .region-head.grupo .gh { display:flex; align-items:center; gap:7px; min-width:0 }
 .grupo > .region-head.grupo .cr { color:var(--dim); font-size:10px; transition:transform .12s }
 .grupo > .region-head.grupo .cr.on { transform:rotate(90deg) }
-.chips { display:flex; flex-wrap:wrap; gap:4px; padding:0 0 3px }
+.chips { display:flex; flex-wrap:wrap; gap:4px; padding:7px 0 3px }
 
 /* Sobre `.badge.badge-outline`: un intento de la persona es una ETIQUETA que además se aprieta. */
 .chip { gap:5px; padding:2px 8px; font-size:12px; color:var(--dim);

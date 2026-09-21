@@ -4,10 +4,33 @@ El comando propone **qué nodo leer primero** para investigar una pregunta. Desp
 `doc.md`, su `map.json` y las fuentes en `main`. La sugerencia no certifica la documentación, no
 responde la pregunta ni ejecuta acciones. Canon conserva su funcionamiento actual.
 
-El script corre en esta máquina; **la inferencia usa la API de TypeSafe**. Con `--live` envía la
-pregunta y el catálogo de nodos registrados (`name`, `when`, `sintomas`). No envía los documentos,
-archivos de código, chats, tablas, registros de clientes ni credenciales del entorno. La pregunta
-es texto libre: usá una descripción del problema sin datos personales ni secretos.
+El script corre en esta máquina; **la inferencia usa la API de TypeSafe**. `route --live` envía sólo
+la pregunta y el catálogo de nodos registrados (`name`, `when`, `sintomas`). No envía documentos,
+archivos de código, chats, tablas, registros de clientes ni credenciales del entorno. La pregunta es
+texto libre: usá una descripción del problema sin datos personales ni secretos.
+
+## De mapa a evidencia acotada
+
+La consola JEV de Context y los comandos locales trabajan por capas. La primera capa es barata y
+general; ninguna etapa amplía el alcance sola.
+
+1. `route pregunta` elige por dónde empezar con el catálogo compacto.
+2. `brief nodo` arma una ficha determinista y local: propósito, síntomas, extracto breve del `doc.md`,
+   secciones y distribución de archivos. Es el contexto general preparado para ese nodo; no llama a
+   TypeSafe ni lee código.
+3. `scope nodo --file alias/ruta …` prepara entre uno y tres archivos que **ya están declarados en el
+   `map.json`**. Los lee con `git show` desde `main` u `origin/main`, nunca desde el working tree;
+   limita el tamaño, conserva números de línea y redacta patrones de credenciales antes de mostrarlos.
+   El resultado sigue local y se puede revisar en la consola.
+4. `review pregunta --node nodo --file alias/ruta … --live` es el único paso que combina pregunta,
+   ficha y scope para Jev. Jev no genera una respuesta ni ejecuta código: elige la **siguiente
+   evidencia** (uno de los archivos seleccionados, el documento completo, datos de caso o revisión
+   manual) y declara si faltaría evidencia de un caso.
+
+`review` es efímero: no crea un reporte en `.runs/jev` ni devuelve el código de nuevo. El paquete se
+limita a 2.400 caracteres de ficha y 10.000 de código, y el prompt trata docs y código como datos no
+confiables, nunca como instrucciones. La detección de secretos es una red de seguridad, no permiso
+para pegar secretos: la selección sigue siendo explícita y revisable.
 
 ## Empezar
 
@@ -16,6 +39,9 @@ Desde la raíz del playground:
 ```sh
 make context-jev ARGS='route "No llega el OTP para registrar el celular"'
 make context-jev ARGS='route "No llega el OTP para registrar el celular" --live'
+make context-jev ARGS='brief onboarding'
+make context-jev ARGS='scope onboarding --file application/app/Http/Controllers/Customer/OtpController.php'
+make context-jev ARGS='review "¿Qué evidencia reviso primero?" --node onboarding --file application/app/Http/Controllers/Customer/OtpController.php --live'
 ```
 
 Sin `--live` se obtiene una referencia léxica local sin red ni lectura de credenciales. Con `--live`
@@ -32,9 +58,11 @@ La clave se toma de `JEV_TOKEN` o `TYPESAFE_API_KEY`, en el entorno o en `contex
 por Git). También se puede pasar `--env-file /ruta/al/.env` para reutilizar una configuración.
 Solo se leen esas dos variables; el archivo no se ejecuta como shell. El entorno gana.
 
-Cada ejecución imprime un `report` en `context/.runs/jev/`. Es local, ignorado por Git, y contiene
-la pregunta, las decisiones y las medidas; no contiene el token ni los documentos. Los experimentos
-no se agregan al corpus como historial. No hay servidor nuevo ni clave en el navegador.
+`route` y `bench` guardan un `report` en `context/.runs/jev/`. Es local, ignorado por Git, y contiene
+la pregunta, las decisiones y las medidas; no contiene el token ni los documentos. `brief`, `scope` y
+`review` son previsualizaciones efímeras y no guardan paquetes —un scope puede contener código y no
+debe convertirse en historial. Los experimentos no se agregan al corpus como historial. No hay
+servidor nuevo ni clave en el navegador.
 
 ## Aprender del uso
 

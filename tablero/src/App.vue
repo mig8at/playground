@@ -12,6 +12,7 @@ import { vResize, refreshResizers } from './workbench.js';
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
+import TaskGuidance from './TaskGuidance.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
@@ -634,6 +635,65 @@ function irASeccion(id) {
 
 const contextLink = (node) => 'http://localhost:5193/?node=' + encodeURIComponent(node);
 
+// ── ORIENTACIÓN JEV ─────────────────────────────────────────────────────────────────────────────
+// Es un acto EXPLÍCITO: abrir la franja no llama a nadie; «Analizar con Jev» es el consentimiento
+// para enviar la proyección mínima de `make retomar`. La sugerencia no escribe Markdown, Jira, estado
+// ni pendientes. Así conserva su lugar: decidir dónde mirar, no decidir ni ejecutar por la persona.
+const jevOpen = ref(false);
+const jevBusy = ref(false);
+const jevError = ref('');
+const jevGuidance = ref(null);
+let jevRequest = 0;
+const jevTarget = computed(() => {
+  const effort = active.value ? effortDe(active.value.Key) : null;
+  return effort?.id ? String(effort.id) : '';
+});
+function abrirOrientacion() {
+  jevOpen.value = !jevOpen.value;
+  if (!jevOpen.value) { jevError.value = ''; jevGuidance.value = null; }
+}
+function cerrarOrientacion() {
+  jevOpen.value = false;
+  jevBusy.value = false;
+  jevError.value = '';
+  jevGuidance.value = null;
+  jevRequest++;
+}
+async function orientarConJev() {
+  const target = jevTarget.value;
+  if (!target || jevBusy.value) return;
+  const request = ++jevRequest;
+  jevBusy.value = true; jevError.value = ''; jevGuidance.value = null;
+  try {
+    const res = await fetch(`${SERVER}/api/jev/triage`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: target }),
+    });
+    const row = await res.json();
+    if (request !== jevRequest) return;
+    if (!res.ok || row.error) { jevError.value = row.error || 'No se pudo obtener una orientación.'; return; }
+    jevGuidance.value = row.guidance || { review: true };
+  } catch {
+    if (request === jevRequest) jevError.value = 'No se pudo hablar con el servidor local.';
+  } finally {
+    if (request === jevRequest) jevBusy.value = false;
+  }
+}
+function textoOrientacionJev() {
+  const row = jevGuidance.value;
+  if (!row?.action) return '';
+  const action = {
+    ejecutar: 'Ejecutar el próximo paso', desbloquear: 'Desbloquear antes de avanzar',
+    'pedir-respuesta': 'Pedir una respuesta', decidir: 'Tomar una decisión',
+    'archivar-o-replantear': 'Replantear o archivar',
+  }[row.action] || row.action;
+  const urgency = ['puede esperar', 'normal', 'conviene priorizar', 'crítica'][Math.round(row.urgency || 0)] || 'a revisar';
+  return `Orientación de siguiente paso\n\n${action} · urgencia ${urgency} · ${row.externalBlocker ? 'depende de terceros' : 'puede avanzar localmente'}\n\nPropuesta de Jev; revisar la tarea y la evidencia antes de cambiarla.`;
+}
+async function copiarOrientacionJev() {
+  const text = textoOrientacionJev();
+  if (text) await alPortapapeles(text);
+}
+
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
 // Se copia el MARKDOWN, no el HTML renderizado: es lo que se pegó bien en todos lados y lo que otra
@@ -772,7 +832,10 @@ async function alPortapapeles(txt) {
 }
 
 // Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
-watch(() => active.value?.Key, () => { clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = ''; });
+watch(() => active.value?.Key, () => {
+  clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = '';
+  cerrarOrientacion();
+});
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
  *
@@ -1775,13 +1838,18 @@ function documentAction(id) {
              cabecera, las vistas de consulta al costado y las ramas en la consola inferior. -->
 
         <template #acciones>
-          <div v-if="documentSections.length" class="toolbar" role="group" aria-label="Acciones del documento">
+          <div v-if="documentSections.length || jevTarget" class="toolbar" role="group" aria-label="Acciones de la tarea">
+            <button v-if="jevTarget" type="button" class="btn btn-ghost btn-sm task-jev-trigger"
+                    :aria-expanded="jevOpen" aria-controls="task-guidance" title="Orientar el siguiente paso con Jev"
+                    @click="abrirOrientacion"><span aria-hidden="true">✦</span> Orientar</button>
+            <template v-if="documentSections.length">
             <span v-if="copiado" class="toolbar-note" role="status">{{ copiado === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
             <button class="region-action" title="Copiar para compartir (sin registro ni comandos)"
                     aria-label="Copiar para compartir" @click="copiarCuerpo('compartir')">
               <span class="ui-icon" :data-icon="copiado === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
             <RegionMenu title="Opciones del documento" :items="documentMenu" @select="documentAction" />
+            </template>
           </div>
         </template>
 
@@ -1807,6 +1875,9 @@ function documentAction(id) {
                  :key="n" class="badge badge-outline ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
                  :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
             </div>
+            <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
+                          :loading="jevBusy" :error="jevError" @start="orientarConJev"
+                          @close="cerrarOrientacion" @copy="copiarOrientacionJev" />
 
             <!-- Llegar a pruebas conserva el acto compuesto: primero se revisa el mensaje y sólo
                  después el server mueve el issue y avisa a quien valida. -->
@@ -2723,6 +2794,8 @@ function documentAction(id) {
 .task-head-context strong { font-weight: 600; color: var(--mut) }
 .task-head-context .ctx-link { font-size: 10.5px }
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
+.task-jev-trigger { height: 26px; padding: 0 8px; color: var(--mut); font-size: 11px; }
+.task-jev-trigger[aria-expanded="true"] { background: var(--panel2); color: var(--txt); }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }

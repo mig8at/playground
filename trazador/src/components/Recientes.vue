@@ -6,27 +6,47 @@ import { useTrazador } from '../stores/trazador'
 
 const emit = defineEmits(['close'])
 const t = useTrazador()
+const clave = (reciente) => reciente.personaKey
+  ? `${reciente.target}:persona:${reciente.personaKey}`
+  : `${reciente.target}:consulta:${reciente.q}`
 const datos = (reciente) => {
   const total = Number.isInteger(reciente.total) ? reciente.total : null
+  const documento = reciente.documento || ''
+  const telefono = reciente.telefono || ''
   return {
-    clave: `${reciente.target}:${reciente.q}`,
+    clave: clave(reciente),
     target: reciente.target,
-    consulta: reciente.q,
+    tipo: documento ? 'Cédula' : (telefono ? 'Teléfono' : (reciente.tipo || '')),
+    consulta: documento || telefono || reciente.q,
     meta: total === null ? reciente.target : `${reciente.target} · ${total} ${total === 1 ? 'solicitud' : 'solicitudes'}`,
   }
 }
-const claveActiva = computed(() => t.resultados && t.q.trim() ? `${t.target}:${t.q.trim()}` : '')
+const claveActiva = computed(() => {
+  if (!t.resultados || !t.q.trim()) return ''
+  const personas = Array.isArray(t.resultados.personas) ? t.resultados.personas : []
+  const claves = personas.length === 1
+    ? [personas[0]?.personaKey]
+    : [...new Set((t.resultados.items || []).map((item) => item?.personaKey).filter(Boolean))]
+  return claves.length === 1
+    ? `${t.target}:persona:${claves[0]}`
+    : `${t.target}:consulta:${t.q.trim()}`
+})
 const descripcion = computed(() => t.recientes.length
   ? 'Elegí una consulta para volver a abrir su grupo de solicitudes.'
   : 'Las consultas que abras quedarán disponibles en este navegador.')
 const enCurso = computed(() => (t.resultados?.items || [])
   .filter((item) => item.desenlace === 'en-curso' || /en curso/i.test(item.estadoN || ''))
   .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
-const historial = computed(() => [...(t.resultados?.items || [])]
+const todas = computed(() => [...(t.resultados?.items || [])]
   .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
 const vistaPrincipal = ref('en-curso')
-watch(() => t.resultados, () => { vistaPrincipal.value = enCurso.value.length ? 'en-curso' : 'historial' })
-const filas = computed(() => vistaPrincipal.value === 'en-curso' ? enCurso.value : historial.value)
+const consultaDirecta = computed(() => (t.resultados?.items || []).filter((item) => item.directa).length === 1)
+// Por teléfono/cédula interesa primero qué sigue vivo. Por UREQ, en cambio, ya se tiene una solicitud
+// abierta y lo útil es ver de inmediato todos los intentos de esa persona, sin esconderlos en una pestaña.
+watch(() => t.resultados, () => {
+  vistaPrincipal.value = consultaDirecta.value ? 'todas' : (enCurso.value.length ? 'en-curso' : 'todas')
+})
+const filas = computed(() => vistaPrincipal.value === 'en-curso' ? enCurso.value : todas.value)
 const fecha = (item) => [item.fecha, item.hora].filter(Boolean).join(' · ') || 'sin fecha'
 // Abrir una fila no es una nueva consulta: carga esta solicitud dentro del grupo que ya está abierto.
 const abrirEnCurso = (item) => t.verTraza(item.ureq)
@@ -60,18 +80,19 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
               <button type="button" role="tab" :aria-selected="vistaPrincipal === 'en-curso'" @click="vistaPrincipal = 'en-curso'">
                 En curso <span>{{ enCurso.length }}</span>
               </button>
-              <button type="button" role="tab" :aria-selected="vistaPrincipal === 'historial'" @click="vistaPrincipal = 'historial'">
-                Historial <span>{{ historial.length }}</span>
+              <button type="button" role="tab" :aria-selected="vistaPrincipal === 'todas'" @click="vistaPrincipal = 'todas'">
+                Todas <span>{{ todas.length }}</span>
               </button>
             </div>
             <span>más reciente primero</span>
           </header>
-          <div v-if="filas.length" class="curso-tabla" role="table" :aria-label="`${vistaPrincipal === 'en-curso' ? 'Solicitudes en curso' : 'Historial de solicitudes'} ordenado de forma descendente`">
+          <div v-if="filas.length" class="curso-tabla" role="table" :aria-label="`${vistaPrincipal === 'en-curso' ? 'Solicitudes en curso' : 'Todas las solicitudes'} ordenado de forma descendente`">
             <div class="curso-fila curso-columnas" role="row">
               <span role="columnheader">Solicitud</span><span role="columnheader">Comercio</span>
               <span role="columnheader">Fecha</span><span role="columnheader">Estado</span>
             </div>
             <button v-for="item in filas" :key="item.ureq" type="button" class="curso-fila curso-dato" role="row"
+                    :class="{ seleccionada: item.ureq === t.traza?.ureq }"
                     :title="`Abrir solicitud ${item.ureq}`" @click="abrirEnCurso(item)">
               <span class="curso-ureq" role="cell">{{ item.ureq }}</span>
               <span class="curso-comercio" role="cell">{{ item.comercio || '—' }}</span>
@@ -79,7 +100,7 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
               <span class="curso-estado" :class="claseEstado(item)" role="cell">{{ estado(item) }}</span>
             </button>
           </div>
-          <div v-else class="curso-vacio">No hay solicitudes {{ vistaPrincipal === 'en-curso' ? 'en curso' : 'en el historial' }}.</div>
+          <div v-else class="curso-vacio">No hay solicitudes {{ vistaPrincipal === 'en-curso' ? 'en curso' : 'en esta consulta' }}.</div>
         </section>
         <div v-else class="stage-vacio">
           <span class="prompt-mark" aria-hidden="true">›</span>
@@ -92,16 +113,16 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
 
       <aside class="console-sidebar" aria-label="Navegador de consultas recientes">
         <header class="console-sidebar-head">
-          <span>Consultas</span>
+          <span class="console-sidebar-title">Consultas</span>
+          <span class="console-sidebar-caption">guardadas localmente</span>
           <span class="sidebar-count">{{ t.recientes.length }}</span>
         </header>
         <div v-if="t.recientes.length" class="lista-recientes" aria-label="Consultas recientes guardadas">
           <div v-for="reciente in t.recientes" :key="datos(reciente).clave" class="reciente" :class="{ activa: datos(reciente).clave === claveActiva }">
             <button type="button" class="abrir-reciente" :aria-current="datos(reciente).clave === claveActiva ? 'page' : undefined"
                     :title="`Abrir ${datos(reciente).consulta} en ${datos(reciente).target}`" @click="t.abrirReciente(reciente)">
-              <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
               <span class="reciente-texto">
-                <span class="reciente-consulta">{{ datos(reciente).consulta }}</span>
+                <span class="reciente-consulta"><span v-if="datos(reciente).tipo" class="reciente-tipo">{{ datos(reciente).tipo }}</span>{{ datos(reciente).consulta }}</span>
                 <span class="reciente-meta">{{ datos(reciente).meta }}</span>
               </span>
             </button>
@@ -152,6 +173,7 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
   font-size:10px; font-weight:600; letter-spacing:.04em; text-transform:uppercase }
 .curso-dato { min-height:34px; color:var(--dim); background:transparent; border:0; border-bottom:1px solid var(--line); cursor:pointer }
 .curso-dato:hover { color:var(--txt); background:color-mix(in srgb, var(--primary) 7%, var(--panel2)); box-shadow:inset 2px 0 0 var(--primary) }
+.curso-dato.seleccionada { color:var(--txt); background:color-mix(in srgb, var(--primary) 12%, var(--panel2)); box-shadow:inset 2px 0 0 var(--primary) }
 .curso-dato:focus-visible { outline:2px solid var(--primary); outline-offset:-2px }
 .curso-fila > span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .curso-ureq { color:var(--txt); font-family:var(--font-mono); font-size:12px }
@@ -164,31 +186,34 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
 .stage-title, .stage-copy { margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .stage-title { color:var(--txt); font:600 12px/1.45 var(--font-mono) }
 .stage-copy { margin-top:2px; font-size:11px }
-.console-sidebar { flex:0 0 224px; display:flex; flex-direction:column; min-width:0; min-height:0;
-  background:var(--panel2); border-left:1px solid var(--line) }
-.console-sidebar-head { flex:none; display:flex; align-items:center; gap:7px; min-height:32px; padding:0 10px;
-  color:var(--dim); border-bottom:1px solid var(--line); font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase }
+.console-sidebar { flex:0 0 236px; display:flex; flex-direction:column; min-width:0; min-height:0;
+  background:var(--card); border-left:1px solid var(--line) }
+.console-sidebar-head { flex:none; display:flex; align-items:center; gap:6px; min-height:38px; padding:0 12px;
+  border-bottom:1px solid var(--line) }
+.console-sidebar-title { color:var(--txt); font-size:11px; font-weight:600 }
+.console-sidebar-caption { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  color:var(--tenue); font-size:10px }
 .sidebar-count { display:grid; place-items:center; min-width:17px; height:17px; padding:0 4px; border-radius:var(--r-full);
   color:var(--secondary-foreground); background:var(--secondary); font-size:10px; letter-spacing:0; font-variant-numeric:tabular-nums }
-.lista-recientes { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; gap:2px; padding:6px }
-.reciente { display:flex; align-items:center; min-width:0; min-height:38px;
-  color:var(--dim); background:transparent; border:1px solid transparent; border-radius:var(--r-sm) }
-.reciente:hover { color:var(--txt); background:color-mix(in srgb, var(--primary) 7%, var(--panel2)); border-color:var(--line) }
-.reciente.activa { color:var(--txt); background:color-mix(in srgb, var(--primary) 12%, var(--panel2));
-  border-color:color-mix(in srgb, var(--primary) 35%, var(--line)); box-shadow:inset 2px 0 0 var(--primary) }
-.abrir-reciente { flex:1; display:flex; align-items:center; gap:8px; min-width:0; min-height:36px; padding:6px 3px 6px 7px;
+.console-sidebar-caption + .sidebar-count { margin-left:auto }
+.lista-recientes { flex:1; min-height:0; overflow:auto; display:flex; flex-direction:column; padding:0 }
+.reciente { display:flex; align-items:center; min-width:0; min-height:46px; color:var(--dim);
+  background:transparent; border-bottom:1px solid var(--line); box-shadow:inset 2px 0 0 transparent }
+.reciente:hover { color:var(--txt); background:color-mix(in srgb, var(--secondary) 38%, var(--card)) }
+.reciente.activa { color:var(--txt); background:color-mix(in srgb, var(--secondary) 66%, var(--card)); box-shadow:inset 2px 0 0 var(--primary) }
+.abrir-reciente { flex:1; display:flex; align-items:center; min-width:0; min-height:46px; padding:7px 4px 7px 12px;
   color:inherit; text-align:left; font:12px/1.2 inherit; font-variant-numeric:tabular-nums; background:none; border:0; cursor:pointer }
 .abrir-reciente:focus-visible, .borrar-reciente:focus-visible { outline:2px solid var(--primary); outline-offset:-1px }
-.abrir-reciente .ui-icon { flex:none; width:15px; height:15px; color:var(--secondary) }
-.reciente.activa .ui-icon { color:var(--primary) }
 .reciente-texto { display:flex; flex-direction:column; gap:2px; min-width:0 }
 .reciente-consulta, .reciente-meta { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-.reciente-consulta { color:inherit; font-family:var(--font-mono); font-size:12px }
+.reciente-consulta { color:var(--txt); font-family:var(--font-mono); font-size:12px; font-weight:550 }
+.reciente-tipo { margin-right:5px; color:var(--tenue); font-family:var(--font-sans); font-size:10px; font-weight:500 }
 .reciente-meta { color:var(--tenue); font-size:10px }
 .borrar-reciente { flex:none; display:grid; place-items:center; width:24px; height:24px; margin-right:4px; padding:0;
-  color:var(--tenue); background:none; border:0; border-radius:var(--r-sm); cursor:pointer; opacity:.55 }
+  color:var(--tenue); background:none; border:0; border-radius:var(--r-sm); cursor:pointer; opacity:0; transition:opacity .12s ease }
+.reciente:hover .borrar-reciente, .reciente:focus-within .borrar-reciente { opacity:1 }
 .borrar-reciente:hover { color:var(--fail); background:color-mix(in srgb, var(--fail) 10%, transparent); opacity:1 }
-.sidebar-vacio { padding:12px 10px; color:var(--dim); font-size:11px }
+.sidebar-vacio { padding:16px 12px; color:var(--tenue); font-size:11px; line-height:1.45 }
 @container (max-width: 520px) {
   .console-note { display:none }
   .console-stage { display:none }

@@ -15,7 +15,7 @@ const t = useTrazador()
       aria-label="Buscar" />
     <!-- El target se elige acá y no en una config: en soporte se salta de un ambiente a otro, y tener
          que reiniciar para cambiarlo hace que nadie lo cambie. -->
-    <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.aURL()">
+    <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.cambiarTarget()">
       <option value="prod">prod</option>
       <option value="staging">staging</option>
       <option value="dev">dev</option>

@@ -39,6 +39,35 @@ const sample = {
       en: { qa: true, main: true }, propios: { qa: 0, main: 0 }, como: { qa: 'patch', main: 'pr' } },
   ] } } },
 };
+const contextJevFixture = {
+  mode: 'live',
+  baseline: [{ node: 'onboarding', score: 3.2 }, { node: 'kyc', score: 1.4 }],
+  candidates: ['onboarding', 'kyc', 'actors'],
+  decision: { action: 'suggest', node: 'onboarding' },
+  jev: {
+    choice: 'onboarding', probability: 0.94, confidence: 0.91, needs_case_data: 0.08,
+    top4: [['onboarding', 0.94], ['kyc', 0.04], ['actors', 0.02]],
+  },
+};
+const contextJevBriefFixture = {
+  kind: 'brief', version: 'context-pack-v1', node: 'onboarding', name: 'Onboarding', node_kind: 'reference',
+  when: 'Registro de celular y OTP antes del listado.', summary: 'El registro crea la solicitud antes de consultar entidades.',
+  sections: ['Qué es', 'Antes de concluir'],
+  files: { total: 99, by_repo: { application: 23, 'frontend-monorepo': 28, 'legacy-backend': 48 }, recommended: [] },
+};
+const contextJevScopeFixture = {
+  kind: 'scope', version: 'context-pack-v1', node: 'onboarding', brief: contextJevBriefFixture,
+  source_chars: 180, redactions: 0,
+  files: [
+    { path: 'application/app/Http/Controllers/Customer/ListLenderController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class ListLenderController {}' },
+    { path: 'application/app/Http/Controllers/Customer/OtpController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class OtpController {}' },
+    { path: 'application/app/Http/Controllers/Customer/PersonalInfoController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class PersonalInfoController {}' },
+  ],
+};
+const contextJevReviewFixture = {
+  mode: 'live', node: 'onboarding', decision: { action: 'suggest', next: 'application/app/Http/Controllers/Customer/OtpController.php' },
+  jev: { choice: 'application/app/Http/Controllers/Customer/OtpController.php', probability: 0.92, confidence: 0.9, needs_case_data: 0.1 },
+};
 // La prueba de interfaz no consulta Redash ni necesita una solicitud real. Este esqueleto conserva
 // nombres largos y tres ramales para detectar el fallo visual más fácil de reintroducir: que las
 // etiquetas se monten cuando el mapa se queda angosto.
@@ -71,17 +100,28 @@ const trazadorFixture = {
 };
 const trazadorCompletoFixture = {
   ureq: 987001, target: 'prod', outcome: 'aprobado', etapas: [
-    { id: 'origen', label: 'Origen', status: 'ok', source: 'db', at: '10:01', subs: [] },
+    { id: 'origen', label: 'Origen', status: 'ok', source: 'db', at: '10:01', subs: [
+      { label: 'Recepción de la solicitud', status: 'ok', source: 'loki', eventosDe: 2, eventos: [
+        { at: '10:01', level: 'info', msg: 'Se creó la solicitud 987001.' },
+        { at: '10:02', level: 'info', msg: 'Se identificó el comercio de prueba.' },
+      ] },
+      { label: 'Datos de solicitud', status: 'ok', source: 'db', evidencia: {
+        fuente: 'user_requests', filas: ['estado: aprobado', 'monto: 100000'], sql: 'SELECT status, amount FROM user_requests WHERE id = 987001',
+      } },
+    ] },
   ],
   comercio: 'Comercio de prueba', sucursal: 'Sucursal de prueba', lender: 'Entidad de prueba', rt: 1,
-  monto: 100000, documento: '***001', origen: 'web', origenDerivado: true,
+  monto: 100000, perfilamiento: 'PerfiladorNuevo · 2 entidades mostradas · recomendada: Entidad de prueba',
+  perfilesCupo: [{ categoria: 'Premium', entidad: 'Entidad de prueba', cupo: 1353200 }],
+  personaKey: 'p-prod-2a', documento: '38612965', telefono: '3001234567', origen: 'web', origenDerivado: true,
 };
 const trazadorResultadosFixture = {
-  target: 'prod', fuente: 'fixture', como: ['número de solicitud'],
+  target: 'prod', fuente: 'fixture', como: ['teléfono → 1'],
   historia: { total: 2, desde: '2025-12-20', hasta: '2026-09-19', enCurso: 2, comercios: 2, aprobadas: 0, rotas: 0, abandonadas: 0 },
+  personas: [{ personaKey: 'p-prod-2a', documento: '38612965', telefono: '3001234567' }],
   items: [
-    { ureq: 987001, fecha: '2026-09-19', hora: '11:48', estadoN: 'En curso', comercio: 'Comercio A', desenlace: 'en-curso', directa: false },
-    { ureq: 987000, fecha: '2025-12-20', hora: '09:32', estadoN: 'En curso', comercio: 'Comercio B', desenlace: 'en-curso', directa: false },
+    { ureq: 987001, personaKey: 'p-prod-2a', fecha: '2026-09-19', hora: '11:48', estadoN: 'En curso', comercio: 'Comercio A', desenlace: 'en-curso', directa: false },
+    { ureq: 987000, personaKey: 'p-prod-2a', fecha: '2025-12-20', hora: '09:32', estadoN: 'En curso', comercio: 'Comercio B', desenlace: 'en-curso', directa: false },
   ],
 };
 const browser = await chromium.launch();
@@ -116,19 +156,28 @@ try {
     const errors = [];
     let trazasPedidas = 0;
     let busquedasPedidas = 0;
+    let jevPedidas = 0;
     let bloquearJira = false;
     page.on('pageerror', (e) => errors.push(e.message));
     if (name === 'trazador') {
       await page.addInitScript(() => {
         if (localStorage.getItem('trazador.recientes') === null) {
           // Formato previo: al abrirlo se migra a una consulta-grupo con sus solicitudes.
-          localStorage.setItem('trazador.recientes', JSON.stringify(['prod:3001234']));
+          localStorage.setItem('trazador.recientes', JSON.stringify(['prod:3001234567']));
         }
       });
     }
     await page.route('**/api/**', (route) => {
-      if (route.request().method() !== 'GET') return route.abort();
       const path = new URL(route.request().url()).pathname;
+      if (name === 'context' && path.startsWith('/api/jev/')) {
+        if (route.request().method() !== 'POST') return route.abort();
+        if (path === '/api/jev/route') { jevPedidas += 1; return route.fulfill({ json: contextJevFixture }); }
+        if (path === '/api/jev/brief') return route.fulfill({ json: contextJevBriefFixture });
+        if (path === '/api/jev/scope') return route.fulfill({ json: contextJevScopeFixture });
+        if (path === '/api/jev/review') return route.fulfill({ json: contextJevReviewFixture });
+        return route.abort();
+      }
+      if (route.request().method() !== 'GET') return route.abort();
       if (name === 'tablero') {
         if (bloquearJira && (path === '/api/sprints' || path === '/api/sprint')) return new Promise(() => {});
         return route.fulfill({ json: sample[path] || {} });
@@ -137,7 +186,17 @@ try {
         if (path === '/api/mapa') return route.fulfill({ json: trazadorFixture });
         if (path === '/api/buscar') {
           busquedasPedidas += 1;
-          return route.fulfill({ json: trazadorResultadosFixture });
+          const q = new URL(route.request().url()).searchParams.get('q');
+          const esSolicitud = /^987\d+$/.test(q || '');
+          const directa = esSolicitud && !trazadorResultadosFixture.items.some((item) => String(item.ureq) === q)
+            ? { ...trazadorResultadosFixture.items[0], ureq: Number(q), directa: true }
+            : null;
+          return route.fulfill({ json: {
+            ...trazadorResultadosFixture,
+            como: [esSolicitud ? 'número de solicitud → 1' : 'teléfono → 1'],
+            items: [...(directa ? [directa] : []), ...trazadorResultadosFixture.items
+              .map((item) => ({ ...item, directa: String(item.ureq) === q }))],
+          } });
         }
         if (path === '/api/traza') {
           trazasPedidas += 1;
@@ -218,15 +277,15 @@ try {
         const style = getComputedStyle(el);
         return { border: style.borderTopWidth, radio: style.borderTopLeftRadius };
       });
-      assert.notEqual(personaCard.border, '0px', 'Trazador: cabecera de persona con borde');
-      assert.notEqual(personaCard.radio, '0px', 'Trazador: cabecera de persona con radio');
+      assert.equal(personaCard.border, '0px', 'Trazador: cabecera de persona sin borde exterior');
+      assert.equal(personaCard.radio, '0px', 'Trazador: cabecera de persona sin radio de tarjeta');
       const recientesInicial = page.getByRole('tab', { name: /Recientes/ });
       assert.equal(await recientesInicial.getAttribute('aria-selected'), 'true',
         'Trazador: muestra recientes en la consola antes de seleccionar una solicitud');
       assert.equal(await page.locator('.reciente').count(), 1, 'Trazador: muestra las consultas guardadas');
     }
     const separator = name === 'trazador'
-      ? page.locator('.tirador:not(.tirador-consola)')
+      ? page.locator('.tirador-detalle')
       : page.locator('[role="separator"][tabindex="0"]').first();
     await separator.waitFor();
     await separator.focus();
@@ -240,7 +299,7 @@ try {
     }
     await page.reload();
     const restored = name === 'trazador'
-      ? page.locator('.tirador:not(.tirador-consola)')
+      ? page.locator('.tirador-detalle')
       : page.locator('[role="separator"][tabindex="0"]').first();
     await restored.waitFor();
     assert.equal(Number(await restored.getAttribute('aria-valuenow')), after, `${name}: persistencia`);
@@ -273,7 +332,7 @@ try {
       assert.equal(await page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true }).getAttribute('aria-selected'), 'false');
     }
     if (name === 'trazador') {
-      const handle = page.locator('.tirador:not(.tirador-consola)');
+      const handle = page.locator('.tirador-detalle');
       const box = await handle.boundingBox();
       const mapWidth = await page.locator('.editor-mapa').evaluate((e) => e.clientWidth);
       await page.mouse.move(box.x + box.width / 2, box.y + 100);
@@ -297,20 +356,73 @@ try {
       assert.equal(mapa.dentro, true, 'Trazador: las etiquetas quedan dentro del lienzo');
       assert.equal(mapa.seMontan, false, 'Trazador: las etiquetas no se montan');
       assert(mapa.rieles > 0, 'Trazador: el recorrido conserva rieles visibles');
+
+      const ficha = page.locator('.tirador-persona');
+      await ficha.press('Home'); await paint(page);
+      assert.equal(await page.locator('.persona-panel').isVisible(), false,
+        'Trazador: la ficha se pliega al llegar al borde');
+      await ficha.press('Enter'); await paint(page);
+      assert.equal(await page.locator('.persona-panel').isVisible(), true,
+        'Trazador: la ficha vuelve desde su tirador');
+
+      const consola = page.locator('.tirador-consola');
+      await consola.press('Home'); await paint(page);
+      assert.equal(await page.locator('.recientes-console').isVisible(), false,
+        'Trazador: recientes se pliega al borde inferior');
+      await consola.press('Enter'); await paint(page);
+      assert.equal(await page.locator('.recientes-console').isVisible(), true,
+        'Trazador: recientes vuelve desde su tirador');
     }
     if (name === 'context') {
-      assert.equal(await page.locator('.ramas-console').isVisible(), true,
-        'Context: la consola de ramas está abierta al iniciar');
-      assert(await page.locator('.ramas-console .repo').count() > 1,
-        'Context: el sidebar de la consola lista los repos indexados');
-      assert(await page.locator('.ramas-console .rama-dato').count() > 0,
-        'Context: el área principal muestra las ramas del repo seleccionado');
-      const backendRepo = page.getByRole('option', { name: /legacy-backend/ });
-      await backendRepo.click(); await paint(page);
-      assert.equal(await backendRepo.getAttribute('aria-selected'), 'true');
-      assert(await page.getByRole('table', { name: 'Ramas de legacy-backend', exact: true }).isVisible(),
-        'Context: cambiar de repo cambia la tabla de ramas');
-      await page.getByRole('searchbox', { name: 'Buscar en el contexto' }).fill('solicitud');
+      assert.equal(await page.locator('.ramas-console').count(), 0,
+        'Context: no muestra una consola Git que distraiga de la alineación con main');
+      assert.equal(await page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true }).count(), 0,
+        'Context: no conserva un control para una región eliminada');
+      assert(await page.locator('.detail .alin').isVisible(),
+        'Context: la alineación del nodo conserva la señal operativa contra main');
+      const referencias = page.locator('#context-references');
+      assert.equal(await referencias.isVisible(), true,
+        'Context: abre las referencias de archivos junto al documento');
+      const buscadorContexto = page.getByRole('searchbox', { name: 'Buscar en el contexto' });
+      await buscadorContexto.click();
+      await page.keyboard.type('No llega el OTP de registro');
+      await page.waitForTimeout(250);
+      assert.equal(jevPedidas, 0, 'Context: JEV espera antes de consultar mientras se escribe');
+      await page.locator('.jev-route[data-phase="suggest"]').waitFor();
+      assert.equal(jevPedidas, 1, 'Context: JEV consulta una sola vez tras el debounce');
+      await page.locator('.jev-open').click(); await paint(page);
+      assert.equal(await referencias.locator('.reference-note code').textContent(), 'onboarding',
+        'Context: abrir la sugerencia de JEV carga su evidencia');
+      const consolaJev = page.locator('#context-jev-console');
+      assert.equal(await consolaJev.isVisible(), true,
+        'Context: abre una consola JEV para profundizar la ruta');
+      const comandoJev = page.getByRole('textbox', { name: 'Comando JEV' });
+      await comandoJev.fill('brief'); await comandoJev.press('Enter');
+      await consolaJev.locator('.jev-brief-output').waitFor();
+      assert.match(await consolaJev.locator('.jev-brief-output').textContent(), /Ficha general.*99 archivos/s,
+        'Context: la ficha usa contexto general ya acotado');
+      await consolaJev.getByRole('button', { name: 'Elegir 3 sugeridos', exact: true }).click();
+      await consolaJev.getByRole('button', { name: 'Preparar scope local', exact: true }).click();
+      await consolaJev.locator('.jev-code-preview').first().waitFor();
+      assert.equal(await consolaJev.locator('.jev-code-preview').count(), 3,
+        'Context: el scope muestra el código elegido antes de enviarlo');
+      await comandoJev.fill('guide ¿Qué reviso primero?'); await comandoJev.press('Enter');
+      await consolaJev.locator('.jev-guide-output').waitFor();
+      assert.match(await consolaJev.locator('.jev-guide-output').textContent(), /OtpController.*92%.*90% confianza/s,
+        'Context: JEV devuelve la siguiente evidencia, no una conclusión inventada');
+      await page.getByRole('button', { name: 'application', exact: true }).click(); await paint(page);
+      assert.equal(await referencias.locator('.reference-note code').textContent(), 'application',
+        'Context: las referencias siguen el nodo abierto');
+      const filtroReferencias = page.getByRole('searchbox', { name: 'Filtrar archivos de referencia' });
+      await filtroReferencias.fill('LenderRetrievalService.php');
+      assert.equal(await referencias.locator('.reference-file').count(), 1,
+        'Context: el sidebar filtra las fuentes declaradas');
+      await filtroReferencias.fill('');
+      await buscadorContexto.fill('300 123 4567');
+      assert.equal(await page.locator('.jev-route[data-phase="blocked"]').isVisible(), true,
+        'Context: bloquea una consulta con teléfono antes de enviarla a Jev');
+      assert.equal(jevPedidas, 1, 'Context: no llama a Jev para datos personales');
+      await buscadorContexto.fill('solicitud');
       const { trigger, menu } = await openMenu(page, 'Opciones del explorador');
       const neighbors = menu.getByRole('menuitemcheckbox', { name: 'Incluir nodos vecinos' });
       assert.equal(await neighbors.getAttribute('aria-checked'), 'true');
@@ -332,13 +444,20 @@ try {
       assert(await explorer.evaluate((el) => el === document.activeElement), 'Ocultar devuelve el foco al alternador');
       await explorer.click(); await paint(page);
       assert.equal(await page.locator('#context-sidebar').isVisible(), true, 'El explorador vuelve desde el pie');
-      await page.getByRole('button', { name: 'Ocultar ramas', exact: true }).click(); await paint(page);
-      assert.equal(await page.locator('.ramas-console').isVisible(), false);
-      const branches = page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true });
-      assert.equal(await branches.getAttribute('aria-pressed'), 'false');
-      assert(await branches.evaluate((el) => el === document.activeElement), 'Ocultar ramas devuelve el foco al alternador');
-      await branches.click(); await paint(page);
-      assert.equal(await page.locator('.ramas-console').isVisible(), true, 'La consola de ramas vuelve desde el pie');
+      await page.getByRole('button', { name: 'Ocultar referencias', exact: true }).click(); await paint(page);
+      assert.equal(await referencias.isVisible(), false);
+      const toggleReferencias = page.getByRole('button', { name: 'Mostrar u ocultar referencias', exact: true });
+      assert.equal(await toggleReferencias.getAttribute('aria-pressed'), 'false');
+      assert(await toggleReferencias.evaluate((el) => el === document.activeElement), 'Ocultar referencias devuelve el foco al alternador');
+      await toggleReferencias.click(); await paint(page);
+      assert.equal(await referencias.isVisible(), true, 'El sidebar de referencias vuelve desde el pie');
+      await page.getByRole('button', { name: 'Ocultar consola JEV', exact: true }).click(); await paint(page);
+      assert.equal(await consolaJev.isVisible(), false, 'La consola JEV se puede plegar sin perder su alto');
+      const toggleJev = page.getByRole('button', { name: 'Mostrar u ocultar consola JEV', exact: true });
+      assert.equal(await toggleJev.getAttribute('aria-pressed'), 'false');
+      assert(await toggleJev.evaluate((el) => el === document.activeElement), 'Ocultar JEV devuelve el foco al alternador');
+      await toggleJev.click(); await paint(page);
+      assert.equal(await consolaJev.isVisible(), true, 'La consola JEV vuelve desde el pie');
     }
     if (name === 'harness') {
       const { trigger, menu } = await openMenu(page, 'Opciones de consola');
@@ -428,20 +547,85 @@ try {
       assert.deepEqual(cursos, ['987001', '987000'],
         'Trazador: ordena las solicitudes en curso de más reciente a más antigua');
       const recienteGrupo = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes')));
-      assert.deepEqual(recienteGrupo, [{ target: 'prod', q: '3001234', total: 2, solicitudes: ['987001', '987000'] }],
+      assert.deepEqual(recienteGrupo, [{ target: 'prod', q: '3001234567', personaKey: 'p-prod-2a', tipo: 'Teléfono', documento: '38612965', telefono: '3001234567', total: 2, solicitudes: ['987001', '987000'], consultas: ['3001234567'] }],
         'Trazador: un teléfono se guarda como un grupo de solicitudes');
+      assert.equal(await page.locator('.reciente-tipo').textContent(), 'Cédula',
+        'Trazador: el sidebar muestra la cédula de la persona');
+      assert.equal(await page.locator('.persona-panel .meta').getByText('38612965').isVisible(), true,
+        'Trazador: la ficha lateral se completa antes de elegir una solicitud');
       await page.locator('.curso-dato').first().click();
-      await page.locator('.detail-toolbar').waitFor();
+      await page.locator('.registro-toolbar').waitFor();
       assert.equal(busquedasPedidas, 1, 'Trazador: abrir una solicitud del grupo no repite la búsqueda');
       assert.equal(await page.locator('.abrir-reciente').count(), 1,
         'Trazador: abrir una solicitud del grupo no crea otro reciente');
+      assert.equal(await page.locator('.persona-panel .meta').getByText('38612965').isVisible(), true,
+        'Trazador: la ficha lateral muestra la cédula completa');
+      assert.equal(await page.locator('.persona-panel .meta').getByText('PerfiladorNuevo · 2 entidades mostradas · recomendada: Entidad de prueba').isVisible(), true,
+        'Trazador: la ficha lateral muestra el resultado compacto del perfilamiento');
+      assert.equal(await page.locator('.persona-panel .perfiles-cupo').getByText('Premium').isVisible(), true,
+        'Trazador: la ficha lateral muestra la categoría efectiva y el cupo de la entidad');
+      const buscarRegistro = page.getByRole('searchbox', { name: 'Buscar en todo el registro', exact: true });
+      assert.equal(await page.locator('.log-line').count(), 2,
+        'Trazador: el inspector muestra todas las líneas en un único registro');
+      const copiarRegistro = page.getByRole('button', { name: 'Copiar registro visible', exact: true });
+      assert.equal(await copiarRegistro.isVisible(), true,
+        'Trazador: el registro completo se puede copiar desde el inspector');
+      await buscarRegistro.fill('comercio de prueba');
+      assert.equal(await page.locator('.log-line').count(), 1,
+        'Trazador: el buscador filtra todo el registro, no sólo una etapa');
+      await buscarRegistro.fill('');
+      await page.locator('.stage-bar').first().click();
+      assert.equal(await page.locator('.stage-bar').first().getAttribute('aria-current'), 'step',
+        'Trazador: una sección del registro conserva la sincronía con el mapa');
+      await page.getByRole('textbox', { name: 'Buscar' }).fill('987001');
+      await page.getByRole('textbox', { name: 'Buscar' }).press('Enter');
+      await page.locator('.curso-dato').first().waitFor();
+      assert.equal(busquedasPedidas, 2, 'Trazador: permite buscar una solicitud directa');
+      assert.equal(await page.locator('.abrir-reciente').count(), 1,
+        'Trazador: la solicitud directa se une al grupo existente de su persona');
+      const todasDirecta = page.getByRole('tab', { name: /Todas/ });
+      assert.equal(await todasDirecta.getAttribute('aria-selected'), 'true',
+        'Trazador: una búsqueda por solicitud abre todas las solicitudes de la persona');
+      assert.equal(await page.locator('.curso-dato').count(), 2,
+        'Trazador: la consulta directa muestra los otros intentos sin ocultarlos');
+      assert.equal(await page.locator('.curso-dato.seleccionada .curso-ureq').textContent(), '987001',
+        'Trazador: mantiene resaltada la solicitud que se buscó');
+      assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965/987001/origen',
+        'Trazador: guarda la corrida y la etapa en una ruta dinámica legible');
+      const grupoPorSolicitud = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes'))[0]);
+      assert.deepEqual(grupoPorSolicitud.consultas, ['987001', '3001234567'],
+        'Trazador: el grupo conserva las consultas que lo resolvieron');
       assert.equal(await page.locator('.persona-panel .historia').count(), 0,
         'Trazador: el sidebar izquierdo no mezcla la historia con la ficha');
-      const historial = page.getByRole('tab', { name: /Historial/ });
-      await historial.click();
-      assert.equal(await historial.getAttribute('aria-selected'), 'true', 'Trazador: conserva el historial dentro de la consola');
-      assert.equal(await page.locator('.detail-toolbar').isVisible(), true,
+      const todas = page.getByRole('tab', { name: /Todas/ });
+      await todas.click();
+      assert.equal(await todas.getAttribute('aria-selected'), 'true', 'Trazador: conserva todas las solicitudes dentro de la consola');
+      assert.equal(await page.locator('.registro-toolbar').isVisible(), true,
         'Trazador: abre el inspector al elegir una solicitud');
+      await page.goto(`${url}/traza/prod/38612965`);
+      await page.locator('.curso-dato').first().waitFor();
+      assert.equal(await page.locator('.curso-dato').count(), 2,
+        'Trazador: una ruta por cédula carga todas las solicitudes de la persona');
+      assert.equal(await page.locator('.curso-dato.seleccionada').count(), 0,
+        'Trazador: una ruta por cédula no inventa cuál solicitud abrir');
+      assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965',
+        'Trazador: conserva la ruta canónica de la cédula');
+      assert.equal(busquedasPedidas, 2,
+        'Trazador: una cédula reutiliza el grupo que ya se guardó al abrir la solicitud');
+      await page.goto(`${url}/traza/prod/3001234567`);
+      await page.locator('.curso-dato').first().waitFor();
+      assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965',
+        'Trazador: un celular se normaliza a la cédula de la persona');
+      assert.equal(busquedasPedidas, 2,
+        'Trazador: reutiliza la búsqueda de celular guardada en IndexedDB');
+      await page.goto(`${url}/traza/prod/987001`);
+      await page.locator('.registro-toolbar').waitFor();
+      assert.equal(await page.locator('.curso-dato').count(), 2,
+        'Trazador: una ruta breve de solicitud expande la historia de la persona');
+      assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965/987001/origen',
+        'Trazador: una solicitud se normaliza a cédula, solicitud y etapa');
+      assert.equal(busquedasPedidas, 2,
+        'Trazador: reutiliza la búsqueda inversa de solicitud guardada');
       const regiones = await page.locator('.workspace-main').evaluate((area) => {
         const consola = area.querySelector('.recientes-console').getBoundingClientRect();
         const mapa = area.querySelector('.editor-mapa').getBoundingClientRect();
@@ -454,29 +638,55 @@ try {
       });
       assert(regiones.consolaTop >= regiones.mapaBottom - 1 && regiones.mismoAncho && regiones.railDerecho,
         'Trazador: recientes usa la consola inferior como un navegador vertical a la derecha');
-      await page.goto(`${url}?target=prod&ureq=987002`);
-      await page.locator('.detail-toolbar').waitFor();
+      await page.goto(`${url}/traza/prod/38612965/987002`);
+      await page.locator('.registro-toolbar').waitFor();
       assert.equal(trazasPedidas, 2, 'Trazador: consulta una traza ausente de caché');
+      assert.equal(busquedasPedidas, 3, 'Trazador: una ruta completa repone primero el grupo de solicitudes');
       await page.reload();
-      await page.locator('.detail-toolbar').waitFor();
+      await page.locator('.registro-toolbar').waitFor();
       assert.equal(trazasPedidas, 2, 'Trazador: restaura la traza completa desde IndexedDB');
+      await page.evaluate(async () => {
+        // Una corrida guardada antes de sumar el perfil de cupo se actualiza una sola vez: no se puede
+        // inferir de forma segura su categoría efectiva desde el resumen antiguo.
+        await new Promise((resolve, reject) => {
+          const open = indexedDB.open('trazador-consultas', 2);
+          open.onerror = () => reject(open.error);
+          open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction('trazas', 'readwrite');
+            tx.objectStore('trazas').put({
+              id: 'prod:987003', target: 'prod', ureq: '987003', guardadaEn: Date.now(),
+              traza: { ureq: 987003, target: 'prod', outcome: 'aprobado', etapas: [], comercio: 'Antigua' },
+              resultados: null,
+            });
+            tx.oncomplete = () => { db.close(); resolve(); };
+            tx.onerror = () => reject(tx.error);
+          };
+        });
+      });
+      await page.goto(`${url}/traza/prod/987003`);
+      await page.locator('.registro-toolbar').waitFor();
+      assert.equal(trazasPedidas, 3, 'Trazador: actualiza una vez la caché anterior para guardar el perfil de cupo');
+      await page.reload();
+      await page.locator('.registro-toolbar').waitFor();
+      assert.equal(trazasPedidas, 3, 'Trazador: reutiliza la corrida ya actualizada desde IndexedDB');
       await page.locator('.abrir-reciente').click();
       await page.locator('.curso-dato').first().waitFor();
-      assert.equal(busquedasPedidas, 1, 'Trazador: restaura la búsqueda completa desde IndexedDB');
-      assert.equal(trazasPedidas, 2, 'Trazador: restaura también la traza al abrir un reciente');
-      await page.getByRole('button', { name: 'Borrar consulta 3001234', exact: true }).click();
+      assert.equal(busquedasPedidas, 4, 'Trazador: restaura la búsqueda completa desde IndexedDB');
+      assert.equal(trazasPedidas, 3, 'Trazador: restaura también la traza al abrir un reciente');
+      await page.getByRole('button', { name: 'Borrar consulta 38612965', exact: true }).click();
       await paint(page);
       assert.equal(await page.locator('.abrir-reciente').count(), 0, 'Trazador: quita la corrida de recientes');
       assert.equal(await page.evaluate(() => localStorage.getItem('trazador.recientes')), '[]',
         'Trazador: persiste el borrado de la lista');
-      await page.goto(`${url}?target=prod&ureq=987001`);
-      await page.locator('.detail-toolbar').waitFor();
-      assert.equal(trazasPedidas, 3, 'Trazador: borra también la caché de la corrida');
+      await page.goto(`${url}/traza/prod/38612965/987001`);
+      await page.locator('.registro-toolbar').waitFor();
+      assert.equal(trazasPedidas, 4, 'Trazador: borra también la caché de la corrida');
       await page.evaluate(() => localStorage.setItem('trazador.recientes', JSON.stringify({ formato: 'antiguo' })));
       await page.reload();
       await page.locator('.statusbar').waitFor();
-      assert.equal(await page.locator('.abrir-reciente').count(), 0,
-        'Trazador: ignora un formato antiguo de recientes sin romper la consulta');
+      assert.equal(await page.locator('.abrir-reciente').count(), 1,
+        'Trazador: ignora el formato antiguo y guarda como reciente la consulta válida de la ruta');
     }
     for (const width of [1440, 1024, 768]) {
       await page.setViewportSize({ width, height: 800 });
@@ -512,6 +722,13 @@ try {
           await toggle.click(); await paint(page);
         }
         if (width === 768) assert.equal(await vistas.isVisible(), false, 'tablero: el documento conserva el ancho en ventana angosta');
+      }
+      if (name === 'context') {
+        const referencias = page.locator('#context-references');
+        if (width < 880) assert.equal(await referencias.isVisible(), false,
+          'Context: las referencias se pliegan antes de comprimir el documento');
+        else assert.equal(await referencias.isVisible(), true,
+          `Context: las referencias acompañan el documento a ${width}px`);
       }
       if (name === 'harness') {
         const clipped = await page.locator('.stagehead').evaluate((head) => {

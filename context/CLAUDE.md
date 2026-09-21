@@ -2,6 +2,44 @@
 
 Qué es el árbol y cómo se lee: `README.md` + `docs/ROUTE-MAP.md`. Acá solo el protocolo.
 
+## Rutina diaria del agente: mapa → evidencia → tarea
+
+`CLAUDE.md` es la memoria compartida de este proyecto: un agente que empieza dentro de `context/`
+recibe estas reglas antes de investigar. Su primera responsabilidad no es adivinar una causa ni abrir
+todo el monorepo; es reducir la búsqueda sin convertir una sugerencia en un hecho.
+
+1. **Ubicá el trabajo.** Si la tarea vive en `tablero/data/`, abrí su frontmatter y leé
+   `context_nodes:`. Esos son los nodos que se consultan primero. Si no hay tarea aún, tomá de la
+   petición la pregunta técnica, no identificadores de una persona ni una solicitud.
+2. **Abrí el contexto que ya está declarado.** Leé el `doc.md` y el `map.json` de cada nodo; el
+   primero explica el comportamiento y el segundo limita qué fuentes son pertinentes. No recorras
+   `ROUTE-MAP.md` completo cuando la tarea ya trae nodos.
+3. **Cuando la entrada sea amplia, ambigua o `context_nodes` esté vacío, ruteá.** Primero alcanza el
+   mapa local: `make context-jev ARGS='route "pregunta general"'`. Si está configurado `JEV_TOKEN`,
+   la pregunta es segura y vale el costo de una segunda opinión, se puede sumar `--live`. Jev propone
+   por dónde entrar; nunca autoriza una conclusión ni reemplaza abrir el nodo.
+4. **Profundizá de a poco.** `brief <nodo>` prepara el panorama local. Después de leer el nodo, elegí
+   como máximo tres archivos que su propio `map.json` declare y prepará `scope`; ese preview usa
+   `main`/`origin/main`, no el working tree. Sólo si sigue faltando decidir *qué evidencia mirar
+   después*, `review ... --live` puede pedirle a Jev una selección de evidencia. Jev no responde la
+   pregunta de producto, no ejecuta código y no sustituye la revisión de las líneas fuente.
+5. **Volvé a la evidencia.** Confirmá la hipótesis en el código y con la herramienta apropiada:
+   `workers/` para hallar lo no documentado, `harness/` para comportamiento ejecutable y `trazador/`
+   para datos de casos. Al abrir una tarea, dejá en `context_nodes:` sólo los nodos realmente usados;
+   al cerrarla, graduá lo estable según «Qué deja esto en la tarea».
+
+**Cuándo NO usar Jev.** Si la pregunta contiene cédula, teléfono, correo, número de solicitud,
+credenciales, SQL o un log real; si requiere datos actuales de un caso; si su respuesta es
+`manual-review`/`case-data`; o si su confianza no alcanza, se vuelve al ROUTE-MAP y a la investigación
+manual. No se fuerza `JEV=1`: sin token, sin red o ante una abstención, el flujo local sigue siendo el
+camino normal.
+
+**Qué se puede enviar.** `route` sólo recibe una pregunta general y un catálogo compacto. `brief` es
+local. Un `scope` es local, efímero y limitado a archivos declarados; sólo `review --live` recibe esa
+evidencia acotada. No pegues un documento de tarea, código del working tree, secretos, datos personales
+ni resultados de Trazador. El token queda en el entorno o `context/.env`, nunca en la UI ni en un
+archivo de tarea. El contrato exacto y sus comandos están en [`docs/JEV.md`](docs/JEV.md).
+
 ## La vara es `main`. Lo que no está en main, se marca
 
 Este árbol describe **lo que corre**, no lo que se está construyendo. Un nodo que documenta una rama sin
@@ -101,11 +139,12 @@ El server Go, el WebSocket, el conector stdio y el sistema de "derivar" se borra
 - `server/` **no tiene código**: sobrevive como carpeta de datos (`server/data/flows/`). No muevas
   esos directorios — toda ruta citada en los docs apunta ahí.
 - `src/App.vue` (la viz) es **read-only**: lee `tree.json`, `flows/*` y `alineacion.json` por
-  `import.meta.glob`. No le agregues backend, WS ni botones de guardar. Su **buscador** y el grafo de
-  vecindad —derivado de los archivos que dos nodos comparten, descartando los hubs— salen del mismo
-  glob y no guardan nada; el detalle y lo medido, en `README.md`. **Si necesitás mostrar algo
-  que la viz no puede calcular** (git, la BD): que un **comando** lo calcule y deje un JSON que la viz
-  lee por el mismo glob — así se hizo la alineación.
+  `import.meta.glob`. No le agregues persistencia, WS ni botones de guardar. Su **buscador** y el grafo
+  de vecindad —derivado de los archivos que dos nodos comparten, descartando los hubs— salen del mismo
+  glob y no guardan nada; el detalle y lo medido, en `README.md`. La única excepción es el middleware
+  efímero de desarrollo para la consola JEV: llama `tools/jev.py`, no guarda scopes ni expone tokens
+  al navegador. **Si necesitás mostrar algo que la viz no puede calcular** (git, la BD): que un
+  **comando** lo calcule y deje un JSON que la viz lee por el mismo glob — así se hizo la alineación.
 
 ## El oráculo y el ROUTE-MAP corren SOLOS (hooks)
 

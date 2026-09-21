@@ -211,6 +211,44 @@ esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»** — el comando, no la conclusión |
 | [`trazador/`](../trazador/CLAUDE.md) | ¿pasa de verdad, y cuánto? | una anotación `> **MEDICIÓN · fecha**` |
 
+## Retomar una tarea: Claude Code + Context + Jev
+
+Un agente que empieza el día no debería reconstruir el sistema desde cero ni confiar en un resumen
+viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los siete contenedores
+locales, abre su Markdown y reescribe mentalmente la sección **«Si retomás esto sin contexto»** en
+una hipótesis verificable. Antes de editar, revisa `context_nodes:` del frontmatter:
+
+1. **Hay nodos declarados:** abre esos `doc.md` + `map.json` en `context/` antes de buscar código. Son
+   el contexto curado de la tarea, no una lista decorativa.
+2. **No hay nodos o el pedido llega demasiado general:** formula una pregunta técnica sin datos de
+   caso y ejecuta `make context-jev ARGS='route "pregunta general"'`. Es el ruteo local y no requiere
+   credencial. Con una pregunta segura, `JEV_TOKEN` configurado y necesidad real de contraste, puede
+   usar `--live`. Después abre los candidatos y confirma cuál sirve; sólo entonces agrega los nodos
+   pertinentes a `context_nodes:`. Una sugerencia no se copia al frontmatter por sí sola.
+3. **Ya encontró un nodo pero necesita código:** lee primero el `doc.md`; `brief` da el resumen local.
+   Puede preparar `scope` con uno a tres archivos que el `map.json` ya declara y, sólo si necesita
+   elegir la siguiente evidencia, usar `review --live`. Ese review devuelve una elección de evidencia,
+   no una respuesta ni un plan de cambios. El código se verifica después contra `main`/`origin/main`.
+4. **La pregunta es de una persona, una solicitud, una medición actual o un log real:** no entra a
+   Jev. Se usa Trazador, Harness o la fuente autorizada y la evidencia se registra con su comando.
+
+Jev es un **copiloto de orientación**, no otra fuente de verdad ni un requisito de cada tarea. Ante
+abstención, poca confianza, `case-data` o `manual-review`, se sigue el ROUTE-MAP y la investigación
+normal. Nunca se le envían cuerpo de la tarea, Registro, pendientes, bitácora, código del working
+tree, secretos, teléfonos, cédulas, correos o números de solicitud. El detalle operativo y los límites
+viven en [`context/docs/JEV.md`](../context/docs/JEV.md); `context/CLAUDE.md` define el método de
+evidencia que este tablero consume.
+
+En la UI aparece como **✦ Orientar** en la cabecera de una tarea con documento local. Abrir la franja
+no llama a Jev; **Analizar con Jev** es el acto explícito que permite enviar la proyección mínima. El
+resultado se puede copiar como borrador, pero no escribe el documento ni cambia Jira, estado o
+pendientes. No lo conviertas en una nueva pestaña, sidebar o mecanismo de priorización de `make hoy`.
+
+Al terminar, actualizá la sección de estado, el Registro y los comandos de comprobación como dicta esta
+guía. Si aprendiste una regla que seguiría siendo cierta después del merge, graduála a `context/`; si
+no, queda en la tarea. Así la siguiente sesión empieza con contexto verificable, no con una transcripción
+del chat anterior.
+
 ⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
 estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
 anotación, y de ahí `store.FuentesDe` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo

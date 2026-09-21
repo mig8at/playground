@@ -5,10 +5,26 @@ const VERSION_BD = 2
 const ALMACEN_TRAZAS = 'trazas'
 const ALMACEN_BUSQUEDAS = 'busquedas'
 const MAX_CONSULTAS = 20
-const MAX_BUSQUEDAS = 20
+// Una búsqueda de una persona queda disponible por solicitud, cédula y teléfono. Son hasta tres llaves
+// para el mismo grupo, por eso el límite conserva el equivalente a unas veinte consultas completas.
+const MAX_BUSQUEDAS = 60
 
 function clave(target, ureq) { return `${target}:${ureq}` }
 function claveBusqueda(target, q) { return `${target}:${String(q).trim()}` }
+
+function aliasDeBusqueda(q, resultados) {
+  const alias = new Set([String(q).trim()])
+  const personas = Array.isArray(resultados?.personas) ? resultados.personas : []
+  // Sólo se indexa si el servidor resolvió UNA persona. Con una búsqueda ambigua, asociar una cédula al
+  // grupo entero mezclaría historiales de dos clientes distintos — una caché rápida pero incorrecta.
+  if (personas.length === 1) {
+    for (const valor of [personas[0]?.documento, personas[0]?.telefono]) {
+      const limpio = typeof valor === 'string' ? valor.trim() : ''
+      if (limpio) alias.add(limpio)
+    }
+  }
+  return [...alias]
+}
 
 function abrirBD() {
   if (typeof indexedDB === 'undefined') return Promise.resolve(null)
@@ -98,7 +114,12 @@ export async function guardarBusqueda({ target, q, resultados }) {
     await new Promise((resolver) => {
       const tx = bd.transaction(ALMACEN_BUSQUEDAS, 'readwrite')
       const almacen = tx.objectStore(ALMACEN_BUSQUEDAS)
-      almacen.put({ id: claveBusqueda(target, q), target, q: String(q), guardadaEn: Date.now(), resultados })
+      const guardadaEn = Date.now()
+      for (const alias of aliasDeBusqueda(q, resultados)) {
+        almacen.put({
+          id: claveBusqueda(target, alias), target, q: alias, consultaOriginal: String(q), guardadaEn, resultados,
+        })
+      }
 
       let vistas = 0
       const cursor = almacen.index('guardadaEn').openCursor(null, 'prev')

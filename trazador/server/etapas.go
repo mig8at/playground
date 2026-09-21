@@ -201,6 +201,7 @@ type Solicitud struct {
 	ID        int64
 	UserID    int64
 	Documento string
+	Telefono  string
 	Estado    int
 	EstadoN   string
 	Lender    string

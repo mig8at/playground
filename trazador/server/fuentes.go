@@ -295,7 +295,8 @@ const sqlSolicitud = `
 	SELECT ur.user_id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
 	       COALESCE(l.name,'') AS lender, COALESCE(l.id,0) AS lender_id, COALESCE(l.response_type,0) AS rt,
 	       COALESCE(a.name,'') AS comercio, COALESCE(a.id,0) AS allied_id, COALESCE(ab.name,'') AS sucursal,
-	       COALESCE(u.document_number,'') AS documento, COALESCE(ur.amount,0) AS monto, ur.created_at,
+	       COALESCE(u.document_number,'') AS documento, COALESCE(u.cell_phone,'') AS telefono,
+	       COALESCE(ur.amount,0) AS monto, ur.created_at,
 	       COALESCE(livt.identity_validation_type_id, l.validation_type, 0) AS validacion
 	  FROM user_requests ur
 	  LEFT JOIN user_request_statuses stt ON stt.id = ur.user_request_status_id
@@ -616,7 +617,8 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 		EstadoN: texto(f["estado"]), Lender: texto(f["lender"]),
 		LenderID: entero(f["lender_id"]), LenderRT: int(entero(f["rt"])),
 		Comercio: texto(f["comercio"]), AlliedID: entero(f["allied_id"]), Sucursal: texto(f["sucursal"]),
-		Documento: texto(f["documento"]), Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zona()),
+		Documento: texto(f["documento"]), Telefono: texto(f["telefono"]),
+		Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zona()),
 		Validacion: int(entero(f["validacion"])),
 	}
 

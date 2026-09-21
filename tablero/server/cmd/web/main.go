@@ -13,8 +13,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -159,6 +161,10 @@ type app struct {
 	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
 
 	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
+	// tableroRoot permite que la UI invoque el laboratorio Jev desde el mismo checkout, sin asumir
+	// desde qué directorio se levantó el proceso. No es otro servicio: es una invocación efímera y
+	// explícita de `tools/jev.py` al presionar «Analizar con Jev».
+	tableroRoot string
 	// Snapshot operativo de Context: inventario de repos y ramas locales para la consola de la tarea
 	// `Context`. Se lee, nunca se genera desde el server; actualizarlo sigue siendo explícito con
 	// `make context-ramas`, para que abrir el tablero no ejecute git ni haga fetch.
@@ -208,6 +214,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
 	}
+	a.tableroRoot = filepath.Dir(dataAbs)
 	a.contextRamas = envDefault("CONTEXT_RAMAS_SNAPSHOT",
 		filepath.Join(filepath.Dir(filepath.Dir(dataAbs)), "context", "ramas.json"))
 
@@ -507,6 +514,45 @@ func main() {
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	})
+
+	// POST /api/jev/triage { task: "89" } → orientación de siguiente paso para UNA tarea.
+	//
+	// Es deliberadamente un POST y no se ejecuta al abrir una tarea: el título y el próximo paso son
+	// internos, así que el clic explícito es el equivalente visual a `--allow-internal`. `tools/jev.py`
+	// arma y valida el payload mínimo; este handler sólo acepta una referencia segura, lanza el proceso
+	// local y devuelve una vista reducida de la respuesta. No guarda ni edita la tarea, Jira o el estado.
+	mux.HandleFunc("/api/jev/triage", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var in struct {
+			Task string `json:"task"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024)).Decode(&in); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
+			return
+		}
+		in.Task = strings.TrimSpace(in.Task)
+		if !jevTaskRefRe.MatchString(in.Task) {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]any{"error": "referencia de tarea inválida"})
+			return
+		}
+		guidance, err := a.jevTriage(r.Context(), in.Task)
+		if err != nil {
+			log.Printf("jev triage %s: %v", in.Task, err)
+			w.WriteHeader(http.StatusBadGateway)
+			json.NewEncoder(w).Encode(map[string]any{"error": "Jev no pudo preparar una orientación ahora."})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"guidance": guidance})
 	})
 
 	// ── traer de Jira: las tareas a mi nombre que el registro local no tiene ────────────────────
@@ -1425,6 +1471,80 @@ func cors(w http.ResponseWriter) {
 	w.Header().Set("access-control-allow-origin", "*")
 	w.Header().Set("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("access-control-allow-headers", "content-type")
+}
+
+var jevTaskRefRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$`)
+
+// La forma que devuelve `tablero/tools/jev.py`. Se tipa en vez de exponer su JSON completo: la UI no
+// necesita el reporte, tokens ni el texto interno del estado; sólo necesita una orientación revisable.
+type jevCLIOutput struct {
+	Result struct {
+		Error string `json:"error"`
+		Jev   *struct {
+			NextAction          string             `json:"next_action"`
+			ActionProbabilities map[string]float64 `json:"action_probabilities"`
+			ExternalBlocker     float64            `json:"external_blocker"`
+			OperationalUrgency  float64            `json:"operational_urgency"`
+		} `json:"jev"`
+		Decision struct {
+			Action     string  `json:"action"`
+			Suggestion *string `json:"suggestion"`
+		} `json:"decision"`
+	} `json:"result"`
+}
+
+type jevAlternative struct {
+	Action      string  `json:"action"`
+	Probability float64 `json:"probability"`
+}
+
+type jevGuidance struct {
+	Review          bool             `json:"review"`
+	Action          string           `json:"action,omitempty"`
+	Urgency         float64          `json:"urgency,omitempty"`
+	ExternalBlocker bool             `json:"externalBlocker"`
+	Alternatives    []jevAlternative `json:"alternatives,omitempty"`
+}
+
+// jevTriage ejecuta el laboratorio exactamente una vez, con timeout y sin shell. `tools/jev.py`
+// vuelve a leer la tarea desde disco, construye el payload mínimo y exige `--allow-internal`; no se
+// pasa el documento desde el browser. Ante una abstención devuelve Review, que es un resultado válido.
+func (a *app) jevTriage(parent context.Context, task string) (jevGuidance, error) {
+	ctx, cancel := context.WithTimeout(parent, 25*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "python3", filepath.Join(a.tableroRoot, "tools", "jev.py"),
+		"triage", task, "--live", "--allow-internal")
+	cmd.Dir = a.tableroRoot
+	out, commandErr := cmd.Output()
+
+	var report jevCLIOutput
+	if err := json.Unmarshal(out, &report); err != nil {
+		if commandErr != nil {
+			return jevGuidance{}, fmt.Errorf("la ejecución de Jev falló")
+		}
+		return jevGuidance{}, fmt.Errorf("Jev devolvió JSON inválido")
+	}
+	if report.Result.Error != "" {
+		return jevGuidance{}, fmt.Errorf("Jev rechazó la consulta")
+	}
+	if commandErr != nil || report.Result.Jev == nil || report.Result.Decision.Action != "suggest" || report.Result.Decision.Suggestion == nil {
+		return jevGuidance{Review: true}, nil
+	}
+
+	guidance := jevGuidance{
+		Action:          *report.Result.Decision.Suggestion,
+		Urgency:         report.Result.Jev.OperationalUrgency,
+		ExternalBlocker: report.Result.Jev.ExternalBlocker >= .5,
+	}
+	for action, probability := range report.Result.Jev.ActionProbabilities {
+		if action != guidance.Action {
+			guidance.Alternatives = append(guidance.Alternatives, jevAlternative{Action: action, Probability: probability})
+		}
+	}
+	sort.Slice(guidance.Alternatives, func(i, j int) bool {
+		return guidance.Alternatives[i].Probability > guidance.Alternatives[j].Probability
+	})
+	return guidance, nil
 }
 
 func envDefault(key, def string) string {
