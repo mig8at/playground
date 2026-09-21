@@ -89,6 +89,21 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**TEMA NUEVO EN CANON: `negocio`** (34 temas, 425 secciones). Miguel corrigió algo que yo había
+dicho mal: que el negocio no podía ir a canon porque no se verifica contra `main`. Es falso — el
+propio `dictar.md` dice «reglas técnicas, **de negocio** o producto», y su ensayo ofrece «te lo
+contaron» como procedencia válida. Lo que hace falta no es código: es **declararla**.
+
+Entraron las dos reglas de más arriba del modelo: que **a la entidad también se le cobra** —lo que
+se vende es distribución y un candidato ya consultado, no un dato crudo— y que **el que decide es
+el comercio**, que explica la configuración por comercio, la personalización y por qué un comercio
+grande caído es el peor incidente aunque el volumen sea chico. Las dos declaran que NO salen del
+código.
+
+⚠ Y esto **cambia la tercera categoría** que había escrito hace un rato: el proceso comercial sí
+tiene casa en canon. Lo que no la tiene es lo que no se puede sostener con nada —ni código, ni
+medición, ni alguien que lo afirme—.
+
 **EL BARRIDO ESTÁ HECHO, y el resultado es que context se puede matar mucho antes de lo que
 parecía.** De los 34 nodos:
 

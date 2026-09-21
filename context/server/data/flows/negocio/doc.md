@@ -279,7 +279,17 @@ documentadas: el **mapa del operador** (`merchants` §9 — qué escribe cada pa
 autoservicio tendría que replicar) y el **inventario de cutover** (`application` §5 — la capa de
 configuración ya tiene API en `Modules/Partner` y no tiene front).
 
-## El negocio de los AGREGADORES: se le cobra a los DOS lados
+## El negocio de los AGREGADORES — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, **tema nuevo `negocio/context`** § «A la entidad también se le
+> cobra, y lo que se le vende no es sólo el cliente».
+>
+> ⚠ **Acá yo me había equivocado:** dije que el negocio no podía ir a canon porque no se verifica
+> contra `main`. Es falso — el propio `dictar.md` dice «reglas técnicas, **de negocio** o producto»,
+> y su ensayo pregunta cómo lo sabés ofreciendo «te lo contaron» como respuesta válida. Lo que hace
+> falta no es código: es **declarar la procedencia**, y las piezas la declaran.
+
+### (evidencia) Lo escrito acá
 Es la mitad de la empresa y el árbol no lo tenía. Si el banco presta y el banco cobra, lo que CreditOp
 vende es **distribución + dato**:
 
@@ -301,7 +311,12 @@ los créditos vivos necesitan que el servicing siga corriendo (los 6 crons, el l
 `servicing`). Cualquier «desactivar comercio» que corte eso rompe cobranza sobre plata que es del
 comercio.
 
-## El cliente que manda es el COMERCIO
+## El cliente que manda es el COMERCIO — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `negocio/context` § «El que decide es el comercio, y eso ordena
+> casi todas las prioridades».
+
+### (evidencia) Lo escrito acá
 CreditOp gana con comercios y con entidades agregadoras, pero el que decide es el comercio: es quien
 firma, quien en CreditopX pone el capital, y cuyos clientes son los que toman el crédito. Eso ordena
 todo lo demás — la prioridad de lo que se construye, la customización por comercio, y por qué un
