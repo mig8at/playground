@@ -194,6 +194,27 @@ class JevTests(unittest.TestCase):
             with self.assertRaises(jev.JevError):
                 jev.scope('onboarding', ['application/../../.env'], self.nodes)
 
+    def test_brief_text_is_compact_and_json_stays_for_the_console(self):
+        brief = {'kind': 'brief', 'version': jev.PACK_VERSION, 'node': 'onboarding', 'name': 'Registro',
+                 'node_kind': 'flow', 'when': 'OTP de  registro', 'symptoms': ['no llega el código'],
+                 'summary': 'Registro por OTP', 'sections': ['Qué es', 'Dónde mirar'], 'redactions': 1,
+                 'files': {'total': 2, 'by_repo': {'application': 2}, 'recommended': ['application/src/otp.ts']},
+                 'source_sha256': 'deadbeef'}
+        text = jev.render_brief_text(brief)
+        for needed in ('onboarding · Registro · flow', 'cuándo: OTP de registro', '· no llega el código',
+                       'resumen: Registro por OTP', '1 patrón', 'Qué es · Dónde mirar', 'archivos: 2 (application 2)',
+                       'application/src/otp.ts', 'context/server/data/flows/onboarding/doc.md'):
+            self.assertIn(needed, text)
+        for hidden in ('deadbeef', jev.PACK_VERSION, '"kind"'):
+            self.assertNotIn(hidden, text)
+        with patch.object(jev, 'catalog', return_value=self.nodes), patch.object(jev, 'briefing', return_value=brief):
+            with patch('sys.stdout', new_callable=io.StringIO) as out:
+                self.assertEqual(jev.main(['brief', 'onboarding', '--text']), 0)
+                self.assertEqual(out.getvalue(), text)
+            with patch('sys.stdout', new_callable=io.StringIO) as out:
+                self.assertEqual(jev.main(['brief', 'onboarding']), 0)
+                self.assertEqual(json.loads(out.getvalue())['source_sha256'], 'deadbeef')
+
     def test_review_contract_uses_only_bounded_scope_and_returns_next_evidence(self):
         pack = {'node': 'onboarding', 'brief': {'name': 'Registro', 'when': 'OTP', 'summary': 'Registro por OTP', 'sections': ['Qué es']},
                 'files': [{'path': 'application/src/otp.ts', 'ref': 'main', 'line_start': 1, 'line_end': 2,

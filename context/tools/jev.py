@@ -147,6 +147,36 @@ def briefing(node, nodes):
     }
 
 
+def render_brief_text(brief):
+    """La misma ficha, en texto para una terminal o una sesión: es lo que imprime `make retomar BRIEF=1`.
+
+    No agrega nada que el JSON no tenga. Quita `kind`, `version` y `source_sha256`, que sirven para
+    comparar corridas y no para decidir qué leer. Medido el 2026-09-21: la ficha de `kyc` pesa 5.074
+    bytes en JSON contra 55.302 de su doc.md — la ficha alcanza para decidir si el doc se abre.
+    """
+    node = brief['node']
+    lines = [f"{node} · {brief.get('name', node)} · {brief.get('node_kind', 'reference')}",
+             f"cuándo: {' '.join(brief.get('when', '').split())}"]
+    if brief.get('symptoms'):
+        lines.append('síntomas:')
+        lines.extend(f'  · {symptom}' for symptom in brief['symptoms'])
+    if brief.get('summary'):
+        lines.append(f"resumen: {brief['summary']}")
+    if brief.get('redactions'):
+        lines.append(f"⚠ {brief['redactions']} patrón(es) de credencial redactado(s) en el resumen")
+    if brief.get('sections'):
+        lines.append('secciones: ' + ' · '.join(brief['sections']))
+    files = brief.get('files') or {}
+    by_repo = ' · '.join(f'{alias} {count}' for alias, count in (files.get('by_repo') or {}).items())
+    lines.append(f"archivos: {files.get('total', 0)}" + (f' ({by_repo})' if by_repo else ''))
+    if files.get('recommended'):
+        lines.append('por dónde entrar (rutas, controladores y servicios primero — es por tipo de archivo, no por peso):')
+        lines.extend(f'  {path}' for path in files['recommended'])
+    folder = Path(ROOT.name) / 'server' / 'data' / 'flows' / node
+    lines.append(f"doc: {folder / 'doc.md'} · map: {folder / 'map.json'}")
+    return '\n'.join(lines) + '\n'
+
+
 def valid_source_path(path):
     alias, sep, rel = path.partition('/')
     parts = Path(rel).parts
@@ -532,6 +562,7 @@ def main(argv=None):
     one.add_argument('--no-save', action='store_true', help='No escribir el reporte local (para una previsualización efímera)')
     brief_cmd = sub.add_parser('brief', help='Preparar la ficha general acotada de un nodo')
     brief_cmd.add_argument('node')
+    brief_cmd.add_argument('--text', action='store_true', help='La ficha en texto compacto para una terminal o una sesión (sin huellas de corrida)')
     scope_cmd = sub.add_parser('scope', help='Preparar código acotado de archivos declarados por un nodo')
     scope_cmd.add_argument('node')
     scope_cmd.add_argument('--file', action='append', default=[], help='Ruta alias/archivo declarada (máximo tres)')
@@ -579,7 +610,11 @@ def main(argv=None):
         return 0
     nodes = catalog()
     if args.cmd == 'brief':
-        print(json.dumps(briefing(args.node, nodes), ensure_ascii=False, indent=2))
+        brief = briefing(args.node, nodes)
+        if args.text:
+            sys.stdout.write(render_brief_text(brief))
+        else:
+            print(json.dumps(brief, ensure_ascii=False, indent=2))
         return 0
     if args.cmd == 'scope':
         print(json.dumps(scope(args.node, args.file, nodes), ensure_ascii=False, indent=2))

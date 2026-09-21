@@ -40,6 +40,7 @@ Desde la raíz del playground:
 make context-jev ARGS='route "No llega el OTP para registrar el celular"'
 make context-jev ARGS='route "No llega el OTP para registrar el celular" --live'
 make context-jev ARGS='brief onboarding'
+make context-jev ARGS='brief onboarding --text'
 make context-jev ARGS='scope onboarding --file application/app/Http/Controllers/Customer/OtpController.php'
 make context-jev ARGS='review "¿Qué evidencia reviso primero?" --node onboarding --file application/app/Http/Controllers/Customer/OtpController.php --live'
 ```
@@ -63,6 +64,20 @@ la pregunta, las decisiones y las medidas; no contiene el token ni los documento
 `review` son previsualizaciones efímeras y no guardan paquetes —un scope puede contener código y no
 debe convertirse en historial. Los experimentos no se agregan al corpus como historial. No hay
 servidor nuevo ni clave en el navegador.
+
+## Al retomar una tarea del tablero
+
+Ahí Jev no elige nada: las tareas ya declaran sus nodos en `context_nodes` (las 24 vivas, medido el
+2026-09-21), y `route` sobre una tarea que ya los tiene sólo agrega un modo de error. Lo que sí
+ahorra es la ficha: `make retomar N=<id> BRIEF=1` corre `brief <nodo> --text` por cada nodo
+declarado (hasta cuatro; `BRIEF=a,b` elige) y la imprime al final de la retoma. Medido sobre la
+#47: 18.540 bytes con sus tres fichas contra 96.313 de sus tres `doc.md`. La ficha decide qué doc
+se abre; no lo reemplaza. `--text` es la misma ficha sin `kind`, `version` ni `source_sha256`; la
+consola de Context sigue consumiendo el JSON.
+
+⚠ La regla de corte: si la ficha no contesta, no se prueba otro nodo — la pregunta va a `workers/`.
+`route` sólo ve `name`, `when` y `sintomas`; para algo que existe en el código y nadie escribió va a
+elegir el nodo más parecido con confianza alta, y ahí el router es peor que el mapa.
 
 ## Aprender del uso
 

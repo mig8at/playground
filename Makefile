@@ -102,9 +102,9 @@ cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu pa
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (próximo paso, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/hoy $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs, preguntas vencidas, pendientes, último Registro, bitácora — y qué falta. N=<id|slug>
+retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs, preguntas vencidas, pendientes, último Registro, bitácora — y qué falta. N=<id|slug> · BRIEF=1 suma la FICHA de sus nodos de context sin abrir los docs (~1/10 del doc; hasta 4, BRIEF=a,b elige) — decide qué doc abrir, no lo reemplaza
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
-	@cd tablero/server && go run ./cmd/hoy -n "$(N)" $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/hoy -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
@@ -232,7 +232,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint context-ramas context-ramas-test
 .PHONY: context-jev context-jev-test tablero-jev tablero-jev-test
-context-jev: ## @ctx Jev: route/brief/scope/review [--live] | bench | label reporte --expected nodo | stats
+context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | label reporte --expected nodo | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
 
 context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev

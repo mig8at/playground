@@ -43,6 +43,11 @@ el siguiente tipo de acción, el bloqueo externo y la urgencia. El banco sintét
 en las tres etiquetas, con 15 sugerencias y una revisión manual; una retoma real quedó etiquetada en
 preview y no se envió.
 
+`make retomar N=<id> BRIEF=1` suma al final la ficha de cada nodo de `context` que la tarea declara
+(`context/tools/jev.py brief --text`), hasta cuatro; `BRIEF=a,b` elige. Es un apoyo: la ficha decide
+qué `doc.md` se abre y no lo reemplaza, y sin `BRIEF=` la retoma sólo dice en una fila que existe. Sin
+nodos declarados, la sección remite al `route` de context, que es de tareas nuevas.
+
 **El próximo paso es:** usar la nueva estructura durante una jornada completa, corregir cualquier
 fricción, probar la proyección JSON con workers y reunir varias etiquetas reales antes de considerar
 Jev dentro de la agenda.
@@ -50,19 +55,34 @@ Jev dentro de la agenda.
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
 
+> **MEDICIÓN · 2026-09-21** — sobre la tarea KYC #47: la retoma pesa 3.832 bytes; con `BRIEF=1` 18.540 bytes (sus tres fichas) contra 96.313 de sus tres `doc.md` (**80,8 % menos** que abrirlos). La ficha de `kyc` sola: 5.074 bytes contra 55.302 de su doc. Las 24 tareas vivas declaran `context_nodes`: al retomar no hay nodo que elegir, así que Jev `route` ahí no ahorra nada.
+> make retomar N=47; make retomar N=47 BRIEF=1; cat context/server/data/flows/{kyc,credifamilia,deceval}/doc.md | wc -c
+
 ## Pendientes
 
 - [ ] Comprobar que ninguna tarea local nueva nazca fuera de los siete nombres canónicos.
 - [ ] Confirmar que bitácora y retoma siguen agrupadas bajo la herramienta correcta.
 - [ ] Medir cuántos archivos y tokens evita `make tarea-json` en una retoma real con workers.
 - [ ] Reunir una muestra representativa de etiquetas antes de comparar Jev con trabajo real.
+- [ ] Medir, en una semana de retomas reales, cuántas veces la ficha de `BRIEF=1` alcanzó y cuántas se abrió el doc igual — si es siempre, la ficha no está decidiendo nada.
 
 ## Cómo se comprueba
 
-`make tareas TODAS=1`, `make tarea-json N=tablero`, `make tablero-jev-test`, los tests del servidor y
+`make tareas TODAS=1`, `make tarea-json N=tablero`, `make tablero-jev-test`, los tests del servidor
+(`go test ./cmd/hoy/` cubre el tope y los errores de `BRIEF=`), `make retomar N=47 BRIEF=1` y
 `make cierre JSON=1`.
 
 ## Registro
+
+### 2026-09-21
+
+`make retomar` acepta `BRIEF=`: al final imprime la ficha de cada nodo de context declarado, corriendo
+`context/tools/jev.py brief --text`, con tope de cuatro y `BRIEF=a,b` para elegir. Salió de medir el
+arranque de una tarea: Jev no tenía nada que elegir —las 24 tareas vivas ya declaran nodos— y el gasto
+estaba en abrir los `doc.md` (mediana 27 KB; `kyc` 55 KB). Un brief que falla queda como error en su
+ficha; un nodo pedido que la tarea no declara se marca. Con `JSON=1` el brief viaja como JSON bajo
+`context`. La regla de corte quedó en los tres `CLAUDE.md`: si la ficha no contesta, la pregunta va a
+`workers/`, no a otro nodo.
 
 ### 2026-09-19
 

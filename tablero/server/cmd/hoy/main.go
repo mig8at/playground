@@ -9,6 +9,9 @@
 //
 //	hoy                la agenda: en movimiento (con su próximo paso, preguntas vencidas y entrega) y dormidas
 //	hoy -n <id|slug>   RETOMAR una tarea en frío: sólo lo que hace falta para arrancar, y en rojo lo que no está
+//	hoy -n … -brief 1 …y al final la FICHA de cada nodo de context que la tarea declara, sin abrir su doc.
+//	                   La ficha es de context (`tools/jev.py brief --text`); acá sólo se enruta. Es un APOYO:
+//	                   decide qué doc abrir, no reemplaza leerlo — y va opt-in porque una tarea llega a declarar 9.
 //
 // «Días sin tocar» sale de git (último commit del archivo, o hoy si está modificado). Dormida = 14 días;
 // a los 30 la vista sugiere archivar o anotar por qué espera. Los umbrales son del tablero, no de Jira.
@@ -330,6 +333,7 @@ func main() {
 		stage    = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
 		anatomia = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		comoJSON = flag.Bool("json", false, "salida en JSON")
+		brief    = flag.String("brief", "", "al final, la ficha de los nodos de context declarados, sin abrir sus docs: 1 = los declarados (hasta 4) · a,b = sólo esos")
 	)
 	flag.Parse()
 	datos := dirDatos()
@@ -351,7 +355,7 @@ func main() {
 		os.Exit(verAnatomia(datos, tareas, *una))
 	}
 	if *una != "" {
-		os.Exit(retomar(datos, tareas, snap, *una, *comoJSON))
+		os.Exit(retomar(datos, tareas, snap, *una, *comoJSON, *brief))
 	}
 	os.Exit(agenda(tareas, snap, *stage, *comoJSON))
 }
@@ -598,7 +602,78 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 	return 0
 }
 
-func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON bool) int {
+// fichaContext es lo que `-brief` agrega al final de la retoma: la ficha de UN nodo de context
+// (`context/tools/jev.py brief <nodo> --text`). Medido el 2026-09-21: la ficha de `kyc` pesa 5.074
+// bytes contra 55.302 de su doc.md, y alcanza para decidir si ese doc se abre — que es el gasto grande
+// de una retoma, no elegir el nodo: las 24 tareas vivas ya lo declaran en `context_nodes`.
+type fichaContext struct {
+	Nodo      string          `json:"node"`
+	Declarado bool            `json:"declared"`
+	Texto     string          `json:"text,omitempty"`
+	Ficha     json.RawMessage `json:"brief,omitempty"`
+	Error     string          `json:"error,omitempty"`
+}
+
+const topeFichas = 4
+
+// fichasContext decide QUÉ nodos van y se los pide a `correr`, sin interpretar la respuesta.
+// `pedido` es el valor de BRIEF=: «1» son los declarados por la tarea, en su orden y hasta el tope
+// —una tarea llega a declarar 9, y nueve fichas pesan más que el doc que se quería no abrir—; «a,b»
+// son esos, estén declarados o no (y se marca cuando no). Un error de `correr` se DEVUELVE en su
+// ficha, nunca se calla: una ficha que falta se lee igual que un nodo que no existe.
+func fichasContext(declarados []string, pedido string, correr func(nodo string) (string, error)) (fichas []fichaContext, aviso string) {
+	es := map[string]bool{}
+	for _, n := range declarados {
+		es[n] = true
+	}
+	nodos := declarados
+	if pedido != "1" {
+		nodos = nil
+		for _, n := range strings.Split(pedido, ",") {
+			if n = strings.TrimSpace(n); n != "" {
+				nodos = append(nodos, n)
+			}
+		}
+	} else if len(nodos) > topeFichas {
+		aviso = fmt.Sprintf("… y %d más (%s) — BRIEF=a,b elige cuáles", len(nodos)-topeFichas, strings.Join(nodos[topeFichas:], ", "))
+		nodos = nodos[:topeFichas]
+	}
+	for _, n := range nodos {
+		f := fichaContext{Nodo: n, Declarado: es[n]}
+		if out, err := correr(n); err != nil {
+			f.Error = err.Error()
+		} else {
+			f.Texto = out
+		}
+		fichas = append(fichas, f)
+	}
+	return fichas, aviso
+}
+
+// briefDeContext corre la herramienta de context — la ficha es SUYA, acá sólo se enruta. Con `texto`
+// pide `--text` (la terminal); sin él, el JSON que consume `-json`. Si falla, devuelve la primera
+// línea de su stderr, que es lo que jev.py imprime como causa.
+func briefDeContext(raiz string, texto bool) func(string) (string, error) {
+	return func(nodo string) (string, error) {
+		args := []string{filepath.Join(raiz, "context", "tools", "jev.py"), "brief", nodo}
+		if texto {
+			args = append(args, "--text")
+		}
+		var stderr strings.Builder
+		cmd := exec.Command("python3", args...)
+		cmd.Stderr = &stderr
+		out, err := cmd.Output()
+		if err != nil {
+			if causa := strings.TrimSpace(strings.SplitN(stderr.String(), "\n", 2)[0]); causa != "" {
+				return "", fmt.Errorf("%s", causa)
+			}
+			return "", err
+		}
+		return string(out), nil
+	}
+}
+
+func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON bool, brief string) int {
 	var t *tarea
 	for i := range tareas {
 		if tareas[i].Slug == ref || strconv.Itoa(tareas[i].ID) == ref {
@@ -639,20 +714,37 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	if len(bit) == 0 {
 		faltan = append(faltan, "bitácora: ninguna entrada apunta a esta tarea")
 	}
+	var fichas []fichaContext
+	var fichasAviso string
+	if brief != "" {
+		fichas, fichasAviso = fichasContext(t.Nodos, brief, briefDeContext(filepath.Join(datos, "..", ".."), !comoJSON))
+	}
 
 	if comoJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
+		salida := map[string]any{
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "diasSinTocar": t.dias(),
 			"retoma": retoma, "proximoPaso": prox, "registroFecha": regFecha, "registro": regBloque,
 			"entrega": entrega(snap, t.ID), "ramas": snap.Tareas[strconv.Itoa(t.ID)].Ramas,
 			"preguntasVencidas": vencidas, "pendientes": pend, "bitacora": bit, "faltan": faltan,
-		})
+		}
+		if brief != "" {
+			for i := range fichas {
+				if json.Valid([]byte(fichas[i].Texto)) {
+					fichas[i].Ficha, fichas[i].Texto = json.RawMessage(fichas[i].Texto), ""
+				}
+			}
+			salida["context"], salida["contextAviso"] = fichas, fichasAviso
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(salida)
 		return 0
 	}
 
 	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.dias(), strings.SplitN(t.Created+"T", "T", 2)[0])
 	if len(t.Jira) > 0 || len(t.Nodos) > 0 {
 		fmt.Printf("  jira: %s · nodos de context: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodos, ", "))
+	}
+	if len(t.Nodos) > 0 && brief == "" {
+		fmt.Printf("  la ficha de cada nodo, sin abrir su doc: make retomar N=%d BRIEF=1\n", t.ID)
 	}
 	fmt.Printf("  archivo: %s\n", t.Ruta)
 
@@ -752,6 +844,31 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 		for _, f := range faltan {
 			fmt.Println("  ✗ " + f)
 		}
+	}
+
+	if brief != "" {
+		fmt.Println("\n  ── Context: la ficha de cada nodo declarado, sin abrir su doc ──")
+		if len(fichas) == 0 {
+			fmt.Println("  ✗ la tarea no declara `context_nodes`. El ruteo de una tarea NUEVA es de context:")
+			fmt.Println("    make context-jev ARGS='route \"pregunta general\"'   (local; --live sólo si el léxico empata)")
+		}
+		for i, f := range fichas {
+			if i > 0 {
+				fmt.Println()
+			}
+			if !f.Declarado {
+				fmt.Printf("  ⚠ %s no está en los `context_nodes` de la tarea\n", f.Nodo)
+			}
+			if f.Error != "" {
+				fmt.Printf("  ✗ brief %s: %s\n", f.Nodo, f.Error)
+				continue
+			}
+			fmt.Println("  " + strings.ReplaceAll(strings.TrimRight(f.Texto, "\n"), "\n", "\n  "))
+		}
+		if fichasAviso != "" {
+			fmt.Println("  " + fichasAviso)
+		}
+		fmt.Println("  la ficha decide qué doc se abre; si ninguna contesta, la pregunta va a workers/ — no a otro nodo")
 	}
 	fmt.Println()
 	return 0

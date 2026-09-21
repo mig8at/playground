@@ -18,7 +18,8 @@ presentarse como revisión completa.
 El laboratorio de Jev propone qué nodo leer mediante una preselección local y una decisión tipada.
 Está apagado por defecto, guarda reportes fuera del corpus y conserva el mapa completo como
 recuperación. La integración opcional de workers solo se usa con preguntas generales sin datos
-personales.
+personales. `brief --text` imprime la ficha en texto; es lo que consume `make retomar BRIEF=1` del
+tablero, donde Jev no rutea nada porque la tarea ya declara sus nodos.
 
 Tablero mantiene una consola inferior de ramas para la tarea enfocada. Su sidebar derecho enumera
 sólo los repos asociados a las ramas de esa tarea y la tabla muestra rama, PR, ambientes y commit.
@@ -45,6 +46,13 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
+
+### 2026-09-21
+
+`brief` acepta `--text`: la misma ficha sin `kind`, `version` ni `source_sha256`, para una terminal o
+una sesión; la consola sigue consumiendo el JSON. Lo consume `make retomar BRIEF=1` del tablero. Y
+quedó escrito dónde Jev NO entra: al retomar una tarea que ya declara nodos, `route` sólo agrega un
+modo de error; el ahorro es la ficha, y si no contesta, la pregunta va a `workers/`.
 
 ### 2026-09-19
 

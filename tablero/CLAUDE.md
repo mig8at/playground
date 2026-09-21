@@ -218,15 +218,20 @@ viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los sie
 locales, abre su Markdown y reescribe mentalmente la sección **«Si retomás esto sin contexto»** en
 una hipótesis verificable. Antes de editar, revisa `context_nodes:` del frontmatter:
 
-1. **Hay nodos declarados:** abre esos `doc.md` + `map.json` en `context/` antes de buscar código. Son
-   el contexto curado de la tarea, no una lista decorativa.
+1. **Hay nodos declarados** (hoy, las 24 tareas vivas — medido el 2026-09-21): `make retomar N=<id>
+   BRIEF=1` trae al final la **ficha** de cada uno —`when`, síntomas, resumen, secciones y por dónde
+   entrar al código— sin abrir su `doc.md`. La ficha decide QUÉ doc se abre; no lo reemplaza. Medido
+   sobre la #47: la retoma con sus tres fichas pesa 18.540 bytes contra 96.313 de sus tres docs. Va
+   hasta cuatro nodos (una tarea llega a declarar nueve); `BRIEF=a,b` elige cuáles. Después sí: el
+   `doc.md` + `map.json` del que contesta, en `context/`, antes de buscar código. Son el contexto
+   curado de la tarea, no una lista decorativa.
 2. **No hay nodos o el pedido llega demasiado general:** formula una pregunta técnica sin datos de
    caso y ejecuta `make context-jev ARGS='route "pregunta general"'`. Es el ruteo local y no requiere
    credencial. Con una pregunta segura, `JEV_TOKEN` configurado y necesidad real de contraste, puede
    usar `--live`. Después abre los candidatos y confirma cuál sirve; sólo entonces agrega los nodos
    pertinentes a `context_nodes:`. Una sugerencia no se copia al frontmatter por sí sola.
-3. **Ya encontró un nodo pero necesita código:** lee primero el `doc.md`; `brief` da el resumen local.
-   Puede preparar `scope` con uno a tres archivos que el `map.json` ya declara y, sólo si necesita
+3. **Ya encontró un nodo pero necesita código:** la ficha ya dice por dónde entrar; lee el `doc.md`
+   del nodo que contesta. Puede preparar `scope` con uno a tres archivos que el `map.json` ya declara y, sólo si necesita
    elegir la siguiente evidencia, usar `review --live`. Ese review devuelve una elección de evidencia,
    no una respuesta ni un plan de cambios. El código se verifica después contra `main`/`origin/main`.
 4. **La pregunta es de una persona, una solicitud, una medición actual o un log real:** no entra a
@@ -234,7 +239,11 @@ una hipótesis verificable. Antes de editar, revisa `context_nodes:` del frontma
 
 Jev es un **copiloto de orientación**, no otra fuente de verdad ni un requisito de cada tarea. Ante
 abstención, poca confianza, `case-data` o `manual-review`, se sigue el ROUTE-MAP y la investigación
-normal. Nunca se le envían cuerpo de la tarea, Registro, pendientes, bitácora, código del working
+normal. ⚠ Y la regla de corte, que es lo que lo mantiene como apoyo: **si la ficha del nodo no
+contesta, no se prueba otro nodo — la pregunta va a `workers/`.** El silencio de `context/` es el
+modo de falla conocido (algo que existe en el código y nadie escribió), y un router no lo ve: `route`
+sólo mira `name`, `when` y `sintomas`, así que para eso va a elegir el nodo más parecido con confianza
+alta. Ahí es peor que el mapa. Nunca se le envían cuerpo de la tarea, Registro, pendientes, bitácora, código del working
 tree, secretos, teléfonos, cédulas, correos o números de solicitud. El detalle operativo y los límites
 viven en [`context/docs/JEV.md`](../context/docs/JEV.md); `context/CLAUDE.md` define el método de
 evidencia que este tablero consume.
@@ -506,6 +515,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
       make tareas-ramas N=43 JSON=1     una sola, en json
       make hoy                          la agenda: próximo paso de cada tarea viva, preguntas vencidas, entrega, dormidas
       make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
+      make retomar N=47 BRIEF=1         …y al final la ficha de sus nodos de context, sin abrir los docs (hasta 4; BRIEF=a,b elige)
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
       make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
       make deploys DIAS=7               qué se desplegó y a qué ambiente

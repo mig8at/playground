@@ -23,6 +23,7 @@ herramienta: es suponer que no está y contestar de memoria.
 |---|---|
 | **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el nodo que explica cada uno |
 | **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
+| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus nodos (24/24 vivas, medido 2026-09-21), así que no hay nodo que elegir: lo que cuesta es abrir los `doc.md` (mediana ~27 KB, `kyc` 55 KB), y la **ficha** de cada uno (~5 KB) alcanza para decidir cuál. Jev `route` es para una tarea **de cero**, local primero y `--live` sólo si el léxico empata. ⚠ Regla de corte: **si la ficha no contesta, no probés otro nodo — la pregunta va a `workers/`** (el router no ve lo que nadie escribió) |
 | **¿ya nos pasó?** | `context/server/data/flows/findings/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
 | **…y si `context/` no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
@@ -490,7 +491,9 @@ aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
    validado contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
    análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en
    `~/Desktop/CREDITOP/github/` (`legacy-backend`, `frontend-monorepo`, `legacy-application`,
-   `pre-approvals-service`) — grandes: entrar por grep sin mapa es la forma lenta.
+   `pre-approvals-service`) — grandes: entrar por grep sin mapa es la forma lenta. ⚠ Y al **retomar**
+   no se elige nodo: la tarea ya lo declara. `make retomar N=… BRIEF=1` trae la ficha de cada uno
+   (~5 KB) para decidir qué `doc.md` abrir — la ficha decide, no reemplaza.
 3. **Lo que se descubre SE REGISTRA, con dos destinos.** El test: *si esto se mergea mañana, ¿el
    texto sigue siendo cierto?*
    - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
