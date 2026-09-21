@@ -31,11 +31,11 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** graduar «Qué es» y «Contenido» de `backoffice` —lo que queda: que son dos
-paneles con dos autenticaciones sobre la misma BD, y el throttle de `Modules/Auth`— y con eso borrar
-el nodo entero, que es la prueba de que el ciclo cierra. Todo a la misma rama
-`canon/backoffice-readiness`, que ya lleva tres commits y **sigue sin pushear**: el PR lo decide
-Miguel. Después, los otros 7 duplicados.
+**El próximo paso es:** elegir el siguiente de los 7 duplicados que quedan y repetir el ciclo, al
+mismo PR. Por tamaño de lo que falta, el más barato es `creditopx` (79 términos sin cubrir) y el más
+caro `motai` (141). ⚠ Antes de seguir conviene **pushear y abrir el PR** de
+`canon/backoffice-readiness` —cinco commits, seis secciones nuevas— para que el equipo lo revise:
+acumular seis temas sin revisar sería un PR que nadie puede leer.
 
 ## Frentes activos
 
@@ -65,7 +65,28 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
 
-**`backoffice` casi vaciado: cuatro piezas graduadas en un solo PR.** En la rama
+**`backoffice` GRADUADO Y BORRADO — el ciclo cierra.** El árbol pasó de 37 a **36 nodos**; canon
+pasó de 395 a **401 secciones**. Seis piezas en un PR (`canon/backoffice-readiness`, cinco commits,
+sin pushear): los cinco chequeos de «listo para operar», el motivo redactado del perfilamiento, el
+orden de montaje con su rastro de sólo escritura, la zona horaria de la base, los dos paneles con la
+trampa de despliegue, y el pool de Cognito con sus dos límites de intentos.
+
+⚠ **Tres cosas que sólo aparecen al graduar, y que ninguna herramienta habría dicho:**
+- **Lo que NO se lleva.** De los 81 términos del nodo quedaron 40 sin cubrir, y son **inventario**
+  —rutas del front, nombres de paquetes, endpoints—: canon pide reglas, no catálogos. Borrarlos es
+  la decisión, no una pérdida.
+- **Lo que ya estaba, y mejor.** El 409 por versión y la regla de los clones no se tocaron. Y el
+  dato de que el panel se despliega desde `lab` **ya estaba en el nodo `microservicios`**: estaba
+  disperso en context, no sólo duplicado con canon.
+- **Lo que estaba MAL.** El nodo afirmaba que no había workflow de dev para esta app; sí lo hay,
+  dispara desde `lab`. Verificar contra `main` antes de dictar lo atrapó.
+
+**Queda sin casa** lo que el nodo declaraba como no verificado, y no gradúa porque canon no admite
+lo que no está comprobado: qué ve cada rol dentro del panel (el guard es uno solo, no se comprobó si
+hay alcance por rol), y si los dos paneles conviven hoy en producción y bajo qué criterio se manda
+gente a uno o al otro. Son preguntas, y su lugar es una tarea cuando alguien las tome.
+
+**Antes:** `backoffice` casi vaciado: cuatro piezas graduadas en un solo PR. En la rama
 `canon/backoffice-readiness` (desde `main`, tres commits, sin pushear): los cinco chequeos de «listo
 para operar», el motivo redactado del perfilamiento, el orden de montaje con su rastro de sólo
 escritura, y —la que más vale— **los timestamps de la base están en hora Colombia, no en UTC**, que

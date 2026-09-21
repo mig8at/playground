@@ -21,7 +21,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿de dónde sale el ingreso / la ocupación del cliente?» | `db-routines` |
 | «¿de dónde sale el reporte de liquidación?» | `negocio` |
 | «¿de qué vive CreditOp?» | `negocio` |
-| «desde operaciones no puedo ver/validar al usuario» | `backoffice` |
 | «dice que los datos no coinciden» / falla la identidad | `kyc` |
 | «¿dónde se cae la gente en el embudo?» | `negocio` |
 | «¿dónde se trabó?» | `aggregator` · `formalization` |
@@ -61,7 +60,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «firmó y la solicitud no pasó a Autorizada» | `codeudor` |
 | «firmó y no se desembolsó» | `deceval` |
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
-| «¿hay dónde ver qué regla falló y con qué valor?» | `backoffice` |
 | «hay que agregar un campo al formulario» | `dynamic-forms` · `form-service` |
 | «hay que integrar una entidad nueva» | `hardcodes-entidades` |
 | «hay que rehacer el panel de configuración» | `merchants` |
@@ -72,7 +70,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
 | «los datos del cliente no coinciden con el registro» | `deceval` |
-| «necesito decirle al comercio POR QUÉ no le salió esa entidad» | `backoffice` |
 | «necesito reproducir/probar un flujo entero» | `findings` |
 | «no aparece el tipo de documento PEP» | `motai` |
 | «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
@@ -118,7 +115,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
     - legacy-backend [ref]
     - microservicios [ref]
     - ms-preapprovals [ref]
-  - backoffice [ref]
   - codeudor [ref]
   - db-routines [ref]
   - ecommerce [ref]
@@ -174,10 +170,6 @@ Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/appl
 ### architecture — Architecture  ·  _reference_ · 82 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
-
-### backoffice — Backoffice  ·  _reference_ · 123 archivos
-**Cuándo:** Cuando la tarea toca el PANEL NUEVO de back-office (React/Refine, /api/backoffice) o el login de staff por Cognito: buscar un usuario o una solicitud desde operaciones, ver su perfilamiento/Experian/OTPs, validar identidad a mano, o el módulo Auth y sus dos pools (staff | comercios). NO es el admin viejo de Inertia — ese vive en `actors`/`application`.
-Doc: `server/data/flows/backoffice/doc.md` · Archivos: `server/data/flows/backoffice/map.json` · Padre: `creditop`
 
 ### bancolombia — Bancolombia  ·  _reference_ · 145 archivos
 **Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.
