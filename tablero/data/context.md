@@ -11,6 +11,10 @@ jira_title: ""
 
 ## Si retomás esto sin contexto, empezá acá
 
+⚠ **Esta tarea ahora tiene fecha de vencimiento: `context/` se apaga por graduación a canon.** El
+árbol es la sala de espera; cada nodo que se toca, gradúa y se borra. Ver el Registro del
+2026-09-21 para lo medido y el piloto. Lo que NO migra es `findings`.
+
 Esta es la única tarea local de `context`. Los 39 nodos fueron re-verificados contra `main`; 38 están
 sellados y `findings` permanece deliberadamente sin sello porque una validación parcial no debe
 presentarse como revisión completa.
@@ -27,9 +31,11 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** etiquetar qué nodo ayudó en consultas generales reales, comparar el recorrido
-completo cuando vuelva a existir una credencial válida para el LLM generativo y decidir si
-`findings` se revisa y sella por tandas explícitas.
+**El próximo paso es:** cerrar el piloto de `backoffice` — dictar por API la pieza de
+`LenderReadinessService` (ya verificada contra `main` y con el ensayo en `ready: true`), ver el PR
+que compone el cierre y, con eso funcionando, borrar el nodo. ⚠ Antes hay que decidir **en qué rama
+del repo compartido**: hoy está parado en `cuadrilla/ingles-tres-dias`, que es trabajo de otra cosa.
+Después siguen los otros 7 duplicados.
 
 ## Frentes activos
 
@@ -56,6 +62,35 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
+
+### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**La decisión (Miguel):** no mantener dos contextos. `canon` es lo que está en `main` y se comparte
+con el equipo; el tablero es lo que está en progreso; `context/` pasa a ser **la sala de espera de
+canon** y se apaga a medida que sus nodos graduan. Nada de migración de golpe.
+
+Lo medido antes de decidirlo: **no son una copia**. 37 nodos contra 33 temas, **8 en común**, y en
+esos ocho entre el **49 % y el 84 %** de los términos de context no están en canon — graduar es
+migrar contenido real, no borrar repetido. Son dos cortes distintos: canon por tema de negocio,
+context por pieza del sistema. `findings` (497 KB, 239 hallazgos) **no migra**: canon rechaza la
+crónica por regla escrita («no agregues un relato de quién lo descubrió… ni resultados de
+experimentos»), y eso es justo lo que lo hace consultable por el equipo.
+
+**Piloto corrido (`backoffice`, el más acotado):** de cuatro piezas candidatas, **dos ya estaban en
+canon y mejor escritas** —la regla de los clones por sucursal explica allá el hueco del admin viejo,
+que acá no está—. Lo que falta de verdad es `LenderReadinessService`: **no aparece en ningún tema**,
+y sus dos tablas de bitácora están en el diccionario sin prosa que diga qué significan. Se verificó
+contra `origin/main` (los cinco chequeos, `blocking: false` en política dura y `applicable: false`
+en pagos con cobranza externa) y el aporte pasó el ensayo de canon: `ready: true`, sin rechazos.
+⚠ Corrección al pasar: en el código el orden es identidad · validación · pagos · **política** ·
+**perfiles**; este nodo los numeraba al revés en los dos últimos.
+
+**Dos defectos de canon encontrados corriéndolo en local**, los dos reportados y sin tocar:
+`content/.rino` (config de otra herramienta, en el gitignore GLOBAL) hace que canon descarte el
+corpus de disco y use el embebido —hoy coinciden, así que no mintió, pero el día que se edite
+`content/` en local la ronda no verá los cambios—, y `/api/propose` **entra en panic** con un `node`
+inexistente (`server.go:1621` dereferencia la política sin comprobar). ⚠ Y revienta justo cuando el
+aporte está BIEN formado: con uno incompleto contesta, porque el panic está dentro de `if listo`.
 
 ### 2026-09-21
 
