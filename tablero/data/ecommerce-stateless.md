@@ -86,6 +86,14 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 **Lo que quedó abierto al probar**
 
+- [ ] **En ecommerce la tarjeta muestra `-` en «Valor a financiar» y «Cuota», y es un cabo suelto de
+      #1018.** El canal no pide la cuota inicial, así que el mínimo nunca se satisface y
+      `hasAmountToShow` (`LenderCardSummaries.tsx:71`) deja los dos importes apagados para siempre.
+      El arreglo: usar el `effectiveInitialFee` que `useInstallmentOptions.ts` ya resuelve para los
+      plazos. Va en `frontend-monorepo`, o sea en el PR del front de esta tarea, no en #1441.
+      Reportado por Duncan el 21/9 como «al cambiar cuotas no cambia la cuota» — el plazo sí
+      recalcula (medido: 6 → $264.970, 3 → $515.541); lo que no hay es números que mirar.
+
 - [ ] **Forzar el redespliegue de `legacy-backend-qa` — el BACKEND, no el front.** Redesplegar el front
       el 21/9 a las 19:5x no cambió nada, y el front no cachea (tres peticiones, tres respuestas
       distintas). Sirve una imagen anterior a #1441. Medido el
@@ -405,6 +413,45 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (7) · lo que vio Duncan: no es preaprobados, es un cabo suelto de #1018
+
+**El síntoma reportado** —«al cambiar cuotas no cambia el valor a financiar ni la cuota»— está mal
+diagnosticado, y la captura lo delata: los dos no están *desactualizados*, están en **`-`**. Nunca se
+calcularon.
+
+**Reproducido en `qa`** (Amoblando Pullman, uReq 502610, CrediPullman), moviendo el campo de cuota
+inicial y leyendo la fila:
+
+| cuota inicial | Valor a financiar | Cuota |
+|---|---|---|
+| vacía | `-` | `-` |
+| 100.000 (bajo el mínimo) | `-` | `-` |
+| **401.250 (el mínimo)** | **$1.203.750** | **$264.970** |
+
+Y con importes a la vista, **el plazo SÍ recalcula**: 6 cuotas → $264.970, 3 cuotas → $515.541.
+«Valor a financiar» no cambia con el plazo **a propósito**: es monto − cuota inicial.
+
+**No es el servicio de preaprobados.** Los dos importes los calcula el front del lado del cliente:
+aparecieron al tocar un input, sin una sola petición de red (verificado en el panel de red).
+
+⚠ **Es NUESTRO, y es un cabo suelto de #1018** (`61436e2f`, 15/9). Ahí se decidió —bien— que el canal
+de tienda **no pide la cuota inicial en el listado** y que el error bloqueante pasara a ser el aviso
+«No olvides que en un paso posterior debes realizar el pago de $X». Pero la condición que apaga los
+importes quedó sin tocar: `LenderCardSummaries.tsx:71`, `hasAmountToShow = validation.isValid &&
+!showPlaceholder`, y esa validación sigue contando el mínimo no alcanzado. En ecommerce el campo **no
+existe**, así que el mínimo **no se puede satisfacer nunca** y las dos filas quedan en `-` para
+siempre. En el canal del asesor no se ve porque ahí el campo está y el cliente lo llena.
+
+**El arreglo tiene precedente en el propio código:** `useInstallmentOptions.ts` ya resuelve un
+`effectiveInitialFee` —cuando el campo está vacío cae al mínimo de la entidad— justo para que los
+PLAZOS reflejen el financiamiento real. Los importes tienen que usar esa misma resolución. Es
+coherente con lo que la tarjeta ya promete: el aviso dice que ese pago se hará después.
+
+⚠ **Y la lección: al convertir un error bloqueante en aviso hay que seguir a TODOS los que leían esa
+validación.** #1018 siguió tres (si el campo se renderiza, si el botón exige valor, qué dice el aviso)
+y se le escapó el cuarto, que es el que pinta los números.
+
 
 ### 2026-09-21 (6) · por qué el despliegue de `qa` sale ✔ y sirve código viejo: no espera
 
