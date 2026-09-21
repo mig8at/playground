@@ -86,7 +86,9 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 **Lo que quedó abierto al probar**
 
-- [ ] **Forzar el redespliegue de `legacy-backend-qa`: sirve una imagen anterior a #1441.** Medido el
+- [ ] **Forzar el redespliegue de `legacy-backend-qa` — el BACKEND, no el front.** Redesplegar el front
+      el 21/9 a las 19:5x no cambió nada, y el front no cachea (tres peticiones, tres respuestas
+      distintas). Sirve una imagen anterior a #1441. Medido el
       21/9: el mismo endpoint devuelve `lock_amount = true` pidiéndoselo directo y `false` cuando lo
       pide el front, con el recorte de categoría de #1432 presente en las dos respuestas — o sea una
       imagen de entre el 18/9 y el 21/9 13:48. Los dos workflows de despliegue salieron ✔. Termina
@@ -403,6 +405,37 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (5) · redesplegar el FRONT no arregla nada: el que está viejo es el backend
+
+Miguel redesplegó el front y volvió a medirse a las **19:52Z**: el campo sigue editable
+(`#amount-input` con `readOnly: false`) y el front sigue recibiendo `lock_amount: false`.
+
+**Y no es caché.** Tres peticiones al `.data` de la misma pantalla dan **tres md5 distintos**, así que
+el front recalcula cada vez: está hablando con un backend vivo, sólo que con código viejo.
+
+**El barrido de backends alcanzables, misma solicitud (502610), 19:5xZ:**
+
+| host | IP | `fee_numbers` | `lock_amount` |
+|---|---|---|---|
+| `legacy-backend-qa` | 172.32.66.42 | `1,3,6` | **`true`** |
+| `legacy-backend-lab` | 172.32.74.217 | `1,3,6,12` | `false` |
+| `legacy-backend` · `legacy-backend-stg` | — | no contestan JSON ahora | — |
+| **lo que recibe el front** | — | **`1,3,6`** | **`false`** |
+
+⚠ **Ningún backend alcanzable produce esa combinación.** `1,3,6` sólo lo genera `qa` (es el recorte
+por categoría de #1432; lab y develop devuelven `1,3,6,12`), y `lock_amount: false` sólo lo genera
+código anterior a #1441. O sea que la instancia que atiende al front corre **código de `qa` de entre
+el 18/9 y el 21/9 13:48**, y `legacy-backend-qa` resuelve a **una sola IP** que sí tiene el cambio.
+
+✔ **Y quedó descartado el último eslabón que estaba verificado sólo por grep:** el front **no** toca
+`fee_numbers` — `lender-response.mapper.ts:229` pasa `credit_lines` verbatim y nada lo reescribe fuera
+de los fixtures de prueba. Era el que sostenía todo el razonamiento, así que valía leerlo entero.
+
+**Lo que hay que redesplegar es `legacy-backend-qa`, no el front.** Y como su workflow ya salió ✔ dos
+veces (13:48Z y 19:33Z), conviene mirar en ECS si el servicio de verdad reemplazó su tarea —revisión de
+la task definition, digest de la imagen en la tarea corriendo— o si quedó una vieja sirviendo.
+
 
 ### 2026-09-21 (4) · el monto SIGUE editable en qa, y no es del código: el backend que atiende al front está viejo
 
