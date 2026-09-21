@@ -270,11 +270,11 @@ distinto según con qué pregunta llegues.
 | F-29 | Receta del cierre rt=2 100% por API (sin navegador) | TRAMPA |
 | F-30 | DENTIX no cierra en local: su pagaré es Deceval (SOAP) | stale |
 | F-31 | Credifamilia rt=4: la cadena real de bloqueos (no era el SOAP) | → credifamilia |
-| F-32 | La regla de `promissory_type` tiene una excepción: el path IMEI difiere el desembolso | → harness |
+| F-32 | La regla de `promissory_type` tiene una excepción: el path IMEI difiere el desembolso | → smartpay |
 | F-33 | zsh no hace word-splitting (trampa al verificar) | TRAMPA |
 | F-34 | La conducta la decide la CREDENCIAL del par (comercio, entidad) — no la entidad | → creditop |
 | F-35 | Matriz completa: 24 comercios barridos | TRAMPA |
-| F-36 | El muro de Deceval NO es el host: son credenciales criptográficas (y por eso NO se mockea) | → harness |
+| F-36 | El muro de Deceval NO es el host: son credenciales criptográficas (y por eso NO se mockea) | → deceval |
 | F-37 | Netco solo lo usa Credifamilia — DENTIX no lo necesita | → credifamilia |
 | F-38 | Rotativo (rt=3) SÍ existe y se distingue — pero no cierra por config del comercio | cerrado |
 | F-39 | Servicing (cobranza por hardware): VERIFICADO end-to-end en local | TRAMPA |
@@ -347,7 +347,7 @@ distinto según con qué pregunta llegues.
 | F-106 | La fila de estado 9 en `user_request_records` se escribe al CREAR la solicitud: no prueba que el… | → creditop |
 | F-107 | El vínculo buró↔solicitud NO es un hecho: lo calcula un stored procedure POR FECHA, y sólo cuand… | → db-routines |
 | F-108 | Hay 14 tablas de LOG en la BD que ninguna herramienta lee — pero sólo 2 sirven para atar a una s… | → db-routines |
-| F-109 | El «solo lectura» del `-sql` del trazador dependía del motor, no de su guarda: `INTO OUTFILE` pa… | → trazador |
+| F-109 | El «solo lectura» del `-sql` del trazador dependía del motor, no de su guarda: `INTO OUTFILE` pa… | → trazador/CLAUDE.md |
 | F-110 | El rotativo (rt=3) NO usa categorías: calcula un PLAZO MÍNIMO y por eso «desaparecen» las cuotas… | TRAMPA |
 | F-111 | El webhook de Prami ata SÓLO por `order_id` y con `firstOrFail()`: si no matchea, la solicitud s… | TRAMPA |
 | F-112 | La compuerta de capacidad de endeudamiento NO mira los gastos que declara el cliente, y viene AP… | → profiling |
@@ -772,7 +772,8 @@ Gotchas: las rutas de fechas/cronograma viven bajo el prefijo `promissory-note` 
 > **Graduó** → `credifamilia` — el hecho vive allá; la crónica, en git.
 
 ### F-32 · La regla de `promissory_type` tiene una excepción: el path IMEI difiere el desembolso
-> **Graduó** → `harness` — el hecho vive allá; la crónica, en git.
+> **Graduó** → `smartpay` — el hecho vive allá; la crónica, en git.
+> *(2026-09-21: acá decía `harness`, que es una herramienta y no la casa de un hecho del producto. El hecho —`authorize` no se llama en el path IMEI, la secuencia es `device/register` → `device/{ur}/disburse`— sí estaba en `smartpay`, con más detalle.)*
 
 ### F-33 · zsh no hace word-splitting (trampa al verificar)
 
@@ -797,7 +798,8 @@ Cobertura del barrido headless sobre **todos** los comercios de `.flows.json`. C
 **Dato útil:** los comercios de electro (alkosto, alkomprar, k-tronix) son idénticos entre sí — solo Bancolombia #68/#100 — así que como escenarios de prueba son intercambiables y no aportan cobertura nueva.
 
 ### F-36 · El muro de Deceval NO es el host: son credenciales criptográficas (y por eso NO se mockea)
-> **Graduó** → `harness · credifamilia` — el hecho vive allá; la crónica, en git.
+> **Graduó** → `deceval` · `credifamilia` — el hecho vive allá; la crónica, en git.
+> *(2026-09-21: acá decía `harness`. El hecho —certificado y llave, sin los cuales Deceval rechaza cualquier operación— vive en `deceval`; lo que era del arnés es que por eso no se mockea, y eso es de su `CLAUDE.md`.)*
 
 ### F-37 · Netco solo lo usa Credifamilia — DENTIX no lo necesita
 > **Graduó** → `credifamilia` — el hecho vive allá; la crónica, en git.
@@ -1552,10 +1554,12 @@ Sin `errors`, `['errors'][0]['code']` lanza. Y como lo llama `Integration::handl
 > **Graduó** → `db-routines` — el hecho vive allá; la crónica, en git.
 
 ### F-108 · Hay 14 tablas de LOG en la BD que ninguna herramienta lee — pero sólo 2 sirven para atar a una solicitud
-> **Graduó** → `db-routines · deceval` — el hecho vive allá; la crónica, en git.
+> **Graduó** → `db-routines` § «Las 14 tablas de LOG» · `deceval` — el hecho vive allá; la crónica, en git.
+> *(2026-09-21: la mitad de esta graduación no se había completado — el censo y la medición seguían sólo en un nodo de herramienta. Ya está en `db-routines`.)*
 
 ### F-109 · El «solo lectura» del `-sql` del trazador dependía del motor, no de su guarda: `INTO OUTFILE` pasaba
-> **Graduó** → `trazador` — el hecho vive allá; la crónica, en git.
+> **Graduó** → `trazador/CLAUDE.md` — el hecho vive allá; la crónica, en git.
+> *(2026-09-21: apuntaba al nodo `trazador`, que se retiró del árbol. El hecho es de la herramienta, no de CreditOp, así que su casa es el `CLAUDE.md` que vive al lado de su código.)*
 
 ### F-110 · El rotativo (rt=3) NO usa categorías: calcula un PLAZO MÍNIMO y por eso «desaparecen» las cuotas parametrizadas
 

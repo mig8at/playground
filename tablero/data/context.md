@@ -36,9 +36,9 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 - **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos. Al
   re-verificar, `make context-diff NODE=x CITAS=1` antes de leer el diff; medir cuántas veces evitó
   leerlo entero.
-- **Retirar los nodos de herramientas locales:** ya no ensucian el ranking, pero siguen en el árbol.
-  Retirarlos pide repartir antes: el dominio a su nodo (empezado: rt=0 en `entities`) y lo operativo
-  al `CLAUDE.md` de cada herramienta. Inventario medido: 61 y 96 términos sin cubrir.
+- **Citas dentro de los `CLAUDE.md`:** al mover las secciones, sus `archivo:línea` salieron del
+  alcance de `refs.py`, que sólo mira el árbol. Hoy nadie avisa si una se corre. Es el precio del
+  retiro y conviene cerrarlo.
 - **Clasificar la deriva:** la parte determinista ya está (`CITAS=1`) y dónde anotarla también
   (`context-triar`). Lo que falta antes de pensar en un modelo es la vara: un banco de cambios
   pasados etiquetado desde el historial — y triar a mano ya lo va llenando, porque cada veredicto
@@ -59,7 +59,20 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ### 2026-09-21
 
-Las herramientas de este repo dejaron de contar como deriva. `roots.es_local()` lo decide derivándolo
+**Los nodos `harness` y `trazador` se retiraron del árbol.** El árbol describe CreditOp; cómo se usa
+una herramienta de acá vive en su `CLAUDE.md`, al lado del código y commiteado con él. Sus secciones
+operativas se movieron **tal cual** (13 KB al del trazador, 10 KB al del arnés) y el dominio a su
+casa: la fila rt=0 corregida en `entities` —verificada contra `main`— y el censo de las 14 tablas de
+log a `db-routines`. El árbol quedó en 37 nodos, con lint, oracle, refs y check en verde.
+
+⚠ Tres cosas que aparecieron al hacerlo, y que valen más que el retiro: la copia de la tabla de
+`response_type` **ya contradecía** a `entities` en rt=0; los **tres** hallazgos que habían graduado a
+un nodo de herramienta estaban incompletos (F-108 a medias —su medición nunca llegó a `db-routines`,
+se rescató— y F-32/F-36 nunca llegaron, aunque su hecho ya vivía en `smartpay` y `deceval`, adonde
+ahora apuntan); y del nodo `harness` había 61 términos, y del de `trazador` 96, que no estaban en el
+`CLAUDE.md` de su herramienta.
+
+Antes de eso, las herramientas de este repo dejaron de contar como deriva. `roots.es_local()` lo decide derivándolo
 de la ruta —sin lista que mantener— y `alinear.py` las saca del conteo con un estado propio 🔧, con su
 razón impresa: esconderlas sería el otro error. Lo que lo justifica, medido: de **24 archivos con
 deriva en todo el árbol, 23 eran de herramientas locales y 1 de CreditOp**, y ese único que importaba

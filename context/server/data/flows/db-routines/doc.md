@@ -238,6 +238,31 @@ sigue quedando con **una sola fecha**, lo que confirma a cinco semanas de distan
 corre. Se corrigieron dos citas que habían derivado 45 y 64 líneas, y se agregó la **segunda**
 advertencia del extractor de Mareigua, que es más dura que la citada.
 
+## Las 14 tablas de LOG: existen, casi ninguna sirve para atar a una solicitud
+
+Esta es la parte de **F-108** que el hallazgo declaró graduada acá y nunca llegó: hasta el 2026-09-21
+el censo y la medición vivían sólo en un nodo de herramienta. El hecho es de la BD, así que su casa
+es esta.
+
+La BD tiene **14 tablas de log de auditoría** que ninguna herramienta lee. La pregunta que decide si
+sirven no es si tienen datos, sino si **atan a una solicitud**: varias declaran la columna
+`user_request_id` y no la escriben nunca, así que consultarlas por solicitud devuelve vacío — y un
+vacío se lee como «no pasó», que es el peor resultado posible para una tabla de auditoría.
+
+Medido el 2026-08-07 y **re-medido el 2026-09-19** (los cuatro números se sostuvieron, con los
+volúmenes crecidos):
+
+| tabla | filas atadas / total | sirve para |
+|---|---|---|
+| `deceval_logs` | **5.473 / 597 solicitudes — 100 %** | es la única candidata limpia: el tramo del pagaré → nodo `deceval` |
+| `otp_logs` | 13.604 de 1.084.837 — **1,25 %** | nada por solicitud |
+| `compare_face_logs` | **0** de 8.582 | declara la columna y NUNCA la escribe |
+| `ocr_logs` | **0** de 10.667 | declara la columna y NUNCA la escribe |
+
+⚠ Que `compare_face_logs` esté vacía **no significa que no hubo biometría**: casi la mitad de los
+lenders la resuelven con AWS Rekognition, que no deja fila en la BD (→ nodo `kyc`). Son dos ausencias
+distintas y se ven igual.
+
 ## Lo que NO está verificado
 - ¿`FN_Mareigua_*` coincide con `MareiguaExtractor`? Si divergen, dos caminos calculan el mismo ingreso distinto — el patrón de las dos convenciones de tasa (F-71).
 - **¿Prod y dev tienen el MISMO CUERPO? Sigue sin poder contestarse, y ahora se sabe por qué.** Se

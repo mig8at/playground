@@ -4,7 +4,7 @@ title: "Harness"
 clase: proyecto
 stage: work
 created: "2026-09-15T17:00:00-05:00"
-context_nodes: [harness, findings]
+context_nodes: [findings]
 jira: []
 jira_title: ""
 ---

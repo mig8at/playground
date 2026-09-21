@@ -533,6 +533,13 @@ el hueco no avisa. **El bucle, probado el 2026-08-16 y que encontró dos funcion
 5. **NO sellés el nodo** por haber agregado una sección: sellar dice «lo revisé entero». El método de
    re-verificación completo está en `context/CLAUDE.md`.
 
+⚠ **Y `context/` NO documenta las herramientas de este repo.** `harness` y `trazador` tuvieron nodo
+hasta el 2026-09-21; se retiraron porque el árbol describe **CreditOp** y cómo se usa una herramienta
+de acá vive en su `CLAUDE.md`, commiteado junto a su código. No era redundancia inofensiva: la tabla
+de «quién decide el crédito por `response_type`» estaba en los dos lados y **ya contradecía** a la de
+`entities`. Lo de dominio se repartió a su nodo; lo operativo, a los `CLAUDE.md`. Detalle y las tres
+señales que lo delataban: `context/CLAUDE.md`, regla 6.
+
 ⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
 `domain-model`, `diccionario`, `plantillas`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo

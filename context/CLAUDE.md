@@ -109,16 +109,26 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
 5. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
    una historia cerrada que sostiene una regla sí puede quedar. Y: **historia → git · preguntas →
    tablero · trampas con síntoma → findings.**
-6. **La vigencia de una herramienta de ESTE repo no se mide contra `main`.** `harness` y `trazador`
-   no son CreditOp: su código y su documentación viven acá y se commitean juntos, así que lo que los
-   mantiene al día es el commit, no el sello. Medirlos con la misma vara sólo produce ruido, y está
-   medido: el 2026-09-21, de **24 archivos con deriva en todo el árbol, 23 eran de herramientas
-   locales y 1 de CreditOp** — el único que importaba quedaba enterrado. Hoy `alinear.py` los deja
-   fuera del conteo (🔧, con su razón a la vista, nunca escondidos) y `roots.es_local()` decide
-   **derivándolo de la ruta**, sin lista que mantener. ⚠ Y lo que un nodo local afirma sobre CreditOp
-   sí es contexto: la tabla de inyectabilidad por `response_type` del nodo `harness` duplicaba la de
-   `entities` y ya habían divergido en rt=0. Un hecho, una casa: el dominio va al nodo que le
-   corresponde, y cómo se usa la herramienta a su `CLAUDE.md`.
+6. **Una herramienta de ESTE repo NO es un nodo.** `harness` y `trazador` lo fueron hasta el
+   2026-09-21 y se retiraron: el árbol describe **CreditOp**, y cómo se usa una herramienta de acá
+   vive en su `CLAUDE.md`, al lado de su código y commiteado con él. Tenerlo en los dos lados no era
+   redundancia inofensiva — **ya había divergido**: la tabla de «quién decide el crédito por
+   `response_type`» del nodo `harness` contradecía a la de `entities` en rt=0. Un hecho, una casa.
+   Lo que se movió y adónde: el dominio al nodo que le corresponde (rt=0 corregido en `entities`
+   contra `main`; el censo de las 14 tablas de log a `db-routines`) y lo operativo al `CLAUDE.md` de
+   cada herramienta, tal cual, sin reescribirlo.
+   ⚠ **Tres señales de que esto ya estaba mal antes de retirarlo, y valen como regla:** (a) de 24
+   archivos con deriva en todo el árbol, **23 eran de herramientas locales** — el único de CreditOp
+   quedaba enterrado; (b) los **tres** hallazgos que habían «graduado» a un nodo de herramienta
+   estaban incompletos: F-108 a medias (su medición nunca llegó a `db-routines`) y F-32/F-36 nunca
+   llegaron —su hecho ya vivía, por otro camino, en `smartpay` y `deceval`—. Un hecho del producto
+   no tiene casa en un nodo de herramienta, así que quien gradúa pone el nodo donde trabajó, no
+   donde el hecho pertenece. (c) Al medirlo, del nodo `harness` había **61 términos** y del de
+   `trazador` **96** que no estaban en el `CLAUDE.md` de su herramienta: la copia del árbol se había
+   vuelto la única fuente de cosas que no eran suyas.
+   Y para que esto no vuelva solo: `roots.es_local()` decide qué alias es de acá **derivándolo de la
+   ruta** (sin lista), y `alinear.py` no cuenta esos archivos como deriva ni siquiera cuando los cita
+   un nodo de CreditOp, como hace `findings`.
 7. **Antes de leer un diff, mirá si tocó lo que el nodo CITA** (`make context-diff NODE=x CITAS=1`).
    Un doc cita `archivo:línea` decenas de veces —63 en `kyc`, 93 en `onboarding`— y esos números son
    comparables con los rangos del diff: si el cambio reescribió alguna de esas líneas, la afirmación

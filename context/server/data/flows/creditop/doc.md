@@ -135,11 +135,12 @@ listan solo sus estados de llegada distintivos.** Tres catálogos que NO confund
 - `lender_transaction_statuses` (namespace propio, ej 40/41) — el espejo de los lenders rt=1/rt=4.
 
 ## Frontera de pruebas / harness
-El mapa GLOBAL de simulación (material del OKR de metodología de pruebas) vive en el nodo **harness**,
-tabla rt-por-rt. El resumen que no cambia: **lo in-platform (rt=2/3) se INYECTA** con usuario sintético
-y se sella a Estado 11; **lo de integración (rt=0/1/4) lo decide un tercero** — se mockea el host y se
-valida pre-aprobación/handoff, nunca el cierre. La receta del sintético y la fila Experian cifrada:
-nodos `kyc` y `harness` §inyección.
+Quién decide el crédito por `response_type` —y con eso, qué se puede simular— está en el nodo
+**`entities`**, tabla rt-por-rt. El resumen que no cambia: **lo in-platform (rt=2/3) se INYECTA** con
+usuario sintético y se sella a Estado 11; **lo de integración (rt=0/1/4) lo decide un tercero** — se
+mockea el host y se valida pre-aprobación/handoff, nunca el cierre. La receta del sintético y la fila
+Experian cifrada: nodo `kyc`; y cómo se corre, el `CLAUDE.md` del arnés, que no es parte de este árbol
+(material del OKR de metodología de pruebas).
 
 ## Deuda técnica / hardcodes
 ➤ **Inventario VIVO y verificado de los ifs-quemados-por-ID: contexto [[hardcodes-entidades]]** (auditoría 2026-07-18 — 24 de 31 acoplamientos BLOQUEAN la integración por-config; 101 sitios con `archivo:línea`). Es el nodo de DOLOR: si una tarea integra o toca el flujo de una entidad/comercio, entra ahí ANTES de sumar otro hardcode. Reemplaza como fuente viva a los `git 159906a:docs/codigo/LOGICA-QUEMADA.md` de abajo.
