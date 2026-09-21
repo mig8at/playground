@@ -6,7 +6,7 @@ created: "2026-07-21T10:30:30-05:00"
 context_nodes: [ecommerce, onboarding, payments, architecture]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
-jira_title: "Revisión de flujo ecommerce V1"
+jira_title: "Ecommerce: flujo de onboarding hasta el listado de entidades, webhook y retorno al comercio"
 ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada, fix/listado-tramo-por-monto
 ---
 
@@ -392,6 +392,32 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (2) · CORE-30 cerrada y renombrada: el nombre dice dónde termina MI parte
+
+Los dos issues de ecommerce se llamaban por el momento en que nacieron —«Revisión de flujo ecommerce
+V1» y «Inicio paso refactor ecommerce»— y ninguno decía su alcance. Hoy:
+
+| | antes | ahora |
+|---|---|---|
+| **CORE-30** | Revisión de flujo ecommerce V1 | **Ecommerce: flujo de onboarding hasta el listado de entidades, webhook y retorno al comercio** · ✅ Terminada |
+| **CORE-543** | Inicio paso refactor ecommerce | **Ecommerce: pruebas en conjunto de todo el flujo** · sigue en 👀 En revisión |
+
+⚠ **El nombre nuevo de CORE-30 marca un LÍMITE, y ése es su trabajo:** mi parte del canal llega hasta
+el listado de entidades —más el webhook y el retorno al comercio—; de ahí en adelante el flujo de
+ecommerce lo trabajan también Hans y Luis. Con el nombre viejo («flujo ecommerce V1») la tarea parecía
+cubrir el canal entero, así que cualquier defecto posterior a entidades caía acá por descarte.
+
+⚠ **Y CORE-543 dejó de ser «el arranque de algo» para ser lo que falta:** validar EN CONJUNTO lo que
+cada uno hizo por su lado. Ahí es donde viven las pruebas del flujo completo, no en CORE-30.
+
+⚠ **Ojo con esto al retomar: CORE-30 está Terminada pero la ENTREGA no.** Siguen abiertos #1016
+(repone el front en `main` después del revert), #1441 (el plazo y el monto de la tienda) y la promoción
+`qa` → `main`. Están en Pendientes y no se movieron; lo que se cerró es el issue, no el trabajo.
+
+✔ **El `jira_title` del frontmatter se actualizó al nombre nuevo.** No es cosmético: es lo que se
+publica, así que dejarlo viejo habría revertido el renombre en la próxima sincronización.
+
 
 ### 2026-09-21 · el monto de la tienda queda cerrado — y el flag del canal estaba muerto
 
