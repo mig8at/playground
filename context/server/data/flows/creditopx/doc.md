@@ -19,7 +19,7 @@ Mecánica financiera (informativa): amortización **francesa** (cuota FIJA, inte
 > ⚠ **Corregido (F-71).** Acá decía que la cadena de tasas era `EA → MV (1+EA)^(1/12)−1 → diaria (1+MV)^(1/30)−1`. **Ese no es el código de CreditopX** — es el de Credifamilia (`app/Services/PaymentPlan/Credifamilia/Math/FinancialMath.php`). CreditopX **divide**, no capitaliza: `rate/100` (`legacy-backend/Modules/Loans/App/Services/CreditopXPaymentService.php:948`, `CreditopXRequestHistoryService.php:302`) y `rate/30` para la diaria (`CreditopXRequestHistoryService.php:1272`), porque `credit_line_by_lenders.rate_suffix` es **N.M.** (nominal mensual) en las 157 filas — y para una nominal, dividir es lo correcto. Ver **F-71** en `findings`. El **FGA %** y el **enganche** son salidas de la categoría (`lender_users_categories.FGA` / `.min_initial_fee`; ver Subcontextos).
 
 ## Antes de concluir
-- **`have_ctopx` NO es gate duro** — *para los pocos que lo tienen*. Un rt=2 que falla las reglas duras no cae a `false_lenders` si el comercio tiene `have_ctopx`; ⚠ **medido en prod el 2026-09-19: de 346 comercios, sólo 11 lo tienen** (10 activos), así que para el 97 % restante —incluido Pullman, el caso base de esta familia— **un rt=2 que falla SÍ se excluye**. el corte definitivo es la **categoría**, no el datacrédito temprano.
+- **`have_ctopx`** → **GRADUÓ** (2026-09-21) a canon, `creditopx/context` § «En unos pocos comercios, fallar las reglas duras no saca a la entidad de la casa». El número de comercios no se llevó: no se re-midió hoy.
 - **rt=3 sin fila de catálogo.** El seeder solo siembra `response_type` 0/1/2; rt=3 (rotativo) existe en código y en el front (`CREDITOP_X_REVOLVING`) pero no como fila sembrada.
 - **App↔legacy divergen (parallel-run).** `getLenders(UserRequest $userRequest)` (app) vs `getLenders(int $userRequestId, …)` (legacy); `getLenderUserCategory($user OBJETO)` vs `(int $userId)`; el gate `no_more` está **vivo en application** y **`= false` (TODO-a-quitar) en legacy**. Misma lógica, dos repos; application sigue siendo el default (memoria `migracion-application-a-legacy-estado`).
 - **Riesgo chequeado dos veces.** Score/negativos/consultas/maduración corren en el datacrédito temprano Y de nuevo dentro de la categoría/cupo al final; la maduración usa comparadores divergentes entre motores (memoria `datacredito-rules-per-lender`).
@@ -128,31 +128,13 @@ capital. Tres precisiones que cambian el diagnóstico:
 `legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:403`) y los rt≠2 salen del método antes de llegar a los evaluadores (`:414`): en esos, «ya tiene un
 crédito» lo decide —o no— la API del lender.
 
-## Dónde se SACA una entidad del listado — el mapa completo
+## Dónde se SACA una entidad del listado — GRADUÓ a canon
 
-Una entidad puede desaparecer del listado en **nueve puntos distintos**, y ninguno deja un rechazo
-visible. Este mapa se armó con el índice de código (2026-08-23) después de que catorce descartes
-leyendo a mano no dieran con uno de ellos: **el problema no es que el corte esté escondido, es que hay
-nueve.**
-
-⚠ **Y antes de leer cualquiera de ellos, mirá qué inyecta el controlador de la ruta** — hay dos
-`getLenders` y el que se lee no siempre es el que corre (**F-161**).
-
-| dónde | qué saca |
-|---|---|
-| consulta base | `status != 1`, o fuera de las entidades de la sucursal |
-| validación de reglas | **sólo** las rt=2 rechazadas; las demás siguen con «Probabilidad muy baja» |
-| lista quemada | `[12, 23, 141, 142, 166]` — Prami y Welli, marcada *TEMPORAL* |
-| pre-aprobación | **nueve `unset()` distintos**: aprobado, rechazado, en validación, fallo de radicación, ocupación inválida, timeout, excepción general, falta de credencial, error al consultar credencial |
-| cupo rotativo (rt=3) | límite aprobado nulo o ≤ 0 |
-| cupo CreditopX (rt=2) | cupo menor al mínimo financiable · categoría que no resuelve |
-| otorgación especial | monto especial en 0 |
-| ecommerce | Sistecrédito (id 9) sin `available` — por id literal |
-| flujo de cupo confirmado | con `flow_id = 2` **sólo sobreviven las rt=0** |
-
-⚠ **La pre-aprobación es el punto más denso y el menos visible:** varias de sus salidas ocurren
-**antes de cualquier llamada HTTP** —falta de credencial, ocupación fuera del enum—, así que mirar si
-el proveedor recibió la petición **no descarta** que la entidad haya muerto ahí.
+> **Graduó** (2026-09-21) → canon, `listado/context` § «Una entidad se cae del listado en muchos
+> puntos distintos, y el más denso descarta sin consultar» — su casa es `listado`, no acá.
+> ⚠ **El conteo NO se llevó, a propósito:** este mapa decía «nueve `unset()`» en la pre-aprobación y
+> hoy hay más de veinte. Un número que envejece sin fecha no gradúa; la regla —que ahí se concentra
+> el descarte y que varios ocurren antes de llamar al proveedor— sí, y está verificada.
 
 ## El cupo EXTENDIDO (type 2) — GRADUÓ a canon
 

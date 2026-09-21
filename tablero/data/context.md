@@ -31,9 +31,11 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** terminar de vaciar `creditopx` —le quedan «Dónde se SACA una entidad del
-listado» y el bloque de «Antes de concluir», que hay que comparar contra canon antes de decidir si
-gradúan o son inventario— y después seguir con los 6 duplicados restantes, al mismo commit.
+**El próximo paso es:** a `creditopx` le quedan **cuatro secciones que PARECEN estar ya en canon**
+—el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
+No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
+`backoffice` pasó dos veces que la de canon era más completa y una vez que la de acá tenía algo que
+allá faltaba. Con eso el nodo se borra. Después, los 6 duplicados restantes.
 ⚠ El PR sigue **sin pushear**: son 8 reglas en 3 temas, y a partir de acá cada tema que se sume lo
 hace más difícil de revisar. Conviene abrirlo pronto.
 
@@ -64,6 +66,15 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**Diez reglas en el PR, canon en 405 secciones.** Se sumaron el mapa de dónde se cae una entidad
+del listado —que fue a `listado`, no a `creditopx`— y la excepción del permiso del comercio.
+
+⚠ **Y una que NO se llevó, que es la lección de esta tanda:** el mapa decía «nueve `unset()`» en la
+pre-aprobación y hoy hay **más de veinte**. El número envejeció sin que nada avisara. A canon fue la
+regla —que ahí se concentra el descarte, y que varios ocurren **antes** de llamar al proveedor, así
+que buscar la llamada en los registros no alcanza para saber si se consultó— y el conteo se quedó
+afuera a propósito. Un número que envejece sin fecha no gradúa.
 
 **Un PR, un commit: `canon/graduar-desde-context`.** Se aplastaron los cinco commits en uno solo
 con todo el detalle en la descripción, y desde ahí cada tema nuevo se enmienda ahí mismo. La rama se
