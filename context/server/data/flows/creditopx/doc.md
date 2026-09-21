@@ -154,28 +154,12 @@ nueve.**
 **antes de cualquier llamada HTTP** —falta de credencial, ocupación fuera del enum—, así que mirar si
 el proveedor recibió la petición **no descarta** que la entidad haya muerto ahí.
 
-## El cupo EXTENDIDO (type 2) puede pararse a esperar a un asesor — y el porqué es una lección sobre idempotencia
+## El cupo EXTENDIDO (type 2) — GRADUÓ a canon
 
-`POST /api/loans/lender/available-quota/extended` evalúa las mismas variables que el cupo normal (type 1), con una diferencia: si la entidad exige **aprobación manual**, la solicitud **se detiene a esperar a un asesor** en vez de seguir por la política de cupo. La tabla de decisión vive aparte y es **pura** —no toca base ni contenedor, para poder probar cada fila sin esquema—: `legacy-backend/Modules/Loans/App/Services/ManualApprovalNextStepResolver.php`, llamada desde `legacy-backend/Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php:1113`.
-
-**La regla, en orden:**
-
-1. **Sin cupo → `rejected`.** Sin cupo no hay nada que un asesor apruebe.
-2. Entidad con aprobación manual **y solicitud en un estado DE ENTRADA** → `manual_approval`, y se marca «Pendiente aprobación manual».
-3. Entidad con aprobación manual **y solicitud YA en «Pendiente aprobación manual»** → sigue `manual_approval` **sin escribir**: idempotente para recargas y reintentos.
-4. Cualquier otro caso → la política de categoría (`cosigner` o `first_payment_date`). Ahí cae «Pendiente de formalización» **y todo estado posterior**: una solicitud avanzada **nunca vuelve** a aprobación manual.
-
-⚠ **Por qué la regla mira el ESTADO y no sólo el flag.** La primera versión decidía con el flag de la entidad y escribía con un `!= destino`. **Eso no es idempotencia: es «pisá cualquier estado que no sea éste».** Y el propio flujo lo ejercitaba: el asesor aprueba, la solicitud pasa a «Pendiente de formalización», el titular vuelve por su link, el front vuelve a pedir el paso — y **la aprobación se borra**. La decisión tiene que mirar en qué estado está la solicitud, y la escritura sólo puede ocurrir **desde los estados de entrada**.
-
-**Y la mitad del front es una pantalla TERMINAL, sin acciones a propósito.** Cuando la política post-validación devuelve `next_step: "manual_approval"` —o sea cuando la entidad tiene `lender_requirements.manual_approval` prendido— y el backend ya dejó la solicitud en «Pendiente aprobación manual», el titular aterriza en `frontend-monorepo/apps/loan-request-wizard/app/routes/manual-approval-pending.tsx`. **No ofrece ningún botón, y está razonado:** el titular ya hizo todo lo que le tocaba y de ahí en adelante la solicitud avanza **cuando un asesor la revise**; poner un «continuar» sería mentirle, porque no hay nada que pueda hacer todavía. Es el mismo criterio que la pantalla de vuelta del checkout de entidad (nodo `redirect`): **cuando el siguiente paso es de otro, la pantalla no finge que es del cliente.**
-
-**(2026-09-19) Nodo RE-VERIFICADO entero.** 16 afirmaciones auditadas —13 de código contra `main` y 3
-de dato contra producción—, cero chequeos débiles. **Una resultó FALSA**, y es la que más engaña: el
-título de la última sección decía que el front «todavía no lee» `can_check_preapproval`, y lo lee en
-tres lugares desde hace semanas, con un mecanismo que vale la pena conocer. Lo demás se sostuvo: el
-`'Probabilidad muy baja'` en su línea, el gate de producción del perfilamiento (que resultó ser
-**cuatro** gates y no dos), y el reparto de familias medido en prod — **rt=0: 57 activas · rt=1: 15 ·
-rt=2: 108 · rt=3: 18 · rt=4: 1**, o sea que esta familia es, sola, **el 58 % del catálogo activo**.
+> **Graduó** (2026-09-21) → canon, `creditopx/context` § «El cupo con aprobación manual se detiene, y
+> una solicitud avanzada nunca vuelve atrás». Incluye la lección de idempotencia y la pantalla
+> terminal sin acciones. Al verificarlo apareció algo que acá no estaba: la aprobación manual se
+> evalúa **antes** que el codeudor, a propósito.
 
 ## Contenido
 La consolidación rt=2 corre en el orquestador `getLenders`. **Clave: la categoría NO va primero** — `group_rules`+datacrédito corren antes; la **categoría corre AL FINAL** y es la que fija enganche/cupo/plazo (y excluye si no hay categoría o el cupo no alcanza).
@@ -244,42 +228,8 @@ Medido contra prod ese día: ese flujo son 458 solicitudes de 560.589, el 0,08 %
 ## Lo que NO está verificado
 - La regla GENÉRICA del `DatacreditoRuleEvaluator`: el fail-closed está verificado (`:48`); el `whereNull(allied_branch_id)` exacto, no.
 
-## `can_check_preapproval` — el flag fail-closed, y el front YA lo lee
+## `can_check_preapproval` — GRADUÓ a canon
 
-Entró a `main` el **2026-08-10** (`3a6d59de`, Santiago). Es un booleano **por entidad** que el listado
-**v2** agrega a cada card para decirle al front si debe disparar la consulta al microservicio de
-pre-aprobados para ESA entidad. Su mensaje de commit lo resume: *«el front necesita saber si debe
-disparar la consulta al microservicio de pre-aprobados para cada entidad, según las políticas de
-datacrédito del lender»*.
-
-⚠ **Acá decía «el front todavía no lo lee». Ya no es cierto — verificado contra `main` el 2026-09-19.** El front lo consume en tres lugares: el campo está tipado en `frontend-monorepo/modules/loan-request-wizard/lenders-marketplace/src/lib/domain/entities/loan-option.entity.ts:280`, hay un `preapproval-gate.service` **con sus tests**, y el marketplace lo aplica en `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:165-170`. **Y lo que hace con él es lo interesante:** a las entidades con `can_check_preapproval === false` no las consulta —esperable— pero **tampoco las deja sin Promise**, porque eso haría que el adaptador emitiera `missing_preapproval_stream` y pintara **un error con botón de reintento** sobre una entidad que simplemente no aplica. En su lugar les **siembra el estado terminal ya resuelto**, que el hook recibe en el primer tick, pisa el `processing` inicial y deja **la card inerte**. Es la diferencia entre «no aplica» y «se rompió», resuelta del lado del front.
-
-**Nace en `false` y se siembra ANTES de cualquier bifurcación** (`LenderListingService`, sobre la
-colección recién traída y antes del branch de `$hasGroupRules`), porque las dos ramas derivan de esas
-mismas instancias: así ninguna entidad puede llegar a la respuesta sin el campo. Al final del pipeline
-hay una **red idempotente** que cubre las instancias que no pasaron por la siembra — hoy sólo el
-Magnocell 84.
-
-**Lo sube a `true` un solo lugar**: `RiskCentralValidationService`, con
-`$scorePassed && $negativeAccountsPassed && $maturationPassed` — las tres validaciones de datacrédito
-(score, cuentas negativas, antigüedad en el sector financiero). Es **fail-closed de verdad**: una
-validación que no se pudo correr *por dato ausente del cliente* NO cuenta como pasada.
-
-Tres cosas que cambian cómo se lee este campo:
-
-- **NO filtra.** No participa de `$remove_lender`: la entidad sigue apareciendo en el listado. Sólo
-  dice si se puede consultar pre-aprobación.
-- **Nunca se evalúa si las políticas duras ya hundieron la card.** El bloque entero está adentro del
-  `if` que exige que `probability` no sea `Probabilidad muy baja` ni `0% de probabilidad` — o sea que
-  para esas entidades el flag se queda en el `false` de la siembra. Se conecta con la asimetría de
-  probabilidades de más arriba en este mismo nodo.
-- ⚠ **Su significado es exclusivo de lenders-v2.** `RiskCentralValidationService` es compartido con el
-  listado **v1** (`LenderRetrievalService`), así que el atributo también aparece allá — pero v1
-  resuelve sus pre-aprobados por otro camino (`validatePreApproveLender`) y **debe ignorarlo**. Leer
-  este campo en una respuesta de v1 lleva a la conclusión equivocada.
-
-⚠ **El front todavía NO lo consume.** Medido el 2026-08-16 sobre `main` de `frontend-monorepo`: cero
-apariciones, en snake_case y en camelCase. Es una entrega backend-first esperando su mitad — si estás
-depurando por qué el front no cambia de comportamiento, la respuesta es que aún no lo lee, no que el
-backend lo mande mal. Su contrato sí está fijado por
-`Modules/Onboarding/tests/Unit/LenderListingCanCheckPreapprovalTest.php`.
+> **Graduó** (2026-09-21) → canon, `creditopx/context` § «Una entidad que no consulta pre-aprobados
+> no es un error: la diferencia entre "no aplica" y "se rompió"». La crónica de cuándo entró y de
+> que este nodo llegó a decir lo contrario queda en git, que es su lugar.

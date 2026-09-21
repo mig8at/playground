@@ -31,11 +31,11 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** elegir el siguiente de los 7 duplicados que quedan y repetir el ciclo, al
-mismo PR. Por tamaño de lo que falta, el más barato es `creditopx` (79 términos sin cubrir) y el más
-caro `motai` (141). ⚠ Antes de seguir conviene **pushear y abrir el PR** de
-`canon/backoffice-readiness` —cinco commits, seis secciones nuevas— para que el equipo lo revise:
-acumular seis temas sin revisar sería un PR que nadie puede leer.
+**El próximo paso es:** terminar de vaciar `creditopx` —le quedan «Dónde se SACA una entidad del
+listado» y el bloque de «Antes de concluir», que hay que comparar contra canon antes de decidir si
+gradúan o son inventario— y después seguir con los 6 duplicados restantes, al mismo commit.
+⚠ El PR sigue **sin pushear**: son 8 reglas en 3 temas, y a partir de acá cada tema que se sume lo
+hace más difícil de revisar. Conviene abrirlo pronto.
 
 ## Frentes activos
 
@@ -64,6 +64,18 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**Un PR, un commit: `canon/graduar-desde-context`.** Se aplastaron los cinco commits en uno solo
+con todo el detalle en la descripción, y desde ahí cada tema nuevo se enmienda ahí mismo. La rama se
+renombró porque el alcance dejó de ser un tema. **Ocho reglas, canon en 403 secciones.**
+
+**`creditopx`: dos piezas graduadas** — el cupo con aprobación manual (con su lección de
+idempotencia: decidir con el flag y escribir «si el estado no es éste, ponelo» no es idempotencia,
+es pisar cualquier estado que no sea el destino) y el permiso de pre-aprobados, que deja la regla
+general de que **«no aplica» y «se rompió» no pueden verse igual**. Y otra vez apareció lo mismo:
+tres de sus reglas **ya estaban en canon** —el bloqueo por crédito activo, el ingreso que no decide
+el listado, el motor propio del rotativo— y una cuarta apareció al verificar y acá no estaba: la
+aprobación manual se evalúa antes que el codeudor.
 
 **`backoffice` GRADUADO Y BORRADO — el ciclo cierra.** El árbol pasó de 37 a **36 nodos**; canon
 pasó de 395 a **401 secciones**. Seis piezas en un PR (`canon/backoffice-readiness`, cinco commits,
