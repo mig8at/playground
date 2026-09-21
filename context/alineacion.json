@@ -2,8 +2,8 @@
   "generado": "2026-09-21",
   "ref": null,
   "resumen": {
-    "al-dia": 35,
-    "solo-hubs": 1,
+    "al-dia": 32,
+    "deriva": 1,
     "rama-sin-mergear": 1
   },
   "nodos": [
@@ -34,139 +34,54 @@
       }
     },
     {
-      "id": "findings",
-      "estado": "solo-hubs",
+      "id": "hardcodes-entidades",
+      "estado": "deriva",
       "verificado": {
         "ref": "main",
-        "date": "2026-09-14",
+        "date": "2026-09-18",
         "source": "manual"
       },
-      "archivos": 58,
+      "archivos": 101,
       "triado": null,
-      "locales": 13,
+      "locales": 0,
       "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 1,
+        "cambiados": 1,
+        "pct": 1,
+        "hubs": 0,
         "archivos": [
           {
-            "ruta": "legacy-backend/Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-            "ultimo_cambio": "2026-09-17",
-            "hub": true
+            "ruta": "frontend-monorepo/apps/loan-request-wizard/app/routes/request-management/components/gestion-cell.tsx",
+            "ultimo_cambio": "2026-09-21",
+            "hub": false
           }
         ]
       },
       "commits": {
-        "total": 34,
+        "total": 3,
         "autores": {
-          "Miguel Ochoa": 33,
-          "Oscar Rincon": 1
+          "sanvipi-ctop": 3
         },
         "lista": [
           {
-            "sha": "bc4aa91d",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "taller: las divisiones de la pantalla, con los nombres de VS Code",
-            "repo": "harness"
+            "sha": "f232e6bc",
+            "fecha": "2026-09-21",
+            "autor": "sanvipi-ctop",
+            "asunto": "Remove nequi validation",
+            "repo": "frontend-monorepo"
           },
           {
-            "sha": "b9336a06",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "estilo: un tema para las cuatro UIs, y un chequeo que lo sostiene",
-            "repo": "harness"
+            "sha": "bc1218d3",
+            "fecha": "2026-09-21",
+            "autor": "sanvipi-ctop",
+            "asunto": "Add id in ALWAYS_DISABLED_LENDER_IDS",
+            "repo": "frontend-monorepo"
           },
           {
-            "sha": "3d131a53",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: `MD=1` — la corrida se escribe sola como anotación del tablero",
-            "repo": "harness"
-          },
-          {
-            "sha": "3af568a5",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el mock de documentos contestaba 200 con la forma equivocada",
-            "repo": "harness"
-          },
-          {
-            "sha": "36f0c6bd",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el aviso de S3 mentía siempre, y el generador de documentos era invisible",
-            "repo": "harness"
-          },
-          {
-            "sha": "3e2580f5",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el panel deja de ser una columna y pasa a ser un editor",
-            "repo": "harness"
-          },
-          {
-            "sha": "5a6ff5cc",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: F-236 — el documento sintético violaba el techo de TusDatos",
-            "repo": "harness"
-          },
-          {
-            "sha": "64b13523",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el bloque forense del panel, verificado con una corrida real (y no andaba)",
-            "repo": "harness"
-          },
-          {
-            "sha": "7032ddca",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el panel dice POR QUE termino asi, y F-234 (el forense preguntaba en dev)",
-            "repo": "harness"
-          },
-          {
-            "sha": "357223fe",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: la consola del SSR — pestaña en el panel y `make harness-ssr`",
-            "repo": "harness"
-          },
-          {
-            "sha": "722f15ff",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el funnel dinamico de RD camina, y el IMEI esta detras de un handoff",
-            "repo": "harness"
-          },
-          {
-            "sha": "84fa9502",
-            "fecha": "2026-09-18",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el canal de ASESOR estaba bloqueado por un telefono invalido (F-231)",
-            "repo": "harness"
-          },
-          {
-            "sha": "087de3b0",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: la renovacion de sesion le pregunta al front, no al nombre del ambiente",
-            "repo": "harness"
-          },
-          {
-            "sha": "9a5163c5",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el canal de asesor renueva su sesion solo",
-            "repo": "harness"
-          },
-          {
-            "sha": "12e90fdc",
-            "fecha": "2026-09-17",
-            "autor": "Miguel Ochoa",
-            "asunto": "harness: el frasco de cookies BORRA lo que el servidor manda borrar",
-            "repo": "harness"
+            "sha": "80e7d8dc",
+            "fecha": "2026-09-21",
+            "autor": "sanvipi-ctop",
+            "asunto": "fix(nequi): oculta el botón de gestión manual en el listado de solicitudes",
+            "repo": "frontend-monorepo"
           }
         ]
       },
@@ -271,50 +186,6 @@
         "source": "manual"
       },
       "archivos": 82,
-      "triado": null,
-      "locales": 0,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "backoffice",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-09-18",
-        "source": "manual"
-      },
-      "archivos": 123,
-      "triado": null,
-      "locales": 0,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "bancolombia",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-09-19",
-        "source": "manual"
-      },
-      "archivos": 145,
       "triado": null,
       "locales": 0,
       "deriva": {
@@ -601,28 +472,6 @@
         "source": "manual"
       },
       "archivos": 84,
-      "triado": null,
-      "locales": 0,
-      "deriva": {
-        "cambiados": 0,
-        "pct": 0,
-        "hubs": 0,
-        "archivos": []
-      },
-      "commits": null,
-      "huerfanos": [],
-      "rutas_muertas": [],
-      "pendiente_merge": null
-    },
-    {
-      "id": "hardcodes-entidades",
-      "estado": "al-dia",
-      "verificado": {
-        "ref": "main",
-        "date": "2026-09-18",
-        "source": "manual"
-      },
-      "archivos": 101,
       "triado": null,
       "locales": 0,
       "deriva": {

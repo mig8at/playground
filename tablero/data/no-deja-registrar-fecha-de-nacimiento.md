@@ -4,7 +4,7 @@ title: "No deja registrar fecha de nacimiento previo a 1950"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-78]
 jira_title: "No deja registrar fecha de nacimiento previo a 1950"
 ---

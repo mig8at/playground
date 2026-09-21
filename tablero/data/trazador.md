@@ -4,7 +4,7 @@ title: "Trazador"
 clase: proyecto
 stage: evaluation
 created: "2026-09-19T14:55:00-05:00"
-context_nodes: [findings]
+canon: []
 jira: []
 jira_title: ""
 ---

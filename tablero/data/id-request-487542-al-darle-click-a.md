@@ -4,7 +4,7 @@ title: "ID request 487542 - Al darle click a confirmar en firma, no avanza"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-125]
 jira_title: "ID request 487542 - Al darle click a confirmar en firma, no avanza"
 ---

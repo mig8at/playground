@@ -9,9 +9,9 @@
 //
 //	hoy                la agenda: en movimiento (con su próximo paso, preguntas vencidas y entrega) y dormidas
 //	hoy -n <id|slug>   RETOMAR una tarea en frío: sólo lo que hace falta para arrancar, y en rojo lo que no está
-//	hoy -n … -brief 1 …y al final la FICHA de cada nodo de context que la tarea declara, sin abrir su doc.
-//	                   La ficha es de context (`tools/jev.py brief --text`); acá sólo se enruta. Es un APOYO:
-//	                   decide qué doc abrir, no reemplaza leerlo — y va opt-in porque una tarea llega a declarar 9.
+//	hoy -n … -brief 1 …y al final la FICHA de cada tema de canon que la tarea declara, sin abrir su context.md.
+//	                   Es un APOYO: decide qué tema se abre, no reemplaza leerlo — y va opt-in porque una
+//	                   tarea llega a declarar 9.
 //
 // «Días sin tocar» sale de git (último commit del archivo, o hoy si está modificado). Dormida = 14 días;
 // a los 30 la vista sugiere archivar o anotar por qué espera. Los umbrales son del tablero, no de Jira.
@@ -124,7 +124,7 @@ func leer(datos, ruta string, sucios map[string]bool) tarea {
 				t.Archived = v != "" && v != "false" && v != "null"
 			case strings.HasPrefix(l, "jira:"):
 				t.Jira = lista(l)
-			case strings.HasPrefix(l, "context_nodes:"):
+			case strings.HasPrefix(l, "canon:"):
 				t.Nodos = lista(l)
 			case strings.HasPrefix(l, "ramas:"):
 				for _, p := range strings.Split(valor(l), ",") {
@@ -602,75 +602,133 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 	return 0
 }
 
-// fichaContext es lo que `-brief` agrega al final de la retoma: la ficha de UN nodo de context
-// (`context/tools/jev.py brief <nodo> --text`). Medido el 2026-09-21: la ficha de `kyc` pesa 5.074
-// bytes contra 55.302 de su doc.md, y alcanza para decidir si ese doc se abre — que es el gasto grande
-// de una retoma, no elegir el nodo: las 24 tareas vivas ya lo declaran en `context_nodes`.
-type fichaContext struct {
-	Nodo      string          `json:"node"`
-	Declarado bool            `json:"declared"`
-	Texto     string          `json:"text,omitempty"`
-	Ficha     json.RawMessage `json:"brief,omitempty"`
-	Error     string          `json:"error,omitempty"`
+// fichaCanon es lo que `-brief` agrega al final de la retoma: lo que un TEMA de canon DECLARA sobre
+// sí mismo, leído de su `map.json`.
+//
+// ⚠ NO SE LE PIDE A UN MODELO, Y ESE ES EL CAMBIO. Hasta el 2026-09-21 la ficha era un resumen que
+// generaba Jev sobre el doc de un nodo de `context/`: costaba una llamada, tardaba, y podía decir algo
+// que el doc no dijera. Un tema de canon ya viene con el resumen ESCRITO A MANO —`title`, `summary`, y
+// el `objetivo` de cada área, que es literalmente «qué contesta esta parte»—, así que la ficha se
+// DERIVA. Sale gratis, es instantánea, y no puede inventar. Medido ese día: la ficha de `kyc` pesa
+// 3.593 bytes contra 31.388 de su `context.md` (8,7×), y la de la versión con modelo pesaba 5.074.
+type fichaCanon struct {
+	Tema      string      `json:"topic"`
+	Declarado bool        `json:"declared"`
+	Titulo    string      `json:"title,omitempty"`
+	Resumen   string      `json:"summary,omitempty"`
+	Areas     []areaCanon `json:"areas,omitempty"`
+	Tablas    []string    `json:"tables,omitempty"`
+	Repos     []string    `json:"repos,omitempty"`
+	Error     string      `json:"error,omitempty"`
+}
+
+type areaCanon struct {
+	ID        string `json:"id"`
+	Objetivo  string `json:"objetivo"`
+	Secciones int    `json:"secciones"`
 }
 
 const topeFichas = 4
 
-// fichasContext decide QUÉ nodos van y se los pide a `correr`, sin interpretar la respuesta.
+// fichasCanon decide QUÉ temas van y se los pide a `leer`, sin interpretar la respuesta.
 // `pedido` es el valor de BRIEF=: «1» son los declarados por la tarea, en su orden y hasta el tope
-// —una tarea llega a declarar 9, y nueve fichas pesan más que el doc que se quería no abrir—; «a,b»
-// son esos, estén declarados o no (y se marca cuando no). Un error de `correr` se DEVUELVE en su
-// ficha, nunca se calla: una ficha que falta se lee igual que un nodo que no existe.
-func fichasContext(declarados []string, pedido string, correr func(nodo string) (string, error)) (fichas []fichaContext, aviso string) {
+// —una tarea llega a declarar 9, y nueve fichas pesan más que el documento que se quería no abrir—;
+// «a,b» son esos, estén declarados o no (y se marca cuando no). Un error de `leer` se DEVUELVE en su
+// ficha, nunca se calla: una ficha que falta se lee igual que un tema que no existe.
+func fichasCanon(declarados []string, pedido string, leer func(tema string) (fichaCanon, error)) (fichas []fichaCanon, aviso string) {
 	es := map[string]bool{}
 	for _, n := range declarados {
 		es[n] = true
 	}
-	nodos := declarados
+	temas := declarados
 	if pedido != "1" {
-		nodos = nil
+		temas = nil
 		for _, n := range strings.Split(pedido, ",") {
 			if n = strings.TrimSpace(n); n != "" {
-				nodos = append(nodos, n)
+				temas = append(temas, n)
 			}
 		}
-	} else if len(nodos) > topeFichas {
-		aviso = fmt.Sprintf("… y %d más (%s) — BRIEF=a,b elige cuáles", len(nodos)-topeFichas, strings.Join(nodos[topeFichas:], ", "))
-		nodos = nodos[:topeFichas]
+	} else if len(temas) > topeFichas {
+		aviso = fmt.Sprintf("… y %d más (%s) — BRIEF=a,b elige cuáles", len(temas)-topeFichas, strings.Join(temas[topeFichas:], ", "))
+		temas = temas[:topeFichas]
 	}
-	for _, n := range nodos {
-		f := fichaContext{Nodo: n, Declarado: es[n]}
-		if out, err := correr(n); err != nil {
+	for _, n := range temas {
+		f, err := leer(n)
+		f.Tema, f.Declarado = n, es[n]
+		if err != nil {
 			f.Error = err.Error()
-		} else {
-			f.Texto = out
 		}
 		fichas = append(fichas, f)
 	}
 	return fichas, aviso
 }
 
-// briefDeContext corre la herramienta de context — la ficha es SUYA, acá sólo se enruta. Con `texto`
-// pide `--text` (la terminal); sin él, el JSON que consume `-json`. Si falla, devuelve la primera
-// línea de su stderr, que es lo que jev.py imprime como causa.
-func briefDeContext(raiz string, texto bool) func(string) (string, error) {
-	return func(nodo string) (string, error) {
-		args := []string{filepath.Join(raiz, "context", "tools", "jev.py"), "brief", nodo}
-		if texto {
-			args = append(args, "--text")
-		}
-		var stderr strings.Builder
-		cmd := exec.Command("python3", args...)
-		cmd.Stderr = &stderr
-		out, err := cmd.Output()
-		if err != nil {
-			if causa := strings.TrimSpace(strings.SplitN(stderr.String(), "\n", 2)[0]); causa != "" {
-				return "", fmt.Errorf("%s", causa)
-			}
-			return "", err
-		}
-		return string(out), nil
+// canonContenido es dónde vive el corpus compartido en disco. Se puede mover con `CANON_CONTENIDO`,
+// el mismo nombre que ya usan las otras herramientas que lo leen.
+func canonContenido() string {
+	if v := strings.TrimSpace(os.Getenv("CANON_CONTENIDO")); v != "" {
+		return v
 	}
+	casa, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(casa, "Desktop", "CREDITOP", "github", "playground", "tools", "canon", "content")
+}
+
+// fichaDeCanon lee el `map.json` de un tema. Es sólo disco: no levanta el servidor de canon ni sale a
+// la red, así que una retoma funciona igual sin conexión y sin nada corriendo.
+func fichaDeCanon(contenido string) func(string) (fichaCanon, error) {
+	return func(tema string) (fichaCanon, error) {
+		if contenido == "" {
+			return fichaCanon{}, fmt.Errorf("no sé dónde está el corpus (pasá CANON_CONTENIDO)")
+		}
+		crudo, err := os.ReadFile(filepath.Join(contenido, tema, "map.json"))
+		if err != nil {
+			return fichaCanon{}, fmt.Errorf("el tema no está en %s", contenido)
+		}
+		var m struct {
+			Title   string `json:"title"`
+			Summary string `json:"summary"`
+			Areas   []struct {
+				ID        string              `json:"id"`
+				Objetivo  string              `json:"objetivo"`
+				Secciones []string            `json:"secciones"`
+				Tablas    []string            `json:"tablas"`
+				Fuentes   map[string]struct{} `json:"-"`
+				FuentesJS json.RawMessage     `json:"fuentes"`
+			} `json:"areas"`
+		}
+		if err := json.Unmarshal(crudo, &m); err != nil {
+			return fichaCanon{}, fmt.Errorf("map.json ilegible: %v", err)
+		}
+		f := fichaCanon{Titulo: m.Title, Resumen: m.Summary}
+		tablas, repos := map[string]bool{}, map[string]bool{}
+		for _, a := range m.Areas {
+			f.Areas = append(f.Areas, areaCanon{ID: a.ID, Objetivo: a.Objetivo, Secciones: len(a.Secciones)})
+			for _, t := range a.Tablas {
+				tablas[t] = true
+			}
+			var porRepo map[string]json.RawMessage
+			if len(a.FuentesJS) > 0 {
+				_ = json.Unmarshal(a.FuentesJS, &porRepo)
+			}
+			for r := range porRepo {
+				repos[r] = true
+			}
+		}
+		f.Tablas, f.Repos = ordenadas(tablas), ordenadas(repos)
+		return f, nil
+	}
+}
+
+func ordenadas(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON bool, brief string) int {
@@ -714,10 +772,10 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	if len(bit) == 0 {
 		faltan = append(faltan, "bitácora: ninguna entrada apunta a esta tarea")
 	}
-	var fichas []fichaContext
+	var fichas []fichaCanon
 	var fichasAviso string
 	if brief != "" {
-		fichas, fichasAviso = fichasContext(t.Nodos, brief, briefDeContext(filepath.Join(datos, "..", ".."), !comoJSON))
+		fichas, fichasAviso = fichasCanon(t.Nodos, brief, fichaDeCanon(canonContenido()))
 	}
 
 	if comoJSON {
@@ -728,12 +786,7 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 			"preguntasVencidas": vencidas, "pendientes": pend, "bitacora": bit, "faltan": faltan,
 		}
 		if brief != "" {
-			for i := range fichas {
-				if json.Valid([]byte(fichas[i].Texto)) {
-					fichas[i].Ficha, fichas[i].Texto = json.RawMessage(fichas[i].Texto), ""
-				}
-			}
-			salida["context"], salida["contextAviso"] = fichas, fichasAviso
+			salida["canon"], salida["canonAviso"] = fichas, fichasAviso
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(salida)
 		return 0
@@ -741,10 +794,10 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 
 	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.dias(), strings.SplitN(t.Created+"T", "T", 2)[0])
 	if len(t.Jira) > 0 || len(t.Nodos) > 0 {
-		fmt.Printf("  jira: %s · nodos de context: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodos, ", "))
+		fmt.Printf("  jira: %s · temas de canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodos, ", "))
 	}
 	if len(t.Nodos) > 0 && brief == "" {
-		fmt.Printf("  la ficha de cada nodo, sin abrir su doc: make retomar N=%d BRIEF=1\n", t.ID)
+		fmt.Printf("  la ficha de cada tema, sin abrir su context.md: make retomar N=%d BRIEF=1\n", t.ID)
 	}
 	fmt.Printf("  archivo: %s\n", t.Ruta)
 
@@ -847,29 +900,79 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	}
 
 	if brief != "" {
-		fmt.Println("\n  ── Context: la ficha de cada nodo declarado, sin abrir su doc ──")
+		fmt.Println("\n  ── Canon: lo que declara cada tema, sin abrir su context.md ──")
 		if len(fichas) == 0 {
-			fmt.Println("  ✗ la tarea no declara `context_nodes`. El ruteo de una tarea NUEVA es de context:")
-			fmt.Println("    make context-jev ARGS='route \"pregunta general\"'   (local; --live sólo si el léxico empata)")
+			fmt.Println("  ✗ la tarea no declara `canon:`. Para encontrar el tema de una pregunta nueva:")
+			fmt.Println("    canon -pregunta '<la pregunta>'   (desde github/playground/tools/canon)")
 		}
 		for i, f := range fichas {
 			if i > 0 {
 				fmt.Println()
 			}
 			if !f.Declarado {
-				fmt.Printf("  ⚠ %s no está en los `context_nodes` de la tarea\n", f.Nodo)
+				fmt.Printf("  ⚠ %s no está en el `canon:` de la tarea\n", f.Tema)
 			}
 			if f.Error != "" {
-				fmt.Printf("  ✗ brief %s: %s\n", f.Nodo, f.Error)
+				fmt.Printf("  ✗ %s: %s\n", f.Tema, f.Error)
 				continue
 			}
-			fmt.Println("  " + strings.ReplaceAll(strings.TrimRight(f.Texto, "\n"), "\n", "\n  "))
+			fmt.Printf("  %s · %s\n", f.Tema, f.Titulo)
+			if f.Resumen != "" {
+				fmt.Println("  " + ajustar(f.Resumen, 96, "  "))
+			}
+			secs := 0
+			for _, a := range f.Areas {
+				secs += a.Secciones
+			}
+			fmt.Printf("  %d áreas · %d secciones", len(f.Areas), secs)
+			if len(f.Repos) > 0 {
+				fmt.Printf(" · %s", strings.Join(f.Repos, ", "))
+			}
+			if len(f.Tablas) > 0 {
+				fmt.Printf("\n  tablas: %s", ajustar(strings.Join(f.Tablas, ", "), 92, "  "))
+			}
+			fmt.Println()
+			// El `id` del área NO se imprime: en canon es un hash (`area-dda3b2591178`), así que
+			// ocupaba media columna sin decir nada. Lo que nombra a un área es su `objetivo`.
+			for _, a := range f.Areas {
+				fmt.Printf("    · %s\n", ajustar(a.Objetivo, 92, "      "))
+			}
 		}
 		if fichasAviso != "" {
 			fmt.Println("  " + fichasAviso)
 		}
-		fmt.Println("  la ficha decide qué doc se abre; si ninguna contesta, la pregunta va a workers/ — no a otro nodo")
+		fmt.Println("  la ficha decide qué tema se abre; si ninguno contesta, la pregunta va a workers/ — no a otro tema")
 	}
 	fmt.Println()
 	return 0
+}
+
+// ajustar parte un texto largo en renglones de a lo sumo `ancho` runas, sangrando los siguientes con
+// `sangria`. Los `objetivo` de canon son frases de una o dos líneas y sin esto se salen de la
+// terminal: el que lee pierde justo el final, que es donde suele estar la condición.
+//
+// ⚠ Cuenta RUNAS, no bytes. Los objetivos están en español —«decisión», «también», «qué»— y con
+// `len()` una frase con diez tildes se corta diez caracteres antes de donde debería.
+func ajustar(texto string, ancho int, sangria string) string {
+	palabras := strings.Fields(texto)
+	if len(palabras) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	linea := 0
+	for i, p := range palabras {
+		n := len([]rune(p))
+		switch {
+		case i == 0:
+			b.WriteString(p)
+			linea = n
+		case linea+1+n <= ancho:
+			b.WriteString(" " + p)
+			linea += 1 + n
+		default:
+			b.WriteString("\n" + sangria + p)
+			linea = len([]rune(sangria)) + n
+		}
+	}
+	return b.String()
 }

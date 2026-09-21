@@ -4,7 +4,7 @@ title: "Revisar poque no se esta enviando plan de pagos en el paquete de documen
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-194]
 jira_title: "Revisar poque no se esta enviando plan de pagos en el paquete de documentos a credifamilia"
 ---

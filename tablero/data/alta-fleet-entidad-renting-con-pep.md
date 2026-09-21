@@ -4,7 +4,7 @@ title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 stage: work
 ramas: feat/comercio-pantalla-de-bienvenida, feat/la-card-de-alta
 created: "2026-09-09T10:00:00-05:00"
-context_nodes: [motai, merchants, creditopx, hardcodes-entidades, entities]
+canon: [motai, altas, creditopx, listado]
 jira: [CORE-558]
 jira_title: "Alta Fleet: entidad propia, pantalla de bienvenida y autogestión"
 ---

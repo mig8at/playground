@@ -4,7 +4,7 @@ title: "Validar cálculo del plan y el pago semanal en la card de renting"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [QC-175]
 jira_title: "Validar cálculo del plan y el pago semanal en la card de renting"
 ---

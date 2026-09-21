@@ -3,7 +3,7 @@ id: 43
 title: "Internacionalización de CreditOp"
 stage: tasks
 created: "2026-08-05T17:11:17-05:00"
-context_nodes: [onboarding, dynamic-forms, merchants, entities, smartpay, hardcodes-entidades]
+canon: [onboarding, formularios, altas, listado, smartpay]
 jira: [CORE-365]
 jira_title: "Internacionalización de CreditOp"
 ramas: pais/el-pais-deja-de-suponerse, pais/el-usuario-temporal-no-nace-colombiano, pais/la-autoridad-emisora-sale-del-pais-y-el-tipo, documento/la-tarjeta-muestra-la-fecha-de-nacimiento, pais-como-dato, pais-configuracion, pais/el-pais-es-configuracion, pais/backfill-del-default-historico, pais/reparar-columnas-de-documentos, pais/documentos-que-acepta-el-backend, pais/borrar-documentos-de-sucursal, pais/monto-y-telefono-en-solicitar, pais/el-largo-del-celular-en-el-flujo-dinamico

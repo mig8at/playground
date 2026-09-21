@@ -33,70 +33,15 @@ import json
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from roots import EXTS, ROOTS, ref_a_indexar  # noqa: E402
+from roots import EXTS, ROOTS, del_ref, ref_a_indexar  # noqa: E402,F401
+# ⚠ `del_ref` ya no se define acá: se mudó con el motor de citas a `tablero/tools/citas.py`
+# el 2026-09-21 (ver el encabezado de `roots.py`). Es la MISMA definición de «qué existe en
+# main» que usa la validación de citas — tenerla dos veces era una divergencia esperando.
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 IDX = os.path.join(ROOT_DIR, "tools", "index.txt")
-DIAS_RANCIO = 14  # a partir de acá se avisa que el ref local puede estar detrás de origin
-
-
-def git(root, *args):
-    return subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
-
-
-def del_ref(ref):
-    """Archivos que existen en `ref`, como `alias/relpath`. Devuelve además los roots que NO se
-    pudieron consultar (para no contarlos como si estuvieran bien) y los refs viejos.
-
-    ⚠ CON EL DEFAULT, LA REF SE RESUELVE POR REPO Y NO ES EL LITERAL `main`. Acá abajo había un aviso
-    —«el ref main de X es de hace N días, puede estar detrás de origin»— que describía el problema sin
-    resolverlo: el `main` local de un clon que nadie actualiza va detrás del remoto, y un `ls-tree` ahí
-    devuelve MENOS archivos, con lo cual una ruta recién mergeada se reporta **DROP**. Ése es el peor
-    veredicto que puede dar el oráculo, porque manda a borrar de un nodo una cita que sí existe.
-
-    `ref_a_indexar` elige, por repo, la ref que CONTIENE a la otra: `origin/main` donde el local va
-    detrás, y `main` en `harness`/`trazador`, que viven en playground y van ADELANTE de su origin a
-    propósito. No hace fetch — el aviso de rancio se queda justamente para eso.
-
-    ⚠ Un `--ref` explícito NO se toca: si alguien pide `qa`, quiere `qa`.
-    """
-    have, sin_verificar, viejos = set(), [], []
-    auto = ref is None
-    for alias, root in ROOTS.items():
-        if not os.path.isdir(root):
-            sin_verificar.append((alias, "el directorio no existe"))
-            continue
-        if auto:
-            ref, _ = ref_a_indexar(root)
-            if ref is None:
-                sin_verificar.append((alias, "no existe ni `main` ni `origin/main`"))
-                ref = None
-                continue
-        # sin --full-name A PROPÓSITO: las rutas vienen relativas al DIRECTORIO consultado, que es
-        # exactamente el `relpath` con el que el índice arma `alias/relpath`. Por eso `harness`,
-        # que es un subdirectorio de playground y no un repo propio, funciona sin caso especial.
-        r = git(root, "ls-tree", "-r", ref, "--name-only")
-        if r.returncode != 0:
-            motivo = r.stderr.strip().splitlines()[-1] if r.stderr.strip() else "falló git ls-tree"
-            sin_verificar.append((alias, f"no se pudo leer `{ref}`: {motivo}"))
-            continue
-        for ruta in r.stdout.splitlines():
-            if os.path.splitext(ruta)[1] in EXTS:
-                have.add(f"{alias}/{ruta}")
-        # ¿qué tan viejo es ese ref acá? NO se hace fetch (sería tocar la red por debajo): se avisa.
-        f = git(root, "log", "-1", "--format=%ct", ref)
-        if f.returncode == 0 and f.stdout.strip().isdigit():
-            edad = datetime.now(timezone.utc) - datetime.fromtimestamp(int(f.stdout.strip()), timezone.utc)
-            if edad.days >= DIAS_RANCIO:
-                # La ref se guarda con el alias: con el default cada repo puede haber resuelto una
-                # distinta, y un aviso que nombra «main» cuando se miró `origin/main` desorienta.
-                viejos.append((alias, edad.days, ref))
-        if auto:
-            ref = None
-    return have, sin_verificar, viejos
 
 
 def del_indice():

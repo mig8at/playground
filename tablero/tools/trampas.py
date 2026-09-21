@@ -20,10 +20,11 @@ LOS DOS CHEQUEOS, y cada uno nació de un error medido:
    archivo entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano. Medido
    el 2026-09-21: 9 de 239 hallazgos estaban fuera del índice de síntomas, justamente los últimos
    agregados. Para quien entra por la puerta no existían, y su ausencia se lee «no nos pasó».
-2. **Las citas `archivo:línea` se corren.** Se validan con el mismo motor que el árbol
-   (`context/tools/refs.py`), que sabe leer los repos y anclar por contenido. ⚠ Ese motor vive en
-   `context/`, que está en camino de apagarse: el día que se borre hay que traerlo acá. Mientras
-   tanto se importa, que es mejor que tener dos copias.
+2. **Las citas `archivo:línea` se corren.** Se validan con `citas.py`, acá al lado: lee los repos y
+   ancla por CONTENIDO —guarda el texto que tenía la línea el día que se afirmó y lo busca en `main`
+   hoy—, así que sigue renombres y no se deja engañar por un archivo que ganó un import arriba. Ese
+   motor vivía en `context/tools/refs.py` y se mudó con las trampas el 2026-09-21: es el mismo
+   archivo, no una copia.
 
 USO
     trampas.py            los dos chequeos
@@ -38,7 +39,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]          # playground/
 DOC = RAIZ / 'tablero' / 'data' / 'trampas' / 'doc.md'
-REFS = RAIZ / 'context' / 'tools' / 'refs.py'
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 ANCLA = re.compile(r"^### (F-\d+)")
 INDICE = re.compile(r"^## (Índice[^\n]*)")
@@ -69,30 +70,51 @@ def revisar_indice():
 
 
 def revisar_citas():
-    """Reusa el validador del árbol mientras exista; si no está, lo dice en vez de callarlo."""
-    if not REFS.is_file():
-        return ["  ⚠ no se pudieron validar las citas: falta context/tools/refs.py. "
-                "Si `context/` se apagó, hay que traer ese motor acá (ver el encabezado)."]
-    r = subprocess.run([sys.executable, str(REFS), '--extra', str(DOC)],
-                       capture_output=True, text=True, cwd=REFS.parent)
-    salida = (r.stdout or '') + (r.stderr or '')
-    malas = [l for l in salida.splitlines() if re.search(r'⚠ \d+ (movidas|reescritas|fuera)', l)]
-    resumen = next((l for l in salida.splitlines() if 'referencias ·' in l), None)
-    return [f"  {resumen.strip()}"] if resumen else ["  ⚠ el validador no devolvió resumen"]
+    """Las citas `archivo:línea` del documento, contra `main`. Devuelve `(salida, líneas)`.
+
+    ⚠ HASTA EL 2026-09-21 ESTE CHEQUEO NO PODÍA PONERSE EN ROJO. Filtraba las líneas del validador
+    que anunciaban movidas o reescritas… y guardaba el resultado en una variable que no leía nadie:
+    imprimía el resumen y devolvía 0 igual. O sea que una cita corrida salía en pantalla y `make
+    trampas` seguía dando verde, que es exactamente el falso verde que el otro chequeo existe para
+    no dar. Ahora el balde roto decide la salida, y se listan las primeras para poder arreglarlas
+    sin volver a correr nada.
+    """
+    try:
+        from citas import revisar
+    except ImportError as e:
+        return 1, [f"  ⚠ no se pudieron validar las citas: falta tablero/tools/citas.py ({e})"]
+
+    baldes, _ = revisar([str(DOC)])
+    tot = sum(len(v) for v in baldes.values())
+    lineas = [f"  {tot} citas · ✓ {len(baldes['ok'])} ancladas · · {len(baldes['sin-ancla'])} sin ancla"
+              f" · ? {len(baldes['no-existe'])} no existen en main"]
+
+    rotas = [(k, baldes[k]) for k in ("movida", "reescrita", "fuera") if baldes[k]]
+    if not rotas:
+        return 0, lineas
+    lineas.append("")
+    lineas.append("  ✗ citas que ya no apuntan a lo que dicen:")
+    for _, items in rotas:
+        for donde, cita, nota in sorted(items)[:8]:
+            lineas.append(f"    {donde:22s} {cita:54s} {nota}")
+    lineas.append(f"  → todas: python3 {Path('tablero/tools/citas.py')} {DOC.relative_to(RAIZ)}")
+    return 1, lineas
 
 
 def main():
     total, fallas = revisar_indice()
     print(f"\n  TRAMPAS · {total} con ancla en {DOC.relative_to(RAIZ)}\n")
+    salida = 0
     if '--indice' not in sys.argv:
-        for l in revisar_citas():
+        salida, lineas = revisar_citas()
+        for l in lineas:
             print(l)
     if fallas:
         print("\n✗ el índice no está completo — una trampa fuera de la puerta se lee como «no nos pasó»:\n")
         print('\n'.join(fallas))
         return 1
     print("  ✓ índice completo: toda trampa con ancla está citada, y ninguna cita apunta al vacío")
-    return 0
+    return salida
 
 
 if __name__ == '__main__':

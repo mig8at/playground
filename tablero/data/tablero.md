@@ -4,7 +4,7 @@ title: "Tablero"
 clase: proyecto
 stage: work
 created: "2026-09-14T21:40:00-05:00"
-context_nodes: []
+canon: []
 jira: []
 jira_title: ""
 ---

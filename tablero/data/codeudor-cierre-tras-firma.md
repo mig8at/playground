@@ -4,7 +4,7 @@ title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con
 ramas: cosigner-signature-success, motai/flujo-codeudor
 stage: work
 created: "2026-07-27T12:13:57-05:00"
-context_nodes: [formalization, creditopx]
+canon: [formalizacion, creditopx]
 jira: [CORE-317]
 jira_title: "Codeudor: confirmación propia al terminar la firma"
 ---

@@ -4,7 +4,7 @@ title: "Bancolombia · el código de compra lo emite el banco (reemplazo de la A
 ramas: bancolombia-billing-code
 stage: work
 created: "2026-07-31T17:13:02-05:00"
-context_nodes: [bancolombia, corbeta]
+canon: [bancolombia]
 jira: [CORE-19]
 jira_title: ""
 ---

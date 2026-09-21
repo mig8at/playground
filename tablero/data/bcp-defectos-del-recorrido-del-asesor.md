@@ -4,7 +4,7 @@ title: "BCP: tres defectos del recorrido del asesor"
 ramas: bcp-gate-y-productos, bcp-productos-del-payload, no-retomar-solicitud-cerrada
 stage: work
 created: "2026-09-09T08:12:00-05:00"
-context_nodes: [entities, hardcodes-entidades, aggregator, onboarding, merchants, dynamic-forms]
+canon: [altas, listado, arquitectura, onboarding, formularios]
 jira: [CORE-548]
 jira_title: "BCP: tres defectos del recorrido del asesor"
 ---

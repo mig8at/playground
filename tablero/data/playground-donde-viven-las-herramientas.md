@@ -3,7 +3,7 @@ id: 48
 title: "playground: el lugar donde viven las herramientas internas"
 stage: work
 created: "2026-08-13T16:00:18-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-421]
 jira_title: "Dónde publicar las herramientas internas del equipo"
 ---

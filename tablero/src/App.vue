@@ -13,6 +13,7 @@ import { vResize, refreshResizers } from './workbench.js';
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import TaskGuidance from './TaskGuidance.vue';
+import TaskResume from './TaskResume.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
@@ -411,6 +412,8 @@ const protosDe = (key) => artifactsOf(esfuerzoDe(key));
 // No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
 // tabla y su selector de repos EXCLUSIVAMENTE de la tarea enfocada; nunca muestra el inventario global.
 const ramasSnap = ref({ medidoEn: '', tareas: {} });
+const refrescandoRamas = ref(false);
+const errorRamas = ref('');
 async function cargarRamas() {
   try { ramasSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
   catch { /* sin snapshot todavía: la card lo dice, no es un error */ }
@@ -422,6 +425,22 @@ const ramasDe = (key) => {
 const ramasTareaActiva = computed(() => active.value ? (ramasDe(active.value.Key) || {
   patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '',
 }) : { patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '' });
+async function refrescarRamas() {
+  const effortId = active.value ? esfuerzoDe(active.value.Key) : 0;
+  if (!effortId || refrescandoRamas.value) return;
+  refrescandoRamas.value = true;
+  errorRamas.value = '';
+  try {
+    const respuesta = await fetch(`${SERVER}/api/ramas/refresh?id=${encodeURIComponent(effortId)}`, { method: 'POST' });
+    const snapshot = await respuesta.json();
+    if (!respuesta.ok || snapshot.error) throw new Error(snapshot.error || 'no se pudo actualizar las ramas');
+    ramasSnap.value = snapshot || { tareas: {} };
+  } catch (err) {
+    errorRamas.value = err instanceof Error ? err.message : 'no se pudo actualizar las ramas';
+  } finally {
+    refrescandoRamas.value = false;
+  }
+}
 
 // ── derivados del sprint ────────────────────────────────────────────────────────────────────────
 const done = computed(() => issues.value.filter(i => i.StatusCategory === 'done').length);
@@ -633,7 +652,21 @@ function irASeccion(id) {
   section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-const contextLink = (node) => 'http://localhost:5193/?node=' + encodeURIComponent(node);
+// ⚠ Canon todavía no tiene enlace por tema: su UI no lee la URL. Así que esto abre canon y el nombre
+// del tema queda en el texto del chip y en su title — decirlo es mejor que armar un `?tema=` que el
+// front ignora y deja al que hace clic buscando por qué no pasó nada.
+const CANON_URL = 'https://canon.playground.creditop.com';
+const canonLink = () => CANON_URL;
+const HARNESS_URL = 'http://localhost:5195';
+const TRAZADOR_URL = 'http://localhost:5192';
+
+// RETOMAR no es otro resumen del documento: junta los indicadores ya derivados para dejar claro qué
+// se sabe, con qué se comprobó y dónde se continúa. La evidencia se ordena por fecha, no por lugar en
+// la prosa: una tarea puede contar primero el antecedente y luego la comprobación más reciente.
+const temasDeRetoma = computed(() => (active.value ? effortDe(active.value.Key)?.temasCanon || '' : '')
+  .split(',').map(node => node.trim()).filter(Boolean));
+const evidenciaDeRetoma = computed(() => active.value ? hallazgosDe(active.value.Key) : []);
+const fuentesDeRetoma = computed(() => [...new Set(evidenciaDeRetoma.value.flatMap(item => item.fuentes || []))]);
 
 // ── ORIENTACIÓN JEV ─────────────────────────────────────────────────────────────────────────────
 // Es un acto EXPLÍCITO: abrir la franja no llama a nadie; «Analizar con Jev» es el consentimiento
@@ -701,7 +734,7 @@ async function copiarOrientacionJev() {
 // de código, que es justo lo que uno quiere compartir de estos cuerpos.
 //
 // Y va con encabezado: pegado suelto, este texto empieza en «## Si retomás esto sin contexto» y quien
-// lo recibe no sabe de qué tarea es. Se le antepone la clave, el título y los nodos de contexto para
+// lo recibe no sabe de qué tarea es. Se le antepone la clave, el título y los temas de canon para
 // que sea autosuficiente — más la advertencia de que es PRIVADO, porque lo es: nombra repos, rutas y
 // F-xx, y no pasa el guard de Jira. La decisión de compartirlo es de quien copia; que salga sin el
 // aviso, no.
@@ -784,13 +817,13 @@ function textoParaCompartir(modo) {
   let cuerpo = cuerpoDe(i.Key);
   if (!cuerpo) return '';
   if (modo === 'compartir') cuerpo = cortarParaCompartir(cuerpo);
-  const nodos = (e?.contextNodes || '').split(',').map(s => s.trim()).filter(Boolean);
+  const temas = (e?.temasCanon || '').split(',').map(s => s.trim()).filter(Boolean);
   // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
   // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
-  // la línea opcional de nodos se decide al armar el arreglo y no con un `.filter` de vacíos
+  // la línea opcional de temas se decide al armar el arreglo y no con un `.filter` de vacíos
   // después — ese filtro se comía también los separadores, que es justo el bug que tenía esto.
   const cita = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
-  if (nodos.length) cita.push(`> Nodos de contexto: ${nodos.join(', ')}.`);
+  if (temas.length) cita.push(`> Temas de canon: ${temas.join(', ')}.`);
   // Decir QUÉ se recortó, y no sólo que se recortó: quien lo recibe tiene que poder pedir lo que falta.
   if (modo === 'compartir') cita.push('> Recortado para compartir: sin el registro de trabajo, sin «cómo se comprueba» y sin los comandos de reproducción.');
   cita.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
@@ -902,8 +935,9 @@ function alternarConsolaRamas() {
 /* ── LAS PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────────────────────
  * Las vistas de consulta de UNA tarea comparten todo el alto de la región. Con acordeón, seis
  * encabezados le quitaban espacio a Jira y la descripción terminaba dentro de una tarjeta pequeña;
- * las pestañas dejan un solo riel compacto y un cuerpo continuo. */
-const vistaAuxActiva = ref('jira');
+ * las pestañas dejan un solo riel compacto y un cuerpo continuo. `Retomar` abre primero: es la
+ * señal operativa local para volver al trabajo, antes de consultar las fuentes de detalle. */
+const vistaAuxActiva = ref('retomar');
 const abiertaAux = (id) => vistaAuxActiva.value === id;
 function alternarAux(id) { vistaAuxActiva.value = id; }
 const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'));
@@ -998,6 +1032,7 @@ const pestanasAbiertas = computed(() =>
   pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
 
 function openTask(task, fijar = false) {
+  const cambioDeTarea = active.value?.Key !== task.Key;
   const ya = pestanas.value.some((t) => t.Key === task.Key);
   if (!ya) {
     pestanas.value = previa.value && !fijar
@@ -1008,6 +1043,7 @@ function openTask(task, fijar = false) {
     previa.value = '';
   }
   active.value = task;
+  if (cambioDeTarea) vistaAuxActiva.value = 'retomar';
 }
 function cerrarPestana(k) {
   const i = pestanas.value.findIndex((t) => t.Key === k);
@@ -1019,6 +1055,7 @@ function cerrarPestana(k) {
   if (active.value?.Key === k) {
     const sig = pestanas.value[i] || pestanas.value[i - 1] || null;
     active.value = sig || null;
+    if (sig) vistaAuxActiva.value = 'retomar';
   }
 }
 
@@ -1169,6 +1206,7 @@ const taskTabs = computed(() => {
   const key = active.value?.Key;
   return [
     { id: 'trabajo', label: 'Trabajo' },
+    { id: 'retomar', label: 'Retomar' },
     { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
     { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
@@ -1180,7 +1218,7 @@ const taskTabs = computed(() => {
   ];
 });
 watch(vistasAux, (vistas) => {
-  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'jira';
+  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'retomar';
 });
 const cerrarConEsc = (e) => { if (e.key === 'Escape' && menuTarea.value) cerrarMenuTarea(true); };
 const cerrarMenuTareaAfuera = (e) => {
@@ -1869,12 +1907,6 @@ function documentAction(id) {
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
             </div>
-            <div v-if="effortDe(active.Key)?.contextNodes" class="task-head-context">
-              <strong>Contexto local:</strong>
-              <a v-for="n in effortDe(active.Key).contextNodes.split(',').map(x => x.trim()).filter(Boolean)"
-                 :key="n" class="badge badge-outline ctx-link" :href="contextLink(n)" target="_blank" rel="noopener"
-                 :title="`Abrir ${n} en context/ · requiere make context`">{{ n }} ↗</a>
-            </div>
             <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
                           :loading="jevBusy" :error="jevError" @start="orientarConJev"
                           @close="cerrarOrientacion" @copy="copiarOrientacionJev" />
@@ -1906,8 +1938,6 @@ function documentAction(id) {
           </div>
         </template>
 
-        <!-- Sólo las secciones principales: el Registro puede tener cientos de entradas y no debe
-             convertir el índice de retoma en una lista cronológica. -->
         <nav v-if="indiceCuerpo.length > 2" class="toc">
           <button v-for="h in indiceCuerpo" :key="h.id" class="badge badge-outline toc-i"
                   @click="irASeccion(h.id)">{{ h.title }}</button>
@@ -2108,11 +2138,13 @@ function documentAction(id) {
              :class="{ 'sin-ramas': !ramasTareaActiva.ramas.length }"
              :style="{ height: (ramasTareaActiva.ramas.length ? altoConsolaRamas : 76) + 'px' }">
       <div v-if="ramasTareaActiva.ramas.length" class="rsz rsz-panel" v-resize="ramasPanelResize"></div>
-      <RepoBranches :snapshot="ramasTareaActiva" :task-label="active?.Summary || ''" @close="ocultarConsolaRamas" />
+      <RepoBranches :snapshot="ramasTareaActiva" :task-label="active?.Summary || ''"
+                    :refreshing="refrescandoRamas" :refresh-error="errorRamas"
+                    @refresh="refrescarRamas" @close="ocultarConsolaRamas" />
     </section>
 
-    <!-- AUXILIARYBAR · una pestaña usa todo el alto disponible. Jira queda como vista inicial porque
-         es la fuente externa completa; las otras pestañas son lecturas derivadas del trabajo local. -->
+    <!-- AUXILIARYBAR · una pestaña usa todo el alto disponible. Retomar abre la tarea desde el
+         trabajo local; las demás pestañas aportan sus fuentes y registros de detalle. -->
     <aside id="task-views" v-if="mostrarAux" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
@@ -2130,6 +2162,13 @@ function documentAction(id) {
         <section v-if="abiertaAux(v.id)" class="region-body aux-vista aux-tab-panel"
                  :class="{ 'jira-tab-panel': v.id === 'jira' }"
                  role="tabpanel" :id="'aux-panel-' + v.id" :aria-labelledby="'aux-tab-' + v.id">
+          <template v-if="v.id === 'retomar'">
+            <TaskResume :next-step="effortDe(active.Key)?.proximoPaso || ''" :temas-canon="temasDeRetoma"
+                        :evidence="evidenciaDeRetoma" :tool-sources="fuentesDeRetoma"
+                        :branches="ramasTareaActiva" :canon-link="canonLink"
+                        :harness-url="HARNESS_URL" :trazador-url="TRAZADOR_URL"
+                        @show-branches="mostrarPanelRamas" />
+          </template>
           <template v-if="v.id === 'jira'">
             <p v-if="active._local" class="nota">Esta tarea es local y todavía no está publicada en Jira.</p>
             <template v-else>

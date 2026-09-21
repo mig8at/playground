@@ -4,7 +4,7 @@ title: "No se pobla la clasificacion de persona  publicamente expuesta."
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-175]
 jira_title: "No se pobla la clasificacion de persona  publicamente expuesta."
 ---

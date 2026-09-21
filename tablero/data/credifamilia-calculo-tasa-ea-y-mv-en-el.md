@@ -4,7 +4,7 @@ title: "CREDIFAMILIA - Calculo tasa EA y MV en el voucher"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-165]
 jira_title: "CREDIFAMILIA - Calculo tasa EA y MV en el voucher"
 ---

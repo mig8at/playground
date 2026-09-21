@@ -3,7 +3,7 @@ id: 45
 title: "Cuotéalo BCP (Perú) — acoplar la entidad al flujo y hacerla administrable"
 stage: work
 created: "2026-08-10T09:00:00-05:00"
-context_nodes: [entities, hardcodes-entidades, aggregator, ecommerce, onboarding, merchants, negocio, payments, dynamic-forms]
+canon: [altas, listado, arquitectura, fronteras, onboarding, negocio, cuota, formularios]
 jira: [CORE-399]
 jira_title: "Estructurar BCP para el flujo de registro"
 ---

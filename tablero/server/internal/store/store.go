@@ -10,7 +10,7 @@
 // por cmd/tareas. Así `ls data/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
 //	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
-//	frontmatter             id · title · stage · created · archived? · context_nodes[] · jira[] · jira_title · ramas?
+//	frontmatter             id · title · stage · created · archived? · canon[] · jira[] · jira_title · ramas?
 //	cuerpo                  las notas técnicas: PRIVADO, puede nombrar repos y rutas
 //	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
 //
@@ -285,9 +285,9 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 		Stage:           fm["stage"],
 		Clase:           fm["clase"],
 		CreatedAt:       fm["created"],
-		// el struct expone los nodos como cadena separada por comas (así lo consume la UI);
+		// el struct expone los temas como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
-		ContextNodes: strings.Join(listaYAML(fm["context_nodes"]), ","),
+		TemasCanon: strings.Join(listaYAML(fm["canon"]), ","),
 		RamasPatron:  fm["ramas"],
 	}
 	if e.Stage == "" {
@@ -676,9 +676,9 @@ type Effort struct {
 	// describe el estado actual: lee la misma retoma y el mismo próximo paso que se usan en consola.
 	Retoma      string `json:"retoma"`
 	ProximoPaso string `json:"proximoPaso"`
-	// slugs de los nodos de contexto que toca, separados por coma (el mapa del código vive allá).
+	// slugs de los temas de canon que toca, separados por coma (el corpus compartido vive en otro repo).
 	// En el archivo son una lista YAML; acá van como cadena porque así lo consume la UI.
-	ContextNodes string `json:"contextNodes"`
+	TemasCanon string `json:"canon"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
@@ -873,7 +873,7 @@ func (s *Store) ImportarDeJira(in ImportIssue) (Effort, bool, error) {
 	e := s.nuevoEffort(in.Summary, "tasks")
 	e.JiraTitle = in.Summary
 	e.TechNotes = in.Body
-	e.ContextNodes = in.Nodes
+	e.TemasCanon = in.Nodes
 	*s.buscar(e.ID) = e
 	if in.Closed {
 		s.archived[e.ID] = time.Now().Format(time.RFC3339)
@@ -944,15 +944,15 @@ func (s *Store) SetEffortStage(id int64, stage string) error {
 	return s.mutar(id, func(e *Effort) { e.Stage = stage })
 }
 
-// SaveEffortTech guarda el detalle técnico privado y/o los nodos de contexto. Recibe PUNTEROS: nil = "no
+// SaveEffortTech guarda el detalle técnico privado y/o los temas de canon. Recibe PUNTEROS: nil = "no
 // lo toques". Sin eso, guardar un solo campo borraba el otro (ya pasó una vez).
-func (s *Store) SaveEffortTech(id int64, techNotes, contextNodes *string) error {
+func (s *Store) SaveEffortTech(id int64, techNotes, temasCanon *string) error {
 	return s.mutar(id, func(e *Effort) {
 		if techNotes != nil {
 			e.TechNotes = *techNotes
 		}
-		if contextNodes != nil {
-			e.ContextNodes = *contextNodes
+		if temasCanon != nil {
+			e.TemasCanon = *temasCanon
 		}
 	})
 }
@@ -1018,7 +1018,7 @@ func (s *Store) escribirEffort(id int64) error {
 	if a := s.archived[id]; a != "" {
 		fmt.Fprintf(&b, "archived: %s\n", escYAML(a))
 	}
-	fmt.Fprintf(&b, "context_nodes: [%s]\n", strings.Join(listaYAML(e.ContextNodes), ", "))
+	fmt.Fprintf(&b, "canon: [%s]\n", strings.Join(listaYAML(e.TemasCanon), ", "))
 	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(claves, ", "))
 	fmt.Fprintf(&b, "jira_title: %s\n", escYAML(e.JiraTitle))
 	// Sólo si hay patrón: una tarea que no toca código no debería cargar una clave vacía.

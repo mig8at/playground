@@ -3,7 +3,7 @@ id: 73
 title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 stage: work
 created: "2026-09-04T09:00:00-05:00"
-context_nodes: [merchants, onboarding, architecture]
+canon: [altas, onboarding, arquitectura]
 jira: [CORE-516]
 jira_title: "Cargar en producción el catálogo de ciudades de RD y Perú"
 ramas: "fix/sucursales-rd-apuntan-a-ciudades-de-colombia"

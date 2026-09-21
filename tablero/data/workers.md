@@ -4,7 +4,7 @@ title: "Workers"
 clase: proyecto
 stage: evaluation
 created: "2026-09-19T14:55:00-05:00"
-context_nodes: [architecture, findings]
+canon: [arquitectura]
 jira: []
 jira_title: ""
 ---

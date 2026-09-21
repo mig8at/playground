@@ -3,7 +3,7 @@ id: 4
 title: "Omitir consulta de buró cuando el cupo ya está confirmado (backend: Jose)"
 stage: tasks
 created: "2026-07-21T09:54:56-05:00"
-context_nodes: [onboarding, kyc]
+canon: [onboarding, kyc]
 jira: [CORE-293]
 jira_title: "Confirmación de cupo: omitir la consulta al buró cuando el cliente ya tiene cupo aprobado"
 ---

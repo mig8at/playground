@@ -4,7 +4,7 @@ title: "Revisar valor quemado en documento Autorizacion de desmebolsos"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-192]
 jira_title: "Revisar valor quemado en documento Autorizacion de desmebolsos"
 ---

@@ -44,8 +44,11 @@ type Tarea struct {
 	Clase    string   `json:"clase,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
 	Archived bool     `json:"archived"`
 	Jira     []string `json:"jira,omitempty"`
-	Nodos    []string `json:"context_nodes,omitempty"`
-	Archivo  string   `json:"archivo"`
+	Nodos    []string `json:"canon,omitempty"`
+	// NodosViejos es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
+	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
+	NodosViejos []string `json:"-"`
+	Archivo     string   `json:"archivo"`
 }
 
 // DocumentoJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
@@ -246,8 +249,14 @@ func leer(ruta string) (Tarea, string, error) {
 			t.Archived = v != "" && v != "false" && v != "null"
 		case strings.HasPrefix(l, "jira:"):
 			t.Jira = lista(l)
-		case strings.HasPrefix(l, "context_nodes:"):
+		case strings.HasPrefix(l, "canon:"):
 			t.Nodos = lista(l)
+		case strings.HasPrefix(l, "context_nodes:"):
+			// El campo se renombró el 2026-09-21, cuando el árbol de `context/` empezó a apagarse y su
+			// contenido pasó a canon. Se sigue LEYENDO para poder decirlo: si se ignorara, una tarea
+			// vieja perdería sus temas en silencio y el tablero mostraría «no declara ninguno», que es
+			// indistinguible de una tarea que de verdad no declara nada.
+			t.NodosViejos = lista(l)
 		}
 	}
 	return t, partes[2], nil
@@ -316,10 +325,24 @@ func verLint(ruta string) int {
 			falla("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
 		}
 	}
-	// nodos de context: existen como carpeta del árbol, o mandan a leer algo que no está
-	for _, n := range t.Nodos {
-		if _, err := os.Stat(filepath.Join(dirContext(), n)); err != nil {
-			falla("context_nodes: el nodo «%s» no existe en context/server/data/flows/", n)
+	// temas de canon: existen como carpeta del corpus, o mandan a leer algo que no está
+	if len(t.NodosViejos) > 0 {
+		falla("`context_nodes:` se renombró a `canon:` el 2026-09-21 — y sus valores son TEMAS de canon, "+
+			"no nodos del árbol viejo (esta tarea todavía dice: %s)", strings.Join(t.NodosViejos, ", "))
+	}
+	if dir := dirCanon(); dir == "" {
+		// sin corpus no se valida, pero se dice: un chequeo que no supo buscar y calla es peor que no
+		// tenerlo (es la misma lección del grep que no entendía `\s`, en el CLAUDE.md raíz).
+	} else if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		if len(t.Nodos) > 0 {
+			fmt.Fprintf(os.Stderr, "  ⚠ no validé los temas de `canon:` — no encontré el corpus en %s "+
+				"(cloná github/playground o pasá CANON_CONTENIDO)\n", dir)
+		}
+	} else {
+		for _, n := range t.Nodos {
+			if _, err := os.Stat(filepath.Join(dir, n)); err != nil {
+				falla("canon: el tema «%s» no existe en %s", n, dir)
+			}
 		}
 	}
 	// la publicable pasa el guard: es lo único que sale a Jira
@@ -367,13 +390,22 @@ func maxID(ts []Tarea) int {
 	return m
 }
 
-func dirContext() string {
-	for _, d := range []string{"../../context/server/data/flows", "../context/server/data/flows", "context/server/data/flows"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
+// dirCanon es dónde vive el corpus compartido en disco. Se puede mover con `CANON_CONTENIDO`, el
+// mismo nombre que usan las otras herramientas que lo leen.
+//
+// ⚠ Si el corpus NO está, la validación de temas se SALTA en vez de fallar: canon vive en otro repo
+// (`github/playground`) y no todo el mundo que edita una tarea lo tiene clonado. Fallar ahí sería
+// bloquear el tablero por un repo ajeno; el precio es que un tema mal escrito pasa sin aviso en esa
+// máquina, y por eso `validarTemas` lo dice cuando decide saltar.
+func dirCanon() string {
+	if v := strings.TrimSpace(os.Getenv("CANON_CONTENIDO")); v != "" {
+		return v
 	}
-	return "../../context/server/data/flows"
+	casa, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(casa, "Desktop", "CREDITOP", "github", "playground", "tools", "canon", "content")
 }
 
 // avisos son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,

@@ -4,7 +4,7 @@ title: "Cambiar Reemplazar notificación de whatsapp por modal de mensaje para D
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [CORE-114]
 jira_title: "Cambiar Reemplazar notificación de whatsapp por modal de mensaje para Davivienda"
 ---

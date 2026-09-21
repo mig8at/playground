@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -161,6 +162,9 @@ type app struct {
 	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
 
 	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
+	// ramasRoot es el árbol de checkouts que se mide cuando la consola pide una actualización
+	// explícita. Coincide con el default de `make tareas-ramas`; abrir el tablero nunca ejecuta git.
+	ramasRoot string
 	// tableroRoot permite que la UI invoque el laboratorio Jev desde el mismo checkout, sin asumir
 	// desde qué directorio se levantó el proceso. No es otro servicio: es una invocación efímera y
 	// explícita de `tools/jev.py` al presionar «Analizar con Jev».
@@ -210,6 +214,7 @@ func main() {
 	}
 	a.st = st
 	a.dataDir = dataDir
+	a.ramasRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 	dataAbs, err := filepath.Abs(dataDir)
 	if err != nil {
 		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
@@ -340,17 +345,22 @@ func main() {
 		}
 	})
 
-	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide acá a
-	// propósito — son varias invocaciones de git por repo y hacerlo en cada render haría lenta la
-	// card. Por eso viaja con `medidoEn`: la card muestra la antigüedad y el humano decide si re-medir.
-	// Si no hay snapshot devuelve vacío, que no es un error: no haber medido todavía es normal.
+	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide al cargar
+	// porque son varias invocaciones de git por repo; la consola lo hace sólo cuando se pide
+	// explícitamente actualizar la tarea enfocada. Por eso viaja con `medidoEn`: la card muestra la
+	// antigüedad y el humano decide si re-medir. Si no hay snapshot devuelve vacío, que no es un error.
 	mux.HandleFunc("/api/ramas", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		if r.Method == http.MethodOptions {
 			return
 		}
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
 		json.NewEncoder(w).Encode(store.LeerSnapshotRamas(filepath.Join(a.dataDir, "cache")))
 	})
+	mux.HandleFunc("/api/ramas/refresh", a.refreshRamas)
 
 	// INVENTARIO local de repos y ramas para la consola de la tarea Context. Es otro contrato que
 	// `/api/ramas`: aquel liga ramas de entrega a una tarea mediante `ramas:`; éste describe todos los
@@ -409,7 +419,7 @@ func main() {
 				JiraTitle       *string `json:"jiraTitle"`
 				JiraDescription *string `json:"jiraDescription"`
 				TechNotes       *string `json:"techNotes"`    // privado: NO pasa por el guard
-				ContextNodes    *string `json:"contextNodes"` // slugs de nodos de contexto
+				TemasCanon    *string `json:"canon"` // slugs de nodos de contexto
 				Stage           *string `json:"stage"`        // evaluation | work | tasks
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
@@ -432,8 +442,8 @@ func main() {
 			}
 			// el detalle técnico es PRIVADO (nunca va a Jira) → sin guard. Los campos que no vengan
 			// quedan intactos (COALESCE en el store), así guardar uno no borra el otro.
-			if in.TechNotes != nil || in.ContextNodes != nil {
-				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.ContextNodes); err != nil {
+			if in.TechNotes != nil || in.TemasCanon != nil {
+				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.TemasCanon); err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 					return
@@ -1471,6 +1481,83 @@ func cors(w http.ResponseWriter) {
 	w.Header().Set("access-control-allow-origin", "*")
 	w.Header().Set("access-control-allow-methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("access-control-allow-headers", "content-type")
+}
+
+var ramasTaskIDRe = regexp.MustCompile(`^[1-9]\d*$`)
+
+// refreshRamas vuelve a medir UNA tarea desde la consola. Repite la semántica de
+// `make tareas-ramas N=<id>`: lee los refs que el último fetch dejó localmente y consulta los PRs si
+// `gh` está disponible, pero no hace fetch ni modifica ninguna rama. Medir sólo la tarea enfocada
+// mantiene esta acción interactiva y, al guardar, preserva las mediciones de las demás tareas.
+func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
+	cors(w)
+	if r.Method == http.MethodOptions {
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := r.URL.Query().Get("id")
+	if !ramasTaskIDRe.MatchString(id) {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "id de tarea inválido"})
+		return
+	}
+
+	efforts, err := a.st.Efforts()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "no pude leer las tareas: " + err.Error()})
+		return
+	}
+	var patron string
+	for _, effort := range efforts {
+		if strconv.FormatInt(effort.ID, 10) == id {
+			patron = effort.RamasPatron
+			break
+		}
+	}
+	if patron == "" {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{"error": "esta tarea no declara un patrón de ramas"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	defer cancel()
+	medido := store.MedirRamas(ctx, a.ramasRoot, map[string]string{id: patron}, nil)
+	if ctx.Err() != nil {
+		w.WriteHeader(http.StatusGatewayTimeout)
+		json.NewEncoder(w).Encode(map[string]string{"error": "la medición de ramas tardó demasiado; intentá de nuevo"})
+		return
+	}
+	actualizado, ok := medido.Tareas[id]
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "la medición no devolvió la tarea solicitada"})
+		return
+	}
+
+	cacheDir := filepath.Join(a.dataDir, "cache")
+	snapshot := store.LeerSnapshotRamas(cacheDir)
+	if snapshot.Tareas == nil {
+		snapshot.Tareas = map[string]store.RamasDeTarea{}
+	}
+	snapshot.MedidoEn = medido.MedidoEn
+	snapshot.Root = medido.Root
+	snapshot.Tareas[id] = actualizado
+	// Si esta tarea había quedado incompleta en una corrida anterior, ya no debe conservar esa marca.
+	snapshot.Incompletas = slices.DeleteFunc(snapshot.Incompletas, func(incompleta string) bool {
+		return incompleta == id
+	})
+	if err := store.GuardarSnapshotRamas(cacheDir, snapshot); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "no pude guardar la medición: " + err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(snapshot)
 }
 
 var jevTaskRefRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$`)

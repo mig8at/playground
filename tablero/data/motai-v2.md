@@ -4,7 +4,7 @@ title: "Motai v2 — des-motaización y TyC por comercio"
 ramas: motai-v2
 stage: tasks
 created: "2026-07-21T10:30:30-05:00"
-context_nodes: [motai, creditopx, merchants, dynamic-forms, kyc]
+canon: [motai, creditopx, altas, formularios, kyc]
 jira: [CORE-265, CORE-266, CORE-267, CORE-268]
 jira_title: ""
 ---

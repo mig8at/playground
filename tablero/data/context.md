@@ -4,7 +4,7 @@ title: "Context"
 clase: proyecto
 stage: work
 created: "2026-09-19T08:00:00-05:00"
-context_nodes: []
+canon: []
 ramas: canon/graduar-desde-context, canon/graduar-desde-context-2
 jira: []
 jira_title: ""
@@ -71,6 +71,56 @@ hace más difícil de revisar. Conviene abrirlo pronto.
 corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
+
+### 2026-09-21 · la desconexión, paso 1: las dos herramientas que dependían del árbol
+
+Antes de borrar nada hubo que **sacar de `context/` lo que tenía que sobrevivirlo**. Eran dos, y el
+orden importaba: borrar primero y arreglar después dejaba muda a `make trampas`, que es la más usada.
+
+**1 · El motor de citas se mudó al tablero.** `context/tools/refs.py` (500 líneas) validaba las
+`archivo:línea` anclando por CONTENIDO —guarda el texto que tenía la línea el día que se afirmó y lo
+busca en `main` hoy—, y de ahí lo consumía `make trampas` por subprocess. Hoy vive en
+`tablero/tools/citas.py`, autosuficiente: se llevó también la lista de repos, la resolución de la ref
+a mirar (la que CONTIENE a la otra) y el índice de «qué existe en main», que estaban repartidos entre
+`roots.py` y `oracle.py`. **No quedó ninguna copia:** `roots.py` pasó a ser un puente que re-exporta,
+`oracle.py` importa `del_ref` de ahí y `refs.py` quedó en 51 líneas que sólo recorren nodos. La vara
+de que el motor es el mismo: las trampas dan **exactamente** el mismo resultado que antes de mover
+—149 citas · 121 ancladas · 26 sin ancla · 1 que no existe—, y los cinco tests de `context/tools`
+siguen en verde.
+
+> **MEDICIÓN · 2026-09-21** — el chequeo de citas de `make trampas` **no podía ponerse en rojo**.
+> Filtraba las líneas del validador que anunciaban movidas o reescritas y guardaba el resultado en
+> una variable que no leía nadie: imprimía el resumen y devolvía 0 igual. Probado al revés moviendo
+> una cita buena (`pkg/asesor.ts:178` → `:900`): antes salía en pantalla y el comando daba verde;
+> ahora sale `✗ … tiene 371 líneas` y `make` devuelve error. Reproducible: `make trampas`.
+
+**2 · `make retomar BRIEF=1` dejó de pedirle la ficha a un modelo.** Hasta hoy la ficha de un nodo la
+generaba Jev sobre su `doc.md`: costaba una llamada, tardaba, y podía decir algo que el doc no dijera.
+Un tema de canon ya trae el resumen **escrito a mano** —`title`, `summary`, y el `objetivo` de cada
+área, que es literalmente «qué contesta esta parte»—, así que ahora la ficha se **deriva** de su
+`map.json`. Sale gratis, es instantánea, no puede inventar y funciona sin red y sin nada corriendo.
+
+> **MEDICIÓN · 2026-09-21** — sobre la tarea #4 (`canon: [onboarding, kyc]`): la retoma pesa 1.373 B
+> y con `BRIEF=1` 8.428 B, o sea que las dos fichas pesan **7.055 B contra 51.284 B** de los dos
+> `context.md` que evitan abrir — **7,3×**. La versión con modelo pesaba 5.074 B por una sola ficha.
+> Reproducible: `make retomar N=4 BRIEF=1`.
+
+**3 · El frontmatter dice `canon:`, no `context_nodes:`.** El campo cambió de significado, así que
+cambió de nombre: sus valores son temas del corpus compartido. Se migraron las **45 tareas** con un
+mapa nodo→tema derivado de los punteros que los propios nodos dejaron al graduar (`corbeta` →
+`bancolombia`, `deceval` → `formalizacion`, `servicing` → `cartera`, `merchants` → `altas`…) y, donde
+no había puntero, de la búsqueda de canon. La validación de `make tareas` ahora comprueba contra el
+corpus y **falla nombrando el campo viejo** si lo encuentra: ignorarlo en silencio habría hecho que
+una tarea perdiera sus temas sin que nadie lo notara. ⚠ Si el corpus no está clonado, la validación
+se SALTA y lo dice — canon vive en otro repo y bloquear el tablero por eso sería peor.
+
+⚠ **`findings` no tenía tema y no lo tiene:** las trampas del sistema son crónica y canon la rechaza
+por regla. Viven en `tablero/data/trampas/` desde hoy, que es de este repo, así que salieron del
+frontmatter de las seis tareas que las declaraban.
+
+**Lo que falta para poder borrar el árbol:** las 39 menciones a `context/` en las puertas
+(`CLAUDE.md` raíz 18 · `tablero/CLAUDE.md` 11 · README 5 · harness 2 · trazador 3), los 14 comandos
+`make context-*`, y recién ahí los 34 nodos.
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
 

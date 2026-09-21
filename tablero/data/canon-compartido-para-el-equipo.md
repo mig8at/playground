@@ -4,7 +4,7 @@ title: "Canon compartido: el conocimiento de negocio, publicado para el equipo y
 stage: work
 archived: "2026-09-07T08:10:00-05:00"
 created: "2026-08-25T12:00:00-05:00"
-context_nodes: [creditop, negocio, findings, architecture]
+canon: [negocio, arquitectura]
 jira: [CORE-530]
 ramas: canon/, feat/canon-limpieza-y-contexto-rico
 jira_title: "Consulta del conocimiento técnico y de negocio por API, con agente de búsqueda"

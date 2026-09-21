@@ -4,7 +4,7 @@ title: "SONRIA - En refactor no sale cuota en meddipay"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-context_nodes: []
+canon: []
 jira: [QC-2]
 jira_title: "SONRIA - En refactor no sale cuota en meddipay"
 ---
