@@ -406,6 +406,34 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 
 ## Registro
 
+### 2026-09-21 (6) · por qué el despliegue de `qa` sale ✔ y sirve código viejo: no espera
+
+Sigue en `false` a las **20:05Z**, después del redespliegue. Leyendo el pipeline apareció la causa, y
+un PR de relleno **no** la arregla.
+
+**Lo que el pipeline SÍ hace** (`main-qa.yaml` → `Creditop-SAS/config-ci/.github/workflows/deploy-ecs-service.yaml`):
+la imagen se etiqueta con el **SHA corto** (`git rev-parse --short HEAD` → `4f1852d`, que es `qa` HEAD
+y **contiene** el cambio), se sube a ECR, se renderiza una task definition nueva y se llama a
+`aws-actions/amazon-ecs-deploy-task-definition` con `service` y `cluster`. O sea que cada merge ya
+genera imagen nueva, revisión nueva y orden de actualización: **es exactamente lo que haría un PR de
+relleno.** Por eso no vale la pena — ese camino ya corrió dos veces hoy (13:48Z y 19:33Z).
+
+⛔ **Lo que NO hace, y es la causa: `wait-for-service-stability` no está puesto** (`deploy-task.yaml`,
+el paso «Deploy to Amazon ECS» pasa sólo `task-definition`, `service` y `cluster`). El valor por
+defecto es `false`, así que el workflow da ✔ **apenas ECS acepta la orden**, sin comprobar que la tarea
+nueva arranque. Si no arranca —health check, capacidad, crash al iniciar— ECS deja la vieja sirviendo,
+el despliegue queda IN_PROGRESS para siempre y **GitHub muestra verde**. Es lo que estamos viendo.
+
+**Qué mirar, y es de una sola pantalla:** servicio `legacy-backend-qa` en el cluster `inertia-develop`
+→ pestaña **Deployments** (si hay una PRIMARY en IN_PROGRESS con 0 running junto a una ACTIVE vieja) y
+**Events** (dice por qué la tarea nueva no queda arriba). El tag esperado en la tarea corriendo es
+`4f1852d`; el de #1441 solo era `63c931ac`.
+
+**Y la mejora durable, que no es de esta tarea pero nace de acá:** poner
+`wait-for-service-stability: true` en ese paso de `config-ci`. Sin eso, «desplegado» no significa nada
+— es la misma clase que las herramientas que devuelven menos y se leen como «no hay».
+
+
 ### 2026-09-21 (5) · redesplegar el FRONT no arregla nada: el que está viejo es el backend
 
 Miguel redesplegó el front y volvió a medirse a las **19:52Z**: el campo sigue editable
