@@ -74,6 +74,15 @@ eso: que revisen **#1441**.
 
 **Lo que quedó abierto al probar**
 
+- [ ] **El flag `is_ecommerce` del listado v2 está MUERTO y tiene dos consumidores más.** Sale del query
+      string y el front no lo manda (lo resuelve bien y lo tira al armar la URL). Además del candado del
+      monto —que ya no depende de él— lo usan `LenderListingService::getSteps()` (`:333`) y
+      `getAlliedBranch()` (`:148`), y los dos reciben `false` siempre. Las opciones son dos: que el
+      repositorio del front lo mande, o que el backend lo resuelva con
+      `EcommerceRequest::existsForUserRequest()` como ya hace el candado. Lo segundo es más robusto
+      —no depende de que el cliente se acuerde— pero **cambia qué pasos ve el comprador**, así que hay
+      que medir antes qué devuelve `getSteps` con `true`.
+
 - [ ] **Decidir con negocio con QUÉ MONTO se elige la banda de `creditop_x_conditions_by_amount_by_lender`.**
       Hoy el plan de pagos usa `user_requests.amount`, que viene inflado por el factor del plazo MÁXIMO
       porque el cliente todavía no eligió; el front usa `original_amount − initial_fee`. Con
@@ -91,9 +100,10 @@ eso: que revisen **#1441**.
       la aplica el listado.** Medido en prod: sólo 4 productos tienen `max_term` y suman **22** usos
       históricos, todos de «N sesiones». Es el mismo defecto con impacto casi nulo — se cierra con el
       mismo patrón cuando toque, no antes.
-- [ ] **Mergear #1441 cuando lo revisen** — ya está abierto contra `qa` (rama
-      `fix/listado-tramo-por-monto`, commit `9b956475`). Termina cuando el tramo por monto recorte la
-      tarjeta en `qa`; después viaja a `main` con la misma promoción que el resto.
+- [ ] **Mergear #1441 cuando lo revisen** — abierto contra `qa` (rama `fix/listado-tramo-por-monto`,
+      commits `9b956475` + `ef435701`). Lleva DOS cosas: el tramo por monto recortando la tarjeta y el
+      monto de la tienda bloqueado. Termina cuando las dos estén en `qa`; después viajan a `main` con
+      la misma promoción que el resto.
 
 - [ ] **El hueco de la credencial:** `$inPlatformContinueUrl` sólo se asigna en la rama `empty($credential)`,
       así que una entidad en plataforma **con** credencial nunca dispara el arreglo. Tres pares reales en la
@@ -370,6 +380,66 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 · el monto de la tienda queda cerrado — y el flag del canal estaba muerto
+
+**Lo que se pidió:** que en la pantalla de entidades del flujo de ecommerce el «Monto a solicitar» no
+se pueda editar. La compra ya existe cuando el comprador llega —hay fila en `ecommerce_requests` con
+su total—, así que un campo editable ahí ofrece cambiar algo que el resto del flujo no puede
+acompañar: el comercio recibe el veredicto de SU pedido, por el total que cobró, y el crédito quedaría
+por otro.
+
+**El mecanismo ya existía entero y no hacía falta código nuevo para bloquear:**
+`allied_branches.lock_amount` → `lenders-v2` (`alliedBranch.lock_amount`) → prop `lockAmount` en
+`AvailableLenders.tsx:772` → `locked` en `RequestAmountForm.tsx`, que ya usa `readOnly` (no `disabled`,
+a propósito: un input deshabilitado no dispara eventos y no habría forma de mostrarle el aviso) y ya
+trae el texto «Si deseas cambiar el monto, debes iniciar la solicitud desde el inicio».
+
+**Pero prender la columna en la sucursal 659 habría sido la respuesta equivocada**, y por eso fue
+código: `lock_amount` es una preferencia del PUNTO DE VENTA —existe para el mostrador con precio
+cerrado, hoy sólo la sucursal 2173 de BCP vehicular la tiene en 1— y esto no es una preferencia, es
+una propiedad del canal. Si se resolviera por dato, cada sucursal de ecommerce nueva nacería con el
+monto abierto hasta que alguien se acordara. La regla quedó en `OnboardingOrigin::locksAmount()`, al
+lado de `isCustomerPresent()`, y el canal es un **techo** sobre el flag: cierra lo que la sucursal dejó
+abierto, nunca abre lo que la sucursal cerró.
+
+⚠ **Y acá estaba lo caro, que es un flag MUERTO.** El primer intento colgó el candado de
+`$is_ecommerce`, el parámetro que ya recibe `getLenders`. No funciona: sale del **query string**
+(`LenderListingController::index:22`, `$request->query('is_ecommerce', false)`) y **el front no lo
+manda**. Lo resuelve bien —`available-lenders.tsx:133` pregunta por el vínculo con
+`getEcommerceContextByLoanRequest`, sin cookie, y el comentario dice «Antes iba `false` fijo»— y lo
+pone en el payload… pero `loan-options.repository.ts:35-36` arma la URL sólo con `?amount=`, así que el
+flag se cae en el camino.
+
+> **CORRIDA · 2026-09-21** — `make harness-caminar CASOS='#13874eb6' MONTO=1500000 FLOW=ecommerce` en
+> `local` (uReq 466863, atada al pedido 7045) y después
+> `GET /api/onboarding/loan-application/lenders-v2/466863?amount=1500000`: la respuesta trae
+> **`isEcommerce: false`** sobre una compra de tienda. Un candado colgado de ahí habría quedado apagado
+> para siempre y sin síntoma.
+
+La fuente que sí contesta es el vínculo persistido, `EcommerceRequest::existsForUserRequest()` —el
+mismo que usa `UserRequestService:742` y el que el docblock de `OnboardingOrigin` señala como «el que
+contesta de verdad»—, que además cubre las solicitudes recreadas (`original_user_request_id`) y la
+tabla puente.
+
+⚠ **Ese flag muerto alimenta DOS consumidores más** en el mismo servicio: `getSteps($is_ecommerce, …)`
+(`:333`) y `getAlliedBranch($is_ecommerce)` (`:148`). Los dos reciben `false` siempre. No se tocaron —
+cambiarles la conducta tiene su propio alcance— y quedan en Pendientes.
+
+**Verificado corriéndolo**, dos recorridos sobre la MISMA sucursal (659, columna `lock_amount = 0`),
+cambiando sólo el canal:
+
+| canal | uReq | `alliedBranch.lock_amount` | el campo |
+|---|---|---|---|
+| compra de tienda (pedido 7045) | 466863 | **`true`** | bloqueado |
+| autogestión, misma sucursal | 466864 | `false` | editable |
+
+**Entregado en el MISMO PR #1441** (commit `ef435701` sobre `9b956475`), por la regla nueva del
+`CLAUDE.md` raíz: un PR por tarea y por repo, con todo lo que la tarea toque de ese repo. Y la
+descripción del PR se reescribió para que no nombre ninguna herramienta interna —ni `harness`, ni
+`trazador`, ni comandos `make`—: eso vive acá, que es privado. Las dos reglas quedaron escritas en
+`CLAUDE.md` §Git.
+
 
 ### 2026-09-19 · el ticket de cuotas de ecommerce: ya estaba cerrado en `qa`, y abajo había otro más grande
 

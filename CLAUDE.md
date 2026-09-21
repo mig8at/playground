@@ -564,6 +564,19 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
   para sus mejoras. El push lo decide Miguel — no pushees por tu cuenta.
 - **Los repos reales** (`legacy-backend`, `frontend-monorepo`, `legacy-application`) trabajan en ramas y
   stashes locales. **No armes PRs ni pushees ahí sin pedir permiso explícito.**
+- **UN PR por tarea y por repo, con TODO lo que la tarea toque de ese repo.** No un PR por cambio ni
+  por concern: si mientras arreglás algo aparece otra cosa de la misma tarea y del mismo repo, va en el
+  MISMO PR. Ya se decidió una vez —2026-09-14, se cerró el #998 dentro del #997— y el motivo es el
+  costo de revisión: cinco PRs chicos de la misma tarea se revisan cinco veces y se mergean en cinco
+  momentos distintos, así que `main` pasa por estados que nadie probó. La única división que se
+  mantiene es **por repo**, porque un PR no puede cruzarlos.
+- ⛔ **La descripción de un PR NO nombra las herramientas internas.** Nada de `harness`, `trazador`,
+  `tablero`, `context`, `workers`, `playground` ni sus comandos `make`: el PR lo leen personas que no
+  tienen ese repo y para quienes «corrí `make harness-caminar`» no es evidencia, es ruido. Lo que va en
+  el PR es **qué se midió y qué dio** —el ambiente, el caso, los números, el antes y el después— y las
+  rutas del repo que se está tocando. El comando que lo reproduce va en el archivo de la tarea, que es
+  privado y donde sí se puede nombrar todo. Misma regla que la bitácora, que sube a Jira y tiene su
+  propio guard.
 
 ## Entorno local
 
