@@ -87,6 +87,13 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**PR #267: diez reglas, canon en 421 secciones.** La última —que los criterios de garantía y los
+medios de pago son de la entidad y no del comercio donde se editan, así que un comercio le pisa la
+configuración a los demás— **fue RECHAZADA en el primer intento, y por una razón que vale más que la
+regla**: con ese título, la pregunta «desactivé un comercio y los asesores quedaron sin acceso»
+dejaba de encontrar su respuesta. Canon mide eso **antes** de dejar escribir y devuelve qué pregunta
+se rompería. Prosa nueva compite con todo el corpus; cambiar el título alcanzó.
+
 **PR #267: nueve reglas, canon en 420 secciones** — se sumaron las cuatro capas de error del pagaré
 (donde la distinción que más ahorra tiempo es que un rechazo de seguridad y uno de negocio se ven
 igual desde afuera) y que el método de firma es configuración con excepción explícita, no default

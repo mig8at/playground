@@ -7,7 +7,13 @@ Los **comercios/merchants** aliados (`allieds`) y sus **sucursales** (`allied_br
 El nodo se documentó **leyendo código** (no hay doc fuente). La verdad estructural es más flaca de lo que sugiere el panel: **no existe herencia viva entre niveles**. Lo que el admin llama "configurar la entidad en la sucursal" es en realidad un **snapshot que se clona** al momento de habilitar, y a partir de ahí las dos copias viven vidas separadas.
 
 ## Antes de concluir
-- 🔴 **La pantalla «entidades del comercio» escribe DOS tablas que no son por comercio.**
+- **Las dos tablas que no son por comercio** → **GRADUÓ** (2026-09-21) a canon, `altas/context` §
+  «Los criterios de garantía y los medios de pago son de la entidad, no del punto donde se editan».
+  ⚠ **Y graduarla enseñó algo del corpus:** el primer título —«la pantalla del comercio… y los
+  comercios se pisan»— **fue RECHAZADO porque rompía el banco de preguntas**: con él, «desactivé un
+  comercio y los asesores quedaron sin acceso» dejaba de encontrar su respuesta. Prosa nueva compite
+  con todo el corpus, y la compuerta lo mide antes de dejar escribir. Cambiar el título alcanzó.
+- 🔴 *(evidencia)* **La pantalla «entidades del comercio» escribe DOS tablas que no son por comercio.**
   `lender_guarantee_criteria` y `payment_methods_by_lender` solo tienen `lender_id`, y el update las
   borra y recrea por lender: los comercios se pisan entre sí, y guardar un lender rt≠2 las borra sin
   reponerlas. El mapa completo de qué escribe cada pantalla está en **§9**; el hallazgo, en **F-127**.
