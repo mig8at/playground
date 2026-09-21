@@ -148,27 +148,13 @@ revés quedan las reglas sin clonar y la entidad lista a medias.
 
 **Y se está usando, no sólo desplegado.** Medido en prod el 2026-09-18: **13 snapshots** sobre **5 entidades** y **59 cambios** individuales, el último el 2026-09-16. Es poco volumen, pero es real: antes de esto un cambio de reglas no dejaba ninguna constancia de autor.
 
-### `LenderReadinessService` — «listo para operar» no es opinión
+### `LenderReadinessService` — GRADUÓ a canon
 
-Cinco chequeos, y **dos** pueden no bloquear:
-
-| # | chequeo | qué pasa si falta |
-|---|---|---|
-| 1 | **identidad** — `lenders.originator_nit` cargado | la pasarela rechaza los pagos |
-| 2 | **validación** — un proveedor ACTIVO en `order 1` | el flujo lanza excepción |
-| 3 | **pagos** — al menos un comercio con cuenta de Wompi lista | no se puede cobrar · ⚠ **salvo cobranza externa** (ver abajo) |
-| 4 | **perfiles** — al menos un perfil con fila en `lender_users_category_rules` | *«una categoría sin criterios no existe para el motor»* |
-| 5 | **política dura** | se reporta el conteo, con **`blocking: false`** |
-
-⚠ **El tercero deja de bloquear cuando `lenders.externally_serviced` está prendido:** si el ciclo de
-vida del crédito no lo gestiona CreditOp, **no hay recaudo que configurar**. El chequeo se devuelve igual
-—con `applicable: false`— para que el listado, el flujo guiado y el admin viejo **sigan viendo las mismas
-cinco claves**, pero no pide cuenta ni bloquea. Quien lea «Pagos: no aplica» no está viendo un chequeo
-roto: está viendo una entidad con cobranza externa.
-
-El quinto es la decisión que conviene no revertir por prolijidad: *«un lender sin reglas no está
-incompleto, está sin filtros»*. Un lender sin política dura **opera** — lista para todos. Marcarlo como
-bloqueante convertiría un default deliberado en un error.
+> **Graduó** (2026-09-21) → canon, `backoffice/context` § «Listo para operar son cinco chequeos, y
+> dos no bloquean a propósito». Ahí vive el hecho: las cinco claves, y por qué pagos deja de
+> bloquear con `lenders.externally_serviced` y la política dura no bloquea nunca. Se verificó contra
+> `origin/main` al graduarlo, y de paso se corrigió el orden — en el código es identidad ·
+> validación · **pagos** · **política** · **perfiles**, y acá los dos últimos estaban al revés.
 
 **(2026-09-18) Nodo RE-VERIFICADO entero.** 20 afirmaciones auditadas —19 de código leídas contra `main`
 y 1 de dato medida contra producción—, **cero chequeos débiles y ninguna afirmación falsa**. Los cuatro

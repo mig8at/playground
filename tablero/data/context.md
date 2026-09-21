@@ -65,6 +65,22 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
 
+**Primera graduación hecha, de punta a punta.** `LenderReadinessService` ya vive en canon
+(`backoffice/context` § «Listo para operar son cinco chequeos, y dos no bloquean a propósito»),
+dictado por su API: la pieza pasó el ensayo con `ready: true`, el área nació con su objetivo, sus
+tablas y el hash resuelto solo, y `-lint` quedó en verde (33 nodos · 395 secciones). El commit está
+en la rama `canon/backoffice-readiness` del repo compartido, sacada de `main`; el push y el PR los
+decide Miguel. De este lado el sub-bloque se reemplazó por su puntero, que es lo que significa
+graduar.
+
+Lo que enseñó el piloto, y vale para las próximas:
+- **`section` es el TÍTULO legible, no el slug.** Mandarlo como slug deja un `## ` feo en el
+  documento; el ancla la deriva canon sola. Costó una corrida y un revert.
+- **Sin `objetivo` y `se_deduce_leyendo`, el área nace con un eco del título** que compite en la
+  búsqueda con los objetivos de verdad. Canon lo avisa al entrar la pieza y hay que reenviarla.
+- **Verificar contra `main` antes de dictar no es ceremonia:** apareció que este nodo numeraba mal
+  dos de los cinco chequeos.
+
 **La decisión (Miguel):** no mantener dos contextos. `canon` es lo que está en `main` y se comparte
 con el equipo; el tablero es lo que está en progreso; `context/` pasa a ser **la sala de espera de
 canon** y se apaga a medida que sus nodos graduan. Nada de migración de golpe.
