@@ -16,11 +16,13 @@ Esta es la única tarea local de **cuadrilla**, la herramienta del repo comparti
 cuelga de él. Las mejoras de la herramienta van acá; lo que sea del repo compartido en sí va a la
 tarea de playground.
 
-Lo último: el segundo juego, un **dictado de inglés con tres niveles**, mergeado en la rama
-`cuadrilla/ingles-en-los-games` y **sin PR todavía**.
+Lo último: el segundo juego, un **dictado de inglés con tres niveles**, **mergeado y en producción**
+desde el 2026-09-21 (PR #260).
 
-**El próximo paso es:** decidir si ese trabajo sale como PR al repo compartido, y con eso mirar si el
-banco de 150 palabras es el correcto — se escribió de una sentada y todavía nadie lo usó de verdad.
+**El próximo paso es:** mirar si el banco de 150 palabras es el correcto. Se escribió de una sentada y
+todavía nadie lo usó de verdad, y hoy **no hay con qué medirlo**: el tablero guarda aciertos y fallos
+por persona, no por palabra agregada. Sin eso no se puede saber si una palabra sobra de su nivel
+(nadie la falla) o está en el nivel equivocado (todos la fallan tres veces).
 
 ## El dictado de inglés (2026-09-21)
 
@@ -86,8 +88,35 @@ Y el ciclo completo por el navegador, que es lo único que prueba la regla de la
 herramienta en un puerto, sembrar una sesión a mano en el JSON del tablero, y jugar tres vueltas del
 mismo nivel.
 
+## Lo que quedó SIN verificar en producción, y por qué
+
+**Si el banco de palabras llegó de verdad a Postgres.** No se puede saber desde afuera, y es culpa
+del diseño: si la escritura falla, `bank()` cae en silencio a la lista que trae el binario y la
+herramienta se ve **idéntica**. Los 150 palabras que contesta prod prueban que el juego anda, no que
+el documento se guardó.
+
+El arreglo es una línea —que `seedBank` registre en el log cuando escribe y cuando falla, en vez del
+`_ =` de hoy— y hace falta porque hoy el único síntoma sería que un cambio del banco no se refleje
+después de desplegar, que es justo el momento en que nadie lo va a mirar.
+
+**Guardar progreso en prod.** Exige sesión de GitHub en el navegador, y el juego saca quién sos de la
+cookie y nunca del cuerpo (igual que el impostor). Se comprobó que **niega sin sesión** con el
+mensaje correcto; el camino de guardado quedó probado en local y por las pruebas, no contra prod.
+
 ## Registro
 
 **2026-09-21** — Mudado el inglés a los games de cuadrilla y podado a sólo dictado, con niveles,
-banco en el tablero y la regla de las tres veces. Commit `70893c0` en `cuadrilla/ingles-en-los-games`,
-sin push. `task check` y `task conforme` en verde.
+banco en el tablero y la regla de las tres veces. **PR #260 mergeado por Miguel** y desplegado; el
+workflow de despliegue salió en verde a los segundos del merge.
+
+Validado contra **producción** (`cuadrilla.playground.creditop.com`): el despliegue se detectó con
+`/api/ingles/niveles` pasando de 404 a 200, exigiendo **10 sondas seguidas** por el despliegue
+rodante. Los tres niveles contestan 50 palabras cada uno, una tanda del avanzado trae palabras reales
+con sus notas, un nivel inventado da 404 y guardar sin sesión da 401 con el mensaje que explica cómo
+entrar.
+
+Y mirado de verdad, no sólo por API: el panel del navegador deniega `*.playground.creditop.com`, así
+que va por un proxy inverso local (`FlushInterval = -1` y reescribir el `Host`, o el balanceador no
+sabe a qué herramienta mandarlo). Contra producción se jugó una vuelta del nivel avanzado: la
+corrección letra por letra salió bien —«mortgage» contra lo que escribí, con la nota «la t no suena»—
+y al escribirla bien aparece el ✓ sin corrección.
