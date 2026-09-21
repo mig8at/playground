@@ -24,6 +24,14 @@ son 112.358 caracteres, y este mapa cabe en veinte líneas.
 ⚠ NO reemplaza leer el diff: dice DÓNDE mirar primero, no qué pasó. Un cambio fuera de lo citado
 puede ser una función nueva que el nodo debería mencionar, y eso sólo se sabe leyendo.
 
+SIEMPRE CONTRA `main`, NUNCA CONTRA LA RAMA EN LA QUE ESTÉ PARADO EL CLON. Los repos de la compañía
+viven en ramas de trabajo —medido el 2026-09-21: `legacy-backend` en `fix/…`, `frontend-monorepo` en
+`qa`, `application` en `develop`— y comparar contra lo que tenga HEAD mezclaría trabajo sin mergear
+con lo que de verdad corre. `context/` describe lo que corre, y la vara es `main`. Lo resuelve
+`ref_a_indexar` (que además prefiere `origin/main` cuando el local está atrasado, que suele estarlo),
+y el diff va entre dos COMMITS: el working tree no entra ni aunque esté sucio. Contra qué se comparó
+se imprime, porque un resultado que no dice de qué ref salió no se puede contrastar con nada.
+
 USO
   python3 tools/diff.py <nodo>            # el mapa de citas + resumen por archivo + el diff completo
   python3 tools/diff.py <nodo> --citas    # SOLO el mapa: qué citas quedaron dentro del cambio
@@ -212,6 +220,7 @@ def main():
     hubo = False
     tocados = {}
     salida = []
+    procedencia = []
     for alias, (root, pre, rutas) in por_repo.items():
         # ⚠ `main` EN EL SELLO ES UNA ETIQUETA, NO UNA REF DE GIT, y la diferencia importa acá.
         #
@@ -223,9 +232,10 @@ def main():
         # repos estaban detrás, hasta 22 commits.
         #
         # Un sello contra OTRA rama (`qa`) se respeta literal: ahí sí es una rama concreta y elegida.
-        refe = ref
+        refe, motivo = ref, "la rama del sello, literal"
         if ref in ("main", "origin/main"):
-            refe = ref_a_indexar(root)[0] or ref
+            resuelta, porque = ref_a_indexar(root)
+            refe, motivo = resuelta or ref, porque
         base = base_en(root, refe, sello)     # el «antes»: el commit al cierre del día del sello
         if not base:
             continue
@@ -236,6 +246,7 @@ def main():
         if not stat:
             continue
         hubo = True
+        procedencia.append(f"  {alias:22} {refe:12} {motivo} · desde {base[:9]} (sello {sello})")
         tocados.update(rangos_tocados(root, base, refe, spec))
         salida.append(f"\n── {alias}  ({base[:9]} … {refe}) ──\n{stat}")
         if not (solo_stat or solo_citas):
@@ -244,6 +255,9 @@ def main():
     if not hubo:
         print("\n✓ ningún archivo del nodo cambió desde el sello.")
         return 0
+
+    print("\n── contra qué se comparó ──")
+    print("\n".join(procedencia))
 
     # El mapa va PRIMERO aunque se calcule al final: es lo que decide si hace falta leer el resto.
     mapa_de_citas(nid, archivos, tocados, sello)

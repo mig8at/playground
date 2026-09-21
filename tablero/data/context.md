@@ -62,6 +62,13 @@ uno mientras se escribía: el lado viejo del hunk, la inserción pura (no reescr
 cita escrita después del sello (no comparable). Las tres piezas quedaron puras y con prueba
 (`make context-diff-test`), verificadas mutando el código: las cuatro mutaciones caen.
 
+La comparación es **siempre contra `main`**, nunca contra la rama en la que esté parado el clon:
+medido el 2026-09-21, tres de los repos estaban en `fix/…`, `qa` y `develop`, y los tres se
+compararon igual contra `origin/main`. Lo resuelve la pieza compartida, y el diff va entre dos
+commits, así que el working tree tampoco entra. Ahora además se imprime contra qué ref se comparó y
+por qué —«el local va 20 detrás»—, que faltaba: un resultado que no dice de qué ref salió no se
+puede contrastar con nada.
+
 Lo que sigue, si se quiere clasificar el resto: un banco con etiquetas REALES sale del historial
 —`git log` de cada `doc.md` dice cuándo se editó el nodo, cruzado con los commits de sus archivos—,
 y recién con esa vara se puede medir si un clasificador acierta. ⚠ Y el error es asimétrico: un falso
