@@ -238,8 +238,8 @@ context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | l
 context-triar: ## @ctx ⚠ ESCRIBE `triado` en un nodo: deja dicho que el cambio se MIRÓ y no toca lo que afirma — sin sellarlo (el sello sigue siendo de una persona). Se NIEGA si alguna cita cayó dentro del cambio. NODE=x VEREDICTO='…' [FUENTE=…] · LISTAR=1
 	@cd context && python3 tools/triar.py $(if $(LISTAR),--listar,$(NODE) --veredicto "$(VEREDICTO)" $(if $(FUENTE),--source $(FUENTE)))
 
-context-diff-test: ## @ctx pruebas del mapa de citas ∩ diff y del triaje: hunks del lado viejo, cruce alias↔repo, clasificación y las guardas de `triado`
-	@cd context/tools && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_diff test_triar
+context-diff-test: ## @ctx pruebas del mapa de citas ∩ diff, del triaje y del ámbito local: hunks del lado viejo, cruce alias↔repo, clasificación, las guardas de `triado` y qué alias es una herramienta de este repo
+	@cd context/tools && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_diff test_triar test_roots
 
 context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
@@ -257,7 +257,7 @@ tablero-jev: ## @ctx laboratorio Jev del tablero: ARGS='bench [--live]' | 'triag
 tablero-jev-test: ## @ctx pruebas offline de Choice + Noul + Score y minimización del payload de tablero
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev.py
 
-context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE)
+context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE). Los archivos de herramientas de ESTE repo no cuentan como deriva: su doc se commitea con su código
 	@cd context && python3 tools/alinear.py
 
 context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hubs, findings sin indexar — y el lint

@@ -36,6 +36,9 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 - **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos. Al
   re-verificar, `make context-diff NODE=x CITAS=1` antes de leer el diff; medir cuántas veces evitó
   leerlo entero.
+- **Retirar los nodos de herramientas locales:** ya no ensucian el ranking, pero siguen en el árbol.
+  Retirarlos pide repartir antes: el dominio a su nodo (empezado: rt=0 en `entities`) y lo operativo
+  al `CLAUDE.md` de cada herramienta. Inventario medido: 61 y 96 términos sin cubrir.
 - **Clasificar la deriva:** la parte determinista ya está (`CITAS=1`) y dónde anotarla también
   (`context-triar`). Lo que falta antes de pensar en un modelo es la vara: un banco de cambios
   pasados etiquetado desde el historial — y triar a mano ya lo va llenando, porque cada veredicto
@@ -55,6 +58,23 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21
+
+Las herramientas de este repo dejaron de contar como deriva. `roots.es_local()` lo decide derivándolo
+de la ruta —sin lista que mantener— y `alinear.py` las saca del conteo con un estado propio 🔧, con su
+razón impresa: esconderlas sería el otro error. Lo que lo justifica, medido: de **24 archivos con
+deriva en todo el árbol, 23 eran de herramientas locales y 1 de CreditOp**, y ese único que importaba
+quedaba enterrado. El ranking pasó de tres nodos con ruido a ninguno.
+
+⚠ Y al medir qué costaría RETIRAR esos nodos apareció lo que no se puede perder: de sus términos
+propios, **61 del nodo `harness` y 96 del de `trazador` no están en el `CLAUDE.md` de su herramienta**
+—entre ellos tablas y códigos de dominio (`ocr_logs`, `otp_logs`, `compare_face_logs`,
+`user_request_records`, `CATEGORY_RULE_REJECTED`)—. El retiro es correcto pero pide rescatar primero,
+y eso es una tarea propia; el inventario ya está hecho. Sí se rescató lo que ya había divergido: la
+tabla de inyectabilidad del nodo `harness` duplicaba la de `entities` y diferían en rt=0. Verificado
+contra `main`: el simulador que la copia atribuía a rt=0 es del canal ecommerce (su docstring dice que
+imita el webhook de un agregador, y está bloqueado en producción), y ya vive documentado en el nodo
+`ecommerce`. `entities` quedó con la fila corregida — en rt=0 decide el lender en su propio sitio y
+la decisión no vuelve, que no es lo mismo que «nadie».
 
 `context-diff` suma `CITAS=1`: antes del diff cruza los rangos del cambio contra los números de las
 citas `archivo:línea` del doc y dice si el cambio tocó lo que el nodo afirma. Es la parte

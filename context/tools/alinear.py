@@ -36,7 +36,7 @@ from datetime import date
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from oracle import del_ref  # una sola definición de "qué archivos existen en un ref"
 from refs import renombres, repo_de  # una sola implementación del seguimiento de renombres
-from roots import EXTS, ROOTS, ref_a_indexar
+from roots import EXTS, ROOTS, es_local, ref_a_indexar
 
 TOOLS = os.path.dirname(os.path.abspath(__file__))
 CTX = os.path.dirname(TOOLS)
@@ -330,6 +330,13 @@ def main():
         # señal 3: lo marcado como pendiente, ¿ya está en main?
         ya_mergeadas = [f for f in pm.get("files", []) if f in existen]
 
+        # ⚠ Un archivo de una HERRAMIENTA LOCAL no es deriva: su documentación se commitea junto al
+        # código, así que su cambio no dice «el nodo quedó viejo», dice «se trabajó». Medido el
+        # 2026-09-21: de 24 archivos con deriva en todo el árbol, 23 eran locales y 1 de CreditOp — el
+        # único que importaba (`LenderListingController.php`) quedaba enterrado bajo el ruido. Se
+        # cuentan aparte para que sigan a la vista: sacarlos del todo sería el otro error.
+        locales = {f: v for f, v in deriva.items() if es_local(f.partition("/")[0])}
+        deriva = {f: v for f, v in deriva.items() if f not in locales}
         hubs = {f for f in deriva if cuantos_nodos[f] > MAX_NODOS_HUB}
         propios = {f: v for f, v in deriva.items() if f not in hubs}
         # ⚠ Lo TRIADO sale del conteo, pero NO convierte el nodo en «al día»: un triaje dice que
@@ -345,9 +352,15 @@ def main():
         propios = {f: v for f, v in propios.items() if f not in triados}
         # el estado se decide por lo PROPIO: un nodo cuyo único movimiento fue `api.php` no tiene
         # nada que releer, y marcarlo en rojo gasta la señal.
-        base_propia = len([f for f in files if cuantos_nodos[f] <= MAX_NODOS_HUB])
+        base_propia = len([f for f in files
+                           if cuantos_nodos[f] <= MAX_NODOS_HUB and not es_local(f.partition("/")[0])])
         pct = round(100 * len(propios) / base_propia) if base_propia else 0
-        if muertas:
+        solo_local = bool(files) and all(es_local(f.partition("/")[0]) for f in files)
+        if solo_local:
+            # No es «al día»: es que la pregunta no aplica. Su vigencia la sostiene el CLAUDE.md de la
+            # herramienta, que vive al lado del código y se commitea con él.
+            estado = "herramienta-local"
+        elif muertas:
             estado = "rutas-muertas"
         elif ya_mergeadas:
             estado = "marca-ya-mergeada"
@@ -380,6 +393,7 @@ def main():
             "triado": ({"date": triaje.get("date"), "source": triaje.get("source"),
                         "veredicto": triaje.get("veredicto"), "archivos": len(triados)}
                        if triaje else None),
+            "locales": len(locales),
             "deriva": {"cambiados": len(propios), "pct": pct, "hubs": len(hubs),
                        "archivos": [{"ruta": k, "ultimo_cambio": v,
                                      "hub": cuantos_nodos[k] > MAX_NODOS_HUB}
@@ -395,7 +409,7 @@ def main():
         })
 
     orden = ["rutas-muertas", "marca-ya-mergeada", "deriva-alta", "rama-sin-mergear", "deriva",
-             "triado", "solo-hubs", "al-dia"]
+             "triado", "solo-hubs", "al-dia", "herramienta-local"]
     nodos.sort(key=lambda n: (orden.index(n["estado"]), -n["deriva"]["pct"]))
     doc = {
         "generado": str(date.today()),
@@ -412,9 +426,9 @@ def main():
     ETIQ = {"rutas-muertas": "⛔ RUTAS MUERTAS", "marca-ya-mergeada": "🔁 MARCA YA MERGEADA",
             "deriva-alta": "🔴 deriva alta", "rama-sin-mergear": "⏳ rama sin mergear",
             "deriva": "🟡 deriva", "triado": "👁 triado, sin sellar", "solo-hubs": "⚪ solo hubs",
-            "al-dia": "🟢 al día"}
+            "al-dia": "🟢 al día", "herramienta-local": "🔧 herramienta local"}
     for n in nodos:
-        if n["estado"] == "al-dia":
+        if n["estado"] in ("al-dia", "herramienta-local"):
             continue
         d = n["deriva"]
         extra = ""
@@ -431,11 +445,21 @@ def main():
                 quien += f" +{len(c['autores']) - 3}"
             atras = f"  ·  {c['total']:2d} commits · {quien}"
         hub = f" · +{d['hubs']} hub" if d.get("hubs") else ""
+        if n.get("locales"):
+            extra += f" · +{n['locales']} de herramientas locales, que no cuentan"
         if n.get("triado"):
             t = n["triado"]
             extra += f" · {t['archivos']} ya triado(s) el {t['date']} ({t['source']})"
         print(f"  {ETIQ[n['estado']]:22s} {n['id']:22s} {d['cambiados']:3d}/{n['archivos']:<3d} "
               f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{hub}{extra}{atras}")
+    # ⚠ Las herramientas locales NO se esconden: se dice que existen y por qué no se miden. Sacarlas
+    # del listado sin decir nada las volvería invisibles, y un nodo invisible se lee como un nodo que
+    # no existe — que es el error que este archivo entero viene a evitar.
+    loc = [n["id"] for n in nodos if n["estado"] == "herramienta-local"]
+    if loc:
+        print(f"\n  🔧 {len(loc)} herramienta(s) de este repo ({', '.join(loc)}): su vigencia NO se mide "
+              f"contra main —\n     la sostiene el CLAUDE.md que vive al lado de su código.")
+
     # los huérfanos van APARTE del estado: un nodo puede estar 🟢 al día y tener piezas nuevas sin
     # declarar en sus propios directorios. No es deriva de lo que dice; es que dice de menos.
     conh = [n for n in nodos if n.get("huerfanos")]

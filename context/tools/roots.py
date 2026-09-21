@@ -38,6 +38,35 @@ ROOTS = {
     "trazador": os.path.expanduser("~/Desktop/CREDITOP/playground/trazador"),
 }
 
+PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def es_local(alias):
+    """¿El alias apunta a una HERRAMIENTA DE ESTE REPO y no a un repo de la compañía?
+
+    Se DERIVA de la ruta; no hay lista. Una lista a mano se desactualiza el día que se agregue una
+    herramienta, y el síntoma sería justo lo que esto viene a quitar: ruido en el ranking de deriva.
+
+    POR QUÉ IMPORTA LA DISTINCIÓN. El sello y la deriva contestan «¿el código cambió por debajo de lo
+    que escribí?». Para los repos de la compañía eso importa porque lo cambian otros, en otro repo,
+    sin avisar: el nodo es la única memoria. Para `harness` o `trazador`, el código y su documentación
+    viven acá y se commitean juntos, así que lo que los mantiene al día es el commit, no el sello.
+    Medirlos con la misma vara produce ruido, y está medido: el 2026-09-21, de 24 archivos con deriva
+    en TODO el árbol, 23 eran de herramientas locales y 1 de CreditOp — el único que importaba quedaba
+    enterrado debajo.
+
+    ⚠ Un alias DESCONOCIDO no es local. Parece obvio y no lo es: `os.path.abspath("")` devuelve el
+    directorio actual, que corriendo desde acá está dentro del playground — o sea que la primera
+    versión daba `True` para cualquier alias que no existiera, y un alias mal escrito habría
+    desaparecido del ranking en silencio. Exactamente el falso verde que esto viene a evitar.
+    """
+    raiz = ROOTS.get(alias)
+    if not raiz:
+        return False
+    raiz = os.path.abspath(raiz)
+    return raiz == PLAYGROUND or raiz.startswith(PLAYGROUND + os.sep)
+
+
 # Solo código. Un `.md`, `.sql` o `.yaml` SIEMPRE dropea: no va en `files[]`, se menciona en el doc.md.
 EXTS = {".php", ".go", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue"}
 

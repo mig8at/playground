@@ -109,7 +109,17 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
 5. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
    una historia cerrada que sostiene una regla sí puede quedar. Y: **historia → git · preguntas →
    tablero · trampas con síntoma → findings.**
-6. **Antes de leer un diff, mirá si tocó lo que el nodo CITA** (`make context-diff NODE=x CITAS=1`).
+6. **La vigencia de una herramienta de ESTE repo no se mide contra `main`.** `harness` y `trazador`
+   no son CreditOp: su código y su documentación viven acá y se commitean juntos, así que lo que los
+   mantiene al día es el commit, no el sello. Medirlos con la misma vara sólo produce ruido, y está
+   medido: el 2026-09-21, de **24 archivos con deriva en todo el árbol, 23 eran de herramientas
+   locales y 1 de CreditOp** — el único que importaba quedaba enterrado. Hoy `alinear.py` los deja
+   fuera del conteo (🔧, con su razón a la vista, nunca escondidos) y `roots.es_local()` decide
+   **derivándolo de la ruta**, sin lista que mantener. ⚠ Y lo que un nodo local afirma sobre CreditOp
+   sí es contexto: la tabla de inyectabilidad por `response_type` del nodo `harness` duplicaba la de
+   `entities` y ya habían divergido en rt=0. Un hecho, una casa: el dominio va al nodo que le
+   corresponde, y cómo se usa la herramienta a su `CLAUDE.md`.
+7. **Antes de leer un diff, mirá si tocó lo que el nodo CITA** (`make context-diff NODE=x CITAS=1`).
    Un doc cita `archivo:línea` decenas de veces —63 en `kyc`, 93 en `onboarding`— y esos números son
    comparables con los rangos del diff: si el cambio reescribió alguna de esas líneas, la afirmación
    que está al lado puede ser falsa **hoy**; si cambió otra parte del archivo, es probable refactor.
@@ -119,7 +129,7 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    no una alarma; y una cita **escrita después del sello** no es comparable con este diff, así que se
    cuenta aparte en vez de mandarla al balde equivocado. ⚠ El mapa dice DÓNDE mirar, no qué pasó: lo
    que cambió *fuera* de lo citado es donde más seguido aparece lo que el nodo todavía no menciona.
-7. **Un cambio que se miró y no toca lo que el nodo dice se TRIA, no se sella**
+8. **Un cambio que se miró y no toca lo que el nodo dice se TRIA, no se sella**
    (`make context-triar NODE=x VEREDICTO='…'`). `verified` afirma «una persona revisó este nodo
    entero»; moverlo por un cambio inocuo tiene un efecto que no se deshace: **el próximo diff arranca
    desde ahí**, así que si la clasificación estuvo mal ese cambio no queda pendiente, desaparece. Un
@@ -130,7 +140,7 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    cambio, el comando se niega —eso se lee y se corrige—. ⚠ `source` dice quién lo dijo, por lo mismo
    que en el sello: hoy sólo se escribe `manual`; una máquina podrá escribir ahí cuando haya con qué
    medirla y con umbrales asimétricos, porque «no hay que mirar esto» y «mirá esto» no cuestan igual.
-8. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
+9. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
    entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano, así que un
    hallazgo nuevo no está indexado hasta que alguien escribe su fila. Medido el 2026-09-21: **9 de 239
    hallazgos estaban fuera del índice de síntomas** (F-175…F-182 y F-184), justamente los últimos

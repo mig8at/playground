@@ -73,7 +73,7 @@ El otro repo se limita a agregar la columna a `$fillable`/`$casts` del modelo. C
 
 | rt | fila en `response_types` | Quién decide el crédito | Entrega al seleccionar | ¿Inyectable local? |
 |---|---|---|---|---|
-| **0** | `UTM` — **sembrada** | nadie (redirige) | `url_utm` (+ pestaña externa) | n/a |
+| **0** | `UTM` — **sembrada** | el lender, **en su propio sitio** (CreditOp no participa ni recibe el resultado) | `url_utm` (+ pestaña externa) | n/a — la decisión no vuelve |
 | **1** | `Integración` — **sembrada** | **API externa** del lender | `$lender->action` → `register()`/`consult()`, o `url_utm` | ❌ |
 | **2** | `Creditop X` — **sembrada** | **CreditOp**, motor local | ruta interna (`continue-user-flow` / `self-service/{hash}/{ur}/confirmation`) | ✅ |
 | **3** | **NO sembrada** | CreditOp (cupo rotativo) | igual que 2 | ✅ |
