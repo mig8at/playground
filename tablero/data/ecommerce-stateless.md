@@ -425,6 +425,38 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 
 ## Registro
 
+### 2026-09-21 (11) · la base de `qa` NO está atrasada: lo distingue `false` contra `null`
+
+Hipótesis de Miguel: que la base de `qa` estuviera vieja —sin la migración de `lock_amount`— y por eso
+el candado funcione en local y no allá. **Se descarta, y con un solo bit.**
+
+El front mapea así (`loan-options.repository.ts:87`):
+
+    lock_amount: alliedBranch?.lock_amount ?? null
+
+Entonces hay tres desenlaces posibles, y cada uno dice una cosa distinta:
+
+| lo que llega del backend | lo que ve el front | qué significa |
+|---|---|---|
+| la clave **no viene** (columna ausente) | `null` | la base estaría atrasada |
+| `alliedBranch` viene vacío (`''`) | `null` | la solicitud no resolvió sucursal |
+| la columna existe y vale 0 | **`false`** | la base está bien; el código no la pisó |
+
+Medido en `qa` con la solicitud nueva 502621: **`lock_amount: false`, `typeof "boolean"`,
+`=== null` → falso**. O sea el tercer caso.
+
+⇒ **La columna existe en la base de `qa` y llegó en 0.** Si el backend tuviera #1441, la habría
+pisado a `true` por ser una compra de tienda. No lo hizo. **Lo que falta es el código, no el dato.**
+
+*(Refuerzo: `amountLabel` también sale de `alliedBranch`, y llegó resuelto — así que `alliedBranch` es
+un objeto de verdad, no la cadena vacía.)*
+
+⚠ Esto **no** contradice la entrada (10): sigue siendo cierto que el backend que atiende al front no
+es ninguno de los alcanzables por VPN, y que su base no es `inertia-dev`. Lo que esta entrada agrega
+es que **esa base sí tiene la migración** — así que cuando infra diga qué servicio es, lo único que
+hay que hacer ahí es desplegarle #1441.
+
+
 ### 2026-09-21 (10) · CORRECCIÓN: `qa` no usa la base que creíamos, y por eso todo lo medido apuntaba mal
 
 ⛔ **La entrada (6) decía que el servicio `legacy-backend-qa` servía una imagen vieja. Es FALSO, y el
