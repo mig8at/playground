@@ -19,10 +19,48 @@ tarea de playground.
 Lo último: el segundo juego, un **dictado de inglés con tres niveles**, **mergeado y en producción**
 desde el 2026-09-21 (PR #260).
 
-**El próximo paso es:** mirar si el banco de 150 palabras es el correcto. Se escribió de una sentada y
-todavía nadie lo usó de verdad, y hoy **no hay con qué medirlo**: el tablero guarda aciertos y fallos
-por persona, no por palabra agregada. Sin eso no se puede saber si una palabra sobra de su nivel
-(nadie la falla) o está en el nivel equivocado (todos la fallan tres veces).
+El banco pasó a ser **el definitivo: 450 palabras, 150 por nivel** (PR #261, abierto y sin mergear).
+
+**El próximo paso es:** decidir si hace falta **progresión entre niveles**, que es lo único que quedó
+sin hacer del pedido. Hoy los tres están abiertos desde el primer día y terminar uno no desbloquea ni
+sugiere nada: sólo se marca Completed y se le apaga el botón. Hay dos formas y son distintas —
+bloquear los siguientes hasta terminar el anterior, o dejarlos abiertos y sólo empujar al siguiente al
+completar uno— y la segunda es menos frustrante para quien ya sabe inglés y quiere ir directo al
+avanzado.
+
+## El banco definitivo (2026-09-21, PR #261)
+
+Salió de una pregunta de Miguel: si se puede seguir agregando palabras, y si terminar un nivel sube
+al siguiente. Lo primero sí; lo segundo no existe. Y de ahí salió el problema real: **un nivel que
+crece deja de ser una meta**. Quien lo termina y al mes siguiente lo ve otra vez con «20 nuevas» no
+terminó nada, y a la segunda vez que le pasa deja de valer la pena terminar ninguno.
+
+Así que el banco se cargó entero de una: **450 palabras, 150 por nivel**, un archivo por nivel porque
+es contenido y no lógica. Y el tamaño **quedó clavado con una prueba**, para que crecerlo sea
+deliberado y no algo que se cuela en un commit que iba a otra cosa.
+
+Cuánto es un nivel, en números: 150 palabras × 3 aciertos = **450 respuestas correctas**, y una vuelta
+son 20 palabras. O sea **23 vueltas por nivel en el mejor caso** y 68 para el banco entero. Eso es una
+meta; 50 palabras no lo eran.
+
+**Se fijó el inglés americano** —`color`, `neighbor`, `favorite`, `center`, `installment`— y se hizo
+AHORA por un motivo concreto: cambiarle la ortografía a una palabra ya cargada **no es gratis**. La
+clave del progreso es la palabra, así que corregir `neighbour` a `neighbor` no la corrige: crea otra,
+y la vieja queda aprendida por gente que ya no la va a ver. El tablero de prod estaba vacío, así que
+era el único momento libre.
+
+### Lo que se aprendió armándolo
+
+- **Una prueba que depende del CONTENIDO se pone roja sin que la regla cambie.** «Pedí una tanda de 60
+  y miro si está `house`» funcionaba con 50 palabras por nivel; con 150, la tanda tiene techo y la
+  palabra dejó de salir por azar. Las pruebas de la regla pasaron a un banco de juguete de seis
+  palabras, y el banco de verdad tiene las suyas.
+- **El error del impostor volvió con otra cara.** Allá fue `tijera` junto a `tijeras`; acá, `threshold`
+  junto a `threshold amount`. El chequeo de duplicados no lo caza porque como texto son distintas, así
+  que ahora hay uno que sí.
+- **Medido:** el documento del tablero pasa de 28 a 57 KB, la mitad el banco. Cuadrilla lo relee
+  entero en cada pedido con base compartida. Si alguna vez pesa, el banco es lo único del documento
+  que no cambia entre despliegues y se puede quedar en memoria.
 
 ## El dictado de inglés (2026-09-21)
 
@@ -33,7 +71,7 @@ escribir nada; el dictado saca el modelo de la pantalla y deja sólo el sonido.
 
 Lo que hay hoy, todo verificado corriendo:
 
-- **Tres niveles de 50 palabras** (`games/english/bank.go`). El eje es la **ortografía**, no el
+- **Tres niveles** (`games/english/bank_*.go`, uno por nivel). El eje es la **ortografía**, no el
   significado: `island` es intermedio por su `s` muda y `house` es de principiante. El nivel avanzado
   mezcla las clásicas (`accommodate`, `queue`, `colonel`) con las del oficio (`underwriting`,
   `delinquency`, `disbursement`).
