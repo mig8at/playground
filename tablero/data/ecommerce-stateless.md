@@ -18,15 +18,21 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 pedido viaja en la URL y cada pantalla la relee en su fuente— y que al cerrarse, el comercio reciba el
 veredicto de su pedido.
 
-**Estado real (19/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
+**Estado real (21/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
 entró el 14/9 con la promoción `Qa (#1007)` y Abel lo revirtió esa misma noche (#1013); el backend #1392 no
 se revirtió y sí quedó. Reponerlo es **#1016**, el único PR abierto, y tiene que entrar **antes** de la
 próxima promoción `qa`→`main`.
 
-**Y hay un segundo PR abierto, de hoy: #1441** (rama `fix/listado-tramo-por-monto` de `legacy-backend`)
-termina de alinear el plazo que anuncia la tarjeta con el que da el plan de pagos. #1432 cerró la capa de la CATEGORÍA; ésta cierra la del TRAMO POR MONTO, que está viva en
-producción con Motai X —89 de 227 solicitudes (39 %) en 90 días discrepando, y 31 créditos a un plazo que
-la entidad no declara—. Va contra `qa`, como todo lo demás.
+**Y hay un segundo PR abierto: #1441** (rama `fix/listado-tramo-por-monto` de `legacy-backend`), que
+lleva **dos** cosas — las dos sobre lo que la tarjeta le PROMETE al cliente:
+
+1. **El plazo.** #1432 cerró la capa de la CATEGORÍA; ésta cierra la del TRAMO POR MONTO, viva en
+   producción con Motai X: 89 de 227 solicitudes (39 %) en 90 días discrepando, y 31 créditos a un
+   plazo que la entidad no declara.
+2. **El monto de la tienda, que ya no se edita** (21/9). Lo decide el CANAL y no la configuración de
+   cada sucursal, porque la compra ya existe cuando el comprador llega a la pantalla.
+
+Va contra `qa`, como todo lo demás, y no espera nada más para que lo revisen.
 
 **Ya comprobado, corriéndolo contra `qa`** (no hace falta volver a investigarlo): los tres canales cierran, y
 el discriminante quedó medido **en la base** — mismo comercio, misma entidad, mismo desenlace, y el WhatsApp
@@ -37,11 +43,17 @@ configuración del comercio (F-223), no del canal.
 vuelvas a investigar. Verificado el 19/9 pidiéndole a `qa` los dos endpoints de la solicitud 502446: los dos
 dicen `[1, 3, 6]`. Lo que sigue abierto de ese hilo es otra cosa y está arriba: el tramo por monto.
 
+⚠ **Y antes de colgar CUALQUIER conducta del `is_ecommerce` del listado v2: está MUERTO.** Llega por
+query string y el front no lo manda —lo resuelve bien y lo pierde al armar la URL—, así que el servicio
+contesta `isEcommerce: false` sobre una compra de tienda; medido el 21/9 con la uReq 466863. La fuente
+que sí contesta es `EcommerceRequest::existsForUserRequest()`. Tiene dos consumidores más sin revisar,
+en Pendientes.
+
 **Cómo se verifica:** las corridas de §«Cómo se comprueba», leyendo el desenlace en la base y no en la consola.
 
 **El próximo paso es:** que QA recorra los tres canales en `qa` siguiendo «Cómo validar» de la tarea
 publicable, **sin sesión de asesor** — ventana de incógnito o logout previo. En paralelo, y sin depender de
-eso: que revisen **#1441**.
+eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 ## Pendientes
 
