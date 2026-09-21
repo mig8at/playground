@@ -73,80 +73,23 @@ filtrado por `paths: apps/backoffice/**`, delegando en `Creditop-SAS/config-ci`
 (`service_name: backoffice`, `secret_name: prod/backoffice`). **No hay workflow de dev ni de staging**
 para esta app.
 
-## «Ver Perfilamiento»: la única pantalla que contesta «¿por qué no le salió esta entidad?»
+## «Ver Perfilamiento» — GRADUÓ a canon
 
-Es lo más valioso del panel y no estaba escrito acá pese a que el archivo ya figuraba en `files[]`.
-`GET /api/backoffice/applications/{userRequest}/profiling` → `ApplicationsController::profiling` →
-`ApplicationsService::getProfiling` devuelve, **por entidad evaluada**:
-
-- `state` (`pass` · `fail` · `off`) y el marcador de **evaluada pero no ofertada** — que es justo el
-  caso que desde el listado del cliente se ve como «no apareció» (→ ver **creditopx** § «No apareció
-  significa cosas distintas»).
-- **`reasonLong`**: el motivo **redactado**, del tipo *«\<regla\> debe ser \<operador\> \<esperado\> y
-  es \<real\>»*. Es el «motivo concreto» que pide soporte, ya armado — no hay que re-evaluar reglas.
-- Regla por regla: `expected`, `actual`, si pasó, y **de qué campo salió el dato** (`field:<id>` o
-  `tabla:columna`).
-- Las corridas del motor de categorías (`users_category_log`) con sus `failedChecks` por tier.
-
-Front: `frontend-monorepo/apps/backoffice/app/routes/users.profiling.tsx`. La mecánica de las reglas y
-los tiers vive en **profiling**; acá solo que existe la pantalla y con qué cuidados se lee.
-
-**Dos cuidados antes de pasarle el motivo a un comercio:**
-
-⚠ **La fila «apagada» afirma una causa que el listado NO aplica.** Cuando la entidad tiene
-`lenders_by_allied_branches.status = 0`, la pantalla dice que *«no se evaluaron reglas ni categoría»*
-por estar apagada en el punto de venta. Pero las tres ramas de
-`Modules/Onboarding/App/Services/lenders/LenderListingService.php` `resolveLenderIdsByBranch` arman la
-base con `where('allied_branch_id', …)->pluck('lender_id')` **sin filtrar por `status`** —y memoizada
-30 s en el cache de array del proceso— (verificado contra `main`) — así que el `status = 0` no es lo que impidió la evaluación. Es una explicación
-plausible presentada como hecho: dársela al comercio tal cual puede ser darle un motivo equivocado.
-Concuerda con lo que ya dice **merchants**: apagar una entidad en una sucursal es una operación
-solo-BD que el camino principal no lee.
-
-⚠ **La atribución de `users_category_log` a «esta corrida» es una heurística de tiempo, no una
-llave.** Esa tabla **no tiene `user_request_id`**: se ata por `(user_id, lender_id)` y una ventana de
-**±120 s** contra el `updated_at` del review (`ApplicationsService.php`, y el mismo criterio replicado
-en `trazador/server/fuentes.go`). Un cliente con varias solicitudes cercanas ensucia la atribución: es
-correlación, no prueba.
-
-**(2026-08-28) Re-verificación asistida de los 83 archivos derivados.** Método: un worker digirió el
-diff completo contra este doc (agrupado en 6 funcionalidades) y las afirmaciones clave se verificaron a
-mano contra `main` — muestreo de 3/6 confirmado exacto. El resultado:
-
-- **Cinco de las seis son el panel alcanzando lo que este doc ya describía** (shell + layout protegido,
-  auth de staff por BFF, proxy y data-providers, pantallas de usuarios/solicitudes, y el visor de
-  perfilamiento que ganó **simulación interactiva en el Paso 3** — `Paso3Simulation.tsx` +
-  `simulate-calc.ts`, con la tarjeta del usuario al lado). El doc queda CONFIRMADO, no viejo.
-- **Una es nueva**: el **rechazo de la validación manual ahora se propaga al codeudor** —
-  `UsersService` (rama legacy del backoffice) llama al orquestador de
-  `RecordCosignerIdentityRejectionService` con usuario y solicitud: si el usuario evaluado es el
-  codeudor activo, su participación queda no-elegible y no reintenta la pantalla de identidad en bucle.
-  Cierra el circuito con el flujo de codeudor (ver ese nodo).
+> **Graduó** (2026-09-21) → canon, `backoffice/context` § «Por qué no le salió una entidad: el motivo
+> ya viene redactado, no hay que re-evaluar reglas». La mecánica de reglas y tiers sigue en
+> **profiling**.
 
 ## Dar de alta una entidad sin SQL a mano: la API que escribe las reglas, y la que dice si está lista
 
 Dos servicios de `Modules/Backoffice/App/Services/` que `context/` no nombraba y que cambian cómo se
 monta una entidad nueva. Los dos verificados contra `main` el 2026-09-14.
 
-### `LenderRulesWriterService` — `PUT /api/backoffice/lenders/{id}/rules`
+### `LenderRulesWriterService` — GRADUÓ a canon
 
-Escribe, **en una sola transacción**, la plantilla de reglas duras (`group_rule_id IS NULL`) **y** los
-clones por sucursal, junto con los perfiles y sus criterios. Lleva `baseVersion` para no pisar el
-trabajo de otro (devuelve `409`).
-
-⚠ **El defecto que evita está nombrado en su propio docblock, y vale más que la API:** la plantilla la
-evalúa el **cupo** de CreditopX y los clones los evalúa el **listado** del onboarding. Verlas divergir
-es lo que hace que una entidad **aparezca en el listado y después falle al pedir cupo** — el síntoma
-clásico de haber escrito las reglas a mano en una sola de las dos.
-
-⚠ **Y el ORDEN importa, porque se lee en el código:** el writer crea clones sólo para las sucursales
-donde la entidad **ya está habilitada** (`bootstrapBranchGroups`, y sólo cuando no hay ninguna fila
-previa). O sea: **primero se habilita la entidad en la sucursal, después se escribe la política.** Al
-revés quedan las reglas sin clonar y la entidad lista a medias.
-
-**Cada escritura deja rastro inmutable, y contesta «¿quién cambió esta regla y cuándo?».** El servicio no sólo escribe: por cada guardado crea un **snapshot** (`lender_rules_snapshots` — `version`, el `state` completo en JSON, quién lo cambió por id, nombre y correo, y cuántas sucursales quedaron afectadas) y **una fila por campo modificado** en `lender_rules_changesets` (`scope`, `subject`, `field`, `label`, `action`, `old_value`, `new_value`, `message`), escritas desde `legacy-backend/Modules/Backoffice/App/Services/LenderRulesWriterService.php:615`. ⚠ **Son de sólo escritura**: el modelo declara `UPDATED_AT = null` (`legacy-backend/app/Models/LenderRulesChangeset.php:18`), así que una fila de cambio no se edita nunca — es bitácora, no estado.
-
-**Y se está usando, no sólo desplegado.** Medido en prod el 2026-09-18: **13 snapshots** sobre **5 entidades** y **59 cambios** individuales, el último el 2026-09-16. Es poco volumen, pero es real: antes de esto un cambio de reglas no dejaba ninguna constancia de autor.
+> **Graduó** (2026-09-21) → canon, `backoffice/context`: el **orden** (§ «Primero habilitar la
+> entidad en la sucursal, después guardar la política») y el **rastro de sólo escritura**, en esa
+> misma sección. El control de versión con 409 y la regla de los clones **ya estaban** allá, y
+> mejor explicados — ahí no había nada que graduar.
 
 ### `LenderReadinessService` — GRADUÓ a canon
 

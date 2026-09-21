@@ -31,11 +31,11 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** cerrar el piloto de `backoffice` — dictar por API la pieza de
-`LenderReadinessService` (ya verificada contra `main` y con el ensayo en `ready: true`), ver el PR
-que compone el cierre y, con eso funcionando, borrar el nodo. ⚠ Antes hay que decidir **en qué rama
-del repo compartido**: hoy está parado en `cuadrilla/ingles-tres-dias`, que es trabajo de otra cosa.
-Después siguen los otros 7 duplicados.
+**El próximo paso es:** graduar «Qué es» y «Contenido» de `backoffice` —lo que queda: que son dos
+paneles con dos autenticaciones sobre la misma BD, y el throttle de `Modules/Auth`— y con eso borrar
+el nodo entero, que es la prueba de que el ciclo cierra. Todo a la misma rama
+`canon/backoffice-readiness`, que ya lleva tres commits y **sigue sin pushear**: el PR lo decide
+Miguel. Después, los otros 7 duplicados.
 
 ## Frentes activos
 
@@ -64,6 +64,21 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**`backoffice` casi vaciado: cuatro piezas graduadas en un solo PR.** En la rama
+`canon/backoffice-readiness` (desde `main`, tres commits, sin pushear): los cinco chequeos de «listo
+para operar», el motivo redactado del perfilamiento, el orden de montaje con su rastro de sólo
+escritura, y —la que más vale— **los timestamps de la base están en hora Colombia, no en UTC**, que
+salió del docblock de un middleware y es regla de PLATAFORMA: canon tenía la mitad (`bancolombia`
+dice que la app declara UTC) y sin la otra mitad esas dos verdades juntas son justo lo que produce
+el error de cinco horas. Esa fue a `datos/context`, no a `backoffice`: gradúa al tema donde alguien
+la buscaría, no al nodo de donde salió. `-lint` en verde, 398 secciones.
+
+Del nodo quedan «Qué es» y «Contenido» (la arquitectura del panel nuevo y su autenticación), que es
+lo que falta para poder borrarlo.
+
+Dos cosas que el dictado rechazó y valen como formato: **no se describe un endpoint por su llamada**
+(«GET /…»), sino la operación; y `section` es el **título legible**, que el ancla la deriva canon.
 
 **Primera graduación hecha, de punta a punta.** `LenderReadinessService` ya vive en canon
 (`backoffice/context` § «Listo para operar son cinco chequeos, y dos no bloquean a propósito»),
