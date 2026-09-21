@@ -32,8 +32,8 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** seguir el cruce —`onboarding` (137 términos sin cubrir, 105 commits),
-después `bancolombia` y `motai`— al mismo commit. Y a `creditopx` le quedan **cuatro secciones que
+**El próximo paso es:** seguir el cruce —`bancolombia` (129 términos, 97 commits) y `motai` (96)—
+al mismo commit. Y a `creditopx` le quedan **cuatro secciones que
 PARECEN estar ya en canon**
 —el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
 No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
@@ -69,6 +69,17 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**Catorce reglas, canon en 409 secciones.** Siguió `onboarding` por el cruce: el límite del
+formulario personal —que se cuenta por DOCUMENTO, así que cambiar de teléfono o abrir otra
+solicitud no lo reinicia— y los dos defectos vivos del camino feliz, que canon admite porque su
+regla dice «incluidos sus errores».
+
+⚠ **Y ahí apareció el error nº1 de citas del árbol, en vivo:** los dos defectos se citaban **sin
+decir el repo**. Buscarlos en `legacy-backend` devuelve cero y se lee como «ya se arreglaron»;
+viven en `legacy-application`, en la misma línea que decía la cita. Estuve a punto de escribir que
+habían desaparecido. Lo que lo destapó fue mirar cuándo se tocó el archivo por última vez: si no
+cambió desde agosto, el bug no pudo arreglarse esta semana — entonces el repo era otro.
 
 **Doce reglas, canon en 407 secciones.** El orden lo puso canon, no el árbol: `-peso` dice dónde se
 mueve el código y `smartpay` salió primero entre los temas que además tienen nodo acá. Se graduaron

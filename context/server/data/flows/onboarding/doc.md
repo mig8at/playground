@@ -16,9 +16,10 @@ Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-
 
 ## Antes de concluir
 
-**Bugs verificados en el camino feliz** — ⚠ **los dos siguen vivos, recomprobados contra `main` el 2026-09-18.** Un bullet de bug sin fecha manda a perseguir algo que puede haberse arreglado; éstos no.
-- `UserRequestController.php:1517` — el `&&` quedó **dentro** del segundo `str_contains`: `str_contains($user->document_number, 'TEMP' && $userRequest->user_request_status_id == 1)`. El needle termina siendo un bool coercionado (`"1"` o `""`), y `str_contains($s, "")` es siempre `true`. La guarda de "usuario temporal en estado 1" no valida lo que dice.
-- `PersonalInfoController.php:1044` — la URL de delegación interpola `$userRequestIdSessionKey` (la **clave** `'user_request_id_v2'`) en vez de `$user_request_id` (asignado en `PersonalInfoController.php:1019` y nunca usado). La llamada a `laboral-info/{hash}/user_request_id_v2` no puede resolver → cae siempre al `catch` y al método local. La delegación de laboral-info está **rota en silencio**.
+**Bugs del camino feliz** → **GRADUARON** (2026-09-21) a canon, `onboarding/context` § «Dos
+defectos vivos del camino feliz, y los dos están escritos de una forma que se lee bien».
+⚠ **Acá se citaban SIN REPO y eso cuesta una búsqueda**: los dos viven en `legacy-application`, no
+en `legacy-backend` — buscarlos en el nuevo devuelve cero y se lee como «ya se arreglaron».
 
 **Parallel-run: qué delega y qué no** (application → legacy, verificado uno por uno)
 - `phone/register`: delegado **siempre**, sin allowlist.
@@ -35,9 +36,7 @@ Y hay **dos frentes**: el Inertia de `application` y el wizard React (`frontend-
 **Entornos y testing**
 - `OnboardingController.php:1270-1272` — en `local`/`development`, `hadPreApproveLender` se stubea con **`random_int(0,1)`**. El flujo es **no determinístico** en local: la misma corrida a veces dispara Experian y a veces la saltea. Hay un segundo stub igual en `OnboardingController.php:400`.
 - `OtpService.php:443-449` — **ya NO es «1111 fijo sin leer Redis»**: primero intenta `readOtpFromRedis` y **solo si el cache no entrega** cae a **1111**, y solo en `local` (`OtpService.php:447`). En develop/prod no hay caída: se aborta (OBS-OTP-01, `OtpService.php:451-455`) en vez de persistir un espejo en `0`. Con `qa_otp_bypass_phones` (sólo `local`/`development`) el OTP son los **últimos 4 dígitos del teléfono**, y ese mismo bypass **saltea el rate limit** de personal-info.
-- Rate limit de personal-info: por **número de documento**, `4/hora` por defecto, TTL 3600 s, clave `CTOP_LO_STORE_PERSONAL_INFO_RTL_CTRL::{documento}`, configurable en el Setting `personal_info_settings.rate_limit_rules`. La lectura chequea **primero la clave con typo** `store_personal_info_max_requests_per_houre` y después la correcta.
-
-**Contrato y datos**
+- Rate limit de personal-info → **GRADUÓ** (2026-09-21) a canon, `onboarding/context` § «El formulario personal se limita por DOCUMENTO, no por sesión ni por teléfono». Los números exactos no se llevaron: salen de una configuración editable.
 - ~~`normalizeOtpErrorCode` (wizard) mapea `ONB003 → expired`, `ONB006 → max_attempts` y `ONB007 → rate_limit`~~ **Corregido el 2026-08-28**: hoy mapea SÓLO códigos canónicos `OBV22xxx` (`22001 → validation_error`, `22003 → invalid_code`, `22009 → expired`, `22010 → rate_limit`); los `ONB*` viejos salieron del mapa y **el caso `max_attempts` ya no existe como etiqueta** — cae en `api_error` genérico. La confusión front-vs-catálogo que este punto describía quedó resuelta por los códigos canónicos.
 - `lenders-v2` **no es SSE**: el "streaming" lo hace el loader de React Router devolviendo promesas sin `await`.
 - El default `180000` de `lenders-v2` enmascara el monto real si el front no lo manda; es el mínimo de Welli reciclado como constante.
