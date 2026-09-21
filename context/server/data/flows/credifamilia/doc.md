@@ -13,6 +13,11 @@ Credifamilia (lender **24**) es el único `response_type = 4` (un valor sin fila
 | ¿Cómo cierra? | Origina in-platform → **radicación SOAP** → *polling* hasta APROBADO/RECHAZADO (estados **40/41** de `lender_transaction_statuses`, otro namespace que `user_request_statuses`) |
 | ¿Simulable E2E? | ⚠ **Parcial**: el gate local sí es inyectable; KYC V2 (Evidente/CrossCore/Jumio) y la radicación SOAP son externos |
 
+> **2026-09-21 · comparado con canon, NO cedió nada.** Su hallazgo del listado —que v1 y v2 no
+> devuelven lo mismo— ya está en canon, `listado/context` § «Hay dos listados conviviendo», y
+> **mejor**: allá está como regla general («confirmá que las corridas usan la misma puerta») en vez
+> de como el caso puntual de esta entidad.
+
 ## Antes de concluir
 - ✅ **«NO APARECE EN EL LISTADO» — RESUELTO el 2026-08-23, y la causa es el ENDPOINT.** Hay dos rutas
   de listado y **no devuelven lo mismo**: `lenders/{ur}` (v1) y `lenders-v2/{ur}`. Medido sobre la misma

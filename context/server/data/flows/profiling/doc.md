@@ -8,6 +8,11 @@ En lenguaje de negocio es la **"segmentación de clientes"** (de *premium* a *ma
 
 En **rt=1 CreditOp no perfila** (la API externa del proveedor decide; ver **Bróker**); en rt=0 redirige. Perfilar es exclusivo del sombrero operador (rt=2/3).
 
+> **2026-09-21 · comparado con canon, NO cedió nada.** Y en un punto canon **corrige a este nodo**:
+> acá decía que quién desembolsó «lo escribe el webhook del lender», y canon
+> (`formalizacion/context`) dice que ese campo lo escriben **tres caminos distintos y ninguno deja
+> marca de cuál fue».
+
 ## Antes de concluir
 - ⚠ **La compuerta de capacidad de endeudamiento corre en 45 de 229 tiers (19,7 %)** —re-medido en
   prod el 2026-09-19; acá decía 35 de 195— y **no mira los gastos declarados por el cliente**: usa

@@ -32,10 +32,12 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** barrer los 34 nodos que quedan comparando SECCIONES contra canon, que es la
-métrica que sirve. El cruce por actividad ya se agotó: los cuatro temas calientes con nodo acá están
-hechos. ⚠ Y el PR sigue **sin pushear** con 16 reglas en 7 temas — a esta altura revisarlo de una
-sentada ya cuesta. Y a `creditopx` le quedan **cuatro secciones que
+**El próximo paso es:** **borrar**, no graduar. Con el barrido hecho, el orden es: (1) los nueve
+nodos revisados que no cedieron nada —se van como se fue `bancolombia`, repartiendo lo operativo a
+los `CLAUDE.md` y las preguntas abiertas a su tarea—; (2) los ocho estructurales, comprobando que
+son catálogo; (3) los once de puro formato. Antes de cada borrado, redirigir sus punteros a canon
+como se hizo con `corbeta` y `actors`. ⚠ Y queda decidir dónde va lo de `negocio`, que no es de
+canon ni es inventario: es proceso comercial y su casa es Confluence. Y a `creditopx` le quedan **cuatro secciones que
 PARECEN estar ya en canon**
 —el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
 No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
@@ -86,6 +88,22 @@ preguntas al canon real, elegidas para medir cosas distintas:
 
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
+
+**EL BARRIDO ESTÁ HECHO, y el resultado es que context se puede matar mucho antes de lo que
+parecía.** De los 34 nodos:
+
+- **15 revisados.** Seis cedieron reglas (11 en total). **Nueve no cedieron NADA** —`bancolombia`,
+  `kyc`, `merchants`, `onboarding`, `profiling`, `servicing`, `credifamilia` y los demás— porque
+  canon ya los cubre, y en varios casos **mejor**: generaliza donde acá está el caso puntual
+  (los dos listados), o corrige (quién desembolsó lo escriben TRES caminos, no el webhook).
+- **8 estructurales** (`application`, `legacy-backend`, `frontend-monorepo`, `microservicios`,
+  `architecture`, `form-service`, `creditop`, `ms-preapprovals`): catálogo de repos y endpoints.
+  Canon pide reglas, no catálogos.
+- **11 con 0-3 secciones propias**: casi puro formato.
+
+⚠ **La conclusión que importa: el trabajo que queda NO es graduar, es BORRAR.** La estimación de
+«50-60 reglas más» era alta — lo que falta escribir es poco, y lo que falta es sacar nodos que ya no
+aportan. Eso se hace en una sesión, no en diez.
 
 **PR #267: diez reglas, canon en 421 secciones.** La última —que los criterios de garantía y los
 medios de pago son de la entidad y no del comercio donde se editan, así que un comercio le pisa la

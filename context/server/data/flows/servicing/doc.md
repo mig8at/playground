@@ -15,6 +15,9 @@ La originación **termina en el Estado 11** ("Autorizada" = desembolsado). La co
 | ¿Cómo cierra? | **Paz y salvo** (`creditop_x_requests_status_id=3` cuando `total_payment_amount==0`) o **Cancelado** (4, anulación manual del cupo). La mora (2) es indefinida; no hay estado "castigo" persistido (es un bucket derivado `dias_mora>180` + venta de cartera manual). |
 | ¿Simulable E2E? | **Parcial**: in-platform sí (sembrar el ledger + **invocar los crons a mano** + simular el pago por polling); rt≠0 **no** (lo gestiona un tercero). En legacy corren 3 crons de device-lock (SmartPay) que **consumen** el ledger (ver F-39); el resto de la cartera se prueba contra `application`. |
 
+> **2026-09-21 · comparado con canon, NO cedió nada.** Su pieza propia —el fatal al reversar un pago
+> retenido— ya está en canon, `cartera/context` § «Reversar un pago retenido revienta».
+
 ## Antes de concluir
 - 🔴 **BUG VIVO: reversar un pago RETENIDO revienta con un fatal.**
   `application/app/Http/Controllers/Admin/CreditopXPaymentController.php:1450` resuelve el tipo con
