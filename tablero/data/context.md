@@ -87,6 +87,17 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**PR #267: siete reglas, canon en 418 secciones** (una sola rama y un solo commit, se actualiza con
+cada tanda). Se sumaron el efecto de cambiarle el país a una entidad —que la saca del listado de
+todos los comercios del país viejo de una vez— y que el canal de la caja **se cierra de noche y por
+lotes**, así que «compró pero no figura» dentro de esa ventana es normal.
+
+⚠ **Y `negocio` destapó una TERCERA categoría, además de «gradúa» y «es inventario»: lo que es
+proceso comercial y no tiene respaldo en `main`.** A quién se le cobra, cómo se negocia un alta, el
+ciclo de la plata. Canon exige verificar contra el código y declarar los archivos que sostienen la
+regla — esto no puede, y su casa es Confluence. De ese nodo sólo graduó la parte que sí tenía
+código.
+
 **PR #267 abierto: cinco reglas, canon en 416 secciones.** Se sumaron el desembolso —que lo escribe
 un disparador de la base porque la tabla se escribe desde dos aplicaciones en más de veinte puntos—
 y que **parte de la lógica vive en la base y su código no está en ningún repositorio**, con sus tres

@@ -217,7 +217,13 @@ Todo se loguea en `logs` (tabla) con name `Corbeta - query` / `CORBETA - registe
 
 ---
 
-## 6. El ciclo BATCH: conciliación, estado 26 y confirmación a Bancolombia
+## 6. El ciclo BATCH — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `bancolombia/context` § «El canal de la caja se cierra de noche y
+> por lotes, con un estado intermedio que tarda horas». Los nombres de los comandos y los horarios
+> exactos no se llevaron: son implementación y cambian.
+
+### (evidencia) La cadencia medida
 
 Aquí está lo distintivo. Cadence en `application/app/Console/Kernel.php:81-90`:
 

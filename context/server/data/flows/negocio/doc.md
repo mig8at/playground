@@ -244,7 +244,17 @@ borren de verdad — sus comandos, jobs, exports, notificaciones y los métodos 
 `EndOfMonthReportController` que sólo usan ellos. Si alguien pregunta «¿por qué dejó de llegarme el
 reporte?», la respuesta es ésta y tiene fecha.
 
-## Lo que el admin puede cambiarle a una ENTIDAD, y el freno que no es un capricho
+## Lo que el admin puede cambiarle a una ENTIDAD — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `listado/context` § «Cambiarle el país a una entidad la saca del
+> listado de todos los comercios del país viejo». Los números no se llevaron: son dato vivo.
+>
+> ⚠ **Y el resto de este nodo NO gradúa, por una razón de fondo:** es proceso comercial —a quién se
+> le cobra, cómo se negocia un alta, el ciclo de la plata— y **no tiene respaldo en `main`**. Canon
+> exige verificar contra el código y declarar los archivos que sostienen la regla; esto no puede.
+> Su casa es Confluence, que es donde vive el porqué del negocio.
+
+### (evidencia) Lo medido
 
 **(2026-09-18, verificado en `application/app/Models/Lender.php`)** Cambiarle el país a una entidad
 desde el admin **la saca del listado de todos los comercios del país viejo, de un saque**: el listado
