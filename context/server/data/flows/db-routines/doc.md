@@ -18,14 +18,7 @@ adentro de la base.
 
 ## Antes de concluir
 
-- ⚠ **CUATRO rutinas existen en producción y su código NO está en ningún repositorio** (pero SÍ se
-  pueden rescatar desde dev — ver la receta abajo, y hacerlo es la acción pendiente):
-  `FN_Mareigua_Incomes_Average` (creada 2025-10-29) · `FN_CreditopX_Revolving_Credit_Multiplier`
-  (2025-12-27) · `FN_Replace_Special_Characters` (2025-07-29) · `actualizar_json` (2025-06-11). Las dos
-  primeras **se llaman desde PHP en producción**. No se pueden revisar en un PR, ni versionar, ni
-  reproducir en un entorno nuevo desde el repo. El propio código ya lo advierte en
-  `MareiguaExtractor.php:23`: *«calls the SQL stored function FN_Mareigua_Incomes_Average, which is NOT
-  defined in the repository's migrations»*.
+- **Las rutinas sin fuente** → **GRADUÓ** (2026-09-21) a canon, `datos/context` § «Parte de la lógica vive en la base y su código no está en ningún repositorio». El conteo y los nombres no se llevaron: son dato vivo.
 - **`migrate.sql` no está bajo el flujo de migraciones.** Vive en la raíz del repo, su último commit es
   de 2025-08-15 y la tabla `migrations` de prod no lo registra: se corre a mano. O sea que **no hay
   forma de saber desde el repo qué versión de una rutina está corriendo** — sólo
@@ -215,7 +208,13 @@ de log (ver F-108) y cuatro son framework (`failed_jobs`, `model_has_roles`…).
   lee dos tablas de configuración** — un `CREATE OR REPLACE` o un `UPDATE` cambian a quién se le presta
   sin un solo commit. Desarmada en el nodo **`rotativo`**.
 
-## Los DOS triggers de `user_requests`: por fin se pueden contar desembolsos
+## Los DOS triggers de `user_requests` — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `datos/context` § «Cuándo se desembolsó lo escribe un disparador
+> de la base, y por eso es confiable». Incluye el porqué del disparador —veinte puntos de escritura
+> en dos aplicaciones— y que el estado se resuelve por NOMBRE porque el catálogo divergió.
+
+### (evidencia) Lo medido
 
 Desde el 2026-09-18 `user_requests` tiene **`disbursed_at`**, y la llena un **trigger de MySQL**, no código de aplicación (`legacy-backend/database/migrations/2026_09_16_130000_add_disbursed_at_triggers_to_user_requests_table.php`). La razón de que sea un trigger está escrita y es buena: esa tabla **la escriben las dos aplicaciones** —`legacy-application` es donde entran los webhooks de las entidades— desde **más de veinte puntos**, con `->update([...])`, con asignación + `save()`, con query builder, y encima hay ajustes manuales en la base. Un hook de modelo habría cubierto una parte; el trigger es el único punto que cubre todos los caminos sin duplicar la regla.
 

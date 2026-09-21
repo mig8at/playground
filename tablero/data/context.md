@@ -87,6 +87,12 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**PR #267 abierto: cinco reglas, canon en 416 secciones.** Se sumaron el desembolso —que lo escribe
+un disparador de la base porque la tabla se escribe desde dos aplicaciones en más de veinte puntos—
+y que **parte de la lógica vive en la base y su código no está en ningún repositorio**, con sus tres
+consecuencias: no se revisa en un cambio, no se versiona y no se levanta un ambiente sólo desde el
+repo.
+
 **Y la tercera regla del segundo PR salió de pisar una trampa documentada.** `payments` decía «bug
 P0: dos `dd()` en Wompi». Al verificarlo aparecieron más, y contarlos falló primero: usé
 `git grep '^\s*dd\('` y devolvió **CERO** — `git grep` no entiende `\s`, que es exactamente lo que
