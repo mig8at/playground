@@ -201,6 +201,15 @@
       "cwd": "escriba",
       "port": 5188,
       "autoPort": false
+    },
+    {
+      "name": "cuadrilla",
+      "runtimeExecutable": "/Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/cuadrilla/dev/servir-local.sh",
+      "runtimeArgs": [
+        "8384"
+      ],
+      "port": 8384,
+      "autoPort": false
     }
   ]
 }

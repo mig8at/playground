@@ -4,6 +4,13 @@ Herramienta personal de Miguel, **sin ninguna relación con CreditOp**. Está en
 es donde viven sus herramientas, no porque hable del negocio: no la cites nunca como fuente de
 contexto.
 
+⚠ **Y desde el 2026-09-21 hay un segundo inglés, que NO es éste.** `cuadrilla` tiene un juego de
+dictado en `/games/english` (repo compartido, `tools/cuadrilla/games/english`): tres niveles, banco
+de palabras en Postgres y progreso por persona. Se quedó **sólo con el dictado** — sin lector, sin
+glosario y sin historias — así que los dos no se pisan: acá se lee un cuento con el glosario al lado,
+allá se practica ortografía con el equipo. La corrección letra por letra es la misma idea y está
+escrita dos veces; si una de las dos cambia, la otra no se entera.
+
     make ingles          # :5189
     make ingles-check    # ¿los .json están sanos? (esto sí corrélo siempre que agregues una historia)
 
