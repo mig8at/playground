@@ -109,6 +109,17 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
 5. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
    una historia cerrada que sostiene una regla sí puede quedar. Y: **historia → git · preguntas →
    tablero · trampas con síntoma → findings.**
+6. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
+   entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano, así que un
+   hallazgo nuevo no está indexado hasta que alguien escribe su fila. Medido el 2026-09-21: **9 de 239
+   hallazgos estaban fuera del índice de síntomas** (F-175…F-182 y F-184), justamente los últimos
+   agregados, entre ellos el DNI que choca con una cédula y el 504 del gateway que igual escribe. Para
+   quien entra por la puerta esos nueve no existían, y su ausencia se lee **«no nos pasó»** — el error
+   caro de este repo, adentro de la herramienta que existe para evitarlo. Hoy lo cablea `L9` de
+   `tools/lint.py`: cruza cada `## Índice` contra las anclas `### F-xx`, en los dos sentidos (un
+   hallazgo sin fila, y una fila que apunta a un hallazgo inexistente). La fila la escribe una persona
+   —el síntoma es con qué palabras LLEGA el problema, no el título del hallazgo—; lo que la máquina
+   garantiza es que no falte.
 
 ## Confluence: hay oro, y hay specs disfrazadas de descripciones
 

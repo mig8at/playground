@@ -258,7 +258,7 @@ context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hub
 	@cd context && python3 tools/salud.py
 	@cd context && python3 tools/lint.py
 
-context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
+context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles, hallazgos fuera del índice de findings
 	@cd context && python3 tools/lint.py
 
 context-huella: ## @ctx la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida. UREQ=x [MYSQL=/tmp/huella-mysql.log]

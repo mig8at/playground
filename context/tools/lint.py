@@ -148,6 +148,38 @@ for p in sorted(FLOWS.glob("*/doc.md")):
         fallas.append(f"  L8 bloque-sepultado · {p.relative_to(PLAY)}:{pos + 1} · "
                       f"«Antes de concluir» arranca al {pct}% del doc (tiene que ir en la primera mitad)")
 
+# ── L9 · un hallazgo con ancla que ningún índice cita ───────────────────────────────────────
+# Por qué: `findings` declara su puerta —«Nadie lee este archivo entero: entrá por acá, saltá al
+# F-xx»— y esa puerta es un índice escrito A MANO. Medido el 2026-09-21: 239 hallazgos con ancla
+# y NUEVE fuera del índice de síntomas (F-175…F-182, F-184), justamente los últimos agregados. Un
+# hallazgo que no está en la puerta no existe para quien entra por ella, y su ausencia se lee
+# igual que «no nos pasó» — que es el error caro de este repo, adentro de la herramienta que
+# existe para evitarlo. Al revés también: un F-xx citado sin ancla manda a un lugar que no está.
+# Cada índice se cruza por separado: los dos son puertas y las dos tienen que estar completas.
+L9_ANCLA = re.compile(r"^### (F-\d+)")
+L9_INDICE = re.compile(r"^## (Índice[^\n]*)")
+L9_CITA = re.compile(r"F-\d+")
+_fp = FLOWS / "findings" / "doc.md"
+_ls = leer(_fp)
+_anclas = {m.group(1): n for n, l in enumerate(_ls, 1) if (m := L9_ANCLA.match(l))}
+_indices: list[tuple[str, int, set[str]]] = []
+for _n, _l in enumerate(_ls, 1):
+    if _m := L9_INDICE.match(_l):
+        _indices.append((_m.group(1).strip(), _n, set()))
+    elif _indices and not _l.startswith("## "):
+        _indices[-1][2].update(L9_CITA.findall(_l))
+for _titulo, _n, _citados in _indices:
+    _faltan = sorted(_anclas.keys() - _citados, key=lambda f: int(f[2:]))
+    if _faltan:
+        fallas.append(f"  L9 hallazgo-fuera-del-índice · {_fp.relative_to(PLAY)}:{_n} · "
+                      f"«{_titulo}» no cita {len(_faltan)}: {', '.join(_faltan[:12])}"
+                      + (" …" if len(_faltan) > 12 else ""))
+    for _muerto in sorted(_citados - _anclas.keys(), key=lambda f: int(f[2:])):
+        fallas.append(f"  L9 índice-a-hallazgo-inexistente · {_fp.relative_to(PLAY)}:{_n} · "
+                      f"«{_titulo}» cita {_muerto}, que no tiene ancla `### {_muerto}`")
+if _anclas and not _indices:
+    fallas.append(f"  L9 sin-índice · {_fp.relative_to(PLAY)} · el nodo tiene {len(_anclas)} hallazgos y ningún «## Índice»")
+
 # ── veredicto ────────────────────────────────────────────────────────────────────────────────
 if fallas:
     print(f"✗ lint: {len(fallas)} violación(es) — cada una fue una mentira real alguna vez:\n")
@@ -155,5 +187,6 @@ if fallas:
     print("\n  (mención legítima → agregá `<!-- lint:ok -->` en esa línea)")
     sys.exit(1)
 print("✓ lint: sin conteos horneados, refs muertas, secciones prohibidas, rutas desnudas,")
-print("        nodos invisibles, kinds fuera de enum, citas doc→doc con línea")
-print("        ni bloques «Antes de concluir» sepultados bajo la descripción.")
+print("        nodos invisibles, kinds fuera de enum, citas doc→doc con línea,")
+print("        bloques «Antes de concluir» sepultados bajo la descripción")
+print("        ni hallazgos fuera de los índices de findings.")

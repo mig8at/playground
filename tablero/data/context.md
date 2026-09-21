@@ -37,7 +37,8 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 - **Ramas:** usar la consola en el trabajo diario y ajustar la clasificación si aparece un estado que
   la comparación actual no distingue.
 - **Jev:** comparar calidad, abstenciones, latencia y superficie enviada al modelo generativo.
-- **Findings:** mantener visible qué parte fue comprobada sin declarar revisado el nodo entero.
+- **Findings:** mantener visible qué parte fue comprobada sin declarar revisado el nodo entero. El
+  índice ya no se puede quedar atrás sin que el lint lo diga (`L9`).
 
 ## Cómo se comprueba
 
@@ -48,6 +49,13 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21
+
+`lint.py` suma `L9`: cruza cada `## Índice` de `findings` contra sus anclas `### F-xx`, en los dos
+sentidos. Encontró **9 hallazgos de 239 fuera del índice de síntomas** —F-175…F-182 y F-184, los
+últimos agregados— que para quien entra por la puerta declarada no existían. Se escribieron sus nueve
+filas y el nodo quedó en verde. Probado al revés: quitar una fila, citar un `F-999` inexistente y
+agregar un hallazgo sin indexarlo salen ✗ con exit 1. El síntoma lo sigue escribiendo una persona; lo
+que la máquina garantiza es que no falte.
 
 `brief` acepta `--text`: la misma ficha sin `kind`, `version` ni `source_sha256`, para una terminal o
 una sesión; la consola sigue consumiendo el JSON. Lo consume `make retomar BRIEF=1` del tablero. Y

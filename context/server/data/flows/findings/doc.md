@@ -220,6 +220,15 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«el canal ecommerce muestra menos entidades»** / la sucursal tiene 3 habilitadas y el cliente ve 1 | **F-218** |
 | **«me manda al celular y yo ya estoy acá»** / autogestión o ecommerce que igual entrega el proceso | **F-219** |
 | **«No routes matched»** en la validación de identidad / pantalla muerta al ir a validar la persona | **F-220** |
+| **«busco por teléfono y no lo encuentro»** / el mismo celular guardado con `+`, con indicativo pegado y sin nada | **F-175** · F-184 |
+| **«al cliente le llegó el SMS a otro país»** / un celular colombiano guardado con `+1` | **F-184** |
+| **«la corrida dice 0 cerraron, así que no escribió nada»** contra un ambiente compartido | **F-176** |
+| **«pide datos laborales y no debería»** / `ONB004` con HTTP 200 en un comercio de otro país | **F-177** |
+| **«dice que el documento ya existe» y es de otra persona, de otro país** / HTTP 409 al registrarse | **F-178** |
+| **«creé la solicitud en qa y el forense no encuentra sus logs»** / `service_name` que no existe en Loki | **F-179** |
+| **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
+| **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
+| **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
 
 Un `F-xx` puede estar en varias filas a propósito: se entra por el síntoma, y el mismo hallazgo se ve
 distinto según con qué pregunta llegues.
