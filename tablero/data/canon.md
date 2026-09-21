@@ -24,8 +24,10 @@ temas y `main` tiene 34. Un commit en `config-ci` (19:54 del 2026-09-21) manda e
 de desarrollo, donde el task definition `canon-production` no existe. Rompe las CUATRO herramientas
 del repo compartido, no sólo canon. El detalle y el arreglo de una línea, en el Registro de hoy.
 
-**El próximo paso es:** destrabar ese deploy —decidir quién abre el PR de una línea en `config-ci`—;
-hasta entonces lo que se dicte a canon queda en `main` sin llegar al equipo. Después, registrar acá
+**El próximo paso es:** que alguien CON ESCRITURA en `config-ci` aplique el arreglo — la cuenta
+`mig-creditop` es de sólo lectura ahí y el repo no permite fork, así que desde acá no se puede ni
+abrir el PR. El parche está listo en `~/Desktop/config-ci-environment.patch` y el diff en el Registro
+de hoy. Hasta entonces lo que se dicte a canon queda en `main` sin llegar al equipo. Después, registrar acá
 la siguiente mejora concreta del corpus con su criterio de terminación.
 
 ## Frentes activos
@@ -74,11 +76,35 @@ pasan por el mismo camino con `*-production`. Canon falló dos veces (20:29 y 20
 > desplegados. Re-correr el workflow no sirve: `config-ci@main` sigue con el bug.
 > Reproducible: `curl -s https://canon.playground.creditop.com/api/estado`.
 
-**El arreglo es una línea**, en `config-ci/.github/workflows/frontend-monorepo.yaml`, donde llama a
-`deploy-task.yaml`: agregarle `environment: ${{ inputs.environment }}`. Con eso canon vuelve a pasar
-`production`, cae a `*)` como antes, y el arreglo de `develop)` sigue sirviendo para lo que sí va a
-desarrollo. Arregla las cuatro de una. ⚠ `config-ci` es de otro equipo y el cambio es de dsanchezops:
-**falta decidir si el PR lo abro yo o se lo pasa Miguel.**
+**El arreglo son DOS líneas**, las dos en `config-ci`, y están escritas y validadas
+(`~/Desktop/config-ci-environment.patch`):
+
+```diff
+--- a/.github/workflows/frontend-monorepo.yaml
+       secret_name: ${{ inputs.secret_name }}
++      environment: ${{ inputs.environment }}
+     secrets: inherit
+
+--- a/.github/workflows/hotfix-deploy.yaml
+       secret_name: ${{ inputs.secret_name }}
++      environment: production
+     secrets: inherit
+```
+
+Con eso los deploys de producción vuelven a caer a `*)` como antes, y el `develop)` de dsanchezops
+sigue sirviendo para lo que sí va a desarrollo. Los dos llamadores ya SABEN su ambiente
+—`frontend-monorepo` lo recibe como input y `hotfix-deploy` es producción por definición—, así que
+esto es reenviar un valor que ya existe, no inventar configuración.
+
+⚠ **Y `hotfix-deploy.yaml` tenía el mismo defecto sin que nadie lo hubiera notado**: apunta a
+`<servicio>-production` y tampoco reenviaba `environment`, así que el próximo hotfix habría fallado
+igual — en el peor momento posible para descubrirlo. Verificado que con estas dos líneas **no queda
+ningún llamador** de `deploy-task`/`deploy-tasks` sin reenviarlo.
+
+⛔ **No se pudo abrir el PR:** `mig-creditop` tiene `push=false` en `Creditop-SAS/config-ci` (contra
+`push=true` en `playground` y `legacy-backend`), y el repo es privado con `allow_forking=false`. O
+sea: ni rama, ni fork, ni merge. Lo tiene que aplicar alguien con escritura — dsanchezops es el
+natural, que además es el autor del commit que lo destapó.
 
 ⚠ Y lo que NO verifiqué: que el camino `*)` funcionara por las credenciales ambientes del runner de
 CodeBuild lo deduzco del diff y del `if:` que saltea el paso — no leí el rol del runner contra AWS.
