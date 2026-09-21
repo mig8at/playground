@@ -32,8 +32,10 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** `motai`, el último del cruce, y después barrer los nodos que quedan
-comparando SECCIONES (no términos). Y a `creditopx` le quedan **cuatro secciones que
+**El próximo paso es:** barrer los 34 nodos que quedan comparando SECCIONES contra canon, que es la
+métrica que sirve. El cruce por actividad ya se agotó: los cuatro temas calientes con nodo acá están
+hechos. ⚠ Y el PR sigue **sin pushear** con 16 reglas en 7 temas — a esta altura revisarlo de una
+sentada ya cuesta. Y a `creditopx` le quedan **cuatro secciones que
 PARECEN estar ya en canon**
 —el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
 No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
@@ -69,6 +71,14 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**Dieciséis reglas, canon en 411 secciones · el cruce está terminado.** `motai` cedió las dos que
+le faltaban: que el recorrido lo decide el backend paso a paso —y que un paso sin fila de
+configuración simplemente no existe para esa entidad, que es el default y no un error— y que **el
+mismo id no es la misma entidad en otro ambiente**, donde además desde agosto difiere la fórmula que
+cotiza. Los ids concretos no se llevaron: son dato vivo.
+
+Los cuatro temas del cruce (`smartpay`, `onboarding`, `bancolombia`, `motai`) están hechos.
 
 **`bancolombia` BORRADO sin graduar una sola regla — y eso es un resultado, no un fracaso.** El
 árbol queda en **34 nodos**. Sus 129 «términos sin cubrir» hacían pensar en mucho trabajo y no había

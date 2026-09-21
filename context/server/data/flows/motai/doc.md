@@ -51,7 +51,14 @@ viejo—, porque un grep los encuentra y parecen código vivo.
 así que `context-refs` no puede medirle deriva — informa 0 de 0. Que nunca aparezca en el ranking de
 nodos derivados no significa que esté al día; significa que la herramienta no tiene por dónde agarrarlo.
 
-## El padrón de entidades y su config difieren POR AMBIENTE — y no solo los ids
+## El padrón por ambiente — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `motai/context` § «El mismo id no es la misma entidad en otro
+> ambiente, y lo que cambia no son sólo los números». Los ids concretos NO se llevaron: son dato
+> vivo y envejecen. La regla sí.
+
+<!-- lo de abajo queda como evidencia fechada hasta que el nodo se borre -->
+### (evidencia) El padrón medido
 Esto ya confundió más de una vez, y en agosto se volvió más peligroso porque ahora lo que difiere es **la fórmula que cotiza**, no solo el número:
 
 | | producción | dev/qa | dump local |
@@ -75,7 +82,12 @@ Eso invierte dos consecuencias que este nodo daba por ciertas:
 
 `SELECT id, name, product, LENGTH(calculator) FROM lenders WHERE id IN (62,158,193)` (prod, solo lectura). Lo que la migración **no** clona: categorías de usuario y sus reglas (ahí vive `min_initial_fee`), credenciales, ciudades, métodos de pago y requisitos — hay que configurarlos a mano.
 
-## El flujo lo dirige el backend por `next_step`
+## El flujo por `next_step` — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `motai/context` § «El recorrido lo decide el backend paso a paso,
+> y cada paso se prende por entidad».
+
+### (evidencia) El resolvedor
 El self-service tiene **un único punto de entrada**: el front pregunta el paso y **obedece**. `POST /api/loans/customer/requests/confirm` → `CreditopXFlowService::getNextStepData` resuelve, en este orden, leyendo `lender_requirements`:
 
 ```
