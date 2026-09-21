@@ -12,6 +12,8 @@ jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 ## Si retomás esto sin contexto, empezá acá
 
 > **MEDICIÓN · 2026-09-15** — el arreglo está en **`staging`** (PRs #1098 y #1103 mergeados) y la rama del trasplante, PR `legacy-backend#1127`, sigue **abierta y SIN destino**; nada de esto llegó a `main`. El carril visual quedó listo salvo la suite parqueada (ver «Listo para el carril VISUAL»). La receta vigente de mocks de centrales está en `context`, hallazgo F-139.
+> **2026-09-21 · sin avance.** Lo único que cambió hoy es la ruta a las trampas del sistema (`F-xx`), que se mudaron a `tablero/data/trampas/`. El próximo paso de abajo sigue igual.
+
 > `make retomar N=47`
 
 **El próximo paso es:** **redefinir a dónde va el PR #1127.** Estaba abierto contra `develop`, que salió
@@ -289,6 +291,14 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
   el fetch a `9a972697`.
 
 ## Registro
+
+### 2026-09-21
+
+> **MEDICIÓN · 2026-09-21** — esta tarea no avanzó hoy: sólo se le actualizó la ruta a las trampas
+> del sistema (`F-xx`), que se mudaron de `context/server/data/flows/findings/` a
+> `tablero/data/trampas/`. El `F-xx` que cita sigue siendo el mismo; lo que cambió es dónde vive el
+> archivo. El tiempo de esa mudanza está en la bitácora de la tarea del tablero, no acá.
+
 
 ### 2026-09-19 · la receta vigente deja de depender de una tarea local retirada
 

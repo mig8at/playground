@@ -21,6 +21,8 @@ jira_title: "Agente de soporte: modificación de datos"
 ## Si retomás esto sin contexto, empezá acá  ·  actualizado 2026-08-20
 
 > **MEDICIÓN · 2026-09-15** — el canal está en **`main`**: el trabajo de las dos ramas de trasplante de `legacy-backend` y las rutas de `infrastructure` (PR #65) están en `staging`, `qa` y `main`. La única sin llegar es la rama madre `feature/support-bot`, cuyo PR #1089 contra `main` se **cerró sin mergear** porque su trabajo entró por las otras dos. 25 días sin tocar la tarea. Lo que dice el estado de abajo (20/8) sigue siendo el estado.
+> **2026-09-21 · sin avance.** Lo único que cambió hoy es la ruta a las trampas del sistema (`F-xx`), que se mudaron a `tablero/data/trampas/`. El próximo paso de abajo sigue igual.
+
 > `make retomar N=46`
 
 **Qué es:** canal de WhatsApp para que un asesor pida cambios de datos de un cliente y el cliente los
@@ -1325,6 +1327,14 @@ castigo pega sobre el número que también se usa para cobrar.
 ---
 
 ## Registro
+
+### 2026-09-21
+
+> **MEDICIÓN · 2026-09-21** — esta tarea no avanzó hoy: sólo se le actualizó la ruta a las trampas
+> del sistema (`F-xx`), que se mudaron de `context/server/data/flows/findings/` a
+> `tablero/data/trampas/`. El `F-xx` que cita sigue siendo el mismo; lo que cambió es dónde vive el
+> archivo. El tiempo de esa mudanza está en la bitácora de la tarea del tablero, no acá.
+
 
 ### 2026-09-17 · `develop` sale de la vía de entrega
 

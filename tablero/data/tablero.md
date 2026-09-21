@@ -60,6 +60,14 @@ Jev dentro de la agenda.
 
 ## Pendientes
 
+- [ ] **El cierre pide bitácora por una tarea que sólo recibió un barrido de rutas.** Medido el
+      2026-09-21: mudar las trampas del sistema cambió UNA línea en `#46` y `#47` —la ruta del
+      archivo, nada del trabajo— y el cierre exigió bitácora del día en las dos. Anotar minutos ahí
+      sería inventar tiempo, y ese dato sube a Jira. El caso análogo ya está resuelto para el
+      frontmatter (`soloMetadatos`, que no reclama cuando lo único que cambió es un metadato);
+      falta el equivalente para un cambio que **no toca ninguna afirmación** de la tarea. Una pista
+      barata: si el diff del cuerpo son sólo rutas o enlaces, no es trabajo.
+
 - [ ] Comprobar que ninguna tarea local nueva nazca fuera de los siete nombres canónicos.
 - [ ] Confirmar que bitácora y retoma siguen agrupadas bajo la herramienta correcta.
 - [ ] Medir cuántos archivos y tokens evita `make tarea-json` en una retoma real con workers.
