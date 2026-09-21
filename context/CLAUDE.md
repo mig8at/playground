@@ -128,7 +128,7 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    vuelto la única fuente de cosas que no eran suyas.
    Y para que esto no vuelva solo: `roots.es_local()` decide qué alias es de acá **derivándolo de la
    ruta** (sin lista), y `alinear.py` no cuenta esos archivos como deriva ni siquiera cuando los cita
-   un nodo de CreditOp, como hace `findings`.
+   un nodo de CreditOp.
 7. **Antes de leer un diff, mirá si tocó lo que el nodo CITA** (`make context-diff NODE=x CITAS=1`).
    Un doc cita `archivo:línea` decenas de veces —63 en `kyc`, 93 en `onboarding`— y esos números son
    comparables con los rangos del diff: si el cambio reescribió alguna de esas líneas, la afirmación
@@ -150,17 +150,14 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    cambio, el comando se niega —eso se lee y se corrige—. ⚠ `source` dice quién lo dijo, por lo mismo
    que en el sello: hoy sólo se escribe `manual`; una máquina podrá escribir ahí cuando haya con qué
    medirla y con umbrales asimétricos, porque «no hay que mirar esto» y «mirá esto» no cuestan igual.
-9. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
-   entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano, así que un
-   hallazgo nuevo no está indexado hasta que alguien escribe su fila. Medido el 2026-09-21: **9 de 239
-   hallazgos estaban fuera del índice de síntomas** (F-175…F-182 y F-184), justamente los últimos
-   agregados, entre ellos el DNI que choca con una cédula y el 504 del gateway que igual escribe. Para
-   quien entra por la puerta esos nueve no existían, y su ausencia se lee **«no nos pasó»** — el error
-   caro de este repo, adentro de la herramienta que existe para evitarlo. Hoy lo cablea `L9` de
-   `tools/lint.py`: cruza cada `## Índice` contra las anclas `### F-xx`, en los dos sentidos (un
-   hallazgo sin fila, y una fila que apunta a un hallazgo inexistente). La fila la escribe una persona
-   —el síntoma es con qué palabras LLEGA el problema, no el título del hallazgo—; lo que la máquina
-   garantiza es que no falte.
+9. **Las trampas del sistema (`F-xx`) YA NO VIVEN ACÁ.** Se mudaron a
+   `tablero/data/trampas/doc.md` el 2026-09-21, y el motivo vale como regla: son **crónica**
+   —síntoma, causa raíz, evidencia, arreglo—, y la crónica no entra en canon, que es adonde va este
+   árbol. Su lector real ya era el tablero: medido ese día, **12 de 45 tareas citaban 60 `F-xx`
+   distintos y canon no citaba ninguno**. Con ellas se fueron sus dos chequeos —que el índice esté
+   completo, y que sus citas sigan apuntando bien— a `tablero/tools/trampas.py`, que reusa el
+   validador de acá con `refs.py --extra`. ⚠ **El día que este árbol se apague, ese validador hay
+   que llevárselo**: hoy se importa desde allá.
 
 ## La viz: qué pregunta contesta cada cosa
 
@@ -400,7 +397,7 @@ y se reparten (`merchants` L115/L116) · el archivo se nombra **sin número** y 
 (`profiling` L135). Y una cuarta: a veces la cita corta es **meta** —el texto habla de una cita que ya
 no existe— y expandirla inventa una referencia (`merchants` L217). Y una quinta, la peor porque el
 resultado parece válido: **`` `:5174` `` puede ser un PUERTO y no una línea** (el wizard, el mock, un MinIO).
-En `findings` eran tres de 42; expandirlas habría inventado tres referencias a líneas inexistentes. Si la
+En las trampas del sistema eran tres de 42; expandirlas habría inventado tres referencias a líneas inexistentes. Si la
 prosa dice «vive en» o «corre en», mirá antes de expandir — y reescribilas como «el puerto `5174`» para que
 dejen de contarse como citas cortas. **Y `legacy-application/` NO es un alias: es `application/`** (`tools/roots.py`);
 seis citas del árbol lo usaban y salían como «no existe en main».

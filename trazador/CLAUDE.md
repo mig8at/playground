@@ -291,7 +291,7 @@ Y el tipo de anotación es siempre `MEDICIÓN`, a propósito: eso sale de correr
 `RIESGO` los escribe una persona.
 
 ⚠ **Si el hecho medido resultó ser del SISTEMA y no de la tarea** —una trampa reproducible, con causa
-raíz— no se queda acá: gradúa a `context/server/data/flows/findings/doc.md`. El test de siempre: *si
+raíz— no se queda acá: gradúa a `tablero/data/trampas/doc.md`. El test de siempre: *si
 esto se mergea mañana, ¿sigue siendo cierto?*
 
 ## Y lo que NO sale de acá a Jira
@@ -470,7 +470,7 @@ los commits.
   ⚠ **Las etiquetas en español que muestra el trazador NO son los strings del log** («Regla de categoría
   rechazada» ≠ `CATEGORY_RULE_REJECTED`): buscar en Loki por la etiqueta no devuelve nada.
 - **Por qué el sistema se comporta así** (reglas, ramales, integraciones) → los nodos de flujo.
-- **Los hallazgos** que el trazador ayudó a encontrar viven en `findings` (F-100…F-106), no acá.
+- **Los hallazgos** que el trazador ayudó a encontrar viven en las trampas del sistema (F-100…F-106), no acá.
 - **Ejercitar/mockear un flujo** es `harness`. El trazador LEE lo que ya pasó; el harness lo PROVOCA.
 
 ### Lo que NO está verificado

@@ -120,6 +120,9 @@ bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comand
 cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál le falta retoma, registro, bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/cierre $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 
+trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
+	@python3 tablero/tools/trampas.py $(if $(INDICE),--indice)
+
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
 	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/tareas -guard ../../$(F)
@@ -231,9 +234,18 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 .PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint context-ramas context-ramas-test
-.PHONY: context-jev context-jev-test tablero-jev tablero-jev-test
+.PHONY: context-jev context-jev-test tablero-jev tablero-jev-test flow-context flow-context-test
 context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | label reporte --expected nodo | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
+
+# Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
+# localStorage, SQL ni producción: prepara contexto breve para que un LLM elija una regla antes de
+# abrir MAP/DOCUMENTATION o salir a Harness/Trazador con un caso real.
+flow-context: ## @ctx Flow para LLM: map | route "pregunta general" | brief <tema> | validate. ARGS='…' · salida JSON; --text es compacto
+	@python3 flow/tools/flow_context.py $(or $(ARGS),--help)
+
+flow-context-test: ## @ctx pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
 
 context-triar: ## @ctx ⚠ ESCRIBE `triado` en un nodo: deja dicho que el cambio se MIRÓ y no toca lo que afirma — sin sellarlo (el sello sigue siendo de una persona). Se NIEGA si alguna cita cayó dentro del cambio. NODE=x VEREDICTO='…' [FUENTE=…] · LISTAR=1
 	@cd context && python3 tools/triar.py $(if $(LISTAR),--listar,$(NODE) --veredicto "$(VEREDICTO)" $(if $(FUENTE),--source $(FUENTE)))
@@ -264,7 +276,7 @@ context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hub
 	@cd context && python3 tools/salud.py
 	@cd context && python3 tools/lint.py
 
-context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles, hallazgos fuera del índice de findings
+context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
 	@cd context && python3 tools/lint.py
 
 context-huella: ## @ctx la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida. UREQ=x [MYSQL=/tmp/huella-mysql.log]

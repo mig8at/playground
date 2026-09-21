@@ -48,7 +48,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «¿en qué repo vive esto?» | `microservicios` |
 | «¿en qué repo vive esto?» / «está duplicado» | `architecture` |
 | «entró desde la tienda online y se rompió» | `ecommerce` |
-| «esto anda en local y no en dev/qa» | `findings` |
 | «esto no puede ser, la entidad funciona en otro comercio» | `creditop` |
 | «¿esto no se puede parametrizar?» | `negocio` |
 | «¿esto ya está en el backoffice nuevo?» | `application` |
@@ -56,7 +55,7 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «falló con Credifamilia» | `credifamilia` |
 | «falló el renting / Ábaco» | `motai` |
 | «falló en Pullman / CrediPullman» | `pullman` |
-| «falló firmando documentos» | `findings` · `formalization` |
+| «falló firmando documentos» | `formalization` |
 | «firmó y la solicitud no pasó a Autorizada» | `codeudor` |
 | «firmó y no se desembolsó» | `deceval` |
 | «formulario no encontrado» | `dynamic-forms` · `form-service` |
@@ -70,9 +69,8 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «las condiciones que vio no son las del cupo que quedó» | `rotativo` |
 | «lo mandó al sitio del lender y no volvió» | `redirect` |
 | «los datos del cliente no coinciden con el registro» | `deceval` |
-| «necesito reproducir/probar un flujo entero» | `findings` |
 | «no aparece el tipo de documento PEP» | `motai` |
-| «no le apareció ninguna entidad» | `creditopx` · `findings` · `kyc` · `merchants` · `profiling` |
+| «no le apareció ninguna entidad» | `creditopx` · `kyc` · `merchants` · `profiling` |
 | «no le consultaron el buró» | `kyc` |
 | «no le llega el OTP del registro» | `onboarding` |
 | «no le llegó el OTP de la firma» | `formalization` |
@@ -103,7 +101,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «se le cambió sola la config de una entidad» | `merchants` |
 | «se va un comercio, ¿qué hago con sus créditos vivos?» | `negocio` |
 | «ya está desembolsado y la cuota está mal» | `servicing` |
-| «ya nos pasó esto antes?» | `findings` |
 
 ## Árbol
 ```
@@ -127,7 +124,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
       - profiling [ref]
       - rotativo
     - redirect [ref]
-  - findings [ref]
   - formalization [ref]
     - deceval
     - dynamic-forms [ref]
@@ -210,10 +206,6 @@ Doc: `server/data/flows/ecommerce/doc.md` · Archivos: `server/data/flows/ecomme
 ### entities — Entities  ·  _reference_ · 59 archivos
 **Cuándo:** Cuando la pregunta es qué ES un prestamista como dato: la fila `lenders`, sus tablas de configuración, y sobre todo el `response_type` (0 redirect/UTM · 1 agregador por API · 2 y 3 CreditopX in-platform · 4 Credifamilia SOAP) que despacha toda la plataforma. Alta de una entidad nueva. También `lender_identity_validation_types` (qué camino de identidad le toca). ⚠ El `response_type` CAMBIA según el ambiente: verificarlo contra local miente (F-95).
 Doc: `server/data/flows/entities/doc.md` · Archivos: `server/data/flows/entities/map.json` · Padre: `creditop`
-
-### findings — Findings  ·  _reference_ · 58 archivos
-**Cuándo:** Cuando algo NO funciona en el entorno LOCAL y querés saber si ya lo diagnosticamos — pantallas rotas sin mensaje, flujos que se traban, errores que el front se traga, o "esto que veo, ¿es real o es un mock?". También ANTES de invertir tiempo depurando un muro del harness: cada hallazgo trae síntoma, causa raíz verificada, evidencia y arreglo. Es un registro VIVO: al descubrir algo nuevo, se agrega una entrada acá.
-Doc: `server/data/flows/findings/doc.md` · Archivos: `server/data/flows/findings/map.json` · Padre: `creditop`
 
 ### form-service — Form Service  ·  _reference_ · 37 archivos
 **Cuándo:** Cuando la tarea toca el microservicio `form-service` (Go): el formulario dinámico G2 'backend-driven' (pantalla `additional-info`), cómo se arma el schema desde las 5 tablas legacy, dónde/cómo se guardan las respuestas (`user_field_values`, EAV), el árbol país→departamento→ciudad de los selects, o agregar/editar un campo sin escribir código. Credifamilia es el `form_type` 6. Síntoma: «formulario no encontrado» = el flujo dinámico sin su schema (F-41).

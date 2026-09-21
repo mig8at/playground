@@ -1024,7 +1024,7 @@ test.
 `Admin/UserController@update` **resetea la contraseña del cliente a su número de documento** en cada
 edición (`bcrypt($document_number)`). Cambiarle el correo a alguien le deja la clave en su cédula.
 Es independiente del canal de WhatsApp y ya está en `main`. **Pendiente de registrar como finding**
-en `context/server/data/flows/findings/doc.md` — Miguel lo decide.
+en `tablero/data/trampas/doc.md` — Miguel lo decide.
 
 ## Arquitectura del canal — ✅ DECIDIDO: `Modules/SupportAgent` en legacy-backend
 

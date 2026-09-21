@@ -743,7 +743,7 @@ centrales, hechos por tres personas en tres meses (`mock_rules` de José, el lam
 Joel, y los drivers fake + `X-Fake-Scenario`). Se hizo un spike que los unifica en uno solo dictado
 por header — local, sin commitear, 0 tests rotos de 509.
 
-El mecanismo vigente y su receta viven en **`context/server/data/flows/findings/doc.md`, F-139**. El
+El mecanismo vigente y su receta viven en **`tablero/data/trampas/doc.md`, F-139**. El
 spike anterior sigue disponible en la historia de Git.
 
 #### Preguntas abiertas

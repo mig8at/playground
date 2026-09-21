@@ -24,7 +24,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el nodo que explica cada uno |
 | **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
 | **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus nodos (24/24 vivas, medido 2026-09-21), así que no hay nodo que elegir: lo que cuesta es abrir los `doc.md` (mediana ~27 KB, `kyc` 55 KB), y la **ficha** de cada uno (~5 KB) alcanza para decidir cuál. Jev `route` es para una tarea **de cero**, local primero y `--live` sólo si el léxico empata. ⚠ Regla de corte: **si la ficha no contesta, no probés otro nodo — la pregunta va a `workers/`** (el router no ve lo que nadie escribió) |
-| **¿ya nos pasó?** | `context/server/data/flows/findings/doc.md`, entrando por su índice de síntomas |
+| **¿ya nos pasó?** | `tablero/data/trampas/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
 | **…y si `context/` no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
 | **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
@@ -498,14 +498,14 @@ aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
    texto sigue siendo cierto?*
    - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
    - trampas **del sistema**, verificadas (síntoma → causa raíz → evidencia → arreglo) →
-     `context/server/data/flows/findings/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
+     `tablero/data/trampas/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
      ya nos pasó, está ahí.
 4. **Probar de verdad es `harness/`** (panel, runners, mocks): se comprueba **corriendo**, no
    leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
    ⚠ **Y en local/dev/staging las centrales de riesgo NO las atiende el proveedor**, sino un lambda de
    mocks de la empresa (`Creditop-SAS/risk-services-mockery-lambda`, un Mockoon; no está entre los
    repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta vigente y sus trampas
-   están en `context/server/data/flows/findings/doc.md`, F-139. Sin saber esto, una prueba de identidad
+   están en `tablero/data/trampas/doc.md`, F-139. Sin saber esto, una prueba de identidad
    ahí siempre devuelve la misma persona y parece que el código está roto.
 5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
    funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de

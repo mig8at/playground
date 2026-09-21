@@ -149,6 +149,14 @@ Marcá completado sólo lo verificado. Los criterios públicos para QA pertenece
 
 ### Hallazgos
 
+⚠ **No confundir con las TRAMPAS del sistema (`F-xx`), que también viven acá desde el 2026-09-21**
+(`data/trampas/doc.md`, `make trampas`). Un hallazgo es una anotación fechada DENTRO de una tarea y
+muere con ella; una trampa es del sistema, no pertenece a ninguna tarea, y se entra por su SÍNTOMA.
+Vinieron del árbol de `context/` porque son **crónica** —síntoma, causa raíz, evidencia, arreglo— y
+la crónica no entra en canon; su lector real ya era este tablero. Dos cosas con nombre parecido es
+como empiezan a mezclarse, así que: lo que le pasó a ESTA tarea es un hallazgo; lo que le pasa al
+sistema y ya nos costó tiempo es una trampa.
+
 Usá `> **TIPO · YYYY-MM-DD** — hecho y consecuencia`, con la fecha real. Los tipos admitidos son
 **MEDICIÓN, DECISIÓN, PREGUNTA y RIESGO**. Una pregunta identifica a quien debe responder:
 `> **PREGUNTA · YYYY-MM-DD · Nombre** — pregunta concreta`. La evidencia y el método continúan con

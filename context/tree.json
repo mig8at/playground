@@ -400,19 +400,6 @@
       "updated": "2026-07-18T11:00:00Z"
     },
     {
-      "id": "findings",
-      "name": "Findings",
-      "targets": {
-        "application": "main",
-        "frontend-monorepo": "main",
-        "legacy-backend": "main"
-      },
-      "baseline": {},
-      "created": "2026-07-18T20:00:00Z",
-      "updated": "2026-07-18T20:00:00Z",
-      "parent": "creditop"
-    },
-    {
       "id": "form-service",
       "name": "Form Service",
       "parent": "dynamic-forms",

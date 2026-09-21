@@ -104,9 +104,11 @@ scope. El detalle del contrato y los comandos equivalentes están en [`docs/JEV.
   comentario de `referencia.md`) **+ registrarlo en `tree.json`** — sin esa entrada el nodo queda
   invisible para el mapa (el hook lo regenera solo).
 
-## El nodo `findings` — buscá acá primero
+## Las trampas del sistema (`F-xx`) — se mudaron
 
-[`server/data/flows/findings/doc.md`](server/data/flows/findings/doc.md) es la bitácora de trampas:
+Las trampas del sistema (`F-xx`) **ya no viven acá**: se mudaron a
+[`tablero/data/trampas/doc.md`](../tablero/data/trampas/doc.md) el 2026-09-21, porque su lector real
+es el tablero. Eran la bitácora de trampas:
 síntoma → causa raíz verificada → evidencia → arreglo. Se lee al revés de lo que uno espera:
 **antes de depurar un muro, buscá tu síntoma en su índice** — buena parte de lo que parece un bug
 del producto ya está diagnosticado ahí.

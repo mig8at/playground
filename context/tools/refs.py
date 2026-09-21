@@ -394,25 +394,41 @@ def evaluar(cita, n, fin, base_cita, idx):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     ver_ok = "--ok" in sys.argv
+    # `--extra <doc.md>`: valida un documento que NO es un nodo del árbol. Existe porque las trampas
+    # del sistema (`F-xx`) se mudaron al tablero el 2026-09-21 y se llevaron 149 citas `archivo:línea`
+    # con ellas: sin esto quedaban sin vigilar, que es el precio que ya pagaron `harness` y `trazador`
+    # al salir. El motor es el mismo a propósito — dos validadores de citas derivan.
+    extras = []
+    if "--extra" in sys.argv:
+        i = sys.argv.index("--extra") + 1
+        if i < len(sys.argv):
+            extras = [sys.argv[i]]
+            args = [a for a in args if a != sys.argv[i]]
     idx = indice()
     existen, por_rel, por_base = idx
 
-    nodos = args or sorted(os.listdir(FLOWS))
+    # Con `--extra` y sin nodos nombrados, se valida SÓLO ese documento: mezclarlo con el árbol
+    # entero daba un resumen de 2.286 referencias para contestar por las 149 de un archivo.
+    nodos = args or ([] if extras else sorted(os.listdir(FLOWS)))
     baldes = defaultdict(list)
     sin_sello = set()
 
-    for nid in nodos:
-        doc = os.path.join(FLOWS, nid, "doc.md")
+    documentos = [(nid, os.path.join(FLOWS, nid, "doc.md"),
+                   os.path.join(FLOWS, nid, "map.json")) for nid in nodos]
+    for ruta in extras:
+        documentos.append((os.path.basename(os.path.dirname(ruta)) or "extra",
+                           ruta, os.path.join(os.path.dirname(ruta), "map.json")))
+
+    for nid, doc, mp in documentos:
         if not os.path.isfile(doc):
             continue
-        mp = os.path.join(FLOWS, nid, "map.json")
         fecha = None
         if os.path.isfile(mp):
             fecha = ((json.load(open(mp)).get("verified") or {}).get("date"))
         if not fecha:
             sin_sello.add(nid)
 
-        blame = escrita_en(os.path.relpath(doc, CTX))
+        blame = escrita_en(os.path.relpath(doc, CTX))  # relativo a context: git lo resuelve igual
         for i, linea in enumerate(open(doc).read().splitlines(), 1):
             donde = f"{nid}/doc.md:{i}"
             # cuándo se afirmó esta cita: el sello del nodo, o cuándo se escribió la línea si

@@ -32,7 +32,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Si venís a… | Arrancá por |
 |---|---|
 | Entender un flujo o subsistema | [`context/docs/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md): elegí dos a cuatro nodos por su **Cuándo** y abrí sus `doc.md` + `map.json` |
-| «¿Ya nos pasó esto?» | el nodo [`findings`](context/server/data/flows/findings/doc.md): entrá por el índice de síntomas |
+| «¿Ya nos pasó esto?» | el nodo [`findings`](tablero/data/trampas/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | `cd harness && npm run dev` → el panel maneja el wizard real |
 | Investigar una solicitud rota | `make trazador-acceso` + el nodo `trazador` |
 
