@@ -86,8 +86,11 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 **Lo que quedó abierto al probar**
 
-- [ ] **En ecommerce la tarjeta muestra `-` en «Valor a financiar» y «Cuota», y es un cabo suelto de
-      #1018.** El canal no pide la cuota inicial, así que el mínimo nunca se satisface y
+- [ ] **Mergear `frontend-monorepo#1039` a `qa`** — el arreglo de los importes en `-`, ya abierto
+      (rama `fix/importes-de-la-tarjeta-en-ecommerce`, `42be10f5`). Termina cuando la tarjeta del
+      canal de tienda muestre números sin tocar nada. *(Era el hallazgo de abajo, ya atacado.)*
+- [x] ~~**En ecommerce la tarjeta muestra `-` en «Valor a financiar» y «Cuota», y es un cabo suelto de
+      #1018.**~~ El canal no pide la cuota inicial, así que el mínimo nunca se satisface y
       `hasAmountToShow` (`LenderCardSummaries.tsx:71`) deja los dos importes apagados para siempre.
       El arreglo: usar el `effectiveInitialFee` que `useInstallmentOptions.ts` ya resuelve para los
       plazos. Va en `frontend-monorepo`, o sea en el PR del front de esta tarea, no en #1441.
@@ -413,6 +416,46 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (8) · el arreglo de los importes, y el orden de entrega
+
+**PR `frontend-monorepo#1039`** contra `qa`, rama `fix/importes-de-la-tarjeta-en-ecommerce`
+(`42be10f5`). Cuando el canal no ofrece el campo de cuota inicial, la efectiva pasa a ser el
+**mínimo** — que es lo que la tarjeta ya prometía dos líneas más arriba. El canal del asesor no se
+toca. La decisión vive en `resolveEffectiveInitialFee` (`lib/domain/services/initial-fee.service.ts`)
+y no inline en el hook, porque es lo único de ahí que se puede probar solo.
+
+**Comprobado:** build del wizard verde (la vara real en este repo), biome limpio, y la función
+**ejecutada** contra sus cinco casos, los cinco en verde.
+
+⚠ **Lo que NO se pudo comprobar, y hay que decirlo:** el render con el arreglo puesto sobre un caso
+con mínimo. En local esa entidad llega con `initial_fee_percentage` en 0 —el usuario cayó en
+«Segunda oportunidad», que declara 25 %, y aun así la tarjeta mostró el monto completo— así que el
+caso no se reproduce ahí. Lo que sí está medido es que el estado al que lleva el cambio —cuota
+inicial igual al mínimo— es exactamente el que en `qa` muestra $1.203.750 y $264.970.
+
+⚠ **Y el runner de pruebas del módulo está roto en esta copia:** los **27** archivos fallan con
+`__vite_ssr_exportName__ is not defined`, incluidos los 26 que este cambio no toca. No es del cambio;
+es la copia. Por eso la función se ejecutó con `tsx` en vez de con `vitest`.
+
+### El ORDEN de entrega, con lo de hoy adentro
+
+1. ✅ **`legacy-backend#1441` — ya mergeado en `qa`** (21/9 13:43Z). Plazo por tramo + monto de la
+   tienda bloqueado.
+2. ⏳ **Que `legacy-backend-qa` de verdad sirva #1441.** Hoy sirve una imagen anterior; sin esto QA no
+   puede validar el monto bloqueado. **Bloquea el paso 4.**
+3. **`frontend-monorepo#1039` → `qa`.** Sin él la tarjeta sigue en `-` y QA no puede leer ni el plazo
+   ni los importes. Va a `qa` y no a `main` porque es donde vive el defecto y donde se valida.
+4. **QA recorre los tres canales en `qa`**, sin sesión de asesor.
+5. **`frontend-monorepo#1016` → `main`.** Repone la entrada del checkout y la bienvenida tras el
+   revert. ⚠ **Antes de la promoción**: promover primero deja `main` con rutas apuntando a archivos
+   que no existen.
+6. **Promoción `qa` → `main`** (la llevan Laura y Oscar). Se lleva #1441 y #1039 sin PRs extra.
+
+⚠ **El único orden que no se puede alterar es 5 antes de 6.** Los demás son dependencias de
+información, no de código: 3 puede entrar antes que 2 —son repos distintos— pero QA no debería
+empezar hasta tener los dos.
+
 
 ### 2026-09-21 (7) · lo que vio Duncan: no es preaprobados, es un cabo suelto de #1018
 
