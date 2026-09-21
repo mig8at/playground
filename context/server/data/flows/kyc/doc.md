@@ -399,6 +399,13 @@ re-firmada no lo tiene y hay que empezar de nuevo.
 
 ## El catálogo real de centrales: son 12, y varía por ambiente
 
+> **2026-09-21 · comparado con canon, NO graduado.** Canon cubre este nodo con 23 secciones contra
+> las 9 de acá, y mejor: la tabla de ids es catálogo, que no gradúa. Lo único que sería regla —«el
+> catálogo VARÍA por ambiente, así que una vista que liste centrales tiene que leerlo de la base
+> del target»— **no se graduó porque no se verificó hoy**: comprobarlo pide consultar dos ambientes.
+> ⚠ Y si es cierto, corrige a canon, que hoy habla de «las doce centrales» como si fueran doce en
+> todos lados. Pendiente de medir.
+
 `risk_centrals` tiene **12 filas**, no las 4 o 5 que uno nombra de memoria. La lista completa (ids de prod):
 
 | id | nombre | id | nombre |

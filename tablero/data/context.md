@@ -72,6 +72,17 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
 
+**La medida real de lo que falta: 120 SECCIONES PROPIAS en 34 nodos** (sin contar «Qué es»,
+«Contenido», «Dónde mirar» y demás formato). No 2.900 términos: esa métrica medía implementación.
+Por lo que salió hoy —`backoffice` 4 propias → 6 reglas, `creditopx` 7 → 3, `motai` 7 → 2,
+`bancolombia` 2 → **0**— el ratio ronda **una regla cada dos secciones propias**, con mucha
+varianza: hay nodos que no ceden nada porque canon ya los cubre mejor.
+
+**`kyc` comparado y NO graduado.** Canon lo cubre con 23 secciones contra 9, y lo único que sería
+regla —que el catálogo de centrales varía por ambiente— **no se verificó hoy**: pide consultar dos
+ambientes. ⚠ Si es cierto, corrige a canon, que habla de «las doce centrales» como si fueran doce
+en todos lados. Queda anotado en el nodo.
+
 **Dieciséis reglas, canon en 411 secciones · el cruce está terminado.** `motai` cedió las dos que
 le faltaban: que el recorrido lo decide el backend paso a paso —y que un paso sin fila de
 configuración simplemente no existe para esa entidad, que es el default y no un error— y que **el
