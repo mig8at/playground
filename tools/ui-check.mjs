@@ -20,7 +20,7 @@ const sample = {
       Description: 'Comprueba el estado vacío.' },
   ] },
   '/api/efforts': { efforts: [
-    { id: 1, title: 'Validar interfaz', stage: 'work', temasCanon: 'arquitectura, onboarding',
+    { id: 1, title: 'Validar interfaz', stage: 'work', canon: 'arquitectura, onboarding',
       techNotes: '# Interfaz\n\n## Criterios\n\n' + Array(60).fill('- El documento conserva su scroll independiente.').join('\n')
         + '\n\n## Pendientes\n\n- [ ] Confirmar la interfaz',
       pendientes: [{ texto: 'Confirmar la interfaz', seccion: 'Pendientes', hecho: false }] },
@@ -196,9 +196,16 @@ try {
         'Tablero: la retoma muestra los temas de canon declarados');
       assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Detalle', exact: true }).count(), 0,
         'Tablero: el sidebar derecho ya no repite una ficha de detalle');
+      // ⚠ El default del sidebar derecho es RETOMAR, no Jira, desde que existe esa vista: al abrir una
+      // tarea lo primero que hace falta es con qué se sigue, no el espejo de Jira. Esta aserción decía
+      // lo contrario y quedó vieja un día entero sin que nada fallara, porque nadie corrió el chequeo.
+      const retomarTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Retomar', exact: true });
+      assert.equal(await retomarTab.getAttribute('aria-selected'), 'true',
+        'Tablero: Retomar ocupa por defecto el cuerpo único del sidebar derecho');
       const jiraTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true });
+      await jiraTab.click(); await paint(page);
       assert.equal(await jiraTab.getAttribute('aria-selected'), 'true',
-        'Tablero: Jira ocupa por defecto el cuerpo único del sidebar derecho');
+        'Tablero: Jira sigue siendo alcanzable desde su pestaña');
       assert.equal(await page.locator('.auxiliarybar .view-tog').count(), 0,
         'Tablero: las vistas derechas son pestañas y no encabezados de acordeón');
       const jiraPanel = await page.locator('.jira-tab-panel').evaluate((panel) => {

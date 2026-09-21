@@ -663,7 +663,7 @@ const TRAZADOR_URL = 'http://localhost:5192';
 // RETOMAR no es otro resumen del documento: junta los indicadores ya derivados para dejar claro qué
 // se sabe, con qué se comprobó y dónde se continúa. La evidencia se ordena por fecha, no por lugar en
 // la prosa: una tarea puede contar primero el antecedente y luego la comprobación más reciente.
-const temasDeRetoma = computed(() => (active.value ? effortDe(active.value.Key)?.temasCanon || '' : '')
+const temasDeRetoma = computed(() => (active.value ? effortDe(active.value.Key)?.canon || '' : '')
   .split(',').map(node => node.trim()).filter(Boolean));
 const evidenciaDeRetoma = computed(() => active.value ? hallazgosDe(active.value.Key) : []);
 const fuentesDeRetoma = computed(() => [...new Set(evidenciaDeRetoma.value.flatMap(item => item.fuentes || []))]);
@@ -817,7 +817,7 @@ function textoParaCompartir(modo) {
   let cuerpo = cuerpoDe(i.Key);
   if (!cuerpo) return '';
   if (modo === 'compartir') cuerpo = cortarParaCompartir(cuerpo);
-  const temas = (e?.temasCanon || '').split(',').map(s => s.trim()).filter(Boolean);
+  const temas = (e?.canon || '').split(',').map(s => s.trim()).filter(Boolean);
   // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
   // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
   // la línea opcional de temas se decide al armar el arreglo y no con un `.filter` de vacíos

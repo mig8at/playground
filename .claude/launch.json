@@ -12,16 +12,6 @@
       "port": 5190
     },
     {
-      "name": "context",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "context",
-      "port": 5193
-    },
-    {
       "name": "panel",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

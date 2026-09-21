@@ -422,7 +422,7 @@ func main() {
 				JiraTitle       *string `json:"jiraTitle"`
 				JiraDescription *string `json:"jiraDescription"`
 				TechNotes       *string `json:"techNotes"`    // privado: NO pasa por el guard
-				TemasCanon    *string `json:"canon"` // slugs de nodos de contexto
+				TemasCanon    *string `json:"canon"` // slugs de temas de canon
 				Stage           *string `json:"stage"`        // evaluation | work | tasks
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
