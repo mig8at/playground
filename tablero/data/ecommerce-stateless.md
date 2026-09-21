@@ -86,6 +86,13 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 **Lo que quedó abierto al probar**
 
+- [ ] **Forzar el redespliegue de `legacy-backend-qa`: sirve una imagen anterior a #1441.** Medido el
+      21/9: el mismo endpoint devuelve `lock_amount = true` pidiéndoselo directo y `false` cuando lo
+      pide el front, con el recorte de categoría de #1432 presente en las dos respuestas — o sea una
+      imagen de entre el 18/9 y el 21/9 13:48. Los dos workflows de despliegue salieron ✔. Termina
+      cuando `originaciones-qa` muestre el campo del monto bloqueado en una compra de tienda.
+      Depende de: infra — no hay acceso a ECS desde acá.
+
 - [ ] **El flag `is_ecommerce` del listado v2 está MUERTO y tiene dos consumidores más.** Sale del query
       string y el front no lo manda (lo resuelve bien y lo tira al armar la URL). Además del candado del
       monto —que ya no depende de él— lo usan `LenderListingService::getSteps()` (`:333`) y
@@ -396,6 +403,57 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (4) · el monto SIGUE editable en qa, y no es del código: el backend que atiende al front está viejo
+
+Miguel reportó que #1441 ya está mergeado y el monto se sigue pudiendo editar en `qa`. Es cierto, y la
+causa **no** está en el código.
+
+**Lo mergeado y desplegado, verificado:** #1441 mergeó a `qa` el 21/9 a las **13:43Z** y su workflow
+«Deploy Legacy Backend to QA Env» salió ✔ a las **13:48Z**; después hubo otro despliegue de `qa` ✔ a
+las **19:33Z**. Y el código llegó bien: `origin/qa` tiene `alliedBranchForResponse` y `locksAmountFor`
+íntegros (`LenderListingService.php:370,722-735`).
+
+**La contradicción, medida el 21/9 a las 19:3x Z — misma solicitud, mismo endpoint, mismo host:**
+
+| quién pregunta | `credit_lines.fee_numbers` | `alliedBranch.lock_amount` |
+|---|---|---|
+| yo, directo a `legacy-backend-qa.inertia-develop` | `1,3,6` | **`true`** (10 de 10 intentos) |
+| el front de `originaciones-qa` (su SSR) | `1,3,6` | **`false`** |
+| `legacy-backend.inertia-develop` (rama `develop`, de control) | `1,3,6,12` | `false` |
+
+Y en pantalla: `#amount-input` con `readOnly: false`, o sea editable.
+
+**Por qué esto señala al despliegue y no al código.** Las dos entidades declaran `1,3,6,12`
+(`credit_line_by_lenders`), así que el `1,3,6` que recibe el front **sólo lo produce `qa`** — es el
+recorte por categoría de #1432, que no está en `develop`, `main` ni `staging` (verificado en las
+cuatro ramas). O sea que el front sí habla con un backend de `qa`… pero uno **sin** #1441. Dicho de
+otro modo: la instancia que atiende al front sirve una imagen de **entre el 18/9 (#1432) y el 21/9
+13:48 (#1441)**.
+
+**Lo que queda descartado, cada uno con su medición:**
+
+- **No es el front.** Su build de `qa` apunta a ese mismo host (`.github/workflows/loans-qa.yaml:27`,
+  `VITE_API_URL=http://legacy-backend-qa.inertia-develop`) y su mapeo es directo
+  (`loan-options.repository.ts:87`, `alliedBranch?.lock_amount ?? null`). El mapper **no** recorta
+  `fee_numbers` — sólo lo lee (`lender-response.mapper.ts:299`).
+- **No es caché del front.** Una solicitud que esa pantalla nunca había cargado (502616, sucursal 2171)
+  también da `false`, y el `.data` pedido con parámetro único trae `"1,3,6"` y nunca `"1,3,6,12"`.
+- **No es un despliegue a medias en MI camino.** Diez peticiones seguidas al backend dieron `true` las
+  diez.
+- **No es el dato.** La sucursal 659 tiene `lock_amount = 0` en la base, que es justo el caso que el
+  canal tiene que cerrar.
+
+**Qué falta hacer:** forzar un despliegue nuevo del servicio `legacy-backend-qa` (o mirar si tiene más
+de una tarea y si la definición se actualizó). No se puede confirmar desde acá: no hay acceso a ECS.
+
+⚠ **Y la lección que generaliza, que es lo que más vale de esto: un ✔ en `make deploys` dice que el
+WORKFLOW terminó bien, no que el código esté sirviendo.** Acá hubo dos workflows en verde y la
+instancia seguía vieja seis minutos después del segundo. Para saber qué código te está contestando hace
+falta pedirle al backend un campo que sólo exista en esa rama — que es exactamente la técnica que el
+`CLAUDE.md` del arnés ya recomienda con `allowed_document_types`, y que acá funcionó con el recorte de
+plazo por categoría.
+
 
 ### 2026-09-21 (3) · corrida de validación: lo de #1441 anda, y apareció una ruta que falta en `qa`
 
