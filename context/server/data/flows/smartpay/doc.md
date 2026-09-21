@@ -101,32 +101,16 @@ del panel ahora PERSISTEN en `device_locks`** (antes no dejaban rastro), el dife
 el espejo a merchant-api también aplican acá, y la mora se causa con el calendario de cortes
 (`CutoffCalendar`).
 
-## El umbral de bloqueo ya NO es 8 para todos: hay configuración por comercio, y se escribe por API
+## El umbral de bloqueo y su configuración — GRADUÓ a canon
 
-Desde el 2026-09-02 el umbral de días de mora es **por comercio**. Tres cosas que cambian lo que este nodo decía:
-
-- ⚠ **El `days_past_due >= 8` de arriba es hoy un DEFAULT, no una regla.** Es el valor que usa el motor v1 cuando el comercio no tiene fila de configuración (`legacy-backend/Modules/DeviceLockingV1/App/Repositories/DeviceLockingConfigRepository.php:19`); con fila, manda el umbral propio del comercio (`legacy-backend/Modules/DeviceLockingV1/App/Repositories/LockCandidateRepository.php:39`). El cron viejo de las 04:00 **sí** lo tiene quemado (`legacy-backend/app/Console/Commands/LockDevicesPastDueCommand.php:33`), y es el que corre para los comercios que **no** están en v1 — o sea que hoy conviven un umbral fijo y uno configurable según el motor.
-- **La pantalla vive en el monolito VIEJO y escribe por API en el NUEVO**, que es el patrón inverso al del resto del sistema. La lista de comercios sale de la BD compartida —por eso un comercio nuevo aparece solo— pero la configuración se lee y se escribe **únicamente** por la API interna de `legacy-backend`, con su propio secreto Bearer, porque el módulo `DeviceLockingV1` es el dueño de `device_locking_configs` (`application/app/Http/Controllers/Admin/DeviceLockingConfigController.php:13-19`). Los dos monolitos se hablan por tablas (ver `architecture`); **éste es el caso donde no**.
-- **Qué es configurable, exactamente cuatro cosas:** `enabled`, `daysPastDue`, `lockTitle` y `lockMessage` (`legacy-backend/Modules/DeviceLockingV1/App/Http/Requests/UpsertAlliedLockingConfigRequest.php:19-23`). ⚠ **La periodicidad NO**, aunque el docblock del admin diga «days threshold + periodicity» (`application/app/Http/Controllers/Admin/DeviceLockingConfigController.php:14`): el tick corre **diario y fijo**, igual que el job que reemplaza, y la API no acepta ningún campo de periodicidad. Es una perilla prometida que no existe.
-
-**El piso, y por qué hay dos.** Un `0` guardado por error bloquearía toda la cartera del comercio apenas venciera, sin un día de gracia. Por eso hay un mínimo, y se lee de **env en los dos lados** —`legacy-backend/config/device_locking.php:29` para la API, y `services.device_locking.min_days_past_due` para la pantalla—, los dos con default **1**. ⚠ **Tienen que valer lo mismo:** si divergen, la UI rechaza valores que la API aceptaría, o muestra como válido algo que la API va a rechazar. Es una regla que no tiene quien la haga cumplir.
-
-**El bloqueo mismo se pide por OTRO cliente, y es fail-closed.** `application/app/Services/Api/DeviceLockApiClient.php` habla servidor a servidor con los endpoints del backend interno —`/api/partners/{get-device-status,lock-device,unlock-device,unlock-pin-device}`— y **nunca lanza**: una configuración faltante o un backend inalcanzable vuelven como `['status' => int, 'body' => array]` para que **quien llama decida sin romper el flujo de pago**. Reusa `services.api.legacy_host` (`INTERNAL_LEGACY_API_URL`), y ⚠ **estos endpoints NO usan Bearer** — a diferencia de los de configuración, que sí llevan su secreto propio. Son **dos clientes distintos contra el mismo backend, con autenticación distinta**.
-
-**Todo cambio queda auditado** en `device_locking_config_audits` (`application/app/Http/Controllers/Admin/DeviceLockingConfigController.php:104`). ⚠ Y esa migración existe **sólo en `legacy-application`** — es una de las tres que rompen la regla de declarar el esquema en `legacy-backend` (ver `architecture`).
-
-**Y la corrida deja rastro aunque no haga nada:** además de `last_run_at`, cada comercio recibe un resumen por corrida escrito en su propia fila de configuración (estado / código de sobre / despachados / omitidos / error), y la corrida se loguea a nivel INFO al empezar y al terminar. La razón es concreta: la salida de consola la descarta el scheduler y los spans de trazado son de nivel debug, así que **sin ese INFO una corrida con cero comercios habilitados sería indistinguible de una que no corrió**.
-
-**(2026-09-18) Nodo RE-VERIFICADO entero.** 21 afirmaciones auditadas —13 de código contra `main` y
-8 de dato medidas contra producción—, cero chequeos débiles y ninguna falsa. ✔ **Lo más medido del nodo
-dio EXACTO al cierre del día:** del 12 al 17, entre 973 y 1.425 filas `failed` diarias sobre 91-142
-equipos (10,0 a 11,4 por equipo), y el 18 **97 filas sobre 97 equipos, exactamente 1,00** — el arreglo
-sostuvo la jornada completa, no sólo el momento de la primera medición. También dieron exacto: las
-**cinco** entidades con path IMEI y su `response_type` 2, los ids **152 = Refurbicredit** y
-**153 = Crediemo**, `user_request_device_info` **vacía**, los ocho estados de `device_locks`, y la
-divergencia que abre este nodo —`isSmartPay()` resuelve **152** y la config **153**—. Lo corregido son
-**seis bloques de citas** que derivaron entre 2 y 26 líneas (el peor: el delete destructivo del enroll,
-24 líneas) y la escala de `device_locks`, que se duplicó en dos semanas.
+> **Graduó** (2026-09-21) → canon, `smartpay/context`, en dos secciones: «Del bloqueo se configuran
+> cuatro cosas, y la periodicidad no es una de ellas» y «Acá los dos monolitos NO se hablan por
+> tablas». El motor nuevo con su umbral por comercio y su tope por corrida **ya estaba allá**, y con
+> más detalle que acá.
+>
+> ⚠ **Y al verificar apareció algo que este nodo no decía y canon tampoco:** el piso mínimo tiene
+> **dos valores distintos** según quién pregunte — el archivo de configuración lo declara en 1 y el
+> validador, si esa configuración faltara, cae a 3. Acá decía «los dos con default 1».
 
 ## Dónde mirar
 Todo en `legacy-backend` salvo nota; líneas verificadas contra el código vigente.

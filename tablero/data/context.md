@@ -32,7 +32,9 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** a `creditopx` le quedan **cuatro secciones que PARECEN estar ya en canon**
+**El próximo paso es:** seguir el cruce —`onboarding` (137 términos sin cubrir, 105 commits),
+después `bancolombia` y `motai`— al mismo commit. Y a `creditopx` le quedan **cuatro secciones que
+PARECEN estar ya en canon**
 —el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
 No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
 `backoffice` pasó dos veces que la de canon era más completa y una vez que la de acá tenía algo que
@@ -67,6 +69,19 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**Doce reglas, canon en 407 secciones.** El orden lo puso canon, no el árbol: `-peso` dice dónde se
+mueve el código y `smartpay` salió primero entre los temas que además tienen nodo acá. Se graduaron
+qué se configura del bloqueo (y que la periodicidad **no** se configura, aunque la pantalla la
+prometa) y que ahí los dos monolitos **no** se hablan por tablas.
+
+⚠ **Y el ejercicio de priorización dejó una conclusión propia: las señales de canon dicen DÓNDE, no
+QUÉ.** `-peso` da áreas calientes, `-faltantes` da 557 archivos sin declarar, y `-hallazgos` —que
+parecía la mejor, con 55 nombres decididos por identidad y sin mención— resultó una trampa: pide
+documentar **lo que ella misma deriva**, o sea el mapeo id→nombre. Escribirlo sería duplicar una
+herramienta con prosa, el mismo error que hace que `hardcodes-entidades` no gradúe. Lo que sirve es
+el CRUCE: caliente en canon **y** con material acá. Hoy son `smartpay` (hecho), `onboarding` (137
+términos), `bancolombia` (129) y `motai` (96).
 
 **Diez reglas en el PR, canon en 405 secciones.** Se sumaron el mapa de dónde se cae una entidad
 del listado —que fue a `listado`, no a `creditopx`— y la excepción del permiso del comercio.
