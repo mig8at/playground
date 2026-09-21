@@ -129,19 +129,16 @@ y resuelto por nombre en el de al lado**.
 - **Reconciliación** (legacy-backend): `app/Console/Commands/ReconcileWompiTransactionsCommand.php`.
 - **Credenciales/config**: `application/config/services.php` + `legacy-backend/config/services.php` (bloques `wompi`, `payvalida`; ver también sistecredito/corbeta).
 
-## 🐞 Bug P0 — `dd($exception)` colgado en Wompi (CONFIRMADO, VIVO en ambos repos)
-El `dd()` **existe hoy** en el `catch` de `Wompi::getMerchant()` — mata la request y vuelca el excepción crudo en producción si la API de Wompi falla al traer el merchant:
-- **`application/app/Actions/Lenders/Wompi.php:79`** → `dd($exception);` (antes de `return $this->handleException($exception);`, que queda inalcanzable).
-- **`legacy-backend/app/Actions/Lenders/Wompi.php:78`** → idéntico `dd($exception);`.
+## Los volcados de depuración en producción — GRADUÓ a canon
 
-Contexto textual (ambos):
-```php
-} catch (Exception $exception) {
-    dd($exception);                              // ← P0: die+dump en prod
-    return $this->handleException($exception);   // ← código muerto
-}
-```
-Es el **único `dd()`** del dominio de pagos (no hay dd en `Payvalida.php` ni en los controllers). Efecto: cualquier fallo transitorio del endpoint `/merchants/{public-key}` de Wompi rompe el flujo con un dump en vez de degradar. Fix trivial (borrar la línea) pero **no aplicado** en ninguna de las dos ramas. Nota: hay un `//dd($wompiRequest);` **comentado** en `WompiController::store:174` (inofensivo) — no confundir con el activo.
+> **Graduó** (2026-09-21) → canon, `arquitectura/context` § «Hay volcados de depuración que matan la
+> petición en producción, y cinco están en integraciones con entidades».
+>
+> ⚠ **Y eran MUCHOS más que los dos de acá.** Este nodo nombraba los dos de Wompi; medido hoy hay
+> **decenas** en los dos monolitos (15 y 33), cinco de ellos en caminos de integración con
+> entidades. Contarlos costó pisar la trampa que el `CLAUDE.md` raíz ya documenta: **`git grep` no
+> entiende `\s`**, así que `'^\s*dd\('` devolvió CERO y el cero se lee como «no hay». Con
+> `'^[[:space:]]*dd\('` aparecieron los 48.
 
 ## ⏳ Recaudo referenciado BHD (RD) — existe, y NO está en `main`
 

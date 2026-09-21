@@ -87,6 +87,14 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**Y la tercera regla del segundo PR salió de pisar una trampa documentada.** `payments` decía «bug
+P0: dos `dd()` en Wompi». Al verificarlo aparecieron más, y contarlos falló primero: usé
+`git grep '^\s*dd\('` y devolvió **CERO** — `git grep` no entiende `\s`, que es exactamente lo que
+el `CLAUDE.md` raíz advierte. El cero se lee como «no hay» y casi lo doy por arreglado. Con POSIX
+salieron **48** (15 y 33 en cada monolito), cinco en caminos de integración con entidades. Lo que
+gradúa es la regla —un volcado dentro de un `catch` deja inalcanzable el manejo de error, y la
+excepción no aparece en los tableros porque nunca se manejó—; el número va con su fecha.
+
 **Segundo PR abierto en rama propia** (`canon/graduar-desde-context-2`, desde `main` ya al día) con
 dos reglas más: el ambiente de pruebas donde conviven usuarios reales —con la lista de números
 propios que gana por sufijo antes de la validación— y las cuatro etapas del preaprobado, que el
