@@ -32,7 +32,7 @@
       ],
       "codigo": "allied",
       "tabla": "allieds",
-      "nodo": "merchants",
+      "nodo": "altas",
       "que_es": "Quien VENDE. En el modelo CreditopX además pone el capital y es dueño del crédito y del riesgo.",
       "fase": "configuración"
     },
@@ -44,7 +44,7 @@
       ],
       "codigo": "allied_branch",
       "tabla": "lenders_by_allied_branches",
-      "nodo": "merchants",
+      "nodo": "altas",
       "que_es": "Dónde se vende — y la UNIDAD REAL DE CONFIGURACIÓN: las reglas se copian por sucursal, no se heredan.",
       "fase": "configuración"
     },
@@ -57,7 +57,7 @@
       ],
       "codigo": "lender",
       "tabla": "lenders_by_allied_branches",
-      "nodo": "entities",
+      "nodo": "altas",
       "que_es": "Quien PRESTA. Lo que el cliente ve como una card en el listado.",
       "fase": "configuración"
     },
@@ -69,7 +69,7 @@
       ],
       "codigo": "lenders_by_allieds",
       "tabla": "lenders_by_allieds",
-      "nodo": "merchants",
+      "nodo": "altas",
       "que_es": "Casi toda la configuración cuelga del PAR, no de la entidad sola: montos, tasas, comisiones.",
       "fase": "configuración"
     },
@@ -81,7 +81,7 @@
       ],
       "codigo": "response_type",
       "tabla": null,
-      "nodo": "creditop",
+      "nodo": "negocio",
       "que_es": "QUIÉN DECIDE el crédito. Es el eje que más cambia el flujo: 2 y 3 deciden acá, 1 y 4 deciden afuera.",
       "fase": "configuración"
     },
@@ -93,7 +93,7 @@
       ],
       "codigo": "flow_id",
       "tabla": null,
-      "nodo": "ecommerce",
+      "nodo": "fronteras",
       "que_es": "Ecommerce, asesor con QR, autogestión, Corbeta por lotes. ⚠ `user_requests` NO tiene columna de canal.",
       "fase": "configuración"
     },
@@ -131,7 +131,7 @@
       ],
       "codigo": "user",
       "tabla": "users",
-      "nodo": "actors",
+      "nodo": "altas",
       "que_es": "Quien pide. ⚠ Los datos de buró se indexan por `user_id`, no por solicitud.",
       "fase": "la solicitud"
     },
@@ -155,7 +155,7 @@
       ],
       "codigo": "user_field_values",
       "tabla": "user_field_values",
-      "nodo": "dynamic-forms",
+      "nodo": "formularios",
       "que_es": "Lo que el cliente dice de sí mismo, en EAV. ⚠ el ingreso es el `field_id` 87.",
       "fase": "la solicitud"
     },
@@ -182,7 +182,7 @@
       ],
       "codigo": "profiling",
       "tabla": "profiling_reviews",
-      "nodo": "profiling",
+      "nodo": "listado",
       "que_es": "Qué tan bueno es este cliente PARA ESTA ENTIDAD. Decide qué card aparece y con qué números.",
       "fase": "la decisión"
     },
@@ -194,7 +194,7 @@
       ],
       "codigo": "lender_user_category",
       "tabla": "lender_users_categories",
-      "nodo": "profiling",
+      "nodo": "listado",
       "que_es": "El escalón que le toca al cliente, con su economía: cupo, enganche y plazo. Sólo rt=2.",
       "fase": "la decisión"
     },
@@ -207,7 +207,7 @@
       ],
       "codigo": "category_rules",
       "tabla": "lender_users_category_rules",
-      "nodo": "profiling",
+      "nodo": "listado",
       "que_es": "Qué hay que cumplir para caer en una categoría. Se evalúan por `priority`, gana la primera que cumple todo.",
       "fase": "la decisión"
     },
@@ -257,7 +257,7 @@
       ],
       "codigo": "pre_approval",
       "tabla": null,
-      "nodo": "ms-preapprovals",
+      "nodo": "preaprobado",
       "que_es": "Para rt=1: la entidad decide por API y CreditOp sólo pregunta. No es simulable en pruebas.",
       "fase": "la oferta"
     },
@@ -269,7 +269,7 @@
       ],
       "codigo": "formalization",
       "tabla": null,
-      "nodo": "formalization",
+      "nodo": "formalizacion",
       "que_es": "De la selección al crédito: plan de pagos, documentos, firma con OTP y autorización.",
       "fase": "el cierre"
     },
@@ -281,7 +281,7 @@
       ],
       "codigo": "promissory_note",
       "tabla": "promissory_notes",
-      "nodo": "deceval",
+      "nodo": "formalizacion",
       "que_es": "El título que hace exigible la deuda. Va por Deceval, aparte de los otros documentos.",
       "fase": "el cierre"
     },
@@ -306,7 +306,7 @@
       ],
       "codigo": "servicing",
       "tabla": "creditop_x_requests_history",
-      "nodo": "servicing",
+      "nodo": "cartera",
       "que_es": "Lo que pasa DESPUÉS del estado 11. Vive en otro sistema: no se cuenta con las columnas de la solicitud.",
       "fase": "después del 11"
     }

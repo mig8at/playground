@@ -3,7 +3,7 @@ id: 0
 title: ""
 stage: evaluation
 created: ""
-context_nodes: []
+canon: []
 jira: []
 jira_title: ""
 ---
@@ -41,9 +41,11 @@ jira_title: ""
     ramas         patrón de rama, o varios por coma. Se omite hasta que la rama exista
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
-    context_nodes los nodos de context/ que hay que leer ANTES de investigar. ⚠ ACÁ, no en la prosa:
-                  es lo que el tablero lee. Medido: 28 de 68 tareas lo dejan vacío mientras 43
-                  nombran context en el texto — o sea, donde no se puede recuperar
+    canon         los TEMAS de canon que hay que leer ANTES de investigar. ⚠ ACÁ, no en la prosa:
+                  es lo que el tablero lee, y lo que `make retomar BRIEF=1` convierte en ficha.
+                  Medido: 28 de 68 tareas lo dejaban vacío mientras 43 nombraban el contexto en el
+                  texto — o sea, donde no se puede recuperar. Los temas son los de
+                  `github/playground/tools/canon/content/`; `make tareas` falla si alguno no existe
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
@@ -143,8 +145,8 @@ jira_title: ""
 <!-- Nodos de contexto, PRs y enlaces útiles para retomar. El conocimiento estable vive en context/;
      acá sólo se enlaza. No copies el historial dentro de esta sección.
      ⚠ La llena 1 de 68 tareas, así que si está vacía no es que sobre: es que se olvida. Los nodos que
-     de verdad hay que leer van igual en `context_nodes:` del frontmatter, que es lo que el tablero
-     lee; acá van los que ayudan a retomar y lo que no es un nodo (PRs, un tablero, un documento). -->
+     de verdad hay que leer van igual en `canon:` del frontmatter, que es lo que el tablero
+     lee; acá van los que ayudan a retomar y lo que no es un tema (PRs, un tablero, un documento). -->
 
 ## Registro
 

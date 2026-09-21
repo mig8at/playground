@@ -48,8 +48,8 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
-sys.path.insert(0, str(RAIZ.parent / "context" / "tools"))
-from roots import ROOTS, ref_a_indexar  # noqa: E402
+sys.path.insert(0, str(RAIZ.parent / "tools"))
+from repos import ROOTS, ref_a_indexar  # noqa: E402
 
 CODIGO = {"php", "ts", "tsx", "js", "jsx", "mjs", "cjs", "vue", "go", "py", "rs"}
 INFRA_EXT = {"tf", "tfvars"}

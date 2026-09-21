@@ -19,10 +19,11 @@ PLAYGROUND = Path(__file__).resolve().parents[1]
 CONTEXT = PLAYGROUND / "context"
 FLOWS = CONTEXT / "server" / "data" / "flows"
 
-# La tabla alias→repo NO se copia acá: se importa de su fuente única. El propio `roots.py` explica por
-# qué —tenerla dos veces es una divergencia que no falla, sólo da veredictos equivocados.
-sys.path.insert(0, str(CONTEXT / "tools"))
-from roots import ROOTS, ref_a_indexar  # noqa: E402
+# La tabla alias→repo NO se copia acá: se importa de su fuente única, `tools/repos.py` en la raíz del
+# playground. Ese archivo explica por qué —tenerla dos veces es una divergencia que no falla, sólo da
+# veredictos equivocados—. Vivía en `context/tools/roots.py` hasta el 2026-09-21.
+sys.path.insert(0, str(CONTEXT.parent / "tools"))
+from repos import ROOTS, ref_a_indexar  # noqa: E402
 import extraer as _extraer  # noqa: E402  — de acá sale el `h` con el que los agentes responden
 import indice as _code_index  # noqa: E402  — el índice por repo, vecino de este archivo
 

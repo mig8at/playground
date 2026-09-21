@@ -8,7 +8,7 @@ usa, cuándo NO, y dónde va a parar lo que devuelve.**
 
 Las cuatro se reparten preguntas distintas, y confundirlas cuesta una tarde:
 
-- `context/` describe el **mecanismo**, y por eso generaliza — pero no sabe nada de tu caso.
+- **canon** describe el **mecanismo**, y por eso generaliza — pero no sabe nada de tu caso.
 - `workers/` describe el **código**, incluido el que nadie documentó — pero tampoco lo ejecuta.
 - `harness/` **corre un caso que vos sembrás**: contesta *¿qué pasaría si el cliente es así?*
 - **el trazador mira lo que YA pasó, en el ambiente donde pasó** — y es el único que llega a `prod`.
@@ -131,7 +131,7 @@ cualquier canvas: **el que LEE su tamaño del padre no puede ESCRIBIRLO en un hi
 
 ## Cuándo NO es esto
 
-- **«¿cómo funciona X?»** → `context/`. El trazador te muestra UNA corrida; una corrida no es el
+- **«¿cómo funciona X?»** → **canon**. El trazador te muestra UNA corrida; una corrida no es el
   mecanismo, y leer el mecanismo desde un caso es exactamente cómo se sacan conclusiones falsas.
 - **«¿qué pasaría si…?»** → `harness/`. El trazador **no puede** contestarlo: sólo ve lo que ocurrió.
 - **«¿por qué existe esta regla?»** → `make confluence`. El porqué del negocio no está en los datos.
@@ -304,9 +304,9 @@ parecer que el dato depende de un juguete personal. El guard del tablero ya fren
 entera está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La frontera del guard está DENTRO del
 archivo».
 
-## Cómo está modelado el recorrido (venía del árbol de context)
+## Cómo está modelado el recorrido (venía del árbol de contexto)
 
-El árbol de `context/` describe **CreditOp**, y esto describe **esta herramienta**: cómo está modelado su recorrido y qué no se puede afirmar con él. Vivía en un nodo del árbol —donde su vigencia se medía contra `main` como si fuera código del producto, que es una vara que acá no aplica: este código y este archivo se commitean juntos—. Se movió tal cual el 2026-09-21.
+El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: cómo está modelado su recorrido y qué no se puede afirmar con él. Vivía en un nodo del árbol de `context/` —donde su vigencia se medía contra `main` como si fuera código del producto, que es una vara que acá no aplica: este código y este archivo se commitean juntos—. Se movió tal cual el 2026-09-21, poco antes de que ese árbol se apagara del todo.
 
 ### Antes de concluir
 

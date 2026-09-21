@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genera `context/docs/ENTIDADES.md` — la ficha de negocio de cada entidad, MEDIDA contra producción.
+"""Genera `workers/ENTIDADES.md` — la ficha de negocio de cada entidad, MEDIDA contra producción.
 
 POR QUÉ EXISTE. El árbol describe el MECANISMO (qué es un `response_type`, cómo se lista, quién decide)
 pero no dice QUIÉN es cada entidad en términos de negocio: a cuántos comercios llega, qué ticket maneja,
@@ -19,7 +19,7 @@ declarada y otorgar créditos que la violan —medido en F-162: 1.923 créditos 
 cuya regla exige sólo `Independiente`—. Por eso las dos columnas van juntas: leer sólo la declarada
 lleva a explicaciones falsas.
 
-Uso:  python3 tools/entidades.py            (desde context/)   ·   o `make context-entidades`
+Uso:  python3 workers/entidades.py   ·   o `make entidades`
       DIAS=90 para cambiar la ventana · MIN=200 el piso de solicitudes para entrar
 """
 import collections
@@ -31,9 +31,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parent.parent          # context/
+RAIZ = Path(__file__).resolve().parent                 # workers/
 PLAYGROUND = RAIZ.parent
-SALIDA = RAIZ / 'docs' / 'ENTIDADES.md'
+SALIDA = RAIZ / 'ENTIDADES.md'
 DIAS = int(os.environ.get('DIAS', '90'))
 MIN = int(os.environ.get('MIN', '200'))
 TOP_COMERCIOS = 4
@@ -156,7 +156,7 @@ def mezcla(filas, k='ocupacion', tope=4) -> str:
 doc = [
     '# CreditOp — Ficha de negocio de cada entidad',
     '',
-    '> **GENERADO — no editar a mano.** Se regenera con `make context-entidades`.',
+    '> **GENERADO — no editar a mano.** Se regenera con `make entidades`.',
     f'> Medido contra **producción**, ventana de **{DIAS} días**, entidades con **{MIN}+ solicitudes**.',
     '',
     'Lo que el árbol NO dice: **quién es cada entidad en términos de negocio** — a cuántos comercios',

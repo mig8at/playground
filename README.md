@@ -21,7 +21,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 
 | Carpeta | Qué es |
 |---|---|
-| [`context/`](context/README.md) | El árbol de contexto curado: por tema, un `doc.md` (análisis) + `map.json` (rutas exactas al código real). El índice es [`context/docs/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md) (generado). Incluye la bitácora de trampas (`findings`). |
+| [`workers/`](workers/) | El índice **derivado** de `main`: qué archivos toca una pregunta, quién llama a qué, los hardcodes por identidad, el modelo de datos. Cubre todo el código, incluido lo que nadie escribió. |
 | [`harness/`](harness/README.md) | Playwright + TypeScript manejando el wizard real punta a punta con KYC/buró sintético: panel visual, flota de mocks y barrido headless por API. |
 | [`tablero/`](tablero/README.md) | Las **tareas** (una = un archivo en `data/`), el dashboard del sprint y el pulso. |
 | [`trazador/`](trazador/) | Herramienta de soporte (Go) sobre Loki + BD: «¿qué le pasó a ESTA solicitud y por qué?». `make trazador-acceso` prueba el acceso. |
@@ -31,13 +31,16 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 
 | Si venís a… | Arrancá por |
 |---|---|
-| Entender un flujo o subsistema | [`context/docs/ROUTE-MAP.md`](context/docs/ROUTE-MAP.md): elegí dos a cuatro nodos por su **Cuándo** y abrí sus `doc.md` + `map.json` |
-| «¿Ya nos pasó esto?» | el nodo [`findings`](tablero/data/trampas/doc.md): entrá por el índice de síntomas |
+| Entender un flujo o subsistema | **canon**, el corpus compartido: `cd ~/Desktop/CREDITOP/github/playground/tools/canon && go run . -pregunta '…'`, o canon.playground.creditop.com |
+| «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/trampas/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | `cd harness && npm run dev` → el panel maneja el wizard real |
-| Investigar una solicitud rota | `make trazador-acceso` + el nodo `trazador` |
+| Investigar una solicitud rota | `make trazador-acceso`, y después `make trazador-ureq UREQ=…` |
 
-**Regla de oro para un modelo:** empezá siempre por `context/`, aunque la tarea parezca de código.
-Es más barato leer un `doc.md` que grepear los repos a ciegas.
+**Regla de oro para un modelo:** empezá siempre por **canon**, aunque la tarea parezca de código.
+Es más barato leer el tema que grepear los repos a ciegas. ⚠ Canon vive en **otro repo**
+(`github/playground/tools/canon`, compartido con el equipo). Hasta el 2026-09-21 este repo tenía
+además su propio árbol curado, `context/`; se apagó porque mantener dos contextos a la par cuesta el
+doble y el que valía era el compartido.
 
 ## Convenciones
 
@@ -55,9 +58,11 @@ reales: no lo imprimas ni lo cites.
 
 Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
 
-- **`playground/docs/` fue borrada** de `main` (2026-07-17, absorbida por `context/`). Toda ruta
-  `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
-- **El MCP de `context` está retirado.** Lo que queda es el mapa estático + el toolkit Python + una
-  viz read-only. **No lo reconstruyas** — el protocolo completo está en `context/CLAUDE.md`.
+- **`playground/docs/` fue borrada** de `main` (2026-07-17, absorbida por el árbol de contexto). Toda
+  ruta `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
+- **`context/` se apagó** (2026-09-21): lo que valía graduó a **canon** —el corpus compartido, en otro
+  repo— y las trampas del sistema se mudaron a `tablero/data/trampas/`. Toda ruta
+  `context/server/data/flows/<nodo>/` es histórica. **No lo reconstruyas**: dos contextos en paralelo
+  fue exactamente el problema.
 - Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El <!-- lint:ok -->
   trazador vigente es `playground/trazador` y el harness absorbió lo que hacían las herramientas Go.

@@ -19,7 +19,7 @@
         "clase": { "enum": ["tarea", "proyecto"] },
         "archived": { "type": "boolean" },
         "jira": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
-        "context_nodes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "canon": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
         "archivo": { "type": "string", "minLength": 1 }
       }
     },

@@ -37,10 +37,16 @@ def enriquecer(c):
         r = _arch.buscar(f"tabla:{c['tabla']}")
         fuera["archivos_que_tocan_la_tabla"] = r.get("cuantos", 0)
     if c.get("nodo"):
-        m = AQUI.parent / "context" / "server" / "data" / "flows" / c["nodo"] / "map.json"
+        # El «nodo» de un concepto es hoy un TEMA de canon (antes, un nodo del árbol local).
+        import sys as _s
+        _s.path.insert(0, str(AQUI.parent / "tools"))
+        import canon as _canon
+        m = Path(_canon.CONTENIDO) / c["nodo"] / "map.json"
         fuera["nodo_existe"] = m.is_file()
         if m.is_file():
-            fuera["archivos_del_nodo"] = len(json.loads(m.read_text(encoding="utf-8")).get("files", []))
+            areas = json.loads(m.read_text(encoding="utf-8")).get("areas") or []
+            fuera["archivos_del_nodo"] = sum(
+                len(fs) for a in areas for fs in (a.get("fuentes") or {}).values())
     return fuera
 
 

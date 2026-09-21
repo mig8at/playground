@@ -1,7 +1,7 @@
 # harness · reglas de trabajo
 
 > **Para qué existe:** es **la herramienta con la que se valida una tarea contra el código real.** No es
-> contexto (eso es `context/`) ni el trabajo en sí (eso es `tablero/`): es lo que se usa para **comprobar
+> contexto (eso es **canon**) ni el trabajo en sí (eso es `tablero/`): es lo que se usa para **comprobar
 > corriendo** lo que en los otros dos está escrito. Si una afirmación se puede verificar acá, verificala
 > antes de escribirla como cierta en un nodo.
 
@@ -885,9 +885,9 @@ el documento del que nació.
 semanas después; qué entidades salieron y dónde terminó cada caso, sí. En `harness-listado` la
 evidencia son las que NO salieron **con su causa**, que es la pregunta por la que se corre.
 
-## Lo que hay que saber antes de correr (venía del árbol de context)
+## Lo que hay que saber antes de correr (venía del árbol de contexto)
 
-Mismo motivo que arriba: el árbol de `context/` describe CreditOp y esto describe el arnés. Movido tal cual desde su nodo el 2026-09-21. Lo que era conocimiento del PRODUCTO —quién decide el crédito por `response_type`— no vino: vive en el nodo `entities`, que es su casa, y ya había divergido de esta copia.
+Mismo motivo que arriba: el contexto curado describe CreditOp y esto describe el arnés. Movido tal cual desde su nodo de `context/` el 2026-09-21, poco antes de que ese árbol se apagara. Lo que era conocimiento del PRODUCTO —quién decide el crédito por `response_type`— no vino: hoy vive en canon, y ya había divergido de esta copia.
 
 ### Antes de concluir
 
@@ -1019,7 +1019,7 @@ que la herramienta encontró vive donde se busca por síntoma.
 - El flujo ecommerce por UI en local sigue degradado (SSR `process.env.VITE_API_URL`); el cierre Motai
   por UI (marketplace ofreciendo el 158 + testids) sigue pendiente — validado solo por API.
 
-### Bancolombia: hasta dónde llega una prueba (venía del árbol de context)
+### Bancolombia: hasta dónde llega una prueba (venía del árbol de contexto)
 
 - **La decisión no es inyectable** (la toma la API del banco), pero **el escenario sí es direccionable en no-prod** por cédula y por celular (§7). Eso es más de lo que decía el padre ("frontera dura"): se pueden ejercitar con-cupo, sin-cupo, sesión expirada y riesgo de fraude sin mockear el transporte.
 - El harness lo rutea **por ID antes que por `rt==1`** (`bancolombiaClose`: `validate-preapproved` con `Http::fake` + override `TestDoc=1998228194`). **No llega a Estado 11.**

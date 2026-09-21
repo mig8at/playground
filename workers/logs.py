@@ -26,8 +26,8 @@ import sys
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
-sys.path.insert(0, str(AQUI.parent / "context" / "tools"))
-from roots import ROOTS, ref_a_indexar, refrescar_remotos  # noqa: E402
+sys.path.insert(0, str(AQUI.parent / "tools"))
+from repos import ROOTS, ref_a_indexar, refrescar_remotos  # noqa: E402
 import extraer as _extraer  # noqa: E402
 
 MAPA = AQUI / "logs.json"
@@ -76,7 +76,7 @@ def construir(verboso=True, fetch=True):
 
     Qué ref se recorre lo decide `ref_a_indexar`: la que CONTIENE a la otra. No es siempre `origin/main`
     —`harness` y `trazador` viven en playground, que va ADELANTE de su origin a propósito— ni siempre la
-    local. Ver la nota en `context/tools/roots.py`.
+    local. Ver la nota en `tools/repos.py`.
     """
     mapa = {}
     if fetch:

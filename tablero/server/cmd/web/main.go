@@ -169,10 +169,14 @@ type app struct {
 	// desde qué directorio se levantó el proceso. No es otro servicio: es una invocación efímera y
 	// explícita de `tools/jev.py` al presionar «Analizar con Jev».
 	tableroRoot string
-	// Snapshot operativo de Context: inventario de repos y ramas locales para la consola de la tarea
-	// `Context`. Se lee, nunca se genera desde el server; actualizarlo sigue siendo explícito con
-	// `make context-ramas`, para que abrir el tablero no ejecute git ni haga fetch.
-	contextRamas string
+	// Snapshot de REPOS: inventario de repos y ramas locales para la consola de la tarea enfocada.
+	// Se lee, nunca se genera desde el server; actualizarlo sigue siendo explícito con `make repos`,
+	// para que abrir el tablero no ejecute git ni haga fetch.
+	//
+	// ⚠ No confundir con `data/cache/ramas.json`, que es OTRA cosa: las ramas POR TAREA que mide
+	// `make tareas-ramas`. Por eso este se llama `repos.json` — vivían en carpetas distintas y con el
+	// mismo nombre, que es como se terminan leyendo uno por el otro.
+	reposSnapshot string
 }
 
 func main() {
@@ -220,8 +224,7 @@ func main() {
 		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
 	}
 	a.tableroRoot = filepath.Dir(dataAbs)
-	a.contextRamas = envDefault("CONTEXT_RAMAS_SNAPSHOT",
-		filepath.Join(filepath.Dir(filepath.Dir(dataAbs)), "context", "ramas.json"))
+	a.reposSnapshot = envDefault("REPOS_SNAPSHOT", filepath.Join(dataAbs, "cache", "repos.json"))
 
 	integrations := a.connectIntegrations()
 
@@ -375,12 +378,12 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		b, err := os.ReadFile(a.contextRamas)
+		b, err := os.ReadFile(a.reposSnapshot)
 		if err != nil {
 			// La ausencia del snapshot es un estado normal en un clon nuevo. La UI conserva la consola y
 			// explica cómo generarlo, en vez de confundirlo con una caída del tablero.
 			json.NewEncoder(w).Encode(map[string]any{
-				"schemaVersion": "context.ramas.v1",
+				"schemaVersion": "tablero.repos.v1",
 				"fuente":        "git local; no hace fetch",
 				"repos":         []any{},
 				"resumen":       map[string]int{"repos": 0, "ramas": 0, "activas": 0, "conCambios": 0},
@@ -389,7 +392,7 @@ func main() {
 		}
 		if !json.Valid(b) {
 			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "context/ramas.json no contiene JSON válido"})
+			json.NewEncoder(w).Encode(map[string]string{"error": "data/cache/repos.json no contiene JSON válido"})
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")

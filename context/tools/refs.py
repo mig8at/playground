@@ -21,8 +21,10 @@ EXIT  0 → nada que corregir · 1 → hay movidas, reescritas o fuera de rango
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import roots  # noqa: F401,E402  — pone `tablero/tools` en el path (ver su encabezado)
+CTX_TOOLS = os.path.dirname(os.path.abspath(__file__))
+PLAYGROUND = os.path.dirname(os.path.dirname(CTX_TOOLS))
+sys.path.insert(0, CTX_TOOLS)
+sys.path.insert(0, os.path.join(PLAYGROUND, "tablero", "tools"))
 from citas import (  # noqa: E402,F401
     CORTA,
     REF,
@@ -35,7 +37,7 @@ from citas import (  # noqa: E402,F401
     revisar,
 )
 
-CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CTX = os.path.dirname(CTX_TOOLS)
 FLOWS = os.path.join(CTX, "server", "data", "flows")
 
 

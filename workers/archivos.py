@@ -35,11 +35,11 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent
 sys.path.insert(0, str(RAIZ))
-sys.path.insert(0, str(RAIZ.parent / "context" / "tools"))
+sys.path.insert(0, str(RAIZ.parent / "tools"))
 
 import creditop as _cx  # noqa: E402
 import extraer as _ex  # noqa: E402
-from roots import ROOTS  # noqa: E402
+from repos import ROOTS  # noqa: E402
 
 DICC = RAIZ / "archivos.json"
 _RAIZ = RAIZ
@@ -49,19 +49,17 @@ _RAIZ = RAIZ
 
 
 def _nodos_que_lo_citan():
-    """{ruta: [nodos]} — derivado de los map.json. El diccionario no lo inventa: lo lee del árbol."""
-    flows = RAIZ.parent / "context" / "server" / "data" / "flows"
-    fuera = {}
-    for d in sorted(p for p in flows.iterdir() if p.is_dir()):
-        m = d / "map.json"
-        if not m.is_file():
-            continue
-        try:
-            for f in json.loads(m.read_text(encoding="utf-8")).get("files", []):
-                fuera.setdefault(f, []).append(d.name)
-        except json.JSONDecodeError:
-            continue
-    return fuera
+    """{ruta: [temas de canon]} — derivado de los `map.json` del corpus. No se inventa: se lee.
+
+    ⚠ Antes salía del árbol local `context/`, que se apagó el 2026-09-21. Canon declara lo mismo en
+    `areas[].fuentes`, con el hash del blob además de la ruta. Si el corpus no está clonado esto
+    queda vacío, y `construir()` lo dice en vez de escribir un índice con el campo en blanco — que
+    se leería como «ningún tema habla de este archivo».
+    """
+    import sys as _s
+    _s.path.insert(0, str(RAIZ.parent / "tools"))
+    import canon as _canon
+    return _canon.archivos_por_tema()
 
 
 def _tipo(ruta):
@@ -173,30 +171,33 @@ def construir(aliases=None, verboso=True):
 
 
 def menu_de_nodo(nodo=None, minimo=15):
-    """Cuando un agente abre un nodo, ¿cuánto de lo que ve es SEÑAL?
+    """Cuando un agente abre un tema de canon, ¿cuánto de lo que ve es SEÑAL?
 
-    Un `map.json` es una lista curada a mano, y con el tiempo se le van sumando archivos de plomería
-    —`AdminHeader.tsx`, `AdminLayout.tsx`— que están bien citados pero no enseñan nada de negocio. El
-    costo no es el archivo: es que el MENÚ del seleccionador se diluye, y elegir bien es todo su
-    trabajo.
+    Las `fuentes` de un tema son una lista curada a mano, y con el tiempo se le van sumando archivos
+    de plomería —`AdminHeader.tsx`, `AdminLayout.tsx`— que están bien citados pero no enseñan nada de
+    negocio. El costo no es el archivo: es que el MENÚ del seleccionador se diluye, y elegir bien es
+    todo su trabajo.
 
     «Mudo» = el diccionario no le conoce ningún rasgo de negocio (ni tabla, ni lender, ni rt, ni
     estado, ni logs). ⚠ Y mudo NO ES SOBRANTE: se muestreó y 22 de 24 mudos del front eran de verdad
     componentes de presentación, o sea bien clasificados. Esto es una señal PARA EL CURADOR, no una
-    lista para borrar — el `map.json` se cura a mano a propósito, y un nodo puede querer nombrar su
-    plomería. Lo que sí se puede afirmar es cuánto pesa esa parte del menú.
+    lista para borrar — un tema puede querer nombrar su plomería. Lo que sí se puede afirmar es
+    cuánto pesa esa parte del menú.
     """
     d = cargar()
-    F = _RAIZ.parent / "context" / "server" / "data" / "flows"
     import sys as _s
     _s.path.insert(0, str(_RAIZ))
+    _s.path.insert(0, str(_RAIZ.parent / "tools"))
+    import canon as _canon
     import indice as _ix
+    por_tema = {}
+    for clave, temas in _canon.archivos_por_tema().items():
+        for t in temas:
+            por_tema.setdefault(t, []).append(clave)
     fuera = []
-    for mj in sorted(F.glob("*/map.json")):
-        n_ = mj.parent.name
+    for n_, fs in sorted(por_tema.items()):
         if nodo and n_ != nodo:
             continue
-        fs = _json.loads(mj.read_text(encoding="utf-8")).get("files", [])
         if not fs or (not nodo and len(fs) < minimo):
             continue
         mudos = [f for f in fs if not (set(d.get(f, {})) - {"tipo", "nodos"})]
@@ -208,7 +209,7 @@ def menu_de_nodo(nodo=None, minimo=15):
     return {"nodos": fuera,
             "nota": "«mudo» = sin rasgo de negocio conocido. NO significa sobrante: se muestreó y la "
                     "mayoría son componentes de presentación bien clasificados. Es una señal para "
-                    "quien cura el map.json, no una lista para borrar."}
+                    "quien cura las fuentes del tema, no una lista para borrar."}
 
 
 def sin_rastro(solo_logica=True):

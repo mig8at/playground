@@ -156,7 +156,7 @@ def main():
                    help="no filtrar a services/controllers (incluye rutas y config, que no loguean por diseño)")
 
     s = con_json(sub.add_parser(
-        "menu", help="cuando un agente abre un nodo de context, ¿cuánto del menú es señal?"))
+        "menu", help="cuando un agente abre un tema de canon, ¿cuánto del menú es señal?"))
     s.add_argument("nodo", nargs="?", help="un nodo; vacío = todos los que citan 15+ archivos")
 
     s = con_json(sub.add_parser(
@@ -544,7 +544,7 @@ def main():
                 print(f"\n    en el código   {c['codigo']}")
                 if c.get("es"):    print(f"    también        {', '.join(c['es'])}")
                 if c.get("tabla"): print(f"    tabla          {c['tabla']}  ({c.get('archivos_que_tocan_la_tabla', 0)} archivos la tocan)")
-                print(f"    el detalle en  context/server/data/flows/{c['nodo']}/doc.md"
+                print(f"    el detalle en  canon, tema «{c['nodo']}»"
                       f"  ({c.get('archivos_del_nodo', 0)} archivos)")
             print()
             return 0
@@ -641,7 +641,7 @@ def main():
         r = _arch.menu_de_nodo(a.nodo)
         if j:
             print(json.dumps(r, ensure_ascii=False, indent=2)); return 0
-        print("\n  cuando un agente abre un nodo, ¿cuánto del menú tiene señal de negocio?\n")
+        print("\n  cuando un agente abre un tema de canon, ¿cuánto del menú tiene señal de negocio?\n")
         for x in r["nodos"][:15]:
             print(f"    {x['nodo']:16} {x['con_negocio']:3}/{x['citados']:3} con negocio"
                   f"  ·  {x['mudos']:3} mudos = {x['kb_mudos']:4} KB")

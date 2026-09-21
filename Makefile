@@ -57,9 +57,11 @@ endef
 .PHONY: status context tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq \
 	trazador-diag trazador-chequeo trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
-	@cd context && python3 tools/alinear.py --ver | tail -n 25
+	@$(MAKE) --no-print-directory trampas
 	@echo ""
-	@cd context && python3 tools/refs.py | tail -n 2
+	@echo "  El contexto compartido es CANON, que vive en otro repo y tiene su propia ronda:"
+	@echo "    cd ~/Desktop/CREDITOP/github/playground/tools/canon && go run . -ronda"
+	@echo "  (dice qué fuentes declaradas cambiaron o desaparecieron de main; -peso las prioriza)"
 
 context: ## @dia abre la viz del árbol de contexto (:5193)
 	@cd context && npm run dev
@@ -233,7 +235,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulso uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint context-ramas context-ramas-test
+.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint repos repos-test entidades trazador-huella
 .PHONY: context-jev context-jev-test tablero-jev tablero-jev-test flow-context flow-context-test
 context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | label reporte --expected nodo | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
@@ -257,11 +259,11 @@ context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstenció
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s workers -p test_jev_routing.py
 
-context-ramas: ## @ctx actualiza la consola de repos y ramas desde Git local, sin fetch. JSON=1 imprime el snapshot
-	@cd context && python3 tools/ramas.py $(if $(JSON),--json)
+repos: ## @dia actualiza la consola de repos y ramas del tablero desde Git local, sin fetch. JSON=1 imprime el snapshot
+	@python3 tablero/tools/ramas.py $(if $(JSON),--json)
 
-context-ramas-test: ## @ctx pruebas del estado de ramas: activa, cambios locales y fusionada
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_ramas.py
+repos-test: ## @dia pruebas del estado de ramas: activa, cambios locales y fusionada
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_ramas.py
 
 tablero-jev: ## @ctx laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
 	@python3 tablero/tools/jev.py $(or $(ARGS),--help)
@@ -279,9 +281,9 @@ context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hub
 context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
 	@cd context && python3 tools/lint.py
 
-context-huella: ## @ctx la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida. UREQ=x [MYSQL=/tmp/huella-mysql.log]
-	@test -n "$(UREQ)" || { cd context && python3 tools/huella.py; exit 2; }
-	@cd context && python3 tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
+trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
+	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }
+	@python3 trazador/tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
 context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1] · CITAS=1 SOLO el mapa: ¿el cambio tocó las líneas que el doc CITA? (aritmética, sin leer el diff — el de `trazador` son 112.358 caracteres y el mapa veinte líneas)
 	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }
@@ -303,8 +305,8 @@ context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook 
 	  case "$$out" in *"DROPPED 0"*) ;; *) echo "  ⚠ $$(basename $$(dirname $$m)): $$out";; esac; \
 	done; echo "  (sin líneas arriba = los $$(ls -d server/data/flows/*/ | wc -l | tr -d ' ') nodos sin rutas muertas)"
 
-context-entidades: ## @ctx regenera docs/ENTIDADES.md — la ficha de NEGOCIO de cada entidad, medida contra PROD (alcance, ticket, plazo, aprobación, embudo, ocupación declarada vs real). [DIAS=90] [MIN=200]
-	@cd context && python3 tools/build-entidades.py
+entidades: ## @wrk regenera workers/ENTIDADES.md — la ficha de NEGOCIO de cada entidad, medida contra PROD (alcance, ticket, plazo, aprobación, embudo, ocupación declarada vs real). [DIAS=90] [MIN=200]
+	@python3 workers/entidades.py
 
 context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
 	@cd context && python3 tools/build-route-map.py
@@ -493,7 +495,7 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 # o sea invisible para quien no leyera `context/CLAUDE.md`. Solo lectura: no hay verbo que escriba.
 # ⚠ Nada de ahí entra al árbol sin pasar por el código (el protocolo, en `context/CLAUDE.md`).
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
-	@cd context && python3 tools/confluence.py $(CMD)
+	@python3 tools/confluence.py $(CMD)
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía

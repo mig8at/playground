@@ -348,7 +348,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 | [`mock-forms/schemas/README.md`](mock-forms/schemas/README.md) | cómo bajar el schema REAL de un comercio del flujo dinámico (con VPN) para que `mock-forms` lo sirva en vez del genérico |
 
 **Contexto de negocio** (qué es CreditOp, `response_type`, estados, entidades): el árbol de contexto en
-[`../context/`](../context/) — empezá por [`../context/docs/ROUTE-MAP.md`](../context/docs/ROUTE-MAP.md) y el nodo
+**canon** (`github/playground/tools/canon`) — empezá preguntándole (`go run . -pregunta '…'`) y el tema
 `harness` (este `CLAUDE.md`). `tablero/data/trampas/doc.md` es la **bitácora de muros
 locales**: buscá tu síntoma en su índice antes de depurar algo que huele a "ya nos pasó".
 

@@ -28,10 +28,11 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent
 CONTEXT = RAIZ.parent / "context"
 
-# La tabla alias→repo NO se copia: se importa de su fuente única, que vive en context/tools. El propio
-# `roots.py` explica por qué tenerla dos veces «no falla, sólo da veredictos equivocados».
-sys.path.insert(0, str(CONTEXT / "tools"))
-from roots import ROOTS, ref_a_indexar  # noqa: E402
+# La tabla alias→repo NO se copia acá: se importa de su fuente única, `tools/repos.py` en la raíz del
+# playground. Ese archivo explica por qué —tenerla dos veces es una divergencia que no falla, sólo da
+# veredictos equivocados—. Vivía en `context/tools/roots.py` hasta el 2026-09-21.
+sys.path.insert(0, str(RAIZ.parent / "tools"))
+from repos import ROOTS, ref_a_indexar  # noqa: E402
 
 INDICE = RAIZ / "repos.json"
 
@@ -128,31 +129,25 @@ def _existe_en_main(alias, rel):
 
 
 def nodos_por_repo():
-    """EL PUENTE entre los dos árboles: qué nodos de contexto describen cada repo.
+    """EL PUENTE entre los dos índices: qué TEMAS de canon describen cada repo.
 
-    No se escribe a mano y no se guarda: se deriva. Cada `map.json` ya lista sus archivos como
-    `alias/relpath`, así que la pertenencia repo→nodo está en los datos desde siempre — sólo faltaba
-    leerla al revés. Un nodo nuevo aparece acá solo; uno que deja de tocar un repo, desaparece solo.
+    No se escribe a mano y no se guarda: se deriva. Cada tema ya declara sus archivos en
+    `areas[].fuentes[<repo>]`, así que la pertenencia repo→tema está en los datos desde siempre —
+    sólo faltaba leerla al revés. Un tema nuevo aparece acá solo; uno que deja de tocar un repo,
+    desaparece solo.
 
-    Devuelve {alias: [(nodo, cuántos archivos de ese repo cita), …]}, ordenado por peso: el primero es
-    el nodo que más habla de ese repo.
+    Devuelve {alias: [(tema, cuántos archivos de ese repo declara), …]}, ordenado por peso: el
+    primero es el tema que más habla de ese repo.
+
+    ⚠ Salía del árbol local `context/` hasta el 2026-09-21. Y ojo con el alias: canon llama
+    `legacy-application` a lo que acá es `application` — la traducción vive en `tools/canon.py`, y
+    sin ella el monolito más grande aparecería con cero temas.
     """
-    flows = CONTEXT / "server" / "data" / "flows"
-    porRepo = {}
-    for d in sorted(p for p in flows.iterdir() if p.is_dir()):
-        m = d / "map.json"
-        if not m.is_file():
-            continue
-        try:
-            files = json.loads(m.read_text(encoding="utf-8")).get("files", [])
-        except json.JSONDecodeError:
-            continue
-        cuenta = {}
-        for f in files:
-            if "/" in f:
-                cuenta[f.split("/", 1)[0]] = cuenta.get(f.split("/", 1)[0], 0) + 1
-        for alias, n in cuenta.items():
-            porRepo.setdefault(alias, []).append((d.name, n))
+    import sys as _s
+    _s.path.insert(0, str(RAIZ.parent / "tools"))
+    import canon as _canon
+    porRepo = _canon.temas_por_repo()
+
     return {a: sorted(v, key=lambda x: -x[1]) for a, v in porRepo.items()}
 
 
@@ -575,8 +570,8 @@ def ver_puente():
     sabemos y de cuáles casi nada."""
     d = cargar()
     puente = nodos_por_repo()
-    print("\n  Cobertura del árbol de negocio, por repo (derivado de los map.json)\n")
-    print(f"  {'repo':28} {'nodos':>6} {'citas':>7}   el que más lo describe")
+    print("\n  Cobertura de CANON, por repo (derivada de las `fuentes` que declara cada tema)\n")
+    print(f"  {'repo':28} {'temas':>6} {'citas':>7}   el que más lo describe")
     print(f"  {'─' * 28} {'─' * 6} {'─' * 7}   {'─' * 30}")
     for alias in d["repos"]:
         v = puente.get(alias, [])
@@ -586,7 +581,9 @@ def ver_puente():
         print(f"  {alias:28} {len(v):>6} {citas:>7}   {top}{aviso}")
     print("\n  ⚠ «casi sin cubrir» no es un error: es dónde falta escribir contexto. Los microservicios")
     print("     se sumaron como roots recién el 2026-08-07 (F-123), así que era esperable — pero ahora")
-    print("     se ve, que es la diferencia.\n")
+    print("     se ve, que es la diferencia.")
+    print("  ⚠ Y un 0 puede ser que canon NO TENGA ese repo clonado, no que no lo describa: canon nombra")
+    print("     repos que acá no están (`merchant-api`, `otp-service`) y al revés. Ver `tools/canon.py`.\n")
     return 0
 
 

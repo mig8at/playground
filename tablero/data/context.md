@@ -72,6 +72,61 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
 
+### 2026-09-21 · la desconexión, paso 2: las puertas, los comandos y lo que no era del árbol
+
+**Cuatro herramientas vivían en `context/` de prestado** y se mudaron con `git mv`, para que la
+historia siga: `ramas.py` (la consola de repos DEL TABLERO) → `tablero/tools/` · `huella.py` (la
+huella medida de una corrida) → `trazador/tools/` · `confluence.py` → `tools/` · `build-entidades.py`
+y su `ENTIDADES.md` → `workers/`. Con ellas se movió el `.env` de las credenciales a la raíz.
+Los comandos siguieron: `context-ramas` → **`repos`**, `context-huella` → **`trazador-huella`**,
+`context-entidades` → **`entidades`**. ⚠ Y una trampa evitada al mover: el snapshot de `ramas.py` se
+llamaba `ramas.json` y en el tablero ya había OTRO `data/cache/ramas.json` —las ramas por tarea, que
+mide `make tareas-ramas`—; se renombró a `repos.json` antes de que alguien leyera uno por el otro.
+
+**`make status` dejó de medir un árbol que va a desaparecer.** Ahora corre `make trampas` e imprime
+el comando de la ronda de canon, que es donde está la vara de verdad (`go run . -ronda` compara los
+hashes declarados contra `main`).
+
+> **MEDICIÓN · 2026-09-21** — **`workers/` leía `context/` en CÓDIGO, no sólo en prosa**, y eso no
+> estaba en la cuenta de la desconexión: cinco archivos importaban `roots` por `sys.path` y tres
+> derivaban de los `map.json` del árbol el campo «qué nodo cita este archivo». O sea que borrar el
+> árbol habría roto `workers/cli.py` —`negocio`, `puente`, `menu`, `buscar`— sin que ninguna de las
+> listas que hice antes lo dijera. Reproducible: `grep -rn "context" --include='*.py' workers/`.
+
+De ahí salieron dos piezas nuevas, las dos en la raíz porque las usan TRES directorios y no son de
+ninguno:
+
+- **`tools/repos.py`** — los repos de la compañía, la ref a mirar y el índice de «qué existe en
+  main». Lo importan el tablero (citas, ramas), el trazador (huella) y `workers` (cinco archivos).
+  Una sola copia, por la razón medida el 2026-09-18: de esa única lista leyendo el `main` local
+  salieron cinco mentiras en cinco herramientas, y **ninguna falló** — todas devolvieron menos.
+- **`tools/canon.py`** — leer el corpus compartido desde disco: qué tema declara cada archivo y cada
+  tabla. Reemplaza al cruce contra los `map.json` del árbol.
+
+> **MEDICIÓN · 2026-09-21** — al cruzar `workers` contra canon apareció **un choque de nombres que
+> habría sido invisible**: canon llama `legacy-application` al monolito original y los alias de acá
+> lo llaman `application`. Sin traducirlo, los **215 archivos** que canon declara de ese repo cruzan
+> a cero, y el resultado no es un error sino un «ningún tema lo explica» sobre el repo más grande.
+> La traducción es una línea en `tools/canon.py` y está documentada ahí. Medido después de arreglarlo:
+> canon declara **1.006 archivos en 34 temas**; el índice reconstruido pasó de 1.363 archivos con
+> nodo del árbol a **891 con tema de canon** — canon declara menos, y a propósito.
+
+**Las puertas ya no mandan a `context/`.** Reapuntadas las 39 menciones: el `CLAUDE.md` raíz (la
+tabla de «qué herramienta según qué preguntás», el CICLO, el bucle de lo que mergea otro, las reglas
+de honestidad), `README.md`, `tablero/CLAUDE.md` (incluida la sección «Retomar una tarea», que
+describía un ruteo con modelo que ya no existe), `harness/CLAUDE.md`, `trazador/CLAUDE.md`,
+`workers/README.md` e `INDAGAR.md`, la plantilla de tarea y el `schema` del tablero.
+
+⚠ **Y una conclusión que no buscaba: Jev se apaga con el árbol.** Su corpus era 100 % los nodos
+(`tree.json` + `server/data/flows/*`) y no menciona canon ni una vez; `route` y `brief` se quedan sin
+a qué rutear. Lo que hacía ya lo hace canon mejor y gratis: `-pregunta` y `/api/search` devuelven la
+sección exacta con los archivos que la sostienen. El Jev que SÍ sigue es otro, `tablero/tools/jev.py`,
+que tría tareas y no toca el corpus.
+
+**Lo que queda:** borrar `context/` (34 nodos, 1,2 MB, más `src/`, `dist/` y `node_modules/`), sus 13
+comandos `make context-*` y las menciones al «árbol» en la sección de estilos del CLAUDE.md raíz, que
+habla de cuatro UIs y van a quedar tres.
+
 ### 2026-09-21 · la desconexión, paso 1: las dos herramientas que dependían del árbol
 
 Antes de borrar nada hubo que **sacar de `context/` lo que tenía que sobrevivirlo**. Eran dos, y el

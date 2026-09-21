@@ -13,4 +13,4 @@ Espejo de `backend-e2e/lender/`: aquí van las estrategias de **cierre** por la 
 Detalle del estado por flujo (qué corre verde y qué está en `fixme`) en `../docs/VALIDATION.md`
 (Modelo composable). El mapa de flujos vivía en `docs/MAPA-FLUJOS.md`, borrado de `main`
 (`git show 159906a:docs/MAPA-FLUJOS.md`); hoy el equivalente vivo es
-`../../context/docs/ROUTE-MAP.md`.
+canon (`github/playground/tools/canon`).

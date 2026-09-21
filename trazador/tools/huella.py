@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """huella.py — la HUELLA MEDIDA de un flujo: qué TABLAS, qué EVENTOS y qué CÓDIGO toca de punta a
-punta, y cuánto de eso cubre el árbol. GENERADO desde una corrida real: no se edita a mano.
+punta, y cuánto de eso cubre canon. GENERADO desde una corrida real: no se edita a mano.
 
-POR QUÉ EXISTE. El árbol está organizado por TEMA y responde *por qué* el sistema hace lo que hace.
+POR QUÉ EXISTE. Canon está organizado por TEMA y responde *por qué* el sistema hace lo que hace.
 Una tarea, en cambio, llega por FLUJO («el rt=2 de Pullman no cierra»), y ahí la pregunta previa es
 *qué toca esto de punta a punta*. Eso no se cura a mano —envejece— y no hace falta: se mide.
 
@@ -41,12 +41,22 @@ import sys
 import urllib.request
 from collections import Counter, defaultdict
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from oracle import del_ref
+PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# El índice de «qué existe en main» vive con el validador de citas, en el tablero: es la misma
+# pregunta y tenerla dos veces es una divergencia esperando (ver el encabezado de `citas.py`).
+sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
+sys.path.insert(0, os.path.join(PLAYGROUND, "tablero", "tools"))
+from citas import del_ref  # noqa: E402
 
-CTX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FLOWS = os.path.join(CTX, "server", "data", "flows")
-HARNESS = os.path.join(os.path.dirname(CTX), "harness")
+# El corpus contra el que se cruza lo medido. ⚠ Hasta el 2026-09-21 era el árbol de `context/`, que se
+# apagó; hoy es canon, que declara por área sus `tablas` y sus `fuentes` (archivo → hash). La pregunta
+# es la misma —«¿qué toca este flujo que nadie explica?»— contra el corpus que sobrevive. Quien sabe
+# leerlo es `tools/canon.py`, que además traduce el nombre del monolito (`legacy-application` allá,
+# `application` acá): sin esa traducción el repo más grande saldría con cero temas.
+import canon as _canon  # noqa: E402
+
+CANON = _canon.CONTENIDO
+HARNESS = os.path.join(PLAYGROUND, "harness")
 TEMPO = "http://127.0.0.1:3200/api/traces/"
 ESCRIBE = re.compile(r'\b(?:insert\s+into|update|delete\s+from)\s+`?([a-z_][a-z0-9_]*)`?', re.I)
 LEE = re.compile(r'\bfrom\s+`([a-z_][a-z0-9_]*)`', re.I)
@@ -91,14 +101,21 @@ def spans(traces):
     return n
 
 
-def cobertura_arbol():
-    """(archivo → nodos, y el índice de basenames) para cruzar lo medido con lo documentado."""
+def cobertura_canon(mapas):
+    """(archivo → temas, y el índice de basenames) para cruzar lo medido con lo declarado.
+
+    Un tema de canon declara sus archivos dentro de `areas[].fuentes[<repo>]`, con el hash del blob
+    contra el que se verificó. Acá sólo interesa la RUTA: la pregunta es quién dice algo de ese
+    archivo, no si el hash sigue al día (eso lo contesta `canon -ronda`).
+    """
     dueno = defaultdict(list)
-    for nid in sorted(os.listdir(FLOWS)):
-        mp = os.path.join(FLOWS, nid, "map.json")
-        if os.path.isfile(mp):
-            for f in json.load(open(mp)).get("files", []):
-                dueno[f].append(nid)
+    for tema, m in mapas.items():
+        for a in m.get("areas") or []:
+            for repo, archivos in (a.get("fuentes") or {}).items():
+                for f in archivos:
+                    clave = f"{repo}/{f}"
+                    if tema not in dueno[clave]:
+                        dueno[clave].append(tema)
     por_clase = defaultdict(list)
     for f in dueno:
         por_clase[os.path.splitext(os.path.basename(f))[0]].append(f)
@@ -117,27 +134,36 @@ def main():
     esc, lee = tablas(mysql)
     filas, traces = eventos(ureq)
     sp = spans(traces)
-    dueno, por_clase = cobertura_arbol()
+    mapas = _canon.mapas()
+    dueno, por_clase = cobertura_canon(mapas)
     # `None` = automático: la ref se resuelve por repo (ver `roots.ref_a_indexar`). Con el literal,
     # contra un `main` local atrasado faltan archivos y la huella los cuenta como inexistentes.
     existen, _, _ = del_ref(None)
 
-    # ¿qué tabla nombra algún nodo del árbol? (en prosa: es donde se explica, no en files[])
+    # ¿qué tabla nombra algún tema de canon? Se pregunta por los DOS lados: `areas[].tablas`, que es
+    # la declaración explícita, y la prosa del `context.md`, donde una tabla puede estar explicada sin
+    # figurar en la lista. Mirar sólo la declaración daría «huérfana» a una tabla que sí está contada.
+    declaran = defaultdict(set)
+    for tema, m in mapas.items():
+        for a in m.get("areas") or []:
+            for t in a.get("tablas") or []:
+                declaran[t].add(tema)
     prosa = {}
-    for nid in sorted(os.listdir(FLOWS)):
-        d = os.path.join(FLOWS, nid, "doc.md")
+    for tema in mapas:
+        d = os.path.join(CANON, tema, "context.md")
         if os.path.isfile(d):
-            prosa[nid] = open(d, errors="replace").read()
+            prosa[tema] = open(d, errors="replace").read()
     def quien_explica(t):
-        return sorted(n for n, txt in prosa.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt))
+        en_prosa = {n for n, txt in prosa.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
+        return sorted(declaran.get(t, set()) | en_prosa)
 
     L = []
     L.append(f"# Huella medida · {nombre}\n")
     L.append(f"> GENERADO por `tools/huella.py` desde la corrida **uReq {ureq}** (target `local`). "
-             f"Es EVIDENCIA de qué toca el flujo, no explicación de por qué — eso vive en los nodos.\n")
+             f"Es EVIDENCIA de qué toca el flujo, no explicación de por qué — eso vive en canon.\n")
 
     L.append(f"## Tablas ({len(esc)} escritas · {len(lee)} leídas)\n")
-    L.append("| tabla | escrituras | ¿algún nodo la explica? |")
+    L.append("| tabla | escrituras | ¿algún tema de canon la explica? |")
     L.append("|---|---|---|")
     huerfanas = []
     for t, n in esc.most_common():
@@ -147,12 +173,12 @@ def main():
         L.append(f"| `{t}` | {n} | {' · '.join(qs[:3]) if qs else '**ninguno**'} |")
     L.append("")
     if huerfanas:
-        L.append(f"**{len(huerfanas)} tabla(s) que el flujo ESCRIBE y ningún nodo nombra:** "
+        L.append(f"**{len(huerfanas)} tabla(s) que el flujo ESCRIBE y ningún tema de canon nombra:** "
                  + ", ".join(f"`{t}`" for t in huerfanas) + "\n")
 
     L.append(f"## Código ({len(sp)} clases con span)\n")
     if sp:
-        L.append("| clase::método | spans | archivo en `main` | nodo |")
+        L.append("| clase::método | spans | archivo en `main` | tema |")
         L.append("|---|---|---|---|")
         for s, n in sp.most_common():
             cls = s.split("::")[0]

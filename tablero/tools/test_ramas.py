@@ -38,7 +38,7 @@ class RamasTest(unittest.TestCase):
         repo = snapshot["repos"][0]
         feature = next(r for r in repo["ramas"] if r["nombre"] == "feat/context-console")
 
-        self.assertEqual(snapshot["schemaVersion"], "context.ramas.v1")
+        self.assertEqual(snapshot["schemaVersion"], "tablero.repos.v1")
         self.assertEqual(repo["ramaActual"], "feat/context-console")
         self.assertTrue(feature["actual"])
         self.assertEqual(feature["adelanteMain"], 1)

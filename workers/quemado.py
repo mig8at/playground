@@ -39,8 +39,8 @@ GITHUB = pathlib.Path("~/Desktop/CREDITOP/github").expanduser()
 # remoto —medido el 2026-09-18, cinco de diez repos, hasta 22 commits— y grepear ahí devuelve MENOS
 # hardcodes. Acá eso es peor que en otros lados: el censo de lugares quemados es una MEDIDA DE DEUDA, y
 # medir de menos la hace parecer más chica de lo que es. Sin fetch, que esto es interactivo.
-sys.path.insert(0, str(AQUI.parent / "context" / "tools"))
-from roots import ref_a_indexar  # noqa: E402
+sys.path.insert(0, str(AQUI.parent / "tools"))
+from repos import ref_a_indexar  # noqa: E402
 
 # (categoría, repos, globs, patrón). El patrón lo consume `git grep -E` contra `main`.
 PATRONES = [

@@ -9,7 +9,7 @@ contrastarla contra el código, que es el único protocolo que la deja entrar al
     python3 tools/confluence.py leer 143786000
     python3 tools/confluence.py buscar "cupo rotativo"
 
-Credenciales en `context/.env` (gitignoreado): CONFLUENCE_URL · CONFLUENCE_EMAIL · CONFLUENCE_TOKEN.
+Credenciales en el `.env` de la raíz del playground (gitignoreado): CONFLUENCE_URL · CONFLUENCE_EMAIL · CONFLUENCE_TOKEN.
 
 ⚠ Lo que sale de acá NO es verdad todavía. Un documento desactualizado es indistinguible de uno
 equivocado, así que toda afirmación se marca `confirmada` (el código coincide) / `contradicha` (difieren
@@ -25,6 +25,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# la raíz del playground: `tools/` cuelga de ella, y ahí vive el `.env` con las credenciales
+# (se mudó desde `context/.env` el 2026-09-21, con el árbol apagándose).
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -41,7 +43,7 @@ def credenciales():
                 vals.setdefault(k.strip(), v.strip().strip('"').strip("'"))
     faltan = [k for k in ("CONFLUENCE_URL", "CONFLUENCE_EMAIL", "CONFLUENCE_TOKEN") if not vals.get(k)]
     if faltan:
-        sys.exit(f"faltan en context/.env: {', '.join(faltan)}")
+        sys.exit(f"faltan en el .env de la raíz: {', '.join(faltan)}")
     return vals["CONFLUENCE_URL"].rstrip("/"), vals["CONFLUENCE_EMAIL"], vals["CONFLUENCE_TOKEN"]
 
 
@@ -74,7 +76,7 @@ def get(ruta, params=None):
                         f"{base}/rest/api/3/myself devuelve 401.\n"
                         f"El token de {email} venció o fue revocado. Generá uno nuevo en\n"
                         f"  https://id.atlassian.com/manage-profile/security/api-tokens\n"
-                        f"y actualizá CONFLUENCE_TOKEN en context/.env (gitignoreado)."
+                        f"y actualizá CONFLUENCE_TOKEN en el .env de la raíz (gitignoreado)."
                     )
             except Exception:
                 pass  # la sonda es un extra: si falla, seguimos con el error original

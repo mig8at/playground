@@ -17,6 +17,11 @@ GENERADOS = {
     "context/tools/index.txt": "python3 context/tools/build-index.py",
     "context/alineacion.json": "python3 context/tools/alinear.py "
                                "(sale de git: qué cambió en main desde el sello `verified`)",
+    # Se mudó desde `context/docs/` el 2026-09-21, con el árbol apagándose. No estaba en esta lista
+    # y es el caso más caro de los cuatro: lo genera una medición contra PRODUCCIÓN, así que una
+    # corrección a mano se pierde en la próxima corrida y, mientras tanto, se lee como medida.
+    "workers/ENTIDADES.md": "make entidades "
+                            "(lo MIDE contra producción; editarlo a mano inventa un dato)",
 }
 
 

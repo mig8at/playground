@@ -10,7 +10,7 @@ página que scrollea:
 | Región | Qué tiene |
 |---|---|
 | `sidebar` | su título (`Mis tareas`, el conteo, **⊟** y **⋯**), el buscador, y debajo **un acordeón con una vista por estado** — *En curso · Bloqueadas · En pruebas · Por empezar · Terminadas* — más *Traer de Jira* al final. Cada fila Jira lleva al borde el icono para **avanzar al paso siguiente**. Arranca abierta sólo **En curso**; las demás cuestan una fila y muestran su conteo igual. El **⋯** lleva los filtros (con tilde y conteo), «locales», «ver todas» y el ancho del sprint |
-| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, una cabecera con estado, sprint, puntos, tiempo, Jira y `context/`, seguida por **su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
+| `editor` | **una barra con las tareas abiertas** (como los archivos en VS Code) y debajo, de la enfocada, una cabecera con estado, sprint, puntos, tiempo, Jira y sus temas de canon, seguida por **su documento**. Sin ninguna abierta manda **la vista abierta del acordeón** izquierdo: el sprint (los 4 indicadores + Mi jornada) o el import de Jira |
 | `panel` | la consola de ramas de la tarea enfocada: tabla del repo elegido y selector a la derecha con **sólo los repos trabajados en esa tarea**. Está abierta por defecto y **Ramas** queda visible en el pie cuando se cierra. Lee `data/cache/ramas.json`, no corre Git al renderizar y se puede redimensionar; sin ramas se reduce a una franja informativa |
 | `statusbar` | sprint, cuánto le queda y cuántas tareas hay a la vista |
 | `auxiliarybar` | un riel horizontal de **pestañas** con las vistas de consulta *Jira · Pendientes · Hallazgos · Registro · Bitácora · Prototipos* y sus conteos. Una sola ocupa todo el cuerpo; Jira abre primero y muestra el issue completo sin marco de tarjeta. No repite una ficha de Detalle. Sólo aparece con una tarea abierta; el control del pie lo apaga y lo recupera |
@@ -152,7 +152,7 @@ Marcá completado sólo lo verificado. Los criterios públicos para QA pertenece
 ⚠ **No confundir con las TRAMPAS del sistema (`F-xx`), que también viven acá desde el 2026-09-21**
 (`data/trampas/doc.md`, `make trampas`). Un hallazgo es una anotación fechada DENTRO de una tarea y
 muere con ella; una trampa es del sistema, no pertenece a ninguna tarea, y se entra por su SÍNTOMA.
-Vinieron del árbol de `context/` porque son **crónica** —síntoma, causa raíz, evidencia, arreglo— y
+Vinieron del árbol de contexto que se apagó porque son **crónica** —síntoma, causa raíz, evidencia, arreglo— y
 la crónica no entra en canon; su lector real ya era este tablero. Dos cosas con nombre parecido es
 como empiezan a mezclarse, así que: lo que le pasó a ESTA tarea es un hallazgo; lo que le pasa al
 sistema y ya nos costó tiempo es una trampa.
@@ -214,47 +214,42 @@ esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 
 | herramienta | contesta | deja en la tarea |
 |---|---|---|
-| [`context/`](../context/CLAUDE.md) | lo que ya se sabe del sistema | `context_nodes:` al abrir · una **graduación** al cerrar |
+| **canon** (otro repo: `github/playground/tools/canon`) | lo que ya se sabe del sistema, COMPARTIDO con el equipo | `canon:` al abrir · una **graduación** al cerrar |
 | [`workers/`](../workers/INDAGAR.md) | lo que nadie escribió (se deriva del código) | **«Dónde se toca»** — archivos con el porqué |
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»** — el comando, no la conclusión |
 | [`trazador/`](../trazador/CLAUDE.md) | ¿pasa de verdad, y cuánto? | una anotación `> **MEDICIÓN · fecha**` |
 
-## Retomar una tarea: Claude Code + Context + Jev
+## Retomar una tarea: Claude Code + canon
 
 Un agente que empieza el día no debería reconstruir el sistema desde cero ni confiar en un resumen
 viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los siete contenedores
 locales, abre su Markdown y reescribe mentalmente la sección **«Si retomás esto sin contexto»** en
-una hipótesis verificable. Antes de editar, revisa `context_nodes:` del frontmatter:
+una hipótesis verificable. Antes de editar, revisa `canon:` del frontmatter:
 
-1. **Hay nodos declarados** (hoy, las 24 tareas vivas — medido el 2026-09-21): `make retomar N=<id>
-   BRIEF=1` trae al final la **ficha** de cada uno —`when`, síntomas, resumen, secciones y por dónde
-   entrar al código— sin abrir su `doc.md`. La ficha decide QUÉ doc se abre; no lo reemplaza. Medido
-   sobre la #47: la retoma con sus tres fichas pesa 18.540 bytes contra 96.313 de sus tres docs. Va
-   hasta cuatro nodos (una tarea llega a declarar nueve); `BRIEF=a,b` elige cuáles. Después sí: el
-   `doc.md` + `map.json` del que contesta, en `context/`, antes de buscar código. Son el contexto
-   curado de la tarea, no una lista decorativa.
-2. **No hay nodos o el pedido llega demasiado general:** formula una pregunta técnica sin datos de
-   caso y ejecuta `make context-jev ARGS='route "pregunta general"'`. Es el ruteo local y no requiere
-   credencial. Con una pregunta segura, `JEV_TOKEN` configurado y necesidad real de contraste, puede
-   usar `--live`. Después abre los candidatos y confirma cuál sirve; sólo entonces agrega los nodos
-   pertinentes a `context_nodes:`. Una sugerencia no se copia al frontmatter por sí sola.
-3. **Ya encontró un nodo pero necesita código:** la ficha ya dice por dónde entrar; lee el `doc.md`
-   del nodo que contesta. Puede preparar `scope` con uno a tres archivos que el `map.json` ya declara y, sólo si necesita
-   elegir la siguiente evidencia, usar `review --live`. Ese review devuelve una elección de evidencia,
-   no una respuesta ni un plan de cambios. El código se verifica después contra `main`/`origin/main`.
-4. **La pregunta es de una persona, una solicitud, una medición actual o un log real:** no entra a
-   Jev. Se usa Trazador, Harness o la fuente autorizada y la evidencia se registra con su comando.
+1. **Hay temas declarados:** `make retomar N=<id> BRIEF=1` trae al final la **ficha** de cada uno
+   —título, resumen, y el `objetivo` de cada área con sus tablas y repos— sin abrir su `context.md`.
+   La ficha decide QUÉ tema se abre; no lo reemplaza. Va hasta cuatro temas (una tarea llega a
+   declarar nueve); `BRIEF=a,b` elige cuáles. Después sí: el `context.md` del que contesta.
 
-Jev es un **copiloto de orientación**, no otra fuente de verdad ni un requisito de cada tarea. Ante
-abstención, poca confianza, `case-data` o `manual-review`, se sigue el ROUTE-MAP y la investigación
-normal. ⚠ Y la regla de corte, que es lo que lo mantiene como apoyo: **si la ficha del nodo no
-contesta, no se prueba otro nodo — la pregunta va a `workers/`.** El silencio de `context/` es el
-modo de falla conocido (algo que existe en el código y nadie escribió), y un router no lo ve: `route`
-sólo mira `name`, `when` y `sintomas`, así que para eso va a elegir el nodo más parecido con confianza
-alta. Ahí es peor que el mapa. Nunca se le envían cuerpo de la tarea, Registro, pendientes, bitácora, código del working
-tree, secretos, teléfonos, cédulas, correos o números de solicitud. El detalle operativo y los límites
-viven en [`context/docs/JEV.md`](../context/docs/JEV.md); `context/CLAUDE.md` define el método de
-evidencia que este tablero consume.
+   ⚠ **La ficha se DERIVA, no se genera.** Sale del `map.json` del tema, donde el `objetivo` de cada
+   área está escrito a mano y dice literalmente «qué contesta esta parte». Antes la producía un
+   modelo sobre el documento: costaba una llamada, tardaba, y podía decir algo que el documento no
+   decía. Medido el 2026-09-21 sobre la #4: dos fichas pesan **7.055 bytes contra 51.284** de sus dos
+   documentos (7,3×), y ahora sale gratis, sin red y sin poder inventar.
+
+2. **No hay temas, o el pedido llega demasiado general:** formula una pregunta técnica sin datos de
+   caso y preguntale a canon — `go run . -pregunta '…'` desde su repo, o `/api/search?q=…`, que es
+   gratis y devuelve la sección exacta con los archivos que la sostienen. Abre los candidatos,
+   confirma cuál sirve, y sólo entonces agrega los temas a `canon:`. Una sugerencia no se copia al
+   frontmatter por sí sola.
+
+3. **La pregunta es de una persona, una solicitud, una medición actual o un log real:** eso no lo
+   contesta ningún corpus. Se usa el trazador o el arnés, y la evidencia se registra con su comando.
+
+⚠ **Y la regla de corte, que es lo que mantiene al corpus como APOYO y no como oráculo: si la ficha
+del tema no contesta, no se prueba otro tema — la pregunta va a `workers/`.** El silencio del corpus
+es el modo de falla conocido (algo que existe en el código y nadie escribió), y una búsqueda no lo ve:
+va a devolver el tema más parecido, con buena puntuación. Ahí es peor que el índice derivado.
 
 En la UI aparece como **✦ Orientar** en la cabecera de una tarea con documento local. Abrir la franja
 no llama a Jev; **Analizar con Jev** es el acto explícito que permite enviar la proyección mínima. El
@@ -262,7 +257,7 @@ resultado se puede copiar como borrador, pero no escribe el documento ni cambia 
 pendientes. No lo conviertas en una nueva pestaña, sidebar o mecanismo de priorización de `make hoy`.
 
 Al terminar, actualizá la sección de estado, el Registro y los comandos de comprobación como dicta esta
-guía. Si aprendiste una regla que seguiría siendo cierta después del merge, graduála a `context/`; si
+guía. Si aprendiste una regla que seguiría siendo cierta después del merge, graduála a **canon**; si
 no, queda en la tarea. Así la siguiente sesión empieza con contexto verificable, no con una transcripción
 del chat anterior.
 
@@ -317,7 +312,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   ya está registrado.
 
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`, default `tarea`) · `stage` (`evaluation`|`work`|`tasks`) · `created` ·
-  `archived?` · `context_nodes[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
+  `archived?` · `canon[]` · `jira[]` · `jira_title` · `ramas?` (uno o varios patrones, por
   coma). Archivar = poner `archived`, no
   mover el archivo.
 - **La frontera del guard está DENTRO del archivo.** El cuerpo es privado y puede nombrar repos,
@@ -356,7 +351,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
       2 PLAN         objetivo, cómo se ataca    → se REESCRIBE   «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
       3 MATERIAL     recetas, consultas, datos  → se MANTIENE    «Cómo se comprueba — y el MATERIAL…»
       4 REGISTRO     qué pasó ESE día           → se APILA       «Registro»
-      5 CONOCIMIENTO cómo funciona el sistema   → GRADÚA         a un nodo de `context/`
+      5 CONOCIMIENTO cómo funciona el sistema   → GRADÚA         a un tema de canon
 
   **La que más se equivoca es la 4 disfrazada de 3**: el diario de ejecución escrito como sección nueva
   arriba («🔧 Segunda pasada (13/9)», «2ª revisión de Santi (3/8)»). Medido el 2026-09-15 sobre las 40
@@ -367,7 +362,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   ⚠ **Tener fecha NO condena a una sección.** «Cómo se prueba, de cero (verificado el 2026-08-20)» es
   MATERIAL vigente y la fecha dice cuándo se comprobó. El test que discrimina es el mismo de siempre:
   **si esto se mergea mañana, ¿sigue siendo cierto?** Sí y es de la tarea → queda. Sí y es del sistema →
-  gradúa a `context/`. No → es un hecho de ese día, va al Registro.
+  gradúa a canon. No → es un hecho de ese día, va al Registro.
 
   **`make anatomia`** mide esto por tarea —tamaño, reparto estado/registro, y qué secciones fechadas
   viven arriba— y no mueve nada: señala para que alguien mire. `N=<id>` para una sola.
@@ -508,7 +503,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   medio del trabajo, decilo en una línea y seguí: no vuelve a hablar.
 
 - **El test de enrutamiento**: *si esto se mergea mañana, ¿sigue siendo cierto?* Sí → es contexto,
-  va a `context/`. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
+  va a **canon**. Habla de decisiones, riesgos o preguntas de ESTA tarea → va acá. Al mergear,
   lo aprendido **gradúa** al nodo y la tarea se archiva.
 - **El tablero se lee por CONSOLA, sin levantar nada** — su propio dominio, no el de terceros:
 
@@ -523,7 +518,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
       make tareas-ramas N=43 JSON=1     una sola, en json
       make hoy                          la agenda: próximo paso de cada tarea viva, preguntas vencidas, entrega, dormidas
       make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
-      make retomar N=47 BRIEF=1         …y al final la ficha de sus nodos de context, sin abrir los docs (hasta 4; BRIEF=a,b elige)
+      make retomar N=47 BRIEF=1         …y al final la ficha de sus temas de canon, sin abrir los documentos (hasta 4; BRIEF=a,b elige)
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
       make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
       make deploys DIAS=7               qué se desplegó y a qué ambiente
@@ -577,7 +572,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
      carpeta del playground con su entrada en el `Makefile`.
   2. **Lleva la fecha visible adentro.** Un prototipo sin fecha se lee como estado actual; con fecha
      se lee como lo que es — lo que se acordó ese día.
-  3. **No gradúa a `context/`.** Describe lo propuesto, no cómo funciona CreditOp: muere con la
+  3. **No gradúa a canon.** Describe lo propuesto, no cómo funciona CreditOp: muere con la
      tarea. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 - **RAMAS: se declaran los PATRONES, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter
   —o varios separados por coma— y `make tareas-ramas` responde en qué ramas de qué repos vive la tarea,

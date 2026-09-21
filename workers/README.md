@@ -441,7 +441,7 @@ Con `JEV=1`, antes del plan se envían a TypeSafe la pregunta y una preselecció
 cuatro entradas y los seleccionadores empiezan por ellas; pueden pedir el mapa como recuperación si
 no corresponden o no alcanzan. Una abstención o error usa el mapa completo desde el plan. Está apagado
 por defecto: no usarlo con ids de cliente, teléfonos, correos, secretos o datos de una solicitud.
-Contrato y medidas: [`context/docs/JEV.md`](../context/docs/JEV.md).
+Contrato y medidas: el laboratorio Jev del tablero (`make tablero-jev`).
 
 > ⚠ **No reescribe la pregunta**, y es deliberado. La tentación era «mejorarla» antes de pasarla: es
 > una mala idea con forma de buena, porque si el refinador la entiende mal, el error lo heredan TODOS

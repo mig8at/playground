@@ -14,7 +14,7 @@ escribe la próxima sección, qué no se puede probar en dev.
 
 Dos minutos que ahorran una tarde.
 
-- `context/docs/ROUTE-MAP.md` y el corpus de canon: ¿alguien ya lo escribió?
+- El corpus de canon (`go run . -pregunta '…'`, o `/api/search?q=…`): ¿alguien ya lo escribió?
 - ⚠ **Medido**: de un relevamiento de 10 secciones, **la mitad ya estaba en canon y mejor contada**. El
   bloqueo de dispositivos venía con «corte duro de 8 días» y canon ya decía que el umbral es editable
   por comercio. Escribirlo de nuevo, peor, es trabajo negativo: deja dos verdades.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Genera el snapshot local que alimenta la consola de ramas de context.
 
-No hace fetch ni escribe en los repos. La fuente de repos es roots.ROOTS, la misma que usa el árbol;
+No hace fetch ni escribe en los repos. La fuente de repos es `citas.ROOTS`, la misma contra la que se validan las citas;
 los aliases que comparten un checkout (harness y trazador) se agrupan en un solo repositorio.
 """
 from __future__ import annotations
@@ -12,8 +12,11 @@ import json
 import os
 import subprocess
 from pathlib import Path
+import sys
 
-from roots import ROOTS
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from citas import ROOTS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -143,7 +146,7 @@ def construir_snapshot(roots: dict[str, str] | None = None, generado: str | None
             checkouts.setdefault(top, []).append(alias)
     repos = [medir_repo(repo, aliases) for repo, aliases in sorted(checkouts.items(), key=lambda x: os.path.basename(x[0]))]
     return {
-        "schemaVersion": "context.ramas.v1",
+        "schemaVersion": "tablero.repos.v1",
         "generado": generado or dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "fuente": "git local; no hace fetch",
         "repos": repos,
@@ -159,7 +162,8 @@ def construir_snapshot(roots: dict[str, str] | None = None, generado: str | None
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mide las ramas locales de los repos que indexa context")
     parser.add_argument("--json", action="store_true", help="imprime también el snapshot")
-    parser.add_argument("--output", default=str(ROOT / "ramas.json"), help="archivo de salida")
+    parser.add_argument("--output", default=str(ROOT / "data" / "cache" / "repos.json"),
+                        help="archivo de salida")
     args = parser.parse_args()
     snapshot = construir_snapshot()
     salida = Path(args.output)

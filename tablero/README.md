@@ -13,7 +13,7 @@
 | decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
 | crear o actualizar una tarea | `PLANTILLA-TAREA.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
-| encontrar conocimiento estable del producto | `../context/docs/ROUTE-MAP.md` |
+| encontrar conocimiento estable del producto | **canon**: `github/playground/tools/canon`, o canon.playground.creditop.com |
 
 ## Laboratorio Jev
 
@@ -55,8 +55,9 @@ de Jev aporta una etiqueta, pero nunca se presenta como acierto del modelo.
 El banco sintético sirve para decidir si el juicio es consistente, no para certificar producción.
 La política solo convierte `Choice` en sugerencia cuando supera probabilidad, confianza y margen;
 si no, devuelve revisión manual. Score y Noul se muestran como señales, no mueven ni archivan tareas.
-El diseño general, las restricciones de privacidad y la comparación con el router de `context` están
-en [`../context/docs/JEV.md`](../context/docs/JEV.md).
+El diseño general y las restricciones de privacidad viven en el encabezado de `tools/jev.py`. ⚠ No
+confundirlo con el Jev que ruteaba nodos del árbol de contexto: ese se apagó con el árbol el
+2026-09-21, y para encontrar un tema hoy se le pregunta a canon, que es gratis.
 
 Medido el 2026-09-19 con los ocho casos repetidos dos veces: `Choice` acertó 16/16, `Noul` separó el
 bloqueo externo en 16/16 y el `Score` redondeó al nivel esperado en 16/16, con error absoluto medio
@@ -293,7 +294,7 @@ Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas 
 |---|---|---|
 | `title` | cómo lo llamás vos | privado, sin guard |
 | `tech_notes` | el detalle técnico: archivos, análisis, rutas | **sin guard** — nunca sale de local, por eso *sí* puede nombrar archivos y repos |
-| `context_nodes` | a qué nodos de `context` apunta (el mapa del código vive allá) | — |
+| `canon` | a qué temas de **canon** apunta (el corpus compartido vive en otro repo) | — |
 | `jira_title` · `jira_description` | el borrador de la tarea (se escribe en la etapa `tasks`) | **con guard** — termina publicado en Jira |
 | `stage` | en qué etapa del método está | — |
 
@@ -423,7 +424,7 @@ id: 4
 title: "..."                     ← privado: nombra el esfuerzo, no sale de acá
 stage: tasks                     ← evaluation | work | tasks
 created: "..."
-context_nodes: [onboarding, kyc] ← a qué nodos de `context` apunta
+canon: [onboarding, kyc]         ← a qué temas de canon apunta
 jira: [CORE-293]                 ← las tareas de Jira que salieron de este esfuerzo
 jira_title: "..."                ← PUBLICABLE: pasa el guard
 ---
@@ -615,6 +616,7 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto del WS | `8787` |
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
+| `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
 | `PULSO_EMAILS` | mis identidades de commit, separadas por coma | las 3 de Miguel (ver `internal/pulso`) |
 | `PULSO_EXTRA` | repos FUERA de la raíz que también son jornada, como `nombre=/ruta` separados por coma. El nombre va explícito porque el último segmento puede chocar con uno de la raíz (`playground` vs `github/playground`) | vacío — el playground personal no cuenta hasta que se declara |

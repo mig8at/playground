@@ -21,18 +21,18 @@ herramienta: es suponer que no está y contestar de memoria.
 
 | Tu pregunta | Con qué se contesta |
 |---|---|
-| **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el nodo que explica cada uno |
-| **¿cómo funciona X?** | `context/` — no es una herramienta: `docs/ROUTE-MAP.md` → nodo. **Siempre primero** |
-| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus nodos (24/24 vivas, medido 2026-09-21), así que no hay nodo que elegir: lo que cuesta es abrir los `doc.md` (mediana ~27 KB, `kyc` 55 KB), y la **ficha** de cada uno (~5 KB) alcanza para decidir cuál. Jev `route` es para una tarea **de cero**, local primero y `--live` sólo si el léxico empata. ⚠ Regla de corte: **si la ficha no contesta, no probés otro nodo — la pregunta va a `workers/`** (el router no ve lo que nadie escribió) |
+| **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el tema que explica cada uno |
+| **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en `github/playground/tools/canon` y en canon.playground.creditop.com. **Siempre primero.** `go run . -pregunta '<la pregunta>'` desde ahí, o `/api/search?q=…`, que es gratis |
+| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es abrir los `context.md` (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA del `map.json` (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
 | **¿ya nos pasó?** | `tablero/data/trampas/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
-| **…y si `context/` no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
+| **…y si canon no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
 | **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
 | **¿cómo está construido este repo?** | `workers/cli.py repos <alias>` · `subramas` · `mapa` — entra POR REPO, no por síntoma |
 | **¿por qué este comercio/lender se porta distinto?** | `workers/cli.py quemado` — los lugares donde el código decide por IDENTIDAD y no por config, con cada id resuelto a su nombre. ⚠ indexado por (columna, id): `24` es Credifamilia como lender y *Creditop* como comercio |
 | **¿por dónde empiezo a pagar esa deuda?** | `workers/cli.py cobertura` — cruza esos 391 lugares contra lo que canon declara y contra su PESO (commits de 90 días). ⚠ medido: canon cubre el 49%, pero de los `id_quemado` —los que atan una conducta a UNA entidad— queda fuera el **76%**, y de los `despacho` el 100% |
 | **voy a indagar en los repos, ¿cómo no perder el día?** | `workers/INDAGAR.md` — el método: demanda → índice → verificación contra `main` → ¿se alcanza/es la norma/se ejecuta? → causa → mecanismo. ⚠ cada regla de ahí costó un error, incluido el mío |
-| **¿quién es esta entidad, en negocio?** (a cuántos comercios llega, qué ticket, qué plazo, cuánto aprueba, dónde se cae la gente) | `context/docs/ENTIDADES.md` — **generado** contra **prod** con `make context-entidades`. ⚠ dice lo que las entidades HACEN, no lo que son |
+| **¿quién es esta entidad, en negocio?** (a cuántos comercios llega, qué ticket, qué plazo, cuánto aprueba, dónde se cae la gente) | `workers/ENTIDADES.md` — **generado** contra **prod** con `make entidades`. ⚠ dice lo que las entidades HACEN, no lo que son |
 | **¿con qué se une esta tabla?** · **¿qué tablas toco para X?** | `workers/cli.py relaciones` — las 247 en 13 vecindarios. ⚠ el esquema declara **44** FK: las otras 388 relaciones están reconstruidas y cada una dice de dónde salió |
 | **¿quién llama a esto?** · **¿difieren los dos monolitos?** | herramientas de los agentes (`quien_usa`, `gemelos`); a mano, `workers/cli.py gemelos` |
 | **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |
@@ -40,17 +40,17 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿qué le pasó a ESTA solicitud?** | **Dos forenses, y la diferencia es dónde ANCLAN.** `make trazador-ureq UREQ=…` arranca en la BD —las etapas son hechos, salen aunque no haya un solo log— y suma los 39 pasos, qué VIO el cliente y qué archivos dejaron rastro; es la única que llega a **prod**. `make harness-loki UREQ=…` arranca en los LOGS y por eso trae lo que la otra no: la regla con la que se evaluó cada entidad y el `timeline.ndjson` completo con payloads — pero sin líneas no puede decir nada, y **no mira prod**. ⚠ Sus defaults son OPUESTOS (`local` vs `prod`): escribí `TARGET=` siempre, o cambiás de ambiente sin enterarte (F-234). Cada una imprime el comando de la otra al terminar. Si sólo tenés la cédula o el celular, `make trazador-buscar Q=…` primero. ⚠ `trazador-acceso` **no** es esto: es la sonda de «¿puedo leer los logs?» |
 | **leí un error, ¿de qué archivo salió?** | `workers/cli.py logs "<mensaje>"` — el mapa va del mensaje al archivo y su línea. Para una corrida entera, la herramienta `archivos_de_la_traza` del agente que mide |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…` — ⚠ **sin `TEL` ves la mitad**: la fase de AUTH ocurre antes de que exista la solicitud, así que PostHog la identifica por teléfono (medido: 47.792 eventos por teléfono contra 24.006 por solicitud) |
-| **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. `context/` explica la CASCADA; esto contesta el CASO |
+| **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. Canon (`listado`) explica la CASCADA; esto contesta el CASO |
 | **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
 | **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
 | **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola**: `harness-caso` · `harness-listado` · `harness-suite` |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 
-⚠ **Y hay preguntas que NO se contestan leyendo — se contestan corriendo.** `context/` describe el
+⚠ **Y hay preguntas que NO se contestan leyendo — se contestan corriendo.** Canon describe el
 **mecanismo**, que generaliza; una corrida describe **el caso**, que no. Los dos hacen falta: la corrida
 sin el mecanismo no se sabe interpretar, y el mecanismo sin la corrida no dice qué pasa con este
 comercio. Medido el 2026-08-23 con la misma pregunta por los dos caminos: correrlo tardó **3 s** y dio
-las 7 entidades con su `response_type`; leerlo eran **4 nodos y ~9.000 palabras**, y **ninguno nombra <!-- lint:ok -->
+las 7 entidades con su `response_type`; leerlo eran **4 temas y ~9.000 palabras**, y **ninguno nombra <!-- lint:ok -->
 ese comercio** — porque no es su trabajo.
 ⚠ **Y lo más importante: correr ENCUENTRA lo que leer no puede.** De los **12 hallazgos** agregados el <!-- lint:ok -->
 2026-08-23 (F-163…F-174), **11 salieron de una corrida** — el único que salió de leer código fue F-170,
@@ -58,11 +58,11 @@ y lo disparó una pregunta. Un flujo que se rompe con la entidad ya elegida, un 
 siempre, una subida que falla en silencio: nada de eso está escrito en ningún lado hasta que alguien lo
 corre.
 
-⚠ **El silencio de `context/` NO es «no existe».** El árbol sólo sabe lo que alguien escribió, y su
-hueco se lee igual que una ausencia real. Medido el 2026-08-16: dos funcionalidades mergeadas —el
-endpoint de regeneración de Credifamilia (13/8) y el flag `can_check_preapproval` (10/8)— no estaban
-en ningún nodo. **Cuando el árbol no diga nada de algo que debería existir, no concluyas: preguntale
-a `workers/`, que se deriva del código.**
+⚠ **El silencio de canon NO es «no existe».** El corpus sólo sabe lo que alguien escribió, y su hueco
+se lee igual que una ausencia real. Medido el 2026-08-16 sobre el árbol que lo precedió: dos
+funcionalidades mergeadas —el endpoint de regeneración de Credifamilia (13/8) y el flag
+`can_check_preapproval` (10/8)— no estaban escritas en ningún lado. **Cuando el corpus no diga nada de
+algo que debería existir, no concluyas: preguntale a `workers/`, que se deriva del código.**
 
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
 verifica casi siempre existe ya. Y cuando la verificás, **la anotación no se escribe a mano**: el
@@ -462,17 +462,25 @@ simple: **no corras nada destructivo; si creés que hace falta, preguntá.**
 
 ## EL CICLO — acá siempre pasa lo mismo
 
-Se viene a resolver **tareas** sobre CreditOp con cinco piezas — **tablero** (la tarea), **context**
-(el conocimiento curado), **workers** (el índice derivado del código, para lo que el conocimiento aún
-no cubre), **harness** (la prueba) y **trazador** (lo que ya pasó, incluido en prod) — y el circuito es
-fijo.
+Se viene a resolver **tareas** sobre CreditOp con cinco piezas — **tablero** (la tarea), **canon**
+(el conocimiento curado, COMPARTIDO con el equipo y en otro repo), **workers** (el índice derivado del
+código, para lo que el conocimiento aún no cubre), **harness** (la prueba) y **trazador** (lo que ya
+pasó, incluido en prod) — y el circuito es fijo.
+
+⚠ **Canon no vive acá: vive en `~/Desktop/CREDITOP/github/playground/tools/canon`** (repo
+`Creditop-SAS/playground`), y se publica en canon.playground.creditop.com. Hasta el 2026-09-21 este
+repo tenía ADEMÁS su propio árbol curado, `context/`, y eran dos contextos que había que mantener a la
+par. Se apagó: lo que valía graduó a canon, las trampas del sistema se mudaron a
+`tablero/data/trampas/` y lo que quedaba era formato o estructura. **No busques `context/`; si lo ves
+citado en algún lado, está viejo.**
 
 ⚠ **Y cada una tiene un lugar propio DENTRO del archivo de la tarea.** El `CLAUDE.md` de las cuatro que
 no son el tablero cierra con una sección «Qué deja esto en la tarea», y
 [`tablero/CLAUDE.md`](tablero/CLAUDE.md) §«De dónde sale lo que se escribe acá» es su espejo. Sin eso
 la información se escribe igual, pero suelta en la prosa, donde nadie la encuentra al retomar: medido
-el 2026-09-18, **43 de 68 tareas nombran `context` y sólo 40 declaran `context_nodes`**; el arnés
-aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
+el 2026-09-18, **43 de 68 tareas nombran el contexto curado y sólo 40 lo declaraban en el
+frontmatter**; el arnés aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**. Hoy el
+campo se llama **`canon:`** y sus valores son temas del corpus.
 
 1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
@@ -487,13 +495,15 @@ aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
    bitácora en `tablero/data/entries/` **con minutos medidos** (`make pulso`, o el lapso de commits), no
    estimados. **`make cierre` chequea las cuatro** y el hook de `Stop` lo corre solo. El detalle y lo
    medido que lo justifica: `tablero/CLAUDE.md`.
-2. **El CONTEXTO se lee ANTES de investigar.** `context/docs/ROUTE-MAP.md` es el índice (generado,
-   validado contra `main`); abrí los que matcheen: `context/server/data/flows/<id>/doc.md` (el
-   análisis) + `map.json` (las rutas fuente exactas). El código real vive **fuera**, en
-   `~/Desktop/CREDITOP/github/` (`legacy-backend`, `frontend-monorepo`, `legacy-application`,
-   `pre-approvals-service`) — grandes: entrar por grep sin mapa es la forma lenta. ⚠ Y al **retomar**
-   no se elige nodo: la tarea ya lo declara. `make retomar N=… BRIEF=1` trae la ficha de cada uno
-   (~5 KB) para decidir qué `doc.md` abrir — la ficha decide, no reemplaza.
+2. **El CONTEXTO se lee ANTES de investigar, y está en canon.** Para encontrar el tema:
+   `go run . -pregunta '<la pregunta>'` desde el repo de canon, o `/api/search?q=…`, que es gratis y
+   devuelve la sección exacta con los archivos que la sostienen. Cada tema es
+   `content/<tema>/context.md` (la prosa) + `map.json` (las áreas, con sus `fuentes`: archivo → hash
+   del blob contra el que se verificó). El código real vive **fuera**, en `~/Desktop/CREDITOP/github/`
+   (`legacy-backend`, `frontend-monorepo`, `legacy-application`, `pre-approvals-service`) — grandes:
+   entrar por grep sin mapa es la forma lenta. ⚠ Y al **retomar** no se elige tema: la tarea ya lo
+   declara en `canon:`. `make retomar N=… BRIEF=1` trae la ficha de cada uno para decidir cuál abrir
+   — la ficha decide, no reemplaza.
 3. **Lo que se descubre SE REGISTRA, con dos destinos.** El test: *si esto se mergea mañana, ¿el
    texto sigue siendo cierto?*
    - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
@@ -507,38 +517,42 @@ aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**.
    repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta vigente y sus trampas
    están en `tablero/data/trampas/doc.md`, F-139. Sin saber esto, una prueba de identidad
    ahí siempre devuelve la misma persona y parece que el código está roto.
-5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa al nodo de contexto — ahí es "cómo
-   funciona CreditOp". La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la omisión de
-   Experian por cupo ya confirmado vive hoy en el nodo `kyc`.
+5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa a canon — ahí es "cómo funciona
+   CreditOp", y lo ve el equipo. La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la
+   omisión de Experian por cupo ya confirmado vive hoy en el tema `kyc`.
 
-### Y lo que mergea OTRO — el bucle para que el árbol no quede viejo
+   ⚠ **Canon rechaza la CRÓNICA por regla escrita** (`skills/dictar.md`): van las reglas que existen
+   en `main` —técnicas, de negocio o de producto, incluidos sus errores—, sin el relato de quién las
+   descubrió, sin resultados de experimentos y sin PRs sin mergear. Lo que no pasa ese filtro y aun
+   así vale es una **trampa del sistema**, y va a `tablero/data/trampas/doc.md`.
+
+### Y lo que mergea OTRO — el bucle para que canon no quede viejo
 
 El paso 5 cubre lo que mergeás vos. Lo que mergea el resto del equipo entra sin que nadie lo escriba, y
-el hueco no avisa. **El bucle, probado el 2026-08-16 y que encontró dos funcionalidades invisibles:**
+el hueco no avisa. **El bucle, probado el 2026-08-16 sobre el árbol que precedió a canon y que encontró
+dos funcionalidades invisibles:**
 
-1. `make context-align` — qué nodos quedaron viejos. Y `make context-diff NODE=x` — **qué cambió** en
-   el código de uno. ⚠ Antes de leer ese diff, `CITAS=1`: cruza los rangos del cambio contra los
-   números de las citas `archivo:línea` del doc y dice **si el cambio tocó lo que el nodo AFIRMA** —
-   si sí, el nodo puede estar mintiendo hoy; si no, lo más probable es refactor. Es aritmética, no
-   una opinión: el diff de `trazador` son 112.358 caracteres y el mapa entra en veinte líneas. No
-   reemplaza leer —un cambio *fuera* de lo citado puede ser algo nuevo que el nodo debería
-   mencionar—, dice por dónde empezar. ⚠ Los dos aportan cosas distintas: Credifamilia salió de la deriva (un archivo
-   repitiéndose en la de VARIOS nodos), y `can_check_preapproval` salió del diff de un nodo con deriva
-   **baja**. Mirar sólo el ranking de deriva se pierde lo segundo.
-2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + un grep
-   en los `doc.md`. Si nadie lo menciona, ahí hay algo.
+1. **`go run . -ronda`** desde el repo de canon — qué archivos declarados cambiaron en `main` o
+   desaparecieron. Cada área declara sus `fuentes` con el **hash del blob** contra el que se verificó,
+   así que esto es una comparación exacta, no una estimación. ⚠ Y **`-peso`** ordena esa lista por
+   actividad de 90 días: sin eso, el ranking mezcla un archivo que cambió una vez con el que cambia
+   todas las semanas. ⚠ Los dos aportan cosas distintas, y está medido: Credifamilia salió de la
+   deriva (un archivo repitiéndose en varios temas), y `can_check_preapproval` salió de mirar el
+   cambio de un tema con deriva **baja**. Mirar sólo el ranking se pierde lo segundo.
+2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + una
+   búsqueda en canon (`/api/search?q=…`). Si nadie lo menciona, ahí hay algo.
 3. Preguntá. `make agente-analisis PREGUNTA='…'` si hay mucho que leer; a mano si son 3 archivos.
-4. **Verificá contra `main`** lo que devuelva, y recién ahí escribilo en el nodo + su `map.json`.
-   Validá con `python3 tools/oracle.py`, `make context-lint` y `tools/refs.py <nodo>`.
-5. **NO sellés el nodo** por haber agregado una sección: sellar dice «lo revisé entero». El método de
-   re-verificación completo está en `context/CLAUDE.md`.
+4. **Verificá contra `main`** lo que devuelva, y recién ahí dictalo a canon. ⚠ El cambio de prosa y el
+   del hash van **juntos**: mover el hash sin releer dice «esto sigue siendo cierto» sin que nadie lo
+   haya comprobado.
+5. **Una sección nueva no revalida el área entera.** Agregar no es revisar; decir que revisaste lo que
+   sólo ampliaste es la forma más barata de envejecer un corpus sin que se note.
 
-⚠ **Y `context/` NO documenta las herramientas de este repo.** `harness` y `trazador` tuvieron nodo
-hasta el 2026-09-21; se retiraron porque el árbol describe **CreditOp** y cómo se usa una herramienta
-de acá vive en su `CLAUDE.md`, commiteado junto a su código. No era redundancia inofensiva: la tabla
-de «quién decide el crédito por `response_type`» estaba en los dos lados y **ya contradecía** a la de
-`entities`. Lo de dominio se repartió a su nodo; lo operativo, a los `CLAUDE.md`. Detalle y las tres
-señales que lo delataban: `context/CLAUDE.md`, regla 6.
+⚠ **Canon NO documenta las herramientas de este repo.** `harness` y `trazador` tuvieron nodo en el
+árbol viejo hasta el 2026-09-21; se retiraron porque el corpus describe **CreditOp** y cómo se usa una
+herramienta de acá vive en su `CLAUDE.md`, commiteado junto a su código. No era redundancia inofensiva:
+la tabla de «quién decide el crédito por `response_type`» estaba en los dos lados y **ya se
+contradecía**. Lo de dominio se repartió; lo operativo, a los `CLAUDE.md`.
 
 ⚠ **El resto de carpetas NO son herramientas para contextualizarte** — hoy: `flow`, `engine`,
 `domain-model`, `diccionario`, `plantillas`, `creditop-woocommerce`. Son exploraciones que Miguel armó para entender
@@ -547,11 +561,12 @@ que corre en producción. *(Y `ingles` no habla de CreditOp en absoluto: es para
 `cuadrilla`. Ya no: el 2026-09-10 se mudó al repo compartido —`github/playground/tools/cuadrilla`,
 rehecha en Go + Vue— y ahí dejó de ser una exploración: cumple el contrato del repo y tiene pruebas.
 `make cuadrilla` sigue abriéndola.)* **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
-cierto, se verifica contra el código y gradúa a `context/` — hasta entonces, no existe para tu tarea.
+cierto, se verifica contra el código y gradúa a canon — hasta entonces, no existe para tu tarea.
 
-**Reglas de la partición** (para que no se vuelva a mezclar): el árbol de context **no** lleva
-nodos-tarea. El enlace es **unidireccional** — la tarea apunta a nodos (`context_nodes`); el nodo
-nunca apunta a tareas, porque quedaría mintiendo al graduar. Y del `.md` de una tarea **solo**
+**Reglas de la partición** (para que no se vuelva a mezclar): canon **no** lleva temas-tarea. El
+enlace es **unidireccional** — la tarea apunta a temas (`canon:` en su frontmatter); el tema nunca
+apunta a tareas, porque quedaría mintiendo al graduar — y además lo lee el equipo, que no tiene este
+repo. Y del `.md` de una tarea **solo**
 `jira_title` + la sección `## Tarea (publicable)` salen a Jira (pasan el guard); todo lo demás es
 privado y puede nombrar repos, rutas y F-xx. El error de enrutar mal se comete por **fricción**, no
 por no entender la regla — hoy los dos destinos cuestan lo mismo: un archivo markdown.
@@ -566,12 +581,16 @@ detalle y lo medido que lo justifica: `tablero/CLAUDE.md` §«CINCO piezas». Oj
 el cuerpo y pegarlo en la publicable: son otra pregunta y otro lector, y sale detalle técnico que a
 producto no le sirve.
 
-## El contexto se mide contra `main`, y lo que no está en main se marca
+## El contexto se mide contra `main`, y lo que no está en main NO entra
 
-`context/` describe **lo que corre**, y la vara es `main`. Lo que todavía no mergeó se marca inline con
-`⏳ PENDIENTE DE MERGE` justo donde engaña (`grep -rn "PENDIENTE DE MERGE" context/` las lista todas;
-revisala después de cada merge). El protocolo completo de curación —la marca, los sellos, el oráculo,
-qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
+Canon describe **lo que corre**, y la vara es `main`. Eso no es una costumbre: es una regla de
+admisión escrita (`skills/dictar.md`) y el motivo por el que **un PR sin mergear no se dicta** —
+mientras no esté en `main` no es «cómo funciona CreditOp», es una intención, y el equipo entero la
+leería como un hecho. El protocolo completo —qué entra, cómo se declara la fuente, qué hace la
+compuerta del banco de preguntas— vive en las `skills/` del repo de canon.
+
+⚠ Y lo que sí es de este repo: `grep -rn "PENDIENTE DE MERGE" .` sigue siendo útil para las tareas del
+tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla después de cada merge.
 
 ## Git
 
@@ -586,7 +605,7 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
   momentos distintos, así que `main` pasa por estados que nadie probó. La única división que se
   mantiene es **por repo**, porque un PR no puede cruzarlos.
 - ⛔ **La descripción de un PR NO nombra las herramientas internas.** Nada de `harness`, `trazador`,
-  `tablero`, `context`, `workers`, `playground` ni sus comandos `make`: el PR lo leen personas que no
+  `tablero`, `workers`, `playground` ni sus comandos `make`: el PR lo leen personas que no
   tienen ese repo y para quienes «corrí `make harness-caminar`» no es evidencia, es ruido. Lo que va en
   el PR es **qué se midió y qué dio** —el ambiente, el caso, los números, el antes y el después— y las
   rutas del repo que se está tocando. El comando que lo reproduce va en el archivo de la tarea, que es
@@ -621,13 +640,14 @@ qué hacer al cerrar una tarea— vive en **`context/CLAUDE.md`**.
   e **imprime cuatro**, y las cuatro se ven idénticas a doscientas. Contarlas dio «46% de los errores
   son del profiler» cuando el número real era **9,2%**. Para contar, la expresión métrica:
   `QUERY='sum(count_over_time({service_name="x", level="error"} [24h]))'`.
-- `playground/docs/` **fue borrada** de `main` (absorbida por `context/`). Toda ruta `docs/X.md` que veas
-  citada es histórica: `git show 159906a:docs/<archivo>`.
+- `playground/docs/` **fue borrada** de `main` (absorbida por el árbol de contexto, que a su vez
+  graduó a canon). Toda ruta `docs/X.md` que veas citada es histórica: `git show 159906a:docs/<archivo>`.
 
 ## Dos reglas de honestidad
 
-- Si tocaste rutas de un nodo, validá con `python3 context/tools/oracle.py <map.json>` — una ruta mal
-  escrita no falla en ningún lado: la lee un modelo y abre un archivo inexistente.
+- Si tocaste las `fuentes` de un tema de canon, validá que existan en `main` — una ruta mal escrita no
+  falla en ningún lado: la lee un modelo y abre un archivo inexistente. Lo mismo con las citas
+  `archivo:línea` de una trampa: `make trampas` las ancla por contenido y dice cuáles se corrieron.
 - **Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
 
 ## Variables de entorno
