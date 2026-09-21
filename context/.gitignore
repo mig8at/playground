@@ -1,8 +1,0 @@
-node_modules/
-dist/
-server/bin/
-*.log
-.env
-server/.env
-tools/index.txt
-ramas.json

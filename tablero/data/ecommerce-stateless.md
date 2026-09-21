@@ -34,8 +34,9 @@ lleva **dos** cosas — las dos sobre lo que la tarjeta le PROMETE al cliente:
 
 Va contra `qa`, como todo lo demás.
 
-**✅ LOS DOS ESTÁN MERGEADOS Y FUNCIONANDO EN `qa`** — verificado en pantalla el 21/9 a las 21:04Z:
-el campo del monto sale `readOnly` en una compra de tienda. Tardó horas en verse porque el servicio
+**✅ LOS DOS ESTÁN MERGEADOS Y FUNCIONANDO EN `qa`** — verificado en pantalla el 21/9 a las 21:12Z,
+con la flota ya rotada del todo (6 de 6 renders con candado): el campo del monto sale `readOnly` en
+una compra de tienda y al intentar escribir aparece su aviso. Tardó horas en verse porque el servicio
 `legacy-backend-qa` tiene **varias tareas y no rotan a la vez**, y en paralelo infra estaba
 restaurando la base compartida. Ninguna de las dos cosas era del código.
 
@@ -176,6 +177,19 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
       quién lo toma. Igual en `main` y en `qa`.
 
 **Por promover a F-xx**
+
+- [ ] **Un despliegue que sale ✔ sin haber rotado la flota.** El workflow de `qa` reporta éxito apenas
+      ECS acepta la orden (`wait-for-service-stability` no está), así que una flota a medio rotar se ve
+      igual que una desplegada. Medido el 21/9: horas de diagnóstico, y el síntoma aparecía lejos —en
+      una pantalla que «no tomaba el cambio»—.
+- [ ] **N respuestas iguales NO prueban una sola instancia.** Diez peticiones seguidas al mismo host
+      dieron `true` las diez y eso se leyó como «hay una sola tarea, y tiene el código». Eran diez
+      caídas en la misma. Lo que delata la mezcla es **sondear el render del SERVIDOR** varias veces:
+      ahí salió 4 de 5. Es hermano de la trampa de la sonda del trazador, que muestra una MUESTRA.
+- [ ] **Cuando un dato DESAPARECE, la hipótesis barata es que alguien esté tocando la base**, no que
+      te estén mintiendo sobre cuál es. El 21/9 una solicitud que el front mostraba no estaba en la
+      base, y de ahí salió la conclusión —falsa— de que `qa` usaba otra. La causa era una restauración
+      en curso, y preguntarlo en el canal del equipo costaba un minuto.
 
 - [ ] **Una ruta registrada en UN árbol de `routes.ts` y no en el otro no falla en ningún lado:** compila,
       pasa lint, y React Router la matchea en el árbol vecino en silencio hasta rebotar al inicio. Pasó
@@ -438,6 +452,19 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 
 **El candado funciona en `qa`.** Verificado a las **21:04:47Z** sobre la solicitud 502621:
 `lock_amount: true`, `#amount-input` con `readOnly: true`. Y los importes ya no salen en `-`.
+
+✔ **Y a las 21:12:22Z, con la flota ya rotada del todo:** `6 de 6` renders del servidor traen el
+candado (contra 4 de 5 ocho minutos antes), y al intentar escribir en el campo aparece el aviso «Si
+deseas cambiar el monto, debes iniciar la solicitud desde el inicio». O sea que el mecanismo entero
+—backend, front y copy— está en pie.
+
+⛔ **Y quedó descartada una salida que parecía razonable: correr las migraciones desde local contra la
+base compartida.** No hacía falta —la columna `lock_amount` existe (`tinyint(1)`, default 0) y su
+migración está registrada (batch 243, igual que `amount_label` en la 245)— y además es **exactamente
+la práctica que vació la base de dev+staging el 2026-08-19**: las credenciales que circulan son las
+del usuario maestro del RDS, con `DROP`. Si a un ambiente le falta una migración, la corre su pipeline
+o infra; nunca un contenedor local. Y el argumento que lo cierra sin mirar la base: **si faltara la
+columna, el front recibiría `null`; recibía `false`.**
 
 **Qué era, de verdad — dos cosas a la vez, y por eso costó:**
 
