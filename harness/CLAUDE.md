@@ -1018,3 +1018,9 @@ que la herramienta encontró vive donde se busca por síntoma.
 
 - El flujo ecommerce por UI en local sigue degradado (SSR `process.env.VITE_API_URL`); el cierre Motai
   por UI (marketplace ofreciendo el 158 + testids) sigue pendiente — validado solo por API.
+
+### Bancolombia: hasta dónde llega una prueba (venía del árbol de context)
+
+- **La decisión no es inyectable** (la toma la API del banco), pero **el escenario sí es direccionable en no-prod** por cédula y por celular (§7). Eso es más de lo que decía el padre ("frontera dura"): se pueden ejercitar con-cupo, sin-cupo, sesión expirada y riesgo de fraude sin mockear el transporte.
+- El harness lo rutea **por ID antes que por `rt==1`** (`bancolombiaClose`: `validate-preapproved` con `Http::fake` + override `TestDoc=1998228194`). **No llega a Estado 11.**
+- El eje ecommerce se degrada en local (Mixed Content contra el host interno) → usar dev desplegado.

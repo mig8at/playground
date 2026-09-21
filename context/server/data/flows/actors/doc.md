@@ -135,7 +135,7 @@ para las entidades en plataforma, y mandarlas al cobro por pasarela rompe el flu
 ⚠ **Hay TRES QR distintos y conviene no confundirlos:** el de escritorio de arriba (identidad) · el de
 **República Dominicana**, que con `$allied->country_id == 60` fuerza `qrUrl` + `showModal` en la
 selección misma, antes de todo lo demás · y el del canal **Corbeta → Bancolombia**, que es otro recorrido
-entero (nodo `bancolombia`). El primero los genera `App\Actions\Qr::create()`, que **manda la URL a un
+entero (canon, tema `bancolombia`). El primero los genera `App\Actions\Qr::create()`, que **manda la URL a un
 servicio de terceros** (`generator.qrcode.studio`) y deja la imagen en un bucket público; `QrService`
 documenta que para payloads que no son URLs públicas va `generatePayloadSvg()`, que renderiza local.
 

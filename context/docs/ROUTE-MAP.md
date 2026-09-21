@@ -51,7 +51,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
 | «esto no puede ser, la entidad funciona en otro comercio» | `creditop` |
 | «¿esto no se puede parametrizar?» | `negocio` |
 | «¿esto ya está en el backoffice nuevo?» | `application` |
-| «falló con Bancolombia» | `bancolombia` |
 | «falló con Credifamilia» | `credifamilia` |
 | «falló el renting / Ábaco» | `motai` |
 | «falló en Pullman / CrediPullman» | `pullman` |
@@ -117,7 +116,6 @@ Si la tarea llega con una de estas frases, empezá por esos nodos. Si ninguna ma
   - ecommerce [ref]
   - entities [ref]
     - aggregator [ref]
-      - bancolombia [ref]
     - credifamilia [ref]
     - creditopx [ref]
       - amount-tiers [ref]
@@ -166,10 +164,6 @@ Doc: `server/data/flows/application/doc.md` · Archivos: `server/data/flows/appl
 ### architecture — Architecture  ·  _reference_ · 82 archivos
 **Cuándo:** Cuando la duda es en QUÉ REPO vive algo, por qué está duplicado, o cómo se hablan entre sí: base de datos compartida, migraciones duplicadas, cutover al wizard nuevo, allowlist, SSO, VITE_API_URL. Índice de los repos.
 Doc: `server/data/flows/architecture/doc.md` · Archivos: `server/data/flows/architecture/map.json` · Padre: `creditop`
-
-### bancolombia — Bancolombia  ·  _reference_ · 145 archivos
-**Cuándo:** Cuando la tarea toca Bancolombia (BNPL lender 68 / Consumo lender 100): su onboarding propio en el wizard, la secuencia multi-step de originación (login→cuota→cuenta→términos→clave dinámica→origination; consumo: validate→ofertas→simulación→seguro→e-sign), el código de compra en punto de venta (PIN de Corbeta / In Store Billing Code), los escenarios sandbox por cédula y por celular, JWT RS256 + mTLS, o el webhook de estado que sigue en application. Es el único rt=1 con originación completa DENTRO de CreditOp.
-Doc: `server/data/flows/bancolombia/doc.md` · Archivos: `server/data/flows/bancolombia/map.json` · Padre: `aggregator`
 
 ### codeudor — Codeudor  ·  _reference_ · 70 archivos
 **Cuándo:** Cuando en la tarea aparece un SEGUNDO firmante: codeudor, cosigner, deudor solidario, «necesita codeudor», «el codeudor no puede firmar», la invitación por WhatsApp o su deep link, el estado «Solicita codeudor», la pantalla de espera del titular mientras el codeudor valida, la firma cruzada (titular y codeudor firmando el MISMO documento), o el catálogo de documentos que cambia según haya codeudor o no (`lender_signing_documents`). También cuando una solicitud queda aprobada por OTP y NO llega al estado 11: puede estar diferida esperando la firma del codeudor.

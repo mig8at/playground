@@ -10,7 +10,8 @@
 > 2026-09-19; el 2026-07-31 eran 109 de 230, o sea que creció el padrón y la proporción se mantuvo—, así
 > que **no es «el lender de Corbeta»**. Se
 > cruzan: acá vive el lado COMERCIO (quién vende, cómo cierra la venta en caja, la conciliación); el lado
-> PRESTAMISTA vive en el nodo hermano **`bancolombia`** (bajo `aggregator`).
+> PRESTAMISTA vive en **canon, tema `bancolombia`** — su nodo acá se borró el 2026-09-21 porque canon
+> ya lo cubría entero, y mejor.
 
 Corbeta **no es un lender**: es un **grupo de comercios de retail físico** (Alkosto=209, K-Tronix=210,
 Alkomprar=211) con un **canal BATCH** propio. Ojo con el cuarto id del gate: **allied 24 = «Creditop»**,
@@ -244,7 +245,7 @@ consulta órdenes de HOY, indexa por PIN (`keyBy('pin')`), y **si cambió el val
 - Consumo (`InvoiceProcessCorbeta`, lender 100): arma el request con `purchase_date=fechaFacturacion`
   y `customer_validate_key` (de `LenderIntegrationFlow.data.loan_validate_key`) y llama
   **`BancolombiaConsumerLoan::consumoConfirmed()`** (`:89-90`). Éxito = `data.status == 'Recibida'`
-  → `save()`. [BancolombiaConsumerLoan vive en el nodo `bancolombia`.]
+  → `save()`. [BancolombiaConsumerLoan: canon, tema `bancolombia`.]
 - BNPL (`InvoiceProcessCorbetaBnpl`, lender 68): usa `order_id` de `latestLenderTransaction` y llama
   **`BancolombiaBnpl::bnplConfirmed()`** (`:87-88`).
 - Tras confirmar, marca `purchaseCode.barcode_checked = true` (evita re-procesar el código).
@@ -280,7 +281,7 @@ consulta órdenes de HOY, indexa por PIN (`keyBy('pin')`), y **si cambió el val
 - **Padre `merchants`**: alta y configuración de comercio/sucursal, `lenders_by_allieds` /
   `lenders_by_allied_branches`, la copia de reglas por sucursal, credenciales de ecommerce. Acá sólo
   vive lo **distintivo** de Corbeta: el gate `corbeta_allieds`, el PIN de caja y el ciclo batch.
-- **Nodo `bancolombia`** (bajo `aggregator`, hermano-cruzado): **todo el lado prestamista** — las Actions
+- **canon, tema `bancolombia`** (su nodo acá se borró el 2026-09-21): **todo el lado prestamista** — las Actions
   (`Bancolombia`, `BancolombiaBnpl`, `BancolombiaConsumerLoan`, `…OfferEvaluation`), los 23 endpoints de
   originación, JWT RS256 + mTLS, los escenarios sandbox y el `purchase-code/generate` de legacy-backend.
   Corbeta **invoca** `BancolombiaBnpl::bnplConfirmed()` y `BancolombiaConsumerLoan::consumoConfirmed()`

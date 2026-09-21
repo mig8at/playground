@@ -32,8 +32,8 @@ Esta tarea tiene la ruta estable `#/tareas/context`; al recargar vuelve a abrirl
 completo de repos permanece en la UI propia de Context; ambas lecturas salen de Git local y nunca
 hacen `fetch` al renderizar.
 
-**El próximo paso es:** seguir el cruce —`bancolombia` (129 términos, 97 commits) y `motai` (96)—
-al mismo commit. Y a `creditopx` le quedan **cuatro secciones que
+**El próximo paso es:** `motai`, el último del cruce, y después barrer los nodos que quedan
+comparando SECCIONES (no términos). Y a `creditopx` le quedan **cuatro secciones que
 PARECEN estar ya en canon**
 —el ingreso que no decide, el motor del rotativo, el crédito activo que bloquea y «no apareció»—.
 No se borraron sin compararlas: hay que leer las dos versiones y quedarse con la mejor, porque en
@@ -69,6 +69,19 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**`bancolombia` BORRADO sin graduar una sola regla — y eso es un resultado, no un fracaso.** El
+árbol queda en **34 nodos**. Sus 129 «términos sin cubrir» hacían pensar en mucho trabajo y no había
+ninguno: canon ya tenía los timeouts sin techo, el certificado, el error que se rompe dentro del
+manejador y las dos fuentes de verdad de Corbeta — esta última **mejor**, porque dice la
+consecuencia («el cliente llega al mostrador con un código que nadie puede cobrar») y acá sólo
+estaba el mecanismo. Lo operativo (hasta dónde llega una prueba) se fue al `CLAUDE.md` del arnés y
+las dos preguntas sin verificar las heredó la tarea de Bancolombia; los punteros de `corbeta` y
+`actors` ahora apuntan a canon.
+
+⚠ **Corrección a la métrica que veníamos usando:** contar «términos sin cubrir» **sobreestima** el
+trabajo. Mide nombres de archivos, métodos y settings —implementación—, no reglas. `bancolombia`
+medía 129 y valía cero. Para estimar sirve comparar SECCIONES, no términos.
 
 **Catorce reglas, canon en 409 secciones.** Siguió `onboarding` por el cruce: el límite del
 formulario personal —que se cuenta por DOCUMENTO, así que cambiar de teléfono o abrir otra

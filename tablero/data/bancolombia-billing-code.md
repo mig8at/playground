@@ -274,6 +274,11 @@ Cambiar la decisión de crédito, el marketplace, la vigencia del código, los c
 
 ## Registro
 
+- [ ] **Heredado del nodo `bancolombia` al borrarlo (2026-09-21)** — dos preguntas que nunca se verificaron, y por eso no graduaron a canon:
+  - ¿El módulo `bancolombia-origination` del front llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` después? Explica el hueco del mapa de pantallas; se contesta con diagnóstico del front.
+  - ¿El código de compra para Consumo ya corrió en producción? En la copia local hay 0 solicitudes de lender 100 en estado 25 (vs 119 del 68) — puede ser habilitación, no reemplazo.
+
+
 ### 2026-09-15
 
 **Reestructurada, sin cambiar una palabra del contenido.** Al Registro se movió: nueve secciones fechadas (31/7, 3/8 y 4/8) que estaban apiladas debajo del plan. El estado quedó
