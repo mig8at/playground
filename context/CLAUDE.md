@@ -119,7 +119,18 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
    no una alarma; y una cita **escrita después del sello** no es comparable con este diff, así que se
    cuenta aparte en vez de mandarla al balde equivocado. ⚠ El mapa dice DÓNDE mirar, no qué pasó: lo
    que cambió *fuera* de lo citado es donde más seguido aparece lo que el nodo todavía no menciona.
-7. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
+7. **Un cambio que se miró y no toca lo que el nodo dice se TRIA, no se sella**
+   (`make context-triar NODE=x VEREDICTO='…'`). `verified` afirma «una persona revisó este nodo
+   entero»; moverlo por un cambio inocuo tiene un efecto que no se deshace: **el próximo diff arranca
+   desde ahí**, así que si la clasificación estuvo mal ese cambio no queda pendiente, desaparece. Un
+   sello equivocado no cuesta una lectura de más: cuesta la evidencia. `triado` dice lo mismo pero
+   reversible —hasta qué commit se miró, quién lo dijo y con qué veredicto—, y `alinear.py` lo saca
+   del conteo **sin** mostrarlo como al día: es 👁, un estado propio, porque un triaje que se viera
+   igual que un sello sería un sello barato. La guarda es aritmética: si alguna cita cayó dentro del
+   cambio, el comando se niega —eso se lee y se corrige—. ⚠ `source` dice quién lo dijo, por lo mismo
+   que en el sello: hoy sólo se escribe `manual`; una máquina podrá escribir ahí cuando haya con qué
+   medirla y con umbrales asimétricos, porque «no hay que mirar esto» y «mirá esto» no cuestan igual.
+8. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
    entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano, así que un
    hallazgo nuevo no está indexado hasta que alguien escribe su fila. Medido el 2026-09-21: **9 de 239
    hallazgos estaban fuera del índice de síntomas** (F-175…F-182 y F-184), justamente los últimos

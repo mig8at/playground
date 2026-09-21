@@ -321,6 +321,7 @@ def main():
         d = json.load(open(mp))
         files = d.get("files", [])
         sello = d.get("verified") or {}
+        triaje = d.get("triado") or {}
         pm = d.get("pending_merge") or {}
 
         muertas = [f for f in files
@@ -331,6 +332,17 @@ def main():
 
         hubs = {f for f in deriva if cuantos_nodos[f] > MAX_NODOS_HUB}
         propios = {f: v for f, v in deriva.items() if f not in hubs}
+        # ⚠ Lo TRIADO sale del conteo, pero NO convierte el nodo en «al día»: un triaje dice que
+        # alguien miró ese cambio y no toca lo que el nodo afirma; un sello dice que revisó el nodo
+        # entero. Son afirmaciones distintas y por eso son estados distintos — si se mostraran igual,
+        # el triaje se volvería un sello barato, que es exactamente lo que no puede ser.
+        #
+        # Se compara por FECHA, como el sello (`cambiados_desde` trabaja con fechas): un archivo
+        # tocado el mismo día DESPUÉS de triar queda tapado hasta el día siguiente. Es la misma
+        # imprecisión que ya tiene el sello y se acepta por consistencia; el `shas` del triaje guarda
+        # el punto exacto para quien necesite el corte fino (`diff.py --desde triado`).
+        triados = {f: v for f, v in propios.items() if triaje.get("date") and v <= triaje["date"]}
+        propios = {f: v for f, v in propios.items() if f not in triados}
         # el estado se decide por lo PROPIO: un nodo cuyo único movimiento fue `api.php` no tiene
         # nada que releer, y marcarlo en rojo gasta la señal.
         base_propia = len([f for f in files if cuantos_nodos[f] <= MAX_NODOS_HUB])
@@ -352,6 +364,8 @@ def main():
             estado = "deriva-alta"
         elif propios:
             estado = "deriva"
+        elif triados:
+            estado = "triado"
         elif deriva:
             estado = "solo-hubs"   # se movió, pero solo en archivos que comparte con medio árbol
         else:
@@ -363,6 +377,9 @@ def main():
             "estado": estado,
             "verificado": sello,
             "archivos": len(files),
+            "triado": ({"date": triaje.get("date"), "source": triaje.get("source"),
+                        "veredicto": triaje.get("veredicto"), "archivos": len(triados)}
+                       if triaje else None),
             "deriva": {"cambiados": len(propios), "pct": pct, "hubs": len(hubs),
                        "archivos": [{"ruta": k, "ultimo_cambio": v,
                                      "hub": cuantos_nodos[k] > MAX_NODOS_HUB}
@@ -378,7 +395,7 @@ def main():
         })
 
     orden = ["rutas-muertas", "marca-ya-mergeada", "deriva-alta", "rama-sin-mergear", "deriva",
-             "solo-hubs", "al-dia"]
+             "triado", "solo-hubs", "al-dia"]
     nodos.sort(key=lambda n: (orden.index(n["estado"]), -n["deriva"]["pct"]))
     doc = {
         "generado": str(date.today()),
@@ -394,7 +411,8 @@ def main():
     print(f"ALINEACIÓN DEL CONTEXTO contra `{contra}` · {doc['generado']}\n")
     ETIQ = {"rutas-muertas": "⛔ RUTAS MUERTAS", "marca-ya-mergeada": "🔁 MARCA YA MERGEADA",
             "deriva-alta": "🔴 deriva alta", "rama-sin-mergear": "⏳ rama sin mergear",
-            "deriva": "🟡 deriva", "solo-hubs": "⚪ solo hubs", "al-dia": "🟢 al día"}
+            "deriva": "🟡 deriva", "triado": "👁 triado, sin sellar", "solo-hubs": "⚪ solo hubs",
+            "al-dia": "🟢 al día"}
     for n in nodos:
         if n["estado"] == "al-dia":
             continue
@@ -413,6 +431,9 @@ def main():
                 quien += f" +{len(c['autores']) - 3}"
             atras = f"  ·  {c['total']:2d} commits · {quien}"
         hub = f" · +{d['hubs']} hub" if d.get("hubs") else ""
+        if n.get("triado"):
+            t = n["triado"]
+            extra += f" · {t['archivos']} ya triado(s) el {t['date']} ({t['source']})"
         print(f"  {ETIQ[n['estado']]:22s} {n['id']:22s} {d['cambiados']:3d}/{n['archivos']:<3d} "
               f"({d['pct']:2d}%) desde {n['verificado'].get('date','?')}{hub}{extra}{atras}")
     # los huérfanos van APARTE del estado: un nodo puede estar 🟢 al día y tener piezas nuevas sin

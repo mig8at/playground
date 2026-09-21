@@ -36,8 +36,10 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 - **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos. Al
   re-verificar, `make context-diff NODE=x CITAS=1` antes de leer el diff; medir cuántas veces evitó
   leerlo entero.
-- **Clasificar la deriva:** la parte determinista ya está (`CITAS=1`). Lo que falta antes de pensar
-  en un modelo es la vara: un banco de cambios pasados etiquetado desde el historial.
+- **Clasificar la deriva:** la parte determinista ya está (`CITAS=1`) y dónde anotarla también
+  (`context-triar`). Lo que falta antes de pensar en un modelo es la vara: un banco de cambios
+  pasados etiquetado desde el historial — y triar a mano ya lo va llenando, porque cada veredicto
+  escrito es una etiqueta real.
 - **Ramas:** usar la consola en el trabajo diario y ajustar la clasificación si aparece un estado que
   la comparación actual no distingue.
 - **Jev:** comparar calidad, abstenciones, latencia y superficie enviada al modelo generativo.
@@ -68,6 +70,13 @@ compararon igual contra `origin/main`. Lo resuelve la pieza compartida, y el dif
 commits, así que el working tree tampoco entra. Ahora además se imprime contra qué ref se comparó y
 por qué —«el local va 20 detrás»—, que faltaba: un resultado que no dice de qué ref salió no se
 puede contrastar con nada.
+
+Y quedó la pieza donde eso se anota: `make context-triar NODE=x VEREDICTO='…'` escribe un campo
+`triado` (hasta qué commit se miró, quién lo dijo, con qué veredicto) **sin tocar `verified`**, se
+niega si alguna cita cayó dentro del cambio, y `alinear.py` lo descuenta mostrándolo como 👁 «triado,
+sin sellar» — un estado propio, no «al día». Hoy sólo se escribe a mano; `source` está listo para
+otra procedencia. Lo reversible es el punto: si mañana la fuente resulta mala, se borran los `triado`
+y no se perdió nada, porque el sello nunca se movió.
 
 Lo que sigue, si se quiere clasificar el resto: un banco con etiquetas REALES sale del historial
 —`git log` de cada `doc.md` dice cuándo se editó el nodo, cruzado con los commits de sus archivos—,

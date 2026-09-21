@@ -35,6 +35,7 @@ se imprime, porque un resultado que no dice de qué ref salió no se puede contr
 USO
   python3 tools/diff.py <nodo>            # el mapa de citas + resumen por archivo + el diff completo
   python3 tools/diff.py <nodo> --citas    # SOLO el mapa: qué citas quedaron dentro del cambio
+  python3 tools/diff.py <nodo> --desde-triaje   # sólo lo POSTERIOR al triaje (ver triar.py)
   python3 tools/diff.py <nodo> --stat     # solo el resumen (cuánto cambió cada archivo)
   python3 tools/diff.py <nodo> --files a.php b.tsx    # solo esos archivos del nodo
 
@@ -183,6 +184,36 @@ def mapa_de_citas(nid, declarados, tocados, sello):
     return len(dentro)
 
 
+def recolectar(nid, desde=None):
+    """Los datos del análisis SIN imprimir: {sello, archivos, tocados, shas, procedencia}.
+
+    `desde` permite anclar en otra fecha que la del sello —hoy la del triaje— sin duplicar la lógica
+    de resolver la ref, calcular la base y parsear los hunks. La usa `triar.py`.
+    """
+    d = json.load(open(os.path.join(FLOWS, nid, "map.json")))
+    sello = (d.get("verified") or {}).get("date")
+    ref = (d.get("verified") or {}).get("ref", "main")
+    out = {"sello": sello, "ref": ref, "archivos": d.get("files", []),
+           "tocados": {}, "shas": {}, "procedencia": []}
+    if not sello:
+        return out
+    for alias, (root, pre, rutas) in rutas_de(out["archivos"]).items():
+        refe, motivo = ref, "la rama del sello, literal"
+        if ref in ("main", "origin/main"):
+            resuelta, porque = ref_a_indexar(root)
+            refe, motivo = resuelta or ref, porque
+        base = base_en(root, refe, desde or sello)
+        if not base:
+            continue
+        spec = pathspec(root, pre, rutas, base)
+        if not git(root, "diff", "--stat", "-M", f"{base}..{refe}", "--", *spec).strip():
+            continue
+        out["tocados"].update(rangos_tocados(root, base, refe, spec))
+        out["shas"][alias] = git(root, "rev-parse", refe).strip()[:9]
+        out["procedencia"].append(f"  {alias:22} {refe:12} {motivo} · desde {base[:9]}")
+    return out
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     solo_stat = "--stat" in sys.argv
@@ -208,12 +239,21 @@ def main():
     if not sello:
         print(f"`{nid}` no tiene `verified.date` en su map.json: no hay contra qué diffear.")
         return 2
+    # El triaje NO reemplaza al sello: es un punto de corte opcional para ver sólo lo que llegó
+    # después de mirar. El default sigue siendo el sello, que es la única afirmación de una persona.
+    desde, etiqueta = sello, f"se verificó ({sello})"
+    if "--desde-triaje" in sys.argv:
+        t = (d.get("triado") or {}).get("date")
+        if not t:
+            print(f"`{nid}` no tiene triaje: no hay desde cuándo. Se compara desde el sello.")
+        else:
+            desde, etiqueta = t, f"se TRIÓ ({t}) — el sello sigue en {sello}"
 
     archivos = [f for f in d.get("files", [])
                 if not filtro or any(x in f.partition("/")[2] for x in filtro)]
     por_repo = rutas_de(archivos)
 
-    print(f"╔═ {nid} · qué cambió en `{ref}` desde que se verificó ({sello})")
+    print(f"╔═ {nid} · qué cambió en `{ref}` desde que {etiqueta}")
     print(f"╚═ sobre los {len(archivos)} archivos que el nodo declara"
           + (f" · filtrado por {filtro}" if filtro else ""))
 
@@ -236,7 +276,7 @@ def main():
         if ref in ("main", "origin/main"):
             resuelta, porque = ref_a_indexar(root)
             refe, motivo = resuelta or ref, porque
-        base = base_en(root, refe, sello)     # el «antes»: el commit al cierre del día del sello
+        base = base_en(root, refe, desde)     # el «antes»: el commit al cierre de ese día
         if not base:
             continue
         # `-M` y el pathspec con las rutas VIEJAS: sin eso un renombre se lee como archivo nuevo
@@ -253,14 +293,14 @@ def main():
             salida.append("\n" + git(root, "diff", "-M", f"{base}..{refe}", "--", *spec).rstrip())
 
     if not hubo:
-        print("\n✓ ningún archivo del nodo cambió desde el sello.")
+        print(f"\n✓ ningún archivo del nodo cambió desde que {etiqueta}.")
         return 0
 
     print("\n── contra qué se comparó ──")
     print("\n".join(procedencia))
 
     # El mapa va PRIMERO aunque se calcule al final: es lo que decide si hace falta leer el resto.
-    mapa_de_citas(nid, archivos, tocados, sello)
+    mapa_de_citas(nid, archivos, tocados, desde)
     if solo_citas:
         print(f"\n(el diff completo: python3 tools/diff.py {nid})")
         return 0
