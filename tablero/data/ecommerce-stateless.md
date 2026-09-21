@@ -7,7 +7,7 @@ canon: [fronteras, onboarding, cuota, arquitectura]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
 jira_title: "Ecommerce: flujo de onboarding hasta el listado de entidades, webhook y retorno al comercio"
-ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada, fix/listado-tramo-por-monto
+ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cuota-inicial-boton-muerto, cuota-inicial-rebote-asesor-qa, restore/ecommerce-checkout-y-rebote, ecommerce-stateless-checkout, ecommerce-bienvenida-campos-y-cuota-inicial, sala-de-espera-ecommerce, ecommerce-boton-volver-al-comercio, ecommerce-checkout-al-wizard, preapprovals-promesa-rechazada, fix/listado-tramo-por-monto, fix/importes-de-la-tarjeta-en-ecommerce
 ---
 
 # Ecommerce web stateless (→ wizard sin cookie)
@@ -18,7 +18,7 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
 pedido viaja en la URL y cada pantalla la relee en su fuente— y que al cerrarse, el comercio reciba el
 veredicto de su pedido.
 
-**Estado real (21/9):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
+**Estado real (21/9, cierre del día):** todo el trabajo vive en `qa` y está desplegado. En `main` **no hay nada del front**:
 entró el 14/9 con la promoción `Qa (#1007)` y Abel lo revirtió esa misma noche (#1013); el backend #1392 no
 se revirtió y sí quedó. Reponerlo es **#1016**, el único PR abierto, y tiene que entrar **antes** de la
 próxima promoción `qa`→`main`.
@@ -32,7 +32,15 @@ lleva **dos** cosas — las dos sobre lo que la tarjeta le PROMETE al cliente:
 2. **El monto de la tienda, que ya no se edita** (21/9). Lo decide el CANAL y no la configuración de
    cada sucursal, porque la compra ya existe cuando el comprador llega a la pantalla.
 
-Va contra `qa`, como todo lo demás, y no espera nada más para que lo revisen.
+Va contra `qa`, como todo lo demás.
+
+**✅ LOS DOS ESTÁN MERGEADOS Y FUNCIONANDO EN `qa`** — verificado en pantalla el 21/9 a las 21:04Z:
+el campo del monto sale `readOnly` en una compra de tienda. Tardó horas en verse porque el servicio
+`legacy-backend-qa` tiene **varias tareas y no rotan a la vez**, y en paralelo infra estaba
+restaurando la base compartida. Ninguna de las dos cosas era del código.
+
+⚠ **Antes de que QA valide, esperá el visto bueno de infra sobre la base:** con la restauración en
+curso una solicitud de prueba puede desaparecer (pasó: la 502621 se borró sola).
 
 **Ya comprobado, corriéndolo contra `qa`** (no hace falta volver a investigarlo): los tres canales cierran, y
 el discriminante quedó medido **en la base** — mismo comercio, misma entidad, mismo desenlace, y el WhatsApp
@@ -97,22 +105,23 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
       Reportado por Duncan el 21/9 como «al cambiar cuotas no cambia la cuota» — el plazo sí
       recalcula (medido: 6 → $264.970, 3 → $515.541); lo que no hay es números que mirar.
 
-- [ ] **Averiguar con infra QUÉ backend y QUÉ base usa `originaciones-qa`** — no es ninguno de los
-      alcanzables por VPN: la solicitud 502621, que el front renderiza, no existe en `inertia-dev` ni
-      la conoce ningún backend de los cuatro. Hasta saberlo no se puede decir si #1441 le llegó.
-      Depende de: infra.
-- [ ] **Corregir `harness/.env.qa`: su `E2E_DB_HOST` apunta a `inertia-dev` y eso ya no es la base de
-      `qa`.** Por eso la corrida del arnés contra `qa` muere en el OTP. Y sumar al arnés el chequeo que
-      lo habría cazado: crear un id y preguntarle al backend si lo conoce.
-- [ ] ~~**Forzar el redespliegue de `legacy-backend-qa` — el BACKEND, no el front.**~~ *(descartado:
-      el razonamiento se apoyaba en comparar dos backends distintos.)* Redesplegar el front
-      el 21/9 a las 19:5x no cambió nada, y el front no cachea (tres peticiones, tres respuestas
-      distintas). Sirve una imagen anterior a #1441. Medido el
-      21/9: el mismo endpoint devuelve `lock_amount = true` pidiéndoselo directo y `false` cuando lo
-      pide el front, con el recorte de categoría de #1432 presente en las dos respuestas — o sea una
-      imagen de entre el 18/9 y el 21/9 13:48. Los dos workflows de despliegue salieron ✔. Termina
-      cuando `originaciones-qa` muestre el campo del monto bloqueado en una compra de tienda.
-      Depende de: infra — no hay acceso a ECS desde acá.
+- [x] ~~**Averiguar qué backend y qué base usa `originaciones-qa`**~~ · ~~**forzar su
+      redespliegue**~~ — **los dos se caen: el diagnóstico que los generó era equivocado.** No era otra
+      base ni una imagen vieja: el servicio tiene **varias tareas** y no rotaron a la vez, y la
+      solicitud que no aparecía la había borrado la restauración de la base que estaba corriendo
+      infra. Verificado el 21/9 a las 21:04Z: `lock_amount: true` y el campo `readOnly` en `qa`.
+- [ ] **`wait-for-service-stability: true` en `config-ci`** (`deploy-task.yaml`, paso «Deploy to
+      Amazon ECS»). Hoy el workflow sale ✔ apenas ECS acepta la orden, así que una flota a medio rotar
+      se ve igual que una desplegada — es lo que costó la tarde del 21/9. Termina cuando un despliegue
+      que no rota salga en rojo. Es de `config-ci`, no de esta tarea: hay que pasárselo a infra.
+- [ ] **Confirmar si `harness/.env.qa` apunta bien.** Declara `E2E_DB_HOST=inertia-dev`; la corrida del
+      arnés contra `qa` del 21/9 murió en el OTP y se leyó como que la base era otra, pero eso fue
+      durante la restauración. **Por confirmar, no es un hecho** — rehacer la corrida con la base
+      estable antes de tocar nada.
+- [ ] **Cablear en el arnés el chequeo que faltó:** crear un id y preguntarle al backend si lo conoce.
+      Es el equivalente, para la BASE, de lo que el `CLAUDE.md` del arnés ya recomienda para la RAMA
+      (`allowed_document_types`). Y su hermano: **sondear el render del servidor varias veces**, que es
+      lo único que delata una flota mixta — diez respuestas iguales no prueban una sola instancia.
 
 - [ ] **El flag `is_ecommerce` del listado v2 está MUERTO y tiene dos consumidores más.** Sale del query
       string y el front no lo manda (lo resuelve bien y lo tira al armar la URL). Además del candado del
@@ -424,6 +433,40 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (12) · RESUELTO, y me equivoqué DOS veces en el camino
+
+**El candado funciona en `qa`.** Verificado a las **21:04:47Z** sobre la solicitud 502621:
+`lock_amount: true`, `#amount-input` con `readOnly: true`. Y los importes ya no salen en `-`.
+
+**Qué era, de verdad — dos cosas a la vez, y por eso costó:**
+
+1. **El servicio `legacy-backend-qa` tiene VARIAS tareas y no rotan juntas.** Sondeando el render del
+   servidor después del re-run: **12 de 12 con candado** en una muestra, y **4 de 5** en la siguiente,
+   minutos después. Ese «1 de 5» es la tarea rezagada. Durante horas yo caía en una tarea y el front
+   en otra.
+2. **Infra estaba restaurando la base compartida.** `MAX(user_requests.id)` se movió 502619 → 502620
+   mientras medía, y la 502621 —que Miguel había creado y el front renderizaba— **desapareció**. Eso
+   es lo que me hizo concluir que `qa` usaba otra base.
+
+⛔ **Mis dos errores, y valen más que el resultado:**
+
+- **Entrada (6): «el servicio sirve una imagen vieja».** La descarté yo mismo mal en la (10) y
+  resulta que era **sustancialmente correcta** — sólo que la causa no era una imagen vieja sino una
+  flota a medio rotar. La había descartado porque **10 peticiones seguidas me dieron `true`** y leí
+  eso como «hay una sola instancia». ⚠ **Diez respuestas iguales no prueban una sola instancia:
+  prueban que caí diez veces en la misma.** Lo que sí lo delata es sondear el render del SERVIDOR,
+  donde la mezcla aparece de inmediato.
+- **Entrada (10): «`qa` habla con un backend de otra base».** Falso. La evidencia —una solicitud que
+  el front mostraba y la base no tenía— tenía una explicación más simple que yo no consideré porque
+  no sabía que había una restauración en curso. ⚠ **Cuando un dato desaparece, «me están mintiendo
+  sobre cuál es la base» es una hipótesis mucho más cara que «alguien está tocando la base».**
+  Preguntar en el canal del equipo antes habría costado un minuto.
+
+✔ **Lo que sí aguantó todo el camino:** que el código estaba bien. Probarlo en **local**, de punta a
+punta y con el control del otro canal, fue lo que permitió seguir buscando en el ambiente en vez de
+dudar del cambio. Es la razón por la que la regla «correr, no leer» está en el `CLAUDE.md`.
+
 
 ### 2026-09-21 (11) · la base de `qa` NO está atrasada: lo distingue `false` contra `null`
 
