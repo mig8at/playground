@@ -488,6 +488,24 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   (una línea cada una) hizo que le reclamara a cinco reescribir el estado, apilar Registro y anotar
   bitácora por un cambio que no dice nada nuevo de la tarea (2026-09-15). Un aviso que reclama de más se
   empieza a ignorar, y ahí deja de servir para lo que existe.
+  ⚠ **Y el caso hermano: un BARRIDO sí toca el cuerpo, y tampoco es trabajo.** El 2026-09-21, apagar
+  el árbol de contexto renombró un campo del frontmatter y reapuntó rutas en las 45 tareas, y a tres
+  el cierre les reclamó bitácora. Anotarla habría inventado minutos y, peor, los habría contado DOS
+  veces: ese tiempo ya estaba en la tarea del barrido, y el total del día sube a Jira. Para eso, la
+  tarea lo **declara** en su entrada del día, en negrita:
+
+      ### 2026-09-21
+
+      > **2026-09-21 · sin avance.** Sólo se le actualizó la ruta a las trampas del sistema.
+
+  Con ese marcador, el cierre exime **la bitácora y sólo la bitácora** —el Registro se sigue pidiendo,
+  porque el marcador vive adentro de él— y lo muestra como `— bitácora (declara sin avance)`, nunca
+  como un ✓: un tilde diría que la bitácora está, y no está.
+  ⚠ **Se declara, NO se deduce.** Se probó deducirlo comparando el cuerpo con las citas normalizadas
+  («si sólo cambiaron rutas, nadie afirmó nada») y falla en los tres casos que venía a resolver: al
+  barrer se escribe la nota que explica el barrido, así que la prosa fuera de los backticks también
+  cambia.
+
   ⚠ **Y hay una QUINTA cosa, pero avisa y NO frena** (desde el 2026-09-18): si la tarea declara
   `ramas:` —o sea que hubo código— y en todo el archivo no hay un solo comando reconocible, el cierre
   saca `▲ tocó código y no dice con QUÉ se comprobó`. Sale con `▲` y no con `✗` a propósito, y no suma

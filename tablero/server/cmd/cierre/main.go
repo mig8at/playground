@@ -64,8 +64,11 @@ type Revision struct {
 	ProximoPaso bool     `json:"proximoPaso"`
 	RegistroHoy bool     `json:"registroHoy"`
 	MinutosHoy  int      `json:"minutosHoy"`
-	RamasDecl   bool     `json:"ramasDeclaradas"`
-	Faltan      []string `json:"faltan"`
+	// SinAvance: la entrada del día DECLARA que la tarea no avanzó (ver `sinAvance`). Exime de la
+	// bitácora y sólo de la bitácora.
+	SinAvance bool     `json:"sinAvance,omitempty"`
+	RamasDecl bool     `json:"ramasDeclaradas"`
+	Faltan    []string `json:"faltan"`
 	// Mirar: lo que conviene revisar pero NO es una pieza faltante — no suma a `PiezasFaltan` ni hace
 	// salir 1. La distinción es la misma que el repo ya usa en el lint: el chequeo habla de lo que está
 	// MAL, y los juicios se ofrecen sin bloquear.
@@ -91,10 +94,12 @@ var (
 	// «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto no la veía: el cierre
 	// reclamaba «la sección no existe» sobre una tarea que la tiene desde julio. Un chequeo que
 	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
-	reRetoma    = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
-	reSeccion   = regexp.MustCompile(`(?m)^##\s`)
-	reProximo   = regexp.MustCompile(`(?i)\*\*El pr[óo]ximo paso es:?\*\*`)
-	reFechaReg  = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
+	reRetoma   = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
+	reSeccion  = regexp.MustCompile(`(?m)^##\s`)
+	reProximo  = regexp.MustCompile(`(?i)\*\*El pr[óo]ximo paso es:?\*\*`)
+	reFechaReg = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
+	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `sinAvance`.
+	reSinAvance = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
 	reSlugEnRef = regexp.MustCompile(`^(?:tablero/)?data/([^/]+)\.md$`)
 )
 
@@ -238,6 +243,38 @@ func cuerpoAntes(datos, dia, slug string) (string, bool) {
 func soloMetadatos(datos, dia, slug, cuerpoHoy string) bool {
 	antes, ok := cuerpoAntes(datos, dia, slug)
 	return ok && strings.TrimSpace(antes) == strings.TrimSpace(cuerpoHoy)
+}
+
+// sinAvance: ¿la entrada de HOY del Registro declara que la tarea no avanzó?
+//
+// SEGUNDO CASO DE «TOCAR NO ES TRABAJAR», hermano de `soloMetadatos` y por el mismo motivo medido. Ese
+// cubre el cambio que no toca el cuerpo; éste cubre el que SÍ lo toca sin que nadie haya trabajado en
+// la tarea: un barrido. El 2026-09-21, apagar el árbol de contexto renombró un campo del frontmatter
+// y reapuntó rutas en 45 archivos de tareas, y a tres de ellas —#15, #46, #47— el cierre les reclamó
+// bitácora. Anotarla habría sido inventar minutos, y peor: los mismos minutos ya estaban contados en
+// la tarea del barrido, así que el total del día —que sube a Jira— habría contado doble.
+//
+// ⚠ SE DECLARA, NO SE ADIVINA. Se probó deducirlo comparando el cuerpo con las citas normalizadas —la
+// idea era «si sólo cambiaron rutas, nadie afirmó nada»— y NO sirve: medido sobre esas tres tareas, la
+// prosa fuera de los backticks también cambió, porque al barrer se escribe la nota que explica el
+// barrido. Deducirlo habría dado falso en los tres casos que venía a resolver. Así que lo dice la
+// tarea, con un marcador en negrita dentro de su entrada del día.
+//
+// ⚠ Y NO exime del Registro: al contrario, el marcador VIVE en la entrada del día. Lo único que se
+// perdona es la bitácora, que es la pieza que mide TIEMPO — y el tiempo de un barrido no es de acá.
+func sinAvance(cuerpo, dia string) bool {
+	loc := reFechaReg.FindAllStringSubmatchIndex(cuerpo, -1)
+	for i, m := range loc {
+		if cuerpo[m[2]:m[3]] != dia {
+			continue
+		}
+		fin := len(cuerpo)
+		if i+1 < len(loc) {
+			fin = loc[i+1][0]
+		}
+		return reSinAvance.MatchString(cuerpo[m[1]:fin])
+	}
+	return false
 }
 
 func esSoloAltaDeContenedor(t tarea, motivos []string, existiaAntes bool) bool {
@@ -439,7 +476,8 @@ func main() {
 		if !rv.RegistroHoy {
 			rv.Faltan = append(rv.Faltan, "el Registro no tiene entrada `### "+*dia+"`")
 		}
-		if rv.MinutosHoy == 0 {
+		rv.SinAvance = rv.RegistroHoy && sinAvance(t.Cuerpo, *dia)
+		if rv.MinutosHoy == 0 && !rv.SinAvance {
 			rv.Faltan = append(rv.Faltan, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
@@ -534,8 +572,15 @@ func imprimir(inf Informe) {
 			}
 			return "✗"
 		}
+		// ⚠ Una tarea eximida se marca «—», no «✓»: un tilde diría que la bitácora está, y no está.
+		// Ver la misma regla en el panel del harness — una vista apagada se ve apagada, no se esconde.
+		bit := marca(t.MinutosHoy > 0)
+		detalle := hm(t.MinutosHoy)
+		if t.SinAvance && t.MinutosHoy == 0 {
+			bit, detalle = "—", "declara sin avance"
+		}
 		fmt.Printf("       %s retoma reescrita   %s próximo paso   %s registro del día   %s bitácora (%s)\n",
-			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy), marca(t.MinutosHoy > 0), hm(t.MinutosHoy))
+			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy), bit, detalle)
 		for _, f := range t.Faltan {
 			fmt.Printf("       ✗ %s\n", f)
 		}

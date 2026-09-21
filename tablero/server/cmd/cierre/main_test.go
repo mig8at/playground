@@ -117,3 +117,49 @@ func TestUnaTareaArchivadaNoLaReabreUnaRama(t *testing.T) {
 		t.Errorf("el motivo «archivo» tiene que seguir valiendo para una archivada: %v", editada["canon-compartido"])
 	}
 }
+
+// El marcador «sin avance» exime de la BITÁCORA y de nada más, y tiene que estar DENTRO de la entrada
+// del día: una tarea que declaró sin avance el lunes no queda eximida para siempre.
+func TestSinAvanceSoloValeDentroDeLaEntradaDelDia(t *testing.T) {
+	cuerpo := `## Registro
+
+### 2026-09-21
+
+> **2026-09-21 · sin avance.** Sólo se le actualizó una ruta.
+
+### 2026-09-20
+
+Acá sí se trabajó: se midió el listado contra dev.
+`
+	if !sinAvance(cuerpo, "2026-09-21") {
+		t.Fatal("la entrada del día declara sin avance y no se reconoció")
+	}
+	if sinAvance(cuerpo, "2026-09-20") {
+		t.Fatal("el marcador es del 21: no puede eximir al 20")
+	}
+	if sinAvance(cuerpo, "2026-09-19") {
+		t.Fatal("un día sin entrada no está eximido")
+	}
+
+	// ⚠ La mutación que importa: SIN el marcador, la misma tarea vuelve a deber bitácora. Un chequeo
+	// que no se puede poner en rojo al quitarle su causa no está comprobando nada.
+	sinMarca := strings.Replace(cuerpo, "**2026-09-21 · sin avance.**", "**MEDICIÓN · 2026-09-21** —", 1)
+	if sinAvance(sinMarca, "2026-09-21") {
+		t.Fatal("sin el marcador en negrita no hay exención: se declara, no se deduce de la prosa")
+	}
+
+	// Y el marcador de OTRA entrada no se filtra a la del día.
+	otra := `## Registro
+
+### 2026-09-21
+
+Se cerró el PR y se midió en staging.
+
+### 2026-09-20
+
+> **sin avance** — barrido de rutas.
+`
+	if sinAvance(otra, "2026-09-21") {
+		t.Fatal("el marcador del 20 no puede eximir al 21")
+	}
+}

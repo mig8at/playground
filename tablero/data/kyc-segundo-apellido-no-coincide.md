@@ -294,7 +294,7 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
 
 ### 2026-09-21
 
-> **MEDICIÓN · 2026-09-21** — esta tarea no avanzó hoy: sólo se le actualizó la ruta a las trampas
+> **2026-09-21 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
 > del sistema (`F-xx`), que se mudaron de `context/server/data/flows/findings/` a
 > `tablero/data/trampas/`. El `F-xx` que cita sigue siendo el mismo; lo que cambió es dónde vive el
 > archivo. El tiempo de esa mudanza está en la bitácora de la tarea del tablero, no acá.

@@ -2,6 +2,7 @@
 id: 93
 title: "Cuadrilla"
 clase: proyecto
+ramas: cuadrilla/
 stage: work
 created: "2026-09-21T09:40:00-05:00"
 canon: []
@@ -177,6 +178,28 @@ cookie y nunca del cuerpo (igual que el impostor). Se comprobó que **niega sin 
 mensaje correcto; el camino de guardado quedó probado en local y por las pruebas, no contra prod.
 
 ## Registro
+
+### 2026-09-21
+
+**El día en que esta tarea nació y el segundo juego llegó a producción.** Hasta hoy cuadrilla no
+tenía archivo propio: sus mejoras se escribían en la tarea de `playground`, donde se mezclaban con
+las del repo compartido. Se abrió este contenedor y se le movió lo que era suyo.
+
+Lo que se hizo, según los commits del día (`60c6b91e`, `a56d96be`, `13a12edd`, `c41f762f`,
+`24bf7045`):
+
+- el **dictado de inglés** se mudó a la sección `games` y quedó **mergeado y en producción**
+  (PR `Creditop-SAS/playground#260`);
+- el **banco definitivo** del dictado: 450 palabras, y lo que quedó fuera del pedido
+  (PR `#261`);
+- la **regla de los tres días** —el inglés cuenta DÍAS distintos, no veces— (PR `#263`);
+- y quedó escrito lo que se decidió NO hacer, que es lo que evita re-litigarlo.
+
+> **MEDICIÓN · 2026-09-21** — los minutos de la bitácora salen del **lapso de commits**
+> (10:46 → 11:17), no del pulso: hoy corrieron varias sesiones en paralelo sobre el mismo worktree y
+> los tramos de 5′ del pulso no se pueden atribuir a una tarea sin contarlos dos veces. El lapso de
+> commits mide de menos y se declara así a propósito. Reproducible:
+> `git log --since=midnight --format='%ad %s' --date=format:'%H:%M' -- tablero/data/cuadrilla.md`
 
 **2026-09-21** — La regla pasó a contar días distintos (PR #263). Reloj inyectable para poder
 probarla, y comprobado también contra la herramienta corriendo, moviendo la fecha del documento entre

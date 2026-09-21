@@ -5,7 +5,7 @@ clase: proyecto
 stage: work
 created: "2026-09-19T08:00:00-05:00"
 canon: []
-ramas: canon/graduar-desde-context, canon/graduar-desde-context-2
+ramas: canon/graduar-desde-context, canon/graduar-desde-context-2, canon/backoffice-readiness
 jira: []
 jira_title: ""
 ---

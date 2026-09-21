@@ -12,12 +12,15 @@ jira_title: ""
 # Reemplazar el emisor del código de compra: Corbeta → Bancolombia
 
 > Origen: handoff de Santiago Villaquiran (2026-07-29) + sus dos revisiones (07-31 y 08-03) + el OpenAPI
-> del servicio nuevo. Jira: **CORE-19**. Cuando esto se mergee, lo que quede vivo **gradúa** al nodo
-> `bancolombia` y este esfuerzo se archiva.
+> del servicio nuevo. Jira: **CORE-19**. Cuando esto se mergee, lo que quede vivo **gradúa** al tema
+> `bancolombia` de canon y este esfuerzo se archiva.
 
 ## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ
 
 > **MEDICIÓN · 2026-09-15** — el PR `legacy-backend#1043` sigue **abierto contra `main`**, con revisión pedida y sin un solo cambio desde el 2026-08-04; la rama no está en ningún ambiente. 27 días sin tocar la tarea: está parada por lo de abajo (el negocio), no por el código.
+> **2026-09-21 · sin avance.** Lo único que cambió hoy es que heredó dos preguntas abiertas del nodo
+> `bancolombia`, que se borró al apagarse el árbol de contexto: están al principio del Registro. El
+> próximo paso de abajo sigue igual.
 > `make retomar N=15` · `gh pr view 1043 --repo Creditop-SAS/legacy-backend`
 
 **El próximo paso es:** conseguir el acceso al catálogo `Development`/`Testing` del banco y, en el
@@ -273,6 +276,13 @@ Cambiar la decisión de crédito, el marketplace, la vigencia del código, los c
 **no** garantiza el `transactionId`, F-80).
 
 ## Registro
+
+### 2026-09-21
+
+> **Sin avance.** Esta tarea no se trabajó hoy: sólo heredó las dos preguntas de abajo, que venían
+> del nodo `bancolombia` del árbol de contexto y no graduaron a canon porque nunca se verificaron.
+> El tiempo de esa mudanza está contado en la tarea `context` (#89); anotarlo también acá sería
+> contar los mismos minutos dos veces en un dato que sube a Jira.
 
 - [ ] **Heredado del nodo `bancolombia` al borrarlo (2026-09-21)** — dos preguntas que nunca se verificaron, y por eso no graduaron a canon:
   - ¿El módulo `bancolombia-origination` del front llama `RetrieveQuota` o `ListAccountsAndQuota` para la cuota BNPL, y reenvía `bnplTransactionId` después? Explica el hueco del mapa de pantallas; se contesta con diagnóstico del front.
