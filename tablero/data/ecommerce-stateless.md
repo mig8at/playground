@@ -142,8 +142,12 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
 
 - [ ] **Una ruta registrada en UN árbol de `routes.ts` y no en el otro no falla en ningún lado:** compila,
       pasa lint, y React Router la matchea en el árbol vecino en silencio hasta rebotar al inicio. Pasó
-      **tres** veces (`continue`, `initial-fee-payment`, `validate-lender-otp`). En `qa` el mecanismo ya
-      está cerrado por `sharedFlowRoutes()`, pero la clase merece su hallazgo.
+      **tres** veces (`continue`, `initial-fee-payment`, `validate-lender-otp`).
+      ⚠ **Acá decía que «en `qa` el mecanismo ya está cerrado por `sharedFlowRoutes()`». Es FALSO para
+      `validate-lender-otp`** — verificado el 2026-09-21 contra el árbol en rama `qa`:
+      `sharedFlowRoutes()` comparte tres rutas y ésa no está; sigue declarada sólo en el árbol
+      `merchant` (`routes.ts:204`). Medido corriéndolo: Sistecrédito (rt=1) desde la tienda da **404
+      duro** y el comprador queda sin salida. Falta moverla a `sharedFlowRoutes()` —con su `lender-otp-validated`, que está al lado— y recién ahí promover la clase a F-xx.
 - [ ] El `erId` pre-OTP viaja por el header `Referer` y depende de que `Referrer-Policy` siga en
       `strict-origin-when-cross-origin`; endurecerla rompe el prefill **en silencio**.
 - [ ] En local, un `OBV21002` no deja rastro: el tracer escribe a un Loki inexistente y el fallback al log de
@@ -392,6 +396,59 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (3) · corrida de validación: lo de #1441 anda, y apareció una ruta que falta en `qa`
+
+**Tanda A — canal de tienda, $1.500.000, tres entidades en PARALELO** (`make harness-caminar PAR=1
+CERRAR=1 MANUAL=1 FLOW=ecommerce MONTO=1500000 CASOS='#13874eb6:77;#13874eb6:68;#13874eb6:9'`, el
+comercio del ticket):
+
+| entidad | rt | desenlace |
+|---|---|---|
+| CrediPullman (77) | 2 | ✅ **cerró en estado 11 «Autorizada»** — el canal cierra entero |
+| Bancolombia BNPL (68) | 1 | handoff con modal + WhatsApp: la conducta esperada de rt=1 |
+| Sistecrédito (9) | 1 | ⚠ **404 en `/ecommerce/…/validate-lender-otp`** — ver abajo |
+
+**El monto bloqueado, en las tres solicitudes de la tanda** (sucursal 659, columna `lock_amount = 0`):
+
+    uReq 466871 (tienda)        lock_amount = true
+    uReq 466872 (tienda)        lock_amount = true
+    uReq 466873 (tienda)        lock_amount = true
+    uReq 466879 (autogestión)   lock_amount = false   ← control, misma sucursal
+
+**Tanda B — el tramo por monto, Motai X, las tres bandas** (una corrida por banda):
+
+| uReq | monto | banda | listado (tarjeta) | plan de pagos |
+|---|---|---|---|---|
+| 466874 | 2.000.000 | `[600k, 2.8M)` | `6` (max 6) | `[6]` |
+| 466875 | 4.000.000 | `[2.8M, 5M)` | `12` (max 12) | `[12]` |
+| 466876 | 6.000.000 | `[5M, 8.5M)` | `24` (max 24) | `[24]` |
+
+Los dos lados coinciden en las tres, que es exactamente lo que #1441 tenía que lograr.
+
+⚠ **HALLAZGO: `validate-lender-otp` NO está en el árbol público de `routes.ts`, y esta tarea decía que
+sí.** En «Por promover a F-xx» está escrito que el mecanismo «en `qa` ya está cerrado por
+`sharedFlowRoutes()`». **Es falso para esta ruta**: verificado contra el árbol local, que está en la
+rama `qa`, `sharedFlowRoutes()` comparte **tres** rutas —`initial-fee-payment`,
+`down-payment-validation` y `continue`— y `validate-lender-otp` sigue declarada **sólo** en el árbol
+`merchant` (`apps/loan-request-wizard/app/routes.ts:204`, rodeada de ids `merchant-*`). Por eso
+Sistecrédito desde la tienda da 404 duro y el comprador queda sin salida. Es la MISMA clase que el
+archivo documenta en su propio comentario de cabecera.
+
+⚠ **Y el 500 de `sign-documents` con Motai NO es de #1441: es previo.** Verificado como corresponde —
+con los cuatro archivos en su versión de `origin/qa`, la misma corrida falla igual
+(uReq 466878). *(El primer intento de esta verificación fue inválido y vale más que el dato: el árbol
+estaba limpio porque todo estaba commiteado, así que el `git stash push` no guardó nada y la «corrida
+sin mis cambios» corrió CON ellos. La forma que sí sirve es `git checkout origin/qa -- <rutas>`, correr,
+y volver con `git checkout HEAD -- <rutas>`.)*
+
+⚠ **Trampa del arnés, medida hoy: tres invocaciones CONCURRENTES de `harness-caminar` sacan el MISMO
+teléfono y la MISMA cédula** (`3126490000` / `1818264900` en las tres), así que dos de las tres murieron
+en `solicitar` con «Ocurrió un error» y el síntoma parecía del producto. Es la trampa que
+`dev/listado.ts` documenta para sí mismo —«con la marca de tiempo SOLA no alcanza»— y que
+`caminar-wizard.ts` no cubre entre PROCESOS distintos: su `--paralelo` sí reparte bien los teléfonos
+dentro de UNA invocación. Para varias bandas, corridas escalonadas.
+
 
 ### 2026-09-21 (2) · CORE-30 cerrada y renombrada: el nombre dice dónde termina MI parte
 
