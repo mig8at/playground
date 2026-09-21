@@ -89,5 +89,5 @@ mismo nivel.
 ## Registro
 
 **2026-09-21** — Mudado el inglés a los games de cuadrilla y podado a sólo dictado, con niveles,
-banco en el tablero y la regla de las tres veces. Commit `dd72da3` en `cuadrilla/ingles-en-los-games`,
+banco en el tablero y la regla de las tres veces. Commit `70893c0` en `cuadrilla/ingles-en-los-games`,
 sin push. `task check` y `task conforme` en verde.
