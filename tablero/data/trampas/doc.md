@@ -58,6 +58,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | Si tu síntoma es… | Mirá |
 |---|---|
 | **«¿este comercio es Corbeta?» / entra por una puerta y no por otra** | F-125 |
+| **una sucursal del comercio propio se cae en mitad del recorrido / 500 al salir del formulario** | F-240 |
 | **«reversar un pago tira 500»** | F-126 |
 | **«se le cambió sola la config de una entidad»** | F-127 |
 | **«al comercio no le cuadra lo que recibe»** | F-128 |
@@ -239,6 +240,7 @@ distinto según con qué pregunta llegues.
 
 | F | qué | estado |
 |---|---|---|
+| F-240 | Una ruta del recorrido apunta a un método borrado, armada tras cuatro ids quemados | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -6115,6 +6117,76 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   escribieron.
 - **⚠ Pide reiniciar el panel.** `panel/index.html` se lee del disco en cada pedido, pero `server.ts` se
   carga una sola vez: un panel que ya estaba abierto sigue corriendo el código viejo.
+
+### F-240 · Una ruta del recorrido apunta a un método que un refactor borró hace un año, y está ARMADA detrás de cuatro ids quemados
+
+- **Síntoma:** en el código, ninguno. En producción, una sucursal del comercio propio con **2.735
+  solicitudes en 90 días y 0 % de avance** — ver el ⚠⚠ de abajo, que es lo que hay que resolver.
+  Como trampa de código está **armada y sin disparar**: el día que
+  alguien saque uno de los tres ids de la excepción, o habilite las pantallas nuevas en otra sucursal
+  del comercio propio, el cliente se lleva un 500 en mitad del recorrido y nada en el código avisa.
+- **Causa raíz (verificada contra `main`):** la ruta `customer.lenders.tests.index` despacha a
+  `ListLenderController@indexTests`
+  (`application/routes/customer.php:176`), y **ese método no existe**: lo borró el refactor
+  `6dfba931e` («ListLenderController refactor», 2025-08-05) y la ruta quedó en pie. `git grep
+  indexTests origin/main` devuelve **una sola línea, la de la ruta**. El controlador extiende el
+  `Controller` de Laravel, cuyo `__call` lanza `BadMethodCallException` → 500.
+- **Quién la puede disparar:** dos redirecciones, las dos con **el mismo hardcode de cuatro ids**
+  copiado y pegado —`allied 24` (Creditop, el comercio PROPIO de la empresa) y las sucursales
+  `17` (Calle 127), `570` (Ecommerce) y `928` (Creditop-Bold):
+  `application/app/Http/Controllers/Customer/GenericFormController.php:162` (al terminar el
+  formulario de perfil) y `application/app/Http/Controllers/Customer/ListLenderController.php:71`
+  (al pedir el listado). La condición es «comercio 24 **y** sucursal distinta de esas tres».
+- **Evidencia (prod, 2026-09-21):** el comercio 24 tiene `new_screens = 1` y **17 sucursales, de las
+  cuales 14 quedan fuera de la lista de excepción**. O sea que la guarda que evita el 500 no es una
+  condición del código: es que esas 14 sucursales no lleguen a esas dos líneas.
+
+      make trazador-sql TARGET=prod SQL="SELECT a.new_screens, COUNT(b.id) AS sucursales,
+        SUM(b.id NOT IN (17,570,928)) AS fuera FROM allieds a LEFT JOIN allied_branches b
+        ON b.allied_id=a.id WHERE a.id=24 GROUP BY a.new_screens"
+      → new_screens 1 · sucursales 17 · fuera 14
+
+- ⚠ **Y NO se está disparando — comprobado con su control, que es lo que hace que el cero valga.**
+  En 24 h de producción, `legacy-application` emitió **6.923** líneas de error y **ninguna** menciona
+  `indexTests`. Sin el control, ese cero se leería igual que «el selector está mal»:
+
+      make trazador-acceso TARGET=prod SINCE=24h \
+        QUERY='sum(count_over_time({service_name="legacy-application", level="error"} |= "indexTests" [24h]))'   → sin valor
+      make trazador-acceso TARGET=prod SINCE=24h \
+        QUERY='sum(count_over_time({service_name="legacy-application", level="error"} [24h]))'                   → 6923
+
+- ⚠⚠ **PERO HAY UNA CORRELACIÓN QUE NO CIERRA, Y ES LO MÁS IMPORTANTE DE ESTA ENTRADA.** Las dos
+  sucursales del comercio 24 con tráfico en 90 días se comportan **exactamente** como predice el
+  defecto, y la diferencia es de las que no se ven dos veces:
+
+      sucursal              ¿en la excepción?          solicitudes 90d   % que avanza del estado 9
+      Calle 127 (17)        SÍ  → listado normal                    17          53 %
+      Mobile App (1672)     NO  → la ruta rota                   2.735           0 %
+
+  Cero de 2.735, contra 53 % en la que sí está exceptuada. Y el corte tiene fecha: en abril de 2026
+  avanzaron **663 de 13.495** en esa misma sucursal; desde mayo, **ninguna**.
+
+  **Y sin embargo los logs dicen que la ruta rota no se toca** (el cero de arriba, con su control de
+  6.923 errores). Las dos cosas no pueden ser ciertas a la vez, así que **una de estas tres lo
+  explica y NINGUNA está comprobada**: (a) el recorrido de la app móvil no pasa por esos dos
+  controladores y el 0 % tiene otra causa; (b) la excepción se traga antes, en el
+  `isset($request->preaproved)` que está una línea arriba del hardcode; o (c) el 500 ocurre y no se
+  loguea con ese texto. **No lo cierres adivinando:** se contesta con una corrida real en esa
+  sucursal, o con la traza de una de esas solicitudes.
+
+      make trazador-sql TARGET=prod SQL="SELECT b.id, b.name, COUNT(ur.id) total,
+        ROUND(100*SUM(ur.user_request_status_id<>9)/COUNT(ur.id)) pct_avanzan
+        FROM allied_branches b JOIN user_requests ur ON ur.allied_branch_id=b.id
+        AND ur.created_at>=NOW()-INTERVAL 90 DAY WHERE b.allied_id=24 GROUP BY b.id,b.name"
+
+- **Arreglo:** borrar la ruta y las dos redirecciones. La pantalla que servían («entidades de prueba
+  configuradas para el punto de venta») no existe desde hace un año, así que no hay funcionalidad que
+  preservar — hay una bifurcación muerta que sólo puede hacer daño. Si la pantalla se quiere de
+  vuelta, vuelve con el método y con una **configuración** por sucursal, no con cuatro ids en un `if`.
+- **Cómo apareció:** no la reportó nadie. Salió de cruzar los 411 lugares donde el código decide por
+  identidad (`workers/cli.py quemado`) contra lo que canon declara (`cobertura`): estos cuatro ids
+  estaban entre los **invisibles**, o sea que ningún tema del corpus los menciona y quien lea el
+  contexto antes de una tarea no los va a ver.
 
 ### F-239 · Cinco peticiones por turno hacen 35.000 consultas repetidas contra `lender_transactions`, y el único síntoma es que tardan tres minutos
 
