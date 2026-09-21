@@ -33,7 +33,11 @@ completo cuando vuelva a existir una credencial válida para el LLM generativo y
 
 ## Frentes activos
 
-- **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos.
+- **Vigencia:** repetir alineación y referencias después de cambios relevantes en los repos. Al
+  re-verificar, `make context-diff NODE=x CITAS=1` antes de leer el diff; medir cuántas veces evitó
+  leerlo entero.
+- **Clasificar la deriva:** la parte determinista ya está (`CITAS=1`). Lo que falta antes de pensar
+  en un modelo es la vara: un banco de cambios pasados etiquetado desde el historial.
 - **Ramas:** usar la consola en el trabajo diario y ajustar la clasificación si aparece un estado que
   la comparación actual no distingue.
 - **Jev:** comparar calidad, abstenciones, latencia y superficie enviada al modelo generativo.
@@ -49,6 +53,20 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21
+
+`context-diff` suma `CITAS=1`: antes del diff cruza los rangos del cambio contra los números de las
+citas `archivo:línea` del doc y dice si el cambio tocó lo que el nodo afirma. Es la parte
+determinista de clasificar la deriva —la que no necesita modelo—: el diff de `trazador` son 112.358
+caracteres y el mapa veinte líneas. Distingue tres casos que costaron un diagnóstico equivocado cada
+uno mientras se escribía: el lado viejo del hunk, la inserción pura (no reescribe nada citado) y la
+cita escrita después del sello (no comparable). Las tres piezas quedaron puras y con prueba
+(`make context-diff-test`), verificadas mutando el código: las cuatro mutaciones caen.
+
+Lo que sigue, si se quiere clasificar el resto: un banco con etiquetas REALES sale del historial
+—`git log` de cada `doc.md` dice cuándo se editó el nodo, cruzado con los commits de sus archivos—,
+y recién con esa vara se puede medir si un clasificador acierta. ⚠ Y el error es asimétrico: un falso
+«sólo refactor» es invisible y permanente, un falso «mirá esto» cuesta una lectura. Los umbrales
+tendrían que ser asimétricos, y eso va en código.
 
 `lint.py` suma `L9`: cruza cada `## Índice` de `findings` contra sus anclas `### F-xx`, en los dos
 sentidos. Encontró **9 hallazgos de 239 fuera del índice de síntomas** —F-175…F-182 y F-184, los

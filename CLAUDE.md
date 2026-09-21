@@ -517,7 +517,12 @@ El paso 5 cubre lo que mergeás vos. Lo que mergea el resto del equipo entra sin
 el hueco no avisa. **El bucle, probado el 2026-08-16 y que encontró dos funcionalidades invisibles:**
 
 1. `make context-align` — qué nodos quedaron viejos. Y `make context-diff NODE=x` — **qué cambió** en
-   el código de uno. ⚠ Los dos aportan cosas distintas: Credifamilia salió de la deriva (un archivo
+   el código de uno. ⚠ Antes de leer ese diff, `CITAS=1`: cruza los rangos del cambio contra los
+   números de las citas `archivo:línea` del doc y dice **si el cambio tocó lo que el nodo AFIRMA** —
+   si sí, el nodo puede estar mintiendo hoy; si no, lo más probable es refactor. Es aritmética, no
+   una opinión: el diff de `trazador` son 112.358 caracteres y el mapa entra en veinte líneas. No
+   reemplaza leer —un cambio *fuera* de lo citado puede ser algo nuevo que el nodo debería
+   mencionar—, dice por dónde empezar. ⚠ Los dos aportan cosas distintas: Credifamilia salió de la deriva (un archivo
    repitiéndose en la de VARIOS nodos), y `can_check_preapproval` salió del diff de un nodo con deriva
    **baja**. Mirar sólo el ranking de deriva se pierde lo segundo.
 2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + un grep

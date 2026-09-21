@@ -109,7 +109,17 @@ Están codificadas en las plantillas (`server/data/doc-templates/`, leé el come
 5. **Nada de estado-vivo contable** («hoy hay N…»): eso lo imprimen las tools. Un número-evidencia de
    una historia cerrada que sostiene una regla sí puede quedar. Y: **historia → git · preguntas →
    tablero · trampas con síntoma → findings.**
-6. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
+6. **Antes de leer un diff, mirá si tocó lo que el nodo CITA** (`make context-diff NODE=x CITAS=1`).
+   Un doc cita `archivo:línea` decenas de veces —63 en `kyc`, 93 en `onboarding`— y esos números son
+   comparables con los rangos del diff: si el cambio reescribió alguna de esas líneas, la afirmación
+   que está al lado puede ser falsa **hoy**; si cambió otra parte del archivo, es probable refactor.
+   Tres cosas que el mapa distingue a propósito y costaron un diagnóstico equivocado cada una: los
+   rangos se toman del lado **viejo** del hunk (una cita vive en las coordenadas del sello); una
+   **inserción pura** no reescribe nada citado y corregir su desplazamiento es trabajo de `refs.py`,
+   no una alarma; y una cita **escrita después del sello** no es comparable con este diff, así que se
+   cuenta aparte en vez de mandarla al balde equivocado. ⚠ El mapa dice DÓNDE mirar, no qué pasó: lo
+   que cambió *fuera* de lo citado es donde más seguido aparece lo que el nodo todavía no menciona.
+7. **Un hallazgo entra por la PUERTA o no entra.** `findings` declara la suya —«nadie lee este archivo
    entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano, así que un
    hallazgo nuevo no está indexado hasta que alguien escribe su fila. Medido el 2026-09-21: **9 de 239
    hallazgos estaban fuera del índice de síntomas** (F-175…F-182 y F-184), justamente los últimos

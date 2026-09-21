@@ -235,6 +235,9 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | label reporte --expected nodo | stats
 	@python3 context/tools/jev.py $(or $(ARGS),--help)
 
+context-diff-test: ## @ctx pruebas del mapa de citas ∩ diff: hunks del lado viejo, cruce alias↔repo y clasificación
+	@cd context/tools && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_diff
+
 context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s workers -p test_jev_routing.py
@@ -265,9 +268,9 @@ context-huella: ## @ctx la huella MEDIDA de un flujo (tablas/eventos/código) de
 	@test -n "$(UREQ)" || { cd context && python3 tools/huella.py; exit 2; }
 	@cd context && python3 tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
-context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1]
+context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1] · CITAS=1 SOLO el mapa: ¿el cambio tocó las líneas que el doc CITA? (aritmética, sin leer el diff — el de `trazador` son 112.358 caracteres y el mapa veinte líneas)
 	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }
-	@cd context && python3 tools/diff.py $(NODE) $(if $(STAT),--stat,)
+	@cd context && python3 tools/diff.py $(NODE) $(if $(STAT),--stat,) $(if $(CITAS),--citas,)
 
 context-refs: ## @ctx ¿las citas `archivo:línea` apuntan a lo que dicen? (NODE=<nodo> para uno solo)
 	@cd context && python3 tools/refs.py $(NODE)
