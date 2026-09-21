@@ -19,9 +19,14 @@ historia no se mezcla con la respuesta actual.
 La limpieza grande quedó mergeada en un único PR. Las tareas locales anteriores de corpus, cola y
 bucle se absorbieron aquí; sus detalles siguen disponibles en Git y no se copian como diario.
 
-**El próximo paso es:** registrar aquí la siguiente mejora concreta de Canon, con su criterio de
-terminación, y validar que la cola real de preguntas mejore sin volver a introducir historia en el
-corpus.
+⚠ **BLOQUEADO EN PROD, y no por canon.** El PR #267 está en `main` y **no desplegado**: prod sirve 33
+temas y `main` tiene 34. Un commit en `config-ci` (19:54 del 2026-09-21) manda el deploy a la cuenta
+de desarrollo, donde el task definition `canon-production` no existe. Rompe las CUATRO herramientas
+del repo compartido, no sólo canon. El detalle y el arreglo de una línea, en el Registro de hoy.
+
+**El próximo paso es:** destrabar ese deploy —decidir quién abre el PR de una línea en `config-ci`—;
+hasta entonces lo que se dicte a canon queda en `main` sin llegar al equipo. Después, registrar acá
+la siguiente mejora concreta del corpus con su criterio de terminación.
 
 ## Frentes activos
 
@@ -38,6 +43,48 @@ corpus.
 - [ ] Mantener un solo estado vigente arriba; los hechos del día van al Registro.
 
 ## Registro
+
+### 2026-09-21 · el deploy de canon está roto, y no por nada de canon
+
+El PR #267 mergeó (12 reglas + el tema `negocio`) y **el deploy falló**. No es del cambio: tocó 16
+archivos, todos `tools/canon/content/`.
+
+> **MEDICIÓN · 2026-09-21** — la causa está en OTRO repo. `Creditop-SAS/config-ci` recibió `e1a3e5f7`
+> («fix deployment development», dsanchezops) a las **19:54**, justo entre el deploy que funcionó
+> (#266, 19:32) y el que falló (#267, 20:47). El diff entero es una palabra en `deploy-task.yaml`:
+> la rama del `case` pasó de `development)` a `develop)`. Verificado: los inputs de los dos runs son
+> idénticos y lo único distinto es el SHA del workflow reusable.
+> Reproducible: `gh api repos/Creditop-SAS/config-ci/compare/19cda456...e1a3e5f7`.
+
+**La cadena, que es lo que lo hace no obvio:** `canon.yaml` declara `environment: "production"`, pero
+`frontend-monorepo.yaml` llama a `deploy-task.yaml` **sin pasar `environment`**, así que ahí se pierde
+y entra el default del reusable, que es `"develop"`. Antes eso no matcheaba `development)` y caía a
+`*)`, que deja el ARN vacío — y el paso de credenciales tiene `if: steps.role.outputs.arn != ''`, o
+sea que se salteaba y `aws` corría con las credenciales del runner, que sí ven `canon-production`.
+Ahora `develop` sí matchea, asume el rol de la cuenta de desarrollo, y `canon-production` no existe
+ahí: `Unable to describe task definition`.
+
+⚠ **No es sólo canon: son las CUATRO herramientas del repo compartido.** `credibot` falla idéntico
+—medido, run `35650345487`: mismo rol, mismo error con `credibot-production`— y `cuadrilla` y `home`
+pasan por el mismo camino con `*-production`. Canon falló dos veces (20:29 y 20:47), credibot dos
+(20:00 y 20:19).
+
+> **MEDICIÓN · 2026-09-21** — **prod quedó servido con la versión anterior**: `/api/estado` devuelve
+> **33 temas** y `main` tiene **34**. Las 12 reglas y el tema `negocio` están mergeados y NO
+> desplegados. Re-correr el workflow no sirve: `config-ci@main` sigue con el bug.
+> Reproducible: `curl -s https://canon.playground.creditop.com/api/estado`.
+
+**El arreglo es una línea**, en `config-ci/.github/workflows/frontend-monorepo.yaml`, donde llama a
+`deploy-task.yaml`: agregarle `environment: ${{ inputs.environment }}`. Con eso canon vuelve a pasar
+`production`, cae a `*)` como antes, y el arreglo de `develop)` sigue sirviendo para lo que sí va a
+desarrollo. Arregla las cuatro de una. ⚠ `config-ci` es de otro equipo y el cambio es de dsanchezops:
+**falta decidir si el PR lo abro yo o se lo pasa Miguel.**
+
+⚠ Y lo que NO verifiqué: que el camino `*)` funcionara por las credenciales ambientes del runner de
+CodeBuild lo deduzco del diff y del `if:` que saltea el paso — no leí el rol del runner contra AWS.
+Es la única diferencia entre un run verde y uno rojo, así que la deducción es firme, pero es
+deducción.
+
 
 ### 2026-09-19
 
