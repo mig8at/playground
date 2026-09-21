@@ -6,7 +6,7 @@
  * subiendo por los ancestros y mide cada nodo con texto propio.
  *
  * CÓMO SE CORRE: pegalo en la consola del navegador con la herramienta abierta (:5191 tablero ·
- * :5192 trazador · :5193 context · :5195 panel) y llamá a `__contraste()`.
+ * :5192 trazador · :5195 panel) y llamá a `__contraste()`.
  *
  * ⚠ Dos trampas que costaron una medición equivocada cada una:
  *   1. Chrome deja `oklch()` SIN RESOLVER en el computed style. Parsear esos números como si fueran

@@ -4,7 +4,7 @@
 // POR QUÉ EXISTE: el mapa de pasos del panel dice "este paso toca N archivos". Ese número solo vale si
 // los archivos existen de verdad. Si alguien mueve o renombra uno, el panel seguiría mostrando el
 // conteo viejo —dato con cara de verdad— y nadie se enteraría. Mismo espíritu que
-// `context/tools/oracle.py`: lo no verificado se cae, y se cae RUIDOSAMENTE.
+// el oráculo del árbol de contexto (borrado el 2026-09-21): lo no verificado se cae, y se cae RUIDOSAMENTE.
 //
 //   node bin/steps-check.ts            → valida y sale 0/1
 //   node bin/steps-check.ts --json     → salida JSON (para el panel)

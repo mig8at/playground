@@ -2818,8 +2818,6 @@ function documentAction(id) {
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
 /* Un nodo de `context/` es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
-.ctx-link { color: var(--acc); border-color: var(--line2); text-decoration: none }
-.ctx-link:hover { background: var(--secondary); }
 /* Datos que identifican el trabajo actual. Viven junto al título porque siguen siendo ciertos al
    cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
 .task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }
@@ -2828,10 +2826,6 @@ function documentAction(id) {
 .task-head-facts .mine { color: var(--acc) }
 .task-jira-link { margin-left: auto; color: var(--acc); font-size: 11.5px; text-decoration: none }
 .task-jira-link:hover { text-decoration: underline }
-.task-head-context { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0;
-  color: var(--mut); font-size: 11px }
-.task-head-context strong { font-weight: 600; color: var(--mut) }
-.task-head-context .ctx-link { font-size: 10.5px }
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
 .task-jev-trigger { height: 26px; padding: 0 8px; color: var(--mut); font-size: 11px; }
 .task-jev-trigger[aria-expanded="true"] { background: var(--panel2); color: var(--txt); }

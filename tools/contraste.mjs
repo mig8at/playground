@@ -1,4 +1,4 @@
-/* `make estilo-contraste` — mide el contraste de lo que SE PINTA, en las cuatro UIs.
+/* `make estilo-contraste` — mide el contraste de lo que SE PINTA, en las tres UIs.
  *
  * El chequeo 3 de `estilo-check` sólo puede mirar reglas que fijan color Y fondo en la MISMA regla.
  * Todo lo demás hereda el color de un ancestro y el fondo de otro, y eso no se resuelve leyendo CSS:
@@ -13,7 +13,7 @@
  *   se importa por ruta absoluta. Si algún día el harness deja de tenerlo, esto falla diciendo por
  *   qué, no en silencio.
  *
- * Exit, con la misma convención que `context/tools/oracle.py`:
+ * Exit, con la misma convención que el resto de los chequeos del repo:
  *   0  todo verde
  *   1  hay texto activo abajo del umbral
  *   2  alguna herramienta no se pudo consultar → SIN VERIFICAR (no cuenta como OK)
@@ -28,7 +28,6 @@ const require = createRequire(join(RAIZ, 'harness', 'package.json'));
 
 /* Los puertos son los de `.claude/launch.json`; el panel no es Vite pero se sirve igual. */
 const UIS = [
-  { tool: 'context',  url: 'http://localhost:5193' },
   { tool: 'harness',  url: 'http://localhost:5195' },
   { tool: 'tablero',  url: 'http://localhost:5191' },
   { tool: 'trazador', url: 'http://localhost:5192' },
@@ -136,7 +135,7 @@ if (umbralRoto.length) {
 }
 if (sinVerificar) {
   console.log(`  ▲ ${sinVerificar} herramienta(s) SIN VERIFICAR. Levantalas y volvé a correr —`);
-  console.log('     callarlo sería inventar un verde.   make context · tablero · panel · trazador');
+  console.log('     callarlo sería inventar un verde.   make tablero · panel · trazador');
   process.exit(2);
 }
-console.log(`  ✓ ${soloTool ? soloTool : 'las cuatro'}, sin texto activo abajo de AA.`);
+console.log(`  ✓ ${soloTool ? soloTool : 'las tres'}, sin texto activo abajo de AA.`);

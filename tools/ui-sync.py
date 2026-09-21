@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Distribuye la fuente de tools/ui en las cuatro UIs sin cambiar cómo se sirven."""
+"""Distribuye la fuente de tools/ui en las tres UIs sin cambiar cómo se sirven."""
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FILES = ('tema.css', 'taller.css', 'workbench.js', 'RegionMenu.vue')
-DESTINATIONS = ('context/src', 'tablero/src', 'trazador/src', 'harness/panel')
+DESTINATIONS = ('tablero/src', 'trazador/src', 'harness/panel')
 
 def sync(check=False):
     drift = []
@@ -36,7 +36,7 @@ def sync(check=False):
         print('UI compartida desincronizada. Ejecuta make estilo-sync:')
         print('\n'.join(drift))
         return 1
-    print('UI compartida: cuatro herramientas sincronizadas.' if not drift or not check else '')
+    print('UI compartida: tres herramientas sincronizadas.' if not drift or not check else '')
     return 0
 
 if __name__ == '__main__':

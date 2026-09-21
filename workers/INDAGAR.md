@@ -149,7 +149,7 @@ pueda reusar mañana. El destino es el `.md` de la tarea en [`tablero/`](../tabl
 | lo que salió | dónde va |
 |---|---|
 | **los archivos** que hay que tocar, con el porqué de cada uno | **«Dónde se toca»** — es lo que ahorra el primer grep a ciegas del que retome |
-| el **mecanismo** (cómo funciona, por qué, qué lo dispara) | no se queda en la tarea: **gradúa a un nodo de `context/`**, que es donde se busca la próxima vez |
+| el **mecanismo** (cómo funciona, por qué, qué lo dispara) | no se queda en la tarea: **gradúa a un tema de canon**, que es donde se busca la próxima vez |
 | los caminos que se descartaron, y por qué | **«Lo que se evaluó y NO se eligió»** — sin eso se vuelve a proponer lo que ya falló |
 
 ⚠ **«Dónde se toca» está llena en 11 de 68 tareas** (medido el 2026-09-18). Es la sección que más rinde
@@ -158,9 +158,9 @@ todo en la cabeza y no le parece que haga falta.
 
 ⚠ **Y el mecanismo NO va en la tarea.** Es la clase de contenido que sobrevive al merge, así que
 escribirlo en un `.md` que se archiva es enterrarlo: el test es *si esto se mergea mañana, ¿sigue
-siendo cierto?* Si sí y es del sistema, va a `context/`. El protocolo de escritura —incluido que un
-archivo listado sin explicar no sirve, porque para eso `grep` es más rápido— está en
-[`context/CLAUDE.md`](../context/CLAUDE.md).
+siendo cierto?* Si sí y es del sistema, va a **canon**. El protocolo de escritura —qué entra, cómo se
+declara la fuente, y que un archivo listado sin explicar no sirve porque para eso `grep` es más
+rápido— está en las `skills/` del repo de canon.
 
 ⚠ **A Jira no va nada de acá**: rutas de archivo y nombres de repo son dos de los patrones que el guard
 del tablero frena. La regla, con qué poner en su lugar, está en

@@ -1620,7 +1620,7 @@ distintas). Se ve idéntico a «el agregador no llamó», y no lo es: el agregad
 la llamada.
 
 **Causa raíz** (verificada en código; el diagnóstico original lo dio un dev en el hilo del 2026-08-02).
-`application/app/Http/Controllers/Api/PramiController.php:40-43`:
+`application/app/Http/Controllers/Api/PramiController.php:44-47`:
 
 ```php
 $transaction = LenderTransaction::query()
@@ -1635,22 +1635,22 @@ cliente cotizó dos veces —o si el `order_id` que devuelve Prami no es el de l
 solicitudes desde Prami, pero ninguno de los `order_id` que llega coincide con la solicitud del cliente
 … por esta razón nunca se actualiza»*.
 
-⚠ **CORREGIDO A MEDIAS en `main`, verificado el 2026-09-16 — y la mitad que queda es la que duele.** Acá el bloque decía `firstOrFail()`; hoy es `first()` más un `if (! $transaction)` explícito que hace `rollBack` y contesta **404 con el motivo** (`application/app/Http/Controllers/Api/PramiController.php:45-52`), y `rejectWebhook` (`application/app/Http/Controllers/Api/PramiController.php:207`) además deja una fila en `logs` con el `order_id` que no matcheó. Lo trajo el commit `68ece53c` *«answer Prami's webhook with the reason it rejected the call»* (CORE-319). **Lo que NO cambió: el único vínculo sigue siendo el `order_id`** (`application/app/Http/Controllers/Api/PramiController.php:41-42`), así que la solicitud se sigue quedando en «Seleccionó entidad». O sea: el fallo dejó de ser MUDO —ahora hay un log y Prami se entera— pero el síntoma que soporte reportó seis veces sigue pasando igual. Y ahora se puede MEDIR cuántas veces: esas filas de `logs`.
+⚠ **CORREGIDO A MEDIAS en `main`, verificado el 2026-09-16 — y la mitad que queda es la que duele.** Acá el bloque decía `firstOrFail()`; hoy es `first()` más un `if (! $transaction)` explícito que hace `rollBack` y contesta **404 con el motivo** (`application/app/Http/Controllers/Api/PramiController.php:49-56`), y `rejectWebhook` (`application/app/Http/Controllers/Api/PramiController.php:332`) además deja una fila en `logs` con el `order_id` que no matcheó. Lo trajo el commit `68ece53c` *«answer Prami's webhook with the reason it rejected the call»* (CORE-319). **Lo que NO cambió: el único vínculo sigue siendo el `order_id`** (`application/app/Http/Controllers/Api/PramiController.php:45-46`), así que la solicitud se sigue quedando en «Seleccionó entidad». O sea: el fallo dejó de ser MUDO —ahora hay un log y Prami se entera— pero el síntoma que soporte reportó seis veces sigue pasando igual. Y ahora se puede MEDIR cuántas veces: esas filas de `logs`.
 
 **Y dos cosas más que el mismo código revela:**
 
 1. **De acá salen los estados 7 y 20** — los que ninguna etapa del trazador mapeaba (F-105/F-106 los
-   dejaron como hueco). El webhook traduce el estado del agregador al nuestro (`application/app/Http/Controllers/Api/PramiController.php:73-77`):
+   dejaron como hueco). El webhook traduce el estado del agregador al nuestro (`application/app/Http/Controllers/Api/PramiController.php:77-81`):
    `No_Completado`→**7** «No terminó proceso» · `Rechazado`→**6** «Negada» ·
    `Aprobado`→**20** «Aprobada no desembolsada» · `Originado`→**11** «Autorizada».
    Mismo mapeo en `MeddipayController.php:61`. O sea que **7 y 20 son estados de AGREGADOR**, no del
    flujo in-platform: por eso no aparecían en el recorrido de rt=2.
-2. **El webhook PISA el monto**: `'final_amount' => $request->amount` (`application/app/Http/Controllers/Api/PramiController.php:80`). Si hubiera matcheado, el
+2. **El webhook PISA el monto**: `'final_amount' => $request->amount` (`application/app/Http/Controllers/Api/PramiController.php:84`). Si hubiera matcheado, el
    valor de la solicitud pasaba a ser el que manda Prami — y en el caso del hilo diferían ($799.000 del
    webhook contra $918.900 de la solicitud). Cuando el `order_id` no matchea, esa discrepancia queda
    invisible; cuando matchea, gana el agregador sin avisar.
 
-⚠ Y el lender se resuelve por **nombre**: `Lender::where('name', 'Prami')->firstOrFail()` (`application/app/Http/Controllers/Api/PramiController.php:38`).
+⚠ Y el lender se resuelve por **nombre**: `Lender::where('name', 'Prami')->firstOrFail()` (`application/app/Http/Controllers/Api/PramiController.php:42`).
 Renombrar la entidad en el admin rompe el webhook entero, en silencio. Es el anti-patrón 3 de
 `hardcodes-entidades`.
 

@@ -2,7 +2,7 @@
 
 > ⚠ **Esto NO describe cómo funciona CreditOp hoy.** Es un prototipo de una propuesta, aislado a
 > propósito: SQLite local, cero dependencias del monorepo, cero conexión a la BD de la compañía.
-> No lo cites como fuente. Lo que corre en producción vive en `context/`.
+> No lo cites como fuente. Lo que corre en producción vive en **canon**.
 
 ```bash
 make plantillas          # Vue :5198 + server Go :8090

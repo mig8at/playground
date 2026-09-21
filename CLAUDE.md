@@ -143,7 +143,12 @@ Convención: los **nombres propios** se quedan (`context`, `tablero`, `harness` 
 es la UI del harness) y los **verbos** van en inglés (`align`, `refs`, `seal`, `check`), como
 `proyecto-verbo`.
 
-### Las cuatro UIs comparten UN tema, y es un archivo
+### Las tres UIs comparten UN tema, y es un archivo
+
+⚠ **Eran CUATRO hasta el 2026-09-21**, cuando se apagó la viz del árbol de `context/` (:5193). Las
+medidas y los conteos de acá abajo se tomaron con las cuatro y **no se reescriben**: son lo que se
+midió ese día. Lo que sí cambió es dónde viven los archivos —hoy tres copias, no cuatro— y eso lo
+comprueba `make estilo-check`, que cuenta las que hay y no las que dice este texto.
 
 **Fuente canónica (2026-09-19):** `tools/ui/tema.css`, `tools/ui/taller.css` y
 `tools/ui/workbench.js` y `tools/ui/RegionMenu.vue`. Editar allí y ejecutar `make estilo-sync`; `make estilo-check` detecta
@@ -165,8 +170,8 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 `--mut` y `--mut`; el acento era `--accent`, `--acc` y `--acc`; el rojo era `--fail`, `--bad` y
 `--danger`—, así que no había forma de cambiarles el aspecto sin tocar las cuatro. Hoy:
 
-- **`tema.css` es el archivo que se cambia, y es el MISMO en las cuatro** (`context/src` ·
-  `harness/panel` · `tablero/src` · `trazador/src`). La fuente vigente es el tema Darkmatter de
+- **`tema.css` es el archivo que se cambia, y es el MISMO en las tres** (`harness/panel` ·
+  `tablero/src` · `trazador/src`). La fuente vigente es el tema Darkmatter de
   [ShadcnThemer](https://shadcnthemer.com/themes/278e858e-7c4c-4407-a4bc-2d48faadc5c8): al cambiar
   de tema se reemplaza el bloque de tokens y luego se ejecuta `make estilo-sync`. No lleva reglas
   propias de ninguna herramienta.

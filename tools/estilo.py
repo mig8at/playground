@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""¿las cuatro herramientas comparten de VERDAD un solo tema?
+"""¿las tres herramientas comparten de VERDAD un solo tema?
 
-Existe porque la afirmación «`context`, `harness/panel`, `tablero` y `trazador` usan el mismo
+Existe porque la afirmación «`harness/panel`, `tablero` y `trazador` usan el mismo
 `tema.css`» es exactamente el tipo de cosa que se escribe una vez en un comentario y deja de ser
-cierta sin que nadie se entere. Acá se CABLEA: si los cuatro archivos se separan, esto lo dice.
+cierta sin que nadie se entere. Acá se CABLEA: si los archivos se separan, esto lo dice.
 
 Cuatro chequeos, y los cuatro salieron de un error real:
 
-  1. el tema es IDÉNTICO en las cuatro (md5). Si no, ya no hay un tema: hay cuatro.
+  1. el tema es IDÉNTICO en las tres (md5). Si no, ya no hay un tema: hay tres.
   2. nadie mezcla `in oklch`. Los neutros de un export de tweakcn son `oklch(L 0 0)` —hue 0 = ROJO—,
      y en un espacio polar el `color-mix` interpola ese hue: un tinte verde sale marrón rojizo y
      nada falla. `in oklab` no tiene canal de hue.  (medido: verde 20% sobre la card daba #4d3530)
@@ -29,17 +29,16 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
-TEMAS = ['context/src/tema.css', 'harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css']
-TALLERES = ['context/src/taller.css', 'harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css']
+TEMAS = ['harness/panel/tema.css', 'tablero/src/tema.css', 'trazador/src/tema.css']
+TALLERES = ['harness/panel/taller.css', 'tablero/src/taller.css', 'trazador/src/taller.css']
 REGIONES = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 HOJAS = {
-    'context':  ['context/src/styles.css'],
     'harness':  ['harness/panel/index.html'],
     'tablero':  ['tablero/src/styles.css'],
     'trazador': ['trazador/src/estilo.css'],
 }
-ARBOLES = {'context': 'context/src', 'tablero': 'tablero/src', 'trazador': 'trazador/src'}
+ARBOLES = {'tablero': 'tablero/src', 'trazador': 'trazador/src'}
 
 # ── color ────────────────────────────────────────────────────────────────────────────────────────
 def _lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
@@ -141,7 +140,7 @@ def declaraciones(cuerpo):
 
 def tabla_de(tool):
     """los tokens del tema (bloque .dark) + el puente de esa herramienta"""
-    tema = css_de(RAIZ / TEMAS[0])   # los cuatro son idénticos — el chequeo 1 es lo que lo garantiza
+    tema = css_de(RAIZ / TEMAS[0])   # los tres son idénticos — el chequeo 1 es lo que lo garantiza
     tabla = {}
     for bloque in re.findall(r'\.dark\s*\{([^{}]*)\}', tema):
         tabla.update({k: v for k, v in declaraciones(bloque).items() if k.startswith('--')})
@@ -176,7 +175,7 @@ def propios_de(tool):
 # ── chequeos ─────────────────────────────────────────────────────────────────────────────────────
 def main():
     fallo = False
-    print('\n  1 · ¿los archivos COMPARTIDOS son los mismos en las cuatro?')
+    print('\n  1 · ¿los archivos COMPARTIDOS son los mismos en las tres?')
     for etiqueta, lista in (('tema.css  (el color)', TEMAS), ('taller.css (la estructura)', TALLERES)):
         m = {}
         for r in lista:
@@ -365,7 +364,7 @@ def main():
             print(f'      ✗ {tool}: {len(choques)}')
             for sel, d, i in choques[:6]:
                 print(f'          {sel:46} — `.{d}` ya era un componente de la herramienta y `.{i}` le cae encima')
-            print('          Renombrá el de la herramienta: el compartido lo usan las cuatro.')
+            print('          Renombrá el de la herramienta: el compartido lo usan las tres.')
             fallo = True
         else:
             print(f'      ✓ {tool:9} ninguno')
@@ -383,9 +382,9 @@ def main():
     return 1 if fallo else 0
 
 def repartir(origen=None):
-    """el tema de las cuatro, de un solo archivo
+    """el tema de las tres, de un solo archivo
 
-    Existe porque «reemplazá `tema.css`» son en realidad CUATRO copias, y copiar cuatro veces a mano es
+    Existe porque «reemplazá `tema.css`» son en realidad TRES copias, y copiar tres veces a mano es
     exactamente como empiezan a derivar — que es el problema que todo esto vino a resolver. Sin `DE`
     no escribe nada: dice cuál está puesto."""
     if not origen:

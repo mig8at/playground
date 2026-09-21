@@ -6,7 +6,7 @@ import { mkdir } from 'node:fs/promises';
 const require = createRequire(new URL('../harness/package.json', import.meta.url));
 const { chromium } = require('playwright');
 const apps = [
-  ['context', 'http://localhost:5193'], ['harness', 'http://localhost:5195'],
+  ['harness', 'http://localhost:5195'],
   ['tablero', 'http://localhost:5191'], ['trazador', 'http://localhost:5192'],
 ];
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
@@ -20,7 +20,7 @@ const sample = {
       Description: 'Comprueba el estado vacío.' },
   ] },
   '/api/efforts': { efforts: [
-    { id: 1, title: 'Validar interfaz', stage: 'work', contextNodes: 'architecture, onboarding',
+    { id: 1, title: 'Validar interfaz', stage: 'work', temasCanon: 'arquitectura, onboarding',
       techNotes: '# Interfaz\n\n## Criterios\n\n' + Array(60).fill('- El documento conserva su scroll independiente.').join('\n')
         + '\n\n## Pendientes\n\n- [ ] Confirmar la interfaz',
       pendientes: [{ texto: 'Confirmar la interfaz', seccion: 'Pendientes', hecho: false }] },
@@ -38,35 +38,6 @@ const sample = {
     { repo: 'tablero-api', rama: 'feat/ui-api', commit: 'def5678', asunto: 'Agregar rutas',
       en: { qa: true, main: true }, propios: { qa: 0, main: 0 }, como: { qa: 'patch', main: 'pr' } },
   ] } } },
-};
-const contextJevFixture = {
-  mode: 'live',
-  baseline: [{ node: 'onboarding', score: 3.2 }, { node: 'kyc', score: 1.4 }],
-  candidates: ['onboarding', 'kyc', 'actors'],
-  decision: { action: 'suggest', node: 'onboarding' },
-  jev: {
-    choice: 'onboarding', probability: 0.94, confidence: 0.91, needs_case_data: 0.08,
-    top4: [['onboarding', 0.94], ['kyc', 0.04], ['actors', 0.02]],
-  },
-};
-const contextJevBriefFixture = {
-  kind: 'brief', version: 'context-pack-v1', node: 'onboarding', name: 'Onboarding', node_kind: 'reference',
-  when: 'Registro de celular y OTP antes del listado.', summary: 'El registro crea la solicitud antes de consultar entidades.',
-  sections: ['Qué es', 'Antes de concluir'],
-  files: { total: 99, by_repo: { application: 23, 'frontend-monorepo': 28, 'legacy-backend': 48 }, recommended: [] },
-};
-const contextJevScopeFixture = {
-  kind: 'scope', version: 'context-pack-v1', node: 'onboarding', brief: contextJevBriefFixture,
-  source_chars: 180, redactions: 0,
-  files: [
-    { path: 'application/app/Http/Controllers/Customer/ListLenderController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class ListLenderController {}' },
-    { path: 'application/app/Http/Controllers/Customer/OtpController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class OtpController {}' },
-    { path: 'application/app/Http/Controllers/Customer/PersonalInfoController.php', ref: 'main', line_start: 1, line_end: 3, truncated: false, redactions: 0, content: '   1 | class PersonalInfoController {}' },
-  ],
-};
-const contextJevReviewFixture = {
-  mode: 'live', node: 'onboarding', decision: { action: 'suggest', next: 'application/app/Http/Controllers/Customer/OtpController.php' },
-  jev: { choice: 'application/app/Http/Controllers/Customer/OtpController.php', probability: 0.92, confidence: 0.9, needs_case_data: 0.1 },
 };
 // La prueba de interfaz no consulta Redash ni necesita una solicitud real. Este esqueleto conserva
 // nombres largos y tres ramales para detectar el fallo visual más fácil de reintroducir: que las
@@ -156,7 +127,6 @@ try {
     const errors = [];
     let trazasPedidas = 0;
     let busquedasPedidas = 0;
-    let jevPedidas = 0;
     let bloquearJira = false;
     page.on('pageerror', (e) => errors.push(e.message));
     if (name === 'trazador') {
@@ -169,14 +139,6 @@ try {
     }
     await page.route('**/api/**', (route) => {
       const path = new URL(route.request().url()).pathname;
-      if (name === 'context' && path.startsWith('/api/jev/')) {
-        if (route.request().method() !== 'POST') return route.abort();
-        if (path === '/api/jev/route') { jevPedidas += 1; return route.fulfill({ json: contextJevFixture }); }
-        if (path === '/api/jev/brief') return route.fulfill({ json: contextJevBriefFixture });
-        if (path === '/api/jev/scope') return route.fulfill({ json: contextJevScopeFixture });
-        if (path === '/api/jev/review') return route.fulfill({ json: contextJevReviewFixture });
-        return route.abort();
-      }
       if (route.request().method() !== 'GET') return route.abort();
       if (name === 'tablero') {
         if (bloquearJira && (path === '/api/sprints' || path === '/api/sprint')) return new Promise(() => {});
@@ -230,8 +192,8 @@ try {
         'Tablero: ramas ya no se duplica en el sidebar derecho');
       assert.match(await page.locator('.task-head-facts').textContent(), /Sprint UI.*3 pts.*1h 30m en Jira/s,
         'Tablero: sprint, puntos y tiempo de Jira viven en la cabecera');
-      assert.match(await page.locator('.task-head-context').textContent(), /Contexto local:.*architecture.*onboarding/s,
-        'Tablero: la cabecera muestra los nodos de contexto local');
+      assert.match(await page.locator('.resume-canon').textContent(), /arquitectura.*onboarding/s,
+        'Tablero: la retoma muestra los temas de canon declarados');
       assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Detalle', exact: true }).count(), 0,
         'Tablero: el sidebar derecho ya no repite una ficha de detalle');
       const jiraTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true });
@@ -372,92 +334,6 @@ try {
       await consola.press('Enter'); await paint(page);
       assert.equal(await page.locator('.recientes-console').isVisible(), true,
         'Trazador: recientes vuelve desde su tirador');
-    }
-    if (name === 'context') {
-      assert.equal(await page.locator('.ramas-console').count(), 0,
-        'Context: no muestra una consola Git que distraiga de la alineación con main');
-      assert.equal(await page.getByRole('button', { name: 'Mostrar u ocultar ramas', exact: true }).count(), 0,
-        'Context: no conserva un control para una región eliminada');
-      assert(await page.locator('.detail .alin').isVisible(),
-        'Context: la alineación del nodo conserva la señal operativa contra main');
-      const referencias = page.locator('#context-references');
-      assert.equal(await referencias.isVisible(), true,
-        'Context: abre las referencias de archivos junto al documento');
-      const buscadorContexto = page.getByRole('searchbox', { name: 'Buscar en el contexto' });
-      await buscadorContexto.click();
-      await page.keyboard.type('No llega el OTP de registro');
-      await page.waitForTimeout(250);
-      assert.equal(jevPedidas, 0, 'Context: JEV espera antes de consultar mientras se escribe');
-      await page.locator('.jev-route[data-phase="suggest"]').waitFor();
-      assert.equal(jevPedidas, 1, 'Context: JEV consulta una sola vez tras el debounce');
-      await page.locator('.jev-open').click(); await paint(page);
-      assert.equal(await referencias.locator('.reference-note code').textContent(), 'onboarding',
-        'Context: abrir la sugerencia de JEV carga su evidencia');
-      const consolaJev = page.locator('#context-jev-console');
-      assert.equal(await consolaJev.isVisible(), true,
-        'Context: abre una consola JEV para profundizar la ruta');
-      const comandoJev = page.getByRole('textbox', { name: 'Comando JEV' });
-      await comandoJev.fill('brief'); await comandoJev.press('Enter');
-      await consolaJev.locator('.jev-brief-output').waitFor();
-      assert.match(await consolaJev.locator('.jev-brief-output').textContent(), /Ficha general.*99 archivos/s,
-        'Context: la ficha usa contexto general ya acotado');
-      await consolaJev.getByRole('button', { name: 'Elegir 3 sugeridos', exact: true }).click();
-      await consolaJev.getByRole('button', { name: 'Preparar scope local', exact: true }).click();
-      await consolaJev.locator('.jev-code-preview').first().waitFor();
-      assert.equal(await consolaJev.locator('.jev-code-preview').count(), 3,
-        'Context: el scope muestra el código elegido antes de enviarlo');
-      await comandoJev.fill('guide ¿Qué reviso primero?'); await comandoJev.press('Enter');
-      await consolaJev.locator('.jev-guide-output').waitFor();
-      assert.match(await consolaJev.locator('.jev-guide-output').textContent(), /OtpController.*92%.*90% confianza/s,
-        'Context: JEV devuelve la siguiente evidencia, no una conclusión inventada');
-      await page.getByRole('button', { name: 'application', exact: true }).click(); await paint(page);
-      assert.equal(await referencias.locator('.reference-note code').textContent(), 'application',
-        'Context: las referencias siguen el nodo abierto');
-      const filtroReferencias = page.getByRole('searchbox', { name: 'Filtrar archivos de referencia' });
-      await filtroReferencias.fill('LenderRetrievalService.php');
-      assert.equal(await referencias.locator('.reference-file').count(), 1,
-        'Context: el sidebar filtra las fuentes declaradas');
-      await filtroReferencias.fill('');
-      await buscadorContexto.fill('300 123 4567');
-      assert.equal(await page.locator('.jev-route[data-phase="blocked"]').isVisible(), true,
-        'Context: bloquea una consulta con teléfono antes de enviarla a Jev');
-      assert.equal(jevPedidas, 1, 'Context: no llama a Jev para datos personales');
-      await buscadorContexto.fill('solicitud');
-      const { trigger, menu } = await openMenu(page, 'Opciones del explorador');
-      const neighbors = menu.getByRole('menuitemcheckbox', { name: 'Incluir nodos vecinos' });
-      assert.equal(await neighbors.getAttribute('aria-checked'), 'true');
-      await neighbors.click(); await paint(page);
-      assert.equal(await neighbors.getAttribute('aria-checked'), 'false');
-      assert(await trigger.evaluate((el) => el.classList.contains('has-options')));
-      await escapeMenu(page, trigger);
-      await page.getByRole('searchbox', { name: 'Buscar en el contexto' }).fill('');
-      await openMenu(page, 'Opciones del explorador');
-      assert.equal(await page.locator(':focus').getAttribute('data-menu-id'), 'ocultar', 'Salta opciones deshabilitadas');
-      await page.keyboard.press('End');
-      assert.equal(await page.locator(':focus').getAttribute('data-menu-id'), 'ocultar');
-      await page.keyboard.press('Home');
-      assert.equal(await page.locator(':focus').getAttribute('data-menu-id'), 'ocultar');
-      await page.keyboard.press('Enter'); await paint(page);
-      assert.equal(await page.locator('#context-sidebar').isVisible(), false);
-      const explorer = page.getByRole('button', { name: 'Mostrar u ocultar el explorador', exact: true });
-      assert.equal(await explorer.getAttribute('aria-pressed'), 'false');
-      assert(await explorer.evaluate((el) => el === document.activeElement), 'Ocultar devuelve el foco al alternador');
-      await explorer.click(); await paint(page);
-      assert.equal(await page.locator('#context-sidebar').isVisible(), true, 'El explorador vuelve desde el pie');
-      await page.getByRole('button', { name: 'Ocultar referencias', exact: true }).click(); await paint(page);
-      assert.equal(await referencias.isVisible(), false);
-      const toggleReferencias = page.getByRole('button', { name: 'Mostrar u ocultar referencias', exact: true });
-      assert.equal(await toggleReferencias.getAttribute('aria-pressed'), 'false');
-      assert(await toggleReferencias.evaluate((el) => el === document.activeElement), 'Ocultar referencias devuelve el foco al alternador');
-      await toggleReferencias.click(); await paint(page);
-      assert.equal(await referencias.isVisible(), true, 'El sidebar de referencias vuelve desde el pie');
-      await page.getByRole('button', { name: 'Ocultar consola JEV', exact: true }).click(); await paint(page);
-      assert.equal(await consolaJev.isVisible(), false, 'La consola JEV se puede plegar sin perder su alto');
-      const toggleJev = page.getByRole('button', { name: 'Mostrar u ocultar consola JEV', exact: true });
-      assert.equal(await toggleJev.getAttribute('aria-pressed'), 'false');
-      assert(await toggleJev.evaluate((el) => el === document.activeElement), 'Ocultar JEV devuelve el foco al alternador');
-      await toggleJev.click(); await paint(page);
-      assert.equal(await consolaJev.isVisible(), true, 'La consola JEV vuelve desde el pie');
     }
     if (name === 'harness') {
       const { trigger, menu } = await openMenu(page, 'Opciones de consola');
@@ -723,13 +599,6 @@ try {
         }
         if (width === 768) assert.equal(await vistas.isVisible(), false, 'tablero: el documento conserva el ancho en ventana angosta');
       }
-      if (name === 'context') {
-        const referencias = page.locator('#context-references');
-        if (width < 880) assert.equal(await referencias.isVisible(), false,
-          'Context: las referencias se pliegan antes de comprimir el documento');
-        else assert.equal(await referencias.isVisible(), true,
-          `Context: las referencias acompañan el documento a ${width}px`);
-      }
       if (name === 'harness') {
         const clipped = await page.locator('.stagehead').evaluate((head) => {
           const bounds = head.getBoundingClientRect();
@@ -748,7 +617,7 @@ try {
       if (screenshotDir && width !== 1024) await page.screenshot({ path: `${screenshotDir}/${name}-${width}.png` });
     }
     if (name !== 'trazador') {
-      const menuTitle = { context: 'Opciones del explorador', harness: 'Opciones de consola', tablero: 'Opciones del documento' }[name];
+      const menuTitle = { harness: 'Opciones de consola', tablero: 'Opciones del documento' }[name];
       const compactMenu = await openMenu(page, menuTitle);
       await page.locator('.statusbar').click({ position: { x: 5, y: 5 } });
       assert.equal(await compactMenu.trigger.getAttribute('aria-expanded'), 'false', 'Clic fuera cierra el menú');

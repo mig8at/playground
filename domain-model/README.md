@@ -7,9 +7,9 @@ CreditOp: 105 entidades agrupadas en 8 contextos, cada una con su mapeo a la tab
 >
 > Todo lo que ves acá es el **DEBER-SER** — un rediseño propuesto, no lo que corre en producción.
 > Ninguna de estas tablas existe con esta forma en la BD. Si venís a entender **cómo funciona
-> CreditOp HOY**, este no es el lugar: andá a **[`../context/docs/ROUTE-MAP.md`](../context/docs/ROUTE-MAP.md)**
+> CreditOp HOY**, este no es el lugar: andá a **canon** (`github/playground/tools/canon`, o canon.playground.creditop.com)
 > (índice del árbol de contexto, 33 nodos con su "cuándo usar cada uno") y arrancá por
-> [`../context/server/data/flows/creditop/doc.md`](../context/server/data/flows/creditop/doc.md).
+> canon, tema `creditop`.
 >
 > El puente entre ambos mundos vive **acá adentro**: [`CONTEXT.md`](docs/CONTEXT.md) (what-is en inglés,
 > con rutas de archivo) y [`docs/audit/REALIDAD-ACTUAL.md`](docs/audit/REALIDAD-ACTUAL.md) (lo mismo
@@ -234,7 +234,7 @@ Punteros rotos que **quedaron sin arreglar** en otros archivos de esta carpeta (
 - `CONTEXT.md:14` y `:41` → `../flows/` no existe (la carpeta hermana se llama `flow`, singular, y es
   otra cosa: el simulador de onboarding).
 - `CONTEXT.md:51`, `CLAUDE.md:64`, `docs/audit/REALIDAD-ACTUAL.md:3` y `:13` → `playground/docs/`
-  **fue borrado** de `main` (absorbido por `../context/`; recuperable con `git show 159906a:docs/…`).
+  **fue borrado** de `main` (absorbido por el árbol de contexto, que a su vez graduó a canon; recuperable con `git show 159906a:docs/…`).
 - `docs/TRABAJO-REGLAS-SIMPLIFICACION.md:16` y `:142` → `CREDITOP-MODELO-DATOS.md` no existe en
   ningún lado del playground.
 - `docs/HALLAZGOS-BD.md:7` → `queries-cuestiones-abiertas.sql` no existe.

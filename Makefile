@@ -3,13 +3,13 @@
 # `make` sin argumentos lista lo que hay. La idea es no tener que recordar en qué carpeta vive cada
 # comando ni cómo se llamaba el script.
 #
-# CONVENCIÓN DE NOMBRES: los NOMBRES PROPIOS se quedan como están (`context`, `tablero`, `panel` son
+# CONVENCIÓN DE NOMBRES: los NOMBRES PROPIOS se quedan como están (`tablero`, `harness`, `panel` son
 # carpetas reales, traducirlas agregaría una capa de traducción mental) y los VERBOS van en inglés
 # (`align`, `refs`, `seal`, `check`). Un comando de proyecto se nombra `proyecto-verbo`.
 #
-# ⚠ Por qué `context-align` y no `context align`: para make, dos palabras son dos objetivos distintos
-# (correría `context` y después `align`). Se puede simular con un catch-all, pero entonces un typo
-# como `contxt-align` no da error: no hace nada en silencio. Con guion, make avisa y además el guion
+# ⚠ Por qué `trazador-ureq` y no `trazador ureq`: para make, dos palabras son dos objetivos distintos
+# (correría `trazador` y después `ureq`). Se puede simular con un catch-all, pero entonces un typo
+# como `trazdor-ureq` no da error: no hace nada en silencio. Con guion, make avisa y además el guion
 # autocompleta con TAB.
 
 SHELL := /bin/bash
@@ -21,7 +21,12 @@ help: ## esta lista
 	@echo ""
 	@echo "  CREDITOP · playground        (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
-	@$(call listar,@ctx,CONTEXTO — el conocimiento validado contra main)
+	@echo ""
+	@echo "  CONTEXTO — vive en CANON, que es otro repo y se comparte con el equipo"
+	@echo "    cd ~/Desktop/CREDITOP/github/playground/tools/canon"
+	@echo "    go run . -pregunta '<la pregunta>'   ¿cómo funciona X? (o /api/search, gratis)"
+	@echo "    go run . -ronda                      ¿qué cambió en main de lo que el corpus declara?"
+	@echo "    go run . -peso                       …y cuál de eso pesa, por actividad de 90 días"
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
 	@$(call listar,@wrk,WORKERS — el índice de los repos y los agentes que lo consumen)
 	@$(call subcomandos,workers/cli.py)
@@ -54,7 +59,7 @@ define subcomandos
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status context tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq \
+.PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq \
 	trazador-diag trazador-chequeo trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
@@ -62,9 +67,6 @@ status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@echo "  El contexto compartido es CANON, que vive en otro repo y tiene su propia ronda:"
 	@echo "    cd ~/Desktop/CREDITOP/github/playground/tools/canon && go run . -ronda"
 	@echo "  (dice qué fuentes declaradas cambiaron o desaparecieron de main; -peso las prioriza)"
-
-context: ## @dia abre la viz del árbol de contexto (:5193)
-	@cd context && npm run dev
 
 tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
@@ -235,29 +237,21 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulso uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
-.PHONY: context-align context-diff context-refs context-simbolos context-seal context-check context-map context-salud context-lint repos repos-test entidades trazador-huella
-.PHONY: context-jev context-jev-test tablero-jev tablero-jev-test flow-context flow-context-test
-context-jev: ## @ctx Jev: route/brief [--text]/scope/review [--live] | bench | label reporte --expected nodo | stats
-	@python3 context/tools/jev.py $(or $(ARGS),--help)
+# ⚠ Acá vivían los 14 comandos del árbol `context/` (align, refs, seal, lint, diff, triar, jev…). Ese
+# árbol se apagó el 2026-09-21: el contexto curado es CANON y vive en otro repo (`github/playground/
+# tools/canon`), con sus propios comandos —`go run . -ronda`, `-peso`, `-lint`, `-pregunta`—. Lo que
+# quedó acá de aquel conjunto son las piezas que no eran del árbol: `repos`, `entidades`,
+# `trazador-huella` y `confluence`, cada una en el grupo de la herramienta a la que pertenece.
+.PHONY: tablero-jev tablero-jev-test flow-context flow-context-test
 
 # Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
 # localStorage, SQL ni producción: prepara contexto breve para que un LLM elija una regla antes de
 # abrir MAP/DOCUMENTATION o salir a Harness/Trazador con un caso real.
-flow-context: ## @ctx Flow para LLM: map | route "pregunta general" | brief <tema> | validate. ARGS='…' · salida JSON; --text es compacto
+flow-context: ## @expl Flow para LLM: map | route "pregunta general" | brief <tema> | validate. ARGS='…' · salida JSON; --text es compacto
 	@python3 flow/tools/flow_context.py $(or $(ARGS),--help)
 
-flow-context-test: ## @ctx pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
+flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
-
-context-triar: ## @ctx ⚠ ESCRIBE `triado` en un nodo: deja dicho que el cambio se MIRÓ y no toca lo que afirma — sin sellarlo (el sello sigue siendo de una persona). Se NIEGA si alguna cita cayó dentro del cambio. NODE=x VEREDICTO='…' [FUENTE=…] · LISTAR=1
-	@cd context && python3 tools/triar.py $(if $(LISTAR),--listar,$(NODE) --veredicto "$(VEREDICTO)" $(if $(FUENTE),--source $(FUENTE)))
-
-context-diff-test: ## @ctx pruebas del mapa de citas ∩ diff, del triaje y del ámbito local: hunks del lado viejo, cruce alias↔repo, clasificación, las guardas de `triado` y qué alias es una herramienta de este repo
-	@cd context/tools && PYTHONDONTWRITEBYTECODE=1 python3 -m unittest test_diff test_triar test_roots
-
-context-jev-test: ## @ctx pruebas offline del ruteo local, contrato y abstención de Jev
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s context/tools -p test_jev.py
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s workers -p test_jev_routing.py
 
 repos: ## @dia actualiza la consola de repos y ramas del tablero desde Git local, sin fetch. JSON=1 imprime el snapshot
 	@python3 tablero/tools/ramas.py $(if $(JSON),--json)
@@ -265,58 +259,25 @@ repos: ## @dia actualiza la consola de repos y ramas del tablero desde Git local
 repos-test: ## @dia pruebas del estado de ramas: activa, cambios locales y fusionada
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_ramas.py
 
-tablero-jev: ## @ctx laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
+tablero-jev: ## @dia laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
 	@python3 tablero/tools/jev.py $(or $(ARGS),--help)
 
-tablero-jev-test: ## @ctx pruebas offline de Choice + Noul + Score y minimización del payload de tablero
+tablero-jev-test: ## @dia pruebas offline de Choice + Noul + Score y minimización del payload de tablero
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev.py
-
-context-align: ## @ctx qué nodos quedaron viejos + escribe alineacion.json (corrélo DESPUÉS DE CADA MERGE). Los archivos de herramientas de ESTE repo no cuentan como deriva: su doc se commitea con su código
-	@cd context && python3 tools/alinear.py
-
-context-salud: ## @ctx ¿el árbol SIRVE para un LLM? ruteo, archivos mudos, hubs, findings sin indexar — y el lint
-	@cd context && python3 tools/salud.py
-	@cd context && python3 tools/lint.py
-
-context-lint: ## @ctx la guardia que BLOQUEA: conteos horneados, refs muertas, secciones prohibidas, rutas desnudas, nodos invisibles
-	@cd context && python3 tools/lint.py
 
 trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
 	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }
 	@python3 trazador/tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
-context-diff: ## @ctx QUÉ cambió en el código de un nodo desde su sello — lo que se lee para re-verificar. NODE=x [STAT=1] · CITAS=1 SOLO el mapa: ¿el cambio tocó las líneas que el doc CITA? (aritmética, sin leer el diff — el de `trazador` son 112.358 caracteres y el mapa veinte líneas)
-	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-diff NODE=onboarding"; exit 2; }
-	@cd context && python3 tools/diff.py $(NODE) $(if $(STAT),--stat,) $(if $(CITAS),--citas,) $(if $(DESDE_TRIAJE),--desde-triaje,)
-
-context-refs: ## @ctx ¿las citas `archivo:línea` apuntan a lo que dicen? (NODE=<nodo> para uno solo)
-	@cd context && python3 tools/refs.py $(NODE)
-
-context-simbolos: ## @ctx ¿la cita apunta al SÍMBOLO que la prosa le pone al lado? (lo que refs.py NO mira). NODE=<nodo>
-	@cd context && python3 tools/simbolos.py $(NODE)
-
-context-seal: ## @ctx marca un nodo como verificado HOY — solo si de verdad lo revisaste. NODE=<nodo>
-	@test -n "$(NODE)" || { echo "falta NODE=<nodo>  ·  ej: make context-seal NODE=kyc"; exit 2; }
-	@cd context && python3 tools/sellar-verificado.py $(NODE)
-
-context-check: ## @ctx ¿las rutas de TODOS los nodos existen en main? (el hook ya lo hace al editar uno)
-	@cd context && for m in server/data/flows/*/map.json; do \
-	  out=$$(python3 tools/oracle.py "$$m" 2>&1 | head -1); \
-	  case "$$out" in *"DROPPED 0"*) ;; *) echo "  ⚠ $$(basename $$(dirname $$m)): $$out";; esac; \
-	done; echo "  (sin líneas arriba = los $$(ls -d server/data/flows/*/ | wc -l | tr -d ' ') nodos sin rutas muertas)"
-
 entidades: ## @wrk regenera workers/ENTIDADES.md — la ficha de NEGOCIO de cada entidad, medida contra PROD (alcance, ticket, plazo, aprobación, embudo, ocupación declarada vs real). [DIAS=90] [MIN=200]
 	@python3 workers/entidades.py
 
-context-map: ## @ctx regenera docs/ROUTE-MAP.md (el hook ya lo hace al editar un map.json)
-	@cd context && python3 tools/build-route-map.py
-
 # ── WORKERS ──────────────────────────────────────────────────────────────────────────────────────
 # UN proyecto con dos mitades que se necesitan: el ÍNDICE de cómo están construidos los repos
-# (`context` entra por pregunta de negocio; esto entra POR REPO) y los AGENTES de Gemini que lo
+# (canon entra por pregunta de negocio; esto entra POR REPO) y los AGENTES de Gemini que lo
 # consumen. Van juntos porque la medición fue una sola: los agentes rinden cuando cada herramienta
 # devuelve exactamente lo que hace falta — el trabajo fino vive en los índices, no en el prompt.
-# La dependencia sigue en un sentido: workers lee context, no al revés.
+# La dependencia sigue en un sentido: workers LEE el corpus (`tools/canon.py`), no al revés.
 #
 # ⚠ El índice NO tiene un target por verbo, a propósito: es un CLI de verdad y se maneja solo.
 # `workers/cli.py --help` lista los subcomandos y `cli.py <subcomando> --help` sus opciones con los
@@ -491,9 +452,9 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 	@cd trazador/server && go run . -posthog $(if $(TARGET),-target $(TARGET)) $(if $(UREQ),-ureq $(UREQ)) $(if $(TEL),-tel $(TEL)) $(if $(LIMIT),-limit $(LIMIT))
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
-# está en Confluence. El script ya existía en `context/tools/` desde antes, pero fuera del Makefile —
-# o sea invisible para quien no leyera `context/CLAUDE.md`. Solo lectura: no hay verbo que escriba.
-# ⚠ Nada de ahí entra al árbol sin pasar por el código (el protocolo, en `context/CLAUDE.md`).
+# está en Confluence. Solo lectura: no hay verbo que escriba.
+# ⚠ Nada de ahí entra a canon sin pasar por el código: el corpus describe lo que corre en `main`, y
+# un PRD describe lo que se quiso. La regla de admisión está en las `skills/` del repo de canon.
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
 	@python3 tools/confluence.py $(CMD)
 

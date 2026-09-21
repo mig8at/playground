@@ -3,7 +3,7 @@
 Un solo proyecto con dos mitades que se necesitan:
 
 - **el ÍNDICE** — cómo están CONSTRUIDOS los proyectos de CreditOp, entrando **por repo**
-  (`context/` es el otro índice: entra por pregunta de negocio). Casi todo **derivado de `main`**.
+  (**canon** es el otro índice: entra por pregunta de negocio). Casi todo **derivado de `main`**.
 - **los AGENTES** — Gemini con el bucle a la vista, que consumen ese índice para elegir archivos,
   leerlos y concluir; y uno que no lee código: **mide** contra la base y los logs reales.
 
@@ -12,9 +12,9 @@ falta**: concluyen bien sobre contexto ya armado, y queman presupuesto cuando ti
 (¿cómo se filtra un error? ¿qué columna es? ¿qué archivos existen?). El trabajo fino vive en los
 índices y en las herramientas, no en el prompt — separarlos sería una frontera de mentira.
 
-> ⚠ La dependencia va en un solo sentido: **workers lee `context/`** (su `roots.py`, sus `map.json`)
-> **y `context/` no sabe que esto existe.** El enlace unidireccional evita que al mover una pieza la
-> otra quede mintiendo.
+> ⚠ La dependencia va en un solo sentido: **workers lee canon** (sus `map.json`, por `tools/canon.py`)
+> **y canon no sabe que esto existe.** El enlace unidireccional evita que al mover una pieza la otra
+> quede mintiendo — y con canon importa más que antes, porque vive en otro repo y lo edita el equipo.
 
 ## La regla que gobierna todo
 
@@ -53,7 +53,7 @@ sinónimos de reunión, su tabla, y **qué nodo lo explica en serio**.
 Todo lo demás (cuántos archivos tocan esa tabla, cuántos tiene el nodo) se resuelve al vuelo contra
 los otros mapas. Por eso es corto y **no puede quedar viejo: lo que envejece no está escrito ahí**.
 
-⚠ Y **no reemplaza a `context/`**: una línea por concepto, la que ubica. El detalle y las trampas
+⚠ Y **no reemplaza a canon**: una línea por concepto, la que ubica. El detalle y las trampas
 viven en el nodo.
 
 ## El árbol · 10 tramos × 39 pasos
@@ -144,7 +144,7 @@ los workspaces del monorepo (25) y los módulos de Laravel (20). Se descubren le
 > rama donde `Modules/Backoffice` **no existe**. Un descubridor que caminara el disco lo habría borrado
 > del índice sin que nada avisara — justo el módulo que sólo vive en `main`.
 
-**3 · El puente** — **derivado**: qué nodos de `context/` describen cada repo. Cada `map.json` ya lista
+**3 · El puente** — **derivado**: qué temas de canon describen cada repo. Cada `map.json` ya lista
 sus archivos como `alias/relpath`; la pertenencia estaba en los datos, sólo faltaba leerla al revés.
 
 **4 · El mapa de negocio** — `./cli.py mapa <alias>`. Cruza las capas 2 y 3: para **cada unidad** del
@@ -163,7 +163,7 @@ Encima corre `creditop.py`, que traduce lo extraído al negocio: qué lender, qu
 (los que bifurcan por ambiente: **la trampa de staging**, que corre con `APP_ENV=development`).
 
 ⚠ Va **separado** del extractor: meterle negocio lo volvería un segundo lugar donde vive ese
-conocimiento, compitiendo con `context/`. El diccionario (`creditop.json`) declara de qué nodo salió
+conocimiento, compitiendo con canon. El diccionario (`creditop.json`) declara de qué tema salió
 cada grupo; ante una diferencia **manda el nodo**. Y sus **datos duros se midieron contra prod**: el
 catálogo de estados es la tabla `user_request_statuses` leída de producción el 2026-08-16, no una
 glosa — la glosa a mano tenía mal el estado más frecuente del sistema (`6 = Negada`, no «Anulada»).
@@ -183,7 +183,7 @@ un archivo cambiado tiene otra llave, así que el caché no puede devolver algo 
 
 Todos comparten la misma llave, la **ruta**, así que se juntan sin ceremonia:
 
-    context/ (map.json)  →  qué archivos describe cada nodo de negocio   → campo `nodos`
+    canon (map.json)     →  qué archivos describe cada tema de negocio   → campo `nodos`
     logs.json            →  qué archivos emiten mensajes                 → campo `loguea`
     el extractor         →  de qué tipo es cada archivo                  → campo `tipo`
 
@@ -213,7 +213,7 @@ instrumentar primero.
 ./cli.py flujos --codigos     # ⟵ el cruce que lo justifica
 ```
 
-`context/` dice cómo funciona, `logs.json` qué dejó rastro, `archivos.json` qué significa un archivo.
+Canon dice cómo funciona, `logs.json` qué dejó rastro, `archivos.json` qué significa un archivo.
 **Ninguno sabe qué es demostrable CORRIÉNDOLO** — y eso vive sólo en `harness/`.
 
 ⚠ Sale de los nombres de `test()`, **no de los pasos**. `new Flow(...).step()` declara pasos con
@@ -236,7 +236,7 @@ y resultaron mejor material, porque llevan el recorrido y los códigos:
    12. quantoMedioAverage valid, writing UserFieldValue field 87 (income)
 
 ⚠ Es el recorrido de **una** corrida, no el flujo canónico: otra solicitud puede diferir. Para el
-deber ser está `context/`, que es donde vive lo verificado.
+deber ser está canon, que es donde vive lo verificado.
 
 ⚠ Y se entra por **traza**, no por ureq: sólo el 11% de las líneas llevan el `user_request_id` en su
 texto, así que anclar por ureq devolvía casi siempre cero — que se lee como «no hizo nada». Para
@@ -249,7 +249,7 @@ y la diferencia es trabajo pendiente. Medido: **6 códigos que el cliente recibe
 ⚠ Separado de la **telemetría interna** (`CATEGORY_*`, `QUOTA_*`), que no son fallos y no hay nada que
 probar de ellos. Mezclarlos daba 24 en vez de 6 e inflaba el número hasta volverlo inútil.
 
-Y lo construye **workers, no harness**: la misma regla que con `context/` — workers **lee** las otras
+Y lo construye **workers, no harness**: la misma regla que con canon — workers **lee** las otras
 herramientas y no escribe en ellas.
 
 ### La huella por lender — y por qué la de comercio no existe
@@ -272,10 +272,10 @@ loguea `lender_id`. Su paso por el listado, la formalización y la firma no lo n
 Es una limitación de la **instrumentación**, no del método: propagar `lender_id`/`allied_id` al
 contexto de log convertiría esto en lo que promete.
 
-### Auditar `context/` sin tocarlo
+### Auditar canon sin tocarlo
 
 ```bash
-./cli.py menu              # ¿cuánto del menú de cada nodo tiene señal de negocio?
+./cli.py menu              # ¿cuánto del menú de cada tema tiene señal de negocio?
 ./cli.py menu backoffice   # con ejemplos
 ```
 
@@ -389,7 +389,7 @@ a la vista en `gemini.py` y lo reusan todos.
 | `analisis.py` | corre la fila entera (plan → N seleccionadores → lector). La entrada normal |
 | `seleccion.py` | **no contesta**: dice qué archivos habría que leer, y por qué. Sólo ve índices |
 | `contraste.py` | el segundo seleccionador: elige lo que el primero NO miró. Tiene prohibido repetir |
-| `lector.py` | lee lo que eligieron los otros + los nodos de `context/`, y concluye. Recorta a 300k tokens |
+| `lector.py` | lee lo que eligieron los otros + los temas de canon, y concluye. Recorta a 300k tokens |
 | `datos.py` | el que **mide**: base de datos y logs reales, un ambiente por corrida |
 
 ## Cómo arrancar

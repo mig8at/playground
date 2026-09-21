@@ -12,9 +12,11 @@ jira_title: ""
 
 ## Si retomás esto sin contexto, empezá acá
 
-⚠ **Esta tarea ahora tiene fecha de vencimiento: `context/` se apaga por graduación a canon.** El
-árbol es la sala de espera; cada nodo que se toca, gradúa y se borra. Ver el Registro del
-2026-09-21 para lo medido y el piloto. Lo que NO migra es `findings`.
+✅ **`context/` ya no existe.** Se apagó el 2026-09-21: 34 nodos y 885 KB borrados, más su `src/`,
+`dist/` y sus 16 herramientas. Lo que valía graduó a **canon** (el corpus compartido, en
+`github/playground/tools/canon`), las trampas del sistema viven en `tablero/data/trampas/`, y las
+cuatro herramientas que estaban ahí de prestado se mudaron a la carpeta que las usa. Esta tarea pasa
+a ser el REGISTRO de cómo se hizo; lo que quede por hacer de contexto es de canon y va en su tarea.
 
 Esta es la única tarea local de `context`. Los 39 nodos fueron re-verificados contra `main`; 38 están
 sellados y `findings` permanece deliberadamente sin sello porque una validación parcial no debe
@@ -71,6 +73,48 @@ hace más difícil de revisar. Conviene abrirlo pronto.
 corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
+
+### 2026-09-21 · el árbol se apagó
+
+**Antes de borrar, la comprobación.** El barrido ya había clasificado los 34 nodos (15 revisados, 8
+estructurales, 11 de puro formato), pero 20 no llevaban marca de destino en su texto. Se les
+extrajeron las **120 secciones propias** y se le preguntó a canon por cada una. Todas las que no
+matchean son la misma: **«Lo que NO está verificado»**, que es formato del árbol y que canon rechaza
+por definición —su regla de admisión es lo que existe en `main`—. La única sustantiva fue «El dolor
+en una frase» de `hardcodes-entidades`.
+
+> **MEDICIÓN · 2026-09-21** — esa sección afirmaba que sumar una entidad con un flujo distinto
+> **obliga a tocar tres repos** (`application` + `legacy-backend` + `frontend-monorepo`). Medido:
+> son **DOS**. Los 409 lugares donde el código decide por identidad están en `legacy-application`
+> (221) y `legacy-backend` (188); en el front, **cero** — y el escáner sí mira el front, con el
+> patrón `lenderId === <n>`. ⚠ Lo honesto es «cero con ESE patrón», no «el front no tiene»: podría
+> quemar por slug o por nombre. **Por eso la sección no graduó y no hace falta que gradúe**: la
+> pregunta la contesta `workers/cli.py quemado` midiendo, y una copia en prosa sería un número
+> horneado — justo lo que la compuerta de canon bloquea. Reproducible: `workers/cli.py quemado`.
+
+**Lo borrado:** `context/` entero. Con él se van sus 14 comandos `make context-*`, el hook
+`oraculo.py` (PostToolUse sobre los `map.json`), y **Jev**: su corpus era 100 % los nodos
+—`tree.json` + `server/data/flows/*`, y no nombra canon ni una vez—, así que `route` y `brief` se
+quedaron sin a qué rutear. Lo que hacía ya lo hace canon mejor y gratis. ⚠ El `tablero/tools/jev.py`
+es OTRO y sigue: tría tareas, no toca el corpus.
+
+**Lo que se arregló al pasar:** las cuatro herramientas de estilo enumeraban `context/src` y el
+puerto :5193, así que habrían medido una carpeta inexistente; `ui-check.mjs` tenía **dos bloques de
+pruebas y cuatro fixtures** de una UI que ya no existe; y el tablero arrastraba CSS muerto
+(`.task-head-context`, `.ctx-link`) de un markup que se había ido antes. Las citas del mapa del
+trazador al árbol quedaron marcadas como históricas, no colgando.
+
+> **MEDICIÓN · 2026-09-21** — **el chequeo de citas encontró su primer caso real el mismo día en que
+> se le permitió fallar.** Siete citas a `PramiController.php` estaban corridas: seis por +4 líneas
+> (el commit `f4de10d2` del 17/9 le agregó una cabecera) y una porque `rejectWebhook` se movió de
+> `:207` a `:332`. Con el chequeo viejo esto salía por pantalla y `make trampas` daba verde igual.
+> Corregidas las siete; `make trampas` vuelve a 149 citas · 121 ancladas · 0 rotas.
+
+⚠ **Y una del oficio, que costó un commit:** otra sesión commiteó sobre el mismo worktree mientras yo
+trabajaba, y su `git commit` **se llevó mi `git rm -r context/` del índice** — el borrado entero
+quedó dentro de `e985cfc6`, un commit cuyo mensaje habla de otra cosa. El contenido está bien y no se
+reescribe la historia de otra sesión; la lección es la que ya estaba escrita y no apliqué hasta el
+final: **stagear y commitear en el MISMO comando**, nunca en dos pasos.
 
 ### 2026-09-21 · la desconexión, paso 2: las puertas, los comandos y lo que no era del árbol
 

@@ -2,7 +2,7 @@
 
 > ⚠ **Carpeta de EXPLORACIÓN, no de contexto.** Esto es un modelo *deber-ser* que Miguel armó para
 > entender el negocio: **no está validado contra el código** y NO se cita como fuente para decidir.
-> Lo validado vive en `context/`. Este aviso va acá porque este archivo se carga solo al tocar la
+> Lo validado vive en **canon** (`github/playground/tools/canon`). Este aviso va acá porque este archivo se carga solo al tocar la
 > carpeta — sin él, desharía la regla del mapa raíz.
 
 App Vue 3 + Vue Flow que visualiza el **modelo de dominio "deber-ser"** de Creditop.

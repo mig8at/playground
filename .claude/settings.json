@@ -79,13 +79,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/oraculo.py",
-            "args": [],
-            "statusMessage": "Validando las rutas del nodo…",
-            "timeout": 120
-          },
-          {
-            "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/tarea-lint.py",
             "args": [],
             "statusMessage": "Validando la tarea…",
