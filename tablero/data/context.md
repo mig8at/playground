@@ -87,6 +87,11 @@ preguntas al canon real, elegidas para medir cosas distintas:
 Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
 0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
 
+**PR #267: nueve reglas, canon en 420 secciones** — se sumaron las cuatro capas de error del pagaré
+(donde la distinción que más ahorra tiempo es que un rechazo de seguridad y uno de negocio se ven
+igual desde afuera) y que el método de firma es configuración con excepción explícita, no default
+silencioso.
+
 **PR #267: siete reglas, canon en 418 secciones** (una sola rama y un solo commit, se actualiza con
 cada tanda). Se sumaron el efecto de cambiarle el país a una entidad —que la saca del listado de
 todos los comercios del país viejo de una vez— y que el canal de la caja **se cierra de noche y por

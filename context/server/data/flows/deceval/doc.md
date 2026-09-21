@@ -101,7 +101,13 @@ Detrás, cuatro operaciones SOAP encadenadas:
 4. **`signPagare`** — el cliente ingresa el OTP y el título queda firmado y registrado. **Recién ahí se
    desembolsa.**
 
-## Cómo se habilita para un lender (tres piezas, ninguna es código)
+## Cómo se habilita para un lender — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `formalizacion/context` § «Qué método de firma usa una entidad
+> es configuración, y un valor desconocido no pasa en silencio». Los nombres de columnas y el id de
+> la central no se llevaron: son implementación.
+
+### (evidencia) Las tres piezas
 
 1. **Método de firma** — `lenders.promissory_type_id` → `promissory_types.name`. Si vale `deceval`, la
    factory rutea a esta integración; si vale `ownership`, al pagaré tradicional. **Un valor desconocido
@@ -175,7 +181,12 @@ firmado), y los datos de residencia en `user_field_values` (**field 44** direcci
 está ahí, la `<descripcion>` es genérica; (3) cruzar con la tabla de capas; (4) `promissory_notes` para
 saber en qué estado quedó el título.
 
-## Las cuatro capas de error (mirar en este orden)
+## Las cuatro capas de error — GRADUÓ a canon
+
+> **Graduó** (2026-09-21) → canon, `formalizacion/context` § «El pagaré falla en cuatro capas
+> distintas, y hay que mirarlas en ese orden».
+
+### (evidencia) La tabla
 
 | capa | señal | significado |
 |---|---|---|
