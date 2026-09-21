@@ -51,7 +51,7 @@ const ramasLabel = computed(() => {
         <div v-if="temasCanon.length" class="resume-canon">
           <a v-for="tema in temasCanon" :key="tema" :href="canonLink(tema)" target="_blank" rel="noopener"
              class="badge badge-outline resume-tema"
-             :title="`Abrir canon (${tema} todavía no tiene enlace directo)`">{{ tema }} ↗</a>
+             :title="`Abrir «${tema}» en canon`">{{ tema }} ↗</a>
         </div>
         <p v-else class="resume-empty">No hay temas de canon declarados.</p>
       </section>

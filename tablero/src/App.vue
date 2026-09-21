@@ -652,11 +652,17 @@ function irASeccion(id) {
   section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// ⚠ Canon todavía no tiene enlace por tema: su UI no lee la URL. Así que esto abre canon y el nombre
-// del tema queda en el texto del chip y en su title — decirlo es mejor que armar un `?tema=` que el
-// front ignora y deja al que hace clic buscando por qué no pasó nada.
+// Canon SÍ abre por enlace, y el chip lo usa: `?nodo=<tema>/context` deja el tema abierto y su texto a
+// la vista. Con un ancla detrás (`#<seccion>`) abre esa sección sola, que es a donde esto va a crecer
+// el día que una tarea declare secciones y no temas.
+//
+// ⚠ Acá decía que canon «no lee la URL» y era FALSO: lo escribí después de grepear el front y no ver
+// un router, cuando el router está en `src/rutas.js` y además `Sala.vue` observa `route.query.nodo`
+// desde hace semanas. Comprobado en el navegador contra producción el 2026-09-21: la URL abre la
+// sección, muestra su texto y la dirección queda en la barra, o sea que se puede copiar. El costo de
+// aquel error no fue el comentario: fue el chip mandando a la home un día entero.
 const CANON_URL = 'https://canon.playground.creditop.com';
-const canonLink = () => CANON_URL;
+const canonLink = (tema) => `${CANON_URL}/?nodo=${encodeURIComponent(tema + '/context')}`;
 const HARNESS_URL = 'http://localhost:5195';
 const TRAZADOR_URL = 'http://localhost:5192';
 
