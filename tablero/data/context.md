@@ -5,7 +5,7 @@ clase: proyecto
 stage: work
 created: "2026-09-19T08:00:00-05:00"
 context_nodes: []
-ramas: canon/graduar-desde-context
+ramas: canon/graduar-desde-context, canon/graduar-desde-context-2
 jira: []
 jira_title: ""
 ---
@@ -71,6 +71,26 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 ## Registro
 
 ### 2026-09-21 · el plan: context se apaga por graduación a canon
+
+**PR #266 MERGEADO y VALIDADO CONTRA PROD.** Las 16 reglas están desplegadas y se probaron con dos
+preguntas al canon real, elegidas para medir cosas distintas:
+
+- *«¿por qué el backoffice dice que esta entidad no está lista para operar?»* → contestó **bien y
+  completo** (los tres chequeos que bloquean), o sea que la sección **es alcanzable**. Pero salió
+  `respaldada=false` con cero citas: es el bug conocido del rebote por titular largo, **no** un
+  problema de la redacción. Confirmado en vivo.
+- *«una fecha se ve cinco horas antes, a veces en el día anterior»* → **`respaldada=true`, con la
+  cita exacta**. Era la prueba dura: esa regla la gradué a `datos`, un tema DISTINTO del que la
+  originó, y el modelo la encontró igual. **El criterio de «graduar al tema donde alguien la
+  buscaría» funciona**, y eso valida cómo vengo repartiendo.
+
+Detector del despliegue, gratis y determinista: `curl -s …/api/index | grep -c '<ancla>'` — pasa de
+0 a 1 cuando prod ya lo tiene. Tardó unos diez minutos desde el merge.
+
+**Segundo PR abierto en rama propia** (`canon/graduar-desde-context-2`, desde `main` ya al día) con
+dos reglas más: el ambiente de pruebas donde conviven usuarios reales —con la lista de números
+propios que gana por sufijo antes de la validación— y las cuatro etapas del preaprobado, que el
+servicio **no** reintenta solo. Canon en **413 secciones**.
 
 **La medida real de lo que falta: 120 SECCIONES PROPIAS en 34 nodos** (sin contar «Qué es»,
 «Contenido», «Dónde mirar» y demás formato). No 2.900 términos: esa métrica medía implementación.
