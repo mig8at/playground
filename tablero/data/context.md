@@ -74,6 +74,22 @@ corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
 
+### 2026-09-21 · lo que el borrado rompió, y por qué apareció recién al final
+
+⚠ **El Jev del TABLERO quedó roto por un archivo que no era suyo.** `tablero/tools/jev.py` importaba
+`jev_transport.py` desde `context/tools/` —el transporte se llamaba «compartido» porque lo usaban los
+dos laboratorios—, así que al borrar el árbol se fue con él. La prueba lo cazó en el acto
+(`Ran 1 test … FAILED`), pero **la corrida anterior había dicho OK con 8 tests y yo no miré el
+número**: el aviso estaba en el conteo, no en la palabra. Recuperado del historial y puesto donde
+vive su único consumidor, la suite vuelve a 8. Y su `--env-file` apuntaba a `context/.env`, que
+también se fue: ahora es el `.env` de la raíz.
+
+**Lo demás que apuntaba al vacío y se reapuntó:** el texto que IMPRIME `make hoy` («gradúa a
+context/»), el detalle que imprime `workers negocio`, la plantilla de tarea, `tablero/docs/
+ARQUITECTURA.md`, el README del tablero (incluidos los enlaces «Contexto local», que abrían :5193) y
+una docena de docstrings en `workers`. Las notas que dicen «vivía en `context/` hasta el 2026-09-21»
+se dejan a propósito: son procedencia, no punteros.
+
 ### 2026-09-21 · el árbol se apagó
 
 **Antes de borrar, la comprobación.** El barrido ya había clasificado los 34 nodos (15 revisados, 8

@@ -1,6 +1,6 @@
 """El mapa de FLUJOS: qué sabe probar el harness, y contra qué.
 
-QUÉ APORTA QUE NINGÚN OTRO MAPA TIENE. `context/` dice cómo funciona, `logs.json` qué dejó rastro,
+QUÉ APORTA QUE NINGÚN OTRO MAPA TIENE. Canon dice cómo funciona, `logs.json` qué dejó rastro,
 `archivos.json` qué significa un archivo. Ninguno sabe **qué es DEMOSTRABLE corriéndolo** — y eso vive
 sólo en `harness/`, en los nombres de sus tests.
 
@@ -18,7 +18,7 @@ calidad del nombre**. Un test mal nombrado produce una entrada inútil, y renomb
 No es un defecto que se pueda arreglar acá: es una propiedad de la fuente, y conviene saberla al leer.
 Medido hoy: mediana de 64 caracteres por escenario, mínimo 18 — o sea que el equipo los nombra bien.
 
-⚠ Y LO CONSTRUYE `workers`, NO `harness`, siguiendo la regla que ya rige con `context/`: workers LEE
+⚠ Y LO CONSTRUYE `workers`, NO `harness`, siguiendo la regla que ya rige con canon: workers LEE
 las otras herramientas y no escribe en ellas. El harness sigue siendo dueño de sus specs; acá sólo se
 derivan. Si un spec cambia de nombre, se reconstruye y listo.
 
@@ -125,7 +125,7 @@ def codigos_sin_prueba(desde="24h", target="prod"):
 # la versión escrita sería una creencia, mientras que ésta es evidencia.
 #
 # Lo que SÍ conviene escribir a mano es lo que no se deriva: qué flujos IMPORTAN y por qué. Eso ya
-# vive en `context/`, y por eso acá no se duplica.
+# vive en canon, y por eso acá no se duplica.
 
 
 def secuencia(mensajes):
@@ -136,7 +136,7 @@ def secuencia(mensajes):
 
     ⚠ Es el recorrido de UNA corrida, no el flujo canónico. Dos solicitudes del mismo tipo pueden
     diferir —un reintento, un lender distinto—, así que esto describe lo que pasó, no lo que debería
-    pasar. Para lo segundo está `context/`, que es donde vive el deber ser verificado.
+    pasar. Para lo segundo está canon, que es donde vive el deber ser verificado.
     """
     fuera, vistos = [], set()
     for m in mensajes:

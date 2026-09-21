@@ -13,8 +13,7 @@ import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 PLAYGROUND = ROOT.parent
-CONTEXT_TOOLS = PLAYGROUND / 'context' / 'tools'
-sys.path.insert(0, str(CONTEXT_TOOLS))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from jev_transport import JevError, MODEL, request_json, token_from  # noqa: E402
 
@@ -266,7 +265,7 @@ def main(argv=None):
                         help='Confirmar que título y próximo paso internos pueden salir a TypeSafe')
     for command in (bench, triage):
         command.add_argument('--live', action='store_true')
-        command.add_argument('--env-file', type=Path, default=PLAYGROUND / 'context' / '.env')
+        command.add_argument('--env-file', type=Path, default=PLAYGROUND / '.env')
         command.add_argument('--model', default=MODEL)
     label = sub.add_parser('label', help='Registrar el juicio humano de una retoma, sin llamar a Jev')
     label.add_argument('report', type=Path)

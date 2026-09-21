@@ -139,7 +139,7 @@ def buscar_en_codigo(patron, alias, subruta=""):
     # nadie actualiza va detrás del remoto (medido el 2026-09-18: cinco de diez repos, hasta 22
     # commits), y grepear ahí devuelve MENOS resultados — que se leen igual que «no existe». Acá NO se
     # hace fetch: esto es interactivo y pagar segundos de red por consulta es peor negocio. Ver
-    # `context/tools/roots.py`.
+    # `tools/repos.py`.
     ref, _ = ref_a_indexar(ROOTS[alias])
     cmd = ["git", "-C", ROOTS[alias], "grep", "-n", "--no-color", "-F", patron, ref]
     if subruta:

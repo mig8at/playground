@@ -7,7 +7,7 @@ El tablero tiene dos entradas para el mismo trabajo:
 | Decidir qué mover hoy | interfaz Vue | archivos en `data/` + estado actual de Jira |
 | Retomar una tarea o automatizarla | `make hoy` / `make retomar` | el mismo Markdown en `data/` |
 | Compartir trabajo con el equipo | Jira | sólo `jira_title` y `## Tarea (publicable)` |
-| Entender el sistema estable | `../context/` | nodos curados contra `main` |
+| Entender el sistema estable | **canon** (`github/playground/tools/canon`) | temas curados contra `main`, compartidos con el equipo |
 
 ## Datos y fronteras
 

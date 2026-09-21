@@ -6,15 +6,15 @@
     python3 indice.py puente             # cobertura del árbol de negocio por repo
     python3 indice.py check              # ¿todas las rutas existen en main?
 
-POR QUÉ VIVE APARTE DE `context/` — son dos preguntas distintas y se notó al chocar dos veces:
-`context/` contesta «cómo FUNCIONA CreditOp» (negocio, entra por síntoma); esto contesta «cómo están
+POR QUÉ VIVE APARTE DEL CORPUS — son dos preguntas distintas y se notó al chocar dos veces:
+canon contesta «cómo FUNCIONA CreditOp» (negocio, entra por síntoma); esto contesta «cómo están
 CONSTRUIDOS los proyectos» (arquitectura, entra por repo). Y las reglas difieren: `oracle.py` dropea
 `.md`, `.sql` y `.yaml` a propósito, porque el mapa de un nodo indexa CÓDIGO; acá el `composer.json`,
 el `turbo.json`, el `openapi.yaml` y el ADR **son** la respuesta. Distinta pregunta, distinta regla,
 validador propio — que es este archivo.
 
-LA DEPENDENCIA VA EN UN SOLO SENTIDO: este proyecto lee `context/` (su `roots.py` y sus `map.json`),
-y `context/` no sabe que esto existe. Misma regla que la del tablero con los nodos: el enlace
+LA DEPENDENCIA VA EN UN SOLO SENTIDO: este proyecto lee canon (sus `map.json`, por `tools/canon.py`),
+y canon no sabe que esto existe. Misma regla que la del tablero con los temas: el enlace
 unidireccional evita que al mover una pieza quede la otra mintiendo.
 
 `check` sale 1 si hay rutas muertas: un índice que apunta a un archivo que ya no está es peor que no
@@ -57,7 +57,7 @@ def tamanos(alias):
     # ⚠ La ref no es literalmente `main`: es la que CONTIENE a la otra (`ref_a_indexar`). Un `main`
     # local que nadie actualiza va detrás del remoto —medido el 2026-09-18: cinco de diez repos, hasta
     # 22 commits— y ahí el árbol sale con MENOS archivos, que se lee igual que «esa ruta no existe».
-    # Sin fetch: esto es interactivo. Ver `context/tools/roots.py`.
+    # Sin fetch: esto es interactivo. Ver `tools/repos.py`.
     ref, _ = ref_a_indexar(root)
     r = subprocess.run(["git", "-C", root, "ls-tree", "-r", "-l", ref],
                        capture_output=True, text=True, timeout=180)

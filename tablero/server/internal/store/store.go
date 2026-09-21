@@ -3,7 +3,7 @@
 // POR QUÉ ARCHIVOS. Eran 44 filas en SQLite con un WAL de 1,9 MB para 139 KB de datos, pero el tamaño no
 // es la razón: `tech_notes` —el detalle técnico de una tarea— sólo se podía leer POR API, así que el
 // tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
-// `context/` es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
+// una tarea es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
 // UNA TAREA DE JIRA = UN ARCHIVO, suelto en `data/<tarea>.md`. El trabajo local se concentra en siete
 // contenedores permanentes (una herramienta por archivo y playground para lo transversal), validados

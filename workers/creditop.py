@@ -7,7 +7,7 @@ acá significa algo: un archivo deja de ser «tiene 20 funciones» y pasa a ser 
 escribe en user_requests y emite QUOTA_CHECK_REJECTED».
 
 POR QUÉ SEPARADO Y NO ADENTRO: si el conocimiento de negocio se mete en el extractor, éste deja de ser
-reusable y —peor— se vuelve un SEGUNDO lugar donde vive ese conocimiento, compitiendo con `context/`.
+reusable y —peor— se vuelve un SEGUNDO lugar donde vive ese conocimiento, compitiendo con canon.
 Acá el diccionario está aparte (`creditop.json`), declara de qué nodo salió cada grupo, y ante una
 diferencia manda el nodo.
 

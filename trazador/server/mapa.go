@@ -7,7 +7,7 @@
 //  2. Una regex amplia pisa dos etapas y no hay forma de auditarlo. Como dato, se puede verificar que
 //     ningún patrón capture mensajes de otra etapa (ver `Validar`).
 //
-// Es el mismo movimiento que ya está hecho en `context/`: el conocimiento vive en `map.json` + `doc.md` y
+// Es el mismo movimiento que hace canon: el conocimiento vive en `map.json` + `doc.md` y
 // las herramientas lo leen. Acá el equivalente son `mapa/etapas.json` (qué mensajes marcan cada etapa) y
 // `mapa/ramales.json` (qué etapas aplican a cada variante de flujo).
 //

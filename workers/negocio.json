@@ -8,14 +8,14 @@
     "salen de entender el negocio. Todo lo demás —qué tabla, qué nodo, cuántos archivos lo tocan—",
     "se resuelve al vuelo contra los otros mapas, así que acá NO se copia y no puede quedar viejo.",
     "",
-    "⚠ NO REEMPLAZA A `context/`. Acá va UNA LÍNEA por concepto: la que ubica. El detalle, las",
+    "⚠ NO REEMPLAZA A CANON. Acá va UNA LÍNEA por concepto: la que ubica. El detalle, las",
     "trampas y lo verificado viven en el nodo, y por eso cada entrada dice cuál es."
   ],
   "_como_leerlo": {
     "n": "el nombre canónico, en español — el que usa el negocio",
     "codigo": "cómo se llama en el código (inglés). Es el puente que evita buscar en el idioma equivocado",
     "tabla": "dónde vive el dato, si vive en una",
-    "nodo": "qué nodo de context/ lo explica en serio",
+    "nodo": "qué tema de canon lo explica en serio",
     "es": "sinónimos que se oyen en reuniones y en tickets",
     "fase": "el tramo del recorrido — agrupa, y es lo que hace legible el nivel general",
     "acciones": "el SEGUNDO EJE: qué HACE el sistema, no de qué habla. Los conceptos son sustantivos y no alcanzan —«validar credenciales» y «enviar OTP» no son cosas, son actos—. Los patrones salieron de mirar qué palabras usan los 1.576 mensajes que el corpus ya tiene, no de imaginarlas.",

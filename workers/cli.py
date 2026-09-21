@@ -567,7 +567,7 @@ def main():
                         tr = _neg.trazable(c) or {}
                         print(f"      tabla:    {c['tabla']}  ·  {tr.get('archivos', 0)} archivos la tocan"
                               f"  ·  {tr.get('con_logs', 0)} dejan rastro en prod")
-                    print(f"      detalle:  context/…/flows/{c['nodo']}/doc.md"
+                    print(f"      detalle:  canon, tema «{c['nodo']}»"
                           f"  ({c.get('archivos_del_nodo', 0)} archivos)")
                 print()
             return 0

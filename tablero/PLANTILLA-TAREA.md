@@ -29,7 +29,7 @@ jira_title: ""
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
   Reescribí el estado y el plan; mantené el material reproducible. Los hechos de cada día se agregan
-  al Registro (lo nuevo arriba, sin editar lo viejo). El conocimiento estable gradúa a context/.
+  al Registro (lo nuevo arriba, sin editar lo viejo). El conocimiento estable gradúa a canon.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
 <!--
@@ -142,7 +142,7 @@ jira_title: ""
 
 ## Referencias
 
-<!-- Nodos de contexto, PRs y enlaces útiles para retomar. El conocimiento estable vive en context/;
+<!-- Temas de canon, PRs y enlaces útiles para retomar. El conocimiento estable vive en canon/;
      acá sólo se enlaza. No copies el historial dentro de esta sección.
      ⚠ La llena 1 de 68 tareas, así que si está vacía no es que sobre: es que se olvida. Los nodos que
      de verdad hay que leer van igual en `canon:` del frontmatter, que es lo que el tablero

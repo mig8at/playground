@@ -502,7 +502,7 @@ func imprimirFila(f fila, detalle bool) {
 //	2 PLAN        objetivo, cómo se ataca → se REESCRIBE      «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
 //	3 MATERIAL    recetas, consultas, datos de prueba, esquemas → se MANTIENE (se corrige, no se apila)
 //	4 REGISTRO    qué pasó ese día       → se APILA          «Registro»
-//	5 CONOCIMIENTO cómo funciona el sistema → GRADÚA a context/
+//	5 CONOCIMIENTO cómo funciona el sistema → GRADÚA a canon
 //
 // Lo que se apila en el estado casi siempre es 4 disfrazado de 3. ⚠ Pero tener fecha NO alcanza para
 // condenar una sección: «Cómo se prueba, de cero (verificado el 2026-08-20)» es MATERIAL vigente y la
@@ -576,7 +576,7 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 
 	fmt.Printf("\n  ANATOMÍA · qué hay dentro del archivo de cada tarea, y qué parece estar fuera de lugar\n")
 	fmt.Printf("  Un archivo tiene ESTADO (se reescribe) · MATERIAL (se mantiene) · REGISTRO (se apila) ·\n")
-	fmt.Printf("  y lo que es CONOCIMIENTO gradúa a context/. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbIncomodo)
+	fmt.Printf("  y lo que es CONOCIMIENTO gradúa a canon. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbIncomodo)
 	for _, f := range filas {
 		marca := " "
 		switch {
@@ -592,7 +592,7 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 			for _, e := range f.ejemplos {
 				fmt.Printf("           · %s\n", corta(e, 86))
 			}
-			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a context/); no → Registro\n")
+			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a canon); no → Registro\n")
 		}
 		if f.kb >= kbIncomodo && f.pReg > 50 {
 			fmt.Printf("        · el Registro es el %d%%: es append-only a propósito, pero a este tamaño conviene cerrar el mes viejo\n", f.pReg)
@@ -606,7 +606,7 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 // sí mismo, leído de su `map.json`.
 //
 // ⚠ NO SE LE PIDE A UN MODELO, Y ESE ES EL CAMBIO. Hasta el 2026-09-21 la ficha era un resumen que
-// generaba Jev sobre el doc de un nodo de `context/`: costaba una llamada, tardaba, y podía decir algo
+// generaba Jev sobre el doc de un nodo del árbol de contexto: costaba una llamada, tardaba, y podía decir algo
 // que el doc no dijera. Un tema de canon ya viene con el resumen ESCRITO A MANO —`title`, `summary`, y
 // el `objetivo` de cada área, que es literalmente «qué contesta esta parte»—, así que la ficha se
 // DERIVA. Sale gratis, es instantánea, y no puede inventar. Medido ese día: la ficha de `kyc` pesa

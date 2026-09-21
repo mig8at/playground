@@ -2817,7 +2817,7 @@ function documentAction(id) {
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
-/* Un nodo de `context/` es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
+/* Un tema de canon es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
 /* Datos que identifican el trabajo actual. Viven junto al título porque siguen siendo ciertos al
    cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
 .task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }

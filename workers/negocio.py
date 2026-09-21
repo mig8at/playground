@@ -2,7 +2,7 @@
 
 POR QUÉ EXISTE, teniendo ya tres vocabularios. `creditop.json` traduce ids a nombres (lender 24 =
 Credifamilia), el `GLOSARIO_NEGOCIO` de `indice.py` traduce español a código (cupo →
-available_amount), y los 38 nodos de `context/` explican cada área en profundidad. Ninguno contesta
+available_amount), y los temas de canon explican cada área en profundidad. Ninguno contesta
 la pregunta de quien llega: **¿cuáles son los conceptos, en qué orden se encadenan, y dónde miro
 cada uno?**
 
@@ -10,7 +10,7 @@ cada uno?**
 el nodo existe, cuántos mensajes de log la nombran— se resuelve al vuelo contra los otros mapas. Por
 eso `negocio.json` es corto y no puede quedar viejo: lo que envejece no está escrito ahí.
 
-⚠ Y NO REEMPLAZA A `context/`: acá va UNA LÍNEA por concepto, la que ubica. El detalle y las trampas
+⚠ Y NO REEMPLAZA A CANON: acá va UNA LÍNEA por concepto, la que ubica. El detalle y las trampas
 viven en el nodo, y cada entrada dice cuál.
 
     ./cli.py negocio --zoom 1   el recorrido en una pantalla: sólo los nombres, agrupados por fase

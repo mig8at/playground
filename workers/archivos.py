@@ -8,7 +8,7 @@
       "tablas": ["lender_users_categories", "users_category_log"],
       "marcas": ["CATEGORY_RULE_REJECTED"],
       "gates": true, "tipo": ["service"],
-      "nodos": ["profiling", "creditopx"],    <- qué nodos de context/ lo citan
+      "nodos": ["listado", "creditopx"],      <- qué TEMAS de canon lo declaran
       "notas": []                             <- lo curado a mano, si algún día hace falta
     }
 
@@ -216,7 +216,7 @@ def sin_rastro(solo_logica=True):
     """EL CRUCE que ningún mapa contesta solo: qué archivos el NEGOCIO documenta y NO dejan rastro
     en producción — o sea, código que importa y es invisible en Loki.
 
-    Sale de juntar tres mapas por la ruta: `context/` dice qué archivos describe un nodo (`nodos`),
+    Sale de juntar tres mapas por la ruta: canon dice qué archivos declara un tema (`nodos`),
     `logs.json` dice cuáles emiten mensajes (`loguea`), y este diccionario dice de qué tipo es cada
     uno. Ninguno de los tres lo sabe por su cuenta.
 

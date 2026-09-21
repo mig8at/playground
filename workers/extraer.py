@@ -341,7 +341,7 @@ def _blobs(alias, subruta="", tope_archivos=4000, solo_rutas=None):
     # ⚠ La ref NO es literalmente `main`: es la que CONTIENE a la otra (`ref_a_indexar`). El `main`
     # local de un clon que nadie actualiza va detrás del remoto —medido el 2026-09-18, cinco de diez
     # repos, hasta 22 commits— y leer ahí devuelve MENOS archivos, que se lee igual que «no existe».
-    # Sin fetch a propósito: esto es interactivo. Ver `context/tools/roots.py`.
+    # Sin fetch a propósito: esto es interactivo. Ver `tools/repos.py`.
     ref, _ = ref_a_indexar(root)
     r = subprocess.run(["git", "-C", root, "ls-tree", "-r", ref] + ([subruta] if subruta else []),
                        capture_output=True, text=True, timeout=180)

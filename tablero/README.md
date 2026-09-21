@@ -1,7 +1,7 @@
 # tablero — LAS TAREAS A REALIZAR (y el sprint: tiempo, bitácora, conectores Jira/Slack)
 
 > **Qué contesta este proyecto:** *¿en qué se está trabajando, por qué y para qué?*
-> Lo que contesta *¿cómo **es** CreditOp?* es `context/`, y son cosas distintas: si algo **sigue siendo
+> Lo que contesta *¿cómo **es** CreditOp?* es **canon**, y son cosas distintas: si algo **sigue siendo
 > cierto después de mergear**, es contexto; si deja de tener sentido porque hablaba de una decisión, un
 > riesgo o una pregunta abierta, es tarea y va acá.
 
@@ -36,7 +36,7 @@ El triage real solo extrae título, etapa, días sin tocar, próximo paso, conte
 pendientes, y nombres de piezas faltantes. Omite id, slug, cuerpo, registro, preguntas, pendientes,
 ramas y bitácora. Aun así, título y próximo paso son información interna; por eso `--live` se niega a
 enviarlos si la misma invocación no incluye `--allow-internal`. La clave se reutiliza desde
-`context/.env`. Los reportes quedan locales, ignorados por Git y con permiso `0600` en
+el `.env` de la raíz del playground. Los reportes quedan locales, ignorados por Git y con permiso `0600` en
 `tablero/.runs/jev/`.
 
 ### Orientación en la interfaz
@@ -88,7 +88,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 - Los sidebars y la consola recuerdan sus medidas. Sus separadores se arrastran y también responden a
   las flechas cuando reciben foco.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
-- Los enlaces **Contexto local** abren los nodos de `../context/` en `localhost:5193`, no canon.
+- Los enlaces de la retoma abren **canon** (canon.playground.creditop.com). ⚠ Canon todavía no tiene enlace por tema: su UI no lee la URL, así que el nombre del tema queda en el chip y en su `title`.
   Levantá esa vista con `make context` desde la raíz del playground, en otra terminal; `make tablero`
   sólo levanta el tablero. Los enlaces usan `?node=<id>` para seleccionar el nodo exacto.
 - **Trabajo** muestra la retoma una sola vez, junto al plan, el material y las referencias. Las listas
@@ -410,7 +410,7 @@ sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrad
 normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.
 
 **Por qué archivos y no una base:** para que el detalle técnico de una tarea se lea **sin levantar
-nada** —como `context/`, que es markdown que lee cualquiera— y para que los esfuerzos tengan **historia
+nada** —markdown que lee cualquiera— y para que los esfuerzos tengan **historia
 en git**. Una base devolvería el tablero al único rincón del playground que exige un server para leerse.
 
 ### La tarea: un solo archivo suelto en `data/`, con la frontera del guard adentro
@@ -467,7 +467,7 @@ Dos cosas más, que son de higiene y no de mecánica:
 
 - **Lleva la fecha adentro, visible.** Un prototipo sin fecha se lee como estado actual; con fecha se
   lee como lo que es: lo que se acordó ese día.
-- **No gradúa a `context/`.** Cuando la tarea se archiva, el prototipo se archiva con ella. Describe
+- **No gradúa a canon.** Cuando la tarea se archiva, el prototipo se archiva con ella. Describe
   lo que se propuso, no cómo funciona CreditOp — y un prototipo viejo en el árbol de contexto miente
   con mucha convicción. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 
