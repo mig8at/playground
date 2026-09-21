@@ -19,14 +19,49 @@ tarea de playground.
 Lo último: el segundo juego, un **dictado de inglés con tres niveles**, **mergeado y en producción**
 desde el 2026-09-21 (PR #260).
 
-El banco pasó a ser **el definitivo: 450 palabras, 150 por nivel** (PR #261, abierto y sin mergear).
+El banco es **el definitivo: 450 palabras, 150 por nivel** (PR #261, mergeado y en producción), y
+desde el PR #263 una palabra se aprende **en tres días distintos**, no en tres veces.
 
 **El próximo paso es:** decidir si hace falta **progresión entre niveles**, que es lo único que quedó
-sin hacer del pedido. Hoy los tres están abiertos desde el primer día y terminar uno no desbloquea ni
+sin hacer del pedido original. Hoy los tres están abiertos desde el primer día y terminar uno no desbloquea ni
 sugiere nada: sólo se marca Completed y se le apaga el botón. Hay dos formas y son distintas —
 bloquear los siguientes hasta terminar el anterior, o dejarlos abiertos y sólo empujar al siguiente al
 completar uno— y la segunda es menos frustrante para quien ya sabe inglés y quiere ir directo al
 avanzado.
+
+## Días, no veces (2026-09-21, PR #263)
+
+Salió de la misma conversación: Miguel preguntó si el juego sirve de verdad para mejorar el inglés, y
+la respuesta honesta fue que mueve una sola aguja —el paso de sonido a escritura— y que además tenía
+un defecto que la anulaba: **no había espaciado**. Medido: tres vueltas seguidas, diez minutos, y
+veinte palabras quedaban aprendidas para siempre. La herramienta no las volvía a preguntar nunca,
+porque para ella ya estaban.
+
+Ahora una palabra se aprende **acertándola en tres días distintos**. Diez aciertos de la misma tarde
+son un día. El piso de un nivel pasó a ser tres días, pase lo que pase.
+
+### Las tres decisiones que lo sostienen
+
+- **El día lo decide el servidor, y es el de Colombia con offset fijo.** En UTC, practicar a las 7 de
+  la tarde en Bogotá ya es el día siguiente, así que dos vueltas de la misma noche contarían como dos
+  días y la regla se cae. Y va fijo en −5 porque **alpine no trae la base de zonas horarias**:
+  `LoadLocation` anda en tu máquina y falla en el cluster.
+- **Lo acertado hoy va al FONDO de la tanda.** Sin esto la segunda vuelta del día devuelve las mismas
+  veinte palabras, ninguna avanza, y la herramienta parece rota estando perfecta. Al fondo y no
+  afuera, y marcadas, para que la pantalla explique por qué no suman.
+- **La regla se ve en pantalla** (`day 2 of 3`). Una regla invisible es una rareza.
+
+### Y lo que se decidió NO hacer
+
+La **cola de repaso** —que una palabra aprendida vuelva a los 7, 30 y 90 días— quedó afuera a
+propósito, porque cambia el producto y no sólo la medición: el repaso espaciado de verdad no termina
+nunca, y eso choca con querer que un nivel se pueda terminar. Si se hace, la salida es separar dos
+números: «aprendidas», que sólo sube y completa el nivel, y «para repasar hoy», que es una cola aparte
+que no toca la barra.
+
+⚠ **Y el riesgo de lo que ya se hizo, para tenerlo a la vista:** esto convierte el juego en una
+herramienta de hábito diario. Si el equipo lo abre una vez al mes, **nadie completa un nivel nunca**, y
+eso se va a sentir peor que antes. Vale medirlo antes de agregar nada más.
 
 ## El banco definitivo (2026-09-21, PR #261)
 
@@ -75,8 +110,8 @@ Lo que hay hoy, todo verificado corriendo:
   significado: `island` es intermedio por su `s` muda y `house` es de principiante. El nivel avanzado
   mezcla las clásicas (`accommodate`, `queue`, `colonel`) con las del oficio (`underwriting`,
   `delinquency`, `disbursement`).
-- **Aprendida a las tres veces bien**, y ahí **deja de salir**. Medido por el navegador: tres vueltas
-  de 20 palabras dejaron `aprendidas=20` y la tanda siguiente ya no las ofrece.
+- **Aprendida a los tres DÍAS distintos**, y ahí **deja de salir** (PR #263; al principio eran tres
+  veces, y eso resultó ser memoria corta).
 - **El banco vive en el tablero**, o sea en Postgres cuando el despliegue lo trae. El código es la
   migración y **reemplaza** lo guardado en vez de completarlo — es la lección que ya pagó el impostor,
   donde sumar sin reemplazar dejó quince palabras que nadie podía borrar.
@@ -142,6 +177,11 @@ cookie y nunca del cuerpo (igual que el impostor). Se comprobó que **niega sin 
 mensaje correcto; el camino de guardado quedó probado en local y por las pruebas, no contra prod.
 
 ## Registro
+
+**2026-09-21** — La regla pasó a contar días distintos (PR #263). Reloj inyectable para poder
+probarla, y comprobado también contra la herramienta corriendo, moviendo la fecha del documento entre
+arranques: tres aciertos seguidos dejan `dias: 1`; uno al día siguiente la lleva a 2; al tercero queda
+aprendida y desaparece de la tanda.
 
 **2026-09-21** — Mudado el inglés a los games de cuadrilla y podado a sólo dictado, con niveles,
 banco en el tablero y la regla de las tres veces. **PR #260 mergeado por Miguel** y desplegado; el
