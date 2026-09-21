@@ -97,7 +97,15 @@ eso: que revisen **#1441**, que ya lleva sus dos cosas.
       Reportado por Duncan el 21/9 como «al cambiar cuotas no cambia la cuota» — el plazo sí
       recalcula (medido: 6 → $264.970, 3 → $515.541); lo que no hay es números que mirar.
 
-- [ ] **Forzar el redespliegue de `legacy-backend-qa` — el BACKEND, no el front.** Redesplegar el front
+- [ ] **Averiguar con infra QUÉ backend y QUÉ base usa `originaciones-qa`** — no es ninguno de los
+      alcanzables por VPN: la solicitud 502621, que el front renderiza, no existe en `inertia-dev` ni
+      la conoce ningún backend de los cuatro. Hasta saberlo no se puede decir si #1441 le llegó.
+      Depende de: infra.
+- [ ] **Corregir `harness/.env.qa`: su `E2E_DB_HOST` apunta a `inertia-dev` y eso ya no es la base de
+      `qa`.** Por eso la corrida del arnés contra `qa` muere en el OTP. Y sumar al arnés el chequeo que
+      lo habría cazado: crear un id y preguntarle al backend si lo conoce.
+- [ ] ~~**Forzar el redespliegue de `legacy-backend-qa` — el BACKEND, no el front.**~~ *(descartado:
+      el razonamiento se apoyaba en comparar dos backends distintos.)* Redesplegar el front
       el 21/9 a las 19:5x no cambió nada, y el front no cachea (tres peticiones, tres respuestas
       distintas). Sirve una imagen anterior a #1441. Medido el
       21/9: el mismo endpoint devuelve `lock_amount = true` pidiéndoselo directo y `false` cuando lo
@@ -416,6 +424,56 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
   llegó a `main`).
 
 ## Registro
+
+### 2026-09-21 (10) · CORRECCIÓN: `qa` no usa la base que creíamos, y por eso todo lo medido apuntaba mal
+
+⛔ **La entrada (6) decía que el servicio `legacy-backend-qa` servía una imagen vieja. Es FALSO, y el
+método que lo produjo también: todo lo que medí «directo contra el backend de qa» fue contra un
+backend que el front NO usa.**
+
+**Lo que lo destapó:** Miguel creó una solicitud nueva en `qa` —**502621**, monto 2.000.000— y el
+front la renderiza con sus dos entidades (CrediPullman 77 y Cierre X 201). Pero:
+
+    SELECT MAX(id) FROM user_requests   →  502619     (base `inertia-dev`, la que dice `.env.qa`)
+    502621                              →  NO EXISTE
+
+Y ninguno de los cuatro backends alcanzables por VPN la conoce:
+
+| host | ¿conoce 502621? |
+|---|---|
+| `legacy-backend-qa` | no |
+| `legacy-backend` | no |
+| `legacy-backend-lab` | no |
+| `legacy-backend-stg` | no |
+
+⇒ **El front de `originaciones-qa` habla con un backend que tiene OTRA base de datos**, y no es
+ninguno de los que se alcanzan desde acá con esos nombres. La hipótesis más probable es que
+`legacy-backend-qa.inertia-develop` **resuelva distinto desde adentro del cluster que por la VPN**:
+el mismo nombre, dos servicios.
+
+**Qué se cae de lo dicho antes, y qué se sostiene:**
+
+- ⛔ Se cae «el servicio sirve una imagen anterior a #1441». Nunca hubo evidencia de eso: la
+  comparación era entre dos backends distintos.
+- ⛔ Se cae el razonamiento del `1,3,6` como discriminador. Producía `qa`… pero de la OTRA instancia,
+  que también corre código de `qa` sobre otra base.
+- ✔ Se sostiene que **el código funciona**: probado en local de punta a punta, tienda `readOnly: true`
+  contra autogestión `readOnly: false` en la misma sucursal.
+- ✔ Se sostiene que **el front de `qa` recibe `lock_amount: false`**, o sea que el backend que sí usa
+  no tiene #1441.
+
+⚠ **Y hay un daño colateral que hay que arreglar: `harness/.env.qa` miente.** Declara
+`E2E_DB_HOST=inertia-dev…` con el comentario «BD/API_KEY son COPIA de dev (comparten base)». Hoy eso
+es falso, y por eso la corrida del arnés contra `qa` de las 20:38Z murió en el OTP: sembraba y
+buscaba en la base equivocada. Es el mismo error que el archivo ya cuenta de sí mismo —«hasta el
+2026-08-19 `.env.staging` apuntaba a qa y medía la rama equivocada»— repetido un nivel más abajo, en
+la base.
+
+⚠ **La lección, y es la misma de siempre en este repo: un nombre de host no es una identidad.** Lo
+que hace falta para no repetirlo es lo que el `CLAUDE.md` del arnés ya recomienda para la RAMA
+—pedir un campo que sólo exista en una— extendido a la BASE: **preguntarle al backend por un id que
+acabás de crear**. Si no lo conoce, no es el tuyo. Cuesta una consulta y habría ahorrado la tarde.
+
 
 ### 2026-09-21 (9) · EL CÓDIGO FUNCIONA: probado en local de punta a punta. Lo que falla es `qa`
 
