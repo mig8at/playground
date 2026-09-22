@@ -1,11 +1,11 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-627-codigo-preaprobado-app
+ramas: feat/CORE-614-codigo-preaprobado-app
 stage: work
 created: "2026-09-21T16:40:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
-jira: [CORE-627]
+jira: [CORE-614]
 jira_title: "Código de preaprobado de la app en la plataforma nueva"
 ---
 
@@ -32,9 +32,11 @@ Validación: la receta y las consultas están en «Cómo se comprueba».
 
 Las dos ramas están abiertas desde `qa`, con su PR en borrador (ver Referencias).
 
-**El próximo paso es:** construir el endpoint del backend en su rama. No depende de la pregunta
-abierta del emisor: lo que esa respuesta bloquea es la prueba punta a punta con un código real, no la
-construcción — para eso alcanza con un código sembrado.
+**El endpoint del backend ya está hecho y corriendo en local** (paso 2 del plan): `POST
+/api/onboarding/client-code/redeem`, con su test y con un mock del servicio de códigos que antes no
+existía. Falta todo el front.
+
+**El próximo paso es:** la pantalla de captura del código en el wizard, que ya tiene a quién llamar.
 
 ## Pendientes
 
@@ -47,6 +49,8 @@ construcción — para eso alcanza con un código sembrado.
       preaprobados (2026-09-21).
 - [ ] Elegir cómo sabe el front que esta solicitud vino por código: sesión del wizard o dato en la
       respuesta del endpoint nuevo; termina cuando el listado recorta sin preguntarle nada al cliente.
+- [x] Construir el endpoint que crea la solicitud desde el código — `POST
+      /api/onboarding/client-code/redeem`, corriendo en local contra el mock (2026-09-22).
 - [ ] Construir la pantalla de captura en el wizard; termina cuando un código válido deja la solicitud
       creada y redirige al listado.
 - [ ] Llevar el filtro de una sola entidad al listado nuevo; termina cuando el listado responde una
@@ -202,6 +206,13 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > pasar por el camino normal de creación. Repetir eso en el backend nuevo salta las reglas que hoy
 > corren al nacer una solicitud; si se reusa el camino normal, hay que verificar que tolere no tener OTP.
 
+> **RIESGO · 2026-09-22** — **en el equipo le dicen «OTP» a este código.** El título original de
+> CORE-614 era «Flujo de otp app para refactor» y su descripción hablaba del «otp generado para el
+> comercio». Pero el flujo entra SIN el OTP de verificación de celular, así que las dos cosas se
+> llaman igual y son distintas: el código del preaprobado y el código de seis dígitos que valida el
+> teléfono. Cualquier texto que diga «sin OTP» necesita decir de cuál habla, o alguien va a leer lo
+> contrario de lo que dice.
+
 > **RIESGO · 2026-09-21** — el flujo entra sin OTP. En aliados eso se resuelve con una marca de sesión;
 > en el wizard hay que darle un equivalente, o la solicitud queda accesible sin que nadie haya probado
 > ser su dueño.
@@ -237,9 +248,47 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
     git -C ~/Desktop/CREDITOP/github/legacy-backend grep -n 'client_code' origin/main -- Modules/Onboarding   # vacío
     git -C ~/Desktop/CREDITOP/github/frontend-monorepo grep -rni 'client-code' origin/main                     # vacío
 
+**Correr el endpoint nuevo de punta a punta, en local.** El servicio de códigos es externo y en
+local no existe, así que hay un mock que lo reemplaza. Cuatro pasos:
+
+    make harness-codes                          # el mock, en :8111 (deja la terminal ocupada)
+    # en el .env de legacy-backend, una sola vez:
+    #   CODE_GENERATION_SERVICE_BASE_URL=http://host.docker.internal:8111
+    docker exec legacy-backend-laravel.test-1 php artisan config:clear
+
+    # sembrar un código: el user_id tiene que ser un usuario REAL de la base local con celular y
+    # correo (el proxy lo verifica contra la BD), y el lender uno habilitado en esa sucursal
+    curl -s -XPOST http://127.0.0.1:8111/_control/sembrar -H 'Content-Type: application/json' \
+      -d '{"code":"4821","user_id":1830684,"lender_id":24,"merchant_id":26}'
+
+    curl -s -XPOST http://localhost/api/onboarding/client-code/redeem -H 'Content-Type: application/json' \
+      -d '{"code":"4821","partner_branch_hash":"76db47f5","amount":1500000}'
+
+⚠ El mock arrancaba en :8110 y hubo que moverlo a :8111 porque el 8110 ya estaba ocupado por otro
+proceso de la máquina. Si el puerto cambia, cambia en los dos lados (mock y `.env` del backend).
+
+**El test del servicio**, con ruta explícita, nunca la suite entera:
+
+    php vendor/bin/phpunit Modules/Onboarding/tests/Unit/ClientCodeRedemptionServiceTest.php
+
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
     make harness-listado COMERCIO=<slug>
+
+> **MEDICIÓN · 2026-09-22** — el endpoint nuevo cierra en local: el código sembrado deja la
+> solicitud **466885** creada con el lender del código (24), estado 9, monto 1.500.000, su traza
+> escrita, y el código marcado como usado en el servicio de códigos. Un segundo intento con el mismo
+> código responde **409** y no crea nada.
+> `curl -s -XPOST http://localhost/api/onboarding/client-code/redeem -d '{"code":"4821","partner_branch_hash":"76db47f5","amount":1500000}' -H 'Content-Type: application/json'` · TARGET=local
+
+> **MEDICIÓN · 2026-09-22** — el listado de esa solicitud devuelve **9 entidades**, y la del código
+> (24, Credifamilia) está entre ellas. Confirma lo decidido: la API no recorta, y el front tiene el
+> dato para hacerlo.
+> `curl -s http://localhost/api/onboarding/loan-application/lenders-v2/466885` · TARGET=local
+
+> **MEDICIÓN · 2026-09-22** — los caminos de error responden como deben, sin crear solicitudes:
+> código que no es de 4 dígitos → 422 · sucursal desconocida → 404 · servicio de códigos caído o sin
+> configurar → se propaga su error tal cual, con el endpoint upstream adentro.
 
 ## Referencias
 
@@ -249,10 +298,16 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
   flujo. Si algo de acá queda en firme, es candidato a graduar.
 - El precedente más cercano en el wizard nuevo es «Confirmación de cupo» (`flowSignatureChoice`), que
   marca una variante de flujo en la sesión del wizard.
-- Jira: [CORE-627](https://creditop.atlassian.net/browse/CORE-627).
-- PRs, los dos en borrador y contra `qa`, rama `feat/CORE-627-codigo-preaprobado-app`:
-  [legacy-backend#1450](https://github.com/Creditop-SAS/legacy-backend/pull/1450) ·
-  [frontend-monorepo#1043](https://github.com/Creditop-SAS/frontend-monorepo/pull/1043).
+- Jira: [CORE-614](https://creditop.atlassian.net/browse/CORE-614), creada por Laura Cabra. Su título
+  y su descripción son hoy los de esta tarea; **el texto original era**: «Flujo de otp app para
+  refactor — Cuando un cliente llega con su otp generado para el comercio, en el front deberia de
+  existir la pantalla para redimirlo». CORE-627, que se había creado acá antes de saber que ya existía
+  la de Laura, quedó **❌ Invalidada** con un comentario que apunta a esta.
+- PRs, los dos en borrador y contra `qa`, rama `feat/CORE-614-codigo-preaprobado-app`:
+  [legacy-backend#1455](https://github.com/Creditop-SAS/legacy-backend/pull/1455) ·
+  [frontend-monorepo#1045](https://github.com/Creditop-SAS/frontend-monorepo/pull/1045).
+  (Los primeros —#1450 y #1043— quedaron cerrados: renombrar la rama de CORE-627 a CORE-614 **cerró
+  los PRs en vez de moverlos**. Cada uno tiene un comentario apuntando al que lo continúa.)
 
 ## Registro
 
@@ -264,6 +319,22 @@ consumo **ya viven en legacy-backend**, así que esa mitad no se migra. Se midi�
 solicitudes de abril de 2026, un solo comercio, ninguna avanzó. Se leyó el lado de la app: el código lo
 genera el propio dispositivo y el QR es una ilustración estática, con un formato distinto al que el
 receptor acepta. Conclusión: no es un port 1:1; falta cerrar quién emite el código antes de construir. Se publicó como CORE-627 en el sprint activo, en estado de desarrollo; el título perdió la palabra «wizard», que fuera del equipo no dice nada. Después se aterrizó el reparto: se verificó que la solicitud sólo puede nacer en el backend (el wizard no tiene base y en el camino normal nace al validar el OTP), que existe un precedente con la misma forma en el canal de Corbeta, y que el listado nuevo consulta los preaprobados de a una entidad desde el front — por eso el recorte va ahí y no cuesta consultas de más. Se abrieron las dos ramas desde `qa` y sus PRs en borrador (#1450 y #1043), creadas con plumbing sobre `origin/qa` para no mover el working tree de los repos, que tienen otras sesiones encima.
+
+### 2026-09-22
+Se construyó el endpoint del backend y se probó corriéndolo. Crea la solicitud con la entidad del
+código reusando el proxy que ya existía, con seis pruebas del servicio y un mock nuevo del servicio de
+códigos —que en local no estaba configurado, así que este camino no se podía correr—. Medido: el
+código sembrado deja la solicitud creada y consumida, el segundo intento devuelve 409 sin crear nada, y
+el listado de esa solicitud trae las nueve entidades del comercio con la del código adentro, que es lo
+que confirma que el recorte le toca al front.
+
+Apareció que el trabajo ya tenía tarjeta: **CORE-614**, de Laura Cabra, con la misma intención escrita
+en una línea. Se pasó a esa: lleva ahora el título y la descripción de acá, y la que se había creado el
+día anterior (CORE-627) quedó invalidada con un comentario que apunta a la buena. Al renombrar las
+ramas de `CORE-627` a `CORE-614`, **GitHub cerró los dos PRs en lugar de moverlos**, así que se
+recrearon (#1455 y #1045) y los cerrados quedaron enlazados a su reemplazo. De leer la tarjeta original
+salió además un choque de vocabulario que vale más que el trámite: en el equipo a este código le dicen
+«OTP», que es el mismo nombre del código que valida el teléfono — y este flujo justamente no lo pide.
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA.

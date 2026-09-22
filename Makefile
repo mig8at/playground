@@ -313,6 +313,9 @@ harness-centrales: ## @har levanta el mock LOCAL de centrales de riesgo (:8105) 
 harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbeta :8103)
 	@cd harness && bin/mock-bancolombia start && bin/mock-corbeta start
 
+harness-codes: ## @har levanta el mock LOCAL del servicio de códigos (:8111) — el que resuelve el código que el cliente trae de la app. Pide CODE_GENERATION_SERVICE_BASE_URL=http://host.docker.internal:8111 en el .env del backend
+	@cd harness && node mock-codes/server.mjs
+
 harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por país? Pide `harness/.admin.json` + el admin en :8000
 	@cd harness && E2E_TARGET=local npx playwright test dev/admin-ciudades.spec.ts --reporter=list
 
