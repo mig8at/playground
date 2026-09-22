@@ -316,6 +316,16 @@ harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbe
 harness-codes: ## @har levanta el mock LOCAL del servicio de códigos (:8111) — el que resuelve el código que el cliente trae de la app. Pide CODE_GENERATION_SERVICE_BASE_URL=http://host.docker.internal:8111 en el .env del backend
 	@cd harness && node mock-codes/server.mjs
 
+harness-codigo: ## @har siembra un código de preaprobado para probar la pantalla del asesor en local (pide `harness-codes` arriba). COMERCIO=<hash|slug> [CODIGO=0101 el del autorrelleno] [ENTIDAD=<lender_id>]
+	@test -n "$(COMERCIO)" || { echo "falta COMERCIO=<hash de sucursal o slug de .flows.json>"; exit 2; }
+	@cd harness && bin/sembrar-codigo "$(COMERCIO)" "$(or $(CODIGO),0101)" "$(ENTIDAD)"
+
+harness-codigo-prueba: ## @har redime un código sembrado desde la UI del asesor y comprueba que sólo quede su entidad. HASH=<sucursal> CODIGO=<4 dígitos> LENDER='<nombre>'
+	@test -n "$(HASH)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
+	@test -n "$(CODIGO)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
+	@test -n "$(LENDER)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
+	@cd harness && E2E_CLIENT_CODE_HASH="$(HASH)" E2E_CLIENT_CODE="$(CODIGO)" E2E_CLIENT_CODE_LENDER="$(LENDER)" npx playwright test channel/client-code.spec.ts --project=chromium
+
 harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por país? Pide `harness/.admin.json` + el admin en :8000
 	@cd harness && E2E_TARGET=local npx playwright test dev/admin-ciudades.spec.ts --reporter=list
 

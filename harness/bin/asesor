@@ -29,7 +29,13 @@ TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stac
 # bajo `set -euo pipefail` un grep sin match devuelve 1, pipefail lo propaga y el script MUERE mudo en la
 # asignación (F-59). El `|| true` acá es la red: si la clave no está, la variable queda vacía y decide el
 # fallback de cada caso, no la muerte del script.
-envget() { E2E_TARGET="$TARGET" node "$(dirname "$0")/envget.ts" "$1" "${2:-}" 2>/dev/null || true; }
+# `bin/asesor` se puede invocar desde `harness/` o desde la raíz `playground/`
+# (así lo llama el panel). `envget.ts` busca .env.<target> desde cwd; si lo
+# ejecutábamos antes del `cd "$E2E"`, la corrida local no leía harness/.env.local,
+# caía al fallback de DEV y el wizard terminaba en legacy-backend.inertia-develop.
+# Resolver siempre desde el directorio del harness evita que el lugar desde el
+# que se lanzó el comando cambie el backend que atiende la prueba.
+envget() { ( cd "$E2E" && E2E_TARGET="$TARGET" node "$E2E/bin/envget.ts" "$1" "${2:-}" ) 2>/dev/null || true; }
 
 # La URL del front sale de la cadena de env por TARGET, no hardcodeada: `staging` corre contra un
 # frontend REMOTO ya desplegado. Si es remoto no hay wizard local que levantar ni .env que mover.
@@ -419,8 +425,15 @@ if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
   #     escuchando y el WANT con el que se lanzó. Sólo vale si el PID coincide con el que escucha HOY:
   #     el formato viejo (una línea) describía el proceso lanzado, no el que corre, y por eso mintió.
   CUR_API=""
+  # El panel sólo puede mostrar SSR si este proceso es el que dejó `bin/asesor`.
+  # Un Vite levantado a mano puede tener el mismo backend y pasar las comprobaciones
+  # de abajo, pero escribe su stdout en otra terminal: el panel queda siguiendo un
+  # /tmp/asesor-wizard.log viejo y parece que no hay trazas. Conservamos la
+  # comprobación de ENV para explicar el motivo, pero no reutilizamos ese proceso.
+  OWNED_BY_ASESOR=0
   if [ -f "$MARKER" ] && [ -n "$LISTEN_PID" ] && [ "$(sed -n 1p "$MARKER" 2>/dev/null || true)" = "$LISTEN_PID" ]; then
     CUR_API="$(sed -n 2p "$MARKER" 2>/dev/null || true)"
+    OWNED_BY_ASESOR=1
   fi
   # (2) Si no, el ENV del proceso: VITE_API_URL sólo está ahí si alguien lo lanzó con la variable puesta.
   if [ -z "$CUR_API" ]; then
@@ -447,6 +460,8 @@ if [ "$UP" = 1 ] && [ "$FRESH" = 0 ]; then
     log "el wizard en :5174 apunta a ${CUR_API%%|*} pero pedís ${WIZ_API} → reinicio limpio"; FRESH=1
   elif [ -z "$CUR_API" ]; then
     log "no pude confirmar el backend del wizard en :5174 → reinicio limpio"; FRESH=1
+  elif [ "$OWNED_BY_ASESOR" = 0 ]; then
+    log "el wizard en :5174 no lo lanzó bin/asesor → reinicio limpio para que el panel capture su SSR"; FRESH=1
   fi
   # (4) ¿ES MÁS VIEJO QUE LA RAMA? Un dev server que arrancó ANTES del último movimiento de HEAD del
   #     monorepo puede seguir sirviendo el bundle de SERVIDOR de la rama anterior aunque las rutas
@@ -497,7 +512,9 @@ else
   # post-mortem de BD. Medido el 2026-08-19 con `sample`: el proceso colgado era el subshell (cwd =
   # apps/loan-request-wizard), no el script, que ya había salido. El redirect de adentro sigue siendo
   # para el LOG del wizard; este de afuera es para soltar el pipe de la corrida.
-  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev < /dev/null > /tmp/asesor-wizard.log 2>&1 & ) > /dev/null 2>&1
+  # Forzamos IPv4 de loopback: Vite puede quedar sólo en ::1 y Chrome resuelve localhost a 127.0.0.1,
+  # caso en el que el launcher decía “arriba” pero el wizard no se podía abrir desde el navegador.
+  ( cd "$WIZARD" && nohup env VITE_API_URL="$WIZ_API" VITE_ONBOARDING_FORM_SERVICE="$FORMS" VITE_FORM_SERVICE_BASE_URL="$FORMSVC" VITE_PREAPPROVALS_ENDPOINT="$PREAPPROVALS" CALLBACK_URL="http://localhost:5174/auth/callback" STREAM_TIMEOUT_MS="${E2E_STREAM_TIMEOUT_MS:-180000}" pnpm dev --host 127.0.0.1 < /dev/null > /tmp/asesor-wizard.log 2>&1 & ) > /dev/null 2>&1
   echo "    cold-boot del wizard (pnpm dev/Vite, puede tardar 1-3 min la 1ª vez)…"
   boot=0
   for i in $(seq 1 240); do

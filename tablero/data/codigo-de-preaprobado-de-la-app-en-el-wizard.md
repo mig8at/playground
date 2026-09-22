@@ -35,25 +35,28 @@ Las dos ramas están abiertas desde `qa`, con su PR en borrador (ver Referencias
 **Los pasos 2, 3, 4 y 5 del plan están hechos, en sus ramas y PROBADOS CORRIENDO**: el endpoint del
 backend (con test y con un mock del servicio de códigos que antes no existía), la pantalla de captura,
 la entrada visible y el recorte del listado. El recorrido entero —pantalla, código, listado con una
-sola entidad— cierra en local con una sesión de asesor real. Lo único que nadie hizo todavía es
-**mirar la pantalla**: está probada por HTTP, no por vista.
+sola entidad— cierra en local con una sesión de asesor real, queda automatizado en harness y se vio
+con capturas: el conmutador aparece en las dos pantallas. El bloqueo restante es el contrato del
+emisor productivo, no una validación técnica pendiente.
 
-La pantalla ya se vio, con capturas: el conmutador aparece en las dos y el recorrido cierra.
-
-**El próximo paso es:** cerrar el contrato del código con quien pidió la migración —quién lo emite y
-con qué formato—, que es lo último que separa esto de poder probarse fuera de local.
+**El próximo paso es:** cerrar con Laura Cabra el contrato del código: un emisor persistente, cuatro
+dígitos, vencimiento y la resolución autoritativa de producto a `lender_id`. Ya no hay un bloqueo de
+identidad: la app entrega el mismo `user_id` legado que el canje necesita. Falta decidir quién escribe
+ese registro y contra qué comercio/entidad se prueba.
 
 ## Pendientes
 
-- [ ] Confirmar quién emite el código y con qué formato; termina cuando haya un emisor nombrado y un
-      formato acordado entre la app y el receptor web.
-      Depende de: quien pidió la migración — y del equipo de la app móvil.
-- [ ] Confirmar si la entidad objetivo es Credipullman; termina cuando esté dicho contra qué comercio y
-      entidad se va a probar.
+- [ ] Confirmar quién emite el código, su vencimiento y el formato de cuatro dígitos; termina cuando
+      haya un emisor que persista `user_id`, comercio y `lender_id` para que el canje lo consulte.
+      Depende de: Laura Cabra — y del equipo dueño del servicio de códigos.
+- [ ] Confirmar si el piloto es Pullman → CrediPullman; termina cuando esté dicho contra qué comercio y
+      entidad se va a probar. La configuración actual es aliado 94 → lender 77, pero no es una decisión
+      de producto todavía.
 - [x] Decidir dónde filtra el listado — **va sólo en el front**, en el loader, antes de consultar
       preaprobados (2026-09-21).
-- [ ] Elegir cómo sabe el front que esta solicitud vino por código: sesión del wizard o dato en la
-      respuesta del endpoint nuevo; termina cuando el listado recorta sin preguntarle nada al cliente.
+- [x] Elegir cómo sabe el front que esta solicitud vino por código — sesión del wizard con
+      `clientCodeLender:<user_request_id>`; el listado recorta sin preguntarle nada al cliente
+      (2026-09-22).
 - [x] Construir el endpoint que crea la solicitud desde el código — `POST
       /api/onboarding/client-code/redeem`, corriendo en local contra el mock (2026-09-22).
 - [x] Construir la pantalla de captura en el wizard — `/merchant/:partner_hash/codigo`, con su
@@ -205,6 +208,26 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > presenta? La app lo genera en el dispositivo y no llama a ningún servicio de códigos; el receptor
 > espera cuatro dígitos y la app muestra once caracteres. Hoy no hay un emisor que una los dos lados.
 
+> **HALLAZGO · 2026-09-22** — no falta unir dos identidades: `POST /v1/preapprovals/me/check` toma
+> `X-User-Id` de la app y lo entrega como `applicant_id`; en legacy-backend ese valor es el mismo
+> `users.id` que el servicio de códigos devuelve como `user_id`. Lo que falta es sólo el registro
+> persistente del código y su resolución a lender.
+
+> **HALLAZGO · 2026-09-22** — `POST /api/onboarding/generate-services/code` no emite el código:
+> exige que ya lleguen `code`, `user_id`, `commerce_id`, `entity_id`, estado y fechas, y sólo devuelve
+> texto. El servicio que sí consulta/consume cuatro dígitos no está entre los repos disponibles.
+
+> **MEDICIÓN · 2026-09-22** — Pullman (aliado 94) sólo tiene configurado CrediPullman (lender 77).
+> La app de ejemplo anuncia `creditop_x` con id de producto 80: el emisor debe resolver el lender desde
+> configuración autoritativa, no copiar el id que pinta el móvil.
+> `make trazador-sql TARGET=prod SQL='SELECT lba.allied_id, lba.lender_id, l.name AS lender FROM lenders_by_allieds lba JOIN lenders l ON l.id = lba.lender_id WHERE l.name LIKE "%Pullman%" ORDER BY lba.allied_id, lba.lender_id'`
+
+> **HALLAZGO · 2026-09-22** — no hay un allowlist de comercios en el wizard: la entrada `codigo` está
+> bajo todo `/merchant/:partner_hash`, así que se ofrece a cualquier punto de venta de asesor. Pero el
+> canje consulta el código con el `merchant_id` que sale de esa sucursal: un código no es portátil entre
+> comercios. En términos de rollout, la pantalla es general; el camino útil sólo existe donde el
+> emisor haya persistido ese comercio y un `lender_id` que el punto de venta pueda ofrecer.
+
 > **PREGUNTA · 2026-09-21 · quien pidió la migración** — ¿la entidad objetivo es Credipullman? En
 > producción las únicas doce solicitudes por este camino son de otro comercio y otras dos entidades.
 
@@ -279,6 +302,16 @@ local no existe, así que hay un mock que lo reemplaza. Cuatro pasos:
     curl -s -XPOST http://localhost/api/onboarding/client-code/redeem -H 'Content-Type: application/json' \
       -d '{"code":"4821","partner_branch_hash":"76db47f5","amount":1500000}'
 
+**La prueba reproducible desde la interfaz** (requiere que `harness-codes` siga arriba y una sesión
+de asesor viva) no necesita armar el JSON a mano:
+
+    make harness-codigo COMERCIO=13874eb6 CODIGO=0102
+    make harness-codigo-prueba HASH=13874eb6 CODIGO=0102 LENDER='Sistecrédito'
+
+El primer comando elige un usuario local real y una entidad habilitada para la sucursal; el segundo
+abre `/merchant/<hash>/codigo`, redime por la UI y exige que el marketplace muestre **sólo** esa entidad.
+Para otro comercio, se reemplazan los tres argumentos por los que imprima `make harness-codigo`.
+
 ⚠ El mock arrancaba en :8110 y hubo que moverlo a :8111 porque el 8110 ya estaba ocupado por otro
 proceso de la máquina. Si el puerto cambia, cambia en los dos lados (mock y `.env` del backend).
 
@@ -326,6 +359,12 @@ volver a correr `bin/asesor`.
 > comercio. O sea: el recorte es lo que hace la diferencia, y sin él la solicitud ve el listado
 > completo. (El conteo es por nombres en el HTML, que alcanza para distinguir una de ocho.)
 
+> **MEDICIÓN · 2026-09-22** — la prueba automatizada del harness redimió `0102` en Amoblando Pullman
+> (`13874eb6`) y creó la solicitud local **466893**. La UI redirigió a
+> `/merchant/13874eb6/466893/lenders` y el único lender visible fue **Sistecrédito**. Cubre pantalla,
+> action del wizard, endpoint, consumo del mock y el recorte por cookie del funnel.
+> `make harness-codigo-prueba HASH=13874eb6 CODIGO=0102 LENDER='Sistecrédito'` · TARGET=local
+
 > **MEDICIÓN · 2026-09-22** — la ruta de la pantalla quedó montada en el árbol del asesor y no en el
 > público. Se comprueba comparándola con una ruta viva y con una inexistente: `/merchant/<hash>/codigo`
 > y `/merchant/<hash>/solicitar` responden **302** al login, y `/merchant/<hash>/no-existe-xyz`
@@ -360,6 +399,20 @@ volver a correr `bin/asesor`.
   los PRs en vez de moverlos**. Cada uno tiene un comentario apuntando al que lo continúa.)
 
 ## Registro
+
+### 2026-09-22
+Se retomó CORE-614 desde Jira y los repos. La tarjeta sigue en progreso, sin comentarios ni criterios
+nuevos; Laura Cabra es la informadora. Se comprobó que el identificador autenticado que recibe el
+microservicio de preaprobados es el `users.id` legado, así que la app puede emitir un código canjeable
+sin construir un puente de identidad. No se implementó Flutter porque hacerlo hoy seguiría produciendo
+códigos que el receptor no conoce: el proxy `generate-services/code` sólo representa un registro ya
+existente y el emisor/almacén real no está en los repos. También se midió el candidato de piloto:
+Pullman (94) tiene CrediPullman (77). El contrato pendiente debe resolver producto→lender del lado
+autoritativo; el ejemplo móvil usa el producto 80 y no sirve como `lender_id`. Se dejó además una
+prueba repetible en harness: siembra el código contra el mock y verifica desde la UI del asesor que la
+solicitud llega a lenders con una única entidad. La prueba local pasó para Amoblando Pullman con
+`0102` → Sistecrédito (solicitud 466893). El launcher también fuerza Vite a `127.0.0.1`: antes podía
+anunciar :5174 disponible estando sólo en `::1`, inaccesible desde Chrome.
 
 ### 2026-09-21
 Contextualización de punta a punta, contra `main` de los cuatro repos. Se encontró el flujo completo en
