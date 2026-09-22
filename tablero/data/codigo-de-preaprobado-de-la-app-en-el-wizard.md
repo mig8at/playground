@@ -32,14 +32,14 @@ Validación: la receta y las consultas están en «Cómo se comprueba».
 
 Las dos ramas están abiertas desde `qa`, con su PR en borrador (ver Referencias).
 
-**Los pasos 2, 3, 4 y 5 del plan están hechos y en sus ramas**: el endpoint del backend (con test y
-con un mock del servicio de códigos que antes no existía), la pantalla de captura, la entrada visible y
-el recorte del listado. El backend está probado corriendo; del front está probado el build y que la
-ruta quede montada donde corresponde, pero **la pantalla no se ha visto con ojos**: el árbol del asesor
-exige sesión de Cognito y el backend nuevo sólo existe en local.
+**Los pasos 2, 3, 4 y 5 del plan están hechos, en sus ramas y PROBADOS CORRIENDO**: el endpoint del
+backend (con test y con un mock del servicio de códigos que antes no existía), la pantalla de captura,
+la entrada visible y el recorte del listado. El recorrido entero —pantalla, código, listado con una
+sola entidad— cierra en local con una sesión de asesor real. Lo único que nadie hizo todavía es
+**mirar la pantalla**: está probada por HTTP, no por vista.
 
-**El próximo paso es:** ver la pantalla con una sesión de asesor —levantando el wizard contra el
-backend local— y recorrer el caso completo hasta el listado recortado.
+**El próximo paso es:** cerrar el contrato del código con quien pidió la migración —quién lo emite y
+con qué formato—, que es lo último que separa esto de poder probarse fuera de local.
 
 ## Pendientes
 
@@ -56,8 +56,9 @@ backend local— y recorrer el caso completo hasta el listado recortado.
       /api/onboarding/client-code/redeem`, corriendo en local contra el mock (2026-09-22).
 - [x] Construir la pantalla de captura en el wizard — `/merchant/:partner_hash/codigo`, con su
       entrada desde la pantalla del celular (2026-09-22).
-- [ ] Ver el recorrido completo con una sesión de asesor: pantalla → código → listado con UNA entidad.
-      Termina cuando esté visto corriendo, no sólo construido.
+- [x] Ver el recorrido completo con una sesión de asesor: pantalla → código → listado con UNA
+      entidad. Corrido en local contra el backend nuevo (2026-09-22).
+- [ ] Mirar la pantalla con ojos: está probada por HTTP, pero nadie vio cómo se ve.
 - [x] Llevar el recorte de una sola entidad al listado — en el loader, antes de disparar las
       consultas de preaprobado (2026-09-22).
 - [ ] Definir qué se hace cuando la entidad del código NO está en el listado; termina cuando esté
@@ -276,6 +277,23 @@ proceso de la máquina. Si el puerto cambia, cambia en los dos lados (mock y `.e
 
     php vendor/bin/phpunit Modules/Onboarding/tests/Unit/ClientCodeRedemptionServiceTest.php
 
+**Recorrer el flujo COMPLETO con sesión de asesor** (es lo que prueba el recorte, y necesita el
+login real de Cognito):
+
+    cd harness && CFE_TARGET=local CFE_FRONT=local bin/asesor sonria   # loguea y levanta el wizard en :5174
+
+Eso deja la sesión en `harness/.auth/cognito-state.dev.json`. Con sus cookies de `localhost`:
+
+    # 1 · la pantalla responde
+    curl -s -o /dev/null -w '%{http_code}\n' -b <cookies> http://localhost:5174/merchant/76db47f5/codigo
+    # 2 · redimir: devuelve 302 a .../<id>/lenders y la cookie __session con clientCodeLender:<id>
+    curl -s -D- -o /dev/null -XPOST http://localhost:5174/merchant/76db47f5/codigo -b jar -c jar \
+      -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'code=6060'
+    # 3 · el listado, CON la cookie del funnel y sin ella: una entidad contra ocho
+
+⚠ El `_at` de la sesión dura ~24 h: si la pantalla responde 302 al login, la sesión venció y hay que
+volver a correr `bin/asesor`.
+
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
     make harness-listado COMERCIO=<slug>
@@ -290,6 +308,14 @@ proceso de la máquina. Si el puerto cambia, cambia en los dos lados (mock y `.e
 > (24, Credifamilia) está entre ellas. Confirma lo decidido: la API no recorta, y el front tiene el
 > dato para hacerlo.
 > `curl -s http://localhost/api/onboarding/loan-application/lenders-v2/466885` · TARGET=local
+
+> **MEDICIÓN · 2026-09-22** — **el recorrido cierra entero en local, con sesión de asesor real.** Con
+> la sesión que deja `bin/asesor sonria` (`CFE_TARGET=local CFE_FRONT=local`): la pantalla del código
+> responde **200**; el POST del código redime y redirige a `/merchant/76db47f5/466889/lenders`
+> dejando en la cookie del funnel `{"clientCodeLender:466889":24}`; y ese listado **nombra sólo a
+> Credifamilia**. La misma solicitud pedida **sin** esa cookie nombra **las ocho** entidades del
+> comercio. O sea: el recorte es lo que hace la diferencia, y sin él la solicitud ve el listado
+> completo. (El conteo es por nombres en el HTML, que alcanza para distinguir una de ocho.)
 
 > **MEDICIÓN · 2026-09-22** — la ruta de la pantalla quedó montada en el árbol del asesor y no en el
 > público. Se comprueba comparándola con una ruta viva y con una inexistente: `/merchant/<hash>/codigo`
