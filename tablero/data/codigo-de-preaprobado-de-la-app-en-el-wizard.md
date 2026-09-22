@@ -38,6 +38,8 @@ la entrada visible y el recorte del listado. El recorrido entero —pantalla, c�
 sola entidad— cierra en local con una sesión de asesor real. Lo único que nadie hizo todavía es
 **mirar la pantalla**: está probada por HTTP, no por vista.
 
+La pantalla ya se vio, con capturas: el conmutador aparece en las dos y el recorrido cierra.
+
 **El próximo paso es:** cerrar el contrato del código con quien pidió la migración —quién lo emite y
 con qué formato—, que es lo último que separa esto de poder probarse fuera de local.
 
@@ -58,7 +60,7 @@ con qué formato—, que es lo último que separa esto de poder probarse fuera d
       entrada desde la pantalla del celular (2026-09-22).
 - [x] Ver el recorrido completo con una sesión de asesor: pantalla → código → listado con UNA
       entidad. Corrido en local contra el backend nuevo (2026-09-22).
-- [ ] Mirar la pantalla con ojos: está probada por HTTP, pero nadie vio cómo se ve.
+- [x] Mirar la pantalla — capturada con la sesión de asesor; de ahí salieron dos arreglos (2026-09-22).
 - [x] Llevar el recorte de una sola entidad al listado — en el loader, antes de disparar las
       consultas de preaprobado (2026-09-22).
 - [ ] Definir qué se hace cuando la entidad del código NO está en el listado; termina cuando esté
@@ -183,6 +185,13 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 
 > **DECISIÓN · 2026-09-21** — la pantalla de captura va en el flujo `merchant` del wizard: el texto de
 > la pantalla vieja es «Pide al cliente su código», o sea la opera el asesor, no el cliente.
+
+> **DECISIÓN · 2026-09-22** — la entrada al código es el **conmutador de dos opciones** de la
+> aplicación anterior («Usuario nuevo» / «Usuario app»), arriba y en las dos pantallas — no un enlace
+> al pie. El enlace estaba —en el HTML, con su href y su texto— y aun así no se veía: una entrada que
+> hay que buscar es una entrada que nadie usa, y el camino queda construido sin que nadie entre por él.
+> El segundo arreglo salió de la misma captura: la pantalla del código estaba centrada
+> verticalmente, así que el conmutador saltaba ~250px al alternar.
 
 > **DECISIÓN · 2026-09-21** — el filtro a una sola entidad va **sólo en el front**. Verificado: el
 > loader del listado decide a qué entidades les pide el preaprobado, **una por una**
