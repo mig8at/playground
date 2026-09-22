@@ -32,11 +32,14 @@ Validación: la receta y las consultas están en «Cómo se comprueba».
 
 Las dos ramas están abiertas desde `qa`, con su PR en borrador (ver Referencias).
 
-**El endpoint del backend ya está hecho y corriendo en local** (paso 2 del plan): `POST
-/api/onboarding/client-code/redeem`, con su test y con un mock del servicio de códigos que antes no
-existía. Falta todo el front.
+**Los pasos 2, 3, 4 y 5 del plan están hechos y en sus ramas**: el endpoint del backend (con test y
+con un mock del servicio de códigos que antes no existía), la pantalla de captura, la entrada visible y
+el recorte del listado. El backend está probado corriendo; del front está probado el build y que la
+ruta quede montada donde corresponde, pero **la pantalla no se ha visto con ojos**: el árbol del asesor
+exige sesión de Cognito y el backend nuevo sólo existe en local.
 
-**El próximo paso es:** la pantalla de captura del código en el wizard, que ya tiene a quién llamar.
+**El próximo paso es:** ver la pantalla con una sesión de asesor —levantando el wizard contra el
+backend local— y recorrer el caso completo hasta el listado recortado.
 
 ## Pendientes
 
@@ -51,10 +54,12 @@ existía. Falta todo el front.
       respuesta del endpoint nuevo; termina cuando el listado recorta sin preguntarle nada al cliente.
 - [x] Construir el endpoint que crea la solicitud desde el código — `POST
       /api/onboarding/client-code/redeem`, corriendo en local contra el mock (2026-09-22).
-- [ ] Construir la pantalla de captura en el wizard; termina cuando un código válido deja la solicitud
-      creada y redirige al listado.
-- [ ] Llevar el filtro de una sola entidad al listado nuevo; termina cuando el listado responde una
-      sola entidad para una solicitud que entró por código, y el caso se puede correr.
+- [x] Construir la pantalla de captura en el wizard — `/merchant/:partner_hash/codigo`, con su
+      entrada desde la pantalla del celular (2026-09-22).
+- [ ] Ver el recorrido completo con una sesión de asesor: pantalla → código → listado con UNA entidad.
+      Termina cuando esté visto corriendo, no sólo construido.
+- [x] Llevar el recorte de una sola entidad al listado — en el loader, antes de disparar las
+      consultas de preaprobado (2026-09-22).
 - [ ] Definir qué se hace cuando la entidad del código NO está en el listado; termina cuando esté
       elegido entre mostrar todo (lo que hace hoy) o avisar.
 
@@ -286,6 +291,16 @@ proceso de la máquina. Si el puerto cambia, cambia en los dos lados (mock y `.e
 > dato para hacerlo.
 > `curl -s http://localhost/api/onboarding/loan-application/lenders-v2/466885` · TARGET=local
 
+> **MEDICIÓN · 2026-09-22** — la ruta de la pantalla quedó montada en el árbol del asesor y no en el
+> público. Se comprueba comparándola con una ruta viva y con una inexistente: `/merchant/<hash>/codigo`
+> y `/merchant/<hash>/solicitar` responden **302** al login, y `/merchant/<hash>/no-existe-xyz`
+> responde **404**. Puesta sólo en el árbol público **no daba 404**: React Router la resolvía en el
+> vecino, que es como se cuela una pantalla que parece andar y no es la que se pidió.
+
+> **MEDICIÓN · 2026-09-22** — el recorte del listado no empeora el lint que el repo ya tolera: el
+> `.then` del loader tiene complejidad **36** en `qa`, subió a **41** con el bloque escrito adentro, y
+> vuelve a **36** con el recorte en su propia función.
+
 > **MEDICIÓN · 2026-09-22** — los caminos de error responden como deben, sin crear solicitudes:
 > código que no es de 4 dígitos → 422 · sucursal desconocida → 404 · servicio de códigos caído o sin
 > configurar → se propaga su error tal cual, con el endpoint upstream adentro.
@@ -326,7 +341,12 @@ código reusando el proxy que ya existía, con seis pruebas del servicio y un mo
 códigos —que en local no estaba configurado, así que este camino no se podía correr—. Medido: el
 código sembrado deja la solicitud creada y consumida, el segundo intento devuelve 409 sin crear nada, y
 el listado de esa solicitud trae las nueve entidades del comercio con la del código adentro, que es lo
-que confirma que el recorte le toca al front.
+que confirma que el recorte le toca al front. Después se hizo el front entero: pantalla de captura, entrada
+visible desde la pantalla del celular y recorte del listado. Dos cosas se descubrieron construyendo y
+no leyendo: el endpoint hablaba un envelope que el wizard no sabe desenvolver —corregido, con códigos
+de error propios para que la pantalla distinga los rechazos—, y la ruta puesta en el árbol público no
+daba 404 sino que la resolvía el árbol vecino, que es la trampa que ya había costado un revert de main.
+La pantalla todavía no se vio con ojos: el árbol del asesor pide sesión de Cognito.
 
 Apareció que el trabajo ya tenía tarjeta: **CORE-614**, de Laura Cabra, con la misma intención escrita
 en una línea. Se pasó a esa: lleva ahora el título y la descripción de acá, y la que se había creado el
