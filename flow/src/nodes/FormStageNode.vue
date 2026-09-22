@@ -14,7 +14,6 @@ const lender = computed(() => findLenderDef(name.value))
 
 const STEP_META = {
   radica:   { title: 'Radicación',                     opts: [{ v: 'radica', l: 'radica' }, { v: 'falla', l: 'falla' }] },
-  decision: { title: 'Decisión externa (su API)',      opts: [{ v: 'aprueba', l: 'aprueba' }, { v: 'rechaza', l: 'rechaza' }, { v: 'timeout', l: 'timeout' }] },
   redirect: { title: 'Redirección',                    opts: [{ v: 'abre', l: 'abre el sitio' }] },
 }
 const meta = computed(() => STEP_META[stepKey.value] || { title: stepKey.value, opts: [] })

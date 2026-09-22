@@ -3,25 +3,14 @@ import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
 import { ui, findLenderDef, merchant, lenders, sucursalDiag,
   setDatacredito, toggleDatacredito, datacreditoInherit, resetDatacredito, sucursalActiveCount, openFieldInfo,
-  setSucursalPais, paisMatch, COUNTRIES, countryById } from '../store'
+  paisMatch, productionDatacreditoChanged } from '../store'
 import { X, Check, SlidersHorizontal } from 'lucide-vue-next'
+import CountryProfile from './CountryProfile.vue'
 
 // Config de sucursal (nivel 2) = la 2ª CAPA del cascade: group_rules + datacrédito COPIADOS por
-// sucursal (allied_branch_id). Corren ANTES del perfilamiento. Semántica fiel:
-//   rt=2 falla → EXCLUYE · rt≠2 falla → clasifica al fondo ("prob. baja"; datacrédito solo reordena).
-const PAISES = COUNTRIES.filter(p => !p.bogus)
+// sucursal (allied_branch_id). Corren ANTES del perfilamiento. El simulador hoy aplica rt=2 →
+// excluye / rt≠2 → clasifica, pero la medición de producción que lo confirmaría sigue abierta.
 const name = computed(() => ui.selected)
-// La fila de `countries` del país elegido + quién la lee de verdad (clic = detalle verificado).
-// `dead` = la columna existe y ningún cálculo la consume (el código usa literales).
-const PAIS_CFG = computed(() => {
-  const p = countryById(merchant.sucursalPaisId)
-  return [
-    { key: 'pais.docTypes', label: 'docs', val: p?.docTypes?.join('/') || '—', dead: true, title: 'Tipos de documento del país — tres catálogos compiten y el de BD no tiene lector en main' },
-    { key: 'pais.dial', label: 'tel', val: p?.dial ? '+' + p.dial : '—', dead: true, title: 'countries.dial_code / phone_code — el código compara contra \'+57\' literal' },
-    { key: 'pais.phoneLen', label: 'díg', val: p?.phoneLen ?? '—', dead: true, title: 'countries.cell_phone_lenght — nadie la lee; el front hardcodea 10' },
-    { key: 'pais.currency', label: 'moneda', val: p?.currency || '—', dead: false, title: 'countries.locale + currency — sí se leen (currency_format)' },
-  ]
-})
 const lender = computed(() => findLenderDef(name.value))
 const diag = computed(() => name.value ? sucursalDiag(name.value) : null)
 const dc = computed(() => diag.value?.datacredito)            // umbrales datacrédito (editable)
@@ -37,7 +26,7 @@ const DC_FIELDS = [
   { key: 'maxInquiries', label: 'Consultas 6m máx', failKey: 'inquiries6m', title: 'Máximo de consultas al buró 6m (20 = no exige).' },
   { key: 'minMaturation', label: 'Maduración mín', failKey: 'creditHistoryMonths', unit: 'm', title: 'Maduración mínima del historial en meses (0 = no exige).' },
 ]
-// Herencia del datacrédito: se COPIA del lender por sucursal → punto gris (heredado) / amarillo (editado).
+// La sucursal recibe una COPIA inicial del lender. Gris = igual a esa copia; amarillo = deriva local.
 const dcInh = (k) => datacreditoInherit(name.value, k)
 const dcHeredar = (k) => resetDatacredito(name.value, k)
 </script>
@@ -56,24 +45,9 @@ const dcHeredar = (k) => resetDatacredito(name.value, k)
     </div>
     <div class="node__body">
       <div class="node__desc"><b>{{ lender.name }}</b> en {{ merchant.sucursal }} — reglas por sucursal</div>
-      <!-- País de la sucursal: columna PROPUESTA (allied_branches no la tiene). Hoy hereda del comercio,
-           así que una sucursal en otro país es invisible para el flujo. Al elegirlo se ve la fila de
-           `countries` de ese país — tipos de documento, prefijo, celular y moneda — con quién la lee. -->
-      <div class="dr dr--row" :class="{ 'dr--on': merchant.sucursalPaisId !== merchant.paisId }">
-        <div class="dr-top">
-          <span class="dr-l fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.sucursal')">País de la sucursal</span>
-          <span class="fld-tag fld-tag--pisado">propuesto</span>
-        </div>
-        <span class="dr-c">
-          <select class="nodrag cn-sel" :value="merchant.sucursalPaisId" @change="e => setSucursalPais(e.target.value)">
-            <option v-for="p in PAISES" :key="p.id" :value="p.id">{{ p.name }}</option>
-          </select>
-        </span>
-      </div>
-      <div class="cn-chips">
-        <span v-for="ch in PAIS_CFG" :key="ch.key" class="cn-chip fld-doc" :class="{ 'cn-chip--dead': ch.dead }"
-              :title="ch.title" @click="openFieldInfo(ch.key)">{{ ch.label }} <b>{{ ch.val }}</b></span>
-      </div>
+      <div class="rn-copy">Copia al habilitar: esta sucursal conserva su propia versión; cambiar la entidad no la actualiza.</div>
+      <!-- allied_branches no tiene country_id: hereda un solo perfil consolidado del comercio. -->
+      <CountryProfile />
       <div v-if="paisMatch(lender) !== 'ok'" class="cn-note cn-note--warn">
         <template v-if="paisMatch(lender) === 'otro'"><b>{{ lender.name }}</b> declara otro país que esta sucursal. Nada lo valida: el cableado se guarda igual.</template>
         <template v-else><b>{{ lender.name }}</b> quedó en el <b>default 1</b> — la regla “solo entidades de este país” no se puede evaluar. Es el caso de 155 de 156 entidades.</template>
@@ -81,6 +55,7 @@ const dcHeredar = (k) => resetDatacredito(name.value, k)
       <div class="rn-sub">rt{{ lender.rt }} · {{ sucursalActiveCount(name) }} reglas · al fallar:
         <b :class="rt2 ? 'v-excl' : 'v-cls'">{{ rt2 ? 'EXCLUYE (rt2)' : 'clasifica (rt≠2)' }}</b>
       </div>
+      <div v-if="rt2" class="rn-caveat">⚠ supuesto del simulador: la exclusión por group_rules sigue bajo verificación.</div>
       <div class="rn-status" :class="result ? (result.ok ? (result.prob === 'baja' ? 'lowp' : 'ok') : 'no') : 'na'">
         <Check v-if="result && result.ok && result.prob !== 'baja'" :size="13" />
         <X v-else-if="result && !result.ok" :size="13" />
@@ -97,19 +72,19 @@ const dcHeredar = (k) => resetDatacredito(name.value, k)
         </span>
       </div>
       <div v-if="dc.enabled" class="dc-box">
-        <div v-for="f in DC_FIELDS" :key="f.key" class="dr dr--row" :class="{ 'dr--on': dcInh(f.key) === 'editada', 'dr--fail': dcFail[f.failKey] }">
+        <div v-for="f in DC_FIELDS" :key="f.key" class="dr dr--row" :class="{ 'dr--on': dcInh(f.key) === 'editada', 'dr--fail': dcFail[f.failKey], 'prod-local': productionDatacreditoChanged(name, f.key, dc[f.key]) }">
           <div class="dr-top">
             <button class="dr-dot nodrag" :class="'dot-' + dcInh(f.key)" :disabled="dcInh(f.key) !== 'editada'"
-                    :title="(dcInh(f.key) === 'editada' ? 'editado — clic para heredar ' : 'heredado ') + 'del datacrédito copiado del lender'"
+                    :title="dcInh(f.key) === 'editada' ? 'editado — clic para restaurar la copia inicial' : 'igual a la copia inicial del lender'"
                     @click="dcHeredar(f.key)"></button>
             <span class="dr-l" :title="f.title">{{ f.label }}</span>
           </div>
           <span class="dr-c"><input class="nodrag afld__in dc-in" type="number" :value="dc[f.key]" @input="e => setDatacredito(name, f.key, e.target.value)" /><span v-if="f.unit" class="dc-u">{{ f.unit }}</span></span>
         </div>
-        <div class="dr dr--row" :class="{ 'dr--on': dcInh('allowZeroScore') === 'editada' }">
+        <div class="dr dr--row" :class="{ 'dr--on': dcInh('allowZeroScore') === 'editada', 'prod-local': productionDatacreditoChanged(name, 'allowZeroScore', dc.allowZeroScore) }">
           <div class="dr-top">
             <button class="dr-dot nodrag" :class="'dot-' + dcInh('allowZeroScore')" :disabled="dcInh('allowZeroScore') !== 'editada'"
-                    :title="(dcInh('allowZeroScore') === 'editada' ? 'editado — clic para heredar ' : 'heredado ') + 'del datacrédito copiado del lender'"
+                    :title="dcInh('allowZeroScore') === 'editada' ? 'editado — clic para restaurar la copia inicial' : 'igual a la copia inicial del lender'"
                     @click="dcHeredar('allowZeroScore')"></button>
             <span class="dr-l" title="allow_0_score: si acepta clientes sin historial (thin file).">Acepta sin historial</span>
           </div>

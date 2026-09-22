@@ -27,6 +27,8 @@ import TramoNode from './nodes/TramoNode.vue'
 import GroupRulesNode from './nodes/GroupRulesNode.vue'
 import BranchStatusNode from './nodes/BranchStatusNode.vue'
 import FormStageNode from './nodes/FormStageNode.vue'
+import RecheckNode from './nodes/RecheckNode.vue'
+import ReturnNode from './nodes/ReturnNode.vue'
 import IdentityNode from './nodes/IdentityNode.vue'
 import PlanPagosNode from './nodes/PlanPagosNode.vue'
 import FirmaNode from './nodes/FirmaNode.vue'
@@ -35,12 +37,14 @@ import CodeudorNode from './nodes/CodeudorNode.vue'
 import InfoAdicionalNode from './nodes/InfoAdicionalNode.vue'
 import CreditStatusNode from './nodes/CreditStatusNode.vue'
 import FieldInfoPanel from './nodes/FieldInfoPanel.vue'
-import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, closeFieldInfo } from './store'
+import ProdImportPanel from './nodes/ProdImportPanel.vue'
+import { ui, findLenderDef, entidadCfg, perfilOf, perfil, bureau, fieldNull, providerDown, lenders, postSelSteps, recheckStatus, closeFieldInfo, focusWinningProfile } from './store'
 import { settings } from './settings'
 
 // El tema/visibilidad los maneja la barra "Configuraciones" (settings.js). Acá solo derivamos isDark
 // para pintar el canvas (clase dark de Vue Flow + color del patrón de fondo).
 const isDark = computed(() => settings.theme === 'dark')
+const showProdImport = ref(false)
 // ¿La entidad seleccionada realmente se OFRECE (pasó el listado)? Si no pasa, no tiene sentido mostrar
 // la formalización post-selección. Es dependencia del watch para que aparezca/desaparezca al cambiar el escenario.
 const selPasses = computed(() => { const s = ui.selected; return s ? !!lenders.value.find(l => l.name === s)?.ok : false })
@@ -54,13 +58,22 @@ const selIncome = computed(() => {
   const extra = (providerDown.abaco || fieldNull('abacoIncome')) ? 0 : (bureau.abacoIncome ?? 0)
   return base + extra
 })
+// Solo CreditopX pasa por la re-evaluación local. Si cambió desde que se mostró el listado, el
+// recorrido se corta visualmente ahí: formalizar una oferta que ya no alcanza sería engañoso.
+const selCanContinue = computed(() => {
+  const name = ui.selected, lender = name ? findLenderDef(name) : null
+  return !!(lender && (lender.rt !== 2 || recheckStatus(name).allowed))
+})
+// El carrusel es propio de cada entidad: al cambiar de lender volvemos al primer perfil.
+watch(() => ui.selected, (next, prev) => { if (next !== prev) { if (next) focusWinningProfile(next); else ui.profileIndex = 0 } })
 
 // Esc: 1º cierra el sidebar de detalle; 2º deselecciona la entidad (cierra el cluster de config).
 // Clic en el canvas (pane) cierra solo el sidebar. Sin robar Esc cuando se está tipeando en un input.
 function onKey(e) {
-  if (e.key !== 'Escape') return
   const t = e.target
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')) { t.blur(); return }
+  const typing = t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA')
+  if (e.key !== 'Escape') return
+  if (typing) { t.blur(); return }
   if (ui.fieldInfo) closeFieldInfo()
   else if (ui.selected) ui.selected = null
 }
@@ -126,12 +139,23 @@ const edges = ref(baseEdges())
 // "Entidades del comercio"); la cámara NO se mueve (la maneja el usuario). Posiciones ordenadas
 // (base arriba, heredada abajo) y sin solaparse entre sí ni con los nodos base.
 const DYN = ['default', 'comercio', 'relacion', 'perfil']
+// Grilla del inspector de la entidad seleccionada. Con los nodos de perfil limitados y con
+// scroll, estas bandas dejan aire fijo entre tarjetas y evitan los grandes saltos verticales.
+const SELECTED_LAYOUT = {
+  profileInputs: { x: -980, y: -470 }, // categoría + tramo, misma fila
+  profileHub: { x: -620, y: 90 },
+  lender: { x: -280, y: 90 },
+  commerce: { x: -280, y: 570 },
+  groupRules: { x: -980, y: 720 },
+  branchStatus: { x: -620, y: 1120 },
+  branch: { x: -280, y: 1120 },
+}
 // Al MONTAR: fit-view-on-init encuadra todos los nodos presentes (el grafo base) → se arranca viendo
 // todo, no un zoom en la esquina. Al SELECCIONAR: NO se re-encuadra solo (la cámara la maneja el
 // usuario con scroll para zoom y arrastrando para mover).
 // Depende también de isDark → al cambiar de tema los edges se reconstruyen con el color adecuado.
-watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
-  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && !n.id.startsWith('stage-') && n.id !== 'cstatus')
+watch([() => ui.selected, () => ui.profileIndex, isDark, selPasses, selAbaco, selIncome, selCanContinue], ([sel]) => {
+  const base = nodes.value.filter(n => !DYN.includes(n.id) && !n.id.startsWith('cat-') && n.id !== 'tramo' && n.id !== 'grouprules' && n.id !== 'branchstatus' && n.id !== 'extra' && n.id !== 'recheck' && n.id !== 'identity' && n.id !== 'planpagos' && n.id !== 'firma' && n.id !== 'estado' && n.id !== 'codeudor' && n.id !== 'infoadicional' && !n.id.startsWith('stage-') && n.id !== 'return' && n.id !== 'cstatus')
   const def = sel ? findLenderDef(sel) : null
   if (!def) { nodes.value = base; edges.value = baseEdges(); return } // cerrar: quita la plantilla, sin mover la cámara
   // Cadena config-de-lender → comercio → sucursal, para CUALQUIER lender (CreditopX o externo).
@@ -139,12 +163,12 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
   // la sucursal COPIA de ahí y comercio/sucursal la pisan (puntitos). Ownership: comercio dueño de
   // config de comercio (n1) y config de sucursal (n2); la config de lender rige el catálogo.
   const add = [
-    // Columna de config (x=-300) espaciada por altura: entidad ~290 · comercio hasta ~490 (crece con
-    // "campos fuera de la solicitud") · sucursal ~380. Gaps generosos para no solaparse ni con comercio expandido.
-    { id: 'default', type: 'basetpl', position: { x: -300, y: 40 } },      // Config de lender  (40..330)
-    { id: 'comercio', type: 'comercio', position: { x: -300, y: 400 } },   // Config de comercio (400..~890)
-    { id: 'relacion', type: 'relacion', position: { x: -300, y: 900 } },   // Config de sucursal (900..~1280)
-    { id: 'perfil', type: 'perfilamiento', position: { x: -640, y: 40 } }, // Perfilamiento hub (40..~270), a la izquierda de "Config de lender"
+    // Columna de config: cada nivel recibe una banda propia. Los gaps absorben tanto los campos
+    // extra como la configuración importada, evitando que una tarjeta alta pise la siguiente.
+    { id: 'default', type: 'basetpl', position: SELECTED_LAYOUT.lender },
+    { id: 'comercio', type: 'comercio', position: SELECTED_LAYOUT.commerce },
+    { id: 'relacion', type: 'relacion', position: SELECTED_LAYOUT.branch },
+    { id: 'perfil', type: 'perfilamiento', position: SELECTED_LAYOUT.profileHub },
   ]
   // El conector de "Config de lender" apunta a la FILA del lender seleccionado en "Entidades del
   // comercio" (no al centro del nodo): producto CreditopX → su fila; entidad base → la suya.
@@ -161,24 +185,26 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
   // (conectados hacia abajo). Se comparan lado a lado; la que gana se resalta. Solo CreditopX.
   if (def.rt === 2) {
     const cats = perfilOf(sel)
-    // Fila de categorías + tramo ARRIBA del hub perfil (x=-640). Las tarjetas miden ~750px de alto,
-    // así que rowY=-800 deja su base (~-50) por encima del hub (top 40) con aire. dx=280 = ancho (~260) + gap.
-    const rowY = -800, x0 = -1200, dx = 280
-    cats.forEach((c, i) => {
-      add.push({ id: 'cat-' + c.id, type: 'categoria', data: { catId: c.id }, position: { x: x0 + i * dx, y: rowY } })
-      addE.push({ id: 'e-cat-' + c.id, source: 'cat-' + c.id, sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
-    })
-    add.push({ id: 'tramo', type: 'tramo', position: { x: x0 + cats.length * dx, y: rowY } })
+    // Una categoría a la vez: el carrusel vive en la tarjeta. Todas se siguen evaluando; sólo
+    // cambia cuál se inspecciona, para que 3+ perfiles no conviertan el grafo en una pared.
+    const { x: x0, y: rowY } = SELECTED_LAYOUT.profileInputs
+    const catIndex = Math.max(0, Math.min(ui.profileIndex, cats.length - 1))
+    const cat = cats[catIndex]
+    if (cat) {
+      add.push({ id: 'cat-carousel', type: 'categoria', data: { catId: cat.id }, position: { x: x0, y: rowY } })
+      addE.push({ id: 'e-cat-carousel', source: 'cat-carousel', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
+    }
+    add.push({ id: 'tramo', type: 'tramo', position: { x: x0 + 300, y: rowY } })
     addE.push({ id: 'e-tramo', source: 'tramo', sourceHandle: 'down', target: 'perfil', targetHandle: 'fromcats', animated: false, style: { stroke: ec('base'), strokeWidth: 1.4, strokeDasharray: '5 4' } })
   }
   // Estado en sucursal (lenders_by_allied_branches.status): membresía solo-BD (default true; NO filtra el getLenders vivo, solo la lee el simulador viejo). Nodo propio
   // a la IZQUIERDA del hub "Configurar sucursal" (relacion en x=-300, y=900), conectado lado-con-lado:
   // costado derecho de "Estado en sucursal" → costado izquierdo de "Configurar sucursal" (flujo horizontal).
-  add.push({ id: 'branchstatus', type: 'branchstatus', position: { x: -640, y: 900 } })
+  add.push({ id: 'branchstatus', type: 'branchstatus', position: SELECTED_LAYOUT.branchStatus })
   addE.push({ id: 'e-bs', source: 'branchstatus', sourceHandle: 'out', target: 'relacion', targetHandle: 'fromstatus', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
-  // group_rules por sucursal: nodo propio (~220px) arriba-izquierda del hub "Configurar sucursal"
-  // (relacion en y=900). y=620 → base ~840, por encima del hub con aire; a la izquierda (x=-680) para no pisar comercio.
-  add.push({ id: 'grouprules', type: 'grouprules', position: { x: -680, y: 620 } })
+  // group_rules tiene altura variable. Va en una columna propia, a la izquierda del estado de
+  // sucursal, para que ambos puedan crecer sin quedar uno encima del otro.
+  add.push({ id: 'grouprules', type: 'grouprules', position: SELECTED_LAYOUT.groupRules })
   addE.push({ id: 'e-gr', source: 'grouprules', sourceHandle: 'down', target: 'relacion', targetHandle: 'fromgr', animated: false, style: { stroke: ec('cfg'), strokeWidth: 1.4, strokeDasharray: '6 5' } })
 
   // ── A la DERECHA del listado (espejo de la config que cuelga a la izquierda), en cadena:
@@ -196,6 +222,16 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
     const isCredit = def.rt === 2 && (def.producto === 'credito' || def.producto === 'consumo')
     const isRenting = def.rt === 2 && (def.producto === 'renting' || def.producto === 'rto')
     if (isCredit || isRenting) {
+      // El listado es solo una oferta. Antes de cualquier formulario in-platform aparece el segundo
+      // motor; si bloquea, el gráfico termina aquí y deja visible la causa.
+      add.push({ id: 'recheck', type: 'recheck', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-recheck', source: prevSrc, sourceHandle: prevH, target: 'recheck', targetHandle: 'in', animated: false, style: GS })
+      prevSrc = 'recheck'; prevH = 'out'; x += 330
+      if (!selCanContinue.value) {
+        nodes.value = [...base, ...add]
+        edges.value = [...baseEdges(), ...addE]
+        return
+      }
       // Flujo in-platform, en reconstrucción PASO A PASO. Renting/rto: primero Ábaco (ingreso extra
       // editable), luego identidad. Crédito (+ Credifamilia): directo a validación de identidad.
       if (isRenting) {
@@ -243,6 +279,9 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
         addE.push({ id: 'e-' + id, source: prevSrc, sourceHandle: prevH, target: id, targetHandle: 'in', animated: false, style: GS })
         prevSrc = id; prevH = 'out'; x += 250
       }
+      add.push({ id: 'return', type: 'return', position: { x, y: LIFE_Y } })
+      addE.push({ id: 'e-return', source: prevSrc, sourceHandle: prevH, target: 'return', targetHandle: 'in', animated: false, style: GS })
+      prevSrc = 'return'; prevH = 'out'; x += 290
       add.push({ id: 'cstatus', type: 'cstatus', position: { x, y: LIFE_Y } })
       addE.push({ id: 'e-cstatus', source: prevSrc, sourceHandle: prevH, target: 'cstatus', targetHandle: 'in', animated: false, style: GS })
     }
@@ -279,6 +318,8 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
           <template #node-grouprules="props"><GroupRulesNode v-bind="props" /></template>
           <template #node-branchstatus="props"><BranchStatusNode v-bind="props" /></template>
           <template #node-formstage="props"><FormStageNode v-bind="props" /></template>
+          <template #node-recheck="props"><RecheckNode v-bind="props" /></template>
+          <template #node-return="props"><ReturnNode v-bind="props" /></template>
           <template #node-identity="props"><IdentityNode v-bind="props" /></template>
           <template #node-planpagos="props"><PlanPagosNode v-bind="props" /></template>
           <template #node-firma="props"><FirmaNode v-bind="props" /></template>
@@ -300,10 +341,11 @@ watch([() => ui.selected, isDark, selPasses, selAbaco, selIncome], ([sel]) => {
             <div class="lg"><i class="kv-dot inh-heredada"></i> heredada <i class="kv-dot inh-editada"></i> editada</div>
             <div class="lg"><i class="lg-sw lg-sw--won"></i> categoría gana <i class="lg-sw lg-sw--off"></i> no aplica <i class="lg-sw lg-sw--fail"></i> no cumple</div>
           </Panel>
+          <Panel v-if="showProdImport" position="bottom-left"><ProdImportPanel @close="showProdImport = false" /></Panel>
         </VueFlow>
         <FieldInfoPanel />
       </div>
     </div>
-    <SettingsBar />
+    <SettingsBar @import-prod="showProdImport = true" />
   </div>
 </template>

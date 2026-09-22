@@ -34,7 +34,7 @@ const hasDoc = computed(() => !!FIELD_DOCS[docKey.value])
     <span class="pv-l" :class="{ 'fld-doc': hasDoc }" :title="hasDoc ? 'clic: dónde vive y por qué' : BURO_DESC[fieldKey]" @click="hasDoc && openFieldInfo(docKey)">{{ label }}</span>
     <b v-if="isNull" class="pv-null">— null</b>
     <template v-else>
-      <AffixField v-if="type === 'money'" prefix="$"><MoneyInput class="afld__in" v-model="bureau[fieldKey]" /></AffixField>
+      <AffixField v-if="type === 'money'" currency><MoneyInput class="afld__in" v-model="bureau[fieldKey]" /></AffixField>
       <select v-else-if="type === 'select'" class="nodrag" v-model="bureau[fieldKey]">
         <option v-for="o in options" :key="String(optVal(o))" :value="optVal(o)">{{ optLabel(o) }}</option>
       </select>

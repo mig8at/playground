@@ -17,7 +17,7 @@ const layerLabel = (l) => LAYER_LABELS[l] || l
 
 <template>
   <transition name="fi">
-    <aside v-if="doc" class="fieldinfo nodrag nowheel" @click.stop>
+    <aside v-if="doc" class="fieldinfo nodrag nowheel" @click.stop @wheel.stop>
       <div class="fieldinfo__hd">
         <span class="fi-badge" :class="badgeClass">{{ badgeLabel }}</span>
         <button class="fieldinfo__x" @click="closeFieldInfo" title="cerrar"><X :size="15" /></button>

@@ -38,6 +38,7 @@ var targetsPermitidos = map[string]bool{"prod": true, "staging": true, "dev": tr
 
 func servir(addr string) error {
 	mux := http.NewServeMux()
+	registrarFlowImport(mux)
 
 	mux.HandleFunc("/api/mapa", func(w http.ResponseWriter, r *http.Request) {
 		m, err := Cargar()

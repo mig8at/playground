@@ -34,7 +34,7 @@ const DEAD = [
   { key: 'multiploIngreso', label: 'Múltiplo del ingreso', unit: '×', dead: 'muerto', docKey: 'calc.multiplo' },
 ]
 const deadTag = { muerto: 'no se usa', pisado: 'se pisa' }
-const PAISES = COUNTRIES.filter(p => !p.bogus) // el alta acota el país del comercio a [47, 60] (Rule::in)
+const PAISES = COUNTRIES.filter(p => !p.bogus) // catálogo del escenario; PE es diseño BCP, no alta productiva actual
 const c = computed(() => merchant.nombre)
 const selLender = computed(() => findLenderDef(ui.selected)) // Monto máx hereda del rango de ESTA entidad
 const val = (k) => calcValue(c.value, k, selLender.value)
@@ -67,7 +67,7 @@ const parentLabel = (k) => k === 'montoMax' ? 'del rango de la entidad' : 'de la
           </select>
         </span>
       </div>
-      <div class="dr-scroll nowheel nodrag">
+      <div class="dr-scroll nowheel nodrag" @wheel.stop>
         <div v-for="f in FIELDS" :key="f.key" class="dr dr--row" :class="{ 'dr--on': inh(f.key) === 'editada', 'cfg-biz': f.biz, 'dr--fail': f.key === 'montoMax' && montoVsComercio() }">
           <div class="dr-top">
             <button class="dr-dot nodrag" :class="'dot-' + inh(f.key)" :disabled="inh(f.key) !== 'editada'"
@@ -76,7 +76,7 @@ const parentLabel = (k) => k === 'montoMax' ? 'del rango de la entidad' : 'de la
             <span class="dr-l fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('calc.' + f.key)">{{ f.label }}</span>
           </div>
           <span class="dr-c">
-            <AffixField v-if="f.sep" prefix="$" class="afld--dr"><MoneyInput class="afld__in" :model-value="val(f.key)" @update:model-value="v => setCalc(c, f.key, v)" /></AffixField>
+            <AffixField v-if="f.sep" currency class="afld--dr"><MoneyInput class="afld__in" :model-value="val(f.key)" @update:model-value="v => setCalc(c, f.key, v)" /></AffixField>
             <AffixField v-else :suffix="f.unit" class="afld--drn"><input class="nodrag afld__in" type="number" :value="val(f.key)" @input="e => onInput(f.key, e.target.value)" /></AffixField>
           </span>
         </div>

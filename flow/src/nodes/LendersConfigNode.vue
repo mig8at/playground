@@ -34,7 +34,7 @@ function dup(name) { const l = duplicateCustomLender(name); if (l) ui.selected =
       <div class="node__title">Entidades del comercio</div>
       <span class="cfg-count">{{ entities.length }}</span>
     </div>
-    <div class="node__body">
+    <div class="node__body nowheel nodrag" @wheel.stop>
       <div class="cfg-hint">Catálogo del comercio: CreditopX, agregador y redirect son lenders (por response_type). Creá las que ofrece el comercio, una a una. Cada sucursal decide cuáles activa (“Estado en sucursal”).</div>
       <div v-if="!entities.length" class="cfg-empty">Sin entidades — creá la primera con “+ Agregar entidad”.</div>
       <div v-for="l in entities" :key="l.name" class="cfg-row cfg-erow cfg-pick" :class="['erow--rt' + l.rt, { 'cfg-row--cur': baseSel(l) }]" :title="l.name" @click="ui.selected = l.name">

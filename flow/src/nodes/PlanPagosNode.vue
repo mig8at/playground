@@ -69,7 +69,7 @@ const schedule = computed(() => {
       </label>
       <div v-if="schedule.length" class="pp-field">
         <span class="pp-lbl">Plan de cuotas <span class="pp-hint">{{ schedule.length }} × {{ money(monthly) }}</span></span>
-        <div class="pp-tbl-wrap">
+        <div class="pp-tbl-wrap nowheel nodrag" @wheel.stop>
           <table class="pp-tbl">
             <thead><tr><th>#</th><th>Fecha</th><th>Monto</th></tr></thead>
             <tbody>

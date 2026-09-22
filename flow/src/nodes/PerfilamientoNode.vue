@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, perfil, findLenderDef, perfilDiagSel, isBlacklisted, setBlacklist, preApprovalOf, setPreApproval, money, openFieldInfo } from '../store'
+import { ui, perfil, findLenderDef, perfilDiagSel, perfilOf, isBlacklisted, setBlacklist, preApprovalOf, setPreApproval, money, openFieldInfo } from '../store'
 import { Check, X, Layers } from 'lucide-vue-next'
 
 // HUB del perfilamiento: los DATOS del usuario que perfilan + el VEREDICTO (qué categoría gana).
@@ -14,6 +14,7 @@ const diag = perfilDiagSel // computed compartido del store (null si no es rt=2)
 const blacklisted = computed(() => !!diag.value?.blacklisted)
 const PA = ['aprueba', 'rechaza', 'timeout']
 const verified = computed(() => !['declarado', '—'].includes(perfil.value.salarioFuente))
+const winner = computed(() => diag.value?.winner ? perfilOf(ui.selected).find(c => c.id === diag.value.winner) : null)
 </script>
 
 <template>
@@ -24,7 +25,7 @@ const verified = computed(() => !['declarado', '—'].includes(perfil.value.sala
       <div class="node__title"><Layers :size="13" /> Perfilamiento</div>
       <span class="pl-cat">config de entidad</span>
     </div>
-    <div class="node__body">
+    <div class="node__body nowheel nodrag" @wheel.stop>
       <!-- SIEMPRE: los datos del usuario que perfilan (de la persona, no de la entidad) -->
       <div class="pl-sec">Datos que perfilan <span class="pl-hint">· del usuario</span></div>
       <div class="perfil-in">
@@ -39,7 +40,7 @@ const verified = computed(() => !['declarado', '—'].includes(perfil.value.sala
       <template v-if="isCx">
         <div class="rn-status" :class="diag.winner ? 'ok' : 'no'">
           <Check v-if="diag.winner" :size="13" /><X v-else :size="13" />
-          <span>{{ diag.winner ? lender.name + ' → categoría ' + diag.winner : (blacklisted ? lender.name + ' → documento en lista negra' : lender.name + ' → sin categoría (no ofrecido)') }}</span>
+          <span>{{ winner ? lender.name + ' → preaprobado: ' + winner.label : (blacklisted ? lender.name + ' → documento en lista negra' : lender.name + ' → sin categoría (no ofrecido)') }}</span>
         </div>
         <label class="chk--sim perfil-bl"><input type="checkbox" :checked="isBlacklisted(ui.selected)" @change="e => setBlacklist(ui.selected, e.target.checked)" /> documento en lista negra (rechazo directo)</label>
         <div class="pl-updo">↑ Las categorías y los tramos están arriba. La que <b>gana</b> define enganche / cupo / plazo.</div>

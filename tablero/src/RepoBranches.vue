@@ -5,8 +5,10 @@ import { readPreference, savePreference } from './ui-state.js';
 const props = defineProps({
   snapshot: { type: Object, required: true },
   taskLabel: { type: String, default: '' },
+  refreshing: { type: Boolean, default: false },
+  refreshError: { type: String, default: '' },
 });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'refresh']);
 const ramas = computed(() => props.snapshot.ramas || []);
 const repos = computed(() => {
   const grupos = new Map();
@@ -80,7 +82,15 @@ const medicionRelativa = computed(() => {
       <p>{{ taskLabel || 'Tarea' }} · Git local ·
         <time v-if="snapshot.medidoEn" :datetime="snapshot.medidoEn" :title="medicionExacta">{{ medicionRelativa }}</time>
         <span v-else>sin medición</span>
+        <span v-if="refreshing" class="refresh-state" role="status"> · midiendo Git y PRs…</span>
+        <span v-else-if="refreshError" class="refresh-error" role="status" :title="refreshError"> · sin actualizar</span>
       </p>
+      <button type="button" class="region-action refresh-branches" :disabled="refreshing" :aria-busy="refreshing"
+              :aria-label="refreshing ? 'Actualizando ramas' : 'Refrescar ramas'"
+              :title="refreshing ? 'Midiendo Git y PRs…' : 'Refrescar ramas'" @click="emit('refresh')">
+        <span v-if="refreshing" class="spinner branch-spinner" aria-hidden="true"></span>
+        <span v-else class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+      </button>
       <button type="button" class="region-action" aria-label="Ocultar ramas" title="Ocultar ramas" @click="emit('close')">
         <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
       </button>
@@ -151,7 +161,8 @@ const medicionRelativa = computed(() => {
 .count { display:grid; place-items:center; min-width:18px; height:18px; padding:0 5px;
   color:var(--txt); background:var(--line2); border-radius:999px; font-size:10px; font-variant-numeric:tabular-nums }
 .console-head p { min-width:0; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--mut); font-size:11px }
-.console-head .region-action { margin-left:auto }
+.refresh-branches { margin-left:auto }.console-head .region-action + .region-action { margin-left:2px }
+.refresh-state { color:var(--acc) }.refresh-error { color:var(--warn) }.branch-spinner { width:13px; height:13px; border-width:1.5px }
 .console-body { flex:1; display:flex; min-width:0; min-height:0; overflow:hidden }
 .console-main { flex:1 1 auto; display:flex; flex-direction:column; width:calc(100% - 220px); min-width:0; min-height:0;
   background:var(--card) }

@@ -1,6 +1,6 @@
 <script setup>
 import { Handle, Position } from '@vue-flow/core'
-import { lenders, availableCount, merchant, ui, money, cuotaBreakdown, duesOf, setDues, openFieldInfo } from '../store'
+import { lenders, availableCount, countryBlockedLenders, merchant, countryById, ui, money, cuotaBreakdown, duesOf, setDues, selectOffer, openFieldInfo } from '../store'
 // Los datos de la tarjeta también abren el sidebar (clic) — mismo mecanismo que el resto de labels.
 import { Check, X, ListChecks } from 'lucide-vue-next'
 
@@ -24,6 +24,14 @@ const cuotaTip = (l, n) => {
   const b = cuotaBreakdown(l, n)
   return `Financiado ${money(b.financiado)} + admin ${money(b.admin)} + fondo gar. ${money(b.fga)} = capital ${money(b.capital)}; anualidad(tasa, plazo) + seguros ${money(b.seguros)}.`
 }
+const blockedSummary = () => {
+  const pending = countryBlockedLenders.value.filter(l => l.entidad?.paisId == null || Number(l.entidad?.paisId) === 1).length
+  const other = countryBlockedLenders.value.length - pending
+  const parts = []
+  if (other) parts.push(`${other} de otro país`)
+  if (pending) parts.push(`${pending} sin país`)
+  return parts.join(' · ')
+}
 </script>
 
 <template>
@@ -38,6 +46,9 @@ const cuotaTip = (l, n) => {
       <div class="badge">{{ availableCount }}</div>
     </div>
     <div class="node__body">
+      <div v-if="countryBlockedLenders.length" class="lenders-country-note fld-doc" title="clic: por qué el país decide la oferta" @click="openFieldInfo('pais.entidad')">
+        {{ blockedSummary() }} — no se ofrece en {{ countryById(merchant.paisId)?.name || 'este país' }}
+      </div>
       <div v-if="!lenders.length" class="lenders-empty">
         sin entidades — creá una con “+ Agregar entidad” en “Entidades del comercio”
       </div>
@@ -45,7 +56,7 @@ const cuotaTip = (l, n) => {
       <div v-for="l in lenders" :key="l.name" class="lender nodrag"
            :class="{ 'lender--off': !l.ok, 'lender--sel': ui.selected === l.name }"
            :style="selStyle(l)"
-           @click.stop="ui.selected = ui.selected === l.name ? null : l.name" :title="ui.selected === l.name ? 'clic: cerrar la ficha' : 'clic: ver/editar la config de esta entidad'">
+           @click.stop="ui.selected === l.name ? ui.selected = null : selectOffer(l.name)" :title="ui.selected === l.name ? 'clic: cerrar la ficha' : 'clic: elegir esta oferta y ver su recorrido'">
         <Handle :id="'psel-' + l.name" type="source" :position="Position.Right" class="lender-h" />
         <div class="lender__top">
           <span class="lender__mk" :class="l.ok ? (l.prob === 'baja' ? 'lowp' : 'ok') : 'no'"><Check v-if="l.ok" :size="13" /><X v-else :size="13" /></span>

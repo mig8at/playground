@@ -1,7 +1,4 @@
 import { reactive, computed, watch, nextTick } from 'vue'
-
-function money(n) { return '$' + Number(n || 0).toLocaleString('es-CO') }
-export { money }
 // Persistencia del grafo (bloque al final del archivo): `restoring` evita re-sembrar el buró durante
 // la rehidratación; `editTick` sube en cada edición de regla, para disparar el guardado del escenario.
 let restoring = false
@@ -88,6 +85,7 @@ export function entidadCfg(lender) {
     condonedDues: e.condonedDues ?? 0,
     abacoExtra: !!e.abacoExtra, // Información complementaria (config por entidad): ¿pide ingreso extra vía Ábaco?
     paisId: e.paisId ?? PAIS_DEFAULT_ID, // lenders.country_id — default 1 en la migración real (ver COUNTRIES)
+    documentTypes: entidadDocumentTypes(lender), // lenders_by_allied_branches.document_types
   }
 }
 // Setters de la Config de entidad (editable desde el nodo Config de lender).
@@ -118,25 +116,32 @@ export function setEntidadAbaco(lender, on) { if (lender) { lender.entidad = len
 // País de la entidad (lenders.country_id). Ver COUNTRIES: hoy la columna existe pero el listado
 // filtra por el literal 1, así que el valor NO se lee como config. El nodo País lo expone igual
 // para poder ver el desajuste con el país de la sucursal.
-export function setEntidadPais(lender, id) { if (lender) { lender.entidad = lender.entidad || {}; lender.entidad.paisId = Number(id); editTick.n++ } }
+export function setEntidadPais(lender, id) {
+  if (!lender) return
+  lender.entidad = lender.entidad || {}
+  lender.entidad.paisId = Number(id)
+  // Al cambiar de país no dejamos documentos incompatibles seleccionados. Si no queda ninguno,
+  // elegimos el primero del catálogo del país: la entidad siempre nace con una opción válida.
+  lender.entidad.documentTypes = normalizeEntityDocumentTypes(lender.entidad.paisId, lender.entidad.documentTypes)
+  editTick.n++
+}
 
 // UI: lender seleccionado + campo inerte inspeccionado (sidebar "por qué no tiene efecto").
-export const ui = reactive({ selected: null, fieldInfo: null })
+export const ui = reactive({ selected: null, fieldInfo: null, profileIndex: 0 })
 // Abre/cierra el sidebar de documentación de un campo (key de FIELD_DOCS en fieldDocs.js).
 export function openFieldInfo(key) { ui.fieldInfo = key }
 export function closeFieldInfo() { ui.fieldInfo = null }
 
 /* ============================================================================
- * PAÍS — el nodo País (nivel 0) modela lo que HOY es "país" en CreditOp, con su
- * estado real. No es una capa nueva: son tres columnas que ya existen (y una que
- * no), más la fila de `countries` que casi nadie lee. Verificado contra main de
+ * PAÍS — el nodo País (nivel 0) modela lo que HOY es "país" en CreditOp. No es
+ * una capa nueva: el comercio decide el país y la sucursal lo hereda; la entidad
+ * tiene una columna históricamente defectuosa; `countries` aporta formato. Verificado contra main de
  * legacy-backend/frontend-monorepo + BD local, 2026-08-05:
  *
  *  · allieds.country_id      → el ÚNICO que el flujo usa (sesión alliedCountry →
  *    gate `=== 60` que manda al wizard RD). NOT NULL DEFAULT 1. Acotado a [47,60].
- *  · allied_branches         → NO existe la columna. El país de la sucursal solo se
- *    puede derivar country_city_id → country_cities → country_zones.country_id
- *    (1689/1692 con ciudad, pero country_zones está sucia). Acá va como PROPUESTO.
+ *  · allied_branches         → NO existe country_id. La sucursal hereda el país del
+ *    comercio; derivarlo por ciudad no es canónico ni participa en el flujo.
  *  · lenders.country_id      → existe, pero el listado filtra por el literal
  *    `->where('country_id', 1)`: 155 de 156 filas están en 1. El valor NO se lee
  *    como config → "no se usa".
@@ -145,58 +150,129 @@ export function closeFieldInfo() { ui.fieldInfo = null }
  *    phone_code está VACÍA en las 250 filas: su migración siembra por iso_code_2
  *    ('CO'/'DO') y esa columna guarda el alpha-3 ('COL'/'DOM') → 0 filas tocadas.
  *
- * Los valores de abajo son los de la BD local, no inventados. `docTypes` sale del
- * código: CO del catálogo del wizard clásico (CC/CE/PEP, además de la columna
- * lenders_by_allied_branches.document_types que solo vive en feature/motai-v2) y
- * RD de las regex hardcodeadas del wizard dynamic.
+ * CO/RD reflejan la BD local y los wizards actuales. PE es un perfil de ESCENARIO
+ * para diseñar la integración BCP: no afirma que Perú esté habilitado en producción.
+ * `docTypes` sale del código: CO del catálogo del wizard clásico (CC/CE/PEP,
+ * además de la columna lenders_by_allied_branches.document_types que solo vive en
+ * feature/motai-v2) y RD de las regex hardcodeadas del wizard dynamic.
  * ========================================================================== */
 export const PAIS_DEFAULT_ID = 1 // el default REAL de las migraciones (allieds.country_id / lenders.country_id)
 export const COUNTRIES = [
   { id: 47, iso: 'CO', name: 'Colombia', dial: '57', phoneLen: 10, locale: 'es-CO', currency: 'COP',
-    docTypes: ['CC', 'CE', 'PEP'] },
+    docTypes: ['CC', 'CE', 'PEP'], capabilities: { stage: 'actual', risk: 'burós locales' } },
   { id: 60, iso: 'DO', name: 'República Dominicana', dial: '1', phoneLen: 10, locale: 'es-DO', currency: 'DOP',
-    docTypes: ['CED', 'CI_VE', 'PAS', 'PAS_VE'] },
+    docTypes: ['CED', 'CI_VE', 'PAS', 'PAS_VE'], capabilities: { stage: 'actual', risk: 'flujo RD' } },
+  { id: 167, iso: 'PE', name: 'Perú', dial: '51', phoneLen: 9, locale: 'es-PE', currency: 'PEN',
+    docTypes: ['DNI', 'CE'], capabilities: { stage: 'diseño', risk: 'BCP externo' } },
   // id 1 = Afghanistan en la tabla real: es el DEFAULT de las migraciones, y por eso 155 lenders
   // "viven" ahí. Se lista para que el desajuste se vea en el nodo en vez de esconderse.
   { id: 1, iso: '—', name: 'Sin país (default 1)', dial: '', phoneLen: null, locale: null, currency: null,
-    docTypes: [], bogus: true },
+    docTypes: [], bogus: true, capabilities: { stage: 'pendiente', risk: 'sin resolver' } },
 ]
 export const countryById = (id) => COUNTRIES.find(c => c.id === Number(id)) || null
+export const ALL_DOCUMENT_TYPES = [...new Set(COUNTRIES.flatMap(c => c.docTypes || []))]
+
+// `countries` no trae una columna de tipos de documento en la BD real; el país es el
+// catálogo de compatibilidad que usan los wizards. La selección efectiva se guarda por
+// entidad×sucursal como `lenders_by_allied_branches.document_types`.
+export function documentTypesForCountry(id) { return [...(countryById(id)?.docTypes || [])] }
+function entityDocumentOptions(countryId) {
+  // lenders.country_id suele venir con el default histórico 1. En ese caso el país de
+  // comercio (que la sucursal hereda) es el único contexto útil para no dejar una entidad sin documentos.
+  return documentTypesForCountry(countryId).length
+    ? documentTypesForCountry(countryId)
+    : documentTypesForCountry(merchant.paisId)
+}
+function normalizeEntityDocumentTypes(countryId, values) {
+  const allowed = entityDocumentOptions(countryId)
+  const selected = Array.isArray(values) ? values.map(String).filter(v => allowed.includes(v)) : []
+  return selected.length ? [...new Set(selected)] : (allowed[0] ? [allowed[0]] : [])
+}
+// Documentos que ofrece una entidad EN esta sucursal. Sin selección persistida (escenarios
+// anteriores) se comporta como una entidad nueva: sólo el primero del país.
+export function entidadDocumentTypes(lender) {
+  if (!lender) return []
+  return normalizeEntityDocumentTypes(lender.entidad?.paisId ?? PAIS_DEFAULT_ID, lender.entidad?.documentTypes)
+}
+export function entidadDocumentOptions(lender) {
+  return lender ? entityDocumentOptions(lender.entidad?.paisId ?? PAIS_DEFAULT_ID) : []
+}
+export function toggleEntidadDocumentType(lender, doc) {
+  if (!lender) return
+  lender.entidad = lender.entidad || {}
+  const current = entidadDocumentTypes(lender)
+  const at = current.indexOf(doc)
+  // Una entidad sin ningún documento no puede recibir solicitudes; se conserva el último.
+  lender.entidad.documentTypes = at >= 0
+    ? (current.length > 1 ? current.filter(x => x !== doc) : current)
+    : [...current, doc]
+  editTick.n++
+}
+export function documentTypesForSolicitud() {
+  const fromMerchant = documentTypesForCountry(merchant.paisId)
+  return fromMerchant.length ? fromMerchant : ALL_DOCUMENT_TYPES
+}
+function ensureSolicitudDocumentType() {
+  const types = documentTypesForSolicitud()
+  // El primer tipo del catálogo es el valor inicial canónico del país. La lista queda
+  // disponible en el formulario para que se pueda probar otro documento permitido.
+  if (types.length) state.tipoDoc = types[0]
+  if (types.length) state.codeudor.tipoDoc = types[0]
+}
 
 /* ============================================================================
  * Comercio y sucursal = etiquetas de contexto (texto libre en el nodo Comercio).
  * La calculadora económica se resuelve por nombre (merchantCalc[nombre]); las
  * entidades se crean en "Entidades del comercio" (customLenders). `enabled`
- * arranca vacío y lo pueblan las entidades custom al crearse.
- * `paisId` es allieds.country_id (real); `sucursalPaisId` es la columna PROPUESTA
- * de allied_branches — arranca siguiendo al comercio, como sería su fallback.
+ * arranca vacío y lo pueblan las entidades custom al crearse. La sucursal NO tiene
+ * país propio: hereda siempre `allieds.country_id` del comercio.
  * ========================================================================== */
 export const merchant = reactive({
   nombre: 'Motai',
   sucursal: 'PRINCIPAL',
   enabled: {},
   paisId: 47,
-  sucursalPaisId: 47,
 })
-// País del comercio: al cambiarlo arrastra el de la sucursal SOLO si esta lo seguía
-// (mismo id) — así se ve que hoy la sucursal no tiene país propio y hereda.
+// País del comercio: es también el país efectivo de cada sucursal del comercio.
 export function setMerchantPais(id) {
   const next = Number(id)
-  if (merchant.sucursalPaisId === merchant.paisId) merchant.sucursalPaisId = next
   merchant.paisId = next
+  ensureSolicitudDocumentType()
   editTick.n++
 }
-export function setSucursalPais(id) { merchant.sucursalPaisId = Number(id); editTick.n++ }
-// ¿La entidad opera en el país de la sucursal? Es la regla que el admin NO valida hoy:
+// El formato económico pertenece al país del comercio (la sucursal lo hereda). Mantenerlo
+// centralizado evita que cada nodo deje fijo COP/es-CO al agregar un nuevo país al escenario.
+function effectiveCountry() { return countryById(merchant.paisId) || countryById(47) }
+export function numberFormat(n) {
+  const country = effectiveCountry()
+  return Number(n || 0).toLocaleString(country?.locale || 'es-CO')
+}
+export function currencyAffix() {
+  const country = effectiveCountry()
+  try {
+    return new Intl.NumberFormat(country?.locale || 'es-CO', {
+      style: 'currency', currency: country?.currency || 'COP', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
+    }).formatToParts(0).find(part => part.type === 'currency')?.value || country?.currency || '$'
+  } catch { return country?.currency || '$' }
+}
+export function money(n) {
+  const country = effectiveCountry()
+  try {
+    return new Intl.NumberFormat(country?.locale || 'es-CO', {
+      style: 'currency', currency: country?.currency || 'COP', maximumFractionDigits: 0,
+    }).format(Number(n || 0))
+  } catch { return currencyAffix() + numberFormat(n) }
+}
+// ¿La entidad opera en el país heredado por la sucursal? Es la regla que el admin NO valida hoy:
 // nada impide cablear en lenders_by_allied_branches una entidad de otro país (en la BD
 // local hay 1 fila así: entidad en país 1 habilitada en la sucursal del comercio RD).
 //   'ok'      → mismo país
-//   'sinPais' → la entidad está en el default 1: la regla no se puede evaluar
-//   'otro'    → países distintos → hoy se cablea igual, sin error
+//   'sinPais' → la entidad está en el default 1: no es apta hasta declararle país
+//   'otro'    → países distintos: tampoco aparece en el marketplace del escenario
 export function paisMatch(lender) {
   const e = entidadCfg(lender); if (!e) return 'ok'
   if (e.paisId === PAIS_DEFAULT_ID) return 'sinPais'
-  return e.paisId === merchant.sucursalPaisId ? 'ok' : 'otro'
+  return e.paisId === merchant.paisId ? 'ok' : 'otro'
 }
 
 /* ============================================================================
@@ -314,23 +390,29 @@ function normalizeType(rt, producto) {
   if (rt === 3) return { rt: 2, producto: producto || 'credito' }  // rotativo → CreditopX crédito
   return { rt, producto: producto || null }
 }
-function loadCustom() {
-  try {
-    return (JSON.parse(localStorage.getItem(LS_CUSTOM)) || []).map(d => {
+function hydrateCustomLenders(rows) {
+  return (Array.isArray(rows) ? rows : []).map(d => {
       const { rt, producto } = normalizeType(d.rt, d.producto)
+      const entidad = { ...(d.entidad || {}) }
+      entidad.documentTypes = normalizeEntityDocumentTypes(entidad.paisId ?? merchant.paisId, entidad.documentTypes)
       return seedAmountRule(L({
         name: d.name, rt, custom: true, producto,
-        terms: d.terms || {}, overrides: d.overrides || {}, entidad: d.entidad || {},
+        terms: d.terms || {}, overrides: d.overrides || {}, entidad, production: d.production || null,
       }))
     })
-  } catch { return [] }
+}
+function customLenderSnapshot() {
+  return customLenders.map(l =>
+    ({ name: l.name, rt: l.rt, producto: l.producto, terms: l.terms, overrides: l.overrides, entidad: l.entidad, production: l.production }))
+}
+function loadCustom() {
+  try { return hydrateCustomLenders(JSON.parse(localStorage.getItem(LS_CUSTOM)) || []) } catch { return [] }
 }
 export const customLenders = reactive(loadCustom())
 customLenders.forEach(l => { merchant.enabled[l.name] = true }) // las persistidas nacen habilitadas
 watch(customLenders, () => {                                    // persiste catálogo custom + sus ediciones
   try {
-    localStorage.setItem(LS_CUSTOM, JSON.stringify(customLenders.map(l =>
-      ({ name: l.name, rt: l.rt, producto: l.producto, terms: l.terms, overrides: l.overrides, entidad: l.entidad }))))
+    localStorage.setItem(LS_CUSTOM, JSON.stringify(customLenderSnapshot()))
   } catch {}
 }, { deep: true })
 // Crear entidad: Nombre + categoría (rt) + producto. El producto siembra defaults desde su plantilla.
@@ -343,6 +425,7 @@ export function addCustomLender(name, rt, producto) {
     name: nm, rt: norm.rt, custom: true, producto: norm.producto,
     terms: tpl ? { ...tpl.terms } : { rate: 2.0, maxFee: 24, amountMax: 3000000 },
     overrides: tpl ? clone(tpl.overrides) : {},
+    entidad: { paisId: merchant.paisId, documentTypes: normalizeEntityDocumentTypes(merchant.paisId) },
   }))
   customLenders.push(l)
   merchant.enabled[nm] = true                     // nace habilitada
@@ -372,6 +455,79 @@ export function findLenderDef(name) {
   return customLenders.find(l => l.name === name) || null
 }
 
+// La foto de producción es inmutable. El editor sólo muta la copia local y cada diferencia
+// contra esa foto se muestra en ámbar para que nunca parezca un cambio aplicado a prod.
+export function productionChanged(lender, key, value) {
+  if (!lender?.production?.baseline || !(key in lender.production.baseline)) return false
+  return JSON.stringify(lender.production.baseline[key]) !== JSON.stringify(value)
+}
+export function productionDatacreditoChanged(name, key, value) { return productionChanged(findLenderDef(name), 'datacredito.' + key, value) }
+export function productionCollectionChanged(name, key, value) { return productionChanged(findLenderDef(name), key, value) }
+const flowNum = (v, fallback = 0) => Number.isFinite(Number(v)) ? Number(v) : fallback
+const flowDues = (v, max) => { const a = String(v || '').match(/\d+/g)?.map(Number).filter(n => n > 0) || []; return a.length ? a : (max ? [max] : [6, 12, 24, 36]) }
+function flowDocumentTypes(v, countryId) {
+  let values = []
+  if (Array.isArray(v)) values = v
+  else if (typeof v === 'string') {
+    try { const parsed = JSON.parse(v); values = Array.isArray(parsed) ? parsed : [] } catch { values = v.split(/[|,]/) }
+  }
+  return normalizeEntityDocumentTypes(countryId, values.map(x => String(x).trim()).filter(Boolean))
+}
+export function applyProductionImport({ comercio, sucursal, item, profiles = [], tramos = [], groupRules = [], importedAt = new Date().toISOString() }) {
+  const lenderId = flowNum(item.id); let l = customLenders.find(x => x.production?.lenderId === lenderId && x.production?.branchId === flowNum(sucursal.id))
+  if (!l) { let name = String(item.name || 'Entidad de producción'), n = 2; while (customLenders.some(x => x.name === name)) name = String(item.name || 'Entidad') + ' (prod ' + n++ + ')'; const norm = normalizeType(item.response_type, 'credito'); l = L({ name, rt: norm.rt, custom: true, producto: norm.producto, terms: {}, overrides: {}, entidad: {} }); customLenders.push(l) }
+  const amountMin = flowNum(item.min_amount), amountMax = flowNum(item.max_amount), dues = flowDues(item.fee_numbers, flowNum(item.max_fee_number)), rate = item.rate == null ? null : flowNum(item.rate)
+  // El comercio aporta el país real del wizard. Si el lender conserva el default histórico 1,
+  // ése también es el fallback con el que se interpreta document_types.
+  const branchCountry = flowNum(comercio.country_id, merchant.paisId)
+  merchant.paisId = branchCountry
+  ensureSolicitudDocumentType()
+  const lenderCountry = flowNum(item.country_id, branchCountry)
+  const documentTypes = flowDocumentTypes(item.document_types, lenderCountry)
+  l.rt = normalizeType(item.response_type, l.producto).rt; l.terms = { ...l.terms, amountMax, maxFee: Math.max(...dues), rate }; l.entidad = { ...l.entidad, amountMin, dues, paisId: lenderCountry, documentTypes }
+  if (l.rt !== 2) l.overrides = { ...l.overrides, amount: { min: amountMin, max: amountMax } }
+  merchant.nombre = comercio.name; merchant.sucursal = sucursal.name; merchant.enabled[l.name] = true
+  const dc = { enabled: item.min_score != null, minScore: flowNum(item.min_score), maxNegatives: flowNum(item.max_negatives, 20), maxInquiries: flowNum(item.max_inquiries, 20), minMaturation: flowNum(item.min_maturation), allowZeroScore: !!flowNum(item.allow_0_score) }
+  Object.assign(sucursalDatacreditoOf(l.name), dc)
+  // Categorías: corresponde a la política por lender. Se conserva el orden real para que el
+  // simulador evalúe la primera coincidencia igual que el motor.
+  {
+    const cats = profiles.map((c, i) => ({
+      id: String(c.id), label: c.name || ('Perfil ' + (i + 1)), minInitialFee: flowNum(c.min_initial_fee), maxAmount: flowNum(c.max_amount), maxFeeNumber: flowNum(c.max_fee_number), loanLimit: flowNum(c.loan_limit), usedLoan: flowNum(c.already_used_loan), capacityCheck: false, capacityPct: 30, priority: flowNum(c.priority, i + 1),
+      occupation: String(c.occupation || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean), minAge: flowNum(c.min_age, 18), maxAge: flowNum(c.max_age, 100), minIncome: flowNum(c.monthly_income), verifiedIncome: false, minContinuity: flowNum(c.employment_continuity), gender: String(c.gender || 'M|F').split('|').map(x => x.trim()).filter(Boolean), minScore: flowNum(c.min_score), maxNegatives: c.negative_reports_last_12_months == null ? 20 : flowNum(c.negative_reports_last_12_months), maxDelinq: c.current_delinquencies == null ? 10 : flowNum(c.current_delinquencies), minHistory: flowNum(c.financial_history_length), maxInquiries: c.consulted_last_6_months == null ? 20 : flowNum(c.consulted_last_6_months),
+    }))
+  perfilOf(l.name).splice(0, perfilOf(l.name).length, ...cats)
+  ui.profileIndex = 0
+  }
+  const importedTramos = tramos.map(t => ({ min: flowNum(t.min_amount), max: flowNum(t.max_amount), maxFee: flowNum(t.max_fee_number), mandatory: flowNum(t.mandatory_fee_number) }))
+  tramosOf(l.name).splice(0, tramosOf(l.name).length, ...importedTramos)
+  setTramoOn(l.name, true)
+  // group_rules es por sucursal, no por entidad. Convertimos sólo las columnas que el simulador
+  // conoce; las demás quedan registradas en la foto como no modeladas, sin inventar su efecto.
+  const byGroup = new Map()
+  const fieldOf = (r) => {
+    const n = String(r.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    if (n.includes('ocupacion')) return 'employment'; if (n.includes('genero')) return 'gender'; if (n.includes('ingreso')) return 'monthlyIncome'; if (n.includes('edad')) return 'age'; if (n.includes('document')) return 'documentType'
+    if (r.specific_table === 'users' && r.column === 'gender') return 'gender'; if (r.specific_table === 'users' && r.column === 'age') return 'age'
+    return null
+  }
+  for (const r of groupRules) {
+    const field = fieldOf(r); if (!field) continue
+    const id = String(r.group_id); if (!byGroup.has(id)) byGroup.set(id, { conds: [] })
+    const set = ['employment', 'gender', 'documentType'].includes(field)
+    // La BD expresa las listas con igualdad/desigualdad (=, ==, !=, <>); en el editor
+    // la misma semántica se lee como “está / no está en esta lista”.
+    const rawOp = String(r.operator || '').trim().toLowerCase()
+    const op = set ? (['!=', '<>', 'not in'].includes(rawOp) ? 'not in' : 'in') : (rawOp === '=' ? '==' : rawOp)
+    const value = set ? String(r.value || '').split('|').map(x => x.trim().toLowerCase()).filter(Boolean).map(x => field === 'gender' ? x.toUpperCase() : x) : flowNum(r.value)
+    byGroup.get(id).conds.push({ field, op, value })
+  }
+  const importedGroups = [...byGroup.values()]
+  sucursalGroupsOf(l.name).splice(0, sucursalGroupsOf(l.name).length, ...importedGroups)
+  l.production = { lenderId, commerceId: flowNum(comercio.id), branchId: flowNum(sucursal.id), importedAt, baseline: { amountMin, amountMax, dues, rate, paisId: l.entidad.paisId, documentTypes: clone(documentTypes), profiles: clone(perfilOf(l.name)), tramos: clone(importedTramos), groupRules: clone(importedGroups), 'datacredito.minScore': dc.minScore, 'datacredito.maxNegatives': dc.maxNegatives, 'datacredito.maxInquiries': dc.maxInquiries, 'datacredito.minMaturation': dc.minMaturation, 'datacredito.allowZeroScore': dc.allowZeroScore } }
+  ui.selected = l.name; focusWinningProfile(l.name); editTick.n++; return l
+}
+
 /* ============================================================================
  * Solicitud de onboarding (inputs del cliente).
  * ========================================================================== */
@@ -381,6 +537,8 @@ export const state = reactive({
   cuotaInicial: 0,
   nombre: 'Ana',
   apellido: 'García',
+  // El prefijo se deriva del país efectivo del comercio; aquí sólo queda el número local.
+  celular: '3001234567',
   tipoDoc: 'CC',
   numDoc: '1032456789',
   fechaExp: '2015-06-20',
@@ -573,6 +731,7 @@ export function failingRuleKeys(lenderName) {
   const s = subjectOf()
   const keys = new Set()
   const g = sucursalGate(lenderName, s, l.rt)           // 2ª capa: datacrédito + group_rules por sucursal
+  if (!g.documentTypes.ok) keys.add('documentTypes')
   g.datacredito.fails.forEach(f => keys.add(f.key))
   if (!g.groups.ok) g.groups.groups.forEach(gr => { if (!gr.ok) gr.conds.forEach(x => { if (!x.ok) keys.add(FIELD_TO_RULE[x.c.field] || x.c.field) }) })
   if (l.rt === 2) { // rt=2: el corte de monto lo pone el CUPO de la categoría (no la regla amount) → resalta Monto igual
@@ -685,6 +844,14 @@ export function perfilDiag(lenderName) {
   })
   return { rows, winner, blacklisted, subject: { employment: s.employment, age: s.age, income: s.monthlyIncome, gender: s.gender, verified: s.incomeVerified, continuity: s.continuityMonths } }
 }
+// El carrusel abre en el perfil que realmente preaprobó al solicitante, no en la primera fila
+// de configuración. Si nadie cumple, queda en la primera para poder diagnosticar el motivo.
+export function focusWinningProfile(lenderName) {
+  const cats = perfilOf(lenderName)
+  const winner = perfilDiag(lenderName).winner
+  const at = cats.findIndex(c => c.id === winner)
+  ui.profileIndex = at >= 0 ? at : 0
+}
 // Diagnóstico del lender SELECCIONADO, compartido: el hub Perfilamiento + las 3 tarjetas de categoría
 // leen este computed (antes cada nodo evaluaba perfilDiag() por su cuenta = 4 pasadas por render).
 export const perfilDiagSel = computed(() => {
@@ -733,7 +900,7 @@ export const GROUP_FIELDS = [
   { key: 'monthlyIncome', label: 'Ingreso mensual', kind: 'money', ops: ['>=', '<=', '>', '<'] },
   { key: 'employment', label: 'Situación laboral', kind: 'set', options: OCCUPATIONS, ops: ['in', 'not in'] },
   { key: 'gender', label: 'Género', kind: 'set', options: ['M', 'F'], ops: ['in', 'not in'] },
-  { key: 'documentType', label: 'Tipo de documento', kind: 'set', options: ['CC', 'CE', 'PEP'], ops: ['in', 'not in'] },
+  { key: 'documentType', label: 'Tipo de documento', kind: 'set', options: ALL_DOCUMENT_TYPES, ops: ['in', 'not in'] },
   { key: 'amount', label: 'Monto solicitado', kind: 'money', ops: ['>=', '<=', '>', '<'] },
   { key: 'currentArrears', label: 'Mora vigente', kind: 'num', ops: ['<=', '<', '==', '>='] },
   { key: 'debtToIncomePct', label: 'Endeudamiento %', kind: 'num', ops: ['<=', '<', '>='] },
@@ -828,12 +995,17 @@ function evalGroups(name, s) {
   const gr = groups.map(g => { const conds = g.conds.map(c => ({ c, ...evalCond(c, s) })); return { ok: conds.length > 0 && conds.every(x => x.ok), conds } })
   return { on: true, ok: gr.some(g => g.ok), groups: gr } // OR entre grupos
 }
-// Compuerta completa de la 2ª capa para un lender: datacrédito AND group_rules.
+function evalDocumentTypes(name, s) {
+  const docs = entidadDocumentTypes(findLenderDef(name))
+  const ok = docs.includes(s.documentType)
+  return { on: true, ok, docs, reason: ok ? null : `${s.documentType || 'sin tipo'} no está entre ${docs.join(', ') || 'ninguno'}` }
+}
+// Compuerta completa para un lender: documentos de la entidad AND datacrédito AND group_rules.
 export function sucursalGate(name, s, rt) {
-  const dc = evalDatacredito(name, s), gr = evalGroups(name, s)
-  const ok = dc.ok && gr.ok
-  const reason = !dc.ok ? dc.fails[0].reason : (!gr.ok ? 'no cumple ningún grupo de reglas' : null)
-  return { datacredito: dc, groups: gr, ok, reason, verdict: ok ? 'pass' : (rt === 2 ? 'exclude' : 'classify') }
+  const docs = evalDocumentTypes(name, s), dc = evalDatacredito(name, s), gr = evalGroups(name, s)
+  const ok = docs.ok && dc.ok && gr.ok
+  const reason = !docs.ok ? `tipo de documento: ${docs.reason}` : (!dc.ok ? dc.fails[0].reason : (!gr.ok ? 'no cumple ningún grupo de reglas' : null))
+  return { documentTypes: docs, datacredito: dc, groups: gr, ok, reason, verdict: ok ? 'pass' : (rt === 2 ? 'exclude' : 'classify') }
 }
 export function sucursalActiveCount(name) {
   const d = sucursalDatacreditoOf(name); let n = 0
@@ -887,9 +1059,15 @@ export function activeTramoIndex(name) {
 }
 
 const PROB_RANK = { alta: 0, media: 1, baja: 2 }
+// Política del simulador: una entidad sólo puede ofrecerse si declara el mismo país del
+// comercio/sucursal. Producción hoy no siempre la hace cumplir (country_id suele ser 1),
+// por eso las entidades pendientes quedan visibles en el aviso del nodo, no se silencian.
+export const countryBlockedLenders = computed(() =>
+  customLenders.filter(l => merchant.enabled[l.name] && paisMatch(l) !== 'ok')
+)
 export const lenders = computed(() => {
   const s = subjectOf()
-  const active = customLenders.filter(l => merchant.enabled[l.name]) // catálogo del comercio (lenders_by_allieds). OJO: lenders_by_allied_branches.status NO filtra el getLenders vivo (default true; el panel ni la escribe; solo la lee el simulador viejo) → "Estado en sucursal" es flag informativo, no compuerta.
+  const active = customLenders.filter(l => merchant.enabled[l.name] && paisMatch(l) === 'ok') // catálogo del comercio (lenders_by_allieds). OJO: lenders_by_allied_branches.status NO filtra el getLenders vivo (default true; el panel ni la escribe; solo la lee el simulador viejo) → "Estado en sucursal" es flag informativo, no compuerta.
   return active.map(l => {
     // Tope del comercio (lenders_by_allieds.max_amount) POR entidad: hereda el máx de ESA entidad
     // (credit_line_by_lenders) salvo que el comercio lo haya pisado con un override propio.
@@ -961,15 +1139,62 @@ export const availableCount = computed(() => lenders.value.filter(l => l.ok).len
 // Fidelidad: rt=1 la pre-aprobación YA ocurrió en el listado; acá es la FORMALIZACIÓN (2ª decisión
 // externa, no inyectable localmente). rt=0 no corre nada local (redirige y pierde visibilidad). rt=2/3
 // corre local, estado por estado, hasta el Estado 11.
-export const postSel = reactive({}) // { [lenderName]: { plan|kyc|firma|enganche | radica|decision | redirect } }
+export const postSel = reactive({}) // { [lenderName]: { snapshot|committed|radica|redirect|return } }
 function postSelBag(name) { if (!postSel[name]) postSel[name] = {}; return postSel[name] }
 export function setPostSel(name, key, val) { postSelBag(name)[key] = val; editTick.n++ }
+
+// Una oferta NO es una aprobación: al elegir una entidad guardamos exactamente lo que se mostró.
+// El nodo "Re-evaluación" compara después ese snapshot con el estado actual. Esto deja visible el
+// caso de soporte más común: una oferta válida que ya no alcanza cuando se confirma en el POS.
+function liveOffer(name) { return lenders.value.find(l => l.name === name) || null }
+export function captureOfferSnapshot(name) {
+  const offer = liveOffer(name)
+  if (!offer) return null
+  const bag = postSelBag(name)
+  bag.snapshot = {
+    amount: montoNum(), cupo: offer.cupo, category: offer.category || null,
+    dues: [...(offer.dues || [])], initialFeeAmount: offer.initialFeeAmount || 0,
+  }
+  bag.committed = 0
+  editTick.n++
+  return bag.snapshot
+}
+// La tarjeta del listado es el único lugar que representa "el cliente eligió". Abrir configuración
+// desde los otros nodos no debe reemplazar una oferta que ya estaba en curso.
+export function selectOffer(name) {
+  ui.selected = name
+  if (!postSel[name]?.snapshot) captureOfferSnapshot(name)
+}
+export function setCommittedSinceOffer(name, val) {
+  postSelBag(name).committed = Math.max(0, Number(val) || 0)
+  editTick.n++
+}
+export function recheckStatus(name) {
+  const snapshot = postSel[name]?.snapshot
+  const offer = liveOffer(name)
+  const committed = Math.max(0, Number(postSel[name]?.committed) || 0)
+  if (!snapshot) return { known: false, allowed: false, kind: 'unknown', snapshot: null, offer, committed: 0 }
+  if (!offer?.ok) {
+    return { known: true, allowed: false, kind: 'blocked', snapshot, offer, committed,
+      reason: offer?.reason || 'ya no aparece en el listado actual' }
+  }
+  const cupo = Math.max(0, (offer.cupo || 0) - committed)
+  if (snapshot.amount > cupo) {
+    return { known: true, allowed: false, kind: 'blocked', snapshot, offer, committed, cupo,
+      reason: `monto ${money(snapshot.amount)} > cupo actual ${money(cupo)}` }
+  }
+  const changed = snapshot.cupo !== offer.cupo || snapshot.category !== (offer.category || null) ||
+    snapshot.initialFeeAmount !== (offer.initialFeeAmount || 0) ||
+    snapshot.dues.join(',') !== (offer.dues || []).join(',') || committed > 0
+  return { known: true, allowed: true, kind: changed ? 'changed' : 'pass', snapshot, offer, committed, cupo,
+    reason: changed ? 'las condiciones cambiaron, pero la operación todavía puede continuar' : 'coincide con la oferta mostrada' }
+}
 // Cadena ordenada por rt. `pass` = el valor del toggle que DEJA avanzar; cualquier otro corta ahí.
 // El flujo in-platform (CreditopX rt=2) se modela como cadena de nodos propios (identidad → plan de
 // pagos → [info adicional si Consumo] → firma → estado) en App.vue; acá solo quedan rt=0 y rt=1.
 const POSTSEL_STEPS = {
   0: [{ key: 'redirect', pass: 'abre' }],
-  1: [{ key: 'radica', pass: 'radica' }, { key: 'decision', pass: 'aprueba' }],
+  1: [{ key: 'radica', pass: 'radica' }],
 }
 export function postSelSteps(rt) { return POSTSEL_STEPS[rt] || [] }
 
@@ -996,12 +1221,36 @@ export function creditStatus(name) {
   return { ok: true, failedAt: null, rt: l.rt }
 }
 
+// El proveedor puede responder mucho después de que el usuario salió del flujo. No lo mezclamos
+// con "radicar": una radicación exitosa solo prueba que el paquete salió de CreditOp.
+export function externalReturnOf(name) {
+  const l = findLenderDef(name)
+  const value = postSel[name]?.return
+  if (value) return value
+  return l?.rt === 1 ? 'pendiente' : 'desconocido'
+}
+export function setExternalReturn(name, value) { setPostSel(name, 'return', value) }
+export function externalOutcome(name) {
+  const l = findLenderDef(name)
+  const lifecycle = creditStatus(name)
+  if (!l) return { kind: 'unknown', word: '—', label: '' }
+  if (!lifecycle?.ok) return { kind: 'blocked', word: 'Sin retorno', label: 'No se alcanzó el retorno porque falló un paso anterior.' }
+  const value = externalReturnOf(name)
+  if (value === 'fulfilled') return { kind: 'ok', word: 'Autorizada', label: 'El resultado externo volvió a CreditOp.' }
+  if (value === 'rejected') return { kind: 'bad', word: 'Rechazada', label: 'El proveedor informó que no continúa la solicitud.' }
+  if (value === 'pending_disbursement') return { kind: 'wait', word: 'Pendiente', label: 'La decisión llegó, pero el desembolso sigue pendiente.' }
+  if (value === 'webhook_failed') return { kind: 'unknown', word: 'Sin confirmar', label: 'El proveedor pudo responder, pero CreditOp no recibió o no procesó el retorno.' }
+  return l.rt === 0
+    ? { kind: 'unknown', word: 'Fuera de CreditOp', label: 'La entidad decide fuera; no hay un desenlace verificable desde este flujo.' }
+    : { kind: 'wait', word: 'En espera', label: 'Radicada; falta el retorno asíncrono del proveedor.' }
+}
+
 // Productos DISTINTOS que ofrece el comercio, derivados de sus entidades habilitadas (por `producto`).
 // Orden estable crédito → renting → renting c/compra.
 const PRODUCTO_LABELS = { credito: 'Crédito', consumo: 'Consumo', renting: 'Renting', rto: 'Renting con compra' }
 const PRODUCTO_SHORT = { credito: 'C', consumo: 'Co', renting: 'R', rto: 'RB' }
 export const merchantProductos = computed(() => {
-  const keys = new Set(customLenders.filter(l => merchant.enabled[l.name]).map(l => l.producto).filter(Boolean))
+  const keys = new Set(customLenders.filter(l => merchant.enabled[l.name] && paisMatch(l) === 'ok').map(l => l.producto).filter(Boolean))
   return ['credito', 'consumo', 'renting', 'rto'].filter(k => keys.has(k)).map(k => ({ key: k, label: PRODUCTO_LABELS[k], short: PRODUCTO_SHORT[k] }))
 })
 
@@ -1017,7 +1266,7 @@ function graphSnapshot() {
   return {
     version: GRAPH_VERSION,
     merchant: { nombre: merchant.nombre, sucursal: merchant.sucursal, enabled: { ...merchant.enabled },
-      paisId: merchant.paisId, sucursalPaisId: merchant.sucursalPaisId },
+      paisId: merchant.paisId },
     canal: { ...canal },
     state: { ...state },
     bureau: { ...bureau },
@@ -1035,46 +1284,58 @@ function graphSnapshot() {
       defs: Object.fromEntries(Object.entries(tramoDefs).map(([n, t]) => [n, clone(t)])),
       state: { ...tramoState },
     },
+    dues: { ...selectedDues }, // plazo elegido por oferta
     postSel: clone(postSel), // ciclo de vida post-selección (toggles por etapa/lender)
     selected: ui.selected,
   }
 }
 function saveGraph() { try { localStorage.setItem(GRAPH_KEY, JSON.stringify(graphSnapshot())); persistPing.n++ } catch {} }
-function restoreGraph() {
-  let snap
-  try { snap = JSON.parse(localStorage.getItem(GRAPH_KEY)) } catch { return }
+function clearRecord(record) { Object.keys(record).forEach(key => delete record[key]) }
+function applyGraphSnapshot(snap) {
   if (!snap || snap.version !== GRAPH_VERSION) return
   restoring = true // evita que el watch de numDoc re-siembre el buró encima de lo persistido
   try {
     if (snap.merchant) {
       merchant.nombre = snap.merchant.nombre; merchant.sucursal = snap.merchant.sucursal
-      Object.assign(merchant.enabled, snap.merchant.enabled)
+      clearRecord(merchant.enabled); Object.assign(merchant.enabled, snap.merchant.enabled)
       // Escenarios guardados ANTES del nodo País no traen estos campos → se quedan en su default (47/47).
       if (snap.merchant.paisId != null) merchant.paisId = Number(snap.merchant.paisId)
-      merchant.sucursalPaisId = snap.merchant.sucursalPaisId != null ? Number(snap.merchant.sucursalPaisId) : merchant.paisId
     }
     if (snap.canal) Object.assign(canal, snap.canal)
     if (snap.state) Object.assign(state, snap.state)
-    if (snap.bureau) Object.assign(bureau, snap.bureau)
+    // La persistencia nunca deja un documento del país anterior como valor inicial.
+    ensureSolicitudDocumentType()
+    if (snap.bureau) { clearRecord(bureau); Object.assign(bureau, snap.bureau) }
     if (snap.nulls) { Object.keys(nulls).forEach(k => delete nulls[k]); Object.assign(nulls, snap.nulls) }
-    if (snap.providerDown) Object.assign(providerDown, snap.providerDown)
-    if (snap.merchantCalc) Object.assign(merchantCalc, snap.merchantCalc)
+    if (snap.providerDown) { clearRecord(providerDown); Object.assign(providerDown, snap.providerDown) }
+    if (snap.merchantCalc) { clearRecord(merchantCalc); Object.assign(merchantCalc, snap.merchantCalc) }
+    clearRecord(relationDefs)
     if (snap.relations) for (const [n, ov] of Object.entries(snap.relations)) { const l = findLenderDef(n); if (l) Object.assign(relationOf(l).overrides, ov) }
+    clearRecord(perfilDefs); clearRecord(perfilBlacklist); clearRecord(preApproval)
     if (snap.perfiles) perfilRestore(snap.perfiles)
+    clearRecord(branchStatus); clearRecord(sucDatacredito); clearRecord(sucGroups)
     if (snap.sucursal) {
       if (snap.sucursal.status) Object.assign(branchStatus, snap.sucursal.status)
       if (snap.sucursal.datacredito) for (const [n, d] of Object.entries(snap.sucursal.datacredito)) Object.assign(sucursalDatacreditoOf(n), d)
       if (snap.sucursal.groups) for (const [n, g] of Object.entries(snap.sucursal.groups)) { const cur = sucursalGroupsOf(n); cur.splice(0, cur.length, ...g) }
     }
+    clearRecord(tramoDefs); clearRecord(tramoState)
     if (snap.tramos) {
       if (snap.tramos.defs) for (const [n, t] of Object.entries(snap.tramos.defs)) { const cur = tramosOf(n); cur.splice(0, cur.length, ...t) }
       if (snap.tramos.state) Object.assign(tramoState, snap.tramos.state)
     }
-    if (snap.postSel) Object.assign(postSel, snap.postSel)
+    clearRecord(selectedDues); if (snap.dues) Object.assign(selectedDues, snap.dues)
+    clearRecord(postSel); if (snap.postSel) Object.assign(postSel, snap.postSel)
     if (snap.selected !== undefined) ui.selected = snap.selected
   } catch { /* snapshot corrupto: quedamos con lo que se haya aplicado */ }
   nextTick(() => { restoring = false })
 }
+function restoreGraph() {
+  let snap
+  try { snap = JSON.parse(localStorage.getItem(GRAPH_KEY)) } catch { return }
+  applyGraphSnapshot(snap)
+}
+
 restoreGraph() // rehidrata al cargar el módulo (después de que todo está definido)
 let saveTimer
 watch([merchant, canal, state, bureau, nulls, providerDown, merchantCalc, () => ui.selected, () => editTick.n],

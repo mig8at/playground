@@ -1,10 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { state, openFieldInfo } from '../store'
+import { state, documentTypesForSolicitud, openFieldInfo } from '../store'
 import { Users } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
 import OtpInput from '../OtpInput.vue'
+
+const documentTypes = computed(() => documentTypesForSolicitud())
 
 // Codeudor — solo en RENTING cuando el ingreso del solicitante ≤ 3.000.000 (bifurcación en App.vue).
 // Mismos datos que el nodo Solicitud (persona + ingreso/egresos), del codeudor que respalda la operación.
@@ -26,7 +29,7 @@ import OtpInput from '../OtpInput.vue'
       </label>
       <label class="field"><span>Tipo doc.</span>
         <select class="nodrag" v-model="state.codeudor.tipoDoc">
-          <option>CC</option><option>CE</option><option>PEP</option>
+          <option v-for="doc in documentTypes" :key="doc" :value="doc">{{ doc }}</option>
         </select>
       </label>
       <label class="field"><span>N° documento</span>
@@ -36,10 +39,10 @@ import OtpInput from '../OtpInput.vue'
         <input class="nodrag" type="date" v-model="state.codeudor.fechaExp" />
       </label>
       <label class="field"><span>Ingreso</span>
-        <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.codeudor.salario" /></AffixField>
+        <AffixField currency><MoneyInput class="afld__in" v-model="state.codeudor.salario" /></AffixField>
       </label>
       <label class="field"><span>Egresos</span>
-        <AffixField prefix="$"><MoneyInput class="afld__in" v-model="state.codeudor.egresos" /></AffixField>
+        <AffixField currency><MoneyInput class="afld__in" v-model="state.codeudor.egresos" /></AffixField>
       </label>
       <label class="field"><span>OTP</span>
         <OtpInput v-model="state.codeudor.otp" :length="4" />

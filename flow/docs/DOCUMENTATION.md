@@ -348,45 +348,32 @@ cae en ninguno y el backend no lo consume, **no se agrega** (sería otro fantasm
 
 ---
 
-## 10. País: un select por nivel (no un nodo)
+## 10. País: un perfil heredado que sí gobierna el escenario
 
-**Agregado 2026-08-05.** Existe porque "país" no es **una** cosa: son **tres columnas** —una que manda,
-una que no se lee y una que no existe— más la fila de `countries` que casi nadie consulta. Verificado
-contra `main` de `legacy-backend`/`frontend-monorepo` + BD local.
+**Actualizado 2026-09-21.** País no es una etapa del flujo ni una configuración de la sucursal: el
+comercio lo define y la sucursal lo hereda. El Flow concentra sus efectos en un perfil compacto que se
+ve tanto en **Solicitud** como en **Configurar sucursal**: documentos compatibles, prefijo y longitud
+del celular, moneda/formato y camino de riesgo esperado.
 
-**No hay nodo País**, y es a propósito: el país no es una etapa del flujo, es una **columna de cada
-nivel**. Así que cada nodo de config declara el suyo con su propio select, con el tag de su estado real:
+| Dato | Fuente productiva | Cómo lo trata Flow |
+|---|---|---|
+| País del comercio | `allieds.country_id` | **Decide** el país efectivo del escenario. Cambia catálogo documental, celular y formato económico. |
+| País de la sucursal | no existe `allied_branches.country_id` | **Hereda** siempre del comercio; no hay selector duplicado. |
+| País de la entidad | `lenders.country_id` | En producción está degradado por el default `1`; en Flow es una **compuerta explícita**: una entidad sólo se ofrece si declara el mismo país del comercio. |
+| Documentos por entidad×sucursal | `lenders_by_allied_branches.document_types` | Se seleccionan sólo dentro del catálogo del país y queda por lo menos uno elegido. |
+| Formato | `countries.locale` + `currency` | Formatea los importes del escenario; no cambia la matemática ni agrega decimales. |
 
-| Nodo | Columna | Tag | Por qué |
-|---|---|---|---|
-| **Configurar entidad** | `lenders.country_id` | **no se usa** | Existe, pero el listado filtra por el **literal** `->where('country_id', 1)` y 155 de 156 filas están en 1 → el valor no es configuración, es una constante. Trampa: crear una entidad con su país correcto la hace **desaparecer del listado sin error** |
-| **Configurar comercio** | `allieds.country_id` | **decide** | El único que el flujo lee: va a la sesión como `alliedCountry` y el gate `=== 60` manda al **wizard RD entero** (5 pantallas propias), no traduce textos. `NOT NULL DEFAULT 1`, acotado a `[47, 60]` |
-| **Configurar sucursal** | *(propuesto)* `allied_branches.country_id` | **propuesto** | La columna **no existe**: hoy la sucursal hereda el país del comercio, así que una sucursal en otro país es **invisible** para el flujo. Solo derivable `country_city_id → country_cities → country_zones.country_id`, y `country_zones` está sucia |
+El default histórico `1` no se interpreta como un país válido. Una entidad que aún lo tenga queda
+fuera del marketplace con un aviso visible de **sin país**; eso evita probar una oferta bajo economía,
+documentos o reglas de otra geografía por accidente.
 
-Al elegir el país en **Configurar sucursal** aparece debajo la **fila de `countries`** de ese país —
-tipos de documento, prefijo telefónico, dígitos del celular, moneda— atenuada donde nadie la lee, y con
-el clic explicando quién la consume de verdad:
+### Catálogo del escenario
 
-- **docs** — tres catálogos compiten: `z.enum(["CC","CE","PEP"])` del wizard clásico, `in:CC,CE,PEP` del
-  backend, y las regex propias del wizard RD (`CED` 11 dígitos, `CI_VE`, `PAS`/`PAS_VE`). El único que
-  está en base de datos (`lenders_by_allied_branches.document_types`, poblado en **6231/6231** filas)
-  **no tiene lector en `main`**: su consumidor vive en `feature/motai-v2`.
-- **tel** — `dial_code` guarda el número sin `+`; `phone_code` está **vacía en las 250 filas** (su
-  migración siembra por `iso_code_2`, que guarda el **alpha-3** → 0 filas tocadas). El código compara
-  contra `'+57'` literal en 28 archivos.
-- **díg** — `cell_phone_lenght` *(sic)*: el typo + el `$fillable` con el nombre correcto = no escribe
-  nada. El "10 dígitos" está hardcodeado en ≥6 lugares del wizard.
-- **moneda** — `locale` + `currency` son las únicas que sí se leen (`currency_format`). Y explican por
-  qué la economía es por país: `credit_line_by_lenders` cuelga de `lender_id` **sin** dimensión de país,
-  así que SmartPay RD (153) trae `min/max` **1.000–100.000 (DOP)** contra **500.000–6.000.000 (COP)** de
-  CrediPullman → **"una fila de lender por país" no es convención: es lo que el esquema obliga**.
+- **Colombia** y **República Dominicana** reflejan los wizards ya documentados.
+- **Perú** aparece como perfil de **diseño**, no como operación productiva: `DNI`/`CE`, `+51`, 9
+  dígitos, PEN y un camino de riesgo **BCP externo**.
 
-**El aviso en *Configurar sucursal*** implementa la regla que el admin **no** valida: cablear en una
-sucursal una entidad de otro país. Se muestra, no se bloquea — porque hoy el sistema lo permite (en el
-dump hay 1 fila así). Ojo con el estado `default 1`: no es "otro país", es que **la regla no se puede
-evaluar** — y es el caso de 155 de 156 entidades.
-
-> Fidelidad: esto NO modela el deber-ser de la internacionalización. Cada select va con el estado real
-> de su columna (`decide` / `no se usa` / `propuesto`) para que el desajuste se vea en vez de esconderse
-> — el mismo criterio de §9 con los campos inertes. El plan de qué hacer con esto vive en la tarea del
-> tablero (`internacionalizacion-onboarding.md`), no acá.
+El siguiente paso de BCP no es inventar una preaprobación: la evidencia actual lo define como checkout
+con **redirect**, sin adaptador REST ni retorno modelado en `pre-approvals-service`. Antes de conectarlo
+al grafo hay que decidir mapeo de producto, contrato de retorno y el corte legal por país. La lista y el
+orden de esos bloqueantes viven en `tablero/data/artifacts/playground.lo-que-queda-de-pais-quemado.censo.md`.

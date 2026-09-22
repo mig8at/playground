@@ -44,6 +44,22 @@ Puerto **5190**, `strictPort: true` (si está ocupado, **falla**, no se corre so
 validar** — editás, corrés `npm run build`, commiteás local y describís el cambio; el user revisa en
 su propio :5190. Y como todo `playground/`: **commit local, nunca push**.
 
+## Contexto compacto para un LLM
+
+El canvas sirve para experimentar. Para orientar un modelo sin pegarle toda la documentación, usá la
+consola local de texto desde la raíz de `playground`: **mapa → una ficha → fuente declarada**. No abre
+el navegador, no lee el escenario guardado ni consulta producción.
+
+```bash
+make flow-context ARGS='map --text'
+make flow-context ARGS='route "¿por qué una entidad queda con probabilidad baja?" --text'
+make flow-context ARGS='brief branch-gate --text'
+```
+
+Las fichas cubren `country`, `offers`, `branch-gate`, `profiling`, `amount`, `post-selection` y
+`fidelity`. Si la pregunta trae una cédula, teléfono, solicitud, SQL o estado actual, Flow se niega:
+el mecanismo se explica aquí, pero el caso se valida con Harness o Trazador.
+
 ### Lo primero que vas a ver: nada
 
 El catálogo **arranca vacío** a propósito (`customLenders` sale de `localStorage`, no hay lenders

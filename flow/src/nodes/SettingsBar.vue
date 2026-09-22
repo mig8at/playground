@@ -1,8 +1,9 @@
 <script setup>
 import { ref, watch, onUnmounted } from 'vue'
-import { Settings, Sun, Moon, RotateCcw, Check } from 'lucide-vue-next'
+import { Settings, Sun, Moon, RotateCcw, Check, Download } from 'lucide-vue-next'
 import { settings, toggleTheme } from '../settings'
 import { resetGraph, persistPing } from '../store'
+const emit = defineEmits(['import-prod'])
 
 // "✓ guardado" transitorio: aparece cada vez que se persiste el escenario y se desvanece solo.
 const justSaved = ref(false)
@@ -42,6 +43,8 @@ onUnmounted(() => { clearTimeout(savedTimer); clearTimeout(confirmTimer) })
     </div>
 
     <div class="settings__sep"></div>
+
+    <button class="settings__theme nodrag" title="Importar una configuración puntual de producción" @click="emit('import-prod')"><Download :size="13" /> Importar prod</button>
 
     <span class="settings__lbl">Campos</span>
     <label class="settings__chk" title="Por defecto el grafo muestra SOLO el flujo de solicitud. Activá para revelar lo que NO participa en la solicitud: cobros al comercio (revenue), servicing (post-desembolso), datos informativos del buró e inertes del admin — atenuados y clicables para ver el detalle."><input type="checkbox" v-model="settings.showExtra" /> <span>Mostrar campos fuera de la solicitud</span> <em>revenue · servicing · buró · inertes</em></label>

@@ -1,8 +1,8 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { Handle, Position } from '@vue-flow/core'
-import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, setEntidadPais, openFieldInfo, montoVsEntidad, COUNTRIES } from '../store'
-import { Building2, X } from 'lucide-vue-next'
+import { ui, findLenderDef, entidadCfg, setEntidadProducto, setEntidadMonto, setEntidadRate, setEntidadDues, setEntidad, setEntidadAbaco, setEntidadPais, entidadDocumentOptions, toggleEntidadDocumentType, openFieldInfo, montoVsEntidad, COUNTRIES, productionChanged } from '../store'
+import { Building2, X, ChevronDown, Check } from 'lucide-vue-next'
 import MoneyInput from '../MoneyInput.vue'
 import AffixField from '../AffixField.vue'
 
@@ -15,6 +15,8 @@ const prodVal = computed(() => lender.value?.producto || lender.value?.product |
 // Header teñido por response_type: rt1 ámbar · rt0 azul · rt2/rt3 morado (default).
 const hdClass = computed(() => { const rt = lender.value?.rt; return rt === 1 ? 'node__hd--amber' : rt === 0 ? 'node__hd--blue' : '' })
 const econ = computed(() => entidadCfg(lender.value))
+const documentOptions = computed(() => entidadDocumentOptions(lender.value))
+const documentsOpen = ref(false)
 const montoBad = computed(() => { const e = econ.value; return !!e && e.amountMax > 0 && e.amountMin > e.amountMax })
 const who = computed(() => lender.value ? lender.value.name : '')
 </script>
@@ -25,33 +27,43 @@ const who = computed(() => lender.value ? lender.value.name : '')
       <div class="node__title"><Building2 :size="13" /> Configurar entidad</div>
       <button class="prov__x nodrag" @click.stop="ui.selected = null" title="cerrar la ficha (también: Esc, o re-clic en la tarjeta)" aria-label="cerrar"><X :size="14" /></button>
     </div>
-    <div class="node__body" v-if="econ">
-      <div class="node__desc"><b>{{ who }}</b> — producto y economía</div>
+    <div class="node__body nowheel nodrag" v-if="econ" @wheel.stop>
+      <div class="node__desc"><b>{{ who }}</b> — producto y economía <span v-if="lender.production" class="prod-source">foto prod</span></div>
       <!-- Config de entidad: lo que HOY edita el admin en "Editar entidad" (tabla lenders) -->
       <div class="pl-sec">Config de entidad <span class="pl-hint">· admin · editable</span></div>
       <!-- País de la entidad (lenders.country_id): la columna existe pero el listado filtra por el
            literal 1 → el valor no se lee como config. -->
-      <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.entidad')">País</span>
+      <div class="ent-row" :class="{ 'prod-local': productionChanged(lender, 'paisId', econ.paisId) }"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('pais.entidad')">País <small class="ent-inline-tag">referencia</small></span>
         <select class="nodrag ent-in" :value="econ.paisId" @change="e => setEntidadPais(lender, e.target.value)">
           <option v-for="c in COUNTRIES" :key="c.id" :value="c.id">{{ c.bogus ? 'Sin país (default 1)' : c.name }}</option>
         </select>
-        <span class="fld-tag fld-tag--muerto">no se usa</span>
+      </div>
+      <div class="ent-row" :class="{ 'prod-local': productionChanged(lender, 'documentTypes', econ.documentTypes) }">
+        <span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.documentTypes')">Documentos</span>
+        <div class="ent-doc-select nodrag" :title="'Opciones válidas para ' + (COUNTRIES.find(c => c.id === econ.paisId)?.name || 'el país del comercio')">
+          <button class="ent-doc-select__btn" :class="{ on: econ.documentTypes.length }" :aria-expanded="documentsOpen" aria-haspopup="listbox" @click.stop="documentsOpen = !documentsOpen"><span>{{ econ.documentTypes.join(' · ') || 'Elegir…' }}</span><ChevronDown :size="13" /></button>
+          <div v-if="documentsOpen" class="ent-doc-select__menu">
+            <button v-for="doc in documentOptions" :key="doc" class="ent-doc-select__option" :class="{ on: econ.documentTypes.includes(doc) }"
+                    :title="econ.documentTypes.includes(doc) && econ.documentTypes.length === 1 ? 'Debe quedar al menos un tipo seleccionado' : (econ.documentTypes.includes(doc) ? 'Quitar ' + doc : 'Ofrecer ' + doc)"
+                    @click.stop="toggleEntidadDocumentType(lender, doc)"><Check :size="11" /><span>{{ doc }}</span></button>
+          </div>
+        </div>
       </div>
       <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.producto')">Producto</span>
         <select class="nodrag ent-in" :value="prodVal" @change="e => setEntidadProducto(lender, e.target.value)">
           <option v-for="p in PRODUCTOS" :key="p.key" :value="p.key">{{ p.label }}</option>
         </select>
       </div>
-      <div class="ent-row" :class="{ 'ent-row--fail': montoVsEntidad(ui.selected) }"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.monto')">Monto</span>
-        <AffixField prefix="$" class="afld--mny"><MoneyInput class="afld__in" :model-value="econ.amountMin" @update:model-value="v => setEntidadMonto(lender, 'min', v)" /></AffixField>
+      <div class="ent-row" :class="{ 'ent-row--fail': montoVsEntidad(ui.selected), 'prod-local': productionChanged(lender, 'amountMin', econ.amountMin) || productionChanged(lender, 'amountMax', econ.amountMax) }"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.monto')">Monto</span>
+        <AffixField currency class="afld--mny"><MoneyInput class="afld__in" :model-value="econ.amountMin" @update:model-value="v => setEntidadMonto(lender, 'min', v)" /></AffixField>
         <span class="ent-u">–</span>
-        <AffixField prefix="$" class="afld--mny"><MoneyInput class="afld__in" :model-value="econ.amountMax" @update:model-value="v => setEntidadMonto(lender, 'max', v)" /></AffixField>
+        <AffixField currency class="afld--mny"><MoneyInput class="afld__in" :model-value="econ.amountMax" @update:model-value="v => setEntidadMonto(lender, 'max', v)" /></AffixField>
       </div>
       <div v-if="montoBad" class="ent-warn">⚠ el mínimo es mayor que el máximo</div>
-      <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.dues')">Nº de cuotas</span>
+      <div class="ent-row" :class="{ 'prod-local': productionChanged(lender, 'dues', econ.dues) }"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.dues')">Nº de cuotas</span>
         <input class="nodrag ent-in" :value="econ.dues.join(', ')" @change="e => setEntidadDues(lender, e.target.value)" />
       </div>
-      <div class="ent-row"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.tasa')">Tasa</span>
+      <div class="ent-row" :class="{ 'prod-local': productionChanged(lender, 'rate', econ.rate) }"><span class="fld-doc" title="clic: dónde vive y por qué" @click="openFieldInfo('ent.tasa')">Tasa</span>
         <AffixField suffix="% M.V." class="afld--rate"><input class="nodrag afld__in" type="number" step="0.01" :value="econ.rate" @input="e => setEntidadRate(lender, e.target.value)" /></AffixField>
       </div>
       <div class="ent-row cfg-servicing"><span class="fld-doc" title="clic: por qué NO baja la cuota de la oferta" @click="openFieldInfo('ent.condonadas')">Cuotas condonadas <span class="fld-tag fld-tag--servicing">servicing</span></span>
