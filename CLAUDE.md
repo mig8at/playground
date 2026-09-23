@@ -199,7 +199,10 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   ⚠ Dos trampas medidas al construirlo: **Chrome deja `oklch()` sin resolver en el computed style**
   (parsear esos números como RGB da 1,00 en todo — hay que pintar el color en un canvas y leer el
   píxel), y **`opacity` se apila sobre el color** sin que el chequeo estático lo vea, porque la regla
-  sola es correcta.
+  sola es correcta. ⚠ Y se apila también la de los **ancestros**: hasta el 2026-09-23 la auditoría
+  aplicaba sólo la del nodo, y la fecha de un hallazgo del tablero —ítem en `.85` × su línea en `.6`—
+  salía verde estando en 3,53:1. Hoy multiplica la cadena entera; al estrenarlo, el panel del harness
+  pasó de 7 a 21 nodos bajo AA.
 - **La tinta compacta usa la rampa de `taller.css`, no `--muted-foreground`:** los temas cambian su
   contraste relativo. `--texto-2` (74%) y `--texto-3` (70%) se derivan de `--foreground`; cualquier
   combinación explícita de tinta y superficie se verifica con `make estilo-check`. `--accent` es una

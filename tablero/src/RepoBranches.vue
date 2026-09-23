@@ -199,11 +199,13 @@ tbody tr:hover td.main { background:color-mix(in oklab, var(--acc) 5%, var(--pan
 .repo-option { display:flex; align-items:center; gap:8px; min-width:0; min-height:38px; padding:5px 8px; color:var(--mut);
   text-align:left; background:transparent; border:0; border-radius:var(--radius-md); cursor:pointer }
 .repo-option:hover { color:var(--txt); background:color-mix(in oklab, var(--acc) 7%, var(--panel2)) }
-.repo-option.selected { color:var(--txt); background:var(--accent) }
+.repo-option.selected { color:var(--accent-foreground); background:var(--accent) }
 .repo-option:focus-visible { outline:2px solid var(--ring); outline-offset:-1px }.repo-option .ui-icon { flex:none; width:15px; height:15px; color:var(--mut) }
 .repo-option.selected .ui-icon { color:var(--acc) }.repo-text { display:flex; flex:1; flex-direction:column; gap:2px; min-width:0 }
 .repo-text b, .repo-text small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap }.repo-text b { font-size:11px }
 .repo-text small { color:var(--mut); font-size:9.5px }
+/* `--accent` es una superficie y su tinta es `--accent-foreground`: con --mut encima, «4 ramas» quedaba en 3,86:1. */
+.repo-option.selected .repo-text small { color:var(--accent-foreground) }
 .empty-branches { display:flex; align-items:center; justify-content:center; flex:1; gap:7px; padding:16px;
   color:var(--mut); font-size:11px; text-align:center }.empty-branches strong { color:var(--txt) }
 @container (max-width:620px) {

@@ -2448,6 +2448,8 @@ function documentAction(id) {
 .tr-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--mut) }
 .tr-dot.e-ok { background: var(--ok) } .tr-dot.e-doing { background: var(--acc) }
 .tr-key { font: 10.5px var(--font-mono); color: var(--mut); flex: none }
+/* Sobre el fondo de la fila elegida la rampa ya no alcanza (--mut quedaba en 4,05:1): la clave sube a tinta plena. */
+.tree-row.sel .tr-key { color: var(--txt) }
 .tr-tt { flex: 1; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .tr-n { font-size: 9.5px; font-weight: 700; color: var(--warn); flex: none; white-space: nowrap }
 .tr-z { font-size: 10px; color: var(--mut); flex: none }
@@ -2656,7 +2658,7 @@ function documentAction(id) {
 .orig.carried i { background: var(--bad) }
 
 .fld { display: flex; align-items: baseline; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--mut); margin-bottom: 7px }
-.fld em { font-style: normal; text-transform: none; letter-spacing: 0; opacity: .7; font-weight: 400; margin-left: 5px }
+.fld em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--tenue); font-weight: 400; margin-left: 5px }
 /* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
@@ -2829,25 +2831,28 @@ function documentAction(id) {
    la rampa, no un velo. */
 .hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
         border-color: currentColor; padding: 2px 6px; }
-.hpie { font-size: 11.5px; opacity: .5; margin: 0 0 10px; }
-.hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; opacity: .85; }
-.hitem.vencido { border-left-color: var(--bad); opacity: 1; }
+/* ⚠ El mismo arreglo, en el resto del bloque (2026-09-23). El pie iba en `opacity: .5` (3,44:1), y el ítem
+   entero en `.85`, que se multiplicaba con el `.6` de su línea de fecha: la fecha y la antigüedad de un
+   hallazgo quedaban en 3,53:1 y `make estilo-contraste` no lo veía, porque mide la opacidad del nodo y no la
+   de sus ancestros. Lo vencido se distingue por la barra y la antigüedad en color, no por apagar lo demás. */
+.hpie { font-size: 11.5px; color: var(--tenue); margin: 0 0 10px; }
+.hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; }
+.hitem.vencido { border-left-color: var(--bad); }
 .hmeta { display: flex; gap: 9px; flex-wrap: wrap; align-items: baseline;
-         font: 11px/1.4 var(--mono, ui-monospace, monospace); opacity: .6; margin-bottom: 3px; }
-.hitem.vencido .hedad { color: var(--bad); opacity: 1; font-weight: 600; }
-.hquien { opacity: .8; }
+         font: 11px/1.4 var(--mono, ui-monospace, monospace); color: var(--tenue); margin-bottom: 3px; }
+.hitem.vencido .hedad { color: var(--bad); font-weight: 600; }
 .hque { margin: 0; font-size: 13.5px; line-height: 1.5; }
 /* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
    gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
 .pitem { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; }
 .pmark { font-size: 12px; color: var(--acc); line-height: 1.5; }
 .pque { margin: 0; font-size: 13.5px; line-height: 1.5; }
-.pitem.hecho { opacity: .45; }
+.pitem.hecho { color: var(--tenue); }
 .pitem.hecho .pmark { color: var(--mut); }
 .pitem.hecho .pque { text-decoration: line-through; }
 .hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--sel);
          font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
-         word-break: break-word; opacity: .8; }
+         word-break: break-word; }
 
 /* CON QUÉ SE COMPROBÓ. Las etiquetas las deriva el server del `Cómo`; acá sólo se pintan.
    Dos pesos distintos a propósito: la HERRAMIENTA es un dato de contexto y va apagada; el AMBIENTE
@@ -2855,28 +2860,30 @@ function documentAction(id) {
    local» no son la misma frase. Y «sin cómo» va en rojo apagado: no es un error, es una deuda. */
 .proc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 14px;
         padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.proc-cuenta { font-size: 11.5px; opacity: .65; margin-right: 2px; }
+.proc-cuenta { font-size: 11.5px; color: var(--tenue); margin-right: 2px; }
 /* Sobre `.badge.badge-outline`: con qué se comprobó. Monoespaciada porque son COMANDOS, y radio
    chico porque es un rótulo. ⚠ Sin `opacity: .85`, que se apilaba sobre el color. */
 .fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px;
          border-radius: var(--radius-md); background: var(--sel); border-color: transparent; }
-.fchip b { font-weight: 700; opacity: .6; margin-left: 2px; }
-.fchip.amb { color: var(--acc); border-color: color-mix(in srgb, var(--acc) 35%, transparent);
-             background: color-mix(in srgb, var(--acc) 10%, transparent); opacity: 1; }
-.fchip.sin { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 35%, transparent); background: color-mix(in oklab, var(--bad) 8%, transparent); }
+/* El número va en el color del chip: con `opacity: .6` encima quedaba en 3,18:1 sobre el de ambiente. Y cada
+   chip de color es relleno O contorno: el ambiente, que resalta, va relleno; «sin cómo», que es una deuda
+   y no un error, va sólo con contorno —con el tinte debajo su texto no llegaba a 4,5:1 (4,38)—. */
+.fchip b { font-weight: 700; margin-left: 2px; }
+.fchip.amb { color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
+.fchip.sin { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 45%, transparent); background: transparent; }
 .hfuentes { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; }
 
 /* PUNTOS ---------------------------------------------------------------------------------------- */
-.stat .v .de { opacity: .4; font-size: .62em; font-weight: 500; margin-left: 1px; }
+.stat .v .de { color: var(--tenue); font-size: .62em; font-weight: 500; margin-left: 1px; }
 /* la marca de por dónde va el sprint, sobre la barra de lo entregado */
 .stat .bar { position: relative; }
 .stat .bar u { position: absolute; top: -2px; bottom: -2px; width: 2px; background: currentColor;
                opacity: .55; border-radius: var(--radius-sm); }
 .pts-detalle { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline;
-               margin: -6px 0 18px; font-size: 12.5px; opacity: .75; }
-.pd-k { opacity: .6; }
+               margin: -6px 0 18px; font-size: 12.5px; color: var(--mut); }
+.pd-k { color: var(--tenue); }
 .pd-i b { font-weight: 600; }
-.pd-mal { color: var(--bad); opacity: 1; }
+.pd-mal { color: var(--bad); }
 
 /* ── el CUERPO TÉCNICO en el cajón ───────────────────────────────────────────────────────────────
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja

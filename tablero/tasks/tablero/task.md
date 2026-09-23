@@ -87,10 +87,9 @@ toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pes
 a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
 Detalle en «Frente: la interfaz y lo que quedó muerto».
 
-**El próximo paso es:** reiniciar el `make tablero` que esté corriendo —el servidor viejo no encuentra
-tareas en `data/`, sirve las rutas retiradas y habla con las claves viejas— y mirar la interfaz a mano,
-que en esta sesión sólo se vio en un Chromium sin cabeza. Después, decidir qué hacer con
-`tema.css`/`taller.css`, compartidos con harness y trazador: es lo único que queda del frente del inglés.
+**El próximo paso es:** decidir qué hacer con `tema.css`/`taller.css`, compartidos con harness y
+trazador: es lo único que queda del frente del inglés. El tablero ya corre con el código nuevo
+(reiniciado y probado en vivo el 2026-09-23); el contraste del panel del harness quedó como tarea aparte.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -137,8 +136,9 @@ que en esta sesión sólo se vio en un Chromium sin cabeza. Después, decidir qu
       absorbiéndolo en `playground`.
 - [x] Actualizar `docs/ARCHITECTURE.md`: el «Recorrido diario» describe la cronología del centro, las
       tres pestañas y la consola de ramas.
-- [ ] Mirar a mano la interfaz reiniciada (el Chromium sin cabeza no ve lo que no se pregunta); termina
-      cuando Miguel la recorre y no aparece nada nuevo, o lo que aparezca queda anotado acá.
+- [x] Reiniciar y probar la interfaz con el código nuevo — a pedido de Miguel, en vivo: la API llega con
+      las claves en inglés, los cinco arreglos andan a 800 y a 1440px, un artifact abre, y la auditoría de
+      contraste de lo que se pinta encontró 51 nodos bajo AA que se corrigieron (ver el frente).
 - [ ] Comprobar que ninguna tarea local nueva nazca fuera de los siete nombres canónicos.
 - [ ] Confirmar que bitácora y retoma siguen agrupadas bajo la herramienta correcta.
 - [ ] Medir cuántos archivos y tokens evita `make tarea-json` en una retoma real con workers.
@@ -318,9 +318,10 @@ asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
 
 > **DECISIÓN · 2026-09-23** — los métodos que quedaron de sólo lectura (`/api/efforts`, `/api/entries`) responden 405 a cualquier otro verbo en vez de devolver la lista: un cliente viejo que escribe tiene que enterarse de que no se guardó.
 
-**Lo que no se hizo.** La interfaz no se miró a mano: el lanzador de previews de esta sesión volvió a no
-dejar arriba el servidor, y la verificación visual fue con Chromium sin cabeza (capturas a 1440 y 1000px
-con los datos reales). `tema.css` y `taller.css` siguen sin decidir, y `jira-preview.js` conserva sus
+> **MEDICIÓN · 2026-09-23** — reiniciado y probado en vivo (a pedido de Miguel): el server arrancó con el log nuevo y sin el cliente del bot, y la API ya llega con las claves en inglés. A 800px, el avance de pendientes abre la región plegada; a 1440px, también después de ocultarla desde el pie. Los rótulos llevan su espacio y el enlace «#1175» toma el color primario, subrayado. La consola de ramas muestra los PR con su estado, y un artifact abre desde `/artifacts/`. Nada de esto rompió la 4b; lo que sí apareció fue el contraste: `make estilo-contraste` —que antes no se podía correr porque no había server— encontró **51 nodos de texto bajo AA** en la tarea que abre, en 7 casos, todos previos: `opacity` apilada en el pie y los chips de los hallazgos, la clave de la fila elegida (4,05), el «N ramas» del repo elegido (3,86), el chip «sin cómo» (4,38) y la palabra clave del SQL sobre un hallazgo vencido (4,48, 39 nodos). Midiendo además la opacidad de los ANCESTROS, que la auditoría no miraba, aparecieron 10 más: la fecha y la antigüedad de cada hallazgo no vencido, en 3,53. Se corrigieron con la rampa (`--tenue`, `--txt`, `--accent-foreground`) en vez de opacidad, y `--sql-keyword` pasó a `#bd94ff` (5,52). Con eso, la auditoría queda en verde y no hay ningún nodo bajo AA en cuatro tareas contando la opacidad heredada. `tools/contraste.js` ahora multiplica la opacidad de la cadena entera; con eso, el panel del harness pasó de 7 a 21 nodos bajo AA, y quedó como tarea aparte.
+> make estilo-contraste SOLO=tablero
+
+**Lo que no se hizo.** `tema.css` y `taller.css` siguen sin decidir, y `jira-preview.js` conserva sus
 colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
 llegan.
 
@@ -333,6 +334,11 @@ llegan.
 ## Registro
 
 ### 2026-09-23
+
+Reinicio y prueba en vivo, a pedido de Miguel. La 4b anduvo sin sorpresas; la auditoría de contraste de
+lo que se pinta, que por primera vez se pudo correr con el tablero arriba, encontró 51 nodos de texto bajo
+AA más 10 que sólo se ven contando la opacidad de los ancestros. Se corrigieron con la rampa en vez de
+opacidad, y la auditoría compartida aprendió a mirar la cadena entera.
 
 Fase 4b: las claves JSON del tablero en inglés y el contrato en `tablero.task.v2`, con el server, la UI,
 `jev.py`, el hook de cierre y el schema cambiados juntos. Para hacerlo y probarlo nacieron un inventario de

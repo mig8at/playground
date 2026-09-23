@@ -63,7 +63,7 @@
   --info: #60a5fa;
   /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
      literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make estilo-check`). */
-  --sql-keyword:    #b07cff;
+  --sql-keyword:    #bd94ff;   /* #b07cff daba 4,48:1 sobre el fondo de un hallazgo vencido */
   --sql-function:   #74c8ff;
   --sql-string:     #95c77b;
   --sql-number:     #f3ae62;

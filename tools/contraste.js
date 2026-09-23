@@ -13,7 +13,9 @@
  *      RGB da cualquier cosa — mi primer intento reportó 1,00 en todo. La única forma exacta es
  *      PINTAR el color en un canvas y leer el píxel.
  *   2. `opacity` se apila sobre el color y el chequeo estático no la ve, porque la regla sola es
- *      correcta. Acá se aplica al final, que es lo que hace el navegador.
+ *      correcta. Acá se aplica al final, que es lo que hace el navegador — y es la de TODA la cadena de
+ *      ancestros, no sólo la del nodo: hasta el 2026-09-23 se miraba sólo la propia, y la fecha de un
+ *      hallazgo del tablero (ítem en `.85` × su línea en `.6`) salía verde estando en 3,53:1.
  *
  * WCAG exime a los controles INACTIVOS, así que lo deshabilitado sale marcado y no cuenta.
  */
@@ -41,7 +43,8 @@ window.__contraste = () => {
   for (const el of document.querySelectorAll('*')) {
     const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
     const cs = getComputedStyle(el);
-    if (cs.visibility === 'hidden' || +cs.opacity === 0) continue;
+    let op = 1; for (let n = el; n && n !== document.documentElement; n = n.parentElement) op *= +getComputedStyle(n).opacity;
+    if (cs.visibility === 'hidden' || op === 0) continue;
     const txt = [...el.childNodes].filter(n => n.nodeType === 3 && n.textContent.trim())
                                   .map(n => n.textContent.trim()).join(' ');
     if (!txt) continue;
@@ -49,7 +52,7 @@ window.__contraste = () => {
     const px = parseFloat(cs.fontSize), peso = +cs.fontWeight || 400;
     const min = (px >= 24 || (px >= 18.66 && peso >= 700)) ? 3 : 4.5;   // AA: texto grande pide menos
     let col = mez(aRGB(cs.color), bg);
-    const op = +cs.opacity; if (op < 1) col = mez({ c: col, a: op }, bg);
+    if (op < 1) col = mez({ c: col, a: op }, bg);
     const k = K(col, bg);
     if (k >= min) continue;
     malos.push({ k: +k.toFixed(2), min, px, fg: hex(col), bg: hex(bg), opacidad: op,
