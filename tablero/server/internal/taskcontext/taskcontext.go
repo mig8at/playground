@@ -68,16 +68,19 @@ type Reference struct {
 	Environment string `json:"environment,omitempty"`
 }
 
-// Event es una línea de tasks/<slug>/context.jsonl. No hay un tipo "avance": los bloques de
-// tiempo siguen en entries/. Sólo se escribe si altera una decisión futura, deja una prueba útil,
-// bloquea el trabajo o congela el estado para retomar.
+// Event es una línea de tasks/<slug>/context.jsonl: un BLOQUE (BlockSchema, lo que se escribe desde el
+// 2026-09-23: título y descripción) o un hito del formato viejo (Schema: kind, summary, state…), que
+// se sigue leyendo hasta migrarlo. Los dos comparten `id` y `at`, que es lo que arma el acordeón.
 type Event struct {
 	Schema     string      `json:"schema"`
 	ID         string      `json:"id"`
 	At         string      `json:"at"`
-	Kind       string      `json:"kind"`
+	Via        string      `json:"via,omitempty"`
+	Title      string      `json:"title,omitempty"`
+	Body       string      `json:"body,omitempty"`
+	Kind       string      `json:"kind,omitempty"`
 	Goal       string      `json:"goal,omitempty"`
-	Summary    string      `json:"summary"`
+	Summary    string      `json:"summary,omitempty"`
 	State      string      `json:"state,omitempty"`
 	Next       string      `json:"next,omitempty"`
 	Reason     string      `json:"reason,omitempty"`
@@ -242,15 +245,31 @@ func NormalizeAndValidate(event Event, now time.Time) (Event, error) {
 		}
 	}
 	if event.ID == "" {
-		var random [4]byte
-		if _, err := rand.Read(random[:]); err != nil {
-			return Event{}, fmt.Errorf("generando id: %w", err)
+		if event.ID, err = newID("ctx_", now); err != nil {
+			return Event{}, err
 		}
-		event.ID = "ctx_" + now.UTC().Format("20060102T150405.000000000Z") + "_" + hex.EncodeToString(random[:])
 	} else if !strings.HasPrefix(event.ID, "ctx_") {
 		return Event{}, fmt.Errorf("id inválido")
 	}
 	return event, nil
+}
+
+// newID: el prefijo dice el formato —`ctx_` un hito, `blk_` un bloque— y el resto ordena por tiempo.
+func newID(prefix string, now time.Time) (string, error) {
+	var random [4]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", fmt.Errorf("generando id: %w", err)
+	}
+	return prefix + now.UTC().Format("20060102T150405.000000000Z") + "_" + hex.EncodeToString(random[:]), nil
+}
+
+// validateStored valida una línea ya escrita según su formato.
+func validateStored(event Event) error {
+	if event.Schema == BlockSchema {
+		return ValidateBlock(event)
+	}
+	_, err := NormalizeAndValidate(event, time.Now())
+	return err
 }
 
 // Read entrega los eventos de más reciente a más antiguo. Un archivo ausente es una tarea que todavía
@@ -276,7 +295,7 @@ func Read(dir, slug string) ([]Event, error) {
 		if err != nil {
 			return nil, fmt.Errorf("%s línea %d: JSON inválido: %w", filepath.Base(path), n+1, err)
 		}
-		if _, err := NormalizeAndValidate(event, time.Now()); err != nil {
+		if err := validateStored(event); err != nil {
 			return nil, fmt.Errorf("%s línea %d: %w", filepath.Base(path), n+1, err)
 		}
 		out = append(out, event)
@@ -286,9 +305,16 @@ func Read(dir, slug string) ([]Event, error) {
 }
 
 // Append valida la entrada y reescribe atómicamente el JSONL. El archivo no tiene una línea parcial si
-// se interrumpe el proceso durante la escritura.
+// se interrumpe el proceso durante la escritura. Un bloque llega ya preparado (PrepareBlock) y sólo se
+// revalida; un hito del formato viejo se normaliza como antes.
 func Append(dir, slug string, input Event, now time.Time) (Event, error) {
-	event, err := NormalizeAndValidate(input, now)
+	event := input
+	var err error
+	if input.Schema == BlockSchema {
+		err = ValidateBlock(input)
+	} else {
+		event, err = NormalizeAndValidate(input, now)
+	}
 	if err != nil {
 		return Event{}, err
 	}
@@ -303,15 +329,19 @@ func Append(dir, slug string, input Event, now time.Time) (Event, error) {
 	if err != nil && !os.IsNotExist(err) {
 		return Event{}, err
 	}
-	line, err := json.Marshal(event)
-	if err != nil {
+	// Sin escapar HTML: la pila se lee también a mano y en un diff, y `<slug>` escrito como `\u003cslug\u003e`
+	// no lo lee nadie. El JSON sigue siendo válido: el escape de json.Marshal es para incrustarlo en HTML.
+	var line bytes.Buffer
+	encoder := json.NewEncoder(&line)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(event); err != nil {
 		return Event{}, err
 	}
 	content := strings.TrimRight(string(previous), "\n")
 	if content != "" {
 		content += "\n"
 	}
-	content += string(line) + "\n"
+	content += line.String()
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".task-context-*")
 	if err != nil {
 		return Event{}, err

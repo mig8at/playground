@@ -59,7 +59,7 @@ define subcomandos
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
+.PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
 	trazador-diag trazador-chequeo trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
@@ -121,11 +121,16 @@ bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comand
 	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
 	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
 
-tarea-context-add: ## @dia ⚠ ESCRIBE un hito de retoma validado en JSONL. N=<id|slug> EVENTO=<archivo.json> · [SECO=1]
-	@test -n "$(N)" -a -n "$(EVENTO)" || { echo "faltan N= y EVENTO=  ·  ej: make tarea-context-add N=84 EVENTO=tablero/docs/task-context-event.example.json"; exit 2; }
-	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -evento $(if $(filter /%,$(EVENTO)),$(EVENTO),../../$(EVENTO)) $(if $(SECO),-n)
+tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> · [VIA=harness|trazador|db] · [SECO=1]
+	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }
+	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -bloque $(if $(filter /%,$(ARCHIVO)),$(ARCHIVO),../../$(ARCHIVO)) $(if $(VIA),-via $(VIA)) $(if $(SECO),-n)
 
-tarea-context: ## @dia los últimos hitos estructurados para retomar. N=<id|slug>
+# El formato de hitos se retiró el 2026-09-23. El target queda para que quien siga una guía vieja
+# reciba el camino nuevo en vez de un «No rule to make target».
+tarea-context-add:
+	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make tarea-bloque N=<tarea> ARCHIVO=<bloque.md>"; exit 2
+
+tarea-context: ## @dia la pila de una tarea: sus últimos bloques (e hitos viejos). N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -ver
 

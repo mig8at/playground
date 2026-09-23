@@ -14,14 +14,11 @@ func TestConfigDeliversToolURLs(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
 	}
-	var body struct {
-		CanonURL  string `json:"canonUrl"`
-		TracerURL string `json:"tracerUrl"`
-	}
+	var body configResponse
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body.CanonURL != "https://canon.test" || body.TracerURL != "https://tracer.test" {
+	if body.CanonURL != "https://canon.test" || body.TracerURL != "https://tracer.test" || body.Repos == nil {
 		t.Fatalf("config = %+v", body)
 	}
 }

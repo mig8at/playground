@@ -1,19 +1,24 @@
-// task-context agrega o consulta hitos estructurados de una tarea.
+// task-context agrega bloques a la pila de una tarea, o la muestra.
 //
-// No acepta texto libre por flags: el evento vive primero en un JSON revisable, se valida y recién
-// entonces se apila en tasks/<slug>/context.jsonl. Así una actualización no termina como un
-// diario irrelevante ni duplica el documento Markdown de la tarea.
+// Un bloque se escribe primero en un Markdown revisable —`# título` y la descripción—, se valida y
+// recién entonces se apila en tasks/<slug>/context.jsonl, con los archivos que cita fijados al commit
+// en que existen. El formato viejo de hitos (JSON con kind/summary/next) ya no se escribe: se lee
+// hasta migrarlo.
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/layout"
+	"creditop/tablero/server/internal/repos"
 	"creditop/tablero/server/internal/store"
 	"creditop/tablero/server/internal/taskcontext"
 )
@@ -32,10 +37,31 @@ func resolve(s *store.Store, ref string) (*store.EffortRef, error) {
 	return nil, fmt.Errorf("no hay tarea %q (id o slug exacto)", ref)
 }
 
+// canonMissing le pregunta a canon por los temas citados y devuelve los que no conoce.
+func canonMissing(ctx context.Context, refs []string) ([]string, error) {
+	// Cuatro segundos y no los ocho del cliente: sin VPN canon no contesta, y agregar un bloque no
+	// puede quedarse colgado esperando una red que no está (el bloque entra con un aviso).
+	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
+	defer cancel()
+	got, err := canon.FromEnv().References(ctx, refs)
+	if err != nil {
+		return nil, err
+	}
+	var missing []string
+	for _, r := range got {
+		if r.Error != "" {
+			missing = append(missing, r.Requested+" ("+r.Error+")")
+		}
+	}
+	return missing, nil
+}
+
 func main() {
 	task := flag.String("tarea", "", "id o slug de la tarea")
-	eventPath := flag.String("evento", "", "JSON con el hito; omite schema, id y at")
-	show := flag.Bool("ver", false, "muestra los últimos hitos sin escribir")
+	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción")
+	via := flag.String("via", "manual", "quién lo agrega: manual · harness · trazador · db")
+	eventPath := flag.String("evento", "", "retirado: el formato de hitos ya no se escribe")
+	show := flag.Bool("ver", false, "muestra la pila sin escribir")
 	dryRun := flag.Bool("n", false, "valida y previsualiza, sin escribir")
 	flag.Parse()
 
@@ -43,14 +69,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 		os.Exit(2)
 	}
+	if *eventPath != "" {
+		fail("el formato de hitos (JSON con kind, summary, next) se retiró el 2026-09-23: la pila es de bloques.\n" +
+			"Escribí `# título` y la descripción en un Markdown y agregalo con `make tarea-bloque N=<tarea> ARCHIVO=<bloque.md>`.")
+	}
 	if *task == "" {
-		fail("falta -tarea. Ej: task-context -tarea codigo-preaprobado -evento hito.json")
+		fail("falta -tarea. Ej: task-context -tarea codigo-preaprobado -bloque bloque.md")
 	}
-	if *show && *eventPath != "" {
-		fail("-ver no recibe -evento")
+	if *show && *blockPath != "" {
+		fail("-ver no recibe -bloque")
 	}
-	if !*show && *eventPath == "" {
-		fail("falta -evento con el JSON del hito")
+	if !*show && *blockPath == "" {
+		fail("falta -bloque con el Markdown del bloque")
 	}
 	s, err := store.Open(dataDir())
 	if err != nil {
@@ -61,46 +91,51 @@ func main() {
 		fail("%v. `make tareas` las lista.", err)
 	}
 	slug := effort.Slug
+	events, err := s.TaskContext(effort.ID)
+	if err != nil {
+		fail("leyendo la pila: %v", err)
+	}
 	if *show {
-		events, err := s.TaskContext(effort.ID)
-		if err != nil {
-			fail("leyendo contexto: %v", err)
-		}
 		if len(events) == 0 {
-			fmt.Printf("\n  #%d %s · sin hitos estructurados todavía\n\n", effort.ID, slug)
+			fmt.Printf("\n  #%d %s · la pila está vacía\n\n", effort.ID, slug)
 			return
 		}
-		fmt.Printf("\n  #%d %s · %d hito(s), más reciente primero\n", effort.ID, slug, len(events))
+		fmt.Printf("\n  #%d %s · %d en la pila, más reciente primero\n", effort.ID, slug, len(events))
 		for _, event := range taskcontext.Recent(events, 8) {
-			fmt.Printf("  %s · %-10s %s\n", event.At[:10], event.Kind, taskcontext.PlainText(event.Summary))
-			if event.Next != "" {
-				fmt.Printf("    siguiente: %s\n", event.Next)
-			}
+			fmt.Printf("  %s · %-10s %s\n", event.At[:10], taskcontext.Label(event), taskcontext.Headline(event))
 		}
 		fmt.Println()
 		return
 	}
 
-	b, err := os.ReadFile(*eventPath)
+	src, err := os.ReadFile(*blockPath)
 	if err != nil {
-		fail("leyendo -evento: %v", err)
+		fail("leyendo -bloque: %v", err)
 	}
-	input, err := taskcontext.Decode(b)
+	title, body, err := taskcontext.ParseBlockMarkdown(string(src))
 	if err != nil {
-		fail("-evento no es JSON válido: %v", err)
+		fail("bloque inválido: %v", err)
 	}
-	clean, err := taskcontext.NormalizeAndValidate(input, time.Now())
+	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, Existing: events}
+	block, warnings, err := taskcontext.PrepareBlock(context.Background(), title, body, *via, deps, time.Now())
+	for _, w := range warnings {
+		fmt.Fprintf(os.Stderr, "  ⚠ %s\n", w)
+	}
 	if err != nil {
-		fail("hito inválido: %v", err)
+		fail("bloque inválido: %v", err)
 	}
-	pretty, _ := json.MarshalIndent(clean, "", "  ")
-	fmt.Printf("\n  #%d %s · %s\n%s\n", effort.ID, slug, *eventPath, pretty)
+	var pretty strings.Builder
+	encoder := json.NewEncoder(&pretty)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	_ = encoder.Encode(block)
+	fmt.Printf("\n  #%d %s · %s\n%s", effort.ID, slug, *blockPath, pretty.String())
 	if *dryRun {
 		fmt.Println("  (-n: no se escribió)")
 		return
 	}
-	if _, err := taskcontext.Append(dataDir(), slug, clean, time.Now()); err != nil {
-		fail("escribiendo contexto: %v", err)
+	if _, err := taskcontext.Append(dataDir(), slug, block, time.Now()); err != nil {
+		fail("escribiendo la pila: %v", err)
 	}
-	fmt.Printf("  escrito en tasks/%s/%s\n\n", slug, layout.ContextFile)
+	fmt.Printf("  apilado en tasks/%s/%s\n\n", slug, layout.ContextFile)
 }

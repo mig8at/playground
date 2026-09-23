@@ -16,8 +16,11 @@ Se importa poniendo la raíz del playground en el path:
     from repos import ROOTS, del_ref, ref_a_indexar
 """
 import concurrent.futures
+import json
 import os
+import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 
 PLAYGROUND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -227,3 +230,83 @@ def ref_hoy(alias):
         return "main"
     ref, _ = ref_a_indexar(root)
     return ref or "main"
+
+
+# ─── PARA CITAR UN ARCHIVO DESDE UN BLOQUE DEL TABLERO ─────────────────────────────────────────────
+#
+# Un bloque de la pila de una tarea nombra un archivo por repo y ruta, FIJADO al commit en que se
+# escribió: `repo:legacy-backend@3f3f8700ab12/app/X.php`. El tablero es Go y esta lista es Python: en
+# vez de una copia —justo lo que este archivo existe para evitar— el tablero le pregunta acá, por la
+# línea de comandos de abajo.
+#
+# ⚠ Se pueden CITAR más repos de los que se INDEXAN. `playground` es este repo entero y
+# `playground-equipo` el compartido (canon, cuadrilla): una tarea del tablero cita sus propios
+# archivos. No van en ROOTS a propósito: ROOTS es lo que workers indexa, y con `playground` adentro
+# indexaría el tablero y duplicaría harness y trazador.
+CITABLES = {
+    **ROOTS,
+    "playground": PLAYGROUND,
+    "playground-equipo": os.path.expanduser("~/Desktop/CREDITOP/github/playground"),
+}
+
+
+def _web(root):
+    """La URL web del repo de `root` y la carpeta de `root` dentro de él (`harness/` en playground).
+
+    Sale del remoto de cada clon, no de una tabla: `git@github.com-mig:Creditop-SAS/legacy-backend.git`
+    es `https://github.com/Creditop-SAS/legacy-backend`. El alias de SSH (`github.com-mig`,
+    `github.com-personal`) es de esta máquina y no cambia el repo.
+    """
+    code, url = _git(root, "remote", "get-url", "origin")
+    web = ""
+    m = re.match(r"^(?:git@([^:]+):|https?://([^/]+)/)([^/]+)/(.+?)(?:\.git)?/?$", url) if code == 0 else None
+    if m and (m.group(1) or m.group(2) or "").startswith("github.com"):
+        web = f"https://github.com/{m.group(3)}/{m.group(4)}"
+    return web, _git(root, "rev-parse", "--show-prefix")[1]
+
+
+def archivo(alias, ruta, sha=None):
+    """¿Existe `ruta` en `alias`, y en qué commit? Sin `sha` mira la ref de `ref_a_indexar` y devuelve
+    su commit, que es el que el bloque deja fijado; con `sha`, comprueba que la ruta exista ahí.
+
+    ⚠ NO HACE FETCH, igual que el resto de este archivo: una ruta nueva que todavía no bajó dice «no
+    existe», y el motivo trae la ref que se miró para que se pueda contrastar.
+    """
+    root = CITABLES.get(alias)
+    if not root:
+        return {"error": f"repo desconocido «{alias}»: se pueden citar {', '.join(sorted(CITABLES))}"}
+    if not os.path.isdir(root):
+        return {"error": f"«{alias}» no está clonado en {root}"}
+    ruta = ruta.strip().lstrip("/")
+    if ruta.startswith("./"):
+        ruta = ruta[2:]
+    if not ruta or ".." in ruta.split("/"):
+        return {"error": f"ruta inválida «{ruta}»"}
+    if sha:
+        ref, motivo = sha, "fijado"
+    else:
+        ref, motivo = ref_a_indexar(root)
+        if ref is None:
+            return {"error": f"«{alias}»: {motivo}"}
+    code, commit = _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+    if code != 0:
+        return {"error": f"«{alias}» no tiene el commit «{ref}»"}
+    # `./` hace la ruta relativa a la carpeta consultada: en `harness`, que es un subdirectorio de
+    # playground, `./pkg/db.ts` es `harness/pkg/db.ts`. En un repo propio no cambia nada.
+    existe = _git(root, "cat-file", "-e", f"{commit}:./{ruta}")[0] == 0
+    web, prefijo = _web(root)
+    return {"alias": alias, "path": ruta, "ref": ref, "reason": motivo, "sha": commit[:12],
+            "exists": existe, "web": web, "prefix": prefijo}
+
+
+if __name__ == "__main__":
+    # La salida es un contrato con el tablero (Go), por eso sus claves van en inglés.
+    args = sys.argv[1:]
+    if args[:1] == ["archivo"] and len(args) in (3, 4):
+        print(json.dumps(archivo(*args[1:]), ensure_ascii=False))
+    elif args == ["web"]:
+        print(json.dumps({a: dict(zip(("web", "prefix"), _web(r)))
+                          for a, r in sorted(CITABLES.items()) if os.path.isdir(r)}, ensure_ascii=False))
+    else:
+        print("uso: repos.py archivo <alias> <ruta> [<sha>]  ·  repos.py web", file=sys.stderr)
+        sys.exit(2)

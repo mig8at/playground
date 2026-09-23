@@ -503,46 +503,29 @@ jq -s 'map(select(.deletedAt|not)
 
 Endpoint: `GET /api/entries?days=&sprint=`, de sólo lectura — se escribe con `make bitacora-add`.
 
-### Contexto de una tarea (`task-context/`)
+### La pila de una tarea (`context.jsonl`)
 
-`tasks/<slug>/context.jsonl` guarda sólo los hitos que cambian una futura retoma. No es un diario,
-no mide tiempo y nunca se publica en Jira. El documento Markdown conserva el estado y la receta
-vigentes; el JSONL explica por qué cambiaron sin repetirlos.
+`tasks/<slug>/context.jsonl` es una pila de **bloques de documentación**: cada uno muestra un título
+—la conclusión, en una línea— y una descripción en prosa libre. No es un diario, no mide tiempo y nunca
+se publica en Jira. La fecha es interna: sólo agrupa los bloques en el acordeón Hoy · Ayer · fechas.
 
-Se agrega con un JSON revisable y validado antes de escribirlo:
+Un bloque se escribe en un Markdown revisable y se valida antes de apilarlo:
 
 ```bash
-make tarea-context-add N=codigo-de-preaprobado-de-la-app-en-el-wizard \
-  EVENTO=tablero/docs/task-context-event.example.json SECO=1 # primero previsualiza
-make tarea-context-add N=codigo-de-preaprobado-de-la-app-en-el-wizard \
-  EVENTO=tablero/docs/task-context-event.example.json
-make tarea-context N=codigo-de-preaprobado-de-la-app-en-el-wizard
+make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1   # previsualiza
+make tarea-bloque N=84 ARCHIVO=mi-bloque.md
+make tarea-context N=84
 ```
 
-El contrato legible por herramientas está en `docs/task-context.schema.json`; el comando Go aplica
-además las mismas validaciones al escribir, así que el schema no queda como documentación decorativa.
+Adentro de la descripción, un archivo va por repo y ruta —`[texto](repo:legacy-backend/ruta)`— y el
+comando lo deja fijado al commit en que existe; un tema de canon, como `[texto](canon:tema#ancla)`; y
+un comando, en un bloque de código `harness`, `trazador`, `sql <ambiente>` o `sh`, seguido de su
+`Resultado: …`. La tabla completa de lo que se admite y lo que se rechaza está en `CLAUDE.md`,
+«Bloques de la pila»; el contrato de la línea guardada, en `docs/task-context.schema.json`, y el que
+valida de verdad es `server/internal/taskcontext/block.go`.
 
-Una referencia `db` guarda la query y el ambiente, no Trazador:
-
-```json
-{ "kind": "db", "label": "Cohorte", "environment": "prod", "target": "SELECT count(*) FROM user_requests" }
-```
-
-Los únicos `kind` permitidos son:
-
-- `checkpoint`: foto breve para retomar: objetivo, estado, lo validado y siguiente paso; exige `goal`, `state` y `next`.
-- `decision`: una elección que evita volver a evaluar lo mismo; exige `reason`.
-- `blocker`: qué detiene el trabajo, de quién depende y cómo se destraba; exige `waitingOn` y `next`.
-- `evidence`: una conclusión reproducible; exige al menos una `reference` con tipo, etiqueta y destino.
-
-No escribas “se avanzó”, narración de la sesión, copias de logs, código, ni el contenido de Canon: eso
-no ahorra una decisión al retomar. Un evento debe dejar una conclusión o siguiente acción que seguiría
-siendo útil en una semana. El editor muestra esos hitos como párrafos planos por fecha: Canon queda
-enlazado exactamente donde respalda una afirmación con `[texto visible](canon:nodo/context#seccion)`;
-cada enlace exige su `reference` de tipo `canon`. Una prueba de Harness muestra el comando ejecutado.
-No se admite HTML ni enlaces Markdown a otra herramienta dentro del hito. `make retomar` incluye
-los ocho hitos más recientes. Las tareas antiguas pueden conservar `## Registro` en el archivo, pero
-el editor no lo muestra; `make cierre` acepta un hito estructurado del día en su lugar.
+El formato viejo de hitos (`kind` checkpoint · decision · blocker · evidence) ya no se escribe; los que
+hay se siguen mostrando hasta migrarlos. `make retomar` incluye los ocho más recientes de la pila.
 
 ### Consultas a base de datos
 

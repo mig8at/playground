@@ -13,11 +13,13 @@ import { vResize, refreshResizers } from './workbench.js';
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import TaskEvidence from './TaskEvidence.vue';
+import BlockText from './BlockText.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
 import { highlightSQL, isSQLQuery } from './sql-highlight.js';
+import { parseBlockBody } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
@@ -32,6 +34,9 @@ const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
 const TRACER_DEFAULT_URL = 'http://localhost:5192';
 const canonUrl = ref(CANON_DEFAULT_URL);
 const tracerUrl = ref(TRACER_DEFAULT_URL);
+// Dónde se ve cada repo que un bloque puede citar (alias → web y carpeta). Sale de tools/repos.py, la
+// lista única, vía /api/config; sin ella, un archivo citado se muestra igual pero sin enlace.
+const repos = ref({});
 
 // Pintar primero, revalidar después: una recarga usa el último estado correcto y no espera a Jira para
 // restaurar la tarea y sus regiones. El cache se reemplaza en cada sincronización exitosa.
@@ -112,6 +117,7 @@ async function loadConfig() {
     const j = await (await fetch(`${SERVER}/api/config`)).json();
     if (j.canonUrl) canonUrl.value = j.canonUrl;
     if (j.tracerUrl) tracerUrl.value = j.tracerUrl;
+    if (j.repos) repos.value = j.repos;
   } catch { /* sin server: los enlaces conservan el origen público por defecto */ }
 }
 
@@ -660,6 +666,22 @@ async function toggleDay(day, event) {
   if (!stuck) return;
   await nextTick();
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+}
+// Un BLOQUE —el formato de la pila desde el 2026-09-23— muestra título y descripción; un hito del
+// formato viejo, sus párrafos rotulados, hasta que se migre. La fecha de los dos sólo arma el acordeón.
+const BLOCK_SCHEMA = 'tablero.task-context/v2';
+const isBlock = (event) => event.schema === BLOCK_SCHEMA;
+const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink }));
+// Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
+async function goToBlock(id) {
+  const group = contextGroups.value.find(g => g.items.some(event => event.id === id));
+  if (group && foldedDays.value.has(group.day)) {
+    const next = new Set(foldedDays.value);
+    next.delete(group.day);
+    foldedDays.value = next;
+    await nextTick();
+  }
+  document.getElementById(id)?.scrollIntoView({ block: 'start' });
 }
 async function loadContext() {
   const task = active.value;
@@ -1944,7 +1966,23 @@ function documentAction(id) {
               <span>{{ group.label }}</span>
             </button>
             <div v-show="!foldedDays.has(group.day)" :id="'context-day-' + group.day" class="context-day-body">
-            <article v-for="event in group.items" :key="event.id" class="task-context-entry">
+            <template v-for="event in group.items" :key="event.id">
+            <article v-if="isBlock(event)" :id="event.id" class="task-context-entry task-block">
+              <h4 class="block-title">{{ event.title }}</h4>
+              <template v-for="(part, partIndex) in parseBlockBody(event.body)" :key="partIndex">
+                <div v-if="part.type === 'command'" class="block-command">
+                  <div class="block-command-label">{{ part.label }}</div>
+                  <pre class="block-code"><code v-if="part.lang === 'sql'" class="language-sql" v-html="highlightSQL(part.code)"></code><template v-else>{{ part.code }}</template></pre>
+                  <p v-if="part.result" class="block-result"><span class="block-result-label">Resultado:</span>{{ ' ' }}<BlockText :text="part.result" v-bind="blockLinks" @block="goToBlock" /></p>
+                </div>
+                <pre v-else-if="part.type === 'code'" class="block-code block-material">{{ part.code }}</pre>
+                <ul v-else-if="part.type === 'list'" class="block-list">
+                  <li v-for="(item, itemIndex) in part.items" :key="itemIndex"><BlockText :text="item" v-bind="blockLinks" @block="goToBlock" /></li>
+                </ul>
+                <p v-else><BlockText :text="part.text" v-bind="blockLinks" @block="goToBlock" /></p>
+              </template>
+            </article>
+            <article v-else class="task-context-entry">
               <p v-for="(paragraph, paragraphIndex) in contextParagraphs(event)" :key="paragraphIndex">
                 <!-- El espacio va interpolado: un `<span> </span>` lo borra el compilador (texto sólo de
                      espacio como único hijo) y el rótulo quedaba pegado, «Objetivo.Que…». -->
@@ -1961,6 +1999,7 @@ function documentAction(id) {
                 Prueba ejecutada: <code>{{ reference.target }}</code>.
               </p>
             </article>
+            </template>
             </div>
           </section>
         </section>
@@ -2356,6 +2395,21 @@ function documentAction(id) {
 .context-day > .ui-icon { flex: none }
 .context-day-body { padding-bottom: 6px }
 .task-context-entry + .task-context-entry { margin-top: 15px }
+/* UN BLOQUE de la pila: título y descripción. La fecha no se pinta —sólo arma el acordeón— y no hay
+   «siguiente paso»: lo que se decida después entra como otro bloque. El margen de arriba deja que un
+   bloque citado quede debajo del día pegado y no tapado por él. */
+.task-block { scroll-margin-top: 48px }
+.block-title { margin: 0 0 6px; color: var(--txt); font-size: 13.5px; font-weight: 600; line-height: 1.45 }
+.block-list { margin: 0 0 7px; padding-left: 18px; font-size: 13px; line-height: 1.55 }
+.block-list li + li { margin-top: 3px }
+/* Un comando es un callout: barra a la izquierda y un tinte, cuadrado. Su rótulo dice con qué se corrió
+   y contra qué ambiente; debajo, lo que dio. */
+.block-command { margin: 2px 0 9px; padding: 8px 10px; border-left: 2px solid var(--line2); background: var(--panel2) }
+.block-command-label { margin-bottom: 5px; color: var(--mut); font-size: 11px }
+.block-code { margin: 0; color: var(--txt); font: 11.5px/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
+.block-material { margin: 2px 0 9px; padding: 8px 10px; background: var(--panel2) }
+.task-context-entry .block-result { margin: 6px 0 0; font-size: 12.5px }
+.block-result-label { color: var(--mut) }
 .task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }
 .task-context-entry strong { font-weight: 700 }
 .task-context-entry a { color: var(--acc); text-decoration: none }
@@ -2796,12 +2850,13 @@ function documentAction(id) {
              background: color-mix(in srgb, var(--panel2) 88%, var(--acc) 12%) !important; }
 .sql-block::before { content: 'SQL'; position: absolute; top: 8px; left: 11px; color: var(--acc); font: 700 9px/1 var(--mono, ui-monospace, monospace);
                      letter-spacing: .1em; }
-.sql-block :deep(.sql-token.sql-keyword) { color: var(--sql-keyword); font-weight: 700; }
-.sql-block :deep(.sql-token.sql-function) { color: var(--sql-function); }
-.sql-block :deep(.sql-token.sql-string) { color: var(--sql-string); }
-.sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal) { color: var(--sql-number); }
-.sql-block :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
-.sql-block :deep(.sql-token.sql-identifier) { color: var(--sql-identifier); }
+.sql-block :deep(.sql-token.sql-keyword), .block-code :deep(.sql-token.sql-keyword) { color: var(--sql-keyword); font-weight: 700; }
+.sql-block :deep(.sql-token.sql-function), .block-code :deep(.sql-token.sql-function) { color: var(--sql-function); }
+.sql-block :deep(.sql-token.sql-string), .block-code :deep(.sql-token.sql-string) { color: var(--sql-string); }
+.sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal),
+.block-code :deep(.sql-token.sql-number), .block-code :deep(.sql-token.sql-literal) { color: var(--sql-number); }
+.sql-block :deep(.sql-token.sql-comment), .block-code :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
+.sql-block :deep(.sql-token.sql-identifier), .block-code :deep(.sql-token.sql-identifier) { color: var(--sql-identifier); }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
 .cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
                                background: var(--panel2); border-radius: 0 8px 8px 0 }

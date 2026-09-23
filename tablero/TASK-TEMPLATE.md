@@ -25,12 +25,12 @@ jira_title: ""
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
     · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
     · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
-    · CONTEXTO   hitos privados en `tasks/<slug>/context.jsonl`, mostrados como párrafos por
-                 fecha. Sólo se agrega lo que permita retomar; nunca minutos ni notas de sesión.
+    · CONTEXTO   bloques privados en `tasks/<slug>/context.jsonl` —título y descripción—, agrupados
+                 por día. Nunca minutos ni notas de sesión.
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
   Reescribí el estado y el plan; mantené el material reproducible. Los hechos que cambian una retoma
-  se agregan como JSONL validado en `tasks/<slug>/context.jsonl` con `make tarea-context-add`;
+  se agregan como bloques en `tasks/<slug>/context.jsonl` con `make tarea-bloque`;
   no copies sesiones ni logs. El conocimiento estable gradúa a canon.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
@@ -153,16 +153,16 @@ jira_title: ""
      de verdad hay que leer van igual en `canon:` del frontmatter, que es lo que el tablero
      lee; acá van los que ayudan a retomar y lo que no es un tema (PRs, un tablero, un documento). -->
 
-<!-- Si una referencia de Canon sirvió para avanzar, agregala al evento JSONL que la usó como
-     [texto visible](canon:nodo) y declarala también en references. El editor la enlaza dentro de
-     ese mismo párrafo; no crees una sección ni un marcador especial. -->
+<!-- Si una referencia de Canon sirvió para avanzar, citala en el bloque que la usó como
+     [texto visible](canon:tema#ancla). El editor la enlaza ahí mismo; no crees una sección ni un
+     marcador especial. -->
 
 <!-- CONTEXTO DE RETOMA
      Para tareas nuevas NO agregues `## Registro`: un diario Markdown mezcla historia con el documento
-     vigente. Usá `make tarea-context-add N=<id|slug> EVENTO=<archivo.json>`.
+     vigente. Usá `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>`.
 
-     Un evento JSONL es sólo: checkpoint (goal + state + next), decision (reason), blocker (waitingOn + next)
-     o evidence (reference concreta). Ver `docs/task-context-event.example.json`.
+     Un bloque es un título —la conclusión, en una línea— y una descripción con lo que la sostiene:
+     archivos por repo, canon, y cada comando con su «Resultado:». Ver `docs/task-context-block.example.md`.
 
      Las tareas existentes pueden conservar su `## Registro`/`## Bitácora` en el archivo, pero no se
      muestra en el editor. No lo migres en masa. -->

@@ -49,7 +49,14 @@ const localDay = (daysAgo) => {
 // debajo, con uno solo el scroll se frenaba antes de que llegara arriba—.
 const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v1', id: `ctx_ui_${n}`, at: localDay(daysAgo),
   kind: 'checkpoint', goal: 'Probar la interfaz.', summary: 'Resumen del hito. '.repeat(30), state: 'Estable.', next: 'Seguir.' });
+// Un bloque del formato nuevo, entre los hitos viejos: los dos conviven en la pila hasta migrar.
+const blockEvent = { schema: 'tablero.task-context/v2', id: 'blk_ui', at: localDay(0), via: 'manual',
+  title: 'La regla de ingreso mínimo sí excluye',
+  body: 'La cascada está en [el listado](canon:listado) y la regla en [LenderFilter](repo:legacy-backend@cfc577218f2d/app/Services/LenderFilter.php#L40).\n\n'
+    + "```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\nResultado: salen 7 entidades; con ingreso, 6." };
 const sample = {
+  '/api/config': { canonUrl: 'https://canon.test', tracerUrl: 'http://tracer.test',
+    repos: { 'legacy-backend': { web: 'https://github.com/Creditop-SAS/legacy-backend', prefix: '' } } },
   '/api/sprints': { sprints: [sprint] },
   '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En curso',
     StatusCategory: 'indeterminate', Points: 3, HasPoints: true, OriginSprint: 'Sprint UI', SpentSecs: 5400 }] },
@@ -57,7 +64,7 @@ const sample = {
     pending: [{ what: 'Hecho', section: 'Pendientes', done: true }, { what: 'Confirmar la interfaz', section: 'Pendientes', done: false }],
     artifacts: [{ file: 'validar/validar.html', label: 'prototipo' }, { file: 'validar/casos.sql', label: 'casos' }] }] },
   '/api/task-locals': { taskLocals: { 'UI-1': { taskKey: 'UI-1', effortId: 1 } } },
-  '/api/task-context': { events: Array.from({ length: 12 }, (_, n) => contextEvent(n, n < 8 ? 0 : 1)) },
+  '/api/task-context': { events: [blockEvent, ...Array.from({ length: 12 }, (_, n) => contextEvent(n, n < 8 ? 0 : 1))] },
 };
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
@@ -165,6 +172,26 @@ try {
     assert(Math.abs(r.width - 200) <= 1, `el sidebar tenía que medir 200px, midió ${r.width}`);
     assert(r.search <= r.sidebar, `el buscador termina en ${r.search}px y el sidebar en ${r.sidebar}px`);
     assert(r.inner <= r.search, `el campo termina en ${r.inner}px, fuera de su borde (${r.search}px)`);
+  });
+  // Un bloque muestra título y descripción: el comando con su ambiente y lo que dio, y el archivo con su
+  // repo, enlazado a GitHub en el commit que el bloque dejó fijado. La hora no se pinta: sólo arma el día.
+  await check('un bloque muestra título, comando con su resultado y archivos en su commit, sin hora', async () => {
+    const r = await page.locator('.task-block').first().evaluate((el) => ({
+      title: el.querySelector('.block-title')?.innerText,
+      label: el.querySelector('.block-command-label')?.innerText,
+      result: el.querySelector('.block-result')?.innerText,
+      file: el.querySelector('a.ref-repo')?.getAttribute('href'),
+      fileText: el.querySelector('a.ref-repo')?.innerText,
+      canon: el.querySelector('a.ref-canon')?.getAttribute('href'),
+      time: /\b\d{1,2}:\d{2}\b/.test(el.innerText),
+    }), null, { timeout: 5000 });
+    assert.equal(r.title, 'La regla de ingreso mínimo sí excluye');
+    assert.equal(r.label, 'Harness · local');
+    assert.match(r.result || '', /^Resultado: salen 7 entidades/);
+    assert.equal(r.file, 'https://github.com/Creditop-SAS/legacy-backend/blob/cfc577218f2d/app/Services/LenderFilter.php#L40');
+    assert.equal(r.fileText, 'legacy-backend · LenderFilter');
+    assert.match(r.canon || '', /^https:\/\/canon\.test\//);
+    assert.equal(r.time, false, 'la hora no se pinta');
   });
   await check('los enlaces del documento no quedan con el azul del navegador', async () => {
     const color = await page.locator('.cuerpo-md a').first().evaluate((a) => getComputedStyle(a).color);

@@ -752,9 +752,9 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("  → " + nextStepText)
 	}
 	if len(contextInfo) > 0 {
-		fmt.Println("\n  ── Hitos estructurados ──")
+		fmt.Println("\n  ── La pila ──")
 		for _, event := range contextInfo {
-			fmt.Printf("  %s · %-10s %s\n", event.At[:10], event.Kind, truncate(taskcontext.PlainText(event.Summary), 150))
+			fmt.Printf("  %s · %-10s %s\n", event.At[:10], taskcontext.Label(event), truncate(taskcontext.Headline(event), 150))
 			if event.Next != "" {
 				fmt.Printf("    siguiente: %s\n", truncate(event.Next, 150))
 			}

@@ -96,7 +96,7 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 
 | Región | Pregunta que responde | Fuente |
 |---|---|---|
-| Hoy, Ayer o fecha | ¿Qué cambió y qué permite continuar la tarea? | Hitos curados de `tasks/<slug>/context.jsonl` |
+| Hoy, Ayer o fecha | ¿Qué se fue documentando de la tarea? | Bloques de `tasks/<slug>/context.jsonl` |
 | Documento de trabajo | ¿Cuál es el estado y la evidencia vigente? | Cuerpo privado de `tasks/<slug>/task.md` |
 | Jira | ¿Qué ve el equipo en el issue? | Estado y descripción recibidos de Jira |
 | Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
@@ -126,55 +126,49 @@ cronología central usa únicamente `task-context/`.
 El comando histórico conserva el nombre `make bitacora-add TAREA=<id>` por compatibilidad. No crea una
 sección Markdown nueva: `## Registro` sigue siendo documentación histórica de la tarea.
 
-### Hitos de contexto
+### Bloques de la pila
 
-`tasks/<slug>/context.jsonl` es el historial estructurado, privado y versionable de una tarea.
-No reemplaza el documento: el documento dice el estado vigente; cada línea explica sólo un cambio que
-permite retomar mejor. Se añade con `make tarea-context-add N=<id|slug> EVENTO=<archivo.json>` y se
-consulta con `make tarea-context N=<id|slug>` o `make retomar`.
+`tasks/<slug>/context.jsonl` es la pila de la tarea: **bloques de documentación que entran con el
+tiempo**, privados y versionables. Desde el 2026-09-23 no hay más estructura fija que el bloque mismo
+(diseño acordado con Miguel; decisiones y plan en la tarea #84, «Frente: la pila de bloques»).
 
-Escribí un hito sólo si dentro de una semana evita una decisión o búsqueda: `checkpoint` exige
-`goal` + `state` + `next`; `decision`, `reason`; `blocker`, `waitingOn` + `next`; `evidence`, una referencia
-concreta. No escribas avances vagos, logs, código, resultados intermedios ni copias de Canon. Canon
-se enlaza dentro del párrafo que lo usa con `[texto](canon:nodo)` y declara la misma `reference` de tipo
-`canon`; una prueba de Harness muestra el comando ejecutado. El ejemplo
-validable vive en `docs/task-context-event.example.json` y el contrato para herramientas en
-`docs/task-context.schema.json`.
+Un bloque muestra dos cosas: un **título** —una línea, la conclusión y no la actividad: «la regla sí
+excluye», no «revisé la regla»— y una **descripción** en prosa libre, que adentro nombra lo que la
+sostiene con enlaces con tipo y comandos con su resultado:
 
-**Regla de escritura para herramientas.** Antes de crear una línea, preguntá: «¿sin este dato alguien
-retomaría la tarea con una duda, una búsqueda o una decisión distinta?». Si la respuesta no es sí, no
-hay hito. Es una línea JSON por cambio importante, no un registro de sesión. `summary` es texto plano
-con la conclusión; puede citar Canon con `[nombre](canon:nodo#seccion)`, nunca HTML ni Markdown de
-bloques. Las referencias contienen únicamente la prueba que permite volver a comprobar esa conclusión:
-
-| Si se usó | `reference` que se guarda | No se guarda |
+| Qué se nombra | Cómo se escribe | Qué comprueba el validador |
 |---|---|---|
-| Canon | `kind: canon`, el nodo citado, y el enlace inline en el párrafo | una copia o resumen de Canon |
-| Base de datos | `kind: db`, `environment` y el `SELECT`/`WITH` exacto en `target` | resultados, encabezados DB, fences SQL o el nombre del Trazador |
-| Harness | `kind: harness` y el comando exacto | su consola completa ni pasos intentados |
-| Trazador | `kind: tracer` y la URL/id de la solicitud que explica | consultas SQL de datos |
-| PR, Jira o documento | el enlace puntual que cierra la decisión | listados de enlaces no usados |
+| un tema de canon | `[texto](canon:tema#ancla)` | que canon lo conozca (sin red, entra con un aviso) |
+| un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
+| un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
+| otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
+| una página | `[texto](https://…)` | nada |
+| una prueba | bloque ` ```harness ` o ` ```trazador ` con el comando, y debajo `Resultado: …` | que el comando diga su `TARGET=` |
+| una consulta | bloque ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |
+| otro comando | bloque ` ```sh `, y debajo `Resultado: …` | que lleve su resultado |
 
-Para una consulta DB, la conclusión sigue en `summary` y la reproducción va aparte. El renderer la
-presenta como **DB · ambiente** y aplica estilo SQL; por eso el JSONL lleva SQL puro, en una sola línea:
+El material que no es un comando —un JSON de ejemplo, un texto— va en ` ```json ` o ` ```text `.
 
-```json
-{
-  "kind": "evidence",
-  "summary": "La cohorte medida confirma que el camino sólo se usó en abril; el siguiente paso depende del emisor del código.",
-  "references": [{
-    "kind": "db",
-    "label": "Uso histórico del flujo",
-    "environment": "prod",
-    "target": "SELECT date_format(created_at, '%Y-%m') AS mes, count(*) AS solicitudes FROM user_request_records WHERE comment = 'Solicitud creada desde validacion de codigo cliente.' GROUP BY 1 ORDER BY 1"
-  }]
-}
-```
+Internos, en el JSON y **nunca en pantalla**: `id`, `at` —la fecha, que sólo agrupa los bloques en el
+acordeón Hoy · Ayer · fechas— y `via`, quién lo agregó (`manual`, `harness`, `trazador`, `db`). **No hay
+«siguiente paso»**: obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea;
+si se decide uno, entra como un bloque más o como un pendiente.
 
-Usá el esquema y el comando, no ediciones manuales: `make tarea-context-add N=<id|slug>
-EVENTO=<archivo.json>`. El validador completa `schema`, `id` y `at`; rechaza campos desconocidos,
-evidencia sin referencia, SQL de escritura, ambiente DB ausente y una referencia Canon que no aparezca
-como enlace en el párrafo.
+Se escribe en un Markdown —`# título` en la primera línea y la descripción debajo— y se agrega con
+`make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>` (`SECO=1` previsualiza sin escribir). El ejemplo
+validable es `docs/task-context-block.example.md`; el contrato de la línea guardada,
+`docs/task-context.schema.json`. Se lee con `make tarea-context N=<id|slug>` o `make retomar`.
+
+⚠ **Lo que rechaza, y por qué.** Una ruta local o un archivo sin su repo: no se abre desde otra máquina.
+Una ruta que no existe: una cita rota la lee un modelo y abre otra cosa. Un comando sin `TARGET=`: el
+harness y el trazador tienen defaults OPUESTOS (F-234). Un comando sin `Resultado:`: sin lo que dio no
+prueba nada. SQL que escribe o sin ambiente, HTML, y un título de más de una línea. Los repos que se
+pueden citar salen de `tools/repos.py` —la lista única, no una copia—, más `playground` (este repo) y
+`playground-equipo` (el compartido).
+
+⚠ **El formato viejo de hitos** (`kind` checkpoint · decision · blocker · evidence, con `summary`, `state`
+y `next`) **ya no se escribe**: `make tarea-context-add` sólo avisa del camino nuevo. Los 34 hitos que hay
+se siguen leyendo y mostrando hasta migrarlos a bloques, que es el paso 2 del plan.
 
 ### Jira
 
@@ -552,8 +546,9 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   1. **Reescribí el estado de arriba** del archivo **con `id`** (el que el tablero muestra). Si cambió
      *qué permite retomar*, va a un hito JSONL; si cambió *cuál es el estado*, va arriba. La sección «Si retomás esto
      sin contexto» tiene que decir lo de HOY, no lo de la semana pasada.
-  2. **Agregá un hito estructurado** con `make tarea-context-add`: checkpoint, decisión, bloqueo o
-     evidencia con referencia concreta. Lo que se descartó va como decisión con su motivo, no como prosa de sesión.
+  2. **Agregá un bloque** con `make tarea-bloque`: el título con la conclusión y la descripción con lo
+     que la sostiene —archivos por repo, canon, el comando y lo que dio—. Lo que se descartó entra como un
+     bloque con su motivo, no como prosa de sesión.
   3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
      patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin patrón,
      la consola Ramas no tiene una medición propia de la tarea.
@@ -634,8 +629,8 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       make retomar N=47 BRIEF=1         …y al final la ficha de sus referencias de Canon (hasta 4; BRIEF=a,b elige)
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1
       make bitacora-add TAREA=84 …      anotar la bitácora con minutos medidos por el comando
-      make tarea-context-add N=84 …     apilar un hito de retoma validado desde un JSON
-      make tarea-context N=84           leer los últimos hitos de una tarea
+      make tarea-bloque N=84 ARCHIVO=…  apilar un bloque —título y descripción— validado desde un Markdown
+      make tarea-context N=84           leer la pila de una tarea
       make deploys DIAS=7               qué se desplegó y a qué ambiente
       make deploys FALLAS=1             SÓLO lo que falló, con el error del log — «¿qué se rompió?»
 

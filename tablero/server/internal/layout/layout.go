@@ -37,6 +37,16 @@ type Layout struct {
 	Tasks string
 }
 
+// Tools es la carpeta `tools/` de la raíz del playground, dos niveles arriba de `data/`: ahí vive
+// `repos.py`, la lista ÚNICA de repos que el tablero consulta en vez de copiarla.
+func (l Layout) Tools() string {
+	data, err := filepath.Abs(l.Data)
+	if err != nil {
+		data = l.Data
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(data)), "tools")
+}
+
 // At arma el layout a partir de la carpeta `data/`.
 func At(data string) Layout {
 	return Layout{Data: data, Tasks: filepath.Join(filepath.Dir(filepath.Clean(data)), "tasks")}

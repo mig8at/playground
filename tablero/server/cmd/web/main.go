@@ -24,6 +24,7 @@ import (
 	"creditop/tablero/server/internal/guard"
 	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/pulse"
+	"creditop/tablero/server/internal/repos"
 	"creditop/tablero/server/internal/slack"
 	"creditop/tablero/server/internal/store"
 )
@@ -160,6 +161,9 @@ type app struct {
 	// direcciones distintas. El server los entrega juntos desde server/.env.
 	canonURL  string
 	tracerURL string
+	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.py,
+	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
+	repos *repos.Client
 }
 
 func main() {
@@ -198,6 +202,7 @@ func main() {
 	}
 	a.st = st
 	a.dataDir = dataDir
+	a.repos = repos.New(layout.At(dataDir).Tools())
 	a.branchesRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 
 	integrations := a.connectIntegrations()
