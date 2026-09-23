@@ -140,7 +140,7 @@ cualquier canvas: **el que LEE su tamaño del padre no puede ESCRIBIRLO en un hi
 
 ## El límite, y no se negocia
 
-**No escribe en ningún ambiente.** Sólo `SELECT` y `GET`, en los cuatro targets. El `-sql` tiene guarda,
+**No escribe en ningún ambiente.** Sólo `SELECT` y `GET`, en los cinco targets. El `-sql` tiene guarda,
 pero ⚠ **la guarda no era lo que lo garantizaba** — lo garantizaba el motor, y `INTO OUTFILE` pasaba
 (**F-109**). Si vas a tocar ese modo, leé el hallazgo antes.
 
@@ -236,6 +236,10 @@ dejó rastro.
 que no tocan browser ni BD—: **no cobertura por cobertura, sino la lógica cuyo error no rompe nada y
 sale prolijo.**
 
+- `selectorAmbiente` y `repartoPorBackend` — el filtro de Loki y el aviso de qué backend sirvió cada
+  línea. Existen porque un filtro que no matchea sale como «sin líneas de log» con los logs ahí: hasta el
+  2026-09-23 el de dev comparaba `development|develop` entero y no se aplicaba nunca. Y aparte, que las
+  tres listas de ambientes (server, store, selector) sean las mismas: agregar `qa` pedía tocar las tres.
 - `desenlaceDe` — existe porque HABÍA DOS definiciones y no coincidían (una contemplaba el estado 7
   «abandonado» y la otra no, así que la misma solicitud salía «en curso» en la lista y «abandonado» al
   abrirla). La prueba fija los cuatro desenlaces y, aparte, que **ningún estado esté en `sellados` y en
@@ -354,7 +358,14 @@ El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: 
   resto se ubica por herencia de span, y eso se declara en el pie de la traza.
 - **`LOKI_ENV` no es el mismo valor en los dos stacks**: prod es `production`; el stack de dev/qa usa
   `development|local|testing` y **no tiene el valor `qa`**. Filtrar por `environment=qa` devuelve cero
-  líneas mientras los logs existen. Filtrá por `service_name`.
+  líneas mientras los logs existen.
+- **Dev y qa se separan por `service_name`, no por `environment`** (los dos PHP son `development`).
+  Medido el 2026-09-23 pegándole a cada backend: dev → `legacy-backend`, qa → `CreditopDev`; staging no
+  se pudo ubicar. Cada `.env.<target>` lo declara en `LOKI_SERVICE`, y ⚠ **no filtra: avisa.** Una
+  solicitud pasa por los dos backends (la 502633, de qa: 442 líneas de qa y 159 de dev), así que filtrar
+  escondía parte de lo que le pasó; la traza cierra con el reparto por backend (`repartoPorBackend`).
+  Lo pone un secreto del despliegue, no el repo: puede cambiar sin commit. El detalle y cómo re-medirlo:
+  README §«El ambiente es el STACK».
 - **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la
   UI mostrando el mapa viejo. Es la confusión más frecuente al iterar.
 

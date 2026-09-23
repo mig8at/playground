@@ -2,7 +2,7 @@
 //
 // Hay DOS caminos a la misma información y el ensamblado no debe distinguirlos:
 //
-//	local · dev · staging → MySQL directo (`database/sql`)
+//	local · dev · qa · staging → MySQL directo (`database/sql`)
 //	prod                  → Redash sobre HTTP, porque no hay acceso directo a la BD de producción
 //
 // Por eso existe `Runner`: una interfaz de UN método que devuelve filas como mapas. Las consultas SQL se
@@ -70,7 +70,7 @@ func validarArgs(args []any) error {
 	return nil
 }
 
-// ─── MySQL directo (local · dev · staging) ──────────────────────────────────────────────────────────
+// ─── MySQL directo (local · dev · qa · staging) ─────────────────────────────────────────────────────
 
 type fuenteMySQL struct {
 	db     *sql.DB

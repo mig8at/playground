@@ -15,7 +15,7 @@ trazador/
   src/            Vue 3 + Pinia — SOLO pinta; no decide nada del negocio
   server/         Go: la API (:5199), el ensamblado y los modos de consola
     mapa/         el flujo declarado como DATO (etapas · sub-pasos · ramales)
-  .env.<target>   local · dev · staging · prod   (gitignoreados)
+  .env.<target>   local · dev · qa · staging · prod   (gitignoreados; plantillas en .env.<target>.example)
 ```
 
 **La regla que ordena todo:** el ensamblado vive en Go, en un solo lugar (`ArmarTraza`), y la consola, el
@@ -40,7 +40,7 @@ de esta herramienta imprimen. La bandera está al lado para cuando se corre desd
 | `trazador-hilos DIAS=…` | `-incidencias <días>` | los mismos reportes **con su hilo**, para contrastar |
 | *(no va por `make`)* | `-serve 127.0.0.1:5199` | la API que consume la Vue — la levanta `npm run dev` |
 
-Todos aceptan `TARGET=local|dev|staging|prod` (`-target`).
+Todos aceptan `TARGET=local|dev|qa|staging|prod` (`-target`).
 
 ⚠ **Los cuatro últimos existían en el binario y NO en el catálogo** hasta el 2026-09-18, o sea que para
 quien lee `make` —una persona nueva, o un modelo— no existían. Si se agrega un modo, va acá **y** al
@@ -71,7 +71,7 @@ comando de la otra al terminar (`↔`). La diferencia es **dónde anclan**:
 | ancla en | la **BD** — las etapas son hechos | los **logs** (el uReq en el `context`, y expande por `trace_id`) |
 | si no hay logs | contesta igual: el esqueleto sale de la BD | no puede decir nada («cero anclas») |
 | trae de más | los 39 pasos, qué VIO el cliente, qué archivos dejaron rastro | la regla con la que se evaluó **cada entidad**, y el `timeline.ndjson` con payloads y headers |
-| ambientes | local · dev · staging · **prod** | local · dev · staging · qa — **prod no** |
+| ambientes | local · dev · qa · staging · **prod** | local · dev · staging · qa — **prod no** |
 | default | `prod` | `local` |
 
 ⚠ **Los defaults son opuestos**, y por eso el comando que se imprime lleva el `TARGET=` puesto: cambiar
@@ -203,7 +203,7 @@ lag de ingesta), así que los logs **explican** pero nunca dictaminan.
 | target | esqueleto | logs |
 |---|---|---|
 | `local` | MySQL en Docker | Loki local (`harness/bin/loki-local`) |
-| `dev` · `staging` | MySQL dev (compartida) | `creditopdev` |
+| `dev` · `qa` · `staging` | MySQL dev (compartida — es UNA base para los tres) | `creditopdev` |
 | `prod` | **Redash** (`execute_query`, asíncrono y **auditado a nombre del token**) | `creditop` |
 
 ⚠ Redash vive detrás de un **ELB interno**: sin VPN el síntoma es un *timeout*, no un 401.
@@ -340,46 +340,56 @@ Dos cosas que se descartaron **midiendo**, no opinando:
 - **El host no era deducible.** `logs-prod-036` no se puede derivar de la región del token; hay que
   pedirlo. Barrer `logs-prod-0NN` tampoco alcanzó: el barrido llegó hasta 030.
 
-### El ambiente es el STACK, y `creditopdev` trae cuatro
+### El ambiente es el STACK, y dentro de `creditopdev` qa se separa de dev por `service_name`
 
 En `creditop` (prod) `environment` tiene **un único valor**: `production`. Los otros ambientes viven en
-`creditopdev`, y ahí sí hay varios — medido en 30 días:
+`creditopdev`, y ahí la etiqueta que parece la obvia no alcanza. Medido el 2026-09-23 sobre 7 días,
+agrupando por `service_name`, `app`, `environment` y `deployment_environment`:
 
-| `environment` | quién | sirve al target |
-|---|---|---|
-| `development` (+ `develop`) | `legacy-backend` y los 14 microservicios Go | **dev** |
-| `local` | `CreditopDev` — una máquina de desarrollo empujando | (ver abajo) |
-| `testing` | `CreditopDev` | — |
+| `service_name` | `environment` | quién | target |
+|---|---|---|---|
+| `legacy-backend` | `development` | el PHP desplegado de **dev** (`legacy-backend`, rama `develop`) | `dev` |
+| `CreditopDev` | `development` | el PHP desplegado de **qa** (`legacy-backend-qa`, rama `qa`) | `qa` |
+| `CreditopDev` | `local` · `testing` | máquinas de desarrollo empujando | — |
+| los 14 MS Go | *(no la llevan)* | `deployment_environment=development` (o `develop`) en todos | — |
 
-⚠ **Acá había una cuarta fila —`qa` → `legacy-backend-stg` → target `staging`— y hoy es FALSA.** Medido
-el 2026-09-18 con su control al lado: los valores de `environment` en `creditopdev` son
-**`development`, `local` y `testing`** en ventanas de 1 h, 24 h, 7 d y 30 d, y
-`sum(count_over_time({environment="qa"} [720h]))` **no devuelve nada** mientras el mismo conteo sobre
-`development` da **33.599 líneas en 24 h**. `legacy-backend-stg` tampoco existe como `service_name`.
+⚠ **`environment` NO separa dev de qa**: los dos PHP son `development`. Lo que los separa es
+`service_name`, y la asignación no sale del repo —la pone el secreto `GRAFANA_TEMPO_SERVICE_NAME` de
+cada despliegue— así que **se midió pegándole a cada backend**: 25 `GET /api/loans/allied/a8221e67`
+contra `legacy-backend.inertia-develop` cayeron las 25 en `legacy-backend`, y contra
+`legacy-backend-qa.inertia-develop` en `CreditopDev`. Staging (`legacy-backend-stg`) **no se pudo
+ubicar**: su rama es del 25/8 y no tiene el logger que esa petición dispara. *(Hasta el 2026-09-02, F-179
+decía que dev y qa logueaban los dos como `CreditopDev`: hoy no es así, y puede volver a cambiar sin un
+commit.)*
 
-**Y eso apunta al target `staging` de las dos herramientas**: `trazador/.env.staging` filtra
-`LOKI_ENV=qa` y `harness/.env.staging` / `.env.qa` filtran `E2E_LOKI_ENV=qa`, o sea **un valor que no
-matchea nada**.
+Por eso cada `.env.<target>` declara **`LOKI_SERVICE`** (dev → `legacy-backend`, qa → `CreditopDev`), y
+⚠ **no se usa para filtrar sino para AVISAR.** Una solicitud pasa de verdad por los dos backends: la
+502633, creada en qa, tiene **442 líneas de `CreditopDev` y 159 de `legacy-backend`** (el chequeo de cupo
+lo corre el de dev). Filtrar escondía esas 159; no filtrar sin decir nada las hacía pasar por qa. La
+traza cierra con el reparto (`la solicitud pasó por MÁS DE UN backend: …`) o, si el backend del target no
+aparece, con que la solicitud la atendió otro ambiente. Y como la BD es una sola, **los ids no se pisan**
+entre dev, qa y staging: anclar por ellos no trae líneas de otra solicitud.
 
-✔ **Acá no rompe, y por eso está escrito abajo:** `traerLineas` compara el filtro contra los valores
-reales de la etiqueta, cae a NO filtrar y lo dice en las notas de la traza. *(Al escribir esta sección
-se afirmó que las dos herramientas callaban el cero. Falso: ésta ya avisaba desde que se descubrió con
-la uReq 464709. La que no comprobaba era la del harness, y se le agregó la misma guarda el 2026-09-18
-— ver **F-237**.)*
+Lo que SÍ filtra es `LOKI_ENV` (`development|develop`), y lo que deja afuera son las máquinas de
+desarrollo (`local`, `testing`), que pueden correr contra su propia base. ⚠ Hasta el 2026-09-23 ese
+filtro **no se aplicaba nunca**: la verificación comparaba `development|develop` entero contra cada valor
+de la etiqueta —como regex es una alternativa, como cadena no existe— y caía a no filtrar diciendo que el
+valor no existía. Hoy se compara por alternativa (`selectorAmbiente`). Y el ancla de los MS Go va **sin**
+ese filtro: no llevan la etiqueta `environment`, así que con él quedaban afuera sin avisar.
+
+`trazador/.env.staging` sigue filtrando `LOKI_ENV=qa`, un valor que no existe: `traerLineas` lo detecta,
+cae a no filtrar y lo dice en las notas de la traza (F-237 es la misma guarda del lado del harness).
 
 Para volver a medirlo:
 
-    make trazador-acceso TARGET=dev SINCE=720h
-    make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="qa"} [720h]))'
-    make trazador-acceso TARGET=dev QUERY='sum(count_over_time({environment="development"} [24h]))'   # el control
+    make trazador-acceso TARGET=dev QUERY='sum by (service_name, environment) (count_over_time({app=~".+"} [24h]))'
+    # y la asignación backend → service_name: una ráfaga de GET contra UN backend y mirar qué stream crece
+    make trazador-acceso TARGET=dev QUERY='sum by (service_name) (count_over_time({app=~".+"} |= "Consultas de la petici" [2m]))'
 
-Queda por decidir qué filtro corresponde: `development|develop` devuelve las líneas **mezclando dev y
-qa** (honesto pero ambiguo), y hoy no hay etiqueta que las separe.
-
-⚠ **Dev y staging comparten el stack Y la base de datos.** O sea que el mismo `user_request_id` tiene
-líneas de las **dos ramas de código** (`legacy-backend` en `develop` y `legacy-backend-stg` en `qa`). Sin
-filtrar por `environment` estás mirando dos ramas mezcladas — la misma trampa que ya costó corridas
-creyendo que un feature estaba roto. Por eso `E2E_LOKI_ENV` en el harness **no es opcional**.
+⚠ **Dev, qa y staging comparten el stack Y la base de datos.** O sea que el mismo `user_request_id` puede
+tener líneas de **más de una rama de código** — medido, no supuesto: la 502633 del párrafo de arriba. Leer
+esas líneas sin saber qué backend las escribió es la misma trampa que ya costó corridas creyendo que un
+feature estaba roto; por eso el reparto por backend va al pie de cada traza.
 
 ⚠ Ojo con `develop` vs `development`: `web-auth-service` usa la primera y el resto la segunda. Un filtro
 exacto por `development` lo deja afuera; de ahí que el valor sea una alternativa de regex.

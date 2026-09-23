@@ -34,7 +34,7 @@ import (
 
 // targetsPermitidos: la lista blanca. El target llega por query string, y sin lista blanca sería una
 // forma de hacer que el server lea un `.env` arbitrario del disco.
-var targetsPermitidos = map[string]bool{"prod": true, "staging": true, "dev": true, "local": true}
+var targetsPermitidos = map[string]bool{"prod": true, "staging": true, "qa": true, "dev": true, "local": true}
 
 func servir(addr string) error {
 	mux := http.NewServeMux()
@@ -233,7 +233,7 @@ func targetDe(r *http.Request) (string, error) {
 		t = "prod" // por ahora todo se trabaja sobre prod
 	}
 	if !targetsPermitidos[t] {
-		return "", fmt.Errorf("target %q no permitido (prod · staging · dev · local)", t)
+		return "", fmt.Errorf("target %q no permitido (prod · staging · qa · dev · local)", t)
 	}
 	return t, nil
 }

@@ -15,7 +15,7 @@ const json = async (url) => {
   return cuerpo
 }
 
-const targetsValidos = new Set(['prod', 'staging', 'dev', 'local'])
+const targetsValidos = new Set(['prod', 'staging', 'qa', 'dev', 'local'])
 
 // La URL se puede leer sin Vue Router: identifica una PERSONA y, opcionalmente, la corrida abierta.
 // Así `/traza/prod/38612965` carga toda su historia y `/traza/prod/38612965/562414/listado` abre además

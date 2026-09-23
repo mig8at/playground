@@ -472,10 +472,11 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # Solo GET: no escribe nada en ningún ambiente.
 # ⚠ El módulo Go vive en `trazador/server/`, no en `trazador/` (se mudó al pasar a Vue + server Go).
 # Desde `trazador/` el go run falla con «cannot find main module».
-# ⚠ Los TARGET son cuatro —`prod` · `staging` · `dev` · `local`— y están los cuatro `.env.<target>`
-# (`trazador/server/serve.go:36` es la lista autoritativa). El help decía `prod|dev` y `prod|local`:
-# subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía consultar
-# staging. Si agregás un target, tocá los tres lugares: serve.go, el `.env.<target>` y estas líneas.
+# ⚠ Los TARGET son cinco —`prod` · `staging` · `qa` · `dev` · `local`— y están los cinco `.env.<target>`
+# (`targetsPermitidos` en `trazador/server/serve.go` es la lista autoritativa). El help decía `prod|dev` y
+# `prod|local`: subestimaba la herramienta, y a un help se le cree — el que lo leía concluía que no podía
+# consultar staging. Si agregás un target: serve.go, el store y el selector de la Vue (una prueba exige que
+# coincidan), el `.env.<target>` con su `.example`, y estas líneas.
 .PHONY: trazador-acceso trazador-sql trazador-posthog confluence
 trazador-acceso: ## @har SONDA Loki: ¿puedo leer? ⚠ MUESTRA líneas, no las cuentes. Para CONTAR: QUERY='sum(count_over_time({...}[24h]))'. [TARGET=…] QUERY='{...}' SINCE=1h
 	@cd trazador/server && go run . $(if $(TARGET),-target $(TARGET)) $(if $(QUERY),-query '$(QUERY)') $(if $(SINCE),-since $(SINCE))
@@ -494,7 +495,7 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
 	@python3 tools/confluence.py $(CMD)
 
-trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
+trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|qa|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía
 	@# con cualquier consulta que llevara comillas DOBLES (`WHERE x = "y"`), porque make expande antes
 	@# que el shell y las dobles del dato cerraban las del test. Fallaba con «binary operator expected»

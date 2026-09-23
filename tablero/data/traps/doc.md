@@ -227,6 +227,7 @@ orden de archivo — el ancla `### F-xx` es la única dirección.)
 | **«pide datos laborales y no debería»** / `ONB004` con HTTP 200 en un comercio de otro país | **F-177** |
 | **«dice que el documento ya existe» y es de otra persona, de otro país** / HTTP 409 al registrarse | **F-178** |
 | **«creé la solicitud en qa y el forense no encuentra sus logs»** / `service_name` que no existe en Loki | **F-179** |
+| **«la solicitud de HOY en dev/qa sale sin una sola línea de log»** / la hora de la BD y la de Loki no coinciden por 5 h | **F-241** |
 | **«el backend se cayó bajo carga»** / muchos 504 a los 60 s exactos que igual terminaron escribiendo | **F-180** |
 | **«el código serializa»** / medir concurrencia en local y ver las peticiones de a una | **F-181** |
 | **«genera el documento en prod y en local tira 500»** / `Undefined variable` en una plantilla de Rent to Own | **F-182** · F-150 |
@@ -241,6 +242,7 @@ distinto según con qué pregunta llegues.
 | F | qué | estado |
 |---|---|---|
 | F-240 | Una ruta del recorrido apunta a un método borrado, armada tras cuatro ids quemados | TRAMPA |
+| F-241 | Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC | TRAMPA |
 | F-01 | El loader SSR esconde los 5xx del backend | TRAMPA |
 | F-02 | "Firmar" rebota a los documentos sin ningún mensaje | TRAMPA |
 | F-03 | Un `.catch(() => {})` convirtió una corrida rota en "1 passed" | cerrado |
@@ -3403,7 +3405,15 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   probado en qa, el target es `dev`**, y para contar o leer a mano el selector es
   `{service_name="CreditopDev"}`. Si hace falta separar qa de dev, hay que hacerlo por el DATO (una
   solicitud, un usuario), no por el label.
-- **Estado:** vivo.
+- **Estado:** ⚠ **el título ya no es cierto (2026-09-23).** Medido pegándole a cada backend desplegado
+  —25 `GET /api/loans/allied/a8221e67` contra cada uno, y cada ráfaga cayó entera en un solo stream—:
+  **dev** (`legacy-backend`) loguea hoy como `service_name="legacy-backend"` y **qa**
+  (`legacy-backend-qa`) sigue como `CreditopDev`. Los dos con `environment=development`, así que la
+  separación es por `service_name`. El `service_name` sale del secreto `GRAFANA_TEMPO_SERVICE_NAME` de
+  cada despliegue y cambió sin commit, así que puede volver a cambiar. El trazador ya tiene `TARGET=qa`
+  y declara el servicio de cada target (`LOKI_SERVICE`) para AVISAR, no para filtrar: una solicitud pasa
+  por los dos backends (la 502633, creada en qa, tiene 442 líneas en `CreditopDev` y 159 en
+  `legacy-backend`). Detalle: `trazador/README.md` §«El ambiente es el STACK».
 
 ### F-180 · Bajo carga, el gateway de qa corta a los 60 s y reporta 504 — pero PHP sigue y termina de escribir. Y el techo es la CAPACIDAD de qa, no el código
 
@@ -6215,3 +6225,25 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   al resumen la ruta y el método (que el listener ya puede leer del `Request`), o emitirlo antes de
   que el span cierre. Con eso, el N+1 se arregla con un `with()` o un `whereIn` y se comprueba con
   la misma consulta de arriba.
+
+### F-241 · Desde el 2026-09-23 la BD compartida de dev/qa guarda la hora en Bogotá, no en UTC, y la traza sale sin logs
+
+- **Síntoma:** `make trazador-ureq UREQ=<de hoy> TARGET=qa` (o `dev`) dice «ninguna línea nombra esta
+  solicitud ni su usuario en la ventana», y Loki tiene cien líneas de esa solicitud. Con una de ayer,
+  la misma herramienta trae seiscientas.
+- **Causa raíz:** `created_at` y compañía se escriben ahora en hora de **Bogotá** (UTC−5) y el trazador
+  los lee como UTC: `fuenteMySQL.Zona()` devuelve `time.UTC` por una medición del 2026-08-05 que en su
+  momento era cierta. La ventana de búsqueda queda cinco horas antes que los logs. El cambio no está en
+  el repo: `config/app.php` hace `'timezone' => env('TZ', 'UTC')` en `main`, `develop`, `qa` y
+  `staging`, así que lo movió el entorno del despliegue (o la sesión de la base), no un commit.
+- **Evidencia:** 2026-09-23, 91 solicitudes: `created_at` contra la primera línea de Loki que las nombra.
+  Hasta la **502660** (22/9, 22:36 UTC) la diferencia es **0 h**; desde la **502661** (23/9, 13:48 UTC)
+  es **5,0 h** en todas, las que abrió `CreditopDev` (qa) y las de `legacy-backend` (dev). La 502690:
+  `created_at` 15:40:23, primera línea 20:40:23 UTC. Hay excepciones sueltas (502675, de dev, en 0 h a
+  las 19:46 del 23/9) que no se explicaron.
+- **Arreglo:** sin hacer. ⚠ No alcanza con cambiar la zona fija a Bogotá: las filas de antes del 23/9
+  están en UTC y una misma solicitud puede tener transiciones de los dos lados del corte. Lo que sirve
+  es que el trazador **calibre la zona por solicitud** contra sus propias líneas de Loki (el ancla por
+  `user_request_id` es exacta) o busque en una ventana que cubra las dos lecturas.
+- **Estado:** vivo. Para re-medirlo: la hora de `user_requests.created_at` de una solicitud de hoy
+  contra `{service_name=~".+"} | json | context_user_request_id="<id>"` con `direction=forward`.

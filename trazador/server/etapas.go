@@ -2357,27 +2357,14 @@ func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string)
 	desde, hasta := s.ventana()
 	var notas []string
 
-	// ── EL FILTRO DE AMBIENTE SE VERIFICA ANTES DE USARSE ──
-	//
-	// `LOKI_ENV` decía `qa` para el target `staging`, y la etiqueta `environment` del stack `creditopdev`
-	// SÓLO tiene `development`, `local` y `testing`: no existe ningún `qa`. Resultado: el selector no
-	// matcheaba nada y toda traza de staging salía «sin líneas de log» — con los logs ahí, a un filtro de
-	// distancia. Se descubrió con la uReq 464709, que falló firmando (`Deceval createGirador no exitoso`) y
-	// se mostraba sin una sola línea.
-	//
-	// Un filtro que no matchea nada es peor que ninguno: no falla, devuelve vacío, y el vacío se lee como
-	// «el backend no logueó». Por eso ahora se COMPRUEBA contra los valores reales del stack y, si no está,
-	// se cae a no filtrar Y SE DICE.
-	sel := `{service_name=~".+"}`
+	// ── EL FILTRO DE AMBIENTE SE VERIFICA ANTES DE USARSE ── (la regla, en `selectorAmbiente`)
+	var ambientes []string
 	if envFiltro != "" {
-		if vals := valoresDeEtiqueta(cl, "environment", desde, hasta); len(vals) > 0 && !contiene(vals, envFiltro) {
-			notas = append(notas, fmt.Sprintf("LOKI_ENV=%q NO existe como valor de `environment` en este stack "+
-				"(los que hay: %s) — se consultó SIN filtrar por ambiente. ⚠ dev y staging comparten stack y BD, "+
-				"así que un mismo user_request_id puede traer líneas de las DOS ramas de código",
-				envFiltro, strings.Join(vals, " · ")))
-		} else {
-			sel = fmt.Sprintf(`{environment=~"%s"}`, envFiltro)
-		}
+		ambientes = valoresDeEtiqueta(cl, "environment", desde, hasta)
+	}
+	sel, notaSel := selectorAmbiente(envFiltro, ambientes)
+	if notaSel != "" {
+		notas = append(notas, notaSel)
 	}
 
 	// ── EL ANCLA FILTRA POR CAMPO, NO POR SUBSTRING ──
@@ -2434,9 +2421,16 @@ func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string)
 		// líneas con __error__ y el filtro posterior las tira — o sea que el pipeline que encuentra a Monolog
 		// es exactamente el que hace invisible al microservicio. Se distinguen porque el filtro de etiqueta
 		// no menciona campos `context_*`.
+		//
+		// ⚠ Y el ancla de ETIQUETA tampoco usa el selector del monolito: los MS Go no llevan la etiqueta
+		// `environment` (la suya es `deployment_environment`) ni el `service_name` del PHP, así que
+		// cualquiera de los dos filtros los dejaba afuera sin avisar. No hace falta separarlos por
+		// ambiente: se anclan por el `user_request_id` EXACTO, y ese id es único en la BD que dev, qa y
+		// staging comparten.
+		esEtiqueta := !strings.Contains(ancla.filtro, "context_")
 		q := fmt.Sprintf(`%s | json | %s`, sel, filtro)
-		if !strings.Contains(ancla.filtro, "context_") {
-			q = fmt.Sprintf(`%s | %s`, sel, filtro)
+		if esEtiqueta {
+			q = fmt.Sprintf(`{service_name=~".+"} | %s`, filtro)
 		}
 		ls, tr, err := lineasYTraces(cl, q, desde, hasta, ancla.valor)
 		if err != nil {
@@ -2445,7 +2439,6 @@ func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string)
 		}
 		crudas = append(crudas, ls...)
 		anclas[ancla.campos] = len(ls)
-		esEtiqueta := !strings.Contains(ancla.filtro, "context_")
 		for t := range tr {
 			if esEtiqueta {
 				tracesEtiqueta[t] = true // trace de MS: NO es indexado, la expansión normal no lo ve
@@ -2579,7 +2572,55 @@ func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string)
 	// auditoría; vive completo en `-anclas`, que es su modo. Acá queda lo que un lector necesita creer:
 	// cuántas líneas y de cuántas peticiones.
 	notas = append(notas, fmt.Sprintf("%d líneas de %d traces · el desglose por ancla: -anclas", len(limpias), len(ids)))
+	notas = append(notas, repartoPorBackend(limpias, cl.cfg.servicio)...)
 	return limpias, notas
+}
+
+// repartoPorBackend dice qué backend PHP sirvió las líneas de la traza, contra el que el target declara
+// como suyo (`LOKI_SERVICE`). No filtra: AVISA.
+//
+// ⚠ Filtrar era la primera idea y habría mentido. Dev, qa y staging comparten BD, así que los ids no se
+// pisan y anclar por ellos no trae líneas de otra solicitud; pero una misma solicitud SÍ pasa por más de
+// un backend. Medido el 2026-09-23: la uReq 502690, creada en qa, tiene 110 líneas en `CreditopDev` (qa)
+// y 18 `QUOTA_CHECK_START` en `legacy-backend` (dev) — el chequeo de cupo lo corrió el código de OTRA
+// rama. Con el filtro esas 18 desaparecían y la traza decía menos de lo que pasó; sin el aviso, se leían
+// como si las hubiera escrito qa.
+//
+// Sólo cuentan las líneas con etiqueta `environment`, que es la que pone el LokiHandler del monolito
+// (medido el 2026-09-23 en `creditopdev`: los MS Go traen `deployment_environment` en su lugar). No se
+// usa `app`, que también es del PHP, porque `boilerplateOTel` la saca del contexto. Y los MS quedan
+// afuera a propósito: su única etiqueta de ambiente vale `development` en dev, qa y staging por igual,
+// así que una línea suya no dice de qué rama es.
+func repartoPorBackend(lineas []Linea, servicio string) []string {
+	if servicio == "" {
+		return nil
+	}
+	por := map[string]int{}
+	for _, l := range lineas {
+		if pick(l.ctx, []string{"environment"}) == "" {
+			continue
+		}
+		if sv := pick(l.ctx, []string{"service_name"}); sv != "" {
+			por[sv]++
+		}
+	}
+	var otros []string
+	for sv, n := range por {
+		if sv != servicio {
+			otros = append(otros, fmt.Sprintf("%s %d", sv, n))
+		}
+	}
+	if len(otros) == 0 {
+		return nil
+	}
+	sort.Strings(otros)
+	if por[servicio] == 0 {
+		return []string{fmt.Sprintf("NINGUNA línea del monolito es de %q, el backend de este target: todas "+
+			"son de %s. La solicitud la atendió OTRO ambiente (dev, qa y staging comparten BD y se abre igual "+
+			"con cualquiera de los tres)", servicio, strings.Join(otros, " · "))}
+	}
+	return []string{fmt.Sprintf("la solicitud pasó por MÁS DE UN backend: %s %d (el de este target) · %s. "+
+		"Las de otro backend las corrió el código de OTRA rama", servicio, por[servicio], strings.Join(otros, " · "))}
 }
 
 // boilerplateOTel: las etiquetas de infraestructura que el SDK de OTel pega a toda línea y que no dicen
@@ -3953,6 +3994,43 @@ func pad(s string, n int) string {
 // DESCUBRIR que su propio filtro no aplica, en vez de devolver vacío y dejar que el vacío se lea como
 // «el backend no logueó». Ante cualquier error devuelve nil: no poder comprobar no es lo mismo que
 // comprobar que está mal, así que en ese caso el filtro configurado se respeta.
+// selectorAmbiente decide con qué selector se buscan las anclas del MONOLITO (las de `context_*`), y dice
+// si no pudo usar el filtro. Es pura a propósito: su error no rompe nada, sale prolijo —una traza «sin
+// líneas de log» con los logs a un filtro de distancia—, y eso sólo se atrapa probándola.
+//
+// Un filtro que no matchea nada es peor que ninguno: no falla, devuelve vacío, y el vacío se lee como «el
+// backend no logueó». Por eso se COMPRUEBA contra los valores reales de la etiqueta y, si no está, se cae a
+// no filtrar Y SE DICE. Si la lista vino vacía (no se pudo pedir) se usa igual: no hay contra qué
+// comprobarlo, y descartarlo sería decidir por el usuario.
+//
+// Por qué existe: `LOKI_ENV` decía `qa` para el target `staging`, y `environment` en `creditopdev` sólo
+// tiene `development`, `local` y `testing`. Toda traza de staging salía sin líneas (uReq 464709, que falló
+// firmando con `Deceval createGirador no exitoso`). Y hasta el 2026-09-23 la comprobación comparaba
+// `development|develop` ENTERO contra cada valor: como regex es una alternativa, como cadena no existe, así
+// que el filtro de dev no se aplicaba nunca y la nota decía que el valor no existía cuando sí.
+//
+// ⚠ Lo que este filtro separa en `creditopdev` NO es dev de qa (los dos PHP son `development`): es lo
+// desplegado de las máquinas de desarrollo (`local`, `testing`), que pueden correr contra su PROPIA base y
+// entonces repetir ids de la compartida con otra persona detrás. Dev y qa se distinguen por `service_name`, y eso lo dice
+// `repartoPorBackend` sin filtrar.
+func selectorAmbiente(env string, ambientes []string) (sel, nota string) {
+	if env == "" {
+		return `{service_name=~".+"}`, ""
+	}
+	existe := len(ambientes) == 0
+	for _, alt := range strings.Split(env, "|") {
+		if contiene(ambientes, strings.TrimSpace(alt)) {
+			existe = true
+		}
+	}
+	if existe {
+		return fmt.Sprintf(`{environment=~"%s"}`, env), ""
+	}
+	return `{service_name=~".+"}`, fmt.Sprintf("LOKI_ENV=%q NO existe como valor de `environment` en este stack "+
+		"(los que hay: %s) — se consultó SIN filtrar por ambiente, así que pueden colarse líneas de máquinas de "+
+		"desarrollo, que pueden tener su propia base", env, strings.Join(ambientes, " · "))
+}
+
 func valoresDeEtiqueta(cl *client, etiqueta string, desde, hasta time.Time) []string {
 	status, body, err := cl.get("/loki/api/v1/label/"+etiqueta+"/values", url.Values{
 		"start": {fmt.Sprint(desde.UnixNano())},

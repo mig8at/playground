@@ -18,6 +18,7 @@ const t = useTrazador()
     <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.cambiarTarget()">
       <option value="prod">prod</option>
       <option value="staging">staging</option>
+      <option value="qa">qa</option>
       <option value="dev">dev</option>
       <option value="local">local</option>
     </select>

@@ -74,6 +74,14 @@ type config struct {
 	// el stack es compartido: creditopdev sirve dev Y qa, y sin filtrar se mezclan dos ramas de código.
 	env string
 
+	// El `service_name` del MONOLITO de este ambiente. Es lo que separa qa de dev en `creditopdev`, que
+	// `env` no puede: los dos PHP loguean `environment=development`, pero con otro `service_name` —medido
+	// el 2026-09-23 pegándole a cada backend desplegado: dev → `legacy-backend`, qa → `CreditopDev`—.
+	// ⚠ NO filtra: una solicitud puede pasar por los dos backends, y lo que hace es DECIRLO
+	// (`repartoPorBackend`). Lo pone un secreto del despliegue (`GRAFANA_TEMPO_SERVICE_NAME`), no el repo,
+	// así que puede cambiar sin commit. Vacío = no se reparte.
+	servicio string
+
 	// La BD del ambiente. Es lo que convierte al trazador de "lector de logs" en trazador: la BD dice
 	// QUÉ pasó (hecho) y ancla la búsqueda de logs; los logs solo dicen POR QUÉ. Vacío = solo Loki
 	// (el caso de prod hasta que haya una réplica de lectura).
@@ -101,11 +109,12 @@ type config struct {
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
 // legacy-backend en su propio .env: aceptarlos permite pegar las vars del deploy tal como están.
 var alias = map[string][]string{
-	"token":  {"LOKI_TOKEN", "GRAFANA_LOKI_PASSWORD", "GRAFANA_LOKI_TOKEN"},
-	"base":   {"LOKI_URL", "GRAFANA_LOKI_ENDPOINT", "GRAFANA_CLOUD_ENDPOINT"},
-	"user":   {"LOKI_USER", "GRAFANA_LOKI_USERNAME"},
-	"tenant": {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
-	"env":    {"LOKI_ENV", "E2E_LOKI_ENV"},
+	"token":    {"LOKI_TOKEN", "GRAFANA_LOKI_PASSWORD", "GRAFANA_LOKI_TOKEN"},
+	"base":     {"LOKI_URL", "GRAFANA_LOKI_ENDPOINT", "GRAFANA_CLOUD_ENDPOINT"},
+	"user":     {"LOKI_USER", "GRAFANA_LOKI_USERNAME"},
+	"tenant":   {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
+	"env":      {"LOKI_ENV", "E2E_LOKI_ENV"},
+	"servicio": {"LOKI_SERVICE", "E2E_LOKI_SERVICE"},
 	// Los `E2E_DB_*` son los que usa el harness: aceptarlos permite copiar su .env.<target> tal cual.
 	"dbHost":      {"DB_HOST", "E2E_DB_HOST"},
 	"dbPort":      {"DB_PORT", "E2E_DB_PORT"},
@@ -175,7 +184,7 @@ func loadConfig(target string) (config, []string) {
 
 	var c config
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant", "env", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
+	for _, field := range []string{"token", "base", "user", "tenant", "env", "servicio", "dbHost", "dbPort", "dbName", "dbUser", "dbPass", "redashURL", "redashToken", "redashDS", "redashTZ", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
 		v, from := pick(field)
 		switch field {
 		case "token":
@@ -188,6 +197,8 @@ func loadConfig(target string) (config, []string) {
 			c.tenant = v
 		case "env":
 			c.env = v
+		case "servicio":
+			c.servicio = v
 		case "dbHost":
 			c.dbHost = v
 		case "dbPort":
@@ -615,7 +626,7 @@ func mask(s string) string {
 func main() {
 	// Default `prod` porque es el único stack con acceso confirmado hoy. Es seguro como default: la sonda
 	// solo hace GET. Cuando exista `.env.dev` (creditopdev), se pide con -target dev.
-	target := flag.String("target", "prod", "qué .env.<target> leer (prod = creditop · dev = creditopdev)")
+	target := flag.String("target", "prod", "qué .env.<target> leer (prod = creditop · dev, qa y staging = creditopdev)")
 	query := flag.String("query", "", "selector LogQL a leer (si se omite, se descubre desde las etiquetas)")
 	since := flag.Duration("since", time.Hour, "ventana hacia atrás para la lectura corta")
 	limit := flag.Int("limit", 20, "máximo de líneas a pedir")
