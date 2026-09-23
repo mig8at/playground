@@ -12,7 +12,8 @@
 // Esto contesta, para UN día: ¿qué tareas se tocaron, y a cuál le falta qué? Cruza cuatro fuentes que ya
 // existen y ninguna escribe:
 //
-//	git       qué documentos de tarea se commitearon o están modificados ese día
+//	git       qué documentos de tarea se commitearon o están modificados ese día (un commit que declara
+//	          `Sin-avance:` es un barrido: sus tareas se listan aparte y no se les pide nada)
 //	la pila   qué tareas tienen un bloque fechado ese día (cuenta la FECHA del bloque, no el archivo:
 //	          una migración que reescribe bloques viejos no vuelve «tocadas» a sus tareas)
 //	el pulso  qué ramas se tocaron ese día → qué tarea las declara en `ramas:` (y cuáles ninguna)
@@ -61,15 +62,12 @@ type task struct {
 
 // Revision es lo que se sabe de UNA tarea tocada en el día.
 type Revision struct {
-	ID           int      `json:"id"`
-	Slug         string   `json:"slug"`
-	Title        string   `json:"title"`
-	Reasons      []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "bloque", "rama <x>"
-	BlockToday   bool     `json:"blockToday"`
-	MinutesToday int      `json:"minutesToday"`
-	// NoProgress: la entrada de Registro del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime
-	// del bloque del día y de la bitácora; nada más.
-	NoProgress       bool     `json:"noProgress,omitempty"`
+	ID               int      `json:"id"`
+	Slug             string   `json:"slug"`
+	Title            string   `json:"title"`
+	Reasons          []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "bloque", "rama <x>"
+	BlockToday       bool     `json:"blockToday"`
+	MinutesToday     int      `json:"minutesToday"`
 	DeclaredBranches bool     `json:"declaredBranches"`
 	Missing          []string `json:"missing"`
 	// Watch: lo que conviene revisar pero NO es una pieza faltante — no suma a `MissingPieces` ni hace
@@ -79,24 +77,30 @@ type Revision struct {
 }
 
 type Report struct {
-	Day                 string     `json:"day"`
-	PulseMinutes        int        `json:"pulseMinutes"`
-	WorklogMin          int        `json:"worklogMinutes"`
-	WorklogN            int        `json:"worklogEntries"`
-	WithoutTaskMin      int        `json:"worklogWithoutTaskMinutes"`
-	Tasks               []Revision `json:"tasks"`
-	BranchesWithoutTask []string   `json:"branchesWithoutTask"`
-	Warnings            []string   `json:"warnings"`
-	MissingPieces       int        `json:"missingPieces"`
-	PulseAvailable      bool       `json:"pulseAvailable"`
+	Day            string     `json:"day"`
+	PulseMinutes   int        `json:"pulseMinutes"`
+	WorklogMin     int        `json:"worklogMinutes"`
+	WorklogN       int        `json:"worklogEntries"`
+	WithoutTaskMin int        `json:"worklogWithoutTaskMinutes"`
+	Tasks          []Revision `json:"tasks"`
+	// Swept: las tareas que sólo tocó un barrido declarado en su commit (layout.SweepTrailer), con el
+	// motivo. No se les pide bloque ni bitácora —el tiempo del barrido está en la tarea que lo hizo, y
+	// contarlo en cada una lo sumaría dos veces en un dato que sube a Jira—, pero se muestran: callarlas
+	// se leería igual que un día sin tocarlas.
+	Swept               []Swept  `json:"swept,omitempty"`
+	BranchesWithoutTask []string `json:"branchesWithoutTask"`
+	Warnings            []string `json:"warnings"`
+	MissingPieces       int      `json:"missingPieces"`
+	PulseAvailable      bool     `json:"pulseAvailable"`
 }
 
-var (
-	reCitation   = regexp.MustCompile(`^["']|["']$`)
-	reRecordDate = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
-	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `noProgress`.
-	reNoProgress = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
-)
+type Swept struct {
+	ID     int    `json:"id"`
+	Slug   string `json:"slug"`
+	Reason string `json:"reason"`
+}
+
+var reCitation = regexp.MustCompile(`^["']|["']$`)
 
 func value(l string) string {
 	_, v, _ := strings.Cut(l, ":")
@@ -143,10 +147,10 @@ func readTaskFile(path string) (task, error) {
 }
 
 // touchedByGit: los slugs cuyo documento se commiteó en el día o está cambiado en el working tree (esto
-// último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha). Una MUDANZA pura no cuenta:
-// mover una tarea de carpeta no es trabajar en ella (ver layout.TouchedOn). Sin eso, el día de la
-// mudanza de `data/` a `tasks/` el cierre le habría reclamado piezas a las 46 tareas.
-func touchedByGit(data, day string, isToday bool) map[string]bool {
+// último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha), y aparte los que sólo tocó un
+// barrido. Ni una MUDANZA pura ni un barrido declarado cuentan como trabajo (ver layout.TouchedOn): sin
+// eso, el día de la mudanza de `data/` a `tasks/` el cierre le habría reclamado piezas a las 46 tareas.
+func touchedByGit(data, day string, isToday bool) (map[string]bool, map[string]string) {
 	return layout.At(data).TouchedOn(day, isToday)
 }
 
@@ -177,41 +181,13 @@ func metadataOnly(data, day, slug, bodyToday string) bool {
 	return ok && strings.TrimSpace(before) == strings.TrimSpace(bodyToday)
 }
 
-// noProgress: ¿la entrada de HOY del Registro declara que la tarea no avanzó?
-//
-// SEGUNDO CASO DE «TOCAR NO ES TRABAJAR», hermano de `metadataOnly` y por el mismo motivo medido. Ese
-// cubre el cambio que no toca el cuerpo; éste cubre el que SÍ lo toca sin que nadie haya trabajado en
-// la tarea: un barrido. El 2026-09-21, apagar el árbol de contexto renombró un campo del frontmatter
-// y reapuntó rutas en 45 archivos de tareas, y a tres de ellas —#15, #46, #47— el cierre les reclamó
-// bitácora. Anotarla habría sido inventar minutos, y peor: los mismos minutos ya estaban contados en
-// la tarea del barrido, así que el total del día —que sube a Jira— habría contado doble.
-//
-// ⚠ SE DECLARA, NO SE ADIVINA. Se probó deducirlo comparando el cuerpo con las citas normalizadas —la
-// idea era «si sólo cambiaron rutas, nadie afirmó nada»— y NO sirve: medido sobre esas tres tareas, la
-// prosa fuera de los backticks también cambió, porque al barrer se escribe la nota que explica el
-// barrido. Deducirlo habría dado falso en los tres casos que venía a resolver. Así que lo dice la
-// tarea, con un marcador en negrita dentro de su entrada del día.
-//
-// ⚠ Y NO exime del Registro: al contrario, el marcador VIVE en la entrada del día. Se perdonan dos
-// piezas: la bitácora, que mide TIEMPO, y reescribir la retoma, que describe el ESTADO — y un barrido
-// no cambia ninguno de los dos. Hasta el 2026-09-23 se perdonaba sólo la bitácora, y alcanzaba porque el
-// barrido del 21 había tocado también las secciones de retoma. El de la fase 3 y la mudanza a carpetas
-// no las tocó: a #46 y #47 el cierre les exigía reescribir un estado que no había cambiado, o sea
-// inventar uno. Ver `resumeState`.
-func noProgress(body, day string) bool {
-	loc := reRecordDate.FindAllStringSubmatchIndex(body, -1)
-	for i, m := range loc {
-		if body[m[2]:m[3]] != day {
-			continue
-		}
-		end := len(body)
-		if i+1 < len(loc) {
-			end = loc[i+1][0]
-		}
-		return reNoProgress.MatchString(body[m[1]:end])
-	}
-	return false
-}
+// ⚠ HASTA EL 2026-09-23 UN BARRIDO SE DECLARABA EN LA TAREA: una línea «**<día> · sin avance.**» en la
+// entrada del día de su `## Registro`. Era el segundo caso de «tocar no es trabajar», hermano de
+// `metadataOnly`: el 2026-09-21, apagar el árbol de contexto reapuntó rutas en 45 tareas y a tres el
+// cierre les reclamó bitácora; anotarla habría inventado minutos y los habría contado dos veces. Ese día
+// el Registro se fue a la pila, y la declaración pasó al COMMIT del barrido (layout.SweepTrailer): lo dice
+// una vez, donde se hizo. Sigue siendo DECLARADA y no deducida: se probó deducirla comparando el cuerpo
+// con las citas normalizadas y falla, porque al barrer se escribe la nota que explica el barrido.
 
 // blocksOn: ¿la pila tiene un bloque fechado ese día (`any`), y alguno que sea trabajo de ese día y no un
 // hito viejo convertido (`work`)? Un bloque migrado cumple con el bloque del día —es el hito que se
@@ -379,7 +355,7 @@ func main() {
 	}
 
 	inf := Report{Day: *day}
-	touched := touchedByGit(data, *day, isToday)
+	touched, swept := touchedByGit(data, *day, isToday)
 	branches, base, pulseMin, pulseOK := branchesOfDay(data, *day)
 	inf.PulseMinutes, inf.PulseAvailable = pulseMin, pulseOK
 	minutesByTask, withoutTask, totalWorklog, nBit := worklog(data, *day)
@@ -430,11 +406,10 @@ func main() {
 			rv.Watch = append(rv.Watch, "la pila no se pudo leer: "+err.Error())
 		}
 		rv.BlockToday, _ = blocksOn(events, *day)
-		rv.NoProgress = noProgress(t.Body, *day)
-		if !rv.BlockToday && !rv.NoProgress {
+		if !rv.BlockToday {
 			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make tarea-bloque N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
 		}
-		if rv.MinutesToday == 0 && !rv.NoProgress {
+		if rv.MinutesToday == 0 {
 			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
@@ -452,6 +427,16 @@ func main() {
 		inf.Tasks = append(inf.Tasks, rv)
 	}
 	sort.Slice(inf.Tasks, func(i, j int) bool { return inf.Tasks[i].ID > inf.Tasks[j].ID })
+	listed := map[string]bool{}
+	for _, rv := range inf.Tasks {
+		listed[rv.Slug] = true
+	}
+	for _, t := range tasks {
+		if why, ok := swept[t.Slug]; ok && !listed[t.Slug] {
+			inf.Swept = append(inf.Swept, Swept{ID: t.ID, Slug: t.Slug, Reason: why})
+		}
+	}
+	sort.Slice(inf.Swept, func(i, j int) bool { return inf.Swept[i].ID > inf.Swept[j].ID })
 
 	// avisos globales: lo que miente sin que nadie lo note
 	ids := make([]int, 0, len(byID))
@@ -528,18 +513,7 @@ func printReport(inf Report) {
 			}
 			return "✗"
 		}
-		// ⚠ Una tarea eximida se marca «—», no «✓»: un tilde diría que la bitácora está, y no está.
-		// Ver la misma regla en el panel del harness — una vista apagada se ve apagada, no se esconde.
-		bit := mark(t.MinutesToday > 0)
-		detail := hm(t.MinutesToday)
-		if t.NoProgress && t.MinutesToday == 0 {
-			bit, detail = "—", "declara sin avance"
-		}
-		block, blockLabel := mark(t.BlockToday), "bloque del día"
-		if t.NoProgress && !t.BlockToday {
-			block, blockLabel = "—", "bloque (declara sin avance)"
-		}
-		fmt.Printf("       %s %s   %s bitácora (%s)\n", block, blockLabel, bit, detail)
+		fmt.Printf("       %s bloque del día   %s bitácora (%s)\n", mark(t.BlockToday), mark(t.MinutesToday > 0), hm(t.MinutesToday))
 		for _, f := range t.Missing {
 			fmt.Printf("       ✗ %s\n", f)
 		}
@@ -548,6 +522,15 @@ func printReport(inf Report) {
 		// a ignorar entero — incluidas las piezas que sí importan.
 		for _, m := range t.Watch {
 			fmt.Printf("       ▲ %s\n", m)
+		}
+		fmt.Println()
+	}
+	// ⚠ Una tarea barrida se marca «—», no «✓»: un tilde diría que sus piezas están, y no están. Ver la
+	// misma regla en el panel del harness — una vista apagada se ve apagada, no se esconde.
+	if len(inf.Swept) > 0 {
+		fmt.Println("  — barridas, sin avance (lo declara su commit; no se les pide bloque ni bitácora):")
+		for _, t := range inf.Swept {
+			fmt.Printf("    #%-3d %s — %s\n", t.ID, t.Slug, t.Reason)
 		}
 		fmt.Println()
 	}

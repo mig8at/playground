@@ -4,22 +4,12 @@ import { organizeDocument } from '../src/task-document.js';
 import { highlightSQL, isSQLQuery } from '../src/sql-highlight.js';
 import { groupTasks, readPreference, savePreference } from '../src/ui-state.js';
 
-test('retoma, pendientes y decisiones preceden al material; historial al final', () => {
+test('pendientes y decisiones preceden al material; en un documento viejo, retoma arriba y registro al final', () => {
   const sections = organizeDocument('## Registro\nPasado\n### Día uno\nDetalle\n\n## Enlaces\nReferencia\n\n## Objetivo\nPlan\n\n## Decisiones\nElegido\n\n## Pendientes\n- [ ] Acción\n\n## 1 · Si retomás esto sin contexto\nActual');
   assert.deepEqual(sections.map(s => s.title), ['1 · Si retomás esto sin contexto', 'Pendientes', 'Decisiones', 'Objetivo', 'Enlaces', 'Registro']);
-  assert.equal(sections.at(-1).history, true);
-  assert.match(sections.at(-1).html, /Día uno/);
-  assert.match(sections.at(-1).html, /Detalle/);
-});
-
-test('el historial cuenta los DÍAS que registra, que es lo que muestra su pestaña', () => {
-  const sections = organizeDocument('## Objetivo\nPlan\n\n## Registro\n### 2026-09-18\nUno\n### 2026-09-17\nDos\n### 2026-09-16\nTres');
-  const hist = sections.find(s => s.history);
-  assert.equal(hist.entries, 3);
-  // Una sección que no es historial no aporta al contador de la pestaña.
-  assert.equal(sections.find(s => !s.history).entries, 0);
-  // Y un registro sin días partidos cuenta cero: la pestaña dice «0» en vez de inventar una entrada.
-  assert.equal(organizeDocument('## Registro\nTodo junto, sin fechas').find(s => s.history).entries, 0);
+  // Lo de antes de la pila se lee entero en el documento: ya no hay otra vista que lo muestre.
+  assert.match(sections.at(-1).summaryHtml, /Día uno/);
+  assert.match(sections.at(-1).summaryHtml, /Detalle/);
 });
 
 test('código y citas con encabezados permanecen en su sección; enlaces por referencia siguen funcionando', () => {
@@ -28,7 +18,6 @@ test('código y citas con encabezados permanecen en su sección; enlaces por ref
   assert.match(sections[0].html, /href="https:\/\/example.com"/);
   assert.match(sections[0].html, /language-sh/);
   assert.match(sections[0].html, /blockquote/);
-  assert.equal(sections.some(s => s.history), false);
 });
 
 test('las consultas SQL de Markdown y la evidencia se resaltan sin inyectar su contenido', () => {
@@ -45,7 +34,7 @@ test('las consultas SQL de Markdown y la evidencia se resaltan sin inyectar su c
 test('títulos repetidos conservan destinos únicos y los nombres históricos se reconocen', () => {
   const sections = organizeDocument('## Bitácora\nUno\n\n## Registro\nDos\n\n## Registro\nTres\n\n## Objetivo\nCuatro');
   assert.equal(new Set(sections.map(s => s.id)).size, sections.length);
-  assert.equal(sections.filter(s => s.history).length, 3);
+  assert.deepEqual(sections.map(s => s.title), ['Objetivo', 'Bitácora', 'Registro', 'Registro']);
   assert.match(sections.at(-1).html, /Tres/);
   assert.deepEqual(organizeDocument(''), []);
 });
@@ -64,13 +53,15 @@ test('pendientes se muestran una sola vez y conservan continuaciones, enlaces y 
   assert.match(summary, /Material de referencia/);
 });
 
-test('hallazgos marcados salen del resumen, las citas normales y el código se conservan', () => {
+test('una anotación que quedó en un documento viejo se lee en su lugar, como las citas y el código', () => {
   const sections = organizeDocument('## Decisiones\n> **DECISIÓN · 2026-09-18** — Acuerdo\n> Evidencia\n\n> Una cita normal\n\n~~~md\n- [ ] Ejemplo de código\n~~~\n');
-  assert.doesNotMatch(sections[0].summaryHtml, /Acuerdo|Evidencia/);
+  // Hasta el 2026-09-23 salía del resumen porque «Hallazgos» la mostraba aparte; esa vista se fue con
+  // las anotaciones, así que esconderla ahora sería perderla.
+  assert.match(sections[0].summaryHtml, /Acuerdo/);
+  assert.match(sections[0].summaryHtml, /Evidencia/);
   assert.match(sections[0].summaryHtml, /Una cita normal/);
   assert.match(sections[0].summaryHtml, /Ejemplo de código/);
   assert.equal(sections[0].pendingHtml, '');
-  assert.match(sections[0].html, /Acuerdo/); // la representación completa sigue disponible
 });
 
 test('agrupar conserva todas las tareas y el orden dentro de cada estado', () => {

@@ -53,11 +53,11 @@ const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v2', id: `
   body: `**Objetivo.** Probar la interfaz.\n\n${'Resumen del bloque. '.repeat(30).trim()}\n\n**Estado.** Estable.` });
 // Un bloque con enlaces y un comando: lo que la vista tiene que pintar de verdad.
 const blockEvent = { schema: 'tablero.task-context/v2', id: 'blk_ui', at: localDay(0), via: 'manual',
-  title: 'La regla de ingreso mínimo sí excluye',
+  title: 'La regla de `ingreso mínimo` sí excluye',
   body: 'La cascada está en [el listado](canon:listado) y la regla en [LenderFilter](repo:legacy-backend@cfc577218f2d/app/Services/LenderFilter.php#L40).\n\n'
     + "```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\nResultado: salen 7 entidades; con ingreso, 6." };
 const sample = {
-  '/api/config': { canonUrl: 'https://canon.test', tracerUrl: 'http://tracer.test',
+  '/api/config': { canonUrl: 'https://canon.test',
     repos: { 'legacy-backend': { web: 'https://github.com/Creditop-SAS/legacy-backend', prefix: '' } } },
   '/api/sprints': { sprints: [sprint] },
   '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En curso',
@@ -180,6 +180,7 @@ try {
   await check('un bloque muestra título, comando con su resultado y archivos en su commit, sin hora', async () => {
     const r = await page.locator('.task-block').first().evaluate((el) => ({
       title: el.querySelector('.block-title')?.innerText,
+      titleCode: el.querySelector('.block-title .inline-code')?.innerText,
       label: el.querySelector('.block-command-label')?.innerText,
       result: el.querySelector('.block-result')?.innerText,
       file: el.querySelector('a.ref-repo')?.getAttribute('href'),
@@ -188,6 +189,7 @@ try {
       time: /\b\d{1,2}:\d{2}\b/.test(el.innerText),
     }), null, { timeout: 5000 });
     assert.equal(r.title, 'La regla de ingreso mínimo sí excluye');
+    assert.equal(r.titleCode, 'ingreso mínimo', 'el código del título se pinta como código, sin las comillas');
     assert.equal(r.label, 'Harness · local');
     assert.match(r.result || '', /^Resultado: salen 7 entidades/);
     assert.equal(r.file, 'https://github.com/Creditop-SAS/legacy-backend/blob/cfc577218f2d/app/Services/LenderFilter.php#L40');
@@ -209,27 +211,33 @@ try {
     await showAuxTab(page, 'artifacts');
     assert.deepEqual(await page.locator('.artifact-type').allInnerTexts(), ['HTML', 'SQL']);
   });
-  // Una tarea limpia está VACÍA: sin hallazgos no se dibujan ni el bloque de hallazgos ni el de evidencia
-  // —salían con su «0 registrados» y su «todavía no hay»—. Y con uno, los dos vuelven: un `v-if` que no
-  // se cumple nunca también dejaría la pantalla limpia.
-  await check('sin hallazgos no hay bloques vacíos, con uno aparecen, y ninguno se describe a sí mismo', async () => {
-    const blocks = () => page.evaluate(() => ({
-      findings: document.querySelectorAll('.task-findings').length,
-      evidence: document.querySelectorAll('.task-evidence').length,
-      empty: /no tiene hallazgos|Todavía no hay|0 registrados/.test(document.querySelector('.te-body').innerText),
-      // y los rótulos que describían el contenedor en vez del contenido
-      labels: /Documento de trabajo|Estado, decisiones y material vigente|Conclusiones fechadas|Herramientas, comandos y comprobaciones/
-        .test(document.querySelector('.te-body').innerText),
-    }));
-    assert.deepEqual(await blocks(), { findings: 0, evidence: 0, empty: false, labels: false });
+  // Una tarea limpia está VACÍA: sin documento no se dibuja su bloque —ni un «todavía no hay»—, y con él
+  // vuelve: un `v-if` que no se cumple nunca también dejaría la pantalla limpia. Y los hallazgos y la
+  // evidencia ya no existen: salían de las anotaciones del documento, que el 2026-09-23 pasaron a la pila.
+  // Aunque un server viejo mandara `annotations`, no se pintan.
+  await check('sin documento no hay bloque vacío, con él aparece, y no quedan hallazgos ni rótulos', async () => {
+    const state = () => page.evaluate(() => {
+      const text = document.querySelector('.te-body').innerText;
+      return {
+        reference: document.querySelectorAll('.task-reference').length,
+        findings: /Hallazgos|registrados|Evidencia de trabajo|Todavía no hay/.test(text),
+        labels: /Documento de trabajo|Estado, decisiones y material vigente|Conclusiones fechadas|Herramientas, comandos y comprobaciones/.test(text),
+      };
+    });
     const effort = sample['/api/efforts'].efforts[0];
+    const notes = effort.techNotes;
     effort.annotations = [{ kind: 'medicion', date: '2026-09-20', what: 'Se midió el caso.', how: 'SELECT 1', sources: ['DB'] }];
     try {
       await page.reload();
-      await page.locator('.task-findings').waitFor({ timeout: 5000 });
-      assert.deepEqual(await blocks(), { findings: 1, evidence: 1, empty: false, labels: false });
+      await page.locator('.task-reference').waitFor({ timeout: 5000 });
+      assert.deepEqual(await state(), { reference: 1, findings: false, labels: false });
+      effort.techNotes = '';
+      await page.reload();
+      await page.locator('.task-block').first().waitFor({ timeout: 5000 });
+      assert.deepEqual(await state(), { reference: 0, findings: false, labels: false });
     } finally {
       delete effort.annotations;
+      effort.techNotes = notes;
     }
   });
   await check('sin errores de consola', () => assert.deepEqual([...errors, ...narrow.errors], []));

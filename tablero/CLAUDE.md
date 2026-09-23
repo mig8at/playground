@@ -82,14 +82,17 @@ sprint.
 
 ## Plantilla por vista
 
-El editor central muestra una única historia de retoma por fecha: **Hoy**, **Ayer** y luego la fecha
-real de cada jornada anterior. Sólo contiene los bloques de la pila —título y descripción—; no se
-muestran minutos ni notas de sesión. El documento, los hallazgos y la evidencia quedan después de la
-cronología como consulta, y **cada bloque aparece sólo si tiene contenido**: una tarea limpia está vacía
-(pedido de Miguel, 2026-09-23). Un contenedor vacío con su «todavía no hay» pide que lo llenen con algo
-que la tarea quizá no hace. Y ninguno se describe a sí mismo: el documento no lleva rótulo —lo nombran
-sus secciones, empezando por la de retoma— y los hallazgos y la evidencia no llevan bajada. El sidebar derecho queda para lo accionable:
-**Jira · Pendientes · Artifacts** cuando la tarea tenga artefactos.
+El editor central muestra una única historia por fecha: **Hoy**, **Ayer** y luego la fecha real de
+cada jornada anterior. Sólo contiene los bloques de la pila —título y descripción—; no se muestran
+minutos ni notas de sesión. El documento queda después de la cronología como consulta, y **aparece
+sólo si tiene contenido**: una tarea limpia está vacía (pedido de Miguel, 2026-09-23). Un contenedor
+vacío con su «todavía no hay» pide que lo llenen con algo que la tarea quizá no hace. Y no se describe
+a sí mismo: el documento no lleva rótulo, lo nombran sus secciones. El sidebar derecho queda para lo
+accionable: **Jira · Pendientes · Artifacts** cuando la tarea tenga artefactos.
+
+*(Hasta el 2026-09-23, después del documento venían «Hallazgos y decisiones» y «Evidencia de trabajo»,
+que salían de las anotaciones fechadas del documento. Ese día las anotaciones pasaron a la pila y las
+dos vistas se fueron con ellas: hoy cada hecho es un bloque de la cronología.)*
 
 Cada dato tiene una fuente. Al crear una tarea, copiá `TASK-TEMPLATE.md`; al retomar una abierta,
 actualizá sus secciones existentes. No agregues una segunda lista ni otro estado de la misma cosa.
@@ -97,26 +100,26 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 | Región | Pregunta que responde | Fuente |
 |---|---|---|
 | Hoy, Ayer o fecha | ¿Qué se fue documentando de la tarea? | Bloques de `tasks/<slug>/context.jsonl` |
-| Documento de trabajo | ¿Cuál es el estado y la evidencia vigente? | Cuerpo privado de `tasks/<slug>/task.md` |
+| Documento de trabajo | ¿Cuál es el plan y el material vigente? | Cuerpo privado de `tasks/<slug>/task.md` |
 | Jira | ¿Qué ve el equipo en el issue? | Estado y descripción recibidos de Jira |
 | Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
 | Artifacts | ¿Qué salida navegable deja la tarea? | Lo que haya en `tasks/<slug>/artifacts/` |
 
 ### Trabajo
 
-Lo que se hizo y dónde quedó la tarea vive en la **pila de bloques**, no en el documento. Si ayuda, el
-documento puede abrir con un párrafo de estado (`## Si retomás esto sin contexto, empezá acá`: qué se
-busca → estado real → qué ya se comprobó → cómo verificarlo), pero **ya no se exige ni lleva «próximo
-paso»**: uno fijo obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea
-(Miguel, 2026-09-23). `make cierre` y `make retomar` no lo piden.
+Lo que se hizo, lo que se midió o se decidió y dónde quedó la tarea vive en la **pila de bloques**, no
+en el documento. El documento lleva lo que sigue siendo cierto: objetivo, dónde se toca, plan,
+alternativas descartadas, límites, material de validación y referencias, en el orden de la plantilla.
+Los pendientes no se repiten: viven en su vista lateral.
 
-Después van objetivo, dónde se toca, plan, alternativas descartadas, límites, material de validación
-y referencias, en el orden de la plantilla. Los pendientes no se repiten: viven en su vista lateral.
-Los hallazgos se leen después de la cronología, junto con la evidencia. Puede señalar un bloqueo o la
-siguiente acción, sin copiar todo su detalle.
-
-⚠ Para una tarea nueva no agregues `## Registro`: un diario Markdown mezcla historia con el documento
-vigente. Las tareas existentes lo conservan como compatibilidad; no se migran en masa.
+⚠ **Desde el 2026-09-23 el documento no lleva historia**: ni `## Registro`, ni anotaciones fechadas
+(`> **MEDICIÓN · fecha** — …`), ni la sección de retoma («Si retomás esto sin contexto»), ni marcadores
+`> **CANON · …**`. Ese día las 25 tareas abiertas que los tenían pasaron a la pila —**386 bloques**,
+`via: migration`, cada uno con su fecha real— y el lint de las tareas frena uno nuevo en el documento y
+dice adónde va. Uno que ya estaba sólo avisa: quedaron sin migrar las dos que otra sesión estaba
+editando ese día (#94 y #95). La retoma se fue sin su «próximo paso», como los `next` de los hitos del
+paso 2: uno fijo obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea
+(Miguel, 2026-09-23).
 
 ### Avances
 
@@ -126,7 +129,7 @@ edita ni se reclasifica. Sirve para la métrica de trabajo, no para la lectura d
 cronología central usa únicamente `task-context/`.
 
 El comando histórico conserva el nombre `make bitacora-add TAREA=<id>` por compatibilidad. No crea una
-sección Markdown nueva: `## Registro` sigue siendo documentación histórica de la tarea.
+sección Markdown nueva: lo que pasó ese día va a la pila, como bloque.
 
 ### Bloques de la pila
 
@@ -149,12 +152,20 @@ sostiene con enlaces con tipo y comandos con su resultado:
 | una consulta | bloque ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |
 | otro comando | bloque ` ```sh `, y debajo `Resultado: …` | que lleve su resultado |
 
-El material que no es un comando —un JSON de ejemplo, un texto— va en ` ```json ` o ` ```text `.
+El material que no es un comando —un JSON de ejemplo, un texto— va en ` ```json ` o ` ```text `. El título
+puede llevar `código` entre comillas invertidas; enlaces, no.
+
+**Lo que antes era una anotación es un bloque.** Una medición, una decisión o un riesgo son un hecho
+con fecha: el título dice el hecho —«la 199 quedó con product credit y sólo CC»— y la descripción lo que
+lo sostiene; si ayuda, arranca nombrando qué es («**Decisión.** …»), que es como quedaron las 119
+anotaciones migradas. Una **pregunta a alguien** es además un pendiente con su `Depende de:` —así se
+cierra tildándolo, y `make hoy` la muestra como «espera a …»—; el bloque cuenta que se preguntó.
 
 Internos, en el JSON y **nunca en pantalla**: `id`, `at` —la fecha, que sólo agrupa los bloques en el
-acordeón Hoy · Ayer · fechas— y `via`, quién lo agregó (`manual`, `harness`, `trazador`, `db`). **No hay
-«siguiente paso»**: obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea;
-si se decide uno, entra como un bloque más o como un pendiente.
+acordeón Hoy · Ayer · fechas— y `via`, quién lo agregó (`manual`, `harness`, `trazador`, `db`, y
+`migration` para lo que se convirtió de un formato anterior). **No hay «siguiente paso»**: obliga a hacer
+algo después, y eso es decisión de cómo se va desarrollando la tarea; si se decide uno, entra como un
+bloque más o como un pendiente.
 
 Se escribe en un Markdown —`# título` en la primera línea y la descripción debajo— y se agrega con
 `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>` (`SECO=1` previsualiza sin escribir; `ARCHIVO=-` lo
@@ -176,6 +187,16 @@ pueden citar salen de `tools/repos.py` —la lista única, no una copia—, más
 título se escribió a mano, la descripción conserva objetivo, resumen, estado, motivo y espera en el
 orden en que se mostraban, y el «siguiente» se fue. El formato ya no se lee —una línea vieja hace fallar
 la lectura— y `make tarea-context-add` sólo avisa del camino nuevo.
+
+⚠ **Y ese mismo día entró la historia del documento.** Las anotaciones, el `## Registro` y la sección de
+retoma de las 25 tareas abiertas que los tenían se convirtieron en **386 bloques** (`via: migration`): una
+anotación con su fecha; el Registro partido por su fecha real —cada `### día`, cada viñeta
+`- **fecha** —` y cada `####` de adentro, con su subtítulo como título—; la retoma con la fecha en que se
+escribió por última vez, sin su «próximo paso». Los títulos largos se escribieron a mano; los archivos
+citados quedaron fijados al último commit anterior al día del bloque; el código que no era un comando
+con su resultado quedó como material; los párrafos que sólo contaban un barrido de rutas se descartaron,
+y en #84 los que repetían un bloque que ya estaba. El frontmatter y la sección publicable no se tocaron
+(comprobado byte a byte). Las 20 archivadas no tenían nada de esto.
 
 ### Jira
 
@@ -207,19 +228,20 @@ Marcá completado sólo lo verificado. Los criterios públicos para QA pertenece
 ### Hallazgos
 
 ⚠ **No confundir con las TRAMPAS del sistema (`F-xx`), que también viven acá desde el 2026-09-21**
-(`data/traps/doc.md`, `make trampas`). Un hallazgo es una anotación fechada DENTRO de una tarea y
-muere con ella; una trampa es del sistema, no pertenece a ninguna tarea, y se entra por su SÍNTOMA.
+(`data/traps/doc.md`, `make trampas`). Un hallazgo es un bloque DENTRO de la pila de una tarea y muere
+con ella; una trampa es del sistema, no pertenece a ninguna tarea, y se entra por su SÍNTOMA.
 Vinieron del árbol de contexto que se apagó porque son **crónica** —síntoma, causa raíz, evidencia, arreglo— y
 la crónica no entra en canon; su lector real ya era este tablero. Dos cosas con nombre parecido es
 como empiezan a mezclarse, así que: lo que le pasó a ESTA tarea es un hallazgo; lo que le pasa al
 sistema y ya nos costó tiempo es una trampa.
 
-Usá `> **TIPO · YYYY-MM-DD** — hecho y consecuencia`, con la fecha real. Los tipos admitidos son
-**MEDICIÓN, DECISIÓN, PREGUNTA y RIESGO**. Una pregunta identifica a quien debe responder:
-`> **PREGUNTA · YYYY-MM-DD · Nombre** — pregunta concreta`. La evidencia y el método continúan con
-`>` en el mismo bloque. Escribí cada hallazgo una vez, en su sección de decisiones, bloqueos, riesgos
-o validación; el material de trabajo los reúne después de la cronología. No crees otra lista manual
-de hallazgos.
+Un hallazgo —una medición, una decisión, una pregunta, un riesgo— es **un bloque de la pila**: el
+hecho en el título y lo que lo sostiene, con su comando y su `Resultado:`, en la descripción (ver
+«Bloques de la pila»). Una pregunta que espera a alguien es además un pendiente con `Depende de:`.
+*(Hasta el 2026-09-23 era una anotación en el documento, `> **TIPO · YYYY-MM-DD** — hecho`, y la vista
+«Hallazgos» las reunía; las anotaciones pasaron a la pila ese día y la vista se fue con ellas. El
+marcador sigue siendo el formato de los documentos que NO son una tarea —un `CLAUDE.md`, una trampa—,
+que es lo que imprime `MD=1` en el arnés, el trazador y `tablero-db`.)*
 
 ### Consola de ramas
 
@@ -258,8 +280,8 @@ Una entrada por tramo de trabajo, ligada a la tarea y con tiempo medido. La nota
 **acción realizada → resultado → validación**; los detalles reproducibles quedan en Trabajo.
 Se registra con `make bitacora-add TAREA=<id>` y una fuente de tiempo (`LAPSO`, `PULSO` o `MIN` con
 `FUENTE`), según la regla de cierre de sesión de abajo. No inventes minutos ni copies aquí el diario
-completo. `## Registro` cuenta qué pasó; los avances contabilizan el tiempo. No crees `## Bitácora`
-en el Markdown de una tarea nueva.
+completo. La pila cuenta qué pasó; los avances contabilizan el tiempo. No crees `## Bitácora` ni
+`## Registro` en el Markdown de una tarea.
 
 **Artifacts** aparece a la derecha cuando existen artefactos; sigue la convención de
 `tasks/<slug>/artifacts/` descrita abajo. No crea otra fuente ni mezcla esos archivos con el relato central.
@@ -304,14 +326,11 @@ Antes de editar, revisa `canon:` del frontmatter:
 3. **La pregunta es de una persona, una solicitud, una medición actual o un log real:** eso no lo
    contesta ningún corpus. Se usa el trazador o el arnés, y la evidencia se registra con su comando.
 
-Cuando una referencia realmente cambie el curso de la tarea, registrar el uso en el cuerpo privado:
-
-```markdown
-> **CANON · AAAA-MM-DD · leído · validado** — `tema/context#ancla` — cómo se usó para decidir o continuar.
-```
-
-En la interfaz, una referencia de Canon sólo aparece como **Contexto aplicado** dentro del trabajo que
-explica cómo se usó. No marca una cita como leída por el solo hecho de estar en `canon:`.
+Cuando una referencia realmente cambie el curso de la tarea, se cita en el bloque que la usó, con
+`[texto](canon:tema#ancla)`: el bloque dice qué se decidió o se hizo, y la cita, con qué se sostiene. Así
+una referencia no queda marcada como leída por el solo hecho de estar en `canon:`. *(Hasta el
+2026-09-23 esto era un marcador en el documento, `> **CANON · fecha · leído · validado** — …`; nadie lo
+había usado nunca, y se fue con el resto de la historia del documento.)*
 
 ⚠ **Y la regla de corte, que es lo que mantiene al corpus como APOYO y no como oráculo: si la ficha
 del tema no contesta, no se prueba otro tema — la pregunta va a `workers/`.** El silencio del corpus
@@ -324,27 +343,29 @@ lo justificara. Queda sólo la conexión con su API —`tools/jev_transport.py`,
 `make tablero-jev-test`— para cuando aterrice un uso mejor. No la vuelvas a cablear a la interfaz sin
 ese uso decidido con Miguel.
 
-Al terminar, actualizá la sección de estado, el Registro y los comandos de comprobación como dicta esta
-guía. Si aprendiste una regla que seguiría siendo cierta después del merge, graduála a **canon**; si
-no, queda en la tarea. Así la siguiente sesión empieza con contexto verificable, no con una transcripción
+Al terminar, agregá el bloque del día y corregí en el documento lo que dejó de ser cierto —el plan, el
+material, los pendientes—, como dicta esta guía. Si aprendiste una regla que seguiría siendo cierta
+después del merge, graduála a **canon**; si no, queda en la tarea. Así la siguiente sesión empieza con contexto verificable, no con una transcripción
 del chat anterior.
 
-⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
-estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
-anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
-que pinta la vista **Hallazgos** (`server/internal/store/sources.go`). El ambiente sale **sólo** de un `TARGET=`
-escrito en el comando: «en producción son 14.160» menciona un ambiente sin decir dónde se midió.
+⚠ **Y la regla que hace que esto sirva: la evidencia va CON SU COMANDO.** No es una preferencia de
+estilo — el validador de la pila lo EXIGE: un bloque que trae una prueba o una consulta la lleva en su
+caja (` ```harness `, ` ```trazador `, ` ```sql prod `, ` ```sh `), con el ambiente en su `TARGET=` o en
+el `sql <ambiente>`, y debajo su `Resultado:`. «En producción son 14.160» menciona un ambiente sin decir
+dónde se midió; un bloque así no entra.
 
-**Medido el 2026-09-18, y el problema no es el hábito de anotar:**
+**Medido el 2026-09-18, sobre las anotaciones que había entonces en los documentos, y el problema no era
+el hábito de anotar:**
 
     350 anotaciones · 245 de ellas MEDICIÓN
     308 (88 %) tienen continuación   ← anotar está instalado
      51 (14 %) producen una FUENTE   ← lo que se escribe debajo es prosa, no el comando
      11 (3 %)  dicen el ambiente     ← «medido en prod» y «en local» no son lo mismo
 
-O sea: el mecanismo está construido, con su UI, y está vacío en el 86 % de los casos. Y una `MEDICIÓN`
-sin comando es un número que nadie puede volver a tomar — así que nadie lo desmiente, y envejece
-haciéndose pasar por cierto.
+O sea: el mecanismo estaba construido, con su UI, y vacío en el 86 % de los casos. Y una medición sin
+comando es un número que nadie puede volver a tomar — así que nadie lo desmiente, y envejece haciéndose
+pasar por cierto. Por eso el bloque no es opcional en esto: sin comando y resultado, lo que se escribe
+es prosa.
 
 **Lo que más rinde para cerrar ese hueco es que la herramienta emita la medición**, en vez de que
 alguien la escriba: donde hay que escribirla a mano sale prosa, y donde la emite la herramienta sale el
@@ -353,7 +374,8 @@ recorrido de una solicitud, `tablero-db` para SQL y el arnés (`harness-caso` ·
 `-suite`), que era el hueco más grande —aparece en **33 de 68** tareas, el doble que el trazador—. El
 bloque lleva `via` con el nombre de la herramienta, el título con el resumen de la corrida y el comando
 exacto en su caja con lo que dio; entra por `make tarea-bloque`, así que pasa por el mismo validador que
-uno escrito a mano. `MD=1` sigue imprimiendo la anotación para pegar en el documento.
+uno escrito a mano. `MD=1` sigue imprimiendo la anotación, para los documentos que no son una tarea —un
+`CLAUDE.md`, una trampa—; en una tarea, el lint la frena.
 
 ⚠ **Y lo que NO cambia es la frontera.** La medición se publica; la herramienta, no. Eso ya está
 resuelto arriba, en «La frontera del guard está DENTRO del archivo»: a `## Tarea (publicable)` va *«se
@@ -367,7 +389,7 @@ comentarios, las tareas de `tasks/` (incluido su frontmatter) y los mensajes de 
 español. Se quedan como nombres propios `tablero`, `trazador`, `cuadrilla`, los targets de `make`, la
 etiqueta del agente del pulso y `tema.css`/`taller.css`, los dos archivos del sistema de diseño que
 comparten las tres UIs (fuente en `tools/ui/`; decisión de Miguel del 2026-09-23). Las claves JSON pasaron a inglés el 2026-09-23 (fase 4b, con el contrato
-subido a `tablero.task.v2`); quedan en español sólo las que son el contrato de OTRO —la respuesta de
+subido a `tablero.task.v2`, y ese mismo día a `v3` al entrar la pila); quedan en español sólo las que son el contrato de OTRO —la respuesta de
 canon, la API de cuadrilla, Jira, el frontmatter— y cada una está aceptada con su alcance en
 `tools/naming-allow.txt` (`json: <ruta>[:<tipo>] <claves>`), no como palabra suelta.
 
@@ -395,11 +417,14 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   a su archivo; una mejora transversal o sin destino va a `playground`. El lint y `make tareas` validan
   esta lista para que no dependa de acordarse.
 - **El estado vigente se reescribe y los frentes se consolidan.** No apiles una tarea nueva por cada
-  mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo, siguiente
-  acción y condición de cierre; al terminar se resume en Registro y se retira de los pendientes.
+  mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo y condición de
+  cierre; al terminar, lo que pasó queda en un bloque de la pila y el frente se retira de los pendientes.
 - **JSON es una proyección, no otro archivo para editar.** `make tarea-json N=<slug|id>` deriva el
-  contrato `tablero.task.v2` desde el Markdown. Workers y automatizaciones consumen esa vista;
-  la explicación y la evidencia siguen teniendo una sola fuente. No crees sidecars manuales.
+  contrato `tablero.task.v3` desde el Markdown y la pila: el documento (pendientes, secciones, la
+  publicable) y `stack`, los bloques del más nuevo al más viejo. Workers y automatizaciones consumen esa
+  vista; la explicación y la evidencia siguen teniendo una sola fuente. No crees sidecars manuales.
+  *(v3 desde el 2026-09-23: se fueron `state` —la retoma y el próximo paso— y `annotations`, que ese día
+  pasaron a la pila.)*
 - **Las tareas locales son `clase: proyecto`, nunca llevan Jira ni sección publicable.** Las tareas
   ligadas a Jira usan `clase: tarea` —el default— y pueden conservar el cuerpo privado y el borrador
   publicable. El botón «Mover» sólo aparece para Jira.
@@ -460,29 +485,28 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   **si esto se mergea mañana, ¿sigue siendo cierto?** Sí y es de la tarea → queda. Sí y es del sistema →
   gradúa a canon. No → es un bloque de esta tarea, en su pila.
 
-  **`make anatomia`** mide esto por tarea —tamaño, reparto estado/registro, y qué secciones fechadas
-  viven arriba— y no mueve nada: señala para que alguien mire. `N=<id>` para una sola.
+  **`make anatomia`** mide esto por tarea —tamaño, secciones, bloques en la pila y qué secciones con
+  fecha quedaron en el documento— y no mueve nada: señala para que alguien mire. `N=<id>` para una sola.
 
   ⚠ A propósito **el lint NO avisa por tamaño**: corre en cada escritura y tiene que hablar de lo que
   está MAL, no de lo que está grande. Un archivo de 80 KB puede ser correcto; que convenga partirlo es
   un juicio, y los juicios van a `make anatomia`, que se mira cuando uno quiere mirarlos.
 
   Medido el 2026-08-19 sobre las 41 tareas: las dos más grandes —130 KB con 60 secciones y 84 KB con
-  55— son ilegibles **no por largas, sino por mezclarlas**. Cada día se apiló una sección nueva al
-  final del estado, y hoy nadie sabe cuál de las tres «decisiones» sobre lo mismo sigue vigente. Las
-  que se retoman bien (`bancolombia-billing-code`, `motai-v2`) tienen el estado arriba y corto.
+  55— eran ilegibles **no por largas, sino por mezclarlas**: cada día se apilaba una sección nueva al
+  final del estado, y nadie sabía cuál de las tres «decisiones» sobre lo mismo seguía vigente. Es lo que
+  resolvió la pila: la historia salió del documento (el 2026-09-23 las dos más grandes bajaron de 190 y
+  167 KB a 90 y 98).
 
   El orden de las secciones es el orden en que las necesita quien llega sin contexto:
 
-      Si retomás esto sin contexto, empezá acá   ← opcional: un párrafo de estado, si ayuda. Sin «próximo paso»
       Pendientes                                 ← casillas concretas, lo abierto y lo cerrado
       Objetivo · Dónde se toca · Cómo se ataca
       Lo que se evaluó y NO se eligió            ← lo que evita re-proponer lo que ya falló
-      Lo que está decidido · bloqueado · Riesgos ← ANOTACIONES con fecha, no prosa
       Lo que NO entra · Cómo se comprueba
       Referencias                                ← contexto estable, PRs y enlaces
-      La pila de bloques                          ← JSONL append-only, fuera del Markdown
       ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
+      la pila de bloques                         ← fuera del Markdown: lo que pasó, se midió, se decidió
 
   La distribución en la interfaz sigue la [plantilla por pestaña](#plantilla-por-pestaña).
   Se aplica al crear o actualizar una tarea abierta.
@@ -490,10 +514,10 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
   1. **Al terminar de trabajar se apila un bloque** con lo que se hizo; no se agrega una sección nueva al
      documento. El documento se corrige cuando cambia lo vigente: objetivo, plan, pendientes.
-  2. **«Registro» no es «avance».** Las tareas viejas llaman `## Bitácora` al registro del cuerpo y
-     el nombre choca: en el tablero los avances son bloques de trabajo fechados (`data/entries/`, lo
-     que sube al worklog). El del cuerpo es el registro de **qué pasó**. Medido: el
-     esfuerzo #5 tiene 4 entradas en su `## Bitácora` del cuerpo y **0** en `data/entries/`.
+  2. **La pila no es la bitácora.** La pila dice **qué pasó**; la bitácora (`data/entries/`, lo que sube
+     al worklog) dice cuánto tiempo llevó. Chocaban cuando el registro vivía en el cuerpo y las tareas
+     viejas lo llamaban `## Bitácora`: medido, el esfuerzo #5 tenía 4 entradas ahí y **0** en
+     `data/entries/`.
   3. **Las tareas ya publicadas NO se migran.** Decisión de Miguel (2026-08-20): hay demasiadas
      terminadas y reescribirlas no aporta. La plantilla rige para las nuevas y para las que sigan
      abiertas cuando se les vuelva a meter mano.
@@ -505,7 +529,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   |---|---|---|
   | `title` / `jira_title` | ¿cómo se llama esto? | todos — es el nombre compartido |
   | **el cuerpo** (privado) | **¿cómo se está atacando?** los caminos evaluados, por qué se descartó cada uno, contra qué se comprobó | vos, y un modelo que retoma la tarea |
-  | **anotaciones** (`> **MEDICIÓN · fecha**`) | los HECHOS con fecha que la prosa no conserva | quien vuelve tres semanas después |
+  | **la pila** (`context.jsonl`) | los HECHOS con fecha que la prosa no conserva: qué pasó, qué se midió, qué se decidió | quien vuelve tres semanas después |
   | **avances** (`data/entries/`) | ¿en qué se fue el tiempo y qué pasó ese día? | vos, y el worklog de Jira |
   | **`## Tarea (publicable)`** | qué problema resuelve (**producto**) + **cómo se prueba** (**QA**) | el equipo, vía Jira |
 
@@ -534,15 +558,14 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   3. **Lo que se evaluó y se descartó va en el cuerpo, y va aunque no se haya elegido.** Es lo que
      evita re-discutir el mismo camino en tres semanas, y es lo que un modelo necesita para no proponer
      de nuevo lo que ya se probó y falló. Hoy lo registran 6 de 12 tareas: cuando está, se nota.
-  4. **Una decisión, una medición, una pregunta abierta o un riesgo NO son prosa: son anotaciones.**
-     El marcador con fecha (y con el `Como` que la vuelve a comprobar) existe porque la prosa se lee
-     bien el día que se escribe y miente tres semanas después. Está construido y **se usa en 1 de 12
-     archivos** — es la pieza más desaprovechada del tablero. Si escribiste «medimos que…» en prosa,
-     eso quería ser una anotación.
+  4. **Una decisión, una medición, una pregunta abierta o un riesgo NO son prosa del documento: son
+     bloques de la pila.** Con fecha y con el comando que lo vuelve a comprobar, porque la prosa se lee
+     bien el día que se escribe y miente tres semanas después. Si escribiste «medimos que…» en el
+     documento, eso quería ser un bloque. *(Hasta el 2026-09-23 eran anotaciones en el cuerpo.)*
   5. **El avance no repite el cuerpo**: dice *en qué se fue el tiempo*. El cuerpo dice **en qué** se
      trabaja, los avances **cuándo y cuánto**, y el pulso —que nadie escribe a mano— **cuándo se tocó
      código de verdad**. Tres cosas distintas: si la nota del avance explica una decisión, esa
-     decisión va al cuerpo (o es una anotación) y la nota se queda con el hecho del día.
+     decisión va a la pila (o al plan del cuerpo) y la nota se queda con el hecho del día.
   6. ⚠ **Al medir esto, cuidado con dónde termina la publicable: va del marcador hasta el FINAL del
      archivo.** Sus subtítulos son `##`, del mismo nivel que el marcador, así que un lookahead al
      próximo `##` la corta en la primera línea y da cero. Es exactamente el error que se cometió el
@@ -588,18 +611,20 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   ⚠ **Y el caso hermano: un BARRIDO sí toca el cuerpo, y tampoco es trabajo.** El 2026-09-21, apagar
   el árbol de contexto renombró un campo del frontmatter y reapuntó rutas en las 45 tareas, y a tres
   el cierre les reclamó bitácora. Anotarla habría inventado minutos y, peor, los habría contado DOS
-  veces: ese tiempo ya estaba en la tarea del barrido, y el total del día sube a Jira. Para eso, la
-  tarea lo **declara** en su entrada del día, en negrita:
+  veces: ese tiempo ya estaba en la tarea del barrido, y el total del día sube a Jira. Para eso, el
+  **commit** del barrido lo declara con un trailer:
 
-      ### 2026-09-21
+      git commit -m "tablero: la ruta a las trampas cambia de carpeta" \
+                 -m "Sin-avance: sólo se reapuntó la ruta a las trampas del sistema"
 
-      > **2026-09-21 · sin avance.** Sólo se le actualizó la ruta a las trampas del sistema.
-
-  Con ese marcador, el cierre exime **el bloque del día y la bitácora, y nada más**, y los muestra como
-  `— bloque (declara sin avance)` y `— bitácora (declara sin avance)`, nunca como un ✓: un tilde diría
-  que la pieza está, y no está. *(Primero eximía sólo la bitácora; el 2026-09-23 sumó la reescritura de
-  la retoma —el barrido de rutas en #46 y #47 no la había tocado—, y ese mismo día la retoma dejó de
-  pedirse y el marcador pasó a eximir el bloque.)*
+  Una tarea que sólo tocaron commits con `Sin-avance:` no está tocada: el cierre no le pide bloque ni
+  bitácora, y la lista aparte —`— barridas, sin avance`— con el motivo, nunca con un ✓: un tilde diría
+  que las piezas están, y no están. Tampoco la despierta en `make hoy`. Si ese mismo día hubo trabajo de
+  verdad en la tarea, cuenta el trabajo. Lo sin commitear no tiene trailer: hasta que se commitea, el
+  barrido se ve como un toque.
+  *(Hasta el 2026-09-23 se declaraba en la tarea, con una línea `> **<día> · sin avance.** …` en la
+  entrada del día de su `## Registro`. Ese día el Registro se fue a la pila y la declaración pasó al
+  commit, que es donde se hizo el barrido: treinta tareas barridas ya no dicen treinta veces lo mismo.)*
   ⚠ **Se declara, NO se deduce.** Se probó deducirlo comparando el cuerpo con las citas normalizadas
   («si sólo cambiaron rutas, nadie afirmó nada») y falla en los tres casos que venía a resolver: al
   barrer se escribe la nota que explica el barrido, así que la prosa fuera de los backticks también
@@ -609,9 +634,10 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   `ramas:` —o sea que hubo código— y en todo el archivo no hay un solo comando reconocible, el cierre
   saca `▲ tocó código y no dice con QUÉ se comprobó`. Sale con `▲` y no con `✗` a propósito, y no suma
   a las piezas faltantes: hay tareas de diseño o de lectura donde no hay nada que correr, y convertir
-  eso en un error enseña a ignorar el cierre entero, incluidas las cuatro que sí importan. La señal es
-  la misma que pinta la vista **Hallazgos** (`store.SourcesOf`). Medido al escribirlo: de las 29 tareas con ramas,
-  **6** lo dispararían.
+  eso en un error enseña a ignorar el cierre entero, incluidas las cuatro que sí importan. Mira dos
+  lados: un bloque de la pila con un comando y su resultado, o un comando reconocible en el documento
+  (`store.SourcesOf`, sobre «Cómo se comprueba» y el resto del cuerpo). Medido al escribirlo: de las 29
+  tareas con ramas, **6** lo dispararían.
 
   El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez
   por sesión**, frena con la lista de lo que falta en las tareas que ESA sesión tocó. ⚠ Y **leer un
@@ -627,7 +653,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       make tareas                       las abiertas, con etapa, Jira y nodos
       make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
       make tareas STAGE=work TODAS=1 JSON=1
-      make tarea-json N=tablero         una tarea en el contrato tipado `tablero.task.v2`
+      make tarea-json N=tablero         una tarea —documento y pila— en el contrato tipado `tablero.task.v3`
       make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
       make sprint                       el sprint activo con puntos, del SNAPSHOT
       make bitacora DAYS=7              el tiempo registrado, por día
@@ -706,7 +732,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 - **RAMAS: se declaran los PATRONES, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter
   —o varios separados por coma— y `make tareas-ramas` responde en qué ramas de qué repos vive la tarea,
   **en qué ambientes ya está el cambio** y **en qué estado está su PR**. Igual que los artifacts (son lo
-  que hay en la carpeta) y las anotaciones (salen del cuerpo): una lista de ramas escrita a mano **miente
+  que hay en la carpeta) y los pendientes (salen del cuerpo): una lista de ramas escrita a mano **miente
   en silencio** en cuanto algo se mergea o se renombra. Medido el 2026-08-19 grepeando las 16 tareas de
   los últimos 4 sprints: de los nombres de rama que aparecen escritos en los cuerpos, **dos no resuelven
   hoy** — uno porque la rama se renombró (`codebtor-` → `cosigner-`, el cuerpo lo aclara al lado, pero un

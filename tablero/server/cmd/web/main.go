@@ -158,9 +158,8 @@ type app struct {
 	// explícita. Coincide con el default de `make tareas-ramas`; abrir el tablero nunca ejecuta git.
 	branchesRoot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
-	// direcciones distintas. El server los entrega juntos desde server/.env.
-	canonURL  string
-	tracerURL string
+	// direcciones distintas. El server los entrega desde server/.env.
+	canonURL string
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.py,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
@@ -174,7 +173,6 @@ func main() {
 
 	a := &app{
 		canonURL:    canon.URL(),
-		tracerURL:   envDefault("TRACER_URL", "http://localhost:5192"),
 		jiraSite:    os.Getenv("ATLASSIAN_SITE"),
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),

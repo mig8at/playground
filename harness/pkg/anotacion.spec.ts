@@ -1,10 +1,12 @@
-// Qué se fija acá: que lo que el arnés emite con `MD=1` sea lo que el tablero PARSEA. Es lógica pura
-// —sin base, sin red, sin variables de entorno— así que corre contra cualquier target.
+// Qué se fija acá: que lo que el arnés emite sea lo que el tablero entiende — el bloque de `BLOQUE=`,
+// el que acepta su validador, y la anotación de `MD=1`, la que reconoce su regex. Es lógica pura —sin
+// base, sin red, sin variables de entorno— así que corre contra cualquier target.
 //
-// Se prueba porque el modo de falla es silencioso en los dos extremos: la anotación se pega en la
-// tarea, se ve bien en el markdown, y la pestaña Hallazgos no la muestra — o la muestra sin fuentes,
-// que es peor, porque la tarjeta afirma «esto no dice con qué se comprobó» sobre una medición que sí
-// lo decía. Nada falla; sólo se pierde el dato.
+// ⚠ Desde el 2026-09-23 una anotación ya no va en una TAREA: lo que se mide para una tarea entra a su
+// pila como bloque, con `BLOQUE=`. La de `MD=1` es para los documentos que no son una tarea —un
+// `CLAUDE.md`, una trampa del sistema—, y el tablero la reconoce para frenarla si alguien la pega en
+// una tarea. Se prueba porque el modo de falla es silencioso: una forma que el tablero no reconoce se
+// ve bien en el markdown y nadie se entera de que no es lo que dice ser.
 import { expect, test } from '@playwright/test';
 import { agregarBloque, anotacionMD, bloqueMD, cmdMake } from './anotacion.ts';
 import { existsSync, readFileSync } from 'node:fs';
@@ -59,7 +61,7 @@ test.describe('el comando que se ofrece es pegable', () => {
 // entera. Sin esto, las de arriba sólo verifican que el arnés es consistente consigo mismo, que es
 // exactamente el error que ya costó caro con los mocks (un mock no puede contradecir el documento del
 // que nació).
-test('la forma coincide con el regex REAL de `store.Annotations`', () => {
+test('la forma coincide con el regex REAL con que el tablero reconoce una anotación', () => {
       const fuente = join(homedir(),
             'Desktop/CREDITOP/playground/tablero/server/internal/store/annotations.go');
       test.skip(!existsSync(fuente), `no está ${fuente}: el contrato queda SIN contrastar`);
@@ -73,7 +75,7 @@ test('la forma coincide con el regex REAL de `store.Annotations`', () => {
       const re = new RegExp(patron, 'i');
       const primera = anotacionMD('uReq 1 en `local`: cerró.', 'make harness-caso TARGET=local').split('\n')[0];
       expect(re.test(primera.trim()),
-            `el parser del tablero NO reconoce la primera línea:\n  ${primera}\n  patrón: ${patron}`).toBe(true);
+            `el tablero NO reconoce la primera línea:\n  ${primera}\n  patrón: ${patron}`).toBe(true);
 });
 
 test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acepta', () => {

@@ -837,21 +837,23 @@ wizard, mirá si `.env.local` está.**
 ## Qué deja esto en la tarea
 
 Una corrida no termina cuando cierra: termina cuando lo que probó queda escrito donde alguien lo vuelva
-a encontrar. El destino es el `.md` de la tarea en [`tablero/`](../tablero/CLAUDE.md), y son dos
-secciones distintas — confundirlas es lo que vuelve ilegibles las tareas grandes:
+a encontrar. El destino es la tarea en [`tablero/`](../tablero/CLAUDE.md), y son dos lugares distintos —
+confundirlos es lo que volvía ilegibles las tareas grandes:
 
 | lo que produjo la corrida | dónde va |
 |---|---|
-| la RECETA para volver a correrlo (sembrar el caso, el comando, cómo verificar dónde quedó) | **«Cómo se comprueba — y el MATERIAL»**, que se MANTIENE: si la receta cambia, se corrige ahí |
-| lo que pasó ESE día (cerró, no cerró, con qué se topó) | **«Registro»**, que se APILA |
+| la RECETA para volver a correrlo (sembrar el caso, el comando, cómo verificar dónde quedó) | **«Cómo se comprueba — y el MATERIAL»** del documento, que se MANTIENE: si la receta cambia, se corrige ahí |
+| lo que pasó ESE día (cerró, no cerró, con qué se topó) | **un bloque de la pila** de la tarea (`BLOQUE=`, abajo), que se APILA |
 | una trampa del SISTEMA, reproducible y con causa raíz | no se queda en la tarea: **gradúa a `F-xx`** (`tablero/data/traps/doc.md`) |
 
-⚠ **Va el COMANDO, no la conclusión, y no es estilo: el tablero lo parsea.** De las líneas de cita que
-siguen a una anotación sale *con qué* se comprobó y *contra qué ambiente*
-(`tablero/server/internal/store/sources.go`), y el ambiente se reconoce **sólo** por un `TARGET=`
-escrito. «Corrí el caso y cerró» no deja rastro de nada; `make harness-caso CASOS='pullman' CERRAR=1`
-contra `local` sí. Medido el 2026-09-18: de 350 anotaciones del tablero, **308 tienen texto debajo y
-sólo 51 producen una fuente reconocible** — lo que se escribe suele ser prosa donde iba el comando.
+*(Hasta el 2026-09-23 lo del día iba al «Registro» del documento, como anotación. Ese día la historia
+de las tareas pasó a la pila, y el lint del tablero frena una anotación nueva en una tarea.)*
+
+⚠ **Va el COMANDO, no la conclusión, y no es estilo: el validador de la pila lo exige.** Un bloque que
+trae una corrida la lleva en su caja ` ```harness `, con su `TARGET=`, y debajo su `Resultado:`. «Corrí
+el caso y cerró» no deja rastro de nada; `make harness-caso CASOS='pullman' CERRAR=1 TARGET=local` sí.
+Medido el 2026-09-18 sobre las anotaciones que había entonces: de 350, **308 tenían texto debajo y sólo
+51 producían una fuente reconocible** — lo que se escribía a mano era prosa donde iba el comando.
 
 ⚠ **Y el arnés aparece en 33 de 68 tareas, pero sólo 8 lo nombran dentro de «Cómo se comprueba»**: las
 otras 25 lo mencionan sueltas en la prosa, donde nadie las va a buscar al retomar. La sección existe
@@ -868,10 +870,10 @@ frontera del guard está DENTRO del archivo».
 `harness-caminar` y `harness-suite` agregan la corrida sola, como bloque, a la pila de esa tarea: el
 título con el resumen, el comando exacto en su caja y la evidencia por caso como resultado, con
 `via: harness` (`pkg/anotacion.ts`, y su prueba le pregunta al validador del tablero en seco). Y
-`MD=1` la emite como anotación para pegar. Lo aceptan `harness-caso`, `harness-listado`,
-`harness-caminar` y `harness-suite`, y devuelven la anotación completa —marcador con la fecha real,
-una línea de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para
-copiarla sin recortar:
+`MD=1` la emite como anotación, para un documento que NO es una tarea —un `CLAUDE.md`, una trampa—.
+Lo aceptan los mismos cuatro, y devuelven la anotación completa —marcador con la fecha real, una línea
+de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para copiarla
+sin recortar:
 
     make harness-caso CASOS='pullman' CERRAR=1 MD=1
 
@@ -879,11 +881,12 @@ copiarla sin recortar:
     > ✔ pullman · uReq 466858 · listado [100, 39, 77, 6, 9, 32, 68] · cerró en estado 11
     > **Cómo se vuelve a comprobar:** `make harness-caso CASOS=pullman LAMBDA=1 CERRAR=1 MANUAL=1 TARGET=local`
 
-⚠ **El contrato lo fija el parser del tablero, no el gusto de acá**: el marcador arranca la primera
-línea, TODAS las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si
-deriva, la anotación se pega, se ve bien y la pestaña Hallazgos no la muestra. `pkg/anotacion.spec.ts`
-lo fija leyendo el **regex real** de `store.Annotations` — no una copia: un mock no puede contradecir
-el documento del que nació.
+⚠ **El contrato lo fija el tablero, no el gusto de acá**: el marcador arranca la primera línea, TODAS
+las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si deriva, la
+anotación se pega, se ve bien y no es lo que dice ser. `pkg/anotacion.spec.ts` lo fija leyendo el
+**regex real** con que el tablero la reconoce (`reAnnotation`, en su `store`) — no una copia: un mock no
+puede contradecir el documento del que nació. Y el bloque de `BLOQUE=` lo fija contra el validador de la
+pila, en seco.
 
 ⚠ **Y lo que se resume es el DESENLACE, no el conteo.** «3/3 cerraron» no sirve dentro de una tarea tres
 semanas después; qué entidades salieron y dónde terminó cada caso, sí. En `harness-listado` la
@@ -997,9 +1000,9 @@ commits del propio playground.
 
 - **La corrida se escribe sola como anotación: `MD=1`** en `harness-caso`, `-listado`, `-caminar` y
   `-suite`. Devuelve el marcador con la fecha real, una línea de evidencia por caso y el comando que
-  la reproduce, al final y **solo**, para pegarlo en una tarea sin recortar. No es comodidad: el
-  tablero PARSEA esa evidencia y de ahí deriva con qué se comprobó y contra qué ambiente — pero sólo
-  si lo pegado trae el comando, y medido ese día, el 86 % de las anotaciones no lo traía.
+  la reproduce, al final y **solo**, para pegarlo sin recortar. No era comodidad: medido ese día, el
+  86 % de las anotaciones pegadas a mano no traía el comando. *(Desde el 2026-09-23 lo que va a una
+  tarea entra a su pila con `BLOQUE=`; `MD=1` queda para los documentos que no son una tarea.)*
 - ⚠ **El TARGET va siempre en ese comando, aunque sea el default — que acá NO es `local`.**
   `E2E_TARGET` cae en `dev` si nadie lo dice, y dev y staging comparten base: una medición sin
   ambiente no se puede contrastar.

@@ -289,14 +289,7 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 		e.Class = "tarea"
 	}
 	e.Artifacts = s.artifactsOf(slug)
-	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
-	// `TechNotes`. No pasan por el guard porque no salen a Jira.
-	e.Annotations = Annotations(notes)
-	e.CanonUses = CanonUses(notes)
-	e.Resume = Resume(notes)
-	e.NextStep = NextStep(notes)
-	// Del mismo cuerpo privado, y por la misma razón: las casillas de la publicable son criterios de
-	// aceptación de QA, no pendientes.
+	// Del cuerpo PRIVADO: las casillas de la publicable son criterios de aceptación de QA, no pendientes.
 	e.Pending = Pending(notes)
 	// el vínculo esfuerzo → tareas de Jira
 	for _, k := range yamlList(fm["jira"]) {
@@ -560,17 +553,10 @@ type Effort struct {
 	// acá, por eso puede nombrar archivos y repos — justo lo que el borrador de Jira tiene prohibido.
 	// Es el CUERPO del archivo de la tarea.
 	TechNotes string `json:"techNotes"`
-	// Campos derivados del cuerpo privado. La UI ya no adivina cuál párrafo de un documento largo
-	// describe el estado actual: lee la misma retoma y el mismo próximo paso que se usan en consola.
-	Resume   string `json:"resume"`
-	NextStep string `json:"nextStep"`
 	// Referencias de Canon que toca, separadas por coma. En el archivo son una lista YAML; acá van
 	// como cadena porque así lo consume la UI. Preferir `tema/context#ancla` evita presentar un tema
 	// entero como evidencia de una decisión puntual.
 	CanonTopics string `json:"canon"`
-	// Uso explícito de Canon, derivado de los marcadores CANON del cuerpo privado. A diferencia de
-	// TemasCanon, esta lista sí afirma que alguien leyó o validó una referencia y para qué la usó.
-	CanonUses []CanonUse `json:"canonUses"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
@@ -591,13 +577,9 @@ type Effort struct {
 	// TouchedAt: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
 	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `layout/history.go`.
 	TouchedAt string `json:"touchedAt,omitempty"`
-	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
-	// riesgos). Igual que los artifacts, salen de la tarea misma y no de una lista que haya que mantener.
-	// Ver `annotations.go` para la forma y el porqué.
-	Annotations []Annotation `json:"annotations"`
 	// PENDIENTES: lo que queda por hacer, en casillas de markdown dentro del CUERPO. Mismo criterio que
-	// las anotaciones —el dato vive donde se argumenta y la UI lo deriva—, y por el mismo motivo: una
-	// lista aparte se desincroniza en cuanto alguien resuelve el pendiente sin tocar el archivo.
+	// los artifacts —el dato sale de la tarea y la UI lo deriva—, y por el mismo motivo: una lista
+	// aparte se desincroniza en cuanto alguien resuelve el pendiente sin tocar el archivo.
 	// Sólo del cuerpo privado: las casillas de la publicable son los criterios de aceptación de QA, que
 	// no son pendientes de nadie. Ver `pending.go`.
 	Pending []PendingItem `json:"pending"`
@@ -622,9 +604,8 @@ type Effort struct {
 // rereadIfChanged vuelve a leer las tareas si algún `.md` cambió en disco desde la última lectura.
 //
 // Hace falta porque los `.md` NO los escribe sólo este server: el asistente los edita directamente
-// —es el punto de que sean archivos— y antes esos cambios no se veían hasta reiniciar. Con las
-// anotaciones eso pasó de incómodo a inutilizante: escribís una medición en el cuerpo y el tablero
-// sigue mostrando la lista vieja, sin ninguna señal de por qué.
+// —es el punto de que sean archivos— y antes esos cambios no se veían hasta reiniciar: tildás un
+// pendiente en el cuerpo y el tablero sigue mostrando la lista vieja, sin ninguna señal de por qué.
 //
 // Es mtime y no un watcher a propósito: son unas decenas de archivos y esto corre al listar, así que
 // un `os.Stat` por archivo es más barato que sostener un watcher y su cola de eventos.

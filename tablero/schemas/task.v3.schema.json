@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://creditop.local/tablero/schemas/task.v3.schema.json",
+  "title": "Proyección estructurada de una tarea del tablero",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "task",
+    "work",
+    "stack",
+    "sections",
+    "publication"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "tablero.task.v3"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "slug",
+        "id",
+        "title",
+        "stage",
+        "archived",
+        "file"
+      ],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stage": {
+          "enum": [
+            "evaluation",
+            "work",
+            "tasks"
+          ]
+        },
+        "class": {
+          "enum": [
+            "tarea",
+            "proyecto"
+          ]
+        },
+        "archived": {
+          "type": "boolean"
+        },
+        "jira": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "canon": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "counts",
+        "pending"
+      ],
+      "properties": {
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "openPending",
+            "closedPending",
+            "blocks"
+          ],
+          "properties": {
+            "openPending": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "closedPending": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "blocks": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "what",
+              "done",
+              "section"
+            ],
+            "properties": {
+              "what": {
+                "type": "string"
+              },
+              "done": {
+                "type": "boolean"
+              },
+              "section": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "stack": {
+      "type": "array",
+      "description": "La pila de la tarea, del bloque más nuevo al más viejo. Cada ítem es una línea de tasks/<slug>/context.jsonl: ver docs/task-context.schema.json.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "schema",
+          "id",
+          "at",
+          "via",
+          "title",
+          "body"
+        ],
+        "properties": {
+          "schema": {
+            "const": "tablero.task-context/v2"
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^blk_"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "via": {
+            "enum": [
+              "manual",
+              "harness",
+              "trazador",
+              "db",
+              "migration"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 3000
+          }
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "available",
+        "readyForJira",
+        "hasQA",
+        "bytes",
+        "violations"
+      ],
+      "properties": {
+        "available": {
+          "type": "boolean"
+        },
+        "readyForJira": {
+          "type": "boolean"
+        },
+        "hasQA": {
+          "type": "boolean"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "draft": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "description": "v3 desde el 2026-09-23: sin state (retoma y próximo paso) ni anotaciones, que pasaron a la pila; con stack, la pila entera del bloque más nuevo al más viejo."
+}

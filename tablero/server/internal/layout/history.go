@@ -84,23 +84,38 @@ func (l Layout) pathspec() []string {
 	return []string{"--", filepath.Base(filepath.Clean(l.Data)), filepath.Base(filepath.Clean(l.Tasks))}
 }
 
+// SweepTrailer es el trailer con el que un commit DECLARA que no hizo avanzar a las tareas que toca: un
+// barrido —reapuntar rutas en treinta documentos, mudar la historia a la pila—, no trabajo en ellas.
+//
+//	tablero: la historia de las tareas pasa a la pila
+//
+//	Sin-avance: el Registro y las anotaciones se mudaron a la pila; nada nuevo de cada tarea
+//
+// Vive en el COMMIT y no en la tarea porque es un dato del cambio: hasta el 2026-09-23 se declaraba con
+// una línea en el `## Registro` de cada tarea barrida, y el Registro se fue a la pila ese día. Un
+// barrido de treinta tareas declaraba treinta veces lo mismo; ahora lo dice una vez, donde se hizo. Se
+// declara, no se deduce: deducirlo de qué cambió en el texto se probó y falla (ver el cierre).
+const SweepTrailer = "Sin-avance"
+
 // logChanges recorre `git log -M --name-status` del más nuevo al más viejo; `visit` recibe la fecha
-// del commit (YYYY-MM-DD) y cada cambio.
-func (l Layout) logChanges(extra []string, visit func(date string, c change)) {
-	args := append([]string{"log", "--format=@%cs", "-M", "--name-status"}, extra...)
+// del commit (YYYY-MM-DD), el motivo del barrido si el commit lo declara (SweepTrailer) y cada cambio.
+func (l Layout) logChanges(extra []string, visit func(date, sweep string, c change)) {
+	format := "--format=@%cs%x09%(trailers:key=" + SweepTrailer + ",valueonly,separator=%x20)"
+	args := append([]string{"log", format, "-M", "--name-status"}, extra...)
 	out, err := l.git(append(args, l.pathspec()...)...)
 	if err != nil {
 		return
 	}
-	date := ""
+	date, sweep := "", ""
 	for _, line := range strings.Split(out, "\n") {
 		switch {
 		case line == "":
 		case strings.HasPrefix(line, "@"):
-			date = line[1:]
+			date, sweep, _ = strings.Cut(line[1:], "\t")
+			sweep = strings.TrimSpace(sweep)
 		default:
 			if c, ok := parseNameStatus(line); ok {
-				visit(date, c)
+				visit(date, sweep, c)
 			}
 		}
 	}
@@ -165,18 +180,22 @@ func (l Layout) workingTree() []change {
 }
 
 // LastTouches: para cada tarea, la fecha (YYYY-MM-DD) del último commit que CAMBIÓ su documento, u hoy
-// si está cambiado en el working tree. Una mudanza pura no cuenta. Dos llamadas a git para todas las
-// tareas: la primera vez que aparece una tarea en el log, del más nuevo al más viejo, es su último toque.
+// si está cambiado en el working tree. Ni una mudanza pura ni un barrido declarado (SweepTrailer) cuentan:
+// ninguno despierta a una tarea dormida. Dos llamadas a git para todas las tareas: la primera vez que
+// aparece una tarea en el log, del más nuevo al más viejo, es su último toque.
 func (l Layout) LastTouches() map[string]string {
 	out := map[string]string{}
 	ids := newIdentities()
 	today := time.Now().Format("2006-01-02")
-	touch := func(date string, c change) {
+	touch := func(date, sweep string, c change) {
 		if c.rename() {
 			ids.link(c.from, c.path)
 			if c.pureMove() {
 				return
 			}
+		}
+		if sweep != "" {
+			return
 		}
 		if s := SlugOfRepoPath(c.path); s != "" && c.status != "D" {
 			if id := ids.resolve(s); out[id] == "" {
@@ -185,24 +204,26 @@ func (l Layout) LastTouches() map[string]string {
 		}
 	}
 	for _, c := range l.workingTree() {
-		touch(today, c)
+		touch(today, "", c)
 	}
-	l.logChanges(nil, func(date string, c change) { touch(date, c) })
+	l.logChanges(nil, touch)
 	return out
 }
 
-// TouchedOn: las tareas cuyo documento cambió en el día (una mudanza pura no cuenta). Si el día es hoy,
-// cuenta también lo que está cambiado sin commitear: lo sin commitear no tiene fecha.
-func (l Layout) TouchedOn(day string, isToday bool) map[string]bool {
-	out := map[string]bool{}
+// TouchedOn: las tareas cuyo documento cambió en el día (una mudanza pura no cuenta), y aparte las que
+// sólo tocó un barrido declarado (SweepTrailer), con su motivo. Si el día es hoy, cuenta también lo que
+// está cambiado sin commitear: lo sin commitear no tiene fecha, y tampoco trailer — un barrido se declara
+// al commitearlo.
+func (l Layout) TouchedOn(day string, isToday bool) (touched map[string]bool, swept map[string]string) {
+	touched, swept = map[string]bool{}, map[string]string{}
 	ids := newIdentities()
 	d, err := time.Parse("2006-01-02", day)
 	if err != nil {
-		return out
+		return touched, swept
 	}
 	since := day + " 00:00:00"
 	until := d.AddDate(0, 0, 1).Format("2006-01-02") + " 00:00:00"
-	touch := func(c change) {
+	touch := func(_, sweep string, c change) {
 		if c.rename() {
 			ids.link(c.from, c.path)
 			if c.pureMove() {
@@ -210,16 +231,27 @@ func (l Layout) TouchedOn(day string, isToday bool) map[string]bool {
 			}
 		}
 		if s := SlugOfRepoPath(c.path); s != "" && c.status != "D" {
-			out[ids.resolve(s)] = true
+			// Se resuelve AL VERLO, como en LastTouches: el log va del más nuevo al más viejo, así que
+			// en ese momento se conocen justo los renombres posteriores —y un nombre que se reusó
+			// después para otra tarea no se confunde con la vieja—.
+			if id := ids.resolve(s); sweep != "" {
+				swept[id] = sweep
+			} else {
+				touched[id] = true
+			}
 		}
 	}
 	if isToday {
 		for _, c := range l.workingTree() {
-			touch(c)
+			touch("", "", c)
 		}
 	}
-	l.logChanges([]string{"--since=" + since, "--until=" + until}, func(_ string, c change) { touch(c) })
-	return out
+	l.logChanges([]string{"--since=" + since, "--until=" + until}, touch)
+	// Una tarea que además se trabajó ese día no fue sólo barrida.
+	for id := range touched {
+		delete(swept, id)
+	}
+	return touched, swept
 }
 
 // DocumentBefore: el documento de una tarea como estaba en el último commit ANTERIOR al día, siguiendo

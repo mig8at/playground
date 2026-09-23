@@ -1,103 +1,72 @@
 package store
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 )
 
-// ANOTACIONES: los hechos con fecha que una tarea produce y que la prosa no sabe conservar.
+// LO QUE YA NO VA EN EL DOCUMENTO DE UNA TAREA: los registros con fecha.
 //
-// El cuerpo de una tarea es narración, y ahí una medición se lee bien el día que se escribe y miente
-// tres semanas después, porque nada dice cuándo se tomó ni cómo volver a tomarla. Lo mismo con una
-// decisión (se re-discute) y con una pregunta abierta (nadie ve que lleva cinco días sin respuesta).
+// Hasta el 2026-09-23 el cuerpo de una tarea llevaba cuatro cosas con fecha metidas en la prosa: las
+// anotaciones (`> **MEDICIÓN · fecha** — …`, y DECISIÓN, PREGUNTA, RIESGO), el `## Registro` de qué pasó
+// cada día, la sección de retoma («Si retomás esto sin contexto») y los marcadores de uso de canon
+// (`> **CANON · fecha** — …`). Ese día pasaron a la PILA de la tarea (`tasks/<slug>/context.jsonl`) como
+// bloques con su fecha: la historia en un solo lugar, y el documento con lo que sigue siendo cierto —el
+// plan, el material, los pendientes—. Ver el paquete `taskcontext`.
 //
-// La forma es un MARCADOR EN LÍNEA dentro del cuerpo, no una lista en el frontmatter. Tres razones:
-// el parser de frontmatter sólo entiende escalares; una lista aparte se desincroniza del texto que la
-// explica (es el mismo motivo por el que los artifacts son lo que hay en la carpeta de la tarea); y así la
-// anotación vive DONDE se argumenta, que es donde se entiende.
-//
-//	> **MEDICIÓN · 2026-08-18** — el 86,6% de las consultas no pasa por el contador.
-//	> `SELECT ... FROM kyc_name_checks`
-//
-//	> **DECISIÓN · 2026-08-18** — los drivers fake de burós quedan sin usar.
-//	> **PREGUNTA · 2026-08-15 · Joel** — ¿cuándo aterriza el TusDatos nuevo?
-//	> **RIESGO · 2026-08-18** — el harness se rompe cuando esto mergee.
-//
-// Se eligió la cita de markdown porque se ve distinta al leer el archivo a pelo —que es como lo lee
-// un modelo— y no necesita que nadie mantenga un índice.
-type Annotation struct {
-	Kind string `json:"kind"` // medicion | decision | pregunta | riesgo
-	Date string `json:"date"` // YYYY-MM-DD
-	Who  string `json:"who"`  // sólo pregunta: de quién se espera la respuesta
-	What string `json:"what"` // la afirmación, una línea
-	How  string `json:"how"`  // opcional: la consulta o el comando ya limpio de Markdown
-	// Sources: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `How` (ver sources.go). Vacío
-	// cuando no hay `How` o cuando no matchea ninguna herramienta conocida — que es un dato, no un
-	// hueco: dice que esa afirmación no trae con qué volver a comprobarla.
-	Sources []string `json:"sources,omitempty"`
-}
-
+// Por eso este archivo ya no las parsea para mostrarlas: las RECONOCE, para que el lint de las tareas
+// frene una nueva y diga adónde va. El marcador de anotación sigue siendo el formato de los documentos
+// que NO son una tarea —los `CLAUDE.md`, las trampas del sistema— y lo que el arnés y el trazador
+// imprimen con `MD=1`: `harness/pkg/anotacion.spec.ts` lee `reAnnotation` de acá para comprobar que lo
+// que emite el arnés es lo que el tablero reconoce como anotación.
 var (
 	// El tipo se acepta con y sin tilde: quien escribe a mano no debería pelear con el acento.
 	reAnnotation = regexp.MustCompile(`(?i)^>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*(\d{4}-\d{2}-\d{2})\s*(?:·\s*([^*]+?))?\s*\*\*\s*(?:—|--|-)?\s*(.*)$`)
-	reCitation   = regexp.MustCompile(`^>\s?(.*)$`)
-	// El documento conserva una consulta como Markdown normal dentro de la cita. La tarjeta no debe
-	// mostrar ese Markdown como texto dentro de otro `<pre>`: recibe sólo el SQL de su fence.
-	reSQLFence = regexp.MustCompile("(?is)(?:^|\\n)\\s*```sql\\s*\\n(.*?)\\n\\s*```(?:\\s*(?:\\n|$))")
+	reCanonMark  = regexp.MustCompile(`(?i)^>\s*\*\*CANON\s*·\s*(\d{4}-\d{2}-\d{2})`)
+	reRecordHead = regexp.MustCompile(`(?i)^##\s+(Registro|Bit[áa]cora)\s*$`)
+	reResumeHead = regexp.MustCompile(`(?i)^##\s+[0-9.·\s]*si retom[áa]s`)
+	reCodeFence  = regexp.MustCompile("^\\s*(?:>\\s*)*```")
 )
 
-var withoutAccent = strings.NewReplacer("Ó", "O", "ó", "o")
-
-func asVisible(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if match := reSQLFence.FindStringSubmatch(raw); match != nil {
-		return strings.TrimSpace(match[1])
-	}
-	// Las recetas cortas históricas se escribieron entre backticks. El pre de la UI no necesita
-	// conservar esa capa de Markdown, igual que no necesita conservar los fences SQL.
-	return strings.TrimSpace(strings.Trim(raw, "`"))
+// DatedRecord es un registro con fecha que está en el documento: en qué línea y qué es.
+type DatedRecord struct {
+	Line int    // 1 = la primera línea del texto recibido
+	What string // «la anotación MEDICIÓN del 2026-09-18», «la sección «Registro»»…
 }
 
-// Annotations recoge los marcadores del cuerpo, en el orden en que aparecen.
-//
-// Las líneas de cita que siguen a un marcador son su `How`: ahí va la consulta que la vuelve a
-// comprobar. Es lo único que distingue una medición de una afirmación — sin eso, nadie sabe cómo
-// verificar si sigue siendo cierta, y el número envejece sin que nadie se entere.
-func Annotations(body string) []Annotation {
-	out := []Annotation{}
-	lines := strings.Split(body, "\n")
-	for i := 0; i < len(lines); i++ {
-		m := reAnnotation.FindStringSubmatch(strings.TrimSpace(lines[i]))
-		if m == nil {
+// DatedRecords devuelve los registros con fecha de un cuerpo de tarea, sin mirar adentro de los bloques
+// de código ni de los comentarios HTML: un ejemplo del formato —la plantilla vieja los traía comentados—
+// no es un registro.
+func DatedRecords(body string) []DatedRecord {
+	var out []DatedRecord
+	inside, comment := false, false
+	for i, raw := range strings.Split(body, "\n") {
+		line := strings.TrimSpace(raw)
+		if comment {
+			comment = !strings.Contains(raw, "-->")
 			continue
 		}
-		a := Annotation{
-			Kind: strings.ToLower(withoutAccent.Replace(strings.ToUpper(m[1]))),
-			Date: m[2],
-			Who:  strings.TrimSpace(strings.Trim(m[3], "· ")),
-			What: strings.TrimSpace(m[4]),
+		if !inside && strings.HasPrefix(line, "<!--") {
+			comment = !strings.Contains(line[4:], "-->")
+			continue
 		}
-		// La continuación: las citas siguientes, hasta que se corta la cita o aparece otro marcador.
-		var how []string
-		for j := i + 1; j < len(lines); j++ {
-			l := strings.TrimSpace(lines[j])
-			if !strings.HasPrefix(l, ">") || reAnnotation.MatchString(l) {
-				break
-			}
-			if c := reCitation.FindStringSubmatch(l); c != nil {
-				// Se conserva el fence hasta `asVisible`: quitar sus backticks aquí convertía
-				// ```sql en texto "sql" y después la UI terminaba mostrando Markdown crudo.
-				how = append(how, strings.TrimSpace(c[1]))
-			}
-			i = j
+		if reCodeFence.MatchString(raw) {
+			inside = !inside
+			continue
 		}
-		rawHow := strings.TrimSpace(strings.Join(how, "\n"))
-		a.How = asVisible(rawHow)
-		// Sources usa la forma original porque `**DB · prod**` indica el ambiente, mientras que la
-		// tarjeta sólo necesita la consulta pura para presentarla como SQL.
-		a.Sources = SourcesOf(rawHow)
-		if a.What != "" {
-			out = append(out, a)
+		if inside {
+			continue
+		}
+		switch m := reAnnotation.FindStringSubmatch(line); {
+		case m != nil:
+			out = append(out, DatedRecord{i + 1, fmt.Sprintf("la anotación %s del %s", strings.ToUpper(m[1]), m[2])})
+		case reCanonMark.MatchString(line):
+			out = append(out, DatedRecord{i + 1, fmt.Sprintf("el marcador CANON del %s", reCanonMark.FindStringSubmatch(line)[1])})
+		case reRecordHead.MatchString(raw):
+			out = append(out, DatedRecord{i + 1, fmt.Sprintf("la sección «%s»", strings.TrimSpace(strings.TrimPrefix(raw, "##")))})
+		case reResumeHead.MatchString(raw):
+			out = append(out, DatedRecord{i + 1, "la sección de retoma («Si retomás esto sin contexto»)"})
 		}
 	}
 	return out

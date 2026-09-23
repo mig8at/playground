@@ -83,3 +83,25 @@ func TestPendingItemsOnlyFromPrivateBody(t *testing.T) {
 		t.Errorf("el fixture entero tiene 3 casillas; si no, el test no está midiendo la diferencia (hubo %d)", n)
 	}
 }
+
+// Una pregunta abierta a alguien es un pendiente que espera: la línea «Depende de:» de abajo dice a quién.
+func TestPendingReadsWhoItIsWaitingOn(t *testing.T) {
+	body := "## Pendientes\n\n" +
+		"- [ ] Validar los tres canales en qa; termina cuando QA da el visto bueno.\n" +
+		"  El guion está en «Cómo validar».\n" +
+		"  Depende de: QA — el visto bueno de los tres canales.\n" +
+		"- [ ] Decidir el cobro de la cuota inicial.\n" +
+		"Prosa que corta.\n" +
+		"  Depende de: nadie, porque ya no es continuación\n" +
+		"- [x] Preparar el caso.\n"
+	got := Pending(body)
+	if len(got) != 3 {
+		t.Fatalf("esperaba 3 pendientes, hubo %d: %+v", len(got), got)
+	}
+	if got[0].WaitingOn != "QA — el visto bueno de los tres canales." {
+		t.Errorf("la dependencia de la primera no se leyó: %q", got[0].WaitingOn)
+	}
+	if got[1].WaitingOn != "" || got[2].WaitingOn != "" {
+		t.Errorf("una línea sin sangría corta la continuación: %+v", got[1:])
+	}
+}

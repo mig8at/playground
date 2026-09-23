@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Stop · el cierre de sesión del tablero deja de depender de que alguien se acuerde.
 
-EL PROBLEMA: `tablero/CLAUDE.md` pide cuatro cosas al terminar de trabajar en una tarea (reescribir
-la retoma, apilar el Registro, declarar `ramas:`, escribir la bitácora con minutos medidos). Las
-cuatro se olvidaron el 26/8 y el tablero mintió ocho días; medido el 2026-09-14, 23 de las 39 tareas
-abiertas no tienen sección de retoma. Olvidarlo no rompe nada, y por eso se olvida.
+EL PROBLEMA: `tablero/CLAUDE.md` pide tres cosas al terminar de trabajar en una tarea (un bloque del
+día en su pila, declarar `ramas:`, escribir la bitácora con minutos medidos). Eran cuatro —reescribir
+la retoma y apilar el Registro, que el 2026-09-23 se volvieron el bloque— y se olvidaron todas el 26/8:
+el tablero mintió ocho días. Olvidarlo no rompe nada, y por eso se olvida.
 
 QUÉ HACE: cuando el modelo termina de responder, corre `cierre -json` (tablero/server/cmd/closeout) y
 mira SÓLO las tareas que ESTA sesión tocó —las que el transcript nombra por slug o por una de sus
@@ -63,7 +63,7 @@ def leer_transcript(ruta: str) -> str:
 # pasaron:
 #
 #   · LEER NO ES TOCAR. Un `head -60 data/sdk-del-comercio.md` del día anterior hizo que el cierre le
-#     reclamara registro y bitácora a una tarea que esta sesión sólo había mirado — y que además estaba
+#     reclamara las piezas del cierre a una tarea que esta sesión sólo había mirado — y que además estaba
 #     modificada por OTRA sesión sobre el mismo worktree, que es como se trabaja acá.
 #   · NOMBRAR JUNTO A UNA ESCRITURA TAMPOCO. Buscar «la ruta aparece Y el comando escribe algo» seguía
 #     marcándola: un comando que escribía `.claude/settings.json` mencionaba esa ruta adentro de un

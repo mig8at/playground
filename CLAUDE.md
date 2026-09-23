@@ -68,8 +68,8 @@ Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y
 verifica casi siempre existe ya. Y cuando la verificás, **la medición no se escribe a mano**: con
 `BLOQUE=<tarea>` el trazador (`trazador-ureq` · `trazador-buscar` · `trazador-sql`), el harness
 (`harness-caso` · `-listado` · `-caminar` · `-suite`) y `tablero-db` la agregan solos a la pila de la tarea,
-con el comando exacto y lo que dio (`MD=1` sigue dando la anotación para pegar) — que es lo que hace que
-la medición se pueda desmentir mañana. Y la salida de un agente **también se verifica** —contra `main`, con
+con el comando exacto y lo que dio —que es lo que hace que la medición se pueda desmentir mañana—. (`MD=1`
+sigue dando la anotación para pegar en un documento que no es una tarea: un `CLAUDE.md`, una trampa.) Y la salida de un agente **también se verifica** —contra `main`, con
 `git show main:<ruta>`, nunca contra el working tree: los repos viven en ramas.
 
 ### Y cómo se complementan ENTRE SÍ — cinco formas, las cinco medidas
@@ -89,8 +89,8 @@ tiene resuelto.
 código**, no contra una copia nuestra. Es lo que hace `npm run contrato:bancolombia` (el mock contra
 los zod reales), y lo que ahora hacen dos cruces más: `workers/logs.json` —el índice de los mensajes
 que el código emite— valida los matchers del mapa del trazador, y encontró **cinco mudos** por una
-renumeración; y el emisor de anotaciones del arnés se prueba leyendo el **regex real** de
-`store.Annotations`, en el repo del tablero. ⚠ La regla es la de los mocks: **una herramienta no puede
+renumeración; y el emisor de anotaciones del arnés se prueba leyendo el **regex real** con que el tablero
+las reconoce (`reAnnotation`, en su `store`). ⚠ La regla es la de los mocks: **una herramienta no puede
 contradecir el documento del que nació**, así que la vara tiene que venir de otro lado.
 
 **3 · DOS COMPARTEN VOCABULARIO, Y ESO HAY QUE COMPROBARLO.** `trazador/server/mapa/ramales.json` dice
@@ -519,7 +519,9 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    — la ficha decide, no reemplaza.
 3. **Lo que se descubre SE REGISTRA, con dos destinos.** El test: *si esto se mergea mañana, ¿el
    texto sigue siendo cierto?*
-   - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
+   - hallazgos **de la tarea** (avance, mediciones, decisiones, riesgos, preguntas) → su **pila**, como
+     bloques (`make tarea-bloque`, o `BLOQUE=` en la herramienta que lo midió); lo que sigue siendo
+     cierto del plan, a su `.md`;
    - trampas **del sistema**, verificadas (síntoma → causa raíz → evidencia → arreglo) →
      `tablero/data/traps/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
      ya nos pasó, está ahí.
@@ -586,7 +588,7 @@ por no entender la regla — hoy los dos destinos cuestan lo mismo: un archivo m
 
 ⚠ **Y «privado» no es «lo mismo pero más largo».** Dentro de la tarea hay CINCO piezas con cinco
 públicos: el título es lo único compartido; el cuerpo explica *cómo se está atacando* (los caminos
-evaluados, incluidos los descartados); las anotaciones con fecha guardan los hechos que la prosa deja
+evaluados, incluidos los descartados); la pila de bloques guarda los hechos con fecha que la prosa deja
 envejecer; la bitácora dice en qué se fue el tiempo; y la publicable tiene **dos mitades** —producto
 (*En una línea · Por qué · Qué cambia · Alcance*) y QA (*Dónde probar · Cómo validar · Criterios de
 aceptación · Dependencias*)— para que QA no tenga que preguntar. La plantilla ya existe en el repo; el

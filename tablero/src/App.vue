@@ -12,13 +12,12 @@ import { vResize, refreshResizers } from './workbench.js';
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
-import TaskEvidence from './TaskEvidence.vue';
 import BlockText from './BlockText.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
-import { highlightSQL, isSQLQuery } from './sql-highlight.js';
+import { highlightSQL } from './sql-highlight.js';
 import { parseBlockBody } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
@@ -31,9 +30,7 @@ import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
-const TRACER_DEFAULT_URL = 'http://localhost:5192';
 const canonUrl = ref(CANON_DEFAULT_URL);
-const tracerUrl = ref(TRACER_DEFAULT_URL);
 // Dónde se ve cada repo que un bloque puede citar (alias → web y carpeta). Sale de tools/repos.py, la
 // lista única, vía /api/config; sin ella, un archivo citado se muestra igual pero sin enlace.
 const repos = ref({});
@@ -116,7 +113,6 @@ async function loadConfig() {
   try {
     const j = await (await fetch(`${SERVER}/api/config`)).json();
     if (j.canonUrl) canonUrl.value = j.canonUrl;
-    if (j.tracerUrl) tracerUrl.value = j.tracerUrl;
     if (j.repos) repos.value = j.repos;
   } catch { /* sin server: los enlaces conservan el origen público por defecto */ }
 }
@@ -685,7 +681,7 @@ watch(() => [active.value?.Key, effortFor(active.value?.Key)], () => {
 const bodyOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.techNotes || '';
 
 const documentSections = computed(() => organizeDocument(active.value ? bodyOf(active.value.Key) : ''));
-const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml && !section.history));
+const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml));
 // El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
 // si esto se trabajó una tarde o dos meses.
 const pendingSections = computed(() => documentSections.value.filter(section => section.pendingHtml));
@@ -706,11 +702,6 @@ const canonID = (canonRef) => {
   return anchor ? `${complete}#${anchor}` : complete;
 };
 const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(canonRef))}`;
-// Las comprobaciones de la tarea: los hallazgos que dicen con qué se midieron —un comando o una fuente—.
-// Sin ninguna, el bloque no se dibuja.
-const workEvidence = computed(() => active.value
-  ? findingsOf(active.value.Key).filter(finding => finding.how || finding.sources?.length) : []);
-
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
 // Se copia el MARKDOWN, no el HTML renderizado: es lo que se pegó bien en todos lados y lo que otra
@@ -726,11 +717,6 @@ const copied = ref('');       // '' | 'ok' | 'error'
 const copiedWhich = ref('');   // qué botón lo dejó así, para pintar sólo ese
 let copiedTimer = null;
 
-// El marcador de anotación, COPIADO del server (`store/annotations.go`) y no reinventado: si los dos
-// no cortan por la misma línea, lo que el panel muestra como «Cómo» y lo que el copiado saca dejan de
-// ser lo mismo, y eso no falla — miente.
-const RE_ANNOTATION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*\d{4}-\d{2}-\d{2}\s*(?:·\s*[^*]+?)?\s*\*\*/i;
-
 // EL CORTE PARA COMPARTIR: se saca lo que es MÍO, no lo que «parece interno».
 //
 // La tentación era filtrar por palabras —borrar lo que diga `harness`, `playground`, `make …`— y es
@@ -738,10 +724,9 @@ const RE_ANNOTATION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO
 // que es peor que no tenerlo. Es la misma lección que el guard de Jira ya dejó escrita.
 //
 // Se corta por ESTRUCTURA, que el formato ya tiene. Medido sobre la tarea de Alta (89 líneas con
-// herramientas, en 12 secciones): el grueso vive en dos lugares que no hay que adivinar —
-//   · `## Registro`, que es el relato de qué se hizo cada día (48 de las 89);
-//   · el `Cómo` de las anotaciones, o sea las citas que siguen al marcador, donde va el comando que
-//     la vuelve a comprobar. El QUÉ se queda: el hallazgo es lo que se comparte.
+// herramientas, en 12 secciones): el grueso vivía en el `## Registro` —48 de las 89— y en el `Cómo` de
+// las anotaciones. Desde el 2026-09-23 las dos cosas son bloques de la pila y el documento ya no las
+// trae, así que el corte que queda es el de «Cómo se comprueba».
 //
 // ⚠ Esto quita el RUIDO de mis herramientas. No es una garantía de privacidad: el cuerpo sigue
 // nombrando repos, rutas y hallazgos, y por eso el encabezado lo sigue avisando.
@@ -750,10 +735,10 @@ const RE_ANNOTATION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO
 //   · CÓMO SE COMPRUEBA, que la plantilla define como «con qué lo probé» — el harness, las suites,
 //     los curl contra localhost. Es justo lo que no le sirve a quien lo recibe.
 //
-// Cada una tiene DOS nombres, porque las tareas viejas usan los de antes y `tablero/CLAUDE.md` dice
-// que no se migran: «Registro»/«Bitácora» y «Cómo se comprueba»/«Cómo probar / validar». Medido sobre
-// las 41 tareas: 15 + 10 y 11 + 4. Cubrir sólo los nombres nuevos dejaba la mitad de las tareas sin
-// cortar — y el corte que no corta es peor que no tenerlo, porque uno cree que sí.
+// Cada una tiene DOS nombres, porque las tareas viejas usan los de antes: «Registro»/«Bitácora» (que
+// sigue en las dos tareas que no se migraron a la pila) y «Cómo se comprueba»/«Cómo probar /
+// validar». Cubrir sólo los nombres nuevos dejaba la mitad de las tareas sin cortar — y el corte que no
+// corta es peor que no tenerlo, porque uno cree que sí.
 //
 // ⚠ «Cómo validar» (20 apariciones) NO entra y no es un olvido: vive del lado PUBLICABLE, que es la
 // mitad escrita para QA y ni siquiera llega a `techNotes`. Verificado partiendo cada archivo por el
@@ -767,29 +752,20 @@ const OWN_SECTIONS = /^(registro|bit[áa]cora|c[óo]mo se comprueba|c[óo]mo pro
 // APAGABA el corte y dejaba escapar el resto de la sección. Se vio corriéndolo, no leyéndolo.
 const RE_FENCE  = /^ {0,3}(```|~~~)/;
 const RE_TITLE = /^ {0,3}(#{1,6})\s+(.+?)\s*$/;
-const RE_CITATION   = /^ {0,3}>/;
 
 function trimForSharing(md) {
   const out = [];
-  let inBlock = false, inClip = false, afterAnnotation = false;
+  let inBlock = false, inClip = false;
   const save = (l) => { if (!inClip) out.push(l); };
   for (const l of md.split('\n')) {
-    // Dentro de un bloque de código un `>` o un `##` son contenido, no estructura — y acá se BORRA
-    // texto, así que confundirlos cuesta caro.
-    if (RE_FENCE.test(l)) { inBlock = !inBlock; afterAnnotation = false; save(l); continue; }
+    // Dentro de un bloque de código un `##` es contenido, no estructura — y acá se BORRA texto, así
+    // que confundirlos cuesta caro.
+    if (RE_FENCE.test(l)) { inBlock = !inBlock; save(l); continue; }
     if (inBlock) { save(l); continue; }
     const h = RE_TITLE.exec(l);
-    if (h) {
-      // Un encabezado de nivel 1 o 2 abre o cierra el recorte; los `###` de adentro son de su sección.
-      if (h[1].length <= 2) inClip = OWN_SECTIONS.test(h[2]);
-      afterAnnotation = false;
-      if (inClip) continue;
-    }
-    if (inClip) continue;
-    if (RE_ANNOTATION.test(l)) { out.push(l); afterAnnotation = true; continue; }
-    if (afterAnnotation && RE_CITATION.test(l)) continue;   // el `Cómo`: fuera
-    afterAnnotation = false;
-    out.push(l);
+    // Un encabezado de nivel 1 o 2 abre o cierra el recorte; los `###` de adentro son de su sección.
+    if (h && h[1].length <= 2) inClip = OWN_SECTIONS.test(h[2]);
+    save(l);
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
@@ -809,7 +785,7 @@ function shareText(mode) {
   const citation = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
   if (topics.length) citation.push(`> Temas de canon: ${topics.join(', ')}.`);
   // Decir QUÉ se recortó, y no sólo que se recortó: quien lo recibe tiene que poder pedir lo que falta.
-  if (mode === 'compartir') citation.push('> Recortado para compartir: sin el registro de trabajo, sin «cómo se comprueba» y sin los comandos de reproducción.');
+  if (mode === 'compartir') citation.push('> Recortado para compartir: sin «cómo se comprueba», que es con qué lo probé.');
   citation.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
   const title = `# ${i.Key} · ${e?.title || i.Summary || ''}`.trim();
   return [title, '', ...citation, '', body.trim(), ''].join('\n');
@@ -1112,57 +1088,6 @@ watch(active, (t) => {
   if (t && !tabItems.value.some((x) => x.Key === t.Key)) tabItems.value = [...tabItems.value, t];
   if (routesReady && !restoringRoute) writeRoute(t);
 });
-
-// ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
-// Vienen del ESFUERZO, igual que los artifacts, y salen del texto: el server los recoge de los
-// marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/annotations.go`.
-//
-// Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
-// que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
-// eso es lo único que la prosa no puede hacer.
-const findingsOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.annotations || [];
-const daysOf = (date) => Math.floor((Date.now() - new Date(date + 'T12:00:00')) / 86400000);
-// Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
-// mes antes de sospechar, pero una pregunta sin responder a los 7 días ya está frenando algo.
-const overdue = (a) => a.kind === 'medicion' ? daysOf(a.date) > 30
-                     : a.kind === 'pregunta' ? daysOf(a.date) > 7 : false;
-const AGE = { medicion: 'medido hace', pregunta: 'sin responder hace', decision: 'decidido hace', riesgo: 'asumido hace' };
-const ageText = (a) => { const d = daysOf(a.date); return `${AGE[a.kind] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
-const KINDS = [
-  { id: 'medicion', tit: 'Mediciones',  pie: 'Un número sin fecha ni forma de recomprobarlo envejece hasta volverse mentira.' },
-  { id: 'decision', tit: 'Decisiones',  pie: 'Con fecha y motivo, para no volver a discutirlas desde cero.' },
-  { id: 'pregunta', tit: 'Preguntas',   pie: 'Abiertas, con de quién se espera la respuesta.' },
-  { id: 'riesgo',   tit: 'Riesgos',     pie: 'Lo que se aceptó a sabiendas. Cuando muerda, acá está el momento en que se aceptó.' },
-];
-const findingsByKind = (key) => KINDS
-  .map(t => ({ ...t, items: findingsOf(key).filter(a => a.kind === t.id) }))
-  .filter(g => g.items.length);
-// CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/sources.go`) del
-// `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
-// dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
-// Los ambientes son los valores canónicos de `canonEnvironment`, en el mismo archivo del server.
-const isEnvironment = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
-const isSqlFinding = (finding) => finding.sources?.includes('DB') && isSQLQuery(finding.how);
-
-// El resumen de arriba contesta de un vistazo «¿cómo se concluyó lo que dice esta tarea?». Lo que más
-// importa no son las herramientas: es cuántas anotaciones NO traen con qué volver a comprobarlas.
-const provenanceOf = (key) => {
-  const as = findingsOf(key);
-  const count = {};
-  let withoutHow = 0;
-  for (const a of as) {
-    const fs = a.sources || [];
-    if (!fs.length) { withoutHow++; continue; }
-    for (const f of fs) count[f] = (count[f] || 0) + 1;
-  }
-  return {
-    total: as.length,
-    withoutHow: withoutHow,
-    withHow: as.length - withoutHow,
-    // el ambiente primero: pesa más que la herramienta a la hora de creerle a una medición
-    sources: Object.entries(count).sort((a, b) => (isEnvironment(b[0]) - isEnvironment(a[0])) || b[1] - a[1]),
-  };
-};
 
 // ── PENDIENTES ───────────────────────────────────────────────────────────────────────────────────
 // Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pending.go` para el parser y el
@@ -1937,7 +1862,7 @@ function documentAction(id) {
             </button>
             <div v-show="!foldedDays.has(group.day)" :id="'context-day-' + group.day" class="context-day-body">
             <article v-for="event in group.items" :key="event.id" :id="event.id" class="task-context-entry task-block">
-              <h4 class="block-title">{{ event.title }}</h4>
+              <h4 class="block-title"><BlockText :text="event.title" v-bind="blockLinks" /></h4>
               <template v-for="(part, partIndex) in parseBlockBody(event.body)" :key="partIndex">
                 <div v-if="part.type === 'command'" class="block-command">
                   <div class="block-command-label">{{ part.label }}</div>
@@ -1955,44 +1880,15 @@ function documentAction(id) {
           </section>
         </section>
 
-        <!-- Cada bloque se dibuja sólo si tiene algo: una tarea limpia está VACÍA. Hasta el 2026-09-23 los
-             tres salían siempre, con su «0 registrados» y su «todavía no hay», y en la mitad de las tareas
-             abiertas (13 de 26, sin un solo hallazgo) eran cromo que pedía llenarse. -->
-        <section v-if="summarySections.length || findingsOf(active.Key).length || workEvidence.length"
-                 class="task-reference" aria-label="Documento y evidencia de la tarea">
-            <!-- Sin rótulo: el documento lo nombran sus propias secciones, empezando por «Si retomás esto sin
-                 contexto». «Documento de trabajo · Estado, decisiones y material vigente» describía el
-                 contenedor y no le servía a nadie: quien retoma lee la tarea misma (pedido de Miguel,
-                 2026-09-23). Lo mismo las bajadas que explicaban qué son los hallazgos y la evidencia. -->
-            <section v-if="summarySections.length" class="work-block" aria-label="Documento de trabajo">
-              <div class="desc cuerpo-md">
-                <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.resume }" v-html="section.summaryHtml"></section>
-              </div>
-            </section>
-
-            <section v-if="findingsOf(active.Key).length" class="work-block task-findings">
-              <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ findingsOf(active.Key).length }} registrados</small></div>
-              <div class="proc">
-                <span class="proc-cuenta">{{ provenanceOf(active.Key).withHow }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
-                <span v-for="[f, n] in provenanceOf(active.Key).sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>
-                <span v-if="provenanceOf(active.Key).withoutHow" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ provenanceOf(active.Key).withoutHow }} sin cómo</span>
-              </div>
-              <section v-for="g in findingsByKind(active.Key)" :key="g.id" class="hgrupo">
-                <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
-                <p class="hpie">{{ g.pie }}</p>
-                <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: overdue(a) }">
-                  <div class="hmeta"><span class="hfecha">{{ a.date }}</span><span class="hedad">{{ ageText(a) }}</span><span v-if="a.who" class="hquien">espera a {{ a.who }}</span></div>
-                  <p class="hque">{{ a.what }}</p>
-                  <p v-if="a.sources?.length" class="hfuentes"><span v-for="f in a.sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }}</span></p>
-                  <pre v-if="a.how" class="hcomo" :class="{ 'sql-block': isSqlFinding(a) }"><code v-if="isSqlFinding(a)" class="language-sql" v-html="highlightSQL(a.how)"></code><template v-else>{{ a.how }}</template></pre>
-                </article>
-              </section>
-            </section>
-
-            <section v-if="workEvidence.length" class="work-block">
-              <TaskEvidence :evidence="workEvidence" :tracer-url="tracerUrl" />
-            </section>
-
+        <!-- El documento se dibuja sólo si tiene algo: una tarea limpia está VACÍA (pedido de Miguel,
+             2026-09-23). Y es lo único que queda después de la pila: los hallazgos y la evidencia salían de
+             las anotaciones del documento, que ese mismo día pasaron a ser bloques. -->
+        <section v-if="summarySections.length" class="task-reference" aria-label="Documento de la tarea">
+          <section class="work-block" aria-label="Documento de trabajo">
+            <div class="desc cuerpo-md">
+              <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" v-html="section.summaryHtml"></section>
+            </div>
+          </section>
         </section>
 
       </TaskEditor>
@@ -2365,12 +2261,7 @@ function documentAction(id) {
 .task-reference { min-width: 0; max-width: 920px }
 /* La línea separa la pila del documento: sin pila arriba quedaría huérfana en el borde del cuerpo. */
 .task-context-timeline + .task-reference { margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }
-.work-block-head h4 { color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }
 .work-block + .work-block { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line) }
-.work-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 12px }
-.work-block-head h4 { margin: 0 }
-.work-block-head small { color: var(--mut); font-size: 10.5px; text-align: right }
-.task-findings > .nota { margin-bottom: 12px }
 
 /* LA FICHA — lo que la tarjeta mostraba de un vistazo, ahora con el ancho del editor. */
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
@@ -2692,24 +2583,15 @@ function documentAction(id) {
 .sync-res .bad { color: var(--bad) }
 .sync-res .chip { margin-left: 6px; padding: 1px 8px; font-size: 10.5px }
 
-/* HALLAZGOS ------------------------------------------------------------------------------------ */
+/* GRUPOS DE PENDIENTES -------------------------------------------------------------------------
+   (Eran los de «Hallazgos», que salían de las anotaciones del documento y se fueron el 2026-09-23 con
+   ellas, a la pila. Los pendientes heredaron el grupo y su conteo.) */
 .hgrupo { margin-bottom: 22px; }
 .hgrupo h4 { font-size: 13px; margin: 0 0 2px; display: flex; align-items: center; gap: 7px; }
 /* ⚠ Sin `opacity: .55`: apilada sobre el color dejaba el conteo abajo del umbral. El escalón lo da
    la rampa, no un velo. */
 .hcnt { font: 11px/1 var(--mono, ui-monospace, monospace); color: var(--texto-3);
         border-color: currentColor; padding: 2px 6px; }
-/* ⚠ El mismo arreglo, en el resto del bloque (2026-09-23). El pie iba en `opacity: .5` (3,44:1), y el ítem
-   entero en `.85`, que se multiplicaba con el `.6` de su línea de fecha: la fecha y la antigüedad de un
-   hallazgo quedaban en 3,53:1 y `make estilo-contraste` no lo veía, porque mide la opacidad del nodo y no la
-   de sus ancestros. Lo vencido se distingue por la barra y la antigüedad en color, no por apagar lo demás. */
-.hpie { font-size: 11.5px; color: var(--tenue); margin: 0 0 10px; }
-.hitem { border-left: 2px solid currentColor; padding: 2px 0 2px 11px; margin-bottom: 12px; }
-.hitem.vencido { border-left-color: var(--bad); }
-.hmeta { display: flex; gap: 9px; flex-wrap: wrap; align-items: baseline;
-         font: 11px/1.4 var(--mono, ui-monospace, monospace); color: var(--tenue); margin-bottom: 3px; }
-.hitem.vencido .hedad { color: var(--bad); font-weight: 600; }
-.hque { margin: 0; font-size: 13.5px; line-height: 1.5; }
 /* Pendientes: la marca a la izquierda y el texto al lado. Un ítem hecho se apaga y se tacha —el mismo
    gesto que las tarjetas terminadas—: sigue estando (dice qué se resolvió) pero ya no es trabajo. */
 .pitem { display: flex; gap: 9px; align-items: baseline; padding: 3px 0; }
@@ -2718,29 +2600,6 @@ function documentAction(id) {
 .pitem.hecho { color: var(--tenue); }
 .pitem.hecho .pmark { color: var(--mut); }
 .pitem.hecho .pque { text-decoration: line-through; }
-.hcomo { margin: 7px 0 0; padding: 8px 10px; border-radius: var(--radius-md); background: var(--sel);
-         font: 11.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap;
-         word-break: break-word; }
-
-/* CON QUÉ SE COMPROBÓ. Las etiquetas las deriva el server del `Cómo`; acá sólo se pintan.
-   Dos pesos distintos a propósito: la HERRAMIENTA es un dato de contexto y va apagada; el AMBIENTE
-   lleva el color de acento porque cambia cuánto vale lo que se afirma — «medido en prod» y «medido en
-   local» no son la misma frase. Y «sin cómo» va en rojo apagado: no es un error, es una deuda. */
-.proc { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 0 0 14px;
-        padding-bottom: 12px; border-bottom: 1px solid var(--line); }
-.proc-cuenta { font-size: 11.5px; color: var(--tenue); margin-right: 2px; }
-/* Sobre `.badge.badge-outline`: con qué se comprobó. Monoespaciada porque son COMANDOS, y radio
-   chico porque es un rótulo. ⚠ Sin `opacity: .85`, que se apilaba sobre el color. */
-.fchip { font: 10.5px/1 var(--mono, ui-monospace, monospace); padding: 4px 7px;
-         border-radius: var(--radius-md); background: var(--sel); border-color: transparent; }
-/* El número va en el color del chip: con `opacity: .6` encima quedaba en 3,18:1 sobre el de ambiente. Y cada
-   chip de color es relleno O contorno: el ambiente, que resalta, va relleno; «sin cómo», que es una deuda
-   y no un error, va sólo con contorno —con el tinte debajo su texto no llegaba a 4,5:1 (4,38)—. */
-.fchip b { font-weight: 700; margin-left: 2px; }
-.fchip.amb { color: var(--acc); background: color-mix(in srgb, var(--acc) 10%, transparent); }
-.fchip.sin { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 45%, transparent); background: transparent; }
-.hfuentes { display: flex; gap: 5px; flex-wrap: wrap; margin: 6px 0 0; }
-
 /* PUNTOS ---------------------------------------------------------------------------------------- */
 .stat .v .de { color: var(--tenue); font-size: .62em; font-weight: 500; margin-left: 1px; }
 /* la marca de por dónde va el sprint, sobre la barra de lo entregado */
@@ -2757,10 +2616,6 @@ function documentAction(id) {
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
    como un muro gris y el cajón deja de abrirse. Lo que se busca acá es ESCANEO, no lectura lineal.
    Va con `:deep()` porque el HTML lo inyecta `v-html` y el estilo del componente es `scoped`. */
-/* Es un callout —«si retomás esto sin contexto»—: barra de color y tinte, cuadrado. El marco completo
-   alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
-.retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
-  background: var(--panel2); }
 /* Datos que identifican el trabajo actual. Viven junto al título porque siguen siendo ciertos al
    cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
 .task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }

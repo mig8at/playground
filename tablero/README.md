@@ -46,26 +46,26 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 
 - **Mis tareas** agrupa En curso, Bloqueadas, En pruebas, Por empezar y Terminadas. Cada grupo se
   puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
-- Abrir una tarea muestra una cronología central simple con los hitos que permiten retomarla:
-  **Hoy**, **Ayer** y después cada fecha real, de más reciente a más antigua. Sólo salen eventos de
-  `task-context/`; las notas de minutos no aparecen. Cada fecha es un encabezado que **se pega arriba**
+- Abrir una tarea muestra una cronología central con los bloques de su pila:
+  **Hoy**, **Ayer** y después cada fecha real, de más reciente a más antigua. Sólo salen bloques de
+  `context.jsonl`; las notas de minutos no aparecen. Cada fecha es un encabezado que **se pega arriba**
   mientras se lee su contenido —el día siguiente lo empuja al llegar— y **se pliega** con un clic, como
-  el acordeón del sidebar; plegar un día pegado lo deja en el borde en vez de saltar lejos. Después del recorrido quedan el documento,
-  hallazgos y evidencia como material de consulta, **cada uno sólo si tiene algo**: una tarea limpia
-  está vacía, sin contenedores con su «0 registrados» o su «todavía no hay». El contexto de Canon aparece
-  sólo junto a la decisión que lo usó. **Jira** y **Pendientes** viven en el sidebar derecho; cuando
+  el acordeón del sidebar; plegar un día pegado lo deja en el borde en vez de saltar lejos. Después del recorrido queda el documento
+  como material de consulta, **sólo si tiene algo**: una tarea limpia está vacía, sin contenedores con
+  su «todavía no hay». El contexto de Canon aparece sólo en el bloque que lo usó. *(Hasta el
+  2026-09-23 venían además «Hallazgos» y «Evidencia de trabajo», que salían de las anotaciones del
+  documento; ese día las anotaciones pasaron a la pila y cada hecho es un bloque de la cronología.)* **Jira** y **Pendientes** viven en el sidebar derecho; cuando
   la tarea tiene salidas navegables, aparece también **Artifacts**. Ramas queda en la consola inferior.
 - Los sidebars y la consola recuerdan sus medidas. Sus separadores se arrastran y también responden a
   las flechas cuando reciben foco.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
-- **Evidencia** separa la traza de una solicitud de una consulta de datos: Trazador aparece sólo cuando
-  se siguió el comportamiento de una solicitud; SQL queda como **DB · ambiente** y su query. Una prueba
-  de Harness aparece dentro del hito que la usó (`kind: harness`), con su comando. *(Hasta el
-  2026-09-23 había además una sección fija «Harness · comandos reproducibles» con su enlace al panel: en
-  las tareas sin prueba era un hueco que pedía llenarse, y se retiró junto con `HARNESS_URL`.)*
-- El material de trabajo muestra el plan, las decisiones, hallazgos y pruebas después de la
-  cronología. Una referencia de Canon se enlaza dentro del hito JSONL que la usó; no hay una sección
-  especial ni una colección genérica de temas declarados.
+- Una prueba o una consulta aparece dentro del bloque que la usó, en su caja con el ambiente —**Harness ·
+  local**, **Trazador · prod**, **DB · prod**— y debajo lo que dio. *(Hasta el 2026-09-23 había además
+  una sección fija «Harness · comandos reproducibles», y después una «Evidencia de trabajo» con enlaces
+  al trazador; se retiraron junto con `HARNESS_URL` y `TRACER_URL`.)*
+- El documento muestra el plan y el material después de la cronología. Una referencia de Canon se
+  enlaza dentro del bloque que la usó; no hay una sección especial ni una colección genérica de temas
+  declarados.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
   local, lo indica; nunca sustituye el contenido publicado por el borrador local.
@@ -233,7 +233,7 @@ ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 | Ruta | Qué devuelve o hace |
 |---|---|
 | `GET /api/config` | los enlaces a canon, trazador y harness (salen de `server/.env`) |
-| `GET /api/efforts` | las tareas locales, con cuerpo, pendientes, hallazgos, fuentes y artifacts |
+| `GET /api/efforts` | las tareas locales, con cuerpo, pendientes y artifacts |
 | `GET /api/task-locals` | de qué tarea local cuelga cada clave de Jira (`{taskKey, effortId}`) |
 | `GET /api/task-context?effort=` | la pila de hitos de una tarea (`tasks/<slug>/context.jsonl`) |
 | `GET /api/entries?days=&sprint=` | la bitácora de la ventana, más lo del sprint elegido |
@@ -382,12 +382,14 @@ otra tarea local.
 La API tampoco acepta crear esfuerzos locales sueltos: una tarea de producto se importa desde Jira y
 una mejora interna se escribe en el contenedor ya existente.
 
-`make tarea-json N=<slug|id>` deriva una vista `tablero.task.v2` desde ese mismo Markdown: identidad,
-retoma, próximo paso, conteos, pendientes, anotaciones, índice de secciones y estado del borrador para
-Jira. No guarda sidecars. El contrato está en [`schemas/task.v2.schema.json`](schemas/task.v2.schema.json).
-*(Hasta el 2026-09-23 era `tablero.tarea.v1`, con las claves en español; la v2 tiene los mismos datos con
-las claves en inglés —`nextStep`, `openPending`, `annotations`—. El mapa viejo → nuevo está en
-`tools/rename/maps/phase4b-json.tsv`.)*
+`make tarea-json N=<slug|id>` deriva una vista `tablero.task.v3` desde ese mismo Markdown y su pila:
+identidad, conteos, pendientes, la pila entera (`stack`, del bloque más nuevo al más viejo), índice de
+secciones y estado del borrador para Jira. No guarda sidecars. El contrato está en
+[`schemas/task.v3.schema.json`](schemas/task.v3.schema.json).
+*(Hasta el 2026-09-23 era `tablero.tarea.v1`, con las claves en español; ese día pasó a `v2`, con las
+claves en inglés —el mapa viejo → nuevo está en `tools/rename/maps/phase4b-json.tsv`—, y a `v3`, que
+dejó `state` (la retoma y el próximo paso) y `annotations` cuando la historia del documento pasó a la
+pila, y sumó `stack`.)*
 Esta es la forma recomendada para workers y automatizaciones; el cuerpo privado completo se abre
 sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrador publicable; el modo
 normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.
@@ -525,8 +527,9 @@ un comando, en un bloque de código `harness`, `trazador`, `sql <ambiente>` o `s
 valida de verdad es `server/internal/taskcontext/block.go`.
 
 Hasta el 2026-09-23 la pila era de hitos (`kind` checkpoint · decision · blocker · evidence); los 37 que
-había se migraron a bloques ese día y el formato ya no se lee. `make retomar` incluye los ocho bloques más
-recientes.
+había se migraron a bloques ese día y el formato ya no se lee. Ese mismo día entró la historia del
+documento —anotaciones, Registro y retoma de las 25 tareas abiertas que los tenían: 386 bloques más, con
+`via: migration`—. `make retomar` incluye los ocho bloques más recientes.
 
 ### Consultas a base de datos
 
@@ -640,7 +643,6 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto de la API | `8787` |
 | `CANON_URL` | API y enlaces de Canon | `https://canon.playground.creditop.com` |
-| `TRACER_URL` | enlace de Trazador en Evidencia | `http://localhost:5192` |
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
 | `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
@@ -651,9 +653,6 @@ Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el
 busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,
 `pulso install` congela sus valores en el `plist` — y **eso gana** sobre el archivo, porque el entorno
 tiene prioridad. Si cambian, reinstalá: `make pulso-install`.
-
-Cuando Trazador esté publicado, cambiar sólo `TRACER_URL` a
-`https://tracer.playground.creditop.com`; las tareas y el frontend no necesitan cambios.
 
 API token de Atlassian: <https://id.atlassian.com/manage-profile/security/api-tokens>.
 Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Install to Workspace.

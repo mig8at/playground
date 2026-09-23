@@ -20,17 +20,17 @@ jira_title: ""
 
   Protocolo: CLAUDE.md → «Plantilla por vista». El editor junta la cronología y el documento; Jira y
   Pendientes van a la derecha y Ramas a la consola:
-    · TRABAJO    retoma, objetivo, plan, alternativas, límites, material y referencias.
+    · DOCUMENTO  objetivo, plan, alternativas, límites, material y referencias: lo que sigue siendo cierto.
+    · PILA       bloques privados en `tasks/<slug>/context.jsonl` —título y descripción—, agrupados
+                 por día: lo que pasó, lo que se midió, se decidió, se preguntó o se arriesgó.
+                 Nunca minutos ni notas de sesión.
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
-    · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
     · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
-    · CONTEXTO   bloques privados en `tasks/<slug>/context.jsonl` —título y descripción—, agrupados
-                 por día. Nunca minutos ni notas de sesión.
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
-  Reescribí el estado y el plan; mantené el material reproducible. Los hechos que cambian una retoma
-  se agregan como bloques en `tasks/<slug>/context.jsonl` con `make tarea-bloque`;
+  Reescribí el plan; mantené el material reproducible. Lo que pasa —una medición, una decisión, una
+  pregunta, un riesgo, lo que se hizo en el día— entra a la pila como bloque con `make tarea-bloque`;
   no copies sesiones ni logs. El conocimiento estable gradúa a canon.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
@@ -52,17 +52,6 @@ jira_title: ""
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
 
-## Si retomás esto sin contexto, empezá acá
-
-<!-- OPCIONAL. Lo que se hizo y dónde quedó la tarea va en la pila de bloques (`make tarea-bloque`); si
-     ayuda, acá va un párrafo de estado, en 5-8 líneas:
-       · Qué se busca: una frase.
-       · Estado real: qué funciona y qué falta para avanzar.
-       · Ya comprobado: qué NO hay que volver a investigar.
-       · Validación: con qué se comprueba que sigue andando.
-     Sin «próximo paso»: uno fijo obliga a hacer algo después, y eso se decide trabajando. Si no hace
-     falta, borrá la sección entera. -->
-
 ## Pendientes
 
 <!-- Pestaña Pendientes. Cada casilla lleva una acción y su condición de cierre.
@@ -70,6 +59,8 @@ jira_title: ""
      - [ ] Acción pendiente; termina cuando [resultado verificable].
        Depende de: [nombre] — [dato o respuesta], si aplica.
      - [x] Acción cerrada — [evidencia de la comprobación].
+     Una pregunta abierta a alguien es un pendiente con su «Depende de:»: `make hoy` lo muestra como
+     «espera a …» y, a diferencia de la vieja anotación PREGUNTA, se cierra tildándolo.
 -->
 
 ## Objetivo
@@ -92,27 +83,12 @@ jira_title: ""
 
 <!-- Un párrafo por camino descartado, con el POR QUÉ. Es la sección que más rinde al retomar: sin
      ella se vuelve a proponer lo que ya se probó y falló. Hoy la tienen 6 de 12 tareas, y cuando
-     está se nota. Si un camino se descartó por una medición, la medición va como anotación. -->
+     está se nota. Si un camino se descartó por una medición, la medición va a la pila como bloque. -->
 
-## Lo que está decidido
-
-<!-- Pestaña Hallazgos: una anotación por decisión, con fecha real y el motivo. No la dupliques
-     como prosa en Trabajo. Los ejemplos de fecha y contenido deben reemplazarse.
-> **DECISIÓN · 2026-08-20** — el filtro va por comercio, no por asesor.
--->
-
-## Lo que está bloqueado
-
-<!-- Una pregunta abierta necesita fecha Y de quién se espera la respuesta: a los 7 días la card la
-     marca vencida, que es el punto.
-> **PREGUNTA · 2026-08-20 · Joel** — ¿el proveedor nuevo entra este sprint?
--->
-
-## Riesgos
-
-<!--
-> **RIESGO · 2026-08-20** — si esto mergea antes del otro PR, el harness se rompe.
--->
+<!-- Lo decidido, lo bloqueado y los riesgos NO tienen sección: son hechos con fecha, y cada uno entra a
+     la pila como un bloque —«el filtro va por comercio, no por asesor» como título, y el motivo en la
+     descripción—. Hasta el 2026-09-23 eran anotaciones (`> **DECISIÓN · fecha** — …`) en estas
+     secciones; el lint ya las frena en el documento. -->
 
 ## Lo que NO entra
 
@@ -133,16 +109,11 @@ jira_title: ""
 
      ⚠ ESTA SECCIÓN NO SE REESCRIBE NI SE APILA: SE MANTIENE. Es la tercera clase de contenido y la
      que no tenía nombre — por eso terminaba creciendo como secciones nuevas arriba, con fecha, hasta
-     volver ilegible el archivo. Si la receta cambió, se corrige acá; el hito que explica el cambio va
-     al contexto JSONL. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
-     Las mediciones van como anotación, con su `Como`. `make tablero-db … MD=1` emite la cita limpia:
-> **MEDICIÓN · 2026-08-20** — 86,6% de las consultas no pasa por el contador.
-> **DB · prod**
->
-> ```sql
-> SELECT count(*) FROM kyc_name_checks WHERE ...
-> ```
--->
+     volver ilegible el archivo. Si la receta cambió, se corrige acá; el bloque que explica el cambio va
+     a la pila. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
+     Una MEDICIÓN no va acá: va a la pila como bloque, con el comando y su «Resultado:». Con
+     `BLOQUE=<id|slug>`, `harness-caso` · `-listado` · `-caminar` · `-suite`, `trazador-*` y
+     `tablero-db` lo agregan solos. -->
 
 ## Referencias
 
@@ -156,15 +127,14 @@ jira_title: ""
      [texto visible](canon:tema#ancla). El editor la enlaza ahí mismo; no crees una sección ni un
      marcador especial. -->
 
-<!-- CONTEXTO DE RETOMA
-     Para tareas nuevas NO agregues `## Registro`: un diario Markdown mezcla historia con el documento
-     vigente. Usá `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>`.
+<!-- LA HISTORIA VA A LA PILA
+     Este documento no lleva `## Registro`, anotaciones fechadas, sección de retoma ni marcadores CANON:
+     un diario en el Markdown mezcla historia con lo vigente, y hasta el 2026-09-23 eso volvía ilegibles
+     las tareas grandes. Esa historia se apila con `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>`,
+     y el lint frena una nueva en el documento.
 
      Un bloque es un título —la conclusión, en una línea— y una descripción con lo que la sostiene:
-     archivos por repo, canon, y cada comando con su «Resultado:». Ver `docs/task-context-block.example.md`.
-
-     Las tareas existentes pueden conservar su `## Registro`/`## Bitácora` en el archivo, pero no se
-     muestra en el editor. No lo migres en masa. -->
+     archivos por repo, canon, y cada comando con su «Resultado:». Ver `docs/task-context-block.example.md`. -->
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA. Pasa el guard (ni repos, ni rutas, ni F-xx) y

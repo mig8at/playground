@@ -1,17 +1,19 @@
 // hoy — la primera pantalla del día, derivada de las tareas: qué sigue, qué espera respuesta, qué se durmió.
 //
-// Cada tarea ya tiene su pila de bloques, sus preguntas con fecha y a quién se le deben, sus casillas
-// pendientes y sus ramas. La tarjeta muestra cada cosa en su tarea, pero nadie las cruzaba: medido el
-// 2026-09-14 había 11 preguntas vencidas hace más de 7 días y 57 casillas abiertas repartidas en 10
-// tareas, y 21 de las 39 abiertas llevaban más de 3 semanas sin tocarse sin que nada lo dijera.
+// Cada tarea ya tiene su pila de bloques, sus casillas pendientes —con a quién se espera, si lo dicen— y
+// sus ramas. La tarjeta muestra cada cosa en su tarea, pero nadie las cruzaba: medido el 2026-09-14
+// había 11 preguntas vencidas hace más de 7 días y 57 casillas abiertas repartidas en 10 tareas, y 21 de
+// las 39 abiertas llevaban más de 3 semanas sin tocarse sin que nada lo dijera.
 //
-// ⚠ Hasta el 2026-09-23 la agenda mostraba el «próximo paso» de cada tarea y retomar lo exigía. Se fue
-// con la pila de bloques: lo que dice dónde quedó una tarea es su último bloque, y un próximo paso fijo
-// obliga a hacer algo después cuando eso es decisión de cómo se va desarrollando la tarea (Miguel).
+// ⚠ Hasta el 2026-09-23 la agenda mostraba el «próximo paso» de cada tarea y retomar lo exigía; y las
+// «preguntas vencidas» salían de las anotaciones PREGUNTA del documento. Se fueron con la pila de bloques:
+// lo que dice dónde quedó una tarea es su último bloque; un próximo paso fijo obliga a hacer algo después
+// cuando eso es decisión de cómo se va desarrollando la tarea (Miguel); y una pregunta abierta a alguien
+// es un pendiente con su «Depende de:», que a diferencia de la anotación tiene casilla y se cierra.
 //
 // Dos vistas, ninguna escribe:
 //
-//	hoy                la agenda: en movimiento (con su último bloque, preguntas vencidas y entrega) y dormidas
+//	hoy                la agenda: en movimiento (con su último bloque, lo que espera a alguien y entrega) y dormidas
 //	hoy -n <id|slug>   RETOMAR una tarea en frío: la pila primero —el último bloque entero—, y en rojo lo que falta
 //	hoy -n … -brief 1 …y al final la FICHA de cada referencia de Canon declarada por la tarea.
 //	                   Es un APOYO: decide qué tema se abre, no reemplaza leerlo — y va opt-in porque una
@@ -44,9 +46,8 @@ import (
 )
 
 const (
-	dormantDays  = 14
-	archiveDays  = 30
-	questionDays = 7
+	dormantDays = 14
+	archiveDays = 30
 )
 
 type task struct {
@@ -60,19 +61,9 @@ type task struct {
 }
 
 var (
-	reCitation = regexp.MustCompile(`^["']|["']$`)
-	reList     = regexp.MustCompile(`\[(.*?)\]`)
-	// ⚠ INSENSIBLE A MAYÚSCULAS Y CON NUMERACIÓN OPCIONAL. La tarea de Bancolombia titula su sección
-	// «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto no la veía: el cierre
-	// reclamaba «la sección no existe» sobre una tarea que la tiene desde julio. Un chequeo que
-	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
-	reResume    = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
-	reSection   = regexp.MustCompile(`(?m)^##\s`)
-	reRecordDay = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})[^\n]*\n`)
-	rePublic    = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
-	// «Bitácora» es como llaman al Registro las tareas viejas: mirar sólo «Registro» contaba su diario
-	// entero como estado y las dejaba arriba del ranking por un nombre.
-	reRecord         = regexp.MustCompile(`(?m)^##\s+(Registro|Bit[áa]cora)\s*$`)
+	reCitation       = regexp.MustCompile(`^["']|["']$`)
+	reList           = regexp.MustCompile(`\[(.*?)\]`)
+	rePublic         = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
 	reSectionHeading = regexp.MustCompile(`(?m)^#{2,4}\s+(.*)$`)
 	reDateInTitle    = regexp.MustCompile(`20\d\d-\d\d-\d\d`)
 )
@@ -153,63 +144,12 @@ func requiresBranches(t task) bool {
 	return t.Stage == "work" && t.Class != "proyecto"
 }
 
-func (t task) resume() string {
-	m := reResume.FindStringIndex(t.Body)
-	if m == nil {
-		return ""
-	}
-	rest := t.Body[m[1]:]
-	if end := reSection.FindStringIndex(rest); end != nil {
-		rest = rest[:end[0]]
-	}
-	return strings.TrimSpace(rest)
-}
-
-// private: el cuerpo hasta la publicable — las anotaciones y pendientes se buscan sólo ahí, como hace el store.
+// private: el cuerpo hasta la publicable — los pendientes se buscan sólo ahí, como hace el store.
 func (t task) private() string {
 	if loc := rePublic.FindStringIndex(t.Body); loc != nil {
 		return t.Body[:loc[0]]
 	}
 	return t.Body
-}
-
-func (t task) lastRecord() (date, block string) {
-	locs := reRecordDay.FindAllStringSubmatchIndex(t.Body, -1)
-	if len(locs) == 0 {
-		return "", ""
-	}
-	// el más reciente por FECHA, no por posición: las tareas viejas apilan hacia abajo y las nuevas hacia arriba
-	best := -1
-	for i, l := range locs {
-		if best < 0 || t.Body[l[2]:l[3]] > t.Body[locs[best][2]:locs[best][3]] {
-			best = i
-		}
-	}
-	l := locs[best]
-	end := len(t.Body)
-	if best+1 < len(locs) && locs[best+1][0] > l[1] {
-		end = locs[best+1][0]
-	}
-	if pub := rePublic.FindStringIndex(t.Body[l[1]:]); pub != nil && l[1]+pub[0] < end {
-		end = l[1] + pub[0]
-	}
-	if sec := reSection.FindStringIndex(t.Body[l[1]:]); sec != nil && l[1]+sec[0] < end {
-		end = l[1] + sec[0]
-	}
-	return t.Body[l[2]:l[3]], strings.TrimSpace(t.Body[l[1]:end])
-}
-
-func overdueQuestions(t task) []store.Annotation {
-	var out []store.Annotation
-	for _, a := range store.Annotations(t.private()) {
-		if a.Kind != "pregunta" {
-			continue
-		}
-		if f, err := time.ParseInLocation("2006-01-02", a.Date, time.Local); err == nil && time.Since(f).Hours()/24 > questionDays {
-			out = append(out, a)
-		}
-	}
-	return out
 }
 
 func openPendingItems(t task) (open []store.PendingItem, total int) {
@@ -304,6 +244,12 @@ func worklogOf(data string, id int) []entry {
 	return out
 }
 
+// plain saca el énfasis de Markdown para la consola: un `**` a mitad de un renglón truncado se lee como
+// ruido, no como negrita.
+func plain(s string) string {
+	return strings.NewReplacer("**", "", "__", "", "`", "").Replace(s)
+}
+
 func truncate(s string, n int) string {
 	s = strings.Join(strings.Fields(s), " ")
 	if len([]rune(s)) <= n {
@@ -352,7 +298,7 @@ type row struct {
 	LastBlock    string   `json:"lastBlock"`
 	BlockDays    int      `json:"lastBlockDays"` // -1 si la pila está vacía
 	Delivery     string   `json:"delivery"`
-	Overdue      []string `json:"overdueQuestions"`
+	Waiting      []string `json:"waiting"` // pendientes abiertos que dependen de alguien
 	Pending      int      `json:"pending"`
 	Dormant      bool     `json:"dormant"`
 	SuggestClose bool     `json:"suggestArchive"`
@@ -399,15 +345,15 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 				f.Days = f.BlockDays
 			}
 		}
-		for _, a := range overdueQuestions(t) {
-			q := a.Who
-			if q == "" {
-				q = "¿a quién?"
-			}
-			f.Overdue = append(f.Overdue, fmt.Sprintf("%s · %s — %s", a.Date, q, truncate(a.What, 90)))
-		}
 		ab, _ := openPendingItems(t)
 		f.Pending = len(ab)
+		// Lo que espera a alguien: el pendiente con su «Depende de:». Es lo que reemplazó a la pregunta
+		// vencida, que salía de las anotaciones PREGUNTA del documento y no se cerraba nunca.
+		for _, p := range ab {
+			if p.WaitingOn != "" {
+				f.Waiting = append(f.Waiting, fmt.Sprintf("%s · %s", truncate(plain(p.WaitingOn), 60), truncate(plain(p.What), 70)))
+			}
+		}
 		f.Dormant = f.Days >= dormantDays
 		f.SuggestClose = f.Days >= archiveDays
 		rows = append(rows, f)
@@ -424,9 +370,9 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 	}
 
 	var liveTasks, dormant, projects []row
-	nOverdue, nPend, nWork := 0, 0, 0
+	nWaiting, nPend, nWork := 0, 0, 0
 	for _, f := range rows {
-		nOverdue += len(f.Overdue)
+		nWaiting += len(f.Waiting)
 		nPend += f.Pending
 		// LOS CONTENEDORES LOCALES VAN APARTE. Son seis herramientas y playground: no son el día a día
 		// comprometido en Jira y mezclarlos ahoga lo que alguien del equipo está esperando. Se listan
@@ -444,8 +390,8 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 			liveTasks = append(liveTasks, f)
 		}
 	}
-	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d contenedor(es) local(es) · %d pregunta(s) vencida(s) · %d pendiente(s)\n",
-		time.Now().Format("2006-01-02"), len(rows)-len(projects), nWork, len(dormant), dormantDays, len(projects), nOverdue, nPend)
+	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d contenedor(es) local(es) · %d pendiente(s), %d esperando a alguien\n",
+		time.Now().Format("2006-01-02"), len(rows)-len(projects), nWork, len(dormant), dormantDays, len(projects), nPend, nWaiting)
 	if snap.MeasuredAt != "" {
 		fmt.Printf("  entrega según `make tareas-ramas` del %s", snap.MeasuredAt[:10])
 		if len(snap.Incomplete) > 0 {
@@ -499,8 +445,8 @@ func printRow(f row, detail bool) {
 	} else {
 		fmt.Printf("       · la pila está vacía\n")
 	}
-	for _, v := range f.Overdue {
-		fmt.Printf("       ⏰ pregunta vencida · %s\n", v)
+	for _, v := range f.Waiting {
+		fmt.Printf("       ⏳ espera a %s\n", v)
 	}
 	if f.Pending > 0 {
 		fmt.Printf("       ☐ %d pendiente(s)\n", f.Pending)
@@ -509,21 +455,20 @@ func printRow(f row, detail bool) {
 
 // ── anatomía: cómo está repartido el archivo ────────────────────────────────────────────────────
 
-// CINCO COSAS VIVEN EN UN ARCHIVO DE TAREA, y sólo tres tienen nombre propio hoy. La medición del
-// 2026-09-15 sobre las 40 abiertas: la mediana pesa 16 KB y está sana, pero 11 pasan de 40 KB y 6 de
-// 80 — y las grandes no son grandes por el Registro (que es append-only a propósito), sino porque el
-// ESTADO se volvió un diario: 91 de sus 621 secciones llevan fecha, y en la peor son 21 de 72.
+// CUATRO COSAS VIVEN EN UNA TAREA, y desde el 2026-09-23 cada una tiene su lugar:
 //
-//	1 ESTADO      dónde estoy hoy        → se REESCRIBE      «Si retomás esto sin contexto»
-//	2 PLAN        objetivo, cómo se ataca → se REESCRIBE      «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
-//	3 MATERIAL    recetas, consultas, datos de prueba, esquemas → se MANTIENE (se corrige, no se apila)
-//	4 REGISTRO    qué pasó ese día       → se APILA          «Registro»
-//	5 CONOCIMIENTO cómo funciona el sistema → GRADÚA a canon
+//	1 PLAN         objetivo, cómo se ataca            → se REESCRIBE, en el documento
+//	2 MATERIAL     recetas, consultas, datos de prueba → se MANTIENE, en el documento
+//	3 HISTORIA     qué pasó, qué se midió o se decidió → se APILA, en la pila (un bloque por hecho)
+//	4 CONOCIMIENTO cómo funciona el sistema            → GRADÚA a canon
 //
-// Lo que se apila en el estado casi siempre es 4 disfrazado de 3. ⚠ Pero tener fecha NO alcanza para
-// condenar una sección: «Cómo se prueba, de cero (verificado el 2026-08-20)» es MATERIAL vigente y la
-// fecha dice cuándo se comprobó. El test que sí discrimina es el mismo del repo: **si esto se mergea
-// mañana, ¿sigue siendo cierto?** Por eso acá no se mueve nada solo — se señala para que alguien mire.
+// Lo que más se equivoca es la 3 escrita como 2: una sección nueva con fecha en el documento («🔧 Segunda
+// pasada (13/9)»). Medido el 2026-09-15 sobre las 40 abiertas, antes de la pila: la mediana pesaba 16 KB,
+// 11 pasaban de 40 KB y 6 de 80, y lo que las engordaba eran 91 secciones con fecha de 621. ⚠ Pero tener
+// fecha NO alcanza para condenar una sección: «Cómo se prueba, de cero (verificado el 2026-08-20)» es
+// MATERIAL vigente y la fecha dice cuándo se comprobó. El test que sí discrimina es el mismo del repo:
+// **si esto se mergea mañana, ¿sigue siendo cierto?** Por eso acá no se mueve nada solo — se señala para
+// que alguien mire.
 const (
 	kbUncomfortable = 40 // por encima, una tarea deja de retomarse leyéndola entera
 	kbSevere        = 80
@@ -531,10 +476,9 @@ const (
 
 func showAnatomy(data string, tasks []task, ref string) int {
 	type row struct {
-		t                     task
-		kb, secs, dated, days int
-		pState, pReg, pPub    int
-		examples              []string
+		t                       task
+		kb, secs, dated, blocks int
+		examples                []string
 	}
 	var rows []row
 	for _, t := range tasks {
@@ -548,27 +492,11 @@ func showAnatomy(data string, tasks []task, ref string) int {
 		if err != nil {
 			continue
 		}
-		total := len(b)
-		f := row{t: t, kb: total / 1024}
-		iReg := len(t.Body)
-		if m := reRecord.FindStringIndex(t.Body); m != nil {
-			iReg = m[0]
+		f := row{t: t, kb: len(b) / 1024}
+		if events, err := taskcontext.Read(data, t.Slug); err == nil {
+			f.blocks = len(events)
 		}
-		iPub := len(t.Body)
-		if m := rePublic.FindStringIndex(t.Body); m != nil {
-			iPub = m[0]
-		}
-		recordEnd := iPub
-		if recordEnd < iReg {
-			recordEnd = len(t.Body)
-		}
-		cl := len(t.Body)
-		if cl == 0 {
-			cl = 1
-		}
-		f.pState, f.pReg, f.pPub = iReg*100/cl, (recordEnd-iReg)*100/cl, (len(t.Body)-iPub)*100/cl
-		f.days = len(reRecordDay.FindAllString(t.Body, -1))
-		for _, m := range reSectionHeading.FindAllStringSubmatch(t.Body[:iReg], -1) {
+		for _, m := range reSectionHeading.FindAllStringSubmatch(t.private(), -1) {
 			f.secs++
 			if reDateInTitle.MatchString(m[1]) {
 				f.dated++
@@ -590,9 +518,9 @@ func showAnatomy(data string, tasks []task, ref string) int {
 		return rows[i].kb > rows[j].kb
 	})
 
-	fmt.Printf("\n  ANATOMÍA · qué hay dentro del archivo de cada tarea, y qué parece estar fuera de lugar\n")
-	fmt.Printf("  Un archivo tiene ESTADO (se reescribe) · MATERIAL (se mantiene) · REGISTRO (se apila) ·\n")
-	fmt.Printf("  y lo que es CONOCIMIENTO gradúa a canon. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbUncomfortable)
+	fmt.Printf("\n  ANATOMÍA · qué hay dentro del documento de cada tarea, y qué parece estar fuera de lugar\n")
+	fmt.Printf("  El documento tiene PLAN (se reescribe) y MATERIAL (se mantiene); la HISTORIA va a la pila y lo que\n")
+	fmt.Printf("  es CONOCIMIENTO gradúa a canon. Más de %d KB ya cuesta retomarlo leyéndolo.\n\n", kbUncomfortable)
 	for _, f := range rows {
 		mark := " "
 		switch {
@@ -601,17 +529,14 @@ func showAnatomy(data string, tasks []task, ref string) int {
 		case f.kb >= kbUncomfortable:
 			mark = "🟠"
 		}
-		fmt.Printf("  %s #%-3d %-44s %3d KB · %2d secciones · estado %d%% / registro %d%% (%d día(s))\n",
-			mark, f.t.ID, truncate(f.t.Slug, 44), f.kb, f.secs, f.pState, f.pReg, f.days)
+		fmt.Printf("  %s #%-3d %-44s %3d KB · %2d secciones · %d bloque(s) en la pila\n",
+			mark, f.t.ID, truncate(f.t.Slug, 44), f.kb, f.secs, f.blocks)
 		if f.dated > 0 {
-			fmt.Printf("        ⚠ %d sección(es) con fecha DENTRO del estado — mirá si son hechos de un día (→ Registro)\n", f.dated)
+			fmt.Printf("        ⚠ %d sección(es) con fecha en el documento — mirá si son historia (→ un bloque de la pila)\n", f.dated)
 			for _, e := range f.examples {
 				fmt.Printf("           · %s\n", truncate(e, 86))
 			}
-			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a canon); no → Registro\n")
-		}
-		if f.kb >= kbUncomfortable && f.pReg > 50 {
-			fmt.Printf("        · el Registro es el %d%%: es append-only a propósito, pero a este tamaño conviene cerrar el mes viejo\n", f.pReg)
+			fmt.Printf("           el test: si esto se mergea mañana, ¿sigue siendo cierto? sí → queda (o gradúa a canon); no → la pila\n")
 		}
 	}
 	fmt.Println()
@@ -712,15 +637,12 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Fprintf(os.Stderr, "no hay tarea que matchee %q. `make tareas` las lista.\n", ref)
 		return 2
 	}
-	resumeText := t.resume()
-	recordDate, recordBlock := t.lastRecord()
 	contextInfo, contextErr := taskcontext.Read(data, t.Slug)
 	if contextErr != nil {
 		fmt.Fprintf(os.Stderr, "⚠ la pila de %s: %v\n", t.Slug, contextErr)
 		contextInfo = nil
 	}
 	contextInfo = taskcontext.Recent(contextInfo, 8)
-	overdue := overdueQuestions(*t)
 	pend, totalPend := openPendingItems(*t)
 	bit := worklogOf(data, t.ID)
 	var missing []string
@@ -742,9 +664,8 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if asJSON {
 		output := map[string]any{
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
-			"resume": resumeText, "recordDate": recordDate, "record": recordBlock,
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
-			"overdueQuestions": overdue, "pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
+			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
@@ -777,11 +698,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			continue
 		}
 		fmt.Printf("  %s · %s\n", event.At[:10], truncate(event.Title, 150))
-	}
-	// La sección de retoma del documento se muestra si la tarea la tiene; ya no se exige.
-	if resumeText != "" {
-		fmt.Println("\n  ── Si retomás esto sin contexto (del documento) ──")
-		fmt.Println("  " + strings.ReplaceAll(resumeText, "\n", "\n  "))
 	}
 
 	fmt.Print("\n  ── Ramas y entrega")
@@ -817,16 +733,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 	}
 
-	if len(overdue) > 0 {
-		fmt.Println("\n  ── Preguntas vencidas (más de 7 días sin respuesta) ──")
-		for _, a := range overdue {
-			q := a.Who
-			if q == "" {
-				q = "¿a quién?"
-			}
-			fmt.Printf("  ⏰ %s · %s — %s\n", a.Date, q, truncate(a.What, 120))
-		}
-	}
 	if len(pend) > 0 {
 		fmt.Printf("\n  ── Pendientes (%d de %d abiertos) ──\n", len(pend), totalPend)
 		for i, p := range pend {
@@ -834,14 +740,11 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 				fmt.Printf("  … y %d más\n", len(pend)-10)
 				break
 			}
-			fmt.Printf("  ☐ %s\n", truncate(p.What, 110))
+			fmt.Printf("  ☐ %s\n", truncate(plain(p.What), 110))
+			if p.WaitingOn != "" {
+				fmt.Printf("     ⏳ espera a %s\n", truncate(plain(p.WaitingOn), 100))
+			}
 		}
-	}
-
-	// El Registro del documento es historia de antes de la pila: se muestra si hay, no se exige.
-	if recordDate != "" {
-		fmt.Println("\n  ── Último Registro ──")
-		fmt.Printf("  %s\n  %s\n", recordDate, strings.ReplaceAll(truncate(recordBlock, 900), "\n", "\n  "))
 	}
 
 	fmt.Println("\n  ── Bitácora ──")

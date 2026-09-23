@@ -85,11 +85,42 @@ func TestAPureMoveIsNotATouchAndHistoryIsInherited(t *testing.T) {
 	if got["b"] != "2026-01-01" {
 		t.Errorf("b sigue en data/ y no se tocó desde el 01; dio %q", got["b"])
 	}
-	if on := r.l.TouchedOn("2026-01-03", false); on["a"] {
+	if on, _ := r.l.TouchedOn("2026-01-03", false); on["a"] {
 		t.Errorf("el día de la mudanza no tocó ninguna tarea; dio %v", on)
 	}
-	if on := r.l.TouchedOn("2026-01-02", false); !on["a"] {
+	if on, _ := r.l.TouchedOn("2026-01-02", false); !on["a"] {
 		t.Errorf("el 02 sí se trabajó en a; dio %v", on)
+	}
+}
+
+// Un barrido declarado en el commit (SweepTrailer) no es trabajo en las tareas que toca: ni las vuelve
+// tocadas para el cierre ni las despierta para la agenda. Y si ese mismo día hubo trabajo de verdad, la
+// tarea sí está tocada.
+func TestASweepDeclaredInTheCommitIsNotATouch(t *testing.T) {
+	r := newToyRepo(t)
+	r.write("tablero/tasks/a/task.md", doc("A"))
+	r.write("tablero/tasks/b/task.md", doc("B"))
+	r.commit("2026-03-01", "nacen")
+	r.write("tablero/tasks/a/task.md", doc("A")+"ruta nueva\n")
+	r.write("tablero/tasks/b/task.md", doc("B")+"ruta nueva\n")
+	r.git("2026-03-05", "add", "-A")
+	r.git("2026-03-05", "commit", "-q", "-m", "barrido de rutas", "-m", "Sin-avance: sólo se reapuntaron rutas")
+	r.write("tablero/tasks/b/task.md", doc("B")+"ruta nueva\nun avance de verdad\n")
+	r.commit("2026-03-05", "se trabaja en b")
+
+	touched, swept := r.l.TouchedOn("2026-03-05", false)
+	if touched["a"] || swept["a"] != "sólo se reapuntaron rutas" {
+		t.Errorf("a sólo fue barrida: touched=%v swept=%v", touched, swept)
+	}
+	if !touched["b"] || swept["b"] != "" {
+		t.Errorf("b además se trabajó ese día: touched=%v swept=%v", touched, swept)
+	}
+	got := r.l.LastTouches()
+	if got["a"] != "2026-03-01" {
+		t.Errorf("el barrido no despierta a a: su último toque es del 01; dio %q", got["a"])
+	}
+	if got["b"] != "2026-03-05" {
+		t.Errorf("b se trabajó el 05; dio %q", got["b"])
 	}
 }
 
@@ -141,7 +172,7 @@ func TestTheWorkingTreeCountsEditsButNotAStagedMove(t *testing.T) {
 	if got := r.l.LastTouches(); got["a"] != "2026-04-01" {
 		t.Errorf("un git mv sin commitear no es un toque; dio %q", got["a"])
 	}
-	if on := r.l.TouchedOn(today, true); on["a"] {
+	if on, _ := r.l.TouchedOn(today, true); on["a"] {
 		t.Errorf("hoy no se trabajó en a, sólo se movió; dio %v", on)
 	}
 

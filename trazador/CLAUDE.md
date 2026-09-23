@@ -266,32 +266,30 @@ así que lo valida el tablero y no una copia de sus reglas.
 
     make trazador-sql TARGET=prod SQL='SELECT …' BLOQUE=<tarea>
 
+Lo que mediste va a la pila como ese bloque —un hecho que sostiene una decisión o descarta un camino es
+un bloque—, y la RECETA para volver a comprobarlo, si hace falta mantenerla, va a **«Cómo se comprueba —
+y el MATERIAL»** del documento ([`tablero/CLAUDE.md`](../tablero/CLAUDE.md)).
+
 Y con `MD=1` sigue saliendo ya escrito como anotación, con la fecha real del día, la evidencia y el
-comando que la reproduce adentro:
+comando que la reproduce adentro, para un documento que NO es una tarea —un `CLAUDE.md`, una trampa—:
 
     make trazador-sql TARGET=prod MD=1 SQL='SELECT …'
 
-Eso produce una anotación `> **MEDICIÓN · fecha**` que va, **tal cual**, a una de dos secciones del
-`.md` de la tarea ([`tablero/CLAUDE.md`](../tablero/CLAUDE.md)):
-
-| lo que mediste | dónde va |
-|---|---|
-| un hecho que sostiene una decisión o descarta un camino | **«Lo que está decidido»** o **«Lo que se evaluó y NO se eligió»** |
-| la receta de cómo comprobar que esto sigue siendo cierto | **«Cómo se comprueba — y el MATERIAL»** |
+*(Hasta el 2026-09-23 esa anotación se pegaba en el `.md` de la tarea, en «Lo que está decidido» o en
+«Cómo se comprueba». Ese día la historia de las tareas pasó a la pila, y el lint del tablero frena una
+anotación nueva en una tarea.)*
 
 **Por qué se pega con el comando y no sólo con la conclusión:** una medición sin su comando envejece sin
 avisar — nadie sabe cómo volver a tomarla, así que nadie la desmiente. Con el comando adentro, mañana se
 vuelve a correr y **se puede demostrar que dejó de ser cierta**, que es lo único que distingue una
 medición de una creencia con números.
 
-Y no es sólo una convención de lectura: **el tablero lo parsea**. Las líneas de cita que siguen al
-marcador son el `Como` de la anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y
-*contra qué ambiente*, que es lo que la tarjeta pinta (`tablero/server/internal/store/sources.go`). El
-ambiente sale **sólo** de un `TARGET=` escrito en el comando — nunca de la prosa, porque «en producción
-son 14.160» menciona un ambiente sin decir dónde se midió. Una anotación cuya continuación es prosa
-explicativa en vez del comando **queda sin fuentes**, y eso es exactamente lo que hoy pasa en el 86 %
-de ellas (medido el 2026-09-18: 350 anotaciones, 308 con continuación, **51** con una fuente
-reconocible).
+Y no es sólo una convención de lectura: **el validador de la pila lo exige**. Un bloque con una corrida
+la lleva en su caja ` ```trazador ` —o ` ```sql prod `—, con el ambiente en su `TARGET=`, y debajo su
+`Resultado:`. El ambiente sale **sólo** de ahí, nunca de la prosa, porque «en producción son 14.160»
+menciona un ambiente sin decir dónde se midió. Cuando se escribía a mano, lo que quedaba debajo era
+prosa en vez del comando en el 86 % de los casos (medido el 2026-09-18 sobre las anotaciones de
+entonces: 350, 308 con continuación, **51** con una fuente reconocible).
 
 Y el tipo de anotación es siempre `MEDICIÓN`, a propósito: eso sale de correr algo. Una `DECISIÓN` o un
 `RIESGO` los escribe una persona.
@@ -457,9 +455,10 @@ el `status` de una etapa sale de ESTA traza, que fue por un ramal, y mostrarlo e
 un camino que no ocurrió. El vocabulario de ramales ya estaba compartido en `ramales.json` — y desde el
 2026-09-18 el `-chequeo` lo verifica en vez de suponerlo.
 
-**La corrida se puede pegar en una tarea sin reescribirla:** `MD=1` en `-ureq`, `-buscar` y `-sql`
-emite la anotación que consume el tablero, con la fecha real, la evidencia y el comando adentro. El
-tipo es siempre `MEDICIÓN`: eso sale de correr algo, y una `DECISIÓN` la escribe una persona.
+**La corrida entra sola a una tarea:** `BLOQUE=<id|slug>` en `-ureq`, `-buscar` y `-sql` la agrega como
+bloque a su pila, con el comando y lo que dio; `MD=1` emite la anotación, para un documento que no es
+una tarea. El tipo es siempre `MEDICIÓN`: eso sale de correr algo, y una `DECISIÓN` la escribe una
+persona.
 
 **(2026-08-28)** Deriva = commits propios de este playground (el árbol de 39 pasos «DÓNDE QUEDÓ» dentro
 de la traza, y las etapas nuevas). El doc describe la herramienta; su evolución es autodocumentada en

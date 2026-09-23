@@ -26,6 +26,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -38,6 +39,7 @@ import (
 	"creditop/tablero/server/internal/guard"
 	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
+	"creditop/tablero/server/internal/taskcontext"
 )
 
 // Task es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.
@@ -56,36 +58,30 @@ type Task struct {
 	File     string   `json:"file"`
 }
 
-// DocumentJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
-// esta forma se deriva al pedirla, así que workers o un script reciben estructura sin crear un
-// sidecar que pueda quedar viejo.
+// DocumentJSON es la proyección tipada de una tarea: el documento y su pila. El Markdown y el JSONL
+// siguen siendo las fuentes; esta forma se deriva al pedirla, así que workers o un script reciben
+// estructura sin crear un sidecar que pueda quedar viejo.
+//
+// ⚠ v3 desde el 2026-09-23: se fueron `state` (la retoma y el próximo paso) y las anotaciones, que ese
+// día pasaron del documento a la pila, y entró `stack`, la pila entera, del bloque más nuevo al más viejo.
 type DocumentJSON struct {
-	SchemaVersion string          `json:"schemaVersion"`
-	Task          Task            `json:"task"`
-	State         StateJSON       `json:"state"`
-	Work          WorkJSON        `json:"work"`
-	Sections      []string        `json:"sections"`
-	Publication   PublicationJSON `json:"publication"`
-}
-
-type StateJSON struct {
-	Resume   string `json:"resume"`
-	NextStep string `json:"nextStep"`
+	SchemaVersion string              `json:"schemaVersion"`
+	Task          Task                `json:"task"`
+	Work          WorkJSON            `json:"work"`
+	Stack         []taskcontext.Event `json:"stack"`
+	Sections      []string            `json:"sections"`
+	Publication   PublicationJSON     `json:"publication"`
 }
 
 type CountsJSON struct {
 	OpenPending   int `json:"openPending"`
 	ClosedPending int `json:"closedPending"`
-	Measurements  int `json:"measurements"`
-	Decisions     int `json:"decisions"`
-	Questions     int `json:"questions"`
-	Risks         int `json:"risks"`
+	Blocks        int `json:"blocks"`
 }
 
 type WorkJSON struct {
-	Counts      CountsJSON          `json:"counts"`
-	Pending     []store.PendingItem `json:"pending"`
-	Annotations []store.Annotation  `json:"annotations"`
+	Counts  CountsJSON          `json:"counts"`
+	Pending []store.PendingItem `json:"pending"`
 }
 
 type PublicationJSON struct {
@@ -146,11 +142,10 @@ func sectionTitles(body string) []string {
 	return out
 }
 
-func documentJSON(t Task, body string, includeDraft bool) DocumentJSON {
+func documentJSON(t Task, body string, stack []taskcontext.Event, includeDraft bool) DocumentJSON {
 	private, publishable := separateBody(body)
 	pending := store.Pending(private)
-	annotations := store.Annotations(private)
-	counts := CountsJSON{}
+	counts := CountsJSON{Blocks: len(stack)}
 	for _, p := range pending {
 		if p.Done {
 			counts.ClosedPending++
@@ -158,17 +153,8 @@ func documentJSON(t Task, body string, includeDraft bool) DocumentJSON {
 			counts.OpenPending++
 		}
 	}
-	for _, a := range annotations {
-		switch a.Kind {
-		case "medicion":
-			counts.Measurements++
-		case "decision":
-			counts.Decisions++
-		case "pregunta":
-			counts.Questions++
-		case "riesgo":
-			counts.Risks++
-		}
+	if stack == nil {
+		stack = []taskcontext.Event{}
 	}
 	violations := []map[string]string{}
 	if publishable != "" {
@@ -178,17 +164,13 @@ func documentJSON(t Task, body string, includeDraft bool) DocumentJSON {
 	}
 	hasQA := publishable != "" && reQA.MatchString(publishable)
 	doc := DocumentJSON{
-		SchemaVersion: "tablero.task.v2",
+		SchemaVersion: "tablero.task.v3",
 		Task:          t,
-		State: StateJSON{
-			Resume:   store.Resume(private),
-			NextStep: store.NextStep(private),
-		},
 		Work: WorkJSON{
-			Counts:      counts,
-			Pending:     pending,
-			Annotations: annotations,
+			Counts:  counts,
+			Pending: pending,
 		},
+		Stack:    stack,
 		Sections: sectionTitles(private),
 		Publication: PublicationJSON{
 			Available:    publishable != "",
@@ -365,6 +347,25 @@ func showLint(path string) int {
 			failure("la publicable no pasa el guard (%s): %q", v["what"], v["found"])
 		}
 	}
+	// La historia va a la PILA, no al documento (2026-09-23): una anotación, un `## Registro`, una
+	// sección de retoma o un marcador de canon NUEVOS fallan y dicen adónde van. Los que ya estaban en el
+	// último commit son de una tarea que todavía no se migró: avisan, para no frenar a quien la edita por
+	// otra cosa. Se cuenta por qué es y de qué fecha, no por línea, porque las líneas se corren.
+	private := body
+	if loc := rePublic.FindStringIndex(body); loc != nil {
+		private = body[:loc[0]]
+	}
+	offset := strings.Count(string(b)[:len(b)-len(body)], "\n")
+	before := datedRecordsAtHead(path)
+	for _, r := range store.DatedRecords(private) {
+		where := fmt.Sprintf("línea %d: %s", offset+r.Line, r.What)
+		if before[r.What] > 0 {
+			before[r.What]--
+			warns("%s — ya estaba antes de la pila de bloques; cuando se toque, va a la pila", where)
+			continue
+		}
+		failure("%s — la historia va a la pila como bloque, no al documento: `make tarea-bloque N=%d ARCHIVO=<bloque.md>`", where, t.ID)
+	}
 	for _, a := range warnings {
 		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(path), a)
 	}
@@ -376,6 +377,27 @@ func showLint(path string) int {
 		fmt.Fprintf(os.Stderr, "  ✗ %s\n", f)
 	}
 	return 1
+}
+
+// datedRecordsAtHead cuenta los registros con fecha que el documento tenía en el último commit, por qué
+// son (`store.DatedRecord.What`). Un archivo nuevo, o fuera de git, no tenía ninguno.
+func datedRecordsAtHead(path string) map[string]int {
+	out := map[string]int{}
+	old, err := exec.Command("git", "-C", filepath.Dir(path), "show", "HEAD:./"+filepath.Base(path)).Output()
+	if err != nil {
+		return out
+	}
+	body := string(old)
+	if parts := strings.SplitN(body, "---", 3); len(parts) == 3 {
+		body = parts[2]
+	}
+	if loc := rePublic.FindStringIndex(body); loc != nil {
+		body = body[:loc[0]]
+	}
+	for _, r := range store.DatedRecords(body) {
+		out[r.What]++
+	}
+	return out
 }
 
 var reDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?)?$`)
@@ -523,7 +545,12 @@ func showOne(ref string, asJSON, includeContent bool) int {
 	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(documentJSON(*chosen, body, includeContent))
+		stack, err := taskcontext.Read(dataDir(), chosen.Slug)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "la pila de %s no se pudo leer: %v\n", chosen.Slug, err)
+			return 2
+		}
+		_ = enc.Encode(documentJSON(*chosen, body, stack, includeContent))
 		return 0
 	}
 	fmt.Printf("\n  #%d  %s\n  %s · %s%s\n", chosen.ID, chosen.Title, chosen.Slug, chosen.Stage,
