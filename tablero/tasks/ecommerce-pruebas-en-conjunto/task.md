@@ -9,23 +9,6 @@ jira_title: "Ecommerce: pruebas en conjunto de todo el flujo"
 ramas: feat/ecommerce-checkout-por-settings
 ---
 
-## Si retomás esto sin contexto, empezá acá
-
-**Qué se busca:** probar el canal ecommerce de punta a punta, con lo que cada uno hizo por su lado, y
-poder elegir **comercio por comercio** si el checkout de la tienda entra al wizard nuevo o sigue en el
-monolito. Es la continuación de CORE-30 (tarea `ecommerce-stateless`), que llega hasta el listado,
-el webhook y el retorno.
-
-**Estado real (23/9):** el checkout del monolito (`legacy-application#169`, en `develop`) rebota al
-wizard a **todo** el que no es Corbeta. `legacy-application#201` (abierto contra `develop`) lo condiciona
-a las dos filas de `settings` que ya decidían el flujo de asesor. QA arma las URLs de prueba con la
-página [Contrato de checkout](https://claude.ai/artifact/3SeV7vVMBN2DFqMeVueGAb): 26 comercios con su
-sucursal de QA, entrada por `aliados` u `originaciones`, y el destino de cada comercio según `settings`.
-
-**Ya comprobado:** el destino del rebote NO lo decide el código sino `NEW_FRONTEND_BASE_URL` del
-servicio del monolito en dev, y hoy apunta a `originaciones.dev` (el wizard de `develop`), no a QA.
-La página del artefacto no puede recibir el webhook ni leer el retorno: para eso queda webhook.site.
-
 ## Pendientes
 
 - [ ] **Mergear `legacy-application#201` a `develop`**; termina cuando el checkout de un comercio no
@@ -72,24 +55,6 @@ el número de pedido a la URL, `VtexNotifier`).
 | `new_frontend_allied_branches` | `{"hashes": [...]}` | sucursales, por hash |
 | `new_frontend_allieds` | `{"<allied_id>": true}` | todas las sucursales de un comercio |
 
-## Lo que está decidido
-
-> **DECISIÓN · 2026-09-23** — el checkout usa las MISMAS dos filas de `settings` que el flujo de asesor,
-> no una nueva: la regla ya existía copiada en dos controladores y pasa a un solo método.
-
-> **DECISIÓN · 2026-09-23** — Corbeta no se toca: sigue saliendo por su camino antes de mirar `settings`.
-
-> **DECISIÓN · 2026-09-23** — para ecommerce conviene habilitar por **hash de sucursal**: el comercio
-> entero en `new_frontend_allieds` mueve también el flujo de asesor de sus sucursales físicas.
-
-## Riesgos
-
-> **RIESGO · 2026-09-23** — al desplegar #201 en `develop`, el checkout de todos los comercios que no
-> son Corbeta vuelve al monolito hasta que se agregue su hash: la entrada por `aliados` deja de rebotar.
-
-> **RIESGO · 2026-09-23** — Creditop (`24`) está en `true` en `new_frontend_allieds` en dev, pero es de
-> Corbeta en el código: la página de QA lo muestra «→ originaciones» y en realidad sale por Corbeta.
-
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
 **A dónde rebota `aliados`**, sin crear nada (el rebote ocurre antes de leer el contrato):
@@ -98,17 +63,12 @@ el número de pedido a la URL, `VtexNotifier`).
 curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://aliados.dev.creditop.com/checkout/13874eb6?o=x&p=x&t=x&u=x&ps=x&config=x"
 ```
 
-> **MEDICIÓN · 2026-09-23** — `302 https://originaciones.dev.creditop.com/ecommerce/13874eb6/checkout?…`:
-> rebota al wizard de `develop`, no a QA.
-
 **Qué dice `settings`** (base de dev/QA; sólo estas dos claves: la tabla guarda credenciales):
 
 ```sql
 SELECT `key`, value, updated_at FROM settings
 WHERE `key` IN ('new_frontend_allied_branches','new_frontend_allieds')
 ```
-
-> **MEDICIÓN · 2026-09-23** — 17 hashes (uno repetido), ninguno de ecommerce; `{"24": true, "26": true}`.
 
 **La regla**, sin base: `php vendor/bin/phpunit tests/Unit/NewFrontendUrlServiceAllowsTest.php
 tests/Unit/NewFrontendUrlServiceEcommerceCheckoutTest.php` desde `legacy-application` → 13/13.
