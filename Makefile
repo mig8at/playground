@@ -123,7 +123,7 @@ bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comand
 
 tarea-context-add: ## @dia ⚠ ESCRIBE un hito de retoma validado en JSONL. N=<id|slug> EVENTO=<archivo.json> · [SECO=1]
 	@test -n "$(N)" -a -n "$(EVENTO)" || { echo "faltan N= y EVENTO=  ·  ej: make tarea-context-add N=84 EVENTO=tablero/docs/task-context-event.example.json"; exit 2; }
-	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -evento ../../$(EVENTO) $(if $(SECO),-n)
+	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -evento $(if $(filter /%,$(EVENTO)),$(EVENTO),../../$(EVENTO)) $(if $(SECO),-n)
 
 tarea-context: ## @dia los últimos hitos estructurados para retomar. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
