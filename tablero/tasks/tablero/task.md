@@ -112,9 +112,10 @@ decisiones y el plan por pasos están en «Frente: la pila de bloques». **Pasos
 bloque existe —formato con su validador, `make tarea-bloque`, la lista de repos consultada en
 `tools/repos.py` y la vista— (commit `64873202`); los 37 hitos de las 22 pilas son bloques, con el
 formato de hitos retirado del código (commit `935cbdbc`); y `make cierre`, `make hoy` y `make retomar`
-leen la pila y ya no piden un «próximo paso» (commit `4c72a13a`). Cada paso quedó contado en un bloque
-de esta tarea. Quedan el paso 4 —que harness, trazador y consultas DB agreguen su bloque— y el 5, a
-decidir: si lo que queda en el Markdown (anotaciones, Registro, la retoma) pasa a bloques.
+leen la pila y ya no piden un «próximo paso» (commit `4c72a13a`); y el harness, el trazador y
+`tablero-db` agregan su propio bloque con `BLOQUE=<tarea>` (commit `42b388ba`). Cada paso quedó contado
+en un bloque de esta tarea. Queda el paso 5, a decidir: si lo que queda en el Markdown (anotaciones,
+Registro, la retoma) pasa a bloques, y con eso el `resume`/`nextStep` de `make tarea-json`.
 
 > **MEDICIÓN · 2026-09-23** — el cierre del día salía 1 por dos avisos falsos, y ninguno era trabajo sin registrar. (1) #46 y #47 estaban tocadas sólo por los barridos de rutas de la fase 3 y la mudanza a carpetas, y su entrada del día declaraba «sin avance»: la bitácora quedaba eximida, pero se les exigía reescribir una retoma que no había cambiado. Ahora el marcador exime también esa pieza (`resumeState`, con prueba de que sin el marcador la misma retoma se vuelve a reclamar). (2) `microservices/customer-service/main` y `microservices/financial-health-service/main` salían como ramas sin dueño, y el pulso las había visto por un `pull --tags origin main: Fast-forward`: `isBaseBranch` partía «repo/rama» en la primera barra y leía la rama «customer-service/main». Ahora la base se decide antes de unir repo y rama (`dayBranches`, con prueba del repo con barra y de una rama `fix/main` que no es base). Con los dos arreglos, `make cierre` da «todo en orden» y sale 0.
 > make cierre; cd tablero/server && go test ./cmd/closeout
@@ -355,7 +356,7 @@ asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
 colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
 llegan.
 
-## Frente: la pila de bloques (diseño acordado el 2026-09-23; pasos 1, 2 y 3 hechos)
+## Frente: la pila de bloques (diseño acordado el 2026-09-23; pasos 1 a 4 hechos)
 
 **Objetivo.** Pedido de Miguel: que la tarea sea una pila de BLOQUES de documentación que entran con el
 tiempo, sin una estructura fija más que el bloque mismo. Una tarea limpia está vacía.
@@ -401,6 +402,10 @@ bloques.
 ## Registro
 
 ### 2026-09-23
+
+Paso 4 de la pila de bloques: el harness, el trazador y `tablero-db` agregan su bloque con `BLOQUE=`, por
+`make tarea-bloque` y con su `via`. La prueba de punta a punta contra una copia del tablero cazó que
+`layout.Tools` buscaba `tools/` al lado de los datos; ahora, si no está, lo busca desde donde se corre.
 
 Paso 3 de la pila de bloques: el cierre pide un bloque del día y la bitácora, sin retoma reescrita ni
 «próximo paso»; un bloque fechado ese día vuelve tocada a una tarea salvo que sea migrado. La agenda
