@@ -61,3 +61,11 @@ test('un archivo enlaza a GitHub en el commit fijado, dentro de su carpeta si la
     'https://github.com/Creditop-SAS/legacy-backend/pull/1140');
   assert.equal(repoHref(inlineParts('[x](repo:desconocido@abc1234/a.go)')[0], repos), '', 'sin la URL del repo no hay href');
 });
+
+test('un material de texto que es una tabla de Markdown se pinta como tabla; uno que no, queda como texto', () => {
+  const table = parseBlockBody('```text\n| llamada | tiempo |\n|---|---|\n| `lenders-v2` | **31,6 s** |\n```');
+  assert.deepEqual(table, [{ type: 'table', rows: [['llamada', 'tiempo'], ['`lenders-v2`', '**31,6 s**']] }]);
+  const text = parseBlockBody('```text\n| una línea suelta con barras |\nuna que no\n```');
+  assert.equal(text[0].type, 'code');
+  assert.equal(parseBlockBody('```json\n| a | b |\n| c | d |\n```')[0].type, 'code');
+});

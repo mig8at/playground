@@ -1870,6 +1870,11 @@ function documentAction(id) {
                   <p v-if="part.result" class="block-result"><span class="block-result-label">Resultado:</span>{{ ' ' }}<BlockText :text="part.result" v-bind="blockLinks" @block="goToBlock" /></p>
                 </div>
                 <pre v-else-if="part.type === 'code'" class="block-code block-material">{{ part.code }}</pre>
+                <table v-else-if="part.type === 'table'" class="block-table">
+                  <tr v-for="(row, rowIndex) in part.rows" :key="rowIndex">
+                    <component :is="rowIndex === 0 ? 'th' : 'td'" v-for="(cell, cellIndex) in row" :key="cellIndex"><BlockText :text="cell" v-bind="blockLinks" @block="goToBlock" /></component>
+                  </tr>
+                </table>
                 <ul v-else-if="part.type === 'list'" class="block-list">
                   <li v-for="(item, itemIndex) in part.items" :key="itemIndex"><BlockText :text="item" v-bind="blockLinks" @block="goToBlock" /></li>
                 </ul>
@@ -2255,6 +2260,11 @@ function documentAction(id) {
 .block-command-label { margin-bottom: 5px; color: var(--mut); font-size: 11px }
 .block-code { margin: 0; color: var(--txt); font: 11.5px/1.5 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere }
 .block-material { margin: 2px 0 9px; padding: 8px 10px; background: var(--panel2) }
+/* Una tabla son líneas por FILA, no una grilla de celdas (regla 4 del CLAUDE.md raíz); el encabezado se
+   distingue en gris, no con fondo. */
+.block-table { margin: 2px 0 9px; border-collapse: collapse; font-size: 12.5px; line-height: 1.45 }
+.block-table th, .block-table td { padding: 4px 12px 4px 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line) }
+.block-table th { color: var(--mut); font-weight: 600 }
 .task-context-entry .block-result { margin: 6px 0 0; font-size: 12.5px }
 .block-result-label { color: var(--mut) }
 .task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }

@@ -10,6 +10,19 @@ const FENCE_CLOSE = /^```[ \t]*$/;
 const COMMANDS = new Set(['harness', 'trazador', 'sql', 'sh']);
 const RESULT = /^Resultado:\s*/;
 const ITEM = /^[-*]\s+(.*)$/;
+const TABLE_ROW = /^\|.*\|$/;
+
+// Un material ` ```text ` que es una tabla de Markdown se pinta como tabla: así quedaron las tablas del
+// Registro y de las anotaciones que el 2026-09-23 pasaron a la pila, y en una caja monoespaciada el
+// `**negrita**` de sus celdas se leía crudo. Las celdas pasan por el mismo parser de línea que la prosa.
+function tableOf(code) {
+  const lines = code.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length < 2 || !lines.every(l => TABLE_ROW.test(l))) return null;
+  const rows = lines
+    .filter(l => !/^\|[\s:|-]+\|$/.test(l))
+    .map(l => l.slice(1, -1).split('|').map(c => c.trim()));
+  return rows.length ? rows : null;
+}
 
 // El rótulo de un comando dice con qué se corrió y contra qué: el ambiente sale de su TARGET=, que el
 // validador exige, o del ambiente de la consulta. También vale `E2E_TARGET=`, la variable con que se
@@ -43,7 +56,8 @@ export function parseBlockBody(body) {
       const [, lang, arg = ''] = open;
       const code = lines.slice(i + 1, end).join('\n').trim();
       if (!COMMANDS.has(lang)) {
-        parts.push({ type: 'code', lang, code });
+        const rows = lang === 'text' ? tableOf(code) : null;
+        parts.push(rows ? { type: 'table', rows } : { type: 'code', lang, code });
         i = end;
         continue;
       }
