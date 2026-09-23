@@ -23,10 +23,10 @@ código, porque el wizard no toca la base) y **tres** de frontend (pantalla, ent
 listado). El filtro va sólo en el front.
 
 Ya comprobado (no repetir): en prod esto **nunca pasó de una prueba** — 12 solicitudes, todas de abril
-de 2026, todas de un comercio y todas paradas en el estado con que nacen. Y los dos extremos **no se
-hablan**: la app pinta un código generado en el propio dispositivo, de formato distinto al que el
-receptor web acepta. O sea, esto no es un port 1:1 de algo que funciona: es reconstruirlo y, de paso,
-decidir quién emite el código de verdad.
+de 2026, todas de un comercio y todas paradas en el estado con que nacen. El emisor es
+**self-manager-api**, y la app de producción (`main-pro`) ya lo consume desde abril: los dos extremos
+SÍ se hablan. *(Hasta el 2026-09-23 esto decía que la app generaba el código en el dispositivo: se había
+leído `main` de creditop_mobile, que no es la rama que sale a producción.)*
 
 Validación: la receta y las consultas están en «Cómo se comprueba».
 
@@ -39,19 +39,16 @@ sola entidad— cierra en local con una sesión de asesor real, queda automatiza
 con capturas: el conmutador aparece en las dos pantallas. El bloqueo restante es el contrato del
 emisor productivo, no una validación técnica pendiente.
 
-**El próximo paso es:** cerrar con Laura Cabra el contrato del código: un emisor persistente, cuatro
-dígitos, vencimiento y la resolución autoritativa de producto a `lender_id`. Ya no hay un bloqueo de
-identidad: la app entrega el mismo `user_id` legado que el canje necesita. Falta decidir quién escribe
-ese registro y contra qué comercio/entidad se prueba.
+**El próximo paso es:** que se mergee #1049 (Colombia) y que el `AA0000` de self-manager-api llegue de
+su `develop` a `main` — hoy `main` todavía emite cuatro dígitos; el wizard acepta los dos. Después,
+apagar el camino viejo en aliados.
 
 ## Pendientes
 
-- [ ] Confirmar quién emite el código, su vencimiento y el formato de cuatro dígitos; termina cuando
-      haya un emisor que persista `user_id`, comercio y `lender_id` para que el canje lo consulte.
-      Depende de: Laura Cabra — y del equipo dueño del servicio de códigos.
-- [ ] Confirmar si el piloto es Pullman → CrediPullman; termina cuando esté dicho contra qué comercio y
-      entidad se va a probar. La configuración actual es aliado 94 → lender 77, pero no es una decisión
-      de producto todavía.
+- [x] Confirmar quién emite el código — **self-manager-api**: persiste `user_id`, `merchant_id` y
+      `lender_id`, vence el último día del mes y la app de producción ya lo llama (2026-09-23).
+- [x] Confirmar el piloto — **no hay piloto**: tiene que servir para todos los comercios, y el wizard
+      ya no tiene allowlist (sólo el corte de Colombia) (2026-09-23).
 - [x] Decidir dónde filtra el listado — **va sólo en el front**, en el loader, antes de consultar
       preaprobados (2026-09-21).
 - [x] Elegir cómo sabe el front que esta solicitud vino por código — sesión del wizard con
@@ -68,8 +65,11 @@ ese registro y contra qué comercio/entidad se prueba.
       consultas de preaprobado (2026-09-22).
 - [x] Ofrecer el código sólo en comercios de Colombia — conmutador oculto, pantalla del código con
       redirección y canje rechazado fuera de Colombia; PR aparte contra `qa` (2026-09-23).
-- [ ] Definir qué se hace cuando la entidad del código NO está en el listado; termina cuando esté
-      elegido entre mostrar todo (lo que hace hoy) o avisar.
+- [x] Definir qué se hace cuando la entidad del código NO está en el listado — lo evita el emisor: la
+      app sólo pide código para una entidad de un preaprobado de ESE comercio. Si igual pasa, el
+      listado muestra todas, como hoy (2026-09-23).
+- [ ] Apagar el camino viejo en aliados, recién con #1049 mergeado y el `AA0000` en `main` de
+      self-manager-api.
 
 ## Objetivo
 
@@ -214,6 +214,25 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 
 ## Lo que está bloqueado
 
+> **HALLAZGO · 2026-09-23** — **el emisor es self-manager-api y la app ya lo consume.** En `main-pro`
+> de creditop_mobile, `LenderCodeDataSource` hace `POST /self-manager-api/v1/generate/code` con
+> `merchant_id` y `lender_id` (entró el 2026-04-08, TT-135: coincide con las doce solicitudes de abril).
+> El `lender_id` es el `lendingProductId` del preaprobado, que es el `lenders.id` (pre-approvals-service
+> lo usa así, incluida la reescritura de Welli 141/142 → 23). El servicio guarda el código con dueño,
+> comercio y entidad, lo reusa mientras esté activo, vence el **último día del mes** en que se generó, y
+> la consulta es por `merchant_id` + código: un código no sirve en otro comercio.
+> ⚠ El formato `AA0000` está en `develop` del servicio; `main` todavía emite **cuatro dígitos**. El
+> wizard acepta los dos desde `c0efac64`.
+> ⚠ El servicio no valida que la entidad esté habilitada en el comercio: esa garantía la da la app,
+> que sólo pide código para un preaprobado que mostró en ese comercio.
+
+> **DECISIÓN · 2026-09-23 · Miguel** — no hay piloto: el camino tiene que servir para todos los
+> comercios. Y el caso «la entidad del código no está en el listado» lo resuelve el emisor, no el
+> wizard: se deja como está (se muestra el listado completo).
+
+*(Las tres preguntas y el hallazgo de abajo quedaron contestados por lo de arriba; se dejan como
+historia de cómo se llegó.)*
+
 > **PREGUNTA · 2026-09-21 · quien pidió la migración** — ¿quién emite el código que el cliente
 > presenta? La app lo genera en el dispositivo y no llama a ningún servicio de códigos; el receptor
 > espera cuatro dígitos y la app muestra once caracteres. Hoy no hay un emisor que una los dos lados.
@@ -271,8 +290,7 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 
 ## Lo que NO entra
 
-- La emisión del código (el servicio generador y lo que la app tenga que hacer): es contraparte, no
-  esta tarea.
+- La emisión del código: la hace self-manager-api y la app ya lo llama; es contraparte, no esta tarea.
 - Cambiar lo que la app muestra hoy.
 - Tocar la consulta de preaprobados de la app.
 - Reescribir el listado de entidades: se le agrega un filtro, no se rehace.
@@ -298,10 +316,12 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > SELECT a.name AS comercio, l.name AS entidad, ur.user_request_status_id AS estado, count(*) AS n, max(ur.created_at) AS ultima FROM user_request_records urr JOIN user_requests ur ON ur.id = urr.user_request_id LEFT JOIN allieds a ON a.id = ur.allied_id LEFT JOIN lenders l ON l.id = ur.lender_id WHERE urr.comment = "Solicitud creada desde validacion de codigo cliente." GROUP BY 1,2,3 ORDER BY n DESC
 > ```
 
-**Que la app genera el código sola** (se comprueba leyendo, y por la ausencia de llamadas):
+**Que la app le pide el código a self-manager-api** — ⚠ en `main-pro`, la rama de producción de la
+app; `main` todavía tiene el generador local y por eso se concluyó al revés:
 
-    git -C ~/Desktop/CREDITOP/github/creditop_mobile grep -n '_generateSerialCode' origin/main
-    git -C ~/Desktop/CREDITOP/github/creditop_mobile grep -rniE 'generate/code|generate-services' origin/main   # vacío
+    git -C ~/Desktop/CREDITOP/github/creditop_mobile grep -n 'generate/code' origin/main-pro -- '*.dart'
+    git -C ~/Desktop/CREDITOP/github/self-manager-api show origin/develop:internal/core/domain/code.go   # AA0000, vence fin de mes
+    git -C ~/Desktop/CREDITOP/github/self-manager-api grep -n plainCodeLength origin/main                 # main: 4 dígitos
 
 **Que el filtro no existe todavía en el listado nuevo:**
 
@@ -449,6 +469,13 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 
 ## Registro
 
+### 2026-09-23 · el contrato del código
+Miguel contestó las tres preguntas abiertas: el emisor es self-manager-api, no hay piloto (sirve para
+todos los comercios) y el caso de la entidad fuera del listado lo evita el emisor. Se verificó contra el
+código antes de escribirlo, y eso corrigió un error de la tarea: la app no genera el código en el
+teléfono, lo pide al servicio desde abril. Se había leído la rama equivocada de la app. Queda un solo
+desfasaje: el formato nuevo del código está en la rama de desarrollo del servicio y no en producción.
+
 ### 2026-09-23
 Se pidió que la entrada del código de la app aparezca sólo en Colombia. Se resolvió en el front, sin
 tocar el backend: el tema del comercio ya traía el país, así que una sola regla decide el conmutador, la
@@ -527,13 +554,13 @@ del listado de entidades hay que hacerla dos veces.
 - El listado de entidades muestra **sólo** la entidad del preaprobado, en vez de todas las del comercio.
 
 ## Alcance
-No entra la emisión del código: quién lo genera y con qué formato es una definición pendiente y
-depende de la app. Tampoco cambia lo que la app muestra hoy, ni se rehace el listado de entidades: se le
+No entra la emisión del código: la hace el servicio de códigos, que la app ya consume. Tampoco cambia lo que la app muestra hoy, ni se rehace el listado de entidades: se le
 agrega un filtro.
 
 ## Dónde probar
-Por definir: hace falta acordar el comercio y la entidad con los que se va a probar. El único comercio
-con historial por este camino es Celucambio, con las entidades Celupresto y Crediteame CC.
+Cualquier comercio de Colombia: el camino es general, sin un piloto. Hace falta un cliente con un
+preaprobado de ese comercio en la app, para que la app le genere el código. Como contraste, un comercio
+de otro país, donde la opción no debe aparecer.
 
 ## Cómo validar
 1. Entrar al flujo del comercio y elegir la opción de cliente que ya usa la app.
@@ -555,8 +582,5 @@ con historial por este camino es Celucambio, con las entidades Celupresto y Cred
   de una entrada exitosa.
 
 ## Dependencias / contraparte
-- **App móvil**: acordar quién emite el código y con qué formato. Hoy el código que muestra la app se
-  arma en el propio teléfono y no coincide con el que la web acepta, así que los dos extremos todavía
-  no se entienden.
-- **Producto**: confirmar la entidad objetivo y qué debe pasar cuando su entidad no está disponible en
-  el comercio.
+- **Servicio de códigos**: el formato de dos letras y cuatro números todavía no está publicado en
+  producción; hasta entonces emite cuatro dígitos. La web acepta los dos.
