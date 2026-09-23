@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Genera el snapshot local que alimenta la consola de ramas de context.
 
-No hace fetch ni escribe en los repos. La fuente de repos es `citas.ROOTS`, la misma contra la que se validan las citas;
+No hace fetch ni escribe en los repos. La fuente de repos es `citations.ROOTS`, la misma contra la que se validan las citas;
 los aliases que comparten un checkout (harness y trazador) se agrupan en un solo repositorio.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from citas import ROOTS
+from citations import ROOTS
 
 ROOT = Path(__file__).resolve().parents[1]
 

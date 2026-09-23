@@ -55,8 +55,8 @@ BALDES, y separarlos es lo que hace que se le pueda creer:
   ? no existe  ningún archivo matchea en `main`.
 
 USO
-  python3 tablero/tools/citas.py <doc.md> [<doc.md> …]   → valida esos documentos
-  python3 tablero/tools/citas.py <doc.md> --ok           → lista también las que están bien
+  python3 tablero/tools/citations.py <doc.md> [<doc.md> …]   → valida esos documentos
+  python3 tablero/tools/citations.py <doc.md> --ok           → lista también las que están bien
 
 EXIT  0 → nada que corregir · 1 → hay movidas, reescritas o fuera de rango
 """

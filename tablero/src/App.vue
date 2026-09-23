@@ -394,7 +394,7 @@ const STAGES = [
   { id: 'tasks', label: 'Tareas creadas' },
 ];
 const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id === id)?.stage || 'evaluation'));
-// DÍAS SIN TOCAR el archivo de la tarea, según git (el server lo calcula; ver store/toques.go). La etapa
+// DÍAS SIN TOCAR el archivo de la tarea, según git (el server lo calcula; ver store/touches.go). La etapa
 // dice si algo se está evaluando o trabajando, no si sigue vivo: medido el 2026-09-14, 22 de las 39
 // abiertas llevaban 14 días o más sin tocarse y todas se veían igual. DORMIDA a los 14; a los 30 la
 // pregunta es si se archiva o se anota por qué espera.
@@ -780,7 +780,7 @@ const copied = ref('');       // '' | 'ok' | 'error'
 const copiedWhich = ref('');   // qué botón lo dejó así, para pintar sólo ese
 let copiedTimer = null;
 
-// El marcador de anotación, COPIADO del server (`store/anotaciones.go`) y no reinventado: si los dos
+// El marcador de anotación, COPIADO del server (`store/annotations.go`) y no reinventado: si los dos
 // no cortan por la misma línea, lo que el panel muestra como «Cómo» y lo que el copiado saca dejan de
 // ser lo mismo, y eso no falla — miente.
 const RE_ANNOTATION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*\d{4}-\d{2}-\d{2}\s*(?:·\s*[^*]+?)?\s*\*\*/i;
@@ -1163,7 +1163,7 @@ watch(active, (t) => {
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
-// marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/anotaciones.go`.
+// marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/annotations.go`.
 //
 // Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
 // que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
@@ -1185,7 +1185,7 @@ const KINDS = [
 const findingsByKind = (key) => KINDS
   .map(t => ({ ...t, items: findingsOf(key).filter(a => a.tipo === t.id) }))
   .filter(g => g.items.length);
-// CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/fuentes.go`) del
+// CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/sources.go`) del
 // `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
 // dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
 const isEnvironment = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
@@ -1212,7 +1212,7 @@ const provenanceOf = (key) => {
 };
 
 // ── PENDIENTES ───────────────────────────────────────────────────────────────────────────────────
-// Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pendientes.go` para el parser y el
+// Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pending.go` para el parser y el
 // porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
 // cuerpo es el archivo, y editarlo por dos caminos es cómo se desincronizan las cosas.
 const pendingOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.pendientes || [];

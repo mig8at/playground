@@ -280,7 +280,7 @@ medición de una creencia con números.
 
 Y no es sólo una convención de lectura: **el tablero lo parsea**. Las líneas de cita que siguen al
 marcador son el `Como` de la anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y
-*contra qué ambiente*, que es lo que la tarjeta pinta (`tablero/server/internal/store/fuentes.go`). El
+*contra qué ambiente*, que es lo que la tarjeta pinta (`tablero/server/internal/store/sources.go`). El
 ambiente sale **sólo** de un `TARGET=` escrito en el comando — nunca de la prosa, porque «en producción
 son 14.160» menciona un ambiente sin decir dónde se midió. Una anotación cuya continuación es prosa
 explicativa en vez del comando **queda sin fuentes**, y eso es exactamente lo que hoy pasa en el 86 %

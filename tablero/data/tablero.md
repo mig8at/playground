@@ -58,11 +58,14 @@ API va en una tanda aparte— y **fase 1 hecha**: 1.035 identificadores de Go y 
 con las salidas de consola (32 invocaciones) y de la API web (17 GETs) idénticas byte a byte contra el
 binario de antes, y la interfaz vieja y la nueva dando la misma huella en 36 pasos de clics. **Fase 1b
 hecha** el mismo día: 116 identificadores del Python de `tools/`, con las 11 salidas de sus herramientas
-idénticas al código anterior. Quedan en español, a propósito: las claves JSON y los nombres de archivo y
-carpeta.
+idénticas al código anterior. **Fase 2 hecha** también: 26 archivos renombrados con `git mv`
+(`store/annotations.go`, `tools/citations.py`, `TASK-TEMPLATE.md`, `docs/ARCHITECTURE.md`…). Quedan en
+español, a propósito: las claves JSON, `schemas/tarea.v1.schema.json` (lleva el nombre del contrato,
+va con la 4b) y las carpetas.
 
-**El próximo paso es:** la fase 2 (archivos), reapuntando en el mismo commit el `anotacion.spec.ts` del
-arnés, que abre `store/anotaciones.go` por ruta.
+**El próximo paso es:** la fase 3 (carpetas: `server/cmd/{hoy,cierre,ramas,tareas,bitacora,pulso,cuadrilla}`,
+`internal/pulso`, `data/trampas`), moviendo en el mismo commit el `Makefile`, los dos hooks y el plist
+del LaunchAgent del pulso, y comprobando que el pulso vuelve a escribir después.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -87,8 +90,9 @@ arnés, que abre `store/anotaciones.go` por ruta.
 - [x] Nombres en inglés · fase 1b: identificadores del Python de `tools/` — 116 en `citas.py`,
       `ramas.py`, `trampas.py` y `test_ramas.py` (`jev.py` ya estaba en inglés); `ab-py.sh` 11/11,
       los mismos nombres libres por archivo y los tests en verde.
-- [ ] Nombres en inglés · fase 2: archivos; termina cuando no queda ningún archivo con nombre en
-      español fuera de `data/` y el `anotacion.spec.ts` del arnés sigue verde.
+- [x] Nombres en inglés · fase 2: 26 archivos — `ab-cli.sh` 32/32, `ab-web.sh` 17/17, `ab-py.sh`
+      14/14 (incluido `make trampas`, `make repos-test` y el import de `huella.py` del trazador) y el
+      `anotacion.spec.ts` del arnés en verde. `schemas/tarea.v1.schema.json` pasa a la 4b.
 - [ ] Nombres en inglés · fase 3: carpetas; termina con Makefile, hooks y LaunchAgent del pulso
       reapuntados y un pulso nuevo escrito después del cambio.
 - [ ] Nombres en inglés · fase 4: un chequeo que frene nombres nuevos en español; termina cuando
@@ -98,7 +102,7 @@ arnés, que abre `store/anotaciones.go` por ruta.
 - [ ] Resolver el contenedor `cuadrilla` (#93): el lint lo marca fuera de los siete nombres
       canónicos; termina cuando `make tareas TODAS=1` no muestra el ⚠ — sumándolo a la lista o
       absorbiéndolo en `playground`.
-- [ ] Actualizar `docs/ARQUITECTURA.md`: su «Recorrido diario» describe un panel con pestañas
+- [ ] Actualizar `docs/ARCHITECTURE.md`: su «Recorrido diario» describe un panel con pestañas
       Trabajo, Hallazgos y Ramas que ya no existe; termina cuando coincide con la tabla de regiones de
       `CLAUDE.md`.
 - [ ] Comprobar que ninguna tarea local nueva nazca fuera de los siete nombres canónicos.
@@ -137,7 +141,7 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
    > tablero/tools/rename/ab-cli.sh <árbol-anterior> && tablero/tools/rename/ab-web.sh
 
    > **DECISIÓN · 2026-09-23** — no `gopls rename` uno por uno, sino un renombrador propio sobre el type checker (`tools/rename/go/cmd/ren`), que aplica un mapa entero y **rechaza** el rename si el nombre nuevo choca: visible en el scope, declarado en uno interno, ya presente en el struct o el receptor, o si dos nombres viejos distintos van al mismo nuevo en scopes anidados — ese es el caso que compila y sombrea en silencio. Frenó 18 renames (7 de Go, 11 de Vue/JS): `amb → env` habría tapado el paquete `env`, `dias → days` una bandera `days`, `evento → event` una variable interna.
-   > cd tablero/server && <bin-de-ren> -map ../tools/rename/maps/fase1-go.tsv ./...
+   > cd tablero/server && <bin-de-ren> -map ../tools/rename/maps/phase1-go.tsv ./...
 
    > **RIESGO · 2026-09-23** — el diccionario del sistema no sirve para detectar español: trae inglés arcaico (`aviso`, `leer`, `tema`, `antes` pasan como inglés). Lo que sí separó fue contrastar cada palabra contra el código de la stdlib de Go: una palabra que casi no aparece ahí es sospechosa. Las dos pasadas juntas encontraron ~200 nombres que la primera no veía. La fase 4 tiene que usar esa vara, no el diccionario.
 
@@ -154,6 +158,14 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
 2. **Archivos.** `git mv` para no perder la historia. ⚠ El arnés busca `anotaciones.go` y
    `reAnotacion` por nombre: se reapunta `harness/pkg/anotacion.spec.ts` en el MISMO commit, o su
    prueba falla — y si falla por «no encontré», se lee como un rename, no como un error.
+   ✔ Hecho el 2026-09-23: 26 archivos. Los mapas de la fase 1 pasaron a `maps/phase1-*.tsv`.
+
+   > **MEDICIÓN · 2026-09-23** — las referencias a los 26 nombres viejos estaban en 24 archivos, y no todas eran nuestras: `trazador/server/fuentes.go` es del trazador y `workers/archivos.json` es un índice derivado de los repos de la compañía. Se reapuntaron 16 archivos (Makefile, `tarea-lint.py`, el arnés, tres `CLAUDE.md`, el README, comentarios de Go y Vue y los imports de Python). Quedan sin tocar, a propósito, la crónica de otras tareas de `data/`, el JSONL de hitos (es append-only) y los mapas (registran posiciones de antes).
+   > git grep -nE 'PLANTILLA-TAREA|store/(anotaciones|fuentes|ramas|retoma|pendientes|toques)\.go|tools/(citas|ramas|trampas)\.py' -- . ':!tablero/data'
+
+   > **RIESGO · 2026-09-23** — el trazador importa del tablero: `trazador/tools/huella.py` agrega `tablero/tools` al `sys.path` y hace `from citas import del_ref`. No aparecía buscando la ruta `tablero/tools/citas.py`, porque arma la ruta con `os.path.join(…, "tablero", "tools")`. Renombrar `citas.py` sin tocarlo lo rompía; va en el mismo commit y `ab-py.sh` ahora comprueba ese import.
+   > tablero/tools/rename/ab-py.sh <worktree-anterior>
+
 3. **Carpetas.** `server/cmd/*` cambia el nombre del binario: `Makefile`, los dos hooks y el plist
    del LaunchAgent (`bin/pulso`) van juntos. ⚠ Un pulso que deja de escribir no avisa: se lee como un
    día sin trabajo.
@@ -177,7 +189,8 @@ vara es el binario de ANTES contra el de AHORA, corridos uno tras otro sobre los
     cd tablero && npm test && npx vite build
     node tablero/tools/rename/js/unresolved.mjs tablero/src/*.vue       # «—» en todos
     node tablero/tools/rename/js/globals.mjs tablero/src/*.vue tablero/src/*.js   # igual a antes
-    cd tablero/tools && python3 -m unittest test_jev test_ramas
+    cd tablero/tools && python3 -m unittest test_jev test_branches
+    tablero/tools/rename/ab-py.sh <worktree-anterior>                   # 14 corridas de las herramientas Python
     make estilo-check · make trampas · cd harness && npx playwright test pkg/anotacion.spec.ts
 
 ⚠ **No sirve guardar las salidas antes y compararlas después**: se probó y dio un falso rojo en
@@ -198,6 +211,10 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 ## Registro
 
 ### 2026-09-23
+
+Fase 2: 26 archivos del tablero con nombre en inglés, movidos con `git mv`, y sus referencias en 16
+archivos, incluido el import que hace el trazador de `citations.py`. `ab-py.sh` aprendió a invocar el
+lado nuevo con los nombres nuevos y a comparar a través de ellos.
 
 Fase 1b: el Python de `tools/` pasa a inglés (116 identificadores). Se sumó un renombrador de
 Python a `tools/rename/py/` con las mismas garantías que los otros dos, y `ab-py.sh`, que compara las

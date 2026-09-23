@@ -31,7 +31,7 @@ type Annotation struct {
 	Who  string `json:"quien"` // sólo pregunta: de quién se espera la respuesta
 	What string `json:"que"`   // la afirmación, una línea
 	How  string `json:"como"`  // opcional: la consulta o el comando ya limpio de Markdown
-	// Sources: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `How` (ver fuentes.go). Vacío
+	// Sources: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `How` (ver sources.go). Vacío
 	// cuando no hay `How` o cuando no matchea ninguna herramienta conocida — que es un dato, no un
 	// hueco: dice que esa afirmación no trae con qué volver a comprobarla.
 	Sources []string `json:"fuentes,omitempty"`

@@ -11,8 +11,8 @@
 |---|---|
 | retomar una tarea concreta | `make retomar N=<id|slug>` o **Hoy** en la tarea |
 | decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
-| crear o actualizar una tarea | `PLANTILLA-TAREA.md` y después `CLAUDE.md` |
-| entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
+| crear o actualizar una tarea | `TASK-TEMPLATE.md` y después `CLAUDE.md` |
+| entender cómo está compuesta la herramienta | `docs/ARCHITECTURE.md` |
 | encontrar conocimiento estable del producto | **canon**: `github/playground/tools/canon`, o canon.playground.creditop.com |
 
 ## Laboratorio Jev
@@ -120,7 +120,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 La [plantilla por vista](CLAUDE.md#plantilla-por-vista) define qué escribir, dónde vive cada dato
 y cómo actualizarlo durante el trabajo diario.
 
-`PLANTILLA-TAREA.md` (en esta carpeta, **no** en `data/`: ahí todo `.md` se lee como tarea) es el
+`TASK-TEMPLATE.md` (en esta carpeta, **no** en `data/`: ahí todo `.md` se lee como tarea) es el
 esqueleto canónico. Copialo para una tarea nueva. Su regla estructural, y el porqué de cada sección,
 en `CLAUDE.md` §«La forma del cuerpo».
 
@@ -207,7 +207,7 @@ tools/
     └── internal/
         ├── atlassian/  client.go (Basic auth) · jira.go (API v3) · agile.go (sprints) · activity.go (changelog)
         ├── slack/      client.go · auth.go · conversations.go · messages.go · users.go (+ un test)
-        ├── pulso/      pulso.go (las 3 señales de git) · store.go (jsonl + agregación por hora)
+        ├── pulso/      pulse.go (las 3 señales de git) · store.go (jsonl + agregación por hora)
         └── env/env.go  ← carga .env sin pisar variables ya exportadas
 ```
 
@@ -320,7 +320,7 @@ frontera. Por eso el detalle de archivos **no puede** vivir en las notas de avan
 ### Del esfuerzo a Jira: crear, mover y notificar al evaluador
 
 La descripción de la tarea sigue la **plantilla orientada a QA** de
-[`docs/PLANTILLA-TAREA-JIRA.md`](docs/PLANTILLA-TAREA-JIRA.md): nivel negocio, enfocada en *cómo y
+[`docs/JIRA-TASK-TEMPLATE.md`](docs/JIRA-TASK-TEMPLATE.md): nivel negocio, enfocada en *cómo y
 dónde validar*. Todo lo que va a Jira pasa por el **guard** (nada de repos, rutas de archivo, el
 playground ni F-xx).
 
@@ -752,7 +752,7 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 ## Docs relacionados
 
-- [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md) — mapa corto de datos, UI, consola y contexto.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — mapa corto de datos, UI, consola y contexto.
 - [`server/README.md`](server/README.md) — instalar y probar los conectores MCP de Jira y Slack.
 - `../context/` — árbol de contexto de CreditOp (mapa estático `ROUTE-MAP.md` + toolkit Python). Nada que
   ver con estos conectores, pero es el otro proyecto grande del playground.

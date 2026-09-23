@@ -848,7 +848,7 @@ secciones distintas — confundirlas es lo que vuelve ilegibles las tareas grand
 
 ⚠ **Va el COMANDO, no la conclusión, y no es estilo: el tablero lo parsea.** De las líneas de cita que
 siguen a una anotación sale *con qué* se comprobó y *contra qué ambiente*
-(`tablero/server/internal/store/fuentes.go`), y el ambiente se reconoce **sólo** por un `TARGET=`
+(`tablero/server/internal/store/sources.go`), y el ambiente se reconoce **sólo** por un `TARGET=`
 escrito. «Corrí el caso y cerró» no deja rastro de nada; `make harness-caso CASOS='pullman' CERRAR=1`
 contra `local` sí. Medido el 2026-09-18: de 350 anotaciones del tablero, **308 tienen texto debajo y
 sólo 51 producen una fuente reconocible** — lo que se escribe suele ser prosa donde iba el comando.

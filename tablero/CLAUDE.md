@@ -88,7 +88,7 @@ muestran minutos ni notas de sesión. El documento, los hallazgos y la evidencia
 cronología como consulta. El sidebar derecho queda para lo accionable:
 **Jira · Pendientes · Artifacts** cuando la tarea tenga artefactos.
 
-Cada dato tiene una fuente. Al crear una tarea, copiá `PLANTILLA-TAREA.md`; al retomar una abierta,
+Cada dato tiene una fuente. Al crear una tarea, copiá `TASK-TEMPLATE.md`; al retomar una abierta,
 actualizá sus secciones existentes. No agregues una segunda lista ni otro estado de la misma cosa.
 
 | Región | Pregunta que responde | Fuente |
@@ -179,7 +179,7 @@ Esta pestaña abre primero y usa todo el alto del sidebar para mostrar lo recibi
 sprint; no es una vista previa del borrador ni una tarjeta dentro de otra tarjeta. Una franja compacta
 conserva el estado y el enlace al issue. Si no hay issue o descripción, se indica esa ausencia. El
 borrador local conserva la frontera exacta
-`## Tarea (publicable)` y usa las secciones de `PLANTILLA-TAREA.md`: **En una línea · Por qué · Qué
+`## Tarea (publicable)` y usa las secciones de `TASK-TEMPLATE.md`: **En una línea · Por qué · Qué
 cambia · Alcance · Dónde probar · Cómo validar · Cambios en datos · Criterios de aceptación ·
 Dependencias / contraparte**. Producto y QA deben poder entenderlo sin las herramientas privadas.
 Editar el archivo no publica nada: la revisión y autorización para publicar siguen siendo necesarias.
@@ -331,7 +331,7 @@ del chat anterior.
 ⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
 estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
 anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
-que pinta la vista **Hallazgos** (`server/internal/store/fuentes.go`). El ambiente sale **sólo** de un `TARGET=`
+que pinta la vista **Hallazgos** (`server/internal/store/sources.go`). El ambiente sale **sólo** de un `TARGET=`
 escrito en el comando: «en producción son 14.160» menciona un ambiente sin decir dónde se midió.
 
 **Medido el 2026-09-18, y el problema no es el hábito de anotar:**
@@ -407,7 +407,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   comunes daba **7 falsos positivos** sobre las 32 publicables reales, todos legítimos; con los patrones
   que quedaron no se frena **ninguna** — son red de seguridad, no un cambio de reglas.
 
-- **La forma del cuerpo está en `PLANTILLA-TAREA.md`** (en la raíz de `tablero/`, NO en `data/`: ahí
+- **La forma del cuerpo está en `TASK-TEMPLATE.md`** (en la raíz de `tablero/`, NO en `data/`: ahí
   todo `.md` se lee como tarea). Copiala para una tarea nueva. No es decoración: existe para que
   **retomar en frío sea rápido**, y su única regla estructural sale de medir por qué las tareas grandes
   se vuelven ilegibles.

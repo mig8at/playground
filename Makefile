@@ -138,7 +138,7 @@ cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál 
 	@cd tablero/server && go run ./cmd/cierre $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 
 trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
-	@python3 tablero/tools/trampas.py $(if $(INDICE),--indice)
+	@python3 tablero/tools/traps.py $(if $(INDICE),--indice)
 
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
 	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
@@ -267,10 +267,10 @@ flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y g
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
 
 repos: ## @dia actualiza la consola de repos y ramas del tablero desde Git local, sin fetch. JSON=1 imprime el snapshot
-	@python3 tablero/tools/ramas.py $(if $(JSON),--json)
+	@python3 tablero/tools/branches.py $(if $(JSON),--json)
 
 repos-test: ## @dia pruebas del estado de ramas: activa, cambios locales y fusionada
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_ramas.py
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_branches.py
 
 tablero-jev: ## @dia laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
 	@python3 tablero/tools/jev.py $(or $(ARGS),--help)

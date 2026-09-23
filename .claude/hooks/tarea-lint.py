@@ -44,7 +44,7 @@ def main() -> int:
         return 0
     if r.returncode == 1:
         sys.stderr.write(r.stderr.rstrip() + "\n"
-                         "Arreglalo ahora: la regla de cada campo está en tablero/PLANTILLA-TAREA.md.\n")
+                         "Arreglalo ahora: la regla de cada campo está en tablero/TASK-TEMPLATE.md.\n")
         return 2
     return 0
 

@@ -28,7 +28,7 @@ var Patterns = []Pattern{
 	{`playground`, "menciona el playground"},
 	{`harness|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
 	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
-	// La trampa que trae `PLANTILLA-TAREA.md`: su guía va en comentarios HTML, y una tarea copiada y
+	// La trampa que trae `TASK-TEMPLATE.md`: su guía va en comentarios HTML, y una tarea copiada y
 	// llenada sin borrarlos publicaría «<!-- Qué se logra. Una oración… -->» en Jira. Y en general un
 	// comentario es donde alguien deja la nota que NO quería que se vea.
 	{`<!--`, "quedaron comentarios de la plantilla (o notas ocultas)"},

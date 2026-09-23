@@ -728,17 +728,17 @@ type Effort struct {
 	Class     string `json:"clase,omitempty"`
 	CreatedAt string `json:"createdAt"`
 	// TouchedAt: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
-	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `toques.go`.
+	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `touches.go`.
 	TouchedAt string `json:"tocadoEn,omitempty"`
 	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
 	// riesgos). Igual que los prototipos, salen del contenido y no de una lista que haya que mantener.
-	// Ver `anotaciones.go` para la forma y el porqué.
+	// Ver `annotations.go` para la forma y el porqué.
 	Annotations []Annotation `json:"anotaciones"`
 	// PENDIENTES: lo que queda por hacer, en casillas de markdown dentro del CUERPO. Mismo criterio que
 	// las anotaciones —el dato vive donde se argumenta y la UI lo deriva—, y por el mismo motivo: una
 	// lista aparte se desincroniza en cuanto alguien resuelve el pendiente sin tocar el archivo.
 	// Sólo del cuerpo privado: las casillas de la publicable son los criterios de aceptación de QA, que
-	// no son pendientes de nadie. Ver `pendientes.go`.
+	// no son pendientes de nadie. Ver `pending.go`.
 	Pending []PendingItem `json:"pendientes"`
 	// PROTOTIPOS de la tarea: los HTML autocontenidos de `data/artifacts/` que se abren desde el
 	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
@@ -753,7 +753,7 @@ type Effort struct {
 	Artifacts []Artifact `json:"artifacts"`
 	// RAMAS: el PATRÓN de nombre de rama con el que se trabaja esta tarea (ej. `pais-como-dato`). Es lo
 	// ÚNICO que se escribe a mano; qué ramas existen y hasta dónde llegó cada una lo mide git —ver
-	// `ramas.go`—, porque una lista de ramas a mano miente en silencio en cuanto algo se mergea o se
+	// `branches.go`—, porque una lista de ramas a mano miente en silencio en cuanto algo se mergea o se
 	// renombra. Vacío = la tarea no toca código (o todavía no se sabe).
 	BranchPatterns string `json:"ramasPatron"`
 }

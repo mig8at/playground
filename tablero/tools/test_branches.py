@@ -5,9 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import ramas
-
-
+import branches
 def run(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
 
@@ -34,7 +32,7 @@ class BranchesTest(unittest.TestCase):
         run(self.repo, "commit", "-m", "rama")
         (self.repo / "sin-commit.txt").write_text("pendiente\n")
 
-        snapshot = ramas.build_snapshot({"repo": str(self.repo)}, "2026-09-19T00:00:00-05:00")
+        snapshot = branches.build_snapshot({"repo": str(self.repo)}, "2026-09-19T00:00:00-05:00")
         repo = snapshot["repos"][0]
         feature = next(r for r in repo["ramas"] if r["nombre"] == "feat/context-console")
 
@@ -53,7 +51,7 @@ class BranchesTest(unittest.TestCase):
         run(self.repo, "switch", "main")
         run(self.repo, "merge", "--ff-only", "feat/lista")
 
-        measured = ramas.measure_repo(str(self.repo), ["repo"])
+        measured = branches.measure_repo(str(self.repo), ["repo"])
         feature = next(r for r in measured["ramas"] if r["nombre"] == "feat/lista")
 
         self.assertTrue(feature["fusionada"])

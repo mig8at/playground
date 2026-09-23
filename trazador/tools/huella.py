@@ -43,10 +43,10 @@ from collections import Counter, defaultdict
 
 PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # El índice de «qué existe en main» vive con el validador de citas, en el tablero: es la misma
-# pregunta y tenerla dos veces es una divergencia esperando (ver el encabezado de `citas.py`).
+# pregunta y tenerla dos veces es una divergencia esperando (ver el encabezado de `citations.py`).
 sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
 sys.path.insert(0, os.path.join(PLAYGROUND, "tablero", "tools"))
-from citas import del_ref  # noqa: E402
+from citations import del_ref  # noqa: E402
 
 # El corpus contra el que se cruza lo medido. ⚠ Hasta el 2026-09-21 era el árbol de `context/`, que se
 # apagó; hoy es canon, que declara por área sus `tablas` y sus `fuentes` (archivo → hash). La pregunta

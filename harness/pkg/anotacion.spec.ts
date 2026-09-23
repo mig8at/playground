@@ -61,12 +61,12 @@ test.describe('el comando que se ofrece es pegable', () => {
 // que nació).
 test('la forma coincide con el regex REAL de `store.Annotations`', () => {
       const fuente = join(homedir(),
-            'Desktop/CREDITOP/playground/tablero/server/internal/store/anotaciones.go');
+            'Desktop/CREDITOP/playground/tablero/server/internal/store/annotations.go');
       test.skip(!existsSync(fuente), `no está ${fuente}: el contrato queda SIN contrastar`);
 
       const go = readFileSync(fuente, 'utf8');
       const m = /reAnnotation\s*=\s*regexp\.MustCompile\(`([^`]+)`\)/.exec(go);
-      expect(m, 'no encontré `reAnnotation` en anotaciones.go — ¿se renombró?').toBeTruthy();
+      expect(m, 'no encontré `reAnnotation` en annotations.go — ¿se renombró?').toBeTruthy();
 
       // El patrón de Go es compatible con JS salvo el flag inline `(?i)`, que JS no acepta inline.
       const patron = m![1].replace('(?i)', '');

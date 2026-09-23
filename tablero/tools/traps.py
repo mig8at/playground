@@ -20,15 +20,15 @@ LOS DOS CHEQUEOS, y cada uno nació de un error medido:
    archivo entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano. Medido
    el 2026-09-21: 9 de 239 hallazgos estaban fuera del índice de síntomas, justamente los últimos
    agregados. Para quien entra por la puerta no existían, y su ausencia se lee «no nos pasó».
-2. **Las citas `archivo:línea` se corren.** Se validan con `citas.py`, acá al lado: lee los repos y
+2. **Las citas `archivo:línea` se corren.** Se validan con `citations.py`, acá al lado: lee los repos y
    ancla por CONTENIDO —guarda el texto que tenía la línea el día que se afirmó y lo busca en `main`
    hoy—, así que sigue renombres y no se deja engañar por un archivo que ganó un import arriba. Ese
    motor vivía en `context/tools/refs.py` y se mudó con las trampas el 2026-09-21: es el mismo
    archivo, no una copia.
 
 USO
-    trampas.py            los dos chequeos
-    trampas.py --indice   sólo el índice (no necesita los repos, no toca git)
+    traps.py            los dos chequeos
+    traps.py --indice   sólo el índice (no necesita los repos, no toca git)
 
 EXIT  0 → todo en orden · 1 → algo que arreglar
 """
@@ -80,9 +80,9 @@ def review_citations():
     sin volver a correr nada.
     """
     try:
-        from citas import review
+        from citations import review
     except ImportError as e:
-        return 1, [f"  ⚠ no se pudieron validar las citas: falta tablero/tools/citas.py ({e})"]
+        return 1, [f"  ⚠ no se pudieron validar las citas: falta tablero/tools/citations.py ({e})"]
 
     buckets, _ = review([str(DOC)])
     tot = sum(len(v) for v in buckets.values())
@@ -97,7 +97,7 @@ def review_citations():
     for _, items in broken:
         for where, citation, note in sorted(items)[:8]:
             lines.append(f"    {where:22s} {citation:54s} {note}")
-    lines.append(f"  → todas: python3 {Path('tablero/tools/citas.py')} {DOC.relative_to(ROOT)}")
+    lines.append(f"  → todas: python3 {Path('tablero/tools/citations.py')} {DOC.relative_to(ROOT)}")
     return 1, lines
 
 
