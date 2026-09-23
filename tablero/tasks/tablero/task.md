@@ -154,7 +154,7 @@ asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
 colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
 llegan.
 
-## Frente: la pila de bloques (diseño acordado el 2026-09-23; pasos 1 a 4 hechos)
+## Frente: la pila de bloques (diseño acordado el 2026-09-23; los cinco pasos hechos)
 
 **Objetivo.** Pedido de Miguel: que la tarea sea una pila de BLOQUES de documentación que entran con el
 tiempo, sin una estructura fija más que el bloque mismo. Una tarea limpia está vacía.
@@ -171,14 +171,21 @@ en el acordeón Hoy · Ayer · fechas— y `via`, quién lo agregó.
 tema de canon que canon no conoce; un comando `harness`/`trazador` sin `TARGET=`; un comando sin su
 `Resultado:`; SQL que escribe o sin ambiente; HTML; un título de más de una línea.
 
-**Plan por pasos.** (1) el bloque existe: formato, validador, `make tarea-bloque`, lectura mixta con los
-hitos viejos y su vista en la cronología; (2) migrar los 34 hitos a bloques y retirar el formato viejo;
-(3) `make cierre`, `make hoy` y `make retomar` sobre bloques, sin «próximo paso»; (4) harness, trazador y
-consultas DB agregan su bloque (`via`); (5) a decidir: las anotaciones y el Registro del Markdown pasan a
-bloques.
+**Plan por pasos, hecho.** (1) el bloque existe: formato, validador, `make tarea-bloque` y su vista en la
+cronología; (2) los hitos viejos pasan a bloques y el formato se retira; (3) `make cierre`, `make hoy` y
+`make retomar` sobre bloques, sin «próximo paso»; (4) harness, trazador y consultas DB agregan su bloque
+(`via`); (5) la historia del documento —anotaciones, Registro y retoma— pasa a la pila, el lint frena una
+nueva, `tarea-json` pasa a v3 con la pila adentro y el «sin avance» se declara en el commit del barrido.
+
+**Lo que quedó afuera del paso 5, a propósito.** #94 y #95 no se migraron: otra sesión las estaba editando
+ese día; el lint sólo les avisa lo que tienen, y les frena uno nuevo. Las secciones fijas del documento
+(objetivo, plan, material) siguen siendo plantilla: moverlas también a la pila sería otro paso, y no se
+decidió.
 
 ## Cómo se comprueba
 
 `make tareas TODAS=1`, `make tarea-json N=tablero`, `make tablero-jev-test`, los tests del servidor
 (`go test ./cmd/today/` cubre el tope y los errores de `BRIEF=`), `make retomar N=47 BRIEF=1`,
 `make cierre JSON=1`, `make tablero-ui-offline` (la interfaz sin servidores) y `make estilo-check`.
+La pila: `make tarea-context N=<id>` la lee con el validador, y `tareas -lint <task.md>` frena en el
+documento un registro con fecha nuevo (`go test ./cmd/tasks` lo prueba contra un repo de juguete).
