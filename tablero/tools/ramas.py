@@ -31,13 +31,13 @@ def git(repo: str, *args: str) -> tuple[int, str]:
         return 1, ""
 
 
-def existe_ref(repo: str, ref: str) -> bool:
+def ref_exists(repo: str, ref: str) -> bool:
     return git(repo, "rev-parse", "--verify", "--quiet", ref)[0] == 0
 
 
-def diferencia(repo: str, izquierda: str, derecha: str) -> tuple[int, int]:
+def difference(repo: str, left_ref: str, right_ref: str) -> tuple[int, int]:
     """Devuelve (sólo izquierda, sólo derecha) para dos refs."""
-    code, out = git(repo, "rev-list", "--left-right", "--count", f"{izquierda}...{derecha}")
+    code, out = git(repo, "rev-list", "--left-right", "--count", f"{left_ref}...{right_ref}")
     if code != 0:
         return 0, 0
     try:
@@ -47,107 +47,107 @@ def diferencia(repo: str, izquierda: str, derecha: str) -> tuple[int, int]:
         return 0, 0
 
 
-def rama_base(repo: str) -> tuple[str, str]:
-    _, simbolica = git(repo, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
-    candidatos = [simbolica.removeprefix("origin/")] if simbolica else []
-    candidatos += ["main", "master"]
-    for nombre in dict.fromkeys(candidatos):
-        if existe_ref(repo, f"refs/heads/{nombre}"):
-            return nombre, nombre
-        if existe_ref(repo, f"refs/remotes/origin/{nombre}"):
-            return nombre, f"origin/{nombre}"
-    _, actual = git(repo, "branch", "--show-current")
-    return actual or "main", actual or "main"
+def base_branch(repo: str) -> tuple[str, str]:
+    _, symbolic = git(repo, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD")
+    candidates = [symbolic.removeprefix("origin/")] if symbolic else []
+    candidates += ["main", "master"]
+    for name in dict.fromkeys(candidates):
+        if ref_exists(repo, f"refs/heads/{name}"):
+            return name, name
+        if ref_exists(repo, f"refs/remotes/origin/{name}"):
+            return name, f"origin/{name}"
+    _, current = git(repo, "branch", "--show-current")
+    return current or "main", current or "main"
 
 
-def estado_rama(rama: dict, base: str) -> str:
-    if rama["actual"] and rama["cambios"]:
+def branch_state(branch: dict, base: str) -> str:
+    if branch["actual"] and branch["cambios"]:
         return "con-cambios"
-    if rama["nombre"] != base and rama["fusionada"]:
+    if branch["nombre"] != base and branch["fusionada"]:
         return "fusionada"
-    if rama["remoto"] and not rama["remotoExiste"]:
+    if branch["remoto"] and not branch["remotoExiste"]:
         return "remoto-ausente"
-    if rama["nombre"] == base:
-        if rama["adelanteRemoto"] and rama["atrasRemoto"]:
+    if branch["nombre"] == base:
+        if branch["adelanteRemoto"] and branch["atrasRemoto"]:
             return "divergida"
-        if rama["adelanteRemoto"]:
+        if branch["adelanteRemoto"]:
             return "adelantada"
-        if rama["atrasRemoto"]:
+        if branch["atrasRemoto"]:
             return "atrasada"
         return "al-dia"
-    if rama["adelanteMain"] and rama["atrasMain"]:
+    if branch["adelanteMain"] and branch["atrasMain"]:
         return "divergida"
-    if rama["adelanteMain"]:
+    if branch["adelanteMain"]:
         return "activa"
-    if rama["atrasMain"]:
+    if branch["atrasMain"]:
         return "sin-cambios"
     return "al-dia"
 
 
-def medir_repo(repo: str, aliases: list[str]) -> dict:
-    _, actual = git(repo, "branch", "--show-current")
-    base, base_ref = rama_base(repo)
-    cambios = len(git(repo, "status", "--porcelain")[1].splitlines())
-    formato = "%00".join(
+def measure_repo(repo: str, aliases: list[str]) -> dict:
+    _, current = git(repo, "branch", "--show-current")
+    base, base_ref = base_branch(repo)
+    changes = len(git(repo, "status", "--porcelain")[1].splitlines())
+    log_format = "%00".join(
         [
             "%(refname:short)", "%(upstream:short)", "%(committerdate:short)",
             "%(authorname)", "%(objectname:short)", "%(subject)",
         ]
     )
-    _, refs = git(repo, "for-each-ref", f"--format={formato}", "refs/heads")
-    ramas = []
-    for linea in refs.splitlines():
-        partes = linea.split("\0")
-        if len(partes) != 6:
+    _, refs = git(repo, "for-each-ref", f"--format={log_format}", "refs/heads")
+    branches = []
+    for line in refs.splitlines():
+        parts = line.split("\0")
+        if len(parts) != 6:
             continue
-        nombre, remoto, fecha, autor, sha, asunto = partes
-        atras_main, adelante_main = diferencia(repo, base_ref, nombre)
-        remoto_existe = bool(remoto) and existe_ref(repo, remoto)
-        atras_remoto, adelante_remoto = diferencia(repo, remoto, nombre) if remoto_existe else (0, 0)
-        fusionada = nombre != base and git(repo, "merge-base", "--is-ancestor", nombre, base_ref)[0] == 0
-        rama = {
-            "nombre": nombre,
-            "actual": nombre == actual,
-            "cambios": cambios if nombre == actual else 0,
-            "fusionada": fusionada,
-            "adelanteMain": adelante_main,
-            "atrasMain": atras_main,
-            "remoto": remoto,
-            "remotoExiste": remoto_existe,
-            "adelanteRemoto": adelante_remoto,
-            "atrasRemoto": atras_remoto,
-            "ultimoCambio": fecha,
-            "autor": autor,
+        name, remote, date, author, sha, subject = parts
+        behind_main, ahead_main = difference(repo, base_ref, name)
+        remote_exists = bool(remote) and ref_exists(repo, remote)
+        behind_remote, ahead_remote = difference(repo, remote, name) if remote_exists else (0, 0)
+        merged = name != base and git(repo, "merge-base", "--is-ancestor", name, base_ref)[0] == 0
+        branch = {
+            "nombre": name,
+            "actual": name == current,
+            "cambios": changes if name == current else 0,
+            "fusionada": merged,
+            "adelanteMain": ahead_main,
+            "atrasMain": behind_main,
+            "remoto": remote,
+            "remotoExiste": remote_exists,
+            "adelanteRemoto": ahead_remote,
+            "atrasRemoto": behind_remote,
+            "ultimoCambio": date,
+            "autor": author,
             "sha": sha,
-            "asunto": asunto,
+            "asunto": subject,
         }
-        rama["estado"] = estado_rama(rama, base)
-        ramas.append(rama)
-    ramas.sort(key=lambda r: (not r["actual"], r["fusionada"], r["nombre"] == base, r["nombre"]))
-    activas = sum(1 for r in ramas if r["nombre"] != base and not r["fusionada"])
+        branch["estado"] = branch_state(branch, base)
+        branches.append(branch)
+    branches.sort(key=lambda r: (not r["actual"], r["fusionada"], r["nombre"] == base, r["nombre"]))
+    active = sum(1 for r in branches if r["nombre"] != base and not r["fusionada"])
     return {
         "id": os.path.basename(repo),
         "nombre": os.path.basename(repo),
         "aliases": sorted(aliases),
         "ramaBase": base,
-        "ramaActual": actual,
-        "cambios": cambios,
-        "resumen": {"ramas": len(ramas), "activas": activas, "fusionadas": sum(r["fusionada"] for r in ramas)},
-        "ramas": ramas,
+        "ramaActual": current,
+        "cambios": changes,
+        "resumen": {"ramas": len(branches), "activas": active, "fusionadas": sum(r["fusionada"] for r in branches)},
+        "ramas": branches,
     }
 
 
-def construir_snapshot(roots: dict[str, str] | None = None, generado: str | None = None) -> dict:
+def build_snapshot(roots: dict[str, str] | None = None, generated: str | None = None) -> dict:
     roots = roots or ROOTS
     checkouts: dict[str, list[str]] = {}
-    for alias, ruta in roots.items():
-        code, top = git(ruta, "rev-parse", "--show-toplevel")
+    for alias, path in roots.items():
+        code, top = git(path, "rev-parse", "--show-toplevel")
         if code == 0 and top:
             checkouts.setdefault(top, []).append(alias)
-    repos = [medir_repo(repo, aliases) for repo, aliases in sorted(checkouts.items(), key=lambda x: os.path.basename(x[0]))]
+    repos = [measure_repo(repo, aliases) for repo, aliases in sorted(checkouts.items(), key=lambda x: os.path.basename(x[0]))]
     return {
         "schemaVersion": "tablero.repos.v1",
-        "generado": generado or dt.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "generado": generated or dt.datetime.now().astimezone().isoformat(timespec="seconds"),
         "fuente": "git local; no hace fetch",
         "repos": repos,
         "resumen": {
@@ -165,13 +165,13 @@ def main() -> None:
     parser.add_argument("--output", default=str(ROOT / "data" / "cache" / "repos.json"),
                         help="archivo de salida")
     args = parser.parse_args()
-    snapshot = construir_snapshot()
-    salida = Path(args.output)
-    salida.parent.mkdir(parents=True, exist_ok=True)
-    salida.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    resumen = snapshot["resumen"]
-    print(f"  {resumen['repos']} repos · {resumen['ramas']} ramas · {resumen['activas']} activas · {resumen['conCambios']} con cambios")
-    print(f"  snapshot → {salida}")
+    snapshot = build_snapshot()
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    summary = snapshot["resumen"]
+    print(f"  {summary['repos']} repos · {summary['ramas']} ramas · {summary['activas']} activas · {summary['conCambios']} con cambios")
+    print(f"  snapshot → {output}")
     if args.json:
         print(json.dumps(snapshot, ensure_ascii=False, indent=2))
 

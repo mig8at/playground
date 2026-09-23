@@ -12,7 +12,7 @@ def run(repo, *args):
     subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True, text=True)
 
 
-class RamasTest(unittest.TestCase):
+class BranchesTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.repo = Path(self.tmp.name) / "repo"
@@ -27,14 +27,14 @@ class RamasTest(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def test_mide_rama_activa_y_cambios_del_checkout(self):
+    def test_measures_active_branch_and_checkout_changes(self):
         run(self.repo, "switch", "-c", "feat/context-console")
         (self.repo / "rama.txt").write_text("cambio\n")
         run(self.repo, "add", ".")
         run(self.repo, "commit", "-m", "rama")
         (self.repo / "sin-commit.txt").write_text("pendiente\n")
 
-        snapshot = ramas.construir_snapshot({"repo": str(self.repo)}, "2026-09-19T00:00:00-05:00")
+        snapshot = ramas.build_snapshot({"repo": str(self.repo)}, "2026-09-19T00:00:00-05:00")
         repo = snapshot["repos"][0]
         feature = next(r for r in repo["ramas"] if r["nombre"] == "feat/context-console")
 
@@ -45,7 +45,7 @@ class RamasTest(unittest.TestCase):
         self.assertEqual(feature["estado"], "con-cambios")
         self.assertEqual(repo["cambios"], 1)
 
-    def test_reconoce_una_rama_fusionada(self):
+    def test_recognizes_merged_branch(self):
         run(self.repo, "switch", "-c", "feat/lista")
         (self.repo / "rama.txt").write_text("cambio\n")
         run(self.repo, "add", ".")
@@ -53,8 +53,8 @@ class RamasTest(unittest.TestCase):
         run(self.repo, "switch", "main")
         run(self.repo, "merge", "--ff-only", "feat/lista")
 
-        medido = ramas.medir_repo(str(self.repo), ["repo"])
-        feature = next(r for r in medido["ramas"] if r["nombre"] == "feat/lista")
+        measured = ramas.measure_repo(str(self.repo), ["repo"])
+        feature = next(r for r in measured["ramas"] if r["nombre"] == "feat/lista")
 
         self.assertTrue(feature["fusionada"])
         self.assertEqual(feature["estado"], "fusionada")

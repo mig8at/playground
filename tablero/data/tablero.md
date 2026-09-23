@@ -56,11 +56,13 @@ fases e inventario en «Frente: el código en inglés», abajo.
 **Estado (2026-09-23):** fase 0 decidida —`tablero` y los targets de `make` se quedan; el JSON de la
 API va en una tanda aparte— y **fase 1 hecha**: 1.035 identificadores de Go y ~235 de Vue/JS en inglés,
 con las salidas de consola (32 invocaciones) y de la API web (17 GETs) idénticas byte a byte contra el
-binario de antes, y la interfaz vieja y la nueva dando la misma huella en 36 pasos de clics. Quedan
-en español, a propósito: las claves JSON, los nombres de archivo y carpeta, y el Python de `tools/`.
+binario de antes, y la interfaz vieja y la nueva dando la misma huella en 36 pasos de clics. **Fase 1b
+hecha** el mismo día: 116 identificadores del Python de `tools/`, con las 11 salidas de sus herramientas
+idénticas al código anterior. Quedan en español, a propósito: las claves JSON y los nombres de archivo y
+carpeta.
 
-**El próximo paso es:** la fase 1b —los identificadores del Python de `tools/` (≥27)— o, si se prefiere
-avanzar por capas, la fase 2 (archivos) reapuntando el `anotacion.spec.ts` del arnés en el mismo commit.
+**El próximo paso es:** la fase 2 (archivos), reapuntando en el mismo commit el `anotacion.spec.ts` del
+arnés, que abre `store/anotaciones.go` por ruta.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -82,9 +84,9 @@ avanzar por capas, la fase 2 (archivos) reapuntando el `anotacion.spec.ts` del a
       `make` se quedan; el JSON va después (DECISIÓN en el frente).
 - [x] Nombres en inglés · fase 1: identificadores de Go y Vue/JS — `ab-cli.sh` 32/32 y `ab-web.sh`
       17/17 idénticos contra el árbol anterior; interfaz vieja vs nueva, misma huella en 36 pasos.
-- [ ] Nombres en inglés · fase 1b: identificadores del Python de `tools/` (`jev.py`, `ramas.py`,
-      `citas.py`, `trampas.py`: al menos 27, contados con una lista corta); termina con
-      `make tablero-jev-test`, `test_ramas` y `make trampas` iguales a antes.
+- [x] Nombres en inglés · fase 1b: identificadores del Python de `tools/` — 116 en `citas.py`,
+      `ramas.py`, `trampas.py` y `test_ramas.py` (`jev.py` ya estaba en inglés); `ab-py.sh` 11/11,
+      los mismos nombres libres por archivo y los tests en verde.
 - [ ] Nombres en inglés · fase 2: archivos; termina cuando no queda ningún archivo con nombre en
       español fuera de `data/` y el `anotacion.spec.ts` del arnés sigue verde.
 - [ ] Nombres en inglés · fase 3: carpetas; termina con Makefile, hooks y LaunchAgent del pulso
@@ -142,6 +144,13 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
    > **MEDICIÓN · 2026-09-23** — en el front, `vite build` y los tests en verde NO prueban un rename: un nombre del template que el script ya no declara compila igual y vale `undefined` en ejecución. Se comprobó que ningún SFC deja nombres sin resolver (`_ctx.x`, antes y después: cero), que el conjunto de identificadores libres de cada archivo es el mismo, y se corrió la interfaz vieja y la nueva lado a lado con la misma secuencia de 36 pasos (filtros, búsqueda, vistas, pestañas, ramas, menú de avance, rutas, atrás): huellas de texto y de clases idénticas en los 36.
    > node tablero/tools/rename/js/unresolved.mjs tablero/src/*.vue; node tablero/tools/rename/js/globals.mjs tablero/src/*.vue tablero/src/*.js
 
+1b. **El Python de `tools/`.** ✔ Hecho el 2026-09-23.
+
+   > **MEDICIÓN · 2026-09-23** — 116 identificadores en cuatro archivos (497 ediciones): 58 en `citas.py`, 31 en `ramas.py`, 20 en `trampas.py`, 7 en `test_ramas.py`; `jev.py` y `jev_transport.py` ya estaban en inglés. Las 11 salidas de `trampas`, `citas`, `jev` y `ramas` (incluido el snapshot que escribe) son idénticas corriendo el código de antes y el de ahora sobre los mismos datos. Se conservan en español los dos nombres que `citas.py` importa de `tools/repos.py` (`del_ref`, `ref_a_indexar`): son de otra herramienta.
+   > tablero/tools/rename/ab-py.sh <worktree-anterior>; python3 tablero/tools/rename/py/free.py tablero/tools/*.py
+
+   > **RIESGO · 2026-09-23** — los tests atraparon un error del renombrador que la comparación de salidas no veía: en `test_ramas.py`, `ramas` es el MÓDULO importado, y como `ramas` también es una variable de `ramas.py`, se renombró la referencia al módulo. Las salidas daban igual porque ninguna herramienta corre los tests. Arreglado: un nombre ligado por `import` en un archivo no se toca en ese archivo. Y la vara que lo habría cazado sin tests —los nombres libres por archivo, antes y después— ahora se corre siempre.
+
 2. **Archivos.** `git mv` para no perder la historia. ⚠ El arnés busca `anotaciones.go` y
    `reAnotacion` por nombre: se reapunta `harness/pkg/anotacion.spec.ts` en el MISMO commit, o su
    prueba falla — y si falla por «no encontré», se lee como un rename, no como un error.
@@ -189,6 +198,11 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 ## Registro
 
 ### 2026-09-23
+
+Fase 1b: el Python de `tools/` pasa a inglés (116 identificadores). Se sumó un renombrador de
+Python a `tools/rename/py/` con las mismas garantías que los otros dos, y `ab-py.sh`, que compara las
+herramientas contra un `git worktree` del commit anterior. Las corridas de `jev bench` para comparar
+dejaron 8 reportes de previsualización en `.runs/jev`; se borraron.
 
 Fase 1 del frente «el código en inglés»: Miguel decidió que `tablero` y los targets de `make` se
 quedan y que el JSON va después. Se renombraron 1.035 identificadores de Go y ~235 de Vue/JS con dos

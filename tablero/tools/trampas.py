@@ -37,39 +37,39 @@ import subprocess
 import sys
 from pathlib import Path
 
-RAIZ = Path(__file__).resolve().parents[2]          # playground/
-DOC = RAIZ / 'tablero' / 'data' / 'trampas' / 'doc.md'
+ROOT = Path(__file__).resolve().parents[2]          # playground/
+DOC = ROOT / 'tablero' / 'data' / 'trampas' / 'doc.md'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-ANCLA = re.compile(r"^### (F-\d+)")
-INDICE = re.compile(r"^## (Índice[^\n]*)")
-CITA = re.compile(r"F-\d+")
+ANCHOR = re.compile(r"^### (F-\d+)")
+INDEX = re.compile(r"^## (Índice[^\n]*)")
+CITATION = re.compile(r"F-\d+")
 
 
-def revisar_indice():
+def review_index():
     """Cada `## Índice` tiene que citar todo lo que tiene ancla, y no citar lo que no existe."""
-    fallas = []
-    lineas = DOC.read_text().splitlines()
-    anclas = {m.group(1) for l in lineas if (m := ANCLA.match(l))}
+    failures = []
+    lines = DOC.read_text().splitlines()
+    anchors = {m.group(1) for l in lines if (m := ANCHOR.match(l))}
     indices = []
-    for l in lineas:
-        if m := INDICE.match(l):
+    for l in lines:
+        if m := INDEX.match(l):
             indices.append((m.group(1).strip(), set()))
         elif indices and not l.startswith('## '):
-            indices[-1][1].update(CITA.findall(l))
-    if anclas and not indices:
-        fallas.append(f"  sin-índice · {len(anclas)} trampas y ningún «## Índice»")
-    for titulo, citados in indices:
-        faltan = sorted(anclas - citados, key=lambda f: int(f[2:]))
-        if faltan:
-            fallas.append(f"  fuera-del-índice · «{titulo}» no cita {len(faltan)}: "
-                          + ', '.join(faltan[:12]) + (" …" if len(faltan) > 12 else ""))
-        for muerto in sorted(citados - anclas, key=lambda f: int(f[2:])):
-            fallas.append(f"  índice-a-trampa-inexistente · «{titulo}» cita {muerto}, sin ancla `### {muerto}`")
-    return len(anclas), fallas
+            indices[-1][1].update(CITATION.findall(l))
+    if anchors and not indices:
+        failures.append(f"  sin-índice · {len(anchors)} trampas y ningún «## Índice»")
+    for title, cited in indices:
+        missing = sorted(anchors - cited, key=lambda f: int(f[2:]))
+        if missing:
+            failures.append(f"  fuera-del-índice · «{title}» no cita {len(missing)}: "
+                          + ', '.join(missing[:12]) + (" …" if len(missing) > 12 else ""))
+        for dead in sorted(cited - anchors, key=lambda f: int(f[2:])):
+            failures.append(f"  índice-a-trampa-inexistente · «{title}» cita {dead}, sin ancla `### {dead}`")
+    return len(anchors), failures
 
 
-def revisar_citas():
+def review_citations():
     """Las citas `archivo:línea` del documento, contra `main`. Devuelve `(salida, líneas)`.
 
     ⚠ HASTA EL 2026-09-21 ESTE CHEQUEO NO PODÍA PONERSE EN ROJO. Filtraba las líneas del validador
@@ -80,41 +80,41 @@ def revisar_citas():
     sin volver a correr nada.
     """
     try:
-        from citas import revisar
+        from citas import review
     except ImportError as e:
         return 1, [f"  ⚠ no se pudieron validar las citas: falta tablero/tools/citas.py ({e})"]
 
-    baldes, _ = revisar([str(DOC)])
-    tot = sum(len(v) for v in baldes.values())
-    lineas = [f"  {tot} citas · ✓ {len(baldes['ok'])} ancladas · · {len(baldes['sin-ancla'])} sin ancla"
-              f" · ? {len(baldes['no-existe'])} no existen en main"]
+    buckets, _ = review([str(DOC)])
+    tot = sum(len(v) for v in buckets.values())
+    lines = [f"  {tot} citas · ✓ {len(buckets['ok'])} ancladas · · {len(buckets['sin-ancla'])} sin ancla"
+              f" · ? {len(buckets['no-existe'])} no existen en main"]
 
-    rotas = [(k, baldes[k]) for k in ("movida", "reescrita", "fuera") if baldes[k]]
-    if not rotas:
-        return 0, lineas
-    lineas.append("")
-    lineas.append("  ✗ citas que ya no apuntan a lo que dicen:")
-    for _, items in rotas:
-        for donde, cita, nota in sorted(items)[:8]:
-            lineas.append(f"    {donde:22s} {cita:54s} {nota}")
-    lineas.append(f"  → todas: python3 {Path('tablero/tools/citas.py')} {DOC.relative_to(RAIZ)}")
-    return 1, lineas
+    broken = [(k, buckets[k]) for k in ("movida", "reescrita", "fuera") if buckets[k]]
+    if not broken:
+        return 0, lines
+    lines.append("")
+    lines.append("  ✗ citas que ya no apuntan a lo que dicen:")
+    for _, items in broken:
+        for where, citation, note in sorted(items)[:8]:
+            lines.append(f"    {where:22s} {citation:54s} {note}")
+    lines.append(f"  → todas: python3 {Path('tablero/tools/citas.py')} {DOC.relative_to(ROOT)}")
+    return 1, lines
 
 
 def main():
-    total, fallas = revisar_indice()
-    print(f"\n  TRAMPAS · {total} con ancla en {DOC.relative_to(RAIZ)}\n")
-    salida = 0
+    total, failures = review_index()
+    print(f"\n  TRAMPAS · {total} con ancla en {DOC.relative_to(ROOT)}\n")
+    output = 0
     if '--indice' not in sys.argv:
-        salida, lineas = revisar_citas()
-        for l in lineas:
+        output, lines = review_citations()
+        for l in lines:
             print(l)
-    if fallas:
+    if failures:
         print("\n✗ el índice no está completo — una trampa fuera de la puerta se lee como «no nos pasó»:\n")
-        print('\n'.join(fallas))
+        print('\n'.join(failures))
         return 1
     print("  ✓ índice completo: toda trampa con ancla está citada, y ninguna cita apunta al vacío")
-    return salida
+    return output
 
 
 if __name__ == '__main__':

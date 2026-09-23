@@ -71,19 +71,19 @@ from functools import lru_cache
 
 # La raíz del playground: es el repo contra el que se hace `git blame` de los documentos, y todas las
 # rutas que se imprimen son relativas a él.
-RAIZ = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 # Los repos, la ref a mirar y el índice de «qué existe en main» viven en la raíz: los necesitan tres
 # directorios (este, `trazador` y `workers`) y no son de ninguno. Ver `tools/repos.py`, que explica
 # por qué hay UNA sola copia.
-sys.path.insert(0, os.path.join(RAIZ, "tools"))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
 from repos import ROOTS, del_ref, ref_a_indexar  # noqa: E402,F401
 
 
 # Contra qué se compara el «hoy». ⚠ NO ES UNA CONSTANTE, y por eso es una función: la ref correcta se
 # decide POR REPO (ver `tools/repos.py`).
-def ref_hoy(alias):
+def today_ref(alias):
     root = ROOTS.get(alias)
     if not root:
         return "main"
@@ -91,12 +91,12 @@ def ref_hoy(alias):
     return ref or "main"
 
 
-CERCA = 0        # el ancla es TEXTO EXACTO: o está en esa línea o no está. La tolerancia de ±3 venía
+NEAR = 0        # el ancla es TEXTO EXACTO: o está en esa línea o no está. La tolerancia de ±3 venía
                  # del método viejo (buscaba un símbolo "cerca") y acá miente: con ±3, un bloque
                  # corrido 2 líneas se reportaba como «inicio bien, fin movido» — media verdad.
-LEVE = 3         # hasta acá una cita desalineada es «corrida» (el archivo ganó un import arriba) y
+MINOR = 3         # hasta acá una cita desalineada es «corrida» (el archivo ganó un import arriba) y
                  # no «movida» (apunta a otra parte). Se separan por prioridad, no se esconden.
-ANCLA_MIN = 10   # caracteres no-espacio mínimos. Una línea `}` o `]);` matchea en 200 lugares: como
+ANCHOR_MIN = 10   # caracteres no-espacio mínimos. Una línea `}` o `]);` matchea en 200 lugares: como
                  # ancla no afirma nada, y tratarla como válida inventaría «movidas» al azar.
 
 # `ruta/archivo.ext:123` o `…:123-145` — con o sin backticks. La extensión es obligatoria para no
@@ -124,7 +124,7 @@ REF = re.compile(r'([\w][\w./+\-]*\.(?:ts|tsx|php|mjs|cjs|js|jsx|vue|go)):(\d+)(
 # el docstring de arriba ya había aprendido: forzar el emparejamiento manda a corregir lo que está
 # bien. Así que se CUENTAN y se declaran, no se validan: el número honesto vale más que un verde que
 # cubre la mitad. La salida es convertirlas a ruta completa, que sí se ancla.
-CORTA = re.compile(r'`:(\d+)(?:-(\d+))?`')
+SHORT = re.compile(r'`:(\d+)(?:-(\d+))?`')
 
 
 
@@ -134,7 +134,7 @@ def git(repo, *args):
 
 
 @lru_cache(maxsize=None)
-def repo_de(alias):
+def repo_of(alias):
     """(raíz del repo, prefijo del alias dentro de esa raíz).
 
     ⚠ El alias `harness` NO es un repo: es un subdirectorio de `playground`. Sin normalizar acá, unos
@@ -148,38 +148,38 @@ def repo_de(alias):
 
 
 @lru_cache(maxsize=None)
-def sha_en(repo, fecha):
+def sha_at(repo, date):
     """El commit al cierre de ese día — el estado que el nodo dice haber verificado.
 
     ⚠ `repo` acá es el TOPLEVEL del clon, no un alias, así que la ref se resuelve desde la ruta. Contra
     un `main` local atrasado el «cierre de hoy» cae en un commit de días atrás y toda la comparación se
     corre con él."""
     ref, _ = ref_a_indexar(repo)
-    out = git(repo, "rev-list", "-1", f"--before={fecha} 23:59:59", ref or "main")
+    out = git(repo, "rev-list", "-1", f"--before={date} 23:59:59", ref or "main")
     return out.strip() if out and out.strip() else None
 
 
 @lru_cache(maxsize=None)
-def renombres(repo, sha):
+def renames(repo, sha):
     """{ruta_hoy: ruta_cuando_se_selló}, siguiendo cadenas (un archivo pudo renombrarse dos veces)."""
     ref, _ = ref_a_indexar(repo)
     out = git(repo, "log", "--diff-filter=R", "-M", "--name-status", "--format=", f"{sha}..{ref or 'main'}")
-    directo = {}
+    direct = {}
     for ln in (out or "").splitlines():
         p = ln.split("\t")
         if len(p) == 3 and p[0].startswith("R"):
-            directo[p[2]] = p[1]  # nuevo -> viejo
-    def origen(p):
-        visto = set()
-        while p in directo and p not in visto:
-            visto.add(p)
-            p = directo[p]
+            direct[p[2]] = p[1]  # nuevo -> viejo
+    def origin(p):
+        seen = set()
+        while p in direct and p not in seen:
+            seen.add(p)
+            p = direct[p]
         return p
-    return {n: origen(n) for n in directo}
+    return {n: origin(n) for n in direct}
 
 
 @lru_cache(maxsize=None)
-def en_ref(alias, ref, rel):
+def in_ref(alias, ref, rel):
     """El archivo tal como está en `ref` (por defecto `main`), NO como está en disco.
 
     ⚠ ESTE ES EL MISMO BUG QUE SE ARREGLÓ EN `oracle.py`, y reapareció acá. Leer el working tree hace
@@ -189,20 +189,20 @@ def en_ref(alias, ref, rel):
     `bancolombia`, y la cita contra `main` estaba perfecta. El árbol describe `main`: se compara
     main-entonces contra main-hoy, y el disco no entra.
     """
-    repo, pre = repo_de(alias)
+    repo, pre = repo_of(alias)
     if not repo:
         return None
-    return contenido(repo, ref, pre + rel)
+    return content(repo, ref, pre + rel)
 
 
 @lru_cache(maxsize=None)
-def contenido(repo, sha, path):
+def content(repo, sha, path):
     out = git(repo, "show", f"{sha}:{path}")
     return tuple(out.splitlines()) if out is not None else None
 
 
 @lru_cache(maxsize=None)
-def escrita_en(doc):
+def written_at(doc):
     """{nº de línea del doc: fecha en que se escribió esa línea} — `git blame` sobre el propio doc.
 
     ⚠ ESTO NO ES UN LUJO, ES LO QUE HACE QUE LA HERRAMIENTA SE PUEDA USAR DOS VECES. El ancla se lee
@@ -219,8 +219,8 @@ def escrita_en(doc):
     Las líneas sin commitear salen con fecha de hoy (blame las marca `0000…`), que es lo correcto:
     acabás de escribirlas.
     """
-    out = git(RAIZ, "blame", "--line-porcelain", "-w", "--", doc)
-    fechas, ln, ts = {}, None, None
+    out = git(ROOT, "blame", "--line-porcelain", "-w", "--", doc)
+    dates, ln, ts = {}, None, None
     for row in (out or "").splitlines():
         m = re.match(r'^[0-9a-f]{40} \d+ (\d+)', row)
         if m:
@@ -233,156 +233,156 @@ def escrita_en(doc):
             # más nuevo de la cuenta se come la deriva de ese día sin avisar.
             tz = row.split()[1]
             off = (1 if tz[0] == "+" else -1) * (int(tz[1:3]) * 3600 + int(tz[3:5]) * 60)
-            fechas[ln] = datetime.fromtimestamp(ts + off, timezone.utc).strftime("%Y-%m-%d")
-    return fechas
+            dates[ln] = datetime.fromtimestamp(ts + off, timezone.utc).strftime("%Y-%m-%d")
+    return dates
 
 
-def ubicar(ancla, hoy, esperado):
+def locate(anchor, today, expected):
     """(línea de hoy más cercana a `esperado`, cuántas coincidencias) · (None, 0) si el ancla no sirve.
 
     Un ancla corta (`}`, `});`, `return;`) matchea en decenas de lugares: no afirma nada, y tratarla
     como válida inventa correcciones al azar. Se rechaza antes de buscar.
     """
-    if len(ancla.replace(" ", "")) < ANCLA_MIN:
+    if len(anchor.replace(" ", "")) < ANCHOR_MIN:
         return None, 0
-    hits = [i + 1 for i, l in enumerate(hoy) if l.strip() == ancla]
+    hits = [i + 1 for i, l in enumerate(today) if l.strip() == anchor]
     if not hits:
         return None, 0
-    return min(hits, key=lambda h: abs(h - esperado)), len(hits)
+    return min(hits, key=lambda h: abs(h - expected)), len(hits)
 
 
-def por_ancla(alias, rel, n, fin, fecha, hoy):
+def by_anchor(alias, rel, n, end, date, today):
     """('ok'|'movida'|'reescrita', nota) o None si no se pudo anclar (→ el caller cae al rango)."""
-    repo, pre = repo_de(alias)
-    if not repo or not fecha:
+    repo, pre = repo_of(alias)
+    if not repo or not date:
         return None
-    sha = sha_en(repo, fecha)
+    sha = sha_at(repo, date)
     if not sha:
         return None
     full = pre + rel
-    base = contenido(repo, sha, renombres(repo, sha).get(full, full))
+    base = content(repo, sha, renames(repo, sha).get(full, full))
     if base is None or n > len(base):
         return None                       # el archivo (o la línea) no existía al sellar
-    ancla = base[n - 1].strip()
-    if len(ancla.replace(" ", "")) < ANCLA_MIN:
+    anchor = base[n - 1].strip()
+    if len(anchor.replace(" ", "")) < ANCHOR_MIN:
         return None                       # ancla demasiado corta para afirmar nada
-    hits = [i + 1 for i, l in enumerate(hoy) if l.strip() == ancla]
+    hits = [i + 1 for i, l in enumerate(today) if l.strip() == anchor]
     if not hits:
-        return ("reescrita", f"la línea de entonces ya no está: «{ancla[:56]}»")
-    movio = not any(abs(h - n) <= CERCA for h in hits)
+        return ("reescrita", f"la línea de entonces ya no está: «{anchor[:56]}»")
+    moved = not any(abs(h - n) <= NEAR for h in hits)
     ini = min(hits, key=lambda h: abs(h - n))
 
     # El fin del rango, si lo hay. NO se calcula como «inicio nuevo + largo viejo»: el bloque pudo
     # crecer por dentro. Se ancla igual que el inicio, y si su ancla no sirve se DICE, en vez de
     # devolver un número inventado que el que corrige va a copiar tal cual.
-    cola = ""
-    if fin and n < fin <= len(base):
-        f_new, f_cnt = ubicar(base[fin - 1].strip(), hoy, (ini if movio else n) + (fin - n))
+    tail = ""
+    if end and n < end <= len(base):
+        f_new, f_cnt = locate(base[end - 1].strip(), today, (ini if moved else n) + (end - n))
         if f_new is None:
-            cola = f" · el fin (:{fin}) no se ancla («{base[fin - 1].strip()[:18]}»): revisalo a mano"
+            tail = f" · el fin (:{end}) no se ancla («{base[end - 1].strip()[:18]}»): revisalo a mano"
         elif f_cnt > 1:
-            cola = f" · fin ≈ :{f_new}, pero ese ancla se repite {f_cnt}×: confirmalo"
-        elif movio:
-            cola = f" → rango :{ini}-{f_new}"
-        elif f_new != fin:
+            tail = f" · fin ≈ :{f_new}, pero ese ancla se repite {f_cnt}×: confirmalo"
+        elif moved:
+            tail = f" → rango :{ini}-{f_new}"
+        elif f_new != end:
             # el inicio no se movió pero el bloque creció: el rango igual quedó mal
-            grado = "corrida" if abs(f_new - fin) <= LEVE else "movida"
-            return (grado, f"{alias}: el inicio :{n} sigue bien, pero el rango termina en :{f_new}")
+            degree = "corrida" if abs(f_new - end) <= MINOR else "movida"
+            return (degree, f"{alias}: el inicio :{n} sigue bien, pero el rango termina en :{f_new}")
 
-    if not movio:
-        return ("ok", "ancla" + (cola if cola else ""))
+    if not moved:
+        return ("ok", "ancla" + (tail if tail else ""))
     extra = f" (y {len(hits) - 1} coincidencia(s) más)" if len(hits) > 1 else ""
     # Se separa por MAGNITUD, y no es cosmética. Con match exacto aparecen 37 citas desalineadas, pero
     # 31 lo están por 1-3 líneas (el archivo ganó un import arriba) y 6 apuntan a otra parte del
     # archivo. Mezclarlas ahoga las que importan; esconder las chicas bajo una tolerancia es afirmar
     # que una cita es correcta cuando no lo es. Van en baldes distintos y solo las grandes fallan.
-    grado = "corrida" if abs(ini - n) <= LEVE else "movida"
+    degree = "corrida" if abs(ini - n) <= MINOR else "movida"
     # El alias va SIEMPRE en la corrección: cuando la cita matchea varios repos (`config/app.php`
     # vive en dos, `UserRequestController.php` en cinco), un «está en :178» pelado no dice en cuál
     # se comprobó — y editar el doc a ciegas con ese número es cambiar una cita correcta por otra.
-    return (grado, f"{alias}: está en :{ini}{extra}{cola}")
+    return (degree, f"{alias}: está en :{ini}{extra}{tail}")
 
 
-def indice(ref=None):
+def index(ref=None):
     """Mapas para resolver una cita: por relpath completo y por basename.
 
     `ref=None` es el modo automático de `oracle.del_ref`: cada repo se mira con la ref que contiene a
     la otra. Un valor explícito se respeta tal cual."""
-    existen, _, _ = del_ref(ref)
-    por_rel, por_base = defaultdict(list), defaultdict(list)
-    for f in existen:
+    existing, _, _ = del_ref(ref)
+    by_rel, by_base = defaultdict(list), defaultdict(list)
+    for f in existing:
         alias, _, rel = f.partition("/")
-        por_rel[rel].append((alias, rel))
-        por_base[os.path.basename(rel)].append((alias, rel))
-    return existen, por_rel, por_base
+        by_rel[rel].append((alias, rel))
+        by_base[os.path.basename(rel)].append((alias, rel))
+    return existing, by_rel, by_base
 
 
-def resolver(cita, existen, por_rel, por_base):
+def resolver(citation, existing, by_rel, by_base):
     """Devuelve [(alias, relpath)] candidatos para una cita tal como está escrita en el doc."""
     # Los docs eliden tramos con `...` o `…` (`Modules/Risk/.../SistecreditoController.php`). Es un
     # estilo de escritura, no una ruta rota: se toma lo que va DESPUÉS de la última elisión y se
     # resuelve por sufijo. Sin esto, 7 citas válidas caían en "no existe".
-    if "..." in cita or "…" in cita:
-        cita = re.split(r'(?:\.{3}|…)/?', cita)[-1].lstrip("/")
+    if "..." in citation or "…" in citation:
+        citation = re.split(r'(?:\.{3}|…)/?', citation)[-1].lstrip("/")
     # 0) la cita YA trae el alias. Sin este caso primero, el paso 1 le pega otro alias delante y arma
     #    `legacy-backend/legacy-backend/app/...`: no resuelve y el archivo aparece como inexistente.
-    if cita in existen:
-        alias, _, rel = cita.partition("/")
+    if citation in existing:
+        alias, _, rel = citation.partition("/")
         return [(alias, rel)]
     # 1) con cada alias por delante — y se RECOLECTAN TODOS, no se devuelve el primero. Devolver el
     #    primero hacía que `config/services.php` resolviera a `legacy-application` (267 líneas) y
     #    reportara como deriva las citas :297/:303/:317, válidas en `legacy-backend` (371). Seis falsos
     #    positivos de una: el mismo archivo vive en dos repos, y elegir por orden del dict es al azar.
-    en_alias = [(alias, cita) for alias in ROOTS if f"{alias}/{cita}" in existen]
-    if en_alias:
-        return en_alias
-    if cita in por_rel:
-        return por_rel[cita]
-    suf = [v for rel, vs in por_rel.items() if rel.endswith("/" + cita) for v in vs]
+    in_alias = [(alias, citation) for alias in ROOTS if f"{alias}/{citation}" in existing]
+    if in_alias:
+        return in_alias
+    if citation in by_rel:
+        return by_rel[citation]
+    suf = [v for rel, vs in by_rel.items() if rel.endswith("/" + citation) for v in vs]
     if suf:
         return suf
     # el basename SOLO si la cita no traía directorio. Con directorio, caer al basename es
     # mis-resolución: `backend-e2e/main.go` (herramienta borrada) se pegaba al `main.go` de otro repo
     # y salía reportado como "fuera de rango", o sea deriva inventada.
-    if "/" in cita:
+    if "/" in citation:
         return []
-    return por_base.get(cita, [])
+    return by_base.get(citation, [])
 
 
-def evaluar(cita, n, fin, base_cita, idx):
+def evaluate(citation, n, end, citation_base, idx):
     """(balde, nota) para una cita ya resuelta a nombre de archivo. Compartido por el formato
     completo (`ruta/archivo.php:123`) y el corto (`` `:123` `` resuelto contra su contexto)."""
-    existen, por_rel, por_base = idx
-    cands = resolver(cita, existen, por_rel, por_base)
+    existing, by_rel, by_base = idx
+    cands = resolver(citation, existing, by_rel, by_base)
     if not cands:
         return "no-existe", ""
 
-    veredictos = []
+    verdicts = []
     for alias, rel in sorted({(a, r) for a, r in cands}):
-        hoy = en_ref(alias, ref_hoy(alias), rel)
-        if hoy is None:
+        today = in_ref(alias, today_ref(alias), rel)
+        if today is None:
             continue
-        hoy = list(hoy)
-        if n > len(hoy):
-            veredictos.append(("fuera", f"{alias}/{rel}: tiene {len(hoy)} líneas"))
+        today = list(today)
+        if n > len(today):
+            verdicts.append(("fuera", f"{alias}/{rel}: tiene {len(today)} líneas"))
             continue
-        veredictos.append(por_ancla(alias, rel, n, fin, base_cita, hoy)
+        verdicts.append(by_anchor(alias, rel, n, end, citation_base, today)
                           or ("sin-ancla", "solo se verificó que la línea existe"))
 
     # Con varios candidatos NO se adivina, pero tampoco se tira la toalla: si ALGUNO valida, la cita
     # está bien. Con el ancla esto además DESAMBIGUA solo — el archivo equivocado no contiene ese texto.
-    orden = ["ok", "corrida", "movida", "reescrita", "sin-ancla", "fuera"]
-    if not veredictos:
+    order = ["ok", "corrida", "movida", "reescrita", "sin-ancla", "fuera"]
+    if not verdicts:
         return "no-existe", "no se pudo leer"
-    clave, nota = min(veredictos, key=lambda v: orden.index(v[0]))
+    key, note = min(verdicts, key=lambda v: order.index(v[0]))
 
     if len(cands) > 1:
-        if clave not in ("movida", "reescrita", "fuera"):
+        if key not in ("movida", "reescrita", "fuera"):
             # ALGUNO valida (`ok`/`corrida`), o el chequeo fue débil y NO propone ningún destino
             # (`sin-ancla`). En los dos casos no hay corrección que pueda salir del candidato
             # equivocado, que es lo único que esta rama tiene que evitar. Cuántos había se dice igual,
             # porque saber que el nombre es compartido cambia cómo se lee la cita.
-            nota += f" · {len(cands)} candidatos"
+            note += f" · {len(cands)} candidatos"
         else:
             # ⚠ NINGUNO VALIDA, Y ACÁ LA CORRECCIÓN NO SE PUEDE OFRECER. El destino que saldría es el
             # del candidato que el ranking puso primero, no el que la evidencia señala — y aplicarlo
@@ -395,16 +395,16 @@ def evaluar(cita, n, fin, base_cita, idx):
             # sea cuando ni siquiera había número que ofrecer. El caso peligroso es el otro: cuando SÍ
             # hay número y parece confiable. Ahora se listan los veredictos de TODOS los candidatos, que
             # es lo que deja decidir a quien lee — y para eso la sección ya dice que piden juicio.
-            clave = "ambigua"
-            detalle = " · ".join(f"[{k}] {t}" for k, t in sorted(veredictos, key=lambda v: orden.index(v[0])))
-            nota = f"{len(cands)} candidatos y ninguno valida — {detalle}"
-    return clave, nota
+            key = "ambigua"
+            detail = " · ".join(f"[{k}] {t}" for k, t in sorted(verdicts, key=lambda v: order.index(v[0])))
+            note = f"{len(cands)} candidatos y ninguno valida — {detail}"
+    return key, note
 
 
 
 # ─── RECORRER DOCUMENTOS ────────────────────────────────────────────────────────────────────────────
 
-def sello_de(doc):
+def stamp_of(doc):
     """La fecha en que alguien declaró haber verificado el documento entero, si la hay.
 
     Sale de un `map.json` al lado del documento (`verified.date`) — el formato que usaba el árbol de
@@ -422,7 +422,7 @@ def sello_de(doc):
         return None
 
 
-def etiqueta(doc):
+def label(doc):
     """Cómo se nombra el documento en la salida: `<carpeta>/<archivo>`.
 
     La carpeta sola no alcanza (todos los documentos se llaman `doc.md`) y la ruta completa tampoco
@@ -430,50 +430,50 @@ def etiqueta(doc):
     return f"{os.path.basename(os.path.dirname(doc)) or '.'}/{os.path.basename(doc)}"
 
 
-def revisar(documentos, idx=None):
+def review(documents, idx=None):
     """Valida las citas de esos documentos. Devuelve `(baldes, sin_sello)`.
 
     `baldes` es {clave: [(dónde, cita, nota)]} con las claves de la lista del docstring de arriba.
     """
-    idx = idx or indice()
-    baldes = defaultdict(list)
-    sin_sello = set()
+    idx = idx or index()
+    buckets = defaultdict(list)
+    unstamped = set()
 
-    for doc in documentos:
+    for doc in documents:
         if not os.path.isfile(doc):
             continue
-        nombre = etiqueta(doc)
-        fecha = sello_de(doc)
-        if not fecha:
-            sin_sello.add(nombre)
+        name = label(doc)
+        date = stamp_of(doc)
+        if not date:
+            unstamped.add(name)
 
-        blame = escrita_en(os.path.relpath(doc, RAIZ))
+        blame = written_at(os.path.relpath(doc, ROOT))
         with open(doc) as fh:
-            lineas = fh.read().splitlines()
-        for i, linea in enumerate(lineas, 1):
-            donde = f"{nombre}:{i}"
+            lines = fh.read().splitlines()
+        for i, line in enumerate(lines, 1):
+            where = f"{name}:{i}"
             # cuándo se afirmó esta cita: el sello del documento, o cuándo se escribió la línea si
             # es posterior (ver `escrita_en`). Sin este max, corregir una cita la rompe de nuevo.
-            base_cita = max(filter(None, (fecha, blame.get(i))), default=None)
+            citation_base = max(filter(None, (date, blame.get(i))), default=None)
 
-            for m in REF.finditer(linea):
-                cita, n = m.group(1), int(m.group(2))
-                fin = int(m.group(3)) if m.group(3) else None
-                etiq = f"{cita}:{n}" + (f"-{fin}" if fin else "")
-                clave, nota = evaluar(cita, n, fin, base_cita, idx)
-                baldes[clave].append((donde, etiq, nota))
+            for m in REF.finditer(line):
+                citation, n = m.group(1), int(m.group(2))
+                end = int(m.group(3)) if m.group(3) else None
+                tag = f"{citation}:{n}" + (f"-{end}" if end else "")
+                key, note = evaluate(citation, n, end, citation_base, idx)
+                buckets[key].append((where, tag, note))
 
             # Cortas: se CUENTAN, no se validan (ver el comentario de `CORTA`). Van por documento para
             # que se vea dónde conviene convertirlas a ruta completa.
-            for m in CORTA.finditer(linea):
-                etiq = f":{m.group(1)}" + (f"-{m.group(2)}" if m.group(2) else "")
-                baldes["corta"].append((donde, etiq, "relativa al contexto: fuera del chequeo"))
+            for m in SHORT.finditer(line):
+                tag = f":{m.group(1)}" + (f"-{m.group(2)}" if m.group(2) else "")
+                buckets["corta"].append((where, tag, "relativa al contexto: fuera del chequeo"))
 
-    return baldes, sin_sello
+    return buckets, unstamped
 
 
 ORD = [("movida", "⚠ MOVIDAS — el ancla está en otra parte del archivo (viene la corrección)"),
-       ("corrida", f"· CORRIDAS ≤{LEVE} líneas — desalineadas pero apuntan al mismo bloque"),
+       ("corrida", f"· CORRIDAS ≤{MINOR} líneas — desalineadas pero apuntan al mismo bloque"),
        ("reescrita", "⚠ REESCRITAS — la línea de entonces ya no está: hay que leer y decidir"),
        ("fuera", "⚠ FUERA DE RANGO — la línea no existe"),
        ("ambigua", "? AMBIGUAS — el nombre vive en varios repos y ninguno valida: la corrección "
@@ -484,53 +484,53 @@ ORD = [("movida", "⚠ MOVIDAS — el ancla está en otra parte del archivo (vie
        ("no-existe", "? NO EXISTEN en main — artefacto generado / otra rama / herramienta borrada")]
 
 
-def informe(baldes, sin_sello, ver_ok=False):
+def report(buckets, unstamped, show_ok=False):
     """Imprime los baldes y el resumen. Devuelve el código de salida."""
-    for clave, titulo in ORD:
-        if not baldes[clave]:
+    for key, title in ORD:
+        if not buckets[key]:
             continue
-        print(f"\n{titulo}  ({len(baldes[clave])})")
-        cuantas = len(baldes[clave]) if (ver_ok or clave != "sin-ancla") else 12
-        for donde, cita, nota in sorted(baldes[clave])[:cuantas]:
-            print(f"  {donde:34s} {cita:58s} {nota}")
-        if len(baldes[clave]) > cuantas:
-            print(f"  … y {len(baldes[clave]) - cuantas} más (--ok para verlas todas)")
+        print(f"\n{title}  ({len(buckets[key])})")
+        how_many = len(buckets[key]) if (show_ok or key != "sin-ancla") else 12
+        for where, citation, note in sorted(buckets[key])[:how_many]:
+            print(f"  {where:34s} {citation:58s} {note}")
+        if len(buckets[key]) > how_many:
+            print(f"  … y {len(buckets[key]) - how_many} más (--ok para verlas todas)")
 
-    if ver_ok and baldes["ok"]:
-        print(f"\n✓ OK ({len(baldes['ok'])})")
-        for donde, cita, nota in sorted(baldes["ok"]):
-            print(f"  {donde:34s} {cita:58s} {nota}")
+    if show_ok and buckets["ok"]:
+        print(f"\n✓ OK ({len(buckets['ok'])})")
+        for where, citation, note in sorted(buckets["ok"]):
+            print(f"  {where:34s} {citation:58s} {note}")
 
-    tot = sum(len(v) for v in baldes.values())
-    print(f"\n{tot} referencias · ✓ {len(baldes['ok'])} ancladas · ⚠ {len(baldes['movida'])} movidas · "
-          f"· {len(baldes['corrida'])} corridas · ⚠ {len(baldes['reescrita'])} reescritas · "
-          f"⚠ {len(baldes['fuera'])} fuera · "
-          f"· {len(baldes['sin-ancla'])} sin ancla · ? {len(baldes['ambigua'])} ambiguas · "
-          f"? {len(baldes['no-existe'])} no existen")
-    if baldes["corta"]:
-        cortas = len(baldes["corta"])
-        validadas = sum(len(baldes[k]) for k in
+    tot = sum(len(v) for v in buckets.values())
+    print(f"\n{tot} referencias · ✓ {len(buckets['ok'])} ancladas · ⚠ {len(buckets['movida'])} movidas · "
+          f"· {len(buckets['corrida'])} corridas · ⚠ {len(buckets['reescrita'])} reescritas · "
+          f"⚠ {len(buckets['fuera'])} fuera · "
+          f"· {len(buckets['sin-ancla'])} sin ancla · ? {len(buckets['ambigua'])} ambiguas · "
+          f"? {len(buckets['no-existe'])} no existen")
+    if buckets["corta"]:
+        short_ones = len(buckets["corta"])
+        validated = sum(len(buckets[k]) for k in
                         ("ok", "corrida", "movida", "reescrita", "fuera", "sin-ancla"))
-        porc = validadas * 100 // (validadas + cortas)
-        por_doc = defaultdict(int)
-        for donde, _, _ in baldes["corta"]:
-            por_doc[donde.rsplit(":", 1)[0]] += 1
-        top = " · ".join(f"{n} {c}" for n, c in sorted(por_doc.items(), key=lambda kv: -kv[1])[:5])
-        print(f"⚠ {cortas} citas en formato corto `:NNN` quedan FUERA del chequeo → lo de arriba "
-              f"cubre el {porc}% de las citas con número de línea. Peores: {top}")
-    if sin_sello:
+        pct = validated * 100 // (validated + short_ones)
+        by_doc = defaultdict(int)
+        for where, _, _ in buckets["corta"]:
+            by_doc[where.rsplit(":", 1)[0]] += 1
+        top = " · ".join(f"{n} {c}" for n, c in sorted(by_doc.items(), key=lambda kv: -kv[1])[:5])
+        print(f"⚠ {short_ones} citas en formato corto `:NNN` quedan FUERA del chequeo → lo de arriba "
+              f"cubre el {pct}% de las citas con número de línea. Peores: {top}")
+    if unstamped:
         print(f"⚠ sin `verified.date` al lado (se ancla por `git blame` del documento): "
-              f"{', '.join(sorted(sin_sello))}")
+              f"{', '.join(sorted(unstamped))}")
     print("Las ambiguas y las que no existen NO son deriva: piden juicio, no arreglo automático.")
-    return 1 if (baldes["movida"] or baldes["reescrita"] or baldes["fuera"]) else 0
+    return 1 if (buckets["movida"] or buckets["reescrita"] or buckets["fuera"]) else 0
 
 
 def main():
     docs = [a for a in sys.argv[1:] if not a.startswith("--")]
     if not docs:
         sys.exit(__doc__.split("USO")[1].strip())
-    baldes, sin_sello = revisar(docs)
-    return informe(baldes, sin_sello, ver_ok="--ok" in sys.argv)
+    buckets, unstamped = review(docs)
+    return report(buckets, unstamped, show_ok="--ok" in sys.argv)
 
 
 if __name__ == "__main__":
