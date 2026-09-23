@@ -736,8 +736,8 @@ let copiedTimer = null;
 //     los curl contra localhost. Es justo lo que no le sirve a quien lo recibe.
 //
 // Cada una tiene DOS nombres, porque las tareas viejas usan los de antes: «Registro»/«Bitácora» (que
-// sigue en las dos tareas que no se migraron a la pila) y «Cómo se comprueba»/«Cómo probar /
-// validar». Cubrir sólo los nombres nuevos dejaba la mitad de las tareas sin cortar — y el corte que no
+// sólo conserva una tarea archivada: la historia de las abiertas pasó a la pila) y «Cómo se comprueba»/
+// «Cómo probar / validar». Cubrir sólo los nombres nuevos dejaba la mitad de las tareas sin cortar — y el corte que no
 // corta es peor que no tenerlo, porque uno cree que sí.
 //
 // ⚠ «Cómo validar» (20 apariciones) NO entra y no es un olvido: vive del lado PUBLICABLE, que es la

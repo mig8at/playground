@@ -528,7 +528,7 @@ valida de verdad es `server/internal/taskcontext/block.go`.
 
 Hasta el 2026-09-23 la pila era de hitos (`kind` checkpoint · decision · blocker · evidence); los 37 que
 había se migraron a bloques ese día y el formato ya no se lee. Ese mismo día entró la historia del
-documento —anotaciones, Registro y retoma de las 25 tareas abiertas que los tenían: 386 bloques más, con
+documento —anotaciones, Registro y retoma de las 22 tareas abiertas que los tenían: 430 bloques más, con
 `via: migration`—. `make retomar` incluye los ocho bloques más recientes.
 
 ### Consultas a base de datos

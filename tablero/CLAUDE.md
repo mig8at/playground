@@ -114,12 +114,13 @@ Los pendientes no se repiten: viven en su vista lateral.
 
 ⚠ **Desde el 2026-09-23 el documento no lleva historia**: ni `## Registro`, ni anotaciones fechadas
 (`> **MEDICIÓN · fecha** — …`), ni la sección de retoma («Si retomás esto sin contexto»), ni marcadores
-`> **CANON · …**`. Ese día las 25 tareas abiertas que los tenían pasaron a la pila —**386 bloques**,
-`via: migration`, cada uno con su fecha real— y el lint de las tareas frena uno nuevo en el documento y
-dice adónde va. Uno que ya estaba sólo avisa: quedaron sin migrar las dos que otra sesión estaba
-editando ese día (#94 y #95). La retoma se fue sin su «próximo paso», como los `next` de los hitos del
-paso 2: uno fijo obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea
-(Miguel, 2026-09-23).
+`> **CANON · …**`. Ese día las 22 tareas abiertas que los tenían pasaron a la pila —**430 bloques**,
+`via: migration`, cada uno con su fecha real; #94 y #95 más tarde, cuando terminó la sesión que las
+editaba— y el lint de las tareas frena uno nuevo en el documento y dice adónde va. Uno que ya estaba sólo
+avisa: hoy lo tiene nada más la «Bitácora» de #67, archivada, que no se migra porque las tareas ya
+publicadas no se migran (Miguel, 2026-08-20). La retoma se fue sin su «próximo paso», como los `next` de
+los hitos del paso 2: uno fijo obliga a hacer algo después, y eso es decisión de cómo se va desarrollando
+la tarea (Miguel, 2026-09-23).
 
 ### Avances
 
@@ -189,14 +190,14 @@ orden en que se mostraban, y el «siguiente» se fue. El formato ya no se lee �
 la lectura— y `make tarea-context-add` sólo avisa del camino nuevo.
 
 ⚠ **Y ese mismo día entró la historia del documento.** Las anotaciones, el `## Registro` y la sección de
-retoma de las 25 tareas abiertas que los tenían se convirtieron en **386 bloques** (`via: migration`): una
+retoma de las 22 tareas abiertas que los tenían se convirtieron en **430 bloques** (`via: migration`): una
 anotación con su fecha; el Registro partido por su fecha real —cada `### día`, cada viñeta
 `- **fecha** —` y cada `####` de adentro, con su subtítulo como título—; la retoma con la fecha en que se
 escribió por última vez, sin su «próximo paso». Los títulos largos se escribieron a mano; los archivos
 citados quedaron fijados al último commit anterior al día del bloque; el código que no era un comando
 con su resultado quedó como material; los párrafos que sólo contaban un barrido de rutas se descartaron,
 y en #84 los que repetían un bloque que ya estaba. El frontmatter y la sección publicable no se tocaron
-(comprobado byte a byte). Las 20 archivadas no tenían nada de esto.
+(comprobado byte a byte). De las 20 archivadas, sólo #67 conserva una «Bitácora», y se queda así.
 
 ### Jira
 

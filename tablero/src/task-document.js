@@ -38,7 +38,8 @@ function render(tokens, links) {
 }
 
 // La retoma arriba y el Registro al final son de los documentos de antes de la pila (2026-09-23): las
-// tareas migradas ya no los tienen, y las dos que quedaron sin migrar los conservan en ese orden.
+// tareas abiertas ya no los tienen, y la única que conserva una «Bitácora» es una archivada (#67), que
+// no se migra; se sigue leyendo en ese orden.
 function sectionOrder(title) {
   const name = sectionName(title);
   if (/^si retomas|^estado actual|^(el )?proximo paso/.test(name)) return 0;
