@@ -51,7 +51,8 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   `task-context/`; las notas de minutos no aparecen. Cada fecha es un encabezado que **se pega arriba**
   mientras se lee su contenido —el día siguiente lo empuja al llegar— y **se pliega** con un clic, como
   el acordeón del sidebar; plegar un día pegado lo deja en el borde en vez de saltar lejos. Después del recorrido quedan el documento,
-  hallazgos y evidencia como material de consulta. El contexto de Canon aparece
+  hallazgos y evidencia como material de consulta, **cada uno sólo si tiene algo**: una tarea limpia
+  está vacía, sin contenedores con su «0 registrados» o su «todavía no hay». El contexto de Canon aparece
   sólo junto a la decisión que lo usó. **Jira** y **Pendientes** viven en el sidebar derecho; cuando
   la tarea tiene salidas navegables, aparece también **Artifacts**. Ramas queda en la consola inferior.
 - Los sidebars y la consola recuerdan sus medidas. Sus separadores se arrastran y también responden a

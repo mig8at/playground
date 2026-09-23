@@ -714,9 +714,10 @@ const canonID = (canonRef) => {
   return anchor ? `${complete}#${anchor}` : complete;
 };
 const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(canonRef))}`;
-// La evidencia que se registra en el cuerpo privado es el historial de cómo se trabajó la tarea. No
-// se reduce a un texto de «retomar»: Trazador y Harness la consumen en la vista central.
-const workEvidence = computed(() => active.value ? findingsOf(active.value.Key) : []);
+// Las comprobaciones de la tarea: los hallazgos que dicen con qué se midieron —un comando o una fuente—.
+// Sin ninguna, el bloque no se dibuja.
+const workEvidence = computed(() => active.value
+  ? findingsOf(active.value.Key).filter(finding => finding.how || finding.sources?.length) : []);
 
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
@@ -1964,20 +1965,22 @@ function documentAction(id) {
           </section>
         </section>
 
-        <section class="task-reference" aria-label="Documento y evidencia de la tarea">
-            <section class="work-block">
+        <!-- Cada bloque se dibuja sólo si tiene algo: una tarea limpia está VACÍA. Hasta el 2026-09-23 los
+             tres salían siempre, con su «0 registrados» y su «todavía no hay», y en la mitad de las tareas
+             abiertas (13 de 26, sin un solo hallazgo) eran cromo que pedía llenarse. -->
+        <section v-if="summarySections.length || findingsOf(active.Key).length || workEvidence.length"
+                 class="task-reference" aria-label="Documento y evidencia de la tarea">
+            <section v-if="summarySections.length" class="work-block">
               <div class="work-block-head"><h4>Documento de trabajo</h4><small>Estado, decisiones y material vigente</small></div>
-              <div v-if="summarySections.length" class="desc cuerpo-md">
+              <div class="desc cuerpo-md">
                 <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.resume }" v-html="section.summaryHtml"></section>
               </div>
-              <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras secciones.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
             </section>
 
-            <section class="work-block task-findings">
+            <section v-if="findingsOf(active.Key).length" class="work-block task-findings">
               <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ findingsOf(active.Key).length }} registrados</small></div>
               <p class="nota">Conclusiones fechadas del trabajo, con la forma de volver a comprobarlas.</p>
-              <p v-if="!findingsOf(active.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
-              <div v-if="findingsOf(active.Key).length" class="proc">
+              <div class="proc">
                 <span class="proc-cuenta">{{ provenanceOf(active.Key).withHow }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
                 <span v-for="[f, n] in provenanceOf(active.Key).sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>
                 <span v-if="provenanceOf(active.Key).withoutHow" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ provenanceOf(active.Key).withoutHow }} sin cómo</span>
@@ -1994,7 +1997,7 @@ function documentAction(id) {
               </section>
             </section>
 
-            <section class="work-block">
+            <section v-if="workEvidence.length" class="work-block">
               <TaskEvidence :evidence="workEvidence" :tracer-url="tracerUrl" />
             </section>
 
@@ -2356,7 +2359,9 @@ function documentAction(id) {
 .task-context-entry a { color: var(--acc); text-decoration: none }
 .task-context-entry a:hover { text-decoration: underline }
 .task-context-entry code { color: var(--txt); font-size: 11.5px; overflow-wrap: anywhere }
-.task-reference { min-width: 0; max-width: 920px; margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }
+.task-reference { min-width: 0; max-width: 920px }
+/* La línea separa la pila del documento: sin pila arriba quedaría huérfana en el borde del cuerpo. */
+.task-context-timeline + .task-reference { margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }
 .work-block-head h4 { color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }
 .work-block + .work-block { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line) }
 .work-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 12px }

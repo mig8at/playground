@@ -44,7 +44,9 @@ const localDay = (daysAgo) => {
   const d = new Date(); d.setDate(d.getDate() - daysAgo);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T12:00:00-05:00`;
 };
-// Ocho hitos hoy y uno ayer: hace falta un día más alto que el cuerpo para probar que su encabezado se pega.
+// Ocho hitos hoy y cuatro ayer: hace falta un día más alto que el cuerpo para probar que su encabezado se
+// pega, y un día siguiente con lo suyo para que el cuerpo alcance a subirlo —sin los bloques vacíos
+// debajo, con uno solo el scroll se frenaba antes de que llegara arriba—.
 const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v1', id: `ctx_ui_${n}`, at: localDay(daysAgo),
   kind: 'checkpoint', goal: 'Probar la interfaz.', summary: 'Resumen del hito. '.repeat(30), state: 'Estable.', next: 'Seguir.' });
 const sample = {
@@ -55,7 +57,7 @@ const sample = {
     pending: [{ what: 'Hecho', section: 'Pendientes', done: true }, { what: 'Confirmar la interfaz', section: 'Pendientes', done: false }],
     artifacts: [{ file: 'validar/validar.html', label: 'prototipo' }, { file: 'validar/casos.sql', label: 'casos' }] }] },
   '/api/task-locals': { taskLocals: { 'UI-1': { taskKey: 'UI-1', effortId: 1 } } },
-  '/api/task-context': { events: [...Array.from({ length: 8 }, (_, n) => contextEvent(n, 0)), contextEvent(8, 1)] },
+  '/api/task-context': { events: Array.from({ length: 12 }, (_, n) => contextEvent(n, n < 8 ? 0 : 1)) },
 };
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
@@ -177,6 +179,26 @@ try {
   await check('Artifacts lista cada archivo con su tipo', async () => {
     await showAuxTab(page, 'artifacts');
     assert.deepEqual(await page.locator('.artifact-type').allInnerTexts(), ['HTML', 'SQL']);
+  });
+  // Una tarea limpia está VACÍA: sin hallazgos no se dibujan ni el bloque de hallazgos ni el de evidencia
+  // —salían con su «0 registrados» y su «todavía no hay»—. Y con uno, los dos vuelven: un `v-if` que no
+  // se cumple nunca también dejaría la pantalla limpia.
+  await check('sin hallazgos no hay bloques vacíos, y con uno aparecen', async () => {
+    const blocks = () => page.evaluate(() => ({
+      findings: document.querySelectorAll('.task-findings').length,
+      evidence: document.querySelectorAll('.task-evidence').length,
+      empty: /no tiene hallazgos|Todavía no hay|0 registrados/.test(document.querySelector('.te-body').innerText),
+    }));
+    assert.deepEqual(await blocks(), { findings: 0, evidence: 0, empty: false });
+    const effort = sample['/api/efforts'].efforts[0];
+    effort.annotations = [{ kind: 'medicion', date: '2026-09-20', what: 'Se midió el caso.', how: 'SELECT 1', sources: ['DB'] }];
+    try {
+      await page.reload();
+      await page.locator('.task-findings').waitFor({ timeout: 5000 });
+      assert.deepEqual(await blocks(), { findings: 1, evidence: 1, empty: false });
+    } finally {
+      delete effort.annotations;
+    }
   });
   await check('sin errores de consola', () => assert.deepEqual([...errors, ...narrow.errors], []));
   await check('la UI sólo pide rutas que el server sirve', () => assert.deepEqual([...asked].filter((p) => !LIVE.has(p)), []));

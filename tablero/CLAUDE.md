@@ -85,7 +85,9 @@ sprint.
 El editor central muestra una única historia de retoma por fecha: **Hoy**, **Ayer** y luego la fecha
 real de cada jornada anterior. Sólo contiene hitos JSONL que cambian cómo continuar la tarea; no se
 muestran minutos ni notas de sesión. El documento, los hallazgos y la evidencia quedan después de la
-cronología como consulta. El sidebar derecho queda para lo accionable:
+cronología como consulta, y **cada bloque aparece sólo si tiene contenido**: una tarea limpia está vacía
+(pedido de Miguel, 2026-09-23). Un contenedor vacío con su «todavía no hay» pide que lo llenen con algo
+que la tarea quizá no hace. El sidebar derecho queda para lo accionable:
 **Jira · Pendientes · Artifacts** cuando la tarea tenga artefactos.
 
 Cada dato tiene una fuente. Al crear una tarea, copiá `TASK-TEMPLATE.md`; al retomar una abierta,

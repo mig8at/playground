@@ -46,7 +46,9 @@ su banco de casos y las dos rutas del server— y queda sólo la conexión con s
 la tarea» al final de la evidencia: la consola de ramas ya está abajo, y quien usa la herramienta lo
 sabe. Y la sección fija «Harness · comandos reproducibles», con su enlace al panel y `HARNESS_URL`: en
 las tareas sin prueba era un hueco que pedía llenarse; una prueba ejecutada sigue apareciendo dentro del
-hito que la usó.
+hito que la usó. Y con la misma idea, los bloques de documento, hallazgos y evidencia se dibujan sólo si
+tienen algo: **una tarea limpia está vacía**. La mitad de las abiertas (13 de 26) no tiene un solo
+hallazgo y mostraba dos contenedores con su «todavía no hay».
 
 **La cronología es un acordeón (2026-09-23).** Cada fecha —Hoy, Ayer y las anteriores— es un
 encabezado que se pega arriba mientras se lee su contenido; el día siguiente lo empuja al llegar y un
@@ -372,6 +374,9 @@ es el estado vigente. La herramienta pone `id` y `at`, valida y rechaza; nunca s
  ]}
 ```
 
+> **MEDICIÓN · 2026-09-23** — «Evidencia de trabajo» no tiene contenido propio: es la lista de los hallazgos que traen comando o fuente, así que 134 de los 155 hallazgos de las 26 tareas abiertas (86 %) se dibujan dos veces, en «Hallazgos y decisiones» y en «Comprobaciones registradas»; lo único que suma es el enlace al trazador. Si los hallazgos pasan a la pila (pregunta 1), los dos bloques desaparecen y cada hecho queda una sola vez, con su comando. ⚠ Al contarlo, `jq` toma un `how` vacío como verdadero y da 155: hay que compararlo contra `""`, como hace la UI.
+> curl -s http://localhost:8787/api/efforts | jq -c '[.efforts[] | (.annotations // [])] | {tareas: length, sinHallazgos: (map(select(length == 0)) | length), hallazgos: (map(length) | add), repetidosEnEvidencia: (map(map(select(((.how // "") != "") or ((.sources // []) | length > 0))) | length) | add)}'
+
 Los 34 hitos de hoy se migran solos: un `checkpoint` es un sobre con un ítem `state`, un `decision` es un
 ítem `decision`, un `blocker` es un ítem `question` con su `waitingOn`.
 
@@ -390,6 +395,10 @@ arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
 ## Registro
 
 ### 2026-09-23
+
+Una tarea limpia está vacía: los bloques de documento, hallazgos y evidencia se dibujan sólo si tienen
+algo, a pedido de Miguel. Al hacerlo se midió que la evidencia repite 134 de los 155 hallazgos; quedó
+anotado en el frente de la pila, porque es un argumento para su pregunta pendiente.
 
 El buscador del sidebar se salía 40px por el borde con el sidebar en su mínimo (200px): el campo tenía un
 ancho fijo de cuando compartía la fila con las casillas de estado, y el grupo no podía achicarse. Ahora
