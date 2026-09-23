@@ -211,9 +211,12 @@
 
    ⚠ Va acá y no en cada hoja porque las dos herramientas lo necesitaron el mismo día y lo escribieron
    distinto — y la que olvidó `border-left/right` se llevó dos rayas grises a los costados de la
-   banda, que se leen como un error de dibujo y no como un botón. */
+   banda, que se leen como un error de dibujo y no como un botón.
+   ⚠ Y el de ARRIBA también, que este reset olvidó hasta el 2026-09-23: abajo lo fija `.region-head`
+   (o lo quita `.grupo`), pero arriba quedaba el del navegador, 2px `outset`, pintado como una raya
+   gruesa sobre cada día pegado de la línea de tiempo del tablero. */
 button.region-head {
-  width: 100%; border-left: 0; border-right: 0; background: none; color: inherit;
+  width: 100%; border-top: 0; border-left: 0; border-right: 0; background: none; color: inherit;
   font: inherit; font-size: var(--text-sm); font-weight: 600; text-align: left; cursor: pointer;
 }
 button.region-head:hover { background: var(--sel, color-mix(in oklab, var(--foreground) 10%, transparent)) }

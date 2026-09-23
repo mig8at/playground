@@ -10,19 +10,18 @@ import (
 func TestConfigDeliversToolURLs(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 	response := httptest.NewRecorder()
-	(&app{canonURL: "https://canon.test", tracerURL: "https://tracer.test", harnessURL: "http://harness.test"}).config(response, request)
+	(&app{canonURL: "https://canon.test", tracerURL: "https://tracer.test"}).config(response, request)
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
 	}
 	var body struct {
-		CanonURL   string `json:"canonUrl"`
-		TracerURL  string `json:"tracerUrl"`
-		HarnessURL string `json:"harnessUrl"`
+		CanonURL  string `json:"canonUrl"`
+		TracerURL string `json:"tracerUrl"`
 	}
 	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
 		t.Fatal(err)
 	}
-	if body.CanonURL != "https://canon.test" || body.TracerURL != "https://tracer.test" || body.HarnessURL != "http://harness.test" {
+	if body.CanonURL != "https://canon.test" || body.TracerURL != "https://tracer.test" {
 		t.Fatalf("config = %+v", body)
 	}
 }

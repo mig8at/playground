@@ -48,7 +48,9 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
 - Abrir una tarea muestra una cronología central simple con los hitos que permiten retomarla:
   **Hoy**, **Ayer** y después cada fecha real, de más reciente a más antigua. Sólo salen eventos de
-  `task-context/`; las notas de minutos no aparecen. Después del recorrido quedan el documento,
+  `task-context/`; las notas de minutos no aparecen. Cada fecha es un encabezado que **se pega arriba**
+  mientras se lee su contenido —el día siguiente lo empuja al llegar— y **se pliega** con un clic, como
+  el acordeón del sidebar; plegar un día pegado lo deja en el borde en vez de saltar lejos. Después del recorrido quedan el documento,
   hallazgos y evidencia como material de consulta. El contexto de Canon aparece
   sólo junto a la decisión que lo usó. **Jira** y **Pendientes** viven en el sidebar derecho; cuando
   la tarea tiene salidas navegables, aparece también **Artifacts**. Ramas queda en la consola inferior.
@@ -56,9 +58,10 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   las flechas cuando reciben foco.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
 - **Evidencia** separa la traza de una solicitud de una consulta de datos: Trazador aparece sólo cuando
-  se siguió el comportamiento de una solicitud; SQL queda como **DB · ambiente** y su query. Los
-  comandos de Harness salen sólo de bloques de código y marcadores reproducibles, para que una frase no
-  parezca un comando ejecutable.
+  se siguió el comportamiento de una solicitud; SQL queda como **DB · ambiente** y su query. Una prueba
+  de Harness aparece dentro del hito que la usó (`kind: harness`), con su comando. *(Hasta el
+  2026-09-23 había además una sección fija «Harness · comandos reproducibles» con su enlace al panel: en
+  las tareas sin prueba era un hueco que pedía llenarse, y se retiró junto con `HARNESS_URL`.)*
 - El material de trabajo muestra el plan, las decisiones, hallazgos y pruebas después de la
   cronología. Una referencia de Canon se enlaza dentro del hito JSONL que la usó; no hay una sección
   especial ni una colección genérica de temas declarados.
@@ -653,7 +656,6 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 | `WEB_PORT` | puerto de la API | `8787` |
 | `CANON_URL` | API y enlaces de Canon | `https://canon.playground.creditop.com` |
 | `TRACER_URL` | enlace de Trazador en Evidencia | `http://localhost:5192` |
-| `HARNESS_URL` | enlace de Harness en Evidencia | `http://localhost:5195` |
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
 | `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |

@@ -38,6 +38,15 @@ const techNotes = [
   '## Estado', '', 'El PR [#1175](https://example.test/pr/1175) sigue abierto.', '',
   '## Pendientes', '', '- [x] Hecho', '- [ ] Confirmar la interfaz',
 ].join('\n');
+// La fecha LOCAL con su huso, como la escribe `tarea-context-add`: la línea de tiempo agrupa por los diez
+// primeros caracteres, así que un `toISOString()` (UTC) de noche caía en el día de mañana.
+const localDay = (daysAgo) => {
+  const d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T12:00:00-05:00`;
+};
+// Ocho hitos hoy y uno ayer: hace falta un día más alto que el cuerpo para probar que su encabezado se pega.
+const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v1', id: `ctx_ui_${n}`, at: localDay(daysAgo),
+  kind: 'checkpoint', goal: 'Probar la interfaz.', summary: 'Resumen del hito. '.repeat(30), state: 'Estable.', next: 'Seguir.' });
 const sample = {
   '/api/sprints': { sprints: [sprint] },
   '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En curso',
@@ -46,8 +55,7 @@ const sample = {
     pending: [{ what: 'Hecho', section: 'Pendientes', done: true }, { what: 'Confirmar la interfaz', section: 'Pendientes', done: false }],
     artifacts: [{ file: 'validar/validar.html', label: 'prototipo' }, { file: 'validar/casos.sql', label: 'casos' }] }] },
   '/api/task-locals': { taskLocals: { 'UI-1': { taskKey: 'UI-1', effortId: 1 } } },
-  '/api/task-context': { events: [{ schema: 'tablero.task-context/v1', id: 'ctx_ui', at: new Date().toISOString(),
-    kind: 'checkpoint', goal: 'Probar la interfaz.', summary: 'Resumen del hito.', state: 'Estable.', next: 'Seguir.' }] },
+  '/api/task-context': { events: [...Array.from({ length: 8 }, (_, n) => contextEvent(n, 0)), contextEvent(8, 1)] },
 };
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 
@@ -110,6 +118,32 @@ try {
     const labeled = texts.filter((t) => /^(Objetivo|Estado|Siguiente paso)\./.test(t));
     assert(labeled.length >= 3, `se esperaban 3 rótulos, hubo ${labeled.length}`);
     assert.deepEqual(labeled.filter((t) => /^[^.]+\.\S/.test(t)), [], 'rótulo pegado al texto');
+  });
+  // Tres cosas que se rompieron al hacerlo: el `top: 0` de taller.css lo pegaba debajo del padding del
+  // cuerpo y el texto se asomaba por encima; un encabezado sacado de su sección no deja que el día
+  // siguiente lo empuje; y plegar un día pegado dejaba el scroll apuntando lejos de donde se leía.
+  await check('el día se pega arriba sin dejar asomar el texto, el siguiente lo reemplaza y plegarlo no pierde el lugar', async () => {
+    const r = await page.locator('.te-body').evaluate(async (body) => {
+      const frame = () => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
+      const rel = (el) => el.getBoundingClientRect().top - body.getBoundingClientRect().top;
+      const [today, yesterday] = body.querySelectorAll('.task-context-day');
+      const [todayHead, yesterdayHead] = [today, yesterday].map((s) => s.querySelector('.context-day'));
+      const covered = () => {
+        const el = document.elementFromPoint(todayHead.getBoundingClientRect().left + 30, body.getBoundingClientRect().top + 1);
+        return Boolean(el?.closest('.context-day'));
+      };
+      body.scrollTop = 300; await frame();
+      const middle = { head: rel(todayHead), covered: covered() };
+      body.scrollTop += today.getBoundingClientRect().bottom - body.getBoundingClientRect().top + 20; await frame();
+      const next = { today: rel(todayHead), yesterday: rel(yesterdayHead) };
+      body.scrollTop = 300; await frame();
+      todayHead.click(); await frame();
+      return { middle, next, folded: { head: rel(todayHead), expanded: todayHead.getAttribute('aria-expanded') } };
+    });
+    assert(Math.abs(r.middle.head) <= 1, `a mitad del día el encabezado tenía que estar arriba, estaba a ${r.middle.head}px`);
+    assert(r.middle.covered, 'por encima del día pegado se asoma el texto');
+    assert(r.next.today < 0 && Math.abs(r.next.yesterday) <= 1, `pasado el día, el siguiente tenía que reemplazarlo: ${JSON.stringify(r.next)}`);
+    assert(r.folded.expanded === 'false' && Math.abs(r.folded.head) <= 1, `plegado, el día tenía que quedar arriba: ${JSON.stringify(r.folded)}`);
   });
   await check('los enlaces del documento no quedan con el azul del navegador', async () => {
     const color = await page.locator('.cuerpo-md a').first().evaluate((a) => getComputedStyle(a).color);

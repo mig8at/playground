@@ -2,16 +2,18 @@
 /* EVIDENCIA — cómo se trabajó ESTA tarea.
  *
  * El documento conserva el argumento completo. Esta vista lo hace operable sin inventar un resumen:
- * enlaces a las herramientas declaradas, comandos de Harness extraídos del mismo Markdown privado y
- * las comprobaciones fechadas que ya registró la tarea. El contexto de Canon aparece junto a la
- * decisión que lo usó; Trazador queda sólo cuando se siguió una solicitud y Harness para corridas.
+ * enlaces a las herramientas usadas y las comprobaciones fechadas que ya registró la tarea. El contexto
+ * de Canon aparece junto a la decisión que lo usó, y Trazador sólo cuando se siguió una solicitud.
+ *
+ * ⚠ Acá había una sección «Harness · comandos reproducibles» con su «Abrir Harness ↗», que se mostraba
+ * aunque la tarea no tuviera nada que correr en el arnés: ocupaba lugar y empujaba a llenarla con algo
+ * que no aplicaba. Se retiró el 2026-09-23 (pedido de Miguel); un comando de Harness que sirva de
+ * prueba sigue apareciendo en «Comprobaciones registradas», junto a la medición que respalda.
  */
 import { computed } from 'vue';
 
 const props = defineProps({
   evidence: { type: Array, default: () => [] },
-  notes: { type: String, default: '' },
-  harnessUrl: { type: String, required: true },
   tracerUrl: { type: String, required: true },
 });
 
@@ -20,26 +22,6 @@ const proofs = computed(() => [...props.evidence]
   .filter(item => item?.how || item?.sources?.length)
   .sort((a, b) => (b.date || '').localeCompare(a.date || '')));
 const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item, 'trazador')).length);
-const harnessEvidence = computed(() => proofs.value.filter(item => hasSource(item, 'harness')));
-
-// Sólo se muestran comandos que arrancan una comprobación de Harness. Las consultas `curl` y la
-// configuración del backend quedan en el documento: listarlas como «Harness» haría parecer que el
-// arnés las ejecuta. El mismo comando puede estar en la receta y en una medición, por eso se deduplica.
-const reHarness = /^(?:make\s+harness-[\w-]+(?:\s+.*)?|(?:cd\s+harness\s+&&\s+)?(?:[A-Z_]+=[^\s]+\s+)*bin\/asesor(?:\s+.*)?|npx\s+playwright(?:\s+.*)?|node\s+dev\/[^\s]+(?:\s+.*)?)$/i;
-function cleanHarnessCommand(line) {
-  const candidate = String(line || '').replace(/^>\s?/, '').replaceAll('`', '')
-    .replace(/\s+·\s+TARGET=.*$/i, '').replace(/\s+#.*$/, '').trim();
-  return reHarness.test(candidate) ? candidate : '';
-}
-const harnessCommands = computed(() => {
-  const candidates = [
-    // Los comandos de la receta son bloques de código sangrados. No se escanea la prosa: «volver a
-    // correr bin/asesor» es una instrucción humana, no un comando que se pueda copiar y ejecutar.
-    ...props.notes.split('\n').filter(line => /^(?: {4}|\t)/.test(line)).map(line => line.trim()),
-    ...harnessEvidence.value.flatMap(item => String(item.how || '').split('\n')),
-  ];
-  return [...new Set(candidates.map(cleanHarnessCommand).filter(Boolean))];
-});
 </script>
 
 <template>
@@ -58,17 +40,6 @@ const harnessCommands = computed(() => {
           <span class="tool-arrow" aria-hidden="true">↗</span>
         </a>
       </div>
-    </section>
-
-    <section class="evidence-section harness-section">
-      <div class="section-title">
-        <h4>Harness · comandos reproducibles</h4>
-        <a :href="harnessUrl" target="_blank" rel="noopener">Abrir Harness ↗</a>
-      </div>
-      <p v-if="!harnessCommands.length" class="empty">No hay comandos de Harness registrados en el cuerpo de esta tarea.</p>
-      <ol v-else class="command-list">
-        <li v-for="command in harnessCommands" :key="command"><code>{{ command }}</code></li>
-      </ol>
     </section>
 
     <section class="evidence-section proof-section">
@@ -91,7 +62,7 @@ const harnessCommands = computed(() => {
 .task-evidence { min-width: 0; color: var(--txt); }.evidence-head { padding: 2px 0 16px; border-bottom: 1px solid var(--line); }.evidence-head h3, .evidence-head p, .evidence-section p, .proof p { margin: 0 }.evidence-head h3 { font-size: 16px; font-weight: 650 }.evidence-head p { margin-top: 5px; color: var(--mut); font-size: 12.5px; line-height: 1.5 }
 .evidence-section { padding: 16px 0; border-bottom: 1px solid var(--line); }.evidence-section h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }.evidence-section h4 span { padding: 1px 5px; border-radius: 999px; background: var(--line2); color: var(--txt); font-size: 9px; letter-spacing: 0 }
 .tool-links { display: grid; grid-template-columns: minmax(0, 360px); gap: 9px }.tool-link { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: inherit; text-align: left; text-decoration: none; cursor: pointer }.tool-link:hover { border-color: color-mix(in srgb, var(--acc) 40%, var(--line)); background: var(--sel) }.tool-link .ui-icon { width: 15px; height: 15px; flex: none; color: var(--acc) }.tool-link b, .tool-link small { display: block }.tool-link b { font-size: 12px; font-weight: 600 }.tool-link small { margin-top: 3px; color: var(--mut); font-size: 10.5px; line-height: 1.35 }.tool-arrow { margin-left: auto; flex: none; color: var(--mut); font-size: 13px }
-.section-title { display: flex; gap: 10px; align-items: baseline; justify-content: space-between }.section-title a { color: var(--acc); font-size: 11px; text-decoration: none; white-space: nowrap }.command-list { display: grid; gap: 7px; margin: 0; padding-left: 25px }.command-list li { padding-left: 2px; color: var(--mut); font-size: 11px }.command-list code, .proof pre { display: block; overflow-x: auto; margin: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere }.empty { color: var(--mut); font-size: 12px; line-height: 1.5 }
+.proof pre { display: block; overflow-x: auto; margin: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere }.empty { color: var(--mut); font-size: 12px; line-height: 1.5 }
 .proof + .proof { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line) }.proof-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px }.proof-meta time { margin-right: 3px; color: var(--mut); font-size: 10.5px; font-variant-numeric: tabular-nums }.proof > p { margin-top: 6px; font-size: 12px; line-height: 1.5 }.proof pre { margin-top: 8px }
 @media (max-width: 620px) { .tool-links { grid-template-columns: 1fr } }
 </style>

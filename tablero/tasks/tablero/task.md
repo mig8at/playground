@@ -44,7 +44,19 @@ entero —el **✦ Orientar** de la cabecera, el **✦** de Pendientes, el labor
 su banco de casos y las dos rutas del server— y queda sólo la conexión con su API
 (`tools/jev_transport.py`, pruebas offline en `make tablero-jev-test`). También se fue la fila «Ramas de
 la tarea» al final de la evidencia: la consola de ramas ya está abajo, y quien usa la herramienta lo
-sabe.
+sabe. Y la sección fija «Harness · comandos reproducibles», con su enlace al panel y `HARNESS_URL`: en
+las tareas sin prueba era un hueco que pedía llenarse; una prueba ejecutada sigue apareciendo dentro del
+hito que la usó.
+
+**La cronología es un acordeón (2026-09-23).** Cada fecha —Hoy, Ayer y las anteriores— es un
+encabezado que se pega arriba mientras se lee su contenido; el día siguiente lo empuja al llegar y un
+clic lo pliega, y plegar un día pegado lo deja en el borde en vez de saltar lejos. Al hacerlo salieron
+tres defectos del pegado, medidos en vivo: el `top: 0` compartido lo dejaba 20px abajo, bajo el padding
+del cuerpo, y el texto se asomaba por encima (más una fila de un píxel por el alto fraccionario de la
+cabecera); el chevron quedaba al centro de la banda porque `taller.css` estira al primer hijo; y el
+reset de `button.region-head` olvidaba el borde de arriba, 2px `outset` del navegador — arreglado en la
+fuente compartida (`tools/ui/taller.css`) y sincronizado a las tres UIs. `make tablero-ui-offline` lo
+comprueba, y se probó al revés: sin la compensación o sin el regreso al borde, el chequeo falla.
 
 `make retomar N=<id> BRIEF=1` suma al final la ficha de cada tema de canon que la tarea declara en
 `canon:`, hasta cuatro; `BRIEF=a,b` elige. La ficha sale de `GET /api/read` de canon (no de un modelo)
@@ -378,6 +390,11 @@ arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
 ## Registro
 
 ### 2026-09-23
+
+Se retiró la sección fija de Harness de la evidencia —y `HARNESS_URL` del server— y la cronología pasó
+a acordeón: cada día se pega arriba mientras se lee y se pliega con un clic. Tres defectos del pegado,
+medidos en vivo y corregidos —uno en `taller.css`, compartido con harness y trazador—, y un chequeo
+nuevo en la prueba sin servidores que falla si se revierte cualquiera de los dos arreglos propios.
 
 Menos ruido: se retiró Jev del tablero —la orientación, la revisión de pendientes, el laboratorio y sus
 dos rutas— dejando sólo la conexión con su API, y la fila de ramas al final de la evidencia. Se midió

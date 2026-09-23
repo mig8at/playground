@@ -17,6 +17,6 @@ func (a *app) config(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"canonUrl": a.canonURL, "tracerUrl": a.tracerURL, "harnessUrl": a.harnessURL,
+		"canonUrl": a.canonURL, "tracerUrl": a.tracerURL,
 	})
 }

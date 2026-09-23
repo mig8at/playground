@@ -158,9 +158,8 @@ type app struct {
 	branchesRoot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega juntos desde server/.env.
-	canonURL   string
-	tracerURL  string
-	harnessURL string
+	canonURL  string
+	tracerURL string
 }
 
 func main() {
@@ -172,7 +171,6 @@ func main() {
 	a := &app{
 		canonURL:    canon.URL(),
 		tracerURL:   envDefault("TRACER_URL", "http://localhost:5192"),
-		harnessURL:  envDefault("HARNESS_URL", "http://localhost:5195"),
 		jiraSite:    os.Getenv("ATLASSIAN_SITE"),
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),

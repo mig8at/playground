@@ -63,7 +63,10 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 .te-acts { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap }
 .te-acts:empty { display: none }
 h2 { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere }
-.te-body { padding: 20px 20px 32px; overflow-wrap: anywhere }
+/* `--te-body-top` lo lee el día pegado de la línea de tiempo (App.vue): un `sticky` se pega al borde del
+   CONTENIDO del que scrollea —debajo de este padding— y sin compensarlo el texto se asoma por la franja
+   de arriba. */
+.te-body { --te-body-top: 20px; padding: var(--te-body-top) 20px 32px; overflow-wrap: anywhere }
 :focus-visible { outline: 2px solid var(--mut); outline-offset: 3px }
-@media (max-width: 600px) { .te-head, .te-body { padding: 16px } }
+@media (max-width: 600px) { .te-head, .te-body { padding: 16px } .te-body { --te-body-top: 16px } }
 </style>

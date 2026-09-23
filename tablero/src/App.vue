@@ -30,10 +30,8 @@ const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
 const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
 const TRACER_DEFAULT_URL = 'http://localhost:5192';
-const HARNESS_DEFAULT_URL = 'http://localhost:5195';
 const canonUrl = ref(CANON_DEFAULT_URL);
 const tracerUrl = ref(TRACER_DEFAULT_URL);
-const harnessUrl = ref(HARNESS_DEFAULT_URL);
 
 // Pintar primero, revalidar después: una recarga usa el último estado correcto y no espera a Jira para
 // restaurar la tarea y sus regiones. El cache se reemplaza en cada sincronización exitosa.
@@ -114,7 +112,6 @@ async function loadConfig() {
     const j = await (await fetch(`${SERVER}/api/config`)).json();
     if (j.canonUrl) canonUrl.value = j.canonUrl;
     if (j.tracerUrl) tracerUrl.value = j.tracerUrl;
-    if (j.harnessUrl) harnessUrl.value = j.harnessUrl;
   } catch { /* sin server: los enlaces conservan el origen público por defecto */ }
 }
 
@@ -646,6 +643,24 @@ const contextGroups = computed(() => {
     day, label: contextDayLabel(day), items,
   }));
 });
+// Los días plegados de la línea de tiempo. Arrancan todos abiertos —lo que se lee es la historia de
+// corrido— y se reinician al cambiar de tarea, como el resto del estado de la vista.
+const foldedDays = ref(new Set());
+// ⚠ Plegar un día PEGADO arriba —se lo estaba leyendo por la mitad— borra su contenido por encima de la
+// vista y el scroll queda apuntando a otra cosa, lejos. Se devuelve el encabezado al borde, como el
+// Explorer de VS Code al plegar una carpeta pegada.
+async function toggleDay(day, event) {
+  const next = new Set(foldedDays.value);
+  const folding = !next.has(day);
+  if (folding) next.add(day); else next.delete(day);
+  const section = event?.currentTarget?.closest('.task-context-day');
+  const scroller = section?.closest('.region-body');
+  const stuck = folding && scroller && section.getBoundingClientRect().top < scroller.getBoundingClientRect().top;
+  foldedDays.value = next;
+  if (!stuck) return;
+  await nextTick();
+  scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+}
 async function loadContext() {
   const task = active.value;
   const request = ++contextsRequest;
@@ -843,6 +858,7 @@ async function toClipboard(txt) {
 // Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
 watch(() => active.value?.Key, () => {
   clearTimeout(copiedTimer); copied.value = ''; copiedWhich.value = '';
+  foldedDays.value = new Set();
 });
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
@@ -1919,7 +1935,14 @@ function documentAction(id) {
 
         <section v-if="contextGroups.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
           <section v-for="group in contextGroups" :key="group.day" class="task-context-day">
-            <h3>{{ group.label }}</h3>
+            <!-- Un acordeón como el del sidebar: el día se PEGA arriba mientras se lee su contenido, el
+                 siguiente lo empuja al llegar, y un clic lo pliega. -->
+            <button type="button" class="region-head grupo context-day" :aria-expanded="!foldedDays.has(group.day)"
+                    :aria-controls="'context-day-' + group.day" @click="toggleDay(group.day, $event)">
+              <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+              <span>{{ group.label }}</span>
+            </button>
+            <div v-show="!foldedDays.has(group.day)" :id="'context-day-' + group.day" class="context-day-body">
             <article v-for="event in group.items" :key="event.id" class="task-context-entry">
               <p v-for="(paragraph, paragraphIndex) in contextParagraphs(event)" :key="paragraphIndex">
                 <!-- El espacio va interpolado: un `<span> </span>` lo borra el compilador (texto sólo de
@@ -1937,6 +1960,7 @@ function documentAction(id) {
                 Prueba ejecutada: <code>{{ reference.target }}</code>.
               </p>
             </article>
+            </div>
           </section>
         </section>
 
@@ -1971,7 +1995,7 @@ function documentAction(id) {
             </section>
 
             <section class="work-block">
-              <TaskEvidence :evidence="workEvidence" :notes="bodyOf(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" />
+              <TaskEvidence :evidence="workEvidence" :tracer-url="tracerUrl" />
             </section>
 
         </section>
@@ -2313,8 +2337,19 @@ function documentAction(id) {
 .editor-view > * { max-width: 1100px }
 
 .task-context-timeline { max-width: 780px; padding: 2px 0 20px }
-.task-context-day + .task-context-day { margin-top: 20px }
-.task-context-day h3 { margin: 0 0 10px; font-size: 14px }
+.task-context-day + .task-context-day { margin-top: 8px }
+/* El día es un `.region-head.grupo` de taller.css: se PEGA arriba mientras se lee su contenido —pintado
+   con el fondo de la región, para que el texto no pase por debajo— y el día siguiente lo empuja al llegar,
+   porque cada encabezado es sticky dentro de SU sección. Es el acordeón del sidebar, dentro del editor.
+   ⚠ El `top` negativo es el padding del cuerpo (TaskEditor): con el `top: 0` de taller.css se pegaba 20px
+   más abajo y el texto se asomaba por encima. Y 1px más: la cabecera de la tarea mide un alto
+   fraccionario, el borde cae en medio de un píxel del dispositivo y por esa fila se veía el texto que
+   pasa por debajo. Va con `.region-head` para ganarle a `.region-head.grupo`. */
+.region-head.context-day { top: calc(-1px - var(--te-body-top, 0px)); margin: 0 0 8px; padding-left: 0; padding-right: 0 }
+/* taller.css estira al PRIMER hijo de un encabezado —supone que es el título— y acá el primero es el
+   chevron: quedaba al centro de la banda y el día contra el borde derecho. */
+.context-day > .ui-icon { flex: none }
+.context-day-body { padding-bottom: 6px }
 .task-context-entry + .task-context-entry { margin-top: 15px }
 .task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }
 .task-context-entry strong { font-weight: 700 }
