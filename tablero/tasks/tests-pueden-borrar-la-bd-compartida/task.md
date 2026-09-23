@@ -265,34 +265,6 @@ error exacto está arriba.
 ## Cómo se verifica el arreglo
 Reproducir el caso: exportar `DB_DATABASE` y un `DB_HOST` que no sea local, correr la suite, y comprobar
 que **aborta** en vez de conectar. Contra una base desechable, nunca contra `inertia-dev`.
-
-## Bitácora
-- **2026-09-08** — Auditando el corpus de canon contra `origin/main` salió que el conteo de esta tarea
-  está corto: `RefreshDatabase` se activa de tres formas y el patrón anclado ve una. Son seis archivos
-  vivos más un binding por directorio, no dos. La guarda mergeada los contiene igual (corre antes de
-  los traits); lo que estaba mal era el chequeo previo. Corregido acá, en el `CLAUDE.md` del repo y en
-  el nodo `local` de canon.
-- **2026-08-18** — Encontrado al preparar el PR del canal de WhatsApp contra `develop`. Verificado leyendo
-  PHPUnit (`PhpHandler.php:112`, sin `force`) y Laravel (`RefreshDatabase.php:73`, `migrate:fresh`).
-- **2026-08-18 (2)** — Corregido el conteo tras la observación de Miguel: **son 2 archivos, no 7** —
-  `grep -l` cuenta menciones, incluida una comentada en el scaffold de Laravel. Y medido contra una base
-  vacía desechable: **`migrate` desde cero falla en la 207 de 358**, así que `RefreshDatabase` no puede
-  funcionar en este repo y solo entrega su mitad destructiva. Eso vuelve el arreglo casi gratis y destapa
-  un hallazgo aparte: no se puede bootstrapear un ambiente migrando.
-- **2026-08-18 (3)** — Creada **CORE-431** (sprint 11, 3 puntos) y **sacada del sprint el mismo día**:
-  Miguel prefiere aterrizar la vulnerabilidad antes de ponerla a rodar con el equipo. Queda en el backlog.
-  Además, leídas las dos pruebas para saber si conviene arreglarlas o borrarlas — **ninguna se borra**:
-  - `SafeCancelTest` (Feature, 5 casos) blinda el bug de los **16 casos de CreditopX** que quedaron en
-    estado 8 «Cancelado» con la CREACIÓN **viva en el core**, porque la ruta de borrado se registró sin el
-    middleware de estado. ⚠ **Esta SÍ necesita base**: dos de sus asserts comprueban que una fila **no** se
-    escribió en `user_request_records`, y eso no se verifica sin base. A esta solo se le cambia el
-    mecanismo; no se le quita la base.
-  - `CreditopXDatacreditoAdjustmentServiceTest` (8 casos) reconcilia lo que sabe el core contra lo que
-    reporta DataCrédito, que va con retraso: crédito nuevo aún no reportado → ajuste **+cuota**; crédito ya
-    pagado que la central sigue reportando → **−cuota**; pago parcial con cuota vieja inflada → negativo.
-    Decide **cuánto se le presta a la persona**. Es aritmética sobre datos: **esta es la que sobra la base**,
-    y la necesita solo porque el servicio consulta por su cuenta.
-
 ## Tarea (publicable)
 ⚠ YA NO ES PREVENTIVO: el 19/08 ocurrió. La base de datos que comparten el ambiente de desarrollo y el de pruebas quedó vacía a media mañana y hubo que restaurarla de una copia. Los dos ambientes estuvieron caídos y el equipo detenido mientras tanto.
 

@@ -11,19 +11,6 @@ ramas: "fix/sucursales-rd-apuntan-a-ciudades-de-colombia"
 
 # Cargar en producción el catálogo de ciudades de RD y Perú
 
-## Si retomás esto sin contexto, empezá acá
-
-**Lo principal ya pasó: la migración corrió en producción el 2026-09-04 (lote 203)**, unas horas
-después de que esta tarea se escribiera. Prod quedó con **159 ciudades de RD**, **1.875 de Perú** y
-**cero sucursales apuntando a una ciudad de otro país**.
-
-**Lo que queda es el desfase de ramas.** El commit `ab89d273` está **sólo en `main`**: `qa`, `develop`
-y `staging` no lo tienen. Los datos sí están en la base compartida —alguien corrió la migración desde
-su máquina—, así que en esos tres ambientes **el dato existe y el código que lo produce no**. Una base
-recreada desde cero volvería a quedar sin ciudades.
-
-**El próximo paso es:** bajar `main` a `qa`, `develop` y `staging`, o portar ese commit.
-
 ## Lo que se resolvió, con su medición
 
 > **MEDICIÓN · 2026-09-04 (prod, después del lote 203)** — comparada con lo que había antes:
@@ -54,32 +41,6 @@ Al validar lo anterior aparecieron filas centinela y una corrupción, que son ot
 1. RD tiene 159 ciudades y Perú 1.875, en producción. ✅ 2026-09-04
 2. Cero sucursales con el país de su ciudad distinto del de su comercio. ✅ 2026-09-04
 3. `qa`, `develop` y `staging` contienen el commit `ab89d273`. ⏳ pendiente
-
-## Registro
-
-### 2026-09-04 (tarde) · la migración corrió en producción; queda sólo el desfase de ramas
-
-Horas después de publicar la tarea, la migración corrió en prod (lote 203). Los tres números de
-«Cómo se comprueba» pasaron a verde salvo el de ramas. El estado de arriba se reescribió.
-
-Al validarlo aparecieron las filas centinela —`TODAS LAS CIUDADES`, `Extranjero`— y una corrupción
-real: la zona `Grande Comore` de Comoras tiene el nombre pisado por `Medellín`, con una ciudad
-`Extranjero` colgando. Se midió el uso antes de proponer nada: los comodines los usan 95 sucursales,
-la basura de Comoras cero. Va como tarea aparte.
-
-### 2026-09-04 · publicada como CORE-516, en el sprint 14
-
-### 2026-09-04 · la tarea nace ya resuelta en código: lo que falta es correrla
-
-Al levantar la tarea de «agregar las ciudades que faltan» se midió primero, y el trabajo ya estaba
-hecho: PR #1301, mergeado a `main` el 3/9 y desplegado con `v0.5.2`. Lo que no ocurrió fue la
-migración.
-
-También salió que la base compartida ya tiene el catálogo (159 ciudades de RD, 1.875 de Perú) pero el
-commit **no está en `qa`/`develop`/`staging`**: se corrió desde una máquina local. Eso queda como
-bloqueante aparte, porque es la clase de desfase que se descubre tarde.
-
-
 ## Tarea (publicable)
 
 

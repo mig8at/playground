@@ -10,26 +10,6 @@ jira: []
 jira_title: ""
 ---
 
-## Si retomás esto sin contexto, empezá acá
-
-Esta es la única tarea local de **cuadrilla**, la herramienta del repo compartido
-(`github/playground/tools/cuadrilla`): el tablero de épicas rama por rama, y la sección `games` que
-cuelga de él. Las mejoras de la herramienta van acá; lo que sea del repo compartido en sí va a la
-tarea de playground.
-
-Lo último: el segundo juego, un **dictado de inglés con tres niveles**, **mergeado y en producción**
-desde el 2026-09-21 (PR #260).
-
-El banco es **el definitivo: 450 palabras, 150 por nivel** (PR #261, mergeado y en producción), y
-desde el PR #263 una palabra se aprende **en tres días distintos**, no en tres veces.
-
-**El próximo paso es:** decidir si hace falta **progresión entre niveles**, que es lo único que quedó
-sin hacer del pedido original. Hoy los tres están abiertos desde el primer día y terminar uno no desbloquea ni
-sugiere nada: sólo se marca Completed y se le apaga el botón. Hay dos formas y son distintas —
-bloquear los siguientes hasta terminar el anterior, o dejarlos abiertos y sólo empujar al siguiente al
-completar uno— y la segunda es menos frustrante para quien ya sabe inglés y quiere ir directo al
-avanzado.
-
 ## Días, no veces (2026-09-21, PR #263)
 
 Salió de la misma conversación: Miguel preguntó si el juego sirve de verdad para mejorar el inglés, y
@@ -176,48 +156,3 @@ después de desplegar, que es justo el momento en que nadie lo va a mirar.
 **Guardar progreso en prod.** Exige sesión de GitHub en el navegador, y el juego saca quién sos de la
 cookie y nunca del cuerpo (igual que el impostor). Se comprobó que **niega sin sesión** con el
 mensaje correcto; el camino de guardado quedó probado en local y por las pruebas, no contra prod.
-
-## Registro
-
-### 2026-09-21
-
-**El día en que esta tarea nació y el segundo juego llegó a producción.** Hasta hoy cuadrilla no
-tenía archivo propio: sus mejoras se escribían en la tarea de `playground`, donde se mezclaban con
-las del repo compartido. Se abrió este contenedor y se le movió lo que era suyo.
-
-Lo que se hizo, según los commits del día (`60c6b91e`, `a56d96be`, `13a12edd`, `c41f762f`,
-`24bf7045`):
-
-- el **dictado de inglés** se mudó a la sección `games` y quedó **mergeado y en producción**
-  (PR `Creditop-SAS/playground#260`);
-- el **banco definitivo** del dictado: 450 palabras, y lo que quedó fuera del pedido
-  (PR `#261`);
-- la **regla de los tres días** —el inglés cuenta DÍAS distintos, no veces— (PR `#263`);
-- y quedó escrito lo que se decidió NO hacer, que es lo que evita re-litigarlo.
-
-> **MEDICIÓN · 2026-09-21** — los minutos de la bitácora salen del **lapso de commits**
-> (10:46 → 11:17), no del pulso: hoy corrieron varias sesiones en paralelo sobre el mismo worktree y
-> los tramos de 5′ del pulso no se pueden atribuir a una tarea sin contarlos dos veces. El lapso de
-> commits mide de menos y se declara así a propósito. Reproducible:
-> `git log --since=midnight --format='%ad %s' --date=format:'%H:%M' -- tablero/data/cuadrilla.md`
-
-**2026-09-21** — La regla pasó a contar días distintos (PR #263). Reloj inyectable para poder
-probarla, y comprobado también contra la herramienta corriendo, moviendo la fecha del documento entre
-arranques: tres aciertos seguidos dejan `dias: 1`; uno al día siguiente la lleva a 2; al tercero queda
-aprendida y desaparece de la tanda.
-
-**2026-09-21** — Mudado el inglés a los games de cuadrilla y podado a sólo dictado, con niveles,
-banco en el tablero y la regla de las tres veces. **PR #260 mergeado por Miguel** y desplegado; el
-workflow de despliegue salió en verde a los segundos del merge.
-
-Validado contra **producción** (`cuadrilla.playground.creditop.com`): el despliegue se detectó con
-`/api/ingles/niveles` pasando de 404 a 200, exigiendo **10 sondas seguidas** por el despliegue
-rodante. Los tres niveles contestan 50 palabras cada uno, una tanda del avanzado trae palabras reales
-con sus notas, un nivel inventado da 404 y guardar sin sesión da 401 con el mensaje que explica cómo
-entrar.
-
-Y mirado de verdad, no sólo por API: el panel del navegador deniega `*.playground.creditop.com`, así
-que va por un proxy inverso local (`FlushInterval = -1` y reescribir el `Host`, o el balanceador no
-sabe a qué herramienta mandarlo). Contra producción se jugó una vuelta del nivel avanzado: la
-corrección letra por letra salió bien —«mortgage» contra lo que escribí, con la nota «la t no suena»—
-y al escribirla bien aparece el ✓ sin corrección.

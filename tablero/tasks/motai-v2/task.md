@@ -19,17 +19,6 @@ CUÁNDO APLICA: Task en curso: des-motaizar la originación de Motai — sacar l
 >
 > Des-motaizar la originación de Motai: sacar los ifs quemados (`isMotaiRenting` / lender `158` / modos) y moverlos a **configuración por columna en BD** (`lenders.product`/`calculator`, `lenders_by_allied_branches.document_types`, `allied_documents`), para que otra entidad renting/RTO entre por **filas de config**, no por deploy.
 
-## Si retomás esto sin contexto, empezá acá
-
-> **ESTADO 2026-09-17** — el trabajo está **pusheado en `feature/motai-v2`** en los dos repos y probado;
-> lo que NO tiene es camino. El PR de backend estaba abierto contra la rama de integración compartida,
-> que **salió de la vía de entrega**: hoy la entrega es **`qa → main`** y después el resto de las ramas
-> se pone al día **desde `main`**. El de frontend sigue contra `staging`.
-> `make retomar N=5`
-
-**El próximo paso es:** **re-apuntar el PR de backend a `qa`** (o rehacer la rama sobre `qa` si el
-rebase arrastra la divergencia heredada) — sin eso el trabajo no tiene por dónde llegar a `main`.
-
 ## Contextos que usa
 - **motai** — el flujo Motai v1 tal como ES hoy (comercio `158`, in-platform rt=2, 3 productos, Ábaco informativo): el punto de partida que esta tarea lleva al deber-ser. No se repite su mecánica acá.
 - **creditopx** — el destino: los productos pasan a ser **lenders CreditopX rt=2 por categoría**, hermanos de Pullman/SmartPay; el listado/categoría/cupo siguen corriendo por su cascada (`getLenders`).
@@ -113,23 +102,6 @@ Llevar Motai v1 al modelo único paramétrico (deber-ser del group Plataforma; m
 | id `158` como **lógica** | **0** | **0** |
 
 Lo que legítimamente queda con "motai"/"158" NO es lógica: el `158` en la migración es **backfill de datos**; `MotaiValidationService`/rutas `/api/onboarding/motai/*` son **nombres** de endpoints (lógica interna ya genérica); el bypass PEP en `storePersonalInfo` es el mecanismo correcto (keyea por `document_type==='PEP'`). **Plan dual-read** (los 8 PRs del deber-ser): cada paso introduce el mecanismo genérico **leyendo con fallback al hardcode**, se verifica E2E, y el último borra los hardcodes; el E2E de los 3 modos corre antes y después de cada PR. Prueba E2E del flujo aún **pendiente** (requiere la migración corrida — ver Pendientes).
-
-## Registro
-
-### 2026-09-17 · `develop` sale de la vía de entrega
-
-Se retiró del tablero la información de **PRs hacia `develop`**: la entrega es **`qa → main`**, y después
-el resto de las ramas se pone al día **desde `main`**. Acá: la línea de estado y la tabla de ramas. El PR
-de backend queda **sin destino** —hay que re-apuntarlo o rehacer la rama sobre `qa`—, y la nota del diff
-de ~52 archivos deja de nombrar la rama vieja como base. **No se tocó el Registro con fecha** (la entrada
-del 2026-07-17 sobre el retargeteo es lo que pasó y se queda). De paso, el archivo era de formato viejo:
-se le agregó «Si retomás esto sin contexto» con **un** próximo paso, y esta sección pasó a llamarse
-**Registro** —que es lo que siempre fue— porque la bitácora de tiempo vive en la base, no en el `.md`.
-
-- **2026-07-15** — Arranque de la des-motaización sobre `feature/motai-v2` (nacida de staging). Censo re-verificado B1–B18 (backend) / F1–F17 (frontend) vs staging.
-- **2026-07-17** — **Retargeteo del PR de legacy staging → `develop`** (por pedido del líder); conflictos resueltos con merge de develop (`44eb3c02`). Frontend NO se retargeteó (sigue →staging, limpio). Fixes de develop que entraron por el merge: `$hasCredifamilia` (`098322a8`, también en develop) y ProfilerML sin `H2O_API_HOST` (`4022b6c9`).
-- **2026-07-17** — Ábaco: se removió el flag `lenders.abaco` (lo define otro equipo); endpoint `check-abaco-requirement` conservado como seam.
-- **2026-07-17** — Fase de data: superficie de código curada + doc enriquecido desde `git 159906a:docs/mejoras/DES-MOTAIZACION.md` · `DES-MOTAIZACION-CONFLUENCE.md` · `docs/chages/MOTAI-V2-MAPA-DE-CAMBIOS.md`.
 
 ## Pendientes
 - [ ] Migración en staging/prod (por pipeline); sin ella Motai se comporta como `credit`.

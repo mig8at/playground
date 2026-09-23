@@ -9,37 +9,6 @@ jira: [CORE-548]
 jira_title: "BCP: tres defectos del recorrido del asesor"
 ---
 
-## Si retomás esto sin contexto, empezá acá
-
-Tres defectos del recorrido del asesor en el flujo de BCP, los tres encontrados **corriéndolo** el
-2026-09-07 y los tres girando alrededor del **botón de atrás**. Corregidos, medidos en local y
-**MERGEADOS a `qa` el 2026-09-09**: [`Creditop-SAS/legacy-backend#1335`](https://github.com/Creditop-SAS/legacy-backend/pull/1335)
-y [`Creditop-SAS/frontend-monorepo#978`](https://github.com/Creditop-SAS/frontend-monorepo/pull/978).
-Faltan `develop`, `staging` y `main`.
-
-**No hace falta volver a investigar:** la causa de cada uno está aislada y verificada contra `main`, y
-la revisión de Fercho (nueve puntos entre los dos PRs) ya está contestada y aplicada. Lo que sigue
-abierto es de OTRA tarea: el monto a financiar que no se persiste vive en el hilo de
-`bcp-peru-estructurar-entidad` (F-185).
-
-**Con qué se comprueba que sigue andando:** `E2E_TARGET=local node dev/bcp-volver.ts --comercio
-'#50e007e4'` desde `harness/`, con `make harness-peru` y `make harness-forms-g2` levantados. Sus tres
-recorridos cubren los tres defectos.
-
-⚠ **Contra `qa` cambian dos cosas:** hace falta `--tel` con números de `qa_otp_bypass_phones` (uno por
-recorrido, son tres) y **los recorridos B y C dejan solicitudes negadas** en una base compartida con
-dev, por eso piden `--niega` a mano.
-
-⚠ **Y apareció un CUARTO defecto, de la misma familia y ya con PRs**: el botón «Selec. Entidad» del
-listado del comercio retoma una solicitud **que ya terminó**. Es el mismo agujero que el gate, por la
-puerta de adelante — y no es de BCP: alcanza a todos los comercios.
-[`legacy-backend#1354`](https://github.com/Creditop-SAS/legacy-backend/pull/1354) y
-[`frontend-monorepo#984`](https://github.com/Creditop-SAS/frontend-monorepo/pull/984), los dos contra
-`qa`, el del monolito primero.
-
-**El próximo paso es:** correr `bcp-volver` contra **qa** cuando los dos despliegues estén arriba, que
-es lo único que local no pudo probar — el microservicio de pre-aprobados de verdad, en vez del mock.
-
 ## Objetivo
 
 Que el botón de atrás no pueda dañar una solicitud de BCP, que el asesor pueda corregir los datos del
@@ -98,29 +67,10 @@ clave) y `dev/bcp-volver.ts` (recorrido C).
 
 ## Lo que está decidido, y lo que se midió
 
-> **MEDICIÓN · 2026-09-09 · contra la base de producción, sólo lectura.** De **150 slugs activos
-> distintos** cableados a sucursales, sólo **8** son claves que el microservicio de pre-aprobados
-> reconoce: su registro es cerrado y snake_case, y la tabla usa kebab. La familia Creditop X es el
-> contraejemplo grande (`motai-x`, `mediarte-x` → clave única `creditop_x`), y por eso el marketplace
-> la resuelve con una constante y a Welli por id, no por slug.
-> **Cómo se vuelve a comprobar:** `make trazador-sql TARGET=prod SQL="SELECT COUNT(DISTINCT l.slug) …"`
-> contra `lenders_by_allied_branches ⋈ lenders`.
-
-> **MEDICIÓN · 2026-09-09 · producción.** De **1.982 sucursales**, **1.050 cablean tres entidades o
-> más**; el máximo es once. La que hoy corre BCP (id 2243, comercio `PRUEBAS_CUOTEALO`) tiene **una**.
-> O sea: el alcance de la lista es teórico hoy, y lo es sólo porque el comercio de BCP no tiene nada
-> más cableado. En la sucursal local con más entidades (285, doce activas) **las doce** dan error
-> contra el microservicio.
-
 > **DECISIÓN · 2026-09-09.** Las claves elegibles van en config (`manual_product_keys`) y los ids en la
 > base. Es la distinción entera: un id es una fila AUTO_INCREMENT que difiere por ambiente; la clave es
 > el contrato con el microservicio y es la misma en los tres. Verificado: `bcp_consumo` en dev (206) y
 > en producción (198), `bcp_vehicular` en dev (207).
-
-> **MEDICIÓN · 2026-09-09 · local, antes y después.** Rechazar y volver al gate: antes mandaba a
-> `formulario/post?amount=48000` —el formulario posterior de una solicitud ya cerrada— y después a
-> `entidad/retorno?motivo=sin_campana`, con el estado quieto en 6. Postear «Aprobado» encima tampoco la
-> revive.
 
 > **HALLAZGO · 2026-09-09 · local mentía.** Los slugs de BCP en local se sembraban en kebab
 > (`bcp-consumo`), y el mock de pre-aprobados aceptaba cualquier clave y devolvía aprobado. O sea que
@@ -152,42 +102,6 @@ F-185 y son esperados.
 
 Y las pruebas: `./vendor/bin/sail artisan test Modules/UserRequestV1/tests/Unit/PreApprovalLendingProductsTest.php`
 (⚠ nunca la suite entera) y, en el wizard, `SESSION_SECRET=x npx vitest run app/utils/otp-funnel-cookie.test.ts`.
-
-## Registro
-
-- **2026-09-10** — **Un cuarto defecto, encontrado explicando el flujo y no buscándolo.** Miguel
-  preguntó si estaba bien que «Selec. Entidad» lo devolviera al formulario en vez de al listado. Sí lo
-  está —el front pisa a propósito lo que contesta el monolito y reabre el tramo, porque una simulación
-  vieja puede no valer, y está escrito el porqué—. Pero **retomar no mira el estado de la solicitud**:
-  ni el botón (su única condición era el caso del IMEI) ni la ruta. Medido contra qa sobre la **502175**,
-  que el gate cerró como Negada: `continue` contesta `ok` y devuelve la ruta al formulario del vehículo.
-  Cerrado por los dos lados, con la lista acotada a las que terminaron y dejando pasar a propósito las
-  intermedias y «No terminó proceso».
-
-  Dos cosas que salieron de paso y no toqué: **tres constantes de estado de ese servicio no significan
-  lo que dicen** (`STATUS_DISBURSED` vale 11, que es «Autorizada»), y las usa el resto del archivo. Y
-  el `always_show` del formulario POSTERIOR de BCP no tiene justificación: la migración que creó la
-  columna —de jose.guzman, 2026-08-31— sólo habla del formulario del vehículo, **nada en el código pone
-  la bandera en 1** y en producción no existe ninguna de las dos filas. O sea que las de dev/qa se
-  configuraron a mano, probablemente copiando la de arriba. Nuestro acotamiento por tipo ya la dejó
-  inofensiva; **lo que hay que cuidar es que no nazca así al sembrar producción**.
-- **2026-09-09 (2)** — **Los dos PRs mergeados a `qa`.** Medido con `make tareas-ramas`: las dos
-  puntas están en `qa` y faltan en `develop`, `staging` y `main`. Verificado antes de mergear que qa
-  **comparte la base con dev**, así que sus filas de BCP son 206 `bcp_consumo` y 207 `bcp_vehicular`
-  — el default de `manual_product_keys` calza y no hay nada que configurar allá.
-- **2026-09-09** — **Contestada y aplicada la revisión de Fercho**: nueve puntos entre los dos PRs,
-  ocho ciertos. Del noveno la precisión importa: el `find` de `isReopenablePlacement` **sí** compara el
-  slot; lo que no estaba acotado era el argumento, y el riesgo que él describe es real igual.
-  Midiendo su primer punto —el alcance de la lista— apareció algo que ninguno de los dos había visto:
-  **el `slug` no es la clave del microservicio**, y devolver la sucursal entera no habría sido una
-  escritura de más sino mayormente errores. Eso cambió el arreglo: la lista se acota por CLAVES desde
-  config y los ids se siguen leyendo de la base.
-  Y destapó que **local no podía haberlo encontrado**: sus slugs de BCP estaban en kebab y el mock
-  aceptaba cualquier clave. Arreglados los dos, más el recorrido C del runner, que era el sentido de
-  «atrás» que faltaba. Todo medido con el antes y el después.
-- **2026-09-07** — Los tres defectos, encontrados recorriendo el flujo por el front por primera vez.
-  El detalle de esa corrida está en el registro de `bcp-peru-estructurar-entidad`.
-
 ## Tarea (publicable)
 
 ## En una línea

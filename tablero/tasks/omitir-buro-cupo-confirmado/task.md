@@ -80,11 +80,6 @@ Trazado contra el código de la rama, ambos repos. La cadena cierra:
 
 **Arreglo (pendiente, no urgente)**: que `signFlow` exija `code === 'URV13000'` y si no devuelva `errAsync`, para caer en el `captureServerException` que ya existe. No cambia el comportamiento del usuario.
 
-## Bitácora
-- **2026-07** — implementado en el front (commit `784585fe`) + verificado (typecheck 0 errores propios / biome). Depende de las APIs de backend de Jose (flow-signature + omit-experian).
-- **2026-07-18** — registrada como task del árbol de context.
-- **2026-07-21** — **mergeado** (front `784585fe` + back `a603a5cd`). Validado punta a punta contra el código: el objetivo se cumple. Se descubre la deuda del rechazo silencioso en `signFlow` (ver arriba) — se deja escrita para atacar después, no se corrige ahora porque ya está mergeado y hoy no se dispara.
-
 ## Pendientes
 - [ ] **Deuda**: `signFlow` debe validar `code === 'URV13000'` (hoy toma `URV13004`/HTTP 200 como éxito). Ver arriba.
 - [ ] Probar el flujo corriendo (esta validación fue **lectura de código**, no ejecución): hace falta un comercio en `allowed_to_omit_experian_allieds` y las APIs desplegadas en el target.
