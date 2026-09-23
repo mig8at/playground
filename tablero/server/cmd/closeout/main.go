@@ -1,17 +1,20 @@
 // cierre — el cierre de sesión del tablero, como COMANDO y no como lista de buenas intenciones.
 //
-// `tablero/CLAUDE.md` pide cuatro cosas al terminar de trabajar en una tarea: reescribir la sección de
-// retoma, apilar el Registro del día, declarar `ramas:` y escribir la bitácora con minutos medidos. Las
-// cuatro se olvidaron el 26/8 y el tablero mintió ocho días; medido el 2026-09-14 sobre las 39 abiertas,
-// 23 no tienen sección de retoma y 3 trabajadas en septiembre no tienen bitácora. Una regla que depende
-// de que alguien se acuerde es una regla que se olvida, sobre todo cuando olvidarla no rompe nada.
+// `tablero/CLAUDE.md` pide dos cosas al terminar de trabajar en una tarea: un BLOQUE del día en su pila
+// —lo que se hizo, con lo que lo sostiene— y la bitácora con minutos medidos (más `ramas:` si hay código).
+// Una regla que depende de que alguien se acuerde es una regla que se olvida, sobre todo cuando
+// olvidarla no rompe nada: el 26/8 se olvidaron todas y el tablero mintió ocho días.
 //
-// Esto contesta, para UN día: ¿qué tareas se tocaron, y a cuál le falta qué? Cruza tres fuentes que ya
+// ⚠ Hasta el 2026-09-23 pedía cuatro: además, reescribir la sección de retoma y un «próximo paso». Se
+// fueron con la pila de bloques: la historia de la tarea son sus bloques, y un próximo paso fijo obliga a
+// hacer algo después cuando eso es decisión de cómo se va desarrollando la tarea (Miguel).
+//
+// Esto contesta, para UN día: ¿qué tareas se tocaron, y a cuál le falta qué? Cruza cuatro fuentes que ya
 // existen y ninguna escribe:
 //
-//	git       qué archivos de tarea se commitearon o están modificados ese día — y si la sección de
-//	          retoma CAMBIÓ respecto del último commit anterior al día (existir no alcanza: tiene que
-//	          decir lo de hoy)
+//	git       qué documentos de tarea se commitearon o están modificados ese día
+//	la pila   qué tareas tienen un bloque fechado ese día (cuenta la FECHA del bloque, no el archivo:
+//	          una migración que reescribe bloques viejos no vuelve «tocadas» a sus tareas)
 //	el pulso  qué ramas se tocaron ese día → qué tarea las declara en `ramas:` (y cuáles ninguna)
 //	entries   la bitácora del día: minutos por tarea, y los que no tienen dueño
 //
@@ -20,7 +23,7 @@
 // todo en orden — es la forma que usa el hook de Stop, que sólo habla cuando hay algo que decir.
 //
 //	cierre                 el día de hoy
-//	cierre -dia 2026-09-10 otro día (la comparación de la retoma va contra el último commit ANTES de ese día)
+//	cierre -dia 2026-09-10 otro día
 //	cierre -json           para otro programa
 //	cierre -quiet          silencio si no falta nada
 package main
@@ -32,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -60,14 +64,11 @@ type Revision struct {
 	ID           int      `json:"id"`
 	Slug         string   `json:"slug"`
 	Title        string   `json:"title"`
-	Reasons      []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "rama <x>"
-	Resume       string   `json:"resume"`    // ok · sin-seccion · sin-cambios · sin-avance
-	NextStep     bool     `json:"nextStep"`
-	RecordToday  bool     `json:"recordToday"`
-	ContextToday bool     `json:"contextToday"`
+	Reasons      []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "bloque", "rama <x>"
+	BlockToday   bool     `json:"blockToday"`
 	MinutesToday int      `json:"minutesToday"`
-	// NoProgress: la entrada del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime de la
-	// bitácora y de reescribir la retoma; nada más.
+	// NoProgress: la entrada de Registro del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime
+	// del bloque del día y de la bitácora; nada más.
 	NoProgress       bool     `json:"noProgress,omitempty"`
 	DeclaredBranches bool     `json:"declaredBranches"`
 	Missing          []string `json:"missing"`
@@ -91,14 +92,7 @@ type Report struct {
 }
 
 var (
-	reCitation = regexp.MustCompile(`^["']|["']$`)
-	// ⚠ INSENSIBLE A MAYÚSCULAS Y CON NUMERACIÓN OPCIONAL. La tarea de Bancolombia titula su sección
-	// «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto no la veía: el cierre
-	// reclamaba «la sección no existe» sobre una tarea que la tiene desde julio. Un chequeo que
-	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
-	reResume     = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
-	reSection    = regexp.MustCompile(`(?m)^##\s`)
-	reNext       = regexp.MustCompile(`(?i)\*\*El pr[óo]ximo paso es:?\*\*`)
+	reCitation   = regexp.MustCompile(`^["']|["']$`)
 	reRecordDate = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
 	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `noProgress`.
 	reNoProgress = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
@@ -148,35 +142,12 @@ func readTaskFile(path string) (task, error) {
 	return t, nil
 }
 
-// resumeSection devuelve el texto de «Si retomás esto sin contexto» hasta el próximo `##`, o "" si no está.
-func resumeSection(body string) string {
-	m := reResume.FindStringIndex(body)
-	if m == nil {
-		return ""
-	}
-	rest := body[m[1]:]
-	if end := reSection.FindStringIndex(rest); end != nil {
-		rest = rest[:end[0]]
-	}
-	return strings.TrimSpace(rest)
-}
-
 // touchedByGit: los slugs cuyo documento se commiteó en el día o está cambiado en el working tree (esto
 // último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha). Una MUDANZA pura no cuenta:
 // mover una tarea de carpeta no es trabajar en ella (ver layout.TouchedOn). Sin eso, el día de la
 // mudanza de `data/` a `tasks/` el cierre le habría reclamado piezas a las 46 tareas.
 func touchedByGit(data, day string, isToday bool) map[string]bool {
 	return layout.At(data).TouchedOn(day, isToday)
-}
-
-// resumeBefore: la sección de retoma como estaba en el último commit ANTERIOR al día. Si el archivo no
-// existía, devuelve ok=false: una tarea que nació ese día no tiene con qué compararse.
-func resumeBefore(data, day, slug string) (text string, ok bool) {
-	old, ok := bodyBefore(data, day, slug)
-	if !ok {
-		return "", false
-	}
-	return resumeSection(old), true
 }
 
 // bodyBefore devuelve el CUERPO (lo que sigue al frontmatter) como estaba en el último commit anterior
@@ -242,23 +213,18 @@ func noProgress(body, day string) bool {
 	return false
 }
 
-// resumeState: ¿se reescribió la retoma? `now` es la sección de hoy; `before`, la del último commit
-// anterior al día (`existed` = false si la tarea nació ese día y no hay con qué comparar).
-//
-// Una retoma idéntica a la de antes es una pieza faltante, SALVO que la entrada del día declare «sin
-// avance»: si la tarea no se movió, su estado tampoco, y exigir reescribirlo es pedir que se invente. Lo
-// que no se perdona nunca es que la sección falte: eso es un defecto del documento, no del día.
-func resumeState(now, before string, existed, declaredNoProgress bool) (state, missing string) {
-	switch {
-	case now == "":
-		return "sin-seccion", "la sección «Si retomás esto sin contexto» no existe"
-	case !existed || before != now:
-		return "ok", ""
-	case declaredNoProgress:
-		return "sin-avance", ""
-	default:
-		return "sin-cambios", "«Si retomás» dice lo mismo que antes del día: hay que reescribirla con lo de HOY"
+// blocksOn: ¿la pila tiene un bloque fechado ese día (`any`), y alguno que sea trabajo de ese día y no un
+// hito viejo convertido (`work`)? Un bloque migrado cumple con el bloque del día —es el hito que se
+// escribió entonces— pero no vuelve tocada a la tarea. La fecha va con el huso local, así que el
+// prefijo es el día de acá.
+func blocksOn(events []taskcontext.Event, day string) (any, work bool) {
+	for _, e := range events {
+		if strings.HasPrefix(e.At, day+"T") {
+			any = true
+			work = work || e.Via != "migration"
+		}
 	}
+	return any, work
 }
 
 func isOnlyContainerCreation(t task, reasons []string, existedBefore bool) bool {
@@ -420,6 +386,19 @@ func main() {
 	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
 	reasons, branchWithTask := attribute(tasks, touched, branches)
+	// Un bloque fechado ese día también es trabajo en la tarea, aunque su documento no cambie: la pila es
+	// donde se documenta ahora. Cuenta la FECHA del bloque y no el archivo tocado, así que la migración que
+	// reescribió los 37 hitos viejos con sus fechas no volvió «tocadas» a sus 22 tareas. Y un bloque
+	// MIGRADO no vuelve tocada a nadie: es un hito viejo convertido, no trabajo de ese día (el 2026-09-22 un
+	// agente sembró uno por tarea, y contarlos pedía bitácora en veinte).
+	stacks, stackErrs := map[string][]taskcontext.Event{}, map[string]error{}
+	for _, t := range tasks {
+		events, err := taskcontext.Read(data, t.Slug)
+		stacks[t.Slug], stackErrs[t.Slug] = events, err
+		if _, work := blocksOn(events, *day); work && !slices.Contains(reasons[t.Slug], "bloque") {
+			reasons[t.Slug] = append(reasons[t.Slug], "bloque")
+		}
+	}
 	for _, r := range branches {
 		if !branchWithTask[r] && !base[r] {
 			inf.BranchesWithoutTask = append(inf.BranchesWithoutTask, r)
@@ -444,37 +423,16 @@ func main() {
 			continue
 		}
 		rv := Revision{ID: t.ID, Slug: t.Slug, Title: t.Title, Reasons: m}
-		rv.NextStep = reNext.MatchString(t.Body)
 		rv.DeclaredBranches = len(t.Branches) > 0
 		rv.MinutesToday = minutesByTask[t.ID]
-		for _, f := range reRecordDate.FindAllStringSubmatch(t.Body, -1) {
-			if f[1] == *day {
-				rv.RecordToday = true
-				break
-			}
+		events := stacks[t.Slug]
+		if err := stackErrs[t.Slug]; err != nil {
+			rv.Watch = append(rv.Watch, "la pila no se pudo leer: "+err.Error())
 		}
-		if events, err := taskcontext.Read(data, t.Slug); err != nil {
-			rv.Watch = append(rv.Watch, "el contexto estructurado no se pudo leer: "+err.Error())
-		} else {
-			for _, event := range events {
-				if strings.HasPrefix(event.At, *day+"T") {
-					rv.ContextToday = true
-					break
-				}
-			}
-		}
-		rv.NoProgress = rv.RecordToday && noProgress(t.Body, *day)
-		before, existed := resumeBefore(data, *day, t.Slug)
-		var missing string
-		rv.Resume, missing = resumeState(resumeSection(t.Body), before, existed, rv.NoProgress)
-		if missing != "" {
-			rv.Missing = append(rv.Missing, missing)
-		}
-		if !rv.NextStep {
-			rv.Missing = append(rv.Missing, "falta «**El próximo paso es:**» (UNA acción)")
-		}
-		if !rv.RecordToday && !rv.ContextToday {
-			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila (`make tarea-bloque`) o una entrada de Registro `### "+*day+"`")
+		rv.BlockToday, _ = blocksOn(events, *day)
+		rv.NoProgress = noProgress(t.Body, *day)
+		if !rv.BlockToday && !rv.NoProgress {
+			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make tarea-bloque N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
 		}
 		if rv.MinutesToday == 0 && !rv.NoProgress {
 			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
@@ -482,14 +440,13 @@ func main() {
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
 		// lectura donde no hay nada que correr, y convertir eso en un error enseña a ignorar el cierre.
 		//
-		// La señal es la misma que pinta la tarjeta (`store.SourcesOf`): de los comandos escritos en el
-		// cuerpo sale con QUÉ se comprobó. Si la tarea declara ramas —o sea que hay código— y en todo el
-		// archivo no hay un solo comando reconocible, lo que se afirme no se puede volver a comprobar.
-		// Medido el 2026-09-18: de 350 anotaciones del tablero, 308 tienen texto debajo y sólo 51 dejan
-		// una fuente; lo que se escribe suele ser prosa donde iba el comando.
-		if rv.DeclaredBranches && len(store.SourcesOf(t.Body)) == 0 {
-			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: pegá el comando "+
-				"(el trazador lo emite con `MD=1`) en «Cómo se comprueba» o en una anotación")
+		// La señal sale de dos lados: los comandos del cuerpo (`store.SourcesOf`, lo que pinta la tarjeta) y
+		// los bloques de la pila que traen un comando con su resultado. Si la tarea declara ramas —o sea
+		// que hay código— y no hay un solo comando en ninguno de los dos, lo que se afirme no se puede
+		// volver a comprobar. Medido el 2026-09-18: de 350 anotaciones del tablero, 308 tenían texto debajo
+		// y sólo 51 dejaban una fuente; lo que se escribe suele ser prosa donde iba el comando.
+		if rv.DeclaredBranches && len(store.SourcesOf(t.Body)) == 0 && !taskcontext.HasCommand(events) {
+			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)
@@ -578,18 +535,17 @@ func printReport(inf Report) {
 		if t.NoProgress && t.MinutesToday == 0 {
 			bit, detail = "—", "declara sin avance"
 		}
-		resume, resumeLabel := mark(t.Resume == "ok"), "retoma reescrita"
-		if t.Resume == "sin-avance" {
-			resume, resumeLabel = "—", "retoma (declara sin avance)"
+		block, blockLabel := mark(t.BlockToday), "bloque del día"
+		if t.NoProgress && !t.BlockToday {
+			block, blockLabel = "—", "bloque (declara sin avance)"
 		}
-		fmt.Printf("       %s %s   %s próximo paso   %s bloque/registro del día   %s bitácora (%s)\n",
-			resume, resumeLabel, mark(t.NextStep), mark(t.RecordToday || t.ContextToday), bit, detail)
+		fmt.Printf("       %s %s   %s bitácora (%s)\n", block, blockLabel, bit, detail)
 		for _, f := range t.Missing {
 			fmt.Printf("       ✗ %s\n", f)
 		}
 		// Con otro glifo a propósito: `✗` es una pieza que falta y hace salir 1; `▲` es algo para mirar.
 		// Verlos iguales convierte el aviso en un error, y un cierre que «falla» por un juicio se aprende
-		// a ignorar entero — incluidas las cuatro piezas que sí importan.
+		// a ignorar entero — incluidas las piezas que sí importan.
 		for _, m := range t.Watch {
 			fmt.Printf("       ▲ %s\n", m)
 		}

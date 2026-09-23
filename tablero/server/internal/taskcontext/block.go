@@ -341,3 +341,18 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 	}
 	return e, warnings, nil
 }
+
+// HasCommand dice si algún bloque trae un comando con su resultado: la señal de que lo que se afirma en
+// la pila se puede volver a correr.
+func HasCommand(events []Event) bool {
+	for _, e := range events {
+		if _, fences, err := scanBody(e.Body); err == nil {
+			for _, f := range fences {
+				if commandFences[f.lang] {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

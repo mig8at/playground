@@ -7,21 +7,8 @@ import (
 	"testing"
 
 	"creditop/tablero/server/internal/pulse"
+	"creditop/tablero/server/internal/taskcontext"
 )
-
-func TestResumeSectionStopsAtNextHeading(t *testing.T) {
-	body := "\n## Si retomás esto sin contexto, empezá acá\n\nEstado de hoy.\n\n**El próximo paso es:** medir.\n\n## Objetivo\n\notra cosa\n"
-	got := resumeSection(body)
-	if got != "Estado de hoy.\n\n**El próximo paso es:** medir." {
-		t.Errorf("sección mal recortada: %q", got)
-	}
-	if resumeSection("## Objetivo\n\nnada\n") != "" {
-		t.Error("sin la sección tiene que devolver vacío, no otra sección")
-	}
-	if !reNext.MatchString(body) {
-		t.Error("no reconoce «El próximo paso es»")
-	}
-}
 
 func TestReadFrontmatterArchivedIsDateAndBranchesSplitByComma(t *testing.T) {
 	dir := t.TempDir()
@@ -58,24 +45,6 @@ func TestContainerCreationDoesNotFakeToolWork(t *testing.T) {
 	}
 	if isOnlyContainerCreation(task{Slug: "producto"}, []string{"archivo"}, false) {
 		t.Fatal("una tarea de producto nueva sí exige cierre")
-	}
-}
-
-// La sección de retoma se reconoce aunque venga numerada y en mayúsculas: la tarea de Bancolombia la
-// titula «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto la daba por inexistente.
-func TestResumeSectionRecognizesNumberedAndUppercaseHeadings(t *testing.T) {
-	for _, body := range []string{
-		"\n## Si retomás esto sin contexto, empezá acá\n\nHoy.\n\n## Objetivo\n",
-		"\n## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ\n\nHoy.\n\n## Objetivo\n",
-		"\n## 1. Si retomas esto sin contexto\n\nHoy.\n\n## Objetivo\n",
-	} {
-		if got := resumeSection(body); got != "Hoy." {
-			t.Errorf("no reconoció la sección en %q → %q", strings.SplitN(body, "\n", 3)[1], got)
-		}
-	}
-	// y no se inventa una donde no hay
-	if resumeSection("\n## Objetivo\n\nnada\n") != "" {
-		t.Error("sin sección tiene que dar vacío")
 	}
 }
 
@@ -166,31 +135,6 @@ Se cerró el PR y se midió en staging.
 	}
 }
 
-// El caso del 2026-09-23: la fase 3 y la mudanza a carpetas reapuntaron rutas en #46 y #47 sin tocar su
-// retoma, y el cierre les exigía reescribirla aunque la entrada del día declaraba «sin avance».
-func TestResumeUnchangedIsWaivedOnlyWhenTheDayDeclaresNoProgress(t *testing.T) {
-	same := "El estado vigente de la tarea."
-	if state, missing := resumeState(same, same, true, true); state != "sin-avance" || missing != "" {
-		t.Fatalf("declarada sin avance, una retoma sin cambios no es una pieza faltante: %q %q", state, missing)
-	}
-	// ⚠ La mutación que importa: sin la declaración, la MISMA retoma vuelve a deberse. Una exención que
-	// no se puede poner en rojo al quitarle su causa no está comprobando nada.
-	if state, missing := resumeState(same, same, true, false); state != "sin-cambios" || missing == "" {
-		t.Fatalf("sin declarar sin avance, la retoma sin cambios se reclama: %q %q", state, missing)
-	}
-	// Lo que no se perdona nunca: que la sección falte. Es un defecto del documento, no del día.
-	if state, missing := resumeState("", same, true, true); state != "sin-seccion" || missing == "" {
-		t.Fatalf("sin sección de retoma no hay exención que valga: %q %q", state, missing)
-	}
-	// Una retoma reescrita está bien con o sin marcador, y una tarea nacida hoy no tiene con qué compararse.
-	if state, _ := resumeState("El estado de hoy.", same, true, true); state != "ok" {
-		t.Fatalf("una retoma reescrita es ok aunque el día declare sin avance: %q", state)
-	}
-	if state, _ := resumeState(same, "", false, false); state != "ok" {
-		t.Fatalf("una tarea nueva no tiene retoma anterior: %q", state)
-	}
-}
-
 // El caso del 2026-09-23: el pulso nombra `microservices/customer-service` como UN repo, y partir
 // "repo/rama" en la primera barra hacía de su `main` la rama «customer-service/main» — una rama sin dueño
 // que hacía salir 1 al cierre por un pull. La base se decide con la rama sola.
@@ -209,5 +153,24 @@ func TestBaseBranchOfANestedRepoIsStillBase(t *testing.T) {
 	}
 	if base["legacy-backend/feat/qa-tools"] || base["frontend-monorepo/fix/main"] {
 		t.Error("una rama de trabajo no es base aunque su nombre termine en /main o contenga qa")
+	}
+}
+
+// Un bloque cuenta por su FECHA, no porque su archivo haya cambiado: el 2026-09-23 la migración reescribió
+// los 37 hitos viejos con sus fechas, y si contara el archivo habría vuelto «tocadas» a 22 tareas. Y un
+// bloque migrado cumple con el bloque de su día, pero no es trabajo de ese día.
+func TestABlockCountsOnTheDayItWasWritten(t *testing.T) {
+	events := []taskcontext.Event{
+		{At: "2026-09-22T20:50:00-05:00", Via: "migration"},
+		{At: "2026-09-23T15:10:00-05:00", Via: "manual"},
+	}
+	if any, work := blocksOn(events, "2026-09-23"); !any || !work {
+		t.Fatal("no vio el bloque del 23")
+	}
+	if any, _ := blocksOn(events, "2026-09-21"); any {
+		t.Fatal("vio un bloque del 21 que no existe")
+	}
+	if any, work := blocksOn(events, "2026-09-22"); !any || work {
+		t.Fatalf("el hito del 22 convertido cumple con el bloque del 22 sin ser trabajo del 22: any=%v work=%v", any, work)
 	}
 }

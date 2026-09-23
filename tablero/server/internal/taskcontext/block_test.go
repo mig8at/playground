@@ -146,3 +146,14 @@ func TestCanonDownIsAWarningNotARejection(t *testing.T) {
 		t.Fatalf("err=%v warnings=%v", err, warnings)
 	}
 }
+
+func TestHasCommandSeesOnlyCommandsNotMaterial(t *testing.T) {
+	material := Event{Body: "Así queda el payload:\n\n```json\n{\"a\": 1}\n```"}
+	command := Event{Body: "```sh\nmake cierre\n```\nResultado: todo en orden."}
+	if HasCommand([]Event{material}) {
+		t.Fatal("un JSON de ejemplo no es un comando")
+	}
+	if !HasCommand([]Event{material, command}) {
+		t.Fatal("no vio el comando")
+	}
+}

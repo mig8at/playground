@@ -500,11 +500,12 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    bitácora, ni cajón de ramas. Escribir el avance ahí es escribirlo donde nadie lo mira — pasó el
    2026-08-27 y el tablero mintió ocho días mientras se mergeaban PRs.
 
-   ⚠ **Y al cerrar la sesión son CUATRO cosas, no una:** reescribir el estado de arriba · apilar la
-   entrada del Registro · declarar `ramas:` y volver a medir con `make tareas-ramas` · escribir la
-   bitácora en `tablero/data/entries/` **con minutos medidos** (`make pulso`, o el lapso de commits), no
-   estimados. **`make cierre` chequea las cuatro** y el hook de `Stop` lo corre solo. El detalle y lo
-   medido que lo justifica: `tablero/CLAUDE.md`.
+   ⚠ **Y al cerrar la sesión son TRES cosas, no una:** un bloque del día en la pila de la tarea (`make
+   tarea-bloque`) · declarar `ramas:` y volver a medir con `make tareas-ramas` · escribir la bitácora en
+   `tablero/data/entries/` **con minutos medidos** (`make pulso`, o el lapso de commits), no estimados.
+   **`make cierre` chequea las tres** y el hook de `Stop` lo corre solo. *(Hasta el 2026-09-23 eran
+   cuatro: reescribir el estado de arriba con su «próximo paso» se fue con la pila de bloques.)* El
+   detalle y lo medido que lo justifica: `tablero/CLAUDE.md`.
 2. **El CONTEXTO se lee ANTES de investigar, y está en canon.** Para encontrar el tema:
    `go run . -pregunta '<la pregunta>'` desde el repo de canon, o `/api/search?q=…`, que es gratis y
    devuelve la sección exacta con los archivos que la sostienen. Cada tema es

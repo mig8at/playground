@@ -103,10 +103,10 @@ tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y s
 cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APLICAR=1 escribe · EN=<url>
 	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APLICAR),-aplicar) $(if $(EN),-en $(EN))
 
-hoy: ## @dia la agenda derivada de las tareas: en movimiento (próximo paso, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
+hoy: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs, preguntas vencidas, pendientes, último Registro, bitácora — y qué falta. N=<id|slug> · BRIEF=1 suma la FICHA de sus nodos de context sin abrir los docs (~1/10 del doc; hasta 4, BRIEF=a,b elige) — decide qué doc abrir, no lo reemplaza
+retomar: ## @dia retomar UNA tarea en frío: la pila (el último bloque entero), ramas y PRs, preguntas vencidas, pendientes, bitácora — y qué falta. N=<id|slug> · BRIEF=1 suma la FICHA de sus nodos de context sin abrir los docs (~1/10 del doc; hasta 4, BRIEF=a,b elige) — decide qué doc abrir, no lo reemplaza
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
@@ -139,7 +139,7 @@ tablero-db: ## @dia SQL de SOLO LECTURA. TARGET=local|dev|staging|prod SQL='SELE
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }
 	@cd tablero/server && go run ./cmd/db-query -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(MD),-md)
 
-cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál le falta retoma, registro, bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
+cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 
 trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)

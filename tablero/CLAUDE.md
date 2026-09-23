@@ -104,9 +104,11 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 
 ### Trabajo
 
-La primera sección conserva el título `## Si retomás esto sin contexto, empezá acá` y ocupa 5–8
-líneas: **qué se busca → estado real → qué ya se comprobó → cómo verificarlo**. Termina con
-`**El próximo paso es:**` y una acción concreta. Se reescribe con el estado de hoy.
+Lo que se hizo y dónde quedó la tarea vive en la **pila de bloques**, no en el documento. Si ayuda, el
+documento puede abrir con un párrafo de estado (`## Si retomás esto sin contexto, empezá acá`: qué se
+busca → estado real → qué ya se comprobó → cómo verificarlo), pero **ya no se exige ni lleva «próximo
+paso»**: uno fijo obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea
+(Miguel, 2026-09-23). `make cierre` y `make retomar` no lo piden.
 
 Después van objetivo, dónde se toca, plan, alternativas descartadas, límites, material de validación
 y referencias, en el orden de la plantilla. Los pendientes no se repiten: viven en su vista lateral.
@@ -196,7 +198,7 @@ casilla. Ejemplo de formato, para reemplazar por datos reales:
 - [x] Acción completada — comprobación o enlace a la evidencia.
 ```
 
-No copies estas casillas en Trabajo o Registro. El próximo paso elige una; la lista guarda el resto.
+No copies estas casillas en el documento ni en la pila: la lista guarda lo abierto.
 Marcá completado sólo lo verificado. Los criterios públicos para QA pertenecen a Jira.
 
 ### Hallazgos
@@ -277,8 +279,9 @@ esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 
 Un agente que empieza el día no debería reconstruir el sistema desde cero ni confiar en un resumen
 viejo. Primero corre `make tareas TODAS=1`, identifica la tarea o uno de los siete contenedores
-locales, abre su Markdown y reescribe mentalmente la sección **«Si retomás esto sin contexto»** en
-una hipótesis verificable. Antes de editar, revisa `canon:` del frontmatter:
+locales, y corre `make retomar N=<id>`: la pila primero —el último bloque entero, con sus archivos
+fijados a su commit— y lo que la tarea tenga en su documento. Con eso arma una hipótesis verificable.
+Antes de editar, revisa `canon:` del frontmatter:
 
 1. **Hay referencias declaradas:** `make retomar N=<id> BRIEF=1` trae al final la **ficha** de cada
    una —título, resumen y el `objetivo` de cada área con sus tablas y repos— desde `CANON_URL`.
@@ -435,7 +438,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   **Hay CINCO clases de contenido, y cada una se trata distinto. Tres tienen nombre propio en el
   archivo; las otras dos son las que lo desordenan cuando no se las reconoce:**
 
-      1 ESTADO       dónde estoy hoy            → se REESCRIBE   «Si retomás esto sin contexto»
+      1 ESTADO       dónde estoy hoy            → lo dicen los últimos bloques (y, si ayuda, un párrafo arriba)
       2 PLAN         objetivo, cómo se ataca    → se REESCRIBE   «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
       3 MATERIAL     recetas, consultas, datos  → se MANTIENE    «Cómo se comprueba — y el MATERIAL…»
       4 BLOQUES      qué se fue documentando    → se APILA       `tasks/<slug>/context.jsonl`
@@ -466,8 +469,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 
   El orden de las secciones es el orden en que las necesita quien llega sin contexto:
 
-      Si retomás esto sin contexto, empezá acá   ← se reescribe SIEMPRE. Es la sección obligatoria.
-      El próximo paso es: …                      ← UNA acción, no una lista
+      Si retomás esto sin contexto, empezá acá   ← opcional: un párrafo de estado, si ayuda. Sin «próximo paso»
       Pendientes                                 ← casillas concretas, lo abierto y lo cerrado
       Objetivo · Dónde se toca · Cómo se ataca
       Lo que se evaluó y NO se eligió            ← lo que evita re-proponer lo que ya falló
@@ -481,8 +483,8 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   Se aplica al crear o actualizar una tarea abierta.
 
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
-  1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si
-     hay algo que documentar, se apila un bloque; si cambió *cuál es el estado vigente*, también va arriba.
+  1. **Al terminar de trabajar se apila un bloque** con lo que se hizo; no se agrega una sección nueva al
+     documento. El documento se corrige cuando cambia lo vigente: objetivo, plan, pendientes.
   2. **«Registro» no es «avance».** Las tareas viejas llaman `## Bitácora` al registro del cuerpo y
      el nombre choca: en el tablero los avances son bloques de trabajo fechados (`data/entries/`, lo
      que sube al worklog). El del cuerpo es el registro de **qué pasó**. Medido: el
@@ -541,20 +543,17 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
      próximo `##` la corta en la primera línea y da cero. Es exactamente el error que se cometió el
      2026-08-19 midiéndola: dio «7 de 12 sin publicable» cuando eran 3. El server lo hace bien
      (`cuerpo[loc[1]:]`); si escribís una medición aparte, copiá ese criterio.
-- ⚠ **AL CERRAR UNA SESIÓN DE TRABAJO, cuatro cosas — y las cuatro se olvidaron el 26/8.** No es una
-  lista de buenas intenciones: es lo que quedó sin hacer mientras se mergeaban PRs y se corrían
-  migraciones, y lo que hizo que el tablero mintiera durante ocho días.
+- ⚠ **AL CERRAR UNA SESIÓN DE TRABAJO, tres cosas.** No es una lista de buenas intenciones: el 26/8 se
+  olvidaron todas mientras se mergeaban PRs y se corrían migraciones, y el tablero mintió ocho días.
 
-  1. **Reescribí el estado de arriba** del archivo **con `id`** (el que el tablero muestra). Si cambió
-     *qué se sabe*, va a un bloque de la pila; si cambió *cuál es el estado*, va arriba. La sección «Si retomás esto
-     sin contexto» tiene que decir lo de HOY, no lo de la semana pasada.
-  2. **Agregá un bloque** con `make tarea-bloque`: el título con la conclusión y la descripción con lo
-     que la sostiene —archivos por repo, canon, el comando y lo que dio—. Lo que se descartó entra como un
-     bloque con su motivo, no como prosa de sesión.
-  3. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
+  1. **Agregá un bloque del día** con `make tarea-bloque`, en la tarea **con `id`** (la que el tablero
+     muestra): el título con la conclusión y la descripción con lo que la sostiene —archivos por repo,
+     canon, el comando y lo que dio—. Lo que se descartó entra como un bloque con su motivo, no como prosa
+     de sesión.
+  2. **Declará `ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`. El
      patrón es lo ÚNICO que se escribe a mano; dónde vive cada rama y su PR lo mide git. Sin patrón,
      la consola Ramas no tiene una medición propia de la tarea.
-  4. **Escribí la bitácora con `make bitacora-add`**, no a mano: pone el id, el día y la hora, resuelve
+  3. **Escribí la bitácora con `make bitacora-add`**, no a mano: pone el id, el día y la hora, resuelve
      la tarea por id o slug, y **los minutos salen de UNA fuente que queda escrita en la nota**:
      `LAPSO=HH:MM-HH:MM` (la sesión), `PULSO=HH:MM` (tramos de 5′ con cambios desde esa hora) o
      `MIN=N FUENTE='…'`. Sin fuente no escribe. ⚠ **Los minutos se MIDEN, no se estiman**: inventar un
@@ -565,10 +564,14 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   ⚠ **Y decilo cuando no puedas medirlo.** Si el pulso no tiene datos de ese día, la entrada sale del
   lapso de commits y eso se avisa: quien lee la bitácora tiene que poder saber de dónde salió el número.
 
-  **Y desde el 2026-09-14 esto NO es una lista: es `make cierre`.** Cruza git (qué archivos de tarea se
-  tocaron hoy, y si la sección de retoma de verdad CAMBIÓ respecto de ayer), el pulso (qué ramas se
-  tocaron → qué tarea las declara en `ramas:`, y cuáles ninguna) y la bitácora del día (minutos por
-  tarea, y los que no tienen dueño). Sale 1 si a una tarea tocada le falta una pieza. Medido el día que
+  *(Hasta el 2026-09-23 eran cuatro: además, reescribir la sección de retoma con un «próximo paso». Se
+  fueron con la pila de bloques.)*
+
+  **Y desde el 2026-09-14 esto NO es una lista: es `make cierre`.** Cruza git (qué documentos de tarea
+  se tocaron), la pila (qué tareas tienen un bloque fechado ese día: cuenta la FECHA del bloque, no el
+  archivo, así que la migración que reescribió los hitos viejos no volvió «tocadas» a sus 22 tareas), el
+  pulso (qué ramas se tocaron → qué tarea las declara en `ramas:`, y cuáles ninguna) y la bitácora del
+  día (minutos por tarea, y los que no tienen dueño). Sale 1 si a una tarea tocada le falta una pieza. Medido el día que
   se escribió: 23 de las 39 abiertas no tenían sección de retoma, 27 no tenían próximo paso y 3 con
   trabajo en septiembre no tenían bitácora — la lista de arriba llevaba un mes escrita.
   ⚠ **Tocar el archivo no es trabajar en la tarea: si lo único que cambió es el FRONTMATTER** —declarar
@@ -587,12 +590,11 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 
       > **2026-09-21 · sin avance.** Sólo se le actualizó la ruta a las trampas del sistema.
 
-  Con ese marcador, el cierre exime **la bitácora y la reescritura de la retoma, y nada más** —el
-  Registro se sigue pidiendo, porque el marcador vive adentro de él, y la sección «Si retomás» tiene que
-  existir— y los muestra como `— retoma (declara sin avance)` y `— bitácora (declara sin avance)`, nunca
-  como un ✓: un tilde diría que la pieza está, y no está. *(Hasta el 2026-09-23 eximía sólo la bitácora.
-  Alcanzó mientras los barridos tocaban también la retoma; el de ese día —reapuntar rutas en #46 y #47—
-  no la tocó, y el cierre les exigía reescribir un estado que no había cambiado: inventar uno.)*
+  Con ese marcador, el cierre exime **el bloque del día y la bitácora, y nada más**, y los muestra como
+  `— bloque (declara sin avance)` y `— bitácora (declara sin avance)`, nunca como un ✓: un tilde diría
+  que la pieza está, y no está. *(Primero eximía sólo la bitácora; el 2026-09-23 sumó la reescritura de
+  la retoma —el barrido de rutas en #46 y #47 no la había tocado—, y ese mismo día la retoma dejó de
+  pedirse y el marcador pasó a eximir el bloque.)*
   ⚠ **Se declara, NO se deduce.** Se probó deducirlo comparando el cuerpo con las citas normalizadas
   («si sólo cambiaron rutas, nadie afirmó nada») y falla en los tres casos que venía a resolver: al
   barrer se escribe la nota que explica el barrido, así que la prosa fuera de los backticks también
@@ -626,7 +628,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       make bitacora DAYS=7              el tiempo registrado, por día
       make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
       make tareas-ramas N=43 JSON=1     una sola, en json
-      make hoy                          la agenda: próximo paso de cada tarea viva, preguntas vencidas, entrega, dormidas
+      make hoy                          la agenda: el último bloque de cada tarea viva, preguntas vencidas, entrega, dormidas
       make retomar N=84                 retomar UNA en frío: sólo lo que hace falta para arrancar, y qué le falta
       make retomar N=47 BRIEF=1         …y al final la ficha de sus referencias de Canon (hasta 4; BRIEF=a,b elige)
       make cierre                       el cierre del día: a qué tarea tocada le falta qué. DIA=… · JSON=1

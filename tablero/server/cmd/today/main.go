@@ -1,19 +1,24 @@
 // hoy — la primera pantalla del día, derivada de las tareas: qué sigue, qué espera respuesta, qué se durmió.
 //
-// Cada tarea ya declara su «próximo paso», sus preguntas con fecha y a quién se le deben, sus casillas
+// Cada tarea ya tiene su pila de bloques, sus preguntas con fecha y a quién se le deben, sus casillas
 // pendientes y sus ramas. La tarjeta muestra cada cosa en su tarea, pero nadie las cruzaba: medido el
 // 2026-09-14 había 11 preguntas vencidas hace más de 7 días y 57 casillas abiertas repartidas en 10
 // tareas, y 21 de las 39 abiertas llevaban más de 3 semanas sin tocarse sin que nada lo dijera.
 //
+// ⚠ Hasta el 2026-09-23 la agenda mostraba el «próximo paso» de cada tarea y retomar lo exigía. Se fue
+// con la pila de bloques: lo que dice dónde quedó una tarea es su último bloque, y un próximo paso fijo
+// obliga a hacer algo después cuando eso es decisión de cómo se va desarrollando la tarea (Miguel).
+//
 // Dos vistas, ninguna escribe:
 //
-//	hoy                la agenda: en movimiento (con su próximo paso, preguntas vencidas y entrega) y dormidas
-//	hoy -n <id|slug>   RETOMAR una tarea en frío: sólo lo que hace falta para arrancar, y en rojo lo que no está
+//	hoy                la agenda: en movimiento (con su último bloque, preguntas vencidas y entrega) y dormidas
+//	hoy -n <id|slug>   RETOMAR una tarea en frío: la pila primero —el último bloque entero—, y en rojo lo que falta
 //	hoy -n … -brief 1 …y al final la FICHA de cada referencia de Canon declarada por la tarea.
 //	                   Es un APOYO: decide qué tema se abre, no reemplaza leerlo — y va opt-in porque una
 //	                   tarea llega a declarar 9.
 //
-// «Días sin tocar» sale de git (último commit del archivo, o hoy si está modificado). Dormida = 14 días;
+// «Días sin tocar» sale de git (último commit del archivo, o hoy si está modificado) y del último bloque
+// de la pila, el que sea más reciente: una tarea que sólo recibe bloques no se duerme. Dormida = 14 días;
 // a los 30 la vista sugiere archivar o anotar por qué espera. Los umbrales son del tablero, no de Jira.
 package main
 
@@ -22,6 +27,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -62,7 +68,6 @@ var (
 	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
 	reResume    = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
 	reSection   = regexp.MustCompile(`(?m)^##\s`)
-	reNext      = regexp.MustCompile(`(?is)\*\*El pr[óo]ximo paso es:?\*\*\s*(.*?)(?:\n\s*\n|\n##|\z)`)
 	reRecordDay = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})[^\n]*\n`)
 	rePublic    = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
 	// «Bitácora» es como llaman al Registro las tareas viejas: mirar sólo «Registro» contaba su diario
@@ -146,16 +151,6 @@ func requiresBranches(t task) bool {
 	// Los contenedores locales agrupan mejoras sucesivas y pueden no tener una rama activa. Una tarea
 	// de producto en work sí debe declarar por dónde se entrega.
 	return t.Stage == "work" && t.Class != "proyecto"
-}
-
-func (t task) nextStep() string {
-	m := reNext.FindStringSubmatch(t.Body)
-	if m == nil {
-		return ""
-	}
-	p := strings.TrimSpace(m[1])
-	p = strings.TrimLeft(p, "*: ")
-	return strings.Join(strings.Fields(p), " ")
 }
 
 func (t task) resume() string {
@@ -344,7 +339,7 @@ func main() {
 	if *single != "" {
 		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief))
 	}
-	os.Exit(agenda(tasks, snap, *stage, *asJSON))
+	os.Exit(agenda(data, tasks, snap, *stage, *asJSON))
 }
 
 type row struct {
@@ -354,7 +349,8 @@ type row struct {
 	Stage        string   `json:"stage"`
 	Class        string   `json:"class"`
 	Days         int      `json:"daysUntouched"`
-	NextStep     string   `json:"nextStep"`
+	LastBlock    string   `json:"lastBlock"`
+	BlockDays    int      `json:"lastBlockDays"` // -1 si la pila está vacía
 	Delivery     string   `json:"delivery"`
 	Overdue      []string `json:"overdueQuestions"`
 	Pending      int      `json:"pending"`
@@ -362,14 +358,47 @@ type row struct {
 	SuggestClose bool     `json:"suggestArchive"`
 }
 
-func agenda(tasks []task, snap branchesSnap, stage string, asJSON bool) int {
+// daysSince: días de CALENDARIO desde una fecha RFC3339 —el bloque de anoche es «ayer» aunque no hayan
+// pasado 24 horas—, o -1 si no se puede leer. Es la misma cuenta que `days()` hace con el documento, que
+// arranca a la medianoche de su último commit.
+func daysSince(at string) int {
+	when, err := time.Parse(time.RFC3339, at)
+	if err != nil {
+		return -1
+	}
+	y, m, d := when.In(time.Local).Date()
+	ty, tm, td := time.Now().Date()
+	then, today := time.Date(y, m, d, 0, 0, 0, 0, time.Local), time.Date(ty, tm, td, 0, 0, 0, 0, time.Local)
+	return int(math.Round(today.Sub(then).Hours() / 24))
+}
+
+// ago dice cuándo, en la forma corta de la agenda.
+func ago(days int) string {
+	switch days {
+	case 0:
+		return "hoy"
+	case 1:
+		return "ayer"
+	}
+	return fmt.Sprintf("hace %d d", days)
+}
+
+func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON bool) int {
 	var rows []row
 	for _, t := range tasks {
 		if t.Archived || (stage != "" && t.Stage != stage) {
 			continue
 		}
 		f := row{ID: t.ID, Slug: t.Slug, Title: t.Title, Stage: t.Stage, Class: t.Class, Days: t.days(),
-			NextStep: t.nextStep(), Delivery: delivery(snap, t.ID)}
+			BlockDays: -1, Delivery: delivery(snap, t.ID)}
+		// El último bloque dice dónde quedó la tarea; y si es más reciente que el documento, la tarea se
+		// tocó entonces.
+		if events, err := taskcontext.Read(data, t.Slug); err == nil && len(events) > 0 {
+			f.LastBlock, f.BlockDays = events[0].Title, daysSince(events[0].At)
+			if f.BlockDays >= 0 && f.BlockDays < f.Days {
+				f.Days = f.BlockDays
+			}
+		}
 		for _, a := range overdueQuestions(t) {
 			q := a.Who
 			if q == "" {
@@ -465,10 +494,10 @@ func printRow(f row, detail bool) {
 	if !detail {
 		return
 	}
-	if f.NextStep != "" {
-		fmt.Printf("       → %s\n", truncate(f.NextStep, 110))
+	if f.LastBlock != "" {
+		fmt.Printf("       ▸ %s · %s\n", truncate(f.LastBlock, 100), ago(f.BlockDays))
 	} else {
-		fmt.Printf("       ✗ sin «El próximo paso es»\n")
+		fmt.Printf("       · la pila está vacía\n")
 	}
 	for _, v := range f.Overdue {
 		fmt.Printf("       ⏰ pregunta vencida · %s\n", v)
@@ -683,11 +712,11 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Fprintf(os.Stderr, "no hay tarea que matchee %q. `make tareas` las lista.\n", ref)
 		return 2
 	}
-	resumeText, nextStepText := t.resume(), t.nextStep()
+	resumeText := t.resume()
 	recordDate, recordBlock := t.lastRecord()
 	contextInfo, contextErr := taskcontext.Read(data, t.Slug)
 	if contextErr != nil {
-		fmt.Fprintf(os.Stderr, "⚠ contexto estructurado de %s: %v\n", t.Slug, contextErr)
+		fmt.Fprintf(os.Stderr, "⚠ la pila de %s: %v\n", t.Slug, contextErr)
 		contextInfo = nil
 	}
 	contextInfo = taskcontext.Recent(contextInfo, 8)
@@ -695,14 +724,8 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	pend, totalPend := openPendingItems(*t)
 	bit := worklogOf(data, t.ID)
 	var missing []string
-	if resumeText == "" {
-		missing = append(missing, "la sección «Si retomás esto sin contexto» — es la que se lee primero, y no está")
-	}
-	if nextStepText == "" {
-		missing = append(missing, "«**El próximo paso es:**» — UNA acción")
-	}
-	if recordDate == "" && len(contextInfo) == 0 {
-		missing = append(missing, "un bloque en la pila (`make tarea-bloque`) o un Registro histórico con fecha (`### YYYY-MM-DD`)")
+	if len(contextInfo) == 0 {
+		missing = append(missing, "la pila está vacía: `make tarea-bloque N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
 	}
 	if len(t.Branches) == 0 && requiresBranches(*t) {
 		missing = append(missing, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")
@@ -719,7 +742,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if asJSON {
 		output := map[string]any{
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
-			"resume": resumeText, "nextStep": nextStepText, "recordDate": recordDate, "record": recordBlock,
+			"resume": resumeText, "recordDate": recordDate, "record": recordBlock,
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"overdueQuestions": overdue, "pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
 		}
@@ -739,23 +762,26 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 	fmt.Printf("  archivo: %s\n", t.Path)
 
-	fmt.Println("\n  ── Si retomás esto sin contexto ──")
-	if resumeText == "" {
-		fmt.Println("  ✗ no existe")
-	} else {
-		fmt.Println("  " + strings.ReplaceAll(resumeText, "\n", "\n  "))
+	// LA PILA PRIMERO: el último bloque entero —es el que dice dónde quedó la tarea, con sus archivos
+	// fijados a su commit— y los anteriores por su título.
+	fmt.Println("\n  ── La pila ──")
+	if len(contextInfo) == 0 {
+		fmt.Println("  ✗ está vacía")
 	}
-	fmt.Println("\n  ── El próximo paso es ──")
-	if nextStepText == "" {
-		fmt.Println("  ✗ no está")
-	} else {
-		fmt.Println("  → " + nextStepText)
-	}
-	if len(contextInfo) > 0 {
-		fmt.Println("\n  ── La pila ──")
-		for _, event := range contextInfo {
-			fmt.Printf("  %s · %s\n", event.At[:10], truncate(event.Title, 150))
+	for i, event := range contextInfo {
+		if i == 0 {
+			fmt.Printf("  %s · %s\n\n    %s\n", event.At[:10], event.Title, strings.ReplaceAll(event.Body, "\n", "\n    "))
+			if len(contextInfo) > 1 {
+				fmt.Println()
+			}
+			continue
 		}
+		fmt.Printf("  %s · %s\n", event.At[:10], truncate(event.Title, 150))
+	}
+	// La sección de retoma del documento se muestra si la tarea la tiene; ya no se exige.
+	if resumeText != "" {
+		fmt.Println("\n  ── Si retomás esto sin contexto (del documento) ──")
+		fmt.Println("  " + strings.ReplaceAll(resumeText, "\n", "\n  "))
 	}
 
 	fmt.Print("\n  ── Ramas y entrega")
@@ -812,10 +838,9 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 	}
 
-	fmt.Println("\n  ── Último Registro ──")
-	if recordDate == "" {
-		fmt.Println("  ✗ no hay entradas `### YYYY-MM-DD`")
-	} else {
+	// El Registro del documento es historia de antes de la pila: se muestra si hay, no se exige.
+	if recordDate != "" {
+		fmt.Println("\n  ── Último Registro ──")
 		fmt.Printf("  %s\n  %s\n", recordDate, strings.ReplaceAll(truncate(recordBlock, 900), "\n", "\n  "))
 	}
 

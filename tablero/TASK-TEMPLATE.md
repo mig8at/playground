@@ -54,20 +54,19 @@ jira_title: ""
 
 ## Si retomás esto sin contexto, empezá acá
 
-<!-- ESTA sección se REESCRIBE cada vez que se trabaja. Es la más importante del archivo y la única
-     que alguien lee obligatoriamente. Cuatro cosas, en 5-8 líneas:
+<!-- OPCIONAL. Lo que se hizo y dónde quedó la tarea va en la pila de bloques (`make tarea-bloque`); si
+     ayuda, acá va un párrafo de estado, en 5-8 líneas:
        · Qué se busca: una frase.
        · Estado real: qué funciona y qué falta para avanzar.
        · Ya comprobado: qué NO hay que volver a investigar.
        · Validación: con qué se comprueba que sigue andando.
-     Podés señalar un bloqueo; su hallazgo y la lista completa de pendientes viven una sola vez. -->
-
-**El próximo paso es:** <!-- UNA acción concreta, no una lista. Si hay tres, elegí la primera. -->
+     Sin «próximo paso»: uno fijo obliga a hacer algo después, y eso se decide trabajando. Si no hace
+     falta, borrá la sección entera. -->
 
 ## Pendientes
 
 <!-- Pestaña Pendientes. Cada casilla lleva una acción y su condición de cierre.
-     El próximo paso de arriba elige UNA; acá vive la lista completa. No la copies al contexto JSONL.
+     Acá vive la lista completa de lo abierto. No la copies a la pila.
      - [ ] Acción pendiente; termina cuando [resultado verificable].
        Depende de: [nombre] — [dato o respuesta], si aplica.
      - [x] Acción cerrada — [evidencia de la comprobación].
