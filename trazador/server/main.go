@@ -637,6 +637,7 @@ func main() {
 	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
 	tel := flag.String("tel", "", "con -posthog -ureq: el celular del cliente, para ver además la fase de AUTH (distinct_id phone_<e164>)")
 	mdOut := flag.Bool("md", false, "con -ureq, -buscar o -sql: la salida como ANOTACIÓN fechada para pegar en una tarea del tablero (ver reproducir.go)")
+	bloque := flag.String("bloque", "", "con -ureq, -buscar o -sql: agrega la salida como BLOQUE a la pila de esa tarea del tablero (id o slug)")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -727,13 +728,13 @@ func main() {
 		os.Exit(code)
 	}
 	if *sqlQuery != "" {
-		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV, *mdOut))
+		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV, *mdOut, *bloque))
 	}
 	if *buscar != "" {
-		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut, *mdOut))
+		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut, *mdOut, *bloque))
 	}
 	if *ureq > 0 {
-		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut))
+		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut, *bloque))
 	}
 
 	if c.token == "" {

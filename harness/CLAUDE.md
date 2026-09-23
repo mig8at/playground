@@ -864,7 +864,11 @@ de un juguete personal. El guard del tablero frena `make <target>`, `E2E_TARGET`
 la regla entera, con qué poner en su lugar, está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La
 frontera del guard está DENTRO del archivo».
 
-**Y no hace falta escribirla a mano: `MD=1` la emite.** Lo aceptan `harness-caso`, `harness-listado`,
+**Y no hace falta escribirla a mano.** Con `BLOQUE=<id|slug>`, `harness-caso`, `harness-listado`,
+`harness-caminar` y `harness-suite` agregan la corrida sola, como bloque, a la pila de esa tarea: el
+título con el resumen, el comando exacto en su caja y la evidencia por caso como resultado, con
+`via: harness` (`pkg/anotacion.ts`, y su prueba le pregunta al validador del tablero en seco). Y
+`MD=1` la emite como anotación para pegar. Lo aceptan `harness-caso`, `harness-listado`,
 `harness-caminar` y `harness-suite`, y devuelven la anotación completa —marcador con la fecha real,
 una línea de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para
 copiarla sin recortar:

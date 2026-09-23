@@ -115,3 +115,45 @@ func TestVecinoNoSeOfreceContraProd(t *testing.T) {
 		}
 	}
 }
+
+// El bloque que emite con `-bloque`: título en una línea de hasta 120, el comando en su caja y lo que dio,
+// sin lo que el validador del tablero rechazaría por forma (HTML, rutas de esta máquina).
+func TestBloqueMDTieneLaFormaDeUnBloque(t *testing.T) {
+	md := bloqueMD(strings.Repeat("x", 200)+".", "make trazador-ureq UREQ=1 TARGET=prod", "✘ falló <div> en /Users/yo/log")
+	titulo, _, _ := strings.Cut(md, "\n")
+	if !strings.HasPrefix(titulo, "# ") || len([]rune(strings.TrimPrefix(titulo, "# "))) > 120 {
+		t.Fatalf("título = %q", titulo)
+	}
+	if want := "```trazador\nmake trazador-ureq UREQ=1 TARGET=prod\n```\nResultado: ✘ falló ‹div› en …/log\n"; !strings.HasSuffix(md, want) {
+		t.Fatalf("md = %q", md)
+	}
+}
+
+func TestResultadoFilasResumeEnUnaLinea(t *testing.T) {
+	cols := []string{"n"}
+	if got := resultadoFilas(cols, []Fila{{"n": 7}}); got != "n = 7." {
+		t.Fatalf("una fila = %q", got)
+	}
+	if got := resultadoFilas(cols, nil); got != "cero filas." {
+		t.Fatalf("cero = %q", got)
+	}
+	var muchas []Fila
+	for i := 0; i < 7; i++ {
+		muchas = append(muchas, Fila{"n": i})
+	}
+	if got := resultadoFilas(cols, muchas); !strings.HasPrefix(got, "7 filas: ") || !strings.Contains(got, "y 2 más") {
+		t.Fatalf("muchas = %q", got)
+	}
+}
+
+// ⚠ LA QUE IMPORTA: quien decide si el bloque entra es el validador del tablero, no este módulo. Se le
+// pregunta al de verdad y en seco: si allá cambia una regla, acá se nota.
+func TestElValidadorDelTableroAceptaElBloque(t *testing.T) {
+	if _, err := raizPlayground(); err != nil {
+		t.Skip("sin el tablero al lado:", err)
+	}
+	md := bloqueMD("uReq 1 en `prod`: aprobada.", cmdMake("trazador-ureq", "prod", "UREQ", "1"), "Fuentes: bd · loki.")
+	if err := agregarBloque("tablero", md, true); err != nil {
+		t.Fatal(err)
+	}
+}

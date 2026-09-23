@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -57,7 +58,7 @@ func canonMissing(ctx context.Context, refs []string) ([]string, error) {
 
 func main() {
 	task := flag.String("tarea", "", "id o slug de la tarea")
-	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción")
+	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción (`-`: por stdin)")
 	via := flag.String("via", "manual", "quién lo agrega: manual · harness · trazador · db")
 	show := flag.Bool("ver", false, "muestra la pila sin escribir")
 	dryRun := flag.Bool("n", false, "valida y previsualiza, sin escribir")
@@ -102,7 +103,14 @@ func main() {
 		return
 	}
 
-	src, err := os.ReadFile(*blockPath)
+	// `-` lo lee de stdin: así lo mandan el harness, el trazador y las consultas DB con BLOQUE=<tarea>,
+	// sin un archivo temporal de por medio.
+	var src []byte
+	if *blockPath == "-" {
+		src, err = io.ReadAll(os.Stdin)
+	} else {
+		src, err = os.ReadFile(*blockPath)
+	}
 	if err != nil {
 		fail("leyendo -bloque: %v", err)
 	}

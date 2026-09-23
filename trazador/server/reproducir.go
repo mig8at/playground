@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -191,4 +194,141 @@ func evidenciaTraza(t Traza) []string {
 		ev = append(ev, "Fuentes: "+strings.Join(t.Sources, " · ")+".")
 	}
 	return ev
+}
+
+// ─── LA SALIDA COMO BLOQUE DE LA PILA DE UNA TAREA (`-bloque <tarea>`) ─────────────────────────────
+//
+// Desde el 2026-09-23 la pila de una tarea del tablero es de BLOQUES: un título —la conclusión, en una
+// línea— y una descripción donde cada comando va en su caja con su `Resultado:`. Con `-bloque <id|slug>`
+// la salida se agrega sola a la pila de esa tarea, con `via: trazador`: la escribió la herramienta al
+// correr, no alguien que la copió.
+//
+// ⚠ El bloque NO se valida acá: entra por `make tarea-bloque`, que lo pasa por el validador del tablero.
+// Una copia de sus reglas en este módulo derivaría en silencio.
+
+var (
+	marcadoHTML = strings.NewReplacer("<", "‹", ">", "›")
+	rutaLocalRe = regexp.MustCompile(`/(?:Users|home)/[^/\s]+/`)
+)
+
+// limpiarBloque saca lo que el validador rechazaría por forma y no por contenido: HTML y rutas de esta
+// máquina. Un mensaje de error de la corrida no puede dejar a la tarea sin su bloque.
+func limpiarBloque(s string) string {
+	return rutaLocalRe.ReplaceAllString(marcadoHTML.Replace(strings.Join(strings.Fields(s), " ")), "…/")
+}
+
+// tituloBloque: la conclusión en UNA línea de hasta 120 caracteres, que es el resumen de la corrida.
+func tituloBloque(resumen string) string {
+	t := strings.TrimSuffix(limpiarBloque(resumen), ".")
+	if r := []rune(t); len(r) > 120 {
+		t = string(r[:119]) + "…"
+	}
+	return t
+}
+
+// bloqueMD arma el Markdown que recibe `make tarea-bloque`: `# título`, y el comando en su caja con lo
+// que dio. Sin evidencia, lo que dio es el resumen.
+func bloqueMD(resumen, cmd string, evidencia ...string) string {
+	var partes []string
+	for _, e := range evidencia {
+		if l := limpiarBloque(e); l != "" {
+			partes = append(partes, l)
+		}
+	}
+	resultado := strings.Join(partes, "; ")
+	if resultado == "" {
+		resultado = limpiarBloque(resumen)
+	}
+	if r := []rune(resultado); len(r) > 2000 {
+		resultado = string(r[:1999]) + "…"
+	}
+	return fmt.Sprintf("# %s\n\n```trazador\n%s\n```\nResultado: %s\n", tituloBloque(resumen), cmd, resultado)
+}
+
+// raizPlayground: desde dónde se corre `make`, buscando hacia arriba el directorio del tablero.
+func raizPlayground() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for d := dir; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, "tablero", "server", "go.mod")); err == nil {
+			return d, nil
+		}
+		if filepath.Dir(d) == d {
+			return "", fmt.Errorf("no encontré la raíz del playground desde %s", dir)
+		}
+	}
+}
+
+// agregarBloque lo manda a la pila de la tarea por la puerta de siempre.
+//
+// ⚠ Con el entorno de make LIMPIO: esto corre adentro de un target, y un make hijo hereda por MAKEFLAGS
+// las variables de la línea de comando del padre (`TARGET=`, `UREQ=`…). Un `N=` que viniera de afuera
+// mandaría el bloque a otra tarea sin decirlo.
+func agregarBloque(tarea, md string, seco bool) error {
+	raiz, err := raizPlayground()
+	if err != nil {
+		return err
+	}
+	args := []string{"-s", "-C", raiz, "tarea-bloque", "N=" + tarea, "ARCHIVO=-", "VIA=trazador"}
+	if seco {
+		args = append(args, "SECO=1")
+	}
+	cmd := exec.Command("make", args...)
+	cmd.Stdin = strings.NewReader(md)
+	for _, kv := range os.Environ() {
+		if k, _, _ := strings.Cut(kv, "="); k != "MAKEFLAGS" && k != "MFLAGS" && k != "MAKELEVEL" && k != "MAKEOVERRIDES" {
+			cmd.Env = append(cmd.Env, kv)
+		}
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		lineas := strings.Split(strings.TrimSpace(string(out)), "\n")
+		if len(lineas) > 3 {
+			lineas = lineas[len(lineas)-3:]
+		}
+		return fmt.Errorf("%s", strings.Join(lineas, " · "))
+	}
+	return nil
+}
+
+// emitirBloque agrega el bloque si se pidió y lo dice. Uno que no entra no cambia la salida de la
+// herramienta —la traza es la misma—, pero se dice fuerte: «no se agregó» leído como «se agregó» es
+// una tarea sin su prueba.
+func emitirBloque(tarea, md string) {
+	if tarea == "" {
+		return
+	}
+	if err := agregarBloque(tarea, md, false); err != nil {
+		fmt.Printf("\n  %s el bloque NO se agregó a la tarea %s: %v\n", paint("31", "✘"), tarea, err)
+		return
+	}
+	fmt.Printf("\n  ▸ bloque agregado a la pila de la tarea %s\n", tarea)
+}
+
+// resultadoFilas resume una consulta en una línea: la única fila entera, o las primeras.
+func resultadoFilas(cols []string, filas []Fila) string {
+	if len(filas) == 0 {
+		return "cero filas."
+	}
+	fila := func(f Fila) string {
+		var vals []string
+		for _, c := range cols {
+			vals = append(vals, c+" = "+celda(f[c]))
+		}
+		return strings.Join(vals, " · ")
+	}
+	if len(filas) == 1 {
+		return fila(filas[0]) + "."
+	}
+	var partes []string
+	for i, f := range filas {
+		if i == 5 {
+			partes = append(partes, fmt.Sprintf("y %d más", len(filas)-5))
+			break
+		}
+		partes = append(partes, "("+fila(f)+")")
+	}
+	return fmt.Sprintf("%d filas: %s.", len(filas), strings.Join(partes, "; "))
 }

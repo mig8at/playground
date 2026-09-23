@@ -104,7 +104,7 @@ func sinComentarios(q string) string {
 }
 
 // modoSQL corre UNA consulta de lectura y la imprime. Exit: 0 ok · 1 falló la consulta · 2 rechazada.
-func modoSQL(c config, target, consulta string, comoCSV, mdOut bool) int {
+func modoSQL(c config, target, consulta string, comoCSV, mdOut bool, bloque string) int {
 	if motivo := esSoloLectura(consulta); motivo != "" {
 		fmt.Fprintf(os.Stderr, "  %s consulta rechazada: %s\n\n  %s\n\n",
 			paint("31", "✘"), motivo, strings.TrimSpace(consulta))
@@ -138,30 +138,34 @@ func modoSQL(c config, target, consulta string, comoCSV, mdOut bool) int {
 		return 1
 	}
 	cmd := cmdMake("trazador-sql", target, "SQL", strings.Join(strings.Fields(consulta), " "))
+	cols := columnas(filas)
+	resumen := fmt.Sprintf("%d fila(s) en `%s`.", len(filas), target)
 	if len(filas) == 0 {
+		// Un cero se pega igual que cualquier otro número, y es el que más se malinterpreta: sin la
+		// consulta al lado no se distingue «no pasa» de «no supe buscar». Por eso el bloque la lleva.
+		resumen = fmt.Sprintf("cero filas en `%s`.", target)
 		switch {
 		case mdOut:
-			// Un cero se pega igual que cualquier otro número, y es el que más se malinterpreta: sin la
-			// consulta al lado no se distingue «no pasa» de «no supe buscar».
-			fmt.Print(anotacionMD(fmt.Sprintf("cero filas en `%s`.", target), cmd))
+			fmt.Print(anotacionMD(resumen, cmd))
 		case !comoCSV:
 			fmt.Println("       (sin filas)")
 		}
+		emitirBloque(bloque, bloqueMD(resumen, cmd, resultadoFilas(cols, filas)))
 		return 0
 	}
 
-	cols := columnas(filas)
 	if comoCSV {
 		return imprimirCSV(cols, filas)
 	}
 	if mdOut {
-		fmt.Print(anotacionMD(fmt.Sprintf("%d fila(s) en `%s`.", len(filas), target), cmd))
+		fmt.Print(anotacionMD(resumen, cmd))
 		fmt.Print("\n" + tablaMD(cols, filas))
-		return 0
+	} else {
+		imprimirTabla(cols, filas)
+		fmt.Printf("\n       %s\n", gray(fmt.Sprintf("%d fila(s)", len(filas))))
+		pie(cmd)
 	}
-	imprimirTabla(cols, filas)
-	fmt.Printf("\n       %s\n", gray(fmt.Sprintf("%d fila(s)", len(filas))))
-	pie(cmd)
+	emitirBloque(bloque, bloqueMD(resumen, cmd, resultadoFilas(cols, filas)))
 	return 0
 }
 

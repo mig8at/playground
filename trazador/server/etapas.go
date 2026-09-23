@@ -2789,7 +2789,7 @@ func Resolver(r Runner, valor string) ([]Coincidencia, []string, error) {
 	return resolverFuente(r, valor)
 }
 
-func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string, mdOut bool) int {
+func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string, mdOut bool, bloque string) int {
 	// Render-only: el armado vive en ArmarTraza, que es el MISMO camino del server y del HTML. Este modo
 	// duplicaba ese cuerpo entero — la clase de deriva que este repo señala en trace.ts/veredicto().
 	t, s, err := ArmarTraza(target, ureq)
@@ -2816,6 +2816,7 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 	cmd := cmdMake("trazador-ureq", target, "UREQ", fmt.Sprint(ureq), "TEL", tel)
 	if mdOut {
 		fmt.Print(anotacionMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
+		emitirBloque(bloque, bloqueMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
 		return 0
 	}
 	imprimirTraza(t, s)
@@ -2830,12 +2831,13 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 			fmt.Printf("\n  %s\n", gray("vista de checks: "+htmlOut))
 		}
 	}
+	emitirBloque(bloque, bloqueMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
 	return 0
 }
 
 // modoBuscar lista los intentos que coinciden con lo que se escribió. Es la puerta natural del soporte:
 // quien llama dice su cédula o su celular, no un `user_request_id`.
-func modoBuscar(c config, target, valor string, comoJSON, mdOut bool) int {
+func modoBuscar(c config, target, valor string, comoJSON, mdOut bool, bloque string) int {
 	fuente, err := abrirFuente(c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s sin BD para «%s»: %v\n\n", paint("31", "✘"), target, err)
@@ -2851,23 +2853,22 @@ func modoBuscar(c config, target, valor string, comoJSON, mdOut bool) int {
 		return buscarJSON(valor, cs, como, target)
 	}
 	cmd := cmdMake("trazador-buscar", target, "Q", valor)
-	if mdOut {
-		// ⚠ El valor buscado NO entra en el resumen: es una cédula o un celular de producción, y lo que
-		// se pega en una tarea queda en git. El comando sí lo lleva —hace falta para repetirlo— pero la
-		// afirmación se escribe sobre las solicitudes, que es de lo que habla la medición.
-		resumen := fmt.Sprintf("la persona detrás de esta búsqueda en `%s`: %s.", target,
-			strings.TrimRight(resumirHistoria(cs), "."))
-		if len(cs) == 0 {
-			resumen = fmt.Sprintf("sin coincidencias en `%s`.", target)
-		}
-		fmt.Print(anotacionMD(resumen, cmd, "Coincidió como "+strings.Join(como, " y ")+"."))
-		if len(cs) == 0 {
-			return 2
-		}
-		return 0
+	// ⚠ El valor buscado NO entra en el resumen: es una cédula o un celular de producción, y lo que se pega
+	// en una tarea queda en git. El comando sí lo lleva —hace falta para repetirlo— pero la afirmación se
+	// escribe sobre las solicitudes, que es de lo que habla la medición. Vale igual para el bloque.
+	resumen := fmt.Sprintf("la persona detrás de esta búsqueda en `%s`: %s.", target,
+		strings.TrimRight(resumirHistoria(cs), "."))
+	if len(cs) == 0 {
+		resumen = fmt.Sprintf("sin coincidencias en `%s`.", target)
 	}
-	imprimirCoincidencias(valor, cs, como, target)
-	pie(cmd)
+	evidencia := "Coincidió como " + strings.Join(como, " y ") + "."
+	if mdOut {
+		fmt.Print(anotacionMD(resumen, cmd, evidencia))
+	} else {
+		imprimirCoincidencias(valor, cs, como, target)
+		pie(cmd)
+	}
+	emitirBloque(bloque, bloqueMD(resumen, cmd, evidencia))
 	if len(cs) == 0 {
 		return 2
 	}

@@ -37,14 +37,33 @@ type Layout struct {
 	Tasks string
 }
 
-// Tools es la carpeta `tools/` de la raíz del playground, dos niveles arriba de `data/`: ahí vive
-// `repos.py`, la lista ÚNICA de repos que el tablero consulta en vez de copiarla.
+// Tools es la carpeta `tools/` de la raíz del playground: ahí vive `repos.py`, la lista ÚNICA de repos que
+// el tablero consulta en vez de copiarla, y su padre es desde donde se corre `make`.
+//
+// Primero, dos niveles arriba de `data/`. ⚠ Pero TABLERO_DATA puede apuntar AFUERA del repo —el agente
+// del pulso, una copia para probar sin tocar las pilas reales— y ahí «al lado de los datos» no hay nada:
+// una herramienta que mandaba su bloque con `make tarea-bloque` recibía «No rule to make target» (lo cazó
+// la prueba de punta a punta del 2026-09-23). Entonces se busca hacia arriba desde donde se corre.
 func (l Layout) Tools() string {
 	data, err := filepath.Abs(l.Data)
 	if err != nil {
 		data = l.Data
 	}
-	return filepath.Join(filepath.Dir(filepath.Dir(data)), "tools")
+	fromData := filepath.Join(filepath.Dir(filepath.Dir(data)), "tools")
+	if _, err := os.Stat(filepath.Join(fromData, "repos.py")); err == nil {
+		return fromData
+	}
+	if wd, err := os.Getwd(); err == nil {
+		for d := wd; ; d = filepath.Dir(d) {
+			if _, err := os.Stat(filepath.Join(d, "tools", "repos.py")); err == nil {
+				return filepath.Join(d, "tools")
+			}
+			if filepath.Dir(d) == d {
+				break
+			}
+		}
+	}
+	return fromData
 }
 
 // At arma el layout a partir de la carpeta `data/`.

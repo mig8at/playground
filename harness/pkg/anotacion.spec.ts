@@ -6,7 +6,7 @@
 // que es peor, porque la tarjeta afirma «esto no dice con qué se comprobó» sobre una medición que sí
 // lo decía. Nada falla; sólo se pierde el dato.
 import { expect, test } from '@playwright/test';
-import { anotacionMD, cmdMake } from './anotacion.ts';
+import { agregarBloque, anotacionMD, bloqueMD, cmdMake } from './anotacion.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -74,4 +74,28 @@ test('la forma coincide con el regex REAL de `store.Annotations`', () => {
       const primera = anotacionMD('uReq 1 en `local`: cerró.', 'make harness-caso TARGET=local').split('\n')[0];
       expect(re.test(primera.trim()),
             `el parser del tablero NO reconoce la primera línea:\n  ${primera}\n  patrón: ${patron}`).toBe(true);
+});
+
+test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acepta', () => {
+      test('título en una línea de hasta 120, el comando en su caja y lo que dio', () => {
+            const md = bloqueMD('x'.repeat(200) + '.', 'make harness-caso TARGET=local',
+                  ['✔ pullman · cerró', '✘ otro · <div> en /Users/yo/log']);
+            const [titulo] = md.split('\n');
+            expect(titulo.startsWith('# ')).toBe(true);
+            expect([...titulo.slice(2)].length).toBeLessThanOrEqual(120);
+            // El HTML y las rutas de esta máquina se neutralizan antes: el validador los rechazaría, y un
+            // mensaje de error de la corrida no puede dejar a la tarea sin su bloque.
+            expect(md).toContain('```harness\nmake harness-caso TARGET=local\n```\nResultado: ✔ pullman · cerró; ✘ otro · ‹div› en …/log');
+      });
+
+      // ⚠ LA QUE IMPORTA: quien decide si el bloque entra es el validador del tablero, no este archivo. Se
+      // le pregunta al de verdad y en seco (`make tarea-bloque … SECO=1`): si allá cambia una regla, acá se
+      // nota — que es lo que una copia de sus reglas en TypeScript no haría nunca.
+      test('el validador del tablero lo acepta, en seco', () => {
+            const md = bloqueMD('2/2 caso(s) en `local`.', cmdMake('harness-caso', 'local', { CASOS: 'pullman@meddipay=rechaza' }),
+                  ['✔ pullman · uReq 123 · listado [23, 141]']);
+            const { ok, salida } = agregarBloque('tablero', md, true);
+            expect(salida).toContain('-n: no se escribió');
+            expect(ok).toBe(true);
+      });
 });

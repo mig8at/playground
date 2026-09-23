@@ -988,7 +988,7 @@ if (volcarEscrituras(volcado)) console.log(`     detalle sentencia por sentencia
  * ⚠ SE IMPRIME AL FINAL Y SOLA, sin el resto del informe: el destino es un `Ctrl-C` hacia el `.md` de
  * una tarea, y mezclarla con las cien líneas de la corrida obliga a recortar a mano — que es
  * exactamente la fricción que hace que nadie la pegue. */
-if (process.env.MD === '1') {
+if (process.env.MD === '1' || process.env.BLOQUE) {
       const cerró = (r: Resultado) => r.fin === 'cerro' || r.fin === 'listo';
       const resumen = `${cerraron}/${resultados.length} ${flag('cerrar') ? 'cerraron' : 'listaron'}`
             + ` en \`${TARGET}\` · motor ${MOTOR} · ${casos.length} caso(s)`
@@ -1002,13 +1002,13 @@ if (process.env.MD === '1') {
                   : `NO cerró: ${r.motivo || 'sin motivo registrado'}`;
             return `${cerró(r) ? '✔' : '✘'} ${r.caso}${r.ur ? ` (uReq ${r.ur})` : ''} — ${r.pantallas} pantalla(s), ${donde}`;
       });
-      const { anotacionMD, cmdMake } = await import('../pkg/anotacion.ts');
-      console.log('\n' + anotacionMD(resumen, cmdMake('harness-caminar', TARGET, {
+      const { emitir, cmdMake } = await import('../pkg/anotacion.ts');
+      emitir(resumen, cmdMake('harness-caminar', TARGET, {
             CASOS: arg('casos'), COMERCIO: arg('casos') ? '' : arg('comercio'), LENDER: arg('casos') ? '' : arg('lender'),
             MONTO: AMOUNT === 2000000 ? '' : AMOUNT, CUOTA: CUOTA_INICIAL, PLAZO: CUOTAS ?? '',
             FLOW: FLOW === 'self-service' ? '' : FLOW, MOTOR: MOTOR === 'http' ? '' : MOTOR,
             PAR: flag('paralelo') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
-      }), evidencia));
+      }), evidencia);
 }
 console.log('');
 await close();

@@ -65,9 +65,11 @@ funcionalidades mergeadas —el endpoint de regeneración de Credifamilia (13/8)
 algo que debería existir, no concluyas: preguntale a `workers/`, que se deriva del código.**
 
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
-verifica casi siempre existe ya. Y cuando la verificás, **la anotación no se escribe a mano**: el
-trazador la emite con `MD=1` (`trazador-ureq` · `trazador-buscar` · `trazador-sql`), con la fecha real y
-el comando que la reproduce adentro — que es lo que hace que la medición se pueda desmentir mañana. Y la salida de un agente **también se verifica** —contra `main`, con
+verifica casi siempre existe ya. Y cuando la verificás, **la medición no se escribe a mano**: con
+`BLOQUE=<tarea>` el trazador (`trazador-ureq` · `trazador-buscar` · `trazador-sql`), el harness
+(`harness-caso` · `-listado` · `-caminar` · `-suite`) y `tablero-db` la agregan solos a la pila de la tarea,
+con el comando exacto y lo que dio (`MD=1` sigue dando la anotación para pegar) — que es lo que hace que
+la medición se pueda desmentir mañana. Y la salida de un agente **también se verifica** —contra `main`, con
 `git show main:<ruta>`, nunca contra el working tree: los repos viven en ramas.
 
 ### Y cómo se complementan ENTRE SÍ — cinco formas, las cinco medidas

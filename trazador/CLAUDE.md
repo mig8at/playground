@@ -259,9 +259,15 @@ y mirá que falle con el mensaje que esperabas.
 
 ## Qué deja esto en la tarea
 
-Lo que el trazador devuelve **no se resume a mano**: se emite ya escrito con `MD=1`
-(`trazador-ureq` · `trazador-buscar` · `trazador-sql`), con la fecha real del día, la evidencia y el
-comando que la reproduce adentro.
+Lo que el trazador devuelve **no se resume a mano**. Con `BLOQUE=<id|slug>` (`trazador-ureq` ·
+`trazador-buscar` · `trazador-sql`) se agrega solo, como bloque, a la pila de esa tarea: el título con el
+resumen, el comando exacto en su caja y lo que dio, con `via: trazador`. Entra por `make tarea-bloque`,
+así que lo valida el tablero y no una copia de sus reglas.
+
+    make trazador-sql TARGET=prod SQL='SELECT …' BLOQUE=<tarea>
+
+Y con `MD=1` sigue saliendo ya escrito como anotación, con la fecha real del día, la evidencia y el
+comando que la reproduce adentro:
 
     make trazador-sql TARGET=prod MD=1 SQL='SELECT …'
 

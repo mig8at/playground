@@ -1820,8 +1820,8 @@ async function main(): Promise<number> {
  * cada caso, que es lo que alguien va a querer contrastar. El conteo va igual, pero de segundo.
  */
 async function anotar(res: Res[], malos: number): Promise<void> {
-    if (process.env.MD !== '1') return;
-    const { anotacionMD, cmdMake } = await import('../pkg/anotacion.ts');
+    if (process.env.MD !== '1' && !process.env.BLOQUE) return;
+    const { emitir, cmdMake } = await import('../pkg/anotacion.ts');
     // El target sale del env, que es donde este runner lo fija (arriba, con `||=`): no hay una
     // constante que importar, y leer otra cosa sería inventar un segundo lugar donde vive el ambiente.
     const TARGET = process.env.E2E_TARGET || 'local';
@@ -1846,11 +1846,11 @@ async function anotar(res: Res[], malos: number): Promise<void> {
         if (!r.ok && r.detalle) partes.push(r.detalle);
         return partes.join(' · ');
     });
-    console.log(anotacionMD(resumen, cmdMake('harness-caso', TARGET, {
+    emitir(resumen, cmdMake('harness-caso', TARGET, {
         SUITE: arg('suite'), CASOS: arg('casos'), COMERCIO: arg('comercio'), LENDER: arg('lender'),
         MONTO: arg('amount'), PAR: flag('paralelo') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
         PRE: flag('preaprobados') ? 1 : '', CERRAR: flag('cerrar') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
-    }), evidencia));
+    }), evidencia);
 }
 
 const code = await main().catch((e) => { console.error('\n  ✗', e); return 1; });
