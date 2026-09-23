@@ -145,6 +145,25 @@ try {
     assert(r.next.today < 0 && Math.abs(r.next.yesterday) <= 1, `pasado el día, el siguiente tenía que reemplazarlo: ${JSON.stringify(r.next)}`);
     assert(r.folded.expanded === 'false' && Math.abs(r.folded.head) <= 1, `plegado, el día tenía que quedar arriba: ${JSON.stringify(r.folded)}`);
   });
+  // El sidebar se arrastra hasta 200px, el mínimo de `WIDTHS` en App.vue. El campo medía 190px fijos y el
+  // grupo, con la lupa y el padding, 230: a ese ancho se salía 40px por el borde.
+  await check('a su ancho mínimo, el buscador no se sale del sidebar', async () => {
+    const r = await page.evaluate(async () => {
+      const wb = document.querySelector('.workbench');
+      const before = wb.style.getPropertyValue('--sidebar-w');
+      wb.style.setProperty('--sidebar-w', '200px');
+      await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
+      const box = (s) => document.querySelector(s).getBoundingClientRect();
+      // Y lo de ADENTRO: con el grupo encogido y el campo con ancho fijo, el grupo cabe y el campo se sale.
+      const inner = Math.max(...[...document.querySelectorAll('.fbusca *')].map((el) => el.getBoundingClientRect().right));
+      const out = { width: box('.sidebar').width, sidebar: box('.sidebar').right, search: box('.fbusca').right, inner };
+      wb.style.setProperty('--sidebar-w', before);
+      return out;
+    });
+    assert(Math.abs(r.width - 200) <= 1, `el sidebar tenía que medir 200px, midió ${r.width}`);
+    assert(r.search <= r.sidebar, `el buscador termina en ${r.search}px y el sidebar en ${r.sidebar}px`);
+    assert(r.inner <= r.search, `el campo termina en ${r.inner}px, fuera de su borde (${r.search}px)`);
+  });
   await check('los enlaces del documento no quedan con el azul del navegador', async () => {
     const color = await page.locator('.cuerpo-md a').first().evaluate((a) => getComputedStyle(a).color);
     assert.notEqual(color, 'rgb(0, 0, 238)');

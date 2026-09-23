@@ -2442,8 +2442,6 @@ function documentAction(id) {
 .region-head .cnt { font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--mut); flex: none }
 .region-head .cnt.filtrando { color: var(--warn) }
-/* Con las casillas afuera, `.filtros` es sólo la fila del buscador. */
-.sidebar :deep(.filtros) { padding: 8px 10px; margin: 0; border-bottom: 1px solid var(--line) }
 
 /* ⚠ `.workbench.ancha` ya no tiene regla, y es a propósito: no hay `.wrap` de ancho máximo porque el
    workbench ocupa la ventana y quien acota el ancho de lectura es cada región. El `max-width: 1180px`
@@ -2460,20 +2458,20 @@ function documentAction(id) {
 .task-menu-error { white-space: normal; line-height: 1.35 }
 .mv-tag { font-size: 9.5px; font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .3px }
 
-/* Filtro por estado. Van arriba de la grilla y no dentro de las tarjetas: es una decisión sobre el
-   CONJUNTO. La deshabilitada se ve —conserva su cero— porque un bucket vacío es un dato. */
-.filtros { display: flex; gap: 5px; flex-wrap: wrap; margin: 0 0 12px }
-/* El buscador vive en la fila de las casillas y con la misma pastilla: es el mismo tipo de cosa —una
-   vista sobre la lista—, no un control aparte. `margin-left: auto` lo empuja al final para que las
-   casillas queden juntas y se lean como un grupo. */
+/* LA FILA DEL BUSCADOR. Desde que las casillas de estado se fueron al ⋯ es lo único que hay en ella,
+   así que el buscador ocupa el ancho del sidebar y se achica con él.
+   ⚠ Hasta el 2026-09-23 el campo medía `width: 190px` y el grupo iba con `margin-left: auto`, restos de
+   cuando compartía la fila con las casillas: con el sidebar en su mínimo (200px) el grupo medía 230 y
+   se salía 40px por el borde. */
+.filtros { display: flex; padding: 8px 10px; border-bottom: 1px solid var(--line) }
 /* ⚠ Era una PÍLDORA (radio 999) con fondo propio, y ya tenía la forma de un `input-group`: la lupa
    y la ✕ adentro y el borde en la etiqueta. Le falta sólo ser el componente — así el foco lo enciende
    entero, como en el panel del harness y en el trazador. */
-.fbusca { margin-left: auto; height: 28px; padding: 0 6px 0 10px }
+.fbusca { flex: 1; min-width: 0; height: 28px; padding: 0 6px 0 10px }
 .fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
   background: var(--card) }
 /* Adentro del grupo el campo va DESNUDO: el borde y el anillo los lleva la etiqueta. */
-.fbusca .input { font-size: 12px; width: 190px }
+.fbusca .input { font-size: 12px }
 .fbusca .input::placeholder { color: var(--mut) }
 /* La X nativa de `type=search` no existe en todos los navegadores: se pone una propia y se esconde. */
 .fbusca input::-webkit-search-cancel-button { display: none }
@@ -2878,8 +2876,6 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--mut); out
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) }
   .stat:nth-child(2) { border-right: 0 }
   .stat:nth-child(-n+2) { border-bottom: 1px solid var(--line) }
-  .fbusca { margin-left: 0; width: 100% }
-  .fbusca input { width: 100%; min-width: 0 }
   .section-toggle { flex-wrap: wrap }
 }
 </style>

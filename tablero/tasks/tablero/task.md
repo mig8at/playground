@@ -391,6 +391,11 @@ arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
 
 ### 2026-09-23
 
+El buscador del sidebar se salía 40px por el borde con el sidebar en su mínimo (200px): el campo tenía un
+ancho fijo de cuando compartía la fila con las casillas de estado, y el grupo no podía achicarse. Ahora
+ocupa el ancho del sidebar y se achica con él; la prueba sin servidores lo mide a ese ancho, y con la
+forma original falla con el mismo número que se midió en vivo.
+
 Se retiró la sección fija de Harness de la evidencia —y `HARNESS_URL` del server— y la cronología pasó
 a acordeón: cada día se pega arriba mientras se lee y se pliega con un clic. Tres defectos del pegado,
 medidos en vivo y corregidos —uno en `taller.css`, compartido con harness y trazador—, y un chequeo
