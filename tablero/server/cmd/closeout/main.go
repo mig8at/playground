@@ -61,13 +61,13 @@ type Revision struct {
 	Slug         string   `json:"slug"`
 	Title        string   `json:"title"`
 	Reasons      []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "rama <x>"
-	Resume       string   `json:"resume"`    // ok · sin-seccion · sin-cambios
+	Resume       string   `json:"resume"`    // ok · sin-seccion · sin-cambios · sin-avance
 	NextStep     bool     `json:"nextStep"`
 	RecordToday  bool     `json:"recordToday"`
 	ContextToday bool     `json:"contextToday"`
 	MinutesToday int      `json:"minutesToday"`
 	// NoProgress: la entrada del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime de la
-	// bitácora y sólo de la bitácora.
+	// bitácora y de reescribir la retoma; nada más.
 	NoProgress       bool     `json:"noProgress,omitempty"`
 	DeclaredBranches bool     `json:"declaredBranches"`
 	Missing          []string `json:"missing"`
@@ -221,8 +221,12 @@ func metadataOnly(data, day, slug, bodyToday string) bool {
 // barrido. Deducirlo habría dado falso en los tres casos que venía a resolver. Así que lo dice la
 // tarea, con un marcador en negrita dentro de su entrada del día.
 //
-// ⚠ Y NO exime del Registro: al contrario, el marcador VIVE en la entrada del día. Lo único que se
-// perdona es la bitácora, que es la pieza que mide TIEMPO — y el tiempo de un barrido no es de acá.
+// ⚠ Y NO exime del Registro: al contrario, el marcador VIVE en la entrada del día. Se perdonan dos
+// piezas: la bitácora, que mide TIEMPO, y reescribir la retoma, que describe el ESTADO — y un barrido
+// no cambia ninguno de los dos. Hasta el 2026-09-23 se perdonaba sólo la bitácora, y alcanzaba porque el
+// barrido del 21 había tocado también las secciones de retoma. El de la fase 3 y la mudanza a carpetas
+// no las tocó: a #46 y #47 el cierre les exigía reescribir un estado que no había cambiado, o sea
+// inventar uno. Ver `resumeState`.
 func noProgress(body, day string) bool {
 	loc := reRecordDate.FindAllStringSubmatchIndex(body, -1)
 	for i, m := range loc {
@@ -236,6 +240,25 @@ func noProgress(body, day string) bool {
 		return reNoProgress.MatchString(body[m[1]:end])
 	}
 	return false
+}
+
+// resumeState: ¿se reescribió la retoma? `now` es la sección de hoy; `before`, la del último commit
+// anterior al día (`existed` = false si la tarea nació ese día y no hay con qué comparar).
+//
+// Una retoma idéntica a la de antes es una pieza faltante, SALVO que la entrada del día declare «sin
+// avance»: si la tarea no se movió, su estado tampoco, y exigir reescribirlo es pedir que se invente. Lo
+// que no se perdona nunca es que la sección falte: eso es un defecto del documento, no del día.
+func resumeState(now, before string, existed, declaredNoProgress bool) (state, missing string) {
+	switch {
+	case now == "":
+		return "sin-seccion", "la sección «Si retomás esto sin contexto» no existe"
+	case !existed || before != now:
+		return "ok", ""
+	case declaredNoProgress:
+		return "sin-avance", ""
+	default:
+		return "sin-cambios", "«Si retomás» dice lo mismo que antes del día: hay que reescribirla con lo de HOY"
+	}
 }
 
 func isOnlyContainerCreation(t task, reasons []string, existedBefore bool) bool {
@@ -273,18 +296,30 @@ func worklog(data, day string) (byTask map[int]int, withoutTask, total, n int) {
 	return
 }
 
-// branchesOfDay: las ramas con actividad ese día según el pulso, como "repo/rama", y los minutos totales
-// (tramos de 5' con cambios). `ok` es false si no hay ningún tick de ese día: pulso apagado ≠ no trabajé.
-func branchesOfDay(data, day string) (branches []string, minutes int, ok bool) {
+// branchesOfDay: las ramas con actividad ese día según el pulso, como "repo/rama", cuáles de ellas son
+// ramas BASE, y los minutos totales (tramos de 5' con cambios). `ok` es false si no hay ningún tick de ese
+// día: pulso apagado ≠ no trabajé.
+func branchesOfDay(data, day string) (branches []string, base map[string]bool, minutes int, ok bool) {
 	today := time.Now()
 	d, _ := time.Parse("2006-01-02", day)
 	days := int(today.Sub(d).Hours()/24) + 2
 	ticks, err := pulse.Read(data, days)
 	if err != nil {
-		return nil, 0, false
+		return nil, nil, 0, false
 	}
+	return dayBranches(pulse.Aggregate(ticks, 0), day)
+}
+
+// dayBranches es la parte de `branchesOfDay` que no lee disco. La rama base se decide ACÁ, con el repo y
+// la rama todavía separados: el texto "repo/rama" es ambiguo, porque las dos partes pueden llevar barras
+// —`microservices/customer-service` es UN repo (el pulso baja un nivel en `github/`) y `feat/x` es una
+// rama—. Partirlo después en la primera barra leía `microservices/customer-service/main` como la rama
+// «customer-service/main»: medido el 2026-09-23, dos `main` de microservicios salían como ramas sin
+// dueño y el cierre salía 1 por tocar una rama base.
+func dayBranches(hours []pulse.Hour, day string) (branches []string, base map[string]bool, minutes int, ok bool) {
 	seen := map[string]bool{}
-	for _, h := range pulse.Aggregate(ticks, 0) {
+	base = map[string]bool{}
+	for _, h := range hours {
 		if h.Day != day {
 			continue
 		}
@@ -300,11 +335,12 @@ func branchesOfDay(data, day string) (branches []string, minutes int, ok bool) {
 			if !seen[k] {
 				seen[k] = true
 				branches = append(branches, k)
+				base[k] = isBaseBranch(r.Branch)
 			}
 		}
 	}
 	sort.Strings(branches)
-	return branches, minutes, ok
+	return branches, base, minutes, ok
 }
 
 /*
@@ -378,14 +414,14 @@ func main() {
 
 	inf := Report{Day: *day}
 	touched := touchedByGit(data, *day, isToday)
-	branches, pulseMin, pulseOK := branchesOfDay(data, *day)
+	branches, base, pulseMin, pulseOK := branchesOfDay(data, *day)
 	inf.PulseMinutes, inf.PulseAvailable = pulseMin, pulseOK
 	minutesByTask, withoutTask, totalWorklog, nBit := worklog(data, *day)
 	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
 	reasons, branchWithTask := attribute(tasks, touched, branches)
 	for _, r := range branches {
-		if !branchWithTask[r] && !isBaseBranch(r) {
+		if !branchWithTask[r] && !base[r] {
 			inf.BranchesWithoutTask = append(inf.BranchesWithoutTask, r)
 		}
 	}
@@ -427,19 +463,12 @@ func main() {
 				}
 			}
 		}
-		now := resumeSection(t.Body)
-		switch {
-		case now == "":
-			rv.Resume = "sin-seccion"
-			rv.Missing = append(rv.Missing, "la sección «Si retomás esto sin contexto» no existe")
-		default:
-			before, happened := resumeBefore(data, *day, t.Slug)
-			if happened && before == now {
-				rv.Resume = "sin-cambios"
-				rv.Missing = append(rv.Missing, "«Si retomás» dice lo mismo que antes del día: hay que reescribirla con lo de HOY")
-			} else {
-				rv.Resume = "ok"
-			}
+		rv.NoProgress = rv.RecordToday && noProgress(t.Body, *day)
+		before, existed := resumeBefore(data, *day, t.Slug)
+		var missing string
+		rv.Resume, missing = resumeState(resumeSection(t.Body), before, existed, rv.NoProgress)
+		if missing != "" {
+			rv.Missing = append(rv.Missing, missing)
 		}
 		if !rv.NextStep {
 			rv.Missing = append(rv.Missing, "falta «**El próximo paso es:**» (UNA acción)")
@@ -447,7 +476,6 @@ func main() {
 		if !rv.RecordToday && !rv.ContextToday {
 			rv.Missing = append(rv.Missing, "falta un hito de contexto del día (`make tarea-context-add`) o una entrada de Registro `### "+*day+"`")
 		}
-		rv.NoProgress = rv.RecordToday && noProgress(t.Body, *day)
 		if rv.MinutesToday == 0 && !rv.NoProgress {
 			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
@@ -503,9 +531,9 @@ func main() {
 }
 
 // isBaseBranch: tocar `main`, `develop`, `qa` o `staging` no es trabajo de una tarea —es un merge, un
-// pull o una prueba contra el ambiente—, así que no cuenta como rama sin dueño.
-func isBaseBranch(repoBranch string) bool {
-	branch := repoBranch[strings.Index(repoBranch, "/")+1:]
+// pull o una prueba contra el ambiente—, así que no cuenta como rama sin dueño. Recibe la RAMA sola, nunca
+// "repo/rama" (ver `dayBranches`).
+func isBaseBranch(branch string) bool {
 	switch branch {
 	case "main", "master", "develop", "qa", "staging":
 		return true
@@ -550,8 +578,12 @@ func printReport(inf Report) {
 		if t.NoProgress && t.MinutesToday == 0 {
 			bit, detail = "—", "declara sin avance"
 		}
-		fmt.Printf("       %s retoma reescrita   %s próximo paso   %s hito/registro del día   %s bitácora (%s)\n",
-			mark(t.Resume == "ok"), mark(t.NextStep), mark(t.RecordToday || t.ContextToday), bit, detail)
+		resume, resumeLabel := mark(t.Resume == "ok"), "retoma reescrita"
+		if t.Resume == "sin-avance" {
+			resume, resumeLabel = "—", "retoma (declara sin avance)"
+		}
+		fmt.Printf("       %s %s   %s próximo paso   %s hito/registro del día   %s bitácora (%s)\n",
+			resume, resumeLabel, mark(t.NextStep), mark(t.RecordToday || t.ContextToday), bit, detail)
 		for _, f := range t.Missing {
 			fmt.Printf("       ✗ %s\n", f)
 		}

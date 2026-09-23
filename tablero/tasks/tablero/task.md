@@ -88,10 +88,13 @@ toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pes
 a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
 Detalle en «Frente: la interfaz y lo que quedó muerto».
 
-**El próximo paso es:** el falso aviso del cierre ante un barrido de rutas —el primer pendiente—, que desde
-el 2026-09-21 marca a #46 y #47 en cada cierre sin que se haya trabajado en ellas. El frente del inglés quedó
-cerrado, el tablero corre con el código nuevo (reiniciado y probado en vivo el 2026-09-23) y el contraste
-del panel del harness quedó como tarea aparte.
+**El próximo paso es:** resolver el contenedor `cuadrilla` (#93), que el lint marca fuera de los siete
+nombres canónicos: sumarlo a la lista o absorberlo en `playground` es una decisión de Miguel. El cierre
+ya no reclama de más (`make cierre` sale 0 el 2026-09-23), el frente del inglés quedó cerrado y el
+contraste del panel del harness quedó como tarea aparte.
+
+> **MEDICIÓN · 2026-09-23** — el cierre del día salía 1 por dos avisos falsos, y ninguno era trabajo sin registrar. (1) #46 y #47 estaban tocadas sólo por los barridos de rutas de la fase 3 y la mudanza a carpetas, y su entrada del día declaraba «sin avance»: la bitácora quedaba eximida, pero se les exigía reescribir una retoma que no había cambiado. Ahora el marcador exime también esa pieza (`resumeState`, con prueba de que sin el marcador la misma retoma se vuelve a reclamar). (2) `microservices/customer-service/main` y `microservices/financial-health-service/main` salían como ramas sin dueño, y el pulso las había visto por un `pull --tags origin main: Fast-forward`: `isBaseBranch` partía «repo/rama» en la primera barra y leía la rama «customer-service/main». Ahora la base se decide antes de unir repo y rama (`dayBranches`, con prueba del repo con barra y de una rama `fix/main` que no es base). Con los dos arreglos, `make cierre` da «todo en orden» y sale 0.
+> make cierre; cd tablero/server && go test ./cmd/closeout
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -101,13 +104,12 @@ del panel del harness quedó como tarea aparte.
 
 ## Pendientes
 
-- [ ] **El cierre pide bitácora por una tarea que sólo recibió un barrido de rutas.** Medido el
-      2026-09-21: mudar las trampas del sistema cambió UNA línea en `#46` y `#47` —la ruta del
-      archivo, nada del trabajo— y el cierre exigió bitácora del día en las dos. Anotar minutos ahí
-      sería inventar tiempo, y ese dato sube a Jira. El caso análogo ya está resuelto para el
-      frontmatter (`metadataOnly`, que no reclama cuando lo único que cambió es un metadato);
-      falta el equivalente para un cambio que **no toca ninguna afirmación** de la tarea. Una pista
-      barata: si el diff del cuerpo son sólo rutas o enlaces, no es trabajo.
+- [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»
+      (el 21/9; la pista de deducirlo del diff se había descartado porque el barrido también escribe su
+      nota). Lo que quedaba, medido el 2026-09-23: a #46 y #47, tocadas sólo por barridos y declaradas
+      «sin avance», les exigía reescribir la retoma —ahora el marcador exime también esa pieza—, y dos
+      `pull` a `main` de microservicios salían como ramas sin dueño —la rama base se decide ahora con la
+      rama sola—. `make cierre` sale 0.
 
 - [x] Nombres en inglés · fase 0 — decidido por Miguel el 2026-09-23: `tablero` y los targets de
       `make` se quedan; el JSON va después (DECISIÓN en el frente).
@@ -338,6 +340,9 @@ llegan.
 ## Registro
 
 ### 2026-09-23
+
+El cierre dejó de reclamar de más: la marca «sin avance» exime también la reescritura de la retoma, y un
+`pull` a la rama base de un repo con barra en el nombre ya no cuenta como rama sin dueño.
 
 El frente del código en inglés quedó cerrado: `tema.css` y `taller.css` quedan como nombres propios, por
 decisión de Miguel, y así lo dicen `CLAUDE.md` y la lista de permitidos del chequeo de nombres.

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"creditop/tablero/server/internal/pulse"
 )
 
 func TestResumeSectionStopsAtNextHeading(t *testing.T) {
@@ -38,8 +40,8 @@ func TestReadFrontmatterArchivedIsDateAndBranchesSplitByComma(t *testing.T) {
 	if len(tr.Branches) != 2 || tr.Branches[0] != "feat/la-card" || tr.Branches[1] != "CRED-352" {
 		t.Errorf("las ramas van por coma y sin espacios: %v", tr.Branches)
 	}
-	if !isBaseBranch("legacy-backend/qa") || isBaseBranch("legacy-backend/feat/qa-tools") {
-		t.Error("esRamaBase mira la rama entera, no una subcadena")
+	if !isBaseBranch("qa") || isBaseBranch("feat/qa-tools") {
+		t.Error("isBaseBranch mira la rama entera, no una subcadena")
 	}
 }
 
@@ -161,5 +163,51 @@ Se cerró el PR y se midió en staging.
 `
 	if noProgress(other, "2026-09-21") {
 		t.Fatal("el marcador del 20 no puede eximir al 21")
+	}
+}
+
+// El caso del 2026-09-23: la fase 3 y la mudanza a carpetas reapuntaron rutas en #46 y #47 sin tocar su
+// retoma, y el cierre les exigía reescribirla aunque la entrada del día declaraba «sin avance».
+func TestResumeUnchangedIsWaivedOnlyWhenTheDayDeclaresNoProgress(t *testing.T) {
+	same := "El estado vigente de la tarea."
+	if state, missing := resumeState(same, same, true, true); state != "sin-avance" || missing != "" {
+		t.Fatalf("declarada sin avance, una retoma sin cambios no es una pieza faltante: %q %q", state, missing)
+	}
+	// ⚠ La mutación que importa: sin la declaración, la MISMA retoma vuelve a deberse. Una exención que
+	// no se puede poner en rojo al quitarle su causa no está comprobando nada.
+	if state, missing := resumeState(same, same, true, false); state != "sin-cambios" || missing == "" {
+		t.Fatalf("sin declarar sin avance, la retoma sin cambios se reclama: %q %q", state, missing)
+	}
+	// Lo que no se perdona nunca: que la sección falte. Es un defecto del documento, no del día.
+	if state, missing := resumeState("", same, true, true); state != "sin-seccion" || missing == "" {
+		t.Fatalf("sin sección de retoma no hay exención que valga: %q %q", state, missing)
+	}
+	// Una retoma reescrita está bien con o sin marcador, y una tarea nacida hoy no tiene con qué compararse.
+	if state, _ := resumeState("El estado de hoy.", same, true, true); state != "ok" {
+		t.Fatalf("una retoma reescrita es ok aunque el día declare sin avance: %q", state)
+	}
+	if state, _ := resumeState(same, "", false, false); state != "ok" {
+		t.Fatalf("una tarea nueva no tiene retoma anterior: %q", state)
+	}
+}
+
+// El caso del 2026-09-23: el pulso nombra `microservices/customer-service` como UN repo, y partir
+// "repo/rama" en la primera barra hacía de su `main` la rama «customer-service/main» — una rama sin dueño
+// que hacía salir 1 al cierre por un pull. La base se decide con la rama sola.
+func TestBaseBranchOfANestedRepoIsStillBase(t *testing.T) {
+	hours := []pulse.Hour{{Day: "2026-09-23", Slots: 2, Covered: 1, Repos: []pulse.RepoHour{
+		{Repo: "microservices/customer-service", Branch: "main"},
+		{Repo: "legacy-backend", Branch: "feat/qa-tools"},
+		{Repo: "frontend-monorepo", Branch: "fix/main"},
+	}}, {Day: "2026-09-22", Repos: []pulse.RepoHour{{Repo: "otro", Branch: "feat/ayer"}}}}
+	branches, base, minutes, ok := dayBranches(hours, "2026-09-23")
+	if !ok || minutes != 10 || len(branches) != 3 {
+		t.Fatalf("ramas del día mal leídas: %v · %d′ · ok=%v", branches, minutes, ok)
+	}
+	if !base["microservices/customer-service/main"] {
+		t.Error("el main de un repo con barra en el nombre es una rama base")
+	}
+	if base["legacy-backend/feat/qa-tools"] || base["frontend-monorepo/fix/main"] {
+		t.Error("una rama de trabajo no es base aunque su nombre termine en /main o contenga qa")
 	}
 }

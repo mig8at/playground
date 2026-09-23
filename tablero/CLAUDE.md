@@ -591,9 +591,12 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 
       > **2026-09-21 · sin avance.** Sólo se le actualizó la ruta a las trampas del sistema.
 
-  Con ese marcador, el cierre exime **la bitácora y sólo la bitácora** —el Registro se sigue pidiendo,
-  porque el marcador vive adentro de él— y lo muestra como `— bitácora (declara sin avance)`, nunca
-  como un ✓: un tilde diría que la bitácora está, y no está.
+  Con ese marcador, el cierre exime **la bitácora y la reescritura de la retoma, y nada más** —el
+  Registro se sigue pidiendo, porque el marcador vive adentro de él, y la sección «Si retomás» tiene que
+  existir— y los muestra como `— retoma (declara sin avance)` y `— bitácora (declara sin avance)`, nunca
+  como un ✓: un tilde diría que la pieza está, y no está. *(Hasta el 2026-09-23 eximía sólo la bitácora.
+  Alcanzó mientras los barridos tocaban también la retoma; el de ese día —reapuntar rutas en #46 y #47—
+  no la tocó, y el cierre les exigía reescribir un estado que no había cambiado: inventar uno.)*
   ⚠ **Se declara, NO se deduce.** Se probó deducirlo comparando el cuerpo con las citas normalizadas
   («si sólo cambiaron rutas, nadie afirmó nada») y falla en los tres casos que venía a resolver: al
   barrer se escribe la nota que explica el barrido, así que la prosa fuera de los backticks también
