@@ -48,11 +48,12 @@ preview y no se envió.
 `canon:`, hasta cuatro; `BRIEF=a,b` elige. La ficha sale de `GET /api/read` de canon (no de un modelo)
 y decide qué `context.md` se abre, no lo reemplaza.
 
-**Frente (2026-09-23): el código del tablero pasa a inglés — identificadores, archivos, carpetas y
-claves JSON.** Pedido de Miguel; extiende a esta herramienta la regla que ya regía en los repos de la
+**Frente cerrado (2026-09-23): el código del tablero pasa a inglés — identificadores, archivos, carpetas
+y claves JSON.** Pedido de Miguel; extiende a esta herramienta la regla que ya regía en los repos de la
 compañía (identificadores en inglés, comentarios en español). El contenido de las tareas —sus títulos de
-sección y el frontmatter que se escribe a mano— **no** entra: es texto, no código. Hecho entero salvo
-`tema.css`/`taller.css`. Detalle, fases e inventario en «Frente: el código en inglés», abajo.
+sección y el frontmatter que se escribe a mano— **no** entra: es texto, no código. `tema.css` y
+`taller.css` quedan como nombres propios, por decisión de Miguel. Detalle, fases e inventario en «Frente:
+el código en inglés», abajo.
 
 **Estado (2026-09-23):** fase 0 decidida —`tablero` y los targets de `make` se quedan; el JSON de la
 API va en una tanda aparte— y **fase 1 hecha**: 1.035 identificadores de Go y ~235 de Vue/JS en inglés,
@@ -69,8 +70,8 @@ que no es inglés, y al estrenarse encontró 13 nombres en español (25 declarac
 la UI, 37 en `jev.py` y el hook de cierre— y el contrato subió a `tablero.task.v2`
 (`schemas/task.v2.schema.json`). Consola y API dan lo mismo que el binario anterior salvo el nombre de
 las claves (45/45), y la interfaz vieja con su server y la nueva con el suyo dan la misma huella (46/46
-regiones). `make tablero-naming` ahora también mira las claves JSON. Con eso el frente queda cerrado,
-salvo `tema.css`/`taller.css`.
+regiones). `make tablero-naming` ahora también mira las claves JSON. Con eso, y con `tema.css`/`taller.css`
+declarados nombres propios, el frente quedó cerrado.
 
 **Cada tarea es una carpeta (2026-09-23).** `tablero/tasks/<slug>/` con `task.md`, `context.jsonl` y
 `artifacts/`; `data/` quedó para lo operativo (bitácora, pulso, cachés, settings, trampas). Movidas las
@@ -87,9 +88,10 @@ toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pes
 a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
 Detalle en «Frente: la interfaz y lo que quedó muerto».
 
-**El próximo paso es:** decidir qué hacer con `tema.css`/`taller.css`, compartidos con harness y
-trazador: es lo único que queda del frente del inglés. El tablero ya corre con el código nuevo
-(reiniciado y probado en vivo el 2026-09-23); el contraste del panel del harness quedó como tarea aparte.
+**El próximo paso es:** el falso aviso del cierre ante un barrido de rutas —el primer pendiente—, que desde
+el 2026-09-21 marca a #46 y #47 en cada cierre sin que se haya trabajado en ellas. El frente del inglés quedó
+cerrado, el tablero corre con el código nuevo (reiniciado y probado en vivo el 2026-09-23) y el contraste
+del panel del harness quedó como tarea aparte.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -124,8 +126,8 @@ trazador: es lo único que queda del frente del inglés. El tablero ya corre con
 - [x] Nombres en inglés · fase 4b: las claves JSON, con el contrato en `tablero.task.v2` — consola y API
       45/45 (`ab-json.sh`), interfaz 46/46 regiones (`ab-ui.sh`), hooks y `jev.py` leyendo las claves
       nuevas, y `make tablero-naming` mirándolas.
-- [ ] Decidir `tema.css` y `taller.css`: son españoles pero compartidos con harness y trazador (fuente
-      en `tools/ui/`); termina cuando se renombran en las tres a la vez o se declara que se quedan.
+- [x] Decidir `tema.css` y `taller.css` — quedan como nombres propios (DECISIÓN de Miguel en el frente);
+      con eso el frente del inglés queda cerrado.
 - [x] Cada tarea es una carpeta: `tasks/<slug>/{task.md,context.jsonl,artifacts/}` — 89 movimientos, consola 31/33, API 15/17 + 2 con los cambios buscados, hooks probados con casos que fallan.
 - [x] Mirar la interfaz andando con la forma nueva — la pestaña de #46 muestra «Artifacts 7» y abrir el
       primero muestra el archivo; el `dist/` real contra el server nuevo, en un Chromium sin cabeza.
@@ -145,7 +147,7 @@ trazador: es lo único que queda del frente del inglés. El tablero ya corre con
 - [ ] Reunir una muestra representativa de etiquetas antes de comparar Jev con trabajo real.
 - [ ] Medir, en una semana de retomas reales, cuántas veces la ficha de `BRIEF=1` alcanzó y cuántas se abrió el doc igual — si es siempre, la ficha no está decidiendo nada.
 
-## Frente: el código en inglés
+## Frente: el código en inglés (cerrado el 2026-09-23)
 
 **Objetivo.** Todo lo que alguien escribe al INVOCAR el tablero —identificadores, nombres de archivo y
 de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks, `CLAUDE.md`, las tareas de
@@ -250,6 +252,8 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
 
    > **DECISIÓN · 2026-09-23** — `schemas/tarea.v1.schema.json` y `src/tema.css` se aceptan en español con su motivo en `tools/naming-allow.txt`: el primero cambia con el contrato (4b); el segundo es compartido con harness y trazador. `src/taller.css` es el mismo caso y el chequeo no lo ve, porque `taller` también es inglés: es el límite conocido de la vara. *(La excepción del schema se retiró con la 4b: hoy es `schemas/task.v2.schema.json`.)*
 
+   > **DECISIÓN · 2026-09-23 · Miguel** — `tema.css` y `taller.css` quedan como nombres propios, igual que `tablero` y los targets de `make`. Son los dos archivos del sistema de diseño que comparten las tres UIs (fuente en `tools/ui/`); renombrarlos habría tocado harness, trazador, los `estilo-*` del `Makefile` y buena parte del `CLAUDE.md` raíz sin ganar nada que el chequeo de nombres no cubra ya. Con esto el frente queda cerrado.
+
 **Lo que NO entra.** El contenido de `data/` (tareas, títulos de sección como «Si retomás esto sin
 contexto», frontmatter `ramas:`/`canon:`), los mensajes que imprime la consola y los comentarios. El
 parser lee esos títulos de sección: traducirlos obligaría a migrar las 46 tareas, y las publicadas no
@@ -334,6 +338,9 @@ llegan.
 ## Registro
 
 ### 2026-09-23
+
+El frente del código en inglés quedó cerrado: `tema.css` y `taller.css` quedan como nombres propios, por
+decisión de Miguel, y así lo dicen `CLAUDE.md` y la lista de permitidos del chequeo de nombres.
 
 Reinicio y prueba en vivo, a pedido de Miguel. La 4b anduvo sin sorpresas; la auditoría de contraste de
 lo que se pinta, que por primera vez se pudo correr con el tablero arriba, encontró 51 nodos de texto bajo

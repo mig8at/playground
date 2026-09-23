@@ -27,9 +27,9 @@ anatomy assignee conversation deploy agenda agile closeout dashboard workbench w
 dirtied doubtful journey prose rarity remeasure renumber stranded uncomfortable vocabulary
 
 # ── rutas que se aceptan en español, con su motivo ────────────────────────────────────────────────
-path: src/tema.css                   # compartido con harness y trazador (fuente: tools/ui/tema.css): se renombra en las tres a la vez, no desde acá
-# ⚠ `src/taller.css` es el mismo caso y el chequeo NO lo ve: `taller` también es una palabra inglesa.
-# Es el límite conocido de la vara: un falso amigo pasa igual que el inglés de verdad.
+path: src/tema.css                   # nombre propio (decisión de Miguel del 2026-09-23): el tema que comparten las tres UIs, con fuente en tools/ui/tema.css
+# `src/taller.css` es el mismo caso —nombre propio, compartido— y el chequeo ni lo ve: `taller` también es
+# una palabra inglesa. Es el límite conocido de la vara: un falso amigo pasa igual que el inglés de verdad.
 
 # ── claves JSON en español que son el contrato de OTRO (fase 4b, 2026-09-23) ──────────────────────
 # `json: <ruta>[:<clase|tipo>] <clave…|*>` — la clave se acepta SÓLO ahí; en cualquier otro lugar se

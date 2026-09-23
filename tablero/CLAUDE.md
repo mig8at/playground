@@ -361,8 +361,9 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
 
 Identificadores, archivos, carpetas y claves JSON del código del tablero van en inglés; los
 comentarios, las tareas de `tasks/` (incluido su frontmatter) y los mensajes de consola siguen en
-español. Se quedan como nombres propios `tablero`, `trazador`, `cuadrilla`, los targets de `make` y la
-etiqueta del agente del pulso. Las claves JSON pasaron a inglés el 2026-09-23 (fase 4b, con el contrato
+español. Se quedan como nombres propios `tablero`, `trazador`, `cuadrilla`, los targets de `make`, la
+etiqueta del agente del pulso y `tema.css`/`taller.css`, los dos archivos del sistema de diseño que
+comparten las tres UIs (fuente en `tools/ui/`; decisión de Miguel del 2026-09-23). Las claves JSON pasaron a inglés el 2026-09-23 (fase 4b, con el contrato
 subido a `tablero.task.v2`); quedan en español sólo las que son el contrato de OTRO —la respuesta de
 canon, la API de cuadrilla, Jira, el frontmatter— y cada una está aceptada con su alcance en
 `tools/naming-allow.txt` (`json: <ruta>[:<tipo>] <claves>`), no como palabra suelta.
