@@ -1,7 +1,7 @@
 ---
 id: 94
 title: "Código de preaprobado de la app en la plataforma nueva"
-ramas: feat/CORE-614-codigo-preaprobado-app
+ramas: feat/CORE-614-codigo-preaprobado-app, feat/CORE-614-codigo-app-solo-colombia
 stage: work
 created: "2026-09-21T16:40:00-05:00"
 canon: [preaprobado, listado, onboarding, creditopx]
@@ -66,6 +66,8 @@ ese registro y contra qué comercio/entidad se prueba.
 - [x] Mirar la pantalla — capturada con la sesión de asesor; de ahí salieron dos arreglos (2026-09-22).
 - [x] Llevar el recorte de una sola entidad al listado — en el loader, antes de disparar las
       consultas de preaprobado (2026-09-22).
+- [x] Ofrecer el código sólo en comercios de Colombia — conmutador oculto, pantalla del código con
+      redirección y canje rechazado fuera de Colombia; PR aparte contra `qa` (2026-09-23).
 - [ ] Definir qué se hace cuando la entidad del código NO está en el listado; termina cuando esté
       elegido entre mostrar todo (lo que hace hoy) o avisar.
 
@@ -195,6 +197,14 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > hay que buscar es una entrada que nadie usa, y el camino queda construido sin que nadie entre por él.
 > El segundo arreglo salió de la misma captura: la pantalla del código estaba centrada
 > verticalmente, así que el conmutador saltaba ~250px al alternar.
+
+> **DECISIÓN · 2026-09-23** — el código de la app se ofrece **sólo en comercios de Colombia**, y se
+> resuelve en el front: el país ya llega en el tema del comercio (`country.isoCode`, ISO de tres letras
+> = `COL`, que el backend llena con `iso_code_2`), así que no cuesta una llamada. Se compara el ISO y no
+> el id 47 para no atar la regla a un número. Son tres puntos con UNA regla (`offersClientCode`): el
+> conmutador, un loader nuevo en `/codigo` que redirige a la pantalla del celular, y el action del
+> canje — esconder el botón solo no alcanzaba, la URL se escribe a mano. **Sin país conocido no se
+> ofrece**: función de un país, perderla un momento cuesta menos que mostrarla donde no va.
 
 > **DECISIÓN · 2026-09-21** — el filtro a una sola entidad va **sólo en el front**. Verificado: el
 > loader del listado decide a qué entidades les pide el preaprobado, **una por una**
@@ -348,6 +358,31 @@ Eso deja la sesión en `harness/.auth/cognito-state.dev.json`. Con sus cookies d
 ⚠ El `_at` de la sesión dura ~24 h: si la pantalla responde 302 al login, la sesión venció y hay que
 volver a correr `bin/asesor`.
 
+**Que el código sólo se ofrece en Colombia** (2026-09-23). ⚠ El asesor manda sobre la sucursal: para
+probar otro comercio hay que reasignarlo (`E2E_TARGET=local node bin/dbops.ts assign <sub> <slug>
+<hash> <sub>`), **esperar 60 s** —el wizard cachea el perfil del asesor (`USER_DATA_CACHE_TTL_MS`) y
+mientras tanto sigue redirigiendo a la sucursal vieja— y devolverlo a Motai (`f0548728`) al terminar.
+Con la sesión de asesor, contra el wizard de la rama:
+
+    curl -s -o page.html -w '%{http_code} %{redirect_url}' -H "Cookie: <_session;_at;_rt>" http://localhost:5174/merchant/<hash>/solicitar
+    grep -c 'Usuario app' page.html          # 1 en Colombia · 0 fuera
+    curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -H "Cookie: …" http://localhost:5174/merchant/<hash>/codigo
+
+⚠ La pantalla del código pasó a **seis casillas** (`c0efac64`, formato `AA0000`) y el autorrelleno del
+harness escribe su `0101` repetido hasta llenarlas: queda `010101`, que no es válido, y el botón nunca
+se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
+
+> **MEDICIÓN · 2026-09-23** — Perú (`50e007e4`, comercio de pruebas, país 167 completo: `PER` · `+51` ·
+> `PEN`): la pantalla del celular responde **200** con el prefijo `+51` y **sin** «Usuario app»; `/codigo`
+> responde **302** a `/merchant/50e007e4/solicitar`; el POST directo del código contesta «Este punto de
+> venta no recibe códigos de la app» y no canjea. Colombia (Motai, `f0548728`): las dos pantallas **200**
+> y con el conmutador. Contra el wizard de `feat/CORE-614-codigo-app-solo-colombia`.
+> `curl -H "Cookie: …" http://localhost:5184/merchant/50e007e4/codigo` · TARGET=local
+
+> **MEDICIÓN · 2026-09-23** — con el cambio puesto, el canje sigue andando en Colombia: `0923` en Motai
+> crea la solicitud local **466900** y el listado queda con **una sola** entidad, Credifamilia-addi.
+> `make harness-codigo COMERCIO=f0548728 CODIGO=0923 && make harness-codigo-prueba HASH=f0548728 CODIGO=0923 LENDER='Credifamilia-addi'` · TARGET=local
+
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
     make harness-listado COMERCIO=<slug>
@@ -407,10 +442,22 @@ volver a correr `bin/asesor`.
 - PRs, los dos en borrador y contra `qa`, rama `feat/CORE-614-codigo-preaprobado-app`:
   [legacy-backend#1455](https://github.com/Creditop-SAS/legacy-backend/pull/1455) ·
   [frontend-monorepo#1045](https://github.com/Creditop-SAS/frontend-monorepo/pull/1045).
+  Mergeado ese, la restricción a Colombia va aparte, rama `feat/CORE-614-codigo-app-solo-colombia`:
+  [frontend-monorepo#1049](https://github.com/Creditop-SAS/frontend-monorepo/pull/1049), contra `qa`.
   (Los primeros —#1450 y #1043— quedaron cerrados: renombrar la rama de CORE-627 a CORE-614 **cerró
   los PRs en vez de moverlos**. Cada uno tiene un comentario apuntando al que lo continúa.)
 
 ## Registro
+
+### 2026-09-23
+Se pidió que la entrada del código de la app aparezca sólo en Colombia. Se resolvió en el front, sin
+tocar el backend: el tema del comercio ya traía el país, así que una sola regla decide el conmutador, la
+pantalla del código (que ahora redirige fuera de Colombia) y el canje. Se abrió un PR nuevo desde `qa`
+al día, porque el anterior ya estaba mergeado. Se probó corriendo en local contra un comercio de Perú y
+contra Motai: afuera no aparece ni se deja entrar por URL, y adentro el canje sigue dejando una sola
+entidad. Construyendo apareció que la prueba automatizada del canje había quedado rota desde que la
+pantalla pasó a seis casillas: el autorrelleno las llenaba con un código inválido. Se apagó el
+autorrelleno en esa prueba.
 
 ### 2026-09-22
 Se retomó CORE-614 desde Jira y los repos. La tarjeta sigue en progreso, sin comentarios ni criterios
@@ -474,7 +521,8 @@ del listado de entidades hay que hacerla dos veces.
 
 ## Qué cambia
 - Aparece una pantalla para ingresar el código del cliente dentro del flujo nuevo, a la que se llega
-  desde la pantalla donde hoy se pide el celular.
+  desde la pantalla donde hoy se pide el celular. **Sólo en comercios de Colombia**: en los demás
+  países la opción no aparece y la pantalla del código no se puede abrir.
 - Con un código válido, la solicitud se crea sin pedir celular ni código de verificación.
 - El listado de entidades muestra **sólo** la entidad del preaprobado, en vez de todas las del comercio.
 
@@ -493,13 +541,16 @@ con historial por este camino es Celucambio, con las entidades Celupresto y Cred
 3. Verificar que la solicitud queda creada sin pedir celular ni código de verificación.
 4. Verificar que el listado de entidades muestra una sola: la del preaprobado.
 5. Repetir con un código inválido y con uno ya usado, y verificar que avisa y no crea nada.
-6. Repetir con un código cuya entidad no esté habilitada en ese comercio, y verificar el
+6. Entrar al flujo de un comercio de otro país (por ejemplo, Perú) y verificar que la opción de
+   cliente de la app no aparece, y que abrir directamente la pantalla del código lleva a la del celular.
+7. Repetir con un código cuya entidad no esté habilitada en ese comercio, y verificar el
    comportamiento acordado para ese caso.
 
 ## Criterios de aceptación
 - Un código válido crea la solicitud y lleva al listado sin pedir celular ni verificación.
 - El listado muestra exactamente una entidad: la del preaprobado.
 - Un código inválido o ya usado avisa y no deja ninguna solicitud creada.
+- La opción de código de la app sólo existe en comercios de Colombia.
 - El caso de la entidad no disponible en el comercio se comporta como se haya acordado, y se distingue
   de una entrada exitosa.
 

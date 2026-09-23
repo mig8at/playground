@@ -347,7 +347,7 @@ harness-codigo-prueba: ## @har redime un código sembrado desde la UI del asesor
 	@test -n "$(HASH)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
 	@test -n "$(CODIGO)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
 	@test -n "$(LENDER)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
-	@cd harness && E2E_CLIENT_CODE_HASH="$(HASH)" E2E_CLIENT_CODE="$(CODIGO)" E2E_CLIENT_CODE_LENDER="$(LENDER)" npx playwright test channel/client-code.spec.ts --project=chromium
+	@cd harness && E2E_AUTORELLENO=0 E2E_CLIENT_CODE_HASH="$(HASH)" E2E_CLIENT_CODE="$(CODIGO)" E2E_CLIENT_CODE_LENDER="$(LENDER)" npx playwright test channel/client-code.spec.ts --project=chromium
 
 harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por país? Pide `harness/.admin.json` + el admin en :8000
 	@cd harness && E2E_TARGET=local npx playwright test dev/admin-ciudades.spec.ts --reporter=list
