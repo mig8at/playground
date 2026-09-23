@@ -324,7 +324,7 @@ func printReport(snap store.BranchSnapshot, titles map[string]string) {
 		for _, r := range t.Branches {
 			// Se listan los ambientes donde YA está y los que faltan, por separado: "está en develop"
 			// y "no está en main" son las dos mitades de la respuesta y leerlas juntas confunde.
-			var en, missing []string
+			var present, missing []string
 			envs := make([]string, 0, len(r.Own))
 			for a := range r.Own {
 				envs = append(envs, a)
@@ -332,7 +332,7 @@ func printReport(snap store.BranchSnapshot, titles map[string]string) {
 			sort.Strings(envs)
 			for _, a := range envs {
 				if r.In[a] {
-					en = append(en, a)
+					present = append(present, a)
 				} else {
 					missing = append(missing, a)
 				}
@@ -344,8 +344,8 @@ func printReport(snap store.BranchSnapshot, titles map[string]string) {
 				mark = "  (local)"
 			}
 			fmt.Printf("    %-22s %-46s %s%s\n", r.Repo, r.Branch, r.Commit, mark)
-			if len(en) > 0 {
-				fmt.Printf("      ✅ el cambio ya está en: %s\n", strings.Join(en, ", "))
+			if len(present) > 0 {
+				fmt.Printf("      ✅ el cambio ya está en: %s\n", strings.Join(present, ", "))
 			}
 			if len(missing) > 0 {
 				fmt.Printf("      ⧗ falta en:              %s\n", strings.Join(missing, ", "))

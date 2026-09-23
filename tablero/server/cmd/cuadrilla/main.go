@@ -38,14 +38,14 @@ import (
 )
 
 func main() {
-	var which, en string
+	var which, targetURL string
 	var apply bool
 	flag.StringVar(&which, "n", "", "tarea: su id o parte de su título")
-	flag.StringVar(&en, "en", env("CUADRILLA_URL", "https://cuadrilla.playground.creditop.com"), "a qué cuadrilla")
+	flag.StringVar(&targetURL, "en", env("CUADRILLA_URL", "https://cuadrilla.playground.creditop.com"), "a qué cuadrilla")
 	flag.BoolVar(&apply, "aplicar", false, "escribir de verdad (sin esto sólo dice qué haría)")
 	flag.Parse()
 
-	if err := runCommand(which, strings.TrimRight(en, "/"), apply); err != nil {
+	if err := runCommand(which, strings.TrimRight(targetURL, "/"), apply); err != nil {
 		fmt.Fprintln(os.Stderr, "  ✗ "+err.Error())
 		os.Exit(1)
 	}

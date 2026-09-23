@@ -116,25 +116,25 @@ func Read(dir string, days int) ([]Tick, error) {
 // cuántos tramos llegó a mirar el agente — la diferencia entre "no trabajé" y "no hay registro" (equipo
 // apagado, agente sin instalar). Confundir esas dos cosas es lo que hace que un mapa de actividad mienta.
 type Hour struct {
-	Day     string     `json:"day"`
-	Hour    int        `json:"hour"`
-	Slots   int        `json:"slots"`
-	Covered int        `json:"covered"`
-	Commits int        `json:"commits"`
-	Ins     int        `json:"ins"`
-	Del     int        `json:"del"`
-	Repos   []RepoHour `json:"repos"`
+	Day        string     `json:"day"`
+	Hour       int        `json:"hour"`
+	Slots      int        `json:"slots"`
+	Covered    int        `json:"covered"`
+	Commits    int        `json:"commits"`
+	Insertions int        `json:"ins"`
+	Deletions  int        `json:"del"`
+	Repos      []RepoHour `json:"repos"`
 }
 
 // RepoHour es el desglose por repo de una celda: quién se llevó esa hora.
 type RepoHour struct {
-	Repo    string `json:"repo"`
-	Branch  string `json:"branch,omitempty"`
-	Slots   int    `json:"slots"`
-	Commits int    `json:"commits"`
-	Ins     int    `json:"ins"`
-	Del     int    `json:"del"`
-	Edits   int    `json:"edits,omitempty"` // tramos con edición sin commitear
+	Repo       string `json:"repo"`
+	Branch     string `json:"branch,omitempty"`
+	Slots      int    `json:"slots"`
+	Commits    int    `json:"commits"`
+	Insertions int    `json:"ins"`
+	Deletions  int    `json:"del"`
+	Edits      int    `json:"edits,omitempty"` // tramos con edición sin commitear
 }
 
 // Aggregate convierte los ticks en celdas (día, hora), recortadas a los últimos `days` días (0 = todas).
@@ -219,11 +219,11 @@ func Aggregate(ticks []Tick, days int) []Hour {
 			slotsRepo[k][s.Repo][sl] = true
 			if s.Why == "commit" {
 				c.Commits++
-				c.Ins += s.Ins
-				c.Del += s.Del
+				c.Insertions += s.Insertions
+				c.Deletions += s.Deletions
 				r.Commits++
-				r.Ins += s.Ins
-				r.Del += s.Del
+				r.Insertions += s.Insertions
+				r.Deletions += s.Deletions
 			}
 			if s.Why == "edit" {
 				r.Edits++

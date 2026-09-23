@@ -136,7 +136,7 @@ func sig(repo, at, why, what string) Signal {
 // re-sembrar duplicaría commits y el mapa iría creciendo solo.
 func TestAggregateDedupesAcrossTicks(t *testing.T) {
 	one := sig("repo", "2026-08-04T10:07:00-05:00", "commit", "x")
-	one.Ins, one.Del = 10, 2
+	one.Insertions, one.Deletions = 10, 2
 	ticks := []Tick{
 		{T: "2026-08-04T10:10:00-05:00", Since: "2026-08-04T10:05:00-05:00", Signals: []Signal{one}},
 		{T: "2026-08-04T10:15:00-05:00", Since: "2026-08-04T10:10:00-05:00", Signals: []Signal{one}},
@@ -151,8 +151,8 @@ func TestAggregateDedupesAcrossTicks(t *testing.T) {
 	if c == nil {
 		t.Fatal("no se agregó la hora 10")
 	}
-	if c.Commits != 1 || c.Ins != 10 {
-		t.Errorf("commits=%d ins=%d; el mismo commit visto dos veces tiene que contar una", c.Commits, c.Ins)
+	if c.Commits != 1 || c.Insertions != 10 {
+		t.Errorf("commits=%d ins=%d; el mismo commit visto dos veces tiene que contar una", c.Commits, c.Insertions)
 	}
 	if c.Slots != 1 {
 		t.Errorf("slots=%d; dos señales en el mismo tramo son un tramo", c.Slots)

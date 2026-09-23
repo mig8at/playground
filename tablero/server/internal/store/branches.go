@@ -262,11 +262,11 @@ func measureTask(ctx context.Context, repos []string, pattern string, pats, envi
 				// cuando el patch-id ya no coincide (squash con el mensaje o el contenido editados).
 				r.PR = prs.of(ctx, repo, rm.Name)
 				for _, env := range environments {
-					en, own, how := reaches(ctx, repo, ref, env, r.PR)
-					if how == "" && !en && own == 0 {
+					reached, own, how := reaches(ctx, repo, ref, env, r.PR)
+					if how == "" && !reached && own == 0 {
 						continue // el ambiente no existe en este repo: no se inventa un "no llegó"
 					}
-					r.In[env], r.Own[env], r.How[env] = en, own, how
+					r.In[env], r.Own[env], r.How[env] = reached, own, how
 				}
 				res.Branches = append(res.Branches, r)
 			}
@@ -325,7 +325,7 @@ func (c *prCache) of(ctx context.Context, repo, branch string) *PullRequest {
 // Medido el 2026-09-15: sin la segunda señal, `frontend-monorepo#983` —squasheado a `3f3f8700`, que ya
 // estaba en `main`— salía como «en ningún ambiente», y la tarea de Alta Fleet afirmaba que nada suyo
 // había llegado a `main`.
-func reaches(ctx context.Context, repo, ref, env string, pr *PullRequest) (en bool, own int, how string) {
+func reaches(ctx context.Context, repo, ref, env string, pr *PullRequest) (reached bool, own int, how string) {
 	if _, err := git(ctx, repo, "rev-parse", "--verify", "--quiet", "origin/"+env); err != nil {
 		return false, 0, ""
 	}

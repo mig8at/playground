@@ -50,19 +50,19 @@ func TestReachesRecognizesSquashByPRCommit(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. sin PR: el patch-id no coincide, así que NO llegó — y eso es lo correcto con la sola señal de git
-	en, _, how := reaches(ctx, repo, "origin/rama", "main", nil)
-	if en || how != "no" {
-		t.Errorf("sin PR tenía que dar no llegó: en=%v como=%q", en, how)
+	reached, _, how := reaches(ctx, repo, "origin/rama", "main", nil)
+	if reached || how != "no" {
+		t.Errorf("sin PR tenía que dar no llegó: en=%v como=%q", reached, how)
 	}
 	// 2. con el PR mergeado y su commit ya en main: llegó, y se dice CÓMO se supo
 	pr := &PullRequest{Number: 983, State: "MERGED", Base: "main", MergeCommit: squash}
-	en, _, how = reaches(ctx, repo, "origin/rama", "main", pr)
-	if !en || how != "pr" {
-		t.Errorf("con el commit del PR en main tenía que llegar por «pr»: en=%v como=%q", en, how)
+	reached, _, how = reaches(ctx, repo, "origin/rama", "main", pr)
+	if !reached || how != "pr" {
+		t.Errorf("con el commit del PR en main tenía que llegar por «pr»: en=%v como=%q", reached, how)
 	}
 	// 3. un PR abierto no prueba nada
 	open := &PullRequest{Number: 984, State: "OPEN", Base: "main", MergeCommit: ""}
-	if en, _, _ := reaches(ctx, repo, "origin/rama", "main", open); en {
+	if reached, _, _ := reaches(ctx, repo, "origin/rama", "main", open); reached {
 		t.Error("un PR abierto no puede marcar el ambiente como alcanzado")
 	}
 	// 4. un ambiente que no existe en el repo no es «no llegó»

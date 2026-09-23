@@ -81,8 +81,8 @@ func main() {
 		return renames[o.Name()]
 	}
 
-	chosen := map[string]types.Object{}   // decl pos → objeto (uno representativo)
-	uses := map[string]map[string]bool{}   // decl pos → posiciones de identificadores
+	chosen := map[string]types.Object{}  // decl pos → objeto (uno representativo)
+	uses := map[string]map[string]bool{} // decl pos → posiciones de identificadores
 	conflicts := map[string]string{}
 	var fileOf = map[string]bool{}
 
@@ -210,13 +210,13 @@ func main() {
 		}
 	}
 	total := 0
-	for file, es := range edits {
-		sort.Slice(es, func(i, j int) bool { return es[i].off > es[j].off })
+	for file, fileEdits := range edits {
+		sort.Slice(fileEdits, func(i, j int) bool { return fileEdits[i].off > fileEdits[j].off })
 		src, err := os.ReadFile(file)
 		if err != nil {
 			panic(err)
 		}
-		for _, e := range es {
+		for _, e := range fileEdits {
 			if string(src[e.off:e.off+len(e.old)]) != e.old {
 				panic(fmt.Sprintf("desfase en %s@%d: esperaba %q", file, e.off, e.old))
 			}

@@ -54,14 +54,14 @@ const perRepoTimeout = 20 * time.Second
 // Signal es UN indicio de actividad, con el instante en que ocurrió. `At` es el instante de la SEÑAL, no
 // el del tick que la encontró: es lo que hace que el reparto por horas sea correcto tras un hueco.
 type Signal struct {
-	Repo   string `json:"repo"`
-	Branch string `json:"branch,omitempty"`
-	At     string `json:"at"`  // RFC3339 con offset local
-	Why    string `json:"why"` // edit | commit | reflog
-	Files  int    `json:"files,omitempty"`
-	Ins    int    `json:"ins,omitempty"`
-	Del    int    `json:"del,omitempty"`
-	What   string `json:"what,omitempty"` // asunto del commit o acción del reflog: para leer la línea sin abrir git
+	Repo       string `json:"repo"`
+	Branch     string `json:"branch,omitempty"`
+	At         string `json:"at"`  // RFC3339 con offset local
+	Why        string `json:"why"` // edit | commit | reflog
+	Files      int    `json:"files,omitempty"`
+	Insertions int    `json:"ins,omitempty"`
+	Deletions  int    `json:"del,omitempty"`
+	What       string `json:"what,omitempty"` // asunto del commit o acción del reflog: para leer la línea sin abrir git
 }
 
 // Tick es una corrida del pulso: qué ventana miró y qué encontró. Se anota SIEMPRE, incluso vacío —
@@ -287,13 +287,13 @@ func editSignal(ctx context.Context, repo, name, branch string, since time.Time)
 
 	// +/- del working tree: es un ESTADO acumulado (no un delta), así que la agregación no lo suma —
 	// se guarda para poder decir "3 archivos, +48/-7 sin commitear" en el tooltip.
-	ins, del := 0, 0
+	insertions, deletions := 0, 0
 	if st, err := git(ctx, repo, "diff", "--shortstat", "HEAD"); err == nil {
-		ins, del = parseShortstat(st)
+		insertions, deletions = parseShortstat(st)
 	}
 	return Signal{
 		Repo: name, Branch: branch, At: last.Format(time.RFC3339), Why: "edit",
-		Files: files, Ins: ins, Del: del,
+		Files: files, Insertions: insertions, Deletions: deletions,
 	}, true
 }
 
@@ -336,8 +336,8 @@ func commitSignals(ctx context.Context, repo, name, branch string, since time.Ti
 		// El --shortstat del commit anterior. Los merges no lo traen (git no muestra su diff), así que
 		// quedan con 0 líneas: correcto, un merge no es código escrito.
 		if strings.Contains(l, "file") && strings.Contains(l, "changed") && len(out) > 0 {
-			ins, del := parseShortstat(l)
-			out[len(out)-1].Ins, out[len(out)-1].Del = ins, del
+			insertions, deletions := parseShortstat(l)
+			out[len(out)-1].Insertions, out[len(out)-1].Deletions = insertions, deletions
 			out[len(out)-1].Files = parseFilesChanged(l)
 		}
 	}
@@ -406,7 +406,7 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 }
 
 // parseShortstat saca las líneas de " 3 files changed, 48 insertions(+), 7 deletions(-)".
-func parseShortstat(s string) (ins, del int) {
+func parseShortstat(s string) (insertions, deletions int) {
 	for _, part := range strings.Split(s, ",") {
 		part = strings.TrimSpace(part)
 		n, rest, ok := strings.Cut(part, " ")
@@ -419,9 +419,9 @@ func parseShortstat(s string) (ins, del int) {
 		}
 		switch {
 		case strings.HasPrefix(rest, "insertion"):
-			ins = v
+			insertions = v
 		case strings.HasPrefix(rest, "deletion"):
-			del = v
+			deletions = v
 		}
 	}
 	return

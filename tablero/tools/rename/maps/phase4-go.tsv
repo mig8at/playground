@@ -1,0 +1,12 @@
+# fase 4 · Go — lo que el chequeo de nombres encontró y la fase 1 no había visto (viejo nuevo;
+# overrides por declaración: ruta:línea:col nuevo, posiciones de ANTES del rename)
+en reached
+ya alreadyDeleted
+Del Deletions
+del deletions
+Ins Insertions
+ins insertions
+cmd/branches/main.go:327:8 present
+cmd/cuadrilla/main.go:41:13 targetURL
+cmd/today/main.go:797:8 presentIn
+es fileEdits

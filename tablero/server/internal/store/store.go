@@ -475,7 +475,7 @@ func (s *Store) SoftDelete(id int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ya := s.deleted[id]; ya {
+	if _, alreadyDeleted := s.deleted[id]; alreadyDeleted {
 		return nil
 	}
 	for _, e := range s.entries {

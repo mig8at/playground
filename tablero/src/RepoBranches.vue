@@ -29,12 +29,12 @@ watch(chosen, (id) => savePreference('ramas-repo-tarea', id));
 
 const ENVIRONMENT_ORDER = ['develop', 'staging', 'qa', 'main'];
 const environments = computed(() => {
-  const vistos = new Set();
+  const seen = new Set();
   for (const branch of repo.value?.ramas || []) {
-    for (const environment of Object.keys(branch.propios || {})) vistos.add(environment);
+    for (const environment of Object.keys(branch.propios || {})) seen.add(environment);
   }
-  return ENVIRONMENT_ORDER.filter((a) => vistos.has(a))
-    .concat([...vistos].filter((a) => !ENVIRONMENT_ORDER.includes(a)).sort());
+  return ENVIRONMENT_ORDER.filter((a) => seen.has(a))
+    .concat([...seen].filter((a) => !ENVIRONMENT_ORDER.includes(a)).sort());
 });
 
 const prLabel = (pr) => {
@@ -66,9 +66,9 @@ const relativeMeasurement = computed(() => {
   if (!Number.isFinite(min)) return 'medición sin fecha';
   if (min < 2) return 'medido recién';
   if (min < 60) return `medido hace ${min} min`;
-  const horas = Math.round(min / 60);
-  if (horas < 24) return `medido hace ${horas} h`;
-  return `medido hace ${Math.round(horas / 24)} d`;
+  const hours = Math.round(min / 60);
+  if (hours < 24) return `medido hace ${hours} h`;
+  return `medido hace ${Math.round(hours / 24)} d`;
 });
 </script>
 

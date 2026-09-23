@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileIds } from './lib.mjs';
+import { fileDecls } from './decls.mjs';
 const require = createRequire(new URL('../../../package.json', import.meta.url));
 const sfc = require('@vue/compiler-sfc');
 
@@ -26,7 +27,9 @@ let bad = 0, total = 0;
 for (const f of files) {
   let src = readFileSync(f, 'utf8');
   const ids = fileIds(src, f);
-  const declared = new Set(ids.filter((x) => x.decl).map((x) => x.name));
+  // «declarado» sale de los dos extractores: el de lib.mjs no ve la desestructuración ni los parámetros
+  // con valor por defecto (`[a, b] = …`, `f(x = 1)`), y por eso la fase 1 se los saltó.
+  const declared = new Set([...ids.filter((x) => x.decl).map((x) => x.name), ...fileDecls(src, f).map((d) => d.name)]);
   const present = new Set(ids.filter((x) => x.role !== 'prop').map((x) => x.name));
   const propKeys = new Set();
   if (f.endsWith('.vue')) {

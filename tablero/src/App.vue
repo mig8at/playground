@@ -371,9 +371,9 @@ function withFilter(ts) {
 // dejaría de poder volver a tildarse con conocimiento de qué esconde.
 const unfiltered = computed(() => {
   if (wideView.value) {
-    const vistos = new Set(), out = [];
+    const seen = new Set(), out = [];
     for (const g of bySprint.value) for (const i of g.issues) {
-      if (!vistos.has(i.Key)) { vistos.add(i.Key); out.push(i); }
+      if (!seen.has(i.Key)) { seen.add(i.Key); out.push(i); }
     }
     return out;
   }
@@ -697,9 +697,9 @@ const jiraDocument = computed(() => jiraPreview(active.value));
 // aquel error no fue el comentario: fue el chip mandando a la home un día entero.
 const canonID = (canonRef) => {
   const id = typeof canonRef === 'string' ? canonRef : (canonRef?.id || canonRef?.requested || '');
-  const [nodo, ancla] = id.split('#', 2);
-  const complete = nodo.includes('/') ? nodo : `${nodo}/context`;
-  return ancla ? `${complete}#${ancla}` : complete;
+  const [node, anchor] = id.split('#', 2);
+  const complete = node.includes('/') ? node : `${node}/context`;
+  return anchor ? `${complete}#${anchor}` : complete;
 };
 const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(canonRef))}`;
 // La evidencia que se registra en el cuerpo privado es el historial de cómo se trabajó la tarea. No
@@ -1072,15 +1072,15 @@ watch(sidebarVisible, (v) => savePreference('sidebar-visible', v));
 const openTabs = computed(() =>
   tabItems.value.map((t) => unfiltered.value.find((x) => x.Key === t.Key) || t));
 
-function openTask(task, fijar = false) {
+function openTask(task, pin = false) {
   const taskChange = active.value?.Key !== task.Key;
   const existing = tabItems.value.some((t) => t.Key === task.Key);
   if (!existing) {
-    tabItems.value = preview.value && !fijar
+    tabItems.value = preview.value && !pin
       ? tabItems.value.map((t) => (t.Key === preview.value ? task : t))
       : [...tabItems.value, task];
-    preview.value = fijar ? '' : task.Key;
-  } else if (fijar && preview.value === task.Key) {
+    preview.value = pin ? '' : task.Key;
+  } else if (pin && preview.value === task.Key) {
     preview.value = '';
   }
   active.value = task;
@@ -1350,8 +1350,8 @@ const DOW_NAME = ['do', 'lu', 'ma', 'mi', 'ju', 'vi', 'sá'];
 // solo lado porque el margen entre sprints desplaza las columnas: la banda de arriba no puede
 // posicionarse con una fórmula fija, tiene que sumar los márgenes que la preceden. Con las medidas
 // repartidas entre CSS y JS, ese cálculo se desincroniza al primer cambio de tamaño.
-const CEL = 24, GAP = 4, JHL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
-const gridVars = { '--cel': `${CEL}px`, '--gap': `${GAP}px`, '--jhl': `${JHL}px`, '--sep': `${SEP}px` };
+const CELL = 24, GAP = 4, HOUR_LABEL = 30, SEP = 9; // px: celda · separación normal · etiqueta de hora · margen de sprint
+const gridVars = { '--cel': `${CELL}px`, '--gap': `${GAP}px`, '--jhl': `${HOUR_LABEL}px`, '--sep': `${SEP}px` };
 
 // CUÁNTOS DÍAS ENTRAN. La celda mide fijo (no se estira) porque la banda de sprints se posiciona en px
 // sumando márgenes: con celdas elásticas ese cálculo se desincroniza. Así que en vez de estirar la
@@ -1372,7 +1372,7 @@ const isoCols = (n) => Array.from({ length: n }, (_, i) => {
 // `spans`, porque `spans` depende de `dayCols` y `dayCols` de esto: sería un ciclo. Así que los bordes
 // se cuentan acá, directo de las fechas de los sprints, que no dependen de nada de la grilla.
 const widthWith = (n) => {
-  const base = JHL + GAP + n * (CEL + GAP);
+  const base = HOUR_LABEL + GAP + n * (CELL + GAP);
   const cols = isoCols(n);
   const starts = new Set(), ends = new Set();
   for (const sp of sprints.value || []) {
@@ -1512,15 +1512,15 @@ const endCols = computed(() => new Set(spans.value.map(t => t.b)));
 
 // borde izquierdo de la columna i, contando los márgenes de sprint que quedaron atrás
 const leftOf = (i) => {
-  let x = JHL + GAP;
+  let x = HOUR_LABEL + GAP;
   for (let j = 0; j < i; j++) {
-    x += CEL + GAP + (startCols.value.has(j) ? SEP : 0) + (endCols.value.has(j) ? SEP : 0);
+    x += CELL + GAP + (startCols.value.has(j) ? SEP : 0) + (endCols.value.has(j) ? SEP : 0);
   }
   return x + (startCols.value.has(i) ? SEP : 0);
 };
 const spanStyle = (t) => {
   const l = leftOf(t.a);
-  return { left: `${l}px`, width: `${leftOf(t.b) + CEL - l}px` };
+  return { left: `${l}px`, width: `${leftOf(t.b) + CELL - l}px` };
 };
 
 // ── handoff a QA: pasar a pruebas y avisarle a quien valida, en un solo click ────────────────────
@@ -1565,10 +1565,10 @@ function nextTransition(task, transitions) {
   return destination ? transitions.find((t) => stateName(t.to).includes(destination)) : null;
 }
 
-function closeTaskMenu(restaurarFoco = false) {
+function closeTaskMenu(restoreFocus = false) {
   taskMenuQuery += 1;
   taskMenu.value = null;
-  if (restaurarFoco && taskMenuOrigin?.isConnected) taskMenuOrigin.focus({ preventScroll: true });
+  if (restoreFocus && taskMenuOrigin?.isConnected) taskMenuOrigin.focus({ preventScroll: true });
   taskMenuOrigin = null;
 }
 

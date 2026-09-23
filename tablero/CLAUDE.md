@@ -357,6 +357,27 @@ resuelto arriba, en «La frontera del guard está DENTRO del archivo»: a `## Ta
 consultó producción: el 12 % de las solicitudes…»*, nunca el SQL ni el comando que lo ejecutó. Las
 herramientas repiten ese enlace en su propia sección para que no se reinvente la regla en cada lado.
 
+## El código del tablero se nombra en inglés
+
+Identificadores, archivos y carpetas del código del tablero van en inglés; los comentarios, las tareas
+de `data/` y los mensajes de consola siguen en español. Se quedan como nombres propios `tablero`,
+`trazador`, `cuadrilla`, los targets de `make` y la etiqueta del agente del pulso. Las claves JSON de la
+API todavía están en español y cambian juntas, en su propia tanda (fase 4b del frente en
+`data/tablero.md`), porque son contrato con la interfaz, los hooks y `tablero.tarea.v1`.
+
+**`make tablero-naming` lo verifica** y sale 1 ante un nombre nuevo que no es inglés. Revisa los
+identificadores declarados en Go, Vue/JS y Python y los nombres de archivo y carpeta, y dice cuántos
+leyó de cada fuente: una fuente vacía es un error, no un verde. `make tablero-naming-test` fija su
+lógica, incluido un nombre español inventado en cada lenguaje.
+
+⚠ **La vara del inglés es la stdlib de Go y de Python, no el diccionario del sistema**, que trae inglés
+arcaico y deja pasar `aviso`, `leer` o `tema`. Lo legítimo que la vara no conoce va a
+`tools/naming-allow.txt`, en su categoría. La pregunta antes de agregar una línea es una sola: ¿es
+inglés o un nombre propio? Si es español, se renombra: `tools/rename/` tiene los renombradores de Go
+(sobre el type checker), Vue/JS y Python, que rechazan todo rename que sombree, y las comparaciones
+viejo-contra-nuevo (`ab-cli.sh`, `ab-web.sh`, `ab-py.sh`, `ab-make.sh`) que prueban que nada visible
+cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pasa igual que el inglés.
+
 ## Reglas de trabajo
 
 - **Una tarea de producto o del equipo = un archivo ligado a Jira.** Si todavía no se decidió publicar

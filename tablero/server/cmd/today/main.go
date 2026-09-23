@@ -794,10 +794,10 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("  · sin ramas medidas — corré `make tareas-ramas N=" + strconv.Itoa(t.ID) + "`")
 	default:
 		for _, r := range rs {
-			var en []string
+			var presentIn []string
 			for _, envName := range []string{"develop", "staging", "qa", "main"} {
 				if r.In[envName] {
-					en = append(en, envName)
+					presentIn = append(presentIn, envName)
 				}
 			}
 			pr := "sin PR"
@@ -805,8 +805,8 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 				pr = fmt.Sprintf("PR #%d %s → %s", r.PR.Number, r.PR.State, r.PR.Base)
 			}
 			where := "en ningún ambiente"
-			if len(en) > 0 {
-				where = "en " + strings.Join(en, ", ")
+			if len(presentIn) > 0 {
+				where = "en " + strings.Join(presentIn, ", ")
 			}
 			fmt.Printf("  %-20s %-52s %s · %s\n", r.Repo, truncate(r.Branch, 52), where, pr)
 		}

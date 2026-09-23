@@ -52,11 +52,11 @@ const renderer = Vue.createRenderer({
 test('editor de la tarea: encabezado, Escape, scroll al tope y que NO es un modal', async () => {
   const opener = node('button');
   globalThis.document = { activeElement: opener };
-  const clave = Vue.ref('CORE-1');
+  const currentKey = Vue.ref('CORE-1');
   let closeCount = 0;
   const root = node('root');
   const app = renderer.createApp({ setup: () => () => Vue.h(TaskEditor, {
-    title: 'Tarea de prueba', taskKey: clave.value, onClose: () => { closeCount++; },
+    title: 'Tarea de prueba', taskKey: currentKey.value, onClose: () => { closeCount++; },
   }) });
   app.mount(root);
   const find = predicate => descendants(root).find(predicate);
@@ -75,7 +75,7 @@ test('editor de la tarea: encabezado, Escape, scroll al tope y que NO es un moda
   // ── el cuerpo vuelve al tope al cambiar DE TAREA ─────────────────────────────────────────────
   assert.ok(body, 'el cuerpo existe');
   body.scrollTop = 900;
-  clave.value = 'CORE-2';
+  currentKey.value = 'CORE-2';
   await Vue.nextTick();
   assert.equal(body.scrollTop, 0);
 

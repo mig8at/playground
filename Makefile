@@ -278,6 +278,16 @@ tablero-jev: ## @dia laboratorio Jev del tablero: ARGS='bench [--live]' | 'triag
 tablero-jev-test: ## @dia pruebas offline de Choice + Noul + Score y minimización del payload de tablero
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev.py
 
+# El código del tablero se nombra en inglés (decisión de Miguel del 2026-09-23): identificadores,
+# archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de
+# Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
+# conoce va a tablero/tools/naming-allow.txt, con su categoría.
+tablero-naming: ## @dia ¿el código del tablero nombra algo en español? identificadores de Go, Vue/JS y Python, archivos y carpetas. Sale 1 si sí. WORDS=1 lista las palabras desconocidas
+	@python3 tablero/tools/naming.py $(if $(WORDS),--words)
+
+tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_naming.py
+
 trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
 	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }
 	@python3 trazador/tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)

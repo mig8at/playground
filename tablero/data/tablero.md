@@ -64,10 +64,12 @@ español, a propósito: las claves JSON, `schemas/tarea.v1.schema.json` (lleva e
 va con la 4b). **Fase 3 hecha**: `cmd/{today,closeout,branches,tasks,worklog,pulse}`,
 `internal/pulse` y `data/traps`, con el LaunchAgent del pulso reinstalado sobre `bin/pulse` y
 escribiendo. Quedan como nombres propios `cmd/cuadrilla`, la etiqueta del agente
-(`com.creditop.tablero.pulso`) y su log.
+(`com.creditop.tablero.pulso`) y su log. **Fase 4 hecha**: `make tablero-naming` frena un nombre nuevo
+que no es inglés, y al estrenarse encontró 13 nombres en español (25 declaraciones) que las fases 1–3 no habían visto; se renombraron.
 
-**El próximo paso es:** la fase 4, el chequeo que frena un identificador, archivo o carpeta nuevos en
-español —con la vara de la stdlib, no la del diccionario—; después la 4b (claves JSON y el esquema).
+**El próximo paso es:** decidir cuándo va la 4b —las claves JSON de la API y `schemas/tarea.v1.schema.json`,
+que cambian juntas porque son contrato con la interfaz, los hooks y `tablero.tarea.v1`— y qué hacer con
+`tema.css`/`taller.css`, que son compartidos con harness y trazador.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -97,8 +99,13 @@ español —con la vara de la stdlib, no la del diccionario—; después la 4b (
       `anotacion.spec.ts` del arnés en verde. `schemas/tarea.v1.schema.json` pasa a la 4b.
 - [x] Nombres en inglés · fase 3: 8 carpetas — `ab-cli.sh` 32/32, `ab-web.sh` 17/17, `ab-make.sh`
       21/21 (targets de `make` y los dos hooks) y el pulso escribiendo con el binario nuevo.
-- [ ] Nombres en inglés · fase 4: un chequeo que frene nombres nuevos en español; termina cuando
-      el chequeo sale ≠0 con un identificador en español inventado a propósito.
+- [x] Nombres en inglés · fase 4: `make tablero-naming` — sale 1 con nombres españoles inventados
+      en Go, Vue/JS, Python y un nombre de archivo, y 0 sin ellos; `make tablero-naming-test` 11/11.
+- [ ] Nombres en inglés · fase 4b: las claves JSON de la API y `schemas/tarea.v1.schema.json`, con el
+      contrato subido a `tablero.tarea.v2`; termina con la interfaz, los hooks y `make tarea-json`
+      leyendo las claves nuevas. Depende de: Miguel — cuándo.
+- [ ] Decidir `tema.css` y `taller.css`: son españoles pero compartidos con harness y trazador (fuente
+      en `tools/ui/`); termina cuando se renombran en las tres a la vez o se declara que se quedan.
 - [ ] Sacar los 5 colores literales del resaltado SQL de `src/App.vue` a tokens; termina cuando
       `make estilo-check` sale 0 (hoy falla sólo por eso, chequeo 6).
 - [ ] Resolver el contenedor `cuadrilla` (#93): el lint lo marca fuera de los siete nombres
@@ -188,6 +195,19 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
    escrita envejece y un chequeo no.
    4b. Si la fase 0 lo decide: etiquetas JSON, con el contrato subido a `tablero.tarea.v2`.
 
+   ✔ Hecho el 2026-09-23: `tools/naming.py`, cableado en `make tablero-naming` y probado por
+   `make tablero-naming-test`.
+
+   > **MEDICIÓN · 2026-09-23** — el chequeo lee 4.836 nombres de Go, 1.390 de Vue/JS, 863 de Python y 182 rutas. Con cuatro sondas inventadas (`leerTareaVieja` en Go, `guardarNota` en JS, `cargar_fecha` en Python y `zz-notas-viejas.md`) salió 1 y nombró las siete, incluidas `antes` y `texto`, que el diccionario del sistema acepta; sin ellas, 0.
+   > make tablero-naming; make tablero-naming-test
+
+   > **MEDICIÓN · 2026-09-23** — al estrenarse encontró 13 nombres en español, en 25 declaraciones, que las fases 1–3 no habían visto: en Go `en` (siete, «está en» un ambiente), `ya`, `es` y `del`; en Vue/JS `vistos`, `nodo`, `ancla`, `fijar`, `restaurarFoco`, `horas`, `clave`, `CEL`, `JHL`. Se renombraron (mapas en `tools/rename/maps/phase4-*.tsv`) con la consola 32/32 y la API 17/17 iguales al binario anterior, y en la interfaz los enlaces a canon, el menú de avance con su foco, la pestaña fijada y la grilla de la jornada se comprobaron andando.
+   > tablero/tools/rename/ab-cli.sh <árbol-anterior> && tablero/tools/rename/ab-web.sh
+
+   > **RIESGO · 2026-09-23** — por qué la fase 1 se los saltó: el detector de JS sólo contaba como declarado lo que crea un `const x` o un parámetro simple, no una desestructuración (`const [nodo, ancla] = …`) ni un parámetro con valor por defecto (`fijar = false`). El renombrador heredaba el mismo punto ciego. Hoy los dos usan `tools/rename/js/decls.mjs`. La lección es la del `CLAUDE.md` raíz, «una es la vara de otra»: el chequeo tiene que ser independiente de lo que se usó para renombrar, o repite sus huecos.
+
+   > **DECISIÓN · 2026-09-23** — `schemas/tarea.v1.schema.json` y `src/tema.css` se aceptan en español con su motivo en `tools/naming-allow.txt`: el primero cambia con el contrato (4b); el segundo es compartido con harness y trazador. `src/taller.css` es el mismo caso y el chequeo no lo ve, porque `taller` también es inglés: es el límite conocido de la vara.
+
 **Lo que NO entra.** El contenido de `data/` (tareas, títulos de sección como «Si retomás esto sin
 contexto», frontmatter `ramas:`/`canon:`), los mensajes que imprime la consola y los comentarios. El
 parser lee esos títulos de sección: traducirlos obligaría a migrar las 46 tareas, y las publicadas no
@@ -206,6 +226,7 @@ vara es el binario de ANTES contra el de AHORA, corridos uno tras otro sobre los
     cd tablero/tools && python3 -m unittest test_jev test_branches
     tablero/tools/rename/ab-py.sh <worktree-anterior>                   # 14 corridas de las herramientas Python
     make estilo-check · make trampas · cd harness && npx playwright test pkg/anotacion.spec.ts
+    make tablero-naming                                                 # ningún nombre nuevo en español
 
 ⚠ **No sirve guardar las salidas antes y compararlas después**: se probó y dio un falso rojo en
 `cierre -json`. El pulso escribe cada 5′, así que entre una foto y la otra `pulsoMinutos` pasó de 0 a
@@ -225,6 +246,11 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 ## Registro
 
 ### 2026-09-23
+
+Fase 4: nace `make tablero-naming`, con la stdlib de Go y Python como vara del inglés y una lista de
+permitidos por categoría. Al estrenarse encontró 13 nombres en español (25 declaraciones) que las fases anteriores no
+habían visto; se renombraron con las mismas comparaciones de siempre. El detector de JS aprendió la
+desestructuración y los valores por defecto, que eran su punto ciego.
 
 Fase 3: las carpetas del tablero en inglés —siete de `server/`, el paquete del pulso y
 `data/traps`— con el `Makefile`, los hooks, `package.json`, `jev.py` y 28 archivos de referencia en el
