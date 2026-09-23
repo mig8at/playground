@@ -23,7 +23,7 @@ const sample = {
     { id: 1, title: 'Validar interfaz', stage: 'work', canon: 'arquitectura, onboarding',
       techNotes: '# Interfaz\n\n## Criterios\n\n' + Array(60).fill('- El documento conserva su scroll independiente.').join('\n')
         + '\n\n## Pendientes\n\n- [ ] Confirmar la interfaz',
-      pendientes: [{ texto: 'Confirmar la interfaz', seccion: 'Pendientes', hecho: false }] },
+      pending: [{ what: 'Confirmar la interfaz', section: 'Pendientes', done: false }] },
     { id: 2, title: 'Tarea sin ramas', stage: 'work', techNotes: '' },
   ] },
   '/api/task-locals': { taskLocals: { 'UI-1': { effortId: 1 }, 'UI-2': { effortId: 2 } } },
@@ -31,12 +31,12 @@ const sample = {
     { id: '31', name: 'Finalizar', to: 'Terminado' },
     { id: '41', name: 'Enviar a pruebas', to: 'En pruebas' },
   ], testing: 'pruebas' },
-  '/api/ramas': { medidoEn: '2026-09-19T20:00:00-05:00', tareas: { '1': { patron: 'ui', medidoEn: '2026-09-19T20:00:00-05:00', ramas: [
-    { repo: 'playground', rama: 'feat/ui', commit: 'abc1234', asunto: 'Validar consola',
-      en: { qa: true, main: false }, propios: { qa: 0, main: 1 }, como: { qa: 'patch', main: 'no' },
-      pr: { numero: 10, estado: 'OPEN', base: 'main', url: 'https://example.test/pr/10', revision: 'REVIEW_REQUIRED' } },
-    { repo: 'tablero-api', rama: 'feat/ui-api', commit: 'def5678', asunto: 'Agregar rutas',
-      en: { qa: true, main: true }, propios: { qa: 0, main: 0 }, como: { qa: 'patch', main: 'pr' } },
+  '/api/ramas': { measuredAt: '2026-09-19T20:00:00-05:00', tasks: { '1': { pattern: 'ui', measuredAt: '2026-09-19T20:00:00-05:00', branches: [
+    { repo: 'playground', branch: 'feat/ui', commit: 'abc1234', subject: 'Validar consola',
+      in: { qa: true, main: false }, own: { qa: 0, main: 1 }, how: { qa: 'patch', main: 'no' },
+      pr: { number: 10, state: 'OPEN', base: 'main', url: 'https://example.test/pr/10', revision: 'REVIEW_REQUIRED' } },
+    { repo: 'tablero-api', branch: 'feat/ui-api', commit: 'def5678', subject: 'Agregar rutas',
+      in: { qa: true, main: true }, own: { qa: 0, main: 0 }, how: { qa: 'patch', main: 'pr' } },
   ] } } },
 };
 // La prueba de interfaz no consulta Redash ni necesita una solicitud real. Este esqueleto conserva

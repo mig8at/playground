@@ -298,7 +298,7 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 	// Del mismo cuerpo privado, y por la misma razón: las casillas de la publicable son criterios de
 	// aceptación de QA, no pendientes.
 	e.Pending = Pending(notes)
-	// el vínculo esfuerzo → tareas de Jira; las anotaciones (si las hay) se cargan aparte
+	// el vínculo esfuerzo → tareas de Jira
 	for _, k := range yamlList(fm["jira"]) {
 		tl := s.locals[k]
 		tl.TaskKey, tl.EffortID = k, id
@@ -562,8 +562,8 @@ type Effort struct {
 	TechNotes string `json:"techNotes"`
 	// Campos derivados del cuerpo privado. La UI ya no adivina cuál párrafo de un documento largo
 	// describe el estado actual: lee la misma retoma y el mismo próximo paso que se usan en consola.
-	Resume   string `json:"retoma"`
-	NextStep string `json:"proximoPaso"`
+	Resume   string `json:"resume"`
+	NextStep string `json:"nextStep"`
 	// Referencias de Canon que toca, separadas por coma. En el archivo son una lista YAML; acá van
 	// como cadena porque así lo consume la UI. Preferir `tema/context#ancla` evita presentar un tema
 	// entero como evidencia de una decisión puntual.
@@ -586,21 +586,21 @@ type Effort struct {
 	// reclamaba las piezas del cierre como si alguien fuera a leerlas del otro lado. ⚠ No se deduce de
 	// si hay clave de Jira ni de qué repo toca: hay trabajo sobre las herramientas que SÍ se publicó
 	// (CORE-421). Es una decisión, y por eso se declara.
-	Class     string `json:"clase,omitempty"`
+	Class     string `json:"class,omitempty"`
 	CreatedAt string `json:"createdAt"`
 	// TouchedAt: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
 	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `layout/history.go`.
-	TouchedAt string `json:"tocadoEn,omitempty"`
+	TouchedAt string `json:"touchedAt,omitempty"`
 	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
 	// riesgos). Igual que los artifacts, salen de la tarea misma y no de una lista que haya que mantener.
 	// Ver `annotations.go` para la forma y el porqué.
-	Annotations []Annotation `json:"anotaciones"`
+	Annotations []Annotation `json:"annotations"`
 	// PENDIENTES: lo que queda por hacer, en casillas de markdown dentro del CUERPO. Mismo criterio que
 	// las anotaciones —el dato vive donde se argumenta y la UI lo deriva—, y por el mismo motivo: una
 	// lista aparte se desincroniza en cuanto alguien resuelve el pendiente sin tocar el archivo.
 	// Sólo del cuerpo privado: las casillas de la publicable son los criterios de aceptación de QA, que
 	// no son pendientes de nadie. Ver `pending.go`.
-	Pending []PendingItem `json:"pendientes"`
+	Pending []PendingItem `json:"pending"`
 	// ARTIFACTS de la tarea: todo lo que hay en `tasks/<slug>/artifacts/`, que se abre desde el
 	// tablero. El vínculo es la CARPETA, no una entrada en el frontmatter ni el nombre: hasta el
 	// 2026-09-23 era el nombre, y se desincronizó —un artifact quedó huérfano al renombrarse su tarea—.
@@ -616,7 +616,7 @@ type Effort struct {
 	// ÚNICO que se escribe a mano; qué ramas existen y hasta dónde llegó cada una lo mide git —ver
 	// `branches.go`—, porque una lista de ramas a mano miente en silencio en cuanto algo se mergea o se
 	// renombra. Vacío = la tarea no toca código (o todavía no se sabe).
-	BranchPatterns string `json:"ramasPatron"`
+	BranchPatterns string `json:"branchPatterns"`
 }
 
 // rereadIfChanged vuelve a leer las tareas si algún `.md` cambió en disco desde la última lectura.

@@ -10,11 +10,11 @@ import (
 // dice que es pertinente; marcarla como leída o validada es una afirmación que
 // debe quedar escrita junto al trabajo que produjo.
 type CanonUse struct {
-	Date      string `json:"fecha"`
-	Reference string `json:"referencia"`
-	Usage     string `json:"uso"`
-	Read      bool   `json:"leido"`
-	Validated bool   `json:"validado"`
+	Date      string `json:"date"`
+	Reference string `json:"reference"`
+	Usage     string `json:"usage"`
+	Read      bool   `json:"read"`
+	Validated bool   `json:"validated"`
 }
 
 // La evidencia vive en el cuerpo privado, cerca del registro y las decisiones,

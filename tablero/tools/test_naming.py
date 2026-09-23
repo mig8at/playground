@@ -4,8 +4,10 @@ podía dar, un diagnóstico equivocado.
   * la vara del diccionario dejó pasar `aviso`, `leer` y `tema` como inglés (fase 1);
   * quitar un `-es` a ciegas convierte un plural español en inglés (`partes` → `part`);
   * un extractor que no devuelve nada da «todo en inglés» sin haber mirado;
-  * y la condición de cierre de la fase 4: un nombre español inventado a propósito, en cada lenguaje y
-    en un nombre de archivo, tiene que hacer fallar el chequeo.
+  * la condición de cierre de la fase 4: un nombre español inventado a propósito, en cada lenguaje y
+    en un nombre de archivo, tiene que hacer fallar el chequeo;
+  * y la de la 4b: una clave JSON en español aceptada en UN lugar (la API de cuadrilla) no queda aceptada
+    en otro, ni se vuelve una palabra permitida para los identificadores.
 """
 import subprocess
 import sys
@@ -64,10 +66,27 @@ class AllowFileTest(unittest.TestCase):
     def test_words_and_paths_with_reason(self):
         with tempfile.TemporaryDirectory() as d:
             f = Path(d, 'allow.txt')
-            f.write_text('# comentario\njira jql\npath: src/tema.css   # compartido\n')
+            f.write_text('# comentario\njira jql\npath: src/tema.css   # compartido\n'
+                         'json: server/cmd/cuadrilla/ rama autor   # la API de cuadrilla\n')
             words, paths = naming.load_allow(f)
-        self.assertEqual(words, {'jira', 'jql'})
+            rules = naming.load_json_allow(f)
+        self.assertEqual(words, {'jira', 'jql'}, 'una clave aceptada no puede volverse una palabra aceptada')
         self.assertEqual(paths, {'src/tema.css': 'compartido'})
+        self.assertEqual(rules, [('server/cmd/cuadrilla/', '', {'rama', 'autor'})])
+
+    def test_a_json_key_is_accepted_only_where_the_rule_says(self):
+        rules = [('server/cmd/cuadrilla/', '', {'rama'}), ('server/cmd/today/main.go', 'areaCanon', {'objetivo'}),
+                 ('server/cmd/branches/main.go', 'map', {'*'})]
+
+        def allowed(rel, kind, ctx, key):
+            return naming.json_allowed(rel, kind, ctx, key, rules)
+
+        self.assertTrue(allowed('server/cmd/cuadrilla/main.go', 'tag', 'branch.Branch', 'rama'))
+        self.assertFalse(allowed('server/cmd/today/main.go', 'tag', 'branchSnap.Branch', 'rama'))
+        self.assertTrue(allowed('server/cmd/today/main.go', 'tag', 'areaCanon.Goal', 'objetivo'))
+        self.assertFalse(allowed('server/cmd/today/main.go', 'tag', 'row.Goal', 'objetivo'))
+        self.assertTrue(allowed('server/cmd/branches/main.go', 'map', '-', 'desde'))
+        self.assertFalse(allowed('server/cmd/branches/main.go', 'tag', 'x.Y', 'desde'))
 
 
 class EndToEndTest(unittest.TestCase):
@@ -88,7 +107,7 @@ class EndToEndTest(unittest.TestCase):
         return root
 
     ENGLISH = {
-        'server/x.go': 'package x\n\nfunc loadTask() {}\n',
+        'server/x.go': 'package x\n\ntype task struct {\n\tTitle string `json:"title"`\n}\n\nfunc loadTask() {}\n',
         'src/a.js': 'const taskList = [];\nexport function readFile(path) { return path; }\n',
         'src/b.vue': '<script setup>\nconst title = 1;\n</script>\n<template><p v-for="item in [1]">{{ item }}</p></template>\n',
         'tools/c.py': 'def load(path):\n    return path\n',
@@ -97,19 +116,19 @@ class EndToEndTest(unittest.TestCase):
     def test_invented_spanish_names_fail_in_every_language(self):
         self.board({
             **self.ENGLISH,
-            'server/y.go': 'package x\n\nfunc leerTarea() {}\n',
+            'server/y.go': 'package x\n\nfunc leerTarea() {}\n\ntype plan struct {\n\tNext string `json:"proximoPaso"`\n}\n',
             'src/c.js': 'const { fecha } = {};\n',
             'src/d.vue': '<template><p v-for="fila in [1]">{{ fila }}</p></template>\n',
             'tools/d.py': 'def cargar():\n    pass\n',
             'docs/notas.md': 'x\n',
         })
-        findings, _ = naming.check(base=naming.baseline(), allow=(set(), {}))
+        findings, _ = naming.check(base=naming.baseline(), allow=(set(), {}), json_allow=[])
         found = {f['name'] for f in findings}
-        self.assertTrue({'leerTarea', 'fecha', 'fila', 'cargar', 'notas.md'} <= found, found)
+        self.assertTrue({'leerTarea', 'proximoPaso', 'fecha', 'fila', 'cargar', 'notas.md'} <= found, found)
 
     def test_an_english_tree_passes(self):
         self.board(self.ENGLISH)
-        findings, counts = naming.check(base=naming.baseline(), allow=(set(), {}))
+        findings, counts = naming.check(base=naming.baseline(), allow=(set(), {}), json_allow=[])
         self.assertEqual(findings, [])
         self.assertTrue(all(n > 0 for n in counts.values()), counts)
 
@@ -118,7 +137,7 @@ class EndToEndTest(unittest.TestCase):
         del files['server/x.go']
         self.board(files)
         with self.assertRaises(SystemExit):
-            naming.check(base=naming.baseline(), allow=(set(), {}))
+            naming.check(base=naming.baseline(), allow=(set(), {}), json_allow=[])
 
 
 def setattr_all(saved):

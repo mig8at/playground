@@ -6,7 +6,7 @@ const snapshot = {
   sprint: { id: 18, name: 'Sprint 18' },
   sprints: [{ id: 18, name: 'Sprint 18' }],
   issues: [{ Key: 'CORE-1', Summary: 'Carga inmediata' }],
-  porSprint: [{ sprint: { id: 18 }, issues: [{ Key: 'CORE-1' }] }],
+  bySprint: [{ sprint: { id: 18 }, issues: [{ Key: 'CORE-1' }] }],
   site: 'https://example.atlassian.net',
 };
 

@@ -72,7 +72,7 @@ watch(journeyOpen, value => savePreference('journey-open', value));
 /* ⚠ Acá vivían `collapsedGroups` y `toggleGroup`. Se fueron: cada grupo es ahora una VISTA del
    acordeón, así que «qué grupo está abierto» y «qué vista está abierta» eran el mismo estado escrito
    dos veces — y dos estados para una cosa es como se llega a que el chevron diga una y el contenido
-   otra. Lo lleva `secciones`. */
+   otra. Lo lleva `sections`. */
 const active = ref(null);     // tarea sobre la que se está registrando
 
 // El registro de avances vive en JSONL del lado del server. Acá se mapea al shape que usa la UI: `date` es el
@@ -316,7 +316,7 @@ const allLocals = computed(() => {
       StatusCategory: e.stage === 'work' ? 'indeterminate' : 'new',
       Points: 0,
       _local: true,
-      _esfuerzoId: e.id,
+      _effortId: e.id,
     }));
 });
 const looseLocals = computed(() => showLocals.value ? allLocals.value : []);
@@ -339,8 +339,8 @@ const visibleTasks = computed(() => {
     for (const g of bySprint.value) {
       for (const i of g.issues) {
         const existing = byKey.get(i.Key);
-        if (existing) { existing._arrastres++; continue; }
-        byKey.set(i.Key, { ...i, _sprint: shortName(g.sprint.name), _arrastres: 1 });
+        if (existing) { existing._carryOvers++; continue; }
+        byKey.set(i.Key, { ...i, _sprint: shortName(g.sprint.name), _carryOvers: 1 });
       }
     }
     return withFilter([...byKey.values(), ...looseLocals.value]);
@@ -349,7 +349,7 @@ const visibleTasks = computed(() => {
   const withEffort = issues.value.map((i) => {
     const eid = taskLocals.value[i.Key]?.effortId || 0;
     const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
-    return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
+    return t ? { ...i, _effort: t, _effortId: eid } : i;
   });
   return withFilter([...withEffort, ...looseLocals.value]);
 });
@@ -395,7 +395,7 @@ const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id 
 // pregunta es si se archiva o se anota por qué espera.
 const DORMANT_DAYS = 14;
 const daysUntouched = (id) => {
-  const t = efforts.value.find(e => e.id === id)?.tocadoEn;
+  const t = efforts.value.find(e => e.id === id)?.touchedAt;
   if (!t) return null;
   return Math.max(0, Math.floor((Date.now() - new Date(t + 'T12:00:00')) / 86400000));
 };
@@ -415,20 +415,20 @@ const artifactType = (file) => (/\.([a-z0-9]+)$/i.exec(file)?.[1] || 'archivo').
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
 // No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
 // tabla y su selector de repos EXCLUSIVAMENTE de la tarea enfocada; nunca muestra el inventario global.
-const branchesSnap = ref({ medidoEn: '', tareas: {} });
+const branchesSnap = ref({ measuredAt: '', tasks: {} });
 const refreshingBranches = ref(false);
 const branchesError = ref('');
 async function loadBranches() {
-  try { branchesSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
+  try { branchesSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tasks: {} }; }
   catch { /* sin snapshot todavía: la card lo dice, no es un error */ }
 }
 const branchesOf = (key) => {
   const eid = effortFor(key);
-  return (branchesSnap.value.tareas || {})[String(eid)] || null;
+  return (branchesSnap.value.tasks || {})[String(eid)] || null;
 };
 const activeTaskBranches = computed(() => active.value ? (branchesOf(active.value.Key) || {
-  patron: '', ramas: [], medidoEn: branchesSnap.value.medidoEn || '',
-}) : { patron: '', ramas: [], medidoEn: branchesSnap.value.medidoEn || '' });
+  pattern: '', branches: [], measuredAt: branchesSnap.value.measuredAt || '',
+}) : { pattern: '', branches: [], measuredAt: branchesSnap.value.measuredAt || '' });
 async function refreshBranches() {
   const effortId = active.value ? effortFor(active.value.Key) : 0;
   if (!effortId || refreshingBranches.value) return;
@@ -438,7 +438,7 @@ async function refreshBranches() {
     const httpResponse = await fetch(`${SERVER}/api/ramas/refresh?id=${encodeURIComponent(effortId)}`, { method: 'POST' });
     const snapshot = await httpResponse.json();
     if (!httpResponse.ok || snapshot.error) throw new Error(snapshot.error || 'no se pudo actualizar las ramas');
-    branchesSnap.value = snapshot || { tareas: {} };
+    branchesSnap.value = snapshot || { tasks: {} };
   } catch (err) {
     branchesError.value = err instanceof Error ? err.message : 'no se pudo actualizar las ramas';
   } finally {
@@ -482,7 +482,7 @@ const CAPACITY = 10;
 const overCapacity = computed(() => {
   const c = committedPts.value;
   if (c <= CAPACITY) return null;
-  return { pts: c, veces: +(c / CAPACITY).toFixed(1), exceso: c - CAPACITY };
+  return { points: c, times: +(c / CAPACITY).toFixed(1), excess: c - CAPACITY };
 });
 // El desfase contra el CALENDARIO: qué fracción del sprint se consumió contra qué fracción ya cuenta.
 // Sólo con el sprint en curso: antes de arrancar o cerrado, comparar contra el calendario es ruido.
@@ -490,7 +490,7 @@ const pace = computed(() => {
   const d = sprintDays.value;
   if (d?.state !== 'ongoing' || !committedPts.value) return null;
   const donePct = Math.round(100 * countedPts.value / committedPts.value);
-  return { consumido: d.pct, hecho: donePct, atras: Math.max(0, d.pct - donePct), dias: d.remaining };
+  return { consumed: d.pct, done: donePct, behind: Math.max(0, d.pct - donePct), days: d.remaining };
 });
 const jiraTime = computed(() => issues.value.reduce((n, i) => n + (i.SpentSecs || 0), 0));
 const ofSprint = computed(() => entries.value.filter(e => e.sprint === sprint.value?.id));
@@ -515,13 +515,13 @@ const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 // siendo el de los indicadores (puntos, tiempo, días restantes) — eso no cambia con la vista.
 const wideView = ref(true);
 const loadingWide = ref(false);
-const bySprint = ref(bootstrapCache?.porSprint || []); // [{ sprint, issues }] en el orden de las pestañas
+const bySprint = ref(bootstrapCache?.bySprint || []); // [{ sprint, issues }] en el orden de las pestañas
 
 function saveBootstrap() {
   if (!sprint.value) return;
   writeBootstrapCache({
     sprint: sprint.value, sprints: sprints.value, issues: issues.value,
-    porSprint: bySprint.value, site: site.value,
+    bySprint: bySprint.value, site: site.value,
   });
 }
 
@@ -1175,14 +1175,14 @@ watch(active, (t) => {
 // Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
 // que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
 // eso es lo único que la prosa no puede hacer.
-const findingsOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.anotaciones || [];
+const findingsOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.annotations || [];
 const daysOf = (date) => Math.floor((Date.now() - new Date(date + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
 // mes antes de sospechar, pero una pregunta sin responder a los 7 días ya está frenando algo.
-const overdue = (a) => a.tipo === 'medicion' ? daysOf(a.fecha) > 30
-                     : a.tipo === 'pregunta' ? daysOf(a.fecha) > 7 : false;
+const overdue = (a) => a.kind === 'medicion' ? daysOf(a.date) > 30
+                     : a.kind === 'pregunta' ? daysOf(a.date) > 7 : false;
 const AGE = { medicion: 'medido hace', pregunta: 'sin responder hace', decision: 'decidido hace', riesgo: 'asumido hace' };
-const ageText = (a) => { const d = daysOf(a.fecha); return `${AGE[a.tipo] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
+const ageText = (a) => { const d = daysOf(a.date); return `${AGE[a.kind] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
 const KINDS = [
   { id: 'medicion', tit: 'Mediciones',  pie: 'Un número sin fecha ni forma de recomprobarlo envejece hasta volverse mentira.' },
   { id: 'decision', tit: 'Decisiones',  pie: 'Con fecha y motivo, para no volver a discutirlas desde cero.' },
@@ -1190,14 +1190,14 @@ const KINDS = [
   { id: 'riesgo',   tit: 'Riesgos',     pie: 'Lo que se aceptó a sabiendas. Cuando muerda, acá está el momento en que se aceptó.' },
 ];
 const findingsByKind = (key) => KINDS
-  .map(t => ({ ...t, items: findingsOf(key).filter(a => a.tipo === t.id) }))
+  .map(t => ({ ...t, items: findingsOf(key).filter(a => a.kind === t.id) }))
   .filter(g => g.items.length);
 // CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/sources.go`) del
 // `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
 // dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
 // Los ambientes son los valores canónicos de `canonEnvironment`, en el mismo archivo del server.
 const isEnvironment = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
-const isSqlFinding = (finding) => finding.fuentes?.includes('DB') && isSQLQuery(finding.como);
+const isSqlFinding = (finding) => finding.sources?.includes('DB') && isSQLQuery(finding.how);
 
 // El resumen de arriba contesta de un vistazo «¿cómo se concluyó lo que dice esta tarea?». Lo que más
 // importa no son las herramientas: es cuántas anotaciones NO traen con qué volver a comprobarlas.
@@ -1206,16 +1206,16 @@ const provenanceOf = (key) => {
   const count = {};
   let withoutHow = 0;
   for (const a of as) {
-    const fs = a.fuentes || [];
+    const fs = a.sources || [];
     if (!fs.length) { withoutHow++; continue; }
     for (const f of fs) count[f] = (count[f] || 0) + 1;
   }
   return {
     total: as.length,
-    sinComo: withoutHow,
-    conComo: as.length - withoutHow,
+    withoutHow: withoutHow,
+    withHow: as.length - withoutHow,
     // el ambiente primero: pesa más que la herramienta a la hora de creerle a una medición
-    fuentes: Object.entries(count).sort((a, b) => (isEnvironment(b[0]) - isEnvironment(a[0])) || b[1] - a[1]),
+    sources: Object.entries(count).sort((a, b) => (isEnvironment(b[0]) - isEnvironment(a[0])) || b[1] - a[1]),
   };
 };
 
@@ -1223,19 +1223,19 @@ const provenanceOf = (key) => {
 // Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pending.go` para el parser y el
 // porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
 // cuerpo es el archivo, y editarlo por dos caminos es cómo se desincronizan las cosas.
-const pendingOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.pendientes || [];
+const pendingOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.pending || [];
 // Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
 // nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
-const remaining = (key) => pendingOf(key).filter(p => !p.hecho).length;
+const remaining = (key) => pendingOf(key).filter(p => !p.done).length;
 // La barra de la cabecera no intenta adivinar el avance real: sólo expresa lo que sí está registrado
 // en las casillas. Por eso muestra tanto el numerador como el total y lleva al detalle para corregir
 // una tarea que se trabajó pero quedó sin tildar.
 const pendingProgressOf = (key) => {
   const total = pendingOf(key).length;
   const doneItems = total - remaining(key);
-  return total ? { total, hechos: doneItems, porcentaje: Math.round(doneItems * 100 / total) } : null;
+  return total ? { total, done: doneItems, percent: Math.round(doneItems * 100 / total) } : null;
 };
-const openPendingOf = (key) => pendingOf(key).filter(p => !p.hecho);
+const openPendingOf = (key) => pendingOf(key).filter(p => !p.done);
 
 // REVISIÓN JEV DE PENDIENTES. Es una lectura explícita, nunca una mutación: el servidor recibe una
 // proyección acotada de la tarea sólo después del clic y devuelve tres estados fijos. Así el modelo
@@ -1295,7 +1295,7 @@ const pendingReviewSummary = computed(() => {
 const pendingBySection = (key) => {
   const groups = [];
   for (const p of pendingOf(key)) {
-    const tit = p.seccion || 'Sin sección';
+    const tit = p.section || 'Sin sección';
     const g = groups.find(x => x.tit === tit);
     (g || groups[groups.push({ tit, items: [] }) - 1]).items.push(p);
   }
@@ -1775,7 +1775,7 @@ async function updateStart() {
     if (sprintResult.status === 'fulfilled' && sprintResult.value) await loadLast4();
 
     await locales;
-    // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de porSprint.
+    // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de bySprint.
     restoreRoute();
     saveBootstrap();
   } finally { jiraSyncing.value = false; }
@@ -1875,8 +1875,8 @@ function documentAction(id) {
               <span class="tr-tt">{{ i.Summary }}</span>
               <span v-if="remaining(i.Key)" class="tr-n" :title="`${remaining(i.Key)} pendiente(s)`"
                     :aria-label="`${remaining(i.Key)} pendientes`">{{ remaining(i.Key) }} pend.</span>
-              <span v-if="i._esfuerzoId && daysUntouched(i._esfuerzoId) >= DORMANT_DAYS" class="tr-z"
-                    :title="`${daysUntouched(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+              <span v-if="i._effortId && daysUntouched(i._effortId) >= DORMANT_DAYS" class="tr-z"
+                    :title="`${daysUntouched(i._effortId)} días sin tocar el archivo`">z</span>
             </button>
             <button v-if="!i._local && i.StatusCategory !== 'done'" type="button" class="tree-state"
                     :aria-label="`Avanzar ${i.Key} al siguiente estado`" :title="`Siguiente estado desde ${i.Status}`"
@@ -1963,7 +1963,7 @@ function documentAction(id) {
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
       <TaskEditor v-else-if="active" :key="active.Key"
-        :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
+        :title="active.Summary" :task-key="active._local ? 'local · ' + active._effortId : active.Key"
         @close="closeTab(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
@@ -1998,18 +1998,18 @@ function documentAction(id) {
               <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
               <span v-if="!active._local">{{ hhmm(active.SpentSecs) }} en Jira</span>
               <span v-if="minutesOf(active.Key)" class="mine">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
-              <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto"
-                 :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
+              <i v-if="active._local && stageOf(active._effortId)" class="stg suelto"
+                 :class="'s-' + stageOf(active._effortId)?.id">{{ stageOf(active._effortId)?.label }}</i>
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
             </div>
             <button v-if="pendingProgressOf(active.Key)" type="button" class="task-completion"
-                    :aria-label="`Abrir pendientes: ${pendingProgressOf(active.Key).hechos} de ${pendingProgressOf(active.Key).total} finalizados`"
+                    :aria-label="`Abrir pendientes: ${pendingProgressOf(active.Key).done} de ${pendingProgressOf(active.Key).total} finalizados`"
                     :title="'Avance según las casillas finalizadas. Abrir Pendientes.'"
                     @click="openAux('pendientes')">
-              <span class="task-completion-copy"><b>{{ pendingProgressOf(active.Key).porcentaje }}%</b>
-                {{ pendingProgressOf(active.Key).hechos }}/{{ pendingProgressOf(active.Key).total }} pendientes finalizados</span>
-              <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${pendingProgressOf(active.Key).porcentaje}%` }"></i></span>
+              <span class="task-completion-copy"><b>{{ pendingProgressOf(active.Key).percent }}%</b>
+                {{ pendingProgressOf(active.Key).done }}/{{ pendingProgressOf(active.Key).total }} pendientes finalizados</span>
+              <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${pendingProgressOf(active.Key).percent}%` }"></i></span>
             </button>
             <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
                           :loading="jevBusy" :error="jevError" @start="guideWithJev"
@@ -2069,7 +2069,7 @@ function documentAction(id) {
             <section class="work-block">
               <div class="work-block-head"><h4>Documento de trabajo</h4><small>Estado, decisiones y material vigente</small></div>
               <div v-if="summarySections.length" class="desc cuerpo-md">
-                <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
+                <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.resume }" v-html="section.summaryHtml"></section>
               </div>
               <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras secciones.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
             </section>
@@ -2079,18 +2079,18 @@ function documentAction(id) {
               <p class="nota">Conclusiones fechadas del trabajo, con la forma de volver a comprobarlas.</p>
               <p v-if="!findingsOf(active.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
               <div v-if="findingsOf(active.Key).length" class="proc">
-                <span class="proc-cuenta">{{ provenanceOf(active.Key).conComo }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
-                <span v-for="[f, n] in provenanceOf(active.Key).fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>
-                <span v-if="provenanceOf(active.Key).sinComo" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ provenanceOf(active.Key).sinComo }} sin cómo</span>
+                <span class="proc-cuenta">{{ provenanceOf(active.Key).withHow }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
+                <span v-for="[f, n] in provenanceOf(active.Key).sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>
+                <span v-if="provenanceOf(active.Key).withoutHow" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ provenanceOf(active.Key).withoutHow }} sin cómo</span>
               </div>
               <section v-for="g in findingsByKind(active.Key)" :key="g.id" class="hgrupo">
                 <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
                 <p class="hpie">{{ g.pie }}</p>
                 <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: overdue(a) }">
-                  <div class="hmeta"><span class="hfecha">{{ a.fecha }}</span><span class="hedad">{{ ageText(a) }}</span><span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span></div>
-                  <p class="hque">{{ a.que }}</p>
-                  <p v-if="a.fuentes?.length" class="hfuentes"><span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }}</span></p>
-                  <pre v-if="a.como" class="hcomo" :class="{ 'sql-block': isSqlFinding(a) }"><code v-if="isSqlFinding(a)" class="language-sql" v-html="highlightSQL(a.como)"></code><template v-else>{{ a.como }}</template></pre>
+                  <div class="hmeta"><span class="hfecha">{{ a.date }}</span><span class="hedad">{{ ageText(a) }}</span><span v-if="a.who" class="hquien">espera a {{ a.who }}</span></div>
+                  <p class="hque">{{ a.what }}</p>
+                  <p v-if="a.sources?.length" class="hfuentes"><span v-for="f in a.sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }}</span></p>
+                  <pre v-if="a.how" class="hcomo" :class="{ 'sql-block': isSqlFinding(a) }"><code v-if="isSqlFinding(a)" class="language-sql" v-html="highlightSQL(a.how)"></code><template v-else>{{ a.how }}</template></pre>
                 </article>
               </section>
             </section>
@@ -2124,10 +2124,10 @@ function documentAction(id) {
                  de la marca = vas atrás, y cuánto se lee sin hacer la cuenta. -->
             <div class="progress progress-xs bar" v-if="committedPts">
               <i :style="{ width: (100 * countedPts / committedPts) + '%' }"></i>
-              <u v-if="pace" :style="{ left: pace.consumido + '%' }" :title="`el sprint va por el ${pace.consumido}%`"></u>
+              <u v-if="pace" :style="{ left: pace.consumed + '%' }" :title="`el sprint va por el ${pace.consumed}%`"></u>
             </div>
-            <div class="s" v-if="pace && pace.atras > 0">{{ pace.atras }}% atrás del calendario ·
-              quedan {{ pace.dias }} {{ pace.dias === 1 ? 'día' : 'días' }}</div>
+            <div class="s" v-if="pace && pace.behind > 0">{{ pace.behind }}% atrás del calendario ·
+              quedan {{ pace.days }} {{ pace.days === 1 ? 'día' : 'días' }}</div>
             <div class="s" v-else-if="pace">al día con el calendario</div>
             <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
           </div>
@@ -2147,8 +2147,8 @@ function documentAction(id) {
         <p v-if="overCapacity || strandedPts.length || withoutPoints.length" class="pts-detalle">
           <!-- Lo primero, porque cambia cómo se lee todo lo demás: si te comprometiste al doble de lo
                que entra, ir «atrás del calendario» no es un problema de ritmo. -->
-          <span v-if="overCapacity" class="pd-i pd-mal"><b>{{ overCapacity.pts }} pt comprometidos</b>
-            · {{ overCapacity.veces }}× tu capacidad (≈{{ CAPACITY }}: un 5 es medio sprint)</span>
+          <span v-if="overCapacity" class="pd-i pd-mal"><b>{{ overCapacity.points }} pt comprometidos</b>
+            · {{ overCapacity.times }}× tu capacidad (≈{{ CAPACITY }}: un 5 es medio sprint)</span>
           <template v-if="strandedPts.length">
             <span class="pd-k">no cuentan todavía:</span>
             <span v-for="([est, n]) in strandedPts" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
@@ -2287,9 +2287,9 @@ function documentAction(id) {
     <!-- PANEL · ramas de la tarea enfocada. Cruza editor + vistas para conservar la tabla como área
          principal y el selector de sus repos a la derecha incluso en ventanas medianas. -->
     <section v-if="showBranchConsole" id="context-branches-panel" class="panel ramas-panel"
-             :class="{ 'sin-ramas': !activeTaskBranches.ramas.length }"
-             :style="{ height: (activeTaskBranches.ramas.length ? branchConsoleHeight : 76) + 'px' }">
-      <div v-if="activeTaskBranches.ramas.length" class="rsz rsz-panel" v-resize="branchPanelResize"></div>
+             :class="{ 'sin-ramas': !activeTaskBranches.branches.length }"
+             :style="{ height: (activeTaskBranches.branches.length ? branchConsoleHeight : 76) + 'px' }">
+      <div v-if="activeTaskBranches.branches.length" class="rsz rsz-panel" v-resize="branchPanelResize"></div>
       <RepoBranches :snapshot="activeTaskBranches" :task-label="active?.Summary || ''"
                     :refreshing="refreshingBranches" :refresh-error="branchesError"
                     @refresh="refreshBranches" @close="hideBranchConsole" />
@@ -2348,7 +2348,7 @@ function documentAction(id) {
                   <li v-for="item in pendingReview.items" :key="item.id" class="pending-review-item"
                       :class="pendingReviewClass(item.status)">
                     <span class="pending-review-status">{{ pendingReviewLabel(item.status) }}</span>
-                    <span class="pending-review-text">{{ reviewPending(item)?.que || 'Pendiente revisado' }}</span>
+                    <span class="pending-review-text">{{ reviewPending(item)?.what || 'Pendiente revisado' }}</span>
                     <span class="pending-review-confidence">{{ Math.round((item.probability || 0) * 100) }}%</span>
                   </li>
                 </ul>
@@ -2365,10 +2365,10 @@ function documentAction(id) {
             <p v-else-if="!pendingOf(active?.Key).length" class="nota">Esta tarea no tiene pendientes registrados.</p>
             <template v-else>
             <section v-for="(g, n) in pendingBySection(active?.Key)" :key="n" class="hgrupo">
-              <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
-              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
-                <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
-                <p class="pque">{{ p.que }}</p>
+              <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.filter(p => !p.done).length }}</span></h4>
+              <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.done }">
+                <span class="pmark" aria-hidden="true">{{ p.done ? '✓' : '○' }}</span>
+                <p class="pque">{{ p.what }}</p>
               </article>
             </section>
             </template>
@@ -2405,7 +2405,7 @@ function documentAction(id) {
                 :aria-pressed="showBranchConsole" aria-controls="context-branches-panel"
                 aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="toggleBranchConsole">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-          <span>Ramas</span><span class="sb-count">{{ activeTaskBranches.ramas.length }}</span>
+          <span>Ramas</span><span class="sb-count">{{ activeTaskBranches.branches.length }}</span>
         </button>
         <button type="button" class="region-action" :aria-pressed="showAux" :disabled="!active"
                 aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="toggleDetail">

@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://creditop.local/tablero/schemas/task.v2.schema.json",
+  "title": "Proyección estructurada de una tarea del tablero",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "task", "state", "work", "sections", "publication"],
+  "properties": {
+    "schemaVersion": { "const": "tablero.task.v2" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "id", "title", "stage", "archived", "file"],
+      "properties": {
+        "slug": { "type": "string", "minLength": 1 },
+        "id": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "stage": { "enum": ["evaluation", "work", "tasks"] },
+        "class": { "enum": ["tarea", "proyecto"] },
+        "archived": { "type": "boolean" },
+        "jira": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "canon": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+        "file": { "type": "string", "minLength": 1 }
+      }
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resume", "nextStep"],
+      "properties": {
+        "resume": { "type": "string" },
+        "nextStep": { "type": "string" }
+      }
+    },
+    "work": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["counts", "pending", "annotations"],
+      "properties": {
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["openPending", "closedPending", "measurements", "decisions", "questions", "risks"],
+          "properties": {
+            "openPending": { "type": "integer", "minimum": 0 },
+            "closedPending": { "type": "integer", "minimum": 0 },
+            "measurements": { "type": "integer", "minimum": 0 },
+            "decisions": { "type": "integer", "minimum": 0 },
+            "questions": { "type": "integer", "minimum": 0 },
+            "risks": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "pending": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["what", "done", "section"],
+            "properties": {
+              "what": { "type": "string" },
+              "done": { "type": "boolean" },
+              "section": { "type": "string" }
+            }
+          }
+        },
+        "annotations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "date", "who", "what", "how"],
+            "properties": {
+              "kind": { "enum": ["medicion", "decision", "pregunta", "riesgo"] },
+              "date": { "type": "string", "format": "date" },
+              "who": { "type": "string" },
+              "what": { "type": "string" },
+              "how": { "type": "string" },
+              "sources": { "type": "array", "items": { "type": "string" }, "uniqueItems": true }
+            }
+          }
+        }
+      }
+    },
+    "sections": { "type": "array", "items": { "type": "string" } },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "readyForJira", "hasQA", "bytes", "violations"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "readyForJira": { "type": "boolean" },
+        "hasQA": { "type": "boolean" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        },
+        "draft": { "type": "string" }
+      }
+    }
+  }
+}

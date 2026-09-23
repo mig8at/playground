@@ -48,11 +48,11 @@ preview y no se envió.
 `canon:`, hasta cuatro; `BRIEF=a,b` elige. La ficha sale de `GET /api/read` de canon (no de un modelo)
 y decide qué `context.md` se abre, no lo reemplaza.
 
-**Frente abierto (2026-09-23): el código del tablero pasa a inglés — identificadores, archivos y
-carpetas.** Pedido de Miguel; extiende a esta herramienta la regla que ya regía en los repos de la
-compañía (identificadores en inglés, comentarios en español). El contenido de `data/` —las tareas, sus
-títulos de sección y el frontmatter que se escribe a mano— **no** entra: es texto, no código. Detalle,
-fases e inventario en «Frente: el código en inglés», abajo.
+**Frente (2026-09-23): el código del tablero pasa a inglés — identificadores, archivos, carpetas y
+claves JSON.** Pedido de Miguel; extiende a esta herramienta la regla que ya regía en los repos de la
+compañía (identificadores en inglés, comentarios en español). El contenido de las tareas —sus títulos de
+sección y el frontmatter que se escribe a mano— **no** entra: es texto, no código. Hecho entero salvo
+`tema.css`/`taller.css`. Detalle, fases e inventario en «Frente: el código en inglés», abajo.
 
 **Estado (2026-09-23):** fase 0 decidida —`tablero` y los targets de `make` se quedan; el JSON de la
 API va en una tanda aparte— y **fase 1 hecha**: 1.035 identificadores de Go y ~235 de Vue/JS en inglés,
@@ -60,13 +60,17 @@ con las salidas de consola (32 invocaciones) y de la API web (17 GETs) idéntica
 binario de antes, y la interfaz vieja y la nueva dando la misma huella en 36 pasos de clics. **Fase 1b
 hecha** el mismo día: 116 identificadores del Python de `tools/`, con las 11 salidas de sus herramientas
 idénticas al código anterior. **Fase 2 hecha** también: 26 archivos renombrados con `git mv`
-(`store/annotations.go`, `tools/citations.py`, `TASK-TEMPLATE.md`, `docs/ARCHITECTURE.md`…). Quedan en
-español, a propósito: las claves JSON, `schemas/tarea.v1.schema.json` (lleva el nombre del contrato,
-va con la 4b). **Fase 3 hecha**: `cmd/{today,closeout,branches,tasks,worklog,pulse}`,
+(`store/annotations.go`, `tools/citations.py`, `TASK-TEMPLATE.md`, `docs/ARCHITECTURE.md`…). **Fase 3 hecha**: `cmd/{today,closeout,branches,tasks,worklog,pulse}`,
 `internal/pulse` y `data/traps`, con el LaunchAgent del pulso reinstalado sobre `bin/pulse` y
 escribiendo. Quedan como nombres propios `cmd/cuadrilla`, la etiqueta del agente
 (`com.creditop.tablero.pulso`) y su log. **Fase 4 hecha**: `make tablero-naming` frena un nombre nuevo
 que no es inglés, y al estrenarse encontró 13 nombres en español (25 declaraciones) que las fases 1–3 no habían visto; se renombraron.
+**Fase 4b hecha** el mismo día: las claves JSON pasaron a inglés —122 en el server, 157 propiedades en
+la UI, 37 en `jev.py` y el hook de cierre— y el contrato subió a `tablero.task.v2`
+(`schemas/task.v2.schema.json`). Consola y API dan lo mismo que el binario anterior salvo el nombre de
+las claves (45/45), y la interfaz vieja con su server y la nueva con el suyo dan la misma huella (46/46
+regiones). `make tablero-naming` ahora también mira las claves JSON. Con eso el frente queda cerrado,
+salvo `tema.css`/`taller.css`.
 
 **Cada tarea es una carpeta (2026-09-23).** `tablero/tasks/<slug>/` con `task.md`, `context.jsonl` y
 `artifacts/`; `data/` quedó para lo operativo (bitácora, pulso, cachés, settings, trampas). Movidas las
@@ -83,10 +87,10 @@ toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pes
 a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
 Detalle en «Frente: la interfaz y lo que quedó muerto».
 
-**El próximo paso es:** reiniciar el `make tablero` que esté corriendo —el servidor viejo ya no encuentra
-tareas en `data/` y todavía sirve las rutas retiradas— y mirar la interfaz a mano, que en esta sesión sólo
-se vio en un Chromium sin cabeza. Después, decidir cuándo va la 4b —las claves JSON y
-`schemas/tarea.v1.schema.json`— y qué hacer con `tema.css`/`taller.css`, compartidos con harness y trazador.
+**El próximo paso es:** reiniciar el `make tablero` que esté corriendo —el servidor viejo no encuentra
+tareas en `data/`, sirve las rutas retiradas y habla con las claves viejas— y mirar la interfaz a mano,
+que en esta sesión sólo se vio en un Chromium sin cabeza. Después, decidir qué hacer con
+`tema.css`/`taller.css`, compartidos con harness y trazador: es lo único que queda del frente del inglés.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -118,9 +122,9 @@ se vio en un Chromium sin cabeza. Después, decidir cuándo va la 4b —las clav
       21/21 (targets de `make` y los dos hooks) y el pulso escribiendo con el binario nuevo.
 - [x] Nombres en inglés · fase 4: `make tablero-naming` — sale 1 con nombres españoles inventados
       en Go, Vue/JS, Python y un nombre de archivo, y 0 sin ellos; `make tablero-naming-test` 11/11.
-- [ ] Nombres en inglés · fase 4b: las claves JSON de la API y `schemas/tarea.v1.schema.json`, con el
-      contrato subido a `tablero.tarea.v2`; termina con la interfaz, los hooks y `make tarea-json`
-      leyendo las claves nuevas. Depende de: Miguel — cuándo.
+- [x] Nombres en inglés · fase 4b: las claves JSON, con el contrato en `tablero.task.v2` — consola y API
+      45/45 (`ab-json.sh`), interfaz 46/46 regiones (`ab-ui.sh`), hooks y `jev.py` leyendo las claves
+      nuevas, y `make tablero-naming` mirándolas.
 - [ ] Decidir `tema.css` y `taller.css`: son españoles pero compartidos con harness y trazador (fuente
       en `tools/ui/`); termina cuando se renombran en las tres a la vez o se declara que se quedan.
 - [x] Cada tarea es una carpeta: `tasks/<slug>/{task.md,context.jsonl,artifacts/}` — 89 movimientos, consola 31/33, API 15/17 + 2 con los cambios buscados, hooks probados con casos que fallan.
@@ -216,6 +220,23 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
    escrita envejece y un chequeo no.
    4b. Si la fase 0 lo decide: etiquetas JSON, con el contrato subido a `tablero.tarea.v2`.
 
+   ✔ **4b hecha el 2026-09-23**, a pedido de Miguel («Dale continua»). El contrato se llama
+   `tablero.task.v2` y no `tablero.tarea.v2` como decía este plan: su nombre es un identificador, y la
+   regla es la misma que para el resto.
+
+   > **MEDICIÓN · 2026-09-23** — el inventario por AST (`tools/rename/go/cmd/json-keys`: etiquetas, claves de mapas literales e índices) dio 135 claves en español en el server. Se renombraron 122 en 10 archivos (mapa en `tools/rename/maps/phase4b-json.tsv`, aplicado por contexto con `json/apply-go.py`); las otras son el contrato de otro. Del lado de los consumidores: 157 propiedades en la UI (`js/props.mjs`, que distingue un acceso `x.que` de una clave `{ que }` y deja las claves de un `:class`, que son clases CSS), 37 claves en `jev.py`, su test y el hook de cierre, y los fixtures del tablero en `tools/ui-check.mjs`. Nadie más lee esas salidas: ni workers, ni el arnés, ni el trazador.
+   > tablero/tools/rename/json/apply-go.py; node tablero/tools/rename/js/props.mjs -map tablero/tools/rename/maps/phase4b-json.tsv -map tablero/tools/rename/maps/phase4b-ui.tsv tablero/src/*.vue tablero/src/*.js
+
+   > **MEDICIÓN · 2026-09-23** — el binario de antes contra el de ahora, sobre los mismos datos: las 33 invocaciones de consola y los 12 GET de la API dan lo mismo una vez traducidas las claves viejas con el mapa (`json/normalize.py --old`); la única diferencia de valor es la versión del contrato. Se comprobó que la comparación no es vacía: la salida vieja traía `pendientesAbiertos`, `retoma`, `diasSinTocar`, y la nueva, los mismos datos con `openPending`, `resume`, `daysUntouched`. La interfaz vieja con su server y la nueva con el suyo, en 9 tareas × 3 pestañas: 46 regiones idénticas en texto y clases, sin errores de consola.
+   > tablero/tools/rename/ab-json.sh <árbol-anterior>; tablero/tools/rename/ab-ui.sh <árbol-anterior-con-src>
+
+   > **DECISIÓN · 2026-09-23** — quedan en español, con su alcance en `tools/naming-allow.txt` (`json:`), las claves que son el contrato de otro: la respuesta de canon (`objetivo`, `secciones`…), la API de cuadrilla (`rama`, `autor`…), los campos de Jira y el frontmatter, que se escribe a mano. Tampoco se tocan los VALORES —`clase: tarea`, los tipos de anotación (`medicion`…), las acciones de Jev, los ids de pestaña—, las clases CSS de un `:class` ni `separador`, que es de `workbench.js`, compartido con harness y trazador.
+
+   > **RIESGO · 2026-09-23** — tres cosas que fallaban en silencio. (1) `/api/ramas` decodifica el caché de ramas en structs: con las etiquetas nuevas, el archivo viejo se habría leído VACÍO, «sin medición», sin un error; se convirtió una vez (`migrations/2026-09-23-json-keys/convert-cache.py`) y `make tareas-ramas` ya lo escribe con las claves nuevas. (2) El caché de arranque del navegador guardaba la foto con `porSprint`: pasa a `VERSION = 2` y la foto vieja se descarta en vez de pintarse con campos vacíos. (3) Al rearmar el caché viejo para comparar, el camino inverso convirtió el `draft` de los PRs —que siempre fue inglés— en `borrador`, porque `borrador → draft` está en el mapa; el comparador marcó una diferencia que era suya. Se arregló (`REVERSE_KEEP`), y el caché rearmado quedó idéntico al real.
+
+   > **MEDICIÓN · 2026-09-23** — `make tablero-naming` mira ahora 896 claves JSON además de los identificadores. Con una sonda de tres etiquetas —`proximoPaso`, y `rama` y `nombre` fuera de cuadrilla, donde sí están aceptadas— salió 1 y nombró las tres; sin ella, 0. `make tablero-naming-test` 12/12, con una prueba de que una clave aceptada en un lugar no queda aceptada en otro ni se vuelve una palabra permitida.
+   > make tablero-naming; make tablero-naming-test
+
    ✔ Hecho el 2026-09-23: `tools/naming.py`, cableado en `make tablero-naming` y probado por
    `make tablero-naming-test`.
 
@@ -227,7 +248,7 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
 
    > **RIESGO · 2026-09-23** — por qué la fase 1 se los saltó: el detector de JS sólo contaba como declarado lo que crea un `const x` o un parámetro simple, no una desestructuración (`const [nodo, ancla] = …`) ni un parámetro con valor por defecto (`fijar = false`). El renombrador heredaba el mismo punto ciego. Hoy los dos usan `tools/rename/js/decls.mjs`. La lección es la del `CLAUDE.md` raíz, «una es la vara de otra»: el chequeo tiene que ser independiente de lo que se usó para renombrar, o repite sus huecos.
 
-   > **DECISIÓN · 2026-09-23** — `schemas/tarea.v1.schema.json` y `src/tema.css` se aceptan en español con su motivo en `tools/naming-allow.txt`: el primero cambia con el contrato (4b); el segundo es compartido con harness y trazador. `src/taller.css` es el mismo caso y el chequeo no lo ve, porque `taller` también es inglés: es el límite conocido de la vara.
+   > **DECISIÓN · 2026-09-23** — `schemas/tarea.v1.schema.json` y `src/tema.css` se aceptan en español con su motivo en `tools/naming-allow.txt`: el primero cambia con el contrato (4b); el segundo es compartido con harness y trazador. `src/taller.css` es el mismo caso y el chequeo no lo ve, porque `taller` también es inglés: es el límite conocido de la vara. *(La excepción del schema se retiró con la 4b: hoy es `schemas/task.v2.schema.json`.)*
 
 **Lo que NO entra.** El contenido de `data/` (tareas, títulos de sección como «Si retomás esto sin
 contexto», frontmatter `ramas:`/`canon:`), los mensajes que imprime la consola y los comentarios. El
@@ -312,6 +333,12 @@ llegan.
 ## Registro
 
 ### 2026-09-23
+
+Fase 4b: las claves JSON del tablero en inglés y el contrato en `tablero.task.v2`, con el server, la UI,
+`jev.py`, el hook de cierre y el schema cambiados juntos. Para hacerlo y probarlo nacieron un inventario de
+claves por AST, un renombrador de propiedades para Vue que respeta las clases CSS, un comparador de salidas
+que traduce las claves viejas (`ab-json.sh`) y la huella de la interfaz vieja contra la nueva
+(`ab-ui.sh`). `make tablero-naming` pasó a mirar también las claves, con excepciones por lugar.
 
 La interfaz y lo que quedó muerto: el server se quedó con las rutas que la UI lee, y se fueron el
 WebSocket, el guard servido, los ajustes, la escritura de tareas y bitácora, la consola de repos y

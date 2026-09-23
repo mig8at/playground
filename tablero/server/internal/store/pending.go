@@ -29,9 +29,9 @@ import (
 // tarjeta cuenta ésas (`remaining()` en la UI). Un pendiente resuelto se borra o se tilda, pero
 // nadie vuelve; asumir lo contrario haría que el contador mienta hacia abajo.
 type PendingItem struct {
-	What    string `json:"que"`     // el texto del ítem, una línea
-	Done    bool   `json:"hecho"`   // la casilla está tildada
-	Section string `json:"seccion"` // el encabezado bajo el que vive, para agrupar en el cajón
+	What    string `json:"what"`    // el texto del ítem, una línea
+	Done    bool   `json:"done"`    // la casilla está tildada
+	Section string `json:"section"` // el encabezado bajo el que vive, para agrupar en el cajón
 }
 
 // La casilla, con la indentación que tenga: los pendientes anidados cuentan igual. Se acepta `-`, `*`

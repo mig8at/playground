@@ -87,20 +87,20 @@ class TableroJevTests(unittest.TestCase):
             'slug': 'private-slug',
             'title': 'Evaluar el router',
             'stage': 'evaluation',
-            'diasSinTocar': 2,
-            'retoma': 'CUERPO PRIVADO',
-            'proximoPaso': 'Correr la batería sintética.',
-            'preguntasVencidas': [{'que': 'texto privado'}],
-            'pendientes': [{'que': 'otro texto privado'}],
-            'faltan': ['próximo paso'],
-            'ramas': ['private-branch'],
+            'daysUntouched': 2,
+            'resume': 'CUERPO PRIVADO',
+            'nextStep': 'Correr la batería sintética.',
+            'overdueQuestions': [{'what': 'texto privado'}],
+            'pending': [{'what': 'otro texto privado'}],
+            'missing': ['próximo paso'],
+            'branches': ['private-branch'],
         }
         state = jev.state_from_task(task)
         encoded = json.dumps(state)
         for hidden in ('private-slug', 'CUERPO PRIVADO', 'texto privado', 'private-branch'):
             self.assertNotIn(hidden, encoded)
         self.assertEqual((state['overdue_questions'], state['open_pending']), (1, 1))
-        task['proximoPaso'] = 'token=secret-value'
+        task['nextStep'] = 'token=secret-value'
         with self.assertRaisesRegex(jev.JevError, 'secreto'):
             jev.state_from_task(task)
 
@@ -120,9 +120,9 @@ class TableroJevTests(unittest.TestCase):
     def test_cli_preview_saves_private_report(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(jev, 'RUNS', Path(directory)), \
                 patch.object(jev, 'load_task', return_value={
-                    'title': 'Tarea', 'stage': 'work', 'diasSinTocar': 0,
-                    'proximoPaso': 'Ejecutar prueba', 'preguntasVencidas': [],
-                    'pendientes': [], 'faltan': [],
+                    'title': 'Tarea', 'stage': 'work', 'daysUntouched': 0,
+                    'nextStep': 'Ejecutar prueba', 'overdueQuestions': [],
+                    'pending': [], 'missing': [],
                 }), patch('sys.stdout', new_callable=io.StringIO):
             self.assertEqual(jev.main(['triage', '89']), 0)
             reports = list(Path(directory).glob('*.json'))
@@ -132,9 +132,9 @@ class TableroJevTests(unittest.TestCase):
     def test_label_and_stats_only_use_real_triage_reports(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(jev, 'RUNS', Path(directory)), \
                 patch.object(jev, 'load_task', return_value={
-                    'title': 'Tarea', 'stage': 'work', 'diasSinTocar': 0,
-                    'proximoPaso': 'Ejecutar prueba', 'preguntasVencidas': [],
-                    'pendientes': [], 'faltan': [],
+                    'title': 'Tarea', 'stage': 'work', 'daysUntouched': 0,
+                    'nextStep': 'Ejecutar prueba', 'overdueQuestions': [],
+                    'pending': [], 'missing': [],
                 }), patch('sys.stdout', new_callable=io.StringIO):
             self.assertEqual(jev.main(['triage', '89']), 0)
             report = next(Path(directory).glob('*.json'))

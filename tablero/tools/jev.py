@@ -182,16 +182,16 @@ def state_from_task(task):
     if not isinstance(task, dict):
         raise JevError('la salida de retomar no es JSON válido')
     title = str(task.get('title') or '').strip()
-    next_step = str(task.get('proximoPaso') or '').strip()
+    next_step = str(task.get('nextStep') or '').strip()
     if SECRET.search(title) or SECRET.search(next_step):
         raise JevError('título o próximo paso parece contener un secreto; no se prepara el payload')
-    overdue = task.get('preguntasVencidas') or []
-    pending = task.get('pendientes') or []
-    missing = task.get('faltan') or []
+    overdue = task.get('overdueQuestions') or []
+    pending = task.get('pending') or []
+    missing = task.get('missing') or []
     return {
         'title': title[:180],
         'stage': str(task.get('stage') or ''),
-        'days_without_touch': max(0, int(task.get('diasSinTocar') or 0)),
+        'days_without_touch': max(0, int(task.get('daysUntouched') or 0)),
         'next_step': next_step[:700],
         'overdue_questions': len(overdue),
         'open_pending': len(pending),

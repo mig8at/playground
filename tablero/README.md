@@ -424,9 +424,12 @@ otra tarea local.
 La API tampoco acepta crear esfuerzos locales sueltos: una tarea de producto se importa desde Jira y
 una mejora interna se escribe en el contenedor ya existente.
 
-`make tarea-json N=<slug|id>` deriva una vista `tablero.tarea.v1` desde ese mismo Markdown: identidad,
+`make tarea-json N=<slug|id>` deriva una vista `tablero.task.v2` desde ese mismo Markdown: identidad,
 retoma, próximo paso, conteos, pendientes, anotaciones, índice de secciones y estado del borrador para
-Jira. No guarda sidecars. El contrato está en [`schemas/tarea.v1.schema.json`](schemas/tarea.v1.schema.json).
+Jira. No guarda sidecars. El contrato está en [`schemas/task.v2.schema.json`](schemas/task.v2.schema.json).
+*(Hasta el 2026-09-23 era `tablero.tarea.v1`, con las claves en español; la v2 tiene los mismos datos con
+las claves en inglés —`nextStep`, `openPending`, `annotations`—. El mapa viejo → nuevo está en
+`tools/rename/maps/phase4b-json.tsv`.)*
 Esta es la forma recomendada para Jev, workers y automatizaciones; el cuerpo privado completo se abre
 sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrador publicable; el modo
 normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.

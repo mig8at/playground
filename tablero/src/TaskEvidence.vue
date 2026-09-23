@@ -13,18 +13,18 @@ const props = defineProps({
   notes: { type: String, default: '' },
   harnessUrl: { type: String, required: true },
   tracerUrl: { type: String, required: true },
-  branches: { type: Object, default: () => ({ ramas: [] }) },
+  branches: { type: Object, default: () => ({ branches: [] }) },
 });
 const emit = defineEmits(['show-branches']);
 
-const hasSource = (item, source) => item?.fuentes?.includes(source);
+const hasSource = (item, source) => item?.sources?.includes(source);
 const proofs = computed(() => [...props.evidence]
-  .filter(item => item?.como || item?.fuentes?.length)
-  .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')));
+  .filter(item => item?.how || item?.sources?.length)
+  .sort((a, b) => (b.date || '').localeCompare(a.date || '')));
 const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item, 'trazador')).length);
 const harnessEvidence = computed(() => proofs.value.filter(item => hasSource(item, 'harness')));
-const measuredBranches = computed(() => props.branches?.ramas || []);
-const branchesInMain = computed(() => measuredBranches.value.filter(branch => branch.en?.main).length);
+const measuredBranches = computed(() => props.branches?.branches || []);
+const branchesInMain = computed(() => measuredBranches.value.filter(branch => branch.in?.main).length);
 const branchesLabel = computed(() => measuredBranches.value.length
   ? `${measuredBranches.value.length} ${measuredBranches.value.length === 1 ? 'rama' : 'ramas'} · ${branchesInMain.value} en main`
   : 'Sin ramas medidas');
@@ -43,7 +43,7 @@ const harnessCommands = computed(() => {
     // Los comandos de la receta son bloques de código sangrados. No se escanea la prosa: «volver a
     // correr bin/asesor» es una instrucción humana, no un comando que se pueda copiar y ejecutar.
     ...props.notes.split('\n').filter(line => /^(?: {4}|\t)/.test(line)).map(line => line.trim()),
-    ...harnessEvidence.value.flatMap(item => String(item.como || '').split('\n')),
+    ...harnessEvidence.value.flatMap(item => String(item.how || '').split('\n')),
   ];
   return [...new Set(candidates.map(cleanHarnessCommand).filter(Boolean))];
 });
@@ -81,13 +81,13 @@ const harnessCommands = computed(() => {
     <section class="evidence-section proof-section">
       <h4>Comprobaciones registradas <span v-if="proofs.length">{{ proofs.length }}</span></h4>
       <p v-if="!proofs.length" class="empty">Todavía no hay una comprobación reproducible registrada.</p>
-      <article v-for="item in proofs" :key="`${item.fecha}-${item.que}`" class="proof">
+      <article v-for="item in proofs" :key="`${item.date}-${item.what}`" class="proof">
         <div class="proof-meta">
-          <time :datetime="item.fecha">{{ item.fecha }}</time>
-          <span v-for="source in item.fuentes" :key="source" class="badge badge-outline badge-xs">{{ source }}</span>
+          <time :datetime="item.date">{{ item.date }}</time>
+          <span v-for="source in item.sources" :key="source" class="badge badge-outline badge-xs">{{ source }}</span>
         </div>
-        <p>{{ item.que }}</p>
-        <pre v-if="item.como">{{ item.como }}</pre>
+        <p>{{ item.what }}</p>
+        <pre v-if="item.how">{{ item.how }}</pre>
       </article>
     </section>
 

@@ -134,8 +134,8 @@ def main() -> int:
         return 0  # sin transcript no se sabe qué tocó ESTA sesión; mejor callar que molestar a ciegas
 
     mias = []
-    for t in informe.get("tareas") or []:
-        if not t.get("faltan"):
+    for t in informe.get("tasks") or []:
+        if not t.get("missing"):
             continue
         # La RUTA del archivo, no el slug pelado: un comando que sólo nombra la tarea (un grep, un
         # dato de prueba, un `make tareas N=x`) no la tocó. Medido en la primera corrida real: marcó
@@ -145,7 +145,7 @@ def main() -> int:
             continue
         # o la sesión trabajó en una rama que la tarea declara: ahí el trabajo existe aunque su
         # archivo no se haya tocado — que es justamente lo que el cierre viene a reclamar.
-        for m in t.get("tocada", []):
+        for m in t.get("touchedBy", []):
             if m.startswith("rama ") and "/" in m[5:]:
                 rama = m[5:].split("/", 1)[1]
                 if any(rama in texto for _, texto in piezas):
@@ -155,21 +155,21 @@ def main() -> int:
         return 0
 
     lineas = [
-        f"CIERRE DEL TABLERO · {informe['dia']} · a las tareas que tocaste en esta sesión les faltan piezas "
+        f"CIERRE DEL TABLERO · {informe['day']} · a las tareas que tocaste en esta sesión les faltan piezas "
         f"(medido por `make cierre`; tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»):",
         "",
     ]
     for t in mias:
-        lineas.append(f"#{t['id']} {t['slug']}  (tocada por: {' · '.join(t.get('tocada', []))})")
-        for f in t["faltan"]:
+        lineas.append(f"#{t['id']} {t['slug']}  (tocada por: {' · '.join(t.get('touchedBy', []))})")
+        for f in t["missing"]:
             lineas.append(f"   ✗ {f}")
         lineas.append("")
-    if informe.get("ramasSinTarea"):
-        lineas.append("ramas tocadas hoy que ninguna tarea declara en `ramas:`: " + ", ".join(informe["ramasSinTarea"]))
+    if informe.get("branchesWithoutTask"):
+        lineas.append("ramas tocadas hoy que ninguna tarea declara en `ramas:`: " + ", ".join(informe["branchesWithoutTask"]))
         lineas.append("")
-    if informe.get("pulsoDisponible"):
-        lineas.append(f"pulso del día: {informe['pulsoMinutos']}′ · bitácora: {informe['bitacoraMinutos']}′ "
-                      f"({informe.get('bitacoraSinTareaMinutos', 0)}′ sin tarea). Los minutos se MIDEN (`make pulso`), no se estiman.")
+    if informe.get("pulseAvailable"):
+        lineas.append(f"pulso del día: {informe['pulseMinutes']}′ · bitácora: {informe['worklogMinutes']}′ "
+                      f"({informe.get('worklogWithoutTaskMinutes', 0)}′ sin tarea). Los minutos se MIDEN (`make pulso`), no se estiman.")
     lineas.append("Si esta era la última respuesta de la sesión, completá lo que falta ahora. Si seguís en el medio del "
                   "trabajo, decilo en una línea y continuá: este aviso no se repite en esta sesión.")
 

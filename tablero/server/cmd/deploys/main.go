@@ -48,15 +48,15 @@ const org = "Creditop-SAS"
 type run struct {
 	Repo        string `json:"repo"`
 	Name        string `json:"workflow"`
-	Branch      string `json:"rama"`
-	State       string `json:"estado"` // success | failure | cancelled | in_progress…
-	Title       string `json:"titulo"`
-	Created     string `json:"creada"`
+	Branch      string `json:"branch"`
+	State       string `json:"state"` // success | failure | cancelled | in_progress…
+	Title       string `json:"title"`
+	Created     string `json:"created"`
 	URL         string `json:"url"`
 	ID          int64  `json:"id"`
-	Environment string `json:"ambiente,omitempty"`
-	FailedJob   string `json:"jobFallido,omitempty"`
-	FailedStep  string `json:"pasoQueFallo,omitempty"`
+	Environment string `json:"environment,omitempty"`
+	FailedJob   string `json:"failedJob,omitempty"`
+	FailedStep  string `json:"failedStep,omitempty"`
 	Error       string `json:"error,omitempty"` // la línea del log que dice POR QUÉ; sólo con -fallas
 }
 

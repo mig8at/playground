@@ -1,4 +1,6 @@
-const VERSION = 1;
+// 2 desde la fase 4b (2026-09-23): las claves de la foto pasaron a inglés (`porSprint` → `bySprint`), y una
+// foto vieja se descarta en vez de pintarse con campos vacíos. La clave de `localStorage` no cambia: se pisa.
+const VERSION = 2;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const BOOTSTRAP_CACHE_KEY = 'tablero:bootstrap:v1';
 
@@ -8,7 +10,7 @@ export function readBootstrapCache(storage = globalThis.localStorage, now = Date
   try {
     const value = JSON.parse(storage?.getItem(BOOTSTRAP_CACHE_KEY) || 'null');
     if (value?.version !== VERSION || !value.sprint || !Array.isArray(value.issues)
-      || !Array.isArray(value.sprints) || !Array.isArray(value.porSprint)) return null;
+      || !Array.isArray(value.sprints) || !Array.isArray(value.bySprint)) return null;
     const savedAt = Date.parse(value.savedAt || '');
     if (!Number.isFinite(savedAt) || now - savedAt > MAX_AGE_MS) return null;
     return value;
@@ -23,7 +25,7 @@ export function writeBootstrapCache(snapshot, storage = globalThis.localStorage,
       sprint: snapshot.sprint,
       sprints: snapshot.sprints || [],
       issues: snapshot.issues || [],
-      porSprint: snapshot.porSprint || [],
+      bySprint: snapshot.bySprint || [],
       site: snapshot.site || '',
     }));
     return true;

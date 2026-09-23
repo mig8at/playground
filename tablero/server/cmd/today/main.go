@@ -231,21 +231,21 @@ func openPendingItems(t task) (open []store.PendingItem, total int) {
 
 type branchSnap struct {
 	Repo   string          `json:"repo"`
-	Branch string          `json:"rama"`
-	In     map[string]bool `json:"en"`
+	Branch string          `json:"branch"`
+	In     map[string]bool `json:"in"`
 	PR     *struct {
-		Number int    `json:"numero"`
-		State  string `json:"estado"`
+		Number int    `json:"number"`
+		State  string `json:"state"`
 		Base   string `json:"base"`
 	} `json:"pr"`
 }
 
 type branchesSnap struct {
-	MeasuredAt string `json:"medidoEn"`
+	MeasuredAt string `json:"measuredAt"`
 	Tasks      map[string]struct {
-		Branches []branchSnap `json:"ramas"`
-	} `json:"tareas"`
-	Incomplete []string `json:"incompletas"`
+		Branches []branchSnap `json:"branches"`
+	} `json:"tasks"`
+	Incomplete []string `json:"incomplete"`
 }
 
 func readSnap(data string) branchesSnap {
@@ -352,14 +352,14 @@ type row struct {
 	Slug         string   `json:"slug"`
 	Title        string   `json:"title"`
 	Stage        string   `json:"stage"`
-	Class        string   `json:"clase"`
-	Days         int      `json:"diasSinTocar"`
-	NextStep     string   `json:"proximoPaso"`
-	Delivery     string   `json:"entrega"`
-	Overdue      []string `json:"preguntasVencidas"`
-	Pending      int      `json:"pendientes"`
-	Dormant      bool     `json:"dormida"`
-	SuggestClose bool     `json:"sugerirArchivar"`
+	Class        string   `json:"class"`
+	Days         int      `json:"daysUntouched"`
+	NextStep     string   `json:"nextStep"`
+	Delivery     string   `json:"delivery"`
+	Overdue      []string `json:"overdueQuestions"`
+	Pending      int      `json:"pending"`
+	Dormant      bool     `json:"dormant"`
+	SuggestClose bool     `json:"suggestArchive"`
 }
 
 func agenda(tasks []task, snap branchesSnap, stage string, asJSON bool) int {
@@ -718,13 +718,13 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 
 	if asJSON {
 		output := map[string]any{
-			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "diasSinTocar": t.days(),
-			"retoma": resumeText, "proximoPaso": nextStepText, "registroFecha": recordDate, "registro": recordBlock,
-			"entrega": delivery(snap, t.ID), "ramas": snap.Tasks[strconv.Itoa(t.ID)].Branches,
-			"preguntasVencidas": overdue, "pendientes": pend, "bitacora": bit, "contexto": contextInfo, "faltan": missing,
+			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
+			"resume": resumeText, "nextStep": nextStepText, "recordDate": recordDate, "record": recordBlock,
+			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
+			"overdueQuestions": overdue, "pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
 		}
 		if brief != "" {
-			output["canon"], output["canonAviso"] = briefs, briefsNotice
+			output["canon"], output["canonNotice"] = briefs, briefsNotice
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(output)
 		return 0

@@ -70,7 +70,7 @@ export function organizeDocument(markdown) {
     // Cuántos DÍAS registra. El Registro se apila con un `###` por jornada, así que esto es el contador
     // que la pestaña muestra — y de paso el dato que dice si una tarea se trabajó una tarde o dos meses.
     section.entries = section.tokens.filter(t => t.type === 'heading' && t.depth === 3).length;
-    section.retoma = section.order === 0;
+    section.resume = section.order === 0;
     section.html = render(section.tokens, tokens.links);
     const pending = [];
     const summary = summaryTokens(section.tokens, pending);

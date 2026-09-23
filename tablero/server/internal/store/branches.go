@@ -43,23 +43,23 @@ var DefaultEnvironments = []string{"develop", "staging", "qa", "main"}
 
 // TaskBranch es UNA rama de trabajo de la tarea, con hasta dónde llegó.
 type TaskBranch struct {
-	Repo   string `json:"repo"` // nombre corto del repo (no la ruta absoluta: la card muestra esto)
-	Branch string `json:"rama"` // sin el prefijo `origin/`
+	Repo   string `json:"repo"`   // nombre corto del repo (no la ruta absoluta: la card muestra esto)
+	Branch string `json:"branch"` // sin el prefijo `origin/`
 	// Local: la rama sólo existe en esta máquina. Pasa sobre todo con las MERGEADAS —al aprobar el PR se
 	// borra la remota y queda la copia local—, así que no equivale a "sin pushear": mirá los ambientes.
 	Local   bool   `json:"local,omitempty"`
-	Commit  string `json:"commit"` // punta de la rama, corto
-	Subject string `json:"asunto"` // primera línea del commit de punta
+	Commit  string `json:"commit"`  // punta de la rama, corto
+	Subject string `json:"subject"` // primera línea del commit de punta
 	// In dice si EL COMMIT DE PUNTA de la rama —el cambio de la tarea— ya está en cada ambiente,
 	// medido por patch-id. Es la respuesta a "¿esto ya llegó a develop?" y es la señal principal.
 	//
 	// ⚠ Se mira la PUNTA y no "¿le queda algo propio?" porque eso último engaña: una rama cortada de
 	// `main` arrastra ~190 commits ajenos contra `develop`, y decir "falta en develop(190)" sugiere 190
 	// cambios pendientes cuando el pendiente es UNO. Visto midiendo la tarea de países.
-	In map[string]bool `json:"en"`
+	In map[string]bool `json:"in"`
 	// Own es cuántos commits de la rama NO están en cada ambiente: el contexto de cuánta deriva
 	// arrastra la rama. NO es "cuánto falta de esta tarea" — para eso está `In`.
-	Own map[string]int `json:"propios"`
+	Own map[string]int `json:"own"`
 	// How dice CÓMO se supo que el cambio está en cada ambiente, y existe porque las dos señales no
 	// valen lo mismo:
 	//
@@ -74,7 +74,7 @@ type TaskBranch struct {
 	// había llegado a `main`. Se guarda la procedencia en vez de mezclarlas porque la señal por PR habla
 	// del PR, no de la punta: si alguien siguió commiteando en la rama después del merge, la punta de
 	// verdad no está y el ✓ tiene que poder explicarse.
-	How map[string]string `json:"como,omitempty"`
+	How map[string]string `json:"how,omitempty"`
 	// PR de esta rama, si lo hay. Nil = no se pudo preguntar (sin `gh`/sin red) o la rama no tiene PR;
 	// los dos casos se ven igual en la card a propósito: "no hay PR" es la información útil, y
 	// distinguir "no pude preguntar" pediría un tercer estado que nadie va a mirar.
@@ -84,13 +84,13 @@ type TaskBranch struct {
 // PullRequest es lo mínimo para contestar «¿por qué esto no avanza?»: a dónde va, en qué estado está y
 // si alguien lo tiene que revisar.
 type PullRequest struct {
-	Number   int    `json:"numero"`
-	State    string `json:"estado"` // OPEN | MERGED | CLOSED
-	Base     string `json:"base"`   // contra qué rama
+	Number   int    `json:"number"`
+	State    string `json:"state"` // OPEN | MERGED | CLOSED
+	Base     string `json:"base"`  // contra qué rama
 	URL      string `json:"url"`
 	Revision string `json:"revision"` // APPROVED | REVIEW_REQUIRED | CHANGES_REQUESTED | "" (sin revisor pedido)
 	Draft    bool   `json:"draft"`
-	Merged   string `json:"mergeado,omitempty"` // fecha, si ya se mergeó
+	Merged   string `json:"merged,omitempty"` // fecha, si ya se mergeó
 	// MergeCommit es el commit que quedó en la base al mergear (el del squash, si fue squash). Es lo que
 	// permite contestar «¿llegó a main?» cuando el patch-id ya no coincide — ver `TaskBranch.How`.
 	MergeCommit string `json:"mergeCommit,omitempty"`
@@ -98,26 +98,26 @@ type PullRequest struct {
 
 // TaskBranches es el resultado por tarea.
 type TaskBranches struct {
-	Pattern  string       `json:"patron"`
-	Branches []TaskBranch `json:"ramas"`
+	Pattern  string       `json:"pattern"`
+	Branches []TaskBranch `json:"branches"`
 	// MeasuredAt es cuándo se midió ESTA tarea, y existe porque el snapshot se puede actualizar de a una
 	// (`ramas -n 62`). Con una sola fecha global, una tarea medida hace una semana se leía con la fecha
 	// de la corrida de hoy — un dato viejo presentado como fresco.
-	MeasuredAt string `json:"medidoEn,omitempty"`
+	MeasuredAt string `json:"measuredAt,omitempty"`
 }
 
 // BranchSnapshot es lo que se guarda en disco.
 type BranchSnapshot struct {
-	MeasuredAt string `json:"medidoEn"` // RFC3339: la card muestra "medido hace X"
-	Root       string `json:"root"`     // dónde se buscaron los repos
+	MeasuredAt string `json:"measuredAt"` // RFC3339: la card muestra "medido hace X"
+	Root       string `json:"root"`       // dónde se buscaron los repos
 	// Por ID de tarea (como cadena, que es lo que permite JSON). Se usa el ID y no el slug porque el
 	// nombre del archivo se puede renombrar a mano —el id vive en el frontmatter y es la identidad—,
 	// así que una clave por slug se orfanaría con un renombre.
-	Tasks map[string]TaskBranches `json:"tareas"`
+	Tasks map[string]TaskBranches `json:"tasks"`
 	// Incomplete: ids que NO se alcanzaron a medir (se venció el tiempo). Van declaradas porque un
 	// snapshot que calla lo que le falta se lee como entero: el 2026-09-14 cinco tareas salieron con
 	// cero ramas por un timeout y parecían tareas sin ramas.
-	Incomplete []string `json:"incompletas,omitempty"`
+	Incomplete []string `json:"incomplete,omitempty"`
 }
 
 var gitBin = func() string {
@@ -362,10 +362,10 @@ func reaches(ctx context.Context, repo, ref, env string, pr *PullRequest) (reach
 // reales, con su fecha, y quien decide ve qué traería cada candidato antes de escribirlo.
 type LooseBranch struct {
 	Repo    string `json:"repo"`
-	Branch  string `json:"rama"`
-	Date    string `json:"fecha"` // YYYY-MM-DD del último commit
+	Branch  string `json:"branch"`
+	Date    string `json:"date"` // YYYY-MM-DD del último commit
 	Local   bool   `json:"local,omitempty"`
-	Subject string `json:"asunto,omitempty"`
+	Subject string `json:"subject,omitempty"`
 }
 
 // AllBranches lista las ramas de todos los repos bajo root en UNA pasada (dos llamadas a git por

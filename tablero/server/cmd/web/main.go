@@ -303,7 +303,7 @@ func main() {
 
 	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide al cargar
 	// porque son varias invocaciones de git por repo; la consola lo hace sólo cuando se pide
-	// explícitamente actualizar la tarea enfocada. Por eso viaja con `medidoEn`: la card muestra la
+	// explícitamente actualizar la tarea enfocada. Por eso viaja con `measuredAt`: la card muestra la
 	// antigüedad y el humano decide si re-medir. Si no hay snapshot devuelve vacío, que no es un error.
 	mux.HandleFunc("/api/ramas", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
@@ -1138,7 +1138,7 @@ type jevPendingEvidence struct {
 type jevPendingState struct {
 	Title    string               `json:"title"`
 	NextStep string               `json:"next_step"`
-	Resume   string               `json:"retoma"`
+	Resume   string               `json:"resume"`
 	Pending  []jevPendingItem     `json:"pending"`
 	Evidence []jevPendingEvidence `json:"evidence"`
 }

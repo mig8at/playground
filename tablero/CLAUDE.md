@@ -359,16 +359,19 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
 
 ## El código del tablero se nombra en inglés
 
-Identificadores, archivos y carpetas del código del tablero van en inglés; los comentarios, las tareas
-de `data/` y los mensajes de consola siguen en español. Se quedan como nombres propios `tablero`,
-`trazador`, `cuadrilla`, los targets de `make` y la etiqueta del agente del pulso. Las claves JSON de la
-API todavía están en español y cambian juntas, en su propia tanda (fase 4b del frente en
-`data/tablero.md`), porque son contrato con la interfaz, los hooks y `tablero.tarea.v1`.
+Identificadores, archivos, carpetas y claves JSON del código del tablero van en inglés; los
+comentarios, las tareas de `tasks/` (incluido su frontmatter) y los mensajes de consola siguen en
+español. Se quedan como nombres propios `tablero`, `trazador`, `cuadrilla`, los targets de `make` y la
+etiqueta del agente del pulso. Las claves JSON pasaron a inglés el 2026-09-23 (fase 4b, con el contrato
+subido a `tablero.task.v2`); quedan en español sólo las que son el contrato de OTRO —la respuesta de
+canon, la API de cuadrilla, Jira, el frontmatter— y cada una está aceptada con su alcance en
+`tools/naming-allow.txt` (`json: <ruta>[:<tipo>] <claves>`), no como palabra suelta.
 
 **`make tablero-naming` lo verifica** y sale 1 ante un nombre nuevo que no es inglés. Revisa los
-identificadores declarados en Go, Vue/JS y Python y los nombres de archivo y carpeta, y dice cuántos
-leyó de cada fuente: una fuente vacía es un error, no un verde. `make tablero-naming-test` fija su
-lógica, incluido un nombre español inventado en cada lenguaje.
+identificadores declarados en Go, Vue/JS y Python, las claves JSON que emite el server (etiquetas y
+mapas literales, por AST) y los nombres de archivo y carpeta, y dice cuántos leyó de cada fuente: una
+fuente vacía es un error, no un verde. `make tablero-naming-test` fija su lógica, incluido un nombre
+español inventado en cada lenguaje y una clave aceptada en un lugar que no queda aceptada en otro.
 
 ⚠ **La vara del inglés es la stdlib de Go y de Python, no el diccionario del sistema**, que trae inglés
 arcaico y deja pasar `aviso`, `leer` o `tema`. Lo legítimo que la vara no conoce va a
@@ -391,7 +394,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo, siguiente
   acción y condición de cierre; al terminar se resume en Registro y se retira de los pendientes.
 - **JSON es una proyección, no otro archivo para editar.** `make tarea-json N=<slug|id>` deriva el
-  contrato `tablero.tarea.v1` desde el Markdown. Jev, workers y automatizaciones consumen esa vista;
+  contrato `tablero.task.v2` desde el Markdown. Jev, workers y automatizaciones consumen esa vista;
   la explicación y la evidencia siguen teniendo una sola fuente. No crees sidecars manuales.
 - **Las tareas locales son `clase: proyecto`, nunca llevan Jira ni sección publicable.** Las tareas
   ligadas a Jira usan `clase: tarea` —el default— y pueden conservar el cuerpo privado y el borrador
@@ -617,7 +620,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       make tareas                       las abiertas, con etapa, Jira y nodos
       make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
       make tareas STAGE=work TODAS=1 JSON=1
-      make tarea-json N=tablero         una tarea en el contrato tipado `tablero.tarea.v1`
+      make tarea-json N=tablero         una tarea en el contrato tipado `tablero.task.v2`
       make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
       make sprint                       el sprint activo con puntos, del SNAPSHOT
       make bitacora DAYS=7              el tiempo registrado, por día

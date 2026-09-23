@@ -26,15 +26,15 @@ import (
 // Se eligió la cita de markdown porque se ve distinta al leer el archivo a pelo —que es como lo lee
 // un modelo— y no necesita que nadie mantenga un índice.
 type Annotation struct {
-	Kind string `json:"tipo"`  // medicion | decision | pregunta | riesgo
-	Date string `json:"fecha"` // YYYY-MM-DD
-	Who  string `json:"quien"` // sólo pregunta: de quién se espera la respuesta
-	What string `json:"que"`   // la afirmación, una línea
-	How  string `json:"como"`  // opcional: la consulta o el comando ya limpio de Markdown
+	Kind string `json:"kind"` // medicion | decision | pregunta | riesgo
+	Date string `json:"date"` // YYYY-MM-DD
+	Who  string `json:"who"`  // sólo pregunta: de quién se espera la respuesta
+	What string `json:"what"` // la afirmación, una línea
+	How  string `json:"how"`  // opcional: la consulta o el comando ya limpio de Markdown
 	// Sources: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `How` (ver sources.go). Vacío
 	// cuando no hay `How` o cuando no matchea ninguna herramienta conocida — que es un dato, no un
 	// hueco: dice que esa afirmación no trae con qué volver a comprobarla.
-	Sources []string `json:"fuentes,omitempty"`
+	Sources []string `json:"sources,omitempty"`
 }
 
 var (

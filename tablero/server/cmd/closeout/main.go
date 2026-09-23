@@ -60,34 +60,34 @@ type Revision struct {
 	ID           int      `json:"id"`
 	Slug         string   `json:"slug"`
 	Title        string   `json:"title"`
-	Reasons      []string `json:"tocada"` // por qué cuenta como tocada: "archivo", "rama <x>"
-	Resume       string   `json:"retoma"` // ok · sin-seccion · sin-cambios
-	NextStep     bool     `json:"proximoPaso"`
-	RecordToday  bool     `json:"registroHoy"`
-	ContextToday bool     `json:"contextoHoy"`
-	MinutesToday int      `json:"minutosHoy"`
+	Reasons      []string `json:"touchedBy"` // por qué cuenta como tocada: "archivo", "rama <x>"
+	Resume       string   `json:"resume"`    // ok · sin-seccion · sin-cambios
+	NextStep     bool     `json:"nextStep"`
+	RecordToday  bool     `json:"recordToday"`
+	ContextToday bool     `json:"contextToday"`
+	MinutesToday int      `json:"minutesToday"`
 	// NoProgress: la entrada del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime de la
 	// bitácora y sólo de la bitácora.
-	NoProgress       bool     `json:"sinAvance,omitempty"`
-	DeclaredBranches bool     `json:"ramasDeclaradas"`
-	Missing          []string `json:"faltan"`
+	NoProgress       bool     `json:"noProgress,omitempty"`
+	DeclaredBranches bool     `json:"declaredBranches"`
+	Missing          []string `json:"missing"`
 	// Watch: lo que conviene revisar pero NO es una pieza faltante — no suma a `MissingPieces` ni hace
 	// salir 1. La distinción es la misma que el repo ya usa en el lint: el chequeo habla de lo que está
 	// MAL, y los juicios se ofrecen sin bloquear.
-	Watch []string `json:"mirar,omitempty"`
+	Watch []string `json:"watch,omitempty"`
 }
 
 type Report struct {
-	Day                 string     `json:"dia"`
-	PulseMinutes        int        `json:"pulsoMinutos"`
-	WorklogMin          int        `json:"bitacoraMinutos"`
-	WorklogN            int        `json:"bitacoraEntradas"`
-	WithoutTaskMin      int        `json:"bitacoraSinTareaMinutos"`
-	Tasks               []Revision `json:"tareas"`
-	BranchesWithoutTask []string   `json:"ramasSinTarea"`
-	Warnings            []string   `json:"avisos"`
-	MissingPieces       int        `json:"piezasFaltan"`
-	PulseAvailable      bool       `json:"pulsoDisponible"`
+	Day                 string     `json:"day"`
+	PulseMinutes        int        `json:"pulseMinutes"`
+	WorklogMin          int        `json:"worklogMinutes"`
+	WorklogN            int        `json:"worklogEntries"`
+	WithoutTaskMin      int        `json:"worklogWithoutTaskMinutes"`
+	Tasks               []Revision `json:"tasks"`
+	BranchesWithoutTask []string   `json:"branchesWithoutTask"`
+	Warnings            []string   `json:"warnings"`
+	MissingPieces       int        `json:"missingPieces"`
+	PulseAvailable      bool       `json:"pulseAvailable"`
 }
 
 var (

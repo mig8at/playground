@@ -1,10 +1,12 @@
 """naming.py — ¿el código del tablero nombra algo en español?
 
 Recorre lo que se ESCRIBE al invocar el tablero —los identificadores declarados en su Go, su Vue/JS y
-su Python, y los nombres de archivo y carpeta— y sale 1 si alguno lleva una palabra que no es inglés.
-Es la fase 4 del frente «el código en inglés» (tablero/tasks/tablero/task.md): una regla escrita envejece y
-un chequeo no. Los comentarios, las tareas de `data/` y las claves JSON quedan afuera a propósito: los
-primeros se leen para entender, y las claves son un contrato que tiene su propia tanda.
+su Python, las claves JSON que emite su server y los nombres de archivo y carpeta— y sale 1 si alguno
+lleva una palabra que no es inglés. Es la fase 4 del frente «el código en inglés»
+(tablero/tasks/tablero/task.md): una regla escrita envejece y un chequeo no. Los comentarios y las tareas de
+`tasks/` quedan afuera a propósito: se leen para entender. Las claves JSON entraron con la fase 4b
+(2026-09-23), y las que son el contrato de OTRO —canon, cuadrilla, Jira, el frontmatter que se escribe a
+mano— se aceptan con su alcance en naming-allow.txt (`json:`), no como palabras sueltas.
 
 ⚠ LA VARA DEL INGLÉS NO ES EL DICCIONARIO DEL SISTEMA. Se probó en la fase 1 y deja pasar `aviso`,
 `leer`, `tema` o `antes`, porque trae inglés arcaico. La vara es el código de las bibliotecas estándar
@@ -83,18 +85,47 @@ def base_forms(word):
 
 
 def load_allow(path=ALLOW_FILE):
-    """naming-allow.txt: una palabra por línea, o `path: <ruta relativa a tablero/>  # motivo`."""
+    """naming-allow.txt: una palabra por línea, o `path: <ruta relativa a tablero/>  # motivo`.
+    Las líneas `json:` son de `load_json_allow` y acá se saltean: si entraran como palabras, permitir la
+    clave `rama` de cuadrilla dejaría pasar cualquier identificador `rama`."""
     words, paths = set(), {}
     for raw in path.read_text().splitlines():
         line = raw.split('#', 1)[0].strip()
         reason = raw.split('#', 1)[1].strip() if '#' in raw else ''
-        if not line:
+        if not line or line.startswith('json:'):
             continue
         if line.startswith('path:'):
             paths[line[5:].strip()] = reason
         else:
             words.update(line.lower().split())
     return words, paths
+
+
+def load_json_allow(path=ALLOW_FILE):
+    """Las líneas `json: <ruta>[:<tipo|clase>] <clave…|*>  # motivo`: claves JSON en español aceptadas SÓLO
+    ahí. <ruta> es un prefijo relativo a `tablero/`; el calificador opcional es la clase de aparición
+    (`tag`, `map`, `index`) o el tipo de Go que la contiene (`areaCanon`)."""
+    rules = []
+    for raw in path.read_text().splitlines():
+        line = raw.split('#', 1)[0].strip()
+        if not line.startswith('json:'):
+            continue
+        selector, *keys = line[5:].split()
+        where, _, qualifier = selector.partition(':')
+        rules.append((where, qualifier, set(keys)))
+    return rules
+
+
+def json_allowed(rel, kind, ctx, key, rules):
+    """¿La clave `key` que aparece en `rel` (como `kind`, dentro de `ctx`) está aceptada por alguna regla?"""
+    for where, qualifier, keys in rules:
+        if not rel.startswith(where):
+            continue
+        if qualifier and qualifier != kind and not ctx.startswith(qualifier + '.'):
+            continue
+        if '*' in keys or key in keys:
+            return True
+    return False
 
 
 def foreign_words(name, baseline, allowed):
@@ -171,6 +202,21 @@ def go_decls():
     return out
 
 
+def go_json_keys():
+    """(ruta, línea, clave, clase, contexto) de cada clave JSON del server: etiquetas de struct, claves de
+    mapas literales e índices (`output["canon"]`). Lo da `tools/rename/go/cmd/json-keys`, por AST."""
+    out = []
+    run = subprocess.run(['go', 'run', './cmd/json-keys', str(BOARD / 'server')], cwd=DECLS_GO,
+                         capture_output=True, text=True)
+    if run.returncode != 0:
+        raise SystemExit(f'no pude listar las claves JSON del server:\n{run.stderr}')
+    for line in run.stdout.splitlines():
+        where, kind, ctx, key = line.split('\t')
+        path, lineno = where.rsplit(':', 1)
+        out.append(('server/' + path, int(lineno), key, kind, ctx))
+    return out
+
+
 def js_decls(files):
     if not files:
         return []
@@ -227,21 +273,23 @@ def path_names(paths):
             if key in seen:
                 continue
             seen.add(key)
-            # un archivo pierde sólo su última extensión: `tarea.v1.schema.json` → tarea, v1, schema
+            # un archivo pierde sólo su última extensión: `task.v2.schema.json` → task, v2, schema
             stem = part.rsplit('.', 1)[0] if i == len(parts) - 1 and '.' in part[1:] else part
             yield key, stem
 
 
 # ── el chequeo ────────────────────────────────────────────────────────────────────────────────────
 
-def check(base=None, allow=None):
+def check(base=None, allow=None, json_allow=None):
     base = baseline() if base is None else base
     words, allowed_paths = load_allow() if allow is None else allow
+    json_rules = load_json_allow() if json_allow is None else json_allow
+    json_keys = go_json_keys()
     js_files = sorted({p for g in JS_GLOBS for p in BOARD.glob(g)})
     py_files = sorted({p for g in PY_GLOBS for p in BOARD.glob(g)})
     sources = {'go': go_decls(), 'vue/js': js_decls(js_files), 'python': py_decls(py_files)}
     paths = list(path_names(tracked_paths()))
-    counts = {**{k: len(v) for k, v in sources.items()}, 'rutas': len(paths)}
+    counts = {**{k: len(v) for k, v in sources.items()}, 'claves json': len(json_keys), 'rutas': len(paths)}
     # Un extractor que no devuelve nada daría «todo en inglés» sin haber mirado: se trata como error.
     empty = [k for k, n in counts.items() if n == 0]
     if empty:
@@ -252,6 +300,12 @@ def check(base=None, allow=None):
         if bad:
             findings.append({'where': f'{os.path.relpath(path, BOARD)}:{lineno}', 'name': name, 'kind': kind,
                              'words': bad})
+    for rel, lineno, key, kind, ctx in json_keys:
+        if json_allowed(rel, kind, ctx, key, json_rules):
+            continue
+        bad = foreign_words(key, base, words)
+        if bad:
+            findings.append({'where': f'{rel}:{lineno}', 'name': key, 'kind': f'json ({kind})', 'words': bad})
     for rel, stem in paths:
         if rel in allowed_paths:
             continue

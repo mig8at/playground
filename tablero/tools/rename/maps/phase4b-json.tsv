@@ -1,0 +1,89 @@
+# phase4b-json.tsv — claves JSON del tablero, español → inglés (fase 4b, 2026-09-23).
+# Una clave por línea: `vieja nueva`. El nombre nuevo es el del campo de Go, que ya estaba en inglés
+# desde la fase 1 (`Resume` → `resume`, `TouchedAt` → `touchedAt`).
+#
+# ⚠ El mapa es por CLAVE, pero se aplica por CONTEXTO: `fuentes`, `secciones` y `rama` también son claves
+# de contratos ajenos (la respuesta de canon, la API de cuadrilla) y ahí no se tocan. Qué contextos quedan
+# afuera lo dice `tools/rename/json/apply-go.py`; lo que queda en español a propósito, `make tablero-naming`
+# con las claves (ver `tools/naming-allow.txt`).
+alcance scope
+ambiente environment
+anotaciones annotations
+archivo file
+asunto subject
+avisos warnings
+bitacora worklog
+bitacoraEntradas worklogEntries
+bitacoraMinutos worklogMinutes
+bitacoraSinTareaMinutos worklogWithoutTaskMinutes
+borrador draft
+canonAviso canonNotice
+clase class
+como how
+conteos counts
+contexto context
+contextoHoy contextToday
+creada created
+decisiones decisions
+dia day
+diasSinTocar daysUntouched
+disponible available
+dormida dormant
+en in
+entrega delivery
+estado state
+faltan missing
+fecha date
+fuentes sources
+hecho done
+incompletas incomplete
+jobFallido failedJob
+leido read
+listaParaJira readyForJira
+mediciones measurements
+medidoEn measuredAt
+mergeado merged
+minutosHoy minutesToday
+mirar watch
+numero number
+pasoQueFallo failedStep
+patron pattern
+pendientes pending
+pendientesAbiertos openPending
+pendientesCerrados closedPending
+piezasFaltan missingPieces
+preguntas questions
+preguntasVencidas overdueQuestions
+propios own
+proximoPaso nextStep
+publicacion publication
+pulsoDisponible pulseAvailable
+pulsoMinutos pulseMinutes
+que what
+quien who
+rama branch
+ramas branches
+ramasDeclaradas declaredBranches
+ramasPatron branchPatterns
+ramasSinTarea branchesWithoutTask
+referencia reference
+registro record
+registroFecha recordDate
+registroHoy recordToday
+retoma resume
+riesgos risks
+seccion section
+secciones sections
+sinAvance noProgress
+sugerirArchivar suggestArchive
+tarea task
+tareas tasks
+tieneQA hasQA
+tipo kind
+titulo title
+tocada touchedBy
+tocadoEn touchedAt
+trabajo work
+uso usage
+validado validated
+violaciones violations

@@ -13,7 +13,7 @@
 //	go run ./cmd/tasks -n <slug|id>         una tarea: qué es PÚBLICO y qué es PRIVADO
 //	go run ./cmd/tasks -guard <archivo>     ¿este texto puede salir a Jira? (sale 1 si no)
 //	go run ./cmd/tasks -json                la lista resumida, para encadenar
-//	go run ./cmd/tasks -n <slug> -json      una tarea en el contrato tipado tablero.tarea.v1
+//	go run ./cmd/tasks -n <slug> -json      una tarea en el contrato tipado tablero.task.v2
 //
 // El `-guard` reusa `internal/guard`, que es la fuente única: la UI compila esos mismos patrones y
 // `issue-create` los aplica antes de publicar. Reimplementarlos acá habría sido la cuarta copia, y
@@ -46,14 +46,14 @@ type Task struct {
 	ID       int      `json:"id"`
 	Title    string   `json:"title"`
 	Stage    string   `json:"stage"`
-	Class    string   `json:"clase,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
+	Class    string   `json:"class,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
 	Archived bool     `json:"archived"`
 	Jira     []string `json:"jira,omitempty"`
 	Nodes    []string `json:"canon,omitempty"`
 	// OldNodes es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
 	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
 	OldNodes []string `json:"-"`
-	File     string   `json:"archivo"`
+	File     string   `json:"file"`
 }
 
 // DocumentJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
@@ -61,40 +61,40 @@ type Task struct {
 // sidecar que pueda quedar viejo.
 type DocumentJSON struct {
 	SchemaVersion string          `json:"schemaVersion"`
-	Task          Task            `json:"tarea"`
-	State         StateJSON       `json:"estado"`
-	Work          WorkJSON        `json:"trabajo"`
-	Sections      []string        `json:"secciones"`
-	Publication   PublicationJSON `json:"publicacion"`
+	Task          Task            `json:"task"`
+	State         StateJSON       `json:"state"`
+	Work          WorkJSON        `json:"work"`
+	Sections      []string        `json:"sections"`
+	Publication   PublicationJSON `json:"publication"`
 }
 
 type StateJSON struct {
-	Resume   string `json:"retoma"`
-	NextStep string `json:"proximoPaso"`
+	Resume   string `json:"resume"`
+	NextStep string `json:"nextStep"`
 }
 
 type CountsJSON struct {
-	OpenPending   int `json:"pendientesAbiertos"`
-	ClosedPending int `json:"pendientesCerrados"`
-	Measurements  int `json:"mediciones"`
-	Decisions     int `json:"decisiones"`
-	Questions     int `json:"preguntas"`
-	Risks         int `json:"riesgos"`
+	OpenPending   int `json:"openPending"`
+	ClosedPending int `json:"closedPending"`
+	Measurements  int `json:"measurements"`
+	Decisions     int `json:"decisions"`
+	Questions     int `json:"questions"`
+	Risks         int `json:"risks"`
 }
 
 type WorkJSON struct {
-	Counts      CountsJSON          `json:"conteos"`
-	Pending     []store.PendingItem `json:"pendientes"`
-	Annotations []store.Annotation  `json:"anotaciones"`
+	Counts      CountsJSON          `json:"counts"`
+	Pending     []store.PendingItem `json:"pending"`
+	Annotations []store.Annotation  `json:"annotations"`
 }
 
 type PublicationJSON struct {
-	Available    bool                `json:"disponible"`
-	ReadyForJira bool                `json:"listaParaJira"`
-	HasQA        bool                `json:"tieneQA"`
+	Available    bool                `json:"available"`
+	ReadyForJira bool                `json:"readyForJira"`
+	HasQA        bool                `json:"hasQA"`
 	Bytes        int                 `json:"bytes"`
-	Violations   []map[string]string `json:"violaciones"`
-	Draft        string              `json:"borrador,omitempty"`
+	Violations   []map[string]string `json:"violations"`
+	Draft        string              `json:"draft,omitempty"`
 }
 
 // Las tareas LOCALES son contenedores permanentes, no un backlog paralelo a Jira. Una mejora de una
@@ -178,7 +178,7 @@ func documentJSON(t Task, body string, includeDraft bool) DocumentJSON {
 	}
 	hasQA := publishable != "" && reQA.MatchString(publishable)
 	doc := DocumentJSON{
-		SchemaVersion: "tablero.tarea.v1",
+		SchemaVersion: "tablero.task.v2",
 		Task:          t,
 		State: StateJSON{
 			Resume:   store.Resume(private),
@@ -482,7 +482,7 @@ func showGuard(path string, asJSON bool) int {
 	v := guard.Violations(text)
 	if asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
-			"archivo": path, "alcance": scope, "violaciones": v})
+			"file": path, "scope": scope, "violations": v})
 	} else if len(v) == 0 {
 		fmt.Printf("  ✓ %s puede salir a Jira: %s no matchea ningún patrón prohibido\n", path, scope)
 	} else {
@@ -604,7 +604,7 @@ func showSprint(asJSON bool) int {
 	}
 	if asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"sprint": name, "sprint_id": active,
-			"seen_at": seen, "tareas": d.Tasks})
+			"seen_at": seen, "tasks": d.Tasks})
 		return 0
 	}
 	if active == 0 {

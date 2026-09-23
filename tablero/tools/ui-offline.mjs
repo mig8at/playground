@@ -43,7 +43,7 @@ const sample = {
   '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En curso',
     StatusCategory: 'indeterminate', Points: 3, HasPoints: true, OriginSprint: 'Sprint UI', SpentSecs: 5400 }] },
   '/api/efforts': { efforts: [{ id: 1, title: 'Validar interfaz', stage: 'work', techNotes,
-    pendientes: [{ que: 'Hecho', seccion: 'Pendientes', hecho: true }, { que: 'Confirmar la interfaz', seccion: 'Pendientes', hecho: false }],
+    pending: [{ what: 'Hecho', section: 'Pendientes', done: true }, { what: 'Confirmar la interfaz', section: 'Pendientes', done: false }],
     artifacts: [{ file: 'validar/validar.html', label: 'prototipo' }, { file: 'validar/casos.sql', label: 'casos' }] }] },
   '/api/task-locals': { taskLocals: { 'UI-1': { taskKey: 'UI-1', effortId: 1 } } },
   '/api/task-context': { events: [{ schema: 'tablero.task-context/v1', id: 'ctx_ui', at: new Date().toISOString(),
