@@ -88,7 +88,7 @@ código**, no contra una copia nuestra. Es lo que hace `npm run contrato:bancolo
 los zod reales), y lo que ahora hacen dos cruces más: `workers/logs.json` —el índice de los mensajes
 que el código emite— valida los matchers del mapa del trazador, y encontró **cinco mudos** por una
 renumeración; y el emisor de anotaciones del arnés se prueba leyendo el **regex real** de
-`store.Anotaciones`, en el repo del tablero. ⚠ La regla es la de los mocks: **una herramienta no puede
+`store.Annotations`, en el repo del tablero. ⚠ La regla es la de los mocks: **una herramienta no puede
 contradecir el documento del que nació**, así que la vara tiene que venir de otro lado.
 
 **3 · DOS COMPARTEN VOCABULARIO, Y ESO HAY QUE COMPROBARLO.** `trazador/server/mapa/ramales.json` dice

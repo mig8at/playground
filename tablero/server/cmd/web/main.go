@@ -56,28 +56,28 @@ var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)
 // currentUser()`), sin tener que tocar la configuración.
 //
 // `ORDER BY updated DESC` pone arriba lo que se movió hace poco, que es lo que uno reconoce.
-func jqlMias(project string, incluirTerminadas bool) string {
+func myJQL(project string, includeDone bool) string {
 	jql := fmt.Sprintf("assignee = currentUser() AND project = %q", project)
-	if !incluirTerminadas {
+	if !includeDone {
 		jql += " AND statusCategory != Done"
 	}
 	return jql + " ORDER BY updated DESC"
 }
 
-// palabrasRe parte un título en palabras, ignorando puntuación y comillas.
-var palabrasRe = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+// wordsRe parte un título en palabras, ignorando puntuación y comillas.
+var wordsRe = regexp.MustCompile(`[^\p{L}\p{N}]+`)
 
-// parecido mide cuánto se parecen dos títulos: palabras compartidas sobre palabras totales (Jaccard),
+// similar mide cuánto se parecen dos títulos: palabras compartidas sobre palabras totales (Jaccard),
 // entre 0 y 1.
 //
 // No es difuso ni inteligente, y no hace falta que lo sea: los casos que importan son las tareas que
 // este tablero redactó y publicó en Jira, donde el título viajó TAL CUAL y el parecido da ~1. Un
 // umbral (0.5 en el handler) alcanza para pescarlas y no molestar con coincidencias flojas — la
 // decisión de enlazar la toma Miguel, esto solo la propone.
-func parecido(a, b string) float64 {
+func similar(a, b string) float64 {
 	tok := func(s string) map[string]bool {
 		out := map[string]bool{}
-		for _, p := range palabrasRe.Split(strings.ToLower(s), -1) {
+		for _, p := range wordsRe.Split(strings.ToLower(s), -1) {
 			// las palabras de 2 letras o menos son conectores (de, la, el, en): suman ruido
 			if len([]rune(p)) > 2 {
 				out[p] = true
@@ -89,18 +89,18 @@ func parecido(a, b string) float64 {
 	if len(x) == 0 || len(y) == 0 {
 		return 0
 	}
-	comunes := 0
+	common := 0
 	for p := range x {
 		if y[p] {
-			comunes++
+			common++
 		}
 	}
-	return float64(comunes) / float64(len(x)+len(y)-comunes)
+	return float64(common) / float64(len(x)+len(y)-common)
 }
 
-// comillas envuelve cada clave en comillas dobles para armar un `key in (...)` de JQL. Las claves ya
+// quoted envuelve cada clave en comillas dobles para armar un `key in (...)` de JQL. Las claves ya
 // pasaron issueKeyRe, así que no hay nada que escapar.
-func comillas(keys []string) []string {
+func quoted(keys []string) []string {
 	out := make([]string, len(keys))
 	for i, k := range keys {
 		out[i] = `"` + k + `"`
@@ -108,19 +108,19 @@ func comillas(keys []string) []string {
 	return out
 }
 
-// cuerpoImportado redacta el cuerpo de una tarea traída de Jira.
+// importedBody redacta el cuerpo de una tarea traída de Jira.
 //
 // El texto de Jira va en la parte PRIVADA (arriba), no bajo `## Tarea (publicable)`, por dos razones.
 // Una: ya está publicado — el borrador publicable existe para las tareas que NACEN acá. Dos: las
 // descripciones traen rutas de archivo y nombres de repo que el guard rechaza (CORE-159 trae una ruta
 // .php), así que ponerlo abajo haría que guardar una tarea importada desde la UI fallara por un texto
 // que nadie escribió acá — un muro sin culpable.
-func cuerpoImportado(d atlassian.IssueDetail, hoy string) string {
+func importedBody(d atlassian.IssueDetail, today string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", d.Summary)
 
 	fmt.Fprintf(&b, "> Traída de Jira el %s · **%s** · `%s` · creada %s · actualizada %s\n",
-		hoy, d.Key, d.Status, d.Created, d.Updated)
+		today, d.Key, d.Status, d.Created, d.Updated)
 	if d.Reporter != "" {
 		fmt.Fprintf(&b, "> · la reporta %s\n", d.Reporter)
 	}
@@ -140,7 +140,7 @@ func cuerpoImportado(d atlassian.IssueDetail, hoy string) string {
 	}
 	// Si el texto de Jira trajera la marca del guard, la frontera del archivo se movería y lo de
 	// abajo pasaría a ser publicable sin que nadie lo decidiera. Se desarma dejándola visible.
-	desc = strings.ReplaceAll(desc, store.SECCION, "## Tarea (según Jira)")
+	desc = strings.ReplaceAll(desc, store.SECTION, "## Tarea (según Jira)")
 	b.WriteString(desc + "\n")
 	return b.String()
 }
@@ -166,9 +166,9 @@ type app struct {
 	testingStatus string // subcadena del estado "listo para probar"; en CORE es "🧪 En pruebas"
 
 	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
-	// ramasRoot es el árbol de checkouts que se mide cuando la consola pide una actualización
+	// branchesRoot es el árbol de checkouts que se mide cuando la consola pide una actualización
 	// explícita. Coincide con el default de `make tareas-ramas`; abrir el tablero nunca ejecuta git.
-	ramasRoot string
+	branchesRoot string
 	// tableroRoot permite que la UI invoque el laboratorio Jev desde el mismo checkout, sin asumir
 	// desde qué directorio se levantó el proceso. No es otro servicio: es una invocación efímera y
 	// explícita de `tools/jev.py` al presionar «Analizar con Jev».
@@ -230,7 +230,7 @@ func main() {
 	}
 	a.st = st
 	a.dataDir = dataDir
-	a.ramasRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
+	a.branchesRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 	dataAbs, err := filepath.Abs(dataDir)
 	if err != nil {
 		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
@@ -376,9 +376,9 @@ func main() {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
-		json.NewEncoder(w).Encode(store.LeerSnapshotRamas(filepath.Join(a.dataDir, "cache")))
+		json.NewEncoder(w).Encode(store.ReadBranchSnapshot(filepath.Join(a.dataDir, "cache")))
 	})
-	mux.HandleFunc("/api/ramas/refresh", a.refreshRamas)
+	mux.HandleFunc("/api/ramas/refresh", a.refreshBranches)
 
 	// INVENTARIO local de repos y ramas para la consola de la tarea Context. Es otro contrato que
 	// `/api/ramas`: aquel liga ramas de entrega a una tarea mediante `ramas:`; éste describe todos los
@@ -437,7 +437,7 @@ func main() {
 				JiraTitle       *string `json:"jiraTitle"`
 				JiraDescription *string `json:"jiraDescription"`
 				TechNotes       *string `json:"techNotes"` // privado: NO pasa por el guard
-				TemasCanon      *string `json:"canon"`     // slugs de temas de canon
+				CanonTopics     *string `json:"canon"`     // slugs de temas de canon
 				Stage           *string `json:"stage"`     // evaluation | work | tasks
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
@@ -446,22 +446,22 @@ func main() {
 				return
 			}
 			// título y descripción TERMINAN EN JIRA → mismo guard que las notas
-			var borrador string
+			var draft string
 			if in.JiraTitle != nil {
-				borrador += *in.JiraTitle + "\n"
+				draft += *in.JiraTitle + "\n"
 			}
 			if in.JiraDescription != nil {
-				borrador += *in.JiraDescription
+				draft += *in.JiraDescription
 			}
-			if v := violations(borrador); v != nil {
+			if v := violations(draft); v != nil {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "el borrador viola el guard", "problems": v})
 				return
 			}
 			// el detalle técnico es PRIVADO (nunca va a Jira) → sin guard. Los campos que no vengan
 			// quedan intactos (COALESCE en el store), así guardar uno no borra el otro.
-			if in.TechNotes != nil || in.TemasCanon != nil {
-				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.TemasCanon); err != nil {
+			if in.TechNotes != nil || in.CanonTopics != nil {
+				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.CanonTopics); err != nil {
 					w.WriteHeader(http.StatusUnprocessableEntity)
 					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 					return
@@ -647,7 +647,7 @@ func main() {
 
 		jql := strings.TrimSpace(r.URL.Query().Get("jql"))
 		if jql == "" {
-			jql = jqlMias(a.jiraProject, r.URL.Query().Get("all") == "1")
+			jql = myJQL(a.jiraProject, r.URL.Query().Get("all") == "1")
 		}
 		issues, err := a.jira.SearchIssuesDetailed(ctx, jql)
 		if err != nil {
@@ -656,7 +656,7 @@ func main() {
 			return
 		}
 
-		vinculadas := a.st.TareasVinculadas()
+		linked := a.st.LinkedTasks()
 		efforts := a.st.EffortsAll()
 		type ref struct {
 			ID    int64   `json:"id"`
@@ -668,34 +668,34 @@ func main() {
 		// se pueda hacer algo —el vínculo ya existe— así que salen como número, no como renglón: la
 		// vista es una bandeja de pendientes, y mezclarlas obliga a leer 70 filas para encontrar las 3
 		// que importan.
-		salida := make([]map[string]any, 0, len(issues))
-		registradas := 0
+		output := make([]map[string]any, 0, len(issues))
+		registered := 0
 		for _, d := range issues {
-			if _, ok := vinculadas[d.Key]; ok {
-				registradas++
+			if _, ok := linked[d.Key]; ok {
+				registered++
 				continue
 			}
-			fila := map[string]any{"issue": d}
+			row := map[string]any{"issue": d}
 			// El candidato se busca contra los DOS títulos: el privado (mío) y el publicado en Jira.
 			// Los que importan son los segundos —los redactó este tablero y salieron tal cual—, y ahí
 			// el parecido es casi 1.
-			mejor := ref{}
+			best := ref{}
 			for _, e := range efforts {
 				for _, t := range []string{e.JiraTitle, e.Title} {
-					if sc := parecido(d.Summary, t); sc > mejor.Score {
-						mejor = ref{ID: e.ID, File: e.File, Title: e.Title, Score: sc}
+					if sc := similar(d.Summary, t); sc > best.Score {
+						best = ref{ID: e.ID, File: e.File, Title: e.Title, Score: sc}
 					}
 				}
 			}
-			if mejor.Score >= 0.5 {
-				fila["suggestion"] = mejor
+			if best.Score >= 0.5 {
+				row["suggestion"] = best
 			}
-			salida = append(salida, fila)
+			output = append(output, row)
 		}
 
 		json.NewEncoder(w).Encode(map[string]any{
-			"jql": jql, "count": len(issues), "registered": registradas, "pending": len(salida),
-			"issues": salida, "efforts": efforts,
+			"jql": jql, "count": len(issues), "registered": registered, "pending": len(output),
+			"issues": output, "efforts": efforts,
 			"site": strings.TrimRight(a.jiraSite, "/"),
 		})
 	})
@@ -726,60 +726,60 @@ func main() {
 		}
 
 		// Las claves se validan ANTES de tocar Jira: van interpoladas en un JQL.
-		claves := append([]string{}, in.Create...)
+		keys := append([]string{}, in.Create...)
 		for k := range in.Link {
-			claves = append(claves, k)
+			keys = append(keys, k)
 		}
-		for _, k := range claves {
+		for _, k := range keys {
 			if !issueKeyRe.MatchString(k) {
 				w.WriteHeader(http.StatusUnprocessableEntity)
 				json.NewEncoder(w).Encode(map[string]any{"error": "clave de issue inválida: " + k})
 				return
 			}
 		}
-		if len(claves) == 0 {
+		if len(keys) == 0 {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			json.NewEncoder(w).Encode(map[string]any{"error": "no viene ninguna clave"})
 			return
 		}
 
-		resultados := []map[string]any{}
+		results := []map[string]any{}
 
 		// Enlazar no necesita a Jira: la clave ya la conocemos y el vínculo es local.
 		for k, id := range in.Link {
-			file, err := a.st.VincularTarea(k, id)
+			file, err := a.st.LinkTask(k, id)
 			if err != nil {
-				resultados = append(resultados, map[string]any{"key": k, "action": "error", "error": err.Error()})
+				results = append(results, map[string]any{"key": k, "action": "error", "error": err.Error()})
 				continue
 			}
 			log.Printf("jira-import: %s enlazado a %s", k, file)
-			resultados = append(resultados, map[string]any{"key": k, "action": "linked", "effortId": id, "file": file})
+			results = append(results, map[string]any{"key": k, "action": "linked", "effortId": id, "file": file})
 		}
 
 		// Crear sí: el archivo nace con lo que dice Jira, así que hay que leerlo.
 		if len(in.Create) > 0 {
 			ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 			defer cancel()
-			jql := fmt.Sprintf("key in (%s)", strings.Join(comillas(in.Create), ", "))
+			jql := fmt.Sprintf("key in (%s)", strings.Join(quoted(in.Create), ", "))
 			issues, err := a.jira.SearchIssuesDetailed(ctx, jql)
 			if err != nil {
 				w.WriteHeader(http.StatusBadGateway)
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "results": resultados})
+				json.NewEncoder(w).Encode(map[string]any{"error": err.Error(), "results": results})
 				return
 			}
-			hoy := time.Now().Format("2006-01-02")
+			today := time.Now().Format("2006-01-02")
 			for _, d := range issues {
-				e, creada, err := a.st.ImportarDeJira(store.ImportIssue{
-					Key: d.Key, Summary: d.Summary, Body: cuerpoImportado(d, hoy),
+				e, created, err := a.st.ImportFromJira(store.ImportIssue{
+					Key: d.Key, Summary: d.Summary, Body: importedBody(d, today),
 					Closed: d.Category == "done", Nodes: in.Nodes,
 				})
 				if err != nil {
-					resultados = append(resultados, map[string]any{"key": d.Key, "action": "error", "error": err.Error()})
+					results = append(results, map[string]any{"key": d.Key, "action": "error", "error": err.Error()})
 					continue
 				}
-				accion := "created"
-				if !creada {
-					accion = "already" // ya estaba registrada: el POST es idempotente
+				action := "created"
+				if !created {
+					action = "already" // ya estaba registrada: el POST es idempotente
 				}
 				file := ""
 				for _, ref := range a.st.EffortsAll() {
@@ -787,26 +787,26 @@ func main() {
 						file = ref.File
 					}
 				}
-				log.Printf("jira-import: %s %s → %s", d.Key, accion, file)
-				resultados = append(resultados, map[string]any{
-					"key": d.Key, "action": accion, "effortId": e.ID, "file": file,
+				log.Printf("jira-import: %s %s → %s", d.Key, action, file)
+				results = append(results, map[string]any{
+					"key": d.Key, "action": action, "effortId": e.ID, "file": file,
 					"archived": d.Category == "done",
 				})
 			}
 			// Una clave que Jira no devolvió (borrada, o sin permiso) tiene que decirse: si no, el
 			// listado se recarga sin ella y parece que se importó.
-			vistas := map[string]bool{}
+			seen := map[string]bool{}
 			for _, d := range issues {
-				vistas[d.Key] = true
+				seen[d.Key] = true
 			}
 			for _, k := range in.Create {
-				if !vistas[k] {
-					resultados = append(resultados, map[string]any{"key": k, "action": "error", "error": "Jira no devolvió este issue"})
+				if !seen[k] {
+					results = append(results, map[string]any{"key": k, "action": "error", "error": "Jira no devolvió este issue"})
 				}
 			}
 		}
 
-		json.NewEncoder(w).Encode(map[string]any{"results": resultados})
+		json.NewEncoder(w).Encode(map[string]any{"results": results})
 	})
 
 	// ── handoff a QA: mover la tarea a pruebas y avisarle a quien valida ────────────────────────
@@ -1004,27 +1004,27 @@ func main() {
 				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 				return
 			}
-			var elegida *atlassian.Transition
+			var chosen *atlassian.Transition
 			for i := range trs {
 				if trs[i].ID == in.ID {
-					elegida = &trs[i]
+					chosen = &trs[i]
 					break
 				}
 			}
-			if elegida == nil {
+			if chosen == nil {
 				w.WriteHeader(http.StatusConflict)
 				json.NewEncoder(w).Encode(map[string]any{
 					"error": "esa transición ya no está disponible — alguien movió " + in.Key + " en Jira. Refrescá.",
 				})
 				return
 			}
-			if err := a.jira.TransitionIssue(ctx, in.Key, elegida.ID); err != nil {
+			if err := a.jira.TransitionIssue(ctx, in.Key, chosen.ID); err != nil {
 				w.WriteHeader(http.StatusBadGateway)
 				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 				return
 			}
-			log.Printf("transitions %s → %s (%s)", in.Key, elegida.To, elegida.Name)
-			json.NewEncoder(w).Encode(map[string]any{"ok": true, "to": elegida.To, "name": elegida.Name})
+			log.Printf("transitions %s → %s (%s)", in.Key, chosen.To, chosen.Name)
+			json.NewEncoder(w).Encode(map[string]any{"ok": true, "to": chosen.To, "name": chosen.Name})
 
 		default:
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -1172,14 +1172,14 @@ func main() {
 		}
 		// `installed` distingue "no trabajaste" de "nadie estaba mirando": sin un solo tick, la grilla
 		// vacía no significa nada y la UI tiene que decirlo en vez de dejarte sacar conclusiones.
-		ult, hay := pulso.LastTick(dataDir)
+		ult, found := pulso.LastTick(dataDir)
 		res := map[string]any{
 			"hours":        pulso.Aggregate(ticks, days),
 			"slotsPerHour": pulso.SlotsPerHour,
 			"slotMinutes":  int(pulso.Slot / time.Minute),
-			"installed":    hay,
+			"installed":    found,
 		}
-		if hay {
+		if found {
 			res["lastTick"] = ult.Format(time.RFC3339)
 		}
 		json.NewEncoder(w).Encode(res)
@@ -1380,7 +1380,7 @@ func (a *app) createTask(ctx context.Context, c *websocket.Conn, summary, descri
 	// Best-effort: el issue ya está creado, así que un fallo acá se avisa pero no invalida nada.
 	file := ""
 	if effortID != 0 {
-		f, verr := a.st.VincularTarea(created.Key, effortID)
+		f, verr := a.st.LinkTask(created.Key, effortID)
 		if verr != nil {
 			log.Printf("create_task: %s creado pero NO enlazado al esfuerzo %d: %v", created.Key, effortID, verr)
 		} else {
@@ -1417,10 +1417,10 @@ func (a *app) dashboard(ctx context.Context, c *websocket.Conn) {
 		return
 	}
 
-	var todo, inprog, done int
+	var everything, inprog, done int
 	var ptsTotal, ptsDone float64
 	hasPoints := false
-	estSecs, spentSecs := 0, 0
+	estimatedSecs, spentSecs := 0, 0
 	tasks := make([]map[string]any, 0, len(issues))
 
 	for _, it := range issues {
@@ -1430,7 +1430,7 @@ func (a *app) dashboard(ctx context.Context, c *websocket.Conn) {
 		case "indeterminate":
 			inprog++
 		default:
-			todo++
+			everything++
 		}
 		if it.HasPoints {
 			hasPoints = true
@@ -1439,7 +1439,7 @@ func (a *app) dashboard(ctx context.Context, c *websocket.Conn) {
 				ptsDone += it.Points
 			}
 		}
-		estSecs += it.EstimateSecs
+		estimatedSecs += it.EstimateSecs
 		spentSecs += it.SpentSecs
 
 		var pts any
@@ -1483,9 +1483,9 @@ func (a *app) dashboard(ctx context.Context, c *websocket.Conn) {
 			"name": sp.Name, "start": dayStr(start), "end": dayStr(end),
 			"daysTotal": daysTotal, "daysElapsed": daysElapsed, "daysLeft": daysLeft, "timePct": timePct,
 		},
-		"counts": map[string]any{"total": total, "todo": todo, "inProgress": inprog, "done": done, "donePct": donePct},
+		"counts": map[string]any{"total": total, "todo": everything, "inProgress": inprog, "done": done, "donePct": donePct},
 		"points": map[string]any{"hasData": hasPoints, "total": ptsTotal, "done": ptsDone},
-		"time":   map[string]any{"hasData": estSecs > 0 || spentSecs > 0, "estimateHours": estSecs / 3600, "spentHours": spentSecs / 3600},
+		"time":   map[string]any{"hasData": estimatedSecs > 0 || spentSecs > 0, "estimateHours": estimatedSecs / 3600, "spentHours": spentSecs / 3600},
 		"tasks":  tasks,
 	})
 }
@@ -1574,13 +1574,13 @@ func cors(w http.ResponseWriter) {
 	w.Header().Set("access-control-allow-headers", "content-type")
 }
 
-var ramasTaskIDRe = regexp.MustCompile(`^[1-9]\d*$`)
+var branchesTaskIDRe = regexp.MustCompile(`^[1-9]\d*$`)
 
-// refreshRamas vuelve a medir UNA tarea desde la consola. Repite la semántica de
+// refreshBranches vuelve a medir UNA tarea desde la consola. Repite la semántica de
 // `make tareas-ramas N=<id>`: lee los refs que el último fetch dejó localmente y consulta los PRs si
 // `gh` está disponible, pero no hace fetch ni modifica ninguna rama. Medir sólo la tarea enfocada
 // mantiene esta acción interactiva y, al guardar, preserva las mediciones de las demás tareas.
-func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
+func (a *app) refreshBranches(w http.ResponseWriter, r *http.Request) {
 	cors(w)
 	if r.Method == http.MethodOptions {
 		return
@@ -1591,7 +1591,7 @@ func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id := r.URL.Query().Get("id")
-	if !ramasTaskIDRe.MatchString(id) {
+	if !branchesTaskIDRe.MatchString(id) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{"error": "id de tarea inválido"})
 		return
@@ -1603,14 +1603,14 @@ func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "no pude leer las tareas: " + err.Error()})
 		return
 	}
-	var patron string
+	var pattern string
 	for _, effort := range efforts {
 		if strconv.FormatInt(effort.ID, 10) == id {
-			patron = effort.RamasPatron
+			pattern = effort.BranchPatterns
 			break
 		}
 	}
-	if patron == "" {
+	if pattern == "" {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		json.NewEncoder(w).Encode(map[string]string{"error": "esta tarea no declara un patrón de ramas"})
 		return
@@ -1618,13 +1618,13 @@ func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 	defer cancel()
-	medido := store.MedirRamas(ctx, a.ramasRoot, map[string]string{id: patron}, nil)
+	measured := store.MeasureBranches(ctx, a.branchesRoot, map[string]string{id: pattern}, nil)
 	if ctx.Err() != nil {
 		w.WriteHeader(http.StatusGatewayTimeout)
 		json.NewEncoder(w).Encode(map[string]string{"error": "la medición de ramas tardó demasiado; intentá de nuevo"})
 		return
 	}
-	actualizado, ok := medido.Tareas[id]
+	updated, ok := measured.Tasks[id]
 	if !ok {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "la medición no devolvió la tarea solicitada"})
@@ -1632,18 +1632,18 @@ func (a *app) refreshRamas(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheDir := filepath.Join(a.dataDir, "cache")
-	snapshot := store.LeerSnapshotRamas(cacheDir)
-	if snapshot.Tareas == nil {
-		snapshot.Tareas = map[string]store.RamasDeTarea{}
+	snapshot := store.ReadBranchSnapshot(cacheDir)
+	if snapshot.Tasks == nil {
+		snapshot.Tasks = map[string]store.TaskBranches{}
 	}
-	snapshot.MedidoEn = medido.MedidoEn
-	snapshot.Root = medido.Root
-	snapshot.Tareas[id] = actualizado
+	snapshot.MeasuredAt = measured.MeasuredAt
+	snapshot.Root = measured.Root
+	snapshot.Tasks[id] = updated
 	// Si esta tarea había quedado incompleta en una corrida anterior, ya no debe conservar esa marca.
-	snapshot.Incompletas = slices.DeleteFunc(snapshot.Incompletas, func(incompleta string) bool {
-		return incompleta == id
+	snapshot.Incomplete = slices.DeleteFunc(snapshot.Incomplete, func(incomplete string) bool {
+		return incomplete == id
 	})
-	if err := store.GuardarSnapshotRamas(cacheDir, snapshot); err != nil {
+	if err := store.SaveBranchSnapshot(cacheDir, snapshot); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]string{"error": "no pude guardar la medición: " + err.Error()})
 		return
@@ -1709,7 +1709,7 @@ type jevPendingEvidence struct {
 type jevPendingState struct {
 	Title    string               `json:"title"`
 	NextStep string               `json:"next_step"`
-	Retoma   string               `json:"retoma"`
+	Resume   string               `json:"retoma"`
 	Pending  []jevPendingItem     `json:"pending"`
 	Evidence []jevPendingEvidence `json:"evidence"`
 }
@@ -1779,19 +1779,19 @@ func hasJevSecret(values ...string) bool {
 func jevPendingStateFromEffort(effort store.Effort) (jevPendingState, int, error) {
 	state := jevPendingState{
 		Title:    trimJevText(effort.Title, 180),
-		NextStep: trimJevText(effort.ProximoPaso, 700),
-		Retoma:   trimJevText(effort.Retoma, 1200),
+		NextStep: trimJevText(effort.NextStep, 700),
+		Resume:   trimJevText(effort.Resume, 1200),
 		Pending:  make([]jevPendingItem, 0, 12),
 		Evidence: make([]jevPendingEvidence, 0, 24),
 	}
 	open := 0
-	for _, pending := range effort.Pendientes {
-		if pending.Hecho {
+	for _, pending := range effort.Pending {
+		if pending.Done {
 			continue
 		}
 		if len(state.Pending) < 12 {
 			state.Pending = append(state.Pending, jevPendingItem{
-				ID: len(state.Pending), Text: trimJevText(pending.Que, 280), Section: trimJevText(pending.Seccion, 140),
+				ID: len(state.Pending), Text: trimJevText(pending.What, 280), Section: trimJevText(pending.Section, 140),
 			})
 		}
 		open++
@@ -1799,17 +1799,17 @@ func jevPendingStateFromEffort(effort store.Effort) (jevPendingState, int, error
 	if open == 0 {
 		return jevPendingState{}, 0, fmt.Errorf("no hay pendientes abiertos")
 	}
-	annotations := append([]store.Anotacion(nil), effort.Anotaciones...)
-	sort.SliceStable(annotations, func(i, j int) bool { return annotations[i].Fecha > annotations[j].Fecha })
+	annotations := append([]store.Annotation(nil), effort.Annotations...)
+	sort.SliceStable(annotations, func(i, j int) bool { return annotations[i].Date > annotations[j].Date })
 	for _, annotation := range annotations {
 		if len(state.Evidence) == 24 {
 			break
 		}
 		state.Evidence = append(state.Evidence, jevPendingEvidence{
-			Date: trimJevText(annotation.Fecha, 20), Kind: trimJevText(annotation.Tipo, 80), Text: trimJevText(annotation.Que, 350),
+			Date: trimJevText(annotation.Date, 20), Kind: trimJevText(annotation.Kind, 80), Text: trimJevText(annotation.What, 350),
 		})
 	}
-	secretValues := []string{state.Title, state.NextStep, state.Retoma}
+	secretValues := []string{state.Title, state.NextStep, state.Resume}
 	for _, pending := range state.Pending {
 		secretValues = append(secretValues, pending.Text, pending.Section)
 	}

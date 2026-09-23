@@ -10,46 +10,46 @@ import (
 	"creditop/tablero/server/internal/canon"
 )
 
-func TestRequiereRamasSoloParaTrabajoDeProducto(t *testing.T) {
-	if requiereRamas(tarea{Stage: "work", Clase: "proyecto"}) {
+func TestRequiresBranchesOnlyForProductWork(t *testing.T) {
+	if requiresBranches(task{Stage: "work", Class: "proyecto"}) {
 		t.Fatal("un contenedor local no necesita una rama permanente")
 	}
-	if !requiereRamas(tarea{Stage: "work"}) {
+	if !requiresBranches(task{Stage: "work"}) {
 		t.Fatal("una tarea de producto en work sí necesita declarar ramas")
 	}
-	if requiereRamas(tarea{Stage: "evaluation"}) {
+	if requiresBranches(task{Stage: "evaluation"}) {
 		t.Fatal("una evaluación todavía no necesita rama")
 	}
 }
 
-func TestFichasCanonRespetaElTopeYNoCallaErrores(t *testing.T) {
-	declarados := []string{"a", "b", "c", "d", "e", "f"}
-	leer := func(n string) (fichaCanon, error) {
+func TestCanonBriefsRespectLimitAndSurfaceErrors(t *testing.T) {
+	declared := []string{"a", "b", "c", "d", "e", "f"}
+	readBrief := func(n string) (canonBrief, error) {
 		if n == "c" {
-			return fichaCanon{}, errors.New("el tema no está en el corpus")
+			return canonBrief{}, errors.New("el tema no está en el corpus")
 		}
-		return fichaCanon{Titulo: "tema " + n}, nil
+		return canonBrief{Title: "tema " + n}, nil
 	}
-	fichas, aviso := fichasCanon(declarados, "1", leer)
-	if len(fichas) != topeFichas || !strings.Contains(aviso, "2 más") || !strings.Contains(aviso, "e, f") {
-		t.Fatalf("con BRIEF=1 van los primeros %d y el aviso nombra el resto: %d fichas, aviso %q", topeFichas, len(fichas), aviso)
+	briefs, notice := canonBriefs(declared, "1", readBrief)
+	if len(briefs) != briefLimit || !strings.Contains(notice, "2 más") || !strings.Contains(notice, "e, f") {
+		t.Fatalf("con BRIEF=1 van los primeros %d y el aviso nombra el resto: %d fichas, aviso %q", briefLimit, len(briefs), notice)
 	}
-	if fichas[2].Error == "" || fichas[2].Titulo != "" || fichas[1].Titulo != "tema b" {
-		t.Fatalf("una ficha que falla queda como error EN su ficha, y las demás siguen: %+v", fichas)
+	if briefs[2].Error == "" || briefs[2].Title != "" || briefs[1].Title != "tema b" {
+		t.Fatalf("una ficha que falla queda como error EN su ficha, y las demás siguen: %+v", briefs)
 	}
-	if fichas[2].Tema != "c" {
-		t.Fatalf("la ficha que falló igual dice de qué tema era: %+v", fichas[2])
+	if briefs[2].Topic != "c" {
+		t.Fatalf("la ficha que falló igual dice de qué tema era: %+v", briefs[2])
 	}
-	fichas, aviso = fichasCanon(declarados, "f, zz", leer)
-	if aviso != "" || len(fichas) != 2 || !fichas[0].Declarado || fichas[1].Declarado {
-		t.Fatalf("BRIEF=a,b elige esos temas y marca el que la tarea no declara: %+v aviso %q", fichas, aviso)
+	briefs, notice = canonBriefs(declared, "f, zz", readBrief)
+	if notice != "" || len(briefs) != 2 || !briefs[0].Declared || briefs[1].Declared {
+		t.Fatalf("BRIEF=a,b elige esos temas y marca el que la tarea no declara: %+v aviso %q", briefs, notice)
 	}
-	if fichas, _ := fichasCanon(nil, "1", leer); fichas != nil {
+	if briefs, _ := canonBriefs(nil, "1", readBrief); briefs != nil {
 		t.Fatal("sin `canon:` y con BRIEF=1 no hay fichas: la sección lo dice, no inventa temas")
 	}
 }
 
-func TestFichaDesdeCanonProyectaLaRespuestaDeLaAPI(t *testing.T) {
+func TestBriefFromCanonProjectsAPIResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/read" || r.URL.Query().Get("ids") != "kyc/context" {
 			t.Fatalf("pedido inesperado: %s", r.URL.String())
@@ -60,15 +60,15 @@ func TestFichaDesdeCanonProyectaLaRespuestaDeLaAPI(t *testing.T) {
 	}))
 	defer server.Close()
 
-	f, err := fichaDesdeCanon(canon.New(server.URL))("kyc")
+	f, err := briefFromCanon(canon.New(server.URL))("kyc")
 	if err != nil {
 		t.Fatalf("la referencia existe: %v", err)
 	}
-	if f.Titulo != "El estudio del cliente" || len(f.Areas) != 2 || f.Areas[0].Secciones != 2 {
+	if f.Title != "El estudio del cliente" || len(f.Areas) != 2 || f.Areas[0].Sections != 2 {
 		t.Fatalf("la ficha no conserva la respuesta de Canon: %+v", f)
 	}
-	if len(f.Tablas) != 2 || f.Tablas[0] != "datacredito_frequencies" {
-		t.Fatalf("las tablas llegan desde Canon: %v", f.Tablas)
+	if len(f.Tables) != 2 || f.Tables[0] != "datacredito_frequencies" {
+		t.Fatalf("las tablas llegan desde Canon: %v", f.Tables)
 	}
 	if len(f.Repos) != 2 || f.Repos[0] != "application" {
 		t.Fatalf("los repos llegan desde Canon: %v", f.Repos)

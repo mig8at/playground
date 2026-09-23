@@ -18,7 +18,7 @@ import (
 	"creditop/tablero/server/internal/taskcontext"
 )
 
-func dirDatos() string {
+func dataDir() string {
 	for _, d := range []string{"../data", "data", "tablero/data"} {
 		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 			return d
@@ -27,7 +27,7 @@ func dirDatos() string {
 	return "../data"
 }
 
-func resolver(s *store.Store, ref string) (*store.EffortRef, error) {
+func resolve(s *store.Store, ref string) (*store.EffortRef, error) {
 	for _, effort := range s.EffortsAll() {
 		slug := strings.TrimSuffix(effort.File, ".md")
 		if strconv.FormatInt(effort.ID, 10) == ref || slug == ref {
@@ -39,35 +39,35 @@ func resolver(s *store.Store, ref string) (*store.EffortRef, error) {
 }
 
 func main() {
-	tarea := flag.String("tarea", "", "id o slug de la tarea")
-	evento := flag.String("evento", "", "JSON con el hito; omite schema, id y at")
-	ver := flag.Bool("ver", false, "muestra los últimos hitos sin escribir")
-	seco := flag.Bool("n", false, "valida y previsualiza, sin escribir")
+	task := flag.String("tarea", "", "id o slug de la tarea")
+	eventPath := flag.String("evento", "", "JSON con el hito; omite schema, id y at")
+	show := flag.Bool("ver", false, "muestra los últimos hitos sin escribir")
+	dryRun := flag.Bool("n", false, "valida y previsualiza, sin escribir")
 	flag.Parse()
 
 	fail := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 		os.Exit(2)
 	}
-	if *tarea == "" {
+	if *task == "" {
 		fail("falta -tarea. Ej: task-context -tarea codigo-preaprobado -evento hito.json")
 	}
-	if *ver && *evento != "" {
+	if *show && *eventPath != "" {
 		fail("-ver no recibe -evento")
 	}
-	if !*ver && *evento == "" {
+	if !*show && *eventPath == "" {
 		fail("falta -evento con el JSON del hito")
 	}
-	s, err := store.Open(dirDatos())
+	s, err := store.Open(dataDir())
 	if err != nil {
 		fail("abriendo el tablero: %v", err)
 	}
-	effort, err := resolver(s, *tarea)
+	effort, err := resolve(s, *task)
 	if err != nil {
 		fail("%v. `make tareas` las lista.", err)
 	}
 	slug := strings.TrimSuffix(effort.File, ".md")
-	if *ver {
+	if *show {
 		events, err := s.TaskContext(effort.ID)
 		if err != nil {
 			fail("leyendo contexto: %v", err)
@@ -87,7 +87,7 @@ func main() {
 		return
 	}
 
-	b, err := os.ReadFile(*evento)
+	b, err := os.ReadFile(*eventPath)
 	if err != nil {
 		fail("leyendo -evento: %v", err)
 	}
@@ -100,12 +100,12 @@ func main() {
 		fail("hito inválido: %v", err)
 	}
 	pretty, _ := json.MarshalIndent(clean, "", "  ")
-	fmt.Printf("\n  #%d %s · %s\n%s\n", effort.ID, slug, *evento, pretty)
-	if *seco {
+	fmt.Printf("\n  #%d %s · %s\n%s\n", effort.ID, slug, *eventPath, pretty)
+	if *dryRun {
 		fmt.Println("  (-n: no se escribió)")
 		return
 	}
-	if _, err := taskcontext.Append(dirDatos(), slug, clean, time.Now()); err != nil {
+	if _, err := taskcontext.Append(dataDir(), slug, clean, time.Now()); err != nil {
 		fail("escribiendo contexto: %v", err)
 	}
 	fmt.Printf("  escrito en data/task-context/%s.jsonl\n\n", slug)

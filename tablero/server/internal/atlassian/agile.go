@@ -47,7 +47,7 @@ func (c *Client) ActiveSprint(ctx context.Context, boardID int) (*Sprint, error)
 // Incluimos `future`: un board puede estar ENTRE SPRINTS (el anterior cerró, el próximo no arrancó), como
 // CORE hoy. Sin future, el tablero se quedaría sin nada que mostrar justo en el cambio de sprint.
 func (c *Client) allSprints(ctx context.Context, boardID int) ([]Sprint, error) {
-	var todos []Sprint
+	var all []Sprint
 	for startAt := 0; ; {
 		var raw struct {
 			Values []Sprint `json:"values"`
@@ -57,39 +57,39 @@ func (c *Client) allSprints(ctx context.Context, boardID int) ([]Sprint, error) 
 		if err := c.do(ctx, http.MethodGet, path, nil, &raw); err != nil {
 			return nil, err
 		}
-		todos = append(todos, raw.Values...)
+		all = append(all, raw.Values...)
 		if raw.IsLast || len(raw.Values) == 0 {
 			break
 		}
 		startAt += len(raw.Values)
 	}
-	if len(todos) == 0 {
+	if len(all) == 0 {
 		return nil, fmt.Errorf("el board %d no tiene sprints", boardID)
 	}
 
 	// Ordenamos por fecha de inicio (no por id: los ids son globales de la instancia, así que un sprint
 	// creado antes pero arrancado después quedaría fuera de lugar). El id queda como desempate. Un future
 	// sin fecha cae al fondo, que es donde queremos que esté.
-	sort.Slice(todos, func(i, j int) bool {
-		if todos[i].StartDate != todos[j].StartDate {
-			return todos[i].StartDate > todos[j].StartDate
+	sort.Slice(all, func(i, j int) bool {
+		if all[i].StartDate != all[j].StartDate {
+			return all[i].StartDate > all[j].StartDate
 		}
-		return todos[i].ID > todos[j].ID
+		return all[i].ID > all[j].ID
 	})
-	return todos, nil
+	return all, nil
 }
 
 // RecentSprints devuelve los n sprints más recientes del board (incluye el próximo si el board está
 // entre sprints), del más reciente al más viejo. Para el selector.
 func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, error) {
-	todos, err := c.allSprints(ctx, boardID)
+	all, err := c.allSprints(ctx, boardID)
 	if err != nil {
 		return nil, err
 	}
-	if n > 0 && len(todos) > n {
-		todos = todos[:n]
+	if n > 0 && len(all) > n {
+		all = all[:n]
 	}
-	return todos, nil
+	return all, nil
 }
 
 // DefaultSprint elige qué sprint mostrar al abrir, sin asumir que hay uno activo. Prioridad:
@@ -102,28 +102,28 @@ func (c *Client) RecentSprints(ctx context.Context, boardID, n int) ([]Sprint, e
 // La regla 2 existe por CORE: el Sprint 8 arrancaba hoy pero seguía `future`, así que el tablero abría en
 // el 7 y la tarea recién creada no se veía. "Sin iniciar en Jira" no significa "no es el actual".
 func (c *Client) DefaultSprint(ctx context.Context, boardID int) (*Sprint, error) {
-	todos, err := c.allSprints(ctx, boardID)
+	all, err := c.allSprints(ctx, boardID)
 	if err != nil {
 		return nil, err
 	}
-	for i := range todos { // 1. activo
-		if todos[i].State == "active" {
-			return &todos[i], nil
+	for i := range all { // 1. activo
+		if all[i].State == "active" {
+			return &all[i], nil
 		}
 	}
-	hoy := time.Now().Format("2006-01-02")
-	for i := range todos { // 2. el que contiene hoy (comparación por día, iso ordena lexicográfico)
-		s, e := todos[i].StartDate, todos[i].EndDate
-		if len(s) >= 10 && len(e) >= 10 && s[:10] <= hoy && hoy <= e[:10] {
-			return &todos[i], nil
+	today := time.Now().Format("2006-01-02")
+	for i := range all { // 2. el que contiene hoy (comparación por día, iso ordena lexicográfico)
+		s, e := all[i].StartDate, all[i].EndDate
+		if len(s) >= 10 && len(e) >= 10 && s[:10] <= today && today <= e[:10] {
+			return &all[i], nil
 		}
 	}
-	for i := range todos { // 3. el último cerrado (todos vienen ordenados desc por fecha)
-		if todos[i].State == "closed" {
-			return &todos[i], nil
+	for i := range all { // 3. el último cerrado (todos vienen ordenados desc por fecha)
+		if all[i].State == "closed" {
+			return &all[i], nil
 		}
 	}
-	return &todos[0], nil // 4. lo que quede
+	return &all[0], nil // 4. lo que quede
 }
 
 // SprintByID trae un sprint puntual. (GET /rest/agile/1.0/sprint/{id})

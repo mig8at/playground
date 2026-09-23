@@ -57,12 +57,12 @@ const issues = ref(bootstrapCache?.issues || []);
 // se llega a llamar a la equivocada.
 // `iniciada` es «En curso»: lo que estás haciendo hoy. Las demás arrancan cerradas — cerradas cuestan
 // una fila, así que los cinco estados con su conteo quedan a la vista igual.
-const secciones = ref(new Set(['iniciada']));
-const abierta = (id) => secciones.value.has(id);
-function alternarSeccion(id) {
-  const n = new Set(secciones.value);
+const sections = ref(new Set(['iniciada']));
+const isOpen = (id) => sections.value.has(id);
+function toggleSection(id) {
+  const n = new Set(sections.value);
   n.has(id) ? n.delete(id) : n.add(id);
-  secciones.value = n;
+  sections.value = n;
   // ⚠ Abrir «traer de Jira» SUELTA la tarea. Sus filas viven en el editor —no entran en 300px—, así
   // que sin esto abrís la vista y el editor sigue mostrando la tarea: las filas no se ven nunca.
   if (id === 'jira' && n.has('jira')) active.value = null;
@@ -213,8 +213,8 @@ async function runImport() {
 // molestaba mientras vivían lejos: las pastillas arriba de la grilla y los encabezados adentro. Desde
 // que el acordeón puso las vistas y el menú ⋯ en la misma columna de 300px, el menú decía «iniciada 2»
 // pegado a una vista que decía «En curso 2».
-const ORDEN_FILTROS = ['sin-iniciar', 'iniciada', 'bloqueada', 'pruebas', 'terminada'];
-const FILTROS = ORDEN_FILTROS.map((id) => ({ id, label: TASK_GROUPS.find((g) => g.id === id).title }));
+const FILTER_ORDER = ['sin-iniciar', 'iniciada', 'bloqueada', 'pruebas', 'terminada'];
+const FILTERS = FILTER_ORDER.map((id) => ({ id, label: TASK_GROUPS.find((g) => g.id === id).title }));
 // ⚠ Los dos tests por NOMBRE están acá a propósito, y no por comodidad:
 //
 //   · «bloqueada» — el board de CORE la declara en la categoría `new`, así que sin este test una tarea
@@ -224,11 +224,11 @@ const FILTROS = ORDEN_FILTROS.map((id) => ({ id, label: TASK_GROUPS.find((g) => 
 //     a un estado de contar. Mezclarla con «iniciada» esconde el atasco.
 //
 // El resto sale de `StatusCategory`, que es lo único que Jira garantiza en cualquier workflow.
-const bloqueada = (i) => /bloquead/i.test(i?.Status || '');
-const bucketDe = (i) => {
+const blocked = (i) => /bloquead/i.test(i?.Status || '');
+const bucketOf = (i) => {
   if (i.StatusCategory === 'done') return 'terminada';
-  if (enPruebas(i)) return 'pruebas';
-  if (bloqueada(i)) return 'bloqueada';
+  if (inTesting(i)) return 'pruebas';
+  if (blocked(i)) return 'bloqueada';
   if (i.StatusCategory === 'new') return 'sin-iniciar';
   return 'iniciada';   // `indeterminate` que no está en pruebas ni bloqueada: en progreso, en revisión
 };
@@ -238,50 +238,50 @@ const bucketDe = (i) => {
 //
 // NO se persiste a propósito: abrir el tablero y ver 2 tarjetas porque quedó un filtro de ayer se lee
 // como "perdí trabajo", no como "hay un filtro puesto". Arranca siempre con todo visible.
-const ocultos = ref(new Set());
-const alternarFiltro = (id) => { ocultos.value.has(id) ? ocultos.value.delete(id) : ocultos.value.add(id) };
+const hidden = ref(new Set());
+const toggleFilter = (id) => { hidden.value.has(id) ? hidden.value.delete(id) : hidden.value.add(id) };
 
 // ── EL MENÚ ⋯ DEL SIDEBAR ───────────────────────────────────────────────────────────────────────
 // Los filtros dejaron de ser tres renglones de pastillas arriba de la lista y pasaron al menú del
 // encabezado (el patrón del Explorer de VS Code). Los datos son los MISMOS —`FILTROS`, `conteoFiltro`,
 // `ocultos`, `verLocales`—: sólo cambió dónde se dibujan.
-const menuFiltros = computed(() => {
-  const its = FILTROS.map(f => ({
-    id: f.id, label: f.label, count: conteoFiltro.value[f.id],
-    checked: !ocultos.value.has(f.id), disabled: !conteoFiltro.value[f.id],
-    title: ocultos.value.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`,
+const filtersMenu = computed(() => {
+  const its = FILTERS.map(f => ({
+    id: f.id, label: f.label, count: filterCount.value[f.id],
+    checked: !hidden.value.has(f.id), disabled: !filterCount.value[f.id],
+    title: hidden.value.has(f.id) ? `mostrar ${f.label}` : `ocultar ${f.label}`,
   }));
   // Las LOCALES son otro eje —las de arriba filtran por ESTADO, esto por ORIGEN—, así que van
   // separadas. Y arranca apagada: el tablero es el sprint primero.
   its.push({ separador: true });
-  its.push({ id: '_locales', label: 'locales', count: cuantasLocales.value, checked: verLocales.value,
-             disabled: !cuantasLocales.value,
-             title: verLocales.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
+  its.push({ id: '_locales', label: 'locales', count: localCount.value, checked: showLocals.value,
+             disabled: !localCount.value,
+             title: showLocals.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
   // El ancho del sprint es otro eje más: se alterna y se toca poco, que es justo lo que va al menú.
   // Vivía en el titlebar, que ya no existe.
   its.push({ separador: true });
   its.push({ id: '_ancha', label: `últimos ${sprintTabs.value.length} sprints`,
-             checked: vistaAncha.value,
-             title: vistaAncha.value ? `ver sólo ${sprint.value?.name || 'el sprint activo'}`
+             checked: wideView.value,
+             title: wideView.value ? `ver sólo ${sprint.value?.name || 'el sprint activo'}`
                                      : 'ver mis tareas de los últimos sprints' });
-  if (ocultos.value.size || busca.value) {
+  if (hidden.value.size || searchQuery.value) {
     its.push({ separador: true });
     its.push({ id: '_todas', label: 'ver todas', icon: 'filter', title: 'quitar todos los filtros' });
   }
   return its;
 });
-function desdeMenu(id) {
-  if (id === '_locales') { verLocales.value = !verLocales.value; return; }
-  if (id === '_ancha') { alternarVista(); return; }
-  if (id === '_todas') { busca.value = ''; ocultos.value = new Set(); return; }
-  alternarFiltro(id);
+function fromMenu(id) {
+  if (id === '_locales') { showLocals.value = !showLocals.value; return; }
+  if (id === '_ancha') { toggleView(); return; }
+  if (id === '_todas') { searchQuery.value = ''; hidden.value = new Set(); return; }
+  toggleFilter(id);
 }
 // Colapsar TODO o desplegar todo, según cómo esté: un botón que sólo colapsa deja de servir apenas
 // lo usaste una vez. ⚠ No toca la vista de Jira: es de otro eje y se pliega sola.
-function colapsarTodo() {
+function collapseAll() {
   const ids = groupedIssues.value.map(g => g.id);
-  const jira = secciones.value.has('jira') ? ['jira'] : [];
-  secciones.value = new Set(ids.every(id => secciones.value.has(id)) ? jira : [...ids, ...jira]);
+  const jira = sections.value.has('jira') ? ['jira'] : [];
+  sections.value = new Set(ids.every(id => sections.value.has(id)) ? jira : [...ids, ...jira]);
 }
 
 // ── buscador por título ──────────────────────────────────────────────────────────────────────────
@@ -290,9 +290,9 @@ function colapsarTodo() {
 // con las tareas en español, que son casi todas.
 // Busca también por CLAVE porque pegar «CORE-431» es la otra forma natural de buscar una tarea, y no
 // puede colisionar con un título: ningún título tiene esa forma.
-const busca = ref('');
-const sinTildes = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
-const buscaNorm = computed(() => sinTildes(busca.value).trim());
+const searchQuery = ref('');
+const withoutAccents = (s) => (s || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
+const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim());
 
 // ── las tareas LOCALES, las que todavía no tienen Jira ────────────────────────────────────────────
 //
@@ -306,12 +306,12 @@ const buscaNorm = computed(() => sinTildes(busca.value).trim());
 // APAGADO por defecto: el tablero es, antes que nada, el sprint — lo que el equipo ve. Las locales son
 // material propio y son MUCHAS (16 contra 7 del sprint el 2026-08-27): encendidas por defecto ahogaban
 // justo lo que uno viene a mirar. Se prenden cuando se las está trabajando.
-const verLocales = ref(false);
+const showLocals = ref(false);
 
-const localesTodas = computed(() => {
-  const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
+const allLocals = computed(() => {
+  const linked = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
   return efforts.value
-    .filter(e => e.id && !ligados.has(e.id) && !e.archived)
+    .filter(e => e.id && !linked.has(e.id) && !e.archived)
     .map(e => ({
       // La clave imita la forma de Jira para que todo lo que indexa por `Key` —selección, cajones,
       // contador de avances— siga funcionando sin ramas especiales.
@@ -324,65 +324,65 @@ const localesTodas = computed(() => {
       _esfuerzoId: e.id,
     }));
 });
-const localesSueltas = computed(() => verLocales.value ? localesTodas.value : []);
+const looseLocals = computed(() => showLocals.value ? allLocals.value : []);
 
 // Cuántas locales hay, se estén viendo o no: una píldora sin número obliga a prenderla para descubrir
 // si tiene algo, que es exactamente lo que las otras casillas ya evitan.
-const cuantasLocales = computed(() => {
-  const ligados = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
-  return efforts.value.filter(e => e.id && !ligados.has(e.id) && !e.archived).length;
+const localCount = computed(() => {
+  const linked = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
+  return efforts.value.filter(e => e.id && !linked.has(e.id) && !e.archived).length;
 });
 
 const visibleTasks = computed(() => {
   // Conserva la deduplicación y el origen antes de agrupar por estado.
-  if (vistaAncha.value) {
+  if (wideView.value) {
     // Una tarea ARRASTRADA entre sprints viene en el listado de cada sprint que la incluyó. Agrupada eso
     // era correcto (una fila por grupo); suelta son tarjetas DUPLICADAS — CORE-365 salía tres veces, una
     // por Sprint 12, 11 y 10. Se deduplica por `Key` quedándose con el sprint MÁS NUEVO (el listado viene
     // nuevo→viejo) y el arrastre NO se pierde: se cuenta, porque una tarea en su 3.er sprint es una señal.
-    const porKey = new Map();
-    for (const g of porSprint.value) {
+    const byKey = new Map();
+    for (const g of bySprint.value) {
       for (const i of g.issues) {
-        const ya = porKey.get(i.Key);
-        if (ya) { ya._arrastres++; continue; }
-        porKey.set(i.Key, { ...i, _sprint: nombreCorto(g.sprint.name), _arrastres: 1 });
+        const existing = byKey.get(i.Key);
+        if (existing) { existing._arrastres++; continue; }
+        byKey.set(i.Key, { ...i, _sprint: shortName(g.sprint.name), _arrastres: 1 });
       }
     }
-    return conFiltro([...porKey.values(), ...localesSueltas.value]);
+    return withFilter([...byKey.values(), ...looseLocals.value]);
   }
   // `issues` ya viene ordenado nuevo → viejo desde el server y ese orden se preserva tal cual.
-  const conEsfuerzo = issues.value.map((i) => {
+  const withEffort = issues.value.map((i) => {
     const eid = taskLocals.value[i.Key]?.effortId || 0;
     const t = eid ? efforts.value.find(e => e.id === eid)?.title : '';
     return t ? { ...i, _esfuerzo: t, _esfuerzoId: eid } : i;
   });
-  return conFiltro([...conEsfuerzo, ...localesSueltas.value]);
+  return withFilter([...withEffort, ...looseLocals.value]);
 });
-const groupedIssues = computed(() => groupTasks(visibleTasks.value, bucketDe));
+const groupedIssues = computed(() => groupTasks(visibleTasks.value, bucketOf));
 // El filtro se aplica al FINAL de las dos ramas: es una vista sobre la lista, no otra lista.
 // Las casillas y el buscador se combinan con Y, que es lo que uno espera: buscar dentro de lo que
 // quedó visible, no que escribir en la caja reviva lo que se destildó.
-function conFiltro(ts) {
-  const q = buscaNorm.value;
-  const porEstado = ocultos.value.size ? ts.filter(i => !ocultos.value.has(bucketDe(i))) : ts;
-  return q ? porEstado.filter(i => sinTildes(i.Summary).includes(q) || sinTildes(i.Key).includes(q)) : porEstado;
+function withFilter(ts) {
+  const q = normalizedSearch.value;
+  const byState = hidden.value.size ? ts.filter(i => !hidden.value.has(bucketOf(i))) : ts;
+  return q ? byState.filter(i => withoutAccents(i.Summary).includes(q) || withoutAccents(i.Key).includes(q)) : byState;
 }
 // Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, un bucket destildado diría 0 y
 // dejaría de poder volver a tildarse con conocimiento de qué esconde.
-const sinFiltrar = computed(() => {
-  if (vistaAncha.value) {
+const unfiltered = computed(() => {
+  if (wideView.value) {
     const vistos = new Set(), out = [];
-    for (const g of porSprint.value) for (const i of g.issues) {
+    for (const g of bySprint.value) for (const i of g.issues) {
       if (!vistos.has(i.Key)) { vistos.add(i.Key); out.push(i); }
     }
     return out;
   }
   return issues.value;
 });
-const conteoFiltro = computed(() => {
+const filterCount = computed(() => {
   const n = {};
-  for (const f of FILTROS) n[f.id] = 0;
-  for (const i of [...sinFiltrar.value, ...localesSueltas.value]) n[bucketDe(i)]++;
+  for (const f of FILTERS) n[f.id] = 0;
+  for (const i of [...unfiltered.value, ...looseLocals.value]) n[bucketOf(i)]++;
   return n;
 });
 
@@ -398,8 +398,8 @@ const stageOf = (id) => STAGES.find(s => s.id === (efforts.value.find(e => e.id 
 // dice si algo se está evaluando o trabajando, no si sigue vivo: medido el 2026-09-14, 22 de las 39
 // abiertas llevaban 14 días o más sin tocarse y todas se veían igual. DORMIDA a los 14; a los 30 la
 // pregunta es si se archiva o se anota por qué espera.
-const DORMIDA_DIAS = 14;
-const diasSinTocar = (id) => {
+const DORMANT_DAYS = 14;
+const daysUntouched = (id) => {
   const t = efforts.value.find(e => e.id === id)?.tocadoEn;
   if (!t) return null;
   return Math.max(0, Math.floor((Date.now() - new Date(t + 'T12:00:00')) / 86400000));
@@ -411,39 +411,39 @@ const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
 // los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que los avances
-const protosDe = (key) => artifactsOf(esfuerzoDe(key));
+const protosOf = (key) => artifactsOf(effortFor(key));
 
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
 // No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
 // tabla y su selector de repos EXCLUSIVAMENTE de la tarea enfocada; nunca muestra el inventario global.
-const ramasSnap = ref({ medidoEn: '', tareas: {} });
-const refrescandoRamas = ref(false);
-const errorRamas = ref('');
-async function cargarRamas() {
-  try { ramasSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
+const branchesSnap = ref({ medidoEn: '', tareas: {} });
+const refreshingBranches = ref(false);
+const branchesError = ref('');
+async function loadBranches() {
+  try { branchesSnap.value = await (await fetch(`${SERVER}/api/ramas`)).json() || { tareas: {} }; }
   catch { /* sin snapshot todavía: la card lo dice, no es un error */ }
 }
-const ramasDe = (key) => {
-  const eid = esfuerzoDe(key);
-  return (ramasSnap.value.tareas || {})[String(eid)] || null;
+const branchesOf = (key) => {
+  const eid = effortFor(key);
+  return (branchesSnap.value.tareas || {})[String(eid)] || null;
 };
-const ramasTareaActiva = computed(() => active.value ? (ramasDe(active.value.Key) || {
-  patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '',
-}) : { patron: '', ramas: [], medidoEn: ramasSnap.value.medidoEn || '' });
-async function refrescarRamas() {
-  const effortId = active.value ? esfuerzoDe(active.value.Key) : 0;
-  if (!effortId || refrescandoRamas.value) return;
-  refrescandoRamas.value = true;
-  errorRamas.value = '';
+const activeTaskBranches = computed(() => active.value ? (branchesOf(active.value.Key) || {
+  patron: '', ramas: [], medidoEn: branchesSnap.value.medidoEn || '',
+}) : { patron: '', ramas: [], medidoEn: branchesSnap.value.medidoEn || '' });
+async function refreshBranches() {
+  const effortId = active.value ? effortFor(active.value.Key) : 0;
+  if (!effortId || refreshingBranches.value) return;
+  refreshingBranches.value = true;
+  branchesError.value = '';
   try {
-    const respuesta = await fetch(`${SERVER}/api/ramas/refresh?id=${encodeURIComponent(effortId)}`, { method: 'POST' });
-    const snapshot = await respuesta.json();
-    if (!respuesta.ok || snapshot.error) throw new Error(snapshot.error || 'no se pudo actualizar las ramas');
-    ramasSnap.value = snapshot || { tareas: {} };
+    const httpResponse = await fetch(`${SERVER}/api/ramas/refresh?id=${encodeURIComponent(effortId)}`, { method: 'POST' });
+    const snapshot = await httpResponse.json();
+    if (!httpResponse.ok || snapshot.error) throw new Error(snapshot.error || 'no se pudo actualizar las ramas');
+    branchesSnap.value = snapshot || { tareas: {} };
   } catch (err) {
-    errorRamas.value = err instanceof Error ? err.message : 'no se pudo actualizar las ramas';
+    branchesError.value = err instanceof Error ? err.message : 'no se pudo actualizar las ramas';
   } finally {
-    refrescandoRamas.value = false;
+    refreshingBranches.value = false;
   }
 }
 
@@ -457,20 +457,20 @@ const points = computed(() => issues.value.reduce((n, i) => n + (i.Points || 0),
 //
 // ⚠ «En pruebas» NO cuenta, y es donde más puntos se quedan varados —a un estado de contar—. Por eso
 // existe el desglose: el número solo dice que vas atrás; el desglose dice QUÉ MOVER.
-const cuentaParaMetrica = (i) => i.StatusCategory === 'done' || /revisi[oó]n/i.test(i.Status || '');
-const ptsComprometidos = computed(() => points.value);
-const ptsCuentan = computed(() => issues.value.filter(cuentaParaMetrica).reduce((n, i) => n + (i.Points || 0), 0));
-const ptsVarados = computed(() => {
+const countsForMetric = (i) => i.StatusCategory === 'done' || /revisi[oó]n/i.test(i.Status || '');
+const committedPts = computed(() => points.value);
+const countedPts = computed(() => issues.value.filter(countsForMetric).reduce((n, i) => n + (i.Points || 0), 0));
+const strandedPts = computed(() => {
   const m = {};
   for (const i of issues.value) {
-    if (cuentaParaMetrica(i) || !(i.Points > 0)) continue;
+    if (countsForMetric(i) || !(i.Points > 0)) continue;
     m[i.Status] = (m[i.Status] || 0) + i.Points;
   }
   return Object.entries(m).sort((a, b) => b[1] - a[1]);
 });
 // Tareas sin estimar: la regla dice que TODAS deben tener puntos, incluidas las no planificadas. Una
 // sin puntos no baja la métrica — la deja incompleta, que es peor, porque no se nota.
-const sinPuntos = computed(() => issues.value.filter(i => !(i.Points > 0)).map(i => i.Key));
+const withoutPoints = computed(() => issues.value.filter(i => !(i.Points > 0)).map(i => i.Key));
 
 // CAPACIDAD: cuántos puntos entran en un sprint, deducido de la tabla de referencia del equipo
 // (Oscar, 2026-08-18) y no inventado — ahí un **5 es «cerca de medio sprint»**, así que dos tareas de
@@ -479,19 +479,19 @@ const sinPuntos = computed(() => issues.value.filter(i => !(i.Points > 0)).map(i
 // No es un límite que el tablero imponga: es la vara contra la que mirar lo que uno se comprometió.
 // Comprometer el doble no se nota mirando la lista de tareas —son cinco tarjetas, se ven pocas— y sí
 // se nota el viernes, cuando la mitad no alcanzó a contar.
-const CAPACIDAD = 10;
-const sobreCapacidad = computed(() => {
-  const c = ptsComprometidos.value;
-  if (c <= CAPACIDAD) return null;
-  return { pts: c, veces: +(c / CAPACIDAD).toFixed(1), exceso: c - CAPACIDAD };
+const CAPACITY = 10;
+const overCapacity = computed(() => {
+  const c = committedPts.value;
+  if (c <= CAPACITY) return null;
+  return { pts: c, veces: +(c / CAPACITY).toFixed(1), exceso: c - CAPACITY };
 });
 // El desfase contra el CALENDARIO: qué fracción del sprint se consumió contra qué fracción ya cuenta.
 // Sólo con el sprint en curso: antes de arrancar o cerrado, comparar contra el calendario es ruido.
-const ritmo = computed(() => {
+const pace = computed(() => {
   const d = sprintDays.value;
-  if (d?.state !== 'ongoing' || !ptsComprometidos.value) return null;
-  const hecho = Math.round(100 * ptsCuentan.value / ptsComprometidos.value);
-  return { consumido: d.pct, hecho, atras: Math.max(0, d.pct - hecho), dias: d.remaining };
+  if (d?.state !== 'ongoing' || !committedPts.value) return null;
+  const donePct = Math.round(100 * countedPts.value / committedPts.value);
+  return { consumido: d.pct, hecho: donePct, atras: Math.max(0, d.pct - donePct), dias: d.remaining };
 });
 const jiraTime = computed(() => issues.value.reduce((n, i) => n + (i.SpentSecs || 0), 0));
 const ofSprint = computed(() => entries.value.filter(e => e.sprint === sprint.value?.id));
@@ -500,7 +500,7 @@ const logTime = computed(() => ofSprint.value.reduce((n, e) => n + e.min, 0));
 // El chip del header, según el ESTADO del sprint. CORE vive entre sprints (uno cerró, el próximo no
 // arrancó), así que un sprint puede no haber empezado: "5 días restantes" sobre algo que aún no empieza
 // sería mentira. Tres casos: por arrancar · en curso · cerrado.
-const nombreCorto = (n) => (n || '').replace(/^.*?(Sprint)/i, '$1');
+const shortName = (n) => (n || '').replace(/^.*?(Sprint)/i, '$1');
 const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 
 // ── VISTA «últimos 4 sprints»: todas MIS tareas de la ventana, a lo ancho ────────────────────────
@@ -514,48 +514,48 @@ const sprintTabs = computed(() => (sprints.value || []).slice(0, SPRINT_TABS));
 // Las pestañas por sprint se quitaron (2026-08-19, decisión de Miguel): 4 botones en el header para ver
 // un sprint a la vez, cuando lo que se quiere es ver TODO lo propio de la ventana. El sprint ACTIVO sigue
 // siendo el de los indicadores (puntos, tiempo, días restantes) — eso no cambia con la vista.
-const vistaAncha = ref(true);
-const cargandoAncha = ref(false);
-const porSprint = ref(bootstrapCache?.porSprint || []); // [{ sprint, issues }] en el orden de las pestañas
+const wideView = ref(true);
+const loadingWide = ref(false);
+const bySprint = ref(bootstrapCache?.porSprint || []); // [{ sprint, issues }] en el orden de las pestañas
 
-function guardarBootstrap() {
+function saveBootstrap() {
   if (!sprint.value) return;
   writeBootstrapCache({
     sprint: sprint.value, sprints: sprints.value, issues: issues.value,
-    porSprint: porSprint.value, site: site.value,
+    porSprint: bySprint.value, site: site.value,
   });
 }
 
-async function cargarUltimos4() {
+async function loadLast4() {
   // Con cache las filas permanecen visibles mientras se revalidan; el indicador de carga sólo ocupa
   // el sitio de los datos cuando de verdad no existe todavía nada que mostrar.
-  cargandoAncha.value = !porSprint.value.length;
+  loadingWide.value = !bySprint.value.length;
   try {
     // En PARALELO: son 4 llamadas a Jira y en serie se notaba la espera.
     const res = await Promise.all(sprintTabs.value.map(async (s) => {
       // El sprint principal acaba de llegar por `/api/sprint`: volver a pedirlo acá duplicaba la
       // llamada más costosa de cada recarga.
       if (s.id === sprint.value?.id) return { sprint: s, issues: issues.value };
-      const anterior = porSprint.value.find((grupo) => grupo.sprint?.id === s.id);
+      const previous = bySprint.value.find((sprintGroup) => sprintGroup.sprint?.id === s.id);
       try {
         const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}&id=${s.id}`)).json();
-        return j.error ? (anterior || { sprint: s, issues: [] }) : { sprint: s, issues: j.issues || [] };
-      } catch { return anterior || { sprint: s, issues: [] }; }
+        return j.error ? (previous || { sprint: s, issues: [] }) : { sprint: s, issues: j.issues || [] };
+      } catch { return previous || { sprint: s, issues: [] }; }
     }));
-    porSprint.value = res;
-    guardarBootstrap();
-  } finally { cargandoAncha.value = false; }
+    bySprint.value = res;
+    saveBootstrap();
+  } finally { loadingWide.value = false; }
 }
 
 // Total de tarjetas visibles: va en el encabezado porque "4 sprints" no dice cuánto trabajo es.
 // Cuenta TARJETAS, no filas de sprint: sumar `g.issues.length` daba 24 cuando en pantalla había 16,
 // porque las arrastradas venían repetidas. El contador y la grilla salen ahora de la misma lista.
-const visibles = computed(() => visibleTasks.value.length);
-const totalTasks = computed(() => sinFiltrar.value.length + localesSueltas.value.length);
+const visible = computed(() => visibleTasks.value.length);
+const totalTasks = computed(() => unfiltered.value.length + looseLocals.value.length);
 
-async function alternarVista() {
-  vistaAncha.value = !vistaAncha.value;
-  if (vistaAncha.value && !porSprint.value.length) await cargarUltimos4();
+async function toggleView() {
+  wideView.value = !wideView.value;
+  if (wideView.value && !bySprint.value.length) await loadLast4();
 }
 
 const sprintDays = computed(() => {
@@ -592,21 +592,21 @@ const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) =
 // ⚠ Contempla las tarjetas LOCALES (`LOCAL-<id>`), que no están en el mapa de Jira porque no están en
 // Jira. Cuando cada cajón resolvía el esfuerzo por su cuenta contra `taskLocals`, las locales salían
 // todas vacías —«sin cuerpo técnico»— con el cuerpo ahí al lado.
-const esfuerzoDe = (key) => {
+const effortFor = (key) => {
   if (typeof key === 'string' && key.startsWith('LOCAL-')) return Number(key.slice(6)) || 0;
   return taskLocals.value[key]?.effortId || 0;
 };
 // El JSONL es la única cronología de una tarea: cada renglón debe explicar algo que permite
 // continuarla. Los registros de minutos siguen existiendo para medir trabajo, pero no entran acá.
-const contextos = ref([]);
-let contextosRequest = 0;
-const contextoDesdeApi = (event) => ({ ...event, references: Array.isArray(event.references) ? event.references : [] });
-const referenciasDBDe = (event) => event.references.filter(reference => reference.kind === 'db');
-const referenciasHarnessDe = (event) => event.references.filter(reference => reference.kind === 'harness');
+const contexts = ref([]);
+let contextsRequest = 0;
+const contextFromApi = (event) => ({ ...event, references: Array.isArray(event.references) ? event.references : [] });
+const dbReferencesOf = (event) => event.references.filter(reference => reference.kind === 'db');
+const harnessReferencesOf = (event) => event.references.filter(reference => reference.kind === 'harness');
 // El contexto admite únicamente enlaces Markdown a Canon: [texto](canon:nodo). Nunca se inyecta
 // HTML ni se interpreta Markdown general; se parte el texto y Vue escapa cada fragmento normal.
 const inlineCanonLink = /\[([^\[\]\r\n]+)\]\(canon:([A-Za-z0-9][A-Za-z0-9._/#-]*)\)/g;
-const partesConCanon = (text) => {
+const partsWithCanon = (text) => {
   const value = typeof text === 'string' ? text : '';
   const parts = [];
   let cursor = 0;
@@ -618,7 +618,7 @@ const partesConCanon = (text) => {
   if (cursor < value.length || !parts.length) parts.push({ type: 'text', value: value.slice(cursor) });
   return parts;
 };
-const parrafosContexto = (event) => [
+const contextParagraphs = (event) => [
   event.goal && { label: 'Objetivo.', text: event.goal },
   { text: event.summary },
   event.state && { label: 'Estado.', text: event.state },
@@ -626,44 +626,44 @@ const parrafosContexto = (event) => [
   event.reason && { label: 'Motivo.', text: event.reason },
   event.waitingOn && { label: 'En espera de.', text: event.waitingOn },
 ].filter(Boolean);
-const diaContexto = (event) => event.at.slice(0, 10);
-const edadContexto = (day) => {
+const contextDay = (event) => event.at.slice(0, 10);
+const contextAge = (day) => {
   const now = new Date(); now.setHours(0, 0, 0, 0);
   return Math.round((now - new Date(`${day}T00:00:00`)) / 86400000);
 };
-const etiquetaDiaContexto = (day) => {
-  const age = edadContexto(day);
+const contextDayLabel = (day) => {
+  const age = contextAge(day);
   if (age === 0) return 'Hoy';
   if (age === 1) return 'Ayer';
   return new Date(`${day}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
 };
-const gruposContexto = computed(() => {
+const contextGroups = computed(() => {
   const grouped = new Map();
-  for (const event of contextos.value) {
-    const day = diaContexto(event);
+  for (const event of contexts.value) {
+    const day = contextDay(event);
     if (!grouped.has(day)) grouped.set(day, []);
     grouped.get(day).push(event);
   }
   return [...grouped.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, items]) => ({
-    day, label: etiquetaDiaContexto(day), items,
+    day, label: contextDayLabel(day), items,
   }));
 });
-async function cargarContexto() {
+async function loadContext() {
   const task = active.value;
-  const request = ++contextosRequest;
-  const effort = task && esfuerzoDe(task.Key);
-  if (!effort) { contextos.value = []; return; }
+  const request = ++contextsRequest;
+  const effort = task && effortFor(task.Key);
+  if (!effort) { contexts.value = []; return; }
   try {
     const response = await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`);
     const json = await response.json();
-    if (request === contextosRequest && !json.error) contextos.value = (json.events || []).map(contextoDesdeApi);
+    if (request === contextsRequest && !json.error) contexts.value = (json.events || []).map(contextFromApi);
   } catch {
-    if (request === contextosRequest) contextos.value = [];
+    if (request === contextsRequest) contexts.value = [];
   }
 }
 
-watch(() => [active.value?.Key, esfuerzoDe(active.value?.Key)], () => {
-  cargarContexto();
+watch(() => [active.value?.Key, effortFor(active.value?.Key)], () => {
+  loadContext();
 }, { immediate: true });
 // La descripción completa de Jira se conserva en su riel de referencia. El centro sólo conserva lo
 // necesario para continuar: checkpoint, documento vigente y evidencia reproducible.
@@ -677,10 +677,10 @@ watch(() => [active.value?.Key, esfuerzoDe(active.value?.Key)], () => {
 // (el cuerpo privado, sin la sección publicable); sólo faltaba mirarlo.
 //
 // La de Jira sigue a un clic, en el enlace del encabezado: no se pierde, se despriorizó.
-const cuerpoDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.techNotes || '';
+const bodyOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.techNotes || '';
 
-const effortDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key));
-const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
+const effortOf = (key) => efforts.value.find(e => e.id === effortFor(key));
+const documentSections = computed(() => organizeDocument(active.value ? bodyOf(active.value.Key) : ''));
 const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml && !section.history));
 // El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
 // si esto se trabajó una tarde o dos meses.
@@ -695,16 +695,16 @@ const jiraDocument = computed(() => jiraPreview(active.value));
 // desde hace semanas. Comprobado en el navegador contra producción el 2026-09-21: la URL abre la
 // sección, muestra su texto y la dirección queda en la barra, o sea que se puede copiar. El costo de
 // aquel error no fue el comentario: fue el chip mandando a la home un día entero.
-const canonID = (referencia) => {
-  const id = typeof referencia === 'string' ? referencia : (referencia?.id || referencia?.requested || '');
+const canonID = (canonRef) => {
+  const id = typeof canonRef === 'string' ? canonRef : (canonRef?.id || canonRef?.requested || '');
   const [nodo, ancla] = id.split('#', 2);
-  const completo = nodo.includes('/') ? nodo : `${nodo}/context`;
-  return ancla ? `${completo}#${ancla}` : completo;
+  const complete = nodo.includes('/') ? nodo : `${nodo}/context`;
+  return ancla ? `${complete}#${ancla}` : complete;
 };
-const canonLink = (referencia) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(referencia))}`;
+const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(canonRef))}`;
 // La evidencia que se registra en el cuerpo privado es el historial de cómo se trabajó la tarea. No
 // se reduce a un texto de «retomar»: Trazador y Harness la consumen en la vista central.
-const evidenciaDeTrabajo = computed(() => active.value ? hallazgosDe(active.value.Key) : []);
+const workEvidence = computed(() => active.value ? findingsOf(active.value.Key) : []);
 
 // ── ORIENTACIÓN JEV ─────────────────────────────────────────────────────────────────────────────
 // Es un acto EXPLÍCITO: abrir la franja no llama a nadie; «Analizar con Jev» es el consentimiento
@@ -716,21 +716,21 @@ const jevError = ref('');
 const jevGuidance = ref(null);
 let jevRequest = 0;
 const jevTarget = computed(() => {
-  const effort = active.value ? effortDe(active.value.Key) : null;
+  const effort = active.value ? effortOf(active.value.Key) : null;
   return effort?.id ? String(effort.id) : '';
 });
-function abrirOrientacion() {
+function openGuidance() {
   jevOpen.value = !jevOpen.value;
   if (!jevOpen.value) { jevError.value = ''; jevGuidance.value = null; }
 }
-function cerrarOrientacion() {
+function closeGuidance() {
   jevOpen.value = false;
   jevBusy.value = false;
   jevError.value = '';
   jevGuidance.value = null;
   jevRequest++;
 }
-async function orientarConJev() {
+async function guideWithJev() {
   const target = jevTarget.value;
   if (!target || jevBusy.value) return;
   const request = ++jevRequest;
@@ -749,7 +749,7 @@ async function orientarConJev() {
     if (request === jevRequest) jevBusy.value = false;
   }
 }
-function textoOrientacionJev() {
+function jevGuidanceText() {
   const row = jevGuidance.value;
   if (!row?.action) return '';
   const action = {
@@ -760,9 +760,9 @@ function textoOrientacionJev() {
   const urgency = ['puede esperar', 'normal', 'conviene priorizar', 'crítica'][Math.round(row.urgency || 0)] || 'a revisar';
   return `Orientación de siguiente paso\n\n${action} · urgencia ${urgency} · ${row.externalBlocker ? 'depende de terceros' : 'puede avanzar localmente'}\n\nPropuesta de Jev; revisar la tarea y la evidencia antes de cambiarla.`;
 }
-async function copiarOrientacionJev() {
-  const text = textoOrientacionJev();
-  if (text) await alPortapapeles(text);
+async function copyJevGuidance() {
+  const text = jevGuidanceText();
+  if (text) await toClipboard(text);
 }
 
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
@@ -776,14 +776,14 @@ async function copiarOrientacionJev() {
 // que sea autosuficiente — más la advertencia de que es PRIVADO, porque lo es: nombra repos, rutas y
 // F-xx, y no pasa el guard de Jira. La decisión de compartirlo es de quien copia; que salga sin el
 // aviso, no.
-const copiado = ref('');       // '' | 'ok' | 'error'
-const copiadoCual = ref('');   // qué botón lo dejó así, para pintar sólo ese
-let copiadoTimer = null;
+const copied = ref('');       // '' | 'ok' | 'error'
+const copiedWhich = ref('');   // qué botón lo dejó así, para pintar sólo ese
+let copiedTimer = null;
 
 // El marcador de anotación, COPIADO del server (`store/anotaciones.go`) y no reinventado: si los dos
 // no cortan por la misma línea, lo que el panel muestra como «Cómo» y lo que el copiado saca dejan de
 // ser lo mismo, y eso no falla — miente.
-const RE_ANOTACION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*\d{4}-\d{2}-\d{2}\s*(?:·\s*[^*]+?)?\s*\*\*/i;
+const RE_ANNOTATION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*\d{4}-\d{2}-\d{2}\s*(?:·\s*[^*]+?)?\s*\*\*/i;
 
 // EL CORTE PARA COMPARTIR: se saca lo que es MÍO, no lo que «parece interno».
 //
@@ -812,7 +812,7 @@ const RE_ANOTACION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)
 // ⚠ «Cómo validar» (20 apariciones) NO entra y no es un olvido: vive del lado PUBLICABLE, que es la
 // mitad escrita para QA y ni siquiera llega a `techNotes`. Verificado partiendo cada archivo por el
 // marcador: las cuatro de arriba salen todas del cuerpo privado, «Cómo validar» todas de la publicable.
-const SECCIONES_MIAS = /^(registro|bit[áa]cora|c[óo]mo se comprueba|c[óo]mo probar)\b/i;
+const OWN_SECTIONS = /^(registro|bit[áa]cora|c[óo]mo se comprueba|c[óo]mo probar)\b/i;
 
 // ⚠ Los prefijos van con `^ {0,3}` y NO con `trimStart()`, y esa es la diferencia entre cortar bien
 // y dejar contenido huérfano. En markdown un encabezado admite hasta TRES espacios de sangría; con
@@ -820,62 +820,62 @@ const SECCIONES_MIAS = /^(registro|bit[áa]cora|c[óo]mo se comprueba|c[óo]mo p
 // comercio` —que es un comentario de shell dentro de un bloque— pasaba por encabezado de nivel 1,
 // APAGABA el corte y dejaba escapar el resto de la sección. Se vio corriéndolo, no leyéndolo.
 const RE_FENCE  = /^ {0,3}(```|~~~)/;
-const RE_TITULO = /^ {0,3}(#{1,6})\s+(.+?)\s*$/;
-const RE_CITA   = /^ {0,3}>/;
+const RE_TITLE = /^ {0,3}(#{1,6})\s+(.+?)\s*$/;
+const RE_CITATION   = /^ {0,3}>/;
 
-function cortarParaCompartir(md) {
+function trimForSharing(md) {
   const out = [];
-  let enBloque = false, enRecorte = false, trasAnotacion = false;
-  const guardar = (l) => { if (!enRecorte) out.push(l); };
+  let inBlock = false, inClip = false, afterAnnotation = false;
+  const save = (l) => { if (!inClip) out.push(l); };
   for (const l of md.split('\n')) {
     // Dentro de un bloque de código un `>` o un `##` son contenido, no estructura — y acá se BORRA
     // texto, así que confundirlos cuesta caro.
-    if (RE_FENCE.test(l)) { enBloque = !enBloque; trasAnotacion = false; guardar(l); continue; }
-    if (enBloque) { guardar(l); continue; }
-    const h = RE_TITULO.exec(l);
+    if (RE_FENCE.test(l)) { inBlock = !inBlock; afterAnnotation = false; save(l); continue; }
+    if (inBlock) { save(l); continue; }
+    const h = RE_TITLE.exec(l);
     if (h) {
       // Un encabezado de nivel 1 o 2 abre o cierra el recorte; los `###` de adentro son de su sección.
-      if (h[1].length <= 2) enRecorte = SECCIONES_MIAS.test(h[2]);
-      trasAnotacion = false;
-      if (enRecorte) continue;
+      if (h[1].length <= 2) inClip = OWN_SECTIONS.test(h[2]);
+      afterAnnotation = false;
+      if (inClip) continue;
     }
-    if (enRecorte) continue;
-    if (RE_ANOTACION.test(l)) { out.push(l); trasAnotacion = true; continue; }
-    if (trasAnotacion && RE_CITA.test(l)) continue;   // el `Cómo`: fuera
-    trasAnotacion = false;
+    if (inClip) continue;
+    if (RE_ANNOTATION.test(l)) { out.push(l); afterAnnotation = true; continue; }
+    if (afterAnnotation && RE_CITATION.test(l)) continue;   // el `Cómo`: fuera
+    afterAnnotation = false;
     out.push(l);
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-function textoParaCompartir(modo) {
+function shareText(mode) {
   const i = active.value;
   if (!i) return '';
-  const e = efforts.value.find(x => x.id === esfuerzoDe(i.Key));
-  let cuerpo = cuerpoDe(i.Key);
-  if (!cuerpo) return '';
-  if (modo === 'compartir') cuerpo = cortarParaCompartir(cuerpo);
-  const temas = (e?.canon || '').split(',').map(s => s.trim()).filter(Boolean);
+  const e = efforts.value.find(x => x.id === effortFor(i.Key));
+  let body = bodyOf(i.Key);
+  if (!body) return '';
+  if (mode === 'compartir') body = trimForSharing(body);
+  const topics = (e?.canon || '').split(',').map(s => s.trim()).filter(Boolean);
   // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
   // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
   // la línea opcional de temas se decide al armar el arreglo y no con un `.filter` de vacíos
   // después — ese filtro se comía también los separadores, que es justo el bug que tenía esto.
-  const cita = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
-  if (temas.length) cita.push(`> Temas de canon: ${temas.join(', ')}.`);
+  const citation = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
+  if (topics.length) citation.push(`> Temas de canon: ${topics.join(', ')}.`);
   // Decir QUÉ se recortó, y no sólo que se recortó: quien lo recibe tiene que poder pedir lo que falta.
-  if (modo === 'compartir') cita.push('> Recortado para compartir: sin el registro de trabajo, sin «cómo se comprueba» y sin los comandos de reproducción.');
-  cita.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
-  const titulo = `# ${i.Key} · ${e?.title || i.Summary || ''}`.trim();
-  return [titulo, '', ...cita, '', cuerpo.trim(), ''].join('\n');
+  if (mode === 'compartir') citation.push('> Recortado para compartir: sin el registro de trabajo, sin «cómo se comprueba» y sin los comandos de reproducción.');
+  citation.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');
+  const title = `# ${i.Key} · ${e?.title || i.Summary || ''}`.trim();
+  return [title, '', ...citation, '', body.trim(), ''].join('\n');
 }
 
-async function copiarCuerpo(modo) {
-  const txt = textoParaCompartir(modo);
+async function copyBody(mode) {
+  const txt = shareText(mode);
   if (!txt) return;
-  clearTimeout(copiadoTimer);
-  copiadoCual.value = modo;
-  copiado.value = (await alPortapapeles(txt)) ? 'ok' : 'error';
-  copiadoTimer = setTimeout(() => { copiado.value = ''; copiadoCual.value = ''; }, 2000);
+  clearTimeout(copiedTimer);
+  copiedWhich.value = mode;
+  copied.value = (await toClipboard(txt)) ? 'ok' : 'error';
+  copiedTimer = setTimeout(() => { copied.value = ''; copiedWhich.value = ''; }, 2000);
 }
 
 // Dos caminos, y el respaldo cuelga de que el primero FALLE, no de que falte.
@@ -884,7 +884,7 @@ async function copiarCuerpo(modo) {
 // puede EXISTIR y aun así rechazar. Pide contexto seguro **y** documento enfocado, así que tira
 // `NotAllowedError` si la pestaña perdió el foco — y como yo miraba sólo si la función existía, el
 // respaldo quedaba muerto y el botón se ponía en rojo con la API ahí, disponible.
-async function alPortapapeles(txt) {
+async function toClipboard(txt) {
   try {
     if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(txt); return true; }
   } catch { /* sigue al respaldo */ }
@@ -904,8 +904,8 @@ async function alPortapapeles(txt) {
 
 // Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
 watch(() => active.value?.Key, () => {
-  clearTimeout(copiadoTimer); copiado.value = ''; copiadoCual.value = '';
-  cerrarOrientacion();
+  clearTimeout(copiedTimer); copied.value = ''; copiedWhich.value = '';
+  closeGuidance();
 });
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
@@ -918,57 +918,57 @@ watch(() => active.value?.Key, () => {
  *
  * Se guardan los OBJETOS y no las claves: una tarea abierta tiene que sobrevivir a que un filtro la
  * saque del árbol. El computed la re-resuelve contra los datos vivos cuando sigue estando. */
-const pestanas = ref([]);     // tareas abiertas, en orden
-const previa = ref('');       // la clave de la que está en previsualización, si hay alguna
+const tabItems = ref([]);     // tareas abiertas, en orden
+const preview = ref('');       // la clave de la que está en previsualización, si hay alguna
 // Las vistas auxiliares se pueden ocultar y siempre se recuperan desde el pie. En una ventana mediana
 // arrancan plegadas para que el documento conserve ancho; abrirlas ahí es una decisión temporal y no pisa la
 // preferencia que rige las ventanas grandes.
-const verAux = ref(readPreference('aux-visible', true) !== false);
-const UMBRAL_DETALLE_COMPACTO = 1050;
-const ventanaCompacta = ref(typeof window !== 'undefined' && window.innerWidth <= UMBRAL_DETALLE_COMPACTO);
-const detalleCompactoAbierto = ref(false);
-const mostrarAux = computed(() => !!active.value && verAux.value && (!ventanaCompacta.value || detalleCompactoAbierto.value));
-function alternarDetalle() {
-  if (ventanaCompacta.value) {
-    if (mostrarAux.value) detalleCompactoAbierto.value = false;
-    else { verAux.value = true; detalleCompactoAbierto.value = true; }
+const auxVisible = ref(readPreference('aux-visible', true) !== false);
+const COMPACT_DETAIL_THRESHOLD = 1050;
+const compactWindow = ref(typeof window !== 'undefined' && window.innerWidth <= COMPACT_DETAIL_THRESHOLD);
+const compactDetailOpen = ref(false);
+const showAux = computed(() => !!active.value && auxVisible.value && (!compactWindow.value || compactDetailOpen.value));
+function toggleDetail() {
+  if (compactWindow.value) {
+    if (showAux.value) compactDetailOpen.value = false;
+    else { auxVisible.value = true; compactDetailOpen.value = true; }
     return;
   }
-  verAux.value = !verAux.value;
+  auxVisible.value = !auxVisible.value;
 }
-const verSidebar = ref(readPreference('sidebar-visible', true) !== false);
+const sidebarVisible = ref(readPreference('sidebar-visible', true) !== false);
 // La consola muestra sólo las ramas de la tarea enfocada. Su visibilidad y alto sobreviven al cambio
 // de tarea, y el botón textual del pie evita que el punto de entrada desaparezca cuando está cerrada.
-const verConsolaRamas = ref(readPreference('repos-console-visible', true) !== false);
-const altoConsolaRamas = ref(readPreference('ramas-panel-height', 260) || 260);
-const ramasPanelToggle = ref(null);
-const mostrarConsolaRamas = computed(() => verConsolaRamas.value && !!active.value);
-const ramasPanelResize = computed(() => ({
+const branchConsoleVisible = ref(readPreference('repos-console-visible', true) !== false);
+const branchConsoleHeight = ref(readPreference('ramas-panel-height', 260) || 260);
+const branchPanelToggle = ref(null);
+const showBranchConsole = computed(() => branchConsoleVisible.value && !!active.value);
+const branchPanelResize = computed(() => ({
   label: 'Alto de la consola de ramas', axis: 'y', sign: -1, min: 150,
   max: () => Math.max(150, Math.min(560, window.innerHeight - 300)),
   defaultValue: 260, collapsible: true,
-  get: () => altoConsolaRamas.value,
+  get: () => branchConsoleHeight.value,
   set: (v) => {
-    if (!v) verConsolaRamas.value = false;
-    else { altoConsolaRamas.value = v; verConsolaRamas.value = true; }
+    if (!v) branchConsoleVisible.value = false;
+    else { branchConsoleHeight.value = v; branchConsoleVisible.value = true; }
   },
   commit: (v) => {
     if (v) savePreference('ramas-panel-height', v);
     savePreference('repos-console-visible', !!v);
   },
 }));
-function ocultarConsolaRamas() {
-  verConsolaRamas.value = false;
+function hideBranchConsole() {
+  branchConsoleVisible.value = false;
   savePreference('repos-console-visible', false);
-  nextTick(() => ramasPanelToggle.value?.focus());
+  nextTick(() => branchPanelToggle.value?.focus());
 }
-function mostrarPanelRamas() {
-  verConsolaRamas.value = true;
+function showBranchPanel() {
+  branchConsoleVisible.value = true;
   savePreference('repos-console-visible', true);
 }
-function alternarConsolaRamas() {
-  if (verConsolaRamas.value) ocultarConsolaRamas();
-  else mostrarPanelRamas();
+function toggleBranchConsole() {
+  if (branchConsoleVisible.value) hideBranchConsole();
+  else showBranchPanel();
 }
 /* ── RECORRIDO CENTRAL Y PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────
  * El centro es una línea de tiempo de días. A la derecha quedan Jira, Pendientes y los Artifacts
@@ -978,19 +978,19 @@ function alternarConsolaRamas() {
  * encabezados le quitaban espacio a Jira y la descripción terminaba dentro de una tarjeta pequeña;
  * las pestañas dejan un solo riel compacto y un cuerpo continuo. La evidencia para continuar vive
  * en el centro; Jira abre primero porque es la consulta secundaria más frecuente. */
-const vistaAuxActiva = ref('jira');
-const abiertaAux = (id) => vistaAuxActiva.value === id;
-function alternarAux(id) { vistaAuxActiva.value = id; }
-const vistasAux = computed(() => taskTabs.value);
-function tecladoPestanasAux(event, id) {
+const activeAuxView = ref('jira');
+const auxOpen = (id) => activeAuxView.value === id;
+function toggleAux(id) { activeAuxView.value = id; }
+const auxViews = computed(() => taskTabs.value);
+function auxTabsKeyboard(event, id) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const ids = vistasAux.value.map((vista) => vista.id);
-  const actual = ids.indexOf(id);
-  const siguiente = event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1
-    : (actual + (event.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
-  vistaAuxActiva.value = ids[siguiente];
-  nextTick(() => event.currentTarget.parentElement?.querySelector(`[data-vista="${ids[siguiente]}"]`)?.focus());
+  const ids = auxViews.value.map((view) => view.id);
+  const currentValue = ids.indexOf(id);
+  const upcoming = event.key === 'Home' ? 0 : event.key === 'End' ? ids.length - 1
+    : (currentValue + (event.key === 'ArrowRight' ? 1 : -1) + ids.length) % ids.length;
+  activeAuxView.value = ids[upcoming];
+  nextTick(() => event.currentTarget.parentElement?.querySelector(`[data-vista="${ids[upcoming]}"]`)?.focus());
 }
 
 /* ── LAS MANIJAS DE LOS DOS SIDEBARS ──────────────────────────────────────────────────────────────
@@ -1010,98 +1010,98 @@ function tecladoPestanasAux(event, id) {
  * Y el reparto tiene orden: cuando no entra, se achica primero el AUXILIARYBAR —es el accesorio— y
  * sólo si aún no alcanza se toca el de las tareas, que es por donde se navega. */
 const MIN_EDITOR = 320;
-const ANCHOS = {
+const WIDTHS = {
   '--sidebar-w': ['sidebar-w', 200, 520],
   '--auxiliarybar-w': ['aux-w', 260, 760],
 };
-const preferido = {
+const preferred = {
   '--sidebar-w': readPreference('sidebar-w', 0) || 300,
   '--auxiliarybar-w': readPreference('aux-w', 0) || 340,
 };
 
-function aplicarAnchos() {
+function applyWidths() {
   const wb = document.querySelector('.workbench');
   // ⚠ Sin layout no hay nada que repartir, y repartir cero colapsa las dos columnas a su mínimo y las
   // deja ahí. Pasa de verdad: una pestaña oculta, una página restaurada de la caché de atrás/adelante
   // o una vista de impresión informan `innerWidth: 0`. El `resize` vuelve a llamar cuando haya.
   if (!wb || !window.innerWidth) return;
-  const hayAux = !!document.querySelector('.auxiliarybar');
-  let sb = verSidebar.value ? Math.min(ANCHOS['--sidebar-w'][2], preferido['--sidebar-w']) : 0;
-  let aux = hayAux ? Math.min(ANCHOS['--auxiliarybar-w'][2], preferido['--auxiliarybar-w']) : 0;
-  let falta = sb + aux + MIN_EDITOR - window.innerWidth;
-  if (falta > 0 && hayAux) {
-    const recorte = Math.min(falta, aux - ANCHOS['--auxiliarybar-w'][1]);
-    if (recorte > 0) { aux -= recorte; falta -= recorte; }
+  const hasAux = !!document.querySelector('.auxiliarybar');
+  let sb = sidebarVisible.value ? Math.min(WIDTHS['--sidebar-w'][2], preferred['--sidebar-w']) : 0;
+  let aux = hasAux ? Math.min(WIDTHS['--auxiliarybar-w'][2], preferred['--auxiliarybar-w']) : 0;
+  let missing = sb + aux + MIN_EDITOR - window.innerWidth;
+  if (missing > 0 && hasAux) {
+    const clip = Math.min(missing, aux - WIDTHS['--auxiliarybar-w'][1]);
+    if (clip > 0) { aux -= clip; missing -= clip; }
   }
-  if (falta > 0 && verSidebar.value) sb = Math.max(160, sb - falta);
+  if (missing > 0 && sidebarVisible.value) sb = Math.max(160, sb - missing);
   wb.style.setProperty('--sidebar-w', sb + 'px');
   wb.style.setProperty('--auxiliarybar-w', aux + 'px');
   refreshResizers(wb);
 }
 
-function resizeOptions(varCss, sign) {
-  const [key, min, limit] = ANCHOS[varCss];
+function resizeOptions(cssVar, sign) {
+  const [key, min, limit] = WIDTHS[cssVar];
   const root = () => document.querySelector('.workbench');
   return {
-    label: varCss === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho de las vistas de la tarea',
-    min, sign, defaultValue: varCss === '--sidebar-w' ? 300 : 340,
+    label: cssVar === '--sidebar-w' ? 'Ancho de la lista de tareas' : 'Ancho de las vistas de la tarea',
+    min, sign, defaultValue: cssVar === '--sidebar-w' ? 300 : 340,
     max: () => {
-      const other = document.querySelector(varCss === '--sidebar-w' ? '.auxiliarybar' : '.sidebar');
+      const other = document.querySelector(cssVar === '--sidebar-w' ? '.auxiliarybar' : '.sidebar');
       return Math.max(160, Math.min(limit, window.innerWidth - (other?.getBoundingClientRect().width || 0) - MIN_EDITOR));
     },
-    get: () => parseFloat(getComputedStyle(root()).getPropertyValue(varCss)),
-    set: (v) => { preferido[varCss] = v; root().style.setProperty(varCss, v + 'px'); },
+    get: () => parseFloat(getComputedStyle(root()).getPropertyValue(cssVar)),
+    set: (v) => { preferred[cssVar] = v; root().style.setProperty(cssVar, v + 'px'); },
     commit: (v) => savePreference(key, v),
   };
 }
 
 // Se re-acomoda al abrir, al cambiar el tamaño de la ventana y cuando la ficha aparece o se va —
 // que es cuando cambia cuánto hay para repartir.
-function actualizarDisposicion() {
-  if (menuTarea.value) cerrarMenuTarea();
-  const compacta = window.innerWidth <= UMBRAL_DETALLE_COMPACTO;
-  if (compacta && !ventanaCompacta.value) detalleCompactoAbierto.value = false;
-  ventanaCompacta.value = compacta;
-  aplicarAnchos();
+function updateLayout() {
+  if (taskMenu.value) closeTaskMenu();
+  const compact = window.innerWidth <= COMPACT_DETAIL_THRESHOLD;
+  if (compact && !compactWindow.value) compactDetailOpen.value = false;
+  compactWindow.value = compact;
+  applyWidths();
 }
-onMounted(() => { actualizarDisposicion(); window.addEventListener('resize', actualizarDisposicion); });
-onUnmounted(() => window.removeEventListener('resize', actualizarDisposicion));
-watch([() => !!active.value, mostrarAux, verSidebar], () => nextTick(aplicarAnchos));
-watch(verAux, (v) => savePreference('aux-visible', v));
-watch(verSidebar, (v) => savePreference('sidebar-visible', v));
-const pestanasAbiertas = computed(() =>
-  pestanas.value.map((t) => sinFiltrar.value.find((x) => x.Key === t.Key) || t));
+onMounted(() => { updateLayout(); window.addEventListener('resize', updateLayout); });
+onUnmounted(() => window.removeEventListener('resize', updateLayout));
+watch([() => !!active.value, showAux, sidebarVisible], () => nextTick(applyWidths));
+watch(auxVisible, (v) => savePreference('aux-visible', v));
+watch(sidebarVisible, (v) => savePreference('sidebar-visible', v));
+const openTabs = computed(() =>
+  tabItems.value.map((t) => unfiltered.value.find((x) => x.Key === t.Key) || t));
 
 function openTask(task, fijar = false) {
-  const cambioDeTarea = active.value?.Key !== task.Key;
-  const ya = pestanas.value.some((t) => t.Key === task.Key);
-  if (!ya) {
-    pestanas.value = previa.value && !fijar
-      ? pestanas.value.map((t) => (t.Key === previa.value ? task : t))
-      : [...pestanas.value, task];
-    previa.value = fijar ? '' : task.Key;
-  } else if (fijar && previa.value === task.Key) {
-    previa.value = '';
+  const taskChange = active.value?.Key !== task.Key;
+  const existing = tabItems.value.some((t) => t.Key === task.Key);
+  if (!existing) {
+    tabItems.value = preview.value && !fijar
+      ? tabItems.value.map((t) => (t.Key === preview.value ? task : t))
+      : [...tabItems.value, task];
+    preview.value = fijar ? '' : task.Key;
+  } else if (fijar && preview.value === task.Key) {
+    preview.value = '';
   }
   active.value = task;
-  if (cambioDeTarea) {
-    reiniciarRevisionPendientes();
-    vistaAuxActiva.value = 'jira';
+  if (taskChange) {
+    resetPendingReview();
+    activeAuxView.value = 'jira';
   }
 }
-function cerrarPestana(k) {
-  const i = pestanas.value.findIndex((t) => t.Key === k);
+function closeTab(k) {
+  const i = tabItems.value.findIndex((t) => t.Key === k);
   if (i < 0) return;
-  pestanas.value = pestanas.value.filter((t) => t.Key !== k);
-  if (previa.value === k) previa.value = '';
+  tabItems.value = tabItems.value.filter((t) => t.Key !== k);
+  if (preview.value === k) preview.value = '';
   // Al cerrar la activa se enfoca la VECINA —la de la derecha, y si no hay, la de la izquierda—, no se
   // cae al sprint: cerrar una de cinco y perder el contexto de las otras cuatro sería un castigo.
   if (active.value?.Key === k) {
-    const sig = pestanas.value[i] || pestanas.value[i - 1] || null;
+    const sig = tabItems.value[i] || tabItems.value[i - 1] || null;
     active.value = sig || null;
-    reiniciarRevisionPendientes();
+    resetPendingReview();
     if (sig) {
-      vistaAuxActiva.value = 'jira';
+      activeAuxView.value = 'jira';
     }
   }
 }
@@ -1114,51 +1114,51 @@ function cerrarPestana(k) {
  *
  * Los contenedores locales se nombran por su título canónico; las tareas de Jira por su clave. No se
  * usa el id local porque puede renumerarse al consolidar archivos. */
-const slugRuta = (value) => sinTildes(value).trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-const rutaDeTarea = (task) => task ? `#/tareas/${task._local ? slugRuta(task.Summary) : task.Key.toLowerCase()}` : '';
-const slugDeRuta = () => {
+const routeSlug = (value) => withoutAccents(value).trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const taskRoute = (task) => task ? `#/tareas/${task._local ? routeSlug(task.Summary) : task.Key.toLowerCase()}` : '';
+const slugFromRoute = () => {
   const m = window.location.hash.match(/^#\/tareas\/([^/?#]+)\/?$/);
   try { return m ? decodeURIComponent(m[1]).toLowerCase() : ''; }
   catch { return ''; }
 };
-const tareasParaRuta = () => {
-  const unicas = new Map();
-  for (const task of [...issues.value, ...porSprint.value.flatMap(g => g.issues || []), ...localesTodas.value]) {
-    if (!unicas.has(task.Key)) unicas.set(task.Key, task);
+const tasksForRoute = () => {
+  const unique = new Map();
+  for (const task of [...issues.value, ...bySprint.value.flatMap(g => g.issues || []), ...allLocals.value]) {
+    if (!unique.has(task.Key)) unique.set(task.Key, task);
   }
-  return [...unicas.values()];
+  return [...unique.values()];
 };
-let rutasListas = false;
-let restaurandoRuta = false;
-function escribirRuta(task) {
-  const hash = rutaDeTarea(task);
+let routesReady = false;
+let restoringRoute = false;
+function writeRoute(task) {
+  const hash = taskRoute(task);
   if (window.location.hash === hash) return;
   window.history.pushState({}, '', `${window.location.pathname}${window.location.search}${hash}`);
 }
-function restaurarRuta() {
-  if (!rutasListas) return;
-  const slug = slugDeRuta();
-  restaurandoRuta = true;
+function restoreRoute() {
+  if (!routesReady) return;
+  const slug = slugFromRoute();
+  restoringRoute = true;
   if (!slug) {
     active.value = null;
   } else {
-    const task = tareasParaRuta().find(item => (item._local ? slugRuta(item.Summary) : item.Key.toLowerCase()) === slug);
+    const task = tasksForRoute().find(item => (item._local ? routeSlug(item.Summary) : item.Key.toLowerCase()) === slug);
     if (task) {
-      if (task._local) verLocales.value = true;
+      if (task._local) showLocals.value = true;
       openTask(task, true);
     }
   }
-  restaurandoRuta = false;
+  restoringRoute = false;
 }
-const alNavegarHistorial = () => restaurarRuta();
-onMounted(() => window.addEventListener('popstate', alNavegarHistorial));
-onUnmounted(() => window.removeEventListener('popstate', alNavegarHistorial));
+const onHistoryNavigate = () => restoreRoute();
+onMounted(() => window.addEventListener('popstate', onHistoryNavigate));
+onUnmounted(() => window.removeEventListener('popstate', onHistoryNavigate));
 
 // ⚠ Cualquier camino que enfoque una tarea tiene que dejarle su pestaña y su ruta: el handoff a QA
 // setea `active` directo, y sin este punto único el editor y la URL podrían contradecirse.
 watch(active, (t) => {
-  if (t && !pestanas.value.some((x) => x.Key === t.Key)) pestanas.value = [...pestanas.value, t];
-  if (rutasListas && !restaurandoRuta) escribirRuta(t);
+  if (t && !tabItems.value.some((x) => x.Key === t.Key)) tabItems.value = [...tabItems.value, t];
+  if (routesReady && !restoringRoute) writeRoute(t);
 });
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
@@ -1168,46 +1168,46 @@ watch(active, (t) => {
 // Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
 // que la de ayer, y una pregunta abierta hace una semana no le grita a nadie. Acá la edad se ve, y
 // eso es lo único que la prosa no puede hacer.
-const hallazgosDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.anotaciones || [];
-const diasDe = (fecha) => Math.floor((Date.now() - new Date(fecha + 'T12:00:00')) / 86400000);
+const findingsOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.anotaciones || [];
+const daysOf = (date) => Math.floor((Date.now() - new Date(date + 'T12:00:00')) / 86400000);
 // Cuándo un hallazgo pide atención. Los umbrales son distintos a propósito: una medición aguanta un
 // mes antes de sospechar, pero una pregunta sin responder a los 7 días ya está frenando algo.
-const vencido = (a) => a.tipo === 'medicion' ? diasDe(a.fecha) > 30
-                     : a.tipo === 'pregunta' ? diasDe(a.fecha) > 7 : false;
-const EDAD = { medicion: 'medido hace', pregunta: 'sin responder hace', decision: 'decidido hace', riesgo: 'asumido hace' };
-const edadTxt = (a) => { const d = diasDe(a.fecha); return `${EDAD[a.tipo] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
-const TIPOS = [
+const overdue = (a) => a.tipo === 'medicion' ? daysOf(a.fecha) > 30
+                     : a.tipo === 'pregunta' ? daysOf(a.fecha) > 7 : false;
+const AGE = { medicion: 'medido hace', pregunta: 'sin responder hace', decision: 'decidido hace', riesgo: 'asumido hace' };
+const ageText = (a) => { const d = daysOf(a.fecha); return `${AGE[a.tipo] || 'hace'} ${d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días'}`.replace(' hoy', ' hoy').replace(/hace hoy/, 'hoy'); };
+const KINDS = [
   { id: 'medicion', tit: 'Mediciones',  pie: 'Un número sin fecha ni forma de recomprobarlo envejece hasta volverse mentira.' },
   { id: 'decision', tit: 'Decisiones',  pie: 'Con fecha y motivo, para no volver a discutirlas desde cero.' },
   { id: 'pregunta', tit: 'Preguntas',   pie: 'Abiertas, con de quién se espera la respuesta.' },
   { id: 'riesgo',   tit: 'Riesgos',     pie: 'Lo que se aceptó a sabiendas. Cuando muerda, acá está el momento en que se aceptó.' },
 ];
-const hallazgosPorTipo = (key) => TIPOS
-  .map(t => ({ ...t, items: hallazgosDe(key).filter(a => a.tipo === t.id) }))
+const findingsByKind = (key) => KINDS
+  .map(t => ({ ...t, items: findingsOf(key).filter(a => a.tipo === t.id) }))
   .filter(g => g.items.length);
 // CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/fuentes.go`) del
 // `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
 // dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
-const esAmbiente = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
-const esConsultaSQL = (hallazgo) => hallazgo.fuentes?.includes('DB') && isSQLQuery(hallazgo.como);
+const isEnvironment = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
+const isSqlFinding = (finding) => finding.fuentes?.includes('DB') && isSQLQuery(finding.como);
 
 // El resumen de arriba contesta de un vistazo «¿cómo se concluyó lo que dice esta tarea?». Lo que más
 // importa no son las herramientas: es cuántas anotaciones NO traen con qué volver a comprobarlas.
-const procedenciaDe = (key) => {
-  const as = hallazgosDe(key);
-  const cuenta = {};
-  let sinComo = 0;
+const provenanceOf = (key) => {
+  const as = findingsOf(key);
+  const count = {};
+  let withoutHow = 0;
   for (const a of as) {
     const fs = a.fuentes || [];
-    if (!fs.length) { sinComo++; continue; }
-    for (const f of fs) cuenta[f] = (cuenta[f] || 0) + 1;
+    if (!fs.length) { withoutHow++; continue; }
+    for (const f of fs) count[f] = (count[f] || 0) + 1;
   }
   return {
     total: as.length,
-    sinComo,
-    conComo: as.length - sinComo,
+    sinComo: withoutHow,
+    conComo: as.length - withoutHow,
     // el ambiente primero: pesa más que la herramienta a la hora de creerle a una medición
-    fuentes: Object.entries(cuenta).sort((a, b) => (esAmbiente(b[0]) - esAmbiente(a[0])) || b[1] - a[1]),
+    fuentes: Object.entries(count).sort((a, b) => (isEnvironment(b[0]) - isEnvironment(a[0])) || b[1] - a[1]),
   };
 };
 
@@ -1215,83 +1215,83 @@ const procedenciaDe = (key) => {
 // Lo que queda por hacer, sacado de las casillas del CUERPO (ver `pendientes.go` para el parser y el
 // porqué del corte antes de la publicable). No se escriben ni se tildan desde acá a propósito: el
 // cuerpo es el archivo, y editarlo por dos caminos es cómo se desincronizan las cosas.
-const pendientesDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.pendientes || [];
+const pendingOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.pendientes || [];
 // Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
 // nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
-const quedan = (key) => pendientesDe(key).filter(p => !p.hecho).length;
+const remaining = (key) => pendingOf(key).filter(p => !p.hecho).length;
 // La barra de la cabecera no intenta adivinar el avance real: sólo expresa lo que sí está registrado
 // en las casillas. Por eso muestra tanto el numerador como el total y lleva al detalle para corregir
 // una tarea que se trabajó pero quedó sin tildar.
-const progresoPendientesDe = (key) => {
-  const total = pendientesDe(key).length;
-  const hechos = total - quedan(key);
-  return total ? { total, hechos, porcentaje: Math.round(hechos * 100 / total) } : null;
+const pendingProgressOf = (key) => {
+  const total = pendingOf(key).length;
+  const doneItems = total - remaining(key);
+  return total ? { total, hechos: doneItems, porcentaje: Math.round(doneItems * 100 / total) } : null;
 };
-const pendientesAbiertosDe = (key) => pendientesDe(key).filter(p => !p.hecho);
+const openPendingOf = (key) => pendingOf(key).filter(p => !p.hecho);
 
 // REVISIÓN JEV DE PENDIENTES. Es una lectura explícita, nunca una mutación: el servidor recibe una
 // proyección acotada de la tarea sólo después del clic y devuelve tres estados fijos. Así el modelo
 // puede señalar una casilla posiblemente vieja sin que su respuesta se convierta en una edición.
-const revisionPendientes = ref(null);
-const revisionPendientesBusy = ref(false);
-const revisionPendientesError = ref('');
-let revisionPendientesRequest = 0;
-function reiniciarRevisionPendientes() {
-  revisionPendientesRequest++;
-  revisionPendientes.value = null;
-  revisionPendientesBusy.value = false;
-  revisionPendientesError.value = '';
+const pendingReview = ref(null);
+const pendingReviewBusy = ref(false);
+const pendingReviewError = ref('');
+let pendingReviewRequest = 0;
+function resetPendingReview() {
+  pendingReviewRequest++;
+  pendingReview.value = null;
+  pendingReviewBusy.value = false;
+  pendingReviewError.value = '';
 }
-async function revisarPendientesConJev() {
+async function reviewPendingWithJev() {
   const target = jevTarget.value;
   const key = active.value?.Key;
-  if (!target || !key || !quedan(key) || revisionPendientesBusy.value) return;
-  const request = ++revisionPendientesRequest;
-  revisionPendientesBusy.value = true;
-  revisionPendientesError.value = '';
-  revisionPendientes.value = null;
+  if (!target || !key || !remaining(key) || pendingReviewBusy.value) return;
+  const request = ++pendingReviewRequest;
+  pendingReviewBusy.value = true;
+  pendingReviewError.value = '';
+  pendingReview.value = null;
   try {
     const res = await fetch(`${SERVER}/api/jev/pending-review`, {
       method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: target }),
     });
     const row = await res.json();
-    if (request !== revisionPendientesRequest || active.value?.Key !== key) return;
+    if (request !== pendingReviewRequest || active.value?.Key !== key) return;
     if (!res.ok || row.error) {
-      revisionPendientesError.value = row.error || 'No se pudieron revisar los pendientes.';
+      pendingReviewError.value = row.error || 'No se pudieron revisar los pendientes.';
       return;
     }
-    revisionPendientes.value = row.review || { items: [] };
+    pendingReview.value = row.review || { items: [] };
   } catch {
-    if (request === revisionPendientesRequest) revisionPendientesError.value = 'No se pudo hablar con el servidor local.';
+    if (request === pendingReviewRequest) pendingReviewError.value = 'No se pudo hablar con el servidor local.';
   } finally {
-    if (request === revisionPendientesRequest) revisionPendientesBusy.value = false;
+    if (request === pendingReviewRequest) pendingReviewBusy.value = false;
   }
 }
-const etiquetaRevisionPendiente = (status) => ({
+const pendingReviewLabel = (status) => ({
   resolved: 'Parece resuelto', open: 'Sigue abierto', unclear: 'Requiere revisión',
 }[status] || 'Requiere revisión');
-const claseRevisionPendiente = (status) => ({ resolved: 'resolved', open: 'open', unclear: 'unclear' }[status] || 'unclear');
-const pendienteDeRevision = (item) => pendientesAbiertosDe(active.value?.Key)[item.id];
-const resumenRevisionPendientes = computed(() => {
-  const items = revisionPendientes.value?.items || [];
-  const resueltos = items.filter(item => item.status === 'resolved').length;
-  const abiertos = items.filter(item => item.status === 'open').length;
-  const dudosos = items.length - resueltos - abiertos;
-  return [resueltos && `${resueltos} parece${resueltos === 1 ? '' : 'n'} resuelto${resueltos === 1 ? '' : 's'}`,
-    abiertos && `${abiertos} sigue${abiertos === 1 ? '' : 'n'} abierto${abiertos === 1 ? '' : 's'}`,
-    dudosos && `${dudosos} requiere${dudosos === 1 ? '' : 'n'} revisión`].filter(Boolean).join(' · ');
+const pendingReviewClass = (status) => ({ resolved: 'resolved', open: 'open', unclear: 'unclear' }[status] || 'unclear');
+const reviewPending = (item) => openPendingOf(active.value?.Key)[item.id];
+const pendingReviewSummary = computed(() => {
+  const items = pendingReview.value?.items || [];
+  const resolved = items.filter(item => item.status === 'resolved').length;
+  const openItems = items.filter(item => item.status === 'open').length;
+  const doubtful = items.length - resolved - openItems;
+  return [resolved && `${resolved} parece${resolved === 1 ? '' : 'n'} resuelto${resolved === 1 ? '' : 's'}`,
+    openItems && `${openItems} sigue${openItems === 1 ? '' : 'n'} abierto${openItems === 1 ? '' : 's'}`,
+    doubtful && `${doubtful} requiere${doubtful === 1 ? '' : 'n'} revisión`].filter(Boolean).join(' · ');
 });
 // Agrupados por el encabezado bajo el que se escribieron: en una tarea larga los pendientes vienen de
 // frentes distintos («Pendientes», «Cerrar con negocio», «Al retomar»), y en una lista plana se leen
 // todos como si fueran lo mismo.
-const pendientesPorSeccion = (key) => {
-  const grupos = [];
-  for (const p of pendientesDe(key)) {
+const pendingBySection = (key) => {
+  const groups = [];
+  for (const p of pendingOf(key)) {
     const tit = p.seccion || 'Sin sección';
-    const g = grupos.find(x => x.tit === tit);
-    (g || grupos[grupos.push({ tit, items: [] }) - 1]).items.push(p);
+    const g = groups.find(x => x.tit === tit);
+    (g || groups[groups.push({ tit, items: [] }) - 1]).items.push(p);
   }
-  return grupos;
+  return groups;
 };
 
 // El sidebar conserva las consultas que se necesitan en paralelo: el contrato publicado (Jira), el
@@ -1301,33 +1301,33 @@ const taskTabs = computed(() => {
   const key = active.value?.Key;
   const tabs = [
     { id: 'jira', label: 'Jira' },
-    { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
+    { id: 'pendientes', label: 'Pendientes', count: remaining(key), alert: active.value?.StatusCategory === 'done' && remaining(key) > 0 },
     // Siempre se ve: si la tarea aún no deja un HTML, la pestaña explica esa ausencia en vez de
     // desaparecer y hacer parecer que Tablero no tiene lugar para los prototipos.
-    { id: 'artifacts', label: 'Prototipos', count: key ? protosDe(key).length : 0 },
+    { id: 'artifacts', label: 'Prototipos', count: key ? protosOf(key).length : 0 },
   ];
   return tabs;
 });
-watch(vistasAux, (vistas) => {
-  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'jira';
+watch(auxViews, (views) => {
+  if (!views.some((view) => view.id === activeAuxView.value)) activeAuxView.value = 'jira';
 });
-const cerrarConEsc = (e) => { if (e.key === 'Escape' && menuTarea.value) cerrarMenuTarea(true); };
-const cerrarMenuTareaAfuera = (e) => {
-  if (menuTarea.value && !menuTareaEl.value?.contains(e.target) && !menuTareaOrigen?.contains(e.target)) cerrarMenuTarea();
+const closeOnEsc = (e) => { if (e.key === 'Escape' && taskMenu.value) closeTaskMenu(true); };
+const closeTaskMenuOutside = (e) => {
+  if (taskMenu.value && !taskMenuEl.value?.contains(e.target) && !taskMenuOrigin?.contains(e.target)) closeTaskMenu();
 };
-const cerrarMenuTareaAlScroll = (e) => {
-  if (menuTarea.value && !menuTareaEl.value?.contains(e.target)) cerrarMenuTarea();
+const closeTaskMenuOnScroll = (e) => {
+  if (taskMenu.value && !taskMenuEl.value?.contains(e.target)) closeTaskMenu();
 };
 onMounted(() => {
-  window.addEventListener('keydown', cerrarConEsc);
-  document.addEventListener('pointerdown', cerrarMenuTareaAfuera, true);
-  document.addEventListener('scroll', cerrarMenuTareaAlScroll, true);
+  window.addEventListener('keydown', closeOnEsc);
+  document.addEventListener('pointerdown', closeTaskMenuOutside, true);
+  document.addEventListener('scroll', closeTaskMenuOnScroll, true);
 });
 onUnmounted(() => {
-  window.removeEventListener('keydown', cerrarConEsc);
-  document.removeEventListener('pointerdown', cerrarMenuTareaAfuera, true);
-  document.removeEventListener('scroll', cerrarMenuTareaAlScroll, true);
-  clearTimeout(copiadoTimer);
+  window.removeEventListener('keydown', closeOnEsc);
+  document.removeEventListener('pointerdown', closeTaskMenuOutside, true);
+  document.removeEventListener('scroll', closeTaskMenuOnScroll, true);
+  clearTimeout(copiedTimer);
 });
 // ── mi jornada: los últimos días × horas laborales ──────────────────────────────────────────────
 // Este mapa NO va por sprint: muestra cómo se llenó mi horario laboral (8→18, con almuerzo 12→14) en los
@@ -1371,25 +1371,25 @@ const isoCols = (n) => Array.from({ length: n }, (_, i) => {
 // extra (SEP) y con 6 sprints a la vista son ~108 px que desbordaban la card. Y no se puede leer de
 // `spans`, porque `spans` depende de `dayCols` y `dayCols` de esto: sería un ciclo. Así que los bordes
 // se cuentan acá, directo de las fechas de los sprints, que no dependen de nada de la grilla.
-const anchoCon = (n) => {
+const widthWith = (n) => {
   const base = JHL + GAP + n * (CEL + GAP);
   const cols = isoCols(n);
-  const ini = new Set(), fin = new Set();
+  const starts = new Set(), ends = new Set();
   for (const sp of sprints.value || []) {
     if (!sp.startDate || !sp.endDate) continue;
     const s = dayKey(sp.startDate), e = dayKey(sp.endDate);
     let a = -1, b = -1;
     cols.forEach((c, i) => { if (c >= s && c <= e) { if (a < 0) a = i; b = i; } });
-    if (a >= 0) { ini.add(a); fin.add(b); }
+    if (a >= 0) { starts.add(a); ends.add(b); }
   }
-  return base + SEP * (ini.size + fin.size);
+  return base + SEP * (starts.size + ends.size);
 };
 
 // El más grande que entra. Se busca de mayor a menor en vez de despejar la fórmula porque el costo de
 // los márgenes no es lineal: sumar un día puede meter un sprint nuevo y con él dos márgenes de golpe.
 const days = computed(() => {
   if (!gridW.value) return DAYS_MIN;         // antes de medir: lo mínimo, para no dibujar y re-dibujar
-  for (let n = DAYS_MAX; n > DAYS_MIN; n--) if (anchoCon(n) <= gridW.value) return n;
+  for (let n = DAYS_MAX; n > DAYS_MIN; n--) if (widthWith(n) <= gridW.value) return n;
   return DAYS_MIN;
 });
 // ResizeObserver y no un listener de `resize`: la card cambia de ancho también cuando aparece el
@@ -1403,8 +1403,8 @@ const days = computed(() => {
 // mientras la pestaña está en segundo plano — si el tablero se abre ahí, la primera medida no llega y la
 // jornada se queda en el mínimo hasta que algo la mueva. Medir directo no depende de que se dibuje.
 const ro = new ResizeObserver(([e]) => { gridW.value = e.contentRect.width; });
-watch(gridEl, (el, viejo) => {
-  if (viejo) ro.unobserve(viejo);
+watch(gridEl, (el, old) => {
+  if (old) ro.unobserve(old);
   if (!el) return;
   gridW.value = el.offsetWidth;
   ro.observe(el);
@@ -1464,10 +1464,10 @@ const cellTitle = (d, h) => {
   // Los repos van SIN minutos a propósito: dos repos pueden caer en el mismo tramo, así que sus minutos
   // no suman al total de la celda (que es la UNIÓN). Mostrarlos invitaría a una resta que no cierra.
   const repos = (c.repos || []).map(r => {
-    const suyo = [];
-    if (r.commits) suyo.push(`${r.commits} commit${r.commits === 1 ? '' : 's'}`);
-    if (r.ins || r.del) suyo.push(`+${r.ins}/−${r.del}`);
-    return `  ${r.repo}${r.branch ? ` · ${r.branch}` : ''}${suyo.length ? ` — ${suyo.join(' ')}` : ''}`;
+    const own = [];
+    if (r.commits) own.push(`${r.commits} commit${r.commits === 1 ? '' : 's'}`);
+    if (r.ins || r.del) own.push(`+${r.ins}/−${r.del}`);
+    return `  ${r.repo}${r.branch ? ` · ${r.branch}` : ''}${own.length ? ` — ${own.join(' ')}` : ''}`;
   });
   return [`${head} · ${c.slots}/${pulse.value.slotsPerHour} tramos con cambios${extra.length ? ` · ${extra.join(' · ')}` : ''}`, ...repos].join('\n');
 };
@@ -1480,8 +1480,8 @@ const outsideMin = (iso) => Object.values(pulseCells.value[iso] || {})
   .filter(c => c.hour < H_START || c.hour >= H_END)
   .reduce((n, c) => n + c.slots * slotMin.value, 0);
 const dayTitle = (iso) => {
-  const fuera = outsideMin(iso);
-  return minHhmm(dayMin(iso)) + (fuera ? ` · ${minHhmm(fuera)} fuera de ${hourLabel(H_START)}–${hourLabel(H_END)}` : '');
+  const outside = outsideMin(iso);
+  return minHhmm(dayMin(iso)) + (outside ? ` · ${minHhmm(outside)} fuera de ${hourLabel(H_START)}–${hourLabel(H_END)}` : '');
 };
 const rangeMin = computed(() => dayCols.value.reduce((n, d) => n + dayMin(d.iso), 0));
 
@@ -1537,7 +1537,7 @@ const qaProblems = ref([]);
 
 // En pruebas ya no hay nada que avisar; el botón solo aparece antes de eso. Es por TAREA y no sobre la
 // activa: ahora cada tarjeta trae su propio botón.
-const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
+const inTesting = (i) => /pruebas/i.test(i?.Status || '');
 // (Acá vivía `yaPasoPorQA`, que decidía cuándo esconder el viejo botón «A pruebas». Se fue con el
 // botón específico: el acceso de la fila consulta Jira y después conserva sólo el avance normal.)
 
@@ -1545,91 +1545,91 @@ const enPruebas = (i) => /pruebas/i.test(i?.Status || '');
 // El cambio de estado pertenece a la tarea de la lista, así que aparece en el borde de esa fila (y
 // también con su menú contextual). El menú consulta Jira al abrirse y no obliga a abrir la tarea para
 // saber adónde puede ir desde su estado actual.
-const menuTarea = ref(null); // { task, x, y, transitions, testing, loading, error }
-const menuTareaEl = ref(null);
-let menuTareaOrigen = null;
-let consultaMenuTarea = 0;
-const nombreEstado = (texto) => (texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+const taskMenu = ref(null); // { task, x, y, transitions, testing, loading, error }
+const taskMenuEl = ref(null);
+let taskMenuOrigin = null;
+let taskMenuQuery = 0;
+const stateName = (rawText) => (rawText || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 // Jira devuelve todas las SALIDAS, pero el acceso rápido representa sólo AVANZAR. El orden es el
 // flujo vigente de CORE; se matchea por fragmentos y no por ids, emojis ni nombres de transición.
 // Bloqueada y En pruebas vuelven al cauce normal; Terminada no tiene un paso siguiente.
-function siguienteTransicion(task, transitions) {
-  const actual = nombreEstado(task.Status);
-  const destino = actual.includes('bloquead') ? 'progreso'
-    : actual.includes('pruebas') ? 'terminad'
-    : actual.includes('por hacer') ? 'progreso'
-    : actual.includes('progreso') ? 'revision'
-    : actual.includes('revision') ? 'terminad'
+function nextTransition(task, transitions) {
+  const currentValue = stateName(task.Status);
+  const destination = currentValue.includes('bloquead') ? 'progreso'
+    : currentValue.includes('pruebas') ? 'terminad'
+    : currentValue.includes('por hacer') ? 'progreso'
+    : currentValue.includes('progreso') ? 'revision'
+    : currentValue.includes('revision') ? 'terminad'
     : '';
-  return destino ? transitions.find((t) => nombreEstado(t.to).includes(destino)) : null;
+  return destination ? transitions.find((t) => stateName(t.to).includes(destination)) : null;
 }
 
-function cerrarMenuTarea(restaurarFoco = false) {
-  consultaMenuTarea += 1;
-  menuTarea.value = null;
-  if (restaurarFoco && menuTareaOrigen?.isConnected) menuTareaOrigen.focus({ preventScroll: true });
-  menuTareaOrigen = null;
+function closeTaskMenu(restaurarFoco = false) {
+  taskMenuQuery += 1;
+  taskMenu.value = null;
+  if (restaurarFoco && taskMenuOrigin?.isConnected) taskMenuOrigin.focus({ preventScroll: true });
+  taskMenuOrigin = null;
 }
 
-async function enfocarYEncajarMenuTarea() {
+async function focusAndFitTaskMenu() {
   await nextTick();
-  const menu = menuTareaEl.value;
-  if (!menu || !menuTarea.value) return;
+  const menu = taskMenuEl.value;
+  if (!menu || !taskMenu.value) return;
   const box = menu.getBoundingClientRect();
-  menuTarea.value.x = Math.max(8, Math.min(menuTarea.value.x, window.innerWidth - box.width - 8));
-  menuTarea.value.y = Math.max(8, Math.min(menuTarea.value.y, window.innerHeight - box.height - 8));
+  taskMenu.value.x = Math.max(8, Math.min(taskMenu.value.x, window.innerWidth - box.width - 8));
+  taskMenu.value.y = Math.max(8, Math.min(taskMenu.value.y, window.innerHeight - box.height - 8));
   await nextTick();
   (menu.querySelector('[role="menuitem"]:not(:disabled)') || menu).focus({ preventScroll: true });
 }
 
-async function abrirMenuTarea(event, task) {
+async function openTaskMenu(event, task) {
   event.preventDefault();
   event.stopPropagation();
   const rect = event.currentTarget.getBoundingClientRect();
-  const teclado = event.type === 'keydown' || (!event.clientX && !event.clientY);
-  cerrarMenuTarea();
-  menuTareaOrigen = event.currentTarget;
-  const consulta = ++consultaMenuTarea;
-  menuTarea.value = {
+  const keyboard = event.type === 'keydown' || (!event.clientX && !event.clientY);
+  closeTaskMenu();
+  taskMenuOrigin = event.currentTarget;
+  const query = ++taskMenuQuery;
+  taskMenu.value = {
     task,
-    x: teclado ? (event.currentTarget.classList.contains('tree-state') ? rect.right : rect.left + 18) : event.clientX,
-    y: teclado ? rect.bottom + 2 : event.clientY,
+    x: keyboard ? (event.currentTarget.classList.contains('tree-state') ? rect.right : rect.left + 18) : event.clientX,
+    y: keyboard ? rect.bottom + 2 : event.clientY,
     transitions: [], testing: 'pruebas', loading: !task._local,
     error: task._local ? 'La tarea local no usa estados de Jira' : '',
   };
-  await enfocarYEncajarMenuTarea();
+  await focusAndFitTaskMenu();
   if (task._local) return;
   try {
     const j = await (await fetch(`${SERVER}/api/transitions?key=${task.Key}`)).json();
-    if (consulta !== consultaMenuTarea || menuTarea.value?.task.Key !== task.Key) return;
-    menuTarea.value.loading = false;
-    if (j.error) menuTarea.value.error = j.error;
+    if (query !== taskMenuQuery || taskMenu.value?.task.Key !== task.Key) return;
+    taskMenu.value.loading = false;
+    if (j.error) taskMenu.value.error = j.error;
     else {
-      const siguiente = siguienteTransicion(task, j.transitions || []);
-      if (!siguiente) menuTarea.value.error = `Jira no ofrece un paso siguiente desde «${task.Status}»`;
-      else menuTarea.value.transitions = [siguiente];
-      menuTarea.value.testing = j.testing || 'pruebas';
+      const upcoming = nextTransition(task, j.transitions || []);
+      if (!upcoming) taskMenu.value.error = `Jira no ofrece un paso siguiente desde «${task.Status}»`;
+      else taskMenu.value.transitions = [upcoming];
+      taskMenu.value.testing = j.testing || 'pruebas';
     }
   } catch {
-    if (consulta === consultaMenuTarea && menuTarea.value?.task.Key === task.Key) {
-      menuTarea.value.loading = false;
-      menuTarea.value.error = 'No se pudo hablar con el server';
+    if (query === taskMenuQuery && taskMenu.value?.task.Key === task.Key) {
+      taskMenu.value.loading = false;
+      taskMenu.value.error = 'No se pudo hablar con el server';
     }
   }
-  await enfocarYEncajarMenuTarea();
+  await focusAndFitTaskMenu();
 }
 
-function abrirMenuTareaConTeclado(event, task) {
-  if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) abrirMenuTarea(event, task);
+function openTaskMenuWithKeyboard(event, task) {
+  if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) openTaskMenu(event, task);
 }
 
-function teclasMenuTarea(event) {
-  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cerrarMenuTarea(true); return; }
-  if (event.key === 'Tab') { cerrarMenuTarea(); return; }
+function taskMenuKeys(event) {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeTaskMenu(true); return; }
+  if (event.key === 'Tab') { closeTaskMenu(); return; }
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
-  const items = [...menuTareaEl.value.querySelectorAll('[role="menuitem"]:not(:disabled)')];
+  const items = [...taskMenuEl.value.querySelectorAll('[role="menuitem"]:not(:disabled)')];
   if (!items.length) return;
   const current = items.indexOf(document.activeElement);
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
@@ -1639,28 +1639,28 @@ function teclasMenuTarea(event) {
 
 // El destino que coincide con el estado de pruebas no se mueve directo: cae en el flujo de QA, donde
 // mover y avisarle a quien valida son un mismo acto y el mensaje se previsualiza.
-const esHaciaPruebas = (t, testing = menuTarea.value?.testing || 'pruebas') =>
+const isTowardTesting = (t, testing = taskMenu.value?.testing || 'pruebas') =>
   (t.to || '').toLowerCase().includes(testing.toLowerCase());
 
-async function aplicarTransicion(t) {
-  const estado = menuTarea.value;
-  if (!estado || estado.loading) return;
-  const task = estado.task;
-  if (esHaciaPruebas(t, estado.testing)) { cerrarMenuTarea(); await openQA(task); return; }
-  estado.loading = true; estado.error = '';
+async function applyTransition(t) {
+  const state = taskMenu.value;
+  if (!state || state.loading) return;
+  const task = state.task;
+  if (isTowardTesting(t, state.testing)) { closeTaskMenu(); await openQA(task); return; }
+  state.loading = true; state.error = '';
   try {
     const j = await (await fetch(`${SERVER}/api/transitions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: task.Key, id: t.id }),
     })).json();
-    if (j.error) { estado.error = j.error; return; }
-    cerrarMenuTarea();
+    if (j.error) { state.error = j.error; return; }
+    closeTaskMenu();
     // Se recarga desde Jira en vez de simular el cambio acá: el estado nuevo puede traer otras cosas
     // y una copia local sería una segunda verdad.
     await loadSprint(sprint.value?.id);
-    if (vistaAncha.value) await cargarUltimos4();
-  } catch { estado.error = 'No se pudo hablar con el server'; }
-  finally { if (menuTarea.value === estado) estado.loading = false; }
+    if (wideView.value) await loadLast4();
+  } catch { state.error = 'No se pudo hablar con el server'; }
+  finally { if (taskMenu.value === state) state.loading = false; }
 }
 
 async function openQA(i) {
@@ -1704,12 +1704,12 @@ watch(active, () => { qa.value = null; qaDone.value = ''; qaError.value = ''; qa
 
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────
 async function loadSprint(id) {
-  const teniaDatos = !!sprint.value;
-  if (!teniaDatos) { loading.value = true; error.value = ''; }
+  const hadData = !!sprint.value;
+  if (!hadData) { loading.value = true; error.value = ''; }
   try {
     const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}${id ? `&id=${id}` : ''}`)).json();
     if (j.error) {
-      if (teniaDatos) syncError.value = j.error;
+      if (hadData) syncError.value = j.error;
       else error.value = j.error;
       return false;
     }
@@ -1725,11 +1725,11 @@ async function loadSprint(id) {
     }
     // Los avances son locales y completan la vista después; no retrasan la primera pintura del sprint.
     void loadEntries();
-    guardarBootstrap();
+    saveBootstrap();
     return true;
   } catch {
     const message = 'no se pudo hablar con el server (¿está corriendo en :8787?)';
-    if (teniaDatos) syncError.value = message;
+    if (hadData) syncError.value = message;
     else error.value = message;
     return false;
   } finally { loading.value = false; }
@@ -1751,32 +1751,32 @@ async function loadSprints() {
   }
 }
 
-async function actualizarInicio() {
+async function updateStart() {
   jiraSyncing.value = true;
   syncError.value = '';
   try {
     // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
     // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
     // la restauración de la ruta como si fuera una navegación completa.
-    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), cargarRamas()]);
+    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches()]);
     const [, sprintResult] = await Promise.allSettled([loadSprints(), loadSprint()]);
 
     // El sprint principal basta para restaurar la mayoría de rutas; los otros tres llegan después.
-    rutasListas = true;
-    restaurarRuta();
-    if (sprintResult.status === 'fulfilled' && sprintResult.value) await cargarUltimos4();
+    routesReady = true;
+    restoreRoute();
+    if (sprintResult.status === 'fulfilled' && sprintResult.value) await loadLast4();
 
     await locales;
     // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de porSprint.
-    restaurarRuta();
-    guardarBootstrap();
+    restoreRoute();
+    saveBootstrap();
   } finally { jiraSyncing.value = false; }
 }
 
 onMounted(() => {
   // Con cache, la ruta y el editor aparecen en el primer frame. La revalidación no los desmonta.
-  if (bootstrapCache) { rutasListas = true; restaurarRuta(); }
-  void actualizarInicio();
+  if (bootstrapCache) { routesReady = true; restoreRoute(); }
+  void updateStart();
 });
 
 const documentMenu = computed(() => [
@@ -1784,7 +1784,7 @@ const documentMenu = computed(() => [
     title: 'Incluye el registro de trabajo y los comandos de reproducción' },
 ])
 function documentAction(id) {
-  if (id === 'copiar-todo') copiarCuerpo('todo')
+  if (id === 'copiar-todo') copyBody('todo')
 }
 
 </script>
@@ -1794,7 +1794,7 @@ function documentAction(id) {
        como grilla de tarjetas y un CAJÓN encima al elegir una. Ahora: el árbol de tareas en el
        `sidebar`, lo elegido en el `editor`, y sin nada elegido el editor muestra el sprint — que es
        la pestaña de bienvenida. El cajón se fue: su contenido ES el editor. -->
-  <div class="workbench" :class="{ ancha: vistaAncha, 'con-consola-ramas': mostrarConsolaRamas }">
+  <div class="workbench" :class="{ ancha: wideView, 'con-consola-ramas': showBranchConsole }">
     <!-- ⚠ SIN TITLEBAR, a propósito. Decía «Tablero · Sprint N · registro de tiempo y
          hallazgos» y se comía 77px de alto para repetir lo que ya dicen la pestaña del
          navegador y el statusbar. Su única acción —«sólo este sprint»— se fue al menú ⋯ del
@@ -1808,71 +1808,71 @@ function documentAction(id) {
          ⚠ Cinco vistas cerradas cuestan 5 filas (~160px), y eso se paga a gusto: los cinco estados
          con su conteo quedan a la vista SIEMPRE, sin desplegar nada. Antes había que abrir un
          grupo para saber cuántas tenía. -->
-    <aside id="tasks-sidebar" class="sidebar" v-show="verSidebar" aria-label="Lista de tareas">
+    <aside id="tasks-sidebar" class="sidebar" v-show="sidebarVisible" aria-label="Lista de tareas">
       <div class="rsz rsz-sb" v-resize="resizeOptions('--sidebar-w', 1)"></div>
       <div class="region-head">
-        <span>{{ vistaAncha ? `Mis tareas · ${porSprint.length} sprints` : "Mis tareas" }}</span>
+        <span>{{ wideView ? `Mis tareas · ${bySprint.length} sprints` : "Mis tareas" }}</span>
         <!-- ⚠ ESTE CONTADOR ES LO QUE HABILITA MANDAR LOS FILTROS AL MENÚ. Un filtro escondido que
              nadie ve se olvida encendido, y después la tarea que falta se lee como «no existe». -->
-        <span v-if="!cargandoAncha" class="cnt" :class="{ filtrando: ocultos.size || buscaNorm }"
-              :title="ocultos.size || buscaNorm ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ ocultos.size || buscaNorm ? `${visibles} / ${totalTasks}` : visibles }}</span>
-        <div v-if="!cargandoAncha && totalTasks" class="region-actions toolbar">
+        <span v-if="!loadingWide" class="cnt" :class="{ filtrando: hidden.size || normalizedSearch }"
+              :title="hidden.size || normalizedSearch ? 'hay un filtro puesto — está en el menú ⋯' : ''">{{ hidden.size || normalizedSearch ? `${visible} / ${totalTasks}` : visible }}</span>
+        <div v-if="!loadingWide && totalTasks" class="region-actions toolbar">
           <button type="button" class="region-action" title="Colapsar o desplegar todos los grupos"
-                  @click="colapsarTodo" aria-label="Colapsar o desplegar todos los grupos"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
-          <RegionMenu :items="menuFiltros" :active="!!ocultos.size || !!buscaNorm" title="Qué tareas se ven" @toggle="desdeMenu" />
+                  @click="collapseAll" aria-label="Colapsar o desplegar todos los grupos"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
+          <RegionMenu :items="filtersMenu" :active="!!hidden.size || !!normalizedSearch" title="Qué tareas se ven" @toggle="fromMenu" />
         </div>
       </div>
 
-      <p v-if="vistaAncha && cargandoAncha" class="nota">trayendo los sprints…</p>
+      <p v-if="wideView && loadingWide" class="nota">trayendo los sprints…</p>
       <!-- El buscador NO se movió al menú: se usa todo el tiempo, es una sola fila y vale para las
            cinco vistas a la vez. Va arriba del acordeón por eso mismo. -->
-      <div class="filtros" v-if="!cargandoAncha && totalTasks">
-        <label class="fbusca input-group" :class="{ act: !!buscaNorm }">
+      <div class="filtros" v-if="!loadingWide && totalTasks">
+        <label class="fbusca input-group" :class="{ act: !!normalizedSearch }">
           <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-          <input v-model="busca" class="input" type="search" placeholder="buscar por título…"
+          <input v-model="searchQuery" class="input" type="search" placeholder="buscar por título…"
                  aria-label="Buscar tarea por título o clave">
-          <button v-if="busca" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="busca = ''" aria-label="Limpiar búsqueda"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+          <button v-if="searchQuery" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="searchQuery = ''" aria-label="Limpiar búsqueda"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </label>
       </div>
       <!-- Sin resultados NO puede ser una lista vacía a secas: se lee como «no tengo tareas», que es
            otra cosa. Dice qué se buscó y ofrece deshacerlo. -->
-      <p v-if="!cargandoAncha && totalTasks && !visibles" class="nota">
-        Ninguna tarea coincide<span v-if="buscaNorm"> con «<b>{{ busca.trim() }}</b>»</span><span
-          v-if="ocultos.size"> entre los estados que dejaste visibles</span>.
-        <button class="btn-link lnk" type="button" @click="busca = ''; ocultos.clear()">ver todas</button>
+      <p v-if="!loadingWide && totalTasks && !visible" class="nota">
+        Ninguna tarea coincide<span v-if="normalizedSearch"> con «<b>{{ searchQuery.trim() }}</b>»</span><span
+          v-if="hidden.size"> entre los estados que dejaste visibles</span>.
+        <button class="btn-link lnk" type="button" @click="searchQuery = ''; hidden.clear()">ver todas</button>
       </p>
 
       <!-- UNA VISTA POR ESTADO. ⚠ Con búsqueda puesta se abren TODAS: buscar y que el resultado
            quede escondido detrás de un grupo plegado es la forma más rápida de creer que no está. -->
       <section v-for="g in groupedIssues" :key="g.id" class="view"
-               :class="{ abierta: abierta(g.id) || !!buscaNorm }">
+               :class="{ abierta: isOpen(g.id) || !!normalizedSearch }">
         <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="abierta(g.id) || !!buscaNorm"
-                  :aria-controls="'group-' + g.id" @click="alternarSeccion(g.id)">
+          <button type="button" class="view-tog" :aria-expanded="isOpen(g.id) || !!normalizedSearch"
+                  :aria-controls="'group-' + g.id" @click="toggleSection(g.id)">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>{{ g.title }}</span>
           </button>
           <span class="cnt">{{ g.tasks.length }}</span>
         </div>
-        <div v-if="abierta(g.id) || buscaNorm" :id="'group-' + g.id" class="region-body">
+        <div v-if="isOpen(g.id) || normalizedSearch" :id="'group-' + g.id" class="region-body">
           <!-- La fila ENTERA es el botón: elegir una tarea es el gesto de esta columna, y un
                target de 28px de alto se acierta sin mirar. -->
           <div v-for="i in g.tasks" :key="i.Key" class="tree-item">
             <button type="button" class="tree-row"
               :class="{ sel: active?.Key === i.Key, done: i.StatusCategory === 'done' }"
               :title="i.Summary" @click="openTask(i)" @dblclick="openTask(i, true)"
-              @contextmenu="abrirMenuTarea($event, i)" @keydown="abrirMenuTareaConTeclado($event, i)">
+              @contextmenu="openTaskMenu($event, i)" @keydown="openTaskMenuWithKeyboard($event, i)">
               <span class="tr-dot" :class="statusClass(i.StatusCategory)" aria-hidden="true"></span>
               <span class="tr-key">{{ i._local ? 'local' : i.Key }}</span>
               <span class="tr-tt">{{ i.Summary }}</span>
-              <span v-if="quedan(i.Key)" class="tr-n" :title="`${quedan(i.Key)} pendiente(s)`"
-                    :aria-label="`${quedan(i.Key)} pendientes`">{{ quedan(i.Key) }} pend.</span>
-              <span v-if="i._esfuerzoId && diasSinTocar(i._esfuerzoId) >= DORMIDA_DIAS" class="tr-z"
-                    :title="`${diasSinTocar(i._esfuerzoId)} días sin tocar el archivo`">z</span>
+              <span v-if="remaining(i.Key)" class="tr-n" :title="`${remaining(i.Key)} pendiente(s)`"
+                    :aria-label="`${remaining(i.Key)} pendientes`">{{ remaining(i.Key) }} pend.</span>
+              <span v-if="i._esfuerzoId && daysUntouched(i._esfuerzoId) >= DORMANT_DAYS" class="tr-z"
+                    :title="`${daysUntouched(i._esfuerzoId)} días sin tocar el archivo`">z</span>
             </button>
             <button v-if="!i._local && i.StatusCategory !== 'done'" type="button" class="tree-state"
                     :aria-label="`Avanzar ${i.Key} al siguiente estado`" :title="`Siguiente estado desde ${i.Status}`"
-                    @click="abrirMenuTarea($event, i)">
+                    @click="openTaskMenu($event, i)">
               <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
             </button>
           </div>
@@ -1882,16 +1882,16 @@ function documentAction(id) {
       <!-- VISTA · traer de Jira. Arranca CERRADA y cerrada cuesta UNA FILA, no cero: así se ve que
            existe sin comerse la pantalla. Sus controles viven acá y sus filas en el editor — cada
            fila del import lleva un select y dos líneas, y eso no entra en 300px. -->
-      <section class="view" :class="{ abierta: abierta('jira') }">
+      <section class="view" :class="{ abierta: isOpen('jira') }">
         <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="abierta('jira')"
-                  @click="alternarSeccion('jira')">
+          <button type="button" class="view-tog" :aria-expanded="isOpen('jira')"
+                  @click="toggleSection('jira')">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             <span>Traer de Jira</span>
           </button>
           <span v-if="inbox" class="cnt" :class="{ filtrando: inbox.pending }">{{ inbox.pending }}</span>
         </div>
-        <div v-if="abierta('jira')" class="region-body sidebar-jira">
+        <div v-if="isOpen('jira')" class="region-body sidebar-jira">
           <button class="btn qa-go" :disabled="inboxBusy" @click="loadInbox()">
           {{ inboxBusy ? 'Preguntando a Jira…' : inbox ? 'Volver a mirar' : 'Buscar lo que falta' }}
           </button>
@@ -1911,25 +1911,25 @@ function documentAction(id) {
     <!-- El menú vive en `body`: el scroll del árbol recortaría cualquier elemento posicionado dentro
          del sidebar. También se abre con la tecla Menú o Shift+F10 sobre la fila enfocada. -->
     <Teleport to="body">
-      <div v-if="menuTarea" ref="menuTareaEl" class="region-menu task-context-menu"
-           role="menu" tabindex="-1" :aria-label="`Avanzar ${menuTarea.task.Key}`"
-           :style="{ left: menuTarea.x + 'px', top: menuTarea.y + 'px' }"
-           @keydown="teclasMenuTarea">
-        <p class="task-menu-head">Siguiente paso desde <b>{{ menuTarea.task.Status }}</b></p>
-        <button v-if="menuTarea.loading" type="button" class="region-menu-item" role="menuitem" disabled>
+      <div v-if="taskMenu" ref="taskMenuEl" class="region-menu task-context-menu"
+           role="menu" tabindex="-1" :aria-label="`Avanzar ${taskMenu.task.Key}`"
+           :style="{ left: taskMenu.x + 'px', top: taskMenu.y + 'px' }"
+           @keydown="taskMenuKeys">
+        <p class="task-menu-head">Siguiente paso desde <b>{{ taskMenu.task.Status }}</b></p>
+        <button v-if="taskMenu.loading" type="button" class="region-menu-item" role="menuitem" disabled>
           <span class="ui-icon" data-icon="more" aria-hidden="true"></span>
           <span class="menu-label">Consultando Jira…</span>
         </button>
-        <button v-for="t in menuTarea.transitions" :key="t.id" type="button"
-                class="region-menu-item task-transition" role="menuitem" :disabled="menuTarea.loading"
-                :title="`Transición «${t.name}»`" @click="aplicarTransicion(t)">
+        <button v-for="t in taskMenu.transitions" :key="t.id" type="button"
+                class="region-menu-item task-transition" role="menuitem" :disabled="taskMenu.loading"
+                :title="`Transición «${t.name}»`" @click="applyTransition(t)">
           <span class="ui-icon" data-icon="move" aria-hidden="true"></span>
           <span class="menu-label">{{ t.to }}</span>
-          <span v-if="esHaciaPruebas(t, menuTarea.testing)" class="mv-tag">+ aviso</span>
+          <span v-if="isTowardTesting(t, taskMenu.testing)" class="mv-tag">+ aviso</span>
         </button>
-        <button v-if="menuTarea.error" type="button" class="region-menu-item task-menu-error" role="menuitem" disabled>
+        <button v-if="taskMenu.error" type="button" class="region-menu-item task-menu-error" role="menuitem" disabled>
           <span class="ui-icon" data-icon="more" aria-hidden="true"></span>
-          <span class="menu-label">{{ menuTarea.error }}</span>
+          <span class="menu-label">{{ taskMenu.error }}</span>
         </button>
       </div>
     </Teleport>
@@ -1939,24 +1939,24 @@ function documentAction(id) {
       <!-- LAS PESTAÑAS ABIERTAS. ⚠ La que está en PREVISTA va en itálica y es la que el próximo clic
            del árbol reemplaza; se fija con doble clic en la fila o con un clic acá. Sin eso, recorrer
            el árbol deja una pestaña por tarea mirada. -->
-      <nav v-if="pestanasAbiertas.length" class="editor-tabs" aria-label="Tareas abiertas">
-        <div v-for="t in pestanasAbiertas" :key="t.Key" class="et"
-             :class="{ act: active?.Key === t.Key, previa: previa === t.Key }">
+      <nav v-if="openTabs.length" class="editor-tabs" aria-label="Tareas abiertas">
+        <div v-for="t in openTabs" :key="t.Key" class="et"
+             :class="{ act: active?.Key === t.Key, previa: preview === t.Key }">
           <button type="button" class="et-b" :title="t.Summary"
                   :aria-current="active?.Key === t.Key ? 'true' : undefined"
-                  @click="openTask(t, true)" @auxclick.middle.prevent="cerrarPestana(t.Key)">
+                  @click="openTask(t, true)" @auxclick.middle.prevent="closeTab(t.Key)">
             <span class="tr-dot" :class="statusClass(t.StatusCategory)" aria-hidden="true"></span>
             <span class="et-k">{{ t._local ? 'local' : t.Key }}</span>
           </button>
           <button type="button" class="btn btn-ghost btn-icon btn-xs et-x" :aria-label="`Cerrar ${t.Key}`" title="Cerrar"
-                  @click="cerrarPestana(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+                  @click="closeTab(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
       </nav>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
       <TaskEditor v-else-if="active" :key="active.Key"
         :title="active.Summary" :task-key="active._local ? 'local · ' + active._esfuerzoId : active.Key"
-        @close="cerrarPestana(active.Key)">
+        @close="closeTab(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="badge badge-outline status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
@@ -1968,12 +1968,12 @@ function documentAction(id) {
           <div v-if="documentSections.length || jevTarget" class="toolbar" role="group" aria-label="Acciones de la tarea">
             <button v-if="jevTarget" type="button" class="btn btn-ghost btn-sm task-jev-trigger"
                     :aria-expanded="jevOpen" aria-controls="task-guidance" title="Orientar el siguiente paso con Jev"
-                    @click="abrirOrientacion"><span aria-hidden="true">✦</span> Orientar</button>
+                    @click="openGuidance"><span aria-hidden="true">✦</span> Orientar</button>
             <template v-if="documentSections.length">
-            <span v-if="copiado" class="toolbar-note" role="status">{{ copiado === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
+            <span v-if="copied" class="toolbar-note" role="status">{{ copied === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
             <button class="region-action" title="Copiar para compartir (sin registro ni comandos)"
-                    aria-label="Copiar para compartir" @click="copiarCuerpo('compartir')">
-              <span class="ui-icon" :data-icon="copiado === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
+                    aria-label="Copiar para compartir" @click="copyBody('compartir')">
+              <span class="ui-icon" :data-icon="copied === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
             <RegionMenu title="Opciones del documento" :items="documentMenu" @select="documentAction" />
             </template>
@@ -1996,17 +1996,17 @@ function documentAction(id) {
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
             </div>
-            <button v-if="progresoPendientesDe(active.Key)" type="button" class="task-completion"
-                    :aria-label="`Abrir pendientes: ${progresoPendientesDe(active.Key).hechos} de ${progresoPendientesDe(active.Key).total} finalizados`"
+            <button v-if="pendingProgressOf(active.Key)" type="button" class="task-completion"
+                    :aria-label="`Abrir pendientes: ${pendingProgressOf(active.Key).hechos} de ${pendingProgressOf(active.Key).total} finalizados`"
                     :title="'Avance según las casillas finalizadas. Abrir Pendientes.'"
-                    @click="alternarAux('pendientes')">
-              <span class="task-completion-copy"><b>{{ progresoPendientesDe(active.Key).porcentaje }}%</b>
-                {{ progresoPendientesDe(active.Key).hechos }}/{{ progresoPendientesDe(active.Key).total }} pendientes finalizados</span>
-              <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${progresoPendientesDe(active.Key).porcentaje}%` }"></i></span>
+                    @click="toggleAux('pendientes')">
+              <span class="task-completion-copy"><b>{{ pendingProgressOf(active.Key).porcentaje }}%</b>
+                {{ pendingProgressOf(active.Key).hechos }}/{{ pendingProgressOf(active.Key).total }} pendientes finalizados</span>
+              <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${pendingProgressOf(active.Key).porcentaje}%` }"></i></span>
             </button>
             <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
-                          :loading="jevBusy" :error="jevError" @start="orientarConJev"
-                          @close="cerrarOrientacion" @copy="copiarOrientacionJev" />
+                          :loading="jevBusy" :error="jevError" @start="guideWithJev"
+                          @close="closeGuidance" @copy="copyJevGuidance" />
 
             <!-- Llegar a pruebas conserva el acto compuesto: primero se revisa el mensaje y sólo
                  después el server mueve el issue y avisa a quien valida. -->
@@ -2035,21 +2035,21 @@ function documentAction(id) {
           </div>
         </template>
 
-        <section v-if="gruposContexto.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
-          <section v-for="group in gruposContexto" :key="group.day" class="task-context-day">
+        <section v-if="contextGroups.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
+          <section v-for="group in contextGroups" :key="group.day" class="task-context-day">
             <h3>{{ group.label }}</h3>
             <article v-for="event in group.items" :key="event.id" class="task-context-entry">
-              <p v-for="(paragraph, paragraphIndex) in parrafosContexto(event)" :key="paragraphIndex">
+              <p v-for="(paragraph, paragraphIndex) in contextParagraphs(event)" :key="paragraphIndex">
                 <strong v-if="paragraph.label">{{ paragraph.label }}</strong><span v-if="paragraph.label"> </span>
-                <template v-for="(part, partIndex) in partesConCanon(paragraph.text)" :key="partIndex">
+                <template v-for="(part, partIndex) in partsWithCanon(paragraph.text)" :key="partIndex">
                   <a v-if="part.type === 'canon'" :href="canonLink(part.target)" target="_blank" rel="noopener">{{ part.label }}</a>
                   <template v-else>{{ part.value }}</template>
                 </template>
               </p>
-              <p v-for="reference in referenciasDBDe(event)" :key="reference.target">
+              <p v-for="reference in dbReferencesOf(event)" :key="reference.target">
                 Consulta DB · <strong>{{ reference.environment }}</strong>: <code>{{ reference.target }}</code>.
               </p>
-              <p v-for="reference in referenciasHarnessDe(event)" :key="reference.target">
+              <p v-for="reference in harnessReferencesOf(event)" :key="reference.target">
                 Prueba ejecutada: <code>{{ reference.target }}</code>.
               </p>
             </article>
@@ -2066,28 +2066,28 @@ function documentAction(id) {
             </section>
 
             <section class="work-block task-findings">
-              <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ hallazgosDe(active.Key).length }} registrados</small></div>
+              <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ findingsOf(active.Key).length }} registrados</small></div>
               <p class="nota">Conclusiones fechadas del trabajo, con la forma de volver a comprobarlas.</p>
-              <p v-if="!hallazgosDe(active.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
-              <div v-if="hallazgosDe(active.Key).length" class="proc">
-                <span class="proc-cuenta">{{ procedenciaDe(active.Key).conComo }} de {{ procedenciaDe(active.Key).total }} dicen cómo volver a comprobarlos</span>
-                <span v-for="[f, n] in procedenciaDe(active.Key).fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
-                <span v-if="procedenciaDe(active.Key).sinComo" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active.Key).sinComo }} sin cómo</span>
+              <p v-if="!findingsOf(active.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
+              <div v-if="findingsOf(active.Key).length" class="proc">
+                <span class="proc-cuenta">{{ provenanceOf(active.Key).conComo }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
+                <span v-for="[f, n] in provenanceOf(active.Key).fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>
+                <span v-if="provenanceOf(active.Key).sinComo" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ provenanceOf(active.Key).sinComo }} sin cómo</span>
               </div>
-              <section v-for="g in hallazgosPorTipo(active.Key)" :key="g.id" class="hgrupo">
+              <section v-for="g in findingsByKind(active.Key)" :key="g.id" class="hgrupo">
                 <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
                 <p class="hpie">{{ g.pie }}</p>
-                <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
-                  <div class="hmeta"><span class="hfecha">{{ a.fecha }}</span><span class="hedad">{{ edadTxt(a) }}</span><span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span></div>
+                <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: overdue(a) }">
+                  <div class="hmeta"><span class="hfecha">{{ a.fecha }}</span><span class="hedad">{{ ageText(a) }}</span><span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span></div>
                   <p class="hque">{{ a.que }}</p>
-                  <p v-if="a.fuentes?.length" class="hfuentes"><span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span></p>
-                  <pre v-if="a.como" class="hcomo" :class="{ 'sql-block': esConsultaSQL(a) }"><code v-if="esConsultaSQL(a)" class="language-sql" v-html="highlightSQL(a.como)"></code><template v-else>{{ a.como }}</template></pre>
+                  <p v-if="a.fuentes?.length" class="hfuentes"><span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }}</span></p>
+                  <pre v-if="a.como" class="hcomo" :class="{ 'sql-block': isSqlFinding(a) }"><code v-if="isSqlFinding(a)" class="language-sql" v-html="highlightSQL(a.como)"></code><template v-else>{{ a.como }}</template></pre>
                 </article>
               </section>
             </section>
 
             <section class="work-block">
-              <TaskEvidence :evidence="evidenciaDeTrabajo" :notes="cuerpoDe(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" :branches="ramasTareaActiva" @show-branches="mostrarPanelRamas" />
+              <TaskEvidence :evidence="workEvidence" :notes="bodyOf(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" :branches="activeTaskBranches" @show-branches="showBranchPanel" />
             </section>
 
         </section>
@@ -2097,7 +2097,7 @@ function documentAction(id) {
       <!-- LA PESTAÑA DE BIENVENIDA: el sprint. Es lo que se ve al entrar y al soltar una tarea. -->
       <!-- ⚠ Sin tarea elegida manda LA VISTA ABIERTA: con «traer de Jira» abierta el editor lleva
            sus filas (que en el sidebar no entran), y si no, el sprint. -->
-      <div v-else-if="!abierta('jira')" class="region-body editor-view">
+      <div v-else-if="!isOpen('jira')" class="region-body editor-view">
         <div class="stats">
           <div class="stat">
             <div class="k">Tareas</div>
@@ -2108,18 +2108,18 @@ function documentAction(id) {
           </div>
           <!-- PUNTOS: ya no es opcional. La empresa los pide desde el 2026-08-18, así que el check que
                los escondía se retiró. -->
-          <div class="stat" :class="{ mal: sinPuntos.length }">
+          <div class="stat" :class="{ mal: withoutPoints.length }">
             <div class="k">Puntos que cuentan</div>
-            <div class="v">{{ ptsCuentan }}<span class="de">/{{ ptsComprometidos }}</span></div>
+            <div class="v">{{ countedPts }}<span class="de">/{{ committedPts }}</span></div>
             <!-- la barra es lo que ya cuenta; la marca, por dónde va el sprint. Relleno a la izquierda
                  de la marca = vas atrás, y cuánto se lee sin hacer la cuenta. -->
-            <div class="progress progress-xs bar" v-if="ptsComprometidos">
-              <i :style="{ width: (100 * ptsCuentan / ptsComprometidos) + '%' }"></i>
-              <u v-if="ritmo" :style="{ left: ritmo.consumido + '%' }" :title="`el sprint va por el ${ritmo.consumido}%`"></u>
+            <div class="progress progress-xs bar" v-if="committedPts">
+              <i :style="{ width: (100 * countedPts / committedPts) + '%' }"></i>
+              <u v-if="pace" :style="{ left: pace.consumido + '%' }" :title="`el sprint va por el ${pace.consumido}%`"></u>
             </div>
-            <div class="s" v-if="ritmo && ritmo.atras > 0">{{ ritmo.atras }}% atrás del calendario ·
-              quedan {{ ritmo.dias }} {{ ritmo.dias === 1 ? 'día' : 'días' }}</div>
-            <div class="s" v-else-if="ritmo">al día con el calendario</div>
+            <div class="s" v-if="pace && pace.atras > 0">{{ pace.atras }}% atrás del calendario ·
+              quedan {{ pace.dias }} {{ pace.dias === 1 ? 'día' : 'días' }}</div>
+            <div class="s" v-else-if="pace">al día con el calendario</div>
             <div class="s" v-else>sólo cuentan Terminado y En revisión</div>
           </div>
           <div class="stat" :class="{ mal: jiraTime === 0 }">
@@ -2135,16 +2135,16 @@ function documentAction(id) {
         </div>
         <!-- Lo accionable: el número de arriba dice que vas atrás, esto dice QUÉ MOVER. Casi siempre son
              tareas a un solo estado de contar, y sin verlas se leen como trabajo que no existe. -->
-        <p v-if="sobreCapacidad || ptsVarados.length || sinPuntos.length" class="pts-detalle">
+        <p v-if="overCapacity || strandedPts.length || withoutPoints.length" class="pts-detalle">
           <!-- Lo primero, porque cambia cómo se lee todo lo demás: si te comprometiste al doble de lo
                que entra, ir «atrás del calendario» no es un problema de ritmo. -->
-          <span v-if="sobreCapacidad" class="pd-i pd-mal"><b>{{ sobreCapacidad.pts }} pt comprometidos</b>
-            · {{ sobreCapacidad.veces }}× tu capacidad (≈{{ CAPACIDAD }}: un 5 es medio sprint)</span>
-          <template v-if="ptsVarados.length">
+          <span v-if="overCapacity" class="pd-i pd-mal"><b>{{ overCapacity.pts }} pt comprometidos</b>
+            · {{ overCapacity.veces }}× tu capacidad (≈{{ CAPACITY }}: un 5 es medio sprint)</span>
+          <template v-if="strandedPts.length">
             <span class="pd-k">no cuentan todavía:</span>
-            <span v-for="([est, n]) in ptsVarados" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
+            <span v-for="([est, n]) in strandedPts" :key="est" class="pd-i"><b>{{ n }} pt</b> en {{ est }}</span>
           </template>
-          <span v-if="sinPuntos.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ sinPuntos.join(' · ') }}</span>
+          <span v-if="withoutPoints.length" class="pd-i pd-mal"><b>sin estimar:</b> {{ withoutPoints.join(' · ') }}</span>
         </p>
         <section class="card">
           <!-- `region-head grupo` de `taller.css`: la misma barra que los grupos del árbol, en vez de
@@ -2277,32 +2277,32 @@ function documentAction(id) {
 
     <!-- PANEL · ramas de la tarea enfocada. Cruza editor + vistas para conservar la tabla como área
          principal y el selector de sus repos a la derecha incluso en ventanas medianas. -->
-    <section v-if="mostrarConsolaRamas" id="context-branches-panel" class="panel ramas-panel"
-             :class="{ 'sin-ramas': !ramasTareaActiva.ramas.length }"
-             :style="{ height: (ramasTareaActiva.ramas.length ? altoConsolaRamas : 76) + 'px' }">
-      <div v-if="ramasTareaActiva.ramas.length" class="rsz rsz-panel" v-resize="ramasPanelResize"></div>
-      <RepoBranches :snapshot="ramasTareaActiva" :task-label="active?.Summary || ''"
-                    :refreshing="refrescandoRamas" :refresh-error="errorRamas"
-                    @refresh="refrescarRamas" @close="ocultarConsolaRamas" />
+    <section v-if="showBranchConsole" id="context-branches-panel" class="panel ramas-panel"
+             :class="{ 'sin-ramas': !activeTaskBranches.ramas.length }"
+             :style="{ height: (activeTaskBranches.ramas.length ? branchConsoleHeight : 76) + 'px' }">
+      <div v-if="activeTaskBranches.ramas.length" class="rsz rsz-panel" v-resize="branchPanelResize"></div>
+      <RepoBranches :snapshot="activeTaskBranches" :task-label="active?.Summary || ''"
+                    :refreshing="refreshingBranches" :refresh-error="branchesError"
+                    @refresh="refreshBranches" @close="hideBranchConsole" />
     </section>
 
     <!-- AUXILIARYBAR · consultas que conviene mantener al lado del trabajo: el contrato publicado
          (Jira), el checklist accionable (Pendientes) y los Artifacts navegables. -->
-    <aside id="task-views" v-if="mostrarAux" class="auxiliarybar" aria-label="Vistas de la tarea">
+    <aside id="task-views" v-if="showAux" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
-        <button v-for="v in vistasAux" :key="v.id" type="button" role="tab" class="aux-tab"
-                :class="{ activa: abiertaAux(v.id) }" :data-vista="v.id"
+        <button v-for="v in auxViews" :key="v.id" type="button" role="tab" class="aux-tab"
+                :class="{ activa: auxOpen(v.id) }" :data-vista="v.id"
                 :id="'aux-tab-' + v.id" :aria-controls="'aux-panel-' + v.id"
-                :aria-selected="abiertaAux(v.id)" :tabindex="abiertaAux(v.id) ? 0 : -1"
-                @click="alternarAux(v.id)" @keydown="tecladoPestanasAux($event, v.id)">
+                :aria-selected="auxOpen(v.id)" :tabindex="auxOpen(v.id) ? 0 : -1"
+                @click="toggleAux(v.id)" @keydown="auxTabsKeyboard($event, v.id)">
           <span>{{ v.label }}</span>
           <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
           <span v-if="v.count !== undefined" class="aux-count">{{ v.count }}</span>
         </button>
       </nav>
-      <template v-for="v in vistasAux" :key="v.id">
-        <section v-if="abiertaAux(v.id)" class="region-body aux-vista aux-tab-panel"
+      <template v-for="v in auxViews" :key="v.id">
+        <section v-if="auxOpen(v.id)" class="region-body aux-vista aux-tab-panel"
                  :class="{ 'jira-tab-panel': v.id === 'jira' }"
                  role="tabpanel" :id="'aux-panel-' + v.id" :aria-labelledby="'aux-tab-' + v.id">
           <template v-if="v.id === 'jira'">
@@ -2322,28 +2322,28 @@ function documentAction(id) {
             <div class="pending-heading">
               <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
               <button type="button" class="region-action pending-review-trigger"
-                      :disabled="!quedan(active?.Key) || revisionPendientesBusy"
-                      :aria-label="revisionPendientesBusy ? 'Revisando pendientes con Jev' : 'Revisar si los pendientes siguen abiertos con Jev'"
-                      :title="quedan(active?.Key) ? 'Revisar con Jev si la evidencia registrada indica que algún pendiente ya se resolvió. No modifica la tarea.' : 'No hay pendientes abiertos para revisar.'"
-                      @click="revisarPendientesConJev">
+                      :disabled="!remaining(active?.Key) || pendingReviewBusy"
+                      :aria-label="pendingReviewBusy ? 'Revisando pendientes con Jev' : 'Revisar si los pendientes siguen abiertos con Jev'"
+                      :title="remaining(active?.Key) ? 'Revisar con Jev si la evidencia registrada indica que algún pendiente ya se resolvió. No modifica la tarea.' : 'No hay pendientes abiertos para revisar.'"
+                      @click="reviewPendingWithJev">
                 <span aria-hidden="true">✦</span>
               </button>
             </div>
             <p class="pending-review-disclosure">El análisis sólo empieza al pulsar ✦. Envía título, estado, pendientes abiertos y hallazgos fechados; no el documento completo ni comandos.</p>
-            <section v-if="revisionPendientesBusy || revisionPendientesError || revisionPendientes" class="pending-review" aria-live="polite">
-              <p v-if="revisionPendientesBusy" class="nota">Jev está contrastando los pendientes con la evidencia registrada…</p>
-              <p v-else-if="revisionPendientesError" class="pending-review-error">{{ revisionPendientesError }}</p>
+            <section v-if="pendingReviewBusy || pendingReviewError || pendingReview" class="pending-review" aria-live="polite">
+              <p v-if="pendingReviewBusy" class="nota">Jev está contrastando los pendientes con la evidencia registrada…</p>
+              <p v-else-if="pendingReviewError" class="pending-review-error">{{ pendingReviewError }}</p>
               <template v-else>
-                <p class="pending-review-summary">{{ resumenRevisionPendientes || 'Jev no devolvió una clasificación.' }}</p>
-                <ul v-if="revisionPendientes.items?.length" class="pending-review-list">
-                  <li v-for="item in revisionPendientes.items" :key="item.id" class="pending-review-item"
-                      :class="claseRevisionPendiente(item.status)">
-                    <span class="pending-review-status">{{ etiquetaRevisionPendiente(item.status) }}</span>
-                    <span class="pending-review-text">{{ pendienteDeRevision(item)?.que || 'Pendiente revisado' }}</span>
+                <p class="pending-review-summary">{{ pendingReviewSummary || 'Jev no devolvió una clasificación.' }}</p>
+                <ul v-if="pendingReview.items?.length" class="pending-review-list">
+                  <li v-for="item in pendingReview.items" :key="item.id" class="pending-review-item"
+                      :class="pendingReviewClass(item.status)">
+                    <span class="pending-review-status">{{ pendingReviewLabel(item.status) }}</span>
+                    <span class="pending-review-text">{{ reviewPending(item)?.que || 'Pendiente revisado' }}</span>
                     <span class="pending-review-confidence">{{ Math.round((item.probability || 0) * 100) }}%</span>
                   </li>
                 </ul>
-                <p v-if="revisionPendientes.omitted" class="pending-review-disclosure">Se revisaron los primeros {{ revisionPendientes.items.length }}; quedan {{ revisionPendientes.omitted }} para revisión manual.</p>
+                <p v-if="pendingReview.omitted" class="pending-review-disclosure">Se revisaron los primeros {{ pendingReview.items.length }}; quedan {{ pendingReview.omitted }} para revisión manual.</p>
                 <p class="pending-review-disclosure">Es una señal para revisar el archivo: no marca ni elimina ninguna casilla.</p>
               </template>
             </section>
@@ -2353,9 +2353,9 @@ function documentAction(id) {
                 <div v-html="section.pendingHtml"></div>
               </section>
             </div>
-            <p v-else-if="!pendientesDe(active?.Key).length" class="nota">Esta tarea no tiene pendientes registrados.</p>
+            <p v-else-if="!pendingOf(active?.Key).length" class="nota">Esta tarea no tiene pendientes registrados.</p>
             <template v-else>
-            <section v-for="(g, n) in pendientesPorSeccion(active?.Key)" :key="n" class="hgrupo">
+            <section v-for="(g, n) in pendingBySection(active?.Key)" :key="n" class="hgrupo">
               <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.filter(p => !p.hecho).length }}</span></h4>
               <article v-for="(p, m) in g.items" :key="m" class="pitem" :class="{ hecho: p.hecho }">
                 <span class="pmark" aria-hidden="true">{{ p.hecho ? '✓' : '○' }}</span>
@@ -2367,12 +2367,12 @@ function documentAction(id) {
           </template>
           <template v-if="v.id === 'artifacts'">
             <p class="nota">Prototipos y material navegable de esta tarea. Cada uno se abre en una pestaña nueva.</p>
-            <button v-for="artifact in protosDe(active.Key)" :key="artifact.file" class="proto-row" @click="openArtifact(artifact.file)">
+            <button v-for="artifact in protosOf(active.Key)" :key="artifact.file" class="proto-row" @click="openArtifact(artifact.file)">
               <span class="proto-play">▶</span>
               <span class="proto-txt"><b>{{ artifact.label }}</b><span class="proto-file">{{ artifact.file }}</span></span>
               <span class="proto-ext">Abrir ↗</span>
             </button>
-            <p v-if="!protosDe(active.Key).length" class="nota">Esta tarea todavía no tiene prototipos registrados.</p>
+            <p v-if="!protosOf(active.Key).length" class="nota">Esta tarea todavía no tiene prototipos registrados.</p>
           </template>
         </section>
       </template>
@@ -2383,27 +2383,27 @@ function documentAction(id) {
          <aside class="auxiliarybar"><div class="region-head">…</div><div class="region-body">…</div></aside> -->
 
     <footer class="statusbar">
-      <strong>{{ sprint ? nombreCorto(sprint.name) : 'sin sprint' }}</strong>
+      <strong>{{ sprint ? shortName(sprint.name) : 'sin sprint' }}</strong>
       <span v-if="sprintDays">{{ sprintDays.state === 'upcoming' ? `arranca en ${sprintDays.startsIn} d`
         : sprintDays.state === 'closed' ? `cerrado hace ${sprintDays.endedAgo} d`
         : `quedan ${sprintDays.remaining} d · ${sprintDays.pct}% consumido` }}</span>
-      <span v-if="!cargandoAncha">{{ visibles }} tarea{{ visibles === 1 ? '' : 's' }} a la vista</span>
+      <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
       <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
       <span v-if="active" class="sb-act">{{ active._local ? 'local' : active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
-        <button type="button" class="region-action" :aria-pressed="verSidebar" aria-controls="tasks-sidebar"
-                aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="verSidebar = !verSidebar">
+        <button type="button" class="region-action" :aria-pressed="sidebarVisible" aria-controls="tasks-sidebar"
+                aria-label="Mostrar u ocultar tareas" title="Mostrar u ocultar tareas" @click="sidebarVisible = !sidebarVisible">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button v-if="active" ref="ramasPanelToggle" type="button" class="region-action sb-console"
-                :aria-pressed="mostrarConsolaRamas" aria-controls="context-branches-panel"
-                aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="alternarConsolaRamas">
+        <button v-if="active" ref="branchPanelToggle" type="button" class="region-action sb-console"
+                :aria-pressed="showBranchConsole" aria-controls="context-branches-panel"
+                aria-label="Mostrar u ocultar ramas" title="Mostrar u ocultar ramas" @click="toggleBranchConsole">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-          <span>Ramas</span><span class="sb-count">{{ ramasTareaActiva.ramas.length }}</span>
+          <span>Ramas</span><span class="sb-count">{{ activeTaskBranches.ramas.length }}</span>
         </button>
-        <button type="button" class="region-action" :aria-pressed="mostrarAux" :disabled="!active"
-                aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="alternarDetalle">
+        <button type="button" class="region-action" :aria-pressed="showAux" :disabled="!active"
+                aria-label="Mostrar u ocultar vistas" title="Mostrar u ocultar vistas" @click="toggleDetail">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>

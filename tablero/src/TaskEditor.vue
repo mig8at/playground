@@ -18,7 +18,7 @@ import { ref, watch } from 'vue';
 
 const props = defineProps({ title: String, taskKey: String });
 const emit = defineEmits(['close']);
-const raiz = ref(null);
+const root = ref(null);
 const content = ref(null);
 // Escape CIERRA la pestaña enfocada — lo mismo que su ×. Antes sólo soltaba la tarea, y con pestañas
 // eso dejaba un estado raro: la barra mostrando pestañas y el editor mostrando el sprint.
@@ -31,7 +31,7 @@ watch(() => props.taskKey, () => { if (content.value) content.value.scrollTop = 
 </script>
 
 <template>
-  <section ref="raiz" class="task-editor" :aria-label="`Tarea ${taskKey}`" tabindex="-1" @keydown="keydown">
+  <section ref="root" class="task-editor" :aria-label="`Tarea ${taskKey}`" tabindex="-1" @keydown="keydown">
     <!-- LA CABECERA, en dos renglones y siempre los mismos: arriba QUÉ ES (clave + estado) y QUÉ SE
          PUEDE HACER, alineado al borde; abajo DE QUÉ SE TRATA. Antes eran tres renglones apilados a la
          izquierda —clave, título, acciones— que dejaban media pantalla de ancho sin usar.

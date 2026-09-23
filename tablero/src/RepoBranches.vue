@@ -9,35 +9,35 @@ const props = defineProps({
   refreshError: { type: String, default: '' },
 });
 const emit = defineEmits(['close', 'refresh']);
-const ramas = computed(() => props.snapshot.ramas || []);
+const branches = computed(() => props.snapshot.ramas || []);
 const repos = computed(() => {
-  const grupos = new Map();
-  for (const rama of ramas.value) {
-    if (!grupos.has(rama.repo)) grupos.set(rama.repo, { id: rama.repo, nombre: rama.repo, ramas: [] });
-    grupos.get(rama.repo).ramas.push(rama);
+  const groups = new Map();
+  for (const branch of branches.value) {
+    if (!groups.has(branch.repo)) groups.set(branch.repo, { id: branch.repo, nombre: branch.repo, ramas: [] });
+    groups.get(branch.repo).ramas.push(branch);
   }
-  return [...grupos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
+  return [...groups.values()].sort((a, b) => a.nombre.localeCompare(b.nombre));
 });
-const elegido = ref(readPreference('ramas-repo-tarea', ''));
-const repo = computed(() => repos.value.find((item) => item.id === elegido.value) || repos.value[0] || null);
+const chosen = ref(readPreference('ramas-repo-tarea', ''));
+const repo = computed(() => repos.value.find((item) => item.id === chosen.value) || repos.value[0] || null);
 
-watch(repo, (actual) => {
-  if (!actual || elegido.value === actual.id) return;
-  elegido.value = actual.id;
+watch(repo, (current) => {
+  if (!current || chosen.value === current.id) return;
+  chosen.value = current.id;
 }, { immediate: true });
-watch(elegido, (id) => savePreference('ramas-repo-tarea', id));
+watch(chosen, (id) => savePreference('ramas-repo-tarea', id));
 
-const ORDEN_AMBIENTES = ['develop', 'staging', 'qa', 'main'];
-const ambientes = computed(() => {
+const ENVIRONMENT_ORDER = ['develop', 'staging', 'qa', 'main'];
+const environments = computed(() => {
   const vistos = new Set();
-  for (const rama of repo.value?.ramas || []) {
-    for (const ambiente of Object.keys(rama.propios || {})) vistos.add(ambiente);
+  for (const branch of repo.value?.ramas || []) {
+    for (const environment of Object.keys(branch.propios || {})) vistos.add(environment);
   }
-  return ORDEN_AMBIENTES.filter((a) => vistos.has(a))
-    .concat([...vistos].filter((a) => !ORDEN_AMBIENTES.includes(a)).sort());
+  return ENVIRONMENT_ORDER.filter((a) => vistos.has(a))
+    .concat([...vistos].filter((a) => !ENVIRONMENT_ORDER.includes(a)).sort());
 });
 
-const etiquetaPR = (pr) => {
+const prLabel = (pr) => {
   if (!pr) return 'sin PR';
   if (pr.draft) return 'borrador';
   if (pr.estado === 'MERGED') return 'mergeado';
@@ -47,20 +47,20 @@ const etiquetaPR = (pr) => {
   if (pr.revision === 'REVIEW_REQUIRED') return 'por revisar';
   return 'abierto';
 };
-const tituloAmbiente = (rama, ambiente) => {
-  if (!(ambiente in (rama.propios || {}))) return `${ambiente} no existe en este repositorio`;
-  if (!rama.en?.[ambiente]) return `el cambio todavía no está en ${ambiente}`;
-  return rama.como?.[ambiente] === 'pr'
-    ? `llegó a ${ambiente} por el commit del PR`
-    : `el patch de la rama ya está en ${ambiente}`;
+const environmentTitle = (branch, environment) => {
+  if (!(environment in (branch.propios || {}))) return `${environment} no existe en este repositorio`;
+  if (!branch.en?.[environment]) return `el cambio todavía no está en ${environment}`;
+  return branch.como?.[environment] === 'pr'
+    ? `llegó a ${environment} por el commit del PR`
+    : `el patch de la rama ya está en ${environment}`;
 };
-const medicionExacta = computed(() => {
+const exactMeasurement = computed(() => {
   if (!props.snapshot.medidoEn) return '';
-  const fecha = new Date(props.snapshot.medidoEn);
-  if (Number.isNaN(fecha.getTime())) return props.snapshot.medidoEn;
-  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(fecha);
+  const date = new Date(props.snapshot.medidoEn);
+  if (Number.isNaN(date.getTime())) return props.snapshot.medidoEn;
+  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 });
-const medicionRelativa = computed(() => {
+const relativeMeasurement = computed(() => {
   if (!props.snapshot.medidoEn) return 'sin medición';
   const min = Math.max(0, Math.round((Date.now() - new Date(props.snapshot.medidoEn).getTime()) / 60000));
   if (!Number.isFinite(min)) return 'medición sin fecha';
@@ -77,10 +77,10 @@ const medicionRelativa = computed(() => {
     <header class="console-head">
       <div class="console-title">
         <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-        <span>Ramas</span><span class="count">{{ ramas.length }}</span>
+        <span>Ramas</span><span class="count">{{ branches.length }}</span>
       </div>
       <p>{{ taskLabel || 'Tarea' }} · Git local ·
-        <time v-if="snapshot.medidoEn" :datetime="snapshot.medidoEn" :title="medicionExacta">{{ medicionRelativa }}</time>
+        <time v-if="snapshot.medidoEn" :datetime="snapshot.medidoEn" :title="exactMeasurement">{{ relativeMeasurement }}</time>
         <span v-else>sin medición</span>
         <span v-if="refreshing" class="refresh-state" role="status"> · midiendo Git y PRs…</span>
         <span v-else-if="refreshError" class="refresh-error" role="status" :title="refreshError"> · sin actualizar</span>
@@ -111,22 +111,22 @@ const medicionRelativa = computed(() => {
           <table :aria-label="`Ramas de ${repo.nombre} para ${taskLabel || 'la tarea'}`">
             <thead><tr>
               <th>Rama</th><th>PR</th>
-              <th v-for="ambiente in ambientes" :key="ambiente" :class="{ main: ambiente === 'main' }">{{ ambiente }}</th>
+              <th v-for="environment in environments" :key="environment" :class="{ main: environment === 'main' }">{{ environment }}</th>
               <th>Commit</th>
             </tr></thead>
             <tbody>
-              <tr v-for="rama in repo.ramas" :key="rama.rama">
-                <td class="branch-name" :title="rama.rama"><span>{{ rama.rama }}</span><small v-if="rama.local">local</small></td>
+              <tr v-for="branch in repo.ramas" :key="branch.rama">
+                <td class="branch-name" :title="branch.rama"><span>{{ branch.rama }}</span><small v-if="branch.local">local</small></td>
                 <td class="pr-cell">
-                  <a v-if="rama.pr" :href="rama.pr.url" target="_blank" rel="noopener">#{{ rama.pr.numero }}</a>
-                  <span :class="{ open: rama.pr?.estado === 'OPEN' }">{{ etiquetaPR(rama.pr) }}</span>
+                  <a v-if="branch.pr" :href="branch.pr.url" target="_blank" rel="noopener">#{{ branch.pr.numero }}</a>
+                  <span :class="{ open: branch.pr?.estado === 'OPEN' }">{{ prLabel(branch.pr) }}</span>
                 </td>
-                <td v-for="ambiente in ambientes" :key="ambiente" class="environment"
-                    :class="{ main: ambiente === 'main', reached: rama.en?.[ambiente] }"
-                    :title="tituloAmbiente(rama, ambiente)" :aria-label="tituloAmbiente(rama, ambiente)">
-                  <span v-if="!(ambiente in (rama.propios || {}))">—</span><span v-else-if="rama.en?.[ambiente]">✓</span><span v-else>·</span>
+                <td v-for="environment in environments" :key="environment" class="environment"
+                    :class="{ main: environment === 'main', reached: branch.en?.[environment] }"
+                    :title="environmentTitle(branch, environment)" :aria-label="environmentTitle(branch, environment)">
+                  <span v-if="!(environment in (branch.propios || {}))">—</span><span v-else-if="branch.en?.[environment]">✓</span><span v-else>·</span>
                 </td>
-                <td class="commit" :title="`${rama.commit} · ${rama.asunto}`"><code>{{ rama.commit }}</code><span>{{ rama.asunto }}</span></td>
+                <td class="commit" :title="`${branch.commit} · ${branch.asunto}`"><code>{{ branch.commit }}</code><span>{{ branch.asunto }}</span></td>
               </tr>
             </tbody>
           </table>
@@ -137,7 +137,7 @@ const medicionRelativa = computed(() => {
         <header>Repos de esta tarea <span class="count">{{ repos.length }}</span></header>
         <div class="repo-list" role="listbox" aria-label="Repositorios trabajados en la tarea">
           <button v-for="item in repos" :key="item.id" type="button" class="repo-option"
-                  :class="{ selected: item.id === repo.id }" role="option" :aria-selected="item.id === repo.id" @click="elegido = item.id">
+                  :class="{ selected: item.id === repo.id }" role="option" :aria-selected="item.id === repo.id" @click="chosen = item.id">
             <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
             <span class="repo-text"><b>{{ item.nombre }}</b><small>{{ item.ramas.length }} {{ item.ramas.length === 1 ? 'rama' : 'ramas' }}</small></span>
           </button>

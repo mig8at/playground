@@ -10,17 +10,17 @@ import (
 // Dos archivos con el mismo id se pisaban en `slugs[id]` y sobrevivía uno solo, sin aviso (pasó el
 // 2026-09-14 con el 79). La regla: la más VIEJA por `created` conserva el número; la otra recibe el
 // siguiente libre y se persiste en su archivo, como con los `id: 0`.
-func TestCargarRenumeraIdsRepetidos(t *testing.T) {
+func TestLoadRenumbersDuplicateIDs(t *testing.T) {
 	dir := t.TempDir()
-	escribir := func(slug, id, created string) {
+	write := func(slug, id, created string) {
 		fm := "---\nid: " + id + "\ntitle: \"" + slug + "\"\nstage: work\ncreated: \"" + created + "\"\n---\n\ncuerpo\n"
 		if err := os.WriteFile(filepath.Join(dir, slug+".md"), []byte(fm), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
-	escribir("vieja", "79", "2026-09-11T08:00:00-05:00")
-	escribir("nueva", "79", "2026-09-14T18:00:00-05:00")
-	escribir("otra", "82", "2026-09-14T10:00:00-05:00")
+	write("vieja", "79", "2026-09-11T08:00:00-05:00")
+	write("nueva", "79", "2026-09-14T18:00:00-05:00")
+	write("otra", "82", "2026-09-14T10:00:00-05:00")
 
 	s, err := Open(dir)
 	if err != nil {

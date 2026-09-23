@@ -27,9 +27,9 @@ import (
 
 // Cada patrón es específico a propósito. Buscar palabras sueltas (`loki`, `sql`) daba falsos positivos
 // sobre la prosa de las propias anotaciones, que hablan de esas cosas sin haberlas corrido.
-var herramientas = []struct {
-	nombre string
-	re     *regexp.Regexp
+var tools = []struct {
+	name string
+	re   *regexp.Regexp
 }{
 	// El arnés: sus targets de `make`, sus runners y Playwright.
 	{"harness", regexp.MustCompile(`(?i)\bmake harness-|\bnode dev/|\bnpx playwright|\bdev/[a-z-]+\.(ts|spec\.ts)\b`)},
@@ -57,51 +57,51 @@ var herramientas = []struct {
 // El ambiente sale de cómo se escribe en los comandos de la casa (`TARGET=` / `E2E_TARGET=`), y sólo de
 // ahí: deducirlo de la prosa —«en producción son 14.160»— confundiría el ambiente donde se MIDIÓ con el
 // que la frase menciona, que no es lo mismo.
-var reAmbiente = regexp.MustCompile(`(?i)\b(?:E2E_)?(?:CFE_)?TARGET=(prod|production|qa|staging|dev|develop|local)\b|\bDB\s*·\s*(prod|production|qa|staging|dev|develop|local)\b`)
+var reEnvironment = regexp.MustCompile(`(?i)\b(?:E2E_)?(?:CFE_)?TARGET=(prod|production|qa|staging|dev|develop|local)\b|\bDB\s*·\s*(prod|production|qa|staging|dev|develop|local)\b`)
 
-var canonAmbiente = map[string]string{
+var canonEnvironment = map[string]string{
 	"prod": "prod", "production": "prod", "qa": "qa",
 	"staging": "staging", "dev": "dev", "develop": "dev", "local": "local",
 }
 
-// FuentesDe devuelve las herramientas y el ambiente de un `Cómo`, en orden estable.
+// SourcesOf devuelve las herramientas y el ambiente de un `Cómo`, en orden estable.
 //
 // El ambiente va al final y con su nombre a secas (`prod`, `local`): en la tarjeta se pinta distinto,
 // porque no es una herramienta — es cuánto pesa lo que se afirma.
-func FuentesDe(como string) []string {
-	if strings.TrimSpace(como) == "" {
+func SourcesOf(how string) []string {
+	if strings.TrimSpace(how) == "" {
 		return nil
 	}
 	var out []string
-	for _, h := range herramientas {
-		if h.re.MatchString(como) {
-			out = append(out, h.nombre)
+	for _, h := range tools {
+		if h.re.MatchString(how) {
+			out = append(out, h.name)
 		}
 	}
 	// Un mismo `Cómo` puede tocar dos ambientes (el caso medido contra `qa` y su control en `local`):
 	// se muestran los dos, sin elegir por nadie.
-	ambs := map[string]bool{}
-	for _, m := range reAmbiente.FindAllStringSubmatch(como, -1) {
+	envs := map[string]bool{}
+	for _, m := range reEnvironment.FindAllStringSubmatch(how, -1) {
 		environment := m[1]
 		if environment == "" {
 			environment = m[2]
 		}
-		if c, ok := canonAmbiente[strings.ToLower(environment)]; ok {
-			ambs[c] = true
+		if c, ok := canonEnvironment[strings.ToLower(environment)]; ok {
+			envs[c] = true
 		}
 	}
-	var lista []string
-	for a := range ambs {
-		lista = append(lista, a)
+	var list []string
+	for a := range envs {
+		list = append(list, a)
 	}
-	sort.Strings(lista)
-	return append(out, lista...)
+	sort.Strings(list)
+	return append(out, list...)
 }
 
-// EsAmbiente dice si una fuente es un ambiente y no una herramienta. La UI lo usa para pintarlas
+// IsEnvironment dice si una fuente es un ambiente y no una herramienta. La UI lo usa para pintarlas
 // distinto; vive acá para que no haya dos listas de nombres que se puedan desincronizar.
-func EsAmbiente(fuente string) bool {
-	switch fuente {
+func IsEnvironment(source string) bool {
+	switch source {
 	case "prod", "qa", "staging", "dev", "local":
 		return true
 	}

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestReferencesNormalizaTemaYConservaUnaCitaExacta(t *testing.T) {
+func TestReferencesNormalizeTopicAndKeepExactCitation(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/read" {
 			t.Fatalf("ruta = %s", r.URL.Path)
@@ -35,7 +35,7 @@ func TestReferencesNormalizaTemaYConservaUnaCitaExacta(t *testing.T) {
 	}
 }
 
-func TestReferencesMarcaLaQueCanonNoEncuentra(t *testing.T) {
+func TestReferencesFlagWhatCanonCannotFind(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"nodes":[],"not_found":["inexistente/context"]}`))
 	}))
@@ -50,20 +50,20 @@ func TestReferencesMarcaLaQueCanonNoEncuentra(t *testing.T) {
 	}
 }
 
-func TestFichaSaleDeLaAPI(t *testing.T) {
+func TestBriefComesFromAPI(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"nodes":[{"id":"kyc/context","title":"El estudio del cliente","summary":"Burós y score.","repos":{"application":""},"areas":[{"id":"disparo","objetivo":"Decidir si se consulta el buró.","secciones":["a","b"],"tablas":["scores"],"fuentes":{"legacy-backend":{"x.php":"abc"}}}]}]}`))
 	}))
 	defer server.Close()
 
-	ficha, err := New(server.URL).Ficha(context.Background(), "kyc")
+	brief, err := New(server.URL).Brief(context.Background(), "kyc")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ficha.ID != "kyc/context" || ficha.Titulo != "El estudio del cliente" || len(ficha.Areas) != 1 {
-		t.Fatalf("ficha = %+v", ficha)
+	if brief.ID != "kyc/context" || brief.Title != "El estudio del cliente" || len(brief.Areas) != 1 {
+		t.Fatalf("ficha = %+v", brief)
 	}
-	if len(ficha.Tablas) != 1 || ficha.Tablas[0] != "scores" || len(ficha.Repos) != 2 {
-		t.Fatalf("la ficha no preservó procedencia: %+v", ficha)
+	if len(brief.Tables) != 1 || brief.Tables[0] != "scores" || len(brief.Repos) != 2 {
+		t.Fatalf("la ficha no preservó procedencia: %+v", brief)
 	}
 }

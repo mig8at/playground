@@ -29,7 +29,7 @@ import (
 	"creditop/tablero/server/internal/store"
 )
 
-func dirDatos() string {
+func dataDir() string {
 	for _, d := range []string{"../data", "data", "tablero/data"} {
 		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 			return d
@@ -38,7 +38,7 @@ func dirDatos() string {
 	return "../data"
 }
 
-func hoyA(hhmm string) (time.Time, error) {
+func todayAt(hhmm string) (time.Time, error) {
 	t, err := time.ParseInLocation("15:04", hhmm, time.Local)
 	if err != nil {
 		return t, fmt.Errorf("hora %q: tiene que ser HH:MM", hhmm)
@@ -47,157 +47,157 @@ func hoyA(hhmm string) (time.Time, error) {
 	return time.Date(h.Year(), h.Month(), h.Day(), t.Hour(), t.Minute(), 0, 0, time.Local), nil
 }
 
-// tramosDesde cuenta los tramos de 5' con actividad en el pulso desde `desde` hasta ahora (hoy), en
+// slotsSince cuenta los tramos de 5' con actividad en el pulso desde `since` hasta ahora (hoy), en
 // cualquier repo. Devuelve también si el pulso tenía registro en esa ventana.
-func tramosDesde(datos string, desde time.Time) (tramos int, hubo bool) {
-	ticks, err := pulso.Read(datos, 1)
+func slotsSince(data string, since time.Time) (slotCount int, happened bool) {
+	ticks, err := pulso.Read(data, 1)
 	if err != nil {
 		return 0, false
 	}
 	slots := map[int64]bool{}
 	for _, tk := range ticks {
-		if t, err := time.Parse(time.RFC3339, tk.T); err == nil && !t.Before(desde) {
-			hubo = true
+		if t, err := time.Parse(time.RFC3339, tk.T); err == nil && !t.Before(since) {
+			happened = true
 		}
 		for _, sg := range tk.Signals {
 			at, err := time.Parse(time.RFC3339, sg.At)
-			if err != nil || at.Before(desde) {
+			if err != nil || at.Before(since) {
 				continue
 			}
 			slots[at.Unix()/300] = true
 		}
 	}
-	return len(slots), hubo
+	return len(slots), happened
 }
 
 func main() {
 	var (
-		tarea       = flag.String("tarea", "", "id o slug de la tarea (obligatorio)")
-		titulo      = flag.String("titulo", "", "qué fue, en una línea (obligatorio)")
-		nota        = flag.String("nota", "", "la nota (o `-` para leerla de stdin); también -nota-archivo")
-		notaArchivo = flag.String("nota-archivo", "", "archivo con la nota")
-		kind        = flag.String("kind", "progress", "progress · test · finding · blocker")
-		lapso       = flag.String("lapso", "", "HH:MM-HH:MM de hoy: los minutos son la diferencia")
-		desdePulso  = flag.String("pulso", "", "HH:MM de hoy: los minutos son los tramos del pulso desde esa hora")
-		min         = flag.Int("min", 0, "minutos, si ya los mediste: exige -fuente")
-		fuente      = flag.String("fuente", "", "de dónde salió -min (ej. «lapso entre el primer y el último commit»)")
-		seco        = flag.Bool("n", false, "mostrar la entrada y NO escribirla")
+		task      = flag.String("tarea", "", "id o slug de la tarea (obligatorio)")
+		title     = flag.String("titulo", "", "qué fue, en una línea (obligatorio)")
+		note      = flag.String("nota", "", "la nota (o `-` para leerla de stdin); también -nota-archivo")
+		noteFile  = flag.String("nota-archivo", "", "archivo con la nota")
+		kind      = flag.String("kind", "progress", "progress · test · finding · blocker")
+		span      = flag.String("lapso", "", "HH:MM-HH:MM de hoy: los minutos son la diferencia")
+		fromPulse = flag.String("pulso", "", "HH:MM de hoy: los minutos son los tramos del pulso desde esa hora")
+		min       = flag.Int("min", 0, "minutos, si ya los mediste: exige -fuente")
+		source    = flag.String("fuente", "", "de dónde salió -min (ej. «lapso entre el primer y el último commit»)")
+		dryRun    = flag.Bool("n", false, "mostrar la entrada y NO escribirla")
 	)
 	flag.Parse()
 
-	fallar := func(f string, a ...any) {
+	fail := func(f string, a ...any) {
 		fmt.Fprintf(os.Stderr, f+"\n", a...)
 		os.Exit(2)
 	}
-	if *tarea == "" || *titulo == "" {
-		fallar("faltan -tarea y/o -titulo. Ej: bitacora -tarea 84 -lapso 21:58-22:11 -titulo \"…\" -nota \"…\"")
+	if *task == "" || *title == "" {
+		fail("faltan -tarea y/o -titulo. Ej: bitacora -tarea 84 -lapso 21:58-22:11 -titulo \"…\" -nota \"…\"")
 	}
-	texto := *nota
-	if texto == "" && *notaArchivo != "" {
-		b, err := os.ReadFile(*notaArchivo)
+	text := *note
+	if text == "" && *noteFile != "" {
+		b, err := os.ReadFile(*noteFile)
 		if err != nil {
-			fallar("leyendo la nota: %v", err)
+			fail("leyendo la nota: %v", err)
 		}
-		texto = string(b)
+		text = string(b)
 	}
 	// La nota por stdin se pide EXPLÍCITA (`-nota -`): adivinarla por el tipo de descriptor colgaba el
 	// comando cuando lo lanzaba un proceso con un pipe abierto y sin nada que mandar.
-	if *nota == "-" {
+	if *note == "-" {
 		b, _ := os.ReadFile("/dev/stdin")
-		texto = string(b)
+		text = string(b)
 	}
-	texto = strings.TrimSpace(texto)
+	text = strings.TrimSpace(text)
 
 	// ── los minutos: de UNA fuente, y la fuente queda escrita ──
 	var (
-		minutos int
-		inicio  time.Time
-		origen  string
+		minutes int
+		start   time.Time
+		origin  string
 	)
-	datos := dirDatos()
+	data := dataDir()
 	switch {
-	case *lapso != "":
-		a, b, ok := strings.Cut(*lapso, "-")
+	case *span != "":
+		a, b, ok := strings.Cut(*span, "-")
 		if !ok {
-			fallar("-lapso tiene que ser HH:MM-HH:MM")
+			fail("-lapso tiene que ser HH:MM-HH:MM")
 		}
-		ta, err := hoyA(a)
+		ta, err := todayAt(a)
 		if err != nil {
-			fallar("%v", err)
+			fail("%v", err)
 		}
-		tb, err := hoyA(b)
+		tb, err := todayAt(b)
 		if err != nil {
-			fallar("%v", err)
+			fail("%v", err)
 		}
 		if !tb.After(ta) {
-			fallar("el lapso termina antes de empezar")
+			fail("el lapso termina antes de empezar")
 		}
-		minutos, inicio = int(tb.Sub(ta).Minutes()), ta
-		origen = fmt.Sprintf("medidos por el lapso de la sesión (%s a %s), no por el pulso", a, b)
-	case *desdePulso != "":
-		td, err := hoyA(*desdePulso)
+		minutes, start = int(tb.Sub(ta).Minutes()), ta
+		origin = fmt.Sprintf("medidos por el lapso de la sesión (%s a %s), no por el pulso", a, b)
+	case *fromPulse != "":
+		td, err := todayAt(*fromPulse)
 		if err != nil {
-			fallar("%v", err)
+			fail("%v", err)
 		}
-		tramos, hubo := tramosDesde(datos, td)
-		if !hubo {
-			fallar("el pulso no tiene registro de hoy desde las %s: usá -lapso o -min con -fuente", *desdePulso)
+		slots, happened := slotsSince(data, td)
+		if !happened {
+			fail("el pulso no tiene registro de hoy desde las %s: usá -lapso o -min con -fuente", *fromPulse)
 		}
-		if tramos == 0 {
-			fallar("el pulso no vio cambios desde las %s. Si trabajaste sin tocar archivos (correr, leer, medir), usá -lapso", *desdePulso)
+		if slots == 0 {
+			fail("el pulso no vio cambios desde las %s. Si trabajaste sin tocar archivos (correr, leer, medir), usá -lapso", *fromPulse)
 		}
-		minutos, inicio = tramos*5, td
-		origen = fmt.Sprintf("medidos por el pulso: %d tramos de 5′ con cambios desde las %s", tramos, *desdePulso)
+		minutes, start = slots*5, td
+		origin = fmt.Sprintf("medidos por el pulso: %d tramos de 5′ con cambios desde las %s", slots, *fromPulse)
 	case *min > 0:
-		if strings.TrimSpace(*fuente) == "" {
-			fallar("-min exige -fuente: la bitácora sube a Jira y un número sin origen es una estimación")
+		if strings.TrimSpace(*source) == "" {
+			fail("-min exige -fuente: la bitácora sube a Jira y un número sin origen es una estimación")
 		}
-		minutos, inicio = *min, time.Now().Add(-time.Duration(*min)*time.Minute)
-		origen = "medidos: " + strings.TrimSpace(*fuente)
+		minutes, start = *min, time.Now().Add(-time.Duration(*min)*time.Minute)
+		origin = "medidos: " + strings.TrimSpace(*source)
 	default:
-		fallar("decí de dónde salen los minutos: -lapso HH:MM-HH:MM · -pulso HH:MM · -min N -fuente \"…\"")
+		fail("decí de dónde salen los minutos: -lapso HH:MM-HH:MM · -pulso HH:MM · -min N -fuente \"…\"")
 	}
 
-	s, err := store.Open(datos)
+	s, err := store.Open(data)
 	if err != nil {
-		fallar("abriendo el tablero: %v", err)
+		fail("abriendo el tablero: %v", err)
 	}
-	var elegido *store.EffortRef
+	var chosen *store.EffortRef
 	for _, e := range s.EffortsAll() {
 		slug := strings.TrimSuffix(e.File, ".md")
-		if strconv.FormatInt(e.ID, 10) == *tarea || slug == *tarea {
+		if strconv.FormatInt(e.ID, 10) == *task || slug == *task {
 			ef := e
-			elegido = &ef
+			chosen = &ef
 			break
 		}
 	}
-	if elegido == nil {
-		fallar("no hay tarea %q (id o slug exacto). `make tareas` las lista.", *tarea)
+	if chosen == nil {
+		fail("no hay tarea %q (id o slug exacto). `make tareas` las lista.", *task)
 	}
-	if elegido.Archived != "" {
-		fmt.Fprintf(os.Stderr, "⚠ la tarea #%d está ARCHIVADA; se anota igual, pero revisá que sea la correcta\n", elegido.ID)
+	if chosen.Archived != "" {
+		fmt.Fprintf(os.Stderr, "⚠ la tarea #%d está ARCHIVADA; se anota igual, pero revisá que sea la correcta\n", chosen.ID)
 	}
 
-	cuerpo := texto
-	if cuerpo != "" {
-		cuerpo += "\n\n"
+	body := text
+	if body != "" {
+		body += "\n\n"
 	}
-	cuerpo += "MINUTOS: " + origen + "."
-	if v := guard.Violations(*titulo + "\n" + cuerpo); len(v) > 0 {
+	body += "MINUTOS: " + origin + "."
+	if v := guard.Violations(*title + "\n" + body); len(v) > 0 {
 		for _, x := range v {
 			fmt.Fprintf(os.Stderr, "✗ no pasa el guard (%s): %q\n", x["what"], x["found"])
 		}
-		fallar("la bitácora sube a Jira como worklog: sin repos, rutas ni F-xx en el título o la nota")
+		fail("la bitácora sube a Jira como worklog: sin repos, rutas ni F-xx en el título o la nota")
 	}
 
-	fmt.Printf("\n  #%d %s · %s · %d′ · %s\n  %s\n  %s\n\n", elegido.ID, strings.TrimSuffix(elegido.File, ".md"), inicio.Format("2006-01-02 15:04"), minutos, *kind, *titulo, origen)
-	if *seco {
+	fmt.Printf("\n  #%d %s · %s · %d′ · %s\n  %s\n  %s\n\n", chosen.ID, strings.TrimSuffix(chosen.File, ".md"), start.Format("2006-01-02 15:04"), minutes, *kind, *title, origin)
+	if *dryRun {
 		fmt.Println("  (-n: no se escribió)")
 		return
 	}
-	e, err := s.Create("", *titulo, 0, elegido.ID, *kind, inicio, minutos, cuerpo)
+	e, err := s.Create("", *title, 0, chosen.ID, *kind, start, minutes, body)
 	if err != nil {
-		fallar("escribiendo: %v", err)
+		fail("escribiendo: %v", err)
 	}
 	fmt.Printf("  escrita como entrada %d en data/entries/%s.jsonl\n\n", e.ID, e.Day[:7])
 }

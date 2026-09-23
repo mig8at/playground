@@ -19,7 +19,7 @@ func LoadDefaults() {
 	Load(".env")
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		Load(filepath.Join(dir, ".env"))      // junto al binario
+		Load(filepath.Join(dir, ".env"))       // junto al binario
 		Load(filepath.Join(dir, "..", ".env")) // p.ej. bin/ -> raíz del repo
 	}
 }

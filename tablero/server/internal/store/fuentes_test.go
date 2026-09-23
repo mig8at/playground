@@ -8,11 +8,11 @@ import (
 // Los casos son `Cómo` REALES, copiados de las tareas: un test con ejemplos inventados prueba que la
 // regex hace lo que la regex hace, no que sirva para lo que hay escrito.
 
-func TestFuentesDeCasosReales(t *testing.T) {
-	casos := []struct {
-		nombre string
-		como   string
-		quiere []string
+func TestSourcesOfRealCases(t *testing.T) {
+	cases := []struct {
+		name  string
+		how   string
+		wants []string
 	}{
 		{
 			"el forense del arnés, con su ambiente",
@@ -60,49 +60,49 @@ func TestFuentesDeCasosReales(t *testing.T) {
 			[]string{"receta"},
 		},
 	}
-	for _, c := range casos {
-		got := FuentesDe(c.como)
-		if strings.Join(got, ",") != strings.Join(c.quiere, ",") {
-			t.Errorf("%s:\n  got  %v\n  want %v", c.nombre, got, c.quiere)
+	for _, c := range cases {
+		got := SourcesOf(c.how)
+		if strings.Join(got, ",") != strings.Join(c.wants, ",") {
+			t.Errorf("%s:\n  got  %v\n  want %v", c.name, got, c.wants)
 		}
 	}
 }
 
-func TestFuentesDeNoInventa(t *testing.T) {
+func TestSourcesOfDoesNotInvent(t *testing.T) {
 	// Una anotación sin `Cómo` no tiene fuentes, y eso es lo que hay que poder VER: una afirmación que
 	// nadie puede volver a comprobar. Inventarle una etiqueta la haría parecer verificada.
-	if f := FuentesDe(""); f != nil {
+	if f := SourcesOf(""); f != nil {
 		t.Errorf("sin cómo no puede haber fuentes: %v", f)
 	}
-	if f := FuentesDe("   \n  "); f != nil {
+	if f := SourcesOf("   \n  "); f != nil {
 		t.Errorf("un cómo en blanco tampoco: %v", f)
 	}
 	// Prosa que NOMBRA herramientas sin haberlas corrido: mencionar no es medir.
-	if f := FuentesDe("lo vimos en el panel y lo confirmó Joel por Slack"); f != nil {
+	if f := SourcesOf("lo vimos en el panel y lo confirmó Joel por Slack"); f != nil {
 		t.Errorf("la prosa no es una fuente: %v", f)
 	}
 }
 
-func TestAmbienteSaleDelComando_NoDeLaProsa(t *testing.T) {
+func TestEnvironmentComesFromCommand_NotFromProse(t *testing.T) {
 	// «en producción son 14.160 checkouts» habla DE prod, pero no se midió CONTRA prod desde ese cómo.
 	// Confundir las dos cosas le daría peso de producción a una afirmación que no lo tiene.
-	if f := FuentesDe("en producción son 14.160 checkouts en 6 meses"); f != nil {
+	if f := SourcesOf("en producción son 14.160 checkouts en 6 meses"); f != nil {
 		t.Errorf("la prosa no fija el ambiente: %v", f)
 	}
-	f := FuentesDe("make tablero-db TARGET=prod SQL='SELECT count(*) FROM user_requests'")
+	f := SourcesOf("make tablero-db TARGET=prod SQL='SELECT count(*) FROM user_requests'")
 	if len(f) == 0 || f[len(f)-1] != "prod" {
 		t.Errorf("el ambiente del comando sí: %v", f)
 	}
 }
 
-func TestEsAmbienteSeparaLasDosCosas(t *testing.T) {
+func TestIsEnvironmentSeparatesBothCases(t *testing.T) {
 	for _, a := range []string{"prod", "qa", "staging", "dev", "local"} {
-		if !EsAmbiente(a) {
+		if !IsEnvironment(a) {
 			t.Errorf("%q es un ambiente", a)
 		}
 	}
 	for _, h := range []string{"harness", "trazador", "DB", "Loki", "PostHog", "git", "HTTP", "navegador"} {
-		if EsAmbiente(h) {
+		if IsEnvironment(h) {
 			t.Errorf("%q es una herramienta, no un ambiente", h)
 		}
 	}

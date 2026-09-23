@@ -151,9 +151,9 @@ func (c *Client) SearchIssuesDetailed(ctx context.Context, jql string) ([]IssueD
 				Summary:     f.Summary,
 				Status:      f.Status.Name,
 				Category:    f.Status.StatusCategory.Key,
-				Created:     soloFecha(f.Created),
-				Updated:     soloFecha(f.Updated),
-				Resolved:    soloFecha(f.Resolution),
+				Created:     dateOnly(f.Created),
+				Updated:     dateOnly(f.Updated),
+				Resolved:    dateOnly(f.Resolution),
 				Reporter:    f.Reporter.DisplayName,
 				Description: adfText(f.Description),
 			}
@@ -171,9 +171,9 @@ func (c *Client) SearchIssuesDetailed(ctx context.Context, jql string) ([]IssueD
 	return out, nil
 }
 
-// soloFecha recorta el timestamp ISO de Jira a YYYY-MM-DD: la hora no aporta nada al registro local y
+// dateOnly recorta el timestamp ISO de Jira a YYYY-MM-DD: la hora no aporta nada al registro local y
 // hace ruido en el frontmatter.
-func soloFecha(s string) string {
+func dateOnly(s string) string {
 	if len(s) < 10 {
 		return ""
 	}
@@ -439,12 +439,12 @@ func (c *Client) FindTransitionTo(ctx context.Context, key, target string) (Tran
 		return Transition{}, err
 	}
 	t := strings.ToLower(strings.TrimSpace(target))
-	destinos := make([]string, 0, len(trs))
+	targets := make([]string, 0, len(trs))
 	for _, tr := range trs {
 		if strings.Contains(strings.ToLower(tr.To), t) {
 			return tr, nil
 		}
-		destinos = append(destinos, tr.To)
+		targets = append(targets, tr.To)
 	}
 	for _, tr := range trs {
 		if strings.Contains(strings.ToLower(tr.Name), t) {
@@ -452,7 +452,7 @@ func (c *Client) FindTransitionTo(ctx context.Context, key, target string) (Tran
 		}
 	}
 	return Transition{}, fmt.Errorf("desde su estado actual, %s no sale a %q; solo a: %s",
-		key, target, strings.Join(destinos, ", "))
+		key, target, strings.Join(targets, ", "))
 }
 
 // TransitionIssue mueve el issue aplicando una transición

@@ -25,48 +25,48 @@ const subdir = "pulse"
 
 // Append anota un tick. Crea el archivo del mes si no existe.
 func Append(dir string, t Tick) error {
-	cuando, err := time.Parse(time.RFC3339, t.T)
+	when, err := time.Parse(time.RFC3339, t.T)
 	if err != nil {
-		cuando = time.Now()
+		when = time.Now()
 	}
-	ruta := filepath.Join(dir, subdir, cuando.Format("2006-01")+".jsonl")
-	if err := os.MkdirAll(filepath.Dir(ruta), 0o755); err != nil {
+	path := filepath.Join(dir, subdir, when.Format("2006-01")+".jsonl")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	linea, err := json.Marshal(t)
+	line, err := json.Marshal(t)
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(ruta, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	_, err = f.Write(append(linea, '\n'))
+	_, err = f.Write(append(line, '\n'))
 	return err
 }
 
 // LastTick devuelve el instante del último tick anotado. Es lo que define la ventana del siguiente: así
 // un hueco (Mac dormido, agente detenido) se barre entero en la próxima corrida en vez de perderse.
 func LastTick(dir string) (time.Time, bool) {
-	rutas, _ := filepath.Glob(filepath.Join(dir, subdir, "*.jsonl"))
-	sort.Strings(rutas)
-	for i := len(rutas) - 1; i >= 0; i-- {
-		crudo, err := os.ReadFile(rutas[i])
+	paths, _ := filepath.Glob(filepath.Join(dir, subdir, "*.jsonl"))
+	sort.Strings(paths)
+	for i := len(paths) - 1; i >= 0; i-- {
+		raw, err := os.ReadFile(paths[i])
 		if err != nil {
 			continue
 		}
-		lineas := strings.Split(strings.TrimRight(string(crudo), "\n"), "\n")
-		for j := len(lineas) - 1; j >= 0; j-- {
-			if strings.TrimSpace(lineas[j]) == "" {
+		lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+		for j := len(lines) - 1; j >= 0; j-- {
+			if strings.TrimSpace(lines[j]) == "" {
 				continue
 			}
 			var t Tick
-			if json.Unmarshal([]byte(lineas[j]), &t) != nil {
+			if json.Unmarshal([]byte(lines[j]), &t) != nil {
 				continue
 			}
-			if cuando, err := time.Parse(time.RFC3339, t.T); err == nil {
-				return cuando, true
+			if when, err := time.Parse(time.RFC3339, t.T); err == nil {
+				return when, true
 			}
 		}
 	}
@@ -75,26 +75,26 @@ func LastTick(dir string) (time.Time, bool) {
 
 // Read trae los ticks de los últimos `days` días. Lee sólo los archivos de mes que tocan la ventana.
 func Read(dir string, days int) ([]Tick, error) {
-	desde := time.Now().AddDate(0, 0, -days+1)
-	meses := map[string]bool{}
-	for d := desde; !d.After(time.Now()); d = d.AddDate(0, 0, 1) {
-		meses[d.Format("2006-01")] = true
+	since := time.Now().AddDate(0, 0, -days+1)
+	months := map[string]bool{}
+	for d := since; !d.After(time.Now()); d = d.AddDate(0, 0, 1) {
+		months[d.Format("2006-01")] = true
 	}
 	var out []Tick
-	claves := make([]string, 0, len(meses))
-	for m := range meses {
-		claves = append(claves, m)
+	keys := make([]string, 0, len(months))
+	for m := range months {
+		keys = append(keys, m)
 	}
-	sort.Strings(claves)
-	for _, m := range claves {
-		crudo, err := os.ReadFile(filepath.Join(dir, subdir, m+".jsonl"))
+	sort.Strings(keys)
+	for _, m := range keys {
+		raw, err := os.ReadFile(filepath.Join(dir, subdir, m+".jsonl"))
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
 			return nil, err
 		}
-		for _, l := range strings.Split(string(crudo), "\n") {
+		for _, l := range strings.Split(string(raw), "\n") {
 			if strings.TrimSpace(l) == "" {
 				continue
 			}
@@ -148,72 +148,72 @@ type RepoHour struct {
 // tree, no un delta: sumarlos entre ticks daría miles de líneas por un archivo que se guardó doce veces.
 // El trabajo sin commitear se cuenta donde no engaña — en los slots (o sea, en el color).
 func Aggregate(ticks []Tick, days int) []Hour {
-	corte := ""
+	cut := ""
 	if days > 0 {
-		corte = time.Now().AddDate(0, 0, -days+1).Format("2006-01-02")
+		cut = time.Now().AddDate(0, 0, -days+1).Format("2006-01-02")
 	}
-	type llave struct {
+	type key struct {
 		day  string
 		hour int
 	}
-	celdas := map[llave]*Hour{}
-	slots := map[llave]map[int]bool{}                // slots con actividad
-	cobertura := map[llave]map[int]bool{}            // slots que el agente miró
-	porRepo := map[llave]map[string]*RepoHour{}      // desglose
-	slotsRepo := map[llave]map[string]map[int]bool{} // slots por repo, para no contar dos veces
-	vistas := map[string]bool{}                      // dedupe de señales repetidas entre ticks
+	cells := map[key]*Hour{}
+	slots := map[key]map[int]bool{}                // slots con actividad
+	coverage := map[key]map[int]bool{}             // slots que el agente miró
+	byRepo := map[key]map[string]*RepoHour{}       // desglose
+	slotsRepo := map[key]map[string]map[int]bool{} // slots por repo, para no contar dos veces
+	seen := map[string]bool{}                      // dedupe de señales repetidas entre ticks
 
-	celda := func(k llave) *Hour {
-		if c, ok := celdas[k]; ok {
+	cell := func(k key) *Hour {
+		if c, ok := cells[k]; ok {
 			return c
 		}
 		c := &Hour{Day: k.day, Hour: k.hour}
-		celdas[k] = c
+		cells[k] = c
 		slots[k] = map[int]bool{}
-		cobertura[k] = map[int]bool{}
-		porRepo[k] = map[string]*RepoHour{}
+		coverage[k] = map[int]bool{}
+		byRepo[k] = map[string]*RepoHour{}
 		slotsRepo[k] = map[string]map[int]bool{}
 		return c
 	}
-	// slotDe devuelve en qué tramo de 5' de su hora cae un instante: 0..11.
-	slotDe := func(t time.Time) int { return t.Minute() / int(Slot/time.Minute) }
+	// slotOf devuelve en qué tramo de 5' de su hora cae un instante: 0..11.
+	slotOf := func(t time.Time) int { return t.Minute() / int(Slot/time.Minute) }
 
 	for _, tk := range ticks {
 		// COBERTURA. Un tick prueba que el equipo estaba prendido en su ventana, pero sólo se le cree si
 		// la ventana es de cadencia normal (≤ 2 tramos): una siembra mira 20 días hacia atrás y no puede
 		// reclamar que el agente estuvo vivo todo ese tiempo.
-		if cuando, err := time.Parse(time.RFC3339, tk.T); err == nil {
-			k := llave{cuando.Format("2006-01-02"), cuando.Hour()}
-			celda(k)
-			cobertura[k][slotDe(cuando)] = true
-			if desde, err := time.Parse(time.RFC3339, tk.Since); err == nil && cuando.Sub(desde) <= 2*Slot {
-				anterior := cuando.Add(-Slot)
-				ka := llave{anterior.Format("2006-01-02"), anterior.Hour()}
-				celda(ka)
-				cobertura[ka][slotDe(anterior)] = true
+		if when, err := time.Parse(time.RFC3339, tk.T); err == nil {
+			k := key{when.Format("2006-01-02"), when.Hour()}
+			cell(k)
+			coverage[k][slotOf(when)] = true
+			if since, err := time.Parse(time.RFC3339, tk.Since); err == nil && when.Sub(since) <= 2*Slot {
+				previous := when.Add(-Slot)
+				ka := key{previous.Format("2006-01-02"), previous.Hour()}
+				cell(ka)
+				coverage[ka][slotOf(previous)] = true
 			}
 		}
 
 		for _, s := range tk.Signals {
 			id := s.Repo + "\x1f" + s.At + "\x1f" + s.Why + "\x1f" + s.What
-			if vistas[id] {
+			if seen[id] {
 				continue
 			}
-			vistas[id] = true
+			seen[id] = true
 
-			cuando, err := time.Parse(time.RFC3339, s.At)
+			when, err := time.Parse(time.RFC3339, s.At)
 			if err != nil {
 				continue
 			}
-			k := llave{cuando.Format("2006-01-02"), cuando.Hour()}
-			c := celda(k)
-			sl := slotDe(cuando)
+			k := key{when.Format("2006-01-02"), when.Hour()}
+			c := cell(k)
+			sl := slotOf(when)
 			slots[k][sl] = true
 
-			r, ok := porRepo[k][s.Repo]
+			r, ok := byRepo[k][s.Repo]
 			if !ok {
 				r = &RepoHour{Repo: s.Repo, Branch: s.Branch}
-				porRepo[k][s.Repo] = r
+				byRepo[k][s.Repo] = r
 				slotsRepo[k][s.Repo] = map[int]bool{}
 			}
 			slotsRepo[k][s.Repo][sl] = true
@@ -231,18 +231,18 @@ func Aggregate(ticks []Tick, days int) []Hour {
 		}
 	}
 
-	out := make([]Hour, 0, len(celdas))
-	for k, c := range celdas {
-		if corte != "" && c.Day < corte { // iso lexicográfico: YYYY-MM-DD ordena bien como texto
+	out := make([]Hour, 0, len(cells))
+	for k, c := range cells {
+		if cut != "" && c.Day < cut { // iso lexicográfico: YYYY-MM-DD ordena bien como texto
 			continue
 		}
 		c.Slots = len(slots[k])
-		c.Covered = len(cobertura[k])
+		c.Covered = len(coverage[k])
 		// Lista vacía, no nil: una celda que sólo tiene cobertura (el agente miró y no había nada)
 		// serializaría `null` y obligaría a que cada consumidor se acuerde de esa variante.
 		c.Repos = []RepoHour{}
-		for nombre, r := range porRepo[k] {
-			r.Slots = len(slotsRepo[k][nombre])
+		for name, r := range byRepo[k] {
+			r.Slots = len(slotsRepo[k][name])
 			c.Repos = append(c.Repos, *r)
 		}
 		sort.Slice(c.Repos, func(i, j int) bool {

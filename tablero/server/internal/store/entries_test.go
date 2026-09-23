@@ -31,7 +31,7 @@ func TestListForWorkKeepsFullOrderedHistory(t *testing.T) {
 	}
 	// La recarga se ejecuta cuando cambia un Markdown de tarea. Debe reconstruir las entradas en vez
 	// de acumularlas: de lo contrario cada hito se vería dos veces después de una actualización.
-	if err := s.cargar(); err != nil {
+	if err := s.load(); err != nil {
 		t.Fatal(err)
 	}
 

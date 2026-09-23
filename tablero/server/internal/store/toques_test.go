@@ -9,7 +9,7 @@ import (
 )
 
 // El último toque sale de git y no del mtime, y lo sin commitear cuenta como HOY.
-func TestUltimosToquesPorGitYWorkingTree(t *testing.T) {
+func TestLastTouchesByGitAndWorkingTree(t *testing.T) {
 	dir := t.TempDir()
 	run := func(args ...string) {
 		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
@@ -28,15 +28,15 @@ func TestUltimosToquesPorGitYWorkingTree(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "sucia.md"), []byte("b"), 0o644) // modificada, sin commit
 	os.WriteFile(filepath.Join(dir, "nueva.md"), []byte("c"), 0o644) // nunca commiteada
 
-	got := ultimosToques(dir)
-	hoy := time.Now().Format("2006-01-02")
+	got := lastTouches(dir)
+	today := time.Now().Format("2006-01-02")
 	if got["vieja.md"] != "2026-09-01" {
 		t.Errorf("vieja: esperaba la fecha del commit, dio %q", got["vieja.md"])
 	}
-	if got["sucia.md"] != hoy {
+	if got["sucia.md"] != today {
 		t.Errorf("sucia: modificada sin commit tiene que ser HOY, dio %q", got["sucia.md"])
 	}
-	if got["nueva.md"] != hoy {
+	if got["nueva.md"] != today {
 		t.Errorf("nueva: sin commit tiene que ser HOY, dio %q", got["nueva.md"])
 	}
 }

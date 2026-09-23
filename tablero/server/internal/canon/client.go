@@ -62,21 +62,21 @@ type Reference struct {
 }
 
 type Area struct {
-	ID        string                       `json:"id"`
-	Objetivo  string                       `json:"objetivo"`
-	Secciones []string                     `json:"secciones"`
-	Tablas    []string                     `json:"tablas"`
-	Fuentes   map[string]map[string]string `json:"fuentes"`
+	ID       string                       `json:"id"`
+	Goal     string                       `json:"objetivo"`
+	Sections []string                     `json:"secciones"`
+	Tables   []string                     `json:"tablas"`
+	Sources  map[string]map[string]string `json:"fuentes"`
 }
 
-// Ficha es el apoyo compacto que `make retomar BRIEF=1` muestra. Sale de
+// Brief es el apoyo compacto que `make retomar BRIEF=1` muestra. Sale de
 // /api/read: no es una inferencia ni una segunda base de conocimiento.
-type Ficha struct {
+type Brief struct {
 	ID      string
-	Titulo  string
-	Resumen string
+	Title   string
+	Summary string
 	Areas   []Area
-	Tablas  []string
+	Tables  []string
 	Repos   []string
 }
 
@@ -162,33 +162,33 @@ func (c *Client) References(ctx context.Context, requested []string) ([]Referenc
 	return refs, nil
 }
 
-func (c *Client) Ficha(ctx context.Context, reference string) (Ficha, error) {
+func (c *Client) Brief(ctx context.Context, reference string) (Brief, error) {
 	id, err := CanonicalID(reference)
 	if err != nil {
-		return Ficha{}, err
+		return Brief{}, err
 	}
 	response, err := c.read(ctx, []string{id})
 	if err != nil {
-		return Ficha{}, err
+		return Brief{}, err
 	}
 	if len(response.Nodes) == 0 {
-		return Ficha{}, fmt.Errorf("la referencia %q no existe en Canon", reference)
+		return Brief{}, fmt.Errorf("la referencia %q no existe en Canon", reference)
 	}
 	n := response.Nodes[0]
-	f := Ficha{ID: id, Titulo: n.Title, Resumen: n.Summary, Areas: n.Areas}
-	tablas, repos := map[string]bool{}, map[string]bool{}
+	f := Brief{ID: id, Title: n.Title, Summary: n.Summary, Areas: n.Areas}
+	tables, repos := map[string]bool{}, map[string]bool{}
 	for repo := range n.Repos {
 		repos[repo] = true
 	}
 	for _, area := range n.Areas {
-		for _, tabla := range area.Tablas {
-			tablas[tabla] = true
+		for _, table := range area.Tables {
+			tables[table] = true
 		}
-		for repo := range area.Fuentes {
+		for repo := range area.Sources {
 			repos[repo] = true
 		}
 	}
-	f.Tablas, f.Repos = sorted(tablas), sorted(repos)
+	f.Tables, f.Repos = sorted(tables), sorted(repos)
 	return f, nil
 }
 

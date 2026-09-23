@@ -48,13 +48,13 @@ func envDefault(k, def string) string {
 	return def
 }
 
-// comoLista acepta `"status"` como texto o como LISTA de textos.
+// asList acepta `"status"` como texto o como LISTA de textos.
 //
 // La lista no es un lujo: el workflow de CORE **no permite saltar** estados. Una tarea nace en «Por
 // hacer» y desde ahí solo sale a «En progreso» o «Invalidada» — pedirle «pruebas» directo falla con
 // «no sale a prueba; solo a: 🚧 En progreso, ❌ Invalidada». Así que para dejarla en pruebas hay que
 // pasar por el medio: ["progreso", "prueba"]. Medido creando CORE-420 el 2026-08-13.
-func comoLista(v any) ([]string, error) {
+func asList(v any) ([]string, error) {
 	switch x := v.(type) {
 	case nil:
 		return nil, nil
@@ -106,11 +106,11 @@ func main() {
 	if strings.TrimSpace(in.Summary) == "" {
 		log.Fatal("falta 'summary' en el JSON")
 	}
-	estados, err := comoLista(in.Status)
+	states, err := asList(in.Status)
 	if err != nil {
 		log.Fatalf("'status': %v", err)
 	}
-	alSprint := in.Sprint == nil || *in.Sprint
+	toSprint := in.Sprint == nil || *in.Sprint
 
 	// El MISMO guard que aplica la UI y el POST del server: lo que sale del playground no puede
 	// nombrar repos, rutas de archivo ni hallazgos internos. Un camino de publicación sin guard es un
@@ -148,7 +148,7 @@ func main() {
 	// El sprint se resuelve ANTES de crear: si el board no tiene sprint activo, mejor enterarse
 	// ahora que dejar la tarjeta creada y huérfana del sprint.
 	var sprint *atlassian.Sprint
-	if alSprint {
+	if toSprint {
 		if sprint, err = c.ActiveSprint(ctx, boardID); err != nil {
 			log.Fatalf("buscando el sprint activo del board %d: %v", boardID, err)
 		}
@@ -167,16 +167,16 @@ func main() {
 	if in.Points != nil {
 		fmt.Fprintf(os.Stderr, "    puntos      %g\n", *in.Points)
 	}
-	if len(estados) > 0 {
-		fmt.Fprintf(os.Stderr, "    estado      → %s\n", strings.Join(estados, " → "))
+	if len(states) > 0 {
+		fmt.Fprintf(os.Stderr, "    estado      → %s\n", strings.Join(states, " → "))
 	}
 	fmt.Fprintf(os.Stderr, "    título      %s\n", in.Summary)
 	fmt.Fprintf(os.Stderr, "    descripción %d caracteres\n\n", len(in.Description))
 
 	if !*yes {
 		fmt.Fprint(os.Stderr, "  ¿Publico? [escribí \"si\"]: ")
-		linea, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		if r := strings.ToLower(strings.TrimSpace(linea)); r != "si" && r != "sí" {
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		if r := strings.ToLower(strings.TrimSpace(line)); r != "si" && r != "sí" {
 			log.Fatal("cancelado, no se creó nada")
 		}
 	}
@@ -206,10 +206,10 @@ func main() {
 
 	// En orden y cortando al primer fallo: si un paso intermedio no se pudo aplicar, seguir pidiendo
 	// los siguientes solo produce errores en cascada que esconden el primero, que es el que importa.
-	for _, destino := range estados {
-		tr, err := c.FindTransitionTo(ctx, created.Key, destino)
+	for _, target := range states {
+		tr, err := c.FindTransitionTo(ctx, created.Key, target)
 		if err != nil {
-			log.Printf("⚠ %s se quedó antes de %q: %v", created.Key, destino, err)
+			log.Printf("⚠ %s se quedó antes de %q: %v", created.Key, target, err)
 			break
 		}
 		if err := c.TransitionIssue(ctx, created.Key, tr.ID); err != nil {

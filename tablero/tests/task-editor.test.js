@@ -60,29 +60,29 @@ test('editor de la tarea: encabezado, Escape, scroll al tope y que NO es un moda
   }) });
   app.mount(root);
   const find = predicate => descendants(root).find(predicate);
-  const seccion = find(n => n.props['aria-label'] === 'Tarea CORE-1');
-  const cuerpo = find(n => n.props.class === 'te-body region-body');
+  const section = find(n => n.props['aria-label'] === 'Tarea CORE-1');
+  const body = find(n => n.props.class === 'te-body region-body');
   const key = key => ({ key, preventDefault() {}, stopPropagation() {} });
 
   // ── no es un modal, y no quedó nada del cajón ni de las pestañas ─────────────────────────────
-  assert.ok(seccion, 'la sección lleva el aria-label con la clave');
-  assert.equal(seccion.props['aria-modal'], undefined, 'no es un modal');
-  assert.equal(seccion.props.role, undefined, 'no es un dialog');
+  assert.ok(section, 'la sección lleva el aria-label con la clave');
+  assert.equal(section.props['aria-modal'], undefined, 'no es un modal');
+  assert.equal(section.props.role, undefined, 'no es un dialog');
   assert.equal(find(n => n.props.role === 'separator'), undefined, 'no tiene manija de ancho');
   assert.equal(find(n => n.props.role === 'tab'), undefined, 'ya no tiene pestañas');
   assert.equal(find(n => n.props.role === 'tablist'), undefined, 'ni su barra');
 
   // ── el cuerpo vuelve al tope al cambiar DE TAREA ─────────────────────────────────────────────
-  assert.ok(cuerpo, 'el cuerpo existe');
-  cuerpo.scrollTop = 900;
+  assert.ok(body, 'el cuerpo existe');
+  body.scrollTop = 900;
   clave.value = 'CORE-2';
   await Vue.nextTick();
-  assert.equal(cuerpo.scrollTop, 0);
+  assert.equal(body.scrollTop, 0);
 
   // ── Escape cierra ────────────────────────────────────────────────────────────────────────────
-  seccion.props.onKeydown(key('Escape'));
+  section.props.onKeydown(key('Escape'));
   assert.equal(closeCount, 1);
-  seccion.props.onKeydown(key('a'));
+  section.props.onKeydown(key('a'));
   assert.equal(closeCount, 1, 'cualquier otra tecla no cierra');
 
   app.unmount();

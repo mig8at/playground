@@ -279,7 +279,7 @@ vuelve a correr y **se puede demostrar que dejó de ser cierta**, que es lo úni
 medición de una creencia con números.
 
 Y no es sólo una convención de lectura: **el tablero lo parsea**. Las líneas de cita que siguen al
-marcador son el `Como` de la anotación, y de ahí `store.FuentesDe` deriva *con qué* se comprobó y
+marcador son el `Como` de la anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y
 *contra qué ambiente*, que es lo que la tarjeta pinta (`tablero/server/internal/store/fuentes.go`). El
 ambiente sale **sólo** de un `TARGET=` escrito en el comando — nunca de la prosa, porque «en producción
 son 14.160» menciona un ambiente sin decir dónde se midió. Una anotación cuya continuación es prosa

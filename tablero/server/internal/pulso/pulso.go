@@ -140,28 +140,28 @@ func envOr(k, def string) string {
 // repos anidados no son el mismo trabajo contado dos veces: tienen historia propia.
 func Repos(root string) []string {
 	var out []string
-	var mirar func(dir string, depth int)
-	mirar = func(dir string, depth int) {
-		entradas, err := os.ReadDir(dir)
+	var watch func(dir string, depth int)
+	watch = func(dir string, depth int) {
+		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return
 		}
-		for _, e := range entradas {
+		for _, e := range entries {
 			if !e.IsDir() || strings.HasPrefix(e.Name(), ".") || e.Name() == "node_modules" || e.Name() == "vendor" {
 				continue
 			}
-			hijo := filepath.Join(dir, e.Name())
+			child := filepath.Join(dir, e.Name())
 			// `.git` puede ser carpeta o ARCHIVO (worktrees y submódulos): mirar sólo carpetas dejaría
 			// fuera cualquier worktree, que es justo donde uno trabaja en paralelo.
-			if _, err := os.Stat(filepath.Join(hijo, ".git")); err == nil {
-				out = append(out, hijo)
+			if _, err := os.Stat(filepath.Join(child, ".git")); err == nil {
+				out = append(out, child)
 			}
 			if depth > 0 {
-				mirar(hijo, depth-1)
+				watch(child, depth-1)
 			}
 		}
 	}
-	mirar(root, 1)
+	watch(root, 1)
 	sort.Strings(out)
 	return out
 }
@@ -184,19 +184,19 @@ func Name(root, repo string) string {
 // En paralelo porque son ~19 repos × 3 comandos de git: en serie son un par de segundos cada 5 minutos,
 // y un agente de fondo que se hace notar termina desinstalado.
 func Run(cfg Config, since, now time.Time) Tick {
-	type objetivo struct{ name, repo string }
-	var objetivos []objetivo
+	type goal struct{ name, repo string }
+	var goals []goal
 	for _, r := range Repos(cfg.Root) {
-		objetivos = append(objetivos, objetivo{Name(cfg.Root, r), r})
+		goals = append(goals, goal{Name(cfg.Root, r), r})
 	}
 	for _, x := range cfg.Extra {
-		objetivos = append(objetivos, objetivo{x.Name, x.Path})
+		goals = append(goals, goal{x.Name, x.Path})
 	}
-	res := make([][]Signal, len(objetivos))
+	res := make([][]Signal, len(goals))
 	var wg sync.WaitGroup
-	for i, o := range objetivos {
+	for i, o := range goals {
 		wg.Add(1)
-		go func(i int, o objetivo) {
+		go func(i int, o goal) {
 			defer wg.Done()
 			res[i] = ProbeNamed(o.name, o.repo, since, cfg.Emails)
 		}(i, o)
@@ -245,43 +245,43 @@ func editSignal(ctx context.Context, repo, name, branch string, since time.Time)
 	// mtime: el de una CARPETA sólo cambia si se agregan o borran entradas, no si editás un archivo
 	// adentro — con el default, editar dentro de una carpeta sin seguimiento no dejaba señal. Medido:
 	// cuesta lo mismo (~25 ms en frontend-monorepo).
-	salida, err := git(ctx, repo, "status", "--porcelain=v1", "-z", "--untracked-files=all")
-	if err != nil || salida == "" {
+	output, err := git(ctx, repo, "status", "--porcelain=v1", "-z", "--untracked-files=all")
+	if err != nil || output == "" {
 		return Signal{}, false
 	}
 
-	var ultimo time.Time
-	archivos := 0
-	for _, chunk := range strings.Split(salida, "\x00") {
+	var last time.Time
+	files := 0
+	for _, chunk := range strings.Split(output, "\x00") {
 		if chunk == "" {
 			continue
 		}
-		ruta := chunk
+		path := chunk
 		// Formato porcelain: `XY <ruta>`. En un rename, el NUL siguiente trae la ruta ORIGEN sin
 		// encabezado — se stat-ea igual y, como ya no existe, se descarta sola.
 		if len(chunk) > 3 && chunk[2] == ' ' {
-			ruta = chunk[3:]
+			path = chunk[3:]
 		}
-		completa := filepath.Join(repo, ruta)
+		complete := filepath.Join(repo, path)
 		// Un REPO ANIDADO se ve como una entrada sin seguimiento y git no puede mirar adentro (ni con
 		// -uall). `microservices/` es exactamente ese caso: ve sus 6 servicios como carpetas sueltas, así
 		// que se "ensuciaba" cada vez que se trabajaba en cualquiera de ellos y se llevaba a su nombre
 		// horas que eran de otro repo. Se salta: cada uno ya se mide por su cuenta.
-		if strings.HasSuffix(ruta, "/") {
-			if _, err := os.Stat(filepath.Join(completa, ".git")); err == nil {
+		if strings.HasSuffix(path, "/") {
+			if _, err := os.Stat(filepath.Join(complete, ".git")); err == nil {
 				continue
 			}
 		}
-		fi, err := os.Stat(completa)
+		fi, err := os.Stat(complete)
 		if err != nil {
 			continue
 		}
-		archivos++
-		if m := fi.ModTime(); m.After(ultimo) {
-			ultimo = m
+		files++
+		if m := fi.ModTime(); m.After(last) {
+			last = m
 		}
 	}
-	if archivos == 0 || ultimo.Before(since) {
+	if files == 0 || last.Before(since) {
 		return Signal{}, false
 	}
 
@@ -292,8 +292,8 @@ func editSignal(ctx context.Context, repo, name, branch string, since time.Time)
 		ins, del = parseShortstat(st)
 	}
 	return Signal{
-		Repo: name, Branch: branch, At: ultimo.Format(time.RFC3339), Why: "edit",
-		Files: archivos, Ins: ins, Del: del,
+		Repo: name, Branch: branch, At: last.Format(time.RFC3339), Why: "edit",
+		Files: files, Ins: ins, Del: del,
 	}, true
 }
 
@@ -312,23 +312,23 @@ func commitSignals(ctx context.Context, repo, name, branch string, since time.Ti
 	// y elegir de separador un carácter que aparece en el dato es el bug de parseo casero de siempre.
 	args = append(args, "--format=C\x1f%ct\x1f%s", "--shortstat")
 
-	salida, err := git(ctx, repo, args...)
+	output, err := git(ctx, repo, args...)
 	if err != nil {
 		return nil
 	}
 	var out []Signal
-	for _, l := range strings.Split(salida, "\n") {
+	for _, l := range strings.Split(output, "\n") {
 		if strings.HasPrefix(l, "C\x1f") {
-			campos := strings.SplitN(l, "\x1f", 3)
-			if len(campos) < 3 {
+			fields := strings.SplitN(l, "\x1f", 3)
+			if len(fields) < 3 {
 				continue
 			}
-			seg, err := strconv.ParseInt(campos[1], 10, 64)
+			seg, err := strconv.ParseInt(fields[1], 10, 64)
 			if err != nil {
 				continue
 			}
 			out = append(out, Signal{
-				Repo: name, Branch: branch, Why: "commit", What: campos[2],
+				Repo: name, Branch: branch, Why: "commit", What: fields[2],
 				At: time.Unix(seg, 0).Local().Format(time.RFC3339),
 			})
 			continue
@@ -348,33 +348,33 @@ func commitSignals(ctx context.Context, repo, name, branch string, since time.Ti
 // ve el trabajo que NO deja commit, y a diferencia de los commits no se filtra por autor — el reflog es
 // local por definición: si está ahí, es porque vos corriste ese comando en esta máquina.
 func reflogSignals(ctx context.Context, repo, name, branch string, since time.Time) []Signal {
-	salida, err := git(ctx, repo, "reflog", "--date=iso-strict", "--format=%gd\x1f%gs", "-n", "200")
+	output, err := git(ctx, repo, "reflog", "--date=iso-strict", "--format=%gd\x1f%gs", "-n", "200")
 	if err != nil {
 		return nil
 	}
 	var out []Signal
-	for _, l := range strings.Split(salida, "\n") {
-		campos := strings.SplitN(l, "\x1f", 2)
-		if len(campos) < 2 {
+	for _, l := range strings.Split(output, "\n") {
+		fields := strings.SplitN(l, "\x1f", 2)
+		if len(fields) < 2 {
 			continue
 		}
 		// `%gd` con --date=iso-strict viene como `HEAD@{2026-08-03T15:10:11-05:00}`
-		a, b := strings.Index(campos[0], "{"), strings.LastIndex(campos[0], "}")
+		a, b := strings.Index(fields[0], "{"), strings.LastIndex(fields[0], "}")
 		if a < 0 || b <= a {
 			continue
 		}
-		cuando, err := time.Parse(time.RFC3339, campos[0][a+1:b])
+		when, err := time.Parse(time.RFC3339, fields[0][a+1:b])
 		if err != nil {
 			continue
 		}
 		// El reflog viene del más nuevo al más viejo: en cuanto uno queda fuera de la ventana, el resto
 		// también. Cortar acá es lo que lo hace barato en repos con miles de entradas.
-		if cuando.Before(since) {
+		if when.Before(since) {
 			break
 		}
 		out = append(out, Signal{
-			Repo: name, Branch: branch, Why: "reflog", What: campos[1],
-			At: cuando.Local().Format(time.RFC3339),
+			Repo: name, Branch: branch, Why: "reflog", What: fields[1],
+			At: when.Local().Format(time.RFC3339),
 		})
 	}
 	return out
@@ -407,9 +407,9 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 
 // parseShortstat saca las líneas de " 3 files changed, 48 insertions(+), 7 deletions(-)".
 func parseShortstat(s string) (ins, del int) {
-	for _, parte := range strings.Split(s, ",") {
-		parte = strings.TrimSpace(parte)
-		n, resto, ok := strings.Cut(parte, " ")
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		n, rest, ok := strings.Cut(part, " ")
 		if !ok {
 			continue
 		}
@@ -418,9 +418,9 @@ func parseShortstat(s string) (ins, del int) {
 			continue
 		}
 		switch {
-		case strings.HasPrefix(resto, "insertion"):
+		case strings.HasPrefix(rest, "insertion"):
 			ins = v
-		case strings.HasPrefix(resto, "deletion"):
+		case strings.HasPrefix(rest, "deletion"):
 			del = v
 		}
 	}
@@ -428,8 +428,8 @@ func parseShortstat(s string) (ins, del int) {
 }
 
 func parseFilesChanged(s string) int {
-	campo := strings.TrimSpace(s)
-	n, _, ok := strings.Cut(campo, " ")
+	field := strings.TrimSpace(s)
+	n, _, ok := strings.Cut(field, " ")
 	if !ok {
 		return 0
 	}

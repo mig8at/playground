@@ -2,7 +2,7 @@
  * La corrida escrita como ANOTACIÓN del tablero, lista para pegar.
  *
  * POR QUÉ EXISTE, y es un hueco medido y no una simetría. El tablero PARSEA la evidencia de una
- * anotación: las líneas de cita que siguen al marcador son su `Como`, y de ahí `store.FuentesDe`
+ * anotación: las líneas de cita que siguen al marcador son su `Como`, y de ahí `store.SourcesOf`
  * deriva **con qué** se comprobó y **contra qué ambiente** —el ambiente, sólo si hay un `TARGET=`
  * escrito—. Ese mecanismo está construido, con su UI, y el 2026-09-18 estaba vacío en el 86 % de los
  * casos: de 350 anotaciones, 308 tenían texto debajo y **51** dejaban una fuente reconocible.
@@ -14,7 +14,7 @@
  * ⚠ EL CONTRATO LO FIJA EL PARSER DEL TABLERO, no el gusto de acá: el marcador con tipo y fecha
  * arranca la primera línea, TODAS las líneas van dentro de la cita, y el comando cierra como
  * `Cómo se vuelve a comprobar`. Si esto deriva, la anotación se pega y la pestaña Hallazgos no la ve.
- * `anotacion.spec.ts` lo fija contra la misma forma que exige `store.Anotaciones`.
+ * `anotacion.spec.ts` lo fija contra la misma forma que exige `store.Annotations`.
  *
  * ⚠ Y EL TIPO ES SIEMPRE `MEDICIÓN`, igual que en el trazador: esto sale de correr algo. Una `DECISIÓN`
  * o un `RIESGO` los escribe una persona — una herramienta que los generara estaría inventando el juicio.

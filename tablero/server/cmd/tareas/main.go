@@ -39,90 +39,90 @@ import (
 	"creditop/tablero/server/internal/store"
 )
 
-// Tarea es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.
-type Tarea struct {
+// Task es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.
+type Task struct {
 	Slug     string   `json:"slug"`
 	ID       int      `json:"id"`
 	Title    string   `json:"title"`
 	Stage    string   `json:"stage"`
-	Clase    string   `json:"clase,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
+	Class    string   `json:"clase,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
 	Archived bool     `json:"archived"`
 	Jira     []string `json:"jira,omitempty"`
-	Nodos    []string `json:"canon,omitempty"`
-	// NodosViejos es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
+	Nodes    []string `json:"canon,omitempty"`
+	// OldNodes es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
 	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
-	NodosViejos []string `json:"-"`
-	Archivo     string   `json:"archivo"`
+	OldNodes []string `json:"-"`
+	File     string   `json:"archivo"`
 }
 
-// DocumentoJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
+// DocumentJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
 // esta forma se deriva al pedirla, así que Jev, workers o un script reciben estructura sin crear un
 // sidecar que pueda quedar viejo.
-type DocumentoJSON struct {
+type DocumentJSON struct {
 	SchemaVersion string          `json:"schemaVersion"`
-	Tarea         Tarea           `json:"tarea"`
-	Estado        EstadoJSON      `json:"estado"`
-	Trabajo       TrabajoJSON     `json:"trabajo"`
-	Secciones     []string        `json:"secciones"`
-	Publicacion   PublicacionJSON `json:"publicacion"`
+	Task          Task            `json:"tarea"`
+	State         StateJSON       `json:"estado"`
+	Work          WorkJSON        `json:"trabajo"`
+	Sections      []string        `json:"secciones"`
+	Publication   PublicationJSON `json:"publicacion"`
 }
 
-type EstadoJSON struct {
-	Retoma      string `json:"retoma"`
-	ProximoPaso string `json:"proximoPaso"`
+type StateJSON struct {
+	Resume   string `json:"retoma"`
+	NextStep string `json:"proximoPaso"`
 }
 
-type ConteosJSON struct {
-	PendientesAbiertos int `json:"pendientesAbiertos"`
-	PendientesCerrados int `json:"pendientesCerrados"`
-	Mediciones         int `json:"mediciones"`
-	Decisiones         int `json:"decisiones"`
-	Preguntas          int `json:"preguntas"`
-	Riesgos            int `json:"riesgos"`
+type CountsJSON struct {
+	OpenPending   int `json:"pendientesAbiertos"`
+	ClosedPending int `json:"pendientesCerrados"`
+	Measurements  int `json:"mediciones"`
+	Decisions     int `json:"decisiones"`
+	Questions     int `json:"preguntas"`
+	Risks         int `json:"riesgos"`
 }
 
-type TrabajoJSON struct {
-	Conteos     ConteosJSON       `json:"conteos"`
-	Pendientes  []store.Pendiente `json:"pendientes"`
-	Anotaciones []store.Anotacion `json:"anotaciones"`
+type WorkJSON struct {
+	Counts      CountsJSON          `json:"conteos"`
+	Pending     []store.PendingItem `json:"pendientes"`
+	Annotations []store.Annotation  `json:"anotaciones"`
 }
 
-type PublicacionJSON struct {
-	Disponible    bool                `json:"disponible"`
-	ListaParaJira bool                `json:"listaParaJira"`
-	TieneQA       bool                `json:"tieneQA"`
-	Bytes         int                 `json:"bytes"`
-	Violaciones   []map[string]string `json:"violaciones"`
-	Borrador      string              `json:"borrador,omitempty"`
+type PublicationJSON struct {
+	Available    bool                `json:"disponible"`
+	ReadyForJira bool                `json:"listaParaJira"`
+	HasQA        bool                `json:"tieneQA"`
+	Bytes        int                 `json:"bytes"`
+	Violations   []map[string]string `json:"violaciones"`
+	Draft        string              `json:"borrador,omitempty"`
 }
 
 // Las tareas LOCALES son contenedores permanentes, no un backlog paralelo a Jira. Una mejora de una
 // herramienta vuelve a su único archivo; lo transversal o todavía sin destino vive en playground.
 // La lista se valida en el CLI y en el lint por archivo para que la limpieza no dependa de memoria.
-var localesCanonicas = map[string]bool{
+var canonicalLocals = map[string]bool{
 	"canon": true, "context": true, "harness": true, "playground": true,
 	"tablero": true, "trazador": true, "workers": true,
 }
 
-func problemaLocal(t Tarea) string {
-	canonica := localesCanonicas[t.Slug]
-	if len(t.Jira) == 0 && !canonica {
+func localProblem(t Task) string {
+	canonical := canonicalLocals[t.Slug]
+	if len(t.Jira) == 0 && !canonical {
 		return "las tareas locales sólo pueden ser canon, context, harness, playground, tablero, trazador o workers; agregá el frente al contenedor correspondiente"
 	}
-	if canonica && len(t.Jira) > 0 {
+	if canonical && len(t.Jira) > 0 {
 		return "un contenedor local canónico no puede vincularse a Jira; el trabajo publicado necesita su propia tarea"
 	}
-	if canonica && t.Clase != "proyecto" {
+	if canonical && t.Class != "proyecto" {
 		return "un contenedor local canónico debe declarar `clase: proyecto`"
 	}
 	return ""
 }
 
 var (
-	reLista  = regexp.MustCompile(`\[(.*?)\]`)
-	reCita   = regexp.MustCompile(`^["']|["']$`)
-	rePublic = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
-	reH2     = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
+	reList     = regexp.MustCompile(`\[(.*?)\]`)
+	reCitation = regexp.MustCompile(`^["']|["']$`)
+	rePublic   = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
+	reH2       = regexp.MustCompile(`(?m)^##\s+(.+?)\s*$`)
 	// La mitad de QA de lo publicable. Los nombres NO son inventados: son los que ya usan las tareas
 	// que la tienen bien (Ábaco, card de renting, codeudor, KYC del segundo apellido). Se buscan los
 	// tres, y basta uno — imponer la plantilla completa haría fallar a una tarea chica que con «Cómo
@@ -130,261 +130,261 @@ var (
 	reQA = regexp.MustCompile(`(?im)^#{2,4}\s*(C[óo]mo validar|D[óo]nde probar|Criterios de aceptaci[óo]n|C[óo]mo se prueba)`)
 )
 
-func separarCuerpo(cuerpo string) (privado, publicable string) {
-	if loc := rePublic.FindStringIndex(cuerpo); loc != nil {
-		return strings.TrimSpace(cuerpo[:loc[0]]), strings.TrimSpace(cuerpo[loc[1]:])
+func separateBody(body string) (private, publishable string) {
+	if loc := rePublic.FindStringIndex(body); loc != nil {
+		return strings.TrimSpace(body[:loc[0]]), strings.TrimSpace(body[loc[1]:])
 	}
-	return strings.TrimSpace(cuerpo), ""
+	return strings.TrimSpace(body), ""
 }
 
-func titulosDeSecciones(cuerpo string) []string {
+func sectionTitles(body string) []string {
 	out := []string{}
-	for _, m := range reH2.FindAllStringSubmatch(cuerpo, -1) {
+	for _, m := range reH2.FindAllStringSubmatch(body, -1) {
 		out = append(out, strings.TrimSpace(m[1]))
 	}
 	return out
 }
 
-func documentoJSON(t Tarea, cuerpo string, incluirBorrador bool) DocumentoJSON {
-	privado, publicable := separarCuerpo(cuerpo)
-	pendientes := store.Pendientes(privado)
-	anotaciones := store.Anotaciones(privado)
-	conteos := ConteosJSON{}
-	for _, p := range pendientes {
-		if p.Hecho {
-			conteos.PendientesCerrados++
+func documentJSON(t Task, body string, includeDraft bool) DocumentJSON {
+	private, publishable := separateBody(body)
+	pending := store.Pending(private)
+	annotations := store.Annotations(private)
+	counts := CountsJSON{}
+	for _, p := range pending {
+		if p.Done {
+			counts.ClosedPending++
 		} else {
-			conteos.PendientesAbiertos++
+			counts.OpenPending++
 		}
 	}
-	for _, a := range anotaciones {
-		switch a.Tipo {
+	for _, a := range annotations {
+		switch a.Kind {
 		case "medicion":
-			conteos.Mediciones++
+			counts.Measurements++
 		case "decision":
-			conteos.Decisiones++
+			counts.Decisions++
 		case "pregunta":
-			conteos.Preguntas++
+			counts.Questions++
 		case "riesgo":
-			conteos.Riesgos++
+			counts.Risks++
 		}
 	}
-	violaciones := []map[string]string{}
-	if publicable != "" {
-		if encontradas := guard.Violations(publicable); encontradas != nil {
-			violaciones = encontradas
+	violations := []map[string]string{}
+	if publishable != "" {
+		if found := guard.Violations(publishable); found != nil {
+			violations = found
 		}
 	}
-	tieneQA := publicable != "" && reQA.MatchString(publicable)
-	doc := DocumentoJSON{
+	hasQA := publishable != "" && reQA.MatchString(publishable)
+	doc := DocumentJSON{
 		SchemaVersion: "tablero.tarea.v1",
-		Tarea:         t,
-		Estado: EstadoJSON{
-			Retoma:      store.Retoma(privado),
-			ProximoPaso: store.ProximoPaso(privado),
+		Task:          t,
+		State: StateJSON{
+			Resume:   store.Resume(private),
+			NextStep: store.NextStep(private),
 		},
-		Trabajo: TrabajoJSON{
-			Conteos:     conteos,
-			Pendientes:  pendientes,
-			Anotaciones: anotaciones,
+		Work: WorkJSON{
+			Counts:      counts,
+			Pending:     pending,
+			Annotations: annotations,
 		},
-		Secciones: titulosDeSecciones(privado),
-		Publicacion: PublicacionJSON{
-			Disponible:    publicable != "",
-			ListaParaJira: publicable != "" && len(violaciones) == 0 && tieneQA,
-			TieneQA:       tieneQA,
-			Bytes:         len(publicable),
-			Violaciones:   violaciones,
+		Sections: sectionTitles(private),
+		Publication: PublicationJSON{
+			Available:    publishable != "",
+			ReadyForJira: publishable != "" && len(violations) == 0 && hasQA,
+			HasQA:        hasQA,
+			Bytes:        len(publishable),
+			Violations:   violations,
 		},
 	}
-	if incluirBorrador {
-		doc.Publicacion.Borrador = publicable
+	if includeDraft {
+		doc.Publication.Draft = publishable
 	}
 	return doc
 }
 
-func valor(linea string) string {
-	_, v, _ := strings.Cut(linea, ":")
-	return reCita.ReplaceAllString(strings.TrimSpace(v), "")
+func value(line string) string {
+	_, v, _ := strings.Cut(line, ":")
+	return reCitation.ReplaceAllString(strings.TrimSpace(v), "")
 }
 
-func lista(linea string) []string {
-	m := reLista.FindStringSubmatch(linea)
+func list(line string) []string {
+	m := reList.FindStringSubmatch(line)
 	if m == nil || strings.TrimSpace(m[1]) == "" {
 		return nil
 	}
 	var out []string
 	for _, x := range strings.Split(m[1], ",") {
-		if x = reCita.ReplaceAllString(strings.TrimSpace(x), ""); x != "" {
+		if x = reCitation.ReplaceAllString(strings.TrimSpace(x), ""); x != "" {
 			out = append(out, x)
 		}
 	}
 	return out
 }
 
-// leer saca el frontmatter. No parsea YAML de verdad a propósito: el frontmatter de una tarea es
+// readTaskFile saca el frontmatter. No parsea YAML de verdad a propósito: el frontmatter de una tarea es
 // plano y conocido, y meter una dependencia para cinco claves sería pagar de más.
-func leer(ruta string) (Tarea, string, error) {
-	b, err := os.ReadFile(ruta)
+func readTaskFile(path string) (Task, string, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return Tarea{}, "", err
+		return Task{}, "", err
 	}
-	cuerpo := string(b)
-	t := Tarea{Slug: strings.TrimSuffix(filepath.Base(ruta), ".md"), Archivo: ruta}
-	partes := strings.SplitN(cuerpo, "---", 3)
-	if len(partes) < 3 {
-		return t, cuerpo, nil // sin frontmatter: se devuelve igual, con lo que se sepa
+	body := string(b)
+	t := Task{Slug: strings.TrimSuffix(filepath.Base(path), ".md"), File: path}
+	parts := strings.SplitN(body, "---", 3)
+	if len(parts) < 3 {
+		return t, body, nil // sin frontmatter: se devuelve igual, con lo que se sepa
 	}
-	for _, l := range strings.Split(partes[1], "\n") {
+	for _, l := range strings.Split(parts[1], "\n") {
 		switch {
 		case strings.HasPrefix(l, "id:"):
-			t.ID, _ = strconv.Atoi(valor(l))
+			t.ID, _ = strconv.Atoi(value(l))
 		case strings.HasPrefix(l, "title:"):
-			t.Title = valor(l)
+			t.Title = value(l)
 		case strings.HasPrefix(l, "stage:"):
-			t.Stage = valor(l)
+			t.Stage = value(l)
 		case strings.HasPrefix(l, "clase:"):
-			t.Clase = valor(l)
+			t.Class = value(l)
 		case strings.HasPrefix(l, "archived:"):
 			// El valor es la FECHA de archivado (así lo escribe el tablero y así lo lee el store:
 			// "" = viva). Acá decía `== "true"`, y como ningún archivo dice `true`, las 24 archivadas
 			// contaban como abiertas: `make tareas` anunciaba 63 cuando eran 39 (2026-09-14).
-			v := valor(l)
+			v := value(l)
 			t.Archived = v != "" && v != "false" && v != "null"
 		case strings.HasPrefix(l, "jira:"):
-			t.Jira = lista(l)
+			t.Jira = list(l)
 		case strings.HasPrefix(l, "canon:"):
-			t.Nodos = lista(l)
+			t.Nodes = list(l)
 		case strings.HasPrefix(l, "context_nodes:"):
 			// El campo se renombró el 2026-09-21, cuando el árbol de `context/` empezó a apagarse y su
 			// contenido pasó a canon. Se sigue LEYENDO para poder decirlo: si se ignorara, una tarea
 			// vieja perdería sus temas en silencio y el tablero mostraría «no declara ninguno», que es
 			// indistinguible de una tarea que de verdad no declara nada.
-			t.NodosViejos = lista(l)
+			t.OldNodes = list(l)
 		}
 	}
-	return t, partes[2], nil
+	return t, parts[2], nil
 }
 
-// verLint es la validación de UN archivo de tarea al escribirlo (la corre el hook de PostToolUse).
+// showLint es la validación de UN archivo de tarea al escribirlo (la corre el hook de PostToolUse).
 // Existe porque nada de esto fallaba en ningún lado: una etapa inventada no cae en ninguna columna,
 // un id repetido hace que una tarea pise a la otra en el store, y un nodo de context mal escrito manda
 // a leer una carpeta que no existe. Las tres pasaron (27/8 y 14/9). Sale 1 con la lista; 0 en silencio.
-func verLint(ruta string) int {
-	t, cuerpo, err := leer(ruta)
+func showLint(path string) int {
+	t, body, err := readTaskFile(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	var fallas, avisos []string
-	falla := func(f string, a ...any) { fallas = append(fallas, fmt.Sprintf(f, a...)) }
+	var failures, warnings []string
+	failure := func(f string, a ...any) { failures = append(failures, fmt.Sprintf(f, a...)) }
 	// Un AVISO se imprime pero no hace fallar: es algo que hay que mirar, no algo que esté roto. Existe
 	// por el caso de marcar una tarea como proyecto — su publicable queda ahí hasta que alguien la lea,
 	// y forzar el borrado en ese instante haría perder texto que quizá sirva para otra cosa.
-	avisa := func(f string, a ...any) { avisos = append(avisos, fmt.Sprintf(f, a...)) }
+	warns := func(f string, a ...any) { warnings = append(warnings, fmt.Sprintf(f, a...)) }
 
-	b, _ := os.ReadFile(ruta)
+	b, _ := os.ReadFile(path)
 	if !strings.HasPrefix(string(b), "---\n") {
-		falla("no tiene frontmatter: el archivo tiene que empezar con `---`")
+		failure("no tiene frontmatter: el archivo tiene que empezar con `---`")
 	}
 	if t.Title == "" {
-		falla("`title` vacío: es el nombre compartido con Jira")
+		failure("`title` vacío: es el nombre compartido con Jira")
 	}
-	if t.Clase != "" && t.Clase != "tarea" && t.Clase != "proyecto" {
-		falla("clase «%s» no existe: `tarea` (ligada a Jira) o `proyecto` (contenedor local canónico)", t.Clase)
+	if t.Class != "" && t.Class != "tarea" && t.Class != "proyecto" {
+		failure("clase «%s» no existe: `tarea` (ligada a Jira) o `proyecto` (contenedor local canónico)", t.Class)
 	}
-	if problema := problemaLocal(t); problema != "" {
-		falla("organización local: %s", problema)
+	if problem := localProblem(t); problem != "" {
+		failure("organización local: %s", problem)
 	}
 	// Un PROYECTO no se comparte: si trae sección publicable, alguien la va a leer como si fuera para el
 	// equipo. Es aviso y no error del guard, porque el texto en sí puede estar perfecto — lo que está
 	// mal es que exista.
-	if t.Clase == "proyecto" && rePublic.MatchString(cuerpo) {
-		avisa("es `clase: proyecto` y conserva `## Tarea (publicable)`: un contenedor local no sale a Jira. Revisala o borrala")
+	if t.Class == "proyecto" && rePublic.MatchString(body) {
+		warns("es `clase: proyecto` y conserva `## Tarea (publicable)`: un contenedor local no sale a Jira. Revisala o borrala")
 	}
-	if !etapaValida(t.Stage) {
-		falla("etapa «%s» no existe (evaluation · work · tasks). Si la tarea terminó, va `archived: \"<fecha ISO>\"`, no otra etapa", t.Stage)
+	if !validStage(t.Stage) {
+		failure("etapa «%s» no existe (evaluation · work · tasks). Si la tarea terminó, va `archived: \"<fecha ISO>\"`, no otra etapa", t.Stage)
 	}
 	fm := frontmatter(string(b))
 	if v, ok := fm["archived"]; ok && (v == "true" || v == "false" || v == "null" || v == "") {
-		falla("`archived: %s` no vale: el valor es la FECHA de archivado (ISO-8601), o la línea no va", v)
+		failure("`archived: %s` no vale: el valor es la FECHA de archivado (ISO-8601), o la línea no va", v)
 	}
-	if v, ok := fm["archived"]; ok && v != "" && !reFecha.MatchString(v) {
-		falla("`archived: %s` no parece una fecha ISO-8601 (ej. 2026-09-14T18:00:00-05:00)", v)
+	if v, ok := fm["archived"]; ok && v != "" && !reDate.MatchString(v) {
+		failure("`archived: %s` no parece una fecha ISO-8601 (ej. 2026-09-14T18:00:00-05:00)", v)
 	}
 	if v, ok := fm["created"]; !ok || v == "" {
-		falla("falta `created` (ISO-8601 con offset)")
-	} else if !reFecha.MatchString(v) {
-		falla("`created: %s` no parece una fecha ISO-8601", v)
+		failure("falta `created` (ISO-8601 con offset)")
+	} else if !reDate.MatchString(v) {
+		failure("`created: %s` no parece una fecha ISO-8601", v)
 	}
 	for _, l := range strings.Split(strings.SplitN(string(b), "---", 3)[1], "\n") {
 		if i := strings.Index(l, " #"); i > 0 {
-			falla("el frontmatter no admite comentarios en la línea (%q): el parser los deja DENTRO del valor", strings.TrimSpace(l))
+			failure("el frontmatter no admite comentarios en la línea (%q): el parser los deja DENTRO del valor", strings.TrimSpace(l))
 		}
 	}
 	// id único: el store indexa por id y dos archivos con el mismo número se pisan
-	ts, _ := todas()
+	ts, _ := all()
 	for _, o := range ts {
 		if o.ID == t.ID && o.Slug != t.Slug && t.ID != 0 {
-			falla("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
+			failure("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
 		}
 	}
 	// Las referencias se validan contra la API que Canon sirve desde Postgres. Si la API no responde,
 	// no se bloquea una edición local: se avisa claramente y se conserva la misma degradación segura
 	// que había cuando el corpus compartido no estaba clonado en esta máquina.
-	if len(t.NodosViejos) > 0 {
-		falla("`context_nodes:` se renombró a `canon:` — usá temas o referencias de Canon (esta tarea todavía dice: %s)", strings.Join(t.NodosViejos, ", "))
+	if len(t.OldNodes) > 0 {
+		failure("`context_nodes:` se renombró a `canon:` — usá temas o referencias de Canon (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
 	}
-	if len(t.Nodos) > 0 {
+	if len(t.Nodes) > 0 {
 		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		referencias, err := canon.FromEnv().References(ctx, t.Nodos)
+		references, err := canon.FromEnv().References(ctx, t.Nodes)
 		cancel()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  ⚠ no validé `canon:` — Canon no respondió en %s (%v)\n", canon.URL(), err)
 		} else {
-			for _, referencia := range referencias {
-				if referencia.Error != "" {
-					falla("canon: la referencia «%s» no existe o no es válida (%s)", referencia.Requested, referencia.Error)
+			for _, reference := range references {
+				if reference.Error != "" {
+					failure("canon: la referencia «%s» no existe o no es válida (%s)", reference.Requested, reference.Error)
 				}
 			}
 		}
 	}
 	// la publicable pasa el guard: es lo único que sale a Jira
-	if loc := rePublic.FindStringIndex(cuerpo); loc != nil {
-		for _, v := range guard.Violations(cuerpo[loc[1]:]) {
-			falla("la publicable no pasa el guard (%s): %q", v["what"], v["found"])
+	if loc := rePublic.FindStringIndex(body); loc != nil {
+		for _, v := range guard.Violations(body[loc[1]:]) {
+			failure("la publicable no pasa el guard (%s): %q", v["what"], v["found"])
 		}
 	}
-	for _, a := range avisos {
-		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(ruta), a)
+	for _, a := range warnings {
+		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(path), a)
 	}
-	if len(fallas) == 0 {
+	if len(failures) == 0 {
 		return 0
 	}
-	fmt.Fprintf(os.Stderr, "tarea %s: %d problema(s)\n", filepath.Base(ruta), len(fallas))
-	for _, f := range fallas {
+	fmt.Fprintf(os.Stderr, "tarea %s: %d problema(s)\n", filepath.Base(path), len(failures))
+	for _, f := range failures {
 		fmt.Fprintf(os.Stderr, "  ✗ %s\n", f)
 	}
 	return 1
 }
 
-var reFecha = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?)?$`)
+var reDate = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?)?$`)
 
-func frontmatter(texto string) map[string]string {
+func frontmatter(text string) map[string]string {
 	out := map[string]string{}
-	partes := strings.SplitN(texto, "---", 3)
-	if len(partes) < 3 {
+	parts := strings.SplitN(text, "---", 3)
+	if len(parts) < 3 {
 		return out
 	}
-	for _, l := range strings.Split(partes[1], "\n") {
+	for _, l := range strings.Split(parts[1], "\n") {
 		if k, _, ok := strings.Cut(l, ":"); ok && strings.TrimSpace(k) != "" && !strings.HasPrefix(l, " ") {
-			out[strings.TrimSpace(k)] = valor(l)
+			out[strings.TrimSpace(k)] = value(l)
 		}
 	}
 	return out
 }
 
-func maxID(ts []Tarea) int {
+func maxID(ts []Task) int {
 	m := 0
 	for _, t := range ts {
 		if t.ID > m {
@@ -394,42 +394,42 @@ func maxID(ts []Tarea) int {
 	return m
 }
 
-// avisos son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,
+// warnings son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,
 // mienten: un id repetido hace que una tarea pise a la otra en el store, y una etapa fuera del
 // vocabulario no cae en ninguna columna. Se imprimen arriba de la lista, no como error: la lista
 // sigue sirviendo, pero hay que arreglar el archivo.
-func avisos(ts []Tarea) []string {
+func warnings(ts []Task) []string {
 	var out []string
-	porID := map[int][]string{}
+	byID := map[int][]string{}
 	for _, t := range ts {
-		porID[t.ID] = append(porID[t.ID], t.Slug)
-		if problema := problemaLocal(t); problema != "" {
-			out = append(out, fmt.Sprintf("#%d %s: %s", t.ID, t.Slug, problema))
+		byID[t.ID] = append(byID[t.ID], t.Slug)
+		if problem := localProblem(t); problem != "" {
+			out = append(out, fmt.Sprintf("#%d %s: %s", t.ID, t.Slug, problem))
 		}
-		if !t.Archived && !etapaValida(t.Stage) {
+		if !t.Archived && !validStage(t.Stage) {
 			out = append(out, fmt.Sprintf("#%d %s: etapa «%s» no existe (evaluation · work · tasks). "+
 				"Si está terminada, va `archived:` con fecha", t.ID, t.Slug, t.Stage))
 		}
 	}
-	ids := make([]int, 0, len(porID))
-	for id := range porID {
+	ids := make([]int, 0, len(byID))
+	for id := range byID {
 		ids = append(ids, id)
 	}
 	sort.Ints(ids)
 	for _, id := range ids {
-		if len(porID[id]) > 1 {
+		if len(byID[id]) > 1 {
 			out = append(out, fmt.Sprintf("id %d repetido: %s — en el tablero sobrevive uno solo",
-				id, strings.Join(porID[id], ", ")))
+				id, strings.Join(byID[id], ", ")))
 		}
 	}
 	return out
 }
 
-func etapaValida(s string) bool {
+func validStage(s string) bool {
 	return s == "evaluation" || s == "work" || s == "tasks" || s == ""
 }
 
-func dirDatos() string {
+func dataDir() string {
 	// Se corre con `go run ./cmd/tareas` desde `server/`, así que `../data` es lo normal; pero
 	// también se acepta desde la raíz del tablero, para que no importe desde dónde se lance.
 	for _, d := range []string{"../data", "data", "tablero/data"} {
@@ -440,14 +440,14 @@ func dirDatos() string {
 	return "../data"
 }
 
-func todas() ([]Tarea, error) {
-	rutas, err := filepath.Glob(filepath.Join(dirDatos(), "*.md"))
+func all() ([]Task, error) {
+	paths, err := filepath.Glob(filepath.Join(dataDir(), "*.md"))
 	if err != nil {
 		return nil, err
 	}
-	var out []Tarea
-	for _, r := range rutas {
-		t, _, err := leer(r)
+	var out []Task
+	for _, r := range paths {
+		t, _, err := readTaskFile(r)
 		if err == nil {
 			out = append(out, t)
 		}
@@ -456,10 +456,10 @@ func todas() ([]Tarea, error) {
 	return out, nil
 }
 
-// verGuard es el único modo que puede salir con código 1: se usa para DECIDIR antes de publicar, así
+// showGuard es el único modo que puede salir con código 1: se usa para DECIDIR antes de publicar, así
 // que tiene que poder frenar un pipeline, no sólo informar.
-func verGuard(ruta string, comoJSON bool) int {
-	b, err := os.ReadFile(ruta)
+func showGuard(path string, asJSON bool) int {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
@@ -470,22 +470,22 @@ func verGuard(ruta string, comoJSON bool) int {
 	// Medirlo todo daba falsos positivos con razón de sobra para ignorarlos: el 2026-08-20 marcó un
 	// comentario HTML del Registro, que es privado y está bien que exista. Un guard que se equivoca en lo
 	// legítimo entrena a saltear el que acierta.
-	texto := string(b)
-	alcance := "el archivo entero (no tiene sección publicable)"
-	if loc := rePublic.FindStringIndex(texto); loc != nil {
-		texto = strings.TrimSpace(texto[loc[1]:])
-		alcance = "la sección `## Tarea (publicable)`"
+	text := string(b)
+	scope := "el archivo entero (no tiene sección publicable)"
+	if loc := rePublic.FindStringIndex(text); loc != nil {
+		text = strings.TrimSpace(text[loc[1]:])
+		scope = "la sección `## Tarea (publicable)`"
 	}
 
-	v := guard.Violations(texto)
-	if comoJSON {
+	v := guard.Violations(text)
+	if asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{
-			"archivo": ruta, "alcance": alcance, "violaciones": v})
+			"archivo": path, "alcance": scope, "violaciones": v})
 	} else if len(v) == 0 {
-		fmt.Printf("  ✓ %s puede salir a Jira: %s no matchea ningún patrón prohibido\n", ruta, alcance)
+		fmt.Printf("  ✓ %s puede salir a Jira: %s no matchea ningún patrón prohibido\n", path, scope)
 	} else {
-		fmt.Printf("  (medido sobre %s)\n", alcance)
-		fmt.Printf("  ✗ %s NO puede salir — %d violación(es):\n", ruta, len(v))
+		fmt.Printf("  (medido sobre %s)\n", scope)
+		fmt.Printf("  ✗ %s NO puede salir — %d violación(es):\n", path, len(v))
 		for _, x := range v {
 			fmt.Printf("      %-46s encontró: %s\n", x["what"], x["found"])
 		}
@@ -497,47 +497,47 @@ func verGuard(ruta string, comoJSON bool) int {
 	return 0
 }
 
-func verUna(ref string, comoJSON, incluirContenido bool) int {
-	ts, _ := todas()
-	var elegida *Tarea
+func showOne(ref string, asJSON, includeContent bool) int {
+	ts, _ := all()
+	var chosen *Task
 	for i, t := range ts {
 		if t.Slug == ref || strconv.Itoa(t.ID) == ref || strings.Contains(strings.ToLower(t.Slug), strings.ToLower(ref)) {
-			elegida = &ts[i]
+			chosen = &ts[i]
 			break
 		}
 	}
-	if elegida == nil {
+	if chosen == nil {
 		fmt.Fprintf(os.Stderr, "no encontré una tarea que matchee %q. Corré sin -n para ver la lista.\n", ref)
 		return 2
 	}
-	_, cuerpo, _ := leer(elegida.Archivo)
+	_, body, _ := readTaskFile(chosen.File)
 	// La frontera del repo hecha visible: lo de arriba de `## Tarea (publicable)` es PRIVADO y puede
 	// nombrar repos, rutas y F-xx; lo de abajo es lo único que sale. Mostrarlas mezcladas es cómo se
 	// publica sin querer algo que no debía salir.
-	publico := ""
-	if loc := rePublic.FindStringIndex(cuerpo); loc != nil {
-		publico = strings.TrimSpace(cuerpo[loc[1]:])
+	public := ""
+	if loc := rePublic.FindStringIndex(body); loc != nil {
+		public = strings.TrimSpace(body[loc[1]:])
 	}
-	if comoJSON {
+	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		_ = enc.Encode(documentoJSON(*elegida, cuerpo, incluirContenido))
+		_ = enc.Encode(documentJSON(*chosen, body, includeContent))
 		return 0
 	}
-	fmt.Printf("\n  #%d  %s\n  %s · %s%s\n", elegida.ID, elegida.Title, elegida.Slug, elegida.Stage,
-		map[bool]string{true: " · ARCHIVADA"}[elegida.Archived])
-	if len(elegida.Jira) > 0 {
-		fmt.Printf("  jira: %s\n", strings.Join(elegida.Jira, ", "))
+	fmt.Printf("\n  #%d  %s\n  %s · %s%s\n", chosen.ID, chosen.Title, chosen.Slug, chosen.Stage,
+		map[bool]string{true: " · ARCHIVADA"}[chosen.Archived])
+	if len(chosen.Jira) > 0 {
+		fmt.Printf("  jira: %s\n", strings.Join(chosen.Jira, ", "))
 	}
-	if len(elegida.Nodos) > 0 {
-		fmt.Printf("  nodos de context: %s\n", strings.Join(elegida.Nodos, ", "))
+	if len(chosen.Nodes) > 0 {
+		fmt.Printf("  nodos de context: %s\n", strings.Join(chosen.Nodes, ", "))
 	}
-	fmt.Printf("\n  archivo: %s\n", elegida.Archivo)
-	if publico == "" {
+	fmt.Printf("\n  archivo: %s\n", chosen.File)
+	if public == "" {
 		fmt.Println("\n  ⚠ no tiene sección `## Tarea (publicable)`: no hay nada que se pueda mandar a Jira.")
 	} else {
-		fmt.Printf("\n  ── PUBLICABLE (%d chars, lo único que sale a Jira) ──\n", len(publico))
-		v := guard.Violations(publico)
+		fmt.Printf("\n  ── PUBLICABLE (%d chars, lo único que sale a Jira) ──\n", len(public))
+		v := guard.Violations(public)
 		if len(v) == 0 {
 			fmt.Println("  ✓ pasa el guard")
 		} else {
@@ -547,7 +547,7 @@ func verUna(ref string, comoJSON, incluirContenido bool) int {
 		// contesta "¿esto puede salir?"; esto contesta "¿alcanza para que QA lo pruebe sin preguntar?".
 		// Medido el 2026-08-19 sobre las 16 tareas de los últimos 4 sprints: ninguna publicable la tenía,
 		// y los archivos que sí explican cómo probar lo hacen en el cuerpo PRIVADO, donde QA no entra.
-		if !reQA.MatchString(publico) {
+		if !reQA.MatchString(public) {
 			fmt.Println("  ⚠ le falta la mitad de QA (`## Cómo validar` / `## Dónde probar` /")
 			fmt.Println("    `## Criterios de aceptación`): así QA tiene que preguntar cómo verificarlo")
 		}
@@ -556,13 +556,13 @@ func verUna(ref string, comoJSON, incluirContenido bool) int {
 	return 0
 }
 
-// verSprint lee el SNAPSHOT de Jira que alimenta la UI (`data/cache/jira.json`).
+// showSprint lee el SNAPSHOT de Jira que alimenta la UI (`data/cache/jira.json`).
 //
 // ⚠ Es una foto, no el estado vivo: cada fila trae su `seen_at` y acá se imprime, porque un tablero
 // de sprint presentado como actual siendo de hace días es peor que no tenerlo — se decide sobre él.
 // Para el dato fresco hay que pasar por Jira (el server al refrescar, o los `jira-*` del Makefile).
-func verSprint(comoJSON bool) int {
-	b, err := os.ReadFile(filepath.Join(dirDatos(), "cache", "jira.json"))
+func showSprint(asJSON bool) int {
+	b, err := os.ReadFile(filepath.Join(dataDir(), "cache", "jira.json"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "no hay snapshot de Jira todavía:", err)
 		return 2
@@ -588,48 +588,48 @@ func verSprint(comoJSON bool) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 2
 	}
-	activo, nombre, visto := 0, "", ""
+	active, name, seen := 0, "", ""
 	for _, s := range d.Sprints {
 		if s.State == "active" {
-			activo, nombre, visto = s.ID, s.Name, s.SeenAt
+			active, name, seen = s.ID, s.Name, s.SeenAt
 		}
 	}
-	var enSprint []int
+	var inSprint []int
 	for i, t := range d.Tasks {
-		if t.SprintID == activo {
-			enSprint = append(enSprint, i)
+		if t.SprintID == active {
+			inSprint = append(inSprint, i)
 		}
 	}
-	if comoJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"sprint": nombre, "sprint_id": activo,
-			"seen_at": visto, "tareas": d.Tasks})
+	if asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"sprint": name, "sprint_id": active,
+			"seen_at": seen, "tareas": d.Tasks})
 		return 0
 	}
-	if activo == 0 {
+	if active == 0 {
 		fmt.Println("\n  no hay sprint activo en el snapshot")
 		return 0
 	}
-	fmt.Printf("\n  %s  (#%d)\n  ⚠ SNAPSHOT tomado %s — no es el estado vivo de Jira\n\n", nombre, activo, visto)
-	puntos := 0.0
-	for _, i := range enSprint {
+	fmt.Printf("\n  %s  (#%d)\n  ⚠ SNAPSHOT tomado %s — no es el estado vivo de Jira\n\n", name, active, seen)
+	points := 0.0
+	for _, i := range inSprint {
 		t := d.Tasks[i]
 		p := ""
 		if t.Points != nil {
 			p = fmt.Sprintf("%.0f pt", *t.Points)
-			puntos += *t.Points
+			points += *t.Points
 		}
 		fmt.Printf("  %-10s %-6s %-22s %s\n", t.Key, p, t.Status, t.Summary)
 	}
-	fmt.Printf("\n  %d tarea(s) · %.0f puntos\n", len(enSprint), puntos)
+	fmt.Printf("\n  %d tarea(s) · %.0f puntos\n", len(inSprint), points)
 	return 0
 }
 
-// verBitacora lee `data/entries/*.jsonl` — el tiempo registrado, que es dato PERSONAL y está fuera
+// showWorklog lee `data/entries/*.jsonl` — el tiempo registrado, que es dato PERSONAL y está fuera
 // de git a propósito. Se agrupa por día porque la pregunta real es «¿en qué se fue el día?», no el
 // listado de asientos.
-func verBitacora(dias int, comoJSON bool) int {
-	rutas, _ := filepath.Glob(filepath.Join(dirDatos(), "entries", "*.jsonl"))
-	type entrada struct {
+func showWorklog(days int, asJSON bool) int {
+	paths, _ := filepath.Glob(filepath.Join(dataDir(), "entries", "*.jsonl"))
+	type entry struct {
 		Day       string `json:"day"`
 		TaskKey   string `json:"taskKey"`
 		FreeTitle string `json:"freeTitle"`
@@ -637,8 +637,8 @@ func verBitacora(dias int, comoJSON bool) int {
 		Note      string `json:"note"`
 		Kind      string `json:"kind"`
 	}
-	var todas []entrada
-	for _, r := range rutas {
+	var all []entry
+	for _, r := range paths {
 		b, err := os.ReadFile(r)
 		if err != nil {
 			continue
@@ -647,36 +647,36 @@ func verBitacora(dias int, comoJSON bool) int {
 			if strings.TrimSpace(l) == "" {
 				continue
 			}
-			var e entrada
+			var e entry
 			if json.Unmarshal([]byte(l), &e) == nil {
-				todas = append(todas, e)
+				all = append(all, e)
 			}
 		}
 	}
-	sort.Slice(todas, func(i, j int) bool { return todas[i].Day > todas[j].Day })
-	porDia := map[string][]entrada{}
-	var orden []string
-	for _, e := range todas {
-		if _, ok := porDia[e.Day]; !ok {
-			orden = append(orden, e.Day)
+	sort.Slice(all, func(i, j int) bool { return all[i].Day > all[j].Day })
+	byDay := map[string][]entry{}
+	var order []string
+	for _, e := range all {
+		if _, ok := byDay[e.Day]; !ok {
+			order = append(order, e.Day)
 		}
-		porDia[e.Day] = append(porDia[e.Day], e)
+		byDay[e.Day] = append(byDay[e.Day], e)
 	}
-	if dias > 0 && len(orden) > dias {
-		orden = orden[:dias]
+	if days > 0 && len(order) > days {
+		order = order[:days]
 	}
-	if comoJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(todas)
+	if asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(all)
 		return 0
 	}
-	fmt.Printf("\n  bitácora · %d asiento(s) en %d día(s)\n", len(todas), len(porDia))
-	for _, d := range orden {
+	fmt.Printf("\n  bitácora · %d asiento(s) en %d día(s)\n", len(all), len(byDay))
+	for _, d := range order {
 		tot := 0
-		for _, e := range porDia[d] {
+		for _, e := range byDay[d] {
 			tot += e.Minutes
 		}
 		fmt.Printf("\n  %s — %dh %02dm\n", d, tot/60, tot%60)
-		for _, e := range porDia[d] {
+		for _, e := range byDay[d] {
 			qué := e.TaskKey
 			if qué == "" {
 				qué = e.FreeTitle
@@ -700,43 +700,43 @@ func verBitacora(dias int, comoJSON bool) int {
 
 func main() {
 	var (
-		una       = flag.String("n", "", "una tarea, por slug o por id (acepta subcadena del slug)")
-		guardar   = flag.String("guard", "", "¿el texto de este archivo puede salir a Jira? sale 1 si no")
-		lint      = flag.String("lint", "", "¿este archivo de tarea está bien formado? frontmatter, id único, etapa, nodos y guard de la publicable. Sale 1 si no")
-		stage     = flag.String("stage", "", "filtrar por etapa (p. ej. work)")
-		conTodas  = flag.Bool("todas", false, "incluir las archivadas")
-		sprint    = flag.Bool("sprint", false, "el sprint activo, del snapshot de Jira (dice cuándo se tomó)")
-		bitacora  = flag.Int("bitacora", 0, "el tiempo registrado, agrupado por día: cuántos días mirar")
-		comoJSON  = flag.Bool("json", false, "salida en JSON")
-		contenido = flag.Bool("contenido", false, "con -n -json, incluir también el borrador publicable")
+		single  = flag.String("n", "", "una tarea, por slug o por id (acepta subcadena del slug)")
+		save    = flag.String("guard", "", "¿el texto de este archivo puede salir a Jira? sale 1 si no")
+		lint    = flag.String("lint", "", "¿este archivo de tarea está bien formado? frontmatter, id único, etapa, nodos y guard de la publicable. Sale 1 si no")
+		stage   = flag.String("stage", "", "filtrar por etapa (p. ej. work)")
+		withAll = flag.Bool("todas", false, "incluir las archivadas")
+		sprint  = flag.Bool("sprint", false, "el sprint activo, del snapshot de Jira (dice cuándo se tomó)")
+		worklog = flag.Int("bitacora", 0, "el tiempo registrado, agrupado por día: cuántos días mirar")
+		asJSON  = flag.Bool("json", false, "salida en JSON")
+		content = flag.Bool("contenido", false, "con -n -json, incluir también el borrador publicable")
 	)
 	flag.Parse()
 	env.LoadDefaults()
 
-	if *guardar != "" {
-		os.Exit(verGuard(*guardar, *comoJSON))
+	if *save != "" {
+		os.Exit(showGuard(*save, *asJSON))
 	}
 	if *lint != "" {
-		os.Exit(verLint(*lint))
+		os.Exit(showLint(*lint))
 	}
 	if *sprint {
-		os.Exit(verSprint(*comoJSON))
+		os.Exit(showSprint(*asJSON))
 	}
-	if *bitacora > 0 {
-		os.Exit(verBitacora(*bitacora, *comoJSON))
+	if *worklog > 0 {
+		os.Exit(showWorklog(*worklog, *asJSON))
 	}
-	if *una != "" {
-		os.Exit(verUna(*una, *comoJSON, *contenido))
+	if *single != "" {
+		os.Exit(showOne(*single, *asJSON, *content))
 	}
 
-	ts, err := todas()
+	ts, err := all()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
-	var vis []Tarea
+	var vis []Task
 	for _, t := range ts {
-		if !*conTodas && t.Archived {
+		if !*withAll && t.Archived {
 			continue
 		}
 		if *stage != "" && t.Stage != *stage {
@@ -744,25 +744,25 @@ func main() {
 		}
 		vis = append(vis, t)
 	}
-	if *comoJSON {
+	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(vis)
 		return
 	}
 	fmt.Printf("\n  %d tarea(s)%s · de %d en total\n\n", len(vis),
-		map[bool]string{true: "", false: " abiertas"}[*conTodas], len(ts))
-	for _, aviso := range avisos(ts) {
-		fmt.Printf("  ⚠ %s\n", aviso)
+		map[bool]string{true: "", false: " abiertas"}[*withAll], len(ts))
+	for _, notice := range warnings(ts) {
+		fmt.Printf("  ⚠ %s\n", notice)
 	}
 	for _, t := range vis {
 		j := ""
 		if len(t.Jira) > 0 {
 			j = "  " + strings.Join(t.Jira, ",")
 		}
-		clase := ""
-		if t.Clase == "proyecto" {
-			clase = " ·proyecto"
+		class := ""
+		if t.Class == "proyecto" {
+			class = " ·proyecto"
 		}
-		fmt.Printf("  #%-3d %-10s%s %s%s\n", t.ID, t.Stage, clase, t.Title, j)
+		fmt.Printf("  #%-3d %-10s%s %s%s\n", t.ID, t.Stage, class, t.Title, j)
 		fmt.Printf("       %s\n", t.Slug)
 	}
 	fmt.Println("\n  -n <slug|id> para una · -guard <archivo> antes de publicar · -json para encadenar")

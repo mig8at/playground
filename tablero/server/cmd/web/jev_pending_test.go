@@ -9,17 +9,17 @@ import (
 
 func TestJevPendingStateIsBoundedAndOmitsCommands(t *testing.T) {
 	effort := store.Effort{
-		Title:       "Validar alta mobile",
-		ProximoPaso: "Revisar la evidencia.",
-		Retoma:      "Esperamos una confirmación.",
-		TechNotes:   "CUERPO PRIVADO ENTERO: no debe salir",
-		Pendientes: []store.Pendiente{
-			{Que: "Confirmar el código con la app", Seccion: "Pendientes"},
-			{Que: "Ya cerrado", Hecho: true, Seccion: "Pendientes"},
+		Title:     "Validar alta mobile",
+		NextStep:  "Revisar la evidencia.",
+		Resume:    "Esperamos una confirmación.",
+		TechNotes: "CUERPO PRIVADO ENTERO: no debe salir",
+		Pending: []store.PendingItem{
+			{What: "Confirmar el código con la app", Section: "Pendientes"},
+			{What: "Ya cerrado", Done: true, Section: "Pendientes"},
 		},
-		Anotaciones: []store.Anotacion{{
-			Fecha: "2026-09-21", Tipo: "medicion", Que: "La app confirmó el flujo.",
-			Como: "curl --header Authorization: private-command",
+		Annotations: []store.Annotation{{
+			Date: "2026-09-21", Kind: "medicion", What: "La app confirmó el flujo.",
+			How: "curl --header Authorization: private-command",
 		}},
 	}
 	state, omitted, err := jevPendingStateFromEffort(effort)
@@ -39,7 +39,7 @@ func TestJevPendingStateIsBoundedAndOmitsCommands(t *testing.T) {
 	if got := body.State.Evidence[0].Text; got != "La app confirmó el flujo." {
 		t.Fatalf("evidence text = %q", got)
 	}
-	encoded := body.State.Title + body.State.NextStep + body.State.Retoma + body.State.Evidence[0].Text
+	encoded := body.State.Title + body.State.NextStep + body.State.Resume + body.State.Evidence[0].Text
 	if strings.Contains(encoded, "private-command") || strings.Contains(encoded, "CUERPO PRIVADO") {
 		t.Fatalf("la proyección expuso contenido excluido: %q", encoded)
 	}
@@ -71,7 +71,7 @@ func TestJevPendingResponseRequiresExactChoiceContract(t *testing.T) {
 
 func TestJevPendingStateRejectsPossibleSecrets(t *testing.T) {
 	_, _, err := jevPendingStateFromEffort(store.Effort{
-		Title: "Tarea", ProximoPaso: "token=redacted", Pendientes: []store.Pendiente{{Que: "Confirmar"}},
+		Title: "Tarea", NextStep: "token=redacted", Pending: []store.PendingItem{{What: "Confirmar"}},
 	})
 	if err == nil {
 		t.Fatal("se aceptó un posible secreto")

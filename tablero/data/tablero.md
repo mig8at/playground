@@ -53,9 +53,14 @@ compañía (identificadores en inglés, comentarios en español). El contenido d
 títulos de sección y el frontmatter que se escribe a mano— **no** entra: es texto, no código. Detalle,
 fases e inventario en «Frente: el código en inglés», abajo.
 
-**El próximo paso es:** decidir las dos preguntas de la fase 0 del frente (¿`tablero` y los targets de
-`make` se quedan como nombres propios? ¿el JSON de la API cambia en esta tanda o en otra?) y arrancar
-la fase 1, que no rompe ningún contrato.
+**Estado (2026-09-23):** fase 0 decidida —`tablero` y los targets de `make` se quedan; el JSON de la
+API va en una tanda aparte— y **fase 1 hecha**: 1.035 identificadores de Go y ~235 de Vue/JS en inglés,
+con las salidas de consola (32 invocaciones) y de la API web (17 GETs) idénticas byte a byte contra el
+binario de antes, y la interfaz vieja y la nueva dando la misma huella en 36 pasos de clics. Quedan
+en español, a propósito: las claves JSON, los nombres de archivo y carpeta, y el Python de `tools/`.
+
+**El próximo paso es:** la fase 1b —los identificadores del Python de `tools/` (≥27)— o, si se prefiere
+avanzar por capas, la fase 2 (archivos) reapuntando el `anotacion.spec.ts` del arnés en el mismo commit.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -69,16 +74,17 @@ la fase 1, que no rompe ningún contrato.
       2026-09-21: mudar las trampas del sistema cambió UNA línea en `#46` y `#47` —la ruta del
       archivo, nada del trabajo— y el cierre exigió bitácora del día en las dos. Anotar minutos ahí
       sería inventar tiempo, y ese dato sube a Jira. El caso análogo ya está resuelto para el
-      frontmatter (`soloMetadatos`, que no reclama cuando lo único que cambió es un metadato);
+      frontmatter (`metadataOnly`, que no reclama cuando lo único que cambió es un metadato);
       falta el equivalente para un cambio que **no toca ninguna afirmación** de la tarea. Una pista
       barata: si el diff del cuerpo son sólo rutas o enlaces, no es trabajo.
 
-- [ ] Nombres en inglés · fase 0: decidir el alcance de los nombres propios y del JSON; termina
-      cuando las dos respuestas quedan anotadas como DECISIÓN en el frente.
-      Depende de: Miguel — si `tablero`, `make tareas/retomar/cierre/hoy/bitacora` y el `pulso` se
-      renombran o se quedan.
-- [ ] Nombres en inglés · fase 1: identificadores internos de Go y Vue; termina con la batería de
-      «Cómo se comprueba» del frente en verde y las salidas de consola idénticas byte a byte.
+- [x] Nombres en inglés · fase 0 — decidido por Miguel el 2026-09-23: `tablero` y los targets de
+      `make` se quedan; el JSON va después (DECISIÓN en el frente).
+- [x] Nombres en inglés · fase 1: identificadores de Go y Vue/JS — `ab-cli.sh` 32/32 y `ab-web.sh`
+      17/17 idénticos contra el árbol anterior; interfaz vieja vs nueva, misma huella en 36 pasos.
+- [ ] Nombres en inglés · fase 1b: identificadores del Python de `tools/` (`jev.py`, `ramas.py`,
+      `citas.py`, `trampas.py`: al menos 27, contados con una lista corta); termina con
+      `make tablero-jev-test`, `test_ramas` y `make trampas` iguales a antes.
 - [ ] Nombres en inglés · fase 2: archivos; termina cuando no queda ningún archivo con nombre en
       español fuera de `data/` y el `anotacion.spec.ts` del arnés sigue verde.
 - [ ] Nombres en inglés · fase 3: carpetas; termina con Makefile, hooks y LaunchAgent del pulso
@@ -117,13 +123,25 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
 
 **Fases, en orden de riesgo** — cada una es un commit y termina en verde antes de la siguiente:
 
-0. **Decidir los nombres propios.** El `CLAUDE.md` raíz dice que los nombres propios se quedan
-   (`tablero`, `harness`) y los verbos van en inglés; los targets de `make` (`tareas`, `retomar`,
-   `cierre`, `hoy`) son la interfaz que usan Miguel, los hooks y el catálogo del `SessionStart`.
-   Propuesta: la carpeta `tablero` y los targets de `make` se quedan; lo de adentro se traduce. Y el
-   JSON de la API va aparte (fase 4b) porque cambia un contrato versionado.
-1. **Identificadores internos** (Go no exportados, JS/Vue): no cruzan ninguna frontera. `gopls rename`
-   para Go, así no se escapa una referencia.
+0. **Decidir los nombres propios.** ✔ Hecho.
+
+   > **DECISIÓN · 2026-09-23 · Miguel** — la carpeta `tablero` y los targets de `make` (`tareas`, `retomar`, `cierre`, `hoy`, `bitacora`, `pulso`) se quedan como nombres propios; lo de adentro se traduce. El JSON de la API va después, en su propia tanda (4b), porque cambia un contrato versionado. Por lo mismo quedan `tableroRoot` y `trazadorCount`: nombran herramientas.
+
+1. **Identificadores** (Go y Vue/JS). ✔ Hecho el 2026-09-23. El contrato de afuera no se movió: las
+   etiquetas JSON, los campos sin etiqueta que se serializan por nombre (se comprobó uno por uno) y
+   las claves de objeto del front siguen en español, porque son la fase 4b.
+
+   > **MEDICIÓN · 2026-09-23** — el inventario de arriba contaba sólo funciones y tipos. Contando todo lo que se declara (campos, parámetros, locales, parámetros de tipos función) fueron **1.035 identificadores de Go** en 51 archivos (3.900 ediciones) y **~235 de Vue/JS** (≈1.000 ediciones, casi todas en `App.vue`). Salidas contra el binario anterior: 32/32 invocaciones de consola y 17/17 GETs de la API idénticos; la única diferencia es el id nuevo que genera `task-context -n` en cada corrida.
+   > tablero/tools/rename/ab-cli.sh <árbol-anterior> && tablero/tools/rename/ab-web.sh
+
+   > **DECISIÓN · 2026-09-23** — no `gopls rename` uno por uno, sino un renombrador propio sobre el type checker (`tools/rename/go/cmd/ren`), que aplica un mapa entero y **rechaza** el rename si el nombre nuevo choca: visible en el scope, declarado en uno interno, ya presente en el struct o el receptor, o si dos nombres viejos distintos van al mismo nuevo en scopes anidados — ese es el caso que compila y sombrea en silencio. Frenó 18 renames (7 de Go, 11 de Vue/JS): `amb → env` habría tapado el paquete `env`, `dias → days` una bandera `days`, `evento → event` una variable interna.
+   > cd tablero/server && <bin-de-ren> -map ../tools/rename/maps/fase1-go.tsv ./...
+
+   > **RIESGO · 2026-09-23** — el diccionario del sistema no sirve para detectar español: trae inglés arcaico (`aviso`, `leer`, `tema`, `antes` pasan como inglés). Lo que sí separó fue contrastar cada palabra contra el código de la stdlib de Go: una palabra que casi no aparece ahí es sospechosa. Las dos pasadas juntas encontraron ~200 nombres que la primera no veía. La fase 4 tiene que usar esa vara, no el diccionario.
+
+   > **MEDICIÓN · 2026-09-23** — en el front, `vite build` y los tests en verde NO prueban un rename: un nombre del template que el script ya no declara compila igual y vale `undefined` en ejecución. Se comprobó que ningún SFC deja nombres sin resolver (`_ctx.x`, antes y después: cero), que el conjunto de identificadores libres de cada archivo es el mismo, y se corrió la interfaz vieja y la nueva lado a lado con la misma secuencia de 36 pasos (filtros, búsqueda, vistas, pestañas, ramas, menú de avance, rutas, atrás): huellas de texto y de clases idénticas en los 36.
+   > node tablero/tools/rename/js/unresolved.mjs tablero/src/*.vue; node tablero/tools/rename/js/globals.mjs tablero/src/*.vue tablero/src/*.js
+
 2. **Archivos.** `git mv` para no perder la historia. ⚠ El arnés busca `anotaciones.go` y
    `reAnotacion` por nombre: se reapunta `harness/pkg/anotacion.spec.ts` en el MISMO commit, o su
    prueba falla — y si falla por «no encontré», se lee como un rename, no como un error.
@@ -140,15 +158,27 @@ contexto», frontmatter `ramas:`/`canon:`), los mensajes que imprime la consola 
 parser lee esos títulos de sección: traducirlos obligaría a migrar las 46 tareas, y las publicadas no
 se migran (decisión del 2026-08-20).
 
-**Cómo se comprueba cada fase.** Antes de empezar se guardan las salidas de consola y se comparan
-después — un rename correcto no cambia ni un byte:
+**Cómo se comprueba cada fase.** Un rename correcto no cambia ni un byte de lo que se ve, así que la
+vara es el binario de ANTES contra el de AHORA, corridos uno tras otro sobre los mismos datos:
 
-    make tareas TODAS=1 JSON=1 > antes-tareas.json; make tarea-json N=47 > antes-47.json
-    make retomar N=47 > antes-retomar.txt; make cierre JSON=1 > antes-cierre.json
-    cd tablero/server && go vet ./... && go test -count=1 ./...
+    git archive HEAD tablero/server | tar -x -C /tmp/tablero-antes     # antes de tocar nada
+    tablero/tools/rename/ab-cli.sh /tmp/tablero-antes                   # 32 invocaciones de consola
+    tablero/tools/rename/ab-web.sh                                      # 17 GETs de la API
+    cd tablero/server && gofmt -l . && go vet ./... && go test -count=1 ./...
     cd tablero && npm test && npx vite build
+    node tablero/tools/rename/js/unresolved.mjs tablero/src/*.vue       # «—» en todos
+    node tablero/tools/rename/js/globals.mjs tablero/src/*.vue tablero/src/*.js   # igual a antes
     cd tablero/tools && python3 -m unittest test_jev test_ramas
-    make estilo-check · make trampas · (fase 2) el `anotacion.spec.ts` del arnés
+    make estilo-check · make trampas · cd harness && npx playwright test pkg/anotacion.spec.ts
+
+⚠ **No sirve guardar las salidas antes y compararlas después**: se probó y dio un falso rojo en
+`cierre -json`. El pulso escribe cada 5′, así que entre una foto y la otra `pulsoMinutos` pasó de 0 a
+5 sin que el código cambiara. Correr los dos binarios seguidos elimina esa deriva.
+
+El recorrido de la interfaz se hizo levantando el front viejo (`git archive` de `tablero/src` en
+`tablero/.runs/`, que está ignorado) en otro puerto contra la misma API, y corriendo la misma
+secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo, quedaron en
+`tools/rename/maps/`: sirven para encontrar un nombre viejo citado en una tarea o un `CLAUDE.md`.
 
 ## Cómo se comprueba
 
@@ -159,6 +189,14 @@ después — un rename correcto no cambia ni un byte:
 ## Registro
 
 ### 2026-09-23
+
+Fase 1 del frente «el código en inglés»: Miguel decidió que `tablero` y los targets de `make` se
+quedan y que el JSON va después. Se renombraron 1.035 identificadores de Go y ~235 de Vue/JS con dos
+renombradores que usan el type checker y el AST, y que rechazan cualquier rename que sombree. Los
+nombres de Go citados en `CLAUDE.md`, en el arnés y en el trazador se reapuntaron en el mismo cambio
+(`store.Annotations`, `store.SourcesOf`, el regex `reAnnotation` que lee `anotacion.spec.ts`). Tres
+archivos que no estaban en `gofmt` quedaron formateados. Verificado byte a byte contra el binario
+anterior y con la interfaz vieja al lado de la nueva; el detalle está en el frente.
 
 Validación completa del tablero: `go vet` limpio, `go test` verde en los 10 paquetes con pruebas
 (ninguna saltada), 14 pruebas de Node, 18 de Python y el build de Vite pasan. Los lints propios

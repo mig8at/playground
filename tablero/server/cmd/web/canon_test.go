@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestConfigEntregaURLsDeHerramientas(t *testing.T) {
+func TestConfigDeliversToolURLs(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/config", nil)
 	response := httptest.NewRecorder()
 	(&app{canonURL: "https://canon.test", tracerURL: "https://tracer.test", harnessURL: "http://harness.test"}).config(response, request)
@@ -27,7 +27,7 @@ func TestConfigEntregaURLsDeHerramientas(t *testing.T) {
 	}
 }
 
-func TestCanonReferencesEntregaMetadatosSinCopiarContenido(t *testing.T) {
+func TestCanonReferencesDeliverMetadataWithoutCopyingContent(t *testing.T) {
 	canon := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/read" || r.URL.Query().Get("ids") != "listado/context" {
 			t.Fatalf("consulta inesperada: %s", r.URL.String())
@@ -58,7 +58,7 @@ func TestCanonReferencesEntregaMetadatosSinCopiarContenido(t *testing.T) {
 	}
 }
 
-func TestCanonReferencesRequiereIDs(t *testing.T) {
+func TestCanonReferencesRequireIDs(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/api/canon/references", nil)
 	response := httptest.NewRecorder()
 	(&app{}).canonReferences(response, request)

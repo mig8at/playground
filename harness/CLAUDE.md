@@ -878,7 +878,7 @@ copiarla sin recortar:
 ⚠ **El contrato lo fija el parser del tablero, no el gusto de acá**: el marcador arranca la primera
 línea, TODAS las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si
 deriva, la anotación se pega, se ve bien y la pestaña Hallazgos no la muestra. `pkg/anotacion.spec.ts`
-lo fija leyendo el **regex real** de `store.Anotaciones` — no una copia: un mock no puede contradecir
+lo fija leyendo el **regex real** de `store.Annotations` — no una copia: un mock no puede contradecir
 el documento del que nació.
 
 ⚠ **Y lo que se resume es el DESENLACE, no el conteo.** «3/3 cerraron» no sirve dentro de una tarea tres

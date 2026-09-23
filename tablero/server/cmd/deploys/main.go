@@ -22,7 +22,7 @@
 // perfiles de calidad del proyecto. El código estaba bien; lo que falló fue la herramienta de análisis.
 //
 // Los despliegues se distinguen del ruido por el NOMBRE del workflow: Dependabot abre decenas de
-// corridas por semana y ahogarían la lista. Ver `esDespliegue`.
+// corridas por semana y ahogarían la lista. Ver `isDeploy`.
 package main
 
 import (
@@ -38,31 +38,31 @@ import (
 	"time"
 )
 
-// ReposPorDefecto son los tres donde se despliega lo que se trabaja acá. `legacy-application` nombra
+// DefaultRepos son los tres donde se despliega lo que se trabaja acá. `legacy-application` nombra
 // sus workflows con la ruta del archivo (`.github/workflows/main-prod.yaml`) en vez de un título, así
 // que el ambiente se saca igual del nombre — por eso el detector mira el texto completo.
-var ReposPorDefecto = []string{"legacy-backend", "frontend-monorepo", "legacy-application"}
+var DefaultRepos = []string{"legacy-backend", "frontend-monorepo", "legacy-application"}
 
 const org = "Creditop-SAS"
 
-type corrida struct {
-	Repo       string `json:"repo"`
-	Nombre     string `json:"workflow"`
-	Rama       string `json:"rama"`
-	Estado     string `json:"estado"` // success | failure | cancelled | in_progress…
-	Titulo     string `json:"titulo"`
-	Creada     string `json:"creada"`
-	URL        string `json:"url"`
-	ID         int64  `json:"id"`
-	Ambiente   string `json:"ambiente,omitempty"`
-	JobFallido string `json:"jobFallido,omitempty"`
-	PasoFallo  string `json:"pasoQueFallo,omitempty"`
-	Error      string `json:"error,omitempty"` // la línea del log que dice POR QUÉ; sólo con -fallas
+type run struct {
+	Repo        string `json:"repo"`
+	Name        string `json:"workflow"`
+	Branch      string `json:"rama"`
+	State       string `json:"estado"` // success | failure | cancelled | in_progress…
+	Title       string `json:"titulo"`
+	Created     string `json:"creada"`
+	URL         string `json:"url"`
+	ID          int64  `json:"id"`
+	Environment string `json:"ambiente,omitempty"`
+	FailedJob   string `json:"jobFallido,omitempty"`
+	FailedStep  string `json:"pasoQueFallo,omitempty"`
+	Error       string `json:"error,omitempty"` // la línea del log que dice POR QUÉ; sólo con -fallas
 }
 
 var (
 	reDependabot = regexp.MustCompile(`(?i)dependabot|composer in |npm_and_yarn|bump `)
-	reDespliegue = regexp.MustCompile(`(?i)deploy|main-(dev|prod|qa|stg|canary|lab)`)
+	reDeploy     = regexp.MustCompile(`(?i)deploy|main-(dev|prod|qa|stg|canary|lab)`)
 	reProd       = regexp.MustCompile(`(?i)production|prod|main-prod`)
 	reQA         = regexp.MustCompile(`(?i)\bqa\b|main-qa`)
 	reStg        = regexp.MustCompile(`(?i)staging|stg`)
@@ -70,28 +70,28 @@ var (
 	reCanary     = regexp.MustCompile(`(?i)canary`)
 )
 
-// esDespliegue: un despliegue de verdad, no el ruido de las actualizaciones de dependencias. Dependabot
+// isDeploy: un despliegue de verdad, no el ruido de las actualizaciones de dependencias. Dependabot
 // abre decenas de corridas por semana en estos repos y, contadas como despliegues, dan una tasa de
 // fallas que no es la del despliegue de nadie.
-func esDespliegue(nombre string) bool {
-	return !reDependabot.MatchString(nombre) && reDespliegue.MatchString(nombre)
+func isDeploy(name string) bool {
+	return !reDependabot.MatchString(name) && reDeploy.MatchString(name)
 }
 
-// ambienteDe sale del NOMBRE del workflow, no de la rama: la rama dice de dónde salió el código y el
+// environmentOf sale del NOMBRE del workflow, no de la rama: la rama dice de dónde salió el código y el
 // nombre dice a dónde va. Un tag `v0.4.69` que despliega a producción no se puede leer desde la rama.
-func ambienteDe(nombre string) string {
+func environmentOf(name string) string {
 	switch {
 	// `canary` va primero: su archivo es `main-canary.yaml` y `reProd` no lo matchea, pero sin esta
 	// rama caía en el `?` — un ambiente real que se leía como «no se supo».
-	case reCanary.MatchString(nombre):
+	case reCanary.MatchString(name):
 		return "canary"
-	case reProd.MatchString(nombre):
+	case reProd.MatchString(name):
 		return "producción"
-	case reQA.MatchString(nombre):
+	case reQA.MatchString(name):
 		return "qa"
-	case reStg.MatchString(nombre):
+	case reStg.MatchString(name):
 		return "staging"
-	case reDev.MatchString(nombre):
+	case reDev.MatchString(name):
 		return "develop"
 	}
 	return ""
@@ -107,13 +107,13 @@ func gh(args ...string) ([]byte, error) {
 	return []byte(out.String()), nil
 }
 
-func corridasDe(repo string, desde time.Time, limite int) ([]corrida, error) {
-	b, err := gh("run", "list", "--repo", org+"/"+repo, "--limit", fmt.Sprint(limite),
+func runsOf(repo string, since time.Time, limit int) ([]run, error) {
+	b, err := gh("run", "list", "--repo", org+"/"+repo, "--limit", fmt.Sprint(limit),
 		"--json", "databaseId,name,headBranch,conclusion,status,displayTitle,createdAt,url")
 	if err != nil {
 		return nil, err
 	}
-	var crudas []struct {
+	var raw []struct {
 		DatabaseID   int64  `json:"databaseId"`
 		Name         string `json:"name"`
 		HeadBranch   string `json:"headBranch"`
@@ -123,34 +123,34 @@ func corridasDe(repo string, desde time.Time, limite int) ([]corrida, error) {
 		CreatedAt    string `json:"createdAt"`
 		URL          string `json:"url"`
 	}
-	if err := json.Unmarshal(b, &crudas); err != nil {
+	if err := json.Unmarshal(b, &raw); err != nil {
 		return nil, err
 	}
-	var out []corrida
-	for _, c := range crudas {
-		if !esDespliegue(c.Name) {
+	var out []run
+	for _, c := range raw {
+		if !isDeploy(c.Name) {
 			continue
 		}
 		t, err := time.Parse(time.RFC3339, c.CreatedAt)
-		if err != nil || t.Before(desde) {
+		if err != nil || t.Before(since) {
 			continue
 		}
-		estado := c.Conclusion
-		if estado == "" {
-			estado = c.Status // todavía corriendo
+		state := c.Conclusion
+		if state == "" {
+			state = c.Status // todavía corriendo
 		}
-		out = append(out, corrida{
-			Repo: repo, Nombre: c.Name, Rama: c.HeadBranch, Estado: estado, Titulo: c.DisplayTitle,
-			Creada: c.CreatedAt, URL: c.URL, ID: c.DatabaseID, Ambiente: ambienteDe(c.Name),
+		out = append(out, run{
+			Repo: repo, Name: c.Name, Branch: c.HeadBranch, State: state, Title: c.DisplayTitle,
+			Created: c.CreatedAt, URL: c.URL, ID: c.DatabaseID, Environment: environmentOf(c.Name),
 		})
 	}
 	return out, nil
 }
 
-// porQueFallo pide el detalle SÓLO de las fallidas: es una llamada por corrida y no vale pagarla por
+// failureReason pide el detalle SÓLO de las fallidas: es una llamada por corrida y no vale pagarla por
 // las que anduvieron. Devuelve el job y el paso, que es lo que distingue «no compiló» de «no desplegó»
 // de «falló el análisis de calidad».
-func porQueFallo(repo string, id int64) (job, paso string) {
+func failureReason(repo string, id int64) (job, step string) {
 	b, err := gh("run", "view", fmt.Sprint(id), "--repo", org+"/"+repo, "--json", "jobs")
 	if err != nil {
 		return "", ""
@@ -172,13 +172,13 @@ func porQueFallo(repo string, id int64) (job, paso string) {
 		if j.Conclusion != "failure" {
 			continue
 		}
-		var pasos []string
+		var steps []string
 		for _, s := range j.Steps {
 			if s.Conclusion == "failure" {
-				pasos = append(pasos, s.Name)
+				steps = append(steps, s.Name)
 			}
 		}
-		return j.Name, strings.Join(pasos, ", ")
+		return j.Name, strings.Join(steps, ", ")
 	}
 	return "", ""
 }
@@ -186,20 +186,20 @@ func porQueFallo(repo string, id int64) (job, paso string) {
 // reError es el marcador estándar de GitHub Actions: la línea que el runner marcó como el error.
 var reError = regexp.MustCompile(`##\[error\](.*)`)
 
-// errorDelLog baja el log del job fallido y saca la línea que dice POR QUÉ. Es lo que convierte
+// errorFromLog baja el log del job fallido y saca la línea que dice POR QUÉ. Es lo que convierte
 // «falló en Build Docker image» en «la definición de tarea mide 65.558 bytes y el máximo es 65.536».
 //
 // ⚠ NO SIEMPRE HAY MARCADOR: medido el 2026-09-15 sobre las 4 fallas de la última semana, 3 lo traen y
 // 1 no (un build del front). Por eso hay un respaldo que busca líneas con «error» y, si tampoco hay,
 // se dice que no se pudo leer y queda la URL. Inventar un motivo es peor que no darlo: quien lo lee
 // va a dejar de abrir el log, que es justo donde está la respuesta.
-func errorDelLog(repo string, id int64) string {
+func errorFromLog(repo string, id int64) string {
 	b, err := gh("run", "view", fmt.Sprint(id), "--repo", org+"/"+repo, "--log-failed")
 	if err != nil {
 		return ""
 	}
-	lineas := strings.Split(string(b), "\n")
-	for _, l := range lineas {
+	lines := strings.Split(string(b), "\n")
+	for _, l := range lines {
 		if m := reError.FindStringSubmatch(l); m != nil {
 			if t := strings.TrimSpace(m[1]); t != "" {
 				return t
@@ -207,8 +207,8 @@ func errorDelLog(repo string, id int64) string {
 		}
 	}
 	// respaldo: la última línea que hable de un error y no sea el ruido del runner
-	for i := len(lineas) - 1; i >= 0; i-- {
-		l := strings.TrimSpace(lineas[i])
+	for i := len(lines) - 1; i >= 0; i-- {
+		l := strings.TrimSpace(lines[i])
 		if !strings.Contains(strings.ToLower(l), "error") || strings.Contains(l, "##[group]") {
 			continue
 		}
@@ -224,100 +224,100 @@ func errorDelLog(repo string, id int64) string {
 
 func main() {
 	var (
-		dias     = flag.Int("dias", 7, "cuántos días hacia atrás")
-		repo     = flag.String("repo", "", "un solo repo (por defecto: los tres donde se despliega)")
-		limite   = flag.Int("limite", 80, "cuántas corridas pedirle a GitHub por repo antes de filtrar")
-		soloMal  = flag.Bool("fallas", false, "sólo lo que falló, con el error del log")
-		comoJSON = flag.Bool("json", false, "salida en JSON")
+		days       = flag.Int("dias", 7, "cuántos días hacia atrás")
+		repo       = flag.String("repo", "", "un solo repo (por defecto: los tres donde se despliega)")
+		limit      = flag.Int("limite", 80, "cuántas corridas pedirle a GitHub por repo antes de filtrar")
+		onlyFailed = flag.Bool("fallas", false, "sólo lo que falló, con el error del log")
+		asJSON     = flag.Bool("json", false, "salida en JSON")
 	)
 	flag.Parse()
 
-	repos := ReposPorDefecto
+	repos := DefaultRepos
 	if *repo != "" {
 		repos = []string{*repo}
 	}
-	desde := time.Now().AddDate(0, 0, -*dias)
+	since := time.Now().AddDate(0, 0, -*days)
 
-	var todas []corrida
+	var all []run
 	for _, r := range repos {
-		cs, err := corridasDe(r, desde, *limite)
+		cs, err := runsOf(r, since, *limit)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "⚠ %s: %v\n", r, err)
 			continue
 		}
-		todas = append(todas, cs...)
+		all = append(all, cs...)
 	}
 	// El porqué, SÓLO de las fallidas y EN PARALELO. Cada falla cuesta una llamada por el detalle y otra
 	// por el log (~30 KB), y en fila eran 19 s para tres: un comando que se usa cuando algo se rompió no
 	// puede hacer esperar. De a cuatro, que es el techo útil contra la API de GitHub.
 	var wg sync.WaitGroup
-	cola := make(chan struct{}, 4)
-	for i := range todas {
-		if todas[i].Estado != "failure" {
+	queue := make(chan struct{}, 4)
+	for i := range all {
+		if all[i].State != "failure" {
 			continue
 		}
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			cola <- struct{}{}
-			defer func() { <-cola }()
-			todas[i].JobFallido, todas[i].PasoFallo = porQueFallo(todas[i].Repo, todas[i].ID)
+			queue <- struct{}{}
+			defer func() { <-queue }()
+			all[i].FailedJob, all[i].FailedStep = failureReason(all[i].Repo, all[i].ID)
 			// el log se baja SÓLO en el modo de fallas: no vale pagarlo mirando la lista entera
-			if *soloMal {
-				todas[i].Error = errorDelLog(todas[i].Repo, todas[i].ID)
+			if *onlyFailed {
+				all[i].Error = errorFromLog(all[i].Repo, all[i].ID)
 			}
 		}(i)
 	}
 	wg.Wait()
-	sort.Slice(todas, func(i, j int) bool { return todas[i].Creada > todas[j].Creada })
+	sort.Slice(all, func(i, j int) bool { return all[i].Created > all[j].Created })
 
-	if *soloMal {
-		var mal []corrida
-		for _, c := range todas {
-			if c.Estado == "failure" {
-				mal = append(mal, c)
+	if *onlyFailed {
+		var failed []run
+		for _, c := range all {
+			if c.State == "failure" {
+				failed = append(failed, c)
 			}
 		}
-		if *comoJSON {
-			_ = json.NewEncoder(os.Stdout).Encode(mal)
+		if *asJSON {
+			_ = json.NewEncoder(os.Stdout).Encode(failed)
 			return
 		}
-		imprimirFallas(mal, todas, *dias, repos)
+		printFailures(failed, all, *days, repos)
 		return
 	}
-	if *comoJSON {
-		_ = json.NewEncoder(os.Stdout).Encode(todas)
+	if *asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(all)
 		return
 	}
-	imprimir(todas, *dias, repos)
+	printReport(all, *days, repos)
 }
 
-func imprimir(cs []corrida, dias int, repos []string) {
-	ok, fallas := 0, 0
-	porAmb := map[string][2]int{} // ambiente → [ok, falla]
+func printReport(cs []run, days int, repos []string) {
+	ok, failures := 0, 0
+	byEnv := map[string][2]int{} // ambiente → [ok, falla]
 	for _, c := range cs {
-		a := porAmb[c.Ambiente]
-		switch c.Estado {
+		a := byEnv[c.Environment]
+		switch c.State {
 		case "success":
 			ok++
 			a[0]++
 		case "failure":
-			fallas++
+			failures++
 			a[1]++
 		}
-		porAmb[c.Ambiente] = a
+		byEnv[c.Environment] = a
 	}
-	fmt.Printf("\n  DESPLIEGUES · últimos %d días · %s\n", dias, strings.Join(repos, ", "))
-	fmt.Printf("  %d corrida(s): %d ok · %d fallidas", len(cs), ok, fallas)
-	ambs := make([]string, 0, len(porAmb))
-	for a := range porAmb {
+	fmt.Printf("\n  DESPLIEGUES · últimos %d días · %s\n", days, strings.Join(repos, ", "))
+	fmt.Printf("  %d corrida(s): %d ok · %d fallidas", len(cs), ok, failures)
+	envs := make([]string, 0, len(byEnv))
+	for a := range byEnv {
 		if a != "" {
-			ambs = append(ambs, a)
+			envs = append(envs, a)
 		}
 	}
-	sort.Strings(ambs)
-	for _, a := range ambs {
-		fmt.Printf("  ·  %s %d/%d", a, porAmb[a][0], porAmb[a][0]+porAmb[a][1])
+	sort.Strings(envs)
+	for _, a := range envs {
+		fmt.Printf("  ·  %s %d/%d", a, byEnv[a][0], byEnv[a][0]+byEnv[a][1])
 	}
 	fmt.Print("\n\n")
 	if len(cs) == 0 {
@@ -325,21 +325,21 @@ func imprimir(cs []corrida, dias int, repos []string) {
 		return
 	}
 	for _, c := range cs {
-		marca := map[string]string{"success": "✔", "failure": "✗", "cancelled": "–"}[c.Estado]
-		if marca == "" {
-			marca = "…"
+		mark := map[string]string{"success": "✔", "failure": "✗", "cancelled": "–"}[c.State]
+		if mark == "" {
+			mark = "…"
 		}
-		amb := c.Ambiente
-		if amb == "" {
-			amb = "?"
+		env := c.Environment
+		if env == "" {
+			env = "?"
 		}
-		fmt.Printf("  %s %s  %-18s %-11s %-26s %s\n", marca, c.Creada[:10], corta(c.Repo, 18), amb,
-			corta(c.Rama, 26), corta(c.Titulo, 44))
-		if c.Estado == "failure" {
+		fmt.Printf("  %s %s  %-18s %-11s %-26s %s\n", mark, c.Created[:10], truncate(c.Repo, 18), env,
+			truncate(c.Branch, 26), truncate(c.Title, 44))
+		if c.State == "failure" {
 			// EL PASO, no «falló»: es lo que distingue no compiló / no desplegó / falló el análisis
-			det := c.JobFallido
-			if c.PasoFallo != "" {
-				det += " → " + c.PasoFallo
+			det := c.FailedJob
+			if c.FailedStep != "" {
+				det += " → " + c.FailedStep
 			}
 			if det == "" {
 				det = "(no se pudo leer el detalle)"
@@ -350,30 +350,30 @@ func imprimir(cs []corrida, dias int, repos []string) {
 	fmt.Println()
 }
 
-// imprimirFallas contesta «¿qué se rompió?»: sólo lo fallido, con el error y el enlace. El total de
+// printFailures contesta «¿qué se rompió?»: sólo lo fallido, con el error y el enlace. El total de
 // despliegues va igual en la primera línea, porque «3 fallas» y «3 de 200» no son la misma noticia.
-func imprimirFallas(mal, todas []corrida, dias int, repos []string) {
-	fmt.Printf("\n  FALLAS · últimos %d días · %s\n", dias, strings.Join(repos, ", "))
-	fmt.Printf("  %d de %d despliegues\n\n", len(mal), len(todas))
-	if len(mal) == 0 {
+func printFailures(failed, all []run, days int, repos []string) {
+	fmt.Printf("\n  FALLAS · últimos %d días · %s\n", days, strings.Join(repos, ", "))
+	fmt.Printf("  %d de %d despliegues\n\n", len(failed), len(all))
+	if len(failed) == 0 {
 		fmt.Print("  ✔ nada falló en la ventana.\n\n")
 		return
 	}
-	for _, c := range mal {
-		amb := c.Ambiente
-		if amb == "" {
-			amb = "?"
+	for _, c := range failed {
+		env := c.Environment
+		if env == "" {
+			env = "?"
 		}
-		fmt.Printf("  ✗ %s  %s → %s\n", c.Creada[:10], c.Repo, amb)
-		fmt.Printf("     rama    %s\n", c.Rama)
-		fmt.Printf("     qué     %s\n", corta(c.Titulo, 96))
-		paso := c.JobFallido
-		if c.PasoFallo != "" {
-			paso += " → " + c.PasoFallo
+		fmt.Printf("  ✗ %s  %s → %s\n", c.Created[:10], c.Repo, env)
+		fmt.Printf("     rama    %s\n", c.Branch)
+		fmt.Printf("     qué     %s\n", truncate(c.Title, 96))
+		step := c.FailedJob
+		if c.FailedStep != "" {
+			step += " → " + c.FailedStep
 		}
-		fmt.Printf("     dónde   %s\n", paso)
+		fmt.Printf("     dónde   %s\n", step)
 		if c.Error != "" {
-			fmt.Printf("     por qué %s\n", corta(c.Error, 150))
+			fmt.Printf("     por qué %s\n", truncate(c.Error, 150))
 		} else {
 			fmt.Printf("     por qué (el log no marcó un error legible — está en el enlace)\n")
 		}
@@ -381,7 +381,7 @@ func imprimirFallas(mal, todas []corrida, dias int, repos []string) {
 	}
 }
 
-func corta(s string, n int) string {
+func truncate(s string, n int) string {
 	if len([]rune(s)) <= n {
 		return s
 	}

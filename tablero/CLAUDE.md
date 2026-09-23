@@ -330,7 +330,7 @@ del chat anterior.
 
 ⚠ **Y la regla que hace que esto sirva: la evidencia se pega CON SU COMANDO.** No es una preferencia de
 estilo — el tablero lo PARSEA. Las líneas de cita que siguen a un marcador son el `Como` de la
-anotación, y de ahí `store.FuentesDe` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
+anotación, y de ahí `store.SourcesOf` deriva *con qué* se comprobó y *contra qué ambiente*, que es lo
 que pinta la vista **Hallazgos** (`server/internal/store/fuentes.go`). El ambiente sale **sólo** de un `TARGET=`
 escrito en el comando: «en producción son 14.160» menciona un ambiente sin decir dónde se midió.
 
@@ -579,7 +579,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   saca `▲ tocó código y no dice con QUÉ se comprobó`. Sale con `▲` y no con `✗` a propósito, y no suma
   a las piezas faltantes: hay tareas de diseño o de lectura donde no hay nada que correr, y convertir
   eso en un error enseña a ignorar el cierre entero, incluidas las cuatro que sí importan. La señal es
-  la misma que pinta la vista **Hallazgos** (`store.FuentesDe`). Medido al escribirlo: de las 29 tareas con ramas,
+  la misma que pinta la vista **Hallazgos** (`store.SourcesOf`). Medido al escribirlo: de las 29 tareas con ramas,
   **6** lo dispararían.
 
   El hook de `Stop` (`.claude/hooks/cierre.py`) lo corre solo al terminar cada respuesta y, **una vez

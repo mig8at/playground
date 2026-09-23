@@ -23,10 +23,10 @@ const proofs = computed(() => [...props.evidence]
   .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '')));
 const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item, 'trazador')).length);
 const harnessEvidence = computed(() => proofs.value.filter(item => hasSource(item, 'harness')));
-const ramas = computed(() => props.branches?.ramas || []);
-const ramasEnMain = computed(() => ramas.value.filter(rama => rama.en?.main).length);
-const ramasLabel = computed(() => ramas.value.length
-  ? `${ramas.value.length} ${ramas.value.length === 1 ? 'rama' : 'ramas'} · ${ramasEnMain.value} en main`
+const measuredBranches = computed(() => props.branches?.ramas || []);
+const branchesInMain = computed(() => measuredBranches.value.filter(branch => branch.en?.main).length);
+const branchesLabel = computed(() => measuredBranches.value.length
+  ? `${measuredBranches.value.length} ${measuredBranches.value.length === 1 ? 'rama' : 'ramas'} · ${branchesInMain.value} en main`
   : 'Sin ramas medidas');
 
 // Sólo se muestran comandos que arrancan una comprobación de Harness. Las consultas `curl` y la
@@ -93,7 +93,7 @@ const harnessCommands = computed(() => {
 
     <button type="button" class="branches-link" @click="emit('show-branches')">
       <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-      <span><b>Ramas de la tarea</b><small>{{ ramasLabel }}</small></span>
+      <span><b>Ramas de la tarea</b><small>{{ branchesLabel }}</small></span>
       <span class="tool-arrow" aria-hidden="true">→</span>
     </button>
   </section>

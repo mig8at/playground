@@ -30,7 +30,7 @@ import (
 
 const (
 	label      = "com.creditop.tablero.pulso"
-	intervalo  = 300 // segundos entre ticks; tiene que ir de la mano con pulso.Slot (5 min)
+	interval   = 300 // segundos entre ticks; tiene que ir de la mano con pulso.Slot (5 min)
 	logRelPath = "Library/Logs/tablero-pulso.log"
 )
 
@@ -67,7 +67,7 @@ func main() {
 		err = status()
 	default:
 		fmt.Fprintf(os.Stderr, "pulso: no existe el comando %q\n\n", cmd)
-		fmt.Fprint(os.Stderr, ayuda)
+		fmt.Fprint(os.Stderr, help)
 		os.Exit(2)
 	}
 	if err != nil {
@@ -76,7 +76,7 @@ func main() {
 	}
 }
 
-const ayuda = `uso:
+const help = `uso:
   pulso                 un tick (lo que corre el agente cada 5 minutos)
   pulso seed [-days 20] siembra hacia atrás desde git: commits y reflog ya tienen fecha
   pulso report [-days 7] la jornada en la terminal
@@ -96,45 +96,45 @@ func tick() error {
 	dir := pulso.DataDir()
 	cfg := pulso.Load()
 
-	ahora := time.Now()
-	desde := ahora.Add(-pulso.Slot)
+	now := time.Now()
+	since := now.Add(-pulso.Slot)
 	if ult, ok := pulso.LastTick(dir); ok {
-		desde = ult
+		since = ult
 	}
-	if lim := ahora.Add(-cfg.MaxGap); desde.Before(lim) {
-		desde = lim
+	if lim := now.Add(-cfg.MaxGap); since.Before(lim) {
+		since = lim
 	}
 
-	t := pulso.Run(cfg, desde, ahora)
+	t := pulso.Run(cfg, since, now)
 	if err := pulso.Append(dir, t); err != nil {
 		return err
 	}
-	fmt.Println(resumenTick(t, desde, ahora))
+	fmt.Println(tickSummary(t, since, now))
 	return nil
 }
 
-func resumenTick(t pulso.Tick, desde, ahora time.Time) string {
+func tickSummary(t pulso.Tick, since, now time.Time) string {
 	if len(t.Signals) == 0 {
-		return fmt.Sprintf("%s · sin cambios (ventana %s)", ahora.Format("15:04"), ahora.Sub(desde).Round(time.Second))
+		return fmt.Sprintf("%s · sin cambios (ventana %s)", now.Format("15:04"), now.Sub(since).Round(time.Second))
 	}
-	porRepo := map[string][]string{}
-	orden := []string{}
+	byRepo := map[string][]string{}
+	order := []string{}
 	for _, s := range t.Signals {
-		if _, ok := porRepo[s.Repo]; !ok {
-			orden = append(orden, s.Repo)
+		if _, ok := byRepo[s.Repo]; !ok {
+			order = append(order, s.Repo)
 		}
-		if !contiene(porRepo[s.Repo], s.Why) {
-			porRepo[s.Repo] = append(porRepo[s.Repo], s.Why)
+		if !contains(byRepo[s.Repo], s.Why) {
+			byRepo[s.Repo] = append(byRepo[s.Repo], s.Why)
 		}
 	}
-	partes := make([]string, 0, len(orden))
-	for _, r := range orden {
-		partes = append(partes, fmt.Sprintf("%s(%s)", r, strings.Join(porRepo[r], "+")))
+	parts := make([]string, 0, len(order))
+	for _, r := range order {
+		parts = append(parts, fmt.Sprintf("%s(%s)", r, strings.Join(byRepo[r], "+")))
 	}
-	return fmt.Sprintf("%s · %d señales en %d repos: %s", ahora.Format("15:04"), len(t.Signals), len(orden), strings.Join(partes, " "))
+	return fmt.Sprintf("%s · %d señales en %d repos: %s", now.Format("15:04"), len(t.Signals), len(order), strings.Join(parts, " "))
 }
 
-func contiene(xs []string, v string) bool {
+func contains(xs []string, v string) bool {
 	for _, x := range xs {
 		if x == v {
 			return true
@@ -153,22 +153,22 @@ func seed() error {
 
 	dir := pulso.DataDir()
 	cfg := pulso.Load()
-	ahora := time.Now()
-	desde := ahora.AddDate(0, 0, -*days)
+	now := time.Now()
+	since := now.AddDate(0, 0, -*days)
 
-	t := pulso.Run(cfg, desde, ahora)
+	t := pulso.Run(cfg, since, now)
 	// La siembra se anota con su ventana real: la agregación la ve, sabe que NO es cadencia normal y por
 	// eso no le cree la cobertura. Sin ese dato, sembrar pintaría 20 días de "equipo prendido".
 	if err := pulso.Append(dir, t); err != nil {
 		return err
 	}
-	dias := map[string]bool{}
+	seededDays := map[string]bool{}
 	for _, s := range t.Signals {
 		if len(s.At) >= 10 {
-			dias[s.At[:10]] = true
+			seededDays[s.At[:10]] = true
 		}
 	}
-	fmt.Printf("sembrado: %d señales en %d días (desde %s)\n", len(t.Signals), len(dias), desde.Format("2006-01-02"))
+	fmt.Printf("sembrado: %d señales en %d días (desde %s)\n", len(t.Signals), len(seededDays), since.Format("2006-01-02"))
 	fmt.Println("el pulso ya tiene historia; el muestreo en vivo lo empieza a llenar con `pulso install`")
 	return nil
 }
@@ -176,14 +176,14 @@ func seed() error {
 // ── la jornada en consola ───────────────────────────────────────────────────────────────────────
 
 const (
-	hIni = 8
-	hFin = 18
+	hIni    = 8
+	endHour = 18
 )
 
-// bloques: el color/relleno crece con los tramos de 5' que tuvieron cambios en esa hora (de 0 a 12).
-var bloques = []string{"·", "▂", "▄", "▆", "█"}
+// blocks: el color/relleno crece con los tramos de 5' que tuvieron cambios en esa hora (de 0 a 12).
+var blocks = []string{"·", "▂", "▄", "▆", "█"}
 
-func nivel(slots int) int {
+func level(slots int) int {
 	switch {
 	case slots <= 0:
 		return 0
@@ -208,61 +208,61 @@ func report() error {
 	if err != nil {
 		return err
 	}
-	celdas := pulso.Aggregate(ticks, *days)
-	if len(celdas) == 0 {
+	cells := pulso.Aggregate(ticks, *days)
+	if len(cells) == 0 {
 		fmt.Println("todavía no hay pulso. Sembrá el pasado con `pulso seed` y dejalo corriendo con `pulso install`.")
 		return nil
 	}
 
-	porDia := map[string]map[int]pulso.Hour{}
-	for _, c := range celdas {
-		if porDia[c.Day] == nil {
-			porDia[c.Day] = map[int]pulso.Hour{}
+	byDay := map[string]map[int]pulso.Hour{}
+	for _, c := range cells {
+		if byDay[c.Day] == nil {
+			byDay[c.Day] = map[int]pulso.Hour{}
 		}
-		porDia[c.Day][c.Hour] = c
+		byDay[c.Day][c.Hour] = c
 	}
 
-	var dias []string
+	var dayList []string
 	for i := *days - 1; i >= 0; i-- {
-		dias = append(dias, time.Now().AddDate(0, 0, -i).Format("2006-01-02"))
+		dayList = append(dayList, time.Now().AddDate(0, 0, -i).Format("2006-01-02"))
 	}
-	nombreDia := []string{"do", "lu", "ma", "mi", "ju", "vi", "sá"}
+	dayName := []string{"do", "lu", "ma", "mi", "ju", "vi", "sá"}
 
 	// El canal izquierdo mide 7 y cada columna de día mide 7: la grilla se desalinea en cuanto uno de
 	// los dos se toca por separado, y con 14 columnas el corrimiento se acumula hasta ser ilegible.
 	fmt.Printf("\n  \033[1mMi jornada\033[0m · repos de la compañía · últimos %d días\n\n", *days)
 	fmt.Print("       ")
-	for _, d := range dias {
+	for _, d := range dayList {
 		t, _ := time.Parse("2006-01-02", d)
-		fmt.Printf(" %s %02d ", nombreDia[t.Weekday()], t.Day())
+		fmt.Printf(" %s %02d ", dayName[t.Weekday()], t.Day())
 	}
 	fmt.Println()
 
-	for h := hIni; h < hFin; h++ {
-		fmt.Printf("  %4s ", etiquetaHora(h))
-		for _, d := range dias {
-			c, hay := porDia[d][h]
+	for h := hIni; h < endHour; h++ {
+		fmt.Printf("  %4s ", hourLabel(h))
+		for _, d := range dayList {
+			c, found := byDay[d][h]
 			switch {
-			case !hay || (c.Slots == 0 && c.Covered == 0):
+			case !found || (c.Slots == 0 && c.Covered == 0):
 				fmt.Print("       ") // sin registro: ni el agente miró
 			case c.Slots == 0:
 				fmt.Print("   \033[2m·\033[0m   ") // miró y no había nada
 			default:
-				fmt.Printf("   \033[32m%s\033[0m   ", bloques[nivel(c.Slots)])
+				fmt.Printf("   \033[32m%s\033[0m   ", blocks[level(c.Slots)])
 			}
 		}
 		fmt.Println()
 	}
 
 	fmt.Print("       ")
-	for range dias {
+	for range dayList {
 		fmt.Print("───────")
 	}
 	fmt.Println()
 	fmt.Print("  \033[2mtot\033[0m  ")
-	for _, d := range dias {
+	for _, d := range dayList {
 		total := 0
-		for _, c := range porDia[d] {
+		for _, c := range byDay[d] {
 			total += c.Slots
 		}
 		if total == 0 {
@@ -276,28 +276,28 @@ func report() error {
 	fmt.Printf("\n  \033[2m·\033[0m sin cambios   \033[32m▂▄▆█\033[0m 1→12 tramos de 5'   ␣ sin registro (equipo apagado o agente detenido)\n")
 	// Sin esta línea, un día reconstruido se lee como "trabajé 20 minutos". Un commit marca el INSTANTE en
 	// que pasó, no el rato que costó: sin muestreo en vivo, el número es un piso, no una medición.
-	if sembrados := diasSinCobertura(porDia, dias); len(sembrados) > 0 {
+	if seeded := daysWithoutCoverage(byDay, dayList); len(seeded) > 0 {
 		fmt.Printf("  \033[2m%d de esos días no tienen muestreo (␣): están reconstruidos desde git, así que el total es un PISO —\n"+
-			"  marca el instante del commit, no el rato que costó. El muestreo en vivo llena el resto.\033[0m\n", len(sembrados))
+			"  marca el instante del commit, no el rato que costó. El muestreo en vivo llena el resto.\033[0m\n", len(seeded))
 	}
 
 	// El desglose por repo contesta la otra mitad de la pregunta: no sólo cuánto, en qué.
 	tot := map[string]int{}
 	commits := map[string]int{}
-	for _, c := range celdas {
+	for _, c := range cells {
 		for _, r := range c.Repos {
 			tot[r.Repo] += r.Slots
 			commits[r.Repo] += r.Commits
 		}
 	}
 	if len(tot) > 0 {
-		nombres := make([]string, 0, len(tot))
+		names := make([]string, 0, len(tot))
 		for r := range tot {
-			nombres = append(nombres, r)
+			names = append(names, r)
 		}
-		sort.Slice(nombres, func(i, j int) bool { return tot[nombres[i]] > tot[nombres[j]] })
+		sort.Slice(names, func(i, j int) bool { return tot[names[i]] > tot[names[j]] })
 		fmt.Println("\n  \033[1men qué\033[0m")
-		for _, r := range nombres {
+		for _, r := range names {
 			fmt.Printf("    %-34s %6s   \033[2m%d %s\033[0m\n", r, hhmm(tot[r]*int(pulso.Slot/time.Minute)),
 				commits[r], plural(commits[r], "commit", "commits"))
 		}
@@ -308,30 +308,30 @@ func report() error {
 	return nil
 }
 
-// diasSinCobertura son los días con actividad pero sin un solo tick del agente: reconstruidos desde git.
-func diasSinCobertura(porDia map[string]map[int]pulso.Hour, dias []string) []string {
+// daysWithoutCoverage son los días con actividad pero sin un solo tick del agente: reconstruidos desde git.
+func daysWithoutCoverage(byDay map[string]map[int]pulso.Hour, days []string) []string {
 	var out []string
-	for _, d := range dias {
-		slots, cubiertos := 0, 0
-		for _, c := range porDia[d] {
+	for _, d := range days {
+		slots, covered := 0, 0
+		for _, c := range byDay[d] {
 			slots += c.Slots
-			cubiertos += c.Covered
+			covered += c.Covered
 		}
-		if slots > 0 && cubiertos == 0 {
+		if slots > 0 && covered == 0 {
 			out = append(out, d)
 		}
 	}
 	return out
 }
 
-func plural(n int, uno, varios string) string {
+func plural(n int, one, many string) string {
 	if n == 1 {
-		return uno
+		return one
 	}
-	return varios
+	return many
 }
 
-func etiquetaHora(h int) string {
+func hourLabel(h int) string {
 	switch {
 	case h == 12:
 		return "12p"
@@ -408,19 +408,19 @@ func install() error {
 		return err
 	}
 
-	dominio := "gui/" + uid()
+	domain := "gui/" + uid()
 	// bootout antes de bootstrap: si ya estaba cargado (una versión anterior del plist), bootstrap falla
 	// con "service already loaded" y uno cree que instaló algo que no cambió.
-	_ = exec.Command("launchctl", "bootout", dominio+"/"+label).Run()
-	if out, err := exec.Command("launchctl", "bootstrap", dominio, plist).CombinedOutput(); err != nil {
+	_ = exec.Command("launchctl", "bootout", domain+"/"+label).Run()
+	if out, err := exec.Command("launchctl", "bootstrap", domain, plist).CombinedOutput(); err != nil {
 		return fmt.Errorf("launchctl bootstrap: %v\n%s", err, out)
 	}
-	_ = exec.Command("launchctl", "kickstart", "-k", dominio+"/"+label).Run()
+	_ = exec.Command("launchctl", "kickstart", "-k", domain+"/"+label).Run()
 
 	fmt.Printf("\n  ✓ pulso instalado\n\n")
 	fmt.Printf("    agente   %s\n", plist)
 	fmt.Printf("    binario  %s\n", exe)
-	fmt.Printf("    cada     %d segundos, y al iniciar sesión\n", intervalo)
+	fmt.Printf("    cada     %d segundos, y al iniciar sesión\n", interval)
 	fmt.Printf("    datos    %s/pulse/\n", dir)
 	fmt.Printf("    log      %s\n\n", logPath)
 	fmt.Printf("  Si es la primera vez, sembrá el pasado:  %s seed\n", exe)
@@ -442,19 +442,19 @@ func uninstall() error {
 
 func status() error {
 	flag.Parse()
-	dominio := "gui/" + uid()
-	out, err := exec.Command("launchctl", "print", dominio+"/"+label).CombinedOutput()
+	domain := "gui/" + uid()
+	out, err := exec.Command("launchctl", "print", domain+"/"+label).CombinedOutput()
 	fmt.Println()
 	if err != nil {
 		fmt.Println("  agente: NO instalado   (instalalo con `pulso install`)")
 	} else {
-		estado := "cargado"
+		state := "cargado"
 		for _, l := range strings.Split(string(out), "\n") {
 			if s := strings.TrimSpace(l); strings.HasPrefix(s, "state = ") {
-				estado = strings.TrimPrefix(s, "state = ")
+				state = strings.TrimPrefix(s, "state = ")
 			}
 		}
-		fmt.Printf("  agente: instalado · %s · cada %ds\n", estado, intervalo)
+		fmt.Printf("  agente: instalado · %s · cada %ds\n", state, interval)
 	}
 
 	dir := pulso.DataDir()
@@ -468,16 +468,16 @@ func status() error {
 	if err != nil {
 		return err
 	}
-	hoy := time.Now().Format("2006-01-02")
-	slots, cubiertos := 0, 0
+	today := time.Now().Format("2006-01-02")
+	slots, covered := 0, 0
 	for _, c := range pulso.Aggregate(ticks, 1) {
-		if c.Day == hoy {
+		if c.Day == today {
 			slots += c.Slots
-			cubiertos += c.Covered
+			covered += c.Covered
 		}
 	}
 	m := int(pulso.Slot / time.Minute)
-	fmt.Printf("  hoy: %s con cambios · %s registrados\n\n", hhmm(slots*m), hhmm(cubiertos*m))
+	fmt.Printf("  hoy: %s con cambios · %s registrados\n\n", hhmm(slots*m), hhmm(covered*m))
 	return nil
 }
 
@@ -513,7 +513,7 @@ func plistXML(exe, data string, cfg pulso.Config, logPath string) string {
 	b.WriteString("<plist version=\"1.0\">\n<dict>\n")
 	fmt.Fprintf(&b, "  <key>Label</key><string>%s</string>\n", esc(label))
 	fmt.Fprintf(&b, "  <key>ProgramArguments</key>\n  <array>\n    <string>%s</string>\n  </array>\n", esc(exe))
-	fmt.Fprintf(&b, "  <key>StartInterval</key><integer>%d</integer>\n", intervalo)
+	fmt.Fprintf(&b, "  <key>StartInterval</key><integer>%d</integer>\n", interval)
 	b.WriteString("  <key>RunAtLoad</key><true/>\n")
 	b.WriteString("  <key>EnvironmentVariables</key>\n  <dict>\n")
 	for _, kv := range env {
@@ -530,6 +530,6 @@ func plistXML(exe, data string, cfg pulso.Config, logPath string) string {
 	return b.String()
 }
 
-var escapador = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+var escaper = strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
 
-func esc(s string) string { return escapador.Replace(s) }
+func esc(s string) string { return escaper.Replace(s) }

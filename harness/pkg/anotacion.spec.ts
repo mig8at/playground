@@ -59,14 +59,14 @@ test.describe('el comando que se ofrece es pegable', () => {
 // entera. Sin esto, las de arriba sólo verifican que el arnés es consistente consigo mismo, que es
 // exactamente el error que ya costó caro con los mocks (un mock no puede contradecir el documento del
 // que nació).
-test('la forma coincide con el regex REAL de `store.Anotaciones`', () => {
+test('la forma coincide con el regex REAL de `store.Annotations`', () => {
       const fuente = join(homedir(),
             'Desktop/CREDITOP/playground/tablero/server/internal/store/anotaciones.go');
       test.skip(!existsSync(fuente), `no está ${fuente}: el contrato queda SIN contrastar`);
 
       const go = readFileSync(fuente, 'utf8');
-      const m = /reAnotacion\s*=\s*regexp\.MustCompile\(`([^`]+)`\)/.exec(go);
-      expect(m, 'no encontré `reAnotacion` en anotaciones.go — ¿se renombró?').toBeTruthy();
+      const m = /reAnnotation\s*=\s*regexp\.MustCompile\(`([^`]+)`\)/.exec(go);
+      expect(m, 'no encontré `reAnnotation` en anotaciones.go — ¿se renombró?').toBeTruthy();
 
       // El patrón de Go es compatible con JS salvo el flag inline `(?i)`, que JS no acepta inline.
       const patron = m![1].replace('(?i)', '');

@@ -43,74 +43,74 @@ import (
 	"creditop/tablero/server/internal/taskcontext"
 )
 
-type tarea struct {
+type task struct {
 	Slug     string
 	ID       int
 	Title    string
 	Stage    string
-	Clase    string
+	Class    string
 	Archived bool
-	Ramas    []string // los patrones de `ramas:`, ya partidos por coma
-	Cuerpo   string
-	Ruta     string
+	Branches []string // los patrones de `ramas:`, ya partidos por coma
+	Body     string
+	Path     string
 }
 
 // Revision es lo que se sabe de UNA tarea tocada en el día.
 type Revision struct {
-	ID          int      `json:"id"`
-	Slug        string   `json:"slug"`
-	Title       string   `json:"title"`
-	Motivos     []string `json:"tocada"` // por qué cuenta como tocada: "archivo", "rama <x>"
-	Retoma      string   `json:"retoma"` // ok · sin-seccion · sin-cambios
-	ProximoPaso bool     `json:"proximoPaso"`
-	RegistroHoy bool     `json:"registroHoy"`
-	ContextoHoy bool     `json:"contextoHoy"`
-	MinutosHoy  int      `json:"minutosHoy"`
-	// SinAvance: la entrada del día DECLARA que la tarea no avanzó (ver `sinAvance`). Exime de la
+	ID           int      `json:"id"`
+	Slug         string   `json:"slug"`
+	Title        string   `json:"title"`
+	Reasons      []string `json:"tocada"` // por qué cuenta como tocada: "archivo", "rama <x>"
+	Resume       string   `json:"retoma"` // ok · sin-seccion · sin-cambios
+	NextStep     bool     `json:"proximoPaso"`
+	RecordToday  bool     `json:"registroHoy"`
+	ContextToday bool     `json:"contextoHoy"`
+	MinutesToday int      `json:"minutosHoy"`
+	// NoProgress: la entrada del día DECLARA que la tarea no avanzó (ver `noProgress`). Exime de la
 	// bitácora y sólo de la bitácora.
-	SinAvance bool     `json:"sinAvance,omitempty"`
-	RamasDecl bool     `json:"ramasDeclaradas"`
-	Faltan    []string `json:"faltan"`
-	// Mirar: lo que conviene revisar pero NO es una pieza faltante — no suma a `PiezasFaltan` ni hace
+	NoProgress       bool     `json:"sinAvance,omitempty"`
+	DeclaredBranches bool     `json:"ramasDeclaradas"`
+	Missing          []string `json:"faltan"`
+	// Watch: lo que conviene revisar pero NO es una pieza faltante — no suma a `MissingPieces` ni hace
 	// salir 1. La distinción es la misma que el repo ya usa en el lint: el chequeo habla de lo que está
 	// MAL, y los juicios se ofrecen sin bloquear.
-	Mirar []string `json:"mirar,omitempty"`
+	Watch []string `json:"mirar,omitempty"`
 }
 
-type Informe struct {
-	Dia            string     `json:"dia"`
-	PulsoMinutos   int        `json:"pulsoMinutos"`
-	BitacoraMin    int        `json:"bitacoraMinutos"`
-	BitacoraN      int        `json:"bitacoraEntradas"`
-	SinTareaMin    int        `json:"bitacoraSinTareaMinutos"`
-	Tareas         []Revision `json:"tareas"`
-	RamasSinTarea  []string   `json:"ramasSinTarea"`
-	Avisos         []string   `json:"avisos"`
-	PiezasFaltan   int        `json:"piezasFaltan"`
-	PulsoDisponble bool       `json:"pulsoDisponible"`
+type Report struct {
+	Day                 string     `json:"dia"`
+	PulseMinutes        int        `json:"pulsoMinutos"`
+	WorklogMin          int        `json:"bitacoraMinutos"`
+	WorklogN            int        `json:"bitacoraEntradas"`
+	WithoutTaskMin      int        `json:"bitacoraSinTareaMinutos"`
+	Tasks               []Revision `json:"tareas"`
+	BranchesWithoutTask []string   `json:"ramasSinTarea"`
+	Warnings            []string   `json:"avisos"`
+	MissingPieces       int        `json:"piezasFaltan"`
+	PulseAvailable      bool       `json:"pulsoDisponible"`
 }
 
 var (
-	reCita = regexp.MustCompile(`^["']|["']$`)
+	reCitation = regexp.MustCompile(`^["']|["']$`)
 	// ⚠ INSENSIBLE A MAYÚSCULAS Y CON NUMERACIÓN OPCIONAL. La tarea de Bancolombia titula su sección
 	// «## 0 · SI RETOMÁS ESTO SIN CONTEXTO, EMPEZÁ ACÁ» y el patrón exacto no la veía: el cierre
 	// reclamaba «la sección no existe» sobre una tarea que la tiene desde julio. Un chequeo que
 	// contesta «no hay» cuando no supo buscar es peor que no tenerlo (2026-09-15).
-	reRetoma   = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
-	reSeccion  = regexp.MustCompile(`(?m)^##\s`)
-	reProximo  = regexp.MustCompile(`(?i)\*\*El pr[óo]ximo paso es:?\*\*`)
-	reFechaReg = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
-	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `sinAvance`.
-	reSinAvance = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
-	reSlugEnRef = regexp.MustCompile(`^(?:tablero/)?data/([^/]+)\.md$`)
+	reResume     = regexp.MustCompile(`(?mi)^##\s+[0-9.·\s]*si retom[áa]s[^\n]*\n`)
+	reSection    = regexp.MustCompile(`(?m)^##\s`)
+	reNext       = regexp.MustCompile(`(?i)\*\*El pr[óo]ximo paso es:?\*\*`)
+	reRecordDate = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
+	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `noProgress`.
+	reNoProgress = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
+	reSlugInRef  = regexp.MustCompile(`^(?:tablero/)?data/([^/]+)\.md$`)
 )
 
-func valor(l string) string {
+func value(l string) string {
 	_, v, _ := strings.Cut(l, ":")
-	return reCita.ReplaceAllString(strings.TrimSpace(v), "")
+	return reCitation.ReplaceAllString(strings.TrimSpace(v), "")
 }
 
-func dirDatos() string {
+func dataDir() string {
 	for _, d := range []string{"../data", "data", "tablero/data"} {
 		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
 			return d
@@ -119,35 +119,35 @@ func dirDatos() string {
 	return "../data"
 }
 
-func leer(ruta string) (tarea, error) {
-	b, err := os.ReadFile(ruta)
+func readTaskFile(path string) (task, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return tarea{}, err
+		return task{}, err
 	}
-	t := tarea{Slug: strings.TrimSuffix(filepath.Base(ruta), ".md"), Ruta: ruta}
-	partes := strings.SplitN(string(b), "---", 3)
-	if len(partes) < 3 {
-		t.Cuerpo = string(b)
+	t := task{Slug: strings.TrimSuffix(filepath.Base(path), ".md"), Path: path}
+	parts := strings.SplitN(string(b), "---", 3)
+	if len(parts) < 3 {
+		t.Body = string(b)
 		return t, nil
 	}
-	t.Cuerpo = partes[2]
-	for _, l := range strings.Split(partes[1], "\n") {
+	t.Body = parts[2]
+	for _, l := range strings.Split(parts[1], "\n") {
 		switch {
 		case strings.HasPrefix(l, "id:"):
-			t.ID, _ = strconv.Atoi(valor(l))
+			t.ID, _ = strconv.Atoi(value(l))
 		case strings.HasPrefix(l, "title:"):
-			t.Title = valor(l)
+			t.Title = value(l)
 		case strings.HasPrefix(l, "stage:"):
-			t.Stage = valor(l)
+			t.Stage = value(l)
 		case strings.HasPrefix(l, "clase:"):
-			t.Clase = valor(l)
+			t.Class = value(l)
 		case strings.HasPrefix(l, "archived:"):
-			v := valor(l)
+			v := value(l)
 			t.Archived = v != "" && v != "false" && v != "null"
 		case strings.HasPrefix(l, "ramas:"):
-			for _, p := range strings.Split(valor(l), ",") {
+			for _, p := range strings.Split(value(l), ",") {
 				if p = strings.TrimSpace(p); p != "" {
-					t.Ramas = append(t.Ramas, p)
+					t.Branches = append(t.Branches, p)
 				}
 			}
 		}
@@ -155,17 +155,17 @@ func leer(ruta string) (tarea, error) {
 	return t, nil
 }
 
-// seccionRetoma devuelve el texto de «Si retomás esto sin contexto» hasta el próximo `##`, o "" si no está.
-func seccionRetoma(cuerpo string) string {
-	m := reRetoma.FindStringIndex(cuerpo)
+// resumeSection devuelve el texto de «Si retomás esto sin contexto» hasta el próximo `##`, o "" si no está.
+func resumeSection(body string) string {
+	m := reResume.FindStringIndex(body)
 	if m == nil {
 		return ""
 	}
-	resto := cuerpo[m[1]:]
-	if fin := reSeccion.FindStringIndex(resto); fin != nil {
-		resto = resto[:fin[0]]
+	rest := body[m[1]:]
+	if end := reSection.FindStringIndex(rest); end != nil {
+		rest = rest[:end[0]]
 	}
-	return strings.TrimSpace(resto)
+	return strings.TrimSpace(rest)
 }
 
 func git(dir string, args ...string) (string, error) {
@@ -174,25 +174,25 @@ func git(dir string, args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), err
 }
 
-// tocadasPorGit: los slugs cuyo archivo se commiteó en el día o está modificado en el working tree
+// touchedByGit: los slugs cuyo archivo se commiteó en el día o está modificado en el working tree
 // (esto último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha).
-func tocadasPorGit(datos, dia string, esHoy bool) map[string]bool {
+func touchedByGit(data, day string, isToday bool) map[string]bool {
 	out := map[string]bool{}
-	desde := dia + " 00:00:00"
-	d, _ := time.Parse("2006-01-02", dia)
-	hasta := d.AddDate(0, 0, 1).Format("2006-01-02") + " 00:00:00"
-	if txt, err := git(datos, "log", "--since="+desde, "--until="+hasta, "--format=", "--name-only", "--", "."); err == nil {
+	since := day + " 00:00:00"
+	d, _ := time.Parse("2006-01-02", day)
+	until := d.AddDate(0, 0, 1).Format("2006-01-02") + " 00:00:00"
+	if txt, err := git(data, "log", "--since="+since, "--until="+until, "--format=", "--name-only", "--", "."); err == nil {
 		for _, l := range strings.Split(txt, "\n") {
-			if m := reSlugEnRef.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
+			if m := reSlugInRef.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
 				out[m[1]] = true
 			}
 		}
 	}
-	if esHoy {
-		if txt, err := git(datos, "status", "--porcelain", "--", "."); err == nil {
+	if isToday {
+		if txt, err := git(data, "status", "--porcelain", "--", "."); err == nil {
 			for _, l := range strings.Split(txt, "\n") {
 				if len(l) > 3 {
-					if m := reSlugEnRef.FindStringSubmatch(strings.TrimSpace(l[3:])); m != nil {
+					if m := reSlugInRef.FindStringSubmatch(strings.TrimSpace(l[3:])); m != nil {
 						out[m[1]] = true
 					}
 				}
@@ -202,54 +202,54 @@ func tocadasPorGit(datos, dia string, esHoy bool) map[string]bool {
 	return out
 }
 
-// retomaAntes: la sección de retoma como estaba en el último commit ANTERIOR al día. Si el archivo no
+// resumeBefore: la sección de retoma como estaba en el último commit ANTERIOR al día. Si el archivo no
 // existía, devuelve ok=false: una tarea que nació ese día no tiene con qué compararse.
-func retomaAntes(datos, dia, slug string) (texto string, ok bool) {
-	viejo, ok := cuerpoAntes(datos, dia, slug)
+func resumeBefore(data, day, slug string) (text string, ok bool) {
+	old, ok := bodyBefore(data, day, slug)
 	if !ok {
 		return "", false
 	}
-	return seccionRetoma(viejo), true
+	return resumeSection(old), true
 }
 
-// cuerpoAntes devuelve el CUERPO (lo que sigue al frontmatter) como estaba en el último commit anterior
+// bodyBefore devuelve el CUERPO (lo que sigue al frontmatter) como estaba en el último commit anterior
 // al día. Es la base de las dos preguntas que el cierre necesita: ¿se reescribió la retoma? y ¿esto fue
 // trabajo de verdad, o sólo un cambio de metadato?
-func cuerpoAntes(datos, dia, slug string) (string, bool) {
-	rev, err := git(datos, "rev-list", "-1", "--before="+dia+" 00:00:00", "HEAD", "--", slug+".md")
+func bodyBefore(data, day, slug string) (string, bool) {
+	rev, err := git(data, "rev-list", "-1", "--before="+day+" 00:00:00", "HEAD", "--", slug+".md")
 	if err != nil || rev == "" {
 		return "", false
 	}
-	// la ruta para `show` es relativa a la raíz del repo, no a `datos`
-	rel, err := git(datos, "ls-files", "--full-name", slug+".md")
+	// la ruta para `show` es relativa a la raíz del repo, no a `data`
+	rel, err := git(data, "ls-files", "--full-name", slug+".md")
 	if err != nil || rel == "" {
 		return "", false
 	}
-	viejo, err := git(datos, "show", rev+":"+rel)
+	old, err := git(data, "show", rev+":"+rel)
 	if err != nil {
 		return "", false
 	}
-	if partes := strings.SplitN(viejo, "---", 3); len(partes) == 3 {
-		return partes[2], true
+	if parts := strings.SplitN(old, "---", 3); len(parts) == 3 {
+		return parts[2], true
 	}
-	return viejo, true
+	return old, true
 }
 
-// soloMetadatos: el archivo cambió hoy, pero su CUERPO no. O sea que lo único que se tocó fue el
+// metadataOnly: el archivo cambió hoy, pero su CUERPO no. O sea que lo único que se tocó fue el
 // frontmatter — declarar `ramas:`, marcar `clase: proyecto`, corregir un id.
 //
 // CLASIFICAR NO ES TRABAJAR, y confundirlos hace ruido del caro: el 2026-09-15, marcar ocho tareas como
 // proyecto (una línea cada una) hizo que el cierre le reclamara a CINCO de ellas reescribir el estado,
 // apilar un Registro y anotar bitácora, por un cambio de metadato que no dice nada nuevo de la tarea.
 // Un aviso que reclama de más se empieza a ignorar, y ahí deja de servir para lo que existe.
-func soloMetadatos(datos, dia, slug, cuerpoHoy string) bool {
-	antes, ok := cuerpoAntes(datos, dia, slug)
-	return ok && strings.TrimSpace(antes) == strings.TrimSpace(cuerpoHoy)
+func metadataOnly(data, day, slug, bodyToday string) bool {
+	before, ok := bodyBefore(data, day, slug)
+	return ok && strings.TrimSpace(before) == strings.TrimSpace(bodyToday)
 }
 
-// sinAvance: ¿la entrada de HOY del Registro declara que la tarea no avanzó?
+// noProgress: ¿la entrada de HOY del Registro declara que la tarea no avanzó?
 //
-// SEGUNDO CASO DE «TOCAR NO ES TRABAJAR», hermano de `soloMetadatos` y por el mismo motivo medido. Ese
+// SEGUNDO CASO DE «TOCAR NO ES TRABAJAR», hermano de `metadataOnly` y por el mismo motivo medido. Ese
 // cubre el cambio que no toca el cuerpo; éste cubre el que SÍ lo toca sin que nadie haya trabajado en
 // la tarea: un barrido. El 2026-09-21, apagar el árbol de contexto renombró un campo del frontmatter
 // y reapuntó rutas en 45 archivos de tareas, y a tres de ellas —#15, #46, #47— el cierre les reclamó
@@ -264,88 +264,88 @@ func soloMetadatos(datos, dia, slug, cuerpoHoy string) bool {
 //
 // ⚠ Y NO exime del Registro: al contrario, el marcador VIVE en la entrada del día. Lo único que se
 // perdona es la bitácora, que es la pieza que mide TIEMPO — y el tiempo de un barrido no es de acá.
-func sinAvance(cuerpo, dia string) bool {
-	loc := reFechaReg.FindAllStringSubmatchIndex(cuerpo, -1)
+func noProgress(body, day string) bool {
+	loc := reRecordDate.FindAllStringSubmatchIndex(body, -1)
 	for i, m := range loc {
-		if cuerpo[m[2]:m[3]] != dia {
+		if body[m[2]:m[3]] != day {
 			continue
 		}
-		fin := len(cuerpo)
+		end := len(body)
 		if i+1 < len(loc) {
-			fin = loc[i+1][0]
+			end = loc[i+1][0]
 		}
-		return reSinAvance.MatchString(cuerpo[m[1]:fin])
+		return reNoProgress.MatchString(body[m[1]:end])
 	}
 	return false
 }
 
-func esSoloAltaDeContenedor(t tarea, motivos []string, existiaAntes bool) bool {
-	return len(motivos) == 1 && motivos[0] == "archivo" && t.Clase == "proyecto" && !existiaAntes
+func isOnlyContainerCreation(t task, reasons []string, existedBefore bool) bool {
+	return len(reasons) == 1 && reasons[0] == "archivo" && t.Class == "proyecto" && !existedBefore
 }
 
-type entrada struct {
+type entry struct {
 	Day      string `json:"day"`
 	Minutes  int    `json:"minutes"`
 	EffortID int    `json:"effortId"`
 }
 
-func bitacora(datos, dia string) (porTarea map[int]int, sinTarea, total, n int) {
-	porTarea = map[int]int{}
-	rutas, _ := filepath.Glob(filepath.Join(datos, "entries", dia[:7]+".jsonl"))
-	for _, r := range rutas {
+func worklog(data, day string) (byTask map[int]int, withoutTask, total, n int) {
+	byTask = map[int]int{}
+	paths, _ := filepath.Glob(filepath.Join(data, "entries", day[:7]+".jsonl"))
+	for _, r := range paths {
 		b, err := os.ReadFile(r)
 		if err != nil {
 			continue
 		}
 		for _, l := range strings.Split(string(b), "\n") {
-			var e entrada
-			if strings.TrimSpace(l) == "" || json.Unmarshal([]byte(l), &e) != nil || e.Day != dia {
+			var e entry
+			if strings.TrimSpace(l) == "" || json.Unmarshal([]byte(l), &e) != nil || e.Day != day {
 				continue
 			}
 			n++
 			total += e.Minutes
 			if e.EffortID == 0 {
-				sinTarea += e.Minutes
+				withoutTask += e.Minutes
 			} else {
-				porTarea[e.EffortID] += e.Minutes
+				byTask[e.EffortID] += e.Minutes
 			}
 		}
 	}
 	return
 }
 
-// ramasDelDia: las ramas con actividad ese día según el pulso, como "repo/rama", y los minutos totales
+// branchesOfDay: las ramas con actividad ese día según el pulso, como "repo/rama", y los minutos totales
 // (tramos de 5' con cambios). `ok` es false si no hay ningún tick de ese día: pulso apagado ≠ no trabajé.
-func ramasDelDia(datos, dia string) (ramas []string, minutos int, ok bool) {
-	hoy := time.Now()
-	d, _ := time.Parse("2006-01-02", dia)
-	dias := int(hoy.Sub(d).Hours()/24) + 2
-	ticks, err := pulso.Read(datos, dias)
+func branchesOfDay(data, day string) (branches []string, minutes int, ok bool) {
+	today := time.Now()
+	d, _ := time.Parse("2006-01-02", day)
+	days := int(today.Sub(d).Hours()/24) + 2
+	ticks, err := pulso.Read(data, days)
 	if err != nil {
 		return nil, 0, false
 	}
-	vistas := map[string]bool{}
+	seen := map[string]bool{}
 	for _, h := range pulso.Aggregate(ticks, 0) {
-		if h.Day != dia {
+		if h.Day != day {
 			continue
 		}
 		if h.Covered > 0 {
 			ok = true
 		}
-		minutos += h.Slots * 5
+		minutes += h.Slots * 5
 		for _, r := range h.Repos {
 			if r.Branch == "" {
 				continue
 			}
 			k := r.Repo + "/" + r.Branch
-			if !vistas[k] {
-				vistas[k] = true
-				ramas = append(ramas, k)
+			if !seen[k] {
+				seen[k] = true
+				branches = append(branches, k)
 			}
 		}
 	}
-	sort.Strings(ramas)
-	return ramas, minutos, ok
+	sort.Strings(branches)
+	return branches, minutes, ok
 }
 
 /*
@@ -370,184 +370,184 @@ atribuir: por qué tarea hay que pasar hoy —por su archivo o por una rama— y
 	Lo que SÍ sigue valiendo para una tarea archivada es el motivo «archivo»: si hoy se editó su texto,
 	algo se está haciendo ahí y el cierre lo pregunta igual.
 */
-func atribuir(tareas []tarea, tocadas map[string]bool, ramas []string) (map[string][]string, map[string]bool) {
-	motivos := map[string][]string{}
-	ramaConTarea := map[string]bool{}
-	for _, t := range tareas {
-		if tocadas[t.Slug] {
-			motivos[t.Slug] = append(motivos[t.Slug], "archivo")
+func attribute(tasks []task, touched map[string]bool, branches []string) (map[string][]string, map[string]bool) {
+	reasons := map[string][]string{}
+	branchWithTask := map[string]bool{}
+	for _, t := range tasks {
+		if touched[t.Slug] {
+			reasons[t.Slug] = append(reasons[t.Slug], "archivo")
 		}
 		if t.Archived {
 			continue
 		}
-		for _, r := range ramas {
-			for _, p := range t.Ramas {
+		for _, r := range branches {
+			for _, p := range t.Branches {
 				if strings.Contains(r, p) {
-					ramaConTarea[r] = true
-					motivos[t.Slug] = append(motivos[t.Slug], "rama "+r)
+					branchWithTask[r] = true
+					reasons[t.Slug] = append(reasons[t.Slug], "rama "+r)
 					break
 				}
 			}
 		}
 	}
-	return motivos, ramaConTarea
+	return reasons, branchWithTask
 }
 
 func main() {
 	var (
-		dia      = flag.String("dia", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
-		comoJSON = flag.Bool("json", false, "salida en JSON")
-		quiet    = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
+		day    = flag.String("dia", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
+		asJSON = flag.Bool("json", false, "salida en JSON")
+		quiet  = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
 	)
 	flag.Parse()
-	if _, err := time.Parse("2006-01-02", *dia); err != nil {
+	if _, err := time.Parse("2006-01-02", *day); err != nil {
 		fmt.Fprintln(os.Stderr, "-dia tiene que ser YYYY-MM-DD")
 		os.Exit(2)
 	}
-	esHoy := *dia == time.Now().Format("2006-01-02")
-	datos := dirDatos()
+	isToday := *day == time.Now().Format("2006-01-02")
+	data := dataDir()
 
-	rutas, _ := filepath.Glob(filepath.Join(datos, "*.md"))
-	var tareas []tarea
-	porID := map[int][]string{}
-	for _, r := range rutas {
-		if t, err := leer(r); err == nil {
-			tareas = append(tareas, t)
-			porID[t.ID] = append(porID[t.ID], t.Slug)
+	paths, _ := filepath.Glob(filepath.Join(data, "*.md"))
+	var tasks []task
+	byID := map[int][]string{}
+	for _, r := range paths {
+		if t, err := readTaskFile(r); err == nil {
+			tasks = append(tasks, t)
+			byID[t.ID] = append(byID[t.ID], t.Slug)
 		}
 	}
 
-	inf := Informe{Dia: *dia}
-	tocadas := tocadasPorGit(datos, *dia, esHoy)
-	ramas, pulsoMin, pulsoOK := ramasDelDia(datos, *dia)
-	inf.PulsoMinutos, inf.PulsoDisponble = pulsoMin, pulsoOK
-	minPorTarea, sinTarea, totalBit, nBit := bitacora(datos, *dia)
-	inf.BitacoraMin, inf.BitacoraN, inf.SinTareaMin = totalBit, nBit, sinTarea
+	inf := Report{Day: *day}
+	touched := touchedByGit(data, *day, isToday)
+	branches, pulseMin, pulseOK := branchesOfDay(data, *day)
+	inf.PulseMinutes, inf.PulseAvailable = pulseMin, pulseOK
+	minutesByTask, withoutTask, totalWorklog, nBit := worklog(data, *day)
+	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
-	motivos, ramaConTarea := atribuir(tareas, tocadas, ramas)
-	for _, r := range ramas {
-		if !ramaConTarea[r] && !esRamaBase(r) {
-			inf.RamasSinTarea = append(inf.RamasSinTarea, r)
+	reasons, branchWithTask := attribute(tasks, touched, branches)
+	for _, r := range branches {
+		if !branchWithTask[r] && !isBaseBranch(r) {
+			inf.BranchesWithoutTask = append(inf.BranchesWithoutTask, r)
 		}
 	}
 
-	for _, t := range tareas {
-		m := motivos[t.Slug]
+	for _, t := range tasks {
+		m := reasons[t.Slug]
 		if len(m) == 0 {
 			continue
 		}
 		// Si lo único que cambió hoy es el frontmatter y no hay trabajo en ramas, no hay nada que cerrar.
-		if len(m) == 1 && m[0] == "archivo" && soloMetadatos(datos, *dia, t.Slug, t.Cuerpo) {
+		if len(m) == 1 && m[0] == "archivo" && metadataOnly(data, *day, t.Slug, t.Body) {
 			continue
 		}
 		// Crear el contenedor permanente de una herramienta es organización del tablero, no trabajo en
 		// esa herramienta. Si además se tocó una rama declarada, sí se cierra como trabajo real. Esta
 		// excepción sólo aplica el primer día del archivo; después cualquier cambio de cuerpo vuelve a
 		// exigir retoma, Registro y bitácora como siempre.
-		_, existiaAntes := cuerpoAntes(datos, *dia, t.Slug)
-		if esSoloAltaDeContenedor(t, m, existiaAntes) {
+		_, existedBefore := bodyBefore(data, *day, t.Slug)
+		if isOnlyContainerCreation(t, m, existedBefore) {
 			continue
 		}
-		rv := Revision{ID: t.ID, Slug: t.Slug, Title: t.Title, Motivos: m}
-		rv.ProximoPaso = reProximo.MatchString(t.Cuerpo)
-		rv.RamasDecl = len(t.Ramas) > 0
-		rv.MinutosHoy = minPorTarea[t.ID]
-		for _, f := range reFechaReg.FindAllStringSubmatch(t.Cuerpo, -1) {
-			if f[1] == *dia {
-				rv.RegistroHoy = true
+		rv := Revision{ID: t.ID, Slug: t.Slug, Title: t.Title, Reasons: m}
+		rv.NextStep = reNext.MatchString(t.Body)
+		rv.DeclaredBranches = len(t.Branches) > 0
+		rv.MinutesToday = minutesByTask[t.ID]
+		for _, f := range reRecordDate.FindAllStringSubmatch(t.Body, -1) {
+			if f[1] == *day {
+				rv.RecordToday = true
 				break
 			}
 		}
-		if events, err := taskcontext.Read(datos, t.Slug); err != nil {
-			rv.Mirar = append(rv.Mirar, "el contexto estructurado no se pudo leer: "+err.Error())
+		if events, err := taskcontext.Read(data, t.Slug); err != nil {
+			rv.Watch = append(rv.Watch, "el contexto estructurado no se pudo leer: "+err.Error())
 		} else {
 			for _, event := range events {
-				if strings.HasPrefix(event.At, *dia+"T") {
-					rv.ContextoHoy = true
+				if strings.HasPrefix(event.At, *day+"T") {
+					rv.ContextToday = true
 					break
 				}
 			}
 		}
-		ahora := seccionRetoma(t.Cuerpo)
+		now := resumeSection(t.Body)
 		switch {
-		case ahora == "":
-			rv.Retoma = "sin-seccion"
-			rv.Faltan = append(rv.Faltan, "la sección «Si retomás esto sin contexto» no existe")
+		case now == "":
+			rv.Resume = "sin-seccion"
+			rv.Missing = append(rv.Missing, "la sección «Si retomás esto sin contexto» no existe")
 		default:
-			antes, hubo := retomaAntes(datos, *dia, t.Slug)
-			if hubo && antes == ahora {
-				rv.Retoma = "sin-cambios"
-				rv.Faltan = append(rv.Faltan, "«Si retomás» dice lo mismo que antes del día: hay que reescribirla con lo de HOY")
+			before, happened := resumeBefore(data, *day, t.Slug)
+			if happened && before == now {
+				rv.Resume = "sin-cambios"
+				rv.Missing = append(rv.Missing, "«Si retomás» dice lo mismo que antes del día: hay que reescribirla con lo de HOY")
 			} else {
-				rv.Retoma = "ok"
+				rv.Resume = "ok"
 			}
 		}
-		if !rv.ProximoPaso {
-			rv.Faltan = append(rv.Faltan, "falta «**El próximo paso es:**» (UNA acción)")
+		if !rv.NextStep {
+			rv.Missing = append(rv.Missing, "falta «**El próximo paso es:**» (UNA acción)")
 		}
-		if !rv.RegistroHoy && !rv.ContextoHoy {
-			rv.Faltan = append(rv.Faltan, "falta un hito de contexto del día (`make tarea-context-add`) o una entrada de Registro `### "+*dia+"`")
+		if !rv.RecordToday && !rv.ContextToday {
+			rv.Missing = append(rv.Missing, "falta un hito de contexto del día (`make tarea-context-add`) o una entrada de Registro `### "+*day+"`")
 		}
-		rv.SinAvance = rv.RegistroHoy && sinAvance(t.Cuerpo, *dia)
-		if rv.MinutosHoy == 0 && !rv.SinAvance {
-			rv.Faltan = append(rv.Faltan, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
+		rv.NoProgress = rv.RecordToday && noProgress(t.Body, *day)
+		if rv.MinutesToday == 0 && !rv.NoProgress {
+			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
 		// lectura donde no hay nada que correr, y convertir eso en un error enseña a ignorar el cierre.
 		//
-		// La señal es la misma que pinta la tarjeta (`store.FuentesDe`): de los comandos escritos en el
+		// La señal es la misma que pinta la tarjeta (`store.SourcesOf`): de los comandos escritos en el
 		// cuerpo sale con QUÉ se comprobó. Si la tarea declara ramas —o sea que hay código— y en todo el
 		// archivo no hay un solo comando reconocible, lo que se afirme no se puede volver a comprobar.
 		// Medido el 2026-09-18: de 350 anotaciones del tablero, 308 tienen texto debajo y sólo 51 dejan
 		// una fuente; lo que se escribe suele ser prosa donde iba el comando.
-		if rv.RamasDecl && len(store.FuentesDe(t.Cuerpo)) == 0 {
-			rv.Mirar = append(rv.Mirar, "tocó código y no dice con QUÉ se comprobó: pegá el comando "+
+		if rv.DeclaredBranches && len(store.SourcesOf(t.Body)) == 0 {
+			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: pegá el comando "+
 				"(el trazador lo emite con `MD=1`) en «Cómo se comprueba» o en una anotación")
 		}
-		inf.PiezasFaltan += len(rv.Faltan)
-		inf.Tareas = append(inf.Tareas, rv)
+		inf.MissingPieces += len(rv.Missing)
+		inf.Tasks = append(inf.Tasks, rv)
 	}
-	sort.Slice(inf.Tareas, func(i, j int) bool { return inf.Tareas[i].ID > inf.Tareas[j].ID })
+	sort.Slice(inf.Tasks, func(i, j int) bool { return inf.Tasks[i].ID > inf.Tasks[j].ID })
 
 	// avisos globales: lo que miente sin que nadie lo note
-	ids := make([]int, 0, len(porID))
-	for id := range porID {
+	ids := make([]int, 0, len(byID))
+	for id := range byID {
 		ids = append(ids, id)
 	}
 	sort.Ints(ids)
 	for _, id := range ids {
-		if len(porID[id]) > 1 {
-			inf.Avisos = append(inf.Avisos, fmt.Sprintf("id %d repetido: %s", id, strings.Join(porID[id], ", ")))
+		if len(byID[id]) > 1 {
+			inf.Warnings = append(inf.Warnings, fmt.Sprintf("id %d repetido: %s", id, strings.Join(byID[id], ", ")))
 		}
 	}
-	for _, t := range tareas {
+	for _, t := range tasks {
 		if !t.Archived && t.Stage != "" && t.Stage != "evaluation" && t.Stage != "work" && t.Stage != "tasks" {
-			inf.Avisos = append(inf.Avisos, fmt.Sprintf("#%d %s: etapa «%s» no existe — si terminó, va `archived:` con fecha", t.ID, t.Slug, t.Stage))
+			inf.Warnings = append(inf.Warnings, fmt.Sprintf("#%d %s: etapa «%s» no existe — si terminó, va `archived:` con fecha", t.ID, t.Slug, t.Stage))
 		}
 	}
-	if !pulsoOK {
-		inf.Avisos = append(inf.Avisos, "el pulso no tiene registro de este día: las ramas tocadas y los minutos reales no se saben (`make pulso-status`)")
+	if !pulseOK {
+		inf.Warnings = append(inf.Warnings, "el pulso no tiene registro de este día: las ramas tocadas y los minutos reales no se saben (`make pulso-status`)")
 	}
-	if sinTarea > 0 {
-		inf.Avisos = append(inf.Avisos, fmt.Sprintf("%d′ de bitácora sin tarea asignada (effortId vacío)", sinTarea))
+	if withoutTask > 0 {
+		inf.Warnings = append(inf.Warnings, fmt.Sprintf("%d′ de bitácora sin tarea asignada (effortId vacío)", withoutTask))
 	}
 
-	falla := inf.PiezasFaltan > 0 || len(inf.RamasSinTarea) > 0
-	if *comoJSON {
+	failure := inf.MissingPieces > 0 || len(inf.BranchesWithoutTask) > 0
+	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(inf)
-	} else if !(*quiet && !falla) {
-		imprimir(inf)
+	} else if !(*quiet && !failure) {
+		printReport(inf)
 	}
-	if falla {
+	if failure {
 		os.Exit(1)
 	}
 }
 
-// esRamaBase: tocar `main`, `develop`, `qa` o `staging` no es trabajo de una tarea —es un merge, un
+// isBaseBranch: tocar `main`, `develop`, `qa` o `staging` no es trabajo de una tarea —es un merge, un
 // pull o una prueba contra el ambiente—, así que no cuenta como rama sin dueño.
-func esRamaBase(repoRama string) bool {
-	rama := repoRama[strings.Index(repoRama, "/")+1:]
-	switch rama {
+func isBaseBranch(repoBranch string) bool {
+	branch := repoBranch[strings.Index(repoBranch, "/")+1:]
+	switch branch {
 	case "main", "master", "develop", "qa", "staging":
 		return true
 	}
@@ -561,24 +561,24 @@ func hm(min int) string {
 	return fmt.Sprintf("%dh%02d", min/60, min%60)
 }
 
-func imprimir(inf Informe) {
-	pulso := "sin pulso"
-	if inf.PulsoDisponble {
-		pulso = "pulso " + hm(inf.PulsoMinutos)
+func printReport(inf Report) {
+	pulse := "sin pulso"
+	if inf.PulseAvailable {
+		pulse = "pulso " + hm(inf.PulseMinutes)
 	}
-	fmt.Printf("\n  cierre · %s · %s · bitácora %s en %d entrada(s)", inf.Dia, pulso, hm(inf.BitacoraMin), inf.BitacoraN)
-	if inf.SinTareaMin > 0 {
-		fmt.Printf(" (%s sin tarea)", hm(inf.SinTareaMin))
+	fmt.Printf("\n  cierre · %s · %s · bitácora %s en %d entrada(s)", inf.Day, pulse, hm(inf.WorklogMin), inf.WorklogN)
+	if inf.WithoutTaskMin > 0 {
+		fmt.Printf(" (%s sin tarea)", hm(inf.WithoutTaskMin))
 	}
 	fmt.Println()
 	fmt.Println()
-	if len(inf.Tareas) == 0 {
+	if len(inf.Tasks) == 0 {
 		fmt.Println("  ninguna tarea tocada este día (ni por archivo ni por rama declarada)")
 	}
-	for _, t := range inf.Tareas {
+	for _, t := range inf.Tasks {
 		fmt.Printf("  #%-3d %s\n", t.ID, t.Slug)
-		fmt.Printf("       tocada por: %s\n", strings.Join(t.Motivos, " · "))
-		marca := func(ok bool) string {
+		fmt.Printf("       tocada por: %s\n", strings.Join(t.Reasons, " · "))
+		mark := func(ok bool) string {
 			if ok {
 				return "✔"
 			}
@@ -586,41 +586,41 @@ func imprimir(inf Informe) {
 		}
 		// ⚠ Una tarea eximida se marca «—», no «✓»: un tilde diría que la bitácora está, y no está.
 		// Ver la misma regla en el panel del harness — una vista apagada se ve apagada, no se esconde.
-		bit := marca(t.MinutosHoy > 0)
-		detalle := hm(t.MinutosHoy)
-		if t.SinAvance && t.MinutosHoy == 0 {
-			bit, detalle = "—", "declara sin avance"
+		bit := mark(t.MinutesToday > 0)
+		detail := hm(t.MinutesToday)
+		if t.NoProgress && t.MinutesToday == 0 {
+			bit, detail = "—", "declara sin avance"
 		}
 		fmt.Printf("       %s retoma reescrita   %s próximo paso   %s hito/registro del día   %s bitácora (%s)\n",
-			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy || t.ContextoHoy), bit, detalle)
-		for _, f := range t.Faltan {
+			mark(t.Resume == "ok"), mark(t.NextStep), mark(t.RecordToday || t.ContextToday), bit, detail)
+		for _, f := range t.Missing {
 			fmt.Printf("       ✗ %s\n", f)
 		}
 		// Con otro glifo a propósito: `✗` es una pieza que falta y hace salir 1; `▲` es algo para mirar.
 		// Verlos iguales convierte el aviso en un error, y un cierre que «falla» por un juicio se aprende
 		// a ignorar entero — incluidas las cuatro piezas que sí importan.
-		for _, m := range t.Mirar {
+		for _, m := range t.Watch {
 			fmt.Printf("       ▲ %s\n", m)
 		}
 		fmt.Println()
 	}
-	if len(inf.RamasSinTarea) > 0 {
+	if len(inf.BranchesWithoutTask) > 0 {
 		fmt.Println("  ramas tocadas hoy que NINGUNA tarea declara en `ramas:`:")
-		for _, r := range inf.RamasSinTarea {
+		for _, r := range inf.BranchesWithoutTask {
 			fmt.Printf("    · %s\n", r)
 		}
 		fmt.Println()
 	}
-	for _, a := range inf.Avisos {
+	for _, a := range inf.Warnings {
 		fmt.Printf("  ⚠ %s\n", a)
 	}
-	if len(inf.Avisos) > 0 {
+	if len(inf.Warnings) > 0 {
 		fmt.Println()
 	}
 	switch {
-	case inf.PiezasFaltan > 0:
-		fmt.Printf("  faltan %d pieza(s) → salgo 1. El detalle de cada una: tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»\n\n", inf.PiezasFaltan)
-	case len(inf.RamasSinTarea) > 0:
+	case inf.MissingPieces > 0:
+		fmt.Printf("  faltan %d pieza(s) → salgo 1. El detalle de cada una: tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»\n\n", inf.MissingPieces)
+	case len(inf.BranchesWithoutTask) > 0:
 		fmt.Println("  hay ramas sin dueño → salgo 1. Declaralas en `ramas:` de su tarea (o es trabajo que no tiene tarea todavía)")
 		fmt.Println()
 	default:
