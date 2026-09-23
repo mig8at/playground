@@ -27,7 +27,12 @@ func TestFuentesDeCasosReales(t *testing.T) {
 		{
 			"una consulta contra prod",
 			"`make trazador-sql TARGET=prod SQL='SELECT id FROM user_requests WHERE lender_id=77'`",
-			[]string{"trazador", "SQL", "prod"},
+			[]string{"DB", "prod"},
+		},
+		{
+			"una consulta nueva conserva sólo DB y ambiente",
+			"> **DB · prod**\n>\n> \x60\x60\x60sql\n> SELECT id FROM user_requests WHERE lender_id=77\n> \x60\x60\x60",
+			[]string{"DB", "prod"},
 		},
 		{
 			"verificación contra main",
@@ -84,7 +89,7 @@ func TestAmbienteSaleDelComando_NoDeLaProsa(t *testing.T) {
 	if f := FuentesDe("en producción son 14.160 checkouts en 6 meses"); f != nil {
 		t.Errorf("la prosa no fija el ambiente: %v", f)
 	}
-	f := FuentesDe("make trazador-sql TARGET=prod SQL='SELECT count(*) FROM user_requests'")
+	f := FuentesDe("make tablero-db TARGET=prod SQL='SELECT count(*) FROM user_requests'")
 	if len(f) == 0 || f[len(f)-1] != "prod" {
 		t.Errorf("el ambiente del comando sí: %v", f)
 	}
@@ -96,7 +101,7 @@ func TestEsAmbienteSeparaLasDosCosas(t *testing.T) {
 			t.Errorf("%q es un ambiente", a)
 		}
 	}
-	for _, h := range []string{"harness", "trazador", "SQL", "Loki", "PostHog", "git", "HTTP", "navegador"} {
+	for _, h := range []string{"harness", "trazador", "DB", "Loki", "PostHog", "git", "HTTP", "navegador"} {
 		if EsAmbiente(h) {
 			t.Errorf("%q es una herramienta, no un ambiente", h)
 		}

@@ -30,7 +30,7 @@ type Anotacion struct {
 	Fecha string `json:"fecha"` // YYYY-MM-DD
 	Quien string `json:"quien"` // sólo pregunta: de quién se espera la respuesta
 	Que   string `json:"que"`   // la afirmación, una línea
-	Como  string `json:"como"`  // opcional: la consulta o el comando que la vuelve a comprobar
+	Como  string `json:"como"`  // opcional: la consulta o el comando ya limpio de Markdown
 	// Fuentes: con QUÉ se comprobó y contra qué ambiente, DERIVADO del `Como` (ver fuentes.go). Vacío
 	// cuando no hay `Como` o cuando no matchea ninguna herramienta conocida — que es un dato, no un
 	// hueco: dice que esa afirmación no trae con qué volver a comprobarla.
@@ -41,9 +41,22 @@ var (
 	// El tipo se acepta con y sin tilde: quien escribe a mano no debería pelear con el acento.
 	reAnotacion = regexp.MustCompile(`(?i)^>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)\s*·\s*(\d{4}-\d{2}-\d{2})\s*(?:·\s*([^*]+?))?\s*\*\*\s*(?:—|--|-)?\s*(.*)$`)
 	reCita      = regexp.MustCompile(`^>\s?(.*)$`)
+	// El documento conserva una consulta como Markdown normal dentro de la cita. La tarjeta no debe
+	// mostrar ese Markdown como texto dentro de otro `<pre>`: recibe sólo el SQL de su fence.
+	reSQLFence = regexp.MustCompile("(?is)(?:^|\\n)\\s*```sql\\s*\\n(.*?)\\n\\s*```(?:\\s*(?:\\n|$))")
 )
 
 var sinTilde = strings.NewReplacer("Ó", "O", "ó", "o")
+
+func comoVisible(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if match := reSQLFence.FindStringSubmatch(raw); match != nil {
+		return strings.TrimSpace(match[1])
+	}
+	// Las recetas cortas históricas se escribieron entre backticks. El pre de la UI no necesita
+	// conservar esa capa de Markdown, igual que no necesita conservar los fences SQL.
+	return strings.TrimSpace(strings.Trim(raw, "`"))
+}
 
 // Anotaciones recoge los marcadores del cuerpo, en el orden en que aparecen.
 //
@@ -72,12 +85,17 @@ func Anotaciones(cuerpo string) []Anotacion {
 				break
 			}
 			if c := reCita.FindStringSubmatch(l); c != nil {
-				como = append(como, strings.TrimSpace(strings.Trim(c[1], "`")))
+				// Se conserva el fence hasta `comoVisible`: quitar sus backticks aquí convertía
+				// ```sql en texto "sql" y después la UI terminaba mostrando Markdown crudo.
+				como = append(como, strings.TrimSpace(c[1]))
 			}
 			i = j
 		}
-		a.Como = strings.TrimSpace(strings.Join(como, "\n"))
-		a.Fuentes = FuentesDe(a.Como)
+		rawComo := strings.TrimSpace(strings.Join(como, "\n"))
+		a.Como = comoVisible(rawComo)
+		// Fuentes usa la forma original porque `**DB · prod**` indica el ambiente, mientras que la
+		// tarjeta sólo necesita la consulta pura para presentarla como SQL.
+		a.Fuentes = FuentesDe(rawComo)
 		if a.Que != "" {
 			out = append(out, a)
 		}

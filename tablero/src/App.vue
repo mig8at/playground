@@ -1,9 +1,9 @@
 <script setup>
 import { vResize, refreshResizers } from './workbench.js';
-// Tablero — mi sprint, con registro de tiempo y bitácora.
+// Tablero — mi sprint, con registro de tiempo y avances.
 //
 // El registro persiste como JSONL del lado del server (internal/store). Lo de arriba (sprint, tareas)
-// sale de /api/sprint (Jira Agile 1.0); la bitácora, de /api/entries.
+// sale de /api/sprint (Jira Agile 1.0); los avances fechados, de /api/entries.
 //
 // LA REGLA QUE ATRAVIESA TODO: lo que se escribe acá termina en Jira, donde lo lee el equipo. Nunca
 // puede mencionar el playground, un hallazgo interno (F-xx), una ruta de archivo ni un nombre de repo.
@@ -13,11 +13,12 @@ import { vResize, refreshResizers } from './workbench.js';
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import TaskGuidance from './TaskGuidance.vue';
-import TaskResume from './TaskResume.vue';
+import TaskEvidence from './TaskEvidence.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument } from './task-document.js';
+import { highlightSQL, isSQLQuery } from './sql-highlight.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
@@ -28,6 +29,12 @@ import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 //   VITE_TABLERO_API=http://localhost:8790 npx vite --port 5296
 const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
+const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
+const TRACER_DEFAULT_URL = 'http://localhost:5192';
+const HARNESS_DEFAULT_URL = 'http://localhost:5195';
+const canonUrl = ref(CANON_DEFAULT_URL);
+const tracerUrl = ref(TRACER_DEFAULT_URL);
+const harnessUrl = ref(HARNESS_DEFAULT_URL);
 
 // Pintar primero, revalidar después: una recarga usa el último estado correcto y no espera a Jira para
 // restaurar la tarea y sus regiones. El cache se reemplaza en cada sincronización exitosa.
@@ -70,24 +77,14 @@ const active = ref(null);     // tarea sobre la que se está registrando
 
 // ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
 // Flags de "campos de la empresa": tiempo y puntos. OFF por defecto — la empresa no los pide, así que
-// el tablero no los muestra. NO tocan el registro personal (bitácora, mapa de foco), que es el núcleo.
+// el tablero no los muestra. NO tocan el registro personal (avances, mapa de foco), que es el núcleo.
 // Ya no hay ajustes: puntos y tiempo son campos que la empresa PIDE, así que no se apagan desde acá.
 // El engranaje se retiró entero. `settings.json` puede conservar sus claves — nadie las lee.
-// ── bitácora ──────────────────────────────────────────────────────────────────────────────────
-// LA ESCRIBE EL ASISTENTE, no vos: al analizar una tarea hace POST /api/entries con la redacción ya
-// correcta (y el guard del server la valida). Acá solo se LEE — por eso no hay formulario de alta.
-// `id` es el valor que se guarda (kind); `label` es lo que se muestra: id en inglés, label en español.
-const KINDS = [
-  { id: 'progress', label: 'Avance', icon: '▸' },
-  { id: 'finding', label: 'Hallazgo', icon: '◆' },
-  { id: 'test', label: 'Prueba', icon: '✓' },
-  { id: 'blocker', label: 'Bloqueo', icon: '■' },
-];
-// La bitácora vive en JSONL del lado del server. Acá se mapea al shape que usa la UI: `date` es el
+// El registro de avances vive en JSONL del lado del server. Acá se mapea al shape que usa la UI: `date` es el
 // INICIO del bloque trabajado (Date real; el mapa de jornada reparte por horas), `sprint` ata la
 // entrada al sprint donde se registró.
 const fromApi = (r) => ({ id: r.id, key: r.taskKey, kind: r.kind, min: r.minutes,
-  date: new Date(r.startedAt), sprint: r.sprintId, text: r.note, uploaded: !!r.uploadedAt,
+  date: new Date(r.startedAt), day: r.day, sprint: r.sprintId, text: r.note, uploaded: !!r.uploadedAt,
   // El ESFUERZO es lo que de verdad ata una entrada a una tarea: 10 de 18 entradas no tienen
   // `taskKey` (se escribieron sobre el esfuerzo, no sobre el issue de Jira) y sin esto quedaban
   // huérfanas para siempre.
@@ -117,6 +114,14 @@ async function loadEfforts() {
 async function loadTaskLocals() {
   try { const j = await (await fetch(`${SERVER}/api/task-locals`)).json(); if (!j.error) taskLocals.value = j.taskLocals || {}; }
   catch { /* sin capas: todo cae en "sin esfuerzo" */ }
+}
+async function loadConfig() {
+  try {
+    const j = await (await fetch(`${SERVER}/api/config`)).json();
+    if (j.canonUrl) canonUrl.value = j.canonUrl;
+    if (j.tracerUrl) tracerUrl.value = j.tracerUrl;
+    if (j.harnessUrl) harnessUrl.value = j.harnessUrl;
+  } catch { /* sin server: los enlaces conservan el origen público por defecto */ }
 }
 
 // ── traer de Jira: registrar lo que está a mi nombre y no tengo local ───────────────────────────────
@@ -292,7 +297,7 @@ const buscaNorm = computed(() => sinTildes(busca.value).trim());
 // ── las tareas LOCALES, las que todavía no tienen Jira ────────────────────────────────────────────
 //
 // El tablero mostraba sólo issues de Jira, así que una tarea que vive únicamente en `data/<slug>.md`
-// era INVISIBLE: sin tarjeta, sin bitácora, sin cajón de ramas. Se veía nada más con `make tareas`, y
+// era INVISIBLE: sin tarjeta, sin avances, sin cajón de ramas. Se veía nada más con `make tareas`, y
 // por eso el avance escrito ahí no lo miraba nadie (medido el 2026-08-27: ocho días).
 //
 // ⚠ Que aparezcan NO las publica. Publicar a Jira sigue siendo una decisión que se PIDE —hoy
@@ -309,7 +314,7 @@ const localesTodas = computed(() => {
     .filter(e => e.id && !ligados.has(e.id) && !e.archived)
     .map(e => ({
       // La clave imita la forma de Jira para que todo lo que indexa por `Key` —selección, cajones,
-      // contador de bitácora— siga funcionando sin ramas especiales.
+      // contador de avances— siga funcionando sin ramas especiales.
       Key: `LOCAL-${e.id}`,
       Summary: e.title,
       Status: 'local',
@@ -405,7 +410,7 @@ const diasSinTocar = (id) => {
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
 // los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
-// esfuerzo por su clave, igual que la bitácora
+// esfuerzo por su clave, igual que los avances
 const protosDe = (key) => artifactsOf(esfuerzoDe(key));
 
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
@@ -578,23 +583,11 @@ const jiraLink = (key) => site.value ? `${site.value}/browse/${key}` : '';
 const statusClass = (c) => c === 'done' ? 'e-ok' : c === 'indeterminate' ? 'e-doing' : 'e-todo';
 const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) => n + e.min, 0);
 
-async function deleteEntry(id) {
-  try {
-    await fetch(`${SERVER}/api/entries/${id}`, { method: 'DELETE' });
-    entries.value = entries.value.filter(e => e.id !== id); // borrado suave en la base
-  } catch { /* si falló, la entrada sigue visible: coherente con la base */ }
-}
-
-// ⚠ Sobre TODAS las entradas, no sobre `ofSprint`. La bitácora de una tarea es su HISTORIA: si abrís
-// CORE-19 querés leer lo que se escribió sobre CORE-19, sea de qué sprint sea. Filtrarla por el sprint
-// activo la vaciaba entera el día que el sprint rotaba —pasó con Sprint 11→12, y las notas parecían
-// perdidas cuando estaban ahí—. El filtro por sprint SÍ se queda en los contadores de tiempo
-// (`logTime`, `minutesOf`), que es donde significa algo: minutos trabajados EN este sprint.
-//
-// Se resuelve por esfuerzo además de por clave, igual que `protosDe`: es lo que rescata las entradas
-// que no tienen `taskKey`.
+// El mapa y los contadores usan una ventana de tiempo; el avance de una tarea necesita TODO su
+// recorrido. Se pide aparte por tarea/esfuerzo al abrirla y el server lo devuelve ya ordenado, sin
+// tocar el JSONL. Por esfuerzo también rescata hitos que se anotaron antes de tener clave de Jira.
 // De la clave de una tarjeta al esfuerzo local. Es la ÚNICA forma de resolverlo, y todo lo que abre un
-// cajón —cuerpo, hallazgos, pendientes, prototipos, ramas, bitácora— pasa por acá.
+// cajón —cuerpo, hallazgos, pendientes, prototipos, ramas, avances— pasa por acá.
 //
 // ⚠ Contempla las tarjetas LOCALES (`LOCAL-<id>`), que no están en el mapa de Jira porque no están en
 // Jira. Cuando cada cajón resolvía el esfuerzo por su cuenta contra `taskLocals`, las locales salían
@@ -603,23 +596,77 @@ const esfuerzoDe = (key) => {
   if (typeof key === 'string' && key.startsWith('LOCAL-')) return Number(key.slice(6)) || 0;
   return taskLocals.value[key]?.effortId || 0;
 };
-const ofActive = computed(() => {
-  if (!active.value) return [];
-  const k = active.value.Key, ef = esfuerzoDe(k);
-  return entries.value.filter(e => e.key === k || (ef && e.effortId === ef));
+// El JSONL es la única cronología de una tarea: cada renglón debe explicar algo que permite
+// continuarla. Los registros de minutos siguen existiendo para medir trabajo, pero no entran acá.
+const contextos = ref([]);
+let contextosRequest = 0;
+const contextoDesdeApi = (event) => ({ ...event, references: Array.isArray(event.references) ? event.references : [] });
+const referenciasDBDe = (event) => event.references.filter(reference => reference.kind === 'db');
+const referenciasHarnessDe = (event) => event.references.filter(reference => reference.kind === 'harness');
+// El contexto admite únicamente enlaces Markdown a Canon: [texto](canon:nodo). Nunca se inyecta
+// HTML ni se interpreta Markdown general; se parte el texto y Vue escapa cada fragmento normal.
+const inlineCanonLink = /\[([^\[\]\r\n]+)\]\(canon:([A-Za-z0-9][A-Za-z0-9._/#-]*)\)/g;
+const partesConCanon = (text) => {
+  const value = typeof text === 'string' ? text : '';
+  const parts = [];
+  let cursor = 0;
+  for (const match of value.matchAll(inlineCanonLink)) {
+    if (match.index > cursor) parts.push({ type: 'text', value: value.slice(cursor, match.index) });
+    parts.push({ type: 'canon', label: match[1], target: match[2] });
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < value.length || !parts.length) parts.push({ type: 'text', value: value.slice(cursor) });
+  return parts;
+};
+const parrafosContexto = (event) => [
+  event.goal && { label: 'Objetivo.', text: event.goal },
+  { text: event.summary },
+  event.state && { label: 'Estado.', text: event.state },
+  event.next && { label: 'Siguiente paso.', text: event.next },
+  event.reason && { label: 'Motivo.', text: event.reason },
+  event.waitingOn && { label: 'En espera de.', text: event.waitingOn },
+].filter(Boolean);
+const diaContexto = (event) => event.at.slice(0, 10);
+const edadContexto = (day) => {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.round((now - new Date(`${day}T00:00:00`)) / 86400000);
+};
+const etiquetaDiaContexto = (day) => {
+  const age = edadContexto(day);
+  if (age === 0) return 'Hoy';
+  if (age === 1) return 'Ayer';
+  return new Date(`${day}T12:00:00`).toLocaleDateString('es-CO', { day: 'numeric', month: 'long' });
+};
+const gruposContexto = computed(() => {
+  const grouped = new Map();
+  for (const event of contextos.value) {
+    const day = diaContexto(event);
+    if (!grouped.has(day)) grouped.set(day, []);
+    grouped.get(day).push(event);
+  }
+  return [...grouped.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, items]) => ({
+    day, label: etiquetaDiaContexto(day), items,
+  }));
 });
-// Qué entradas están desplegadas. Las notas de la bitácora son párrafos largos a propósito (las escribe
-// el asistente con el porqué completo); mostrarlas enteras convierte la lista en un muro y se deja de
-// escanear. Colapsadas a 3 líneas la bitácora vuelve a ser un índice y se abren sólo al necesitarlas.
-const abiertas = ref(new Set());
-const alternar = (id) => { const s = new Set(abiertas.value); s.has(id) ? s.delete(id) : s.add(id); abiertas.value = s; };
-// Qué descripciones están desplegadas, POR TAREA (antes era un solo booleano, porque había una única
-// vista de detalle). Colapsada por defecto: la descripción de Jira es material de referencia
-// —contexto, criterios, dependencias— y entera convierte la lista en un muro.
-// La descripción completa vive en su VISTA del acordeón, igual que Bitácora / Ramas / Prototipos /
-// Hallazgos: es un
-// bloque de párrafos y leerlo en una columna de 300px era peor que no tenerlo. Antes se expandía la
-// tarjeta a la fila entera, lo que rompía la grilla — el mismo problema de los encabezados de grupo.
+async function cargarContexto() {
+  const task = active.value;
+  const request = ++contextosRequest;
+  const effort = task && esfuerzoDe(task.Key);
+  if (!effort) { contextos.value = []; return; }
+  try {
+    const response = await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`);
+    const json = await response.json();
+    if (request === contextosRequest && !json.error) contextos.value = (json.events || []).map(contextoDesdeApi);
+  } catch {
+    if (request === contextosRequest) contextos.value = [];
+  }
+}
+
+watch(() => [active.value?.Key, esfuerzoDe(active.value?.Key)], () => {
+  cargarContexto();
+}, { immediate: true });
+// La descripción completa de Jira se conserva en su riel de referencia. El centro sólo conserva lo
+// necesario para continuar: checkpoint, documento vigente y evidencia reproducible.
 
 // ── el CUERPO TÉCNICO de la tarea, que es lo que de verdad se quiere leer ──────────────────────────
 //
@@ -634,45 +681,30 @@ const cuerpoDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?.tec
 
 const effortDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key));
 const documentSections = computed(() => organizeDocument(active.value ? cuerpoDe(active.value.Key) : ''));
-// TRABAJO contesta «¿dónde estoy y cómo sigo?», así que el REGISTRO no vive acá: es la otra pregunta
-// —«¿qué pasó cada día?»— y en una tarea de dos meses se come el resto. Medido sobre la #6: 45% del
-// cuerpo. Desde el 2026-09-18 tiene su propia pestaña, al lado de Bitácora, que es su pariente: una
-// cuenta QUÉ pasó y la otra CUÁNTO tiempo llevó.
 const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml && !section.history));
-const historySections = computed(() => documentSections.value.filter(section => section.summaryHtml && section.history));
 // El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
 // si esto se trabajó una tarde o dos meses.
-const diasDeRegistro = computed(() => historySections.value.reduce((n, s) => n + (s.entries || 0), 0));
 const pendingSections = computed(() => documentSections.value.filter(section => section.pendingHtml));
 const jiraDocument = computed(() => jiraPreview(active.value));
-const indiceCuerpo = computed(() => summarySections.value.filter(section => section.title));
-function irASeccion(id) {
-  const section = document.getElementById(id);
-  if (section?.tagName === 'DETAILS') section.open = true;
-  section?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-// Canon SÍ abre por enlace, y el chip lo usa: `?nodo=<tema>/context` deja el tema abierto y su texto a
-// la vista. Con un ancla detrás (`#<seccion>`) abre esa sección sola, que es a donde esto va a crecer
-// el día que una tarea declare secciones y no temas.
+// Canon abre una referencia estable por URL. No ocupa una vista propia: una cita sólo aparece dentro
+// del trabajo que realmente la usó. Una tarea puede declarar un tema (`listado`) o, preferiblemente,
+// una sección exacta (`listado/context#por-donde-pasa-todo`).
 //
 // ⚠ Acá decía que canon «no lee la URL» y era FALSO: lo escribí después de grepear el front y no ver
 // un router, cuando el router está en `src/rutas.js` y además `Sala.vue` observa `route.query.nodo`
 // desde hace semanas. Comprobado en el navegador contra producción el 2026-09-21: la URL abre la
 // sección, muestra su texto y la dirección queda en la barra, o sea que se puede copiar. El costo de
 // aquel error no fue el comentario: fue el chip mandando a la home un día entero.
-const CANON_URL = 'https://canon.playground.creditop.com';
-const canonLink = (tema) => `${CANON_URL}/?nodo=${encodeURIComponent(tema + '/context')}`;
-const HARNESS_URL = 'http://localhost:5195';
-const TRAZADOR_URL = 'http://localhost:5192';
-
-// RETOMAR no es otro resumen del documento: junta los indicadores ya derivados para dejar claro qué
-// se sabe, con qué se comprobó y dónde se continúa. La evidencia se ordena por fecha, no por lugar en
-// la prosa: una tarea puede contar primero el antecedente y luego la comprobación más reciente.
-const temasDeRetoma = computed(() => (active.value ? effortDe(active.value.Key)?.canon || '' : '')
-  .split(',').map(node => node.trim()).filter(Boolean));
-const evidenciaDeRetoma = computed(() => active.value ? hallazgosDe(active.value.Key) : []);
-const fuentesDeRetoma = computed(() => [...new Set(evidenciaDeRetoma.value.flatMap(item => item.fuentes || []))]);
+const canonID = (referencia) => {
+  const id = typeof referencia === 'string' ? referencia : (referencia?.id || referencia?.requested || '');
+  const [nodo, ancla] = id.split('#', 2);
+  const completo = nodo.includes('/') ? nodo : `${nodo}/context`;
+  return ancla ? `${completo}#${ancla}` : completo;
+};
+const canonLink = (referencia) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(referencia))}`;
+// La evidencia que se registra en el cuerpo privado es el historial de cómo se trabajó la tarea. No
+// se reduce a un texto de «retomar»: Trazador y Harness la consumen en la vista central.
+const evidenciaDeTrabajo = computed(() => active.value ? hallazgosDe(active.value.Key) : []);
 
 // ── ORIENTACIÓN JEV ─────────────────────────────────────────────────────────────────────────────
 // Es un acto EXPLÍCITO: abrir la franja no llama a nadie; «Analizar con Jev» es el consentimiento
@@ -761,7 +793,7 @@ const RE_ANOTACION = /^ {0,3}>\s*\*\*(MEDICI[ÓO]N|DECISI[ÓO]N|PREGUNTA|RIESGO)
 //
 // Se corta por ESTRUCTURA, que el formato ya tiene. Medido sobre la tarea de Alta (89 líneas con
 // herramientas, en 12 secciones): el grueso vive en dos lugares que no hay que adivinar —
-//   · `## Registro`, que es la bitácora de qué hice cada día (48 de las 89);
+//   · `## Registro`, que es el relato de qué se hizo cada día (48 de las 89);
 //   · el `Cómo` de las anotaciones, o sea las citas que siguen al marcador, donde va el comando que
 //     la vuelve a comprobar. El QUÉ se queda: el hallazgo es lo que se comparte.
 //
@@ -938,15 +970,18 @@ function alternarConsolaRamas() {
   if (verConsolaRamas.value) ocultarConsolaRamas();
   else mostrarPanelRamas();
 }
-/* ── LAS PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────────────────────
- * Las vistas de consulta de UNA tarea comparten todo el alto de la región. Con acordeón, seis
+/* ── RECORRIDO CENTRAL Y PESTAÑAS DEL SIDEBAR DERECHO ─────────────────────────────────────────────
+ * El centro es una línea de tiempo de días. A la derecha quedan Jira, Pendientes y los Artifacts
+ * de la tarea como consultas en paralelo. */
+
+/* Las vistas de consulta de UNA tarea comparten todo el alto de la región. Con acordeón, seis
  * encabezados le quitaban espacio a Jira y la descripción terminaba dentro de una tarjeta pequeña;
- * las pestañas dejan un solo riel compacto y un cuerpo continuo. `Retomar` abre primero: es la
- * señal operativa local para volver al trabajo, antes de consultar las fuentes de detalle. */
-const vistaAuxActiva = ref('retomar');
+ * las pestañas dejan un solo riel compacto y un cuerpo continuo. La evidencia para continuar vive
+ * en el centro; Jira abre primero porque es la consulta secundaria más frecuente. */
+const vistaAuxActiva = ref('jira');
 const abiertaAux = (id) => vistaAuxActiva.value === id;
 function alternarAux(id) { vistaAuxActiva.value = id; }
-const vistasAux = computed(() => taskTabs.value.filter((x) => x.id !== 'trabajo'));
+const vistasAux = computed(() => taskTabs.value);
 function tecladoPestanasAux(event, id) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
   event.preventDefault();
@@ -1049,7 +1084,10 @@ function openTask(task, fijar = false) {
     previa.value = '';
   }
   active.value = task;
-  if (cambioDeTarea) vistaAuxActiva.value = 'retomar';
+  if (cambioDeTarea) {
+    reiniciarRevisionPendientes();
+    vistaAuxActiva.value = 'jira';
+  }
 }
 function cerrarPestana(k) {
   const i = pestanas.value.findIndex((t) => t.Key === k);
@@ -1061,7 +1099,10 @@ function cerrarPestana(k) {
   if (active.value?.Key === k) {
     const sig = pestanas.value[i] || pestanas.value[i - 1] || null;
     active.value = sig || null;
-    if (sig) vistaAuxActiva.value = 'retomar';
+    reiniciarRevisionPendientes();
+    if (sig) {
+      vistaAuxActiva.value = 'jira';
+    }
   }
 }
 
@@ -1120,22 +1161,6 @@ watch(active, (t) => {
   if (rutasListas && !restaurandoRuta) escribirRuta(t);
 });
 
-// cuántas entradas de bitácora tiene cada tarea — el contador del botón, sin abrir el cajón
-const entriesPorTarea = computed(() => {
-  const m = {};
-  // Cuenta lo MISMO que abre el cajón (todas las entradas, por clave o por esfuerzo). Contaba sobre
-  // `ofSprint` y por clave: el botón decía 0 en tareas que sí tenían notas, así que nadie lo abría.
-  for (const i of issues.value) {
-    const ef = esfuerzoDe(i.Key);
-    const n = entries.value.filter(e => e.key === i.Key || (ef && e.effortId === ef)).length;
-    if (n) m[i.Key] = n;
-  }
-  return m;
-});
-
-// Abrir la bitácora DE una tarjeta: el cajón lee la tarea activa, así que primero se activa. Sin esto,
-// tocar "Bitácora" en una tarjeta abriría la bitácora de otra.
-
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
 // Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
 // marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/anotaciones.go`.
@@ -1160,11 +1185,11 @@ const TIPOS = [
 const hallazgosPorTipo = (key) => TIPOS
   .map(t => ({ ...t, items: hallazgosDe(key).filter(a => a.tipo === t.id) }))
   .filter(g => g.items.length);
-
 // CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/fuentes.go`) del
 // `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
 // dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
 const esAmbiente = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
+const esConsultaSQL = (hallazgo) => hallazgo.fuentes?.includes('DB') && isSQLQuery(hallazgo.como);
 
 // El resumen de arriba contesta de un vistazo «¿cómo se concluyó lo que dice esta tarea?». Lo que más
 // importa no son las herramientas: es cuántas anotaciones NO traen con qué volver a comprobarlas.
@@ -1194,6 +1219,68 @@ const pendientesDe = (key) => efforts.value.find(e => e.id === esfuerzoDe(key))?
 // Lo que se cuenta son los ABIERTOS. Medido sobre las 41 tareas: 37 casillas escritas y 1 tildada —
 // nadie vuelve a marcarlas—, así que el total diría "hay deuda" incluso cuando ya no queda nada.
 const quedan = (key) => pendientesDe(key).filter(p => !p.hecho).length;
+// La barra de la cabecera no intenta adivinar el avance real: sólo expresa lo que sí está registrado
+// en las casillas. Por eso muestra tanto el numerador como el total y lleva al detalle para corregir
+// una tarea que se trabajó pero quedó sin tildar.
+const progresoPendientesDe = (key) => {
+  const total = pendientesDe(key).length;
+  const hechos = total - quedan(key);
+  return total ? { total, hechos, porcentaje: Math.round(hechos * 100 / total) } : null;
+};
+const pendientesAbiertosDe = (key) => pendientesDe(key).filter(p => !p.hecho);
+
+// REVISIÓN JEV DE PENDIENTES. Es una lectura explícita, nunca una mutación: el servidor recibe una
+// proyección acotada de la tarea sólo después del clic y devuelve tres estados fijos. Así el modelo
+// puede señalar una casilla posiblemente vieja sin que su respuesta se convierta en una edición.
+const revisionPendientes = ref(null);
+const revisionPendientesBusy = ref(false);
+const revisionPendientesError = ref('');
+let revisionPendientesRequest = 0;
+function reiniciarRevisionPendientes() {
+  revisionPendientesRequest++;
+  revisionPendientes.value = null;
+  revisionPendientesBusy.value = false;
+  revisionPendientesError.value = '';
+}
+async function revisarPendientesConJev() {
+  const target = jevTarget.value;
+  const key = active.value?.Key;
+  if (!target || !key || !quedan(key) || revisionPendientesBusy.value) return;
+  const request = ++revisionPendientesRequest;
+  revisionPendientesBusy.value = true;
+  revisionPendientesError.value = '';
+  revisionPendientes.value = null;
+  try {
+    const res = await fetch(`${SERVER}/api/jev/pending-review`, {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: target }),
+    });
+    const row = await res.json();
+    if (request !== revisionPendientesRequest || active.value?.Key !== key) return;
+    if (!res.ok || row.error) {
+      revisionPendientesError.value = row.error || 'No se pudieron revisar los pendientes.';
+      return;
+    }
+    revisionPendientes.value = row.review || { items: [] };
+  } catch {
+    if (request === revisionPendientesRequest) revisionPendientesError.value = 'No se pudo hablar con el servidor local.';
+  } finally {
+    if (request === revisionPendientesRequest) revisionPendientesBusy.value = false;
+  }
+}
+const etiquetaRevisionPendiente = (status) => ({
+  resolved: 'Parece resuelto', open: 'Sigue abierto', unclear: 'Requiere revisión',
+}[status] || 'Requiere revisión');
+const claseRevisionPendiente = (status) => ({ resolved: 'resolved', open: 'open', unclear: 'unclear' }[status] || 'unclear');
+const pendienteDeRevision = (item) => pendientesAbiertosDe(active.value?.Key)[item.id];
+const resumenRevisionPendientes = computed(() => {
+  const items = revisionPendientes.value?.items || [];
+  const resueltos = items.filter(item => item.status === 'resolved').length;
+  const abiertos = items.filter(item => item.status === 'open').length;
+  const dudosos = items.length - resueltos - abiertos;
+  return [resueltos && `${resueltos} parece${resueltos === 1 ? '' : 'n'} resuelto${resueltos === 1 ? '' : 's'}`,
+    abiertos && `${abiertos} sigue${abiertos === 1 ? '' : 'n'} abierto${abiertos === 1 ? '' : 's'}`,
+    dudosos && `${dudosos} requiere${dudosos === 1 ? '' : 'n'} revisión`].filter(Boolean).join(' · ');
+});
 // Agrupados por el encabezado bajo el que se escribieron: en una tarea larga los pendientes vienen de
 // frentes distintos («Pendientes», «Cerrar con negocio», «Al retomar»), y en una lista plana se leen
 // todos como si fueran lo mismo.
@@ -1207,24 +1294,22 @@ const pendientesPorSeccion = (key) => {
   return grupos;
 };
 
-// Las pestañas comparten la tarea activa y sus fuentes de consulta.
+// El sidebar conserva las consultas que se necesitan en paralelo: el contrato publicado (Jira), el
+// checklist detallado (Pendientes) y los prototipos navegables. El razonamiento y la historia quedan
+// en el centro; un prototipo es una salida externa, no parte de esa lectura.
 const taskTabs = computed(() => {
   const key = active.value?.Key;
-  return [
-    { id: 'trabajo', label: 'Trabajo' },
-    { id: 'retomar', label: 'Retomar' },
+  const tabs = [
     { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: quedan(key), alert: active.value?.StatusCategory === 'done' && quedan(key) > 0 },
-    { id: 'hallazgos', label: 'Hallazgos', count: hallazgosDe(key).length, alert: hallazgosDe(key).some(vencido) },
-    // Registro va ANTES de Bitácora y pegado a ella a propósito: las dos son cronológicas y se leen
-    // juntas — qué pasó ese día, y cuánto tiempo llevó.
-    ...(historySections.value.length ? [{ id: 'registro', label: 'Registro', count: diasDeRegistro.value }] : []),
-    { id: 'bitacora', label: 'Bitácora', count: ofActive.value.length },
-    ...(protosDe(key).length ? [{ id: 'prototipos', label: 'Prototipos', count: protosDe(key).length }] : []),
+    // Siempre se ve: si la tarea aún no deja un HTML, la pestaña explica esa ausencia en vez de
+    // desaparecer y hacer parecer que Tablero no tiene lugar para los prototipos.
+    { id: 'artifacts', label: 'Prototipos', count: key ? protosDe(key).length : 0 },
   ];
+  return tabs;
 });
 watch(vistasAux, (vistas) => {
-  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'retomar';
+  if (!vistas.some((vista) => vista.id === vistaAuxActiva.value)) vistaAuxActiva.value = 'jira';
 });
 const cerrarConEsc = (e) => { if (e.key === 'Escape' && menuTarea.value) cerrarMenuTarea(true); };
 const cerrarMenuTareaAfuera = (e) => {
@@ -1244,15 +1329,13 @@ onUnmounted(() => {
   document.removeEventListener('scroll', cerrarMenuTareaAlScroll, true);
   clearTimeout(copiadoTimer);
 });
-const when = (d) => new Date(d).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-
 // ── mi jornada: los últimos días × horas laborales ──────────────────────────────────────────────
 // Este mapa NO va por sprint: muestra cómo se llenó mi horario laboral (8→18, con almuerzo 12→14) en los
 // últimos días corridos. La pregunta que contesta es distinta a "en qué trabajé": es "cómo trabajé" —
 // mañanas cargadas y tardes flojas, días partidos, jornadas que se estiran. Por eso lee la HORA de cada
 // registro, no sólo el día, y es independiente del sprint que estés mirando arriba.
 //
-// LA FUENTE ES EL PULSO, y sólo el pulso: cuándo toqué los repos de la compañía. La bitácora contesta
+// LA FUENTE ES EL PULSO, y sólo el pulso: cuándo toqué los repos de la compañía. Los avances contestan
 // otra pregunta ("en qué trabajé") y vive en su cajón; tenerla acá como segunda fuente obligaba a elegir
 // entre dos cosas que no se comparan, en un mapa cuya gracia es que se lee de un vistazo.
 const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
@@ -1359,12 +1442,12 @@ const pulseCells = computed(() => {
 });
 const codeAt = (iso, h) => pulseCells.value[iso]?.[h];
 
-// TRES estados, no dos, y esa es la diferencia con la bitácora: además de "hubo cambios" y "no hubo",
+// TRES estados, no dos, y esa es la diferencia con los avances: además de "hubo cambios" y "no hubo",
 // el pulso sabe si el agente estaba MIRANDO. Un hueco porque el Mac estaba apagado no es un hueco de
 // trabajo, y pintarlos igual convertiría el mapa en una acusación falsa.
 const codeClass = (iso, h) => {
   const c = codeAt(iso, h);
-  if (!c || (!c.slots && !c.covered)) return 'n0';     // sin registro → rayado (como la bitácora sin datos)
+  if (!c || (!c.slots && !c.covered)) return 'n0';     // sin registro → rayado (como un avance sin datos)
   if (!c.slots) return 'c0';                           // miró y no había nada → liso
   return 'c' + (c.slots <= 2 ? 1 : c.slots <= 5 ? 2 : c.slots <= 9 ? 3 : 4);
 };
@@ -1445,7 +1528,7 @@ const spanStyle = (t) => {
 // tarjeta y que el que prueba se entere. Separados, el aviso se olvida.
 //
 // El mensaje se PREVISUALIZA y se puede editar antes de salir: nunca se manda algo que no se vio. El
-// server lo re-valida contra el guard (el mismo de la bitácora) antes de publicarlo en Slack.
+// server lo re-valida contra el guard (el mismo de los avances) antes de publicarlo en Slack.
 const qa = ref(null); // null = panel cerrado; si no: { key, text, transition, name, email, blocked }
 const qaBusy = ref(false);
 const qaDone = ref('');   // resultado del último envío, para mostrarlo en la tarjeta
@@ -1640,7 +1723,7 @@ async function loadSprint(id) {
       // directo a una tarea y no ver nunca el sprint. Todos los usos de `active` están guardados
       // (`if (!active.value)`, `active.value?.`), así que arrancar en null es seguro.
     }
-    // La bitácora es local y completa la vista después; no retrasa la primera pintura del sprint.
+    // Los avances son locales y completan la vista después; no retrasan la primera pintura del sprint.
     void loadEntries();
     guardarBootstrap();
     return true;
@@ -1673,9 +1756,9 @@ async function actualizarInicio() {
   syncError.value = '';
   try {
     // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
-    // pulso → sprint → bitácora → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
+    // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
     // la restauración de la ruta como si fuera una navegación completa.
-    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadPulse(), cargarRamas()]);
+    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), cargarRamas()]);
     const [, sprintResult] = await Promise.allSettled([loadSprints(), loadSprint()]);
 
     // El sprint principal basta para restaurar la mayoría de rutas; los otros tres llegan después.
@@ -1878,8 +1961,8 @@ function documentAction(id) {
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
           <span v-else class="badge badge-outline status sin-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
-        <!-- El EDITOR conserva el documento como contenido principal. Los datos breves van en su
-             cabecera, las vistas de consulta al costado y las ramas en la consola inferior. -->
+        <!-- El centro conserva el documento y las evidencias que explican cómo se lo trabajó. Los
+             datos breves van en su cabecera, las consultas de apoyo al costado y las ramas abajo. -->
 
         <template #acciones>
           <div v-if="documentSections.length || jevTarget" class="toolbar" role="group" aria-label="Acciones de la tarea">
@@ -1913,6 +1996,14 @@ function documentAction(id) {
               <a v-if="site && !active._local" class="task-jira-link" :href="jiraLink(active.Key)"
                  target="_blank" rel="noopener">Abrir en Jira ↗</a>
             </div>
+            <button v-if="progresoPendientesDe(active.Key)" type="button" class="task-completion"
+                    :aria-label="`Abrir pendientes: ${progresoPendientesDe(active.Key).hechos} de ${progresoPendientesDe(active.Key).total} finalizados`"
+                    :title="'Avance según las casillas finalizadas. Abrir Pendientes.'"
+                    @click="alternarAux('pendientes')">
+              <span class="task-completion-copy"><b>{{ progresoPendientesDe(active.Key).porcentaje }}%</b>
+                {{ progresoPendientesDe(active.Key).hechos }}/{{ progresoPendientesDe(active.Key).total }} pendientes finalizados</span>
+              <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${progresoPendientesDe(active.Key).porcentaje}%` }"></i></span>
+            </button>
             <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
                           :loading="jevBusy" :error="jevError" @start="orientarConJev"
                           @close="cerrarOrientacion" @copy="copiarOrientacionJev" />
@@ -1944,16 +2035,62 @@ function documentAction(id) {
           </div>
         </template>
 
-        <nav v-if="indiceCuerpo.length > 2" class="toc">
-          <button v-for="h in indiceCuerpo" :key="h.id" class="badge badge-outline toc-i"
-                  @click="irASeccion(h.id)">{{ h.title }}</button>
-        </nav>
+        <section v-if="gruposContexto.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
+          <section v-for="group in gruposContexto" :key="group.day" class="task-context-day">
+            <h3>{{ group.label }}</h3>
+            <article v-for="event in group.items" :key="event.id" class="task-context-entry">
+              <p v-for="(paragraph, paragraphIndex) in parrafosContexto(event)" :key="paragraphIndex">
+                <strong v-if="paragraph.label">{{ paragraph.label }}</strong><span v-if="paragraph.label"> </span>
+                <template v-for="(part, partIndex) in partesConCanon(paragraph.text)" :key="partIndex">
+                  <a v-if="part.type === 'canon'" :href="canonLink(part.target)" target="_blank" rel="noopener">{{ part.label }}</a>
+                  <template v-else>{{ part.value }}</template>
+                </template>
+              </p>
+              <p v-for="reference in referenciasDBDe(event)" :key="reference.target">
+                Consulta DB · <strong>{{ reference.environment }}</strong>: <code>{{ reference.target }}</code>.
+              </p>
+              <p v-for="reference in referenciasHarnessDe(event)" :key="reference.target">
+                Prueba ejecutada: <code>{{ reference.target }}</code>.
+              </p>
+            </article>
+          </section>
+        </section>
 
-        <div v-if="summarySections.length" class="desc cuerpo-md">
-          <section v-for="section in summarySections" :key="section.id" :id="section.id"
-                   class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
-        </div>
-        <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras pestañas.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
+        <section class="task-reference" aria-label="Documento y evidencia de la tarea">
+            <section class="work-block">
+              <div class="work-block-head"><h4>Documento de trabajo</h4><small>Estado, decisiones y material vigente</small></div>
+              <div v-if="summarySections.length" class="desc cuerpo-md">
+                <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.retoma }" v-html="section.summaryHtml"></section>
+              </div>
+              <p v-else class="desc none">{{ documentSections.length ? 'El contenido de esta tarea está en las otras secciones.' : 'Esta tarea todavía no tiene documentación de trabajo.' }}</p>
+            </section>
+
+            <section class="work-block task-findings">
+              <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ hallazgosDe(active.Key).length }} registrados</small></div>
+              <p class="nota">Conclusiones fechadas del trabajo, con la forma de volver a comprobarlas.</p>
+              <p v-if="!hallazgosDe(active.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
+              <div v-if="hallazgosDe(active.Key).length" class="proc">
+                <span class="proc-cuenta">{{ procedenciaDe(active.Key).conComo }} de {{ procedenciaDe(active.Key).total }} dicen cómo volver a comprobarlos</span>
+                <span v-for="[f, n] in procedenciaDe(active.Key).fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
+                <span v-if="procedenciaDe(active.Key).sinComo" class="badge badge-outline fchip sin" title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active.Key).sinComo }} sin cómo</span>
+              </div>
+              <section v-for="g in hallazgosPorTipo(active.Key)" :key="g.id" class="hgrupo">
+                <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
+                <p class="hpie">{{ g.pie }}</p>
+                <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
+                  <div class="hmeta"><span class="hfecha">{{ a.fecha }}</span><span class="hedad">{{ edadTxt(a) }}</span><span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span></div>
+                  <p class="hque">{{ a.que }}</p>
+                  <p v-if="a.fuentes?.length" class="hfuentes"><span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span></p>
+                  <pre v-if="a.como" class="hcomo" :class="{ 'sql-block': esConsultaSQL(a) }"><code v-if="esConsultaSQL(a)" class="language-sql" v-html="highlightSQL(a.como)"></code><template v-else>{{ a.como }}</template></pre>
+                </article>
+              </section>
+            </section>
+
+            <section class="work-block">
+              <TaskEvidence :evidence="evidenciaDeTrabajo" :notes="cuerpoDe(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" :branches="ramasTareaActiva" @show-branches="mostrarPanelRamas" />
+            </section>
+
+        </section>
 
       </TaskEditor>
 
@@ -2149,8 +2286,8 @@ function documentAction(id) {
                     @refresh="refrescarRamas" @close="ocultarConsolaRamas" />
     </section>
 
-    <!-- AUXILIARYBAR · una pestaña usa todo el alto disponible. Retomar abre la tarea desde el
-         trabajo local; las demás pestañas aportan sus fuentes y registros de detalle. -->
+    <!-- AUXILIARYBAR · consultas que conviene mantener al lado del trabajo: el contrato publicado
+         (Jira), el checklist accionable (Pendientes) y los Artifacts navegables. -->
     <aside id="task-views" v-if="mostrarAux" class="auxiliarybar" aria-label="Vistas de la tarea">
       <div class="rsz rsz-aux" v-resize="resizeOptions('--auxiliarybar-w', -1)"></div>
       <nav class="aux-tabs" role="tablist" aria-label="Contenido de la tarea">
@@ -2168,13 +2305,6 @@ function documentAction(id) {
         <section v-if="abiertaAux(v.id)" class="region-body aux-vista aux-tab-panel"
                  :class="{ 'jira-tab-panel': v.id === 'jira' }"
                  role="tabpanel" :id="'aux-panel-' + v.id" :aria-labelledby="'aux-tab-' + v.id">
-          <template v-if="v.id === 'retomar'">
-            <TaskResume :next-step="effortDe(active.Key)?.proximoPaso || ''" :temas-canon="temasDeRetoma"
-                        :evidence="evidenciaDeRetoma" :tool-sources="fuentesDeRetoma"
-                        :branches="ramasTareaActiva" :canon-link="canonLink"
-                        :harness-url="HARNESS_URL" :trazador-url="TRAZADOR_URL"
-                        @show-branches="mostrarPanelRamas" />
-          </template>
           <template v-if="v.id === 'jira'">
             <p v-if="active._local" class="nota">Esta tarea es local y todavía no está publicada en Jira.</p>
             <template v-else>
@@ -2189,8 +2319,34 @@ function documentAction(id) {
             </template>
           </template>
           <template v-if="v.id === 'pendientes'">
-
-            <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
+            <div class="pending-heading">
+              <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
+              <button type="button" class="region-action pending-review-trigger"
+                      :disabled="!quedan(active?.Key) || revisionPendientesBusy"
+                      :aria-label="revisionPendientesBusy ? 'Revisando pendientes con Jev' : 'Revisar si los pendientes siguen abiertos con Jev'"
+                      :title="quedan(active?.Key) ? 'Revisar con Jev si la evidencia registrada indica que algún pendiente ya se resolvió. No modifica la tarea.' : 'No hay pendientes abiertos para revisar.'"
+                      @click="revisarPendientesConJev">
+                <span aria-hidden="true">✦</span>
+              </button>
+            </div>
+            <p class="pending-review-disclosure">El análisis sólo empieza al pulsar ✦. Envía título, estado, pendientes abiertos y hallazgos fechados; no el documento completo ni comandos.</p>
+            <section v-if="revisionPendientesBusy || revisionPendientesError || revisionPendientes" class="pending-review" aria-live="polite">
+              <p v-if="revisionPendientesBusy" class="nota">Jev está contrastando los pendientes con la evidencia registrada…</p>
+              <p v-else-if="revisionPendientesError" class="pending-review-error">{{ revisionPendientesError }}</p>
+              <template v-else>
+                <p class="pending-review-summary">{{ resumenRevisionPendientes || 'Jev no devolvió una clasificación.' }}</p>
+                <ul v-if="revisionPendientes.items?.length" class="pending-review-list">
+                  <li v-for="item in revisionPendientes.items" :key="item.id" class="pending-review-item"
+                      :class="claseRevisionPendiente(item.status)">
+                    <span class="pending-review-status">{{ etiquetaRevisionPendiente(item.status) }}</span>
+                    <span class="pending-review-text">{{ pendienteDeRevision(item)?.que || 'Pendiente revisado' }}</span>
+                    <span class="pending-review-confidence">{{ Math.round((item.probability || 0) * 100) }}%</span>
+                  </li>
+                </ul>
+                <p v-if="revisionPendientes.omitted" class="pending-review-disclosure">Se revisaron los primeros {{ revisionPendientes.items.length }}; quedan {{ revisionPendientes.omitted }} para revisión manual.</p>
+                <p class="pending-review-disclosure">Es una señal para revisar el archivo: no marca ni elimina ninguna casilla.</p>
+              </template>
+            </section>
             <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
               <section v-for="section in pendingSections" :key="section.id" class="document-section">
                 <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
@@ -2209,84 +2365,14 @@ function documentAction(id) {
             </template>
 
           </template>
-          <template v-if="v.id === 'hallazgos'">
-
-            <p class="nota">Salen del cuerpo de la tarea. Se escriben ahí, donde se argumentan.</p>
-            <p v-if="!hallazgosDe(active?.Key).length" class="nota">Esta tarea no tiene hallazgos registrados.</p>
-            <!-- CON QUÉ SE CONCLUYÓ. Un hallazgo sin `Cómo` no es menos cierto, pero nadie puede volver a
-                 comprobarlo — y eso es lo que se ve primero acá, antes que el catálogo de herramientas. -->
-            <div v-if="hallazgosDe(active?.Key).length" class="proc">
-              <span class="proc-cuenta">{{ procedenciaDe(active?.Key).conComo }} de {{ procedenciaDe(active?.Key).total }}
-                dicen cómo volver a comprobarlos</span>
-              <span v-for="[f, n] in procedenciaDe(active?.Key).fuentes" :key="f"
-                    class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }} <b>{{ n }}</b></span>
-              <span v-if="procedenciaDe(active?.Key).sinComo" class="badge badge-outline fchip sin"
-                    title="no traen comando ni consulta: para volver a medirlo hay que reconstruirlo">{{ procedenciaDe(active?.Key).sinComo }} sin cómo</span>
-            </div>
-            <section v-for="g in hallazgosPorTipo(active?.Key)" :key="g.id" class="hgrupo">
-              <h4>{{ g.tit }}<span class="badge badge-outline badge-xs hcnt">{{ g.items.length }}</span></h4>
-              <p class="hpie">{{ g.pie }}</p>
-              <article v-for="(a, n) in g.items" :key="n" class="hitem" :class="{ vencido: vencido(a) }">
-                <div class="hmeta">
-                  <span class="hfecha">{{ a.fecha }}</span>
-                  <span class="hedad">{{ edadTxt(a) }}</span>
-                  <span v-if="a.quien" class="hquien">espera a {{ a.quien }}</span>
-                </div>
-                <p class="hque">{{ a.que }}</p>
-                <!-- el `como` es lo que separa una medición de una afirmación: sin esto nadie sabe
-                     cómo volver a comprobarla, y el número envejece sin que nadie se entere -->
-                <p v-if="a.fuentes?.length" class="hfuentes">
-                  <span v-for="f in a.fuentes" :key="f" class="badge badge-outline fchip" :class="{ amb: esAmbiente(f) }">{{ f }}</span>
-                </p>
-                <pre v-if="a.como" class="hcomo">{{ a.como }}</pre>
-              </article>
-            </section>
-
-          </template>
-          <template v-if="v.id === 'registro'">
-
-            <p class="nota">Qué pasó cada día, lo más nuevo arriba. Se apila: una entrada vieja no se edita.</p>
-            <div class="desc cuerpo-md">
-              <section v-for="section in historySections" :key="section.id" :id="section.id"
-                       class="document-section" v-html="section.summaryHtml"></section>
-            </div>
-
-          </template>
-          <template v-if="v.id === 'bitacora'">
-
-            <p class="nota">La escribe el asistente al analizar la tarea; acá se lee.</p>
-            <p v-if="!ofActive.length" class="msg">Sin entradas para esta tarea todavía.</p>
-            <!-- Timeline: el riel vertical hace que se lea como lo que es, un registro en el tiempo, y no
-                 como una lista de párrafos sueltos. El marcador lleva el color del tipo. -->
-            <div v-for="e in ofActive" :key="e.id" class="entry" :class="{ abierta: abiertas.has(e.id) }">
-              <span class="icon" :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.icon }}</span>
-              <div class="body">
-                <div class="meta">
-                  <b :class="'t-' + e.kind">{{ KINDS.find(t => t.id === e.kind)?.label }}</b>
-                  <span>{{ when(e.date) }}</span>
-                  <span class="min" v-if="e.min">{{ e.min }} min</span>
-                  <button class="x" title="Borrar (queda marcado en la base, no se pierde)" @click="deleteEntry(e.id)">✕</button>
-                </div>
-                <p @click="alternar(e.id)">{{ e.text }}</p>
-                <button v-if="e.text && e.text.length > 180" class="mas" @click="alternar(e.id)">
-                  {{ abiertas.has(e.id) ? 'ver menos' : 'ver más' }}
-                </button>
-              </div>
-            </div>
-
-          </template>
-          <template v-if="v.id === 'prototipos'">
-
-            <p class="nota">Cada uno es un HTML autocontenido. Se abren en una pestaña nueva.</p>
-            <button v-for="a in protosDe(active?.Key)" :key="a.file" class="proto-row" @click="openArtifact(a.file)">
+          <template v-if="v.id === 'artifacts'">
+            <p class="nota">Prototipos y material navegable de esta tarea. Cada uno se abre en una pestaña nueva.</p>
+            <button v-for="artifact in protosDe(active.Key)" :key="artifact.file" class="proto-row" @click="openArtifact(artifact.file)">
               <span class="proto-play">▶</span>
-              <span class="proto-txt">
-                <b>{{ a.label }}</b>
-                <span class="proto-file">{{ a.file }}</span>
-              </span>
-              <span class="proto-ext">↗</span>
+              <span class="proto-txt"><b>{{ artifact.label }}</b><span class="proto-file">{{ artifact.file }}</span></span>
+              <span class="proto-ext">Abrir ↗</span>
             </button>
-
+            <p v-if="!protosDe(active.Key).length" class="nota">Esta tarea todavía no tiene prototipos registrados.</p>
           </template>
         </section>
       </template>
@@ -2370,6 +2456,23 @@ function documentAction(id) {
    sobre la vista del import hace que hasta un chequeo escrito a propósito conteste mal. */
 .editor-view { padding: 22px 24px 40px }
 .editor-view > * { max-width: 1100px }
+
+.task-context-timeline { max-width: 780px; padding: 2px 0 20px }
+.task-context-day + .task-context-day { margin-top: 20px }
+.task-context-day h3 { margin: 0 0 10px; font-size: 14px }
+.task-context-entry + .task-context-entry { margin-top: 15px }
+.task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }
+.task-context-entry strong { font-weight: 700 }
+.task-context-entry a { color: var(--acc); text-decoration: none }
+.task-context-entry a:hover { text-decoration: underline }
+.task-context-entry code { color: var(--txt); font-size: 11.5px; overflow-wrap: anywhere }
+.task-reference { min-width: 0; max-width: 920px; margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }
+.work-block-head h4 { color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }
+.work-block + .work-block { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line) }
+.work-block-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 12px }
+.work-block-head h4 { margin: 0 }
+.work-block-head small { color: var(--mut); font-size: 10.5px; text-align: right }
+.task-findings > .nota { margin-bottom: 12px }
 
 /* LA FICHA — lo que la tarjeta mostraba de un vistazo, ahora con el ancho del editor. */
 .ficha { padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line) }
@@ -2638,6 +2741,27 @@ function documentAction(id) {
    el componente y no la resolví; apareció centrada en la vista Ramas dos días después. */
 .nota { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
+/* La acción de Jev vive pegada a la fuente de verdad (las casillas), no como un nuevo modo del
+   tablero. El icono no sugiere automatización: el texto explica qué cruza y la salida conserva el
+   estado de "parece" hasta que una persona actualice el documento. */
+.pending-heading { display: flex; align-items: flex-start; gap: 8px; }
+.pending-heading .nota { flex: 1; }
+.pending-review-trigger { flex: none; width: 28px; height: 28px; padding: 0; color: var(--acc); font-size: 15px; }
+.pending-review-trigger:disabled { color: var(--mut); opacity: .45; cursor: default; }
+.pending-review-disclosure { color: var(--mut); font-size: 11.5px; line-height: 1.45; margin: -6px 0 12px; }
+.pending-review { margin: 0 0 15px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); }
+.pending-review .nota { margin-bottom: 0; }
+.pending-review-summary { margin: 0 0 8px; font-size: 12px; color: var(--txt); font-weight: 600; }
+.pending-review-list { list-style: none; display: grid; gap: 7px; padding: 0; margin: 0 0 10px; }
+.pending-review-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; align-items: baseline; font-size: 11.5px; }
+.pending-review-status { font-weight: 700; white-space: nowrap; }
+.pending-review-item.resolved .pending-review-status { color: var(--ok); }
+.pending-review-item.open .pending-review-status { color: var(--warn); }
+.pending-review-item.unclear .pending-review-status, .pending-review-error { color: var(--bad); }
+.pending-review-text { min-width: 0; line-height: 1.4; }
+.pending-review-confidence { color: var(--mut); font: 10.5px/1 var(--mono, ui-monospace, monospace); }
+.pending-review .pending-review-disclosure:last-child { margin-bottom: 0; }
+
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
    Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = FOCO (minutos de la tarea
    dominante de esa hora, sobre 60). Las celdas SIN registro van rayadas en vez de vacías: un hueco
@@ -2655,10 +2779,10 @@ function documentAction(id) {
 .cel.weekend.n0 { opacity: .45 }
 .cel:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, var(--sel) 0 3px, transparent 3px 6px), var(--panel2) }
-/* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que la bitácora,
+/* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que los avances,
    pero conservar una sola familia visual evita que el color compita con el contenido.
    `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
-   reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y la bitácora no. */
+   reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y los avances no. */
 .c0 { background: var(--panel2) }
 .c1 { background: color-mix(in oklab, var(--mut) 22%, var(--panel2)) }
 .c2 { background: color-mix(in oklab, var(--mut) 42%, var(--panel2)) }
@@ -2692,40 +2816,10 @@ function documentAction(id) {
 .legend i { width: 13px; height: 13px; border-radius: var(--radius-md); display: inline-block }
 .legend .note { margin-left: 12px }
 
-/* ── Bitácora como TIMELINE ────────────────────────────────────────────────────────────────────
-   El riel es un pseudo-elemento sobre la columna del icono, no un borde superior por fila: así la
-   línea es CONTINUA entre entradas y se lee como una secuencia en el tiempo. Se corta en la última
-   (`:last-of-type`) para que no quede colgando en el vacío. */
-.entry { display: flex; gap: 11px; padding: 13px 0; position: relative }
-.entry::before { content: ''; position: absolute; left: 11px; top: 0; bottom: 0; width: 1px;
-                 background: var(--line) }
-.entry:first-of-type::before { top: 18px }
-.entry:last-of-type::before { bottom: auto; height: 18px }
-.entry .icon { position: relative; z-index: 1; box-shadow: 0 0 0 4px var(--card) }
-/* El párrafo nace CORTADO a 3 líneas: las notas son largas a propósito (traen el porqué completo) y
-   enteras convierten la bitácora en un muro que se deja de escanear. */
-.entry p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
-           cursor: pointer }
-.entry.abierta p { display: block; overflow: visible }
-.entry .mas { border: 0; background: none; color: var(--acc); cursor: pointer; font-size: 11.5px;
-              padding: 3px 0 0; font-weight: 600 }
-.entry .meta b.t-finding { color: var(--warn) } .entry .meta b.t-test { color: var(--ok) }
-.entry .meta b.t-blocker { color: var(--bad) } .entry .meta b.t-progress { color: var(--acc) }
-
 /* ── Barras de progreso ─────────────────────────────────────────────────────────────────────────
    `progress progress-xs` de `taller.css`. Lo propio es el aire: acá la barra va DEBAJO de un número
    y arriba de su leyenda, así que lo que queda es su margen. */
 .bar { margin: 2px 0 7px }
-.entry .x { margin-left: auto; border: 0; background: none; color: var(--mut); cursor: pointer; font-size: 12px;
-  opacity: 0; transition: .12s; padding: 0 2px }
-.entry:hover .x { opacity: .7 } .entry .x:hover { color: var(--bad); opacity: 1 }
-.icon { width: 24px; height: 24px; border-radius: var(--radius-md); display: grid; place-items: center; font-size: 11px; flex: none; background: var(--secondary) }
-.t-finding { color: var(--warn) } .t-test { color: var(--ok) } .t-blocker { color: var(--bad) } .t-progress { color: var(--acc) }
-.body { min-width: 0 }
-.meta { display: flex; gap: 10px; font-size: 11px; color: var(--mut); margin-bottom: 3px }
-.meta b { color: var(--txt) }
-.meta .min { color: var(--acc) }
-.entry p { margin: 0; font-size: 13px; line-height: 1.5 }
 .msg { color: var(--mut); font-size: 13px }
 .msg.bad { color: var(--bad) }
 
@@ -2815,10 +2909,6 @@ function documentAction(id) {
    Son documentos largos con tablas, citas y bloques de código: sin estilo propio `marked` los deja
    como un muro gris y el cajón deja de abrirse. Lo que se busca acá es ESCANEO, no lectura lineal.
    Va con `:deep()` porque el HTML lo inyecta `v-html` y el estilo del componente es `scoped`. */
-.toc { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 14px; padding: 10px;
-       background: var(--panel2); max-height: 132px; overflow: auto }
-.toc-i { font-size: 11px; line-height: 1.3; padding: 3px 8px; cursor: pointer; color: var(--txt) }
-.toc-i:hover { background: var(--line) }
 /* Es un callout —«si retomás esto sin contexto»—: barra de color y tinte, cuadrado. El marco completo
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
@@ -2832,6 +2922,15 @@ function documentAction(id) {
 .task-head-facts .mine { color: var(--acc) }
 .task-jira-link { margin-left: auto; color: var(--acc); font-size: 11.5px; text-decoration: none }
 .task-jira-link:hover { text-decoration: underline }
+.task-completion { display: flex; align-items: center; gap: 9px; width: min(360px, 100%); padding: 0;
+  border: 0; background: none; color: var(--mut); cursor: pointer; font: inherit; text-align: left }
+.task-completion-copy { flex: none; font-size: 11px; white-space: nowrap }
+.task-completion-copy b { color: var(--txt); font-variant-numeric: tabular-nums }
+.task-completion-track { display: block; flex: 1; min-width: 44px; height: 5px; overflow: hidden;
+  border-radius: 99px; background: var(--line) }
+.task-completion-track i { display: block; height: 100%; border-radius: inherit; background: var(--acc) }
+.task-completion:hover .task-completion-copy { color: var(--txt) }
+.task-completion:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 2px }
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
 .task-jev-trigger { height: 26px; padding: 0 8px; color: var(--mut); font-size: 11px; }
 .task-jev-trigger[aria-expanded="true"] { background: var(--panel2); color: var(--txt); }
@@ -2847,6 +2946,18 @@ function documentAction(id) {
 .cuerpo-md :deep(pre) { overflow-x: auto; padding: 10px 12px; border-radius: var(--radius); background: var(--panel2);
                         margin: 0 0 12px }
 .cuerpo-md :deep(pre code) { padding: 0; background: none }
+/* SQL tiene su propia señal visual: es evidencia de datos, no un comando de Harness ni texto libre.
+   El resaltado se calcula localmente y escapa cada fragmento antes de inyectarlo. */
+.sql-block { position: relative; padding-top: 29px !important; border: 1px solid color-mix(in srgb, var(--acc) 28%, var(--line));
+             background: color-mix(in srgb, var(--panel2) 88%, var(--acc) 12%) !important; }
+.sql-block::before { content: 'SQL'; position: absolute; top: 8px; left: 11px; color: var(--acc); font: 700 9px/1 var(--mono, ui-monospace, monospace);
+                     letter-spacing: .1em; }
+.sql-block :deep(.sql-token.sql-keyword) { color: #b07cff; font-weight: 700; }
+.sql-block :deep(.sql-token.sql-function) { color: #74c8ff; }
+.sql-block :deep(.sql-token.sql-string) { color: #95c77b; }
+.sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal) { color: #f3ae62; }
+.sql-block :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
+.sql-block :deep(.sql-token.sql-identifier) { color: #e9cc80; }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
 .cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
                                background: var(--panel2); border-radius: 0 8px 8px 0 }

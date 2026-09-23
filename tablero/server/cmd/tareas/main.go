@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -30,7 +31,10 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"creditop/tablero/server/internal/canon"
+	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/guard"
 	"creditop/tablero/server/internal/store"
 )
@@ -325,23 +329,23 @@ func verLint(ruta string) int {
 			falla("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
 		}
 	}
-	// temas de canon: existen como carpeta del corpus, o mandan a leer algo que no está
+	// Las referencias se validan contra la API que Canon sirve desde Postgres. Si la API no responde,
+	// no se bloquea una edición local: se avisa claramente y se conserva la misma degradación segura
+	// que había cuando el corpus compartido no estaba clonado en esta máquina.
 	if len(t.NodosViejos) > 0 {
-		falla("`context_nodes:` se renombró a `canon:` el 2026-09-21 — y sus valores son TEMAS de canon, "+
-			"no nodos del árbol viejo (esta tarea todavía dice: %s)", strings.Join(t.NodosViejos, ", "))
+		falla("`context_nodes:` se renombró a `canon:` — usá temas o referencias de Canon (esta tarea todavía dice: %s)", strings.Join(t.NodosViejos, ", "))
 	}
-	if dir := dirCanon(); dir == "" {
-		// sin corpus no se valida, pero se dice: un chequeo que no supo buscar y calla es peor que no
-		// tenerlo (es la misma lección del grep que no entendía `\s`, en el CLAUDE.md raíz).
-	} else if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
-		if len(t.Nodos) > 0 {
-			fmt.Fprintf(os.Stderr, "  ⚠ no validé los temas de `canon:` — no encontré el corpus en %s "+
-				"(cloná github/playground o pasá CANON_CONTENIDO)\n", dir)
-		}
-	} else {
-		for _, n := range t.Nodos {
-			if _, err := os.Stat(filepath.Join(dir, n)); err != nil {
-				falla("canon: el tema «%s» no existe en %s", n, dir)
+	if len(t.Nodos) > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		referencias, err := canon.FromEnv().References(ctx, t.Nodos)
+		cancel()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  ⚠ no validé `canon:` — Canon no respondió en %s (%v)\n", canon.URL(), err)
+		} else {
+			for _, referencia := range referencias {
+				if referencia.Error != "" {
+					falla("canon: la referencia «%s» no existe o no es válida (%s)", referencia.Requested, referencia.Error)
+				}
 			}
 		}
 	}
@@ -388,24 +392,6 @@ func maxID(ts []Tarea) int {
 		}
 	}
 	return m
-}
-
-// dirCanon es dónde vive el corpus compartido en disco. Se puede mover con `CANON_CONTENIDO`, el
-// mismo nombre que usan las otras herramientas que lo leen.
-//
-// ⚠ Si el corpus NO está, la validación de temas se SALTA en vez de fallar: canon vive en otro repo
-// (`github/playground`) y no todo el mundo que edita una tarea lo tiene clonado. Fallar ahí sería
-// bloquear el tablero por un repo ajeno; el precio es que un tema mal escrito pasa sin aviso en esa
-// máquina, y por eso `validarTemas` lo dice cuando decide saltar.
-func dirCanon() string {
-	if v := strings.TrimSpace(os.Getenv("CANON_CONTENIDO")); v != "" {
-		return v
-	}
-	casa, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(casa, "Desktop", "CREDITOP", "github", "playground", "tools", "canon", "content")
 }
 
 // avisos son las inconsistencias del frontmatter que el tablero NO corrige solo y que, sin decirse,
@@ -725,6 +711,7 @@ func main() {
 		contenido = flag.Bool("contenido", false, "con -n -json, incluir también el borrador publicable")
 	)
 	flag.Parse()
+	env.LoadDefaults()
 
 	if *guardar != "" {
 		os.Exit(verGuard(*guardar, *comoJSON))

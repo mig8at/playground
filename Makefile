@@ -59,7 +59,7 @@ define subcomandos
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora panel trazador trazador-buscar trazador-ureq \
+.PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
 	trazador-diag trazador-chequeo trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
@@ -120,6 +120,19 @@ bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comand
 	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
 	@cd tablero/server && go run ./cmd/bitacora -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
 	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
+
+tarea-context-add: ## @dia ⚠ ESCRIBE un hito de retoma validado en JSONL. N=<id|slug> EVENTO=<archivo.json> · [SECO=1]
+	@test -n "$(N)" -a -n "$(EVENTO)" || { echo "faltan N= y EVENTO=  ·  ej: make tarea-context-add N=84 EVENTO=tablero/docs/task-context-event.example.json"; exit 2; }
+	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -evento ../../$(EVENTO) $(if $(SECO),-n)
+
+tarea-context: ## @dia los últimos hitos estructurados para retomar. N=<id|slug>
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
+	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -ver
+
+tablero-db: ## @dia SQL de SOLO LECTURA. TARGET=local|dev|staging|prod SQL='SELECT …' [MD=1 cita sólo DB + ambiente + query]
+	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|staging|prod"; exit 2; }
+	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }
+	@cd tablero/server && go run ./cmd/db-query -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(MD),-md)
 
 cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál le falta retoma, registro, bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
 	@cd tablero/server && go run ./cmd/cierre $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)

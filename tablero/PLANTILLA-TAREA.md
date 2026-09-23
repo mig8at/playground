@@ -18,18 +18,20 @@ jira_title: ""
   ⚠ NO vive en `data/`: ahí todo `.md` se lee como una tarea, así que la plantilla aparecería en el
   tablero como una tarea fantasma.
 
-  Protocolo: CLAUDE.md → «Plantilla por vista». Las siete vistas usan estas fuentes; Trabajo va en el
-  editor, Jira/Pendientes/Hallazgos/Registro/Bitácora en pestañas laterales y Ramas en la consola:
+  Protocolo: CLAUDE.md → «Plantilla por vista». El editor junta la cronología y el documento; Jira y
+  Pendientes van a la derecha y Ramas a la consola:
     · TRABAJO    retoma, objetivo, plan, alternativas, límites, material y referencias.
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
     · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
     · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
-    · REGISTRO   la sección «Registro» de este archivo — ya NO se muestra dentro de Trabajo.
+    · CONTEXTO   hitos privados en `data/task-context/<slug>.jsonl`, mostrados como párrafos por
+                 fecha. Sólo se agrega lo que permita retomar; nunca minutos ni notas de sesión.
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
-  Reescribí el estado y el plan; mantené el material reproducible. Los hechos de cada día se agregan
-  al Registro (lo nuevo arriba, sin editar lo viejo). El conocimiento estable gradúa a canon.
+  Reescribí el estado y el plan; mantené el material reproducible. Los hechos que cambian una retoma
+  se agregan como JSONL validado en `data/task-context/<slug>.jsonl` con `make tarea-context-add`;
+  no copies sesiones ni logs. El conocimiento estable gradúa a canon.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
 <!--
@@ -41,11 +43,11 @@ jira_title: ""
     ramas         patrón de rama, o varios por coma. Se omite hasta que la rama exista
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
-    canon         los TEMAS de canon que hay que leer ANTES de investigar. ⚠ ACÁ, no en la prosa:
-                  es lo que el tablero lee, y lo que `make retomar BRIEF=1` convierte en ficha.
-                  Medido: 28 de 68 tareas lo dejaban vacío mientras 43 nombraban el contexto en el
-                  texto — o sea, donde no se puede recuperar. Los temas son los de
-                  `github/playground/tools/canon/content/`; `make tareas` falla si alguno no existe
+    canon         las referencias de Canon que se usaron o hay que leer antes de investigar. ⚠ ACÁ,
+                  no en la prosa: es lo que el tablero lista y lo que `make retomar BRIEF=1`
+                  convierte en ficha. Acepta `tema` (abre `tema/context`) o, mejor, una sección
+                  exacta como `tema/context#ancla`; Tablero las resuelve por CANON_URL y valida que
+                  existan. No copies el contenido de Canon dentro de la tarea.
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
@@ -65,7 +67,7 @@ jira_title: ""
 ## Pendientes
 
 <!-- Pestaña Pendientes. Cada casilla lleva una acción y su condición de cierre.
-     El próximo paso de arriba elige UNA; acá vive la lista completa. No la copies al Registro.
+     El próximo paso de arriba elige UNA; acá vive la lista completa. No la copies al contexto JSONL.
      - [ ] Acción pendiente; termina cuando [resultado verificable].
        Depende de: [nombre] — [dato o respuesta], si aplica.
      - [x] Acción cerrada — [evidencia de la comprobación].
@@ -125,19 +127,22 @@ jira_title: ""
      abajo, en la publicable, y en otro idioma.
 
      CON QUÉ SE LLENA: el harness (`make harness-caso` · `harness-listado` · `harness-caminar`) y, si
-     la pregunta es «¿pasa de verdad, y cuánto?», `make trazador-sql`. ⚠ VA EL COMANDO, NO LA
-     CONCLUSIÓN: de las líneas de cita que siguen a una anotación el tablero deriva con qué se
-     comprobó y contra qué ambiente, y el ambiente lo reconoce SÓLO por un `TARGET=` escrito. Medido:
+     la pregunta es de datos, `make tablero-db`. Trazador queda para seguir UNA solicitud y su
+     comportamiento, no para SQL. La cita de base contiene sólo el ambiente y la query, sin el nombre
+     de la herramienta. Medido:
      el arnés aparece en 33 tareas y sólo 8 lo nombran acá; las otras 25, sueltas en la prosa.
 
      ⚠ ESTA SECCIÓN NO SE REESCRIBE NI SE APILA: SE MANTIENE. Es la tercera clase de contenido y la
      que no tenía nombre — por eso terminaba creciendo como secciones nuevas arriba, con fecha, hasta
-     volver ilegible el archivo. Si la receta cambió, se corrige acá; lo que pasó ese día va al
-     Registro. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
-     Las mediciones van como anotación, con su `Como` — y el trazador la emite ya escrita con `MD=1`
-     (`trazador-ureq` · `-buscar` · `-sql`), con la fecha real y el comando adentro:
+     volver ilegible el archivo. Si la receta cambió, se corrige acá; el hito que explica el cambio va
+     al contexto JSONL. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
+     Las mediciones van como anotación, con su `Como`. `make tablero-db … MD=1` emite la cita limpia:
 > **MEDICIÓN · 2026-08-20** — 86,6% de las consultas no pasa por el contador.
-> `make trazador-sql TARGET=prod SQL='SELECT count(*) FROM kyc_name_checks WHERE ...'`
+> **DB · prod**
+>
+> ```sql
+> SELECT count(*) FROM kyc_name_checks WHERE ...
+> ```
 -->
 
 ## Referencias
@@ -148,19 +153,19 @@ jira_title: ""
      de verdad hay que leer van igual en `canon:` del frontmatter, que es lo que el tablero
      lee; acá van los que ayudan a retomar y lo que no es un tema (PRs, un tablero, un documento). -->
 
-## Registro
+<!-- Si una referencia de Canon sirvió para avanzar, agregala al evento JSONL que la usó como
+     [texto visible](canon:nodo) y declarala también en references. El editor la enlaza dentro de
+     ese mismo párrafo; no crees una sección ni un marcador especial. -->
 
-<!-- APPEND-ONLY y lo NUEVO ARRIBA. Un encabezado por día trabajado. Nunca se edita una entrada
-     vieja: si algo dejó de ser cierto, se reescribe la sección de arriba y acá queda por qué cambió.
+<!-- CONTEXTO DE RETOMA
+     Para tareas nuevas NO agregues `## Registro`: un diario Markdown mezcla historia con el documento
+     vigente. Usá `make tarea-context-add N=<id|slug> EVENTO=<archivo.json>`.
 
-     ⚠ Las tareas viejas llaman a esto `## Bitácora`. Es lo mismo, pero el nombre choca: «bitácora»
-     en el tablero es el registro de TIEMPO (`data/entries/`, el botón Bitácora de la card, lo que
-     sube al worklog de Jira). Esto es el registro de QUÉ PASÓ. Para tareas nuevas: «Registro». -->
+     Un evento JSONL es sólo: checkpoint (goal + state + next), decision (reason), blocker (waitingOn + next)
+     o evidence (reference concreta). Ver `docs/task-context-event.example.json`.
 
-<!-- Formato de entrada (reemplazá la fecha y el contenido):
-### YYYY-MM-DD
-Qué se hizo → evidencia de la ejecución → conclusión.
--->
+     Las tareas existentes pueden conservar su `## Registro`/`## Bitácora` en el archivo, pero no se
+     muestra en el editor. No lo migres en masa. -->
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA. Pasa el guard (ni repos, ni rutas, ni F-xx) y

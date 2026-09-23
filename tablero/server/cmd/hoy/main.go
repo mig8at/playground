@@ -9,7 +9,7 @@
 //
 //	hoy                la agenda: en movimiento (con su próximo paso, preguntas vencidas y entrega) y dormidas
 //	hoy -n <id|slug>   RETOMAR una tarea en frío: sólo lo que hace falta para arrancar, y en rojo lo que no está
-//	hoy -n … -brief 1 …y al final la FICHA de cada tema de canon que la tarea declara, sin abrir su context.md.
+//	hoy -n … -brief 1 …y al final la FICHA de cada referencia de Canon declarada por la tarea.
 //	                   Es un APOYO: decide qué tema se abre, no reemplaza leerlo — y va opt-in porque una
 //	                   tarea llega a declarar 9.
 //
@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -30,7 +31,10 @@ import (
 	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/canon"
+	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/store"
+	"creditop/tablero/server/internal/taskcontext"
 )
 
 const (
@@ -333,9 +337,10 @@ func main() {
 		stage    = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
 		anatomia = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		comoJSON = flag.Bool("json", false, "salida en JSON")
-		brief    = flag.String("brief", "", "al final, la ficha de los nodos de context declarados, sin abrir sus docs: 1 = los declarados (hasta 4) · a,b = sólo esos")
+		brief    = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
 	)
 	flag.Parse()
+	env.LoadDefaults()
 	datos := dirDatos()
 
 	sucios := map[string]bool{}
@@ -602,15 +607,12 @@ func verAnatomia(datos string, tareas []tarea, ref string) int {
 	return 0
 }
 
-// fichaCanon es lo que `-brief` agrega al final de la retoma: lo que un TEMA de canon DECLARA sobre
-// sí mismo, leído de su `map.json`.
+// fichaCanon es lo que `-brief` agrega al final de la retoma: lo que una referencia de Canon declara
+// sobre sí misma, leído desde la API vigente.
 //
-// ⚠ NO SE LE PIDE A UN MODELO, Y ESE ES EL CAMBIO. Hasta el 2026-09-21 la ficha era un resumen que
-// generaba Jev sobre el doc de un nodo del árbol de contexto: costaba una llamada, tardaba, y podía decir algo
-// que el doc no dijera. Un tema de canon ya viene con el resumen ESCRITO A MANO —`title`, `summary`, y
-// el `objetivo` de cada área, que es literalmente «qué contesta esta parte»—, así que la ficha se
-// DERIVA. Sale gratis, es instantánea, y no puede inventar. Medido ese día: la ficha de `kyc` pesa
-// 3.593 bytes contra 31.388 de su `context.md` (8,7×), y la de la versión con modelo pesaba 5.074.
+// ⚠ NO SE LE PIDE A UN MODELO. Canon entrega `title`, `summary` y el objetivo de cada área; la ficha
+// sólo los proyecta. Así la tarea consulta la fuente vigente en Postgres y no una carpeta que Canon
+// ya no usa.
 type fichaCanon struct {
 	Tema      string      `json:"topic"`
 	Declarado bool        `json:"declared"`
@@ -663,72 +665,20 @@ func fichasCanon(declarados []string, pedido string, leer func(tema string) (fic
 	return fichas, aviso
 }
 
-// canonContenido es dónde vive el corpus compartido en disco. Se puede mover con `CANON_CONTENIDO`,
-// el mismo nombre que ya usan las otras herramientas que lo leen.
-func canonContenido() string {
-	if v := strings.TrimSpace(os.Getenv("CANON_CONTENIDO")); v != "" {
-		return v
-	}
-	casa, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(casa, "Desktop", "CREDITOP", "github", "playground", "tools", "canon", "content")
-}
-
-// fichaDeCanon lee el `map.json` de un tema. Es sólo disco: no levanta el servidor de canon ni sale a
-// la red, así que una retoma funciona igual sin conexión y sin nada corriendo.
-func fichaDeCanon(contenido string) func(string) (fichaCanon, error) {
-	return func(tema string) (fichaCanon, error) {
-		if contenido == "" {
-			return fichaCanon{}, fmt.Errorf("no sé dónde está el corpus (pasá CANON_CONTENIDO)")
-		}
-		crudo, err := os.ReadFile(filepath.Join(contenido, tema, "map.json"))
+func fichaDesdeCanon(cliente *canon.Client) func(string) (fichaCanon, error) {
+	return func(referencia string) (fichaCanon, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		f, err := cliente.Ficha(ctx, referencia)
 		if err != nil {
-			return fichaCanon{}, fmt.Errorf("el tema no está en %s", contenido)
+			return fichaCanon{}, err
 		}
-		var m struct {
-			Title   string `json:"title"`
-			Summary string `json:"summary"`
-			Areas   []struct {
-				ID        string              `json:"id"`
-				Objetivo  string              `json:"objetivo"`
-				Secciones []string            `json:"secciones"`
-				Tablas    []string            `json:"tablas"`
-				Fuentes   map[string]struct{} `json:"-"`
-				FuentesJS json.RawMessage     `json:"fuentes"`
-			} `json:"areas"`
+		out := fichaCanon{Titulo: f.Titulo, Resumen: f.Resumen, Tablas: f.Tablas, Repos: f.Repos}
+		for _, area := range f.Areas {
+			out.Areas = append(out.Areas, areaCanon{ID: area.ID, Objetivo: area.Objetivo, Secciones: len(area.Secciones)})
 		}
-		if err := json.Unmarshal(crudo, &m); err != nil {
-			return fichaCanon{}, fmt.Errorf("map.json ilegible: %v", err)
-		}
-		f := fichaCanon{Titulo: m.Title, Resumen: m.Summary}
-		tablas, repos := map[string]bool{}, map[string]bool{}
-		for _, a := range m.Areas {
-			f.Areas = append(f.Areas, areaCanon{ID: a.ID, Objetivo: a.Objetivo, Secciones: len(a.Secciones)})
-			for _, t := range a.Tablas {
-				tablas[t] = true
-			}
-			var porRepo map[string]json.RawMessage
-			if len(a.FuentesJS) > 0 {
-				_ = json.Unmarshal(a.FuentesJS, &porRepo)
-			}
-			for r := range porRepo {
-				repos[r] = true
-			}
-		}
-		f.Tablas, f.Repos = ordenadas(tablas), ordenadas(repos)
-		return f, nil
+		return out, nil
 	}
-}
-
-func ordenadas(m map[string]bool) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
 
 func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON bool, brief string) int {
@@ -753,6 +703,12 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	}
 	retoma, prox := t.retoma(), t.proximoPaso()
 	regFecha, regBloque := t.ultimoRegistro()
+	contexto, contextErr := taskcontext.Read(datos, t.Slug)
+	if contextErr != nil {
+		fmt.Fprintf(os.Stderr, "⚠ contexto estructurado de %s: %v\n", t.Slug, contextErr)
+		contexto = nil
+	}
+	contexto = taskcontext.Recent(contexto, 8)
 	vencidas := preguntasVencidas(*t)
 	pend, totalPend := pendientesAbiertos(*t)
 	bit := bitacoraDe(datos, t.ID)
@@ -763,8 +719,8 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	if prox == "" {
 		faltan = append(faltan, "«**El próximo paso es:**» — UNA acción")
 	}
-	if regFecha == "" {
-		faltan = append(faltan, "un Registro con fecha (`### YYYY-MM-DD`)")
+	if regFecha == "" && len(contexto) == 0 {
+		faltan = append(faltan, "un hito estructurado (`make tarea-context-add`) o un Registro histórico con fecha (`### YYYY-MM-DD`)")
 	}
 	if len(t.Ramas) == 0 && requiereRamas(*t) {
 		faltan = append(faltan, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")
@@ -775,7 +731,7 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	var fichas []fichaCanon
 	var fichasAviso string
 	if brief != "" {
-		fichas, fichasAviso = fichasCanon(t.Nodos, brief, fichaDeCanon(canonContenido()))
+		fichas, fichasAviso = fichasCanon(t.Nodos, brief, fichaDesdeCanon(canon.FromEnv()))
 	}
 
 	if comoJSON {
@@ -783,7 +739,7 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "diasSinTocar": t.dias(),
 			"retoma": retoma, "proximoPaso": prox, "registroFecha": regFecha, "registro": regBloque,
 			"entrega": entrega(snap, t.ID), "ramas": snap.Tareas[strconv.Itoa(t.ID)].Ramas,
-			"preguntasVencidas": vencidas, "pendientes": pend, "bitacora": bit, "faltan": faltan,
+			"preguntasVencidas": vencidas, "pendientes": pend, "bitacora": bit, "contexto": contexto, "faltan": faltan,
 		}
 		if brief != "" {
 			salida["canon"], salida["canonAviso"] = fichas, fichasAviso
@@ -794,10 +750,10 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 
 	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.dias(), strings.SplitN(t.Created+"T", "T", 2)[0])
 	if len(t.Jira) > 0 || len(t.Nodos) > 0 {
-		fmt.Printf("  jira: %s · temas de canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodos, ", "))
+		fmt.Printf("  jira: %s · referencias de Canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodos, ", "))
 	}
 	if len(t.Nodos) > 0 && brief == "" {
-		fmt.Printf("  la ficha de cada tema, sin abrir su context.md: make retomar N=%d BRIEF=1\n", t.ID)
+		fmt.Printf("  la ficha de cada referencia de Canon: make retomar N=%d BRIEF=1\n", t.ID)
 	}
 	fmt.Printf("  archivo: %s\n", t.Ruta)
 
@@ -812,6 +768,15 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 		fmt.Println("  ✗ no está")
 	} else {
 		fmt.Println("  → " + prox)
+	}
+	if len(contexto) > 0 {
+		fmt.Println("\n  ── Hitos estructurados ──")
+		for _, event := range contexto {
+			fmt.Printf("  %s · %-10s %s\n", event.At[:10], event.Kind, corta(taskcontext.PlainText(event.Summary), 150))
+			if event.Next != "" {
+				fmt.Printf("    siguiente: %s\n", corta(event.Next, 150))
+			}
+		}
 	}
 
 	fmt.Print("\n  ── Ramas y entrega")
@@ -900,9 +865,9 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 	}
 
 	if brief != "" {
-		fmt.Println("\n  ── Canon: lo que declara cada tema, sin abrir su context.md ──")
+		fmt.Println("\n  ── Canon: referencias declaradas por la tarea ──")
 		if len(fichas) == 0 {
-			fmt.Println("  ✗ la tarea no declara `canon:`. Para encontrar el tema de una pregunta nueva:")
+			fmt.Println("  ✗ la tarea no declara `canon:`. Para encontrar una referencia de una pregunta nueva:")
 			fmt.Println("    canon -pregunta '<la pregunta>'   (desde github/playground/tools/canon)")
 		}
 		for i, f := range fichas {
@@ -941,7 +906,7 @@ func retomar(datos string, tareas []tarea, snap snapRamas, ref string, comoJSON 
 		if fichasAviso != "" {
 			fmt.Println("  " + fichasAviso)
 		}
-		fmt.Println("  la ficha decide qué tema se abre; si ninguno contesta, la pregunta va a workers/ — no a otro tema")
+		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va a workers/ — no a otra referencia")
 	}
 	fmt.Println()
 	return 0

@@ -1,4 +1,4 @@
-# tablero — LAS TAREAS A REALIZAR (y el sprint: tiempo, bitácora, conectores Jira/Slack)
+# tablero — LAS TAREAS A REALIZAR (y el sprint: tiempo, avances, conectores Jira/Slack)
 
 > **Qué contesta este proyecto:** *¿en qué se está trabajando, por qué y para qué?*
 > Lo que contesta *¿cómo **es** CreditOp?* es **canon**, y son cosas distintas: si algo **sigue siendo
@@ -9,7 +9,7 @@
 
 | Si necesitás… | Abrí… |
 |---|---|
-| retomar una tarea concreta | `make retomar N=<id|slug>` o **Retomar** en el tablero |
+| retomar una tarea concreta | `make retomar N=<id|slug>` o **Hoy** en la tarea |
 | decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
 | crear o actualizar una tarea | `PLANTILLA-TAREA.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARQUITECTURA.md` |
@@ -26,7 +26,7 @@ tarea, Jira ni el orden de `make hoy`; fechas, días sin tocar, conteos y cierre
 make tablero-jev ARGS='bench'                 # valida y previsualiza 8 casos sintéticos, sin red
 make tablero-jev ARGS='bench --live'          # envía sólo esos casos sintéticos a TypeSafe
 make tablero-jev ARGS='triage 89'             # muestra el payload mínimo de una tarea, sin red
-make tablero-jev ARGS='triage 89 --live --allow-internal'
+make tablero-jev ARGS='triage 89 --live --allow-internal --env-file tablero/server/.env'
 make tablero-jev ARGS='label tablero/.runs/jev/REPORTE.json --action ejecutar --external-blocker false --urgency 1'
 make tablero-jev ARGS='stats'
 make tablero-jev-test
@@ -34,9 +34,10 @@ make tablero-jev-test
 
 El triage real solo extrae título, etapa, días sin tocar, próximo paso, conteos de preguntas y
 pendientes, y nombres de piezas faltantes. Omite id, slug, cuerpo, registro, preguntas, pendientes,
-ramas y bitácora. Aun así, título y próximo paso son información interna; por eso `--live` se niega a
-enviarlos si la misma invocación no incluye `--allow-internal`. La clave se reutiliza desde
-el `.env` de la raíz del playground. Los reportes quedan locales, ignorados por Git y con permiso `0600` en
+ramas y avances. Aun así, título y próximo paso son información interna; por eso `--live` se niega a
+enviarlos si la misma invocación no incluye `--allow-internal`. En la interfaz el servidor carga
+`tablero/server/.env`; por consola se indica ese archivo con `--env-file`, como en el ejemplo. Los
+reportes quedan locales, ignorados por Git y con permiso `0600` en
 `tablero/.runs/jev/`.
 
 ### Orientación en la interfaz
@@ -47,6 +48,13 @@ triage live y se muestra una franja efímera con tipo de siguiente acción, urge
 una dependencia externa. Permite copiar la propuesta como borrador o ver alternativas; no edita el
 Markdown, pendientes, estado ni Jira. Si el modelo se abstiene, la franja pide revisión humana. La
 acción es explícita porque título y próximo paso son internos.
+
+En **Pendientes**, el icono **✦** hace una consulta distinta y directa desde el servidor Go: contrasta
+si cada casilla abierta parece resuelta, sigue abierta o requiere revisión. Sólo al pulsarlo se envían
+a Jev el título, el estado actual, las casillas abiertas y hasta 24 hallazgos fechados; no se envían el
+cuerpo completo ni los comandos de comprobación. La respuesta nunca tilda, borra ni edita una casilla.
+El servidor usa `JEV_TOKEN` desde `tablero/server/.env` y rechaza la consulta si la proyección parece
+contener un secreto.
 
 La etiqueta se registra después de revisar la retoma: acción, bloqueo externo y urgencia esperados.
 No modifica la tarea ni entrena a Jev. `stats` cuenta las retomas revisadas; una preview sin respuesta
@@ -77,23 +85,28 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 | `cmd/web` | servidor WebSocket (`:8787`) que alimenta el dashboard | `npm run dev` |
 | `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
-| `src/` (Vue) | tareas por estado de los últimos 4 sprints, retoma, entrega y actividad | `npm run dev` → `:5191` |
+| `src/` (Vue) | tareas por estado de los últimos 4 sprints, evidencia, entrega y actividad | `npm run dev` → `:5191` |
 
 ## Usar el tablero
 
 - **Mis tareas** agrupa En curso, Bloqueadas, En pruebas, Por empezar y Terminadas. Cada grupo se
   puede plegar; Terminadas empieza cerrado. Buscar abre los grupos que contienen coincidencias.
-- **Retomar** abre la tarea en el editor; Jira, Pendientes, Hallazgos, Registro y Bitácora viven en el
-  sidebar derecho y Ramas en la consola inferior. Si hay prototipos, aparece también su pestaña.
+- Abrir una tarea muestra una cronología central simple con los hitos que permiten retomarla:
+  **Hoy**, **Ayer** y después cada fecha real, de más reciente a más antigua. Sólo salen eventos de
+  `task-context/`; las notas de minutos no aparecen. Después del recorrido quedan el documento,
+  hallazgos y evidencia como material de consulta. El contexto de Canon aparece
+  sólo junto a la decisión que lo usó. **Jira** y **Pendientes** viven en el sidebar derecho; cuando
+  la tarea tiene salidas navegables, aparece también **Artifacts**. Ramas queda en la consola inferior.
 - Los sidebars y la consola recuerdan sus medidas. Sus separadores se arrastran y también responden a
   las flechas cuando reciben foco.
 - **Mi jornada** se puede plegar y recuerda la elección. Estas preferencias viven en el navegador.
-- Los enlaces de la retoma abren **canon** (canon.playground.creditop.com). ⚠ Canon todavía no tiene enlace por tema: su UI no lee la URL, así que el nombre del tema queda en el chip y en su `title`.
-  Levantá esa vista con `make context` desde la raíz del playground, en otra terminal; `make tablero`
-  sólo levanta el tablero. Los enlaces usan `?node=<id>` para seleccionar el nodo exacto.
-- **Trabajo** muestra la retoma una sola vez, junto al plan, el material y las referencias. Las listas
-  de pendientes y los hallazgos con marcador tienen sus propias pestañas; no se repiten en Trabajo.
-  Los pendientes conservan sus continuaciones y enlaces. El historial queda plegado al final.
+- **Evidencia** separa la traza de una solicitud de una consulta de datos: Trazador aparece sólo cuando
+  se siguió el comportamiento de una solicitud; SQL queda como **DB · ambiente** y su query. Los
+  comandos de Harness salen sólo de bloques de código y marcadores reproducibles, para que una frase no
+  parezca un comando ejecutable.
+- El material de trabajo muestra el plan, las decisiones, hallazgos y pruebas después de la
+  cronología. Una referencia de Canon se enlaza dentro del hito JSONL que la usó; no hay una sección
+  especial ni una colección genérica de temas declarados.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
   local, lo indica; nunca sustituye el contenido publicado por el borrador local.
@@ -280,7 +293,7 @@ Un esfuerzo avanza por **`stage`**, y el orden es deliberado:
 | Etapa | Qué pasa |
 |---|---|
 | `evaluation` · **Evaluando** | entender el problema y validar contra el código; todavía no se toca nada |
-| `work` · **Trabajando** | desarrollo y pruebas; la bitácora se llena acá |
+| `work` · **Trabajando** | desarrollo y pruebas; los avances se apilan acá |
 | `tasks` · **Tareas creadas** | recién ahora se redactan y suben las tareas de Jira |
 
 **Por qué al final:** definir la tarea *después* de haberla resuelto es lo único que permite escribirla
@@ -299,7 +312,7 @@ Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas 
 | `stage` | en qué etapa del método está | — |
 
 Esa asimetría es deliberada: lo técnico y lo publicable son dos textos distintos, y el guard marca la
-frontera. Por eso el detalle de archivos **no puede** vivir en las notas de la bitácora.
+frontera. Por eso el detalle de archivos **no puede** vivir en las notas de avance.
 
 ⚠ **Al terminar una tarea:** lo que se **mergea** gradúa al nodo de `context` que corresponda (pasa a ser
 "cómo funciona CreditOp"); lo que no se mergeó se queda acá.
@@ -328,7 +341,7 @@ playground ni F-xx).
   no por id ni por nombre: los ids cambian al editar el workflow. El estado se configura con
   `JIRA_TESTING_STATUS` como **subcadena** — en CORE es `🧪 En pruebas`, **con emoji, y no existe
   "En revisión"**.
-- El texto pasa por el **mismo guard** que la bitácora, *antes* de tocar Jira. Si el aviso menciona un
+- El texto pasa por el **mismo guard** que los avances, *antes* de tocar Jira. Si el aviso menciona un
   repo, una ruta o un F-xx, el panel lista los motivos y no se manda ni se mueve nada.
 - Si la transición sale pero el DM falla, se dice **"movida pero el DM NO salió"**. Dar el aviso por
   hecho es peor que el error: la tarea queda esperando a alguien que no sabe.
@@ -386,7 +399,7 @@ vivir dentro de él. `TABLERO_DATA` mueve la carpeta.
 ```
 data/
   <tarea>.md                 UNA TAREA = UN ARCHIVO (ver abajo)       → versionado en git
-  entries/2026-07.jsonl      la bitácora de tiempo, un archivo por mes → FUERA de git (dato personal)
+  entries/2026-07.jsonl      avances por tiempo, un archivo por mes      → FUERA de git (dato personal)
   pulse/2026-08.jsonl        el pulso: cuándo toqué los repos          → FUERA de git (dato personal)
   settings.json              los flags del tablero                    → versionado
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
@@ -424,7 +437,7 @@ id: 4
 title: "..."                     ← privado: nombra el esfuerzo, no sale de acá
 stage: tasks                     ← evaluation | work | tasks
 created: "..."
-canon: [onboarding, kyc]         ← a qué temas de canon apunta
+canon: [onboarding, kyc/context#validacion]  ← referencias de Canon usadas por la tarea
 jira: [CORE-293]                 ← las tareas de Jira que salieron de este esfuerzo
 jira_title: "..."                ← PUBLICABLE: pasa el guard
 ---
@@ -451,8 +464,8 @@ Y una tarea suele tener **más de una propuesta** — otro actor, otro camino po
 vale `data/artifacts/<slug>.<variante>.html`: la variante es la etiqueta con que aparece. Verlas al
 lado es lo que permite decidir entre ellas.
 
-Si hay al menos uno, el panel de la tarea muestra la pestaña **Prototipos** después de Bitácora,
-con la lista; cada artefacto se abre en una pestaña del navegador, servido por el propio server
+Si hay al menos uno, el sidebar derecho muestra la pestaña **Artifacts**, con la lista; cada artefacto
+se abre en una pestaña del navegador, servido por el propio server
 (`GET /artifacts/<archivo>`).
 
 No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se
@@ -471,7 +484,7 @@ Dos cosas más, que son de higiene y no de mecánica:
   lo que se propuso, no cómo funciona CreditOp — y un prototipo viejo en el árbol de contexto miente
   con mucha convicción. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 
-### La bitácora (`entries/`)
+### Avances (`entries/`)
 
 Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. Las decisiones que importan:
 
@@ -495,7 +508,8 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
   forzarlos a una envenena el análisis.
 - La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`, servido a la
   UI por `/api/guard`, que hoy nadie consume) corre en el server **antes** de escribir.
-- Borrado **suave** (`deletedAt`): el ✕ de la UI marca, no elimina.
+- Borrado **suave** (`deletedAt`): existe para recuperación administrativa; la pila visible no ofrece
+  borrado ni edición.
 
 Es JSONL, así que el análisis se hace con `jq` en vez de SQL:
 
@@ -518,9 +532,65 @@ jq -s 'map(select(.deletedAt|not)
 
 Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`.
 
+### Contexto de una tarea (`task-context/`)
+
+`data/task-context/<slug>.jsonl` guarda sólo los hitos que cambian una futura retoma. No es un diario,
+no mide tiempo y nunca se publica en Jira. El documento Markdown conserva el estado y la receta
+vigentes; el JSONL explica por qué cambiaron sin repetirlos.
+
+Se agrega con un JSON revisable y validado antes de escribirlo:
+
+```bash
+make tarea-context-add N=codigo-de-preaprobado-de-la-app-en-el-wizard \
+  EVENTO=tablero/docs/task-context-event.example.json SECO=1 # primero previsualiza
+make tarea-context-add N=codigo-de-preaprobado-de-la-app-en-el-wizard \
+  EVENTO=tablero/docs/task-context-event.example.json
+make tarea-context N=codigo-de-preaprobado-de-la-app-en-el-wizard
+```
+
+El contrato legible por herramientas está en `docs/task-context.schema.json`; el comando Go aplica
+además las mismas validaciones al escribir, así que el schema no queda como documentación decorativa.
+
+Una referencia `db` guarda la query y el ambiente, no Trazador:
+
+```json
+{ "kind": "db", "label": "Cohorte", "environment": "prod", "target": "SELECT count(*) FROM user_requests" }
+```
+
+Los únicos `kind` permitidos son:
+
+- `checkpoint`: foto breve para retomar: objetivo, estado, lo validado y siguiente paso; exige `goal`, `state` y `next`.
+- `decision`: una elección que evita volver a evaluar lo mismo; exige `reason`.
+- `blocker`: qué detiene el trabajo, de quién depende y cómo se destraba; exige `waitingOn` y `next`.
+- `evidence`: una conclusión reproducible; exige al menos una `reference` con tipo, etiqueta y destino.
+
+No escribas “se avanzó”, narración de la sesión, copias de logs, código, ni el contenido de Canon: eso
+no ahorra una decisión al retomar. Un evento debe dejar una conclusión o siguiente acción que seguiría
+siendo útil en una semana. El editor muestra esos hitos como párrafos planos por fecha: Canon queda
+enlazado exactamente donde respalda una afirmación con `[texto visible](canon:nodo/context#seccion)`;
+cada enlace exige su `reference` de tipo `canon`. Una prueba de Harness muestra el comando ejecutado.
+No se admite HTML ni enlaces Markdown a otra herramienta dentro del hito. `make retomar` incluye
+los ocho hitos más recientes. Las tareas antiguas pueden conservar `## Registro` en el archivo, pero
+el editor no lo muestra; `make cierre` acepta un hito estructurado del día en su lugar.
+
+### Consultas a base de datos
+
+`make tablero-db TARGET=<local|dev|staging|prod> SQL='SELECT …'` corre una sola consulta de sólo
+lectura. No asume producción: el ambiente es obligatorio. Copiá
+`tablero/server/.env.db.example` a `tablero/server/.env.<ambiente>`; cada herramienta conserva sus
+propias credenciales. Con `MD=1` emite sólo el ambiente y el SQL para pegar en el documento:
+
+````md
+> **DB · prod**
+>
+> ```sql
+> SELECT count(*) FROM user_requests
+> ```
+````
+
 ## El pulso (`pulse/`): cuánto trabajo hago de verdad
 
-La bitácora contesta **en qué** trabajé y la escribe alguien. El pulso contesta **cuándo estuve tocando
+Los avances contestan **en qué** trabajé y los registra el asistente. El pulso contesta **cuándo estuve tocando
 código** y no depende de nadie: lo anota un agente cada 5 minutos, corra o no el tablero. Son la misma
 grilla de «Mi jornada» con dos fuentes, y el selector del encabezado cambia cuál se pinta.
 
@@ -565,7 +635,7 @@ viven en git con su fecha.
 
 ### Tres estados, no dos
 
-Es lo que el pulso puede hacer y la bitácora no: además de *hubo cambios* / *no hubo*, sabe si el agente
+Es lo que el pulso puede hacer y los avances no: además de *hubo cambios* / *no hubo*, sabe si el agente
 **estaba mirando**. Un hueco porque el Mac estaba apagado no es un hueco de trabajo, y pintarlos igual
 convertiría el mapa en una acusación falsa.
 
@@ -615,6 +685,9 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 | `QA_SLACK_EMAIL` | a quién le llega el DM al pasar a pruebas | `duncan.estrada@creditop.com` |
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto del WS | `8787` |
+| `CANON_URL` | API y enlaces de Canon | `https://canon.playground.creditop.com` |
+| `TRACER_URL` | enlace de Trazador en Evidencia | `http://localhost:5192` |
+| `HARNESS_URL` | enlace de Harness en Evidencia | `http://localhost:5195` |
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
 | `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
@@ -625,6 +698,9 @@ Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el
 busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,
 `pulso install` congela sus valores en el `plist` — y **eso gana** sobre el archivo, porque el entorno
 tiene prioridad. Si cambian, reinstalá: `make pulso-install`.
+
+Cuando Trazador esté publicado, cambiar sólo `TRACER_URL` a
+`https://tracer.playground.creditop.com`; las tareas y el frontend no necesitan cambios.
 
 API token de Atlassian: <https://id.atlassian.com/manage-profile/security/api-tokens>.
 Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Install to Workspace.

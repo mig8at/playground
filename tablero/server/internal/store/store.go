@@ -92,7 +92,7 @@ func Open(dir string) (*Store, error) {
 		ajustes:  map[string]string{},
 		cache:    map[string]any{},
 	}
-	for _, sub := range []string{"entries", "cache"} {
+	for _, sub := range []string{"entries", "cache", "task-context"} {
 		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
 			return nil, fmt.Errorf("creando %s: %w", sub, err)
 		}
@@ -115,8 +115,11 @@ func (s *Store) cargar() error {
 		return err
 	}
 	// Se parte de cero: esto ya no corre sólo al arrancar, también cuando un `.md` cambió en disco
-	// (ver `relerSiCambio`). Acumular sobre lo anterior duplicaría cada tarea en cada relectura.
+	// (ver `relerSiCambio`). Acumular sobre lo anterior duplicaría cada tarea o avance en cada
+	// relectura. Las mutaciones se escriben antes de volver acá, así que reconstruir desde disco es
+	// la fuente de verdad y no pierde cambios.
 	s.efforts, s.slugs, s.archived = nil, map[int64]string{}, map[int64]string{}
+	s.entries, s.borrados = nil, map[int64]string{}
 	type leida struct {
 		e       Effort
 		arch    string
@@ -153,7 +156,7 @@ func (s *Store) cargar() error {
 	// 0, y por eso ninguno tenía tarjeta en el tablero ni podía ser blanco de un enlace con Jira.
 	//
 	// Se persiste en el archivo (no sólo en memoria) porque un id que cambia en cada arranque no sirve
-	// para enlazar nada: la bitácora y el vínculo con Jira lo guardan.
+	// para enlazar nada: los avances y el vínculo con Jira lo guardan.
 	var renumeradas []int64
 	for i := range leidas {
 		if leidas[i].e.ID == 0 {
@@ -166,7 +169,7 @@ func (s *Store) cargar() error {
 	// con el mismo número se pisan y sobrevive uno solo — el mismo modo de falla del `id: 0`, pero
 	// sin que nada lo delate. Pasó el 2026-09-14: una tarea nueva escrita a mano nació con el 79, que
 	// ya era de una archivada. Se queda con el número la más VIEJA (por `created`) —es la que puede
-	// tener bitácora y Jira colgados de él— y la otra recibe el siguiente libre, persistido.
+	// tener avances y Jira colgados de él— y la otra recibe el siguiente libre, persistido.
 	porID := map[int64]int{}
 	for i := range leidas {
 		id := leidas[i].e.ID
@@ -287,8 +290,8 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 		CreatedAt:       fm["created"],
 		// el struct expone los temas como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
-		TemasCanon: strings.Join(listaYAML(fm["canon"]), ","),
-		RamasPatron:  fm["ramas"],
+		TemasCanon:  strings.Join(listaYAML(fm["canon"]), ","),
+		RamasPatron: fm["ramas"],
 	}
 	if e.Stage == "" {
 		e.Stage = "evaluation"
@@ -300,6 +303,7 @@ func (s *Store) leerEffort(slug string) (Effort, string, error) {
 	// Del cuerpo PRIVADO: las anotaciones pueden nombrar repos y rutas, igual que el resto de
 	// `TechNotes`. No pasan por el guard porque no salen a Jira.
 	e.Anotaciones = Anotaciones(notas)
+	e.CanonUses = CanonUses(notas)
 	e.Retoma = Retoma(notas)
 	e.ProximoPaso = ProximoPaso(notas)
 	// Del mismo cuerpo privado, y por la misma razón: las casillas de la publicable son criterios de
@@ -356,7 +360,7 @@ func (s *Store) cargarEntries() error {
 	return nil
 }
 
-// ── entries (la bitácora) ───────────────────────────────────────────────────────────────────────────────
+// ── entries (avances) ───────────────────────────────────────────────────────────────────────────────────
 
 // Entry es un bloque de tiempo trabajado.
 type Entry struct {
@@ -424,7 +428,7 @@ func (s *Store) Create(taskKey, freeTitle string, sprintID, effortID int64, kind
 }
 
 // List trae los registros vivos de una VENTANA de días O de un sprint (unión): la UI necesita las dos
-// cosas a la vez — el mapa de jornada mira por fecha y la bitácora por sprint elegido.
+// cosas a la vez — el mapa de jornada mira por fecha y los indicadores por sprint elegido.
 func (s *Store) List(days int, sprintID int64) ([]Entry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -436,6 +440,29 @@ func (s *Store) List(days int, sprintID int64) ([]Entry, error) {
 			continue
 		}
 		if e.Day >= cutoff || (sprintID != 0 && e.SprintID == sprintID) {
+			out = append(out, e)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].StartedAt > out[j].StartedAt })
+	return out, nil
+}
+
+// ListForWork devuelve el registro completo de avances de una tarea o esfuerzo, sin una ventana de
+// tiempo. La pantalla lo agrupa por Hoy, Ayer y fecha; aplicarle el corte de 30 días de `List` haría
+// que su histórico desapareciera justo cuando deja de ser reciente. No escribe ni reordena nada.
+func (s *Store) ListForWork(taskKey string, effortID int64) ([]Entry, error) {
+	if strings.TrimSpace(taskKey) == "" && effortID == 0 {
+		return nil, fmt.Errorf("falta tarea o esfuerzo")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	out := []Entry{}
+	for _, e := range s.entries {
+		if _, muerto := s.borrados[e.ID]; muerto {
+			continue
+		}
+		if (taskKey != "" && e.TaskKey == taskKey) || (effortID != 0 && e.EffortID == effortID) {
 			out = append(out, e)
 		}
 	}
@@ -676,9 +703,13 @@ type Effort struct {
 	// describe el estado actual: lee la misma retoma y el mismo próximo paso que se usan en consola.
 	Retoma      string `json:"retoma"`
 	ProximoPaso string `json:"proximoPaso"`
-	// slugs de los temas de canon que toca, separados por coma (el corpus compartido vive en otro repo).
-	// En el archivo son una lista YAML; acá van como cadena porque así lo consume la UI.
+	// Referencias de Canon que toca, separadas por coma. En el archivo son una lista YAML; acá van
+	// como cadena porque así lo consume la UI. Preferir `tema/context#ancla` evita presentar un tema
+	// entero como evidencia de una decisión puntual.
 	TemasCanon string `json:"canon"`
+	// Uso explícito de Canon, derivado de los marcadores CANON del cuerpo privado. A diferencia de
+	// TemasCanon, esta lista sí afirma que alguien leyó o validó una referencia y para qué la usó.
+	CanonUses []CanonUse `json:"canonUses"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.

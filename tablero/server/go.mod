@@ -4,10 +4,12 @@ go 1.25.5
 
 require (
 	github.com/coder/websocket v1.8.15
+	github.com/go-sql-driver/mysql v1.9.2
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/google/jsonschema-go v0.4.3 // indirect
 	github.com/segmentio/asm v1.1.3 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect

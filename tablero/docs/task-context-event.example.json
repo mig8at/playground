@@ -1,0 +1,25 @@
+{
+  "kind": "checkpoint",
+  "goal": "Cerrar el flujo de código de la app en la plataforma nueva.",
+  "summary": "La prueba local del [preaprobado](canon:preaprobado) cierra el recorrido completo sin crear una solicitud duplicada.",
+  "state": "Backend y frontend están listos; falta acordar quién emite el código productivo.",
+  "next": "Confirmar con Producto el emisor, vencimiento y comercio del piloto.",
+  "references": [
+    {
+      "kind": "canon",
+      "label": "Preaprobado",
+      "target": "preaprobado"
+    },
+    {
+      "kind": "harness",
+      "label": "Prueba reproducible del flujo",
+      "target": "make harness-codigo-prueba HASH=13874eb6 CODIGO=0102 LENDER='Sistecrédito'"
+    },
+    {
+      "kind": "db",
+      "label": "Cohorte medida",
+      "environment": "prod",
+      "target": "SELECT count(*) AS solicitudes FROM user_requests WHERE created_at >= '2026-01-01'"
+    }
+  ]
+}

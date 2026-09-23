@@ -1,6 +1,9 @@
 package store
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestAnotaciones(t *testing.T) {
 	cuerpo := "" +
@@ -52,5 +55,21 @@ func TestAnotaciones(t *testing.T) {
 func TestAnotacionesSinNada(t *testing.T) {
 	if n := len(Anotaciones("sólo prosa\n> una cita suelta\n")); n != 0 {
 		t.Fatalf("no debería encontrar anotaciones, encontró %d", n)
+	}
+}
+
+func TestAnotacionSQLNoEntregaMarkdownDentroDeLaTarjeta(t *testing.T) {
+	cuerpo := "> **MEDICIÓN · 2026-09-22** — la configuración fue confirmada.\n" +
+		"> **DB · prod**\n>\n> ```sql\n" +
+		"> SELECT id, status FROM user_requests WHERE id = 42\n> ```\n"
+	got := Anotaciones(cuerpo)
+	if len(got) != 1 {
+		t.Fatalf("esperaba una anotación, hubo %d", len(got))
+	}
+	if got[0].Como != "SELECT id, status FROM user_requests WHERE id = 42" {
+		t.Errorf("la tarjeta debe recibir SQL puro, recibió %q", got[0].Como)
+	}
+	if strings.Join(got[0].Fuentes, ",") != "DB,prod" {
+		t.Errorf("la fuente y ambiente siguen saliendo del bloque Markdown: %v", got[0].Fuentes)
 	}
 }

@@ -220,7 +220,11 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > **MEDICIÓN · 2026-09-22** — Pullman (aliado 94) sólo tiene configurado CrediPullman (lender 77).
 > La app de ejemplo anuncia `creditop_x` con id de producto 80: el emisor debe resolver el lender desde
 > configuración autoritativa, no copiar el id que pinta el móvil.
-> `make trazador-sql TARGET=prod SQL='SELECT lba.allied_id, lba.lender_id, l.name AS lender FROM lenders_by_allieds lba JOIN lenders l ON l.id = lba.lender_id WHERE l.name LIKE "%Pullman%" ORDER BY lba.allied_id, lba.lender_id'`
+> **DB · prod**
+>
+> ```sql
+> SELECT lba.allied_id, lba.lender_id, l.name AS lender FROM lenders_by_allieds lba JOIN lenders l ON l.id = lba.lender_id WHERE l.name LIKE "%Pullman%" ORDER BY lba.allied_id, lba.lender_id
+> ```
 
 > **HALLAZGO · 2026-09-22** — no hay un allowlist de comercios en el wizard: la entrada `codigo` está
 > bajo todo `/merchant/:partner_hash`, así que se ofrece a cualquier punto de venta de asesor. Pero el
@@ -270,11 +274,19 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 **Qué tanto se usa el camino viejo** (la marca es el comentario con que nace la solicitud):
 
 > **MEDICIÓN · 2026-09-21** — 12 solicitudes en total, todas en abril de 2026 y ninguna después.
-> `make trazador-sql TARGET=prod SQL='SELECT date_format(created_at,"%Y-%m") AS mes, count(*) AS solicitudes FROM user_request_records WHERE comment = "Solicitud creada desde validacion de codigo cliente." GROUP BY 1 ORDER BY 1'`
+> **DB · prod**
+>
+> ```sql
+> SELECT date_format(created_at,"%Y-%m") AS mes, count(*) AS solicitudes FROM user_request_records WHERE comment = "Solicitud creada desde validacion de codigo cliente." GROUP BY 1 ORDER BY 1
+> ```
 
 > **MEDICIÓN · 2026-09-21** — las 12 son de un solo comercio (Celucambio), repartidas entre Celupresto
 > (8) y Crediteame CC (4), y **las 12 siguen en el estado 9**, que es con el que nacen: ninguna avanzó.
-> `make trazador-sql TARGET=prod SQL='SELECT a.name AS comercio, l.name AS entidad, ur.user_request_status_id AS estado, count(*) AS n, max(ur.created_at) AS ultima FROM user_request_records urr JOIN user_requests ur ON ur.id = urr.user_request_id LEFT JOIN allieds a ON a.id = ur.allied_id LEFT JOIN lenders l ON l.id = ur.lender_id WHERE urr.comment = "Solicitud creada desde validacion de codigo cliente." GROUP BY 1,2,3 ORDER BY n DESC'`
+> **DB · prod**
+>
+> ```sql
+> SELECT a.name AS comercio, l.name AS entidad, ur.user_request_status_id AS estado, count(*) AS n, max(ur.created_at) AS ultima FROM user_request_records urr JOIN user_requests ur ON ur.id = urr.user_request_id LEFT JOIN allieds a ON a.id = ur.allied_id LEFT JOIN lenders l ON l.id = ur.lender_id WHERE urr.comment = "Solicitud creada desde validacion de codigo cliente." GROUP BY 1,2,3 ORDER BY n DESC
+> ```
 
 **Que la app genera el código sola** (se comprueba leyendo, y por la ausencia de llamadas):
 

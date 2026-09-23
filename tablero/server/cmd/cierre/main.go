@@ -40,6 +40,7 @@ import (
 
 	"creditop/tablero/server/internal/pulso"
 	"creditop/tablero/server/internal/store"
+	"creditop/tablero/server/internal/taskcontext"
 )
 
 type tarea struct {
@@ -63,6 +64,7 @@ type Revision struct {
 	Retoma      string   `json:"retoma"` // ok · sin-seccion · sin-cambios
 	ProximoPaso bool     `json:"proximoPaso"`
 	RegistroHoy bool     `json:"registroHoy"`
+	ContextoHoy bool     `json:"contextoHoy"`
 	MinutosHoy  int      `json:"minutosHoy"`
 	// SinAvance: la entrada del día DECLARA que la tarea no avanzó (ver `sinAvance`). Exime de la
 	// bitácora y sólo de la bitácora.
@@ -456,6 +458,16 @@ func main() {
 				break
 			}
 		}
+		if events, err := taskcontext.Read(datos, t.Slug); err != nil {
+			rv.Mirar = append(rv.Mirar, "el contexto estructurado no se pudo leer: "+err.Error())
+		} else {
+			for _, event := range events {
+				if strings.HasPrefix(event.At, *dia+"T") {
+					rv.ContextoHoy = true
+					break
+				}
+			}
+		}
 		ahora := seccionRetoma(t.Cuerpo)
 		switch {
 		case ahora == "":
@@ -473,8 +485,8 @@ func main() {
 		if !rv.ProximoPaso {
 			rv.Faltan = append(rv.Faltan, "falta «**El próximo paso es:**» (UNA acción)")
 		}
-		if !rv.RegistroHoy {
-			rv.Faltan = append(rv.Faltan, "el Registro no tiene entrada `### "+*dia+"`")
+		if !rv.RegistroHoy && !rv.ContextoHoy {
+			rv.Faltan = append(rv.Faltan, "falta un hito de contexto del día (`make tarea-context-add`) o una entrada de Registro `### "+*dia+"`")
 		}
 		rv.SinAvance = rv.RegistroHoy && sinAvance(t.Cuerpo, *dia)
 		if rv.MinutosHoy == 0 && !rv.SinAvance {
@@ -579,8 +591,8 @@ func imprimir(inf Informe) {
 		if t.SinAvance && t.MinutosHoy == 0 {
 			bit, detalle = "—", "declara sin avance"
 		}
-		fmt.Printf("       %s retoma reescrita   %s próximo paso   %s registro del día   %s bitácora (%s)\n",
-			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy), bit, detalle)
+		fmt.Printf("       %s retoma reescrita   %s próximo paso   %s hito/registro del día   %s bitácora (%s)\n",
+			marca(t.Retoma == "ok"), marca(t.ProximoPaso), marca(t.RegistroHoy || t.ContextoHoy), bit, detalle)
 		for _, f := range t.Faltan {
 			fmt.Printf("       ✗ %s\n", f)
 		}

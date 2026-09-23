@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { highlightSQL } from './sql-highlight.js';
 
 const normalize = text => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
 const sectionName = text => normalize(text).replace(/^[\d.·\s]+/, '').trim();
@@ -27,7 +28,13 @@ function summaryTokens(tokens, pending) {
 function render(tokens, links) {
   const copy = [...tokens];
   copy.links = links;
-  return marked.parser(copy, { gfm: true });
+  const renderer = new marked.Renderer();
+  const defaultCode = renderer.code.bind(renderer);
+  renderer.code = (token) => {
+    if (token.lang?.trim().toLowerCase() !== 'sql') return defaultCode(token);
+    return `<pre class="sql-block"><code class="language-sql">${highlightSQL(token.text)}</code></pre>\n`;
+  };
+  return marked.parser(copy, { gfm: true, renderer });
 }
 
 function sectionOrder(title) {

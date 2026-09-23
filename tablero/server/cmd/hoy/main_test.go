@@ -2,10 +2,12 @@ package main
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"creditop/tablero/server/internal/canon"
 )
 
 func TestRequiereRamasSoloParaTrabajoDeProducto(t *testing.T) {
@@ -47,41 +49,28 @@ func TestFichasCanonRespetaElTopeYNoCallaErrores(t *testing.T) {
 	}
 }
 
-// El corpus real es la vara: una ficha derivada de un map.json que no existe tiene que fallar, y una
-// de un tema real tiene que traer áreas con objetivo. Sin esto, el lector podría devolver una ficha
-// vacía sin error y la retoma imprimiría un tema en blanco como si no tuviera nada que decir.
-func TestFichaDeCanonLeeElCorpusOLoDice(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "kyc"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	crudo := `{"title":"El estudio del cliente","summary":"Burós y score.","areas":[
-	  {"id":"disparo","objetivo":"Decidir si se consulta el buró.","secciones":["a","b"],
-	   "tablas":["datacredito_frequencies"],"fuentes":{"legacy-backend":{"x.php":"ab12"}}},
-	  {"id":"score","objetivo":"De dónde sale el score.","secciones":[],
-	   "tablas":["datacredito_frequencies","scores"],"fuentes":{"application":{"y.php":"cd34"}}}]}`
-	if err := os.WriteFile(filepath.Join(dir, "kyc", "map.json"), []byte(crudo), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	leer := fichaDeCanon(dir)
+func TestFichaDesdeCanonProyectaLaRespuestaDeLaAPI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/read" || r.URL.Query().Get("ids") != "kyc/context" {
+			t.Fatalf("pedido inesperado: %s", r.URL.String())
+		}
+		_, _ = w.Write([]byte(`{"nodes":[{"id":"kyc/context","title":"El estudio del cliente","summary":"Burós y score.","repos":{"application":""},"areas":[
+			{"id":"disparo","objetivo":"Decidir si se consulta el buró.","secciones":["a","b"],"tablas":["datacredito_frequencies"],"fuentes":{"legacy-backend":{"x.php":"ab12"}}},
+			{"id":"score","objetivo":"De dónde sale el score.","secciones":[],"tablas":["datacredito_frequencies","scores"],"fuentes":{}}]}]}`))
+	}))
+	defer server.Close()
 
-	f, err := leer("kyc")
+	f, err := fichaDesdeCanon(canon.New(server.URL))("kyc")
 	if err != nil {
-		t.Fatalf("el tema existe: %v", err)
+		t.Fatalf("la referencia existe: %v", err)
 	}
 	if f.Titulo != "El estudio del cliente" || len(f.Areas) != 2 || f.Areas[0].Secciones != 2 {
-		t.Fatalf("la ficha sale del map.json tal como está: %+v", f)
+		t.Fatalf("la ficha no conserva la respuesta de Canon: %+v", f)
 	}
 	if len(f.Tablas) != 2 || f.Tablas[0] != "datacredito_frequencies" {
-		t.Fatalf("las tablas se juntan sin repetir y ordenadas: %v", f.Tablas)
+		t.Fatalf("las tablas llegan desde Canon: %v", f.Tablas)
 	}
 	if len(f.Repos) != 2 || f.Repos[0] != "application" {
-		t.Fatalf("los repos salen de las fuentes de cada área: %v", f.Repos)
-	}
-	if _, err := leer("no-existe"); err == nil {
-		t.Fatal("un tema que no está tiene que fallar, no devolver una ficha vacía")
-	}
-	if _, err := fichaDeCanon("")("kyc"); err == nil {
-		t.Fatal("sin corpus configurado tiene que decirlo")
+		t.Fatalf("los repos llegan desde Canon: %v", f.Repos)
 	}
 }

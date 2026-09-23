@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { organizeDocument } from '../src/task-document.js';
+import { highlightSQL, isSQLQuery } from '../src/sql-highlight.js';
 import { groupTasks, readPreference, savePreference } from '../src/ui-state.js';
 
 test('retoma, pendientes y decisiones preceden al material; historial al final', () => {
@@ -28,6 +29,17 @@ test('código y citas con encabezados permanecen en su sección; enlaces por ref
   assert.match(sections[0].html, /language-sh/);
   assert.match(sections[0].html, /blockquote/);
   assert.equal(sections.some(s => s.history), false);
+});
+
+test('las consultas SQL de Markdown y la evidencia se resaltan sin inyectar su contenido', () => {
+  const document = organizeDocument('## Material\n```sql\nSELECT count(*) FROM requests WHERE status = \'open\'\n```');
+  assert.match(document[0].html, /class="sql-block"/);
+  assert.match(document[0].html, /sql-keyword">SELECT/);
+  assert.match(document[0].html, /sql-function">count/);
+  assert.match(document[0].html, /sql-string">&#39;open&#39;/);
+  assert.equal(isSQLQuery('WITH latest AS (SELECT 1) SELECT * FROM latest'), true);
+  assert.equal(isSQLQuery('curl https://api.example.com'), false);
+  assert.match(highlightSQL('SELECT "<script>"'), /&lt;script&gt;/);
 });
 
 test('títulos repetidos conservan destinos únicos y los nombres históricos se reconocen', () => {

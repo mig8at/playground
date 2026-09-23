@@ -33,10 +33,12 @@ var herramientas = []struct {
 }{
 	// El arnés: sus targets de `make`, sus runners y Playwright.
 	{"harness", regexp.MustCompile(`(?i)\bmake harness-|\bnode dev/|\bnpx playwright|\bdev/[a-z-]+\.(ts|spec\.ts)\b`)},
-	// El trazador, por cualquiera de sus puertas.
-	{"trazador", regexp.MustCompile(`(?i)\bmake trazador-|\bgo run \. -(ureq|buscar|posthog|sql|validar|slack)\b`)},
-	// La base: una consulta escrita, venga por el trazador o a mano.
-	{"SQL", regexp.MustCompile(`(?i)\b(select|with)\b[\s\S]*\bfrom\b|\bmake trazador-sql\b|\bdbops\b`)},
+	// El trazador sólo reconstruye el comportamiento de una solicitud. SQL no entra: una consulta de
+	// datos no se vuelve una traza por el lugar histórico desde donde se ejecutó.
+	{"trazador", regexp.MustCompile(`(?i)\bmake trazador-(ureq|buscar|posthog|diag|chequeo|validar|slack|hilos)\b|\bgo run \. -(ureq|buscar|posthog|validar|slack)\b`)},
+	// La base: una consulta escrita, sin atribuirla a Trazador. Las consultas antiguas conservan la
+	// etiqueta DB para que el historial no se lea como una traza.
+	{"DB", regexp.MustCompile(`(?i)\b(select|with)\b[\s\S]*\bfrom\b|\bmake (tablero-db|trazador-sql)\b|\bdbops\b`)},
 	// Los logs: LogQL o el forense.
 	{"Loki", regexp.MustCompile(`(?i)count_over_time|\{service_name=|\{environment=|\bloki-trace\b|\bmake harness-loki\b|\btrazador-acceso\b`)},
 	{"PostHog", regexp.MustCompile(`(?i)\bposthog\b`)},
@@ -55,7 +57,7 @@ var herramientas = []struct {
 // El ambiente sale de cómo se escribe en los comandos de la casa (`TARGET=` / `E2E_TARGET=`), y sólo de
 // ahí: deducirlo de la prosa —«en producción son 14.160»— confundiría el ambiente donde se MIDIÓ con el
 // que la frase menciona, que no es lo mismo.
-var reAmbiente = regexp.MustCompile(`(?i)\b(?:E2E_)?(?:CFE_)?TARGET=(prod|production|qa|staging|dev|develop|local)\b`)
+var reAmbiente = regexp.MustCompile(`(?i)\b(?:E2E_)?(?:CFE_)?TARGET=(prod|production|qa|staging|dev|develop|local)\b|\bDB\s*·\s*(prod|production|qa|staging|dev|develop|local)\b`)
 
 var canonAmbiente = map[string]string{
 	"prod": "prod", "production": "prod", "qa": "qa",
@@ -80,7 +82,11 @@ func FuentesDe(como string) []string {
 	// se muestran los dos, sin elegir por nadie.
 	ambs := map[string]bool{}
 	for _, m := range reAmbiente.FindAllStringSubmatch(como, -1) {
-		if c, ok := canonAmbiente[strings.ToLower(m[1])]; ok {
+		environment := m[1]
+		if environment == "" {
+			environment = m[2]
+		}
+		if c, ok := canonAmbiente[strings.ToLower(environment)]; ok {
 			ambs[c] = true
 		}
 	}

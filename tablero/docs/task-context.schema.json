@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://playground.creditop.com/tablero/task-context/v1",
+  "title": "Tablero task-context event",
+  "description": "Un hito privado y versionable que cambia cómo se retoma una tarea. El comando completa schema, id y at.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "summary"],
+  "properties": {
+    "schema": { "const": "tablero.task-context/v1" },
+    "id": { "type": "string", "pattern": "^ctx_" },
+    "at": { "type": "string", "format": "date-time" },
+    "kind": { "enum": ["checkpoint", "decision", "blocker", "evidence"] },
+    "goal": { "type": "string", "maxLength": 320, "pattern": "^[^\\r\\n]*$" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 420, "pattern": "^[^\\r\\n]+$", "description": "Texto plano; una cita de Canon usa [texto](canon:nodo/context#seccion)." },
+    "state": { "type": "string", "maxLength": 420, "pattern": "^[^\\r\\n]*$" },
+    "next": { "type": "string", "maxLength": 320, "pattern": "^[^\\r\\n]*$" },
+    "reason": { "type": "string", "maxLength": 420, "pattern": "^[^\\r\\n]*$" },
+    "waitingOn": { "type": "string", "maxLength": 160, "pattern": "^[^\\r\\n]*$" },
+    "references": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label", "target"],
+        "properties": {
+          "kind": { "enum": ["canon", "db", "harness", "tracer", "jira", "pr", "run", "doc", "other"] },
+          "label": { "type": "string", "minLength": 1, "maxLength": 140, "pattern": "^[^\\r\\n]+$" },
+          "target": { "type": "string", "minLength": 1, "maxLength": 600, "pattern": "^[^\\r\\n]+$" },
+          "environment": { "enum": ["local", "dev", "staging", "prod"] }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "db" } } }, "then": { "required": ["environment"] } }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    { "if": { "properties": { "kind": { "const": "checkpoint" } } }, "then": { "required": ["goal", "state", "next"] } },
+    { "if": { "properties": { "kind": { "const": "decision" } } }, "then": { "required": ["reason"] } },
+    { "if": { "properties": { "kind": { "const": "blocker" } } }, "then": { "required": ["waitingOn", "next"] } },
+    { "if": { "properties": { "kind": { "const": "evidence" } } }, "then": { "required": ["references"], "properties": { "references": { "minItems": 1 } } } }
+  ]
+}

@@ -1,15 +1,15 @@
 <script setup>
-/* LA TAREA EN EL EDITOR — sólo su DOCUMENTO.
+/* LA TAREA EN EL EDITOR — el contenedor del recorrido de trabajo.
  *
  * Tuvo dos formas antes de esta. Primero fue un CAJÓN flotando sobre la página (`TaskPanel`), con
  * overlay, trampa de foco y manija de ancho; después un editor con OCHO pestañas adentro. Hoy el
- * editor muestra una sola cosa —el documento de la tarea—; las vistas de consulta (Jira, Pendientes,
- * Hallazgos, Registro, Bitácora y Prototipos) viven en pestañas del sidebar derecho, y las
- * ramas viven en la consola inferior.
+ * cuerpo contiene una cronología: Hoy, Ayer y después cada fecha real. El contexto de Canon aparece
+ * sólo junto al punto que ayudó a decidir; Hallazgos, Evidencia, Prototipos y la historia quedan como
+ * material de consulta después de las jornadas. Sus cabeceras se fijan durante el scroll.
+ * Las consultas de apoyo (Jira y Pendientes) viven en el sidebar derecho y las ramas abajo.
  *
- * ⚠ Eso vale la pena entenderlo antes de «devolver» las pestañas: con pestañas, mirar una rama
- * MIENTRAS leés el documento era imposible — eran excluyentes. Al costado se ven a la vez, que es lo
- * que uno hace de verdad al retomar una tarea.
+ * ⚠ Plegar una sección sólo reduce ruido: no vuelve las etapas excluyentes como lo eran las pestañas.
+ * El paso a paso queda entero en la misma página y el riel sigue disponible mientras se lee.
  *
  * El encabezado reúne identidad, estado, datos de Jira y contexto local; el cuerpo scrollea solo.
  * `Esc` cierra la pestaña de la tarea, lo mismo que su ×.
