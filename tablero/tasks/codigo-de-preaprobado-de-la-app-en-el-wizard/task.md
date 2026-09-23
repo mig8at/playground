@@ -68,6 +68,15 @@ apagar el camino viejo en aliados.
 - [x] Definir qué se hace cuando la entidad del código NO está en el listado — lo evita el emisor: la
       app sólo pide código para una entidad de un preaprobado de ESE comercio. Si igual pasa, el
       listado muestra todas, como hoy (2026-09-23).
+- [ ] Configurar el servicio de códigos en el backend de `qa` — hoy `CODE_GENERATION_SERVICE_BASE_URL`
+      no está en su secreto y todo canje responde 500 (`CCO003`); termina cuando un código inexistente
+      responda «no disponible». self-manager-api no se despliega en `qa`: el de dev
+      (`self-manager-api.develop.internal.creditop.com:8082`) está en el mismo cluster. Depende de:
+      quien administre los secretos de `legacy-backend-qa`. Revisar también dev, staging y prod antes de
+      que el canje llegue a `main`.
+- [ ] Validar en `qa` el caso negativo (Perú) y un canje real; bloqueado por el anterior y porque las
+      credenciales de la base compartida en los `.env` del harness ya no sirven (reasignar al asesor
+      pide escribir en esa base).
 - [ ] Apagar el camino viejo en aliados, recién con #1049 mergeado y el `AA0000` en `main` de
       self-manager-api.
 
@@ -213,6 +222,14 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > que «una sola entidad» es verdad en pantalla, no en la API.
 
 ## Lo que está bloqueado
+
+> **HALLAZGO · 2026-09-23** — **el backend de `qa` no tiene configurado el servicio de códigos.** Un
+> código inexistente para Pullman no responde «no disponible» sino **500** `CCO003` «Code generation
+> service base URL is not configured.», con `upstream_endpoint` `/api/v1/generate/code/consult`. O sea:
+> en `qa` no se puede canjear NINGÚN código, válido o no. Falta `CODE_GENERATION_SERVICE_BASE_URL` en el
+> secreto de `legacy-backend-qa`. self-manager-api sólo tiene workflows de dev y prod; el de dev vive en
+> `self-manager-api.develop.internal.creditop.com:8082` (`infrastructure/environments/development/internal-alb`).
+> `curl -XPOST http://legacy-backend-qa.inertia-develop/api/onboarding/client-code/redeem -d '{"code":"ZZ0000","partner_branch_hash":"ec977139"}' -H 'Content-Type: application/json'` · TARGET=qa
 
 > **HALLAZGO · 2026-09-23** — **el emisor es self-manager-api y la app ya lo consume.** En `main-pro`
 > de creditop_mobile, `LenderCodeDataSource` hace `POST /self-manager-api/v1/generate/code` con
@@ -403,6 +420,13 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 > crea la solicitud local **466900** y el listado queda con **una sola** entidad, Credifamilia-addi.
 > `make harness-codigo COMERCIO=f0548728 CODIGO=0923 && make harness-codigo-prueba HASH=f0548728 CODIGO=0923 LENDER='Credifamilia-addi'` · TARGET=local
 
+> **MEDICIÓN · 2026-09-23** — **en `qa` desplegado (`5cd27b5d`, #1049) Colombia se ve bien**: Amoblando
+> Pullman (`ec977139`, `COL`) responde **200** en `/solicitar` y en `/codigo`, las dos con «Usuario app».
+> El despliegue trae el cambio: la respuesta `.data` de `/codigo` incluye la ruta `merchant-client-code`,
+> que antes de #1049 no tenía loader. El caso negativo (Perú, `a8221e67`) **no se midió**: pide
+> reasignar al asesor y las credenciales de la base compartida en el harness ya no sirven.
+> `curl -H "Cookie: <cognito-state.qa>" https://originaciones-qa.dev.creditop.com/merchant/ec977139/codigo` · TARGET=qa
+
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
     make harness-listado COMERCIO=<slug>
@@ -468,6 +492,14 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
   los PRs en vez de moverlos**. Cada uno tiene un comentario apuntando al que lo continúa.)
 
 ## Registro
+
+### 2026-09-23 · validación en qa
+Con el despliegue de qa terminado se validó contra el front desplegado: en un comercio de Colombia la
+opción aparece en las dos pantallas y el despliegue trae el cambio. El caso de Perú no se pudo medir,
+porque mover al asesor de comercio pide escribir en la base compartida y las credenciales del harness
+ya no sirven. Y el canje real destapó un bloqueo: el backend de qa no tiene configurado el servicio de
+códigos, así que ahí ningún código se puede canjear. Queda como pendiente para quien administre los
+secretos.
 
 ### 2026-09-23 · el contrato del código
 Miguel contestó las tres preguntas abiertas: el emisor es self-manager-api, no hay piloto (sirve para
