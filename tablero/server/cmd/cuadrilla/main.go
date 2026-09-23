@@ -58,7 +58,7 @@ func env(k, defaults string) string {
 	return defaults
 }
 
-// task: lo poco que hace falta del frontmatter. No se reusa el lector de `cmd/tareas` porque vive en
+// task: lo poco que hace falta del frontmatter. No se reusa el lector de `cmd/tasks` porque vive en
 // su propio `package main`; sacarlo a `internal/` para tres claves sería mover código de un comando
 // que ya anda. Si algún día hacen falta más, esa mudanza sí vale.
 type task struct {

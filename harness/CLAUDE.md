@@ -844,7 +844,7 @@ secciones distintas — confundirlas es lo que vuelve ilegibles las tareas grand
 |---|---|
 | la RECETA para volver a correrlo (sembrar el caso, el comando, cómo verificar dónde quedó) | **«Cómo se comprueba — y el MATERIAL»**, que se MANTIENE: si la receta cambia, se corrige ahí |
 | lo que pasó ESE día (cerró, no cerró, con qué se topó) | **«Registro»**, que se APILA |
-| una trampa del SISTEMA, reproducible y con causa raíz | no se queda en la tarea: **gradúa a `F-xx`** (`tablero/data/trampas/doc.md`) |
+| una trampa del SISTEMA, reproducible y con causa raíz | no se queda en la tarea: **gradúa a `F-xx`** (`tablero/data/traps/doc.md`) |
 
 ⚠ **Va el COMANDO, no la conclusión, y no es estilo: el tablero lo parsea.** De las líneas de cita que
 siguen a una anotación sale *con qué* se comprobó y *contra qué ambiente*

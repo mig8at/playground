@@ -9,9 +9,13 @@
 OLD=${1:?uso: ab-cli.sh <árbol-viejo>}
 S=${AB_TMP:-/tmp/tablero-ab}; P=$(cd "$(dirname "$0")/../../.." && pwd); B=$S/bins
 rm -rf "$B"; mkdir -p "$B/old" "$B/new"
+# carpeta de cada comando en cada árbol: desde la fase 3 se llaman distinto (el binario, igual que antes)
+renamed_dir() { case $1 in tareas) echo tasks;; hoy) echo today;; cierre) echo closeout;; *) echo "$1";; esac; }
+cmd_dir() { local tree=$1 c=$2 d; d=$(renamed_dir "$c")
+  if [ -d "$tree/tablero/server/cmd/$d" ]; then echo "$d"; else echo "$c"; fi; }
 for c in tareas hoy cierre task-context web; do
-  (cd "$OLD/tablero/server" && go build -o "$B/old/$c" ./cmd/$c) || exit 1
-  (cd "$P/tablero/server" && go build -o "$B/new/$c" ./cmd/$c) || exit 1
+  (cd "$OLD/tablero/server" && go build -o "$B/old/$c" ./cmd/$(cmd_dir "$OLD" $c)) || exit 1
+  (cd "$P/tablero/server" && go build -o "$B/new/$c" ./cmd/$(cmd_dir "$P" $c)) || exit 1
 done
 cd "$P/tablero/server"
 fail=0

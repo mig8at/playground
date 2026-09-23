@@ -24,7 +24,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el tema que explica cada uno |
 | **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en `github/playground/tools/canon` y en canon.playground.creditop.com. **Siempre primero.** `go run . -pregunta '<la pregunta>'` desde ahí, o `/api/search?q=…`, que es gratis |
 | **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es abrir los `context.md` (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA del `map.json` (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
-| **¿ya nos pasó?** | `tablero/data/trampas/doc.md`, entrando por su índice de síntomas |
+| **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
 | **…y si canon no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
 | **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
@@ -476,7 +476,7 @@ pasó, incluido en prod) — y el circuito es fijo.
 `Creditop-SAS/playground`), y se publica en canon.playground.creditop.com. Hasta el 2026-09-21 este
 repo tenía ADEMÁS su propio árbol curado, `context/`, y eran dos contextos que había que mantener a la
 par. Se apagó: lo que valía graduó a canon, las trampas del sistema se mudaron a
-`tablero/data/trampas/` y lo que quedaba era formato o estructura. **No busques `context/`; si lo ves
+`tablero/data/traps/` y lo que quedaba era formato o estructura. **No busques `context/`; si lo ves
 citado en algún lado, está viejo.**
 
 ⚠ **Y cada una tiene un lugar propio DENTRO del archivo de la tarea.** El `CLAUDE.md` de las cuatro que
@@ -513,14 +513,14 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    texto sigue siendo cierto?*
    - hallazgos **de la tarea** (avance, decisiones, riesgos, preguntas) → su `.md` del tablero;
    - trampas **del sistema**, verificadas (síntoma → causa raíz → evidencia → arreglo) →
-     `tablero/data/trampas/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
+     `tablero/data/traps/doc.md` (F-01…). **Mirala antes de depurar un muro**: si
      ya nos pasó, está ahí.
 4. **Probar de verdad es `harness/`** (panel, runners, mocks): se comprueba **corriendo**, no
    leyendo. Una afirmación que se puede verificar ahí se verifica **antes** de escribirla como cierta.
    ⚠ **Y en local/dev/staging las centrales de riesgo NO las atiende el proveedor**, sino un lambda de
    mocks de la empresa (`Creditop-SAS/risk-services-mockery-lambda`, un Mockoon; no está entre los
    repos de arriba). Se le puede **dictar la respuesta por cédula** — la receta vigente y sus trampas
-   están en `tablero/data/trampas/doc.md`, F-139. Sin saber esto, una prueba de identidad
+   están en `tablero/data/traps/doc.md`, F-139. Sin saber esto, una prueba de identidad
    ahí siempre devuelve la misma persona y parece que el código está roto.
 5. **Al mergear, GRADÚA:** lo mergeado deja de ser tarea y pasa a canon — ahí es "cómo funciona
    CreditOp", y lo ve el equipo. La tarea se marca `archived` en su frontmatter. Ejemplo hecho: la
@@ -529,7 +529,7 @@ campo se llama **`canon:`** y sus valores son temas del corpus.
    ⚠ **Canon rechaza la CRÓNICA por regla escrita** (`skills/dictar.md`): van las reglas que existen
    en `main` —técnicas, de negocio o de producto, incluidos sus errores—, sin el relato de quién las
    descubrió, sin resultados de experimentos y sin PRs sin mergear. Lo que no pasa ese filtro y aun
-   así vale es una **trampa del sistema**, y va a `tablero/data/trampas/doc.md`.
+   así vale es una **trampa del sistema**, y va a `tablero/data/traps/doc.md`.
 
 ### Y lo que mergea OTRO — el bucle para que canon no quede viejo
 

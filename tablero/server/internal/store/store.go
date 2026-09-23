@@ -7,7 +7,7 @@
 //
 // UNA TAREA DE JIRA = UN ARCHIVO, suelto en `data/<tarea>.md`. El trabajo local se concentra en siete
 // contenedores permanentes (una herramienta por archivo y playground para lo transversal), validados
-// por cmd/tareas. Así `ls data/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
+// por cmd/tasks. Así `ls data/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
 //	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
 //	frontmatter             id · title · stage · created · archived? · canon[] · jira[] · jira_title · ramas?

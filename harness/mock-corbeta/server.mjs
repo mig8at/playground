@@ -5,7 +5,7 @@
 //   El camino del código de compra es lo único del canal QR que no se podía correr en local: sale a
 //   un servicio 100% externo del comercio. Sin este mock no hay forma de ejercitar
 //   `purchase-code/generate` ni de escribir el TEST DE CARACTERIZACIÓN que congele el comportamiento
-//   actual — y hoy ese camino tiene **cero** tests (ver `tablero/data/trampas/doc.md`, F-79..F-82).
+//   actual — y hoy ese camino tiene **cero** tests (ver `tablero/data/traps/doc.md`, F-79..F-82).
 //   Se vuelve doblemente necesario porque el reemplazo del emisor (Corbeta → Bancolombia, servicio
 //   *In Store Billing Code*) va a tocar exactamente estos dos puntos:
 //     · `merchants/CodeGenerationService::getRequestNumber()`  (emisión)

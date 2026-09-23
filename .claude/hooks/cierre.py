@@ -6,7 +6,7 @@ la retoma, apilar el Registro, declarar `ramas:`, escribir la bitácora con minu
 cuatro se olvidaron el 26/8 y el tablero mintió ocho días; medido el 2026-09-14, 23 de las 39 tareas
 abiertas no tienen sección de retoma. Olvidarlo no rompe nada, y por eso se olvida.
 
-QUÉ HACE: cuando el modelo termina de responder, corre `cierre -json` (tablero/server/cmd/cierre) y
+QUÉ HACE: cuando el modelo termina de responder, corre `cierre -json` (tablero/server/cmd/closeout) y
 mira SÓLO las tareas que ESTA sesión tocó —las que el transcript nombra por slug o por una de sus
 ramas—. Si a alguna le falta una pieza, devuelve `decision: block` con la lista: el modelo vuelve a
 tomar el turno y la completa (o dice que sigue en el medio). Las tareas que tocó otra sesión no son
@@ -122,7 +122,7 @@ def main() -> int:
 
     try:
         r = subprocess.run(
-            ["go", "run", "./cmd/cierre", "-json"],
+            ["go", "run", "./cmd/closeout", "-json"],
             cwd=SERVER, capture_output=True, text=True, timeout=90,
         )
         informe = json.loads(r.stdout)

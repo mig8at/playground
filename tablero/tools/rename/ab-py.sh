@@ -9,15 +9,23 @@
 # el lado nuevo se invoca con el nombre nuevo, y su salida se lee con el viejo para poder compararla.
 OLD=${1:?uso: ab-py.sh <worktree-viejo>}; NEW=$(cd "$(dirname "$0")/../../.." && pwd); T=${AB_TMP:-/tmp/tablero-ab-py}; mkdir -p "$T"
 RENAMED=(citas.py:citations.py ramas.py:branches.py trampas.py:traps.py test_ramas.py:test_branches.py)
-to_new() { local s="$*"; for p in "${RENAMED[@]}"; do [ -e "$NEW/tablero/tools/${p#*:}" ] && s=${s//tools\/${p%%:*}/tools\/${p#*:}}; done; echo "$s"; }
-to_old() { local s="$1"; for p in "${RENAMED[@]}"; do s=${s//${p#*:}/${p%%:*}}; done; echo "$s"; }
-norm() { echo "$1" | sed -E 's/[0-9]{8}T[0-9]{6}-[0-9a-f]{8}/<REPORTE>/g; s/"(generado|generated)": "[^"]+"/"generado": "<HORA>"/; s/in [0-9.]+s$/in <T>s/'; }
+# for_tree <árbol> <comando>: el comando con los nombres que EXISTEN en ese árbol (el viejo puede ser de
+# antes o de después de cualquier fase)
+for_tree() { local tree=$1; shift; local s="$*"
+  for p in "${RENAMED[@]}"; do [ -e "$tree/tablero/tools/${p#*:}" ] && s=${s//tools\/${p%%:*}/tools\/${p#*:}}; done
+  [ -d "$tree/tablero/data/traps" ] && s=${s//data\/trampas\//data\/traps\/}; echo "$s"; }
+to_old() { local s="$1"; for p in "${RENAMED[@]}"; do s=${s//${p#*:}/${p%%:*}}; done; s=${s//data\/traps\//data\/trampas\/}; echo "$s"; }
+# ⚠ las corridas de `citas` sobre TAREAS sólo comparan si los dos lados ven los mismos archivos de tarea:
+# el validador hace `git blame` de cada documento, así que una tarea editada en el medio (o enlazada en el
+# worktree) cambia su resultado sin que el código cambie. Para eso, copiá la versión vieja del validador a
+# `<raíz>/.runs/tools/` —misma profundidad, misma raíz— y comparalas sobre el repo real.
+norm() { echo "$1" | sed -E 's/ {2,}/  /g; s/[0-9]{8}T[0-9]{6}-[0-9a-f]{8}/<REPORTE>/g; s/"(generado|generated)": "[^"]+"/"generado": "<HORA>"/; s/in [0-9.]+s$/in <T>s/'; }
 fail=0
 run() { # run <nombre> <comando, con las rutas VIEJAS>
   local name=$1; shift
-  o=$(cd "$OLD" && eval "$*" 2>&1; echo "exit=$?"); o=${o//$OLD/<RAIZ>}; o=${o//$T\/old/<OUT>}
-  n=$(cd "$NEW" && eval "$(to_new "$*")" 2>&1; echo "exit=$?"); n=${n//$NEW/<RAIZ>}; n=${n//$T\/new/<OUT>}
-  o=$(norm "$o"); n=$(norm "$(to_old "$n")")
+  o=$(cd "$OLD" && eval "$(for_tree "$OLD" "$*")" 2>&1; echo "exit=$?"); o=${o//$OLD/<RAIZ>}; o=${o//$T\/old/<OUT>}
+  n=$(cd "$NEW" && eval "$(for_tree "$NEW" "$*")" 2>&1; echo "exit=$?"); n=${n//$NEW/<RAIZ>}; n=${n//$T\/new/<OUT>}
+  o=$(norm "$(to_old "$o")"); n=$(norm "$(to_old "$n")")
   if [ "$o" == "$n" ]; then echo "  = $name (${#n} B)"; else echo "  ✗ $name"; diff <(echo "$o") <(echo "$n") | head -8; fail=1; fi
 }
 run "trampas" python3 tablero/tools/trampas.py

@@ -291,7 +291,7 @@ Y el tipo de anotación es siempre `MEDICIÓN`, a propósito: eso sale de correr
 `RIESGO` los escribe una persona.
 
 ⚠ **Si el hecho medido resultó ser del SISTEMA y no de la tarea** —una trampa reproducible, con causa
-raíz— no se queda acá: gradúa a `tablero/data/trampas/doc.md`. El test de siempre: *si
+raíz— no se queda acá: gradúa a `tablero/data/traps/doc.md`. El test de siempre: *si
 esto se mergea mañana, ¿sigue siendo cierto?*
 
 ## Y lo que NO sale de acá a Jira

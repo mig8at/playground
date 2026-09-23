@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]          # playground/
-DOC = ROOT / 'tablero' / 'data' / 'trampas' / 'doc.md'
+DOC = ROOT / 'tablero' / 'data' / 'traps' / 'doc.md'
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 ANCHOR = re.compile(r"^### (F-\d+)")

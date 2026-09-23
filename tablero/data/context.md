@@ -14,7 +14,7 @@ jira_title: ""
 
 ✅ **`context/` ya no existe.** Se apagó el 2026-09-21: 34 nodos y 885 KB borrados, más su `src/`,
 `dist/` y sus 16 herramientas. Lo que valía graduó a **canon** (el corpus compartido, en
-`github/playground/tools/canon`), las trampas del sistema viven en `tablero/data/trampas/`, y las
+`github/playground/tools/canon`), las trampas del sistema viven en `tablero/data/traps/`, y las
 cuatro herramientas que estaban ahí de prestado se mudaron a la carpeta que las usa. Esta tarea pasa
 a ser el REGISTRO de cómo se hizo; lo que quede por hacer de contexto es de canon y va en su tarea.
 
@@ -73,6 +73,12 @@ hace más difícil de revisar. Conviene abrirlo pronto.
 corrida Jev no verifica conocimiento ni renueva sellos.
 
 ## Registro
+
+### 2026-09-23
+
+> **2026-09-23 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
+> del sistema, que pasaron de `tablero/data/trampas/` a `tablero/data/traps/` al llevar a inglés los
+> nombres de carpeta del tablero. El tiempo de ese cambio está en la bitácora de la tarea del tablero.
 
 ### 2026-09-21 · lo que el borrado rompió, y por qué apareció recién al final
 

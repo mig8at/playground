@@ -31,7 +31,7 @@ import (
 	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/guard"
-	"creditop/tablero/server/internal/pulso"
+	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/slack"
 	"creditop/tablero/server/internal/store"
 )
@@ -1155,7 +1155,7 @@ func main() {
 	})
 
 	// El PULSO: cuándo toqué los repos de la compañía, en tramos de 5 minutos. Lo escribe el agente
-	// (`cmd/pulso`, un LaunchAgent cada 5'), acá sólo se AGREGA y se sirve — el server no lo genera,
+	// (`cmd/pulse`, un LaunchAgent cada 5'), acá sólo se AGREGA y se sirve — el server no lo genera,
 	// porque tiene que registrarse aunque el tablero esté cerrado, que es cuando más se programa.
 	//
 	//   /api/pulse?days=20 → una celda por (día, hora), con slots, cobertura, commits y desglose por repo
@@ -1165,18 +1165,18 @@ func main() {
 			return
 		}
 		days := atoiDefault(r.URL.Query().Get("days"), 20)
-		ticks, err := pulso.Read(dataDir, days)
+		ticks, err := pulse.Read(dataDir, days)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
 			return
 		}
 		// `installed` distingue "no trabajaste" de "nadie estaba mirando": sin un solo tick, la grilla
 		// vacía no significa nada y la UI tiene que decirlo en vez de dejarte sacar conclusiones.
-		ult, found := pulso.LastTick(dataDir)
+		ult, found := pulse.LastTick(dataDir)
 		res := map[string]any{
-			"hours":        pulso.Aggregate(ticks, days),
-			"slotsPerHour": pulso.SlotsPerHour,
-			"slotMinutes":  int(pulso.Slot / time.Minute),
+			"hours":        pulse.Aggregate(ticks, days),
+			"slotsPerHour": pulse.SlotsPerHour,
+			"slotMinutes":  int(pulse.Slot / time.Minute),
 			"installed":    found,
 		}
 		if found {

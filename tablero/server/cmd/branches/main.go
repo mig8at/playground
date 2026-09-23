@@ -10,9 +10,9 @@
 //
 // uso:
 //
-//	go run ./cmd/ramas            # mide todas las tareas con patrón y guarda el snapshot
-//	go run ./cmd/ramas -json      # además lo imprime
-//	go run ./cmd/ramas -n <slug>  # sólo esa tarea
+//	go run ./cmd/branches            # mide todas las tareas con patrón y guarda el snapshot
+//	go run ./cmd/branches -json      # además lo imprime
+//	go run ./cmd/branches -n <slug>  # sólo esa tarea
 package main
 
 import (

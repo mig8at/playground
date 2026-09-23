@@ -1,4 +1,4 @@
-package pulso
+package pulse
 
 import "testing"
 

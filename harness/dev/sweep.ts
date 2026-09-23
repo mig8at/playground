@@ -21,7 +21,7 @@
 //
 // Por qué existe: probar N comercios × M entidades por UI cuesta minutos por corrida; por API son
 // segundos, y el LOG de cada paso es el insumo para documentar los flujos (las trampas del sistema
-// viven en `tablero/data/trampas/`; el mecanismo, en canon).
+// viven en `tablero/data/traps/`; el mecanismo, en canon).
 // Las conductas se clasifican por los MISMOS campos que mira el front (standBy/showModal/url/…).
 //
 // Gotchas que ya nos mordieron (ver Findings):

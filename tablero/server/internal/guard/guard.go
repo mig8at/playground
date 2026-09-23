@@ -1,7 +1,7 @@
 // Package guard tiene los patrones de lo que NO puede salir del playground hacia Jira o Slack.
 //
 // Es la FUENTE ÚNICA: el POST del server los re-aplica antes de escribir, `cmd/issue-create` los aplica
-// antes de publicar y `cmd/tareas` los usa para decir si una tarea puede salir. `/api/guard` los expone
+// antes de publicar y `cmd/tasks` los usa para decir si una tarea puede salir. `/api/guard` los expone
 // para que un cliente los compile y bloquee el botón sin ir al server — hoy **nadie lo consume**: la UI
 // manda el POST y muestra los `problems` que devuelve. Si algún día se usa, el patrón tiene que seguir
 // siendo válido en JS además de RE2. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a

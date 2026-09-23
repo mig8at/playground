@@ -1026,7 +1026,7 @@ test.
 `Admin/UserController@update` **resetea la contraseña del cliente a su número de documento** en cada
 edición (`bcrypt($document_number)`). Cambiarle el correo a alguien le deja la clave en su cédula.
 Es independiente del canal de WhatsApp y ya está en `main`. **Pendiente de registrar como finding**
-en `tablero/data/trampas/doc.md` — Miguel lo decide.
+en `tablero/data/traps/doc.md` — Miguel lo decide.
 
 ## Arquitectura del canal — ✅ DECIDIDO: `Modules/SupportAgent` en legacy-backend
 
@@ -1327,6 +1327,12 @@ castigo pega sobre el número que también se usa para cobrar.
 ---
 
 ## Registro
+
+### 2026-09-23
+
+> **2026-09-23 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
+> del sistema, que pasaron de `tablero/data/trampas/` a `tablero/data/traps/` al llevar a inglés los
+> nombres de carpeta del tablero. El tiempo de ese cambio está en la bitácora de la tarea del tablero.
 
 ### 2026-09-21
 

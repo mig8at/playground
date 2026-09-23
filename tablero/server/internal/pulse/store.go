@@ -1,4 +1,4 @@
-package pulso
+package pulse
 
 import (
 	"encoding/json"
@@ -266,7 +266,7 @@ func Aggregate(ticks []Tick, days int) []Hour {
 
 // DataDir resuelve la carpeta de datos del tablero. Importa que sea ROBUSTO: launchd corre el agente con
 // cwd `/`, así que un default relativo lo dejaría escribiendo en cualquier lado (o en ninguno). Orden:
-// TABLERO_DATA · junto al binario (`server/bin/pulso` → `../../data`) · relativo al cwd.
+// TABLERO_DATA · junto al binario (`server/bin/pulse` → `../../data`) · relativo al cwd.
 func DataDir() string {
 	if v := os.Getenv("TABLERO_DATA"); v != "" {
 		return v

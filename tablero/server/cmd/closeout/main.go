@@ -38,7 +38,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/tablero/server/internal/pulso"
+	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/store"
 	"creditop/tablero/server/internal/taskcontext"
 )
@@ -320,12 +320,12 @@ func branchesOfDay(data, day string) (branches []string, minutes int, ok bool) {
 	today := time.Now()
 	d, _ := time.Parse("2006-01-02", day)
 	days := int(today.Sub(d).Hours()/24) + 2
-	ticks, err := pulso.Read(data, days)
+	ticks, err := pulse.Read(data, days)
 	if err != nil {
 		return nil, 0, false
 	}
 	seen := map[string]bool{}
-	for _, h := range pulso.Aggregate(ticks, 0) {
+	for _, h := range pulse.Aggregate(ticks, 0) {
 		if h.Day != day {
 			continue
 		}
@@ -562,11 +562,11 @@ func hm(min int) string {
 }
 
 func printReport(inf Report) {
-	pulse := "sin pulso"
+	pulseLabel := "sin pulso"
 	if inf.PulseAvailable {
-		pulse = "pulso " + hm(inf.PulseMinutes)
+		pulseLabel = "pulso " + hm(inf.PulseMinutes)
 	}
-	fmt.Printf("\n  cierre · %s · %s · bitácora %s en %d entrada(s)", inf.Day, pulse, hm(inf.WorklogMin), inf.WorklogN)
+	fmt.Printf("\n  cierre · %s · %s · bitácora %s en %d entrada(s)", inf.Day, pulseLabel, hm(inf.WorklogMin), inf.WorklogN)
 	if inf.WithoutTaskMin > 0 {
 		fmt.Printf(" (%s sin tarea)", hm(inf.WithoutTaskMin))
 	}

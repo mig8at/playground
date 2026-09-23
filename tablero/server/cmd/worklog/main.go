@@ -25,7 +25,7 @@ import (
 	"time"
 
 	"creditop/tablero/server/internal/guard"
-	"creditop/tablero/server/internal/pulso"
+	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/store"
 )
 
@@ -50,7 +50,7 @@ func todayAt(hhmm string) (time.Time, error) {
 // slotsSince cuenta los tramos de 5' con actividad en el pulso desde `since` hasta ahora (hoy), en
 // cualquier repo. Devuelve también si el pulso tenía registro en esa ventana.
 func slotsSince(data string, since time.Time) (slotCount int, happened bool) {
-	ticks, err := pulso.Read(data, 1)
+	ticks, err := pulse.Read(data, 1)
 	if err != nil {
 		return 0, false
 	}

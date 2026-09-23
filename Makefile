@@ -76,26 +76,26 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 # TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
 # cuando ya es tarde para decidir cómo escribir.
 tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
-	@cd tablero/server && go run ./cmd/tareas $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/tasks $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
 
 tarea-json: ## @dia proyección JSON tipada de UNA tarea, derivada del Markdown. N=<slug|id> · CONTENIDO=1 incluye borrador Jira
 	@test -n "$(N)" || { echo "falta N=<slug|id>  ·  ej: make tarea-json N=tablero"; exit 2; }
-	@cd tablero/server && go run ./cmd/tareas -n "$(N)" -json $(if $(CONTENIDO),-contenido)
+	@cd tablero/server && go run ./cmd/tasks -n "$(N)" -json $(if $(CONTENIDO),-contenido)
 
 # ⚠ Lee el SNAPSHOT de Jira, no el estado vivo — e imprime cuándo se tomó, porque un tablero
 # presentado como actual siendo de hace días es peor que no tenerlo: se decide sobre él.
 sprint: ## @dia el sprint activo con sus tareas y puntos, del snapshot (dice cuándo se tomó). JSON=1
-	@cd tablero/server && go run ./cmd/tareas -sprint $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/tasks -sprint $(if $(JSON),-json)
 
 bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la nota entera va en el json)
-	@cd tablero/server && go run ./cmd/tareas -bitacora $(or $(DAYS),7) $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/tasks -bitacora $(or $(DAYS),7) $(if $(JSON),-json)
 
 # ⚠ Sale 1 si el texto NO puede salir: sirve para frenar antes de publicar, no sólo para informar.
 # Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
 # comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
 tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|título> · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
-	@cd tablero/server && go run ./cmd/ramas $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/branches $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
 
 # Publica en CUADRILLA (el tablero del EQUIPO) las ramas de una tarea de acá. Viaja lo que se MIDE
 # —repo y rama— y nada más: quién está en la épica y la rama base se deciden allá. Sin APLICAR=1 sólo
@@ -104,21 +104,21 @@ cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu pa
 	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APLICAR),-aplicar) $(if $(EN),-en $(EN))
 
 hoy: ## @dia la agenda derivada de las tareas: en movimiento (próximo paso, preguntas vencidas, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
-	@cd tablero/server && go run ./cmd/hoy $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
 retomar: ## @dia retomar UNA tarea en frío: retoma, próximo paso, ramas y PRs, preguntas vencidas, pendientes, último Registro, bitácora — y qué falta. N=<id|slug> · BRIEF=1 suma la FICHA de sus nodos de context sin abrir los docs (~1/10 del doc; hasta 4, BRIEF=a,b elige) — decide qué doc abrir, no lo reemplaza
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
-	@cd tablero/server && go run ./cmd/hoy -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
+	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
 anatomia: ## @dia ¿cómo está repartido el archivo de cada tarea (estado/registro) y qué sección parece estar fuera de lugar? N=<id|slug>
-	@cd tablero/server && go run ./cmd/hoy -anatomia $(if $(N),-n "$(N)")
+	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
 
 bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [KIND=progress] [SECO=1]
 	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
-	@cd tablero/server && go run ./cmd/bitacora -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
+	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
 	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
 
 tarea-context-add: ## @dia ⚠ ESCRIBE un hito de retoma validado en JSONL. N=<id|slug> EVENTO=<archivo.json> · [SECO=1]
@@ -135,14 +135,14 @@ tablero-db: ## @dia SQL de SOLO LECTURA. TARGET=local|dev|staging|prod SQL='SELE
 	@cd tablero/server && go run ./cmd/db-query -target "$(TARGET)" -sql $$'$(subst ','\'',$(SQL))' $(if $(MD),-md)
 
 cierre: ## @dia el cierre del día: qué tareas tocaste (git + pulso) y a cuál le falta retoma, registro, bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1
-	@cd tablero/server && go run ./cmd/cierre $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
+	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json)
 
 trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
 	@python3 tablero/tools/traps.py $(if $(INDICE),--indice)
 
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
 	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
-	@cd tablero/server && go run ./cmd/tareas -guard ../../$(F)
+	@cd tablero/server && go run ./cmd/tasks -guard ../../$(F)
 
 # ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
 # Existían desde hace rato en `tablero/server/cmd/` y NO figuraban acá: el único target del tablero
@@ -237,17 +237,17 @@ trazador-hilos: ## @dia los reportes de #tech-ops CON SU HILO de respuestas: con
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: pulso pulso-install pulso-status pulso-uninstall
 pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
-	@cd tablero && { test -x server/bin/pulso || npm run --silent server:build; } \
-	  && server/bin/pulso report -days $(or $(DAYS),7)
+	@cd tablero && { test -x server/bin/pulse || npm run --silent server:build; } \
+	  && server/bin/pulse report -days $(or $(DAYS),7)
 
 pulso-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
-	@cd tablero && npm run --silent server:build && server/bin/pulso seed && server/bin/pulso install
+	@cd tablero && npm run --silent server:build && server/bin/pulse seed && server/bin/pulse install
 
 pulso-status: ## @dia ¿el pulso está vivo? último tick y actividad de hoy
-	@cd tablero && server/bin/pulso status
+	@cd tablero && server/bin/pulse status
 
 pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
-	@cd tablero && server/bin/pulso uninstall
+	@cd tablero && server/bin/pulse uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
 # ⚠ Acá vivían los 14 comandos del árbol `context/` (align, refs, seal, lint, diff, triar, jev…). Ese

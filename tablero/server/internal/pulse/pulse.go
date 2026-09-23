@@ -27,7 +27,7 @@
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español (como el resto del
 // tablero).
-package pulso
+package pulse
 
 import (
 	"context"

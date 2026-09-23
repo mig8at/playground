@@ -8,7 +8,7 @@ con rutas o repos debajo de «## Tarea (publicable)» sale a Jira. Las cuatro pa
 nadie se enteró hasta mirar a mano.
 
 QUÉ HACE: si el archivo escrito es `tablero/data/<slug>.md` (no entries/, cache/, artifacts/), corre
-`tareas -lint` (tablero/server/cmd/tareas), que es la fuente única de estas reglas — la misma que
+`tareas -lint` (tablero/server/cmd/tasks), que es la fuente única de estas reglas — la misma que
 `make tareas` usa para avisar. Un PostToolUse no puede bloquear, pero con exit 2 su stderr vuelve al
 modelo como error y no se puede ignorar: lo escrito ya está, lo que importa es que no quede así.
 
@@ -37,7 +37,7 @@ def main() -> int:
         return 0
     try:
         r = subprocess.run(
-            ["go", "run", "./cmd/tareas", "-lint", str(ruta)],
+            ["go", "run", "./cmd/tasks", "-lint", str(ruta)],
             cwd=SERVER, capture_output=True, text=True, timeout=60,
         )
     except Exception:

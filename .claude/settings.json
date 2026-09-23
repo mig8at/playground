@@ -19,7 +19,7 @@
     "              tokens por sesión, y es el precio de que un modelo no decida que no puede leer",
     "              Loki cuando sí puede. Se genera del Makefile: un target nuevo aparece solo.",
     "",
-    "Stop         · cierre: al terminar de responder, corre `cierre -json` (tablero/server/cmd/cierre) y",
+    "Stop         · cierre: al terminar de responder, corre `cierre -json` (tablero/server/cmd/closeout) y",
     "              mira SÓLO las tareas que ESTA sesión tocó (el transcript las nombra). Si a alguna le",
     "              falta retoma, registro del día, bitácora o ramas, devuelve `block` con la lista y el",
     "              modelo completa. UNA vez por sesión y por día (marca en tablero/data/cache/). Es la",

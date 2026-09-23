@@ -200,7 +200,7 @@ def state_from_task(task):
 
 
 def load_task(ref):
-    command = ['go', 'run', './cmd/hoy', '-n', ref, '-json']
+    command = ['go', 'run', './cmd/today', '-n', ref, '-json']
     completed = subprocess.run(command, cwd=ROOT / 'server', capture_output=True, text=True, timeout=60)
     if completed.returncode:
         raise JevError('no se pudo leer la tarea con `make retomar`')

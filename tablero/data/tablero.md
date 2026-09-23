@@ -61,11 +61,13 @@ hecha** el mismo día: 116 identificadores del Python de `tools/`, con las 11 sa
 idénticas al código anterior. **Fase 2 hecha** también: 26 archivos renombrados con `git mv`
 (`store/annotations.go`, `tools/citations.py`, `TASK-TEMPLATE.md`, `docs/ARCHITECTURE.md`…). Quedan en
 español, a propósito: las claves JSON, `schemas/tarea.v1.schema.json` (lleva el nombre del contrato,
-va con la 4b) y las carpetas.
+va con la 4b). **Fase 3 hecha**: `cmd/{today,closeout,branches,tasks,worklog,pulse}`,
+`internal/pulse` y `data/traps`, con el LaunchAgent del pulso reinstalado sobre `bin/pulse` y
+escribiendo. Quedan como nombres propios `cmd/cuadrilla`, la etiqueta del agente
+(`com.creditop.tablero.pulso`) y su log.
 
-**El próximo paso es:** la fase 3 (carpetas: `server/cmd/{hoy,cierre,ramas,tareas,bitacora,pulso,cuadrilla}`,
-`internal/pulso`, `data/trampas`), moviendo en el mismo commit el `Makefile`, los dos hooks y el plist
-del LaunchAgent del pulso, y comprobando que el pulso vuelve a escribir después.
+**El próximo paso es:** la fase 4, el chequeo que frena un identificador, archivo o carpeta nuevos en
+español —con la vara de la stdlib, no la del diccionario—; después la 4b (claves JSON y el esquema).
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -93,8 +95,8 @@ del LaunchAgent del pulso, y comprobando que el pulso vuelve a escribir después
 - [x] Nombres en inglés · fase 2: 26 archivos — `ab-cli.sh` 32/32, `ab-web.sh` 17/17, `ab-py.sh`
       14/14 (incluido `make trampas`, `make repos-test` y el import de `huella.py` del trazador) y el
       `anotacion.spec.ts` del arnés en verde. `schemas/tarea.v1.schema.json` pasa a la 4b.
-- [ ] Nombres en inglés · fase 3: carpetas; termina con Makefile, hooks y LaunchAgent del pulso
-      reapuntados y un pulso nuevo escrito después del cambio.
+- [x] Nombres en inglés · fase 3: 8 carpetas — `ab-cli.sh` 32/32, `ab-web.sh` 17/17, `ab-make.sh`
+      21/21 (targets de `make` y los dos hooks) y el pulso escribiendo con el binario nuevo.
 - [ ] Nombres en inglés · fase 4: un chequeo que frene nombres nuevos en español; termina cuando
       el chequeo sale ≠0 con un identificador en español inventado a propósito.
 - [ ] Sacar los 5 colores literales del resaltado SQL de `src/App.vue` a tokens; termina cuando
@@ -169,6 +171,18 @@ de carpeta— en inglés. Lo que se lee para ENTENDER —comentarios, docblocks,
 3. **Carpetas.** `server/cmd/*` cambia el nombre del binario: `Makefile`, los dos hooks y el plist
    del LaunchAgent (`bin/pulso`) van juntos. ⚠ Un pulso que deja de escribir no avisa: se lee como un
    día sin trabajo.
+   ✔ Hecho el 2026-09-23: `cmd/hoy→today`, `cierre→closeout`, `ramas→branches`, `tareas→tasks`,
+   `bitacora→worklog`, `pulso→pulse`, `internal/pulso→internal/pulse` (el paquete también) y
+   `data/trampas→data/traps`. Los targets de `make` no cambiaron.
+
+   > **MEDICIÓN · 2026-09-23** — los 21 targets de `make` que leen tareas y los dos hooks dan lo mismo con el `make` nuevo que con el binario anterior; los de `trampas`, `repos-test`, `tablero-jev-test` y `pulso` dan lo mismo en un worktree del commit anterior, salvo la ruta del documento de trampas, que es lo que se mudó.
+   > tablero/tools/rename/ab-cli.sh <árbol-anterior> && tablero/tools/rename/ab-make.sh <worktree-anterior>
+
+   > **MEDICIÓN · 2026-09-23** — el pulso siguió escribiendo: el agente se reinstaló con `server/bin/pulse install` (sin `seed`, para no volver a sembrar el pasado), `launchctl` muestra `program = …/bin/pulse` y `last exit code = 0`, y el archivo del mes pasó de 4.559 a 4.560 líneas con un tick de las 10:29:53. El binario viejo `bin/pulso`, que ya no usa nada, se borró.
+   > launchctl print gui/$(id -u)/com.creditop.tablero.pulso | grep -E 'program|last exit'; make pulso-status
+
+   > **RIESGO · 2026-09-23** — correr el `make` viejo dentro de un worktree NO sirve para los targets que leen git: con las tareas enlazadas al repo real, git las ve cambiadas y todas salen «0 días sin tocar». Por eso esos targets se comparan contra el binario viejo corrido en el repo real. Y la ruta a las trampas vivía en tres tareas más (#46, #47, `context`): se reapuntó el puntero vigente de cada una y se declaró `sin avance` en su Registro, como el 2026-09-21. #46 ya fallaba el lint antes de esto (declara un tema de canon `repos` que no existe) y quedó igual.
+
 4. **Cablearlo.** Un chequeo en `make` que falle con un identificador nuevo en español (lista de
    raíces del dominio: tarea, rama, pendiente, anotación, fuente, retoma, cierre…), porque una regla
    escrita envejece y un chequeo no.
@@ -211,6 +225,11 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 ## Registro
 
 ### 2026-09-23
+
+Fase 3: las carpetas del tablero en inglés —siete de `server/`, el paquete del pulso y
+`data/traps`— con el `Makefile`, los hooks, `package.json`, `jev.py` y 28 archivos de referencia en el
+mismo cambio. El agente del pulso se reinstaló apuntando al binario nuevo y siguió escribiendo. Nació
+`ab-make.sh`, que compara los targets de `make` y los hooks.
 
 Fase 2: 26 archivos del tablero con nombre en inglés, movidos con `git mv`, y sus referencias en 16
 archivos, incluido el import que hace el trazador de `citations.py`. `ab-py.sh` aprendió a invocar el

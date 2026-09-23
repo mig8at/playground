@@ -203,7 +203,7 @@ Marcá completado sólo lo verificado. Los criterios públicos para QA pertenece
 ### Hallazgos
 
 ⚠ **No confundir con las TRAMPAS del sistema (`F-xx`), que también viven acá desde el 2026-09-21**
-(`data/trampas/doc.md`, `make trampas`). Un hallazgo es una anotación fechada DENTRO de una tarea y
+(`data/traps/doc.md`, `make trampas`). Un hallazgo es una anotación fechada DENTRO de una tarea y
 muere con ella; una trampa es del sistema, no pertenece a ninguna tarea, y se entra por su SÍNTOMA.
 Vinieron del árbol de contexto que se apagó porque son **crónica** —síntoma, causa raíz, evidencia, arreglo— y
 la crónica no entra en canon; su lector real ya era este tablero. Dos cosas con nombre parecido es
@@ -808,7 +808,7 @@ herramientas repiten ese enlace en su propia sección para que no se reinvente l
   concluye que nadie los analiza — que es exactamente lo que afirmé acá antes de mirar las ramas. El
   análisis vivo está en `qa`, `develop` o `lab`. **Siempre preguntar por RAMA.**
 
-- **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulso` (un LaunchAgent,
+- **El pulso NO se escribe a mano ni desde el tablero.** Lo anota `server/cmd/pulse` (un LaunchAgent,
   cada 5 min) leyendo git: es la fuente objetiva de *cuándo toqué código*, y editarla la volvería otra
   bitácora. Se lee con `make pulso` o `GET /api/pulse`. El porqué del diseño: `README.md` → «El pulso».
   Si vas a razonar sobre cuánto se trabajó, mirá el pulso; la bitácora dice **en qué**, no **cuándo**.

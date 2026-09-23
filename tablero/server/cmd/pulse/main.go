@@ -2,7 +2,7 @@
 //
 // Un tick cada 5 minutos contesta una sola cosa por repo: ¿hubo cambios, sí o no? De ahí sale el mapa de
 // «Mi jornada»: 12 tramos por hora, y el total del día es tramos × 5' — tiempo con cambios reales, no una
-// estimación. El porqué del diseño está en internal/pulso.
+// estimación. El porqué del diseño está en internal/pulse.
 //
 //	pulso                un tick y sale — ESTO es lo que corre el agente cada 5 minutos
 //	pulso seed -days 20  siembra hacia atrás desde git (commits + reflog): llena el mapa el día uno
@@ -25,18 +25,18 @@ import (
 	"time"
 
 	"creditop/tablero/server/internal/env"
-	"creditop/tablero/server/internal/pulso"
+	"creditop/tablero/server/internal/pulse"
 )
 
 const (
 	label      = "com.creditop.tablero.pulso"
-	interval   = 300 // segundos entre ticks; tiene que ir de la mano con pulso.Slot (5 min)
+	interval   = 300 // segundos entre ticks; tiene que ir de la mano con pulse.Slot (5 min)
 	logRelPath = "Library/Logs/tablero-pulso.log"
 )
 
 func main() {
 	// El mismo `.env` que lee el server, y por la misma ruta: `LoadDefaults` lo busca junto al binario y
-	// en su carpeta padre, o sea `server/.env` cuando esto corre desde `server/bin/pulso`. Sin esto, un
+	// en su carpeta padre, o sea `server/.env` cuando esto corre desde `server/bin/pulse`. Sin esto, un
 	// `TABLERO_DATA` puesto ahí mandaría al server y al agente a carpetas distintas — el tablero mostraría
 	// una jornada vacía mientras el pulso escribe en otro lado, y nada avisaría.
 	//
@@ -93,27 +93,27 @@ const help = `uso:
 // horas reales (cada señal lleva su instante). El techo de 24h acota el costo tras un fin de semana.
 func tick() error {
 	flag.Parse()
-	dir := pulso.DataDir()
-	cfg := pulso.Load()
+	dir := pulse.DataDir()
+	cfg := pulse.Load()
 
 	now := time.Now()
-	since := now.Add(-pulso.Slot)
-	if ult, ok := pulso.LastTick(dir); ok {
+	since := now.Add(-pulse.Slot)
+	if ult, ok := pulse.LastTick(dir); ok {
 		since = ult
 	}
 	if lim := now.Add(-cfg.MaxGap); since.Before(lim) {
 		since = lim
 	}
 
-	t := pulso.Run(cfg, since, now)
-	if err := pulso.Append(dir, t); err != nil {
+	t := pulse.Run(cfg, since, now)
+	if err := pulse.Append(dir, t); err != nil {
 		return err
 	}
 	fmt.Println(tickSummary(t, since, now))
 	return nil
 }
 
-func tickSummary(t pulso.Tick, since, now time.Time) string {
+func tickSummary(t pulse.Tick, since, now time.Time) string {
 	if len(t.Signals) == 0 {
 		return fmt.Sprintf("%s · sin cambios (ventana %s)", now.Format("15:04"), now.Sub(since).Round(time.Second))
 	}
@@ -151,15 +151,15 @@ func seed() error {
 	days := fs.Int("days", 20, "cuántos días hacia atrás sembrar")
 	fs.Parse(os.Args[1:])
 
-	dir := pulso.DataDir()
-	cfg := pulso.Load()
+	dir := pulse.DataDir()
+	cfg := pulse.Load()
 	now := time.Now()
 	since := now.AddDate(0, 0, -*days)
 
-	t := pulso.Run(cfg, since, now)
+	t := pulse.Run(cfg, since, now)
 	// La siembra se anota con su ventana real: la agregación la ve, sabe que NO es cadencia normal y por
 	// eso no le cree la cobertura. Sin ese dato, sembrar pintaría 20 días de "equipo prendido".
-	if err := pulso.Append(dir, t); err != nil {
+	if err := pulse.Append(dir, t); err != nil {
 		return err
 	}
 	seededDays := map[string]bool{}
@@ -203,21 +203,21 @@ func report() error {
 	days := fs.Int("days", 7, "cuántos días mostrar")
 	fs.Parse(os.Args[1:])
 
-	dir := pulso.DataDir()
-	ticks, err := pulso.Read(dir, *days)
+	dir := pulse.DataDir()
+	ticks, err := pulse.Read(dir, *days)
 	if err != nil {
 		return err
 	}
-	cells := pulso.Aggregate(ticks, *days)
+	cells := pulse.Aggregate(ticks, *days)
 	if len(cells) == 0 {
 		fmt.Println("todavía no hay pulso. Sembrá el pasado con `pulso seed` y dejalo corriendo con `pulso install`.")
 		return nil
 	}
 
-	byDay := map[string]map[int]pulso.Hour{}
+	byDay := map[string]map[int]pulse.Hour{}
 	for _, c := range cells {
 		if byDay[c.Day] == nil {
-			byDay[c.Day] = map[int]pulso.Hour{}
+			byDay[c.Day] = map[int]pulse.Hour{}
 		}
 		byDay[c.Day][c.Hour] = c
 	}
@@ -269,7 +269,7 @@ func report() error {
 			fmt.Print("   \033[2m—\033[0m   ")
 			continue
 		}
-		fmt.Printf(" %5s ", hhmm(total*int(pulso.Slot/time.Minute)))
+		fmt.Printf(" %5s ", hhmm(total*int(pulse.Slot/time.Minute)))
 	}
 	fmt.Println()
 
@@ -298,7 +298,7 @@ func report() error {
 		sort.Slice(names, func(i, j int) bool { return tot[names[i]] > tot[names[j]] })
 		fmt.Println("\n  \033[1men qué\033[0m")
 		for _, r := range names {
-			fmt.Printf("    %-34s %6s   \033[2m%d %s\033[0m\n", r, hhmm(tot[r]*int(pulso.Slot/time.Minute)),
+			fmt.Printf("    %-34s %6s   \033[2m%d %s\033[0m\n", r, hhmm(tot[r]*int(pulse.Slot/time.Minute)),
 				commits[r], plural(commits[r], "commit", "commits"))
 		}
 		// Sin esta línea, la suma no cierra contra los totales de arriba y parece un error de cuentas.
@@ -309,7 +309,7 @@ func report() error {
 }
 
 // daysWithoutCoverage son los días con actividad pero sin un solo tick del agente: reconstruidos desde git.
-func daysWithoutCoverage(byDay map[string]map[int]pulso.Hour, days []string) []string {
+func daysWithoutCoverage(byDay map[string]map[int]pulse.Hour, days []string) []string {
 	var out []string
 	for _, d := range days {
 		slots, covered := 0, 0
@@ -351,9 +351,9 @@ func hhmm(min int) string {
 
 func repos() error {
 	flag.Parse()
-	cfg := pulso.Load()
-	rs := pulso.Repos(cfg.Root)
-	fmt.Printf("\n  raíz: %s\n  yo:   %s\n  datos: %s\n\n", cfg.Root, strings.Join(cfg.Emails, ", "), pulso.DataDir())
+	cfg := pulse.Load()
+	rs := pulse.Repos(cfg.Root)
+	fmt.Printf("\n  raíz: %s\n  yo:   %s\n  datos: %s\n\n", cfg.Root, strings.Join(cfg.Emails, ", "), pulse.DataDir())
 	if len(rs) == 0 {
 		fmt.Println("  ⚠ no se encontró ningún repo git ahí. Revisá PULSO_ROOT.")
 		return nil
@@ -386,14 +386,14 @@ func install() error {
 	// ya no existe y fallaría en silencio cada 5 minutos.
 	if strings.Contains(exe, "/go-build") || strings.Contains(exe, os.TempDir()) {
 		return fmt.Errorf("estás corriendo con `go run` y el binario es temporal.\n" +
-			"  Compilalo primero y instalá ese:  cd tablero && npm run server:build && server/bin/pulso install")
+			"  Compilalo primero y instalá ese:  cd tablero && npm run server:build && server/bin/pulse install")
 	}
 
-	dir, err := filepath.Abs(pulso.DataDir())
+	dir, err := filepath.Abs(pulse.DataDir())
 	if err != nil {
 		return err
 	}
-	cfg := pulso.Load()
+	cfg := pulse.Load()
 	home, _ := os.UserHomeDir()
 	plist := filepath.Join(home, "Library", "LaunchAgents", label+".plist")
 	logPath := filepath.Join(home, logRelPath)
@@ -457,26 +457,26 @@ func status() error {
 		fmt.Printf("  agente: instalado · %s · cada %ds\n", state, interval)
 	}
 
-	dir := pulso.DataDir()
-	if ult, ok := pulso.LastTick(dir); ok {
+	dir := pulse.DataDir()
+	if ult, ok := pulse.LastTick(dir); ok {
 		fmt.Printf("  último tick: %s (hace %s)\n", ult.Format("2006-01-02 15:04"), time.Since(ult).Round(time.Minute))
 	} else {
 		fmt.Println("  último tick: nunca — corré `pulso seed` para sembrar el pasado")
 	}
 
-	ticks, err := pulso.Read(dir, 1)
+	ticks, err := pulse.Read(dir, 1)
 	if err != nil {
 		return err
 	}
 	today := time.Now().Format("2006-01-02")
 	slots, covered := 0, 0
-	for _, c := range pulso.Aggregate(ticks, 1) {
+	for _, c := range pulse.Aggregate(ticks, 1) {
 		if c.Day == today {
 			slots += c.Slots
 			covered += c.Covered
 		}
 	}
-	m := int(pulso.Slot / time.Minute)
+	m := int(pulse.Slot / time.Minute)
 	fmt.Printf("  hoy: %s con cambios · %s registrados\n\n", hhmm(slots*m), hhmm(covered*m))
 	return nil
 }
@@ -493,7 +493,7 @@ func uid() string {
 //   - PATH explícito: launchd NO hereda tu shell, así que sin esto `git` puede no existir para el agente
 //     y el pulso "no hace nada" en silencio, que es el peor modo de fallar.
 //   - TABLERO_DATA absoluto: el agente corre con cwd `/`, y un default relativo escribiría en cualquier lado.
-func plistXML(exe, data string, cfg pulso.Config, logPath string) string {
+func plistXML(exe, data string, cfg pulse.Config, logPath string) string {
 	env := [][2]string{
 		{"PATH", "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin"},
 		{"TABLERO_DATA", data},

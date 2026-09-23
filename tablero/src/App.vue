@@ -1420,7 +1420,7 @@ const hourLabel = (h) => h === 12 ? '12p' : h === 18 ? '6p' : h < 12 ? `${h}a` :
 const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (Number.isInteger(h) ? h : h.toFixed(1)) + 'h'; };
 
 // ── el pulso: cuándo toqué los repos de la compañía ─────────────────────────────────────────────
-// Lo anota un agente (`server/cmd/pulso`) cada 5 minutos, corra o no el tablero. La unidad es el TRAMO
+// Lo anota un agente (`server/cmd/pulse`) cada 5 minutos, corra o no el tablero. La unidad es el TRAMO
 // DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que estimar minutos desde
 // git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que tuvieron cambios — el
 // total del día es tramos × 5', que sí es una medición.

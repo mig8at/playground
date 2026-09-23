@@ -7,13 +7,13 @@
 // el GUARD —la regla de qué puede salir a Jira— sólo corría al publicar, cuando ya es tarde para
 // decidir cómo escribir.
 //
-//	go run ./cmd/tareas                      las abiertas, con estado, Jira y nodos
-//	go run ./cmd/tareas -todas               incluidas las archivadas
-//	go run ./cmd/tareas -stage work          filtradas por etapa
-//	go run ./cmd/tareas -n <slug|id>         una tarea: qué es PÚBLICO y qué es PRIVADO
-//	go run ./cmd/tareas -guard <archivo>     ¿este texto puede salir a Jira? (sale 1 si no)
-//	go run ./cmd/tareas -json                la lista resumida, para encadenar
-//	go run ./cmd/tareas -n <slug> -json      una tarea en el contrato tipado tablero.tarea.v1
+//	go run ./cmd/tasks                      las abiertas, con estado, Jira y nodos
+//	go run ./cmd/tasks -todas               incluidas las archivadas
+//	go run ./cmd/tasks -stage work          filtradas por etapa
+//	go run ./cmd/tasks -n <slug|id>         una tarea: qué es PÚBLICO y qué es PRIVADO
+//	go run ./cmd/tasks -guard <archivo>     ¿este texto puede salir a Jira? (sale 1 si no)
+//	go run ./cmd/tasks -json                la lista resumida, para encadenar
+//	go run ./cmd/tasks -n <slug> -json      una tarea en el contrato tipado tablero.tarea.v1
 //
 // El `-guard` reusa `internal/guard`, que es la fuente única: la UI compila esos mismos patrones y
 // `issue-create` los aplica antes de publicar. Reimplementarlos acá habría sido la cuarta copia, y
@@ -430,7 +430,7 @@ func validStage(s string) bool {
 }
 
 func dataDir() string {
-	// Se corre con `go run ./cmd/tareas` desde `server/`, así que `../data` es lo normal; pero
+	// Se corre con `go run ./cmd/tasks` desde `server/`, así que `../data` es lo normal; pero
 	// también se acepta desde la raíz del tablero, para que no importe desde dónde se lance.
 	for _, d := range []string{"../data", "data", "tablero/data"} {
 		if fi, err := os.Stat(d); err == nil && fi.IsDir() {

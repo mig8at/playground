@@ -203,7 +203,7 @@ node dev/sweep.ts abaco  motai 169            # cadena renting: requiere → ini
 
 Manda `x-cognito-identity-id` en todas sus llamadas — sin ese header, `update-user-request` **borra el
 asesor de la solicitud en silencio** (`corporate_user_id = NULL`) y Ábaco después revienta. Los hallazgos
-de estos barridos están numerados como `F-xx` en `tablero/data/trampas/doc.md`.
+de estos barridos están numerados como `F-xx` en `tablero/data/traps/doc.md`.
 
 ---
 
@@ -316,7 +316,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
   aunque `lenders-v2` esté roto** → verde en falso para este fallo.
 - **El eje ecommerce solo resuelve Bancolombia (F-54, que corrige a F-40)**: la entrada por checkout
   existe, pero el marketplace de esa vía quedó acotado y en local se degrada — probalo contra `dev`.
-  Antes de invertir tiempo ahí, leé F-54 en `tablero/data/trampas/doc.md`.
+  Antes de invertir tiempo ahí, leé F-54 en `tablero/data/traps/doc.md`.
 - **`npm run test:onboarding` está roto**: apunta a `tests/onboarding`, carpeta que no existe.
 - **Un asesor = un comercio.** Cambiar de comercio en `dev` **escribe en la BD compartida** (reversible,
   con guard). `node bin/dbops.ts revoke` restaura desde `.asesor-snapshot.json`.
@@ -349,7 +349,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 
 **Contexto de negocio** (qué es CreditOp, `response_type`, estados, entidades): el árbol de contexto en
 **canon** (`github/playground/tools/canon`) — empezá preguntándole (`go run . -pregunta '…'`) y el tema
-`harness` (este `CLAUDE.md`). `tablero/data/trampas/doc.md` es la **bitácora de muros
+`harness` (este `CLAUDE.md`). `tablero/data/traps/doc.md` es la **bitácora de muros
 locales**: buscá tu síntoma en su índice antes de depurar algo que huele a "ya nos pasó".
 
 > ⚠ Varios docs de esta carpeta (`VALIDATION.md`, `PLAN-PRUEBAS.md`, `lender/README.md`) y algunos

@@ -292,6 +292,12 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
 
 ## Registro
 
+### 2026-09-23
+
+> **2026-09-23 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
+> del sistema, que pasaron de `tablero/data/trampas/` a `tablero/data/traps/` al llevar a inglés los
+> nombres de carpeta del tablero. El tiempo de ese cambio está en la bitácora de la tarea del tablero.
+
 ### 2026-09-21
 
 > **2026-09-21 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
@@ -753,7 +759,7 @@ centrales, hechos por tres personas en tres meses (`mock_rules` de José, el lam
 Joel, y los drivers fake + `X-Fake-Scenario`). Se hizo un spike que los unifica en uno solo dictado
 por header — local, sin commitear, 0 tests rotos de 509.
 
-El mecanismo vigente y su receta viven en **`tablero/data/trampas/doc.md`, F-139**. El
+El mecanismo vigente y su receta viven en **`tablero/data/traps/doc.md`, F-139**. El
 spike anterior sigue disponible en la historia de Git.
 
 #### Preguntas abiertas

@@ -32,7 +32,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Si venís a… | Arrancá por |
 |---|---|
 | Entender un flujo o subsistema | **canon**, el corpus compartido: `cd ~/Desktop/CREDITOP/github/playground/tools/canon && go run . -pregunta '…'`, o canon.playground.creditop.com |
-| «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/trampas/doc.md): entrá por el índice de síntomas |
+| «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/traps/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | `cd harness && npm run dev` → el panel maneja el wizard real |
 | Investigar una solicitud rota | `make trazador-acceso`, y después `make trazador-ureq UREQ=…` |
 
@@ -61,7 +61,7 @@ Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
 - **`playground/docs/` fue borrada** de `main` (2026-07-17, absorbida por el árbol de contexto). Toda
   ruta `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
 - **`context/` se apagó** (2026-09-21): lo que valía graduó a **canon** —el corpus compartido, en otro
-  repo— y las trampas del sistema se mudaron a `tablero/data/trampas/`. Toda ruta
+  repo— y las trampas del sistema se mudaron a `tablero/data/traps/`. Toda ruta
   `context/server/data/flows/<nodo>/` es histórica. **No lo reconstruyas**: dos contextos en paralelo
   fue exactamente el problema.
 - Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El <!-- lint:ok -->

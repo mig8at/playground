@@ -47,7 +47,7 @@ de estado y los grupos plegados se reinician al recargar para hacer visible el t
 - `src/jira-preview.js`: presenta `DescriptionHTML` o `Description` del issue; nunca usa el borrador privado.
 - `src/ui-state.js`: preferencias, límites de ancho y agrupación por estado.
 - `server/internal/store`: archivos, parsers y persistencia local.
-- `server/cmd/hoy`: agenda y retoma para consola.
+- `server/cmd/today`: agenda y retoma para consola.
 - `server/cmd/web`: API HTTP/WebSocket e integración con Jira y Slack.
 - `server/cmd/{jira-mcp,slack-mcp}`: conectores MCP por stdio.
 

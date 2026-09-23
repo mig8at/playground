@@ -132,7 +132,7 @@ Ninguno dentro de esta carpeta salvo el `Readme.txt` (el de distribución). El c
 
 - canon, tema relacionado con `ecommerce` (el árbol de `context/` se borró el 2026-09-21) — **el doc maestro del canal**: contrato base64, tablas (`allied_ecommerce_credentials`, `ecommerce_requests`, `woocommerce_statuses`), notificadores por plataforma (Woo=1, self=2, VTEX=3), observer de estados finales, cutover por-allied.
 - canon, tema relacionado con `ecommerce-web-stateless` (el árbol de `context/` se borró el 2026-09-21) — la task que mueve el entry al wizard sin cookie (PRs 795 backend / 551 front).
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/tablero/data/trampas/doc.md` — **F-40**: por qué el checkout da 404 contra el wizard de `main`.
+- `/Users/miguelochoa/Desktop/CREDITOP/playground/tablero/data/traps/doc.md` — **F-40**: por qué el checkout da 404 contra el wizard de `main`.
 - `/Users/miguelochoa/Desktop/CREDITOP/github/legacy-application/app/Http/Controllers/Customer/WoocommerceController.php` — el receptor histórico: decodifica el contrato, valida hash+token, notifica y cancela.
 - `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/channel/ecommerce-*.spec.ts` — 5 specs del canal (`ecommerce-notify` usa `tools/generate_checkout_url.php`). Marcadas **stale** por F-40.
 - `tools/generate_checkout_url.php` — arma la URL base64 fuera de WordPress. **Referencia, no herramienta**: para simular la entrada usá `harness/pkg/checkout-b64.ts` o el selector de Canal del panel.
