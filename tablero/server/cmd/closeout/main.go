@@ -189,6 +189,18 @@ func metadataOnly(data, day, slug, bodyToday string) bool {
 // una vez, donde se hizo. Sigue siendo DECLARADA y no deducida: se probó deducirla comparando el cuerpo
 // con las citas normalizadas y falla, porque al barrer se escribe la nota que explica el barrido.
 
+// legacySweeps: los barridos que se declararon a la vieja usanza —una línea «**<día> · sin avance.**» en el
+// Registro de la tarea— antes de que existiera el trailer. El Registro se mudó a la pila el 2026-09-23 y
+// esas líneas no pasaron, porque contaban un barrido y no la tarea; quedan acá, tal cual estaban, para que
+// el cierre de esos dos días no reclame de más (lo hacía: sin ellas, el 23 le pedía bloque y bitácora a
+// cuatro tareas que sólo se habían barrido). No se agrega nada nuevo: un barrido de ahora lo declara su commit.
+var legacySweeps = map[string]map[string]bool{
+	"2026-09-21": {"agente-soporte-modificacion-datos": true, "bancolombia-billing-code": true, "kyc-segundo-apellido-no-coincide": true},
+	"2026-09-23": {"agente-soporte-modificacion-datos": true, "context": true, "kyc-segundo-apellido-no-coincide": true, "workers": true},
+}
+
+const legacySweepReason = "declarado en su Registro, antes del trailer"
+
 // blocksOn: ¿la pila tiene un bloque fechado ese día (`any`), y alguno que sea trabajo de ese día y no un
 // hito viejo convertido (`work`)? Un bloque migrado cumple con el bloque del día —es el hito que se
 // escribió entonces— pero no vuelve tocada a la tarea. La fecha va con el huso local, así que el
@@ -356,6 +368,12 @@ func main() {
 
 	inf := Report{Day: *day}
 	touched, swept := touchedByGit(data, *day, isToday)
+	for slug := range legacySweeps[*day] {
+		if touched[slug] {
+			delete(touched, slug)
+			swept[slug] = legacySweepReason
+		}
+	}
 	branches, base, pulseMin, pulseOK := branchesOfDay(data, *day)
 	inf.PulseMinutes, inf.PulseAvailable = pulseMin, pulseOK
 	minutesByTask, withoutTask, totalWorklog, nBit := worklog(data, *day)
