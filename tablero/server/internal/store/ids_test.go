@@ -5,16 +5,22 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"creditop/tablero/server/internal/layout"
 )
 
 // Dos archivos con el mismo id se pisaban en `slugs[id]` y sobrevivía uno solo, sin aviso (pasó el
 // 2026-09-14 con el 79). La regla: la más VIEJA por `created` conserva el número; la otra recibe el
 // siguiente libre y se persiste en su archivo, como con los `id: 0`.
 func TestLoadRenumbersDuplicateIDs(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "data")
+	lay := layout.At(dir)
 	write := func(slug, id, created string) {
 		fm := "---\nid: " + id + "\ntitle: \"" + slug + "\"\nstage: work\ncreated: \"" + created + "\"\n---\n\ncuerpo\n"
-		if err := os.WriteFile(filepath.Join(dir, slug+".md"), []byte(fm), 0o644); err != nil {
+		if err := os.MkdirAll(lay.Dir(slug), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(lay.TaskPath(slug), []byte(fm), 0o644); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -26,13 +32,13 @@ func TestLoadRenumbersDuplicateIDs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.slugs[79] != "vieja.md" {
+	if s.slugs[79] != "vieja" {
 		t.Errorf("el 79 tenía que quedarse con la más vieja, quedó %q", s.slugs[79])
 	}
-	if s.slugs[83] != "nueva.md" {
+	if s.slugs[83] != "nueva" {
 		t.Errorf("la nueva tenía que pasar al 83 (siguiente libre), slugs=%v", s.slugs)
 	}
-	b, _ := os.ReadFile(filepath.Join(dir, "nueva.md"))
+	b, _ := os.ReadFile(lay.TaskPath("nueva"))
 	if !strings.Contains(string(b), "\nid: 83\n") {
 		t.Errorf("el id nuevo tiene que quedar PERSISTIDO en el archivo:\n%s", b)
 	}

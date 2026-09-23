@@ -1,7 +1,7 @@
 // task-context agrega o consulta hitos estructurados de una tarea.
 //
 // No acepta texto libre por flags: el evento vive primero en un JSON revisable, se valida y recién
-// entonces se apila en data/task-context/<slug>.jsonl. Así una actualización no termina como un
+// entonces se apila en tasks/<slug>/context.jsonl. Así una actualización no termina como un
 // diario irrelevante ni duplica el documento Markdown de la tarea.
 package main
 
@@ -11,25 +11,19 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
 	"creditop/tablero/server/internal/taskcontext"
 )
 
-func dataDir() string {
-	for _, d := range []string{"../data", "data", "tablero/data"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
-	}
-	return "../data"
-}
+// dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.
+func dataDir() string { return layout.Find().Data }
 
 func resolve(s *store.Store, ref string) (*store.EffortRef, error) {
 	for _, effort := range s.EffortsAll() {
-		slug := strings.TrimSuffix(effort.File, ".md")
+		slug := effort.Slug
 		if strconv.FormatInt(effort.ID, 10) == ref || slug == ref {
 			e := effort
 			return &e, nil
@@ -66,7 +60,7 @@ func main() {
 	if err != nil {
 		fail("%v. `make tareas` las lista.", err)
 	}
-	slug := strings.TrimSuffix(effort.File, ".md")
+	slug := effort.Slug
 	if *show {
 		events, err := s.TaskContext(effort.ID)
 		if err != nil {
@@ -108,5 +102,5 @@ func main() {
 	if _, err := taskcontext.Append(dataDir(), slug, clean, time.Now()); err != nil {
 		fail("escribiendo contexto: %v", err)
 	}
-	fmt.Printf("  escrito en data/task-context/%s.jsonl\n\n", slug)
+	fmt.Printf("  escrito en tasks/%s/%s\n\n", slug, layout.ContextFile)
 }

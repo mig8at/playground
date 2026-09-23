@@ -296,7 +296,9 @@ irreproducible el match estricto — que es la razón de fondo por la que el bug
 
 > **2026-09-23 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
 > del sistema, que pasaron de `tablero/data/trampas/` a `tablero/data/traps/` al llevar a inglés los
-> nombres de carpeta del tablero. El tiempo de ese cambio está en la bitácora de la tarea del tablero.
+> nombres de carpeta del tablero. Después, la mudanza de las tareas a carpetas movió este archivo a
+> `tablero/tasks/<slug>/task.md`, con sus artifacts al lado, y se reapuntó la ruta de sus artifacts. El
+> tiempo de esos cambios está en la bitácora de la tarea del tablero.
 
 ### 2026-09-21
 
@@ -470,7 +472,7 @@ historia —cómo se encontró y qué se probó—; la trampa reutilizable vive 
 
 #### Prototipo: dictar las centrales desde una pantalla (2026-08-18)
 
-`data/artifacts/kyc-segundo-apellido-no-coincide.dictar-centrales.html` — botón **Prototipos** de esta
+`tasks/kyc-segundo-apellido-no-coincide/artifacts/kyc-segundo-apellido-no-coincide.dictar-centrales.html` — pestaña **Artifacts** de esta
 tarea.
 
 **Qué resuelve.** Dictarle al lambda es hoy un `curl` con cuatro trampas, así que sólo lo usa quien

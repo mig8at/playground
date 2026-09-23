@@ -122,7 +122,7 @@
         "http.server",
         "5199"
       ],
-      "cwd": "${workspaceFolder}/tablero/data/artifacts",
+      "cwd": "${workspaceFolder}/tablero/tasks/agente-soporte-modificacion-datos/artifacts",
       "port": 5199,
       "autoPort": false,
       "url": "http://localhost:5199"

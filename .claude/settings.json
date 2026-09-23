@@ -26,7 +26,7 @@
     "              regla de tablero/CLAUDE.md §«AL CERRAR» hecha automática: se olvidó el 26/8 y el",
     "              tablero mintió ocho días.",
     "",
-    "PostToolUse · tarea-lint: al escribir tablero/data/<slug>.md corre `tareas -lint` (frontmatter,",
+    "PostToolUse · tarea-lint: al escribir tablero/tasks/<slug>/task.md corre `tareas -lint` (frontmatter,",
     "              etapa del vocabulario, id único, nodos de context que existan, guard de la publicable).",
     "              Exit 2 con la lista si algo está mal. Una etapa inventada o un id repetido no fallaban",
     "              en ningún lado, y pasaron dos veces.",

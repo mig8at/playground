@@ -67,9 +67,14 @@ escribiendo. Quedan como nombres propios `cmd/cuadrilla`, la etiqueta del agente
 (`com.creditop.tablero.pulso`) y su log. **Fase 4 hecha**: `make tablero-naming` frena un nombre nuevo
 que no es inglés, y al estrenarse encontró 13 nombres en español (25 declaraciones) que las fases 1–3 no habían visto; se renombraron.
 
-**El próximo paso es:** decidir cuándo va la 4b —las claves JSON de la API y `schemas/tarea.v1.schema.json`,
-que cambian juntas porque son contrato con la interfaz, los hooks y `tablero.tarea.v1`— y qué hacer con
-`tema.css`/`taller.css`, que son compartidos con harness y trazador.
+**Cada tarea es una carpeta (2026-09-23).** `tablero/tasks/<slug>/` con `task.md`, `context.jsonl` y
+`artifacts/`; `data/` quedó para lo operativo (bitácora, pulso, cachés, settings, trampas). Movidas las
+46 tareas, 22 pilas y 21 artifacts con `git mv`; dónde vive cada cosa lo sabe `server/internal/layout`, y
+«días sin tocar» y el cierre siguen las mudanzas. Detalle en «Frente: cada tarea es una carpeta».
+
+**El próximo paso es:** reiniciar el `make tablero` que esté corriendo (el servidor viejo ya no encuentra
+tareas en `data/`) y, después, decidir cuándo va la 4b —las claves JSON y `schemas/tarea.v1.schema.json`—
+y qué hacer con `tema.css`/`taller.css`, compartidos con harness y trazador.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -106,6 +111,8 @@ que cambian juntas porque son contrato con la interfaz, los hooks y `tablero.tar
       leyendo las claves nuevas. Depende de: Miguel — cuándo.
 - [ ] Decidir `tema.css` y `taller.css`: son españoles pero compartidos con harness y trazador (fuente
       en `tools/ui/`); termina cuando se renombran en las tres a la vez o se declara que se quedan.
+- [x] Cada tarea es una carpeta: `tasks/<slug>/{task.md,context.jsonl,artifacts/}` — 89 movimientos, consola 31/33, API 15/17 + 2 con los cambios buscados, hooks probados con casos que fallan.
+- [ ] Mirar la interfaz andando con la forma nueva (pestaña Artifacts con los 21, abrir uno) cuando se reinicie `make tablero`; termina cuando la pestaña de #46 muestra sus 7 artifacts y abre uno.
 - [ ] Sacar los 5 colores literales del resaltado SQL de `src/App.vue` a tokens; termina cuando
       `make estilo-check` sale 0 (hoy falla sólo por eso, chequeo 6).
 - [ ] Resolver el contenedor `cuadrilla` (#93): el lint lo marca fuera de los siete nombres
@@ -237,6 +244,26 @@ El recorrido de la interfaz se hizo levantando el front viejo (`git archive` de 
 secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo, quedaron en
 `tools/rename/maps/`: sirven para encontrar un nombre viejo citado en una tarea o un `CLAUDE.md`.
 
+## Frente: cada tarea es una carpeta
+
+**Objetivo.** Que todo lo de una tarea viva junto: `tasks/<slug>/task.md`, `context.jsonl` y
+`artifacts/`. Pedido de Miguel el 2026-09-23, con `task.md` como nombre fijo del documento.
+
+> **MEDICIÓN · 2026-09-23** — la unión por nombre ya había fallado: de 21 artifacts, 13 no eran `.html` y la pestaña no los mostraba nunca, y el prototipo de la tarea 48 quedó huérfano cuando la tarea se renombró el 2026-08-14 (de `cuadrilla-donde-viven-las-herramientas` a `playground-donde-viven-las-herramientas`). Con carpetas, la pestaña pasó a mostrar los 21.
+> python3 tablero/tools/rename/migrations/2026-09-23-tasks/move.py   (el plan; ya se aplicó)
+
+> **DECISIÓN · 2026-09-23 · Miguel** — el documento se llama `task.md` en todas las carpetas (el slug vive en el nombre de la carpeta), y `motai-v2-que-se-hizo.md` es de `motai-v2`. Los otros artifacts sueltos se asignaron por evidencia: `bcp-que-revisar-2026-09-07.md` a `bcp-peru-estructurar-entidad` (entró en b4be9093 junto con ella), el de la tarea 48 a su tarea (con el nombre nuevo) y `agente-soporte-endpoints-n8n.md` a `agente-soporte-modificacion-datos`, que lo cita.
+
+> **RIESGO · 2026-09-23** — mover confunde a git: «días sin tocar» y el cierre salían de `git log` por RUTA, así que mover 46 tareas las habría marcado a todas tocadas hoy. `layout.LastTouches`, `TouchedOn` y `DocumentBefore` siguen las mudanzas: un movimiento puro (R100) no cuenta, mover y editar sí, un renombre de slug hereda la historia. Seis pruebas contra un repo de juguete. Dos cosas que se aprendieron probándolo: `git log -1 --before=… --follow` no cruza una mudanza posterior (se pide la historia entera y se filtra), y `status --porcelain=v2` imprime rutas relativas al directorio actual mientras `git log` las da desde la raíz.
+> cd tablero/server && go test ./internal/layout
+
+> **MEDICIÓN · 2026-09-23** — comparado contra el binario del commit anterior corriendo en un worktree con la forma vieja y los mismos datos: consola 31/33 (las dos diferencias son el lint, que ahora nombra la tarea por su slug, y el id aleatorio de `task-context -n`), API 15/17 idénticos y los otros dos —`/api/efforts` y `/api/jira-inbox`— iguales salvo `artifacts`, `file` y `slug`, que cambian por diseño. Los dos cierres (hoy y el 21/9) salen idénticos. La primera corrida no: con la mudanza sin commitear, `DocumentBefore` no tenía historia en la ruta nueva y el cierre salteaba a #84 y #89; se arregló siguiendo el renombre del índice.
+> tablero/tools/rename/migrations/2026-09-23-tasks/ab-move.sh <worktree> && …/ab-web-move.sh <worktree>
+
+> **RIESGO · 2026-09-23** — el hook de lint de tareas estuvo APAGADO en silencio desde la fase 3: comprobaba que existiera `cmd/tareas`, que pasó a `cmd/tasks`, y la búsqueda de referencias no lo vio porque la ruta estaba armada con el `/` de pathlib. Ahora apunta a `tasks/<slug>/task.md`, frena un `.md` suelto en `data/` y se probó con una tarea inválida (sale 2), una suelta en `data/` (sale 2) y una válida (sale 0). La lección: probar un hook con un caso que tiene que FALLAR, no con uno que pasa.
+
+**Lo que no se hizo.** No se pudo mirar la interfaz andando: el lanzador de previews de esta sesión no dejó arriba los servidores de prueba. La API que la alimenta y la ruta de los artifacts sí se comprobaron (incluido que no deja salir de la carpeta con `..`). Quedan con la ruta vieja, a propósito, las anotaciones fechadas de otras tareas y las memorias que ya apuntaban a tareas que no existen.
+
 ## Cómo se comprueba
 
 `make tareas TODAS=1`, `make tarea-json N=tablero`, `make tablero-jev-test`, los tests del servidor
@@ -246,6 +273,11 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 ## Registro
 
 ### 2026-09-23
+
+Las tareas pasaron a ser carpetas: `tasks/<slug>/` con `task.md`, `context.jsonl` y `artifacts/`. Nació
+`server/internal/layout`, que reemplaza seis copias de `dataDir()` y sabe seguir las mudanzas en git; el
+store, los comandos, el server (ruta `/artifacts/<slug>/<archivo>`), los dos hooks y la documentación se
+movieron con él. Al revisar los hooks apareció que el lint estaba apagado desde la fase 3; se arregló.
 
 Fase 4: nace `make tablero-naming`, con la stdlib de Go y Python como vara del inglés y una lista de
 permitidos por categoría. Al estrenarse encontró 13 nombres en español (25 declaraciones) que las fases anteriores no

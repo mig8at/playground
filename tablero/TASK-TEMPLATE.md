@@ -9,7 +9,7 @@ jira_title: ""
 ---
 
 <!--
-  PLANTILLA DE TAREA — copiá este archivo a `data/<slug>.md` y borrá los comentarios.
+  PLANTILLA DE TAREA — copiá este archivo a `tasks/<slug>/task.md` y borrá los comentarios.
 
   Esta plantilla es para una tarea ligada a Jira. Las mejoras locales NO crean archivos desde esta
   plantilla: van a canon.md, context.md, harness.md, tablero.md, trazador.md, workers.md o
@@ -25,12 +25,12 @@ jira_title: ""
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
     · HALLAZGOS  las anotaciones fechadas en decisiones, bloqueos, riesgos y validación.
     · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
-    · CONTEXTO   hitos privados en `data/task-context/<slug>.jsonl`, mostrados como párrafos por
+    · CONTEXTO   hitos privados en `tasks/<slug>/context.jsonl`, mostrados como párrafos por
                  fecha. Sólo se agrega lo que permita retomar; nunca minutos ni notas de sesión.
     · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
 
   Reescribí el estado y el plan; mantené el material reproducible. Los hechos que cambian una retoma
-  se agregan como JSONL validado en `data/task-context/<slug>.jsonl` con `make tarea-context-add`;
+  se agregan como JSONL validado en `tasks/<slug>/context.jsonl` con `make tarea-context-add`;
   no copies sesiones ni logs. El conocimiento estable gradúa a canon.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->

@@ -41,7 +41,7 @@ retomar N=47 JSON=1 BRIEF=1|hoy -n 47 -json -brief 1
 cierre JSON=1|cierre -json
 cierre DIA=2026-09-21|cierre -dia 2026-09-21
 tarea-context N=47|task-context -tarea 47 -ver
-tareas-guard F=tablero/data/motai-v2.md|tareas -guard ../../tablero/data/motai-v2.md
+tareas-guard F=tablero/tasks/motai-v2/task.md|tareas -guard ../../tablero/tasks/motai-v2/task.md
 LIST
 # Los que no dependen de git: el mismo target en los dos árboles. `trampas` imprime la ruta de su
 # documento, que es justo lo que se mudó: se lee con el nombre viejo.
@@ -49,6 +49,6 @@ for t in "trampas" "trampas INDICE=1" "repos-test" "tablero-jev-test" "pulso DAY
   run "make $t (worktree)" "make -s $t | sed 's#data/traps/#data/trampas/#'"
 done
 # los hooks, con la entrada que les da Claude Code (una sesión inventada, para no gastar el aviso de ésta)
-run "hook tarea-lint" "echo '{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"'\$PWD'/tablero/data/tablero.md\"}}' | python3 .claude/hooks/tarea-lint.py"
+run "hook tarea-lint" "echo '{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"'\$PWD'/tablero/tasks/tablero/task.md\"}}' | python3 .claude/hooks/tarea-lint.py"
 run "hook cierre" "echo '{\"session_id\":\"ab-make-\$\$\",\"stop_hook_active\":false}' | CLAUDE_PROJECT_DIR=\$PWD python3 .claude/hooks/cierre.py"
 exit $fail

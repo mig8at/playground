@@ -296,7 +296,7 @@ const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim()
 
 // ── las tareas LOCALES, las que todavía no tienen Jira ────────────────────────────────────────────
 //
-// El tablero mostraba sólo issues de Jira, así que una tarea que vive únicamente en `data/<slug>.md`
+// El tablero mostraba sólo issues de Jira, así que una tarea que vive únicamente en `tasks/<slug>/task.md`
 // era INVISIBLE: sin tarjeta, sin avances, sin cajón de ramas. Se veía nada más con `make tareas`, y
 // por eso el avance escrito ahí no lo miraba nadie (medido el 2026-08-27: ocho días).
 //
@@ -404,9 +404,10 @@ const daysUntouched = (id) => {
   if (!t) return null;
   return Math.max(0, Math.floor((Date.now() - new Date(t + 'T12:00:00')) / 86400000));
 };
-// PROTOTIPOS del esfuerzo: los html autocontenidos de `data/artifacts/` que sirve el server. Son
-// varios porque una tarea suele tener más de un actor o más de un camino, y verlos al lado es lo
-// que permite decidir. Se abren en pestaña aparte — son para mirarlos, no para vivir embebidos acá.
+// ARTIFACTS del esfuerzo: todo lo que hay en `tasks/<slug>/artifacts/`, que sirve el server en
+// `/artifacts/<slug>/<archivo>` —prototipos, SQL, notas—. Son varios porque una tarea suele tener más
+// de un actor o más de un camino, y verlos al lado es lo que permite decidir. Se abren en pestaña
+// aparte: son para mirarlos, no para vivir embebidos acá.
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
 // los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
@@ -2366,13 +2367,13 @@ function documentAction(id) {
 
           </template>
           <template v-if="v.id === 'artifacts'">
-            <p class="nota">Prototipos y material navegable de esta tarea. Cada uno se abre en una pestaña nueva.</p>
+            <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Cada uno se abre en una pestaña nueva.</p>
             <button v-for="artifact in protosOf(active.Key)" :key="artifact.file" class="proto-row" @click="openArtifact(artifact.file)">
               <span class="proto-play">▶</span>
-              <span class="proto-txt"><b>{{ artifact.label }}</b><span class="proto-file">{{ artifact.file }}</span></span>
+              <span class="proto-txt"><b>{{ artifact.label }}</b><span class="proto-file">{{ artifact.file.split('/').pop() }}</span></span>
               <span class="proto-ext">Abrir ↗</span>
             </button>
-            <p v-if="!protosOf(active.Key).length" class="nota">Esta tarea todavía no tiene prototipos registrados.</p>
+            <p v-if="!protosOf(active.Key).length" class="nota">Esta tarea todavía no tiene artifacts.</p>
           </template>
         </section>
       </template>

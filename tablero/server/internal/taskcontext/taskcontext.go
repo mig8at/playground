@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"creditop/tablero/server/internal/dbquery"
+
+	"creditop/tablero/server/internal/layout"
 )
 
 const Schema = "tablero.task-context/v1"
@@ -66,7 +68,7 @@ type Reference struct {
 	Environment string `json:"environment,omitempty"`
 }
 
-// Event es una línea de data/task-context/<slug>.jsonl. No hay un tipo "avance": los bloques de
+// Event es una línea de tasks/<slug>/context.jsonl. No hay un tipo "avance": los bloques de
 // tiempo siguen en entries/. Sólo se escribe si altera una decisión futura, deja una prueba útil,
 // bloquea el trabajo o congela el estado para retomar.
 type Event struct {
@@ -101,11 +103,13 @@ func Decode(raw []byte) (Event, error) {
 	return event, nil
 }
 
+// file es la pila de una tarea: `tasks/<slug>/context.jsonl`, al lado de su documento. `dir` es la
+// carpeta `data/`, como la recibe el resto del tablero.
 func file(dir, slug string) (string, error) {
 	if !slugRe.MatchString(slug) {
 		return "", fmt.Errorf("slug de tarea inválido %q", slug)
 	}
-	return filepath.Join(dir, "task-context", slug+".jsonl"), nil
+	return layout.At(dir).ContextPath(slug), nil
 }
 
 func cleanOne(name, value string, limit int, required bool) (string, error) {

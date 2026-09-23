@@ -6,6 +6,9 @@
 # evita el falso positivo: el pulso escribe cada 5′ y dos corridas separadas por minutos difieren solas.
 # Deja también los dos `web` compilados para `ab-web.sh`. Sale ≠0 si alguna salida difiere.
 # (El id y la hora de `task-context -n` difieren siempre: son un id nuevo por corrida.)
+# ⚠ Los dos binarios corren sobre el repo REAL, así que el árbol viejo tiene que entender la forma de
+# hoy: contra un commit anterior a la mudanza de `data/` a `tasks/<slug>/` (2026-09-23) el viejo no
+# encuentra tareas. Para esa comparación se usó `migrations/2026-09-23-tasks/ab-move.sh`.
 OLD=${1:?uso: ab-cli.sh <árbol-viejo>}
 S=${AB_TMP:-/tmp/tablero-ab}; P=$(cd "$(dirname "$0")/../../.." && pwd); B=$S/bins
 rm -rf "$B"; mkdir -p "$B/old" "$B/new"
@@ -38,10 +41,10 @@ tareas -sprint
 tareas -sprint -json
 tareas -bitacora 30
 tareas -bitacora 30 -json
-tareas -lint ../data/tablero.md
-tareas -lint ../data/cuadrilla.md
-tareas -guard ../data/motai-v2.md
-tareas -guard ../data/tablero.md
+tareas -lint ../tasks/tablero/task.md
+tareas -lint ../tasks/cuadrilla/task.md
+tareas -guard ../tasks/motai-v2/task.md
+tareas -guard ../tasks/tablero/task.md
 hoy
 hoy -json
 hoy -stage work

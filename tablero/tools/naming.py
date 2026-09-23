@@ -2,7 +2,7 @@
 
 Recorre lo que se ESCRIBE al invocar el tablero —los identificadores declarados en su Go, su Vue/JS y
 su Python, y los nombres de archivo y carpeta— y sale 1 si alguno lleva una palabra que no es inglés.
-Es la fase 4 del frente «el código en inglés» (tablero/data/tablero.md): una regla escrita envejece y
+Es la fase 4 del frente «el código en inglés» (tablero/tasks/tablero/task.md): una regla escrita envejece y
 un chequeo no. Los comentarios, las tareas de `data/` y las claves JSON quedan afuera a propósito: los
 primeros se leen para entender, y las claves son un contrato que tiene su propia tanda.
 
@@ -214,12 +214,14 @@ def tracked_paths():
 
 
 def path_names(paths):
-    """(ruta, nombre) de cada carpeta y archivo a revisar. Dentro de `data/` sólo las carpetas: los
-    archivos de ahí son contenido (el slug de una tarea es su título, y está en español)."""
+    """(ruta, nombre) de cada carpeta y archivo a revisar. Lo que es CONTENIDO no se revisa: dentro de
+    `tasks/`, la carpeta de cada tarea es su slug —su título, en español— y sus artifacts se llaman como
+    los nombró quien los hizo; dentro de `data/`, los archivos son datos. De `data/` sí se revisan las
+    carpetas (`traps`, `cache`), que son estructura."""
     seen = set()
     for rel in paths:
         parts = rel.split('/')
-        names = parts[:-1] if parts[0] == 'data' else parts
+        names = parts[:1] if parts[0] == 'tasks' else parts[:-1] if parts[0] == 'data' else parts
         for i, part in enumerate(names):
             key = '/'.join(parts[:i + 1])
             if key in seen:

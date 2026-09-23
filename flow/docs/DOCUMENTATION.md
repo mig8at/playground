@@ -376,4 +376,4 @@ documentos o reglas de otra geografía por accidente.
 El siguiente paso de BCP no es inventar una preaprobación: la evidencia actual lo define como checkout
 con **redirect**, sin adaptador REST ni retorno modelado en `pre-approvals-service`. Antes de conectarlo
 al grafo hay que decidir mapeo de producto, contrato de retorno y el corte legal por país. La lista y el
-orden de esos bloqueantes viven en `tablero/data/artifacts/playground.lo-que-queda-de-pais-quemado.censo.md`.
+orden de esos bloqueantes viven en `tablero/tasks/playground/artifacts/playground.lo-que-queda-de-pais-quemado.censo.md`.

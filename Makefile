@@ -141,7 +141,7 @@ trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y
 	@python3 tablero/tools/traps.py $(if $(INDICE),--indice)
 
 tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
-	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/data/x.md"; exit 2; }
+	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/tasks/x/task.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/tasks -guard ../../$(F)
 
 # ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
@@ -405,7 +405,7 @@ harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alg
 
 soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
-	@cd tablero/data/artifacts && python3 -m http.server 5199
+	@cd tablero/tasks/agente-soporte-modificacion-datos/artifacts && python3 -m http.server 5199
 
 tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
 	@cd harness && bash bin/tests-codeudor.sh $(if $(PREPARAR),--preparar)

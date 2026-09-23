@@ -5,11 +5,13 @@
 // tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
 // una tarea es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
-// UNA TAREA DE JIRA = UN ARCHIVO, suelto en `data/<tarea>.md`. El trabajo local se concentra en siete
-// contenedores permanentes (una herramienta por archivo y playground para lo transversal), validados
-// por cmd/tasks. Así `ls data/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
+// UNA TAREA DE JIRA = UNA CARPETA, `tasks/<slug>/`, con su documento `task.md`, su pila de hitos
+// `context.jsonl` y sus `artifacts/` adentro (desde el 2026-09-23; antes era un `data/<tarea>.md` suelto
+// y lo demás se le unía por nombre — ver el paquete layout). El trabajo local se concentra en siete
+// contenedores permanentes (una herramienta por tarea y playground para lo transversal), validados por
+// cmd/tasks. Así `ls tasks/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
-//	nombre del archivo      el slug de la tarea (renombralo a mano si querés: el id vive adentro)
+//	nombre de la carpeta    el slug de la tarea (renombrala a mano si querés: el id vive adentro)
 //	frontmatter             id · title · stage · created · archived? · canon[] · jira[] · jira_title · ramas?
 //	cuerpo                  las notas técnicas: PRIVADO, puede nombrar repos y rutas
 //	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
@@ -60,19 +62,23 @@ import (
 	"sync"
 	"time"
 	"unicode"
+
+	"creditop/tablero/server/internal/layout"
 )
 
-// Store guarda todo en memoria y escribe a disco en cada mutación. `dir` es la carpeta `data/`.
+// Store guarda todo en memoria y escribe a disco en cada mutación. `dir` es la carpeta `data/` (lo
+// operativo); las tareas viven al lado, en `tasks/<slug>/` — ver el paquete layout.
 type Store struct {
-	dir string
-	mu  sync.Mutex
+	dir    string
+	layout layout.Layout
+	mu     sync.Mutex
 
 	efforts []Effort // ordenados por id ascendente
 	// Firma de lo leído en disco, para saber si hay que releer: el mtime más nuevo y cuántos `.md`
 	// hay. Ver `rereadIfChanged`.
 	mdMtime  time.Time
 	mdCount  int
-	slugs    map[int64]string     // id → nombre de archivo (renombrarlo a mano no rompe nada: el id va adentro)
+	slugs    map[int64]string     // id → slug, o sea la carpeta de la tarea (renombrarla no rompe nada: el id va adentro)
 	archived map[int64]string     // id → fecha de archivado ("" = vivo)
 	entries  []Entry              // TODOS, incluidos los borrados: el borrado es suave
 	deleted  map[int64]string     // id de entry → deleted_at
@@ -85,6 +91,7 @@ type Store struct {
 func Open(dir string) (*Store, error) {
 	s := &Store{
 		dir:      dir,
+		layout:   layout.At(dir),
 		slugs:    map[int64]string{},
 		archived: map[int64]string{},
 		deleted:  map[int64]string{},
@@ -92,8 +99,8 @@ func Open(dir string) (*Store, error) {
 		settings: map[string]string{},
 		cache:    map[string]any{},
 	}
-	for _, sub := range []string{"entries", "cache", "task-context"} {
-		if err := os.MkdirAll(filepath.Join(dir, sub), 0o755); err != nil {
+	for _, sub := range []string{filepath.Join(dir, "entries"), filepath.Join(dir, "cache"), s.layout.Tasks} {
+		if err := os.MkdirAll(sub, 0o755); err != nil {
 			return nil, fmt.Errorf("creando %s: %w", sub, err)
 		}
 	}
@@ -108,9 +115,8 @@ func (s *Store) Close() error { return nil }
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────────────
 
 func (s *Store) load() error {
-	// Las TAREAS son los `.md` sueltos de `data/`: `ls data/` las muestra de una, que es el punto.
-	// Los subdirectorios (entries, cache) no son tareas.
-	files, err := os.ReadDir(s.dir)
+	// Las TAREAS son las carpetas de `tasks/` con su `task.md`: `ls tasks/` las muestra de una.
+	slugs, err := s.layout.Slugs()
 	if err != nil {
 		return err
 	}
@@ -123,26 +129,24 @@ func (s *Store) load() error {
 	type readEntry struct {
 		e    Effort
 		arch string
-		file string
+		slug string
 	}
 	var readEntries []readEntry
 	var max int64
-	for _, d := range files {
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
-			continue
-		}
-		e, arch, err := s.readEffort(strings.TrimSuffix(d.Name(), ".md"))
+	for _, slug := range slugs {
+		e, arch, err := s.readEffort(slug)
 		if err != nil {
-			return fmt.Errorf("leyendo %s: %w", d.Name(), err)
+			return fmt.Errorf("leyendo %s: %w", slug, err)
 		}
 		if e.ID > max {
 			max = e.ID
 		}
-		readEntries = append(readEntries, readEntry{e, arch, d.Name()})
+		readEntries = append(readEntries, readEntry{e, arch, slug})
 	}
-	touches := lastTouches(s.dir)
+	// Por slug y siguiendo las mudanzas: mover una tarea de carpeta no es tocarla (ver layout.LastTouches).
+	touches := s.layout.LastTouches()
 	for i := range readEntries {
-		readEntries[i].e.TouchedAt = touches[readEntries[i].file]
+		readEntries[i].e.TouchedAt = touches[readEntries[i].slug]
 	}
 
 	// LOS `id: 0` RECIBEN UN ID DE VERDAD, ACÁ Y AHORA.
@@ -187,11 +191,11 @@ func (s *Store) load() error {
 		renumbered = append(renumbered, max)
 		byID[id] = old
 		fmt.Fprintf(os.Stderr, "tablero: id %d repetido en %s y %s → %s pasa a %d\n",
-			id, readEntries[old].file, readEntries[newItem].file, readEntries[newItem].file, max)
+			id, readEntries[old].slug, readEntries[newItem].slug, readEntries[newItem].slug, max)
 	}
 	for _, l := range readEntries {
 		s.efforts = append(s.efforts, l.e)
-		s.slugs[l.e.ID] = l.file
+		s.slugs[l.e.ID] = l.slug
 		s.archived[l.e.ID] = l.arch
 	}
 	for _, id := range renumbered {
@@ -230,47 +234,48 @@ func (s *Store) load() error {
 // Se busca al principio de línea y se toma la PRIMERA aparición.
 const SECTION = "## Tarea (publicable)"
 
-// ArtifactsDir es el subdirectorio de `data/` con los prototipos, uno por tarea y con su mismo slug.
-// Es el ÚNICO subdirectorio de `data/` que no son tareas y sí se versiona: los otros (entries, pulse,
-// cache) están fuera de git por ser dato personal o descartable, y un prototipo no es ninguna de las
-// dos cosas — es el acuerdo al que se llegó, y perderlo es perder lo acordado.
-const ArtifactsDir = "artifacts"
-
-// Artifact es un prototipo de una tarea: el archivo que se sirve y cómo se llama en la UI.
+// Artifact es un archivo que produjo una tarea: un prototipo, un SQL, una nota. `File` es su ruta bajo
+// `/artifacts/` del server (`<slug>/<archivo>`) y `Label` cómo se llama en la UI.
 type Artifact struct {
 	File  string `json:"file"`
 	Label string `json:"label"`
 }
 
-// artifactsOf lista los prototipos de una tarea, ordenados alfabéticamente para que el orden de
-// los botones no dependa de cómo los devuelva el sistema de archivos.
-// `<slug>.html` se etiqueta «prototipo»; `<slug>.<variante>.html` toma la variante como etiqueta.
+// artifactsOf lista los artifacts de una tarea: TODO lo que haya en `tasks/<slug>/artifacts/`, ordenado
+// por etiqueta para que el orden no dependa del sistema de archivos.
+//
+// Hasta el 2026-09-23 eran los `data/artifacts/<slug>*.html`, unidos a la tarea por el nombre, y se
+// medía el costo de eso: 13 de los 21 artifacts no eran `.html` y no aparecían nunca, y uno quedó
+// huérfano cuando su tarea se renombró. La carpeta resuelve las dos cosas.
+//
+// La etiqueta es el nombre sin extensión, sin el `<slug>.` que traían los que nacieron con la
+// convención vieja, y con los guiones como espacios; `<slug>.html` sigue siendo «prototipo».
 func (s *Store) artifactsOf(slug string) []Artifact {
-	entries, err := os.ReadDir(filepath.Join(s.dir, ArtifactsDir))
+	entries, err := os.ReadDir(s.layout.ArtifactsPath(slug))
 	if err != nil {
 		return nil
 	}
 	var out []Artifact
 	for _, d := range entries {
 		n := d.Name()
-		if d.IsDir() || !strings.HasSuffix(n, ".html") || !strings.HasPrefix(n, slug) {
+		if d.IsDir() || strings.HasPrefix(n, ".") {
 			continue
 		}
-		rest := strings.TrimSuffix(strings.TrimPrefix(n, slug), ".html")
-		switch {
-		case rest == "": // <slug>.html
-			out = append(out, Artifact{File: n, Label: "prototipo"})
-		case strings.HasPrefix(rest, "."): // <slug>.<variante>.html
-			out = append(out, Artifact{File: n, Label: strings.ReplaceAll(rest[1:], "-", " ")})
+		label := strings.TrimPrefix(n, slug+".")
+		if ext := filepath.Ext(label); ext == ".html" {
+			label = strings.TrimSuffix(label, ext)
 		}
-		// cualquier otra cosa es de OTRA tarea cuyo slug empieza igual: se ignora
+		if n == slug+".html" {
+			label = "prototipo"
+		}
+		out = append(out, Artifact{File: slug + "/" + n, Label: strings.ReplaceAll(label, "-", " ")})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Label < out[j].Label })
 	return out
 }
 
 func (s *Store) readEffort(slug string) (Effort, string, error) {
-	fm, body, err := readMD(filepath.Join(s.dir, slug+".md"))
+	fm, body, err := readMD(s.layout.TaskPath(slug))
 	if err != nil {
 		return Effort{}, "", err
 	}
@@ -740,11 +745,11 @@ type Effort struct {
 	// Sólo del cuerpo privado: las casillas de la publicable son los criterios de aceptación de QA, que
 	// no son pendientes de nadie. Ver `pending.go`.
 	Pending []PendingItem `json:"pendientes"`
-	// PROTOTIPOS de la tarea: los HTML autocontenidos de `data/artifacts/` que se abren desde el
-	// tablero. El vínculo es el NOMBRE, no una entrada en el frontmatter: una convención de nombre no
-	// se desincroniza, una lista escrita a mano sí.
-	//   <slug>.html            → una sola propuesta, se etiqueta «prototipo»
-	//   <slug>.<variante>.html → varias propuestas de la MISMA tarea, cada una con su etiqueta
+	// ARTIFACTS de la tarea: todo lo que hay en `tasks/<slug>/artifacts/`, que se abre desde el
+	// tablero. El vínculo es la CARPETA, no una entrada en el frontmatter ni el nombre: hasta el
+	// 2026-09-23 era el nombre, y se desincronizó —un artifact quedó huérfano al renombrarse su tarea—.
+	//   <slug>.html            → se etiqueta «prototipo»
+	//   <slug>.<variante>.html → la variante es la etiqueta; cualquier otro archivo, su nombre
 	// Lo segundo existe porque una tarea suele tener más de un actor o más de un camino posible, y
 	// verlos al lado es lo que permite decidir entre ellos.
 	// Un artefacto es UN html sin build; si necesita `npm install` no es un artefacto, es una carpeta
@@ -785,18 +790,15 @@ func validStage(s string) bool {
 //
 // ⚠ Se llama con el lock TOMADO.
 func (s *Store) rereadIfChanged() {
-	files, err := os.ReadDir(s.dir)
+	paths, err := s.layout.TaskPaths()
 	if err != nil {
 		return
 	}
 	var last time.Time
 	n := 0
-	for _, d := range files {
-		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
-			continue
-		}
+	for _, p := range paths {
 		n++
-		if fi, err := d.Info(); err == nil && fi.ModTime().After(last) {
+		if fi, err := os.Stat(p); err == nil && fi.ModTime().After(last) {
 			last = fi.ModTime()
 		}
 	}
@@ -830,7 +832,8 @@ func (s *Store) Efforts() ([]Effort, error) {
 // vista que necesita SABER de todos (el cruce con Jira), no la que lista para trabajar.
 type EffortRef struct {
 	Effort
-	File     string `json:"file"`
+	Slug     string `json:"slug"`
+	File     string `json:"file"` // legible: `<slug>/task.md`
 	Archived string `json:"archived,omitempty"`
 }
 
@@ -843,7 +846,8 @@ func (s *Store) EffortsAll() []EffortRef {
 	out := make([]EffortRef, 0, len(s.efforts))
 	for i := len(s.efforts) - 1; i >= 0; i-- { // id DESC
 		e := s.efforts[i]
-		out = append(out, EffortRef{Effort: e, File: s.slugs[e.ID], Archived: s.archived[e.ID]})
+		slug := s.slugs[e.ID]
+		out = append(out, EffortRef{Effort: e, Slug: slug, File: slug + "/" + layout.TaskFile, Archived: s.archived[e.ID]})
 	}
 	return out
 }
@@ -859,15 +863,14 @@ func (s *Store) newEffort(title, stage string) Effort {
 		}
 	}
 	for _, sl := range s.slugs {
-		used[strings.TrimSuffix(sl, ".md")] = true
+		used[sl] = true
 	}
 	e := Effort{ID: max + 1, Title: title, Stage: stage, CreatedAt: time.Now().Format(time.RFC3339)}
 	s.efforts = append(s.efforts, e)
-	// `slugs` guarda el NOMBRE DEL ARCHIVO, con extensión — así lo llena la carga (`d.Name()`) y así lo
-	// usa la escritura. Antes acá se guardaba el slug pelado: una tarea creada en el proceso se escribía
-	// bien, pero al reabrir el server su nombre pasaba a tener `.md` y la siguiente escritura le sumaba
-	// otro (`tarea.md.md`), dejando el archivo real intacto. Fallaba en silencio.
-	s.slugs[e.ID] = slugOf(title, e.ID, used) + ".md"
+	// `slugs` guarda el SLUG, que es la carpeta de la tarea — igual que la carga. (Cuando las tareas
+	// eran archivos sueltos guardaba el nombre con `.md`, y mezclar las dos formas llegó a escribir un
+	// `tarea.md.md` en silencio.)
+	s.slugs[e.ID] = slugOf(title, e.ID, used)
 	s.archived[e.ID] = ""
 	return e
 }
@@ -889,7 +892,7 @@ type ImportIssue struct {
 // Es IDEMPOTENTE: si la clave ya cuelga de un esfuerzo devuelve ese, con creada=false. Sin eso, dos
 // clics del botón dejarían dos archivos para el mismo issue, que es justo el desorden que esto arregla.
 //
-// Un issue cerrado nace ARCHIVADO: el historial queda registrado pero `ls data/` sigue contestando "en
+// Un issue cerrado nace ARCHIVADO: el historial queda registrado pero `ls tasks/` sigue contestando "en
 // qué estoy trabajando", que es para lo que se lee esa carpeta.
 func (s *Store) ImportFromJira(in ImportIssue) (Effort, bool, error) {
 	s.mu.Lock()
@@ -1062,9 +1065,8 @@ func (s *Store) writeEffort(id int64) error {
 		b.WriteString("\n" + SECTION + "\n\n")
 		b.WriteString(withTrailingNewline(e.JiraDescription))
 	}
-	// `slugs[id]` YA es el nombre del archivo, con extensión: no se le agrega nada. Concatenar `.md` acá
-	// era el otro lado del bug del `.md.md` (ver nuevoEffort).
-	return writeAtomic(filepath.Join(s.dir, s.slugs[id]), []byte(b.String()))
+	// `slugs[id]` es la carpeta de la tarea; writeAtomic la crea si es una tarea nueva.
+	return writeAtomic(s.layout.TaskPath(s.slugs[id]), []byte(b.String()))
 }
 
 // ── ajustes ─────────────────────────────────────────────────────────────────────────────────────────────

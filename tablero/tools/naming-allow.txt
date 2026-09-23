@@ -15,7 +15,7 @@ jira jql atlassian redash dependabot claude
 vue vite babel mcp
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
-slug frontmatter jsonl upsert shortstat squash changelog
+slug frontmatter jsonl upsert shortstat squash changelog pathspec
 dbquery taskcontext
 sfc keydown pointerdown focusable raf
 hhmm pts iss inprog

@@ -140,7 +140,7 @@ def main() -> int:
         # La RUTA del archivo, no el slug pelado: un comando que sólo nombra la tarea (un grep, un
         # dato de prueba, un `make tareas N=x`) no la tocó. Medido en la primera corrida real: marcó
         # tres tareas de otras sesiones porque sus slugs aparecían como texto en un script.
-        if escribio(piezas, "data/" + t["slug"] + ".md"):
+        if escribio(piezas, "tasks/" + t["slug"] + "/task.md"):
             mias.append(t)
             continue
         # o la sesión trabajó en una rama que la tarea declara: ahí el trabajo existe aunque su

@@ -84,7 +84,7 @@ corriendo contra dev.
 
 ### 1 · Sembrar el caso
 
-`tablero/data/artifacts/agente-soporte-modificacion-datos.cliente-qa.casos.sql` crea **un** cliente de
+`tablero/tasks/agente-soporte-modificacion-datos/artifacts/agente-soporte-modificacion-datos.cliente-qa.casos.sql` crea **un** cliente de
 prueba (`ANA QA`) con **dos créditos gestionables en dos comercios**. Correrlo **otra vez es el reset**:
 borra sus cambios y deja los créditos como al principio.
 
@@ -1332,7 +1332,9 @@ castigo pega sobre el número que también se usa para cobrar.
 
 > **2026-09-23 · sin avance.** Esta tarea no se trabajó hoy: sólo se le actualizó la ruta a las trampas
 > del sistema, que pasaron de `tablero/data/trampas/` a `tablero/data/traps/` al llevar a inglés los
-> nombres de carpeta del tablero. El tiempo de ese cambio está en la bitácora de la tarea del tablero.
+> nombres de carpeta del tablero. Después, la mudanza de las tareas a carpetas movió este archivo a
+> `tablero/tasks/<slug>/task.md`, con sus artifacts al lado, y se reapuntó la ruta de sus artifacts. El
+> tiempo de esos cambios está en la bitácora de la tarea del tablero.
 
 ### 2026-09-21
 
@@ -1488,7 +1490,7 @@ conversación, y así está escrito en el documento de Filipo.
 
 Pedido de Miguel: **un documento simple de uso de endpoints** para que Filipo arranque el n8n — sólo las
 rutas con su descripción, su respuesta y los curls; el token se lo pasa él por separado. Quedó en
-`tablero/data/artifacts/agente-soporte-endpoints-n8n.md` (un markdown, sin token adentro): con request,
+`tablero/tasks/agente-soporte-modificacion-datos/artifacts/agente-soporte-endpoints-n8n.md` (un markdown, sin token adentro): con request,
 respuesta de ejemplo, la tabla de `error_code`, los gotchas (menú de plazos vacío, rt=2, tope de 4,
 bloqueo de 6 meses, `already_verified`) y los dos usuarios de QA de dev con su código de bypass.
 

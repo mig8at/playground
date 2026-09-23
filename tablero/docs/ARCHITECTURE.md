@@ -11,7 +11,8 @@ El tablero tiene dos entradas para el mismo trabajo:
 
 ## Datos y fronteras
 
-Una tarea es `data/<slug>.md`. El cuerpo privado contiene la retoma, el próximo paso, decisiones,
+Una tarea es una carpeta, `tasks/<slug>/`: su documento `task.md`, su pila de hitos `context.jsonl` y
+sus `artifacts/`. El cuerpo privado del documento contiene la retoma, el próximo paso, decisiones,
 material de reproducción y registro. La sección publicable es la única que puede salir a Jira y el
 guard la valida antes de escribir. La bitácora vive por mes en `data/entries/*.jsonl`; los snapshots
 de Jira y ramas se pueden regenerar.

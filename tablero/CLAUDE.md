@@ -93,11 +93,11 @@ actualizá sus secciones existentes. No agregues una segunda lista ni otro estad
 
 | Región | Pregunta que responde | Fuente |
 |---|---|---|
-| Hoy, Ayer o fecha | ¿Qué cambió y qué permite continuar la tarea? | Hitos curados de `data/task-context/` |
-| Documento de trabajo | ¿Cuál es el estado y la evidencia vigente? | Cuerpo privado de `data/<tarea>.md` |
+| Hoy, Ayer o fecha | ¿Qué cambió y qué permite continuar la tarea? | Hitos curados de `tasks/<slug>/context.jsonl` |
+| Documento de trabajo | ¿Cuál es el estado y la evidencia vigente? | Cuerpo privado de `tasks/<slug>/task.md` |
 | Jira | ¿Qué ve el equipo en el issue? | Estado y descripción recibidos de Jira |
 | Pendientes | ¿Qué falta completar? | Casillas del cuerpo privado, agrupadas en `## Pendientes` para tareas nuevas |
-| Artifacts | ¿Qué salida navegable deja la tarea? | HTML en `data/artifacts/` para ese esfuerzo |
+| Artifacts | ¿Qué salida navegable deja la tarea? | Lo que haya en `tasks/<slug>/artifacts/` |
 
 ### Trabajo
 
@@ -125,7 +125,7 @@ sección Markdown nueva: `## Registro` sigue siendo documentación histórica de
 
 ### Hitos de contexto
 
-`data/task-context/<slug>.jsonl` es el historial estructurado, privado y versionable de una tarea.
+`tasks/<slug>/context.jsonl` es el historial estructurado, privado y versionable de una tarea.
 No reemplaza el documento: el documento dice el estado vigente; cada línea explica sólo un cambio que
 permite retomar mejor. Se añade con `make tarea-context-add N=<id|slug> EVENTO=<archivo.json>` y se
 consulta con `make tarea-context N=<id|slug>` o `make retomar`.
@@ -258,7 +258,7 @@ completo. `## Registro` cuenta qué pasó; los avances contabilizan el tiempo. N
 en el Markdown de una tarea nueva.
 
 **Artifacts** aparece a la derecha cuando existen artefactos; sigue la convención de
-`data/artifacts/` descrita abajo. No crea otra fuente ni mezcla los HTML con el relato central.
+`tasks/<slug>/artifacts/` descrita abajo. No crea otra fuente ni mezcla esos archivos con el relato central.
 
 ## De dónde sale lo que se escribe acá
 
@@ -668,15 +668,23 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   Los tres necesitan `ATLASSIAN_*` en `tablero/.env`. Tareas nuevas van al **sprint activo del board
   384**, no al backlog. **Nada se publica sin que Miguel lo vea antes** — los tres escriben hacia
   afuera y lo ve el equipo.
+- **UNA TAREA ES UNA CARPETA** (desde el 2026-09-23): `tasks/<slug>/` con su documento `task.md`, su
+  pila `context.jsonl` y sus `artifacts/`. `data/` quedó para lo operativo —bitácora, pulso, cachés,
+  `settings.json` y las trampas—. Hasta ese día las tareas eran `data/<slug>.md` sueltos y lo demás se
+  les unía POR NOMBRE, y la convención falló en silencio: 13 de 21 artifacts no eran `.html` y no se
+  veían nunca, y uno quedó huérfano cinco semanas porque su tarea se renombró. Una carpeta se renombra
+  con todo lo que tiene adentro. **Dónde vive cada cosa lo sabe un solo lugar: el paquete
+  `server/internal/layout`**; no vuelvas a armar `../data/<algo>` a mano en un comando.
+  ⚠ Y renombrar o mover una tarea NO es tocarla: «días sin tocar» y el cierre salen de git siguiendo
+  las mudanzas (un movimiento puro, R100, no cuenta; mover y editar a la vez, sí). Sin eso, el día de
+  la mudanza las 46 tareas habrían amanecido «tocadas hoy».
 - `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
-  **fuera de git** a propósito (dato personal / snapshot descartable); los `.md` de tareas,
-  `data/artifacts/*.html` y `settings.json` **sí** se versionan. No lo cambies.
-- **PROTOTIPOS: `data/artifacts/<slug>.html`**, con el mismo slug que el `.md` de la tarea — y
-  `<slug>.<variante>.html` cuando hay **varias propuestas** para la misma tarea (la variante es la
-  etiqueta). El panel de la tarea muestra entonces la pestaña **Prototipos**, después de Bitácora,
-  con la lista; cada uno se sirve en `GET /artifacts/<archivo>`. El vínculo es el
-  **nombre**, no una entrada en el frontmatter: una convención de nombre no se desincroniza, una lista
-  escrita a mano sí. Tres reglas:
+  **fuera de git** a propósito (dato personal / snapshot descartable); las carpetas de `tasks/` y
+  `settings.json` **sí** se versionan. No lo cambies.
+- **ARTIFACTS: todo lo que haya en `tasks/<slug>/artifacts/`** —prototipos, consultas, notas—. El
+  panel de la tarea muestra la pestaña **Artifacts** con la lista; cada uno se sirve en
+  `GET /artifacts/<slug>/<archivo>`. `<slug>.html` se etiqueta «prototipo» y `<slug>.<variante>.html`
+  toma la variante como etiqueta; cualquier otro archivo, su nombre. Para un prototipo, tres reglas:
   1. **Un HTML autocontenido, sin build.** Si necesita `npm install`, no es un artefacto: es una
      carpeta del playground con su entrada en el `Makefile`.
   2. **Lleva la fecha visible adentro.** Un prototipo sin fecha se lee como estado actual; con fecha

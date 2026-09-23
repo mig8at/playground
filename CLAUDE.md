@@ -382,8 +382,8 @@ dispara el borrado. Llegó a `main` entre el 2 y el 3 de septiembre.)*
 `artisan migrate:fresh --seed --force`, **no pasa por esa guarda** y apunta a donde diga tu `.env`. La
 práctica que puso un host remoto en el `.env` de alguien —aplicar migraciones a mano desde contenedores
 locales contra la base compartida— tampoco cambió. El detalle
-completo: `tablero/data/tests-pueden-borrar-la-bd-compartida.md` (CORE-431) y su documento de arranque
-en `data/artifacts/…hipotesis.md`.
+completo: `tablero/tasks/tests-pueden-borrar-la-bd-compartida/task.md` (CORE-431) y su documento de
+arranque en `artifacts/…hipotesis.md`, en la misma carpeta.
 
 **Los archivos que recrean la base, hoy: SEIS — y una carpeta que lo hereda.** Verificado contra
 `origin/main` el 2026-09-08, `RefreshDatabase` se activa de **tres** formas y el chequeo de abajo veía
@@ -487,7 +487,8 @@ el 2026-09-18, **43 de 68 tareas nombran el contexto curado y sólo 40 lo declar
 frontmatter**; el arnés aparece en 33 y **sólo 8 lo nombran dentro de «Cómo se comprueba»**. Hoy el
 campo se llama **`canon:`** y sus valores son temas del corpus.
 
-1. **La TAREA vive en `tablero/data/<tarea>.md`** (una tarea = un archivo): en qué se trabaja, por
+1. **La TAREA vive en `tablero/tasks/<slug>/`** (una tarea = una carpeta: `task.md`, su pila
+   `context.jsonl` y sus `artifacts/`): en qué se trabaja, por
    qué y para qué — estado, decisiones, riesgos, preguntas abiertas.
 
    ⚠ **Buscá el archivo que YA cubre esto antes de crear uno: `make tareas TODAS=1`.** El `id` del

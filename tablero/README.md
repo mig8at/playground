@@ -374,7 +374,7 @@ notar que faltaba**. Esta vista pregunta por **asignación**, no por sprint.
 | | |
 |---|---|
 | `GET /api/jira-inbox` | el **cruce**, no escribe nada. `assignee = currentUser() AND project = "CORE"`, sin las terminadas; `?all=1` las incluye y `?jql=…` reemplaza la consulta (para mirar `QC` alguna vez). Devuelve **solo lo que falta** — lo ya registrado va como número, no como fila |
-| `POST /api/jira-import` | `{"create":["CORE-30"],"link":{"CORE-317":12}}` → **crea** el `data/<slug>.md` o **enlaza** la clave a una tarea que ya existe. Idempotente por clave (`already`) |
+| `POST /api/jira-import` | `{"create":["CORE-30"],"link":{"CORE-317":12}}` → **crea** la carpeta `tasks/<slug>/` o **enlaza** la clave a una tarea que ya existe. Idempotente por clave (`already`) |
 
 Tres decisiones que no son obvias:
 
@@ -383,7 +383,7 @@ Tres decisiones que no son obvias:
 - **La descripción de Jira entra en la parte PRIVADA**, no bajo `## Tarea (publicable)`. Ya está
   publicada, y varias traen rutas de archivo (CORE-159 trae una `.php`): abajo harían que guardar esa
   tarea desde la UI fallara por el guard, por un texto que nadie escribió acá.
-- **Un issue cerrado nace `archived`** y con `stage: tasks`. El historial queda, pero `ls data/` sigue
+- **Un issue cerrado nace `archived`** y con `stage: tasks`. El historial queda, pero `ls tasks/` sigue
   contestando *en qué estoy trabajando*, que es para lo que se lee esa carpeta.
 
 El **candidato parecido** viene preseleccionado como *enlace* (no como archivo nuevo): cuando el título
@@ -426,10 +426,13 @@ normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos byt
 nada** —markdown que lee cualquiera— y para que los esfuerzos tengan **historia
 en git**. Una base devolvería el tablero al único rincón del playground que exige un server para leerse.
 
-### La tarea: un solo archivo suelto en `data/`, con la frontera del guard adentro
+### La tarea: una carpeta en `tasks/`, con la frontera del guard adentro de su documento
 
-Sin carpeta intermedia a propósito: `ls data/` muestra en qué se está trabajando, que es la pregunta que
-el tablero contesta. El nombre del archivo es el slug y se puede renombrar a mano — el `id` vive adentro.
+`ls tasks/` muestra en qué se está trabajando, que es la pregunta que el tablero contesta. Cada tarea es
+`tasks/<slug>/` con su documento `task.md`, su pila de hitos `context.jsonl` y sus `artifacts/`. El nombre
+de la carpeta es el slug y se puede renombrar a mano — el `id` vive adentro, y lo que la tarea produjo se
+va con ella. *(Hasta el 2026-09-23 era un `data/<slug>.md` suelto, y la pila y los prototipos se le unían
+por nombre; un renombre dejó un prototipo huérfano cinco semanas.)*
 
 ```markdown
 ---
@@ -455,18 +458,16 @@ La frontera es **lógica y no física**: un archivo, con una marca adentro. Sepa
 distintos sería redundante, porque **el guard es el mecanismo real** — corre sobre el texto antes de
 publicar y ataja repos, rutas y `F-xx` (`make tareas-guard F=…` lo pregunta sin publicar nada).
 
-### El prototipo de una tarea (`data/artifacts/`)
+### Los artifacts de una tarea (`tasks/<slug>/artifacts/`)
 
-Algunas tareas se aterrizan más rápido mostrando el flujo que describiéndolo. Para eso: un HTML
-autocontenido en `data/artifacts/<slug>.html`, **con el mismo slug** que el `.md` de la tarea.
+Algunas tareas se aterrizan más rápido mostrando el flujo que describiéndolo, y casi todas dejan algo
+más que el documento: una consulta, un censo, una nota para QA. Todo eso va en la carpeta `artifacts/`
+de la tarea, y la pestaña **Artifacts** lo lista entero. Un prototipo es un HTML autocontenido;
+`<slug>.html` aparece como «prototipo» y, cuando hay **más de una propuesta** —otro actor, otro camino—,
+`<slug>.<variante>.html` aparece con la variante como etiqueta. Verlas al lado es lo que permite decidir.
 
-Y una tarea suele tener **más de una propuesta** — otro actor, otro camino posible —, así que también
-vale `data/artifacts/<slug>.<variante>.html`: la variante es la etiqueta con que aparece. Verlas al
-lado es lo que permite decidir entre ellas.
-
-Si hay al menos uno, el sidebar derecho muestra la pestaña **Artifacts**, con la lista; cada artefacto
-se abre en una pestaña del navegador, servido por el propio server
-(`GET /artifacts/<archivo>`).
+Cada artifact se abre en una pestaña del navegador, servido por el propio server
+(`GET /artifacts/<slug>/<archivo>`).
 
 No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se
 desincroniza; una lista en el frontmatter que hay que mantener a mano, sí.
@@ -534,7 +535,7 @@ Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`
 
 ### Contexto de una tarea (`task-context/`)
 
-`data/task-context/<slug>.jsonl` guarda sólo los hitos que cambian una futura retoma. No es un diario,
+`tasks/<slug>/context.jsonl` guarda sólo los hitos que cambian una futura retoma. No es un diario,
 no mide tiempo y nunca se publica en Jira. El documento Markdown conserva el estado y la receta
 vigentes; el JSONL explica por qué cambiaron sin repetirlos.
 

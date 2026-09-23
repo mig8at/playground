@@ -13,8 +13,12 @@ RENAMED=(citas.py:citations.py ramas.py:branches.py trampas.py:traps.py test_ram
 # antes o de después de cualquier fase)
 for_tree() { local tree=$1; shift; local s="$*"
   for p in "${RENAMED[@]}"; do [ -e "$tree/tablero/tools/${p#*:}" ] && s=${s//tools\/${p%%:*}/tools\/${p#*:}}; done
-  [ -d "$tree/tablero/data/traps" ] && s=${s//data\/trampas\//data\/traps\/}; echo "$s"; }
-to_old() { local s="$1"; for p in "${RENAMED[@]}"; do s=${s//${p#*:}/${p%%:*}}; done; s=${s//data\/traps\//data\/trampas\/}; echo "$s"; }
+  [ -d "$tree/tablero/data/traps" ] && s=${s//data\/trampas\//data\/traps\/}
+  # desde el 2026-09-23 una tarea es tasks/<slug>/task.md: los comandos se escriben con la forma vieja
+  [ -d "$tree/tablero/tasks" ] && s=$(echo "$s" | sed -E 's#tablero/data/([a-z0-9-]+)\.md#tablero/tasks/\1/task.md#g')
+  echo "$s"; }
+to_old() { local s="$1"; for p in "${RENAMED[@]}"; do s=${s//${p#*:}/${p%%:*}}; done; s=${s//data\/traps\//data\/trampas\/}
+  echo "$s" | sed -E 's#tasks/([a-z0-9-]+)/task\.md#data/\1.md#g'; }
 # ⚠ las corridas de `citas` sobre TAREAS sólo comparan si los dos lados ven los mismos archivos de tarea:
 # el validador hace `git blame` de cada documento, así que una tarea editada en el medio (o enlazada en el
 # worktree) cambia su resultado sin que el código cambie. Para eso, copiá la versión vieja del validador a

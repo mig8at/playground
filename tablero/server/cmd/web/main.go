@@ -31,6 +31,7 @@ import (
 	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/guard"
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/slack"
 	"creditop/tablero/server/internal/store"
@@ -248,11 +249,19 @@ func main() {
 	mux.HandleFunc("/api/config", a.config)
 	mux.HandleFunc("/api/canon/references", a.canonReferences)
 
-	// PROTOTIPOS de las tareas: `data/artifacts/<slug>.html`, servidos tal cual para que el botón
-	// «play» del tablero los abra en una pestaña. Los sirve este server y no uno aparte a propósito:
-	// un prototipo que necesita levantar su propio puerto deja de abrirse, y entonces no se mira.
-	mux.Handle("/artifacts/", http.StripPrefix("/artifacts/",
-		http.FileServer(http.Dir(filepath.Join(dataDir, store.ArtifactsDir)))))
+	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
+	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a
+	// propósito: un prototipo que necesita levantar su propio puerto deja de abrirse, y entonces no se
+	// mira. Sólo esa forma exacta: nada de subir de nivel, ni de listar una carpeta.
+	tasks := layout.At(dataDir)
+	mux.HandleFunc("/artifacts/", func(w http.ResponseWriter, r *http.Request) {
+		slug, name, ok := strings.Cut(strings.TrimPrefix(r.URL.Path, "/artifacts/"), "/")
+		if !ok || !layout.ValidSlug(slug) || name == "" || strings.ContainsAny(name, `/\`) || strings.HasPrefix(name, ".") {
+			http.NotFound(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(tasks.ArtifactsPath(slug), name))
+	})
 
 	// Sprint + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero para
 	// prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.

@@ -6,13 +6,18 @@ import (
 	"testing"
 	"time"
 
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/taskcontext"
 )
 
 func TestTaskContextFindsTheJSONLForAnEffort(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "data")
+	lay := layout.At(dir)
+	if err := os.MkdirAll(lay.Dir("codigo"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	body := "---\nid: 8\ntitle: Código\nstage: work\ncreated: 2026-03-20T09:00:00-05:00\n---\n\n## Si retomás esto sin contexto, empezá acá\n"
-	if err := os.WriteFile(filepath.Join(dir, "codigo.md"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(lay.TaskPath("codigo"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	s, err := Open(dir)

@@ -30,7 +30,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -38,6 +37,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/store"
 	"creditop/tablero/server/internal/taskcontext"
@@ -102,7 +102,6 @@ var (
 	reRecordDate = regexp.MustCompile(`(?m)^###\s+(\d{4}-\d{2}-\d{2})`)
 	// El marcador con el que una tarea DECLARA que el día no la hizo avanzar. Ver `noProgress`.
 	reNoProgress = regexp.MustCompile(`(?i)\*\*[^*]*sin avance[^*]*\*\*`)
-	reSlugInRef  = regexp.MustCompile(`^(?:tablero/)?data/([^/]+)\.md$`)
 )
 
 func value(l string) string {
@@ -110,21 +109,15 @@ func value(l string) string {
 	return reCitation.ReplaceAllString(strings.TrimSpace(v), "")
 }
 
-func dataDir() string {
-	for _, d := range []string{"../data", "data", "tablero/data"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
-	}
-	return "../data"
-}
+// dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.
+func dataDir() string { return layout.Find().Data }
 
 func readTaskFile(path string) (task, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return task{}, err
 	}
-	t := task{Slug: strings.TrimSuffix(filepath.Base(path), ".md"), Path: path}
+	t := task{Slug: layout.SlugOf(path), Path: path}
 	parts := strings.SplitN(string(b), "---", 3)
 	if len(parts) < 3 {
 		t.Body = string(b)
@@ -168,38 +161,12 @@ func resumeSection(body string) string {
 	return strings.TrimSpace(rest)
 }
 
-func git(dir string, args ...string) (string, error) {
-	cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-	out, err := cmd.Output()
-	return strings.TrimSpace(string(out)), err
-}
-
-// touchedByGit: los slugs cuyo archivo se commiteó en el día o está modificado en el working tree
-// (esto último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha).
+// touchedByGit: los slugs cuyo documento se commiteó en el día o está cambiado en el working tree (esto
+// último sólo cuenta si el día es hoy: lo sin commitear no tiene fecha). Una MUDANZA pura no cuenta:
+// mover una tarea de carpeta no es trabajar en ella (ver layout.TouchedOn). Sin eso, el día de la
+// mudanza de `data/` a `tasks/` el cierre le habría reclamado piezas a las 46 tareas.
 func touchedByGit(data, day string, isToday bool) map[string]bool {
-	out := map[string]bool{}
-	since := day + " 00:00:00"
-	d, _ := time.Parse("2006-01-02", day)
-	until := d.AddDate(0, 0, 1).Format("2006-01-02") + " 00:00:00"
-	if txt, err := git(data, "log", "--since="+since, "--until="+until, "--format=", "--name-only", "--", "."); err == nil {
-		for _, l := range strings.Split(txt, "\n") {
-			if m := reSlugInRef.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
-				out[m[1]] = true
-			}
-		}
-	}
-	if isToday {
-		if txt, err := git(data, "status", "--porcelain", "--", "."); err == nil {
-			for _, l := range strings.Split(txt, "\n") {
-				if len(l) > 3 {
-					if m := reSlugInRef.FindStringSubmatch(strings.TrimSpace(l[3:])); m != nil {
-						out[m[1]] = true
-					}
-				}
-			}
-		}
-	}
-	return out
+	return layout.At(data).TouchedOn(day, isToday)
 }
 
 // resumeBefore: la sección de retoma como estaba en el último commit ANTERIOR al día. Si el archivo no
@@ -216,17 +183,9 @@ func resumeBefore(data, day, slug string) (text string, ok bool) {
 // al día. Es la base de las dos preguntas que el cierre necesita: ¿se reescribió la retoma? y ¿esto fue
 // trabajo de verdad, o sólo un cambio de metadato?
 func bodyBefore(data, day, slug string) (string, bool) {
-	rev, err := git(data, "rev-list", "-1", "--before="+day+" 00:00:00", "HEAD", "--", slug+".md")
-	if err != nil || rev == "" {
-		return "", false
-	}
-	// la ruta para `show` es relativa a la raíz del repo, no a `data`
-	rel, err := git(data, "ls-files", "--full-name", slug+".md")
-	if err != nil || rel == "" {
-		return "", false
-	}
-	old, err := git(data, "show", rev+":"+rel)
-	if err != nil {
+	// siguiendo las mudanzas: el día que la tarea se movió, lo de antes vivía en la ruta vieja
+	old, ok := layout.At(data).DocumentBefore(slug, day)
+	if !ok {
 		return "", false
 	}
 	if parts := strings.SplitN(old, "---", 3); len(parts) == 3 {
@@ -407,7 +366,7 @@ func main() {
 	isToday := *day == time.Now().Format("2006-01-02")
 	data := dataDir()
 
-	paths, _ := filepath.Glob(filepath.Join(data, "*.md"))
+	paths, _ := layout.At(data).TaskPaths()
 	var tasks []task
 	byID := map[int][]string{}
 	for _, r := range paths {

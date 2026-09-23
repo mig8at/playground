@@ -36,6 +36,7 @@ import (
 	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/env"
 	"creditop/tablero/server/internal/guard"
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
 )
 
@@ -222,6 +223,15 @@ func list(line string) []string {
 	return out
 }
 
+// taskSlug: el slug de una tarea es su carpeta (`tasks/<slug>/task.md`). Un `.md` suelto que se pase
+// a `-lint` o `-guard` —un borrador, por ejemplo— se nombra por su archivo.
+func taskSlug(path string) string {
+	if filepath.Base(path) == layout.TaskFile {
+		return layout.SlugOf(path)
+	}
+	return strings.TrimSuffix(filepath.Base(path), ".md")
+}
+
 // readTaskFile saca el frontmatter. No parsea YAML de verdad a propósito: el frontmatter de una tarea es
 // plano y conocido, y meter una dependencia para cinco claves sería pagar de más.
 func readTaskFile(path string) (Task, string, error) {
@@ -230,7 +240,7 @@ func readTaskFile(path string) (Task, string, error) {
 		return Task{}, "", err
 	}
 	body := string(b)
-	t := Task{Slug: strings.TrimSuffix(filepath.Base(path), ".md"), File: path}
+	t := Task{Slug: taskSlug(path), File: path}
 	parts := strings.SplitN(body, "---", 3)
 	if len(parts) < 3 {
 		return t, body, nil // sin frontmatter: se devuelve igual, con lo que se sepa
@@ -361,7 +371,7 @@ func showLint(path string) int {
 	if len(failures) == 0 {
 		return 0
 	}
-	fmt.Fprintf(os.Stderr, "tarea %s: %d problema(s)\n", filepath.Base(path), len(failures))
+	fmt.Fprintf(os.Stderr, "tarea %s: %d problema(s)\n", taskSlug(path), len(failures))
 	for _, f := range failures {
 		fmt.Fprintf(os.Stderr, "  ✗ %s\n", f)
 	}
@@ -429,19 +439,11 @@ func validStage(s string) bool {
 	return s == "evaluation" || s == "work" || s == "tasks" || s == ""
 }
 
-func dataDir() string {
-	// Se corre con `go run ./cmd/tasks` desde `server/`, así que `../data` es lo normal; pero
-	// también se acepta desde la raíz del tablero, para que no importe desde dónde se lance.
-	for _, d := range []string{"../data", "data", "tablero/data"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
-	}
-	return "../data"
-}
+// dataDir: la carpeta `data/` (lo operativo). Ver el paquete layout, que sabe desde dónde se corre.
+func dataDir() string { return layout.Find().Data }
 
 func all() ([]Task, error) {
-	paths, err := filepath.Glob(filepath.Join(dataDir(), "*.md"))
+	paths, err := layout.Find().TaskPaths()
 	if err != nil {
 		return nil, err
 	}

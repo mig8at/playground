@@ -34,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
 )
 
@@ -69,15 +70,15 @@ type task struct {
 	who   string
 }
 
-func findTask(dir, which string) (task, error) {
-	files, _ := filepath.Glob(filepath.Join(dir, "*.md"))
+func findTask(lay layout.Layout, which string) (task, error) {
+	files, _ := lay.TaskPaths()
 	var found []task
 	for _, a := range files {
 		t, err := readTask(a)
 		if err != nil || t.id == 0 {
 			continue
 		}
-		slug := strings.TrimSuffix(filepath.Base(a), ".md")
+		slug := layout.SlugOf(a)
 		if which == strconv.Itoa(t.id) || strings.Contains(strings.ToLower(t.title), strings.ToLower(which)) ||
 			strings.Contains(slug, strings.ToLower(which)) {
 			found = append(found, t)
@@ -254,11 +255,12 @@ func runCommand(which, base string, apply bool) error {
 	if strings.TrimSpace(which) == "" {
 		return errors.New("falta la tarea: `N=<id o parte del título>`")
 	}
-	root, err := dataRoot()
+	lay, err := layout.FindExisting()
 	if err != nil {
 		return err
 	}
-	t, err := findTask(root, which)
+	root := lay.Data
+	t, err := findTask(lay, which)
 	if err != nil {
 		return err
 	}
@@ -384,17 +386,6 @@ func runCommand(which, base string, apply bool) error {
 // ── menudencias ────────────────────────────────────────────────────────────────────────────────
 
 func url(s string) string { return strings.ReplaceAll(neturl.QueryEscape(s), "+", "%20") }
-
-// dataRoot: `tablero/data`, tanto si se corre desde `tablero/server` (el molde de los otros
-// comandos) como desde la raíz del repo.
-func dataRoot() (string, error) {
-	for _, c := range []string{"../data", "tablero/data", "data"} {
-		if st, err := os.Stat(c); err == nil && st.IsDir() {
-			return c, nil
-		}
-	}
-	return "", errors.New("no encontré `tablero/data`: corré esto desde el repo")
-}
 
 func enumerate(xs []string) string {
 	switch len(xs) {

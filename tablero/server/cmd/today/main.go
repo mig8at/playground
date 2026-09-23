@@ -23,7 +23,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -33,6 +32,7 @@ import (
 
 	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/env"
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
 	"creditop/tablero/server/internal/taskcontext"
 )
@@ -91,23 +91,9 @@ func list(l string) []string {
 	return out
 }
 
-func dataDir() string {
-	for _, d := range []string{"../data", "data", "tablero/data"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
-	}
-	return "../data"
-}
-
-func git(dir string, args ...string) string {
-	out, _ := exec.Command("git", append([]string{"-C", dir}, args...)...).Output()
-	return strings.TrimSpace(string(out))
-}
-
-func readTaskFile(data, path string, dirty map[string]bool) task {
+func readTaskFile(path string, touches map[string]string) task {
 	b, _ := os.ReadFile(path)
-	t := task{Slug: strings.TrimSuffix(filepath.Base(path), ".md"), Path: path}
+	t := task{Slug: layout.SlugOf(path), Path: path}
 	parts := strings.SplitN(string(b), "---", 3)
 	if len(parts) == 3 {
 		t.Body = parts[2]
@@ -144,9 +130,9 @@ func readTaskFile(data, path string, dirty map[string]bool) task {
 	if t.Stage == "" {
 		t.Stage = "evaluation"
 	}
-	if dirty[t.Slug+".md"] {
-		t.Touch = time.Now()
-	} else if d := git(data, "log", "-1", "--format=%cs", "--", t.Slug+".md"); d != "" {
+	// El último toque sale de git siguiendo las mudanzas (hoy si está cambiada sin commitear): mover la
+	// tarea de carpeta no la despierta. Ver layout.LastTouches.
+	if d := touches[t.Slug]; d != "" {
 		t.Touch, _ = time.ParseInLocation("2006-01-02", d, time.Local)
 	} else if fi, err := os.Stat(path); err == nil {
 		t.Touch = fi.ModTime()
@@ -341,18 +327,14 @@ func main() {
 	)
 	flag.Parse()
 	env.LoadDefaults()
-	data := dataDir()
+	lay := layout.Find()
+	data := lay.Data
 
-	dirty := map[string]bool{}
-	for _, l := range strings.Split(git(data, "status", "--porcelain", "--", "."), "\n") {
-		if len(l) > 3 {
-			dirty[filepath.Base(strings.TrimSpace(l[3:]))] = true
-		}
-	}
-	paths, _ := filepath.Glob(filepath.Join(data, "*.md"))
+	touches := lay.LastTouches()
+	paths, _ := lay.TaskPaths()
 	var tasks []task
 	for _, r := range paths {
-		tasks = append(tasks, readTaskFile(data, r, dirty))
+		tasks = append(tasks, readTaskFile(r, touches))
 	}
 	snap := readSnap(data)
 

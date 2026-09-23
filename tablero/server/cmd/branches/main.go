@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/store"
 )
 
@@ -45,10 +46,7 @@ func main() {
 	if *root == "" {
 		*root = filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github")
 	}
-	dataDir := os.Getenv("TABLERO_DATA")
-	if dataDir == "" {
-		dataDir = "../data"
-	}
+	dataDir := layout.Find().Data // TABLERO_DATA si está; si no, la `data/` que exista desde acá
 
 	st, err := store.Open(dataDir)
 	if err != nil {
@@ -169,8 +167,8 @@ type candidate struct {
 
 // keysOf lee las claves de Jira del frontmatter de una tarea. Se lee el archivo en vez de pedirle el
 // dato al store porque `Effort` no las expone: el store las usa para su índice `locals`, no como campo.
-func keysOf(dir, file string) []string {
-	b, err := os.ReadFile(filepath.Join(dir, file))
+func keysOf(taskPath string) []string {
+	b, err := os.ReadFile(taskPath)
 	if err != nil {
 		return nil
 	}
@@ -212,7 +210,7 @@ func suggestions(ctx context.Context, root, dataDir string, efforts []store.Effo
 		if e.BranchPatterns != "" || e.Archived != "" {
 			continue
 		}
-		slug := strings.TrimSuffix(e.File, ".md")
+		slug := e.Slug
 		// lo que la tarea aporta para buscar: los trozos de su slug y sus claves de Jira
 		want := map[string]bool{}
 		for _, t := range chunks(slug) {
@@ -224,7 +222,7 @@ func suggestions(ctx context.Context, root, dataDir string, efforts []store.Effo
 		// otras (las que la bloquean, las que la originaron), y buscarlas ahí le adjudicaba a la tarea de
 		// Motai las ramas de CORE-258 y CORE-431, que son de otras dos.
 		keys := map[string]bool{}
-		for _, k := range keysOf(dataDir, e.File) {
+		for _, k := range keysOf(layout.At(dataDir).TaskPath(e.Slug)) {
 			keys[strings.ToLower(k)] = true
 		}
 

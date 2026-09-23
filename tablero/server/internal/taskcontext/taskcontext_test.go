@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"creditop/tablero/server/internal/layout"
 )
 
 func checkpoint(summary string) Event {
@@ -13,7 +15,7 @@ func checkpoint(summary string) Event {
 }
 
 func TestAppendReadsNewestAndKeepsOneJSONLinePerEvent(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "data")
 	old := time.Date(2026, time.March, 20, 9, 0, 0, 0, time.FixedZone("COT", -5*3600))
 	newer := old.Add(24 * time.Hour)
 	if _, err := Append(dir, "flujo-codigo", checkpoint("Se definió el primer corte"), old); err != nil {
@@ -29,7 +31,7 @@ func TestAppendReadsNewestAndKeepsOneJSONLinePerEvent(t *testing.T) {
 	if len(events) != 2 || events[0].Summary != "Se verificó el camino completo" || events[0].Schema != Schema || events[0].ID == "" {
 		t.Fatalf("events = %+v", events)
 	}
-	b, err := os.ReadFile(filepath.Join(dir, "task-context", "flujo-codigo.jsonl"))
+	b, err := os.ReadFile(layout.At(dir).ContextPath("flujo-codigo"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +41,7 @@ func TestAppendReadsNewestAndKeepsOneJSONLinePerEvent(t *testing.T) {
 }
 
 func TestRejectsNoiseAndEvidenceWithoutReference(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "data")
 	if _, err := Append(dir, "flujo-codigo", Event{Kind: "progress", Summary: "se avanzó"}, time.Now()); err == nil {
 		t.Fatal("aceptó un avance de tiempo como contexto")
 	}
@@ -49,7 +51,7 @@ func TestRejectsNoiseAndEvidenceWithoutReference(t *testing.T) {
 	if _, err := Append(dir, "flujo-codigo", Event{Kind: "evidence", Summary: "pasó"}, time.Now()); err == nil {
 		t.Fatal("aceptó evidencia sin referencia")
 	}
-	if _, err := os.Stat(filepath.Join(dir, "task-context", "flujo-codigo.jsonl")); !os.IsNotExist(err) {
+	if _, err := os.Stat(layout.At(dir).ContextPath("flujo-codigo")); !os.IsNotExist(err) {
 		t.Fatalf("se escribió un archivo inválido: %v", err)
 	}
 }

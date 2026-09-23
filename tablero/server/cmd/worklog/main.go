@@ -25,18 +25,13 @@ import (
 	"time"
 
 	"creditop/tablero/server/internal/guard"
+	"creditop/tablero/server/internal/layout"
 	"creditop/tablero/server/internal/pulse"
 	"creditop/tablero/server/internal/store"
 )
 
-func dataDir() string {
-	for _, d := range []string{"../data", "data", "tablero/data"} {
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			return d
-		}
-	}
-	return "../data"
-}
+// dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.
+func dataDir() string { return layout.Find().Data }
 
 func todayAt(hhmm string) (time.Time, error) {
 	t, err := time.ParseInLocation("15:04", hhmm, time.Local)
@@ -164,7 +159,7 @@ func main() {
 	}
 	var chosen *store.EffortRef
 	for _, e := range s.EffortsAll() {
-		slug := strings.TrimSuffix(e.File, ".md")
+		slug := e.Slug
 		if strconv.FormatInt(e.ID, 10) == *task || slug == *task {
 			ef := e
 			chosen = &ef
@@ -190,7 +185,7 @@ func main() {
 		fail("la bitácora sube a Jira como worklog: sin repos, rutas ni F-xx en el título o la nota")
 	}
 
-	fmt.Printf("\n  #%d %s · %s · %d′ · %s\n  %s\n  %s\n\n", chosen.ID, strings.TrimSuffix(chosen.File, ".md"), start.Format("2006-01-02 15:04"), minutes, *kind, *title, origin)
+	fmt.Printf("\n  #%d %s · %s · %d′ · %s\n  %s\n  %s\n\n", chosen.ID, chosen.Slug, start.Format("2006-01-02 15:04"), minutes, *kind, *title, origin)
 	if *dryRun {
 		fmt.Println("  (-n: no se escribió)")
 		return
