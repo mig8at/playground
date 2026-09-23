@@ -30,7 +30,6 @@ const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item,
   <section class="task-evidence" aria-label="Evidencia de trabajo">
     <header class="evidence-head">
       <h3>Evidencia de trabajo</h3>
-      <p>Herramientas, comandos y comprobaciones que explican cómo se avanzó esta tarea.</p>
     </header>
 
     <section v-if="trazadorCount" class="evidence-section">
@@ -60,7 +59,7 @@ const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item,
 </template>
 
 <style scoped>
-.task-evidence { min-width: 0; color: var(--txt); }.evidence-head { padding: 2px 0 16px; border-bottom: 1px solid var(--line); }.evidence-head h3, .evidence-head p, .evidence-section p, .proof p { margin: 0 }.evidence-head h3 { font-size: 16px; font-weight: 650 }.evidence-head p { margin-top: 5px; color: var(--mut); font-size: 12.5px; line-height: 1.5 }
+.task-evidence { min-width: 0; color: var(--txt); }.evidence-head { padding: 2px 0 16px; border-bottom: 1px solid var(--line); }.evidence-head h3, .evidence-section p, .proof p { margin: 0 }.evidence-head h3 { font-size: 16px; font-weight: 650 }
 .evidence-section { padding: 16px 0; border-bottom: 1px solid var(--line); }.evidence-section h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }.evidence-section h4 span { padding: 1px 5px; border-radius: 999px; background: var(--line2); color: var(--txt); font-size: 9px; letter-spacing: 0 }
 .tool-links { display: grid; grid-template-columns: minmax(0, 360px); gap: 9px }.tool-link { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: inherit; text-align: left; text-decoration: none; cursor: pointer }.tool-link:hover { border-color: color-mix(in srgb, var(--acc) 40%, var(--line)); background: var(--sel) }.tool-link .ui-icon { width: 15px; height: 15px; flex: none; color: var(--acc) }.tool-link b, .tool-link small { display: block }.tool-link b { font-size: 12px; font-weight: 600 }.tool-link small { margin-top: 3px; color: var(--mut); font-size: 10.5px; line-height: 1.35 }.tool-arrow { margin-left: auto; flex: none; color: var(--mut); font-size: 13px }
 .proof pre { display: block; overflow-x: auto; margin: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere }

@@ -87,7 +87,8 @@ real de cada jornada anterior. Sólo contiene hitos JSONL que cambian cómo cont
 muestran minutos ni notas de sesión. El documento, los hallazgos y la evidencia quedan después de la
 cronología como consulta, y **cada bloque aparece sólo si tiene contenido**: una tarea limpia está vacía
 (pedido de Miguel, 2026-09-23). Un contenedor vacío con su «todavía no hay» pide que lo llenen con algo
-que la tarea quizá no hace. El sidebar derecho queda para lo accionable:
+que la tarea quizá no hace. Y ninguno se describe a sí mismo: el documento no lleva rótulo —lo nombran
+sus secciones, empezando por la de retoma— y los hallazgos y la evidencia no llevan bajada. El sidebar derecho queda para lo accionable:
 **Jira · Pendientes · Artifacts** cuando la tarea tenga artefactos.
 
 Cada dato tiene una fuente. Al crear una tarea, copiá `TASK-TEMPLATE.md`; al retomar una abierta,

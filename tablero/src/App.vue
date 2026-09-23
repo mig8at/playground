@@ -1970,8 +1970,11 @@ function documentAction(id) {
              abiertas (13 de 26, sin un solo hallazgo) eran cromo que pedía llenarse. -->
         <section v-if="summarySections.length || findingsOf(active.Key).length || workEvidence.length"
                  class="task-reference" aria-label="Documento y evidencia de la tarea">
-            <section v-if="summarySections.length" class="work-block">
-              <div class="work-block-head"><h4>Documento de trabajo</h4><small>Estado, decisiones y material vigente</small></div>
+            <!-- Sin rótulo: el documento lo nombran sus propias secciones, empezando por «Si retomás esto sin
+                 contexto». «Documento de trabajo · Estado, decisiones y material vigente» describía el
+                 contenedor y no le servía a nadie: quien retoma lee la tarea misma (pedido de Miguel,
+                 2026-09-23). Lo mismo las bajadas que explicaban qué son los hallazgos y la evidencia. -->
+            <section v-if="summarySections.length" class="work-block" aria-label="Documento de trabajo">
               <div class="desc cuerpo-md">
                 <section v-for="section in summarySections" :key="section.id" :id="section.id" class="document-section" :class="{ 'retoma-panel': section.resume }" v-html="section.summaryHtml"></section>
               </div>
@@ -1979,7 +1982,6 @@ function documentAction(id) {
 
             <section v-if="findingsOf(active.Key).length" class="work-block task-findings">
               <div class="work-block-head"><h4>Hallazgos y decisiones</h4><small>{{ findingsOf(active.Key).length }} registrados</small></div>
-              <p class="nota">Conclusiones fechadas del trabajo, con la forma de volver a comprobarlas.</p>
               <div class="proc">
                 <span class="proc-cuenta">{{ provenanceOf(active.Key).withHow }} de {{ provenanceOf(active.Key).total }} dicen cómo volver a comprobarlos</span>
                 <span v-for="[f, n] in provenanceOf(active.Key).sources" :key="f" class="badge badge-outline fchip" :class="{ amb: isEnvironment(f) }">{{ f }} <b>{{ n }}</b></span>

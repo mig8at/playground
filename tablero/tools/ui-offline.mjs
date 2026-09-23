@@ -183,19 +183,22 @@ try {
   // Una tarea limpia está VACÍA: sin hallazgos no se dibujan ni el bloque de hallazgos ni el de evidencia
   // —salían con su «0 registrados» y su «todavía no hay»—. Y con uno, los dos vuelven: un `v-if` que no
   // se cumple nunca también dejaría la pantalla limpia.
-  await check('sin hallazgos no hay bloques vacíos, y con uno aparecen', async () => {
+  await check('sin hallazgos no hay bloques vacíos, con uno aparecen, y ninguno se describe a sí mismo', async () => {
     const blocks = () => page.evaluate(() => ({
       findings: document.querySelectorAll('.task-findings').length,
       evidence: document.querySelectorAll('.task-evidence').length,
       empty: /no tiene hallazgos|Todavía no hay|0 registrados/.test(document.querySelector('.te-body').innerText),
+      // y los rótulos que describían el contenedor en vez del contenido
+      labels: /Documento de trabajo|Estado, decisiones y material vigente|Conclusiones fechadas|Herramientas, comandos y comprobaciones/
+        .test(document.querySelector('.te-body').innerText),
     }));
-    assert.deepEqual(await blocks(), { findings: 0, evidence: 0, empty: false });
+    assert.deepEqual(await blocks(), { findings: 0, evidence: 0, empty: false, labels: false });
     const effort = sample['/api/efforts'].efforts[0];
     effort.annotations = [{ kind: 'medicion', date: '2026-09-20', what: 'Se midió el caso.', how: 'SELECT 1', sources: ['DB'] }];
     try {
       await page.reload();
       await page.locator('.task-findings').waitFor({ timeout: 5000 });
-      assert.deepEqual(await blocks(), { findings: 1, evidence: 1, empty: false });
+      assert.deepEqual(await blocks(), { findings: 1, evidence: 1, empty: false, labels: false });
     } finally {
       delete effort.annotations;
     }

@@ -48,7 +48,9 @@ sabe. Y la sección fija «Harness · comandos reproducibles», con su enlace al
 las tareas sin prueba era un hueco que pedía llenarse; una prueba ejecutada sigue apareciendo dentro del
 hito que la usó. Y con la misma idea, los bloques de documento, hallazgos y evidencia se dibujan sólo si
 tienen algo: **una tarea limpia está vacía**. La mitad de las abiertas (13 de 26) no tiene un solo
-hallazgo y mostraba dos contenedores con su «todavía no hay».
+hallazgo y mostraba dos contenedores con su «todavía no hay». Tampoco se describen a sí mismos: el
+documento arranca directo en «Si retomás esto sin contexto», sin el rótulo «Documento de trabajo · Estado,
+decisiones y material vigente», y hallazgos y evidencia perdieron sus bajadas explicativas.
 
 **La cronología es un acordeón (2026-09-23).** Cada fecha —Hoy, Ayer y las anteriores— es un
 encabezado que se pega arriba mientras se lee su contenido; el día siguiente lo empuja al llegar y un
@@ -395,6 +397,10 @@ arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
 ## Registro
 
 ### 2026-09-23
+
+Fuera los rótulos que describían el contenedor en vez del contenido: «Documento de trabajo · Estado,
+decisiones y material vigente» y las bajadas de hallazgos y evidencia. Quien retoma lee la tarea misma, y
+el documento lo nombran sus secciones (pedido de Miguel). La prueba sin servidores falla si vuelven.
 
 Una tarea limpia está vacía: los bloques de documento, hallazgos y evidencia se dibujan sólo si tienen
 algo, a pedido de Miguel. Al hacerlo se midió que la evidencia repite 134 de los 155 hallazgos; quedó
