@@ -15,65 +15,20 @@
 | entender cómo está compuesta la herramienta | `docs/ARCHITECTURE.md` |
 | encontrar conocimiento estable del producto | **canon**: `github/playground/tools/canon`, o canon.playground.creditop.com |
 
-## Laboratorio Jev
+## La conexión con Jev (sin uso, a propósito)
 
-`tablero` tiene un experimento local y opt-in para interpretar una retoma con las tres primitivas de
-Jev en una sola llamada: `Choice` sugiere el tipo de siguiente acción, `Noul` estima si existe un
-bloqueo externo y `Score` ubica la urgencia operativa en cuatro niveles descriptivos. No modifica la
-tarea, Jira ni el orden de `make hoy`; fechas, días sin tocar, conteos y cierre siguen en Go.
+Hasta el 2026-09-23 el tablero usaba Jev (TypeSafe) en tres lugares: **✦ Orientar** en la cabecera de
+una tarea, el **✦** de Pendientes —contrastaba las casillas abiertas con la evidencia fechada— y un
+laboratorio por consola (`make tablero-jev`: triage, un banco de 8 casos sintéticos y etiquetas). Se
+retiraron los tres: agregaban ruido sin haber encontrado un uso que lo justificara. Lo medido antes de
+retirarlo (2026-09-19): en el banco sintético repetido dos veces acertó 16/16 en las tres señales, pero
+nunca se comparó contra una muestra real.
 
-```bash
-make tablero-jev ARGS='bench'                 # valida y previsualiza 8 casos sintéticos, sin red
-make tablero-jev ARGS='bench --live'          # envía sólo esos casos sintéticos a TypeSafe
-make tablero-jev ARGS='triage 89'             # muestra el payload mínimo de una tarea, sin red
-make tablero-jev ARGS='triage 89 --live --allow-internal --env-file tablero/server/.env'
-make tablero-jev ARGS='label tablero/.runs/jev/REPORTE.json --action ejecutar --external-blocker false --urgency 1'
-make tablero-jev ARGS='stats'
-make tablero-jev-test
-```
-
-El triage real solo extrae título, etapa, días sin tocar, próximo paso, conteos de preguntas y
-pendientes, y nombres de piezas faltantes. Omite id, slug, cuerpo, registro, preguntas, pendientes,
-ramas y avances. Aun así, título y próximo paso son información interna; por eso `--live` se niega a
-enviarlos si la misma invocación no incluye `--allow-internal`. En la interfaz el servidor carga
-`tablero/server/.env`; por consola se indica ese archivo con `--env-file`, como en el ejemplo. Los
-reportes quedan locales, ignorados por Git y con permiso `0600` en
-`tablero/.runs/jev/`.
-
-### Orientación en la interfaz
-
-Una tarea que ya tiene documento local muestra **✦ Orientar** en su cabecera. Abrirlo no hace una
-llamada: explica la proyección que se enviaría. Sólo al elegir **Analizar con Jev** se invoca el
-triage live y se muestra una franja efímera con tipo de siguiente acción, urgencia y si parece haber
-una dependencia externa. Permite copiar la propuesta como borrador o ver alternativas; no edita el
-Markdown, pendientes, estado ni Jira. Si el modelo se abstiene, la franja pide revisión humana. La
-acción es explícita porque título y próximo paso son internos.
-
-En **Pendientes**, el icono **✦** hace una consulta distinta y directa desde el servidor Go: contrasta
-si cada casilla abierta parece resuelta, sigue abierta o requiere revisión. Sólo al pulsarlo se envían
-a Jev el título, el estado actual, las casillas abiertas y hasta 24 hallazgos fechados; no se envían el
-cuerpo completo ni los comandos de comprobación. La respuesta nunca tilda, borra ni edita una casilla.
-El servidor usa `JEV_TOKEN` desde `tablero/server/.env` y rechaza la consulta si la proyección parece
-contener un secreto.
-
-La etiqueta se registra después de revisar la retoma: acción, bloqueo externo y urgencia esperados.
-No modifica la tarea ni entrena a Jev. `stats` cuenta las retomas revisadas; una preview sin respuesta
-de Jev aporta una etiqueta, pero nunca se presenta como acierto del modelo.
-
-El banco sintético sirve para decidir si el juicio es consistente, no para certificar producción.
-La política solo convierte `Choice` en sugerencia cuando supera probabilidad, confianza y margen;
-si no, devuelve revisión manual. Score y Noul se muestran como señales, no mueven ni archivan tareas.
-El diseño general y las restricciones de privacidad viven en el encabezado de `tools/jev.py`. ⚠ No
-confundirlo con el Jev que ruteaba nodos del árbol de contexto: ese se apagó con el árbol el
-2026-09-21, y para encontrar un tema hoy se le pregunta a canon, que es gratis.
-
-Medido el 2026-09-19 con los ocho casos repetidos dos veces: `Choice` acertó 16/16, `Noul` separó el
-bloqueo externo en 16/16 y el `Score` redondeó al nivel esperado en 16/16, con error absoluto medio
-de 0,286 niveles. La política emitió 15 sugerencias, ninguna incorrecta, y mandó un caso a revisión.
-La mediana fue 528 ms, p95 689 ms y el uso total 11.944 tokens de entrada y 1.768 de salida. Es un
-banco pequeño, explícito y sintético. Hay una primera retoma real etiquetada en preview, todavía sin
-respuesta de Jev; hace falta una muestra representativa antes de comparar o activar el juicio en la
-agenda.
+Queda la **conexión**, para cuando aterrice un uso mejor: `tools/jev_transport.py` —el endpoint, el
+modelo, la lectura del token (`JEV_TOKEN` en `server/.env`) y un pedido acotado que no sigue
+redirecciones ni filtra el cuerpo o el token en un error—, con pruebas offline en `make tablero-jev-test`.
+El laboratorio, su banco de casos y las dos rutas del server se recuperan de git:
+`git show 7be60c4c:tablero/tools/jev.py`.
 
 El README conserva operación, integraciones y referencias; las reglas vigentes para editar tareas viven
 en `CLAUDE.md`. Así no hace falta leer ambos completos para una pregunta cotidiana.
@@ -283,7 +238,6 @@ ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 | `GET/POST /api/transitions` | las transiciones de un issue, y aplicar una |
 | `GET/POST /api/qa-notice` | la previsualización del aviso a QA, y enviarlo: mueve a pruebas y manda el DM |
 | `GET /api/ramas` · `POST /api/ramas/refresh?id=` | el snapshot de ramas por tarea, y volver a medir una |
-| `POST /api/jev/triage` · `POST /api/jev/pending-review` | la orientación de Jev, sólo al pulsar el botón |
 | `GET /api/pulse?days=` | el pulso agregado por día y hora |
 | `GET /artifacts/<slug>/<archivo>` | un archivo de `tasks/<slug>/artifacts/` |
 
@@ -430,7 +384,7 @@ Jira. No guarda sidecars. El contrato está en [`schemas/task.v2.schema.json`](s
 *(Hasta el 2026-09-23 era `tablero.tarea.v1`, con las claves en español; la v2 tiene los mismos datos con
 las claves en inglés —`nextStep`, `openPending`, `annotations`—. El mapa viejo → nuevo está en
 `tools/rename/maps/phase4b-json.tsv`.)*
-Esta es la forma recomendada para Jev, workers y automatizaciones; el cuerpo privado completo se abre
+Esta es la forma recomendada para workers y automatizaciones; el cuerpo privado completo se abre
 sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrador publicable; el modo
 normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.
 

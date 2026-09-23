@@ -12,7 +12,6 @@ import { vResize, refreshResizers } from './workbench.js';
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
-import TaskGuidance from './TaskGuidance.vue';
 import TaskEvidence from './TaskEvidence.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
@@ -678,7 +677,6 @@ watch(() => [active.value?.Key, effortFor(active.value?.Key)], () => {
 // La de Jira sigue a un clic, en el enlace del encabezado: no se pierde, se despriorizó.
 const bodyOf = (key) => efforts.value.find(e => e.id === effortFor(key))?.techNotes || '';
 
-const effortOf = (key) => efforts.value.find(e => e.id === effortFor(key));
 const documentSections = computed(() => organizeDocument(active.value ? bodyOf(active.value.Key) : ''));
 const summarySections = computed(() => documentSections.value.filter(section => section.summaryHtml && !section.history));
 // El contador de la pestaña son los DÍAS registrados, no las secciones: es lo que dice de un vistazo
@@ -704,65 +702,6 @@ const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(ca
 // La evidencia que se registra en el cuerpo privado es el historial de cómo se trabajó la tarea. No
 // se reduce a un texto de «retomar»: Trazador y Harness la consumen en la vista central.
 const workEvidence = computed(() => active.value ? findingsOf(active.value.Key) : []);
-
-// ── ORIENTACIÓN JEV ─────────────────────────────────────────────────────────────────────────────
-// Es un acto EXPLÍCITO: abrir la franja no llama a nadie; «Analizar con Jev» es el consentimiento
-// para enviar la proyección mínima de `make retomar`. La sugerencia no escribe Markdown, Jira, estado
-// ni pendientes. Así conserva su lugar: decidir dónde mirar, no decidir ni ejecutar por la persona.
-const jevOpen = ref(false);
-const jevBusy = ref(false);
-const jevError = ref('');
-const jevGuidance = ref(null);
-let jevRequest = 0;
-const jevTarget = computed(() => {
-  const effort = active.value ? effortOf(active.value.Key) : null;
-  return effort?.id ? String(effort.id) : '';
-});
-function openGuidance() {
-  jevOpen.value = !jevOpen.value;
-  if (!jevOpen.value) { jevError.value = ''; jevGuidance.value = null; }
-}
-function closeGuidance() {
-  jevOpen.value = false;
-  jevBusy.value = false;
-  jevError.value = '';
-  jevGuidance.value = null;
-  jevRequest++;
-}
-async function guideWithJev() {
-  const target = jevTarget.value;
-  if (!target || jevBusy.value) return;
-  const request = ++jevRequest;
-  jevBusy.value = true; jevError.value = ''; jevGuidance.value = null;
-  try {
-    const res = await fetch(`${SERVER}/api/jev/triage`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: target }),
-    });
-    const row = await res.json();
-    if (request !== jevRequest) return;
-    if (!res.ok || row.error) { jevError.value = row.error || 'No se pudo obtener una orientación.'; return; }
-    jevGuidance.value = row.guidance || { review: true };
-  } catch {
-    if (request === jevRequest) jevError.value = 'No se pudo hablar con el servidor local.';
-  } finally {
-    if (request === jevRequest) jevBusy.value = false;
-  }
-}
-function jevGuidanceText() {
-  const row = jevGuidance.value;
-  if (!row?.action) return '';
-  const action = {
-    ejecutar: 'Ejecutar el próximo paso', desbloquear: 'Desbloquear antes de avanzar',
-    'pedir-respuesta': 'Pedir una respuesta', decidir: 'Tomar una decisión',
-    'archivar-o-replantear': 'Replantear o archivar',
-  }[row.action] || row.action;
-  const urgency = ['puede esperar', 'normal', 'conviene priorizar', 'crítica'][Math.round(row.urgency || 0)] || 'a revisar';
-  return `Orientación de siguiente paso\n\n${action} · urgencia ${urgency} · ${row.externalBlocker ? 'depende de terceros' : 'puede avanzar localmente'}\n\nPropuesta de Jev; revisar la tarea y la evidencia antes de cambiarla.`;
-}
-async function copyJevGuidance() {
-  const text = jevGuidanceText();
-  if (text) await toClipboard(text);
-}
 
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
@@ -904,7 +843,6 @@ async function toClipboard(txt) {
 // Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
 watch(() => active.value?.Key, () => {
   clearTimeout(copiedTimer); copied.value = ''; copiedWhich.value = '';
-  closeGuidance();
 });
 /* ── PESTAÑAS DEL EDITOR ─────────────────────────────────────────────────────────────────────────
  * Varias tareas abiertas a la vez, como los archivos en VS Code.
@@ -1092,7 +1030,6 @@ function openTask(task, pin = false) {
   }
   active.value = task;
   if (taskChange) {
-    resetPendingReview();
     activeAuxView.value = 'jira';
   }
 }
@@ -1106,7 +1043,6 @@ function closeTab(k) {
   if (active.value?.Key === k) {
     const sig = tabItems.value[i] || tabItems.value[i - 1] || null;
     active.value = sig || null;
-    resetPendingReview();
     if (sig) {
       activeAuxView.value = 'jira';
     }
@@ -1235,60 +1171,7 @@ const pendingProgressOf = (key) => {
   const doneItems = total - remaining(key);
   return total ? { total, done: doneItems, percent: Math.round(doneItems * 100 / total) } : null;
 };
-const openPendingOf = (key) => pendingOf(key).filter(p => !p.done);
 
-// REVISIÓN JEV DE PENDIENTES. Es una lectura explícita, nunca una mutación: el servidor recibe una
-// proyección acotada de la tarea sólo después del clic y devuelve tres estados fijos. Así el modelo
-// puede señalar una casilla posiblemente vieja sin que su respuesta se convierta en una edición.
-const pendingReview = ref(null);
-const pendingReviewBusy = ref(false);
-const pendingReviewError = ref('');
-let pendingReviewRequest = 0;
-function resetPendingReview() {
-  pendingReviewRequest++;
-  pendingReview.value = null;
-  pendingReviewBusy.value = false;
-  pendingReviewError.value = '';
-}
-async function reviewPendingWithJev() {
-  const target = jevTarget.value;
-  const key = active.value?.Key;
-  if (!target || !key || !remaining(key) || pendingReviewBusy.value) return;
-  const request = ++pendingReviewRequest;
-  pendingReviewBusy.value = true;
-  pendingReviewError.value = '';
-  pendingReview.value = null;
-  try {
-    const res = await fetch(`${SERVER}/api/jev/pending-review`, {
-      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: target }),
-    });
-    const row = await res.json();
-    if (request !== pendingReviewRequest || active.value?.Key !== key) return;
-    if (!res.ok || row.error) {
-      pendingReviewError.value = row.error || 'No se pudieron revisar los pendientes.';
-      return;
-    }
-    pendingReview.value = row.review || { items: [] };
-  } catch {
-    if (request === pendingReviewRequest) pendingReviewError.value = 'No se pudo hablar con el servidor local.';
-  } finally {
-    if (request === pendingReviewRequest) pendingReviewBusy.value = false;
-  }
-}
-const pendingReviewLabel = (status) => ({
-  resolved: 'Parece resuelto', open: 'Sigue abierto', unclear: 'Requiere revisión',
-}[status] || 'Requiere revisión');
-const pendingReviewClass = (status) => ({ resolved: 'resolved', open: 'open', unclear: 'unclear' }[status] || 'unclear');
-const reviewPending = (item) => openPendingOf(active.value?.Key)[item.id];
-const pendingReviewSummary = computed(() => {
-  const items = pendingReview.value?.items || [];
-  const resolved = items.filter(item => item.status === 'resolved').length;
-  const openItems = items.filter(item => item.status === 'open').length;
-  const doubtful = items.length - resolved - openItems;
-  return [resolved && `${resolved} parece${resolved === 1 ? '' : 'n'} resuelto${resolved === 1 ? '' : 's'}`,
-    openItems && `${openItems} sigue${openItems === 1 ? '' : 'n'} abierto${openItems === 1 ? '' : 's'}`,
-    doubtful && `${doubtful} requiere${doubtful === 1 ? '' : 'n'} revisión`].filter(Boolean).join(' · ');
-});
 // Agrupados por el encabezado bajo el que se escribieron: en una tarea larga los pendientes vienen de
 // frentes distintos («Pendientes», «Cerrar con negocio», «Al retomar»), y en una lista plana se leen
 // todos como si fueran lo mismo.
@@ -1973,18 +1856,13 @@ function documentAction(id) {
              datos breves van en su cabecera, las consultas de apoyo al costado y las ramas abajo. -->
 
         <template #acciones>
-          <div v-if="documentSections.length || jevTarget" class="toolbar" role="group" aria-label="Acciones de la tarea">
-            <button v-if="jevTarget" type="button" class="btn btn-ghost btn-sm task-jev-trigger"
-                    :aria-expanded="jevOpen" aria-controls="task-guidance" title="Orientar el siguiente paso con Jev"
-                    @click="openGuidance"><span aria-hidden="true">✦</span> Orientar</button>
-            <template v-if="documentSections.length">
+          <div v-if="documentSections.length" class="toolbar" role="group" aria-label="Acciones de la tarea">
             <span v-if="copied" class="toolbar-note" role="status">{{ copied === 'ok' ? 'Copiado' : 'No se pudo copiar' }}</span>
             <button class="region-action" title="Copiar para compartir (sin registro ni comandos)"
                     aria-label="Copiar para compartir" @click="copyBody('compartir')">
               <span class="ui-icon" :data-icon="copied === 'ok' ? 'check' : 'copy'" aria-hidden="true"></span>
             </button>
             <RegionMenu title="Opciones del documento" :items="documentMenu" @select="documentAction" />
-            </template>
           </div>
         </template>
 
@@ -2011,9 +1889,6 @@ function documentAction(id) {
                 {{ pendingProgressOf(active.Key).done }}/{{ pendingProgressOf(active.Key).total }} pendientes finalizados</span>
               <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${pendingProgressOf(active.Key).percent}%` }"></i></span>
             </button>
-            <TaskGuidance v-if="jevOpen && jevTarget" id="task-guidance" :guidance="jevGuidance"
-                          :loading="jevBusy" :error="jevError" @start="guideWithJev"
-                          @close="closeGuidance" @copy="copyJevGuidance" />
 
             <!-- Llegar a pruebas conserva el acto compuesto: primero se revisa el mensaje y sólo
                  después el server mueve el issue y avisa a quien valida. -->
@@ -2096,7 +1971,7 @@ function documentAction(id) {
             </section>
 
             <section class="work-block">
-              <TaskEvidence :evidence="workEvidence" :notes="bodyOf(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" :branches="activeTaskBranches" @show-branches="showBranchPanel" />
+              <TaskEvidence :evidence="workEvidence" :notes="bodyOf(active.Key)" :harness-url="harnessUrl" :tracer-url="tracerUrl" />
             </section>
 
         </section>
@@ -2328,34 +2203,7 @@ function documentAction(id) {
             </template>
           </template>
           <template v-if="v.id === 'pendientes'">
-            <div class="pending-heading">
-              <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
-              <button type="button" class="region-action pending-review-trigger"
-                      :disabled="!remaining(active?.Key) || pendingReviewBusy"
-                      :aria-label="pendingReviewBusy ? 'Revisando pendientes con Jev' : 'Revisar si los pendientes siguen abiertos con Jev'"
-                      :title="remaining(active?.Key) ? 'Revisar con Jev si la evidencia registrada indica que algún pendiente ya se resolvió. No modifica la tarea.' : 'No hay pendientes abiertos para revisar.'"
-                      @click="reviewPendingWithJev">
-                <span aria-hidden="true">✦</span>
-              </button>
-            </div>
-            <p class="pending-review-disclosure">El análisis sólo empieza al pulsar ✦. Envía título, estado, pendientes abiertos y hallazgos fechados; no el documento completo ni comandos.</p>
-            <section v-if="pendingReviewBusy || pendingReviewError || pendingReview" class="pending-review" aria-live="polite">
-              <p v-if="pendingReviewBusy" class="nota">Jev está contrastando los pendientes con la evidencia registrada…</p>
-              <p v-else-if="pendingReviewError" class="pending-review-error">{{ pendingReviewError }}</p>
-              <template v-else>
-                <p class="pending-review-summary">{{ pendingReviewSummary || 'Jev no devolvió una clasificación.' }}</p>
-                <ul v-if="pendingReview.items?.length" class="pending-review-list">
-                  <li v-for="item in pendingReview.items" :key="item.id" class="pending-review-item"
-                      :class="pendingReviewClass(item.status)">
-                    <span class="pending-review-status">{{ pendingReviewLabel(item.status) }}</span>
-                    <span class="pending-review-text">{{ reviewPending(item)?.what || 'Pendiente revisado' }}</span>
-                    <span class="pending-review-confidence">{{ Math.round((item.probability || 0) * 100) }}%</span>
-                  </li>
-                </ul>
-                <p v-if="pendingReview.omitted" class="pending-review-disclosure">Se revisaron los primeros {{ pendingReview.items.length }}; quedan {{ pendingReview.omitted }} para revisión manual.</p>
-                <p class="pending-review-disclosure">Es una señal para revisar el archivo: no marca ni elimina ninguna casilla.</p>
-              </template>
-            </section>
+            <p class="nota">Pendientes del documento privado, con sus notas y enlaces.</p>
             <div v-if="pendingSections.length" class="desc cuerpo-md pending-document">
               <section v-for="section in pendingSections" :key="section.id" class="document-section">
                 <h2 v-if="section.pendingHtml !== section.html">{{ section.title || 'Pendientes' }}</h2>
@@ -2716,27 +2564,6 @@ function documentAction(id) {
    el componente y no la resolví; apareció centrada en la vista Ramas dos días después. */
 .nota { color: var(--mut); font-size: 12.5px; margin: 0 0 14px; max-width: 62ch }
 
-/* La acción de Jev vive pegada a la fuente de verdad (las casillas), no como un nuevo modo del
-   tablero. El icono no sugiere automatización: el texto explica qué cruza y la salida conserva el
-   estado de "parece" hasta que una persona actualice el documento. */
-.pending-heading { display: flex; align-items: flex-start; gap: 8px; }
-.pending-heading .nota { flex: 1; }
-.pending-review-trigger { flex: none; width: 28px; height: 28px; padding: 0; color: var(--acc); font-size: 15px; }
-.pending-review-trigger:disabled { color: var(--mut); opacity: .45; cursor: default; }
-.pending-review-disclosure { color: var(--mut); font-size: 11.5px; line-height: 1.45; margin: -6px 0 12px; }
-.pending-review { margin: 0 0 15px; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); }
-.pending-review .nota { margin-bottom: 0; }
-.pending-review-summary { margin: 0 0 8px; font-size: 12px; color: var(--txt); font-weight: 600; }
-.pending-review-list { list-style: none; display: grid; gap: 7px; padding: 0; margin: 0 0 10px; }
-.pending-review-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 7px; align-items: baseline; font-size: 11.5px; }
-.pending-review-status { font-weight: 700; white-space: nowrap; }
-.pending-review-item.resolved .pending-review-status { color: var(--ok); }
-.pending-review-item.open .pending-review-status { color: var(--warn); }
-.pending-review-item.unclear .pending-review-status, .pending-review-error { color: var(--bad); }
-.pending-review-text { min-width: 0; line-height: 1.4; }
-.pending-review-confidence { color: var(--mut); font: 10.5px/1 var(--mono, ui-monospace, monospace); }
-.pending-review .pending-review-disclosure:last-child { margin-bottom: 0; }
-
 /* ── mapa de jornada ──────────────────────────────────────────────────────────────────────────
    Filas = horas laborales (8→18), columnas = últimos 20 días, intensidad = FOCO (minutos de la tarea
    dominante de esa hora, sobre 60). Las celdas SIN registro van rayadas en vez de vacías: un hueco
@@ -2911,8 +2738,6 @@ function documentAction(id) {
 .task-completion:hover .task-completion-copy { color: var(--txt) }
 .task-completion:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; border-radius: 2px }
 .task-head-panels .qa-box { margin-top: 3px; max-width: 760px }
-.task-jev-trigger { height: 26px; padding: 0 8px; color: var(--mut); font-size: 11px; }
-.task-jev-trigger[aria-expanded="true"] { background: var(--panel2); color: var(--txt); }
 /* ⚠ el `pre-wrap` de `.desc` respeta los saltos del markdown crudo y deja el HTML lleno de huecos */
 .desc.cuerpo-md { white-space: normal; line-height: 1.55 }
 .cuerpo-md :deep(h2) { font-size: 15px; margin: 22px 0 8px; padding-top: 12px; border-top: 1px solid var(--line) }

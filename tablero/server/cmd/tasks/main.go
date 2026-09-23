@@ -57,7 +57,7 @@ type Task struct {
 }
 
 // DocumentJSON es la proyección tipada de una tarea. El Markdown sigue siendo la fuente de verdad:
-// esta forma se deriva al pedirla, así que Jev, workers o un script reciben estructura sin crear un
+// esta forma se deriva al pedirla, así que workers o un script reciben estructura sin crear un
 // sidecar que pueda quedar viejo.
 type DocumentJSON struct {
 	SchemaVersion string          `json:"schemaVersion"`

@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Transporte HTTP mínimo para el laboratorio local de Jev del tablero.
+"""La conexión con la API de Jev (TypeSafe), sin ningún uso encima — a propósito.
 
-⚠ Se llamaba «compartido» porque lo usaban DOS laboratorios: este y el que ruteaba nodos del árbol
-de `context/`. Ese árbol se apagó el 2026-09-21 y su Jev con él —su corpus eran los nodos, así que
-sin nodos no tiene a qué rutear—, así que esto vino a vivir con el único que quedó. El único
-consumidor es `tablero/tools/jev.py`.
+El 2026-09-23 se retiró todo lo que la usaba en el tablero: el botón «Orientar», la revisión de
+pendientes y el laboratorio `tools/jev.py` con su banco de casos. Metían ruido sin haber encontrado
+todavía un uso que lo justificara. Esto queda para cuando aterrice uno mejor: el endpoint y el modelo,
+cómo se lee el token (sólo `JEV_TOKEN` o `TYPESAFE_API_KEY`; un `.env` nunca se ejecuta como shell) y
+un pedido acotado que no sigue redirecciones ni filtra el cuerpo, el token o la respuesta en un error.
+
+    from jev_transport import token_from, request_json
+    answer = request_json(body, token_from('server/.env'), validator)
+
+Las pruebas son offline (`make tablero-jev-test`): nunca salen a la red.
 """
 import json
 import os

@@ -13,9 +13,7 @@ const props = defineProps({
   notes: { type: String, default: '' },
   harnessUrl: { type: String, required: true },
   tracerUrl: { type: String, required: true },
-  branches: { type: Object, default: () => ({ branches: [] }) },
 });
-const emit = defineEmits(['show-branches']);
 
 const hasSource = (item, source) => item?.sources?.includes(source);
 const proofs = computed(() => [...props.evidence]
@@ -23,11 +21,6 @@ const proofs = computed(() => [...props.evidence]
   .sort((a, b) => (b.date || '').localeCompare(a.date || '')));
 const trazadorCount = computed(() => proofs.value.filter(item => hasSource(item, 'trazador')).length);
 const harnessEvidence = computed(() => proofs.value.filter(item => hasSource(item, 'harness')));
-const measuredBranches = computed(() => props.branches?.branches || []);
-const branchesInMain = computed(() => measuredBranches.value.filter(branch => branch.in?.main).length);
-const branchesLabel = computed(() => measuredBranches.value.length
-  ? `${measuredBranches.value.length} ${measuredBranches.value.length === 1 ? 'rama' : 'ramas'} · ${branchesInMain.value} en main`
-  : 'Sin ramas medidas');
 
 // Sólo se muestran comandos que arrancan una comprobación de Harness. Las consultas `curl` y la
 // configuración del backend quedan en el documento: listarlas como «Harness» haría parecer que el
@@ -91,11 +84,6 @@ const harnessCommands = computed(() => {
       </article>
     </section>
 
-    <button type="button" class="branches-link" @click="emit('show-branches')">
-      <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-      <span><b>Ramas de la tarea</b><small>{{ branchesLabel }}</small></span>
-      <span class="tool-arrow" aria-hidden="true">→</span>
-    </button>
   </section>
 </template>
 
@@ -104,6 +92,6 @@ const harnessCommands = computed(() => {
 .evidence-section { padding: 16px 0; border-bottom: 1px solid var(--line); }.evidence-section h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; color: var(--mut); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase }.evidence-section h4 span { padding: 1px 5px; border-radius: 999px; background: var(--line2); color: var(--txt); font-size: 9px; letter-spacing: 0 }
 .tool-links { display: grid; grid-template-columns: minmax(0, 360px); gap: 9px }.tool-link { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: inherit; text-align: left; text-decoration: none; cursor: pointer }.tool-link:hover { border-color: color-mix(in srgb, var(--acc) 40%, var(--line)); background: var(--sel) }.tool-link .ui-icon { width: 15px; height: 15px; flex: none; color: var(--acc) }.tool-link b, .tool-link small { display: block }.tool-link b { font-size: 12px; font-weight: 600 }.tool-link small { margin-top: 3px; color: var(--mut); font-size: 10.5px; line-height: 1.35 }.tool-arrow { margin-left: auto; flex: none; color: var(--mut); font-size: 13px }
 .section-title { display: flex; gap: 10px; align-items: baseline; justify-content: space-between }.section-title a { color: var(--acc); font-size: 11px; text-decoration: none; white-space: nowrap }.command-list { display: grid; gap: 7px; margin: 0; padding-left: 25px }.command-list li { padding-left: 2px; color: var(--mut); font-size: 11px }.command-list code, .proof pre { display: block; overflow-x: auto; margin: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--panel2); color: var(--txt); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere }.empty { color: var(--mut); font-size: 12px; line-height: 1.5 }
-.proof + .proof { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line) }.proof-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px }.proof-meta time { margin-right: 3px; color: var(--mut); font-size: 10.5px; font-variant-numeric: tabular-nums }.proof > p { margin-top: 6px; font-size: 12px; line-height: 1.5 }.proof pre { margin-top: 8px }.branches-link { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 14px 0; border: 0; border-bottom: 1px solid var(--line); background: transparent; color: var(--txt); font: inherit; text-align: left; cursor: pointer }.branches-link:hover { background: color-mix(in oklab, var(--acc) 7%, transparent) }.branches-link .ui-icon { width: 15px; height: 15px; color: var(--acc) }.branches-link b, .branches-link small { display: block }.branches-link b { font-size: 12px; font-weight: 600 }.branches-link small { margin-top: 3px; color: var(--mut); font-size: 10.5px }
+.proof + .proof { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--line) }.proof-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px }.proof-meta time { margin-right: 3px; color: var(--mut); font-size: 10.5px; font-variant-numeric: tabular-nums }.proof > p { margin-top: 6px; font-size: 12px; line-height: 1.5 }.proof pre { margin-top: 8px }
 @media (max-width: 620px) { .tool-links { grid-template-columns: 1fr } }
 </style>

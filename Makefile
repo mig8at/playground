@@ -256,7 +256,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # quedó acá de aquel conjunto son las piezas que no eran del árbol: `entidades`, `trazador-huella` y
 # `confluence`, cada una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se
 # retiró el 2026-09-23: generaba el snapshot de la consola de ramas que sólo leía la vista del árbol.)
-.PHONY: tablero-jev tablero-jev-test flow-context flow-context-test
+.PHONY: tablero-jev-test flow-context flow-context-test
 
 # Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
 # localStorage, SQL ni producción: prepara contexto breve para que un LLM elija una regla antes de
@@ -267,11 +267,8 @@ flow-context: ## @expl Flow para LLM: map | route "pregunta general" | brief <te
 flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
 
-tablero-jev: ## @dia laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
-	@python3 tablero/tools/jev.py $(or $(ARGS),--help)
-
-tablero-jev-test: ## @dia pruebas offline de Choice + Noul + Score y minimización del payload de tablero
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev.py
+tablero-jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterrice uno (tools/jev_transport.py): pruebas offline, sin red
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev_transport.py
 
 # El código del tablero se nombra en inglés (decisión de Miguel del 2026-09-23): identificadores,
 # archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de

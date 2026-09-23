@@ -313,15 +313,11 @@ del tema no contesta, no se prueba otro tema — la pregunta va a `workers/`.** 
 es el modo de falla conocido (algo que existe en el código y nadie escribió), y una búsqueda no lo ve:
 va a devolver el tema más parecido, con buena puntuación. Ahí es peor que el índice derivado.
 
-En la UI aparece como **✦ Orientar** en la cabecera de una tarea con documento local. Abrir la franja
-no llama a Jev; **Analizar con Jev** es el acto explícito que permite enviar la proyección mínima. El
-resultado se puede copiar como borrador, pero no escribe el documento ni cambia Jira, estado o
-pendientes. No lo conviertas en una nueva pestaña, sidebar o mecanismo de priorización de `make hoy`.
-
-En **Pendientes**, el icono **✦** revisa explícitamente si la evidencia fechada sugiere que una casilla
-abierta ya se resolvió. Esa llamada la hace el servidor Go con `JEV_TOKEN`: sólo envía título, estado,
-casillas abiertas y hallazgos, nunca el cuerpo completo ni comandos. Devuelve una señal, no edita ni
-marca casillas; la fuente de verdad sigue siendo el Markdown.
+⚠ **Jev ya no está en el tablero** (retirado el 2026-09-23, a pedido de Miguel): el **✦ Orientar** de
+la cabecera, el **✦** de Pendientes y el laboratorio `make tablero-jev` agregaban ruido sin un uso que
+lo justificara. Queda sólo la conexión con su API —`tools/jev_transport.py`, con pruebas offline en
+`make tablero-jev-test`— para cuando aterrice un uso mejor. No la vuelvas a cablear a la interfaz sin
+ese uso decidido con Miguel.
 
 Al terminar, actualizá la sección de estado, el Registro y los comandos de comprobación como dicta esta
 guía. Si aprendiste una regla que seguiría siendo cierta después del merge, graduála a **canon**; si
@@ -395,7 +391,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   mejora de la misma herramienta. Dentro del contenedor, cada frente conserva objetivo, siguiente
   acción y condición de cierre; al terminar se resume en Registro y se retira de los pendientes.
 - **JSON es una proyección, no otro archivo para editar.** `make tarea-json N=<slug|id>` deriva el
-  contrato `tablero.task.v2` desde el Markdown. Jev, workers y automatizaciones consumen esa vista;
+  contrato `tablero.task.v2` desde el Markdown. Workers y automatizaciones consumen esa vista;
   la explicación y la evidencia siguen teniendo una sola fuente. No crees sidecars manuales.
 - **Las tareas locales son `clase: proyecto`, nunca llevan Jira ni sección publicable.** Las tareas
   ligadas a Jira usan `clase: tarea` —el default— y pueden conservar el cuerpo privado y el borrador

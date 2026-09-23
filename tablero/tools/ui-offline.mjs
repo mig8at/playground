@@ -30,7 +30,7 @@ const API = 'http://localhost:8787';
 // Las rutas que el server sirve hoy. Una que no esté acá y la UI la pida es una ruta retirada que
 // quedó llamándose — o una nueva que hay que sumar.
 const LIVE = new Set(['/api/config', '/api/sprints', '/api/sprint', '/api/ramas', '/api/ramas/refresh', '/api/efforts',
-  '/api/task-locals', '/api/jev/triage', '/api/jev/pending-review', '/api/jira-inbox', '/api/jira-import', '/api/qa-notice',
+  '/api/task-locals', '/api/jira-inbox', '/api/jira-import', '/api/qa-notice',
   '/api/transitions', '/api/entries', '/api/task-context', '/api/pulse']);
 
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
