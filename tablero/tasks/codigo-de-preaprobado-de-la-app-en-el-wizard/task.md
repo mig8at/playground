@@ -70,8 +70,8 @@ apagar el camino viejo en aliados.
       listado muestra todas, como hoy (2026-09-23).
 - [ ] Configurar el servicio de códigos en el backend de `qa` — hoy `CODE_GENERATION_SERVICE_BASE_URL`
       no está en su secreto y todo canje responde 500 (`CCO003`); termina cuando un código inexistente
-      responda «no disponible». self-manager-api no se despliega en `qa`: el de dev
-      (`self-manager-api.develop.internal.creditop.com:8082`) está en el mismo cluster. Depende de:
+      responda «no disponible». El valor es **`http://self-manager-api.inertia-develop:8082`** (el
+      de dev, en el mismo cluster; self-manager-api no tiene despliegue de `qa`). Depende de:
       quien administre los secretos de `legacy-backend-qa`. Revisar también dev, staging y prod antes de
       que el canje llegue a `main`.
 - [x] Validar en `qa` el caso negativo (Perú) — sin el conmutador, `/codigo` redirige y el canje se
@@ -227,8 +227,10 @@ abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que 
 > código inexistente para Pullman no responde «no disponible» sino **500** `CCO003` «Code generation
 > service base URL is not configured.», con `upstream_endpoint` `/api/v1/generate/code/consult`. O sea:
 > en `qa` no se puede canjear NINGÚN código, válido o no. Falta `CODE_GENERATION_SERVICE_BASE_URL` en el
-> secreto de `legacy-backend-qa`. self-manager-api sólo tiene workflows de dev y prod; el de dev vive en
-> `self-manager-api.develop.internal.creditop.com:8082` (`infrastructure/environments/development/internal-alb`).
+> secreto de `legacy-backend-qa`. self-manager-api sólo tiene workflows de dev y prod; el de dev responde en
+> **`http://self-manager-api.inertia-develop:8082`** (`/health` 200). ⚠ El host del ALB interno que
+> declara `infrastructure/environments/development/internal-alb` (`…develop.internal.creditop.com`)
+> **no resuelve** (NXDOMAIN): no sirve como valor.
 > `curl -XPOST http://legacy-backend-qa.inertia-develop/api/onboarding/client-code/redeem -d '{"code":"ZZ0000","partner_branch_hash":"ec977139"}' -H 'Content-Type: application/json'` · TARGET=qa
 
 > **HALLAZGO · 2026-09-23** — **el emisor es self-manager-api y la app ya lo consume.** En `main-pro`
@@ -434,6 +436,12 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 > ⚠ La sesión de `cognito-state.qa.json` es de **esa** cuenta, no la de `E2E_ASESOR_SUB` de `.env.qa`
 > (1827238, en `13874eb6`): reasignar la del `.env` no cambia nada en la pantalla.
 > `E2E_TARGET=qa I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts assign <sub 1828388> peru a8221e67 <sub>` · TARGET=qa
+
+> **MEDICIÓN · 2026-09-23** — el self-manager-api desplegado en dev es la versión **vieja**: la consulta
+> sólo acepta **cuatro números**. `0000` → 409 «invalid code» (busca y no existe: anda); `ZZ00` → 400
+> `numeric`; `ZZ0000` → 400 `len`. El `AA0000` de su `develop` no está desplegado. No bloquea: el wizard
+> acepta los dos formatos.
+> `curl -XPOST http://self-manager-api.inertia-develop:8082/api/v1/generate/code/consult -d '{"merchant_id":94,"code":"0000"}' -H 'Content-Type: application/json'` · TARGET=dev
 
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
