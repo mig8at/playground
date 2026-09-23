@@ -74,9 +74,9 @@ apagar el camino viejo en aliados.
       (`self-manager-api.develop.internal.creditop.com:8082`) está en el mismo cluster. Depende de:
       quien administre los secretos de `legacy-backend-qa`. Revisar también dev, staging y prod antes de
       que el canje llegue a `main`.
-- [ ] Validar en `qa` el caso negativo (Perú) y un canje real; bloqueado por el anterior y porque las
-      credenciales de la base compartida en los `.env` del harness ya no sirven (reasignar al asesor
-      pide escribir en esa base).
+- [x] Validar en `qa` el caso negativo (Perú) — sin el conmutador, `/codigo` redirige y el canje se
+      rechaza (2026-09-23).
+- [ ] Validar en `qa` un canje real; bloqueado por el anterior.
 - [ ] Apagar el camino viejo en aliados, recién con #1049 mergeado y el `AA0000` en `main` de
       self-manager-api.
 
@@ -423,9 +423,17 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 > **MEDICIÓN · 2026-09-23** — **en `qa` desplegado (`5cd27b5d`, #1049) Colombia se ve bien**: Amoblando
 > Pullman (`ec977139`, `COL`) responde **200** en `/solicitar` y en `/codigo`, las dos con «Usuario app».
 > El despliegue trae el cambio: la respuesta `.data` de `/codigo` incluye la ruta `merchant-client-code`,
-> que antes de #1049 no tenía loader. El caso negativo (Perú, `a8221e67`) **no se midió**: pide
-> reasignar al asesor y las credenciales de la base compartida en el harness ya no sirven.
+> que antes de #1049 no tenía loader.
 > `curl -H "Cookie: <cognito-state.qa>" https://originaciones-qa.dev.creditop.com/merchant/ec977139/codigo` · TARGET=qa
+
+> **MEDICIÓN · 2026-09-23** — **en `qa` desplegado, Perú no ofrece el código.** Comercio pruebas BCP
+> vehicular (`a8221e67`, `PER`): la pantalla del celular responde **200** con `+51` y **sin** «Usuario
+> app»; `/codigo` responde **302** a `/merchant/a8221e67/solicitar`; el POST del código contesta «Este
+> punto de venta no recibe códigos de la app» sin canjear. Se reasignó al asesor de la sesión (MIGUEL
+> TEST, usuario 1828388) a esa sucursal, se esperaron 70 s de caché y se lo devolvió a `ec977139`.
+> ⚠ La sesión de `cognito-state.qa.json` es de **esa** cuenta, no la de `E2E_ASESOR_SUB` de `.env.qa`
+> (1827238, en `13874eb6`): reasignar la del `.env` no cambia nada en la pantalla.
+> `E2E_TARGET=qa I_KNOW_THIS_TOUCHES_SHARED_DEV=1 node bin/dbops.ts assign <sub 1828388> peru a8221e67 <sub>` · TARGET=qa
 
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
@@ -492,6 +500,12 @@ se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
   los PRs en vez de moverlos**. Cada uno tiene un comentario apuntando al que lo continúa.)
 
 ## Registro
+
+### 2026-09-23 · validación en qa (Perú)
+Con las credenciales de la base compartida actualizadas se midió el caso de Perú en qa: la opción no
+aparece, la pantalla del código redirige y el canje se rechaza. El asesor se movió de comercio sólo
+para la prueba y se devolvió. Apareció que la sesión guardada de qa es de otra cuenta de asesor que la
+declarada en la configuración del harness; quedó anotado para no reasignar la equivocada.
 
 ### 2026-09-23 · validación en qa
 Con el despliegue de qa terminado se validó contra el front desplegado: en un comercio de Colombia la
