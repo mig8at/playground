@@ -106,9 +106,14 @@ toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pes
 a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
 Detalle en «Frente: la interfaz y lo que quedó muerto».
 
-**El próximo paso es:** que Miguel decida el formato nuevo de la pila de contexto —la propuesta y sus
-dos preguntas están en «Frente: la pila de contexto como formato de adición»—; con eso se implementa y se
-migran los 34 hitos que hay. Después sigue el contenedor `cuadrilla` (#93), también decisión suya.
+**La pila pasa a ser de BLOQUES (diseño acordado con Miguel el 2026-09-23).** Un bloque muestra título y
+descripción; la fecha es interna y sólo arma el acordeón; no hay «siguiente paso» fijo. El diseño, sus
+decisiones y el plan por pasos están en «Frente: la pila de bloques». **El paso 1 está hecho** (commit
+`64873202`): el formato con su validador, `make tarea-bloque`, la lista de repos consultada en
+`tools/repos.py` y la vista en la cronología; el primer bloque real es el de este paso, en esta tarea.
+
+**El próximo paso es:** que Miguel mire el paso 1 en el tablero y, con su visto bueno, el paso 2: migrar
+los 34 hitos viejos a bloques y retirar el formato de hitos.
 
 > **MEDICIÓN · 2026-09-23** — el cierre del día salía 1 por dos avisos falsos, y ninguno era trabajo sin registrar. (1) #46 y #47 estaban tocadas sólo por los barridos de rutas de la fase 3 y la mudanza a carpetas, y su entrada del día declaraba «sin avance»: la bitácora quedaba eximida, pero se les exigía reescribir una retoma que no había cambiado. Ahora el marcador exime también esa pieza (`resumeState`, con prueba de que sin el marcador la misma retoma se vuelve a reclamar). (2) `microservices/customer-service/main` y `microservices/financial-health-service/main` salían como ramas sin dueño, y el pulso las había visto por un `pull --tags origin main: Fast-forward`: `isBaseBranch` partía «repo/rama» en la primera barra y leía la rama «customer-service/main». Ahora la base se decide antes de unir repo y rama (`dayBranches`, con prueba del repo con barra y de una rama `fix/main` que no es base). Con los dos arreglos, `make cierre` da «todo en orden» y sale 0.
 > make cierre; cd tablero/server && go test ./cmd/closeout
@@ -349,44 +354,42 @@ asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
 colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
 llegan.
 
-## Frente: la pila de contexto como formato de adición (propuesta, espera a Miguel)
+## Frente: la pila de bloques (diseño acordado el 2026-09-23; paso 1 hecho)
 
-**Objetivo.** Pedido de Miguel el 2026-09-23: que agregar contexto a una tarea sea más estricto, y que
-cada apilamiento pueda llevar VARIAS cosas en vez de ser un tipo de hito con su estructura fija.
+**Objetivo.** Pedido de Miguel: que la tarea sea una pila de BLOQUES de documentación que entran con el
+tiempo, sin una estructura fija más que el bloque mismo. Una tarea limpia está vacía.
 
 > **MEDICIÓN · 2026-09-23** — hoy hay 22 pilas con 34 hitos: 30 son `checkpoint`, 2 `blocker`, 2 `decision` y ninguno `evidence`; sólo uno trae referencias, y en un solo día de 23 una tarea recibió más de un hito. O sea que el tipo por hito casi no se usa: cada sesión escribe un checkpoint y mete lo que pasó en la prosa de `summary` y `state`. Mientras tanto, los cuerpos de las tareas tienen 178 anotaciones fechadas (MEDICIÓN, DECISIÓN, PREGUNTA, RIESGO, CANON): los hechos con estructura viven en el Markdown, no en la pila.
 > cat tablero/tasks/*/context.jsonl | jq -r .kind | sort | uniq -c; grep -c '> \*\*\(MEDICIÓN\|DECISIÓN\|PREGUNTA\|RIESGO\|CANON\)' tablero/tasks/*/task.md
 
-**La propuesta.** Un apilamiento = una pasada de trabajo: un sobre con una línea de resumen y una lista de
-ÍTEMS. Lo estricto va en cada ítem, no en el sobre: los tipos son un conjunto cerrado y cada uno exige lo
-suyo —una medición, el comando que la reproduce; una decisión, su motivo; una pregunta o un bloqueo, a
-quién se espera—. A lo sumo un ítem `estado` por apilamiento (con el próximo paso), y el último de la pila
-es el estado vigente. La herramienta pone `id` y `at`, valida y rechaza; nunca se escribe a mano.
+**El bloque.** Muestra dos cosas: un **título** —una línea, la conclusión y no la actividad— y una
+**descripción** en prosa libre. Adentro de la descripción van enlaces con tipo —`canon:`, `repo:`
+(repo y ruta, nunca una ruta local), `pr:`, `jira:`, `bloque:` y `https:`— y comandos en bloques de
+código etiquetados —`harness`, `trazador`, `sql <ambiente>`, `sh`—, cada uno seguido de su
+`Resultado:`. Internos, en el JSON y sin mostrarse: `id`, `at` —la fecha, que sólo agrupa los bloques
+en el acordeón Hoy · Ayer · fechas— y `via`, quién lo agregó.
 
-```json
-{"schema": "tablero.task-context/v2", "id": "ctx_…", "at": "2026-09-23T14:05:00-05:00",
- "summary": "qué cambió en esta pasada, en una línea",
- "items": [
-   {"type": "state", "text": "el estado vigente", "next": "UNA acción"},
-   {"type": "decision", "text": "qué se decidió", "reason": "por qué", "by": "Miguel"},
-   {"type": "measurement", "text": "qué se midió y qué dio", "how": "el comando", "env": "prod"},
-   {"type": "question", "text": "qué falta saber", "waitingOn": "a quién"},
-   {"type": "risk", "text": "qué puede salir mal"},
-   {"type": "reference", "kind": "canon | pr | db | harness", "target": "…"}
- ]}
-```
+> **DECISIÓN · 2026-09-23 · Miguel** — no hay «siguiente paso» fijo, ni dentro del bloque ni en la cabecera: obliga a hacer algo después, y eso es decisión de cómo se va desarrollando la tarea. Si se decide un próximo paso, entra como un bloque más o como un pendiente.
+
+> **DECISIÓN · 2026-09-23 · Miguel** — la fecha no se muestra en el bloque: es interna y sólo arma el acordeón por día.
+
+> **DECISIÓN · 2026-09-23 · Miguel** — los enlaces a archivos quedan fijos al commit en que se escribió el bloque (la herramienta lo completa): un bloque con fecha muestra lo que se miró ese día.
+
+> **DECISIÓN · 2026-09-23 · Miguel** — se guarda `via` (a mano, harness, trazador, consulta DB): distingue lo que escribió una herramienta al correr de lo que escribió alguien.
+
+**Qué rechaza el validador.** Una ruta local; un archivo sin su repo; un repo fuera de
+`tools/repos.py` (la fuente única, no una copia); una ruta que no existe en la ref de ese repo; un
+tema de canon que canon no conoce; un comando `harness`/`trazador` sin `TARGET=`; un comando sin su
+`Resultado:`; SQL que escribe o sin ambiente; HTML; un título de más de una línea.
 
 > **MEDICIÓN · 2026-09-23** — «Evidencia de trabajo» no tiene contenido propio: es la lista de los hallazgos que traen comando o fuente, así que 134 de los 155 hallazgos de las 26 tareas abiertas (86 %) se dibujan dos veces, en «Hallazgos y decisiones» y en «Comprobaciones registradas»; lo único que suma es el enlace al trazador. Si los hallazgos pasan a la pila (pregunta 1), los dos bloques desaparecen y cada hecho queda una sola vez, con su comando. ⚠ Al contarlo, `jq` toma un `how` vacío como verdadero y da 155: hay que compararlo contra `""`, como hace la UI.
 > curl -s http://localhost:8787/api/efforts | jq -c '[.efforts[] | (.annotations // [])] | {tareas: length, sinHallazgos: (map(select(length == 0)) | length), hallazgos: (map(length) | add), repetidosEnEvidencia: (map(map(select(((.how // "") != "") or ((.sources // []) | length > 0))) | length) | add)}'
 
-Los 34 hitos de hoy se migran solos: un `checkpoint` es un sobre con un ítem `state`, un `decision` es un
-ítem `decision`, un `blocker` es un ítem `question` con su `waitingOn`.
-
-**Las dos preguntas para Miguel.** (1) ¿Las 178 anotaciones fechadas del cuerpo se mudan a la pila como
-ítems? Es lo que convierte la pila en EL lugar de los hechos con fecha —la idea original: leer en el tiempo
-dónde empezamos y dónde estamos— y deja el Markdown con el estado vigente, los pendientes y la publicable;
-sin eso, la pila es un tercer lugar además del cuerpo y el Registro. (2) ¿Qué tipos de ítem? Los seis de
-arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
+**Plan por pasos.** (1) el bloque existe: formato, validador, `make tarea-bloque`, lectura mixta con los
+hitos viejos y su vista en la cronología; (2) migrar los 34 hitos a bloques y retirar el formato viejo;
+(3) `make cierre`, `make hoy` y `make retomar` sobre bloques, sin «próximo paso»; (4) harness, trazador y
+consultas DB agregan su bloque (`via`); (5) a decidir: las anotaciones y el Registro del Markdown pasan a
+bloques.
 
 ## Cómo se comprueba
 
@@ -397,6 +400,12 @@ arriba cubren lo que hoy aparece; `blocker` se absorbe en `question`.
 ## Registro
 
 ### 2026-09-23
+
+Paso 1 de la pila de bloques: el bloque existe. Formato y validador con sus 14 reglas de rechazo, `make
+tarea-bloque` con los archivos fijados al commit en que existen —consultando `tools/repos.py`, la lista
+única, que ganó una salida para eso—, y la vista: título, prosa con enlaces y cada comando con su
+resultado, sin hora. El formato viejo de hitos ya no se escribe; sus 34 hitos se siguen mostrando. El
+primer bloque real cuenta este paso.
 
 Fuera los rótulos que describían el contenedor en vez del contenido: «Documento de trabajo · Estado,
 decisiones y material vigente» y las bajadas de hallazgos y evidencia. Quien retoma lee la tarea misma, y
