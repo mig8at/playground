@@ -177,8 +177,9 @@ cronología; (2) los hitos viejos pasan a bloques y el formato se retira; (3) `m
 (`via`); (5) la historia del documento —anotaciones, Registro y retoma— pasa a la pila, el lint frena una
 nueva, `tarea-json` pasa a v3 con la pila adentro y el «sin avance» se declara en el commit del barrido.
 
-**Lo que quedó afuera del paso 5, a propósito.** #94 y #95 no se migraron: otra sesión las estaba editando
-ese día; el lint sólo les avisa lo que tienen, y les frena uno nuevo. Las secciones fijas del documento
+**Lo que quedó afuera del paso 5, a propósito.** La «Bitácora» de #67, archivada: las tareas ya publicadas no
+se migran (Miguel, 2026-08-20), y el lint sólo le avisa. #94 y #95 esperaron a que terminara la sesión que
+las editaba y se migraron el mismo día, a las 17:30 y a las 17:52. Las secciones fijas del documento
 (objetivo, plan, material) siguen siendo plantilla: moverlas también a la pila sería otro paso, y no se
 decidió.
 
