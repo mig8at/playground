@@ -3,7 +3,7 @@
 // Desde el 2026-09-23 cada tarea es una CARPETA, con todo lo suyo adentro:
 //
 //	tablero/tasks/<slug>/task.md        el documento: frontmatter, cuerpo privado y publicable
-//	tablero/tasks/<slug>/context.jsonl  la pila de hitos
+//	tablero/tasks/<slug>/context.jsonl  la pila de bloques
 //	tablero/tasks/<slug>/artifacts/     prototipos, SQL, notas: cualquier archivo de la tarea
 //	tablero/data/                       lo operativo: bitácora, pulso, cachés, settings, trampas
 //
@@ -90,7 +90,7 @@ func (l Layout) Dir(slug string) string { return filepath.Join(l.Tasks, slug) }
 // TaskPath es el documento de una tarea.
 func (l Layout) TaskPath(slug string) string { return filepath.Join(l.Dir(slug), TaskFile) }
 
-// ContextPath es la pila de hitos de una tarea.
+// ContextPath es la pila de bloques de una tarea.
 func (l Layout) ContextPath(slug string) string { return filepath.Join(l.Dir(slug), ContextFile) }
 
 // ArtifactsPath es la carpeta de artifacts de una tarea.

@@ -597,36 +597,10 @@ const effortFor = (key) => {
   if (typeof key === 'string' && key.startsWith('LOCAL-')) return Number(key.slice(6)) || 0;
   return taskLocals.value[key]?.effortId || 0;
 };
-// El JSONL es la única cronología de una tarea: cada renglón debe explicar algo que permite
-// continuarla. Los registros de minutos siguen existiendo para medir trabajo, pero no entran acá.
+// La pila de BLOQUES es la cronología de una tarea: cada uno muestra título y descripción, y su fecha
+// sólo arma el acordeón. Los registros de minutos siguen existiendo para medir trabajo, pero no entran acá.
 const contexts = ref([]);
 let contextsRequest = 0;
-const contextFromApi = (event) => ({ ...event, references: Array.isArray(event.references) ? event.references : [] });
-const dbReferencesOf = (event) => event.references.filter(reference => reference.kind === 'db');
-const harnessReferencesOf = (event) => event.references.filter(reference => reference.kind === 'harness');
-// El contexto admite únicamente enlaces Markdown a Canon: [texto](canon:nodo). Nunca se inyecta
-// HTML ni se interpreta Markdown general; se parte el texto y Vue escapa cada fragmento normal.
-const inlineCanonLink = /\[([^\[\]\r\n]+)\]\(canon:([A-Za-z0-9][A-Za-z0-9._/#-]*)\)/g;
-const partsWithCanon = (text) => {
-  const value = typeof text === 'string' ? text : '';
-  const parts = [];
-  let cursor = 0;
-  for (const match of value.matchAll(inlineCanonLink)) {
-    if (match.index > cursor) parts.push({ type: 'text', value: value.slice(cursor, match.index) });
-    parts.push({ type: 'canon', label: match[1], target: match[2] });
-    cursor = match.index + match[0].length;
-  }
-  if (cursor < value.length || !parts.length) parts.push({ type: 'text', value: value.slice(cursor) });
-  return parts;
-};
-const contextParagraphs = (event) => [
-  event.goal && { label: 'Objetivo.', text: event.goal },
-  { text: event.summary },
-  event.state && { label: 'Estado.', text: event.state },
-  event.next && { label: 'Siguiente paso.', text: event.next },
-  event.reason && { label: 'Motivo.', text: event.reason },
-  event.waitingOn && { label: 'En espera de.', text: event.waitingOn },
-].filter(Boolean);
 const contextDay = (event) => event.at.slice(0, 10);
 const contextAge = (day) => {
   const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -667,10 +641,6 @@ async function toggleDay(day, event) {
   await nextTick();
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 }
-// Un BLOQUE —el formato de la pila desde el 2026-09-23— muestra título y descripción; un hito del
-// formato viejo, sus párrafos rotulados, hasta que se migre. La fecha de los dos sólo arma el acordeón.
-const BLOCK_SCHEMA = 'tablero.task-context/v2';
-const isBlock = (event) => event.schema === BLOCK_SCHEMA;
 const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink }));
 // Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
 async function goToBlock(id) {
@@ -691,7 +661,7 @@ async function loadContext() {
   try {
     const response = await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`);
     const json = await response.json();
-    if (request === contextsRequest && !json.error) contexts.value = (json.events || []).map(contextFromApi);
+    if (request === contextsRequest && !json.error) contexts.value = json.events || [];
   } catch {
     if (request === contextsRequest) contexts.value = [];
   }
@@ -1966,8 +1936,7 @@ function documentAction(id) {
               <span>{{ group.label }}</span>
             </button>
             <div v-show="!foldedDays.has(group.day)" :id="'context-day-' + group.day" class="context-day-body">
-            <template v-for="event in group.items" :key="event.id">
-            <article v-if="isBlock(event)" :id="event.id" class="task-context-entry task-block">
+            <article v-for="event in group.items" :key="event.id" :id="event.id" class="task-context-entry task-block">
               <h4 class="block-title">{{ event.title }}</h4>
               <template v-for="(part, partIndex) in parseBlockBody(event.body)" :key="partIndex">
                 <div v-if="part.type === 'command'" class="block-command">
@@ -1982,24 +1951,6 @@ function documentAction(id) {
                 <p v-else><BlockText :text="part.text" v-bind="blockLinks" @block="goToBlock" /></p>
               </template>
             </article>
-            <article v-else class="task-context-entry">
-              <p v-for="(paragraph, paragraphIndex) in contextParagraphs(event)" :key="paragraphIndex">
-                <!-- El espacio va interpolado: un `<span> </span>` lo borra el compilador (texto sólo de
-                     espacio como único hijo) y el rótulo quedaba pegado, «Objetivo.Que…». -->
-                <template v-if="paragraph.label"><strong>{{ paragraph.label }}</strong>{{ ' ' }}</template>
-                <template v-for="(part, partIndex) in partsWithCanon(paragraph.text)" :key="partIndex">
-                  <a v-if="part.type === 'canon'" :href="canonLink(part.target)" target="_blank" rel="noopener">{{ part.label }}</a>
-                  <template v-else>{{ part.value }}</template>
-                </template>
-              </p>
-              <p v-for="reference in dbReferencesOf(event)" :key="reference.target">
-                Consulta DB · <strong>{{ reference.environment }}</strong>: <code>{{ reference.target }}</code>.
-              </p>
-              <p v-for="reference in harnessReferencesOf(event)" :key="reference.target">
-                Prueba ejecutada: <code>{{ reference.target }}</code>.
-              </p>
-            </article>
-            </template>
             </div>
           </section>
         </section>
@@ -2411,10 +2362,6 @@ function documentAction(id) {
 .task-context-entry .block-result { margin: 6px 0 0; font-size: 12.5px }
 .block-result-label { color: var(--mut) }
 .task-context-entry p { margin: 0 0 7px; font-size: 13px; line-height: 1.55 }
-.task-context-entry strong { font-weight: 700 }
-.task-context-entry a { color: var(--acc); text-decoration: none }
-.task-context-entry a:hover { text-decoration: underline }
-.task-context-entry code { color: var(--txt); font-size: 11.5px; overflow-wrap: anywhere }
 .task-reference { min-width: 0; max-width: 920px }
 /* La línea separa la pila del documento: sin pila arriba quedaría huérfana en el borde del cuerpo. */
 .task-context-timeline + .task-reference { margin-top: 10px; padding-top: 20px; border-top: 1px solid var(--line) }

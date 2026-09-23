@@ -130,7 +130,7 @@ tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título`
 tarea-context-add:
 	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make tarea-bloque N=<tarea> ARCHIVO=<bloque.md>"; exit 2
 
-tarea-context: ## @dia la pila de una tarea: sus últimos bloques (e hitos viejos). N=<id|slug>
+tarea-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -ver
 

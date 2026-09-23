@@ -36,6 +36,11 @@ test('la descripción se separa en párrafos, comandos con su resultado, listas 
   assert.equal(parts[4].code, '{"a": 1}');
 });
 
+test('el ambiente del rótulo sale también de E2E_TARGET', () => {
+  const [part] = parseBlockBody("```harness\nE2E_TARGET=local make harness-codigo-prueba HASH=x\n```\nResultado: pasó.");
+  assert.equal(part.label, 'Harness · local');
+});
+
 test('una línea se separa en texto, código y enlaces con tipo, y nada es HTML', () => {
   const parts = inlineParts('Ver <b>esto</b> en [el tema](canon:kyc#identidad), `x.php` y **ojo**.');
   assert.deepEqual(parts.map(p => p.type), ['text', 'link', 'text', 'code', 'text', 'strong', 'text']);

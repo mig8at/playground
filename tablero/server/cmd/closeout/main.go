@@ -474,7 +474,7 @@ func main() {
 			rv.Missing = append(rv.Missing, "falta «**El próximo paso es:**» (UNA acción)")
 		}
 		if !rv.RecordToday && !rv.ContextToday {
-			rv.Missing = append(rv.Missing, "falta un hito de contexto del día (`make tarea-context-add`) o una entrada de Registro `### "+*day+"`")
+			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila (`make tarea-bloque`) o una entrada de Registro `### "+*day+"`")
 		}
 		if rv.MinutesToday == 0 && !rv.NoProgress {
 			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
@@ -582,7 +582,7 @@ func printReport(inf Report) {
 		if t.Resume == "sin-avance" {
 			resume, resumeLabel = "—", "retoma (declara sin avance)"
 		}
-		fmt.Printf("       %s %s   %s próximo paso   %s hito/registro del día   %s bitácora (%s)\n",
+		fmt.Printf("       %s %s   %s próximo paso   %s bloque/registro del día   %s bitácora (%s)\n",
 			resume, resumeLabel, mark(t.NextStep), mark(t.RecordToday || t.ContextToday), bit, detail)
 		for _, f := range t.Missing {
 			fmt.Printf("       ✗ %s\n", f)

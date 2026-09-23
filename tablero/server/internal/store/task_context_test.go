@@ -25,7 +25,8 @@ func TestTaskContextFindsTheJSONLForAnEffort(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := taskcontext.Append(dir, "codigo", taskcontext.Event{
-		Kind: "checkpoint", Goal: "Cerrar el flujo", Summary: "El camino está validado", State: "Listo para revisión", Next: "Pedir la aprobación final",
+		Schema: taskcontext.BlockSchema, ID: "blk_codigo", At: "2026-03-20T10:00:00-05:00", Via: "manual",
+		Title: "El camino está validado", Body: "Se recorrió de punta a punta.",
 	}, time.Now()); err != nil {
 		t.Fatal(err)
 	}
@@ -33,7 +34,7 @@ func TestTaskContextFindsTheJSONLForAnEffort(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 1 || events[0].Summary != "El camino está validado" {
+	if len(events) != 1 || events[0].Title != "El camino está validado" {
 		t.Fatalf("events = %+v", events)
 	}
 }

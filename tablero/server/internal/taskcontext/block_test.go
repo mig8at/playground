@@ -3,7 +3,6 @@ package taskcontext
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -101,10 +100,6 @@ func TestAStoredBlockMustCarryTheCommitOfEveryFile(t *testing.T) {
 	if err := ValidateBlock(e); err != nil {
 		t.Fatal(err)
 	}
-	e.Next = "hacer algo después"
-	if err := ValidateBlock(e); err == nil {
-		t.Fatal("un bloque aceptó un «siguiente paso» del formato viejo")
-	}
 }
 
 func TestPrepareChecksTheWorldBeforeWriting(t *testing.T) {
@@ -149,27 +144,5 @@ func TestCanonDownIsAWarningNotARejection(t *testing.T) {
 	e, warnings, err := PrepareBlock(context.Background(), "Un título", "El [listado](canon:listado) manda.", "", deps, blockNow)
 	if err != nil || len(warnings) != 1 || e.ID == "" {
 		t.Fatalf("err=%v warnings=%v", err, warnings)
-	}
-}
-
-func TestTheStackReadsBlocksAndOldMilestonesTogether(t *testing.T) {
-	dir := filepath.Join(t.TempDir(), "data")
-	old := blockNow.Add(-24 * time.Hour)
-	if _, err := Append(dir, "flujo", checkpoint("El hito de ayer"), old); err != nil {
-		t.Fatal(err)
-	}
-	block, _, err := prepare(t, "Se probó con [el archivo](repo:legacy-backend/tests/CreatesApplication.php).")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(dir, "flujo", block, blockNow); err != nil {
-		t.Fatal(err)
-	}
-	events, err := Read(dir, "flujo")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(events) != 2 || Headline(events[0]) != block.Title || Headline(events[1]) != "El hito de ayer" {
-		t.Fatalf("events = %+v", events)
 	}
 }

@@ -83,7 +83,7 @@ sprint.
 ## Plantilla por vista
 
 El editor central muestra una única historia de retoma por fecha: **Hoy**, **Ayer** y luego la fecha
-real de cada jornada anterior. Sólo contiene hitos JSONL que cambian cómo continuar la tarea; no se
+real de cada jornada anterior. Sólo contiene los bloques de la pila —título y descripción—; no se
 muestran minutos ni notas de sesión. El documento, los hallazgos y la evidencia quedan después de la
 cronología como consulta, y **cada bloque aparece sólo si tiene contenido**: una tarea limpia está vacía
 (pedido de Miguel, 2026-09-23). Un contenedor vacío con su «todavía no hay» pide que lo llenen con algo
@@ -166,9 +166,11 @@ prueba nada. SQL que escribe o sin ambiente, HTML, y un título de más de una l
 pueden citar salen de `tools/repos.py` —la lista única, no una copia—, más `playground` (este repo) y
 `playground-equipo` (el compartido).
 
-⚠ **El formato viejo de hitos** (`kind` checkpoint · decision · blocker · evidence, con `summary`, `state`
-y `next`) **ya no se escribe**: `make tarea-context-add` sólo avisa del camino nuevo. Los 34 hitos que hay
-se siguen leyendo y mostrando hasta migrarlos a bloques, que es el paso 2 del plan.
+⚠ **Hasta el 2026-09-23 la pila era de HITOS** (`kind` checkpoint · decision · blocker · evidence, con
+`summary`, `state` y `next`). Los 37 que había se migraron ese día a bloques con `via: migration`: el
+título se escribió a mano, la descripción conserva objetivo, resumen, estado, motivo y espera en el
+orden en que se mostraban, y el «siguiente» se fue. El formato ya no se lee —una línea vieja hace fallar
+la lectura— y `make tarea-context-add` sólo avisa del camino nuevo.
 
 ### Jira
 
@@ -436,7 +438,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       1 ESTADO       dónde estoy hoy            → se REESCRIBE   «Si retomás esto sin contexto»
       2 PLAN         objetivo, cómo se ataca    → se REESCRIBE   «Objetivo» · «Cómo se ataca» · «Lo que se evaluó»
       3 MATERIAL     recetas, consultas, datos  → se MANTIENE    «Cómo se comprueba — y el MATERIAL…»
-      4 HITOS        qué cambió la retoma       → se APILA       `task-context/<slug>.jsonl`
+      4 BLOQUES      qué se fue documentando    → se APILA       `tasks/<slug>/context.jsonl`
       5 CONOCIMIENTO cómo funciona el sistema   → GRADÚA         a un tema de canon
 
   **La que más se equivoca es la 4 disfrazada de 3**: el diario de ejecución escrito como sección nueva
@@ -448,7 +450,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   ⚠ **Tener fecha NO condena a una sección.** «Cómo se prueba, de cero (verificado el 2026-08-20)» es
   MATERIAL vigente y la fecha dice cuándo se comprobó. El test que discrimina es el mismo de siempre:
   **si esto se mergea mañana, ¿sigue siendo cierto?** Sí y es de la tarea → queda. Sí y es del sistema →
-  gradúa a canon. No → es un hito de esta tarea: se registra en JSONL si cambia una retoma.
+  gradúa a canon. No → es un bloque de esta tarea, en su pila.
 
   **`make anatomia`** mide esto por tarea —tamaño, reparto estado/registro, y qué secciones fechadas
   viven arriba— y no mueve nada: señala para que alguien mire. `N=<id>` para una sola.
@@ -472,7 +474,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       Lo que está decidido · bloqueado · Riesgos ← ANOTACIONES con fecha, no prosa
       Lo que NO entra · Cómo se comprueba
       Referencias                                ← contexto estable, PRs y enlaces
-      Hitos estructurados                         ← JSONL append-only, fuera del Markdown
+      La pila de bloques                          ← JSONL append-only, fuera del Markdown
       ## Tarea (publicable)                      ← de acá abajo, lo único que sale a Jira
 
   La distribución en la interfaz sigue la [plantilla por pestaña](#plantilla-por-pestaña).
@@ -480,7 +482,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
 
   Tres reglas de uso, que son las que un agente incumple si no están escritas:
   1. **Al terminar de trabajar se reescribe la sección de arriba**, no se agrega una nueva abajo. Si
-     cambió la retoma, se apila un hito JSONL; si cambió *cuál es el estado vigente*, también va arriba.
+     hay algo que documentar, se apila un bloque; si cambió *cuál es el estado vigente*, también va arriba.
   2. **«Registro» no es «avance».** Las tareas viejas llaman `## Bitácora` al registro del cuerpo y
      el nombre choca: en el tablero los avances son bloques de trabajo fechados (`data/entries/`, lo
      que sube al worklog). El del cuerpo es el registro de **qué pasó**. Medido: el
@@ -544,7 +546,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   migraciones, y lo que hizo que el tablero mintiera durante ocho días.
 
   1. **Reescribí el estado de arriba** del archivo **con `id`** (el que el tablero muestra). Si cambió
-     *qué permite retomar*, va a un hito JSONL; si cambió *cuál es el estado*, va arriba. La sección «Si retomás esto
+     *qué se sabe*, va a un bloque de la pila; si cambió *cuál es el estado*, va arriba. La sección «Si retomás esto
      sin contexto» tiene que decir lo de HOY, no lo de la semana pasada.
   2. **Agregá un bloque** con `make tarea-bloque`: el título con la conclusión y la descripción con lo
      que la sostiene —archivos por repo, canon, el comando y lo que dio—. Lo que se descartó entra como un

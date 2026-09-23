@@ -7,7 +7,7 @@
  * FALLAR ahí, o no prueba nada.
  *   1. el avance de pendientes abre la región lateral también plegada (a ≤1050px arranca así, y el clic
  *      cambiaba la pestaña de algo oculto);
- *   2. los rótulos de los hitos llevan su espacio (un `<span> </span>` lo borraba el compilador);
+ *   2. los rótulos de un bloque llevan su espacio («**Objetivo.** Que…»: un espacio perdido los pega);
  *   3. los enlaces del documento no quedan con el azul del navegador;
  *   4. una casilla de pendiente no lleva además la viñeta de la lista;
  *   5. Artifacts lista cada archivo con su tipo;
@@ -44,12 +44,14 @@ const localDay = (daysAgo) => {
   const d = new Date(); d.setDate(d.getDate() - daysAgo);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T12:00:00-05:00`;
 };
-// Ocho hitos hoy y cuatro ayer: hace falta un día más alto que el cuerpo para probar que su encabezado se
-// pega, y un día siguiente con lo suyo para que el cuerpo alcance a subirlo —sin los bloques vacíos
-// debajo, con uno solo el scroll se frenaba antes de que llegara arriba—.
-const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v1', id: `ctx_ui_${n}`, at: localDay(daysAgo),
-  kind: 'checkpoint', goal: 'Probar la interfaz.', summary: 'Resumen del hito. '.repeat(30), state: 'Estable.', next: 'Seguir.' });
-// Un bloque del formato nuevo, entre los hitos viejos: los dos conviven en la pila hasta migrar.
+// Ocho bloques hoy y cuatro ayer: hace falta un día más alto que el cuerpo para probar que su encabezado
+// se pega, y un día siguiente con lo suyo para que el cuerpo alcance a subirlo —sin los bloques vacíos
+// debajo, con uno solo el scroll se frenaba antes de que llegara arriba—. Llevan los rótulos con que
+// quedaron los hitos migrados el 2026-09-23.
+const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v2', id: `blk_ui_${n}`, at: localDay(daysAgo),
+  via: 'migration', title: `Un bloque de ejemplo ${n}`,
+  body: `**Objetivo.** Probar la interfaz.\n\n${'Resumen del bloque. '.repeat(30).trim()}\n\n**Estado.** Estable.` });
+// Un bloque con enlaces y un comando: lo que la vista tiene que pintar de verdad.
 const blockEvent = { schema: 'tablero.task-context/v2', id: 'blk_ui', at: localDay(0), via: 'manual',
   title: 'La regla de ingreso mínimo sí excluye',
   body: 'La cascada está en [el listado](canon:listado) y la regla en [LenderFilter](repo:legacy-backend@cfc577218f2d/app/Services/LenderFilter.php#L40).\n\n'
@@ -122,9 +124,9 @@ try {
     await page.getByRole('button', { name: 'Mostrar u ocultar vistas' }).click();
     await pendingOpensAux(page);
   });
-  await check('los rótulos de los hitos llevan su espacio', async () => {
-    const texts = await page.locator('.task-context-entry p').allInnerTexts();
-    const labeled = texts.filter((t) => /^(Objetivo|Estado|Siguiente paso)\./.test(t));
+  await check('los rótulos de un bloque llevan su espacio', async () => {
+    const texts = await page.locator('.task-block p').allInnerTexts();
+    const labeled = texts.filter((t) => /^(Objetivo|Estado|Motivo|En espera de)\./.test(t));
     assert(labeled.length >= 3, `se esperaban 3 rótulos, hubo ${labeled.length}`);
     assert.deepEqual(labeled.filter((t) => /^[^.]+\.\S/.test(t)), [], 'rótulo pegado al texto');
   });

@@ -1,260 +1,53 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://playground.creditop.com/tablero/task-context/v2",
-  "title": "Tablero task-context — una línea de la pila de una tarea",
-  "description": "Un BLOQUE (v2, lo que se escribe desde el 2026-09-23) o un hito del formato viejo (v1, sólo lectura). Los dos comparten id y at; at sólo agrupa por día y no se muestra.",
-  "oneOf": [
-    {
-      "$ref": "#/$defs/block"
-    },
-    {
-      "$ref": "#/$defs/milestone"
-    }
+  "title": "Tablero task-context — un bloque de la pila de una tarea",
+  "description": "Un bloque de documentación: título y descripción. id, at y via son internos; at sólo agrupa por día y no se muestra. Desde el 2026-09-23 es el único formato: los hitos de antes se migraron.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "id",
+    "at",
+    "via",
+    "title",
+    "body"
   ],
-  "$defs": {
-    "block": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schema",
-        "id",
-        "at",
-        "via",
-        "title",
-        "body"
-      ],
-      "properties": {
-        "schema": {
-          "const": "tablero.task-context/v2"
-        },
-        "id": {
-          "type": "string",
-          "pattern": "^blk_"
-        },
-        "at": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Interno: sólo agrupa los bloques en el acordeón Hoy · Ayer · fechas."
-        },
-        "via": {
-          "enum": [
-            "manual",
-            "harness",
-            "trazador",
-            "db",
-            "migration"
-          ],
-          "description": "Interno: quién agregó el bloque."
-        },
-        "title": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 120,
-          "pattern": "^[^\\r\\n]+$",
-          "description": "Una línea: la conclusión, no la actividad. Sin enlaces."
-        },
-        "body": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 3000,
-          "description": "Prosa libre. Enlaces con tipo: canon:tema#ancla · repo:<repo>@<commit>/<ruta>#L12 · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · https://…; comandos en bloques de código harness · trazador · sql <ambiente> · sh, cada uno seguido de «Resultado: …»; material en json · text. Lo valida server/internal/taskcontext/block.go."
-        }
-      }
+  "properties": {
+    "schema": {
+      "const": "tablero.task-context/v2"
     },
-    "milestone": {
-      "description": "Un hito del formato viejo (v1). Ya no se escribe: se lee hasta migrarlo a bloques.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "schema",
-        "id",
-        "at",
-        "kind",
-        "summary"
+    "id": {
+      "type": "string",
+      "pattern": "^blk_"
+    },
+    "at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Interno: sólo agrupa los bloques en el acordeón Hoy · Ayer · fechas."
+    },
+    "via": {
+      "enum": [
+        "manual",
+        "harness",
+        "trazador",
+        "db",
+        "migration"
       ],
-      "properties": {
-        "schema": {
-          "const": "tablero.task-context/v1"
-        },
-        "id": {
-          "type": "string",
-          "pattern": "^ctx_"
-        },
-        "at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "kind": {
-          "enum": [
-            "checkpoint",
-            "decision",
-            "blocker",
-            "evidence"
-          ]
-        },
-        "goal": {
-          "type": "string",
-          "maxLength": 320,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "summary": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 420,
-          "pattern": "^[^\\r\\n]+$",
-          "description": "Texto plano; una cita de Canon usa [texto](canon:nodo/context#seccion)."
-        },
-        "state": {
-          "type": "string",
-          "maxLength": 420,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "next": {
-          "type": "string",
-          "maxLength": 320,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "reason": {
-          "type": "string",
-          "maxLength": 420,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "waitingOn": {
-          "type": "string",
-          "maxLength": 160,
-          "pattern": "^[^\\r\\n]*$"
-        },
-        "references": {
-          "type": "array",
-          "maxItems": 6,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "kind",
-              "label",
-              "target"
-            ],
-            "properties": {
-              "kind": {
-                "enum": [
-                  "canon",
-                  "db",
-                  "harness",
-                  "tracer",
-                  "jira",
-                  "pr",
-                  "run",
-                  "doc",
-                  "other"
-                ]
-              },
-              "label": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 140,
-                "pattern": "^[^\\r\\n]+$"
-              },
-              "target": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 600,
-                "pattern": "^[^\\r\\n]+$"
-              },
-              "environment": {
-                "enum": [
-                  "local",
-                  "dev",
-                  "staging",
-                  "prod"
-                ]
-              }
-            },
-            "allOf": [
-              {
-                "if": {
-                  "properties": {
-                    "kind": {
-                      "const": "db"
-                    }
-                  }
-                },
-                "then": {
-                  "required": [
-                    "environment"
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "checkpoint"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "goal",
-              "state",
-              "next"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "decision"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "reason"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "blocker"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "waitingOn",
-              "next"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "kind": {
-                "const": "evidence"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "references"
-            ],
-            "properties": {
-              "references": {
-                "minItems": 1
-              }
-            }
-          }
-        }
-      ]
+      "description": "Interno: quién agregó el bloque."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "pattern": "^[^\\r\\n]+$",
+      "description": "Una línea: la conclusión, no la actividad. Sin enlaces."
+    },
+    "body": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000,
+      "description": "Prosa libre. Enlaces con tipo: canon:tema#ancla · repo:<repo>@<commit>/<ruta>#L12 · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · https://…; comandos en bloques de código harness · trazador · sql <ambiente> · sh, cada uno seguido de «Resultado: …»; material en json · text. Lo valida server/internal/taskcontext/block.go."
     }
   }
 }

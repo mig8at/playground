@@ -702,7 +702,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		missing = append(missing, "«**El próximo paso es:**» — UNA acción")
 	}
 	if recordDate == "" && len(contextInfo) == 0 {
-		missing = append(missing, "un hito estructurado (`make tarea-context-add`) o un Registro histórico con fecha (`### YYYY-MM-DD`)")
+		missing = append(missing, "un bloque en la pila (`make tarea-bloque`) o un Registro histórico con fecha (`### YYYY-MM-DD`)")
 	}
 	if len(t.Branches) == 0 && requiresBranches(*t) {
 		missing = append(missing, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")
@@ -754,10 +754,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	if len(contextInfo) > 0 {
 		fmt.Println("\n  ── La pila ──")
 		for _, event := range contextInfo {
-			fmt.Printf("  %s · %-10s %s\n", event.At[:10], taskcontext.Label(event), truncate(taskcontext.Headline(event), 150))
-			if event.Next != "" {
-				fmt.Printf("    siguiente: %s\n", truncate(event.Next, 150))
-			}
+			fmt.Printf("  %s · %s\n", event.At[:10], truncate(event.Title, 150))
 		}
 	}
 

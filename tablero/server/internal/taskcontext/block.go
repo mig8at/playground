@@ -30,7 +30,7 @@ const (
 	fenceHelp  = "harness · trazador · sql <ambiente> · sh · json · text"
 )
 
-// vias: quién agregó el bloque. `migration` son los hitos del formato viejo convertidos.
+// vias: quién agregó el bloque. `migration`, los 37 hitos del formato viejo convertidos el 2026-09-23.
 var vias = map[string]bool{"manual": true, "harness": true, "trazador": true, "db": true, "migration": true}
 
 // Los bloques de código de COMANDO llevan su `Resultado:` debajo; los de material, no.
@@ -231,10 +231,6 @@ func ValidateBlock(e Event) error {
 	if !vias[e.Via] {
 		return fmt.Errorf("via %q no existe: manual · harness · trazador · db · migration", e.Via)
 	}
-	if e.Kind != "" || e.Goal != "" || e.Summary != "" || e.State != "" || e.Next != "" || e.Reason != "" ||
-		e.WaitingOn != "" || len(e.References) > 0 {
-		return fmt.Errorf("un bloque no lleva campos del formato de hitos")
-	}
 	return validateBlockText(e.Title, e.Body, true)
 }
 
@@ -344,21 +340,4 @@ func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, 
 		return Event{}, warnings, err
 	}
 	return e, warnings, nil
-}
-
-// Label dice qué es un evento en una lista de consola: `bloque`, o el tipo del hito viejo.
-func Label(e Event) string {
-	if e.Schema == BlockSchema {
-		return "bloque"
-	}
-	return e.Kind
-}
-
-// Headline es la línea con que un evento se nombra en consola: el título de un bloque, el resumen de
-// un hito del formato viejo.
-func Headline(e Event) string {
-	if e.Schema == BlockSchema {
-		return e.Title
-	}
-	return PlainText(e.Summary)
 }

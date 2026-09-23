@@ -5,7 +5,7 @@
 // tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
 // una tarea es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
-// UNA TAREA DE JIRA = UNA CARPETA, `tasks/<slug>/`, con su documento `task.md`, su pila de hitos
+// UNA TAREA DE JIRA = UNA CARPETA, `tasks/<slug>/`, con su documento `task.md`, su pila de bloques
 // `context.jsonl` y sus `artifacts/` adentro (desde el 2026-09-23; antes era un `data/<tarea>.md` suelto
 // y lo demás se le unía por nombre — ver el paquete layout). El trabajo local se concentra en siete
 // contenedores permanentes (una herramienta por tarea y playground para lo transversal), validados por

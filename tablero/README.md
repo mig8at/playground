@@ -524,8 +524,9 @@ un comando, en un bloque de código `harness`, `trazador`, `sql <ambiente>` o `s
 «Bloques de la pila»; el contrato de la línea guardada, en `docs/task-context.schema.json`, y el que
 valida de verdad es `server/internal/taskcontext/block.go`.
 
-El formato viejo de hitos (`kind` checkpoint · decision · blocker · evidence) ya no se escribe; los que
-hay se siguen mostrando hasta migrarlos. `make retomar` incluye los ocho más recientes de la pila.
+Hasta el 2026-09-23 la pila era de hitos (`kind` checkpoint · decision · blocker · evidence); los 37 que
+había se migraron a bloques ese día y el formato ya no se lee. `make retomar` incluye los ocho bloques más
+recientes.
 
 ### Consultas a base de datos
 

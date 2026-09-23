@@ -2,8 +2,7 @@
 //
 // Un bloque se escribe primero en un Markdown revisable —`# título` y la descripción—, se valida y
 // recién entonces se apila en tasks/<slug>/context.jsonl, con los archivos que cita fijados al commit
-// en que existen. El formato viejo de hitos (JSON con kind/summary/next) ya no se escribe: se lee
-// hasta migrarlo.
+// en que existen.
 package main
 
 import (
@@ -60,7 +59,6 @@ func main() {
 	task := flag.String("tarea", "", "id o slug de la tarea")
 	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción")
 	via := flag.String("via", "manual", "quién lo agrega: manual · harness · trazador · db")
-	eventPath := flag.String("evento", "", "retirado: el formato de hitos ya no se escribe")
 	show := flag.Bool("ver", false, "muestra la pila sin escribir")
 	dryRun := flag.Bool("n", false, "valida y previsualiza, sin escribir")
 	flag.Parse()
@@ -68,10 +66,6 @@ func main() {
 	fail := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 		os.Exit(2)
-	}
-	if *eventPath != "" {
-		fail("el formato de hitos (JSON con kind, summary, next) se retiró el 2026-09-23: la pila es de bloques.\n" +
-			"Escribí `# título` y la descripción en un Markdown y agregalo con `make tarea-bloque N=<tarea> ARCHIVO=<bloque.md>`.")
 	}
 	if *task == "" {
 		fail("falta -tarea. Ej: task-context -tarea codigo-preaprobado -bloque bloque.md")
@@ -102,7 +96,7 @@ func main() {
 		}
 		fmt.Printf("\n  #%d %s · %d en la pila, más reciente primero\n", effort.ID, slug, len(events))
 		for _, event := range taskcontext.Recent(events, 8) {
-			fmt.Printf("  %s · %-10s %s\n", event.At[:10], taskcontext.Label(event), taskcontext.Headline(event))
+			fmt.Printf("  %s · %s\n", event.At[:10], event.Title)
 		}
 		fmt.Println()
 		return

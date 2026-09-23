@@ -759,8 +759,8 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"entries": entries})
 	})
 
-	// El contexto de tarea es un JSONL privado y versionable, distinto de entries/: entries mide
-	// tiempo y puede subir a Jira; estos hitos sólo explican decisiones y comprobaciones para retomar.
+	// La pila de la tarea es un JSONL privado y versionable, distinto de entries/: entries mide tiempo y
+	// puede subir a Jira; los bloques de la pila documentan la tarea y no salen de acá.
 	mux.HandleFunc("/api/task-context", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
 		if r.Method == http.MethodOptions {

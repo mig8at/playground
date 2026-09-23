@@ -12,9 +12,10 @@ const RESULT = /^Resultado:\s*/;
 const ITEM = /^[-*]\s+(.*)$/;
 
 // El rótulo de un comando dice con qué se corrió y contra qué: el ambiente sale de su TARGET=, que el
-// validador exige, o del ambiente de la consulta.
+// validador exige, o del ambiente de la consulta. También vale `E2E_TARGET=`, la variable con que se
+// corre un target del harness que no recibe TARGET= (y que sin ella pega contra dev).
 export function commandLabel(lang, arg, code) {
-  const target = (String(code).match(/\bTARGET=(\w+)/) || [])[1];
+  const target = (String(code).match(/TARGET=(\w+)/) || [])[1];
   if (lang === 'harness') return target ? `Harness · ${target}` : 'Harness';
   if (lang === 'trazador') return target ? `Trazador · ${target}` : 'Trazador';
   if (lang === 'sql') return `DB · ${arg}`;
