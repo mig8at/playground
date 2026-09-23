@@ -61,6 +61,13 @@
      `tema.css`. Como TINTA sobre una card normal sí funciona (4,7:1). */
   --bad:  var(--destructive);
   --info: #60a5fa;
+  /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
+     literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make estilo-check`). */
+  --sql-keyword:    #b07cff;
+  --sql-function:   #74c8ff;
+  --sql-string:     #95c77b;
+  --sql-number:     #f3ae62;
+  --sql-identifier: #e9cc80;
 }
 
 /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch` — y esto se mide, no se opina.
@@ -97,31 +104,3 @@ body {
 h1, h2, h3 { color: var(--txt); font-weight: 700; }
 code, kbd, pre, samp { font-family: var(--font-mono); }
 
-/* ── Ramas de una tarea (cajón) ─────────────────────────────────────────────────────────────────
-   Una fila por rama, una columna por ambiente. Tres estados y no dos: `✓` está, `·` no está, y `—`
-   ese ambiente NO EXISTE en ese repo — que no es lo mismo que "no está mergeado". Confundirlos hace
-   creer que falta desplegar algo en un repo que no tiene ese ambiente. */
-.tabla-wrap { overflow-x: auto; }
-table.ramas { border-collapse: collapse; width: 100%; font-size: 12.5px; }
-table.ramas th {
-  text-align: left; padding: 6px 9px; border-bottom: 1px solid var(--line);
-  color: var(--mut); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-  white-space: nowrap;
-}
-table.ramas td { padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: baseline; }
-/* La rama NO se parte: es un identificador, y `break-all` la cortaba a mitad de palabra
-   ("feature/pais-com / o-dato"), que es ilegible. Si no cabe, rueda — `.tabla-wrap` ya tiene
-   `overflow-x: auto` para eso. */
-table.ramas td code { font-size: 11.5px; white-space: nowrap; }
-table.ramas .solo-local { font-size: 9.5px; text-transform: uppercase; letter-spacing: .4px;
-  color: var(--warn); border: 1px solid color-mix(in oklab, var(--warn) 27%, transparent); border-radius: var(--radius-md); padding: 0 4px; margin-left: 5px; }
-table.ramas .sha { color: var(--mut); font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; margin-left: 5px; }
-table.ramas td.amb { text-align: center; width: 1%; white-space: nowrap; }
-table.ramas .si { color: var(--acc); font-weight: 700; }
-table.ramas .no { color: var(--mut); }
-table.ramas .na { color: var(--line2); }
-table.ramas td.prcol { white-space: nowrap; }
-table.ramas .prst { margin-left: 6px; font-size: 10.5px; }
-table.ramas .pr-merged { color: var(--acc); }
-table.ramas .pr-open   { color: var(--warn); }
-table.ramas .pr-closed { color: var(--mut); text-decoration: line-through; }

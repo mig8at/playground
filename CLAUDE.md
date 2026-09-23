@@ -193,8 +193,9 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   `SIN VERIFICAR` con exit 2, nunca en verde. Probado al revés con un `#555` inventado: sale ✗ y con 1.
   ⚠ Y tres trampas que costaron una corrida cada una: **Vite escucha sólo en IPv6**, así que sondear
   `127.0.0.1` da «no hay nada» sobre un servidor sano; **`networkidle` no llega nunca** en el panel,
-  que pollea; y **las tareas del tablero llegan por WebSocket**, así que con 600ms de espera el
-  barrido medía una app vacía y decía ✓.
+  que pollea; y **las tareas del tablero llegan después del HTML**, así que con 600ms de espera el
+  barrido medía una app vacía y decía ✓. *(Decía «por WebSocket»: la UI las pide por `fetch`, y el `/ws`
+  del server, que no tenía cliente, se retiró el 2026-09-23. La trampa es la misma.)*
   ⚠ Dos trampas medidas al construirlo: **Chrome deja `oklch()` sin resolver en el computed style**
   (parsear esos números como RGB da 1,00 en todo — hay que pintar el color en un canvas y leer el
   píxel), y **`opacity` se apila sobre el color** sin que el chequeo estático lo vea, porque la regla

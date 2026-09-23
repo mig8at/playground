@@ -75,11 +75,6 @@ watch(journeyOpen, value => savePreference('journey-open', value));
    otra. Lo lleva `secciones`. */
 const active = ref(null);     // tarea sobre la que se está registrando
 
-// ── ajustes del tablero ─────────────────────────────────────────────────────────────────────────
-// Flags de "campos de la empresa": tiempo y puntos. OFF por defecto — la empresa no los pide, así que
-// el tablero no los muestra. NO tocan el registro personal (avances, mapa de foco), que es el núcleo.
-// Ya no hay ajustes: puntos y tiempo son campos que la empresa PIDE, así que no se apagan desde acá.
-// El engranaje se retiró entero. `settings.json` puede conservar sus claves — nadie las lee.
 // El registro de avances vive en JSONL del lado del server. Acá se mapea al shape que usa la UI: `date` es el
 // INICIO del bloque trabajado (Date real; el mapa de jornada reparte por horas), `sprint` ata la
 // entrada al sprint donde se registró.
@@ -410,9 +405,12 @@ const daysUntouched = (id) => {
 // aparte: son para mirarlos, no para vivir embebidos acá.
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
 const openArtifact = (file) => window.open(`${SERVER}/artifacts/${file}`, '_blank', 'noopener');
-// los prototipos cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
+// los artifacts cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que los avances
-const protosOf = (key) => artifactsOf(effortFor(key));
+const taskArtifacts = (key) => artifactsOf(effortFor(key));
+// El tipo va aparte de la etiqueta (el server ya le quita la extensión): 13 de los 21 no son HTML, y un
+// ▶ para todos prometía «ejecutar» una nota o una consulta.
+const artifactType = (file) => (/\.([a-z0-9]+)$/i.exec(file)?.[1] || 'archivo').toUpperCase();
 
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
 // No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
@@ -588,7 +586,7 @@ const minutesOf = (k) => ofSprint.value.filter(e => e.key === k).reduce((n, e) =
 // recorrido. Se pide aparte por tarea/esfuerzo al abrirla y el server lo devuelve ya ordenado, sin
 // tocar el JSONL. Por esfuerzo también rescata hitos que se anotaron antes de tener clave de Jira.
 // De la clave de una tarjeta al esfuerzo local. Es la ÚNICA forma de resolverlo, y todo lo que abre un
-// cajón —cuerpo, hallazgos, pendientes, prototipos, ramas, avances— pasa por acá.
+// cajón —cuerpo, hallazgos, pendientes, artifacts, ramas, avances— pasa por acá.
 //
 // ⚠ Contempla las tarjetas LOCALES (`LOCAL-<id>`), que no están en el mapa de Jira porque no están en
 // Jira. Cuando cada cajón resolvía el esfuerzo por su cuenta contra `taskLocals`, las locales salían
@@ -981,7 +979,15 @@ function toggleBranchConsole() {
  * en el centro; Jira abre primero porque es la consulta secundaria más frecuente. */
 const activeAuxView = ref('jira');
 const auxOpen = (id) => activeAuxView.value === id;
-function toggleAux(id) { activeAuxView.value = id; }
+// Elige la vista Y muestra la región. Desde el riel da lo mismo —si lo ves, la región está abierta—,
+// pero el avance de pendientes del encabezado vive afuera: con la región plegada (o una ventana de
+// ≤1050px, donde arranca plegada) cambiaba la pestaña de algo oculto y el clic no hacía nada visible.
+function openAux(id) {
+  activeAuxView.value = id;
+  if (showAux.value) return;
+  auxVisible.value = true;
+  if (compactWindow.value) compactDetailOpen.value = true;
+}
 const auxViews = computed(() => taskTabs.value);
 function auxTabsKeyboard(event, id) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -1163,7 +1169,7 @@ watch(active, (t) => {
 });
 
 // ── hallazgos: los hechos con fecha que la tarea declara en su cuerpo ──────────────────────────
-// Vienen del ESFUERZO, igual que los prototipos, y salen del texto: el server los recoge de los
+// Vienen del ESFUERZO, igual que los artifacts, y salen del texto: el server los recoge de los
 // marcadores `> **MEDICIÓN · fecha** — …`. Ver `server/internal/store/annotations.go`.
 //
 // Lo que aportan sobre la prosa es la EDAD. Una medición de hace dos meses se lee igual de segura
@@ -1189,6 +1195,7 @@ const findingsByKind = (key) => KINDS
 // CON QUÉ SE COMPROBÓ CADA HALLAZGO. Las etiquetas las deriva el SERVER (`store/sources.go`) del
 // `Cómo` de cada anotación; acá sólo se pintan y se cuentan. No se re-deriva en el front a propósito:
 // dos definiciones de «esto se midió con el arnés» no fallan, se contradicen.
+// Los ambientes son los valores canónicos de `canonEnvironment`, en el mismo archivo del server.
 const isEnvironment = (f) => ['prod', 'qa', 'staging', 'dev', 'local'].includes(f);
 const isSqlFinding = (finding) => finding.fuentes?.includes('DB') && isSQLQuery(finding.como);
 
@@ -1296,16 +1303,16 @@ const pendingBySection = (key) => {
 };
 
 // El sidebar conserva las consultas que se necesitan en paralelo: el contrato publicado (Jira), el
-// checklist detallado (Pendientes) y los prototipos navegables. El razonamiento y la historia quedan
-// en el centro; un prototipo es una salida externa, no parte de esa lectura.
+// checklist detallado (Pendientes) y lo que produjo la tarea (Artifacts). El razonamiento y la historia
+// quedan en el centro; un artifact es una salida externa, no parte de esa lectura.
 const taskTabs = computed(() => {
   const key = active.value?.Key;
   const tabs = [
     { id: 'jira', label: 'Jira' },
     { id: 'pendientes', label: 'Pendientes', count: remaining(key), alert: active.value?.StatusCategory === 'done' && remaining(key) > 0 },
-    // Siempre se ve: si la tarea aún no deja un HTML, la pestaña explica esa ausencia en vez de
-    // desaparecer y hacer parecer que Tablero no tiene lugar para los prototipos.
-    { id: 'artifacts', label: 'Prototipos', count: key ? protosOf(key).length : 0 },
+    // Siempre se ve: si la tarea aún no dejó nada, la pestaña explica esa ausencia en vez de
+    // desaparecer y hacer parecer que Tablero no tiene lugar para sus artifacts.
+    { id: 'artifacts', label: 'Artifacts', count: key ? taskArtifacts(key).length : 0 },
   ];
   return tabs;
 });
@@ -1990,7 +1997,6 @@ function documentAction(id) {
               </span>
               <span v-if="active.HasPoints && active.Points">{{ active.Points }} pts</span>
               <span v-if="!active._local">{{ hhmm(active.SpentSecs) }} en Jira</span>
-              <span v-if="taskLocals[active.Key]?.estimateMinutes">{{ minHhmm(taskLocals[active.Key].estimateMinutes) }} estimado</span>
               <span v-if="minutesOf(active.Key)" class="mine">{{ minHhmm(minutesOf(active.Key)) }} sin subir</span>
               <i v-if="active._local && stageOf(active._esfuerzoId)" class="stg suelto"
                  :class="'s-' + stageOf(active._esfuerzoId)?.id">{{ stageOf(active._esfuerzoId)?.label }}</i>
@@ -2000,7 +2006,7 @@ function documentAction(id) {
             <button v-if="pendingProgressOf(active.Key)" type="button" class="task-completion"
                     :aria-label="`Abrir pendientes: ${pendingProgressOf(active.Key).hechos} de ${pendingProgressOf(active.Key).total} finalizados`"
                     :title="'Avance según las casillas finalizadas. Abrir Pendientes.'"
-                    @click="toggleAux('pendientes')">
+                    @click="openAux('pendientes')">
               <span class="task-completion-copy"><b>{{ pendingProgressOf(active.Key).porcentaje }}%</b>
                 {{ pendingProgressOf(active.Key).hechos }}/{{ pendingProgressOf(active.Key).total }} pendientes finalizados</span>
               <span class="task-completion-track" aria-hidden="true"><i :style="{ width: `${pendingProgressOf(active.Key).porcentaje}%` }"></i></span>
@@ -2041,7 +2047,9 @@ function documentAction(id) {
             <h3>{{ group.label }}</h3>
             <article v-for="event in group.items" :key="event.id" class="task-context-entry">
               <p v-for="(paragraph, paragraphIndex) in contextParagraphs(event)" :key="paragraphIndex">
-                <strong v-if="paragraph.label">{{ paragraph.label }}</strong><span v-if="paragraph.label"> </span>
+                <!-- El espacio va interpolado: un `<span> </span>` lo borra el compilador (texto sólo de
+                     espacio como único hijo) y el rótulo quedaba pegado, «Objetivo.Que…». -->
+                <template v-if="paragraph.label"><strong>{{ paragraph.label }}</strong>{{ ' ' }}</template>
                 <template v-for="(part, partIndex) in partsWithCanon(paragraph.text)" :key="partIndex">
                   <a v-if="part.type === 'canon'" :href="canonLink(part.target)" target="_blank" rel="noopener">{{ part.label }}</a>
                   <template v-else>{{ part.value }}</template>
@@ -2296,7 +2304,7 @@ function documentAction(id) {
                 :class="{ activa: auxOpen(v.id) }" :data-vista="v.id"
                 :id="'aux-tab-' + v.id" :aria-controls="'aux-panel-' + v.id"
                 :aria-selected="auxOpen(v.id)" :tabindex="auxOpen(v.id) ? 0 : -1"
-                @click="toggleAux(v.id)" @keydown="auxTabsKeyboard($event, v.id)">
+                @click="openAux(v.id)" @keydown="auxTabsKeyboard($event, v.id)">
           <span>{{ v.label }}</span>
           <i v-if="v.alert" class="aux-alerta" title="Requiere revisión">●</i>
           <span v-if="v.count !== undefined" class="aux-count">{{ v.count }}</span>
@@ -2368,20 +2376,16 @@ function documentAction(id) {
           </template>
           <template v-if="v.id === 'artifacts'">
             <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Cada uno se abre en una pestaña nueva.</p>
-            <button v-for="artifact in protosOf(active.Key)" :key="artifact.file" class="proto-row" @click="openArtifact(artifact.file)">
-              <span class="proto-play">▶</span>
-              <span class="proto-txt"><b>{{ artifact.label }}</b><span class="proto-file">{{ artifact.file.split('/').pop() }}</span></span>
-              <span class="proto-ext">Abrir ↗</span>
+            <button v-for="artifact in taskArtifacts(active.Key)" :key="artifact.file" class="artifact-row" @click="openArtifact(artifact.file)">
+              <span class="badge badge-outline artifact-type">{{ artifactType(artifact.file) }}</span>
+              <span class="artifact-txt"><b>{{ artifact.label }}</b><span class="artifact-file">{{ artifact.file.split('/').pop() }}</span></span>
+              <span class="artifact-open">Abrir ↗</span>
             </button>
-            <p v-if="!protosOf(active.Key).length" class="nota">Esta tarea todavía no tiene artifacts.</p>
+            <p v-if="!taskArtifacts(active.Key).length" class="nota">Esta tarea todavía no tiene artifacts.</p>
           </template>
         </section>
       </template>
     </aside>
-
-    <!-- AUXILIARYBAR: el vocabulario la tiene y el grid la deja lista, pero NO se renderiza — una
-         columna vacía de 340px no es «libre», es espacio perdido. El día que haya qué poner:
-         <aside class="auxiliarybar"><div class="region-head">…</div><div class="region-body">…</div></aside> -->
 
     <footer class="statusbar">
       <strong>{{ sprint ? shortName(sprint.name) : 'sin sprint' }}</strong>
@@ -2583,7 +2587,6 @@ function documentAction(id) {
 .fbusca { margin-left: auto; height: 28px; padding: 0 6px 0 10px }
 .fbusca:focus-within, .fbusca.act { border-color: color-mix(in srgb, var(--acc) 45%, transparent);
   background: var(--card) }
-.fbusca .lupa { color: var(--mut); font-size: 13px; line-height: 1 }
 /* Adentro del grupo el campo va DESNUDO: el borde y el anillo los lleva la etiqueta. */
 .fbusca .input { font-size: 12px; width: 190px }
 .fbusca .input::placeholder { color: var(--mut) }
@@ -2595,26 +2598,11 @@ function documentAction(id) {
 .lnk { border: 0; background: transparent; color: var(--acc); font: inherit; font-size: inherit;
   cursor: pointer; padding: 0; margin-left: 6px; text-decoration: underline }
 
-/* De qué sprint es la tarjeta. Va en la línea de la clave, chiquito: es contexto, no el dato principal. */
-/* Sobre `.badge.badge-outline`: de qué sprint es. Radio chico, que es lo que separa un RÓTULO de una
-   píldora que se aprieta. */
-.spchip { margin-left: auto; font-size: 10.5px; color: var(--mut);
-  border-radius: var(--radius-md); padding: 1px 5px }
-/* El chip del esfuerzo puede ser largo (es un título): se recorta en vez de empujar la línea. */
-.spchip.esf { max-width: 46%; overflow: hidden; text-overflow: ellipsis; color: var(--acc);
-  border-color: color-mix(in srgb, var(--acc) 35%, transparent); display: inline-flex; gap: 5px; align-items: center }
-.spchip.esf .stg { font-style: normal; font-size: 9.5px; opacity: .8 }
-/* Arrastre: va PEGADO al chip del sprint (el `margin-left:auto` es del primero, que ya empujó los dos
-   al borde) y en ámbar, porque es un aviso — no el mismo tono que el dato neutro de al lado. */
-.spchip.drag { margin-left: 4px; color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, transparent) }
-.spchip.dormida { margin-left: 4px; color: var(--mut); border-color: color-mix(in oklab, var(--mut) 34%, transparent); font-style: italic }
-.spchip.proyecto { margin-left: 4px; color: var(--info); border-color: color-mix(in oklab, var(--info) 34%, transparent); background: color-mix(in oklab, var(--info) 8%, transparent) }
 /* ⚠ Acá vivían `header.titlebar`, `.logo`, `h1`, `.sub` y `.sp`. El titlebar se fue: decía
    «Tablero · Sprint N · registro de tiempo y hallazgos» y gastaba 77px de alto en repetir lo que ya
    dicen la pestaña del navegador y el statusbar. Su única acción —«sólo este sprint»— está en el
    menú ⋯ del sidebar. */
 .chip { padding: 4px 11px; color: var(--mut); font-size: 12px; gap: 6px }
-.chip.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 34%, var(--card)); background: color-mix(in oklab, var(--warn) 14%, var(--card)) }
 
 /* ⚠ Los cuatro indicadores ya se separan ENTRE SÍ con el `border-right` de cada celda: el marco de
    afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
@@ -2661,23 +2649,6 @@ function documentAction(id) {
 .e-ok { color: var(--txt); border-color: var(--line2); background: var(--panel2) }
 .e-doing { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
 .e-todo { color: var(--mut); border-color: var(--line); background: var(--panel2) }
-/* acciones de la tarjeta: la fila que reemplazó a la card "La tarea". Van al pie y en tono bajo — la
-   tarjeta se lee primero y se actúa después; botones fuertes acá competirían con el contenido. */
-/* ⚠ Las acciones de la tarea eran PÍLDORAS (radio 999) con fondo propio: un botón redondo se lee
-   como una etiqueta, no como algo que se aprieta. Son `.btn.btn-outline.btn-xs`; acá queda el peso
-   —van en negrita porque son las acciones de lo que estás mirando— y el alto de esta barra. */
-.tact { height: 23px; font-size: 11.5px; font-weight: 600 }
-.tact:hover:not(:disabled) { color: var(--txt) }
-.tact:disabled { opacity: .45; cursor: default }
-.tact.act { color: var(--accent-foreground); border-color: var(--acc); background: var(--accent) }
-/* el de QA es el único que ESCRIBE (mueve en Jira y manda un DM): se distingue del resto */
-.tact.go { color: var(--acc-ink); border-color: var(--acc); background: var(--acc) }
-.tact.go:hover:not(:disabled) { background: var(--acc); color: var(--acc-ink) }
-.tact .cnt { background: var(--line); color: var(--txt); font-size: 10px; font-weight: 700;
-  padding: 1px 6px; border-radius: 999px }
-.tact.act .cnt { background: var(--acc); color: var(--acc-ink) }
-/* la descripción desplegada dentro de la tarjeta: separada del resto, no pegada al título */
-.task .desc { margin: 2px 0 8px }
 /* origen de la tarea: el punto dice si cerró en su sprint (verde) o la arrastraron (rojo) */
 .orig { display: inline-flex; align-items: center; gap: 5px }
 .orig i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex: none }
@@ -2689,23 +2660,24 @@ function documentAction(id) {
 /* descripción completa de Jira (acá NO se recorta: es lo que se pidió ver entero) */
 .desc { font-size: 13px; line-height: 1.55; color: var(--txt); margin: 0; white-space: pre-wrap }
 .desc.none { color: var(--mut); font-style: italic }
-/* El botón de copiar. Lleva él el `margin-left:auto` y se lo quita a la ✕ que viene después: si los
-   dos lo tienen, el espacio libre se reparte entre ellos y quedan separados a media barra. */
-/* una propuesta en el panel: el nombre del archivo abajo, que es lo que la identifica en disco */
-.proto-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+/* un artifact en el panel: el tipo a la izquierda, el nombre del archivo abajo (es lo que lo identifica
+   en disco). Es un botón —se aprieta y abre—, así que lleva su marco como cualquier objeto. */
+.artifact-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
   background: none; border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 9px;
   font: inherit; color: var(--txt) }
-.proto-row:hover { border-color: var(--acc); background: var(--secondary) }
-.proto-play { color: var(--acc); font-size: 12px }
-.proto-txt { flex: 1; min-width: 0 }
-.proto-txt b { display: block; font-size: 13.5px; font-weight: 600; text-transform: capitalize }
-.proto-file { display: block; font-size: 11px; color: var(--mut); font-family: ui-monospace, Menlo, monospace;
+.artifact-row:hover { border-color: var(--acc); background: var(--secondary) }
+.artifact-type { flex: none; min-width: 44px; justify-content: center; font: 600 10px/1.6 var(--mono); color: var(--mut) }
+.artifact-row:hover .artifact-type { color: var(--txt) }
+.artifact-txt { flex: 1; min-width: 0 }
+.artifact-txt b { display: block; font-size: 13.5px; font-weight: 600 }
+.artifact-txt b::first-letter { text-transform: uppercase }
+.artifact-file { display: block; font-size: 11px; color: var(--mut); font-family: var(--mono);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px }
-.proto-ext { color: var(--mut); font-size: 12px }
-.proto-row:hover .proto-ext { color: var(--acc) }
+.artifact-open { color: var(--mut); font-size: 12px }
+.artifact-row:hover .artifact-open { color: var(--acc) }
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
-   pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel; el que lo
-   abre desde la tarjeta es `.tact.go`, más discreto porque convive con las otras acciones. */
+   pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel, que se
+   abre al mover la tarea hacia Testing desde el menú de estados. */
 /* La única acción del tablero que escribe afuera: es la PRIMARIA, o sea `.btn` a secas. */
 .qa-go { height: 32px; font-size: 12.5px; font-weight: 600 }
 .qa-go:hover:not(:disabled) { background: var(--acc) }
@@ -2914,7 +2886,6 @@ function documentAction(id) {
    alrededor no dice nada que el fondo no diga ya, y el radio pelea con la barra recta. */
 .retoma-panel { margin: 0 0 14px; padding: 13px 14px; border-left: 3px solid var(--acc);
   background: var(--panel2); }
-/* Un tema de canon es una ETIQUETA que además lleva a algún lado: píldora de contorno, no botón. */
 /* Datos que identifican el trabajo actual. Viven junto al título porque siguen siendo ciertos al
    cambiar de vista lateral; el sidebar ya no repite una ficha de la misma tarea. */
 .task-head-panels { display: flex; flex-direction: column; gap: 7px; min-width: 0 }
@@ -2953,12 +2924,12 @@ function documentAction(id) {
              background: color-mix(in srgb, var(--panel2) 88%, var(--acc) 12%) !important; }
 .sql-block::before { content: 'SQL'; position: absolute; top: 8px; left: 11px; color: var(--acc); font: 700 9px/1 var(--mono, ui-monospace, monospace);
                      letter-spacing: .1em; }
-.sql-block :deep(.sql-token.sql-keyword) { color: #b07cff; font-weight: 700; }
-.sql-block :deep(.sql-token.sql-function) { color: #74c8ff; }
-.sql-block :deep(.sql-token.sql-string) { color: #95c77b; }
-.sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal) { color: #f3ae62; }
+.sql-block :deep(.sql-token.sql-keyword) { color: var(--sql-keyword); font-weight: 700; }
+.sql-block :deep(.sql-token.sql-function) { color: var(--sql-function); }
+.sql-block :deep(.sql-token.sql-string) { color: var(--sql-string); }
+.sql-block :deep(.sql-token.sql-number), .sql-block :deep(.sql-token.sql-literal) { color: var(--sql-number); }
 .sql-block :deep(.sql-token.sql-comment) { color: var(--mut); font-style: italic; }
-.sql-block :deep(.sql-token.sql-identifier) { color: #e9cc80; }
+.sql-block :deep(.sql-token.sql-identifier) { color: var(--sql-identifier); }
 /* la cita es el marcador de MEDICIÓN / RIESGO / PREGUNTA: se resalta porque es lo que envejece */
 .cuerpo-md :deep(blockquote) { margin: 0 0 12px; padding: 8px 12px; border-left: 3px solid var(--acc);
                                background: var(--panel2); border-radius: 0 8px 8px 0 }
@@ -2977,6 +2948,10 @@ function documentAction(id) {
 .cuerpo-md :deep(tr:last-child td) { border-bottom: 0 }
 .cuerpo-md :deep(th) { color: var(--mut); font-weight: 600; white-space: nowrap }
 .cuerpo-md :deep(hr) { border: 0; border-top: 1px solid var(--line); margin: 18px 0 }
+/* Los enlaces del documento. Sin esta regla quedaban con el azul del navegador (#0000ee) sobre el fondo
+   oscuro, cerca de 2:1. Van subrayados porque están en medio de la prosa: el color solo no los distingue. */
+.cuerpo-md :deep(a) { color: var(--acc); text-underline-offset: 2px }
+.cuerpo-md :deep(a:hover) { text-decoration-thickness: 2px }
 
 /* una tarea LOCAL se distingue de una de Jira, pero no grita: es material de trabajo, no un problema */
 .key.local { color: var(--mut); font-style: normal; letter-spacing: .02em }
@@ -2987,7 +2962,6 @@ function documentAction(id) {
 /* Estructura compacta del tablero y de las tarjetas. */
 /* El reset del `<button>` como encabezado vive en `taller.css` (`button.region-head`). */
 .section-toggle { user-select: none }
-.section-toggle .chev { width: 12px; color: var(--mut); flex: none }
 .card button.section-toggle { margin-bottom: 0 }
 #journey-content { padding-top: 16px }
 /* (`.task-group-heading` y `.group-count` se fueron: los grupos son `.region-head.grupo`, y su
@@ -3013,12 +2987,21 @@ function documentAction(id) {
 .cuerpo-md :deep(input[type=checkbox]:checked) { background: var(--acc); border-color: var(--acc) }
 .pending-document :deep(input[type=checkbox]:checked)::after,
 .cuerpo-md :deep(input[type=checkbox]:checked)::after { transform: rotate(45deg) scale(1) }
+/* La casilla ya ES la marca del ítem: con la viñeta del `<ul>` encima cada pendiente tenía dos. Sólo a
+   los ítems con casilla —una lista común conserva su viñeta—, y también cuando `marked` los envuelve
+   en un `<p>` (lista «suelta», con líneas en blanco entre ítems). */
+.cuerpo-md :deep(li:has(> input[type=checkbox], > p > input[type=checkbox])) { list-style: none }
 .jira-tab-panel { padding: 0; overflow: hidden }
+/* Sin padding por el iframe de la vista previa, que va a sangre; el aviso de una tarea local no es un
+   iframe y quedaba pegado al borde de la región. Mismo aire que el encabezado de Jira. */
+.jira-tab-panel > .nota { padding: 12px 14px; margin: 0 }
 .jira-heading { display: flex; align-items: center; gap: 12px; flex: none; padding: 10px 14px;
   border-bottom: 1px solid var(--line); font-size: 12px; flex-wrap: wrap }
 .jira-preview { display: block; flex: 1; min-height: 0; width: 100%; height: 100%; border: 0;
   border-radius: 0; background: transparent }
 .sidebar > .region-head { min-height: 40px; padding: 7px 10px }
+/* «trayendo los sprints…» cuelga directo del sidebar, sin cuerpo que le dé aire: toma el del encabezado. */
+.sidebar > .nota { padding: 8px 10px; margin: 0 }
 .sidebar .view > .region-head { min-height: 32px; padding: 4px 10px; border-bottom: 0 }
 .sidebar .view > .region-body { padding-top: 3px; padding-bottom: 3px }
 .statusbar .layout-controls { gap: 2px; padding: 2px; border-radius: var(--radius-md); background: var(--panel2) }

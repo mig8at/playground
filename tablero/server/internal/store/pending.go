@@ -9,7 +9,7 @@ import (
 //
 // Ya se escribían —7 de las 41 tareas tienen su sección de pendientes y 9 usan casillas— pero el
 // tablero no los veía: había que abrir el `.md` para saber si algo quedaba abierto. Esto es el mismo
-// movimiento que las anotaciones, los prototipos y las ramas: el dato vive en su fuente natural y la
+// movimiento que las anotaciones, los artifacts y las ramas: el dato vive en su fuente natural y la
 // UI lo DERIVA. Un campo en el frontmatter sería otra lista que mantener a mano, y una lista a mano
 // miente en silencio en cuanto alguien resuelve el pendiente sin tocar el archivo.
 //
@@ -25,8 +25,8 @@ import (
 // que ya se cometió una vez midiendo la publicable.
 //
 // ⚠ Y NO se tildan solas. Medido el 2026-08-20 sobre las 41 tareas: 37 casillas escritas y **1** sola
-// tildada. O sea que `Done` dice poco y el número que importa es el de las ABIERTAS — por eso
-// `OpenItems()` existe y es lo que cuenta la tarjeta. Un pendiente resuelto se borra o se tilda, pero
+// tildada. O sea que `Done` dice poco y el número que importa es el de las ABIERTAS — por eso la
+// tarjeta cuenta ésas (`remaining()` en la UI). Un pendiente resuelto se borra o se tilda, pero
 // nadie vuelve; asumir lo contrario haría que el contador mienta hacia abajo.
 type PendingItem struct {
 	What    string `json:"que"`     // el texto del ítem, una línea
@@ -66,16 +66,4 @@ func Pending(body string) []PendingItem {
 		})
 	}
 	return out
-}
-
-// OpenItems cuenta los que quedan. Es el número de la tarjeta: los tildados ya no son trabajo, y
-// mostrar el total haría que una tarea terminada siguiera pareciendo que tiene deuda.
-func OpenItems(ps []PendingItem) int {
-	n := 0
-	for _, p := range ps {
-		if !p.Done {
-			n++
-		}
-	}
-	return n
 }

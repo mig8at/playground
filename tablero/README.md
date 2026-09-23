@@ -82,7 +82,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 
 | Pieza | Qué es | Cómo se corre |
 |---|---|---|
-| `cmd/web` | servidor WebSocket (`:8787`) que alimenta el dashboard | `npm run dev` |
+| `cmd/web` | API HTTP (`:8787`) que lee la UI: tareas, bitácora, sprint de Jira, pulso y artifacts | `npm run dev` |
 | `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
 | `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
 | `src/` (Vue) | tareas por estado de los últimos 4 sprints, evidencia, entrega y actividad | `npm run dev` → `:5191` |
@@ -172,7 +172,7 @@ npm run dev
 `npm run dev` levanta las dos cosas con `concurrently`:
 
 - **server** → `go run ./cmd/web` en `:8787`. Al arrancar valida credenciales e imprime
-  `server on · ws://localhost:8787/ws · integraciones: Jira(Miguel Ochoa), Slack(...)`.
+  `server on · http://localhost:8787 · integraciones: Jira(Miguel Ochoa), SlackUser(...)`.
   Si no hay `.env` dice `integraciones: ninguna (.env sin credenciales)` y el front queda vacío.
 - **web** → Vite en `http://localhost:5191` (elegido para no chocar con `flow` en `:5190`).
 
@@ -262,22 +262,30 @@ Para quitarlos: `claude mcp remove creditop-jira`.
    `jsonschema:"..."` son lo que el modelo ve como descripción de cada campo.
 3. Llamarla desde `main.go`. El schema se genera solo desde los structs de Go.
 
-## El dashboard
+## La API que lee la interfaz
 
-El front abre `ws://localhost:8787/ws` y al conectarse manda `{"type":"dashboard"}` y `{"type":"activity"}`.
-Si el server se cae, reintenta cada 1,5 s.
+Casi todo es **lectura**. Lo único que escribe afuera son tres clics explícitos —importar de Jira, mover
+una tarea de estado y avisarle a QA—, y adentro, refrescar la medición de ramas. Las tareas y la bitácora
+**no se escriben desde acá**: las tareas las escribe el asistente en su `task.md` y la bitácora
+`make bitacora-add`, que mide los minutos. *(Hasta el 2026-09-23 el server tenía además un WebSocket del
+dashboard original, el guard servido a la UI, ajustes, la escritura de tareas y bitácora, y la consola de
+ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 
-| Panel | De dónde sale |
+| Ruta | Qué devuelve o hace |
 |---|---|
-| Sprint, fechas, días restantes | `GET /rest/agile/1.0/board/{board}/sprint?state=active` |
-| Tareas y semáforo de avance | `GET /rest/agile/1.0/sprint/{id}/issue` con `jql=assignee = currentUser()` |
-| "vas al día 🟢 / atrasado 🔴" | comparación en el front: `% tareas hechas` vs `% tiempo transcurrido` |
-| Story points / horas | `customfield_10036` y `timetracking` del mismo issue |
-| Heatmap estilo GitHub | issues tocados en 182 días → `?expand=changelog` de cada uno, contando solo los cambios cuyo autor sos vos |
-
-El heatmap es la parte cara: hace una llamada por issue, con concurrencia acotada a 6 (`activity.go:75`) y un
-timeout global de 30 s puesto en el handler del WS (`cmd/web/main.go:334`) — `activity.go` no define ninguno.
-Cada request HTTP además corta a los 20 s por su cuenta (`internal/atlassian/client.go:33`).
+| `GET /api/config` | los enlaces a canon, trazador y harness (salen de `server/.env`) |
+| `GET /api/efforts` | las tareas locales, con cuerpo, pendientes, hallazgos, fuentes y artifacts |
+| `GET /api/task-locals` | de qué tarea local cuelga cada clave de Jira (`{taskKey, effortId}`) |
+| `GET /api/task-context?effort=` | la pila de hitos de una tarea (`tasks/<slug>/context.jsonl`) |
+| `GET /api/entries?days=&sprint=` | la bitácora de la ventana, más lo del sprint elegido |
+| `GET /api/sprints?board=&n=` · `GET /api/sprint?board=&id=` | los sprints recientes y mis tareas de uno (sin `id`, el activo) |
+| `GET /api/jira-inbox` · `POST /api/jira-import` | lo de Jira que no está registrado, y traerlo (crea o enlaza la tarea local) |
+| `GET/POST /api/transitions` | las transiciones de un issue, y aplicar una |
+| `GET/POST /api/qa-notice` | la previsualización del aviso a QA, y enviarlo: mueve a pruebas y manda el DM |
+| `GET /api/ramas` · `POST /api/ramas/refresh?id=` | el snapshot de ramas por tarea, y volver a medir una |
+| `POST /api/jev/triage` · `POST /api/jev/pending-review` | la orientación de Jev, sólo al pulsar el botón |
+| `GET /api/pulse?days=` | el pulso agregado por día y hora |
+| `GET /artifacts/<slug>/<archivo>` | un archivo de `tasks/<slug>/artifacts/` |
 
 ## Es el hogar del TRABAJO (y `context` el del conocimiento)
 
@@ -397,14 +405,15 @@ Todo vive en **`tablero/data/`** — markdown y JSON, sin servidor de base de da
 vivir dentro de él. `TABLERO_DATA` mueve la carpeta.
 
 ```
+tasks/<slug>/                UNA TAREA = UNA CARPETA (ver abajo)      → versionado en git
 data/
-  <tarea>.md                 UNA TAREA = UN ARCHIVO (ver abajo)       → versionado en git
   entries/2026-07.jsonl      avances por tiempo, un archivo por mes      → FUERA de git (dato personal)
   pulse/2026-08.jsonl        el pulso: cuándo toqué los repos          → FUERA de git (dato personal)
-  settings.json              los flags del tablero                    → versionado
+  traps/                     las trampas del sistema (F-xx)           → versionado
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
-  tareas-locales.json        anotaciones de tareas, sólo si hay alguna
 ```
+
+`tasks/` va al lado de `data/`: si `TABLERO_DATA` mueve una, la otra la acompaña.
 
 Los archivos locales siguen una lista cerrada: `canon`, `context`, `harness`, `tablero`, `trazador`,
 `workers` y `playground`. Cada herramienta acumula sus mejoras en su único contenedor; lo transversal
@@ -507,8 +516,8 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
   una decisión de publicación, no una reescritura de la verdad.
 - `taskKey` puede ir vacío (`freeTitle` dice qué fue): reuniones y soporte no son tareas del sprint, y
   forzarlos a una envenena el análisis.
-- La `note` es **publicable por construcción**: el guard (fuente única en `cmd/web/main.go`, servido a la
-  UI por `/api/guard`, que hoy nadie consume) corre en el server **antes** de escribir.
+- La `note` es **publicable por construcción**: `make bitacora-add` le pasa el guard (fuente única en
+  `internal/guard`) **antes** de escribir.
 - Borrado **suave** (`deletedAt`): existe para recuperación administrativa; la pila visible no ofrece
   borrado ni edición.
 
@@ -531,7 +540,7 @@ jq -s 'map(select(.deletedAt|not)
        | group_by(.)[] | {bloque: .[0], registros: length}' data/entries/*.jsonl
 ```
 
-Endpoints: `GET/POST /api/entries`, `DELETE /api/entries/{id}`, `GET /api/guard`.
+Endpoint: `GET /api/entries?days=&sprint=`, de sólo lectura — se escribe con `make bitacora-add`.
 
 ### Contexto de una tarea (`task-context/`)
 
@@ -676,16 +685,15 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 
 | Variable | Para qué | Default |
 |---|---|---|
-| `SLACK_BOT_TOKEN` | `xoxb-` — mensajes/canales "como el bot" | — (sin él, Slack off) |
+| `SLACK_BOT_TOKEN` | `xoxb-` — lo usa sólo `cmd/slack-mcp`; la API del tablero escribe como vos | — |
 | `SLACK_USER_TOKEN` | `xoxp-` — DMs "como vos" (`chat:write`, `im:write`, `users:read.email`) | — |
-| `SLACK_TEST_CHANNEL` | canal del mensaje de prueba | `C0BG5GP5JN7` (hardcodeado en `main.go`) |
 | `ATLASSIAN_SITE` / `_EMAIL` / `_API_TOKEN` | Jira Cloud, Basic auth | — (faltando uno, Jira off) |
 | `JIRA_PROJECT_KEY` | proyecto de las tareas nuevas | `CORE` |
-| `JIRA_TASK_TYPE_ID` | tipo de issue | `10005` (= "Tarea" en CORE) |
+| `JIRA_TASK_TYPE_ID` | tipo de issue de `cmd/issue-create` | `10005` (= "Tarea" en CORE) |
 | `JIRA_BOARD_ID` | board cuyo sprint activo se usa | `384` |
 | `QA_SLACK_EMAIL` | a quién le llega el DM al pasar a pruebas | `duncan.estrada@creditop.com` |
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
-| `WEB_PORT` | puerto del WS | `8787` |
+| `WEB_PORT` | puerto de la API | `8787` |
 | `CANON_URL` | API y enlaces de Canon | `https://canon.playground.creditop.com` |
 | `TRACER_URL` | enlace de Trazador en Evidencia | `http://localhost:5192` |
 | `HARNESS_URL` | enlace de Harness en Evidencia | `http://localhost:5195` |
@@ -709,14 +717,11 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 ## Gotchas
 
 - **`JIRA_PROJECT_KEY`, `JIRA_TASK_TYPE_ID`, `JIRA_BOARD_ID` y `WEB_PORT` no están en `.env.example`.**
-  Existen solo como default en `cmd/web/main.go`. Si el board o el tipo de issue cambian, el síntoma es
-  una tarea creada en el lugar equivocado, no un error. (`QA_SLACK_EMAIL` y `JIRA_TESTING_STATUS` sí
-  están documentadas en el `.env.example`.)
-- **`WEB_PORT` es una trampa a medias:** el front tiene `ws://localhost:8787/ws` **hardcodeado**
-  (`App.vue:4`). Cambiar el puerto en el `.env` deja el dashboard desconectado.
-- **Tres mensajes del WS no tienen UI.** El server maneja `send_slack`, `dm` y `create_task`
-  (`main.go:111-122`), pero `App.vue` solo manda `dashboard` y `activity`. Son alcanzables únicamente
-  mandando el JSON a mano por el WebSocket — quedaron de una versión anterior del front.
+  Existen sólo como default en el código (`cmd/web` y `cmd/issue-create`). Si el board o el tipo de issue
+  cambian, el síntoma es una tarea creada en el lugar equivocado, no un error. (`QA_SLACK_EMAIL` y
+  `JIRA_TESTING_STATUS` sí están documentadas en el `.env.example`.)
+- **`WEB_PORT` solo no alcanza:** el front apunta a `http://localhost:8787` salvo que `VITE_TABLERO_API`
+  diga otra cosa (`App.vue`, la constante `SERVER`). Si movés el puerto, mové las dos.
 - **Mover una tarea a otro sprint NO se puede por el Agile API.** `POST /rest/agile/1.0/sprint/{id}/issue`
   (lo que hace `AddIssuesToSprint`) responde **404** con
   `rapidViewId: "El tablero solicitado no se puede ver…"`: la llamada resuelve el **board dueño** del
@@ -728,18 +733,8 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
   activo/futuro (verificado moviendo Sprint 8 → 9: quedó `[Sprint 9, Sprint 7]`).
 - **`customfield_10036` (story points) es específico de CORE.** En otro proyecto Jira el campo tiene otro id
   y el panel de puntos queda en `—` sin avisar.
-- **Si la validación de arranque falla por timeout, el heatmap sale vacío pero "ok".** `myAccountID` se setea
-  una sola vez en `connectIntegrations()`, que corta a los 8 s (`cmd/web/main.go:366`) — bastante menos que los
-  15 s del dashboard y los 30 s de activity. Si `GetMyself` se pasa de ese corte **pero las credenciales son
-  válidas**, `myAccountID` queda en `""` y `activity.go` filtra por autor contra ese string → heatmap todo gris,
-  0 cambios, sin error. Mismo efecto en `create_task`: la tarea se crea **sin asignado**.
-  Con credenciales inválidas o expiradas el síntoma es otro: las llamadas siguientes también fallan (401), el
-  WS manda `activity_data` con `ok:false`, `App.vue` no asigna `activity` y el heatmap directamente no se
-  dibuja (`v-if="heatmap"`), mientras `dashboard_data` con `ok:false` pinta el banner rojo.
-- **El heatmap está capado a 80 issues** (`recentIssueKeys`, `maxResults: 80`). Con más actividad que eso en
-  26 semanas, subcuenta — no hay paginación.
 - **Agregar al sprint es best-effort.** Si `ActiveSprint` o `AddIssuesToSprint` fallan, la tarea **igual queda
-  creada** (fuera del sprint) y el resultado no marca error. Vale para el MCP y para el WS.
+  creada** (fuera del sprint) y el resultado no marca error. Vale para el MCP y para `cmd/issue-create`.
 - **`/rest/api/3/search` (el viejo) devuelve 410 desde oct-2025.** Por eso todo va a `/search/jql`, que
   además exige JQL restringida: una consulta sin filtros es rechazada por el endpoint.
 - *(Acá decía que `src/scorecards/` estaba huérfano —4 componentes + `data.js` con los Rocks de
@@ -755,6 +750,7 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — mapa corto de datos, UI, consola y contexto.
 - [`server/README.md`](server/README.md) — instalar y probar los conectores MCP de Jira y Slack.
-- `../context/` — árbol de contexto de CreditOp (mapa estático `ROUTE-MAP.md` + toolkit Python). Nada que
-  ver con estos conectores, pero es el otro proyecto grande del playground.
-- `playground/docs/` **ya no existe** (absorbido por `context/`): si algún doc apunta ahí, es puntero roto.
+- **canon** — el contexto curado de CreditOp, compartido con el equipo, en otro repo
+  (`github/playground/tools/canon`). *(Acá apuntaba a `../context/`, que se apagó el 2026-09-21.)*
+- `playground/docs/` **ya no existe** (absorbido por `context/`, que a su vez graduó a canon): si algún doc
+  apunta ahí, es puntero roto.

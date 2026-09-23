@@ -13,7 +13,7 @@ import (
 //
 // La forma es un MARCADOR EN LÍNEA dentro del cuerpo, no una lista en el frontmatter. Tres razones:
 // el parser de frontmatter sólo entiende escalares; una lista aparte se desincroniza del texto que la
-// explica (es el mismo motivo por el que los prototipos se enlazan por nombre de archivo); y así la
+// explica (es el mismo motivo por el que los artifacts son lo que hay en la carpeta de la tarea); y así la
 // anotación vive DONDE se argumenta, que es donde se entiende.
 //
 //	> **MEDICIÓN · 2026-08-18** — el 86,6% de las consultas no pasa por el contador.

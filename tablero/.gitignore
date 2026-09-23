@@ -13,8 +13,8 @@ server/data/
 # BITÁCORA y no de todo lo que el .db contenía por accidente:
 #   · `entries/` es la bitácora — dato personal, sigue fuera de git
 #   · `cache/` es snapshot de Jira — descartable, se rehace pidiéndoselo a Jira
-#   · `efforts/` y `settings.json` SÍ se versionan: son contenido de trabajo (igual que `context/`),
-#     y tenerlos en git es la mitad del motivo para salir de SQLite. Este repo no se pushea solo.
+#   · las tareas (hoy `tasks/`) SÍ se versionan: son contenido de trabajo, y tenerlas en git es la
+#     mitad del motivo para salir de SQLite. Este repo no se pushea solo.
 data/entries/
 data/cache/
 

@@ -94,16 +94,3 @@ func TestEnvironmentComesFromCommand_NotFromProse(t *testing.T) {
 		t.Errorf("el ambiente del comando sí: %v", f)
 	}
 }
-
-func TestIsEnvironmentSeparatesBothCases(t *testing.T) {
-	for _, a := range []string{"prod", "qa", "staging", "dev", "local"} {
-		if !IsEnvironment(a) {
-			t.Errorf("%q es un ambiente", a)
-		}
-	}
-	for _, h := range []string{"harness", "trazador", "DB", "Loki", "PostHog", "git", "HTTP", "navegador"} {
-		if IsEnvironment(h) {
-			t.Errorf("%q es una herramienta, no un ambiente", h)
-		}
-	}
-}

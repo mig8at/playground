@@ -47,8 +47,6 @@ func New(baseURL string) *Client {
 
 func FromEnv() *Client { return New(URL()) }
 
-func (c *Client) URL() string { return c.baseURL }
-
 // Reference es la proyección chica que necesita Tablero. ID conserva la cita
 // canónica que se puede poner de nuevo en una tarea; Requested conserva lo que
 // escribió la persona para que un error se pueda corregir sin adivinarlo.

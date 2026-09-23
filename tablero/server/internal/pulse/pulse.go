@@ -198,7 +198,7 @@ func Run(cfg Config, since, now time.Time) Tick {
 		wg.Add(1)
 		go func(i int, o goal) {
 			defer wg.Done()
-			res[i] = ProbeNamed(o.name, o.repo, since, cfg.Emails)
+			res[i] = Probe(o.name, o.repo, since, cfg.Emails)
 		}(i, o)
 	}
 	wg.Wait()
@@ -212,13 +212,9 @@ func Run(cfg Config, since, now time.Time) Tick {
 }
 
 // Probe interroga UN repo y devuelve las señales que caen en la ventana. Nunca falla: un repo roto o a
-// medio clonar simplemente no aporta señales — el pulso no puede caerse por un repo.
-func Probe(root, repo string, since time.Time, emails []string) []Signal {
-	return ProbeNamed(Name(root, repo), repo, since, emails)
-}
-
-// ProbeNamed es Probe con el nombre ya resuelto: para los repos de `Extra`, que no están bajo la raíz.
-func ProbeNamed(name, repo string, since time.Time, emails []string) []Signal {
+// medio clonar simplemente no aporta señales — el pulso no puede caerse por un repo. Recibe el nombre ya
+// resuelto porque los repos de `Extra` no están bajo la raíz.
+func Probe(name, repo string, since time.Time, emails []string) []Signal {
 	ctx, cancel := context.WithTimeout(context.Background(), perRepoTimeout)
 	defer cancel()
 

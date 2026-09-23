@@ -19,7 +19,6 @@ GENERADOS = {
     "workers/archivos.json": "python3 -c \"import sys;sys.path.insert(0,'workers');"
                              "import archivos;archivos.construir()\"",
     "workers/repos.json": "python3 workers/cli.py repos --construir (o `pesos` para los tamaños)",
-    "tablero/data/cache/repos.json": "make repos",
 }
 
 

@@ -3,7 +3,6 @@ module creditop/tablero/server
 go 1.25.5
 
 require (
-	github.com/coder/websocket v1.8.15
 	github.com/go-sql-driver/mysql v1.9.2
 	github.com/modelcontextprotocol/go-sdk v1.6.1
 )

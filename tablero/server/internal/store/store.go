@@ -23,9 +23,9 @@
 // F-xx— así que el archivo aparte era redundancia, no seguridad. El `jira.json`, además, no llevaba nada:
 // sus filas tenían SOLO la clave de la tarea, o sea existía para guardar una lista → hoy es `jira:`.
 //
-// Las anotaciones locales de una tarea (estado real, definición, estimados) van a
-// `data/tareas-locales.json`, y sólo si alguna tiene contenido: son propiedad de la TAREA, mientras que el
-// vínculo esfuerzo→tareas es propiedad del ESFUERZO. Mientras nadie las use, ese archivo no existe.
+// El vínculo esfuerzo→tareas de Jira es propiedad del ESFUERZO: vive en su `jira:`. (Hubo además
+// anotaciones locales por tarea —estado real, definición, estimados— en `data/tareas-locales.json`; la UI
+// dejó de escribirlas el 2026-07-21, el archivo ya no existía, y se retiraron el 2026-09-23.)
 //
 // QUÉ SE CONSERVÓ DEL DISEÑO ANTERIOR (las decisiones siguen valiendo, cambió el soporte):
 //
@@ -83,8 +83,7 @@ type Store struct {
 	entries  []Entry              // TODOS, incluidos los borrados: el borrado es suave
 	deleted  map[int64]string     // id de entry → deleted_at
 	locals   map[string]TaskLocal // clave de tarea → capa local
-	settings map[string]string
-	cache    map[string]any // snapshot de Jira: sprints y tasks
+	cache    map[string]any       // snapshot de Jira: sprints y tasks
 }
 
 // Open abre (o crea) el directorio de datos y carga todo en memoria.
@@ -96,7 +95,6 @@ func Open(dir string) (*Store, error) {
 		archived: map[int64]string{},
 		deleted:  map[int64]string{},
 		locals:   map[string]TaskLocal{},
-		settings: map[string]string{},
 		cache:    map[string]any{},
 	}
 	for _, sub := range []string{filepath.Join(dir, "entries"), filepath.Join(dir, "cache"), s.layout.Tasks} {
@@ -109,8 +107,6 @@ func Open(dir string) (*Store, error) {
 	}
 	return s, nil
 }
-
-func (s *Store) Close() error { return nil }
 
 // ── carga ───────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -208,24 +204,8 @@ func (s *Store) load() error {
 	if err := s.loadEntries(); err != nil {
 		return err
 	}
-	if err := readJSON(filepath.Join(s.dir, "settings.json"), &s.settings); err != nil {
-		return err
-	}
 	if err := readJSON(filepath.Join(s.dir, "cache", "jira.json"), &s.cache); err != nil {
 		return err
-	}
-	// Anotaciones de tareas (estado real, definición, estimados). Se cargan DESPUÉS de los esfuerzos y se
-	// MEZCLAN: el vínculo con el esfuerzo lo puso el frontmatter y no debe perderse acá.
-	annotations := map[string]localTaskJSON{}
-	if err := readJSON(filepath.Join(s.dir, "tareas-locales.json"), &annotations); err != nil {
-		return err
-	}
-	for k, a := range annotations {
-		tl := s.locals[k]
-		tl.TaskKey = k
-		tl.RealState, tl.Definition = a.RealState, a.Definition
-		tl.EstimateMinutes, tl.EstimatePoints, tl.UpdatedAt = a.EstimateMinutes, a.EstimatePoints, a.UpdatedAt
-		s.locals[k] = tl
 	}
 	return nil
 }
@@ -250,6 +230,10 @@ type Artifact struct {
 //
 // La etiqueta es el nombre sin extensión, sin el `<slug>.` que traían los que nacieron con la
 // convención vieja, y con los guiones como espacios; `<slug>.html` sigue siendo «prototipo».
+// artifactLabel: los guiones son espacios, y el punto que queda separa el grupo de la parte
+// (`sdk-del-comercio.prototipo-tecnico` → «sdk del comercio · prototipo tecnico»).
+var artifactLabel = strings.NewReplacer("-", " ", ".", " · ")
+
 func (s *Store) artifactsOf(slug string) []Artifact {
 	entries, err := os.ReadDir(s.layout.ArtifactsPath(slug))
 	if err != nil {
@@ -261,14 +245,14 @@ func (s *Store) artifactsOf(slug string) []Artifact {
 		if d.IsDir() || strings.HasPrefix(n, ".") {
 			continue
 		}
-		label := strings.TrimPrefix(n, slug+".")
-		if ext := filepath.Ext(label); ext == ".html" {
-			label = strings.TrimSuffix(label, ext)
-		}
-		if n == slug+".html" {
+		// La extensión no va en la etiqueta: la UI muestra el tipo aparte, y 13 de los 21 no son HTML.
+		ext := filepath.Ext(n)
+		base := strings.TrimSuffix(n, ext)
+		label := strings.TrimPrefix(base, slug+".")
+		if base == slug && ext == ".html" {
 			label = "prototipo"
 		}
-		out = append(out, Artifact{File: slug + "/" + n, Label: strings.ReplaceAll(label, "-", " ")})
+		out = append(out, Artifact{File: slug + "/" + n, Label: artifactLabel.Replace(label)})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Label < out[j].Label })
 	return out
@@ -452,46 +436,6 @@ func (s *Store) List(days int, sprintID int64) ([]Entry, error) {
 	return out, nil
 }
 
-// ListForWork devuelve el registro completo de avances de una tarea o esfuerzo, sin una ventana de
-// tiempo. La pantalla lo agrupa por Hoy, Ayer y fecha; aplicarle el corte de 30 días de `List` haría
-// que su histórico desapareciera justo cuando deja de ser reciente. No escribe ni reordena nada.
-func (s *Store) ListForWork(taskKey string, effortID int64) ([]Entry, error) {
-	if strings.TrimSpace(taskKey) == "" && effortID == 0 {
-		return nil, fmt.Errorf("falta tarea o esfuerzo")
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	out := []Entry{}
-	for _, e := range s.entries {
-		if _, dead := s.deleted[e.ID]; dead {
-			continue
-		}
-		if (taskKey != "" && e.TaskKey == taskKey) || (effortID != 0 && e.EffortID == effortID) {
-			out = append(out, e)
-		}
-	}
-	sort.SliceStable(out, func(i, j int) bool { return out[i].StartedAt > out[j].StartedAt })
-	return out, nil
-}
-
-// SoftDelete marca el registro, no lo elimina: el análisis histórico no pierde datos por un mis-click.
-func (s *Store) SoftDelete(id int64) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, alreadyDeleted := s.deleted[id]; alreadyDeleted {
-		return nil
-	}
-	for _, e := range s.entries {
-		if e.ID == id {
-			s.deleted[id] = time.Now().Format(time.RFC3339)
-			return s.writeMonth(monthOf(e.Day))
-		}
-	}
-	return nil
-}
-
 func (s *Store) nextEntryID() int64 {
 	var max int64
 	for _, e := range s.entries {
@@ -577,82 +521,16 @@ func (s *Store) upsertCache(table, key, value string, row map[string]any) error 
 	return s.writeJSON(filepath.Join(s.dir, "cache", "jira.json"), s.cache)
 }
 
-// ── capa local de una tarea ─────────────────────────────────────────────────────────────────────────────
+// ── vínculo de una tarea de Jira con su tarea local ─────────────────────────────────────────────────────
 
-// TaskLocal es la capa privada de una tarea (mi verdad, separada del snapshot de Jira). Punteros para
-// distinguir "sin definir" de "cero": un estimado de 0 no es lo mismo que no haberlo puesto.
+// TaskLocal dice de qué tarea local cuelga una tarea de Jira. El vínculo vive en el `jira:` del
+// frontmatter de la tarea local; esto es su índice inverso.
+//
+// Tuvo además estado real, definición y estimados, editables desde la UI. La UI los dejó de escribir
+// el 2026-07-21 («la tarea es la de Jira») y el archivo que los guardaba ya no existía: se retiraron.
 type TaskLocal struct {
-	TaskKey         string   `json:"taskKey"`
-	RealState       string   `json:"realState"`
-	Definition      string   `json:"definition"`
-	EstimateMinutes *int     `json:"estimateMinutes"`
-	EstimatePoints  *float64 `json:"estimatePoints"`
-	EffortID        int64    `json:"effortId"`
-	UpdatedAt       string   `json:"updatedAt,omitempty"`
-}
-
-// localTaskJSON es la forma en disco, dentro del `jira.json` del esfuerzo que la contiene.
-type localTaskJSON struct {
-	Key             string   `json:"key"`
-	RealState       string   `json:"realState,omitempty"`
-	Definition      string   `json:"definition,omitempty"`
-	EstimateMinutes *int     `json:"estimateMinutes,omitempty"`
-	EstimatePoints  *float64 `json:"estimatePoints,omitempty"`
-	EffortID        int64    `json:"-"`
-	UpdatedAt       string   `json:"updatedAt,omitempty"`
-}
-
-func (t localTaskJSON) aTaskLocal() TaskLocal {
-	return TaskLocal{
-		TaskKey: t.Key, RealState: t.RealState, Definition: t.Definition,
-		EstimateMinutes: t.EstimateMinutes, EstimatePoints: t.EstimatePoints,
-		EffortID: t.EffortID, UpdatedAt: t.UpdatedAt,
-	}
-}
-
-type jiraJSON struct {
-	EffortID int64           `json:"effortId"`
-	Tasks    []localTaskJSON `json:"tasks"`
-}
-
-// GetTaskLocal trae la capa local; si no existe, devuelve una vacía con la clave (no es error).
-func (s *Store) GetTaskLocal(key string) (TaskLocal, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if tl, ok := s.locals[key]; ok {
-		return tl, nil
-	}
-	return TaskLocal{TaskKey: key}, nil
-}
-
-// SaveTaskLocal guarda la capa local en el `jira.json` del esfuerzo al que pertenece. Si la tarea no
-// cuelga de ningún esfuerzo va a `tareas-locales.json`: si no, no tendría dónde vivir.
-func (s *Store) SaveTaskLocal(tl TaskLocal) (TaskLocal, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	previous := s.locals[tl.TaskKey]
-	tl.UpdatedAt = time.Now().Format(time.RFC3339)
-	s.locals[tl.TaskKey] = tl
-
-	// El VÍNCULO vive en el frontmatter del esfuerzo, así que si cambió de esfuerzo hay que reescribir
-	// los dos: el nuevo para que la liste, y el de origen para que deje de listarla.
-	affected := map[int64]bool{}
-	if tl.EffortID != 0 {
-		affected[tl.EffortID] = true
-	}
-	if previous.EffortID != 0 && previous.EffortID != tl.EffortID {
-		affected[previous.EffortID] = true
-	}
-	for id := range affected {
-		if err := s.writeEffort(id); err != nil {
-			return TaskLocal{}, err
-		}
-	}
-	if err := s.writeAnnotations(); err != nil {
-		return TaskLocal{}, err
-	}
-	return tl, nil
+	TaskKey  string `json:"taskKey"`
+	EffortID int64  `json:"effortId"`
 }
 
 // AllTaskLocals devuelve todas las capas locales, indexadas por clave de tarea. La UI la usa para agrupar
@@ -665,28 +543,6 @@ func (s *Store) AllTaskLocals() (map[string]TaskLocal, error) {
 		out[k] = v
 	}
 	return out, nil
-}
-
-// writeAnnotations guarda SOLO las capas locales con contenido. Una tarea que sólo está ligada a un
-// esfuerzo no aparece acá: su vínculo ya vive en el `jira:` del esfuerzo, y duplicarlo daría dos lugares
-// que se pueden contradecir. Si no queda ninguna con contenido, el archivo se borra en vez de quedar `{}`.
-func (s *Store) writeAnnotations() error {
-	out := map[string]localTaskJSON{}
-	for k, tl := range s.locals {
-		if tl.RealState == "" && tl.Definition == "" && tl.EstimateMinutes == nil && tl.EstimatePoints == nil {
-			continue
-		}
-		out[k] = localTaskJSON{
-			Key: tl.TaskKey, RealState: tl.RealState, Definition: tl.Definition,
-			EstimateMinutes: tl.EstimateMinutes, EstimatePoints: tl.EstimatePoints, UpdatedAt: tl.UpdatedAt,
-		}
-	}
-	path := filepath.Join(s.dir, "tareas-locales.json")
-	if len(out) == 0 {
-		os.Remove(path)
-		return nil
-	}
-	return s.writeJSON(path, out)
 }
 
 // ── esfuerzos ───────────────────────────────────────────────────────────────────────────────────────────
@@ -733,10 +589,10 @@ type Effort struct {
 	Class     string `json:"clase,omitempty"`
 	CreatedAt string `json:"createdAt"`
 	// TouchedAt: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
-	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `touches.go`.
+	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `layout/history.go`.
 	TouchedAt string `json:"tocadoEn,omitempty"`
 	// ANOTACIONES: los marcadores con fecha que el CUERPO declara (mediciones, decisiones, preguntas,
-	// riesgos). Igual que los prototipos, salen del contenido y no de una lista que haya que mantener.
+	// riesgos). Igual que los artifacts, salen de la tarea misma y no de una lista que haya que mantener.
 	// Ver `annotations.go` para la forma y el porqué.
 	Annotations []Annotation `json:"anotaciones"`
 	// PENDIENTES: lo que queda por hacer, en casillas de markdown dentro del CUERPO. Mismo criterio que
@@ -761,21 +617,6 @@ type Effort struct {
 	// `branches.go`—, porque una lista de ramas a mano miente en silencio en cuanto algo se mergea o se
 	// renombra. Vacío = la tarea no toca código (o todavía no se sabe).
 	BranchPatterns string `json:"ramasPatron"`
-}
-
-// Stages son las etapas válidas, en orden.
-var Stages = []string{"evaluation", "work", "tasks"}
-
-// Classes son las naturalezas válidas. Ver `Effort.Class`.
-var Classes = []string{"tarea", "proyecto"}
-
-func validStage(s string) bool {
-	for _, v := range Stages {
-		if v == s {
-			return true
-		}
-	}
-	return false
 }
 
 // rereadIfChanged vuelve a leer las tareas si algún `.md` cambió en disco desde la última lectura.
@@ -925,9 +766,7 @@ func (s *Store) ImportFromJira(in ImportIssue) (Effort, bool, error) {
 	return e, true, nil
 }
 
-// LinkTask cuelga una tarea de Jira de un esfuerzo SIN tocar sus anotaciones (estado real,
-// definición, estimados). SaveTaskLocal recibe la capa entera y la reemplaza —correcto cuando la manda
-// el formulario, destructivo cuando lo único que querés es enlazar.
+// LinkTask cuelga una tarea de Jira de un esfuerzo.
 func (s *Store) LinkTask(key string, effortID int64) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -968,57 +807,6 @@ func (s *Store) LinkedTasks() map[string]int64 {
 		}
 	}
 	return out
-}
-
-// SetEffortStage mueve el esfuerzo de etapa.
-func (s *Store) SetEffortStage(id int64, stage string) error {
-	if !validStage(stage) {
-		return fmt.Errorf("etapa inválida: %s (válidas: %v)", stage, Stages)
-	}
-	return s.mutate(id, func(e *Effort) { e.Stage = stage })
-}
-
-// SaveEffortTech guarda el detalle técnico privado y/o los temas de canon. Recibe PUNTEROS: nil = "no
-// lo toques". Sin eso, guardar un solo campo borraba el otro (ya pasó una vez).
-func (s *Store) SaveEffortTech(id int64, techNotes, canonTopics *string) error {
-	return s.mutate(id, func(e *Effort) {
-		if techNotes != nil {
-			e.TechNotes = *techNotes
-		}
-		if canonTopics != nil {
-			e.CanonTopics = *canonTopics
-		}
-	})
-}
-
-// SaveEffortDraft guarda el borrador de Jira. Mismos punteros que SaveEffortTech.
-func (s *Store) SaveEffortDraft(id int64, jiraTitle, jiraDescription *string) error {
-	return s.mutate(id, func(e *Effort) {
-		if jiraTitle != nil {
-			e.JiraTitle = *jiraTitle
-		}
-		if jiraDescription != nil {
-			e.JiraDescription = *jiraDescription
-		}
-	})
-}
-
-// mutate aplica el cambio y re-escribe el archivo del esfuerzo.
-func (s *Store) mutate(id int64, apply func(*Effort)) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for i := range s.efforts {
-		if s.efforts[i].ID != id {
-			continue
-		}
-		if s.archived[id] != "" {
-			return fmt.Errorf("no existe el esfuerzo %d", id) // archivado = no editable, como antes
-		}
-		apply(&s.efforts[i])
-		return s.writeEffort(id)
-	}
-	return fmt.Errorf("no existe el esfuerzo %d", id)
 }
 
 func (s *Store) find(id int64) *Effort {
@@ -1069,39 +857,6 @@ func (s *Store) writeEffort(id int64) error {
 	return writeAtomic(s.layout.TaskPath(s.slugs[id]), []byte(b.String()))
 }
 
-// ── ajustes ─────────────────────────────────────────────────────────────────────────────────────────────
-
-// KnownSettings son los flags que el tablero reconoce, con su default. Off por defecto: la empresa no pide
-// tiempo ni puntos, así que arrancan ocultos. Cualquier clave fuera de acá se ignora.
-var KnownSettings = map[string]bool{"trackTime": false, "trackPoints": false}
-
-// Settings devuelve los flags con sus defaults, pisados por lo guardado.
-func (s *Store) Settings() (map[string]bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := map[string]bool{}
-	for k, def := range KnownSettings {
-		out[k] = def
-	}
-	for k, v := range s.settings {
-		if _, ok := KnownSettings[k]; ok { // ignora claves que ya no existen
-			out[k] = v == "true"
-		}
-	}
-	return out, nil
-}
-
-// SetSetting persiste un flag (solo si es conocido).
-func (s *Store) SetSetting(key string, val bool) error {
-	if _, ok := KnownSettings[key]; !ok {
-		return fmt.Errorf("setting desconocido: %s", key)
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.settings[key] = strconv.FormatBool(val)
-	return s.writeJSON(filepath.Join(s.dir, "settings.json"), s.settings)
-}
-
 // ── utilidades de archivo ───────────────────────────────────────────────────────────────────────────────
 
 func (s *Store) writeJSON(path string, v any) error {
@@ -1136,16 +891,6 @@ func readJSON(path string, dest any) error {
 	}
 	if len(strings.TrimSpace(string(raw))) == 0 {
 		return nil
-	}
-	return json.Unmarshal(raw, dest)
-}
-
-// readJSONStrict exige que exista: un `jira.json` faltante es una carpeta de esfuerzo a medio escribir,
-// y callarlo haría perder las tareas ligadas sin aviso.
-func readJSONStrict(path string, dest any) error {
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return err
 	}
 	return json.Unmarshal(raw, dest)
 }

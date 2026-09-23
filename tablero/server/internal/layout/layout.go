@@ -78,15 +78,13 @@ func ValidSlug(slug string) bool { return slugRe.MatchString(slug) }
 func (l Layout) Dir(slug string) string { return filepath.Join(l.Tasks, slug) }
 
 // TaskPath es el documento de una tarea.
-func (l Layout) TaskPath(slug string) string { return filepath.Join(l.Tasks, slug, TaskFile) }
+func (l Layout) TaskPath(slug string) string { return filepath.Join(l.Dir(slug), TaskFile) }
 
 // ContextPath es la pila de hitos de una tarea.
-func (l Layout) ContextPath(slug string) string { return filepath.Join(l.Tasks, slug, ContextFile) }
+func (l Layout) ContextPath(slug string) string { return filepath.Join(l.Dir(slug), ContextFile) }
 
 // ArtifactsPath es la carpeta de artifacts de una tarea.
-func (l Layout) ArtifactsPath(slug string) string {
-	return filepath.Join(l.Tasks, slug, ArtifactsDir)
-}
+func (l Layout) ArtifactsPath(slug string) string { return filepath.Join(l.Dir(slug), ArtifactsDir) }
 
 // Slugs: las tareas que existen, o sea las carpetas de `tasks/` que tienen su `task.md`, en orden
 // alfabético. Una carpeta sin `task.md` no es una tarea (puede ser una a medio crear).

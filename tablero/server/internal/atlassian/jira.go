@@ -461,22 +461,3 @@ func (c *Client) TransitionIssue(ctx context.Context, key, transitionID string) 
 	body := map[string]any{"transition": map[string]string{"id": transitionID}}
 	return c.do(ctx, http.MethodPost, "/rest/api/3/issue/"+key+"/transitions", body, nil)
 }
-
-// IssueType es un tipo de issue disponible en un proyecto.
-type IssueType struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Subtask bool   `json:"subtask"`
-}
-
-// ProjectIssueTypes lista los tipos de issue creables en un proyecto
-// (GET /rest/api/3/issue/createmeta/{key}/issuetypes). Solo lectura.
-func (c *Client) ProjectIssueTypes(ctx context.Context, projectKey string) ([]IssueType, error) {
-	var raw struct {
-		IssueTypes []IssueType `json:"issueTypes"`
-	}
-	if err := c.do(ctx, http.MethodGet, "/rest/api/3/issue/createmeta/"+projectKey+"/issuetypes", nil, &raw); err != nil {
-		return nil, err
-	}
-	return raw.IssueTypes, nil
-}

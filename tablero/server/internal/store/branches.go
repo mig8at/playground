@@ -6,8 +6,8 @@ package store
 // lo demás sale de git: qué ramas matchean en cada repo, y contra qué ramas de ambiente está mergeado el
 // commit. Una lista de ramas escrita a mano miente en silencio en cuanto algo se mergea, se renombra o
 // se abre otra — pasó tres veces en un día con la tarea de países (`-onto-develop`, `-onto-staging`, y
-// un PR viejo a `main` que ya no era el camino). Es la misma decisión que ya tomaron los prototipos (el
-// vínculo es el NOMBRE del archivo) y las anotaciones (salen del cuerpo).
+// un PR viejo a `main` que ya no era el camino). Es la misma decisión que ya tomaron los artifacts (son lo
+// que hay en la carpeta de la tarea) y las anotaciones (salen del cuerpo).
 //
 // POR QUÉ POR PATCH-ID Y NO POR NOMBRE. `git cherry` compara por patch-id, así que detecta un commit que
 // llegó por SQUASH — donde el hash cambia y el nombre de la rama ya no existe. Preguntar `git branch

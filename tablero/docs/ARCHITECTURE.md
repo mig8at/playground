@@ -24,11 +24,12 @@ No existe una segunda copia editable de esos datos.
 
 1. Abrir **Mis tareas**, agrupadas por estado, con Terminadas plegado inicialmente. Los filtros y
    la búsqueda se aplican antes de agrupar; buscar muestra también coincidencias en grupos plegados.
-2. Elegir **Retomar**: un panel único muestra la tarea, con pestañas de Trabajo, Jira, Pendientes, Hallazgos,
-   Ramas, Bitácora y, cuando existen, Prototipos.
-3. Trabajo muestra una sola retoma y pliega el historial al final. Las listas de pendientes se
-   proyectan con sus notas en Pendientes; los marcadores de anotación se consultan en Hallazgos.
-   El índice abre la sección histórica al seleccionarla. El archivo original y los copiados conservan su orden.
+2. Abrir una tarea: el centro es su cronología —Hoy, Ayer y después cada fecha, con los hitos de
+   `context.jsonl`—, seguida del documento de trabajo, los hallazgos y la evidencia. A la derecha, tres
+   pestañas de consulta: **Jira**, **Pendientes** y **Artifacts**; abajo, la consola de **Ramas**.
+3. El avance de pendientes del encabezado abre Pendientes aunque la región esté plegada (en una ventana
+   de ≤1050px arranca así). Las listas de pendientes se proyectan con sus notas; los marcadores de
+   anotación se consultan en Hallazgos.
 4. Al cerrar, reescribir la retoma y el próximo paso; el Registro conserva la historia.
 
 La jornada plegada, el ancho de los DOS sidebars y si la ficha se ve viven en `localStorage`
@@ -49,7 +50,7 @@ de estado y los grupos plegados se reinician al recargar para hacer visible el t
 - `src/ui-state.js`: preferencias, límites de ancho y agrupación por estado.
 - `server/internal/store`: archivos, parsers y persistencia local.
 - `server/cmd/today`: agenda y retoma para consola.
-- `server/cmd/web`: API HTTP/WebSocket e integración con Jira y Slack.
+- `server/cmd/web`: la API HTTP que lee la UI, e integración con Jira y Slack.
 - `server/cmd/{jira-mcp,slack-mcp}`: conectores MCP por stdio.
 
 Para las reglas de edición de tareas, leer `../CLAUDE.md`; para los comandos, `../README.md`.

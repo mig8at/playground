@@ -669,8 +669,8 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   384**, no al backlog. **Nada se publica sin que Miguel lo vea antes** — los tres escriben hacia
   afuera y lo ve el equipo.
 - **UNA TAREA ES UNA CARPETA** (desde el 2026-09-23): `tasks/<slug>/` con su documento `task.md`, su
-  pila `context.jsonl` y sus `artifacts/`. `data/` quedó para lo operativo —bitácora, pulso, cachés,
-  `settings.json` y las trampas—. Hasta ese día las tareas eran `data/<slug>.md` sueltos y lo demás se
+  pila `context.jsonl` y sus `artifacts/`. `data/` quedó para lo operativo —bitácora, pulso, cachés y
+  las trampas—. Hasta ese día las tareas eran `data/<slug>.md` sueltos y lo demás se
   les unía POR NOMBRE, y la convención falló en silencio: 13 de 21 artifacts no eran `.html` y no se
   veían nunca, y uno quedó huérfano cinco semanas porque su tarea se renombró. Una carpeta se renombra
   con todo lo que tiene adentro. **Dónde vive cada cosa lo sabe un solo lugar: el paquete
@@ -679,12 +679,14 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   las mudanzas (un movimiento puro, R100, no cuenta; mover y editar a la vez, sí). Sin eso, el día de
   la mudanza las 46 tareas habrían amanecido «tocadas hoy».
 - `data/entries/*.jsonl` (bitácora de tiempo), `data/pulse/*.jsonl` (el pulso) y `data/cache/` están
-  **fuera de git** a propósito (dato personal / snapshot descartable); las carpetas de `tasks/` y
-  `settings.json` **sí** se versionan. No lo cambies.
+  **fuera de git** a propósito (dato personal / snapshot descartable); las carpetas de `tasks/` **sí**
+  se versionan. No lo cambies. *(`settings.json` también se versionaba: eran los flags del engranaje,
+  que se fue el 2026-08-18; nadie lo leía y se borró el 2026-09-23.)*
 - **ARTIFACTS: todo lo que haya en `tasks/<slug>/artifacts/`** —prototipos, consultas, notas—. El
   panel de la tarea muestra la pestaña **Artifacts** con la lista; cada uno se sirve en
-  `GET /artifacts/<slug>/<archivo>`. `<slug>.html` se etiqueta «prototipo» y `<slug>.<variante>.html`
-  toma la variante como etiqueta; cualquier otro archivo, su nombre. Para un prototipo, tres reglas:
+  `GET /artifacts/<slug>/<archivo>`, con su tipo (la extensión) al lado. La etiqueta es el nombre sin
+  extensión ni el prefijo `<slug>.`: `<slug>.html` se etiqueta «prototipo», `<slug>.<variante>.html`
+  toma la variante, y un punto que quede separa grupo y parte (« · »). Para un prototipo, tres reglas:
   1. **Un HTML autocontenido, sin build.** Si necesita `npm install`, no es un artefacto: es una
      carpeta del playground con su entrada en el `Makefile`.
   2. **Lleva la fecha visible adentro.** Un prototipo sin fecha se lee como estado actual; con fecha
@@ -693,8 +695,8 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
      tarea. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 - **RAMAS: se declaran los PATRONES, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter
   —o varios separados por coma— y `make tareas-ramas` responde en qué ramas de qué repos vive la tarea,
-  **en qué ambientes ya está el cambio** y **en qué estado está su PR**. Igual que los prototipos (el
-  vínculo es el nombre) y las anotaciones (salen del cuerpo): una lista de ramas escrita a mano **miente
+  **en qué ambientes ya está el cambio** y **en qué estado está su PR**. Igual que los artifacts (son lo
+  que hay en la carpeta) y las anotaciones (salen del cuerpo): una lista de ramas escrita a mano **miente
   en silencio** en cuanto algo se mergea o se renombra. Medido el 2026-08-19 grepeando las 16 tareas de
   los últimos 4 sprints: de los nombres de rama que aparecen escritos en los cuerpos, **dos no resuelven
   hoy** — uno porque la rama se renombró (`codebtor-` → `cosigner-`, el cuerpo lo aclara al lado, pero un

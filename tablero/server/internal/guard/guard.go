@@ -1,21 +1,19 @@
 // Package guard tiene los patrones de lo que NO puede salir del playground hacia Jira o Slack.
 //
-// Es la FUENTE ÚNICA: el POST del server los re-aplica antes de escribir, `cmd/issue-create` los aplica
-// antes de publicar y `cmd/tasks` los usa para decir si una tarea puede salir. `/api/guard` los expone
-// para que un cliente los compile y bloquee el botón sin ir al server — hoy **nadie lo consume**: la UI
-// manda el POST y muestra los `problems` que devuelve. Si algún día se usa, el patrón tiene que seguir
-// siendo válido en JS además de RE2. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a
-// copiarlo para usarlo desde otro comando — y el comentario original ya advertía que dos copias
-// habrían derivado. Tres, peor.
+// Es la FUENTE ÚNICA: el aviso a QA del server los aplica antes de mandar el DM, `cmd/issue-create` antes
+// de publicar, `make bitacora-add` antes de escribir, y `cmd/tasks` los usa para decir si una tarea puede
+// salir. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a copiarlo
+// para usarlo desde otro comando — y el comentario original ya advertía que dos copias habrían
+// derivado. Tres, peor.
 //
-// Sintaxis compatible RE2 (Go) y JS a la vez: nada de lookbehind ni named groups, porque la UI
-// compila estos mismos patrones en el navegador.
+// Sintaxis RE2 (Go). Hasta el 2026-09-23 además tenían que valer en JS, porque `/api/guard` los servía
+// para que la UI los compilara en el navegador; nunca tuvo quien lo llamara y se retiró.
 package guard
 
 import "regexp"
 
 // Pattern es una regla con su motivo. `What` es texto para mostrarle a una persona → va en español;
-// el resto son identificadores. Se serializa tal cual para `/api/guard`.
+// el resto son identificadores.
 type Pattern struct {
 	Re   string `json:"re"`
 	What string `json:"what"`

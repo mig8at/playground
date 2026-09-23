@@ -37,7 +37,7 @@ const UIS = [
  * contenido de verdad y no sólo el estado vacío. Si falla, no es un error del chequeo: se anota. */
 const PREPARAR = {
   tablero: async (page) => {
-    /* ⚠ Sus tareas llegan por WEBSOCKET desde su server Go, no con el HTML. Recién cargado el sidebar
+    /* ⚠ Sus tareas llegan después del HTML, por `fetch` a su server Go. Recién cargado el sidebar
      * tiene UNA vista («Traer de Jira») y cero filas: con 600ms de espera el barrido medía una app
      * vacía y decía ✓. Se espera la SEÑAL —que aparezcan las vistas de estado— en vez de dormir un
      * número, que es lo que hace que el chequeo mida lo mismo en una máquina lenta. */

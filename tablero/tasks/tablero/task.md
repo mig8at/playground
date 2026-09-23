@@ -21,9 +21,10 @@ una ruta copiable (`#/tareas/context`, `#/tareas/core-543`) que restaura la tare
 responde a atrás/adelante.
 
 La cabecera de la tarea concentra sprint, puntos, tiempo en Jira y los enlaces de contexto local. El
-sidebar derecho ya no repite una ficha de detalle: usa pestañas para Jira, pendientes, hallazgos,
-registro, bitácora y prototipos. Jira abre primero, ocupa todo el alto y muestra la descripción sin
-marco de tarjeta. En ventanas medianas el sidebar se pliega y se recupera desde el pie.
+sidebar derecho ya no repite una ficha de detalle: usa tres pestañas —Jira, Pendientes y Artifacts, cada
+artifact con su tipo—. Jira abre primero, ocupa todo el alto y muestra la descripción sin marco de
+tarjeta. En ventanas medianas el sidebar se pliega y se recupera desde el pie o desde el avance de
+pendientes de la cabecera.
 
 La pulida visual comparte una sola gramática entre regiones: filas activas de superficie suave,
 pestañas compactas con el mismo estado seleccionado, controles agrupados y tablas con seguimiento al
@@ -72,9 +73,20 @@ que no es inglés, y al estrenarse encontró 13 nombres en español (25 declarac
 46 tareas, 22 pilas y 21 artifacts con `git mv`; dónde vive cada cosa lo sabe `server/internal/layout`, y
 «días sin tocar» y el cierre siguen las mudanzas. Detalle en «Frente: cada tarea es una carpeta».
 
-**El próximo paso es:** reiniciar el `make tablero` que esté corriendo (el servidor viejo ya no encuentra
-tareas en `data/`) y, después, decidir cuándo va la 4b —las claves JSON y `schemas/tarea.v1.schema.json`—
-y qué hacer con `tema.css`/`taller.css`, compartidos con harness y trazador.
+**La interfaz y lo que quedó muerto (2026-09-23).** El server se quedó con lo que la UI lee: se fueron
+el WebSocket del dashboard original, el guard servido a la UI, los ajustes (`settings.json`), la
+escritura de tareas y de bitácora —la UI dejó de escribir el 2026-07-21— y la consola de repos que
+sólo leía la vista de `context` (`make repos`). Son 1.085 líneas netas de Go, la dependencia del
+WebSocket y 34 reglas de CSS. En la interfaz, cinco arreglos: el avance de pendientes abre la región
+lateral aunque esté plegada, los hitos llevan el espacio tras su rótulo, los enlaces del documento
+toman el color del tema, los pendientes ya no llevan viñeta y casilla, y la pestaña «Prototipos» pasó
+a «Artifacts», con el tipo de cada archivo. `make tablero-ui-offline` los comprueba sin servidores.
+Detalle en «Frente: la interfaz y lo que quedó muerto».
+
+**El próximo paso es:** reiniciar el `make tablero` que esté corriendo —el servidor viejo ya no encuentra
+tareas en `data/` y todavía sirve las rutas retiradas— y mirar la interfaz a mano, que en esta sesión sólo
+se vio en un Chromium sin cabeza. Después, decidir cuándo va la 4b —las claves JSON y
+`schemas/tarea.v1.schema.json`— y qué hacer con `tema.css`/`taller.css`, compartidos con harness y trazador.
 
 > **MEDICIÓN · 2026-09-19** — sobre la tarea KYC #47, el Markdown completo pesa 64.571 bytes; la proyección compacta pesa 6.243 bytes (**90,3 % menos**) y la variante con borrador 11.856 bytes.
 > make tarea-json N=47; make tarea-json N=47 CONTENIDO=1; wc -c
@@ -112,15 +124,17 @@ y qué hacer con `tema.css`/`taller.css`, compartidos con harness y trazador.
 - [ ] Decidir `tema.css` y `taller.css`: son españoles pero compartidos con harness y trazador (fuente
       en `tools/ui/`); termina cuando se renombran en las tres a la vez o se declara que se quedan.
 - [x] Cada tarea es una carpeta: `tasks/<slug>/{task.md,context.jsonl,artifacts/}` — 89 movimientos, consola 31/33, API 15/17 + 2 con los cambios buscados, hooks probados con casos que fallan.
-- [ ] Mirar la interfaz andando con la forma nueva (pestaña Artifacts con los 21, abrir uno) cuando se reinicie `make tablero`; termina cuando la pestaña de #46 muestra sus 7 artifacts y abre uno.
-- [ ] Sacar los 5 colores literales del resaltado SQL de `src/App.vue` a tokens; termina cuando
-      `make estilo-check` sale 0 (hoy falla sólo por eso, chequeo 6).
+- [x] Mirar la interfaz andando con la forma nueva — la pestaña de #46 muestra «Artifacts 7» y abrir el
+      primero muestra el archivo; el `dist/` real contra el server nuevo, en un Chromium sin cabeza.
+- [x] Sacar los 5 colores literales del resaltado SQL de `src/App.vue` a tokens — `--sql-*` en la capa
+      semántica de `styles.css`; `make estilo-check` sale 0.
 - [ ] Resolver el contenedor `cuadrilla` (#93): el lint lo marca fuera de los siete nombres
       canónicos; termina cuando `make tareas TODAS=1` no muestra el ⚠ — sumándolo a la lista o
       absorbiéndolo en `playground`.
-- [ ] Actualizar `docs/ARCHITECTURE.md`: su «Recorrido diario» describe un panel con pestañas
-      Trabajo, Hallazgos y Ramas que ya no existe; termina cuando coincide con la tabla de regiones de
-      `CLAUDE.md`.
+- [x] Actualizar `docs/ARCHITECTURE.md`: el «Recorrido diario» describe la cronología del centro, las
+      tres pestañas y la consola de ramas.
+- [ ] Mirar a mano la interfaz reiniciada (el Chromium sin cabeza no ve lo que no se pregunta); termina
+      cuando Miguel la recorre y no aparece nada nuevo, o lo que aparezca queda anotado acá.
 - [ ] Comprobar que ninguna tarea local nueva nazca fuera de los siete nombres canónicos.
 - [ ] Confirmar que bitácora y retoma siguen agrupadas bajo la herramienta correcta.
 - [ ] Medir cuántos archivos y tokens evita `make tarea-json` en una retoma real con workers.
@@ -264,15 +278,47 @@ secuencia de clics en las dos pestañas. Los mapas de la fase 1, viejo → nuevo
 
 **Lo que no se hizo.** No se pudo mirar la interfaz andando: el lanzador de previews de esta sesión no dejó arriba los servidores de prueba. La API que la alimenta y la ruta de los artifacts sí se comprobaron (incluido que no deja salir de la carpeta con `..`). Quedan con la ruta vieja, a propósito, las anotaciones fechadas de otras tareas y las memorias que ya apuntaban a tareas que no existen.
 
+## Frente: la interfaz y lo que quedó muerto
+
+**Objetivo.** Pedido de Miguel el 2026-09-23: mejorar la interfaz y sacar lo que quedó muerto y no se va
+a usar. «Muerto» se midió, no se opinó: una ruta del server sin nadie que la llame (la UI, las
+herramientas, los hooks), una función que `deadcode` no alcanza desde ningún `main`, un campo que se
+asigna y nadie lee, una regla de CSS cuyo selector no puede coincidir con nada.
+
+> **MEDICIÓN · 2026-09-23** — rutas retiradas del server: `/ws` (el WebSocket del dashboard original; la UI de Vue nunca lo usó), `/api/guard` (sin consumidor desde siempre), `/api/settings` (el engranaje se fue el 2026-08-18), `/api/repos-ramas` y `/api/canon/references` (las leía la vista de `context`, apagada el 2026-09-21), `GET/PUT /api/task`, el `PUT/POST` de `/api/efforts` y el `POST`/`DELETE` de la bitácora (la UI dejó de escribir el 2026-07-21: «el asistente escribe, el tablero muestra»). Con ellas se fueron 33 funciones —17 del store, 10 del server, 4 del cliente de Jira (tres eran `activity.go` entero) y 2 envoltorios—, cuatro campos del server —el cliente Slack del bot sólo existía para anunciarse en el log— y la «capa local» de estado real, definición y estimados, cuyo archivo ya no existía: en las 41 claves de `/api/task-locals`, ninguno de esos campos tenía valor. `deadcode` y `staticcheck -checks U1000` quedan en cero.
+> cd tablero/server && GOFLAGS=-mod=mod go run golang.org/x/tools/cmd/deadcode@v0.50.0 ./...
+
+> **MEDICIÓN · 2026-09-23** — el binario de `HEAD` contra el nuevo, sobre los mismos datos: los 12 GET que lee la UI salen idénticos byte a byte salvo `/api/task-locals`, que es exactamente la proyección `{taskKey, effortId}` del viejo; las 10 rutas o verbos retirados dan 404 o 405 en el nuevo. Con los datos reales en un Chromium sin cabeza, la UI no tira errores de consola y sólo pide rutas vivas.
+
+> **RIESGO · 2026-09-23** — para comparar las rutas retiradas mandé un `DELETE /api/entries/1` al binario VIEJO, que corre sobre los datos reales y todavía borra. No escribió nada porque la entrada 1 no existe (el archivo del mes no cambió), pero pudo haber marcado como borrada una entrada verdadera. En un A/B, a una ruta que escribe se le pregunta sólo al binario nuevo, o se le pasa un id que no existe a propósito.
+
+> **MEDICIÓN · 2026-09-23** — `make tablero-ui-offline` corre la UI compilada sin servidores (el `dist/` desde disco, la API simulada) y comprueba los cinco arreglos de la interfaz. Contra la UI de `HEAD` fallan los seis chequeos específicos, cada uno por su causa; contra la nueva pasan los ocho.
+> make tablero-ui-offline
+
+> **DECISIÓN · 2026-09-23** — los métodos que quedaron de sólo lectura (`/api/efforts`, `/api/entries`) responden 405 a cualquier otro verbo en vez de devolver la lista: un cliente viejo que escribe tiene que enterarse de que no se guardó.
+
+**Lo que no se hizo.** La interfaz no se miró a mano: el lanzador de previews de esta sesión volvió a no
+dejar arriba el servidor, y la verificación visual fue con Chromium sin cabeza (capturas a 1440 y 1000px
+con los datos reales). `tema.css` y `taller.css` siguen sin decidir, y `jira-preview.js` conserva sus
+colores literales a propósito: es un documento aislado dentro de un iframe, donde los tokens del tema no
+llegan.
+
 ## Cómo se comprueba
 
 `make tareas TODAS=1`, `make tarea-json N=tablero`, `make tablero-jev-test`, los tests del servidor
-(`go test ./cmd/hoy/` cubre el tope y los errores de `BRIEF=`), `make retomar N=47 BRIEF=1` y
-`make cierre JSON=1`.
+(`go test ./cmd/today/` cubre el tope y los errores de `BRIEF=`), `make retomar N=47 BRIEF=1`,
+`make cierre JSON=1`, `make tablero-ui-offline` (la interfaz sin servidores) y `make estilo-check`.
 
 ## Registro
 
 ### 2026-09-23
+
+La interfaz y lo que quedó muerto: el server se quedó con las rutas que la UI lee, y se fueron el
+WebSocket, el guard servido, los ajustes, la escritura de tareas y bitácora, la consola de repos y
+todo lo que colgaba de ellos (1.085 líneas netas de Go, 34 reglas de CSS, `tools/branches.py` y su
+prueba). En la interfaz, cinco arreglos medidos con datos reales, y `make tablero-ui-offline` para que
+no vuelvan. El README y `docs/ARCHITECTURE.md` describían el dashboard por WebSocket y un panel de
+pestañas que ya no existían; se reescribieron.
 
 Las tareas pasaron a ser carpetas: `tasks/<slug>/` con `task.md`, `context.jsonl` y `artifacts/`. Nació
 `server/internal/layout`, que reemplaza seis copias de `dataDir()` y sabe seguir las mudanzas en git; el

@@ -1,9 +1,7 @@
-// Command web es el servidor de la herramienta personal.
-//
-// Levanta un WebSocket y, por ahora, saluda con "hola mundo". Además acepta un
-// mensaje {type:"send_slack", text:"..."} y lo publica en el canal de pruebas
-// de Slack (reutiliza el cliente interno que usan los conectores MCP).
-// Al arrancar imprime "server on".
+// Command web es el servidor del tablero: la API JSON que lee la UI (:5191) y los artifacts de cada
+// tarea. Casi todo es lectura —las tareas, la bitácora, el sprint de Jira, el pulso—; lo único que
+// escribe es lo que la UI dispara con un clic explícito: importar tareas de Jira, mover una tarea de
+// estado y avisarle a QA.
 package main
 
 import (
@@ -25,8 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/coder/websocket"
-
 	"creditop/tablero/server/internal/atlassian"
 	"creditop/tablero/server/internal/canon"
 	"creditop/tablero/server/internal/env"
@@ -41,8 +37,7 @@ import (
 // Los patrones se movieron a `internal/guard` para que sigan siendo UNA sola fuente ahora que
 // también los necesita `cmd/issue-create` (publicar por consola sin el guard sería un agujero en el
 // control, y copiarlos acá era la tercera copia que este comentario venía advirtiendo).
-// El POST los sigue re-aplicando antes de escribir. `/api/guard` queda expuesto pero sin consumidor:
-// la UI no los compila, manda el POST y muestra los `problems` que vuelven.
+// Acá los aplica el aviso a QA antes de mandar el DM; la UI muestra los `problems` que vuelven.
 
 // issueKeyRe valida una clave de issue antes de interpolarla en un JQL o en una URL de Jira.
 var issueKeyRe = regexp.MustCompile(`^[A-Z][A-Z0-9]+-\d+$`)
@@ -151,16 +146,12 @@ func importedBody(d atlassian.IssueDetail, today string) string {
 func violations(note string) []map[string]string { return guard.Violations(note) }
 
 type app struct {
-	slack       *slack.Client     // bot token (xoxb-): mensajes "como CrediBot"
-	userSlack   *slack.Client     // user token (xoxp-): mensajes "como yo"
-	jira        *atlassian.Client // Jira Cloud (crear tareas)
-	st          *store.Store      // avances persistentes + snapshots de sprints/tareas
-	testChannel string            // canal de pruebas para el botón "enviar mensaje"
+	userSlack *slack.Client     // user token (xoxp-): mensajes "como yo"
+	jira      *atlassian.Client // Jira Cloud: el sprint, las transiciones y traer tareas
+	st        *store.Store      // avances persistentes + snapshots de sprints/tareas
 
 	jiraSite    string // https://<site>.atlassian.net (para armar el link del issue)
-	myAccountID string // accountId del usuario Jira autenticado (asignado por defecto)
 	jiraProject string // clave del proyecto (ej CORE)
-	jiraTypeID  string // id del tipo de issue (ej 10005 = Tarea en CORE)
 	jiraBoardID int    // board cuyo sprint activo recibe la tarea (ej 384)
 
 	qaEmail       string // email de quien valida: recibe el DM cuando la tarea pasa a pruebas
@@ -174,14 +165,6 @@ type app struct {
 	// desde qué directorio se levantó el proceso. No es otro servicio: es una invocación efímera y
 	// explícita de `tools/jev.py` al presionar «Analizar con Jev».
 	tableroRoot string
-	// Snapshot de REPOS: inventario de repos y ramas locales para la consola de la tarea enfocada.
-	// Se lee, nunca se genera desde el server; actualizarlo sigue siendo explícito con `make repos`,
-	// para que abrir el tablero no ejecute git ni haga fetch.
-	//
-	// ⚠ No confundir con `data/cache/ramas.json`, que es OTRA cosa: las ramas POR TAREA que mide
-	// `make tareas-ramas`. Por eso este se llama `repos.json` — vivían en carpetas distintas y con el
-	// mismo nombre, que es como se terminan leyendo uno por el otro.
-	reposSnapshot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega juntos desde server/.env.
 	canonURL   string
@@ -199,19 +182,14 @@ func main() {
 		canonURL:    canon.URL(),
 		tracerURL:   envDefault("TRACER_URL", "http://localhost:5192"),
 		harnessURL:  envDefault("HARNESS_URL", "http://localhost:5195"),
-		testChannel: envDefault("SLACK_TEST_CHANNEL", "C0BG5GP5JN7"),
 		jiraSite:    os.Getenv("ATLASSIAN_SITE"),
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
-		jiraTypeID:  envDefault("JIRA_TASK_TYPE_ID", "10005"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
 		qaEmail:     envDefault("QA_SLACK_EMAIL", "duncan.estrada@creditop.com"),
 		// Subcadena, no el nombre exacto: en CORE el estado se llama "🧪 En pruebas" (con emoji) y
 		// NO existe "En revisión". Matchear por subcadena evita cablear el emoji y sobrevive a que
 		// alguien lo cambie en el workflow.
 		testingStatus: envDefault("JIRA_TESTING_STATUS", "pruebas"),
-	}
-	if token := os.Getenv("SLACK_BOT_TOKEN"); token != "" {
-		a.slack = slack.New(token)
 	}
 	if token := os.Getenv("SLACK_USER_TOKEN"); token != "" {
 		a.userSlack = slack.New(token)
@@ -237,17 +215,14 @@ func main() {
 		log.Fatalf("no se pudo resolver el directorio de datos: %v", err)
 	}
 	a.tableroRoot = filepath.Dir(dataAbs)
-	a.reposSnapshot = envDefault("REPOS_SNAPSHOT", filepath.Join(dataAbs, "cache", "repos.json"))
 
 	integrations := a.connectIntegrations()
 
 	port := envDefault("WEB_PORT", "8787")
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/ws", a.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/config", a.config)
-	mux.HandleFunc("/api/canon/references", a.canonReferences)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
 	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a
@@ -263,8 +238,7 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(tasks.ArtifactsPath(slug), name))
 	})
 
-	// Sprint + mis tareas, en JSON. Existe para el tablero: el WS sirve el dashboard viejo, pero para
-	// prototipar alcanza con un GET y evita cablear mensajes nuevos por cada campo.
+	// Sprint + mis tareas, en JSON.
 	//
 	//   /api/sprints?board=&n=3   → los n sprints más recientes (para el selector)
 	//   /api/sprint?board=&id=    → un sprint y mis tareas; sin `id`, el activo
@@ -327,51 +301,6 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
 
-	// ── avances por tiempo (JSONL) ────────────────────────────────────────────────────────────────
-	// GET  /api/entries?days=30&sprint=ID → ventana de días ∪ sprint (mapa y métricas de tiempo)
-	// GET  /api/entries?task=CORE-1&effort=8 → historial completo de avances de UNA tarea
-	// POST /api/entries                   → crea; 422 si la nota viola el guard
-	// DELETE /api/entries/{id}            → borrado suave
-	// GET  /api/task-context?effort=8     → hitos privados para retomar, no tiempo ni Jira
-	mux.HandleFunc("/api/guard", func(w http.ResponseWriter, _ *http.Request) {
-		cors(w)
-		json.NewEncoder(w).Encode(map[string]any{"patterns": guard.Patterns})
-	})
-
-	// GET  /api/settings → flags del tablero (trackTime, trackPoints); PUT actualiza los que vengan
-	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		switch r.Method {
-		case http.MethodOptions:
-			return
-		case http.MethodGet:
-			st, err := a.st.Settings()
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(st)
-		case http.MethodPut:
-			var in map[string]bool
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
-				return
-			}
-			for k, v := range in {
-				if err := a.st.SetSetting(k, v); err != nil {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-					return
-				}
-			}
-			st, _ := a.st.Settings()
-			json.NewEncoder(w).Encode(st)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
 	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide al cargar
 	// porque son varias invocaciones de git por repo; la consola lo hace sólo cuando se pide
 	// explícitamente actualizar la tarea enfocada. Por eso viaja con `medidoEn`: la card muestra la
@@ -389,112 +318,20 @@ func main() {
 	})
 	mux.HandleFunc("/api/ramas/refresh", a.refreshBranches)
 
-	// INVENTARIO local de repos y ramas para la consola de la tarea Context. Es otro contrato que
-	// `/api/ramas`: aquel liga ramas de entrega a una tarea mediante `ramas:`; éste describe todos los
-	// checkouts que Context consulta. Mezclarlos haría que un proyecto local pareciera declarar ramas
-	// de producto que no le pertenecen.
-	mux.HandleFunc("/api/repos-ramas", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		if r.Method != http.MethodGet {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		b, err := os.ReadFile(a.reposSnapshot)
-		if err != nil {
-			// La ausencia del snapshot es un estado normal en un clon nuevo. La UI conserva la consola y
-			// explica cómo generarlo, en vez de confundirlo con una caída del tablero.
-			json.NewEncoder(w).Encode(map[string]any{
-				"schemaVersion": "tablero.repos.v1",
-				"fuente":        "git local; no hace fetch",
-				"repos":         []any{},
-				"resumen":       map[string]int{"repos": 0, "ramas": 0, "activas": 0, "conCambios": 0},
-			})
-			return
-		}
-		if !json.Valid(b) {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "data/cache/repos.json no contiene JSON válido"})
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(b)
-	})
-
-	// esfuerzos privados (agrupan tareas). GET lista. Una tarea nueva entra importada desde Jira; el
-	// trabajo local se agrega a uno de los siete contenedores y no crea archivos sueltos.
+	// Las tareas, para la UI. Es de SOLO LECTURA desde el 2026-07-21: las tareas las escribe el asistente
+	// en su `task.md` y el tablero las muestra, así que el alta y el borrador de Jira ya no pasan por acá.
 	mux.HandleFunc("/api/efforts", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
-		switch r.Method {
-		case http.MethodOptions:
-			return
-		case http.MethodGet:
-			efforts, err := a.st.Efforts()
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
-		case http.MethodPost:
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			json.NewEncoder(w).Encode(map[string]any{"error": "las mejoras locales van al contenedor de su herramienta o a playground; las tareas de producto se importan desde Jira"})
-		case http.MethodPut: // guardar el BORRADOR de la tarea de Jira sobre un esfuerzo
-			var in struct {
-				ID              int64   `json:"id"`
-				JiraTitle       *string `json:"jiraTitle"`
-				JiraDescription *string `json:"jiraDescription"`
-				TechNotes       *string `json:"techNotes"` // privado: NO pasa por el guard
-				CanonTopics     *string `json:"canon"`     // slugs de temas de canon
-				Stage           *string `json:"stage"`     // evaluation | work | tasks
-			}
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ID == 0 {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido o sin id"})
-				return
-			}
-			// título y descripción TERMINAN EN JIRA → mismo guard que las notas
-			var draft string
-			if in.JiraTitle != nil {
-				draft += *in.JiraTitle + "\n"
-			}
-			if in.JiraDescription != nil {
-				draft += *in.JiraDescription
-			}
-			if v := violations(draft); v != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "el borrador viola el guard", "problems": v})
-				return
-			}
-			// el detalle técnico es PRIVADO (nunca va a Jira) → sin guard. Los campos que no vengan
-			// quedan intactos (COALESCE en el store), así guardar uno no borra el otro.
-			if in.TechNotes != nil || in.CanonTopics != nil {
-				if err := a.st.SaveEffortTech(in.ID, in.TechNotes, in.CanonTopics); err != nil {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-					return
-				}
-			}
-			if in.Stage != nil {
-				if err := a.st.SetEffortStage(in.ID, *in.Stage); err != nil {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-					return
-				}
-			}
-			if in.JiraTitle != nil || in.JiraDescription != nil {
-				if err := a.st.SaveEffortDraft(in.ID, in.JiraTitle, in.JiraDescription); err != nil {
-					w.WriteHeader(http.StatusUnprocessableEntity)
-					json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-					return
-				}
-			}
-			efforts, _ := a.st.Efforts()
-			json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
-		default:
+		if r.Method != http.MethodGet { // un cliente viejo que escribe tiene que enterarse de que no se guardó
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
+		efforts, err := a.st.Efforts()
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"efforts": efforts})
 	})
 
 	// todas las capas locales (para agrupar el listado por esfuerzo sin pedir tarea por tarea)
@@ -506,51 +343,6 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"taskLocals": tls})
-	})
-
-	// capa local privada de una tarea (estado real, definición, estimado). GET ?key= · PUT con el body.
-	mux.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		switch r.Method {
-		case http.MethodOptions:
-			return
-		case http.MethodGet:
-			key := r.URL.Query().Get("key")
-			if key == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "falta key"})
-				return
-			}
-			tl, err := a.st.GetTaskLocal(key)
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(tl)
-		case http.MethodPut:
-			var tl store.TaskLocal
-			if err := json.NewDecoder(r.Body).Decode(&tl); err != nil || tl.TaskKey == "" {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido o sin taskKey"})
-				return
-			}
-			tl.Definition = strings.TrimSpace(tl.Definition)
-			// la definición TERMINA EN JIRA → el mismo guard que las notas. Nada del playground se filtra.
-			if v := violations(tl.Definition); v != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "la definición viola el guard", "problems": v})
-				return
-			}
-			saved, err := a.st.SaveTaskLocal(tl)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(saved)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
 	})
 
 	// POST /api/jev/triage { task: "89" } → orientación de siguiente paso para UNA tarea.
@@ -1040,78 +832,20 @@ func main() {
 		}
 	})
 
+	// La bitácora, para mostrarla. Se escribe con `make bitacora-add`, que mide los minutos: desde el
+	// 2026-07-21 el tablero no carga avances, así que ni el alta ni el borrado pasan por acá.
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
-		switch r.Method {
-		case http.MethodOptions: // preflight del browser (POST con JSON desde :5191)
-			return
-		case http.MethodGet:
-			task := strings.TrimSpace(r.URL.Query().Get("task"))
-			effort := int64(atoiDefault(r.URL.Query().Get("effort"), 0))
-			var entries []store.Entry
-			var err error
-			if task != "" || effort != 0 {
-				entries, err = a.st.ListForWork(task, effort)
-			} else {
-				entries, err = a.st.List(atoiDefault(r.URL.Query().Get("days"), 30), int64(atoiDefault(r.URL.Query().Get("sprint"), 0)))
-			}
-			if err != nil {
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(map[string]any{"entries": entries})
-		case http.MethodPost:
-			var in struct {
-				Task      string `json:"task"`
-				FreeTitle string `json:"freeTitle"`
-				SprintID  int64  `json:"sprintId"`
-				EffortID  int64  `json:"effortId"` // trabajo que aún no es tarea de Jira: cuelga del esfuerzo
-				Kind      string `json:"kind"`
-				StartedMs int64  `json:"startedMs"` // epoch ms; 0 = terminó ahora (inicio = ahora − minutos)
-				Minutes   int    `json:"minutes"`
-				Note      string `json:"note"`
-			}
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]any{"error": "JSON inválido"})
-				return
-			}
-			in.Note = strings.TrimSpace(in.Note)
-			switch {
-			case in.Note == "":
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "la nota está vacía"})
-				return
-			case in.Minutes <= 0 || in.Minutes > 720:
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "minutos fuera de rango (1–720)"})
-				return
-			case in.Kind == "" || in.Task == "" && in.FreeTitle == "" && in.EffortID == 0:
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "falta tipo, o un ancla (tarea, título o esfuerzo)"})
-				return
-			}
-			// el guard del server es el que VALE: la UI ya bloqueó con los mismos patrones, pero nada
-			// sucio puede entrar a la base aunque el cliente se lo salte
-			if v := violations(in.Note); v != nil {
-				w.WriteHeader(http.StatusUnprocessableEntity)
-				json.NewEncoder(w).Encode(map[string]any{"error": "la nota viola el guard", "problems": v})
-				return
-			}
-			started := time.Now().Add(-time.Duration(in.Minutes) * time.Minute)
-			if in.StartedMs > 0 {
-				started = time.UnixMilli(in.StartedMs)
-			}
-			entry, err := a.st.Create(in.Task, in.FreeTitle, in.SprintID, in.EffortID, in.Kind, started, in.Minutes, in.Note)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-				return
-			}
-			json.NewEncoder(w).Encode(map[string]any{"entry": entry})
-		default:
+		if r.Method != http.MethodGet { // un cliente viejo que escribe tiene que enterarse de que no se guardó
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
+		entries, err := a.st.List(atoiDefault(r.URL.Query().Get("days"), 30), int64(atoiDefault(r.URL.Query().Get("sprint"), 0)))
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]any{"entries": entries})
 	})
 
 	// El contexto de tarea es un JSONL privado y versionable, distinto de entries/: entries mide
@@ -1138,29 +872,6 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"events": events})
-	})
-
-	mux.HandleFunc("/api/entries/", func(w http.ResponseWriter, r *http.Request) {
-		cors(w)
-		if r.Method == http.MethodOptions {
-			return
-		}
-		if r.Method != http.MethodDelete {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			return
-		}
-		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/entries/"), 10, 64)
-		if err != nil || id <= 0 {
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]any{"error": "id inválido"})
-			return
-		}
-		if err := a.st.SoftDelete(id); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]any{"error": err.Error()})
-			return
-		}
-		json.NewEncoder(w).Encode(map[string]any{"ok": true})
 	})
 
 	// El PULSO: cuándo toqué los repos de la compañía, en tramos de 5 minutos. Lo escribe el agente
@@ -1194,104 +905,16 @@ func main() {
 		json.NewEncoder(w).Encode(res)
 	})
 
-	log.Printf("server on · ws://localhost:%s/ws · integraciones: %s", port, integrations)
+	log.Printf("server on · http://localhost:%s · integraciones: %s", port, integrations)
 	if err := http.ListenAndServe(":"+port, mux); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }
 
-// inbound es lo que el frontend puede mandar por el WS.
-type inbound struct {
-	Type        string `json:"type"`
-	Text        string `json:"text"`
-	To          string `json:"to"`          // destinatario (email) para un DM
-	Summary     string `json:"summary"`     // título de la tarea Jira
-	Description string `json:"description"` // descripción de la tarea Jira
-	EffortID    int64  `json:"effortId"`    // tarea local que publica: recibe la clave de vuelta
-}
-
-func (a *app) handleWS(w http.ResponseWriter, r *http.Request) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: []string{"*"}, // dev: el frontend corre en :5191
-	})
-	if err != nil {
-		return
-	}
-	defer c.Close(websocket.StatusNormalClosure, "")
-
-	// Contexto propio de la conexión: r.Context() puede cancelarse tras el
-	// hijack del WebSocket, lo que mataría el loop de lectura.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// Saludo inicial.
-	send(ctx, c, map[string]any{"type": "hello", "message": "hola mundo"})
-
-	for {
-		_, data, err := c.Read(ctx)
-		if err != nil {
-			return
-		}
-		var msg inbound
-		if json.Unmarshal(data, &msg) != nil {
-			continue
-		}
-		switch msg.Type {
-		case "send_slack": // canal de pruebas, como el bot
-			a.sendSlack(ctx, c, msg.Text)
-		case "dm": // DM a alguien, como yo (user token)
-			a.sendDM(ctx, c, msg.To, msg.Text)
-		case "create_task": // crear tarea Jira + agregar al sprint activo
-			a.createTask(ctx, c, msg.Summary, msg.Description, msg.EffortID)
-		case "dashboard": // datos del sprint activo del usuario
-			a.dashboard(ctx, c)
-		case "activity": // heatmap de actividad por día (estilo GitHub)
-			a.activity(ctx, c)
-		}
-	}
-}
-
-// sendSlack publica el texto en el canal de pruebas y responde por el WS.
-func (a *app) sendSlack(ctx context.Context, c *websocket.Conn, text string) {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		send(ctx, c, map[string]any{"type": "sent", "ok": false, "error": "el mensaje está vacío"})
-		return
-	}
-	if a.slack == nil {
-		send(ctx, c, map[string]any{"type": "sent", "ok": false, "error": "Slack no está configurado (falta SLACK_BOT_TOKEN)"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	posted, err := a.slack.PostMessage(ctx, a.testChannel, text)
-	if err != nil {
-		log.Printf("send_slack ERROR: %v", err)
-		send(ctx, c, map[string]any{"type": "sent", "ok": false, "error": err.Error()})
-		return
-	}
-	log.Printf("send_slack OK → canal %s (ts %s)", posted.Channel, posted.TS)
-	send(ctx, c, map[string]any{"type": "sent", "ok": true, "channel": posted.Channel, "ts": posted.TS})
-}
-
-// sendDM envía un DM al destinatario (por email) COMO EL USUARIO (user token).
-func (a *app) sendDM(ctx context.Context, c *websocket.Conn, to, text string) {
-	name, posted, err := a.dmAsMe(ctx, to, text)
-	if err != nil {
-		log.Printf("dm ERROR: %v", err)
-		send(ctx, c, map[string]any{"type": "dm_sent", "ok": false, "error": err.Error()})
-		return
-	}
-	log.Printf("dm OK → %s <%s> (ts %s)", name, to, posted.TS)
-	send(ctx, c, map[string]any{"type": "dm_sent", "ok": true, "to": name, "ts": posted.TS})
-}
-
 // dmAsMe manda un DM COMO YO (user token xoxp-): busca al destinatario por email, abre el DM y
 // publica. Devuelve el nombre real para poder decir a quién le llegó, no solo el email.
 //
-// Lo comparten el WS ("dm") y el handoff a QA. Va como YO y no como el bot a propósito: un aviso de
+// Lo usa el aviso a QA. Va como YO y no como el bot a propósito: un aviso de
 // trabajo lo manda una persona; de un bot se lee como notificación automática y se ignora.
 func (a *app) dmAsMe(ctx context.Context, to, text string) (string, *slack.PostedMessage, error) {
 	to = strings.TrimSpace(to)
@@ -1342,200 +965,6 @@ func (a *app) qaNoticeText(iss atlassian.Issue) string {
 	return b.String()
 }
 
-// createTask crea una tarea en Jira (asignada a mí) y la agrega al sprint activo.
-// createTask crea el issue en Jira, lo mete al sprint activo y —si vino `effortId`— le devuelve la
-// clave al archivo de la tarea local que lo publicó.
-func (a *app) createTask(ctx context.Context, c *websocket.Conn, summary, description string, effortID int64) {
-	summary = strings.TrimSpace(summary)
-	if summary == "" {
-		send(ctx, c, map[string]any{"type": "task_created", "ok": false, "error": "falta el título de la tarea"})
-		return
-	}
-	if a.jira == nil {
-		send(ctx, c, map[string]any{"type": "task_created", "ok": false, "error": "Jira no está configurado (falta ATLASSIAN_*)"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
-	defer cancel()
-
-	created, err := a.jira.CreateIssue(ctx, atlassian.CreateIssueParams{
-		ProjectKey:  a.jiraProject,
-		Summary:     summary,
-		IssueTypeID: a.jiraTypeID,
-		AssigneeID:  a.myAccountID,
-		Description: strings.TrimSpace(description),
-	})
-	if err != nil {
-		log.Printf("create_task ERROR: %v", err)
-		send(ctx, c, map[string]any{"type": "task_created", "ok": false, "error": err.Error()})
-		return
-	}
-
-	// Agregar al sprint activo del board (best-effort: la tarea ya quedó creada).
-	sprintName := ""
-	if a.jiraBoardID > 0 {
-		if sp, serr := a.jira.ActiveSprint(ctx, a.jiraBoardID); serr == nil {
-			if aerr := a.jira.AddIssuesToSprint(ctx, sp.ID, []string{created.Key}); aerr == nil {
-				sprintName = sp.Name
-			}
-		}
-	}
-
-	// La clave VUELVE al archivo de la tarea que la publicó. Sin esto la tarea local queda con
-	// `jira: []` aunque su issue exista, y el vínculo hay que rehacerlo a mano desde la vista del
-	// sprint — que solo alcanza si el issue sigue en la ventana de sprints que el tablero carga.
-	// Pasó de verdad: dos tareas publicadas desde acá quedaron sin clave por meses.
-	// Best-effort: el issue ya está creado, así que un fallo acá se avisa pero no invalida nada.
-	file := ""
-	if effortID != 0 {
-		f, verr := a.st.LinkTask(created.Key, effortID)
-		if verr != nil {
-			log.Printf("create_task: %s creado pero NO enlazado al esfuerzo %d: %v", created.Key, effortID, verr)
-		} else {
-			file = f
-		}
-	}
-
-	url := strings.TrimRight(a.jiraSite, "/") + "/browse/" + created.Key
-	log.Printf("create_task OK → %s (sprint %q, archivo %q)", created.Key, sprintName, file)
-	send(ctx, c, map[string]any{
-		"type": "task_created", "ok": true,
-		"key": created.Key, "url": url, "sprint": sprintName, "file": file,
-	})
-}
-
-// dashboard arma los datos del sprint activo del usuario y los envía por el WS.
-func (a *app) dashboard(ctx context.Context, c *websocket.Conn) {
-	if a.jira == nil {
-		send(ctx, c, map[string]any{"type": "dashboard_data", "ok": false, "error": "Jira no está configurado"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-
-	sp, err := a.jira.ActiveSprint(ctx, a.jiraBoardID)
-	if err != nil {
-		send(ctx, c, map[string]any{"type": "dashboard_data", "ok": false, "error": err.Error()})
-		return
-	}
-	issues, err := a.jira.MySprintIssues(ctx, sp.ID)
-	if err != nil {
-		send(ctx, c, map[string]any{"type": "dashboard_data", "ok": false, "error": err.Error()})
-		return
-	}
-
-	var everything, inprog, done int
-	var ptsTotal, ptsDone float64
-	hasPoints := false
-	estimatedSecs, spentSecs := 0, 0
-	tasks := make([]map[string]any, 0, len(issues))
-
-	for _, it := range issues {
-		switch it.StatusCategory {
-		case "done":
-			done++
-		case "indeterminate":
-			inprog++
-		default:
-			everything++
-		}
-		if it.HasPoints {
-			hasPoints = true
-			ptsTotal += it.Points
-			if it.StatusCategory == "done" {
-				ptsDone += it.Points
-			}
-		}
-		estimatedSecs += it.EstimateSecs
-		spentSecs += it.SpentSecs
-
-		var pts any
-		if it.HasPoints {
-			pts = it.Points
-		}
-		tasks = append(tasks, map[string]any{
-			"key": it.Key, "summary": it.Summary, "status": it.Status,
-			"category": it.StatusCategory, "points": pts,
-			"url": strings.TrimRight(a.jiraSite, "/") + "/browse/" + it.Key,
-		})
-	}
-
-	total := len(issues)
-	donePct := 0
-	if total > 0 {
-		donePct = done * 100 / total
-	}
-
-	daysTotal, daysElapsed, daysLeft, timePct := 0, 0, 0, 0
-	start, end := parseJiraDay(sp.StartDate), parseJiraDay(sp.EndDate)
-	if !start.IsZero() && !end.IsZero() {
-		daysTotal = int(end.Sub(start).Hours() / 24)
-		if daysTotal < 1 {
-			daysTotal = 1
-		}
-		daysElapsed = int(time.Now().Sub(start).Hours() / 24)
-		if daysElapsed < 0 {
-			daysElapsed = 0
-		}
-		if daysElapsed > daysTotal {
-			daysElapsed = daysTotal
-		}
-		daysLeft = daysTotal - daysElapsed
-		timePct = daysElapsed * 100 / daysTotal
-	}
-
-	send(ctx, c, map[string]any{
-		"type": "dashboard_data", "ok": true,
-		"sprint": map[string]any{
-			"name": sp.Name, "start": dayStr(start), "end": dayStr(end),
-			"daysTotal": daysTotal, "daysElapsed": daysElapsed, "daysLeft": daysLeft, "timePct": timePct,
-		},
-		"counts": map[string]any{"total": total, "todo": everything, "inProgress": inprog, "done": done, "donePct": donePct},
-		"points": map[string]any{"hasData": hasPoints, "total": ptsTotal, "done": ptsDone},
-		"time":   map[string]any{"hasData": estimatedSecs > 0 || spentSecs > 0, "estimateHours": estimatedSecs / 3600, "spentHours": spentSecs / 3600},
-		"tasks":  tasks,
-	})
-}
-
-// activity arma el heatmap de actividad (cambios por día) y lo envía por el WS.
-func (a *app) activity(ctx context.Context, c *websocket.Conn) {
-	if a.jira == nil {
-		send(ctx, c, map[string]any{"type": "activity_data", "ok": false, "error": "Jira no está configurado"})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	days, err := a.jira.MyActivityByDay(ctx, a.myAccountID, 182) // ~26 semanas
-	if err != nil {
-		send(ctx, c, map[string]any{"type": "activity_data", "ok": false, "error": err.Error()})
-		return
-	}
-
-	total, max := 0, 0
-	for _, n := range days {
-		total += n
-		if n > max {
-			max = n
-		}
-	}
-	log.Printf("activity → %d cambios en %d días", total, len(days))
-	send(ctx, c, map[string]any{
-		"type": "activity_data", "ok": true,
-		"days": days, "total": total, "max": max, "weeks": 26,
-	})
-}
-
-// send serializa v a JSON y lo escribe por el WS (best-effort).
-func send(ctx context.Context, c *websocket.Conn, v any) {
-	if b, err := json.Marshal(v); err == nil {
-		_ = c.Write(ctx, websocket.MessageText, b)
-	}
-}
-
 // connectIntegrations valida Jira y Slack (si hay credenciales) para el log.
 func (a *app) connectIntegrations() string {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
@@ -1545,18 +974,9 @@ func (a *app) connectIntegrations() string {
 
 	if a.jira != nil {
 		if me, err := a.jira.GetMyself(ctx); err == nil {
-			a.myAccountID = me.AccountID // asignado por defecto en las tareas nuevas
 			parts = append(parts, "Jira("+me.DisplayName+")")
 		} else {
 			parts = append(parts, "Jira(error)")
-		}
-	}
-
-	if a.slack != nil {
-		if info, err := a.slack.AuthTest(ctx); err == nil {
-			parts = append(parts, "Slack("+info.Team+")")
-		} else {
-			parts = append(parts, "Slack(error)")
 		}
 	}
 
@@ -2001,23 +1421,4 @@ func atoiDefault(s string, def int) int {
 		return n
 	}
 	return def
-}
-
-// parseJiraDay toma una fecha de Jira (RFC3339) y devuelve solo el día.
-func parseJiraDay(s string) time.Time {
-	if len(s) < 10 {
-		return time.Time{}
-	}
-	t, err := time.Parse("2006-01-02", s[:10])
-	if err != nil {
-		return time.Time{}
-	}
-	return t
-}
-
-func dayStr(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.Format("2006-01-02")
 }

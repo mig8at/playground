@@ -97,13 +97,3 @@ func SourcesOf(how string) []string {
 	sort.Strings(list)
 	return append(out, list...)
 }
-
-// IsEnvironment dice si una fuente es un ambiente y no una herramienta. La UI lo usa para pintarlas
-// distinto; vive acá para que no haya dos listas de nombres que se puedan desincronizar.
-func IsEnvironment(source string) bool {
-	switch source {
-	case "prod", "qa", "staging", "dev", "local":
-		return true
-	}
-	return false
-}

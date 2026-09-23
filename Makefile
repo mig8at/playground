@@ -253,8 +253,9 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # ⚠ Acá vivían los 14 comandos del árbol `context/` (align, refs, seal, lint, diff, triar, jev…). Ese
 # árbol se apagó el 2026-09-21: el contexto curado es CANON y vive en otro repo (`github/playground/
 # tools/canon`), con sus propios comandos —`go run . -ronda`, `-peso`, `-lint`, `-pregunta`—. Lo que
-# quedó acá de aquel conjunto son las piezas que no eran del árbol: `repos`, `entidades`,
-# `trazador-huella` y `confluence`, cada una en el grupo de la herramienta a la que pertenece.
+# quedó acá de aquel conjunto son las piezas que no eran del árbol: `entidades`, `trazador-huella` y
+# `confluence`, cada una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se
+# retiró el 2026-09-23: generaba el snapshot de la consola de ramas que sólo leía la vista del árbol.)
 .PHONY: tablero-jev tablero-jev-test flow-context flow-context-test
 
 # Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
@@ -265,12 +266,6 @@ flow-context: ## @expl Flow para LLM: map | route "pregunta general" | brief <te
 
 flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
-
-repos: ## @dia actualiza la consola de repos y ramas del tablero desde Git local, sin fetch. JSON=1 imprime el snapshot
-	@python3 tablero/tools/branches.py $(if $(JSON),--json)
-
-repos-test: ## @dia pruebas del estado de ramas: activa, cambios locales y fusionada
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_branches.py
 
 tablero-jev: ## @dia laboratorio Jev del tablero: ARGS='bench [--live]' | 'triage <id|slug> [--live --allow-internal]' | 'label reporte …' | stats
 	@python3 tablero/tools/jev.py $(or $(ARGS),--help)
@@ -287,6 +282,9 @@ tablero-naming: ## @dia ¿el código del tablero nombra algo en español? identi
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_naming.py
+
+tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos
+	@cd tablero && npx vite build --logLevel error && node tools/ui-offline.mjs
 
 trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
 	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }

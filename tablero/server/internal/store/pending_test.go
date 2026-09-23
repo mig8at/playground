@@ -47,8 +47,14 @@ func TestPendingItems(t *testing.T) {
 	}
 
 	// Lo que cuenta la tarjeta son los ABIERTOS: 5 ítems, 2 tildados.
-	if n := OpenItems(got); n != 3 {
-		t.Errorf("esperaba 3 abiertos, hubo %d", n)
+	open := 0
+	for _, p := range got {
+		if !p.Done {
+			open++
+		}
+	}
+	if open != 3 {
+		t.Errorf("esperaba 3 abiertos, hubo %d", open)
 	}
 }
 
