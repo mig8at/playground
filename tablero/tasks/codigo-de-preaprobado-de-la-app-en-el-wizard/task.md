@@ -41,14 +41,18 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
       no se verificaron: el canje no está en sus ramas.
 - [x] Validar en `qa` un canje real — código `9997` → solicitud 502728 con CrediPullman y el listado con
       una sola entidad (2026-09-24).
-- [ ] Que el servicio de códigos emita `AA0000` en dev/qa; termina cuando `make harness-codigo-qa` devuelva
-      un código de 6 caracteres. Hoy dev corre la imagen fijada `v0.0.3` (9/04, anterior al formato) y
-      prod `3900158`: los dos emiten 4 números. PR limpio con sólo el formato:
-      [self-manager-api#22](https://github.com/Creditop-SAS/self-manager-api/pull/22), contra `main`, con el CI
-      en verde (arregla además el lint de `main`, que no arrancaba: config v1 contra golangci-lint v2.6).
-      Depende de: quien etiquete el servicio y de infraestructura, que suba la imagen fijada en
-      `environments/development/ecs-application`. ⚠ No etiquetar para prod antes de que `main` de
-      `legacy-backend` y de aliados acepten `AA0000` (hoy `^\d{4}$` y `digits:4`).
+- [x] Llevar el formato `AA0000` a `main` del servicio de códigos y a producción —
+      [self-manager-api#22](https://github.com/Creditop-SAS/self-manager-api/pull/22) (formato + lint de
+      `main`) y [#23](https://github.com/Creditop-SAS/self-manager-api/pull/23) (oapi-codegen fijado en
+      v2.7.1: con `@latest` el build de la imagen fallaba para cualquier código); `v0.0.6` desplegada en
+      prod, imagen `creditop/self-manager-api:v0.0.6` (2026-09-24). Falta comprobarlo en prod (VPN de prod).
+- [ ] Subir la imagen de dev a `creditop/self-manager-api:v0.0.6`; termina cuando `make harness-codigo-qa`
+      devuelva un código de 6 caracteres. Hoy dev sigue en `v0.0.3` (fijada en
+      `environments/development/ecs-application`). Depende de: infraestructura.
+      ⚠ Los 130 del lote siguen activos hasta el 30/09: el servicio los reusa por cliente, comercio y
+      entidad, así que para tener `AA0000` antes hay que usar otras combinaciones.
+- [ ] Que `main` de legacy-backend y de aliados acepten `AA0000`: con `v0.0.6` en prod los códigos nuevos
+      salen con letras y ahí todavía se exige `^\d{4}$` / `digits:4`.
 - [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
       Es el único pendiente: el alcance está hecho y probado en `qa` (2026-09-24). Al llegar a `main`,
       graduar a canon y archivar.
