@@ -584,10 +584,11 @@ contradecía**. Lo de dominio se repartió; lo operativo, a los `CLAUDE.md`.
 ⚠ **Las exploraciones ya no viven acá.** `flow`, `engine`, `domain-model`, `diccionario` y `plantillas`
 eran prototipos que Miguel armó para entender
 él mismo el negocio: **no están validadas contra el código** y varias describen un *deber ser*, no lo
-que corre en producción. *(Y `ingles` no habla de CreditOp en absoluto: es para aprender inglés.)* *(Acá también estaba
+que corre en producción. *(Con ellas se fueron `ingles` y `escriba`, que ni siquiera hablaban de CreditOp:
+eran para practicar inglés y ortografía.)* *(Acá también estaba
 `cuadrilla`. Ya no: el 2026-09-10 se mudó al repo compartido —`github/playground/tools/cuadrilla`,
 rehecha en Go + Vue— y ahí dejó de ser una exploración: cumple el contrato del repo y tiene pruebas.
-`make cuadrilla` sigue abriéndola.)* *(Las cinco salieron del repo el 2026-09-24: Miguel las movió a
+`make cuadrilla` sigue abriéndola.)* *(Las siete salieron del repo el 2026-09-24: Miguel las movió a
 `~/Desktop/CREDITOP/temp/`, fuera de git.)* **No las cites como fuente ni las uses para decidir.** Si algo de ahí resulta
 cierto, se verifica contra el código y gradúa a canon — hasta entonces, no existe para tu tarea.
 

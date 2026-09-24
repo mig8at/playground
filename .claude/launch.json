@@ -118,28 +118,6 @@
       }
     },
     {
-      "name": "ingles",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "ingles",
-      "port": 5189,
-      "autoPort": false
-    },
-    {
-      "name": "escriba",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "escriba",
-      "port": 5188,
-      "autoPort": false
-    },
-    {
       "name": "cuadrilla",
       "runtimeExecutable": "/Users/miguelochoa/Desktop/CREDITOP/github/playground/tools/cuadrilla/dev/servir-local.sh",
       "runtimeArgs": [
