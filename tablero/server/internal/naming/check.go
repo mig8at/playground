@@ -166,6 +166,18 @@ func Shared(root string) Board {
 	}
 }
 
+// Tracer es el Go del trazador. Sus claves JSON son el contrato con su UI en Vue y se pasan a inglés
+// junto con ella, así que por ahora las acepta una regla de la lista; lo que se revisa es el código.
+func Tracer(root string) Board {
+	return Board{
+		Name:      "trazador",
+		Root:      root,
+		GoRoots:   []string{"trazador/server"},
+		JSONRoots: []string{"trazador/server"},
+		PathRoots: []string{"trazador/server/"},
+	}
+}
+
 // Finding es un nombre con palabras que no pasan como inglés.
 type Finding struct {
 	Where string   `json:"where"`
