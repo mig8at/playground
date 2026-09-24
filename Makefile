@@ -21,10 +21,8 @@ help: ## esta lista
 	@echo ""
 	@echo "  CREDITOP · playground        (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
-	@echo ""
-	@echo "  CONTEXTO — vive en CANON, que es otro repo y se comparte con el equipo"
-	@echo "    cd ~/Desktop/CREDITOP/github/playground/tools/canon"
-	@echo "    go run . -pregunta '<la pregunta>'   ¿cómo funciona X? (o /api/search, gratis)"
+	@$(call listar,@can,CANON — el corpus del equipo: leerlo y dictarle (skill: .claude/skills/canon))
+	@echo "    y desde ~/Desktop/CREDITOP/github/playground/tools/canon:"
 	@echo "    go run . -ronda                      ¿qué cambió en main de lo que el corpus declara?"
 	@echo "    go run . -peso                       …y cuál de eso pesa, por actividad de 90 días"
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
@@ -494,6 +492,26 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 # un PRD describe lo que se quiso. La regla de admisión está en las `skills/` del repo de canon.
 confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
 	@python3 tools/confluence.py $(CMD)
+
+# ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
+# Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
+# prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
+.PHONY: canon-buscar canon-leer canon-codigo canon-ensayar canon-dictar
+canon-buscar: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
+	@test -n "$(Q)" || { echo "falta Q='<palabras del negocio>'"; exit 2; }
+	@python3 tools/canon_cli.py buscar $(Q)
+canon-leer: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
+	@test -n "$(IDS)" || { echo "falta IDS='<tema/capa#ancla>'"; exit 2; }
+	@python3 tools/canon_cli.py leer '$(IDS)'
+canon-codigo: ## @can los archivos que declara un área. AREA=cuota/context [N=0]
+	@test -n "$(AREA)" || { echo "falta AREA='<tema/capa>'"; exit 2; }
+	@python3 tools/canon_cli.py codigo '$(AREA)' $(or $(N),0)
+canon-ensayar: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIEZA=<pieza.json>
+	@test -n "$(PIEZA)" || { echo "falta PIEZA=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
+	@python3 tools/canon_cli.py ensayar '$(PIEZA)'
+canon-dictar: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIEZA='a.json b.json' TITULO='…'
+	@test -n "$(PIEZA)" || { echo "falta PIEZA=<pieza.json…>"; exit 2; }
+	@python3 tools/canon_cli.py dictar $(PIEZA) --titulo '$(or $(TITULO),canon: dictado desde el playground)'
 
 trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SELECT …' [TARGET=prod|staging|qa|dev|local] [CSV=1] [MD=1 anotación + tabla markdown, para pegar en la tarea] [BLOQUE=<id|slug> la agrega como bloque a la pila de esa tarea]
 	@# ⚠ el mismo escapado que la línea de abajo, y por la misma razón: `test -n "$(SQL)"` se rompía

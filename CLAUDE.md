@@ -22,7 +22,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | Tu pregunta | Con qué se contesta |
 |---|---|
 | **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el tema que explica cada uno |
-| **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en `github/playground/tools/canon` y en canon.playground.creditop.com. **Siempre primero.** `go run . -pregunta '<la pregunta>'` desde ahí, o `/api/search?q=…`, que es gratis |
+| **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en canon.playground.creditop.com. **Siempre primero.** `make canon-buscar Q='…'` (gratis) → `make canon-leer IDS=…`. Para leerlo y para dictarle, el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
 | **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es leer los temas enteros (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA de los metadatos del tema (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
