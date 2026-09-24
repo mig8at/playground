@@ -171,9 +171,13 @@ func main() {
 
 	env.LoadDefaults()
 
+	// Las credenciales de Jira y Slack las resuelven sus conectores (connectors/.env); acá quedan las
+	// perillas del tablero. Sin credenciales el server arranca igual y cada ruta dice qué le falta.
+	jiraCfg, jiraErr := atlassian.LoadConfig()
+	slackCfg, _ := slack.LoadConfig()
 	a := &app{
 		canonURL:    canon.URL(),
-		jiraSite:    os.Getenv("ATLASSIAN_SITE"),
+		jiraSite:    jiraCfg.Site,
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
 		qaEmail:     envDefault("QA_SLACK_EMAIL", "duncan.estrada@creditop.com"),
@@ -182,11 +186,11 @@ func main() {
 		// alguien lo cambie en el workflow.
 		testingStatus: envDefault("JIRA_TESTING_STATUS", "pruebas"),
 	}
-	if token := os.Getenv("SLACK_USER_TOKEN"); token != "" {
-		a.userSlack = slack.New(token)
+	if user, err := slackCfg.User(); err == nil {
+		a.userSlack = user
 	}
-	if site, email, token := os.Getenv("ATLASSIAN_SITE"), os.Getenv("ATLASSIAN_EMAIL"), os.Getenv("ATLASSIAN_API_TOKEN"); site != "" && email != "" && token != "" {
-		a.jira = atlassian.New(site, email, token)
+	if jiraErr == nil {
+		a.jira = atlassian.NewFromConfig(jiraCfg)
 	}
 
 	// El historial de avances es el corazón de la herramienta: sin persistencia no arranca (mejor un error claro

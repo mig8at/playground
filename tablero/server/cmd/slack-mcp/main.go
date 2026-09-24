@@ -10,7 +10,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -26,12 +25,14 @@ func main() {
 	// Carga .env (cwd o junto al binario); no pisa variables ya definidas.
 	env.LoadDefaults()
 
-	token := os.Getenv("SLACK_BOT_TOKEN")
-	if token == "" {
-		log.Fatal("falta la variable de entorno SLACK_BOT_TOKEN (bot token xoxb-...)")
+	cfg, err := slack.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
-
-	client := slack.New(token)
+	client, err := cfg.Bot()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "creditop-tools",

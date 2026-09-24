@@ -41,12 +41,12 @@ func main() {
 	}
 
 	env.LoadDefaults()
-	site, email, token := os.Getenv("ATLASSIAN_SITE"), os.Getenv("ATLASSIAN_EMAIL"), os.Getenv("ATLASSIAN_API_TOKEN")
-	if site == "" || email == "" || token == "" {
-		log.Fatal("faltan credenciales ATLASSIAN_* (revisá server/.env)")
+	cfg, err := atlassian.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	c := atlassian.New(site, email, token)
+	c := atlassian.NewFromConfig(cfg)
 	if err := c.UpdateIssue(context.Background(), in.Key, atlassian.UpdateIssueParams{
 		Summary:     in.Summary,
 		Description: in.Description,

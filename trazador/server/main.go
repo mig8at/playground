@@ -87,10 +87,8 @@ type config struct {
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
 // legacy-backend en su propio .env: aceptarlos permite pegar las vars del deploy tal como están.
 
-// loadConfig busca los valores en `process.env` y en el `.env.<target>` de la propia herramienta, en ese
-// orden. NO hay capa compartida (un `playground/.env` común): cada herramienta del playground es
-// autosuficiente por target, que es la convención de la casa desde que se eliminó `env/` el 2026-07-22.
-// La segunda ruta cubre la invocación desde la raíz (`make`) además de desde `sonda/`.
+// loadConfig arma la configuración de Loki y PostHog de un ambiente desde los conectores
+// (`connectors/.env.<target>`; el proceso gana).
 func loadConfig(target string) (config, []string) {
 	// Todo lo que el trazador lee de afuera —la base, Loki, PostHog— lo resuelven los conectores con
 	// `connectors/.env.<target>`: el trazador ya no guarda credenciales propias (desde el 2026-09-24).
@@ -804,7 +802,7 @@ func main() {
 		fmt.Printf("%s acceso de LECTURA CONFIRMADO contra %s.\n", paint("32", "VEREDICTO:"), winner.base)
 		fmt.Printf("Autentica con %s, resuelve etiquetas y devuelve líneas. Se puede construir encima.\n", winner.label())
 		if !knewBase || !knewUser {
-			fmt.Printf("\nPara que la próxima corrida no adivine nada, dejá esto en trazador/.env.%s:\n", *target)
+			fmt.Printf("\nPara que la próxima corrida no adivine nada, dejá esto en connectors/.env.%s:\n", *target)
 			fmt.Printf("  LOKI_URL=%s\n", winner.base)
 			if u, isBasic := strings.CutPrefix(winner.auth, "basic:"); isBasic {
 				fmt.Printf("  LOKI_USER=%s\n", u)

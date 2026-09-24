@@ -10,8 +10,6 @@ package main
 import (
 	"context"
 	"log"
-	"os"
-	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -25,25 +23,11 @@ func main() {
 
 	env.LoadDefaults()
 
-	site := os.Getenv("ATLASSIAN_SITE")
-	email := os.Getenv("ATLASSIAN_EMAIL")
-	token := os.Getenv("ATLASSIAN_API_TOKEN")
-
-	var missing []string
-	if site == "" {
-		missing = append(missing, "ATLASSIAN_SITE")
+	cfg, err := atlassian.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
-	if email == "" {
-		missing = append(missing, "ATLASSIAN_EMAIL")
-	}
-	if token == "" {
-		missing = append(missing, "ATLASSIAN_API_TOKEN")
-	}
-	if len(missing) > 0 {
-		log.Fatalf("faltan variables de entorno: %s", strings.Join(missing, ", "))
-	}
-
-	client := atlassian.New(site, email, token)
+	client := atlassian.NewFromConfig(cfg)
 
 	server := mcp.NewServer(&mcp.Implementation{
 		Name:    "creditop-jira",

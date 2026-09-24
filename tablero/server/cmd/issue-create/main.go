@@ -124,9 +124,9 @@ func main() {
 	}
 
 	env.LoadDefaults()
-	site, email, token := os.Getenv("ATLASSIAN_SITE"), os.Getenv("ATLASSIAN_EMAIL"), os.Getenv("ATLASSIAN_API_TOKEN")
-	if site == "" || email == "" || token == "" {
-		log.Fatal("faltan credenciales ATLASSIAN_* (revisá server/.env)")
+	cfg, err := atlassian.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
 	project := envDefault("JIRA_PROJECT_KEY", "CORE")
 	typeID := envDefault("JIRA_TASK_TYPE_ID", "10005")
@@ -138,7 +138,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	c := atlassian.New(site, email, token)
+	c := atlassian.NewFromConfig(cfg)
 
 	me, err := c.GetMyself(ctx)
 	if err != nil {
@@ -157,7 +157,7 @@ func main() {
 		}
 	}
 
-	fmt.Fprintf(os.Stderr, "\n  Va a CREARSE en Jira (%s) y le llega al equipo:\n\n", site)
+	fmt.Fprintf(os.Stderr, "\n  Va a CREARSE en Jira (%s) y le llega al equipo:\n\n", cfg.Site)
 	fmt.Fprintf(os.Stderr, "    proyecto    %s · tipo %s · asignada a %s\n", project, typeID, me.DisplayName)
 	if sprint != nil {
 		fmt.Fprintf(os.Stderr, "    sprint      %s\n", sprint.Name)
@@ -220,7 +220,7 @@ func main() {
 	}
 
 	fmt.Printf("%s\n", created.Key)
-	if site != "" {
-		log.Printf("  %s/browse/%s", strings.TrimRight(site, "/"), created.Key)
+	if cfg.Site != "" {
+		log.Printf("  %s/browse/%s", strings.TrimRight(cfg.Site, "/"), created.Key)
 	}
 }

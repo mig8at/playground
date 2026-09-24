@@ -678,19 +678,31 @@ tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla 
 
 ## Variables de entorno
 
-Cada herramienta guarda su configuración por target en su propio **`.env.<target>`** (`local` · `dev` ·
-`staging`), **autosuficiente**: ahí viven tanto los **hechos** del entorno (BD, API base, `APP_KEY`)
-como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `env/` (se eliminó el
-2026-07-22). Prioridad: `process.env` > `<herramienta>/.env.<target>`.
+**Las credenciales de un servicio viven en UN lugar: su conector** (tarea #90, desde el 2026-09-24).
 
-⚠ **Salvo lo que ya pasó a `connectors/`** (tarea #90, frente «Una consulta por ambiente»): la base de
-cada ambiente —MySQL directo o Redash— la abre `connectors/sql`, Loki lo lee `connectors/logs` y PostHog
-`connectors/events`, los tres con las credenciales de `connectors/.env.<target>` (plantilla:
-`connectors/.env.example`). El tablero, el trazador y el harness ya no las guardan —el trazador
-no tiene `.env` propio—; desde otro lenguaje se llega por **`bin/pg`**
-(`bin/pg help`, o `make pg ARGS='…'`). Las claves de base van **con el prefijo `E2E_DB_`**, nunca como `DB_HOST`: ese nombre es el que
-lee Laravel, y el conector no lo lee ni del archivo ni del proceso. Los demás servicios se van mudando
-de a uno; hasta entonces siguen en el `.env` de cada herramienta.
+| archivo | qué lleva |
+|---|---|
+| `connectors/.env.<target>` (`local` · `dev` · `qa` · `staging` · `prod`) | lo que depende del ambiente: la base (MySQL directo, o Redash en prod), Loki y PostHog |
+| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, **un token para los dos**), Slack y Jev |
+| `<herramienta>/.env[.<target>]` | sólo las **perillas** de esa herramienta: Cognito, mocks, `SEED`, el board de Jira, a quién avisarle en QA |
+
+La plantilla de los dos primeros es `connectors/.env.example`. Prioridad: **el proceso gana** sobre el
+archivo, y una variable vacía en el proceso no tapa la del archivo. El trazador no tiene `.env` propio;
+el tablero y el harness guardan sólo sus perillas. Desde otro lenguaje se llega por **`bin/pg`**
+(`bin/pg help`, o `make pg ARGS='…'`). Un binario encuentra `connectors/` subiendo desde donde lo
+corren, después desde donde vive (así un servidor MCP arranca aunque Claude lo lance desde otro lado) y
+por último en `PLAYGROUND_ROOT`.
+
+- ⚠ **La única excepción es la base del HARNESS** (`E2E_DB_*` en `harness/.env.<target>`): el harness
+  siembra, o sea ESCRIBE, y la escritura no pasa por el conector a propósito — mezclaría la herramienta
+  más riesgosa con la más usada.
+- Las claves de base van **con el prefijo `E2E_DB_`**, nunca como `DB_HOST`: ese nombre es el que lee
+  Laravel, y el conector no lo lee ni del archivo ni del proceso (CORE-431).
+- ⚠ **Una copia de una credencial es una credencial que vence sin avisar.** Medido al unificarlas: el
+  token de Confluence del `.env` de la raíz estaba vencido —Confluence contestaba 404, no 401— mientras
+  el de Jira, del mismo sitio y la misma cuenta, servía para los dos. Y el `LOKI_ENV=qa` que traían los
+  `.env` de staging y qa no existe en el stack. Antes de agregar una clave a una herramienta, fijate si
+  su conector ya la resuelve.
 
 **Qué rama sirve cada target:** `local` → local · `dev` → **develop** · `staging` → **la rama
 `staging`**. *(Acá decía «`staging` → qa». Está mal: se fueron sumando ambientes para poder probar,
@@ -727,4 +739,4 @@ tampoco dispara con ninguno de los dos valores.
 panel lo inyecta solo para sus corridas). Meterlo en un archivo desarma la guarda (F-53).
 
 `.env.*` está gitignoreado (trae secretos); las plantillas versionadas y documentadas son
-`<herramienta>/.env.<target>.example`.
+`connectors/.env.example` y `<herramienta>/.env.<target>.example`.

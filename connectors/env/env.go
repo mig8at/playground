@@ -17,19 +17,40 @@ import (
 	"strings"
 )
 
-// Dir es la carpeta `connectors/`: se busca hacia arriba desde donde se corre, porque los comandos
-// corren desde la carpeta de cada herramienta (`tablero/server`, `trazador/server`).
+// Dir es la carpeta `connectors/`. Se busca hacia arriba desde donde se corre, porque los comandos corren
+// desde la carpeta de cada herramienta (`tablero/server`, `trazador/server`); si no aparece, desde el
+// binario —un servidor MCP lo lanza Claude desde un directorio que no elegimos—, y por último en
+// `PLAYGROUND_ROOT`.
 func Dir() (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-	for d := wd; ; d = filepath.Dir(d) {
+	starts := []string{wd}
+	if exe, err := os.Executable(); err == nil {
+		if real, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = real
+		}
+		starts = append(starts, filepath.Dir(exe))
+	}
+	if root := os.Getenv("PLAYGROUND_ROOT"); root != "" {
+		starts = append(starts, root)
+	}
+	for _, start := range starts {
+		if dir, ok := findUp(start); ok {
+			return dir, nil
+		}
+	}
+	return "", fmt.Errorf("no encontré la carpeta connectors/ subiendo desde %s ni desde el binario (PLAYGROUND_ROOT la fija)", wd)
+}
+
+func findUp(start string) (string, bool) {
+	for d := start; ; d = filepath.Dir(d) {
 		if info, err := os.Stat(filepath.Join(d, "connectors", "env")); err == nil && info.IsDir() {
-			return filepath.Join(d, "connectors"), nil
+			return filepath.Join(d, "connectors"), true
 		}
 		if filepath.Dir(d) == d {
-			return "", fmt.Errorf("no encontré la carpeta connectors/ subiendo desde %s", wd)
+			return "", false
 		}
 	}
 }
@@ -58,8 +79,8 @@ func Load(target string) (Values, error) {
 	return Values{File: path, kv: kv}, nil
 }
 
-// LoadShared lee `connectors/.env`, el archivo de los servicios que NO dependen del ambiente (Gemini, y
-// más adelante Jira, Slack, Confluence): una sola cuenta sirve para todos los ambientes.
+// LoadShared lee `connectors/.env`, el archivo de los servicios que NO dependen del ambiente (Gemini,
+// Atlassian, Slack, Jev): una sola cuenta sirve para todos los ambientes.
 func LoadShared() (Values, error) {
 	dir, err := Dir()
 	if err != nil {

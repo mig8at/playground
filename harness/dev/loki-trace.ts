@@ -101,7 +101,7 @@ if (!lineas.length) {
     if (cobertura.traces.length) {
         const otros = Object.entries(cobertura.ambientes).map(([k, v]) => `${k} (${v} líneas)`).join(', ');
         console.error(`\n  ▸ el uReq ${ureq} SÍ tiene logs, pero no en el ambiente de este target.`);
-        console.error(`  ▸ target '${TARGET}' filtra E2E_LOKI_ENV=${cobertura.filtroEnv} · encontrado: ${otros}`);
+        console.error(`  ▸ target '${TARGET}' filtra LOKI_ENV=${cobertura.filtroEnv} · encontrado: ${otros}`);
         console.error(`  ▸ dev y staging comparten la BD, así que la solicitud existe en los dos pero la`);
         console.error(`  ▸ atendió otra rama de código. Probá con el target que corresponda:`);
         console.error(`  ▸   E2E_TARGET=dev node dev/loki-trace.ts ${ureq} --since ${valor('since') ?? '12h'}\n`);

@@ -30,8 +30,12 @@ connectors/             # en la raíz del playground: los clientes que usan los 
 5. Copia el **Bot User OAuth Token** (empieza con `xoxb-`).
 
 ```bash
-cp .env.example .env      # y pega tu token en SLACK_BOT_TOKEN
+cp ../../connectors/.env.example ../../connectors/.env   # y pegá tu token en SLACK_BOT_TOKEN
 ```
+
+El binario busca `connectors/` subiendo desde donde lo lanzan y, si no, desde donde vive: compilado
+en `bin/`, lo encuentra aunque Claude lo arranque desde otro directorio. Fuera del repo, `PLAYGROUND_ROOT`
+le dice dónde está. Una variable del proceso le gana al archivo.
 
 ## 2. Compilar
 

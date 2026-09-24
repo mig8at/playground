@@ -95,7 +95,7 @@ func postHogMode(c config, target string, ureq int64, tel string, limitValue int
 	if p.Config.Project == "" {
 		bad("no hay id de proyecto y el token no pudo listarlos")
 		detail("Se lee en PostHog → Settings → Project → Project ID (numérico).")
-		detail("Después: POSTHOG_PROJECT=<id> en trazador/.env.%s", target)
+		detail("Después: POSTHOG_PROJECT=<id> en connectors/.env.%s", target)
 		return 1
 	}
 

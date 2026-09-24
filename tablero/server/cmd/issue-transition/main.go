@@ -27,11 +27,11 @@ func main() {
 	key, target := os.Args[1], strings.ToLower(os.Args[2])
 
 	env.LoadDefaults()
-	site, email, token := os.Getenv("ATLASSIAN_SITE"), os.Getenv("ATLASSIAN_EMAIL"), os.Getenv("ATLASSIAN_API_TOKEN")
-	if site == "" || email == "" || token == "" {
-		log.Fatal("faltan credenciales ATLASSIAN_* (revisá server/.env)")
+	cfg, err := atlassian.LoadConfig()
+	if err != nil {
+		log.Fatal(err)
 	}
-	c := atlassian.New(site, email, token)
+	c := atlassian.NewFromConfig(cfg)
 	ctx := context.Background()
 
 	// La elección de la transición vive en el cliente: el handoff a QA del server hace lo mismo, y

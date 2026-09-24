@@ -7,8 +7,10 @@
 //
 // POR ESO: solo LECTURA y solo por consola. `-slack` lee y clasifica; no hay comando para publicar.
 //
-// EL TOKEN se toma de `SLACK_BOT_TOKEN` (el mismo nombre que usa `tablero/server/cmd/slack-mcp`, para no
-// tener dos convenciones) y NO se guarda en ningún `.env` de acá: se exporta en la shell cuando se usa.
+// EL TOKEN es `SLACK_BOT_TOKEN`, y lo resuelve `connectors/slack` desde `connectors/.env` (el proceso gana).
+// Hasta el 2026-09-24 se exportaba a mano en la shell, para no dejar un token de escritura en un `.env`
+// de acá; hoy vive en UN solo archivo gitignoreado para todo el playground, que es menos superficie que uno
+// por herramienta.
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 package main
@@ -130,12 +132,8 @@ func classifyReports(msgs []slackMessage) (hits, withoutCat []hit, byCat map[str
 
 // slackMode lee el canal y clasifica. Devuelve el exit code.
 func slackMode(days int, listUnclassified bool) int {
-	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
-	if token == "" {
-		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN.\n", paint("31", "✘"))
-		fmt.Fprintf(os.Stderr, "  Es el mismo nombre que usa tablero/server/cmd/slack-mcp. Exportalo en la shell:\n")
-		fmt.Fprintf(os.Stderr, "  no vive en ningún .env de acá a propósito — un token de escritura en un archivo\n")
-		fmt.Fprintf(os.Stderr, "  es un token que algún día se commitea.\n\n")
+	token, ok := slackToken()
+	if !ok {
 		return 2
 	}
 	since := time.Now().AddDate(0, 0, -days)
@@ -214,6 +212,19 @@ func slackMode(days int, listUnclassified bool) int {
 	return 0
 }
 
+// slackToken es el token del bot, o dice qué falta.
+func slackToken() (string, bool) {
+	cfg, err := slack.LoadConfig()
+	if err == nil && cfg.BotToken != "" {
+		return cfg.BotToken, true
+	}
+	if err == nil {
+		err = slack.ErrNoBotToken
+	}
+	fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
+	return "", false
+}
+
 func readChannel(token, channel string, since time.Time) ([]slackMessage, error) {
 	return slack.New(token).History(context.Background(), channel, since, 12)
 }
@@ -238,10 +249,8 @@ func readThread(token, channel, ts string) ([]slackMessage, error) {
 // etiqueta `directa|parcial|fuera` está cableada por categoría, o sea que mide MI SUPOSICIÓN sobre el tipo
 // de incidente, no el caso. Acá el código sólo junta el material; el juicio lo hace quien lee.
 func incidentsMode(days int) int {
-	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
-	if token == "" {
-		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN (se exporta en la shell, no vive en ningún .env).\n\n",
-			paint("31", "✘"))
+	token, ok := slackToken()
+	if !ok {
 		return 2
 	}
 	msgs, err := readChannel(token, techOpsChannel, time.Now().AddDate(0, 0, -days))

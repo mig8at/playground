@@ -688,16 +688,16 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
     // NO es ruido — es que dos ramas de código tocaron la misma solicitud, y hay que saberlo.
     const amb = Object.entries(r.cobertura.ambientes);
     log(gray(`   ambientes: ${amb.map(([k, v]) => `${k} ${v}`).join(' · ') || '(ninguno)'}` +
-        (r.cobertura.filtroEnv ? `  · filtro E2E_LOKI_ENV=${r.cobertura.filtroEnv}` : '  · sin filtro')));
+        (r.cobertura.filtroEnv ? `  · filtro LOKI_ENV=${r.cobertura.filtroEnv}` : '  · sin filtro')));
     // ⚠ EL FILTRO QUE NO MATCHEA NADA. Va ANTES que el resto porque cambia qué significan las otras dos
     // líneas: sin esto, un `E2E_LOKI_ENV` que no existe se lee como «esta solicitud no dejó rastro en tu
     // ambiente» —y peor, el runner lo atribuía a que la atendió otra rama de código—. No es hipotético:
     // `.env.staging` y `.env.qa` traen `qa`, que no es un valor de `environment` en este stack.
     if (r.cobertura.filtroInexistente) {
-        log(yellow(`   ⚠ E2E_LOKI_ENV=${r.cobertura.filtroInexistente} NO existe como valor de \`environment\` en esta ventana`));
+        log(yellow(`   ⚠ LOKI_ENV=${r.cobertura.filtroInexistente} NO existe como valor de \`environment\` en esta ventana`));
         log(yellow(`     (los que hay: ${(r.cobertura.valoresEnv ?? []).join(' · ') || '(ninguno)'}) — se consultó SIN filtrar.`));
         log(yellow('     Un filtro que no matchea nada devuelve vacío y ese vacío se lee como «no logueó»: por eso'));
-        log(yellow(`     esto se dice en vez de contestar cero. Arreglalo en harness/.env.${TARGET}, o dejalo vacío.`));
+        log(yellow(`     esto se dice en vez de contestar cero. Arreglalo en connectors/.env.${TARGET}, o dejalo vacío.`));
         log(yellow('     ⚠ Y mientras tanto estás viendo dev y qa MEZCLADOS: comparten stack y no hay etiqueta que los separe.'));
     }
     const fuera = amb.filter(([k]) => r.cobertura.filtroEnv && !new RegExp(`^(?:${r.cobertura.filtroEnv})$`).test(k));
@@ -706,7 +706,7 @@ export function imprimirForense(r: Resumen, ramal?: Ramal, opts: { pii?: boolean
             + 'dev y staging comparten la BD, así que lo tocaron dos ramas de código. Filtradas acá.'));
     } else if (amb.length > 1 && !r.cobertura.filtroEnv && !r.cobertura.filtroInexistente) {
         log(yellow('   ⚠ hay más de un ambiente y no hay filtro: estás mirando dos ramas de código mezcladas. '
-            + 'Definí E2E_LOKI_ENV para este target.'));
+            + `Definí LOKI_ENV en connectors/.env.${TARGET}.`));
     }
     if (r.cobertura.porVentana) {
         log(yellow('   ⚠ CORRELACIÓN POR VENTANA DE TIEMPO, no por uReq: ninguna línea nombra la solicitud,'));

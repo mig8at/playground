@@ -631,11 +631,12 @@ jq -r '.signals[]? | select(.why=="commit") | "\(.at[0:16])  \(.repo)  \(.branch
 
 ## Configuración (`server/.env`)
 
+Las **credenciales** no van acá: Jira, Slack, la base y Loki las resuelven sus conectores desde
+`connectors/.env` y `connectors/.env.<ambiente>` (plantilla: `connectors/.env.example`). Faltando las
+de Jira, el server arranca igual y cada ruta de Jira lo dice. En `server/.env` quedan las perillas:
+
 | Variable | Para qué | Default |
 |---|---|---|
-| `SLACK_BOT_TOKEN` | `xoxb-` — lo usa sólo `cmd/slack-mcp`; la API del tablero escribe como vos | — |
-| `SLACK_USER_TOKEN` | `xoxp-` — DMs "como vos" (`chat:write`, `im:write`, `users:read.email`) | — |
-| `ATLASSIAN_SITE` / `_EMAIL` / `_API_TOKEN` | Jira Cloud, Basic auth | — (faltando uno, Jira off) |
 | `JIRA_PROJECT_KEY` | proyecto de las tareas nuevas | `CORE` |
 | `JIRA_TASK_TYPE_ID` | tipo de issue de `cmd/issue-create` | `10005` (= "Tarea" en CORE) |
 | `JIRA_BOARD_ID` | board cuyo sprint activo se usa | `384` |
