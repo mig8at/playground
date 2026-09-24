@@ -99,11 +99,6 @@ const pagesOf = ref({}) // clave del archivo → 'loading' | { pages } | { error
 const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')) } catch { return new Set() } }
 const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])) } catch { /* preferencia opcional */ } }
 const openFiles = ref(readSet('visor.open-files'))
-const viewOpen = ref((() => { try { return { projects: true, lanes: true, ...JSON.parse(localStorage.getItem('visor.views') || '{}') } } catch { return { projects: true, lanes: true } } })())
-function toggleView(v) {
-  viewOpen.value = { ...viewOpen.value, [v]: !viewOpen.value[v] }
-  try { localStorage.setItem('visor.views', JSON.stringify(viewOpen.value)) } catch { /* preferencia opcional */ }
-}
 const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
 // Un grupo por proyecto de cada equipo, y al final los abiertos en el visor que no estén ya en uno.
 const projectGroups = computed(() => {
@@ -173,6 +168,10 @@ async function addToLibrary() {
   const ok = await loadLibrary(false, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: addURL.value.trim() }) })
   if (ok) { addURL.value = ''; adding.value = false }
 }
+// Los bloques que arrancan abiertos (se recuerdan entre visitas) también piden sus páginas: sin esto,
+// al recargar quedaban abiertos y vacíos.
+watch(flows, (list) => { for (const f of list) if (openFiles.value.has(f.key)) loadPages(f.key) })
+const isOpenPage = (key, pageID) => !!data.value && data.value.key === key && data.value.node === pageID
 function openPage(key, pageID) {
   load(`https://www.figma.com/design/${key}/?node-id=${pageID.replace(':', '-')}`)
 }
@@ -192,6 +191,10 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     data.value = body
     refInput.value = value
     loadLibrary()
+    if (!openFiles.value.has(body.key)) {
+      const set = new Set(openFiles.value); set.add(body.key); openFiles.value = set; saveSet('visor.open-files', set)
+    }
+    loadPages(body.key)
     try { localStorage.setItem('visor.last', value) } catch { /* preferencia opcional */ }
     const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
     go(screen && screens.value.has(screen) ? screen : first, false)
@@ -317,85 +320,70 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="sidebarOpen" class="sidebar" aria-label="Proyectos y carriles">
+    <aside v-show="sidebarOpen" class="sidebar" aria-label="Proyectos">
       <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
 
-      <!-- PROYECTOS: el acordeón de lo que se puede abrir. Cada proyecto se despliega en sus archivos y
-           cada archivo en sus páginas; tocar una página la lee como recorrido. -->
-      <section class="view" :class="{ abierta: viewOpen.projects }">
+      <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra.
+           Adentro, sus páginas; la página abierta despliega debajo sus carriles y pantallas. Los bloques
+           abiertos se reparten el alto y uno cerrado cuesta una fila, como las vistas del tablero. -->
+      <section v-for="f in flows" :key="f.key" class="view" :class="{ abierta: isOpenFile(f.key) }">
         <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="viewOpen.projects" aria-controls="view-projects" @click="toggleView('projects')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Proyectos</span>
+          <button type="button" class="view-tog" :aria-expanded="isOpenFile(f.key)" :aria-controls="'flow-' + f.key" @click="toggleFile(f.key)">
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ f.name }}</span>
           </button>
-          <button class="region-action" title="Sumar un equipo o un archivo de Figma" aria-label="Sumar un equipo o un archivo" @click="adding = !adding">
-            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+          <span v-if="data && data.key === f.key && screenCount" class="count" :title="screenCount + ' pantallas en la página abierta'">{{ screenCount }}</span>
+          <button v-if="data && data.key === f.key" class="region-action" title="Volver a leer la página desde Figma" aria-label="Volver a leer" @click="load(refInput, currentID, true)">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
+          <p v-if="pagesOf[f.key] === 'loading'" class="hint">Leyendo las páginas…</p>
+          <p v-else-if="pagesOf[f.key]?.error" class="notice">{{ pagesOf[f.key].error }}</p>
+          <template v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id">
+            <button type="button" class="page-row" :aria-current="isOpenPage(f.key, pg.id) ? 'true' : undefined" @click="openPage(f.key, pg.id)">
+              <span class="t">{{ pg.name }}</span>
+            </button>
+            <template v-if="isOpenPage(f.key, pg.id)">
+              <p v-if="error" class="notice" role="alert">{{ error }}</p>
+              <p v-if="loading" class="hint indent">Leyendo el diseño…</p>
+              <template v-for="g in groups" :key="g.id">
+                <div v-if="groups.length > 1" class="section-name">{{ g.name }}</div>
+                <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
+                  <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
+                    <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
+                  </div>
+                  <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
+                    :aria-current="sc.id === currentID ? 'true' : undefined" @click="go(sc.id)">
+                    <span class="n">{{ i + 1 }}</span>
+                    <span class="t">{{ sc.title || sc.name }}</span>
+                    <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
+                    <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
+                  </button>
+                </template>
+              </template>
+            </template>
+          </template>
+        </div>
+      </section>
+
+      <!-- Al final, sumar otro: como «Traer de Jira» en el tablero. -->
+      <section class="view" :class="{ abierta: adding }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="adding" aria-controls="view-add" @click="adding = !adding">
+            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span>Sumar un flujo</span>
           </button>
           <button class="region-action" title="Volver a pedir los proyectos a Figma" aria-label="Actualizar los proyectos" @click="loadLibrary(true)">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
-        <div v-if="viewOpen.projects" id="view-projects" class="region-body">
-          <form v-if="adding" class="loader" @submit.prevent="addToLibrary()">
-            <input v-model="addURL" class="input input-sm" type="url" placeholder="Página del equipo o URL de un archivo" aria-label="URL de un equipo o archivo de Figma" />
+        <div v-if="adding || libraryError || libraryErrors.length || !flows.length" id="view-add" class="region-body">
+          <form v-if="adding || !flows.length" class="loader" @submit.prevent="addToLibrary()">
+            <input v-model="addURL" class="input input-sm" type="url" placeholder="Enlace de un archivo, proyecto o equipo" aria-label="Enlace de Figma" />
             <button class="btn btn-sm" :disabled="libraryBusy || !addURL.trim()">{{ libraryBusy ? 'Sumando…' : 'Sumar' }}</button>
           </form>
-          <p v-if="adding" class="hint">Pegá la página de un equipo (<span class="mono">figma.com/files/team/…</span>) o de un proyecto (<span class="mono">figma.com/files/project/…</span>, la que se abre al tocar la carpeta en Figma), o el enlace de un archivo. La API de Figma no lista los equipos de una cuenta ni lo visto recientemente: cada flujo aparece acá cuando se suma su equipo, su proyecto o el archivo.</p>
+          <p v-if="adding || !flows.length" class="hint">Pegá el enlace de un archivo de Figma, o la página de un proyecto (<span class="mono">figma.com/files/project/…</span>) o de un equipo (<span class="mono">figma.com/files/team/…</span>) para sumar todos sus flujos. La API de Figma no lista lo visto recientemente.</p>
           <p v-if="libraryError" class="notice" role="alert">{{ libraryError }}</p>
-          <p v-if="!flows.length && !libraryBusy" class="empty">Todavía no hay proyectos. Sumá la página de un equipo con el botón de arriba, o abrí un archivo por su enlace.</p>
-          <p v-else-if="flows.length <= 1 && !(library.teams || []).length && !(library.projects || []).length && !adding" class="hint">
-            Acá aparecen sólo los flujos que el visor conoce. Para ver todos los de un equipo, sumá su página o la de su proyecto con el <b>+</b>.
-          </p>
-          <!-- Cada flujo es un bloque en la raíz, con su nombre; adentro, sus páginas. La carpeta de Figma
-               («PRODUCTO») no se muestra como nivel: agrupaba todo en un solo bloque y escondía los flujos. -->
           <p v-for="e in libraryErrors" :key="e" class="notice">{{ e }}</p>
-          <div v-for="f in flows" :key="f.key" class="acc">
-            <button type="button" class="acc-head" :aria-expanded="isOpenFile(f.key)" @click="toggleFile(f.key)">
-              <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-              <span class="t">{{ f.name }}</span>
-              <span v-if="f.when" class="when">{{ f.when }}</span>
-            </button>
-            <div v-if="isOpenFile(f.key)" class="acc-body">
-              <p v-if="pagesOf[f.key] === 'loading'" class="hint indent">Leyendo las páginas…</p>
-              <p v-else-if="pagesOf[f.key]?.error" class="notice indent">{{ pagesOf[f.key].error }}</p>
-              <button v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id" type="button" class="page-row"
-                :aria-current="data && data.key === f.key && data.node === pg.id ? 'true' : undefined" @click="openPage(f.key, pg.id)">
-                <span class="t">{{ pg.name }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- CARRILES: las pantallas de la página abierta, en los carriles que armó el diseñador. -->
-      <section class="view" :class="{ abierta: viewOpen.lanes }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="viewOpen.lanes" aria-controls="view-lanes" @click="toggleView('lanes')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Carriles</span>
-          </button>
-          <span v-if="screenCount" class="count">{{ screenCount }}</span>
-          <button v-if="data" class="region-action" title="Volver a leer el diseño desde Figma" aria-label="Volver a leer" @click="load(refInput, currentID, true)">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
-        </div>
-        <div v-if="viewOpen.lanes" id="view-lanes" class="region-body">
-          <p v-if="error" class="notice" role="alert">{{ error }}</p>
-          <p v-if="loading" class="hint">Leyendo el diseño…</p>
-          <p v-else-if="!data && !error" class="empty">Elegí una página de un proyecto.</p>
-          <template v-for="g in groups" :key="g.id">
-            <div v-if="groups.length > 1" class="section-name">{{ g.name }}</div>
-            <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
-              <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
-                <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
-              </div>
-              <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
-                :aria-current="sc.id === currentID ? 'true' : undefined" @click="go(sc.id)">
-                <span class="n">{{ i + 1 }}</span>
-                <span class="t">{{ sc.title || sc.name }}</span>
-                <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
-                <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
-              </button>
-            </template>
-          </template>
         </div>
       </section>
     </aside>
@@ -529,18 +517,14 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--texto-3) }
 .region-head.grupo.unlabeled > span:first-child { font-style: italic }
 
-.acc-head, .page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
+.page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }
-.acc-head { font-weight: 600; min-height: 32px }
-.page-row { padding-left: calc(var(--space-3) + 24px); color: var(--texto-2) }
-.acc-head:hover, .page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.page-row { padding-left: calc(var(--space-3) + 8px); font-weight: 500 }
+.page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
 .page-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
-.acc-head .t, .page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.acc-head .ui-icon { flex: none; transition: transform .12s }
-.acc-head[aria-expanded="true"] .ui-icon { transform: rotate(90deg) }
-.when { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
-.indent { padding-left: calc(var(--space-3) + 24px) }
+.page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.indent { padding-left: calc(var(--space-3) + 8px) }
 .screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }

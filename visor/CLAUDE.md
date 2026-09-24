@@ -1,8 +1,11 @@
 # visor — protocolo (un diseño de Figma, recorrido como lo recorrería el cliente)
 
-`make visor` (UI :5193 · API :5194). La barra de la izquierda tiene dos vistas apiladas: **Proyectos**,
-un acordeón proyecto → archivo → páginas, y **Carriles**, las pantallas de la página abierta en los
-carriles que armó el diseñador. Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
+`make visor` (UI :5193 · API :5194). La barra de la izquierda es un acordeón donde **cada proyecto es un
+bloque en la raíz** (Altafinanciera, BCP, Credifamilia, CreditopX, flujo ecommerce, Motai Renting,
+Smartpay): adentro, sus páginas, y la página abierta despliega debajo sus carriles y pantallas. Los
+bloques abiertos se reparten el alto (`.view`, como el tablero) y al final está «Sumar un flujo».
+*(Hubo dos versiones antes, las dos descartadas por Miguel el mismo día: un bloque «Proyectos» con una
+lista adentro, y la carpeta de Figma como nivel. Lo que se busca es el flujo, no dónde vive.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
 la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
 muestra u oculta las zonas. Un enlace de Figma con `node-id` también abre directo (`#/<clave>/<nodo>`).
 
