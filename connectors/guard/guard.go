@@ -48,6 +48,13 @@ var Patterns = []Pattern{
 	{`localhost|127\.0\.0\.1|:5[0-9]{3}\b`, "apunta a algo que corre en mi máquina — nombrá el ambiente compartido donde QA lo puede ver"},
 }
 
+// companyHosts son las direcciones de las herramientas internas DE LA COMPAÑÍA (`playground.creditop.com` y
+// sus subdominios). Se quitan del texto antes de mirar las reglas: desde que cuadrilla, credibot y credibrain
+// se mudaron al repo compartido, esos nombres son también hosts reales que infraestructura configura —
+// una tarea para poner el login en `cuadrilla.playground.creditop.com` no se puede escribir sin nombrarlo.
+// Lo que sigue frenando es el nombre SUELTO: «el playground», «la cuadrilla», sin el dominio.
+var companyHosts = regexp.MustCompile(`(?i)\b(?:[a-z0-9-]+\.)*playground\.creditop\.com\b`)
+
 var compiled = func() []*regexp.Regexp {
 	out := make([]*regexp.Regexp, len(Patterns))
 	for i, p := range Patterns {
@@ -60,6 +67,7 @@ var compiled = func() []*regexp.Regexp {
 // motivo, para mostrar) y `found` (el fragmento exacto que lo disparó, para poder corregirlo sin
 // adivinar).
 func Violations(text string) []map[string]string {
+	text = companyHosts.ReplaceAllString(text, "")
 	var out []map[string]string
 	for i, re := range compiled {
 		if m := re.FindString(text); m != "" {

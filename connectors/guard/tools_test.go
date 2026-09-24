@@ -52,3 +52,24 @@ func TestGuardStillBlocksPreviousPatterns(t *testing.T) {
 		}
 	}
 }
+
+// Los hosts de la compañía pasan; el nombre suelto no. Una tarea para infraestructura tiene que poder
+// decir QUÉ host configurar, y esos hosts llevan el nombre de las herramientas.
+func TestGuardLetsCompanyHostsThrough(t *testing.T) {
+	for _, s := range []string{
+		"Agregar la regla en `playground.creditop.com` y `cuadrilla.playground.creditop.com`.",
+		"Abrir https://credibot.playground.creditop.com/api/yo con la cuenta de la compañía.",
+	} {
+		if v := Violations(s); len(v) > 0 {
+			t.Errorf("tenía que pasar y lo frenó (%s → %s): %q", v[0]["what"], v[0]["found"], s)
+		}
+	}
+	for _, s := range []string{
+		"Se probó en el playground y en cuadrilla.",
+		"Ver playground.creditop.example y la cuadrilla.",
+	} {
+		if v := Violations(s); len(v) == 0 {
+			t.Errorf("tenía que frenar y pasó: %q", s)
+		}
+	}
+}
