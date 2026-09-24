@@ -85,7 +85,7 @@ def oauth_token(env):
     return d["access_token"]
 
 
-def modo_oauth(env, url=None):
+def oauth_mode(env, url=None):
     tok = oauth_token(env)
     hdr = {"Authorization": "Bearer " + tok}
     if url:
@@ -124,7 +124,7 @@ def modo_oauth(env, url=None):
 
 
 # -------------------------------------------------------------------- API Key
-def modo_key(env, url=None):
+def key_mode(env, url=None):
     sid, secret = env.get("TWILIO_API_KEY"), env.get("TWILIO_API_SECRET")
     if not sid:
         sys.exit("falta TWILIO_API_KEY (el SID SK… de la clave)")
@@ -166,15 +166,15 @@ def modo_key(env, url=None):
         print("  (ninguno en esta cuenta — ojo: los templates son POR CUENTA)")
         return
     for c in items:
-        tipos = ",".join((c.get("types") or {}).keys())
+        kinds = ",".join((c.get("types") or {}).keys())
         ap = (c.get("approval_requests") or {})
-        estado = ap.get("status") or "-"
-        print(f'  {c["sid"]}  {c.get("language", "?"):<6} {estado:<10} '
-              f'{(c.get("friendly_name") or "")[:36]:<36} [{tipos}]')
+        status = ap.get("status") or "-"
+        print(f'  {c["sid"]}  {c.get("language", "?"):<6} {status:<10} '
+              f'{(c.get("friendly_name") or "")[:36]:<36} [{kinds}]')
 
 
 # ------------------------------------------------------------------ templates
-def modo_tpl(env):
+def template_mode(env):
     """Los templates de la cuenta y en que anda su aprobacion de Meta."""
     sid, secret = env.get("TWILIO_SID"), env.get("TWILIO_TOKEN")
     if not (sid and secret):
@@ -190,8 +190,8 @@ def modo_tpl(env):
     for t in items:
         ap = t.get("approval_requests") or {}
         est = ap.get("status") or "unsubmitted"
-        marca = {"approved": "✅", "rejected": "❌", "unsubmitted": "·"}.get(est, "⏳")
-        print(f'{marca} {t["sid"]}  {est:<12} {ap.get("category") or "-":<14} {t["friendly_name"]}')
+        mark = {"approved": "✅", "rejected": "❌", "unsubmitted": "·"}.get(est, "⏳")
+        print(f'{mark} {t["sid"]}  {est:<12} {ap.get("category") or "-":<14} {t["friendly_name"]}')
         print(f'    types: {", ".join((t.get("types") or {}).keys())}')
         if ap.get("rejection_reason"):
             print(f'    RECHAZO: {ap["rejection_reason"]}')
@@ -202,8 +202,8 @@ if __name__ == "__main__":
     env = load_env()
     args = sys.argv[1:]
     if args and args[0] == "tpl":
-        modo_tpl(env)
+        template_mode(env)
     elif args and args[0] == "key":
-        modo_key(env, args[1] if len(args) > 1 else None)
+        key_mode(env, args[1] if len(args) > 1 else None)
     else:
-        modo_oauth(env, args[0] if args else None)
+        oauth_mode(env, args[0] if args else None)

@@ -176,7 +176,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   herramienta. Corrélo después de tocar estilos; sale ≠0 si algo está mal.
 - ⚠ **Y el chequeo de contraste tiene un TECHO que hay que conocer: sólo ve reglas que fijan color Y
   fondo en la misma regla** —11 a 37 por herramienta—. Todo el resto del texto hereda el color de un
-  ancestro y el fondo de otro, y eso no se resuelve leyendo CSS. Para eso está **`tools/contraste.js`**:
+  ancestro y el fondo de otro, y eso no se resuelve leyendo CSS. Para eso está **`tools/contrast.js`**:
   recorre el DOM, resuelve el fondo efectivo subiendo por los ancestros y mide cada nodo con texto
   propio (también se puede pegar en la consola, con la herramienta abierta). La primera corrida sobre
   las cuatro encontró 22 nodos abajo del umbral —10 casos distintos— que el estático no veía: dos <!-- lint:ok -->

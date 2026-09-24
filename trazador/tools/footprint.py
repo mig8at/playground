@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""huella.py — la HUELLA MEDIDA de un flujo: qué TABLAS, qué EVENTOS y qué CÓDIGO toca de punta a
+"""footprint.py — la HUELLA MEDIDA de un flujo: qué TABLAS, qué EVENTOS y qué CÓDIGO toca de punta a
 punta, y cuánto de eso cubre canon. GENERADO desde una corrida real: no se edita a mano.
 
 POR QUÉ EXISTE. Canon está organizado por TEMA y responde *por qué* el sistema hace lo que hace.
@@ -30,7 +30,7 @@ CÓMO SE MIDE (3 pasos, con el stack local arriba)
   2. el forense de logs (deja `.runs/forense-<ureq>/timeline.ndjson`):
        cd harness && E2E_TARGET=local node dev/loki-trace.ts <ureq>
   3. armar la huella:
-       python3 tools/huella.py <ureq> --nombre "rt=2 · Pullman" --mysql /tmp/huella-mysql.log
+       python3 trazador/tools/footprint.py <ureq> --nombre "rt=2 · Pullman" --mysql /tmp/huella-mysql.log
 
 ⚠ APAGÁ EL LOG GENERAL. Queda escribiendo a disco por cada consulta de cualquier conexión.
 """
@@ -46,7 +46,7 @@ PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__f
 # `connectors/repos`): es la misma pregunta que se hace el validador de citas, y tenerla dos veces es una
 # divergencia esperando.
 sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
-from repos import del_ref  # noqa: E402
+from repos import of_ref  # noqa: E402
 
 # El corpus contra el que se cruza lo medido es canon, que declara por área sus `tablas` y sus `fuentes`
 # (archivo → hash). La pregunta es «¿qué toca este flujo que nadie explica?». Quien sabe leerlo, por su
@@ -55,25 +55,25 @@ from repos import del_ref  # noqa: E402
 import canon as _canon  # noqa: E402
 
 HARNESS = os.path.join(PLAYGROUND, "harness")
-TEMPO = "http://127.0.0.1:3200/api/traces/"
-ESCRIBE = re.compile(r'\b(?:insert\s+into|update|delete\s+from)\s+`?([a-z_][a-z0-9_]*)`?', re.I)
+TEMP = "http://127.0.0.1:3200/api/traces/"
+WRITES = re.compile(r'\b(?:insert\s+into|update|delete\s+from)\s+`?([a-z_][a-z0-9_]*)`?', re.I)
 LEE = re.compile(r'\bfrom\s+`([a-z_][a-z0-9_]*)`', re.I)
 
 
-def tablas(path):
+def tables(path):
     if not path or not os.path.isfile(path):
         return Counter(), Counter()
     txt = open(path, errors="replace").read()
-    return Counter(ESCRIBE.findall(txt)), Counter(m.lower() for m in LEE.findall(txt))
+    return Counter(WRITES.findall(txt)), Counter(m.lower() for m in LEE.findall(txt))
 
 
-def eventos(ureq):
+def events(ureq):
     """Las líneas de log de la corrida + sus traces, del volcado que deja `dev/loki-trace.ts`."""
     p = os.path.join(HARNESS, ".runs", f"forense-{ureq}", "timeline.ndjson")
     if not os.path.isfile(p):
         return [], []
-    filas = [json.loads(l) for l in open(p) if l.strip()]
-    return filas, sorted({f.get("traceId") for f in filas if f.get("traceId")})
+    rows = [json.loads(l) for l in open(p) if l.strip()]
+    return rows, sorted({f.get("traceId") for f in rows if f.get("traceId")})
 
 
 def spans(traces):
@@ -81,7 +81,7 @@ def spans(traces):
     n = Counter()
     for t in traces:
         try:
-            d = json.load(urllib.request.urlopen(TEMPO + t, timeout=5))
+            d = json.load(urllib.request.urlopen(TEMP + t, timeout=5))
         except Exception:
             continue
 
@@ -99,25 +99,25 @@ def spans(traces):
     return n
 
 
-def cobertura_canon(mapas):
+def canon_coverage(maps):
     """(archivo → temas, y el índice de basenames) para cruzar lo medido con lo declarado.
 
     Un tema de canon declara sus archivos dentro de `areas[].fuentes[<repo>]`, con el hash del blob
     contra el que se verificó. Acá sólo interesa la RUTA: la pregunta es quién dice algo de ese
     archivo, no si el hash sigue al día (eso lo contesta `canon -ronda`).
     """
-    dueno = defaultdict(list)
-    for tema, m in mapas.items():
+    owner = defaultdict(list)
+    for theme, m in maps.items():
         for a in m.get("areas") or []:
-            for repo, archivos in (a.get("fuentes") or {}).items():
-                for f in archivos:
-                    clave = f"{repo}/{f}"
-                    if tema not in dueno[clave]:
-                        dueno[clave].append(tema)
-    por_clase = defaultdict(list)
-    for f in dueno:
-        por_clase[os.path.splitext(os.path.basename(f))[0]].append(f)
-    return dueno, por_clase
+            for repo, files in (a.get("fuentes") or {}).items():
+                for f in files:
+                    key = f"{repo}/{f}"
+                    if theme not in owner[key]:
+                        owner[key].append(theme)
+    by_class = defaultdict(list)
+    for f in owner:
+        by_class[os.path.splitext(os.path.basename(f))[0]].append(f)
+    return owner, by_class
 
 
 def main():
@@ -126,49 +126,49 @@ def main():
         print(__doc__.split("CÓMO SE MIDE")[1])
         return 2
     ureq = args[0]
-    nombre = sys.argv[sys.argv.index("--nombre") + 1] if "--nombre" in sys.argv else f"uReq {ureq}"
+    name = sys.argv[sys.argv.index("--nombre") + 1] if "--nombre" in sys.argv else f"uReq {ureq}"
     mysql = sys.argv[sys.argv.index("--mysql") + 1] if "--mysql" in sys.argv else None
 
-    esc, lee = tablas(mysql)
-    filas, traces = eventos(ureq)
+    esc, lee = tables(mysql)
+    rows, traces = events(ureq)
     sp = spans(traces)
-    mapas = _canon.maps()
-    dueno, por_clase = cobertura_canon(mapas)
+    maps = _canon.maps()
+    owner, by_class = canon_coverage(maps)
     # `None` = automático: la ref se resuelve por repo (ver `roots.ref_a_indexar`). Con el literal,
     # contra un `main` local atrasado faltan archivos y la huella los cuenta como inexistentes.
-    existen, _, _ = del_ref(None)
+    existing, _, _ = of_ref(None)
 
     # ¿qué tabla nombra algún tema de canon? Se pregunta por los DOS lados: `areas[].tablas`, que es
     # la declaración explícita, y la prosa del tema, donde una tabla puede estar explicada sin figurar
     # en la lista. Mirar sólo la declaración daría «huérfana» a una tabla que sí está contada.
-    declaran = defaultdict(set)
-    for tema, m in mapas.items():
+    declaring = defaultdict(set)
+    for theme, m in maps.items():
         for a in m.get("areas") or []:
             for t in a.get("tablas") or []:
-                declaran[t].add(tema)
-    prosa = _canon.prose()
-    def quien_explica(t):
-        en_prosa = {n for n, txt in prosa.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
-        return sorted(declaran.get(t, set()) | en_prosa)
+                declaring[t].add(theme)
+    prose = _canon.prose()
+    def who_explains(t):
+        in_prose = {n for n, txt in prose.items() if re.search(rf'`?\b{re.escape(t)}\b`?', txt)}
+        return sorted(declaring.get(t, set()) | in_prose)
 
     L = []
-    L.append(f"# Huella medida · {nombre}\n")
-    L.append(f"> GENERADO por `tools/huella.py` desde la corrida **uReq {ureq}** (target `local`). "
+    L.append(f"# Huella medida · {name}\n")
+    L.append(f"> GENERADO por `trazador/tools/footprint.py` desde la corrida **uReq {ureq}** (target `local`). "
              f"Es EVIDENCIA de qué toca el flujo, no explicación de por qué — eso vive en canon.\n")
 
     L.append(f"## Tablas ({len(esc)} escritas · {len(lee)} leídas)\n")
     L.append("| tabla | escrituras | ¿algún tema de canon la explica? |")
     L.append("|---|---|---|")
-    huerfanas = []
+    orphans = []
     for t, n in esc.most_common():
-        qs = quien_explica(t)
+        qs = who_explains(t)
         if not qs:
-            huerfanas.append(t)
+            orphans.append(t)
         L.append(f"| `{t}` | {n} | {' · '.join(qs[:3]) if qs else '**ninguno**'} |")
     L.append("")
-    if huerfanas:
-        L.append(f"**{len(huerfanas)} tabla(s) que el flujo ESCRIBE y ningún tema de canon nombra:** "
-                 + ", ".join(f"`{t}`" for t in huerfanas) + "\n")
+    if orphans:
+        L.append(f"**{len(orphans)} tabla(s) que el flujo ESCRIBE y ningún tema de canon nombra:** "
+                 + ", ".join(f"`{t}`" for t in orphans) + "\n")
 
     L.append(f"## Código ({len(sp)} clases con span)\n")
     if sp:
@@ -176,16 +176,16 @@ def main():
         L.append("|---|---|---|---|")
         for s, n in sp.most_common():
             cls = s.split("::")[0]
-            arch = por_clase.get(cls) or [f for f in existen
+            arch = by_class.get(cls) or [f for f in existing
                                           if os.path.basename(f).startswith(cls + ".")]
-            ns = sorted({x for f in arch for x in dueno.get(f, [])})
+            ns = sorted({x for f in arch for x in owner.get(f, [])})
             L.append(f"| `{s}` | {n} | {arch[0] if arch else '—'} | "
                      f"{' · '.join(ns) if ns else '**ninguno**'} |")
     L.append("")
-    L.append(f"## Eventos ({len(filas)} líneas en {len(traces)} traces)\n")
-    niv = Counter(f.get("level") for f in filas)
-    L.append("· ".join(f"**{k}** {v}" for k, v in niv.most_common()) or "sin líneas")
-    errs = [f for f in filas if f.get("level") in ("error", "warning")]
+    L.append(f"## Eventos ({len(rows)} líneas en {len(traces)} traces)\n")
+    lvl = Counter(f.get("level") for f in rows)
+    L.append("· ".join(f"**{k}** {v}" for k, v in lvl.most_common()) or "sin líneas")
+    errs = [f for f in rows if f.get("level") in ("error", "warning")]
     if errs:
         L.append("\nFallas de la corrida (que igual cerró):\n")
         for f in sorted({e.get("msg", "") for e in errs}):

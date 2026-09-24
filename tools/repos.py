@@ -33,10 +33,10 @@ with open(os.path.join(PLAYGROUND, "tools", "repos.json"), encoding="utf-8") as 
 ROOTS = {alias: _expand(path) for alias, path in _LIST["indexed"].items()}
 CITABLES = {**ROOTS, **{alias: _expand(path) for alias, path in _LIST["citable_only"].items()}}
 EXTS = set(_LIST["extensions"])
-DIAS_RANCIO = 14  # el mismo umbral que `repos.StaleDays`: a partir de acá se avisa que la ref está vieja
+STALE_DAYS = 14  # el mismo umbral que `repos.StaleDays`: a partir de acá se avisa que la ref está vieja
 
 
-def es_local(alias):
+def is_local(alias):
     """¿El alias es una HERRAMIENTA DE ESTE REPO? Lo son las que la lista declara con ruta relativa al
     playground; un alias desconocido no lo es (si lo fuera, un alias mal escrito desaparecería)."""
     path = _LIST["indexed"].get(alias)
@@ -69,11 +69,11 @@ def _ask(*args, timeout=600):
 _REFS = None
 
 
-def ref_a_indexar(root, rama="main"):
+def ref_to_index(root, branch="main"):
     """`(ref, motivo)` de la ref que hay que mirar: la que CONTIENE a la otra entre `main` y
     `origin/main`. NO hace fetch. Se resuelven todas las de una vez y se cachean por proceso."""
     global _REFS
-    if rama != "main":
+    if branch != "main":
         raise ValueError("sólo se resuelve `main`: es la única rama que los consumidores piden")
     if _REFS is None:
         _REFS = _ask("refs")
@@ -84,7 +84,7 @@ def ref_a_indexar(root, rama="main"):
     return (choice["ref"] or None), choice["reason"]
 
 
-def refrescar_remotos(roots=None, timeout=30, verboso=False):
+def refresh_remotes(roots=None, timeout=30, verbose=False):
     """`git fetch` de cada repo en paralelo; devuelve los alias que fallaron. Sólo actualiza refs
     remotas: no toca el working tree ni ninguna rama local."""
     global _REFS
@@ -92,12 +92,12 @@ def refrescar_remotos(roots=None, timeout=30, verboso=False):
         raise ValueError("se refrescan todos los repos de la lista o ninguno")
     failed = _ask("refresh", str(int(timeout)))["failed"]
     _REFS = None  # las refs remotas cambiaron: lo cacheado ya no vale
-    if verboso and failed:
+    if verbose and failed:
         print(f"  ⚠ no se pudo actualizar: {', '.join(sorted(failed))} — se usa lo que hay en disco")
     return failed
 
 
-def del_ref(ref=None):
+def of_ref(ref=None):
     """`(have, sin_verificar, viejos)`: los archivos de código que existen en la ref como
     `alias/relpath`, los repos que no se pudieron consultar y las refs viejas. Con `None` la ref se
     resuelve por repo; una explícita no se toca."""
@@ -107,18 +107,18 @@ def del_ref(ref=None):
             [(s["alias"], s["days"], s["ref"]) for s in out["stale"] or []])
 
 
-def ref_hoy(alias):
+def ref_today(alias):
     """La ref contra la que se compara el «hoy» de un repo: se decide por repo, no es una constante."""
     root = ROOTS.get(alias)
     if not root:
         return "main"
-    ref, _ = ref_a_indexar(root)
+    ref, _ = ref_to_index(root)
     return ref or "main"
 
 
-def archivo(alias, ruta, sha=None):
+def file_path(alias, rel_path, sha=None):
     """¿Existe `ruta` en `alias`, y en qué commit? Lo mismo que `repos file`."""
-    out = _ask("file", alias, ruta, *([sha] if sha else []))
+    out = _ask("file", alias, rel_path, *([sha] if sha else []))
     if out.get("error"):
         return {"error": out["error"]}
     out.pop("error", None)
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     # Se conserva la línea de comandos de antes para quien todavía la llame.
     args = sys.argv[1:]
     if args[:1] == ["archivo"] and len(args) in (3, 4):
-        print(json.dumps(archivo(*args[1:]), ensure_ascii=False))
+        print(json.dumps(file_path(*args[1:]), ensure_ascii=False))
     elif args == ["web"]:
         print(json.dumps(_ask("web"), ensure_ascii=False))
     else:

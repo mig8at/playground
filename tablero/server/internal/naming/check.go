@@ -158,11 +158,14 @@ func Default(root string) Board {
 func Shared(root string) Board {
 	trees := []string{"connectors", "cmd", "lib"}
 	return Board{
-		Name:      "compartido",
-		Root:      root,
-		GoRoots:   trees,
-		JSONRoots: trees,
-		PathRoots: []string{"connectors/", "cmd/", "lib/", "bin/"},
+		Name:        "compartido",
+		Root:        root,
+		GoRoots:     trees,
+		JSONRoots:   trees,
+		JSGlobs:     []string{"tools/*.js", "tools/*.mjs", "tools/ui/*.js"},
+		PyGlobs:     []string{"tools/*.py", "twilio/*.py"},
+		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
+		PathRoots:   []string{"connectors/", "cmd/", "lib/", "bin/", "tools/", "twilio/"},
 	}
 }
 
@@ -174,7 +177,8 @@ func Tracer(root string) Board {
 		Root:      root,
 		GoRoots:   []string{"trazador/server"},
 		JSONRoots: []string{"trazador/server"},
-		PathRoots: []string{"trazador/server/"},
+		PyGlobs:   []string{"trazador/tools/*.py"},
+		PathRoots: []string{"trazador/server/", "trazador/tools/"},
 	}
 }
 

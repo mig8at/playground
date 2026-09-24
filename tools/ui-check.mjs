@@ -69,7 +69,7 @@ const trazadorFixture = {
   ],
   chequeo: [],
 };
-const trazadorCompletoFixture = {
+const tracerFullFixture = {
   ureq: 987001, target: 'prod', outcome: 'aprobado', etapas: [
     { id: 'origen', label: 'Origen', status: 'ok', source: 'db', at: '10:01', subs: [
       { label: 'Recepción de la solicitud', status: 'ok', source: 'loki', eventosDe: 2, eventos: [
@@ -86,7 +86,7 @@ const trazadorCompletoFixture = {
   perfilesCupo: [{ categoria: 'Premium', entidad: 'Entidad de prueba', cupo: 1353200 }],
   personaKey: 'p-prod-2a', documento: '38612965', telefono: '3001234567', origen: 'web', origenDerivado: true,
 };
-const trazadorResultadosFixture = {
+const tracerResultsFixture = {
   target: 'prod', fuente: 'fixture', como: ['teléfono → 1'],
   historia: { total: 2, desde: '2025-12-20', hasta: '2026-09-19', enCurso: 2, comercios: 2, aprobadas: 0, rotas: 0, abandonadas: 0 },
   personas: [{ personaKey: 'p-prod-2a', documento: '38612965', telefono: '3001234567' }],
@@ -125,9 +125,9 @@ try {
   for (const [name, url] of apps) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const errors = [];
-    let trazasPedidas = 0;
-    let busquedasPedidas = 0;
-    let bloquearJira = false;
+    let requestedTraces = 0;
+    let requestedSearches = 0;
+    let blockJira = false;
     page.on('pageerror', (e) => errors.push(e.message));
     if (name === 'trazador') {
       await page.addInitScript(() => {
@@ -141,29 +141,29 @@ try {
       const path = new URL(route.request().url()).pathname;
       if (route.request().method() !== 'GET') return route.abort();
       if (name === 'tablero') {
-        if (bloquearJira && (path === '/api/sprints' || path === '/api/sprint')) return new Promise(() => {});
+        if (blockJira && (path === '/api/sprints' || path === '/api/sprint')) return new Promise(() => {});
         return route.fulfill({ json: sample[path] || {} });
       }
       if (name === 'trazador') {
         if (path === '/api/mapa') return route.fulfill({ json: trazadorFixture });
         if (path === '/api/buscar') {
-          busquedasPedidas += 1;
+          requestedSearches += 1;
           const q = new URL(route.request().url()).searchParams.get('q');
-          const esSolicitud = /^987\d+$/.test(q || '');
-          const directa = esSolicitud && !trazadorResultadosFixture.items.some((item) => String(item.ureq) === q)
-            ? { ...trazadorResultadosFixture.items[0], ureq: Number(q), directa: true }
+          const isLoanRequest = /^987\d+$/.test(q || '');
+          const direct = isLoanRequest && !tracerResultsFixture.items.some((item) => String(item.ureq) === q)
+            ? { ...tracerResultsFixture.items[0], ureq: Number(q), directa: true }
             : null;
           return route.fulfill({ json: {
-            ...trazadorResultadosFixture,
-            como: [esSolicitud ? 'número de solicitud → 1' : 'teléfono → 1'],
-            items: [...(directa ? [directa] : []), ...trazadorResultadosFixture.items
+            ...tracerResultsFixture,
+            como: [isLoanRequest ? 'número de solicitud → 1' : 'teléfono → 1'],
+            items: [...(direct ? [direct] : []), ...tracerResultsFixture.items
               .map((item) => ({ ...item, directa: String(item.ureq) === q }))],
           } });
         }
         if (path === '/api/traza') {
-          trazasPedidas += 1;
+          requestedTraces += 1;
           const ureq = Number(new URL(route.request().url()).searchParams.get('ureq'));
-          return route.fulfill({ json: { ...trazadorCompletoFixture, ureq } });
+          return route.fulfill({ json: { ...tracerFullFixture, ureq } });
         }
         return route.fulfill({ json: {} });
       }
@@ -199,8 +199,8 @@ try {
       // ⚠ El default del sidebar derecho es RETOMAR, no Jira, desde que existe esa vista: al abrir una
       // tarea lo primero que hace falta es con qué se sigue, no el espejo de Jira. Esta aserción decía
       // lo contrario y quedó vieja un día entero sin que nada fallara, porque nadie corrió el chequeo.
-      const retomarTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Retomar', exact: true });
-      assert.equal(await retomarTab.getAttribute('aria-selected'), 'true',
+      const resumeTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Retomar', exact: true });
+      assert.equal(await resumeTab.getAttribute('aria-selected'), 'true',
         'Tablero: Retomar ocupa por defecto el cuerpo único del sidebar derecho');
       const jiraTab = page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true });
       await jiraTab.click(); await paint(page);
@@ -226,14 +226,14 @@ try {
       assert(jiraPanel.alto > 250, 'Tablero: la descripción Jira conserva un área de lectura amplia');
       assert.equal(await page.locator('.editor-tabs').getByRole('button', { name: 'Mostrar u ocultar vistas', exact: true }).count(), 0,
         'Tablero: el editor no duplica el control de regiones que ya vive en el pie');
-      const estado = page.getByRole('button', { name: 'Avanzar UI-1 al siguiente estado', exact: true });
-      assert.equal(await estado.isVisible(), true, 'Tablero: cada tarea Jira ofrece el siguiente estado en su fila');
-      await estado.click();
-      const menuEstado = page.getByRole('menu', { name: 'Avanzar UI-1', exact: true });
-      await menuEstado.getByRole('menuitem', { name: 'Terminado', exact: true }).waitFor();
-      assert.equal(await menuEstado.getByRole('menuitem').count(), 1,
+      const state = page.getByRole('button', { name: 'Avanzar UI-1 al siguiente estado', exact: true });
+      assert.equal(await state.isVisible(), true, 'Tablero: cada tarea Jira ofrece el siguiente estado en su fila');
+      await state.click();
+      const menuState = page.getByRole('menu', { name: 'Avanzar UI-1', exact: true });
+      await menuState.getByRole('menuitem', { name: 'Terminado', exact: true }).waitFor();
+      assert.equal(await menuState.getByRole('menuitem').count(), 1,
         'Tablero: el acceso rápido ofrece sólo el paso siguiente, no todas las salidas de Jira');
-      await escapeMenu(page, estado);
+      await escapeMenu(page, state);
       assert.equal(new URL(page.url()).hash, '#/tareas/ui-1',
         'Tablero: enfocar una tarea deja una ruta copiable');
     }
@@ -242,14 +242,14 @@ try {
       assert.equal(await page.locator('.sidebar').isVisible(), true, 'Trazador: persona abierta al iniciar');
       assert.equal(await page.locator('.auxiliarybar').isVisible(), true, 'Trazador: inspector abierto al iniciar');
       assert.equal(await page.locator('.recientes-console').isVisible(), true, 'Trazador: recientes abierto en la consola al iniciar');
-      const personaCard = await page.locator('.persona-panel > .region-head').evaluate((el) => {
+      const personCard = await page.locator('.persona-panel > .region-head').evaluate((el) => {
         const style = getComputedStyle(el);
         return { border: style.borderTopWidth, radio: style.borderTopLeftRadius };
       });
-      assert.equal(personaCard.border, '0px', 'Trazador: cabecera de persona sin borde exterior');
-      assert.equal(personaCard.radio, '0px', 'Trazador: cabecera de persona sin radio de tarjeta');
-      const recientesInicial = page.getByRole('tab', { name: /Recientes/ });
-      assert.equal(await recientesInicial.getAttribute('aria-selected'), 'true',
+      assert.equal(personCard.border, '0px', 'Trazador: cabecera de persona sin borde exterior');
+      assert.equal(personCard.radio, '0px', 'Trazador: cabecera de persona sin radio de tarjeta');
+      const recentInitial = page.getByRole('tab', { name: /Recientes/ });
+      assert.equal(await recentInitial.getAttribute('aria-selected'), 'true',
         'Trazador: muestra recientes en la consola antes de seleccionar una solicitud');
       assert.equal(await page.locator('.reciente').count(), 1, 'Trazador: muestra las consultas guardadas');
     }
@@ -264,7 +264,7 @@ try {
     assert.equal(after, before + 16, `${name}: ajuste con teclado`);
     if (name === 'tablero') {
       await page.waitForFunction(() => localStorage.getItem('tablero:bootstrap:v1') !== null);
-      bloquearJira = true; // la recarga tiene que pintar aun si Jira todavía no respondió
+      blockJira = true; // la recarga tiene que pintar aun si Jira todavía no respondió
     }
     await page.reload();
     const restored = name === 'trazador'
@@ -295,9 +295,9 @@ try {
       const width = Number(await right.getAttribute('aria-valuenow'));
       await right.press('ArrowLeft');
       assert.equal(Number(await right.getAttribute('aria-valuenow')), width + 16);
-      const pendientes = page.locator('.auxiliarybar').getByRole('tab', { name: /Pendientes/ });
-      await pendientes.click();
-      assert.equal(await pendientes.getAttribute('aria-selected'), 'true');
+      const pending = page.locator('.auxiliarybar').getByRole('tab', { name: /Pendientes/ });
+      await pending.click();
+      assert.equal(await pending.getAttribute('aria-selected'), 'true');
       assert.equal(await page.locator('.auxiliarybar').getByRole('tab', { name: 'Jira', exact: true }).getAttribute('aria-selected'), 'false');
     }
     if (name === 'trazador') {
@@ -311,34 +311,34 @@ try {
       assert(await page.locator('.editor-mapa').evaluate((e) => e.clientWidth) < mapWidth,
         'Trazador: el editor cede espacio al ensanchar los logs');
       assert.equal(await page.locator('body').evaluate((e) => e.classList.contains('redimensionando')), false);
-      const mapa = await page.locator('.mapa').evaluate((el) => {
+      const stageMap = await page.locator('.mapa').evaluate((el) => {
         const labels = [...el.querySelectorAll('.nlbl')].map((node) => {
           const box = node.getBBox();
           return { left: box.x, right: box.x + box.width, top: box.y, bottom: box.y + box.height };
         });
         const svg = el.querySelector('svg').getBBox();
-        const seMontan = labels.some((a, i) => labels.slice(i + 1).some((b) =>
+        const mounted = labels.some((a, i) => labels.slice(i + 1).some((b) =>
           a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top));
-        return { dentro: labels.every((l) => l.left >= svg.x && l.right <= svg.x + svg.width), seMontan,
+        return { dentro: labels.every((l) => l.left >= svg.x && l.right <= svg.x + svg.width), seMontan: mounted,
           rieles: el.querySelectorAll('.arista').length };
       });
-      assert.equal(mapa.dentro, true, 'Trazador: las etiquetas quedan dentro del lienzo');
-      assert.equal(mapa.seMontan, false, 'Trazador: las etiquetas no se montan');
-      assert(mapa.rieles > 0, 'Trazador: el recorrido conserva rieles visibles');
+      assert.equal(stageMap.dentro, true, 'Trazador: las etiquetas quedan dentro del lienzo');
+      assert.equal(stageMap.seMontan, false, 'Trazador: las etiquetas no se montan');
+      assert(stageMap.rieles > 0, 'Trazador: el recorrido conserva rieles visibles');
 
-      const ficha = page.locator('.tirador-persona');
-      await ficha.press('Home'); await paint(page);
+      const card = page.locator('.tirador-persona');
+      await card.press('Home'); await paint(page);
       assert.equal(await page.locator('.persona-panel').isVisible(), false,
         'Trazador: la ficha se pliega al llegar al borde');
-      await ficha.press('Enter'); await paint(page);
+      await card.press('Enter'); await paint(page);
       assert.equal(await page.locator('.persona-panel').isVisible(), true,
         'Trazador: la ficha vuelve desde su tirador');
 
-      const consola = page.locator('.tirador-consola');
-      await consola.press('Home'); await paint(page);
+      const consolePanel = page.locator('.tirador-consola');
+      await consolePanel.press('Home'); await paint(page);
       assert.equal(await page.locator('.recientes-console').isVisible(), false,
         'Trazador: recientes se pliega al borde inferior');
-      await consola.press('Enter'); await paint(page);
+      await consolePanel.press('Enter'); await paint(page);
       assert.equal(await page.locator('.recientes-console').isVisible(), true,
         'Trazador: recientes vuelve desde su tirador');
     }
@@ -395,8 +395,8 @@ try {
       assert.equal(await page.locator('.ramas-panel').isVisible(), true,
         'Tablero: la consola de la tarea vuelve desde el footer');
       await page.locator('.tree-row').nth(1).click(); await paint(page);
-      const altoVacio = await page.locator('.ramas-panel').evaluate((panel) => panel.getBoundingClientRect().height);
-      assert(altoVacio <= 80, 'Tablero: una tarea sin ramas usa una consola compacta');
+      const emptyHeight = await page.locator('.ramas-panel').evaluate((panel) => panel.getBoundingClientRect().height);
+      assert(emptyHeight <= 80, 'Tablero: una tarea sin ramas usa una consola compacta');
       assert.equal(await page.locator('.repo-sidebar').count(), 0,
         'Tablero: una tarea sin ramas no inventa un selector de repositorios');
       await page.locator('.tree-row').first().click();
@@ -410,27 +410,27 @@ try {
       assert(await logs.evaluate((el) => el === document.activeElement), 'Ocultar devuelve el foco al alternador');
       await logs.click(); await paint(page);
       assert(await page.locator('.auxiliarybar').evaluate((el) => el.getBoundingClientRect().width > 0), 'Los logs vuelven desde el pie');
-      const consola = page.locator('.tirador-consola');
-      const altoConsola = Number(await consola.getAttribute('aria-valuenow'));
-      await consola.press('ArrowUp');
-      assert.equal(Number(await consola.getAttribute('aria-valuenow')), altoConsola + 16,
+      const consolePanel = page.locator('.tirador-consola');
+      const consoleHeight = Number(await consolePanel.getAttribute('aria-valuenow'));
+      await consolePanel.press('ArrowUp');
+      assert.equal(Number(await consolePanel.getAttribute('aria-valuenow')), consoleHeight + 16,
         'Trazador: la consola de recientes ajusta su altura con teclado');
       await page.getByRole('button', { name: 'Ocultar recientes', exact: true }).click();
       assert.equal(await page.locator('.recientes-console').isVisible(), false, 'Trazador: se puede ocultar la consola');
-      const recientesToggle = page.getByRole('button', { name: 'Mostrar u ocultar recientes', exact: true });
-      assert.equal(await recientesToggle.getAttribute('aria-pressed'), 'false');
-      await recientesToggle.click(); await paint(page);
+      const recentToggle = page.getByRole('button', { name: 'Mostrar u ocultar recientes', exact: true });
+      assert.equal(await recentToggle.getAttribute('aria-pressed'), 'false');
+      await recentToggle.click(); await paint(page);
       assert.equal(await page.locator('.recientes-console').isVisible(), true, 'Trazador: la consola vuelve desde el pie');
       await page.locator('.abrir-reciente').click();
       await page.locator('.curso-dato').first().waitFor();
-      assert.equal(busquedasPedidas, 1, 'Trazador: consulta la búsqueda una sola vez antes de guardarla');
+      assert.equal(requestedSearches, 1, 'Trazador: consulta la búsqueda una sola vez antes de guardarla');
       assert.equal(await page.locator('.curso-dato').count(), 2,
         'Trazador: la consola muestra las solicitudes en curso de la búsqueda');
-      const cursos = await page.locator('.curso-ureq').allTextContents();
-      assert.deepEqual(cursos, ['987001', '987000'],
+      const inProgressItems = await page.locator('.curso-ureq').allTextContents();
+      assert.deepEqual(inProgressItems, ['987001', '987000'],
         'Trazador: ordena las solicitudes en curso de más reciente a más antigua');
-      const recienteGrupo = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes')));
-      assert.deepEqual(recienteGrupo, [{ target: 'prod', q: '3001234567', personaKey: 'p-prod-2a', tipo: 'Teléfono', documento: '38612965', telefono: '3001234567', total: 2, solicitudes: ['987001', '987000'], consultas: ['3001234567'] }],
+      const recentGroup = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes')));
+      assert.deepEqual(recentGroup, [{ target: 'prod', q: '3001234567', personaKey: 'p-prod-2a', tipo: 'Teléfono', documento: '38612965', telefono: '3001234567', total: 2, solicitudes: ['987001', '987000'], consultas: ['3001234567'] }],
         'Trazador: un teléfono se guarda como un grupo de solicitudes');
       assert.equal(await page.locator('.reciente-tipo').textContent(), 'Cédula',
         'Trazador: el sidebar muestra la cédula de la persona');
@@ -438,7 +438,7 @@ try {
         'Trazador: la ficha lateral se completa antes de elegir una solicitud');
       await page.locator('.curso-dato').first().click();
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(busquedasPedidas, 1, 'Trazador: abrir una solicitud del grupo no repite la búsqueda');
+      assert.equal(requestedSearches, 1, 'Trazador: abrir una solicitud del grupo no repite la búsqueda');
       assert.equal(await page.locator('.abrir-reciente').count(), 1,
         'Trazador: abrir una solicitud del grupo no crea otro reciente');
       assert.equal(await page.locator('.persona-panel .meta').getByText('38612965').isVisible(), true,
@@ -447,27 +447,27 @@ try {
         'Trazador: la ficha lateral muestra el resultado compacto del perfilamiento');
       assert.equal(await page.locator('.persona-panel .perfiles-cupo').getByText('Premium').isVisible(), true,
         'Trazador: la ficha lateral muestra la categoría efectiva y el cupo de la entidad');
-      const buscarRegistro = page.getByRole('searchbox', { name: 'Buscar en todo el registro', exact: true });
+      const searchLog = page.getByRole('searchbox', { name: 'Buscar en todo el registro', exact: true });
       assert.equal(await page.locator('.log-line').count(), 2,
         'Trazador: el inspector muestra todas las líneas en un único registro');
-      const copiarRegistro = page.getByRole('button', { name: 'Copiar registro visible', exact: true });
-      assert.equal(await copiarRegistro.isVisible(), true,
+      const copyLog = page.getByRole('button', { name: 'Copiar registro visible', exact: true });
+      assert.equal(await copyLog.isVisible(), true,
         'Trazador: el registro completo se puede copiar desde el inspector');
-      await buscarRegistro.fill('comercio de prueba');
+      await searchLog.fill('comercio de prueba');
       assert.equal(await page.locator('.log-line').count(), 1,
         'Trazador: el buscador filtra todo el registro, no sólo una etapa');
-      await buscarRegistro.fill('');
+      await searchLog.fill('');
       await page.locator('.stage-bar').first().click();
       assert.equal(await page.locator('.stage-bar').first().getAttribute('aria-current'), 'step',
         'Trazador: una sección del registro conserva la sincronía con el mapa');
       await page.getByRole('textbox', { name: 'Buscar' }).fill('987001');
       await page.getByRole('textbox', { name: 'Buscar' }).press('Enter');
       await page.locator('.curso-dato').first().waitFor();
-      assert.equal(busquedasPedidas, 2, 'Trazador: permite buscar una solicitud directa');
+      assert.equal(requestedSearches, 2, 'Trazador: permite buscar una solicitud directa');
       assert.equal(await page.locator('.abrir-reciente').count(), 1,
         'Trazador: la solicitud directa se une al grupo existente de su persona');
-      const todasDirecta = page.getByRole('tab', { name: /Todas/ });
-      assert.equal(await todasDirecta.getAttribute('aria-selected'), 'true',
+      const allDirect = page.getByRole('tab', { name: /Todas/ });
+      assert.equal(await allDirect.getAttribute('aria-selected'), 'true',
         'Trazador: una búsqueda por solicitud abre todas las solicitudes de la persona');
       assert.equal(await page.locator('.curso-dato').count(), 2,
         'Trazador: la consulta directa muestra los otros intentos sin ocultarlos');
@@ -475,14 +475,14 @@ try {
         'Trazador: mantiene resaltada la solicitud que se buscó');
       assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965/987001/origen',
         'Trazador: guarda la corrida y la etapa en una ruta dinámica legible');
-      const grupoPorSolicitud = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes'))[0]);
-      assert.deepEqual(grupoPorSolicitud.consultas, ['987001', '3001234567'],
+      const groupByRequest = await page.evaluate(() => JSON.parse(localStorage.getItem('trazador.recientes'))[0]);
+      assert.deepEqual(groupByRequest.consultas, ['987001', '3001234567'],
         'Trazador: el grupo conserva las consultas que lo resolvieron');
       assert.equal(await page.locator('.persona-panel .historia').count(), 0,
         'Trazador: el sidebar izquierdo no mezcla la historia con la ficha');
-      const todas = page.getByRole('tab', { name: /Todas/ });
-      await todas.click();
-      assert.equal(await todas.getAttribute('aria-selected'), 'true', 'Trazador: conserva todas las solicitudes dentro de la consola');
+      const all = page.getByRole('tab', { name: /Todas/ });
+      await all.click();
+      assert.equal(await all.getAttribute('aria-selected'), 'true', 'Trazador: conserva todas las solicitudes dentro de la consola');
       assert.equal(await page.locator('.registro-toolbar').isVisible(), true,
         'Trazador: abre el inspector al elegir una solicitud');
       await page.goto(`${url}/traza/prod/38612965`);
@@ -493,13 +493,13 @@ try {
         'Trazador: una ruta por cédula no inventa cuál solicitud abrir');
       assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965',
         'Trazador: conserva la ruta canónica de la cédula');
-      assert.equal(busquedasPedidas, 2,
+      assert.equal(requestedSearches, 2,
         'Trazador: una cédula reutiliza el grupo que ya se guardó al abrir la solicitud');
       await page.goto(`${url}/traza/prod/3001234567`);
       await page.locator('.curso-dato').first().waitFor();
       assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965',
         'Trazador: un celular se normaliza a la cédula de la persona');
-      assert.equal(busquedasPedidas, 2,
+      assert.equal(requestedSearches, 2,
         'Trazador: reutiliza la búsqueda de celular guardada en IndexedDB');
       await page.goto(`${url}/traza/prod/987001`);
       await page.locator('.registro-toolbar').waitFor();
@@ -507,27 +507,27 @@ try {
         'Trazador: una ruta breve de solicitud expande la historia de la persona');
       assert.equal(new URL(page.url()).pathname, '/traza/prod/38612965/987001/origen',
         'Trazador: una solicitud se normaliza a cédula, solicitud y etapa');
-      assert.equal(busquedasPedidas, 2,
+      assert.equal(requestedSearches, 2,
         'Trazador: reutiliza la búsqueda inversa de solicitud guardada');
-      const regiones = await page.locator('.workspace-main').evaluate((area) => {
-        const consola = area.querySelector('.recientes-console').getBoundingClientRect();
-        const mapa = area.querySelector('.editor-mapa').getBoundingClientRect();
-        const escenario = area.querySelector('.console-stage').getBoundingClientRect();
-        const navegador = area.querySelector('.console-sidebar').getBoundingClientRect();
+      const regions = await page.locator('.workspace-main').evaluate((area) => {
+        const consolePanel = area.querySelector('.recientes-console').getBoundingClientRect();
+        const stageMap = area.querySelector('.editor-mapa').getBoundingClientRect();
+        const scenario = area.querySelector('.console-stage').getBoundingClientRect();
+        const headless = area.querySelector('.console-sidebar').getBoundingClientRect();
         return {
-          consolaTop: consola.top, mapaBottom: mapa.bottom, mismoAncho: consola.width === mapa.width,
-          railDerecho: navegador.left >= escenario.right - 1,
+          consolaTop: consolePanel.top, mapaBottom: stageMap.bottom, mismoAncho: consolePanel.width === stageMap.width,
+          railDerecho: headless.left >= scenario.right - 1,
         };
       });
-      assert(regiones.consolaTop >= regiones.mapaBottom - 1 && regiones.mismoAncho && regiones.railDerecho,
+      assert(regions.consolaTop >= regions.mapaBottom - 1 && regions.mismoAncho && regions.railDerecho,
         'Trazador: recientes usa la consola inferior como un navegador vertical a la derecha');
       await page.goto(`${url}/traza/prod/38612965/987002`);
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(trazasPedidas, 2, 'Trazador: consulta una traza ausente de caché');
-      assert.equal(busquedasPedidas, 3, 'Trazador: una ruta completa repone primero el grupo de solicitudes');
+      assert.equal(requestedTraces, 2, 'Trazador: consulta una traza ausente de caché');
+      assert.equal(requestedSearches, 3, 'Trazador: una ruta completa repone primero el grupo de solicitudes');
       await page.reload();
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(trazasPedidas, 2, 'Trazador: restaura la traza completa desde IndexedDB');
+      assert.equal(requestedTraces, 2, 'Trazador: restaura la traza completa desde IndexedDB');
       await page.evaluate(async () => {
         // Una corrida guardada antes de sumar el perfil de cupo se actualiza una sola vez: no se puede
         // inferir de forma segura su categoría efectiva desde el resumen antiguo.
@@ -549,14 +549,14 @@ try {
       });
       await page.goto(`${url}/traza/prod/987003`);
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(trazasPedidas, 3, 'Trazador: actualiza una vez la caché anterior para guardar el perfil de cupo');
+      assert.equal(requestedTraces, 3, 'Trazador: actualiza una vez la caché anterior para guardar el perfil de cupo');
       await page.reload();
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(trazasPedidas, 3, 'Trazador: reutiliza la corrida ya actualizada desde IndexedDB');
+      assert.equal(requestedTraces, 3, 'Trazador: reutiliza la corrida ya actualizada desde IndexedDB');
       await page.locator('.abrir-reciente').click();
       await page.locator('.curso-dato').first().waitFor();
-      assert.equal(busquedasPedidas, 4, 'Trazador: restaura la búsqueda completa desde IndexedDB');
-      assert.equal(trazasPedidas, 3, 'Trazador: restaura también la traza al abrir un reciente');
+      assert.equal(requestedSearches, 4, 'Trazador: restaura la búsqueda completa desde IndexedDB');
+      assert.equal(requestedTraces, 3, 'Trazador: restaura también la traza al abrir un reciente');
       await page.getByRole('button', { name: 'Borrar consulta 38612965', exact: true }).click();
       await paint(page);
       assert.equal(await page.locator('.abrir-reciente').count(), 0, 'Trazador: quita la corrida de recientes');
@@ -564,7 +564,7 @@ try {
         'Trazador: persiste el borrado de la lista');
       await page.goto(`${url}/traza/prod/38612965/987001`);
       await page.locator('.registro-toolbar').waitFor();
-      assert.equal(trazasPedidas, 4, 'Trazador: borra también la caché de la corrida');
+      assert.equal(requestedTraces, 4, 'Trazador: borra también la caché de la corrida');
       await page.evaluate(() => localStorage.setItem('trazador.recientes', JSON.stringify({ formato: 'antiguo' })));
       await page.reload();
       await page.locator('.statusbar').waitFor();
@@ -583,17 +583,17 @@ try {
       assert.equal(layout.footer, 800, `${name}: pie visible a ${width}px`);
       assert(layout.editor >= 220, `${name}: editor usable a ${width}px`);
       if (name === 'tablero') {
-        const consola = await page.locator('.ramas-panel').evaluate((panel) => {
-          const tabla = panel.querySelector('.console-main').getBoundingClientRect();
+        const consolePanel = await page.locator('.ramas-panel').evaluate((panel) => {
+          const table = panel.querySelector('.console-main').getBoundingClientRect();
           const repos = panel.querySelector('.repo-sidebar').getBoundingClientRect();
-          const rama = getComputedStyle(panel.querySelector('tbody td:first-child'));
+          const branch = getComputedStyle(panel.querySelector('tbody td:first-child'));
           const pr = getComputedStyle(panel.querySelector('tbody td:nth-child(2)'));
           return {
-            tabla: tabla.width, repos: repos.width, reposALaDerecha: repos.left >= tabla.right - 1,
-            columnasFijas: rama.position === 'sticky' && pr.position === 'sticky',
+            tabla: table.width, repos: repos.width, reposALaDerecha: repos.left >= table.right - 1,
+            columnasFijas: branch.position === 'sticky' && pr.position === 'sticky',
           };
         });
-        assert(consola.tabla > 0 && consola.repos > 0 && consola.reposALaDerecha && consola.columnasFijas,
+        assert(consolePanel.tabla > 0 && consolePanel.repos > 0 && consolePanel.reposALaDerecha && consolePanel.columnasFijas,
           `tablero: tabla y sidebar de repos a la derecha a ${width}px`);
         const vistas = page.locator('.auxiliarybar');
         if (width === 1440) assert.equal(await vistas.isVisible(), true, 'tablero: las vistas acompañan al documento en ancho grande');
@@ -617,9 +617,9 @@ try {
         assert.equal(clipped, false, `harness: controles completos a ${width}px`);
       }
       if (name === 'trazador') {
-        const recientesSinDesborde = await page.locator('.recientes-console .reciente').evaluateAll((filas) =>
-          filas.every((fila) => fila.scrollWidth <= fila.clientWidth + 1));
-        assert.equal(recientesSinDesborde, true, `trazador: recientes completos a ${width}px`);
+        const recentWithoutOverflow = await page.locator('.recientes-console .reciente').evaluateAll((rows) =>
+          rows.every((row) => row.scrollWidth <= row.clientWidth + 1));
+        assert.equal(recentWithoutOverflow, true, `trazador: recientes completos a ${width}px`);
       }
       if (screenshotDir && width !== 1024) await page.screenshot({ path: `${screenshotDir}/${name}-${width}.png` });
     }

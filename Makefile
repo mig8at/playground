@@ -208,13 +208,13 @@ estilo-sync: ## @dia distribuye tools/ui a las cuatro herramientas
 
 estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `tema.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
 	@python3 tools/ui-sync.py --check
-	@python3 tools/estilo.py
+	@python3 tools/style.py
 
 estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta>
-	@node tools/contraste.mjs
+	@node tools/contrast.mjs
 
 estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
-	@python3 tools/estilo.py --tema $(if $(DE),$(DE))
+	@python3 tools/style.py --tema $(if $(DE),$(DE))
 
 trazador-validar: ## @dia audita el MAPA de etapas contra líneas crudas: solapes, patrones mudos, decisiones que no resuelven. CORPUS=<tsv|ndjson>
 	@test -n "$(CORPUS)" || { echo "falta CORPUS=<ruta al TSV del censo o a un timeline.ndjson>"; exit 2; }
@@ -284,8 +284,8 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 	@cd tablero && npx vite build --logLevel error && node tools/ui-offline.mjs
 
 trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
-	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }
-	@python3 trazador/tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
+	@test -n "$(UREQ)" || { python3 trazador/tools/footprint.py; exit 2; }
+	@python3 trazador/tools/footprint.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa

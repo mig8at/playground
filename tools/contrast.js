@@ -28,18 +28,18 @@ window.__contraste = () => {
     const d = ctx.getImageData(0,0,1,1).data;
     const v = { c: [d[0],d[1],d[2]], a: d[3]/255 }; cache.set(s, v); return v };
   const lin = c => c <= 0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
-  const lum = ([r,g,b]) => 0.2126*lin(r/255) + 0.7152*lin(g/255) + 0.0722*lin(b/255);
-  const K = (a,b) => { const L1 = lum(a), L2 = lum(b); return (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05) };
-  const mez = (f,b) => f.a >= 1 ? f.c : f.c.map((v,i) => v*f.a + b[i]*(1-f.a));
-  const fondo = (el) => { let n = el;
+  const luminance = ([r,g,b]) => 0.2126*lin(r/255) + 0.7152*lin(g/255) + 0.0722*lin(b/255);
+  const K = (a,b) => { const L1 = luminance(a), L2 = luminance(b); return (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05) };
+  const mix = (f,b) => f.a >= 1 ? f.c : f.c.map((v,i) => v*f.a + b[i]*(1-f.a));
+  const background = (el) => { let n = el;
     while (n && n !== document.documentElement) {
       const b = aRGB(getComputedStyle(n).backgroundColor);
       if (b.a > 0.92) return b.c;
-      if (b.a > 0) return mez(b, fondo(n.parentElement || document.body));
+      if (b.a > 0) return mix(b, background(n.parentElement || document.body));
       n = n.parentElement; }
     return aRGB(getComputedStyle(document.body).backgroundColor).c };
   const hex = c => '#' + c.map(x => Math.round(x).toString(16).padStart(2,'0')).join('');
-  const malos = [];
+  const bad = [];
   for (const el of document.querySelectorAll('*')) {
     const r = el.getBoundingClientRect(); if (!r.width || !r.height) continue;
     const cs = getComputedStyle(el);
@@ -48,23 +48,23 @@ window.__contraste = () => {
     const txt = [...el.childNodes].filter(n => n.nodeType === 3 && n.textContent.trim())
                                   .map(n => n.textContent.trim()).join(' ');
     if (!txt) continue;
-    const bg = fondo(el);
-    const px = parseFloat(cs.fontSize), peso = +cs.fontWeight || 400;
-    const min = (px >= 24 || (px >= 18.66 && peso >= 700)) ? 3 : 4.5;   // AA: texto grande pide menos
-    let col = mez(aRGB(cs.color), bg);
-    if (op < 1) col = mez({ c: col, a: op }, bg);
+    const bg = background(el);
+    const px = parseFloat(cs.fontSize), weight = +cs.fontWeight || 400;
+    const min = (px >= 24 || (px >= 18.66 && weight >= 700)) ? 3 : 4.5;   // AA: texto grande pide menos
+    let col = mix(aRGB(cs.color), bg);
+    if (op < 1) col = mix({ c: col, a: op }, bg);
     const k = K(col, bg);
     if (k >= min) continue;
-    malos.push({ k: +k.toFixed(2), min, px, fg: hex(col), bg: hex(bg), opacidad: op,
+    bad.push({ k: +k.toFixed(2), min, px, fg: hex(col), bg: hex(bg), opacidad: op,
       inactivo: el.disabled === true || !!el.closest('fieldset[disabled],[disabled]'),
       cls: (typeof el.className === 'string' ? el.className : '').slice(0,30), txt: txt.slice(0,30) });
   }
-  const vivos = malos.filter(m => !m.inactivo);
-  const p = {}; for (const m of vivos) if (!p[m.cls] || p[m.cls].k > m.k) p[m.cls] = m;
-  const detalle = Object.values(p).sort((a,b) => a.k - b.k);
-  if (typeof console.table === 'function') console.table(detalle);
-  /* `detalle` va en el retorno además de la tabla: `tools/contraste.mjs` lo corre sin consola. */
-  return { nodos: malos.length, activos: vivos.length, inactivos: malos.length - vivos.length,
-           unicos: detalle.length, detalle };
+  const alive = bad.filter(m => !m.inactivo);
+  const p = {}; for (const m of alive) if (!p[m.cls] || p[m.cls].k > m.k) p[m.cls] = m;
+  const detail = Object.values(p).sort((a,b) => a.k - b.k);
+  if (typeof console.table === 'function') console.table(detail);
+  /* `detalle` va en el retorno además de la tabla: `tools/contrast.mjs` lo corre sin consola. */
+  return { nodos: bad.length, activos: alive.length, inactivos: bad.length - alive.length,
+           unicos: detail.length, detalle: detail };
 };
 window.__contraste()
