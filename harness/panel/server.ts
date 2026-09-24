@@ -616,11 +616,11 @@ async function runHeader(slug: string, p: Profile, t: string, inject: boolean, s
         // esa capa al cargar (ahí se resuelve el target, y un import estático lo fijaría antes de que
         // el panel elija — es la trampa de F-187).
         try {
-            const { avisoIdentidadSinProveedor: identityWithoutProviderNotice } = await import('../pkg/config.ts');
+            const { identityWithoutProviderNotice } = await import('../pkg/config.ts');
             const lines = identityWithoutProviderNotice(t);
             if (lines.length) {
                 L.push(row('⚠ identidad', lines[0].replace(/^⚠ /, '')
-                    + lines.slice(1).map((x) => `\n${' '.repeat(16)}${x.trim()}`).join('')));
+                    + lines.slice(1).map((x: string) => `\n${' '.repeat(16)}${x.trim()}`).join('')));
             }
         } catch { /* sin el módulo, la cabecera sigue igual */ }
 
@@ -904,7 +904,7 @@ const server = createServer(async (req, res) => {
         // Y va fijo, no configurable: el receptor del webhook es el monolito viejo en localhost, así
         // que este botón sólo tiene sentido contra local.
         process.env.E2E_TARGET = 'local';
-        const { familiaWebhook: webhookFamily, webhookIntegracion: integrationWebhook, webhookSelfManager } =
+        const { webhookFamily, integrationWebhook, webhookSelfManager } =
             await import('../pkg/entity-webhook.ts');
         const fam = await webhookFamily(lender);
         if (!fam) {

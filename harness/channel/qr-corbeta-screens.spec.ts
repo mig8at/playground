@@ -27,7 +27,7 @@ import { spawnSync } from 'node:child_process';
 // `corbetaBranch()` se cuelga o falla sin VPN y la suite se salta entera sin decir por qué.
 process.env.E2E_TARGET ||= 'local';
 
-const { fillQrRegister, fillQrOtp, otpDeTelefono: phoneOtp, autorrellenarQr: autofillQr } = await import('../pkg/qr-steps.ts');
+const { fillQrRegister, fillQrOtp, phoneOtp, autofillQr } = await import('../pkg/qr-steps.ts');
 const { qrEntryUrl, corbetaBranch } = await import('../pkg/qr.ts');
 const { close } = await import('../pkg/db.ts');
 

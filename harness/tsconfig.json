@@ -12,5 +12,6 @@
     "noEmit": true,
     "types": ["node", "@playwright/test"]
   },
-  "include": ["tests/**/*.ts", "dev/**/*.ts", "pkg/**/*.ts", "bin/**/*.ts", "playwright.config.ts"]
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
 }
