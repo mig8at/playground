@@ -274,7 +274,7 @@ func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trac
 				result = out
 			}
 			responses = append(responses, part{"functionResponse": map[string]any{
-				"name": name, "response": map[string]any{"resultado": result}}})
+				"name": name, "response": map[string]any{"result": result}}})
 		}
 		contents = append(contents, map[string]any{"role": "user", "parts": responses})
 	}

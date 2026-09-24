@@ -126,23 +126,43 @@ func Baseline(cache string) (map[string]int, error) {
 
 // ── el chequeo ────────────────────────────────────────────────────────────────────────────────────
 
-// Board es lo que se recorre, relativo a la carpeta `tablero/`.
+// Board es lo que se recorre, relativo a su raíz. Una fuente sin patrones no se lee ni se cuenta: el
+// código compartido no tiene Vue, y eso no es un extractor que falló.
 type Board struct {
-	Root        string   // la carpeta `tablero/`
+	Name        string   // cómo se llama la pasada en el resumen
+	Root        string   // la carpeta desde la que se miden las rutas
 	GoRoots     []string // árboles de Go
+	JSONRoots   []string // árboles de Go cuyas claves JSON se revisan
 	JSGlobs     []string
 	PyGlobs     []string
-	DeclsScript string // el extractor de Vue/JS
+	DeclsScript string   // el extractor de Vue/JS
+	PathRoots   []string // prefijos de las rutas que se revisan; vacío = todo lo que git sigue bajo Root
 }
 
 // Default es el tablero de verdad.
 func Default(root string) Board {
 	return Board{
+		Name:        "tablero",
 		Root:        root,
 		GoRoots:     []string{"server", "tools/rename/go"},
+		JSONRoots:   []string{"server"},
 		JSGlobs:     []string{"src/*.vue", "src/*.js", "tests/*.js", "tools/rename/js/*.mjs"},
 		PyGlobs:     []string{"tools/*.py", "tools/rename/py/*.py"},
 		DeclsScript: filepath.Join(root, "tools", "rename", "js", "decls.mjs"),
+	}
+}
+
+// Shared es el código que usan todas las herramientas, en la raíz del playground: los conectores, el
+// binario que los expone y las bibliotecas. Hasta el 2026-09-24 vivía adentro del tablero y lo cubría su
+// pasada; al mudarse quedó sin vara, y el conteo de Go del tablero bajó de 6.100 a 5.292 sin avisar.
+func Shared(root string) Board {
+	trees := []string{"connectors", "cmd", "lib"}
+	return Board{
+		Name:      "compartido",
+		Root:      root,
+		GoRoots:   trees,
+		JSONRoots: trees,
+		PathRoots: []string{"connectors/", "cmd/", "lib/", "bin/"},
 	}
 }
 
@@ -175,10 +195,22 @@ func Check(b Board, baseline map[string]int, allow Allow, errs io.Writer) ([]Fin
 	for _, r := range b.GoRoots {
 		goDecls = append(goDecls, GoDecls(filepath.Join(b.Root, r), errs)...)
 	}
-	keys := JSONKeys(filepath.Join(b.Root, "server"))
-	jsDecls, err := JSDecls(b.DeclsScript, Glob(b.Root, b.JSGlobs))
-	if err != nil {
-		return nil, nil, err
+	type rootedKey struct {
+		root string
+		Key
+	}
+	var keys []rootedKey
+	for _, r := range b.JSONRoots {
+		for _, k := range JSONKeys(filepath.Join(b.Root, r)) {
+			keys = append(keys, rootedKey{r, k})
+		}
+	}
+	var jsDecls []Decl
+	if len(b.JSGlobs) > 0 {
+		var err error
+		if jsDecls, err = JSDecls(b.DeclsScript, Glob(b.Root, b.JSGlobs)); err != nil {
+			return nil, nil, err
+		}
 	}
 	pyFiles := Glob(b.Root, b.PyGlobs)
 	pyDecls, err := PyDecls(pyFiles)
@@ -189,13 +221,34 @@ func Check(b Board, baseline map[string]int, allow Allow, errs io.Writer) ([]Fin
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(b.PathRoots) > 0 {
+		var within []string
+		for _, p := range tracked {
+			for _, prefix := range b.PathRoots {
+				if strings.HasPrefix(p, prefix) {
+					within = append(within, p)
+					break
+				}
+			}
+		}
+		tracked = within
+	}
 	paths := PathNames(tracked)
 
-	counts := []Count{{"go", len(goDecls)}, {"vue/js", len(jsDecls)}}
+	var counts []Count
+	if len(b.GoRoots) > 0 {
+		counts = append(counts, Count{"go", len(goDecls)})
+	}
+	if len(b.JSGlobs) > 0 {
+		counts = append(counts, Count{"vue/js", len(jsDecls)})
+	}
 	if len(pyFiles) > 0 {
 		counts = append(counts, Count{"python", len(pyDecls)})
 	}
-	counts = append(counts, Count{"claves json", len(keys)}, Count{"rutas", len(paths)})
+	if len(b.JSONRoots) > 0 {
+		counts = append(counts, Count{"claves json", len(keys)})
+	}
+	counts = append(counts, Count{"rutas", len(paths)})
 	var empty []string
 	for _, c := range counts {
 		if c.N == 0 {
@@ -203,7 +256,7 @@ func Check(b Board, baseline map[string]int, allow Allow, errs io.Writer) ([]Fin
 		}
 	}
 	if len(empty) > 0 {
-		return nil, counts, fmt.Errorf("✗ no se leyó ningún nombre de: %s — el chequeo no miró nada ahí", strings.Join(empty, ", "))
+		return nil, counts, fmt.Errorf("✗ %s: no se leyó ningún nombre de: %s — el chequeo no miró nada ahí", b.Name, strings.Join(empty, ", "))
 	}
 
 	var findings []Finding
@@ -215,12 +268,12 @@ func Check(b Board, baseline map[string]int, allow Allow, errs io.Writer) ([]Fin
 		}
 	}
 	for _, k := range keys {
-		where := "server/" + k.Path
-		if JSONAllowed(where, k.Kind, k.Ctx, k.Key, allow.JSON) {
+		where := k.root + "/" + k.Path
+		if JSONAllowed(where, k.Kind, k.Ctx, k.Key.Key, allow.JSON) {
 			continue
 		}
-		if bad := ForeignWords(k.Key, baseline, allow.Words); len(bad) > 0 {
-			findings = append(findings, Finding{fmt.Sprintf("%s:%d", where, k.Line), k.Key, "json (" + k.Kind + ")", bad})
+		if bad := ForeignWords(k.Key.Key, baseline, allow.Words); len(bad) > 0 {
+			findings = append(findings, Finding{fmt.Sprintf("%s:%d", where, k.Line), k.Key.Key, "json (" + k.Kind + ")", bad})
 		}
 	}
 	for _, p := range paths {

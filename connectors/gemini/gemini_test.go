@@ -54,7 +54,7 @@ func TestTheLoopRunsTheToolAndReturnsTheAnswer(t *testing.T) {
 		t.Fatalf("out=%v err=%v ran=%v", out, err, ran)
 	}
 	second, _ := json.Marshal((*bodies)[1]["contents"])
-	if !strings.Contains(string(second), `"functionResponse"`) || !strings.Contains(string(second), `"resultado":5`) {
+	if !strings.Contains(string(second), `"functionResponse"`) || !strings.Contains(string(second), `"result":5`) {
 		t.Errorf("la segunda vuelta no le devolvió el resultado al modelo: %s", second)
 	}
 	if (*bodies)[0]["system_instruction"] == nil {

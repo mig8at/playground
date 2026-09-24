@@ -12,11 +12,12 @@
 tablero trazador cuadrilla
 jev noul
 jira jql atlassian redash dependabot claude
+loki logql gemini
 vue vite babel mcp
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
-dbquery taskcontext
+dbquery taskcontext repocheck
 sfc keydown pointerdown focusable raf
 hhmm pts iss inprog
 issuetype resolutiondate timetracking   # campos de la API de Jira, pegados como los escribe Jira
@@ -25,7 +26,7 @@ issuetype resolutiondate timetracking   # campos de la API de Jira, pegados como
 citation worklog overdue urgency publishable unstamped conclusion epic organize triage acronym
 anatomy assignee conversation deploy agenda agile closeout dashboard workbench workflow
 dirtied doubtful journey prose rarity remeasure renumber stranded uncomfortable vocabulary waive
-milestone propose cite uncovered citable unanchored elision artisan sail pest heredoc worktree destructive
+milestone propose cite uncovered offenders tenant ingestion citable unanchored elision artisan sail pest heredoc worktree destructive
 
 # ── rutas que se aceptan en español, con su motivo ────────────────────────────────────────────────
 path: src/tema.css                   # nombre propio (decisión de Miguel del 2026-09-23): el tema que comparten las tres UIs, con fuente en tools/ui/tema.css
@@ -35,7 +36,7 @@ path: src/tema.css                   # nombre propio (decisión de Miguel del 20
 # ── claves JSON en español que son el contrato de OTRO (fase 4b, 2026-09-23) ──────────────────────
 # `json: <ruta>[:<clase|tipo>] <clave…|*>` — la clave se acepta SÓLO ahí; en cualquier otro lugar se
 # renombra. Las nuestras pasaron a inglés con la fase (mapa en tools/rename/maps/phase4b-json.tsv).
-json: server/internal/canon/ objetivo secciones tablas fuentes citar sin_cubrir operacion detalle sin_enlazar quien titulo objetivo_de_plantilla archivos_nota tablas_nota ya_vigilados_nota     # el contrato de la API de canon (lectura y borrador)
+json: connectors/canon/ objetivo secciones tablas fuentes citar sin_cubrir operacion detalle sin_enlazar quien titulo objetivo_de_plantilla archivos_nota tablas_nota ya_vigilados_nota     # el contrato de la API de canon (lectura y borrador)
 json: server/cmd/today/main.go:areaCanon objetivo secciones        # el brief de canon, reenviado tal cual en `retomar -json`
 json: server/cmd/cuadrilla/ rama ramas autor nota nombre           # la API de cuadrilla, en el repo compartido
 json: server/internal/store/store.go:index clase ramas             # claves del frontmatter: se escribe a mano y la fase 0 lo dejó en español

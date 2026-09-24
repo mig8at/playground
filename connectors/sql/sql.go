@@ -90,9 +90,12 @@ func Open(c Config) (Source, error) {
 		return nil, fmt.Errorf("ambiente %q no permitido (%s)", c.Target, strings.Join(Targets, " · "))
 	}
 	if c.Host != "" {
-		for key, value := range map[string]string{"nombre de la base": c.Name, "usuario": c.User, "contraseña": c.Password} {
-			if value == "" {
-				return nil, fmt.Errorf("falta el %s para MySQL en %s", key, c.Target)
+		// En orden y no en un mapa: con dos faltantes, el mensaje nombra siempre el mismo.
+		for _, field := range []struct{ label, value string }{
+			{"nombre de la base", c.Name}, {"usuario", c.User}, {"contraseña", c.Password},
+		} {
+			if field.value == "" {
+				return nil, fmt.Errorf("falta el %s para MySQL en %s", field.label, c.Target)
 			}
 		}
 		port := c.Port

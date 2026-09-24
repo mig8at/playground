@@ -154,7 +154,7 @@ func board(t *testing.T, files map[string]string) Board {
 		t.Fatalf("git init: %v %s", err, out)
 	}
 	decls, _ := filepath.Abs("../../../tools/rename/js/decls.mjs")
-	return Board{Root: root, GoRoots: []string{"server"}, JSGlobs: []string{"src/*.js", "src/*.vue"},
+	return Board{Name: "prueba", Root: root, GoRoots: []string{"server"}, JSONRoots: []string{"server"}, JSGlobs: []string{"src/*.js", "src/*.vue"},
 		PyGlobs: []string{"tools/*.py"}, DeclsScript: decls}
 }
 

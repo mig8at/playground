@@ -1,4 +1,5 @@
-// naming: ¿el código del tablero nombra algo en español? Sale 1 si sí. La vara y por qué no es el
+// naming: ¿el código del tablero, o el compartido de la raíz (connectors, cmd, lib), nombra algo en
+// español? Sale 1 si sí. La vara y por qué no es el
 // diccionario del sistema: `internal/naming`.
 //
 //	naming                 los nombres que no pasan como inglés
@@ -61,11 +62,16 @@ func main() {
 	if err != nil {
 		fail(err)
 	}
-	findings, counts, err := naming.Check(naming.Default(board), baseline, allow, os.Stderr)
-	if err != nil {
-		fail(err)
+	var findings []naming.Finding
+	var seen []string
+	for _, b := range []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board))} {
+		found, counts, err := naming.Check(b, baseline, allow, os.Stderr)
+		if err != nil {
+			fail(err)
+		}
+		findings = append(findings, found...)
+		seen = append(seen, b.Name+": "+naming.Seen(counts))
 	}
-	seen := naming.Seen(counts)
 	switch {
 	case *asJSON:
 		if findings == nil {
@@ -80,9 +86,9 @@ func main() {
 			fmt.Printf("%s %3d  %s\n", pad(w.Word, 22), len(w.Names), strings.Join(firstUnique(w.Names, 6), ", "))
 		}
 	case len(findings) == 0:
-		fmt.Printf("  ✓ nombres del tablero: todos en inglés (%s)\n", seen)
+		fmt.Printf("  ✓ nombres en inglés\n      %s\n", strings.Join(seen, "\n      "))
 	default:
-		fmt.Printf("  ✗ %d nombre(s) con palabras que no son inglés, de %s:\n\n", len(findings), seen)
+		fmt.Printf("  ✗ %d nombre(s) con palabras que no son inglés, de\n      %s\n\n", len(findings), strings.Join(seen, "\n      "))
 		for _, f := range findings {
 			fmt.Printf("    %s %s %s\n", pad(f.Where, 52), pad(f.Name, 34), strings.Join(f.Words, ", "))
 		}
