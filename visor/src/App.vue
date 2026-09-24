@@ -18,7 +18,9 @@ const imageFailed = ref(false)
 // lado —la imagen es la vara del HTML—.
 const modes = [{ id: 'image', label: 'Imagen' }, { id: 'html', label: 'HTML' }, { id: 'compare', label: 'Comparar' }]
 const mode = ref((() => { try { return localStorage.getItem('visor.mode') || 'image' } catch { return 'image' } })())
-watch(mode, (m) => { try { localStorage.setItem('visor.mode', m) } catch { /* preferencia opcional */ } nextTick(fit) })
+watch(mode, (m) => { try { localStorage.setItem('visor.mode', m) } catch { /* preferencia opcional */ } writeRoute(); nextTick(center) })
+// En la ruta el modo va en castellano, como lo lee la cabecera.
+const modeSlugs = { image: 'imagen', html: 'html', compare: 'comparar' }
 const panes = computed(() => (mode.value === 'compare' ? ['image', 'html'] : [mode.value]))
 const report = ref(null)
 
@@ -45,7 +47,7 @@ const layoutVars = computed(() => ({ '--sidebar-w': sidebarW.value + 'px', '--au
 function toggle(which) {
   if (which === 'sidebar') { sidebarOpen.value = !sidebarOpen.value; saveSize('visor.sidebar-open', sidebarOpen.value ? 1 : 0) }
   else { auxOpen.value = !auxOpen.value; saveSize('visor.aux-open', auxOpen.value ? 1 : 0) }
-  nextTick(() => { refreshResizers(document.querySelector('.workbench')); fit() })
+  nextTick(() => refreshResizers(document.querySelector('.workbench')))
 }
 
 // ── el mapa ──
@@ -182,6 +184,7 @@ async function addToLibrary() {
 // llama «Flujo» o «Flow» (así las nombran los siete archivos de producto); si no hay, la primera que no
 // sea portada, benchmark ni prototipo.
 const maps = ref({}) // clave → la respuesta de /api/map de su página de flujo
+const flowNodes = {} // clave → el id de su página de flujo: una ruta sin `nodo` se refiere a ella
 const mapState = ref({}) // clave → 'loading' | { error }
 const reFlowPage = /flujo|flow/i
 const reSkipPage = /cover|portada|bench|bechmarck|prototipo|prototype|archivo|archive/i
@@ -196,6 +199,7 @@ async function openFlow(key, fresh = false) {
     const pages = pagesOf.value[key]?.pages || []
     const page = flowPage(pages)
     if (!page) throw new Error(pagesOf.value[key]?.error || 'el archivo no tiene páginas')
+    flowNodes[key] = page.id
     const q = new URLSearchParams({ ref: `https://www.figma.com/design/${key}/?node-id=${page.id.replace(':', '-')}` })
     if (fresh) q.set('fresh', '1')
     const res = await fetch('/api/map?' + q)
@@ -204,8 +208,10 @@ async function openFlow(key, fresh = false) {
     maps.value = { ...maps.value, [key]: body }
     const { [key]: _, ...rest } = mapState.value
     mapState.value = rest
-    // Si no hay nada al centro, o se volvió a leer el que se está mirando, este pasa a ser el activo.
-    if (!data.value || data.value.key === key) activate(key)
+    // Si no hay nada al centro, o se volvió a leer el que se está mirando, este pasa a ser el activo. Con
+    // un error a la vista (una ruta a un proyecto que no está) no: el bloque que se recordaba abierto lo
+    // tapaba y la ruta quedaba reescrita a otro proyecto sin avisar.
+    if ((!data.value && !error.value) || data.value?.key === key) activate(key)
   } catch (e) {
     mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
   }
@@ -213,9 +219,11 @@ async function openFlow(key, fresh = false) {
 function activate(key, screen = '') {
   const m = maps.value[key]
   if (!m) return
+  error.value = ''
   if (!data.value || data.value.key !== key) { data.value = m; trail.value = [] } else data.value = m
   const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
   go(screen && screens.value.has(screen) ? screen : (screens.value.has(currentID.value) ? currentID.value : first), false)
+  writeRoute()
 }
 // Tocar una pantalla de un bloque que no es el que está al centro lo trae al centro.
 function pick(key, id) {
@@ -248,6 +256,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     try { localStorage.setItem('visor.last', value) } catch { /* preferencia opcional */ }
     const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
     go(screen && screens.value.has(screen) ? screen : first, false)
+    writeRoute()
   } catch (e) {
     error.value = String(e.message || e)
   } finally {
@@ -261,12 +270,12 @@ function go(id, remember = true) {
   if (remember && currentID.value) trail.value.push(currentID.value)
   currentID.value = id
   imageFailed.value = false
-  writeHash()
+  writeRoute()
   nextTick(() => document.querySelector(`[data-screen="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' }))
 }
 function back() {
   const id = trail.value.pop()
-  if (id) { currentID.value = id; writeHash() }
+  if (id) { currentID.value = id; writeRoute() }
 }
 function step(delta) {
   const c = current.value
@@ -280,16 +289,71 @@ function follow(h) {
 const autoNext = computed(() => (current.value?.hotspots || []).find((h) => h.auto && h.to && screens.value.has(h.to)) || null)
 const clickable = computed(() => (current.value?.hotspots || []).filter((h) => !h.auto))
 
-// La ruta queda en el hash —#/<clave>/<nodo>/<pantalla>— para poder copiarla y volver a la misma
-// pantalla; no se usa history del servidor porque es un Vite de desarrollo.
-function writeHash() {
-  if (!data.value) return
-  const h = `#/${data.value.key}/${data.value.node}/${currentID.value}`
-  if (location.hash !== h) history.replaceState(null, '', h)
+// ── la ruta: /<proyecto>/<pantalla> ──
+// Para poder enlazar una pantalla desde afuera (el tablero, una tarea) la ruta dice el PROYECTO por su
+// nombre y la pantalla por su id de Figma con guion, como lo escribe Figma en `node-id`:
+// `/credifamilia/1-4063`. Opcionales: `?modo=html|comparar` y `?nodo=<id>` cuando el mapa no es la
+// página de flujo del archivo sino una sección pegada a mano. Vite sirve `index.html` en cualquier ruta
+// sin extensión, así que no hace falta un router.
+const slugOf = (name) => (name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+// Un nombre que se repite no sirve de ruta: esos proyectos van por su clave, que no se repite.
+function projectSlug(key) {
+  const f = flows.value.find((x) => x.key === key)
+  const slug = f && slugOf(f.name)
+  if (!slug || flows.value.some((x) => x.key !== key && slugOf(x.name) === slug)) return key
+  return slug
 }
+const keyOfProject = (project) => {
+  const slug = project.toLowerCase()
+  return flows.value.find((x) => slugOf(x.name) === slug)?.key || (/^[A-Za-z0-9]{15,}$/.test(project) ? project : '')
+}
+const toID = (s) => (s || '').replace(/-/g, ':')
+const fromID = (id) => (id || '').replace(/:/g, '-')
+const routePath = computed(() => {
+  if (!data.value || !currentID.value) return ''
+  const q = new URLSearchParams()
+  if (data.value.node !== flowNodes[data.value.key]) q.set('nodo', fromID(data.value.node))
+  if (mode.value !== 'image') q.set('modo', modeSlugs[mode.value])
+  const qs = q.toString()
+  return `/${projectSlug(data.value.key)}/${fromID(currentID.value)}${qs ? '?' + qs : ''}`
+})
+function writeRoute() {
+  const p = routePath.value
+  if (p && location.pathname + location.search + location.hash !== p) history.replaceState(null, '', p)
+}
+// El proyecto se resuelve cuando la biblioteca ya llegó: el nombre sale de ahí.
+watch(flows, () => writeRoute())
+function readRoute() {
+  const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+))?\/?$/)
+  if (!m) return null
+  const q = new URLSearchParams(location.search)
+  const modeID = Object.keys(modeSlugs).find((k) => modeSlugs[k] === q.get('modo')) || ''
+  return { project: decodeURIComponent(m[1]), screen: toID(m[2]), node: toID(q.get('nodo')), mode: modeID }
+}
+const figmaRef = (key, node) => `https://www.figma.com/design/${key}/?node-id=${fromID(node)}`
+async function openRoute(r) {
+  const key = keyOfProject(r.project)
+  if (!key) { error.value = `No hay un proyecto «${r.project}» en la barra.`; return }
+  if (r.mode) mode.value = r.mode
+  if (r.node) { await load(figmaRef(key, r.node), r.screen); return }
+  const set = new Set([key]); openFiles.value = set; saveSet('visor.open-files', set)
+  await openFlow(key)
+  activate(key, r.screen)
+  if (mapState.value[key]?.error) error.value = mapState.value[key].error
+}
+// Los enlaces de antes —#/<clave>/<nodo>/<pantalla>— siguen abriendo, y quedan reescritos a la ruta.
 function readHash() {
   const m = location.hash.match(/^#\/([A-Za-z0-9]+)\/([0-9]+:[0-9]+)(?:\/([0-9]+:[0-9]+))?/)
-  return m ? { ref: `https://www.figma.com/design/${m[1]}/?node-id=${m[2].replace(':', '-')}`, screen: m[3] || '' } : null
+  return m ? { ref: figmaRef(m[1], m[2]), screen: m[3] || '' } : null
+}
+const copied = ref(false)
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(location.origin + routePath.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 1500)
+  } catch { /* sin permiso del portapapeles: la ruta sigue en la barra del navegador */ }
 }
 
 const htmlURL = computed(() => (data.value && current.value ? `/api/html?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
@@ -309,21 +373,88 @@ const figmaURL = computed(() => (data.value && current.value
   ? `https://www.figma.com/design/${data.value.key}/?node-id=${current.value.id.replace(':', '-')}`
   : ''))
 
-// ── el dispositivo se ajusta a la región, sin escalar el texto de la UI ──
+// ── la pantalla va a su tamaño de Figma y se mueve con el mouse ──
+// Antes se escalaba para entrar en la región, y así cambiaba de tamaño cada vez que se arrastraba un
+// separador o se pasaba a Comparar: una pantalla de 932 px quedaba en 700 y el texto ya no medía lo que
+// mide. Ahora es 1:1 y lo que no entra se trae ARRASTRANDO (o con la rueda), como un lienzo. Arrastrar
+// no dispara las zonas del prototipo: un clic sólo cuenta si el puntero no se movió.
 const stage = ref(null)
-const deviceSize = ref({ w: 0, h: 0 })
-function fit() {
-  const el = stage.value
-  const c = current.value
-  if (!el || !c) return
-  const pad = 32
-  const gap = 24
-  const n = panes.value.length
-  const scale = Math.min((el.clientWidth - pad - gap * (n - 1)) / n / c.w, (el.clientHeight - pad) / c.h, 1.5)
-  deviceSize.value = { w: Math.max(0, Math.floor(c.w * scale)), h: Math.max(0, Math.floor(c.h * scale)) }
+const canvas = ref(null)
+const pan = ref({ x: 0, y: 0 })
+const dragging = ref(false)
+const STAGE_PAD = 24
+const KEEP_VISIBLE = 120 // lo que queda a la vista como mínimo: la pantalla no se pierde fuera de la región
+let panTouched = false // si se movió a mano, un cambio de ancho de la región no la recentra
+let drag = null
+let swallowClick = false
+function contentSize() {
+  const el = canvas.value
+  return el ? { w: el.offsetWidth, h: el.offsetHeight } : { w: 0, h: 0 }
+}
+function clampPan(x, y) {
+  const st = stage.value
+  if (!st) return { x, y }
+  const { w, h } = contentSize()
+  return {
+    x: Math.min(Math.max(x, KEEP_VISIBLE - w), st.clientWidth - KEEP_VISIBLE),
+    y: Math.min(Math.max(y, KEEP_VISIBLE - h), st.clientHeight - KEEP_VISIBLE),
+  }
+}
+// Centrada a lo ancho si entra, pegada arriba: lo primero que se lee de una pantalla es su cabecera.
+function center() {
+  const st = stage.value
+  if (!st || !canvas.value) return
+  const { w } = contentSize()
+  pan.value = { x: w < st.clientWidth ? Math.round((st.clientWidth - w) / 2) : STAGE_PAD, y: STAGE_PAD }
+  panTouched = false
+}
+function onStageResize() {
+  if (panTouched) pan.value = clampPan(pan.value.x, pan.value.y)
+  else center()
+}
+function onPointerDown(e) {
+  if (e.button !== 0 || !current.value) return
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, from: { ...pan.value }, moved: false }
+}
+function onPointerMove(e) {
+  if (!drag || e.pointerId !== drag.id) return
+  const dx = e.clientX - drag.x
+  const dy = e.clientY - drag.y
+  if (!drag.moved) {
+    if (Math.hypot(dx, dy) < 4) return
+    drag.moved = true
+    dragging.value = true
+    stage.value?.setPointerCapture(e.pointerId)
+  }
+  pan.value = clampPan(drag.from.x + dx, drag.from.y + dy)
+  panTouched = true
+}
+function onPointerUp(e) {
+  if (!drag || e.pointerId !== drag.id) return
+  if (drag.moved) {
+    swallowClick = true
+    // Si el navegador no manda el clic (soltó fuera de un botón), no queda tragándose el siguiente.
+    setTimeout(() => { swallowClick = false }, 0)
+  }
+  drag = null
+  dragging.value = false
+}
+function onClickCapture(e) {
+  if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false }
+}
+function onWheel(e) {
+  if (e.ctrlKey || !current.value) return // el pellizco del trackpad queda para el zoom del navegador
+  e.preventDefault()
+  pan.value = clampPan(pan.value.x - e.deltaX, pan.value.y - e.deltaY)
+  panTouched = true
 }
 let observer
-watch(current, () => nextTick(fit))
+// Otra pantalla del mismo ancho conserva dónde se estaba mirando (comparar dos pasos seguidos en el
+// mismo lugar); una de otro ancho se recentra.
+watch(() => [current.value?.id, current.value?.w], (now, before) => nextTick(() => {
+  if (!before || now[1] !== before[1]) center()
+  else pan.value = clampPan(pan.value.x, pan.value.y)
+}))
 const hotspotStyle = (h) => {
   const c = current.value
   return { left: (h.X / c.w) * 100 + '%', top: (h.Y / c.h) * 100 + '%', width: (h.W / c.w) * 100 + '%', height: (h.H / c.h) * 100 + '%' }
@@ -335,34 +466,42 @@ function onKey(e) {
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
   else if (e.key === 'h' || e.key === 'H') showHotspots.value = !showHotspots.value
+  else if (e.key === '0') center()
 }
 
-// Pegar un enlace del visor en la misma pestaña cambia sólo el hash, y eso no recarga la página: sin
+// Pegar un enlace viejo (#/…) en la misma pestaña cambia sólo el hash, y eso no recarga la página: sin
 // este aviso el diseño nuevo no se leía nunca.
 function onHash() {
   const h = readHash()
-  if (!h) return
-  const m = location.hash.match(/^#\/([A-Za-z0-9]+)\/([0-9]+:[0-9]+)/)
-  if (data.value && m && data.value.key === m[1] && data.value.node === m[2]) {
-    if (h.screen) go(h.screen, false)
-    return
-  }
-  load(h.ref, h.screen)
+  if (h) load(h.ref, h.screen)
+}
+function onPopState() {
+  const r = readRoute()
+  if (r) openRoute(r)
 }
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener('hashchange', onHash)
-  loadLibrary()
-  observer = new ResizeObserver(fit)
+  window.addEventListener('popstate', onPopState)
+  observer = new ResizeObserver(onStageResize)
   if (stage.value) observer.observe(stage.value)
   window.addEventListener('keydown', onKey)
+  // La ruta nombra el proyecto, y el nombre sale de la biblioteca: se espera a que llegue.
+  await loadLibrary()
   const fromHash = readHash()
+  const fromRoute = readRoute()
   let last = ''
   try { last = localStorage.getItem('visor.last') || '' } catch { /* preferencia opcional */ }
   if (fromHash) load(fromHash.ref, fromHash.screen)
+  else if (fromRoute) openRoute(fromRoute)
   else if (last) { refInput.value = last; load(last) }
 })
-onUnmounted(() => { observer?.disconnect(); window.removeEventListener('keydown', onKey); window.removeEventListener('hashchange', onHash) })
+onUnmounted(() => {
+  observer?.disconnect()
+  window.removeEventListener('keydown', onKey)
+  window.removeEventListener('hashchange', onHash)
+  window.removeEventListener('popstate', onPopState)
+})
 
 const kindName = { mobile: 'móvil', web: 'web', panel: 'panel', textless: 'sin texto' }
 const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
@@ -449,18 +588,26 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
             <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
           </button>
+          <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
+            <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
+          </button>
+          <button class="region-action" :title="copied ? 'Copiado' : 'Copiar el enlace a esta pantalla: ' + routePath" aria-label="Copiar el enlace" @click="copyLink">
+            <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
+          </button>
           <a class="region-action" :href="figmaURL" target="_blank" rel="noopener" title="Abrir esta pantalla en Figma" aria-label="Abrir en Figma">
             <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
           </a>
         </template>
       </div>
-      <div ref="stage" class="stage">
-        <p v-if="!current" class="empty">{{ loading ? 'Leyendo el diseño…' : 'Sin pantalla elegida.' }}</p>
-        <figure v-else v-for="p in panes" :key="p" class="pane">
-        <div class="device" :data-kind="current.kind" :style="{ width: deviceSize.w + 'px', height: deviceSize.h + 'px' }">
+      <div ref="stage" class="stage" :class="{ dragging }" @pointerdown="onPointerDown" @pointermove="onPointerMove"
+        @pointerup="onPointerUp" @pointercancel="onPointerUp" @click.capture="onClickCapture" @wheel="onWheel" @dblclick.self="center">
+        <p v-if="!current" class="empty">{{ loading ? 'Leyendo el diseño…' : (error || 'Sin pantalla elegida.') }}</p>
+        <div v-else ref="canvas" class="canvas" :style="{ transform: `translate(${pan.x}px, ${pan.y}px)` }">
+        <figure v-for="p in panes" :key="p" class="pane">
+        <div class="device" :data-kind="current.kind" :style="{ width: current.w + 'px', height: current.h + 'px' }">
           <img v-if="p === 'image'" :key="imageURL" :src="imageURL" :alt="current.title || current.name" draggable="false" @error="imageFailed = true" />
           <iframe v-else :key="htmlURL" :src="htmlURL" :title="'HTML de ' + (current.title || current.name)" class="html"
-            :style="{ width: current.w + 'px', height: current.h + 'px', transform: `scale(${deviceSize.w / current.w})` }"></iframe>
+            :style="{ width: current.w + 'px', height: current.h + 'px' }"></iframe>
           <p v-if="p === 'image' && imageFailed" class="notice over">Figma no devolvió la imagen de esta pantalla.</p>
           <template v-if="showHotspots">
             <button v-for="(h, i) in clickable" :key="i" class="hotspot" :class="{ outside: !h.to }" :style="hotspotStyle(h)"
@@ -470,6 +617,7 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
         </div>
         <figcaption v-if="panes.length > 1">{{ p === 'image' ? 'Figma (imagen)' : 'HTML traducido' }}</figcaption>
         </figure>
+        </div>
       </div>
     </main>
 
@@ -567,7 +715,13 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .screen-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .screen-row .tag { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
 
-.stage { flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; gap: 24px }
+.stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; user-select: none }
+.stage.dragging { cursor: grabbing }
+/* El lienzo mide lo que miden sus pantallas (no la región) y se mueve con `transform`: arrastrarlo no
+   reacomoda nada, y `offsetWidth` sigue dando su tamaño sin el desplazamiento. */
+.canvas { position: absolute; left: 0; top: 0; display: flex; align-items: flex-start; gap: 24px; padding-bottom: 24px;
+  will-change: transform }
+.stage .empty { position: absolute; inset: 0; display: grid; place-items: center; cursor: default }
 .pane { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-2) }
 .pane figcaption { font-size: var(--text-xs); color: var(--texto-3) }
 .modes { display: flex; gap: 2px }
@@ -577,9 +731,10 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .editor > .region-head { flex-wrap: wrap; height: auto; row-gap: var(--space-1) }
 /* Al envolver, el título no cede todo el ancho: sin una base, `flex: 1` con `min-width: 0` lo dejaba en 0. */
 .editor > .region-head > span:first-child { flex: 1 1 140px }
-/* El HTML se dibuja a su tamaño de Figma y se escala entero: así el texto conserva sus medidas reales
-   y la comparación con la imagen es de igual a igual. */
-.device iframe.html { display: block; border: 0; transform-origin: 0 0 }
+/* El HTML se dibuja a su tamaño de Figma, igual que la imagen: la comparación es de igual a igual. No
+   recibe el puntero —es un dibujo, las zonas del prototipo van encima—, así que arrastrar sobre él mueve
+   el lienzo en vez de perderse adentro del iframe. */
+.device iframe.html { display: block; border: 0; pointer-events: none }
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); border-radius: 18px; overflow: hidden;
   background: var(--card) }
 /* El tipo va en un atributo y no en una clase: `panel` como clase es la región compartida y le ponía

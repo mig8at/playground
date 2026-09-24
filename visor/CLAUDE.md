@@ -11,7 +11,26 @@ antes, las tres descartadas por Miguel el mismo día: un bloque «Proyectos» co
 carpeta de Figma como nivel, y las páginas del archivo —«Cover · Benchmark · Flujo»— como nivel. Lo que se
 busca es el recorrido, no dónde vive ni cómo se reparte el archivo.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
 la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
-muestra u oculta las zonas. Un enlace de Figma con `node-id` también abre directo (`#/<clave>/<nodo>`).
+muestra u oculta las zonas y 0 centra la pantalla.
+
+**La pantalla va a su tamaño de Figma (1:1) y se mueve arrastrándola**, o con la rueda; doble clic en el
+fondo la centra. Antes se escalaba para entrar en la región y cambiaba de tamaño con cada separador o al
+pasar a Comparar. Un clic en una zona del prototipo sólo cuenta si el puntero no se movió, y el iframe
+del HTML no recibe el puntero (es un dibujo: las zonas van encima), así que arrastrar sobre él también
+mueve el lienzo.
+
+## La ruta: `/<proyecto>/<pantalla>`, para enlazar desde afuera
+
+`http://localhost:5193/credifamilia/1-4063` abre ese proyecto en esa pantalla: el proyecto por su nombre
+en minúsculas y con guiones (`flujo-ecommerce`, `motai-renting`), la pantalla por su id de Figma con
+guion, como lo escribe Figma en `node-id`. Sin pantalla abre la primera. Opcionales: `?modo=html` o
+`?modo=comparar`, y `?nodo=<id>` cuando lo que se abrió no es la página de flujo del archivo sino una
+sección pegada a mano. El botón de copiar de la cabecera da la de la pantalla que se está mirando.
+
+- Un nombre que se repite entre dos proyectos no sirve de ruta: esos van por la **clave** del archivo,
+  que también se acepta en lugar del nombre.
+- Un proyecto que no está en la barra dice que no está, en vez de abrir el último que se miró.
+- Los enlaces de antes —`#/<clave>/<nodo>/<pantalla>`— siguen abriendo y quedan reescritos a la ruta.
 
 ## De dónde salen los proyectos
 
