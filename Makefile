@@ -314,6 +314,9 @@ harness-codigo: ## @har siembra un código de preaprobado para probar la pantall
 	@test -n "$(COMERCIO)" || { echo "falta COMERCIO=<hash de sucursal o slug de .flows.json>"; exit 2; }
 	@cd harness && bin/sembrar-codigo "$(COMERCIO)" "$(or $(CODIGO),0101)" "$(ENTIDAD)"
 
+harness-codigo-qa: ## @har genera un código de preaprobado REAL en qa (el que emitiría la app) para probar el canje en la pantalla del asesor. Pide la VPN de dev. [COMERCIO=<hash> default Pullman ec977139] [ENTIDAD=<lender_id>] [USUARIO=<user_id> default un cliente sintético]
+	@cd harness && COMERCIO="$(COMERCIO)" ENTIDAD="$(ENTIDAD)" USUARIO="$(USUARIO)" node dev/codigo-qa.ts
+
 harness-codigo-prueba: ## @har redime un código sembrado desde la UI del asesor y comprueba que sólo quede su entidad. HASH=<sucursal> CODIGO=<4 dígitos> LENDER='<nombre>'
 	@test -n "$(HASH)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }
 	@test -n "$(CODIGO)" || { echo "uso: make harness-codigo-prueba HASH=<hash> CODIGO=<4 dígitos> LENDER='<nombre>'"; exit 2; }

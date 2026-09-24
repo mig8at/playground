@@ -300,7 +300,14 @@ Con la sesión de asesor, contra el wizard de la rama:
 harness escribe su `0101` repetido hasta llenarlas: queda `010101`, que no es válido, y el botón nunca
 se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
 
-**Para QA, sin la app:** la página [Código de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
+**Generar un código para QA — lo único que hace falta** (VPN de dev). Un comando: resuelve comercio,
+entidad habilitada y un cliente sintético contra la base de `qa` (sólo lectura), le pide el código al
+servicio real y lo imprime con el enlace a la pantalla:
+
+    make harness-codigo-qa                                     # Pullman ec977139, primera entidad, un SYNTH PRUEBA
+    make harness-codigo-qa COMERCIO=<hash> ENTIDAD=<lender_id> USUARIO=<user_id>
+
+**Y la página, si hace falta explicarlo:** la página [Código de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
 (el archivo vive en `artifacts/`, variante `canje-en-qa`) arma estos mismos pasos para las 15 sucursales
 de Colombia con asesores y entidades activas en `qa`, con los usuarios de prueba y lo que significa cada
 `CCO00x`. Los datos son de la base de `qa` del 2026-09-24: si cambian las sucursales, se regenera.
