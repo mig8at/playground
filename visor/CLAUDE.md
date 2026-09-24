@@ -2,10 +2,14 @@
 
 `make visor` (UI :5193 · API :5194). La barra de la izquierda es un acordeón donde **cada proyecto es un
 bloque en la raíz** (Altafinanciera, BCP, Credifamilia, CreditopX, flujo ecommerce, Motai Renting,
-Smartpay): adentro, sus páginas, y la página abierta despliega debajo sus carriles y pantallas. Los
-bloques abiertos se reparten el alto (`.view`, como el tablero) y al final está «Sumar un flujo».
-*(Hubo dos versiones antes, las dos descartadas por Miguel el mismo día: un bloque «Proyectos» con una
-lista adentro, y la carpeta de Figma como nivel. Lo que se busca es el flujo, no dónde vive.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
+Smartpay), y adentro están directamente **sus pantallas** en los carriles del diseñador. Se abre de a uno
+—con varios, cada bloque quedaba de dos renglones— y al final está «Sumar un flujo».
+
+La página del archivo se elige sola: la que se llama «Flujo» o «Flow» (así las nombran los siete de
+producto) o, si no hay, la primera que no sea portada, benchmark ni prototipo. *(Hubo tres versiones
+antes, las tres descartadas por Miguel el mismo día: un bloque «Proyectos» con una lista adentro, la
+carpeta de Figma como nivel, y las páginas del archivo —«Cover · Benchmark · Flujo»— como nivel. Lo que se
+busca es el recorrido, no dónde vive ni cómo se reparte el archivo.)* Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
 la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
 muestra u oculta las zonas. Un enlace de Figma con `node-id` también abre directo (`#/<clave>/<nodo>`).
 

@@ -52,15 +52,16 @@ function toggle(which) {
 const structure = computed(() => data.value?.structure || null)
 // Una página trae secciones adentro: cada una es un grupo de carriles. Se aplana a una lista de
 // grupos para la barra, sin perder de qué sección viene cada carril.
-const groups = computed(() => {
+function groupsFor(st) {
   const out = []
-  const walk = (st, depth) => {
-    if (st.lanes?.length) out.push({ id: st.id, name: st.name, type: st.type, depth, lanes: st.lanes, choices: st.choices || [] })
-    for (const sub of st.sections || []) walk(sub, depth + 1)
+  const walk = (x, depth) => {
+    if (x.lanes?.length) out.push({ id: x.id, name: x.name, type: x.type, depth, lanes: x.lanes, choices: x.choices || [] })
+    for (const sub of x.sections || []) walk(sub, depth + 1)
   }
-  if (structure.value) walk(structure.value, 0)
+  if (st) walk(st, 0)
   return out
-})
+}
+const groups = computed(() => groupsFor(structure.value))
 const screens = computed(() => {
   const all = new Map()
   for (const g of groups.value) {
@@ -98,7 +99,7 @@ const addURL = ref('')
 const pagesOf = ref({}) // clave del archivo → 'loading' | { pages } | { error }
 const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')) } catch { return new Set() } }
 const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])) } catch { /* preferencia opcional */ } }
-const openFiles = ref(readSet('visor.open-files'))
+const openFiles = ref(new Set([...readSet('visor.open-files')].slice(-1)))
 const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
 // Un grupo por proyecto de cada equipo, y al final los abiertos en el visor que no estén ya en uno.
 const projectGroups = computed(() => {
@@ -139,13 +140,20 @@ const flows = computed(() => {
 })
 const libraryErrors = computed(() => projectGroups.value.filter((g) => g.error).map((g) => `${g.name}: ${g.error}`))
 const isOpenFile = (key) => openFiles.value.has(key)
+// De a UN proyecto abierto: con varios, cada bloque quedaba de dos renglones y no se leía ninguno. Abrir
+// uno cierra el anterior; el mapa del cerrado queda en memoria, así que volver es instantáneo.
 async function toggleFile(key) {
-  const s = new Set(openFiles.value); s.has(key) ? s.delete(key) : s.add(key)
+  const s = openFiles.value.has(key) ? new Set() : new Set([key])
   openFiles.value = s; saveSet('visor.open-files', s)
-  if (s.has(key)) loadPages(key)
+  if (s.has(key)) { await openFlow(key); activate(key) }
 }
 async function loadPages(key) {
   if (pagesOf.value[key] && pagesOf.value[key] !== 'loading' && !pagesOf.value[key].error) return
+  if (pagesOf.value[key] === 'loading') {
+    // Ya se está pidiendo: se espera a ese pedido en vez de hacer otro.
+    while (pagesOf.value[key] === 'loading') await new Promise((r) => setTimeout(r, 100))
+    return
+  }
   pagesOf.value = { ...pagesOf.value, [key]: 'loading' }
   try {
     const res = await fetch('/api/pages?key=' + encodeURIComponent(key))
@@ -168,13 +176,55 @@ async function addToLibrary() {
   const ok = await loadLibrary(false, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: addURL.value.trim() }) })
   if (ok) { addURL.value = ''; adding.value = false }
 }
-// Los bloques que arrancan abiertos (se recuerdan entre visitas) también piden sus páginas: sin esto,
-// al recargar quedaban abiertos y vacíos.
-watch(flows, (list) => { for (const f of list) if (openFiles.value.has(f.key)) loadPages(f.key) })
-const isOpenPage = (key, pageID) => !!data.value && data.value.key === key && data.value.node === pageID
-function openPage(key, pageID) {
-  load(`https://www.figma.com/design/${key}/?node-id=${pageID.replace(':', '-')}`)
+// ── el mapa de cada bloque ──
+// Un bloque abierto muestra directamente las PANTALLAS de su flujo, no las páginas del archivo: Miguel
+// no quiere ver «Cover · Benchmark · Flujo», quiere el recorrido. La página se elige sola: la que se
+// llama «Flujo» o «Flow» (así las nombran los siete archivos de producto); si no hay, la primera que no
+// sea portada, benchmark ni prototipo.
+const maps = ref({}) // clave → la respuesta de /api/map de su página de flujo
+const mapState = ref({}) // clave → 'loading' | { error }
+const reFlowPage = /flujo|flow/i
+const reSkipPage = /cover|portada|bench|bechmarck|prototipo|prototype|archivo|archive/i
+function flowPage(pages) {
+  return pages.find((p) => reFlowPage.test(p.name)) || pages.find((p) => !reSkipPage.test(p.name)) || pages[0] || null
 }
+async function openFlow(key, fresh = false) {
+  if (maps.value[key] && !fresh) return
+  mapState.value = { ...mapState.value, [key]: 'loading' }
+  try {
+    await loadPages(key)
+    const pages = pagesOf.value[key]?.pages || []
+    const page = flowPage(pages)
+    if (!page) throw new Error(pagesOf.value[key]?.error || 'el archivo no tiene páginas')
+    const q = new URLSearchParams({ ref: `https://www.figma.com/design/${key}/?node-id=${page.id.replace(':', '-')}` })
+    if (fresh) q.set('fresh', '1')
+    const res = await fetch('/api/map?' + q)
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    maps.value = { ...maps.value, [key]: body }
+    const { [key]: _, ...rest } = mapState.value
+    mapState.value = rest
+    // Si no hay nada al centro, o se volvió a leer el que se está mirando, este pasa a ser el activo.
+    if (!data.value || data.value.key === key) activate(key)
+  } catch (e) {
+    mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
+  }
+}
+function activate(key, screen = '') {
+  const m = maps.value[key]
+  if (!m) return
+  if (!data.value || data.value.key !== key) { data.value = m; trail.value = [] } else data.value = m
+  const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
+  go(screen && screens.value.has(screen) ? screen : (screens.value.has(currentID.value) ? currentID.value : first), false)
+}
+// Tocar una pantalla de un bloque que no es el que está al centro lo trae al centro.
+function pick(key, id) {
+  if (!data.value || data.value.key !== key) activate(key, id)
+  else go(id)
+}
+const countOf = (key) => groupsFor(maps.value[key]?.structure).reduce((n, g) => n + g.lanes.reduce((m, l) => m + l.screens.length, 0), 0)
+// Los bloques que arrancan abiertos (se recuerdan entre visitas) cargan su flujo.
+watch(flows, (list) => { for (const f of list) if (openFiles.value.has(f.key)) openFlow(f.key) })
 
 // ── cargar ──
 async function load(ref_ = refInput.value, screen = '', fresh = false) {
@@ -188,13 +238,13 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     const res = await fetch('/api/map?' + q)
     const body = await res.json()
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    maps.value = { ...maps.value, [body.key]: body }
     data.value = body
     refInput.value = value
     loadLibrary()
     if (!openFiles.value.has(body.key)) {
-      const set = new Set(openFiles.value); set.add(body.key); openFiles.value = set; saveSet('visor.open-files', set)
+      const set = new Set([body.key]); openFiles.value = set; saveSet('visor.open-files', set)
     }
-    loadPages(body.key)
     try { localStorage.setItem('visor.last', value) } catch { /* preferencia opcional */ }
     const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
     go(screen && screens.value.has(screen) ? screen : first, false)
@@ -323,44 +373,35 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
     <aside v-show="sidebarOpen" class="sidebar" aria-label="Proyectos">
       <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
 
-      <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra.
-           Adentro, sus páginas; la página abierta despliega debajo sus carriles y pantallas. Los bloques
-           abiertos se reparten el alto y uno cerrado cuesta una fila, como las vistas del tablero. -->
+      <!-- Cada PROYECTO (un flujo, un archivo de Figma) es un bloque del acordeón en la raíz de la barra, y
+           adentro están sus pantallas en los carriles del diseñador, sin pasar por las páginas del
+           archivo. Los bloques abiertos se reparten el alto y uno cerrado cuesta una fila. -->
       <section v-for="f in flows" :key="f.key" class="view" :class="{ abierta: isOpenFile(f.key) }">
         <div class="region-head">
           <button type="button" class="view-tog" :aria-expanded="isOpenFile(f.key)" :aria-controls="'flow-' + f.key" @click="toggleFile(f.key)">
             <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>{{ f.name }}</span>
           </button>
-          <span v-if="data && data.key === f.key && screenCount" class="count" :title="screenCount + ' pantallas en la página abierta'">{{ screenCount }}</span>
-          <button v-if="data && data.key === f.key" class="region-action" title="Volver a leer la página desde Figma" aria-label="Volver a leer" @click="load(refInput, currentID, true)">
+          <span v-if="countOf(f.key)" class="count" :title="countOf(f.key) + ' pantallas en el flujo'">{{ countOf(f.key) }}</span>
+          <button v-if="maps[f.key]" class="region-action" title="Volver a leer el flujo desde Figma" aria-label="Volver a leer" @click="openFlow(f.key, true)">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
         <div v-if="isOpenFile(f.key)" :id="'flow-' + f.key" class="region-body">
-          <p v-if="pagesOf[f.key] === 'loading'" class="hint">Leyendo las páginas…</p>
-          <p v-else-if="pagesOf[f.key]?.error" class="notice">{{ pagesOf[f.key].error }}</p>
-          <template v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id">
-            <button type="button" class="page-row" :aria-current="isOpenPage(f.key, pg.id) ? 'true' : undefined" @click="openPage(f.key, pg.id)">
-              <span class="t">{{ pg.name }}</span>
-            </button>
-            <template v-if="isOpenPage(f.key, pg.id)">
-              <p v-if="error" class="notice" role="alert">{{ error }}</p>
-              <p v-if="loading" class="hint indent">Leyendo el diseño…</p>
-              <template v-for="g in groups" :key="g.id">
-                <div v-if="groups.length > 1" class="section-name">{{ g.name }}</div>
-                <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
-                  <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
-                    <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
-                  </div>
-                  <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
-                    :aria-current="sc.id === currentID ? 'true' : undefined" @click="go(sc.id)">
-                    <span class="n">{{ i + 1 }}</span>
-                    <span class="t">{{ sc.title || sc.name }}</span>
-                    <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
-                    <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
-                  </button>
-                </template>
-              </template>
+          <p v-if="mapState[f.key] === 'loading'" class="hint">Leyendo el flujo…</p>
+          <p v-else-if="mapState[f.key]?.error" class="notice">{{ mapState[f.key].error }}</p>
+          <template v-for="g in groupsFor(maps[f.key]?.structure)" :key="g.id">
+            <div v-if="groupsFor(maps[f.key]?.structure).length > 1" class="section-name">{{ g.name }}</div>
+            <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
+              <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
+                <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
+              </div>
+              <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
+                :aria-current="data && data.key === f.key && sc.id === currentID ? 'true' : undefined" @click="pick(f.key, sc.id)">
+                <span class="n">{{ i + 1 }}</span>
+                <span class="t">{{ sc.title || sc.name }}</span>
+                <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
+                <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
+              </button>
             </template>
           </template>
         </div>
@@ -517,14 +558,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--texto-3) }
 .region-head.grupo.unlabeled > span:first-child { font-style: italic }
 
-.page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
-  padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
-  text-align: left; cursor: pointer }
-.page-row { padding-left: calc(var(--space-3) + 8px); font-weight: 500 }
-.page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.page-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
-.page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.indent { padding-left: calc(var(--space-3) + 8px) }
 .screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }
