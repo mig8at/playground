@@ -14,8 +14,8 @@ la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el c
 muestra u oculta las zonas, 0 centra la pantalla y + / − son el zoom.
 
 **El tamaño máximo de la pantalla es el alto de la región**: al 100 % la llena de arriba abajo, y el zoom
-(la barra de la cabecera, + / −, o Ctrl + rueda y el pellizco del trackpad, anclado en el puntero) la
-achica hasta el 25 %. Depende sólo del ALTO, así que arrastrar un separador no la cambia de tamaño —el
+la achica hasta el 25 %. El zoom es SÓLO por gestos —Ctrl + rueda o el pellizco del trackpad, anclado en
+el puntero, y + / − en el teclado—: hubo una barra en la cabecera y Miguel la sacó. Depende sólo del ALTO, así que arrastrar un separador no la cambia de tamaño —el
 primer intento, que la escalaba para entrar entera en la región, sí lo hacía—, y en Comparar las dos van a
 la misma escala. Lo que no entra a lo ancho se mueve **arrastrando**, o con la rueda; doble clic en el
 fondo la centra. Un clic en una zona del prototipo sólo cuenta si el puntero no se movió, y el iframe del

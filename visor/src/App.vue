@@ -375,9 +375,10 @@ const figmaURL = computed(() => (data.value && current.value
 
 // ── la pantalla: a lo sumo la altura de la región, con zoom, y se mueve con el mouse ──
 // El TOPE es la altura de la región: al 100 % la pantalla la llena de arriba abajo, y el zoom la achica
-// hasta ZOOM_MIN. Depende sólo del ALTO, así que arrastrar un separador —que cambia el ancho— no la
+// hasta ZOOM_MIN, sólo con gestos —Ctrl + rueda o el pellizco del trackpad, y + / − en el teclado—:
+// Miguel no quiere un control en la cabecera. Depende sólo del ALTO, así que arrastrar un separador —que cambia el ancho— no la
 // cambia de tamaño, y en Comparar las dos van a la misma escala. Lo que no entra a lo ancho se trae
-// ARRASTRANDO (o con la rueda), como un lienzo; Ctrl + rueda (o el pellizco del trackpad) es el zoom.
+// ARRASTRANDO (o con la rueda), como un lienzo.
 // Arrastrar no dispara las zonas del prototipo: un clic sólo cuenta si el puntero no se movió.
 const stage = ref(null)
 const canvas = ref(null)
@@ -399,8 +400,6 @@ const scale = computed(() => {
   const room = stageH.value - 2 * STAGE_PAD - (panes.value.length > 1 ? CAPTION_H : 0)
   return Math.max(0.05, (room / c.h) * zoom.value)
 })
-const zoomPercent = computed(() => Math.round(zoom.value * 100))
-const realPercent = computed(() => Math.round(scale.value * 100))
 function setZoom(z, at = null) {
   const next = clampZoom(z)
   if (next === zoom.value) return
@@ -633,13 +632,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
           <button class="region-action" :aria-pressed="showHotspots" title="Mostrar las zonas del prototipo (H)" aria-label="Zonas del prototipo" @click="showHotspots = !showHotspots">
             <span class="ui-icon" data-icon="filter" aria-hidden="true"></span>
           </button>
-          <div class="zoom" role="group" aria-label="Zoom">
-            <button class="btn btn-xs btn-ghost" title="Alejar (−)" aria-label="Alejar" :disabled="zoom <= ZOOM_MIN" @click="setZoom(zoom - ZOOM_STEP)">−</button>
-            <input class="zoom-range" type="range" :min="ZOOM_MIN * 100" :max="ZOOM_MAX * 100" step="5" :value="zoomPercent"
-              :aria-valuetext="zoomPercent + ' % del alto'" aria-label="Zoom" @input="setZoom($event.target.value / 100)" />
-            <button class="btn btn-xs btn-ghost" title="Acercar (+) · el máximo es el alto de la región" aria-label="Acercar" :disabled="zoom >= ZOOM_MAX" @click="setZoom(zoom + ZOOM_STEP)">+</button>
-            <span class="zoom-value" :title="'Al ' + zoomPercent + ' % del alto de la región · ' + realPercent + ' % del tamaño de Figma'">{{ zoomPercent }} %</span>
-          </div>
           <button class="region-action" title="Centrar la pantalla (0)" aria-label="Centrar la pantalla" @click="center">
             <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
           </button>
@@ -788,9 +780,6 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
    zonas del prototipo van encima—, así que arrastrar sobre él mueve el lienzo en vez de perderse
    adentro del iframe. */
 .device iframe.html { display: block; border: 0; pointer-events: none; transform-origin: 0 0 }
-.zoom { display: flex; align-items: center; gap: 2px }
-.zoom-range { width: 88px; accent-color: var(--primary) }
-.zoom-value { min-width: 3.2em; text-align: right; font-size: var(--text-xs); color: var(--texto-2); font-variant-numeric: tabular-nums }
 .device { position: relative; flex: none; border: 1px solid var(--device-edge); border-radius: 18px; overflow: hidden;
   background: var(--card) }
 /* El tipo va en un atributo y no en una clase: `panel` como clase es la región compartida y le ponía
