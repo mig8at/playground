@@ -432,9 +432,9 @@ func pathOf(u string) string {
 
 // SeenScreen es un renglón del recorrido del cliente: la pantalla y cuándo la vio por primera vez.
 type SeenScreen struct {
-	When   string `json:"cuando"`
-	What   string `json:"que"`
-	Detail string `json:"detalle,omitempty"`
+	When   string `json:"when"`
+	What   string `json:"what"`
+	Detail string `json:"detail,omitempty"`
 }
 
 // requestScreens devuelve el recorrido VISTO por el cliente, compacto: una entrada por pantalla

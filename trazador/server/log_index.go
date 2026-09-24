@@ -185,11 +185,11 @@ func writeIndex(b *strings.Builder, keys []string, index map[string][]indexEntry
 		jsonString(b, k)
 		b.WriteString(": [\n")
 		for j, e := range index[k] {
-			b.WriteString("  {\n   \"ruta\": ")
+			b.WriteString("  {\n   \"path\": ")
 			jsonString(b, e.path)
-			b.WriteString(",\n   \"linea\": ")
+			b.WriteString(",\n   \"line\": ")
 			jsonString(b, e.line)
-			fmt.Fprintf(b, ",\n   \"es_test\": %t,\n   \"h\": ", e.isTest)
+			fmt.Fprintf(b, ",\n   \"is_test\": %t,\n   \"h\": ", e.isTest)
 			jsonString(b, pathHash(e.path))
 			b.WriteString("\n  }")
 			if j < len(index[k])-1 {

@@ -46,7 +46,14 @@ json: server/internal/store/store.go:index clase ramas             # claves del 
 json: server/internal/pulse/ del                                   # «deletions», pareja de `ins`; persistido en data/pulse
 json: server/cmd/branches/main.go:map *                            # palabras vacías para sugerir patrones de rama: dato, no clave
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave
-json: trazador/server/ *                                        # el contrato con la UI del trazador (Vue) y con quien lee su -json: se pasa a inglés junto con ella, no por separado
+json: trazador/server/sources.go perfilador                     # la clave la escribe el backend en el JSON de profiling_reviews
+json: trazador/server/check.go ramales                          # la lee de harness/panel/steps.json: el contrato es del harness
+json: trazador/server/stages.go:map *                           # VALORES usados como clave: desenlaces, ramales, etapas, estados, métodos de Deceval
+json: trazador/server/stages.go:index formulario origen         # ids de etapa (valores), no campos
+json: trazador/server/reproduce.go:map abandonado aprobado en-curso roto   # ids de desenlace (valores)
+json: trazador/server/slack.go directa fuera parcial            # categorías de cobertura (valores)
+json: trazador/server/serve.go:map dev local prod qa staging    # nombres de ambiente (valores)
+json: trazador/server/main.go:map prod-us-east-0                # la región de Grafana Cloud
 path: trazador/src/tema.css                                     # nombre propio: el tema compartido de las tres UIs
 path: tools/ui/tema.css                                         # nombre propio: la fuente del tema compartido (ver src/tema.css)
 path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por el CLAUDE.md raíz

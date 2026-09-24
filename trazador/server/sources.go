@@ -58,12 +58,12 @@ func openSource(c config) (Runner, error) {
 // cuando el OCR y el reconocimiento facial corrieron completos. Misma precedencia que
 // `CreditopXFlowService.php:117`: la tabla puente primero, la columna del lender como fallback.
 const sqlLoanRequest = `
-	SELECT ur.user_id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
+	SELECT ur.user_id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS status,
 	       COALESCE(l.name,'') AS lender, COALESCE(l.id,0) AS lender_id, COALESCE(l.response_type,0) AS rt,
-	       COALESCE(a.name,'') AS comercio, COALESCE(a.id,0) AS allied_id, COALESCE(ab.name,'') AS sucursal,
-	       COALESCE(u.document_number,'') AS documento, COALESCE(u.cell_phone,'') AS telefono,
-	       COALESCE(ur.amount,0) AS monto, ur.created_at,
-	       COALESCE(livt.identity_validation_type_id, l.validation_type, 0) AS validacion
+	       COALESCE(a.name,'') AS merchant, COALESCE(a.id,0) AS allied_id, COALESCE(ab.name,'') AS branch,
+	       COALESCE(u.document_number,'') AS document, COALESCE(u.cell_phone,'') AS phone,
+	       COALESCE(ur.amount,0) AS amount, ur.created_at,
+	       COALESCE(livt.identity_validation_type_id, l.validation_type, 0) AS validation
 	  FROM user_requests ur
 	  LEFT JOIN user_request_statuses stt ON stt.id = ur.user_request_status_id
 	  LEFT JOIN lenders l                ON l.id   = ur.lender_id
@@ -74,7 +74,7 @@ const sqlLoanRequest = `
 	 WHERE ur.id = ?`
 
 const sqlHistory = `
-	SELECT r.user_request_status_id AS st, COALESCE(stt.name,'') AS estado, r.created_at
+	SELECT r.user_request_status_id AS st, COALESCE(stt.name,'') AS status, r.created_at
 	  FROM user_request_records r
 	  LEFT JOIN user_request_statuses stt ON stt.id = r.user_request_status_id
 	 WHERE r.user_request_id = ? ORDER BY r.created_at, r.id`
@@ -206,8 +206,8 @@ func GetDeceval(r Runner, ureq int64) []DecevalOp {
 // (`Modules/Backoffice/App/Services/ApplicationsService.php:1443`).
 const sqlCategories = `
 	SELECT ucl.id, ucl.lender_id, COALESCE(l.name,'') AS lender,
-	       ucl.lender_users_category_id AS cat, COALESCE(c.name,'') AS cat_nombre,
-	       ucl.current_available_amount AS cupo, ucl.category_rules_acceptance AS reglas, ucl.created_at
+	       ucl.lender_users_category_id AS cat, COALESCE(c.name,'') AS cat_name,
+	       ucl.current_available_amount AS quota, ucl.category_rules_acceptance AS rules, ucl.created_at
 	  FROM users_category_log ucl
 	  LEFT JOIN lenders l               ON l.id = ucl.lender_id
 	  LEFT JOIN lender_users_categories c ON c.id = ucl.lender_users_category_id
@@ -272,8 +272,8 @@ func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time
 	for _, f := range fs {
 		c := Category{
 			LenderID: integer(f["lender_id"]), Lender: asText(f["lender"]),
-			CatID: integer(f["cat"]), CatName: asText(f["cat_nombre"]),
-			Quota: decimal(f["cupo"]), At: date(f["created_at"], r.Zone()),
+			CatID: integer(f["cat"]), CatName: asText(f["cat_name"]),
+			Quota: decimal(f["quota"]), At: date(f["created_at"], r.Zone()),
 			Failures: map[string][]string{}, Short: map[string]string{},
 		}
 		switch {
@@ -288,7 +288,7 @@ func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time
 			}
 		}
 		var raw map[string]json.RawMessage
-		if json.Unmarshal([]byte(asText(f["reglas"])), &raw) == nil {
+		if json.Unmarshal([]byte(asText(f["rules"])), &raw) == nil {
 			for k, v := range raw {
 				// Las banderas de raíz son booleanos sueltos, no mapas de criterios.
 				var flag bool
@@ -380,12 +380,12 @@ func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
 	f := fs[0]
 	s := &LoanRequest{
 		ID: ureq, UserID: integer(f["user_id"]), Status: int(integer(f["st"])),
-		StatusN: asText(f["estado"]), Lender: asText(f["lender"]),
+		StatusN: asText(f["status"]), Lender: asText(f["lender"]),
 		LenderID: integer(f["lender_id"]), LenderRT: int(integer(f["rt"])),
-		Merchant: asText(f["comercio"]), AlliedID: integer(f["allied_id"]), Branch: asText(f["sucursal"]),
-		Document: asText(f["documento"]), Phone: asText(f["telefono"]),
-		Amount: decimal(f["monto"]), Created: date(f["created_at"], r.Zone()),
-		Validation: int(integer(f["validacion"])),
+		Merchant: asText(f["merchant"]), AlliedID: integer(f["allied_id"]), Branch: asText(f["branch"]),
+		Document: asText(f["document"]), Phone: asText(f["phone"]),
+		Amount: decimal(f["amount"]), Created: date(f["created_at"], r.Zone()),
+		Validation: int(integer(f["validation"])),
 	}
 
 	if hs, err := r.Rows(sqlHistory, ureq); err == nil {
@@ -396,7 +396,7 @@ func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
 				continue // se colapsan repetidos: `user_request_records` escribe una fila por cada toque
 			}
 			prev = st
-			s.Transitions = append(s.Transitions, Transition{Status: st, Name: asText(h["estado"]), At: date(h["created_at"], r.Zone())})
+			s.Transitions = append(s.Transitions, Transition{Status: st, Name: asText(h["status"]), At: date(h["created_at"], r.Zone())})
 		}
 	}
 	if bs, err := r.Rows(sqlBureau, s.UserID); err == nil {
@@ -545,10 +545,10 @@ func orSi(v, def string) string {
 // tres veces porque las columnas TIENEN que ser las mismas — si un camino trajera una columna distinta, el
 // parseo la leería como vacía y la coincidencia aparecería a medias.
 const sqlSearch = `
-	SELECT ur.id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
-	       COALESCE(l.name,'') AS lender, COALESCE(a.name,'') AS comercio, ur.created_at,
+	SELECT ur.id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS status,
+	       COALESCE(l.name,'') AS lender, COALESCE(a.name,'') AS merchant, ur.created_at,
 	       COALESCE(ur.user_id,0) AS uid,
-	       COALESCE(u.document_number,'') AS documento, COALESCE(u.cell_phone,'') AS telefono
+	       COALESCE(u.document_number,'') AS document, COALESCE(u.cell_phone,'') AS phone
 	  FROM user_requests ur
 	  LEFT JOIN user_request_statuses stt ON stt.id = ur.user_request_status_id
 	  LEFT JOIN lenders l                ON l.id   = ur.lender_id

@@ -28,15 +28,15 @@ const GLYPH = { aprobado: '✓', roto: '✕', abandonado: '!', 'en-curso': '·' 
 const CLASS = { aprobado: 'ok', roto: 'fail', abandonado: 'warn', 'en-curso': 'skip' }
 const MONTH = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
-const h = computed(() => t.resultados?.historia || null)
-const items = computed(() => t.resultados?.items || [])
+const h = computed(() => t.results?.history || null)
+const items = computed(() => t.results?.items || [])
 
 // Los días, en el orden en que vienen los items (el server los manda de la más nueva a la más vieja).
 const days = computed(() => {
   const out = []
   for (const i of items.value) {
     let g = out[out.length - 1]
-    if (!g || g.fecha !== i.fecha) { g = { fecha: i.fecha, chips: [] }; out.push(g) }
+    if (!g || g.date !== i.date) { g = { date: i.date, chips: [] }; out.push(g) }
     g.chips.push(i)
   }
   return out
@@ -48,17 +48,17 @@ const day = (f) => {
   const [a, m, d] = f.split('-')
   return `${d} ${MONTH[+m - 1]} ’${a.slice(2)}`
 }
-const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio, i.lender,
-  i.directa ? 'lo que buscaste' : 'misma persona'].filter(Boolean).join(' · ')
+const tip = (i) => [`#${i.ureq}`, `${i.date} ${i.time}`, i.statusN, i.merchant, i.lender,
+  i.direct ? 'lo que buscaste' : 'misma persona'].filter(Boolean).join(' · ')
 
 // Una fecha por vez mantiene el sidebar como índice: se ve el volumen de todos los días, pero sólo
 // se gastan líneas en el bloque que estás inspeccionando. Cuando abrís otra solicitud, su día se abre
 // solo para no obligarte a encontrarlo otra vez dentro de la historia.
 const dayOpen = ref(null)
-watch([days, () => t.traza?.ureq], ([groups]) => {
-  const active = groups.find((g) => g.chips.some((i) => i.ureq === t.traza?.ureq))
-  if (active) dayOpen.value = active.fecha
-  else if (!groups.some((g) => g.fecha === dayOpen.value)) dayOpen.value = groups[0]?.fecha || null
+watch([days, () => t.trace?.ureq], ([groups]) => {
+  const active = groups.find((g) => g.chips.some((i) => i.ureq === t.trace?.ureq))
+  if (active) dayOpen.value = active.date
+  else if (!groups.some((g) => g.date === dayOpen.value)) dayOpen.value = groups[0]?.date || null
 }, { immediate: true })
 const toggleDay = (date) => { dayOpen.value = dayOpen.value === date ? null : date }
 </script>
@@ -68,43 +68,43 @@ const toggleDay = (date) => { dayOpen.value = dayOpen.value === date ? null : da
     <!-- El resumen: la respuesta a «¿esta persona ya intentó antes y qué le pasó?» sin abrir nada -->
     <p class="linea">
       <b>{{ h.total }}</b> solicitud{{ h.total === 1 ? '' : 'es' }}
-      <template v-if="h.desde !== h.hasta"> · {{ day(h.desde) }} → {{ day(h.hasta) }}</template>
-      <template v-else> · {{ day(h.hasta) }}</template>
-      <span v-if="h.aprobadas" class="t ok">{{ h.aprobadas }} aprobada{{ h.aprobadas === 1 ? '' : 's' }}</span>
-      <span v-if="h.rotas" class="t fail">{{ h.rotas }} rota{{ h.rotas === 1 ? '' : 's' }}</span>
-      <span v-if="h.abandonadas" class="t warn">{{ h.abandonadas }} abandonada{{ h.abandonadas === 1 ? '' : 's' }}</span>
-      <span v-if="h.enCurso" class="t">{{ h.enCurso }} en curso</span>
-      <span v-if="h.comercios > 1" class="dim"> · {{ h.comercios }} comercios</span>
+      <template v-if="h.since !== h.until"> · {{ day(h.since) }} → {{ day(h.until) }}</template>
+      <template v-else> · {{ day(h.until) }}</template>
+      <span v-if="h.approved" class="t ok">{{ h.approved }} aprobada{{ h.approved === 1 ? '' : 's' }}</span>
+      <span v-if="h.broken" class="t fail">{{ h.broken }} rota{{ h.broken === 1 ? '' : 's' }}</span>
+      <span v-if="h.abandoned" class="t warn">{{ h.abandoned }} abandonada{{ h.abandoned === 1 ? '' : 's' }}</span>
+      <span v-if="h.inProgress" class="t">{{ h.inProgress }} en curso</span>
+      <span v-if="h.merchants > 1" class="dim"> · {{ h.merchants }} comercios</span>
     </p>
 
     <!-- Las señales que cambian el diagnóstico. Van en texto y no en un color, porque son la diferencia
          entre «el cliente reintentó» y «algo está reintentando solo». -->
-    <p v-if="h.mismoDia > 1 || h.personas > 1 || h.truncada" class="alerta">
-      <span v-if="h.personas > 1" class="fail">⚠ {{ h.personas }} clientes distintos coinciden con ese
+    <p v-if="h.sameDay > 1 || h.people > 1 || h.truncated" class="alerta">
+      <span v-if="h.people > 1" class="fail">⚠ {{ h.people }} clientes distintos coinciden con ese
         número — mirá bien cuál buscabas.</span>
-      <span v-if="h.mismoDia > 1">hasta <b>{{ h.mismoDia }}</b> intentos en un mismo día.</span>
-      <span v-if="h.truncada">sólo se ven las {{ h.total }} más recientes: hay más.</span>
+      <span v-if="h.sameDay > 1">hasta <b>{{ h.sameDay }}</b> intentos en un mismo día.</span>
+      <span v-if="h.truncated">sólo se ven las {{ h.total }} más recientes: hay más.</span>
     </p>
 
     <!-- Los días son el acordeón de las corridas. En 300px una historia larga no puede estar abierta
          por completo: el encabezado conserva fecha + cantidad y el grupo de la corrida activa se abre
          automáticamente. Así se puede comparar volumen sin convertir el sidebar en una pared de chips. -->
     <div class="tira">
-      <div v-for="g in days" :key="g.fecha" class="grupo">
-        <button type="button" class="region-head grupo" :aria-expanded="dayOpen === g.fecha"
-                @click="toggleDay(g.fecha)">
-          <span class="gh"><span class="cr" :class="{ on: dayOpen === g.fecha }">▸</span>{{ day(g.fecha) }}</span>
+      <div v-for="g in days" :key="g.date" class="grupo">
+        <button type="button" class="region-head grupo" :aria-expanded="dayOpen === g.date"
+                @click="toggleDay(g.date)">
+          <span class="gh"><span class="cr" :class="{ on: dayOpen === g.date }">▸</span>{{ day(g.date) }}</span>
           <span class="badge badge-secondary badge-xs">{{ g.chips.length }}</span>
         </button>
-        <div v-if="dayOpen === g.fecha" class="chips">
+        <div v-if="dayOpen === g.date" class="chips">
         <button v-for="i in g.chips" :key="i.ureq"
-                :class="['badge', 'badge-outline', 'chip', CLASS[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
-                :title="tip(i)" @click="t.verTraza(i.ureq)">
-          <span class="g">{{ GLYPH[i.desenlace] }}</span>{{ i.hora }}
+                :class="['badge', 'badge-outline', 'chip', CLASS[i.outcome], { act: t.trace?.ureq === i.ureq }]"
+                :title="tip(i)" @click="t.viewTrace(i.ureq)">
+          <span class="g">{{ GLYPH[i.outcome] }}</span>{{ i.time }}
           <span class="n">{{ i.ureq }}</span>
           <!-- La marca de «esto es lo que buscaste» sólo aparece cuando hay mezcla. Si buscaste una cédula
                con 12 intentos, las 12 son directas y marcarlas todas no distingue nada: es ruido. -->
-          <span v-if="i.directa && h.expandidas" class="q" aria-label="lo que buscaste">◂</span>
+          <span v-if="i.direct && h.expanded" class="q" aria-label="lo que buscaste">◂</span>
         </button>
         </div>
       </div>
@@ -113,8 +113,8 @@ const toggleDay = (date) => { dayOpen.value = dayOpen.value === date ? null : da
     <p class="pie">
       <span class="ok">✓ aprobada</span><span class="fail">✕ rota</span>
       <span class="warn">! abandonada</span><span class="dim">· en curso</span>
-      <span v-if="h.expandidas" class="dim"><b class="q">◂</b> lo que buscaste — las otras
-        {{ h.expandidas }} son de la misma persona</span>
+      <span v-if="h.expanded" class="dim"><b class="q">◂</b> lo que buscaste — las otras
+        {{ h.expanded }} son de la misma persona</span>
     </p>
   </div>
 </template>

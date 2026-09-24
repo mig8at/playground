@@ -1,77 +1,77 @@
 {
   "version": "3.0",
-  "nota": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema. || v1.2: los HITOS son ahora la unidad de agrupación de la vista — el ensamblado reparte las líneas entre hitos declarados y lo que ningún hito reclama queda plegado como «eventos sin nombre de negocio», que es el backlog honesto de hitos por declarar. Los matchers de registro/formulario se ampliaron para cubrir los mensajes frecuentes del censo.",
-  "etapas": {
+  "note": "El ÁRBOL DECLARADO: qué sub-pasos tiene cada etapa, para poder dibujar la vista completa ANTES de tener un solo dato y después ir encendiendo lo que la corrida confirma. || LA FRONTERA, que es la decisión de diseño de este archivo: se declara lo que tiene universo CERRADO y estable (los hitos del flujo, las cuatro familias de entidades) y NO se declara lo que es DATO variable (los lenders concretos: son 156 y su response_type cambia por ambiente — medido: Sistecrédito es rt=1 en local y rt=0 en prod, o sea que la misma entidad cae en familias distintas. Declararlos haría que este JSON mintiera en algún ambiente). || LOS HITOS NO SE INVENTARON: salen de los matchers ya medidos en etapas.json, y los de `buro` los nombra el propio backend con sus STAGE 0..4. Cuando el código ya tiene un vocabulario, usar otro es agregar una capa de traducción que nadie pidió. || REGLA: el matcher de un hito tiene que ser un SUBCONJUNTO de los de su etapa. Si un hito captura una línea que su etapa no reclama, el árbol muestra un sub-paso que no cuelga de nada. || `soloEnCodigo: true` marca un hito cuyo mensaje EXISTE en el código pero no apareció en el corpus medido. Es distinto de un patrón MAL escrito, y confundirlos es cómo un validador se vuelve ruidoso y se ignora: `-validar` los reporta aparte, como aviso y no como problema. || v1.2: los HITOS son ahora la unidad de agrupación de la vista — el ensamblado reparte las líneas entre hitos declarados y lo que ningún hito reclama queda plegado como «eventos sin nombre de negocio», que es el backlog honesto de hitos por declarar. Los matchers de registro/formulario se ampliaron para cubrir los mensajes frecuentes del censo.",
+  "stages": {
     "origen": {
-      "bloques": [
+      "blocks": [
         {
           "id": "canal",
           "label": "Canal de entrada",
-          "tipo": "hitos",
-          "nota": "⚠ `asesor` NO deja huella en los logs: se infiere por AUSENCIA de marcas de QR y ecommerce. Los otros dos sí se confirman.\n\n⚠ BLOQUE INALCANZABLE HOY: la etapa `origen` arma su renglón desde la BD y NO reparte por hitos (el `continue` en etapas.go corta antes de agruparPorHitos). Las líneas que el mapa enruta acá se adjuntan al sub del canal como eventos — se ven, pero ningún hito de este bloque puede encender. `soloEnCodigo` evita que el validador los acuse de patrón muerto: el problema no es el patrón, es que nadie lo ejecuta.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "⚠ `asesor` NO deja huella en los logs: se infiere por AUSENCIA de marcas de QR y ecommerce. Los otros dos sí se confirman.\n\n⚠ BLOQUE INALCANZABLE HOY: la etapa `origen` arma su renglón desde la BD y NO reparte por hitos (el `continue` en etapas.go corta antes de agruparPorHitos). Las líneas que el mapa enruta acá se adjuntan al sub del canal como eventos — se ven, pero ningún hito de este bloque puede encender. `soloEnCodigo` evita que el validador los acuse de patrón muerto: el problema no es el patrón, es que nadie lo ejecuta.",
+          "milestones": [
             {
               "id": "qr",
               "label": "QR en caja (Corbeta)",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Corbeta checkout"
+                "kind": "prefijo",
+                "pattern": "Corbeta checkout"
               },
-              "soloEnCodigo": true
+              "onlyInCode": true
             },
             {
               "id": "ecommerce",
               "label": "Tienda (ecommerce)",
               "matcher": {
-                "tipo": "regex",
-                "patron": "IsEcommerceRequestService|IsEcommerceBranchService"
+                "kind": "regex",
+                "pattern": "IsEcommerceRequestService|IsEcommerceBranchService"
               },
-              "soloEnCodigo": true
+              "onlyInCode": true
             },
             {
               "id": "asesor",
               "label": "Asesor en punto de venta",
               "matcher": null,
-              "porque": "no hay mensaje propio: es el default cuando no aparecen los otros dos",
-              "soloEnCodigo": true
+              "because": "no hay mensaje propio: es el default cuando no aparecen los otros dos",
+              "onlyInCode": true
             }
           ]
         }
       ]
     },
     "registro": {
-      "bloques": [
+      "blocks": [
         {
           "id": "solicitar",
           "label": "Celular y términos",
-          "tipo": "hitos",
-          "pantalla": "solicitar",
-          "nota": "Pantalla `solicitar` (`routes/loan-application-form/phone-number.tsx`): la primera del wizard. Acá se da el celular y se aceptan los TyC.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "solicitar",
+          "note": "Pantalla `solicitar` (`routes/loan-application-form/phone-number.tsx`): la primera del wizard. Acá se da el celular y se aceptan los TyC.",
+          "milestones": [
             {
               "id": "alta-celular",
               "label": "Registro del celular",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "RegisterCellPhone"
+                "kind": "prefijo",
+                "pattern": "RegisterCellPhone"
               },
-              "porque": "el POST de registro y su orquestador (RegisterCellPhoneController/Service)"
+              "because": "el POST de registro y su orquestador (RegisterCellPhoneController/Service)"
             },
             {
               "id": "lookup",
               "label": "Buscar o crear el cliente",
               "matcher": {
-                "tipo": "regex",
-                "patron": "UserService::getOrCreateUser|UserService::cleanPhoneNumber|Looking up existing user by cell phone|findByCellPhone returned|Role assigned"
+                "kind": "regex",
+                "pattern": "UserService::getOrCreateUser|UserService::cleanPhoneNumber|Looking up existing user by cell phone|findByCellPhone returned|Role assigned"
               },
-              "porque": "buscar o crear el cliente: lookup por teléfono, normalización del número, alta y asignación de rol"
+              "because": "buscar o crear el cliente: lookup por teléfono, normalización del número, alta y asignación de rol"
             },
             {
               "id": "tyc",
               "label": "Términos y condiciones",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "storeTermsAndConditions"
+                "kind": "prefijo",
+                "pattern": "storeTermsAndConditions"
               }
             }
           ]
@@ -79,80 +79,80 @@
         {
           "id": "otp",
           "label": "Código por SMS",
-          "tipo": "hitos",
-          "pantalla": "otp",
-          "nota": "Pantalla `otp` (`otp-verification.tsx`, con `otp-resend.tsx`). Separarla de la anterior importa: «no le llegó el SMS» y «no completó el formulario» son dos problemas distintos y antes caían en el mismo renglón.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "otp",
+          "note": "Pantalla `otp` (`otp-verification.tsx`, con `otp-resend.tsx`). Separarla de la anterior importa: «no le llegó el SMS» y «no completó el formulario» son dos problemas distintos y antes caían en el mismo renglón.",
+          "milestones": [
             {
               "id": "otp-envio",
               "label": "Enviar OTP",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Otp(Controller|Service)::sendOtpCode|sendOtpCode returned|OtpRepository"
+                "kind": "regex",
+                "pattern": "Otp(Controller|Service)::sendOtpCode|sendOtpCode returned|OtpRepository"
               }
             },
             {
               "id": "otp-valida",
               "label": "Validar OTP",
               "matcher": {
-                "tipo": "regex",
-                "patron": "OtpService::validateOtpCode|ValidateOtpAuthService|processCellPhoneRegistration returned"
+                "kind": "regex",
+                "pattern": "OtpService::validateOtpCode|ValidateOtpAuthService|processCellPhoneRegistration returned"
               }
             },
             {
               "id": "redireccion",
               "label": "Redirección tras el OTP",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "OnboardingController::validateOtpCodeAndRedirect"
+                "kind": "prefijo",
+                "pattern": "OnboardingController::validateOtpCodeAndRedirect"
               },
-              "porque": "es la línea que trae `corbeta_onboarding`, `ecommerce_request_id` y `merchant_mode`: la evidencia de ORIGEN vive acá, aunque la etapa sea registro"
+              "because": "es la línea que trae `corbeta_onboarding`, `ecommerce_request_id` y `merchant_mode`: la evidencia de ORIGEN vive acá, aunque la etapa sea registro"
             }
           ]
         }
       ],
-      "nota": "Las dos primeras pantallas del wizard. La `redireccion` cierra el tramo: es la que decide a dónde va el cliente después del OTP y, en el canal Corbeta, la que lo SALTA al listado sin pasar por el formulario (código ONB002/OBV22007)."
+      "note": "Las dos primeras pantallas del wizard. La `redireccion` cierra el tramo: es la que decide a dónde va el cliente después del OTP y, en el canal Corbeta, la que lo SALTA al listado sin pasar por el formulario (código ONB002/OBV22007)."
     },
     "formulario": {
-      "bloques": [
+      "blocks": [
         {
           "id": "personal",
           "label": "Datos personales",
-          "tipo": "hitos",
-          "pantalla": "personal-info",
-          "nota": "Pantalla `personal-info` (`loan-request-form.tsx`). La compuerta de intentos por hora vive acá porque es lo que devuelve ONB040 y deja al cliente sin poder avanzar.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "personal-info",
+          "note": "Pantalla `personal-info` (`loan-request-form.tsx`). La compuerta de intentos por hora vive acá porque es lo que devuelve ONB040 y deja al cliente sin poder avanzar.",
+          "milestones": [
             {
               "id": "rate-limit",
               "label": "Compuerta de intentos por hora",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Rate limit|checkRateLimitPerHour|Evaluating per-hour rate limit"
+                "kind": "regex",
+                "pattern": "Rate limit|checkRateLimitPerHour|Evaluating per-hour rate limit"
               },
-              "porque": "medido en la uReq 519245 de producción: la compuerta vive acá, NO en registro. Agotarla devuelve ONB040 y corta el flujo."
+              "because": "medido en la uReq 519245 de producción: la compuerta vive acá, NO en registro. Agotarla devuelve ONB040 y corta el flujo."
             },
             {
               "id": "personales",
               "label": "Datos personales",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^OnboardingController::validateAndStorePersonalInfo|^OnboardingService::storePersonalInfo"
+                "kind": "regex",
+                "pattern": "^OnboardingController::validateAndStorePersonalInfo|^OnboardingService::storePersonalInfo"
               }
             },
             {
               "id": "estrato",
               "label": "Estrato y género",
               "matcher": {
-                "tipo": "regex",
-                "patron": "storeSocialStratum|getGender"
+                "kind": "regex",
+                "pattern": "storeSocialStratum|getGender"
               }
             },
             {
               "id": "validaciones",
               "label": "Validaciones del formulario",
               "matcher": {
-                "tipo": "exacto",
-                "patron": "Validating expedition date"
+                "kind": "exacto",
+                "pattern": "Validating expedition date"
               }
             }
           ]
@@ -160,25 +160,25 @@
         {
           "id": "laboral",
           "label": "Datos laborales",
-          "tipo": "hitos",
-          "pantalla": "employment-info",
-          "nota": "Pantalla `employment-info`. ⚠ **Es la que dispara el buró**: guardar lo laboral es lo que lanza la consulta a centrales, así que una solicitud que no llegó acá no puede tener buró — y ese vacío no es una falla del buró. En el canal Corbeta esta info se FABRICA sin pantalla (`storeDefaultEmploymentInformation`), y por eso ahí tampoco hay buró.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "employment-info",
+          "note": "Pantalla `employment-info`. ⚠ **Es la que dispara el buró**: guardar lo laboral es lo que lanza la consulta a centrales, así que una solicitud que no llegó acá no puede tener buró — y ese vacío no es una falla del buró. En el canal Corbeta esta info se FABRICA sin pantalla (`storeDefaultEmploymentInformation`), y por eso ahí tampoco hay buró.",
+          "milestones": [
             {
               "id": "laborales",
               "label": "Datos laborales",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^(OnboardingService::storeLaboralInformation|OnboardingController::storeLaboralInfo|Storing labor info|Flow [AB]: )"
+                "kind": "regex",
+                "pattern": "^(OnboardingService::storeLaboralInformation|OnboardingController::storeLaboralInfo|Storing labor info|Flow [AB]: )"
               },
-              "porque": "dos caminos: Flow A autocompleta del resumen y Flow B es manual / allieds especiales. ⚠ ANCLADO AL INICIO con ^: sin el ancla se llevaba «Experian disparado desde OnboardingController::storeLaboralInfoOrchestrator», que menciona el método EN EL MEDIO pero es de BURÓ. Es el espejo del bug del ancla `$` en etapas.json — lo cazó `-validar`."
+              "because": "dos caminos: Flow A autocompleta del resumen y Flow B es manual / allieds especiales. ⚠ ANCLADO AL INICIO con ^: sin el ancla se llevaba «Experian disparado desde OnboardingController::storeLaboralInfoOrchestrator», que menciona el método EN EL MEDIO pero es de BURÓ. Es el espejo del bug del ancla `$` en etapas.json — lo cazó `-validar`."
             },
             {
               "id": "completo",
               "label": "¿Formulario completo?",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "OnboardingService::isForm1Completed"
+                "kind": "prefijo",
+                "pattern": "OnboardingService::isForm1Completed"
               }
             }
           ]
@@ -186,48 +186,48 @@
         {
           "id": "decision",
           "label": "¿Hay que consultar el buró?",
-          "tipo": "hitos",
-          "nota": "Los nombra el PROPIO BACKEND (STAGE 0..4 de la decisión de omisión). Este bloque es la respuesta a «¿por qué no hay fila de buró nueva?», que F-60 obliga a descartar de tres causas antes de afirmar que se omitió.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "Los nombra el PROPIO BACKEND (STAGE 0..4 de la decisión de omisión). Este bloque es la respuesta a «¿por qué no hay fila de buró nueva?», que F-60 obliga a descartar de tres causas antes de afirmar que se omitió.",
+          "milestones": [
             {
               "id": "stage0",
               "label": "STAGE 0 · Datos de la solicitud",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "STAGE 0 —"
+                "kind": "prefijo",
+                "pattern": "STAGE 0 —"
               }
             },
             {
               "id": "stage1",
               "label": "STAGE 1 · ¿Ya hay datos de central?",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "STAGE 1 —"
+                "kind": "prefijo",
+                "pattern": "STAGE 1 —"
               }
             },
             {
               "id": "stage2",
               "label": "STAGE 2 · Frecuencia",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "STAGE 2 —"
+                "kind": "prefijo",
+                "pattern": "STAGE 2 —"
               },
-              "porque": "la compuerta de frecuencia es una de las tres causas de «no hay fila nueva»: puede haber cortado antes de consultar"
+              "because": "la compuerta de frecuencia es una de las tres causas de «no hay fila nueva»: puede haber cortado antes de consultar"
             },
             {
               "id": "stage3",
               "label": "STAGE 3 · Omisiones del flujo",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "STAGE 3 —"
+                "kind": "prefijo",
+                "pattern": "STAGE 3 —"
               }
             },
             {
               "id": "stage4",
               "label": "STAGE 4 · Reglas de bypass",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "STAGE 4 —"
+                "kind": "prefijo",
+                "pattern": "STAGE 4 —"
               }
             }
           ]
@@ -235,15 +235,15 @@
         {
           "id": "identidad",
           "label": "Proceso del KYC",
-          "tipo": "hitos",
-          "nota": "Sólo lo que NO pertenece a una entidad. Todo lo que nombra a una —«Identidad con AgilData», «Identidad con TusDatos», la compuerta— se fusiona en la FILA DE ESA ENTIDAD, arriba: un paso por entidad, con su hecho de BD y su evidencia de log juntos. Tener «Agildata» en un grupo y «Identidad con AgilData» en otro obligaba a cruzar dos listas de cabeza para responder una sola pregunta.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "Sólo lo que NO pertenece a una entidad. Todo lo que nombra a una —«Identidad con AgilData», «Identidad con TusDatos», la compuerta— se fusiona en la FILA DE ESA ENTIDAD, arriba: un paso por entidad, con su hecho de BD y su evidencia de log juntos. Tener «Agildata» en un grupo y «Identidad con AgilData» en otro obligaba a cruzar dos listas de cabeza para responder una sola pregunta.",
+          "milestones": [
             {
               "id": "kyc-agildata",
               "label": "Identidad con AgilData",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Validating identity with AgilData"
+                "kind": "prefijo",
+                "pattern": "Validating identity with AgilData"
               },
               "central": 3
             },
@@ -251,17 +251,17 @@
               "id": "kyc-reintento",
               "label": "Reintento con TusDatos",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "AgilData returned errors but TusDatos"
+                "kind": "prefijo",
+                "pattern": "AgilData returned errors but TusDatos"
               },
-              "porque": "Nombra a AgilData Y a TusDatos: es la BISAGRA entre las dos, no de ninguna. Si se colgara de una, la otra perdería la mitad de su historia."
+              "because": "Nombra a AgilData Y a TusDatos: es la BISAGRA entre las dos, no de ninguna. Si se colgara de una, la otra perdería la mitad de su historia."
             },
             {
               "id": "kyc-tusdatos",
               "label": "Identidad con TusDatos",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^Validating identity with TusDatos|^TusDatos (errors|OK)"
+                "kind": "regex",
+                "pattern": "^Validating identity with TusDatos|^TusDatos (errors|OK)"
               },
               "central": 2
             },
@@ -269,181 +269,181 @@
               "id": "kyc-compuerta",
               "label": "Compuerta de reintentos KYC",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "OnboardingService::shouldValidateTusDatos"
+                "kind": "prefijo",
+                "pattern": "OnboardingService::shouldValidateTusDatos"
               },
-              "centrales": [
+              "bureaus": [
                 2
               ],
-              "porque": "La compuerta decide si se llama a TusDatos: pertenece a TusDatos."
+              "because": "La compuerta decide si se llama a TusDatos: pertenece a TusDatos."
             },
             {
               "id": "kyc-persistencia",
               "label": "Persistencia tras KYC",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Persisting user after KYC cascade"
+                "kind": "prefijo",
+                "pattern": "Persisting user after KYC cascade"
               },
-              "porque": "Persiste al usuario DESPUÉS de toda la cascada KYC: no es de una entidad. Queda en el bloque de proceso a propósito."
+              "because": "Persiste al usuario DESPUÉS de toda la cascada KYC: no es de una entidad. Queda en el bloque de proceso a propósito."
             }
           ]
         },
         {
           "id": "disparo",
           "label": "Proceso de la consulta",
-          "tipo": "hitos",
-          "hitos": [
+          "kind": "hitos",
+          "milestones": [
             {
               "id": "disparado",
               "label": "Experian disparado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Experian disparado desde"
+                "kind": "prefijo",
+                "pattern": "Experian disparado desde"
               },
-              "centrales": [
+              "bureaus": [
                 1,
                 8,
                 9
               ],
-              "porque": "El mensaje dice «Experian disparado desde …»: es de Experian, pero NO dice cuál de las tres filas del catálogo. Se resuelve en cada traza contra la que de verdad se consultó."
+              "because": "El mensaje dice «Experian disparado desde …»: es de Experian, pero NO dice cuál de las tres filas del catálogo. Se resuelve en cada traza contra la que de verdad se consultó."
             },
             {
               "id": "no-disparado",
               "label": "Experian NO disparado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Experian NO disparado"
+                "kind": "prefijo",
+                "pattern": "Experian NO disparado"
               },
-              "centrales": [
+              "bureaus": [
                 1,
                 8,
                 9
               ],
-              "porque": "El complemento del anterior. ⚠ Los dos pueden aparecer en la MISMA solicitud (pasó en la uReq 521997): son dos evaluaciones distintas, no una contradicción — por eso ninguno se trata como veredicto final."
+              "because": "El complemento del anterior. ⚠ Los dos pueden aparecer en la MISMA solicitud (pasó en la uReq 521997): son dos evaluaciones distintas, no una contradicción — por eso ninguno se trata como veredicto final."
             },
             {
               "id": "frecuencia",
               "label": "Contador de frecuencia",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Experian frequency"
+                "kind": "prefijo",
+                "pattern": "Experian frequency"
               },
-              "centrales": [
+              "bureaus": [
                 1,
                 8,
                 9
               ],
-              "porque": "El contador de frecuencia con el que se decide si vale re-consultar a Experian."
+              "because": "El contador de frecuencia con el que se decide si vale re-consultar a Experian."
             },
             {
               "id": "bypass",
               "label": "Lista de bypass del comercio",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "The allied is"
+                "kind": "prefijo",
+                "pattern": "The allied is"
               },
-              "porque": "«The allied is …» es del COMERCIO, no de una central: dice si el aliado está en la lista de bypass. Colgarlo de una entidad sería mentir sobre de qué habla."
+              "because": "«The allied is …» es del COMERCIO, no de una central: dice si el aliado está en la lista de bypass. Colgarlo de una entidad sería mentir sobre de qué habla."
             },
             {
               "id": "consulta-ok",
               "label": "Consulta terminada",
               "matcher": {
-                "tipo": "regex",
-                "patron": "query finished successfully|Consulta con acierta\\+quanto finalizada"
+                "kind": "regex",
+                "pattern": "query finished successfully|Consulta con acierta\\+quanto finalizada"
               },
-              "centrales": [
+              "bureaus": [
                 1,
                 8,
                 9
               ],
-              "porque": "El cierre de la consulta. Uno de sus dos patrones nombra `acierta+quanto` explícitamente; el otro es genérico, así que se resuelve por la consultada y no por el texto."
+              "because": "El cierre de la consulta. Uno de sus dos patrones nombra `acierta+quanto` explícitamente; el otro es genérico, así que se resuelve por la consultada y no por el texto."
             }
           ],
-          "nota": "Igual que el anterior: lo de Experian se fusiona en la fila de la Experian que se consultó en ESTA traza (las tres del catálogo comparten los mismos mensajes, así que la fija se resuelve por la consultada). Acá queda lo que es del comercio o del flujo, no de una entidad."
+          "note": "Igual que el anterior: lo de Experian se fusiona en la fila de la Experian que se consultó en ESTA traza (las tres del catálogo comparten los mismos mensajes, así que la fija se resuelve por la consultada). Acá queda lo que es del comercio o del flujo, no de una entidad."
         },
         {
           "id": "centrales",
           "label": "Centrales de riesgo del onboarding",
-          "tipo": "catalogo",
-          "fuente": "db:risk_centrals",
-          "nota": "El universo se LEE de la BD, no de acá, porque varía por ambiente (medido: 9 en local, 11 en prod — `Abaco` existe en local y no en prod). Los `conocidos` son solo para dibujar el árbol antes de consultar; en la corrida se reconcilian y lo que sobra o falta se marca. Declararlos como verdad haría que el árbol mintiera en un ambiente.\n\n⚠ `risk_centrals` NO es «la lista de burós»: es la tabla donde se GUARDA cualquier dato de un tercero de identidad o riesgo, y sus filas se escriben en momentos distintos del flujo. Volcarla entera en esta etapa hacía que `Ado` saliera «no consultada» bajo «Consulta a burós» — una etapa donde nunca se consulta. Cada central se declara ahora en SU etapa, con el call site que lo prueba en `porque`.",
-          "conocidos": [
+          "kind": "catalogo",
+          "source": "db:risk_centrals",
+          "note": "El universo se LEE de la BD, no de acá, porque varía por ambiente (medido: 9 en local, 11 en prod — `Abaco` existe en local y no en prod). Los `conocidos` son solo para dibujar el árbol antes de consultar; en la corrida se reconcilian y lo que sobra o falta se marca. Declararlos como verdad haría que el árbol mintiera en un ambiente.\n\n⚠ `risk_centrals` NO es «la lista de burós»: es la tabla donde se GUARDA cualquier dato de un tercero de identidad o riesgo, y sus filas se escriben en momentos distintos del flujo. Volcarla entera en esta etapa hacía que `Ado` saliera «no consultada» bajo «Consulta a burós» — una etapa donde nunca se consulta. Cada central se declara ahora en SU etapa, con el call site que lo prueba en `porque`.",
+          "known": [
             {
               "id": 1,
               "label": "Experian - Acierta",
-              "nota": "el único que trae score de forma consistente",
-              "porque": "Modules/Onboarding/App/Services/OnboardingService.php + CreditStudyService.php + OnboardingController.php"
+              "note": "el único que trae score de forma consistente",
+              "because": "Modules/Onboarding/App/Services/OnboardingService.php + CreditStudyService.php + OnboardingController.php"
             },
             {
               "id": 2,
               "label": "TusDatos - Validación de Identidad",
-              "porque": "cascada MEDIDA en la uReq 519245: «Validating identity with TusDatos» dentro de la ventana del onboarding"
+              "because": "cascada MEDIDA en la uReq 519245: «Validating identity with TusDatos» dentro de la ventana del onboarding"
             },
             {
               "id": 3,
               "label": "Agildata",
-              "nota": "NUNCA trae score: 0 de 202 filas medidas",
-              "porque": "cascada MEDIDA: «Validating identity with AgilData»; el servicio vive en Modules/Identity pero lo llama el onboarding"
+              "note": "NUNCA trae score: 0 de 202 filas medidas",
+              "because": "cascada MEDIDA: «Validating identity with AgilData»; el servicio vive en Modules/Identity pero lo llama el onboarding"
             },
             {
               "id": 6,
               "label": "Mareigua",
-              "porque": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php + Services/KycValidationOutcome.php"
+              "because": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php + Services/KycValidationOutcome.php"
             },
             {
               "id": 8,
               "label": "Experian - Quanto",
-              "porque": "app/Actions/RiskCentrals/Experian.php, misma familia que Acierta"
+              "because": "app/Actions/RiskCentrals/Experian.php, misma familia que Acierta"
             },
             {
               "id": 9,
               "label": "Experian - Acierta+Quanto",
-              "nota": "entrada SEPARADA de Acierta: se puede consultar esta y no aquella (visto en la uReq 519245 de prod)",
-              "porque": "app/Actions/RiskCentrals/Experian.php"
+              "note": "entrada SEPARADA de Acierta: se puede consultar esta y no aquella (visto en la uReq 519245 de prod)",
+              "because": "app/Actions/RiskCentrals/Experian.php"
             }
           ]
         }
       ],
-      "nota": "Las dos pantallas del formulario, separadas: el wizard las tiene separadas y la pregunta «¿en cuál de las dos se quedó?» no se podía contestar cuando eran un solo bloque de 6 renglones.\n\nY los burós, que se disparan desde acá y ya no son etapa aparte: las entidades consultadas con su score, y el proceso que no pertenece a ninguna entidad."
+      "note": "Las dos pantallas del formulario, separadas: el wizard las tiene separadas y la pregunta «¿en cuál de las dos se quedó?» no se podía contestar cuando eran un solo bloque de 6 renglones.\n\nY los burós, que se disparan desde acá y ya no son etapa aparte: las entidades consultadas con su score, y el proceso que no pertenece a ninguna entidad."
     },
     "cupo": {
-      "bloques": [
+      "blocks": [
         {
           "id": "categoria",
           "label": "Categoría del cliente",
-          "tipo": "hitos",
-          "nota": "⚠ La familia CATEGORY_* sale de UN método (LenderUserCategoryService::getLenderUserCategory) que llaman TRES sitios de DOS etapas (cupo y listado). El context no trae quién llamó, así que la atribución es IMPOSIBLE de medir hoy y vive acá por la regla de dueño único. El arreglo real es pedirle al backend un campo `source` en ese log, como ya lo tiene la familia Experian.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "⚠ La familia CATEGORY_* sale de UN método (LenderUserCategoryService::getLenderUserCategory) que llaman TRES sitios de DOS etapas (cupo y listado). El context no trae quién llamó, así que la atribución es IMPOSIBLE de medir hoy y vive acá por la regla de dueño único. El arreglo real es pedirle al backend un campo `source` en ese log, como ya lo tiene la familia Experian.",
+          "milestones": [
             {
               "id": "cat-start",
               "label": "Evaluación de categoría",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "CATEGORY_EVALUATION_START"
+                "kind": "prefijo",
+                "pattern": "CATEGORY_EVALUATION_START"
               }
             },
             {
               "id": "cat-scoring",
               "label": "Scoring",
               "matcher": {
-                "tipo": "regex",
-                "patron": "FIELD_SCORING_COMPLETED|PAYMENT_CAPACITY_SCORING_COMPLETED"
+                "kind": "regex",
+                "pattern": "FIELD_SCORING_COMPLETED|PAYMENT_CAPACITY_SCORING_COMPLETED"
               }
             },
             {
               "id": "cat-rechazo",
               "label": "Regla de categoría rechazada",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "CATEGORY_RULE_REJECTED"
+                "kind": "prefijo",
+                "pattern": "CATEGORY_RULE_REJECTED"
               }
             },
             {
               "id": "cat-ok",
               "label": "Categoría aprobada",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "CATEGORY_EVALUATION_APPROVED"
+                "kind": "prefijo",
+                "pattern": "CATEGORY_EVALUATION_APPROVED"
               }
             }
           ]
@@ -451,107 +451,107 @@
         {
           "id": "quota",
           "label": "Cupo disponible (motor CreditopX)",
-          "tipo": "hitos",
-          "hitos": [
+          "kind": "hitos",
+          "milestones": [
             {
               "id": "quota-start",
               "label": "Cálculo del cupo",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "QUOTA_CHECK_START"
+                "kind": "prefijo",
+                "pattern": "QUOTA_CHECK_START"
               }
             },
             {
               "id": "quota-ok",
               "label": "Cupo aprobado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "QUOTA_CHECK_APPROVED"
+                "kind": "prefijo",
+                "pattern": "QUOTA_CHECK_APPROVED"
               }
             },
             {
               "id": "quota-rechazo",
               "label": "Cupo rechazado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "QUOTA_CHECK_REJECTED"
+                "kind": "prefijo",
+                "pattern": "QUOTA_CHECK_REJECTED"
               },
-              "porque": "trae `reason` y `lender_name`: es el veredicto de por qué una entidad no se mostró"
+              "because": "trae `reason` y `lender_name`: es el veredicto de por qué una entidad no se mostró"
             },
             {
               "id": "quota-error",
               "label": "Error calculando el cupo",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "QUOTA_CHECK_ERROR"
+                "kind": "prefijo",
+                "pattern": "QUOTA_CHECK_ERROR"
               },
-              "soloEnCodigo": true,
-              "porque": "existe en el código (1 archivo) pero los errores de cupo son raros: no cayó en la ventana medida"
+              "onlyInCode": true,
+              "because": "existe en el código (1 archivo) pero los errores de cupo son raros: no cayó en la ventana medida"
             }
           ]
         },
         {
           "id": "bcol-bnpl",
           "label": "Cupo Bancolombia BNPL (entidad 68, API externa)",
-          "tipo": "hitos",
-          "nota": "SÓLO Bancolombia BNPL, y el nombre lo dice: con los números del censo, BNPL+Meddipay son el 33% del ramal rt=1 — Welli, Bancolombia-Consumo, Credifamilia y Prami (el otro 67%) no emiten NI UNA línea de cupo, así que un bloque llamado «cupo del agregador» mentiría cobertura. Para rt=1 el cupo NO se persiste (vive en DynamoDB) y el caller borra la entidad con un unset silencioso: esta evidencia de log es la ÚNICA que existe.\n\n⚠ El hito de ERROR va PRIMERO: gana el primer matcher que coincide, y el regex de la llamada también matchea la línea de error — declarado al revés, el error quedaba enterrado en «×4 con error» dentro del hito de la llamada.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "SÓLO Bancolombia BNPL, y el nombre lo dice: con los números del censo, BNPL+Meddipay son el 33% del ramal rt=1 — Welli, Bancolombia-Consumo, Credifamilia y Prami (el otro 67%) no emiten NI UNA línea de cupo, así que un bloque llamado «cupo del agregador» mentiría cobertura. Para rt=1 el cupo NO se persiste (vive en DynamoDB) y el caller borra la entidad con un unset silencioso: esta evidencia de log es la ÚNICA que existe.\n\n⚠ El hito de ERROR va PRIMERO: gana el primer matcher que coincide, y el regex de la llamada también matchea la línea de error — declarado al revés, el error quedaba enterrado en «×4 con error» dentro del hito de la llamada.",
+          "milestones": [
             {
               "id": "bcol-error",
               "label": "Error consultando el cupo de Bancolombia BNPL",
               "matcher": {
-                "tipo": "exacto",
-                "patron": "Error al validar cupo con Bancolombia BNPL"
+                "kind": "exacto",
+                "pattern": "Error al validar cupo con Bancolombia BNPL"
               },
-              "porque": "El fracaso de la consulta: la entidad queda FUERA del listado sin dejar rastro en BD. Antes de tener hito se izaba como «sin hito declarado» — ahora tiene nombre, y sigue entrando al resumen de hallazgos porque el hito queda en fail."
+              "because": "El fracaso de la consulta: la entidad queda FUERA del listado sin dejar rastro en BD. Antes de tener hito se izaba como «sin hito declarado» — ahora tiene nombre, y sigue entrando al resumen de hallazgos porque el hito queda en fail."
             },
             {
               "id": "bcol-ok",
               "label": "Bancolombia BNPL dio cupo",
               "matcher": {
-                "tipo": "exacto",
-                "patron": "Validación de cupo completada exitosamente"
+                "kind": "exacto",
+                "pattern": "Validación de cupo completada exitosamente"
               },
-              "porque": "La única línea que contesta «¿el banco dijo que sí?» — trae has_quota. 3/25 trazas del censo."
+              "because": "La única línea que contesta «¿el banco dijo que sí?» — trae has_quota. 3/25 trazas del censo."
             },
             {
               "id": "bcol-llamada",
               "label": "Consulta de cupo a Bancolombia BNPL",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Bancolombia BNPL|Llamando API de validación de cupo"
+                "kind": "regex",
+                "pattern": "Bancolombia BNPL|Llamando API de validación de cupo"
               },
-              "porque": "La instrumentación de la llamada (credenciales, request). Va ÚLTIMO: es el cajón de lo que no es ni veredicto ni error."
+              "because": "La instrumentación de la llamada (credenciales, request). Va ÚLTIMO: es el cajón de lo que no es ni veredicto ni error."
             }
           ]
         },
         {
           "id": "meddipay-consulta",
           "label": "Consulta Meddipay (entidad 39, API externa)",
-          "tipo": "hitos",
-          "nota": "La fase de CONSULTA. La creación de la orden —que trae el veredicto y el cupo— vive en `seleccion`, porque ocurre a esa hora (medido 519772/522227). Matchers idénticos a los de la etapa: son huérfanos recién adoptados y el hito debe ser subconjunto exacto.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "La fase de CONSULTA. La creación de la orden —que trae el veredicto y el cupo— vive en `seleccion`, porque ocurre a esa hora (medido 519772/522227). Matchers idénticos a los de la etapa: son huérfanos recién adoptados y el hito debe ser subconjunto exacto.",
+          "milestones": [
             {
               "id": "mdp-consulta",
               "label": "Autenticación y consulta a Meddipay",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Autenticando con Meddipay|Autenticación exitosa con Meddipay|Iniciando consulta con Meddipay"
+                "kind": "regex",
+                "pattern": "Autenticando con Meddipay|Autenticación exitosa con Meddipay|Iniciando consulta con Meddipay"
               },
-              "porque": "El handshake y la consulta. 9/25 trazas del censo, 59 líneas huérfanas antes de esto."
+              "because": "El handshake y la consulta. 9/25 trazas del censo, 59 líneas huérfanas antes de esto."
             }
           ]
         }
       ]
     },
     "listado": {
-      "bloques": [
+      "blocks": [
         {
           "id": "familias",
           "label": "Entidades por familia",
-          "tipo": "familias",
-          "nota": "⚠ Una solicitud NO elige una familia acá: evalúa entidades de TODAS a la vez (medido en la uReq 464630: 12 entidades entre las cuatro). El camino elegido recién existe en `seleccion`. Un árbol que mostrara «fue por agregador» en el listado estaría mintiendo.",
-          "valores": [
+          "kind": "familias",
+          "note": "⚠ Una solicitud NO elige una familia acá: evalúa entidades de TODAS a la vez (medido en la uReq 464630: 12 entidades entre las cuatro). El camino elegido recién existe en `seleccion`. Un árbol que mostrara «fue por agregador» en el listado estaría mintiendo.",
+          "values": [
             {
               "id": "creditopx",
               "label": "CreditopX · decide in-platform",
@@ -582,392 +582,392 @@
             }
           ],
           "hijos": {
-            "tipo": "dinamico",
-            "fuente": "loki:lender_id + lender_name  →  db:lenders.response_type",
-            "nota": "Los lenders NO se declaran: son 156 y su `response_type` cambia por ambiente (medido: Sistecrédito rt=1 en local, rt=0 en prod). La familia se resuelve en la corrida, contra la BD del target."
+            "kind": "dinamico",
+            "source": "loki:lender_id + lender_name  →  db:lenders.response_type",
+            "note": "Los lenders NO se declaran: son 156 y su `response_type` cambia por ambiente (medido: Sistecrédito rt=1 en local, rt=0 en prod). La familia se resuelve en la corrida, contra la BD del target."
           }
         }
       ],
-      "nota": "El bloque `proceso` se ELIMINÓ el 2026-08-06 y no debe volver como hito. Tenía un solo hito vivo —el timeout del profiler— y ese timeout ahora es un PASO propio, «Orden del listado (perfilador ML)», que el código arma desde `profiling_reviews.ML_predictions` y que RECLAMA sus líneas antes del reparto por hito (`etapas.go`, en la rama `o.id == \"listado\"`). Declararlo también acá haría que la misma línea saliera en dos renglones.\n\nAntes de eso el bloque tuvo seis hitos más —«Arranque de la cascada», «Reglas heredadas de la sucursal», «Recorrido de todas las entidades», «Reglas de perfilamiento», «Listado terminado», «Orquestador de pre-aprobación»— y se podaron a pedido: confirman que el código ejecutó sus propios pasos y no contestan ninguna pregunta. Sus líneas no se pierden, caen en «eventos sin nombre de negocio», que es lo que son.\n\n⚠ Sobre la poda del 2026-08-06 (seis hitos de narración): sigue bien podada, pero «Listado de entidades completado» NO es narración — trae `lenders_count`, el veredicto. Hoy lo lee el ensamblador directamente (el status de la etapa sale de ahí cuando no hay snapshot en BD); si algún día se declara como hito necesita el campo `campos` en HitoDef para mostrar el conteo, porque un hito sin eso renderiza «×1 · hh:mm» — un duplicado degradado del detalle de BD. Y la cifra que justifica todo esto, con ventana explícita: el 50,9% de las solicitudes de los últimos 30 días muere en estado 9 sin elegir entidad (medido 2026-08-07)."
+      "note": "El bloque `proceso` se ELIMINÓ el 2026-08-06 y no debe volver como hito. Tenía un solo hito vivo —el timeout del profiler— y ese timeout ahora es un PASO propio, «Orden del listado (perfilador ML)», que el código arma desde `profiling_reviews.ML_predictions` y que RECLAMA sus líneas antes del reparto por hito (`etapas.go`, en la rama `o.id == \"listado\"`). Declararlo también acá haría que la misma línea saliera en dos renglones.\n\nAntes de eso el bloque tuvo seis hitos más —«Arranque de la cascada», «Reglas heredadas de la sucursal», «Recorrido de todas las entidades», «Reglas de perfilamiento», «Listado terminado», «Orquestador de pre-aprobación»— y se podaron a pedido: confirman que el código ejecutó sus propios pasos y no contestan ninguna pregunta. Sus líneas no se pierden, caen en «eventos sin nombre de negocio», que es lo que son.\n\n⚠ Sobre la poda del 2026-08-06 (seis hitos de narración): sigue bien podada, pero «Listado de entidades completado» NO es narración — trae `lenders_count`, el veredicto. Hoy lo lee el ensamblador directamente (el status de la etapa sale de ahí cuando no hay snapshot en BD); si algún día se declara como hito necesita el campo `campos` en HitoDef para mostrar el conteo, porque un hito sin eso renderiza «×1 · hh:mm» — un duplicado degradado del detalle de BD. Y la cifra que justifica todo esto, con ventana explícita: el 50,9% de las solicitudes de los últimos 30 días muere en estado 9 sin elegir entidad (medido 2026-08-07)."
     },
     "seleccion": {
-      "bloques": [
+      "blocks": [
         {
           "id": "elegida",
           "label": "Entidad elegida",
-          "tipo": "dinamico",
-          "fuente": "db:user_requests.lender_id",
-          "nota": "El ÚNICO punto del flujo donde hay un camino elegido. `seleccion` no tiene matchers de log a propósito: se verificó en código que ninguna de las dos rutas de selección escribe al tracer, así que la BD (estado 3 + lender_id) es la única fuente. Declarar un matcher aproximado sería inventar."
+          "kind": "dinamico",
+          "source": "db:user_requests.lender_id",
+          "note": "El ÚNICO punto del flujo donde hay un camino elegido. `seleccion` no tiene matchers de log a propósito: se verificó en código que ninguna de las dos rutas de selección escribe al tracer, así que la BD (estado 3 + lender_id) es la única fuente. Declarar un matcher aproximado sería inventar."
         },
         {
           "id": "proceso",
           "label": "Qué se escribió al elegir",
-          "tipo": "hitos",
-          "nota": "La etapa la prueba el estado 3; estos hitos son lo que ocurre alrededor.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "La etapa la prueba el estado 3; estos hitos son lo que ocurre alrededor.",
+          "milestones": [
             {
               "id": "sel-producto",
               "label": "Producto asociado a la solicitud",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^(Iniciando upsert de producto|Producto de solicitud de usuario)"
+                "kind": "regex",
+                "pattern": "^(Iniciando upsert de producto|Producto de solicitud de usuario)"
               },
-              "porque": "AlliedProductsController::upsertUserRequestProduct. Ocurre junto con el estado 3 (medido: 09:01:37 contra el estado a las 09:01:38 en la uReq 519245 de prod)."
+              "because": "AlliedProductsController::upsertUserRequestProduct. Ocurre junto con el estado 3 (medido: 09:01:37 contra el estado a las 09:01:38 en la uReq 519245 de prod)."
             }
           ]
         },
         {
           "id": "meddipay-orden",
           "label": "Orden Meddipay",
-          "tipo": "hitos",
-          "nota": "El VEREDICTO de Meddipay: `result==DEN` hace unset y la entidad no se muestra — no existe otra línea que registre ese rechazo (PreApprovedLenderService.php:471-497). Con `credit_limit>0` ese número ES el cupo que ve el cliente.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "El VEREDICTO de Meddipay: `result==DEN` hace unset y la entidad no se muestra — no existe otra línea que registre ese rechazo (PreApprovedLenderService.php:471-497). Con `credit_limit>0` ese número ES el cupo que ve el cliente.",
+          "milestones": [
             {
               "id": "mdp-orden",
               "label": "Orden creada en Meddipay",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Creando orden en Meddipay|Orden creada exitosamente en Meddipay"
+                "kind": "regex",
+                "pattern": "Creando orden en Meddipay|Orden creada exitosamente en Meddipay"
               },
-              "porque": "La creación de la orden, con order_id, credit_limit y result. Puede repetirse 2-4 veces por traza (una ráfaga en el listado y otra en la selección): el conteo ×N es real, no un bug."
+              "because": "La creación de la orden, con order_id, credit_limit y result. Puede repetirse 2-4 veces por traza (una ráfaga en el listado y otra en la selección): el conteo ×N es real, no un bug."
             }
           ]
         }
       ]
     },
     "desembolso": {
-      "bloques": [
+      "blocks": [
         {
           "id": "plan",
           "label": "Plan de pagos",
-          "tipo": "hitos",
-          "pantalla": "payment-schedule · first-payment-date",
-          "nota": "Pantallas `first-payment-date` y `payment-schedule` del wizard (`routes.ts`), que pegan a `/api/loans/customer/requests/promissory-note/{id}/{select,confirm}-payment-date` y `/{simulate,confirm}-payment-schedule` (`payment-schedule.repository.ts`, `first-payment-date.repository.ts`). Acá se fija el plazo.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "payment-schedule · first-payment-date",
+          "note": "Pantallas `first-payment-date` y `payment-schedule` del wizard (`routes.ts`), que pegan a `/api/loans/customer/requests/promissory-note/{id}/{select,confirm}-payment-date` y `/{simulate,confirm}-payment-schedule` (`payment-schedule.repository.ts`, `first-payment-date.repository.ts`). Acá se fija el plazo.",
+          "milestones": [
             {
               "id": "des-plan",
               "label": "Plan de pagos simulado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Simulated payment schedule"
+                "kind": "prefijo",
+                "pattern": "Simulated payment schedule"
               },
-              "porque": "La simulación del plan antes de confirmarlo. Es el paso donde se fija el plazo."
+              "because": "La simulación del plan antes de confirmarlo. Es el paso donde se fija el plazo."
             },
             {
               "id": "des-fecha-pago",
               "label": "Fecha de primer pago",
               "matcher": {
-                "tipo": "regex",
-                "patron": "(?i)(first payment date|payment[_ ]date (selected|confirmed))"
+                "kind": "regex",
+                "pattern": "(?i)(first payment date|payment[_ ]date (selected|confirmed))"
               },
-              "porque": "La pantalla `first-payment-date`. No apareció en el censo de 4 trazas (3 desembolsadas en prod + la 464709 de staging): puede que no siempre se muestre o que su endpoint no loguee. Se declara porque la ruta existe y el endpoint también; si nunca dispara, es candidato a borrar como pasó con `lst-timeout`."
+              "because": "La pantalla `first-payment-date`. No apareció en el censo de 4 trazas (3 desembolsadas en prod + la 464709 de staging): puede que no siempre se muestre o que su endpoint no loguee. Se declara porque la ruta existe y el endpoint también; si nunca dispara, es candidato a borrar como pasó con `lst-timeout`."
             }
           ]
         },
         {
           "id": "firma",
           "label": "Firma de documentos",
-          "tipo": "hitos",
-          "pantalla": "sign-documents",
-          "nota": "Pantalla `sign-documents` (`routes/sign-documents.tsx` → `PromissoryNoteRepository`, `/api/loans/customer/requests/promissory-note/{id}` y `/validate/send-otp`). **Es la pantalla que la gente nombra al reportar**: la uReq 464709 de staging se reportó como «falló en firma de documentos» y hasta ahora caía en un paso llamado «Desembolso», que no es lo que el usuario vio.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "sign-documents",
+          "note": "Pantalla `sign-documents` (`routes/sign-documents.tsx` → `PromissoryNoteRepository`, `/api/loans/customer/requests/promissory-note/{id}` y `/validate/send-otp`). **Es la pantalla que la gente nombra al reportar**: la uReq 464709 de staging se reportó como «falló en firma de documentos» y hasta ahora caía en un paso llamado «Desembolso», que no es lo que el usuario vio.",
+          "milestones": [
             {
               "id": "des-docs",
               "label": "Generación de documentos",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^document_(routing_resolved|payload_built|generation_succeeded|generation_failed)"
+                "kind": "regex",
+                "pattern": "^document_(routing_resolved|payload_built|generation_succeeded|generation_failed)"
               },
-              "porque": "El pipeline del generador de PDFs (blade o microservicio, según `config/documents.php`). Tres líneas por documento: a dónde se enruta, el payload y el resultado — así que ×11 son ~4 documentos."
+              "because": "El pipeline del generador de PDFs (blade o microservicio, según `config/documents.php`). Tres líneas por documento: a dónde se enruta, el payload y el resultado — así que ×11 son ~4 documentos."
             },
             {
               "id": "des-pagare",
               "label": "Pagaré Deceval",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^(Iniciando generación de pagaré Deceval|Deceval create(PromisoryNote|Girador)|Error al generar pagaré Deceval|Error generating promissory note)"
+                "kind": "regex",
+                "pattern": "^(Iniciando generación de pagaré Deceval|Deceval create(PromisoryNote|Girador)|Error al generar pagaré Deceval|Error generating promissory note)"
               },
-              "porque": "La radicación del pagaré en Deceval, paso a paso: `createPromisoryNote` → `createGirador`. MEDIDO en la uReq 464709 de staging, que se detuvo acá: `Deceval createGirador no exitoso` → `Error al generar pagaré Deceval` → `Error generating promissory note`. Es la causa de un estado 10 que no avanza, y sin este hito esas seis líneas quedaban sin nombre mientras la etapa decía «0 líneas»."
+              "because": "La radicación del pagaré en Deceval, paso a paso: `createPromisoryNote` → `createGirador`. MEDIDO en la uReq 464709 de staging, que se detuvo acá: `Deceval createGirador no exitoso` → `Error al generar pagaré Deceval` → `Error generating promissory note`. Es la causa de un estado 10 que no avanza, y sin este hito esas seis líneas quedaban sin nombre mientras la etapa decía «0 líneas»."
             },
             {
               "id": "des-pagare-ok",
               "label": "Pagaré generado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Generated promissory note"
+                "kind": "prefijo",
+                "pattern": "Generated promissory note"
               },
-              "porque": "El cierre feliz del pagaré: aparece en las 3 solicitudes desembolsadas del censo (×4)."
+              "because": "El cierre feliz del pagaré: aparece en las 3 solicitudes desembolsadas del censo (×4)."
             },
             {
               "id": "des-firmante",
               "label": "Compuerta de firmante adicional",
               "matcher": {
-                "tipo": "regex",
-                "patron": "CosignerSignatureGateService|CosignerRepository"
+                "kind": "regex",
+                "pattern": "CosignerSignatureGateService|CosignerRepository"
               },
-              "porque": "`Modules\\UserRequestV1` — decide si hace falta un codeudor antes de firmar."
+              "because": "`Modules\\UserRequestV1` — decide si hace falta un codeudor antes de firmar."
             },
             {
               "id": "firma",
               "label": "Firma del pagaré (Netco)",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "netco.signFiles"
+                "kind": "prefijo",
+                "pattern": "netco.signFiles"
               },
-              "porque": "el string real es `netco.signFiles.response`, verificado en Modules/Loans/App/Services/Signing. No cayó en la ventana medida: en 4 horas de producción no hubo una firma de pagaré. ⚠ Estuvo marcado soloEnCodigo y era FALSO: netco.signFiles corre a 125 líneas/168 h en prod. Lo invisible no era el mensaje sino el matcher de etapa, que ya existe."
+              "because": "el string real es `netco.signFiles.response`, verificado en Modules/Loans/App/Services/Signing. No cayó en la ventana medida: en 4 horas de producción no hubo una firma de pagaré. ⚠ Estuvo marcado soloEnCodigo y era FALSO: netco.signFiles corre a 125 líneas/168 h en prod. Lo invisible no era el mensaje sino el matcher de etapa, que ya existe."
             },
             {
               "id": "firma-error",
               "label": "Error firmando en Netco",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Netco"
+                "kind": "regex",
+                "pattern": "Netco"
               },
-              "soloEnCodigo": true,
-              "porque": "«Error al firmar el documento en Netco.», «Autenticación con Netco rechazada.» — existen en código, no aparecieron en la ventana medida"
+              "onlyInCode": true,
+              "because": "«Error al firmar el documento en Netco.», «Autenticación con Netco rechazada.» — existen en código, no aparecieron en la ventana medida"
             }
           ]
         },
         {
           "id": "otp-firma",
           "label": "OTP de firma",
-          "tipo": "hitos",
-          "pantalla": "otp-validation",
-          "nota": "Pantalla `otp-validation`: `/api/loans/customer/requests/promissory-note/validate/{send,resend,verify}-otp`. Separa «no firmó» de «no le llegó el OTP».",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "otp-validation",
+          "note": "Pantalla `otp-validation`: `/api/loans/customer/requests/promissory-note/validate/{send,resend,verify}-otp`. Separa «no firmó» de «no le llegó el OTP».",
+          "milestones": [
             {
               "id": "des-otp-firma",
               "label": "OTP de firma",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^(OTP sent successfully|Message Sent Response|Validating OTP|OTP validated successfully)"
+                "kind": "regex",
+                "pattern": "^(OTP sent successfully|Message Sent Response|Validating OTP|OTP validated successfully)"
               },
-              "porque": "Las formas OBSERVADAS en el censo (522190/522261) son «Validating OTP» y «OTP validated successfully», que el matcher viejo no declaraba. Como matcher de HITO es seguro: sólo ve líneas que su etapa ya reclamó (por span). ⚠ NO promover estas frases a matcher de etapa: «OTP validated successfully» corre a 511/24 h en prod — escala de registro."
+              "because": "Las formas OBSERVADAS en el censo (522190/522261) son «Validating OTP» y «OTP validated successfully», que el matcher viejo no declaraba. Como matcher de HITO es seguro: sólo ve líneas que su etapa ya reclamó (por span). ⚠ NO promover estas frases a matcher de etapa: «OTP validated successfully» corre a 511/24 h en prod — escala de registro."
             }
           ]
         },
         {
           "id": "autorizacion",
           "label": "Autorización del crédito",
-          "tipo": "hitos",
-          "pantalla": "loan-approved",
-          "nota": "Lo que corre detrás de `/api/loans/requests/promissory-note/validate/authorize` cuando el OTP pasa, y termina en la pantalla `loan-approved`. **Estos seis mensajes existían y caían en «eventos sin nombre de negocio»**: salieron del censo del tramo, no de leer código. Es la secuencia que dice si el crédito quedó comprometido o se cayó a mitad de camino.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "loan-approved",
+          "note": "Lo que corre detrás de `/api/loans/requests/promissory-note/validate/authorize` cuando el OTP pasa, y termina en la pantalla `loan-approved`. **Estos seis mensajes existían y caían en «eventos sin nombre de negocio»**: salieron del censo del tramo, no de leer código. Es la secuencia que dice si el crédito quedó comprometido o se cayó a mitad de camino.",
+          "milestones": [
             {
               "id": "des-auth-inicio",
               "label": "Autorización iniciada",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Loan authorization started"
+                "kind": "prefijo",
+                "pattern": "Loan authorization started"
               },
-              "porque": "Arranque del authorize."
+              "because": "Arranque del authorize."
             },
             {
               "id": "des-auth-num",
               "label": "Número de radicación generado",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Loan authorization request number"
+                "kind": "prefijo",
+                "pattern": "Loan authorization request number"
               },
-              "porque": "El número con el que queda radicado el crédito."
+              "because": "El número con el que queda radicado el crédito."
             },
             {
               "id": "des-auth-docs",
               "label": "Documentos de la autorización",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Loan authorization documents generated"
+                "kind": "prefijo",
+                "pattern": "Loan authorization documents generated"
               },
-              "porque": "Los documentos definitivos, distintos de los de la firma."
+              "because": "Los documentos definitivos, distintos de los de la firma."
             },
             {
               "id": "des-auth-cancel",
               "label": "Se cancelaron otros créditos del cliente",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Loan authorization cancelled other"
+                "kind": "prefijo",
+                "pattern": "Loan authorization cancelled other"
               },
-              "porque": "Autorizar cancela otras solicitudes vivas del mismo cliente. Explica por qué OTRA solicitud del mismo documento aparece cancelada sin que nadie la tocara."
+              "because": "Autorizar cancela otras solicitudes vivas del mismo cliente. Explica por qué OTRA solicitud del mismo documento aparece cancelada sin que nadie la tocara."
             },
             {
               "id": "des-auth-ok",
               "label": "Solicitud autorizada",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^(Request authorized|Loan authorized and committed)"
+                "kind": "regex",
+                "pattern": "^(Request authorized|Loan authorized and committed)"
               },
-              "porque": "El commit. `Loan authorized and committed` es el punto sin retorno."
+              "because": "El commit. `Loan authorized and committed` es el punto sin retorno."
             },
             {
               "id": "autorizada",
               "label": "Confirmación de aprobación",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "Error en ApprovedConfirmationController"
+                "kind": "prefijo",
+                "pattern": "Error en ApprovedConfirmationController"
               },
-              "soloEnCodigo": true,
-              "porque": "solo hay log del camino de ERROR: el éxito no se loguea, así que esta etapa se prueba por la BD (estado 11/28)"
+              "onlyInCode": true,
+              "because": "solo hay log del camino de ERROR: el éxito no se loguea, así que esta etapa se prueba por la BD (estado 11/28)"
             },
             {
               "id": "cancel-bloqueado",
               "label": "Cancelación bloqueada (ya autorizada)",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "safe_cancel_blocked_already_authorized"
+                "kind": "prefijo",
+                "pattern": "safe_cancel_blocked_already_authorized"
               },
-              "soloEnCodigo": true
+              "onlyInCode": true
             },
             {
               "id": "voucher",
               "label": "Notificación del voucher",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "voucher_disbursement_notification_failed"
+                "kind": "prefijo",
+                "pattern": "voucher_disbursement_notification_failed"
               },
-              "soloEnCodigo": true,
-              "porque": "solo el fallo tiene log"
+              "onlyInCode": true,
+              "because": "solo el fallo tiene log"
             },
             {
               "id": "des-auth-completed",
               "label": "Autorización completada",
               "matcher": {
-                "tipo": "exacto",
-                "patron": "Loan authorization completed"
+                "kind": "exacto",
+                "pattern": "Loan authorization completed"
               },
-              "porque": "El cierre de la secuencia: aparecía en 2/2 trazas del tramo y caía en «eventos sin nombre» porque el prefijo de etapa lo trae pero ningún hito lo nombraba."
+              "because": "El cierre de la secuencia: aparecía en 2/2 trazas del tramo y caía en «eventos sin nombre» porque el prefijo de etapa lo trae pero ningún hito lo nombraba."
             }
           ]
         },
         {
           "id": "creditopx",
           "label": "Registro en CreditopX",
-          "tipo": "hitos",
-          "pantalla": "",
-          "nota": "El ledger de CreditopX (`creditop_x_event`, 4 por solicitud en las 3 del censo). No es una pantalla: es la contabilidad que queda del lado del comercio dueño del crédito.",
-          "hitos": [
+          "kind": "hitos",
+          "screen": "",
+          "note": "El ledger de CreditopX (`creditop_x_event`, 4 por solicitud en las 3 del censo). No es una pantalla: es la contabilidad que queda del lado del comercio dueño del crédito.",
+          "milestones": [
             {
               "id": "des-cx",
               "label": "Evento de CreditopX",
               "matcher": {
-                "tipo": "prefijo",
-                "patron": "creditop_x_event"
+                "kind": "prefijo",
+                "pattern": "creditop_x_event"
               },
-              "porque": "Cada movimiento que CreditopX registra para esta solicitud."
+              "because": "Cada movimiento que CreditopX registra para esta solicitud."
             }
           ]
         }
       ],
-      "nota": "Los bloques de este tramo llevan el nombre de la PANTALLA del wizard que los produce (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`), no el del backend. Razón: el reporte de soporte llega en ese idioma —«falló en firma de documentos»— y hasta que esto se reorganizó, esa frase aterrizaba en un paso llamado «Desembolso».\n\n⚠ La pantalla se INFIERE del endpoint que el backend sirvió; nunca se observa. El wizard no manda nada a Loki: sus logs de ruta (`withRouteLogging`) salen por OTLP hacia **PostHog**. Verificado el 2026-08-07 buscando en Loki los `service_name` que matchean wizard/front/loan-request/remix/react: cero líneas. Por eso una pantalla sin llamada al backend (p. ej. `identity-validation-instructions`) es invisible acá. || El bloque `centrales` se ELIMINÓ el 2026-08-07. Tenía una sola entrada, Deceval, y el propio mapa ya declaraba que «no es una consulta de riesgo: es el PAGARÉ». El problema era el tipo `catalogo`, que cuenta filas de `risk_central_user_data` — y Deceval NUNCA escribe ahí, así que un pagaré firmado sin un solo problema salía como «0 de 1 centrales consultadas». Su evidencia real es `deceval_logs`, que ata por `user_request_id` y ahora se renderiza como el bloque «Pagaré digital (Deceval)». Deceval usa `risk_centrals` sólo para guardar sus CREDENCIALES (risk_central_id 7), no para registrar consultas."
+      "note": "Los bloques de este tramo llevan el nombre de la PANTALLA del wizard que los produce (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`), no el del backend. Razón: el reporte de soporte llega en ese idioma —«falló en firma de documentos»— y hasta que esto se reorganizó, esa frase aterrizaba en un paso llamado «Desembolso».\n\n⚠ La pantalla se INFIERE del endpoint que el backend sirvió; nunca se observa. El wizard no manda nada a Loki: sus logs de ruta (`withRouteLogging`) salen por OTLP hacia **PostHog**. Verificado el 2026-08-07 buscando en Loki los `service_name` que matchean wizard/front/loan-request/remix/react: cero líneas. Por eso una pantalla sin llamada al backend (p. ej. `identity-validation-instructions`) es invisible acá. || El bloque `centrales` se ELIMINÓ el 2026-08-07. Tenía una sola entrada, Deceval, y el propio mapa ya declaraba que «no es una consulta de riesgo: es el PAGARÉ». El problema era el tipo `catalogo`, que cuenta filas de `risk_central_user_data` — y Deceval NUNCA escribe ahí, así que un pagaré firmado sin un solo problema salía como «0 de 1 centrales consultadas». Su evidencia real es `deceval_logs`, que ata por `user_request_id` y ahora se renderiza como el bloque «Pagaré digital (Deceval)». Deceval usa `risk_centrals` sólo para guardar sus CREDENCIALES (risk_central_id 7), no para registrar consultas."
     },
     "respuesta-lender": {
-      "bloques": [
+      "blocks": [
         {
           "id": "diagnostico",
           "label": "¿Respondió el lender?",
-          "tipo": "hitos",
-          "nota": "Los tres casos NO se distinguen con una sola señal, y ahí está el valor: «no llegó» y «llegó y falló» se ven igual desde la BD (disbursed_lender vacío en los dos) y sólo la excepción HTTP los separa. Confundirlos manda a revisar el lugar equivocado: uno es un problema del agregador y el otro nuestro.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "Los tres casos NO se distinguen con una sola señal, y ahí está el valor: «no llegó» y «llegó y falló» se ven igual desde la BD (disbursed_lender vacío en los dos) y sólo la excepción HTTP los separa. Confundirlos manda a revisar el lugar equivocado: uno es un problema del agregador y el otro nuestro.",
+          "milestones": [
             {
               "id": "aplicado",
               "label": "Llegó y se aplicó",
               "matcher": null,
-              "porque": "profiling_reviews.disbursed_lender tiene valor → se resuelve por BD, no por log"
+              "because": "profiling_reviews.disbursed_lender tiene valor → se resuelve por BD, no por log"
             },
             {
               "id": "fallo",
               "label": "Llegó y falló",
               "matcher": {
-                "tipo": "regex",
-                "patron": "lender-result",
-                "campo": "url"
+                "kind": "regex",
+                "pattern": "lender-result",
+                "field": "url"
               },
-              "porque": "la excepción HTTP con la url del webhook: es NUESTRO problema, el agregador sí respondió"
+              "because": "la excepción HTTP con la url del webhook: es NUESTRO problema, el agregador sí respondió"
             },
             {
               "id": "no-llego",
               "label": "No llegó (o llegó y no dejó huella)",
               "matcher": null,
-              "porque": "sin disbursed_lender y sin excepción: no hay evidencia de que el webhook haya entrado. ⚠ Es una inferencia por AUSENCIA, y el webhook no loguea su recepción, así que NO se puede afirmar — se declara como «sin evidencia de recepción», no como «el agregador no llamó»."
+              "because": "sin disbursed_lender y sin excepción: no hay evidencia de que el webhook haya entrado. ⚠ Es una inferencia por AUSENCIA, y el webhook no loguea su recepción, así que NO se puede afirmar — se declara como «sin evidencia de recepción», no como «el agregador no llamó»."
             }
           ]
         }
       ]
     },
     "biometria": {
-      "bloques": [
+      "blocks": [
         {
           "id": "centrales",
           "label": "Centrales de este tramo",
-          "tipo": "catalogo",
-          "nota": "Se escriben DESPUÉS de elegir la entidad, no en el buró. TusDatos - AML y Ado son del tramo creditopx; crosscore/evidente son del KYC V2 de Credifamilia. La evidencia de cada uno está en su `porque`.",
-          "conocidos": [
+          "kind": "catalogo",
+          "note": "Se escriben DESPUÉS de elegir la entidad, no en el buró. TusDatos - AML y Ado son del tramo creditopx; crosscore/evidente son del KYC V2 de Credifamilia. La evidencia de cada uno está en su `porque`.",
+          "known": [
             {
               "id": 4,
               "label": "TusDatos - AML",
-              "porque": "Modules/Identity/App/Services/TusDatosService.php:508 findByName('TusDatos - AML'); ValidationStatusController lo agrupa con «provider-specific identity validation»"
+              "because": "Modules/Identity/App/Services/TusDatosService.php:508 findByName('TusDatos - AML'); ValidationStatusController lo agrupa con «provider-specific identity validation»"
             },
             {
               "id": 5,
               "label": "Ado",
-              "porque": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php + AdoService; callback a /self-service/{hash}/{ureq}/identity-validation-status?provider=ado. NO es un buró de onboarding"
+              "because": "Modules/Identity/App/Http/Controllers/Customer/AdoController.php + AdoService; callback a /self-service/{hash}/{ureq}/identity-validation-status?provider=ado. NO es un buró de onboarding"
             },
             {
               "id": 10,
               "label": "crosscore - Experian",
-              "porque": "app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php — KYC V2 de Credifamilia, después de elegir la entidad"
+              "because": "app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php — KYC V2 de Credifamilia, después de elegir la entidad"
             },
             {
               "id": 11,
               "label": "evidente - Experian",
-              "porque": "app/Http/Requests/Api/CredifamiliaV2/Evidente*Request.php — KYC V2 de Credifamilia"
+              "because": "app/Http/Requests/Api/CredifamiliaV2/Evidente*Request.php — KYC V2 de Credifamilia"
             }
           ]
         },
         {
           "id": "aml",
           "label": "Antecedentes / AML (TusDatos)",
-          "tipo": "hitos",
-          "nota": "El tramo tiene DOS productores (legacy-application Tusdatos.php y legacy-backend ContinueUserFlowController/TusDatosService) y por eso hay hito de consulta Y de lanzamiento: sin el segundo, 19 de las 40 líneas del censo y 3 de las 8 trazas quedaban con la etapa encendida y cero hitos. ⚠ Lo que el log NO arregla: la atribución por solicitud — `risk_central_user_data` va por user_id y las líneas se replican en las solicitudes hermanas igual que la fila. El beneficio real es otro: en 519949 el log prueba que el AML se LANZÓ cuando la BD no tiene fila.",
-          "hitos": [
+          "kind": "hitos",
+          "note": "El tramo tiene DOS productores (legacy-application Tusdatos.php y legacy-backend ContinueUserFlowController/TusDatosService) y por eso hay hito de consulta Y de lanzamiento: sin el segundo, 19 de las 40 líneas del censo y 3 de las 8 trazas quedaban con la etapa encendida y cero hitos. ⚠ Lo que el log NO arregla: la atribución por solicitud — `risk_central_user_data` va por user_id y las líneas se replican en las solicitudes hermanas igual que la fila. El beneficio real es otro: en 519949 el log prueba que el AML se LANZÓ cuando la BD no tiene fila.",
+          "milestones": [
             {
               "id": "aml-consulta",
               "label": "Consulta de antecedentes",
               "matcher": {
-                "tipo": "regex",
-                "patron": "TusDatos AML"
+                "kind": "regex",
+                "pattern": "TusDatos AML"
               },
-              "porque": "La consulta síncrona (incluye las formas «(sync)» y el error). 5/25 trazas del censo.",
+              "because": "La consulta síncrona (incluye las formas «(sync)» y el error). 5/25 trazas del censo.",
               "central": 4
             },
             {
               "id": "aml-lanzamiento",
               "label": "Consulta lanzada en segundo plano",
               "matcher": {
-                "tipo": "regex",
-                "patron": "Ejecutando proceso de Tusdatos en segundo plano|tusdatos\\.aml\\.launch\\.(api|resolved)"
+                "kind": "regex",
+                "pattern": "Ejecutando proceso de Tusdatos en segundo plano|tusdatos\\.aml\\.launch\\.(api|resolved)"
               },
-              "porque": "El productor de legacy-backend. 3/8 trazas del tramo sólo tienen esta forma (521379, 522190, 519949).",
+              "because": "El productor de legacy-backend. 3/8 trazas del tramo sólo tienen esta forma (521379, 522190, 519949).",
               "central": 4
             },
             {
               "id": "aml-reuso",
               "label": "Reusó un AML previo",
               "matcher": {
-                "tipo": "regex",
-                "patron": "^Datos de TusDatos AML encontrados en cache( \\(finalizado\\))?$"
+                "kind": "regex",
+                "pattern": "^Datos de TusDatos AML encontrados en cache( \\(finalizado\\))?$"
               },
-              "porque": "La ventana declarada es 1 mes (Tusdatos.php:38/:172) pero en el ÚNICO caso medido (n=1: un par de líneas replicado en tres solicitudes hermanas) el dato reusado tenía 10 MINUTOS y venía del mismo flujo. No afirmar antigüedad desde este renglón: la edad real está en el created_at de «Centrales de este tramo».",
+              "because": "La ventana declarada es 1 mes (Tusdatos.php:38/:172) pero en el ÚNICO caso medido (n=1: un par de líneas replicado en tres solicitudes hermanas) el dato reusado tenía 10 MINUTOS y venía del mismo flujo. No afirmar antigüedad desde este renglón: la edad real está en el created_at de «Centrales de este tramo».",
               "central": 4
             },
             {
               "id": "aml-pendiente",
               "label": "AML previo aún pendiente, esperando",
               "matcher": {
-                "tipo": "exacto",
-                "patron": "Datos de TusDatos AML encontrados en cache (pendiente), iniciando polling"
+                "kind": "exacto",
+                "pattern": "Datos de TusDatos AML encontrados en cache (pendiente), iniciando polling"
               },
-              "porque": "NO es un reuso: encuentra un job pendiente y dispara pollForResults() (Tusdatos.php:199). Etiquetarlo «reusado» diría lo contrario de lo que pasó.",
-              "soloEnCodigo": true,
+              "because": "NO es un reuso: encuentra un job pendiente y dispara pollForResults() (Tusdatos.php:199). Etiquetarlo «reusado» diría lo contrario de lo que pasó.",
+              "onlyInCode": true,
               "central": 4
             }
           ]

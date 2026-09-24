@@ -46,12 +46,12 @@ function currentPath() {
   const ureq = isPreviousRoute ? identifier : (/^\d+$/.test(quarter) ? quarter : '')
   const candidateStage = isPreviousRoute ? quarter : (parts[4] || '')
   const stage = ureq && /^[a-z0-9-]+$/i.test(candidateStage) ? candidateStage : ''
-  return { target: parts[1], identificador: identifier, ureq, etapa: stage }
+  return { target: parts[1], identifier: identifier, ureq, stage: stage }
 }
 
 // Un reciente es una consulta, no una solicitud suelta. Por ejemplo, buscar un teléfono guarda una
 // entrada con todas sus solicitudes; abrir una fila sólo cambia la traza que se está viendo.
-function recentKey({ target, q, personaKey: personKey }) {
+function recentKey({ target, q, personKey: personKey }) {
   return personKey ? `${target}:persona:${personKey}` : `${target}:consulta:${q}`
 }
 
@@ -65,20 +65,20 @@ function normalizeRecent(value) {
   const target = String(fromKey.target || '').trim()
   const q = String(fromKey.q || '').trim()
   if (!target || !q) return null
-  const loanRequests = Array.isArray(fromKey.solicitudes)
-    ? [...new Set(fromKey.solicitudes.map(String).map((ureq) => ureq.trim()).filter(Boolean))]
+  const loanRequests = Array.isArray(fromKey.requests)
+    ? [...new Set(fromKey.requests.map(String).map((ureq) => ureq.trim()).filter(Boolean))]
     : []
-  const queries = [...new Set([q, ...(Array.isArray(fromKey.consultas)
-    ? fromKey.consultas.map(String).map((query) => query.trim()).filter(Boolean)
+  const queries = [...new Set([q, ...(Array.isArray(fromKey.queries)
+    ? fromKey.queries.map(String).map((query) => query.trim()).filter(Boolean)
     : [])])]
   const total = Number.isInteger(fromKey.total) && fromKey.total >= 0
     ? fromKey.total
     : (loanRequests.length || null)
-  const kind = typeof fromKey.tipo === 'string' ? fromKey.tipo.trim() : ''
-  const personKey = typeof fromKey.personaKey === 'string' ? fromKey.personaKey.trim() : ''
-  const documentNumber = typeof fromKey.documento === 'string' ? fromKey.documento.trim() : ''
-  const phone = typeof fromKey.telefono === 'string' ? fromKey.telefono.trim() : ''
-  return { target, q, tipo: kind, personaKey: personKey, documento: documentNumber, telefono: phone, total, solicitudes: loanRequests, consultas: queries }
+  const kind = typeof fromKey.kind === 'string' ? fromKey.kind.trim() : ''
+  const personKey = typeof fromKey.personKey === 'string' ? fromKey.personKey.trim() : ''
+  const documentNumber = typeof fromKey.document === 'string' ? fromKey.document.trim() : ''
+  const phone = typeof fromKey.phone === 'string' ? fromKey.phone.trim() : ''
+  return { target, q, kind: kind, personKey: personKey, document: documentNumber, phone: phone, total, requests: loanRequests, queries: queries }
 }
 
 // `localStorage` es una preferencia, no una fuente confiable: puede venir de una versión anterior,
@@ -97,12 +97,12 @@ function recentList(value) {
 }
 
 function readRecent() {
-  try { return recentList(JSON.parse(localStorage.getItem('trazador.recientes') || '[]')) }
+  try { return recentList(JSON.parse(localStorage.getItem('trazador.recent') || '[]')) }
   catch { return [] }
 }
 
 function persistRecent(recentItems) {
-  try { localStorage.setItem('trazador.recientes', JSON.stringify(recentItems)) }
+  try { localStorage.setItem('trazador.recent', JSON.stringify(recentItems)) }
   catch { /* El historial visual no puede impedir usar el trazador. */ }
 }
 
@@ -111,19 +111,19 @@ function loanRequestsOf(results) {
 }
 
 function personOf(results) {
-  const people = Array.isArray(results?.personas) ? results.personas : []
-  if (people.length === 1 && typeof people[0]?.personaKey === 'string' && people[0].personaKey) {
+  const people = Array.isArray(results?.people) ? results.people : []
+  if (people.length === 1 && typeof people[0]?.personKey === 'string' && people[0].personKey) {
     return {
-      personaKey: people[0].personaKey,
-      documento: typeof people[0].documento === 'string' ? people[0].documento : '',
-      telefono: typeof people[0].telefono === 'string' ? people[0].telefono : '',
+      personKey: people[0].personKey,
+      document: typeof people[0].document === 'string' ? people[0].document : '',
+      phone: typeof people[0].phone === 'string' ? people[0].phone : '',
     }
   }
   // Las búsquedas cacheadas por versiones anteriores no traen el resumen `personas`, pero las filas
   // nuevas sí llevan su clave. Se aprovecha si todas pertenecen a la misma persona; con más de una no
   // se colapsa nada para no mezclar casos ambiguos.
-  const keys = [...new Set((results?.items || []).map((item) => item?.personaKey).filter(Boolean))]
-  return keys.length === 1 ? { personaKey: keys[0], documento: '', telefono: '' } : null
+  const keys = [...new Set((results?.items || []).map((item) => item?.personKey).filter(Boolean))]
+  return keys.length === 1 ? { personKey: keys[0], document: '', phone: '' } : null
 }
 
 function isHidden(value) {
@@ -131,27 +131,27 @@ function isHidden(value) {
 }
 
 function hiddenIdentity(value) {
-  return isHidden(value?.documento) || isHidden(value?.telefono)
+  return isHidden(value?.document) || isHidden(value?.phone)
 }
 
 function searchHasPerson(results) {
   // La propiedad existe incluso cuando la búsqueda no encuentra a nadie. Una identidad con asteriscos
   // es una caché heredada de cuando el API la ocultaba: se actualiza una vez al volver a abrirla para
   // que recientes, ficha y ruta tengan la cédula completa.
-  return Array.isArray(results?.personas) && !results.personas.some(hiddenIdentity)
+  return Array.isArray(results?.people) && !results.people.some(hiddenIdentity)
 }
 
 // Un resultado se guarda bajo sus equivalentes (uReq, cédula y teléfono), pero `directa` describe la
 // llave original que pidió Redash. Al abrirlo por un alias se apaga esa marca: el operador ve el grupo
 // completo y elige la corrida, en vez de que la caché seleccione una por una coincidencia de ayer.
 function cacheResult(saved, q) {
-  const results = saved?.resultados
+  const results = saved?.results
   if (!results) return null
-  const original = String(saved.consultaOriginal || saved.q || '').trim()
+  const original = String(saved.originalQuery || saved.q || '').trim()
   if (!original || original === q) return results
   return {
     ...results,
-    items: (results.items || []).map((item) => ({ ...item, directa: false })),
+    items: (results.items || []).map((item) => ({ ...item, direct: false })),
   }
 }
 
@@ -159,17 +159,17 @@ function completeIdentity(trace, results) {
   if (!trace || !hiddenIdentity(trace)) return trace
   const person = personOf(results)
   if (!person || hiddenIdentity(person)) return trace
-  if (trace.personaKey && person.personaKey && trace.personaKey !== person.personaKey) return trace
-  const documentNumber = isHidden(trace.documento) ? (person.documento || trace.documento) : trace.documento
-  const phone = isHidden(trace.telefono) ? (person.telefono || trace.telefono) : trace.telefono
-  if (documentNumber === trace.documento && phone === trace.telefono) return trace
-  return { ...trace, personaKey: trace.personaKey || person.personaKey, documento: documentNumber, telefono: phone }
+  if (trace.personKey && person.personKey && trace.personKey !== person.personKey) return trace
+  const documentNumber = isHidden(trace.document) ? (person.document || trace.document) : trace.document
+  const phone = isHidden(trace.phone) ? (person.phone || trace.phone) : trace.phone
+  if (documentNumber === trace.document && phone === trace.phone) return trace
+  return { ...trace, personKey: trace.personKey || person.personKey, document: documentNumber, phone: phone }
 }
 
 // El servidor prueba los tres identificadores y devuelve cómo coincidió. Ese dato es más confiable que
 // inferir por longitud: una cédula puede tener diez dígitos y empezar por 3, igual que un celular.
 function kindOf(results) {
-  const matchesList = (results?.como || []).map((value) => String(value).split('→')[0].trim().toLowerCase())
+  const matchesList = (results?.as || []).map((value) => String(value).split('→')[0].trim().toLowerCase())
   const kinds = [
     matchesList.some((kind) => kind.includes('teléfono')) && 'Teléfono',
     matchesList.some((kind) => kind.includes('documento')) && 'Cédula',
@@ -182,166 +182,166 @@ export const useTrazador = defineStore('trazador', {
   state: () => ({
     // El árbol DECLARADO. Se pide una vez al arrancar y no toca ninguna fuente, así que la vista puede
     // dibujar las 8 etapas y sus 37 hitos en gris antes de que exista una consulta.
-    mapa: null,
+    stageMap: null,
     target: 'prod',
 
     // La búsqueda
     q: '',
-    buscando: false,
-    resultados: null,   // { como, items[] } · null = todavía no se buscó
+    searching: false,
+    results: null,   // { como, items[] } · null = todavía no se buscó
 
     // La traza elegida
-    cargandoTraza: false,
-    traza: null,
-    etapaSel: null,
+    loadingTrace: false,
+    trace: null,
+    selectedStage: null,
     error: '',
 
     // `fase` dice EN QUÉ va la carga, no sólo que está cargando. Contra prod son dos saltos que suman ~20 s
     // (búsqueda ~5 s + armado ~14 s, medido) porque Redash es asíncrono: un spinner mudo tanto tiempo se lee
     // como «se colgó». Decir cuál de los dos corre convierte la espera en información.
-    fase: '',           // '' | 'buscando' | 'armando'
+    phase: '',           // '' | 'buscando' | 'armando'
 
     // Las últimas búsquedas, en localStorage. En soporte se vuelve al mismo puñado de solicitudes todo el
     // día y volver a tipear el número es fricción pura.
-    recientes: readRecent(),
+    recentItems: readRecent(),
   }),
 
   getters: {
     // Las etapas SIEMPRE salen del mapa declarado, en el orden del flujo. Cuando hay traza se le pega su
     // estado; cuando no, quedan en gris. Así el árbol es el mismo objeto antes y después de consultar, y
     // no hay dos maneras de dibujarlo.
-    etapas(s) {
-      if (!s.mapa) return []
-      const byID = Object.fromEntries((s.traza?.etapas || []).map((e) => [e.id, e]))
-      return s.mapa.etapas.map((d) => ({
+    stages(s) {
+      if (!s.stageMap) return []
+      const byID = Object.fromEntries((s.trace?.stages || []).map((e) => [e.id, e]))
+      return s.stageMap.stages.map((d) => ({
         ...d,
-        vivo: byID[d.id] || null,
-        estado: byID[d.id]?.status || 'pendiente',
+        live: byID[d.id] || null,
+        status: byID[d.id]?.status || 'pendiente',
       }))
     },
-    etapaActiva(s) {
-      const isIt = this.etapas
+    activeStage(s) {
+      const isIt = this.stages
       if (!isIt.length) return null
-      const i = isIt.findIndex((e) => e.id === s.etapaSel)
-      return i >= 0 ? isIt[i] : isIt[this.indiceInteresante]
+      const i = isIt.findIndex((e) => e.id === s.selectedStage)
+      return i >= 0 ? isIt[i] : isIt[this.interestingIndex]
     },
     // Qué etapa abrir sola: la que rompió; si no rompió nada, la última con actividad. Es lo que uno
     // quiere ver al abrir un run fallido sin tener que buscarlo.
-    indiceInteresante(s) {
-      const isIt = this.etapas
+    interestingIndex(s) {
+      const isIt = this.stages
       if (!isIt.length) return 0
-      if (s.traza?.brokeAt) {
-        const i = isIt.findIndex((e) => e.id === s.traza.brokeAt)
+      if (s.trace?.brokeAt) {
+        const i = isIt.findIndex((e) => e.id === s.trace.brokeAt)
         if (i >= 0) return i
       }
-      const f = isIt.findIndex((e) => e.estado === 'fail' || e.estado === 'warn')
+      const f = isIt.findIndex((e) => e.status === 'fail' || e.status === 'warn')
       if (f >= 0) return f
       let u = 0
-      isIt.forEach((e, i) => { if (e.vivo?.at) u = i })
+      isIt.forEach((e, i) => { if (e.live?.at) u = i })
       return u
     },
   },
 
   actions: {
-    async cargarMapa() {
-      try { this.mapa = await json('/api/mapa') }
+    async loadMap() {
+      try { this.stageMap = await json('/api/mapa') }
       catch (e) { this.error = 'no pude cargar el mapa: ' + e.message }
     },
 
-    async buscar() {
+    async search() {
       const q = this.q.trim()
       if (!q) return
-      this.buscando = true; this.fase = 'buscando'
-      this.error = ''; this.resultados = null; this.traza = null
+      this.searching = true; this.phase = 'buscando'
+      this.error = ''; this.results = null; this.trace = null
       try {
         const saved = await readSearch(this.target, q)
         const cached = cacheResult(saved, q)
-        if (cached && searchHasPerson(cached)) this.resultados = cached
+        if (cached && searchHasPerson(cached)) this.results = cached
         else {
           try {
-            this.resultados = await json(`/api/buscar?q=${encodeURIComponent(q)}&target=${this.target}`)
-            await saveSearch({ target: this.target, q, resultados: toRaw(this.resultados) })
+            this.results = await json(`/api/buscar?q=${encodeURIComponent(q)}&target=${this.target}`)
+            await saveSearch({ target: this.target, q, results: toRaw(this.results) })
           } catch (e) {
             // Actualizar una caché de la versión anterior es una mejora, no una razón para ocultar una
             // consulta útil cuando la fuente remota está caída.
-            if (saved?.resultados) this.resultados = saved.resultados
+            if (saved?.results) this.results = saved.results
             else throw e
           }
         }
-        this.recordar(q, this.resultados)
+        this.remember(q, this.results)
         // Se abre sola la que se PIDIÓ, no «la única»: desde que el server expande a la persona, buscar un
         // número de solicitud devuelve toda su historia, y con la regla vieja (`items.length === 1`) dejaba
         // de abrir justo el caso más común — el ureq que llega por Jira. Con varias directas (una cédula
         // con 12 intentos) no se adivina: se eligen en los chips.
-        const directOnes = (this.resultados.items || []).filter((i) => i.directa)
-        if (directOnes.length === 1) await this.verTraza(directOnes[0].ureq)
+        const directOnes = (this.results.items || []).filter((i) => i.direct)
+        if (directOnes.length === 1) await this.viewTrace(directOnes[0].ureq)
         // Cuando la consulta es cédula o celular no se abre arbitrariamente una solicitud, pero sí se
         // canoniza el link a la cédula. Una búsqueda por uReq termina arriba con su corrida seleccionada.
         this.aURL()
       } catch (e) { this.error = e.message }
-      finally { this.buscando = false; this.fase = '' }
+      finally { this.searching = false; this.phase = '' }
     },
 
-    async verTraza(ureq) {
+    async viewTrace(ureq) {
       const id = Number(ureq)
       // Elegir la fila que ya está abierta no es una carga: conserva la ficha y, sobre todo, no vuelve
       // a encender una barra que da a entender que se consultó la fuente.
-      if (this.traza?.ureq === id) {
+      if (this.trace?.ureq === id) {
         this.aURL()
         return
       }
-      this.cargandoTraza = false; this.fase = ''
-      this.error = ''; this.etapaSel = null
+      this.loadingTrace = false; this.phase = ''
+      this.error = ''; this.selectedStage = null
       try {
         const target = this.target
         const saved = await readQuery(target, id)
         // La corrida sólo llega a IndexedDB después de terminar. La ficha nueva de perfil de cupo no
         // puede derivarse sin riesgo de las líneas ya renderizadas de una caché vieja; una copia sin ese
         // campo se actualiza UNA vez. Luego queda completa en IndexedDB como cualquier otra corrida.
-        const traceCache = completeIdentity(saved?.traza, this.resultados || saved?.resultados)
-        if (traceCache && !hiddenIdentity(traceCache) && Array.isArray(traceCache.perfilesCupo)) {
-          this.traza = traceCache
+        const traceCache = completeIdentity(saved?.trace, this.results || saved?.results)
+        if (traceCache && !hiddenIdentity(traceCache) && Array.isArray(traceCache.quotaProfiles)) {
+          this.trace = traceCache
           // La búsqueda recién hecha tiene prioridad; al abrir desde la URL se recupera la historia
           // guardada con esta traza sin volver a pasar por `/api/buscar`.
-          if (!this.resultados && saved.resultados) this.resultados = saved.resultados
+          if (!this.results && saved.results) this.results = saved.results
           // Si la búsqueda abierta aportó la cédula completa, se corrige esta copia local sin pedir la
           // traza otra vez. Así un clic sobre una corrida heredada no vuelve a prender la barra.
-          if (traceCache !== saved.traza) {
-            await saveQuery({ target, traza: toRaw(traceCache), resultados: toRaw(this.resultados || saved.resultados) })
+          if (traceCache !== saved.trace) {
+            await saveQuery({ target, trace: toRaw(traceCache), results: toRaw(this.results || saved.results) })
           }
         } else {
           // La barra representa exclusivamente trabajo remoto (BD + logs), nunca la lectura local.
-          this.cargandoTraza = true; this.fase = 'armando'
+          this.loadingTrace = true; this.phase = 'armando'
           const remote = await json(`/api/traza?ureq=${id}&target=${target}`)
           // Un servidor que todavía no se reinició tras agregar perfilesCupo no debe invalidar la misma
           // entrada para siempre: al migrarla se persiste `[]`, y la próxima recarga es totalmente local.
-          this.traza = {
+          this.trace = {
             ...remote,
-            perfilesCupo: Array.isArray(remote.perfilesCupo) ? remote.perfilesCupo : [],
+            quotaProfiles: Array.isArray(remote.quotaProfiles) ? remote.quotaProfiles : [],
           }
           // Se espera sólo la escritura local: ya hay datos en pantalla y la caché nunca lanza. `toRaw`
           // es necesario porque IndexedDB no puede clonar los proxies reactivos de Pinia.
-          await saveQuery({ target, traza: toRaw(this.traza), resultados: toRaw(this.resultados) })
+          await saveQuery({ target, trace: toRaw(this.trace), results: toRaw(this.results) })
         }
-        this.etapaSel = this.etapas[this.indiceInteresante]?.id ?? null
-        this.enriquecerReciente(this.traza)
+        this.selectedStage = this.stages[this.interestingIndex]?.id ?? null
+        this.enrichRecent(this.trace)
         this.aURL()
-      } catch (e) { this.error = e.message; this.traza = null }
-      finally { this.cargandoTraza = false; this.fase = '' }
+      } catch (e) { this.error = e.message; this.trace = null }
+      finally { this.loadingTrace = false; this.phase = '' }
     },
 
-    seleccionar(id) {
-      this.etapaSel = id
+    select(id) {
+      this.selectedStage = id
       this.aURL()
     },
 
-    cambiarTarget() {
+    changeTarget() {
       // Una corrida de prod no puede seguir dibujada como si fuera de staging sólo porque cambió el
       // selector. Se conserva el texto de búsqueda para repetirlo en el nuevo ambiente, pero se limpia
       // todo lo que lleva evidencia del anterior antes de escribir la nueva ruta.
-      this.traza = null
-      this.resultados = null
-      this.etapaSel = null
+      this.trace = null
+      this.results = null
+      this.selectedStage = null
       this.error = ''
       this.aURL()
     },
@@ -355,14 +355,14 @@ export const useTrazador = defineStore('trazador', {
     // Va con `replaceState` y no `pushState`: elegir una etapa no es navegar, y llenar el historial del
     // navegador con 10 entradas por traza hace que el botón «atrás» deje de servir para volver.
     aURL() {
-      const person = personOf(this.resultados)
-      const documentNumber = this.traza?.documento || person?.documento || this.q.trim()
-      history.replaceState(null, '', tracePath(this.target, documentNumber, this.traza?.ureq, this.etapaSel))
+      const person = personOf(this.results)
+      const documentNumber = this.trace?.document || person?.document || this.q.trim()
+      history.replaceState(null, '', tracePath(this.target, documentNumber, this.trace?.ureq, this.selectedStage))
     },
 
     // desdeURL corre al arrancar. Devuelve true si había una traza que abrir, para que la vista no muestre
     // el árbol declarado un instante antes de reemplazarlo.
-    async desdeURL() {
+    async fromURL() {
       const path = currentPath()
       const p = new URLSearchParams(location.search)
       const target = path?.target || p.get('target')
@@ -371,89 +371,89 @@ export const useTrazador = defineStore('trazador', {
       // cédula, teléfono o solicitud; y una solicitud se expande en el servidor a la persona completa.
       // En una ruta completa se pregunta por el uReq para mantener abierta exactamente esa corrida.
       const ureq = path?.ureq || p.get('ureq') || ''
-      const query = ureq || path?.identificador || p.get('q') || ''
+      const query = ureq || path?.identifier || p.get('q') || ''
       if (!query || !/^\d+$/.test(query)) return false
       this.q = query
-      await this.buscar()
+      await this.search()
       // `buscar` abre la directa cuando hay una sola. Se conserva este respaldo para una respuesta
       // cacheada muy vieja que no tuviera la bandera `directa`.
-      if (ureq && this.traza?.ureq !== Number(ureq)) await this.verTraza(Number(ureq))
+      if (ureq && this.trace?.ureq !== Number(ureq)) await this.viewTrace(Number(ureq))
       // La etapa va DESPUÉS de la traza: antes no existe el árbol contra el que validarla.
       //
       // Y hay que reescribir la URL al final: `verTraza` ya la pisó con la etapa que ELIGE sola (la que
       // rompió), así que sin este `aURL()` el link decía `etapa=registro` mientras la vista mostraba
       // `buro` — la URL dejaba de describir lo que se ve, que es justo lo que vino a arreglar.
-      const stage = path?.etapa || p.get('etapa')
-      if (stage && this.etapas.some((e) => e.id === stage)) this.etapaSel = stage
+      const stage = path?.stage || p.get('etapa')
+      if (stage && this.stages.some((e) => e.id === stage)) this.selectedStage = stage
       this.aURL()
       return true
     },
 
-    recordar(q, results) {
+    remember(q, results) {
       const person = personOf(results)
-      const base = { target: this.target, q, personaKey: person?.personaKey || '' }
+      const base = { target: this.target, q, personKey: person?.personKey || '' }
       const key = recentKey(base)
-      const existing = recentList(this.recientes).find((item) => recentKey(item) === key || item.q === q)
+      const existing = recentList(this.recentItems).find((item) => recentKey(item) === key || item.q === q)
       const recent = {
         ...base,
-        tipo: kindOf(results) || existing?.tipo || '',
-        documento: person?.documento || existing?.documento || '',
-        telefono: person?.telefono || existing?.telefono || '',
+        kind: kindOf(results) || existing?.kind || '',
+        document: person?.document || existing?.document || '',
+        phone: person?.phone || existing?.phone || '',
         total: Array.isArray(results?.items) ? results.items.length : 0,
-        solicitudes: loanRequestsOf(results),
-        consultas: [...new Set([q, ...(existing?.consultas || [])])],
+        requests: loanRequestsOf(results),
+        queries: [...new Set([q, ...(existing?.queries || [])])],
       }
-      this.recientes = [recent, ...recentList(this.recientes)
+      this.recentItems = [recent, ...recentList(this.recentItems)
         .filter((item) => recentKey(item) !== key && item.q !== q)].slice(0, 8)
-      persistRecent(this.recientes)
+      persistRecent(this.recentItems)
     },
 
     // Las trazas guardadas antes del resumen de persona ya tenían su identificación disponible. Al volver
     // a abrir una, se aprovecha para completar la entrada visual sin pedir de nuevo la búsqueda completa.
-    enriquecerReciente(trace) {
+    enrichRecent(trace) {
       if (!trace?.ureq) return
       const ureq = String(trace.ureq)
       let change = false
-      const recentItems = recentList(this.recientes).map((recent) => {
-        const belongs = recent.target === this.target && (recent.q === this.q || recent.solicitudes.includes(ureq))
+      const recentItems = recentList(this.recentItems).map((recent) => {
+        const belongs = recent.target === this.target && (recent.q === this.q || recent.requests.includes(ureq))
         if (!belongs) return recent
         const updated = {
           ...recent,
-          personaKey: trace.personaKey || recent.personaKey,
-          documento: trace.documento || recent.documento,
-          telefono: trace.telefono || recent.telefono,
+          personKey: trace.personKey || recent.personKey,
+          document: trace.document || recent.document,
+          phone: trace.phone || recent.phone,
         }
-        if (updated.personaKey !== recent.personaKey || updated.documento !== recent.documento || updated.telefono !== recent.telefono) {
+        if (updated.personKey !== recent.personKey || updated.document !== recent.document || updated.phone !== recent.phone) {
           change = true
         }
         return updated
       })
       if (!change) return
-      this.recientes = recentList(recentItems)
-      persistRecent(this.recientes)
+      this.recentItems = recentList(recentItems)
+      persistRecent(this.recentItems)
     },
 
-    async abrirReciente(value) {
+    async openRecent(value) {
       const recent = normalizeRecent(value)
       if (!recent) return
       this.target = recent.target
       this.q = recent.q
-      await this.buscar()
+      await this.search()
     },
 
-    async eliminarReciente(value) {
+    async removeRecent(value) {
       const recent = normalizeRecent(value)
       if (!recent) return
       const key = recentKey(recent)
-      this.recientes = recentList(this.recientes).filter((item) => recentKey(item) !== key)
-      persistRecent(this.recientes)
+      this.recentItems = recentList(this.recentItems).filter((item) => recentKey(item) !== key)
+      persistRecent(this.recentItems)
       // En las entradas heredadas sólo se conoce el texto de búsqueda. Se conserva ese intento de
       // limpieza para que borrar una solicitud directa de la versión anterior siga borrando su traza.
-      const loanRequests = recent.solicitudes.length
-        ? recent.solicitudes
+      const loanRequests = recent.requests.length
+        ? recent.requests
         : (/^\d+$/.test(recent.q) ? [recent.q] : [])
       await Promise.all([
-        ...recent.consultas.map((query) => deleteSearch(recent.target, query)),
+        ...recent.queries.map((query) => deleteSearch(recent.target, query)),
         ...loanRequests.map((ureq) => deleteQuery(recent.target, ureq)),
       ])
     },

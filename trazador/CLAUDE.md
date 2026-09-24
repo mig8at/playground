@@ -373,8 +373,8 @@ El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: 
 **(2026-09-19) Re-verificado entero, cuando esto era un nodo del árbol.** 15 afirmaciones auditadas —9 contra el código del trazador
 y 6 de dato re-medidas contra producción—, cero chequeos débiles y **ninguna falsa**. Era el nodo que
 mejor resistió de los veintidós: la estructura del mapa está exacta —`go:embed mapa/*.json` en
-`server/stage_map.go:30`, los tres JSON, las nueve etapas en su orden, y `bd.estados` / `bd.cierran` /
-`bd.detienen` en las cuatro etapas que los tienen—, y **las cuatro mediciones de atribución se
+`server/stage_map.go:30`, los tres JSON, las nueve etapas en su orden, y `bd.statuses` / `bd.close` /
+`bd.stop` en las cuatro etapas que los tienen—, y **las cuatro mediciones de atribución se
 sostuvieron todas**: `deceval_logs` sigue al 100 %, las dos mudas siguen en cero. Lo único agregado es
 la distinción `id` contra `label`, que me hizo tropezar al verificarlo. ⚠ Un conteo para mirar cuando
 se retome F-108: hoy hay **19 tablas** cuyo nombre termina en `_log`/`_logs` (10 en plural, 9 en
@@ -394,8 +394,8 @@ soporte llega en ese idioma («falló en firma de documentos», no «falló en f
 **Dos mapas declarativos**, embebidos con `go:embed` (por eso **un cambio de mapa exige recompilar**):
 
 - `mapa/etapas.json` — a qué ETAPA va cada línea de log (matchers por prefijo/exacto/regex), y la
-  semántica de los estados de BD: `bd.estados` (pertenencia) · `bd.cierran` (prueban que TERMINÓ) ·
-  `bd.detienen` (la solicitud está adentro y no salió). Esas tres son preguntas distintas y mezclarlas
+  semántica de los estados de BD: `bd.statuses` (pertenencia) · `bd.close` (prueban que TERMINÓ) ·
+  `bd.stop` (la solicitud está adentro y no salió). Esas tres son preguntas distintas y mezclarlas
   produjo dos falsos verdes (ver Gotchas).
 - `mapa/substeps.json` — a qué SUB-PASO dentro de la etapa, agrupado en bloques. Tipos: `hitos`
   (patrones de log), `catalogo` (centrales de riesgo declaradas), `familias` (entidades por

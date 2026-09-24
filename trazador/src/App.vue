@@ -12,8 +12,8 @@ const t = useTrazador()
 // El mapa primero y solo: no toca ninguna fuente, así que el árbol se dibuja al instante y la app no
 // arranca en blanco esperando a Redash. Después se mira la ruta: `/traza/:target/:cedula/:ureq` rearma esa corrida.
 onMounted(async () => {
-  await t.cargarMapa()
-  t.desdeURL()
+  await t.loadMap()
+  t.fromURL()
 })
 
 // LISTA O MAPA, y las dos conviven a propósito. La lista contesta «¿qué pasó en cada etapa?» mejor que
@@ -24,21 +24,21 @@ onMounted(async () => {
 // igual de prolijo, sólo que equivocado. Se muestra SÓLO lo grave (una etapa que nadie declara, una
 // tabla que ya no existe) — los avisos de «mirá esto» viven en `make trazador-chequeo`, porque un
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
-const checkSevere = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
+const checkSevere = computed(() => (t.stageMap?.check || []).filter((h) => h.grave))
 
 // La persona siempre tiene una región preparada: evita que el mapa salte de ancho al empezar una
 // búsqueda y deja claro desde el arranque dónde van a aparecer la ficha y las solicitudes. Cerrarla
 // sigue siendo una preferencia explícita del operador, guardada en localStorage.
 const hasColumn = computed(() => true)
 const personResult = computed(() => {
-  const people = Array.isArray(t.resultados?.personas) ? t.resultados.personas : []
+  const people = Array.isArray(t.results?.people) ? t.results.people : []
   return people.length === 1 ? people[0] : null
 })
 const personTitle = computed(() => {
-  if (t.traza) return 'Solicitud'
-  if (t.fase) return 'Buscando'
+  if (t.trace) return 'Solicitud'
+  if (t.phase) return 'Buscando'
   if (personResult.value) return 'Persona'
-  if (t.resultados?.items?.length) return 'Solicitudes'
+  if (t.results?.items?.length) return 'Solicitudes'
   return 'Persona'
 })
 
@@ -167,7 +167,7 @@ const CLASS = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip'
 // puede grepear ni citar. El texto lo arma `traceText.js` desde el MISMO JSON que pinta la vista.
 const copied = ref(false)
 async function copyTrace() {
-  const text = traceToText(t.traza, t.mapa)
+  const text = traceToText(t.trace, t.stageMap)
   try {
     await navigator.clipboard.writeText(text)
   } catch {
@@ -210,7 +210,7 @@ async function copyTrace() {
     <aside v-if="hasColumn" v-show="!personClosed" class="sidebar persona-panel" aria-label="Persona y solicitudes">
       <div class="region-head">
         <span>{{ personTitle }}</span>
-        <span v-if="t.traza" class="toolbar-note ureq-b">{{ t.traza.ureq }}</span>
+        <span v-if="t.trace" class="toolbar-note ureq-b">{{ t.trace.ureq }}</span>
         <div class="region-actions toolbar">
           <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePerson">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -218,7 +218,7 @@ async function copyTrace() {
         </div>
       </div>
       <div class="region-body">
-        <div v-if="!t.fase && !t.error && !t.traza && !t.resultados" class="persona-vacia">
+        <div v-if="!t.phase && !t.error && !t.trace && !t.results" class="persona-vacia">
           <div class="empty-media" aria-hidden="true">⌕</div>
           <p>Buscá una cédula, teléfono o solicitud.</p>
           <span>La ficha y las corridas de esa persona aparecerán acá.</span>
@@ -226,9 +226,9 @@ async function copyTrace() {
         <!-- LA ESPERA, DICHA. Contra prod son ~20 s en dos saltos porque Redash es asíncrono; un spinner
              mudo tanto tiempo se lee como «se colgó». Cuál de los dos corre convierte la espera en
              información. Va acá, que es donde va a aparecer la respuesta. -->
-        <div v-if="t.fase" class="cargando">
+        <div v-if="t.phase" class="cargando">
           <div class="progress progress-xs progress-ind barra"><i /></div>
-          <span>{{ t.fase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
+          <span>{{ t.phase === 'buscando' ? 'buscando la solicitud…' : 'armando la traza: BD + logs…' }}</span>
           <span v-if="t.target === 'prod'" class="dim">prod pasa por la cola de Redash, tarda unos segundos</span>
         </div>
 
@@ -240,38 +240,38 @@ async function copyTrace() {
           <div class="alert-title">No se pudo armar la traza</div>
           <div class="alert-desc">{{ t.error }}</div>
         </div>
-        <div v-for="h in checkSevere" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
+        <div v-for="h in checkSevere" :key="h.text" class="alert alert-destructive mapaRoto" role="alert">
           <span class="alert-icon" aria-hidden="true">⚠</span>
           <div class="alert-title">El mapa dejó de resolver</div>
-          <div class="alert-desc">{{ h.texto }} — <code>make trazador-chequeo</code></div>
+          <div class="alert-desc">{{ h.text }} — <code>make trazador-chequeo</code></div>
         </div>
 
         <!-- LA FICHA. ⚠ Era un párrafo de una línea con seis datos separados por `·`: en 300px eso es
              un muro de cuatro renglones donde hay que buscar dónde empieza cada campo. Una fila por
              dato, con el rótulo apagado a la izquierda, se recorre con el ojo sin leer. -->
-        <dl v-if="t.traza" class="meta">
-          <div><dt>solicitud</dt><dd class="ureq-b">{{ t.traza.ureq }}</dd></div>
-          <div v-if="t.traza.estadoN"><dt>estado</dt><dd>{{ t.traza.estadoN }}</dd></div>
-          <div v-if="t.traza.perfilamiento"><dt>perfilamiento</dt><dd>{{ t.traza.perfilamiento }}</dd></div>
-          <div v-if="t.traza.perfilesCupo?.length"><dt>perfil de cupo</dt><dd class="perfiles-cupo">
-            <span v-for="profile in t.traza.perfilesCupo" :key="`${profile.entidad}:${profile.categoria}:${profile.cupo}`">
-              <strong>{{ profile.categoria }}</strong><span class="dim"> · {{ profile.entidad }}</span><span v-if="profile.cupo > 0" class="dim"> · cupo ${{ Math.round(profile.cupo).toLocaleString('es-CO') }}</span>
+        <dl v-if="t.trace" class="meta">
+          <div><dt>solicitud</dt><dd class="ureq-b">{{ t.trace.ureq }}</dd></div>
+          <div v-if="t.trace.statusN"><dt>estado</dt><dd>{{ t.trace.statusN }}</dd></div>
+          <div v-if="t.trace.profiling"><dt>perfilamiento</dt><dd>{{ t.trace.profiling }}</dd></div>
+          <div v-if="t.trace.quotaProfiles?.length"><dt>perfil de cupo</dt><dd class="perfiles-cupo">
+            <span v-for="profile in t.trace.quotaProfiles" :key="`${profile.entity}:${profile.category}:${profile.quota}`">
+              <strong>{{ profile.category }}</strong><span class="dim"> · {{ profile.entity }}</span><span v-if="profile.quota > 0" class="dim"> · cupo ${{ Math.round(profile.quota).toLocaleString('es-CO') }}</span>
             </span>
           </dd></div>
-          <div v-if="t.traza.documento"><dt>cédula</dt><dd>{{ t.traza.documento }}</dd></div>
-          <div v-if="t.traza.telefono"><dt>teléfono</dt><dd>{{ t.traza.telefono }}</dd></div>
-          <div><dt>comercio</dt><dd>{{ t.traza.comercio }}</dd></div>
-          <div><dt>sucursal</dt><dd>{{ t.traza.sucursal }}</dd></div>
-          <div v-if="t.traza.lender"><dt>entidad</dt>
-            <dd>{{ t.traza.lender }} <span class="dim">rt={{ t.traza.rt }}</span></dd></div>
-          <div><dt>monto</dt><dd>{{ Math.round(t.traza.monto).toLocaleString('es-CO') }}</dd></div>
-          <div><dt>canal</dt><dd>{{ t.traza.origen
-            }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span></dd></div>
+          <div v-if="t.trace.document"><dt>cédula</dt><dd>{{ t.trace.document }}</dd></div>
+          <div v-if="t.trace.phone"><dt>teléfono</dt><dd>{{ t.trace.phone }}</dd></div>
+          <div><dt>comercio</dt><dd>{{ t.trace.merchant }}</dd></div>
+          <div><dt>sucursal</dt><dd>{{ t.trace.branch }}</dd></div>
+          <div v-if="t.trace.lender"><dt>entidad</dt>
+            <dd>{{ t.trace.lender }} <span class="dim">rt={{ t.trace.rt }}</span></dd></div>
+          <div><dt>monto</dt><dd>{{ Math.round(t.trace.amount).toLocaleString('es-CO') }}</dd></div>
+          <div><dt>canal</dt><dd>{{ t.trace.origin
+            }}<span v-if="!t.trace.derivedOrigin" class="dim"> (supuesto)</span></dd></div>
         </dl>
         <dl v-else-if="personResult" class="meta" aria-label="Ficha de la persona encontrada">
-          <div v-if="personResult.documento"><dt>cédula</dt><dd>{{ personResult.documento }}</dd></div>
-          <div v-if="personResult.telefono"><dt>teléfono</dt><dd>{{ personResult.telefono }}</dd></div>
-          <div><dt>solicitudes</dt><dd>{{ t.resultados?.historia?.total ?? t.resultados?.items?.length ?? 0 }}</dd></div>
+          <div v-if="personResult.document"><dt>cédula</dt><dd>{{ personResult.document }}</dd></div>
+          <div v-if="personResult.phone"><dt>teléfono</dt><dd>{{ personResult.phone }}</dd></div>
+          <div><dt>solicitudes</dt><dd>{{ t.results?.history?.total ?? t.results?.items?.length ?? 0 }}</dd></div>
         </dl>
 
       </div>
@@ -300,13 +300,13 @@ async function copyTrace() {
           <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
                24×24, y el texto se le parte adentro — el primer intento quedó con «copi / traz» en
                dos renglones, tapado por el panel de logs. Lo que dice, lo dice el `title`. -->
-          <button v-if="t.traza" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copied }" @click="copyTrace"
+          <button v-if="t.trace" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copied }" @click="copyTrace"
                   :title="copied ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
             <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <StageMap :cerrado="closed" :ancho-panel="visibleWidth" />
+      <StageMap :closed="closed" :panel-width="visibleWidth" />
     </section>
 
     <!-- Recientes ocupa la consola inferior: es navegación de corridas, no contexto del inspector. -->
@@ -335,13 +335,13 @@ async function copyTrace() {
          renglón los evitaba a propósito para no repetirlos; ahora son justo lo que le falta — qué
          estás mirando y cómo terminó, sin gastar una barra entera en decirlo. -->
     <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
-    <template v-if="t.traza">
-      <span class="ico" :class="CLASS[t.traza.outcome]">{{ GLYPH[t.traza.outcome] }}</span>
-      <span class="badge badge-outline" :class="CLASS[t.traza.outcome]">{{ t.traza.outcome }}</span>
-      <span class="ureq">solicitud {{ t.traza.ureq }}</span>
+    <template v-if="t.trace">
+      <span class="ico" :class="CLASS[t.trace.outcome]">{{ GLYPH[t.trace.outcome] }}</span>
+      <span class="badge badge-outline" :class="CLASS[t.trace.outcome]">{{ t.trace.outcome }}</span>
+      <span class="ureq">solicitud {{ t.trace.ureq }}</span>
     </template>
-    <span v-if="t.traza?.ramal">carril <b>{{ t.traza.ramal }}</b></span>
-    <span v-else-if="t.traza">sin carril todavía — se decide al elegir entidad</span>
+    <span v-if="t.trace?.lane">carril <b>{{ t.trace.lane }}</b></span>
+    <span v-else-if="t.trace">sin carril todavía — se decide al elegir entidad</span>
     <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
     <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
     <div class="layout-controls" role="group" aria-label="Regiones visibles">

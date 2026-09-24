@@ -28,8 +28,8 @@ import { useTrazador } from '../stores/trazador'
 // espacio durante el arrastre sin esperar a que el navegador entregue un ResizeObserver; el resizer
 // publica una vez por frame y las celdas mínimas de las etiquetas evitan que el texto salte.
 const props = defineProps({
-      cerrado: { type: Boolean, default: false },
-      anchoPanel: { type: Number, default: 0 },
+      closed: { type: Boolean, default: false },
+      panelWidth: { type: Number, default: 0 },
 })
 
 const t = useTrazador()
@@ -95,8 +95,8 @@ const labelLines = (txt, limit = 10) => {
       }
       return lines
 }
-const laneLabel = (c) => short(c.titulo || c.id, 22)
-const laneSubtitle = (c) => short(c.subtitulo || '', 42)
+const laneLabel = (c) => short(c.title || c.id, 22)
+const laneSubtitle = (c) => short(c.subtitle || '', 42)
 const OUTSIDE_LINES = ['sin etapas propias', 'desenlace fuera del trazador']
 
 const aMin = (hhmmss) => {
@@ -121,7 +121,7 @@ const boxHeight = ref(0)
  * Es lo que hay que hacer entrar.
  */
 const columns = computed(() =>
-      Math.max(1, trunk.value.length - 1 + Math.max(0, ...lanes.value.map((c) => c.pasos.length))))
+      Math.max(1, trunk.value.length - 1 + Math.max(0, ...lanes.value.map((c) => c.steps.length))))
 
 /**
  * ⚠ SIN TOPE SUPERIOR, Y ÉSE ES EL PUNTO: el mapa tiene que LLENAR el ancho que le queda, igual que el
@@ -153,7 +153,7 @@ const jumpLength = (min) => (min === null || min < 1 ? 0
       : Math.min(Math.round(STEP.value * 0.45), Math.round(18 * Math.log10(1 + min))))
 
 /** El estado de cada etapa, por id, salga o no en el recorrido de este ramal. */
-const byStage = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
+const byStage = computed(() => Object.fromEntries(t.stages.map((e) => [e.id, e])))
 
 /**
  * DÓNDE SE ABRE EL MAPA. El tronco llega hasta `seleccion` y ahí se bifurca, y no es una elección
@@ -164,19 +164,19 @@ const byStage = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])
 const CUT = 'seleccion'
 
 const trunk = computed(() => {
-      const isIt = t.etapas
+      const isIt = t.stages
       const i = isIt.findIndex((e) => e.id === CUT)
       return i < 0 ? isIt : isIt.slice(0, i + 1)
 })
 
 /** Las etapas de un ramal DESPUÉS del corte, en el orden del flujo. `obligatorio:false` = condicional. */
 function laneSteps(r) {
-      const cutIndex = t.etapas.findIndex((e) => e.id === CUT)
-      const order = Object.fromEntries(t.etapas.map((e, i) => [e.id, i]))
-      return (r.pasos || [])
+      const cutIndex = t.stages.findIndex((e) => e.id === CUT)
+      const order = Object.fromEntries(t.stages.map((e, i) => [e.id, i]))
+      return (r.steps || [])
             .filter((p) => (order[p.id] ?? -1) > cutIndex)
             .sort((a, b) => (order[a.id] ?? 0) - (order[b.id] ?? 0))
-            .map((p) => ({ ...p, etapa: byStage.value[p.id] }))
+            .map((p) => ({ ...p, stage: byStage.value[p.id] }))
 }
 
 /** Un color por carril, estable por posición. Los valores viven en `style.css` y no acá: son parte de
@@ -190,24 +190,24 @@ const LANE_COLOR = {
 const LANE_COLOR_FALLBACK = ['var(--carril1)', 'var(--carril2)', 'var(--carril3)', 'var(--carril4)', 'var(--carril5)']
 
 const lanes = computed(() => {
-      const rs = t.mapa?.ramales || []
+      const rs = t.stageMap?.lanes || []
       return rs.map((r, i) => {
             const [title, ...detail] = String(r.label || r.id).split(' · ')
             return {
                   id: r.id,
                   label: r.label || r.id,
-                  titulo: title || r.id,
-                  subtitulo: detail.join(' · '),
+                  title: title || r.id,
+                  subtitle: detail.join(' · '),
                   color: LANE_COLOR[r.id] || LANE_COLOR_FALLBACK[i % LANE_COLOR_FALLBACK.length],
-                  activo: t.traza?.ramal === r.id,
-                  pasos: laneSteps(r),
+                  active: t.trace?.lane === r.id,
+                  steps: laneSteps(r),
             }
       })
 })
 
 // Antes de cargar una solicitud se muestran todos los caminos como en el harness. Una vez existe una
 // traza, el color del carril sigue diciendo qué ruta es y el color del nodo pasa a decir qué ocurrió.
-const nodeColor = (n, c) => c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : c.color
+const nodeColor = (n, c) => c.active ? COLOR[n.stage?.status || 'pendiente'] : c.color
 
 /**
  * EL RECORRIDO POR TECLADO, que venía de la lista y se trajo al borrarla.
@@ -218,14 +218,14 @@ const nodeColor = (n, c) => c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : c
  * dejar la herramienta sin forma de navegarla que no fuera el mouse.
  */
 const inOrder = computed(() => [...trunkNodes.value.map((n) => n.id),
-      ...nodesByLane.value.flatMap((c) => c.nodos.map((n) => n.id))])
+      ...nodesByLane.value.flatMap((c) => c.nodes.map((n) => n.id))])
 
 function mover(step) {
       const ids = inOrder.value
-      const i = ids.indexOf(t.etapaSel)
+      const i = ids.indexOf(t.selectedStage)
       const j = (i < 0 ? 0 : i + step)
       if (j < 0 || j >= ids.length) return
-      t.etapaSel = ids[j]
+      t.selectedStage = ids[j]
       canvas.value?.querySelector(`[data-etapa="${ids[j]}"]`)?.focus()
 }
 
@@ -233,12 +233,12 @@ function mover(step) {
 const trunkNodes = computed(() => {
       let x = X_MARGIN, previous = null
       return trunk.value.map((e, i) => {
-            const now = aMin(e.vivo?.at)
+            const now = aMin(e.live?.at)
             let minJump = null
             if (now !== null && previous !== null && now - previous >= 1) minJump = Math.round(now - previous)
             if (now !== null) previous = now
             if (i) x += STEP.value + jumpLength(minJump)
-            return { ...e, x, y: Y0, saltoMin: minJump, roto: t.traza?.brokeAt === e.id }
+            return { ...e, x, y: Y0, minJump: minJump, roto: t.trace?.brokeAt === e.id }
       })
 })
 
@@ -248,13 +248,13 @@ const cutX = computed(() => (trunkNodes.value.at(-1)?.x ?? 40))
 const nodesByLane = computed(() => lanes.value.map((c, ci) => ({
       ...c,
       y: Y0 + (ci + 1) * LANE.value,
-      nodos: c.pasos.map((p, i) => ({
+      nodes: c.steps.map((p, i) => ({
             id: p.id,
-            etapa: p.etapa,
-            condicional: p.obligatorio === false,
+            stage: p.stage,
+            condicional: p.required === false,
             x: cutX.value + STEP.value * (i + 1),
             y: Y0 + (ci + 1) * LANE.value,
-            roto: t.traza?.brokeAt === p.id,
+            roto: t.trace?.brokeAt === p.id,
       })),
 })))
 
@@ -285,19 +285,19 @@ const rightEdge = computed(() => {
       let max = cutX.value
       for (const c of nodesByLane.value) {
             const x0 = cutX.value + STEP.value
-            const title = c.activo ? `${laneLabel(c)} · recorrido real` : laneLabel(c)
+            const title = c.active ? `${laneLabel(c)} · recorrido real` : laneLabel(c)
             max = Math.max(max, x0 + textWidth(title, PX_LANE),
                                 x0 + textWidth(laneSubtitle(c), PX_OUTSIDE))
-            if (!c.nodos.length) max = Math.max(max, x0 + textWidth(OUTSIDE_LINES.at(-1), PX_OUTSIDE))
-            for (const n of c.nodos) {
-                  const det = c.activo ? short(n.etapa?.vivo?.detail || n.etapa?.label, 22) : ''
+            if (!c.nodes.length) max = Math.max(max, x0 + textWidth(OUTSIDE_LINES.at(-1), PX_OUTSIDE))
+            for (const n of c.nodes) {
+                  const det = c.active ? short(n.stage?.live?.detail || n.stage?.label, 22) : ''
                   max = Math.max(max, n.x + LABEL_WIDTH / 2,
                                       n.x + textWidth(det, PX_DETAIL) / 2)
             }
       }
       for (const n of trunkNodes.value) {
             max = Math.max(max, n.x + LABEL_WIDTH / 2,
-                                n.x + textWidth(short(n.vivo?.detail || n.label, 22), PX_DETAIL) / 2)
+                                n.x + textWidth(short(n.live?.detail || n.label, 22), PX_DETAIL) / 2)
       }
       return max
 })
@@ -343,7 +343,7 @@ onMounted(() => { measure(); new ResizeObserver(measure).observe(canvas.value) }
 
 // El ResizeObserver cubre cambios externos (ventana, fuente, zoom) y el prop cubre el arrastre. En los
 // dos casos se mide tras el render para leer la caja final, no el ancho previo al margin del editor.
-watch(() => [props.cerrado, props.anchoPanel], () => nextTick(measure))
+watch(() => [props.closed, props.panelWidth], () => nextTick(measure))
 
 </script>
 
@@ -370,40 +370,40 @@ watch(() => [props.cerrado, props.anchoPanel], () => nextTick(measure))
         <!-- ── EL TRONCO: lo que ocurre antes de que exista un ramal ── -->
         <g v-for="(n, i) in trunkNodes.slice(1)" :key="'ta'+n.id">
           <line :x1="trunkNodes[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
-                :stroke="t.traza ? (n.estado === 'no-aplica' ? 'var(--line)' : COLOR[trunkNodes[i].estado]) : 'var(--map-trunk)'"
-                :stroke-dasharray="n.estado === 'no-aplica' ? '4 5' : null" />
+                :stroke="t.trace ? (n.status === 'no-aplica' ? 'var(--line)' : COLOR[trunkNodes[i].status]) : 'var(--map-trunk)'"
+                :stroke-dasharray="n.status === 'no-aplica' ? '4 5' : null" />
           <!-- el salto SÓLO cuando lo hay: un «+0m» en cada arista tapa a los que importan -->
-          <text v-if="n.saltoMin" :x="(trunkNodes[i].x + n.x) / 2" :y="Y0 - 10" class="salto">
-            +{{ n.saltoMin >= 60 ? Math.floor(n.saltoMin/60)+'h '+(n.saltoMin%60)+'m' : n.saltoMin+'m' }}
+          <text v-if="n.minJump" :x="(trunkNodes[i].x + n.x) / 2" :y="Y0 - 10" class="salto">
+            +{{ n.minJump >= 60 ? Math.floor(n.minJump/60)+'h '+(n.minJump%60)+'m' : n.minJump+'m' }}
           </text>
         </g>
 
         <!-- ── LAS CURVAS DE BIFURCACIÓN: cortas, porque salen DEL corte y no del principio ── -->
-        <g v-for="c in nodesByLane" :key="'c'+c.id" :class="{ apagado: t.traza && !c.activo }">
+        <g v-for="c in nodesByLane" :key="'c'+c.id" :class="{ apagado: t.trace && !c.active }">
           <path class="arista"
                 :d="`M ${cutX} ${Y0} C ${cutX + STEP * 0.5} ${Y0}, ${cutX + STEP * 0.5} ${c.y}, ${cutX + STEP} ${c.y}`"
                 fill="none" :stroke="c.color" />
         </g>
 
         <!-- ── LOS CARRILES ── -->
-        <g v-for="c in nodesByLane" :key="c.id" :class="{ apagado: t.traza && !c.activo }">
-          <line v-if="c.nodos.length > 1" :x1="c.nodos[0].x" :y1="c.y"
-                :x2="c.nodos.at(-1).x" :y2="c.y" class="arista"
+        <g v-for="c in nodesByLane" :key="c.id" :class="{ apagado: t.trace && !c.active }">
+          <line v-if="c.nodes.length > 1" :x1="c.nodes[0].x" :y1="c.y"
+                :x2="c.nodes.at(-1).x" :y2="c.y" class="arista"
                 :stroke="c.color" />
           <text :x="cutX + STEP" :y="c.y - 18" class="clbl" :fill="c.color">
-            {{ laneLabel(c) }}<tspan v-if="c.activo" class="aqui"> · recorrido real</tspan>
+            {{ laneLabel(c) }}<tspan v-if="c.active" class="aqui"> · recorrido real</tspan>
           </text>
           <text v-if="laneSubtitle(c)" :x="cutX + STEP" :y="c.y - 7" class="csub">{{ laneSubtitle(c) }}</text>
           <!-- ⚠ UN CARRIL SIN PASOS NO ES UN ERROR DE DIBUJO: es el dato. `redirect` no tiene ninguna
                etapa después de elegir porque el desenlace ocurre AFUERA, y verlo cortado ahí lo dice
                mejor que cualquier nota al pie. -->
-          <text v-if="!c.nodos.length" :x="cutX + STEP" :y="c.y + 5" class="afuera">
+          <text v-if="!c.nodes.length" :x="cutX + STEP" :y="c.y + 5" class="afuera">
             <tspan v-for="(line, i) in OUTSIDE_LINES" :key="line" :x="cutX + STEP" :dy="i ? 12 : 0">{{ line }}</tspan>
           </text>
 
-          <g v-for="n in c.nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id }"
+          <g v-for="n in c.nodes" :key="n.id" class="nodo" :class="{ sel: t.selectedStage === n.id }"
              :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
-             @click="t.etapaSel = n.id" @keydown.enter.prevent="t.etapaSel = n.id"
+             @click="t.selectedStage = n.id" @keydown.enter.prevent="t.selectedStage = n.id"
              @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
             <circle v-if="n.roto" :cx="n.x" :cy="n.y" r="13" fill="none" stroke="var(--fail)"
                     stroke-width="2" opacity=".6" />
@@ -420,30 +420,30 @@ watch(() => [props.cerrado, props.anchoPanel], () => nextTick(measure))
                     :fill="n.condicional ? 'var(--map-canvas)' : nodeColor(n, c)"
                     :stroke="n.condicional ? nodeColor(n, c) : 'var(--map-canvas)'"
                     :stroke-width="n.condicional ? 2.5 : 2" />
-            <text v-if="!n.condicional && c.activo" :x="n.x" :y="n.y + 3" class="glifo">{{ GLYPH[n.etapa?.estado] }}</text>
+            <text v-if="!n.condicional && c.active" :x="n.x" :y="n.y + 3" class="glifo">{{ GLYPH[n.stage?.status] }}</text>
             <text :x="n.x" :y="n.y + Y_LABEL" class="nlbl">
               <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
             </text>
-            <text v-if="c.activo" :x="n.x" :y="n.y + Y_DETAIL" class="ndet">{{ short(n.etapa?.vivo?.detail || n.etapa?.label, 22) }}</text>
+            <text v-if="c.active" :x="n.x" :y="n.y + Y_DETAIL" class="ndet">{{ short(n.stage?.live?.detail || n.stage?.label, 22) }}</text>
           </g>
         </g>
 
         <!-- los nodos del tronco van AL FINAL para quedar encima de las curvas -->
-        <g v-for="n in trunkNodes" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
+        <g v-for="n in trunkNodes" :key="n.id" class="nodo" :class="{ sel: t.selectedStage === n.id, fuera: n.status === 'no-aplica' }"
            :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
-           @click="t.etapaSel = n.id" @keydown.enter.prevent="t.etapaSel = n.id"
+           @click="t.selectedStage = n.id" @keydown.enter.prevent="t.selectedStage = n.id"
            @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
           <g v-if="n.roto">
             <circle :cx="n.x" :cy="Y0" r="13" fill="none" stroke="var(--fail)" stroke-width="2" opacity=".6" />
             <text :x="n.x" :y="Y0 - 19" class="corte">se cortó acá</text>
           </g>
-          <circle :cx="n.x" :cy="Y0" :r="RADIO" :fill="t.traza ? COLOR[n.estado] : 'var(--map-trunk)'" stroke="var(--map-canvas)" stroke-width="2" />
-          <text :x="n.x" :y="Y0 + 3" class="glifo">{{ GLYPH[n.estado] }}</text>
+          <circle :cx="n.x" :cy="Y0" :r="RADIO" :fill="t.trace ? COLOR[n.status] : 'var(--map-trunk)'" stroke="var(--map-canvas)" stroke-width="2" />
+          <text :x="n.x" :y="Y0 + 3" class="glifo">{{ GLYPH[n.status] }}</text>
           <text :x="n.x" :y="Y0 + Y_LABEL" class="nlbl">
             <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
           </text>
-          <text :x="n.x" :y="Y0 + Y_DETAIL" class="ndet">{{ short(n.vivo?.detail || n.label, 22) }}</text>
-          <text v-if="n.vivo?.at" :x="n.x" :y="Y0 - 13" class="hora">{{ n.vivo.at }}</text>
+          <text :x="n.x" :y="Y0 + Y_DETAIL" class="ndet">{{ short(n.live?.detail || n.label, 22) }}</text>
+          <text v-if="n.live?.at" :x="n.x" :y="Y0 - 13" class="hora">{{ n.live.at }}</text>
         </g>
       </g>
     </svg>

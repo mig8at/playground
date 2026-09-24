@@ -38,18 +38,18 @@ var mapFS embed.FS
 // tanto el cupo como el listado —el cupo ES un filtro del listado— y entonces el diagnóstico queda
 // contaminado sin que nada avise. La regex se permite, pero pidiendo el porqué por escrito.
 type Matcher struct {
-	Kind    string `json:"tipo"` // exacto | prefijo | regex
-	Pattern string `json:"patron"`
-	Because string `json:"porque,omitempty"`
+	Kind    string `json:"kind"` // exacto | prefijo | regex
+	Pattern string `json:"pattern"`
+	Because string `json:"because,omitempty"`
 	// Field: contra QUÉ se compara. Vacío = el mensaje. Con nombre = esa clave del `context`.
 	//
 	// ⚠ Existe porque hay evidencia que NO está en el mensaje. El caso que lo forzó: el webhook del
 	// agregador solo deja huella como la `url` dentro de `http_exception_rendering` — el mensaje es siempre
 	// el mismo texto genérico. Un matcher que solo mira el mensaje NUNCA podía encontrarlo, y no fallaba:
 	// se quedaba mudo. Lo cazó `-validar`.
-	Field string `json:"campo,omitempty"`
+	Field string `json:"field,omitempty"`
 	// OnlyInCode: el mensaje existe (verificado en el código) pero no apareció en el corpus medido.
-	OnlyInCode bool `json:"soloEnCodigo,omitempty"`
+	OnlyInCode bool `json:"onlyInCode,omitempty"`
 
 	re *regexp.Regexp // compilado en Cargar
 }
@@ -79,22 +79,22 @@ func (m *Matcher) matches(msg string, ctx map[string]any) bool {
 // context que lo explican. Son lo que hace útil al trazador — «QUOTA_CHECK_REJECTED» con su `reason` vale
 // más que veinte líneas de entrar y salir de métodos.
 type Decision struct {
-	Message string `json:"mensaje"`
+	Message string `json:"message"`
 	// Field: igual que en `Matcher`. Una decisión cuya evidencia vive en el context (la `url` del webhook,
 	// por ejemplo) no se puede reconocer por el mensaje, que es genérico. Sin esto quedaba declarada y
 	// muda — el mismo defecto que ya había aparecido con las etiquetas compuestas.
-	Field    string   `json:"campo,omitempty"`
-	Means    string   `json:"significa"`
-	Fields   []string `json:"campos,omitempty"`
-	Severity string   `json:"severidad"` // ok | rechazo | error | informativo
+	Field    string   `json:"field,omitempty"`
+	Means    string   `json:"means"`
+	Fields   []string `json:"fields,omitempty"`
+	Severity string   `json:"severity"` // ok | rechazo | error | informativo
 }
 
 // StageDef es una etapa del flujo tal como se declara.
 type StageDef struct {
 	ID      string `json:"id"`
 	Label   string `json:"label"`
-	Order   int    `json:"orden"`
-	Because string `json:"porque,omitempty"`
+	Order   int    `json:"order"`
+	Because string `json:"because,omitempty"`
 	// BD: de qué evidencia estructurada dispone esta etapa. Vacío = la BD no la registra, y entonces la
 	// ausencia NO prueba nada (se muestra como `sin-evidencia`, no como `no ocurrió`).
 	// La PERTENENCIA (estados) y la SEMÁNTICA (cierran/detienen) son preguntas distintas y costaron un
@@ -103,20 +103,20 @@ type StageDef struct {
 	// por separado es lo que permite que el 20 «Aprobada no desembolsada» aparezca como DETENIDA en vez
 	// de pintar la etapa verde.
 	BD struct {
-		Statuses []int    `json:"estados,omitempty"`
-		Close    []int    `json:"cierran,omitempty"`  // prueban que la etapa TERMINÓ
-		Stop     []int    `json:"detienen,omitempty"` // la solicitud está ADENTRO y no salió
-		Tables   []string `json:"tablas,omitempty"`
+		Statuses []int    `json:"statuses,omitempty"`
+		Close    []int    `json:"close,omitempty"` // prueban que la etapa TERMINÓ
+		Stop     []int    `json:"stop,omitempty"`  // la solicitud está ADENTRO y no salió
+		Tables   []string `json:"tables,omitempty"`
 	} `json:"bd"`
 	Matchers  []*Matcher `json:"matchers,omitempty"`
-	Decisions []Decision `json:"decisiones,omitempty"`
+	Decisions []Decision `json:"decisions,omitempty"`
 }
 
 // LaneStep dice si una etapa aplica a una variante de flujo, y si es obligatoria.
 type LaneStep struct {
 	ID       string `json:"id"`
-	Required bool   `json:"obligatorio"`
-	Because  string `json:"porque,omitempty"`
+	Required bool   `json:"required"`
+	Because  string `json:"because,omitempty"`
 }
 
 // ChannelDef es una variante del flujo que depende del COMERCIO, no del lender. Hoy hay uno: Corbeta. La
@@ -125,9 +125,9 @@ type LaneStep struct {
 type ChannelDef struct {
 	ID            string     `json:"id"`
 	Label         string     `json:"label"`
-	Detects       string     `json:"detecta,omitempty"`
-	Because       string     `json:"porque,omitempty"`
-	NotApplicable []LaneStep `json:"noAplica,omitempty"`
+	Detects       string     `json:"detects,omitempty"`
+	Because       string     `json:"because,omitempty"`
+	NotApplicable []LaneStep `json:"notApplicable,omitempty"`
 }
 
 // Channel devuelve la definición de un canal por id.
@@ -146,20 +146,20 @@ type LaneDef struct {
 	ID            string     `json:"id"`
 	Label         string     `json:"label"`
 	RT            []int      `json:"rt,omitempty"`
-	Steps         []LaneStep `json:"pasos"`
-	NotApplicable []LaneStep `json:"noAplica,omitempty"`
+	Steps         []LaneStep `json:"steps"`
+	NotApplicable []LaneStep `json:"notApplicable,omitempty"`
 }
 
 // Map es el flujo entero.
 type Map struct {
 	Version string      `json:"version"`
-	Note    string      `json:"nota,omitempty"`
-	Stages  []*StageDef `json:"etapas"`
-	Lanes   []*LaneDef  `json:"ramales"`
+	Note    string      `json:"note,omitempty"`
+	Stages  []*StageDef `json:"stages"`
+	Lanes   []*LaneDef  `json:"lanes"`
 	// Channels: el SEGUNDO EJE. Los ramales se eligen por el `response_type` del lender; los canales por el
 	// COMERCIO, y son independientes — el mismo lender 100 consulta buró en Tripleten y no en Alkosto. Un
 	// eje solo no puede describir eso, y por eso el árbol dinámico necesita los dos.
-	Channels []*ChannelDef `json:"canales"`
+	Channels []*ChannelDef `json:"channels"`
 	byStage  map[string]*StageDef
 }
 
@@ -169,8 +169,8 @@ func Load() (*Map, error) {
 
 	var stages struct {
 		Version string      `json:"version"`
-		Note    string      `json:"nota"`
-		Stages  []*StageDef `json:"etapas"`
+		Note    string      `json:"note"`
+		Stages  []*StageDef `json:"stages"`
 	}
 	b, err := mapFS.ReadFile("mapa/etapas.json")
 	if err != nil {
@@ -182,8 +182,8 @@ func Load() (*Map, error) {
 	m.Version, m.Note, m.Stages = stages.Version, stages.Note, stages.Stages
 
 	var lanes struct {
-		Lanes    []*LaneDef    `json:"ramales"`
-		Channels []*ChannelDef `json:"canales"`
+		Lanes    []*LaneDef    `json:"lanes"`
+		Channels []*ChannelDef `json:"channels"`
 	}
 	if b, err := mapFS.ReadFile("mapa/ramales.json"); err == nil {
 		_ = json.Unmarshal(b, &lanes)
@@ -551,11 +551,11 @@ type MilestoneDef struct {
 	ID      string   `json:"id"`
 	Label   string   `json:"label"`
 	Matcher *Matcher `json:"matcher"`
-	Because string   `json:"porque,omitempty"`
+	Because string   `json:"because,omitempty"`
 	// OnlyInCode: el mensaje EXISTE (verificado grepeando el código) pero no apareció en el corpus
 	// medido. Es distinto de un patrón mal escrito, y mezclarlos es cómo un validador se vuelve ruidoso y
 	// deja de mirarse. `ValidateSub` lo reporta como aviso, no como problema.
-	OnlyInCode bool `json:"soloEnCodigo,omitempty"`
+	OnlyInCode bool `json:"onlyInCode,omitempty"`
 	// Central: el `risk_centrals.id` del que este hito es EL LADO DE LOG. Cuando está declarado, el
 	// ensamblado FUSIONA los dos en un solo paso en vez de mostrarlos como dos.
 	//
@@ -570,7 +570,7 @@ type MilestoneDef struct {
 	//
 	// Se resuelve EN CADA TRAZA: si exactamente una de las candidatas fue consultada, el hito se fusiona
 	// ahí; si fueron cero o varias, se queda en su bloque y no se atribuye. Sin adivinar.
-	Bureaus []int64 `json:"centrales,omitempty"`
+	Bureaus []int64 `json:"bureaus,omitempty"`
 }
 
 type FamilyValue struct {
@@ -583,14 +583,14 @@ type FamilyValue struct {
 type CatalogItem struct {
 	ID    int64  `json:"id"`
 	Label string `json:"label"`
-	Note  string `json:"nota,omitempty"`
+	Note  string `json:"note,omitempty"`
 }
 
 type BlockDef struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
-	Kind  string `json:"tipo"` // hitos | catalogo | familias | dinamico
-	Note  string `json:"nota,omitempty"`
+	Kind  string `json:"kind"` // hitos | catalogo | familias | dinamico
+	Note  string `json:"note,omitempty"`
 	// Screen: la ruta del wizard que produce este bloque
 	// (`frontend-monorepo/apps/loan-request-wizard/app/routes.ts`). No es decorado: es la traducción entre
 	// el idioma del backend —en el que está todo lo demás— y el idioma en el que llega el reporte de
@@ -599,19 +599,19 @@ type BlockDef struct {
 	// ⚠ Se INFIERE del endpoint que sirvió el backend; nunca se observa. El wizard no manda nada a Loki
 	// (sus logs de ruta salen por OTLP hacia PostHog), así que una pantalla sin llamada al backend es
 	// invisible acá. Por eso se muestra como «pantalla X», no como «el cliente estuvo en X».
-	Screen     string         `json:"pantalla,omitempty"`
-	Source     string         `json:"fuente,omitempty"`
-	Milestones []MilestoneDef `json:"hitos,omitempty"`
-	Values     []FamilyValue  `json:"valores,omitempty"`
-	Known      []CatalogItem  `json:"conocidos,omitempty"`
+	Screen     string         `json:"screen,omitempty"`
+	Source     string         `json:"source,omitempty"`
+	Milestones []MilestoneDef `json:"milestones,omitempty"`
+	Values     []FamilyValue  `json:"values,omitempty"`
+	Known      []CatalogItem  `json:"known,omitempty"`
 }
 
 type SubMap struct {
 	Version string `json:"version"`
-	Note    string `json:"nota,omitempty"`
+	Note    string `json:"note,omitempty"`
 	Stages  map[string]struct {
-		Blocks []*BlockDef `json:"bloques"`
-	} `json:"etapas"`
+		Blocks []*BlockDef `json:"blocks"`
+	} `json:"stages"`
 }
 
 // LoadSub lee el árbol declarado y compila las regex de los hitos.

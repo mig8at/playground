@@ -5,7 +5,7 @@ const t = useTrazador()
 </script>
 
 <template>
-  <form class="buscador" @submit.prevent="t.buscar()">
+  <form class="buscador" @submit.prevent="t.search()">
     <input
       v-model="t.q"
       placeholder="cédula, teléfono o número de solicitud"
@@ -15,28 +15,28 @@ const t = useTrazador()
       aria-label="Buscar" />
     <!-- El target se elige acá y no en una config: en soporte se salta de un ambiente a otro, y tener
          que reiniciar para cambiarlo hace que nadie lo cambie. -->
-    <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.cambiarTarget()">
+    <select v-model="t.target" class="btn btn-outline" aria-label="Ambiente" @change="t.changeTarget()">
       <option value="prod">prod</option>
       <option value="staging">staging</option>
       <option value="qa">qa</option>
       <option value="dev">dev</option>
       <option value="local">local</option>
     </select>
-    <button type="submit" class="btn btn-outline" :disabled="t.buscando || !t.q.trim()">
-      {{ t.buscando ? 'buscando…' : 'buscar' }}
+    <button type="submit" class="btn btn-outline" :disabled="t.searching || !t.q.trim()">
+      {{ t.searching ? 'buscando…' : 'buscar' }}
     </button>
   </form>
 
   <!-- Se dice CÓMO coincidió. El mismo número puede ser una cédula y un id de solicitud, y un buscador
        que elige en silencio muestra la solicitud de otra persona con total seguridad. -->
-  <p v-if="t.resultados?.como?.length" class="como">
-    <span :class="{ ojo: t.resultados.como.length > 1 }">
-      coincidió como {{ t.resultados.como.join(' y ') }}
+  <p v-if="t.results?.as?.length" class="como">
+    <span :class="{ ojo: t.results.as.length > 1 }">
+      coincidió como {{ t.results.as.join(' y ') }}
     </span>
-    <span v-if="t.resultados.como.length > 1"> — mirá bien cuál buscabas</span>
-    <span class="dim"> · fuente {{ t.resultados.fuente }}</span>
+    <span v-if="t.results.as.length > 1"> — mirá bien cuál buscabas</span>
+    <span class="dim"> · fuente {{ t.results.source }}</span>
   </p>
-  <p v-else-if="t.resultados" class="como dim">sin coincidencias en {{ t.resultados.target }}</p>
+  <p v-else-if="t.results" class="como dim">sin coincidencias en {{ t.results.target }}</p>
 
 </template>
 

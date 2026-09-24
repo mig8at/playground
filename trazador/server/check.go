@@ -287,7 +287,7 @@ func Check(schemaTables map[string]bool) int {
 func ForUI(hs []finding) []map[string]any {
 	out := []map[string]any{}
 	for _, h := range hs {
-		out = append(out, map[string]any{"grave": h.grave, "texto": h.asText})
+		out = append(out, map[string]any{"grave": h.grave, "text": h.asText})
 	}
 	return out
 }

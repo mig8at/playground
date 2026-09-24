@@ -23,25 +23,25 @@ import (
 type treeStep struct {
 	Key        string   `json:"key"`
 	N          string   `json:"n"`
-	Signal     []string `json:"senal"`
-	SeenInProd bool     `json:"visto_en_prod"`
-	Failure    string   `json:"falla,omitempty"`
+	Signal     []string `json:"signal"`
+	SeenInProd bool     `json:"seen_in_prod"`
+	Failure    string   `json:"failure,omitempty"`
 }
 
 type treeSegment struct {
 	Key   string     `json:"key"`
 	N     string     `json:"n"`
-	When  string     `json:"cuando"`
-	Steps []treeStep `json:"pasos"`
+	When  string     `json:"when"`
+	Steps []treeStep `json:"steps"`
 }
 
 // ReachedStep es lo que se reporta: un paso del árbol y si esta traza lo tocó.
 type ReachedStep struct {
-	Segment string `json:"tramo"`
-	Step    string `json:"paso"`
+	Segment string `json:"segment"`
+	Step    string `json:"step"`
 	N       string `json:"n"`
-	Lines   int    `json:"lineas"`
-	Failure string `json:"falla,omitempty"`
+	Lines   int    `json:"lines"`
+	Failure string `json:"failure,omitempty"`
 }
 
 func loadTree() []treeSegment {
@@ -54,7 +54,7 @@ func loadTree() []treeSegment {
 		// en un map. Por eso se decodifica a RawMessage y se recorre el texto en orden de aparición:
 		// un recorrido mostrado alfabéticamente no es un recorrido.
 		var root struct {
-			Tree json.RawMessage `json:"arbol"`
+			Tree json.RawMessage `json:"tree"`
 		}
 		if json.Unmarshal(b, &root) != nil || len(root.Tree) == 0 {
 			continue
@@ -71,7 +71,7 @@ func loadTree() []treeSegment {
 			}
 			t := treeSegment{Key: k}
 			_ = json.Unmarshal(fields["_n"], &t.N)
-			_ = json.Unmarshal(fields["_cuando"], &t.When)
+			_ = json.Unmarshal(fields["_when"], &t.When)
 			for _, sk := range keysInOrder(raw[k]) {
 				if strings.HasPrefix(sk, "_") {
 					continue

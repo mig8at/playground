@@ -23,13 +23,13 @@ import (
 func writeHTML(t Trace, s *LoanRequest, path string) error {
 	data, err := json.Marshal(struct {
 		Trace
-		Merchant string `json:"comercio"`
-		Branch   string `json:"sucursal"`
+		Merchant string `json:"merchant"`
+		Branch   string `json:"branch"`
 		Lender   string `json:"lender"`
 		RT       int    `json:"rt"`
-		Status   int    `json:"estado"`
-		StatusN  string `json:"estadoN"`
-		Amount   string `json:"monto"`
+		Status   int    `json:"status"`
+		StatusN  string `json:"statusN"`
+		Amount   string `json:"amount"`
 	}{t, s.Merchant, s.Branch, s.Lender, s.LenderRT, s.Status, s.StatusN, fmt.Sprintf("%.0f", s.Amount)})
 	if err != nil {
 		return err

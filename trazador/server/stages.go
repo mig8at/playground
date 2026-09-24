@@ -60,12 +60,12 @@ type Stage struct {
 	Reason string `json:"reason,omitempty"` // el POR QUÉ; casi siempre de Loki
 	Source string `json:"source"`           // db | loki | dynamodb | reeval | —
 	At     string `json:"at,omitempty"`
-	Lines  int    `json:"lineas,omitempty"` // cuántas líneas de log respaldan esta etapa
-	Subs   []Sub  `json:"subs,omitempty"`   // el detalle de la etapa, como los steps de un job
+	Lines  int    `json:"lines,omitempty"` // cuántas líneas de log respaldan esta etapa
+	Subs   []Sub  `json:"subs,omitempty"`  // el detalle de la etapa, como los steps de un job
 	// Events: las líneas crudas de esta etapa, para el panel de log numerado. Van TOPEADAS y el tope se
 	// declara — una etapa puede tener 300 líneas y volcarlas todas convierte la vista en un archivo.
-	Events   []Event `json:"eventos,omitempty"`
-	EventsOf int     `json:"eventosDe,omitempty"` // cuántas había en total, si se recortó
+	Events   []Event `json:"events,omitempty"`
+	EventsOf int     `json:"eventsOf,omitempty"` // cuántas había en total, si se recortó
 }
 
 // Event es una línea de log tal como se leerá en el panel derecho.
@@ -87,28 +87,28 @@ type Sub struct {
 	Detail2 string `json:"-"`
 	// Children permite DOS niveles: familia → entidad en `listado`, y nada más. Más profundidad no aporta y
 	// vuelve el árbol ilegible, que es justo lo contrario de para qué existe.
-	Children []Sub `json:"hijos,omitempty"`
+	Children []Sub `json:"children,omitempty"`
 	// Events: LAS LÍNEAS QUE PRODUJO ESTE SUB-PASO, no las de la etapa. Es el cambio que vuelve esto
 	// navegable como un run de CI: se abre un paso y se ven SUS logs, en vez de un panel al final con las
 	// 110 líneas de la etapa entera mezcladas y sin dueño. `EventsOf` dice cuántas había si se recortó —
 	// un sub que muestra 40 de 66 sin decirlo se lee como completo.
-	Events   []Event `json:"eventos,omitempty"`
-	EventsOf int     `json:"eventosDe,omitempty"`
+	Events   []Event `json:"events,omitempty"`
+	EventsOf int     `json:"eventsOf,omitempty"`
 	// Declarative: este sub DESCRIBE lo que debería pasar (la configuración del lender, una regla del mapa),
 	// no algo que se midió. No cuenta como evidencia. Es la segunda vez que hace falta: «Camino configurado:
 	// Ado» pintó de verde la etapa biométrica primero en un rt=1 y después en la uReq 464709 de staging, que
 	// tiene CERO centrales consultadas. Una declaración no puede encender una etapa.
 	Declarative bool      `json:"-"`
-	Evidence    *Evidence `json:"evidencia,omitempty"`
+	Evidence    *Evidence `json:"evidence,omitempty"`
 }
 
 // Evidence es la consulta que respalda un paso de BD, con el `?` ya resuelto para que se pueda pegar en
 // Redash y comprobar el renglón. `Filas` son los valores que produjeron ESTE paso —no la fila entera—:
 // volcar `SELECT *` mete columnas que no participaron y el lector no puede saber cuáles miró el trazador.
 type Evidence struct {
-	Source string   `json:"fuente"`
+	Source string   `json:"source"`
 	SQL    string   `json:"sql"`
-	Rows   []string `json:"filas,omitempty"`
+	Rows   []string `json:"rows,omitempty"`
 }
 
 // evidence arma el bloque resolviendo los `?` posicionalmente. Se resuelven porque una consulta con
@@ -288,39 +288,39 @@ type Trace struct {
 	// saltó» y no puede decir **por qué carril fue y cuáles había**, que es la mitad del diagnóstico.
 	// Vacío hasta que el cliente elige entidad: antes de `seleccion` no hay ramal, y eso es un hecho, no
 	// un dato faltante.
-	Lane     string   `json:"ramal,omitempty"`
-	Stages   []Stage  `json:"etapas"`
+	Lane     string   `json:"lane,omitempty"`
+	Stages   []Stage  `json:"stages"`
 	Sources  []string `json:"sources"`
 	Warnings []string `json:"warnings,omitempty"`
 	// Findings: el resumen de auditoría — todo lo que quedó en fail, con su ruta, ANTES del árbol. Existe
 	// para que soporte lea cinco renglones y sepa dónde abrir, en vez de escanear el árbol buscando rojos.
-	Findings []string `json:"hallazgos,omitempty"`
+	Findings []string `json:"findings,omitempty"`
 	// Files: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
 	// cada mensaje contra `trazador/logs.json` (ver trace_files.go e log_index.go). Es la pregunta que sigue a «¿por qué
 	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
-	Files []TraceFile `json:"archivos,omitempty"`
+	Files []TraceFile `json:"files,omitempty"`
 	// Pantallas: QUÉ VIO el cliente en el navegador, de PostHog. Es la mitad que el backend no puede
 	// contar — «el backend dice que llegó a firmar, ¿el cliente llegó a ver esa pantalla?»— y hasta
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
 	// Tree: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
 	// quedó» con grano fino — no «falló la validación» sino «falló en la cascada de identidad, y la
 	// biometría ni se intentó». Se deriva de `mapa/negocio.json`; ver tree.go.
-	Tree       []ReachedStep `json:"arbol,omitempty"`
-	TreeLast   int           `json:"arbolUltimo,omitempty"`
-	Screens    []SeenScreen  `json:"pantallas,omitempty"`
-	PHNotice   string        `json:"avisoPosthog,omitempty"`
-	Unresolved int           `json:"archivosSinResolver,omitempty"`
+	Tree       []ReachedStep `json:"tree,omitempty"`
+	TreeLast   int           `json:"treeLast,omitempty"`
+	Screens    []SeenScreen  `json:"screens,omitempty"`
+	PHNotice   string        `json:"posthogNotice,omitempty"`
+	Unresolved int           `json:"unresolvedFiles,omitempty"`
 	// El estado ACTUAL de la solicitud. Sin esto el outcome no se podía auditar desde el JSON: una traza
 	// decía «aprobado» y no había forma de saber contra qué estado se calculó (la 522238 cambió de estado
 	// entre dos lecturas y la diferencia era invisible).
-	Status     int    `json:"estado"`
-	StatusName string `json:"estadoNombre,omitempty"`
+	Status     int    `json:"status"`
+	StatusName string `json:"statusName,omitempty"`
 	// Orphans: las líneas que ningún patrón del mapa reclamó. Van EN LA TRAZA y no solo contadas en un
 	// aviso, porque son el trabajo pendiente concreto: para cerrar el hueco hay que leerlas y declarar el
 	// patrón que falta. Un contador no se puede accionar; una lista sí.
-	Orphans []Event `json:"huerfanas,omitempty"`
+	Orphans []Event `json:"orphans,omitempty"`
 }
 
 // assemble arma la traza: primero el esqueleto de la BD (hechos), después el porqué de los logs.
@@ -2820,20 +2820,20 @@ func searchJSON(value string, cs []Match, as []string, target string) int {
 	type row struct {
 		UReq     int64  `json:"ureq"`
 		UserID   int64  `json:"user_id"`
-		Status   int    `json:"estado"`
-		StatusN  string `json:"estado_nombre"`
+		Status   int    `json:"status"`
+		StatusN  string `json:"status_name"`
 		Lender   string `json:"lender,omitempty"`
-		Merchant string `json:"comercio,omitempty"`
-		Created  string `json:"creada"`
-		Direct   bool   `json:"directa"`
+		Merchant string `json:"merchant,omitempty"`
+		Created  string `json:"created"`
+		Direct   bool   `json:"direct"`
 	}
 	out := struct {
-		Searched   string   `json:"busque"`
+		Searched   string   `json:"searched"`
 		Target     string   `json:"target"`
-		ResolvedAs []string `json:"resuelto_como"`
-		Count      int      `json:"cuantas"`
-		Note       string   `json:"nota"`
-		Rows       []row    `json:"solicitudes"`
+		ResolvedAs []string `json:"resolved_as"`
+		Count      int      `json:"count"`
+		Note       string   `json:"note"`
+		Rows       []row    `json:"requests"`
 	}{Searched: value, Target: target, ResolvedAs: as, Count: len(cs),
 		Note: "`directa:true` es lo que matcheó lo que buscaste; el resto es el historial de la " +
 			"misma persona. Sin documento ni teléfono a propósito: identificá por ureq/user_id."}
@@ -2908,9 +2908,9 @@ func resolveSource(r Runner, value string) ([]Match, []string, error) {
 			seenOnes[id] = true
 			fresh++
 			out = append(out, Match{
-				UReq: id, UserID: integer(f["uid"]), Status: int(integer(f["st"])), StatusN: asText(f["estado"]),
-				Lender: asText(f["lender"]), Merchant: asText(f["comercio"]), Created: date(f["created_at"], r.Zone()),
-				Document: asText(f["documento"]), Phone: asText(f["telefono"]), Direct: direct,
+				UReq: id, UserID: integer(f["uid"]), Status: int(integer(f["st"])), StatusN: asText(f["status"]),
+				Lender: asText(f["lender"]), Merchant: asText(f["merchant"]), Created: date(f["created_at"], r.Zone()),
+				Document: asText(f["document"]), Phone: asText(f["phone"]), Direct: direct,
 			})
 		}
 		if fresh > 0 && label != "" {
@@ -2971,19 +2971,19 @@ func resolveSource(r Runner, value string) ([]Match, []string, error) {
 // Vue tallara sus propios totales habría dos respuestas para «¿cuántas veces le fue mal a esta persona?».
 type History struct {
 	Total      int    `json:"total"`
-	Approved   int    `json:"aprobadas"`
-	Broken     int    `json:"rotas"`
-	Abandoned  int    `json:"abandonadas"`
-	InProgress int    `json:"enCurso"`
-	Since      string `json:"desde"`
-	Until      string `json:"hasta"`
-	People     int    `json:"personas"`  // >1 = el valor coincidió con clientes distintos: mirá bien cuál
-	SameDay    int    `json:"mismoDia"`  // el día con más intentos: 5 en un día es un reintento, no un cliente indeciso
-	Truncated  bool   `json:"truncada"`  // se llegó al LIMIT: hay más solicitudes de las que se ven
-	Merchants  int    `json:"comercios"` // intentar en varios comercios distingue «no le alcanza» de «este comercio falla»
+	Approved   int    `json:"approved"`
+	Broken     int    `json:"broken"`
+	Abandoned  int    `json:"abandoned"`
+	InProgress int    `json:"inProgress"`
+	Since      string `json:"since"`
+	Until      string `json:"until"`
+	People     int    `json:"people"`    // >1 = el valor coincidió con clientes distintos: mirá bien cuál
+	SameDay    int    `json:"sameDay"`   // el día con más intentos: 5 en un día es un reintento, no un cliente indeciso
+	Truncated  bool   `json:"truncated"` // se llegó al LIMIT: hay más solicitudes de las que se ven
+	Merchants  int    `json:"merchants"` // intentar en varios comercios distingue «no le alcanza» de «este comercio falla»
 	// Expanded: las que NO pidió la búsqueda literal y aparecieron por ser del mismo cliente. Se cuenta
 	// acá y no en `como` para no disparar el aviso de ambigüedad en cada búsqueda (ver resolveSource).
-	Expanded int `json:"expandidas"`
+	Expanded int `json:"expanded"`
 }
 
 // plural evita el «1 solicitud(es)», que en una herramienta de soporte se lee como descuido.

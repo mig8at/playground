@@ -6,52 +6,52 @@ import { useTrazador } from '../stores/trazador'
 
 const emit = defineEmits(['close'])
 const t = useTrazador()
-const key = (recent) => recent.personaKey
-  ? `${recent.target}:persona:${recent.personaKey}`
+const key = (recent) => recent.personKey
+  ? `${recent.target}:persona:${recent.personKey}`
   : `${recent.target}:consulta:${recent.q}`
 const data = (recent) => {
   const total = Number.isInteger(recent.total) ? recent.total : null
-  const documentNumber = recent.documento || ''
-  const phone = recent.telefono || ''
+  const documentNumber = recent.document || ''
+  const phone = recent.phone || ''
   return {
-    clave: key(recent),
+    entryKey: key(recent),
     target: recent.target,
-    tipo: documentNumber ? 'Cédula' : (phone ? 'Teléfono' : (recent.tipo || '')),
-    consulta: documentNumber || phone || recent.q,
+    kind: documentNumber ? 'Cédula' : (phone ? 'Teléfono' : (recent.kind || '')),
+    queryText: documentNumber || phone || recent.q,
     meta: total === null ? recent.target : `${recent.target} · ${total} ${total === 1 ? 'solicitud' : 'solicitudes'}`,
   }
 }
 const activeKey = computed(() => {
-  if (!t.resultados || !t.q.trim()) return ''
-  const people = Array.isArray(t.resultados.personas) ? t.resultados.personas : []
+  if (!t.results || !t.q.trim()) return ''
+  const people = Array.isArray(t.results.people) ? t.results.people : []
   const keys = people.length === 1
-    ? [people[0]?.personaKey]
-    : [...new Set((t.resultados.items || []).map((item) => item?.personaKey).filter(Boolean))]
+    ? [people[0]?.personKey]
+    : [...new Set((t.results.items || []).map((item) => item?.personKey).filter(Boolean))]
   return keys.length === 1
     ? `${t.target}:persona:${keys[0]}`
     : `${t.target}:consulta:${t.q.trim()}`
 })
-const description = computed(() => t.recientes.length
+const description = computed(() => t.recentItems.length
   ? 'Elegí una consulta para volver a abrir su grupo de solicitudes.'
   : 'Las consultas que abras quedarán disponibles en este navegador.')
-const inProgress = computed(() => (t.resultados?.items || [])
-  .filter((item) => item.desenlace === 'en-curso' || /en curso/i.test(item.estadoN || ''))
-  .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
-const all = computed(() => [...(t.resultados?.items || [])]
-  .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
+const inProgress = computed(() => (t.results?.items || [])
+  .filter((item) => item.outcome === 'en-curso' || /en curso/i.test(item.statusN || ''))
+  .sort((a, b) => `${b.date || ''}T${b.time || ''}`.localeCompare(`${a.date || ''}T${a.time || ''}`)))
+const all = computed(() => [...(t.results?.items || [])]
+  .sort((a, b) => `${b.date || ''}T${b.time || ''}`.localeCompare(`${a.date || ''}T${a.time || ''}`)))
 const vistaPrincipal = ref('en-curso')
-const directQuery = computed(() => (t.resultados?.items || []).filter((item) => item.directa).length === 1)
+const directQuery = computed(() => (t.results?.items || []).filter((item) => item.direct).length === 1)
 // Por teléfono/cédula interesa primero qué sigue vivo. Por UREQ, en cambio, ya se tiene una solicitud
 // abierta y lo útil es ver de inmediato todos los intentos de esa persona, sin esconderlos en una pestaña.
-watch(() => t.resultados, () => {
+watch(() => t.results, () => {
   vistaPrincipal.value = directQuery.value ? 'todas' : (inProgress.value.length ? 'en-curso' : 'todas')
 })
 const rows = computed(() => vistaPrincipal.value === 'en-curso' ? inProgress.value : all.value)
-const date = (item) => [item.fecha, item.hora].filter(Boolean).join(' · ') || 'sin fecha'
+const date = (item) => [item.date, item.time].filter(Boolean).join(' · ') || 'sin fecha'
 // Abrir una fila no es una nueva consulta: carga esta solicitud dentro del grupo que ya está abierto.
-const openInProgress = (item) => t.verTraza(item.ureq)
-const status = (item) => item.estadoN || item.desenlace?.replace('-', ' ') || '—'
-const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
+const openInProgress = (item) => t.viewTrace(item.ureq)
+const status = (item) => item.statusN || item.outcome?.replace('-', ' ') || '—'
+const statusClass = (item) => `estado-${item.outcome || 'desconocido'}`
 </script>
 
 <template>
@@ -61,7 +61,7 @@ const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
         <span class="console-tab" role="tab" aria-selected="true">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
           Recientes
-          <span class="console-count">{{ t.recientes.length }}</span>
+          <span class="console-count">{{ t.recentItems.length }}</span>
         </span>
       </div>
       <p class="console-note">{{ description }}</p>
@@ -74,7 +74,7 @@ const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
 
     <div class="console-body">
       <div class="console-stage" aria-live="polite">
-        <section v-if="t.resultados" class="solicitudes-curso" aria-label="Solicitudes de la búsqueda">
+        <section v-if="t.results" class="solicitudes-curso" aria-label="Solicitudes de la búsqueda">
           <header class="curso-head">
             <div class="curso-tabs" role="tablist" aria-label="Solicitudes de la búsqueda">
               <button type="button" role="tab" :aria-selected="vistaPrincipal === 'en-curso'" @click="vistaPrincipal = 'en-curso'">
@@ -92,10 +92,10 @@ const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
               <span role="columnheader">Fecha</span><span role="columnheader">Estado</span>
             </div>
             <button v-for="item in rows" :key="item.ureq" type="button" class="curso-fila curso-dato" role="row"
-                    :class="{ seleccionada: item.ureq === t.traza?.ureq }"
+                    :class="{ seleccionada: item.ureq === t.trace?.ureq }"
                     :title="`Abrir solicitud ${item.ureq}`" @click="openInProgress(item)">
               <span class="curso-ureq" role="cell">{{ item.ureq }}</span>
-              <span class="curso-comercio" role="cell">{{ item.comercio || '—' }}</span>
+              <span class="curso-comercio" role="cell">{{ item.merchant || '—' }}</span>
               <span class="curso-fecha" role="cell">{{ date(item) }}</span>
               <span class="curso-estado" :class="statusClass(item)" role="cell">{{ status(item) }}</span>
             </button>
@@ -105,8 +105,8 @@ const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
         <div v-else class="stage-vacio">
           <span class="prompt-mark" aria-hidden="true">›</span>
           <div>
-            <p class="stage-title">{{ t.resultados ? 'No hay solicitudes en curso' : 'Esperando una consulta' }}</p>
-            <p class="stage-copy">{{ t.resultados ? 'Esta búsqueda no tiene solicitudes abiertas.' : 'Buscá una persona para ver sus solicitudes en curso.' }}</p>
+            <p class="stage-title">{{ t.results ? 'No hay solicitudes en curso' : 'Esperando una consulta' }}</p>
+            <p class="stage-copy">{{ t.results ? 'Esta búsqueda no tiene solicitudes abiertas.' : 'Buscá una persona para ver sus solicitudes en curso.' }}</p>
           </div>
         </div>
       </div>
@@ -115,19 +115,19 @@ const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
         <header class="console-sidebar-head">
           <span class="console-sidebar-title">Consultas</span>
           <span class="console-sidebar-caption">guardadas localmente</span>
-          <span class="sidebar-count">{{ t.recientes.length }}</span>
+          <span class="sidebar-count">{{ t.recentItems.length }}</span>
         </header>
-        <div v-if="t.recientes.length" class="lista-recientes" aria-label="Consultas recientes guardadas">
-          <div v-for="recent in t.recientes" :key="data(recent).clave" class="reciente" :class="{ activa: data(recent).clave === activeKey }">
-            <button type="button" class="abrir-reciente" :aria-current="data(recent).clave === activeKey ? 'page' : undefined"
-                    :title="`Abrir ${data(recent).consulta} en ${data(recent).target}`" @click="t.abrirReciente(recent)">
+        <div v-if="t.recentItems.length" class="lista-recientes" aria-label="Consultas recientes guardadas">
+          <div v-for="recent in t.recentItems" :key="data(recent).entryKey" class="reciente" :class="{ activa: data(recent).entryKey === activeKey }">
+            <button type="button" class="abrir-reciente" :aria-current="data(recent).entryKey === activeKey ? 'page' : undefined"
+                    :title="`Abrir ${data(recent).queryText} en ${data(recent).target}`" @click="t.openRecent(recent)">
               <span class="reciente-texto">
-                <span class="reciente-consulta"><span v-if="data(recent).tipo" class="reciente-tipo">{{ data(recent).tipo }}</span>{{ data(recent).consulta }}</span>
+                <span class="reciente-consulta"><span v-if="data(recent).kind" class="reciente-tipo">{{ data(recent).kind }}</span>{{ data(recent).queryText }}</span>
                 <span class="reciente-meta">{{ data(recent).meta }}</span>
               </span>
             </button>
-            <button type="button" class="borrar-reciente" :aria-label="`Borrar consulta ${data(recent).consulta}`"
-                    :title="`Borrar ${data(recent).consulta} de este navegador`" @click="t.eliminarReciente(recent)">
+            <button type="button" class="borrar-reciente" :aria-label="`Borrar consulta ${data(recent).queryText}`"
+                    :title="`Borrar ${data(recent).queryText} de este navegador`" @click="t.removeRecent(recent)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
           </div>

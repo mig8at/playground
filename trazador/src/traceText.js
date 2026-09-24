@@ -21,7 +21,7 @@ const STATUS = { ok: 'completó', warn: 'completó con errores', fail: 'FALLÓ',
 
 const line = (e) => {
   const p = [`${e.at || ''}`, `[${SOURCE[e.source] || '—'}]`]
-  if (e.lineas) p.push(`${e.lineas} líneas`)
+  if (e.lines) p.push(`${e.lines} líneas`)
   return p.filter(Boolean).join(' · ')
 }
 
@@ -46,13 +46,13 @@ const sub = (s, indent) => {
   // La BD ANTES que los logs y marcada como tal: en un hilo de soporte, la afirmación y la fila que la
   // respalda tienen que llegar juntas, o el que lee vuelve a preguntar de dónde salió el número. La
   // consulta va con el `?` ya resuelto para que se pueda pegar en Redash y comprobar.
-  if (s.evidencia) {
-    out.push(`${indent}   ── BD · ${s.evidencia.fuente} ──`)
-    s.evidencia.filas.forEach((f) => out.push(`${indent}   ${f}`))
-    out.push(`${indent}   ${s.evidencia.sql.split('\n').map((r) => r.trim()).filter(Boolean).join(' ')}`)
+  if (s.evidence) {
+    out.push(`${indent}   ── BD · ${s.evidence.source} ──`)
+    s.evidence.rows.forEach((f) => out.push(`${indent}   ${f}`))
+    out.push(`${indent}   ${s.evidence.sql.split('\n').map((r) => r.trim()).filter(Boolean).join(' ')}`)
   }
-  out.push(...events(s.eventos, s.eventosDe, indent + '   '))
-  for (const h of s.hijos || []) out.push(...sub(h, indent + '   '))
+  out.push(...events(s.events, s.eventsOf, indent + '   '))
+  for (const h of s.children || []) out.push(...sub(h, indent + '   '))
   return out
 }
 
@@ -61,18 +61,18 @@ export function traceToText(tr, stageMap) {
 
   // Cabecera: los hechos de la solicitud, que es lo primero que un ticket necesita.
   L.push(`── TRAZA · solicitud ${tr.ureq} · ${tr.target} · ${String(tr.outcome || '').toUpperCase()} ──`)
-  const meta = [tr.comercio, tr.sucursal].filter(Boolean).join(' · ')
+  const meta = [tr.merchant, tr.branch].filter(Boolean).join(' · ')
   const lender = tr.lender ? `${tr.lender} (rt=${tr.rt})` : ''
-  const amount = tr.monto ? `monto ${Math.round(tr.monto).toLocaleString('es-CO')}` : ''
-  const channel = tr.origen ? `canal ${tr.origen}${tr.origenDerivado ? '' : ' (supuesto)'}` : ''
-  const l2 = [meta, lender, amount, tr.documento ? `doc ${tr.documento}` : '', channel].filter(Boolean).join(' · ')
+  const amount = tr.amount ? `monto ${Math.round(tr.amount).toLocaleString('es-CO')}` : ''
+  const channel = tr.origin ? `canal ${tr.origin}${tr.derivedOrigin ? '' : ' (supuesto)'}` : ''
+  const l2 = [meta, lender, amount, tr.document ? `doc ${tr.document}` : '', channel].filter(Boolean).join(' · ')
   if (l2) L.push(l2)
-  if (tr.estadoN) L.push(`estado ${tr.estado} «${tr.estadoN}»${tr.brokeAt ? ` · rompió en: ${tr.brokeAt}` : ''}`)
+  if (tr.statusN) L.push(`estado ${tr.status} «${tr.statusN}»${tr.brokeAt ? ` · rompió en: ${tr.brokeAt}` : ''}`)
   L.push(`fuentes: ${(tr.sources || []).join(' + ')}` +
     (stageMap?.version ? ` · mapa v${stageMap.version} + hitos v${stageMap.subVersion}` : ''))
   L.push('')
 
-  for (const e of tr.etapas || []) {
+  for (const e of tr.stages || []) {
     // Las «no aplica» van en una línea: son una pregunta cerrada, no un tramo que leer.
     if (e.status === 'no-aplica') {
       L.push(`${GLYPH[e.status]} ${e.label} — ${e.detail || ''}`)
@@ -86,9 +86,9 @@ export function traceToText(tr, stageMap) {
     L.push('')
   }
 
-  if (tr.huerfanas?.length) {
-    L.push(`── SIN UBICAR (${tr.huerfanas.length} líneas que ni el patrón ni el span reclaman) ──`)
-    L.push(...events(tr.huerfanas, tr.huerfanas.length, '   '))
+  if (tr.orphans?.length) {
+    L.push(`── SIN UBICAR (${tr.orphans.length} líneas que ni el patrón ni el span reclaman) ──`)
+    L.push(...events(tr.orphans, tr.orphans.length, '   '))
     L.push('')
   }
   for (const w of tr.warnings || []) L.push(`⚠ ${w}`)

@@ -23,9 +23,9 @@ import (
 )
 
 type logTarget struct {
-	Path string `json:"ruta"`
-	Line string `json:"linea"`
-	Test bool   `json:"es_test"`
+	Path string `json:"path"`
+	Line string `json:"line"`
+	Test bool   `json:"is_test"`
 	H    string `json:"h"`
 }
 
@@ -87,10 +87,10 @@ func (m *logMap) resolveFile(logMessage string) (logTarget, bool) {
 
 // TraceFile es una fila del resumen: un archivo y cuántas líneas de esta traza salieron de él.
 type TraceFile struct {
-	Path  string   `json:"ruta"`
+	Path  string   `json:"path"`
 	H     string   `json:"h"`
-	Times int      `json:"veces"`
-	Lines []string `json:"lineas,omitempty"`
+	Times int      `json:"times"`
+	Lines []string `json:"lines,omitempty"`
 }
 
 // traceFiles resuelve los mensajes en orden de PRIMERA APARICIÓN, que es lo más cercano a la

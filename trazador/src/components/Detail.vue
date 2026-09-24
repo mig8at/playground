@@ -16,21 +16,21 @@ const STATUS = {
   'no-aplica': 'no aplica', condicional: 'condicional',
 }
 
-const actual = computed(() => t.etapaActiva)
+const actual = computed(() => t.activeStage)
 const q = computed(() => filter.value.trim().toLocaleLowerCase())
 
 function includeStep(step, events, evidences, counter) {
-  if (step.evidencia) evidences.push({
-    tipo: 'evidencia', paso: step.label, evidencia: step.evidencia, estado: step.status,
+  if (step.evidence) evidences.push({
+    kind: 'evidencia', step: step.label, evidence: step.evidence, status: step.status,
   })
-  for (const event of step.eventos || []) {
+  for (const event of step.events || []) {
     events.push({
-      tipo: 'evento', paso: step.label, at: event.at || '—', nivel: event.level || 'info',
-      mensaje: event.msg || '', fuente: step.source,
+      kind: 'evento', step: step.label, at: event.at || '—', level: event.level || 'info',
+      message: event.msg || '', source: step.source,
     })
   }
-  counter.total += Number(step.eventosDe || step.eventos?.length || 0)
-  for (const child of step.hijos || []) includeStep(child, events, evidences, counter)
+  counter.total += Number(step.eventsOf || step.events?.length || 0)
+  for (const child of step.children || []) includeStep(child, events, evidences, counter)
 }
 
 // Las líneas dentro de cada etapa se ordenan por hora. Las etapas mantienen el orden del mapa, que es
@@ -39,54 +39,54 @@ function sectionOf(stage) {
   const events = []
   const evidences = []
   const counter = { total: 0 }
-  for (const step of stage.vivo?.subs || []) includeStep(step, events, evidences, counter)
+  for (const step of stage.live?.subs || []) includeStep(step, events, evidences, counter)
   events.sort((a, b) => a.at.localeCompare(b.at))
   return {
     id: stage.id,
-    etiqueta: stage.label,
-    estado: stage.estado,
-    at: stage.vivo?.at || '',
-    motivo: stage.vivo?.reason || '',
-    detalle: stage.vivo?.detail || stage.porque || '',
-    lineas: [...evidences, ...events],
+    labelText: stage.label,
+    status: stage.status,
+    at: stage.live?.at || '',
+    reasonText: stage.live?.reason || '',
+    detail: stage.live?.detail || stage.because || '',
+    lines: [...evidences, ...events],
     total: counter.total,
   }
 }
 
-const sections = computed(() => (t.etapas || []).map(sectionOf))
+const sections = computed(() => (t.stages || []).map(sectionOf))
 const text = (section, line = null) => [
-  section.etiqueta, section.estado, section.motivo, section.detalle,
-  line?.paso, line?.mensaje, line?.evidencia?.fuente, ...(line?.evidencia?.filas || []),
+  section.labelText, section.status, section.reasonText, section.detail,
+  line?.step, line?.message, line?.evidence?.source, ...(line?.evidence?.rows || []),
 ].filter(Boolean).join(' ').toLocaleLowerCase()
 const matches = (section, line) => !q.value || text(section, line).includes(q.value)
 
 const visibleSections = computed(() => sections.value.map((section) => {
   const matchesStage = !q.value || text(section).includes(q.value)
-  const lines = matchesStage ? section.lineas : section.lineas.filter((line) => matches(section, line))
-  return { ...section, lineas: lines, coincideEtapa: matchesStage }
+  const lines = matchesStage ? section.lines : section.lines.filter((line) => matches(section, line))
+  return { ...section, lines: lines, matchesStage: matchesStage }
 }).filter((section) => {
-  if (q.value) return section.coincideEtapa || section.lineas.length
+  if (q.value) return section.matchesStage || section.lines.length
   // El registro enumera hechos, no huecos: las etapas sin una línea no gastan alto. La seleccionada
   // queda como ancla incluso vacía, para que un clic en el mapa siempre tenga una respuesta visible.
-  return section.lineas.length || section.motivo || section.detalle || section.id === actual.value?.id
+  return section.lines.length || section.reasonText || section.detail || section.id === actual.value?.id
 }))
 
-const totalLines = computed(() => sections.value.reduce((total, section) => total + section.lineas.length, 0))
-const totalVisibles = computed(() => visibleSections.value.reduce((total, section) => total + section.lineas.length, 0))
+const totalLines = computed(() => sections.value.reduce((total, section) => total + section.lines.length, 0))
+const totalVisibles = computed(() => visibleSections.value.reduce((total, section) => total + section.lines.length, 0))
 
 function logText() {
-  const lines = [`TRAZADOR · ${t.traza?.target || t.target} · solicitud ${t.traza?.ureq ?? '—'}`]
+  const lines = [`TRAZADOR · ${t.trace?.target || t.target} · solicitud ${t.trace?.ureq ?? '—'}`]
   for (const section of visibleSections.value) {
-    lines.push(`\n── ${section.etiqueta} · ${STATUS[section.estado] || section.estado}${section.at ? ` · ${section.at}` : ''} ──`)
-    if (section.motivo) lines.push(`MOTIVO  ${section.motivo}`)
-    else if (section.detalle && section.detalle.length <= 180) lines.push(`CONTEXTO  ${section.detalle}`)
-    for (const line of section.lineas) {
-      if (line.tipo === 'evidencia') {
-        lines.push(`BD · ${line.paso} · ${line.evidencia.fuente}`)
-        for (const row of line.evidencia.filas || []) lines.push(`  ${row}`)
-        if (line.evidencia.sql) lines.push(`  SQL  ${line.evidencia.sql.replace(/\s+/g, ' ').trim()}`)
+    lines.push(`\n── ${section.labelText} · ${STATUS[section.status] || section.status}${section.at ? ` · ${section.at}` : ''} ──`)
+    if (section.reasonText) lines.push(`MOTIVO  ${section.reasonText}`)
+    else if (section.detail && section.detail.length <= 180) lines.push(`CONTEXTO  ${section.detail}`)
+    for (const line of section.lines) {
+      if (line.kind === 'evidencia') {
+        lines.push(`BD · ${line.step} · ${line.evidence.source}`)
+        for (const row of line.evidence.rows || []) lines.push(`  ${row}`)
+        if (line.evidence.sql) lines.push(`  SQL  ${line.evidence.sql.replace(/\s+/g, ' ').trim()}`)
       } else {
-        lines.push(`${line.at}  ${line.paso}  ${(line.nivel || 'info').toUpperCase()}  ${line.mensaje}`)
+        lines.push(`${line.at}  ${line.step}  ${(line.level || 'info').toUpperCase()}  ${line.message}`)
       }
     }
   }
@@ -118,7 +118,7 @@ async function focusStage(id) {
   logEntry.value.scrollTo({ top: Math.max(0, target.offsetTop - 4), behavior: 'smooth' })
 }
 function selectStage(id) {
-  t.etapaSel = id
+  t.selectedStage = id
   focusStage(id)
 }
 watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
@@ -128,15 +128,15 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
   <main class="detail-panel">
     <header class="detail-topbar">
       <span>Registro</span>
-      <span v-if="t.traza" class="toolbar-note">Solicitud #{{ t.traza.ureq }}</span>
+      <span v-if="t.trace" class="toolbar-note">Solicitud #{{ t.trace.ureq }}</span>
       <button type="button" class="region-action" title="Ocultar panel" aria-label="Ocultar logs" @click="emit('close')">
         <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
       </button>
     </header>
 
-    <section v-if="t.traza" id="panel-detalle" class="registro-view" aria-label="Registro completo de la corrida">
+    <section v-if="t.trace" id="panel-detalle" class="registro-view" aria-label="Registro completo de la corrida">
       <header class="registro-toolbar">
-        <span class="registro-identidad">{{ t.traza.target || t.target }} · {{ totalLines }} registros</span>
+        <span class="registro-identidad">{{ t.trace.target || t.target }} · {{ totalLines }} registros</span>
         <input v-model="filter" class="input input-xs" type="search" placeholder="buscar en el registro…"
                aria-label="Buscar en todo el registro" />
         <span v-if="filter" class="registro-conteo">{{ totalVisibles }} visibles</span>
@@ -152,35 +152,35 @@ watch(() => actual.value?.id, (id) => { focusStage(id) }, { immediate: true })
         <section v-for="section in visibleSections" :key="section.id" :ref="(el) => anchor(section.id, el)"
                  class="log-stage" :class="{ activa: actual?.id === section.id }">
           <button type="button" class="stage-bar" :aria-current="actual?.id === section.id ? 'step' : undefined"
-                  :title="`Ir a ${section.etiqueta} en el mapa`" @click="selectStage(section.id)">
-            <span class="stage-dot" :class="section.estado" aria-hidden="true"></span>
-            <span class="stage-label">{{ section.etiqueta }}</span>
+                  :title="`Ir a ${section.labelText} en el mapa`" @click="selectStage(section.id)">
+            <span class="stage-dot" :class="section.status" aria-hidden="true"></span>
+            <span class="stage-label">{{ section.labelText }}</span>
             <span v-if="section.at" class="stage-time">{{ section.at }}</span>
-            <span class="stage-status">{{ STATUS[section.estado] || section.estado }}</span>
+            <span class="stage-status">{{ STATUS[section.status] || section.status }}</span>
           </button>
 
-          <p v-if="section.motivo" class="stage-reason">{{ section.motivo }}</p>
-          <p v-else-if="section.detalle && section.detalle.length <= 180" class="stage-detail">{{ section.detalle }}</p>
+          <p v-if="section.reasonText" class="stage-reason">{{ section.reasonText }}</p>
+          <p v-else-if="section.detail && section.detail.length <= 180" class="stage-detail">{{ section.detail }}</p>
 
-          <div v-if="section.lineas.length" class="log-lines" role="list">
-            <template v-for="(line, index) in section.lineas" :key="`${line.tipo}-${index}-${line.paso}`">
-              <details v-if="line.tipo === 'evidencia'" class="log-evidence" role="listitem">
+          <div v-if="section.lines.length" class="log-lines" role="list">
+            <template v-for="(line, index) in section.lines" :key="`${line.kind}-${index}-${line.step}`">
+              <details v-if="line.kind === 'evidencia'" class="log-evidence" role="listitem">
                 <summary>
-                  <span class="log-kind">BD</span><span class="log-step">{{ line.paso }}</span>
-                  <span class="log-summary">{{ line.evidencia.fuente }}</span><span class="accordion-chev">⌄</span>
+                  <span class="log-kind">BD</span><span class="log-step">{{ line.step }}</span>
+                  <span class="log-summary">{{ line.evidence.source }}</span><span class="accordion-chev">⌄</span>
                 </summary>
-                <p v-for="(row, rowIndex) in line.evidencia.filas" :key="rowIndex" class="evidence-row">{{ row }}</p>
-                <details class="query accordion-item"><summary class="accordion-trigger">consulta SQL<span class="accordion-chev">⌄</span></summary><pre class="accordion-content">{{ line.evidencia.sql }}</pre></details>
+                <p v-for="(row, rowIndex) in line.evidence.rows" :key="rowIndex" class="evidence-row">{{ row }}</p>
+                <details class="query accordion-item"><summary class="accordion-trigger">consulta SQL<span class="accordion-chev">⌄</span></summary><pre class="accordion-content">{{ line.evidence.sql }}</pre></details>
               </details>
-              <div v-else class="log-line" :class="`nivel-${line.nivel}`" role="listitem">
+              <div v-else class="log-line" :class="`nivel-${line.level}`" role="listitem">
                 <time>{{ line.at }}</time>
-                <span class="log-step" :title="line.paso">{{ line.paso }}</span>
-                <span class="log-level">{{ line.nivel === 'error' ? 'ERROR' : (line.nivel || 'INFO').toUpperCase() }}</span>
-                <span class="log-message">{{ line.mensaje }}</span>
+                <span class="log-step" :title="line.step">{{ line.step }}</span>
+                <span class="log-level">{{ line.level === 'error' ? 'ERROR' : (line.level || 'INFO').toUpperCase() }}</span>
+                <span class="log-message">{{ line.message }}</span>
               </div>
             </template>
-            <p v-if="section.total > section.lineas.filter((line) => line.tipo === 'evento').length" class="log-cut">
-              {{ section.lineas.filter((line) => line.tipo === 'evento').length }} de {{ section.total }} líneas de log; los errores se priorizan en el recorte.
+            <p v-if="section.total > section.lines.filter((line) => line.kind === 'evento').length" class="log-cut">
+              {{ section.lines.filter((line) => line.kind === 'evento').length }} de {{ section.total }} líneas de log; los errores se priorizan en el recorte.
             </p>
           </div>
           <p v-else class="stage-empty">Sin líneas registradas para esta etapa.</p>

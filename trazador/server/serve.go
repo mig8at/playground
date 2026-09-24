@@ -56,11 +56,11 @@ func runServer(addr string) error {
 		type uiStage struct {
 			ID        string      `json:"id"`
 			Label     string      `json:"label"`
-			Order     int         `json:"orden"`
-			Because   string      `json:"porque,omitempty"`
-			Skeleton  bool        `json:"esqueleto"` // ¿la BD puede probarla? si no, su ausencia no prueba nada
-			Blocks    []*BlockDef `json:"bloques,omitempty"`
-			Decisions int         `json:"decisiones"`
+			Order     int         `json:"order"`
+			Because   string      `json:"because,omitempty"`
+			Skeleton  bool        `json:"skeleton"` // ¿la BD puede probarla? si no, su ausencia no prueba nada
+			Blocks    []*BlockDef `json:"blocks,omitempty"`
+			Decisions int         `json:"decisions"`
 		}
 		// EL CHEQUEO VIAJA CON EL MAPA. Un chequeo que sólo vive en un comando es un chequeo que nadie
 		// corre —le pasó a `-validar`, que pide corpus— y un mapa que dejó de resolver produce un
@@ -70,10 +70,10 @@ func runServer(addr string) error {
 		out := struct {
 			Version    string           `json:"version"`
 			SubVersion string           `json:"subVersion"`
-			Note       string           `json:"nota"`
-			Stages     []uiStage        `json:"etapas"`
-			Lanes      []*LaneDef       `json:"ramales"`
-			Check      []map[string]any `json:"chequeo"`
+			Note       string           `json:"note"`
+			Stages     []uiStage        `json:"stages"`
+			Lanes      []*LaneDef       `json:"lanes"`
+			Check      []map[string]any `json:"check"`
 		}{Version: m.Version, SubVersion: sub.Version, Note: m.Note, Lanes: m.Lanes,
 			Check: ForUI(MapCheck(nil))}
 		for _, e := range m.Stages {
@@ -112,27 +112,27 @@ func runServer(addr string) error {
 		}
 		type item struct {
 			UReq      int64  `json:"ureq"`
-			PersonKey string `json:"personaKey,omitempty"`
-			Date      string `json:"fecha"` // el día, para agrupar los chips
-			Time      string `json:"hora"`
-			Status    int    `json:"estado"`
-			StatusN   string `json:"estadoN"`
+			PersonKey string `json:"personKey,omitempty"`
+			Date      string `json:"date"` // el día, para agrupar los chips
+			Time      string `json:"time"`
+			Status    int    `json:"status"`
+			StatusN   string `json:"statusN"`
 			Lender    string `json:"lender"`
-			Merchant  string `json:"comercio"`
-			Outcome   string `json:"desenlace"`
-			Direct    bool   `json:"directa"` // la trajo la búsqueda literal, no la expansión a la persona
+			Merchant  string `json:"merchant"`
+			Outcome   string `json:"outcome"`
+			Direct    bool   `json:"direct"` // la trajo la búsqueda literal, no la expansión a la persona
 		}
 		type person struct {
-			Key      string `json:"personaKey"`
-			Document string `json:"documento,omitempty"`
-			Phone    string `json:"telefono,omitempty"`
+			Key      string `json:"personKey"`
+			Document string `json:"document,omitempty"`
+			Phone    string `json:"phone,omitempty"`
 		}
 		out := struct {
 			Target  string   `json:"target"`
-			Source  string   `json:"fuente"`
-			As      []string `json:"como"`
-			History History  `json:"historia"`
-			People  []person `json:"personas"`
+			Source  string   `json:"source"`
+			As      []string `json:"as"`
+			History History  `json:"history"`
+			People  []person `json:"people"`
 			Items   []item   `json:"items"`
 		}{Target: target, Source: source.Name(), As: as, History: buildHistory(cs)}
 		people := map[string]bool{}
@@ -174,20 +174,20 @@ func runServer(addr string) error {
 		// solicitud, no del flujo. Esta herramienta es de operación interna y escucha sólo en localhost.
 		jsonOK(w, struct {
 			Trace
-			Merchant      string           `json:"comercio"`
-			Branch        string           `json:"sucursal"`
+			Merchant      string           `json:"merchant"`
+			Branch        string           `json:"branch"`
 			Lender        string           `json:"lender"`
 			RT            int              `json:"rt"`
-			Status        int              `json:"estado"`
-			StatusN       string           `json:"estadoN"`
-			Amount        float64          `json:"monto"`
-			Profiling     string           `json:"perfilamiento"`
-			QuotaProfiles []quotaProfileUI `json:"perfilesCupo"`
-			PersonKey     string           `json:"personaKey,omitempty"`
-			Document      string           `json:"documento"`
-			Phone         string           `json:"telefono"`
-			Origin        string           `json:"origen"`
-			DerivedOrigin bool             `json:"origenDerivado"`
+			Status        int              `json:"status"`
+			StatusN       string           `json:"statusN"`
+			Amount        float64          `json:"amount"`
+			Profiling     string           `json:"profiling"`
+			QuotaProfiles []quotaProfileUI `json:"quotaProfiles"`
+			PersonKey     string           `json:"personKey,omitempty"`
+			Document      string           `json:"document"`
+			Phone         string           `json:"phone"`
+			Origin        string           `json:"origin"`
+			DerivedOrigin bool             `json:"derivedOrigin"`
 		}{
 			Trace: t, Merchant: s.Merchant, Branch: s.Branch, Lender: s.Lender, RT: s.LenderRT,
 			Status: s.Status, StatusN: s.StatusN, Amount: s.Amount,
@@ -199,7 +199,7 @@ func runServer(addr string) error {
 	})
 
 	mux.HandleFunc("/api/salud", func(w http.ResponseWriter, r *http.Request) {
-		jsonOK(w, map[string]any{"ok": true, "ahora": time.Now().Format(time.RFC3339)})
+		jsonOK(w, map[string]any{"ok": true, "now": time.Now().Format(time.RFC3339)})
 	})
 
 	fmt.Printf("\n  %s\n", bold("── trazador · server ──"))
@@ -280,9 +280,9 @@ func profilingSummary(p *Profiling) string {
 // niveles: la categoría (por ejemplo Premium o Standard) es la que configuró cada entidad. El detalle
 // de reglas, score e ingreso permanece en "Listado de entidades", donde se puede revisar sin comprimirlo.
 type quotaProfileUI struct {
-	Category string  `json:"categoria"`
-	Entity   string  `json:"entidad"`
-	Quota    float64 `json:"cupo"`
+	Category string  `json:"category"`
+	Entity   string  `json:"entity"`
+	Quota    float64 `json:"quota"`
 }
 
 // quotaProfiles devuelve sólo categorías que podemos atribuir a ESTA corrida. `users_category_log` está
