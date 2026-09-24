@@ -11,10 +11,9 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa
 
 ## Pendientes
 
-- [ ] **Declararle el área a la sección de canon del monto avisado** (sus 8 archivos y 3 tablas, en
-      `artifacts/canon-aviso-al-comercio.md`) cuando se despliegue `Creditop-SAS/playground#284`, que
-      arregla el cierre del borrador. Termina cuando la sección tenga un área que la respalde.
-      Depende de: la revisión y el despliegue de #284.
+- [x] ~~Declararle el área a la sección de canon del monto avisado~~ — `Creditop-SAS/playground#284`
+      mergeado y desplegado; revisión 10: área 6 de `cuota/context` con 7 archivos y 3 tablas, y la
+      sección enlazada además al área que ya declaraba `PaymentCalculationService.php`.
 - [ ] **Preguntarle a producto si el aviso al comercio tiene que llevar el total del pedido** y no el
       monto financiado. Con cuota inicial el sistema viejo avisa MENOS que la orden; con costos
       administrativos el nuevo avisa MÁS (en QA: pedido de 2.000.000, aviso de 2.140.000). Pesa más en
