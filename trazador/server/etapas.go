@@ -33,10 +33,9 @@
 package main
 
 import (
+	"creditop/playground/connectors/logs"
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"sort"
@@ -279,10 +278,10 @@ func (s *Solicitud) ventana() (time.Time, time.Time) {
 // Traza es lo que se imprime o se devuelve como JSON. El shape sigue al diseño recuperado para que un
 // front pueda consumirlo sin traducir.
 type Traza struct {
-	UReq     int64    `json:"ureq"`
-	Target   string   `json:"target"`
-	Outcome  string   `json:"outcome"` // aprobado | roto | abandonado | en-curso
-	BrokeAt  string   `json:"brokeAt,omitempty"`
+	UReq    int64  `json:"ureq"`
+	Target  string `json:"target"`
+	Outcome string `json:"outcome"` // aprobado | roto | abandonado | en-curso
+	BrokeAt string `json:"brokeAt,omitempty"`
 	// Ramal: por cuál de las variantes de flujo fue ESTA solicitud (`creditopx` · `agregador` ·
 	// `redirect` · `credifamilia`, los ids de `ramales.json`). Se calculaba desde siempre para decidir
 	// qué etapas NO aplican, pero no salía del servidor — y sin él la vista puede decir «esta etapa se
@@ -301,7 +300,7 @@ type Traza struct {
 	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
-	Archivos    []ArchivoDeTraza `json:"archivos,omitempty"`
+	Archivos []ArchivoDeTraza `json:"archivos,omitempty"`
 	// Pantallas: QUÉ VIO el cliente en el navegador, de PostHog. Es la mitad que el backend no puede
 	// contar — «el backend dice que llegó a firmar, ¿el cliente llegó a ver esa pantalla?»— y hasta
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
@@ -312,7 +311,7 @@ type Traza struct {
 	ArbolUltimo int             `json:"arbolUltimo,omitempty"`
 	Pantallas   []PantallaVista `json:"pantallas,omitempty"`
 	AvisoPH     string          `json:"avisoPosthog,omitempty"`
-	SinResolver int              `json:"archivosSinResolver,omitempty"`
+	SinResolver int             `json:"archivosSinResolver,omitempty"`
 	// El estado ACTUAL de la solicitud. Sin esto el outcome no se podía auditar desde el JSON: una traza
 	// decía «aprobado» y no había forma de saber contra qué estado se calculó (la 522238 cambió de estado
 	// entre dos lecturas y la diferencia era invisible).
@@ -2258,7 +2257,7 @@ type Linea struct {
 //	        acotadas a la ventana de la solicitud. El user_id aparece en más líneas (50 vs 36 en la
 //	        medición) pero es ambiguo por sí solo; la ventana de la BD es lo que lo vuelve seguro.
 //	fase 2  expansión: cada `trace_id` descubierto se trae completo, que es una búsqueda indexada.
-func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string) {
+func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []string) {
 	desde, hasta := s.ventana()
 	var notas []string
 
@@ -2477,7 +2476,7 @@ func traerLineas(cl *client, s *Solicitud, envFiltro string) ([]Linea, []string)
 	// auditoría; vive completo en `-anclas`, que es su modo. Acá queda lo que un lector necesita creer:
 	// cuántas líneas y de cuántas peticiones.
 	notas = append(notas, fmt.Sprintf("%d líneas de %d traces · el desglose por ancla: -anclas", len(limpias), len(ids)))
-	notas = append(notas, repartoPorBackend(limpias, cl.cfg.servicio)...)
+	notas = append(notas, repartoPorBackend(limpias, cl.Config.Service)...)
 	return limpias, notas
 }
 
@@ -2542,35 +2541,21 @@ var boilerplateOTel = map[string]bool{
 // lineasYTraces corre una consulta y devuelve las líneas + los trace_id vistos. `valorAncla` no vacío
 // exige que el valor aparezca como VALOR de un campo del context: sin eso, un documento o un monto que
 // contenga los mismos dígitos anclaría la solicitud de otra persona.
-func lineasYTraces(cl *client, logql string, desde, hasta time.Time, valorAncla string) ([]Linea, map[string]bool, error) {
-	params := url.Values{
-		"query":     {logql},
-		"start":     {fmt.Sprint(desde.UnixNano())},
-		"end":       {fmt.Sprint(hasta.UnixNano())},
-		"limit":     {"5000"},
-		"direction": {"forward"},
-	}
-	status, body, err := cl.get("/loki/api/v1/query_range", params)
+func lineasYTraces(cl *logs.Client, logql string, desde, hasta time.Time, valorAncla string) ([]Linea, map[string]bool, error) {
+	streams, err := cl.Range(logql, desde, hasta, 5000, "forward")
 	if err != nil {
 		return nil, nil, err
 	}
-	if status != 200 {
-		return nil, nil, fmt.Errorf("%s", explain(status, body))
-	}
-	var qr queryResp
-	if json.Unmarshal(body, &qr) != nil {
-		return nil, nil, fmt.Errorf("respuesta no parseable")
-	}
 	traces := map[string]bool{}
 	var out []Linea
-	for _, st := range qr.Data.Result {
+	for _, st := range streams {
 		for _, v := range st.Values {
 			var obj struct {
 				Message string          `json:"message"`
 				Context json.RawMessage `json:"context"`
 			}
-			l := Linea{level: st.Stream["level"], msg: v[1], ctx: map[string]any{},
-				span: st.Stream["span_id"], trace: st.Stream["trace_id"]}
+			l := Linea{level: st.Labels["level"], msg: v[1], ctx: map[string]any{},
+				span: st.Labels["span_id"], trace: st.Labels["trace_id"]}
 			if json.Unmarshal([]byte(v[1]), &obj) == nil {
 				if obj.Message != "" {
 					l.msg = obj.Message
@@ -2586,7 +2571,7 @@ func lineasYTraces(cl *client, logql string, desde, hasta time.Time, valorAncla 
 			// la vez: el chequeo del ancla no encontraba el valor y tiraba la línea, `pick()` no veía nada, y
 			// ningún matcher con `campo` podía mirar `service_name`. El cuerpo GANA en caso de choque: es lo
 			// que el que logueó quiso decir. La morralla de OTel se salta para que el ctx siga siendo legible.
-			for k, v2 := range st.Stream {
+			for k, v2 := range st.Labels {
 				if _, ya := l.ctx[k]; ya || boilerplateOTel[k] {
 					continue
 				}
@@ -2607,7 +2592,7 @@ func lineasYTraces(cl *client, logql string, desde, hasta time.Time, valorAncla 
 					continue
 				}
 			}
-			if t := st.Stream["trace_id"]; t != "" {
+			if t := st.Labels["trace_id"]; t != "" {
 				traces[t] = true
 			}
 			out = append(out, l)
@@ -2673,12 +2658,11 @@ func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
 
 	var lineas []Linea
 	var notas []string
-	if no := porQueNoLoki(c); no != "" {
+	if no := c.loki.Missing(); no != "" {
 		notas = append(notas, "sin logs: "+no)
 	} else {
-		cl := &client{http: &http.Client{Timeout: 60 * time.Second}, cfg: c,
-			current: attempt{base: c.base, auth: authDe(c)}}
-		lineas, notas = traerLineas(cl, s, c.env)
+		cl := logs.New(c.loki, 60*time.Second)
+		lineas, notas = traerLineas(cl, s, c.loki.Env)
 	}
 
 	centrales := GetCentrales(fuente)
@@ -2844,12 +2828,12 @@ func buscarJSON(valor string, cs []Coincidencia, como []string, target string) i
 		Directa  bool   `json:"directa"`
 	}
 	out := struct {
-		Busque   string `json:"busque"`
-		Target   string `json:"target"`
-		ComoSe   []string `json:"resuelto_como"`
-		Cuantas  int    `json:"cuantas"`
-		Nota     string `json:"nota"`
-		Filas    []fila `json:"solicitudes"`
+		Busque  string   `json:"busque"`
+		Target  string   `json:"target"`
+		ComoSe  []string `json:"resuelto_como"`
+		Cuantas int      `json:"cuantas"`
+		Nota    string   `json:"nota"`
+		Filas   []fila   `json:"solicitudes"`
 	}{Busque: valor, Target: target, ComoSe: como, Cuantas: len(cs),
 		Nota: "`directa:true` es lo que matcheó lo que buscaste; el resto es el historial de la " +
 			"misma persona. Sin documento ni teléfono a propósito: identificá por ureq/user_id."}
@@ -2864,32 +2848,6 @@ func buscarJSON(valor string, cs []Coincidencia, como []string, target string) i
 		return 2
 	}
 	return 0
-}
-
-// porQueNoLoki es la versión corta de `porQueNo` para el modo traza: acá Loki es opcional, así que un
-// "no se puede" es una nota, no un error.
-func porQueNoLoki(c config) string {
-	if c.base == "" {
-		return "falta LOKI_URL"
-	}
-	if !esLokiLocal(c.base) && (c.user == "" || c.token == "") {
-		return "faltan LOKI_USER/LOKI_TOKEN"
-	}
-	return ""
-}
-
-// authDe elige la forma de autenticar: un Loki local no pide nada, Grafana Cloud exige el par
-// `<ID de instancia>:<token>` (un Bearer pelado lo rechaza con `legacy auth cannot be upgraded`).
-func authDe(c config) string {
-	if c.user != "" {
-		return "basic:" + c.user
-	}
-	return "bearer"
-}
-
-// esLokiLocal — un Loki de esta máquina no pide credenciales.
-func esLokiLocal(u string) bool {
-	return regexp.MustCompile(`(^|//)(localhost|127\.0\.0\.1|\[::1\]|host\.docker\.internal)(:|/|$)`).MatchString(strings.TrimSpace(u))
 }
 
 // ─── buscar por teléfono, cédula o número de solicitud ──────────────────────────────────────────────
@@ -3890,23 +3848,10 @@ func selectorAmbiente(env string, ambientes []string) (sel, nota string) {
 		"desarrollo, que pueden tener su propia base", env, strings.Join(ambientes, " · "))
 }
 
-func valoresDeEtiqueta(cl *client, etiqueta string, desde, hasta time.Time) []string {
-	status, body, err := cl.get("/loki/api/v1/label/"+etiqueta+"/values", url.Values{
-		"start": {fmt.Sprint(desde.UnixNano())},
-		"end":   {fmt.Sprint(hasta.UnixNano())},
-	})
-	if err != nil || status != 200 {
-		return nil
-	}
-	var r struct {
-		Status string   `json:"status"`
-		Data   []string `json:"data"`
-	}
-	if json.Unmarshal(body, &r) != nil {
-		return nil
-	}
-	sort.Strings(r.Data)
-	return r.Data
+func valoresDeEtiqueta(cl *logs.Client, etiqueta string, desde, hasta time.Time) []string {
+	valores := cl.LabelValues(etiqueta, desde, hasta)
+	sort.Strings(valores)
+	return valores
 }
 
 func contiene(xs []string, v string) bool {

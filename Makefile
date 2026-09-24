@@ -132,6 +132,9 @@ tarea-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -ver
 
+pg: ## @dia la puerta a los CONECTORES: base y logs de un ambiente, con la fuente que contestó. ARGS='sql --target prod --query "SELECT …"' · ARGS='logs --target qa --query "{…}" --since 1h' · ARGS=help
+	@bin/pg $(or $(ARGS),help)
+
 tablero-db: ## @dia SQL de SOLO LECTURA. TARGET=local|dev|qa|staging|prod SQL='SELECT …' [MD=1 cita sólo DB + ambiente + query] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
 	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging|prod"; exit 2; }
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }

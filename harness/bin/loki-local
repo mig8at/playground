@@ -14,7 +14,7 @@
 # 2026-08-04: local en 464664, dev en 464620). `pkg/loki.ts` lo bloquea (`porQueNo`), no es solo un
 # consejo. Un forense que muestra con seguridad la solicitud de otra persona es un diagnóstico falso.
 #
-# Este Loki NO pide credenciales (por eso `E2E_LOKI_USER`/`TOKEN` van vacíos en `.env.local`) y guarda en
+# Este Loki NO pide credenciales (por eso `connectors/.env.local` no trae LOKI_USER/TOKEN) y guarda en
 # el filesystem del contenedor: al hacer `stop` se borra todo, que es lo que uno quiere de un ambiente
 # local. Para conservar entre corridas, usá `restart` en vez de `stop`+`start`.
 #

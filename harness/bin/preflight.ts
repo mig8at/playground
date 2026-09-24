@@ -76,7 +76,7 @@ const chequeos: Chequeo[] = checks.map((c) => ({
 function lokiEstado(): string {
     const c = lokiConfig();
     const no = porQueNo(c);
-    if (!no) return `${c.url}${c.user ? ` · user ${c.user}` : ' · sin auth (Loki local)'}${c.env ? ` · env ${c.env}` : ''}`;
+    if (!no) return `${c.url}${c.hasCredentials ? ' · con credenciales' : ' · sin auth (Loki local)'}${c.env ? ` · env ${c.env}` : ''}  (connectors/.env.${TARGET})`;
     if (!c.enabled) {
         return TARGET === 'local'
             ? 'apagado (prendelo con bin/loki-local start y E2E_LOKI_ENABLED=true)'

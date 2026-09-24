@@ -5224,7 +5224,7 @@ aparece es la línea por entidad, que es de nivel `info` y por eso se pudo leer.
 **Cómo se diagnostica en tres minutos, sin leer código.** El listado emite una línea por entidad con
 su veredicto. Con la solicitud a mano:
 
-    E2E_TARGET=<target> node dev/loki-lineas.ts '{service_name="CreditopDev"} |~ `entidad`' <desde> <hasta>
+    bin/pg logs --target <target> --query '{service_name="CreditopDev"} |~ "entidad"' --start <desde> --end <hasta>
 
 ⚠ La forense por solicitud (`make harness-loki UREQ=…`) **no sirve para esto**: esas líneas no traen el
 id de la solicitud como valor del `context`, así que contesta «cero anclas» — que se lee como «no hay

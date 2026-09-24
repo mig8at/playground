@@ -27,15 +27,59 @@
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 
+import { execFile, execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { env, TARGET } from './env.ts';
 
 // ─── configuración ──────────────────────────────────────────────────────────────────────────────────
+//
+// QUÉ Loki atiende cada ambiente, con qué credenciales y con qué filtro de `environment` NO lo decide el
+// harness: lo decide `connectors/logs`, y se le pregunta por `bin/pg`. Hasta el 2026-09-24 el harness
+// tenía su propio cliente HTTP y sus propias claves (`E2E_LOKI_URL/USER/TOKEN/ENV`), y ya no coincidían
+// con las del trazador: para `qa` el harness filtraba `environment=qa`, un valor que ese stack no tiene
+// (los hay `development`, `local` y `testing`), así que el forense de qa leía CERO siempre.
+// Lo que sigue siendo del harness son sus perillas: si la forense corre, cuánto espera el flush y cuánto
+// ensancha la ventana.
+
+const PG = fileURLToPath(new URL('../../bin/pg', import.meta.url));
+const pgAsync = promisify(execFile);
+
+/** Lo que `pg logs config` dice del ambiente. Sin secretos: el token no sale del conector. */
+type PgLogsConfig = { url: string; env: string; service: string; local: boolean; hasCredentials: boolean; missing: string };
+
+function pgLogsConfig(): PgLogsConfig {
+    try {
+        const out = execFileSync(PG, ['logs', 'config', '--target', TARGET], { encoding: 'utf8', timeout: 120_000 });
+        return JSON.parse(out) as PgLogsConfig;
+    } catch (e) {
+        const err = e as { stderr?: string; message?: string };
+        const why = (err.stderr || err.message || String(e)).trim().split('\n').pop();
+        return { url: '', env: '', service: '', local: false, hasCredentials: false, missing: `bin/pg no pudo decir qué Loki atiende ${TARGET}: ${why}` };
+    }
+}
+
+/** El cuerpo de Loki tal cual, por el conector. Un error trae el motivo que ya tradujo el conector. */
+async function lokiRaw(path: string, params: Record<string, string>): Promise<string> {
+    const args = ['logs', 'raw', '--target', TARGET, '--path', path];
+    for (const [k, v] of Object.entries(params)) args.push('--param', `${k}=${v}`);
+    try {
+        const { stdout } = await pgAsync(PG, args, { encoding: 'utf8', timeout: 90_000, maxBuffer: 64 << 20 });
+        return stdout;
+    } catch (e) {
+        const err = e as { stderr?: string; message?: string };
+        throw new Error((err.stderr || err.message || String(e)).trim().replace(/^pg: /, ''));
+    }
+}
 
 export type LokiConfig = {
     enabled: boolean;
+    /** La URL que atiende este ambiente, para mostrar y para saber si es el Loki de esta máquina. */
     url: string;
-    user: string;
-    token: string;
+    /** ¿Tiene credenciales? (Un Loki local no las pide.) El valor no sale del conector. */
+    hasCredentials: boolean;
+    /** Por qué el conector dice que no se puede leer, o vacío. Incluye la guarda de `local` → remoto. */
+    missing: string;
     /** Espera antes de consultar: LokiHandler batchea de a 100 y flushea al morir el proceso. */
     settleMs: number;
     /** Ensancha la ventana a los dos lados: el reloj del Mac y el del servidor no coinciden. */
@@ -43,58 +87,36 @@ export type LokiConfig = {
     /**
      * Valores de `environment` de ESTE target, como alternativa de regex (`development|develop`).
      *
-     * NO es un lujo: `dev` y `staging` comparten el stack de Loki Y la base de datos, así que un mismo
-     * uReq tiene líneas de los DOS —`legacy-backend` (develop) y `legacy-backend-stg` (qa)— y sin
-     * distinguirlas el forense mezcla qué CÓDIGO atendió la solicitud. Es la misma trampa que ya costó
-     * corridas creyendo que un feature estaba roto cuando respondía la otra rama.
-     *
-     * Vacío = no filtrar. El desglose por ambiente se reporta SIEMPRE, filtre o no.
+     * NO es un lujo: dev, qa y staging comparten el stack de Loki Y la base de datos, así que un mismo uReq
+     * puede tener líneas de más de uno, y sin distinguirlas el forense mezcla qué CÓDIGO atendió la
+     * solicitud. Vacío = no filtrar. El desglose por ambiente se reporta SIEMPRE, filtre o no.
      */
     env: string;
 };
 
 export function lokiConfig(): LokiConfig {
+    const pc = pgLogsConfig();
     return {
         enabled: env('E2E_LOKI_ENABLED', 'false') === 'true',
-        url: env('E2E_LOKI_URL').replace(/\/loki\/api\/.*$/, '').replace(/\/+$/, ''),
-        user: env('E2E_LOKI_USER'),
-        token: env('E2E_LOKI_TOKEN'),
+        url: pc.url,
+        hasCredentials: pc.hasCredentials,
+        missing: pc.missing,
         settleMs: Number(env('E2E_LOKI_SETTLE_MS', '10000')) || 0,
         padMs: Number(env('E2E_LOKI_PAD_MS', '60000')) || 0,
-        env: env('E2E_LOKI_ENV').trim(),
+        env: (pc.env || '').trim(),
     };
 }
 
 /**
  * Por qué no se puede consultar, en una frase lista para imprimir. `null` = se puede.
  *
- * La tercera guarda es la importante y no es obvia: **apuntar el target `local` a un Loki que no sea
- * `local` es peor que no tener forense.** La tentación es razonar como con la base de datos ("apunto a
- * dev y listo"), pero no es lo mismo: contra la BD leés las filas que TU corrida escribió; contra Loki
- * tu corrida local no escribió nada, así que leerías la corrida de otro cuyo `user_request_id` coincide.
- *
- * Y coincide, porque la BD local es un dump de dev: las dos secuencias de id viven en el mismo rango y
- * avanzan a la vez (medido el 2026-08-04: local en 464664, dev en 464620 — 44 de diferencia). Un forense
- * que muestra con seguridad los logs de la solicitud de otra persona es un diagnóstico falso, no un dato
- * incompleto. Se bloquea, con la misma forma que la guarda de escrituras a la BD compartida (F-53).
+ * Qué falta y la guarda de `local` leyendo un Loki REMOTO —que mostraría la solicitud de otra persona,
+ * porque la base local es un dump de dev y los ids se solapan— las decide el conector (`Missing`, en
+ * `connectors/logs`): acá sólo se suma la perilla propia del harness.
  */
 export function porQueNo(c: LokiConfig): string | null {
     if (!c.enabled) return 'E2E_LOKI_ENABLED no está en true';
-    if (!c.url) return 'falta E2E_LOKI_URL';
-    // Un Loki local (Docker) no pide credenciales; Grafana Cloud sí. Exigirlas siempre obligaría a
-    // inventar un usuario y un token falsos para el target local, que es peor que no pedirlos.
-    if (!esLokiLocal(c.url)) {
-        const faltan = (['user', 'token'] as const).filter((k) => !c[k]);
-        if (faltan.length) return `falta ${faltan.map((k) => `E2E_LOKI_${k.toUpperCase()}`).join(', ')}`;
-    }
-    // La guarda mira la URL y no la etiqueta, porque el invariante es de DÓNDE se lee: con target local
-    // apuntando a un Loki remoto, las líneas son de otra corrida (los id de uReq se solapan con dev
-    // porque la BD local es su dump). Es el espejo de `esLocal()` en bin/preflight.ts.
-    if (TARGET === 'local' && !esLokiLocal(c.url)) {
-        return `target local leyendo un Loki REMOTO (${c.url}) — tu corrida local no escribió ahí, y los id `
-            + 'de uReq se solapan con dev (la BD local es su dump), así que mostraría la solicitud de otro. '
-            + 'Levantá el Loki local: bin/loki-local start';
-    }
+    if (c.missing) return c.missing;
     return null;
 }
 
@@ -122,11 +144,6 @@ export type Linea = {
 
 const ns = (ms: number) => `${Math.round(ms)}000000`;
 
-/** Sin credenciales no se manda el header: un Loki local rechaza un Basic vacío en vez de ignorarlo. */
-const cabeceras = (c: LokiConfig): Record<string, string> => (c.user && c.token
-    ? { Authorization: `Basic ${Buffer.from(`${c.user}:${c.token}`).toString('base64')}` }
-    : {});
-
 /**
  * Los valores REALES de una etiqueta en la ventana. Existe para poder contestar la pregunta que un
  * filtro vacío no contesta: ¿no hay líneas, o el filtro no puede encontrarlas?
@@ -137,12 +154,7 @@ const cabeceras = (c: LokiConfig): Record<string, string> => (c.user && c.token
  */
 async function valoresDeEtiqueta(c: LokiConfig, etiqueta: string, fromMs: number, toMs: number): Promise<string[]> {
     try {
-        const qs = new URLSearchParams({ start: ns(fromMs), end: ns(toMs) });
-        const res = await fetch(`${c.url}/loki/api/v1/label/${etiqueta}/values?${qs}`, {
-            headers: cabeceras(c), signal: AbortSignal.timeout(20_000),
-        });
-        if (!res.ok) return [];
-        const body = await res.json() as { data?: string[] };
+        const body = JSON.parse(await lokiRaw(`label/${etiqueta}/values`, { start: ns(fromMs), end: ns(toMs) })) as { data?: string[] };
         return (body.data ?? []).sort();
     } catch {
         return [];   // el diagnóstico es un extra: si falla, se sigue como antes
@@ -150,23 +162,10 @@ async function valoresDeEtiqueta(c: LokiConfig, etiqueta: string, fromMs: number
 }
 
 async function query(c: LokiConfig, logql: string, fromMs: number, toMs: number, limit = 5000): Promise<Linea[]> {
-    const qs = new URLSearchParams({
-        query: logql, start: ns(fromMs), end: ns(toMs),
-        limit: String(limit), direction: 'forward',
+    const crudo = await lokiRaw('query_range', {
+        query: logql, start: ns(fromMs), end: ns(toMs), limit: String(limit), direction: 'forward',
     });
-    const res = await fetch(`${c.url}/loki/api/v1/query_range?${qs}`, {
-        headers: cabeceras(c), signal: AbortSignal.timeout(60_000),
-    });
-    if (!res.ok) {
-        // El cuerpo puede ser el HTML de error de Cloudflare (hostname inexistente → 530/1016). Volcarlo
-        // entero tapa el resto de la salida y no dice nada: se traduce a la causa.
-        const cuerpo = (await res.text()).trim();
-        const detalle = /^\s*<(!doctype|html)/i.test(cuerpo)
-            ? (/error code: (\d+)/i.exec(cuerpo)?.[0] ?? 'respuesta HTML, no JSON') + ' — ¿la URL no es la de Loki?'
-            : cuerpo.replace(/\s+/g, ' ').slice(0, 180);
-        throw new Error(`Loki ${res.status}: ${detalle}`);
-    }
-    const body = await res.json() as { data?: { result?: Array<{ stream: Record<string, string>; values: [string, string][] }> } };
+    const body = JSON.parse(crudo) as { data?: { result?: Array<{ stream: Record<string, string>; values: [string, string][] }> } };
 
     const out: Linea[] = [];
     for (const st of body.data?.result ?? []) {

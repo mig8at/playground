@@ -271,6 +271,12 @@ conexión"* — que es la diferencia entre volver a molestar a quien lo emitió 
 
 ## Configuración
 
+⚠ **Desde el 2026-09-24 las credenciales de Loki y de la base NO van en el `.env` del trazador**: van en
+`connectors/.env.<target>` (plantilla: `connectors/.env.example`), que es de donde las leen el trazador, el
+harness y workers. Lo que sigue describe los datos —qué stack, qué `User`, qué filtro— y sigue valiendo;
+cambió dónde se escriben. En el `.env.<target>` del trazador quedan las de PostHog, hasta que pasen a
+`connectors/events`.
+
 **Un archivo por STACK, no por rama** — el nombre del target dice a qué Grafana le hablás:
 
 | target | stack | `User` | estado |
@@ -367,7 +373,7 @@ ubicar**: su rama es del 25/8 y no tiene el logger que esa petición dispara. *(
 decía que dev y qa logueaban los dos como `CreditopDev`: hoy no es así, y puede volver a cambiar sin un
 commit.)*
 
-Por eso cada `.env.<target>` declara **`LOKI_SERVICE`** (dev → `legacy-backend`, qa → `CreditopDev`), y
+Por eso cada `connectors/.env.<target>` declara **`LOKI_SERVICE`** (dev → `legacy-backend`, qa → `CreditopDev`), y
 ⚠ **no se usa para filtrar sino para AVISAR.** Una solicitud pasa de verdad por los dos backends: la
 502633, creada en qa, tiene **442 líneas de `CreditopDev` y 159 de `legacy-backend`** (el chequeo de cupo
 lo corre el de dev). Filtrar escondía esas 159; no filtrar sin decir nada las hacía pasar por qa. La
@@ -382,8 +388,11 @@ de la etiqueta —como regex es una alternativa, como cadena no existe— y caí
 valor no existía. Hoy se compara por alternativa (`selectorAmbiente`). Y el ancla de los MS Go va **sin**
 ese filtro: no llevan la etiqueta `environment`, así que con él quedaban afuera sin avisar.
 
-`trazador/.env.staging` sigue filtrando `LOKI_ENV=qa`, un valor que no existe: `traerLineas` lo detecta,
-cae a no filtrar y lo dice en las notas de la traza (F-237 es la misma guarda del lado del harness).
+Hasta el 2026-09-24 `staging` filtraba `LOKI_ENV=qa`, un valor que no existe: `traerLineas` lo detectaba,
+caía a no filtrar y lo decía en las notas de la traza (F-237 es la misma guarda del lado del harness).
+Al pasar las credenciales a `connectors/.env.staging` quedó en `development|develop`, lo que el stack de
+verdad tiene (`pg logs labels --target staging --label environment` → `development · local · testing`).
+La guarda sigue: si mañana el valor dejara de existir, lo dice igual.
 
 Para volver a medirlo:
 

@@ -16,8 +16,8 @@ package main
 // Este modo MIDE y REPORTA; no cambia el ensamblado. La decisión de cablearlo se toma con el número.
 
 import (
+	"creditop/playground/connectors/logs"
 	"fmt"
-	"net/http"
 	"os"
 	"sort"
 	"time"
@@ -41,13 +41,12 @@ func modoSpans(target string, ureq int64) int {
 		fmt.Fprintf(os.Stderr, "  %v\n", err)
 		return 2
 	}
-	if no := porQueNoLoki(c); no != "" {
+	if no := c.loki.Missing(); no != "" {
 		fmt.Fprintf(os.Stderr, "  sin logs: %s\n", no)
 		return 2
 	}
-	cl := &client{http: &http.Client{Timeout: 60 * time.Second}, cfg: c,
-		current: attempt{base: c.base, auth: authDe(c)}}
-	lineas, _ := traerLineas(cl, s, c.env)
+	cl := logs.New(c.loki, 60*time.Second)
+	lineas, _ := traerLineas(cl, s, c.loki.Env)
 
 	// Fase 1: quién ubica qué, y con qué span.
 	type infoSpan struct {
@@ -169,13 +168,12 @@ func modoAnclas(target string, ureq int64) int {
 		fmt.Fprintf(os.Stderr, "  %v\n", err)
 		return 2
 	}
-	if no := porQueNoLoki(c); no != "" {
+	if no := c.loki.Missing(); no != "" {
 		fmt.Fprintf(os.Stderr, "  sin logs: %s\n", no)
 		return 2
 	}
-	cl := &client{http: &http.Client{Timeout: 60 * time.Second}, cfg: c,
-		current: attempt{base: c.base, auth: authDe(c)}}
-	lineas, _ := traerLineas(cl, s, c.env)
+	cl := logs.New(c.loki, 60*time.Second)
+	lineas, _ := traerLineas(cl, s, c.loki.Env)
 
 	mio, otroUReq := comoTexto(s.ID), map[string]int{}
 	miUser := comoTexto(s.UserID)
@@ -255,9 +253,8 @@ func modoCampos(target string, ureq int64) int {
 		fmt.Fprintf(os.Stderr, "  %v\n", err)
 		return 2
 	}
-	cl := &client{http: &http.Client{Timeout: 60 * time.Second}, cfg: c,
-		current: attempt{base: c.base, auth: authDe(c)}}
-	lineas, _ := traerLineas(cl, s, c.env)
+	cl := logs.New(c.loki, 60*time.Second)
+	lineas, _ := traerLineas(cl, s, c.loki.Env)
 
 	presencia := map[string]int{}
 	valores := map[string]map[string]bool{}

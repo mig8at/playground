@@ -43,6 +43,7 @@
 package main
 
 import (
+	"creditop/playground/connectors/logs"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
@@ -64,23 +65,13 @@ import (
 // config es lo mínimo para hablarle a Loki. `base` y `user` pueden venir vacíos: `base` se deduce de la
 // región del token; `user` no se puede deducir de ningún lado y es justo el que suele faltar.
 type config struct {
-	base   string // https://logs-prod3.grafana.net (sin el path de la API)
-	user   string // ID numérico de la instancia de logs (usuario del basic auth)
-	token  string // glc_...
-	tenant string // X-Scope-OrgID; solo Loki self-hosted detrás de gateway lo necesita
+	// loki es a qué Loki preguntarle en este ambiente, tal como lo resuelve `connectors/logs`: la URL, las
+	// credenciales, el filtro de `environment` y el `service_name` del monolito. Ya no los lee el trazador
+	// de su `.env`: dev, qa y staging comparten el stack `creditopdev`, y lo que separa a dev de qa es el
+	// `service_name` (que NO filtra: `repartoPorBackend` dice cuántas líneas sirvió cada backend). El
+	// porqué de cada etiqueta vive en el conector, escrito una vez.
+	loki   logs.Config
 	source string // de dónde salió cada cosa, para poder decirlo en pantalla
-
-	// Filtro de `environment`, como alternativa de regex (`development|develop`). NO es opcional cuando
-	// el stack es compartido: creditopdev sirve dev Y qa, y sin filtrar se mezclan dos ramas de código.
-	env string
-
-	// El `service_name` del MONOLITO de este ambiente. Es lo que separa qa de dev en `creditopdev`, que
-	// `env` no puede: los dos PHP loguean `environment=development`, pero con otro `service_name` —medido
-	// el 2026-09-23 pegándole a cada backend desplegado: dev → `legacy-backend`, qa → `CreditopDev`—.
-	// ⚠ NO filtra: una solicitud puede pasar por los dos backends, y lo que hace es DECIRLO
-	// (`repartoPorBackend`). Lo pone un secreto del despliegue (`GRAFANA_TEMPO_SERVICE_NAME`), no el repo,
-	// así que puede cambiar sin commit. Vacío = no se reparte.
-	servicio string
 
 	// El ambiente. Es lo que le pide al conector de SQL la base de ESTE ambiente (ver `abrirFuente`): qué
 	// base es, sus credenciales y si va por MySQL directo o por Redash ya no los sabe el trazador.
@@ -102,12 +93,6 @@ type config struct {
 // alias mapea cada campo a los nombres de variable que aceptamos. Los `GRAFANA_LOKI_*` son los que usa
 // legacy-backend en su propio .env: aceptarlos permite pegar las vars del deploy tal como están.
 var alias = map[string][]string{
-	"token":    {"LOKI_TOKEN", "GRAFANA_LOKI_PASSWORD", "GRAFANA_LOKI_TOKEN"},
-	"base":     {"LOKI_URL", "GRAFANA_LOKI_ENDPOINT", "GRAFANA_CLOUD_ENDPOINT"},
-	"user":     {"LOKI_USER", "GRAFANA_LOKI_USERNAME"},
-	"tenant":   {"LOKI_TENANT", "GRAFANA_LOKI_TENANT_ID"},
-	"env":      {"LOKI_ENV", "E2E_LOKI_ENV"},
-	"servicio": {"LOKI_SERVICE", "E2E_LOKI_SERVICE"},
 	// PostHog. `VITE_PUBLIC_POSTHOG_HOST` es el nombre que usa el wizard para el host de INGESTA: se acepta
 	// como último recurso para no tener que buscarlo, pero la API de lectura vive en otro subdominio y
 	// `normalizePostHogAPI` lo corrige (us.i.posthog.com → us.posthog.com).
@@ -167,21 +152,19 @@ func loadConfig(target string) (config, []string) {
 
 	c := config{target: target}
 	var origins []string
-	for _, field := range []string{"token", "base", "user", "tenant", "env", "servicio", "posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
+	var lokiFile string
+	c.loki, lokiFile, _ = logs.LoadConfig(target)
+	if c.loki.URL != "" {
+		// El detalle de cada clave de Loki es del conector: acá sólo se dice de qué archivo salió.
+		from := "entorno"
+		if lokiFile != "" {
+			from = "connectors/" + filepath.Base(lokiFile)
+		}
+		origins = append(origins, "loki <- "+from)
+	}
+	for _, field := range []string{"posthogToken", "posthogAPI", "posthogProject", "posthogEnv"} {
 		v, from := pick(field)
 		switch field {
-		case "token":
-			c.token = v
-		case "base":
-			c.base = normalizeBase(v)
-		case "user":
-			c.user = v
-		case "tenant":
-			c.tenant = v
-		case "env":
-			c.env = v
-		case "servicio":
-			c.servicio = v
 		case "posthogToken":
 			c.posthogToken = v
 		case "posthogAPI":
@@ -220,23 +203,6 @@ func parseEnvFile(path string) (map[string]string, error) {
 		out[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
 	}
 	return out, nil
-}
-
-// normalizeBase deja solo el origen. La URL que reparte Grafana Cloud suele venir con el path de la API
-// pegado (`.../loki/api/v1/query_range`); si no se recorta, cada request pide una ruta que no existe.
-func normalizeBase(s string) string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return ""
-	}
-	if i := strings.Index(s, "/loki/api/"); i >= 0 {
-		s = s[:i]
-	}
-	s = strings.TrimRight(s, "/")
-	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
-		s = "https://" + s
-	}
-	return s
 }
 
 // ─── el token dice dónde vive ───────────────────────────────────────────────────────────────────────
@@ -297,8 +263,8 @@ var legacyRegionHosts = map[string]string{
 // candidateBases arma las URLs a probar. Si el .env trae una, es la única: pedirla explícita y después
 // ignorarla sería peor que no aceptarla.
 func candidateBases(c config, t tokenInfo) []string {
-	if c.base != "" {
-		return []string{c.base}
+	if c.loki.URL != "" {
+		return []string{c.loki.URL}
 	}
 	if t.region == "" {
 		return nil
@@ -351,75 +317,6 @@ func (a attempt) label() string {
 		return "basic-auth (usuario " + u + ")"
 	}
 	return "Bearer pelado"
-}
-
-type client struct {
-	http    *http.Client
-	cfg     config
-	current attempt
-}
-
-// get pega a un path de la API de Loki y devuelve status + cuerpo. El cuerpo se lee siempre: los errores
-// de Loki vienen con texto y son la mitad del diagnóstico.
-func (cl *client) get(path string, params url.Values) (int, []byte, error) {
-	u := cl.current.base + path
-	if len(params) > 0 {
-		u += "?" + params.Encode()
-	}
-	req, err := http.NewRequest(http.MethodGet, u, nil)
-	if err != nil {
-		return 0, nil, err
-	}
-	if user, ok := strings.CutPrefix(cl.current.auth, "basic:"); ok {
-		req.SetBasicAuth(user, cl.cfg.token)
-	} else {
-		req.Header.Set("Authorization", "Bearer "+cl.cfg.token)
-	}
-	if cl.cfg.tenant != "" {
-		req.Header.Set("X-Scope-OrgID", cl.cfg.tenant)
-	}
-	resp, err := cl.http.Do(req)
-	if err != nil {
-		return 0, nil, err
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	return resp.StatusCode, body, nil
-}
-
-// needsInstanceID reconoce el mensaje con el que Grafana Cloud rechaza un Bearer pelado. Está aparte
-// porque es la pista más valiosa y la más engañosa: dice "host is not found" pero el host está bien.
-func needsInstanceID(body []byte) bool {
-	return strings.Contains(string(body), "legacy auth cannot be upgraded")
-}
-
-// explain traduce un status a qué hay que hacer al respecto. Es la parte que ahorra el viaje a la
-// documentación: cada código apunta a un dato distinto mal puesto.
-func explain(status int, body []byte) string {
-	snippet := trim(string(body), 180)
-	switch {
-	case needsInstanceID(body):
-		return "401 — el token es válido pero le falta con quién ir emparejado: Grafana Cloud no acepta " +
-			"un Bearer pelado, necesita `<ID de instancia>:<token>`. Falta LOKI_USER."
-	case status == http.StatusUnauthorized:
-		return "401 — el par usuario/token no sirve. El usuario del basic-auth es el ID NUMÉRICO de la " +
-			"instancia de logs (no el org, no el slug del stack, no un email). " + snippet
-	case status == http.StatusForbidden:
-		return "403 — autentica, pero la access policy no alcanza: falta el scope `logs:read`, o su " +
-			"realm no cubre este stack. Esto se pide, no se arregla acá. " + snippet
-	case status == http.StatusNotFound:
-		return "404 — esa base no es la de Loki (¿es la de Prometheus/Tempo, o la URL del stack?). " + snippet
-	case status == 530 || strings.Contains(snippet, "error code: 1016"):
-		return "530/1016 — Cloudflare sin origin: el hostname no existe (lo disfraza el comodín de DNS). " +
-			"No es una caída de Grafana."
-	case status == http.StatusTooManyRequests:
-		return "429 — rate limit del tenant; reintentá en un rato. " + snippet
-	case status >= 500:
-		return fmt.Sprintf("%d — falla del lado de Grafana, no de las credenciales. %s", status, snippet)
-	case status != http.StatusOK:
-		return fmt.Sprintf("%d inesperado. %s", status, snippet)
-	}
-	return "OK"
 }
 
 // ─── paso 1: qué dice grafana.com del token ─────────────────────────────────────────────────────────
@@ -713,7 +610,7 @@ func main() {
 		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut, *bloque))
 	}
 
-	if c.token == "" {
+	if c.loki.Token == "" {
 		buscado := strings.Join(alias["token"], " / ")
 		donde := strings.Join(checked, ", ")
 		if donde == "" {
@@ -724,21 +621,21 @@ func main() {
 			paint("31", "✘"), *target, buscado, donde, *target)
 		os.Exit(2)
 	}
-	info := decodeToken(c.token)
+	info := decodeToken(c.loki.Token)
 	// Se anota ANTES de que el paso 1 pueda completarlos desde grafana.com: si ya venían del .env, el
 	// consejo final de "pegá esto en tu .env" sobra y sería ruido en cada corrida.
-	knewBase, knewUser := c.base != "", c.user != ""
+	knewBase, knewUser := c.loki.URL != "", c.loki.User != ""
 
 	step("Configuración")
-	detail("token    %s", mask(c.token))
+	detail("token    %s", mask(c.loki.Token))
 	if info.ok {
 		detail("del token: org %s · región %s%s", orDash(info.org), orDash(info.region), namePart(info.name))
 	} else {
 		warn("el token no tiene el formato glc_<base64>: no puedo deducir región ni org de ahí")
 	}
-	detail("base     %s", orDash(c.base))
-	detail("usuario  %s", orDash(c.user))
-	detail("tenant   %s", orDash(c.tenant))
+	detail("base     %s", orDash(c.loki.URL))
+	detail("usuario  %s", orDash(c.loki.User))
+	detail("tenant   %s", orDash(c.loki.Tenant))
 	if c.source != "" {
 		detail("origen   %s", c.source)
 	}
@@ -748,7 +645,7 @@ func main() {
 
 	// ── 1. ¿qué dice grafana.com del token? ──────────────────────────────────────────────────────
 	step("1/4  ¿El token es válido y qué permisos trae?   grafana.com/api")
-	scopes, stacks, valid := askGrafanaCom(c.token, info.region)
+	scopes, stacks, valid := askGrafanaCom(c.loki.Token, info.region)
 	switch {
 	case !valid:
 		bad("grafana.com no reconoció el token (ni para decirme qué permisos tiene).")
@@ -766,11 +663,11 @@ func main() {
 	if len(stacks) > 0 {
 		for _, s := range stacks {
 			ok("stack «%s» → LOKI_USER=%d · LOKI_URL=%s", s.Slug, s.HlInstanceID, s.HlInstanceURL)
-			if c.user == "" && s.HlInstanceID > 0 {
-				c.user = fmt.Sprint(s.HlInstanceID)
+			if c.loki.User == "" && s.HlInstanceID > 0 {
+				c.loki.User = fmt.Sprint(s.HlInstanceID)
 			}
-			if c.base == "" && s.HlInstanceURL != "" {
-				c.base = normalizeBase(s.HlInstanceURL)
+			if c.loki.URL == "" && s.HlInstanceURL != "" {
+				c.loki.URL = logs.NormalizeURL(s.HlInstanceURL)
 			}
 		}
 	} else if valid {
@@ -784,7 +681,7 @@ func main() {
 		verdictMissing(c, "la URL de consulta de Loki y el ID numérico de la instancia")
 		os.Exit(1)
 	}
-	step("2/4  ¿Autentica contra Loki?   GET /loki/api/v1/labels")
+	step("2/4  ¿Autentica contra Loki?   GET labels")
 
 	// El DNS se chequea antes de pegarle: un hostname inexistente responde 530/1016 y ese error se lee
 	// como una caída de Grafana. Mejor decir "ese nombre no existe" que traducir un código de Cloudflare.
@@ -800,16 +697,16 @@ func main() {
 	// final: casi nunca coincide con el ID de instancia, pero probarlo es gratis y descarta la confusión.
 	var tries []attempt
 	for _, b := range bases {
-		if c.user != "" {
-			tries = append(tries, attempt{b, "basic:" + c.user, "el ID de instancia configurado"})
+		if c.loki.User != "" {
+			tries = append(tries, attempt{b, "basic:" + c.loki.User, "el ID de instancia configurado"})
 		}
 		tries = append(tries, attempt{b, "bearer", "diagnóstico: distingue token inválido de ID faltante"})
-		if info.org != "" && info.org != c.user {
+		if info.org != "" && info.org != c.loki.User {
 			tries = append(tries, attempt{b, "basic:" + info.org, "por si el org del token fuera el ID (rara vez lo es)"})
 		}
 	}
 
-	cl := &client{http: &http.Client{Timeout: 30 * time.Second}, cfg: c}
+	cl := logs.New(c.loki, 30*time.Second)
 	now := time.Now()
 	nano := func(t time.Time) string { return fmt.Sprint(t.UnixNano()) }
 
@@ -817,8 +714,8 @@ func main() {
 	var winner *attempt
 	missingID := false
 	for i := range tries {
-		cl.current = tries[i]
-		status, body, err := cl.get("/loki/api/v1/labels", url.Values{
+		cl.Base, cl.AuthMode = tries[i].base, tries[i].auth
+		status, body, err := cl.API("labels", url.Values{
 			"start": {nano(now.Add(-*since))}, "end": {nano(now)},
 		})
 		switch {
@@ -835,10 +732,10 @@ func main() {
 			sort.Strings(labels)
 			winner = &tries[i]
 		default:
-			if needsInstanceID(body) {
+			if logs.NeedsInstanceID(body) {
 				missingID = true
 			}
-			detail("%s · %s → %s", tries[i].base, tries[i].label(), explain(status, body))
+			detail("%s · %s → %s", tries[i].base, tries[i].label(), logs.Explain(status, body))
 		}
 		if winner != nil {
 			break
@@ -854,7 +751,7 @@ func main() {
 		}
 		os.Exit(1)
 	}
-	cl.current = *winner
+	cl.Base, cl.AuthMode = winner.base, winner.auth
 	ok("200 contra %s con %s", winner.base, winner.label())
 	if len(labels) == 0 {
 		warn("…pero la lista de etiquetas vino VACÍA: autenticaste contra un tenant sin logs (realm " +
@@ -883,11 +780,11 @@ func main() {
 		if !have[l] {
 			continue
 		}
-		status, body, err := cl.get("/loki/api/v1/label/"+url.PathEscape(l)+"/values", url.Values{
+		status, body, err := cl.API("label/"+url.PathEscape(l)+"/values", url.Values{
 			"start": {nano(now.Add(-24 * time.Hour))}, "end": {nano(now)},
 		})
 		if err != nil || status != http.StatusOK {
-			warn("%s → %s", l, explain(status, body))
+			warn("%s → %s", l, logs.Explain(status, body))
 			continue
 		}
 		var vr valuesResp
@@ -926,7 +823,7 @@ func main() {
 
 	// ── 4. leer líneas de verdad ─────────────────────────────────────────────────────────────────
 	read := func(window time.Duration, human string) bool {
-		status, body, err := cl.get("/loki/api/v1/query_range", url.Values{
+		status, body, err := cl.API("query_range", url.Values{
 			"query":     {selector},
 			"start":     {nano(now.Add(-window))},
 			"end":       {nano(now)},
@@ -938,13 +835,13 @@ func main() {
 			return false
 		}
 		if status != http.StatusOK {
-			bad("%s", explain(status, body))
+			bad("%s", logs.Explain(status, body))
 			return false
 		}
 		// Antes de intentar leerlo como líneas: si es una consulta MÉTRICA la respuesta es un número,
 		// y hay que volver a pedirlo como INSTANTÁNEA — el range da ventanas solapadas, no un total.
 		if esMatrix(body) {
-			st, cuerpo, err := cl.get("/loki/api/v1/query", url.Values{
+			st, cuerpo, err := cl.API("query", url.Values{
 				"query": {selector},
 				"time":  {nano(now)},
 			})
@@ -1016,8 +913,8 @@ func verdictMissing(c config, what string) {
 	fmt.Println("\nCuando los tengas:")
 	fmt.Println("  LOKI_USER=<número>")
 	fmt.Println("  LOKI_URL=<url>")
-	if c.base != "" {
-		fmt.Printf("(la URL que probé fue %s)\n", c.base)
+	if c.loki.URL != "" {
+		fmt.Printf("(la URL que probé fue %s)\n", c.loki.URL)
 	}
 }
 

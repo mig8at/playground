@@ -96,23 +96,10 @@ def consultar_bd(sql):
 # muestra presentada como el conjunto, cuenta sobre ella, y devuelve porcentajes inventados con toda
 # la confianza del mundo. La primera versión de esta herramienta hacía exactamente eso.
 #
-# Las credenciales SIGUEN viniendo del `.env.<target>` del trazador: se lee otra vez el mismo archivo,
-# no se copia un token a ningún lado.
+# Qué Loki atiende cada ambiente, sus credenciales y los errores traducidos son de `connectors/logs`, y
+# se le pregunta por `bin/pg logs raw`: el cuerpo de Loki tal cual, para que el parseo de acá no cambie.
+# Hasta el 2026-09-24 esto leía las credenciales del `.env` del trazador y armaba su propio pedido HTTP.
 _UNIDADES = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-
-
-def _env_loki():
-    f = PLAYGROUND / "trazador" / f".env.{TARGET}"
-    vals = {}
-    for linea in f.read_text(encoding="utf-8").splitlines():
-        linea = linea.strip()
-        if linea and not linea.startswith("#") and "=" in linea:
-            k, v = linea.split("=", 1)
-            vals[k.strip()] = v.strip()
-    faltan = [k for k in ("LOKI_URL", "LOKI_USER", "LOKI_TOKEN") if not vals.get(k)]
-    if faltan:
-        raise KeyError(f"faltan {', '.join(faltan)} en trazador/.env.{TARGET}")
-    return vals
 
 
 def _segundos(desde):
@@ -121,24 +108,21 @@ def _segundos(desde):
 
 
 def _loki(ruta, params):
-    import base64, time as _t, urllib.parse, urllib.request
-    try:
-        v = _env_loki()
-    except (OSError, KeyError) as e:
-        return {"error": str(e)}
+    """El cuerpo de Loki para `ruta` (query_range · query), o `{"error": …}`. Por `bin/pg logs raw`."""
+    import subprocess, time as _t
     ahora = int(_t.time())
     params = dict(params, end=f"{ahora}000000000")
-    url = f"{v['LOKI_URL'].rstrip('/')}/loki/api/v1/{ruta}?" + urllib.parse.urlencode(params)
-    cred = base64.b64encode(f"{v['LOKI_USER']}:{v['LOKI_TOKEN']}".encode()).decode()
-    req = urllib.request.Request(url, headers={"Authorization": f"Basic {cred}"})
+    args = [str(PLAYGROUND / "bin" / "pg"), "logs", "raw", "--target", TARGET, "--path", ruta]
+    for k, v in params.items():
+        args += ["--param", f"{k}={v}"]
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except Exception as e:
-        cuerpo = getattr(e, "read", lambda: b"")()[:300].decode("utf-8", "replace")
-        return {"error": f"Loki respondió {e}. {cuerpo}".strip()
-                         + "  ·  para diagnosticar el ACCESO: make trazador-acceso"}
-
+        r = subprocess.run(args, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return {"error": f"no se pudo correr bin/pg: {e}"}
+    if r.returncode != 0:
+        motivo = r.stderr.strip().splitlines()[-1] if r.stderr.strip() else f"bin/pg salió {r.returncode}"
+        return {"error": motivo.removeprefix("pg: ") + "  ·  para diagnosticar el ACCESO: make trazador-acceso"}
+    return json.loads(r.stdout)
 
 def archivos_de_la_traza(selector, desde="1h", muestra=300):
     """QUÉ ARCHIVOS CORRIERON detrás de estas líneas de log, en orden de primera aparición.

@@ -1,0 +1,20 @@
+#!/bin/sh
+# pg — la puerta a los conectores (cmd/pg). Lo compila la primera vez y cada vez que cambia su código, a
+# ~/.cache/playground/pg: `go run` en cada llamada costaría un segundo, y el harness y workers lo llaman
+# varias veces por corrida. Compila a un temporal y lo renombra, para que dos llamadas a la vez no pisen
+# un binario a medias.
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/pg"
+stale=$(find "$root/cmd/pg" "$root/connectors" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./cmd/pg) >&2; then
+    rm -f "$tmp"
+    echo "pg: no compila cmd/pg" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+# Los conectores buscan connectors/ subiendo desde donde se corre: se corre desde la raíz.
+cd "$root" && exec "$bin" "$@"
