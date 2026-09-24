@@ -38,6 +38,18 @@ func (c *Client) authHeader() string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(c.email+":"+c.token))
 }
 
+// HTTPError es una respuesta 4xx/5xx. Lleva el código para que quien llama pueda diagnosticar: en
+// Confluence una credencial vencida NO llega como 401 (ver confluence.go).
+type HTTPError struct {
+	Method, Path string
+	Status       int
+	Body         string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("%s %s -> HTTP %d: %s", e.Method, e.Path, e.Status, e.Body)
+}
+
 // do ejecuta una request contra la REST API y, si out != nil, decodifica el JSON.
 // A diferencia de Slack, Atlassian sí usa códigos HTTP: cualquier 4xx/5xx es error.
 func (c *Client) do(ctx context.Context, method, path string, body, out any) error {
@@ -68,7 +80,7 @@ func (c *Client) do(ctx context.Context, method, path string, body, out any) err
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
-		return fmt.Errorf("%s %s -> HTTP %d: %s", method, path, resp.StatusCode, strings.TrimSpace(string(b)))
+		return &HTTPError{Method: method, Path: path, Status: resp.StatusCode, Body: strings.TrimSpace(string(b))}
 	}
 
 	if out != nil {

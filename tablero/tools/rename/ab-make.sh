@@ -45,7 +45,7 @@ tareas-guard F=tablero/tasks/motai-v2/task.md|tareas -guard ../../tablero/tasks/
 LIST
 # Los que no dependen de git: el mismo target en los dos árboles. `trampas` imprime la ruta de su
 # documento, que es justo lo que se mudó: se lee con el nombre viejo.
-for t in "trampas" "trampas INDICE=1" "repos-test" "tablero-jev-test" "pulso DAYS=3"; do
+for t in "trampas" "trampas INDICE=1" "repos-test" "jev-test" "pulso DAYS=3"; do
   run "make $t (worktree)" "make -s $t | sed 's#data/traps/#data/trampas/#'"
 done
 # los hooks, con la entrada que les da Claude Code (una sesión inventada, para no gastar el aviso de ésta)

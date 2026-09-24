@@ -11,6 +11,7 @@
 //	pg events hogql --target T --query 'SELECT …'              una consulta HogQL: columnas y filas en JSON
 //	pg gemini models                                           los modelos que la llave puede usar hoy
 //	pg gemini ask --prompt '…' [--system '…']                  una pregunta, sin herramientas
+//	pg confluence spaces | pages <clave> | read <id> | search <texto>   la documentación de negocio
 //
 // `logs raw` existe para las herramientas que ya parsean la respuesta de Loki a su manera (el harness, en
 // TypeScript): conserva su parseo y pierden su cliente HTTP, que es lo que se
@@ -20,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"flag"
@@ -32,6 +34,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/atlassian"
 	"creditop/playground/connectors/events"
 	"creditop/playground/connectors/gemini"
 	"creditop/playground/connectors/logs"
@@ -69,6 +72,14 @@ func init() {
 			"pg gemini models", runGeminiModels},
 		{"gemini ask", "una pregunta a Gemini, sin herramientas: la respuesta en texto",
 			"pg gemini ask --prompt '…' [--system '…']", runGeminiAsk},
+		{"confluence spaces", "los espacios de Confluence (sin los personales)",
+			"pg confluence spaces", runConfluenceSpaces},
+		{"confluence pages", "las páginas de un espacio: id y título",
+			"pg confluence pages <clave>", runConfluencePages},
+		{"confluence read", "una página, como texto: encabezados, listas y tablas legibles",
+			"pg confluence read <id>", runConfluenceRead},
+		{"confluence search", "busca páginas por texto (CQL), hasta 40",
+			"pg confluence search <texto …>", runConfluenceSearch},
 	}
 }
 
@@ -109,8 +120,12 @@ func help(asJSON bool) int {
 	}
 	fmt.Println("pg — una consulta por ambiente (local · dev · qa · staging · prod), con la fuente que contestó.")
 	fmt.Println()
+	width := 0
 	for _, c := range commands {
-		fmt.Printf("  %-12s %s\n  %-12s %s\n\n", c.Name, c.Summary, "", c.Usage)
+		width = max(width, len(c.Name))
+	}
+	for _, c := range commands {
+		fmt.Printf("  %-*s %s\n  %-*s %s\n\n", width, c.Name, c.Summary, width, "", c.Usage)
 	}
 	return 0
 }
@@ -503,5 +518,93 @@ func runGeminiAsk(args []string) int {
 		return fail(1, "Gemini: %v", err)
 	}
 	fmt.Println(out)
+	return 0
+}
+
+// ── confluence ───────────────────────────────────────────────────────────────────────────────────
+
+// confluence arma el cliente de Atlassian: el de Jira, que es el mismo sitio y el mismo token.
+func confluence() (*atlassian.Client, int) {
+	c, err := atlassian.LoadConfig()
+	if err != nil {
+		return nil, fail(2, "%v", err)
+	}
+	return atlassian.NewFromConfig(c), 0
+}
+
+func runConfluenceSpaces(args []string) int {
+	cl, code := confluence()
+	if cl == nil {
+		return code
+	}
+	spaces, err := cl.Spaces(context.Background())
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	for _, s := range spaces {
+		fmt.Printf("%-12s %-16s %s\n", s.ID, s.Key, s.Name)
+	}
+	return 0
+}
+
+func runConfluencePages(args []string) int {
+	if len(args) == 0 {
+		return fail(2, "falta la clave del espacio: pg confluence pages <clave>")
+	}
+	cl, code := confluence()
+	if cl == nil {
+		return code
+	}
+	pages, err := cl.Pages(context.Background(), args[0])
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	for _, p := range pages {
+		fmt.Printf("%-12s %s\n", p.ID, p.Title)
+	}
+	fmt.Fprintf(os.Stderr, "\n— %d páginas en %s\n", len(pages), args[0])
+	return 0
+}
+
+func runConfluenceRead(args []string) int {
+	if len(args) == 0 {
+		return fail(2, "falta el id de la página: pg confluence read <id>")
+	}
+	cl, code := confluence()
+	if cl == nil {
+		return code
+	}
+	p, err := cl.ReadPage(context.Background(), args[0])
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	number, created := p.Version.Number.String(), p.Version.CreatedAt
+	if number == "" {
+		number = "?"
+	}
+	if created == "" {
+		created = "?"
+	}
+	fmt.Printf("# %s\n", p.Title)
+	fmt.Printf("<!-- id %s · v%s · %s -->\n\n", args[0], number, created)
+	fmt.Println(atlassian.StorageToText(p.Body.Storage.Value))
+	return 0
+}
+
+func runConfluenceSearch(args []string) int {
+	if len(args) == 0 {
+		return fail(2, "falta el texto: pg confluence search <texto>")
+	}
+	cl, code := confluence()
+	if cl == nil {
+		return code
+	}
+	hits, err := cl.Search(context.Background(), strings.Join(args, " "))
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	for _, h := range hits {
+		fmt.Printf("%-12s %-20s %s\n", h.Content.ID, h.Container.Title, h.Title)
+	}
 	return 0
 }

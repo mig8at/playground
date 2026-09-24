@@ -24,9 +24,9 @@ retiraron los tres: agregaban ruido sin haber encontrado un uso que lo justifica
 retirarlo (2026-09-19): en el banco sintético repetido dos veces acertó 16/16 en las tres señales, pero
 nunca se comparó contra una muestra real.
 
-Queda la **conexión**, para cuando aterrice un uso mejor: `tools/jev_transport.py` —el endpoint, el
-modelo, la lectura del token (`JEV_TOKEN` en `server/.env`) y un pedido acotado que no sigue
-redirecciones ni filtra el cuerpo o el token en un error—, con pruebas offline en `make tablero-jev-test`.
+Queda la **conexión**, para cuando aterrice un uso mejor: `connectors/jev` —el endpoint, el
+modelo, la lectura del token (`JEV_TOKEN` en `connectors/.env`) y un pedido acotado que no sigue
+redirecciones ni filtra el cuerpo o el token en un error—, con pruebas offline en `make jev-test`.
 El laboratorio, su banco de casos y las dos rutas del server se recuperan de git:
 `git show 7be60c4c:tablero/tools/jev.py`.
 

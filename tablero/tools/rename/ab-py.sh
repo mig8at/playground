@@ -44,6 +44,6 @@ run "jev stats" python3 tablero/tools/jev.py stats
 run "jev bench (preview)" python3 tablero/tools/jev.py bench
 run "ramas --json" "python3 tablero/tools/ramas.py --json --output $T/SIDE.json | sed 's#$T/[a-z]*.json#<OUT>#'"
 run "make repos-test (Makefile)" make -s repos-test
-run "make tablero-jev-test (Makefile)" make -s tablero-jev-test
+run "make jev-test (Makefile)" make -s jev-test
 run "huella de trazador importa del tablero" "python3 -c 'import sys; sys.argv=[\"x\"]; sys.path.insert(0,\"trazador/tools\"); import huella; print(huella.del_ref.__name__)'"
 exit $fail

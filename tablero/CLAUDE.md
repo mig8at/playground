@@ -369,8 +369,8 @@ el siguiente que lo busque no tiene por qué saber que está enterrado en una ta
 
 ⚠ **Jev ya no está en el tablero** (retirado el 2026-09-23, a pedido de Miguel): el **✦ Orientar** de
 la cabecera, el **✦** de Pendientes y el laboratorio `make tablero-jev` agregaban ruido sin un uso que
-lo justificara. Queda sólo la conexión con su API —`tools/jev_transport.py`, con pruebas offline en
-`make tablero-jev-test`— para cuando aterrice un uso mejor. No la vuelvas a cablear a la interfaz sin
+lo justificara. Queda sólo la conexión con su API —`connectors/jev`, con pruebas offline en
+`make jev-test`— para cuando aterrice un uso mejor. No la vuelvas a cablear a la interfaz sin
 ese uso decidido con Miguel.
 
 Al terminar, agregá el bloque del día y corregí en el documento lo que dejó de ser cierto —el plan, el

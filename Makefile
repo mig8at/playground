@@ -256,7 +256,7 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se retiró el 2026-09-23:
 # generaba el snapshot de la consola de ramas que sólo leía la vista del árbol. Y `entidades`, con
 # workers, el 2026-09-24.)
-.PHONY: tablero-jev-test flow-context flow-context-test
+.PHONY: jev-test flow-context flow-context-test
 
 # Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
 # localStorage, SQL ni producción: prepara contexto breve para que un LLM elija una regla antes de
@@ -267,8 +267,8 @@ flow-context: ## @expl Flow para LLM: map | route "pregunta general" | brief <te
 flow-context-test: ## @expl pruebas offline del mapa compacto de Flow, ruteo y guardas de datos de caso
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s flow/tools -p test_flow_context.py
 
-tablero-jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterrice uno (tools/jev_transport.py): pruebas offline, sin red
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tablero/tools -p test_jev_transport.py
+jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterrice uno (connectors/jev): pruebas offline, sin red
+	@go test -count=1 ./connectors/jev
 
 # El código del tablero se nombra en inglés (decisión de Miguel del 2026-09-23): identificadores,
 # archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de
@@ -463,8 +463,8 @@ trazador-posthog: ## @har ¿qué VIO el cliente en el navegador? Sin UREQ = sond
 # está en Confluence. Solo lectura: no hay verbo que escriba.
 # ⚠ Nada de ahí entra a canon sin pasar por el código: el corpus describe lo que corre en `main`, y
 # un PRD describe lo que se quiso. La regla de admisión está en las `skills/` del repo de canon.
-confluence: ## @har el POR QUÉ del negocio, que el código no tiene. Sin CMD muestra su ayuda. CMD='buscar "cupo rotativo"' | 'espacios' | 'paginas Creditop' | 'leer <id>'
-	@python3 tools/confluence.py $(CMD)
+confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lectura). Sin CMD muestra su ayuda. CMD='search cupo rotativo' | 'spaces' | 'pages Creditop' | 'read <id>'
+	@$(if $(CMD),bin/pg confluence $(CMD),bin/pg help | grep -A1 confluence)
 
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
