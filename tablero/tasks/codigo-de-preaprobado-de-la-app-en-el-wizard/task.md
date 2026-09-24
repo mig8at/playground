@@ -309,8 +309,9 @@ servicio real y lo imprime con el enlace a la pantalla:
 
 **Los códigos guardados para QA:** [Códigos de preaprobado](https://claude.ai/artifact/1GXiuTAyaMTUGYgwC3ikDN)
 (archivo en `artifacts/`, variante `canje-en-qa`) — 10 por cada uno de los 13 comercios de Colombia con
-asesores en `qa`, con el enlace a la pantalla de canje de su sucursal; QA marca cuál ya usó y lo ve todo
-el equipo (estado en el almacén `db` de la página, colección `codes`). Salen del lote:
+asesores en `qa`, se elige el comercio, sale uno disponible al azar y **al copiarlo queda tomado** —no le
+sale a nadie más—, con el enlace a la pantalla de canje de su sucursal (estado en el almacén `db` de la
+página, colección `codes`; si dos lo sacan a la vez, el segundo recibe otro). Salen del lote:
 
     make harness-codigo-qa LOTE=10        # → harness/.runs/codigos-qa.json (130 códigos, 2026-09-24)
 

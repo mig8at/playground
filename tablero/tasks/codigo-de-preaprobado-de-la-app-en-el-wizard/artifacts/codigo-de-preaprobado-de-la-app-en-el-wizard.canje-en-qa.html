@@ -1,13 +1,13 @@
 <title>Códigos de preaprobado</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
 <style>
   :root {
     --ground:#F1F3F5; --surface:#FFFFFF; --sunken:#F7F8FA;
     --ink:#14181D; --ink-soft:#5A646E; --ink-faint:#737C85;
     --line:#DCE1E6; --line-soft:#E9EDF1;
-    --accent:#0E5A62; --accent-ink:#0B474D; --accent-bg:#E4F0F1;
+    --accent:#0E5A62; --accent-ink:#0B474D; --accent-bg:#E4F0F1; --on-accent:#FFFFFF;
     --data:#8F4E08; --data-bg:#FDF6EC;
-    --ok:#15803D; --ok-bg:#EAF6EE; --off:#6B7178; --off-bg:#EEF0F2; --bad:#B42318; --bad-bg:#FEF3F2;
+    --ok:#15803D; --ok-bg:#EAF6EE; --bad:#B42318; --bad-bg:#FEF3F2;
     --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
     --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
   }
@@ -17,9 +17,9 @@
       --ground:#111417; --surface:#181C20; --sunken:#1E2328;
       --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#86909A;
       --line:#2A3138; --line-soft:#232930;
-      --accent:#4FB3BC; --accent-ink:#7FD0D7; --accent-bg:#16292C;
+      --accent:#4FB3BC; --accent-ink:#7FD0D7; --accent-bg:#16292C; --on-accent:#0B1A1C;
       --data:#E0A458; --data-bg:#2A2118;
-      --ok:#4ADE80; --ok-bg:#15261B; --off:#9AA3AB; --off-bg:#23282D; --bad:#F87171; --bad-bg:#2A1A1A;
+      --ok:#4ADE80; --ok-bg:#15261B; --bad:#F87171; --bad-bg:#2A1A1A;
     }
   }
   :root[data-theme="dark"] {
@@ -27,273 +27,205 @@
     --ground:#111417; --surface:#181C20; --sunken:#1E2328;
     --ink:#E8ECEF; --ink-soft:#9AA5AE; --ink-faint:#86909A;
     --line:#2A3138; --line-soft:#232930;
-    --accent:#4FB3BC; --accent-ink:#7FD0D7; --accent-bg:#16292C;
+    --accent:#4FB3BC; --accent-ink:#7FD0D7; --accent-bg:#16292C; --on-accent:#0B1A1C;
     --data:#E0A458; --data-bg:#2A2118;
-    --ok:#4ADE80; --ok-bg:#15261B; --off:#9AA3AB; --off-bg:#23282D; --bad:#F87171; --bad-bg:#2A1A1A;
+    --ok:#4ADE80; --ok-bg:#15261B; --bad:#F87171; --bad-bg:#2A1A1A;
   }
 
   * { box-sizing:border-box; }
   body { background:var(--ground); color:var(--ink); font-family:var(--sans); line-height:1.5;
-         padding-block:28px; padding-inline:16px; margin:0; }
-  .wrap { max-width:1040px; margin:0 auto; display:flex; flex-direction:column; gap:18px; }
+         padding-block:32px; padding-inline:16px; margin:0; }
+  .wrap { max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:18px; }
 
-  header h1 { font-size:1.55rem; font-weight:600; margin:0 0 4px; letter-spacing:-.015em; text-wrap:balance; }
-  header p { margin:0; color:var(--ink-soft); max-width:68ch; font-size:.93rem; }
+  header h1 { font-size:1.5rem; font-weight:600; margin:0 0 4px; letter-spacing:-.015em; }
+  header p { margin:0; color:var(--ink-soft); font-size:.92rem; }
   .eyebrow { font-size:.7rem; letter-spacing:.11em; text-transform:uppercase; color:var(--accent);
              font-weight:600; margin:0 0 7px; }
 
-  .resumen { display:flex; flex-wrap:wrap; gap:10px 22px; align-items:baseline; font-size:.86rem; color:var(--ink-soft); }
-  .resumen b { font-family:var(--mono); font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; font-size:1rem; }
-  .vence { font-family:var(--mono); font-size:.8rem; color:var(--data); background:var(--data-bg);
-           padding:2px 8px; border-radius:5px; }
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px;
+          display:flex; flex-direction:column; gap:16px; }
+  label { font-size:.82rem; font-weight:500; display:block; margin-bottom:6px; }
+  select { font-family:var(--sans); font-size:.95rem; color:var(--ink); background:var(--sunken);
+           border:1px solid var(--line); border-radius:8px; padding:10px 12px; width:100%; }
+  select:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .sorteo { border-top:1px solid var(--line-soft); padding-top:16px; display:flex; flex-direction:column; gap:12px; align-items:center; text-align:center; }
+  .codigo { font-family:var(--mono); font-weight:600; font-size:3.2rem; letter-spacing:.14em; line-height:1.1;
+            font-variant-numeric:tabular-nums; margin:4px 0 0; }
+  .codigo.tomado { color:var(--ink-faint); }
+  .det { font-size:.86rem; color:var(--ink-soft); margin:0; }
+  .det strong { color:var(--ink); font-weight:500; }
+  .fila-botones { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; width:100%; }
+  button { font-family:var(--sans); font-weight:500; cursor:pointer; border-radius:8px; border:1px solid transparent; }
+  .copiar { background:var(--accent); color:var(--on-accent); font-size:1rem; padding:11px 26px; min-width:12rem; }
+  .copiar:hover { background:var(--accent-ink); }
+  .copiar:disabled { opacity:.55; cursor:not-allowed; }
+  .otro { background:transparent; border-color:var(--line); color:var(--ink-soft); font-size:.86rem; padding:10px 16px; }
+  .otro:hover { border-color:var(--accent); color:var(--accent); }
+  .estado { font-size:.84rem; min-height:1.3em; margin:0; }
+  .estado.ok { color:var(--ok); } .estado.bad { color:var(--bad); }
+  .ir { font-size:.9rem; font-weight:500; color:var(--accent); text-decoration:none; border:1px solid var(--accent);
+        border-radius:8px; padding:9px 16px; }
+  .ir:hover { background:var(--accent-bg); }
+  .quedan { font-size:.78rem; color:var(--ink-faint); font-variant-numeric:tabular-nums; margin:0; }
+  .vacio { color:var(--ink-soft); font-size:.9rem; margin:0; }
 
   .note { border-left:3px solid var(--data); background:var(--data-bg); padding:10px 13px;
           border-radius:0 7px 7px 0; font-size:.83rem; }
-  .note code { font-family:var(--mono); font-size:.92em; }
   .note.bad { border-left-color:var(--bad); background:var(--bad-bg); }
-
-  .filtros { display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; }
-  select, input[type=search] { font-family:var(--sans); font-size:.86rem; color:var(--ink); background:var(--surface);
-    border:1px solid var(--line); border-radius:7px; padding:7px 10px; }
-  input[type=search] { font-family:var(--mono); width:9.5rem; }
-  .chk { display:inline-flex; gap:7px; align-items:center; font-size:.85rem; color:var(--ink-soft); cursor:pointer; }
-  select:focus-visible, input:focus-visible, button:focus-visible, a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-
-  .comercio { background:var(--surface); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
-  .comercio-h { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center; justify-content:space-between;
-                padding:12px 16px; border-bottom:1px solid var(--line); background:var(--sunken); }
-  .comercio-h h2 { margin:0; font-size:1rem; font-weight:600; }
-  .comercio-h .suc { font-size:.8rem; color:var(--ink-soft); }
-  .comercio-h .suc code { font-family:var(--mono); color:var(--ink); }
-  .ir { font-size:.82rem; font-weight:500; color:var(--accent); text-decoration:none; border:1px solid var(--accent);
-        border-radius:7px; padding:5px 11px; white-space:nowrap; }
-  .ir:hover { background:var(--accent-bg); }
-
-  .filas { list-style:none; margin:0; padding:0; }
-  .fila { display:grid; grid-template-columns:5.2rem minmax(0,1fr) auto; gap:4px 14px; align-items:center;
-          padding:10px 16px; border-bottom:1px solid var(--line-soft); }
-  .fila:last-child { border-bottom:none; }
-  .codigo { font-family:var(--mono); font-size:1.28rem; font-weight:600; letter-spacing:.08em;
-            font-variant-numeric:tabular-nums; background:none; border:none; color:var(--ink); padding:0;
-            text-align:left; cursor:copy; }
-  .fila.usado .codigo, .fila.vencido .codigo { color:var(--ink-faint); text-decoration:line-through; }
-  .det { font-size:.83rem; color:var(--ink-soft); min-width:0; }
-  .det strong { color:var(--ink); font-weight:500; }
-  .acc { display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap; }
-  .pill { font-size:.72rem; font-weight:600; border-radius:999px; padding:2px 9px; white-space:nowrap; }
-  .pill.libre { background:var(--ok-bg); color:var(--ok); }
-  .pill.usado { background:var(--off-bg); color:var(--off); }
-  .pill.vencido { background:var(--bad-bg); color:var(--bad); }
-  .btn { font-family:var(--sans); font-size:.78rem; font-weight:500; cursor:pointer; border-radius:7px;
-         border:1px solid var(--line); background:transparent; color:var(--ink-soft); padding:5px 10px; }
-  .btn:hover { border-color:var(--accent); color:var(--accent); }
-  .btn:disabled { opacity:.5; cursor:not-allowed; }
-  @media (max-width:560px) {
-    .fila { grid-template-columns:minmax(0,1fr) auto; }
-    .det { grid-column:1 / -1; grid-row:2; }
-  }
-
-  .vacio { padding:22px 16px; color:var(--ink-soft); font-size:.88rem; }
-  .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(18px + env(safe-area-inset-bottom, 0px));
-           background:var(--ink); color:var(--surface); font-size:.84rem; padding:8px 14px; border-radius:8px; }
   details { font-size:.84rem; color:var(--ink-soft); }
   summary { cursor:pointer; color:var(--accent); font-weight:500; }
-  details li, details p { max-width:74ch; }
-  details code { font-family:var(--mono); font-size:.92em; color:var(--data); }
+  details li { margin-bottom:6px; }
   footer { color:var(--ink-faint); font-size:.76rem; border-top:1px solid var(--line); padding-top:12px; }
-  @media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
 </style>
 
 <div class="wrap">
   <header>
     <p class="eyebrow">QA · código de la app</p>
     <h1>Códigos de preaprobado</h1>
-    <p>Códigos reales, emitidos por el mismo servicio que usa la app, para probar en QA la opción
-       «Usuario app» del asesor. Elegí uno disponible, abrí la pantalla de su comercio, ingresalo y marcalo
-       como usado: cada código sirve una sola vez, y lo que marques lo ve todo el equipo.</p>
+    <p>Elegí el comercio y copiá el código: al copiarlo queda tomado y no le sale a nadie más. Después
+       abrí la pantalla de canje del comercio e ingresalo en «Usuario app».</p>
   </header>
-
-  <div class="resumen" id="resumen" aria-live="polite">
-    <span>Cargando la lista…</span>
-  </div>
 
   <div class="note" id="aviso" hidden></div>
 
-  <div class="filtros">
-    <select id="fComercio" aria-label="Comercio"><option value="">Todos los comercios</option></select>
-    <input type="search" id="fCodigo" placeholder="buscar código" inputmode="numeric" aria-label="Buscar código">
-    <label class="chk"><input type="checkbox" id="fLibres" checked> Sólo disponibles</label>
-  </div>
+  <section class="card" aria-labelledby="t-com">
+    <div>
+      <label id="t-com" for="comercio">Comercio</label>
+      <select id="comercio" disabled><option>Cargando…</option></select>
+    </div>
 
-  <div id="lista"></div>
+    <div class="sorteo" id="sorteo" hidden>
+      <p class="codigo" id="codigo" aria-live="polite"></p>
+      <p class="det" id="det"></p>
+      <div class="fila-botones">
+        <button type="button" class="copiar" id="copiar">Copiar código</button>
+        <button type="button" class="otro" id="otro">Otro código</button>
+      </div>
+      <p class="estado" id="estado" role="status"></p>
+      <a class="ir" id="ir" target="_blank" rel="noopener">Abrir la pantalla de canje ↗</a>
+      <p class="quedan" id="quedan"></p>
+    </div>
+    <p class="vacio" id="vacio" hidden></p>
+  </section>
 
   <details>
     <summary>Si el canje no funciona</summary>
     <ul>
-      <li><strong>La pantalla te lleva a otro comercio:</strong> el asesor sólo entra a su propia sucursal.
-          Usá un código del comercio donde está tu asesor, o pedí que lo asignen a esa sucursal.</li>
-      <li><strong>«Ese código no está disponible…»:</strong> ya se usó, venció, o es de otro comercio (un
-          código sólo sirve en el comercio donde se generó). Marcalo como usado y probá otro. Si
-          <em>todos</em> dan ese mensaje, el problema es de configuración del ambiente, no de los códigos.</li>
-      <li><strong>No aparece «Usuario app»:</strong> la opción existe sólo en comercios de Colombia; todos los
-          de esta lista lo son.</li>
-      <li><strong>El listado no queda con una sola entidad:</strong> anotá el código y la entidad: la de la
-          fila es la única que debería quedar.</li>
+      <li><strong>La pantalla te lleva a otro comercio:</strong> el asesor sólo entra a su propia sucursal. Elegí el comercio donde está tu asesor.</li>
+      <li><strong>«Ese código no está disponible…»:</strong> ya se usó, venció o es de otro comercio. Copiá otro. Si <em>todos</em> dan ese mensaje, el problema es de configuración del ambiente.</li>
+      <li><strong>El listado no queda con una sola entidad:</strong> la entidad que aparece bajo el código es la única que debería quedar. Anotá el código y reportalo.</li>
     </ul>
   </details>
 
-  <footer id="pie">
-    Cada canje crea una solicitud en la base de QA, a nombre de un cliente de prueba. Los códigos vencen el
-    último día del mes y se regeneran al empezar el siguiente.
-  </footer>
+  <footer id="pie">Cada canje crea una solicitud en la base de QA a nombre de un cliente de prueba. Los códigos vencen el último día del mes y se regeneran al empezar el siguiente.</footer>
 </div>
-<div class="toast" id="toast" role="status" hidden></div>
 
 <script>
 (function () {
   const $ = (id) => document.getElementById(id);
   const FRONT = "https://originaciones-qa.dev.creditop.com";
-  let codigos = [];          // documentos de `codes`, tal como llegan
-  let db = null, soloLectura = false;
+  let db = null, codigos = [], actual = null, mio = null;   // `mio`: el id del código que tomó ESTA vista
 
-  function hoy() { const d = new Date(); return d.toISOString().slice(0, 10); }
-  function estado(c) {
-    if (c.used) return "usado";
-    if (c.expired_at && c.expired_at < hoy()) return "vencido";
-    return "libre";
-  }
-  const ETIQUETA = { libre: "disponible", usado: "usado", vencido: "vencido" };
+  const hoy = () => new Date().toISOString().slice(0, 10);
+  const disponible = (c) => !c.used && (!c.expired_at || c.expired_at >= hoy());
+  const libres = (alliedId) => codigos.filter((c) => String(c.allied_id) === String(alliedId) && disponible(c));
 
-  let toastT = 0;
-  function avisar(msg) {
-    const t = $("toast"); t.textContent = msg; t.hidden = false;
-    clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 2200);
-  }
+  function aviso(msg, grave) { const a = $("aviso"); a.textContent = msg; a.className = "note" + (grave ? " bad" : ""); a.hidden = false; }
+  function estado(msg, tipo) { const e = $("estado"); e.textContent = msg; e.className = "estado " + (tipo || ""); }
 
-  function pintarResumen() {
-    const n = { libre: 0, usado: 0, vencido: 0 };
-    codigos.forEach((c) => n[estado(c)]++);
-    const comercios = new Set(codigos.map((c) => c.allied_id)).size;
-    const vence = codigos.map((c) => c.expired_at).filter(Boolean).sort()[0];
-    const r = $("resumen");
-    r.replaceChildren();
-    const item = (num, txt) => { const s = document.createElement("span"); const b = document.createElement("b");
-      b.textContent = num; s.append(b, " " + txt); r.appendChild(s); };
-    item(n.libre, "disponibles");
-    item(n.usado, "usados");
-    if (n.vencido) item(n.vencido, "vencidos");
-    item(comercios, "comercios");
-    if (vence) { const v = document.createElement("span"); v.className = "vence"; v.textContent = "vencen el " + vence; r.appendChild(v); }
-  }
-
-  function pintarFiltroComercios() {
-    const sel = $("fComercio"), actual = sel.value;
-    const vistos = new Map();
-    codigos.forEach((c) => { if (!vistos.has(c.allied_id)) vistos.set(c.allied_id, c.comercio); });
-    const orden = [...vistos.entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
-    sel.replaceChildren(new Option("Todos los comercios", ""));
-    orden.forEach(([id, nombre]) => sel.appendChild(new Option(nombre, String(id))));
-    sel.value = actual;
-  }
-
-  function pintarLista() {
-    const fC = $("fComercio").value, fQ = $("fCodigo").value.trim().toUpperCase(), libres = $("fLibres").checked;
-    const vis = codigos.filter((c) => (!fC || String(c.allied_id) === fC)
-      && (!fQ || String(c.code).includes(fQ)) && (!libres || estado(c) === "libre"));
-    const grupos = new Map();
-    vis.forEach((c) => { if (!grupos.has(c.allied_id)) grupos.set(c.allied_id, []); grupos.get(c.allied_id).push(c); });
-    const cont = $("lista");
-    cont.replaceChildren();
-    if (!vis.length) {
-      const d = document.createElement("div"); d.className = "comercio";
-      const p = document.createElement("div"); p.className = "vacio";
-      p.textContent = codigos.length ? "Ningún código coincide con el filtro." : "Todavía no hay códigos cargados.";
-      d.appendChild(p); cont.appendChild(d); return;
-    }
-    [...grupos.values()].sort((a, b) => a[0].comercio.localeCompare(b[0].comercio, "es")).forEach((lista) => {
-      const c0 = lista[0];
-      const sec = document.createElement("section"); sec.className = "comercio";
-      const h = document.createElement("div"); h.className = "comercio-h";
-      const izq = document.createElement("div");
-      const h2 = document.createElement("h2"); h2.textContent = c0.comercio;
-      const suc = document.createElement("div"); suc.className = "suc";
-      suc.append("Sucursal " + c0.sucursal + " · ");
-      const code = document.createElement("code"); code.textContent = c0.hash; suc.appendChild(code);
-      izq.append(h2, suc);
-      const ir = document.createElement("a"); ir.className = "ir"; ir.target = "_blank"; ir.rel = "noopener";
-      ir.href = FRONT + "/merchant/" + c0.hash + "/codigo"; ir.textContent = "Abrir la pantalla de canje ↗";
-      h.append(izq, ir);
-      const ul = document.createElement("ul"); ul.className = "filas";
-      lista.sort((a, b) => (estado(a) === "libre" ? 0 : 1) - (estado(b) === "libre" ? 0 : 1) || String(a.code).localeCompare(String(b.code)))
-        .forEach((c) => ul.appendChild(fila(c)));
-      sec.append(h, ul); cont.appendChild(sec);
+  function pintarComercios() {
+    const sel = $("comercio"), elegido = sel.value;
+    const porId = new Map();
+    codigos.forEach((c) => { if (!porId.has(c.allied_id)) porId.set(c.allied_id, c.comercio); });
+    const orden = [...porId.entries()].sort((a, b) => a[1].localeCompare(b[1], "es"));
+    sel.replaceChildren(new Option("Elegí un comercio", ""));
+    orden.forEach(([id, nombre]) => {
+      const n = libres(id).length;
+      const o = new Option(nombre + " · " + n + (n === 1 ? " disponible" : " disponibles"), String(id));
+      if (!n) o.disabled = true;
+      sel.appendChild(o);
     });
+    sel.disabled = false;
+    if (elegido) sel.value = elegido;
   }
 
-  function fila(c) {
-    const st = estado(c);
-    const li = document.createElement("li"); li.className = "fila " + st;
-    const cod = document.createElement("button"); cod.type = "button"; cod.className = "codigo";
-    cod.textContent = c.code; cod.title = "Copiar el código";
-    cod.addEventListener("click", () => copiar(String(c.code)));
-    const det = document.createElement("div"); det.className = "det";
-    const ent = document.createElement("strong"); ent.textContent = c.lender;
-    det.append(ent, " · cliente " + c.user_id);
-    if (c.used && c.used_at) det.append(" · usado el " + String(c.used_at).slice(0, 10));
-    const acc = document.createElement("div"); acc.className = "acc";
-    const pill = document.createElement("span"); pill.className = "pill " + st; pill.textContent = ETIQUETA[st];
-    const b = document.createElement("button"); b.type = "button"; b.className = "btn";
-    b.textContent = c.used ? "Volver a disponible" : "Marcar usado";
-    b.disabled = soloLectura || !db || st === "vencido";
-    b.addEventListener("click", () => marcar(c, !c.used, b));
-    acc.append(pill, b);
-    li.append(cod, det, acc);
-    return li;
-  }
-
-  async function copiar(txt) {
-    try { await navigator.clipboard.writeText(txt); avisar("Código " + txt + " copiado"); }
-    catch (e) { avisar("No pude copiar: el código es " + txt); }
-  }
-
-  async function marcar(c, usado, boton) {
-    boton.disabled = true;
-    try {
-      await db.doc("codes/" + c.id).update({ used: usado, used_at: usado ? new Date().toISOString() : null });
-      avisar(usado ? "Código " + c.code + " marcado como usado" : "Código " + c.code + " disponible otra vez");
-    } catch (e) {
-      if (e && e.code === "invalid_argument") {
-        soloLectura = true;
-        mostrarAviso("Podés ver la lista pero no marcar códigos: pedile a quien la comparte acceso para interactuar.", false);
-        pintarLista();
-      } else {
-        avisar("No se guardó el cambio. Probá de nuevo en un momento.");
-        boton.disabled = false;
-      }
+  // Sortea uno al azar entre los disponibles del comercio, evitando repetir el que ya se muestra.
+  function sortear() {
+    const id = $("comercio").value;
+    estado("");
+    if (!id) { $("sorteo").hidden = true; $("vacio").hidden = true; actual = null; return; }
+    let pool = libres(id);
+    mio = null;
+    if (pool.length > 1 && actual) pool = pool.filter((c) => c.id !== actual.id);
+    if (!pool.length) {
+      actual = null; $("sorteo").hidden = true;
+      $("vacio").textContent = "No quedan códigos disponibles para este comercio. Pedí que se generen más.";
+      $("vacio").hidden = false; return;
     }
+    actual = pool[Math.floor(Math.random() * pool.length)];
+    pintarActual(false);
   }
 
-  function mostrarAviso(msg, grave) {
-    const a = $("aviso"); a.textContent = msg; a.className = "note" + (grave ? " bad" : ""); a.hidden = false;
+  function pintarActual(tomado) {
+    const c = actual;
+    $("vacio").hidden = true; $("sorteo").hidden = false;
+    $("codigo").textContent = c.code;
+    $("codigo").className = "codigo" + (tomado ? " tomado" : "");
+    $("det").replaceChildren();
+    const ent = document.createElement("strong"); ent.textContent = c.lender;
+    $("det").append("Entidad ", ent, " · sucursal " + c.sucursal + " · vence el " + c.expired_at);
+    $("ir").href = FRONT + "/merchant/" + c.hash + "/codigo";
+    $("copiar").disabled = !db;
+    const n = libres(c.allied_id).length;
+    $("quedan").textContent = n + (n === 1 ? " código disponible" : " códigos disponibles") + " en este comercio";
   }
 
-  ["fComercio", "fLibres"].forEach((id) => $(id).addEventListener("change", pintarLista));
-  $("fCodigo").addEventListener("input", pintarLista);
+  // Copiar = tomarlo. Antes de marcarlo se relee: si otra persona lo tomó en el medio, se sortea otro.
+  async function copiar() {
+    const c = actual; if (!c || !db) return;
+    $("copiar").disabled = true;
+    try {
+      const snap = await db.doc("codes/" + c.id).get();
+      const d = snap.exists ? snap.data() : null;
+      if (!d || d.used) { estado("Ese código lo acaba de tomar otra persona: te muestro otro.", "bad"); sortear(); return; }
+      mio = c.id;
+      await db.doc("codes/" + c.id).update({ used: true, used_at: new Date().toISOString() });
+    } catch (e) {
+      if (e && e.code === "invalid_argument") aviso("Podés ver los códigos pero no tomarlos: pedí acceso para interactuar con esta página.", false);
+      else estado("No pude guardarlo como usado. Probá de nuevo.", "bad");
+      mio = null;
+      $("copiar").disabled = false; return;
+    }
+    try { await navigator.clipboard.writeText(String(c.code)); estado("Copiado ✓ — el " + c.code + " ya es tuyo. Ingresalo en la pantalla de canje.", "ok"); }
+    catch (e) { estado("Tomado: el " + c.code + " ya es tuyo. No pude copiarlo; escribilo a mano.", "ok"); }
+    pintarActual(true);
+    $("copiar").disabled = true;
+  }
+
+  $("comercio").addEventListener("change", sortear);
+  $("otro").addEventListener("click", sortear);
+  $("copiar").addEventListener("click", copiar);
 
   (async function iniciar() {
     db = await (window.claude && window.claude.use ? window.claude.use("db") : Promise.resolve(null));
     if (!db) {
-      $("resumen").replaceChildren("La lista no está disponible en esta vista.");
-      mostrarAviso("Los códigos se guardan en la página publicada: abrila desde su link de claude.ai, con tu cuenta de la organización.", true);
-      pintarLista();
+      $("comercio").replaceChildren(new Option("No disponible en esta vista", ""));
+      aviso("Los códigos se guardan en la página publicada: abrila desde su link de claude.ai, con tu cuenta de la organización.", true);
       return;
     }
     db.collection("codes").onSnapshot((snap) => {
       codigos = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-      pintarResumen(); pintarFiltroComercios(); pintarLista();
-    }, () => {
-      mostrarAviso("Se cortó la conexión con la lista. Recargá la página.", true);
-    });
+      pintarComercios();
+      if (actual) {
+        const fresco = codigos.find((c) => c.id === actual.id);
+        if (fresco) {
+          actual = fresco;
+          if (fresco.used && mio !== fresco.id) { estado("Ese código lo tomó otra persona: te muestro otro.", "bad"); sortear(); }
+          else { pintarActual(mio === fresco.id); if (mio === fresco.id) $("copiar").disabled = true; }
+        }
+      }
+    }, () => aviso("Se cortó la conexión con los códigos. Recargá la página.", true));
   })();
 })();
 </script>
