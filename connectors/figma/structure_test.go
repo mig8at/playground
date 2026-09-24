@@ -1,6 +1,7 @@
 package figma
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -189,5 +190,100 @@ func TestStackedLabelsMergeAndRowsContinue(t *testing.T) {
 	s := Read(root, nil, nil)
 	if len(s.Lanes) != 1 || s.Lanes[0].Label != "Salvar mejores · Segunda oportunidad" || len(s.Lanes[0].Screens) != 3 {
 		t.Errorf("un carril con el rótulo de dos renglones y las tres pantallas: %+v", s.Lanes)
+	}
+}
+
+// Lo que separa un rótulo de una casilla de decisión del mismo tamaño es la FLECHA: a la casilla le llega
+// una. Casos de Credifamilia: «Pensionado» (50 px, sin flechas) es un carril; «Reenviar nuevamente»
+// (35 px, con flecha) y «Si» son decisiones; «Fin» es un marcador; y una nota de 36 px no es un carril.
+func TestArrowsSeparateChoicesFromLabels(t *testing.T) {
+	root := fullNode{ID: "0:1", Type: "SECTION", AbsoluteBoundingBox: &box{0, 0, 20000, 5000}, Children: []fullNode{
+		frame("P", "-", 0, 700, 1485, 183, text("Pt", "x", "Pensionado", 50, 700)),
+		frame("R", "No", 3000, 300, 424, 88, text("Rt", "x", "Reenviar nuevamente", 35, 300)),
+		frame("S", "si", 3600, 300, 88, 88, text("St", "x", "Si", 35, 300)),
+		frame("F", "fin", 4000, 300, 471, 127, text("Ft", "x", "Fin", 50, 300)),
+		frame("N", "tag", 6000, 700, 590, 91, text("Nt", "x", "Permiso de permanencia", 36, 700)),
+		mobile("A", "Frame", 0, 1000, text("At", "x", "Completa tu solicitud", 20, 1100)),
+		mobile("B", "Frame", 6000, 1000, text("Bt", "x", "Datos del empleo", 20, 1100)),
+		frame("V", "validación", 9000, 1000, 430, 932, text("Vt", "x", "VALIDACIÓN DE IDENTIDAD", 48, 1100)),
+		{ID: "c1", Type: "CONNECTOR", ConnectorStart: &endpoint{EndpointNodeID: "A"}, ConnectorEnd: &endpoint{EndpointNodeID: "R"}},
+	}}
+	s := Read(root, nil, nil)
+	choices := map[string]bool{}
+	for _, c := range s.Choices {
+		choices[c.ID] = true
+	}
+	if !choices["R"] || !choices["S"] || !choices["F"] || choices["P"] || choices["N"] {
+		t.Errorf("decisiones: %v", choices)
+	}
+	laneOf := map[string]string{}
+	for _, l := range s.Lanes {
+		for _, sc := range l.Screens {
+			laneOf[sc.ID] = l.Label
+		}
+	}
+	if laneOf["A"] != "Pensionado" {
+		t.Errorf("«Pensionado» de 50 px rotula su carril: %v", laneOf)
+	}
+	if laneOf["B"] == "Permiso de permanencia" {
+		t.Error("una nota de 36 px sobre una pantalla no es un carril")
+	}
+	if _, ok := laneOf["V"]; !ok {
+		t.Error("un marco con forma de pantalla y un título grande es una pantalla, no un rótulo")
+	}
+}
+
+// Credifamilia: las franjas van DEBAJO del recorrido, cada una bajo su tramo; y una rama por perfil con
+// su etiqueta encima gana sobre la franja de abajo.
+func TestBannersBelowLabelTheirStretch(t *testing.T) {
+	root := fullNode{ID: "0:1", Type: "SECTION", AbsoluteBoundingBox: &box{-10000, -5000, 30000, 12000}, Children: []fullNode{
+		mobile("A", "Frame", -9000, 0, text("At", "x", "Ingresa el monto", 20, 100)),
+		mobile("B", "Frame", -8000, 0, text("Bt", "x", "Ingresa el celular", 20, 100)),
+		mobile("C", "Frame", 0, 0, text("Ct", "x", "Validación de identidad", 20, 100)),
+		frame("E", "-", 2000, -400, 1500, 150, text("Et", "x", "Empleado", 50, -400)),
+		mobile("D", "Frame", 2000, -200, text("Dt", "x", "Datos del empleo", 20, -100)),
+		frame("L1", "asesor", -9500, 2300, 4800, 340, text("L1t", "x", "Asesor", 199, 2300)),
+		frame("L2", "usuario", -500, 4700, 10000, 340, text("L2t", "x", "Usuario", 199, 4700)),
+		frame("N", "info", -9500, -2000, 1300, 580, text("Nt", "x", "Una vez el asesor finaliza el proceso con el cliente, sigue el usuario", 50, -2000)),
+	}}
+	s := Read(root, nil, nil)
+	laneOf := map[string]string{}
+	for _, l := range s.Lanes {
+		for _, sc := range l.Screens {
+			laneOf[sc.ID] = l.Label
+		}
+	}
+	if laneOf["A"] != "Asesor" || laneOf["B"] != "Asesor" || laneOf["C"] != "Usuario" {
+		t.Errorf("las franjas de abajo rotulan su tramo: %v", laneOf)
+	}
+	if laneOf["D"] != "Empleado" {
+		t.Errorf("la etiqueta de arriba gana sobre la franja de abajo: %v", laneOf)
+	}
+	for _, l := range s.Lanes {
+		if strings.HasPrefix(l.Label, "Una vez") {
+			t.Error("una nota de 70 caracteres no es un rótulo")
+		}
+	}
+}
+
+// En `flujo-ecommerce` la primera fila se rotula con un bloque a su IZQUIERDA y la segunda con uno
+// ENCIMA, que así también queda debajo de la primera. Un rótulo que ya rotula desde arriba no rotula
+// desde abajo: la primera fila sigue con el de su izquierda.
+func TestALabelAboveItsRowDoesNotLabelTheRowAbove(t *testing.T) {
+	root := fullNode{ID: "0:1", Type: "SECTION", AbsoluteBoundingBox: &box{-1000, -1000, 12000, 8000}, Children: []fullNode{
+		frame("L1", "no paga", -1600, 300, 1464, 150, text("L1t", "x", "No paga cuota inicial", 60, 300)),
+		mobile("A", "Frame", 0, 0, text("At", "x", "Ingresa el monto", 20, 100)),
+		mobile("B", "Frame", 1000, 0, text("Bt", "x", "Ingresa el celular", 20, 100)),
+		frame("L2", "debe pagar", 0, 2200, 1464, 150, text("L2t", "x", "Debe pagar cuota inicial", 60, 2200)),
+		mobile("C", "Frame", 0, 2500, text("Ct", "x", "Paga la cuota", 20, 2600)),
+	}}
+	laneOf := map[string]string{}
+	for _, l := range Read(root, nil, nil).Lanes {
+		for _, sc := range l.Screens {
+			laneOf[sc.ID] = l.Label
+		}
+	}
+	if laneOf["A"] != "No paga cuota inicial" || laneOf["B"] != "No paga cuota inicial" || laneOf["C"] != "Debe pagar cuota inicial" {
+		t.Errorf("cada fila con su rótulo: %v", laneOf)
 	}
 }

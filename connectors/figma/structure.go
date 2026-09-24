@@ -204,9 +204,13 @@ var (
 	reReference = regexp.MustCompile(`(?i)captura|screenshot|whatsapp image|imagen|photo|foto`)
 )
 
-// labelFont es el tamaño desde el cual un texto del lienzo es un RÓTULO y no contenido: en el archivo
-// medido los rótulos van de 90 a 204 px y el texto más grande de una pantalla móvil, 28.
-const labelFont = 60
+// labelFont es el tamaño desde el cual un texto del lienzo es un RÓTULO y no contenido. Medido en los
+// cuatro archivos de producto: el texto más grande de una pantalla móvil es 28; los rótulos van de 50
+// («Pensionado», «Empleado» en Credifamilia) a 204 px; y las notas sobre una pantalla —«Permiso de
+// permanencia», «Se valida política»— son de 36, y a propósito quedan afuera: no nombran un carril.
+// Hasta el 2026-09-24 era 60 y los perfiles de Credifamilia no se veían. Lo que separa un rótulo de una
+// casilla de decisión del mismo tamaño no es la letra: es que a la casilla le llega una flecha.
+const labelFont = 40
 
 // Read lee un árbol ya bajado. `components` traduce el id de componente a su nombre (el del set, si es
 // una variante); `openComments` cuenta comentarios abiertos por nodo. Los dos pueden ir vacíos.
@@ -218,6 +222,27 @@ func Read(root fullNode, components map[string]string, openComments map[string]i
 	uses := map[string]int{}
 	var connectors []fullNode
 	var navs []nav
+
+	// Las flechas primero: qué nodos de primer nivel reciben o sueltan una. A una casilla de decisión le
+	// llega una flecha; a un rótulo, no — medido en los cuatro archivos sin una sola excepción.
+	arrowed := map[string]bool{}
+	for _, ch := range root.Children {
+		if ch.Type != "SECTION" && ch.Type != "CONNECTOR" {
+			index(ch, ch.ID, top)
+		}
+	}
+	for _, ch := range root.Children {
+		if ch.Type != "CONNECTOR" {
+			continue
+		}
+		for _, ep := range []*endpoint{ch.ConnectorStart, ch.ConnectorEnd} {
+			if ep != nil {
+				if t, ok := top[ep.EndpointNodeID]; ok {
+					arrowed[t] = true
+				}
+			}
+		}
+	}
 
 	for _, ch := range root.Children {
 		if ch.Type == "SECTION" {
@@ -234,14 +259,14 @@ func Read(root fullNode, components map[string]string, openComments map[string]i
 		texts := textsOf(ch, nil)
 		collect(ch, true, components, uses, &navs)
 		switch {
-		case isLabel(ch, texts):
-			labels = append(labels, label{id: ch.ID, text: labelText(texts), b: b})
-		case isChoice(ch, texts, b):
+		case isChoice(ch, texts, b, arrowed[ch.ID]):
 			sc := screenOf(ch, texts, b, "choice")
 			if sc.Title == "" {
 				sc.Title = "◇ rombo"
 			}
 			s.Choices = append(s.Choices, sc)
+		case isLabel(ch, texts, b):
+			labels = append(labels, label{id: ch.ID, text: labelText(texts), b: b})
 		case b.Width >= 300 && b.Height >= 300 && (ch.Type == "FRAME" || ch.Type == "INSTANCE" || ch.Type == "COMPONENT" || ch.Type == "COMPONENT_SET" || ch.Type == "GROUP"):
 			kind := "panel"
 			switch {
@@ -535,8 +560,19 @@ func oneLine(s string) string {
 }
 
 // isLabel: un rótulo del lienzo son pocos textos, todos grandes, sin nada más que diga algo.
-func isLabel(n fullNode, texts []textNode) bool {
+// isLabel: pocos textos, todos grandes, y con forma de franja o de bloque —no de pantalla—. Un marco del
+// tamaño de un celular con un solo título grande («VALIDACIÓN DE IDENTIDAD» en Credifamilia) es una
+// pantalla.
+func isLabel(n fullNode, texts []textNode, b box) bool {
 	if len(texts) == 0 || len(texts) > 3 {
+		return false
+	}
+	if b.Height >= 300 && b.Width < b.Height*1.5 {
+		return false
+	}
+	// Un rótulo NOMBRA, no explica: más de 50 caracteres es una nota («Una vez el asesor finaliza el
+	// proceso con…» en Altafinanciera, en letra de 50 px).
+	if len([]rune(labelText(texts))) > 50 {
 		return false
 	}
 	for _, t := range texts {
@@ -555,15 +591,29 @@ func labelText(texts []textNode) string {
 	return strings.Join(parts, " · ")
 }
 
-// isChoice: una casilla chica con una o dos palabras («Si», «No») o un rombo.
-func isChoice(n fullNode, texts []textNode, b box) bool {
+var reMarker = regexp.MustCompile(`(?i)^\s*(s[ií]|no|fin|inicio|start|end)\s*[.!]?\s*$`)
+
+// isChoice: una casilla de decisión o un marcador del recorrido. Lo es un rombo; lo que dice «Si»,
+// «No», «Fin»; y una casilla chica a la que le llega una flecha («Reenviar nuevamente» en Credifamilia).
+// Sin flecha, sólo si su letra es de contenido y no de rótulo: una casilla de una o dos palabras.
+func isChoice(n fullNode, texts []textNode, b box, arrowed bool) bool {
 	if n.Type == "REGULAR_POLYGON" || n.Type == "STAR" || strings.HasPrefix(n.Name, "Polygon") {
 		return true
 	}
-	if b.Width > 300 || b.Height > 300 || len(texts) != 1 {
+	if b.Height >= 300 || len(texts) == 0 || len(texts) > 3 {
 		return false
 	}
-	return len(strings.Fields(texts[0].text)) <= 2
+	if len(texts) == 1 && reMarker.MatchString(texts[0].text) {
+		return true
+	}
+	if arrowed {
+		return true
+	}
+	big := false
+	for _, t := range texts {
+		big = big || t.size >= labelFont
+	}
+	return !big && b.Width <= 300 && len(texts) == 1 && len(strings.Fields(texts[0].text)) <= 2
 }
 
 func screenOf(n fullNode, texts []textNode, b box, kind string) Screen {
@@ -694,6 +744,22 @@ func lanes(screens []Screen, labels []label) []Lane {
 			byRow[best] = append(byRow[best], l)
 		}
 	}
+	// Los rótulos que ya rotulan algo DESDE ARRIBA no pueden rotular desde abajo: en `flujo-ecommerce`
+	// cada rótulo va encima de su fila, y como «rótulo de abajo» se pegaba a las pantallas de la fila de
+	// encima («No paga cuota inicial» quedaba partido en 3 y 13). Las franjas de abajo de Credifamilia no
+	// tienen nada debajo.
+	fromAbove := map[string]bool{}
+	for _, sc := range screens {
+		if l, ok := covering(labels, screens, sc); ok {
+			fromAbove[l.id] = true
+		}
+	}
+	var below []label
+	for _, l := range labels {
+		if !fromAbove[l.id] {
+			below = append(below, l)
+		}
+	}
 	var out []Lane
 	for i, r := range rows {
 		sort.Slice(r.screens, func(a, b int) bool { return r.screens[a].X < r.screens[b].X })
@@ -707,10 +773,16 @@ func lanes(screens []Screen, labels []label) []Lane {
 			// entre medio le robaban el rótulo a la fila de 23 que estaba debajo.
 			lab, ok := covering(labels, screens, sc)
 			if !ok {
-				// Si no la cubre ninguno, el rótulo de su fila más a la derecha que esté a su izquierda:
-				// como rotula `flujo-ecommerce`, con bloques del ancho de una pantalla al costado.
+				// Si ninguno la cubre desde arriba, la franja que la cubre desde ABAJO: Credifamilia pone
+				// «Asesor» y «Usuario» debajo del recorrido, cada una bajo su tramo.
+				lab, ok = coveringBelow(below, screens, sc)
+			}
+			if !ok {
+				// Si tampoco, el rótulo de su fila más a la derecha que esté a su izquierda, y CERCA:
+				// como rotula `flujo-ecommerce`, con bloques del ancho de una pantalla al costado. Sin el
+				// tope, un rótulo a 6.000 px le ponía «Asesor» a una pantalla de la rama Empleado.
 				for _, l := range ls {
-					if l.b.X <= sc.X+100 {
+					if l.b.X <= sc.X+100 && sc.X-(l.b.X+l.b.Width) <= 2000 {
 						lab = l
 					}
 				}
@@ -786,6 +858,40 @@ func mergeStacked(labels []label) []label {
 		out = append(out, cur)
 	}
 	return out
+}
+
+// coveringBelow es covering al revés: una franja DEBAJO de la pantalla, superpuesta en horizontal, sin
+// otra pantalla entre medio y a menos de 5.000 px (en Credifamilia «Usuario» está a ~4.500 del recorrido,
+// con las ramas por perfil colgando en el medio).
+func coveringBelow(labels []label, screens []Screen, sc Screen) (label, bool) {
+	best, gap := label{}, math.MaxFloat64
+	bottom := sc.Y + sc.H
+	for _, l := range labels {
+		if l.b.Y < sc.Y+sc.H/2 || l.b.X >= sc.X+sc.W || l.b.X+l.b.Width <= sc.X {
+			continue
+		}
+		d := l.b.Y - bottom
+		if d > 5000 || blockedBelow(screens, sc, l.b.Y) {
+			continue
+		}
+		if d < gap {
+			best, gap = l, d
+		}
+	}
+	return best, best.id != ""
+}
+
+// blockedBelow: hay otra pantalla entre `sc` y el borde de arriba del rótulo, en la misma columna.
+func blockedBelow(screens []Screen, sc Screen, labelTop float64) bool {
+	for _, o := range screens {
+		if o.ID == sc.ID || o.X >= sc.X+sc.W || o.X+o.W <= sc.X {
+			continue
+		}
+		if o.Y >= sc.Y+sc.H-1 && o.Y+o.H <= labelTop+1 {
+			return true
+		}
+	}
+	return false
 }
 
 // blocked: hay otra pantalla entre el borde de abajo del rótulo y `sc`, superpuesta con ella en horizontal.
