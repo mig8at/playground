@@ -439,3 +439,83 @@ func (c *Client) ImageFills(ctx context.Context, key string) (map[string]string,
 	}
 	return raw.Meta.Images, nil
 }
+
+// Project es un proyecto (una carpeta) de un equipo de Figma.
+type Project struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// FileEntry es un archivo dentro de un proyecto.
+type FileEntry struct {
+	Key          string `json:"key"`
+	Name         string `json:"name"`
+	LastModified string `json:"last_modified"`
+	Thumbnail    string `json:"thumbnail_url"`
+}
+
+// TeamProjects son los proyectos de un equipo. El id del equipo es el número que va en la URL de su
+// página (`figma.com/files/team/<id>/…`): la API no lista los equipos de una cuenta ni lo «visto
+// recientemente», así que se entra por ahí.
+func (c *Client) TeamProjects(ctx context.Context, team string) (string, []Project, error) {
+	var raw struct {
+		Name     string `json:"name"`
+		Projects []struct {
+			ID   any    `json:"id"`
+			Name string `json:"name"`
+		} `json:"projects"`
+	}
+	if err := c.get(ctx, "/v1/teams/"+url.PathEscape(team)+"/projects", &raw); err != nil {
+		return "", nil, err
+	}
+	out := make([]Project, 0, len(raw.Projects))
+	for _, p := range raw.Projects {
+		out = append(out, Project{ID: fmt.Sprint(p.ID), Name: p.Name})
+	}
+	return raw.Name, out, nil
+}
+
+// ProjectFiles son los archivos de un proyecto, del más reciente al más viejo.
+func (c *Client) ProjectFiles(ctx context.Context, project string) ([]FileEntry, error) {
+	var raw struct {
+		Files []FileEntry `json:"files"`
+	}
+	if err := c.get(ctx, "/v1/projects/"+url.PathEscape(project)+"/files", &raw); err != nil {
+		return nil, err
+	}
+	sort.SliceStable(raw.Files, func(i, j int) bool { return raw.Files[i].LastModified > raw.Files[j].LastModified })
+	return raw.Files, nil
+}
+
+// FileMeta es lo que Figma dice de un archivo sin bajarlo: su carpeta, quién lo creó y quién lo tocó
+// último. ⚠ No trae el id del proyecto ni del equipo: con esto no se llega a los archivos vecinos.
+type FileMeta struct {
+	Name        string `json:"name"`
+	Folder      string `json:"folder_name"`
+	Creator     string `json:"creator"`
+	LastTouched string `json:"last_touched_at"`
+	TouchedBy   string `json:"last_touched_by"`
+	Role        string `json:"role"`
+}
+
+func (c *Client) Meta(ctx context.Context, key string) (FileMeta, error) {
+	var raw struct {
+		File struct {
+			Name        string `json:"name"`
+			Folder      string `json:"folder_name"`
+			LastTouched string `json:"last_touched_at"`
+			Role        string `json:"role"`
+			Creator     struct {
+				Handle string `json:"handle"`
+			} `json:"creator"`
+			TouchedBy struct {
+				Handle string `json:"handle"`
+			} `json:"last_touched_by"`
+		} `json:"file"`
+	}
+	if err := c.get(ctx, "/v1/files/"+url.PathEscape(key)+"/meta", &raw); err != nil {
+		return FileMeta{}, err
+	}
+	f := raw.File
+	return FileMeta{Name: f.Name, Folder: f.Folder, Creator: f.Creator.Handle, LastTouched: f.LastTouched, TouchedBy: f.TouchedBy.Handle, Role: f.Role}, nil
+}

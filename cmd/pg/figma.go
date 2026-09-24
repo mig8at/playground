@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -416,4 +417,44 @@ func kindName(k string) string {
 		return "referencia"
 	}
 	return k
+}
+
+// reTeamURL saca el id de equipo de la URL de su página (`figma.com/files/team/<id>/…`).
+var reTeamURL = regexp.MustCompile(`/team/([0-9]+)`)
+
+func runFigmaProjects(args []string) int {
+	fs := flag.NewFlagSet("figma projects", flag.ContinueOnError)
+	team := fs.String("team", "", "el id del equipo, o la URL de su página en Figma")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	id := *team
+	if m := reTeamURL.FindStringSubmatch(id); m != nil {
+		id = m[1]
+	}
+	if id == "" {
+		return fail(2, "falta --team: el número de figma.com/files/team/<id>/… (la API no lista equipos ni «recientes»)")
+	}
+	cl, code := figmaClient()
+	if cl == nil {
+		return code
+	}
+	ctx := context.Background()
+	name, projects, err := cl.TeamProjects(ctx, id)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	fmt.Printf("equipo «%s» (%s) — %d proyecto(s)\n", name, id, len(projects))
+	for _, p := range projects {
+		files, err := cl.ProjectFiles(ctx, p.ID)
+		if err != nil {
+			fmt.Printf("\n▸ %s (%s): %v\n", p.Name, p.ID, err)
+			continue
+		}
+		fmt.Printf("\n▸ %s (%s) — %d archivo(s)\n", p.Name, p.ID, len(files))
+		for _, f := range files {
+			fmt.Printf("    %s  %s  %s\n", f.Key, f.LastModified[:min(10, len(f.LastModified))], f.Name)
+		}
+	}
+	return 0
 }
