@@ -34,17 +34,16 @@ jira_title: "Código de preaprobado de la app en la plataforma nueva"
 - [x] Definir qué se hace cuando la entidad del código NO está en el listado — lo evita el emisor: la
       app sólo pide código para una entidad de un preaprobado de ESE comercio. Si igual pasa, el
       listado muestra todas, como hoy (2026-09-23).
-- [ ] Configurar el servicio de códigos en el backend de `qa` — hoy `CODE_GENERATION_SERVICE_BASE_URL`
-      no está en su secreto y todo canje responde 500 (`CCO003`); termina cuando un código inexistente
-      responda «no disponible». El valor es **`http://self-manager-api.inertia-develop:8082`** (el
-      de dev, en el mismo cluster; self-manager-api no tiene despliegue de `qa`). Depende de:
-      quien administre los secretos de `legacy-backend-qa`. Revisar también dev, staging y prod antes de
-      que el canje llegue a `main`.
-- [x] Validar en `qa` el caso negativo (Perú) — sin el conmutador, `/codigo` redirige y el canje se
-      rechaza (2026-09-23).
-- [ ] Validar en `qa` un canje real; bloqueado por el anterior.
-- [ ] Apagar el camino viejo en aliados, recién con #1049 mergeado y el `AA0000` en `main` de
-      self-manager-api.
+- [x] Configurar el servicio de códigos en el backend de `qa` — `CODE_GENERATION_SERVICE_BASE_URL=
+      http://self-manager-api.inertia-develop:8082` en `dev/legacy-backend-qa` + redespliegue (2026-09-24).
+- [ ] Configurar el servicio de códigos en el backend de **producción** antes de que el canje llegue a
+      `main`; termina cuando un código inexistente responda `invalid code` y no «not configured». No
+      verificado en dev, staging ni prod.
+- [x] Validar en `qa` un canje real — código `9997` → solicitud 502728 con CrediPullman y el listado con
+      una sola entidad (2026-09-24).
+- [ ] Llevar a `main` los tres PRs de la tarea (backend #1455, front #1045 y #1049), hoy sólo en `qa`.
+- [ ] Apagar el camino viejo en aliados, recién con el canje en producción. El `AA0000` de
+      self-manager-api (hoy sólo en su `develop`) no lo bloquea: el wizard acepta los dos formatos.
 
 ## Objetivo
 
@@ -158,6 +157,16 @@ implementación.
 abril, ninguna avanzó, y el código de la app ni siquiera tiene el formato que el receptor acepta.
 
 ## Lo que está bloqueado
+
+> **HALLAZGO · 2026-09-24** — **tres trampas para configurar el servicio de códigos**, ninguna del
+> código: (1) el despliegue (`config-ci/deploy-task.yaml`) copia las claves del secreto a la task
+> definition **al desplegar**: una clave agregada después no llega al contenedor hasta otro despliegue
+> —reiniciar no alcanza—, y las instancias viejas siguen atendiendo un par de minutos después del verde.
+> (2) El host del ALB interno (`…develop.internal.creditop.com`) **no resuelve**: falla en <1 s con
+> `503 Could not connect`. El bueno es `http://self-manager-api.inertia-develop:8082`. (3) Con la **VPN
+> de prod**, `*.inertia-develop` resuelve a otra red (`172.32.x`) y todo parece caído —backends sin base,
+> rutas en 404—; con la de dev vuelve a `10.0.x`.
+> *(El hallazgo de abajo, «no tiene configurado», quedó resuelto el 2026-09-24.)*
 
 > **HALLAZGO · 2026-09-23** — **el backend de `qa` no tiene configurado el servicio de códigos.** Un
 > código inexistente para Pullman no responde «no disponible» sino **500** `CCO003` «Code generation
@@ -287,6 +296,16 @@ Con la sesión de asesor, contra el wizard de la rama:
 ⚠ La pantalla del código pasó a **seis casillas** (`c0efac64`, formato `AA0000`) y el autorrelleno del
 harness escribe su `0101` repetido hasta llenarlas: queda `010101`, que no es válido, y el botón nunca
 se habilita. Por eso `harness-codigo-prueba` corre con `E2E_AUTORELLENO=0`.
+
+**El canje REAL en `qa`** (VPN de dev; la sesión de `cognito-state.qa.json` es MIGUEL TEST, en
+`ec977139`). El `merchant_id` es el `allied_id` de la sucursal (Pullman = 94); el usuario, uno de PRUEBA
+(los «SYNTH PRUEBA» con correo `@creditop.com`):
+
+    curl -XPOST http://self-manager-api.inertia-develop:8082/api/v1/generate/code \
+      -H 'Content-Type: application/json' -H 'X-User-Id: <usuario de prueba>' -d '{"merchant_id":94,"lender_id":77}'
+    curl -D- -XPOST https://originaciones-qa.dev.creditop.com/merchant/ec977139/codigo \
+      -H "Cookie: <cognito-state.qa>" --data 'code=<el código>'      # 302 a …/<id>/lenders + __session
+    # el listado de esa solicitud con la __session nueva y con la vieja: una entidad contra todas
 
 **El listado de un comercio, para ver contra qué se compara el filtro:**
 
