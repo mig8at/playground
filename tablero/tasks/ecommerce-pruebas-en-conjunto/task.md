@@ -11,17 +11,21 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa
 
 ## Pendientes
 
-- [ ] **Publicar en canon la sección del monto que se le avisa al comercio** (`cuota/context`), ya
-      ensayada (`ready: true`) y con sus 8 archivos verificados en `main`: texto y campos en
-      `artifacts/canon-aviso-al-comercio.md`. Termina cuando aparezca en canon de producción.
-      Depende de: la VPN de prod — canon de producción no respondió desde la de dev.
+- [ ] **Declararle el área a la sección de canon del monto avisado** (sus 8 archivos y 3 tablas, en
+      `artifacts/canon-aviso-al-comercio.md`) cuando se despliegue `Creditop-SAS/playground#284`, que
+      arregla el cierre del borrador. Termina cuando la sección tenga un área que la respalde.
+      Depende de: la revisión y el despliegue de #284.
 - [ ] **Preguntarle a producto si el aviso al comercio tiene que llevar el total del pedido** y no el
-      monto financiado: la tienda cobró 2.000.000 y recibió `approvedAmount` 2.140.000 (costos
-      administrativos del 7 %). Pesa más en VTEX, que recibe ese monto en `value`. Termina con la
-      decisión. Depende de: producto.
-- [ ] **Medir en producción cuántas compras de tienda recibieron un monto distinto del pedido**
-      (`final_amount <> amount` en solicitudes autorizadas con `ecommerce_requests.processed = 1`, 90
-      días). Depende de: la VPN de prod.
+      monto financiado. Con cuota inicial el sistema viejo avisa MENOS que la orden; con costos
+      administrativos el nuevo avisa MÁS (en QA: pedido de 2.000.000, aviso de 2.140.000). Pesa más en
+      VTEX, que recibe ese monto en `value`. Termina con la decisión. Depende de: producto.
+- [x] ~~Publicar en canon la sección del monto que se le avisa al comercio~~ — publicada en
+      `cuota/context#al-comercio-se-le-avisa-lo-financiado-no-el-total-de-su-pedido` (revisión 9),
+      por el recurso directo y todavía sin su área: el borrador no podía cerrar (sin id estable).
+- [x] ~~Medir en producción cuántas compras de tienda recibieron un monto distinto del pedido~~ —
+      90 días, 725 autorizadas y avisadas: `final_amount` ≠ total en 135 (129 por debajo, con cuota
+      inicial); `final_amount + cuota inicial` ≠ total en 30 (28 por encima, 24 con costos
+      administrativos).
 - [ ] **Comprobar el retorno a la tienda**: el `GET` de «Regresar al comercio» sólo sale clickeando en
       el navegador; termina cuando una compra hecha desde el artefacto lo deje en la bandeja.
 - [ ] **Preguntarle a Santi si su front de Credito365 quedó sin pushear**: #1048 no trae ningún cambio
