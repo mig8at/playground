@@ -26,8 +26,8 @@ jira_title: ""
   existe fuera de esta máquina.
 - **SDK del comercio:** medir cuántos comercios ecommerce mapean el documento antes de decidir si la
   experiencia propuesta es realista.
-- **Una consulta por ambiente, en `connectors/`:** fases 0 y 1 hechas (el módulo único y
-  `connectors/sql`); sigue la 2, `connectors/logs`.
+- **Una consulta por ambiente, en `connectors/`:** fases 0 a 3 hechas (`sql`, `logs`, `events` y
+  `bin/pg`); sigue la 4, mudar canon, Jira y Slack a `connectors/`.
 
 ## Frente: una consulta por ambiente, en `connectors/`
 
@@ -69,10 +69,10 @@ herramientas, con nombres distintos para lo mismo (`TABLERO_DB_*`, `E2E_DB_*`, `
 
 | ambiente | sql | logs | events |
 |---|---|---|---|
-| `local` | MySQL de Docker (`legacy-backend-mysql-1`) | Loki local (`harness/bin/loki-local`, según el README del trazador; a medir) | ? |
-| `dev` | MySQL directo, base compartida | Loki `creditopdev`, `service_name="legacy-backend"` | ? |
-| `qa` | la misma base que `dev` | Loki `creditopdev`, `service_name="CreditopDev"` | ? |
-| `staging` | la misma base que `dev` | Loki `creditopdev`, ? | ? |
+| `local` | MySQL de Docker (`legacy-backend-mysql-1`) | Loki local (`harness/bin/loki-local`), sin credenciales: medido, trae las líneas | no escribe |
+| `dev` | MySQL directo, base compartida | Loki `creditopdev`, `service_name="legacy-backend"` | no escribe (el front del target es el local) |
+| `qa` | la misma base que `dev` | Loki `creditopdev`, `service_name="CreditopDev"` | `environment=staging` |
+| `staging` | la misma base que `dev` | Loki `creditopdev`, `service_name` sin ubicar | `environment=staging` |
 | `prod` | Redash, auditado a nombre del token | Loki `creditop` | PostHog de producción |
 
 **Y los servicios: la segunda familia de `connectors/`.** canon, Jira, Confluence, Slack y Jev también
@@ -156,9 +156,23 @@ no tenía fuente en ningún ambiente.
 - **Redash no devuelve lo mismo que MySQL directo.** Los números ahora llegan exactos. Los DECIMAL
   difieren en ceros (`1560414.0` contra `1560414.0000`), y las cadenas binarias llegan en hex, así que
   se piden con `CAST(… AS CHAR)`.
-- **Quedan secretos que ya nada lee**, y cuáles borrar lo decide Miguel: las claves `E2E_DB_*`/`REDASH_*`
-  de `trazador/.env.*` y las `TABLERO_DB_*` de `tablero/server/.env`. Estas últimas nunca se leyeron:
-  `db-query` no cargaba ese archivo.
+- **Fases 2 y 3 hechas**, con `bin/pg` como la puerta desde cualquier lenguaje (`pg help --json` sale de
+  la misma lista que el binario). Loki: el trazador usa `connectors/logs`, y el harness y workers pasan
+  por `bin/pg logs raw`, conservando su parseo. PostHog: el trazador usa `connectors/events` y el harness
+  `bin/pg events`. El trazador ya no tiene `.env` propio. Tres pruebas fallan si reaparece un cliente
+  —de base, de Loki o de PostHog— fuera de `connectors/`, en cualquier lenguaje.
+- **Lo que destapó centralizar:**
+  - para `qa` y `staging`, el harness (y el trazador en `staging`) filtraba Loki por `environment=qa`,
+    un valor que ese stack no tiene; ahora es `development|develop`, con las mismas líneas y sin la
+    falsa alarma;
+  - las reglas «local nunca lee un Loki remoto» y «local y dev no escriben en PostHog» sólo las tenía el
+    harness, y ahora valen para todos.
+- **Quedan secretos que ya nada lee**, y cuáles borrar lo decide Miguel:
+  - `trazador/.env.*` entero, porque el trazador ya no tiene `.env`;
+  - en `harness/.env.*`, las `E2E_LOKI_URL/USER/TOKEN/ENV` y las `E2E_POSTHOG_TOKEN/PROJECT/ENV/API`. ⚠ Las
+    `E2E_DB_*` NO: son la base donde el harness ESCRIBE al sembrar, que queda afuera del conector a
+    propósito;
+  - las `TABLERO_DB_*` de `tablero/server/.env`, que nunca se leyeron (`db-query` no cargaba ese archivo).
 
 ## Sin próximo paso vigente
 
