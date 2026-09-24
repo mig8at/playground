@@ -4,15 +4,11 @@
 // DÓNDE, en el código. Esa pregunta es la siguiente que hace cualquiera que lea una traza, y hasta
 // ahora obligaba a irse a otra herramienta con el mensaje copiado a mano.
 //
-// ⚠ DE DÓNDE SALE EL MAPA, Y POR QUÉ NO SE CONSTRUYE ACÁ. `workers/logs.json` lo arma Python leyendo
-// el código de los 12 repos (`workers/logs.py`), y este archivo SOLO LO CONSUME. La construcción
-// —qué formas de log existen, cómo se normaliza una clave— vive en un solo lado a propósito: ya nos
-// costó dos veces tener la misma tabla en dos lenguajes (`roots.py` y el `guard` del tablero), y una
-// divergencia acá no fallaría, sólo atribuiría líneas al archivo equivocado.
-//
-// Lo único que se reimplementa es la BÚSQUEDA (prefijo más largo) y la normalización, que son dos
-// líneas mecánicas — y hay una prueba que compara Go contra Python sobre mensajes reales para que la
-// coincidencia no dependa de la buena voluntad: `go test ./... -run Mapa`.
+// ⚠ DE DÓNDE SALE EL MAPA. Lo arma `indice_logs.go` (`-indexar-logs`) leyendo el código de los repos, y
+// queda en `trazador/logs.json`. Hasta el 2026-09-24 lo construía Python (`workers/logs.py`) y acá se
+// reimplementaban la búsqueda y la normalización, con una prueba que comparaba las dos: ya nos había
+// costado dos veces tener lo mismo en dos lenguajes. Ahora el constructor y el lector usan LA MISMA
+// normalización (`normalizarLiteral`), así que no hay dos versiones que puedan divergir.
 //
 // ⚠ Y si el mapa NO está construido, esto no inventa nada: no agrega la sección y dice cómo armarla.
 // Un bloque «0 archivos» se leería como «no corrió ninguno», que es falso.
@@ -22,7 +18,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -39,19 +34,14 @@ type mapaLogs struct {
 	orden      []string // claves de más larga a más corta: gana el prefijo más específico
 }
 
-var reEspacios = regexp.MustCompile(`\s+`)
+// normalizarMsg es la normalización con la que se construyeron las claves: la misma función, no una copia.
+func normalizarMsg(m string) string { return normalizarLiteral(m) }
 
-// normalizarMsg tiene que dar EXACTAMENTE lo mismo que `_normalizar` de workers/logs.py. Si un día
-// cambia allá, la prueba de `archivos_test.go` lo caza antes que un usuario.
-func normalizarMsg(m string) string {
-	return strings.TrimRight(strings.TrimSpace(reEspacios.ReplaceAllString(m, " ")), " :.-,")
-}
-
-// cargarMapaLogs busca `workers/logs.json` desde el cwd habitual (trazador/server) y desde la raíz.
+// cargarMapaLogs busca `trazador/logs.json` desde el cwd habitual (trazador/server) y desde la raíz.
 func cargarMapaLogs() *mapaLogs {
 	for _, p := range []string{
-		filepath.Join("..", "..", "workers", "logs.json"),
-		filepath.Join("workers", "logs.json"),
+		rutaIndiceLogs,                         // desde trazador/server, que es de donde corre
+		filepath.Join("trazador", "logs.json"), // desde la raíz del playground
 	} {
 		b, err := os.ReadFile(p)
 		if err != nil {

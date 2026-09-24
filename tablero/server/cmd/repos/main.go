@@ -1,5 +1,5 @@
 // repos contesta, en JSON, lo que las herramientas en Python necesitan de la lista de repos
-// (`tools/repos.py` le pregunta acá para todo lo que toca git). La lógica es `internal/repos`.
+// (`tools/repos.py` le pregunta acá para todo lo que toca git). La lógica es `connectors/repos`.
 //
 //	roots                          la lista: indexados, citables, extensiones y la raíz del playground
 //	ref <alias|carpeta>            la ref que se mira en ese repo y por qué
@@ -17,8 +17,8 @@ import (
 	"strconv"
 	"time"
 
+	"creditop/playground/connectors/repos"
 	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/repos"
 )
 
 func main() {

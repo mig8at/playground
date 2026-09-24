@@ -18,13 +18,13 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/repos"
 	"creditop/playground/tablero/server/internal/atlassian"
 	"creditop/playground/tablero/server/internal/canon"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/guard"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/repos"
 	"creditop/playground/tablero/server/internal/slack"
 	"creditop/playground/tablero/server/internal/store"
 )

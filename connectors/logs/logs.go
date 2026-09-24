@@ -6,7 +6,7 @@
 //	prod                  → el stack `creditop`
 //
 // Hasta el 2026-09-24 cada herramienta tenía su cliente —el trazador en Go, el harness en TypeScript,
-// workers en Python— con sus propias claves (`LOKI_*`, `E2E_LOKI_*`), y ya no decían lo mismo: para
+// workers en Python, que se retiró el mismo día— con sus propias claves (`LOKI_*`, `E2E_LOKI_*`), y ya no decían lo mismo: para
 // `qa`, el trazador filtraba `environment` por `development|develop` (medido) y el harness por `qa`, un
 // valor que ese stack no tiene.
 //

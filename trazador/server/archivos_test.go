@@ -2,70 +2,65 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"creditop/playground/connectors/repos"
 )
 
-// TestMapaCoincideConPython es la GUARDA contra la divergencia que este repo ya pagó dos veces.
-//
-// El mapa de logs lo construye Python (`workers/logs.py`) y acá se consume; la búsqueda y la
-// normalización están reimplementadas en Go porque son mecánicas. «Mecánicas» no es «seguras»: un
-// `rstrip` distinto o un espacio de más hacen que las dos herramientas atribuyan la misma línea a
-// archivos distintos — y eso no falla, sólo miente.
-//
-// Por eso la coincidencia se COMPRUEBA en vez de confiarse: se toman mensajes reales del mapa, se
-// resuelven con las dos implementaciones y se exige el mismo archivo.
-func TestMapaCoincideConPython(t *testing.T) {
-	m := cargarMapaLogs()
-	if m == nil {
-		t.Skip("no hay workers/logs.json construido (./cli.py logs --construir)")
-	}
-
-	// Mensajes de runtime SIMULADOS a partir de las claves: se les agrega cola, que es justo lo que
-	// pasa de verdad (el literal del código es un prefijo del mensaje real).
-	var casos []string
-	for i, k := range m.orden {
-		if i%97 != 0 || len(casos) >= 25 { // muestreo disperso, no los 25 más largos
-			continue
-		}
-		casos = append(casos, k+" 12345")
-	}
-	if len(casos) < 5 {
-		t.Skip("mapa demasiado chico para muestrear")
-	}
-
-	entrada, _ := json.Marshal(casos)
-	py := exec.Command("python3", "-c", `
-import json, sys
-sys.path.insert(0, "../../workers")
-import logs
-mapa = logs.cargar()
-casos = json.load(sys.stdin)
-print(json.dumps([ (logs.resolver(c, mapa) or {}).get("archivos", [{}])[0].get("ruta", "") for c in casos ]))
-`)
-	py.Stdin = strings.NewReader(string(entrada))
-	salida, err := py.Output()
-	if err != nil {
-		t.Skipf("no se pudo correr la referencia en Python: %v", err)
-	}
-	var esperado []string
-	if err := json.Unmarshal(salida, &esperado); err != nil {
-		t.Fatalf("la referencia no devolvió JSON: %v", err)
-	}
-
-	distintos := 0
-	for i, c := range casos {
-		d, _ := m.resolverArchivo(c)
-		if d.Ruta != esperado[i] {
-			distintos++
-			if distintos <= 3 {
-				t.Errorf("difieren para %q:\n  go     = %s\n  python = %s", trim(c, 60), d.Ruta, esperado[i])
-			}
+// Un repo de juguete con las formas de log que usa CreditOp: el índice las encuentra, y un mensaje de
+// runtime —el literal más lo que se interpola— se resuelve al archivo y la línea que lo emite. Constructor
+// y lector usan la misma normalización, así que la clave que se escribe es la que se busca.
+func TestTheIndexFindsEachFormAndResolvesRuntimeMessages(t *testing.T) {
+	root := t.TempDir()
+	repo := filepath.Join(root, "toy")
+	os.MkdirAll(filepath.Join(repo, "app"), 0o755)
+	os.MkdirAll(filepath.Join(repo, "tests"), 0o755)
+	write := func(rel, body string) { os.WriteFile(filepath.Join(repo, rel), []byte(body), 0o644) }
+	write("app/Validacion.php", "<?php\n$this->tracer->log('info', 'Iniciando validación de reglas de grupo', $ctx);\n"+
+		"$obsTracer->LOG('error', 'Falló la consulta a Experian para ' . $id);\n"+
+		"Log::warning(\"Cupo insuficiente para la entidad:\");\n")
+	write("tests/ValidacionTest.php", "<?php\nLog::info('Iniciando validación de reglas de grupo');\n")
+	write("app/corto.php", "<?php\nLog::info('muy corto');\n")
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"add", "."}, {"-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "x"}} {
+		if out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
 		}
 	}
-	if distintos > 0 {
-		t.Fatalf("%d de %d mensajes se resuelven distinto entre Go y Python", distintos, len(casos))
+	tools := filepath.Join(root, "tools")
+	os.MkdirAll(tools, 0o755)
+	os.WriteFile(filepath.Join(tools, "repos.json"), []byte(`{"indexed":{"toy":"`+repo+`"},"citable_only":{},"extensions":[".php"]}`), 0o644)
+
+	claves, indice := indexarRepos(repos.New(tools))
+	var b strings.Builder
+	escribirIndice(&b, claves, indice)
+	var crudo map[string][]destinoLog
+	if err := json.Unmarshal([]byte(b.String()), &crudo); err != nil {
+		t.Fatalf("el índice no es JSON: %v\n%s", err, b.String())
 	}
-	t.Logf("✓ %d mensajes: Go y Python resuelven al mismo archivo", len(casos))
+	if _, ok := crudo["muy corto"]; ok || len(crudo) != 3 {
+		t.Fatalf("claves = %v (un literal de menos de 12 no identifica)", claves)
+	}
+	if got := crudo["Cupo insuficiente para la entidad"]; len(got) != 1 {
+		t.Errorf("la clave va sin el `:` final: %v", claves)
+	}
+	if got := crudo["Iniciando validación de reglas de grupo"]; len(got) != 2 || got[0].Ruta != "toy/app/Validacion.php" {
+		t.Errorf("entradas = %+v", got)
+	}
+
+	m := &mapaLogs{porMensaje: crudo}
+	for k := range crudo {
+		m.orden = append(m.orden, k)
+	}
+	d, ok := m.resolverArchivo("Falló la consulta a Experian para 1827791")
+	if !ok || d.Ruta != "toy/app/Validacion.php" || d.Linea != "3" || d.H != hashRuta("toy/app/Validacion.php") {
+		t.Errorf("resolverArchivo = %+v %v", d, ok)
+	}
+	// y el archivo de test no gana si hay uno real
+	if d, _ := m.resolverArchivo("Iniciando validación de reglas de grupo"); strings.Contains(d.Ruta, "tests/") {
+		t.Errorf("ganó el test: %+v", d)
+	}
 }

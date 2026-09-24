@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"creditop/playground/tablero/server/internal/repos"
+	"creditop/playground/connectors/repos"
 )
 
 type configResponse struct {

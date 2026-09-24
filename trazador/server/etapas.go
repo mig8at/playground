@@ -296,7 +296,7 @@ type Traza struct {
 	// para que soporte lea cinco renglones y sepa dónde abrir, en vez de escanear el árbol buscando rojos.
 	Hallazgos []string `json:"hallazgos,omitempty"`
 	// Archivos: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
-	// cada mensaje contra `workers/logs.json` (ver archivos.go). Es la pregunta que sigue a «¿por qué
+	// cada mensaje contra `trazador/logs.json` (ver archivos.go e indice_logs.go). Es la pregunta que sigue a «¿por qué
 	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
@@ -306,7 +306,7 @@ type Traza struct {
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
 	// Arbol: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
 	// quedó» con grano fino — no «falló la validación» sino «falló en la cascada de identidad, y la
-	// biometría ni se intentó». Se deriva de `workers/negocio.json`; ver arbol.go.
+	// biometría ni se intentó». Se deriva de `mapa/negocio.json`; ver arbol.go.
 	Arbol       []PasoAlcanzado `json:"arbol,omitempty"`
 	ArbolUltimo int             `json:"arbolUltimo,omitempty"`
 	Pantallas   []PantallaVista `json:"pantallas,omitempty"`

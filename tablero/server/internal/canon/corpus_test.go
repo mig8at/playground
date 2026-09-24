@@ -11,7 +11,7 @@ import (
 )
 
 // El corpus entero sale en tandas de `readBatch`: con más temas que una tanda, ninguno se puede perder
-// entre dos pedidos, y la clave es el tema sin su capa, que es como lo nombran workers y las tareas.
+// entre dos pedidos, y la clave es el tema sin su capa, que es como lo nombran las tareas.
 func TestCorpusReadsEveryTopicAcrossBatches(t *testing.T) {
 	total := readBatch + 3
 	var reads int

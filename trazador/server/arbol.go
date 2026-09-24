@@ -5,9 +5,10 @@
 // puntos y anclado en los LOGS, así que dice cosas que la etapa no puede: no «falló la validación»
 // sino «falló en la cascada de identidad de Registraduría, y la biometría facial ni se intentó».
 //
-// ⚠ EL ÁRBOL NO SE CONSTRUYE ACÁ. Vive en `workers/negocio.json` y este archivo sólo lo consume. La
-// parte cara —proponerlo leyendo el corpus, verificar que las señales existan, medir cuáles ocurren
-// de verdad en producción— se hizo una vez y con Python al lado de los otros mapas. Acá se lee.
+// ⚠ EL ÁRBOL NO SE CONSTRUYE ACÁ: se escribió a mano, y vive en `mapa/negocio.json`, embebido con los
+// otros mapas. La parte cara —proponerlo leyendo el corpus, verificar que las señales existan, medir
+// cuáles ocurren de verdad en producción— se hizo una vez. Hasta el 2026-09-24 el archivo vivía en
+// `workers/`, que lo había armado; al retirarse workers se mudó acá, que es su único lector.
 //
 // ⚠ Y SI EL ARCHIVO NO ESTÁ, la sección no aparece. Un árbol vacío se leería como «no hizo ninguno
 // de los 39 pasos», que es la conclusión más equivocada posible sobre una solicitud que llegó a
@@ -16,8 +17,6 @@ package main
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -46,11 +45,8 @@ type PasoAlcanzado struct {
 }
 
 func cargarArbol() []tramoArbol {
-	for _, p := range []string{
-		filepath.Join("..", "..", "workers", "negocio.json"),
-		filepath.Join("workers", "negocio.json"),
-	} {
-		b, err := os.ReadFile(p)
+	for _, p := range []string{"mapa/negocio.json"} {
+		b, err := mapaFS.ReadFile(p)
 		if err != nil {
 			continue
 		}

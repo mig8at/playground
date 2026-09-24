@@ -180,7 +180,7 @@ validable es `docs/task-context-block.example.md`; el contrato de la línea guar
 Una ruta que no existe: una cita rota la lee un modelo y abre otra cosa. Un comando sin `TARGET=`: el
 harness y el trazador tienen defaults OPUESTOS (F-234). Un comando sin `Resultado:`: sin lo que dio no
 prueba nada. SQL que escribe o sin ambiente, HTML, y un título de más de una línea. Los repos que se
-pueden citar salen de `tools/repos.json` —la lista única, no una copia, que resuelve `internal/repos`—,
+pueden citar salen de `tools/repos.json` —la lista única, no una copia, que resuelve `connectors/repos`—,
 más `playground` (este repo) y `playground-equipo` (el compartido).
 
 ⚠ **Hasta el 2026-09-23 la pila era de HITOS** (`kind` checkpoint · decision · blocker · evidence, con
@@ -289,14 +289,14 @@ completo. La pila cuenta qué pasó; los avances contabilizan el tiempo. No cree
 
 ## De dónde sale lo que se escribe acá
 
-El tablero es el DÓNDE; el conocimiento y la evidencia los producen otras cuatro herramientas, y cada
+El tablero es el DÓNDE; el conocimiento y la evidencia los producen otras herramientas, y cada
 una tiene un lugar propio en el archivo de la tarea. Esta tabla es el espejo de la sección «Qué deja
 esto en la tarea» que cierra el `CLAUDE.md` de cada una:
 
 | herramienta | contesta | deja en la tarea |
 |---|---|---|
 | **canon** (otro repo: `github/playground/tools/canon`) | lo que ya se sabe del sistema, COMPARTIDO con el equipo | `canon:` al abrir · una **graduación** al cerrar |
-| [`workers/`](../workers/INDAGAR.md) | lo que nadie escribió (se deriva del código) | **«Dónde se toca»** — archivos con el porqué |
+| el código de `main` (`git grep` contra la rama) | lo que nadie escribió | **«Dónde se toca»** — archivos con el porqué |
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»** — el comando, no la conclusión |
 | `tablero-db` | ¿qué dicen los datos en un ambiente? | referencia DB: ambiente + consulta SQL de sólo lectura |
 | [`trazador/`](../trazador/CLAUDE.md) | ¿cómo se comportó una solicitud concreta? | la traza o la medición de esa solicitud, nunca una consulta SQL |
@@ -334,9 +334,9 @@ una referencia no queda marcada como leída por el solo hecho de estar en `canon
 había usado nunca, y se fue con el resto de la historia del documento.)*
 
 ⚠ **Y la regla de corte, que es lo que mantiene al corpus como APOYO y no como oráculo: si la ficha
-del tema no contesta, no se prueba otro tema — la pregunta va a `workers/`.** El silencio del corpus
+del tema no contesta, no se prueba otro tema — la pregunta va al código de `main`.** El silencio del corpus
 es el modo de falla conocido (algo que existe en el código y nadie escribió), y una búsqueda no lo ve:
-va a devolver el tema más parecido, con buena puntuación. Ahí es peor que el índice derivado.
+va a devolver el tema más parecido, con buena puntuación. Ahí es peor que leer el código.
 
 ### Cuando aparece una regla de negocio: canon, después `main`, y a canon
 
@@ -443,7 +443,8 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   un frente general, se trabaja dentro de `playground.md`; al comprometerlo, se crea o vincula Jira y
   sale de esa lista. No se crea un archivo local intermedio por cada idea.
 - **Sólo existen siete tareas locales permanentes:** `canon.md`, `context.md`, `harness.md`,
-  `tablero.md`, `trazador.md`, `workers.md` y `playground.md`. Una mejora de una herramienta se agrega
+  `tablero.md`, `trazador.md`, `workers.md` y `playground.md` (`context` y `workers` quedan por su
+  historia: las dos carpetas se retiraron, el 2026-09-21 y el 2026-09-24). Una mejora de una herramienta se agrega
   a su archivo; una mejora transversal o sin destino va a `playground`. El lint y `make tareas` validan
   esta lista para que no dependa de acordarse.
 - **El estado vigente se reescribe y los frentes se consolidan.** No apiles una tarea nueva por cada

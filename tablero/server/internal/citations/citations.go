@@ -5,7 +5,7 @@
 // ⚠ NACIÓ EN `context/tools/refs.py`, se mudó a `tablero/tools/citations.py` el 2026-09-21 y pasó a Go
 // el 2026-09-23 comparando salida contra salida. Es el mismo motor, no una copia: dos motores de citas
 // derivan, y el síntoma de la deriva sería un verde. La lista de repos y el índice de «qué existe en
-// main» son de `internal/repos`, porque también los usan el trazador y `workers`.
+// main» son de `connectors/repos`, porque también los usa el trazador.
 //
 // CÓMO LO SABE: el ANCLA DE GIT, no el símbolo de la prosa.
 //
@@ -67,8 +67,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/tablero/server/internal/repos"
-	"creditop/playground/tablero/server/internal/text"
+	"creditop/playground/connectors/repos"
+	"creditop/playground/lib/text"
 )
 
 const (

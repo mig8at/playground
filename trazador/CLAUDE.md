@@ -6,10 +6,9 @@ usa, cuándo NO, y dónde va a parar lo que devuelve.**
 
 ## Qué contesta esto que ninguna otra herramienta contesta
 
-Las cuatro se reparten preguntas distintas, y confundirlas cuesta una tarde:
+Las tres se reparten preguntas distintas, y confundirlas cuesta una tarde:
 
 - **canon** describe el **mecanismo**, y por eso generaliza — pero no sabe nada de tu caso.
-- `workers/` describe el **código**, incluido el que nadie documentó — pero tampoco lo ejecuta.
 - `harness/` **corre un caso que vos sembrás**: contesta *¿qué pasaría si el cliente es así?*
 - **el trazador mira lo que YA pasó, en el ambiente donde pasó** — y es el único que llega a `prod`.
 
@@ -193,7 +192,7 @@ Tres cosas que hay que respetar si lo tocás:
 
 ### Los matchers contra el código, y los tres desajustes que hay que conocer
 
-`make trazador-chequeo` cruza cada patrón del mapa con **`workers/logs.json`**, el índice de los mensajes
+`make trazador-chequeo` cruza cada patrón del mapa con **`trazador/logs.json`**, el índice de los mensajes
 que el código EMITE. Es el movimiento de `npm run contrato:bancolombia` del harness: contrastar lo que
 declaramos contra la fuente real, no contra otra copia nuestra. Y a diferencia de `-validar`, el corpus
 está siempre en el repo, así que un patrón que no captura nada **no es ambiguo**: es un mensaje que nadie
@@ -223,10 +222,12 @@ ubicar» y la etapa se dibuja más vacía de lo que fue. Ahora van por REGEX CON
 También se acortó «Persisting fetched report», cuyo mensaje se extendió, y se borraron dos patrones que
 **ningún repo indexado emite** — buscados en los diez de `ROOTS`, no en uno.
 
-⚠⚠ **Y la vara misma envejece: `logs.json` está gitignoreado y se construye de `main` LOCAL.** El que
-había tenía un mes (17/8, 1.576 mensajes); regenerado con `python3 workers/cli.py logs --construir` dio
-**1.978**. Antes de creerle a una acusación del chequeo, mirá la fecha del archivo — y ojo con que
-`construir()` recorre `main` local, que puede estar detrás de `origin/main` (lo estaba por 14 commits).
+⚠⚠ **Y la vara misma envejece: `logs.json` está gitignoreado y se DERIVA de los repos.** El que había
+el 18/9 tenía un mes (1.576 mensajes); regenerado dio **1.978**. Antes de creerle a una acusación del
+chequeo, mirá la fecha del archivo y reconstruilo con `make trazador-indexar-logs`, que actualiza las
+refs remotas antes de recorrer — indexar el `main` LOCAL de cada clon, que nadie actualiza, describía un
+código de días atrás (estaba 14 commits detrás). Hasta el 2026-09-24 lo construía Python, en `workers/`;
+se portó a Go (`indice_logs.go`) comparando el JSON byte a byte.
 Esto no es sólo del chequeo: **`archivos.go` usa ese mismo índice en cada traza** para decir qué código
 dejó rastro.
 
@@ -253,7 +254,7 @@ sale prolijo.**
   mirarlo— y que entre al denominador. ⚠ Un reporte que ninguna regex reconoce **no es «fuera de
   alcance»**: eso es un juicio. Es NO SE SABE, y es la única casilla que dice si conviene mejorar esto.
 - Y queda escrito que **Credifamilia se decide por `id == 24`**, o sea por IDENTIDAD y no por
-  configuración: deuda conocida (la clase que cataloga `workers/cli.py quemado`), que miente en silencio
+  configuración: deuda conocida (un id quemado en el código), que miente en silencio
   el día que ese lender cambie de id. La prueba no la arregla; la deja a la vista para que el cambio sea
   deliberado.
 
@@ -432,8 +433,8 @@ a 3—. Los cinco quedaron **mudos sin que nada avisara**: un matcher que no cap
 caen en «sin ubicar» y la etapa se dibuja más vacía de lo que fue. Ahora van por regex con el NOMBRE.
 El número es el orden del pipeline y se renumera; el nombre es lo estable.
 
-⚠ **El cruce contra el código usa `workers/logs.json`, que es un índice DERIVADO y puede estar viejo.**
-Se construye con `python3 workers/cli.py logs --construir`; el que había el 2026-09-18 tenía un mes
+⚠ **El cruce contra el código usa `trazador/logs.json`, que es un índice DERIVADO y puede estar viejo.**
+Se construye con `make trazador-indexar-logs`; el que había el 2026-09-18 tenía un mes
 (1.576 mensajes) y regenerado dio 1.984. Antes de creerle a una acusación del chequeo, mirá su fecha.
 
 **El `Ramal` de la traza** (`creditopx` · `agregador` · `redirect` · `credifamilia`) sale del
@@ -442,7 +443,7 @@ eligió**: antes de `selected lender` no hay ramal, y eso es un hecho, no un dat
 qué etapas se declaran `no aplica`.
 
 ⚠ Y se decide por **identidad** en un caso: Credifamilia por `id == 24`, no por su `response_type`. Es
-deuda conocida —la clase que cataloga `workers/cli.py quemado`— y miente en silencio el día que ese
+deuda conocida —un id quemado en el código— y miente en silencio el día que ese
 lender cambie de id.
 
 **La evidencia va con el paso.** Cada sub-paso de BD lleva un bloque `Evidencia` con la consulta que

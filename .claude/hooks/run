@@ -9,7 +9,7 @@
 root=$(cd "$(dirname "$0")/../.." && pwd -P) || exit 0
 src="$root/tablero/server"
 bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/hooks"
-stale=$(find "$src/cmd/hooks" "$src/internal/hooks" "$src/internal/shell" "$src/internal/text" \
+stale=$(find "$src/cmd/hooks" "$src/internal/hooks" "$src/internal/shell" "$root/lib/text" \
   -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   mkdir -p "$(dirname "$bin")" || exit 0

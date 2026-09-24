@@ -26,7 +26,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/text"
+	"creditop/playground/lib/text"
 )
 
 // Env es lo que un hook necesita saber de afuera.
@@ -137,11 +137,9 @@ func SessionStart(env Env) int {
 // a mano», y eso es una regla escrita: se puede violar sin que nada falle, y la próxima regeneración
 // borra el cambio en silencio. Un PreToolUse con exit 2 IMPIDE la escritura y devuelve el motivo.
 var generatedFiles = []struct{ path, command string }{
-	// ⚠ El caso más caro: lo genera una medición contra PRODUCCIÓN, así que una corrección a mano se
-	// pierde en la próxima corrida y, mientras tanto, se lee como medida.
-	{"workers/ENTIDADES.md", "make entidades (lo MIDE contra producción; editarlo a mano inventa un dato)"},
-	{"workers/archivos.json", `python3 -c "import sys;sys.path.insert(0,'workers');import archivos;archivos.construir()"`},
-	{"workers/repos.json", "python3 workers/cli.py repos --construir (o `pesos` para los tamaños)"},
+	// El índice de mensajes de log → archivo: se deriva del código de los repos, así que una corrección a
+	// mano se pierde en la próxima corrida y, mientras tanto, resuelve trazas contra un código que no existe.
+	{"trazador/logs.json", "make trazador-indexar-logs"},
 }
 
 // asPosix es `pathlib.Path(p).as_posix()`: sin barras repetidas, sin `.` sueltos y sin barra final.

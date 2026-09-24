@@ -138,9 +138,10 @@ No «falló la validación», sino **«pasó por la cascada de Registraduría y 
 intentó»**. Y muestra los pasos NO alcanzados a propósito: el valor está en el contraste — una lista
 de lo que sí pasó no dice dónde se cortó.
 
-⚠ El árbol vive en `workers/negocio.json` y acá **sólo se consume**. Lo caro —proponerlo leyendo el
+⚠ El árbol vive en `server/mapa/negocio.json` y acá **sólo se consume**. Lo caro —proponerlo leyendo el
 corpus, verificar que las 39 señales existan, medir cuáles ocurren en producción— se hizo una vez, en
-Python, al lado de los otros mapas.
+Python, en `workers/`; al retirarse esa carpeta (2026-09-24) el archivo se mudó acá, que era su único
+lector.
 
 ⚠ Si ese archivo no está, la sección **no aparece**: un árbol vacío se leería como «no hizo ninguno de
 los 39 pasos», que es la conclusión más equivocada posible sobre una solicitud que llegó a Estado 11.
@@ -182,13 +183,14 @@ mensaje a otra herramienta:
       15×  …/RegisterCellPhoneService.php     :72,83,67,87,121,125,94,221
        9×  …/OtpService.php                   :376,364,358,392,415,438,488,499
 
-⚠ **El mapa lo construye Python, no esto.** `workers/logs.py` lee los 12 repos y arma
-`workers/logs.json`; acá sólo se consume (`archivos.go`). Es a propósito: tener la misma tabla en dos
-lenguajes ya costó dos veces en este playground, y una divergencia acá no fallaría — **atribuiría
-líneas al archivo equivocado**, que es peor. Lo único reimplementado es la búsqueda, y hay una prueba
-que compara Go contra Python sobre mensajes reales: `go test ./... -run Mapa`.
+⚠ **El mapa se construye UNA vez y se consume en cada traza.** `make trazador-indexar-logs`
+(`indice_logs.go`) lee los 12 repos y arma `trazador/logs.json`; `archivos.go` lo consume. La
+normalización del mensaje es UNA función que usan los dos lados: una divergencia acá no fallaría —
+**atribuiría líneas al archivo equivocado**, que es peor—, y por eso la prueba arma un repo de juguete,
+lo indexa y resuelve contra él mensajes de runtime: `go test ./... -run Index`. (Hasta el 2026-09-24 lo
+construía Python, en `workers/`; se portó comparando el JSON byte a byte.)
 
-Si el mapa no está construido (`workers/cli.py logs --construir`), la sección **no aparece** en vez de
+Si el mapa no está construido (`make trazador-indexar-logs`), la sección **no aparece** en vez de
 mostrar cero — un «0 archivos» se leería como «no corrió ninguno».
 
 ⚠ Y dice qué archivos **dejaron rastro**, no cuáles se ejecutaron. Lo que no loguea es invisible acá:
@@ -274,7 +276,7 @@ conexión"* — que es la diferencia entre volver a molestar a quien lo emitió 
 
 ⚠ **Desde el 2026-09-24 el trazador NO tiene `.env` propio**: la base, Loki y PostHog los resuelven
 `connectors/sql`, `connectors/logs` y `connectors/events`, con `connectors/.env.<target>` (plantilla:
-`connectors/.env.example`), que es de donde leen también el tablero, el harness y workers. Lo que sigue
+`connectors/.env.example`), que es de donde leen también el tablero y el harness. Lo que sigue
 describe los datos —qué stack, qué `User`, qué filtro— y sigue valiendo; cambió dónde se escriben.
 
 **Un archivo por STACK, no por rama** — el nombre del target dice a qué Grafana le hablás:

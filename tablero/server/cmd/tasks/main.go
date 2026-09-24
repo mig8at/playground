@@ -59,7 +59,7 @@ type Task struct {
 }
 
 // DocumentJSON es la proyección tipada de una tarea: el documento y su pila. El Markdown y el JSONL
-// siguen siendo las fuentes; esta forma se deriva al pedirla, así que workers o un script reciben
+// siguen siendo las fuentes; esta forma se deriva al pedirla, así que un script recibe
 // estructura sin crear un sidecar que pueda quedar viejo.
 //
 // ⚠ v3 desde el 2026-09-23: se fueron `state` (la retoma y el próximo paso) y las anotaciones, que ese

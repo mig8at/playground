@@ -40,8 +40,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"creditop/playground/lib/text"
 	"creditop/playground/tablero/server/internal/shell"
-	"creditop/playground/tablero/server/internal/text"
 )
 
 const (

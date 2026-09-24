@@ -1,5 +1,5 @@
 {
-  "_note": "La lista ÚNICA de repos del playground. La leen tablero/server/internal/repos (Go) y tools/repos.py (Python); por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground.",
+  "_note": "La lista ÚNICA de repos del playground. La leen connectors/repos (Go) y tools/repos.py (Python); por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground.",
   "indexed": {
     "application": "~/Desktop/CREDITOP/github/legacy-application",
     "frontend-monorepo": "~/Desktop/CREDITOP/github/frontend-monorepo",

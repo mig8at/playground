@@ -390,7 +390,7 @@ secciones y estado del borrador para Jira. No guarda sidecars. El contrato está
 claves en inglés —el mapa viejo → nuevo está en `tools/rename/maps/phase4b-json.tsv`—, y a `v3`, que
 dejó `state` (la retoma y el próximo paso) y `annotations` cuando la historia del documento pasó a la
 pila, y sumó `stack`.)*
-Esta es la forma recomendada para workers y automatizaciones; el cuerpo privado completo se abre
+Esta es la forma recomendada para scripts y automatizaciones; el cuerpo privado completo se abre
 sólo cuando una decisión necesita la evidencia. `CONTENIDO=1` agrega el borrador publicable; el modo
 normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos bytes ocupa.
 

@@ -415,6 +415,8 @@ func main() {
 	anclas := flag.Bool("anclas", false, "con -ureq: mide cuánto se puede AFIRMAR de cada línea (cierta · probable · por traza · contaminada)")
 	spans := flag.Bool("spans", false, "con -ureq: mide si el `span_id` alcanza para ubicar las líneas que el texto no reclama")
 	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
+	indexarLogs := flag.Bool("indexar-logs", false, "construye ../logs.json, el índice mensaje de log → archivo:línea, leyendo el código de los repos (ver indice_logs.go)")
+	sinFetch := flag.Bool("sin-fetch", false, "con -indexar-logs: no actualiza las refs remotas antes de leer")
 	chequeo := flag.Bool("chequeo", false, "valida el mapa SIN corpus: coherencia interna, el vocabulario de ramales que comparte con el harness y (con -target) las tablas declaradas — ver chequeo.go")
 	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
 	jsonOut := flag.Bool("json", false, "con -ureq o -buscar: salida estructurada, para encadenar o para un modelo")
@@ -470,6 +472,9 @@ func main() {
 		}
 		pie(cmdMake("trazador-posthog", *target, "UREQ", siHay(*ureq), "TEL", *tel))
 		os.Exit(code)
+	}
+	if *indexarLogs {
+		os.Exit(construirIndiceLogs(!*sinFetch))
 	}
 	if *chequeo {
 		// Las tablas sólo se pueden comprobar si hay una fuente a mano. Cuando no la hay, se pasa nil y

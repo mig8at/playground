@@ -1,10 +1,9 @@
 """Los repos de la compañía para las herramientas en Python: la lista, qué ref mirar y qué existe.
 
 ⚠ ESTO YA NO TIENE LÓGICA: la lista vive en `tools/repos.json` y todo lo que toca git lo resuelve
-`tablero/server/cmd/repos` (Go, sobre `internal/repos`), que es la fuente única. Este archivo lee la
+`tablero/server/cmd/repos` (Go, sobre `connectors/repos`), que es la fuente única. Este archivo lee la
 lista y le pregunta al comando, con los mismos nombres que tenía cuando la lógica vivía acá, para que
-sus consumidores (workers, las citas del tablero, la huella del trazador) no cambien mientras se
-migran. Por qué la lista es UNA sola, y el criterio para agregar un repo: `internal/repos`.
+su consumidor (la huella del trazador) no cambie mientras se migra. Por qué la lista es UNA sola, y el criterio para agregar un repo: `connectors/repos`.
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[N] / "tools"))
     from repos import ROOTS, del_ref, ref_a_indexar
@@ -18,7 +17,8 @@ PLAYGROUND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOARD_SERVER = os.path.join(PLAYGROUND, "tablero", "server")
 BINARY = os.path.join(os.path.expanduser("~/.cache/playground"), "repos")
 # Lo que compila el binario: si algo de esto es más nuevo que el binario, se recompila.
-SOURCES = [os.path.join(BOARD_SERVER, d) for d in ("cmd/repos", "internal/repos", "internal/layout")]
+SOURCES = [os.path.join(BOARD_SERVER, "cmd", "repos"), os.path.join(BOARD_SERVER, "internal", "layout"),
+           os.path.join(PLAYGROUND, "connectors", "repos")]
 
 
 def _expand(path):

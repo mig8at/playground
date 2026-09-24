@@ -813,7 +813,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		if briefsNotice != "" {
 			fmt.Println("  " + briefsNotice)
 		}
-		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va a workers/ — no a otra referencia")
+		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
 	}
 	fmt.Println()
 	return 0

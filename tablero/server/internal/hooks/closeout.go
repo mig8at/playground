@@ -30,7 +30,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/tablero/server/internal/text"
+	"creditop/playground/lib/text"
 )
 
 // piece es lo que la sesión le MANDÓ a una herramienta: su nombre y su entrada, como texto.

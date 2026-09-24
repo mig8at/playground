@@ -143,7 +143,7 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 	return hs
 }
 
-// matchersContraElCodigo cruza los patrones del mapa con `workers/logs.json`, que es el índice de los
+// matchersContraElCodigo cruza los patrones del mapa con `trazador/logs.json`, que es el índice de los
 // mensajes que el código EMITE (derivado de los repos, no de una corrida).
 //
 // POR QUÉ ESTE CORPUS Y NO EL DE `-validar`. Aquél son líneas de UNA corrida: si un patrón no captura
@@ -157,12 +157,12 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 // en todo el árbol (`skip` vs `no-aplica`). Hay dos clases de patrón que este corpus NO puede juzgar, y
 // meterlos con los mudos fue la primera versión de esto — daban ocho acusaciones falsas de quince:
 //
-//   · los que miran un CAMPO del context: no son mensajes;
-//   · los que buscan un IDENTIFICADOR DEL CÓDIGO (`ValidateOtpAuthService`, `updateAsyncLender`). El
-//     mensaje de runtime sí los lleva —se ven en cualquier traza, como `OnboardingController::validate…`—
-//     pero el LITERAL del código no, porque la clase y el método se componen en ejecución. Medido: de
-//     seis patrones así, `logs.json` no contiene ninguno ni siquiera como substring. Se reconocen porque
-//     no tienen espacios: un mensaje de log los tiene; un identificador, no.
+//	· los que miran un CAMPO del context: no son mensajes;
+//	· los que buscan un IDENTIFICADOR DEL CÓDIGO (`ValidateOtpAuthService`, `updateAsyncLender`). El
+//	  mensaje de runtime sí los lleva —se ven en cualquier traza, como `OnboardingController::validate…`—
+//	  pero el LITERAL del código no, porque la clase y el método se componen en ejecución. Medido: de
+//	  seis patrones así, `logs.json` no contiene ninguno ni siquiera como substring. Se reconocen porque
+//	  no tienen espacios: un mensaje de log los tiene; un identificador, no.
 //
 // ⚠ Y POR QUÉ LOS MUDOS SON AVISOS Y NO FALLAS. El literal del código es un PREFIJO de lo que llega en
 // runtime (el resto son valores interpolados), así que un matcher escrito con el mensaje COMPLETO de una
@@ -172,7 +172,7 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 func matchersContraElCodigo(m *Mapa) []hallazgo {
 	logs := cargarMapaLogs()
 	if logs == nil {
-		return []hallazgo{{false, "no se encontró workers/logs.json: los matchers quedan SIN cruzar contra el código"}}
+		return []hallazgo{{false, "no se encontró trazador/logs.json (se construye con -indexar-logs): los matchers quedan SIN cruzar contra el código"}}
 	}
 	literales := make([]string, 0, len(logs.porMensaje))
 	for k := range logs.porMensaje {
@@ -194,7 +194,7 @@ func matchersContraElCodigo(m *Mapa) []hallazgo {
 			n := 0
 			for _, lit := range literales {
 				// ⚠ LA COMPARACIÓN VA EN LAS DOS DIRECCIONES, y con una sola daba falsos positivos.
-				// `logs.json` guarda el literal NORMALIZADO (`_normalizar` le corta el `.` final y
+				// `logs.json` guarda el literal NORMALIZADO (`normalizarLiteral` le corta el `.` final y
 				// colapsa espacios) y el matcher está escrito contra el mensaje de RUNTIME, que además
 				// trae los valores interpolados. O sea que ninguna de las dos cadenas contiene a la otra
 				// por defecto: «No risk central data found.» (el matcher) contra «No risk central data

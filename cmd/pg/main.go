@@ -9,9 +9,11 @@
 //	pg logs raw --target T --path query_range --param k=v …    el cuerpo de Loki tal cual
 //	pg events config --target T                                qué PostHog atiende ese ambiente, sin secretos
 //	pg events hogql --target T --query 'SELECT …'              una consulta HogQL: columnas y filas en JSON
+//	pg gemini models                                           los modelos que la llave puede usar hoy
+//	pg gemini ask --prompt '…' [--system '…']                  una pregunta, sin herramientas
 //
 // `logs raw` existe para las herramientas que ya parsean la respuesta de Loki a su manera (el harness, en
-// TypeScript; workers, en Python): conservan su parseo y pierden su cliente HTTP, que es lo que se
+// TypeScript): conserva su parseo y pierden su cliente HTTP, que es lo que se
 // duplicaba. Lo corre `bin/pg`, que lo compila cuando cambia su código.
 //
 // Exit: 0 ok · 1 falló la consulta · 2 mal pedida o rechazada.
@@ -31,6 +33,7 @@ import (
 	"time"
 
 	"creditop/playground/connectors/events"
+	"creditop/playground/connectors/gemini"
 	"creditop/playground/connectors/logs"
 	dbsql "creditop/playground/connectors/sql"
 )
@@ -56,12 +59,16 @@ func init() {
 			"pg logs labels --target T --label L [--since 1h | --start … --end …]", runLabels},
 		{"logs config", "qué Loki atiende el ambiente y si se puede leer, sin secretos",
 			"pg logs config --target T", runLogsConfig},
-		{"logs raw", "el cuerpo de Loki tal cual, para quien ya lo parsea (harness, workers)",
+		{"logs raw", "el cuerpo de Loki tal cual, para quien ya lo parsea (el harness)",
 			"pg logs raw --target T --path query_range|query|labels|label/<x>/values --param k=v …", runLogsRaw},
 		{"events config", "qué PostHog atiende el ambiente y si se puede consultar, sin secretos",
 			"pg events config --target T", runEventsConfig},
 		{"events hogql", "una consulta HogQL de sólo lectura: columnas y filas en JSON",
 			"pg events hogql --target T --query 'SELECT … FROM events …'", runHogQL},
+		{"gemini models", "los modelos de Gemini que la llave puede usar hoy (el configurado, marcado)",
+			"pg gemini models", runGeminiModels},
+		{"gemini ask", "una pregunta a Gemini, sin herramientas: la respuesta en texto",
+			"pg gemini ask --prompt '…' [--system '…']", runGeminiAsk},
 	}
 }
 
@@ -453,4 +460,48 @@ func runHogQL(args []string) int {
 		rows = [][]any{}
 	}
 	return writeJSON(map[string]any{"target": *target, "env": cfg.Env, "columns": columns, "results": rows})
+}
+
+// ─── gemini ─────────────────────────────────────────────────────────────────────────────────────────
+
+func runGeminiModels(args []string) int {
+	cfg, err := gemini.LoadConfig()
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	models, err := gemini.New(cfg).Models()
+	if err != nil {
+		return fail(1, "Gemini: %v", err)
+	}
+	fmt.Printf("modelos para tu llave (el configurado es «%s»):\n\n", cfg.Model)
+	for _, m := range models {
+		mark := " "
+		if m.Name == cfg.Model {
+			mark = "→"
+		}
+		fmt.Printf(" %s %-42s %s\n", mark, m.Name, m.DisplayName)
+	}
+	return 0
+}
+
+func runGeminiAsk(args []string) int {
+	fs := flag.NewFlagSet("gemini ask", flag.ContinueOnError)
+	prompt := fs.String("prompt", "", "la pregunta")
+	system := fs.String("system", "", "instrucciones de sistema (opcional)")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if strings.TrimSpace(*prompt) == "" {
+		return fail(2, "falta --prompt")
+	}
+	cfg, err := gemini.LoadConfig()
+	if err != nil {
+		return fail(2, "%v", err)
+	}
+	out, err := gemini.New(cfg).Ask(*prompt, *system, nil, nil)
+	if err != nil {
+		return fail(1, "Gemini: %v", err)
+	}
+	fmt.Println(out)
+	return 0
 }

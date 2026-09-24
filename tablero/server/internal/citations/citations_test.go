@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/tablero/server/internal/repos"
+	"creditop/playground/connectors/repos"
 )
 
 func run(t *testing.T, dir, date string, args ...string) {

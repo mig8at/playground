@@ -82,7 +82,7 @@ func TestTodoRamalQueDevuelveElCodigoEstaDeclaradoEnElMapa(t *testing.T) {
 }
 
 // ⚠ EL HARDCODE ESTÁ A LA VISTA A PROPÓSITO. `ramalDeRT` decide Credifamilia por `id == 24`, o sea por
-// IDENTIDAD y no por configuración: es deuda conocida (la clase que `workers/cli.py quemado` cataloga) y
+// IDENTIDAD y no por configuración: es deuda conocida (un id quemado en el código, no en la config) y
 // el día que Credifamilia deje de ser el lender 24 —o que otro lender necesite ese ramal— esto miente en
 // silencio. La prueba no lo arregla; lo deja escrito para que el cambio sea deliberado.
 func TestCredifamiliaSeDecidePorIdentidadYNoPorSuResponseType(t *testing.T) {

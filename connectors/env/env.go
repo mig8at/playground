@@ -58,6 +58,24 @@ func Load(target string) (Values, error) {
 	return Values{File: path, kv: kv}, nil
 }
 
+// LoadShared lee `connectors/.env`, el archivo de los servicios que NO dependen del ambiente (Gemini, y
+// más adelante Jira, Slack, Confluence): una sola cuenta sirve para todos los ambientes.
+func LoadShared() (Values, error) {
+	dir, err := Dir()
+	if err != nil {
+		return Values{}, err
+	}
+	path := filepath.Join(dir, ".env")
+	kv, err := parse(path)
+	if os.IsNotExist(err) {
+		return Values{kv: map[string]string{}}, nil
+	}
+	if err != nil {
+		return Values{}, err
+	}
+	return Values{File: path, kv: kv}, nil
+}
+
 // Get devuelve la primera clave con valor, primero en el proceso y después en el archivo.
 func (v Values) Get(keys ...string) string {
 	for _, k := range keys {

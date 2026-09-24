@@ -12,7 +12,7 @@
     "              propósito: también dispara al REANUDAR y DESPUÉS DE COMPACTAR, que es cuando se pierde.",
     "              Se genera del Makefile: un target nuevo aparece solo.",
     "",
-    "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO de workers/.",
+    "PreToolUse  · generated (Write|Edit): bloquea (exit 2) escribir a mano un archivo GENERADO (el índice de logs del trazador).",
     "              Corre ANTES, así que de verdad lo impide.",
     "",
     "PreToolUse  · destructive-tests (Bash): frena `artisan test`/phpunit/pest SIN ruta, `migrate:fresh`,",

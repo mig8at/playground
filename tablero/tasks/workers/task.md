@@ -7,7 +7,16 @@ created: "2026-09-19T14:55:00-05:00"
 canon: [arquitectura]
 jira: []
 jira_title: ""
+archived: "2026-09-24T07:00:00-05:00"
 ---
+
+## Estado
+
+Retirada el 2026-09-24: la carpeta `workers/` se borró entera. La conexión a Gemini quedó en
+`connectors/gemini` (`bin/pg gemini models` · `gemini ask`); el árbol de negocio y el índice de logs
+se mudaron al trazador, que era su único lector (`trazador/server/mapa/negocio.json` y
+`make trazador-indexar-logs`). Los pendientes de abajo quedan sin hacer: eran del planificador que se
+retiró.
 
 ## Pendientes
 

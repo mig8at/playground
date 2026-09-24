@@ -71,8 +71,8 @@ jira_title: ""
 
 <!-- Repos, módulos y archivos con ruta y línea — acá SÍ se puede, el cuerpo es privado.
      Es lo que ahorra el primer grep a ciegas. Si son muchos, agrupá por repo.
-     CON QUÉ SE LLENA: `workers/cli.py buscar "…"` describe en palabras y devuelve archivos con su
-     porqué. Es la sección que más rinde al retomar y la que menos se escribe (11 de 68): al terminar
+     CON QUÉ SE LLENA: el código de `main` (`git grep` contra la rama, no contra el working tree) y,
+     para un mensaje de log, `trazador/logs.json`, que lo lleva al archivo que lo emite. Es la sección que más rinde al retomar y la que menos se escribe (11 de 68): al terminar
      de indagar uno ya lo tiene todo en la cabeza y no parece que haga falta. -->
 
 ## Cómo se ataca

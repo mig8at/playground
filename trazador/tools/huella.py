@@ -43,7 +43,7 @@ from collections import Counter, defaultdict
 
 PLAYGROUND = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # El índice de «qué existe en main» es de la lista única de repos (`tools/repos.py`, que le pregunta a
-# `internal/repos`): es la misma pregunta que se hace el validador de citas, y tenerla dos veces es una
+# `connectors/repos`): es la misma pregunta que se hace el validador de citas, y tenerla dos veces es una
 # divergencia esperando.
 sys.path.insert(0, os.path.join(PLAYGROUND, "tools"))
 from repos import del_ref  # noqa: E402

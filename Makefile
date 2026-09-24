@@ -26,8 +26,6 @@ help: ## esta lista
 	@echo "    go run . -ronda                      ¿qué cambió en main de lo que el corpus declara?"
 	@echo "    go run . -peso                       …y cuál de eso pesa, por actividad de 90 días"
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
-	@$(call listar,@wrk,WORKERS — el índice de los repos y los agentes que lo consumen)
-	@$(call subcomandos,workers/cli.py)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
 
@@ -42,23 +40,9 @@ define listar
 	  | awk -F'\t' '{printf "    \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 endef
 
-# subcomandos <cli> — los subcomandos de un CLI, SACADOS DEL CLI.
-#
-# ⚠ Por qué no van escritos en el `##` del target, que sería lo obvio. Ahí estaban, y quedaron viejos:
-# la línea anunciaba 7 de 18 — `logs`, `negocio`, `relaciones` y otros 8 no existían para nadie que no
-# los hubiera escrito. Un subcomando que el catálogo no nombra es un subcomando que no se usa, y esta
-# es la MISMA copia-a-mano que el CLAUDE.md de la raíz ya escarmentó una vez con la lista de comandos.
-# Sale del `--help`, así que uno nuevo aparece acá el día que se agrega, sin que nadie se acuerde.
-define subcomandos
-	printf "    \033[36m%-18s\033[0m " "$(patsubst %/,%,$(dir $(1))) ↳"; \
-	($(1) --help 2>/dev/null | sed -n '/^positional arguments:/,/^optional\|^options/p' \
-	  | grep -E "^    [a-z-]+ " | awk '{printf "%s%s", (NR>1?" · ":""), $$1}' \
-	  || true); echo ""
-endef
-
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
 .PHONY: status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel trazador trazador-buscar trazador-ureq \
-	trazador-diag trazador-chequeo trazador-validar trazador-slack trazador-hilos
+	trazador-diag trazador-chequeo trazador-indexar-logs trazador-validar trazador-slack trazador-hilos
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
@@ -208,6 +192,11 @@ trazador-diag: ## @dia el diagnóstico FINO de una traza: qué se puede AFIRMAR 
 trazador-chequeo: ## @dia ¿el mapa del trazador sigue siendo cierto? sin corpus y sin tocar nada: coherencia interna, el vocabulario de ramales que comparte con el harness y, con TARGET, las tablas declaradas. [TARGET=local|dev]
 	@cd trazador/server && go run . -chequeo $(if $(TARGET),-target $(TARGET))
 
+# El índice de mensajes de log → archivo que resuelve las trazas y que `trazador-chequeo` cruza contra el
+# mapa. Se deriva de los repos y no se versiona: se reconstruye cuando el código de los repos cambió.
+trazador-indexar-logs: ## @dia reconstruye el índice de LOGS del trazador (mensaje → archivo que lo emite) desde los repos, con las refs remotas al día. [SIN_FETCH=1]
+	@cd trazador/server && go run . -indexar-logs $(if $(SIN_FETCH),-sin-fetch)
+
 estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las cuatro UIs encendidas; Jira usa datos de prueba
 	@node tools/ui-check.mjs
 
@@ -263,9 +252,10 @@ pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 # ⚠ Acá vivían los 14 comandos del árbol `context/` (align, refs, seal, lint, diff, triar, jev…). Ese
 # árbol se apagó el 2026-09-21: el contexto curado es CANON y vive en otro repo (`github/playground/
 # tools/canon`), con sus propios comandos —`go run . -ronda`, `-peso`, `-lint`, `-pregunta`—. Lo que
-# quedó acá de aquel conjunto son las piezas que no eran del árbol: `entidades`, `trazador-huella` y
-# `confluence`, cada una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se
-# retiró el 2026-09-23: generaba el snapshot de la consola de ramas que sólo leía la vista del árbol.)
+# quedó acá de aquel conjunto son las piezas que no eran del árbol: `trazador-huella` y `confluence`, cada
+# una en el grupo de la herramienta a la que pertenece. (`repos` también quedó, y se retiró el 2026-09-23:
+# generaba el snapshot de la consola de ramas que sólo leía la vista del árbol. Y `entidades`, con
+# workers, el 2026-09-24.)
 .PHONY: tablero-jev-test flow-context flow-context-test
 
 # Flow es una explicación ejecutable de la cascada de originación. Esta consola no usa el navegador,
@@ -296,30 +286,6 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 trazador-huella: ## @dia la huella MEDIDA de un flujo (tablas/eventos/código) desde una corrida, cruzada contra canon. UREQ=x [MYSQL=/tmp/huella-mysql.log]
 	@test -n "$(UREQ)" || { python3 trazador/tools/huella.py; exit 2; }
 	@python3 trazador/tools/huella.py $(UREQ) $(if $(NOMBRE),--nombre "$(NOMBRE)",) $(if $(MYSQL),--mysql $(MYSQL),)
-
-entidades: ## @wrk regenera workers/ENTIDADES.md — la ficha de NEGOCIO de cada entidad, medida contra PROD (alcance, ticket, plazo, aprobación, embudo, ocupación declarada vs real). [DIAS=90] [MIN=200]
-	@python3 workers/entidades.py
-
-# ── WORKERS ──────────────────────────────────────────────────────────────────────────────────────
-# UN proyecto con dos mitades que se necesitan: el ÍNDICE de cómo están construidos los repos
-# (canon entra por pregunta de negocio; esto entra POR REPO) y los AGENTES de Gemini que lo
-# consumen. Van juntos porque la medición fue una sola: los agentes rinden cuando cada herramienta
-# devuelve exactamente lo que hace falta — el trabajo fino vive en los índices, no en el prompt.
-# La dependencia sigue en un sentido: workers LEE el corpus (`tools/canon.py`), no al revés.
-#
-# ⚠ El índice NO tiene un target por verbo, a propósito: es un CLI de verdad y se maneja solo.
-# `workers/cli.py --help` lista los subcomandos y `cli.py <subcomando> --help` sus opciones con los
-# valores válidos. Un target de make (`ALIAS=x ZOOM=2`) no puede decir eso — y esta herramienta la
-# usa tanto Miguel como un modelo, que necesita DESCUBRIRLA, no que se la expliquen. La ayuda es la
-# documentación y no se desincroniza, porque sale del mismo código que corre.
-.PHONY: workers
-workers: ## @wrk el índice de los repos, sus logs y su modelo de datos. CLI: `workers/cli.py <sub> --help`
-	@cd workers && ./cli.py $(if $(ARGS),$(ARGS),--help)
-
-# Muestra 3 caracteres del valor a propósito: alcanza para distinguir `loc`alhost de `ine`rtia-dev, y
-# no alcanza para usar un secreto. Lo que se busca no es el valor: es a DÓNDE apunta cada conexión.
-env-auditoria: ## @wrk ¿a qué apunta cada .env del playground? clave + 3 caracteres, marcando lo COMPARTIDO. [RAIZ=ruta]
-	@python3 workers/env_auditoria.py $(if $(RAIZ),$(RAIZ))
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 .PHONY: harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-centrales harness-rto harness-peru harness-comercio harness-forms-g2 harness-bcp-volver tests-codeudor harness-listado harness-caso harness-check soporte-qa
@@ -527,36 +493,6 @@ trazador-sql: ## @har UNA consulta de SOLO LECTURA a la BD del ambiente. SQL='SE
 	@# y el mensaje de ayuda hacía creer que faltaba SQL, cuando SQL estaba y era válido.
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'  ·  ej: make trazador-sql TARGET=local SQL='SELECT id,name FROM countries LIMIT 3'"; exit 2; }
 	@cd trazador/server && go run . -target $(if $(TARGET),$(TARGET),prod) -sql $$'$(subst ','\'',$(SQL))' $(if $(CSV),-csv) $(if $(MD),-md) $(if $(BLOQUE),-bloque $(BLOQUE))
-
-# Los agentes de workers: el bucle a la vista, contra Gemini. La receta de CÓMO combinarlos —cuántos
-# ángulos, cuántos archivos, cuándo medir en vez de leer— está en `workers/README.md` §«Cómo se orquesta».
-.PHONY: agente-modelos agente-plan agente-seleccion agente-contraste agente-analisis agente-lector agente-datos
-agente-modelos: ## @wrk ¿qué modelos habilita mi key hoy? (correlo primero, y ante cualquier 404 de modelo)
-	@cd workers && python3 gemini.py --modelos
-
-agente-seleccion: ## @wrk NO contesta: dice QUÉ ARCHIVOS habría que leer y por qué. Sólo índices. PREGUNTA='…'
-	@cd workers && python3 seleccion.py $(if $(PREGUNTA),"$(PREGUNTA)")
-
-agente-contraste: ## @wrk PASO 2: otro agente elige archivos que el primero NO miró, para contrastar
-	@cd workers && python3 contraste.py
-
-agente-plan: ## @wrk NO busca: decide cuántos ángulos y cómo se dice en el código. PREGUNTA='…' [JEV=1 envía pregunta sin datos sensibles a TypeSafe]
-	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd workers && CONTEXT_JEV=$(if $(filter 1 yes true,$(JEV)),1,0) python3 plan.py "$(PREGUNTA)"
-
-agente-analisis: ## @wrk LA FILA ENTERA: plan → N seleccionadores por ángulo → lector. PREGUNTA='…' [JEV=1 experimental]
-	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'"; exit 2; }
-	@cd workers && CONTEXT_JEV=$(if $(filter 1 yes true,$(JEV)),1,0) python3 analisis.py "$(PREGUNTA)"
-
-agente-lector: ## @wrk PASO 2: lee los archivos que eligió `agente-seleccion` y contesta. Recorta a 300k tokens
-	@cd workers && python3 lector.py $(if $(PREGUNTA),"$(PREGUNTA)")
-
-# Los otros agentes leen CÓDIGO. Éste MIDE: base de datos y logs reales, un ambiente por corrida.
-# Es seguro contra prod porque la guarda de solo-lectura vive en Go (`trazador/server/sql.go`), no en el
-# prompt — un prompt se convence, esa función no.
-agente-datos: ## @wrk NO lee código: MIDE contra la BD y los logs reales. PREGUNTA='…' [TARGET=local|dev|staging|prod]
-	@test -n "$(PREGUNTA)" || { echo "falta PREGUNTA='…'  ·  ej: make agente-datos TARGET=prod PREGUNTA='¿cuántas solicitudes quedan en estado 3?'"; exit 2; }
-	@cd workers && python3 datos.py "$(PREGUNTA)" --target $(if $(TARGET),$(TARGET),local)
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).

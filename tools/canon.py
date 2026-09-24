@@ -4,8 +4,8 @@ Canon es el corpus del equipo, servido en canon.playground.creditop.com: cada te
 secciones y su mapa por áreas, cada área con sus `fuentes` ({repo: {ruta: hash}}) y sus `tablas`.
 
 ⚠ ESTO NO LEE CANON: se lo pide a `canon corpus` (`tablero/server/cmd/canon`, en Go), que es la única
-lectura del corpus entero del playground, y sólo reparte lo que devuelve. Así workers, la huella del
-trazador y el tablero leen canon con el mismo cliente, el mismo origen y los mismos errores. El origen
+lectura del corpus entero del playground, y sólo reparte lo que devuelve. Así la huella del trazador y el
+tablero leen canon con el mismo cliente, el mismo origen y los mismos errores. El origen
 es `CANON_URL`: por defecto producción, que pide la VPN; `CANON_URL=http://localhost:8080` apunta a un
 canon local, que tiene su propia base.
 

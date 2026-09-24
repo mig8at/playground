@@ -8,8 +8,8 @@ import (
 )
 
 /* EL CORPUS ENTERO, para cruzarlo con lo que otra herramienta mide: qué tema declara qué archivo y qué
- * tabla, y su prosa para buscar una tabla que se explica sin figurar en el mapa. Lo consumen workers y
- * la huella del trazador —que son Python— a través de `canon corpus` y `tools/canon.py`: la lectura de
+ * tabla, y su prosa para buscar una tabla que se explica sin figurar en el mapa. Lo consume la huella
+ * del trazador —que es Python— a través de `canon corpus` y `tools/canon.py`: la lectura de
  * canon tiene UNA implementación, ésta, y el lado Python sólo reparte lo que devuelve. */
 
 // readBatch es cuántos temas se piden por `/api/read`: el corpus entero en pocas vueltas.
@@ -33,7 +33,7 @@ type fullNode struct {
 }
 
 /* Corpus lee todos los temas. La clave es el tema sin su capa (`kyc/context` → `kyc`), que es como lo
- * nombran `canon:` en las tareas y las salidas de workers. */
+ * nombran `canon:` en las tareas. */
 func (c *Client) Corpus(ctx context.Context) (map[string]Topic, error) {
 	var index struct {
 		Nodes []struct {

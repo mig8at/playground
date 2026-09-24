@@ -23,8 +23,7 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 1. **Buscá con palabras del negocio, en español y cortas.** La búsqueda es léxica: una consulta en
    inglés o un relato largo no encuentran nada. Probá dos o tres formulaciones antes de concluir.
 2. **Leé la sección entera** antes de citarla: un buen puesto en la búsqueda no garantiza que conteste.
-3. **El silencio de canon NO es «no existe».** Si no está, la pregunta va a `workers/` (derivado de
-   `main`) o al código, y si resulta una regla viva, se dicta (abajo).
+3. **El silencio de canon NO es «no existe».** Si no está, la pregunta va al código de `main`, y si resulta una regla viva, se dicta (abajo).
 4. En una tarea, lo que se usó se cita en su bloque como `[texto](canon:tema#ancla)` y el tema entra a
    `canon:` del frontmatter.
 
@@ -95,6 +94,6 @@ misma frase.
 
 ## Y lo que NO es canon
 
-Las herramientas de este repo (harness, trazador, tablero, workers) se documentan en su `CLAUDE.md`,
+Las herramientas de este repo (harness, trazador, tablero, connectors) se documentan en su `CLAUDE.md`,
 no en canon: el corpus describe CreditOp. Lo de una tarea va a su pila; una trampa del sistema, a
 `tablero/data/traps/doc.md`.

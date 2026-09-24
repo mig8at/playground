@@ -19,6 +19,7 @@
 package repos
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -44,9 +45,10 @@ type list struct {
 // Client resuelve repos contra la lista de `tools/repos.json`.
 type Client struct {
 	Playground string
-	indexed    map[string]string // lo que workers indexa: repos de la compañía y herramientas propias
+	indexed    map[string]string // lo que se indexa: repos de la compañía y herramientas propias
 	citable    map[string]string // indexed + playground y playground-equipo, que una tarea cita
 	exts       map[string]bool
+	order      []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
 	loadErr    error
 
 	refs sync.Map // root → refChoice, cacheado por proceso: resolverla son cuatro llamadas a git
@@ -73,6 +75,7 @@ func New(tools string) *Client {
 		c.indexed[alias] = c.expand(path)
 		c.citable[alias] = c.indexed[alias]
 	}
+	c.order = keyOrder(raw, "indexed")
 	for alias, path := range l.CitableOnly {
 		c.citable[alias] = c.expand(path)
 	}
@@ -81,6 +84,48 @@ func New(tools string) *Client {
 	}
 	return c
 }
+
+// Find arma el cliente buscando `tools/repos.json` hacia arriba desde donde se corre: es lo que usa una
+// herramienta que no es el tablero (el trazador corre desde `trazador/server`).
+func Find() *Client {
+	wd, _ := os.Getwd()
+	for d := wd; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, "tools", "repos.json")); err == nil {
+			return New(filepath.Join(d, "tools"))
+		}
+		if filepath.Dir(d) == d {
+			return New(filepath.Join(wd, "tools"))
+		}
+	}
+}
+
+// keyOrder devuelve las claves de un objeto del JSON en el orden en que aparecen: un map de Go lo pierde.
+func keyOrder(raw []byte, field string) []string {
+	var top map[string]json.RawMessage
+	if json.Unmarshal(raw, &top) != nil {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(top[field]))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return nil
+	}
+	var keys []string
+	for dec.More() {
+		t, err := dec.Token()
+		if err != nil {
+			return keys
+		}
+		keys = append(keys, t.(string))
+		var skip json.RawMessage
+		if dec.Decode(&skip) != nil {
+			return keys
+		}
+	}
+	return keys
+}
+
+// IndexedOrder: los alias indexados en el orden de `tools/repos.json`.
+func (c *Client) IndexedOrder() []string { return append([]string(nil), c.order...) }
 
 func (c *Client) expand(path string) string {
 	if rest, ok := strings.CutPrefix(path, "~/"); ok {
@@ -92,7 +137,7 @@ func (c *Client) expand(path string) string {
 	return filepath.Clean(filepath.Join(c.Playground, path))
 }
 
-// Indexed: alias → carpeta, de lo que workers indexa.
+// Indexed: alias → carpeta, de lo que se indexa (el índice de logs del trazador, la huella).
 func (c *Client) Indexed() map[string]string { return c.indexed }
 
 // Citable: alias → carpeta, de todo lo que un bloque del tablero puede citar.

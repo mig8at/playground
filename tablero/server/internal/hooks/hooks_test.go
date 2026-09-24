@@ -131,7 +131,7 @@ func TestPyDumpsWritesLikePython(t *testing.T) {
 }
 
 func TestGeneratedFilesAreBlockedAndTheRestPass(t *testing.T) {
-	for path, want := range map[string]int{"/x/workers/ENTIDADES.md": 2, "./workers//repos.json": 2, "/x/workers/cli.py": 0, "": 0} {
+	for path, want := range map[string]int{"/x/trazador/logs.json": 2, "./trazador//logs.json": 2, "/x/trazador/server/main.go": 0, "": 0} {
 		env := Env{Stdin: strings.NewReader(`{"tool_input":{"file_path":"` + path + `"}}`), Stderr: &bytes.Buffer{}}
 		if got := Generated(env); got != want {
 			t.Errorf("Generated(%q) = %d, quería %d", path, got, want)

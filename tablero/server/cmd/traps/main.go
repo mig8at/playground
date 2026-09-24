@@ -13,10 +13,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"creditop/playground/connectors/repos"
+	"creditop/playground/lib/text"
 	"creditop/playground/tablero/server/internal/citations"
 	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/repos"
-	"creditop/playground/tablero/server/internal/text"
 	"creditop/playground/tablero/server/internal/traps"
 )
 

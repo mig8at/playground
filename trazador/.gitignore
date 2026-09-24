@@ -8,3 +8,6 @@
 
 # Build de la Vue
 /dist/
+
+# El índice mensaje de log → archivo (`-indexar-logs`): se deriva del código, no se versiona.
+/logs.json

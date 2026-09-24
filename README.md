@@ -21,7 +21,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 
 | Carpeta | Qué es |
 |---|---|
-| [`workers/`](workers/) | El índice **derivado** de `main`: qué archivos toca una pregunta, quién llama a qué, los hardcodes por identidad, el modelo de datos. Cubre todo el código, incluido lo que nadie escribió. |
+| [`connectors/`](connectors/) | El cliente ÚNICO de cada servicio externo (base, Loki, PostHog, Gemini, repos), por ambiente y con la fuente que contestó. Se usa con `bin/pg` (`make pg ARGS=help`). |
 | [`harness/`](harness/README.md) | Playwright + TypeScript manejando el wizard real punta a punta con KYC/buró sintético: panel visual, flota de mocks y barrido headless por API. |
 | [`tablero/`](tablero/README.md) | Las **tareas** (una = un archivo en `data/`), el dashboard del sprint y el pulso. |
 | [`trazador/`](trazador/) | Herramienta de soporte (Go) sobre Loki + BD: «¿qué le pasó a ESTA solicitud y por qué?». `make trazador-acceso` prueba el acceso. |

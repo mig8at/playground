@@ -21,24 +21,15 @@ herramienta: es suponer que no está y contestar de memoria.
 
 | Tu pregunta | Con qué se contesta |
 |---|---|
-| **no conozco el dominio, ¿por dónde empiezo?** | `workers/cli.py negocio` — los 23 conceptos en orden, con el tema que explica cada uno |
+| **no conozco el dominio, ¿por dónde empiezo?** | canon — `make canon-search Q='…'` con palabras del negocio, y el tema que conteste, entero |
 | **¿cómo funciona X?** | **canon** — el corpus compartido del equipo, en canon.playground.creditop.com. **Siempre primero.** `make canon-search Q='…'` (gratis) → `make canon-read IDS=…`. Para leerlo y para dictarle, el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
-| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es leer los temas enteros (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA de los metadatos del tema (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va a `workers/`** |
+| **retomo una tarea del tablero** | `make retomar N=… BRIEF=1` — la tarea YA declara sus temas en `canon:`, así que no hay nada que elegir: lo que cuesta es leer los temas enteros (`kyc` 31 KB), y la **ficha** de cada tema alcanza para decidir cuál. ⚠ La ficha se DERIVA de los metadatos del tema (título, resumen y el `objetivo` de cada área, escritos a mano): no cuesta un modelo y no puede inventar. Medido el 2026-09-21: dos fichas pesan 7.055 B contra 51.284 B de sus documentos — **7,3×**. ⚠ Regla de corte: **si la ficha no contesta, no probés otro tema — la pregunta va al código de `main`** |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence` — el porqué del negocio no está en el código |
-| **…y si canon no lo cubre** | `workers/` — el índice se deriva de `main`, así que cubre TODO el código, incluido lo que nadie escribió (ver abajo) |
-| **¿qué archivos toco para esto?** | `workers/cli.py buscar "…"` — describís en palabras, te da archivos con el porqué |
-| **¿cómo está construido este repo?** | `workers/cli.py repos <alias>` · `subramas` · `mapa` — entra POR REPO, no por síntoma |
-| **¿por qué este comercio/lender se porta distinto?** | `workers/cli.py quemado` — los lugares donde el código decide por IDENTIDAD y no por config, con cada id resuelto a su nombre. ⚠ indexado por (columna, id): `24` es Credifamilia como lender y *Creditop* como comercio |
-| **¿por dónde empiezo a pagar esa deuda?** | `workers/cli.py cobertura` — cruza esos lugares contra lo que canon declara y contra su PESO (commits de 90 días). **Medido el 2026-09-21: 411 lugares, canon cubre el 54%**, y de los `despacho` —el peor caso, el nombre del archivo armado con un id— ya no queda ninguno afuera. ⚠ Los `id_quemado` siguen siendo los peor cubiertos (48% fuera) y son justo los que atan una conducta a UNA entidad. ⚠ Y el número se mueve: corré el comando en vez de citar éste |
-| **voy a indagar en los repos, ¿cómo no perder el día?** | `workers/INDAGAR.md` — el método: demanda → índice → verificación contra `main` → ¿se alcanza/es la norma/se ejecuta? → causa → mecanismo. ⚠ cada regla de ahí costó un error, incluido el mío |
-| **¿quién es esta entidad, en negocio?** (a cuántos comercios llega, qué ticket, qué plazo, cuánto aprueba, dónde se cae la gente) | `workers/ENTIDADES.md` — **generado** contra **prod** con `make entidades`. ⚠ dice lo que las entidades HACEN, no lo que son |
-| **¿con qué se une esta tabla?** · **¿qué tablas toco para X?** | `workers/cli.py relaciones` — las 247 en 13 vecindarios. ⚠ el esquema declara **44** FK: las otras 388 relaciones están reconstruidas y cada una dice de dónde salió |
-| **¿quién llama a esto?** · **¿difieren los dos monolitos?** | herramientas de los agentes (`quien_usa`, `gemelos`); a mano, `workers/cli.py gemelos` |
-| **hay MUCHO código que leer para contestar** | `make agente-analisis PREGUNTA='…'` — plan → N buscadores → lector de 300k. La receta: `workers/README.md` §«Cómo se orquesta» |
-| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo. Con agente: `make agente-datos TARGET=prod` |
+| **…y si canon no lo cubre** · **¿qué archivos toco para esto?** | **el código de `main`**, con `git grep` contra la rama (nunca el working tree: los repos viven en ramas). La ref de cada repo la da `go run ./cmd/repos ref <alias>`, desde `tablero/server`. ⚠ **En los dos monolitos**, o la afirmación sale falsa con evidencia real |
+| **¿esto pasa de verdad, y cuánto?** | `make trazador-sql` contra **prod**. Es la única forma de contestarlo |
 | **¿qué le pasó a ESTA solicitud?** | **Dos forenses, y la diferencia es dónde ANCLAN.** `make trazador-ureq UREQ=…` arranca en la BD —las etapas son hechos, salen aunque no haya un solo log— y suma los 39 pasos, qué VIO el cliente y qué archivos dejaron rastro; es la única que llega a **prod**. `make harness-loki UREQ=…` arranca en los LOGS y por eso trae lo que la otra no: la regla con la que se evaluó cada entidad y el `timeline.ndjson` completo con payloads — pero sin líneas no puede decir nada, y **no mira prod**. ⚠ Sus defaults son OPUESTOS (`local` vs `prod`): escribí `TARGET=` siempre, o cambiás de ambiente sin enterarte (F-234). Cada una imprime el comando de la otra al terminar. Si sólo tenés la cédula o el celular, `make trazador-buscar Q=…` primero. ⚠ `trazador-acceso` **no** es esto: es la sonda de «¿puedo leer los logs?» |
-| **leí un error, ¿de qué archivo salió?** | `workers/cli.py logs "<mensaje>"` — el mapa va del mensaje al archivo y su línea. Para una corrida entera, la herramienta `archivos_de_la_traza` del agente que mide |
+| **leí un error, ¿de qué archivo salió?** | `trazador/logs.json` — el índice va del mensaje al archivo y su línea (`make trazador-indexar-logs` lo reconstruye desde los repos). Para una corrida entera, el trazador ya lo resuelve: la sección «archivos» de `make trazador-ureq` |
 | **¿qué VIO el cliente en pantalla?** | `make trazador-posthog UREQ=… TEL=…` — ⚠ **sin `TEL` ves la mitad**: la fase de AUTH ocurre antes de que exista la solicitud, así que PostHog la identifica por teléfono (medido: 47.792 eventos por teléfono contra 24.006 por solicitud) |
 | **¿qué entidades le salen a ESTE comercio, y por qué no las otras?** | `make harness-listado COMERCIO=…` — **3 s**, por API y sin browser. Canon (`listado`) explica la CASCADA; esto contesta el CASO |
 | **¿qué pasa si el cliente es así?** (ingreso, score, ocupación, plazo, entidad) | `make harness-caso CASOS='…'` — el flujo entero por API, en paralelo. `CERRAR=1` llega hasta el desenlace |
@@ -62,7 +53,7 @@ corre.
 se lee igual que una ausencia real. Medido el 2026-08-16 sobre el árbol que lo precedió: dos
 funcionalidades mergeadas —el endpoint de regeneración de Credifamilia (13/8) y el flag
 `can_check_preapproval` (10/8)— no estaban escritas en ningún lado. **Cuando el corpus no diga nada de
-algo que debería existir, no concluyas: preguntale a `workers/`, que se deriva del código.**
+algo que debería existir, no concluyas: andá al código de `main`, que es lo que corre.**
 
 Regla de oro: **una afirmación verificable se verifica antes de escribirla**, y la herramienta que la
 verifica casi siempre existe ya. Y cuando la verificás, **la medición no se escribe a mano**: con
@@ -87,7 +78,7 @@ tiene resuelto.
 
 **2 · UNA ES LA VARA DE OTRA.** Lo que una declara se contrasta contra lo que otra **deriva del
 código**, no contra una copia nuestra. Es lo que hace `npm run contrato:bancolombia` (el mock contra
-los zod reales), y lo que ahora hacen dos cruces más: `workers/logs.json` —el índice de los mensajes
+los zod reales), y lo que ahora hacen dos cruces más: `trazador/logs.json` —el índice de los mensajes
 que el código emite— valida los matchers del mapa del trazador, y encontró **cinco mudos** por una
 renumeración; y el emisor de anotaciones del arnés se prueba leyendo el **regex real** con que el tablero
 las reconoce (`reAnnotation`, en su `store`). ⚠ La regla es la de los mocks: **una herramienta no puede
@@ -479,10 +470,11 @@ simple: **no corras nada destructivo; si creés que hace falta, preguntá.**
 
 ## EL CICLO — acá siempre pasa lo mismo
 
-Se viene a resolver **tareas** sobre CreditOp con cinco piezas — **tablero** (la tarea), **canon**
-(el conocimiento curado, COMPARTIDO con el equipo y en otro repo), **workers** (el índice derivado del
-código, para lo que el conocimiento aún no cubre), **harness** (la prueba) y **trazador** (lo que ya
-pasó, incluido en prod) — y el circuito es fijo.
+Se viene a resolver **tareas** sobre CreditOp con cuatro piezas — **tablero** (la tarea), **canon**
+(el conocimiento curado, COMPARTIDO con el equipo y en otro repo), **harness** (la prueba) y
+**trazador** (lo que ya pasó, incluido en prod) — y el circuito es fijo. Lo que canon aún no cubre se
+lee en el código de `main`. *(Hasta el 2026-09-24 había una quinta, `workers/`: un índice derivado del
+código con agentes de Gemini encima. Se retiró; la conexión a Gemini quedó en `connectors/gemini`.)*
 
 ⚠ **Canon no vive acá: vive en `~/Desktop/CREDITOP/github/playground/tools/canon`** (repo
 `Creditop-SAS/playground`), y se publica en canon.playground.creditop.com. Hasta el 2026-09-21 este
@@ -575,7 +567,7 @@ dos funcionalidades invisibles:**
    cambio de un tema con deriva **baja**. Mirar sólo el ranking se pierde lo segundo.
 2. Confirmá que el hueco es real: `git log main --oneline -- <ruta>` (cuándo entró y quién) + una
    búsqueda en canon (`/api/search?q=…`). Si nadie lo menciona, ahí hay algo.
-3. Preguntá. `make agente-analisis PREGUNTA='…'` si hay mucho que leer; a mano si son 3 archivos.
+3. Leé el código que cambió, en `main` y en los dos monolitos.
 4. **Verificá contra `main`** lo que devuelva, y recién ahí dictalo a canon (por la API, paso 5). ⚠ El
    cambio de prosa y el del hash van **juntos**: mover el hash sin releer dice «esto sigue siendo cierto» sin que nadie lo
    haya comprobado.
@@ -639,7 +631,7 @@ tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla 
   momentos distintos, así que `main` pasa por estados que nadie probó. La única división que se
   mantiene es **por repo**, porque un PR no puede cruzarlos.
 - ⛔ **La descripción de un PR NO nombra las herramientas internas.** Nada de `harness`, `trazador`,
-  `tablero`, `workers`, `playground` ni sus comandos `make`: el PR lo leen personas que no
+  `tablero`, `connectors`, `playground` ni sus comandos `make`: el PR lo leen personas que no
   tienen ese repo y para quienes «corrí `make harness-caminar`» no es evidencia, es ruido. Lo que va en
   el PR es **qué se midió y qué dio** —el ambiente, el caso, los números, el antes y el después— y las
   rutas del repo que se está tocando. El comando que lo reproduce va en el archivo de la tarea, que es
@@ -694,7 +686,7 @@ como las **perillas** (Cognito, mocks, `SEED`). Ya **no** hay capa compartida `e
 ⚠ **Salvo lo que ya pasó a `connectors/`** (tarea #90, frente «Una consulta por ambiente»): la base de
 cada ambiente —MySQL directo o Redash— la abre `connectors/sql`, Loki lo lee `connectors/logs` y PostHog
 `connectors/events`, los tres con las credenciales de `connectors/.env.<target>` (plantilla:
-`connectors/.env.example`). El tablero, el trazador, el harness y workers ya no las guardan —el trazador
+`connectors/.env.example`). El tablero, el trazador y el harness ya no las guardan —el trazador
 no tiene `.env` propio—; desde otro lenguaje se llega por **`bin/pg`**
 (`bin/pg help`, o `make pg ARGS='…'`). Las claves de base van **con el prefijo `E2E_DB_`**, nunca como `DB_HOST`: ese nombre es el que
 lee Laravel, y el conector no lo lee ni del archivo ni del proceso. Los demás servicios se van mudando
