@@ -80,7 +80,7 @@ func Load(target string) (Values, error) {
 }
 
 // LoadShared lee `connectors/.env`, el archivo de los servicios que NO dependen del ambiente (Gemini,
-// Atlassian, Slack, Jev, Twilio): una sola cuenta sirve para todos los ambientes.
+// Atlassian, Slack, Jev, Twilio, Figma): una sola cuenta sirve para todos los ambientes.
 func LoadShared() (Values, error) {
 	dir, err := Dir()
 	if err != nil {

@@ -686,7 +686,7 @@ tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla 
 | archivo | qué lleva |
 |---|---|
 | `connectors/.env.<target>` (`local` · `dev` · `qa` · `staging` · `prod`) | lo que depende del ambiente: la base (MySQL directo, o Redash en prod), Loki y PostHog |
-| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, **un token para los dos**), Slack, Jev y Twilio |
+| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, **un token para los dos**), Slack, Jev, Twilio y Figma |
 | `<herramienta>/.env[.<target>]` | sólo las **perillas** de esa herramienta: Cognito, mocks, `SEED`, el board de Jira, a quién avisarle en QA |
 
 La plantilla de los dos primeros es `connectors/.env.example`. Prioridad: **el proceso gana** sobre el
