@@ -1,5 +1,5 @@
 import type { Browser, BrowserContext, BrowserContextOptions, Page } from '@playwright/test';
-import { installAutofill } from './autorelleno.ts';
+import { installAutofill } from './autofill.ts';
 
 /**
  * windows — fuente ÚNICA del manejo de ventanas A/B del suite e2e (preview/headed).
@@ -23,7 +23,7 @@ import { installAutofill } from './autorelleno.ts';
  * tileWindow corta temprano (PREVIEW=false) y no hace nada.
  */
 
-// preview (headed): acomodar las ventanas en columnas para verlas lado a lado sin taparse. Lo setea bin/asesor.
+// preview (headed): acomodar las ventanas en columnas para verlas lado a lado sin taparse. Lo setea bin/advisor.
 export const PREVIEW = process.env.E2E_PREVIEW === '1';
 
 // UA de iPhone: el wizard gatea la validación / loan-approved por `onlyMobileValidation` (con UA de escritorio

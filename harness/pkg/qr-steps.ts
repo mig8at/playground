@@ -29,9 +29,9 @@
 //   setting `qa_otp_bypass_phones`. Mismo mecanismo que el tronco (ver README §bypasses).
 
 import type { Page } from '@playwright/test';
-import { autofill, waitForHydration } from './autorrelleno.ts';
+import { autofill, waitForHydration } from './autofill-qr.ts';
 
-// Re-exportada para no romper a quien la importaba de acá: la implementación vive en `autorrelleno.ts`.
+// Re-exportada para no romper a quien la importaba de acá: la implementación vive en `autofill-qr.ts`.
 export { waitForHydration };
 
 /** Los 4 últimos dígitos: el OTP de los teléfonos de bypass. */
@@ -227,7 +227,7 @@ const QR_FIELDS: Array<{ name: string; label?: RegExp; valor: (d: QrData) => str
  * había nada que llenar, que es lo normal en las pantallas de sólo-lectura del recorrido).
  */
 export async function autofillQr(page: Page, d: QrData): Promise<string[]> {
-    // El motor es `pkg/autorrelleno.ts`: acá sólo se resuelve QUÉ campos hay y con qué valor. Antes esta
+    // El motor es `pkg/autofill-qr.ts`: acá sólo se resuelve QUÉ campos hay y con qué valor. Antes esta
     // función tenía la máquina adentro; se extrajo al agregar el motor de navegador al caminador del
     // wizard, que necesitaba lo mismo con otro mapa (ver la cabecera de ese módulo).
     return autofill(page, QR_FIELDS.map((c) => ({ name: c.name, label: c.label, valor: c.valor(d) })));

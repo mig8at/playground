@@ -6,7 +6,7 @@
 //
 // POR QUÉ EXISTE. Tres bugs de la misma semana fueron el MISMO bug —un valor dependiente del ambiente
 // resuelto por fuera de la cadena, fallando en silencio—:
-//   F-59  `bin/asesor` greppeaba `.env.$TARGET` a mano  → moría mudo
+//   F-59  `bin/advisor` greppeaba `.env.$TARGET` a mano  → moría mudo
 //   F-64  `/api/lenders` se tragaba el error            → mapa vacío, indistinguible de "no hay datos"
 //   F-65  `'http://localhost'` como default             → registraba al cliente en la base equivocada
 // Los tres se cazan acá ANTES de la primera corrida, porque la firma es siempre la misma: contra dev o

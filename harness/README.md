@@ -40,7 +40,7 @@ npm run dev            # ← LA ENTRADA: Panel del harness en http://localhost:5
 
 El panel es un `node panel/server.ts` sin dependencias. Elegís comercio → definís el usuario sintético
 (nombre / documento / edad / ingreso / score / negativos / consultas) → prendés y apagás lenders de la
-sucursal → "Preparar + Lanzar ▶". Por debajo shellea `bin/dbops.ts` y `bin/asesor`, y te muestra la
+sucursal → "Preparar + Lanzar ▶". Por debajo shellea `bin/dbops.ts` y `bin/advisor`, y te muestra la
 consola de la corrida en vivo.
 
 ### Preparar y observar una corrida en el panel
@@ -61,14 +61,14 @@ describe el proceso: el desenlace del crédito se consulta en la consola y su ev
 Por terminal, lo mismo (los bins son *plumbing*, no una segunda entrada):
 
 ```bash
-bin/asesor pullman              # MANUAL: login asesor (Cognito real) → queda en monto, manejás vos
-bin/asesor pullman auto         # GUIADO: siembra cada pantalla, vos das "Continuar"
-bin/asesor pullman auto rejected  # 3er arg (solo con auto): success (default) | rejected | pending
+bin/advisor pullman              # MANUAL: login asesor (Cognito real) → queda en monto, manejás vos
+bin/advisor pullman auto         # GUIADO: siembra cada pantalla, vos das "Continuar"
+bin/advisor pullman auto rejected  # 3er arg (solo con auto): success (default) | rejected | pending
 bin/ecommerce pullman [auto]    # igual, pero entra por el CHECKOUT de la tienda (sin asesor)
 #  equivalente por make:  make run|auto <asesor|ecommerce> <merchant>
 ```
 
-**El comercio va PRIMERO.** `bin/asesor auto` es el error típico y el script lo rechaza explícitamente.
+**El comercio va PRIMERO.** `bin/advisor auto` es el error típico y el script lo rechaza explícitamente.
 
 ### Los dos targets
 
@@ -93,16 +93,16 @@ autosuficiente (la capa compartida `env/` se eliminó el 2026-07-22).
 
 ---
 
-## La cadena: panel → bin/asesor → guided.spec.ts
+## La cadena: panel → bin/advisor → guided.spec.ts
 
 Todo el flujo interactivo vive en **un solo spec**: [`dev/guided.spec.ts`](dev/guided.spec.ts) (893 líneas).
-`bin/asesor` es el que prepara el terreno y lo lanza; el panel es el que lanza a `bin/asesor`.
+`bin/advisor` es el que prepara el terreno y lo lanza; el panel es el que lanza a `bin/advisor`.
 
-Lo que hace `bin/asesor` antes de correr el spec, en orden (cada fase imprime `○ pendiente` / `● hecha`
+Lo que hace `bin/advisor` antes de correr el spec, en orden (cada fase imprime `○ pendiente` / `● hecha`
 — si algo se cuelga, **la última línea con `○` sin su `●` es el paso exacto**):
 
 1. **load-permiso** — asocia la fila `users` del asesor al comercio (`dbops assign`), *sólo si no está ya
-   ahí*. Un asesor = un comercio: `bin/asesor motai` lo mueve, `bin/asesor pullman` lo devuelve.
+   ahí*. Un asesor = un comercio: `bin/advisor motai` lo mueve, `bin/advisor pullman` lo devuelve.
 2. **scrub-cliente** — borra el usuario del teléfono de bypass para que vuelva a ser "TEMPORAL USER" y
    caiga en `/personal-info`.
 3. **backend** — un `curl` al endpoint allied ANTES del cold-boot. Un 5xx del backend mata el dev server
@@ -153,7 +153,7 @@ Tres cosas que no son obvias:
 }
 ```
 
-Si el comercio no está, `bin/asesor` lo resuelve con `dbops list` y lo cachea solo.
+Si el comercio no está, `bin/advisor` lo resuelve con `dbops list` y lo cachea solo.
 
 ---
 
@@ -163,17 +163,17 @@ Cada uno existe porque un muro concreto lo pedía. Todos: `bin/mock-X [start|sto
 
 | Mock | Puerto (env) | Qué destraba | Lo levanta |
 |---|---|---|---|
-| `mock-preapprovals` | **8095** `MOCK_PA_PORT` | MS de pre-aprobaciones: todas las cards aprobadas con cupo, sin proveedores externos | `bin/asesor` **siempre** (salvo `E2E_REAL_PREAPPROVALS=1`) |
+| `mock-preapprovals` | **8095** `MOCK_PA_PORT` | MS de pre-aprobaciones: todas las cards aprobadas con cupo, sin proveedores externos | `bin/advisor` **siempre** (salvo `E2E_REAL_PREAPPROVALS=1`) |
 | `mock-redirect` | **8096** `MOCK_REDIRECT_PORT` | shim del redirect de infra `/checkout/{hash}` → wizard, + `/return` (la "tienda" a la que vuelve el cliente) | `bin/ecommerce` |
-| `mock-payvalida` | **8097** `MOCK_PV_PORT` | rt=1 Bancolombia (#8, `action = Payvalida`): sin `PAYVALIDA_HOST` la URL sale sin host → cURL error 3 | `bin/asesor` en `local` |
-| `mock-mdm` | **8098** `MOCK_MDM_PORT` | IMEI / device-locking de SmartPay (`merchant-gateways.fake`) + los 3 crons de servicing | `bin/asesor` en `local` |
-| `mock-lenders` | **8099** `MOCK_LENDERS_PORT` | pasarela de entidades que sí integran (Sistecrédito…). Ruta desconocida → responde 200 y la **loguea en mayúsculas** | `bin/asesor` en `local` |
+| `mock-payvalida` | **8097** `MOCK_PV_PORT` | rt=1 Bancolombia (#8, `action = Payvalida`): sin `PAYVALIDA_HOST` la URL sale sin host → cURL error 3 | `bin/advisor` en `local` |
+| `mock-mdm` | **8098** `MOCK_MDM_PORT` | IMEI / device-locking de SmartPay (`merchant-gateways.fake`) + los 3 crons de servicing | `bin/advisor` en `local` |
+| `mock-lenders` | **8099** `MOCK_LENDERS_PORT` | pasarela de entidades que sí integran (Sistecrédito…). Ruta desconocida → responde 200 y la **loguea en mayúsculas** | `bin/advisor` en `local` |
 | `mock-pdf-mapper` | **8100** `MOCK_PDFMAP_PORT` | `vinculacion` de Credifamilia es microservicio **por diseño** (sin fallback Blade) | a mano |
-| `mock-forms` | **8101** `MOCK_FORMS_PORT` | schema del flujo DINÁMICO (RD, `country_id=60`) — sin él: "Formulario no encontrado" | `bin/asesor` en `local` |
+| `mock-forms` | **8101** `MOCK_FORMS_PORT` | schema del flujo DINÁMICO (RD, `country_id=60`) — sin él: "Formulario no encontrado" | `bin/advisor` en `local` |
 | `mock-abaco` | **8102** `MOCK_ABACO_PORT` | Ábaco (ingresos gig del renting Motai): solo `init` y `login` — `/results` y `/platforms` ya están resueltos en el código | a mano |
-| `mock-financial-health` | **4000** `MOCK_FINHEALTH_PORT` | MS de salud financiera de la pantalla del ASESOR (`financial-profile`, decisión Motai renting/rto). **No inventa**: lee el sintético real de la BD local (ingreso 87, score, `abaco.average_income`). Puerto = el `FINANCIAL_HEALTH_API_URL` que el `.env` del wizard ya trae (F-70) | `bin/asesor` en `local` |
-| `mock-bancolombia` | **8104** `MOCK_BC_PORT` | **La API de Bancolombia, los dos productos** (BNPL 68 y Consumo 100). En local `BANCOLOMBIA_HOST=https://bancolombia.fake` es un placeholder a propósito → sin mock los 8 pasos de BNPL y los 11 de Consumo mueren con `cURL error 6`. Rutea **por la cola del path** (los prefijos son env). Control: `POST /_control/escenario {hasQuota,balance,bnplStatus,consumoStatus,errorCode}`. ⚠ En los éxitos **no** manda `errors` ni vacío: el controller usa `isset()` y un `[]` se lee como error | `bin/asesor` en `local` |
-| `mock-corbeta` | **8103** `MOCK_CORBETA_PORT` | **API Fondos de Corbeta**: el servicio del COMERCIO que emite el PIN del código de compra en caja (canal QR). Contrato leído de `Allieds/Corbeta.php`: `getToken` · `setOrder` (el PIN va **embebido en el texto**, como lo raspa `CodeGenerationService:72`) · `getOrder` (array plano, filtra por `EstadoOrden`). Control en caliente: `POST /_control/facturar {pin}` pasa la orden a estado 3 → el código **deja de mostrarse** (es la sutileza que hoy sale del filtro, no de una regla). `MOCK_CORBETA_FAIL=1` → 400, que dispara el bug P1 del backend (variable no asignada → `Error` que ningún catch atrapa) | `bin/asesor` en `local` |
+| `mock-financial-health` | **4000** `MOCK_FINHEALTH_PORT` | MS de salud financiera de la pantalla del ASESOR (`financial-profile`, decisión Motai renting/rto). **No inventa**: lee el sintético real de la BD local (ingreso 87, score, `abaco.average_income`). Puerto = el `FINANCIAL_HEALTH_API_URL` que el `.env` del wizard ya trae (F-70) | `bin/advisor` en `local` |
+| `mock-bancolombia` | **8104** `MOCK_BC_PORT` | **La API de Bancolombia, los dos productos** (BNPL 68 y Consumo 100). En local `BANCOLOMBIA_HOST=https://bancolombia.fake` es un placeholder a propósito → sin mock los 8 pasos de BNPL y los 11 de Consumo mueren con `cURL error 6`. Rutea **por la cola del path** (los prefijos son env). Control: `POST /_control/escenario {hasQuota,balance,bnplStatus,consumoStatus,errorCode}`. ⚠ En los éxitos **no** manda `errors` ni vacío: el controller usa `isset()` y un `[]` se lee como error | `bin/advisor` en `local` |
+| `mock-corbeta` | **8103** `MOCK_CORBETA_PORT` | **API Fondos de Corbeta**: el servicio del COMERCIO que emite el PIN del código de compra en caja (canal QR). Contrato leído de `Allieds/Corbeta.php`: `getToken` · `setOrder` (el PIN va **embebido en el texto**, como lo raspa `CodeGenerationService:72`) · `getOrder` (array plano, filtra por `EstadoOrden`). Control en caliente: `POST /_control/facturar {pin}` pasa la orden a estado 3 → el código **deja de mostrarse** (es la sutileza que hoy sale del filtro, no de una regla). `MOCK_CORBETA_FAIL=1` → 400, que dispara el bug P1 del backend (variable no asignada → `Error` que ningún catch atrapa) | `bin/advisor` en `local` |
 
 Casi todos aceptan un env para **forzar el camino de error** (`MOCK_*_FAIL=1`, `MOCK_MDM_EMPTY=1`,
 `MOCK_PV_CODE≠0000`) y `MOCK_PA_DELAY_MS` para poder VER el loader de las cards.
@@ -224,7 +224,7 @@ harness/
 │   ├── panel                      ← = npm run dev
 ├── pkg/                           ← infra
 │   ├── db.ts (mysql2 + guard) · inject.ts (synthFill) · laravel-crypt.ts (fila Experian)
-│   ├── asesor.ts · merchants.ts · ecommerce.ts (contrato base64) · cognito.ts · config.ts
+│   ├── advisor.ts · merchants.ts · ecommerce.ts (contrato base64) · cognito.ts · config.ts
 │   ├── windows.ts (A/B) · wompi-mock · pdf-mock · payvalida-mock · mock-control (X-Fake-Scenario)
 │   ├── close.ts (cierre rt=2 por secuencia backend) · flow.ts · composer.ts · wizard-steps.ts
 │   └── account-lock.ts (mutex de la cuenta 1827080) · error-shape.ts · dynamic.ts (flujo RD)
@@ -291,12 +291,12 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 | `E2E_PARTNER_HASH` | `3e67eade` | hash del aliado para entrar al flujo |
 | `E2E_COGNITO_USER` / `_PASS` | de `.cognito.json` | el env **gana** sobre el archivo; sin ninguno los specs gated **skipean** |
 | `I_KNOW_THIS_TOUCHES_SHARED_DEV` | `1` en `.env.dev` | guard de `assertWriteAllowed()` para escrituras a DB compartida |
-| `E2E_GUIDED` · `E2E_ENTRY` · `E2E_RESULT` | los setea `bin/asesor` | guiado/manual · cognito/ecommerce · success\|rejected\|pending |
+| `E2E_GUIDED` · `E2E_ENTRY` · `E2E_RESULT` | los setea `bin/advisor` | guiado/manual · cognito/ecommerce · success\|rejected\|pending |
 | `E2E_INJECT` · `E2E_STEP_TARGET` · `E2E_AMOUNT` | los setea el panel | inyectar buró sí/no · saltar a monto\|phone\|personal-info\|lenders · monto |
 | `E2E_SYNTH_*` | los setea el panel | perfil sintético (INCOME/SCORE/NAME/DOCTYPE/DOC/GENDER/AGE/NEG/CONS/OCC/DOB/EXP/EMAIL) |
 | `E2E_REAL_PREAPPROVALS` | `0` | `1` → usa el MS de pre-aprobaciones real (lento, VPN) en vez del mock |
 | `E2E_SHOTS` | `1` | fotos del trazo (apagar con `0`) |
-| `E2E_PREVIEW` | `0` | tiling A/B; lo pone en `1` `bin/asesor` — con `npx playwright test` no hay preview |
+| `E2E_PREVIEW` | `0` | tiling A/B; lo pone en `1` `bin/advisor` — con `npx playwright test` no hay preview |
 | `E2E_PREVIEW_SLOWMO` | `150` | slow-mo; solo aplica si `E2E_PREVIEW=1` |
 | `PANEL_PORT` | `5195` | puerto del panel |
 | `CI` | — | activa retries + reporter de GitHub |
@@ -312,7 +312,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
   orden que corre en prod igual): `H2O_API_HOST=http://127.0.0.1:9` + `H2O_API_KEY=local-disabled`.
   El `preflightLenders()` del spec lo detecta ANTES de navegar y te imprime la excepción — sin él no se ve
   nada, porque el loader es **SSR**: el 500 nunca llega al browser como 5xx, llega como HTML del error
-  boundary. Y ojo: el health-check de `bin/asesor` pega a `/api/loans/allied/{hash}`, que **responde 200
+  boundary. Y ojo: el health-check de `bin/advisor` pega a `/api/loans/allied/{hash}`, que **responde 200
   aunque `lenders-v2` esté roto** → verde en falso para este fallo.
 - **El eje ecommerce solo resuelve Bancolombia (F-54, que corrige a F-40)**: la entrada por checkout
   existe, pero el marketplace de esa vía quedó acotado y en local se degrada — probalo contra `dev`.
@@ -323,7 +323,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 - **El scrub del teléfono borra la corrida anterior**: cada arranque hace `scrubphone`, que elimina el
   usuario del teléfono de bypass y arrastra sus solicitudes. Si `lenders-v2` te dice que el uReq no existe,
   suele ser eso.
-- **`bin/asesor` mueve el `.env.local` del wizard** a `.env.local.asesor-bak` mientras corre (si lo dejara,
+- **`bin/advisor` mueve el `.env.local` del wizard** a `.env.local.asesor-bak` mientras corre (si lo dejara,
   Vite hot-reloadearía valores fake) y lo restaura en un `trap EXIT`. Si matás el proceso con `kill -9`,
   revisá que haya vuelto.
 - **`create3.ts`, `close-lender.ts` y `dbops lender-set` escriben datos sintéticos.** Son reversibles

@@ -15,7 +15,7 @@ import * as trace from '../pkg/trace';
 import { forensicOnClose as lokiForensic } from '../pkg/loki';
 import { writeLines, dumpWrites } from '../pkg/db';
 import { urlCheckout } from '../pkg/checkout-b64';   // `followCheckout` se quitó: estaba importado y nunca se usaba
-import { redirectNotice } from '../pkg/preflight-sucursal.ts';
+import { redirectNotice } from '../pkg/preflight-branch.ts';
 import { qrEntryUrl, corbetaBranch, usableBranch } from '../pkg/qr';
 import { autofillQr } from '../pkg/qr-steps';   // fillQrRegister/fillQrOtp los usan los specs de channel/, no el guiado: acá el harness rellena y el usuario clickea
 import { close } from '../pkg/db';
@@ -38,7 +38,7 @@ import { mockPayvalidaCheckout, PAYVALIDA_SENTINEL } from '../pkg/payvalida-mock
  *                  rt=0/1 modal (WhatsApp) → webhook → Estado 11 (sin retorno de browser)
  *                  rt=1 redirect → portal del banco → la ENTIDAD devuelve al COMERCIO (return_url)
  *
- * Lo orquesta `bin/asesor <m> auto` / `bin/ecommerce <m> auto`. Es INTERACTIVO (necesita tus clicks) → no CI.
+ * Lo orquesta `bin/advisor <m> auto` / `bin/ecommerce <m> auto`. Es INTERACTIVO (necesita tus clicks) → no CI.
  */
 
 const HASH = process.env.E2E_ASESOR_HASH ?? config.partnerHash;
@@ -74,7 +74,7 @@ const UREQ_IN_URL = new RegExp(
 const MOCK_STORE = pathToFileURL(join(process.cwd(), 'mock-store', 'index.html')).href;
 const MOCK_BANK = pathToFileURL(join(process.cwd(), 'mock-bank', 'index.html')).href;
 // return_url del COMERCIO (lenders por redirect: la entidad devuelve ahí, no a CrediOp). E2E_RETURN_URL lo
-// setea bin/asesor con --via-redirect (/return del shim); fallback a la tienda mock.
+// setea bin/advisor con --via-redirect (/return del shim); fallback a la tienda mock.
 const RETURN_URL = process.env.E2E_RETURN_URL ?? MOCK_STORE;
 const PICK_TIMEOUT = Number(process.env.E2E_PICK_TIMEOUT_MS ?? 300_000); // cuánto esperamos TU acción por pantalla
 const STEP_LINGER = Number(process.env.E2E_STEP_MS ?? 800);
@@ -681,7 +681,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         }).then((r) => r.json()).catch(() => null);
         const userId = reg?.data?.user?.id ?? null;
         const br = userId ? await one<{ branch_id: number; allied_id: number }>('SELECT id AS branch_id, allied_id FROM allied_branches WHERE hash=? LIMIT 1', [HASH]).catch(() => null) : null;
-        // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/asesor exporta E2E_ASESOR_SUB.
+        // asesor → corporate_user_id (como el flujo real, para que /lenders lo autorice). bin/advisor exporta E2E_ASESOR_SUB.
         const advisorSub = process.env.E2E_ASESOR_SUB || '';
         const advisorId = advisorSub ? ((await one<{ id: number }>('SELECT id FROM users WHERE cognito_id=? LIMIT 1', [advisorSub]).catch(() => null))?.id ?? null) : null;
         if (!userId || !br) {
@@ -912,13 +912,13 @@ test('guided (semiautomático)', async ({ browser }) => {
         // Esa ruta SÍ existe hoy; la que NO existe es la landing `/{hash}/checkout` (vive solo en la rama
         // `feat/ecommerce-checkout-integration`, de abril) — por eso NO entramos por ahí. Ver F-40/F-54.
         //
-        // Antes esto dependía de que `bin/asesor` exportara E2E_CHECKOUT_URL y esperaba `/solicitar|checkout`,
+        // Antes esto dependía de que `bin/advisor` exportara E2E_CHECKOUT_URL y esperaba `/solicitar|checkout`,
         // que NO es donde aterriza el flujo real → se quedaba colgado. Ahora la URL se arma acá.
         // El pedido lleva EL MISMO usuario sintético que definiste en el panel. Ese es el punto del
         // canal: no cambia el caso, cambia la PUERTA — así podés correr la misma identidad entrando por
         // asesor y por tienda, y comparar. Los campos salen de las E2E_SYNTH_* que setea el panel.
         //
-        // ⚠ OJO AL LEER ESTO: cuando venís del panel, este `pedido` NO es el que viaja. `bin/asesor`
+        // ⚠ OJO AL LEER ESTO: cuando venís del panel, este `pedido` NO es el que viaja. `bin/advisor`
         // ya armó el contrato y exportó `E2E_CHECKOUT_URL`, que gana en la línea de abajo. El caso
         // igual llega, pero por el otro camino: `caseIdentity()` en `pkg/ecommerce.ts` lee las
         // mismas E2E_SYNTH_*, y el monto va como 3er argumento de `dbops ecommerce-url`.
@@ -939,7 +939,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         };
         // el checkout rebota con BP12700001 si el teléfono ya tiene usuario con OTRA identidad
         await exec('DELETE FROM users WHERE cell_phone=? AND (cognito_id IS NULL OR cognito_id=\'\')', [PHONE]).catch(() => {});
-        // ⚠ EL FALLBACK CAMBIA DE CANAL, no sólo de armador. `CHECKOUT_URL` (la que arma `bin/asesor`
+        // ⚠ EL FALLBACK CAMBIA DE CANAL, no sólo de armador. `CHECKOUT_URL` (la que arma `bin/advisor`
         // con `dbops ecommerce-url`) entra por la landing GENÉRICA del front; `urlCheckout` entra por
         // el checkout de **CORBETA**, que es otro controlador y otro flujo — y con un comercio que no
         // es Corbeta su resolvedor CANCELA la solicitud (ver el docblock de `pkg/checkout-b64.ts` y el
@@ -997,7 +997,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         // Pantalla de preparación: SOLO los dos pasos que importan (el resto —solicitud, firma, perfil,
         // preflight— es detalle interno del seed y se colapsa en "Inyectar cliente"):
         //  1. Asignar sucursal al asesor → YA hecho antes de este spec (el funnel del panel / load-permiso
-        //     de bin/asesor), por eso arranca ✓: deja claro que el asesor puede operar en esta sucursal.
+        //     de bin/advisor), por eso arranca ✓: deja claro que el asesor puede operar en esta sucursal.
         //  2. Inyectar cliente sintético → todo el seed headless.
         // Modo Lenders es SIEMPRE sintético (Real arranca desde Inicio y no pasa por esta pantalla), así que
         // acá siempre hay inyección; el caso "Real = sin inyección, se consulta el buró" vive en el wizard.
@@ -1105,7 +1105,7 @@ test('guided (semiautomático)', async ({ browser }) => {
     }
     if (!DIRECT_LENDERS) log(`entrada OK → ${hereOf(page)}`);   // la directa ya logueó su propia línea
 
-    // ── MODO MANUAL (bin/asesor <m> SIN `auto`): el browser queda en monto y VOS manejás TODO a mano. ──
+    // ── MODO MANUAL (bin/advisor <m> SIN `auto`): el browser queda en monto y VOS manejás TODO a mano. ──
     //    Con E2E_INJECT=1: igual manual (nada de auto-relleno), pero al llegar a personal-info inyecto el buró
     //    (invisible) para que listen los rt=2. Sin E2E_INJECT: manual puro (buró real / sin inyección). ──
     // ⚠ El canal QR NO entra acá: su recorrido no es el tronco `/merchant/*`. La lógica de abajo espera

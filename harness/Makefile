@@ -15,7 +15,7 @@
 #   make test [specs...]                      corre los specs con Playwright
 #   make help
 #
-# Equivale a los bins: `make auto asesor pullman` ≡ `bin/asesor pullman auto` · `make run ecommerce pullman` ≡ `bin/ecommerce pullman`.
+# Equivale a los bins: `make auto asesor pullman` ≡ `bin/advisor pullman auto` · `make run ecommerce pullman` ≡ `bin/ecommerce pullman`.
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 LEGACY ?= $(HOME)/Desktop/CREDITOP/github/legacy-backend
@@ -78,14 +78,14 @@ run: ## <asesor|ecommerce> <merchant> — MANUAL: entra y queda en monto (manej�
 	@origen="$(word 1,$(ARGS))"; m="$(word 2,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
 	case "$$origen" in \
 	  ecommerce) echo "▶ bin/ecommerce $$m   (manual)"; bin/ecommerce "$$m";; \
-	  asesor|*)  echo "▶ bin/asesor $$m   (manual)";    bin/asesor "$$m";; \
+	  asesor|*)  echo "▶ bin/advisor $$m   (manual)";    bin/advisor "$$m";; \
 	esac
 
 auto: ## <asesor|ecommerce> <merchant> — GUIADO: seed cada pantalla, vos das Continuar; en /lenders elegís y sigue
 	@origen="$(word 1,$(ARGS))"; m="$(word 2,$(ARGS))"; [ -n "$$m" ] || m="pullman"; \
 	case "$$origen" in \
 	  ecommerce) echo "▶ bin/ecommerce $$m auto"; bin/ecommerce "$$m" auto;; \
-	  asesor|*)  echo "▶ bin/asesor $$m auto";    bin/asesor "$$m" auto;; \
+	  asesor|*)  echo "▶ bin/advisor $$m auto";    bin/advisor "$$m" auto;; \
 	esac
 
 vtex: ## [merchant=pullman] — flujo VTEX por UI: vtexInit (legacy crea la URL base64 vía /vtex/init) → wizard → /lenders

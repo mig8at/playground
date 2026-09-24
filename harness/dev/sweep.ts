@@ -43,7 +43,7 @@ process.env.CFE_TARGET ||= 'local';
    2026-09-09: con el import estático `TARGET` es `dev` y el host la RDS; con este orden es `local` y
    127.0.0.1. Por eso los imports de `db`/`inject` de más abajo ya eran dinámicos — a este le faltaba.
    Si lo «ordenás» subiéndolo, vuelve el defecto y no falla: cambia de base en silencio. */
-const { branchPhone } = await import('../pkg/telefonos.ts');
+const { branchPhone } = await import('../pkg/phones.ts');
 const { one, exec, query, close } = await import('../pkg/db.ts');
 const { synthFill } = await import('../pkg/inject.ts');
 // Misma capa de aserción que el camino VISUAL (dev/guided.spec.ts). Que "pasó" signifique lo mismo en
@@ -77,7 +77,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { advisorSubject } = await import('../pkg/preflight-sucursal.ts');
+const { advisorSubject } = await import('../pkg/preflight-branch.ts');
 const { createCustomer } = await import('../pkg/http.ts');
 const ADVISOR_SUB = advisorSubject();
 const HDRS: Record<string, string> = {
@@ -110,7 +110,7 @@ async function seed(hash: string, amount: number): Promise<string> {
     if (!uid) return '';
     const br = await one<{ b: number; a: number }>('SELECT id AS b, allied_id AS a FROM allied_branches WHERE hash=?', [hash]);
     if (!br) return '';
-    // El asesor sale del sub de Cognito que exporta bin/asesor (mismo criterio que guided.spec.ts);
+    // El asesor sale del sub de Cognito que exporta bin/advisor (mismo criterio que guided.spec.ts);
     // si no está en el entorno, se cae al primer asesor del comercio para no dejarlo NULL.
     const advisorSub = ADVISOR_SUB;
     const advisorId = (advisorSub

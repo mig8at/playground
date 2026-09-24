@@ -8,7 +8,7 @@
 //
 //   · `pkg/ecommerce.ts`  → posteaba `/vtex/init` a **localhost en los cuatro targets**; con
 //                            `E2E_TARGET=qa` leía el token de la base COMPARTIDA y escribía en la local
-//   · `dev/sweep.ts` · `dev/qr-corbeta.ts` · `dev/listado.ts`  → `E2E_ASESOR_SUB` sólo existe en
+//   · `dev/sweep.ts` · `dev/qr-corbeta.ts` · `dev/listing.ts`  → `E2E_ASESOR_SUB` sólo existe en
 //                            `.env.qa` y `.env.staging`, así que contra esos targets mandaban el asesor
 //                            del catálogo local, o ninguno (F-46: eso BORRA el asesor de la solicitud)
 //   · `pkg/close.ts`      → el disparo del webhook estaba SIEMPRE apagado: código que parecía vivo

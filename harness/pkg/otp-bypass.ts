@@ -1,6 +1,6 @@
 // pkg/otp-bypass.ts — los teléfonos de prueba del bypass de OTP: UN solo lugar, y sin el permiso grueso.
 //
-// POR QUÉ EXISTE ESTE ARCHIVO. La función vivía DUPLICADA en `dev/caminar-wizard.ts` y `dev/caso.ts`,
+// POR QUÉ EXISTE ESTE ARCHIVO. La función vivía DUPLICADA en `dev/walk-wizard.ts` y `dev/case.ts`,
 // con dos textos distintos del mismo comentario y dos oportunidades de arreglar una sola. Es plumbing
 // compartido: va en `pkg/`, como el resto de lo que usan los dos runners.
 //

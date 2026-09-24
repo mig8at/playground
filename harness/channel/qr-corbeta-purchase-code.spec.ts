@@ -67,7 +67,7 @@ const createdOnes: number[] = [];
 
 test.beforeAll(async () => {
     mockUp = !!(await mock('/'));
-    // Un usuario propio de la suite: no se toca el teléfono de bypass (que el scrub de bin/asesor borra).
+    // Un usuario propio de la suite: no se toca el teléfono de bypass (que el scrub de bin/advisor borra).
     const doc = `PC-${Date.now()}`;
     const ins = await exec(
         `INSERT INTO users (first_name, surname, full_name, password, document_type, document_number, cell_phone, created_at, updated_at)
@@ -78,7 +78,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-    // Limpia SOLO lo que creó la suite (por id), nunca por teléfono: el scrub por teléfono es de bin/asesor.
+    // Limpia SOLO lo que creó la suite (por id), nunca por teléfono: el scrub por teléfono es de bin/advisor.
     for (const ur of createdOnes) {
         await exec('DELETE FROM user_request_additional_information WHERE user_request_id=?', [ur]).catch(() => {});
         await exec('DELETE FROM purchase_codes WHERE user_request_id=?', [ur]).catch(() => {});

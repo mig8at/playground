@@ -1,7 +1,7 @@
 {
   "_note": "Credenciales del admin de legacy-application. GITIGNOREADO: nunca commitear. Copiá a .admin.json.",
 
-  "_forma_plana": "sirve para todos los targets — es la que ya usaba dev/admin-ciudades.spec.ts",
+  "_forma_plana": "sirve para todos los targets — es la que ya usaba dev/admin-cities.spec.ts",
   "user": "tu.usuario@creditop.com",
   "pass": "",
 

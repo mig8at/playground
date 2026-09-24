@@ -77,7 +77,7 @@ const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/6
 // `.env`: la clave sólo existe en `.env.qa` y `.env.staging`, así que contra esos targets este runner
 // mandaba el asesor del catálogo LOCAL —o ninguno— con el aplomo de haberlo leído. Import dinámico
 // porque este archivo fuerza `E2E_TARGET` arriba y un import estático corre antes (F-187).
-const { advisorSubject } = await import('../pkg/preflight-sucursal.ts');
+const { advisorSubject } = await import('../pkg/preflight-branch.ts');
 const { createCustomer } = await import('../pkg/http.ts');
 const ADVISOR_SUB = advisorSubject();
 const HDRS: Record<string, string> = {

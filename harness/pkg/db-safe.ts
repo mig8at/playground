@@ -219,7 +219,7 @@ export async function updateRows(
  * Clona una fila leída con `SELECT *`, aplicando cambios. Devuelve el id nuevo.
  *
  * Es lo que hacen los sembradores: leer una fila que YA funciona —una entidad, una sucursal, una regla—
- * y meter una igual con otro nombre. Estaba escrito dos veces (`montar-comercio.ts` y `montar-peru.ts`)
+ * y meter una igual con otro nombre. Estaba escrito dos veces (`mount-merchant.ts` y `mount-peru.ts`)
  * y las dos copias habían divergido en algo chico y real: una ponía `created_at`/`updated_at` en `NOW()`
  * y la otra **copiaba los de la fila original**, así que la fila nueva nacía diciendo que se creó hace
  * dos años. Acá se re-sellan siempre, y sólo si la fila original traía esas columnas.

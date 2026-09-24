@@ -5,7 +5,7 @@
 # ⚠ NO ES `bin/mock-forms` (:8101). Ése imita `onboarding-forms-service`, el de los comercios de RD,
 # y cuelga de `VITE_ONBOARDING_FORM_SERVICE`. Son dos servicios distintos con nombres parecidos.
 #
-# POR QUÉ HACE FALTA EN LOCAL: sin esto, `bin/asesor` apunta el wizard al form-service de DEV — y
+# POR QUÉ HACE FALTA EN LOCAL: sin esto, `bin/advisor` apunta el wizard al form-service de DEV — y
 # guardar el formulario del vehículo ESCRIBE. El `user_request_id` de una corrida local es en dev la
 # solicitud de otra persona, así que recorrer BCP «en local» le colgaba un vehículo sintético a una
 # solicitud ajena de la base COMPARTIDA de dev+staging.

@@ -1775,7 +1775,7 @@
 
     // ── Permiso del asesor al comercio (paso "comercio" del funnel) ──────────────────────────────────
     // Se dispara al ELEGIR el comercio (o cambiar target/canal), no al lanzar: cuando llegás al botón, el
-    // permiso ya está puesto y el launch se ahorra ese trabajo (bin/asesor lo re-verifica y ve "sin write").
+    // permiso ya está puesto y el launch se ahorra ese trabajo (bin/advisor lo re-verifica y ve "sin write").
     // 'na' (ecommerce/no aplica) · 'checking' · 'ok' · 'fail'. permSeq descarta respuestas tardías (elegiste
     // otro comercio antes de que volviera la anterior).
     let permState = 'na', permDetail = '', permSeq = 0;
@@ -1793,11 +1793,11 @@
     }
 
     // ── QUÉ FUNCIONA EN CADA TARGET ──────────────────────────────────────────────────────────────
-    // El panel es una UI sobre `bin/asesor`, y `bin/asesor` NO levanta lo mismo en todos los targets.
+    // El panel es una UI sobre `bin/advisor`, y `bin/advisor` NO levanta lo mismo en todos los targets.
     // Una perilla que no mueve nada es PEOR que no tenerla: te deja creyendo que probaste algo que en
-    // realidad nunca se aplicó. La matriz vive acá, en un solo lugar, y sale de `bin/asesor:150-180`:
+    // realidad nunca se aplicó. La matriz vive acá, en un solo lugar, y sale de `bin/advisor:150-180`:
     //
-    //   flotaLocal  payvalida · mdm · lenders · forms · ábaco. Solo con TARGET=local (bin/asesor:170);
+    //   flotaLocal  payvalida · mdm · lenders · forms · ábaco. Solo con TARGET=local (bin/advisor:170);
     //               contra dev/staging se usan los proveedores reales, así que el contador "n/n mocks"
     //               ahí no significa nada.
     //
@@ -1813,7 +1813,7 @@
 
     // El mock de PRE-APROBADOS no entra en CAPS: no depende del target sino de `E2E_REAL_PREAPPROVALS`,
     // que vive en `.env.<target>` y cualquiera puede cambiar. Lo resuelve el servidor por la misma
-    // cadena que `bin/asesor` y llega en /api/lenders — así el selector aparece exactamente cuando el
+    // cadena que `bin/advisor` y llega en /api/lenders — así el selector aparece exactamente cuando el
     // mock es quien contesta, y no según una lista que se desincroniza sola.
     let mockPA = true;
     let inject = true;           // true = inyecta buró sintético (salta consulta real) · false = prueba real
@@ -1992,7 +1992,7 @@
       const actual = m.alias || m.name;
       const n = prompt('Nombre para esta entrada (el mismo comercio puede estar varias veces):', actual);
       if (n == null || !n.trim() || n.trim() === actual) return;
-      // El SLUG no cambia al renombrar (`bin/asesor <slug>` sigue funcionando igual); esto es la etiqueta.
+      // El SLUG no cambia al renombrar (`bin/advisor <slug>` sigue funcionando igual); esto es la etiqueta.
       const r = await favApi({ accion: 'rename', slug: m.slug, name: n.trim() });
       if (r.ok) {
         if (sel && sel.slug === m.slug) sel = { ...sel, name: r.name };
@@ -2065,8 +2065,8 @@
     }
 
     // Elegir la sucursal ya la deja LISTA PARA CORRER aunque no la agregues: el `slug` es el hash, y
-    // tanto el panel (`branchHashForSlug`) como `bin/asesor` saben resolverlo. "Agregar" es solo para
-    // que quede como tarjeta —y para que `bin/asesor <slug>` la reconozca desde la terminal—.
+    // tanto el panel (`branchHashForSlug`) como `bin/advisor` saben resolverlo. "Agregar" es solo para
+    // que quede como tarjeta —y para que `bin/advisor <slug>` la reconozca desde la terminal—.
     function usarSucursal() {
       const b = altaBs.find((x) => x.hash === $('altasuc').value);
       if (!altaM || !b) return;
@@ -2733,7 +2733,7 @@
             const out = zona.querySelector('.wh-r');
             out.textContent = '⏳ disparando…';
             try {
-              const r = await (await fetch('/api/webhook-entidad', {
+              const r = await (await fetch('/api/entity-webhook', {
                 method: 'POST', headers: { 'content-type': 'application/json' },
                 body: JSON.stringify({ uReq: e.ultima.uReq, lender: e.ultima.lenderId, estado: b.dataset.wh }),
               })).json();
@@ -3082,7 +3082,7 @@
           : esCorbeta
           ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
             + 'ni carrito. (Asesor acá no está roto: entrega el flujo al celular del cliente por WhatsApp y termina en las '
-            + 'mismas pantallas del QR. Se apaga por no ser el recorrido real; si lo necesitás, por CLI: bin/asesor <comercio>.)'
+            + 'mismas pantallas del QR. Se apaga por no ser el recorrido real; si lo necesitás, por CLI: bin/advisor <comercio>.)'
           : 'Este canal no aplica a este comercio.');
       });
       sincronizarHeader();
@@ -3365,7 +3365,7 @@
     const IMPORTANTE = /▲|⚠|✗|📸 ✗|BD  ✗|DESENLACE MALO|ÉXITO SIN RESPALDO|passed|failed|corrida terminada|Comprobación de BD|✅|▶|●|traza:|uReq/;
     const esImportante = (l) => IMPORTANTE.test(l);
 
-    // `⌨ DATOS telefono=… otp=…` lo emite bin/asesor (contrato: si cambia el prefijo allá, cambiá acá).
+    // `⌨ DATOS telefono=… otp=…` lo emite bin/advisor (contrato: si cambia el prefijo allá, cambiá acá).
     // El panel NO recalcula nada — ni el teléfono ni el OTP: los toma de quien los resolvió, que es el
     // launcher. Duplicar ese cálculo en la UI es como las dos definiciones empiezan a derivar.
     const ETIQ = { telefono: 'teléfono', otp: 'OTP', otpfirma: 'OTP firma', cedula: 'cédula', email: 'email' };
@@ -3431,7 +3431,7 @@
     }
 
     /* ── LA CONSOLA DEL SSR ──────────────────────────────────────────────────────────────────────
-     * El stdout del wizard, que `bin/asesor` ya venía guardando en `/tmp/asesor-wizard.log` sin que nadie
+     * El stdout del wizard, que `bin/advisor` ya venía guardando en `/tmp/asesor-wizard.log` sin que nadie
      * lo mirara. Lo que se viene a ver son las líneas `[outbound]`: a qué servicio llamó el SSR, con qué
      * URL, con qué código y cuánto tardó. Eso no está en ningún otro lado — la consola del navegador no
      * ve las llamadas del SERVIDOR, y el log de la corrida tampoco.
@@ -3460,9 +3460,9 @@
     async function tickSsr() {
       try {
         const j = await (await fetch(ssrCursor ? `/api/ssr?from=${ssrCursor}` : '/api/ssr')).json();
-        if (!j.hay) { ssrLineas = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/asesor` al levantar el wizard;',
+        if (!j.hay) { ssrLineas = ['(sin /tmp/asesor-wizard.log — lo escribe `bin/advisor` al levantar el wizard;',
                                    ' si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal)']; return repintarSsr(); }
-        // `total` baja ⇒ `bin/asesor` truncó el archivo al relanzar el wizard: es OTRA sesión, se resetea.
+        // `total` baja ⇒ `bin/advisor` truncó el archivo al relanzar el wizard: es OTRA sesión, se resetea.
         if (typeof j.total === 'number' && j.total < ssrCursor) { ssrLineas = []; ssrCursor = 0; return; }
         if (j.lines && j.lines.length) { ssrLineas.push(...j.lines); repintarSsr(); }
         if (typeof j.total === 'number') ssrCursor = j.total;
@@ -3700,7 +3700,7 @@
     }
     // ── Precalentar el WIZARD (Vite) al abrir, igual que los tokens ───────────────────────────────────
     // El cold-boot de Vite se pagaba DENTRO de la corrida: 304s medidos el 2026-08-19 contra los ~11s que
-    // tarda con el wizard tibio. Lo hace `bin/asesor <slug> preboot` (sin spec y sin tocar la BD): el panel
+    // tarda con el wizard tibio. Lo hace `bin/advisor <slug> preboot` (sin spec y sin tocar la BD): el panel
     // no sabe armar el env del wizard y no debe aprenderlo — el launcher es el dueño de eso.
     // Sólo con front LOCAL: con el desplegado no hay Vite que levantar.
     let prebootDone = false;
@@ -3802,7 +3802,7 @@
 
     // Real (buró + OTP reales) NO existe en local → solo dev/staging. En local se fuerza Sintético.
     // ── Front del ambiente vs front local ────────────────────────────────────────────────────────────
-    // Qué targets tienen front desplegado lo dice el SERVIDOR (misma cadena que bin/asesor), no una lista
+    // Qué targets tienen front desplegado lo dice el SERVIDOR (misma cadena que bin/advisor), no una lista
     // acá: hoy solo staging lo tiene, y el día que dev lo tenga aparece sin tocar el panel. Si el target no
     // tiene deploy, "Del ambiente" queda deshabilitado con el motivo — no una perilla que no mueve nada.
     async function loadFront() {
@@ -3911,7 +3911,7 @@
       const textoOriginal = btnAdmin.textContent;
       btnAdmin.disabled = true; btnAdmin.textContent = 'abriendo…';
       try {
-        const r = await (await fetch('/api/abrir-admin', {
+        const r = await (await fetch('/api/open-admin', {
           method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ruta: '/aliados', target })
         })).json();
         btnAdmin.title = r.msg || '';

@@ -296,7 +296,7 @@ harness-sandbox: ## @har ¿el BANCO DE VERDAD acepta lo que mandamos? pega contr
 	@cd harness && node dev/sandbox-bancolombia.ts $(if $(GRUPO),--grupo $(GRUPO)) $(if $(CRED),--cred $(CRED))
 
 harness-walk: ## @har recorre las pantallas del canal QR clickeando. PRODUCT=bnpl|consumo
-	@cd harness && E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto $(or $(PRODUCT),bnpl)
+	@cd harness && E2E_TARGET=local npx tsx dev/walk-qr.ts --producto $(or $(PRODUCT),bnpl)
 
 harness-qr: ## @har el canal QR por API, sin browser: ¿cierra en estado 25 con código? PRODUCT=bnpl|consumo
 	@cd harness && E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto $(or $(PRODUCT),bnpl)
@@ -312,7 +312,7 @@ harness-codes: ## @har levanta el mock LOCAL del servicio de códigos (:8111) �
 
 harness-codigo: ## @har siembra un código de preaprobado para probar la pantalla del asesor en local (pide `harness-codes` arriba). COMERCIO=<hash|slug> [CODIGO=0101 el del autorrelleno] [ENTIDAD=<lender_id>]
 	@test -n "$(COMERCIO)" || { echo "falta COMERCIO=<hash de sucursal o slug de .flows.json>"; exit 2; }
-	@cd harness && bin/sembrar-codigo "$(COMERCIO)" "$(or $(CODIGO),0101)" "$(ENTIDAD)"
+	@cd harness && bin/seed-code "$(COMERCIO)" "$(or $(CODIGO),0101)" "$(ENTIDAD)"
 
 harness-codigo-qa: ## @har genera un código de preaprobado REAL en qa (el que emitiría la app) para probar el canje en la pantalla del asesor. Pide la VPN de dev. [COMERCIO=<hash> default Pullman ec977139] [ENTIDAD=<lender_id>] [USUARIO=<user_id> default un cliente sintético]
 	@cd harness && COMERCIO="$(COMERCIO)" ENTIDAD="$(ENTIDAD)" USUARIO="$(USUARIO)" LOTE="$(LOTE)" node dev/codigo-qa.ts
@@ -326,33 +326,33 @@ harness-codigo-prueba: ## @har redime un código sembrado desde la UI del asesor
 	@cd harness && E2E_AUTORELLENO=0 E2E_CLIENT_CODE_HASH="$(HASH)" E2E_CLIENT_CODE="$(CODIGO)" E2E_CLIENT_CODE_LENDER="$(LENDER)" npx playwright test channel/client-code.spec.ts --project=chromium
 
 harness-admin-ciudades: ## @har ¿el selector de ciudad del admin filtra por país? Pide `harness/.admin.json` + el admin en :8000
-	@cd harness && E2E_TARGET=local npx playwright test dev/admin-ciudades.spec.ts --reporter=list
+	@cd harness && E2E_TARGET=local npx playwright test dev/admin-cities.spec.ts --reporter=list
 
 harness-pais-comercio: ## @har ¿el país de un comercio se puede corregir hasta la primera SOLICITUD? Pide `harness/.admin.json` + el admin en :8000
-	@cd harness && E2E_TARGET=local npx playwright test dev/admin-pais-comercio.spec.ts --reporter=list
+	@cd harness && E2E_TARGET=local npx playwright test dev/admin-merchant-country.spec.ts --reporter=list
 
 harness-telefono-duplicado: ## @har ¿dos altas del MISMO teléfono (una con indicativo y otra sin) crean dos usuarios? Escribe en LOCAL y limpia
-	@cp harness/dev/php/usuario-duplicado-por-telefono.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-telefono.php
+	@cp harness/dev/php/user-duplicated-by-phone.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-telefono.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-telefono.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell" ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-telefono.php
 
 harness-pais-usuario: ## @har ¿el usuario temporal nace con el país del COMERCIO o nace afgano? Los dos caminos de alta. Escribe en LOCAL y limpia
-	@cp harness/dev/php/pais-del-comercio-en-el-usuario.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
+	@cp harness/dev/php/merchant-country-on-the-user.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-pais.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
 
 harness-comercio-pais: ## @har ¿el POST de comercios de la API exige país y lo guarda, o el comercio nace afgano? Escribe en LOCAL y limpia
-	@cp harness/dev/php/crear-comercio-por-api-exige-pais.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
+	@cp harness/dev/php/create-merchant-by-api-requires-country.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-comercio.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-comercio.php
 
 harness-volver-a-entrar: ## @har el cliente llega a /lenders, se sale y vuelve con el MISMO número: ¿retoma o le nace otro usuario? Escribe en LOCAL y limpia
-	@cp harness/dev/php/volver-a-entrar-no-duplica.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
+	@cp harness/dev/php/reentering-does-not-duplicate.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-volver.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
 
 harness-dni-choca: ## @har ¿un DNI peruano se puede registrar si el número ya existe como cédula colombiana? Muestra las 3 guardas. LOCAL
-	@cp harness/dev/php/dni-peruano-choca-con-cedula.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-dni.php
+	@cp harness/dev/php/peruvian-dni-clashes-with-national-id.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-dni.php
 	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-dni.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-dni.php
 
 harness-suite-paises: ## @har ¿el cliente nace con el país de su comercio, su documento y su celular? La suite de internacionalización, contra la base. [PAR=1]
-	@cd harness && node dev/caso.ts --suite suites/paises.json $(if $(PAR),--paralelo)
+	@cd harness && node dev/case.ts --suite suites/paises.json $(if $(PAR),--paralelo)
 
 harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de la tienda entra, el comercio queda atado al crédito y sus datos llegan al formulario? [SUITE=suites/ecommerce.json] [COMERCIO=amoblar] [TEL=<uno de qa_otp_bypass_phones> — obligatorio contra un ambiente desplegado: el OTP sólo es predecible para los teléfonos de esa lista]
 	@cd harness && node dev/ecommerce.ts $(if $(SUITE),--suite '$(patsubst harness/%,%,$(SUITE))',--suite suites/ecommerce.json) $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(TEL),--tel $(TEL))
@@ -361,51 +361,51 @@ harness-ambiente: ## @har ¿la config de un target es coherente, y nadie resuelv
 	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json)
 
 harness-listado: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [COMERCIO=pullman] [MONTO=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/listado.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
+	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(MONTO),--amount $(MONTO)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 
 harness-caso: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASOS='pullman@meddipay=rechaza;pullman@income=900000' [PAR=1] [LAMBDA=1 buró y proveedores dictados] [PRE=1 simula la consulta de PRE-APROBADOS del front] [CERRAR=1 = cierra por el lender CreditopX hasta estado 11] [MANUAL=1 identidad aprobada a mano, como en el admin] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/caso.ts $(if $(SUITE),--suite '$(SUITE)') $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar) $(if $(MANUAL),--manual)
+	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts $(if $(SUITE),--suite '$(SUITE)') $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(PAR),--paralelo) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(CERRAR),--cerrar) $(if $(MANUAL),--manual)
 
 harness-caminar: ## @har el WIZARD entero por HTTP, sin navegador: pasa por cada pantalla del FRONT (loaders, actions, zod) y la contrasta con la BD. En PARALELO. Si un caso sale mal, consulta PostHog (qué pantalla registró el error). CASOS='#e9409aff:77;pullman:77' [FLOW=self-service|merchant|ecommerce — ecommerce entra por el checkout de la tienda y comprueba que la solicitud quede atada al pedido y personal-info bloqueado] [PAR=1] [CERRAR=1 hasta loan-approved] [MANUAL=1 identidad aprobada a mano] [MONTO=2000000] [CUOTA=300000 la cuota inicial que carga el asesor: con >0 el action toma la rama del cobro por pasarela, que con 0 no se ejecuta nunca] [PLAZO=6 en cuántas cuotas cerrar; sin esto toma el MÁS LARGO que ofrezca la entidad, que es el que más ejercita. ⚠ no confundir con CUOTA, que es plata] [MOTOR=navegador Chromium sin ventana, corre el JS del cliente y guarda evidencia] [FORENSE=1 consultar PostHog aunque cierre bien] [GATE=aprobado|rechazado qué contestar en un gate MANUAL —una pantalla de decisión, no de avance, como `entidad/resultado` de BCP—. Sin esto el caminador se detiene ahí a propósito: no elige por nadie. ⚠ `rechazado` deja la solicitud NEGADA] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/caminar-wizard.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(CUOTA),--cuota-inicial $(CUOTA)) $(if $(PLAZO),--cuotas $(PLAZO)) $(if $(PAR),--paralelo) $(if $(CERRAR),--cerrar) $(if $(MANUAL),--manual) $(if $(FLOW),--flow $(FLOW)) $(if $(MOTOR),--motor $(MOTOR)) $(if $(GATE),--gate $(GATE)) $(if $(HEADED),--headed)
+	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/walk-wizard.ts $(if $(CASOS),--casos '$(CASOS)') $(if $(COMERCIO),--comercio $(COMERCIO)) $(if $(LENDER),--lender $(LENDER)) $(if $(MONTO),--amount $(MONTO)) $(if $(CUOTA),--cuota-inicial $(CUOTA)) $(if $(PLAZO),--cuotas $(PLAZO)) $(if $(PAR),--paralelo) $(if $(CERRAR),--cerrar) $(if $(MANUAL),--manual) $(if $(FLOW),--flow $(FLOW)) $(if $(MOTOR),--motor $(MOTOR)) $(if $(GATE),--gate $(GATE)) $(if $(HEADED),--headed)
 
 harness-posthog: ## @har ¿qué VIO el cliente en ESTA solicitud, y en qué PANTALLA se rompió? la tercera fuente (BD=desenlace · Loki=causa en el backend · PostHog=recorrido y errores DEL FRONT): sus eventos del embudo y sus logs con pantalla, etapa y error. ⚠ sólo qa/staging y prod: dev y local sirven el front LOCAL, que no escribe. UREQ=502060 [DESDE=2026-09-03T01:40:00Z] [PANTALLAS=otp,lenders,confirmation]
 	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make harness-posthog UREQ=502060"; exit 2; }
 	@cd harness && node dev/posthog-ureq.ts $(UREQ) $(if $(DESDE),--desde $(DESDE)) $(if $(PANTALLAS),--pantallas $(PANTALLAS))
 
 harness-posthog-errores: ## @har ¿qué PANTALLAS del front se están rompiendo, y con qué error? el canal de LOGS agregado (pantalla · etapa · error, y los mensajes por patrón). ⚠ sólo qa/staging y prod: dev y local no tienen front desplegado. [DIAS=7]
-	@cd harness && node dev/posthog-errores.ts $(if $(DIAS),--dias $(DIAS))
+	@cd harness && node dev/posthog-errors.ts $(if $(DIAS),--dias $(DIAS))
 
 harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PAR=1] [CERRAR=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea]
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/caso.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PAR),--paralelo) $(if $(CERRAR),--cerrar) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(MANUAL),--manual)
+	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PAR),--paralelo) $(if $(CERRAR),--cerrar) $(if $(LAMBDA),--lambda) $(if $(PRE),--preaprobados) $(if $(MANUAL),--manual)
 
 soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
 	@cd tablero/tasks/agente-soporte-modificacion-datos/artifacts && python3 -m http.server 5199
 
 tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
-	@cd harness && bash bin/tests-codeudor.sh $(if $(PREPARAR),--preparar)
+	@cd harness && bash bin/tests-cosigner.sh $(if $(PREPARAR),--preparar)
 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
-	@cd harness && node dev/montar-rto.ts
+	@cd harness && node dev/mount-rto.ts
 
 harness-kyc-flow: ## @har deja el resolvedor de KYC usable en LOCAL: siembra la setting `kyc_pipeline_allieds` vacía (= todos por el flujo legacy, como en qa). Sin ella `kyc-flow/{hash}` da 500 y el front cae al v1 sin avisar. Sólo local, idempotente
-	@cd harness && E2E_TARGET=local node dev/montar-kyc-flow.ts
+	@cd harness && E2E_TARGET=local node dev/mount-kyc-flow.ts
 
 harness-peru: ## @har deja un COMERCIO PERUANO usable en LOCAL para mirar el wizard con su país (S/, +51, 9 dígitos). Sólo local, idempotente
-	@cd harness && E2E_TARGET=local node dev/montar-peru.ts
+	@cd harness && E2E_TARGET=local node dev/mount-peru.ts
 
 harness-comercio: ## @har siembra un COMERCIO ENTERO en LOCAL desde su spec (`harness/comercios/*.json`): sucursales, entidades, reglas duras, perfiles, bienvenida y autogestión. Sin COMERCIO lista los que hay. [CLEAN=1 lo borra]
-	@cd harness && E2E_TARGET=local node dev/montar-comercio.ts $(COMERCIO) $(if $(CLEAN),--clean)
+	@cd harness && E2E_TARGET=local node dev/mount-merchant.ts $(COMERCIO) $(if $(CLEAN),--clean)
 
 harness-forms-g2: ## @har levanta el mock del FORM-SERVICE (:8109) — el formulario del VEHÍCULO de BCP. ⚠ Sin esto, en local ese formulario ESCRIBE en la BD compartida de dev. [CMD=start|stop|status|logs|capturar]
 	@cd harness && bin/mock-forms-g2 $(if $(CMD),$(CMD),start)
 
 harness-bcp-volver: ## @har el flujo VEHICULAR de BCP por HTTP y qué se PIERDE al volver atrás (el monto, el gate, la etapa). local · dev · qa · staging [TARGET=qa] [COMERCIO=#hash] [MONTO=60000] [TEL=a,b obligatorio fuera de local: el OTP sólo se salta con los del bypass] [FRONT=url] [NIEGA=1 el recorrido B, que deja una solicitud NEGADA]. En local pide `harness-peru` + `harness-forms-g2`; contra qa el comercio YA existe (`#a8221e67`)
-	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/bcp-volver.ts $(if $(TEL),--tel $(TEL)) $(if $(NIEGA),--niega) $(if $(COMERCIO),--comercio '$(COMERCIO)') $(if $(MONTO),--amount $(MONTO)) $(if $(INICIAL),--inicial $(INICIAL)) $(if $(BONO),--bono $(BONO)) $(if $(FRONT),--front $(FRONT))
+	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/bcp-return.ts $(if $(TEL),--tel $(TEL)) $(if $(NIEGA),--niega) $(if $(COMERCIO),--comercio '$(COMERCIO)') $(if $(MONTO),--amount $(MONTO)) $(if $(INICIAL),--inicial $(INICIAL)) $(if $(BONO),--bono $(BONO)) $(if $(FRONT),--front $(FRONT))
 
 harness-pantallas: ## @har ¿por qué PANTALLAS habría pasado el cliente? el recorrido del wizard derivado del router en main. AL REVÉS con ENDPOINT=confirm-payment-schedule. [FILTRO=texto] [JSON=1]
-	@cd harness && node dev/pantallas.ts $(if $(FILTRO),--filtro '$(FILTRO)') $(if $(ENDPOINT),--endpoint '$(ENDPOINT)') $(if $(JSON),--json) $(if $(SIN_ENDPOINTS),--sin-endpoints)
+	@cd harness && node dev/screens.ts $(if $(FILTRO),--filtro '$(FILTRO)') $(if $(ENDPOINT),--endpoint '$(ENDPOINT)') $(if $(JSON),--json) $(if $(SIN_ENDPOINTS),--sin-endpoints)
 
 harness-check: ## @har typecheck del harness
 	@cd harness && npm run --silent typecheck
@@ -414,11 +414,11 @@ harness-check: ## @har typecheck del harness
 # acepta TARGET — va por `E2E_TARGET`, que por defecto es **dev**. Pedirle una solicitud de prod
 # devuelve CERO anclas sin decir por qué, y eso se lee como «no hay logs» en vez de «buscaste en otro
 # lado». Para producción: `make trazador-acceso TARGET=prod`.
-harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con qué código y cuánto tardó (`[outbound]`). SOLO=1 filtra a lo saliente y los errores · N=120 líneas de cola · SEGUIR=1 se queda mirando. ⚠ lo escribe `bin/asesor` al levantar el wizard: si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal
+harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con qué código y cuánto tardó (`[outbound]`). SOLO=1 filtra a lo saliente y los errores · N=120 líneas de cola · SEGUIR=1 se queda mirando. ⚠ lo escribe `bin/advisor` al levantar el wizard: si lo arrancaste a mano con `pnpm dev`, su salida se fue a esa terminal
 	@f=/tmp/asesor-wizard.log; \
 	if [ ! -f "$$f" ]; then \
 	  echo "  ✗ no existe $$f"; \
-	  echo "     lo escribe bin/asesor al levantar el wizard (lo trunca en cada arranque)."; \
+	  echo "     lo escribe bin/advisor al levantar el wizard (lo trunca en cada arranque)."; \
 	  echo "     Si levantaste el wizard a mano con 'pnpm dev', su salida se fue a ESA terminal y acá no hay nada que mirar."; \
 	  exit 1; \
 	fi; \
@@ -430,7 +430,7 @@ harness-loki: ## @har ¿por qué terminó así esta solicitud? forense en los lo
 	@cd harness && E2E_TARGET=$(or $(TARGET),local) node dev/loki-trace.ts $(UREQ) $(if $(SINCE),--since $(SINCE))
 
 harness-paises: ## @har ¿de qué país es cada entidad? inferencia DRY-RUN desde el cableado. No escribe. [SQL=1]
-	@cd harness && node dev/paises.ts $(if $(SQL),--sql,)
+	@cd harness && node dev/countries.ts $(if $(SQL),--sql,)
 
 # Observabilidad LOCAL: Loki (logs) + Tempo (el que le pone trace_id a esos logs). Misma decisión que con
 # MySQL — se corre el servicio real en Docker, no un mock. Un mock obligaría a reimplementar LogQL y el

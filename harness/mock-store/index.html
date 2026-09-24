@@ -7,7 +7,7 @@
   Uso:
     • Automático (demo): abrir con ?to=<URL-checkout-encodeURIComponent>. El botón redirige a esa URL.
         file://.../mock-store/index.html?to=http%3A%2F%2Flocalhost%3A5174%2Fecommerce%2F...
-    • A mano: abrir el index.html y pegar la URL de checkout (la que imprime `bin/asesor --ecommerce`)
+    • A mano: abrir el index.html y pegar la URL de checkout (la que imprime `bin/advisor --ecommerce`)
       en el campo, luego "Pagar con Creditop".
   Es una SIMULACIÓN (banner DEMO). Los productos/monto reflejan el contrato del demo ($600.000).
 -->
@@ -88,7 +88,7 @@
       <button class="pay" id="pay"><span class="cdot"></span> Pagar con Creditop</button>
       <div class="hint" id="hint">Te llevamos a Creditop para financiar tu compra.</div>
       <div class="manual" id="manual" style="display:none">
-        <label>Pegá la URL de checkout (la que imprime <code>bin/asesor --ecommerce</code>):</label>
+        <label>Pegá la URL de checkout (la que imprime <code>bin/advisor --ecommerce</code>):</label>
         <input id="url" placeholder="http://localhost:5174/ecommerce/.../checkout?o=..." />
       </div>
     </aside>

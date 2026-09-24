@@ -9,10 +9,10 @@
 // nada—, en dos capas: el servidor del wizard (`captureAnalyticsEventServer`, `$lib = posthog-node`)
 // desde loaders y actions, y el navegador (`$pageview`, `$autocapture`, `*_screen_viewed` del cliente,
 // session replay). De ahí que las tres formas de usar el harness dejen rastros distintos:
-//   · el caminador HTTP (`dev/caminar-wizard.ts`)  → SÓLO eventos del servidor. Medido 2026-09-02 en
+//   · el caminador HTTP (`dev/walk-wizard.ts`)  → SÓLO eventos del servidor. Medido 2026-09-02 en
 //     qa: 18 eventos para una corrida de 11 pantallas, del `auth_otp_result` al `credit_approved`.
 //   · el panel (navegador real)                    → servidor + navegador + replay.
-//   · `dev/caso.ts` (por API, sin front)           → NADA. Y conviene decirlo: PostHog no lo ve.
+//   · `dev/case.ts` (por API, sin front)           → NADA. Y conviene decirlo: PostHog no lo ve.
 //
 // UN SOLO PROYECTO PARA TODOS LOS ENVIRONMENTS (238530 «Loan Request»), separados por
 // `properties.environment` (`getRuntimeEnvironment()`: qa y staging escriben «staging», prod
@@ -29,7 +29,7 @@
 //
 // EL CRUCE, que es el rendimiento real de tener esto: cada pantalla del wizard tiene los eventos que
 // SU archivo emite (`captureAnalyticsEventServer({ event: "…" })`), y eso se DERIVA del código en la
-// rama del target —no de una lista horneada acá—, igual que `dev/pantallas.ts` deriva el recorrido del
+// rama del target —no de una lista horneada acá—, igual que `dev/screens.ts` deriva el recorrido del
 // router. Con eso, una pantalla caminada sin su evento, o un evento que apareció sin pasar por su
 // pantalla (`credit_rejected` lo dispara `request-canceled`), se ve solo.
 import { execFile, execFileSync } from 'node:child_process';

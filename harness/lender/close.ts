@@ -37,7 +37,7 @@ import { seedRiskProfile } from '../merchant/seed';
  * ✅ MURO VOLTEADO (2026-07-18) — se tomó la opción (a): `bin/close-lender` siembra un lender rt=2 sintético
  *    clonando #77 pero con min_initial_fee>0 en TODAS las categorías → sea cual sea la que asigne el motor,
  *    la cuota da >0 → botón "Pagar" HABILITADO → llega a Wompi → el mock intercepta → down-payment-validation.
- *    Verificado por `lender/cierre-x.spec.ts`. `creditopXClose` abajo SIGUE lanzando para #77/#37 (fee=0 /
+ *    Verificado por `lender/close-x.spec.ts`. `creditopXClose` abajo SIGUE lanzando para #77/#37 (fee=0 /
  *    redirect roto); para cerrar por UI usá el lender sintético. Falta solo el Grupo B/C para loan-approved.
  *
  * Testids del Grupo B/C (lender-term-{id}, first-payment-date-*, payment-schedule-*, sign-documents-*,

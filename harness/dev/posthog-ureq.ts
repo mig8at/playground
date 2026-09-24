@@ -44,7 +44,7 @@ if (screens.length && ev.length) {
 
 // El segundo canal, que es el que dice EN QUÉ PANTALLA se rompió. Va entero (no sólo los errores):
 // preguntando por una solicitud puntual, las líneas de info son el recorrido del servidor y ubican el
-// error en su contexto. Para ver sólo lo roto de un ambiente: `dev/posthog-errores.ts`.
+// error en su contexto. Para ver sólo lo roto de un ambiente: `dev/posthog-errors.ts`.
 const ls = await logsOf(c, ureq, since);
 const badList = ls.filter((l) => l.nivel === 'error' || l.nivel === 'warn');
 console.log(`\n  ▸ ── LOGS del front · ${ls.length} línea(s) · ${badList.length} de nivel error/warn ──`);

@@ -1,12 +1,12 @@
 ---
 name: harness-panel
-description: Tocar el panel del harness harness (:5195, panel/index.html + panel/server.ts). Usala cuando la tarea toque el mapa del recorrido del wizard (panel/steps.json), el gate de perillas por target (CAPS), el selector de comercio y sucursal, el switch de Frontend local vs desplegado y su pool de Cognito, la comprobación de BD al cerrar la corrida (dbops activity), o los internals de bin/asesor.
+description: Tocar el panel del harness harness (:5195, panel/index.html + panel/server.ts). Usala cuando la tarea toque el mapa del recorrido del wizard (panel/steps.json), el gate de perillas por target (CAPS), el selector de comercio y sucursal, el switch de Frontend local vs desplegado y su pool de Cognito, la comprobación de BD al cerrar la corrida (dbops activity), o los internals de bin/advisor.
 ---
 
 # El panel del harness
 
-**Qué es:** una UI sobre `bin/asesor` (`npm run dev` → **:5195**). No es un segundo motor: todo lo que
-hace, lo hace lanzando el mismo launcher que usás por terminal. Si algo se puede resolver en `bin/asesor`,
+**Qué es:** una UI sobre `bin/advisor` (`npm run dev` → **:5195**). No es un segundo motor: todo lo que
+hace, lo hace lanzando el mismo launcher que usás por terminal. Si algo se puede resolver en `bin/advisor`,
 va ahí y el panel lo consume — duplicar la lógica en la UI es como empiezan a derivar.
 
 **Su límite, y es una decisión:** el panel **corre flujos** (inyecta + bypass) y nada más. Validar negocio
@@ -91,19 +91,19 @@ ubicar los nodos a mano sin que se crucen las aristas?* Si sí, CSS/SVG.
 
 ## El panel no ofrece lo mismo en todos los targets (`CAPS`)
 
-`bin/asesor` **no levanta lo mismo en cada target**, así que el panel no puede ofrecer las mismas
+`bin/advisor` **no levanta lo mismo en cada target**, así que el panel no puede ofrecer las mismas
 perillas. Una perilla que no mueve nada es peor que no tenerla: te deja creyendo que probaste algo que
 nunca se aplicó. (La matriz de qué es real en cada target está en el `CLAUDE.md`.)
 
 Dos mecanismos, y **no son intercambiables**:
 
 - **`E2E_REAL_PREAPPROVALS`** (en `.env.<target>`, hoy `1` en dev y staging) decide si se usa el mock de
-  pre-aprobados. `bin/asesor` lo lee **por la cadena (`envget`)**, no del shell: si lo leyera del shell,
+  pre-aprobados. `bin/advisor` lo lee **por la cadena (`envget`)**, no del shell: si lo leyera del shell,
   ponerlo en `.env.dev` no haría nada. El panel pregunta lo mismo al servidor (`/api/lenders` → `mockPA`)
   y muestra el selector de estado por entidad **solo cuando el mock contesta**. Atarlo a una lista de
   targets se desincroniza el día que alguien cambia la variable.
 - **`const CAPS`** (en `panel/index.html`) es para lo que **sí** depende del target: hoy solo `flotaLocal`
-  (los seis mocks que `bin/asesor:189-199` levanta únicamente en local). Si agregás un target, agregalo
+  (los seis mocks que `bin/advisor:189-199` levanta únicamente en local). Si agregás un target, agregalo
   ahí — el default de `cap()` es el más restrictivo **a propósito**: enumerar targets a mano fue lo que
   dejó a staging afuera del guard de escrituras cuando se sumó.
 
@@ -384,10 +384,10 @@ Conviven dos entradas, y **no son redundantes**:
   que la card mostrara una y el flujo corriera contra otra.
 
 Al elegir del buscador, el `slug` **es el hash**: `.flows.json` no conoce esa sucursal, y tanto
-`branchHashForSlug` (panel) como `bin/asesor` caen a "si parece hash de 8 hex, es el hash".
+`branchHashForSlug` (panel) como `bin/advisor` caen a "si parece hash de 8 hex, es el hash".
 
 **★ Guardar como favorito** lo escribe en `.flows.json` con el nombre que quieras y `fav: true`. No es
-cosmético: desde ahí `bin/asesor <slug>` lo reconoce **desde la terminal**, no solo el panel. El `fav`
+cosmético: desde ahí `bin/advisor <slug>` lo reconoce **desde la terminal**, no solo el panel. El `fav`
 existe para poder renombrar/borrar **solo los tuyos** — los curados no se tocan desde la UI. Y
 **renombrar NO cambia el slug**: es la clave con la que un comando guardado ya funciona.
 
@@ -396,15 +396,15 @@ existe para poder renombrar/borrar **solo los tuyos** — los curados no se toca
 Switch **Frontend**: *Del ambiente* (el desplegado del target) o *Local :5174* (tu working copy). Existe
 para ver un cambio del front contra `qa` **sin esperar el deploy**. Por CLI es `CFE_FRONT=local|ambiente`.
 La opción "del ambiente" aparece solo si ese target tiene un front desplegado configurado
-(`E2E_BASE_URL`), y eso lo resuelve el servidor por la **misma cadena** que `bin/asesor` — no una lista de
+(`E2E_BASE_URL`), y eso lo resuelve el servidor por la **misma cadena** que `bin/advisor` — no una lista de
 targets en el panel, que se desincronizaría.
 
 ⚠ **Con front local, el pool de Cognito es el de DEV aunque el backend sea el de qa.** El wizard local trae
 su propia config de Cognito en el `.env` del monorepo (`login.creditop.com` + su `client_id`) y
-`bin/asesor` solo le pisa las URLs de API. Consecuencias, las dos ya cableadas:
+`bin/advisor` solo le pisa las URLs de API. Consecuencias, las dos ya cableadas:
 
 - la corrida se loguea con la cuenta de **`.cognito.json`** (`a.arismendy`, pool de dev), no con la de
-  `.env.staging` (`oscar+dentix`, otro pool) — `bin/asesor` vacía `E2E_COGNITO_USER/PASS` para que caiga
+  `.env.staging` (`oscar+dentix`, otro pool) — `bin/advisor` vacía `E2E_COGNITO_USER/PASS` para que caiga
   ahí sola, y lo canta en el log (`● cognito  front local → pool de dev`);
 - el cache de sesión se llama por **front**, no por target (`pkg/cognito.ts`): `staging + front local` usa
   `cognito-state.dev.json`. Cachearlo como 'staging' hacía replayar cookies de OTRO origen y re-loguear
@@ -416,7 +416,7 @@ así que el permiso a la sucursal vale igual. Si algún día dejaran de comparti
 
 ## `CFE_FRONT` es un SWITCH, no una ruta (y el log del wizard mentía)
 
-Dos bugs de `bin/asesor` que juntos costaban 8 minutos por corrida, arreglados el 2026-07-31 — si tocás
+Dos bugs de `bin/advisor` que juntos costaban 8 minutos por corrida, arreglados el 2026-07-31 — si tocás
 esa zona, **no los deshagas**:
 
 - **`CFE_FRONT` tenía dos sentidos.** Abajo es el switch de front (`local|ambiente`, que es **lo que manda
@@ -491,13 +491,13 @@ sembrar). Cuando un arranque deja de aplicar, `step` cae a `monto` solo.
 El selector de **canal** cambia la PUERTA, no el caso: el usuario sintético es el mismo y viaja **adentro**
 de la URL base64, así podés correr la misma identidad entrando por asesor y por tienda y comparar.
 
-- `asesor` → `bin/asesor`, login Cognito, wizard en `/merchant`.
+- `asesor` → `bin/advisor`, login Cognito, wizard en `/merchant`.
 - `ecommerce` → `bin/ecommerce` + `E2E_ENTRY=ecommerce` (ver skill `harness-canal-ecommerce`).
 - `qr` → `bin/qr` + `E2E_ENTRY=qr` (ver skill `harness-canal-qr`).
 
 ## El botón `admin ↗` — y por qué local es distinto de los remotos
 
-Abre el admin de `legacy-application` **del target que esté elegido** (`dev/abrir-admin.ts <ruta> <target>`),
+Abre el admin de `legacy-application` **del target que esté elegido** (`dev/open-admin.ts <ruta> <target>`),
 en su propia ventana. Es un atajo de MIRAR: la mitad de la config que el flujo lee —comercios, entidades,
 puntos de venta— se toca ahí.
 
@@ -508,7 +508,7 @@ puntos de venta— se toca ahí.
 | `qa` | no tiene admin propio (`admin.qa.creditop.com` no resuelve) — usá `dev`, comparten base |
 | producción | **no está, a propósito** |
 
-**Local entra sin contraseña** porque `bin/admin-sesion` emite la sesión con el guard real de Laravel — hay
+**Local entra sin contraseña** porque `bin/admin-session` emite la sesión con el guard real de Laravel — hay
 `artisan` a mano, y el PHP aborta si `APP_ENV` no es `local`.
 
 **Los remotos no pueden entrar así**: no hay shell en esos contenedores, y `SESSION_DRIVER=file` — la
@@ -521,7 +521,7 @@ Lo que hacen en cambio, en este orden:
    siguientes entra solo. Son cookies en disco, el mismo mecanismo con el que un navegador te recuerda.
 2. **Y si hay credencial, completa el formulario.** El de siempre — no hay puerta trasera. Lee
    `E2E_ADMIN_USER_<TARGET>`/`E2E_ADMIN_PASS_<TARGET>`, si no los genéricos `E2E_ADMIN_USER`/`PASS`, y si
-   no el `.admin.json` **gitignoreado** que ya usaba `dev/admin-ciudades.spec.ts`. Acepta la forma plana
+   no el `.admin.json` **gitignoreado** que ya usaba `dev/admin-cities.spec.ts`. Acepta la forma plana
    `{user, pass}` que ya existía y, opcionalmente, una por target —`{"dev": {…}, "staging": {…}}`— porque
    los dos admin son despliegues distintos y pueden tener usuarios distintos. La plantilla:
    `.admin.json.example`.

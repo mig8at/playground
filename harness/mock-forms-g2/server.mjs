@@ -7,7 +7,7 @@
 // de opciones del formulario dinámico backend-driven.
 //
 // POR QUÉ EXISTE (medido el 2026-09-07):
-//   En local, `bin/asesor` apuntaba `VITE_FORM_SERVICE_BASE_URL` a **dev**
+//   En local, `bin/advisor` apuntaba `VITE_FORM_SERVICE_BASE_URL` a **dev**
 //   (`form-service.inertia-develop:8082`) porque «no hay mock G2». Leer de ahí es gratis, pero
 //   **guardar no**: `POST /v1/dynamic-form/{ft}/response/{userRequestId}` ESCRIBE, y el
 //   `userRequestId` de una corrida local (466347) es en dev la solicitud de otra persona. O sea que

@@ -32,7 +32,7 @@ compuerta de BNPL**.
 | | Qué ejercita | Su punto ciego |
 |---|---|---|
 | `dev/qr-corbeta.ts` | backend + BD: cierra en 25 con código | **los esquemas zod del front** |
-| `dev/caminar-qr.ts` | las pantallas: cargan y avanzan | no valida negocio ni que la pantalla esté *bien* |
+| `dev/walk-qr.ts` | las pantallas: cargan y avanzan | no valida negocio ni que la pantalla esté *bien* |
 | `npm run contrato:bancolombia` | el mock vs los zod **reales** del monorepo | no prueba el recorrido |
 | **`make harness-sandbox`** | **el gateway REAL del banco**: sobre, 5 headers, firma RS256, `maxLength` ⚠ **hoy NO LLEGA** (ver abajo) | el **negocio**: en el catálogo `Sandbox` el emisor es Microcks |
 
@@ -67,7 +67,7 @@ E2E_TARGET=local npx tsx dev/qr-corbeta.ts --producto bnpl      # o consumo
 #    banderas: --branch <hash> · --amount <n> · --facturar · --keep
 
 # 2. las pantallas, clickeando solo — ¿qué vistas existen y en qué orden?
-E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto consumo
+E2E_TARGET=local npx tsx dev/walk-qr.ts --producto consumo
 #    --escenario '{"errorCode":"BP20790","errorEn":"retrieve-quota"}' · --headed · --max 24
 #    ⚠ `errorEn` matchea por SUBCADENA DEL PATH, y si no matchea NO AVISA: la corrida sale verde
 #      como si el banco no hubiera fallado. `retrieve-quota` es de BNPL. Medido el 2026-09-17, las
@@ -107,7 +107,7 @@ banco contesta **`Pending`** y todavía no corrió `enable_offers`
 **`consumo/terms`** → **`consumo/loan-offer-evaluation`** (son DOS pasos: ingresos, y después «Completa tu
 registro») → **`consumo/credit-approved`** → y recién ahí vuelve a `loan-info`. Las cuatro se ven con:
 
-    E2E_TARGET=local npx tsx dev/caminar-qr.ts --producto consumo --escenario '{"producto":"pendiente"}' --max 24
+    E2E_TARGET=local npx tsx dev/walk-qr.ts --producto consumo --escenario '{"producto":"pendiente"}' --max 24
 
 ⚠ **Mirá las capturas, no el conteo de pasos.** El caminador guarda una por pantalla en
 `.runs/caminar-<producto>/NN-<pantalla>.png`. Que el recorrido diga «14 pantallas» sólo prueba que
@@ -295,7 +295,7 @@ carrito, y el panel corre el recorrido de PRODUCCIÓN. La regla la decide el **s
 ⚠ **Cuidá el motivo si reescribís el tooltip:** asesor en Corbeta **no está roto** (F-85). Al elegir
 Bancolombia devuelve un handoff al celular del cliente (`explicacion-de-flujo` + modal de WhatsApp,
 estado 1→3) y aterriza en las mismas pantallas del QR. Se apaga por **no ser el camino de producción**.
-El gate es una baranda del panel: por CLI (`bin/asesor <comercio>`) el canal sigue disponible y es la
+El gate es una baranda del panel: por CLI (`bin/advisor <comercio>`) el canal sigue disponible y es la
 forma de ejercitar ese handoff. Y **no** reuses la inferencia "el marketplace no lista para Corbeta":
 es falsa, `lenders-v2` da 404 igual en un comercio no-Corbeta.
 
@@ -310,8 +310,8 @@ la venta que cierra en CAJA. Los otros tres están en `.flows.json` por nombre (
 
 - `channel/qr-corbeta-purchase-code.spec.ts` — **7 casos**: emisión, idempotencia, ya-facturada, los 3
   guards, proveedor caído. Es el registro del comportamiento **observado**, no un oráculo de corrección.
-- `channel/qr-corbeta-pantallas.spec.ts` — 3 casos, incluido el contrato del autorrelleno.
-- `channel/qr-purchase-code-vencimiento.spec.ts` — **2 casos** (BNPL y Consumo): el contador de la
+- `channel/qr-corbeta-screens.spec.ts` — 3 casos, incluido el contrato del autorrelleno.
+- `channel/qr-purchase-code-expiry.spec.ts` — **2 casos** (BNPL y Consumo): el contador de la
   pantalla del código y la fecha que anuncia tienen que decir lo mismo. Es el guardián de **F-227**.
   ⚠ **HOY FALLA a propósito** contra `main` y `qa`: el arreglo está en
   `Creditop-SAS/frontend-monorepo#1028`, sin mergear. No se saltea — un caso que se saltea se lee como

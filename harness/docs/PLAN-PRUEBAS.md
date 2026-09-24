@@ -154,7 +154,7 @@ testid. La selección de lender por UI **ya funciona** (verificada en `creditopx
    categorías**, para que sea cual sea la que asigne el motor de scoring, la cuota dé >0 → botón habilitado →
    redirect a Wompi → lo intercepta `pkg/wompi-mock.ts` (ya verificado) → down-payment-validation → cadena
    cableada. `bin/close-lender` siembra ese lender sintético (clona #77, fee=15% en todas las categorías,
-   reversible). Verificado por `lender/cierre-x.spec.ts`. **Queda desbloqueado el paso 2** (Grupos B/C).
+   reversible). Verificado por `lender/close-x.spec.ts`. **Queda desbloqueado el paso 2** (Grupos B/C).
 2. **Cadena de cierre Creditop X + Grupos B/C** una vez (1) esté resuelto: `runFirstPaymentDate/PaymentSchedule/
    SignDocuments/SignatureOtp/assertLoanApproved` en `channel/steps.ts`, consumidas por `creditopXClose`.
    Desbloquea el cierre canónico rt=2 que reutilizan flujos Creditop X, Cupo Rotativo y Ecommerce.

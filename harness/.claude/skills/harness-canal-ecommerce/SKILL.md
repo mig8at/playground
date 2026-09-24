@@ -9,7 +9,7 @@ La tienda serializa el pedido en una **URL base64**; el backend la decodifica, *
 redirige al cliente al wizard. Sin asesor: el cliente aterriza ya redirigido.
 
 **Cómo se lanza:** `bin/ecommerce` + `E2E_ENTRY=ecommerce`. El spec arma la URL con
-`pkg/checkout-b64.ts`, y `mock-redirect` (**:8096**) lo levanta `bin/ecommerce` (`bin/asesor:56`).
+`pkg/checkout-b64.ts`, y `mock-redirect` (**:8096**) lo levanta `bin/ecommerce` (`bin/advisor:56`).
 
 **La fuente autoritativa del contrato es el plugin real**, no el harness:
 `playground/creditop-woocommerce` (`class-creditop-gateway.php:470-512`). Está reconciliado en la cabecera

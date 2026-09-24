@@ -6,14 +6,14 @@
 // cuántos caracteres recortaban del cuerpo (120, 140, 160 o 200). Copiar y pegar no las hizo iguales,
 // las hizo parecidas.
 //
-// Y las cinco arrastraban DOS bugs que `caso.ts` ya había pagado y arreglado sólo para sí mismo:
+// Y las cinco arrastraban DOS bugs que `case.ts` ya había pagado y arreglado sólo para sí mismo:
 //
 // 1 · **Un timeout no es una caída, y `HTTP 0` los confunde.** Medido el 2026-08-23: con nueve casos en
 //     paralelo, la generación de documentos tardó **90.002 ms** —clavó el límite— y el runner reportó
 //     «devolvió HTTP 0», que se lee como que el backend se murió. No se murió: tardó, por la misma razón
 //     de F-166 (llamadas remotas dentro de una transacción abierta, que bajo concurrencia se serializan).
 //     Cuál de las dos cosas fue cambia DÓNDE se busca la causa.
-// 2 · **Ninguna dejaba rastro.** `caso.ts` aprendió que la llamada que uno más quiere ver al fallar es
+// 2 · **Ninguna dejaba rastro.** `case.ts` aprendió que la llamada que uno más quiere ver al fallar es
 //     justo la que no quedaba anotada. Acá la bitácora es parte del cliente, así que no se puede olvidar
 //     — la misma razón por la que la guarda de escrituras vive dentro de `exec` y no a criterio de quien
 //     escribe.

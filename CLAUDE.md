@@ -645,7 +645,7 @@ tablero, donde una nota sobre algo sin mergear es legítima y hay que revisarla 
   Usala para verificar contra datos reales en vez de suponer.
 - **`E2E_TARGET` por defecto es `dev`**, no `local` (`harness/pkg/db.ts:12`). Cualquier consulta o
   script que lo omita pega contra el **dev compartido**. Para local, exportalo:
-  `E2E_TARGET=local`. (`dev/sweep.ts:34` y `dev/listado.ts:29` lo fuerzan; el panel setea
+  `E2E_TARGET=local`. (`dev/sweep.ts:34` y `dev/listing.ts:29` lo fuerzan; el panel setea
   `I_KNOW_THIS_TOUCHES_SHARED_DEV` cuando el target es `dev`.)
   ⚠ **Y ese «ya lo fuerza» fue FALSO hasta el 2026-09-09, en los dos runners.** Arriba del `||=`
   tenían un `import` **estático** que arrastraba `pkg/db.ts` → `pkg/env.ts`, donde `TARGET` se

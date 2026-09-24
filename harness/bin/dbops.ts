@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // dbops — CLI de operaciones de DB para harness (sin shellear a backend-mcp). Salida JSON, igual
-// que el Go que reemplaza, para que bin/asesor siga parseando con node json_pick. Target = E2E_TARGET
+// que el Go que reemplaza, para que bin/advisor siga parseando con node json_pick. Target = E2E_TARGET
 // (default dev). Las escrituras a dev exigen I_KNOW_THIS_TOUCHES_SHARED_DEV=1 exportado A MANO en la
 // shell (ya NO vive en .env.dev — F-53); el panel lo inyecta solo para sus corridas (panel/server.ts).
 //   node bin/dbops.ts whois <email|sub>
@@ -13,11 +13,11 @@
 //   node bin/dbops.ts synth-fill <uReqID> [lender] [income] [score]
 //   node bin/dbops.ts sucursal-check <merchant|hash> <sub>   (SÓLO LECTURA: ¿la sucursal que vamos a anunciar es la que el backend le da a ese asesor?)
 import { close, one, query, scalar, exec, assertWriteAllowed, TARGET } from '../pkg/db.ts';
-import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/asesor.ts';
+import { whois, assign, revoke, scrubphone, scrubHarnessUsers } from '../pkg/advisor.ts';
 import { listMerchants, listEcommerce } from '../pkg/merchants.ts';
 import { buildEcommerceUrl } from '../pkg/ecommerce.ts';
 import { branchCorbeta } from '../pkg/merchants.ts';
-import { preflightBranch, mismatchNotice } from '../pkg/preflight-sucursal.ts';
+import { preflightBranch, mismatchNotice } from '../pkg/preflight-branch.ts';
 import { synthFill, requestStatus11 } from '../pkg/inject.ts';
 import { verifyLaravelMac } from '../pkg/laravel-crypt.ts';
 import { appKey } from '../pkg/db.ts';
@@ -323,7 +323,7 @@ try {
         case 'sucursal-check': { // ¿la sucursal ANUNCIADA es la que el backend le da a ese asesor? → {coincide, esperada, asesor, aviso[]}
             // SÓLO LECTURA: le pregunta al backend por el sub (lo mismo que hace el wizard) y lo
             // compara con el hash del catálogo. No escribe, no reasigna, no borra sesiones — devuelve
-            // el desajuste y quien llama decide. Ver la cabecera de `pkg/preflight-sucursal.ts`.
+            // el desajuste y quien llama decide. Ver la cabecera de `pkg/preflight-branch.ts`.
             const d = await preflightBranch(String(a[0] ?? ''), TARGET, String(a[1] ?? ''));
             r = { ...d, aviso: mismatchNotice(d) };
             break;

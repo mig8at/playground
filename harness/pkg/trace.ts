@@ -20,7 +20,7 @@
 //   Hasta hoy el estado (`uReq`, contador, alertas, la cola) vivía en el módulo, o sea UNA traza por
 //   proceso. Correcto para los tres runners que la usaban —cada uno sigue UNA solicitud— y **roto** para
 //   cualquier corrida en PARALELO: N casos compartirían contador, alertas y cola, y la salida saldría
-//   entrelazada con el `uReq` del último que llamó. Se descubrió construyendo `dev/caminar-wizard.ts`,
+//   entrelazada con el `uReq` del último que llamó. Se descubrió construyendo `dev/walk-wizard.ts`,
 //   que por eso arrancó con su propia copia de esta lógica — exactamente la duplicación que
 //   `harness/CLAUDE.md` prohíbe («tener dos definiciones de pasó es como empiezan a derivar»).
 //
@@ -231,7 +231,7 @@ export class Trace {
 
     /**
      * VEREDICTO — la única definición de "pasó", compartida por el camino RÁPIDO (dev/sweep.ts), el
-     * VISUAL (dev/guided.spec.ts) y el de endpoints (dev/caminar-wizard.ts). Que todos afirmen lo mismo
+     * VISUAL (dev/guided.spec.ts) y el de endpoints (dev/walk-wizard.ts). Que todos afirmen lo mismo
      * es lo que hace que una divergencia entre ellos sea informativa: mismas aserciones + distinto
      * transporte ⇒ la diferencia ES el frontend.
      *

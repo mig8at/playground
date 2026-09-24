@@ -64,8 +64,8 @@ export async function listEcommerce(q = ''): Promise<EcommerceBranch[]> {
     );
 }
 
-// El teléfono sintético se mudó a `pkg/telefonos.ts`: había DOS derivaciones del mismo número y
-// cada una sabía la mitad (ésta el largo, la de `caso.ts` el prefijo). Ver el encabezado de ese archivo.
+// El teléfono sintético se mudó a `pkg/phones.ts`: había DOS derivaciones del mismo número y
+// cada una sabía la mitad (ésta el largo, la de `case.ts` el prefijo). Ver el encabezado de ese archivo.
 
 /** Qué contesta `corbeta_allieds` sobre una sucursal: su allied, si pertenece al grupo, y la lista.
  *
@@ -200,7 +200,7 @@ export type BranchCriterion = 'con-mas-entidades' | 'con-tienda';
  * un mensaje mejor que el que se podría dar acá.
  *
  * ⚠ HABÍA TRES RESOLUCIONES DISTINTAS, y no daban la misma sucursal. Dos copias de esto —una en
- * `caso.ts` y otra en `caminar-wizard.ts`, y sólo la segunda sabía de `con-tienda`—, más
+ * `case.ts` y otra en `walk-wizard.ts`, y sólo la segunda sabía de `con-tienda`—, más
  * `resolveMerchant` de acá arriba, que ordena por `status DESC, id` en vez de por cantidad de
  * entidades. `resolveMerchant` se queda como está porque sirve a OTRA pregunta (el panel y el
  * ecommerce quieren *un* comercio, tiran si no existe, y devuelven su slug); ésta sirve a las corridas.

@@ -20,7 +20,7 @@ import { TARGET } from './env.ts';
  */
 /**
  * El POOL lo decide el FRONT, no el target. El wizard local (:5174) trae SU propia config de Cognito en
- * el `.env` del monorepo (`login.creditop.com`, su client_id), y `bin/asesor` solo le pisa las URLs de
+ * el `.env` del monorepo (`login.creditop.com`, su client_id), y `bin/advisor` solo le pisa las URLs de
  * API — así que una corrida con front local se autentica contra el pool de **dev** aunque el backend sea
  * el de staging. Por eso la clave sale del front: con `staging + front local` (el switch `CFE_FRONT`)
  * cachear como 'staging' hacía replayar cookies de otro origen y re-loguear con la cuenta del pool

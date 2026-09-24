@@ -18,7 +18,7 @@ import (
 // Por eso este archivo ya no las parsea para mostrarlas: las RECONOCE, para que el lint de las tareas
 // frene una nueva y diga adónde va. El marcador de anotación sigue siendo el formato de los documentos
 // que NO son una tarea —los `CLAUDE.md`, las trampas del sistema— y lo que el arnés y el trazador
-// imprimen con `MD=1`: `harness/pkg/anotacion.spec.ts` lee `reAnnotation` de acá para comprobar que lo
+// imprimen con `MD=1`: `harness/pkg/annotation.spec.ts` lee `reAnnotation` de acá para comprobar que lo
 // que emite el arnés es lo que el tablero reconoce como anotación.
 var (
 	// El tipo se acepta con y sin tilde: quien escribe a mano no debería pelear con el acento.

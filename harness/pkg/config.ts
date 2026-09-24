@@ -177,7 +177,7 @@ export const config = {
      * definida en ninguno. Con target=dev eso hacía que el sembrado headless registrara al cliente en
      * el backend LOCAL, se trajera un `users.id` de la base local y lo insertara en la base de DEV: la
      * solicitud quedaba HUÉRFANA y /lenders moría con 500 (F-65). Ahora sale de la cadena por target,
-     * igual que `WIZ_API` en bin/asesor; `E2E_MOCK_URL` sigue mandando si está, como override explícito.
+     * igual que `WIZ_API` en bin/advisor; `E2E_MOCK_URL` sigue mandando si está, como override explícito.
      */
     mockUrl: (env('E2E_MOCK_URL') || env('E2E_API_BASE_URL', 'http://localhost'))
         .replace(/\/api\/?$/, '').replace(/\/$/, ''),
@@ -228,7 +228,7 @@ export const fakeScenarios = {
         amlFindings: 'aml-findings',
         /** SEGUNDO apellido «no coincide» (match_code 0) con el resto en coincidencia — el caso
          *  de la uReq 523201. Distinto de `nameMismatch`, que pega en el PRIMER nombre/apellido:
-         *  la tolerancia de los campos SEGUNDOS es donde vivía el defecto. Ver dev/kyc-apellido.ts. */
+         *  la tolerancia de los campos SEGUNDOS es donde vivía el defecto. Ver dev/kyc-surname.ts. */
         secondSurnameMismatch: 'second-surname-mismatch',
         /** Cliente de UN nombre y UN apellido, todo coincidente (campos segundos AUSENTES).
          *  Es la red: esta persona debe seguir pasando. */

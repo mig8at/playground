@@ -7,8 +7,8 @@
 // solicitud entra DESDE UNA TIENDA, ¿el contrato del carrito se decodifica, el comercio queda
 // vinculado al crédito, y lo que el comercio ya sabía del comprador llega al formulario?
 //
-// `dev/caso.ts` empieza DESPUÉS: recibe el comercio y la entidad como entrada y no sabe nada de
-// canales — `grep -c ecommerce dev/caso.ts` da 0. Por eso esto es un runner aparte y no una suite
+// `dev/case.ts` empieza DESPUÉS: recibe el comercio y la entidad como entrada y no sabe nada de
+// canales — `grep -c ecommerce dev/case.ts` da 0. Por eso esto es un runner aparte y no una suite
 // más de aquél.
 //
 // ⚠ LO QUE ESTE PROGRAMA **NO** HACE: pintar pantallas. Valida el CONTRATO entre el front y legacy,
@@ -33,7 +33,7 @@ process.env.CFE_TARGET ||= 'local';
 /* ⚠ IMPORTS DINÁMICOS, y no es estilo: `pkg/db.ts` resuelve `TARGET` al evaluar el módulo, y los
    imports estáticos corren ANTES de la primera sentencia de este archivo. Con `import … from`, las
    dos líneas de arriba llegan tarde y el runner lee y escribe contra el RDS COMPARTIDO de dev
-   creyendo que está en local. Es **F-187**, medido el 2026-09-09 en `sweep.ts` y `listado.ts`. */
+   creyendo que está en local. Es **F-187**, medido el 2026-09-09 en `sweep.ts` y `listing.ts`. */
 const { buildEcommerceUrl } = await import('../pkg/ecommerce.ts');
 const { one, close } = await import('../pkg/db.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
@@ -131,7 +131,7 @@ async function runCase(c: Case, i: number): Promise<void> {
     // ⚠ Con `--tel` se reusa un telefono YA registrado, o sea un usuario que ya existe en ese
     // ambiente: el vinculo comercio-credito se sigue midiendo igual (es por pedido), pero el prefill
     // puede traer los datos de ese usuario y no los del contrato. Es el mismo trato que hace
-    // `bcp-volver.ts` contra qa.
+    // `bcp-return.ts` contra qa.
     // ⚠ `||`, NO `??`: `arg()` devuelve CADENA VACÍA cuando el flag no está, y `'' ?? x` es `''` —
     // `??` sólo cae con null/undefined. Con `??` el teléfono derivado no se usaba NUNCA y el registro
     // moría con 422 «phone number is required», que se lee como un problema del backend. Entró al
@@ -214,7 +214,7 @@ async function runCase(c: Case, i: number): Promise<void> {
             ecommerce_request_id: Number(erId),
         });
     // En v1 el uReq viene en TRES lugares según cómo terminó la validación (la misma trampa que anota
-    // `caso.ts`): usuario temporal → error ONB002 con `errors.payload`; ya válido → `data.payload`; y
+    // `case.ts`): usuario temporal → error ONB002 con `errors.payload`; ya válido → `data.payload`; y
     // `payload` suelto. Mirar sólo uno da «HTTP 200 y sin uReq», que se contradice solo.
     const ur = usesPipeline
         ? otp.json?.data?.payload?.userRequestId

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# autogestion — CUARTO canal de entrada, junto a asesor (bin/advisor), tienda (bin/ecommerce) y caja
+# Corbeta (bin/qr).
+#
+# Es la puerta del cliente que entra SOLO: abre el link del comercio en su celular y hace todo él, sin
+# asesor. Es el canal de un comercio con «Habilitar auto gestión» prendido (`allieds.self_managed`),
+# como Alta Fleet.
+#
+#   bin/self-service <merchant>        → entra por /self-service y te deja seguir a mano
+#   bin/self-service <merchant> auto   → GUIADO desde la entrada
+#
+# ⚠ LA DIFERENCIA CON `bin/advisor` NO ES COSMÉTICA, y es fácil no verla: las dos puertas montan el
+# MISMO módulo del front para `solicitar`, así que la pantalla se ve idéntica. Lo que cambia es que
+# `/merchant/*` está detrás de login (medido: 302 a `/login`) y `/self-service/*` es público (200).
+# Con sesión de asesor el backend resuelve PUNTO DE VENTA y el flujo termina en el handoff; sin ella
+# resuelve autogestión y sigue de largo. Probar autogestión por `bin/advisor` prueba otra cosa.
+#
+# ⚠ Y este canal NO es el mismo que `bin/qr`, que también es autogestión: aquel entra por el
+# aterrizaje del QR de caja de un comercio Corbeta (`/bancolombia/self-service/…`), no pasa por
+# `/lenders` y termina en un código para facturar. Éste recorre el tronco normal del wizard.
+#
+# Es un wrapper: exporta CFE_ENTRY=self-service y delega en bin/advisor.
+set -euo pipefail
+DIR="$(cd "$(dirname "$0")" && pwd)"
+exec env CFE_ENTRY=self-service "$DIR/advisor" "$@"

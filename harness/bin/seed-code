@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# sembrar-codigo — deja un código de preaprobado listo para probar la pantalla del asesor en LOCAL.
+#
+# El código lo resuelve un servicio externo que en local no existe: lo reemplaza `mock-codes`
+# (`make harness-codes`, :8111). Este script le siembra uno resolviendo solo lo que hay que resolver:
+# el comercio (por hash de sucursal o por slug de .flows.json), su allied_id, una entidad habilitada
+# en ESA sucursal y un usuario real con datos de contacto — el backend verifica las tres cosas contra
+# la base, así que un código con datos inventados se rechaza aunque el mock diga que existe.
+#
+#   bin/seed-code <hash|slug> [codigo] [lender_id]
+#
+# Ejemplos:
+#   bin/seed-code 13874eb6           # el comercio de la captura, código 0101 (el del autorrelleno)
+#   bin/seed-code pullman 4321 77    # slug de .flows.json, código y entidad explícitos
+set -euo pipefail
+
+E2E="${CFE_E2E:-$(cd "$(dirname "$0")/.." && pwd)}"
+MOCK="${MOCK_CODES_URL:-http://127.0.0.1:8111}"
+MYSQL_CT="${MYSQL_CONTAINER:-legacy-backend-mysql-1}"
+
+WHO="${1:-}"; CODE="${2:-0101}"; LENDER="${3:-}"
+[ -n "$WHO" ] || { echo "uso: bin/seed-code <hash|slug> [codigo] [lender_id]"; exit 2; }
+
+q() { docker exec "$MYSQL_CT" mysql -uroot -ppassword creditop -N -e "$1" 2>/dev/null; }
+
+# Un slug de .flows.json se traduce a hash; un hash se usa tal cual.
+HASH="$WHO"
+if [ -f "$E2E/.flows.json" ]; then
+  FROM_SLUG="$(node -e "
+    const f=require('$E2E/.flows.json');
+    const m=(f.merchants||{})['$WHO'];
+    process.stdout.write(m?.branch_hash || '');
+  " 2>/dev/null || true)"
+  [ -n "$FROM_SLUG" ] && HASH="$FROM_SLUG"
+fi
+
+ROW="$(q "SELECT ab.id, ab.allied_id, a.name FROM allied_branches ab JOIN allieds a ON a.id=ab.allied_id WHERE ab.hash='$HASH' LIMIT 1;")"
+[ -n "$ROW" ] || { echo "✗ no hay sucursal con hash '$HASH' en la base local."; exit 1; }
+BRANCH="$(echo "$ROW" | cut -f1)"; MERCHANT="$(echo "$ROW" | cut -f2)"; NAME="$(echo "$ROW" | cut -f3)"
+
+# Sin entidad explícita, la primera habilitada en esa sucursal: cualquiera sirve para ejercitar el
+# camino, y que esté habilitada es lo que hace que el listado pueda mostrarla después.
+if [ -z "$LENDER" ]; then
+  LENDER="$(q "SELECT lab.lender_id FROM lenders_by_allied_branches lab WHERE lab.allied_branch_id=$BRANCH AND lab.status=1 ORDER BY lab.lender_id LIMIT 1;")"
+  [ -n "$LENDER" ] || { echo "✗ la sucursal $BRANCH no tiene entidades habilitadas: el código no tendría a dónde llevar."; exit 1; }
+fi
+LENDER_NAME="$(q "SELECT name FROM lenders WHERE id=$LENDER;")"
+
+# El usuario tiene que existir y tener celular y correo: el backend lo comprueba antes de crear nada.
+USER_ID="${SEMBRAR_USER_ID:-$(q "SELECT id FROM users WHERE cell_phone IS NOT NULL AND cell_phone<>'' AND email IS NOT NULL AND email<>'' ORDER BY id DESC LIMIT 1;")}"
+[ -n "$USER_ID" ] || { echo "✗ no hay usuarios con celular y correo en la base local."; exit 1; }
+
+curl -sS -XPOST "$MOCK/_control/sembrar" -H 'Content-Type: application/json' \
+  -d "{\"code\":\"$CODE\",\"user_id\":$USER_ID,\"lender_id\":$LENDER,\"merchant_id\":$MERCHANT}" >/dev/null \
+  || { echo "✗ no respondió el mock en $MOCK — ¿está corriendo 'make harness-codes'?"; exit 1; }
+
+echo "✔ código $CODE sembrado"
+echo "   comercio  $NAME (allied $MERCHANT · sucursal $BRANCH · hash $HASH)"
+echo "   entidad   $LENDER_NAME ($LENDER)"
+echo "   usuario   $USER_ID"
+echo "   probalo   http://localhost:5174/merchant/$HASH/codigo"

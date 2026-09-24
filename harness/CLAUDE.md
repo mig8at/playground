@@ -12,15 +12,15 @@ que ya costaron tiempo** — y el mapa mínimo para no perderse.
 
 | Capa | Qué es | Cuándo la tocás |
 |---|---|---|
-| `panel/` | La UI del harness (`npm run dev` → **:5195**). Es una cáscara sobre `bin/asesor`, no un segundo motor. | Camino visual: lo maneja Miguel |
-| `bin/` | **Plumbing**: launchers (`asesor` · `ecommerce` · `qr` · `panel`), los 11 `mock-*` y utilidades (`dbops.ts` · `envget.ts` · `steps-check.ts` · `preflight.ts`) | Casi nunca directo — el panel los llama |
+| `panel/` | La UI del harness (`npm run dev` → **:5195**). Es una cáscara sobre `bin/advisor`, no un segundo motor. | Camino visual: lo maneja Miguel |
+| `bin/` | **Plumbing**: launchers (`asesor` · `ecommerce` · `qr` · `panel`), los 11 `mock-*` y utilidades (`dbops.ts` · `env-get.ts` · `steps-check.ts` · `preflight.ts`) | Casi nunca directo — el panel los llama |
 | `dev/` | **Herramientas por consola**, una por pregunta (abajo) | Camino rápido: es TU camino |
-| `pkg/` | La **librería compartida**: `trace.ts` (aserciones) · `db.ts` · `inject.ts` · `cognito.ts` · `http.ts` · `telefonos.ts` · `merchants.ts` · `otp-bypass.ts` · `qr.ts`+`qr-steps.ts` · `checkout-b64.ts` · `windows.ts` · … | Al agregar capacidad, va acá — no duplicada en dos runners |
+| `pkg/` | La **librería compartida**: `trace.ts` (aserciones) · `db.ts` · `inject.ts` · `cognito.ts` · `http.ts` · `phones.ts` · `merchants.ts` · `otp-bypass.ts` · `qr.ts`+`qr-steps.ts` · `checkout-b64.ts` · `windows.ts` · … | Al agregar capacidad, va acá — no duplicada en dos runners |
 | `mock-*/` | **la flota de mocks con launcher** (la tabla de puertos, abajo) + 2 páginas estáticas (`mock-bank/`, `mock-store/`, sin launcher: las sirve el spec) | Cuando el proveedor externo estorba |
 | `channel/` | **13 suites de caracterización** (`*.spec.ts`): congelan el comportamiento ACTUAL | Antes de cambiar algo, para tener red |
 | `.runs/` · `.auth/` | Forense de la última corrida (volcados, screenshots) | Cuando algo falló y hay que reconstruir |
 
-**La cadena del camino visual:** panel (:5195) → `bin/asesor <comercio>` → `dev/guided.spec.ts`
+**La cadena del camino visual:** panel (:5195) → `bin/advisor <comercio>` → `dev/guided.spec.ts`
 (Playwright) → wizard real (:5174) → backend del target.
 
 **Los mocks y sus puertos** (el launcher es `bin/<nombre>`):
@@ -37,7 +37,7 @@ los nombres ya costó una vuelta. El primero imita `onboarding-forms-service` �
 comercios de RD, cuelga de `VITE_ONBOARDING_FORM_SERVICE`—; el segundo imita `form-service` —el
 backend-driven, de donde salen el formulario del VEHÍCULO de BCP y los árboles de opciones, cuelga de
 `VITE_FORM_SERVICE_BASE_URL`—. El segundo **no es opcional en local**: guardar un formulario ESCRIBE, y
-sin él `bin/asesor` cae al host de dev, donde el `user_request_id` de una corrida local es la solicitud
+sin él `bin/advisor` cae al host de dev, donde el `user_request_id` de una corrida local es la solicitud
 de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/mock-forms-g2 capturar`).
 
 **Las herramientas de consola, por la pregunta que contestan:**
@@ -46,23 +46,23 @@ de otra persona. Los esquemas son los de dev, capturados en modo lectura (`bin/m
 |---|---|
 | `dev/sweep.ts` | ¿qué desenlace da cada comercio × entidad? (modos `matrix` · `close` · `abaco`) |
 | `dev/qr-corbeta.ts` | ¿el canal QR cierra en estado 25 con código? (por API, sin browser) |
-| `dev/caminar-qr.ts` | ¿qué pantallas existen de verdad y en qué orden? (clickea solo). Al terminar imprime la pista de **PostHog** con la solicitud y la hora ya puestas — y contra local dice que no hay nada que mirar, porque el front local no escribe. ⚠ Es el runner que MÁS rastro dejaría en un ambiente desplegado (usa navegador: eventos del servidor + del cliente + grabación de sesión), pero hoy corre contra local porque necesita los mocks del banco |
-| `dev/contrato-bancolombia.ts` | ¿el mock cumple los esquemas zod del front? (`npm run contrato:bancolombia`) |
+| `dev/walk-qr.ts` | ¿qué pantallas existen de verdad y en qué orden? (clickea solo). Al terminar imprime la pista de **PostHog** con la solicitud y la hora ya puestas — y contra local dice que no hay nada que mirar, porque el front local no escribe. ⚠ Es el runner que MÁS rastro dejaría en un ambiente desplegado (usa navegador: eventos del servidor + del cliente + grabación de sesión), pero hoy corre contra local porque necesita los mocks del banco |
+| `dev/bancolombia-contract.ts` | ¿el mock cumple los esquemas zod del front? (`npm run contrato:bancolombia`) |
 | `dev/sandbox-bancolombia.ts` | **¿el BANCO DE VERDAD acepta lo que mandamos?** el único que pega contra el gateway real (`make harness-sandbox`) |
 | `dev/experian-check.ts` · `experian-api.ts` | ¿esta solicitud omitió el buró, y se puede *afirmar*? |
 | **⚠ el `cURL error 7` a `127.0.0.1:9` NO es un fallo** | Aparece en el forense de casi cualquier corrida local y es **deliberado**: `H2O_API_HOST` y `CREDIFAMILIA_HOST_OAUTH` apuntan al puerto *discard* a propósito. Sin esa variable, `main` devuelve **500 en TODO `/lenders`** (`baseUrl(null)`); apuntada a un host muerto, la llamada falla en 0 ms y el orden del listado cae a las matrices de la BD. Perseguirlo cuesta un rato y no hay nada que arreglar |
-| `make harness-ssr` | **¿a qué servicio llamó el SSR, y cómo le fue?** La consola del wizard: sus líneas `[outbound]` dicen URL, código y duración de CADA llamada saliente del servidor. ⚠ Es la ÚNICA vista de eso — la consola del navegador no ve las llamadas del servidor y el log de la corrida tampoco. `SOLO=1` filtra a lo saliente y los errores (sin eso, el ruido de Vite lo tapa) · `SEGUIR=1` se queda mirando. ⚠ Lo escribe `bin/asesor` al levantar el wizard (`> /tmp/asesor-wizard.log`, truncado en cada arranque): si lo levantaste a mano con `pnpm dev`, su salida se fue a ESA terminal |
+| `make harness-ssr` | **¿a qué servicio llamó el SSR, y cómo le fue?** La consola del wizard: sus líneas `[outbound]` dicen URL, código y duración de CADA llamada saliente del servidor. ⚠ Es la ÚNICA vista de eso — la consola del navegador no ve las llamadas del servidor y el log de la corrida tampoco. `SOLO=1` filtra a lo saliente y los errores (sin eso, el ruido de Vite lo tapa) · `SEGUIR=1` se queda mirando. ⚠ Lo escribe `bin/advisor` al levantar el wizard (`> /tmp/asesor-wizard.log`, truncado en cada arranque): si lo levantaste a mano con `pnpm dev`, su salida se fue a ESA terminal |
 | `dev/loki-trace.ts` | ¿POR QUÉ terminó así? forense en los logs (`make harness-loki UREQ=…`). ⚠ **No es la única forense de la casa**: ésta ancla en los LOGS —su fuerte es la regla con la que se evaluó cada entidad y el `timeline.ndjson` con payloads—, y `make trazador-ureq UREQ=… TARGET=…` ancla en la **BD**, así que contesta hasta dónde llegó aunque no haya un solo log, y suma qué VIO el cliente y qué archivos dejaron rastro. Es además la única que llega a **prod**, que ésta no mira. Las dos imprimen el comando de la otra al terminar. ⚠ Y sus defaults son OPUESTOS (`local` acá, `prod` allá): el target va escrito siempre |
-| `dev/bcp-volver.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. En LOCAL pide `make harness-peru` + `make harness-forms-g2`; contra `qa` el comercio **ya existe** (ver abajo) y hay que pasarle los teléfonos del bypass con `TEL=` |
+| `dev/bcp-return.ts` | **el flujo VEHICULAR de BCP por HTTP, y qué se PIERDE al volver atrás** (`make harness-bcp-volver`). Camina las tres pantallas que ningún otro runner sabía caminar —formulario del vehículo, simulador embebido y gate manual— y después de cada tramo pide la pantalla ANTERIOR, que es lo que hace el navegador al apretar atrás. De ahí salieron F-185 y F-186. En LOCAL pide `make harness-peru` + `make harness-forms-g2`; contra `qa` el comercio **ya existe** (ver abajo) y hay que pasarle los teléfonos del bypass con `TEL=` |
 | `make harness-suite-paises` | **¿el cliente nace con el país de su comercio, su documento y su celular?** La internacionalización como aserción declarada (`suites/paises.json`, clave `espera.pais`): la REGLA contra la base + valores fijados por país. Verde/rojo con exit code. ⚠ `requiere: lambda` a propósito: sin usuarios FRESCOS la aserción mide la escritura de una corrida vieja (así apareció un dominicano con `CC` del día anterior) |
 | `bin/pg logs` (en la raíz) | los **CUERPOS crudos** de Loki para un selector y una ventana — cuando no hay uReq que anclar (el flujo murió antes de crear la solicitud): `bin/pg logs --target dev --query '{service_name="CreditopDev"} \|~ "1828230"' --start 2026-09-02T14:12:00Z --end 2026-09-02T14:17:00Z`. Reemplaza a `dev/loki-lineas.ts` desde el 2026-09-24. ⚠ La sonda de `trazador-acceso` imprime **labels**, no cuerpos; y el PHP de dev **y de qa** loguea como `service_name="CreditopDev"` (F-179) |
-| `dev/ecommerce.ts` | **¿el CANAL ecommerce entrega lo que promete?** el carrito de una tienda de punta a punta, declarado en JSON y sin navegador (`make harness-ecommerce [SUITE=…]`). Contesta lo que `caso.ts` no sabe contestar —`grep -c ecommerce dev/caso.ts` da **0**, ese runner empieza DESPUÉS y no conoce canales—: si el contrato base64 se decodifica, si los seis campos del billing llegan como `prefill`, si el contexto se relee por `erId` **sin cookie**, y si la solicitud queda **atada al pedido** en la fila y en el puente. ⚠ Ese último chequeo no es decorativo: con el nombre viejo `ecommerce_request_id` (snake, el del v1) el backend **ignora el campo**, la solicitud nace sin vincular y **el comercio nunca recibe el veredicto de su compra**, sin ningún error. Probado rompiéndolo a propósito: da `fila=0 puente=0`. ⚠ La suite de la **sala de espera** va aparte (`suites/ecommerce-sala-de-espera.json`) porque depende de un PR sin mergear — separada y no «salteada», que un caso que se saltea se lee como verde. ⚠⚠ **SOLAPA con `channel/ecommerce-*.spec.ts`, y eso hay que decidirlo**: `ecommerce-no-cookie.spec.ts` ya fija el `erId`-en-URL y el vínculo, y `ecommerce-local-real.spec.ts` camina el flujo entero. La diferencia es el transporte —aquéllos van por **navegador** (Playwright, wizard corriendo, un `generate_checkout_url.php` que vive FUERA del repo y el perfil `.env.mock` de legacy) y éste va por **API en segundos, declarado en JSON**—, pero la cobertura se pisa. **No verifiqué si esos specs siguen pasando hoy**: nombran la rama de abril (`feature/onboarding/ecommerce-web-origination`) y el canal migró a OnboardingV2 desde entonces. Antes de agregar más casos acá, mirar si el lugar correcto es aquéllos |
-| `dev/pantallas.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
-| `dev/posthog-ureq.ts` · `pkg/posthog.ts` | **¿qué VIO el cliente, en el vocabulario del embudo?** la TERCERA fuente (BD = desenlace · Loki = causa · PostHog = recorrido): los eventos de una solicitud y el **cruce** pantalla caminada ↔ evento emitido, con los esperados DERIVADOS del código del front en la rama del target (`make harness-posthog UREQ=… DESDE=…`). El caminador lo dispara **sólo si el caso terminó mal** (`FORENSE=1` lo fuerza), la misma regla que `forensicOnClose` de Loki: medido 2026-09-02, consultarlo en TODA corrida llevó una de 108 s a 128 y otra a 237, y en el caso feliz no aportaba nada que la traza de BD no dijera. ⚠ Al cerrar, la lectura suele venir **PARCIAL** y ahí un evento que falta es atraso de ingesta, no una falta: se etiqueta como tal, porque marcarlo con ✗ manda a buscar un bug donde sólo hay que esperar (pasó con `confirmation`, que llegó dos minutos después). ⚠ Sólo el FRONT emite —`caso.ts` es invisible en PostHog— y **local no escribe** (`APP_ENV=local` apaga `getServerPostHog`). ⚠ Un solo proyecto para todos los ambientes y **prod y dev comparten ids**: `loan_request_502057` es julio en prod y hoy en qa, la MISMA persona para PostHog; por eso se filtra por ambiente Y hora de la corrida. ⚠ La hora va en epoch: `toDateTime('…')` la lee en Bogotá (-05:00). ⚠ La ingesta tarda minutos: el caminador espera acotado y dice PARCIAL; el cruce completo se mira después con este comando |
-| `dev/posthog-errores.ts` | **¿qué PANTALLAS del front se están rompiendo, y con qué?** el canal de LOGS agregado en dos cortes: por pantalla (DÓNDE: archivo + `loader`/`action` + error) y por patrón (QUÉ: los mensajes agrupados por PostHog, así 50 mensajes con distinto id cuentan como UN problema) — `make harness-posthog-errores [DIAS=7]`. ⚠ Sólo `staging` (los deploys de qa y de staging) y `production`: ni dev ni local tienen front desplegado. ⚠ El conteo es FRECUENCIA, no gravedad: un `ZodError` en el loader de una pantalla muy visitada suma más que una firma caída que le pasó a tres personas. Medido 2026-09-02, 3 días de prod: **2.123 `ZodError` del esquema del TEMA del comercio** (`data.colors.primary_color` en null) repartidos en 10 pantallas — es el mecanismo del punto 2 de **F-55** (el `catch` del loader que envuelve el tema del comercio redirige a `request-canceled`); y el loader de `request-canceled` con 82 errores, todos `DELETE /api/identity/request/<n>` → **403**, o sea la pantalla que cancela fallando al cancelar |
+| `dev/ecommerce.ts` | **¿el CANAL ecommerce entrega lo que promete?** el carrito de una tienda de punta a punta, declarado en JSON y sin navegador (`make harness-ecommerce [SUITE=…]`). Contesta lo que `case.ts` no sabe contestar —`grep -c ecommerce dev/case.ts` da **0**, ese runner empieza DESPUÉS y no conoce canales—: si el contrato base64 se decodifica, si los seis campos del billing llegan como `prefill`, si el contexto se relee por `erId` **sin cookie**, y si la solicitud queda **atada al pedido** en la fila y en el puente. ⚠ Ese último chequeo no es decorativo: con el nombre viejo `ecommerce_request_id` (snake, el del v1) el backend **ignora el campo**, la solicitud nace sin vincular y **el comercio nunca recibe el veredicto de su compra**, sin ningún error. Probado rompiéndolo a propósito: da `fila=0 puente=0`. ⚠ La suite de la **sala de espera** va aparte (`suites/ecommerce-sala-de-espera.json`) porque depende de un PR sin mergear — separada y no «salteada», que un caso que se saltea se lee como verde. ⚠⚠ **SOLAPA con `channel/ecommerce-*.spec.ts`, y eso hay que decidirlo**: `ecommerce-no-cookie.spec.ts` ya fija el `erId`-en-URL y el vínculo, y `ecommerce-local-real.spec.ts` camina el flujo entero. La diferencia es el transporte —aquéllos van por **navegador** (Playwright, wizard corriendo, un `generate_checkout_url.php` que vive FUERA del repo y el perfil `.env.mock` de legacy) y éste va por **API en segundos, declarado en JSON**—, pero la cobertura se pisa. **No verifiqué si esos specs siguen pasando hoy**: nombran la rama de abril (`feature/onboarding/ecommerce-web-origination`) y el canal migró a OnboardingV2 desde entonces. Antes de agregar más casos acá, mirar si el lugar correcto es aquéllos |
+| `dev/screens.ts` | **¿por qué PANTALLAS habría pasado el cliente?** el recorrido del wizard derivado del router en `main`, y al revés: `ENDPOINT=confirm-payment-schedule` → qué pantalla es (`make harness-pantallas`) |
+| `dev/posthog-ureq.ts` · `pkg/posthog.ts` | **¿qué VIO el cliente, en el vocabulario del embudo?** la TERCERA fuente (BD = desenlace · Loki = causa · PostHog = recorrido): los eventos de una solicitud y el **cruce** pantalla caminada ↔ evento emitido, con los esperados DERIVADOS del código del front en la rama del target (`make harness-posthog UREQ=… DESDE=…`). El caminador lo dispara **sólo si el caso terminó mal** (`FORENSE=1` lo fuerza), la misma regla que `forensicOnClose` de Loki: medido 2026-09-02, consultarlo en TODA corrida llevó una de 108 s a 128 y otra a 237, y en el caso feliz no aportaba nada que la traza de BD no dijera. ⚠ Al cerrar, la lectura suele venir **PARCIAL** y ahí un evento que falta es atraso de ingesta, no una falta: se etiqueta como tal, porque marcarlo con ✗ manda a buscar un bug donde sólo hay que esperar (pasó con `confirmation`, que llegó dos minutos después). ⚠ Sólo el FRONT emite —`case.ts` es invisible en PostHog— y **local no escribe** (`APP_ENV=local` apaga `getServerPostHog`). ⚠ Un solo proyecto para todos los ambientes y **prod y dev comparten ids**: `loan_request_502057` es julio en prod y hoy en qa, la MISMA persona para PostHog; por eso se filtra por ambiente Y hora de la corrida. ⚠ La hora va en epoch: `toDateTime('…')` la lee en Bogotá (-05:00). ⚠ La ingesta tarda minutos: el caminador espera acotado y dice PARCIAL; el cruce completo se mira después con este comando |
+| `dev/posthog-errors.ts` | **¿qué PANTALLAS del front se están rompiendo, y con qué?** el canal de LOGS agregado en dos cortes: por pantalla (DÓNDE: archivo + `loader`/`action` + error) y por patrón (QUÉ: los mensajes agrupados por PostHog, así 50 mensajes con distinto id cuentan como UN problema) — `make harness-posthog-errores [DIAS=7]`. ⚠ Sólo `staging` (los deploys de qa y de staging) y `production`: ni dev ni local tienen front desplegado. ⚠ El conteo es FRECUENCIA, no gravedad: un `ZodError` en el loader de una pantalla muy visitada suma más que una firma caída que le pasó a tres personas. Medido 2026-09-02, 3 días de prod: **2.123 `ZodError` del esquema del TEMA del comercio** (`data.colors.primary_color` en null) repartidos en 10 pantallas — es el mecanismo del punto 2 de **F-55** (el `catch` del loader que envuelve el tema del comercio redirige a `request-canceled`); y el loader de `request-canceled` con 82 errores, todos `DELETE /api/identity/request/<n>` → **403**, o sea la pantalla que cancela fallando al cancelar |
 | `dev/warm-session.spec.ts` | **la sesión de asesor caducó y no quiero quedar bloqueado.** Pre-login headless que deja `.auth/cognito-state.<target>.json` listo, sin correr ningún flujo: `E2E_TARGET=<t> npx playwright test dev/warm-session.spec.ts --headed --project=chromium`. ⚠ **Contra `qa` y `staging` va HEADED**: el Managed Login de `auth.merchant` corta la automatización por fingerprint y en headless queda colgado en `/verifyPassword` (F-66). ⚠ Y el caminador **no lo dispara solo** — sólo LEE el cache y corta con «entrá una vez por el panel»; este spec es el camino por consola de esa frase |
-| `dev/asesor-destino.spec.ts` | **¿a dónde manda el front al elegir una entidad, en el canal del ASESOR?** Abre el listado con la sesión cacheada, elige y reporta la URL — nada más. Existe porque el caminador no puede llegar ahí cuando su siembra deja la entidad fuera del listado: acá la solicitud viene sembrada desde afuera con `synthFill(ur, { lender })`. ⚠ Usa `chooseEntity` de `pkg/wizard-navegador.ts` y **no un localizador propio**: el primer intento con `locator('div').filter(...)` clickeó otro botón, la selección nunca llegó a la base (`lender_id` NULL) y la corrida igual dio «passed» |
-| `dev/caminar-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-caminar CASOS='#hash:lender' CERRAR=1 MANUAL=1`). Es el tercer camino: `caso.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
+| `dev/advisor-target.spec.ts` | **¿a dónde manda el front al elegir una entidad, en el canal del ASESOR?** Abre el listado con la sesión cacheada, elige y reporta la URL — nada más. Existe porque el caminador no puede llegar ahí cuando su siembra deja la entidad fuera del listado: acá la solicitud viene sembrada desde afuera con `synthFill(ur, { lender })`. ⚠ Usa `chooseEntity` de `pkg/wizard-browser.ts` y **no un localizador propio**: el primer intento con `locator('div').filter(...)` clickeó otro botón, la selección nunca llegó a la base (`lender_id` NULL) y la corrida igual dio «passed» |
+| `dev/walk-wizard.ts` | **¿el FRONT encadena bien las pantallas?** el wizard entero por sus endpoints `.data` —loaders, actions, middleware, zod— sin navegador y en PARALELO, cada pantalla contrastada con la BD (`make harness-caminar CASOS='#hash:lender' CERRAR=1 MANUAL=1`). Es el tercer camino: `case.ts` no ve el front, el panel necesita a alguien clickeando. ⚠ Sigue SÓLO las redirecciones que la app emite —acá hay loaders que ESCRIBEN (`request-canceled` cancela al cargarse, F-50)— y la única URL que arma solo es el handoff a `/confirmation` que el backend le manda al cliente. Lo que no corre: el JavaScript del cliente. Medido 2026-09-02: 11 pantallas y estado 11 en local (73 s) y contra el front desplegado de qa (108 s). El paralelo rinde en los dos: contra qa, 3 en paralelo son 203 s contra ~325 s en fila (el techo ahí es ¼ de vCPU y el ALB cortando a los 60 s, F-180); en local, **3 en 74 s y 6 en 112 s** con `PHP_CLI_SERVER_WORKERS` puesto — sin esa variable eran 237 s para 3, porque `artisan serve` atiende de a una (F-181, y ahí está la receta). El front no fue el cuello en ningún caso; 3 en paralelo en local, los tres llegan a 11 en la BD, pero el tercero pasó de 120 s en la firma y la primera versión lo reportó como «no cerró» —el techo es el PHP local, no el caminador, y por eso ante un timeout ahora vuelve a mirar la BD antes de concluir (F-180: PHP sigue y termina). El protocolo (redirect = 202 con destino en el cuerpo; turbo-stream v3 vendoreado; promesas en líneas `P<id>:`) está deducido y documentado en `pkg/front.ts` |
 
 ### La siembra del caminador la pisa el formulario — y por eso «la entidad no salió en el listado» mentía
 
@@ -212,18 +212,18 @@ es peor que uno que falla.
 tiene **dos**: verificado el 2026-09-03 contra la rama de qa, `otp-input`, `docnum-input`, `name-input`,
 `surname-input`, `email-input`, `monthly-income-input`, `employment-submit` y los `date-selector-*` no
 existen en ninguna parte del monorepo. Por eso el motor de navegador **no los usa**: opera por rol y
-etiqueta, con `pkg/autorrelleno.ts` (el motor genérico que antes vivía dentro del caminador del canal QR
+etiqueta, con `pkg/autofill-qr.ts` (el motor genérico que antes vivía dentro del caminador del canal QR
 y ahora comparten los dos, con un mapa de campos por canal).
 
-⚠ **Y hay DOS autorrellenos, no uno** — `pkg/autorelleno.ts` (una `r`, la chapita ⌨/⌥R del camino
-visual, que se INYECTA en la página) y `pkg/autorrelleno.ts` (dos `r`, el de Playwright que usan los
+⚠ **Y hay DOS autorrellenos, no uno** — `pkg/autofill.ts` (una `r`, la chapita ⌨/⌥R del camino
+visual, que se INYECTA en la página) y `pkg/autofill-qr.ts` (dos `r`, el de Playwright que usan los
 caminadores). No se pueden fundir: uno vive en el DOM y el otro habla por el protocolo de Playwright.
 Lo que **sí** está compartido, desde el 2026-09-10, es la regla del **trío de fecha**
-(`pkg/fecha-trio.ts`), y hay motivo medido: un día/mes/año no se rellena eligiendo la primera opción
+(`pkg/date-trio.ts`), y hay motivo medido: un día/mes/año no se rellena eligiendo la primera opción
 de cada combo —eso da `1 / Enero / <año actual>`, o sea hoy, que como fecha de expedición ninguna
 validación acepta—, la regla la sabía UNO de los dos, y el otro escribía la fecha inválida en la base
 sin que nada avisara. El inyectado la recibe por un `addInitScript` aparte (`injectableSource()`)
-porque su guion se serializa y no puede importar; `pkg/fecha-trio.spec.ts` fija esa serialización
+porque su guion se serializa y no puede importar; `pkg/date-trio.spec.ts` fija esa serialización
 evaluándola en un Chromium.
 
 ### S3 en local: MinIO, o los documentos no existen
@@ -431,7 +431,7 @@ nuestro— y recién después dispara el webhook. Ver F-171 para las tres guarda
 
 ### El eje que las corridas por API no cubren: qué VEÍA el cliente
 
-`caso.ts` va por API y no abre el navegador — por eso es rápido y paralelizable. Lo que pierde es la
+`case.ts` va por API y no abre el navegador — por eso es rápido y paralelizable. Lo que pierde es la
 pantalla: una corrida dice «HTTP 500 en `confirm-payment-schedule`» y nadie sabe dónde habría estado
 parado el cliente, que es lo que preguntan producto, soporte y QA.
 
@@ -452,13 +452,13 @@ distinta**, que es el modo de falla que importa: no es que hubiera dos, es que n
 | en `pkg/` | qué reemplazó | la lección que sólo tenía UNA de las copias |
 |---|---|---|
 | `http.ts` | **5** copias de `http()` | un timeout **no** es una caída, y `HTTP 0` los confunde (medido: 90.002 ms leídos como «el backend se murió»). Y ninguna dejaba bitácora |
-| `telefonos.ts` | 2 derivaciones | el LARGO sale del país (`countries.cell_phone_lenght`) **y** el PREFIJO también: en RD el área ES el país, y con un dígito cualquiera el número se ubica en otro lado **sin fallar** |
+| `phones.ts` | 2 derivaciones | el LARGO sale del país (`countries.cell_phone_lenght`) **y** el PREFIJO también: en RD el área ES el país, y con un dígito cualquiera el número se ubica en otro lado **sin fallar** |
 | `merchants.ts` (`findBranch`) | **3** resoluciones | el canal de tienda necesita la sucursal **con credencial de ecommerce**; la de mostrador no tiene checkout |
 | `otp-bypass.ts` | 2 copias | dos corridas a la vez se pisaban la lista, y la primera en terminar le borraba los teléfonos a las otras |
 | `cognito.ts` (`sessionHealth`) | nada — era un hueco | el archivo puede estar y la sesión estar muerta: se mira el **vencimiento de las cookies**, no el `mtime` |
 
 ⚠ **Y una que NO se hizo, a propósito:** generalizar el patrón de «mutar un ajuste compartido sin
-pisar a las corridas vecinas». El único otro candidato (`settings.front_end_url` en `montar-peru.ts`)
+pisar a las corridas vecinas». El único otro candidato (`settings.front_end_url` en `mount-peru.ts`)
 **sólo corre en local**, así que la carrera no existe ahí y además guarda un escalar, no una lista. Una
 abstracción con un solo usuario es una abstracción inventada.
 
@@ -478,19 +478,19 @@ Lo profundo por canal vive en skills, y se carga solo cuando hace falta:
 
 > Propuestas para el panel salidas de las corridas de las cinco familias (semáforo de mocks,
 > desenlace por familia, webhook de la entidad, entidades que van a reventar, plazos, documentos):
-> `panel/MEJORAS-DESDE-LAS-CORRIDAS.md` (2026-08-24). Respetan la regla: el panel corre, no valida.
+> `panel/IMPROVEMENTS-FROM-THE-RUNS.md` (2026-08-24). Respetan la regla: el panel corre, no valida.
 | `harness-canal-ecommerce` | trabajés la entrada por tienda (URL base64) y su techo actual |
 
 ## Cada corrida destruye la anterior — hacé la forense ANTES
 
-`bin/asesor` arranca siempre con `scrubphone` (`bin/asesor:99`), que borra los users cliente del teléfono
-de bypass **y sus `user_requests`**, con `FOREIGN_KEY_CHECKS=0` (`pkg/asesor.ts:178-197`). No hay undo.
+`bin/advisor` arranca siempre con `scrubphone` (`bin/advisor:99`), que borra los users cliente del teléfono
+de bypass **y sus `user_requests`**, con `FOREIGN_KEY_CHECKS=0` (`pkg/advisor.ts:178-197`). No hay undo.
 
 - Antes de borrar, el scrub **vuelca lo que está por perderse** a `.runs/ureq-<id>.json` (estado, lender,
   records). Si te falta una corrida vieja, entrá por ahí.
 - Si `user_requests` te da vacío para un id que imprimió una corrida vieja, no concluyas "nunca existió":
   lo borró el scrub (F-52). Mirá `.runs/`.
-- `user_request_records` **no** está en `childTables` (`pkg/asesor.ts:17-24`) → sobrevive huérfano. Es lo
+- `user_request_records` **no** está en `childTables` (`pkg/advisor.ts:17-24`) → sobrevive huérfano. Es lo
   único que permite reconstruir a posteriori; entrá por ahí.
 
 ## No le creas al verde
@@ -585,7 +585,7 @@ como empiezan a derivar, y ahí una divergencia deja de ser diagnóstico y pasa 
 **Y para un runner PARALELO, pedí una instancia: `crearTraza({ salida, ancho })`.** Hasta el 2026-09-03
 el estado de la traza (la solicitud, el contador, las alertas, la cola) vivía en el módulo, o sea UNA por
 proceso: correcto para los tres runners de un caso, y roto para N casos a la vez —contador y alertas
-compartidos, y las líneas de todos entrelazadas—. Por eso `caminar-wizard.ts` nació con su propia copia
+compartidos, y las líneas de todos entrelazadas—. Por eso `walk-wizard.ts` nació con su propia copia
 de esta lógica, que es justo lo que el párrafo de arriba prohíbe; ya no la tiene. Las funciones de módulo
 (`paso`, `traceUReq`, `resumen`, `veredicto`) siguen ahí como delegación a una instancia por defecto, así
 que **los runners de un caso no cambian nada**. `salida` manda las líneas al buffer del caso —en paralelo
@@ -601,9 +601,9 @@ y backend; el visual valida el camino real del usuario, que también tiene lógi
 consola pega contra el backend, que es más laxo, así que puede estar **verde con el recorrido visual
 roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm run contrato:bancolombia`.
 
-## `caso.ts`: tres cosas que aprendió el 2026-09-02, y que valen para cualquier runner
+## `case.ts`: tres cosas que aprendió el 2026-09-02, y que valen para cualquier runner
 
-- **El veredicto del runner y lo que quedó en la base son DOS cosas.** Al cerrar, `caso.ts` imprime
+- **El veredicto del runner y lo que quedó en la base son DOS cosas.** Al cerrar, `case.ts` imprime
   `base: quedaron N usuario(s) y M solicitud(es) nuevos` contando desde una línea base tomada al
   arrancar — y si dijo **cero** pero la base creció, lo dice con todas las letras. Motivo: tres veces
   (F-176, F-180, la corrida de 42) reportó «0/N cerraron» con la base llena de usuarios íntegros: el
@@ -641,7 +641,7 @@ roto** (F-88). Si trabajás Bancolombia, cargá `harness-canal-qr` y corré `npm
   **Uno** violaba la regla de F-03: el dictado del score de Experian iba con `.catch(() => {})`, así que
   si fallaba el caso corría con el score por defecto del mock y el reporte decía igual «buró dictado» —
   Agildata sí se verificaba, Experian no. Ahora cuenta como dictado fallido. Si el número te importa,
-  contalo (`grep -c 'catch(() => ' dev/caso.ts`) y mirá la línea siguiente antes de llamarlo deuda.
+  contalo (`grep -c 'catch(() => ' dev/case.ts`) y mirá la línea siguiente antes de llamarlo deuda.
 
 ⚠ **Y dos límites del entorno que hay que tener presentes al leer tiempos:** local sirve PHP con
 `artisan serve`, **monohilo** — mide correctitud, no capacidad (F-181)—; y `qa` es ¼ de vCPU, 512 MB y
@@ -650,9 +650,9 @@ PHP sigue escribiendo (F-180). Ninguno de los dos sirve para medir carga.
 
 ## Mocks: arrancá a mano los que nadie levanta
 
-- `bin/asesor` levanta `mock-preapprovals` siempre (`bin/asesor:120`) y, **solo con target `local`**,
-  payvalida + mdm + lenders + forms + **ábaco** + **financial-health** (`bin/asesor:189-199`).
-  `mock-redirect` lo levanta `bin/ecommerce` (`bin/asesor:56`). Contra `dev` no se levanta ninguno de
+- `bin/advisor` levanta `mock-preapprovals` siempre (`bin/advisor:120`) y, **solo con target `local`**,
+  payvalida + mdm + lenders + forms + **ábaco** + **financial-health** (`bin/advisor:189-199`).
+  `mock-redirect` lo levanta `bin/ecommerce` (`bin/advisor:56`). Contra `dev` no se levanta ninguno de
   esos seis. `mock-financial-health` es distinto al resto: **no inventa datos** — lee el usuario
   sintético REAL de la BD local (por eso ocupa el `:4000` que el `.env` del wizard ya apunta). Ver F-70.
 - **Los cuatro de Credifamilia no los levanta nadie.** Si tu flujo toca rt=4, corré vos
@@ -662,7 +662,7 @@ PHP sigue escribiendo (F-180). Ninguno de los dos sirve para medir carga.
   que habla del proveedor y no del mock (F-165).
   ⚠ **El cuarto es distinto y peor**: sin él la solicitud llega igual a **estado 11**, el endpoint
   devuelve **200** y el runner dice «cerró» — pero el backend salió al **sandbox real del lender**, dio
-  504, y el crédito **nunca se radicó** (F-168). `dev/caso.ts` ya avisa los cuatro en el prevuelo cuando
+  504, y el crédito **nunca se radicó** (F-168). `dev/case.ts` ya avisa los cuatro en el prevuelo cuando
   el caso va a cerrar, y ahora reporta el estado de la radicación en cada cierre.
 - **Si editás un mock, asegurate de que el proceso que corre sea ese código** (F-87). Node no recarga el
   módulo: `start` veía el puerto respondiendo y salía con `✓ ya arriba`, sirviendo la versión anterior — el
@@ -786,7 +786,7 @@ local — el `.env` apunta a `inertia-develop`:
     VITE_BCP_VEHICLE_FORM_TYPE_ID=8                       # `SELECT id FROM form_types WHERE name='bcp-vehiculo-paso-1'`
     VITE_BCP_SIMULATOR_URL=http://localhost:8110/simulador # bin/mock-cuotealo
 
-⚠⚠ **Y lo que esto destapó: `.env.local` puede NO EXISTIR.** `bin/asesor` lo escribe y lo restaura en su
+⚠⚠ **Y lo que esto destapó: `.env.local` puede NO EXISTIR.** `bin/advisor` lo escribe y lo restaura en su
 `trap EXIT`; si muere mal, queda sólo `.env.local.asesor-bak` y el wizard pasa a leer el `.env`, que
 apunta al **backend compartido de dev**. Un servidor de Vite ya levantado no se entera —tiene la config
 en memoria— así que el problema aparece recién al reiniciarlo, y puede llevar días ahí. Medido el
@@ -822,10 +822,10 @@ wizard, mirá si `.env.local` está.**
   del arnés, el flag se exporta igual.
 - **El scrub por consola va con `E2E_TARGET=local` EXPLÍCITO** en el env del hijo: `bin/dbops.ts` es otro
   proceso, su default es **dev**, y ahí el guard de escrituras compartidas lo bloquea (F-53) sin que se note.
-- El panel lanza `bin/asesor <slug>` **sin `auto`** (`panel/server.ts:153`) → siempre modo manual. El
-  guiado es solo por terminal, y ahí el **comercio va primero**: `bin/asesor <comercio> auto`.
-- Si matás `bin/asesor` con `kill -9`, verificá que el wizard recuperó su `.env.local`: queda en
-  `.env.local.asesor-bak` y solo lo restaura el `trap EXIT` (`bin/asesor:198-201`).
+- El panel lanza `bin/advisor <slug>` **sin `auto`** (`panel/server.ts:153`) → siempre modo manual. El
+  guiado es solo por terminal, y ahí el **comercio va primero**: `bin/advisor <comercio> auto`.
+- Si matás `bin/advisor` con `kill -9`, verificá que el wizard recuperó su `.env.local`: queda en
+  `.env.local.asesor-bak` y solo lo restaura el `trap EXIT` (`bin/advisor:198-201`).
 - **No te quedes con el puerto del panel (:5195).** Si dejás una instancia tuya corriendo, el
   `npm run dev` de Miguel no arranca. Ya pasó dos veces: levantalo solo si lo vas a usar, y bajalo.
 - **El wizard local no arranca sin instalar el monorepo con pnpm.** Da
@@ -869,7 +869,7 @@ frontera del guard está DENTRO del archivo».
 **Y no hace falta escribirla a mano.** Con `BLOQUE=<id|slug>`, `harness-caso`, `harness-listado`,
 `harness-caminar` y `harness-suite` agregan la corrida sola, como bloque, a la pila de esa tarea: el
 título con el resumen, el comando exacto en su caja y la evidencia por caso como resultado, con
-`via: harness` (`pkg/anotacion.ts`, y su prueba le pregunta al validador del tablero en seco). Y
+`via: harness` (`pkg/annotation.ts`, y su prueba le pregunta al validador del tablero en seco). Y
 `MD=1` la emite como anotación, para un documento que NO es una tarea —un `CLAUDE.md`, una trampa—.
 Lo aceptan los mismos cuatro, y devuelven la anotación completa —marcador con la fecha real, una línea
 de evidencia por caso y el comando que la reproduce— al final de la corrida y **sola**, para copiarla
@@ -883,7 +883,7 @@ sin recortar:
 
 ⚠ **El contrato lo fija el tablero, no el gusto de acá**: el marcador arranca la primera línea, TODAS
 las líneas van dentro de la cita y el comando cierra como `Cómo se vuelve a comprobar`. Si deriva, la
-anotación se pega, se ve bien y no es lo que dice ser. `pkg/anotacion.spec.ts` lo fija leyendo el
+anotación se pega, se ve bien y no es lo que dice ser. `pkg/annotation.spec.ts` lo fija leyendo el
 **regex real** con que el tablero la reconoce (`reAnnotation`, en su `store`) — no una copia: un mock no
 puede contradecir el documento del que nació. Y el bloque de `BLOQUE=` lo fija contra el validador de la
 pila, en seco.
@@ -908,7 +908,7 @@ Mismo motivo que arriba: el contexto curado describe CreditOp y esto describe el
   siendo `asesor 3e67eade 77` (fuerza `initial_fee=0`).
 - **`IPHONE_UA` obligatorio**: el wizard gatea validación y `loan-approved` por `onlyMobileValidation` —
   con UA de escritorio responde **403** y el loader queda en blanco. A y B usan UA de iPhone.
-- **Reuse de puertos**: `bin/asesor` reusa el wizard :5174 y lo reinicia **solo si apuntaba a otro
+- **Reuse de puertos**: `bin/advisor` reusa el wizard :5174 y lo reinicia **solo si apuntaba a otro
   backend**; `mock-preapprovals` reusa solo si `MOCK_PA_DELAY_MS` coincide (el env se hornea al bootear).
 - **El eje ecommerce se ejercita contra dev, no local** (la entrada del front está PENDIENTE DE MERGE →
   nodo `ecommerce`; F-54). En local el checkout SSR se degrada.
@@ -985,11 +985,11 @@ score pasa, qué regla datacrédito aplica) es turf de `profiling` / `kyc` — a
   Cubre también el camino del panel (`E2E_ENTRY=cognito`): «Preparar + Lanzar ▶» no re-abre el Hosted UI
   por corrida.
 - **Assign por SUB**: el backend resuelve el comercio por `x-cognito-identity-id` = el **sub real** del
-  login web. `bin/asesor` asocia la fila `users` al comercio (`dbops assign`) solo si hace falta — un
+  login web. `bin/advisor` asocia la fila `users` al comercio (`dbops assign`) solo si hace falta — un
   asesor = un comercio; revert con `dbops revoke`.
 - **`.flows.json`** (gitignored): identidad del asesor + `merchants.<m>.branch_hash` + teléfono de
   bypass. **`.env.<target>`**: `E2E_DB_*`, `APP_KEY` (cifra la fila Experian).
-- **El panel** (:5195) elige comercio, define el sintético y lanza `bin/asesor` con `E2E_INJECT=1`
+- **El panel** (:5195) elige comercio, define el sintético y lanza `bin/advisor` con `E2E_INJECT=1`
   (buró invisible) o sin él (buró real). Solo local por diseño (fuerza el target).
 
 **(2026-08-28)** Deriva = commits propios (el codeudor entró al runner — rt=2 ya no pide manos —, la

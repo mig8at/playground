@@ -46,7 +46,7 @@ func TestSourcesOfRealCases(t *testing.T) {
 		},
 		{
 			"el caminador contra qa",
-			"E2E_TARGET=qa node dev/caminar-wizard.ts --casos '#13874eb6:77' --flow ecommerce --cerrar",
+			"E2E_TARGET=qa node dev/walk-wizard.ts --casos '#13874eb6:77' --flow ecommerce --cerrar",
 			[]string{"harness", "qa"},
 		},
 		{

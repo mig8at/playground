@@ -301,7 +301,7 @@ distinto según con qué pregunta llegues.
 | F-56 | Cuatro de las cinco salidas de `/lenders` dan 404 fuera de `/merchant` | stale |
 | F-57 | Rescate antes de borrar `backend-e2e` y `backend-mcp` | stale |
 | F-58 | Un rechazo de la firma de flujo llega como HTTP 200 y el front lo toma como éxito | → kyc |
-| F-59 | `bin/asesor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script | stale |
+| F-59 | `bin/advisor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script | stale |
 | F-60 | Sonría no sirve para probar la omisión de Experian: el throttle corta antes que el flujo | cerrado |
 | F-61 | Staging falla el login del asesor porque es OTRO pool de Cognito sobre la MISMA base | TRAMPA |
 | F-62 | En dev/staging está desplegada solo LA MITAD de la omisión de Experian: aparece el selector, per… | cerrado |
@@ -478,7 +478,7 @@ distinto según con qué pregunta llegues.
 | F-232 | El código del front dice que el simulador de Cuotéalo no se puede embeber porque BCP manda `X-Frame-Options: SAMEORIGIN`. **Ya no es cierto**: ese host no manda XFO y su `frame-ancestors` habilita los tres dominios de CreditOp. El paso debería verse en qa, staging y producción; sólo `localhost` queda afuera, y para eso está `bin/mock-cuotealo` | ABIERTO · el comentario del front quedó viejo |
 | F-231 | El generador de móviles del harness fijaba sólo el PRIMER dígito (`3`), pero el front valida `^3[0-5][0-9]{8}$`: el segundo salía de la base de la corrida y podía caer 6-9. El canal de asesor moría en la primera pantalla con «Ingresa un número de teléfono colombiano válido», unas corridas sí y otras no | ARREGLADO |
 | F-230 | Sin `ADO_HOST` en el `.env`, `config('services.ado.host')` es null y la URL del proveedor de identidad queda **RELATIVA**: el navegador la resuelve contra el wizard, cae en una ruta que no existe y el recorrido muere sin botón. Un host nulo no falla — produce una URL con pinta de válida | ABIERTO · config de local |
-| F-229 | `caminar-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
+| F-229 | `walk-qr.ts` restauraba el escenario del mock con una lista A MANO que se quedó vieja: no incluía `hasQuota`, así que una corrida con esa perilla dejaba al mock sin cupo y **la siguiente moría en `no-preapproved` a los 3 pasos**. Se lee como «BNPL perdió el cupo» | ARREGLADO |
 | F-227 | La pantalla del código de compra dice «(Vence hoy a las 8:30 p.m.)» **siempre**: es un default quemado que `SuccessView` nunca pasa. El contador está bien; el texto miente en toda compra cerrada después de las 20:30, que es cuando el plazo se corre al día siguiente. Medido en prod: **14 de 507** (2,8 %) en 180 días, y está en `main` | ABIERTO |
 | F-226 | `make harness-sandbox` da «20 casos se apartaron de lo medido» y NINGUNO es del contrato: el WAF (Imperva) delante del gateway de Bancolombia devuelve **503 a todo** desde esta red, incluido `HEAD /health` pelado. El único oráculo capaz de contradecir nuestros mocks quedó fuera de alcance | ABIERTO · mitigado con `channel/qr-bancolombia-gateway.spec.ts` |
 | F-224 | El panel admin exige el permiso en el MENÚ y no en la ruta: 114 de 130 rutas de `admin.php` sin `can:`. Al perfil de riesgo del cliente —score de Datacrédito incluido— se llegaba por el ojo del listado, que miraba el dominio y no el permiso; el único filtro era un `v-if` de Vue y el payload viajaba igual. Y `ExperianRequest` devolvía `true`, dejando consultar el buró (facturable) a cualquiera. ⚠ Al desplegarlo en dev dejó al Administrador con 403: el pipeline NO corre migraciones, así que el `can:` llegó sin la fila que reparte el permiso | ARREGLADO · en `develop` · ⏳ falta `main` |
@@ -1049,7 +1049,7 @@ SELECT l.id, 1, 1, 1, NOW(), NOW() FROM lenders l WHERE l.id IN (158,168,169,170
 
 **Cómo apareció:** al verificar el cierre de la uReq 464499 (F-50), la fila de `user_requests` **ya no existía**, pero sus `user_request_records` sí, con el rastro completo `3 → 28 → 11`.
 
-**Causa:** `scrubphone` (`pkg/asesor.ts:236`) borra los users cliente del teléfono de prueba y, con ellos, sus `user_requests` (`deleteUsers` en `pkg/asesor.ts:178`, FK checks off). Como **cada corrida arranca scrubbeando**, la corrida N destruye la evidencia de la N-1. La 464499 la borró la corrida siguiente (464500, otro user_id, 33s después).
+**Causa:** `scrubphone` (`pkg/advisor.ts:236`) borra los users cliente del teléfono de prueba y, con ellos, sus `user_requests` (`deleteUsers` en `pkg/advisor.ts:178`, FK checks off). Como **cada corrida arranca scrubbeando**, la corrida N destruye la evidencia de la N-1. La 464499 la borró la corrida siguiente (464500, otro user_id, 33s después).
 
 **Y el borrado es parcial:** `user_request_records` **no está** en la lista `childTables`, así que sus filas sobreviven al borrado del padre.
 
@@ -1172,7 +1172,7 @@ Y el backend **ya avisa**: marca esos casos con `next_step => 'error'`. El front
 ### F-58 · Un rechazo de la firma de flujo llega como HTTP 200 y el front lo toma como éxito
 > **Graduó** → `kyc §deuda F-58` — el hecho vive allá; la crónica, en git.
 
-### F-59 · `bin/asesor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script
+### F-59 · `bin/advisor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script
 > ⚠ **Stale** — el `env/` compartido se eliminó; la regla viva: bajo `set -euo pipefail`, un `VAR="$(grep …)"` sin match ABORTA el script sin mensaje. Crónica completa: `cerrados.md`.
 
 ### F-60 · Sonría no sirve para probar la omisión de Experian: el throttle corta antes que el flujo
@@ -1197,7 +1197,7 @@ Dos pools ⇒ la misma persona tiene **dos `sub` distintos**. Y del lado del bac
 
 - `pkg/config.ts` — `loadCognitoCreds()` pasó de `process.env` pelado a la cadena `env()`, así que las credenciales viven en `harness/.env.<target>` (gitignored) en vez de un `.cognito.json` único que habría que pisar para alternar.
 - `pkg/cognito.ts` — el cache de sesión pasó de `.auth/cognito-state.json` a `.auth/cognito-state.<clave>.json`. ⚠ **Y la clave NO es el target**, aunque casi siempre coincida: es `SESSION_KEY = FRONT_LOCAL ? 'dev' : TARGET` (`harness/pkg/cognito.ts:32-33`), así que **con el front local dos targets comparten un mismo archivo de sesión**. Recomprobado el 2026-09-19. **No era cosmético**: el archivo viejo tenía cookies de los **dos** pools mezcladas (`login.creditop.com` **y** `.auth.merchant.creditop.com`), y con un único archivo la sesión de dev se inyecta en la corrida de staging — el front queda autenticado para Cognito y desconocido para el backend, **sin que aparezca el login** que lo corregiría.
-- `bin/asesor` — `E2E_ASESOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
+- `bin/advisor` — `E2E_ASESOR_SUB` / `E2E_COGNITO_USER` de `.env.<target>` pisan al `asesor` de `.flows.json` (que describe al de dev). Es el `sub` que usa `load-permiso` para el assign.
 
 En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por sucursal (`oscar+mediarte` ya está en la 375 de Mediarte, `oscar+dentix` en la 844 de DENTIX). Son las candidatas naturales para el pool de staging.
 
@@ -2069,7 +2069,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   el día que alguien manda `ecommerce_request_id`, el request muere con
   `BadMethodCallException: Method Illuminate\Validation\Validator::validateOptional does not exist`.
   Es una validación que sólo falla cuando por fin se usa.
-- **Evidencia:** medido contra `local` (`main`) el 2026-08-17 con `harness/dev/caso.ts`, comercio
+- **Evidencia:** medido contra `local` (`main`) el 2026-08-17 con `harness/dev/case.ts`, comercio
   Amoblando Pullman (sucursal `e9409aff`, 7 entidades cableadas):
   `lender 160` (SmartPay, existe pero no es de ese comercio) → `"id" on null`; `lender 24`
   (Credifamilia, ídem) → `"url_utm" on null`; `lender 999` (no existe) → **el mismo error que 160**;
@@ -2199,7 +2199,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   —donde la variable sí está, apuntando a un puerto cerrado a propósito, y por eso NO rompe—: la
   diferencia entre «apunta a algo muerto» y «no apunta a nada» es un `TypeError` contra un `cURL error`.
 - **⚠ Cómo NO diagnosticarlo:** contando entidades. Una herramienta que reporte «0 entidades» sin mirar
-  si la respuesta fue un error hace concluir exactamente lo contrario de lo que pasa. `dev/caso.ts` lo
+  si la respuesta fue un error hace concluir exactamente lo contrario de lo que pasa. `dev/case.ts` lo
   hacía y se corrigió el mismo día: ahora distingue «el LISTADO falló» de «cero entidades».
 - **Arreglo:** agregar `CREDIFAMILIA_HOST_OAUTH` al `.env` local (aunque apunte a un host muerto, como
   hace `H2O_API_HOST`), o hacer que el Action tolere el nulo. **No aplicado** — `.env` no se versiona,
@@ -2918,7 +2918,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Por qué importa:** ninguno de los seis mensajes nombra al mock que falta. Los seis se leen como
   hechos del negocio —«el proveedor rechazó», «falta un dato de la solicitud»— y llevan a depurar el
   código. Es el mismo modo de falla de F-139, F-140 y F-142, ahora con seis piezas en fila.
-- **Arreglo:** el prevuelo de `harness/dev/caso.ts` ya comprueba Deceval y Netco cuando el caso va a
+- **Arreglo:** el prevuelo de `harness/dev/case.ts` ya comprueba Deceval y Netco cuando el caso va a
   cerrar, y los dos mocks tienen launcher (`bin/mock-deceval`, `bin/mock-netco`). La receta completa
   vive en el nodo `credifamilia`. **Estado:** resuelto para local.
 - **⚠ Y lo que esto NO prueba:** ni el pagaré ni la firma son reales. Un pagaré desmaterializado vale
@@ -3031,7 +3031,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **⚠ Un catálogo sin sembrar lo empeora:** si faltan los `lender_transaction_statuses` del lender, el
   intento de registrar el error tira `RuntimeException` y **tapa la causa real**. El mensaje al menos
   nombra el seeder (`Database\Seeders\Lenders\CredifamiliaConsumoSeeder`, idempotente).
-- **Arreglo:** en el harness, `dev/caso.ts` ahora **lee y reporta** el estado de la radicación en cada
+- **Arreglo:** en el harness, `dev/case.ts` ahora **lee y reporta** el estado de la radicación en cada
   cierre, y las suites pueden exigirlo con `"radicacion": "CREDIT_COMPLETED"`. Comprobado que la guarda
   atrapa: con el mock en modo rechazo, las tres corridas llegan a estado 11 y la suite **falla**.
   **Estado:** vigente — el producto sigue sin distinguir las dos cosas fuera de esa tabla.
@@ -3669,21 +3669,21 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   `inertia-dev.…rds.amazonaws.com`; moviendo la asignación arriba del import, `TARGET = local` y
   `127.0.0.1`. Se ve también en la primera línea que imprime: antes del arreglo la API era
   `http://legacy-backend.inertia-develop`, después `http://localhost`.
-- **⚠ Y no era sólo lectura.** `dev/listado.ts` registra un teléfono y hace `INSERT INTO user_requests`
-  **sin** `assertWriteAllowed()` — la guarda se DEFINE en `harness/pkg/db.ts:165` y a `listado.ts`
+- **⚠ Y no era sólo lectura.** `dev/listing.ts` registra un teléfono y hace `INSERT INTO user_requests`
+  **sin** `assertWriteAllowed()` — la guarda se DEFINE en `harness/pkg/db.ts:165` y a `listing.ts`
   sólo le llega tres llamadas más adelante, a través de `pkg/inject.ts`. *(Acá decía «vive dentro de
   `pkg/inject.ts`», que se lee como si estuviera definida ahí; `inject.ts` es de los doce archivos que
-  la LLAMAN.* ⚠ *Recomprobado el 2026-09-19: `dev/listado.ts` sigue sin llamarla y sigue teniendo su
+  la LLAMAN.* ⚠ *Recomprobado el 2026-09-19: `dev/listing.ts` sigue sin llamarla y sigue teniendo su
   `INSERT INTO user_requests` crudo en `:146`, así que el hallazgo está VIVO.)* O sea que la corrida alcanzaba a crear usuario y solicitud en la base compartida y recién
   después abortaba por la guarda, dejando huérfanos.
-- **Alcance medido:** dos runners, `dev/listado.ts` y `dev/sweep.ts`. El barrido es
+- **Alcance medido:** dos runners, `dev/listing.ts` y `dev/sweep.ts`. El barrido es
   `for f in dev/*.ts` comparando la línea del primer `import … from '../pkg/…'` contra la del
   `E2E_TARGET ||=`. ⚠ Y `playground/CLAUDE.md` afirmaba «`dev/sweep.ts:34` ya lo fuerza» — es
   justamente la creencia que este defecto fabrica.
 - **Arreglo:** el import pasa a **dinámico**, junto a los otros y después de la asignación. La lección
   generaliza más que el arreglo: **un `||=` de variable de entorno nunca gana a un import estático**;
   si un módulo lee el entorno al evaluarse, todo lo que lo alcance tiene que importarse dinámicamente.
-- **Estado:** cerrado (2026-09-09). La guarda que falta en el `INSERT` directo de `listado.ts` sigue
+- **Estado:** cerrado (2026-09-09). La guarda que falta en el `INSERT` directo de `listing.ts` sigue
   abierta.
 
 ### F-188 · El payload builder de los documentos se elige por id de entidad QUEMADO: cualquier otra entidad revienta al firmar
@@ -3993,7 +3993,7 @@ se lee como «el arnés inyecta demasiado» o «esa pantalla no existe en este f
 
 1. **No es la inyección.** `dev/guided.spec.ts` ya pasa `skipIdentity: true` a `synthFill` en sus dos
    sitios (`dev/guided.spec.ts:1070`, `dev/guided.spec.ts:1125`), o sea que la corrida **no** escribe la identidad: sólo el buró.
-2. **Es el SCRUB.** `pkg/asesor.ts` buscaba los usuarios a borrar con
+2. **Es el SCRUB.** `pkg/advisor.ts` buscaba los usuarios a borrar con
    `WHERE cell_phone = ?` — **igualdad exacta**. Y el mismo teléfono vive en la base con formatos
    distintos según por dónde entró. Medido el 2026-09-10 en la compartida, para `3131010101`:
 
@@ -4131,7 +4131,7 @@ le puede asignar a `admin.localhost`. Sin la cookie `XSRF-TOKEN`, Axios no manda
 ⚠ `curl` SÍ acepta `domain=.localhost`, así que el endpoint probado con curl «funciona» y el
 navegador no. Si reproducís con curl no vas a ver nada.
 
-⚠ El arnés ya conocía la MITAD de esto —`dev/abrir-admin.ts` inyecta la cookie de sesión con `url`
+⚠ El arnés ya conocía la MITAD de esto —`dev/open-admin.ts` inyecta la cookie de sesión con `url`
 y no con `domain`, y lo tiene comentado— pero la de CSRF **sólo puede venir del servidor**: no hay
 inyección posible. Arreglo: `SESSION_DOMAIN=` vacío en el `.env` local. Costo declarado: la sesión
 deja de compartirse entre subdominios (`admin.` / `aliados.` / `api.`).
@@ -4242,13 +4242,13 @@ spec** todo lo que cambie el flujo (`form_dinamico`, como ya se hacía con `abac
 heredarlo. Cuando se hereda igual, avisarlo en el rastro de la siembra.
 
 ⚠ **Lo mismo vale para los HASHES de sucursal:** el mismo comercio tiene hash distinto en cada base,
-así que el panel y `bin/asesor` lo resuelven con `por_target` en `.flows.json`. Dos trampas medidas
+así que el panel y `bin/advisor` lo resuelven con `por_target` en `.flows.json`. Dos trampas medidas
 ahí: el hash de un target que no es local va en `por_target[TARGET]` y **no** en `branch_hash` —que
 por convención es el de local, el fallback—, y la escritura del sembrador **reemplazaba la entrada
 entera**, borrando el `por_target` que un humano hubiera puesto. O sea que re-sembrar local
 desarmaba el panel para qa, en silencio.
 
-**Estado:** cerrado en el sembrador (`harness/dev/montar-comercio.ts`).
+**Estado:** cerrado en el sembrador (`harness/dev/mount-merchant.ts`).
 
 ### F-200 · El backend local está en OTRA rama, y el síntoma se lee como un defecto del producto
 
@@ -5484,7 +5484,7 @@ pasa a unos comercios sí y a otros no, sin patrón visible desde el front.
 ⚠ **El backend NO deja rastro en Loki.** Medido el 2026-09-17 sobre la solicitud 502522: 111 líneas en 3
 traces, **un solo error y es el `ONB002` inofensivo** («temporal user found», que es el camino normal).
 Buscar la causa en los logs manda a concluir que no pasó nada. El mensaje real sólo aparece pegándole al
-endpoint: `node dev/listado.ts --branch <hash> --v2`.
+endpoint: `node dev/listing.ts --branch <hash> --v2`.
 
 **Causa raíz — el listado sale de la SUCURSAL y el orden sale del COMERCIO, y nadie comprueba que
 coincidan.** En `LenderProbabilitySortingService.php:26-27`:
@@ -5630,7 +5630,7 @@ recalcula el financiado y redirige con él (`…/entidad/simulador?amount=63000`
 `user_requests.amount` ni `original_amount`. A partir de ahí conviven dos cifras: la que la pantalla
 arrastra por query string y la que la base tiene.
 
-**Evidencia — medido contra `qa` el 2026-09-18**, corriendo `dev/bcp-volver.ts`:
+**Evidencia — medido contra `qa` el 2026-09-18**, corriendo `dev/bcp-return.ts`:
 
 | | valor |
 |---|---|
@@ -5706,7 +5706,7 @@ cliente corrige (¿se reescribe la solicitud, o la corrección exige rehacer el 
   banco (y con Dani), no depuración nuestra. El dato que hay que llevar es el `cip` que el propio WAF
   reporta: **`3.151.190.239`**, más el `incident_id` de cualquiera de los bloqueos.
 - **Por qué importa más de lo que parece:** ese script es **el único oráculo del canal que puede
-  contradecirnos**. Los otros tres —`qr-corbeta.ts`, `caminar-qr.ts` y `npm run contrato:bancolombia`—
+  contradecirnos**. Los otros tres —`qr-corbeta.ts`, `walk-qr.ts` y `npm run contrato:bancolombia`—
   son *nuestra* lectura del contrato, y por eso pueden coincidir en el mismo error: un mock no puede
   contradecir la documentación de la que nació. Ya pasó una vez (el sobre PLANO pasaba 8 tests con
   `Http::fake` en verde). Mientras el WAF esté así, **ese modo de falla vuelve a quedar sin vigilancia**.
@@ -5794,7 +5794,7 @@ regla «por un rato», vale más dejar el ruido.
 - **Síntoma:** una corrida de BNPL que venía cerrando en 9 pantallas de golpe muere en **3**, en
   `no-preapproved`. Se lee como «la entidad se quedó sin cupo» o «se rompió la compuerta», y manda a
   depurar el producto.
-- **Causa raíz:** `dev/caminar-qr.ts` restauraba el escenario del mock con una lista **a mano**
+- **Causa raíz:** `dev/walk-qr.ts` restauraba el escenario del mock con una lista **a mano**
   —`producto`, `errorCode`, `errorEn`— y esa lista se quedó vieja: **no incluía `hasQuota`**. Así que
   correr con `--escenario '{"hasQuota":false}'` dejaba la perilla puesta en el mock **después** de
   terminar, y la contaminaba a la siguiente. Nada lo avisa: el mock no distingue una perilla pedida de
@@ -5854,7 +5854,7 @@ regla «por un rato», vale más dejar el ruido.
 - **Evidencia (2026-09-18, local):** con `3609420000` el recorrido de asesor murió en `solicitar` sin
   botón habilitado; con el prefijo corregido, el mismo caso llegó al listado en 115 s.
 - **Arreglo:** `prefijo: '31'` — dos dígitos, válido por construcción y además un prefijo real (Claro).
-- **Y la parte que evita que vuelva:** `telefonos.spec.ts` genera 100 casos y los valida contra la
+- **Y la parte que evita que vuelva:** `phones.spec.ts` genera 100 casos y los valida contra la
   expresión, **y además compara su copia de la regla contra el archivo real del front**, avisando si
   derivan. El harness es otro repo y no puede importar de `@creditop/*`, así que la copia era inevitable;
   lo que no era inevitable es que envejeciera en silencio. ⚠ Si el front se vuelve MÁS estricto y nadie
@@ -6054,9 +6054,9 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   reposteaba —5 clicks, **2 POST**—, y tanto el último screenshot como el lector de mensajes de
   validación agarraban el sub-paso equivocado. Se llegó a redactar el hallazgo «el error no se muestra
   nunca» antes de leer ese archivo; era falso.
-- **Arreglo:** `TECHO_DEL_DOCUMENTO` en `harness/pkg/documentos.ts` —tabla aparte del largo, con una sola
+- **Arreglo:** `TECHO_DEL_DOCUMENTO` en `harness/pkg/documents.ts` —tabla aparte del largo, con una sola
   entrada, porque el backend condiciona la regla a `$type === 'CC'`— y el primer dígito forzado a `1`
-  cuando el armado se pasa. `pkg/documentos.spec.ts` fija el rango barriendo bases e índices.
+  cuando el armado se pasa. `pkg/documents.spec.ts` fija el rango barriendo bases e índices.
   ⚠ **El spec que ya existía no lo habría atrapado:** medía sólo el largo, y su propio `BASE`
   (`1_095_449_405`) producía `9544940503` —tres veces por encima del techo— pasando en verde. Un test que
   cubre una de las dos reglas hace parecer cubierta la otra.

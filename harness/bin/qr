@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# qr — TERCER canal de entrada, junto a asesor (bin/asesor) y tienda (bin/ecommerce).
+# qr — TERCER canal de entrada, junto a asesor (bin/advisor) y tienda (bin/ecommerce).
 #
 # Es la puerta del cliente que escanea el QR en la CAJA de un comercio del grupo Corbeta
 # (Alkosto 209 / K-TRONIX 210 / Alkomprar 211). El único canal de **autogestión pura**: no hay asesor,
@@ -15,7 +15,7 @@
 #
 # Necesita el mock de la API Fondos para llegar al código de compra:  bin/mock-corbeta start
 #
-# Es un wrapper: exporta CFE_ENTRY=qr y delega en bin/asesor.
+# Es un wrapper: exporta CFE_ENTRY=qr y delega en bin/advisor.
 set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
-exec env CFE_ENTRY=qr "$DIR/asesor" "$@"
+exec env CFE_ENTRY=qr "$DIR/advisor" "$@"

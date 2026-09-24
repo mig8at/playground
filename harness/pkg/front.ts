@@ -175,7 +175,7 @@ export class FrontSession {
     private timeoutPostMs: number;
 
     // Sin «parameter properties»: Node corre estos .ts en modo strip-only y no las soporta.
-    // Dos esperas, como en caso.ts: el POST de la firma (`otp-validation` → authorize) tarda más que
+    // Dos esperas, como en case.ts: el POST de la firma (`otp-validation` → authorize) tarda más que
     // cualquier loader, y en local con tres casos a la vez pasó de 120 s (2026-09-02). Un timeout NO es
     // una caída —PHP sigue y termina—, así que quien llama debe volver a mirar la BD antes de concluir.
     constructor(base: string = config.feBaseUrl, timeoutGetMs = 120_000, timeoutPostMs = 240_000) {

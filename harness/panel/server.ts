@@ -1,6 +1,6 @@
 // panel/server.ts — "Panel del harness": UI local para elegir comercio, definir el usuario sintético
 // (nombre/ingreso/score) e iniciar el flujo (assign + inyección de buró + wizard en monto) de un clic.
-// Wrapper FINO sobre los CLIs que ya existen: shellea `bin/dbops.ts list` y `bin/asesor <m> auto`.
+// Wrapper FINO sobre los CLIs que ya existen: shellea `bin/dbops.ts list` y `bin/advisor <m> auto`.
 // Sin dependencias (node http). Corre `.ts` nativo con node, igual que bin/dbops.ts.
 //
 //   node panel/server.ts       (o ./bin/panel)  →  http://localhost:5195
@@ -19,7 +19,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');              // raíz de harness
 const PORT = Number(process.env.PANEL_PORT || 5195);
 const RUN_LOG = '/tmp/asesor-panel-run.log';
-/* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/asesor:500` ya lanza `pnpm dev` con
+/* El stdout del WIZARD (SSR). No lo inventa el panel: `bin/advisor:500` ya lanza `pnpm dev` con
  * `> /tmp/asesor-wizard.log`, y lo TRUNCA antes de cada arranque — o sea que el archivo es siempre el de
  * la sesión actual del wizard, y que `total` baje significa «arrancó otro», el mismo contrato que el log
  * de la corrida.
@@ -294,7 +294,7 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
         + `  ▸   make harness-posthog UREQ=${ureq} DESDE=${new Date(since.getTime() - 60_000).toISOString()}`;
 }
 
-// hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/asesor). Es ese branch
+// hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/advisor). Es ese branch
 // el que hay que togglear — NO el de `dbops list` (que puede devolver otra sucursal del mismo comercio).
 /**
  * El hash de la sucursal de un comercio EN ESTE AMBIENTE.
@@ -325,20 +325,20 @@ function branchHashForSlug(slug: string, target = 'local'): string {
 
 /**
  * ¿Esta corrida va contra el MOCK de pre-aprobados, o contra el MS real? Se resuelve por la MISMA
- * cadena que usa `bin/asesor` (envget), no enumerando targets: el selector de estado por entidad solo
+ * cadena que usa `bin/advisor` (envget), no enumerando targets: el selector de estado por entidad solo
  * tiene sentido si el mock es quien contesta. Atarlo a una lista de targets se desincroniza el día que
  * alguien cambia `E2E_REAL_PREAPPROVALS`, y quedaría una perilla que no mueve nada.
  */
 function usesMockPA(target: string): Promise<boolean> {
     return new Promise((ok) => {
-        execFile('node', ['bin/envget.ts', 'E2E_REAL_PREAPPROVALS', '0'],
+        execFile('node', ['bin/env-get.ts', 'E2E_REAL_PREAPPROVALS', '0'],
             { cwd: ROOT, env: envFor(target), timeout: 10000 },
             (err, out) => ok(!err && String(out || '').trim() !== '1'));
     });
 }
 
 /**
- * URL del front DESPLEGADO del target, por la MISMA cadena que usa `bin/asesor` (envget). Cadena vacía =
+ * URL del front DESPLEGADO del target, por la MISMA cadena que usa `bin/advisor` (envget). Cadena vacía =
  * ese target no tiene deploy configurado (su E2E_BASE_URL apunta a localhost), así que la opción "del
  * ambiente" NO existe para él y el panel la deshabilita: una perilla que no mueve nada es peor que no
  * tenerla. Se resuelve por la cadena y no con una lista de targets, igual que `usesMockPA`: el día que
@@ -346,7 +346,7 @@ function usesMockPA(target: string): Promise<boolean> {
  */
 function environmentFront(target: string): Promise<string> {
     return new Promise((ok) => {
-        execFile('node', ['bin/envget.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
+        execFile('node', ['bin/env-get.ts', 'E2E_BASE_URL', 'http://localhost:5174'],
             { cwd: ROOT, env: envFor(target), timeout: 10000 },
             (err, out) => {
                 const v = err ? '' : String(out || '').trim();
@@ -434,14 +434,14 @@ async function bootPrewarm(): Promise<void> {
 // ── Permiso del asesor al COMERCIO (el paso "comercio" del funnel) ─────────────────────────────────
 // El funnel del panel dispara cada cosa cuando el usuario la elige: ambiente → sesión (dots) ·
 // comercio → ESTE assign · lanzar → solo scrub + seed + navegador. Antes el assign corría adentro del
-// launch (load-permiso de bin/asesor) y era parte de la espera; bin/asesor lo sigue verificando al
+// launch (load-permiso de bin/advisor) y era parte de la espera; bin/advisor lo sigue verificando al
 // lanzar (whois), pero como el panel ya asignó, le da "ya en <comercio> — sin write" y no re-escribe.
 
-// SUB del asesor por target — la MISMA cadena que usa bin/asesor (envget E2E_ASESOR_SUB), con fallback
+// SUB del asesor por target — la MISMA cadena que usa bin/advisor (envget E2E_ASESOR_SUB), con fallback
 // a `.flows.json` (asesor.sub). Si se leyera del shell del panel, ponerlo en .env.<target> no haría nada.
 function advisorSub(target: string): Promise<string> {
     return new Promise((ok) => {
-        execFile('node', ['bin/envget.ts', 'E2E_ASESOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
+        execFile('node', ['bin/env-get.ts', 'E2E_ASESOR_SUB', ''], { cwd: ROOT, env: envFor(target), timeout: 10000 },
             (err, out) => {
                 const sub = !err ? String(out || '').trim() : '';
                 ok(sub || String(readFlows()?.asesor?.sub || '').trim());
@@ -450,7 +450,7 @@ function advisorSub(target: string): Promise<string> {
 }
 
 // asignaciones ya confirmadas en esta sesión del panel (target|hash) — evita re-consultar en cada click.
-// Si otra corrida reasigna por afuera, bin/asesor lo corrige al lanzar (es la verificación autoritativa).
+// Si otra corrida reasigna por afuera, bin/advisor lo corrige al lanzar (es la verificación autoritativa).
 const assignOk = new Set<string>();
 
 async function ensureAssign(slug: string, target: string): Promise<{ ok: boolean; already?: boolean; detail: string }> {
@@ -501,7 +501,7 @@ function writeFlows(j: any): void {
 /**
  * Slug legible y ÚNICO a partir del nombre que puso el usuario. Si el nombre ya está tomado por OTRA
  * sucursal, se sufija con el hash (que sí es único) en vez de pisar: dos "Dentix" de sucursales
- * distintas son comercios de prueba distintos, y pisar uno haría que `bin/asesor dentix` corriera
+ * distintas son comercios de prueba distintos, y pisar uno haría que `bin/advisor dentix` corriera
  * contra la sucursal equivocada sin avisar.
  */
 function slugFor(nameValue: string, hash: string, flows: any): string {
@@ -512,7 +512,7 @@ function slugFor(nameValue: string, hash: string, flows: any): string {
     return `${base}-${hash.slice(0, 4)}`;
 }
 
-// lanza `bin/asesor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
+// lanza `bin/advisor <slug>` en MODO MANUAL (sin `auto` → no auto-rellena; vos manejás desde monto) con
 // E2E_INJECT=1 (inyecta el buró invisible al llegar a personal-info) + el perfil por env, contra el target.
 interface Profile { income?: number; score?: number; name?: string; documentType?: string; document?: string; gender?: string; age?: number; negatives?: number; consulted?: number; occupation?: string; dob?: string; expeditionDate?: string; email?: string; }
 
@@ -686,7 +686,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
         E2E_STEP_TARGET: step,
         // monto solicitado (lo usa el spec para sembrar/monto y el /lenders?amount=).
         E2E_AMOUNT: String(amt),
-        // espera del mock de pre-aprobados (para ver el loader de las cards rt≠0). bin/asesor → mock-preapprovals lo hereda.
+        // espera del mock de pre-aprobados (para ver el loader de las cards rt≠0). bin/advisor → mock-preapprovals lo hereda.
         MOCK_PA_DELAY_MS: String(paDelay > 0 ? Math.round(paDelay) : 0),
         E2E_SYNTH_INCOME: profile.income ? String(profile.income) : '',
         E2E_SYNTH_SCORE: profile.score ? String(profile.score) : '',
@@ -724,7 +724,7 @@ async function launch(slug: string, profile: Profile, target: string, inject: bo
             try { writeFileSync(RUN_LOG, `  ⏱ listo para explorar en ${seg}s (desde que diste Lanzar)\n`, { flag: 'a' }); } catch {}
         }
     };
-    // ── RED DE SEGURIDAD: el spec terminó pero `bin/asesor` no murió ──────────────────────────────
+    // ── RED DE SEGURIDAD: el spec terminó pero `bin/advisor` no murió ──────────────────────────────
     // Visto el 2026-08-19: Playwright reportó `1 failed`, el trap restauró el .env.local, y el bash
     // igual quedó vivo con el Vite del wizard colgando — el panel decía "corriendo" para siempre y la
     // única salida era matar el proceso a mano. Cuando el log canta que el spec cerró, se le da un
@@ -890,7 +890,7 @@ const server = createServer(async (req, res) => {
     //
     // ⚠ Es opt-in y por eso vive detrás de un botón: el código que corre NO es el de `legacy-backend`
     // (F-170), y un desenlace automático se leería como si lo fuera.
-    if (path === '/api/webhook-entidad' && req.method === 'POST') {
+    if (path === '/api/entity-webhook' && req.method === 'POST') {
         const body = await readBody(req);
         const uReq = Number(body.uReq || 0);
         const lender = Number(body.lender || 0);
@@ -905,7 +905,7 @@ const server = createServer(async (req, res) => {
         // que este botón sólo tiene sentido contra local.
         process.env.E2E_TARGET = 'local';
         const { familiaWebhook: webhookFamily, webhookIntegracion: integrationWebhook, webhookSelfManager } =
-            await import('../pkg/webhook-entidad.ts');
+            await import('../pkg/entity-webhook.ts');
         const fam = await webhookFamily(lender);
         if (!fam) {
             return json(res, 200, { ok: false, detalle: 'esta entidad no recibe webhook: es redirección '
@@ -970,7 +970,7 @@ const server = createServer(async (req, res) => {
             ['forms', 8101, 'todos'], ['ábaco', 8102, 'motai'],
             ['corbeta/fondos', 8103, 'qr'], ['bancolombia', 8104, 'qr'],
             ['centrales', 8105, 'todos'],
-            // Los tres que separan a Credifamilia del estado 11, y que NO los levanta `bin/asesor`.
+            // Los tres que separan a Credifamilia del estado 11, y que NO los levanta `bin/advisor`.
             ['deceval/pagaré', 8106, 'rt4'], ['netco/firma', 8107, 'rt4'],
             ['credifamilia/radicación', 8108, 'rt4'],
             // No son mocks pero sin ellos la corrida miente igual: MinIO guarda los documentos (sin él
@@ -1108,7 +1108,7 @@ const server = createServer(async (req, res) => {
 
     // ── FAVORITOS ────────────────────────────────────────────────────────────────────────────────
     // Se guardan en `.flows.json` (gitignored), que YA es el registro de comercios del harness: así el
-    // favorito queda disponible también para `bin/asesor <slug>` desde la terminal, no solo en el panel.
+    // favorito queda disponible también para `bin/advisor <slug>` desde la terminal, no solo en el panel.
     // Se marcan con `fav: true` para distinguirlos de los que vienen de fábrica y permitir renombrar o
     // borrar SOLO los tuyos — los curados describen lo que ejercita cada uno y no son tuyos para tocar.
     if (path === '/api/favs') {
@@ -1157,7 +1157,7 @@ const server = createServer(async (req, res) => {
         if (action === 'rename') {
             const nameValue = String(b.name || '').trim();
             if (!nameValue) return json(res, 400, { ok: false, msg: 'falta nombre' });
-            // El SLUG no cambia al renombrar: es la clave con la que `bin/asesor <slug>` ya funciona y
+            // El SLUG no cambia al renombrar: es la clave con la que `bin/advisor <slug>` ya funciona y
             // la que puede estar en un comando guardado. El nombre es solo la etiqueta de la card.
             cur.name = nameValue;
             writeFlows(flows);
@@ -1218,7 +1218,7 @@ const server = createServer(async (req, res) => {
     //    al celular del cliente, `explicacion-de-flujo` + modal de WhatsApp, estado 1→3, y aterriza en las
     //    mismas pantallas del self-service). Se apaga porque NO ES EL CAMINO DE PRODUCCIÓN, no porque falle.
     //    El gate es una baranda del panel, no una prohibición: por CLI sigue disponible
-    //    (`bin/asesor <slug>` no consulta esta política).
+    //    (`bin/advisor <slug>` no consulta esta política).
     if (path === '/api/canales') {
         const slug = (url.searchParams.get('slug') || '').trim();
         const target = (url.searchParams.get('target') || 'local').trim();
@@ -1279,11 +1279,11 @@ const server = createServer(async (req, res) => {
     // que un cambio hizo en las pantallas de configuración —comercios, entidades, puntos de venta—, que
     // es donde vive la mitad de la config que el flujo después lee.
     //
-    // Abre el admin del target elegido. En LOCAL entra sin contraseña (`bin/admin-sesion` emite la sesión
+    // Abre el admin del target elegido. En LOCAL entra sin contraseña (`bin/admin-session` emite la sesión
     // con el guard real de Laravel); en dev y staging abre la URL con un perfil de navegador persistente,
     // así que te logueás una vez. Producción no está: es el panel con el que se corren pruebas.
     // El proceso se lanza suelto y vive mientras la ventana esté abierta: no bloquea ni compite.
-    if (path === '/api/abrir-admin' && req.method === 'POST') {
+    if (path === '/api/open-admin' && req.method === 'POST') {
         const b = await readBody(req);
         const routePath = typeof b.ruta === 'string' && b.ruta.startsWith('/') ? b.ruta : '/aliados';
         const target = TARGETS.has(String(b.target)) ? String(b.target) : 'local';
@@ -1295,7 +1295,7 @@ const server = createServer(async (req, res) => {
         }
 
         try {
-            const childProc = spawn('node', ['dev/abrir-admin.ts', routePath, target], { cwd: ROOT, stdio: 'ignore', detached: true });
+            const childProc = spawn('node', ['dev/open-admin.ts', routePath, target], { cwd: ROOT, stdio: 'ignore', detached: true });
             childProc.unref();
             const note = target === 'local'
                 ? 'ya logueado'
@@ -1367,7 +1367,7 @@ const server = createServer(async (req, res) => {
         return res.end(readFileSync(f));
     }
 
-    // Precalienta el wizard local (Vite) sin correr el spec ni tocar la BD: `bin/asesor <slug> preboot`.
+    // Precalienta el wizard local (Vite) sin correr el spec ni tocar la BD: `bin/advisor <slug> preboot`.
     // Existe porque el cold-boot se pagaba DENTRO de la corrida (304s medidos el 2026-08-19 contra ~11s
     // con el wizard tibio). NO escribe en RUN_LOG: no es una corrida, y ensuciaría la consola de la
     // última. Uno a la vez, y nunca durante una corrida (reiniciaría el :5174 que la corrida usa).
