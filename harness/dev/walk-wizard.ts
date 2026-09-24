@@ -51,6 +51,7 @@ const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { config, docGenNotice, backendLogsNotice } = await import('../pkg/config.ts');
+const { env } = await import('../pkg/env.ts');
 const { branchDocument, branchPhone, syntheticPhone } = await import('../pkg/phones.ts');
 const { findBranch: findBranchIn, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 const { postHogForensic } = await import('../pkg/posthog.ts');
@@ -358,8 +359,10 @@ async function correr(c: Case, i: number): Promise<Result> {
         // en personal-info—, como haría la tienda con su comprador; y por defecto sin destinos externos
         // (puerto 9 = discard), igual que `dev/ecommerce.ts`. `E2E_WEBHOOK_URL` / `E2E_RETURN_URL` los
         // apuntan a una bandeja (webhook.site) cuando lo que se quiere ver es el veredicto que llega.
-        const webhook = process.env.E2E_WEBHOOK_URL || 'http://localhost:9/notificacion/';
-        const returnValue = process.env.E2E_RETURN_URL || 'http://localhost:9/volver-al-comercio';
+        // ⚠ Por `env()` y no por `process.env`: lo que declara `.env.<target>` no llega a process.env, así
+        // que leído directo el valor del archivo se ignoraba, y el preflight del panel frenaba la corrida.
+        const webhook = env('E2E_WEBHOOK_URL') || 'http://localhost:9/notificacion/';
+        const returnValue = env('E2E_RETURN_URL') || 'http://localhost:9/volver-al-comercio';
         const c64 = ecommerceContract(br.hash, token, tel, webhook, returnValue,
             { docType: docType, doc, name: 'CARLOS', surname: 'RUIZ', email: `qa${doc}@gmail.com` }, AMOUNT);
         routePath = `${base}/checkout?${new URLSearchParams({ o: c64.order, p: c64.products, t: c64.token, u: c64.returnUrl, ps: c64.processUrl, config: c64.config })}`;
