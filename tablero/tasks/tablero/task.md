@@ -11,6 +11,12 @@ jira_title: ""
 
 ## Pendientes
 
+- [ ] **Sacar la LISTA de repos de `tools/repos.py` a un archivo de datos** (`tools/repos.json`) que lean
+      Go y Python: el server deja de levantar un proceso de Python por consulta (`internal/repos`) y la
+      lista sigue siendo una. Lo que necesita git —si una ruta existe en un commit— se queda en
+      `repos.py`. Termina cuando `internal/repos` lea la lista sin subproceso y workers, trazador y
+      citas sigan leyendo la misma. Decidido con Miguel el 2026-09-23 dejarlo para después: sólo vale
+      si el alta de bloques se nota lenta, y eso no está medido.
 - [x] **El cierre reclamaba de más.** La bitácora de un barrido ya la eximía el marcador «sin avance»
       (el 21/9; la pista de deducirlo del diff se había descartado porque el barrido también escribe su
       nota). Lo que quedaba, medido el 2026-09-23: a #46 y #47, tocadas sólo por barridos y declaradas

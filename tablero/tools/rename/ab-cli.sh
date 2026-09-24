@@ -8,7 +8,7 @@
 # (El id y la hora de `task-context -n` difieren siempre: son un id nuevo por corrida.)
 # ⚠ Los dos binarios corren sobre el repo REAL, así que el árbol viejo tiene que entender la forma de
 # hoy: contra un commit anterior a la mudanza de `data/` a `tasks/<slug>/` (2026-09-23) el viejo no
-# encuentra tareas. Para esa comparación se usó `migrations/2026-09-23-tasks/ab-move.sh`.
+# encuentra tareas: comparar contra un árbol así pide primero llevarlo a la forma de carpetas.
 OLD=${1:?uso: ab-cli.sh <árbol-viejo>}
 S=${AB_TMP:-/tmp/tablero-ab}; P=$(cd "$(dirname "$0")/../../.." && pwd); B=$S/bins
 rm -rf "$B"; mkdir -p "$B/old" "$B/new"
