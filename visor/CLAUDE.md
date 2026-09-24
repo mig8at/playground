@@ -27,8 +27,13 @@ el lienzo.
 `http://localhost:5193/credifamilia/1-4063` abre ese proyecto en esa pantalla: el proyecto por su nombre
 en minúsculas y con guiones (`flujo-ecommerce`, `motai-renting`), la pantalla por su id de Figma con
 guion, como lo escribe Figma en `node-id`. Sin pantalla abre la primera. Opcionales: `?modo=html` o
-`?modo=comparar`, y `?nodo=<id>` cuando lo que se abrió no es la página de flujo del archivo sino una
-sección pegada a mano. El botón de copiar de la cabecera da la de la pantalla que se está mirando.
+`?modo=comparar`, y `?nodo=<id>` **sólo cuando hace falta**: si la pantalla vive fuera de la página de flujo
+del archivo (la página «prototipo», por ejemplo) y se abrió pegando su sección. Una sección pegada que está
+adentro de la página de flujo —el caso de `flujo-ecommerce`, 334-455 dentro de «Flujo»— no lo lleva: el
+visor averigua en segundo plano qué pantallas tiene la página de flujo y lo saca. ⚠ Y al centro se queda lo
+que se abrió: releer el bloque de la barra no reemplaza una sección de otra página por la de flujo (lo hacía,
+y la ruta del prototipo terminaba en otra pantalla). El botón de copiar de la cabecera da la de la pantalla
+que se está mirando.
 
 - **Cuánto vive una ruta: lo que vive la pantalla en Figma.** La pantalla va por su id de nodo, que Figma
   conserva mientras el nodo exista: el diseñador la puede editar, mover o renombrar y la ruta sigue

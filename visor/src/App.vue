@@ -186,6 +186,26 @@ async function addToLibrary() {
 // sea portada, benchmark ni prototipo.
 const maps = ref({}) // clave → la respuesta de /api/map de su página de flujo
 const flowNodes = {} // clave → el id de su página de flujo: una ruta sin `nodo` se refiere a ella
+// clave → las pantallas de su página de flujo. La ruta lleva `?nodo=` sólo si la pantalla NO está ahí:
+// una sección pegada a mano casi siempre vive adentro de la página de flujo, y entonces sobra.
+const flowIDs = ref({})
+function rememberFlow(key, st) {
+  const ids = new Set(groupsFor(st).flatMap((g) => g.lanes.flatMap((l) => l.screens.map((sc) => sc.id))))
+  flowIDs.value = { ...flowIDs.value, [key]: ids }
+}
+// learnFlow averigua, en segundo plano y sin tocar lo que se está mirando, qué pantallas tiene la página de
+// flujo de un archivo que se abrió pegando una sección.
+async function learnFlow(key) {
+  if (flowIDs.value[key]) return
+  try {
+    await loadPages(key)
+    const page = flowPage(pagesOf.value[key]?.pages || [])
+    if (!page) return
+    flowNodes[key] = page.id
+    const res = await fetch('/api/map?' + new URLSearchParams({ ref: figmaRef(key, page.id) }))
+    if (res.ok) rememberFlow(key, (await res.json()).structure)
+  } catch { /* sin eso la ruta lleva `nodo`, que abre igual */ }
+}
 const mapState = ref({}) // clave → 'loading' | { error }
 const reFlowPage = /flujo|flow/i
 const reSkipPage = /cover|portada|bench|bechmarck|prototipo|prototype|archivo|archive/i
@@ -193,7 +213,8 @@ function flowPage(pages) {
   return pages.find((p) => reFlowPage.test(p.name)) || pages.find((p) => !reSkipPage.test(p.name)) || pages[0] || null
 }
 async function openFlow(key, fresh = false) {
-  if (maps.value[key] && !fresh) return
+  // Lo que hay en memoria puede ser una sección pegada a mano: el bloque muestra la página de flujo.
+  if (maps.value[key] && maps.value[key].node === flowNodes[key] && !fresh) return
   mapState.value = { ...mapState.value, [key]: 'loading' }
   try {
     await loadPages(key)
@@ -207,13 +228,17 @@ async function openFlow(key, fresh = false) {
     const body = await res.json()
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     maps.value = { ...maps.value, [key]: body }
+    rememberFlow(key, body.structure)
     const { [key]: _, ...rest } = mapState.value
     mapState.value = rest
     // Si no hay nada al centro, o se volvió a leer el que se está mirando, este pasa a ser el activo. Con
     // un error a la vista (una ruta a un proyecto que no está) no: el bloque que se recordaba abierto lo
     // tapaba y la ruta quedaba reescrita a otro proyecto sin avisar. Mientras una ruta manda tampoco: la
     // pantalla la elige la ruta, y si no se pudo abrir su aviso queda a la vista hasta que se toque otra.
-    if (!routeHold && ((!data.value && !error.value) || data.value?.key === key)) activate(key)
+    // Y si al centro hay una sección de OTRA página del mismo archivo (pegada, o de una ruta con `nodo`),
+    // se queda: releer el bloque no la reemplaza por la página de flujo.
+    const showingFlow = data.value?.key === key && data.value.node === flowNodes[key]
+    if (!routeHold && ((!data.value && !error.value) || showingFlow)) activate(key)
   } catch (e) {
     mapState.value = { ...mapState.value, [key]: { error: String(e.message || e) } }
   }
@@ -252,6 +277,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     maps.value = { ...maps.value, [body.key]: body }
     data.value = body
     refInput.value = value
+    learnFlow(body.key)
     loadLibrary()
     if (!openFiles.value.has(body.key)) {
       const set = new Set([body.key]); openFiles.value = set; saveSet('visor.open-files', set)
@@ -322,7 +348,8 @@ const linkCheck = ref(null) // { id, linked, status: 'checking' | 'same' | 'chan
 const routePath = computed(() => {
   if (!data.value || !currentID.value) return ''
   const q = new URLSearchParams()
-  if (data.value.node !== flowNodes[data.value.key]) q.set('nodo', fromID(data.value.node))
+  const inFlow = flowIDs.value[data.value.key]?.has(currentID.value)
+  if (data.value.node !== flowNodes[data.value.key] && !inFlow) q.set('nodo', fromID(data.value.node))
   if (mode.value !== 'image') q.set('modo', modeSlugs[mode.value])
   // La huella del enlace con que se llegó se queda en la barra mientras se mira ESA pantalla.
   if (linkCheck.value?.linked && linkCheck.value.id === currentID.value) q.set('huella', linkCheck.value.linked)
@@ -333,8 +360,9 @@ function writeRoute() {
   const p = routePath.value
   if (p && location.pathname + location.search + location.hash !== p) history.replaceState(null, '', p)
 }
-// El proyecto se resuelve cuando la biblioteca ya llegó: el nombre sale de ahí.
-watch(flows, () => writeRoute())
+// El proyecto se resuelve cuando la biblioteca ya llegó, y el `nodo` sobra cuando se sabe qué hay en la
+// página de flujo: la ruta se reescribe cuando cambia cualquiera de los dos.
+watch(routePath, () => writeRoute())
 function readRoute() {
   const m = location.pathname.match(/^\/([^/]+)(?:\/([0-9]+-[0-9]+))?\/?$/)
   if (!m) return null
