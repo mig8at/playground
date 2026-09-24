@@ -173,12 +173,14 @@ func Shared(root string) Board {
 // junto con ella, así que por ahora las acepta una regla de la lista; lo que se revisa es el código.
 func Tracer(root string) Board {
 	return Board{
-		Name:      "trazador",
-		Root:      root,
-		GoRoots:   []string{"trazador/server"},
-		JSONRoots: []string{"trazador/server"},
-		PyGlobs:   []string{"trazador/tools/*.py"},
-		PathRoots: []string{"trazador/server/", "trazador/tools/"},
+		Name:        "trazador",
+		Root:        root,
+		GoRoots:     []string{"trazador/server"},
+		JSONRoots:   []string{"trazador/server"},
+		JSGlobs:     []string{"trazador/src/*.vue", "trazador/src/*.js", "trazador/src/components/*.vue", "trazador/src/stores/*.js"},
+		PyGlobs:     []string{"trazador/tools/*.py"},
+		DeclsScript: filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs"),
+		PathRoots:   []string{"trazador/server/", "trazador/tools/", "trazador/src/"},
 	}
 }
 

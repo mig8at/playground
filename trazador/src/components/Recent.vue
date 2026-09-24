@@ -6,52 +6,52 @@ import { useTrazador } from '../stores/trazador'
 
 const emit = defineEmits(['close'])
 const t = useTrazador()
-const clave = (reciente) => reciente.personaKey
-  ? `${reciente.target}:persona:${reciente.personaKey}`
-  : `${reciente.target}:consulta:${reciente.q}`
-const datos = (reciente) => {
-  const total = Number.isInteger(reciente.total) ? reciente.total : null
-  const documento = reciente.documento || ''
-  const telefono = reciente.telefono || ''
+const key = (recent) => recent.personaKey
+  ? `${recent.target}:persona:${recent.personaKey}`
+  : `${recent.target}:consulta:${recent.q}`
+const data = (recent) => {
+  const total = Number.isInteger(recent.total) ? recent.total : null
+  const documentNumber = recent.documento || ''
+  const phone = recent.telefono || ''
   return {
-    clave: clave(reciente),
-    target: reciente.target,
-    tipo: documento ? 'Cédula' : (telefono ? 'Teléfono' : (reciente.tipo || '')),
-    consulta: documento || telefono || reciente.q,
-    meta: total === null ? reciente.target : `${reciente.target} · ${total} ${total === 1 ? 'solicitud' : 'solicitudes'}`,
+    clave: key(recent),
+    target: recent.target,
+    tipo: documentNumber ? 'Cédula' : (phone ? 'Teléfono' : (recent.tipo || '')),
+    consulta: documentNumber || phone || recent.q,
+    meta: total === null ? recent.target : `${recent.target} · ${total} ${total === 1 ? 'solicitud' : 'solicitudes'}`,
   }
 }
-const claveActiva = computed(() => {
+const activeKey = computed(() => {
   if (!t.resultados || !t.q.trim()) return ''
-  const personas = Array.isArray(t.resultados.personas) ? t.resultados.personas : []
-  const claves = personas.length === 1
-    ? [personas[0]?.personaKey]
+  const people = Array.isArray(t.resultados.personas) ? t.resultados.personas : []
+  const keys = people.length === 1
+    ? [people[0]?.personaKey]
     : [...new Set((t.resultados.items || []).map((item) => item?.personaKey).filter(Boolean))]
-  return claves.length === 1
-    ? `${t.target}:persona:${claves[0]}`
+  return keys.length === 1
+    ? `${t.target}:persona:${keys[0]}`
     : `${t.target}:consulta:${t.q.trim()}`
 })
-const descripcion = computed(() => t.recientes.length
+const description = computed(() => t.recientes.length
   ? 'Elegí una consulta para volver a abrir su grupo de solicitudes.'
   : 'Las consultas que abras quedarán disponibles en este navegador.')
-const enCurso = computed(() => (t.resultados?.items || [])
+const inProgress = computed(() => (t.resultados?.items || [])
   .filter((item) => item.desenlace === 'en-curso' || /en curso/i.test(item.estadoN || ''))
   .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
-const todas = computed(() => [...(t.resultados?.items || [])]
+const all = computed(() => [...(t.resultados?.items || [])]
   .sort((a, b) => `${b.fecha || ''}T${b.hora || ''}`.localeCompare(`${a.fecha || ''}T${a.hora || ''}`)))
 const vistaPrincipal = ref('en-curso')
-const consultaDirecta = computed(() => (t.resultados?.items || []).filter((item) => item.directa).length === 1)
+const directQuery = computed(() => (t.resultados?.items || []).filter((item) => item.directa).length === 1)
 // Por teléfono/cédula interesa primero qué sigue vivo. Por UREQ, en cambio, ya se tiene una solicitud
 // abierta y lo útil es ver de inmediato todos los intentos de esa persona, sin esconderlos en una pestaña.
 watch(() => t.resultados, () => {
-  vistaPrincipal.value = consultaDirecta.value ? 'todas' : (enCurso.value.length ? 'en-curso' : 'todas')
+  vistaPrincipal.value = directQuery.value ? 'todas' : (inProgress.value.length ? 'en-curso' : 'todas')
 })
-const filas = computed(() => vistaPrincipal.value === 'en-curso' ? enCurso.value : todas.value)
-const fecha = (item) => [item.fecha, item.hora].filter(Boolean).join(' · ') || 'sin fecha'
+const rows = computed(() => vistaPrincipal.value === 'en-curso' ? inProgress.value : all.value)
+const date = (item) => [item.fecha, item.hora].filter(Boolean).join(' · ') || 'sin fecha'
 // Abrir una fila no es una nueva consulta: carga esta solicitud dentro del grupo que ya está abierto.
-const abrirEnCurso = (item) => t.verTraza(item.ureq)
-const estado = (item) => item.estadoN || item.desenlace?.replace('-', ' ') || '—'
-const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
+const openInProgress = (item) => t.verTraza(item.ureq)
+const status = (item) => item.estadoN || item.desenlace?.replace('-', ' ') || '—'
+const statusClass = (item) => `estado-${item.desenlace || 'desconocido'}`
 </script>
 
 <template>
@@ -64,7 +64,7 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
           <span class="console-count">{{ t.recientes.length }}</span>
         </span>
       </div>
-      <p class="console-note">{{ descripcion }}</p>
+      <p class="console-note">{{ description }}</p>
       <div class="region-actions toolbar">
         <button type="button" class="region-action" title="Ocultar recientes" aria-label="Ocultar recientes" @click="emit('close')">
           <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -78,26 +78,26 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
           <header class="curso-head">
             <div class="curso-tabs" role="tablist" aria-label="Solicitudes de la búsqueda">
               <button type="button" role="tab" :aria-selected="vistaPrincipal === 'en-curso'" @click="vistaPrincipal = 'en-curso'">
-                En curso <span>{{ enCurso.length }}</span>
+                En curso <span>{{ inProgress.length }}</span>
               </button>
               <button type="button" role="tab" :aria-selected="vistaPrincipal === 'todas'" @click="vistaPrincipal = 'todas'">
-                Todas <span>{{ todas.length }}</span>
+                Todas <span>{{ all.length }}</span>
               </button>
             </div>
             <span>más reciente primero</span>
           </header>
-          <div v-if="filas.length" class="curso-tabla" role="table" :aria-label="`${vistaPrincipal === 'en-curso' ? 'Solicitudes en curso' : 'Todas las solicitudes'} ordenado de forma descendente`">
+          <div v-if="rows.length" class="curso-tabla" role="table" :aria-label="`${vistaPrincipal === 'en-curso' ? 'Solicitudes en curso' : 'Todas las solicitudes'} ordenado de forma descendente`">
             <div class="curso-fila curso-columnas" role="row">
               <span role="columnheader">Solicitud</span><span role="columnheader">Comercio</span>
               <span role="columnheader">Fecha</span><span role="columnheader">Estado</span>
             </div>
-            <button v-for="item in filas" :key="item.ureq" type="button" class="curso-fila curso-dato" role="row"
+            <button v-for="item in rows" :key="item.ureq" type="button" class="curso-fila curso-dato" role="row"
                     :class="{ seleccionada: item.ureq === t.traza?.ureq }"
-                    :title="`Abrir solicitud ${item.ureq}`" @click="abrirEnCurso(item)">
+                    :title="`Abrir solicitud ${item.ureq}`" @click="openInProgress(item)">
               <span class="curso-ureq" role="cell">{{ item.ureq }}</span>
               <span class="curso-comercio" role="cell">{{ item.comercio || '—' }}</span>
-              <span class="curso-fecha" role="cell">{{ fecha(item) }}</span>
-              <span class="curso-estado" :class="claseEstado(item)" role="cell">{{ estado(item) }}</span>
+              <span class="curso-fecha" role="cell">{{ date(item) }}</span>
+              <span class="curso-estado" :class="statusClass(item)" role="cell">{{ status(item) }}</span>
             </button>
           </div>
           <div v-else class="curso-vacio">No hay solicitudes {{ vistaPrincipal === 'en-curso' ? 'en curso' : 'en esta consulta' }}.</div>
@@ -118,16 +118,16 @@ const claseEstado = (item) => `estado-${item.desenlace || 'desconocido'}`
           <span class="sidebar-count">{{ t.recientes.length }}</span>
         </header>
         <div v-if="t.recientes.length" class="lista-recientes" aria-label="Consultas recientes guardadas">
-          <div v-for="reciente in t.recientes" :key="datos(reciente).clave" class="reciente" :class="{ activa: datos(reciente).clave === claveActiva }">
-            <button type="button" class="abrir-reciente" :aria-current="datos(reciente).clave === claveActiva ? 'page' : undefined"
-                    :title="`Abrir ${datos(reciente).consulta} en ${datos(reciente).target}`" @click="t.abrirReciente(reciente)">
+          <div v-for="recent in t.recientes" :key="data(recent).clave" class="reciente" :class="{ activa: data(recent).clave === activeKey }">
+            <button type="button" class="abrir-reciente" :aria-current="data(recent).clave === activeKey ? 'page' : undefined"
+                    :title="`Abrir ${data(recent).consulta} en ${data(recent).target}`" @click="t.abrirReciente(recent)">
               <span class="reciente-texto">
-                <span class="reciente-consulta"><span v-if="datos(reciente).tipo" class="reciente-tipo">{{ datos(reciente).tipo }}</span>{{ datos(reciente).consulta }}</span>
-                <span class="reciente-meta">{{ datos(reciente).meta }}</span>
+                <span class="reciente-consulta"><span v-if="data(recent).tipo" class="reciente-tipo">{{ data(recent).tipo }}</span>{{ data(recent).consulta }}</span>
+                <span class="reciente-meta">{{ data(recent).meta }}</span>
               </span>
             </button>
-            <button type="button" class="borrar-reciente" :aria-label="`Borrar consulta ${datos(reciente).consulta}`"
-                    :title="`Borrar ${datos(reciente).consulta} de este navegador`" @click="t.eliminarReciente(reciente)">
+            <button type="button" class="borrar-reciente" :aria-label="`Borrar consulta ${data(recent).consulta}`"
+                    :title="`Borrar ${data(recent).consulta} de este navegador`" @click="t.eliminarReciente(recent)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
           </div>

@@ -36,7 +36,7 @@ REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor'
 SHEETS = {
     'harness':  ['harness/panel/index.html'],
     'tablero':  ['tablero/src/styles.css'],
-    'trazador': ['trazador/src/estilo.css'],
+    'trazador': ['trazador/src/style.css'],
 }
 TREES = {'tablero': 'tablero/src', 'trazador': 'trazador/src'}
 

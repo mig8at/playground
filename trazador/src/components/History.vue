@@ -24,15 +24,15 @@ const t = useTrazador()
 // La lección, que vale para cualquier «ver más»: un recorte es la respuesta a un problema de LAYOUT;
 // cuando el layout cambia, hay que volver a preguntarse si el problema sigue existiendo.
 
-const GLIFO = { aprobado: '✓', roto: '✕', abandonado: '!', 'en-curso': '·' }
-const CLASE = { aprobado: 'ok', roto: 'fail', abandonado: 'warn', 'en-curso': 'skip' }
-const MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+const GLYPH = { aprobado: '✓', roto: '✕', abandonado: '!', 'en-curso': '·' }
+const CLASS = { aprobado: 'ok', roto: 'fail', abandonado: 'warn', 'en-curso': 'skip' }
+const MONTH = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
 
 const h = computed(() => t.resultados?.historia || null)
 const items = computed(() => t.resultados?.items || [])
 
 // Los días, en el orden en que vienen los items (el server los manda de la más nueva a la más vieja).
-const dias = computed(() => {
+const days = computed(() => {
   const out = []
   for (const i of items.value) {
     let g = out[out.length - 1]
@@ -44,9 +44,9 @@ const dias = computed(() => {
 
 // «2026-08-04» → «04 ago ’26». Sin `new Date`: la fecha ya viene formateada por el server en la zona
 // correcta, y parsearla la movería un día según el navegador.
-const dia = (f) => {
+const day = (f) => {
   const [a, m, d] = f.split('-')
-  return `${d} ${MES[+m - 1]} ’${a.slice(2)}`
+  return `${d} ${MONTH[+m - 1]} ’${a.slice(2)}`
 }
 const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio, i.lender,
   i.directa ? 'lo que buscaste' : 'misma persona'].filter(Boolean).join(' · ')
@@ -54,13 +54,13 @@ const tip = (i) => [`#${i.ureq}`, `${i.fecha} ${i.hora}`, i.estadoN, i.comercio,
 // Una fecha por vez mantiene el sidebar como índice: se ve el volumen de todos los días, pero sólo
 // se gastan líneas en el bloque que estás inspeccionando. Cuando abrís otra solicitud, su día se abre
 // solo para no obligarte a encontrarlo otra vez dentro de la historia.
-const diaAbierto = ref(null)
-watch([dias, () => t.traza?.ureq], ([grupos]) => {
-  const activo = grupos.find((g) => g.chips.some((i) => i.ureq === t.traza?.ureq))
-  if (activo) diaAbierto.value = activo.fecha
-  else if (!grupos.some((g) => g.fecha === diaAbierto.value)) diaAbierto.value = grupos[0]?.fecha || null
+const dayOpen = ref(null)
+watch([days, () => t.traza?.ureq], ([groups]) => {
+  const active = groups.find((g) => g.chips.some((i) => i.ureq === t.traza?.ureq))
+  if (active) dayOpen.value = active.fecha
+  else if (!groups.some((g) => g.fecha === dayOpen.value)) dayOpen.value = groups[0]?.fecha || null
 }, { immediate: true })
-const alternarDia = (fecha) => { diaAbierto.value = diaAbierto.value === fecha ? null : fecha }
+const toggleDay = (date) => { dayOpen.value = dayOpen.value === date ? null : date }
 </script>
 
 <template>
@@ -68,8 +68,8 @@ const alternarDia = (fecha) => { diaAbierto.value = diaAbierto.value === fecha ?
     <!-- El resumen: la respuesta a «¿esta persona ya intentó antes y qué le pasó?» sin abrir nada -->
     <p class="linea">
       <b>{{ h.total }}</b> solicitud{{ h.total === 1 ? '' : 'es' }}
-      <template v-if="h.desde !== h.hasta"> · {{ dia(h.desde) }} → {{ dia(h.hasta) }}</template>
-      <template v-else> · {{ dia(h.hasta) }}</template>
+      <template v-if="h.desde !== h.hasta"> · {{ day(h.desde) }} → {{ day(h.hasta) }}</template>
+      <template v-else> · {{ day(h.hasta) }}</template>
       <span v-if="h.aprobadas" class="t ok">{{ h.aprobadas }} aprobada{{ h.aprobadas === 1 ? '' : 's' }}</span>
       <span v-if="h.rotas" class="t fail">{{ h.rotas }} rota{{ h.rotas === 1 ? '' : 's' }}</span>
       <span v-if="h.abandonadas" class="t warn">{{ h.abandonadas }} abandonada{{ h.abandonadas === 1 ? '' : 's' }}</span>
@@ -90,17 +90,17 @@ const alternarDia = (fecha) => { diaAbierto.value = diaAbierto.value === fecha ?
          por completo: el encabezado conserva fecha + cantidad y el grupo de la corrida activa se abre
          automáticamente. Así se puede comparar volumen sin convertir el sidebar en una pared de chips. -->
     <div class="tira">
-      <div v-for="g in dias" :key="g.fecha" class="grupo">
-        <button type="button" class="region-head grupo" :aria-expanded="diaAbierto === g.fecha"
-                @click="alternarDia(g.fecha)">
-          <span class="gh"><span class="cr" :class="{ on: diaAbierto === g.fecha }">▸</span>{{ dia(g.fecha) }}</span>
+      <div v-for="g in days" :key="g.fecha" class="grupo">
+        <button type="button" class="region-head grupo" :aria-expanded="dayOpen === g.fecha"
+                @click="toggleDay(g.fecha)">
+          <span class="gh"><span class="cr" :class="{ on: dayOpen === g.fecha }">▸</span>{{ day(g.fecha) }}</span>
           <span class="badge badge-secondary badge-xs">{{ g.chips.length }}</span>
         </button>
-        <div v-if="diaAbierto === g.fecha" class="chips">
+        <div v-if="dayOpen === g.fecha" class="chips">
         <button v-for="i in g.chips" :key="i.ureq"
-                :class="['badge', 'badge-outline', 'chip', CLASE[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
+                :class="['badge', 'badge-outline', 'chip', CLASS[i.desenlace], { act: t.traza?.ureq === i.ureq }]"
                 :title="tip(i)" @click="t.verTraza(i.ureq)">
-          <span class="g">{{ GLIFO[i.desenlace] }}</span>{{ i.hora }}
+          <span class="g">{{ GLYPH[i.desenlace] }}</span>{{ i.hora }}
           <span class="n">{{ i.ureq }}</span>
           <!-- La marca de «esto es lo que buscaste» sólo aparece cuando hay mezcla. Si buscaste una cédula
                con 12 intentos, las 12 son directas y marcarlas todas no distingue nada: es ruido. -->

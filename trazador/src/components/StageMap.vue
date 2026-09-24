@@ -34,7 +34,7 @@ const props = defineProps({
 
 const t = useTrazador()
 
-const GLIFO = { ok:'✓', warn:'!', fail:'✕', skip:'·', 'sin-evidencia':'?', 'sin-registro':'~',
+const GLYPH = { ok:'✓', warn:'!', fail:'✕', skip:'·', 'sin-evidencia':'?', 'sin-registro':'~',
   'no-aplica':'∅', condicional:'·', pendiente:'·' }
 // El color es el mismo que usa la lista: dos escalas para el mismo estado sería otra cosa que
 // desincronizar, y además el ojo ya aprendió ésta.
@@ -66,38 +66,38 @@ const COLOR = { ok:'var(--ok)', warn:'var(--warn)', fail:'var(--fail)', skip:'va
 // La escala acompaña al mapa del Harness: piezas densas, aire entre carriles y texto pequeño. La
 // reserva sigue siendo explícita para que la densidad no vuelva a convertirse en etiquetas montadas.
 const RADIO = 7, Y0 = 52
-const ETIQUETA_ANCHO = 82, ETIQUETA_LINEAS = 2, INTERLINEADO_ETIQUETA = 11
-const Y_ETIQUETA = 24, Y_DETALLE = 48, ALTO_ETIQUETAS = 60
-const PASO_MIN = 90, MARGEN_X = 64, MARGEN_DER = 22
-const CARRIL_MIN = 84, CARRIL_MAX = 124
+const LABEL_WIDTH = 82, LABEL_LINES = 2, LABEL_LINE_HEIGHT = 11
+const Y_LABEL = 24, Y_DETAIL = 48, LABELS_HEIGHT = 60
+const STEP_MIN = 90, X_MARGIN = 64, RIGHT_MARGIN = 22
+const LANE_MIN = 84, LANE_MAX = 124
 
 /** El detalle entra en ~22 caracteres bajo un nodo del carril. Se corta en el último espacio: cortar
  *  a secas partía palabras («ramal credifami») y perdía el final de frases que sí entraban. */
-const corto = (txt, tope = 34) => {
+const short = (txt, limit = 34) => {
       const s = String(txt || '')
-      if (s.length <= tope) return s
-      const c = s.slice(0, tope)
+      if (s.length <= limit) return s
+      const c = s.slice(0, limit)
       const i = c.lastIndexOf(' ')
-      return (i > tope * 0.6 ? c.slice(0, i) : c) + '…'
+      return (i > limit * 0.6 ? c.slice(0, i) : c) + '…'
 }
 
 // Un nombre de etapa es un identificador, no prosa: partirlo por sus separadores conserva las
 // palabras y deja siempre la misma reserva vertical debajo de cada estación.
-const lineasEtiqueta = (txt, tope = 10) => {
-      const palabras = String(txt || '—').replace(/[-_/]+/g, ' ').trim().split(/\s+/)
-      const lineas = []
-      for (const palabraOriginal of palabras) {
-            const palabra = palabraOriginal.length > tope ? `${palabraOriginal.slice(0, tope - 1)}…` : palabraOriginal
-            const ultima = lineas.at(-1)
-            if (ultima && `${ultima} ${palabra}`.length <= tope) lineas[lineas.length - 1] += ` ${palabra}`
-            else if (lineas.length < ETIQUETA_LINEAS) lineas.push(palabra)
-            else lineas[ETIQUETA_LINEAS - 1] = `${lineas[ETIQUETA_LINEAS - 1].slice(0, tope - 1)}…`
+const labelLines = (txt, limit = 10) => {
+      const words = String(txt || '—').replace(/[-_/]+/g, ' ').trim().split(/\s+/)
+      const lines = []
+      for (const originalWord of words) {
+            const word = originalWord.length > limit ? `${originalWord.slice(0, limit - 1)}…` : originalWord
+            const last = lines.at(-1)
+            if (last && `${last} ${word}`.length <= limit) lines[lines.length - 1] += ` ${word}`
+            else if (lines.length < LABEL_LINES) lines.push(word)
+            else lines[LABEL_LINES - 1] = `${lines[LABEL_LINES - 1].slice(0, limit - 1)}…`
       }
-      return lineas
+      return lines
 }
-const etiquetaCarril = (c) => corto(c.titulo || c.id, 22)
-const subtituloCarril = (c) => corto(c.subtitulo || '', 42)
-const AFUERA_LINEAS = ['sin etapas propias', 'desenlace fuera del trazador']
+const laneLabel = (c) => short(c.titulo || c.id, 22)
+const laneSubtitle = (c) => short(c.subtitulo || '', 42)
+const OUTSIDE_LINES = ['sin etapas propias', 'desenlace fuera del trazador']
 
 const aMin = (hhmmss) => {
       if (!hhmmss) return null
@@ -112,16 +112,16 @@ const aMin = (hhmmss) => {
  * la de 40 a 900 se satura, con el número al lado para el que quiera el dato exacto.
  */
 /** El ancho útil del lienzo, que es lo que manda sobre la separación entre nodos. */
-const anchoCaja = ref(0)
+const boxWidth = ref(0)
 /** Y el alto, que reparte los carriles: con pocos, respiran; con muchos, se juntan hasta el mínimo. */
-const altoCaja = ref(0)
+const boxHeight = ref(0)
 
 /**
  * Cuántas columnas tiene la fila más larga: el tronco hasta el corte, más el carril con más etapas.
  * Es lo que hay que hacer entrar.
  */
-const columnas = computed(() =>
-      Math.max(1, tronco.value.length - 1 + Math.max(0, ...carriles.value.map((c) => c.pasos.length))))
+const columns = computed(() =>
+      Math.max(1, trunk.value.length - 1 + Math.max(0, ...lanes.value.map((c) => c.pasos.length))))
 
 /**
  * ⚠ SIN TOPE SUPERIOR, Y ÉSE ES EL PUNTO: el mapa tiene que LLENAR el ancho que le queda, igual que el
@@ -130,8 +130,8 @@ const columnas = computed(() =>
  * veía como que el mapa «no se estira» al mover el sidebar (se estiraba; lo que no crecía era el
  * dibujo). El mínimo sí se queda: por debajo los labels se pisan y ahí conviene scrollear.
  */
-const PASO = computed(() => {
-      if (!anchoCaja.value) return 120
+const STEP = computed(() => {
+      if (!boxWidth.value) return 120
       // ⚠ ACÁ VA UNA ESTIMACIÓN DE LA RESERVA DERECHA, NO LA REAL, y tiene que ser así: la reserva
       // sale de dónde terminan los textos, los textos se corren con el PASO, y el PASO saldría de la
       // reserva — `PASO → ancho → PASO`. La estimación rompe el ciclo.
@@ -140,8 +140,8 @@ const PASO = computed(() => {
       // queda en ~30-40, que es el mismo aire que tiene la izquierda. Si en algún caso queda corta, el
       // lienzo sale unos píxeles más ancho que la caja y el contenedor scrollea — que es preferible a
       // recortar un texto.
-      const util = anchoCaja.value - MARGEN_X - 96
-      return Math.max(PASO_MIN, Math.floor(util / columnas.value))
+      const util = boxWidth.value - X_MARGIN - 96
+      return Math.max(STEP_MIN, Math.floor(util / columns.value))
 })
 
 /**
@@ -149,11 +149,11 @@ const PASO = computed(() => {
  * saltos grandes empujan el dibujo fuera de la caja aunque el `PASO` ya se haya achicado al mínimo.
  * Va por logaritmo (una espera de un día no puede medir diez pantallas) y con tope proporcional.
  */
-const largoDelSalto = (min) => (min === null || min < 1 ? 0
-      : Math.min(Math.round(PASO.value * 0.45), Math.round(18 * Math.log10(1 + min))))
+const jumpLength = (min) => (min === null || min < 1 ? 0
+      : Math.min(Math.round(STEP.value * 0.45), Math.round(18 * Math.log10(1 + min))))
 
 /** El estado de cada etapa, por id, salga o no en el recorrido de este ramal. */
-const porEtapa = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
+const byStage = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e])))
 
 /**
  * DÓNDE SE ABRE EL MAPA. El tronco llega hasta `seleccion` y ahí se bifurca, y no es una elección
@@ -161,53 +161,53 @@ const porEtapa = computed(() => Object.fromEntries(t.etapas.map((e) => [e.id, e]
  * de que el cliente elija no existe. Bifurcar más temprano dibujaría una decisión que todavía no se
  * tomó; más tarde, escondería la única parte donde los caminos de verdad difieren.
  */
-const CORTE = 'seleccion'
+const CUT = 'seleccion'
 
-const tronco = computed(() => {
-      const es = t.etapas
-      const i = es.findIndex((e) => e.id === CORTE)
-      return i < 0 ? es : es.slice(0, i + 1)
+const trunk = computed(() => {
+      const isIt = t.etapas
+      const i = isIt.findIndex((e) => e.id === CUT)
+      return i < 0 ? isIt : isIt.slice(0, i + 1)
 })
 
 /** Las etapas de un ramal DESPUÉS del corte, en el orden del flujo. `obligatorio:false` = condicional. */
-function pasosDeRamal(r) {
-      const iCorte = t.etapas.findIndex((e) => e.id === CORTE)
-      const orden = Object.fromEntries(t.etapas.map((e, i) => [e.id, i]))
+function laneSteps(r) {
+      const cutIndex = t.etapas.findIndex((e) => e.id === CUT)
+      const order = Object.fromEntries(t.etapas.map((e, i) => [e.id, i]))
       return (r.pasos || [])
-            .filter((p) => (orden[p.id] ?? -1) > iCorte)
-            .sort((a, b) => (orden[a.id] ?? 0) - (orden[b.id] ?? 0))
-            .map((p) => ({ ...p, etapa: porEtapa.value[p.id] }))
+            .filter((p) => (order[p.id] ?? -1) > cutIndex)
+            .sort((a, b) => (order[a.id] ?? 0) - (order[b.id] ?? 0))
+            .map((p) => ({ ...p, etapa: byStage.value[p.id] }))
 }
 
-/** Un color por carril, estable por posición. Los valores viven en `estilo.css` y no acá: son parte de
+/** Un color por carril, estable por posición. Los valores viven en `style.css` y no acá: son parte de
  *  la paleta, no de la lógica del mapa — y así el tema claro los cambia sin tocar este archivo. */
-const COLOR_CARRIL = {
+const LANE_COLOR = {
       creditopx: 'var(--carril1)',
       agregador: 'var(--secondary)',
       redirect: 'var(--skip)',
       credifamilia: 'var(--carril5)',
 }
-const COLOR_CARRIL_FALLBACK = ['var(--carril1)', 'var(--carril2)', 'var(--carril3)', 'var(--carril4)', 'var(--carril5)']
+const LANE_COLOR_FALLBACK = ['var(--carril1)', 'var(--carril2)', 'var(--carril3)', 'var(--carril4)', 'var(--carril5)']
 
-const carriles = computed(() => {
+const lanes = computed(() => {
       const rs = t.mapa?.ramales || []
       return rs.map((r, i) => {
-            const [titulo, ...detalle] = String(r.label || r.id).split(' · ')
+            const [title, ...detail] = String(r.label || r.id).split(' · ')
             return {
                   id: r.id,
                   label: r.label || r.id,
-                  titulo: titulo || r.id,
-                  subtitulo: detalle.join(' · '),
-                  color: COLOR_CARRIL[r.id] || COLOR_CARRIL_FALLBACK[i % COLOR_CARRIL_FALLBACK.length],
+                  titulo: title || r.id,
+                  subtitulo: detail.join(' · '),
+                  color: LANE_COLOR[r.id] || LANE_COLOR_FALLBACK[i % LANE_COLOR_FALLBACK.length],
                   activo: t.traza?.ramal === r.id,
-                  pasos: pasosDeRamal(r),
+                  pasos: laneSteps(r),
             }
       })
 })
 
 // Antes de cargar una solicitud se muestran todos los caminos como en el harness. Una vez existe una
 // traza, el color del carril sigue diciendo qué ruta es y el color del nodo pasa a decir qué ocurrió.
-const colorNodo = (n, c) => c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : c.color
+const nodeColor = (n, c) => c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : c.color
 
 /**
  * EL RECORRIDO POR TECLADO, que venía de la lista y se trajo al borrarla.
@@ -217,43 +217,43 @@ const colorNodo = (n, c) => c.activo ? COLOR[n.etapa?.estado || 'pendiente'] : c
  * orden del flujo. Sin esto, quitar la lista no habría sido cambiar una vista por otra: habría sido
  * dejar la herramienta sin forma de navegarla que no fuera el mouse.
  */
-const enOrden = computed(() => [...nodosTronco.value.map((n) => n.id),
-      ...nodosPorCarril.value.flatMap((c) => c.nodos.map((n) => n.id))])
+const inOrder = computed(() => [...trunkNodes.value.map((n) => n.id),
+      ...nodesByLane.value.flatMap((c) => c.nodos.map((n) => n.id))])
 
-function mover(paso) {
-      const ids = enOrden.value
+function mover(step) {
+      const ids = inOrder.value
       const i = ids.indexOf(t.etapaSel)
-      const j = (i < 0 ? 0 : i + paso)
+      const j = (i < 0 ? 0 : i + step)
       if (j < 0 || j >= ids.length) return
       t.etapaSel = ids[j]
-      lienzo.value?.querySelector(`[data-etapa="${ids[j]}"]`)?.focus()
+      canvas.value?.querySelector(`[data-etapa="${ids[j]}"]`)?.focus()
 }
 
 /** El tronco con su posición y su salto de tiempo respecto de la etapa anterior. */
-const nodosTronco = computed(() => {
-      let x = MARGEN_X, previa = null
-      return tronco.value.map((e, i) => {
-            const ahora = aMin(e.vivo?.at)
-            let saltoMin = null
-            if (ahora !== null && previa !== null && ahora - previa >= 1) saltoMin = Math.round(ahora - previa)
-            if (ahora !== null) previa = ahora
-            if (i) x += PASO.value + largoDelSalto(saltoMin)
-            return { ...e, x, y: Y0, saltoMin, roto: t.traza?.brokeAt === e.id }
+const trunkNodes = computed(() => {
+      let x = X_MARGIN, previous = null
+      return trunk.value.map((e, i) => {
+            const now = aMin(e.vivo?.at)
+            let minJump = null
+            if (now !== null && previous !== null && now - previous >= 1) minJump = Math.round(now - previous)
+            if (now !== null) previous = now
+            if (i) x += STEP.value + jumpLength(minJump)
+            return { ...e, x, y: Y0, saltoMin: minJump, roto: t.traza?.brokeAt === e.id }
       })
 })
 
-const xCorte = computed(() => (nodosTronco.value.at(-1)?.x ?? 40))
+const cutX = computed(() => (trunkNodes.value.at(-1)?.x ?? 40))
 
 /** Cada carril arranca una columna después del corte y no vuelve nunca hacia atrás. */
-const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
+const nodesByLane = computed(() => lanes.value.map((c, ci) => ({
       ...c,
-      y: Y0 + (ci + 1) * CARRIL.value,
+      y: Y0 + (ci + 1) * LANE.value,
       nodos: c.pasos.map((p, i) => ({
             id: p.id,
             etapa: p.etapa,
             condicional: p.obligatorio === false,
-            x: xCorte.value + PASO.value * (i + 1),
-            y: Y0 + (ci + 1) * CARRIL.value,
+            x: cutX.value + STEP.value * (i + 1),
+            y: Y0 + (ci + 1) * LANE.value,
             roto: t.traza?.brokeAt === p.id,
       })),
 })))
@@ -265,8 +265,8 @@ const nodosPorCarril = computed(() => carriles.value.map((c, ci) => ({
  * ⚠ Medirlo de verdad con `getBBox()` sería circular: el ancho del lienzo sale de esto, y el bbox sale
  * de dibujar en ese lienzo. La estimación rompe el ciclo.
  */
-const anchoTexto = (txt, pxPorChar) => String(txt || '').length * pxPorChar
-const PX_MONO = 6.4, PX_DETALLE = 4.8, PX_CARRIL = 6, PX_AFUERA = 5
+const textWidth = (txt, pxPerChar) => String(txt || '').length * pxPerChar
+const PX_MONO = 6.4, PX_DETAIL = 4.8, PX_LANE = 6, PX_OUTSIDE = 5
 
 /**
  * ⚠ LA RESERVA DERECHA SE CALCULA DEL CONTENIDO, no es una constante — y la constante tenía un caso
@@ -281,40 +281,40 @@ const PX_MONO = 6.4, PX_DETALLE = 4.8, PX_CARRIL = 6, PX_AFUERA = 5
  *
  * Se toma el extremo derecho de TODOS y se le suma el mismo aire que lleva la izquierda.
  */
-const bordeDerecho = computed(() => {
-      let max = xCorte.value
-      for (const c of nodosPorCarril.value) {
-            const x0 = xCorte.value + PASO.value
-            const titulo = c.activo ? `${etiquetaCarril(c)} · recorrido real` : etiquetaCarril(c)
-            max = Math.max(max, x0 + anchoTexto(titulo, PX_CARRIL),
-                                x0 + anchoTexto(subtituloCarril(c), PX_AFUERA))
-            if (!c.nodos.length) max = Math.max(max, x0 + anchoTexto(AFUERA_LINEAS.at(-1), PX_AFUERA))
+const rightEdge = computed(() => {
+      let max = cutX.value
+      for (const c of nodesByLane.value) {
+            const x0 = cutX.value + STEP.value
+            const title = c.activo ? `${laneLabel(c)} · recorrido real` : laneLabel(c)
+            max = Math.max(max, x0 + textWidth(title, PX_LANE),
+                                x0 + textWidth(laneSubtitle(c), PX_OUTSIDE))
+            if (!c.nodos.length) max = Math.max(max, x0 + textWidth(OUTSIDE_LINES.at(-1), PX_OUTSIDE))
             for (const n of c.nodos) {
-                  const det = c.activo ? corto(n.etapa?.vivo?.detail || n.etapa?.label, 22) : ''
-                  max = Math.max(max, n.x + ETIQUETA_ANCHO / 2,
-                                      n.x + anchoTexto(det, PX_DETALLE) / 2)
+                  const det = c.activo ? short(n.etapa?.vivo?.detail || n.etapa?.label, 22) : ''
+                  max = Math.max(max, n.x + LABEL_WIDTH / 2,
+                                      n.x + textWidth(det, PX_DETAIL) / 2)
             }
       }
-      for (const n of nodosTronco.value) {
-            max = Math.max(max, n.x + ETIQUETA_ANCHO / 2,
-                                n.x + anchoTexto(corto(n.vivo?.detail || n.label, 22), PX_DETALLE) / 2)
+      for (const n of trunkNodes.value) {
+            max = Math.max(max, n.x + LABEL_WIDTH / 2,
+                                n.x + textWidth(short(n.vivo?.detail || n.label, 22), PX_DETAIL) / 2)
       }
       return max
 })
 
-const ancho = computed(() => bordeDerecho.value + MARGEN_DER)
+const width = computed(() => rightEdge.value + RIGHT_MARGIN)
 /**
  * La separación entre carriles se reparte igual que el `PASO`: con espacio de sobra los carriles
  * respiran, y con poco se juntan hasta el mínimo. Antes era una constante y el dibujo quedaba pegado
  * arriba dejando un tercio de la caja vacío — el espacio que sobra no es neutro, es espacio que el
  * grafo podría estar usando para leerse mejor.
  */
-const CARRIL = computed(() => {
-      const filas = carriles.value.length + 1
-      if (!altoCaja.value || !filas) return CARRIL_MIN
+const LANE = computed(() => {
+      const rows = lanes.value.length + 1
+      if (!boxHeight.value || !rows) return LANE_MIN
       // El `- Y0 - ALTO_ETIQUETAS`: arriba el margen propio y abajo la celda fija de los labels del
       // último carril, que evita que sus dos líneas y el detalle se recorten contra el borde.
-      return Math.max(CARRIL_MIN, Math.min(CARRIL_MAX, Math.floor((altoCaja.value - Y0 - ALTO_ETIQUETAS) / filas)))
+      return Math.max(LANE_MIN, Math.min(LANE_MAX, Math.floor((boxHeight.value - Y0 - LABELS_HEIGHT) / rows)))
 })
 
 /**
@@ -322,40 +322,40 @@ const CARRIL = computed(() => {
  * cuelga de sus nodos (label a +28 y detalle a +41) más el aire. Con `(carriles + 1) * CARRIL` sobraban
  * 99 px abajo contra 30 arriba — una reserva de una fila entera para un texto de dos renglones.
  */
-const alto = computed(() =>
-      Y0 + Math.max(1, carriles.value.length) * CARRIL.value + ALTO_ETIQUETAS + MARGEN_DER)
+const height = computed(() =>
+      Y0 + Math.max(1, lanes.value.length) * LANE.value + LABELS_HEIGHT + RIGHT_MARGIN)
 
 // ── LA MEDIDA DEL LIENZO ─────────────────────────────────────────────────────────────────────────
 //
 // Ya no hay cámara: no hay zoom ni arrastre, y el dibujo se adapta cambiando la SEPARACIÓN entre nodos
 // (ver la nota de `PASO`). Lo único que hay que saber del DOM es cuánto ancho hay.
-const lienzo = ref(null)
+const canvas = ref(null)
 
-function medir() {
-      const el = lienzo.value
+function measure() {
+      const el = canvas.value
       if (!el) return
       const w = el.clientWidth, h = el.clientHeight
-      if (w) anchoCaja.value = w
-      if (h) altoCaja.value = h
+      if (w) boxWidth.value = w
+      if (h) boxHeight.value = h
 }
 
-onMounted(() => { medir(); new ResizeObserver(medir).observe(lienzo.value) })
+onMounted(() => { measure(); new ResizeObserver(measure).observe(canvas.value) })
 
 // El ResizeObserver cubre cambios externos (ventana, fuente, zoom) y el prop cubre el arrastre. En los
 // dos casos se mide tras el render para leer la caja final, no el ancho previo al margin del editor.
-watch(() => [props.cerrado, props.anchoPanel], () => nextTick(medir))
+watch(() => [props.cerrado, props.anchoPanel], () => nextTick(measure))
 
 </script>
 
 <template>
-  <div class="mapa" ref="lienzo">
+  <div class="mapa" ref="canvas">
     <!-- ⚠ ESTO NO ES «TODAVÍA NO BUSCASTE NADA»: esa pantalla no existe. `etapas` es un getter que
          SIEMPRE devuelve el mapa declarado —el trazador dibuja las etapas en gris antes de que haya
          consulta, a propósito—, así que esta rama sólo se alcanza si `mapa.etapas` viene vacío, o sea
          si el mapa no cargó. Decía «el mapa se dibuja al cargar una solicitud», que describe un
          estado que nunca ocurre; ahora dice lo que pasó de verdad.
          La anatomía es la compartida (`.empty` de `taller.css`): medio, título y descripción. -->
-    <div v-if="!nodosTronco.length" class="vacio empty">
+    <div v-if="!trunkNodes.length" class="vacio empty">
       <div class="empty-head">
         <div class="empty-media">⚠</div>
         <p class="empty-title">El mapa del flujo no cargó</p>
@@ -365,40 +365,40 @@ watch(() => [props.cerrado, props.anchoPanel], () => nextTick(medir))
 
     <!-- El SVG mide lo que mide el DIBUJO, no la caja: si por algún motivo no entra (muchos carriles
          en una ventana baja), el contenedor scrollea y no hay nada escondido detrás de un borde. -->
-    <svg v-else :width="ancho" :height="alto">
+    <svg v-else :width="width" :height="height">
       <g>
         <!-- ── EL TRONCO: lo que ocurre antes de que exista un ramal ── -->
-        <g v-for="(n, i) in nodosTronco.slice(1)" :key="'ta'+n.id">
-          <line :x1="nodosTronco[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
-                :stroke="t.traza ? (n.estado === 'no-aplica' ? 'var(--line)' : COLOR[nodosTronco[i].estado]) : 'var(--map-trunk)'"
+        <g v-for="(n, i) in trunkNodes.slice(1)" :key="'ta'+n.id">
+          <line :x1="trunkNodes[i].x" :y1="Y0" :x2="n.x" :y2="Y0" class="arista"
+                :stroke="t.traza ? (n.estado === 'no-aplica' ? 'var(--line)' : COLOR[trunkNodes[i].estado]) : 'var(--map-trunk)'"
                 :stroke-dasharray="n.estado === 'no-aplica' ? '4 5' : null" />
           <!-- el salto SÓLO cuando lo hay: un «+0m» en cada arista tapa a los que importan -->
-          <text v-if="n.saltoMin" :x="(nodosTronco[i].x + n.x) / 2" :y="Y0 - 10" class="salto">
+          <text v-if="n.saltoMin" :x="(trunkNodes[i].x + n.x) / 2" :y="Y0 - 10" class="salto">
             +{{ n.saltoMin >= 60 ? Math.floor(n.saltoMin/60)+'h '+(n.saltoMin%60)+'m' : n.saltoMin+'m' }}
           </text>
         </g>
 
         <!-- ── LAS CURVAS DE BIFURCACIÓN: cortas, porque salen DEL corte y no del principio ── -->
-        <g v-for="c in nodosPorCarril" :key="'c'+c.id" :class="{ apagado: t.traza && !c.activo }">
+        <g v-for="c in nodesByLane" :key="'c'+c.id" :class="{ apagado: t.traza && !c.activo }">
           <path class="arista"
-                :d="`M ${xCorte} ${Y0} C ${xCorte + PASO * 0.5} ${Y0}, ${xCorte + PASO * 0.5} ${c.y}, ${xCorte + PASO} ${c.y}`"
+                :d="`M ${cutX} ${Y0} C ${cutX + STEP * 0.5} ${Y0}, ${cutX + STEP * 0.5} ${c.y}, ${cutX + STEP} ${c.y}`"
                 fill="none" :stroke="c.color" />
         </g>
 
         <!-- ── LOS CARRILES ── -->
-        <g v-for="c in nodosPorCarril" :key="c.id" :class="{ apagado: t.traza && !c.activo }">
+        <g v-for="c in nodesByLane" :key="c.id" :class="{ apagado: t.traza && !c.activo }">
           <line v-if="c.nodos.length > 1" :x1="c.nodos[0].x" :y1="c.y"
                 :x2="c.nodos.at(-1).x" :y2="c.y" class="arista"
                 :stroke="c.color" />
-          <text :x="xCorte + PASO" :y="c.y - 18" class="clbl" :fill="c.color">
-            {{ etiquetaCarril(c) }}<tspan v-if="c.activo" class="aqui"> · recorrido real</tspan>
+          <text :x="cutX + STEP" :y="c.y - 18" class="clbl" :fill="c.color">
+            {{ laneLabel(c) }}<tspan v-if="c.activo" class="aqui"> · recorrido real</tspan>
           </text>
-          <text v-if="subtituloCarril(c)" :x="xCorte + PASO" :y="c.y - 7" class="csub">{{ subtituloCarril(c) }}</text>
+          <text v-if="laneSubtitle(c)" :x="cutX + STEP" :y="c.y - 7" class="csub">{{ laneSubtitle(c) }}</text>
           <!-- ⚠ UN CARRIL SIN PASOS NO ES UN ERROR DE DIBUJO: es el dato. `redirect` no tiene ninguna
                etapa después de elegir porque el desenlace ocurre AFUERA, y verlo cortado ahí lo dice
                mejor que cualquier nota al pie. -->
-          <text v-if="!c.nodos.length" :x="xCorte + PASO" :y="c.y + 5" class="afuera">
-            <tspan v-for="(linea, i) in AFUERA_LINEAS" :key="linea" :x="xCorte + PASO" :dy="i ? 12 : 0">{{ linea }}</tspan>
+          <text v-if="!c.nodos.length" :x="cutX + STEP" :y="c.y + 5" class="afuera">
+            <tspan v-for="(line, i) in OUTSIDE_LINES" :key="line" :x="cutX + STEP" :dy="i ? 12 : 0">{{ line }}</tspan>
           </text>
 
           <g v-for="n in c.nodos" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id }"
@@ -417,19 +417,19 @@ watch(() => [props.cerrado, props.anchoPanel], () => nextTick(medir))
                  es falso. Los carriles inactivos muestran la FORMA (qué etapas tiene y cuáles son
                  condicionales) y nada más: es contexto, no diagnóstico. -->
             <circle :cx="n.x" :cy="n.y" :r="n.condicional ? 6 : RADIO"
-                    :fill="n.condicional ? 'var(--map-canvas)' : colorNodo(n, c)"
-                    :stroke="n.condicional ? colorNodo(n, c) : 'var(--map-canvas)'"
+                    :fill="n.condicional ? 'var(--map-canvas)' : nodeColor(n, c)"
+                    :stroke="n.condicional ? nodeColor(n, c) : 'var(--map-canvas)'"
                     :stroke-width="n.condicional ? 2.5 : 2" />
-            <text v-if="!n.condicional && c.activo" :x="n.x" :y="n.y + 3" class="glifo">{{ GLIFO[n.etapa?.estado] }}</text>
-            <text :x="n.x" :y="n.y + Y_ETIQUETA" class="nlbl">
-              <tspan v-for="(linea, i) in lineasEtiqueta(n.id)" :key="linea" :x="n.x" :dy="i ? INTERLINEADO_ETIQUETA : 0">{{ linea }}</tspan>
+            <text v-if="!n.condicional && c.activo" :x="n.x" :y="n.y + 3" class="glifo">{{ GLYPH[n.etapa?.estado] }}</text>
+            <text :x="n.x" :y="n.y + Y_LABEL" class="nlbl">
+              <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
             </text>
-            <text v-if="c.activo" :x="n.x" :y="n.y + Y_DETALLE" class="ndet">{{ corto(n.etapa?.vivo?.detail || n.etapa?.label, 22) }}</text>
+            <text v-if="c.activo" :x="n.x" :y="n.y + Y_DETAIL" class="ndet">{{ short(n.etapa?.vivo?.detail || n.etapa?.label, 22) }}</text>
           </g>
         </g>
 
         <!-- los nodos del tronco van AL FINAL para quedar encima de las curvas -->
-        <g v-for="n in nodosTronco" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
+        <g v-for="n in trunkNodes" :key="n.id" class="nodo" :class="{ sel: t.etapaSel === n.id, fuera: n.estado === 'no-aplica' }"
            :data-etapa="n.id" tabindex="0" role="button" :aria-label="`etapa ${n.id}`"
            @click="t.etapaSel = n.id" @keydown.enter.prevent="t.etapaSel = n.id"
            @keydown.right.prevent="mover(1)" @keydown.left.prevent="mover(-1)">
@@ -438,11 +438,11 @@ watch(() => [props.cerrado, props.anchoPanel], () => nextTick(medir))
             <text :x="n.x" :y="Y0 - 19" class="corte">se cortó acá</text>
           </g>
           <circle :cx="n.x" :cy="Y0" :r="RADIO" :fill="t.traza ? COLOR[n.estado] : 'var(--map-trunk)'" stroke="var(--map-canvas)" stroke-width="2" />
-          <text :x="n.x" :y="Y0 + 3" class="glifo">{{ GLIFO[n.estado] }}</text>
-          <text :x="n.x" :y="Y0 + Y_ETIQUETA" class="nlbl">
-            <tspan v-for="(linea, i) in lineasEtiqueta(n.id)" :key="linea" :x="n.x" :dy="i ? INTERLINEADO_ETIQUETA : 0">{{ linea }}</tspan>
+          <text :x="n.x" :y="Y0 + 3" class="glifo">{{ GLYPH[n.estado] }}</text>
+          <text :x="n.x" :y="Y0 + Y_LABEL" class="nlbl">
+            <tspan v-for="(line, i) in labelLines(n.id)" :key="line" :x="n.x" :dy="i ? LABEL_LINE_HEIGHT : 0">{{ line }}</tspan>
           </text>
-          <text :x="n.x" :y="Y0 + Y_DETALLE" class="ndet">{{ corto(n.vivo?.detail || n.label, 22) }}</text>
+          <text :x="n.x" :y="Y0 + Y_DETAIL" class="ndet">{{ short(n.vivo?.detail || n.label, 22) }}</text>
           <text v-if="n.vivo?.at" :x="n.x" :y="Y0 - 13" class="hora">{{ n.vivo.at }}</text>
         </g>
       </g>

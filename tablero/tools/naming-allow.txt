@@ -14,14 +14,14 @@ jev noul
 jira jql atlassian confluence cql redash dependabot claude
 loki logql gemini twilio
 posthog hogql mermaid deceval corbeta credifamilia datacredito allied allieds pesos
-vue vite babel mcp
+vue vite babel mcp pinia
 
 # ── términos técnicos que la stdlib casi no usa ───────────────────────────────────────────────────
 slug frontmatter jsonl upsert shortstat squash changelog pathspec
 dbquery taskcontext repocheck
 lender lenders ureq webhook ecommerce microservices preapproval prefilter dotenv flex iam oauth oklab uis screenshot
 sfc keydown pointerdown focusable raf
-hhmm pts iss inprog
+hhmm hhmmss pts iss inprog subtitle
 issuetype resolutiondate timetracking   # campos de la API de Jira, pegados como los escribe Jira
 
 # ── inglés corriente que la stdlib casi no usa ────────────────────────────────────────────────────
@@ -47,6 +47,7 @@ json: server/internal/pulse/ del                                   # «deletions
 json: server/cmd/branches/main.go:map *                            # palabras vacías para sugerir patrones de rama: dato, no clave
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave
 json: trazador/server/ *                                        # el contrato con la UI del trazador (Vue) y con quien lee su -json: se pasa a inglés junto con ella, no por separado
+path: trazador/src/tema.css                                     # nombre propio: el tema compartido de las tres UIs
 path: tools/ui/tema.css                                         # nombre propio: la fuente del tema compartido (ver src/tema.css)
 path: trazador/server/mapa                                      # datos: el mapa del trazador, citado por el harness (vocabulario de ramales) y por el CLAUDE.md raíz
 path: trazador/server/mapa/etapas.json                          # dato, ídem

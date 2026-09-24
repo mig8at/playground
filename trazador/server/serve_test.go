@@ -77,16 +77,16 @@ func TestEnvironmentsAreTheSameInServerStoreAndSelector(t *testing.T) {
 		}
 		return string(b)
 	}
-	store := regexp.MustCompile(`const targetsValidos = new Set\(\[([^\]]*)\]\)`).FindStringSubmatch(read("../src/stores/trazador.js"))
+	store := regexp.MustCompile(`const validTargets = new Set\(\[([^\]]*)\]\)`).FindStringSubmatch(read("../src/stores/trazador.js"))
 	if store == nil {
-		t.Fatal("no encontré `targetsValidos` en el store: si se renombró, actualizá esta prueba")
+		t.Fatal("no encontré `validTargets` en el store: si se renombró, actualizá esta prueba")
 	}
 	inStore := map[string]bool{}
 	for _, m := range regexp.MustCompile(`'([a-z]+)'`).FindAllStringSubmatch(store[1], -1) {
 		inStore[m[1]] = true
 	}
 	inSelector := map[string]bool{}
-	for _, m := range regexp.MustCompile(`<option value="([a-z]+)">`).FindAllStringSubmatch(read("../src/components/Buscador.vue"), -1) {
+	for _, m := range regexp.MustCompile(`<option value="([a-z]+)">`).FindAllStringSubmatch(read("../src/components/SearchBox.vue"), -1) {
 		inSelector[m[1]] = true
 	}
 	for name, list := range map[string]map[string]bool{"store": inStore, "selector": inSelector} {

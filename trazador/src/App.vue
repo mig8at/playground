@@ -2,11 +2,11 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize } from './workbench.js'
 import { useTrazador } from './stores/trazador'
-import { trazaATexto } from './trazaTexto'
-import Buscador from './components/Buscador.vue'
-import Mapa from './components/Mapa.vue'
-import Detalle from './components/Detalle.vue'
-import Recientes from './components/Recientes.vue'
+import { traceToText } from './traceText'
+import SearchBox from './components/SearchBox.vue'
+import StageMap from './components/StageMap.vue'
+import Detail from './components/Detail.vue'
+import Recent from './components/Recent.vue'
 
 const t = useTrazador()
 // El mapa primero y solo: no toca ninguna fuente, así que el árbol se dibuja al instante y la app no
@@ -24,20 +24,20 @@ onMounted(async () => {
 // igual de prolijo, sólo que equivocado. Se muestra SÓLO lo grave (una etapa que nadie declara, una
 // tabla que ya no existe) — los avisos de «mirá esto» viven en `make trazador-chequeo`, porque un
 // cartel permanente deja de leerse y tapa a los que sí importan. Misma regla que el panel del harness.
-const chequeoGrave = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
+const checkSevere = computed(() => (t.mapa?.chequeo || []).filter((h) => h.grave))
 
 // La persona siempre tiene una región preparada: evita que el mapa salte de ancho al empezar una
 // búsqueda y deja claro desde el arranque dónde van a aparecer la ficha y las solicitudes. Cerrarla
 // sigue siendo una preferencia explícita del operador, guardada en localStorage.
-const hayColumna = computed(() => true)
-const personaResultado = computed(() => {
-  const personas = Array.isArray(t.resultados?.personas) ? t.resultados.personas : []
-  return personas.length === 1 ? personas[0] : null
+const hasColumn = computed(() => true)
+const personResult = computed(() => {
+  const people = Array.isArray(t.resultados?.personas) ? t.resultados.personas : []
+  return people.length === 1 ? people[0] : null
 })
-const tituloPersona = computed(() => {
+const personTitle = computed(() => {
   if (t.traza) return 'Solicitud'
   if (t.fase) return 'Buscando'
-  if (personaResultado.value) return 'Persona'
+  if (personResult.value) return 'Persona'
   if (t.resultados?.items?.length) return 'Solicitudes'
   return 'Persona'
 })
@@ -49,146 +49,146 @@ const tituloPersona = computed(() => {
 const viewportWidth = ref(window.innerWidth)
 const viewportHeight = ref(window.innerHeight)
 const logsToggle = ref(null)
-const personaToggle = ref(null)
-const recientesToggle = ref(null)
+const personToggle = ref(null)
+const recentToggle = ref(null)
 
 // Las dos columnas comparten un presupuesto: el mapa nunca baja de 220px y, al ensanchar un sidebar,
 // el otro cede sólo el espacio que le sobra. Si se arrastra por debajo de su mínimo, se pliega al borde
 // pero conserva su último ancho para volver con el mismo tirador o con el botón de la barra de estado.
 const MIN_WORKSPACE = 220
-const PERSONA_BASE = 300
-const personaAbierta = readSize('trazador.persona', 1) !== 0
-const anchoPersonaGuardado = readSize('trazador.persona.width', PERSONA_BASE)
-const anchoPersona = ref(personaAbierta ? anchoPersonaGuardado : 0)
-const ultimoAnchoPersona = ref(readSize('trazador.persona.last-open', anchoPersonaGuardado || PERSONA_BASE))
+const PERSON_BASE = 300
+const personOpen = readSize('trazador.persona', 1) !== 0
+const personWidthSaved = readSize('trazador.persona.width', PERSON_BASE)
+const personWidth = ref(personOpen ? personWidthSaved : 0)
+const lastPersonWidth = ref(readSize('trazador.persona.last-open', personWidthSaved || PERSON_BASE))
 
 const SIDEBAR_BASE = 380
 const savedSidebarWidth = readSize('trazador.sidebar', SIDEBAR_BASE)
-const anchoSidebar = ref(savedSidebarWidth)
-const ultimoAnchoSidebar = ref(readSize('trazador.sidebar.last-open', savedSidebarWidth || SIDEBAR_BASE))
-const presupuestoPaneles = computed(() => Math.max(0, viewportWidth.value - MIN_WORKSPACE))
-const anchoVisible = computed(() => Math.min(anchoSidebar.value,
-  Math.max(0, presupuestoPaneles.value - Math.min(anchoPersona.value, presupuestoPaneles.value))))
-const anchoPersonaVisible = computed(() => Math.min(anchoPersona.value,
-  Math.max(0, presupuestoPaneles.value - anchoVisible.value)))
-const personaCerrada = computed(() => anchoPersonaVisible.value < 1)
-const maxPersona = computed(() => Math.max(0, presupuestoPaneles.value - anchoVisible.value))
-const maxSidebar = computed(() => Math.max(0, presupuestoPaneles.value - anchoPersonaVisible.value))
+const sidebarWidth = ref(savedSidebarWidth)
+const lastSidebarWidth = ref(readSize('trazador.sidebar.last-open', savedSidebarWidth || SIDEBAR_BASE))
+const panelBudget = computed(() => Math.max(0, viewportWidth.value - MIN_WORKSPACE))
+const visibleWidth = computed(() => Math.min(sidebarWidth.value,
+  Math.max(0, panelBudget.value - Math.min(personWidth.value, panelBudget.value))))
+const personWidthVisible = computed(() => Math.min(personWidth.value,
+  Math.max(0, panelBudget.value - visibleWidth.value)))
+const personClosed = computed(() => personWidthVisible.value < 1)
+const maxPerson = computed(() => Math.max(0, panelBudget.value - visibleWidth.value))
+const maxSidebar = computed(() => Math.max(0, panelBudget.value - personWidthVisible.value))
 
 function hideLogs() {
-  if (anchoSidebar.value) {
-    ultimoAnchoSidebar.value = anchoSidebar.value
-    saveSize('trazador.sidebar.last-open', anchoSidebar.value)
+  if (sidebarWidth.value) {
+    lastSidebarWidth.value = sidebarWidth.value
+    saveSize('trazador.sidebar.last-open', sidebarWidth.value)
   }
-  anchoSidebar.value = 0
+  sidebarWidth.value = 0
   logsToggle.value?.focus()
 }
 function toggleLogs() {
-  if (anchoSidebar.value) hideLogs()
-  else anchoSidebar.value = Math.min(ultimoAnchoSidebar.value || SIDEBAR_BASE, maxSidebar.value)
+  if (sidebarWidth.value) hideLogs()
+  else sidebarWidth.value = Math.min(lastSidebarWidth.value || SIDEBAR_BASE, maxSidebar.value)
 }
-function hidePersona() {
-  if (anchoPersona.value) {
-    ultimoAnchoPersona.value = anchoPersona.value
-    saveSize('trazador.persona.last-open', anchoPersona.value)
+function hidePerson() {
+  if (personWidth.value) {
+    lastPersonWidth.value = personWidth.value
+    saveSize('trazador.persona.last-open', personWidth.value)
   }
-  anchoPersona.value = 0
-  personaToggle.value?.focus()
+  personWidth.value = 0
+  personToggle.value?.focus()
 }
-function togglePersona() {
-  if (anchoPersona.value) hidePersona()
-  else anchoPersona.value = Math.min(ultimoAnchoPersona.value || PERSONA_BASE, maxPersona.value)
+function togglePerson() {
+  if (personWidth.value) hidePerson()
+  else personWidth.value = Math.min(lastPersonWidth.value || PERSON_BASE, maxPerson.value)
 }
-const cerrado = computed(() => anchoVisible.value < 1)
-watch(anchoSidebar, (v) => {
+const closed = computed(() => visibleWidth.value < 1)
+watch(sidebarWidth, (v) => {
   saveSize('trazador.sidebar', v)
   if (v > 0) {
-    ultimoAnchoSidebar.value = v
+    lastSidebarWidth.value = v
     saveSize('trazador.sidebar.last-open', v)
   }
 })
-watch(anchoPersona, (v) => {
+watch(personWidth, (v) => {
   saveSize('trazador.persona.width', v)
   saveSize('trazador.persona', v > 0 ? 1 : 0)
   if (v > 0) {
-    ultimoAnchoPersona.value = v
+    lastPersonWidth.value = v
     saveSize('trazador.persona.last-open', v)
   }
 })
-const personaResize = computed(() => ({
+const personResize = computed(() => ({
   label: 'Ancho de la ficha', sign: 1, min: 240,
-  max: maxPersona.value, defaultValue: PERSONA_BASE, collapsible: true,
-  get: () => anchoPersonaVisible.value, set: (v) => { anchoPersona.value = v },
+  max: maxPerson.value, defaultValue: PERSON_BASE, collapsible: true,
+  get: () => personWidthVisible.value, set: (v) => { personWidth.value = v },
 }))
 const detailResize = computed(() => ({
   label: 'Ancho del panel de logs', sign: -1, min: 280,
   max: maxSidebar.value, defaultValue: SIDEBAR_BASE, collapsible: true,
-  get: () => anchoVisible.value, set: (v) => { anchoSidebar.value = v },
+  get: () => visibleWidth.value, set: (v) => { sidebarWidth.value = v },
 }))
 const PANEL_BASE = 184
-const altoPanel = ref(readSize('trazador.recientes', PANEL_BASE))
-const ultimoAltoPanel = ref(readSize('trazador.recientes.last-open', altoPanel.value || PANEL_BASE))
+const panelHeight = ref(readSize('trazador.recientes', PANEL_BASE))
+const lastPanelHeight = ref(readSize('trazador.recientes.last-open', panelHeight.value || PANEL_BASE))
 const maxPanel = computed(() => Math.max(116, viewportHeight.value - 300))
-const altoPanelVisible = computed(() => Math.min(altoPanel.value, maxPanel.value))
-const recientesCerrados = computed(() => altoPanelVisible.value < 1)
-function hideRecientes() {
-  if (altoPanel.value) {
-    ultimoAltoPanel.value = altoPanel.value
-    saveSize('trazador.recientes.last-open', altoPanel.value)
+const panelHeightVisible = computed(() => Math.min(panelHeight.value, maxPanel.value))
+const recentClosed = computed(() => panelHeightVisible.value < 1)
+function hideRecent() {
+  if (panelHeight.value) {
+    lastPanelHeight.value = panelHeight.value
+    saveSize('trazador.recientes.last-open', panelHeight.value)
   }
-  altoPanel.value = 0
-  recientesToggle.value?.focus()
+  panelHeight.value = 0
+  recentToggle.value?.focus()
 }
-function toggleRecientes() {
-  if (altoPanel.value) hideRecientes()
-  else altoPanel.value = Math.min(ultimoAltoPanel.value || PANEL_BASE, maxPanel.value)
+function toggleRecent() {
+  if (panelHeight.value) hideRecent()
+  else panelHeight.value = Math.min(lastPanelHeight.value || PANEL_BASE, maxPanel.value)
 }
-watch(altoPanel, (v) => {
+watch(panelHeight, (v) => {
   saveSize('trazador.recientes', v)
   if (v > 0) {
-    ultimoAltoPanel.value = v
+    lastPanelHeight.value = v
     saveSize('trazador.recientes.last-open', v)
   }
 })
 const panelResize = computed(() => ({
   axis: 'y', label: 'Altura de recientes', sign: -1, min: 116, max: maxPanel.value,
   defaultValue: PANEL_BASE, collapsible: true,
-  get: () => altoPanelVisible.value, set: (v) => { altoPanel.value = v },
+  get: () => panelHeightVisible.value, set: (v) => { panelHeight.value = v },
 }))
 const resizeWindow = () => { viewportWidth.value = window.innerWidth; viewportHeight.value = window.innerHeight }
 onMounted(() => window.addEventListener('resize', resizeWindow))
 onUnmounted(() => window.removeEventListener('resize', resizeWindow))
 
-const GLIFO = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
-const CLASE = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
+const GLYPH = { aprobado:'✓', roto:'✕', abandonado:'!', 'en-curso':'·' }
+const CLASS = { aprobado:'ok', roto:'fail', abandonado:'warn', 'en-curso':'skip' }
 
 // COPIAR LA TRAZA ENTERA como texto: hechos de BD + logs por paso + avisos, todo junto. El destino de una
 // traza casi nunca es esta pantalla — se pega en un ticket, en Slack o en un prompt — y un screenshot no se
-// puede grepear ni citar. El texto lo arma `trazaTexto.js` desde el MISMO JSON que pinta la vista.
-const copiado = ref(false)
-async function copiar() {
-  const texto = trazaATexto(t.traza, t.mapa)
+// puede grepear ni citar. El texto lo arma `traceText.js` desde el MISMO JSON que pinta la vista.
+const copied = ref(false)
+async function copyTrace() {
+  const text = traceToText(t.traza, t.mapa)
   try {
-    await navigator.clipboard.writeText(texto)
+    await navigator.clipboard.writeText(text)
   } catch {
     // Sin permiso de clipboard (http, iframe): el textarea invisible sigue funcionando en todos lados.
     const ta = document.createElement('textarea')
-    ta.value = texto
+    ta.value = text
     document.body.appendChild(ta)
     ta.select()
     document.execCommand('copy')
     ta.remove()
   }
-  copiado.value = true
-  setTimeout(() => (copiado.value = false), 1800)
+  copied.value = true
+  setTimeout(() => (copied.value = false), 1800)
 }
 </script>
 
 <template>
 
-  <div class="cols" :class="{ cerrado }" :style="{
-    '--detail-width': `${Math.round(anchoVisible)}px`,
-    '--persona-width': `${Math.round(anchoPersonaVisible)}px`,
+  <div class="cols" :class="{ cerrado: closed }" :style="{
+    '--detail-width': `${Math.round(visibleWidth)}px`,
+    '--persona-width': `${Math.round(personWidthVisible)}px`,
   }">
     <!-- LA PERSONA · el sidebar izquierdo. Acá vive todo lo que NO es el recorrido: qué solicitud
          estás mirando, de quién es, y qué más intentó esa persona.
@@ -207,12 +207,12 @@ async function copiar() {
 
          La columna queda abierta desde el arranque: el estado inicial explica qué hacer y reserva
          un lugar estable para la ficha y la historia, sin hacer que el mapa salte al buscar. -->
-    <aside v-if="hayColumna" v-show="!personaCerrada" class="sidebar persona-panel" aria-label="Persona y solicitudes">
+    <aside v-if="hasColumn" v-show="!personClosed" class="sidebar persona-panel" aria-label="Persona y solicitudes">
       <div class="region-head">
-        <span>{{ tituloPersona }}</span>
+        <span>{{ personTitle }}</span>
         <span v-if="t.traza" class="toolbar-note ureq-b">{{ t.traza.ureq }}</span>
         <div class="region-actions toolbar">
-          <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePersona">
+          <button type="button" class="region-action" title="Ocultar persona" aria-label="Ocultar persona" @click="hidePerson">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
@@ -240,7 +240,7 @@ async function copiar() {
           <div class="alert-title">No se pudo armar la traza</div>
           <div class="alert-desc">{{ t.error }}</div>
         </div>
-        <div v-for="h in chequeoGrave" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
+        <div v-for="h in checkSevere" :key="h.texto" class="alert alert-destructive mapaRoto" role="alert">
           <span class="alert-icon" aria-hidden="true">⚠</span>
           <div class="alert-title">El mapa dejó de resolver</div>
           <div class="alert-desc">{{ h.texto }} — <code>make trazador-chequeo</code></div>
@@ -254,8 +254,8 @@ async function copiar() {
           <div v-if="t.traza.estadoN"><dt>estado</dt><dd>{{ t.traza.estadoN }}</dd></div>
           <div v-if="t.traza.perfilamiento"><dt>perfilamiento</dt><dd>{{ t.traza.perfilamiento }}</dd></div>
           <div v-if="t.traza.perfilesCupo?.length"><dt>perfil de cupo</dt><dd class="perfiles-cupo">
-            <span v-for="perfil in t.traza.perfilesCupo" :key="`${perfil.entidad}:${perfil.categoria}:${perfil.cupo}`">
-              <strong>{{ perfil.categoria }}</strong><span class="dim"> · {{ perfil.entidad }}</span><span v-if="perfil.cupo > 0" class="dim"> · cupo ${{ Math.round(perfil.cupo).toLocaleString('es-CO') }}</span>
+            <span v-for="profile in t.traza.perfilesCupo" :key="`${profile.entidad}:${profile.categoria}:${profile.cupo}`">
+              <strong>{{ profile.categoria }}</strong><span class="dim"> · {{ profile.entidad }}</span><span v-if="profile.cupo > 0" class="dim"> · cupo ${{ Math.round(profile.cupo).toLocaleString('es-CO') }}</span>
             </span>
           </dd></div>
           <div v-if="t.traza.documento"><dt>cédula</dt><dd>{{ t.traza.documento }}</dd></div>
@@ -268,15 +268,15 @@ async function copiar() {
           <div><dt>canal</dt><dd>{{ t.traza.origen
             }}<span v-if="!t.traza.origenDerivado" class="dim"> (supuesto)</span></dd></div>
         </dl>
-        <dl v-else-if="personaResultado" class="meta" aria-label="Ficha de la persona encontrada">
-          <div v-if="personaResultado.documento"><dt>cédula</dt><dd>{{ personaResultado.documento }}</dd></div>
-          <div v-if="personaResultado.telefono"><dt>teléfono</dt><dd>{{ personaResultado.telefono }}</dd></div>
+        <dl v-else-if="personResult" class="meta" aria-label="Ficha de la persona encontrada">
+          <div v-if="personResult.documento"><dt>cédula</dt><dd>{{ personResult.documento }}</dd></div>
+          <div v-if="personResult.telefono"><dt>teléfono</dt><dd>{{ personResult.telefono }}</dd></div>
           <div><dt>solicitudes</dt><dd>{{ t.resultados?.historia?.total ?? t.resultados?.items?.length ?? 0 }}</dd></div>
         </dl>
 
       </div>
     </aside>
-    <div v-if="hayColumna" class="tirador tirador-persona rsz" v-resize="personaResize" />
+    <div v-if="hasColumn" class="tirador tirador-persona rsz" v-resize="personResize" />
 
     <!-- El mapa recibe el ancho visible del panel para recuperar exactamente el espacio que se libera
          al arrastrarlo. Sus estaciones tienen celdas mínimas, de modo que nunca se aplastan. -->
@@ -285,7 +285,7 @@ async function copiar() {
          dice todo lo que la compartida diría». Era cierto mientras era un bloque solo: desde que
          tiene una barra arriba que no scrollea con él, la columna flex de `.editor` es exactamente
          lo que hace falta y el nombre sí cambia algo. -->
-    <div class="workspace-main" :style="{ '--recent-height': `${Math.round(altoPanelVisible)}px` }">
+    <div class="workspace-main" :style="{ '--recent-height': `${Math.round(panelHeightVisible)}px` }">
     <section class="editor editor-mapa">
       <!-- EL ENCABEZADO DEL MAPA · acá vive lo que antes era el titlebar a lo ancho de la ventana.
            El buscador es lo ÚNICO que hace esta herramienta —escribís un id y ves la traza—, o sea
@@ -295,33 +295,33 @@ async function copiar() {
            que el sidebar empezaba 44px más abajo por un buscador que no es suyo. -->
       <div class="region-head">
         <span>Trazador</span>
-        <Buscador />
+        <SearchBox />
         <div class="region-actions toolbar">
           <!-- ⚠ ICONO y no «⧉ copiar traza»: en una barra de acciones el botón es `.region-action`,
                24×24, y el texto se le parte adentro — el primer intento quedó con «copi / traz» en
                dos renglones, tapado por el panel de logs. Lo que dice, lo dice el `title`. -->
-          <button v-if="t.traza" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copiado }" @click="copiar"
-                  :title="copiado ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
-            <span class="ui-icon" :data-icon="copiado ? 'check' : 'copy'" aria-hidden="true"></span>
+          <button v-if="t.traza" class="region-action copiar" aria-label="Copiar traza completa" :class="{ ok: copied }" @click="copyTrace"
+                  :title="copied ? 'copiado' : 'Copiar la traza completa como texto: hechos de BD + logs por paso + avisos. Para pegar en un ticket o un prompt.'">
+            <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <Mapa :cerrado="cerrado" :ancho-panel="anchoVisible" />
+      <StageMap :cerrado="closed" :ancho-panel="visibleWidth" />
     </section>
 
     <!-- Recientes ocupa la consola inferior: es navegación de corridas, no contexto del inspector. -->
     <div class="tirador tirador-consola rsz" v-resize="panelResize" />
-    <Recientes id="trazador-recientes" v-show="!recientesCerrados" class="panel recientes-console"
-               :style="{ height: `${Math.round(altoPanelVisible)}px` }" @close="hideRecientes" />
+    <Recent id="trazador-recientes" v-show="!recentClosed" class="panel recientes-console"
+               :style="{ height: `${Math.round(panelHeightVisible)}px` }" @close="hideRecent" />
     </div>
 
     <!-- El tirador viaja con el borde del panel. Con el sidebar cerrado queda pegado a la derecha y
          sigue sirviendo para volver a abrirlo, que es lo que evita que cerrarlo sea un camino de ida. -->
     <div class="tirador tirador-detalle rsz" v-resize="detailResize"
-         :style="{ right: `${Math.round(anchoVisible)}px` }" />
+         :style="{ right: `${Math.round(visibleWidth)}px` }" />
 
     <!-- En capa sobre el mapa, no en el flujo: por eso ensancharlo lo TAPA en vez de deformarlo. -->
-    <Detalle id="trazador-logs" @close="hideLogs" v-show="!cerrado" class="auxiliarybar" :style="{ width: `${Math.round(anchoVisible)}px` }" />
+    <Detail id="trazador-logs" @close="hideLogs" v-show="!closed" class="auxiliarybar" :style="{ width: `${Math.round(visibleWidth)}px` }" />
   </div>
 
   <!-- STATUSBAR · lo que vale para TODA la pantalla y nunca scrollea: contra qué ambiente estás
@@ -336,8 +336,8 @@ async function copiar() {
          estás mirando y cómo terminó, sin gastar una barra entera en decirlo. -->
     <strong :class="{ prod: t.target === 'prod' }">{{ t.target }}</strong>
     <template v-if="t.traza">
-      <span class="ico" :class="CLASE[t.traza.outcome]">{{ GLIFO[t.traza.outcome] }}</span>
-      <span class="badge badge-outline" :class="CLASE[t.traza.outcome]">{{ t.traza.outcome }}</span>
+      <span class="ico" :class="CLASS[t.traza.outcome]">{{ GLYPH[t.traza.outcome] }}</span>
+      <span class="badge badge-outline" :class="CLASS[t.traza.outcome]">{{ t.traza.outcome }}</span>
       <span class="ureq">solicitud {{ t.traza.ureq }}</span>
     </template>
     <span v-if="t.traza?.ramal">carril <b>{{ t.traza.ramal }}</b></span>
@@ -345,16 +345,16 @@ async function copiar() {
     <!-- Las teclas se ven como teclas (`.kbd` de `taller.css`), no como texto que menciona teclas. -->
     <span class="sb-pista">clic abre la etapa · <kbd class="kbd">←</kbd><kbd class="kbd">→</kbd> recorren</span>
     <div class="layout-controls" role="group" aria-label="Regiones visibles">
-      <button ref="personaToggle" v-if="hayColumna" type="button" class="region-action" :aria-pressed="!personaCerrada"
-              aria-label="Mostrar u ocultar la persona" title="Mostrar u ocultar la persona" @click="togglePersona">
+      <button ref="personToggle" v-if="hasColumn" type="button" class="region-action" :aria-pressed="!personClosed"
+              aria-label="Mostrar u ocultar la persona" title="Mostrar u ocultar la persona" @click="togglePerson">
         <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
       </button>
-      <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!cerrado" aria-controls="trazador-logs"
+      <button ref="logsToggle" type="button" class="region-action" :aria-pressed="!closed" aria-controls="trazador-logs"
               aria-label="Mostrar u ocultar los logs" title="Mostrar u ocultar los logs" @click="toggleLogs">
         <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
       </button>
-      <button ref="recientesToggle" type="button" class="region-action" :aria-pressed="!recientesCerrados" aria-controls="trazador-recientes"
-              aria-label="Mostrar u ocultar recientes" title="Mostrar u ocultar recientes" @click="toggleRecientes">
+      <button ref="recentToggle" type="button" class="region-action" :aria-pressed="!recentClosed" aria-controls="trazador-recientes"
+              aria-label="Mostrar u ocultar recientes" title="Mostrar u ocultar recientes" @click="toggleRecent">
         <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
       </button>
     </div>
