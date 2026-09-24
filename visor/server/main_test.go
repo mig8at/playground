@@ -89,3 +89,26 @@ func TestAnEmptyExportIsAnError(t *testing.T) {
 		t.Error("una exportación vacía no puede quedar en disco")
 	}
 }
+
+// Abrir un archivo lo anota una vez (y actualiza cuándo), y se puede sacar: la biblioteca es una
+// preferencia de esta máquina y no crece con cada apertura.
+func TestLibraryRemembersOpenedFilesOnce(t *testing.T) {
+	s := newServer(nil, t.TempDir())
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce")
+	s.library.opened("SsvFsK5tLvR1jNT3Hh6znD", "flujo ecommerce v2")
+	s.library.opened("AbCdEf1234567", "alta")
+	lib := s.library.read()
+	if len(lib.Opened) != 2 || lib.Opened[0].Name != "flujo ecommerce v2" {
+		t.Fatalf("abiertos: %+v", lib.Opened)
+	}
+	rec := httptest.NewRecorder()
+	s.routes().ServeHTTP(rec, httptest.NewRequest("DELETE", "/api/library?file=AbCdEf1234567", nil))
+	if rec.Code != 200 || len(s.library.read().Opened) != 1 {
+		t.Errorf("sacar un archivo: HTTP %d, quedan %+v", rec.Code, s.library.read().Opened)
+	}
+	rec = httptest.NewRecorder()
+	s.routes().ServeHTTP(rec, httptest.NewRequest("POST", "/api/library", strings.NewReader(`{}`)))
+	if rec.Code != 400 {
+		t.Errorf("sin url no se suma nada: HTTP %d", rec.Code)
+	}
+}

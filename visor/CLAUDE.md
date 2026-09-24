@@ -1,9 +1,24 @@
 # visor — protocolo (un diseño de Figma, recorrido como lo recorrería el cliente)
 
-`make visor` (UI :5193 · API :5194). Se pega la URL de una **sección o página** de Figma —la que se
-copia del navegador, con su `node-id`— y queda: a la izquierda los carriles que armó el diseñador, al
-centro la pantalla con las zonas del prototipo que se pueden tocar, a la derecha qué dice, a dónde lleva
-y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H muestra u oculta las zonas.
+`make visor` (UI :5193 · API :5194). La barra de la izquierda tiene dos vistas apiladas: **Proyectos**,
+un acordeón proyecto → archivo → páginas, y **Carriles**, las pantallas de la página abierta en los
+carriles que armó el diseñador. Al centro la pantalla con las zonas del prototipo que se pueden tocar; a
+la derecha qué dice, a dónde lleva y de dónde se llega. ← → recorren el carril, Retroceso vuelve, H
+muestra u oculta las zonas. Un enlace de Figma con `node-id` también abre directo (`#/<clave>/<nodo>`).
+
+## De dónde salen los proyectos
+
+**La API de Figma no lista los equipos de una cuenta ni lo «visto recientemente»**, así que la barra se
+arma de dos fuentes, guardadas en `visor/.cache/library.json` (preferencia de esta máquina):
+
+- **los equipos que se suman con el +**, pegando la URL de la página del equipo
+  (`figma.com/files/team/<id>/…`, la que se abre al tocarlo en la barra de Figma). Se prueba antes de
+  guardarlo: uno al que la cuenta no entra vuelve con el 403 de Figma en vez de sumarse callado;
+- **los archivos abiertos en el visor**, que se anotan solos en «Abiertos en el visor».
+
+⚠ Desde un archivo suelto no se llega a su equipo: `/meta` dice la carpeta («PRODUCTO») pero no el id
+del proyecto ni del equipo. Y ⚠ el equipo de `figma.com/files/team/<id>/recents-and-sharing` es el de la
+URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla archivos de otros equipos.
 
 ## Qué es y qué no
 

@@ -89,6 +89,78 @@ const variantsOfCurrent = computed(() => {
   return [...screens.value.values()].filter((sc) => sc.id !== current.value.id && sc.title?.toLowerCase() === t)
 })
 
+// ── la biblioteca: equipos y archivos, en acordeón ──
+const library = ref({ teams: [], opened: [] })
+const libraryBusy = ref(false)
+const libraryError = ref('')
+const adding = ref(false)
+const addURL = ref('')
+const pagesOf = ref({}) // clave del archivo → 'loading' | { pages } | { error }
+const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')) } catch { return new Set() } }
+const saveSet = (k, set) => { try { localStorage.setItem(k, JSON.stringify([...set])) } catch { /* preferencia opcional */ } }
+const openProjects = ref(readSet('visor.open-projects'))
+const openFiles = ref(readSet('visor.open-files'))
+const viewOpen = ref((() => { try { return { projects: true, lanes: true, ...JSON.parse(localStorage.getItem('visor.views') || '{}') } } catch { return { projects: true, lanes: true } } })())
+function toggleView(v) {
+  viewOpen.value = { ...viewOpen.value, [v]: !viewOpen.value[v] }
+  try { localStorage.setItem('visor.views', JSON.stringify(viewOpen.value)) } catch { /* preferencia opcional */ }
+}
+const fmtDay = (iso) => (iso ? new Date(iso).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
+// Un grupo por proyecto de cada equipo, y al final los abiertos en el visor que no estén ya en uno.
+const projectGroups = computed(() => {
+  const out = []
+  const inProjects = new Set()
+  for (const t of library.value.teams || []) {
+    if (t.error) { out.push({ id: 'team-' + t.id, name: `Equipo ${t.id}`, files: [], error: t.error }); continue }
+    for (const p of t.projects || []) {
+      for (const f of p.files || []) inProjects.add(f.key)
+      out.push({ id: 'project-' + p.id, name: (t.projects.length > 1 || (library.value.teams || []).length > 1) ? `${p.name} · ${t.name}` : p.name,
+        error: p.error, files: (p.files || []).map((f) => ({ key: f.key, name: f.name, when: fmtDay(f.last_modified) })) })
+    }
+  }
+  const opened = (library.value.opened || []).filter((o) => !inProjects.has(o.key))
+  if (opened.length) out.push({ id: 'opened', name: 'Abiertos en el visor', files: opened.map((o) => ({ key: o.key, name: o.name || o.key, when: fmtDay(o.opened_at) })) })
+  return out
+})
+const isOpenProject = (id) => openProjects.value.has(id)
+const isOpenFile = (key) => openFiles.value.has(key)
+function toggleProject(id) {
+  const s = new Set(openProjects.value); s.has(id) ? s.delete(id) : s.add(id)
+  openProjects.value = s; saveSet('visor.open-projects', s)
+}
+async function toggleFile(key) {
+  const s = new Set(openFiles.value); s.has(key) ? s.delete(key) : s.add(key)
+  openFiles.value = s; saveSet('visor.open-files', s)
+  if (s.has(key)) loadPages(key)
+}
+async function loadPages(key) {
+  if (pagesOf.value[key] && pagesOf.value[key] !== 'loading' && !pagesOf.value[key].error) return
+  pagesOf.value = { ...pagesOf.value, [key]: 'loading' }
+  try {
+    const res = await fetch('/api/pages?key=' + encodeURIComponent(key))
+    const body = await res.json()
+    pagesOf.value = { ...pagesOf.value, [key]: res.ok ? { pages: body.pages || [] } : { error: body.error || `HTTP ${res.status}` } }
+  } catch (e) { pagesOf.value = { ...pagesOf.value, [key]: { error: String(e.message || e) } } }
+}
+async function loadLibrary(fresh = false, init = {}) {
+  libraryBusy.value = true
+  libraryError.value = ''
+  try {
+    const res = await fetch('/api/library' + (fresh ? '?fresh=1' : ''), init)
+    const body = await res.json()
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
+    library.value = body
+    return true
+  } catch (e) { libraryError.value = String(e.message || e); return false } finally { libraryBusy.value = false }
+}
+async function addToLibrary() {
+  const ok = await loadLibrary(false, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: addURL.value.trim() }) })
+  if (ok) { addURL.value = ''; adding.value = false }
+}
+function openPage(key, pageID) {
+  load(`https://www.figma.com/design/${key}/?node-id=${pageID.replace(':', '-')}`)
+}
+
 // ── cargar ──
 async function load(ref_ = refInput.value, screen = '', fresh = false) {
   const value = (ref_ || '').trim()
@@ -103,6 +175,7 @@ async function load(ref_ = refInput.value, screen = '', fresh = false) {
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     data.value = body
     refInput.value = value
+    loadLibrary()
     try { localStorage.setItem('visor.last', value) } catch { /* preferencia opcional */ }
     const first = groups.value[0]?.lanes[0]?.screens[0]?.id || ''
     go(screen && screens.value.has(screen) ? screen : first, false)
@@ -210,6 +283,7 @@ function onHash() {
 
 onMounted(() => {
   window.addEventListener('hashchange', onHash)
+  loadLibrary()
   observer = new ResizeObserver(fit)
   if (stage.value) observer.observe(stage.value)
   window.addEventListener('keydown', onKey)
@@ -227,38 +301,91 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="sidebarOpen" class="sidebar" aria-label="Carriles del diseño">
+    <aside v-show="sidebarOpen" class="sidebar" aria-label="Proyectos y carriles">
       <div class="rsz rsz-sb" v-resize="resizeOptions('sidebar')"></div>
-      <div class="region-head">
-        <span>Carriles</span>
-        <span v-if="screenCount" class="count">{{ screenCount }}</span>
-        <button v-if="data" class="region-action" title="Volver a leer el diseño desde Figma" aria-label="Volver a leer" @click="load(refInput, currentID, true)">
-          <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-        </button>
-      </div>
-      <form class="loader" @submit.prevent="load()">
-        <input v-model="refInput" class="input input-sm" type="url" placeholder="URL de Figma (sección o página)" aria-label="URL de Figma" />
-        <button class="btn btn-sm" :disabled="loading || !refInput.trim()">{{ loading ? 'Leyendo…' : 'Abrir' }}</button>
-      </form>
-      <p v-if="error" class="notice" role="alert">{{ error }}</p>
-      <div class="region-body">
-        <p v-if="!data && !loading && !error" class="empty">Pegá la URL de una sección o página de Figma: la que se copia del navegador, con su <span class="mono">node-id</span>.</p>
-        <template v-for="g in groups" :key="g.id">
-          <div v-if="groups.length > 1" class="section-name">{{ g.name }}</div>
-          <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
-            <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
-              <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
-            </div>
-            <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
-              :aria-current="sc.id === currentID ? 'true' : undefined" @click="go(sc.id)">
-              <span class="n">{{ i + 1 }}</span>
-              <span class="t">{{ sc.title || sc.name }}</span>
-              <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
-              <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
+
+      <!-- PROYECTOS: el acordeón de lo que se puede abrir. Cada proyecto se despliega en sus archivos y
+           cada archivo en sus páginas; tocar una página la lee como recorrido. -->
+      <section class="view" :class="{ abierta: viewOpen.projects }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="viewOpen.projects" aria-controls="view-projects" @click="toggleView('projects')">
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Proyectos</span>
+          </button>
+          <button class="region-action" title="Sumar un equipo o un archivo de Figma" aria-label="Sumar un equipo o un archivo" @click="adding = !adding">
+            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+          </button>
+          <button class="region-action" title="Volver a pedir los proyectos a Figma" aria-label="Actualizar los proyectos" @click="loadLibrary(true)">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div v-if="viewOpen.projects" id="view-projects" class="region-body">
+          <form v-if="adding" class="loader" @submit.prevent="addToLibrary()">
+            <input v-model="addURL" class="input input-sm" type="url" placeholder="Página del equipo o URL de un archivo" aria-label="URL de un equipo o archivo de Figma" />
+            <button class="btn btn-sm" :disabled="libraryBusy || !addURL.trim()">{{ libraryBusy ? 'Sumando…' : 'Sumar' }}</button>
+          </form>
+          <p v-if="adding" class="hint">La página del equipo es la que se abre al tocarlo en la barra de Figma (<span class="mono">figma.com/files/team/…</span>). La API no lista los equipos de una cuenta ni lo visto recientemente.</p>
+          <p v-if="libraryError" class="notice" role="alert">{{ libraryError }}</p>
+          <p v-if="!projectGroups.length && !libraryBusy" class="empty">Todavía no hay proyectos. Sumá la página de un equipo con el botón de arriba, o abrí un archivo por su enlace.</p>
+          <div v-for="g in projectGroups" :key="g.id" class="acc">
+            <button type="button" class="acc-head" :aria-expanded="isOpenProject(g.id)" @click="toggleProject(g.id)">
+              <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+              <span class="t">{{ g.name }}</span>
+              <span class="count">{{ g.files.length }}</span>
             </button>
+            <div v-if="isOpenProject(g.id)" class="acc-body">
+              <p v-if="g.error" class="notice">{{ g.error }}</p>
+              <template v-for="f in g.files" :key="f.key">
+                <button type="button" class="file-row" :aria-expanded="isOpenFile(f.key)" @click="toggleFile(f.key)">
+                  <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+                  <span class="t">{{ f.name }}</span>
+                  <span v-if="f.when" class="when">{{ f.when }}</span>
+                </button>
+                <template v-if="isOpenFile(f.key)">
+                  <p v-if="pagesOf[f.key] === 'loading'" class="hint indent">Leyendo las páginas…</p>
+                  <p v-else-if="pagesOf[f.key]?.error" class="notice indent">{{ pagesOf[f.key].error }}</p>
+                  <button v-for="pg in pagesOf[f.key]?.pages || []" :key="pg.id" type="button" class="page-row"
+                    :aria-current="data && data.key === f.key && data.node === pg.id ? 'true' : undefined" @click="openPage(f.key, pg.id)">
+                    <span class="t">{{ pg.name }}</span>
+                  </button>
+                </template>
+              </template>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CARRILES: las pantallas de la página abierta, en los carriles que armó el diseñador. -->
+      <section class="view" :class="{ abierta: viewOpen.lanes }">
+        <div class="region-head">
+          <button type="button" class="view-tog" :aria-expanded="viewOpen.lanes" aria-controls="view-lanes" @click="toggleView('lanes')">
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span><span>Carriles</span>
+          </button>
+          <span v-if="screenCount" class="count">{{ screenCount }}</span>
+          <button v-if="data" class="region-action" title="Volver a leer el diseño desde Figma" aria-label="Volver a leer" @click="load(refInput, currentID, true)">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div v-if="viewOpen.lanes" id="view-lanes" class="region-body">
+          <p v-if="error" class="notice" role="alert">{{ error }}</p>
+          <p v-if="loading" class="hint">Leyendo el diseño…</p>
+          <p v-else-if="!data && !error" class="empty">Elegí una página de un proyecto.</p>
+          <template v-for="g in groups" :key="g.id">
+            <div v-if="groups.length > 1" class="section-name">{{ g.name }}</div>
+            <template v-for="(lane, li) in g.lanes" :key="g.id + '-' + li">
+              <div class="region-head grupo" :class="{ unlabeled: !lane.label }">
+                <span>{{ laneName(lane) }}</span><span class="count">{{ lane.screens.length }}</span>
+              </div>
+              <button v-for="(sc, i) in lane.screens" :key="sc.id" class="screen-row" :data-screen="sc.id"
+                :aria-current="sc.id === currentID ? 'true' : undefined" @click="go(sc.id)">
+                <span class="n">{{ i + 1 }}</span>
+                <span class="t">{{ sc.title || sc.name }}</span>
+                <span v-if="sc.hotspots?.length" class="tag" title="Tiene zonas del prototipo">↗</span>
+                <span v-if="sc.open_comments" class="tag" :title="sc.open_comments + ' comentario(s) abierto(s)'">💬</span>
+              </button>
+            </template>
           </template>
-        </template>
-      </div>
+        </div>
+      </section>
     </aside>
 
     <main class="editor">
@@ -390,6 +517,19 @@ const laneName = (lane) => (lane.label ? lane.label : 'Fila sin rótulo')
 .section-name { padding: var(--space-3) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--texto-3) }
 .region-head.grupo.unlabeled > span:first-child { font-style: italic }
 
+.acc-head, .file-row, .page-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
+  padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
+  text-align: left; cursor: pointer }
+.acc-head { font-weight: 600; min-height: 32px }
+.file-row { padding-left: calc(var(--space-3) + 16px) }
+.page-row { padding-left: calc(var(--space-3) + 40px); color: var(--texto-2) }
+.acc-head:hover, .file-row:hover, .page-row:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.page-row[aria-current="true"] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground) }
+.acc-head .t, .file-row .t, .page-row .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.acc-head .ui-icon, .file-row .ui-icon { flex: none; transition: transform .12s }
+.acc-head[aria-expanded="true"] .ui-icon, .file-row[aria-expanded="true"] .ui-icon { transform: rotate(90deg) }
+.when { flex: none; font-size: var(--text-xs); color: var(--texto-3) }
+.indent { padding-left: calc(var(--space-3) + 40px) }
 .screen-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 30px;
   padding: 0 var(--space-3); border: 0; background: none; color: inherit; font: inherit; font-size: var(--text-sm);
   text-align: left; cursor: pointer }

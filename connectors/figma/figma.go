@@ -72,7 +72,7 @@ func (e *Error) Error() string {
 	hint := ""
 	switch e.Status {
 	case 403:
-		hint = " — el token no tiene acceso a este archivo o le falta el scope"
+		hint = " — la cuenta del token no tiene acceso (al archivo o al equipo) o le falta el scope"
 	case 404:
 		hint = " — el archivo o el nodo no existen, o la cuenta no los ve"
 	}
@@ -518,4 +518,29 @@ func (c *Client) Meta(ctx context.Context, key string) (FileMeta, error) {
 	}
 	f := raw.File
 	return FileMeta{Name: f.Name, Folder: f.Folder, Creator: f.Creator.Handle, LastTouched: f.LastTouched, TouchedBy: f.TouchedBy.Handle, Role: f.Role}, nil
+}
+
+// Pages son las páginas de un archivo (los CANVAS): id y nombre. Pide sólo un nivel, que es barato
+// aunque el archivo sea enorme.
+func (c *Client) Pages(ctx context.Context, key string) (string, []Project, error) {
+	var raw struct {
+		Name     string `json:"name"`
+		Document struct {
+			Children []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+				Type string `json:"type"`
+			} `json:"children"`
+		} `json:"document"`
+	}
+	if err := c.get(ctx, "/v1/files/"+url.PathEscape(key)+"?depth=1", &raw); err != nil {
+		return "", nil, err
+	}
+	var out []Project
+	for _, ch := range raw.Document.Children {
+		if ch.Type == "CANVAS" {
+			out = append(out, Project{ID: ch.ID, Name: ch.Name})
+		}
+	}
+	return raw.Name, out, nil
 }

@@ -53,6 +53,7 @@ type server struct {
 	versions map[string]string          // clave del archivo → última versión vista
 	inflight map[string]chan struct{}   // una imagen que ya se está bajando
 	nodes    map[string][]byte          // clave+versión+nodo → el JSON crudo de una pantalla
+	library  *libraryStore
 }
 
 // fetcher baja varios recursos de un archivo de una vez: del id (o la referencia) a sus bytes.
@@ -60,7 +61,8 @@ type fetcher func(ctx context.Context, key string, ids []string) (map[string][]b
 
 func newServer(cl *figma.Client, cache string) *server {
 	s := &server{figma: cl, cache: cache, maps: map[string]figma.Structure{}, versions: map[string]string{},
-		inflight: map[string]chan struct{}{}, nodes: map[string][]byte{}}
+		inflight: map[string]chan struct{}{}, nodes: map[string][]byte{},
+		library: &libraryStore{path: filepath.Join(cache, "library.json")}}
 	s.export = s.exportFromFigma
 	s.exportSVG = s.svgFromFigma
 	s.fills = s.fillsFromFigma
@@ -75,6 +77,8 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("/api/health", s.handleHealth)
 	mux.HandleFunc("/api/html", s.handleHTML)
 	mux.HandleFunc("/api/asset", s.handleAsset)
+	mux.HandleFunc("/api/library", s.handleLibrary)
+	mux.HandleFunc("/api/pages", s.handlePages)
 	return mux
 }
 
@@ -149,6 +153,7 @@ func (s *server) handleMap(w http.ResponseWriter, r *http.Request) {
 	s.maps[k] = st
 	s.versions[ref.FileKey] = st.Version
 	s.mu.Unlock()
+	s.library.opened(ref.FileKey, st.FileName)
 	// Las imágenes se bajan en segundo plano, de a tandas: la primera pantalla que se abra casi
 	// siempre ya está, y la UI no espera a las 60 para dibujar el mapa.
 	go s.prefetch(ref.FileKey, screenIDs(st))
