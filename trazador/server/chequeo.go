@@ -28,48 +28,48 @@ import (
 	"strings"
 )
 
-// dondeVivenLosSteps: el mapa del harness, relativo a `trazador/server/`. Si el archivo no está —otra
+// whereStepsLive: el mapa del harness, relativo a `trazador/server/`. Si el archivo no está —otra
 // máquina, un checkout parcial— NO es un fallo: se declara que no se pudo comprobar. Un chequeo que
 // falla por lo que no tiene enseña a ignorarlo.
-const dondeVivenLosSteps = "../../harness/panel/steps.json"
+const whereStepsLive = "../../harness/panel/steps.json"
 
-type hallazgo struct {
-	grave bool // true = sale 1; false = se informa y no rompe
-	texto string
+type finding struct {
+	grave  bool // true = sale 1; false = se informa y no rompe
+	asText string
 }
 
-// ChequeoDelMapa corre las comprobaciones y DEVUELVE los hallazgos, sin imprimir: así el mismo chequeo
-// alimenta la consola y la API que consume la Vue. `tablasDelEsquema` puede ser nil — entonces esa
+// MapCheck corre las comprobaciones y DEVUELVE los hallazgos, sin imprimir: así el mismo chequeo
+// alimenta la consola y la API que consume la Vue. `schemaTables` puede ser nil — entonces esa
 // comprobación se declara no realizada en vez de omitirse en silencio.
-func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
-	var hs []hallazgo
-	nota := func(g bool, f string, a ...any) { hs = append(hs, hallazgo{g, fmt.Sprintf(f, a...)}) }
+func MapCheck(schemaTables map[string]bool) []finding {
+	var hs []finding
+	note := func(g bool, f string, a ...any) { hs = append(hs, finding{g, fmt.Sprintf(f, a...)}) }
 
-	m, err := Cargar()
+	m, err := Load()
 	if err != nil {
-		return []hallazgo{{true, "el mapa no carga: " + err.Error()}}
+		return []finding{{true, "el mapa no carga: " + err.Error()}}
 	}
-	sub, errSub := CargarSub()
+	sub, errSub := LoadSub()
 
-	etapas := map[string]bool{}
-	for _, e := range m.Etapas {
-		etapas[e.ID] = true
+	stages := map[string]bool{}
+	for _, e := range m.Stages {
+		stages[e.ID] = true
 	}
 
 	// 1 · COHERENCIA INTERNA: nadie puede nombrar una etapa que no existe.
-	for _, r := range m.Ramales {
-		for _, p := range r.Pasos {
-			if !etapas[p.ID] {
-				nota(true, "el ramal %s declara la etapa %q, que no existe en etapas.json", r.ID, p.ID)
+	for _, r := range m.Lanes {
+		for _, p := range r.Steps {
+			if !stages[p.ID] {
+				note(true, "el ramal %s declara la etapa %q, que no existe en etapas.json", r.ID, p.ID)
 			}
 		}
 	}
 	if errSub != nil {
-		nota(true, "substeps.json no carga: %v", errSub)
+		note(true, "substeps.json no carga: %v", errSub)
 	} else {
-		for id := range sub.Etapas {
-			if !etapas[id] {
-				nota(true, "substeps declara la etapa %q, que no existe en etapas.json", id)
+		for id := range sub.Stages {
+			if !stages[id] {
+				note(true, "substeps declara la etapa %q, que no existe en etapas.json", id)
 			}
 		}
 	}
@@ -78,26 +78,26 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 	// son los MISMOS que los de `harness/panel/steps.json` «a propósito: dos vocabularios para lo mismo es
 	// como empiezan a derivar». Esa afirmación no la comprobaba nadie — o sea que era exactamente la clase
 	// de deriva que decía estar evitando.
-	mios := []string{}
-	for _, r := range m.Ramales {
-		mios = append(mios, r.ID)
+	ours := []string{}
+	for _, r := range m.Lanes {
+		ours = append(ours, r.ID)
 	}
-	sort.Strings(mios)
-	suyos, dondeMira, err := ramalesDelHarness()
+	sort.Strings(ours)
+	theirs, whereItLooks, err := harnessLanes()
 	switch {
 	case err != nil:
-		nota(false, "no se pudo leer %s (%v): el vocabulario compartido queda SIN comprobar", dondeMira, err)
+		note(false, "no se pudo leer %s (%v): el vocabulario compartido queda SIN comprobar", whereItLooks, err)
 	default:
-		for _, id := range mios {
-			if !suyos[id] {
+		for _, id := range ours {
+			if !theirs[id] {
 				// No es grave por sí solo: el harness puede llamarlo `extensión` en vez de `ramal`, que es
 				// el caso real de `credifamilia`. Lo que importa es que se VEA, no que rompa el build.
-				nota(false, "el ramal %q no existe como ramal en el mapa del harness — comprobá que no sea deriva", id)
+				note(false, "el ramal %q no existe como ramal en el mapa del harness — comprobá que no sea deriva", id)
 			}
 		}
-		for id := range suyos {
-			if !contiene(mios, id) {
-				nota(false, "el harness tiene el ramal %q y este mapa no lo conoce", id)
+		for id := range theirs {
+			if !contains(ours, id) {
+				note(false, "el harness tiene el ramal %q y este mapa no lo conoce", id)
 			}
 		}
 	}
@@ -105,45 +105,45 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 	// 3 · LAS TABLAS DECLARADAS COMO EVIDENCIA. Es el análogo directo de las rutas de archivo del
 	// `steps-check`: una etapa dice «a mí me prueba esta tabla», y si la tabla se renombró el mapa sigue
 	// afirmándolo igual.
-	tablas := map[string][]string{} // tabla → etapas que la declaran
-	for _, e := range m.Etapas {
-		for _, t := range e.BD.Tablas {
-			tablas[t] = append(tablas[t], e.ID)
+	tables := map[string][]string{} // tabla → etapas que la declaran
+	for _, e := range m.Stages {
+		for _, t := range e.BD.Tables {
+			tables[t] = append(tables[t], e.ID)
 		}
 	}
-	nombres := make([]string, 0, len(tablas))
-	for t := range tablas {
-		nombres = append(nombres, t)
+	names := make([]string, 0, len(tables))
+	for t := range tables {
+		names = append(names, t)
 	}
-	sort.Strings(nombres)
+	sort.Strings(names)
 	switch {
-	case tablasDelEsquema == nil:
-		nota(false, "las %d tablas declaradas quedan SIN comprobar: correlo con -target local|dev para mirarlas contra el esquema", len(nombres))
+	case schemaTables == nil:
+		note(false, "las %d tablas declaradas quedan SIN comprobar: correlo con -target local|dev para mirarlas contra el esquema", len(names))
 	default:
-		for _, t := range nombres {
-			if !tablasDelEsquema[t] {
-				nota(true, "la tabla %q (la declaran: %s) no existe en el esquema", t, strings.Join(tablas[t], ", "))
+		for _, t := range names {
+			if !schemaTables[t] {
+				note(true, "la tabla %q (la declaran: %s) no existe en el esquema", t, strings.Join(tables[t], ", "))
 			}
 		}
 	}
 
 	// 4 · UNA ETAPA SIN NINGUNA FORMA DE PROBARSE. No es un error —hay etapas que sólo viven en los
 	// logs— pero sí es lo que hay que saber para leer el árbol: su ausencia no prueba nada.
-	mudas := 0
-	for _, e := range m.Etapas {
-		if len(e.BD.Estados) == 0 && len(e.BD.Tablas) == 0 && len(e.Matchers) == 0 {
-			nota(true, "la etapa %q no declara ni estados, ni tablas, ni matchers: no hay forma de que se encienda", e.ID)
-			mudas++
+	silentCount := 0
+	for _, e := range m.Stages {
+		if len(e.BD.Statuses) == 0 && len(e.BD.Tables) == 0 && len(e.Matchers) == 0 {
+			note(true, "la etapa %q no declara ni estados, ni tablas, ni matchers: no hay forma de que se encienda", e.ID)
+			silentCount++
 		}
 	}
 
 	// 5 · LOS MATCHERS CONTRA LOS MENSAJES QUE EL CÓDIGO DE VERDAD EMITE.
-	hs = append(hs, matchersContraElCodigo(m)...)
+	hs = append(hs, matchersAgainstCode(m)...)
 
 	return hs
 }
 
-// matchersContraElCodigo cruza los patrones del mapa con `trazador/logs.json`, que es el índice de los
+// matchersAgainstCode cruza los patrones del mapa con `trazador/logs.json`, que es el índice de los
 // mensajes que el código EMITE (derivado de los repos, no de una corrida).
 //
 // POR QUÉ ESTE CORPUS Y NO EL DE `-validar`. Aquél son líneas de UNA corrida: si un patrón no captura
@@ -169,42 +169,42 @@ func ChequeoDelMapa(tablasDelEsquema map[string]bool) []hallazgo {
 // corrida no encuentra su literal y saldría acusado sin tener la culpa. Además `logs.json` cubre los
 // repos indexados y nada más. Se informa para que alguien mire, no para romper el build — la precisión
 // de este chequeo no da para lo segundo, y decirlo es parte del chequeo.
-func matchersContraElCodigo(m *Mapa) []hallazgo {
-	logs := cargarMapaLogs()
+func matchersAgainstCode(m *Map) []finding {
+	logs := loadLogMap()
 	if logs == nil {
-		return []hallazgo{{false, "no se encontró trazador/logs.json (se construye con -indexar-logs): los matchers quedan SIN cruzar contra el código"}}
+		return []finding{{false, "no se encontró trazador/logs.json (se construye con -indexar-logs): los matchers quedan SIN cruzar contra el código"}}
 	}
-	literales := make([]string, 0, len(logs.porMensaje))
-	for k := range logs.porMensaje {
-		literales = append(literales, k)
+	literals := make([]string, 0, len(logs.byMessage))
+	for k := range logs.byMessage {
+		literals = append(literals, k)
 	}
 
-	var hs []hallazgo
-	mudos, verificados, noAplican := 0, 0, 0
+	var hs []finding
+	silent, verified, notApplicable := 0, 0, 0
 	// dueños por literal, para detectar el solape sobre mensajes REALES.
-	duenos := map[string][]string{}
+	owners := map[string][]string{}
 
-	for _, e := range m.Etapas {
+	for _, e := range m.Stages {
 		for _, mt := range e.Matchers {
 			// Los que este corpus no puede juzgar: no es que estén mudos, es que no habla de ellos.
-			if mt.Campo != "" || !strings.Contains(strings.TrimSpace(mt.Patron), " ") {
-				noAplican++
+			if mt.Field != "" || !strings.Contains(strings.TrimSpace(mt.Pattern), " ") {
+				notApplicable++
 				continue
 			}
 			n := 0
-			for _, lit := range literales {
+			for _, lit := range literals {
 				// ⚠ LA COMPARACIÓN VA EN LAS DOS DIRECCIONES, y con una sola daba falsos positivos.
-				// `logs.json` guarda el literal NORMALIZADO (`normalizarLiteral` le corta el `.` final y
+				// `logs.json` guarda el literal NORMALIZADO (`normalizeLiteral` le corta el `.` final y
 				// colapsa espacios) y el matcher está escrito contra el mensaje de RUNTIME, que además
 				// trae los valores interpolados. O sea que ninguna de las dos cadenas contiene a la otra
 				// por defecto: «No risk central data found.» (el matcher) contra «No risk central data
 				// found» (el índice) no coincide en ningún sentido ingenuo. Se prueba el matcher sobre el
 				// literal —lo natural— y, para los patrones que son texto y no regex, también si el
 				// literal es el PREFIJO normalizado de lo que el matcher busca.
-				if mt.coincide(lit, nil) || (mt.Tipo != "regex" && strings.HasPrefix(normalizarMsg(mt.Patron), lit)) {
+				if mt.matches(lit, nil) || (mt.Kind != "regex" && strings.HasPrefix(normalizeMessage(mt.Pattern), lit)) {
 					n++
-					if !contiene(duenos[lit], e.ID) {
-						duenos[lit] = append(duenos[lit], e.ID)
+					if !contains(owners[lit], e.ID) {
+						owners[lit] = append(owners[lit], e.ID)
 					}
 				}
 			}
@@ -212,52 +212,52 @@ func matchersContraElCodigo(m *Mapa) []hallazgo {
 			case n > 0:
 				// Si además estaba marcado `soloEnCodigo`, el índice CONFIRMA la marca: dice justamente
 				// «existe en el código aunque no haya salido en las corridas medidas». No se avisa nada.
-				verificados++
+				verified++
 			default:
-				mudos++
+				silent++
 				// ⚠ `soloEnCodigo` es una afirmación ESCRITA A MANO —«lo verifiqué en el código»— y hasta
 				// hoy nadie podía contrastarla. Un patrón que la lleva y que el índice del código no
 				// conoce es el caso que más vale mirar: o el mensaje se renombró después de aquella
 				// verificación, o la verificación nunca fue cierta.
-				if mt.SoloEnCodigo {
-					hs = append(hs, hallazgo{false, fmt.Sprintf(
+				if mt.OnlyInCode {
+					hs = append(hs, finding{false, fmt.Sprintf(
 						"etapa %s: el patrón %q se declara `soloEnCodigo` («verificado en el código») y logs.json NO lo conoce",
-						e.ID, trim(mt.Patron, 50))})
+						e.ID, trim(mt.Pattern, 50))})
 					continue
 				}
-				hs = append(hs, hallazgo{false, fmt.Sprintf(
+				hs = append(hs, finding{false, fmt.Sprintf(
 					"etapa %s: el patrón %q no coincide con ningún literal de logs.json — ¿se renombró el mensaje?",
-					e.ID, trim(mt.Patron, 50))})
+					e.ID, trim(mt.Pattern, 50))})
 			}
 		}
 	}
 
-	for lit, ds := range duenos {
+	for lit, ds := range owners {
 		if len(ds) > 1 {
 			sort.Strings(ds)
-			hs = append(hs, hallazgo{true, fmt.Sprintf(
+			hs = append(hs, finding{true, fmt.Sprintf(
 				"el mensaje %q lo reclaman %s: la evidencia se reparte mal y el diagnóstico sale prolijo y equivocado",
 				trim(lit, 55), strings.Join(ds, " y "))})
 		}
 	}
 
 	fmt.Printf("     %s %d patrones contra %d mensajes del código: %d encontrados · %d sin match · %d no juzgables (campo del context o identificador)\n",
-		gray("·"), verificados+mudos, len(literales), verificados, mudos, noAplican)
+		gray("·"), verified+silent, len(literals), verified, silent, notApplicable)
 	return hs
 }
 
-// Chequear es la capa de consola: corre el chequeo y lo imprime. Sale 1 si hay algo GRAVE, para poder
+// Check es la capa de consola: corre el chequeo y lo imprime. Sale 1 si hay algo GRAVE, para poder
 // encadenarlo — la misma convención que `bin/steps-check.ts` del harness.
-func Chequear(tablasDelEsquema map[string]bool) int {
-	m, err := Cargar()
+func Check(schemaTables map[string]bool) int {
+	m, err := Load()
 	if err != nil {
 		fmt.Printf("  %s el mapa no carga: %v\n", paint("31", "✘"), err)
 		return 1
 	}
 	fmt.Printf("\n  %s\n", bold("── CHEQUEO DEL MAPA (sin corpus) ──"))
-	fmt.Printf("     mapa v%s · %d etapas · %d ramales\n", m.Version, len(m.Etapas), len(m.Ramales))
+	fmt.Printf("     mapa v%s · %d etapas · %d ramales\n", m.Version, len(m.Stages), len(m.Lanes))
 
-	hs := ChequeoDelMapa(tablasDelEsquema)
+	hs := MapCheck(schemaTables)
 	graves := 0
 	for _, h := range hs {
 		if h.grave {
@@ -271,9 +271,9 @@ func Chequear(tablasDelEsquema map[string]bool) int {
 	fmt.Println()
 	for _, h := range hs {
 		if h.grave {
-			fmt.Printf("     %s %s\n", paint("31", "✘"), h.texto)
+			fmt.Printf("     %s %s\n", paint("31", "✘"), h.asText)
 		} else {
-			fmt.Printf("     %s %s\n", paint("33", "▲"), h.texto)
+			fmt.Printf("     %s %s\n", paint("33", "▲"), h.asText)
 		}
 	}
 	fmt.Printf("\n     %s\n\n", gray(fmt.Sprintf("%d que rompen · %d para mirar", graves, len(hs)-graves)))
@@ -283,35 +283,35 @@ func Chequear(tablasDelEsquema map[string]bool) int {
 	return 0
 }
 
-// ParaLaUI devuelve los hallazgos en la forma que consume la Vue.
-func ParaLaUI(hs []hallazgo) []map[string]any {
+// ForUI devuelve los hallazgos en la forma que consume la Vue.
+func ForUI(hs []finding) []map[string]any {
 	out := []map[string]any{}
 	for _, h := range hs {
-		out = append(out, map[string]any{"grave": h.grave, "texto": h.texto})
+		out = append(out, map[string]any{"grave": h.grave, "texto": h.asText})
 	}
 	return out
 }
 
-// ramalesDelHarness lee los ids de ramal del mapa del panel. Devuelve también la ruta mirada, para que
+// harnessLanes lee los ids de ramal del mapa del panel. Devuelve también la ruta mirada, para que
 // el aviso diga DÓNDE buscó cuando no lo encuentra.
-func ramalesDelHarness() (map[string]bool, string, error) {
-	ruta, err := filepath.Abs(dondeVivenLosSteps)
+func harnessLanes() (map[string]bool, string, error) {
+	path, err := filepath.Abs(whereStepsLive)
 	if err != nil {
-		ruta = dondeVivenLosSteps
+		path = whereStepsLive
 	}
-	b, err := os.ReadFile(ruta)
+	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, ruta, err
+		return nil, path, err
 	}
 	var doc struct {
-		Ramales map[string]json.RawMessage `json:"ramales"`
+		Lanes map[string]json.RawMessage `json:"ramales"`
 	}
 	if err := json.Unmarshal(b, &doc); err != nil {
-		return nil, ruta, err
+		return nil, path, err
 	}
 	out := map[string]bool{}
-	for k := range doc.Ramales {
+	for k := range doc.Lanes {
 		out[k] = true
 	}
-	return out, ruta, nil
+	return out, path, nil
 }

@@ -23,21 +23,21 @@ import (
 	dbsql "creditop/playground/connectors/sql"
 )
 
-// Fila es una fila genérica, la del conector. Se usa un mapa y no structs por fuente porque el parseo a
+// Row es una fila genérica, la del conector. Se usa un mapa y no structs por fuente porque el parseo a
 // `Solicitud` pasa UNA vez, después de la fuente: así agregar una fuente no obliga a tocar el parseo.
-type Fila = dbsql.Row
+type Row = dbsql.Row
 
 // Runner es la fuente de un ambiente: `Rows` corre un SELECT, `Name` dice qué contestó y `Zone` en qué
 // zona vienen sus fechas (ver la nota de F-241 en el conector: para dev dejó de ser una sola).
 type Runner = dbsql.Source
 
-// soloDigitos es la forma de los valores que se interpolan en una consulta: la misma regla que el conector
+// digitsOnly es la forma de los valores que se interpolan en una consulta: la misma regla que el conector
 // aplica a sus argumentos, para lo que el trazador arma a mano.
-var soloDigitos = regexp.MustCompile(`^\d{1,20}$`)
+var digitsOnly = regexp.MustCompile(`^\d{1,20}$`)
 
-// abrirFuente pide al conector la base del ambiente. Se abren hasta cuatro conexiones porque una traza
+// openSource pide al conector la base del ambiente. Se abren hasta cuatro conexiones porque una traza
 // hace varias consultas por etapa.
-func abrirFuente(c config) (Runner, error) {
+func openSource(c config) (Runner, error) {
 	cfg, _, err := dbsql.LoadConfig(c.target)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func abrirFuente(c config) (Runner, error) {
 // `risk_central_user_data`. Para ellos «las cuatro centrales no consultadas» se lee como «no pasó nada»
 // cuando el OCR y el reconocimiento facial corrieron completos. Misma precedencia que
 // `CreditopXFlowService.php:117`: la tabla puente primero, la columna del lender como fallback.
-const sqlSolicitud = `
+const sqlLoanRequest = `
 	SELECT ur.user_id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
 	       COALESCE(l.name,'') AS lender, COALESCE(l.id,0) AS lender_id, COALESCE(l.response_type,0) AS rt,
 	       COALESCE(a.name,'') AS comercio, COALESCE(a.id,0) AS allied_id, COALESCE(ab.name,'') AS sucursal,
@@ -73,7 +73,7 @@ const sqlSolicitud = `
 	  LEFT JOIN users u                  ON u.id   = ur.user_id
 	 WHERE ur.id = ?`
 
-const sqlHistorial = `
+const sqlHistory = `
 	SELECT r.user_request_status_id AS st, COALESCE(stt.name,'') AS estado, r.created_at
 	  FROM user_request_records r
 	  LEFT JOIN user_request_statuses stt ON stt.id = r.user_request_status_id
@@ -81,13 +81,13 @@ const sqlHistorial = `
 
 // El buró se indexa por `user_id`, NO por solicitud: una consulta puede ser de otro intento del mismo
 // cliente. Se acota desde la creación de esta solicitud, y aun así queda dicho en el árbol.
-const sqlBuro = `
+const sqlBureau = `
 	SELECT COALESCE(rc.name, CONCAT('central ', d.risk_central_id)) AS central, d.score, d.created_at
 	  FROM risk_central_user_data d
 	  LEFT JOIN risk_centrals rc ON rc.id = d.risk_central_id
 	 WHERE d.user_id = ? AND d.deleted_at IS NULL ORDER BY d.created_at`
 
-const sqlCentrales = `SELECT id, COALESCE(name,'') AS name FROM risk_centrals ORDER BY id`
+const sqlBureaus = `SELECT id, COALESCE(name,'') AS name FROM risk_centrals ORDER BY id`
 
 // ─── deceval_logs: el tramo del pagaré digital ─────────────────────────────────────────────────────
 //
@@ -110,44 +110,44 @@ const sqlDeceval = `
 	 WHERE user_request_id = ?
 	 ORDER BY id`
 
-// OpDeceval es UNA operación contra Deceval, ya interpretada.
-type OpDeceval struct {
-	Metodo string // createGirador · createPagare · consultPagare · signPagare · createPromisoryNote
-	Nombre string // la etapa legible que escribió el backend
+// DecevalOp es UNA operación contra Deceval, ya interpretada.
+type DecevalOp struct {
+	Method string // createGirador · createPagare · consultPagare · signPagare · createPromisoryNote
+	Name   string // la etapa legible que escribió el backend
 	At     time.Time
-	// Exitoso: lo que dice el `<exitoso>` de la respuesta. Es un puntero porque «no vino» y «vino false»
+	// Succeeded: lo que dice el `<exitoso>` de la respuesta. Es un puntero porque «no vino» y «vino false»
 	// son cosas distintas: la primera puede ser una operación sin ese campo (el wrapper), la segunda es
 	// un rechazo. Colapsarlas convertiría un `sin dato` en un `falló`.
-	Exitoso *bool
-	Codigo  string // codigoError (SDL.*)
-	Mensaje string // mensajeRespuesta: el accionable
+	Succeeded *bool
+	Code      string // codigoError (SDL.*)
+	Message   string // mensajeRespuesta: el accionable
 }
 
 var (
-	reDecevalExitoso = regexp.MustCompile(`(?i)<(?:\w+:)?exitoso>\s*(true|false)\s*</`)
-	reDecevalCodigo  = regexp.MustCompile(`(?i)<(?:\w+:)?codigoError>\s*([^<]{1,60})\s*</`)
-	reDecevalMensaje = regexp.MustCompile(`(?i)<(?:\w+:)?mensajeRespuesta>\s*([^<]{1,400})\s*</`)
-	reDecevalDescrip = regexp.MustCompile(`(?i)<(?:\w+:)?descripcion>\s*([^<]{1,400})\s*</`)
+	reDecevalSucceeded   = regexp.MustCompile(`(?i)<(?:\w+:)?exitoso>\s*(true|false)\s*</`)
+	reDecevalCode        = regexp.MustCompile(`(?i)<(?:\w+:)?codigoError>\s*([^<]{1,60})\s*</`)
+	reDecevalMessage     = regexp.MustCompile(`(?i)<(?:\w+:)?mensajeRespuesta>\s*([^<]{1,400})\s*</`)
+	reDecevalDescription = regexp.MustCompile(`(?i)<(?:\w+:)?descripcion>\s*([^<]{1,400})\s*</`)
 	// El código SDL suelto, para las respuestas que no traen `<codigoError>` (ver abajo).
 	reDecevalSDL = regexp.MustCompile(`SDL\.[A-Z]{2}\.\d{4}`)
 )
 
-// codigoDecevalOK es el «todo salió bien» del protocolo. Deceval no usa un booleano en todas las
+// decevalOKCode es el «todo salió bien» del protocolo. Deceval no usa un booleano en todas las
 // respuestas, así que en varias operaciones ESTE es el único veredicto disponible.
-const codigoDecevalOK = "SDL.SE.0000"
+const decevalOKCode = "SDL.SE.0000"
 
 // GetDeceval trae las operaciones contra Deceval de esta solicitud. Ante cualquier error devuelve vacío:
 // no saber no es saber que no.
-func GetDeceval(r Runner, ureq int64) []OpDeceval {
+func GetDeceval(r Runner, ureq int64) []DecevalOp {
 	fs, err := r.Rows(sqlDeceval, ureq)
 	if err != nil {
 		return nil
 	}
-	out := make([]OpDeceval, 0, len(fs))
+	out := make([]DecevalOp, 0, len(fs))
 	for _, f := range fs {
-		o := OpDeceval{
-			Metodo: texto(f["method"]), Nombre: texto(f["name"]),
-			At: fecha(f["created_at"], r.Zone()),
+		o := DecevalOp{
+			Method: asText(f["method"]), Name: asText(f["name"]),
+			At: date(f["created_at"], r.Zone()),
 		}
 		// El XML viene dentro de un JSON (`{"soap_response_xml": "..."}`) y con las barras escapadas. No
 		// se parsea como XML a propósito: el envelope trae firma, timestamps y namespaces que no
@@ -157,16 +157,16 @@ func GetDeceval(r Runner, ureq int64) []OpDeceval {
 		// `<\/exitoso>`, no `</exitoso>`. Un regex que espere `</` no matchea NUNCA y el resultado se lee
 		// como «la respuesta no trae exitoso» — o sea, un dato que sí está se reporta como ausente. Costó
 		// una corrida en la uReq 522008 de prod, que había firmado perfecto.
-		xml := strings.ReplaceAll(texto(f["response"]), `\/`, "/")
-		if m := reDecevalExitoso.FindStringSubmatch(xml); m != nil {
+		xml := strings.ReplaceAll(asText(f["response"]), `\/`, "/")
+		if m := reDecevalSucceeded.FindStringSubmatch(xml); m != nil {
 			v := strings.EqualFold(m[1], "true")
-			o.Exitoso = &v
+			o.Succeeded = &v
 		}
-		if m := reDecevalCodigo.FindStringSubmatch(xml); m != nil {
-			o.Codigo = strings.TrimSpace(m[1])
+		if m := reDecevalCode.FindStringSubmatch(xml); m != nil {
+			o.Code = strings.TrimSpace(m[1])
 		}
-		if m := reDecevalMensaje.FindStringSubmatch(xml); m != nil {
-			o.Mensaje = strings.TrimSpace(m[1])
+		if m := reDecevalMessage.FindStringSubmatch(xml); m != nil {
+			o.Message = strings.TrimSpace(m[1])
 		}
 		// ⚠ `firmarPagares` responde con OTRA FORMA: `RespuestaFirmarPagaresDTO` **no trae `<exitoso>` ni
 		// `<codigoError>`** — el código va embebido en el texto de `<descripcion>`
@@ -174,19 +174,19 @@ func GetDeceval(r Runner, ureq int64) []OpDeceval {
 		// `mensajeRespuesta`, la `descripcion` es genérica»— **no vale para la firma**: ahí la descripción
 		// es lo único que hay. Sin este caso, la operación más importante del tramo se reportaba siempre
 		// como «la respuesta no trae exitoso» — un éxito leído como falta de evidencia.
-		if desc := reDecevalDescrip.FindStringSubmatch(xml); desc != nil {
-			if o.Mensaje == "" {
-				o.Mensaje = strings.TrimSpace(desc[1])
+		if desc := reDecevalDescription.FindStringSubmatch(xml); desc != nil {
+			if o.Message == "" {
+				o.Message = strings.TrimSpace(desc[1])
 			}
-			if o.Codigo == "" {
+			if o.Code == "" {
 				if m := reDecevalSDL.FindString(desc[1]); m != "" {
-					o.Codigo = m
+					o.Code = m
 				}
 			}
 		}
-		if o.Exitoso == nil && o.Codigo != "" {
-			v := o.Codigo == codigoDecevalOK
-			o.Exitoso = &v
+		if o.Succeeded == nil && o.Code != "" {
+			v := o.Code == decevalOKCode
+			o.Succeeded = &v
 		}
 		out = append(out, o)
 	}
@@ -204,7 +204,7 @@ func GetDeceval(r Runner, ureq int64) []OpDeceval {
 // acota, no prueba. Y para saber si una fila es de ESTA corrida el backoffice usa una heurística que se
 // replica acá: `|created_at − profiling_reviews.updated_at| <= 120 s`
 // (`Modules/Backoffice/App/Services/ApplicationsService.php:1443`).
-const sqlCategorias = `
+const sqlCategories = `
 	SELECT ucl.id, ucl.lender_id, COALESCE(l.name,'') AS lender,
 	       ucl.lender_users_category_id AS cat, COALESCE(c.name,'') AS cat_nombre,
 	       ucl.current_available_amount AS cupo, ucl.category_rules_acceptance AS reglas, ucl.created_at
@@ -225,76 +225,76 @@ const sqlCategorias = `
 //     de corrimiento y ninguna fila, sin ningún error. Comparando reloj-de-pared contra reloj-de-pared
 //     —en la zona que declara la fuente— la pregunta queda bien planteada en las dos fuentes.
 
-// Categoria es la evaluación de UNA entidad para este cliente: qué categoría le tocó (0 = ninguna) y,
+// Category es la evaluación de UNA entidad para este cliente: qué categoría le tocó (0 = ninguna) y,
 // tier por tier, qué criterio falló.
-type Categoria struct {
-	LenderID  int64
-	Lender    string
-	CatID     int64
-	CatNombre string
-	Cupo      float64
-	At        time.Time
-	// Fallas: tier → criterios en `false`. Un tier SIN entrada es un tier que pasó todo.
-	Fallas map[string][]string
+type Category struct {
+	LenderID int64
+	Lender   string
+	CatID    int64
+	CatName  string
+	Quota    float64
+	At       time.Time
+	// Failures: tier → criterios en `false`. Un tier SIN entrada es un tier que pasó todo.
+	Failures map[string][]string
 	// Tiers evaluados en total (los que pasaron y los que no): sin esto, «3 tiers fallaron» no dice si
 	// eran 3 de 3 o 3 de 12.
 	Tiers int
-	// Corta dice DÓNDE se detuvo la evaluación de ese tier, que es lo que las claves ausentes significan:
+	// Short dice DÓNDE se detuvo la evaluación de ese tier, que es lo que las claves ausentes significan:
 	// el motor evalúa 5 criterios básicos, y si alguno falla RETORNA sin tocar el buró.
 	// `básicos` = murió antes del buró · `sin buró` = no hay fila de datacrédito · `buró` = llegó.
-	Corta map[string]string
-	// Especial: bandera de nivel raíz, fuera del universo de tiers. Hoy dos: `blacklisted` (documento en
+	Short map[string]string
+	// Special: bandera de nivel raíz, fuera del universo de tiers. Hoy dos: `blacklisted` (documento en
 	// lista negra de esa entidad) y `validacion_venezolanos` (CE + lender 84: SALTA todas las reglas).
-	Especial string
-	// Ventana dice qué se puede AFIRMAR sobre a qué corrida pertenece esta fila, y tiene tres valores
+	Special string
+	// Window dice qué se puede AFIRMAR sobre a qué corrida pertenece esta fila, y tiene tres valores
 	// porque dos no alcanzan: `misma` (cae dentro de ±120 s de la corrida del perfilamiento) · `otra`
 	// (cae fuera: puede ser de otro intento del mismo cliente) · `sin-referencia` (no hay fila de
 	// `profiling_reviews` contra la cual comparar). Colapsar los dos últimos hacía que una solicitud sin
 	// perfilamiento advirtiera «puede ser de otro intento» sin tener ninguna base para decirlo — que es
 	// exactamente el error que este trazador comete cuando trata una ausencia como una negación.
-	Ventana string
+	Window string
 }
 
-// GetCategorias trae la evaluación de categoría de todas las entidades para este cliente en la ventana de
+// GetCategories trae la evaluación de categoría de todas las entidades para este cliente en la ventana de
 // la solicitud. Ante cualquier error devuelve vacío: no saber no es saber que no.
-func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.Time) []Categoria {
-	if userID == 0 || desde.IsZero() {
+func GetCategories(r Runner, userID int64, since, until time.Time, run time.Time) []Category {
+	if userID == 0 || since.IsZero() {
 		return nil
 	}
 	// El reloj de pared TAL COMO LO DEVUELVE ESTA FUENTE: `fecha()` parseó con `r.Zone()`, así que
 	// volver a esa zona reconstruye exactamente el texto que hay en la columna.
-	reloj := func(t time.Time) string { return t.In(r.Zone()).Format("20060102150405") }
-	fs, err := r.Rows(sqlCategorias, userID, reloj(desde), reloj(hasta))
+	clock := func(t time.Time) string { return t.In(r.Zone()).Format("20060102150405") }
+	fs, err := r.Rows(sqlCategories, userID, clock(since), clock(until))
 	if err != nil {
 		return nil
 	}
-	out := make([]Categoria, 0, len(fs))
+	out := make([]Category, 0, len(fs))
 	for _, f := range fs {
-		c := Categoria{
-			LenderID: entero(f["lender_id"]), Lender: texto(f["lender"]),
-			CatID: entero(f["cat"]), CatNombre: texto(f["cat_nombre"]),
-			Cupo: decimal(f["cupo"]), At: fecha(f["created_at"], r.Zone()),
-			Fallas: map[string][]string{}, Corta: map[string]string{},
+		c := Category{
+			LenderID: integer(f["lender_id"]), Lender: asText(f["lender"]),
+			CatID: integer(f["cat"]), CatName: asText(f["cat_nombre"]),
+			Quota: decimal(f["cupo"]), At: date(f["created_at"], r.Zone()),
+			Failures: map[string][]string{}, Short: map[string]string{},
 		}
 		switch {
-		case corrida.IsZero() || c.At.IsZero():
-			c.Ventana = "sin-referencia"
+		case run.IsZero() || c.At.IsZero():
+			c.Window = "sin-referencia"
 		default:
-			d := c.At.Sub(corrida)
+			d := c.At.Sub(run)
 			if d > -120*time.Second && d < 120*time.Second {
-				c.Ventana = "misma"
+				c.Window = "misma"
 			} else {
-				c.Ventana = "otra"
+				c.Window = "otra"
 			}
 		}
-		var crudo map[string]json.RawMessage
-		if json.Unmarshal([]byte(texto(f["reglas"])), &crudo) == nil {
-			for k, v := range crudo {
+		var raw map[string]json.RawMessage
+		if json.Unmarshal([]byte(asText(f["reglas"])), &raw) == nil {
+			for k, v := range raw {
 				// Las banderas de raíz son booleanos sueltos, no mapas de criterios.
 				var flag bool
 				if json.Unmarshal(v, &flag) == nil {
 					if flag {
-						c.Especial = k
+						c.Special = k
 					}
 					continue
 				}
@@ -303,15 +303,15 @@ func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.
 					continue
 				}
 				c.Tiers++
-				var malos []string
-				for nombre, ok := range checks {
+				var badOnes []string
+				for name, ok := range checks {
 					if !ok {
-						malos = append(malos, nombre)
+						badOnes = append(badOnes, name)
 					}
 				}
-				sort.Strings(malos)
-				if len(malos) > 0 {
-					c.Fallas[k] = malos
+				sort.Strings(badOnes)
+				if len(badOnes) > 0 {
+					c.Failures[k] = badOnes
 				}
 				// ⚠ Las dos grafías son reales, no un typo de este parser: `Modules/Loans/…:407` escribe
 				// `occupation` y `Modules/Onboarding/…:93` escribe `ocupations`. Buscar una sola deja
@@ -322,14 +322,14 @@ func GetCategorias(r Runner, userID int64, desde, hasta time.Time, corrida time.
 				// se leería como «no tiene buró», que manda a buscar un problema de datos donde hay un
 				// criterio de admisión que no se cumplió. Medido en la uReq 522511 de prod: el tier 12 salía
 				// «sin buró» cuando lo que falló fue `employment_continuity`.
-				_, tieneDC := checks["datacredito"]
+				_, hasDC := checks["datacredito"]
 				switch {
-				case tieneDC:
-					c.Corta[k] = "sin buró"
+				case hasDC:
+					c.Short[k] = "sin buró"
 				case len(checks) <= 5:
-					c.Corta[k] = "básicos"
+					c.Short[k] = "básicos"
 				default:
-					c.Corta[k] = "buró"
+					c.Short[k] = "buró"
 				}
 			}
 		}
@@ -357,7 +357,7 @@ func GetCorbetaAllieds(r Runner) map[int64]bool {
 		return out
 	}
 	var ids []int64
-	if err := json.Unmarshal([]byte(texto(fs[0]["value"])), &ids); err != nil {
+	if err := json.Unmarshal([]byte(asText(fs[0]["value"])), &ids); err != nil {
 		return out
 	}
 	for _, id := range ids {
@@ -366,11 +366,11 @@ func GetCorbetaAllieds(r Runner) map[int64]bool {
 	return out
 }
 
-const sqlEsEcommerce = `SELECT COUNT(*) AS n FROM ecommerce_requests WHERE user_request_id = ?`
+const sqlIsEcommerce = `SELECT COUNT(*) AS n FROM ecommerce_requests WHERE user_request_id = ?`
 
-// GetSolicitud arma el esqueleto usando cualquiera de las dos fuentes.
-func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
-	fs, err := r.Rows(sqlSolicitud, ureq)
+// GetLoanRequest arma el esqueleto usando cualquiera de las dos fuentes.
+func GetLoanRequest(r Runner, ureq int64) (*LoanRequest, error) {
+	fs, err := r.Rows(sqlLoanRequest, ureq)
 	if err != nil {
 		return nil, err
 	}
@@ -378,60 +378,60 @@ func GetSolicitud(r Runner, ureq int64) (*Solicitud, error) {
 		return nil, fmt.Errorf("la solicitud %d no existe en %s", ureq, r.Name())
 	}
 	f := fs[0]
-	s := &Solicitud{
-		ID: ureq, UserID: entero(f["user_id"]), Estado: int(entero(f["st"])),
-		EstadoN: texto(f["estado"]), Lender: texto(f["lender"]),
-		LenderID: entero(f["lender_id"]), LenderRT: int(entero(f["rt"])),
-		Comercio: texto(f["comercio"]), AlliedID: entero(f["allied_id"]), Sucursal: texto(f["sucursal"]),
-		Documento: texto(f["documento"]), Telefono: texto(f["telefono"]),
-		Monto: decimal(f["monto"]), Creada: fecha(f["created_at"], r.Zone()),
-		Validacion: int(entero(f["validacion"])),
+	s := &LoanRequest{
+		ID: ureq, UserID: integer(f["user_id"]), Status: int(integer(f["st"])),
+		StatusN: asText(f["estado"]), Lender: asText(f["lender"]),
+		LenderID: integer(f["lender_id"]), LenderRT: int(integer(f["rt"])),
+		Merchant: asText(f["comercio"]), AlliedID: integer(f["allied_id"]), Branch: asText(f["sucursal"]),
+		Document: asText(f["documento"]), Phone: asText(f["telefono"]),
+		Amount: decimal(f["monto"]), Created: date(f["created_at"], r.Zone()),
+		Validation: int(integer(f["validacion"])),
 	}
 
-	if hs, err := r.Rows(sqlHistorial, ureq); err == nil {
+	if hs, err := r.Rows(sqlHistory, ureq); err == nil {
 		prev := -1
 		for _, h := range hs {
-			st := int(entero(h["st"]))
+			st := int(integer(h["st"]))
 			if st == prev {
 				continue // se colapsan repetidos: `user_request_records` escribe una fila por cada toque
 			}
 			prev = st
-			s.Transiciones = append(s.Transiciones, Transicion{Estado: st, Nombre: texto(h["estado"]), At: fecha(h["created_at"], r.Zone())})
+			s.Transitions = append(s.Transitions, Transition{Status: st, Name: asText(h["estado"]), At: date(h["created_at"], r.Zone())})
 		}
 	}
-	if bs, err := r.Rows(sqlBuro, s.UserID); err == nil {
+	if bs, err := r.Rows(sqlBureau, s.UserID); err == nil {
 		for _, b := range bs {
-			at := fecha(b["created_at"], r.Zone())
-			if at.Before(s.Creada.Add(-5 * time.Minute)) {
+			at := date(b["created_at"], r.Zone())
+			if at.Before(s.Created.Add(-5 * time.Minute)) {
 				continue // de otro intento del mismo cliente
 			}
-			fb := FilaBuro{Central: texto(b["central"]), At: at}
+			fb := BureauRow{Central: asText(b["central"]), At: at}
 			if b["score"] != nil {
 				v := decimal(b["score"])
 				fb.Score = &v
 			}
-			s.Buro = append(s.Buro, fb)
+			s.Bureau = append(s.Bureau, fb)
 		}
 	}
 
-	s.Perfilamiento = GetPerfilamiento(r, ureq)
+	s.Profiling = GetProfiling(r, ureq)
 
-	s.Origen, s.OrigenDerivado = "asesor", false
-	if es, err := r.Rows(sqlEsEcommerce, ureq); err == nil && len(es) > 0 && entero(es[0]["n"]) > 0 {
-		s.Origen, s.OrigenDerivado = "ecommerce", true
+	s.Origin, s.DerivedOrigin = "asesor", false
+	if is, err := r.Rows(sqlIsEcommerce, ureq); err == nil && len(is) > 0 && integer(is[0]["n"]) > 0 {
+		s.Origin, s.DerivedOrigin = "ecommerce", true
 	}
 	return s, nil
 }
 
-// GetCentrales trae el catálogo completo: es lo que permite mostrar las NO consultadas.
-func GetCentrales(r Runner) map[int64]string {
+// GetBureaus trae el catálogo completo: es lo que permite mostrar las NO consultadas.
+func GetBureaus(r Runner) map[int64]string {
 	out := map[int64]string{}
-	fs, err := r.Rows(sqlCentrales)
+	fs, err := r.Rows(sqlBureaus)
 	if err != nil {
 		return out
 	}
 	for _, f := range fs {
-		out[entero(f["id"])] = texto(f["name"])
+		out[integer(f["id"])] = asText(f["name"])
 	}
 	return out
 }
@@ -444,25 +444,25 @@ func GetLenders(r Runner, ids []int64) map[int64]LenderInfo {
 	if len(ids) == 0 {
 		return out
 	}
-	únicos := map[int64]bool{}
-	var lista []string
+	uniques := map[int64]bool{}
+	var list []string
 	for _, id := range ids {
-		if id > 0 && !únicos[id] {
-			únicos[id] = true
-			lista = append(lista, fmt.Sprint(id))
+		if id > 0 && !uniques[id] {
+			uniques[id] = true
+			list = append(list, fmt.Sprint(id))
 		}
 	}
 	// Interpolación directa: son enteros ya validados al parsearlos, y `IN (?)` con N placeholders no
 	// existe en Redash. Se construye con dígitos, nunca con texto del usuario.
 	q := fmt.Sprintf(`SELECT id, COALESCE(name,'') AS name, COALESCE(response_type,0) AS rt
-	                    FROM lenders WHERE id IN (%s)`, strings.Join(lista, ","))
+	                    FROM lenders WHERE id IN (%s)`, strings.Join(list, ","))
 	fs, err := r.Rows(q)
 	if err != nil {
 		return out
 	}
 	for _, f := range fs {
-		id := entero(f["id"])
-		out[id] = LenderInfo{ID: id, Nombre: texto(f["name"]), RT: int(entero(f["rt"]))}
+		id := integer(f["id"])
+		out[id] = LenderInfo{ID: id, Name: asText(f["name"]), RT: int(integer(f["rt"]))}
 	}
 	return out
 }
@@ -471,7 +471,7 @@ func GetLenders(r Runner, ids []int64) map[int64]LenderInfo {
 // Las dos fuentes devuelven los mismos datos con tipos distintos: el driver de MySQL da []byte/int64 y
 // Redash (JSON) da string/float64. Se normaliza acá, una vez, en vez de en cada lector.
 
-func texto(v any) string {
+func asText(v any) string {
 	if v == nil {
 		return ""
 	}
@@ -481,7 +481,7 @@ func texto(v any) string {
 	return fmt.Sprint(v)
 }
 
-func entero(v any) int64 {
+func integer(v any) int64 {
 	switch x := v.(type) {
 	case nil:
 		return 0
@@ -493,7 +493,7 @@ func entero(v any) int64 {
 		return int64(x)
 	}
 	var n int64
-	fmt.Sscanf(texto(v), "%d", &n)
+	fmt.Sscanf(asText(v), "%d", &n)
 	return n
 }
 
@@ -507,27 +507,27 @@ func decimal(v any) float64 {
 		return float64(x)
 	}
 	var f float64
-	fmt.Sscanf(texto(v), "%f", &f)
+	fmt.Sscanf(asText(v), "%f", &f)
 	return f
 }
 
-// fecha acepta los formatos de las dos fuentes. Redash devuelve ISO-8601 y el driver de MySQL un
+// date acepta los formatos de las dos fuentes. Redash devuelve ISO-8601 y el driver de MySQL un
 // time.Time. Las dos vienen en UTC: la conversión a local es SOLO de presentación (ver `hhmm`).
-func fecha(v any, zona *time.Location) time.Time {
+func date(v any, zone *time.Location) time.Time {
 	if t, ok := v.(time.Time); ok {
 		return t
 	}
-	if zona == nil {
-		zona = time.UTC
+	if zone == nil {
+		zone = time.UTC
 	}
-	s := texto(v)
+	s := asText(v)
 	// RFC3339 trae su propio offset, así que se respeta. Los formatos SIN zona se interpretan en la zona
 	// que declaró la fuente: es ahí donde se corregía el desfase de 5 horas.
 	if t, err := time.Parse(time.RFC3339, s); err == nil {
 		return t.UTC()
 	}
 	for _, f := range []string{"2006-01-02T15:04:05", "2006-01-02 15:04:05"} {
-		if t, err := time.ParseInLocation(f, s, zona); err == nil {
+		if t, err := time.ParseInLocation(f, s, zone); err == nil {
 			return t.UTC()
 		}
 	}
@@ -544,7 +544,7 @@ func orSi(v, def string) string {
 // La búsqueda: una sola consulta con el WHERE variable. Se parte en tres constantes en vez de repetirla
 // tres veces porque las columnas TIENEN que ser las mismas — si un camino trajera una columna distinta, el
 // parseo la leería como vacía y la coincidencia aparecería a medias.
-const sqlBuscar = `
+const sqlSearch = `
 	SELECT ur.id, ur.user_request_status_id AS st, COALESCE(stt.name,'') AS estado,
 	       COALESCE(l.name,'') AS lender, COALESCE(a.name,'') AS comercio, ur.created_at,
 	       COALESCE(ur.user_id,0) AS uid,
@@ -557,12 +557,12 @@ const sqlBuscar = `
 	  LEFT JOIN users u                  ON u.id   = ur.user_id
 	 WHERE `
 
-// limiteBusqueda: el tope de solicitudes que trae cada sonda. Se declara como constante y no inline en el
+// searchLimit: el tope de solicitudes que trae cada sonda. Se declara como constante y no inline en el
 // SQL porque la vista NECESITA saber si se alcanzó — «12 solicitudes» cuando en realidad son 228 cambia el
 // diagnóstico de «el cliente reintentó» a «algo está reintentando solo».
-const limiteBusqueda = 40
+const searchLimit = 40
 
-var sqlBuscarOrden = fmt.Sprintf(" ORDER BY ur.id DESC LIMIT %d", limiteBusqueda)
+var sqlSearchOrder = fmt.Sprintf(" ORDER BY ur.id DESC LIMIT %d", searchLimit)
 
 // ─── profiling_reviews: el snapshot del listado Y la huella del webhook ─────────────────────────────
 //
@@ -582,52 +582,52 @@ const sqlProfiling = `
 	 WHERE user_request_id = ? AND deleted_at IS NULL
 	 ORDER BY id DESC LIMIT 1`
 
-// Perfilamiento es el snapshot que dejó el motor: qué se mostró y qué respondió el lender.
-type Perfilamiento struct {
-	Recomendado         int64
-	Desembolsado        int64
-	ConsultoDatacredito bool
-	Mostrados           []LenderMostrado
-	Reglas              string // hard_rules crudo: se guarda entero porque su forma varía y recortarlo perdería el porqué
+// Profiling es el snapshot que dejó el motor: qué se mostró y qué respondió el lender.
+type Profiling struct {
+	Recommended        int64
+	Disbursed          int64
+	QueriedDatacredito bool
+	Shown              []ShownLender
+	Rules              string // hard_rules crudo: se guarda entero porque su forma varía y recortarlo perdería el porqué
 	// ML: quién ORDENÓ el listado y si hubo fallback. `ProfilingReviewController` guarda en `ML_predictions`
 	// un `perfilador` (`PerfiladorNuevo`|`PerfiladorAntiguo`|`PerfiladorDesconocido`), un `fallback_triggered`
 	// y, cuando el modelo no respondió, el `error` con el detalle. Es la respuesta de la BD a «¿por qué el
 	// listado salió en este orden?», que hasta ahora no se leía en ninguna parte.
-	Perfilador  string
-	MLFallback  bool
-	MLError     string
-	MLPuntuadas int    // entidades que el perfilador alcanzó a puntuar
-	MLRespondio bool   // contestó algo, aunque fuera vacío
-	MLPrevio    string // por qué falló el perfilador PRIMARIO cuando se cayó al de respaldo
-	MLCrudo     bool   // lo escribió el sistema viejo: guarda la respuesta sin transformar y no dice quién
-	Creado      time.Time
-	Actualizado time.Time
+	Profiler   string
+	MLFallback bool
+	MLError    string
+	MLScored   int    // entidades que el perfilador alcanzó a puntuar
+	MLAnswered bool   // contestó algo, aunque fuera vacío
+	MLPrevious string // por qué falló el perfilador PRIMARIO cuando se cayó al de respaldo
+	MLRaw      bool   // lo escribió el sistema viejo: guarda la respuesta sin transformar y no dice quién
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
-type LenderMostrado struct {
-	ID           int64    `json:"id"`
-	Nombre       string   `json:"name"`
-	Probabilidad string   `json:"probability"`
-	Score        float64  `json:"weighted_score"`
-	Aprobado     *bool    `json:"is_approved"`
-	Monto        *float64 `json:"available_amount"`
+type ShownLender struct {
+	ID          int64    `json:"id"`
+	Name        string   `json:"name"`
+	Probability string   `json:"probability"`
+	Score       float64  `json:"weighted_score"`
+	Approve     *bool    `json:"is_approved"`
+	Amount      *float64 `json:"available_amount"`
 }
 
-func GetPerfilamiento(r Runner, ureq int64) *Perfilamiento {
+func GetProfiling(r Runner, ureq int64) *Profiling {
 	fs, err := r.Rows(sqlProfiling, ureq)
 	if err != nil || len(fs) == 0 {
 		return nil
 	}
 	f := fs[0]
-	p := &Perfilamiento{
-		Recomendado:         entero(f["recommended_lender"]),
-		Desembolsado:        entero(f["disbursed_lender"]),
-		ConsultoDatacredito: entero(f["datacredito_query"]) == 1,
-		Reglas:              texto(f["hard_rules"]),
-		Creado:              fecha(f["created_at"], r.Zone()),
-		Actualizado:         fecha(f["updated_at"], r.Zone()),
+	p := &Profiling{
+		Recommended:        integer(f["recommended_lender"]),
+		Disbursed:          integer(f["disbursed_lender"]),
+		QueriedDatacredito: integer(f["datacredito_query"]) == 1,
+		Rules:              asText(f["hard_rules"]),
+		CreatedAt:          date(f["created_at"], r.Zone()),
+		UpdatedAt:          date(f["updated_at"], r.Zone()),
 	}
-	_ = json.Unmarshal([]byte(texto(f["displayed_lenders"])), &p.Mostrados)
+	_ = json.Unmarshal([]byte(asText(f["displayed_lenders"])), &p.Shown)
 
 	// `ML_predictions` tiene TRES formas porque lo escriben DOS SISTEMAS distintos, y hay que probarlas
 	// todas: asumir la del caso feliz hacía que justo el caso que interesa se leyera «sin datos».
@@ -642,48 +642,48 @@ func GetPerfilamiento(r Runner, ureq int64) *Perfilamiento {
 	// `new_then_legacy` (`ProfilerMLController::mlModelV1`): el PRIMARIO es `NewProfilerMLService` y el
 	// RESPALDO es el modelo H2O de siempre. `true` quiere decir que el nuevo falló y contestó el viejo —
 	// que es lo que dice `perfilador: PerfiladorAntiguo`. Sigue siendo un modelo el que puntúa.
-	crudo := strings.TrimSpace(texto(f["ML_predictions"]))
-	if crudo != "" && crudo != "null" {
+	raw := strings.TrimSpace(asText(f["ML_predictions"]))
+	if raw != "" && raw != "null" {
 		var arr []struct {
-			Perfilador string `json:"perfilador"`
-			Fallback   bool   `json:"fallback_triggered"`
+			Profiler string `json:"perfilador"`
+			Fallback bool   `json:"fallback_triggered"`
 		}
 		var obj struct {
-			Perfilador string `json:"perfilador"`
-			Error      string `json:"error"`
-			Fallback   bool   `json:"fallback_triggered"`
-			Estado     string `json:"status"`
-			Mensaje    string `json:"message"`
-			Previo     *struct {
-				Perfilador string `json:"perfilador"`
-				Mensaje    string `json:"message"`
-				Detalles   string `json:"details"`
+			Profiler string `json:"perfilador"`
+			Error    string `json:"error"`
+			Fallback bool   `json:"fallback_triggered"`
+			Status   string `json:"status"`
+			Message  string `json:"message"`
+			Previous *struct {
+				Profiler string `json:"perfilador"`
+				Message  string `json:"message"`
+				Details  string `json:"details"`
 			} `json:"previous_attempt"`
 			Data []struct {
-				Nombre string `json:"name"`
+				Name string `json:"name"`
 			} `json:"data"`
 		}
 		switch {
-		case json.Unmarshal([]byte(crudo), &arr) == nil && len(arr) > 0:
-			p.Perfilador, p.MLFallback = arr[0].Perfilador, arr[0].Fallback
-			p.MLPuntuadas, p.MLRespondio = len(arr), true
-		case json.Unmarshal([]byte(crudo), &obj) == nil:
-			p.Perfilador, p.MLFallback, p.MLError = obj.Perfilador, obj.Fallback, obj.Error
-			p.MLPuntuadas = len(obj.Data)
-			if obj.Previo != nil {
-				p.MLPrevio = strings.TrimSpace(obj.Previo.Detalles)
-				if p.MLPrevio == "" {
-					p.MLPrevio = strings.TrimSpace(obj.Previo.Mensaje)
+		case json.Unmarshal([]byte(raw), &arr) == nil && len(arr) > 0:
+			p.Profiler, p.MLFallback = arr[0].Profiler, arr[0].Fallback
+			p.MLScored, p.MLAnswered = len(arr), true
+		case json.Unmarshal([]byte(raw), &obj) == nil:
+			p.Profiler, p.MLFallback, p.MLError = obj.Profiler, obj.Fallback, obj.Error
+			p.MLScored = len(obj.Data)
+			if obj.Previous != nil {
+				p.MLPrevious = strings.TrimSpace(obj.Previous.Details)
+				if p.MLPrevious == "" {
+					p.MLPrevious = strings.TrimSpace(obj.Previous.Message)
 				}
-				if p.MLPrevio != "" && obj.Previo.Perfilador != "" {
-					p.MLPrevio = obj.Previo.Perfilador + ": " + p.MLPrevio
+				if p.MLPrevious != "" && obj.Previous.Profiler != "" {
+					p.MLPrevious = obj.Previous.Profiler + ": " + p.MLPrevious
 				}
 			}
-			if obj.Estado != "" { // el sobre crudo del sistema viejo
-				p.MLCrudo = true
-				p.MLRespondio = obj.Estado == "success"
-				if !p.MLRespondio && p.MLError == "" {
-					p.MLError = obj.Mensaje
+			if obj.Status != "" { // el sobre crudo del sistema viejo
+				p.MLRaw = true
+				p.MLAnswered = obj.Status == "success"
+				if !p.MLAnswered && p.MLError == "" {
+					p.MLError = obj.Message
 				}
 			}
 		}

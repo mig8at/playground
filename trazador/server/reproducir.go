@@ -33,13 +33,13 @@ import (
 //  3. La anotación lleva la fecha REAL del día en que se corrió, no una que escriba quien pega. Una
 //     medición con fecha inventada es peor que una sin fecha: parece verificable.
 
-// seguroEnShell son los caracteres que el shell no toca. Todo lo demás se entrecomilla: una consulta
+// shellSafe son los caracteres que el shell no toca. Todo lo demás se entrecomilla: una consulta
 // SQL o un selector de LogQL llevan espacios, llaves y comillas, y pegar eso sin comillar da un error
 // de sintaxis que se lee como si la herramienta estuviera rota.
-var seguroEnShell = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
+var shellSafe = regexp.MustCompile(`^[A-Za-z0-9_@%+=:,./-]+$`)
 
-func comillar(v string) string {
-	if seguroEnShell.MatchString(v) {
+func quote(v string) string {
+	if shellSafe.MatchString(v) {
 		return v
 	}
 	// La forma POSIX de meter una comilla simple dentro de comillas simples: cerrar, escapar, abrir.
@@ -48,23 +48,23 @@ func comillar(v string) string {
 
 // cmdMake arma el comando que vuelve a sacar esta salida. Los pares vacíos se omiten —un `TEL=` colgando
 // invita a correrlo tal cual y a preguntarse por qué no anda—, y el target se agrega al final siempre.
-func cmdMake(nombre, target string, kv ...string) string {
-	partes := []string{"make", nombre}
+func cmdMake(name, target string, kv ...string) string {
+	parts := []string{"make", name}
 	for i := 0; i+1 < len(kv); i += 2 {
 		if kv[i+1] == "" {
 			continue
 		}
-		partes = append(partes, kv[i]+"="+comillar(kv[i+1]))
+		parts = append(parts, kv[i]+"="+quote(kv[i+1]))
 	}
 	if target != "" {
-		partes = append(partes, "TARGET="+target)
+		parts = append(parts, "TARGET="+target)
 	}
-	return strings.Join(partes, " ")
+	return strings.Join(parts, " ")
 }
 
-// siHay devuelve el número como texto, o vacío si es cero — para que `cmdMake` lo omita. Un `UREQ=0`
+// ifAny devuelve el número como texto, o vacío si es cero — para que `cmdMake` lo omita. Un `UREQ=0`
 // impreso en el pie se copia y se corre igual, y contesta con una solicitud que no existe.
-func siHay(n int64) string {
+func ifAny(n int64) string {
 	if n == 0 {
 		return ""
 	}
@@ -76,7 +76,7 @@ func pie(cmd string) {
 	fmt.Printf("\n     %s\n", gray("↻ "+cmd))
 }
 
-// vecinoDeTraza dice cuándo conviene la OTRA forense y con qué comando, porque las dos contestan
+// traceNeighbor dice cuándo conviene la OTRA forense y con qué comando, porque las dos contestan
 // «¿qué le pasó a esta solicitud?» y hasta ahora se elegía por accidente.
 //
 // La diferencia no es de gusto: es de DÓNDE ANCLA cada una. Ésta arranca en la BD —el esqueleto son
@@ -92,7 +92,7 @@ func pie(cmd string) {
 // ⚠ Y los DEFAULTS son OPUESTOS —`harness-loki` cae a `local`, esta herramienta a `prod`—, así que el
 // comando se entrega con el target puesto: cambiar de herramienta sin escribirlo te cambia de ambiente
 // sin avisar. Es la misma familia de F-234.
-func vecinoDeTraza(target string, ureq int64) (cuando, cmd string, ok bool) {
+func traceNeighbor(target string, ureq int64) (when, cmd string, ok bool) {
 	if target == "prod" || ureq == 0 {
 		return "", "", false
 	}
@@ -100,23 +100,23 @@ func vecinoDeTraza(target string, ureq int64) (cuando, cmd string, ok bool) {
 		cmdMake("harness-loki", target, "UREQ", fmt.Sprint(ureq)), true
 }
 
-// vecino imprime la sugerencia de la herramienta de al lado. Glifo distinto al del pie a propósito: `↻`
+// neighbor imprime la sugerencia de la herramienta de al lado. Glifo distinto al del pie a propósito: `↻`
 // repite lo mismo, `↔` te lleva a otra cosa.
-func vecino(cuando, cmd string) {
-	fmt.Printf("     %s\n", gray("↔ "+cuando+": "+cmd))
+func neighbor(when, cmd string) {
+	fmt.Printf("     %s\n", gray("↔ "+when+": "+cmd))
 }
 
-// anotacionMD escribe la medición en la forma que consume el tablero: el marcador con su tipo y su
+// annotationMD escribe la medición en la forma que consume el tablero: el marcador con su tipo y su
 // fecha, las líneas de evidencia, y el comando como `Cómo se vuelve a comprobar`. Se pega tal cual en
 // «Cómo se comprueba» o en «Lo que está decidido» de una tarea, y de ahí la pestaña Hallazgos la lee.
 //
 // El tipo es siempre MEDICIÓN: esto sale de correr algo. Una DECISIÓN o un RIESGO los escribe una
 // persona, y una herramienta que los generara estaría inventando el juicio, que es justo la parte que
 // no se automatiza.
-func anotacionMD(resumen, cmd string, evidencia ...string) string {
+func annotationMD(summary, cmd string, evidence ...string) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "> **MEDICIÓN · %s** — %s\n", time.Now().Format("2006-01-02"), resumen)
-	for _, l := range evidencia {
+	fmt.Fprintf(&b, "> **MEDICIÓN · %s** — %s\n", time.Now().Format("2006-01-02"), summary)
+	for _, l := range evidence {
 		if strings.TrimSpace(l) == "" {
 			fmt.Fprint(&b, ">\n")
 			continue
@@ -127,48 +127,48 @@ func anotacionMD(resumen, cmd string, evidencia ...string) string {
 	return b.String()
 }
 
-// tablaMD arma una tabla de markdown con las filas de una consulta.
+// tableMD arma una tabla de markdown con las filas de una consulta.
 //
 // Va FUERA de la cita de la anotación a propósito: dentro de `>` markdown no la renderiza como tabla y
 // la pestaña Hallazgos la muestra como texto crudo con los pipes a la vista. Una medición que se pega
 // y se ve peor que escrita a mano no se vuelve a pegar.
-func tablaMD(cols []string, filas []Fila) string {
-	if len(cols) == 0 || len(filas) == 0 {
+func tableMD(cols []string, rows []Row) string {
+	if len(cols) == 0 || len(rows) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "| %s |\n", strings.Join(cols, " | "))
 	fmt.Fprintf(&b, "|%s\n", strings.Repeat("---|", len(cols)))
-	for _, f := range filas {
+	for _, f := range rows {
 		vals := make([]string, len(cols))
 		for i, c := range cols {
 			// El pipe se escapa: una celda con `|` adentro parte la fila y corre todas las columnas
 			// una posición, que es un dato equivocado con cara de dato bueno.
-			vals[i] = strings.ReplaceAll(celda(f[c]), "|", `\|`)
+			vals[i] = strings.ReplaceAll(cell(f[c]), "|", `\|`)
 		}
 		fmt.Fprintf(&b, "| %s |\n", strings.Join(vals, " | "))
 	}
 	return b.String()
 }
 
-// resumenTraza dice en una línea qué pasó con la solicitud: es lo que va a quedar escrito en la tarea,
+// traceSummary dice en una línea qué pasó con la solicitud: es lo que va a quedar escrito en la tarea,
 // así que nombra el desenlace y DÓNDE se rompió, que es la pregunta con la que se abrió el trazador.
-func resumenTraza(t Traza, s *Solicitud) string {
-	desenlace := map[string]string{
+func traceSummary(t Trace, s *LoanRequest) string {
+	outcome := map[string]string{
 		"aprobado": "aprobada", "roto": "ROTA", "abandonado": "abandonada", "en-curso": "en curso",
 	}[t.Outcome]
-	if desenlace == "" {
-		desenlace = t.Outcome
+	if outcome == "" {
+		outcome = t.Outcome
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "uReq %d en `%s`: %s", t.UReq, t.Target, desenlace)
+	fmt.Fprintf(&b, "uReq %d en `%s`: %s", t.UReq, t.Target, outcome)
 	if t.BrokeAt != "" {
 		fmt.Fprintf(&b, ", se rompió en «%s»", t.BrokeAt)
 	}
 	if s != nil {
-		fmt.Fprintf(&b, " · estado %d «%s»", s.Estado, s.EstadoN)
-		if s.Comercio != "" {
-			fmt.Fprintf(&b, " · %s", s.Comercio)
+		fmt.Fprintf(&b, " · estado %d «%s»", s.Status, s.StatusN)
+		if s.Merchant != "" {
+			fmt.Fprintf(&b, " · %s", s.Merchant)
 		}
 		if s.Lender != "" {
 			fmt.Fprintf(&b, " · %s (rt=%d)", s.Lender, s.LenderRT)
@@ -178,17 +178,17 @@ func resumenTraza(t Traza, s *Solicitud) string {
 	return b.String()
 }
 
-// evidenciaTraza son las líneas que acompañan a la medición: los hallazgos primero —que es el resumen
+// traceEvidence son las líneas que acompañan a la medición: los hallazgos primero —que es el resumen
 // de auditoría— y después las fuentes que respondieron, porque «sin eventos de PostHog» y «no miramos
 // PostHog» se leen igual en una tarea si nadie dice cuáles se consultaron.
-func evidenciaTraza(t Traza) []string {
+func traceEvidence(t Trace) []string {
 	var ev []string
-	for _, h := range t.Hallazgos {
+	for _, h := range t.Findings {
 		ev = append(ev, "✘ "+h)
 	}
-	if len(t.Pantallas) > 0 {
+	if len(t.Screens) > 0 {
 		ev = append(ev, fmt.Sprintf("El cliente vio %d pantalla(s); la última, `%s`.",
-			len(t.Pantallas), t.Pantallas[len(t.Pantallas)-1].Que))
+			len(t.Screens), t.Screens[len(t.Screens)-1].What))
 	}
 	if len(t.Sources) > 0 {
 		ev = append(ev, "Fuentes: "+strings.Join(t.Sources, " · ")+".")
@@ -207,46 +207,46 @@ func evidenciaTraza(t Traza) []string {
 // Una copia de sus reglas en este módulo derivaría en silencio.
 
 var (
-	marcadoHTML = strings.NewReplacer("<", "‹", ">", "›")
-	rutaLocalRe = regexp.MustCompile(`/(?:Users|home)/[^/\s]+/`)
+	htmlMarker  = strings.NewReplacer("<", "‹", ">", "›")
+	localPathRe = regexp.MustCompile(`/(?:Users|home)/[^/\s]+/`)
 )
 
-// limpiarBloque saca lo que el validador rechazaría por forma y no por contenido: HTML y rutas de esta
+// cleanBlock saca lo que el validador rechazaría por forma y no por contenido: HTML y rutas de esta
 // máquina. Un mensaje de error de la corrida no puede dejar a la tarea sin su bloque.
-func limpiarBloque(s string) string {
-	return rutaLocalRe.ReplaceAllString(marcadoHTML.Replace(strings.Join(strings.Fields(s), " ")), "…/")
+func cleanBlock(s string) string {
+	return localPathRe.ReplaceAllString(htmlMarker.Replace(strings.Join(strings.Fields(s), " ")), "…/")
 }
 
-// tituloBloque: la conclusión en UNA línea de hasta 120 caracteres, que es el resumen de la corrida.
-func tituloBloque(resumen string) string {
-	t := strings.TrimSuffix(limpiarBloque(resumen), ".")
+// blockTitle: la conclusión en UNA línea de hasta 120 caracteres, que es el resumen de la corrida.
+func blockTitle(summary string) string {
+	t := strings.TrimSuffix(cleanBlock(summary), ".")
 	if r := []rune(t); len(r) > 120 {
 		t = string(r[:119]) + "…"
 	}
 	return t
 }
 
-// bloqueMD arma el Markdown que recibe `make tarea-bloque`: `# título`, y el comando en su caja con lo
+// blockMD arma el Markdown que recibe `make tarea-bloque`: `# título`, y el comando en su caja con lo
 // que dio. Sin evidencia, lo que dio es el resumen.
-func bloqueMD(resumen, cmd string, evidencia ...string) string {
-	var partes []string
-	for _, e := range evidencia {
-		if l := limpiarBloque(e); l != "" {
-			partes = append(partes, l)
+func blockMD(summary, cmd string, evidence ...string) string {
+	var parts []string
+	for _, e := range evidence {
+		if l := cleanBlock(e); l != "" {
+			parts = append(parts, l)
 		}
 	}
-	resultado := strings.Join(partes, "; ")
-	if resultado == "" {
-		resultado = limpiarBloque(resumen)
+	result := strings.Join(parts, "; ")
+	if result == "" {
+		result = cleanBlock(summary)
 	}
-	if r := []rune(resultado); len(r) > 2000 {
-		resultado = string(r[:1999]) + "…"
+	if r := []rune(result); len(r) > 2000 {
+		result = string(r[:1999]) + "…"
 	}
-	return fmt.Sprintf("# %s\n\n```trazador\n%s\n```\nResultado: %s\n", tituloBloque(resumen), cmd, resultado)
+	return fmt.Sprintf("# %s\n\n```trazador\n%s\n```\nResultado: %s\n", blockTitle(summary), cmd, result)
 }
 
-// raizPlayground: desde dónde se corre `make`, buscando hacia arriba el directorio del tablero.
-func raizPlayground() (string, error) {
+// playgroundRoot: desde dónde se corre `make`, buscando hacia arriba el directorio del tablero.
+func playgroundRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -261,18 +261,18 @@ func raizPlayground() (string, error) {
 	}
 }
 
-// agregarBloque lo manda a la pila de la tarea por la puerta de siempre.
+// addBlock lo manda a la pila de la tarea por la puerta de siempre.
 //
 // ⚠ Con el entorno de make LIMPIO: esto corre adentro de un target, y un make hijo hereda por MAKEFLAGS
 // las variables de la línea de comando del padre (`TARGET=`, `UREQ=`…). Un `N=` que viniera de afuera
 // mandaría el bloque a otra tarea sin decirlo.
-func agregarBloque(tarea, md string, seco bool) error {
-	raiz, err := raizPlayground()
+func addBlock(task, md string, dryRun bool) error {
+	root, err := playgroundRoot()
 	if err != nil {
 		return err
 	}
-	args := []string{"-s", "-C", raiz, "tarea-bloque", "N=" + tarea, "ARCHIVO=-", "VIA=trazador"}
-	if seco {
+	args := []string{"-s", "-C", root, "tarea-bloque", "N=" + task, "ARCHIVO=-", "VIA=trazador"}
+	if dryRun {
 		args = append(args, "SECO=1")
 	}
 	cmd := exec.Command("make", args...)
@@ -284,51 +284,51 @@ func agregarBloque(tarea, md string, seco bool) error {
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		lineas := strings.Split(strings.TrimSpace(string(out)), "\n")
-		if len(lineas) > 3 {
-			lineas = lineas[len(lineas)-3:]
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		if len(lines) > 3 {
+			lines = lines[len(lines)-3:]
 		}
-		return fmt.Errorf("%s", strings.Join(lineas, " · "))
+		return fmt.Errorf("%s", strings.Join(lines, " · "))
 	}
 	return nil
 }
 
-// emitirBloque agrega el bloque si se pidió y lo dice. Uno que no entra no cambia la salida de la
+// emitBlock agrega el bloque si se pidió y lo dice. Uno que no entra no cambia la salida de la
 // herramienta —la traza es la misma—, pero se dice fuerte: «no se agregó» leído como «se agregó» es
 // una tarea sin su prueba.
-func emitirBloque(tarea, md string) {
-	if tarea == "" {
+func emitBlock(task, md string) {
+	if task == "" {
 		return
 	}
-	if err := agregarBloque(tarea, md, false); err != nil {
-		fmt.Printf("\n  %s el bloque NO se agregó a la tarea %s: %v\n", paint("31", "✘"), tarea, err)
+	if err := addBlock(task, md, false); err != nil {
+		fmt.Printf("\n  %s el bloque NO se agregó a la tarea %s: %v\n", paint("31", "✘"), task, err)
 		return
 	}
-	fmt.Printf("\n  ▸ bloque agregado a la pila de la tarea %s\n", tarea)
+	fmt.Printf("\n  ▸ bloque agregado a la pila de la tarea %s\n", task)
 }
 
-// resultadoFilas resume una consulta en una línea: la única fila entera, o las primeras.
-func resultadoFilas(cols []string, filas []Fila) string {
-	if len(filas) == 0 {
+// rowsResult resume una consulta en una línea: la única fila entera, o las primeras.
+func rowsResult(cols []string, rows []Row) string {
+	if len(rows) == 0 {
 		return "cero filas."
 	}
-	fila := func(f Fila) string {
+	row := func(f Row) string {
 		var vals []string
 		for _, c := range cols {
-			vals = append(vals, c+" = "+celda(f[c]))
+			vals = append(vals, c+" = "+cell(f[c]))
 		}
 		return strings.Join(vals, " · ")
 	}
-	if len(filas) == 1 {
-		return fila(filas[0]) + "."
+	if len(rows) == 1 {
+		return row(rows[0]) + "."
 	}
-	var partes []string
-	for i, f := range filas {
+	var parts []string
+	for i, f := range rows {
 		if i == 5 {
-			partes = append(partes, fmt.Sprintf("y %d más", len(filas)-5))
+			parts = append(parts, fmt.Sprintf("y %d más", len(rows)-5))
 			break
 		}
-		partes = append(partes, "("+fila(f)+")")
+		parts = append(parts, "("+row(f)+")")
 	}
-	return fmt.Sprintf("%d filas: %s.", len(filas), strings.Join(partes, "; "))
+	return fmt.Sprintf("%d filas: %s.", len(rows), strings.Join(parts, "; "))
 }

@@ -20,66 +20,66 @@ import (
 	"strings"
 )
 
-type pasoArbol struct {
-	Key         string   `json:"key"`
-	N           string   `json:"n"`
-	Senal       []string `json:"senal"`
-	VistoEnProd bool     `json:"visto_en_prod"`
-	Falla       string   `json:"falla,omitempty"`
+type treeStep struct {
+	Key        string   `json:"key"`
+	N          string   `json:"n"`
+	Signal     []string `json:"senal"`
+	SeenInProd bool     `json:"visto_en_prod"`
+	Failure    string   `json:"falla,omitempty"`
 }
 
-type tramoArbol struct {
-	Key    string      `json:"key"`
-	N      string      `json:"n"`
-	Cuando string      `json:"cuando"`
-	Pasos  []pasoArbol `json:"pasos"`
+type treeSegment struct {
+	Key   string     `json:"key"`
+	N     string     `json:"n"`
+	When  string     `json:"cuando"`
+	Steps []treeStep `json:"pasos"`
 }
 
-// PasoAlcanzado es lo que se reporta: un paso del árbol y si esta traza lo tocó.
-type PasoAlcanzado struct {
-	Tramo  string `json:"tramo"`
-	Paso   string `json:"paso"`
-	N      string `json:"n"`
-	Lineas int    `json:"lineas"`
-	Falla  string `json:"falla,omitempty"`
+// ReachedStep es lo que se reporta: un paso del árbol y si esta traza lo tocó.
+type ReachedStep struct {
+	Segment string `json:"tramo"`
+	Step    string `json:"paso"`
+	N       string `json:"n"`
+	Lines   int    `json:"lineas"`
+	Failure string `json:"falla,omitempty"`
 }
 
-func cargarArbol() []tramoArbol {
+func loadTree() []treeSegment {
 	for _, p := range []string{"mapa/negocio.json"} {
-		b, err := mapaFS.ReadFile(p)
+		b, err := mapFS.ReadFile(p)
 		if err != nil {
 			continue
 		}
 		// El JSON usa el ORDEN de las claves como el orden del flujo, y Go lo pierde al deserializar
 		// en un map. Por eso se decodifica a RawMessage y se recorre el texto en orden de aparición:
 		// un recorrido mostrado alfabéticamente no es un recorrido.
-		var raiz struct {
-			Arbol json.RawMessage `json:"arbol"`
+		var root struct {
+			Tree json.RawMessage `json:"arbol"`
 		}
-		if json.Unmarshal(b, &raiz) != nil || len(raiz.Arbol) == 0 {
+		if json.Unmarshal(b, &root) != nil || len(root.Tree) == 0 {
 			continue
 		}
-		var crudo map[string]json.RawMessage
-		if json.Unmarshal(raiz.Arbol, &crudo) != nil {
+		var raw map[string]json.RawMessage
+		if json.Unmarshal(root.Tree, &raw) != nil {
 			continue
 		}
-		var out []tramoArbol
-		for _, k := range clavesEnOrden(raiz.Arbol) {
-			var campos map[string]json.RawMessage
-			if json.Unmarshal(crudo[k], &campos) != nil {
+		var out []treeSegment
+		for _, k := range keysInOrder(root.Tree) {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(raw[k], &fields) != nil {
 				continue
 			}
-			t := tramoArbol{Key: k}
-			_ = json.Unmarshal(campos["_n"], &t.N)
-			_ = json.Unmarshal(campos["_cuando"], &t.Cuando)
-			for _, sk := range clavesEnOrden(crudo[k]) {
+			t := treeSegment{Key: k}
+			_ = json.Unmarshal(fields["_n"], &t.N)
+			_ = json.Unmarshal(fields["_cuando"], &t.When)
+			for _, sk := range keysInOrder(raw[k]) {
 				if strings.HasPrefix(sk, "_") {
 					continue
 				}
-				var p pasoArbol
-				if json.Unmarshal(campos[sk], &p) == nil {
+				var p treeStep
+				if json.Unmarshal(fields[sk], &p) == nil {
 					p.Key = sk
-					t.Pasos = append(t.Pasos, p)
+					t.Steps = append(t.Steps, p)
 				}
 			}
 			out = append(out, t)
@@ -89,9 +89,9 @@ func cargarArbol() []tramoArbol {
 	return nil
 }
 
-// clavesEnOrden devuelve las claves de un objeto JSON EN EL ORDEN DEL TEXTO, que es la información
+// keysInOrder devuelve las claves de un objeto JSON EN EL ORDEN DEL TEXTO, que es la información
 // que `map[string]…` tira a la basura y que acá es justamente el dato: el orden es el flujo.
-func clavesEnOrden(raw json.RawMessage) []string {
+func keysInOrder(raw json.RawMessage) []string {
 	dec := json.NewDecoder(strings.NewReader(string(raw)))
 	if _, err := dec.Token(); err != nil { // abre '{'
 		return nil
@@ -107,35 +107,35 @@ func clavesEnOrden(raw json.RawMessage) []string {
 			break
 		}
 		ks = append(ks, k)
-		var descarte json.RawMessage
-		if dec.Decode(&descarte) != nil {
+		var discard json.RawMessage
+		if dec.Decode(&discard) != nil {
 			break
 		}
 	}
 	return ks
 }
 
-// pasosAlcanzados dice qué pasos del árbol tocó esta traza, en el orden del flujo.
+// reachedSteps dice qué pasos del árbol tocó esta traza, en el orden del flujo.
 //
 // ⚠ Devuelve TAMBIÉN los no alcanzados (con Lineas=0) a propósito: el valor está en el contraste.
 // «Llegó hasta acá y estos tres de abajo no se intentaron» es una respuesta; una lista de lo que sí
 // pasó, no.
-func pasosAlcanzados(mensajes []string) ([]PasoAlcanzado, int) {
-	arb := cargarArbol()
-	if len(arb) == 0 {
+func reachedSteps(messages []string) ([]ReachedStep, int) {
+	tree := loadTree()
+	if len(tree) == 0 {
 		return nil, -1
 	}
-	bajos := make([]string, len(mensajes))
-	for i, m := range mensajes {
-		bajos[i] = strings.ToLower(m)
+	lowered := make([]string, len(messages))
+	for i, m := range messages {
+		lowered[i] = strings.ToLower(m)
 	}
-	var out []PasoAlcanzado
-	ultimo := -1
-	for _, t := range arb {
-		for _, p := range t.Pasos {
+	var out []ReachedStep
+	last := -1
+	for _, t := range tree {
+		for _, p := range t.Steps {
 			n := 0
-			for _, m := range bajos {
-				for _, s := range p.Senal {
+			for _, m := range lowered {
+				for _, s := range p.Signal {
 					if s != "" && strings.Contains(m, strings.ToLower(s)) {
 						n++
 						break
@@ -143,10 +143,10 @@ func pasosAlcanzados(mensajes []string) ([]PasoAlcanzado, int) {
 				}
 			}
 			if n > 0 {
-				ultimo = len(out)
+				last = len(out)
 			}
-			out = append(out, PasoAlcanzado{Tramo: t.Key, Paso: p.Key, N: p.N, Lineas: n, Falla: p.Falla})
+			out = append(out, ReachedStep{Segment: t.Key, Step: p.Key, N: p.N, Lines: n, Failure: p.Failure})
 		}
 	}
-	return out, ultimo
+	return out, last
 }

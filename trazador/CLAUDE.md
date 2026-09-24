@@ -199,7 +199,7 @@ está siempre en el repo, así que un patrón que no captura nada **no es ambigu
 escribe.
 
 ⚠ **Pero el índice y el mapa hablan idiomas distintos, y las tres diferencias dan falsos positivos.** Las
-tres están resueltas en `matchersContraElCodigo`; si la tocás, no las deshagas:
+tres están resueltas en `matchersAgainstCode`; si la tocás, no las deshagas:
 
 1. **El índice guarda el literal NORMALIZADO** (`_normalizar` colapsa espacios y corta ` :.-,` del final)
    y el matcher está escrito contra el mensaje de RUNTIME. «No risk central data found**.**» y «No risk
@@ -218,7 +218,7 @@ stage del pipeline de Experian. Medido contra `origin/main` el 2026-09-18, el c�
 cinco quedaron mudos **sin que nada avisara**: un matcher que no captura no falla, sus líneas caen en «sin
 ubicar» y la etapa se dibuja más vacía de lo que fue. Ahora van por REGEX CON EL NOMBRE
 (`^STAGE \d+ — Frequency review`), que sobrevive a cualquier renumeración y además no se come los STAGE
-0-2 de `FlowSignatureService`, que son otro pipeline. `TestNingunMatcherSeAnclaAlNumeroDeUnStage` lo fija.
+0-2 de `FlowSignatureService`, que son otro pipeline. `TestNoMatcherAnchorsToAStageNumber` lo fija.
 También se acortó «Persisting fetched report», cuyo mensaje se extendió, y se borraron dos patrones que
 **ningún repo indexado emite** — buscados en los diez de `ROOTS`, no en uno.
 
@@ -237,17 +237,17 @@ dejó rastro.
 que no tocan browser ni BD—: **no cobertura por cobertura, sino la lógica cuyo error no rompe nada y
 sale prolijo.**
 
-- `selectorAmbiente` y `repartoPorBackend` — el filtro de Loki y el aviso de qué backend sirvió cada
+- `environmentSelector` y `splitByBackend` — el filtro de Loki y el aviso de qué backend sirvió cada
   línea. Existen porque un filtro que no matchea sale como «sin líneas de log» con los logs ahí: hasta el
   2026-09-23 el de dev comparaba `development|develop` entero y no se aplicaba nunca. Y aparte, que las
   tres listas de ambientes (server, store, selector) sean las mismas: agregar `qa` pedía tocar las tres.
-- `desenlaceDe` — existe porque HABÍA DOS definiciones y no coincidían (una contemplaba el estado 7
+- `outcomeOf` — existe porque HABÍA DOS definiciones y no coincidían (una contemplaba el estado 7
   «abandonado» y la otra no, así que la misma solicitud salía «en curso» en la lista y «abandonado» al
   abrirla). La prueba fija los cuatro desenlaces y, aparte, que **ningún estado esté en `sellados` y en
   `malos` a la vez**: ahí gana el orden del `switch` y una solicitud negada saldría verde.
-- `ramalDeRT` — cada ramal que el código devuelve tiene que estar declarado en `ramales.json`. Si no, sus
+- `laneOfRT` — cada ramal que el código devuelve tiene que estar declarado en `ramales.json`. Si no, sus
   etapas quedan sin clasificar y se dibujan como «podía pasar y no pasó» cuando ahí no se pasa nunca.
-- `clasificarReportes` — el barrido de #tech-ops contaba los reportes que ninguna regex reconoce y los
+- `classifyReports` — el barrido de #tech-ops contaba los reportes que ninguna regex reconoce y los
   **tiraba**, así que el veredicto («el trazador contesta el X %») se calculaba sobre los clasificados:
   hablaba de las regex creyendo hablar del canal, y con la mitad sin reconocer habría dicho 100 %. La
   prueba fija que un reporte sin categoría vuelva **con su texto** —contarlo no alcanza, hay que poder
@@ -364,7 +364,7 @@ El contexto curado describe **CreditOp**, y esto describe **esta herramienta**: 
   Medido el 2026-09-23 pegándole a cada backend: dev → `legacy-backend`, qa → `CreditopDev`; staging no
   se pudo ubicar. Cada `connectors/.env.<target>` lo declara en `LOKI_SERVICE`, y ⚠ **no filtra: avisa.** Una
   solicitud pasa por los dos backends (la 502633, de qa: 442 líneas de qa y 159 de dev), así que filtrar
-  escondía parte de lo que le pasó; la traza cierra con el reparto por backend (`repartoPorBackend`).
+  escondía parte de lo que le pasó; la traza cierra con el reparto por backend (`splitByBackend`).
   Lo pone un secreto del despliegue, no el repo: puede cambiar sin commit. El detalle y cómo re-medirlo:
   README §«El ambiente es el STACK».
 - **Los mapas van embebidos** (`go:embed mapa/*.json`): editar un JSON y no reiniciar el server deja la

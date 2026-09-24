@@ -34,33 +34,33 @@ func TestTheIndexFindsEachFormAndResolvesRuntimeMessages(t *testing.T) {
 	os.MkdirAll(tools, 0o755)
 	os.WriteFile(filepath.Join(tools, "repos.json"), []byte(`{"indexed":{"toy":"`+repo+`"},"citable_only":{},"extensions":[".php"]}`), 0o644)
 
-	claves, indice := indexarRepos(repos.New(tools))
+	keys, index := indexRepos(repos.New(tools))
 	var b strings.Builder
-	escribirIndice(&b, claves, indice)
-	var crudo map[string][]destinoLog
-	if err := json.Unmarshal([]byte(b.String()), &crudo); err != nil {
+	writeIndex(&b, keys, index)
+	var raw map[string][]logTarget
+	if err := json.Unmarshal([]byte(b.String()), &raw); err != nil {
 		t.Fatalf("el índice no es JSON: %v\n%s", err, b.String())
 	}
-	if _, ok := crudo["muy corto"]; ok || len(crudo) != 3 {
-		t.Fatalf("claves = %v (un literal de menos de 12 no identifica)", claves)
+	if _, ok := raw["muy corto"]; ok || len(raw) != 3 {
+		t.Fatalf("claves = %v (un literal de menos de 12 no identifica)", keys)
 	}
-	if got := crudo["Cupo insuficiente para la entidad"]; len(got) != 1 {
-		t.Errorf("la clave va sin el `:` final: %v", claves)
+	if got := raw["Cupo insuficiente para la entidad"]; len(got) != 1 {
+		t.Errorf("la clave va sin el `:` final: %v", keys)
 	}
-	if got := crudo["Iniciando validación de reglas de grupo"]; len(got) != 2 || got[0].Ruta != "toy/app/Validacion.php" {
+	if got := raw["Iniciando validación de reglas de grupo"]; len(got) != 2 || got[0].Path != "toy/app/Validacion.php" {
 		t.Errorf("entradas = %+v", got)
 	}
 
-	m := &mapaLogs{porMensaje: crudo}
-	for k := range crudo {
-		m.orden = append(m.orden, k)
+	m := &logMap{byMessage: raw}
+	for k := range raw {
+		m.order = append(m.order, k)
 	}
-	d, ok := m.resolverArchivo("Falló la consulta a Experian para 1827791")
-	if !ok || d.Ruta != "toy/app/Validacion.php" || d.Linea != "3" || d.H != hashRuta("toy/app/Validacion.php") {
+	d, ok := m.resolveFile("Falló la consulta a Experian para 1827791")
+	if !ok || d.Path != "toy/app/Validacion.php" || d.Line != "3" || d.H != pathHash("toy/app/Validacion.php") {
 		t.Errorf("resolverArchivo = %+v %v", d, ok)
 	}
 	// y el archivo de test no gana si hay uno real
-	if d, _ := m.resolverArchivo("Iniciando validación de reglas de grupo"); strings.Contains(d.Ruta, "tests/") {
+	if d, _ := m.resolveFile("Iniciando validación de reglas de grupo"); strings.Contains(d.Path, "tests/") {
 		t.Errorf("ganó el test: %+v", d)
 	}
 }

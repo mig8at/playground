@@ -11,17 +11,17 @@ import (
 	"unicode"
 )
 
-func registrarFlowImport(mux *http.ServeMux) {
-	mux.HandleFunc("/api/flow/comercios", flowComercios)
-	mux.HandleFunc("/api/flow/sucursales", flowSucursales)
-	mux.HandleFunc("/api/flow/entidades", flowEntidades)
-	mux.HandleFunc("/api/flow/configuracion", flowConfiguracion)
+func registerFlowImport(mux *http.ServeMux) {
+	mux.HandleFunc("/api/flow/comercios", flowMerchants)
+	mux.HandleFunc("/api/flow/sucursales", flowBranches)
+	mux.HandleFunc("/api/flow/entidades", flowEntities)
+	mux.HandleFunc("/api/flow/configuracion", flowConfiguration)
 }
 
-// textoCatalogo permite nombres humanos, pero elimina los caracteres con significado SQL antes
+// catalogText permite nombres humanos, pero elimina los caracteres con significado SQL antes
 // de interpolar el LIKE. Redash no ofrece parámetros para texto; por eso esta excepción está
 // aislada aquí, en vez de abrir Runner.Filas a argumentos arbitrarios.
-func textoCatalogo(s string) (string, error) {
+func catalogText(s string) (string, error) {
 	s = strings.TrimSpace(s)
 	if len([]rune(s)) < 2 || len([]rune(s)) > 60 {
 		return "", fmt.Errorf("la búsqueda debe tener entre 2 y 60 caracteres")
@@ -35,7 +35,7 @@ func textoCatalogo(s string) (string, error) {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ToLower(s), "\\", "\\\\"), "'", "\\'"), nil
 }
 
-func enteroFlow(r *http.Request, key string) (int64, error) {
+func flowInt(r *http.Request, key string) (int64, error) {
 	n, err := strconv.ParseInt(r.URL.Query().Get(key), 10, 64)
 	if err != nil || n <= 0 {
 		return 0, fmt.Errorf("%s debe ser un identificador numérico", key)
@@ -43,13 +43,13 @@ func enteroFlow(r *http.Request, key string) (int64, error) {
 	return n, nil
 }
 
-func fuenteProdFlow() (Runner, error) {
+func prodFlowSource() (Runner, error) {
 	c, _ := loadConfig("prod")
-	return abrirFuente(c)
+	return openSource(c)
 }
 
-func flowComercios(w http.ResponseWriter, r *http.Request) {
-	q, err := textoCatalogo(r.URL.Query().Get("q"))
+func flowMerchants(w http.ResponseWriter, r *http.Request) {
+	q, err := catalogText(r.URL.Query().Get("q"))
 	if err != nil {
 		jsonErr(w, 400, err.Error())
 		return
@@ -63,7 +63,7 @@ func flowComercios(w http.ResponseWriter, r *http.Request) {
 		jsonErr(w, 400, "página no permitida")
 		return
 	}
-	f, err := fuenteProdFlow()
+	f, err := prodFlowSource()
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -77,13 +77,13 @@ func flowComercios(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"items": rows, "page": page, "limit": limit, "hasMore": len(rows) == limit, "source": f.Name()})
 }
 
-func flowSucursales(w http.ResponseWriter, r *http.Request) {
-	allied, err := enteroFlow(r, "allied")
+func flowBranches(w http.ResponseWriter, r *http.Request) {
+	allied, err := flowInt(r, "allied")
 	if err != nil {
 		jsonErr(w, 400, err.Error())
 		return
 	}
-	f, err := fuenteProdFlow()
+	f, err := prodFlowSource()
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -97,13 +97,13 @@ func flowSucursales(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"items": rows, "source": f.Name()})
 }
 
-func flowEntidades(w http.ResponseWriter, r *http.Request) {
-	branch, err := enteroFlow(r, "sucursal")
+func flowEntities(w http.ResponseWriter, r *http.Request) {
+	branch, err := flowInt(r, "sucursal")
 	if err != nil {
 		jsonErr(w, 400, err.Error())
 		return
 	}
-	f, err := fuenteProdFlow()
+	f, err := prodFlowSource()
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -117,18 +117,18 @@ func flowEntidades(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, map[string]any{"items": rows, "source": f.Name()})
 }
 
-func flowConfiguracion(w http.ResponseWriter, r *http.Request) {
-	branch, err := enteroFlow(r, "sucursal")
+func flowConfiguration(w http.ResponseWriter, r *http.Request) {
+	branch, err := flowInt(r, "sucursal")
 	if err != nil {
 		jsonErr(w, 400, err.Error())
 		return
 	}
-	lender, err := enteroFlow(r, "entidad")
+	lender, err := flowInt(r, "entidad")
 	if err != nil {
 		jsonErr(w, 400, err.Error())
 		return
 	}
-	f, err := fuenteProdFlow()
+	f, err := prodFlowSource()
 	if err != nil {
 		jsonErr(w, 502, err.Error())
 		return
@@ -158,7 +158,7 @@ func flowConfiguracion(w http.ResponseWriter, r *http.Request) {
 	// paralelo para no convertir la importación puntual en una cadena de esperas de Redash.
 	type extra struct {
 		key  string
-		rows []Fila
+		rows []Row
 		err  error
 	}
 	jobs := []struct {

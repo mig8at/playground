@@ -20,22 +20,22 @@ import (
 	"os"
 )
 
-func escribirHTML(t Traza, s *Solicitud, ruta string) error {
-	datos, err := json.Marshal(struct {
-		Traza
-		Comercio string `json:"comercio"`
-		Sucursal string `json:"sucursal"`
+func writeHTML(t Trace, s *LoanRequest, path string) error {
+	data, err := json.Marshal(struct {
+		Trace
+		Merchant string `json:"comercio"`
+		Branch   string `json:"sucursal"`
 		Lender   string `json:"lender"`
 		RT       int    `json:"rt"`
-		Estado   int    `json:"estado"`
-		EstadoN  string `json:"estadoN"`
-		Monto    string `json:"monto"`
-	}{t, s.Comercio, s.Sucursal, s.Lender, s.LenderRT, s.Estado, s.EstadoN, fmt.Sprintf("%.0f", s.Monto)})
+		Status   int    `json:"estado"`
+		StatusN  string `json:"estadoN"`
+		Amount   string `json:"monto"`
+	}{t, s.Merchant, s.Branch, s.Lender, s.LenderRT, s.Status, s.StatusN, fmt.Sprintf("%.0f", s.Amount)})
 	if err != nil {
 		return err
 	}
 
-	pagina := `<!doctype html><html lang="es"><head><meta charset="utf-8">
+	page := `<!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Traza ` + fmt.Sprint(t.UReq) + ` · ` + html.EscapeString(t.Target) + `</title>
 <style>
@@ -103,7 +103,7 @@ body{margin:0;background:var(--bg);color:var(--txt);
 </style></head><body>
 <div id="app"></div>
 <script>
-const D = ` + string(datos) + `;
+const D = ` + string(data) + `;
 
 const ICO = {ok:['✓','ok'], warn:['!','warn'], fail:['✕','fail'], skip:['·','skip'],
              'sin-evidencia':['?','unknown'], 'sin-registro':['~','skip'],
@@ -208,5 +208,5 @@ function pintar() {
 pintar();
 </script></body></html>`
 
-	return os.WriteFile(ruta, []byte(pagina), 0o644)
+	return os.WriteFile(path, []byte(page), 0o644)
 }

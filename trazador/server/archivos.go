@@ -8,7 +8,7 @@
 // queda en `trazador/logs.json`. Hasta el 2026-09-24 lo construía Python (`workers/logs.py`) y acá se
 // reimplementaban la búsqueda y la normalización, con una prueba que comparaba las dos: ya nos había
 // costado dos veces tener lo mismo en dos lenguajes. Ahora el constructor y el lector usan LA MISMA
-// normalización (`normalizarLiteral`), así que no hay dos versiones que puedan divergir.
+// normalización (`normalizeLiteral`), así que no hay dos versiones que puedan divergir.
 //
 // ⚠ Y si el mapa NO está construido, esto no inventa nada: no agrega la sección y dice cómo armarla.
 // Un bloque «0 archivos» se leería como «no corrió ninguno», que es falso.
@@ -22,114 +22,114 @@ import (
 	"strings"
 )
 
-type destinoLog struct {
-	Ruta  string `json:"ruta"`
-	Linea string `json:"linea"`
-	Test  bool   `json:"es_test"`
-	H     string `json:"h"`
+type logTarget struct {
+	Path string `json:"ruta"`
+	Line string `json:"linea"`
+	Test bool   `json:"es_test"`
+	H    string `json:"h"`
 }
 
-type mapaLogs struct {
-	porMensaje map[string][]destinoLog
-	orden      []string // claves de más larga a más corta: gana el prefijo más específico
+type logMap struct {
+	byMessage map[string][]logTarget
+	order     []string // claves de más larga a más corta: gana el prefijo más específico
 }
 
-// normalizarMsg es la normalización con la que se construyeron las claves: la misma función, no una copia.
-func normalizarMsg(m string) string { return normalizarLiteral(m) }
+// normalizeMessage es la normalización con la que se construyeron las claves: la misma función, no una copia.
+func normalizeMessage(m string) string { return normalizeLiteral(m) }
 
-// cargarMapaLogs busca `trazador/logs.json` desde el cwd habitual (trazador/server) y desde la raíz.
-func cargarMapaLogs() *mapaLogs {
+// loadLogMap busca `trazador/logs.json` desde el cwd habitual (trazador/server) y desde la raíz.
+func loadLogMap() *logMap {
 	for _, p := range []string{
-		rutaIndiceLogs,                         // desde trazador/server, que es de donde corre
+		logIndexPath,                           // desde trazador/server, que es de donde corre
 		filepath.Join("trazador", "logs.json"), // desde la raíz del playground
 	} {
 		b, err := os.ReadFile(p)
 		if err != nil {
 			continue
 		}
-		var crudo map[string][]destinoLog
-		if json.Unmarshal(b, &crudo) != nil || len(crudo) == 0 {
+		var raw map[string][]logTarget
+		if json.Unmarshal(b, &raw) != nil || len(raw) == 0 {
 			continue
 		}
-		m := &mapaLogs{porMensaje: crudo}
-		for k := range crudo {
-			m.orden = append(m.orden, k)
+		m := &logMap{byMessage: raw}
+		for k := range raw {
+			m.order = append(m.order, k)
 		}
-		sort.Slice(m.orden, func(i, j int) bool { return len(m.orden[i]) > len(m.orden[j]) })
+		sort.Slice(m.order, func(i, j int) bool { return len(m.order[i]) > len(m.order[j]) })
 		return m
 	}
 	return nil
 }
 
-// resolverArchivo devuelve el archivo que emitió ese mensaje, o "" si el mapa no lo conoce.
+// resolveFile devuelve el archivo que emitió ese mensaje, o "" si el mapa no lo conoce.
 // El literal del código es un PREFIJO de lo que llega en runtime (el resto son valores
 // interpolados), nunca al revés — por eso se compara con `HasPrefix` y gana el más largo.
-func (m *mapaLogs) resolverArchivo(mensaje string) (destinoLog, bool) {
+func (m *logMap) resolveFile(logMessage string) (logTarget, bool) {
 	if m == nil {
-		return destinoLog{}, false
+		return logTarget{}, false
 	}
-	n := normalizarMsg(mensaje)
+	n := normalizeMessage(logMessage)
 	if n == "" {
-		return destinoLog{}, false
+		return logTarget{}, false
 	}
-	for _, k := range m.orden {
+	for _, k := range m.order {
 		if strings.HasPrefix(n, k) {
-			for _, d := range m.porMensaje[k] {
+			for _, d := range m.byMessage[k] {
 				if !d.Test {
 					return d, true
 				}
 			}
-			return m.porMensaje[k][0], true
+			return m.byMessage[k][0], true
 		}
 	}
-	return destinoLog{}, false
+	return logTarget{}, false
 }
 
-// ArchivoDeTraza es una fila del resumen: un archivo y cuántas líneas de esta traza salieron de él.
-type ArchivoDeTraza struct {
-	Ruta   string   `json:"ruta"`
-	H      string   `json:"h"`
-	Veces  int      `json:"veces"`
-	Lineas []string `json:"lineas,omitempty"`
+// TraceFile es una fila del resumen: un archivo y cuántas líneas de esta traza salieron de él.
+type TraceFile struct {
+	Path  string   `json:"ruta"`
+	H     string   `json:"h"`
+	Times int      `json:"veces"`
+	Lines []string `json:"lineas,omitempty"`
 }
 
-// archivosDeTraza resuelve los mensajes en orden de PRIMERA APARICIÓN, que es lo más cercano a la
+// traceFiles resuelve los mensajes en orden de PRIMERA APARICIÓN, que es lo más cercano a la
 // secuencia de ejecución que se puede afirmar sin instrumentar: las horas de Loki no son monótonas
 // entre servicios. Devuelve además cuántos mensajes quedaron sin resolver, que es información sobre
 // el mapa y no sobre la traza.
-func archivosDeTraza(mensajes []string) ([]ArchivoDeTraza, int) {
-	m := cargarMapaLogs()
+func traceFiles(messages []string) ([]TraceFile, int) {
+	m := loadLogMap()
 	if m == nil {
 		return nil, -1 // -1 = el mapa no está construido; distinto de «0 sin resolver»
 	}
-	var orden []string
-	porRuta := map[string]*ArchivoDeTraza{}
-	sin := 0
-	for _, msg := range mensajes {
-		d, ok := m.resolverArchivo(msg)
+	var order []string
+	byPath := map[string]*TraceFile{}
+	without := 0
+	for _, msg := range messages {
+		d, ok := m.resolveFile(msg)
 		if !ok {
-			sin++
+			without++
 			continue
 		}
-		a, existe := porRuta[d.Ruta]
-		if !existe {
-			a = &ArchivoDeTraza{Ruta: d.Ruta, H: d.H}
-			porRuta[d.Ruta] = a
-			orden = append(orden, d.Ruta)
+		a, exists := byPath[d.Path]
+		if !exists {
+			a = &TraceFile{Path: d.Path, H: d.H}
+			byPath[d.Path] = a
+			order = append(order, d.Path)
 		}
-		a.Veces++
-		if d.Linea != "" && d.Linea != "?" && !contieneStr(a.Lineas, d.Linea) && len(a.Lineas) < 8 {
-			a.Lineas = append(a.Lineas, d.Linea)
+		a.Times++
+		if d.Line != "" && d.Line != "?" && !containsString(a.Lines, d.Line) && len(a.Lines) < 8 {
+			a.Lines = append(a.Lines, d.Line)
 		}
 	}
-	fuera := make([]ArchivoDeTraza, 0, len(orden))
-	for _, r := range orden {
-		fuera = append(fuera, *porRuta[r])
+	outside := make([]TraceFile, 0, len(order))
+	for _, r := range order {
+		outside = append(outside, *byPath[r])
 	}
-	return fuera, sin
+	return outside, without
 }
 
-func contieneStr(xs []string, x string) bool {
+func containsString(xs []string, x string) bool {
 	for _, v := range xs {
 		if v == x {
 			return true

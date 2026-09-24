@@ -48,8 +48,8 @@ import (
 
 // ─── etapas ─────────────────────────────────────────────────────────────────────────────────────────
 
-// Etapa es un paso del flujo, en el orden en que el cliente lo recorre.
-type Etapa struct {
+// Stage es un paso del flujo, en el orden en que el cliente lo recorre.
+type Stage struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
 	// Status: ok | warn | fail | skip | sin-evidencia | no-aplica. `skip` y `no-aplica` NO son lo mismo y
@@ -60,16 +60,16 @@ type Etapa struct {
 	Reason string `json:"reason,omitempty"` // el POR QUÉ; casi siempre de Loki
 	Source string `json:"source"`           // db | loki | dynamodb | reeval | —
 	At     string `json:"at,omitempty"`
-	Lineas int    `json:"lineas,omitempty"` // cuántas líneas de log respaldan esta etapa
+	Lines  int    `json:"lineas,omitempty"` // cuántas líneas de log respaldan esta etapa
 	Subs   []Sub  `json:"subs,omitempty"`   // el detalle de la etapa, como los steps de un job
-	// Eventos: las líneas crudas de esta etapa, para el panel de log numerado. Van TOPEADAS y el tope se
+	// Events: las líneas crudas de esta etapa, para el panel de log numerado. Van TOPEADAS y el tope se
 	// declara — una etapa puede tener 300 líneas y volcarlas todas convierte la vista en un archivo.
-	Eventos   []Evento `json:"eventos,omitempty"`
-	EventosDe int      `json:"eventosDe,omitempty"` // cuántas había en total, si se recortó
+	Events   []Event `json:"eventos,omitempty"`
+	EventsOf int     `json:"eventosDe,omitempty"` // cuántas había en total, si se recortó
 }
 
-// Evento es una línea de log tal como se leerá en el panel derecho.
-type Evento struct {
+// Event es una línea de log tal como se leerá en el panel derecho.
+type Event struct {
 	At    string `json:"at"`
 	Level string `json:"level"`
 	Msg   string `json:"msg"`
@@ -85,51 +85,51 @@ type Sub struct {
 	Source string `json:"source"`
 	// Detail2 es de uso interno (el lender_id, para poder agrupar por familia después). No se serializa.
 	Detail2 string `json:"-"`
-	// Hijos permite DOS niveles: familia → entidad en `listado`, y nada más. Más profundidad no aporta y
+	// Children permite DOS niveles: familia → entidad en `listado`, y nada más. Más profundidad no aporta y
 	// vuelve el árbol ilegible, que es justo lo contrario de para qué existe.
-	Hijos []Sub `json:"hijos,omitempty"`
-	// Eventos: LAS LÍNEAS QUE PRODUJO ESTE SUB-PASO, no las de la etapa. Es el cambio que vuelve esto
+	Children []Sub `json:"hijos,omitempty"`
+	// Events: LAS LÍNEAS QUE PRODUJO ESTE SUB-PASO, no las de la etapa. Es el cambio que vuelve esto
 	// navegable como un run de CI: se abre un paso y se ven SUS logs, en vez de un panel al final con las
-	// 110 líneas de la etapa entera mezcladas y sin dueño. `EventosDe` dice cuántas había si se recortó —
+	// 110 líneas de la etapa entera mezcladas y sin dueño. `EventsOf` dice cuántas había si se recortó —
 	// un sub que muestra 40 de 66 sin decirlo se lee como completo.
-	Eventos   []Evento `json:"eventos,omitempty"`
-	EventosDe int      `json:"eventosDe,omitempty"`
-	// Declarativo: este sub DESCRIBE lo que debería pasar (la configuración del lender, una regla del mapa),
+	Events   []Event `json:"eventos,omitempty"`
+	EventsOf int     `json:"eventosDe,omitempty"`
+	// Declarative: este sub DESCRIBE lo que debería pasar (la configuración del lender, una regla del mapa),
 	// no algo que se midió. No cuenta como evidencia. Es la segunda vez que hace falta: «Camino configurado:
 	// Ado» pintó de verde la etapa biométrica primero en un rt=1 y después en la uReq 464709 de staging, que
 	// tiene CERO centrales consultadas. Una declaración no puede encender una etapa.
-	Declarativo bool       `json:"-"`
-	Evidencia   *Evidencia `json:"evidencia,omitempty"`
+	Declarative bool      `json:"-"`
+	Evidence    *Evidence `json:"evidencia,omitempty"`
 }
 
-// Evidencia es la consulta que respalda un paso de BD, con el `?` ya resuelto para que se pueda pegar en
+// Evidence es la consulta que respalda un paso de BD, con el `?` ya resuelto para que se pueda pegar en
 // Redash y comprobar el renglón. `Filas` son los valores que produjeron ESTE paso —no la fila entera—:
 // volcar `SELECT *` mete columnas que no participaron y el lector no puede saber cuáles miró el trazador.
-type Evidencia struct {
-	Fuente string   `json:"fuente"`
+type Evidence struct {
+	Source string   `json:"fuente"`
 	SQL    string   `json:"sql"`
-	Filas  []string `json:"filas,omitempty"`
+	Rows   []string `json:"filas,omitempty"`
 }
 
-// evidencia arma el bloque resolviendo los `?` posicionalmente. Se resuelven porque una consulta con
+// evidence arma el bloque resolviendo los `?` posicionalmente. Se resuelven porque una consulta con
 // placeholders no se puede pegar y correr, y una evidencia que no se puede correr no es evidencia.
-func evidencia(fuente, sqlTexto string, args []any, filas ...string) *Evidencia {
-	q := strings.TrimSpace(sqlTexto)
+func evidence(source, sqlText string, args []any, rows ...string) *Evidence {
+	q := strings.TrimSpace(sqlText)
 	for _, a := range args {
 		q = strings.Replace(q, "?", fmt.Sprint(a), 1)
 	}
-	limpias := make([]string, 0, len(filas))
-	for _, f := range filas {
+	clean := make([]string, 0, len(rows))
+	for _, f := range rows {
 		if f != "" {
-			limpias = append(limpias, f)
+			clean = append(clean, f)
 		}
 	}
-	return &Evidencia{Fuente: fuente, SQL: q, Filas: limpias}
+	return &Evidence{Source: source, SQL: q, Rows: clean}
 }
 
-// orden es la secuencia canónica. `origen` es un agregado del pedido de Miguel: no es una etapa del
+// order es la secuencia canónica. `origen` es un agregado del pedido de Miguel: no es una etapa del
 // backend sino de dónde entró el cliente, y hoy NO está en los logs — se deduce de la BD (canal/comercio).
-var orden = []struct{ id, label string }{
+var order = []struct{ id, label string }{
 	{"origen", "Origen"},
 	{"registro", "Registro y OTP"},
 	{"formulario", "Formulario de perfil"},
@@ -139,44 +139,44 @@ var orden = []struct{ id, label string }{
 	{"desembolso", "Desembolso"},
 }
 
-// estadoEtapa / estadoCierra / estadoDetiene se derivan del MAPA (etapas.json → bd.estados/cierran/
-// detienen) al entrar a ensamblar. Vivían hardcodeados acá y `Mapa.EstadoEtapa()` era código muerto:
+// stageStatus / closingStatus / stoppingStatus se derivan del MAPA (etapas.json → bd.estados/cierran/
+// detienen) al entrar a ensamblar. Vivían hardcodeados acá y `Mapa.StageStatus()` era código muerto:
 // cero call sites, así que editar el JSON no cambiaba nada — el peor tipo de mentira, la que no falla.
 // Verificado al cablear: el derivado y el hardcodeado eran idénticos, así que el cableado en sí no movió
 // un byte; lo que sí agrega es que `detienen` ahora existe (9→formulario, 10/20/30→desembolso).
 var (
-	estadoEtapa   map[int]string
-	estadoCierra  map[int]bool
-	estadoDetiene map[int]string
+	stageStatus    map[int]string
+	closingStatus  map[int]bool
+	stoppingStatus map[int]string
 )
 
 // malos son los desenlaces de muerte: llegar acá sin pedirlo es el fallo, no un matiz. Mismo criterio que
 // `harness/pkg/trace.ts` para que "roto" signifique lo mismo en las dos herramientas.
-var malos = map[int]string{
+var badStatuses = map[int]string{
 	6: "Negada", 8: "Cancelado", 12: "Autorización negada",
 	24: "Rechazado por validación de identidad",
 }
 
-// sellados = llegó al final. 25 es el sello del canal QR (nunca pasa por 11).
-var sellados = map[int]bool{11: true, 28: true, 5: true, 25: true, 26: true}
+// sealed = llegó al final. 25 es el sello del canal QR (nunca pasa por 11).
+var sealed = map[int]bool{11: true, 28: true, 5: true, 25: true, 26: true}
 
-// La prosa que explicaba estadoCierra/estadoDetiene vive ahora en dos lugares, a propósito: la mecánica
+// La prosa que explicaba closingStatus/stoppingStatus vive ahora en dos lugares, a propósito: la mecánica
 // en el comentario de las vars derivadas (arriba) y los HECHOS medidos en `etapas.json → bd.nota_estados`
 // de cada etapa — al lado del dato que justifican, donde los va a leer quien edite el JSON. Los dos falsos
 // verdes que motivaron la separación cierran/detienen: el estado 10 (F-103, uReq 464709) y el estado 9,
 // cuya fila se escribe al CREAR la solicitud (≤1 s del created_at, 4/4 trazas del censo 2026-08-07).
 
-// desenlaceDe traduce un estado de `user_requests` a uno de los CUATRO desenlaces. Una sola definición,
-// porque ya había dos y no coincidían: `ArmarTraza` contemplaba `abandonado` (estado 7) y el buscador de
+// outcomeOf traduce un estado de `user_requests` a uno de los CUATRO desenlaces. Una sola definición,
+// porque ya había dos y no coincidían: `BuildTrace` contemplaba `abandonado` (estado 7) y el buscador de
 // la API no, así que la MISMA solicitud salía «en curso» en la lista de intentos y «abandonado» al abrirla.
 // La vista incluso tenía color para un desenlace que su fuente nunca emitía.
-func desenlaceDe(estado int) string {
+func outcomeOf(status int) string {
 	switch {
-	case sellados[estado]:
+	case sealed[status]:
 		return "aprobado"
-	case malos[estado] != "":
+	case badStatuses[status] != "":
 		return "roto"
-	case estado == 7:
+	case status == 7:
 		return "abandonado"
 	default:
 		return "en-curso"
@@ -188,161 +188,161 @@ func desenlaceDe(estado int) string {
 // ⚠ POR QUÉ SE MOVIERON, y no fue por prolijidad: la versión anterior era un `map[string]*regexp.Regexp`
 // que se iteraba con `range` y cortaba en el primer match. **El orden de iteración de un map en Go es
 // aleatorio**, así que un mensaje que matcheara dos etapas caía en una etapa DISTINTA en cada corrida —
-// el trazador daba respuestas diferentes para los mismos datos, sin que nada avisara. `Mapa.EtapaDe`
+// el trazador daba respuestas diferentes para los mismos datos, sin que nada avisara. `Mapa.StageOf`
 // recorre un slice ordenado por el campo `orden`, así que es determinista y el empate lo gana la etapa
 // que va antes en el flujo.
 
 // ─── la solicitud según la BD ───────────────────────────────────────────────────────────────────────
 
-// Solicitud es el esqueleto: lo que la BD afirma. Nada de acá se infiere de logs.
-type Solicitud struct {
-	ID        int64
-	UserID    int64
-	Documento string
-	Telefono  string
-	Estado    int
-	EstadoN   string
-	Lender    string
-	LenderID  int64
-	LenderRT  int
-	Comercio  string
-	Sucursal  string
+// LoanRequest es el esqueleto: lo que la BD afirma. Nada de acá se infiere de logs.
+type LoanRequest struct {
+	ID       int64
+	UserID   int64
+	Document string
+	Phone    string
+	Status   int
+	StatusN  string
+	Lender   string
+	LenderID int64
+	LenderRT int
+	Merchant string
+	Branch   string
 	// `Canal` es en realidad el flow_id: `user_requests` NO tiene columna de canal. El origen
 	// (asesor / QR / ecommerce) hay que derivarlo, y hoy tampoco está en los logs — es el hueco del
 	// nivel `[origen]` del modelo de etapas.
-	Canal  string
-	Monto  float64
-	Creada time.Time
-	// Transiciones ya colapsadas: `user_request_records` repite el mismo estado muchas veces (una fila
+	Channel string
+	Amount  float64
+	Created time.Time
+	// Transitions ya colapsadas: `user_request_records` repite el mismo estado muchas veces (una fila
 	// por cada toque), así que sin colapsar el "historial" miente sobre cuántas veces avanzó el flujo.
-	Transiciones []Transicion
-	Buro         []FilaBuro
-	// Origen y si fue DERIVADO o asumido. Se separa porque `asesor` es el default y un default que se
+	Transitions []Transition
+	Bureau      []BureauRow
+	// Origin y si fue DERIVADO o asumido. Se separa porque `asesor` es el default y un default que se
 	// lee como verificado es peor que no tenerlo.
-	Origen         string
-	OrigenDerivado bool
-	// Validacion: `lender_identity_validation_types.identity_validation_type_id` (o el fallback
+	Origin        string
+	DerivedOrigin bool
+	// Validation: `lender_identity_validation_types.identity_validation_type_id` (o el fallback
 	// `lenders.validation_type`). Enum en Modules/Identity/App/Enums/IdentityValidationType.php:
 	// 0 Unknown · 1 None · 2 AwsOcrRekognition · 3 Questions · 4 Ado · 5 CrossCore · 6 Evidente.
-	Validacion int
+	Validation int
 	AlliedID   int64
 	// Corbeta: este comercio está en el setting `corbeta_allieds`, o sea que su onboarding es el del
 	// canal Corbeta→Bancolombia y NO el del resto. Se lee de la BD del target, no se supone.
 	Corbeta bool
 	// El snapshot del motor de perfilamiento. Es el esqueleto de `listado` y la huella del webhook del
 	// lender — nil si esta solicitud nunca llegó a perfilarse.
-	Perfilamiento *Perfilamiento
+	Profiling *Profiling
 	// La evaluación de categoría por entidad (`users_category_log`): POR QUÉ una entidad in-platform no le
 	// salió al cliente. Es la única fuente que lo dice criterio por criterio; el log de texto no puede.
-	Categorias []Categoria
+	Categories []Category
 	// Las operaciones contra Deceval (`deceval_logs`), el tramo del pagaré digital. Vacío = o el lender no
 	// firma con Deceval, o no llegó — el veredicto se cruza con la etapa, no se decide acá.
-	Deceval []OpDeceval
+	Deceval []DecevalOp
 }
 
-type Transicion struct {
-	Estado int
-	Nombre string
+type Transition struct {
+	Status int
+	Name   string
 	At     time.Time
 }
 
-type FilaBuro struct {
+type BureauRow struct {
 	Central string
 	Score   *float64
 	At      time.Time
 }
 
-// ventana es el rango de tiempo de esta solicitud, y es lo que hace SEGURO anclar por `user_id`. Sin
+// window es el rango de tiempo de esta solicitud, y es lo que hace SEGURO anclar por `user_id`. Sin
 // esto, buscar por usuario traería sus otras solicitudes mezcladas.
-func (s *Solicitud) ventana() (time.Time, time.Time) {
-	desde, hasta := s.Creada, s.Creada
-	for _, t := range s.Transiciones {
-		if t.At.After(hasta) {
-			hasta = t.At
+func (s *LoanRequest) window() (time.Time, time.Time) {
+	since, until := s.Created, s.Created
+	for _, t := range s.Transitions {
+		if t.At.After(until) {
+			until = t.At
 		}
-		if t.At.Before(desde) {
-			desde = t.At
+		if t.At.Before(since) {
+			since = t.At
 		}
 	}
-	for _, b := range s.Buro {
-		if b.At.After(hasta) {
-			hasta = b.At
+	for _, b := range s.Bureau {
+		if b.At.After(until) {
+			until = b.At
 		}
 	}
 	// Colchón: el log de una petición puede caer fuera del instante en que se grabó el estado.
-	return desde.Add(-10 * time.Minute), hasta.Add(30 * time.Minute)
+	return since.Add(-10 * time.Minute), until.Add(30 * time.Minute)
 }
 
 // ─── ensamblado ─────────────────────────────────────────────────────────────────────────────────────
 
-// Traza es lo que se imprime o se devuelve como JSON. El shape sigue al diseño recuperado para que un
+// Trace es lo que se imprime o se devuelve como JSON. El shape sigue al diseño recuperado para que un
 // front pueda consumirlo sin traducir.
-type Traza struct {
+type Trace struct {
 	UReq    int64  `json:"ureq"`
 	Target  string `json:"target"`
 	Outcome string `json:"outcome"` // aprobado | roto | abandonado | en-curso
 	BrokeAt string `json:"brokeAt,omitempty"`
-	// Ramal: por cuál de las variantes de flujo fue ESTA solicitud (`creditopx` · `agregador` ·
+	// Lane: por cuál de las variantes de flujo fue ESTA solicitud (`creditopx` · `agregador` ·
 	// `redirect` · `credifamilia`, los ids de `ramales.json`). Se calculaba desde siempre para decidir
 	// qué etapas NO aplican, pero no salía del servidor — y sin él la vista puede decir «esta etapa se
 	// saltó» y no puede decir **por qué carril fue y cuáles había**, que es la mitad del diagnóstico.
 	// Vacío hasta que el cliente elige entidad: antes de `seleccion` no hay ramal, y eso es un hecho, no
 	// un dato faltante.
-	Ramal    string   `json:"ramal,omitempty"`
-	Etapas   []Etapa  `json:"etapas"`
+	Lane     string   `json:"ramal,omitempty"`
+	Stages   []Stage  `json:"etapas"`
 	Sources  []string `json:"sources"`
 	Warnings []string `json:"warnings,omitempty"`
-	// Hallazgos: el resumen de auditoría — todo lo que quedó en fail, con su ruta, ANTES del árbol. Existe
+	// Findings: el resumen de auditoría — todo lo que quedó en fail, con su ruta, ANTES del árbol. Existe
 	// para que soporte lea cinco renglones y sepa dónde abrir, en vez de escanear el árbol buscando rojos.
-	Hallazgos []string `json:"hallazgos,omitempty"`
-	// Archivos: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
+	Findings []string `json:"hallazgos,omitempty"`
+	// Files: QUÉ CÓDIGO dejó rastro en esta traza, en orden de primera aparición. Sale de resolver
 	// cada mensaje contra `trazador/logs.json` (ver archivos.go e indice_logs.go). Es la pregunta que sigue a «¿por qué
 	// se rompió?» y hasta ahora obligaba a copiar el mensaje a otra herramienta.
 	// ⚠ Dice qué archivos DEJARON RASTRO, no cuáles se ejecutaron: uno sin logs es invisible acá, y
 	// eso no prueba que no corrió — la misma regla que rige toda esta herramienta.
-	Archivos []ArchivoDeTraza `json:"archivos,omitempty"`
+	Files []TraceFile `json:"archivos,omitempty"`
 	// Pantallas: QUÉ VIO el cliente en el navegador, de PostHog. Es la mitad que el backend no puede
 	// contar — «el backend dice que llegó a firmar, ¿el cliente llegó a ver esa pantalla?»— y hasta
 	// ahora vivía en otro comando. No hace falta un mapa: la llave (`loan_request_<n>`) ya existe.
-	// Arbol: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
+	// Tree: los 39 pasos del árbol de negocio, con cuántas líneas tocó cada uno. Contesta «dónde
 	// quedó» con grano fino — no «falló la validación» sino «falló en la cascada de identidad, y la
 	// biometría ni se intentó». Se deriva de `mapa/negocio.json`; ver arbol.go.
-	Arbol       []PasoAlcanzado `json:"arbol,omitempty"`
-	ArbolUltimo int             `json:"arbolUltimo,omitempty"`
-	Pantallas   []PantallaVista `json:"pantallas,omitempty"`
-	AvisoPH     string          `json:"avisoPosthog,omitempty"`
-	SinResolver int             `json:"archivosSinResolver,omitempty"`
+	Tree       []ReachedStep `json:"arbol,omitempty"`
+	TreeLast   int           `json:"arbolUltimo,omitempty"`
+	Screens    []SeenScreen  `json:"pantallas,omitempty"`
+	PHNotice   string        `json:"avisoPosthog,omitempty"`
+	Unresolved int           `json:"archivosSinResolver,omitempty"`
 	// El estado ACTUAL de la solicitud. Sin esto el outcome no se podía auditar desde el JSON: una traza
 	// decía «aprobado» y no había forma de saber contra qué estado se calculó (la 522238 cambió de estado
 	// entre dos lecturas y la diferencia era invisible).
-	Estado       int    `json:"estado"`
-	EstadoNombre string `json:"estadoNombre,omitempty"`
-	// Huerfanas: las líneas que ningún patrón del mapa reclamó. Van EN LA TRAZA y no solo contadas en un
+	Status     int    `json:"estado"`
+	StatusName string `json:"estadoNombre,omitempty"`
+	// Orphans: las líneas que ningún patrón del mapa reclamó. Van EN LA TRAZA y no solo contadas en un
 	// aviso, porque son el trabajo pendiente concreto: para cerrar el hueco hay que leerlas y declarar el
 	// patrón que falta. Un contador no se puede accionar; una lista sí.
-	Huerfanas []Evento `json:"huerfanas,omitempty"`
+	Orphans []Event `json:"huerfanas,omitempty"`
 }
 
-// ensamblar arma la traza: primero el esqueleto de la BD (hechos), después el porqué de los logs.
-func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, target string,
-	centrales map[int64]string, lenders map[int64]LenderInfo) Traza {
+// assemble arma la traza: primero el esqueleto de la BD (hechos), después el porqué de los logs.
+func assemble(stageMap *Map, subMap *SubMap, s *LoanRequest, lines []Line, target string,
+	bureaus map[int64]string, lenders map[int64]LenderInfo) Trace {
 	// Los mapas de estado salen del JSON, no de este archivo: una sola fuente.
-	estadoEtapa, estadoCierra, estadoDetiene = mapa.EstadoEtapa(), mapa.EstadoCierra(), mapa.EstadoDetiene()
+	stageStatus, closingStatus, stoppingStatus = stageMap.StageStatus(), stageMap.ClosingStatus(), stageMap.StoppingStatus()
 
-	t := Traza{UReq: s.ID, Target: target, Sources: []string{"db"}, Estado: s.Estado, EstadoNombre: s.EstadoN}
-	if len(lineas) > 0 {
+	t := Trace{UReq: s.ID, Target: target, Sources: []string{"db"}, Status: s.Status, StatusName: s.StatusN}
+	if len(lines) > 0 {
 		t.Sources = append(t.Sources, "loki")
 	}
 
 	// Qué etapas prueba la BD, y cuándo.
-	visto := map[string]time.Time{}
-	for _, tr := range s.Transiciones {
+	seen := map[string]time.Time{}
+	for _, tr := range s.Transitions {
 		// La misma compuerta que abajo: una transición prueba la etapa SOLO si su estado la cierra. La fila
 		// de estado 9 se escribe al crear la solicitud (≤1 s del created_at, medido), así que dejarla pasar
 		// acá pintaba «personal-info ✔» con el formulario sin tocar.
-		if e, ok := estadoEtapa[tr.Estado]; ok && estadoCierra[tr.Estado] {
-			if _, ya := visto[e]; !ya {
-				visto[e] = tr.At
+		if e, ok := stageStatus[tr.Status]; ok && closingStatus[tr.Status] {
+			if _, already := seen[e]; !already {
+				seen[e] = tr.At
 			}
 		}
 	}
@@ -352,15 +352,15 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	// una, del estado 9). Para ellas el trazador mostraba «Desembolso ·» mientras `user_requests` decía
 	// «Autorizada». La columna de la solicitud es tan afirmable como el registro histórico; lo único que no
 	// da es la HORA, así que se usa la de la solicitud sólo si el historial no aportó nada.
-	// ⚠ SÓLO PARA LOS ESTADOS QUE PRUEBAN QUE LA ETAPA TERMINÓ. `estadoEtapa` contesta «¿a qué etapa
+	// ⚠ SÓLO PARA LOS ESTADOS QUE PRUEBAN QUE LA ETAPA TERMINÓ. `stageStatus` contesta «¿a qué etapa
 	// PERTENECE este estado?», que es otra pregunta: el estado 10 pertenece a `desembolso` porque el flujo ya
 	// está en el tramo de cierre, pero significa que está ADENTRO, no que lo completó. Usar ese mapa acá
 	// pintaba la etapa en VERDE para una solicitud detenida en 10 — reportado sobre la uReq 464709 de
 	// staging, que falló firmando documentos y salía «Desembolso ✔». Un falso verde es el peor error que
 	// puede tener esta herramienta: afirma un éxito que no ocurrió.
-	if et, ok := estadoEtapa[s.Estado]; ok && estadoCierra[s.Estado] {
-		if _, ya := visto[et]; !ya {
-			visto[et] = s.Creada
+	if et, ok := stageStatus[s.Status]; ok && closingStatus[s.Status] {
+		if _, already := seen[et]; !already {
+			seen[et] = s.Created
 		}
 	}
 
@@ -370,19 +370,19 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	// únicas filas nuevas eran de `TusDatos - AML` y `Ado`, que son del tramo biométrico. Resultado: «✔
 	// Consulta a burós 16:00:27» con las seis centrales en «no consultada» — un check verde tomado prestado
 	// de otra etapa. Es el mismo error que tenía `Ado`, ahora en la dimensión del TIEMPO.
-	for _, f := range s.Buro {
-		if !declaradaEn(subMapa, "formulario", f.Central) {
+	for _, f := range s.Bureau {
+		if !declaredIn(subMap, "formulario", f.Central) {
 			continue
 		}
-		if v, ya := visto["formulario"]; !ya || f.At.Before(v) {
-			visto["formulario"] = f.At
+		if v, already := seen["formulario"]; !already || f.At.Before(v) {
+			seen["formulario"] = f.At
 		}
 	}
 	// `origen` lo prueba la existencia misma de la solicitud: alguien la creó por algún canal.
-	visto["origen"] = s.Creada
+	seen["origen"] = s.Created
 
 	// El desenlace sale SOLO de la BD.
-	t.Outcome = desenlaceDe(s.Estado)
+	t.Outcome = outcomeOf(s.Status)
 
 	// Las líneas de log, repartidas por etapa. DOS LLAVES, en este orden:
 	//
@@ -404,46 +404,46 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	// Y cuando el span abarca DOS etapas no se hereda: pasa de verdad —guardar los datos personales dispara
 	// la consulta de buró dentro de la misma operación— así que ahí el span no desempata y elegir sería
 	// inventar. Esas líneas quedan «sin ubicar», que es la respuesta honesta.
-	porEtapa := map[string][]Linea{}
-	etapasDelSpan := map[string]map[string]bool{}
-	var sinPatron []Linea
-	for _, l := range lineas {
-		if id := mapa.EtapaDe(l.msg, l.ctx); id != "" {
-			porEtapa[id] = append(porEtapa[id], l)
-			if etapasDelSpan[l.span] == nil {
-				etapasDelSpan[l.span] = map[string]bool{}
+	byStage := map[string][]Line{}
+	spanStages := map[string]map[string]bool{}
+	var withoutPattern []Line
+	for _, l := range lines {
+		if id := stageMap.StageOf(l.msg, l.ctx); id != "" {
+			byStage[id] = append(byStage[id], l)
+			if spanStages[l.span] == nil {
+				spanStages[l.span] = map[string]bool{}
 			}
-			etapasDelSpan[l.span][id] = true
+			spanStages[l.span][id] = true
 		} else {
-			sinPatron = append(sinPatron, l)
+			withoutPattern = append(withoutPattern, l)
 		}
 	}
-	heredadas := 0
-	var sinEtapa []Linea
-	for _, l := range sinPatron {
-		es := etapasDelSpan[l.span]
-		if l.span == "" || len(es) != 1 {
-			sinEtapa = append(sinEtapa, l)
+	inherited := 0
+	var withoutStage []Line
+	for _, l := range withoutPattern {
+		is := spanStages[l.span]
+		if l.span == "" || len(is) != 1 {
+			withoutStage = append(withoutStage, l)
 			continue
 		}
-		for id := range es {
-			l.heredada = true
-			porEtapa[id] = append(porEtapa[id], l)
-			heredadas++
+		for id := range is {
+			l.inheritedOne = true
+			byStage[id] = append(byStage[id], l)
+			inherited++
 		}
 	}
-	if heredadas > 0 {
+	if inherited > 0 {
 		t.Warnings = append(t.Warnings, fmt.Sprintf("%d líneas se ubicaron por SPAN y no por patrón del mapa: "+
-			"van en la etapa correcta pero sin nombre de negocio (aparecen bajo «eventos sin nombre»)", heredadas))
+			"van en la etapa correcta pero sin nombre de negocio (aparecen bajo «eventos sin nombre»)", inherited))
 	}
 	// Las líneas que NADA reclama SE MUESTRAN, no solo se cuentan. Un aviso que dice «38 líneas no las pude
 	// ubicar» sin decir cuáles no se puede accionar: para cerrar el hueco hay que leerlas y declarar el patrón
 	// que falta. Antes esto era un contador, y por eso el hueco no se cerraba nunca.
-	if len(sinEtapa) > 0 {
-		t.Huerfanas, _ = eventosDe(sinEtapa, 120)
+	if len(withoutStage) > 0 {
+		t.Orphans, _ = eventsOf(withoutStage, 120)
 		t.Warnings = append(t.Warnings, fmt.Sprintf("%d de %d líneas no las ubica ni el patrón ni el span "+
 			"(mapa v%s): están listadas en «sin ubicar» — o el span abarca dos etapas, o ninguna hermana suya "+
-			"está ubicada", len(sinEtapa), len(lineas), mapa.Version))
+			"está ubicada", len(withoutStage), len(lines), stageMap.Version))
 	}
 
 	// LA FAMILIA, una sola vez y antes del loop. Sale del `response_type` del lender ya sellado en la
@@ -451,49 +451,49 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	// eso es correcto — no se puede declarar «esta etapa no aplica» sin saber a qué ramal fue.
 	fam := ""
 	if s.Lender != "" {
-		fam = ramalDeRT(s.LenderID, s.LenderRT)
+		fam = laneOfRT(s.LenderID, s.LenderRT)
 	}
-	t.Ramal = fam
+	t.Lane = fam
 
 	// La etapa de muerte se calcula UNA vez, con todo el material (transiciones + líneas por etapa), y
-	// puede ser "": ver etapaDeMuerte.
-	muerte := etapaDeMuerte(mapa, s, porEtapa)
+	// puede ser "": ver deathStage.
+	death := deathStage(stageMap, s, byStage)
 
-	for _, o := range mapa.Orden() {
-		e := Etapa{ID: o.id, Label: o.label, Source: "—", Status: "skip"}
-		ls := porEtapa[o.id]
-		e.Lineas = len(ls)
+	for _, o := range stageMap.Order() {
+		e := Stage{ID: o.id, Label: o.label, Source: "—", Status: "skip"}
+		ls := byStage[o.id]
+		e.Lines = len(ls)
 
 		// ¿Esta etapa está DECLARADA como inexistente para esta solicitud? Se resuelve acá arriba, antes de
 		// armar nada, porque además de decidir el estado final decide qué NO hay que agregar: un sub que
 		// describe un tramo que no existe se cuenta como evidencia y evita que el tramo se marque ausente.
 		// Pasó exactamente eso — «Camino configurado: Ado» apareció en una solicitud rt=1 (Alkosto +
 		// Bancolombia) y la etapa biométrica salió ✔ en un ramal donde no ocurre.
-		declNoAplica, declPorque := noAplicaPorQue(mapa, s, fam, o.id)
+		declNotApplicable, declReason := notApplicableReason(stageMap, s, fam, o.id)
 
 		if o.id == "origen" {
 			// EL MONTO ADELANTE, EL CANAL ABAJO. Esta era la única fila del árbol que no se medía: el canal
 			// se ASUME asesor porque `user_requests` no tiene columna de canal. Abrir una traza con una
 			// suposición es el peor lugar para ponerla — se lee como el resto, que sí está probado.
-			e.Status, e.At, e.Source = "ok", hhmm(s.Creada), "db"
-			e.Detail = fmt.Sprintf("%s solicitados", pesos(s.Monto))
-			canal := Sub{Label: "Canal de entrada: " + s.Origen, Status: "ok", Source: "db",
+			e.Status, e.At, e.Source = "ok", hhmm(s.Created), "db"
+			e.Detail = fmt.Sprintf("%s solicitados", pesosText(s.Amount))
+			channel := Sub{Label: "Canal de entrada: " + s.Origin, Status: "ok", Source: "db",
 				Detail: "derivado de ecommerce_requests"}
-			if !s.OrigenDerivado {
-				canal.Status, canal.Source = "skip", "default"
-				canal.Detail = "ASUMIDO — user_requests no guarda el canal; sólo ecommerce se puede derivar"
-				canal.Declarativo = true // una suposición no es evidencia: no puede encender la etapa
+			if !s.DerivedOrigin {
+				channel.Status, channel.Source = "skip", "default"
+				channel.Detail = "ASUMIDO — user_requests no guarda el canal; sólo ecommerce se puede derivar"
+				channel.Declarative = true // una suposición no es evidencia: no puede encender la etapa
 			}
 			// Las líneas que el mapa enruta a esta etapa (los matchers de canal: «Corbeta checkout»,
 			// IsCorbeta/IsEcommerce) se adjuntan al sub del canal: esta etapa no reparte por hitos y antes
 			// se CONTABAN y se tiraban — 4 líneas en 2/25 trazas del censo, invisibles hasta en el backlog.
 			if len(ls) > 0 {
-				canal.Eventos, canal.EventosDe = eventosDe(ls, 40)
-				if canal.Source == "default" {
-					canal.Source = "loki"
+				channel.Events, channel.EventsOf = eventsOf(ls, 40)
+				if channel.Source == "default" {
+					channel.Source = "loki"
 				}
 			}
-			e.Subs = append(e.Subs, canal)
+			e.Subs = append(e.Subs, channel)
 			// EL FLAG CORBETA ES DEL COMERCIO, NO EL CANAL — y no puede pisar el renglón de arriba: en el
 			// censo hubo Corbeta SIN fila de ecommerce (522230, entró por otro lado) y Corbeta CON ella
 			// (522215: el QR de Corbeta CREA la fila — «ecommerce» no es falso, es incompleto). Dos hechos
@@ -505,17 +505,17 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 					Label: "Onboarding Corbeta: sí", Status: "ok", Source: "db",
 					Detail: fmt.Sprintf("allied %d está en el setting corbeta_allieds — el formulario se "+
 						"salta y la info laboral se fabrica", s.AlliedID),
-					Evidencia: evidencia("settings", sqlCorbeta, nil,
+					Evidence: evidence("settings", sqlCorbeta, nil,
 						fmt.Sprintf("corbeta_allieds contiene %d", s.AlliedID),
 						"⚠ es la variante de ONBOARDING del comercio, no el punto de entrada de la solicitud"),
 				})
 			}
-			t.Etapas = append(t.Etapas, e)
+			t.Stages = append(t.Stages, e)
 			continue
 		}
-		if at, ok := visto[o.id]; ok {
+		if at, ok := seen[o.id]; ok {
 			e.Status, e.Source, e.At = "ok", "db", hhmm(at)
-		} else if estadoDetiene[s.Estado] == o.id {
+		} else if stoppingStatus[s.Status] == o.id {
 			// DETENIDA ACÁ. La solicitud entró a esta etapa y no salió: en la BD no figura como rota —sigue
 			// «en curso»— así que sin esto la etapa quedaba en gris y el corte no se veía en ninguna parte.
 			// Es la respuesta a «¿dónde se quedó?», que es la pregunta con la que llega el soporte.
@@ -524,9 +524,9 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// «estado 3 · Seleccionó entidad», y ponerlo en prosa aparte lo sacaba de la lista donde se lee
 			// todo lo demás. Con la misma forma que el resto se abre, se copia y se busca igual.
 			e.Status, e.Source = "fail", "db"
-			e.At = atDelEstado(s, s.Estado)
+			e.At = statusAt(s, s.Status)
 			e.Subs = append([]Sub{{
-				Label:  fmt.Sprintf("estado %d · %s", s.Estado, s.EstadoN),
+				Label:  fmt.Sprintf("estado %d · %s", s.Status, s.StatusN),
 				Status: "fail", Source: "db",
 				Detail: "DETENIDA acá — entró y no salió",
 				// La afirmación más fuerte que hace el trazador ES la que más tiene que probarse: «no salió»
@@ -538,18 +538,18 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// NO tiene fila para el 10 — o sea que el registro de transiciones no cubre todos los
 				// estados. Escribir «última transición: estado 10» habría sido inventar una fila que no
 				// existe, y fue este mismo bloque de evidencia el que lo destapó al mostrarlas juntas.
-				Evidencia: evidencia("user_requests + user_request_records", sqlHistorial, []any{s.ID},
-					append(historialFilas(s), estadoActualFila(s))...),
+				Evidence: evidence("user_requests + user_request_records", sqlHistory, []any{s.ID},
+					append(historyRows(s), currentStatusRow(s))...),
 			}}, e.Subs...)
 		} else if len(ls) > 0 {
 			// Sin respaldo en la BD pero con logs: la etapa OCURRIÓ (los logs son evidencia positiva),
 			// solo que la BD no la registra. Es el caso de `listado` y `cupo`, por diseño.
 			e.Status, e.Source, e.Source = "ok", "loki", "loki"
 			e.At = hhmm(time.UnixMilli(ls[0].ts))
-		} else if malos[s.Estado] != "" && muerte != "" && o.id == muerte {
+		} else if badStatuses[s.Status] != "" && death != "" && o.id == death {
 			// La etapa donde murió: lo dice la BD (el estado final), no un log.
-			e.Status, e.Source, e.Detail = "fail", "db", fmt.Sprintf("estado %d «%s»", s.Estado, s.EstadoN)
-			e.At = atDelEstado(s, s.Estado)
+			e.Status, e.Source, e.Detail = "fail", "db", fmt.Sprintf("estado %d «%s»", s.Status, s.StatusN)
+			e.At = statusAt(s, s.Status)
 		} else if o.id == "listado" || o.id == "cupo" {
 			// Estas dos NO tienen esqueleto posible: decir "no ocurrió" sería mentir.
 			e.Status, e.Detail = "sin-evidencia", "la BD no registra esta etapa (rt=2 no persiste; rt=1 vive en DynamoDB)"
@@ -569,33 +569,33 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// Y se usa el SPAN para las hermanas mudas: el 401 crudo no trae `lender_id` pero comparte span con la
 		// excepción que sí. Mismo criterio que la herencia de etapa — se hereda sólo si el span apunta a UNA
 		// entidad; si abarca dos, elegir sería inventar.
-		lineasDeLender := map[string][]Linea{}
+		lenderLines := map[string][]Line{}
 		if o.id == "listado" && len(ls) > 0 {
-			lenderDelSpan := map[string]string{}
+			spanLender := map[string]string{}
 			for _, l := range ls {
 				if id := pick(l.ctx, []string{"lender_id"}); id != "" && l.span != "" {
-					if otro, ya := lenderDelSpan[l.span]; ya && otro != id {
-						lenderDelSpan[l.span] = "" // el span toca dos entidades: no desempata
-					} else if !ya {
-						lenderDelSpan[l.span] = id
+					if other, already := spanLender[l.span]; already && other != id {
+						spanLender[l.span] = "" // el span toca dos entidades: no desempata
+					} else if !already {
+						spanLender[l.span] = id
 					}
 				}
 			}
 			for _, l := range ls {
 				id := pick(l.ctx, []string{"lender_id"})
 				if id == "" {
-					id = lenderDelSpan[l.span]
+					id = spanLender[l.span]
 				}
 				if id != "" {
-					lineasDeLender[id] = append(lineasDeLender[id], l)
+					lenderLines[id] = append(lenderLines[id], l)
 				}
 			}
 		}
 
 		if o.id == "listado" {
 			type ent struct {
-				nombre, regla, res string
-				cats               []string
+				name, rule, res string
+				cats            []string
 			}
 			byID := map[string]*ent{}
 			var ids []string
@@ -611,12 +611,12 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 					ids = append(ids, id)
 				}
 				if n := pick(l.ctx, []string{"lender_name"}); n != "" {
-					e0.nombre = n
+					e0.name = n
 				}
 				r := pick(l.ctx, []string{"rule_id"})
 				if regexp.MustCompile(`(?i)Resultado de evaluaci`).MatchString(l.msg) {
 					if r != "" {
-						e0.regla = r
+						e0.rule = r
 					}
 					if v := pick(l.ctx, []string{"result", "resultado"}); v != "" {
 						e0.res = v
@@ -634,17 +634,17 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 					st = "skip"
 				}
 				d := ""
-				if e0.regla != "" {
-					d = "regla " + e0.regla
+				if e0.rule != "" {
+					d = "regla " + e0.rule
 				}
 				if len(e0.cats) > 0 {
 					d += fmt.Sprintf("  ·  %d categoría(s) rechazada(s): %s", len(e0.cats), strings.Join(e0.cats, ", "))
 				}
-				nombre := e0.nombre
-				if nombre == "" {
-					nombre = "lender " + id
+				name := e0.name
+				if name == "" {
+					name = "lender " + id
 				}
-				e.Subs = append(e.Subs, Sub{Label: nombre, Status: st, Detail: d, Source: "loki", Detail2: id})
+				e.Subs = append(e.Subs, Sub{Label: name, Status: st, Detail: d, Source: "loki", Detail2: id})
 			}
 			// Se dejan PLANAS a propósito: el bloque de la BD las fusiona por `lender_id` y agrupa por
 			// familia UNA vez. Agrupar acá producía dos árboles concatenados —cada entidad dos veces, una
@@ -657,42 +657,42 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 
 		// SUB-STEPS DE LA BD — hechos, uno por transición de estado que cae en esta etapa. Van primero
 		// porque son lo único que se puede afirmar; los de log vienen después como evidencia.
-		for _, tr := range s.Transiciones {
-			if estadoEtapa[tr.Estado] != o.id {
+		for _, tr := range s.Transitions {
+			if stageStatus[tr.Status] != o.id {
 				continue
 			}
 			st, det := "ok", hhmm(tr.At)
 			decl := false
-			if malos[tr.Estado] != "" {
+			if badStatuses[tr.Status] != "" {
 				st = "fail"
 			}
-			if tr.Estado == 9 {
+			if tr.Status == 9 {
 				// El hecho se muestra, pero dice lo que es — y no puede encender la etapa (Declarativo):
 				// probaría que la solicitud NACIÓ, no que el formulario se llenó.
 				det += " · ⚠ esta fila se escribe al CREAR la solicitud: no prueba el formulario"
 				decl = true
 			}
 			e.Subs = append(e.Subs, Sub{
-				Label:  fmt.Sprintf("estado %d · %s", tr.Estado, tr.Nombre),
-				Status: st, Detail: det, Source: "db", Declarativo: decl,
+				Label:  fmt.Sprintf("estado %d · %s", tr.Status, tr.Name),
+				Status: st, Detail: det, Source: "db", Declarative: decl,
 				// El historial COMPLETO, no sólo esta transición: el renglón afirma «pasó por acá» y lo
 				// que lo respalda —o lo desmiente— es la secuencia entera. `user_request_records` repite
 				// el mismo estado muchas veces, así que se muestra ya colapsada, igual que se leyó.
-				Evidencia: evidencia("user_request_records", sqlHistorial, []any{s.ID}, historialFilas(s)...),
+				Evidence: evidence("user_request_records", sqlHistory, []any{s.ID}, historyRows(s)...),
 			})
 		}
 		// Las centrales son un hecho de BD y van en la etapa DONDE SE CONSULTAN, según el reparto declarado
 		// en `mapa/substeps.json`. Antes se volcaba el catálogo entero en `buro`, y por eso `Ado` —que es del
 		// tramo creditopx, después de elegir la entidad— salía «no consultada» bajo «Consulta a burós».
-		for _, b := range subMapa.Bloques(o.id) {
-			if b.Tipo == "catalogo" && len(b.Conocidos) > 0 {
-				e.Subs = append(e.Subs, arbolCentrales(b.Label, b.Conocidos, centrales, s.Buro, s.UserID)...)
+		for _, b := range subMap.Blocks(o.id) {
+			if b.Kind == "catalogo" && len(b.Known) > 0 {
+				e.Subs = append(e.Subs, bureausTree(b.Label, b.Known, bureaus, s.Bureau, s.UserID)...)
 			}
 		}
 		// Las que tienen datos y ninguna etapa declaró se muestran en el buró, marcadas. Un dato medido que
 		// desaparece porque el mapa no lo esperaba es peor que uno mal ubicado: el segundo se ve.
 		if o.id == "formulario" {
-			e.Subs = append(e.Subs, centralesHuerfanas(subMapa, mapa, s.Buro)...)
+			e.Subs = append(e.Subs, orphanBureaus(subMap, stageMap, s.Bureau)...)
 		}
 		// ── QUÉ CAMINO DE IDENTIDAD LE TOCA A ESTE LENDER ──
 		//
@@ -703,22 +703,22 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// **64 usan Ado, 46 usan AWS OCR+Rekognition y 9 no validan**. Para esos 46 las cuatro centrales
 		// salen «no consultada» y sin esta línea se lee como «no pasó nada», cuando corrieron el OCR y el
 		// reconocimiento facial completos — su evidencia son los LOGS, no la BD.
-		if o.id == "biometria" && s.Validacion > 0 && declNoAplica == "" {
-			v := validacionIdentidad[s.Validacion]
-			st, det := "ok", v.nombre
-			if !v.dejaFila {
+		if o.id == "biometria" && s.Validation > 0 && declNotApplicable == "" {
+			v := identityValidation[s.Validation]
+			st, det := "ok", v.name
+			if !v.leavesRow {
 				st = "sin-evidencia"
 				det += " — NO escribe fila de central: la ausencia de filas acá es ESPERADA, el rastro está en los logs"
 			}
-			e.Subs = append([]Sub{{Label: "Camino configurado: " + v.nombre, Status: st, Source: "db",
-				Detail: det, Declarativo: true}}, e.Subs...)
+			e.Subs = append([]Sub{{Label: "Camino configurado: " + v.name, Status: st, Source: "db",
+				Detail: det, Declarative: true}}, e.Subs...)
 		}
 		// Una etapa que la BD no prueba por ESTADO puede estar probada por sus centrales. `biometria` es el
 		// caso: ningún `user_request_status` la marca, así que quedaba en `skip` con dos centrales consultadas
 		// a la vista — y después la inferencia la rotulaba «puede no haber ocurrido» encima de la evidencia.
-		if e.Status == "skip" && e.At == "" && tieneEvidencia(e) {
+		if e.Status == "skip" && e.At == "" && hasEvidence(e) {
 			e.Status, e.Source = "ok", "db"
-			e.At = primeraHoraDeSubs(e.Subs)
+			e.At = firstSubsTime(e.Subs)
 		}
 		if o.id == "seleccion" && fam != "" {
 			// El único punto del flujo donde SÍ hay un camino elegido: una entidad ganó, y su familia es
@@ -726,7 +726,7 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			e.Subs = append(e.Subs, Sub{
 				Label: fam, Status: "ok", Source: "db",
 				Detail: "◄ por acá se fue",
-				Hijos: []Sub{{Label: s.Lender, Status: "ok", Source: "db",
+				Children: []Sub{{Label: s.Lender, Status: "ok", Source: "db",
 					Detail: fmt.Sprintf("lender %d · response_type %d", s.LenderID, s.LenderRT)}},
 			})
 		}
@@ -744,22 +744,22 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// Cuántas veces corrió la cascada. Se calcula al repartir los logs y se usa mucho más abajo, al
 		// armar el renglón de la etapa, así que vive acá afuera: usar `e.Detail` como buzón no sirve —ese
 		// campo se REASIGNA después— y componer a ciegas llegó a pegar dos frases que se contradecían.
-		var corridasNota string
+		var runsNote string
 		// Las líneas del profiler ML, apartadas ACÁ para que su paso las tenga. Reclamarlas explícitamente
 		// —y no dejarlas en el reparto general— es lo que garantiza que aparezcan UNA vez: si además las
 		// tomara un hito del mapa, la misma línea saldría en dos renglones y los conteos dirían el doble.
-		var lineasProfiler []Linea
+		var profilerLines []Line
 		if len(ls) > 0 {
 			// El MS de pre-aprobación se agrupa POR ENTIDAD y sale del reparto por mensaje: sus líneas
 			// pertenecen a llamadas independientes (una por lender), y mezclarlas en «Veredicto ×14» pierde
-			// la pregunta real, que es por cuál de las entidades. Ver `arbolPreaprobacion`.
-			var delMS []Linea
-			resto0 := ls[:0:0]
+			// la pregunta real, que es por cuál de las entidades. Ver `preapprovalTree`.
+			var fromMS []Line
+			rest0 := ls[:0:0]
 			for _, l := range ls {
 				if pick(l.ctx, []string{"service_name"}) == "preapprovals-service" {
-					delMS = append(delMS, l)
+					fromMS = append(fromMS, l)
 				} else {
-					resto0 = append(resto0, l)
+					rest0 = append(rest0, l)
 				}
 			}
 			// La pre-aprobación se FUSIONA en la fila de cada entidad del listado, no va como bloque aparte.
@@ -767,26 +767,26 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// el MS dice cómo se llegó a él— y tenerlas en listas paralelas obliga a cruzarlas de cabeza. La
 			// llave es el `lender_id`, que las dos traen: el árbol del listado en `Detail2` y el MS en su
 			// etiqueta. Mismo criterio que la fusión de centrales del buró.
-			if len(delMS) > 0 {
-				e.Subs = fusionarPreaprobacion(e.Subs, arbolPreaprobacion(delMS))
+			if len(fromMS) > 0 {
+				e.Subs = mergePreapproval(e.Subs, preapprovalTree(fromMS))
 			}
-			ls = resto0
+			ls = rest0
 			// Lo que ya se atribuyó a una entidad sale de acá: si no, cada línea aparecería dos veces —en su
 			// entidad y en el bloque de proceso— y los conteos dirían el doble.
-			if len(lineasDeLender) > 0 {
-				yaEs := map[string]bool{}
-				for _, crudas := range lineasDeLender {
-					for _, l := range crudas {
-						yaEs[fmt.Sprintf("%d|%s|%s", l.ts, l.span, l.msg)] = true
+			if len(lenderLines) > 0 {
+				alreadyIs := map[string]bool{}
+				for _, rawLines := range lenderLines {
+					for _, l := range rawLines {
+						alreadyIs[fmt.Sprintf("%d|%s|%s", l.ts, l.span, l.msg)] = true
 					}
 				}
-				quedan := ls[:0:0]
+				remaining := ls[:0:0]
 				for _, l := range ls {
-					if !yaEs[fmt.Sprintf("%d|%s|%s", l.ts, l.span, l.msg)] {
-						quedan = append(quedan, l)
+					if !alreadyIs[fmt.Sprintf("%d|%s|%s", l.ts, l.span, l.msg)] {
+						remaining = append(remaining, l)
 					}
 				}
-				ls = quedan
+				ls = remaining
 			}
 			// El LISTADO se parte por CORRIDA: la cascada corre varias veces en una misma solicitud y sus
 			// líneas mezcladas no se pueden leer. El resto de las etapas se agrupa por hito, como siempre.
@@ -794,15 +794,15 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// El timeout del profiler sale del reparto por hito: es del modelo que ORDENA el listado,
 				// no de una entidad ni de la cascada. Se reconoce por la URL, que es la única parte del
 				// mensaje que dice de qué era — leer sólo «cURL error 28» llevó a atribuírselo a un lender.
-				quedan := ls[:0:0]
+				remaining := ls[:0:0]
 				for _, l := range ls {
 					if strings.HasPrefix(l.msg, "cURL error 28") && strings.Contains(l.msg, "predict_w") {
-						lineasProfiler = append(lineasProfiler, l)
+						profilerLines = append(profilerLines, l)
 						continue
 					}
-					quedan = append(quedan, l)
+					remaining = append(remaining, l)
 				}
-				ls = quedan
+				ls = remaining
 
 				// ── LA CASCADA: UNA LÍNEA, Y SÓLO SI DICE ALGO ──
 				//
@@ -816,8 +816,8 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// de una es un reintento y no lo normal— se dice en el renglón de la etapa, sin gastar un
 				// nivel de árbol. Las líneas no se pierden: caen en «eventos sin nombre de negocio», que es
 				// lo que son.
-				if n := corridasDeLaCascada(ls); n > 1 {
-					corridasNota = fmt.Sprintf("la cascada corrió %d veces", n)
+				if n := cascadeRuns(ls); n > 1 {
+					runsNote = fmt.Sprintf("la cascada corrió %d veces", n)
 				}
 				// Las líneas que NO son de una corrida (fragmentos de otras peticiones que tocaron el
 				// listado) vuelven al agrupamiento por hito: no se pierden, sólo dejan de contarse como
@@ -827,42 +827,42 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// «22 líneas» y mostraba cero (medido en 522154 22→0, 522237 16→0, 520593 10→0), y el
 				// comentario de al lado prometía lo contrario. No hay doble conteo posible: lo atribuido a
 				// una entidad ya salió de `ls` más arriba.
-				quedanCorrida := ls[:0:0]
+				remainingRun := ls[:0:0]
 				for _, l := range ls {
 					if strings.HasPrefix(l.msg, "Iniciando listado de entidades") {
 						continue
 					}
-					quedanCorrida = append(quedanCorrida, l)
+					remainingRun = append(remainingRun, l)
 				}
-				ls = quedanCorrida
+				ls = remainingRun
 			}
-			porNegocio, resto := agruparPorHitos(subMapa.Bloques(o.id), ls)
-			e.Subs = append(e.Subs, porNegocio...)
+			byBusiness, rest := groupByMilestones(subMap.Blocks(o.id), ls)
+			e.Subs = append(e.Subs, byBusiness...)
 			// Y se FUSIONAN los pasos que son la misma consulta vista por BD y por log: una fila por cosa,
 			// con el hecho y la evidencia juntos, en vez de dos filas que hay que cruzar de cabeza.
-			e.Subs = fusionarCentrales(e.Subs, subMapa.Bloques(o.id), centrales)
-			if len(resto) > 0 {
+			e.Subs = mergeBureaus(e.Subs, subMap.Blocks(o.id), bureaus)
+			if len(rest) > 0 {
 				// Cuántas de estas llegaron acá POR SPAN y no por patrón. Se dice, porque son las dos cosas a
 				// la vez: están en la etapa correcta (el span lo garantiza) y el mapa no las nombra. Ese número
 				// es el backlog concreto de hitos por declarar.
-				porSpan := 0
-				for _, l := range resto {
-					if l.heredada {
-						porSpan++
+				bySpan := 0
+				for _, l := range rest {
+					if l.inheritedOne {
+						bySpan++
 					}
 				}
 				// El renglón ya no dice «candidatos a declararse como hitos»: ese es lenguaje del
 				// mantenimiento del mapa, no de una auditoría. El backlog sigue siendo este mismo bloque —
 				// está dicho acá y en el comentario de Huerfanas, que es donde lo busca quien mantiene.
 				det := "informativos"
-				if porSpan > 0 {
-					det = fmt.Sprintf("informativos · %d ubicadas por span", porSpan)
+				if bySpan > 0 {
+					det = fmt.Sprintf("informativos · %d ubicadas por span", bySpan)
 				}
 				e.Subs = append(e.Subs, Sub{
-					Label:  fmt.Sprintf("Eventos sin nombre de negocio (%d líneas)", len(resto)),
+					Label:  fmt.Sprintf("Eventos sin nombre de negocio (%d líneas)", len(rest)),
 					Status: "skip", Source: "loki",
-					Detail: det,
-					Hijos:  gruposDeLog(resto),
+					Detail:   det,
+					Children: logGroups(rest),
 				})
 			}
 		}
@@ -872,9 +872,9 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// saber cuál correspondía a «Datos personales» y cuál a la cascada de KYC. Con las líneas repartidas
 		// se abre el paso que interesa y se ven SUS líneas, como en un run de CI.
 		//
-		// `EventosDe` a nivel etapa se mantiene como TOTAL (lo usa la cabecera y el aviso de recorte), pero
+		// `EventsOf` a nivel etapa se mantiene como TOTAL (lo usa la cabecera y el aviso de recorte), pero
 		// sin `Eventos`: duplicar las líneas en los dos niveles es peso y una segunda verdad que deriva.
-		e.EventosDe = len(ls)
+		e.EventsOf = len(ls)
 
 		// ── LA RESPUESTA DEL LENDER: cinco casos que la BD sola no distingue ──
 		//
@@ -882,16 +882,16 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// sólo la excepción HTTP los separa. Confundirlos manda a revisar el lugar equivocado: uno es
 		// problema del agregador y el otro es nuestro.
 		if o.id == "respuesta-lender" {
-			p := s.Perfilamiento
-			fallo := len(ls) > 0 // alguna línea con la url del webhook = llegó y explotó
+			p := s.Profiling
+			failure := len(ls) > 0 // alguna línea con la url del webhook = llegó y explotó
 			switch {
-			case p != nil && p.Desembolsado > 0:
+			case p != nil && p.Disbursed > 0:
 				e.Status, e.Source = "ok", "db"
-				e.At = hhmm(p.Actualizado)
-				nom := fmt.Sprint(p.Desembolsado)
-				for _, l := range p.Mostrados {
-					if l.ID == p.Desembolsado && l.Nombre != "" {
-						nom = l.Nombre
+				e.At = hhmm(p.UpdatedAt)
+				nom := fmt.Sprint(p.Disbursed)
+				for _, l := range p.Shown {
+					if l.ID == p.Disbursed && l.Name != "" {
+						nom = l.Name
 					}
 				}
 				// ⚠ `disbursed_lender` LLENO no significa «el webhook llegó»: significa que alguien escribió
@@ -904,19 +904,19 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// No se pregunta por el nombre del ramal sino por su DECLARACIÓN: si el ramal puso
 				// `respuesta-lender` en `noAplica`, este webhook no es lo que llenó el campo. Así, agregar un
 				// ramal nuevo no obliga a volver acá.
-				porWebhook := true
-				if r := mapa.Ramal(fam); r != nil {
-					for _, p := range r.NoAplica {
+				byWebhook := true
+				if r := stageMap.Lane(fam); r != nil {
+					for _, p := range r.NotApplicable {
 						if p.ID == "respuesta-lender" {
-							porWebhook = false
+							byWebhook = false
 						}
 					}
 				}
-				if porWebhook {
+				if byWebhook {
 					e.Detail = "el webhook se aplicó: desembolsa " + nom
 					e.Subs = append(e.Subs, Sub{Label: "Llegó y se aplicó", Status: "ok", Source: "db",
-						Detail:    "profiling_reviews.disbursed_lender = " + nom,
-						Evidencia: evidenciaWebhook(s)})
+						Detail:   "profiling_reviews.disbursed_lender = " + nom,
+						Evidence: webhookEvidence(s)})
 				} else {
 					// Se dice qué se SABE (el campo está lleno) y qué NO (quién lo llenó). El endpoint del
 					// webhook acepta cualquier `lender_id` sin lista blanca —verificado en
@@ -926,22 +926,22 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 					e.Detail = fmt.Sprintf("desembolsa %s. ⚠ el ramal «%s» declara que NO espera este webhook "+
 						"(%s) — y el campo no dice QUIÉN lo escribió: el webhook no registra su recepción "+
 						"(F-94) y su endpoint acepta cualquier lender. El dato es bueno; la etiqueta «webhook» "+
-						"no se puede afirmar.", nom, fam, porqueNoAplica(mapa, fam, "respuesta-lender"))
+						"no se puede afirmar.", nom, fam, whyNotApplicable(stageMap, fam, "respuesta-lender"))
 					e.Subs = append(e.Subs, Sub{Label: "Desembolso registrado, autor desconocido", Status: "ok",
 						Source: "db", Detail: "profiling_reviews.disbursed_lender = " + nom,
-						Evidencia: evidenciaWebhook(s)})
+						Evidence: webhookEvidence(s)})
 					// warn y no ok: el mismo ramal rendía esta etapa «no aplica» en una traza y VERDE en la
 					// de al lado (522190 vs 522227) — mismo mapa, veredictos opuestos. El dato queda; el
 					// color dice que hay una contradicción entre el ramal declarado y el campo lleno.
 					e.Status = "warn"
 				}
-			case fallo:
+			case failure:
 				e.Status, e.Source = "fail", "loki"
 				e.At = hhmm(time.UnixMilli(ls[0].ts))
 				e.Detail = "el webhook LLEGÓ y terminó en error — el agregador sí respondió, el problema es nuestro"
 				e.Subs = append(e.Subs, Sub{Label: "Llegó y falló", Status: "fail", Source: "loki",
 					Detail: fmt.Sprintf("%d línea(s) con la url del webhook", len(ls))})
-			case s.Estado == 3:
+			case s.Status == 3:
 				// Estado 3 con lender elegido y sin respuesta: la firma exacta del reporte más frecuente.
 				e.Status, e.Source = "sin-evidencia", "db"
 				e.Detail = ("sin evidencia de RECEPCIÓN del webhook y la solicitud sigue en «Seleccionó entidad». " +
@@ -949,9 +949,9 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 					"el webhook no loguea su recepción, así que la ausencia no prueba nada.")
 				e.Subs = append(e.Subs, Sub{Label: "No llegó (o llegó y no dejó huella)", Status: "skip",
 					Source: "db", Detail: "disbursed_lender vacío · sin excepción con la url del webhook",
-					Evidencia: evidenciaWebhook(s)})
-			case p != nil && p.Desembolsado == 0 &&
-				estadoEtapa[s.Estado] != "registro" && estadoEtapa[s.Estado] != "formulario":
+					Evidence: webhookEvidence(s)})
+			case p != nil && p.Disbursed == 0 &&
+				stageStatus[s.Status] != "registro" && stageStatus[s.Status] != "formulario":
 				// La compuerta de los dos primeros tramos: una solicitud que todavía está en el registro o
 				// en el formulario no eligió entidad, y «no registra desembolso» ahí es cierto pero vacío —
 				// dispararía en la mitad del universo. El caso que esta rama existe para atrapar es el
@@ -960,20 +960,20 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// antes que el 3; el 7 y el 8 son muertes). Cubre el caso más jugoso del censo: la 520593
 				// quedó «Autorizada» con disbursed_lender vacío — y hasta acá salía muda.
 				e.Status, e.Source = "sin-evidencia", "db"
-				e.Detail = fmt.Sprintf("la solicitud está en «%s» y profiling_reviews NO registra desembolso", s.EstadoN)
-				if malos[s.Estado] != "" {
-					e.Detail = fmt.Sprintf("la solicitud murió en «%s» sin desembolso registrado", s.EstadoN)
+				e.Detail = fmt.Sprintf("la solicitud está en «%s» y profiling_reviews NO registra desembolso", s.StatusN)
+				if badStatuses[s.Status] != "" {
+					e.Detail = fmt.Sprintf("la solicitud murió en «%s» sin desembolso registrado", s.StatusN)
 				}
 				e.Subs = append(e.Subs, Sub{Label: "Sin desembolso registrado", Status: "skip",
 					Source: "db", Detail: "disbursed_lender vacío en profiling_reviews",
-					Evidencia: evidenciaWebhook(s)})
+					Evidence: webhookEvidence(s)})
 			case p == nil && fam == "agregador":
 				// El ramal que SÍ espera este webhook, sin fila de perfilamiento que citar: 4 de las 7
 				// trazas mudas del censo eran exactamente esto, y no tenían ni un renglón que lo dijera.
 				e.Status, e.Source = "sin-evidencia", "db"
 				e.Detail = "no hay fila en profiling_reviews para esta solicitud: no hay contra qué comparar el webhook"
 				e.Subs = append(e.Subs, Sub{Label: "Sin fila de perfilamiento", Status: "skip",
-					Source: "db", Evidencia: evidenciaWebhook(s)})
+					Source: "db", Evidence: webhookEvidence(s)})
 			default:
 				e.Status = "skip"
 			}
@@ -981,19 +981,19 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 
 		// ── LISTADO desde la BD: el snapshot exacto de lo que se mostró, con su probabilidad ──
 		// Es MEJOR que inferirlo de los logs: `displayed_lenders` es lo que el cliente vio de verdad.
-		if o.id == "listado" && s.Perfilamiento != nil && len(s.Perfilamiento.Mostrados) > 0 {
-			p := s.Perfilamiento
-			var hijos []Sub
-			for _, l := range p.Mostrados {
-				st, det := "ok", l.Probabilidad
-				if l.Aprobado != nil && !*l.Aprobado {
+		if o.id == "listado" && s.Profiling != nil && len(s.Profiling.Shown) > 0 {
+			p := s.Profiling
+			var children []Sub
+			for _, l := range p.Shown {
+				st, det := "ok", l.Probability
+				if l.Approve != nil && !*l.Approve {
 					st = "fail"
 					det += " · el lender NO aprobó"
 				}
-				if l.ID == p.Recomendado {
+				if l.ID == p.Recommended {
 					det += " · RECOMENDADO"
 				}
-				hijos = append(hijos, Sub{Label: l.Nombre, Status: st, Detail: det, Source: "db",
+				children = append(children, Sub{Label: l.Name, Status: st, Detail: det, Source: "db",
 					Detail2: fmt.Sprint(l.ID)})
 			}
 			// UN SOLO ÁRBOL. El snapshot de `profiling_reviews` dice QUÉ vio el cliente y con qué
@@ -1001,67 +1001,67 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// que se fusionan por `lender_id` y recién ahí se agrupa por familia. Antes se concatenaban los
 			// dos árboles YA agrupados y cada entidad salía dos veces — el comentario de este bloque decía
 			// «para que el árbol sea uno y no dos» y el código hacía exactamente lo contrario.
-			porID := map[string]int{}
-			for i, h := range hijos {
+			byID := map[string]int{}
+			for i, h := range children {
 				if h.Detail2 != "" {
-					porID[h.Detail2] = i
+					byID[h.Detail2] = i
 				}
 			}
-			var sueltas []Sub
+			var loose []Sub
 			for _, s2 := range e.Subs {
-				i, ok := porID[s2.Detail2]
+				i, ok := byID[s2.Detail2]
 				if !ok || s2.Detail2 == "" {
-					sueltas = append(sueltas, s2) // evaluada en logs y no mostrada al cliente: se conserva
+					loose = append(loose, s2) // evaluada en logs y no mostrada al cliente: se conserva
 					continue
 				}
 				if s2.Detail != "" {
-					if hijos[i].Detail != "" {
-						hijos[i].Detail += " · " + s2.Detail
+					if children[i].Detail != "" {
+						children[i].Detail += " · " + s2.Detail
 					} else {
-						hijos[i].Detail = s2.Detail
+						children[i].Detail = s2.Detail
 					}
 				}
 				// El estado de la BD manda —es el hecho— salvo que el log traiga un fallo.
 				if s2.Status == "fail" {
-					hijos[i].Status = "fail"
+					children[i].Status = "fail"
 				}
 				// Y SE LLEVAN LOS EVENTOS. Sin esto la fila fusionada mostraba «4 llamadas · 1 pending» y no
 				// abría: el detalle viajaba y las líneas se quedaban en la fila que se descartó. Una fila que
 				// anuncia evidencia y no la muestra es peor que no anunciarla.
-				if len(s2.Eventos) > 0 {
-					hijos[i].Eventos, hijos[i].EventosDe = s2.Eventos, s2.EventosDe
+				if len(s2.Events) > 0 {
+					children[i].Events, children[i].EventsOf = s2.Events, s2.EventsOf
 				}
 				// Las líneas de legacy que nombran a ESTA entidad se suman a las del MS: la fila queda con
 				// toda su evidencia junta, incluida la excepción de integración con su causa.
-				if crudas := lineasDeLender[s2.Detail2]; len(crudas) > 0 {
-					evs, de := eventosDe(crudas, 40)
-					hijos[i].Eventos = append(hijos[i].Eventos, evs...)
-					hijos[i].EventosDe += de
-					sort.Slice(hijos[i].Eventos, func(a, b int) bool {
-						return hijos[i].Eventos[a].At < hijos[i].Eventos[b].At
+				if rawLines := lenderLines[s2.Detail2]; len(rawLines) > 0 {
+					evs, of := eventsOf(rawLines, 40)
+					children[i].Events = append(children[i].Events, evs...)
+					children[i].EventsOf += of
+					sort.Slice(children[i].Events, func(a, b int) bool {
+						return children[i].Events[a].At < children[i].Events[b].At
 					})
 					for _, ev := range evs {
 						if ev.Level == "error" {
-							hijos[i].Status = "fail"
-							if hijos[i].Detail != "" && !strings.Contains(hijos[i].Detail, "con error") {
-								hijos[i].Detail += " · con error"
+							children[i].Status = "fail"
+							if children[i].Detail != "" && !strings.Contains(children[i].Detail, "con error") {
+								children[i].Detail += " · con error"
 							}
 						}
 					}
 				}
 				if s2.Status == "warn" {
-					hijos[i].Status = "warn" // el `pending` del MS deja la entidad colgada
+					children[i].Status = "warn" // el `pending` del MS deja la entidad colgada
 				}
-				hijos[i].Source = "db+loki"
+				children[i].Source = "db+loki"
 			}
-			e.Subs = append(arbolListado(hijos, lenders), sueltas...)
+			e.Subs = append(listingTree(children, lenders), loose...)
 			if e.Status == "skip" || e.Status == "sin-evidencia" {
 				e.Status, e.Source = "ok", "db"
-				e.At = hhmm(p.Creado)
+				e.At = hhmm(p.CreatedAt)
 			}
-			e.Detail = fmt.Sprintf("%d entidades mostradas al cliente (snapshot de profiling_reviews)", len(p.Mostrados))
-			if corridasNota != "" {
-				e.Detail += " · " + corridasNota
+			e.Detail = fmt.Sprintf("%d entidades mostradas al cliente (snapshot de profiling_reviews)", len(p.Shown))
+			if runsNote != "" {
+				e.Detail += " · " + runsNote
 			}
 
 			// ── EL ORDEN DEL LISTADO: UN PASO PROPIO ──
@@ -1075,7 +1075,7 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// El QUIÉN sale de la BD (`ML_predictions.perfilador`, que el backend guarda a propósito) y el
 			// PORQUÉ de los logs. Va después de las entidades porque ese es su lugar en el flujo: primero se
 			// evalúa, después se ordena.
-			if p.Perfilador != "" || p.MLError != "" || p.MLRespondio {
+			if p.Profiler != "" || p.MLError != "" || p.MLAnswered {
 				// Lo que este renglón contesta es «¿quién puso este orden?» — una pregunta que la lista de
 				// entidades no puede contestar y que antes no contestaba nadie, con la evidencia del fallo
 				// enterrada tres niveles adentro de «la cascada corrió N veces».
@@ -1083,9 +1083,9 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				// ⚠ El fallback NO es «las matrices»: la estrategia es `new_then_legacy`, así que caer al
 				// respaldo significa que el perfilador NUEVO falló y puntuó el H2O de siempre. Decirlo mal
 				// mandaría a buscar un problema de configuración donde hay un servicio caído.
-				st, det := "ok", p.Perfilador
+				st, det := "ok", p.Profiler
 				switch {
-				case p.MLCrudo && p.Perfilador == "":
+				case p.MLRaw && p.Profiler == "":
 					// El sistema viejo guarda la respuesta sin transformar: trae el resultado pero no el autor.
 					det = "no queda registrado cuál perfilador (lo escribió el sistema viejo)"
 				case det == "":
@@ -1104,33 +1104,33 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 				case p.MLError != "":
 					det += " · no respondió: " + trim(p.MLError, 90)
 					st = "fail"
-				case p.MLPuntuadas > 0:
-					det += fmt.Sprintf(" · %d entidades puntuadas", p.MLPuntuadas)
-				case p.MLRespondio:
+				case p.MLScored > 0:
+					det += fmt.Sprintf(" · %d entidades puntuadas", p.MLScored)
+				case p.MLAnswered:
 					det += " · respondió sin puntajes"
 					st = "warn"
 				}
-				if p.MLPrevio != "" {
-					det += " · antes intentó " + trim(p.MLPrevio, 80)
+				if p.MLPrevious != "" {
+					det += " · antes intentó " + trim(p.MLPrevious, 80)
 				}
 				ml := Sub{Label: "Orden del listado (perfilador ML)", Status: st, Source: "db", Detail: det,
-					Evidencia: evidencia("profiling_reviews.ML_predictions", sqlProfiling, []any{s.ID},
-						"perfilador          = "+orDash(p.Perfilador),
+					Evidence: evidence("profiling_reviews.ML_predictions", sqlProfiling, []any{s.ID},
+						"perfilador          = "+orDash(p.Profiler),
 						fmt.Sprintf("fallback_triggered  = %t", p.MLFallback),
-						fmt.Sprintf("entidades puntuadas = %d", p.MLPuntuadas),
+						fmt.Sprintf("entidades puntuadas = %d", p.MLScored),
 						cond(p.MLError != "", "error               = "+p.MLError),
-						cond(p.MLPrevio != "", "previous_attempt    = "+p.MLPrevio),
-						cond(p.MLCrudo, "⚠ fila escrita por el sistema VIEJO (legacy-application): guarda la respuesta cruda y no registra el perfilador"),
-						"created_at          = "+fechaHora(p.Creado),
-						"updated_at          = "+fechaHora(p.Actualizado)+"  (se mueve con el webhook del lender: no es la hora del listado)"),
+						cond(p.MLPrevious != "", "previous_attempt    = "+p.MLPrevious),
+						cond(p.MLRaw, "⚠ fila escrita por el sistema VIEJO (legacy-application): guarda la respuesta cruda y no registra el perfilador"),
+						"created_at          = "+dateTime(p.CreatedAt),
+						"updated_at          = "+dateTime(p.UpdatedAt)+"  (se mueve con el webhook del lender: no es la hora del listado)"),
 				}
 				// Y se le adjunta la evidencia de log del profiler, que hasta acá vivía enterrada tres
 				// niveles adentro de «la cascada corrió N veces».
-				if len(lineasProfiler) > 0 {
-					ml.Eventos, ml.EventosDe = eventosDe(lineasProfiler, 40)
+				if len(profilerLines) > 0 {
+					ml.Events, ml.EventsOf = eventsOf(profilerLines, 40)
 					ml.Source = "db+loki"
 					ml.Status = "fail"
-					ml.Detail += fmt.Sprintf(" · %s de 15 s", plural(len(lineasProfiler), "timeout", "timeouts"))
+					ml.Detail += fmt.Sprintf(" · %s de 15 s", plural(len(profilerLines), "timeout", "timeouts"))
 				}
 				e.Subs = append(e.Subs, ml)
 				// Y va ANTES del cajón de sastre: un paso con nombre propio no puede quedar debajo de
@@ -1159,75 +1159,75 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// para 174 solicitudes) y no aporta veredicto propio: las que deciden son las cuatro
 			// operaciones SOAP. Se cuenta aparte en vez de tirarlo, porque su cantidad dice cuántos
 			// intentos hubo.
-			orden := map[string]int{"createGirador": 1, "createPagare": 2, "consultPagare": 3, "signPagare": 4}
-			var ops []OpDeceval
-			intentos := 0
+			order := map[string]int{"createGirador": 1, "createPagare": 2, "consultPagare": 3, "signPagare": 4}
+			var ops []DecevalOp
+			attempts := 0
 			for _, op := range s.Deceval {
-				if orden[op.Metodo] == 0 {
-					intentos++
+				if order[op.Method] == 0 {
+					attempts++
 					continue
 				}
 				ops = append(ops, op)
 			}
-			var hijos []Sub
-			rechazos, firmo := 0, false
+			var children []Sub
+			rejections, signed := 0, false
 			for _, op := range ops {
-				st, det := "ok", op.Nombre
+				st, det := "ok", op.Name
 				switch {
-				case op.Exitoso != nil && !*op.Exitoso:
-					st, rechazos = "fail", rechazos+1
+				case op.Succeeded != nil && !*op.Succeeded:
+					st, rejections = "fail", rejections+1
 					det = "Deceval rechazó"
-					if op.Codigo != "" {
-						det += " · " + op.Codigo
+					if op.Code != "" {
+						det += " · " + op.Code
 					}
-					if op.Mensaje != "" {
-						det += " · " + trim(op.Mensaje, 110)
+					if op.Message != "" {
+						det += " · " + trim(op.Message, 110)
 					}
-				case op.Exitoso == nil:
+				case op.Succeeded == nil:
 					// Sin `<exitoso>` no se puede afirmar que salió bien. Pintarlo verde sería inventar.
-					st, det = "sin-evidencia", op.Nombre+" · la respuesta no trae «exitoso»"
-				case op.Metodo == "signPagare":
-					firmo = true
+					st, det = "sin-evidencia", op.Name+" · la respuesta no trae «exitoso»"
+				case op.Method == "signPagare":
+					signed = true
 				}
-				etiqueta := map[string]string{
+				label := map[string]string{
 					"createGirador": "Registro del firmante (girador)",
 					"createPagare":  "Creación del pagaré",
 					"consultPagare": "Vista previa del pagaré (PDF)",
 					"signPagare":    "Firma del pagaré",
-				}[op.Metodo]
-				hijos = append(hijos, Sub{Label: etiqueta, Status: st, Source: "db", Detail: det,
-					Detail2: op.Metodo,
-					Evidencia: evidencia("deceval_logs", sqlDeceval, []any{s.ID},
-						"method            = "+op.Metodo,
-						"name              = "+op.Nombre,
-						"exitoso           = "+cond(op.Exitoso != nil, fmt.Sprintf("%t", op.Exitoso != nil && *op.Exitoso))+cond(op.Exitoso == nil, "(la respuesta no lo trae)"),
-						cond(op.Codigo != "", "codigoError       = "+op.Codigo),
-						cond(op.Mensaje != "", "mensajeRespuesta  = "+op.Mensaje),
-						"created_at        = "+fechaHora(op.At),
+				}[op.Method]
+				children = append(children, Sub{Label: label, Status: st, Source: "db", Detail: det,
+					Detail2: op.Method,
+					Evidence: evidence("deceval_logs", sqlDeceval, []any{s.ID},
+						"method            = "+op.Method,
+						"name              = "+op.Name,
+						"exitoso           = "+cond(op.Succeeded != nil, fmt.Sprintf("%t", op.Succeeded != nil && *op.Succeeded))+cond(op.Succeeded == nil, "(la respuesta no lo trae)"),
+						cond(op.Code != "", "codigoError       = "+op.Code),
+						cond(op.Message != "", "mensajeRespuesta  = "+op.Message),
+						"created_at        = "+dateTime(op.At),
 						"⚠ el log es best-effort: una operación que falta NO prueba que no corrió")})
 			}
 			// ⚠ El orden es de FLUJO, no de hora ni de id: `consultPagare` se vuelve a llamar DURANTE la
 			// firma para resolver el id numérico del pagaré, así que ordenar por timestamp lo intercala
 			// después de `signPagare` y se lee como un ida y vuelta que no ocurrió. Mismo criterio que el
 			// orden de las etapas del árbol.
-			sort.SliceStable(hijos, func(a, b int) bool {
-				return orden[hijos[a].Detail2] < orden[hijos[b].Detail2]
+			sort.SliceStable(children, func(a, b int) bool {
+				return order[children[a].Detail2] < order[children[b].Detail2]
 			})
-			cab := Sub{Label: "Pagaré digital (Deceval)", Source: "db", Hijos: hijos}
+			cab := Sub{Label: "Pagaré digital (Deceval)", Source: "db", Children: children}
 			switch {
-			case rechazos > 0:
+			case rejections > 0:
 				cab.Status = "fail"
-				cab.Detail = fmt.Sprintf("%s de Deceval", plural(rechazos, "rechazo", "rechazos"))
-			case firmo:
+				cab.Detail = fmt.Sprintf("%s de Deceval", plural(rejections, "rechazo", "rechazos"))
+			case signed:
 				cab.Status, cab.Detail = "ok", "el pagaré quedó firmado y registrado en Deceval"
 			default:
 				cab.Status, cab.Detail = "warn", "no hay evidencia de la firma"
 			}
-			if intentos > len(ops) {
-				cab.Detail += fmt.Sprintf(" · %d registros del orquestador", intentos)
+			if attempts > len(ops) {
+				cab.Detail += fmt.Sprintf(" · %d registros del orquestador", attempts)
 			}
 			e.Subs = append([]Sub{cab}, e.Subs...)
-			if rechazos > 0 && e.Status != "no-aplica" {
+			if rejections > 0 && e.Status != "no-aplica" {
 				e.Status, e.Source = "fail", "db"
 				e.Detail = "Deceval rechazó el pagaré: " + cab.Detail
 			}
@@ -1251,7 +1251,7 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		//  3. **La fila no dice a qué solicitud pertenece**: se ata por `user_id` + ventana, igual que el
 		//     buró. Lo que se puede afirmar es que cae dentro de ±120 s de la corrida del perfilamiento, y
 		//     eso se marca como inferencia, no como hecho (mismo criterio que F-107).
-		if o.id == "cupo" && len(s.Categorias) > 0 {
+		if o.id == "cupo" && len(s.Categories) > 0 {
 			// ⚠ COLAPSAR ES OBLIGATORIO, no cosmético. `getLenderUserCategory` se llama desde TRES sitios y
 			// la cascada corre varias veces por solicitud: medido en la uReq 522511 de prod, **nueve filas
 			// idénticas de CrediPullman**. Sin colapsar, el paso que existe para contestar «¿por qué no le
@@ -1259,101 +1259,101 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// (entidad + resultado + criterios que fallaron): dos evaluaciones que dieron distinto SÍ son
 			// dos renglones, porque eso es información — el motor cambió de opinión.
 			vistas := map[string]int{}
-			unicas := make([]Categoria, 0, len(s.Categorias))
-			repes := map[int]int{}
-			for _, c := range s.Categorias {
-				firma := fmt.Sprintf("%d|%d|%s|%v", c.LenderID, c.CatID, c.Especial, c.Fallas)
-				if i, ya := vistas[firma]; ya {
-					repes[i]++
+			uniqueOnes := make([]Category, 0, len(s.Categories))
+			repeats := map[int]int{}
+			for _, c := range s.Categories {
+				signature := fmt.Sprintf("%d|%d|%s|%v", c.LenderID, c.CatID, c.Special, c.Failures)
+				if i, already := vistas[signature]; already {
+					repeats[i]++
 					// El REPRESENTANTE del grupo tiene que ser la fila que SÍ se puede atribuir a esta
 					// solicitud. Quedarse con la primera por orden de id hacía que un grupo con nueve filas
 					// —ocho de esta corrida y una de otro intento del mismo cliente— se mostrara con la
 					// advertencia «puede ser de otro intento» puesta al conjunto entero. Medido en la
 					// uReq 522511 de prod, que tiene evaluaciones de dos solicitudes en la misma ventana.
-					if c.Ventana == "misma" && unicas[i].Ventana != "misma" {
-						unicas[i] = c
+					if c.Window == "misma" && uniqueOnes[i].Window != "misma" {
+						uniqueOnes[i] = c
 					}
 					continue
 				}
-				vistas[firma] = len(unicas)
-				unicas = append(unicas, c)
+				vistas[signature] = len(uniqueOnes)
+				uniqueOnes = append(uniqueOnes, c)
 			}
 			var subs []Sub
-			conCat, sinCat := 0, 0
-			for idx, c := range unicas {
-				etiqueta := c.Lender
-				if etiqueta == "" {
-					etiqueta = fmt.Sprintf("entidad %d", c.LenderID)
+			withCat, withoutCat := 0, 0
+			for idx, c := range uniqueOnes {
+				label := c.Lender
+				if label == "" {
+					label = fmt.Sprintf("entidad %d", c.LenderID)
 				}
 				st, det := "ok", ""
 				switch {
-				case c.Especial == "blacklisted":
+				case c.Special == "blacklisted":
 					st, det = "fail", "documento en la LISTA NEGRA de esta entidad — se salta toda la evaluación"
-					sinCat++
-				case c.Especial != "":
-					st, det = "warn", "atajo `"+c.Especial+"`: se saltaron TODAS las reglas y se asignó una categoría fija"
-					conCat++
+					withoutCat++
+				case c.Special != "":
+					st, det = "warn", "atajo `"+c.Special+"`: se saltaron TODAS las reglas y se asignó una categoría fija"
+					withCat++
 				case c.CatID > 0:
-					det = "categoría " + orDash(c.CatNombre)
-					if c.Cupo > 0 {
-						det += fmt.Sprintf(" · cupo %s", pesos(c.Cupo))
+					det = "categoría " + orDash(c.CatName)
+					if c.Quota > 0 {
+						det += fmt.Sprintf(" · cupo %s", pesosText(c.Quota))
 					}
-					conCat++
+					withCat++
 				default:
 					st = "fail"
 					det = fmt.Sprintf("ninguno de los %s de admisión pasó", plural(c.Tiers, "tier", "tiers"))
-					sinCat++
+					withoutCat++
 				}
 				// El detalle que importa: qué criterio bloqueó, y en qué tier. Se muestran los tiers en orden
 				// y se recorta, porque un lender con 12 tiers repite el mismo motivo doce veces.
-				var lineas []string
-				claves := make([]string, 0, len(c.Fallas))
-				for k := range c.Fallas {
-					claves = append(claves, k)
+				var lines []string
+				keys := make([]string, 0, len(c.Failures))
+				for k := range c.Failures {
+					keys = append(keys, k)
 				}
-				sort.Strings(claves)
-				for _, k := range claves {
-					lineas = append(lineas, fmt.Sprintf("tier %-6s cortó en %-8s → %s",
-						k, c.Corta[k], strings.Join(c.Fallas[k], ", ")))
+				sort.Strings(keys)
+				for _, k := range keys {
+					lines = append(lines, fmt.Sprintf("tier %-6s cortó en %-8s → %s",
+						k, c.Short[k], strings.Join(c.Failures[k], ", ")))
 				}
-				if c.Tiers > 0 && len(c.Fallas) == 0 {
-					lineas = append(lineas, fmt.Sprintf("los %d tiers pasaron todos sus criterios", c.Tiers))
+				if c.Tiers > 0 && len(c.Failures) == 0 {
+					lines = append(lines, fmt.Sprintf("los %d tiers pasaron todos sus criterios", c.Tiers))
 				}
-				if c.Especial != "" {
-					lineas = append(lineas, "bandera de raíz: "+c.Especial+" = true (no hay evaluación de tiers)")
+				if c.Special != "" {
+					lines = append(lines, "bandera de raíz: "+c.Special+" = true (no hay evaluación de tiers)")
 				}
-				switch c.Ventana {
+				switch c.Window {
 				case "otra":
-					lineas = append(lineas, "⚠ fuera de ±120 s de la corrida del perfilamiento: puede ser de OTRO intento del mismo cliente")
+					lines = append(lines, "⚠ fuera de ±120 s de la corrida del perfilamiento: puede ser de OTRO intento del mismo cliente")
 				case "sin-referencia":
-					lineas = append(lineas, "esta solicitud no tiene fila de profiling_reviews: no hay corrida contra la cual fechar esta evaluación")
+					lines = append(lines, "esta solicitud no tiene fila de profiling_reviews: no hay corrida contra la cual fechar esta evaluación")
 				}
 				// El motivo más repetido, arriba: es lo que soporte pega en el ticket.
-				if st == "fail" && len(claves) > 0 {
-					det += " · el criterio que más bloqueó: " + masRepetido(c.Fallas)
+				if st == "fail" && len(keys) > 0 {
+					det += " · el criterio que más bloqueó: " + mostRepeated(c.Failures)
 				}
 				// Que se haya evaluado N veces con el MISMO resultado no cambia el diagnóstico, pero sí
 				// dice que la cascada corrió N veces — que es lo que explica un listado lento.
-				if n := repes[idx]; n > 0 {
-					etiqueta += fmt.Sprintf("  ×%d", n+1)
-					lineas = append(lineas, fmt.Sprintf("evaluada %d veces con idéntico resultado (getLenderUserCategory se llama desde 3 sitios)", n+1))
+				if n := repeats[idx]; n > 0 {
+					label += fmt.Sprintf("  ×%d", n+1)
+					lines = append(lines, fmt.Sprintf("evaluada %d veces con idéntico resultado (getLenderUserCategory se llama desde 3 sitios)", n+1))
 				}
 				subs = append(subs, Sub{
-					Label: etiqueta, Status: st, Source: "db", Detail: det,
-					Evidencia: evidencia("users_category_log.category_rules_acceptance", sqlCategorias,
-						[]any{s.UserID, "<desde>", "<hasta>"}, lineas...),
+					Label: label, Status: st, Source: "db", Detail: det,
+					Evidence: evidence("users_category_log.category_rules_acceptance", sqlCategories,
+						[]any{s.UserID, "<desde>", "<hasta>"}, lines...),
 				})
 			}
 			sort.SliceStable(subs, func(a, b int) bool { return subs[a].Status == "fail" && subs[b].Status != "fail" })
-			cab := Sub{Label: "Política por entidad (¿por qué no le salió?)", Source: "db", Hijos: subs,
-				Detail: fmt.Sprintf("%d con categoría · %d sin ninguna", conCat, sinCat)}
-			if len(s.Categorias) > len(unicas) {
-				cab.Detail += fmt.Sprintf(" · %d evaluaciones colapsadas en %d", len(s.Categorias), len(unicas))
+			cab := Sub{Label: "Política por entidad (¿por qué no le salió?)", Source: "db", Children: subs,
+				Detail: fmt.Sprintf("%d con categoría · %d sin ninguna", withCat, withoutCat)}
+			if len(s.Categories) > len(uniqueOnes) {
+				cab.Detail += fmt.Sprintf(" · %d evaluaciones colapsadas en %d", len(s.Categories), len(uniqueOnes))
 			}
 			cab.Status = "ok"
-			if conCat == 0 {
+			if withCat == 0 {
 				cab.Status = "fail"
-			} else if sinCat > 0 {
+			} else if withoutCat > 0 {
 				cab.Status = "warn"
 			}
 			e.Subs = append([]Sub{cab}, e.Subs...)
@@ -1365,18 +1365,18 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 			// aprobado. Ahora la BD manda, que es la fuente fuerte.
 			if e.Status != "no-aplica" {
 				switch {
-				case conCat == 0:
+				case withCat == 0:
 					e.Status, e.Source = "fail", "db"
-					if len(unicas) == 1 {
+					if len(uniqueOnes) == 1 {
 						e.Detail = "la única entidad evaluada no le dio categoría"
 					} else {
-						e.Detail = fmt.Sprintf("ninguna de las %d entidades evaluadas le dio categoría", len(unicas))
+						e.Detail = fmt.Sprintf("ninguna de las %d entidades evaluadas le dio categoría", len(uniqueOnes))
 					}
 				case e.Status == "sin-evidencia" || e.Status == "skip":
 					e.Status, e.Source, e.Detail = "ok", "db", cab.Detail
 				}
-				if e.At == "" && len(s.Categorias) > 0 {
-					e.At = hhmm(s.Categorias[0].At)
+				if e.At == "" && len(s.Categories) > 0 {
+					e.At = hhmm(s.Categories[0].At)
 				}
 			}
 		}
@@ -1391,47 +1391,47 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		//   3. sin veredicto, entidades armadas de logs: todas rechazadas ⇒ fail;
 		//   4. sólo líneas y ningún veredicto ⇒ sin-evidencia, no ok.
 		if o.id == "listado" && e.Status != "no-aplica" {
-			p := s.Perfilamiento
-			cuentaLog := -1
-			for _, l := range porEtapa[o.id] {
+			p := s.Profiling
+			logCount := -1
+			for _, l := range byStage[o.id] {
 				if strings.HasPrefix(l.msg, "Listado de entidades completado") {
 					if v := pick(l.ctx, []string{"lenders_count"}); v != "" {
-						fmt.Sscanf(v, "%d", &cuentaLog)
+						fmt.Sscanf(v, "%d", &logCount)
 					}
 				}
 			}
-			entidades, caidas := 0, 0
+			entities, dropped := 0, 0
 			for _, sb := range e.Subs {
-				for _, h := range sb.Hijos {
+				for _, h := range sb.Children {
 					if h.Detail2 != "" {
-						entidades++
+						entities++
 						if h.Status == "fail" {
-							caidas++
+							dropped++
 						}
 					}
 				}
 				if sb.Detail2 != "" {
-					entidades++
+					entities++
 					if sb.Status == "fail" {
-						caidas++
+						dropped++
 					}
 				}
 			}
 			switch {
-			case p != nil && len(p.Mostrados) == 0:
+			case p != nil && len(p.Shown) == 0:
 				e.Status, e.Source = "fail", "db"
 				e.Detail = "0 entidades mostradas al cliente (profiling_reviews existe y está vacío)"
 			case p != nil:
 				// ya lo puso el bloque de arriba: ok/db con el snapshot
-			case cuentaLog == 0:
+			case logCount == 0:
 				e.Status, e.Source = "fail", "loki"
 				e.Detail = "el código cerró el listado con 0 entidades (lenders_count=0; sin snapshot en BD)"
-			case cuentaLog > 0:
+			case logCount > 0:
 				e.Status, e.Source = "ok", "loki"
-				e.Detail = fmt.Sprintf("el código cerró el listado con %d entidades (sin snapshot en BD)", cuentaLog)
-			case entidades > 0 && caidas == entidades:
+				e.Detail = fmt.Sprintf("el código cerró el listado con %d entidades (sin snapshot en BD)", logCount)
+			case entities > 0 && dropped == entities:
 				e.Status = "fail"
-				e.Detail = fmt.Sprintf("las %d entidades evaluadas quedaron rechazadas y no hay snapshot en BD", entidades)
+				e.Detail = fmt.Sprintf("las %d entidades evaluadas quedaron rechazadas y no hay snapshot en BD", entities)
 			case e.Status == "ok" && e.Source == "loki":
 				e.Status = "sin-evidencia"
 				e.Detail = "hay actividad en los logs pero ningún veredicto: no se puede afirmar que el cliente vio ofertas"
@@ -1477,13 +1477,13 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 		// Se miran LOS DOS EJES: el canal (por comercio) y el ramal (por response_type del lender). El canal
 		// va primero porque decide antes en el flujo —en la validación del OTP— y porque existe sin que haya
 		// lender elegido todavía, mientras el ramal sólo se conoce después de `seleccion`.
-		if declNoAplica != "" && !tieneEvidencia(e) {
+		if declNotApplicable != "" && !hasEvidence(e) {
 			e.Status, e.Source = "no-aplica", "db"
-			e.Detail = "no aplica a « " + declNoAplica + " » — " + declPorque
+			e.Detail = "no aplica a « " + declNotApplicable + " » — " + declReason
 			e.Reason = "" // el diagnóstico de la etapa asume que el tramo existe; acá no existe
 			e.Subs = nil  // eran placeholders del catálogo: listarlos invita a buscar lo que no hay
 		}
-		t.Etapas = append(t.Etapas, e)
+		t.Stages = append(t.Stages, e)
 	}
 
 	// Las etapas anteriores a la última probada se marcan `sin-registro`: ocurrieron (el flujo pasó por
@@ -1499,120 +1499,120 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 	// (estado 11 SIN lender) el árbol decía que la selección de entidad «ocurrió» en una solicitud que no
 	// tiene entidad. La salvaguarda del condicional sólo funcionaba cuando había ramal — fallaba justo en
 	// la familia sin ramal, que es la mitad del universo.
-	delRamal := map[string]bool{"seleccion": true, "respuesta-lender": true, "biometria": true, "desembolso": true}
-	obligatoria := func(id string) bool {
+	ofLane := map[string]bool{"seleccion": true, "respuesta-lender": true, "biometria": true, "desembolso": true}
+	required := func(id string) bool {
 		if fam == "" {
-			return !delRamal[id] // el tronco sí se puede afirmar por progresión; el tramo ramal no
+			return !ofLane[id] // el tronco sí se puede afirmar por progresión; el tramo ramal no
 		}
-		r := mapa.Ramal(fam)
+		r := stageMap.Lane(fam)
 		if r == nil {
 			return true
 		}
-		for _, p := range r.Pasos {
+		for _, p := range r.Steps {
 			if p.ID == id {
-				return p.Obligatorio
+				return p.Required
 			}
 		}
 		return false // no está entre los pasos del ramal: no se puede afirmar que ocurrió
 	}
-	ultimaProbada := -1
-	for i, e := range t.Etapas {
+	lastTried := -1
+	for i, e := range t.Stages {
 		if e.Status == "ok" || e.Status == "warn" || e.Status == "fail" {
-			ultimaProbada = i
+			lastTried = i
 		}
 	}
-	for i := range t.Etapas {
-		if i >= ultimaProbada || t.Etapas[i].Status != "skip" {
+	for i := range t.Stages {
+		if i >= lastTried || t.Stages[i].Status != "skip" {
 			continue
 		}
-		if obligatoria(t.Etapas[i].ID) {
-			t.Etapas[i].Status = "sin-registro"
-			t.Etapas[i].Detail = "ocurrió (el flujo siguió más adelante) pero no quedó registrada"
+		if required(t.Stages[i].ID) {
+			t.Stages[i].Status = "sin-registro"
+			t.Stages[i].Detail = "ocurrió (el flujo siguió más adelante) pero no quedó registrada"
 			continue
 		}
 		// `condicional` y no `skip`: la vista traduce `skip` como «no se ejecutó», que es una AFIRMACIÓN — la
 		// misma que este texto se niega a hacer. Dejarlo en `skip` ponía el rótulo «no se ejecutó» justo
 		// encima de «no se puede afirmar ninguna de las dos cosas».
-		t.Etapas[i].Status = "condicional"
+		t.Stages[i].Status = "condicional"
 		if fam == "" {
-			t.Etapas[i].Detail = "sin entidad elegida no hay ramal: no se puede afirmar si este tramo ocurrió"
+			t.Stages[i].Detail = "sin entidad elegida no hay ramal: no se puede afirmar si este tramo ocurrió"
 		} else {
-			t.Etapas[i].Detail = fmt.Sprintf("sin registro y CONDICIONAL en «%s»: el flujo siguió, pero esta "+
+			t.Stages[i].Detail = fmt.Sprintf("sin registro y CONDICIONAL en «%s»: el flujo siguió, pero esta "+
 				"etapa puede no haber ocurrido — no se puede afirmar ninguna de las dos cosas", fam)
 		}
 	}
 
 	// La etapa donde se rompió: la primera sin ok DESPUÉS de la última que sí ocurrió — y ahora el código
-	// hace lo que este comentario siempre prometió. El bucle arrancaba en 0 e ignoraba `ultimaProbada`
+	// hace lo que este comentario siempre prometió. El bucle arrancaba en 0 e ignoraba `lastTried`
 	// (calculada veinte líneas más arriba), así que en 6 de 6 trazas rotas del censo señalaba una etapa
 	// ANTERIOR a la evidencia. Y se excluye lo que el propio trazador declara no afirmable: culpar a una
 	// etapa `no-aplica` o `sin-evidencia` es afirmar con la mano izquierda lo que se negó con la derecha.
 	if t.Outcome == "roto" || t.Outcome == "abandonado" {
-		for i := ultimaProbada + 1; i >= 0 && i < len(t.Etapas); i++ {
-			switch t.Etapas[i].Status {
+		for i := lastTried + 1; i >= 0 && i < len(t.Stages); i++ {
+			switch t.Stages[i].Status {
 			case "ok", "warn", "sin-evidencia", "no-aplica", "condicional":
 				continue
 			}
-			t.BrokeAt = t.Etapas[i].ID
+			t.BrokeAt = t.Stages[i].ID
 			break
 		}
 	}
-	if malos[s.Estado] != "" {
-		t.Warnings = append(t.Warnings, fmt.Sprintf("desenlace de muerte en BD: estado %d «%s»", s.Estado, s.EstadoN))
+	if badStatuses[s.Status] != "" {
+		t.Warnings = append(t.Warnings, fmt.Sprintf("desenlace de muerte en BD: estado %d «%s»", s.Status, s.StatusN))
 	}
 	// Un estado que el mapa no conoce Y que no es desenlace: la solicitud está parada en un lugar que el
 	// árbol no puede señalar. Medido: 21 «En aprobación del médico» (13 casos en 5 semanas) y 22 (1 caso).
 	// Con tan pocos casos no merecen etapa —sería el hito que nunca dispara—, pero callarlos convertiría
 	// la cabecera en la única pista y nadie mira la cabecera buscando un hueco del mapa.
-	if _, ok := estadoEtapa[s.Estado]; !ok && malos[s.Estado] == "" && s.Estado != 7 {
+	if _, ok := stageStatus[s.Status]; !ok && badStatuses[s.Status] == "" && s.Status != 7 {
 		t.Warnings = append(t.Warnings, fmt.Sprintf("el estado actual %d «%s» NO está mapeado a ninguna etapa: "+
-			"el árbol no muestra dónde está parada esta solicitud", s.Estado, s.EstadoN))
+			"el árbol no muestra dónde está parada esta solicitud", s.Status, s.StatusN))
 	}
 	// Las horas de las etapas deberían crecer. Cuando no crecen, el historial de esa solicitud NO está en
 	// orden de flujo — pasa de verdad (visto en la 464432: cancelada 10:38, selección 16:29, formulario
 	// 16:49). Puede ser una solicitud reutilizada, un backfill, o un estado escrito fuera de secuencia. Se
 	// avisa en vez de ordenarlo por hora: reordenar escondería el dato y la etapa quedaría en el lugar
 	// equivocado del flujo.
-	prev, desordenada := "", ""
-	for _, et := range t.Etapas {
+	prev, unordered := "", ""
+	for _, et := range t.Stages {
 		if et.At == "" || (et.Status != "ok" && et.Status != "warn" && et.Status != "fail") {
 			continue
 		}
 		if prev != "" && et.At < prev {
-			desordenada = et.Label
+			unordered = et.Label
 		}
 		prev = et.At
 	}
-	if desordenada != "" {
-		t.Warnings = append(t.Warnings, "las horas no son monótonas («"+desordenada+"» es anterior a la etapa previa): "+
+	if unordered != "" {
+		t.Warnings = append(t.Warnings, "las horas no son monótonas («"+unordered+"» es anterior a la etapa previa): "+
 			"el historial de esta solicitud no está en orden de flujo — ¿reutilizada? ¿backfill? Las etapas se muestran "+
 			"en orden de FLUJO, no de hora.")
 	}
 
-	if len(lineas) == 0 {
+	if len(lines) == 0 {
 		t.Warnings = append(t.Warnings, "sin líneas de log: el porqué no se pudo enriquecer (¿fuera de retención? ¿backend sin instrumentar?)")
 	}
 	sort.Strings(t.Sources)
 	// De los mensajes al CÓDIGO. Si el mapa no está construido devuelve -1 y no se agrega nada: un
 	// bloque «0 archivos» se leería como «no corrió ninguno», que es falso.
 	{
-		msgs := make([]string, 0, len(lineas))
-		for _, l := range lineas {
+		msgs := make([]string, 0, len(lines))
+		for _, l := range lines {
 			msgs = append(msgs, l.msg)
 		}
-		if arch, sin := archivosDeTraza(msgs); sin >= 0 {
-			t.Archivos, t.SinResolver = arch, sin
+		if arch, without := traceFiles(msgs); without >= 0 {
+			t.Files, t.Unresolved = arch, without
 		}
-		if pasos, ult := pasosAlcanzados(msgs); ult >= 0 {
-			t.Arbol, t.ArbolUltimo = pasos, ult
+		if steps, ult := reachedSteps(msgs); ult >= 0 {
+			t.Tree, t.TreeLast = steps, ult
 		}
 	}
-	izarErroresSinHito(&t)
-	armarHallazgos(&t)
+	hoistErrorsWithoutMilestone(&t)
+	buildFindings(&t)
 	return t
 }
 
-// agruparPorHitos reparte las líneas de una etapa entre los HITOS declarados en mapa/substeps.json y
+// groupByMilestones reparte las líneas de una etapa entre los HITOS declarados en mapa/substeps.json y
 // devuelve un Sub por hito con actividad — con su NOMBRE DE NEGOCIO — más las líneas que ningún hito
 // reclamó. Es lo que hace legible la vista: «Datos personales ×24» dice algo; el nombre del orquestador
 // no. Los nombres viven en el JSON a propósito: afinarlos es editar datos, no Go.
@@ -1620,40 +1620,40 @@ func ensamblar(mapa *Mapa, subMapa *SubMapa, s *Solicitud, lineas []Linea, targe
 // Lo no reclamado NO se esconde: se pliega como «eventos sin nombre de negocio», que es el backlog
 // honesto de hitos por declarar. Esconderlo haría parecer que el mapa cubre todo, que es justo lo que no
 // se puede saber sin mirarlo.
-func agruparPorHitos(bloques []*BloqueDef, ls []Linea) ([]Sub, []Linea) {
+func groupByMilestones(blocks []*BlockDef, ls []Line) ([]Sub, []Line) {
 	type acc struct {
-		n       int
-		primero int64
-		err     string
-		lineas  []Linea // las líneas de ESTE hito, para poder abrirlo y ver sus logs
+		n     int
+		first int64
+		err   string
+		lines []Line // las líneas de ESTE hito, para poder abrirlo y ver sus logs
 	}
-	porHito := map[string]*acc{}
-	var resto []Linea
+	byMilestone := map[string]*acc{}
+	var rest []Line
 	for _, l := range ls {
-		var dueno *HitoDef
-		for _, b := range bloques {
-			for i := range b.Hitos {
-				h := &b.Hitos[i]
-				if h.Matcher != nil && h.Matcher.coincide(l.msg, l.ctx) {
-					dueno = h
+		var owner *MilestoneDef
+		for _, b := range blocks {
+			for i := range b.Milestones {
+				h := &b.Milestones[i]
+				if h.Matcher != nil && h.Matcher.matches(l.msg, l.ctx) {
+					owner = h
 					break
 				}
 			}
-			if dueno != nil {
+			if owner != nil {
 				break
 			}
 		}
-		if dueno == nil {
-			resto = append(resto, l)
+		if owner == nil {
+			rest = append(rest, l)
 			continue
 		}
-		a := porHito[dueno.ID]
+		a := byMilestone[owner.ID]
 		if a == nil {
-			a = &acc{primero: l.ts}
-			porHito[dueno.ID] = a
+			a = &acc{first: l.ts}
+			byMilestone[owner.ID] = a
 		}
 		a.n++
-		a.lineas = append(a.lineas, l)
+		a.lines = append(a.lines, l)
 		if l.level == "error" && a.err == "" {
 			if c := pick(l.ctx, []string{"error_code"}); c != "" {
 				a.err = c
@@ -1668,120 +1668,120 @@ func agruparPorHitos(bloques []*BloqueDef, ls []Linea) ([]Sub, []Linea) {
 	// consultó y qué dijo) con el PROCESO (qué fue pasando). Son dos preguntas distintas y en una lista de 14
 	// no se lee ninguna.
 	var subs []Sub
-	for _, b := range bloques {
-		var hijos []Sub
-		erroneo, primero := false, int64(0)
-		for _, h := range b.Hitos {
-			a := porHito[h.ID]
+	for _, b := range blocks {
+		var children []Sub
+		wrong, first := false, int64(0)
+		for _, h := range b.Milestones {
+			a := byMilestone[h.ID]
 			if a == nil {
 				continue // los hitos SIN actividad los pinta la vista desde el mapa, apagados
 			}
 			st := "ok"
 			// Un hito ENLAZADO a una central no lleva hora: se va a fusionar con la fila de BD, que ya trae
 			// la suya, y dos horas seguidas en un mismo renglón no se leen — parecen dos eventos.
-			det := fmt.Sprintf("×%d · %s", a.n, hhmm(time.UnixMilli(a.primero)))
+			det := fmt.Sprintf("×%d · %s", a.n, hhmm(time.UnixMilli(a.first)))
 			if h.Central != 0 {
 				det = fmt.Sprintf("×%d", a.n)
 			}
 			if a.err != "" {
 				// `a.err` es el `error_code` cuando existe y el literal "error" cuando no. Concatenarlo
 				// siempre daba «×10 con error error».
-				sufijo := " con error"
+				suffix := " con error"
 				if a.err != "error" {
-					sufijo += " " + a.err
+					suffix += " " + a.err
 				}
-				st, det, erroneo = "fail", det+sufijo, true
+				st, det, wrong = "fail", det+suffix, true
 			}
 			hj := Sub{Label: h.Label, Status: st, Detail: det, Source: "loki"}
-			hj.Eventos, hj.EventosDe = eventosDe(a.lineas, 40)
-			hijos = append(hijos, hj)
-			if primero == 0 || a.primero < primero {
-				primero = a.primero
+			hj.Events, hj.EventsOf = eventsOf(a.lines, 40)
+			children = append(children, hj)
+			if first == 0 || a.first < first {
+				first = a.first
 			}
 		}
-		if len(hijos) == 0 {
+		if len(children) == 0 {
 			continue
 		}
-		st, det := "ok", fmt.Sprintf("%s · %s", plural(len(hijos), "paso", "pasos"), hhmm(time.UnixMilli(primero)))
-		if erroneo {
+		st, det := "ok", fmt.Sprintf("%s · %s", plural(len(children), "paso", "pasos"), hhmm(time.UnixMilli(first)))
+		if wrong {
 			st, det = "fail", "con error · "+det
 		}
 		// La pantalla, al final del renglón: es lo que permite leer el árbol en el idioma del reporte sin
 		// perder el del backend. Va con el nombre crudo de la ruta —`sign-documents`, no «Firma»— porque
 		// así se busca en `routes.ts` y así se nombra entre quienes tocan el wizard.
-		if b.Pantalla != "" {
-			det += " · pantalla " + b.Pantalla
+		if b.Screen != "" {
+			det += " · pantalla " + b.Screen
 		}
-		subs = append(subs, Sub{Label: b.Label, Status: st, Detail: det, Source: "loki", Hijos: hijos})
+		subs = append(subs, Sub{Label: b.Label, Status: st, Detail: det, Source: "loki", Children: children})
 	}
-	return subs, resto
+	return subs, rest
 }
 
-// eventosDe convierte líneas crudas en eventos para la vista, en orden cronológico y con tope.
+// eventsOf convierte líneas crudas en eventos para la vista, en orden cronológico y con tope.
 //
 // LOS ERRORES VAN PRIMERO AL RECORTAR y después se reordena por hora: si hay que cortar, lo que no puede
 // faltar es la línea que explica el fallo. Es la misma regla que ya usaba el panel de log de la etapa —
 // vive acá para que valga igual en los dos lugares en vez de duplicarse y derivar.
-func eventosDe(ls []Linea, tope int) ([]Evento, int) {
+func eventsOf(ls []Line, limit int) ([]Event, int) {
 	if len(ls) == 0 {
 		return nil, 0
 	}
-	orden := make([]Linea, 0, len(ls))
+	order := make([]Line, 0, len(ls))
 	for _, l := range ls {
 		if l.level == "error" {
-			orden = append(orden, l)
+			order = append(order, l)
 		}
 	}
 	for _, l := range ls {
 		if l.level != "error" {
-			orden = append(orden, l)
+			order = append(order, l)
 		}
 	}
-	if tope > 0 && len(orden) > tope {
-		orden = orden[:tope]
+	if limit > 0 && len(order) > limit {
+		order = order[:limit]
 	}
-	sort.Slice(orden, func(i, j int) bool { return orden[i].ts < orden[j].ts })
-	out := make([]Evento, 0, len(orden))
-	for _, l := range orden {
-		out = append(out, Evento{At: hhmm(time.UnixMilli(l.ts)), Level: l.level, Msg: trim(l.msg, 400)})
+	sort.Slice(order, func(i, j int) bool { return order[i].ts < order[j].ts })
+	out := make([]Event, 0, len(order))
+	for _, l := range order {
+		out = append(out, Event{At: hhmm(time.UnixMilli(l.ts)), Level: l.level, Msg: trim(l.msg, 400)})
 	}
 	return out, len(ls)
 }
 
-// gruposDeLog colapsa las líneas de una etapa en renglones legibles: uno por `Clase::metodo` (o por
+// logGroups colapsa las líneas de una etapa en renglones legibles: uno por `Clase::metodo` (o por
 // mensaje normalizado si no lo tiene), con su conteo y marcado en rojo si alguna de esas líneas fue error.
 //
 // El tope de 8 renglones se DECLARA cuando corta: un resumen que esconde que recortó se lee como completo,
 // y eso es peor que mostrar mucho.
-func gruposDeLog(ls []Linea) []Sub {
+func logGroups(ls []Line) []Sub {
 	type g struct {
 		n      int
 		err    string
 		primer int64
-		lineas []Linea // igual que en los hitos: abrir el renglón muestra SUS líneas
+		lines  []Line // igual que en los hitos: abrir el renglón muestra SUS líneas
 	}
-	claves := map[string]*g{}
-	var orden []string
+	keys := map[string]*g{}
+	var order []string
 	reMet := regexp.MustCompile(`^([A-Za-z][\w\\]*?(?:Controller|Service|Repository|Orchestrator))::(\w+)`)
 	reNum := regexp.MustCompile(`\d{3,}`)
-	reVerbo := regexp.MustCompile(`^(?:Starting|Ending|Calling)\s+`)
+	reVerb := regexp.MustCompile(`^(?:Starting|Ending|Calling)\s+`)
 	for _, l := range ls {
 		k := ""
-		msg := reVerbo.ReplaceAllString(l.msg, "")
+		msg := reVerb.ReplaceAllString(l.msg, "")
 		if m := reMet.FindStringSubmatch(msg); m != nil {
-			partes := strings.Split(m[1], `\`)
-			k = partes[len(partes)-1] + "::" + m[2]
+			parts := strings.Split(m[1], `\`)
+			k = parts[len(parts)-1] + "::" + m[2]
 		} else {
 			k = trim(reNum.ReplaceAllString(msg, "N"), 64)
 		}
-		it, ok := claves[k]
+		it, ok := keys[k]
 		if !ok {
 			it = &g{primer: l.ts}
-			claves[k] = it
-			orden = append(orden, k)
+			keys[k] = it
+			order = append(order, k)
 		}
 		it.n++
-		it.lineas = append(it.lineas, l)
+		it.lines = append(it.lines, l)
 		if l.level == "error" && it.err == "" {
 			if c := pick(l.ctx, []string{"error_code"}); c != "" {
 				it.err = c
@@ -1790,40 +1790,40 @@ func gruposDeLog(ls []Linea) []Sub {
 			}
 		}
 	}
-	sort.Slice(orden, func(i, j int) bool { return claves[orden[i]].primer < claves[orden[j]].primer })
+	sort.Slice(order, func(i, j int) bool { return keys[order[i]].primer < keys[order[j]].primer })
 	// SIN TOPE: el recorte es decisión de la VISTA, no del dato. La versión con tope de 8 escondió ≥265
 	// grupos en el censo de 25 trazas y el `-json` no publicaba ni su texto ni su conteo — o sea que el
 	// propio censo que audita este mapa estaba censando una lista truncada sin saberlo. La terminal
 	// recorta al imprimir (y lo dice); el JSON viaja completo, que para eso existe.
 	var out []Sub
-	for _, k := range orden {
-		it := claves[k]
+	for _, k := range order {
+		it := keys[k]
 		st, d := "ok", fmt.Sprintf("×%d · %s", it.n, hhmm(time.UnixMilli(it.primer)))
 		if it.err != "" {
 			st, d = "fail", it.err+" · "+d
 		}
 		sb := Sub{Label: k, Status: st, Detail: d, Source: "loki"}
-		sb.Eventos, sb.EventosDe = eventosDe(it.lineas, 40)
+		sb.Events, sb.EventsOf = eventsOf(it.lines, 40)
 		out = append(out, sb)
 	}
 	return out
 }
 
-// evidenciaWebhook cita la fila de perfilamiento en los tres desenlaces del webhook. Los tres se apoyan
+// webhookEvidence cita la fila de perfilamiento en los tres desenlaces del webhook. Los tres se apoyan
 // en el MISMO campo (`disbursed_lender` lleno o vacío), así que los tres tienen que poder mostrarlo — el
 // que dice «no llegó» es justamente el que más necesita probar que miró.
-func evidenciaWebhook(s *Solicitud) *Evidencia {
-	p := s.Perfilamiento
+func webhookEvidence(s *LoanRequest) *Evidence {
+	p := s.Profiling
 	if p == nil {
-		return evidencia("profiling_reviews", sqlProfiling, []any{s.ID},
+		return evidence("profiling_reviews", sqlProfiling, []any{s.ID},
 			"(sin fila: esta solicitud nunca se perfiló)")
 	}
-	return evidencia("profiling_reviews", sqlProfiling, []any{s.ID},
-		fmt.Sprintf("recommended_lender = %d", p.Recomendado),
-		fmt.Sprintf("disbursed_lender   = %d%s", p.Desembolsado, cond(p.Desembolsado == 0, "   ← vacío")),
-		fmt.Sprintf("displayed_lenders  = %d entidades", len(p.Mostrados)),
-		"created_at         = "+fechaHora(p.Creado),
-		"updated_at         = "+fechaHora(p.Actualizado),
+	return evidence("profiling_reviews", sqlProfiling, []any{s.ID},
+		fmt.Sprintf("recommended_lender = %d", p.Recommended),
+		fmt.Sprintf("disbursed_lender   = %d%s", p.Disbursed, cond(p.Disbursed == 0, "   ← vacío")),
+		fmt.Sprintf("displayed_lenders  = %d entidades", len(p.Shown)),
+		"created_at         = "+dateTime(p.CreatedAt),
+		"updated_at         = "+dateTime(p.UpdatedAt),
 		"⚠ F-94: el webhook NO registra su recepción y su endpoint acepta cualquier lender_id, así que este campo no dice QUIÉN lo escribió")
 }
 
@@ -1836,32 +1836,32 @@ func cond(ok bool, txt string) string {
 	return ""
 }
 
-// estadoActualFila dice de dónde sale el estado que se está reportando y si el historial lo respalda.
+// currentStatusRow dice de dónde sale el estado que se está reportando y si el historial lo respalda.
 // Separar las dos fuentes es el punto: si el estado actual no aparece en el recorrido, la fila lo dice en
 // vez de dejar que el lector asuma que la lista de arriba está completa.
-func estadoActualFila(s *Solicitud) string {
-	for _, tr := range s.Transiciones {
-		if tr.Estado == s.Estado {
-			return fmt.Sprintf("← user_requests.user_request_status_id = %d · el historial termina acá y no registra ninguna transición posterior", s.Estado)
+func currentStatusRow(s *LoanRequest) string {
+	for _, tr := range s.Transitions {
+		if tr.Status == s.Status {
+			return fmt.Sprintf("← user_requests.user_request_status_id = %d · el historial termina acá y no registra ninguna transición posterior", s.Status)
 		}
 	}
 	return fmt.Sprintf("← user_requests.user_request_status_id = %d («%s») · ⚠ el historial NO tiene fila para este estado: "+
 		"`user_request_records` no registra todas las transiciones, así que la lista de arriba no es el recorrido completo",
-		s.Estado, s.EstadoN)
+		s.Status, s.StatusN)
 }
 
-// historialFilas rinde el historial ya colapsado, en el mismo orden en que se leyó.
-func historialFilas(s *Solicitud) []string {
-	out := make([]string, 0, len(s.Transiciones))
-	for _, tr := range s.Transiciones {
-		out = append(out, fmt.Sprintf("%s  estado %d · %s", fechaHora(tr.At), tr.Estado, tr.Nombre))
+// historyRows rinde el historial ya colapsado, en el mismo orden en que se leyó.
+func historyRows(s *LoanRequest) []string {
+	out := make([]string, 0, len(s.Transitions))
+	for _, tr := range s.Transitions {
+		out = append(out, fmt.Sprintf("%s  estado %d · %s", dateTime(tr.At), tr.Status, tr.Name))
 	}
 	return out
 }
 
-// etapaDeMuerte dice en qué etapa se detuvo: la siguiente a la última que la BD probó. Es una inferencia
+// deathStage dice en qué etapa se detuvo: la siguiente a la última que la BD probó. Es una inferencia
 // del ESQUELETO (no de logs), así que se puede afirmar.
-func etapaDeMuerte(mapa *Mapa, s *Solicitud, porEtapa map[string][]Linea) string {
+func deathStage(stageMap *Map, s *LoanRequest, byStage map[string][]Line) string {
 	// La última etapa CON EVIDENCIA —transición que cierra o líneas de log— y la muerte es la siguiente.
 	//
 	// ⚠ Antes ignoraba los logs y, sin historial mapeado, FABRICABA una etapa: en la uReq 522215 pintó
@@ -1869,66 +1869,66 @@ func etapaDeMuerte(mapa *Mapa, s *Solicitud, porEtapa map[string][]Linea) string
 	// estaban en cupo y desembolso. Un renglón rojo inventado manda a soporte a la etapa equivocada, que
 	// es lo único peor que no señalar ninguna. Si no hay evidencia de ninguna etapa, se devuelve "" y la
 	// muerte queda sin ubicar — «cancelada, no se puede ubicar» es una respuesta; un fantasma no.
-	ord := mapa.Orden()
-	ultima := -1
+	ord := stageMap.Order()
+	lastOne := -1
 	for i, o := range ord {
-		if len(porEtapa[o.id]) > 0 {
-			ultima = i
+		if len(byStage[o.id]) > 0 {
+			lastOne = i
 		}
 	}
-	for _, tr := range s.Transiciones {
-		e, ok := estadoEtapa[tr.Estado]
-		if !ok || !estadoCierra[tr.Estado] {
+	for _, tr := range s.Transitions {
+		e, ok := stageStatus[tr.Status]
+		if !ok || !closingStatus[tr.Status] {
 			continue
 		}
 		for i, o := range ord {
-			if o.id == e && i > ultima {
-				ultima = i
+			if o.id == e && i > lastOne {
+				lastOne = i
 			}
 		}
 	}
 	switch {
-	case ultima < 0:
+	case lastOne < 0:
 		return ""
-	case ultima+1 < len(ord):
-		return ord[ultima+1].id
+	case lastOne+1 < len(ord):
+		return ord[lastOne+1].id
 	}
-	return ord[ultima].id
+	return ord[lastOne].id
 }
 
 // hhmm es el ÚNICO formateador de horas: las de la BD llegan en UTC y las de los logs en epoch, y
 // mezclarlas sin normalizar fue lo que desordenó la primera versión de la línea de tiempo.
 func hhmm(t time.Time) string { return t.Local().Format("15:04:05") }
 
-// fechaHora: la MISMA hora local que muestra el árbol, con la fecha. Va en la evidencia, y ahí la zona no
+// dateTime: la MISMA hora local que muestra el árbol, con la fecha. Va en la evidencia, y ahí la zona no
 // es cosmética: la evidencia se copia y se pega en Redash junto al `created_at` de la consulta. Formatear
 // en UTC mientras el árbol dice Bogotá manda a buscar en una ventana cinco horas corrida — el mismo tipo
 // de desfase que ya se corrigió al parsear (`fecha`, en fuentes.go).
-func fechaHora(t time.Time) string { return t.Local().Format("2006-01-02 15:04:05") }
+func dateTime(t time.Time) string { return t.Local().Format("2006-01-02 15:04:05") }
 
-// atDelEstado busca cuándo se registró un estado puntual. Se usa para la etapa de muerte: tomar "la
+// statusAt busca cuándo se registró un estado puntual. Se usa para la etapa de muerte: tomar "la
 // última transición" daba una hora ANTERIOR al resto del flujo, porque `user_request_records` no siempre
 // viene en orden cronológico.
-func atDelEstado(s *Solicitud, estado int) string {
-	for i := len(s.Transiciones) - 1; i >= 0; i-- {
-		if s.Transiciones[i].Estado == estado {
-			return hhmm(s.Transiciones[i].At)
+func statusAt(s *LoanRequest, status int) string {
+	for i := len(s.Transitions) - 1; i >= 0; i-- {
+		if s.Transitions[i].Status == status {
+			return hhmm(s.Transitions[i].At)
 		}
 	}
-	return ultimoAt(s)
+	return lastAt(s)
 }
 
-func ultimoAt(s *Solicitud) string {
-	if n := len(s.Transiciones); n > 0 {
-		return hhmm(s.Transiciones[n-1].At)
+func lastAt(s *LoanRequest) string {
+	if n := len(s.Transitions); n > 0 {
+		return hhmm(s.Transitions[n-1].At)
 	}
-	return hhmm(s.Creada)
+	return hhmm(s.Created)
 }
 
 // ─── render tipo «checks» ───────────────────────────────────────────────────────────────────────────
 
-func imprimirTraza(t Traza, s *Solicitud) {
-	icono := map[string]string{
+func printTrace(t Trace, s *LoanRequest) {
+	icon := map[string]string{
 		"ok": paint("32", "✔"), "warn": paint("33", "!"), "fail": paint("31", "✘"),
 		"skip": gray("·"), "sin-evidencia": paint("33", "?"), "sin-registro": gray("~"),
 		// `no-aplica` lleva glifo PROPIO y no el punto de `skip`: «acá esto no ocurre nunca en este ramal» es
@@ -1938,18 +1938,18 @@ func imprimirTraza(t Traza, s *Solicitud) {
 	fmt.Println()
 	fmt.Printf("  %s\n", bold(fmt.Sprintf("── TRAZA · uReq %d · %s ──", t.UReq, t.Target)))
 	fmt.Printf("     %s · %s%s · monto %s\n",
-		orDash(s.Comercio), orDash(s.Sucursal),
+		orDash(s.Merchant), orDash(s.Branch),
 		func() string {
 			if s.Lender != "" {
 				return fmt.Sprintf(" · %s (rt=%d)", s.Lender, s.LenderRT)
 			}
 			return ""
 		}(),
-		fmt.Sprintf("%.0f", s.Monto))
+		fmt.Sprintf("%.0f", s.Amount))
 
 	res := map[string]string{"aprobado": green("aprobado"), "roto": red("roto"),
 		"abandonado": paint("33", "abandonado"), "en-curso": gray("en curso")}[t.Outcome]
-	fmt.Printf("     estado %d «%s» → %s%s\n", s.Estado, s.EstadoN, res,
+	fmt.Printf("     estado %d «%s» → %s%s\n", s.Status, s.StatusN, res,
 		func() string {
 			if t.BrokeAt != "" {
 				return red(" · se rompió en «" + t.BrokeAt + "»")
@@ -1958,31 +1958,31 @@ func imprimirTraza(t Traza, s *Solicitud) {
 		}())
 	// EL RESUMEN PRIMERO: soporte abre esto con una pregunta («¿dónde se rompió?») y la respuesta no
 	// puede estar repartida en cien renglones de árbol. Si no hay fallas, no hay sección.
-	if len(t.Hallazgos) > 0 {
+	if len(t.Findings) > 0 {
 		fmt.Println()
-		for _, h := range t.Hallazgos {
+		for _, h := range t.Findings {
 			fmt.Printf("     %s %s\n", red("✘"), h)
 		}
 	}
 	fmt.Println()
 
-	for _, e := range t.Etapas {
-		fuente := gray("")
+	for _, e := range t.Stages {
+		source := gray("")
 		switch e.Source {
 		case "db":
-			fuente = gray("[BD]")
+			source = gray("[BD]")
 		case "loki":
-			fuente = gray("[logs]")
+			source = gray("[logs]")
 		case "default":
-			fuente = gray("[supuesto]")
+			source = gray("[supuesto]")
 		default:
-			fuente = gray("[—]")
+			source = gray("[—]")
 		}
-		linea := fmt.Sprintf("     %s %-22s %-7s %s", icono[e.Status], e.Label, e.At, fuente)
-		if e.Lineas > 0 {
-			linea += gray(fmt.Sprintf(" %d líneas", e.Lineas))
+		line := fmt.Sprintf("     %s %-22s %-7s %s", icon[e.Status], e.Label, e.At, source)
+		if e.Lines > 0 {
+			line += gray(fmt.Sprintf(" %d líneas", e.Lines))
 		}
-		fmt.Println(linea)
+		fmt.Println(line)
 		if e.Detail != "" {
 			fmt.Printf("          %s\n", gray(e.Detail))
 		}
@@ -1990,50 +1990,50 @@ func imprimirTraza(t Traza, s *Solicitud) {
 		// ellas hay que contar espacios para saber qué cuelga de qué, y entonces el árbol no ahorra nada.
 		// EL ÁRBOL: familia o central en un nivel, las entidades colgando. Con guías a propósito — sin
 		// ellas hay que contar espacios para saber qué cuelga de qué, y entonces el árbol no ahorra nada.
-		// Se imprime COMPLETO: nada se esconde por ser rutina (ver izarErroresSinHito).
+		// Se imprime COMPLETO: nada se esconde por ser rutina (ver hoistErrorsWithoutMilestone).
 		for i, sb := range e.Subs {
 			ult := i == len(e.Subs)-1
-			rama := "├─"
+			branchName := "├─"
 			if ult {
-				rama = "└─"
+				branchName = "└─"
 			}
-			fmt.Printf("          %s %s %s  %s\n", gray(rama), puntito(sb.Status),
+			fmt.Printf("          %s %s %s  %s\n", gray(branchName), dot(sb.Status),
 				pad(sb.Label, 32), gray(trim(sb.Detail, 54)))
-			guia := "│ "
+			guide := "│ "
 			if ult {
-				guia = "  "
+				guide = "  "
 			}
 			// El recorte vive ACÁ, en la vista: primero los que fallan (el recorte no puede comerse la
 			// causa), después la rutina hasta el tope. El JSON no recorta nada.
-			hijos := sb.Hijos
-			recortados := 0
-			if len(hijos) > 12 {
-				conError := hijos[:0:0]
-				var sanos []Sub
-				for _, h := range hijos {
+			children := sb.Children
+			trimmed := 0
+			if len(children) > 12 {
+				withError := children[:0:0]
+				var healthy []Sub
+				for _, h := range children {
 					if h.Status == "fail" {
-						conError = append(conError, h)
+						withError = append(withError, h)
 					} else {
-						sanos = append(sanos, h)
+						healthy = append(healthy, h)
 					}
 				}
-				if len(conError) < 12 {
-					conError = append(conError, sanos[:12-len(conError)]...)
+				if len(withError) < 12 {
+					withError = append(withError, healthy[:12-len(withError)]...)
 				}
-				recortados = len(hijos) - len(conError)
-				hijos = conError
+				trimmed = len(children) - len(withError)
+				children = withError
 			}
-			for j, h := range hijos {
+			for j, h := range children {
 				sub := "├─"
-				if j == len(hijos)-1 && recortados == 0 {
+				if j == len(children)-1 && trimmed == 0 {
 					sub = "└─"
 				}
-				fmt.Printf("          %s  %s %s %s  %s\n", gray(guia), gray(sub), puntito(h.Status),
+				fmt.Printf("          %s  %s %s %s  %s\n", gray(guide), gray(sub), dot(h.Status),
 					pad(h.Label, 28), gray(trim(h.Detail, 48)))
 			}
-			if recortados > 0 {
-				fmt.Printf("          %s  %s %s\n", gray(guia), gray("└─ ·"),
-					gray(fmt.Sprintf("… y %d más — completos en la UI y en -json; con error nunca se recorta", recortados)))
+			if trimmed > 0 {
+				fmt.Printf("          %s  %s %s\n", gray(guide), gray("└─ ·"),
+					gray(fmt.Sprintf("… y %d más — completos en la UI y en -json; con error nunca se recorta", trimmed)))
 			}
 		}
 		if e.Reason != "" {
@@ -2042,60 +2042,60 @@ func imprimirTraza(t Traza, s *Solicitud) {
 	}
 
 	fmt.Println()
-	if len(t.Arbol) > 0 {
+	if len(t.Tree) > 0 {
 		fmt.Printf("\n     %s\n", bold("DÓNDE QUEDÓ · el recorrido en 39 pasos"))
-		tramo := ""
-		for i, p := range t.Arbol {
+		segment := ""
+		for i, p := range t.Tree {
 			// Sólo se imprimen los tramos que tuvieron algo, MÁS el que sigue al último alcanzado:
 			// el valor está en ver dónde se cortó, no en listar 39 renglones vacíos.
-			if p.Lineas == 0 && i > t.ArbolUltimo+3 {
+			if p.Lines == 0 && i > t.TreeLast+3 {
 				continue
 			}
-			if p.Tramo != tramo {
-				tramo = p.Tramo
-				fmt.Printf("       %s\n", gray(tramo))
+			if p.Segment != segment {
+				segment = p.Segment
+				fmt.Printf("       %s\n", gray(segment))
 			}
-			marca, det := gray("·"), ""
-			if p.Lineas > 0 {
-				marca = paint("32", "●")
+			mark, det := gray("·"), ""
+			if p.Lines > 0 {
+				mark = paint("32", "●")
 				plural := "líneas"
-				if p.Lineas == 1 {
+				if p.Lines == 1 {
 					plural = "línea"
 				}
-				det = gray(fmt.Sprintf("  %d %s", p.Lineas, plural))
+				det = gray(fmt.Sprintf("  %d %s", p.Lines, plural))
 			}
-			if i == t.ArbolUltimo {
+			if i == t.TreeLast {
 				det += paint("33", "   ◄ hasta acá llegó")
 			}
-			fmt.Printf("         %s %-40s%s\n", marca, p.Paso, det)
+			fmt.Printf("         %s %-40s%s\n", mark, p.Step, det)
 		}
 		fmt.Println()
 	}
-	if len(t.Pantallas) > 0 {
+	if len(t.Screens) > 0 {
 		fmt.Printf("\n     %s\n", bold("QUÉ VIO EL CLIENTE EN EL NAVEGADOR"))
-		for _, p := range t.Pantallas {
+		for _, p := range t.Screens {
 			extra := ""
-			if p.Detalle != "" {
-				extra = gray("  · " + p.Detalle)
+			if p.Detail != "" {
+				extra = gray("  · " + p.Detail)
 			}
-			fmt.Printf("       %s  %s%s\n", gray(p.Cuando), p.Que, extra)
+			fmt.Printf("       %s  %s%s\n", gray(p.When), p.What, extra)
 		}
-		if t.AvisoPH != "" {
-			fmt.Printf("       %s\n", gray(t.AvisoPH))
+		if t.PHNotice != "" {
+			fmt.Printf("       %s\n", gray(t.PHNotice))
 		}
 	}
-	if len(t.Archivos) > 0 {
+	if len(t.Files) > 0 {
 		fmt.Printf("\n     %s\n", bold("EL CÓDIGO QUE DEJÓ RASTRO"))
-		for _, a := range t.Archivos {
-			donde := ""
-			if len(a.Lineas) > 0 {
-				donde = gray("  :" + strings.Join(a.Lineas, ","))
+		for _, a := range t.Files {
+			where := ""
+			if len(a.Lines) > 0 {
+				where = gray("  :" + strings.Join(a.Lines, ","))
 			}
-			fmt.Printf("       %3d×  %s%s\n", a.Veces, a.Ruta, donde)
+			fmt.Printf("       %3d×  %s%s\n", a.Times, a.Path, where)
 		}
-		if t.SinResolver > 0 {
+		if t.Unresolved > 0 {
 			fmt.Printf("       %s\n", gray(fmt.Sprintf(
-				"(%d mensajes no matchean ningún literal del código — el mapa no los conoce)", t.SinResolver)))
+				"(%d mensajes no matchean ningún literal del código — el mapa no los conoce)", t.Unresolved)))
 		}
 		fmt.Println()
 	}
@@ -2115,59 +2115,59 @@ func imprimirTraza(t Traza, s *Solicitud) {
 // afirmaciones, esconder por corazonada es el trato equivocado: quien audita quiere ver TODO lo que
 // corrió, y el resumen de arriba ya contesta «¿dónde se rompió?» sin quitarle nada a la lista.
 
-// izarErroresSinHito saca a la vista los errores que cayeron en «eventos sin nombre de negocio». Un error
+// hoistErrorsWithoutMilestone saca a la vista los errores que cayeron en «eventos sin nombre de negocio». Un error
 // sin hito declarado seguía siendo un error: dejarlo dentro del cajón de sastre lo escondía detrás de un
 // renglón gris que se lee como «acá no pasó nada».
-func izarErroresSinHito(t *Traza) {
-	for i := range t.Etapas {
-		e := &t.Etapas[i]
+func hoistErrorsWithoutMilestone(t *Trace) {
+	for i := range t.Stages {
+		e := &t.Stages[i]
 		subs := e.Subs[:0:0]
 		for _, s := range e.Subs {
 			if !strings.HasPrefix(s.Label, "Eventos sin nombre") {
 				subs = append(subs, s)
 				continue
 			}
-			quedan := s.Hijos[:0:0]
-			for _, h := range s.Hijos {
+			remaining := s.Children[:0:0]
+			for _, h := range s.Children {
 				if h.Status == "fail" {
 					h.Detail += " · sin hito declarado"
 					subs = append(subs, h)
 					continue
 				}
-				quedan = append(quedan, h)
+				remaining = append(remaining, h)
 			}
-			s.Hijos = quedan
+			s.Children = remaining
 			subs = append(subs, s)
 		}
 		e.Subs = subs
 	}
 }
 
-// armarHallazgos junta TODO lo que quedó en fail con su ruta. Con tope declarado: si hay más de 8, el
+// buildFindings junta TODO lo que quedó en fail con su ruta. Con tope declarado: si hay más de 8, el
 // último renglón lo dice — un resumen que recorta en silencio se lee como completo, y no lo es.
-func armarHallazgos(t *Traza) {
-	visto := map[string]bool{}
-	saltados := 0
-	agregar := func(txt string) {
-		if txt == "" || visto[txt] {
+func buildFindings(t *Trace) {
+	seen := map[string]bool{}
+	skipped := 0
+	add := func(txt string) {
+		if txt == "" || seen[txt] {
 			return
 		}
-		visto[txt] = true
-		if len(t.Hallazgos) >= 8 {
-			saltados++
+		seen[txt] = true
+		if len(t.Findings) >= 8 {
+			skipped++
 			return
 		}
-		t.Hallazgos = append(t.Hallazgos, txt)
+		t.Findings = append(t.Findings, txt)
 	}
-	for _, e := range t.Etapas {
-		antes := len(t.Hallazgos)
+	for _, e := range t.Stages {
+		before := len(t.Findings)
 		// Si un descendiente ya está en fail, el padre NO entra al resumen: «Registro del cliente — con
 		// error · 6 pasos» y «redirect — 1 rechazada(s)» son el mismo hallazgo que su hijo, dicho sin la
 		// causa. El renglón útil es la hoja.
-		var tieneFalloAbajo func(s Sub) bool
-		tieneFalloAbajo = func(s Sub) bool {
-			for _, h := range s.Hijos {
-				if h.Status == "fail" || tieneFalloAbajo(h) {
+		var hasFailureBelow func(s Sub) bool
+		hasFailureBelow = func(s Sub) bool {
+			for _, h := range s.Children {
+				if h.Status == "fail" || hasFailureBelow(h) {
 					return true
 				}
 			}
@@ -2175,19 +2175,19 @@ func armarHallazgos(t *Traza) {
 		}
 		var rec func(s Sub)
 		rec = func(s Sub) {
-			if s.Status == "fail" && !tieneFalloAbajo(s) {
+			if s.Status == "fail" && !hasFailureBelow(s) {
 				txt := s.Detail
 				// La primera línea de error del paso suele decir más que su Detail («HTTP 401 …» contra
 				// «con error»); si existe, es la que va al resumen.
-				for _, ev := range s.Eventos {
+				for _, ev := range s.Events {
 					if ev.Level == "error" {
 						txt = ev.Msg
 						break
 					}
 				}
-				agregar(fmt.Sprintf("%s › %s — %s", e.Label, s.Label, trim(txt, 96)))
+				add(fmt.Sprintf("%s › %s — %s", e.Label, s.Label, trim(txt, 96)))
 			}
-			for _, h := range s.Hijos {
+			for _, h := range s.Children {
 				rec(h)
 			}
 		}
@@ -2196,26 +2196,26 @@ func armarHallazgos(t *Traza) {
 		}
 		// El Reason de la etapa suele ser el MISMO error que ya aportó un paso; solo suma cuando la etapa
 		// falló sin que ningún paso lo dijera.
-		if e.Reason != "" && len(t.Hallazgos) == antes && saltados == 0 {
-			agregar(fmt.Sprintf("%s — %s", e.Label, trim(e.Reason, 110)))
+		if e.Reason != "" && len(t.Findings) == before && skipped == 0 {
+			add(fmt.Sprintf("%s — %s", e.Label, trim(e.Reason, 110)))
 		}
 	}
 	// Las huérfanas con nivel error: líneas que NINGUNA etapa reclamó y que hasta acá no aparecían ni en
 	// una etapa ni en el resumen — un error invisible en la herramienta que existe para encontrarlos.
 	// Medido en el censo: ≥15 líneas de error así en 25 trazas.
-	for _, ev := range t.Huerfanas {
+	for _, ev := range t.Orphans {
 		if ev.Level == "error" {
-			agregar(fmt.Sprintf("sin etapa › %s — el mapa no ubica esta línea (está en «sin ubicar»)", trim(ev.Msg, 96)))
+			add(fmt.Sprintf("sin etapa › %s — el mapa no ubica esta línea (está en «sin ubicar»)", trim(ev.Msg, 96)))
 		}
 	}
-	if saltados > 0 {
-		t.Hallazgos = append(t.Hallazgos, fmt.Sprintf("… y %d más, en el árbol", saltados))
+	if skipped > 0 {
+		t.Findings = append(t.Findings, fmt.Sprintf("… y %d más, en el árbol", skipped))
 	}
 }
 
-// pesos formatea el monto con separador de miles. 6395900 se lee mal; 6.395.900 se lee de un golpe, y el
+// pesosText formatea el monto con separador de miles. 6395900 se lee mal; 6.395.900 se lee de un golpe, y el
 // monto es de las pocas cosas que soporte compara contra lo que dice el cliente.
-func pesos(v float64) string {
+func pesosText(v float64) string {
 	s := fmt.Sprintf("%.0f", v)
 	var out []byte
 	for i, c := range []byte(s) {
@@ -2232,8 +2232,8 @@ func red(s string) string   { return paint("31", s) }
 
 // ─── traer los logs de ESTA solicitud ───────────────────────────────────────────────────────────────
 
-// Linea es una línea de log ya parseada.
-type Linea struct {
+// Line es una línea de log ya parseada.
+type Line struct {
 	ts    int64
 	level string
 	msg   string
@@ -2244,31 +2244,31 @@ type Linea struct {
 	// momento del flujo. Con el span, ubicar una línea no depende de reconocer su prosa.
 	span  string
 	trace string
-	// heredada: esta línea NO matcheó ningún patrón — la ubicó el span. Se marca porque es evidencia más
+	// inheritedOne: esta línea NO matcheó ningún patrón — la ubicó el span. Se marca porque es evidencia más
 	// débil que una línea reclamada por un patrón declarado, y mezclarlas haría que el mapa parezca cubrir
 	// más de lo que cubre. La vista la muestra bajo «eventos sin nombre de negocio» de su etapa.
-	heredada bool
+	inheritedOne bool
 }
 
-// traerLineas hace el join de dos fases, pero ANCLADO POR LA BD — que es la mejora sobre buscar solo por
+// fetchLines hace el join de dos fases, pero ANCLADO POR LA BD — que es la mejora sobre buscar solo por
 // el número de solicitud:
 //
 //	fase 1  anclas: se buscan las líneas que traigan el uReq **o el user_id** (que solo la BD conoce),
 //	        acotadas a la ventana de la solicitud. El user_id aparece en más líneas (50 vs 36 en la
 //	        medición) pero es ambiguo por sí solo; la ventana de la BD es lo que lo vuelve seguro.
 //	fase 2  expansión: cada `trace_id` descubierto se trae completo, que es una búsqueda indexada.
-func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []string) {
-	desde, hasta := s.ventana()
-	var notas []string
+func fetchLines(cl *logs.Client, s *LoanRequest, envFilter string) ([]Line, []string) {
+	since, until := s.window()
+	var notes []string
 
-	// ── EL FILTRO DE AMBIENTE SE VERIFICA ANTES DE USARSE ── (la regla, en `selectorAmbiente`)
-	var ambientes []string
-	if envFiltro != "" {
-		ambientes = valoresDeEtiqueta(cl, "environment", desde, hasta)
+	// ── EL FILTRO DE AMBIENTE SE VERIFICA ANTES DE USARSE ── (la regla, en `environmentSelector`)
+	var environments []string
+	if envFilter != "" {
+		environments = labelValues(cl, "environment", since, until)
 	}
-	sel, notaSel := selectorAmbiente(envFiltro, ambientes)
-	if notaSel != "" {
-		notas = append(notas, notaSel)
+	sel, selNote := environmentSelector(envFilter, environments)
+	if selNote != "" {
+		notes = append(notes, selNote)
 	}
 
 	// ── EL ANCLA FILTRA POR CAMPO, NO POR SUBSTRING ──
@@ -2287,16 +2287,16 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 	// entero: 24 líneas sin `| json` y 24 con, y `__error__="JSONParserErr"` devuelve cero. Si algún día el
 	// backend loguea texto plano, esta consulta lo va a callar: el chequeo hay que repetirlo.
 	traces := map[string]bool{}
-	tracesEtiqueta := map[string]bool{}
-	serviciosEtiqueta := map[string]bool{}
-	anclas := map[string]int{}
-	var crudas []Linea
+	tracesLabel := map[string]bool{}
+	servicesLabel := map[string]bool{}
+	anchors := map[string]int{}
+	var rawLines []Line
 	// Los MS Go llevan el id como ETIQUETA, no en el cuerpo: `| json` no los alcanza (el cuerpo es texto
 	// plano y el parser los descarta), así que llevan su propia consulta con filtro de etiqueta. Medido:
 	// `preapprovals-service` ancla 33 líneas en 4 h por `user_request_id`, todas invisibles antes. Y como su
 	// trace_id es PROPIO (no se propaga desde legacy), la expansión posterior es la que trae su request
 	// completo — autenticación, llamada al lender, veredicto.
-	for _, ancla := range []struct{ valor, campos, filtro string }{
+	for _, anchor := range []struct{ value, fields, filter string }{
 		{fmt.Sprint(s.ID), "user_request_id (etiqueta MS)", `user_request_id="%s"`},
 		// ⚠ LAS DOS GRAFÍAS, y no es prolijidad: la integración BNPL de Bancolombia loguea
 		// `context_userRequestId` en camelCase mientras el resto del backend usa snake_case. Cablear sólo
@@ -2314,10 +2314,10 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 		{fmt.Sprint(s.UserID), "user_id",
 			`context_user_id="%s" or context_userId="%s" or context_user_by_cell_phone_id="%s"`},
 	} {
-		if ancla.valor == "" || ancla.valor == "0" {
+		if anchor.value == "" || anchor.value == "0" {
 			continue
 		}
-		filtro := strings.ReplaceAll(ancla.filtro, "%s", ancla.valor)
+		filter := strings.ReplaceAll(anchor.filter, "%s", anchor.value)
 		// El chequeo por contexto se mantiene aunque el filtro ya sea exacto: es la red que atrapa un cambio
 		// de nombre de campo del lado del backend. Si el filtro dejara de aplicar, esto lo cortaría igual.
 		//
@@ -2331,41 +2331,41 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 		// cualquiera de los dos filtros los dejaba afuera sin avisar. No hace falta separarlos por
 		// ambiente: se anclan por el `user_request_id` EXACTO, y ese id es único en la BD que dev, qa y
 		// staging comparten.
-		esEtiqueta := !strings.Contains(ancla.filtro, "context_")
-		q := fmt.Sprintf(`%s | json | %s`, sel, filtro)
-		if esEtiqueta {
-			q = fmt.Sprintf(`{service_name=~".+"} | %s`, filtro)
+		isLabel := !strings.Contains(anchor.filter, "context_")
+		q := fmt.Sprintf(`%s | json | %s`, sel, filter)
+		if isLabel {
+			q = fmt.Sprintf(`{service_name=~".+"} | %s`, filter)
 		}
-		ls, tr, err := lineasYTraces(cl, q, desde, hasta, ancla.valor)
+		ls, tr, err := linesAndTraces(cl, q, since, until, anchor.value)
 		if err != nil {
-			notas = append(notas, fmt.Sprintf("la búsqueda por %s falló: %v", ancla.campos, err))
+			notes = append(notes, fmt.Sprintf("la búsqueda por %s falló: %v", anchor.fields, err))
 			continue
 		}
-		crudas = append(crudas, ls...)
-		anclas[ancla.campos] = len(ls)
+		rawLines = append(rawLines, ls...)
+		anchors[anchor.fields] = len(ls)
 		for t := range tr {
-			if esEtiqueta {
-				tracesEtiqueta[t] = true // trace de MS: NO es indexado, la expansión normal no lo ve
+			if isLabel {
+				tracesLabel[t] = true // trace de MS: NO es indexado, la expansión normal no lo ve
 			} else {
 				traces[t] = true
 			}
 		}
-		if esEtiqueta {
+		if isLabel {
 			for _, l := range ls {
 				if v := pick(l.ctx, []string{"service_name"}); v != "" {
-					serviciosEtiqueta[v] = true
+					servicesLabel[v] = true
 				}
 			}
 		}
 	}
 
 	if len(traces) == 0 {
-		if len(crudas) > 0 {
-			notas = append(notas, fmt.Sprintf("%d líneas ancladas pero SIN trace_id: no se pudo expandir a la petición completa (falta Tempo/OTel en ese backend)", len(crudas)))
-			return crudas, notas
+		if len(rawLines) > 0 {
+			notes = append(notes, fmt.Sprintf("%d líneas ancladas pero SIN trace_id: no se pudo expandir a la petición completa (falta Tempo/OTel en ese backend)", len(rawLines)))
+			return rawLines, notes
 		}
-		notas = append(notas, "ninguna línea nombra esta solicitud ni su usuario en la ventana")
-		return nil, notas
+		notes = append(notes, "ninguna línea nombra esta solicitud ni su usuario en la ventana")
+		return nil, notes
 	}
 
 	ids := make([]string, 0, len(traces))
@@ -2373,10 +2373,10 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 		ids = append(ids, t)
 	}
 	sort.Strings(ids)
-	todas, _, err := lineasYTraces(cl, fmt.Sprintf(`{trace_id=~"%s"}`, strings.Join(ids, "|")), desde, hasta, "")
+	all, _, err := linesAndTraces(cl, fmt.Sprintf(`{trace_id=~"%s"}`, strings.Join(ids, "|")), since, until, "")
 	if err != nil {
-		notas = append(notas, fmt.Sprintf("la expansión por trace_id falló: %v", err))
-		return crudas, notas
+		notes = append(notes, fmt.Sprintf("la expansión por trace_id falló: %v", err))
+		return rawLines, notes
 	}
 
 	// ── LA EXPANSIÓN NO ALCANZA A LOS MICROSERVICIOS, y devolver solo la expansión los BORRABA ──
@@ -2392,37 +2392,37 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 	//   2. una expansión PROPIA para esos traces, con filtro de metadata (`| trace_id=~"…"`) acotada a los
 	//      service_name vistos en las anclas — trae el request completo del MS (autenticación → llamada al
 	//      lender → veredicto), que el ancla sola no ve porque esas líneas no llevan el user_request_id.
-	if len(tracesEtiqueta) > 0 {
+	if len(tracesLabel) > 0 {
 		var tIDs, svcs []string
-		for id := range tracesEtiqueta {
+		for id := range tracesLabel {
 			tIDs = append(tIDs, id)
 		}
-		for s2 := range serviciosEtiqueta {
+		for s2 := range servicesLabel {
 			svcs = append(svcs, s2)
 		}
 		sort.Strings(tIDs)
 		sort.Strings(svcs)
-		ms, _, errMS := lineasYTraces(cl, fmt.Sprintf(`{service_name=~"%s"} | trace_id=~"%s"`,
-			strings.Join(svcs, "|"), strings.Join(tIDs, "|")), desde, hasta, "")
+		ms, _, errMS := linesAndTraces(cl, fmt.Sprintf(`{service_name=~"%s"} | trace_id=~"%s"`,
+			strings.Join(svcs, "|"), strings.Join(tIDs, "|")), since, until, "")
 		if errMS != nil {
-			notas = append(notas, fmt.Sprintf("la expansión del microservicio falló: %v", errMS))
+			notes = append(notes, fmt.Sprintf("la expansión del microservicio falló: %v", errMS))
 		} else {
-			todas = append(todas, ms...)
+			all = append(all, ms...)
 		}
 	}
 	// La unión. El dedupe es por (instante, span, mensaje): dos fuentes pueden traer la misma línea y
 	// duplicarla inflaría los conteos de los hitos.
-	vistoL := map[string]bool{}
-	unidas := make([]Linea, 0, len(todas)+len(crudas))
-	for _, l := range append(todas, crudas...) {
+	seenL := map[string]bool{}
+	joined := make([]Line, 0, len(all)+len(rawLines))
+	for _, l := range append(all, rawLines...) {
 		k := fmt.Sprintf("%d|%s|%s", l.ts, l.span, l.msg)
-		if vistoL[k] {
+		if seenL[k] {
 			continue
 		}
-		vistoL[k] = true
-		unidas = append(unidas, l)
+		seenL[k] = true
+		joined = append(joined, l)
 	}
-	todas = unidas
+	all = joined
 	// ── DESCARTAR LO QUE ES DE OTRA SOLICITUD ──
 	//
 	// La expansión trae la petición completa, y ahí entra la única contaminación real que tiene este método:
@@ -2436,51 +2436,51 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 	// ⚠ Lo que NO se puede descartar son las líneas sin `user_request_id` de un trace mezclado: no dicen de
 	// quién son. Se quedan —tirarlas costaría la mayoría de la evidencia— y el trace mezclado se AVISA, que
 	// es la diferencia entre una duda declarada y una suposición silenciosa.
-	mio := comoTexto(s.ID)
-	tracesMezclados := map[string]bool{}
-	ajenas := map[string]int{}
-	limpias := make([]Linea, 0, len(todas))
-	for _, l := range todas {
+	mine := asTextValue(s.ID)
+	mixedTraces := map[string]bool{}
+	foreign := map[string]int{}
+	clean := make([]Line, 0, len(all))
+	for _, l := range all {
 		ur := pick(l.ctx, []string{"user_request_id", "userRequestId", "user_request"})
-		if ur != "" && ur != mio {
-			ajenas[ur]++
-			tracesMezclados[l.trace] = true
+		if ur != "" && ur != mine {
+			foreign[ur]++
+			mixedTraces[l.trace] = true
 			continue
 		}
-		limpias = append(limpias, l)
+		clean = append(clean, l)
 	}
-	if len(ajenas) > 0 {
-		var quienes []string
+	if len(foreign) > 0 {
+		var who []string
 		total := 0
-		for k, n := range ajenas {
-			quienes = append(quienes, fmt.Sprintf("%s×%d", k, n))
+		for k, n := range foreign {
+			who = append(who, fmt.Sprintf("%s×%d", k, n))
 			total += n
 		}
-		sort.Strings(quienes)
-		notas = append(notas, fmt.Sprintf("%d líneas DESCARTADAS por ser de otra solicitud del mismo cliente "+
-			"(%s): las trae la expansión por trace y lo dicen en su propio contexto", total, strings.Join(quienes, " ")))
+		sort.Strings(who)
+		notes = append(notes, fmt.Sprintf("%d líneas DESCARTADAS por ser de otra solicitud del mismo cliente "+
+			"(%s): las trae la expansión por trace y lo dicen en su propio contexto", total, strings.Join(who, " ")))
 		// Las líneas SIN uReq de esos mismos traces no se pueden atribuir con certeza. Se cuentan y se avisa.
-		dudosas := 0
-		for _, l := range limpias {
-			if tracesMezclados[l.trace] && pick(l.ctx, []string{"user_request_id", "userRequestId", "user_request"}) == "" {
-				dudosas++
+		doubtful := 0
+		for _, l := range clean {
+			if mixedTraces[l.trace] && pick(l.ctx, []string{"user_request_id", "userRequestId", "user_request"}) == "" {
+				doubtful++
 			}
 		}
-		if dudosas > 0 {
-			notas = append(notas, fmt.Sprintf("%d líneas vienen de un trace que toca DOS solicitudes y no "+
-				"dicen de cuál son: se muestran, pero no se pueden afirmar de esta", dudosas))
+		if doubtful > 0 {
+			notes = append(notes, fmt.Sprintf("%d líneas vienen de un trace que toca DOS solicitudes y no "+
+				"dicen de cuál son: se muestran, pero no se pueden afirmar de esta", doubtful))
 		}
 	}
 
 	// El desglose por ancla (`user_id→110 user_request_id→37 …`) era jerga de diagnóstico en la vista de
 	// auditoría; vive completo en `-anclas`, que es su modo. Acá queda lo que un lector necesita creer:
 	// cuántas líneas y de cuántas peticiones.
-	notas = append(notas, fmt.Sprintf("%d líneas de %d traces · el desglose por ancla: -anclas", len(limpias), len(ids)))
-	notas = append(notas, repartoPorBackend(limpias, cl.Config.Service)...)
-	return limpias, notas
+	notes = append(notes, fmt.Sprintf("%d líneas de %d traces · el desglose por ancla: -anclas", len(clean), len(ids)))
+	notes = append(notes, splitByBackend(clean, cl.Config.Service)...)
+	return clean, notes
 }
 
-// repartoPorBackend dice qué backend PHP sirvió las líneas de la traza, contra el que el target declara
+// splitByBackend dice qué backend PHP sirvió las líneas de la traza, contra el que el target declara
 // como suyo (`LOKI_SERVICE`). No filtra: AVISA.
 //
 // ⚠ Filtrar era la primera idea y habría mentido. Dev, qa y staging comparten BD, así que los ids no se
@@ -2495,36 +2495,36 @@ func traerLineas(cl *logs.Client, s *Solicitud, envFiltro string) ([]Linea, []st
 // usa `app`, que también es del PHP, porque `boilerplateOTel` la saca del contexto. Y los MS quedan
 // afuera a propósito: su única etiqueta de ambiente vale `development` en dev, qa y staging por igual,
 // así que una línea suya no dice de qué rama es.
-func repartoPorBackend(lineas []Linea, servicio string) []string {
-	if servicio == "" {
+func splitByBackend(lines []Line, service string) []string {
+	if service == "" {
 		return nil
 	}
-	por := map[string]int{}
-	for _, l := range lineas {
+	by := map[string]int{}
+	for _, l := range lines {
 		if pick(l.ctx, []string{"environment"}) == "" {
 			continue
 		}
 		if sv := pick(l.ctx, []string{"service_name"}); sv != "" {
-			por[sv]++
+			by[sv]++
 		}
 	}
-	var otros []string
-	for sv, n := range por {
-		if sv != servicio {
-			otros = append(otros, fmt.Sprintf("%s %d", sv, n))
+	var others []string
+	for sv, n := range by {
+		if sv != service {
+			others = append(others, fmt.Sprintf("%s %d", sv, n))
 		}
 	}
-	if len(otros) == 0 {
+	if len(others) == 0 {
 		return nil
 	}
-	sort.Strings(otros)
-	if por[servicio] == 0 {
+	sort.Strings(others)
+	if by[service] == 0 {
 		return []string{fmt.Sprintf("NINGUNA línea del monolito es de %q, el backend de este target: todas "+
 			"son de %s. La solicitud la atendió OTRO ambiente (dev, qa y staging comparten BD y se abre igual "+
-			"con cualquiera de los tres)", servicio, strings.Join(otros, " · "))}
+			"con cualquiera de los tres)", service, strings.Join(others, " · "))}
 	}
 	return []string{fmt.Sprintf("la solicitud pasó por MÁS DE UN backend: %s %d (el de este target) · %s. "+
-		"Las de otro backend las corrió el código de OTRA rama", servicio, por[servicio], strings.Join(otros, " · "))}
+		"Las de otro backend las corrió el código de OTRA rama", service, by[service], strings.Join(others, " · "))}
 }
 
 // boilerplateOTel: las etiquetas de infraestructura que el SDK de OTel pega a toda línea y que no dicen
@@ -2538,23 +2538,23 @@ var boilerplateOTel = map[string]bool{
 	"detected_level": true, "level": true, "channel": true, "app": true, "cluster_name": true,
 }
 
-// lineasYTraces corre una consulta y devuelve las líneas + los trace_id vistos. `valorAncla` no vacío
+// linesAndTraces corre una consulta y devuelve las líneas + los trace_id vistos. `anchorValue` no vacío
 // exige que el valor aparezca como VALOR de un campo del context: sin eso, un documento o un monto que
 // contenga los mismos dígitos anclaría la solicitud de otra persona.
-func lineasYTraces(cl *logs.Client, logql string, desde, hasta time.Time, valorAncla string) ([]Linea, map[string]bool, error) {
-	streams, err := cl.Range(logql, desde, hasta, 5000, "forward")
+func linesAndTraces(cl *logs.Client, logql string, since, until time.Time, anchorValue string) ([]Line, map[string]bool, error) {
+	streams, err := cl.Range(logql, since, until, 5000, "forward")
 	if err != nil {
 		return nil, nil, err
 	}
 	traces := map[string]bool{}
-	var out []Linea
+	var out []Line
 	for _, st := range streams {
 		for _, v := range st.Values {
 			var obj struct {
 				Message string          `json:"message"`
 				Context json.RawMessage `json:"context"`
 			}
-			l := Linea{level: st.Labels["level"], msg: v[1], ctx: map[string]any{},
+			l := Line{level: st.Labels["level"], msg: v[1], ctx: map[string]any{},
 				span: st.Labels["span_id"], trace: st.Labels["trace_id"]}
 			if json.Unmarshal([]byte(v[1]), &obj) == nil {
 				if obj.Message != "" {
@@ -2572,7 +2572,7 @@ func lineasYTraces(cl *logs.Client, logql string, desde, hasta time.Time, valorA
 			// ningún matcher con `campo` podía mirar `service_name`. El cuerpo GANA en caso de choque: es lo
 			// que el que logueó quiso decir. La morralla de OTel se salta para que el ctx siga siendo legible.
 			for k, v2 := range st.Labels {
-				if _, ya := l.ctx[k]; ya || boilerplateOTel[k] {
+				if _, already := l.ctx[k]; already || boilerplateOTel[k] {
 					continue
 				}
 				l.ctx[k] = v2
@@ -2580,10 +2580,10 @@ func lineasYTraces(cl *logs.Client, logql string, desde, hasta time.Time, valorA
 			var ns int64
 			fmt.Sscanf(v[0], "%d", &ns)
 			l.ts = ns / 1e6
-			if valorAncla != "" {
+			if anchorValue != "" {
 				hit := false
 				for _, vv := range l.ctx {
-					if comoTexto(vv) == valorAncla {
+					if asTextValue(vv) == anchorValue {
 						hit = true
 						break
 					}
@@ -2602,11 +2602,11 @@ func lineasYTraces(cl *logs.Client, logql string, desde, hasta time.Time, valorA
 	return out, traces, nil
 }
 
-// comoTexto formatea un valor del context para comparar. Existe por un bug que costó encontrar: el JSON
+// asTextValue formatea un valor del context para comparar. Existe por un bug que costó encontrar: el JSON
 // del log deserializa los números a `float64`, y `fmt.Sprint(float64(1827791))` devuelve "1.827791e+06"
 // (Go usa %g y salta a notación científica). O sea que anclar por un id de 6 dígitos funcionaba y por uno
 // de 7 fallaba EN SILENCIO — el bug dependía de la cantidad de dígitos.
-func comoTexto(v any) string {
+func asTextValue(v any) string {
 	if f, ok := v.(float64); ok && f == float64(int64(f)) {
 		return strconv.FormatInt(int64(f), 10)
 	}
@@ -2616,8 +2616,8 @@ func comoTexto(v any) string {
 // pick saca el primer valor no vacío de una lista de claves del context.
 func pick(ctx map[string]any, keys []string) string {
 	for _, k := range keys {
-		if v, ok := ctx[k]; ok && v != nil && comoTexto(v) != "" {
-			return comoTexto(v)
+		if v, ok := ctx[k]; ok && v != nil && asTextValue(v) != "" {
+			return asTextValue(v)
 		}
 	}
 	return ""
@@ -2627,102 +2627,102 @@ func gray(s string) string { return paint("90", s) }
 
 // ─── modo traza ─────────────────────────────────────────────────────────────────────────────────────
 
-// modoTraza es la entrada del trazador cuando se pide una solicitud. Devuelve el exit code:
+// traceMode es la entrada del trazador cuando se pide una solicitud. Devuelve el exit code:
 //
 //	0  se pudo trazar
 //	2  no concluyente (sin BD para este target, o la solicitud no existe)
 //
 // Nunca 1: como el forense del harness, esto EXPLICA — no dictamina que algo esté mal.
-// ArmarTraza es el ÚNICO camino que arma una traza: lo usan la consola, el HTML y el server. Tener dos
+// BuildTrace es el ÚNICO camino que arma una traza: lo usan la consola, el HTML y el server. Tener dos
 // caminos sería tener dos definiciones de «qué pasó con esta solicitud».
-func ArmarTraza(target string, ureq int64) (Traza, *Solicitud, error) {
+func BuildTrace(target string, ureq int64) (Trace, *LoanRequest, error) {
 	c, _ := loadConfig(target)
-	mapa, err := Cargar()
+	stageMap, err := Load()
 	if err != nil {
-		return Traza{}, nil, fmt.Errorf("el mapa del flujo no carga: %w", err)
+		return Trace{}, nil, fmt.Errorf("el mapa del flujo no carga: %w", err)
 	}
-	subMapa, err := CargarSub()
+	subMap, err := LoadSub()
 	if err != nil {
-		return Traza{}, nil, fmt.Errorf("el árbol declarado no carga: %w", err)
+		return Trace{}, nil, fmt.Errorf("el árbol declarado no carga: %w", err)
 	}
-	fuente, err := abrirFuente(c)
+	source, err := openSource(c)
 	if err != nil {
-		return Traza{}, nil, err
+		return Trace{}, nil, err
 	}
-	defer fuente.Close()
+	defer source.Close()
 
-	s, err := GetSolicitud(fuente, ureq)
+	s, err := GetLoanRequest(source, ureq)
 	if err != nil {
-		return Traza{}, nil, err
+		return Trace{}, nil, err
 	}
 
-	var lineas []Linea
-	var notas []string
+	var lines []Line
+	var notes []string
 	if no := c.loki.Missing(); no != "" {
-		notas = append(notas, "sin logs: "+no)
+		notes = append(notes, "sin logs: "+no)
 	} else {
 		cl := logs.New(c.loki, 60*time.Second)
-		lineas, notas = traerLineas(cl, s, c.loki.Env)
+		lines, notes = fetchLines(cl, s, c.loki.Env)
 	}
 
-	centrales := GetCentrales(fuente)
-	s.Corbeta = GetCorbetaAllieds(fuente)[s.AlliedID]
+	bureaus := GetBureaus(source)
+	s.Corbeta = GetCorbetaAllieds(source)[s.AlliedID]
 
 	// La evaluación de categoría, entidad por entidad. Va acotada a la ventana de ESTA solicitud porque la
 	// tabla se indexa por `user_id`: un cliente con dos intentos el mismo día trae las filas de los dos.
 	// La ventana es generosa hacia atrás (la categoría se evalúa al armar el listado, que puede empezar
 	// antes de que la fila de `user_requests` quede escrita) y corta hacia adelante.
-	if !s.Creada.IsZero() {
+	if !s.Created.IsZero() {
 		// La referencia es la corrida del perfilamiento, NUNCA la creación de la solicitud: la
 		// categorización pasa minutos después de crearse la fila, así que compararla contra `created_at`
 		// tira siempre «fuera de ventana» y la advertencia se vuelve ruido que se aprende a ignorar.
-		var corrida time.Time
-		if s.Perfilamiento != nil {
-			corrida = s.Perfilamiento.Creado
+		var run time.Time
+		if s.Profiling != nil {
+			run = s.Profiling.CreatedAt
 		}
-		s.Categorias = GetCategorias(fuente, s.UserID, s.Creada.Add(-15*time.Minute), s.Creada.Add(6*time.Hour), corrida)
+		s.Categories = GetCategories(source, s.UserID, s.Created.Add(-15*time.Minute), s.Created.Add(6*time.Hour), run)
 	}
 	// El pagaré digital. Ésta SÍ se ancla por `user_request_id`: no hace falta ventana ni heurística.
-	s.Deceval = GetDeceval(fuente, s.ID)
-	var idsLender []int64
-	for _, l := range lineas {
+	s.Deceval = GetDeceval(source, s.ID)
+	var lenderIDs []int64
+	for _, l := range lines {
 		if v := pick(l.ctx, []string{"lender_id"}); v != "" {
 			var id int64
 			if fmt.Sscanf(v, "%d", &id); id > 0 {
-				idsLender = append(idsLender, id)
+				lenderIDs = append(lenderIDs, id)
 			}
 		}
 	}
 	if s.LenderID > 0 {
-		idsLender = append(idsLender, s.LenderID)
+		lenderIDs = append(lenderIDs, s.LenderID)
 	}
 	// Y los del SNAPSHOT del listado. Faltaban: los ids se juntaban sólo de los logs, pero las entidades
 	// mostradas salen de `profiling_reviews.displayed_lenders`, que es BD. Con pocas líneas de log —el caso
 	// normal cuando el flujo salió bien— el árbol quedaba con la elegida clasificada y el resto en «sin
 	// clasificar», incluidos lenders tan conocidos como Addi o Sistecrédito (uReq 520830 de prod: 1 de 5).
-	if s.Perfilamiento != nil {
-		for _, l := range s.Perfilamiento.Mostrados {
+	if s.Profiling != nil {
+		for _, l := range s.Profiling.Shown {
 			if l.ID > 0 {
-				idsLender = append(idsLender, l.ID)
+				lenderIDs = append(lenderIDs, l.ID)
 			}
 		}
 	}
-	lenders := GetLenders(fuente, idsLender)
+	lenders := GetLenders(source, lenderIDs)
 
-	t := ensamblar(mapa, subMapa, s, lineas, target, centrales, lenders)
-	t.Warnings = append(t.Warnings, notas...)
+	t := assemble(stageMap, subMap, s, lines, target, bureaus, lenders)
+	t.Warnings = append(t.Warnings, notes...)
 	return t, s, nil
 }
 
 // Resolver traduce cédula/teléfono/uReq a intentos, sobre cualquier fuente.
-func Resolver(r Runner, valor string) ([]Coincidencia, []string, error) {
-	return resolverFuente(r, valor)
+func Resolver(r Runner, value string) ([]Match, []string, error) {
+	return resolveSource(r, value)
 }
 
-func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string, mdOut bool, bloque string) int {
-	// Render-only: el armado vive en ArmarTraza, que es el MISMO camino del server y del HTML. Este modo
+func traceMode(c config, target string, ureq int64, tel string, jsonOut bool, htmlOut string, mdOut bool, block string) int {
+	// Render-only: el armado vive en BuildTrace, que es el MISMO camino del server y del HTML. Este modo
 	// duplicaba ese cuerpo entero — la clase de deriva que este repo señala en trace.ts/veredicto().
-	t, s, err := ArmarTraza(target, ureq)
+	t, s, err := BuildTrace(target, ureq)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s no puedo armar la traza para target «%s»: %v\n\n", paint("31", "✘"), target, err)
 		return 2
@@ -2733,8 +2733,8 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 	// meterle una llamada de red lo volvería no-determinista para los dos.
 	// Si no hay credenciales no se agrega nada y no se anuncia: un bloque vacío se leería como «el
 	// cliente no vio nada», que es distinto de «no miramos».
-	if pant, aviso := pantallasDeSolicitud(c, ureq, tel); len(pant) > 0 {
-		t.Pantallas, t.AvisoPH = pant, aviso
+	if screenName, notice := requestScreens(c, ureq, tel); len(screenName) > 0 {
+		t.Screens, t.PHNotice = screenName, notice
 		t.Sources = append(t.Sources, "posthog")
 	}
 
@@ -2745,67 +2745,67 @@ func modoTraza(c config, target string, ureq int64, tel string, jsonOut bool, ht
 	}
 	cmd := cmdMake("trazador-ureq", target, "UREQ", fmt.Sprint(ureq), "TEL", tel)
 	if mdOut {
-		fmt.Print(anotacionMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
-		emitirBloque(bloque, bloqueMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
+		fmt.Print(annotationMD(traceSummary(t, s), cmd, traceEvidence(t)...))
+		emitBlock(block, blockMD(traceSummary(t, s), cmd, traceEvidence(t)...))
 		return 0
 	}
-	imprimirTraza(t, s)
-	if cuando, otro, hay := vecinoDeTraza(target, ureq); hay {
-		vecino(cuando, otro)
+	printTrace(t, s)
+	if when, other, there := traceNeighbor(target, ureq); there {
+		neighbor(when, other)
 	}
 	pie(cmd)
 	if htmlOut != "" {
-		if err := escribirHTML(t, s, htmlOut); err != nil {
+		if err := writeHTML(t, s, htmlOut); err != nil {
 			fmt.Fprintf(os.Stderr, "  no pude escribir %s: %v\n", htmlOut, err)
 		} else {
 			fmt.Printf("\n  %s\n", gray("vista de checks: "+htmlOut))
 		}
 	}
-	emitirBloque(bloque, bloqueMD(resumenTraza(t, s), cmd, evidenciaTraza(t)...))
+	emitBlock(block, blockMD(traceSummary(t, s), cmd, traceEvidence(t)...))
 	return 0
 }
 
-// modoBuscar lista los intentos que coinciden con lo que se escribió. Es la puerta natural del soporte:
+// searchMode lista los intentos que coinciden con lo que se escribió. Es la puerta natural del soporte:
 // quien llama dice su cédula o su celular, no un `user_request_id`.
-func modoBuscar(c config, target, valor string, comoJSON, mdOut bool, bloque string) int {
-	fuente, err := abrirFuente(c)
+func searchMode(c config, target, value string, asJSON, mdOut bool, block string) int {
+	source, err := openSource(c)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s sin BD para «%s»: %v\n\n", paint("31", "✘"), target, err)
 		return 2
 	}
-	defer fuente.Close()
-	cs, como, err := resolverFuente(fuente, valor)
+	defer source.Close()
+	cs, as, err := resolveSource(source, value)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
 		return 2
 	}
-	if comoJSON {
-		return buscarJSON(valor, cs, como, target)
+	if asJSON {
+		return searchJSON(value, cs, as, target)
 	}
-	cmd := cmdMake("trazador-buscar", target, "Q", valor)
+	cmd := cmdMake("trazador-buscar", target, "Q", value)
 	// ⚠ El valor buscado NO entra en el resumen: es una cédula o un celular de producción, y lo que se pega
 	// en una tarea queda en git. El comando sí lo lleva —hace falta para repetirlo— pero la afirmación se
 	// escribe sobre las solicitudes, que es de lo que habla la medición. Vale igual para el bloque.
-	resumen := fmt.Sprintf("la persona detrás de esta búsqueda en `%s`: %s.", target,
-		strings.TrimRight(resumirHistoria(cs), "."))
+	summary := fmt.Sprintf("la persona detrás de esta búsqueda en `%s`: %s.", target,
+		strings.TrimRight(summarizeHistory(cs), "."))
 	if len(cs) == 0 {
-		resumen = fmt.Sprintf("sin coincidencias en `%s`.", target)
+		summary = fmt.Sprintf("sin coincidencias en `%s`.", target)
 	}
-	evidencia := "Coincidió como " + strings.Join(como, " y ") + "."
+	evidence := "Coincidió como " + strings.Join(as, " y ") + "."
 	if mdOut {
-		fmt.Print(anotacionMD(resumen, cmd, evidencia))
+		fmt.Print(annotationMD(summary, cmd, evidence))
 	} else {
-		imprimirCoincidencias(valor, cs, como, target)
+		printMatches(value, cs, as, target)
 		pie(cmd)
 	}
-	emitirBloque(bloque, bloqueMD(resumen, cmd, evidencia))
+	emitBlock(block, blockMD(summary, cmd, evidence))
 	if len(cs) == 0 {
 		return 2
 	}
 	return 0
 }
 
-// buscarJSON es la MISMA búsqueda, renderizada para quien no mira una pantalla.
+// searchJSON es la MISMA búsqueda, renderizada para quien no mira una pantalla.
 //
 // Por qué existe: `-json` sólo servía con `-ureq`, así que la pregunta que más se hace por consola
 // —«¿qué le pasó a esta persona?», por cédula— sólo tenía la vista humana: columnas alineadas, colores
@@ -2816,30 +2816,30 @@ func modoBuscar(c config, target, valor string, comoJSON, mdOut bool, bloque str
 // otro comando, y ahí un dato personal viaja a lugares que nadie miró. Para identificar una fila
 // alcanzan `ureq` y `user_id`; quien de verdad necesite el documento tiene la vista humana, que se
 // mira una vez y no se guarda.
-func buscarJSON(valor string, cs []Coincidencia, como []string, target string) int {
-	type fila struct {
+func searchJSON(value string, cs []Match, as []string, target string) int {
+	type row struct {
 		UReq     int64  `json:"ureq"`
 		UserID   int64  `json:"user_id"`
-		Estado   int    `json:"estado"`
-		EstadoN  string `json:"estado_nombre"`
+		Status   int    `json:"estado"`
+		StatusN  string `json:"estado_nombre"`
 		Lender   string `json:"lender,omitempty"`
-		Comercio string `json:"comercio,omitempty"`
-		Creada   string `json:"creada"`
-		Directa  bool   `json:"directa"`
+		Merchant string `json:"comercio,omitempty"`
+		Created  string `json:"creada"`
+		Direct   bool   `json:"directa"`
 	}
 	out := struct {
-		Busque  string   `json:"busque"`
-		Target  string   `json:"target"`
-		ComoSe  []string `json:"resuelto_como"`
-		Cuantas int      `json:"cuantas"`
-		Nota    string   `json:"nota"`
-		Filas   []fila   `json:"solicitudes"`
-	}{Busque: valor, Target: target, ComoSe: como, Cuantas: len(cs),
-		Nota: "`directa:true` es lo que matcheó lo que buscaste; el resto es el historial de la " +
+		Searched   string   `json:"busque"`
+		Target     string   `json:"target"`
+		ResolvedAs []string `json:"resuelto_como"`
+		Count      int      `json:"cuantas"`
+		Note       string   `json:"nota"`
+		Rows       []row    `json:"solicitudes"`
+	}{Searched: value, Target: target, ResolvedAs: as, Count: len(cs),
+		Note: "`directa:true` es lo que matcheó lo que buscaste; el resto es el historial de la " +
 			"misma persona. Sin documento ni teléfono a propósito: identificá por ureq/user_id."}
 	for _, x := range cs {
-		out.Filas = append(out.Filas, fila{x.UReq, x.UserID, x.Estado, x.EstadoN, x.Lender,
-			x.Comercio, x.Creada.Format(time.RFC3339), x.Directa})
+		out.Rows = append(out.Rows, row{x.UReq, x.UserID, x.Status, x.StatusN, x.Lender,
+			x.Merchant, x.Created.Format(time.RFC3339), x.Direct})
 	}
 	e := json.NewEncoder(os.Stdout)
 	e.SetIndent("", "  ")
@@ -2852,21 +2852,21 @@ func buscarJSON(valor string, cs []Coincidencia, como []string, target string) i
 
 // ─── buscar por teléfono, cédula o número de solicitud ──────────────────────────────────────────────
 
-// Coincidencia es un intento encontrado a partir de lo que se buscó.
-type Coincidencia struct {
-	UReq      int64
-	UserID    int64
-	Estado    int
-	EstadoN   string
-	Lender    string
-	Comercio  string
-	Creada    time.Time
-	Documento string
-	Telefono  string
-	// Directa: lo trajo la búsqueda literal, no la expansión a la persona. La distinción no es cosmética
+// Match es un intento encontrado a partir de lo que se buscó.
+type Match struct {
+	UReq     int64
+	UserID   int64
+	Status   int
+	StatusN  string
+	Lender   string
+	Merchant string
+	Created  time.Time
+	Document string
+	Phone    string
+	// Direct: lo trajo la búsqueda literal, no la expansión a la persona. La distinción no es cosmética
 	// —es la diferencia entre «esto es lo que pediste» y «esto es el resto de su vida»—, y sin marcarla la
 	// lista de un ureq pasa de 1 fila a 40 sin decir cuál era la que se buscó.
-	Directa bool
+	Direct bool
 }
 
 // resolver traduce lo que el usuario escribió a una lista de solicitudes.
@@ -2878,43 +2878,43 @@ type Coincidencia struct {
 //
 // Teléfono y documento son únicos en `users` (medido: 1.00 usuarios por cada uno, máximo 1), así que
 // resuelven a UN cliente — pero ese cliente puede tener varios intentos (1,69 en promedio, 228 el peor).
-func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
-	valor = strings.TrimSpace(valor)
-	if valor == "" {
+func resolveSource(r Runner, value string) ([]Match, []string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
 		return nil, nil, fmt.Errorf("no me pasaste nada que buscar")
 	}
 	// Todo lo que se busca es de dígitos, y esa restricción es lo que hace segura la interpolación en
 	// Redash (ver `validarArgs`). Un valor con letras se rechaza acá, con un mensaje que lo explica.
-	if !soloDigitos.MatchString(valor) {
+	if !digitsOnly.MatchString(value) {
 		return nil, nil, fmt.Errorf("«%s» no es un número: el trazador busca por cédula, teléfono o "+
-			"número de solicitud, y los tres son de dígitos", trim(valor, 30))
+			"número de solicitud, y los tres son de dígitos", trim(value, 30))
 	}
 
-	var como []string
-	vistos := map[int64]bool{}
-	var out []Coincidencia
+	var as []string
+	seenOnes := map[int64]bool{}
+	var out []Match
 
-	traer := func(where, etiqueta, arg string, directa bool) error {
-		fs, err := r.Rows(sqlBuscar+where+sqlBuscarOrden, arg)
+	fetch := func(where, label, arg string, direct bool) error {
+		fs, err := r.Rows(sqlSearch+where+sqlSearchOrder, arg)
 		if err != nil {
 			return err
 		}
-		nuevos := 0
+		fresh := 0
 		for _, f := range fs {
-			id := entero(f["id"])
-			if vistos[id] {
+			id := integer(f["id"])
+			if seenOnes[id] {
 				continue
 			}
-			vistos[id] = true
-			nuevos++
-			out = append(out, Coincidencia{
-				UReq: id, UserID: entero(f["uid"]), Estado: int(entero(f["st"])), EstadoN: texto(f["estado"]),
-				Lender: texto(f["lender"]), Comercio: texto(f["comercio"]), Creada: fecha(f["created_at"], r.Zone()),
-				Documento: texto(f["documento"]), Telefono: texto(f["telefono"]), Directa: directa,
+			seenOnes[id] = true
+			fresh++
+			out = append(out, Match{
+				UReq: id, UserID: integer(f["uid"]), Status: int(integer(f["st"])), StatusN: asText(f["estado"]),
+				Lender: asText(f["lender"]), Merchant: asText(f["comercio"]), Created: date(f["created_at"], r.Zone()),
+				Document: asText(f["documento"]), Phone: asText(f["telefono"]), Direct: direct,
 			})
 		}
-		if nuevos > 0 && etiqueta != "" {
-			como = append(como, fmt.Sprintf("%s → %d", etiqueta, nuevos))
+		if fresh > 0 && label != "" {
+			as = append(as, fmt.Sprintf("%s → %d", label, fresh))
 		}
 		return nil
 	}
@@ -2922,12 +2922,12 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 	// Se prueban los TRES y se reporta cuál coincidió. Adivinar por la forma es tentador —10 dígitos que
 	// empiezan con 3 parece un celular— pero una cédula también puede serlo, y un id de solicitud de 7
 	// dígitos se parece a todo. Un buscador que elige mal en silencio muestra la solicitud de otra persona.
-	for _, p := range []struct{ where, etiqueta string }{
+	for _, p := range []struct{ where, label string }{
 		{"ur.id = ?", "número de solicitud"},
 		{"u.cell_phone = ?", "teléfono"},
 		{"u.document_number = ?", "documento"},
 	} {
-		if err := traer(p.where, p.etiqueta, valor, true); err != nil {
+		if err := fetch(p.where, p.label, value, true); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -2940,14 +2940,14 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 	//
 	// Con `user_id`, no con el documento: el documento se puede corregir en el camino (ver F-97, el caso de
 	// la cédula transpuesta) y buscar por el valor final se comería los intentos hechos con el equivocado.
-	personas := map[int64]bool{}
+	people := map[int64]bool{}
 	for _, c := range out {
 		if c.UserID > 0 {
-			personas[c.UserID] = true
+			people[c.UserID] = true
 		}
 	}
-	ids := make([]int64, 0, len(personas))
-	for id := range personas {
+	ids := make([]int64, 0, len(people))
+	for id := range people {
 		ids = append(ids, id)
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] }) // determinista: el orden de un map no lo es
@@ -2957,174 +2957,174 @@ func resolverFuente(r Runner, valor string) ([]Coincidencia, []string, error) {
 	// dispara cuando hay más de una forma. Contar acá la expansión haría saltar ese aviso en casi toda
 	// búsqueda, y un aviso que suena siempre deja de avisar. Lo expandido se cuenta en la Historia.
 	for _, uid := range ids {
-		if err := traer("ur.user_id = ?", "", strconv.FormatInt(uid, 10), false); err != nil {
+		if err := fetch("ur.user_id = ?", "", strconv.FormatInt(uid, 10), false); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	sort.Slice(out, func(i, j int) bool { return out[i].Creada.After(out[j].Creada) })
-	return out, como, nil
+	sort.Slice(out, func(i, j int) bool { return out[i].Created.After(out[j].Created) })
+	return out, as, nil
 }
 
-// Historia es la vida de una persona en CreditOp, contada por sus solicitudes. El conteo se hace ACÁ y no
+// History es la vida de una persona en CreditOp, contada por sus solicitudes. El conteo se hace ACÁ y no
 // en la vista por la razón de siempre: «roto» es una definición de negocio (`malos`/`sellados`), y si la
 // Vue tallara sus propios totales habría dos respuestas para «¿cuántas veces le fue mal a esta persona?».
-type Historia struct {
-	Total     int    `json:"total"`
-	Aprobadas int    `json:"aprobadas"`
-	Rotas     int    `json:"rotas"`
-	Abandonad int    `json:"abandonadas"`
-	EnCurso   int    `json:"enCurso"`
-	Desde     string `json:"desde"`
-	Hasta     string `json:"hasta"`
-	Personas  int    `json:"personas"`  // >1 = el valor coincidió con clientes distintos: mirá bien cuál
-	MismoDia  int    `json:"mismoDia"`  // el día con más intentos: 5 en un día es un reintento, no un cliente indeciso
-	Truncada  bool   `json:"truncada"`  // se llegó al LIMIT: hay más solicitudes de las que se ven
-	Comercios int    `json:"comercios"` // intentar en varios comercios distingue «no le alcanza» de «este comercio falla»
-	// Expandidas: las que NO pidió la búsqueda literal y aparecieron por ser del mismo cliente. Se cuenta
-	// acá y no en `como` para no disparar el aviso de ambigüedad en cada búsqueda (ver resolverFuente).
-	Expandidas int `json:"expandidas"`
+type History struct {
+	Total      int    `json:"total"`
+	Approved   int    `json:"aprobadas"`
+	Broken     int    `json:"rotas"`
+	Abandoned  int    `json:"abandonadas"`
+	InProgress int    `json:"enCurso"`
+	Since      string `json:"desde"`
+	Until      string `json:"hasta"`
+	People     int    `json:"personas"`  // >1 = el valor coincidió con clientes distintos: mirá bien cuál
+	SameDay    int    `json:"mismoDia"`  // el día con más intentos: 5 en un día es un reintento, no un cliente indeciso
+	Truncated  bool   `json:"truncada"`  // se llegó al LIMIT: hay más solicitudes de las que se ven
+	Merchants  int    `json:"comercios"` // intentar en varios comercios distingue «no le alcanza» de «este comercio falla»
+	// Expanded: las que NO pidió la búsqueda literal y aparecieron por ser del mismo cliente. Se cuenta
+	// acá y no en `como` para no disparar el aviso de ambigüedad en cada búsqueda (ver resolveSource).
+	Expanded int `json:"expandidas"`
 }
 
 // plural evita el «1 solicitud(es)», que en una herramienta de soporte se lee como descuido.
-// masRepetido dice qué criterio bloqueó en MÁS tiers. Un lender con doce tiers repite el mismo motivo
+// mostRepeated dice qué criterio bloqueó en MÁS tiers. Un lender con doce tiers repite el mismo motivo
 // doce veces: sin esto, el renglón que soporte pega en el ticket sería una lista y no un diagnóstico.
-func masRepetido(fallas map[string][]string) string {
-	cuenta := map[string]int{}
-	for _, criterios := range fallas {
-		for _, c := range criterios {
-			cuenta[c]++
+func mostRepeated(failures map[string][]string) string {
+	count := map[string]int{}
+	for _, criteria := range failures {
+		for _, c := range criteria {
+			count[c]++
 		}
 	}
-	mejor, n := "", 0
-	for c, k := range cuenta {
-		if k > n || (k == n && c < mejor) {
-			mejor, n = c, k
+	best, n := "", 0
+	for c, k := range count {
+		if k > n || (k == n && c < best) {
+			best, n = c, k
 		}
 	}
 	if n > 1 {
-		return fmt.Sprintf("%s (en %d de %d tiers)", mejor, n, len(fallas))
+		return fmt.Sprintf("%s (en %d de %d tiers)", best, n, len(failures))
 	}
-	return mejor
+	return best
 }
 
-func plural(n int, uno, muchos string) string {
+func plural(n int, one, many string) string {
 	if n == 1 {
-		return "1 " + uno
+		return "1 " + one
 	}
-	return fmt.Sprintf("%d %s", n, muchos)
+	return fmt.Sprintf("%d %s", n, many)
 }
 
-// resumirHistoria arma el resumen y su versión en una línea para la consola.
-func armarHistoria(cs []Coincidencia) Historia {
-	h := Historia{Total: len(cs)}
+// summarizeHistory arma el resumen y su versión en una línea para la consola.
+func buildHistory(cs []Match) History {
+	h := History{Total: len(cs)}
 	if len(cs) == 0 {
 		return h
 	}
-	porDia := map[string]int{}
-	personas, comercios := map[int64]bool{}, map[string]bool{}
+	byDay := map[string]int{}
+	people, merchants := map[int64]bool{}, map[string]bool{}
 	for _, c := range cs {
-		switch desenlaceDe(c.Estado) {
+		switch outcomeOf(c.Status) {
 		case "aprobado":
-			h.Aprobadas++
+			h.Approved++
 		case "roto":
-			h.Rotas++
+			h.Broken++
 		case "abandonado":
-			h.Abandonad++
+			h.Abandoned++
 		default:
-			h.EnCurso++
+			h.InProgress++
 		}
-		d := c.Creada.Local().Format("2006-01-02")
-		porDia[d]++
-		if porDia[d] > h.MismoDia {
-			h.MismoDia = porDia[d]
+		d := c.Created.Local().Format("2006-01-02")
+		byDay[d]++
+		if byDay[d] > h.SameDay {
+			h.SameDay = byDay[d]
 		}
 		if c.UserID > 0 {
-			personas[c.UserID] = true
+			people[c.UserID] = true
 		}
-		if c.Comercio != "" {
-			comercios[c.Comercio] = true
+		if c.Merchant != "" {
+			merchants[c.Merchant] = true
 		}
-		if !c.Directa {
-			h.Expandidas++
+		if !c.Direct {
+			h.Expanded++
 		}
 	}
-	h.Personas, h.Comercios = len(personas), len(comercios)
-	// `cs` viene ordenado de más nueva a más vieja (lo ordena resolverFuente).
-	h.Hasta = cs[0].Creada.Local().Format("2006-01-02")
-	h.Desde = cs[len(cs)-1].Creada.Local().Format("2006-01-02")
+	h.People, h.Merchants = len(people), len(merchants)
+	// `cs` viene ordenado de más nueva a más vieja (lo ordena resolveSource).
+	h.Until = cs[0].Created.Local().Format("2006-01-02")
+	h.Since = cs[len(cs)-1].Created.Local().Format("2006-01-02")
 	// El LIMIT del buscador. Si se alcanzó exacto, hay que decirlo: un «12 solicitudes» que en realidad son
 	// 228 cambia el diagnóstico de «reintentó» a «algo la está reintentando sola».
-	h.Truncada = len(cs) >= limiteBusqueda
+	h.Truncated = len(cs) >= searchLimit
 	return h
 }
 
-func resumirHistoria(cs []Coincidencia) string {
-	h := armarHistoria(cs)
+func summarizeHistory(cs []Match) string {
+	h := buildHistory(cs)
 	if h.Total == 0 {
 		return ""
 	}
-	partes := []string{plural(h.Total, "solicitud", "solicitudes")}
+	parts := []string{plural(h.Total, "solicitud", "solicitudes")}
 	for _, p := range []struct {
 		n    int
 		u, m string
-	}{{h.Aprobadas, "aprobada", "aprobadas"}, {h.Rotas, "rota", "rotas"},
-		{h.Abandonad, "abandonada", "abandonadas"}, {h.EnCurso, "en curso", "en curso"}} {
+	}{{h.Approved, "aprobada", "aprobadas"}, {h.Broken, "rota", "rotas"},
+		{h.Abandoned, "abandonada", "abandonadas"}, {h.InProgress, "en curso", "en curso"}} {
 		if p.n > 0 {
-			partes = append(partes, plural(p.n, p.u, p.m))
+			parts = append(parts, plural(p.n, p.u, p.m))
 		}
 	}
-	if h.Desde != h.Hasta {
-		partes = append(partes, "de "+h.Desde+" a "+h.Hasta)
+	if h.Since != h.Until {
+		parts = append(parts, "de "+h.Since+" a "+h.Until)
 	} else {
-		partes = append(partes, "todas el "+h.Hasta)
+		parts = append(parts, "todas el "+h.Until)
 	}
-	if h.MismoDia > 1 {
-		partes = append(partes, fmt.Sprintf("hasta %d el mismo día", h.MismoDia))
+	if h.SameDay > 1 {
+		parts = append(parts, fmt.Sprintf("hasta %d el mismo día", h.SameDay))
 	}
-	if h.Comercios > 1 {
-		partes = append(partes, fmt.Sprintf("%d comercios", h.Comercios))
+	if h.Merchants > 1 {
+		parts = append(parts, fmt.Sprintf("%d comercios", h.Merchants))
 	}
-	if h.Personas > 1 {
-		partes = append(partes, fmt.Sprintf("⚠ %d clientes distintos", h.Personas))
+	if h.People > 1 {
+		parts = append(parts, fmt.Sprintf("⚠ %d clientes distintos", h.People))
 	}
-	if h.Expandidas > 0 {
-		partes = append(partes, fmt.Sprintf("%d por la misma persona", h.Expandidas))
+	if h.Expanded > 0 {
+		parts = append(parts, fmt.Sprintf("%d por la misma persona", h.Expanded))
 	}
-	if h.Truncada {
-		partes = append(partes, fmt.Sprintf("⚠ recortado en %d", limiteBusqueda))
+	if h.Truncated {
+		parts = append(parts, fmt.Sprintf("⚠ recortado en %d", searchLimit))
 	}
-	return strings.Join(partes, " · ")
+	return strings.Join(parts, " · ")
 }
 
-// imprimirCoincidencias lista los intentos para elegir. Cuando el mismo valor coincide como DOS cosas
+// printMatches lista los intentos para elegir. Cuando el mismo valor coincide como DOS cosas
 // distintas (por ejemplo una cédula que además es un id de solicitud válido), lo dice: es el caso en que
 // un buscador que adivina te da la respuesta de otra persona.
-func imprimirCoincidencias(valor string, cs []Coincidencia, como []string, target string) {
+func printMatches(value string, cs []Match, as []string, target string) {
 	fmt.Println()
-	fmt.Printf("  %s\n", bold(fmt.Sprintf("── «%s» en %s ──", valor, target)))
-	if len(como) > 1 {
-		fmt.Printf("     %s\n", paint("33", "⚠ coincidió como "+strings.Join(como, " y ")+
+	fmt.Printf("  %s\n", bold(fmt.Sprintf("── «%s» en %s ──", value, target)))
+	if len(as) > 1 {
+		fmt.Printf("     %s\n", paint("33", "⚠ coincidió como "+strings.Join(as, " y ")+
 			" — mirá bien cuál es el que buscabas"))
-	} else if len(como) == 1 {
-		fmt.Printf("     %s\n", gray("coincidió como "+como[0]))
+	} else if len(as) == 1 {
+		fmt.Printf("     %s\n", gray("coincidió como "+as[0]))
 	}
 	if len(cs) == 0 {
 		fmt.Printf("     %s\n", gray("sin coincidencias"))
 		return
 	}
-	fmt.Printf("     %s\n\n", gray(resumirHistoria(cs)))
+	fmt.Printf("     %s\n\n", gray(summarizeHistory(cs)))
 	for _, c := range cs {
 		res := map[string]string{
-			"aprobado": green("aprobado"), "roto": red(malos[c.Estado]),
+			"aprobado": green("aprobado"), "roto": red(badStatuses[c.Status]),
 			"abandonado": paint("33", "abandonado"), "en-curso": gray("en curso"),
-		}[desenlaceDe(c.Estado)]
-		marca := "  "
-		if c.Directa {
-			marca = paint("36", "◂ ") // lo que se buscó, frente a lo que trajo la expansión a la persona
+		}[outcomeOf(c.Status)]
+		mark := "  "
+		if c.Direct {
+			mark = paint("36", "◂ ") // lo que se buscó, frente a lo que trajo la expansión a la persona
 		}
-		fmt.Printf("   %s%-8d %s  %-11s %-24s %s\n", marca, c.UReq, c.Creada.Local().Format("2006-01-02 15:04"),
-			res, trim(c.Comercio, 24), gray(trim(c.Lender, 26)))
+		fmt.Printf("   %s%-8d %s  %-11s %-24s %s\n", mark, c.UReq, c.Created.Local().Format("2006-01-02 15:04"),
+			res, trim(c.Merchant, 24), gray(trim(c.Lender, 26)))
 	}
 	// El comando, no la bandera: `-ureq <n>` obliga a traducir a mano lo que la herramienta ya sabe —y
 	// a acordarse del target, que acá no es un detalle porque dev y qa comparten base. Y con el PRIMER
@@ -3138,18 +3138,18 @@ func imprimirCoincidencias(valor string, cs []Coincidencia, como []string, targe
 // LenderInfo es lo que la BD sabe de una entidad. El `rt` es lo que decide a qué FAMILIA pertenece, y por
 // eso sale de la BD y no de los logs: los logs traen `lender_id` y `lender_name`, nunca el response_type.
 type LenderInfo struct {
-	ID     int64
-	Nombre string
-	RT     int
+	ID   int64
+	Name string
+	RT   int
 }
 
-// ramalDeRT traduce el response_type a la familia. Los ids son los de `mapa/ramales.json` y de
+// laneOfRT traduce el response_type a la familia. Los ids son los de `mapa/ramales.json` y de
 // `harness/panel/steps.json`, a propósito.
 //
 // Credifamilia (lender 24) es un caso aparte y no un rt: tiene tres integraciones propias (REST de
 // preaprobación, KYC V2 con Evidente/CrossCore/Jumio, y radicación SOAP), así que mezclarla con el resto
 // de su rt escondería que su camino es distinto.
-func ramalDeRT(id int64, rt int) string {
+func laneOfRT(id int64, rt int) string {
 	if id == 24 {
 		return "credifamilia"
 	}
@@ -3163,64 +3163,64 @@ func ramalDeRT(id int64, rt int) string {
 	}
 }
 
-// arbolListado agrupa las entidades evaluadas por FAMILIA.
+// listingTree agrupa las entidades evaluadas por FAMILIA.
 //
 // La forma sale de medir, no de suponer: una solicitud NO elige un ramal en el listado — evalúa entidades
 // de todas las familias a la vez (en la uReq 464630, 12 entidades entre agregadores, CreditopX y
 // Credifamilia). El ramal recién se vuelve «por dónde se fue» en `seleccion`, cuando una gana. Un árbol que
 // mostrara «esta solicitud fue por agregador» en el listado estaría mintiendo.
-func arbolListado(planas []Sub, info map[int64]LenderInfo) []Sub {
-	porRamal := map[string][]Sub{}
-	var ordenRamal []string
-	for _, s := range planas {
+func listingTree(flat []Sub, info map[int64]LenderInfo) []Sub {
+	byLane := map[string][]Sub{}
+	var laneOrder []string
+	for _, s := range flat {
 		var id int64
 		fmt.Sscanf(s.Detail2, "%d", &id) // Detail2 lleva el lender_id
 		fam := "sin clasificar"
 		if l, ok := info[id]; ok {
-			fam = ramalDeRT(l.ID, l.RT)
-			if l.Nombre != "" {
-				s.Label = l.Nombre
+			fam = laneOfRT(l.ID, l.RT)
+			if l.Name != "" {
+				s.Label = l.Name
 			}
 		}
-		if _, ya := porRamal[fam]; !ya {
-			ordenRamal = append(ordenRamal, fam)
+		if _, already := byLane[fam]; !already {
+			laneOrder = append(laneOrder, fam)
 		}
-		porRamal[fam] = append(porRamal[fam], s)
+		byLane[fam] = append(byLane[fam], s)
 	}
 	// Orden estable y con sentido de negocio: primero in-platform, después terceros.
 	prio := map[string]int{"creditopx": 0, "agregador": 1, "credifamilia": 2, "redirect": 3, "sin clasificar": 9}
-	sort.Slice(ordenRamal, func(i, j int) bool { return prio[ordenRamal[i]] < prio[ordenRamal[j]] })
+	sort.Slice(laneOrder, func(i, j int) bool { return prio[laneOrder[i]] < prio[laneOrder[j]] })
 
 	var out []Sub
-	for _, fam := range ordenRamal {
-		hijos := porRamal[fam]
-		aprob, rech := 0, 0
-		for _, h := range hijos {
+	for _, fam := range laneOrder {
+		children := byLane[fam]
+		approved, rejected := 0, 0
+		for _, h := range children {
 			if h.Status == "fail" {
-				rech++
+				rejected++
 			} else if h.Status == "ok" {
-				aprob++
+				approved++
 			}
 		}
 		st := "ok"
-		if aprob == 0 && rech > 0 {
+		if approved == 0 && rejected > 0 {
 			st = "fail"
 		}
-		det := fmt.Sprintf("%d evaluada(s)", len(hijos))
-		if rech > 0 {
-			det += fmt.Sprintf(" · %d rechazada(s)", rech)
+		det := fmt.Sprintf("%d evaluada(s)", len(children))
+		if rejected > 0 {
+			det += fmt.Sprintf(" · %d rechazada(s)", rejected)
 		}
-		out = append(out, Sub{Label: fam, Status: st, Detail: det, Source: "db", Hijos: hijos})
+		out = append(out, Sub{Label: fam, Status: st, Detail: det, Source: "db", Children: children})
 	}
 	return out
 }
 
-// validacionIdentidad traduce el enum `IdentityValidationType` (Modules/Identity/App/Enums) y dice —lo
+// identityValidation traduce el enum `IdentityValidationType` (Modules/Identity/App/Enums) y dice —lo
 // importante— si ese camino DEJA FILA en `risk_central_user_data`. Sin ese dato, la etapa biométrica no se
 // puede leer: para casi la mitad de los lenders la ausencia de filas es lo normal, no una señal.
-var validacionIdentidad = map[int]struct {
-	nombre   string
-	dejaFila bool
+var identityValidation = map[int]struct {
+	name      string
+	leavesRow bool
 }{
 	0: {"sin configurar (Unknown)", false},
 	1: {"ninguna — el lender no valida identidad", false},
@@ -3231,39 +3231,39 @@ var validacionIdentidad = map[int]struct {
 	6: {"Evidente (Credifamilia V2)", true},
 }
 
-// primeraHoraDeSubs: la hora más temprana entre los subs CON datos. El detalle de una central viene como
+// firstSubsTime: la hora más temprana entre los subs CON datos. El detalle de una central viene como
 // «score 488 · 16:00:27» o «sin score · 16:00:27», así que la hora son los últimos 8 caracteres — se lee
 // desde ahí y no de la fila original porque `Sub` es lo único que llega hasta acá.
-func primeraHoraDeSubs(subs []Sub) string {
-	mejor := ""
+func firstSubsTime(subs []Sub) string {
+	best := ""
 	for _, s := range subs {
 		if s.Status == "skip" || len(s.Detail) < 8 {
 			continue
 		}
 		h := s.Detail[len(s.Detail)-8:]
-		if !reHora.MatchString(h) {
+		if !reTime.MatchString(h) {
 			continue
 		}
-		if mejor == "" || h < mejor {
-			mejor = h
+		if best == "" || h < best {
+			best = h
 		}
 	}
-	return mejor
+	return best
 }
 
-var reHora = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}$`)
+var reTime = regexp.MustCompile(`^\d{2}:\d{2}:\d{2}$`)
 
-// noAplicaPorQue contesta «¿esta etapa NO EXISTE para esta solicitud?» mirando los DOS ejes, y devuelve
+// notApplicableReason contesta «¿esta etapa NO EXISTE para esta solicitud?» mirando los DOS ejes, y devuelve
 // quién lo declara más el motivo. Vacío = no está declarado, y entonces la etapa se muestra: la diferencia
 // entre «acá esto no ocurre nunca» y «acá no hay evidencia» es la que hace que un árbol dinámico sea útil o
 // mentiroso.
-func noAplicaPorQue(m *Mapa, s *Solicitud, fam, etapa string) (string, string) {
+func notApplicableReason(m *Map, s *LoanRequest, fam, stage string) (string, string) {
 	// CANAL primero: decide en la validación del OTP, o sea antes de que exista un lender elegido.
 	if s.Corbeta {
-		if c := m.Canal("corbeta"); c != nil {
-			for _, p := range c.NoAplica {
-				if p.ID == etapa {
-					return c.Label, p.Porque
+		if c := m.Channel("corbeta"); c != nil {
+			for _, p := range c.NotApplicable {
+				if p.ID == stage {
+					return c.Label, p.Because
 				}
 			}
 		}
@@ -3271,34 +3271,34 @@ func noAplicaPorQue(m *Mapa, s *Solicitud, fam, etapa string) (string, string) {
 	if fam == "" {
 		return "", "" // sin lender no hay ramal que consultar, y eso es correcto: aún no se decidió
 	}
-	if r := m.Ramal(fam); r != nil {
-		for _, p := range r.NoAplica {
-			if p.ID == etapa {
-				return "ramal " + fam, p.Porque
+	if r := m.Lane(fam); r != nil {
+		for _, p := range r.NotApplicable {
+			if p.ID == stage {
+				return "ramal " + fam, p.Because
 			}
 		}
 	}
 	return "", ""
 }
 
-// porqueNoAplica devuelve el motivo declarado, recortado para caber en una línea de detalle. El motivo
+// whyNotApplicable devuelve el motivo declarado, recortado para caber en una línea de detalle. El motivo
 // completo vive en `mapa/ramales.json` y se lee ahí.
-func porqueNoAplica(m *Mapa, fam, etapa string) string {
-	if r := m.Ramal(fam); r != nil {
-		for _, p := range r.NoAplica {
-			if p.ID == etapa {
-				return trim(p.Porque, 90)
+func whyNotApplicable(m *Map, fam, stage string) string {
+	if r := m.Lane(fam); r != nil {
+		for _, p := range r.NotApplicable {
+			if p.ID == stage {
+				return trim(p.Because, 90)
 			}
 		}
 	}
 	return "declarado en mapa/ramales.json"
 }
 
-// declaradaEn: ¿esta central está declarada como propia de esta etapa? El reparto vive en
+// declaredIn: ¿esta central está declarada como propia de esta etapa? El reparto vive en
 // `mapa/substeps.json`, así que la respuesta es un dato, no una lista en Go.
-func declaradaEn(sub *SubMapa, etapa, central string) bool {
-	for _, b := range sub.Bloques(etapa) {
-		for _, c := range b.Conocidos {
+func declaredIn(sub *SubMap, stage, central string) bool {
+	for _, b := range sub.Blocks(stage) {
+		for _, c := range b.Known {
 			if c.Label == central {
 				return true
 			}
@@ -3307,7 +3307,7 @@ func declaradaEn(sub *SubMapa, etapa, central string) bool {
 	return false
 }
 
-// fusionarCentrales junta los pasos que son LA MISMA COSA vista desde dos fuentes: la fila de
+// mergeBureaus junta los pasos que son LA MISMA COSA vista desde dos fuentes: la fila de
 // `risk_central_user_data` (el hecho: se consultó, esto devolvió) y las líneas de log de esa misma consulta
 // (la evidencia: cuántos intentos, con qué error).
 //
@@ -3315,42 +3315,42 @@ func declaradaEn(sub *SubMapa, etapa, central string) bool {
 // «Agildata» y «Identidad con AgilData» no se parecen lo suficiente para adivinarlo, y adivinar acá uniría
 // pasos que no van juntos. Los hitos que NO declaran central (la compuerta de reintentos, la persistencia)
 // quedan como están: son proceso, no una consulta.
-func fusionarCentrales(subs []Sub, bloques []*BloqueDef, centrales map[int64]string) []Sub {
+func mergeBureaus(subs []Sub, blocks []*BlockDef, bureaus map[int64]string) []Sub {
 	// hito label → nombre de la central con la que se fusiona.
-	enlace := map[string]string{}
+	link := map[string]string{}
 	// `consultada` dice qué centrales tienen fila en ESTA traza. Es lo que permite resolver las candidatas
 	// sin inventar: la entidad a la que pertenece un hito ambiguo es la única de su familia que se consultó.
-	consultada := map[string]bool{}
+	queried := map[string]bool{}
 	for i := range subs {
-		for _, h := range subs[i].Hijos {
+		for _, h := range subs[i].Children {
 			if h.Source == "db" && h.Status == "ok" {
-				consultada[h.Label] = true
+				queried[h.Label] = true
 			}
 		}
 	}
-	for _, b := range bloques {
-		for _, h := range b.Hitos {
+	for _, b := range blocks {
+		for _, h := range b.Milestones {
 			if h.Central != 0 {
-				if n, ok := centrales[h.Central]; ok && n != "" {
-					enlace[h.Label] = n
+				if n, ok := bureaus[h.Central]; ok && n != "" {
+					link[h.Label] = n
 				}
 				continue
 			}
 			// Candidatas: sólo se resuelve si UNA sola de ellas fue consultada. Con cero no hay a dónde
 			// colgarlo; con varias, cualquier elección sería una adivinanza con cara de dato.
-			var unica string
+			var single string
 			n := 0
-			for _, id := range h.Centrales {
-				if nom, ok := centrales[id]; ok && consultada[nom] {
-					unica, n = nom, n+1
+			for _, id := range h.Bureaus {
+				if nom, ok := bureaus[id]; ok && queried[nom] {
+					single, n = nom, n+1
 				}
 			}
 			if n == 1 {
-				enlace[h.Label] = unica
+				link[h.Label] = single
 			}
 		}
 	}
-	if len(enlace) == 0 {
+	if len(link) == 0 {
 		return subs
 	}
 	// DOS FASES, y el orden importa. La primera versión indexaba las filas de central con punteros y en la
@@ -3362,30 +3362,30 @@ func fusionarCentrales(subs []Sub, bloques []*BloqueDef, centrales map[int64]str
 	// «Consulta terminada») caen en la misma fila. La versión anterior guardaba `aporta[destino] = h` y el
 	// último pisaba a los dos anteriores: la fila decía «×1» y las otras dos evidencias desaparecían del
 	// árbol sin dejar rastro. Un merge que descarta callado es peor que no fusionar.
-	aporta := map[string][]Sub{}
+	contributes := map[string][]Sub{}
 	for i := range subs {
-		var quedan []Sub
-		for _, h := range subs[i].Hijos {
-			if destino, ok := enlace[h.Label]; ok {
-				aporta[destino] = append(aporta[destino], h)
+		var remaining []Sub
+		for _, h := range subs[i].Children {
+			if target, ok := link[h.Label]; ok {
+				contributes[target] = append(contributes[target], h)
 				continue
 			}
-			quedan = append(quedan, h)
+			remaining = append(remaining, h)
 		}
-		subs[i].Hijos = quedan
+		subs[i].Children = remaining
 	}
 	// Fase 2: aplicarlo sobre la fila de la central, ya con los slices definitivos.
 	for i := range subs {
-		for j := range subs[i].Hijos {
-			c := &subs[i].Hijos[j]
-			hs, ok := aporta[c.Label]
+		for j := range subs[i].Children {
+			c := &subs[i].Children[j]
+			hs, ok := contributes[c.Label]
 			if !ok {
 				continue
 			}
 			// TODO LO DE LA ENTIDAD DENTRO DE SU PASO, en UN nivel. Como hijos serían nietos —la entidad ya
 			// cuelga del grupo— y el árbol dibuja dos niveles a propósito. Así que sus líneas se juntan en
 			// la entidad y sus nombres van al detalle: se abre el paso y está todo lo suyo, que era el punto.
-			var nombres []string
+			var names []string
 			var total int
 			for _, h := range hs {
 				// La FILA DE BD manda en el estado —es el hecho—, salvo que el log traiga un error: eso el
@@ -3393,18 +3393,18 @@ func fusionarCentrales(subs []Sub, bloques []*BloqueDef, centrales map[int64]str
 				if h.Status == "fail" {
 					c.Status = "fail"
 				}
-				nombres = append(nombres, h.Label)
-				total += h.EventosDe
-				c.Eventos = append(c.Eventos, h.Eventos...)
+				names = append(names, h.Label)
+				total += h.EventsOf
+				c.Events = append(c.Events, h.Events...)
 			}
 			// El tope se aplica DESPUÉS de juntar, y el total dice cuántas había: recortar en silencio acá
 			// haría que un paso con 60 líneas se leyera como uno con 40.
-			if len(c.Eventos) > 40 {
-				c.Eventos = c.Eventos[:40]
+			if len(c.Events) > 40 {
+				c.Events = c.Events[:40]
 			}
-			c.EventosDe = total
-			if len(nombres) > 0 {
-				c.Detail += " · " + strings.Join(nombres, " · ")
+			c.EventsOf = total
+			if len(names) > 0 {
+				c.Detail += " · " + strings.Join(names, " · ")
 			}
 			c.Source = "db+loki"
 		}
@@ -3413,21 +3413,21 @@ func fusionarCentrales(subs []Sub, bloques []*BloqueDef, centrales map[int64]str
 	// RECUENTA: decía «5 pasos» mostrando 3, porque el resumen se armaba antes de fusionar.
 	var out []Sub
 	for _, s := range subs {
-		if len(s.Hijos) == 0 && len(s.Eventos) == 0 && s.Source == "loki" {
+		if len(s.Children) == 0 && len(s.Events) == 0 && s.Source == "loki" {
 			continue
 		}
-		if s.Source == "loki" && len(s.Hijos) > 0 {
-			hora := ""
+		if s.Source == "loki" && len(s.Children) > 0 {
+			timeOfDay := ""
 			if i := strings.LastIndex(s.Detail, " · "); i >= 0 {
-				hora = s.Detail[i:]
+				timeOfDay = s.Detail[i:]
 			}
 			err := false
-			for _, h := range s.Hijos {
+			for _, h := range s.Children {
 				if h.Status == "fail" {
 					err = true
 				}
 			}
-			s.Detail = plural(len(s.Hijos), "paso", "pasos") + hora
+			s.Detail = plural(len(s.Children), "paso", "pasos") + timeOfDay
 			if err {
 				s.Detail = "con error · " + s.Detail
 			} else {
@@ -3439,70 +3439,70 @@ func fusionarCentrales(subs []Sub, bloques []*BloqueDef, centrales map[int64]str
 	return out
 }
 
-// tieneEvidencia: ¿esta etapa tiene algo MEDIDO, o sólo el esqueleto declarado? Un sub en `skip` es un
+// hasEvidence: ¿esta etapa tiene algo MEDIDO, o sólo el esqueleto declarado? Un sub en `skip` es un
 // placeholder («esta central existe y no se consultó»), no un hecho — contarlo como evidencia haría que la
 // regla de «no aplica a este ramal» nunca dispare.
-func tieneEvidencia(e Etapa) bool {
-	if e.Lineas > 0 || e.At != "" {
+func hasEvidence(e Stage) bool {
+	if e.Lines > 0 || e.At != "" {
 		return true
 	}
 	for _, s := range e.Subs {
-		if s.Status != "skip" && !s.Declarativo {
+		if s.Status != "skip" && !s.Declarative {
 			return true
 		}
 	}
 	return false
 }
 
-// fusionarPreaprobacion mete las llamadas del MS DENTRO de la fila de su entidad, por `lender_id`.
+// mergePreapproval mete las llamadas del MS DENTRO de la fila de su entidad, por `lender_id`.
 //
 // Lo que sobra —una llamada a un lender que el listado no muestra— NO se tira: va en una fila propia al
 // final. Que el MS haya consultado una entidad que después no apareció es exactamente la clase de cosa que
 // hay que ver, no esconder.
-func fusionarPreaprobacion(subs []Sub, porID map[string]Sub) []Sub {
-	usados := map[string]bool{}
-	var mete func(xs []Sub) []Sub
-	mete = func(xs []Sub) []Sub {
+func mergePreapproval(subs []Sub, byID map[string]Sub) []Sub {
+	used := map[string]bool{}
+	var adds func(xs []Sub) []Sub
+	adds = func(xs []Sub) []Sub {
 		for i := range xs {
-			if ms, ok := porID[xs[i].Detail2]; ok && xs[i].Detail2 != "" {
-				usados[xs[i].Detail2] = true
+			if ms, ok := byID[xs[i].Detail2]; ok && xs[i].Detail2 != "" {
+				used[xs[i].Detail2] = true
 				// El detalle del listado (el veredicto) manda; lo del MS se agrega detrás.
 				if xs[i].Detail != "" {
 					xs[i].Detail += " · " + ms.Detail
 				} else {
 					xs[i].Detail = ms.Detail
 				}
-				xs[i].Eventos, xs[i].EventosDe = ms.Eventos, ms.EventosDe
+				xs[i].Events, xs[i].EventsOf = ms.Events, ms.EventsOf
 				xs[i].Source = "db+loki"
 				if ms.Status == "warn" {
 					xs[i].Status = "warn" // el `pending` deja la entidad colgada: se propaga
 				}
 			}
-			xs[i].Hijos = mete(xs[i].Hijos)
+			xs[i].Children = adds(xs[i].Children)
 		}
 		return xs
 	}
-	subs = mete(subs)
+	subs = adds(subs)
 
-	var sobran []Sub
-	var claves []string
-	for id := range porID {
-		if !usados[id] {
-			claves = append(claves, id)
+	var leftover []Sub
+	var keys []string
+	for id := range byID {
+		if !used[id] {
+			keys = append(keys, id)
 		}
 	}
-	sort.Strings(claves)
-	for _, id := range claves {
-		s := porID[id]
+	sort.Strings(keys)
+	for _, id := range keys {
+		s := byID[id]
 		s.Label = fmt.Sprintf("%s (lender %s)", s.Label, id)
-		sobran = append(sobran, s)
+		leftover = append(leftover, s)
 	}
-	if len(sobran) > 0 {
+	if len(leftover) > 0 {
 		subs = append(subs, Sub{
 			Label:  "Consultadas al MS pero NO en el listado",
 			Status: "warn", Source: "loki",
-			Detail: plural(len(sobran), "entidad", "entidades") + " — se pre-aprobaron y no aparecen arriba",
-			Hijos:  sobran,
+			Detail:   plural(len(leftover), "entidad", "entidades") + " — se pre-aprobaron y no aparecen arriba",
+			Children: leftover,
 		})
 	}
 	return subs
@@ -3517,7 +3517,7 @@ func fusionarPreaprobacion(subs []Sub, porID map[string]Sub) []Sub {
 // Agrupadas por mensaje, las líneas de las tres corridas quedan mezcladas: abrir «Reglas por entidad» daba
 // 10 renglones entre 18:33 y 18:46 sin forma de saber a cuál ejecución pertenecía cada uno. Por corrida, en
 // cambio, cada bloque es una historia completa y comparable — y la que se colgó se ve sola.
-func corridasDeLaCascada(ls []Linea) int {
+func cascadeRuns(ls []Line) int {
 	// ⚠ UNA CORRIDA ES UN TRACE QUE ARRANCÓ LA CASCADA, no cualquier trace con líneas del listado.
 	//
 	// La primera versión contaba traces a secas y decía «la cascada corrió 6 veces» cuando cuatro de esos
@@ -3531,16 +3531,16 @@ func corridasDeLaCascada(ls []Linea) int {
 	// eliminó a pedido: de todo lo que la cascada loguea, lo único que informaba era el timeout del
 	// profiler, que hoy vive en su propio paso junto al perfilador que la BD dice que ordenó. Lo que
 	// sobrevive es el conteo, porque más de una corrida es un reintento y eso sí es una señal.
-	arranco := map[string]bool{}
+	started := map[string]bool{}
 	for _, l := range ls {
 		if l.trace != "" && strings.HasPrefix(l.msg, "Iniciando listado de entidades") {
-			arranco[l.trace] = true
+			started[l.trace] = true
 		}
 	}
-	return len(arranco)
+	return len(started)
 }
 
-// arbolPreaprobacion agrupa las líneas del MS de pre-aprobación POR ENTIDAD, no por tipo de mensaje.
+// preapprovalTree agrupa las líneas del MS de pre-aprobación POR ENTIDAD, no por tipo de mensaje.
 //
 // La pre-aprobación se pide UNA VEZ POR LENDER: el front llama al MS lender por lender, así que cada
 // llamada es un `trace_id` propio con su `lender_name` y su `status` en las etiquetas. Agrupar por mensaje
@@ -3550,12 +3550,12 @@ func corridasDeLaCascada(ls []Linea) int {
 // Medido en la uReq 521997 de prod: 14 llamadas para 4 entidades — `creditop_x` ×6, `credifamilia` ×4,
 // `welli` ×2, `bancolombia_bnpl` ×2. Ese conteo por sí solo es una señal: seis intentos contra el mismo
 // lender es un patrón de reintento que agrupado por mensaje no se ve en ninguna parte.
-func arbolPreaprobacion(ls []Linea) map[string]Sub {
+func preapprovalTree(ls []Line) map[string]Sub {
 	type acc struct {
 		traces   map[string]bool
-		estados  map[string]int
-		lineas   []Linea
-		primero  int64
+		statuses map[string]int
+		lines    []Line
+		first    int64
 		lenderID string // `lenders.id` real: la llave para fusionar con el árbol de entidades del listado
 	}
 	// PRIMERO POR TRACE, y recién después por lender. Dentro de una misma llamada las etiquetas están
@@ -3563,91 +3563,91 @@ func arbolPreaprobacion(ls []Linea) map[string]Sub {
 	// en `preapproval checked successfully`. Agrupar directo por `lender_name` mandaba las 14 líneas de
 	// veredicto —las que traen el status— a un cajón «(sin entidad)», que es el dato más útil de todos.
 	// El trace es la unidad real: una llamada, un lender, un veredicto.
-	lenderDe := map[string]string{}
-	idDe := map[string]string{}
-	estadoDe := map[string]string{}
+	lenderOf := map[string]string{}
+	idOf := map[string]string{}
+	statusOf := map[string]string{}
 	for _, l := range ls {
 		if l.trace == "" {
 			continue
 		}
-		if v := pick(l.ctx, []string{"lender_id"}); v != "" && idDe[l.trace] == "" {
-			idDe[l.trace] = v
+		if v := pick(l.ctx, []string{"lender_id"}); v != "" && idOf[l.trace] == "" {
+			idOf[l.trace] = v
 		}
-		if v := pick(l.ctx, []string{"lender_name"}); v != "" && lenderDe[l.trace] == "" {
-			lenderDe[l.trace] = v
+		if v := pick(l.ctx, []string{"lender_name"}); v != "" && lenderOf[l.trace] == "" {
+			lenderOf[l.trace] = v
 		}
-		if v := pick(l.ctx, []string{"status"}); v != "" && estadoDe[l.trace] == "" {
-			estadoDe[l.trace] = v
+		if v := pick(l.ctx, []string{"status"}); v != "" && statusOf[l.trace] == "" {
+			statusOf[l.trace] = v
 		}
 	}
 
-	porLender := map[string]*acc{}
-	var orden []string
+	byLender := map[string]*acc{}
+	var order []string
 	for _, l := range ls {
-		nombre := lenderDe[l.trace]
-		if nombre == "" {
-			nombre = pick(l.ctx, []string{"lender_name"})
+		name := lenderOf[l.trace]
+		if name == "" {
+			name = pick(l.ctx, []string{"lender_name"})
 		}
-		if nombre == "" {
-			nombre = "(sin entidad en la etiqueta)"
+		if name == "" {
+			name = "(sin entidad en la etiqueta)"
 		}
 		// ⚠ SE AGRUPA POR `lender_id`, NO POR NOMBRE. `lender_name` del MS es la FAMILIA en algunos casos:
 		// `creditop_x` cubre DENTIX FINANCIAL SERVICES (139) y DFS ORTODONCIA (181) a la vez, y agrupar por
 		// ese nombre juntaría dos entidades distintas en una fila. El `lender_id` es el `lenders.id` real —
 		// medido: 68 Bancolombia CPD, 24 Credifamilia, 23 Welli, 139/181 los dos DENTIX.
-		id := idDe[l.trace]
+		id := idOf[l.trace]
 		if id == "" {
 			id = pick(l.ctx, []string{"lender_id"})
 		}
-		clave := id
-		if clave == "" {
-			clave = "sin-id:" + nombre
+		key := id
+		if key == "" {
+			key = "sin-id:" + name
 		}
-		a := porLender[clave]
+		a := byLender[key]
 		if a == nil {
-			a = &acc{traces: map[string]bool{}, estados: map[string]int{}, primero: l.ts, lenderID: clave}
-			porLender[clave] = a
-			orden = append(orden, clave)
+			a = &acc{traces: map[string]bool{}, statuses: map[string]int{}, first: l.ts, lenderID: key}
+			byLender[key] = a
+			order = append(order, key)
 		}
-		a.lineas = append(a.lineas, l)
+		a.lines = append(a.lines, l)
 		if l.trace != "" && !a.traces[l.trace] {
 			a.traces[l.trace] = true
 			// El estado se cuenta UNA VEZ POR LLAMADA. Contarlo por línea daría «13 rejected» donde hay 13
 			// llamadas rechazadas o una rechazada con 13 líneas — dos cosas muy distintas.
-			if st := estadoDe[l.trace]; st != "" {
-				a.estados[st]++
+			if st := statusOf[l.trace]; st != "" {
+				a.statuses[st]++
 			}
 		}
-		if l.ts < a.primero {
-			a.primero = l.ts
+		if l.ts < a.first {
+			a.first = l.ts
 		}
 	}
 	// Por volumen de llamadas: el lender con más reintentos primero, que es el que suele ser el problema.
-	sort.Slice(orden, func(i, j int) bool {
-		if n, m := len(porLender[orden[i]].traces), len(porLender[orden[j]].traces); n != m {
+	sort.Slice(order, func(i, j int) bool {
+		if n, m := len(byLender[order[i]].traces), len(byLender[order[j]].traces); n != m {
 			return n > m
 		}
-		return orden[i] < orden[j]
+		return order[i] < order[j]
 	})
 
 	out := map[string]Sub{}
-	for _, nombre := range orden {
-		a := porLender[nombre]
-		llamadas := len(a.traces)
-		if llamadas == 0 {
-			llamadas = 1
+	for _, name := range order {
+		a := byLender[name]
+		calls := len(a.traces)
+		if calls == 0 {
+			calls = 1
 		}
-		var partes []string
-		partes = append(partes, plural(llamadas, "llamada", "llamadas"))
+		var parts []string
+		parts = append(parts, plural(calls, "llamada", "llamadas"))
 		// Los estados en orden estable: el conteo de un map en Go es aleatorio al recorrerlo.
-		var claves []string
-		for k := range a.estados {
-			claves = append(claves, k)
+		var keys []string
+		for k := range a.statuses {
+			keys = append(keys, k)
 		}
-		sort.Strings(claves)
+		sort.Strings(keys)
 		st := "ok"
-		for _, k := range claves {
-			partes = append(partes, fmt.Sprintf("%d %s", a.estados[k], k))
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf("%d %s", a.statuses[k], k))
 			// `pending` es el que deja la solicitud colgada esperando al lender: se marca. `rejected` NO es
 			// un error — es un veredicto de negocio, y pintarlo en rojo haría ver rota una evaluación sana.
 			if k == "pending" {
@@ -3655,18 +3655,18 @@ func arbolPreaprobacion(ls []Linea) map[string]Sub {
 			}
 		}
 		s := Sub{
-			Label:  nombre,
+			Label:  name,
 			Status: st,
-			Detail: strings.Join(partes, " · ") + " · " + hhmm(time.UnixMilli(a.primero)),
+			Detail: strings.Join(parts, " · ") + " · " + hhmm(time.UnixMilli(a.first)),
 			Source: "loki",
 		}
-		s.Eventos, s.EventosDe = eventosDe(a.lineas, 40)
+		s.Events, s.EventsOf = eventsOf(a.lines, 40)
 		out[a.lenderID] = s
 	}
 	return out
 }
 
-// arbolCentrales lista las centrales que le TOCAN a una etapa: las consultadas con su score y las que no,
+// bureausTree lista las centrales que le TOCAN a una etapa: las consultadas con su score y las que no,
 // marcadas. Mostrar solo las consultadas dejaría la pregunta a medias — «no fue a consultar» es una
 // respuesta.
 //
@@ -3680,71 +3680,71 @@ func arbolPreaprobacion(ls []Linea) map[string]Sub {
 // `huerfanas` recibe las centrales CON DATOS que ninguna etapa declaró. No se descartan: se devuelven para
 // que la etapa del buró las muestre marcadas. Un dato medido que desaparece de la vista porque el mapa no lo
 // esperaba es peor que un dato mal ubicado — el segundo se ve, el primero no.
-func arbolCentrales(etiqueta string, declaradas []ItemCatalogo, catalogo map[int64]string, filas []FilaBuro, userID int64) []Sub {
-	hechas := map[string]FilaBuro{}
-	for _, f := range filas {
-		hechas[f.Central] = f
+func bureausTree(label string, declaredOnes []CatalogItem, catalog map[int64]string, rows []BureauRow, userID int64) []Sub {
+	done := map[string]BureauRow{}
+	for _, f := range rows {
+		done[f.Central] = f
 	}
 	// UN SOLO GRUPO, con las CONSULTADAS como hijos y las demás resumidas en un renglón. La lista completa
 	// de 6 (4 de ellas «no consultada») convertía la pregunta «¿a quién se consultó y qué dijo?» en un
 	// ejercicio de descarte. Pero el universo NO se puede omitir: «no se consultó Mareigua» sólo significa
 	// algo si sabés que Mareigua existía como opción, así que las no consultadas se cuentan y se nombran.
-	var hechos, faltan []Sub
-	var nombresFaltan []string
-	for _, d := range declaradas {
+	var facts, missing []Sub
+	var missingNames []string
+	for _, d := range declaredOnes {
 		// El NOMBRE sale de la BD cuando existe: el catálogo varía por ambiente y el label declarado es solo
 		// para dibujar el árbol antes de consultar.
-		nombre := d.Label
-		if n, ok := catalogo[d.ID]; ok && n != "" {
-			nombre = n
+		name := d.Label
+		if n, ok := catalog[d.ID]; ok && n != "" {
+			name = n
 		}
-		s := subCentral(nombre, hechas)
+		s := subCentral(name, done)
 		if s.Status == "ok" {
-			hechos = append(hechos, s)
+			facts = append(facts, s)
 		} else {
-			faltan = append(faltan, s)
-			nombresFaltan = append(nombresFaltan, nombre)
+			missing = append(missing, s)
+			missingNames = append(missingNames, name)
 		}
 	}
-	if len(hechos) == 0 && len(faltan) == 0 {
+	if len(facts) == 0 && len(missing) == 0 {
 		return nil
 	}
-	hijos := hechos
-	if len(faltan) > 0 {
-		hijos = append(hijos, Sub{
-			Label:  plural(len(faltan), "no consultada", "no consultadas"),
-			Status: "skip", Source: "db", Detail: trim(strings.Join(nombresFaltan, " · "), 70),
+	children := facts
+	if len(missing) > 0 {
+		children = append(children, Sub{
+			Label:  plural(len(missing), "no consultada", "no consultadas"),
+			Status: "skip", Source: "db", Detail: trim(strings.Join(missingNames, " · "), 70),
 		})
 	}
-	st, det := "ok", fmt.Sprintf("%d de %d consultadas", len(hechos), len(declaradas))
-	if len(hechos) == 0 {
+	st, det := "ok", fmt.Sprintf("%d de %d consultadas", len(facts), len(declaredOnes))
+	if len(facts) == 0 {
 		st = "skip"
 	}
 	// La evidencia va en el GRUPO y no en cada central: la afirmación auditable es «2 de 6», y para
 	// comprobarla hace falta ver TODAS las filas que trajo la consulta, incluidas las que este bloque no
 	// declara. Ahí es donde se descubre que una central que el mapa no conoce sí se consultó.
-	crudas := make([]string, 0, len(filas))
-	for _, f := range filas {
+	rawLines := make([]string, 0, len(rows))
+	for _, f := range rows {
 		sc := "sin score"
 		if f.Score != nil {
 			sc = fmt.Sprintf("score %.0f", *f.Score)
 		}
-		crudas = append(crudas, fmt.Sprintf("%s  %s · %s", fechaHora(f.At), f.Central, sc))
+		rawLines = append(rawLines, fmt.Sprintf("%s  %s · %s", dateTime(f.At), f.Central, sc))
 	}
-	if len(crudas) == 0 {
-		crudas = append(crudas, "(la consulta no devolvió filas para este user_id)")
+	if len(rawLines) == 0 {
+		rawLines = append(rawLines, "(la consulta no devolvió filas para este user_id)")
 	}
 	// ⚠ El `?` es el user_id, NO la solicitud: el buró se indexa por cliente, así que estas filas pueden
 	// ser de otro intento del mismo cliente. Va dicho acá porque quien copie esto va a pegar la consulta.
-	ev := evidencia("risk_central_user_data (por user_id, no por solicitud)", sqlBuro, []any{userID}, crudas...)
-	return []Sub{{Label: etiqueta, Status: st, Detail: det, Source: "db", Hijos: hijos, Evidencia: ev}}
+	ev := evidence("risk_central_user_data (por user_id, no por solicitud)", sqlBureau, []any{userID}, rawLines...)
+	return []Sub{{Label: label, Status: st, Detail: det, Source: "db", Children: children, Evidence: ev}}
 }
 
 // subCentral arma la fila de UNA central. Separado porque lo usan el reparto declarado y las huérfanas.
-func subCentral(nombre string, hechas map[string]FilaBuro) Sub {
-	f, ok := hechas[nombre]
+func subCentral(name string, done map[string]BureauRow) Sub {
+	f, ok := done[name]
 	if !ok {
-		return Sub{Label: nombre, Status: "skip", Detail: "no consultada", Source: "db"}
+		return Sub{Label: name, Status: "skip", Detail: "no consultada", Source: "db"}
 	}
 	d := hhmm(f.At)
 	if f.Score != nil {
@@ -3752,33 +3752,33 @@ func subCentral(nombre string, hechas map[string]FilaBuro) Sub {
 	} else {
 		d = "sin score · " + d // Agildata nunca trae score: 0 de 202 filas medidas
 	}
-	return Sub{Label: nombre, Status: "ok", Detail: d, Source: "db"}
+	return Sub{Label: name, Status: "ok", Detail: d, Source: "db"}
 }
 
-// centralesHuerfanas: las que tienen FILAS pero ninguna etapa las declara. Se busca en TODAS las etapas
+// orphanBureaus: las que tienen FILAS pero ninguna etapa las declara. Se busca en TODAS las etapas
 // (no solo en la del buró) para que una central nueva en la BD aparezca marcada en vez de desaparecer.
-func centralesHuerfanas(sub *SubMapa, mapa *Mapa, filas []FilaBuro) []Sub {
-	declarada := map[string]bool{}
-	for id := range mapa.porEtapa {
-		for _, b := range sub.Bloques(id) {
-			for _, c := range b.Conocidos {
-				declarada[c.Label] = true
+func orphanBureaus(sub *SubMap, stageMap *Map, rows []BureauRow) []Sub {
+	declaredOne := map[string]bool{}
+	for id := range stageMap.byStage {
+		for _, b := range sub.Blocks(id) {
+			for _, c := range b.Known {
+				declaredOne[c.Label] = true
 			}
 		}
 	}
-	hechas, vistos := map[string]FilaBuro{}, map[string]bool{}
-	var nombres []string
-	for _, f := range filas {
-		hechas[f.Central] = f
-		if !declarada[f.Central] && !vistos[f.Central] {
-			vistos[f.Central] = true
-			nombres = append(nombres, f.Central)
+	done, seenOnes := map[string]BureauRow{}, map[string]bool{}
+	var names []string
+	for _, f := range rows {
+		done[f.Central] = f
+		if !declaredOne[f.Central] && !seenOnes[f.Central] {
+			seenOnes[f.Central] = true
+			names = append(names, f.Central)
 		}
 	}
-	sort.Strings(nombres)
+	sort.Strings(names)
 	var out []Sub
-	for _, n := range nombres {
-		s := subCentral(n, hechas)
+	for _, n := range names {
+		s := subCentral(n, done)
 		s.Status = "warn"
 		s.Detail += " · ⚠ sin etapa declarada en mapa/substeps.json"
 		out = append(out, s)
@@ -3786,8 +3786,8 @@ func centralesHuerfanas(sub *SubMapa, mapa *Mapa, filas []FilaBuro) []Sub {
 	return out
 }
 
-// puntito y pad: el vocabulario visual del árbol. Se comparten para que consola y HTML digan lo mismo.
-func puntito(st string) string {
+// dot y pad: el vocabulario visual del árbol. Se comparten para que consola y HTML digan lo mismo.
+func dot(st string) string {
 	switch st {
 	case "ok":
 		return green("●")
@@ -3807,11 +3807,11 @@ func pad(s string, n int) string {
 	return s
 }
 
-// valoresDeEtiqueta lee los valores reales de una etiqueta en la ventana. Existe para que el trazador pueda
+// labelValues lee los valores reales de una etiqueta en la ventana. Existe para que el trazador pueda
 // DESCUBRIR que su propio filtro no aplica, en vez de devolver vacío y dejar que el vacío se lea como
 // «el backend no logueó». Ante cualquier error devuelve nil: no poder comprobar no es lo mismo que
 // comprobar que está mal, así que en ese caso el filtro configurado se respeta.
-// selectorAmbiente decide con qué selector se buscan las anclas del MONOLITO (las de `context_*`), y dice
+// environmentSelector decide con qué selector se buscan las anclas del MONOLITO (las de `context_*`), y dice
 // si no pudo usar el filtro. Es pura a propósito: su error no rompe nada, sale prolijo —una traza «sin
 // líneas de log» con los logs a un filtro de distancia—, y eso sólo se atrapa probándola.
 //
@@ -3829,32 +3829,32 @@ func pad(s string, n int) string {
 // ⚠ Lo que este filtro separa en `creditopdev` NO es dev de qa (los dos PHP son `development`): es lo
 // desplegado de las máquinas de desarrollo (`local`, `testing`), que pueden correr contra su PROPIA base y
 // entonces repetir ids de la compartida con otra persona detrás. Dev y qa se distinguen por `service_name`, y eso lo dice
-// `repartoPorBackend` sin filtrar.
-func selectorAmbiente(env string, ambientes []string) (sel, nota string) {
+// `splitByBackend` sin filtrar.
+func environmentSelector(env string, environments []string) (sel, note string) {
 	if env == "" {
 		return `{service_name=~".+"}`, ""
 	}
-	existe := len(ambientes) == 0
+	exists := len(environments) == 0
 	for _, alt := range strings.Split(env, "|") {
-		if contiene(ambientes, strings.TrimSpace(alt)) {
-			existe = true
+		if contains(environments, strings.TrimSpace(alt)) {
+			exists = true
 		}
 	}
-	if existe {
+	if exists {
 		return fmt.Sprintf(`{environment=~"%s"}`, env), ""
 	}
 	return `{service_name=~".+"}`, fmt.Sprintf("LOKI_ENV=%q NO existe como valor de `environment` en este stack "+
 		"(los que hay: %s) — se consultó SIN filtrar por ambiente, así que pueden colarse líneas de máquinas de "+
-		"desarrollo, que pueden tener su propia base", env, strings.Join(ambientes, " · "))
+		"desarrollo, que pueden tener su propia base", env, strings.Join(environments, " · "))
 }
 
-func valoresDeEtiqueta(cl *logs.Client, etiqueta string, desde, hasta time.Time) []string {
-	valores := cl.LabelValues(etiqueta, desde, hasta)
-	sort.Strings(valores)
-	return valores
+func labelValues(cl *logs.Client, label string, since, until time.Time) []string {
+	values := cl.LabelValues(label, since, until)
+	sort.Strings(values)
+	return values
 }
 
-func contiene(xs []string, v string) bool {
+func contains(xs []string, v string) bool {
 	for _, x := range xs {
 		if x == v {
 			return true

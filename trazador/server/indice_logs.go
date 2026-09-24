@@ -36,14 +36,14 @@ import (
 	"creditop/playground/lib/text"
 )
 
-// rutaIndiceLogs es donde se escribe el índice: en la raíz del trazador, fuera de git (se deriva del
+// logIndexPath es donde se escribe el índice: en la raíz del trazador, fuera de git (se deriva del
 // código, así que no se versiona: se reconstruye).
-const rutaIndiceLogs = "../logs.json"
+const logIndexPath = "../logs.json"
 
-// patronesLog: las familias que usa CreditOp, medidas. `tracer->log(nivel, MENSAJE, ctx)` (1.054 en
+// logPatterns: las familias que usa CreditOp, medidas. `tracer->log(nivel, MENSAJE, ctx)` (1.054 en
 // legacy-backend) y el `Log::` de Laravel, donde el mensaje es el PRIMER argumento (~170). Se acepta
 // comilla simple o doble; en PHP la simple no interpola, así que el literal es exacto.
-var patronesLog = []*regexp.Regexp{
+var logPatterns = []*regexp.Regexp{
 	// ⚠ NO se ancla en el nombre de la variable, y ésa fue la tercera vez que el mismo error costó
 	// cobertura: las formas son cinco —`$this->tracer->`, `$tracer->`, `$this->tracerService->` (190
 	// llamadas), `$obsTracer->`, `$this->`— y cada patrón que nombraba una perdía las otras en silencio.
@@ -57,82 +57,82 @@ var patronesLog = []*regexp.Regexp{
 	regexp.MustCompile(`(?:slog|log)\.(?:Info|Error|Warn|Debug)\w*\(\s*"([^"]{12,})`),
 }
 
-// prefiltroLog es lo que se le pide a `git grep`. ⚠ Con `-i`: el prefiltro case-SENSITIVE era MÁS
+// logPrefilter es lo que se le pide a `git grep`. ⚠ Con `-i`: el prefiltro case-SENSITIVE era MÁS
 // ESTRICTO que los patrones (que ignoran mayúsculas) y tiraba líneas antes de que nadie las mirara —
 // `$obsTracer->log(` no entraba por la T mayúscula, y con eso se perdían cientos de mensajes. ⚠ Y con
 // `-e` antes: el patrón empieza con `-` (`->log(`) y sin `-e` git lo toma como una bandera.
-const prefiltroLog = `->log\(|Log::|logger\(\)->|logger\.|slog\.`
+const logPrefilter = `->log\(|Log::|logger\(\)->|logger\.|slog\.`
 
-// demasiadosArchivos: un mensaje que aparece en más archivos que esto no identifica nada.
-const demasiadosArchivos = 6
+// tooManyFiles: un mensaje que aparece en más archivos que esto no identifica nada.
+const tooManyFiles = 6
 
-// normalizarLiteral es la forma con la que se compara, la MISMA que `normalizarMsg` usa al resolver.
-func normalizarLiteral(m string) string {
+// normalizeLiteral es la forma con la que se compara, la MISMA que `normalizeMessage` usa al resolver.
+func normalizeLiteral(m string) string {
 	return strings.TrimRight(strings.Join(strings.FieldsFunc(m, text.IsSpace), " "), " :.-,")
 }
 
-// hashRuta: identificador corto y estable de una ruta (sha1, 7 caracteres, en mayúsculas). Medido sobre
+// pathHash: identificador corto y estable de una ruta (sha1, 7 caracteres, en mayúsculas). Medido sobre
 // los 5.123 archivos de los 12 repos: con 6 hay una colisión, con 7 ninguna.
-func hashRuta(ruta string) string {
-	sum := sha1.Sum([]byte(ruta))
+func pathHash(path string) string {
+	sum := sha1.Sum([]byte(path))
 	return strings.ToUpper(hex.EncodeToString(sum[:]))[:7]
 }
 
-type entradaIndice struct {
-	ruta, linea string
-	esTest      bool
+type indexEntry struct {
+	path, line string
+	isTest     bool
 }
 
-/* construirIndiceLogs recorre la ref de cada repo y saca todos los mensajes de log con su archivo.
+/* buildLogIndex recorre la ref de cada repo y saca todos los mensajes de log con su archivo.
  *
  * ⚠ ACTUALIZA LAS REFS REMOTAS ANTES DE RECORRER, y no es una comodidad. Hasta el 2026-09-18 esto indexaba
  * el `main` LOCAL de cada clon, que nadie actualiza: medido ese día, cinco de los diez repos estaban detrás
  * (hasta 22 commits), así que el índice describía un código de días atrás. Y no falla: devuelve MENOS
  * mensajes, y «menos» se lee igual que «no existe». Qué ref se recorre lo decide `repos.RefToIndex`: la
  * que CONTIENE a la otra. */
-func construirIndiceLogs(fetch bool) int {
+func buildLogIndex(fetch bool) int {
 	cl := repos.Find()
 	if fetch {
-		if fallaron := cl.RefreshRemotes(30 * time.Second); len(fallaron) > 0 {
-			fmt.Printf("  ⚠ no se pudo actualizar: %s — se usa lo que hay en disco\n", strings.Join(fallaron, ", "))
+		if failed := cl.RefreshRemotes(30 * time.Second); len(failed) > 0 {
+			fmt.Printf("  ⚠ no se pudo actualizar: %s — se usa lo que hay en disco\n", strings.Join(failed, ", "))
 		} else {
 			fmt.Println("  refs remotas actualizadas")
 		}
 	} else {
 		fmt.Println("  ⚠ sin actualizar refs (-sin-fetch): se indexa lo que hay en disco")
 	}
-	claves, indice := indexarRepos(cl)
+	keys, index := indexRepos(cl)
 	var b strings.Builder
-	escribirIndice(&b, claves, indice)
-	if err := os.WriteFile(rutaIndiceLogs, []byte(b.String()), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "  ✘ no pude escribir %s: %v\n", rutaIndiceLogs, err)
+	writeIndex(&b, keys, index)
+	if err := os.WriteFile(logIndexPath, []byte(b.String()), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "  ✘ no pude escribir %s: %v\n", logIndexPath, err)
 		return 1
 	}
-	ambiguos := 0
-	for _, v := range indice {
-		if len(v) > demasiadosArchivos {
-			ambiguos++
+	ambiguousCount := 0
+	for _, v := range index {
+		if len(v) > tooManyFiles {
+			ambiguousCount++
 		}
 	}
-	abs, _ := filepath.Abs(rutaIndiceLogs)
+	abs, _ := filepath.Abs(logIndexPath)
 	fmt.Printf("\n  %d mensajes distintos · %d KB · %d aparecen en más de %d archivos (no identifican)\n  → %s\n",
-		len(claves), b.Len()/1024, ambiguos, demasiadosArchivos, abs)
+		len(keys), b.Len()/1024, ambiguousCount, tooManyFiles, abs)
 	return 0
 }
 
-// indexarRepos recorre los repos en el orden de la lista y devuelve las claves en el orden en que
+// indexRepos recorre los repos en el orden de la lista y devuelve las claves en el orden en que
 // aparecieron, con sus archivos.
-func indexarRepos(cl *repos.Client) ([]string, map[string][]entradaIndice) {
-	var claves []string
-	indice := map[string][]entradaIndice{}
+func indexRepos(cl *repos.Client) ([]string, map[string][]indexEntry) {
+	var keys []string
+	index := map[string][]indexEntry{}
 	for _, alias := range cl.IndexedOrder() {
 		root := cl.Indexed()[alias]
-		ref, motivo := cl.RefToIndex(root)
+		ref, reason := cl.RefToIndex(root)
 		if ref == "" {
-			fmt.Fprintf(os.Stderr, "  ⚠ %s: %s — queda FUERA del índice\n", alias, motivo)
+			fmt.Fprintf(os.Stderr, "  ⚠ %s: %s — queda FUERA del índice\n", alias, reason)
 			continue
 		}
-		cmd := exec.Command("git", "-C", root, "grep", "-n", "--no-color", "-I", "-i", "-E", "-e", prefiltroLog, ref)
+		cmd := exec.Command("git", "-C", root, "grep", "-n", "--no-color", "-I", "-i", "-E", "-e", logPrefilter, ref)
 		out, err := cmd.Output()
 		// ⚠ Un fallo del grep se REPORTA: antes el repo entero quedaba fuera sin aviso, y «0 mensajes» se
 		// leía como «este repo no loguea». El 1 de git grep es «no hubo coincidencias», no un error.
@@ -143,62 +143,62 @@ func indexarRepos(cl *repos.Client) ([]string, map[string][]entradaIndice) {
 			}
 		}
 		n := 0
-		for _, linea := range text.SplitLines(string(out)) {
-			sin := strings.Replace(linea, ref+":", "", 1)
-			ruta, resto, _ := strings.Cut(sin, ":")
-			num, texto, _ := strings.Cut(resto, ":")
-			if strings.Contains(ruta, "/vendor/") || strings.Contains(ruta, "/node_modules/") {
+		for _, line := range text.SplitLines(string(out)) {
+			without := strings.Replace(line, ref+":", "", 1)
+			path, rest, _ := strings.Cut(without, ":")
+			num, asText, _ := strings.Cut(rest, ":")
+			if strings.Contains(path, "/vendor/") || strings.Contains(path, "/node_modules/") {
 				continue
 			}
-			for _, rx := range patronesLog {
-				for _, m := range rx.FindAllStringSubmatch(texto, -1) {
-					k := normalizarLiteral(m[1])
+			for _, rx := range logPatterns {
+				for _, m := range rx.FindAllStringSubmatch(asText, -1) {
+					k := normalizeLiteral(m[1])
 					if utf8.RuneCountInString(k) < 12 {
 						continue
 					}
-					if _, ok := indice[k]; !ok {
-						claves = append(claves, k)
+					if _, ok := index[k]; !ok {
+						keys = append(keys, k)
 					}
-					indice[k] = append(indice[k], entradaIndice{alias + "/" + ruta, num, strings.Contains(strings.ToLower(ruta), "test")})
+					index[k] = append(index[k], indexEntry{alias + "/" + path, num, strings.Contains(strings.ToLower(path), "test")})
 					n++
 				}
 			}
 		}
 		if n > 0 {
-			fmt.Printf("  %-24s %5d mensajes   %s (%s)\n", alias, n, ref, motivo)
+			fmt.Printf("  %-24s %5d mensajes   %s (%s)\n", alias, n, ref, reason)
 		}
 	}
-	return claves, indice
+	return keys, index
 }
 
-// escribirIndice escribe el JSON con la misma forma que el de Python (`indent=1`, sin escapar lo que no
+// writeIndex escribe el JSON con la misma forma que el de Python (`indent=1`, sin escapar lo que no
 // es ASCII y con las claves en el orden en que aparecieron), para que una versión se pueda comparar
 // contra la otra byte a byte.
-func escribirIndice(b *strings.Builder, claves []string, indice map[string][]entradaIndice) {
-	if len(claves) == 0 {
+func writeIndex(b *strings.Builder, keys []string, index map[string][]indexEntry) {
+	if len(keys) == 0 {
 		b.WriteString("{}")
 		return
 	}
 	b.WriteString("{\n")
-	for i, k := range claves {
+	for i, k := range keys {
 		b.WriteString(" ")
-		cadenaJSON(b, k)
+		jsonString(b, k)
 		b.WriteString(": [\n")
-		for j, e := range indice[k] {
+		for j, e := range index[k] {
 			b.WriteString("  {\n   \"ruta\": ")
-			cadenaJSON(b, e.ruta)
+			jsonString(b, e.path)
 			b.WriteString(",\n   \"linea\": ")
-			cadenaJSON(b, e.linea)
-			fmt.Fprintf(b, ",\n   \"es_test\": %t,\n   \"h\": ", e.esTest)
-			cadenaJSON(b, hashRuta(e.ruta))
+			jsonString(b, e.line)
+			fmt.Fprintf(b, ",\n   \"es_test\": %t,\n   \"h\": ", e.isTest)
+			jsonString(b, pathHash(e.path))
 			b.WriteString("\n  }")
-			if j < len(indice[k])-1 {
+			if j < len(index[k])-1 {
 				b.WriteString(",")
 			}
 			b.WriteString("\n")
 		}
 		b.WriteString(" ]")
-		if i < len(claves)-1 {
+		if i < len(keys)-1 {
 			b.WriteString(",")
 		}
 		b.WriteString("\n")
@@ -206,8 +206,8 @@ func escribirIndice(b *strings.Builder, claves []string, indice map[string][]ent
 	b.WriteString("}")
 }
 
-// cadenaJSON escapa como `json.dumps(ensure_ascii=False)`: sólo la comilla, la barra y los de control.
-func cadenaJSON(b *strings.Builder, s string) {
+// jsonString escapa como `json.dumps(ensure_ascii=False)`: sólo la comilla, la barra y los de control.
+func jsonString(b *strings.Builder, s string) {
 	b.WriteByte('"')
 	for _, r := range s {
 		switch r {

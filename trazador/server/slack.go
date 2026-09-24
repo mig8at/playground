@@ -26,23 +26,23 @@ import (
 	"creditop/playground/connectors/slack"
 )
 
-// canalTechOps es donde el equipo reporta incidentes.
-const canalTechOps = "C08UCU5E90S"
+// techOpsChannel es donde el equipo reporta incidentes.
+const techOpsChannel = "C08UCU5E90S"
 
-// categoria clasifica un reporte por el SÍNTOMA que describe, y dice si el trazador lo puede contestar.
+// category clasifica un reporte por el SÍNTOMA que describe, y dice si el trazador lo puede contestar.
 //
 // Las categorías salieron de leer el canal, no de imaginarlas: son los síntomas que el equipo escribe de
 // verdad. `cobertura` es lo que hace útil esta clasificación — separa «el trazador contesta esto» de «el
 // trazador no tiene nada que decir acá», que es la pregunta que motivó el barrido.
-type categoria struct {
-	id        string
-	label     string
-	re        *regexp.Regexp
-	cobertura string // directa | parcial | fuera
-	porque    string
+type category struct {
+	id       string
+	label    string
+	re       *regexp.Regexp
+	coverage string // directa | parcial | fuera
+	because  string
 }
 
-var categorias = []categoria{
+var categories = []category{
 	{"agregador-estado", "El agregador aprobó pero CT quedó atrás",
 		regexp.MustCompile(`(?i)(prami|welli|addi|sistecr).{0,80}(selecc|qued|no cambi|no.{0,10}actualiz|no termin)|` +
 			`(selecc\w+ entidad|no termin\w+ proceso).{0,80}(prami|welli|origin)`),
@@ -84,8 +84,8 @@ var categorias = []categoria{
 		"fuera", "es investigación, no diagnóstico técnico: el trazador puede dar la evidencia pero no resuelve"},
 }
 
-// mensajeSlack es el mensaje del conector; el alias conserva el nombre con que lo usa este archivo.
-type mensajeSlack = slack.Message
+// slackMessage es el mensaje del conector; el alias conserva el nombre con que lo usa este archivo.
+type slackMessage = slack.Message
 
 // hit es un reporte ya clasificado —o sin clasificar, que es el caso que importa acá.
 type hit struct {
@@ -94,42 +94,42 @@ type hit struct {
 	ts   time.Time
 }
 
-// clasificarReportes es la parte PURA: separa los reportes del ruido y los reparte en categorías.
-// Está afuera de modoSlack para poder probarla sin red, porque lo que se equivocó vivía acá.
+// classifyReports es la parte PURA: separa los reportes del ruido y los reparte en categorías.
+// Está afuera de slackMode para poder probarla sin red, porque lo que se equivocó vivía acá.
 //
-// ⚠ `sinCat` NO es un descarte: es lo que ninguna regex reconoció, y hasta el 2026-09-21 se contaba
+// ⚠ `withoutCat` NO es un descarte: es lo que ninguna regex reconoció, y hasta el 2026-09-21 se contaba
 // y se tiraba. Eso hacía que el veredicto se calculara sobre los clasificados —o sea sobre lo que
 // alguien ya había pensado en cubrir— y un canal donde la mitad no matchea se leía igual que uno
 // cubierto entero. Es el patrón de siempre: devolver MENOS se lee igual que «no existe». Ahora los
 // reportes vuelven con su texto para poder MIRARLOS (`-slack-sin`), que es lo que dice si falta una
 // categoría o si es ruido.
-func clasificarReportes(msgs []mensajeSlack) (hits, sinCat []hit, porCat map[string]int) {
-	porCat = map[string]int{}
+func classifyReports(msgs []slackMessage) (hits, withoutCat []hit, byCat map[string]int) {
+	byCat = map[string]int{}
 	for _, m := range msgs {
 		// Un reporte = un mensaje que describe un síntoma. Se descartan los de una línea sin verbo (los
 		// «gracias», los «dale», las cédulas sueltas) porque inflarían el conteo sin ser incidentes.
 		if m.BotID != "" || len(strings.Fields(m.Text)) < 4 {
 			continue
 		}
-		encontrada := ""
-		for _, c := range categorias {
+		found := ""
+		for _, c := range categories {
 			if c.re.MatchString(m.Text) {
-				encontrada = c.id
+				found = c.id
 				break
 			}
 		}
-		if encontrada == "" {
-			sinCat = append(sinCat, hit{"", m.Text, tsAt(m.TS)})
+		if found == "" {
+			withoutCat = append(withoutCat, hit{"", m.Text, tsAt(m.TS)})
 			continue
 		}
-		porCat[encontrada]++
-		hits = append(hits, hit{encontrada, m.Text, tsAt(m.TS)})
+		byCat[found]++
+		hits = append(hits, hit{found, m.Text, tsAt(m.TS)})
 	}
-	return hits, sinCat, porCat
+	return hits, withoutCat, byCat
 }
 
-// modoSlack lee el canal y clasifica. Devuelve el exit code.
-func modoSlack(dias int, listarSin bool) int {
+// slackMode lee el canal y clasifica. Devuelve el exit code.
+func slackMode(days int, listUnclassified bool) int {
 	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
 	if token == "" {
 		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN.\n", paint("31", "✘"))
@@ -138,49 +138,49 @@ func modoSlack(dias int, listarSin bool) int {
 		fmt.Fprintf(os.Stderr, "  es un token que algún día se commitea.\n\n")
 		return 2
 	}
-	desde := time.Now().AddDate(0, 0, -dias)
-	msgs, err := leerCanal(token, canalTechOps, desde)
+	since := time.Now().AddDate(0, 0, -days)
+	msgs, err := readChannel(token, techOpsChannel, since)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
 		return 2
 	}
 
-	hits, sinCat, porCat := clasificarReportes(msgs)
-	sinClasificar := len(sinCat)
+	hits, withoutCat, byCat := classifyReports(msgs)
+	unclassified := len(withoutCat)
 
-	fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── #tech-ops · últimos %d días ──", dias)))
+	fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── #tech-ops · últimos %d días ──", days)))
 	fmt.Printf("     %d mensajes · %d con síntoma clasificable · %d sin clasificar\n",
-		len(msgs), len(hits), sinClasificar)
+		len(msgs), len(hits), unclassified)
 
 	// Se ordena por cobertura y después por volumen: lo que más se repite Y el trazador contesta va arriba.
 	prio := map[string]int{"directa": 0, "parcial": 1, "fuera": 2}
-	orden := make([]categoria, len(categorias))
-	copy(orden, categorias)
-	sort.SliceStable(orden, func(i, j int) bool {
-		if prio[orden[i].cobertura] != prio[orden[j].cobertura] {
-			return prio[orden[i].cobertura] < prio[orden[j].cobertura]
+	order := make([]category, len(categories))
+	copy(order, categories)
+	sort.SliceStable(order, func(i, j int) bool {
+		if prio[order[i].coverage] != prio[order[j].coverage] {
+			return prio[order[i].coverage] < prio[order[j].coverage]
 		}
-		return porCat[orden[i].id] > porCat[orden[j].id]
+		return byCat[order[i].id] > byCat[order[j].id]
 	})
 
 	tot := map[string]int{}
-	ultima := ""
-	for _, c := range orden {
-		if c.cobertura != ultima {
-			ultima = c.cobertura
-			etiqueta := map[string]string{
+	lastOne := ""
+	for _, c := range order {
+		if c.coverage != lastOne {
+			lastOne = c.coverage
+			label := map[string]string{
 				"directa": green("EL TRAZADOR LO CONTESTA"),
 				"parcial": paint("33", "LO CONTESTA A MEDIAS"),
 				"fuera":   red("FUERA DE ALCANCE"),
-			}[c.cobertura]
-			fmt.Printf("\n  %s\n", bold("── "+etiqueta+" ──"))
+			}[c.coverage]
+			fmt.Printf("\n  %s\n", bold("── "+label+" ──"))
 		}
-		n := porCat[c.id]
-		tot[c.cobertura] += n
-		barra := strings.Repeat("█", min(30, n))
-		fmt.Printf("     %2d %-30s %s\n", n, barra, c.label)
-		if c.porque != "" {
-			fmt.Printf("        %s\n", gray(trim(c.porque, 130)))
+		n := byCat[c.id]
+		tot[c.coverage] += n
+		bar := strings.Repeat("█", min(30, n))
+		fmt.Printf("     %2d %-30s %s\n", n, bar, c.label)
+		if c.because != "" {
+			fmt.Printf("        %s\n", gray(trim(c.because, 130)))
 		}
 	}
 
@@ -189,33 +189,33 @@ func modoSlack(dias int, listarSin bool) int {
 	// medida de las regex: un reporte que ninguna reconoce no es «fuera de alcance» —eso es un
 	// juicio— sino que NO SE SABE, y esa diferencia es justo la que decide si vale la pena mejorar
 	// esto. Por eso «sin clasificar» es un cuarto renglón y no un descarte silencioso.
-	sum := tot["directa"] + tot["parcial"] + tot["fuera"] + sinClasificar
+	sum := tot["directa"] + tot["parcial"] + tot["fuera"] + unclassified
 	if sum > 0 {
 		fmt.Printf("\n  %s\n", bold("── VEREDICTO ──"))
 		pc := func(n int) string { return fmt.Sprintf("%d (%.0f%%)", n, 100*float64(n)/float64(sum)) }
 		fmt.Printf("     %s contesta directo · %s a medias · %s fuera de alcance\n",
 			green(pc(tot["directa"])), paint("33", pc(tot["parcial"])), red(pc(tot["fuera"])))
-		fmt.Printf("     %s sin clasificar — ninguna regex los reconoció, así que de estos NO SE SABE\n", bold(pc(sinClasificar)))
+		fmt.Printf("     %s sin clasificar — ninguna regex los reconoció, así que de estos NO SE SABE\n", bold(pc(unclassified)))
 		fmt.Printf("     %s\n", gray("sobre "+strconv.Itoa(sum)+" reportes; los porcentajes son del canal, no de lo que las regex entendieron"))
 	}
 
 	// Lo que no matcheó, a la vista. Va OPT-IN porque es texto real del canal —con cédulas, teléfonos
 	// y nombres— y no tiene por qué aparecer en pantalla cada vez que alguien mira el resumen.
-	if listarSin && sinClasificar > 0 {
-		fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── SIN CLASIFICAR (%d) ──", sinClasificar)))
+	if listUnclassified && unclassified > 0 {
+		fmt.Printf("\n  %s\n", bold(fmt.Sprintf("── SIN CLASIFICAR (%d) ──", unclassified)))
 		fmt.Printf("     %s\n", gray("o falta una categoría, o no son reportes. Leelos antes de agregar una regex —o un modelo."))
-		for _, h := range sinCat {
+		for _, h := range withoutCat {
 			fmt.Printf("     %s  %s\n", gray(h.ts.Format("2006-01-02")), trim(strings.Join(strings.Fields(h.text), " "), 150))
 		}
-	} else if sinClasificar > 0 {
-		fmt.Printf("\n  %s\n", gray(fmt.Sprintf("los %d sin clasificar, uno por uno: make trazador-slack DIAS=%d SIN=1", sinClasificar, dias)))
+	} else if unclassified > 0 {
+		fmt.Printf("\n  %s\n", gray(fmt.Sprintf("los %d sin clasificar, uno por uno: make trazador-slack DIAS=%d SIN=1", unclassified, days)))
 	}
 	fmt.Println()
 	return 0
 }
 
-func leerCanal(token, canal string, desde time.Time) ([]mensajeSlack, error) {
-	return slack.New(token).History(context.Background(), canal, desde, 12)
+func readChannel(token, channel string, since time.Time) ([]slackMessage, error) {
+	return slack.New(token).History(context.Background(), channel, since, 12)
 }
 
 func tsAt(ts string) time.Time {
@@ -224,37 +224,37 @@ func tsAt(ts string) time.Time {
 	return time.Unix(n, 0)
 }
 
-// leerHilo trae las respuestas de un mensaje. Es lo que permite contrastar el REPORTE con su RESOLUCIÓN:
+// readThread trae las respuestas de un mensaje. Es lo que permite contrastar el REPORTE con su RESOLUCIÓN:
 // sin esto, medir «¿el trazador contestaría esto?» es una opinión sobre el título del incidente. Con la
 // respuesta del humano al lado, la pregunta pasa a ser verificable — ¿el trazador muestra ESE dato?
 //
 // Sólo lectura, igual que el resto de este archivo: `conversations.replies` no escribe nada.
-func leerHilo(token, canal, ts string) ([]mensajeSlack, error) {
-	return slack.New(token).Replies(context.Background(), canal, ts, 60)
+func readThread(token, channel, ts string) ([]slackMessage, error) {
+	return slack.New(token).Replies(context.Background(), channel, ts, 60)
 }
 
-// modoIncidencias vuelca los reportes CON SU HILO, para leerlos y juzgar de verdad si el trazador los
-// contesta. NO clasifica: eso es lo que hace `modoSlack` con regex, y ese enfoque tiene un techo — la
+// incidentsMode vuelca los reportes CON SU HILO, para leerlos y juzgar de verdad si el trazador los
+// contesta. NO clasifica: eso es lo que hace `slackMode` con regex, y ese enfoque tiene un techo — la
 // etiqueta `directa|parcial|fuera` está cableada por categoría, o sea que mide MI SUPOSICIÓN sobre el tipo
 // de incidente, no el caso. Acá el código sólo junta el material; el juicio lo hace quien lee.
-func modoIncidencias(dias int) int {
+func incidentsMode(days int) int {
 	token := strings.TrimSpace(os.Getenv("SLACK_BOT_TOKEN"))
 	if token == "" {
 		fmt.Fprintf(os.Stderr, "\n  %s falta SLACK_BOT_TOKEN (se exporta en la shell, no vive en ningún .env).\n\n",
 			paint("31", "✘"))
 		return 2
 	}
-	msgs, err := leerCanal(token, canalTechOps, time.Now().AddDate(0, 0, -dias))
+	msgs, err := readChannel(token, techOpsChannel, time.Now().AddDate(0, 0, -days))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "\n  %s %v\n\n", paint("31", "✘"), err)
 		return 2
 	}
-	limpio := func(s string) string {
+	clean := func(s string) string {
 		s = strings.ReplaceAll(s, "\n", " ⏎ ")
 		return strings.Join(strings.Fields(s), " ")
 	}
 	n := 0
-	fmt.Printf("\n  %s\n\n", bold(fmt.Sprintf("── INCIDENCIAS CON SU HILO · últimos %d días ──", dias)))
+	fmt.Printf("\n  %s\n\n", bold(fmt.Sprintf("── INCIDENCIAS CON SU HILO · últimos %d días ──", days)))
 	for _, m := range msgs {
 		// Con hilo y con cuerpo: un reporte sin respuestas no se resolvió acá y no sirve para contrastar.
 		if m.BotID != "" || m.ReplyCount == 0 || len(strings.Fields(m.Text)) < 5 {
@@ -263,8 +263,8 @@ func modoIncidencias(dias int) int {
 		n++
 		fmt.Printf("  %s [%s · %d respuestas]\n", bold(fmt.Sprintf("#%d", n)),
 			tsAt(m.TS).Format("01-02 15:04"), m.ReplyCount)
-		fmt.Printf("     %s %s\n", paint("36", "PREGUNTA:"), limpio(m.Text))
-		rs, err := leerHilo(token, canalTechOps, m.TS)
+		fmt.Printf("     %s %s\n", paint("36", "PREGUNTA:"), clean(m.Text))
+		rs, err := readThread(token, techOpsChannel, m.TS)
 		if err != nil {
 			fmt.Printf("     %s\n", gray("(no pude leer el hilo: "+err.Error()+")"))
 		}
@@ -272,7 +272,7 @@ func modoIncidencias(dias int) int {
 			if r.BotID != "" || len(strings.Fields(r.Text)) < 2 {
 				continue
 			}
-			fmt.Printf("     %s %s\n", paint("32", "→"), limpio(r.Text))
+			fmt.Printf("     %s %s\n", paint("32", "→"), clean(r.Text))
 		}
 		fmt.Println()
 	}

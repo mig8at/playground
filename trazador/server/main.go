@@ -69,12 +69,12 @@ type config struct {
 	// loki es a qué Loki preguntarle en este ambiente, tal como lo resuelve `connectors/logs`: la URL, las
 	// credenciales, el filtro de `environment` y el `service_name` del monolito. Ya no los lee el trazador
 	// de su `.env`: dev, qa y staging comparten el stack `creditopdev`, y lo que separa a dev de qa es el
-	// `service_name` (que NO filtra: `repartoPorBackend` dice cuántas líneas sirvió cada backend). El
+	// `service_name` (que NO filtra: `splitByBackend` dice cuántas líneas sirvió cada backend). El
 	// porqué de cada etiqueta vive en el conector, escrito una vez.
 	loki   logs.Config
 	source string // de dónde salió cada cosa, para poder decirlo en pantalla
 
-	// El ambiente. Es lo que le pide al conector de SQL la base de ESTE ambiente (ver `abrirFuente`): qué
+	// El ambiente. Es lo que le pide al conector de SQL la base de ESTE ambiente (ver `openSource`): qué
 	// base es, sus credenciales y si va por MySQL directo o por Redash ya no los sabe el trazador.
 	target string
 
@@ -100,7 +100,7 @@ func loadConfig(target string) (config, []string) {
 		from := "entorno"
 		if file != "" {
 			from = "connectors/" + filepath.Base(file)
-			if !contiene(checked, from) {
+			if !contains(checked, from) {
 				checked = append(checked, from)
 			}
 		}
@@ -316,7 +316,7 @@ func (q queryResp) lines() int {
 	return n
 }
 
-// esMatrix dice si la respuesta es de una consulta MÉTRICA (`sum(count_over_time(…))`) en vez de una
+// isMatrix dice si la respuesta es de una consulta MÉTRICA (`sum(count_over_time(…))`) en vez de una
 // lectura de líneas. Es una respuesta legítima de query_range y aun así no encaja en `queryResp`: su
 // `resultType` es `matrix` y los timestamps vienen como NÚMERO, no como string, así que el Unmarshal
 // de allá falla entero y el modo `-query` contestaba «el cuerpo no es una respuesta de query_range»,
@@ -326,7 +326,7 @@ func (q queryResp) lines() int {
 // sabía leer. Las líneas que imprime son una MUESTRA (cuatro, aunque haya traído 200), así que
 // contarlas miente — medido el 2026-08-16: un agente contó sobre la muestra y reportó 46% donde el
 // número real era 9,2%.
-func esMatrix(body []byte) bool {
+func isMatrix(body []byte) bool {
 	var m struct {
 		Data struct {
 			ResultType string `json:"resultType"`
@@ -335,13 +335,13 @@ func esMatrix(body []byte) bool {
 	return json.Unmarshal(body, &m) == nil && m.Data.ResultType == "matrix"
 }
 
-// valorInstantaneo lee el número de una consulta métrica hecha contra `/query` (instantánea).
+// instantValue lee el número de una consulta métrica hecha contra `/query` (instantánea).
 //
 // ⚠ Tiene que ser instantánea y NO `query_range`: un range de `count_over_time([24h])` devuelve una
 // SERIE de ventanas de 24h SOLAPADAS —una por cada `step`, alineadas a límites absolutos de tiempo—,
 // no un total. Quedarse con el último punto, o con el máximo, da un número plausible y equivocado:
 // medido, la serie daba 35.036 y 3.488 para una ventana cuyo total real era 3.343.
-func valorInstantaneo(body []byte) (string, bool) {
+func instantValue(body []byte) (string, bool) {
 	var m struct {
 		Data struct {
 			Result []struct {
@@ -407,18 +407,18 @@ func main() {
 	since := flag.Duration("since", time.Hour, "ventana hacia atrás para la lectura corta")
 	limit := flag.Int("limit", 20, "máximo de líneas a pedir")
 	ureq := flag.Int64("ureq", 0, "número de solicitud: arma la TRAZA por etapas (BD + logs) en vez de probar el acceso")
-	slackDias := flag.Int("slack", 0, "lee #tech-ops de los últimos N días y clasifica los reportes (solo lectura)")
-	slackSin := flag.Bool("slack-sin", false, "con -slack: lista los reportes que ninguna regex reconoció (texto real del canal)")
+	slackDays := flag.Int("slack", 0, "lee #tech-ops de los últimos N días y clasifica los reportes (solo lectura)")
+	slackUnclassified := flag.Bool("slack-sin", false, "con -slack: lista los reportes que ninguna regex reconoció (texto real del canal)")
 	serve := flag.String("serve", "", "levanta la API para la Vue (ej. 127.0.0.1:5199)")
-	incidencias := flag.Int("incidencias", 0, "vuelca los reportes de #tech-ops CON SU HILO de respuestas, para contrastar (solo lectura)")
-	campos := flag.Bool("campos", false, "con -ureq: censo de los campos del contexto de log, para ver qué llave estructural existe")
-	anclas := flag.Bool("anclas", false, "con -ureq: mide cuánto se puede AFIRMAR de cada línea (cierta · probable · por traza · contaminada)")
+	incidents := flag.Int("incidencias", 0, "vuelca los reportes de #tech-ops CON SU HILO de respuestas, para contrastar (solo lectura)")
+	fields := flag.Bool("campos", false, "con -ureq: censo de los campos del contexto de log, para ver qué llave estructural existe")
+	anchors := flag.Bool("anclas", false, "con -ureq: mide cuánto se puede AFIRMAR de cada línea (cierta · probable · por traza · contaminada)")
 	spans := flag.Bool("spans", false, "con -ureq: mide si el `span_id` alcanza para ubicar las líneas que el texto no reclama")
-	validar := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
-	indexarLogs := flag.Bool("indexar-logs", false, "construye ../logs.json, el índice mensaje de log → archivo:línea, leyendo el código de los repos (ver indice_logs.go)")
-	sinFetch := flag.Bool("sin-fetch", false, "con -indexar-logs: no actualiza las refs remotas antes de leer")
-	chequeo := flag.Bool("chequeo", false, "valida el mapa SIN corpus: coherencia interna, el vocabulario de ramales que comparte con el harness y (con -target) las tablas declaradas — ver chequeo.go")
-	buscar := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
+	validate := flag.String("validar", "", "ruta a un corpus de líneas CRUDAS (el TSV del censo o un timeline.ndjson): audita el mapa")
+	indexLogs := flag.Bool("indexar-logs", false, "construye ../logs.json, el índice mensaje de log → archivo:línea, leyendo el código de los repos (ver indice_logs.go)")
+	noFetch := flag.Bool("sin-fetch", false, "con -indexar-logs: no actualiza las refs remotas antes de leer")
+	check := flag.Bool("chequeo", false, "valida el mapa SIN corpus: coherencia interna, el vocabulario de ramales que comparte con el harness y (con -target) las tablas declaradas — ver chequeo.go")
+	search := flag.String("buscar", "", "teléfono, cédula o número de solicitud: lista los intentos que coincidan")
 	jsonOut := flag.Bool("json", false, "con -ureq o -buscar: salida estructurada, para encadenar o para un modelo")
 	htmlOut := flag.String("html", "", "con -ureq: además escribe la vista de checks en este archivo")
 	sqlQuery := flag.String("sql", "", "UNA consulta de solo lectura (SELECT/WITH) contra la fuente del target — ver sql.go")
@@ -426,7 +426,7 @@ func main() {
 	posthog := flag.Bool("posthog", false, "sonda de acceso a PostHog (qué VIO el cliente); con -ureq, los eventos de esa solicitud")
 	tel := flag.String("tel", "", "con -posthog -ureq: el celular del cliente, para ver además la fase de AUTH (distinct_id phone_<e164>)")
 	mdOut := flag.Bool("md", false, "con -ureq, -buscar o -sql: la salida como ANOTACIÓN fechada para pegar en una tarea del tablero (ver reproducir.go)")
-	bloque := flag.String("bloque", "", "con -ureq, -buscar o -sql: agrega la salida como BLOQUE a la pila de esa tarea del tablero (id o slug)")
+	block := flag.String("bloque", "", "con -ureq, -buscar o -sql: agrega la salida como BLOQUE a la pila de esa tarea del tablero (id o slug)")
 	flag.Parse()
 
 	c, checked := loadConfig(*target)
@@ -436,47 +436,47 @@ func main() {
 	// Va ANTES de exigir el token a propósito: en modo traza el token es OPCIONAL. La fuente primaria es
 	// la BD (el esqueleto), un Loki local no pide credenciales, y si no hay logs la traza sale igual —
 	// solo sin el porqué. Exigirlo acá bloquearía el caso que más sirve.
-	if *slackDias > 0 {
-		os.Exit(modoSlack(*slackDias, *slackSin))
+	if *slackDays > 0 {
+		os.Exit(slackMode(*slackDays, *slackUnclassified))
 	}
 	if *serve != "" {
-		if err := servir(*serve); err != nil {
+		if err := runServer(*serve); err != nil {
 			fmt.Fprintf(os.Stderr, "  %s el server murió: %v\n", paint("31", "✘"), err)
 			os.Exit(1)
 		}
 		return
 	}
-	if *incidencias > 0 {
-		os.Exit(modoIncidencias(*incidencias))
+	if *incidents > 0 {
+		os.Exit(incidentsMode(*incidents))
 	}
-	if *campos && *ureq > 0 {
-		os.Exit(modoCampos(*target, *ureq))
+	if *fields && *ureq > 0 {
+		os.Exit(fieldsMode(*target, *ureq))
 	}
-	if *anclas && *ureq > 0 {
-		os.Exit(modoAnclas(*target, *ureq))
+	if *anchors && *ureq > 0 {
+		os.Exit(anchorsMode(*target, *ureq))
 	}
 	if *spans && *ureq > 0 {
-		os.Exit(modoSpans(*target, *ureq))
+		os.Exit(spansMode(*target, *ureq))
 	}
 	// Va ANTES del despacho de `-ureq`: `-posthog -ureq N` pregunta por los eventos del NAVEGADOR de esa
 	// solicitud, no por la traza de etapas.
 	if *posthog {
-		code := modoPostHog(c, *target, *ureq, *tel, *limit)
+		code := postHogMode(c, *target, *ureq, *tel, *limit)
 		// El pie va aunque el modo haya fallado, y a propósito: casi todas sus salidas de error son
 		// «falta un dato de configuración», y lo que uno quiere después de arreglarlo es volver a correr
 		// exactamente lo mismo. La anotación, en cambio, sale de la traza: `-md` con -ureq la trae con
 		// las pantallas adentro, así que acá sólo se dice dónde está en vez de escribir una a medias.
 		if *mdOut {
 			fmt.Printf("\n     %s\n", gray("para la anotación con el timeline adentro: "+
-				cmdMake("trazador-ureq", *target, "UREQ", siHay(*ureq), "TEL", *tel, "MD", "1")))
+				cmdMake("trazador-ureq", *target, "UREQ", ifAny(*ureq), "TEL", *tel, "MD", "1")))
 		}
-		pie(cmdMake("trazador-posthog", *target, "UREQ", siHay(*ureq), "TEL", *tel))
+		pie(cmdMake("trazador-posthog", *target, "UREQ", ifAny(*ureq), "TEL", *tel))
 		os.Exit(code)
 	}
-	if *indexarLogs {
-		os.Exit(construirIndiceLogs(!*sinFetch))
+	if *indexLogs {
+		os.Exit(buildLogIndex(!*noFetch))
 	}
-	if *chequeo {
+	if *check {
 		// Las tablas sólo se pueden comprobar si hay una fuente a mano. Cuando no la hay, se pasa nil y
 		// el chequeo DECLARA que quedaron sin mirar — omitirlo en silencio sería el falso verde que esta
 		// herramienta existe para no dar.
@@ -486,58 +486,58 @@ func main() {
 		// sigue siendo prod, y la regla de la casa es elegir el ambiente más chico que conteste la
 		// pregunta: el esquema es el mismo en todos. Se mira sólo si el target se pidió A MANO, que es lo
 		// que `flag.Visit` sabe distinguir del valor por omisión.
-		pidioTarget := false
+		askedTarget := false
 		flag.Visit(func(f *flag.Flag) {
 			if f.Name == "target" {
-				pidioTarget = true
+				askedTarget = true
 			}
 		})
-		var tablas map[string]bool
-		if fuente, err := abrirFuente(c); pidioTarget && err == nil {
-			defer fuente.Close()
-			if filas, err := fuente.Rows("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"); err == nil {
-				tablas = map[string]bool{}
-				for _, f := range filas {
+		var tables map[string]bool
+		if source, err := openSource(c); askedTarget && err == nil {
+			defer source.Close()
+			if rows, err := source.Rows("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE()"); err == nil {
+				tables = map[string]bool{}
+				for _, f := range rows {
 					for _, v := range f {
 						if s, ok := v.(string); ok {
-							tablas[strings.ToLower(s)] = true
+							tables[strings.ToLower(s)] = true
 						}
 					}
 				}
 			}
 		}
-		code := Chequear(tablas)
-		reproducir := ""
-		if pidioTarget {
-			reproducir = *target
+		code := Check(tables)
+		reproduce := ""
+		if askedTarget {
+			reproduce = *target
 		}
-		pie(cmdMake("trazador-chequeo", reproducir))
+		pie(cmdMake("trazador-chequeo", reproduce))
 		os.Exit(code)
 	}
-	if *validar != "" {
-		code := ValidarContra(*validar)
-		pie(cmdMake("trazador-validar", "", "CORPUS", *validar))
+	if *validate != "" {
+		code := ValidateAgainst(*validate)
+		pie(cmdMake("trazador-validar", "", "CORPUS", *validate))
 		os.Exit(code)
 	}
 	if *sqlQuery != "" {
-		os.Exit(modoSQL(c, *target, *sqlQuery, *sqlCSV, *mdOut, *bloque))
+		os.Exit(sqlMode(c, *target, *sqlQuery, *sqlCSV, *mdOut, *block))
 	}
-	if *buscar != "" {
-		os.Exit(modoBuscar(c, *target, *buscar, *jsonOut, *mdOut, *bloque))
+	if *search != "" {
+		os.Exit(searchMode(c, *target, *search, *jsonOut, *mdOut, *block))
 	}
 	if *ureq > 0 {
-		os.Exit(modoTraza(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut, *bloque))
+		os.Exit(traceMode(c, *target, *ureq, *tel, *jsonOut, *htmlOut, *mdOut, *block))
 	}
 
 	if c.loki.Token == "" {
-		buscado := "LOKI_TOKEN / GRAFANA_LOKI_PASSWORD / GRAFANA_LOKI_TOKEN"
-		donde := strings.Join(checked, ", ")
-		if donde == "" {
-			donde = "(no existe connectors/.env." + *target + ")"
+		searched := "LOKI_TOKEN / GRAFANA_LOKI_PASSWORD / GRAFANA_LOKI_TOKEN"
+		where := strings.Join(checked, ", ")
+		if where == "" {
+			where = "(no existe connectors/.env." + *target + ")"
 		}
 		fmt.Fprintf(os.Stderr, "%s no hay token para el target «%s».\n\nBuscado como %s en: %s\n\n"+
 			"Copiá connectors/.env.example a connectors/.env.%s y completalo, o exportá LOKI_TOKEN.\n",
-			paint("31", "✘"), *target, buscado, donde, *target)
+			paint("31", "✘"), *target, searched, where, *target)
 		os.Exit(2)
 	}
 	info := decodeToken(c.loki.Token)
@@ -759,8 +759,8 @@ func main() {
 		}
 		// Antes de intentar leerlo como líneas: si es una consulta MÉTRICA la respuesta es un número,
 		// y hay que volver a pedirlo como INSTANTÁNEA — el range da ventanas solapadas, no un total.
-		if esMatrix(body) {
-			st, cuerpo, err := cl.API("query", url.Values{
+		if isMatrix(body) {
+			st, reqBody, err := cl.API("query", url.Values{
 				"query": {selector},
 				"time":  {nano(now)},
 			})
@@ -768,7 +768,7 @@ func main() {
 				bad("la consulta métrica no se pudo resolver como instantánea: %v", err)
 				return false
 			}
-			if v, hay := valorInstantaneo(cuerpo); hay {
+			if v, there := instantValue(reqBody); there {
 				ok("%s = %s  ·  contado por Loki sobre la ventana de la expresión, NO es una muestra", selector, v)
 				return true
 			}

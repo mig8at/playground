@@ -18,7 +18,7 @@ trazador/
   (sin .env propio: la base, Loki y PostHog los resuelve connectors/, con connectors/.env.<target>)
 ```
 
-**La regla que ordena todo:** el ensamblado vive en Go, en un solo lugar (`ArmarTraza`), y la consola, el
+**La regla que ordena todo:** el ensamblado vive en Go, en un solo lugar (`BuildTrace`), y la consola, el
 HTML y la Vue **renderizan el mismo `Traza`**. Si la Vue calculara estados habría dos definiciones de «esta
 etapa falló» y en el primer cambio se contradirían.
 
@@ -110,9 +110,9 @@ intentos hechos con el equivocado.
 
 Lo que trajo la búsqueda literal va marcado (`◂`); el resto es contexto. El resumen —cuántas aprobadas /
 rotas / abandonadas, en qué rango de fechas, cuántas el mismo día, cuántos comercios— sale de Go
-(`armarHistoria`) y no de la vista, porque «roto» es una definición de negocio y ya hubo dos que no
-coincidían: `ArmarTraza` contemplaba `abandonado` y el buscador de la API no, así que la misma solicitud
-salía «en curso» en la lista y «abandonado» al abrirla. Hoy las dos llaman a `desenlaceDe`.
+(`buildHistory`) y no de la vista, porque «roto» es una definición de negocio y ya hubo dos que no
+coincidían: `BuildTrace` contemplaba `abandonado` y el buscador de la API no, así que la misma solicitud
+salía «en curso» en la lista y «abandonado» al abrirla. Hoy las dos llaman a `outcomeOf`.
 
 Señales que cambian el diagnóstico y por eso se dicen en texto: **N intentos el mismo día** (reintento, no
 cliente indeciso), **⚠ recortado en 40** (un «12 solicitudes» que en realidad son 228 cambia «reintentó» por
@@ -385,10 +385,10 @@ Lo que SÍ filtra es `LOKI_ENV` (`development|develop`), y lo que deja afuera so
 desarrollo (`local`, `testing`), que pueden correr contra su propia base. ⚠ Hasta el 2026-09-23 ese
 filtro **no se aplicaba nunca**: la verificación comparaba `development|develop` entero contra cada valor
 de la etiqueta —como regex es una alternativa, como cadena no existe— y caía a no filtrar diciendo que el
-valor no existía. Hoy se compara por alternativa (`selectorAmbiente`). Y el ancla de los MS Go va **sin**
+valor no existía. Hoy se compara por alternativa (`environmentSelector`). Y el ancla de los MS Go va **sin**
 ese filtro: no llevan la etiqueta `environment`, así que con él quedaban afuera sin avisar.
 
-Hasta el 2026-09-24 `staging` filtraba `LOKI_ENV=qa`, un valor que no existe: `traerLineas` lo detectaba,
+Hasta el 2026-09-24 `staging` filtraba `LOKI_ENV=qa`, un valor que no existe: `fetchLines` lo detectaba,
 caía a no filtrar y lo decía en las notas de la traza (F-237 es la misma guarda del lado del harness).
 Al pasar las credenciales a `connectors/.env.staging` quedó en `development|develop`, lo que el stack de
 verdad tiene (`pg logs labels --target staging --label environment` → `development · local · testing`).
