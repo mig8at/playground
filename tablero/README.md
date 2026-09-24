@@ -38,8 +38,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 | Pieza | Qué es | Cómo se corre |
 |---|---|---|
 | `cmd/web` | API HTTP (`:8787`) que lee la UI: tareas, bitácora, sprint de Jira, pulso y artifacts | `npm run dev` |
-| `cmd/jira-mcp` | **conector MCP** de Jira Cloud (stdio) — 4 tools | registrarlo en Claude Code |
-| `cmd/slack-mcp` | **conector MCP** de Slack (stdio) — 3 tools | registrarlo en Claude Code |
+| `bin/pg` (raíz del playground) | Jira y Slack —y la base, Loki, PostHog, Confluence— por consola, y como **servidor MCP** (`bin/pg mcp`) | `bin/pg help` |
 | `src/` (Vue) | tareas por estado de los últimos 4 sprints, evidencia, entrega y actividad | `npm run dev` → `:5191` |
 
 ## Usar el tablero
@@ -138,9 +137,7 @@ npm run dev
 Otros scripts (verificados en `package.json`):
 
 ```bash
-npm run server:build   # compila server/bin/{web,slack-mcp,jira-mcp,pulso}
-npm run server:jira    # corre jira-mcp por stdio (para probar suelto)
-npm run server:slack   # corre slack-mcp por stdio
+npm run server:build   # compila server/bin/{web,pulse}
 npm run build          # vite build → dist/
 npm test               # organización del documento, grupos y comportamiento del panel sin navegador
 cd server && go test ./...   # parser, store, guard, conectores y cierre
@@ -158,61 +155,37 @@ tools/
 └── server/
     ├── .env · .env.example        (el go.mod es el de la raíz del playground: module creditop/playground)
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
-    ├── cmd/jira-mcp/          ← main.go (wiring) + tools.go (4 tools)
-    ├── cmd/slack-mcp/         ← main.go (wiring) + tools.go (3 tools)
     ├── cmd/issue-update/      ← one-off: edita summary/descripción de un issue
     ├── cmd/issue-transition/  ← one-off: mueve un issue de estado (transición)
     ├── cmd/pulse/             ← el agente: cuándo toqué los repos de la compañía (ver "El pulso")
     └── internal/
-        ├── atlassian/  client.go (Basic auth) · jira.go (API v3) · agile.go (sprints) · activity.go (changelog)
-        ├── slack/      client.go · auth.go · conversations.go · messages.go · users.go (+ un test)
         ├── pulso/      pulse.go (las 3 señales de git) · store.go (jsonl + agregación por hora)
         └── env/env.go  ← carga .env sin pisar variables ya exportadas
 ```
 
-## Los conectores MCP
+## Jira y Slack como herramientas del agente
 
-**`jira-mcp`** (server MCP `creditop-jira`) — API v3 + Agile 1.0:
+Un solo servidor MCP, **`bin/pg mcp`** (en la raíz del playground), cuyas herramientas son los comandos
+de `pg`, derivados de la misma lista que su ayuda y el catálogo del hook de inicio. Reemplazó el
+2026-09-24 a `jira-mcp` y `slack-mcp`, que se mantenían a mano y no llegaban a la base, Loki, PostHog
+ni Confluence.
 
-| Tool | Qué hace | Riesgo |
+| Herramienta | Qué hace | Riesgo |
 |---|---|---|
-| `jira_myself` | `GET /rest/api/3/myself` — valida credenciales | lectura |
-| `jira_search_issues` | `POST /rest/api/3/search/jql` — la JQL **debe** llevar al menos una restricción | lectura |
-| `jira_create_issue` | crea issue; con `board_id` además lo mete al **sprint activo** de ese board | escritura |
-| `jira_delete_issue` | `DELETE /rest/api/3/issue/{key}` | **irreversible** |
+| `jira_myself` · `jira_search` | quién soy · issues por JQL (con al menos una restricción) | lectura |
+| `jira_create` | crea issue; con `board` además lo mete al **sprint activo** de ese board | escritura, con vista previa |
+| `jira_delete` | borra un issue, mostrando antes cuál | **irreversible**, con vista previa |
+| `slack_post` · `slack_channel_create` · `slack_channel_archive` | como el bot | escritura, con vista previa |
+| `sql` · `logs` · `events_hogql` · `confluence_*` … | los demás conectores | lectura |
 
-**`slack-mcp`** (server MCP `creditop-tools`):
-
-| Tool | Qué hace | Scope que pide |
-|---|---|---|
-| `slack_create_channel` | crea canal (nombre normalizado antes de enviar) | `channels:manage` / `groups:write` |
-| `slack_post_message` | `chat.postMessage` — el bot debe ser **miembro** del canal | `chat:write` |
-| `slack_archive_channel` | archiva (Slack **no** permite borrar canales por API fuera de Enterprise Grid) | `channels:manage` |
-
-### Registrarlos en Claude Code
+Las que escriben devuelven la vista previa si no llevan `apply: true`, y el texto que sale pasa por el
+guard. Registrarlo:
 
 ```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/tablero && npm run server:build
-
-claude mcp add creditop-jira  -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/jira-mcp
-claude mcp add creditop-tools -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/slack-mcp
+claude mcp add playground -- /Users/miguelochoa/Desktop/CREDITOP/playground/bin/pg mcp
 ```
 
-No hace falta pasar `--env`: `env.LoadDefaults()` busca `.env` en el cwd, **junto al binario y en su carpeta
-padre** — y `server/bin/../.env` es justamente `server/.env` (leído del código, no probado con el registro real).
-Las variables ya exportadas ganan sobre el `.env`, a propósito.
-
-Probar suelto, sin Claude (handshake + listar tools):
-
-```bash
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cli","version":"0"}}}' \
-  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-| ./server/bin/jira-mcp
-```
-
-Para quitarlos: `claude mcp remove creditop-jira`.
+Para quitarlo: `claude mcp remove playground`.
 
 ### Agregar una tool
 

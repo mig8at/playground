@@ -83,9 +83,10 @@ const header = `# Herramientas de este repo (playground) — inyectado al arranc
 acceder a algo (logs, base de datos, documentación de negocio), buscalo en esta lista: casi todo
 lo externo ya está cableado y con credenciales puestas.
 
-Lo que NO está acá: **Slack** entra por su MCP (ya conectado, herramientas ` + "`slack_*`" + `) y **Jira**
-tiene un servidor MCP propio en ` + "`tablero/server/cmd/jira-mcp`" + ` que sólo funciona si está registrado
-en la config — si no ves herramientas ` + "`jira_*`" + `, no lo está.
+La base, Loki, PostHog, Confluence, Jira y Slack se consultan por ` + "`bin/pg`" + ` (la lista, al final): leer es libre
+y lo que escribe (Jira, Slack) sin ` + "`--apply`" + ` sólo muestra. Registrado como servidor MCP (` + "`bin/pg mcp`" + `), los
+mismos comandos llegan como herramientas nativas (` + "`sql`, `logs`, `jira_search`…" + `). Leer canales e hilos de
+Slack sigue por su MCP de claude.ai.
 
 `
 
@@ -128,7 +129,42 @@ func SessionStart(env Env) int {
 	}
 	fmt.Fprintf(env.Stdout, header, env.Root)
 	fmt.Fprintln(env.Stdout, catalog)
+	if list := connectorCatalog(env.Root); list != "" {
+		fmt.Fprintln(env.Stdout)
+		fmt.Fprintln(env.Stdout, list)
+	}
 	return 0
+}
+
+// pgCommand es lo que el catálogo usa de `pg help --json`.
+type pgCommand struct {
+	Name    string `json:"name"`
+	Summary string `json:"summary"`
+	Write   bool   `json:"write"`
+	NoTool  bool   `json:"no_tool"`
+}
+
+// connectorCatalog es la lista de `bin/pg`, sacada del propio binario: la misma que su ayuda y que su
+// servidor MCP. Si pg no compila, no hay lista —y el catálogo de `make` sale igual—.
+func connectorCatalog(root string) string {
+	_, out, _, err := run(root, 60*time.Second, filepath.Join(root, "bin", "pg"), "help", "--json")
+	if err != nil {
+		return ""
+	}
+	var cmds []pgCommand
+	if json.Unmarshal([]byte(out), &cmds) != nil || len(cmds) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("  CONECTORES   (bin/pg <comando> --help · ⚠ = escribe: sin --apply sólo muestra · MCP: bin/pg mcp)\n")
+	for _, c := range cmds {
+		mark := " "
+		if c.Write {
+			mark = "⚠"
+		}
+		fmt.Fprintf(&b, "    %s %-22s %s\n", mark, c.Name, c.Summary)
+	}
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // ── PreToolUse: generados ───────────────────────────────────────────────────────────────────────

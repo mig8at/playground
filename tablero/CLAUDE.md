@@ -706,7 +706,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
   frontera. Que salga con código 1 es a propósito: sirve para frenar, no sólo para informar.
 
 - **Jira y Slack tienen TRES caminos**, no dos: el server (`npm run dev` → :8787, botones con vista
-  previa), los conectores MCP (`cmd/jira-mcp`, stdio — sólo si están registrados) y **la CONSOLA**,
+  previa), el servidor MCP de los conectores (`bin/pg mcp`, stdio — sólo si está registrado) y **la CONSOLA**,
   que es la que sirve cuando no hay UI a mano y **no depende del server corriendo**:
 
       make jira-create JSON=t.json     # crea y mete al sprint activo; el único que puede ESTIMAR

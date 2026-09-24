@@ -36,6 +36,7 @@ herramienta: es suponer que no está y contestar de memoria.
 | **¿esta regla de verdad excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
 | **¿funciona, corriéndolo?** | `harness` (`make panel`) es el camino VISUAL, de Miguel. **El tuyo es por consola**: `harness-caso` · `harness-listado` · `harness-suite` |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
+| **buscar, crear o borrar en Jira · mandar a Slack** | `bin/pg jira …` · `bin/pg slack …` — leer es libre; lo que escribe **sin `--apply` sólo muestra** y el texto pasa por el guard. Registrado como MCP (`bin/pg mcp`), llegan como herramientas `jira_*` / `slack_*` junto con `sql`, `logs`, `confluence_*`… |
 
 ⚠ **Y hay preguntas que NO se contestan leyendo — se contestan corriendo.** Canon describe el
 **mecanismo**, que generaliza; una corrida describe **el caso**, que no. Los dos hacen falta: la corrida

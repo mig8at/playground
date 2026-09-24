@@ -53,6 +53,6 @@ de estado y los grupos plegados se reinician al recargar para hacer visible el t
 - `server/internal/store`: archivos, parsers y persistencia local.
 - `server/cmd/today`: la agenda (`make hoy`) y retomar una tarea (`make retomar`), para consola.
 - `server/cmd/web`: la API HTTP que lee la UI, e integración con Jira y Slack.
-- `server/cmd/{jira-mcp,slack-mcp}`: conectores MCP por stdio.
+- Jira y Slack como herramientas MCP: `bin/pg mcp`, en la raíz del playground (los clientes, en `connectors/`).
 
 Para las reglas de edición de tareas, leer `../CLAUDE.md`; para los comandos, `../README.md`.

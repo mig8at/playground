@@ -145,3 +145,23 @@ func TestALooseTaskInDataIsStopped(t *testing.T) {
 		t.Errorf("una tarea suelta en data/ tenía que frenarse; dio %d", got)
 	}
 }
+
+// El catálogo de conectores sale de `bin/pg help --json`: marca lo que escribe y, si pg no anda, no
+// imprime nada —el catálogo de make sale igual—.
+func TestTheConnectorCatalogComesFromPgAndMarksWrites(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := connectorCatalog(root); got != "" {
+		t.Errorf("sin pg no tiene que haber catálogo; dio %q", got)
+	}
+	script := "#!/bin/sh\necho '[{\"name\":\"sql\",\"summary\":\"lee\"},{\"name\":\"jira create\",\"summary\":\"crea\",\"write\":true}]'\n"
+	if err := os.WriteFile(filepath.Join(root, "bin", "pg"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := connectorCatalog(root)
+	if !strings.Contains(got, "  sql ") || !strings.Contains(got, "⚠ jira create") || strings.Contains(got, "⚠ sql") {
+		t.Errorf("catálogo:\n%s", got)
+	}
+}

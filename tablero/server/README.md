@@ -1,83 +1,32 @@
-# tools — conectores MCP propios
+# tablero/server — el backend del tablero
 
-Servidores [MCP](https://modelcontextprotocol.io) escritos por nosotros, en Go.
-La idea: en vez de usar los conectores pre-armados, controlamos cada llamada a
-la API del servicio (Slack y Jira) con nuestro propio token.
+`cmd/web` (la API de la UI), los comandos de la consola (`tasks`, `today`, `issue-*`, `pulse`, `hooks`…) y
+sus paquetes `internal/`. Los clientes de Jira, Slack, canon y la base NO viven acá: son de
+`connectors/`, en la raíz del playground, porque los usan todas las herramientas.
 
-Hay dos conectores: **`slack-mcp`** (`slack_create_channel`, `slack_post_message`,
-`slack_archive_channel`) y **`jira-mcp`** (lectura, búsqueda, creación y borrado de issues).
+## Jira y Slack para un agente: `bin/pg mcp`
 
-```
-server/
-├── cmd/slack-mcp/      # ejecutable: arma el server MCP y registra las tools
-│   ├── main.go         #   wiring (lee token, crea server, corre stdio)
-│   └── tools.go        #   definición de cada tool (input/output + handler)
-└── cmd/jira-mcp/       # ejecutable MCP de Jira
-
-connectors/             # en la raíz del playground: los clientes que usan los dos
-├── slack/              #   cliente HTTP mínimo de la Slack Web API
-└── atlassian/          #   cliente Jira Cloud API v3 + Agile
-```
-
-## 1. Crear la Slack App y obtener el token
-
-1. Ve a <https://api.slack.com/apps> → **Create New App** → *From scratch*.
-2. Elige tu workspace y un nombre (ej. `creditop-tools`).
-3. En **OAuth & Permissions → Scopes → Bot Token Scopes**, agrega:
-   - `channels:manage` — crear canales **públicos**
-   - `groups:write` — crear canales **privados** (opcional)
-4. Arriba, **Install to Workspace** y autoriza.
-5. Copia el **Bot User OAuth Token** (empieza con `xoxb-`).
+Hasta el 2026-09-24 había acá dos servidores MCP escritos a mano, `jira-mcp` y `slack-mcp`. Se
+reemplazaron por UNO, `bin/pg mcp`, cuyas herramientas son los comandos de `pg` —los de Jira y Slack y
+también la base, Loki, PostHog y Confluence—, derivados de la misma lista que su ayuda. Las que escriben
+(`jira_create`, `jira_delete`, `slack_post`, `slack_channel_create`, `slack_channel_archive`) devuelven
+la vista previa si no se les pasa `apply: true`, y el texto que sale pasa por el guard.
 
 ```bash
-cp ../../connectors/.env.example ../../connectors/.env   # y pegá tu token en SLACK_BOT_TOKEN
+claude mcp add playground -- /Users/miguelochoa/Desktop/CREDITOP/playground/bin/pg mcp
 ```
 
-El binario busca `connectors/` subiendo desde donde lo lanzan y, si no, desde donde vive: compilado
-en `bin/`, lo encuentra aunque Claude lo arranque desde otro directorio. Fuera del repo, `PLAYGROUND_ROOT`
-le dice dónde está. Una variable del proceso le gana al archivo.
+`bin/pg` compila el binario si cambió su código y corre desde la raíz, así que encuentra
+`connectors/.env` sin importar desde dónde lo lance Claude. Para quitarlo: `claude mcp remove playground`.
+Agregar una herramienta es agregar un comando a `cmd/pg/registry.go`: la prueba de ese paquete cruza lo
+que el registro declara contra las banderas que el comando acepta.
 
-## 2. Compilar
+## La Slack App (una vez)
 
-```bash
-go build -o bin/slack-mcp ./cmd/slack-mcp
-go build -o bin/jira-mcp ./cmd/jira-mcp
-```
+1. <https://api.slack.com/apps> → **Create New App** → *From scratch*, en el workspace.
+2. **OAuth & Permissions → Bot Token Scopes**: `channels:manage` (canales públicos), `groups:write`
+   (privados), `chat:write` (mensajes) y `channels:history` (leer #tech-ops desde el trazador).
+3. **Install to Workspace** y copiá el **Bot User OAuth Token** (`xoxb-`) a `SLACK_BOT_TOKEN` en
+   `connectors/.env` (plantilla: `connectors/.env.example`).
 
-## 3. Probar suelto (sin Claude)
-
-```bash
-# handshake + listar tools
-printf '%s\n' \
-  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"cli","version":"0"}}}' \
-  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
-  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
-| SLACK_BOT_TOKEN=xoxb-... ./bin/slack-mcp
-```
-
-Para crear un canal de verdad, agrega una llamada `tools/call`:
-
-```json
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"slack_create_channel","arguments":{"name":"prueba-mcp","is_private":false}}}
-```
-
-## 4. Registrar en Claude Code
-
-```bash
-claude mcp add creditop-tools -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/slack-mcp
-claude mcp add creditop-jira -- /Users/miguelochoa/Desktop/CREDITOP/playground/tablero/server/bin/jira-mcp
-```
-
-Luego, en una sesión: *"crea un canal de Slack llamado equipo-loan-origination"*
-y Claude llamará a `slack_create_channel`.
-
-Para quitarlo: `claude mcp remove creditop-tools`.
-
-## Agregar más tools
-
-1. Nuevo método en `connectors/slack/` o `connectors/atlassian/`.
-2. Nueva función `registerXxx(server, client)` en el `tools.go` correspondiente con
-   sus structs de input/output (los tags `jsonschema` documentan cada campo).
-3. Llamarla desde `main.go`.
-
-El schema que ve el modelo se genera solo desde los structs de Go.
+⚠ El token de esta máquina no tiene `channels:history` (medido el 2026-09-24: `missing_scope`).

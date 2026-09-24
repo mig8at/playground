@@ -12,6 +12,9 @@
 //	pg gemini models                                           los modelos que la llave puede usar hoy
 //	pg gemini ask --prompt '…' [--system '…']                  una pregunta, sin herramientas
 //	pg confluence spaces | pages <clave> | read <id> | search <texto>   la documentación de negocio
+//	pg jira myself | search | create | delete                  Jira; las que escriben piden --apply
+//	pg slack post | channel-create | channel-archive           Slack como el bot; piden --apply
+//	pg mcp                                                     todo lo anterior como herramientas MCP
 //
 // `logs raw` existe para las herramientas que ya parsean la respuesta de Loki a su manera (el harness, en
 // TypeScript): conserva su parseo y pierden su cliente HTTP, que es lo que se
@@ -40,48 +43,6 @@ import (
 	"creditop/playground/connectors/logs"
 	dbsql "creditop/playground/connectors/sql"
 )
-
-// command es un verbo de pg. La lista es la fuente de la ayuda (y, más adelante, del catálogo y del
-// servidor MCP): un comando que no está acá no existe.
-type command struct {
-	Name    string `json:"name"`
-	Summary string `json:"summary"`
-	Usage   string `json:"usage"`
-	run     func(args []string) int
-}
-
-var commands []command
-
-func init() {
-	commands = []command{
-		{"sql", "SQL de sólo lectura contra la base del ambiente (MySQL directo; Redash en prod)",
-			"pg sql --target T --query 'SELECT …' [--json | --csv]", runSQL},
-		{"logs", "líneas de Loki del ambiente, legibles o en JSON",
-			"pg logs --target T --query '{…}' [--since 1h | --start … --end …] [--limit N] [--direction forward|backward] [--json]", runLogs},
-		{"logs labels", "los valores de una etiqueta de Loki en la ventana",
-			"pg logs labels --target T --label L [--since 1h | --start … --end …]", runLabels},
-		{"logs config", "qué Loki atiende el ambiente y si se puede leer, sin secretos",
-			"pg logs config --target T", runLogsConfig},
-		{"logs raw", "el cuerpo de Loki tal cual, para quien ya lo parsea (el harness)",
-			"pg logs raw --target T --path query_range|query|labels|label/<x>/values --param k=v …", runLogsRaw},
-		{"events config", "qué PostHog atiende el ambiente y si se puede consultar, sin secretos",
-			"pg events config --target T", runEventsConfig},
-		{"events hogql", "una consulta HogQL de sólo lectura: columnas y filas en JSON",
-			"pg events hogql --target T --query 'SELECT … FROM events …'", runHogQL},
-		{"gemini models", "los modelos de Gemini que la llave puede usar hoy (el configurado, marcado)",
-			"pg gemini models", runGeminiModels},
-		{"gemini ask", "una pregunta a Gemini, sin herramientas: la respuesta en texto",
-			"pg gemini ask --prompt '…' [--system '…']", runGeminiAsk},
-		{"confluence spaces", "los espacios de Confluence (sin los personales)",
-			"pg confluence spaces", runConfluenceSpaces},
-		{"confluence pages", "las páginas de un espacio: id y título",
-			"pg confluence pages <clave>", runConfluencePages},
-		{"confluence read", "una página, como texto: encabezados, listas y tablas legibles",
-			"pg confluence read <id>", runConfluenceRead},
-		{"confluence search", "busca páginas por texto (CQL), hasta 40",
-			"pg confluence search <texto …>", runConfluenceSearch},
-	}
-}
 
 func main() {
 	args := os.Args[1:]
@@ -125,7 +86,11 @@ func help(asJSON bool) int {
 		width = max(width, len(c.Name))
 	}
 	for _, c := range commands {
-		fmt.Printf("  %-*s %s\n  %-*s %s\n\n", width, c.Name, c.Summary, width, "", c.Usage)
+		summary := c.Summary
+		if c.Write {
+			summary += "  ⚠ escribe: sin --apply sólo muestra"
+		}
+		fmt.Printf("  %-*s %s\n  %-*s %s\n\n", width, c.Name, summary, width, "", c.Usage)
 	}
 	return 0
 }
