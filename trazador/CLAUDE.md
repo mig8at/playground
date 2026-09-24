@@ -309,7 +309,7 @@ La medición sí; **la herramienta no**. `## Tarea (publicable)` cambia de idiom
 producción: el 12 % de las solicitudes…»*, nunca el `make trazador-sql`. No es cosmética — nadie más del
 equipo tiene esta herramienta, así que nombrarla manda al lector a algo que no puede correr y hace
 parecer que el dato depende de un juguete personal. El guard del tablero ya frena la palabra
-`trazador` (`tablero/server/internal/guard/guard.go`) y el motivo dice con qué reemplazarla; la regla
+`trazador` (`connectors/guard/guard.go`) y el motivo dice con qué reemplazarla; la regla
 entera está en [`tablero/CLAUDE.md`](../tablero/CLAUDE.md), en «La frontera del guard está DENTRO del
 archivo».
 

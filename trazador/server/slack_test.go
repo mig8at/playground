@@ -10,7 +10,7 @@ func TestReportesSinCategoriaVuelvenConSuTexto(t *testing.T) {
 		{TS: "1758200000.0", Text: "no puede firmar el pagaré, Deceval lo rechaza"},    // categoría conocida
 		{TS: "1758200001.0", Text: "gracias"},                                          // ruido: menos de 4 palabras
 		{TS: "1758200002.0", Text: "el reporte de comisiones sale duplicado este mes"}, // nadie lo cubre
-		{TS: "1758200003.0", Bot: "B123", Text: "alerta automática de un bot cualquiera"},
+		{TS: "1758200003.0", BotID: "B123", Text: "alerta automática de un bot cualquiera"},
 	}
 	hits, sinCat, porCat := clasificarReportes(msgs)
 	if len(hits) != 1 || len(sinCat) != 1 {

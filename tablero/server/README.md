@@ -12,11 +12,11 @@ server/
 ├── cmd/slack-mcp/      # ejecutable: arma el server MCP y registra las tools
 │   ├── main.go         #   wiring (lee token, crea server, corre stdio)
 │   └── tools.go        #   definición de cada tool (input/output + handler)
-├── cmd/jira-mcp/       # ejecutable MCP de Jira
-├── internal/slack/     # cliente HTTP mínimo de la Slack Web API
-    ├── client.go       #   POST genérico con Bearer token
-    └── conversations.go#   conversaciones y mensajes
-└── internal/atlassian/ # cliente Jira Cloud API v3 + Agile
+└── cmd/jira-mcp/       # ejecutable MCP de Jira
+
+connectors/             # en la raíz del playground: los clientes que usan los dos
+├── slack/              #   cliente HTTP mínimo de la Slack Web API
+└── atlassian/          #   cliente Jira Cloud API v3 + Agile
 ```
 
 ## 1. Crear la Slack App y obtener el token
@@ -71,7 +71,7 @@ Para quitarlo: `claude mcp remove creditop-tools`.
 
 ## Agregar más tools
 
-1. Nuevo método en `internal/slack/` o `internal/atlassian/`.
+1. Nuevo método en `connectors/slack/` o `connectors/atlassian/`.
 2. Nueva función `registerXxx(server, client)` en el `tools.go` correspondiente con
    sus structs de input/output (los tags `jsonschema` documentan cada campo).
 3. Llamarla desde `main.go`.

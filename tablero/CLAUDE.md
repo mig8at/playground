@@ -700,7 +700,7 @@ cambió. ⚠ Y su límite conocido: un falso amigo (`taller`, `once`, `red`) pas
       make deploys DIAS=7               qué se desplegó y a qué ambiente
       make deploys FALLAS=1             SÓLO lo que falló, con el error del log — «¿qué se rompió?»
 
-  El `-guard` reusa `internal/guard`, que es la fuente única (la UI compila esos mismos patrones y
+  El `-guard` reusa `connectors/guard`, que es la fuente única (la UI compila esos mismos patrones y
   `issue-create` los aplica al publicar). Correlo ANTES de escribir lo publicable, no después: el
   cuerpo de una tarea NUNCA pasa —nombra el playground, repos y rutas—, y esa es justamente la
   frontera. Que salga con código 1 es a propósito: sirve para frenar, no sólo para informar.

@@ -36,9 +36,9 @@ import (
 	"os"
 	"strings"
 
-	"creditop/playground/tablero/server/internal/atlassian"
+	"creditop/playground/connectors/atlassian"
+	"creditop/playground/connectors/guard"
 	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/guard"
 )
 
 func envDefault(k, def string) string {

@@ -14,7 +14,8 @@ import (
 	"time"
 )
 
-const apiBase = "https://slack.com/api"
+// apiBase es variable para que las pruebas lo apunten a un servidor falso.
+var apiBase = "https://slack.com/api"
 
 // Client habla con la Web API usando un bot token (xoxb-...).
 type Client struct {

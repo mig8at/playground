@@ -18,19 +18,19 @@ import (
 	"strings"
 	"time"
 
+	"creditop/playground/connectors/atlassian"
+	"creditop/playground/connectors/canon"
+	"creditop/playground/connectors/guard"
 	"creditop/playground/connectors/repos"
-	"creditop/playground/tablero/server/internal/atlassian"
-	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/connectors/slack"
 	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/guard"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/slack"
 	"creditop/playground/tablero/server/internal/store"
 )
 
 // ── guard: lo que se registra termina en Jira, y no puede filtrar el playground ─────────────────
-// Los patrones se movieron a `internal/guard` para que sigan siendo UNA sola fuente ahora que
+// Los patrones se movieron a `connectors/guard` para que sigan siendo UNA sola fuente ahora que
 // también los necesita `cmd/issue-create` (publicar por consola sin el guard sería un agujero en el
 // control, y copiarlos acá era la tercera copia que este comentario venía advirtiendo).
 // Acá los aplica el aviso a QA antes de mandar el DM; la UI muestra los `problems` que vuelven.
@@ -137,7 +137,7 @@ func importedBody(d atlassian.IssueDetail, today string) string {
 	return b.String()
 }
 
-// violations devuelve qué reglas rompe una nota (vacío = publicable). Delega en `internal/guard`,
+// violations devuelve qué reglas rompe una nota (vacío = publicable). Delega en `connectors/guard`,
 // que es la fuente única compartida con `cmd/issue-create`.
 func violations(note string) []map[string]string { return guard.Violations(note) }
 

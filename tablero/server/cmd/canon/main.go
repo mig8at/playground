@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/connectors/canon"
 )
 
 func main() {

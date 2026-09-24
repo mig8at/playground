@@ -14,16 +14,16 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"creditop/playground/connectors/slack"
 )
 
 // canalTechOps es donde el equipo reporta incidentes.
@@ -84,15 +84,8 @@ var categorias = []categoria{
 		"fuera", "es investigación, no diagnóstico técnico: el trazador puede dar la evidencia pero no resuelve"},
 }
 
-type mensajeSlack struct {
-	TS   string `json:"ts"`
-	User string `json:"user"`
-	Text string `json:"text"`
-	Bot  string `json:"bot_id"`
-	// ReplyCount: cuántas respuestas tiene el hilo. Es el filtro más útil del canal — un reporte SIN
-	// respuestas nunca se resolvió ahí, así que no sirve para contrastar «qué contestó el humano».
-	ReplyCount int `json:"reply_count"`
-}
+// mensajeSlack es el mensaje del conector; el alias conserva el nombre con que lo usa este archivo.
+type mensajeSlack = slack.Message
 
 // hit es un reporte ya clasificado —o sin clasificar, que es el caso que importa acá.
 type hit struct {
@@ -115,7 +108,7 @@ func clasificarReportes(msgs []mensajeSlack) (hits, sinCat []hit, porCat map[str
 	for _, m := range msgs {
 		// Un reporte = un mensaje que describe un síntoma. Se descartan los de una línea sin verbo (los
 		// «gracias», los «dale», las cédulas sueltas) porque inflarían el conteo sin ser incidentes.
-		if m.Bot != "" || len(strings.Fields(m.Text)) < 4 {
+		if m.BotID != "" || len(strings.Fields(m.Text)) < 4 {
 			continue
 		}
 		encontrada := ""
@@ -222,47 +215,7 @@ func modoSlack(dias int, listarSin bool) int {
 }
 
 func leerCanal(token, canal string, desde time.Time) ([]mensajeSlack, error) {
-	var todos []mensajeSlack
-	cursor := ""
-	hc := &http.Client{Timeout: 30 * time.Second}
-	for pagina := 0; pagina < 12; pagina++ {
-		q := url.Values{
-			"channel": {canal},
-			"limit":   {"200"},
-			"oldest":  {strconv.FormatInt(desde.Unix(), 10)},
-		}
-		if cursor != "" {
-			q.Set("cursor", cursor)
-		}
-		req, _ := http.NewRequest("GET", "https://slack.com/api/conversations.history?"+q.Encode(), nil)
-		req.Header.Set("Authorization", "Bearer "+token)
-		resp, err := hc.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		var body struct {
-			OK       bool           `json:"ok"`
-			Error    string         `json:"error"`
-			Messages []mensajeSlack `json:"messages"`
-			Meta     struct {
-				Next string `json:"next_cursor"`
-			} `json:"response_metadata"`
-		}
-		err = json.NewDecoder(resp.Body).Decode(&body)
-		resp.Body.Close()
-		if err != nil {
-			return nil, err
-		}
-		if !body.OK {
-			return nil, fmt.Errorf("slack: %s", body.Error)
-		}
-		todos = append(todos, body.Messages...)
-		cursor = body.Meta.Next
-		if cursor == "" {
-			break
-		}
-	}
-	return todos, nil
+	return slack.New(token).History(context.Background(), canal, desde, 12)
 }
 
 func tsAt(ts string) time.Time {
@@ -277,30 +230,7 @@ func tsAt(ts string) time.Time {
 //
 // Sólo lectura, igual que el resto de este archivo: `conversations.replies` no escribe nada.
 func leerHilo(token, canal, ts string) ([]mensajeSlack, error) {
-	q := url.Values{"channel": {canal}, "ts": {ts}, "limit": {"60"}}
-	req, _ := http.NewRequest("GET", "https://slack.com/api/conversations.replies?"+q.Encode(), nil)
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := (&http.Client{Timeout: 30 * time.Second}).Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	var body struct {
-		OK       bool           `json:"ok"`
-		Error    string         `json:"error"`
-		Messages []mensajeSlack `json:"messages"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, err
-	}
-	if !body.OK {
-		return nil, fmt.Errorf("slack replies: %s", body.Error)
-	}
-	// La primera es el mensaje original; las respuestas son el resto.
-	if len(body.Messages) > 0 {
-		return body.Messages[1:], nil
-	}
-	return nil, nil
+	return slack.New(token).Replies(context.Background(), canal, ts, 60)
 }
 
 // modoIncidencias vuelca los reportes CON SU HILO, para leerlos y juzgar de verdad si el trazador los
@@ -327,7 +257,7 @@ func modoIncidencias(dias int) int {
 	fmt.Printf("\n  %s\n\n", bold(fmt.Sprintf("── INCIDENCIAS CON SU HILO · últimos %d días ──", dias)))
 	for _, m := range msgs {
 		// Con hilo y con cuerpo: un reporte sin respuestas no se resolvió acá y no sirve para contrastar.
-		if m.Bot != "" || m.ReplyCount == 0 || len(strings.Fields(m.Text)) < 5 {
+		if m.BotID != "" || m.ReplyCount == 0 || len(strings.Fields(m.Text)) < 5 {
 			continue
 		}
 		n++
@@ -339,7 +269,7 @@ func modoIncidencias(dias int) int {
 			fmt.Printf("     %s\n", gray("(no pude leer el hilo: "+err.Error()+")"))
 		}
 		for _, r := range rs {
-			if r.Bot != "" || len(strings.Fields(r.Text)) < 2 {
+			if r.BotID != "" || len(strings.Fields(r.Text)) < 2 {
 				continue
 			}
 			fmt.Printf("     %s %s\n", paint("32", "→"), limpio(r.Text))

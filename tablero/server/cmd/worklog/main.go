@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/guard"
+	"creditop/playground/connectors/guard"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/pulse"
 	"creditop/playground/tablero/server/internal/store"

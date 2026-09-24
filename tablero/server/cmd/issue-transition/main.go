@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"creditop/playground/tablero/server/internal/atlassian"
+	"creditop/playground/connectors/atlassian"
 	"creditop/playground/tablero/server/internal/env"
 )
 

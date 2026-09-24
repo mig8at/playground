@@ -7,7 +7,7 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"creditop/playground/tablero/server/internal/atlassian"
+	"creditop/playground/connectors/atlassian"
 )
 
 // --- jira_myself ---

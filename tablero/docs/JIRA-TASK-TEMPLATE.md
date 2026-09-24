@@ -6,7 +6,7 @@ nivel de negocio/funcional, **no** a nivel de código, enfocada en **cómo y dó
 
 > **Se escribe en Markdown.** La API v3 de Jira no acepta Markdown ni HTML: guarda ADF
 > (Atlassian Document Format). El tablero renderiza este subconjunto de Markdown a ADF
-> (`internal/atlassian/jira.go` → `mdToADF`): `## encabezados`, `**negrita**`, `- viñetas`,
+> (`connectors/atlassian/jira.go` → `mdToADF`): `## encabezados`, `**negrita**`, `- viñetas`,
 > `- [ ] checklist` (checkboxes reales), `1.` numeradas y `[texto](url)` / URLs → links.
 
 > **Guard:** esto va a Jira. No mencionar repos, rutas de archivo, el playground ni

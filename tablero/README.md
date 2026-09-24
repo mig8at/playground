@@ -216,7 +216,7 @@ Para quitarlos: `claude mcp remove creditop-jira`.
 
 ### Agregar una tool
 
-1. Método nuevo en `internal/slack/` o `internal/atlassian/`.
+1. Método nuevo en `connectors/slack/` o `connectors/atlassian/`.
 2. `registerXxx(server, client)` en el `tools.go` correspondiente, con structs de input/output — los tags
    `jsonschema:"..."` son lo que el modelo ve como descripción de cada campo.
 3. Llamarla desde `main.go`. El schema se genera solo desde los structs de Go.
@@ -320,7 +320,7 @@ playground ni F-xx).
 - Tono: **de usted** (no tutear), coloquial y corto, con el link a Jira. Ej.: *"Perrito 🐶 le dejé una tarea… échele ojo que al firmar llegue palomeado 👉 <link>"*.
 - **Precondición:** el evaluador tiene que tener **cómo validar** lo que se le pide (ej. ver los documentos firmados). Si no, el ping llega pero la validación se traba — resolverlo antes de pasar a "En pruebas".
 
-> La descripción se **escribe en Markdown y se renderiza a ADF** (`mdToADF` en `internal/atlassian/jira.go`):
+> La descripción se **escribe en Markdown y se renderiza a ADF** (`mdToADF` en `connectors/atlassian/jira.go`):
 > la API v3 de Jira no acepta MD/HTML, guarda ADF. Se soporta `##` encabezados, `**negrita**`, `-` viñetas,
 > `- [ ]` checklist (checkboxes reales), `1.` numeradas y links.
 >
@@ -480,7 +480,7 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
 - `taskKey` puede ir vacío (`freeTitle` dice qué fue): reuniones y soporte no son tareas del sprint, y
   forzarlos a una envenena el análisis.
 - La `note` es **publicable por construcción**: `make bitacora-add` le pasa el guard (fuente única en
-  `internal/guard`) **antes** de escribir.
+  `connectors/guard`) **antes** de escribir.
 - Borrado **suave** (`deletedAt`): existe para recuperación administrativa; la pila visible no ofrece
   borrado ni edición.
 

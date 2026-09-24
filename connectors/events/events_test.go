@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"creditop/playground/connectors/internal/repocheck"
 )
 
 // Los ambientes que no escriben lo dicen, y un token de escritura o un ambiente vacío no se consultan.
@@ -103,35 +103,8 @@ func TestLoadConfigReadsTheConnectorsFile(t *testing.T) {
 // Un cliente de PostHog fuera de `connectors/` es cómo empezó la deriva: el trazador y el harness tenían
 // cada uno el suyo, y las reglas de qué ambiente no escribe sólo las sabía uno.
 func TestNoOtherPostHogClientInTheRepo(t *testing.T) {
-	root, _ := filepath.Abs("../..")
-	out, err := exec.Command("git", "-C", root, "ls-files", "-co", "--exclude-standard").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	code := regexp.MustCompile(`\.(go|ts|mjs|js|py)$`)
-	comment := regexp.MustCompile(`^\s*(//|#|\*|/\*)`)
 	client := regexp.MustCompile(`posthog\.com/api|/api/projects/|/query/`)
-	var offenders []string
-	scanned := 0
-	for _, rel := range strings.Split(string(out), "\n") {
-		if !code.MatchString(rel) || strings.HasPrefix(rel, "connectors/") || strings.Contains(rel, "node_modules/") {
-			continue
-		}
-		raw, err := os.ReadFile(filepath.Join(root, rel))
-		if err != nil {
-			continue
-		}
-		scanned++
-		for i, line := range strings.Split(string(raw), "\n") {
-			if client.MatchString(line) && !comment.MatchString(line) {
-				offenders = append(offenders, rel+":"+strconv.Itoa(i+1))
-			}
-		}
-	}
-	if scanned < 100 {
-		t.Fatalf("sólo recorrí %d archivos", scanned)
-	}
-	if len(offenders) > 0 {
-		t.Errorf("hay clientes de PostHog fuera de connectors/ (usá connectors/events, o `bin/pg events`): %v", offenders)
+	if offenders := repocheck.Offenders(t, client, nil); len(offenders) > 0 {
+		t.Errorf("hay clientes de PostHog fuera de connectors/ (usá connectors/events, o `bin/pg events` desde otro lenguaje): %v", offenders)
 	}
 }

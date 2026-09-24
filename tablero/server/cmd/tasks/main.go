@@ -15,7 +15,7 @@
 //	go run ./cmd/tasks -json                la lista resumida, para encadenar
 //	go run ./cmd/tasks -n <slug> -json      una tarea en el contrato tipado tablero.task.v2
 //
-// El `-guard` reusa `internal/guard`, que es la fuente única: la UI compila esos mismos patrones y
+// El `-guard` reusa `connectors/guard`, que es la fuente única: la UI compila esos mismos patrones y
 // `issue-create` los aplica antes de publicar. Reimplementarlos acá habría sido la cuarta copia, y
 // el propio paquete advierte que dos ya habrían derivado.
 package main
@@ -34,9 +34,9 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/connectors/canon"
+	"creditop/playground/connectors/guard"
 	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/guard"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
 	"creditop/playground/tablero/server/internal/taskcontext"

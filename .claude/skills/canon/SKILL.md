@@ -27,7 +27,7 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 4. En una tarea, lo que se usó se cita en su bloque como `[texto](canon:tema#ancla)` y el tema entra a
    `canon:` del frontmatter.
 
-Los comandos son `tablero/server/cmd/canon` (Go, sobre el cliente `internal/canon` del tablero). Para
+Los comandos son `tablero/server/cmd/canon` (Go, sobre el conector `connectors/canon`). Para
 Python, `tools/canon.py` da `maps()`, `prose()`, `files_by_topic()`, `topics_by_repo()` y
 `tables_by_topic()`: no lee canon, se lo pide a `canon corpus`, así que hay un solo cliente.
 

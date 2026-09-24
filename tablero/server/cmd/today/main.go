@@ -38,7 +38,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/canon"
+	"creditop/playground/connectors/canon"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/store"
