@@ -8,8 +8,6 @@
 //   4. autorización → Estado 11      → POST /loans/requests/promissory-note/validate/authorize {user_request_id, otp_id}
 // Verifica user_request_status_id=11 (mismo criterio que backend-e2e). Tras esto el backend dispara el
 // webhook a la tienda; se verifica aparte. Best-effort + logueado: cada paso reporta el HTTP/estado.
-import { join } from 'node:path';
-import type { Page } from '@playwright/test';
 import { config } from './config.ts';
 import { exec, scalar, one, env, assertWriteAllowed } from './db.ts';
 import { requestStatus11 } from './inject.ts';
@@ -120,88 +118,6 @@ export async function closeCreditopX(uReqID: number, opts: { lender?: string } =
     const st = await requestStatus11(uReqID);
     log(`estado final: user_request_status_id=${st.statusId ?? '?'}${st.sealed11 ? ' → Estado 11 ✓' : ''}`);
     return { trace, statusId: st.statusId, sealed11: st.sealed11 };
-}
-
-export interface UiSelectResult { advanced: boolean; landing: string; note: string; }
-
-/**
- * Paso VISUAL (preview/headed): maneja la UI real del marketplace como un humano — elige cuotas/plazo,
- * (cuota inicial si la pide) y clickea "Validar Pre aprobado" del lender. Dispara el selectLender real;
- * para Creditop X (rt=2) el backend responde standBy → el wizard redirige a /confirmation (FIX A).
- * Best-effort y nunca lanza: si algo de la UI no está, lo nota y el cierre por API toma el relevo.
- * Hasta acá se puede mostrar; lo que sigue (ADO/identidad) no es automatizable, lo sella el authorize.
- */
-export async function driveLenderSelectionUI(page: Page, opts: { lender: string; shotDir?: string }): Promise<UiSelectResult> {
-    const shot = async (n: string) => { if (opts.shotDir) await page.screenshot({ path: join(opts.shotDir, n), fullPage: true }).catch(() => {}); };
-    const before = new URL(page.url()).pathname;
-    const acctRx = /validar pre.?aprobado|activar mi cr[eé]dito/i;
-    // id + nombre DISPLAY del lender (para el testid del toggle Y para matchear el texto del marketplace).
-    // El marketplace muestra el nombre CON acentos ("Sistecrédito"); armar el regex del slug sin acento
-    // ("sistecredito") NO matchea (regex JS es accent-sensitive). El LIKE de MySQL sí es accent-insensitive
-    // (collation) → resolvemos el nombre real y armamos el rx con \p{L} (unicode, flag u) para conservar la é.
-    const lrow = await one<{ id: number; name: string }>('SELECT id, name FROM lenders WHERE status=1 AND (CAST(id AS CHAR)=? OR name LIKE ?) ORDER BY id LIMIT 1', [opts.lender, '%' + opts.lender + '%']).catch(() => null);
-    const lid = lrow?.id ?? null;
-    const rx = new RegExp((lrow?.name ?? opts.lender).replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).filter(Boolean).join('.*'), 'iu');
-    await shot('ui-01-lenders.png');
-
-    // 1. ubicar el lender OBJETIVO por nombre (puede NO ser el recomendado: estar más abajo y colapsado).
-    const name = page.getByText(rx).first();
-    if (!(await name.isVisible({ timeout: 8000 }).catch(() => false))) {
-        await shot('ui-04-sincard.png');
-        return { advanced: false, landing: before, note: `no encontré la tarjeta de "${opts.lender}" en el marketplace` };
-    }
-    await name.scrollIntoViewIfNeeded().catch(() => {});
-    // tarjeta del lender objetivo = contenedor con SU nombre + un CTA (scope para NO tocar el recomendado).
-    const cardOf = () => page.locator('div').filter({ hasText: rx }).filter({ has: page.getByRole('button', { name: acctRx }) }).last();
-    let acct = cardOf().getByRole('button', { name: acctRx }).first();
-    if (!(await acct.isVisible({ timeout: 1500 }).catch(() => false))) {
-        // colapsado (ej. "Otras opciones disponibles") → expandir. Preferimos el data-testid del toggle
-        // (lender-toggle-{id}); si no está (deploy sin el testid), fallback al header-button por texto.
-        const byTestId = lid ? page.getByTestId(`lender-toggle-${lid}`).first() : null;
-        const header = byTestId && (await byTestId.isVisible({ timeout: 2500 }).catch(() => false))
-            ? byTestId
-            : page.getByRole('button').filter({ hasText: rx }).first();
-        await header.scrollIntoViewIfNeeded().catch(() => {});
-        await header.click({ timeout: 4000 }).catch(() => {});
-        await page.waitForTimeout(900);
-        acct = cardOf().getByRole('button', { name: acctRx }).first();
-        await acct.scrollIntoViewIfNeeded().catch(() => {});
-    }
-    await shot('ui-02-card.png');
-
-    // 2. cuota inicial (solo si la pide y está vacía) — best-effort; los rt=0/rt=1 no la exigen.
-    const fee = page.locator('#initial-fee-input');
-    if (await fee.isVisible({ timeout: 1500 }).catch(() => false)) {
-        const cur = await fee.inputValue().catch(() => '');
-        if (!/\d/.test(cur)) {
-            const minTxt = await page.getByText(/cuota inicial m[ií]nima/i).first().textContent({ timeout: 1500 }).catch(() => '');
-            const minVal = (minTxt?.match(/(\d[\d.,]*)/)?.[1] ?? '90000').replace(/[.,]/g, '');
-            await fee.click().catch(() => {});
-            await fee.fill(minVal).catch(() => {});
-        }
-    }
-    await shot('ui-03-seleccion.png');
-
-    // 3. clickear el CTA DENTRO de la tarjeta del lender objetivo (dispara el selectLender real de ESE lender).
-    if (!(await acct.isVisible({ timeout: 3000 }).catch(() => false))) {
-        await shot('ui-04-sincta.png');
-        return { advanced: false, landing: before, note: `no encontré el botón de selección de "${opts.lender}"` };
-    }
-    await acct.scrollIntoViewIfNeeded().catch(() => {});
-    await acct.click({ timeout: 5000 }).catch(() => {});
-
-    // 4. esperar la respuesta: navegación fuera de /lenders (→ /confirmation por FIX A, o externo) o modal.
-    await Promise.race([
-        page.waitForURL((u) => !u.pathname.includes('/lenders'), { timeout: 15000 }).catch(() => { }),
-        page.getByRole('dialog').first().waitFor({ state: 'visible', timeout: 15000 }).catch(() => { }),
-    ]);
-    await page.waitForTimeout(1200);
-    await shot('ui-05-tras-seleccion.png');
-
-    const after = new URL(page.url()).pathname;
-    const dialog = await page.getByRole('dialog').first().isVisible().catch(() => false);
-    const advanced = after !== before || dialog;
-    return { advanced, landing: dialog ? `${after} (modal)` : after, note: advanced ? 'selección enviada por UI' : 'el CTA no avanzó (sigue por API)' };
 }
 
 /** Simula el webhook de finalización de un AGREGADOR (Bancolombia/Sistecrédito/…) vía el endpoint

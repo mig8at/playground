@@ -47,7 +47,7 @@
 process.env.E2E_TARGET ||= 'local';
 export {};
 
-const { FrontSession, FORBIDDEN } = await import('../pkg/front.ts');
+const { FrontSession } = await import('../pkg/front.ts');
 const { one, exec, close, TARGET, writeLines, dumpWrites } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { config, docGenNotice, backendLogsNotice } = await import('../pkg/config.ts');

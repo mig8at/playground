@@ -16,8 +16,7 @@
 // (`NOW()`, `COALESCE`) sigue yendo por ahí, y está bien — envolverlo en un builder sería cambiar SQL
 // legible por una capa que hay que aprender. Esto cubre los dos casos donde el SQL a mano se equivoca
 // caro, y deja el resto en paz.
-import type { PoolConnection } from 'mysql2/promise';
-import { assertWriteAllowed, withWritesLabel, isLocalDb, exec, scalar, TARGET, withConnection } from './db.ts';
+import { assertWriteAllowed, withWritesLabel, isLocalDb, exec, scalar, TARGET } from './db.ts';
 
 /** Identificadores: sólo nombres de tabla/columna reales. No vienen de afuera, pero un typo con
  *  backticks produce SQL raro y el error se lee lejos del origen. */
@@ -37,31 +36,6 @@ function ident(name: string, what: string): string {
 export async function withWrite<T>(name: string, fn: () => Promise<T>): Promise<T> {
       assertWriteAllowed(name);
       return withWritesLabel(name, fn);
-}
-
-/**
- * Igual, pero TODO O NADA: corre sobre una conexión dedicada, con transacción.
- *
- * ⚠ Es para código NUEVO. El `exec()` del módulo usa el pool, así que una escritura que llame a `exec`
- * adentro de esto **no entra en la transacción** — iría por otra conexión. Por eso el callback recibe
- * la conexión: lo que tiene que ser atómico se escribe con ella (`c.query(...)`). Prometer atomicidad
- * y no darla sería peor que no tenerla.
- */
-export async function withWriteTx<T>(name: string, fn: (c: PoolConnection) => Promise<T>): Promise<T> {
-      assertWriteAllowed(name);
-      return withWritesLabel(name, async () => {
-            return withConnection(async (c) => {
-                  await c.beginTransaction();
-                  try {
-                        const out = await fn(c);
-                        await c.commit();
-                        return out;
-                  } catch (e) {
-                        await c.rollback().catch(() => {});
-                        throw e;
-                  }
-            });
-      });
 }
 
 export interface DeletionOpts {

@@ -19,8 +19,7 @@
 process.env.E2E_TARGET ||= 'local';
 export {};
 
-const { one, query, exec, close, appKey } = await import('../pkg/db.ts');
-const { encryptLaravelString } = await import('../pkg/laravel-crypt.ts');
+const { one, query, exec, close } = await import('../pkg/db.ts');
 
 const TEMPLATE_ROW = 170;                       // Motai RB: mismo comercio, producto `rto`
 const HOLDER_TYPE = 1, COSIGNER_TYPE = 3;

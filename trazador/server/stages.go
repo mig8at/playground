@@ -127,18 +127,6 @@ func evidence(source, sqlText string, args []any, rows ...string) *Evidence {
 	return &Evidence{Source: source, SQL: q, Rows: clean}
 }
 
-// order es la secuencia canónica. `origen` es un agregado del pedido de Miguel: no es una etapa del
-// backend sino de dónde entró el cliente, y hoy NO está en los logs — se deduce de la BD (canal/comercio).
-var order = []struct{ id, label string }{
-	{"origen", "Origen"},
-	{"registro", "Registro y OTP"},
-	{"formulario", "Formulario de perfil"},
-	{"cupo", "Cupo / POS"},
-	{"listado", "Listado de entidades"},
-	{"seleccion", "Selección de entidad"},
-	{"desembolso", "Desembolso"},
-}
-
 // stageStatus / closingStatus / stoppingStatus se derivan del MAPA (etapas.json → bd.estados/cierran/
 // detienen) al entrar a ensamblar. Vivían hardcodeados acá y `Mapa.StageStatus()` era código muerto:
 // cero call sites, así que editar el JSON no cambiaba nada — el peor tipo de mentira, la que no falla.

@@ -84,12 +84,11 @@ export {};
 process.env.E2E_TARGET ||= 'local';
 process.env.CFE_TARGET ||= 'local';
 
-const { execFile } = await import('node:child_process');
 // El desenlace que llega de afuera (rt=0 y rt=1) vive en `pkg/`: lo usan este runner y el panel, y dos
 // definiciones de «cómo contesta una entidad» derivarían hacia estados distintos.
-const { integrationWebhook, webhookSelfManager, WELLI_IDS, WEBHOOK_STATUSES, OLD_APP } =
+const { integrationWebhook, webhookSelfManager, WELLI_IDS, OLD_APP } =
     await import('../pkg/entity-webhook.ts');
-const { scalar, one, query, exec, close } = await import('../pkg/db.ts');
+const { scalar, one, exec, close } = await import('../pkg/db.ts');
 const { synthFill, manualValidation } = await import('../pkg/inject.ts');
 const { config: e2eConfig } = await import('../pkg/config.ts');
 const { appKey } = await import('../pkg/db.ts');
@@ -548,21 +547,6 @@ type Res = {
                /** Resultado del webhook de la entidad, si el caso lo pidió con `@webhook=`. */
                webhook?: string };
 };
-
-/** Clasifica por los MISMOS campos que mira el front (mismo criterio que `sweep.ts`). */
-function behaviorOf(d: any): string {
-    if (!d) return 'sin data';
-    if (d.standBy) return 'standBy (in-platform)';
-    if (d.showModal) return 'modal (autogestión)';
-    /* El SOBRE a postear va ANTES de `url`, porque cuando el back lo incluye manda `url` en NULL: las
-       integraciones que se entregan por POST (hoy BCP) caían en «continúa sin bifurcar» y el harness
-       reportaba que no había bifurcación donde sí la hay. Mismo orden que el front, que también mira
-       el sobre antes de la url por el mismo motivo. */
-    if (d.postRedirect) return `envío por POST (${d.postRedirect.action ? new URL(d.postRedirect.action).host : 'sin action'})`;
-    if (d.url) return `redirect externo`;
-    if (d.otp || d.otpId) return 'OTP del lender';
-    return 'continúa sin bifurcar';
-}
 
 /** Elige un teléfono de bypass LIMPIO (sin usuario) del setting `qa_otp_bypass_phones`. El OTP es
  *  sus últimos 4 dígitos. Se saltea el de `mock_rules`, que iría al fixture. */

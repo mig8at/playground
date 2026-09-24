@@ -2,7 +2,7 @@
 // directo en el user_request del wizard, para que /lenders ofrezca sin volver a llamar centrales.
 // Port 1:1 de backend-mcp opSynthFill + deriveSynthReq + db.go (setSynthIdentity/injectSummary/
 // injectIncomeFields/injectDatacredito/datacreditoData). harness ya no shellea al mcp.
-import { query, one, scalar, exec, appKey, assertWriteAllowed, withSeedScope, TARGET } from './db.ts';
+import { query, one, scalar, exec, appKey, withSeedScope, TARGET } from './db.ts';
 import { encryptLaravelString } from './laravel-crypt.ts';
 
 export interface SynthReq {
@@ -445,16 +445,6 @@ export async function requestStatus11(uReqID: number): Promise<RequestState> {
     const statusId = await scalar<number>('SELECT user_request_status_id FROM user_requests WHERE id=?', [uReqID]);
     const cx = await scalar<number>('SELECT COUNT(*) AS n FROM creditop_x_user_requests_records WHERE user_request_id=?', [uReqID]);
     return { statusId: statusId ?? null, sealed11: Number(statusId) === 11, creditopXRecords: Number(cx) || 0 };
-}
-
-/** Bypass del PAGO de cuota inicial (Wompi) en dev: fuerza la transacción a APPROVED (status_id=22 del
- *  lender Wompi #52) — equivalente dev de merchant/seed.ts::approvePaymentTransaction (que usa docker/SQL
- *  local). El down-payment-validation poll-ea check-status → is_approved → sigue el cierre in-platform. */
-export async function approvePaymentTx(txId: number): Promise<number> {
-    if (!txId) return 0;
-    assertWriteAllowed();
-    const res = await exec('UPDATE payment_gateway_transactions SET status_id=22 WHERE id=?', [txId]);
-    return res.affectedRows;
 }
 
 /** LA VALIDACIÓN MANUAL DE IDENTIDAD, que es lo que un humano aprieta en el admin cuando mira los

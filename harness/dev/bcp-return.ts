@@ -44,7 +44,7 @@ process.env.E2E_TARGET ||= 'local';
 export {};
 
 const { FrontSession } = await import('../pkg/front.ts');
-const { one, exec, close, TARGET } = await import('../pkg/db.ts');
+const { one, close, TARGET } = await import('../pkg/db.ts');
 const { branchPhone } = await import('../pkg/phones.ts');
 const { config } = await import('../pkg/config.ts');
 

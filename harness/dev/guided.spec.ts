@@ -1345,7 +1345,6 @@ test('guided (semiautomático)', async ({ browser }) => {
 
     // detectar TU selección: o navega fuera de /lenders (CreditopX in-platform / redirect), o aparece un modal
     // (self-management WhatsApp). Carrera con timeout largo (esperamos tu acción).
-    const lendersPath = hereOf(page);
     await Promise.race([
         page.waitForURL((u) => !u.pathname.includes('/lenders'), { timeout: PICK_TIMEOUT }).catch(() => {}),
         page.getByRole('dialog').first().waitFor({ state: 'visible', timeout: PICK_TIMEOUT }).catch(() => {}),

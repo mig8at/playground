@@ -72,11 +72,10 @@ interface Case {
 interface Suite { nombre?: string; porDefecto?: Partial<Case>; casos: Case[] }
 
 // ── salida ─────────────────────────────────────────────────────────────────────────────────────
-const V = '\x1b[32m', R = '\x1b[31m', A = '\x1b[33m', N = '\x1b[0m', B = '\x1b[1m';
+const V = '\x1b[32m', R = '\x1b[31m', N = '\x1b[0m', B = '\x1b[1m';
 let failures = 0;
 const ok = (t: string, d = '') => console.log(`    ${V}✓${N} ${t}${d ? ` · ${d}` : ''}`);
 const bad = (t: string, d = '') => { failures++; console.log(`    ${R}✗${N} ${t}${d ? ` · ${d}` : ''}`); };
-const note = (t: string) => console.log(`    ${A}·${N} ${t}`);
 
 /**
  * El porqué de un fallo HTTP, no sólo el número.

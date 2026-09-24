@@ -68,7 +68,6 @@ const { corbetaBranch, qrEntryUrl, bancolombiaEncryptCode } = await import('../p
 const trace = await import('../pkg/trace.ts');
 
 const API = e2eConfig.mockUrl;
-const WIZARD = e2eConfig.feBaseUrl;
 const MOCK_CORBETA = `http://localhost:${process.env.MOCK_CORBETA_PORT || 8103}`;
 const PHONE = '3131010101';
 const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1';

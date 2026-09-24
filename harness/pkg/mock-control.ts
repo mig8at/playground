@@ -49,12 +49,3 @@ export async function injectFakeScenario(
         await route.continue({ headers });
     });
 }
-
-/**
- * Genera un identificador único para evitar colisiones de estado en el mock
- * (mismo número de documento ya registrado, mismo teléfono con OTP previo,
- * etc.). Cada test usa su propio sufijo y queda aislado.
- */
-export function uniqueSuffix(): string {
-    return Math.floor(Math.random() * 1_000_000).toString().padStart(6, '0');
-}

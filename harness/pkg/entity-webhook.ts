@@ -64,15 +64,6 @@ export function inRow<T>(task: () => Promise<T>): Promise<T> {
     return nextOne;
 }
 
-/** Los estados que cada familia puede responder, con el estado de solicitud al que mapean HOY.
- *  ⚠ Es el mapa de `legacy-application`, que NO coincide con el que ya está escrito en
- *  `legacy-backend`: `pendiente_desembolso` da 28 acá y está como 11 allá. Cuando el webhook migre,
- *  ese desenlace cambia. */
-export const WEBHOOK_STATUSES = {
-    rt1: [['fulfilled', 11], ['pendiente_desembolso', 28], ['rejected', 6], ['dismissed', 8]],
-    rt0: [['completed', 11], ['failed', 6], ['cancelled', 7]],
-} as const;
-
 /** ¿Esta entidad puede recibir un webhook, y de cuál de las dos formas? */
 export async function webhookFamily(lenderId: number): Promise<'rt0' | 'rt1' | null> {
     const l = await one<{ rt: number; a: string | null }>(

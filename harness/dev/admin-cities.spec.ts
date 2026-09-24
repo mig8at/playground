@@ -4,7 +4,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { adminCreds } from '../pkg/config';
 import { openA } from '../pkg/windows';
-import { query, close } from '../pkg/db';
+import { query } from '../pkg/db';
 
 /**
  * `make harness-admin-ciudades` — el selector de ciudad del admin filtra por el país del comercio.

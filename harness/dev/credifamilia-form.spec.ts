@@ -9,7 +9,6 @@
 // Correr: I_KNOW_THIS_TOUCHES_SHARED_DEV=1 E2E_TARGET=dev npx playwright test dev/credifamilia-form.spec.ts --reporter=line
 import { test } from '@playwright/test';
 import { config } from '../pkg/config';
-import { cognitoStorageState } from '../pkg/cognito';
 import { exec, close } from '../pkg/db';
 import { IPHONE_UA } from '../pkg/windows';
 

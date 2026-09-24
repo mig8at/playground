@@ -43,12 +43,6 @@
  */
 import { expect, type Page } from '@playwright/test';
 
-async function typeInto(page: Page, testId: string, value: string): Promise<void> {
-    const locator = page.getByTestId(testId);
-    await locator.click();
-    await locator.pressSequentially(value, { delay: 50 });
-}
-
 export async function fillAmountStep(
     page: Page,
     amount = '1500000',

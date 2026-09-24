@@ -43,7 +43,7 @@
 //
 // Se apaga con `E2E_AUTORELLENO=0`.
 import { readFileSync } from 'node:fs';
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext } from '@playwright/test';
 import { syntheticDates, injectableSource } from './date-trio.ts';
 
 export interface AutofillData {
@@ -117,13 +117,6 @@ export async function installAutofill(context: BrowserContext, data = envData())
     if (process.env.E2E_AUTORELLENO === '0') return;
     await context.addInitScript({ content: injectableSource() });
     await context.addInitScript(script, data);
-}
-
-/** Para un `Page` suelto (specs que no pasan por `openWindow`). */
-export async function installAutofillOnPage(page: Page, data = envData()): Promise<void> {
-    if (process.env.E2E_AUTORELLENO === '0') return;
-    await page.addInitScript({ content: injectableSource() });
-    await page.addInitScript(script, data);
 }
 
 /* ── EL GUION QUE CORRE EN LA PÁGINA ────────────────────────────────────────────────────────────────

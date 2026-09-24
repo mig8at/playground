@@ -71,18 +71,6 @@ export function bancolombiaEncryptCode(userRequestId: number, branchHash: string
     return combined.toString(36).toUpperCase();
 }
 
-/** Deshace `bancolombiaEncryptCode` — espejo del decoder del front, para poder assertear. */
-export function decodeBancolombiaCode(code: string): { userRequestId: number; crc: number } | null {
-    if (!/^[0-9A-Z]+$/i.test(code)) return null;
-    let acc = 0n;
-    for (const ch of code.toUpperCase()) {
-        const d = ch >= '0' && ch <= '9' ? ch.charCodeAt(0) - 48 : ch.charCodeAt(0) - 55;
-        if (d < 0 || d > 35) return null;
-        acc = acc * 36n + BigInt(d);
-    }
-    return { userRequestId: Number(acc >> 32n), crc: Number(acc & 0xffffffffn) };
-}
-
 /**
  * Elige una sucursal Corbeta usable para el canal.
  *

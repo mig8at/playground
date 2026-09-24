@@ -348,8 +348,6 @@ export async function forensic(c: LokiConfig, ureq: string | number, windowMs: n
 // `forwarding to X`), el mismo error se repite en cada reintento, y cada lender evaluado gasta dos
 // líneas (`Evaluando` + `Resultado`). Colapsando eso se pasa de 405 líneas a ~35 sin perder señal.
 
-/** Líneas ceremoniales: no aportan por sí solas, marcan que un paso arrancó. */
-const CEREMONY = /:\s*(entered|received input parameters|forwarding to|calling |returning )/i;
 /** `Clase::metodo` al inicio del mensaje — es el nombre del paso. */
 const STEP = /^([A-Za-z][\w\\]*?(?:Controller|Service|Repository|Orchestrator))::(\w+)/;
 

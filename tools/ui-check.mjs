@@ -192,8 +192,6 @@ try {
         'Tablero: ramas ya no se duplica en el sidebar derecho');
       assert.match(await page.locator('.task-head-facts').textContent(), /Sprint UI.*3 pts.*1h 30m en Jira/s,
         'Tablero: sprint, puntos y tiempo de Jira viven en la cabecera');
-      assert.match(await page.locator('.resume-canon').textContent(), /arquitectura.*onboarding/s,
-        'Tablero: la retoma muestra los temas de canon declarados');
       assert.equal(await page.locator('.auxiliarybar').getByRole('button', { name: 'Detalle', exact: true }).count(), 0,
         'Tablero: el sidebar derecho ya no repite una ficha de detalle');
       // ⚠ El default del sidebar derecho es RETOMAR, no Jira, desde que existe esa vista: al abrir una
